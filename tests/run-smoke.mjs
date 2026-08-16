@@ -29,6 +29,7 @@ import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
 import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
 import { clientWriteSweep5Guard } from './client-write-sweep-5.mjs';
+import { bugTriageGuard } from './bug-triage.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
 import { runAll as liveSettlementGuards, engineGuard as settleReport,
@@ -1688,6 +1689,29 @@ const run = async () => {
       console.log('\nClient write sweep batch 5 — the generator is fail-closed (a new table is born '
         + 'SELECT-only), zero client MAINTAIN pairs remain across tables and matviews, and check (4) '
         + 'now names and fails on a MAINTAIN grant permanently.');
+    }
+
+    /* ── Bug-report triage pipe ────────────────────────────────────────
+       The intake pipe is only half a loop if nothing can record what was DONE
+       about a report, so 2026-08-17-bug-triage.sql adds status/triage_note/
+       triaged_at and closes the one unrated write path: the direct-PostgREST
+       FALLBACK insert, which never crosses bug_report_submit's 6/hour + 20/day
+       cap. The guard REPRODUCES that flood first (45 inserts from one account,
+       all landing) — a guard never shown the door it closes is decoration —
+       then proves the backstop refuses the 46th while a second account and the
+       operator path are untouched. It also holds the line the brief for this
+       work would have crossed: submit() must reach sendSupabase ONLY behind
+       !relay.ok, because the relay ALREADY wrote the row, so an unconditional
+       "also insert" would file every report twice and defeat the idem key. */
+    const bugTriageProblems = await bugTriageGuard();
+    if (bugTriageProblems.length) {
+      console.log('\nBug-report triage pipe — FAILED:');
+      for (const p of bugTriageProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nBug-triage guard — the unrated fallback flood is reproduced then refused per-account, '
+        + 'resolved is derived from status, triaged_at cannot be backdated, reports stay append-only, '
+        + 'and the client still files each report exactly once.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

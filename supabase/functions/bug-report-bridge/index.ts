@@ -197,6 +197,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const shot = decodeScreenshot(body.screenshot);
 
+  // The screenshot itself is NOT stored (see the SCREENSHOTS note above and
+  // 2026-08-17-bug-triage.sql §(b) — it is already a Discord attachment, and a
+  // base64 copy would inflate the only database holding player progression,
+  // whose restores run off daily backups). But the automated triage loop reads
+  // the TABLE, not Discord, so it must know whether an image exists to go and
+  // look at. Recording that inside the state jsonb the RPC already receives
+  // keeps bug_report_submit at SIX arguments: `create or replace` keys on
+  // arity, so a seventh parameter would be a new overload beside the one pinned
+  // in tests/rpc-resolution.targets.json and mirrored by the A9
+  // bug_report_submit__ungated twin — PostgREST resolution would go ambiguous.
+  // Server-derived from a shot that actually DECODED, so it cannot be forged by
+  // a client sending the flag with no image.
+  state = { ...state, hasScreenshot: !!shot };
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
   let rpc: Record<string, unknown>;

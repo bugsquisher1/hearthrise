@@ -4,6 +4,17 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-08-16 · Art Director · P1 — a Recraft custom style transfers the seeds' PALETTE, not just their hand; `controls.colors` is the only override
+**Affected systems:** `tools/gen-art.mjs`, `docs/design/art-direction-picker.md` §0.10c, the whole ~600-image art batch.
+
+Three things established by execution (27 generations, $1.09), each of which was previously assumed the other way:
+
+1. **The style-seed cap is exactly 5.** `POST /v1/styles` with 7 files → `400 invalid_request_parameter: "Number of images must be between 0 and 5"`.
+2. **A custom style transfers the seed images' colour distribution, not merely their brushwork.** Seeding with true-greyscale copies of the approved pilots produced **monochrome output, 5/5** — composition and bans perfect, chroma absent. So a "palette-neutral anchor that teaches only the hand" is not a thing that can exist.
+3. **`controls: {colors:[{rgb:[r,g,b]}]}` is accepted alongside a custom `style_id`** — the docs do not promise this — **and it overrides the anchor's palette.** It is the only mechanism found that makes a named colour actually appear. It works on ITEMS (object fills the frame) and fails on MONSTER busts (the palette is spent as a backdrop wash in the empty canvas around the creature).
+
+**Required action:** never re-cut the wrapper to fix a colour or composition problem — **prompt text is not the lever, and this is now the third time that lesson has been paid for** (§0.2 blamed prompt length, §0.10b blamed the anchor, §0.10c was asked to blame seed spread). Ask which API request field is wrong first. `gen-art.mjs --colors <file.json>` is wired and refuses to run without `--style-id`.
+
 ## 2026-08-16 · QA Engineer · P2 — the b357 BANE primitive shipped with ZERO gate coverage. Mutation-proved.
 **Affected systems:** `src/core/bane.js`, `src/core/combat.js` `weaknessInfo` (the hand-merged function),
 `src/features/smoke-test.js`. **Fixed here** — regression test `BANE-1` added, suite 761 → 762.

@@ -71,6 +71,26 @@ if (STYLE && STYLE_ID) {
 }
 const NO_SNAP = argv.includes('--no-alpha-snap');
 
+// ── controls.colors — the lever that unblocked the programme (§0.10c) ────────
+// A Recraft custom style transfers the seed images' COLOUR DISTRIBUTION, not
+// just their hand: greyscale seeds produce greyscale art (proved 2026-08-16),
+// and the original colour anchors repainted a cold-iron sword salmon pink.
+// Prompt-named colour does NOT override an anchor. `controls.colors` DOES, and
+// it is accepted alongside `style_id`. Format: a JSON object keyed by the same
+// output path the manifest uses, valued with 2–4 [r,g,b] triples:
+//   { "weapons/iron_sword.png": [[150,156,162],[26,28,32],[132,88,48]] }
+// A file with no entry is generated without controls, exactly as before.
+// KNOWN LIMIT — items only. On MONSTER busts the palette is spent as a painted
+// backdrop wash behind the creature instead of as local colour, and an explicit
+// ban naming that exact artefact does not stop it. See §0.10c.
+const COLORS_FILE = flag('colors', '');
+const COLORS = COLORS_FILE ? JSON.parse(fs.readFileSync(COLORS_FILE, 'utf8')) : null;
+if (COLORS_FILE && !STYLE_ID) {
+  console.error('--colors is only meaningful with --style-id: without an anchor the bans');
+  console.error('collapse anyway and colour was never the failing half. See §0.10c.');
+  process.exit(2);
+}
+
 if (!manifestPath) {
   console.error('usage: node tools/gen-art.mjs <manifest.md|manifest.json> [--confirm] [--limit N]');
   process.exit(2);
@@ -163,6 +183,8 @@ async function generateOne(token, job) {
   // mutually exclusive at the API, so we only ever send the one we were given.
   if (STYLE_ID) body.style_id = STYLE_ID;
   else if (STYLE) { body.style = STYLE; if (SUBSTYLE) body.substyle = SUBSTYLE; }
+  const rgbs = COLORS?.[job.file];
+  if (rgbs?.length) body.controls = { colors: rgbs.map((c) => ({ rgb: c })) };
   const gen = await post(token, `${API}/images/generations`, body);
   const url = gen?.data?.[0]?.url;
   if (!url) throw new Error('no image url in response');
@@ -229,6 +251,16 @@ if (!STYLE_ID && !STYLE) {
   process.exit(2);
 }
 console.log(STYLE_ID ? `style: custom anchor ${STYLE_ID}` : `style: built-in ${STYLE}${SUBSTYLE ? '/' + SUBSTYLE : ''}`);
+if (COLORS) {
+  const have = jobs.filter((j) => COLORS[j.file]?.length).length;
+  console.log(`controls.colors: ${have}/${jobs.length} job(s) carry a palette from ${COLORS_FILE}`);
+  if (have < jobs.length) {
+    // Silent partial coverage is the dangerous case: the files WITHOUT a palette
+    // are exactly the ones the anchor will repaint in its seeds' colourway, and
+    // they are indistinguishable from the rest until a reviewer opens them.
+    console.log(`  ⚠ ${jobs.length - have} job(s) have NO palette and will take the anchor's own colours.`);
+  }
+}
 
 if (!CONFIRM) {
   for (const j of jobs) console.log(`  would generate ${j.file}  (${j.prompt.slice(0, 60)}...)`);

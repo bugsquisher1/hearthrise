@@ -236,8 +236,12 @@ that used to describe the brushwork are gone. `gen-art.mjs` should therefore alw
 > wrong about why. It is *not* that the brushwork words are missing — it is that sending **no style at
 > all makes Recraft default to `realistic_image`** and return photographs. And the ruling it supports
 > — "always run with `--style-id`" — did not survive contact with real generations: **both custom
-> anchors override the subject's named colours.** Read §0.10b before spending anything. The status of
-> the ~600-image batch is **NO-GO**.
+> anchors override the subject's named colours.** Read §0.10b before spending anything.
+>
+> **⚠ FURTHER SUPERSEDED 2026-08-16 by §0.10c.** §0.10b's two proposed unblocks BOTH fail (the seed cap
+> is 5, and a palette-neutral anchor produces palette-neutral art). The lever that works is
+> `controls.colors` sent alongside `style_id`. **Items: conditional GO. Monsters: still NO-GO —
+> generate those by hand in the web UI.** Read §0.10c; it is the current ruling.
 
 **On seeds — say the true thing.** Recraft's v3 generation endpoint exposes no seed parameter in the
 call `gen-art.mjs` makes, so **there is no reproducibility lever from seeding** and any claim of one
@@ -344,6 +348,113 @@ destroying the colour — which is exactly why neither "keep it" nor "drop it" i
 gitignored) in `v2-A` built-in/new-suffix, `v2-B` + `v2-B2` monster anchor, `v2-C` built-in/old-suffix,
 `v2-D` built-in items — alongside the earlier `nostyle`, `styletest`, `montest-plain`,
 `montest-anchor`.
+
+## 0.10c · RULING 2026-08-16 — both proposed unblocks FAIL; a third lever (`controls.colors`) unblocks ITEMS only
+
+**This section is the current ruling and it overrides §0.10 and §0.10b wherever they disagree.**
+Twenty-seven real generations, **$1.09 total spend**, every verdict below reached by opening the file
+at full size — never by a warm%/clear% proxy, which is the mistake §0.10b exists to record.
+
+### The seed cap is 5, established by execution
+
+`POST /v1/styles` with 7 files → `400 invalid_request_parameter: "Number of images must be between 0
+and 5"`. §0.10b's option (a) — *"rebuild both anchors with far more seeds"* — **is not available**, and
+would not have worked anyway: the monster anchor already used 4 seeds chosen for palette spread and
+bled regardless. More spread does not average the palettes; it **randomises which one wins**.
+
+### EXPERIMENT A — the palette-neutral anchor. NO-GO, and it disproves the whole idea.
+
+Method: the five/four approved pilots converted to **true greyscale** (luminance-weighted, alpha
+preserved) from the 1024 originals, then uploaded as seeds. Two new styles:
+`7c9e2365-7b5d-4fad-af12-dc72200b2e5e` (items) and `c239d83a-0ae1-4f1f-9e84-e6d3d57d522a` (monsters).
+Greyscale rather than "fewer seeds" or "conflicting seeds" because a 4-seed conflicting spread is
+*exactly what already failed*; removing chroma is the only version of "neutral" the anchor cannot
+sample its way out of.
+
+**All five generations came back MONOCHROME.** The Hellhound is a black-and-grey dog, the Winter Wolf a
+grey lion, `iron_sword` a grey sword with a **grey** leather grip, `iron_ore` a grey sphere with no
+rust streaks at all. Composition was flawless — isolated subject, no backdrop, no ground, no frame,
+no text, bans fully respected — and the hand is close to the pilot's. Only the colour is absent.
+
+**This is the finding, and it kills the premise.** A Recraft custom style transfers the seeds'
+**colour distribution**, not merely their hand. There is no "hand without palette" configuration:
+a palette-neutral anchor produces palette-neutral art, by construction. Do not re-propose it.
+
+### EXPERIMENT B — built-in style + hand words restored + bans hardened. NO-GO.
+
+The wrapper was re-cut to fit: prefixes trimmed, a 133-char HAND clause restored (brushwork,
+dry-brush, near-black contour accents, full value range, no airbrush) and the SUFFIX rewritten to ban
+the exact observed artefacts (*border, badge, tile, infographic*). Worst-case assembled prompt
+**975/1000** with the longest subject line in the batch, so it is batch-viable on length.
+
+It made no difference. Under `--style digital_illustration`:
+
+| file | what it is |
+|---|---|
+| `expB/weapons/iron_sword.png` | a **landscape painting** — snow mountains, a river, autumn trees — with a sword leaning across it, on a rounded-rectangle tile |
+| `expB/items/iron_ore.png` | a photoreal boulder on a **grass-and-dirt ground disc with a sapling** |
+| `expB/monsters/hellhound.png` | a doberman inside an **ornate corner border with a forged artist's signature**, opaque grey backdrop, one head |
+| `expB/monsters/winter_wolf.png` | a wolf in a **snowy pine forest with falling snow** and a torn-paper border |
+
+**Hardening a ban does not make Recraft v3 obey it, and naming the artefact does not help.** §0.10b's
+"prompt bans do not survive Recraft v3; only the anchor enforces composition" is now proved twice, the
+second time against a wrapper written specifically to break it. Neither is the HAND clause visible in
+the output. **Words are not the lever. Stop spending characters on them.**
+
+### THE ACTUAL UNBLOCK — `controls.colors`, accepted alongside `style_id`
+
+Experiment A localised the defect precisely: the anchor was right about *everything except chroma*.
+Chroma therefore needed a channel that is not prompt text. Recraft's generation endpoint takes
+`controls: { colors: [{rgb:[r,g,b]}, …] }` and — **verified, not assumed** — accepts it **together with
+a custom `style_id`**, which the docs do not promise.
+
+**It overrides the anchor's palette.** That is the property nothing else in this programme has had.
+
+| file | anchor | result |
+|---|---|---|
+| `expG/weapons/iron_sword.png` | colour item anchor `96fc6650-…` + `[[150,156,162],[26,28,32],[132,88,48]]` | **cold grey blade, warm leather grip, hard near-black contours, correct diagonal, isolated on empty ground.** The salmon-pink defect of §0.10b is gone. C-METAL satisfied through the anchor for the first time. |
+| `expG/items/iron_ore.png` | same | **neutral grey rock with rust-brown streaks.** The `iron_ore` polychrome-meat failure that started this entire programme is FIXED. |
+| `expF/weapons/bronze_sword.png` | same | ruddy **warm** bronze — so the ladder's other half survives too; iron and bronze read as different metals side by side at 48 px. |
+| `expF/armour/{iron_platebody,leather_body}.png`, `expF/food/wheat_bread.png` | greyscale item anchor | all correct-palette, single-object, no backdrop/ground/frame/text; `leather_body` is very good |
+
+### But it does NOT work on monsters, and that is a hard boundary
+
+On a creature bust the model spends the palette as a **painted colour wash in the empty canvas behind
+the creature** rather than as local colour on the body. `expC`, `expD`, `expE`, `expG` — four rounds,
+every one. `expE` was written specifically against it, banning *"painted wash, colour block, brush
+swatch, panel, halo"* by name and demanding *"pure empty white"*: the wash came back anyway, and the
+subject also broke the margin rule by bleeding off the canvas edge. Subject fidelity is separately
+bad — the two-headed Hellhound came back single-headed in **7/7** attempts across all experiments, and
+the Winter Wolf came back as an elk, a bison and a lynx.
+
+**Mechanism (best available reading): an item prompt fills the frame with one object, so the palette
+has nowhere to go except onto the object. A bust leaves canvas around it, and the palette fills it.**
+
+### Ruling
+
+1. **512-item batch — CONDITIONAL GO.** Config: **custom colour anchor `96fc6650-52e5-458f-855f-62da2757f065`,
+   the §0.1–0.9 wrapper unchanged (byte-for-byte — do not re-cut it again), plus a per-item
+   `controls.colors` palette of 2–4 RGB triples.** Now wired as `gen-art.mjs --colors <file.json>`,
+   which refuses to run without `--style-id`. **The condition is the palette file:** 512 items need
+   512 palettes, and they must be *derived* from the colour words already in each subject line via one
+   colour-name → RGB table (~40 names), not hand-authored 512 times. That table does not exist yet and
+   is the only remaining blocker. Then generate ONE seven-rung tier ladder and read it as a strip
+   (§0.9a) before funding the rest.
+2. **85-monster batch — NO-GO. Recommend Tyler generates these by hand in the Recraft WEB UI**, which
+   is the known-good path (it is where the four approved busts came from, at 1141–1665 characters that
+   the API will not accept). 85 images is a long but finite session, and monsters are the surface where
+   a wrong palette or a missing hook is most visible — arena portrait at 96 px, not a 34 px shop row.
+   Do not spend API money on monsters until someone finds a lever that beats the backdrop wash; three
+   have now been tried and failed.
+3. **The 13-image pilot remains the target and is still the only fully correct set.** The `expG` items
+   are in its family and are shippable; they are slightly lower-contrast and carry less rim light, and
+   `iron_ore` still reads as a sphere rather than a rough chunk — a **subject-line** fix (and a
+   silhouette-collision risk against `wheat_bread`, which it currently resembles at 48 px). That is the
+   Game Designer's line to sharpen, not a wrapper clause.
+
+**Spend on this ruling: $1.09** — 27 images at $0.04 plus 10 credits for two styles. Evidence is
+local-only (`assets/art-pilot/` is gitignored) in `expA`–`expG`, with two contact sheets at
+`assets/art-pilot/_sheet.png` and `_sheetG.png`.
 
 ## 0.10a · The two defective pilots, and which is which
 

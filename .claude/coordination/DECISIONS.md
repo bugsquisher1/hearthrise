@@ -4,6 +4,19 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-17 · COMBAT REWORK SPEC — APPROVED by Tyler ('i like the combat spec')
+**Decision (Tyler, direct).** docs/design/combat-screen-rework.md is approved: the two-screen
+architecture (THE WAR TABLE menu + THE FIGHT stage), Melvor-density-with-order as the bar, the
+preview state replacing the 'Awaiting a foe' void, nav-opens-live-fight, and the fold audit
+(27 KEEP / 3 MERGE incl. barn_rat→rat / 3 RENAME / 1 differentiate — aliases make progress-safe).
+Build order per the spec's own recommendation: cards 01-16 as the Phase-1 block (pure
+render/routing/CSS, no engine), folds ride along (one-line aliases, reversible), backdrops (17)
+DEFERRED until backdrop art exists (Tyler's web-UI session or later — no spend). The hidden-Flee
+P1 is absorbed by the fight screen's action bar. Ships through the RELEASE VISUAL GATE.
+**Date:** 2026-08-17.
+
+---
+
 ### 2026-08-17 · LIVE-PLAY SETTLEMENT is the next program — SUPERSEDES the feature order (Tyler, direct)
 **Decision (Tyler, after the b359 P0):** live play must be recorded server-side — "kill monster,
 kill is recorded on the server, exp is recorded on the server, and all loot gained is recorded on

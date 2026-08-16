@@ -20,9 +20,12 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=354';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=354';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=354';
+import { SKILLS_DEF } from '../data/skills.js?v=355';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=355';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=355';
+/* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
+   the surfaces that must render a pending balance rather than a number. */
+import { balanceMarkup } from '../net/balance.js?v=355';
 
 function deriveClass() {
   const G = window.G;
@@ -184,7 +187,8 @@ function buildHeroCard() {
   const name = esc(playerName());
   const cl = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
   const tl = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
-  const gold = G.gold || 0;
+  /* This card keeps its own `fmt` (K at 1,000); only the UNKNOWN case changes. */
+  const goldCell = balanceMarkup(G, 'gold', { format: fmt });
   const kills = G.stats?.kills || 0;
   // b127: actual fields are G.playerHp / G.playerMaxHp.
   const hp = (typeof G.playerHp === 'number') ? G.playerHp
@@ -212,7 +216,7 @@ function buildHeroCard() {
     <div class="cr-hero-stats">
       <div class="cr-hero-stat"><b>${cl}</b><span>Combat Lv</span></div>
       <div class="cr-hero-stat"><b>${tl}</b><span>Total Lv</span></div>
-      <div class="cr-hero-stat"><b>${fmt(gold)}</b><span>Gold</span></div>
+      <div class="cr-hero-stat"><b>${goldCell}</b><span>Gold</span></div>
       <div class="cr-hero-stat"><b>${fmt(kills)}</b><span>Kills</span></div>
     </div>
   </div>`;

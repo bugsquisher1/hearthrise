@@ -593,7 +593,18 @@ export function describeReplacement(G, res) {
   if (!G || typeof G !== 'object' || !res || typeof res !== 'object') return empty;
   const st = res.state || {};
   const srvGold = Number(st.gold);
-  const gold = Number.isFinite(srvGold) ? Math.max(0, (Number(G.gold) || 0) - srvGold) : 0;
+  /* ⚠ AN UNKNOWN LOCAL BALANCE IS NOT A LOSS OF ZERO — IT IS NO LOSS AT ALL,
+     and the distinction is worth stating because the arithmetic happens to be
+     the same and the REASON is not. This function asks "would applying the
+     envelope take anything away from what is here". If `gold` is absent (the
+     post-flip state between a load and the first envelope) there is nothing
+     here to take, so the answer is genuinely zero rather than accidentally so.
+     Deliberately NOT routed through the balance accessor: this module is
+     imported BY record.js's dependency chain and must not depend back on it,
+     and the local read here is a comparison against a save, not a display. */
+  const localGold = Number(G.gold);
+  const gold = (Number.isFinite(srvGold) && Number.isFinite(localGold))
+    ? Math.max(0, localGold - srvGold) : 0;
 
   let skillXp = 0;
   const skills = [];

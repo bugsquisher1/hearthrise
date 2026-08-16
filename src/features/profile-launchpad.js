@@ -66,10 +66,17 @@
     // keeping yesterday's around isn't useful and bloats the save.
     var stats = (window.G.stats || {});
     var inv = (window.G.inventory || {});
+    /* ⚠ A MIDNIGHT BASELINE MUST NOT BE TAKEN AGAINST AN UNKNOWN BALANCE.
+       `window.G.gold | 0` recorded ZERO for a client that had simply not been
+       told the balance yet, and `getTodayDelta` below then reports the FIRST
+       ENVELOPE'S ENTIRE FORTUNE as "earned today". Two surfaces read that
+       number. So the snapshot is not taken at all until the figure exists —
+       it is re-attempted on the next call, which is every render. */
+    if(typeof window.balKnown === 'function' && !window.balKnown('gold')) return null;
     var fresh = {
       dayKey: key,
       xpTotal:       totalXp(),
-      gold:          window.G.gold | 0,
+      gold:          (typeof window.balOr === 'function') ? window.balOr('gold', 0) : (window.G.gold | 0),
       kills:         stats.kills | 0,
       gathered:      stats.gathered | 0,
       harvested:     stats.harvested | 0,
@@ -98,7 +105,10 @@
     var inv = (window.G.inventory || {});
     return {
       xpGained:     Math.max(0, totalXp()        - snap.xpTotal),
-      goldEarned:   Math.max(0, (window.G.gold|0) - snap.gold),
+      /* No figure ⇒ no delta. `0` is "nothing to report", which is what every
+         consumer of this already renders as an absent line. */
+      goldEarned:   (typeof window.balNum === 'function' && window.balNum('gold') === null)
+        ? 0 : Math.max(0, ((typeof window.balOr === 'function' ? window.balOr('gold', 0) : (window.G.gold|0))) - snap.gold),
       kills:        Math.max(0, (stats.kills|0)   - snap.kills),
       gathered:     Math.max(0, (stats.gathered|0)- snap.gathered),
       harvested:    Math.max(0, (stats.harvested|0)-snap.harvested),

@@ -71,7 +71,13 @@
       charSlot: charSlot,
       activeSkill: window.G ? window.G.activeSkill : null,
       activeMonster: window.G ? window.G.activeMonster : null,
-      gold: window.G ? window.G.gold : null,
+      /* A DIAGNOSTIC, so `null` is the honest answer for a balance the client
+         has not been told — and it is a different fact from `0`, which is what
+         a raw read would have reported once the server owns the field.
+         Guarded: this file loads before legacy.js publishes the accessor. */
+      gold: (typeof window.balOr === 'function')
+        ? window.balOr('gold', null)
+        : (window.G ? window.G.gold : null),
       kills: window.G && window.G.stats ? window.G.stats.kills : null,
       ts: Date.now(),
     };

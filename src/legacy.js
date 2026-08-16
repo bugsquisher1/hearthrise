@@ -676,6 +676,15 @@ let G={
    before anything mutates G — so it is the values a brand new character actually
    gets, not a restatement of them. Smoke test B338-1 compares it to
    src/data/start-kit.js and fails on any divergence.
+
+   ⚠ b356 — DELIBERATELY NOT ROUTED THROUGH THE BALANCE ACCESSOR, and this is
+     the one place in the file that reads `G.gold` raw on purpose. This is not a
+     read of the PLAYER'S balance; it is a read of the fresh-G LITERAL two lines
+     above, taken before boot and before any load, and its whole job is to state
+     what the literal says so a guard can compare it to the SQL. An accessor —
+     which is allowed to answer UNKNOWN — would make the starting kit depend on
+     the state of a network call. The value here can never be UNKNOWN: it is
+     assigned in the object initialiser directly above.
    ════════════════════════════════════════════════ */
 window.__FRESH_START = Object.freeze({
   gold: G.gold, gems: G.gems,
@@ -1701,7 +1710,7 @@ function processOffline(){
      whole absence; only the window pays") instead of a consequence of it. */
   const _unpaidHeadMs=Math.max(0,_win.fromMs-_watermark);
   const _unpaidTailMs=Math.max(0,_now-_win.toMs);
-  const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
+  const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=balNum('gold'),beforeKills=G.stats?.kills||0;
   let combatSummary = null;
   /* ── b345: HOW MUCH OF THE ABSENCE ACTUALLY PAID ────────────────────────
      `hrs` is how long the player was GONE. It has never been how long their
@@ -1870,7 +1879,13 @@ function processOffline(){
 
   const gainedItems=Object.keys(G.inventory).reduce((s,id)=>s+Math.max(0,(G.inventory[id]||0)-(beforeInv[id]||0)),0);
   const gainedXp=Object.keys(G.skills).reduce((s,sk)=>s+Math.max(0,(G.skills[sk]||0)-(beforeXp[sk]||0)),0);
-  const gainedGold=(G.gold||0)-beforeGold;
+  /* The away summary's gold line is a DELTA across the window. If either end
+     is UNKNOWN there is no delta to state, and reporting `0` would tell a
+     player their night paid nothing — the exact silent-penalty sin the b326
+     away-honesty pass was written to end. 0 here means "not stated", and every
+     surface that prints it already gates on `> 0`. */
+  const _goldAfter=balNum('gold');
+  const gainedGold=(beforeGold===null||_goldAfter===null)?0:(_goldAfter-beforeGold);
   const gainedKills=(G.stats?.kills||0)-beforeKills;
   /* b225: burns are part of what happened while you were away, so they belong
      in the summary object and not only in a toast the queue may coalesce. The
@@ -2134,7 +2149,7 @@ const NetClient=(()=>{
       if(path==='/save/sync')return {ok:true,syncedAt:Date.now()};
       if(path.startsWith('/leaderboard')){
         const mode=new URL('http://x'+path).searchParams.get('mode')||'total';
-        const me={id:'me',displayName:G.playerName+' (You)',total:getTotalLevel(),combat:getCombatLevel(),gold:G.gold,you:true};
+        const me={id:'me',displayName:G.playerName+' (You)',total:getTotalLevel(),combat:getCombatLevel(),gold:balOr('gold',0),you:true};
         const list=[...this._users,me].sort((a,b)=>(b[mode]||0)-(a[mode]||0)).slice(0,15)
           .map((u,i)=>({...u,rank:i+1}));
         return {ok:true,mode,list};
@@ -2972,7 +2987,7 @@ function notifyBankFull(){
 function buyBankSpaceGold(){
   if(typeof G==='undefined')return false;
   var cost=bankGoldCost();
-  if((G.gold||0)<cost){ if(typeof notify==='function')notify('Not enough gold','kill'); return false; }
+  if(!balCanAfford(cost,'gold')){ if(typeof notify==='function')notify(balShortfall(cost,'gold'),'kill'); return false; }
   G.gold-=cost;
   G.bank=G.bank||{}; G.bank.goldBuys=(G.bank.goldBuys||0)+1;
   if(typeof notify==='function')notify('Bank expanded +'+BANK_SPACE.gold.slots+' slots','levelup');
@@ -2985,7 +3000,12 @@ function buyBankSpaceGold(){
 function buyBankSpaceGem(){
   if(typeof G==='undefined')return false;
   var cost=BANK_SPACE.gem.cost;
-  if((G.gems||0)<cost){ if(typeof notify==='function')notify('Not enough gems. Tap "Get Gems".','kill'); return false; }
+  if(!balCanAfford(cost,'gems')){
+    if(typeof notify==='function'){
+      notify(balKnown('gems') ? 'Not enough gems. Tap "Get Gems".' : balShortfall(cost,'gems'),'kill');
+    }
+    return false;
+  }
   G.gems-=cost;
   G.bank=G.bank||{}; G.bank.gemBuys=(G.bank.gemBuys||0)+1;
   if(typeof notify==='function')notify('Bank expanded +'+BANK_SPACE.gem.slots+' slots','levelup');
@@ -4749,8 +4769,14 @@ function refreshAll(){
 }
 
 function updateTopbar(){
-  document.getElementById('top-gold').textContent=G.gold.toLocaleString();
-  document.getElementById('top-gems').textContent=(G.gems||0).toLocaleString();
+  /* ⚠ THE SITE THAT HELD THE FLIP BACK. `G.gold.toLocaleString()` here is the
+     line quoted in record.js's b353 block and in B353-3: with `gold` on
+     SERVER_OF_RECORD it threw on the first boot and the engine never started.
+     `balPaint` carries the pending state on the element itself, so an unknown
+     balance is a quiet em dash in the numeral's slot rather than a crash, a
+     zero, or the word "undefined". */
+  balPaint(document.getElementById('top-gold'), 'gold');
+  balPaint(document.getElementById('top-gems'), 'gems');
   document.getElementById('top-total').textContent=getTotalLevel();
   document.getElementById('top-combat').textContent=getCombatLevel();
   document.getElementById('player-name').textContent=G.playerName;
@@ -4827,7 +4853,7 @@ function renderProfile(){
     <div class="kpi-row">
       <div class="kpi"><b>${cl}</b><span>Combat</span></div>
       <div class="kpi"><b>${tl}</b><span>Total Level</span></div>
-      <div class="kpi"><b>${G.gold.toLocaleString()}</b><span>Gold</span></div>
+      <div class="kpi"><b>${balMarkup('gold')}</b><span>Gold</span></div>
       <div class="kpi"><b>${G.stats.kills||0}</b><span>Kills</span></div>
     </div>`;
 
@@ -5504,7 +5530,7 @@ function renderHouse(){
       el.innerHTML=Object.entries(ROOMS).map(([id,r])=>{
         const lv=G.rooms[id]||0;
         const next=r.levels[lv];
-        const canAfford=next?Object.entries(next.cost).every(([k,v])=>k==='gold'?G.gold>=v:(G.inventory[k]||0)>=v):false;
+        const canAfford=next?canPayCost(next.cost):false;
         return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, r.icon, '_roomIcon')}</span><div class="info"><b>${r.name} ${lv?'· Lv '+lv:''}</b><span>${next?next.bonus+' &nbsp;'+Object.entries(next.cost).map(([k,v])=>`${_costPart(k, v)}`).join('&nbsp; '):'MAX'}</span></div>${next?`<button class="btn btn-sm ${canAfford?'btn-primary':''}" ${canAfford?'':'disabled'} onclick="upgradeRoom('${id}')">${lv?'Upgrade':'Build'}</button>`:'<span class="tag">MAX</span>'}</div>`;
       }).join('');
     }
@@ -5538,7 +5564,7 @@ function renderHouse(){
     el.innerHTML = plotCard + Object.entries(PLOT_BUILDINGS).map(([id,b])=>{
       const have=G.plotBuildings.filter(x=>x.id===id).length;
       const at=have>=b.max;
-      const can=Object.entries(b.cost).every(([k,v])=>k==='gold'?G.gold>=v:(G.inventory[k]||0)>=v);
+      const can=canPayCost(b.cost);
       return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, b.icon, '_plotBuildingIcon')}</span><div class="info"><b>${b.name} ${have?'('+have+'/'+b.max+')':''}</b><span>${b.desc} &nbsp;${Object.entries(b.cost).map(([k,v])=>`${_costPart(k, v)}`).join('&nbsp; ')}</span></div><button class="btn btn-sm ${at?'':'btn-primary'}" ${at||!can?'disabled':''} onclick="buildPlot('${id}')">${at?'Max':'Build'}</button></div>`;
     }).join('');
   } else {
@@ -5559,13 +5585,31 @@ function renderHouse(){
     </div>`;
 }
 function setHouseTab(t){houseTab=t;document.querySelectorAll('[data-house]').forEach(c=>c.classList.toggle('active',c.dataset.house===t));renderHouse();}
+/* ONE COST TEST, and it used to be three copies of the same expression —
+   `Object.entries(cost).every(([k,v])=>k==='gold'?G.gold>=v:…)` appeared in the
+   room grid, the plot-building grid and (inverted) here. Three copies is three
+   chances to teach only two of them about an UNKNOWN balance, which is the b348
+   shape. FAIL-CLOSED on an unknown gold balance: a Build button that lights up
+   against a number nobody has read is a purchase the server never agreed to. */
+function canPayCost(cost){
+  return Object.entries(cost||{}).every(([k,v])=>
+    k==='gold' ? balCanAfford(v,'gold')
+    : k==='gems' ? balCanAfford(v,'gems')
+    : (G.inventory[k]||0)>=v);
+}
 /* b213 QA: name exactly what's missing instead of a bare "Not enough
    resources" — players couldn't tell which material was short. Returns a
-   human list ("12 gold, Normal Log ×17") or null when the cost is covered. */
+   human list ("12 gold, Normal Log ×17") or null when the cost is covered.
+   An UNKNOWN balance is reported as such rather than as a shortfall: telling a
+   player they are 12 gold short of a number the client has not been told is a
+   bug report waiting to happen, and they would be right to file it. */
 function describeMissingCost(cost){
   const parts=[];
   for(const [k,v] of Object.entries(cost||{})){
-    const have=k==='gold'?G.gold:(G.inventory[k]||0);
+    if(k==='gold'||k==='gems'){
+      if(!balKnown(k)){ parts.push(k+' balance not loaded yet'); continue; }
+    }
+    const have=k==='gold'?balNum('gold'):k==='gems'?balNum('gems'):(G.inventory[k]||0);
     if(have<v){
       parts.push(k==='gold'?((v-have)+' gold'):(((ITEMS[k]&&ITEMS[k].n)||k)+' ×'+(v-have)));
     }
@@ -5687,11 +5731,11 @@ function setTheme(id){if(!G.ownedThemes.includes(id))return;G.houseTheme=id;noti
 function buyTheme(id){
   const t=HOUSE_THEMES.find(x=>x.id===id);if(!t)return;
   if(t.currency==='gem'){
-    if((G.gems||0)<t.price){notify('Need more 💎. Open the Store.','kill');return;}
+    if(!balCanAfford(t.price,'gems')){notify(balKnown('gems')?'Need more 💎. Open the Store.':balShortfall(t.price,'gems'),'kill');return;}
     G.gems-=t.price;G.ownedThemes.push(id);G.houseTheme=id;
     notify(`${t.name} unlocked`,'levelup');saveLocal();updateTopbar();renderHouse();
   } else {
-    if(G.gold<t.price){notify('Not enough gold','kill');return;}
+    if(!balCanAfford(t.price,'gold')){notify(balShortfall(t.price,'gold'),'kill');return;}
     G.gold-=t.price;G.ownedThemes.push(id);G.houseTheme=id;
     notify(`${t.name} unlocked`,'levelup');saveLocal();updateTopbar();renderHouse();
   }
@@ -6051,7 +6095,7 @@ function renderShop(){
   const el=document.getElementById('shop-panel');if(!el)return;
   let offers='';
   if(shopTab==='seeds'){
-    offers=SEED_SHOP.map(s=>{const d=ITEMS[s.id];const can=G.gold>=s.cost;return `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n} ×${s.qty}</b><span>Have: ${G.inventory[s.id]||0}</span></div><span class="price">${_gp(s.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyShopItem('${s.id}',${s.qty},${s.cost})">Buy</button></div>`;}).join('');
+    offers=SEED_SHOP.map(s=>{const d=ITEMS[s.id];const can=balCanAfford(s.cost,'gold');return `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n} ×${s.qty}</b><span>Have: ${G.inventory[s.id]||0}</span></div><span class="price">${_gp(s.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyShopItem('${s.id}',${s.qty},${s.cost})">Buy</button></div>`;}).join('');
   } else if(shopTab==='equip'){
     /* b341 — THE SHOP SAYS WHAT YOU CAN WEAR.
        An Iron Sword rendered as "Iron Sword · +7 ATK · +6 STR · 500 · Buy" and
@@ -6074,7 +6118,7 @@ function renderShop(){
        (`.mr-lock` is the same lock chip the monster list uses for "CL 15", so
        "you cannot use this yet" reads identically on both screens.) */
     offers=EQUIP_SHOP.map(s=>{
-      const d=ITEMS[s.id];const can=G.gold>=s.cost;
+      const d=ITEMS[s.id];const can=balCanAfford(s.cost,'gold');
       const stats=[d.atkB?`+${d.atkB} ATK`:'',d.defB?`+${d.defB} DEF`:'',d.strB?`+${d.strB} STR`:''].filter(Boolean).join(' · ');
       const req=(typeof gearWieldReq==='function')?gearWieldReq(d):null;
       const reqName=req?(((typeof SKILLS_DEF!=='undefined'&&SKILLS_DEF[req.skill]&&SKILLS_DEF[req.skill].name)||req.skill)):'';
@@ -6101,13 +6145,13 @@ function renderShop(){
       {id:'pet_phoenix',name:'Phoenix Pet',glyph:'uiFire',price:1200,desc:'Idle phoenix companion (cosmetic).'},
       {id:'emote_pack',name:'Emote Pack',glyph:'uiChat',price:300,desc:'12 chat emotes for clan chat.'},
     ];
-    offers=cosmetics.map(c=>{const owned=G.ownedCosmetics.includes(c.id);const can=(G.gems||0)>=c.price;const art=(window.HR&&window.HR.icon)?(window.HR.icon(c.glyph,30,'--gem')||''):'';return `<div class="shop-row"><span class="si is-prem">${art}</span><div class="info"><b>${c.name}</b><span>${c.desc}</span></div><span class="price gem">${_gem(c.price)}</span>${owned?'<button class="btn btn-sm" disabled>Owned</button>':`<button class="btn btn-sm ${can?'btn-gem':''}" ${can?'':'disabled'} onclick="buyCosmetic('${c.id}',${c.price})">Buy</button>`}</div>`;}).join('')+`<div class="sc-note">Need gems? <button class="btn btn-sm btn-gem" onclick="IAP.buy('gems_starter')">Get Gems</button></div>`;
+    offers=cosmetics.map(c=>{const owned=G.ownedCosmetics.includes(c.id);const can=balCanAfford(c.price,'gems');const art=(window.HR&&window.HR.icon)?(window.HR.icon(c.glyph,30,'--gem')||''):'';return `<div class="shop-row"><span class="si is-prem">${art}</span><div class="info"><b>${c.name}</b><span>${c.desc}</span></div><span class="price gem">${_gem(c.price)}</span>${owned?'<button class="btn btn-sm" disabled>Owned</button>':`<button class="btn btn-sm ${can?'btn-gem':''}" ${can?'':'disabled'} onclick="buyCosmetic('${c.id}',${c.price})">Buy</button>`}</div>`;}).join('')+`<div class="sc-note">Need gems? <button class="btn btn-sm btn-gem" onclick="IAP.buy('gems_starter')">Get Gems</button></div>`;
   }
   /* b217: gold-purchased trait upgrades — appended below the tab list so
      they're reachable from the in-game shop. Reuses the existing shop-row
      component (no new styles). */
   const _traitRows=Object.entries(TRAITS).map(([id,t])=>{
-    const owned=hasTrait(id);const can=t.currency==='marks'?((G.bountyHunter&&G.bountyHunter.marks||0)>=t.cost):((G.gold||0)>=t.cost);
+    const owned=hasTrait(id);const can=t.currency==='marks'?((G.bountyHunter&&G.bountyHunter.marks||0)>=t.cost):balCanAfford(t.cost,'gold');
     const art=(window.HR&&window.HR.icon)?window.HR.icon(t.glyph,30,'currentColor'):'';
     return `<div class="shop-row"><span class="si">${art}</span><div class="info"><b>${t.name}</b><span>${t.desc}</span></div>${owned?'<button class="btn btn-sm" disabled>Unlocked</button>':`<span class="price">${t.currency==='marks'?t.cost+' Marks':_gp(t.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyTrait('${id}')">Buy</button>`}</div>`;
   }).join('');
@@ -6132,7 +6176,7 @@ function renderShop(){
 }
 function setShopTab(t){shopTab=t;document.querySelectorAll('[data-shop]').forEach(c=>c.classList.toggle('active',c.dataset.shop===t));renderShop();}
 function buyShopItem(id,qty,cost){
-  if(G.gold<cost){notify('Not enough gold','kill');return;}
+  if(!balCanAfford(cost,'gold')){notify(balShortfall(cost,'gold'),'kill');return;}
   /* The key is generated BEFORE the local payment so the prediction and the
      request carry one identity — that is what lets the envelope retire exactly
      this gesture's prediction and no other. */
@@ -6146,7 +6190,7 @@ function buyShopItem(id,qty,cost){
   if(_k&&window.HearthriseGold){const _p=window.HearthriseGold.buyShop(id,qty,cost,_k);if(_p&&_p.catch)_p.catch(()=>{});}
   notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
 }
-function buyCosmetic(id,price){if((G.gems||0)<price){notify('Not enough gems. Tap "Get Gems".','kill');return;}G.gems-=price;G.ownedCosmetics.push(id);notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();}
+function buyCosmetic(id,price){if(!balCanAfford(price,'gems')){notify(balKnown('gems')?'Not enough gems. Tap "Get Gems".':balShortfall(price,'gems'),'kill');return;}G.gems-=price;G.ownedCosmetics.push(id);notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();}
 /* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
    cost (escalating) and the flat gem deal side-by-side so the better value of
    gems is legible. Reuses the .qm-overlay backdrop + .btn classes — no new CSS. */
@@ -6154,7 +6198,7 @@ function closeBankModal(){ var o=document.getElementById('bank-modal-overlay'); 
 function _bankRowsHTML(){
   var used=bankUsed(), cap=bankCap();
   var gCost=bankGoldCost(), gemCost=BANK_SPACE.gem.cost;
-  var canG=(G.gold||0)>=gCost, canGem=(G.gems||0)>=gemCost;
+  var canG=balCanAfford(gCost,'gold'), canGem=balCanAfford(gemCost,'gems');
   var gp=(typeof _gp==='function')?_gp:function(n){return n.toLocaleString()+' gold';};
   var gem=(typeof _gem==='function')?_gem:function(n){return n.toLocaleString()+' gems';};
   var gemPerSlot=(gemCost/BANK_SPACE.gem.slots), goldPerSlot=(gCost/BANK_SPACE.gold.slots);
@@ -6214,7 +6258,7 @@ function buyTrait(id){
     if((bh.marks||0)<t.cost){notify('Not enough Bounty Marks — hunt bounties to earn them','kill');return;}
     bh.marks-=t.cost;
   } else {
-    if((G.gold||0)<t.cost){notify('Not enough gold','kill');return;}
+    if(!balCanAfford(t.cost,'gold')){notify(balShortfall(t.cost,'gold'),'kill');return;}
     G.gold-=t.cost;
   }
   G.traits=G.traits||{};
@@ -7168,6 +7212,112 @@ function closeInvDetail(){
    A price that differs by which button you pressed is not a price.
    ════════════════════════════════════════════════════════════════ */
 /* ══════════════════════════════════════════════════════════════════════
+   THE ONE PLACE THIS FILE **READS** A BALANCE.  (the UNKNOWN sweep)
+   ══════════════════════════════════════════════════════════════════════
+   `goldSettle` below is the one place this file MOVES gold. These are its
+   mirror image on the read side, and they exist for the reason record.js's
+   b353 block records: `G.gold.toLocaleString()` in `updateTopbar` was one of
+   a few hundred raw balance reads with no UNKNOWN case, and arming the
+   registry turned it into a client that did not boot.
+
+   src/net/balance.js holds the contract; these are the classic-script door
+   to it (legacy.js cannot import ESM). THE FALLBACK IS DELIBERATELY NOT A
+   THROW, unlike `goldSettleCurrency`'s — and the asymmetry is the point:
+
+     · a WRITE with the seam missing would pay a client-authored number
+       while the server owns the balance, which must fail loud;
+     · a READ with the module missing must never take the screen down. It
+       re-derives the same three-state answer inline (present, finite,
+       non-negative ⇒ known) and renders the same em dash otherwise.
+
+   Every helper takes a FIELD NAME rather than a value, so no call site can
+   accidentally pass it a number it already coerced with `||0` — which was
+   the shape the whole sweep had to remove. */
+function _balMod(){ return (typeof window!=='undefined' && window.HearthriseBalance) || null; }
+/** The fallback contract, inline. Same three states, same rules. */
+function _balRawNum(field){
+  var g = (typeof G!=='undefined') ? G : null;
+  if(!g || typeof g!=='object') return null;
+  var v = g[field];
+  if(v===null || v===undefined) return null;
+  var n = Number(v);
+  if(!isFinite(n) || n<0) return null;
+  return Math.floor(n);
+}
+/** The pending glyph, as a FUNCTION rather than a `var`: legacy.js is a classic
+ *  script, so a `var` initialised at line 7,200 reads `undefined` from anything
+ *  that runs earlier — and "undefined" in the gold slot is the exact failure
+ *  this sweep exists to remove. A hoisted declaration cannot be wrong. */
+function balUnknownText(){
+  var M=_balMod();
+  return (M && M.UNKNOWN_TEXT) || '—';
+}
+/** ARITHMETIC form — a number, or null for UNKNOWN. */
+function balNum(field){
+  var M=_balMod();
+  return M ? M.balanceNum(G, field) : _balRawNum(field);
+}
+/** EXPLICIT-FALLBACK form — for reads that are genuinely not authority
+ *  (a session tally, a diagnostic payload). Greppable, unlike `||0`. */
+function balOr(field, fallback){
+  var M=_balMod();
+  if(M) return M.balanceOr(G, field, fallback);
+  var n=_balRawNum(field);
+  return n===null ? (fallback===undefined?0:fallback) : n;
+}
+/** DISPLAY form — a string, always. Never "NaN", never "undefined". */
+function balText(field, opts){
+  var M=_balMod();
+  if(M) return M.fmtBalance(G, field, opts);
+  var n=_balRawNum(field);
+  return n===null ? balUnknownText() : n.toLocaleString();
+}
+/** DISPLAY form as MARKUP — for the template-string call sites, which cannot
+ *  carry the pending state on a node. */
+function balMarkup(field, opts){
+  var M=_balMod();
+  if(M) return M.balanceMarkup(G, field, opts);
+  var n=_balRawNum(field);
+  return n===null
+    ? '<span class="bal-pending" role="status">'+balUnknownText()+'</span>'
+    : n.toLocaleString();
+}
+/** Is there a number at all? The tell a call site needs when it wants to keep
+ *  its own copy that is genuinely short of gold. */
+function balKnown(field){
+  var M=_balMod();
+  return M ? M.isBalanceKnown(G, field) : (_balRawNum(field)!==null);
+}
+/** DECISION form. FAIL-CLOSED: an unknown balance affords nothing. */
+function balCanAfford(cost, field){
+  var M=_balMod();
+  if(M) return M.canAfford(G, cost, field||'gold');
+  var n=_balRawNum(field||'gold');
+  var c=Number(cost);
+  return n!==null && isFinite(c) && n>=c;
+}
+/** The honest refusal copy — "Not enough gold" is a LIE when the client has
+ *  simply not been told the balance yet, and it is the shape of bug report a
+ *  player would be right to file. */
+function balShortfall(cost, field){
+  var M=_balMod();
+  if(M) return M.shortfallMessage(G, cost, field||'gold');
+  return (field==='gems') ? 'Not enough gems' : 'Not enough gold';
+}
+/** Paint a balance into an element, carrying the pending state as a class. */
+function balPaint(el, field, opts){
+  var M=_balMod();
+  if(M) return M.paintBalance(el, G, field, opts);
+  if(!el) return el;
+  el.textContent = balText(field, opts);
+  if(el.classList) el.classList.toggle('bal-pending', _balRawNum(field)===null);
+  return el;
+}
+window.balNum=balNum; window.balOr=balOr; window.balText=balText; window.balKnown=balKnown;
+window.balMarkup=balMarkup; window.balCanAfford=balCanAfford;
+window.balShortfall=balShortfall; window.balPaint=balPaint;
+
+/* ══════════════════════════════════════════════════════════════════════
    THE ONE PLACE THIS FILE MOVES GOLD FOR A WIRED GESTURE.
    ══════════════════════════════════════════════════════════════════════
    Every shop purchase and every vendor sale used to carry its own
@@ -7326,7 +7476,7 @@ function repurchase(idx){
   const b = G.buyback[idx]; if(!b) return;
   const it = ITEMS[b.id]; if(!it){ G.buyback.splice(idx,1); return; }
   const cost = b.unit * b.qty;
-  if((G.gold||0) < cost){ notify('Not enough gold to buy it back','kill'); return; }
+  if(!balCanAfford(cost,'gold')){ notify(balKnown('gold')?'Not enough gold to buy it back':balShortfall(cost,'gold'),'kill'); return; }
   G.gold -= cost;
   addItem(b.id, b.qty);
   G.buyback.splice(idx, 1);
@@ -7349,7 +7499,7 @@ function renderBuyback(){
   body.innerHTML = list.map((b,i)=>{
     const it = ITEMS[b.id]; if(!it) return '';
     const cost = b.unit * b.qty;
-    const afford = (G.gold||0) >= cost;
+    const afford = balCanAfford(cost,'gold');
     const icon = (window._itemPath && window._itemPath[b.id]) ? `<img src="${window._itemPath[b.id]}" alt=""/>` : `<span class="bb-emoji">${it.icon||'❓'}</span>`;
     return `<div class="bb-row">
       <span class="bb-ic">${icon}</span>
@@ -9413,9 +9563,14 @@ console.log('Active Effects panel: restored');
 const _origKillMonsterStats = window.killMonster;
 if(typeof _origKillMonsterStats === 'function'){
   window.killMonster = function(m){
-    const goldBefore = G.gold || 0;
+    /* A TALLY, NOT AUTHORITY — but a tally taken across an UNKNOWN balance is
+       not a small number, it is a made-up one. If either end of the window is
+       unknown the delta is not computable and nothing is credited, rather than
+       `0 - 0` quietly recording a kill that paid nothing. */
+    const goldBefore = balNum('gold');
     const r = _origKillMonsterStats.apply(this, arguments);
-    const gained = (G.gold || 0) - goldBefore;
+    const goldAfter = balNum('gold');
+    const gained = (goldBefore===null || goldAfter===null) ? 0 : (goldAfter - goldBefore);
     if(gained > 0) G.stats.totalGoldEarned = (G.stats.totalGoldEarned||0) + gained;
     if(m && m.family){ G.stats.killsByFamily[m.family] = (G.stats.killsByFamily[m.family]||0) + 1; }
     if(m && m.tier){ G.stats.killsByTier[m.tier] = (G.stats.killsByTier[m.tier]||0) + 1; }
@@ -9520,8 +9675,8 @@ function openLifetimeStats(){
       <div class="stats-list">
         ${row('Total gold earned', (s.totalGoldEarned||0).toLocaleString()+'🪙')}
         ${row('Total gold spent', (s.totalGoldSpent||0).toLocaleString()+'🪙')}
-        ${row('Current gold', (G.gold||0).toLocaleString()+'🪙')}
-        ${row('Current gems', (G.gems||0).toLocaleString()+'💎')}
+        ${row('Current gold', balText('gold')+'🪙')}
+        ${row('Current gems', balText('gems')+'💎')}
       </div>
     </div>
 
@@ -10287,7 +10442,7 @@ window.renderCharacter = function(){
         '<div class="char-meta">' +
           '<div class="stat"><b>' + combatLvl + '</b><span>Combat Level</span></div>' +
           '<div class="stat"><b>' + totalLvl + '</b><span>Total Level</span></div>' +
-          '<div class="stat"><b>' + (G.gold||0).toLocaleString() + '</b><span>Gold</span></div>' +
+          '<div class="stat"><b>' + balMarkup('gold') + '</b><span>Gold</span></div>' +
           '<div class="stat"><b>' + (G.stats?.kills||0) + '</b><span>Kills</span></div>' +
         '</div>' +
       '</div>' +
@@ -10462,7 +10617,7 @@ function maybeShowWelcome(){
   }catch(e){}
   if(G.streak.count > 0) rows.push({g:'uiFlame', t: 'Daily streak', v: G.streak.count + ' day' + (G.streak.count===1?'':'s')});
   rows.push({g:'uiTarget', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
-  rows.push({g:'gold', t: 'Gold in pocket', v: (G.gold||0).toLocaleString()});
+  rows.push({g:'gold', t: 'Gold in pocket', v: balText('gold')});
   /* b342: the "bad" tone is now an EXPLICIT flag. It used to key off `r.g`
      (has-a-glyph), which was equivalent only while the death row was the only
      glyph row in the list — the moment the others stopped being emoji, every
@@ -10569,7 +10724,7 @@ function readSource(path){
      copies of this maths existed and the goal read a net-balance one. */
   if(path === '_dailyGoldDelta') return (typeof window._dailyGoldDelta === 'function')
     ? window._dailyGoldDelta()
-    : Math.max(0, (G.gold||0) - ((G.dailyGoldStart||{}).gold||0));
+    : Math.max(0, balOr('gold', 0) - ((G.dailyGoldStart||{}).gold||0));
   var parts = path.split('.');
   var cur = G;
   for(var i = 0; i < parts.length; i++){
@@ -10880,7 +11035,7 @@ function readPath(path){
     /* b292: delegate to the single income definition (see _dailyGoldDelta). */
     return (typeof window._dailyGoldDelta === 'function')
       ? window._dailyGoldDelta()
-      : Math.max(0, (G.gold||0) - ((G.dailyGoldStart||{}).gold||0));
+      : Math.max(0, balOr('gold', 0) - ((G.dailyGoldStart||{}).gold||0));
   }
   if(path === 'highest_skill'){
     if(typeof getLevel !== 'function') return 1;
@@ -11374,8 +11529,16 @@ window._stopArtisan = function(){
   function checkDailyGold(){
     if(typeof G !== 'object') return;
     var today = todayKey();
+    /* ⚠ THE BASELINE MUST NOT BE TAKEN AGAINST AN UNKNOWN BALANCE. `G.gold||0`
+       here recorded a day-start of ZERO for a client that had simply not been
+       told the balance yet — and the net-balance fallback below then reads the
+       first envelope's 500,000 as "earned today", completing the "Earn 500
+       gold" daily the instant the player connects. A baseline nobody can
+       measure is not taken at all; the next tick (60s) takes it once the
+       number lands. */
+    if(!balKnown('gold')) return;
     if(!G.dailyGoldStart || G.dailyGoldStart.day !== today){
-      G.dailyGoldStart = {day: today, gold: G.gold||0, earned: 0};
+      G.dailyGoldStart = {day: today, gold: balNum('gold'), earned: 0};
     }
     if(typeof G.dailyGoldStart.earned !== 'number') G.dailyGoldStart.earned = 0;
   }
@@ -11392,11 +11555,16 @@ window._stopArtisan = function(){
   var _goldSeen = null;
   setInterval(function(){
     if(typeof G !== 'object' || !G) return;
-    var g = G.gold || 0;
+    /* ⚠ AND THE SAME TRAP ON THE POLLER. `G.gold||0` made an UNKNOWN balance
+       read as 0, so the arrival of the first envelope looked like income of the
+       player's ENTIRE fortune. UNKNOWN drops the watermark instead: the next
+       tick re-seeds it and the arrival is a re-seed, not a gain. */
+    var g = balNum('gold');
+    if(g === null){ _goldSeen = null; return; }
     if(_goldSeen === null){ _goldSeen = g; return; }
     if(g > _goldSeen){
       checkDailyGold();
-      G.dailyGoldStart.earned = (G.dailyGoldStart.earned || 0) + (g - _goldSeen);
+      if(G.dailyGoldStart) G.dailyGoldStart.earned = (G.dailyGoldStart.earned || 0) + (g - _goldSeen);
     }
     _goldSeen = g;
   }, 500);
@@ -11412,7 +11580,7 @@ window._stopArtisan = function(){
        old maths for a save that predates the counter. */
     var earned = G.dailyGoldStart.earned;
     if(typeof earned === 'number') return Math.max(0, earned);
-    return Math.max(0, (G.gold||0) - (G.dailyGoldStart.gold||0));
+    return Math.max(0, balOr('gold', 0) - (G.dailyGoldStart.gold||0));
   };
 })();
 
@@ -11568,7 +11736,6 @@ function renderModal(summary){
   if(!modal) return;
   var streakCount = (G.streak && G.streak.count) || 1;
   var totalKills = (G.stats && G.stats.kills) || 0;
-  var totalGold = G.gold || 0;
 
   var sections = '';
 
@@ -11659,7 +11826,7 @@ function renderModal(summary){
     '<div class="wbv-statrow">'+
       '<div class="wbv-stat"><b>'+fmtTime(summary.hoursAway)+'</b><span>Time away</span></div>'+
       '<div class="wbv-stat"><b>'+streakCount+'</b><span>Day streak</span></div>'+
-      '<div class="wbv-stat"><b>'+fmtNum(totalGold)+'</b><span>Gold pouch</span></div>'+
+      '<div class="wbv-stat"><b>'+balMarkup('gold',{format:fmtNum})+'</b><span>Gold pouch</span></div>'+
     '</div>'+
     sections +
     '<button class="wbv-claim" onclick="window._closeWelcomeV2()">Continue</button>';
@@ -12977,10 +13144,17 @@ function _gem(v){
    House-only helper (the room rows and the plot rows are its only two
    callers), so this is the whole fix for that complaint on those surfaces. */
 function _costPart(itemId, qty){
-  var have = itemId === 'gold' ? (G.gold||0) : ((G.inventory||{})[itemId]||0);
-  var met = have >= qty;
+  /* `have` is UNKNOWN-aware: a cost part whose currency has not arrived says so
+     in its own title and does NOT mark itself met. `-1` can never satisfy a
+     positive requirement, which is the fail-closed direction. */
+  var _known = itemId==='gold'||itemId==='gems' ? balKnown(itemId) : true;
+  var have = itemId === 'gold' ? balOr('gold', -1)
+           : itemId === 'gems' ? balOr('gems', -1)
+           : ((G.inventory||{})[itemId]||0);
+  var met = _known && have >= qty;
   var name = itemId === 'gold' ? 'Gold' : (((typeof ITEMS !== 'undefined') && ITEMS[itemId] && ITEMS[itemId].n) || itemId);
-  var tip = qty.toLocaleString() + ' ' + name + ' — you have ' + have.toLocaleString();
+  var tip = qty.toLocaleString() + ' ' + name + ' — you have '
+    + (_known ? have.toLocaleString() : 'no figure yet (waiting for the server)');
   var art = '';
   if(itemId === 'gold'){
     art = (window.HR && window.HR.icon) ? (window.HR.icon('gold', 15, 'currentColor') || '') : '';
@@ -13087,7 +13261,9 @@ function renderInvFancy(){
   /* Compute totals */
   var entries = Object.entries(G.inventory||{}).filter(function(kv){return kv[1] > 0;});
   var totalCount = entries.reduce(function(a,kv){return a+kv[1];},0);
-  var totalGold = G.gold || 0;
+  /* (`totalGold` used to be read here and was never used — the bag header
+     states the BAG's value, not the purse's. A dead raw balance read is still
+     a raw balance read, so it is gone rather than converted.) */
 
   /* Equipment bonuses summary */
   var bonus = {atk:0, str:0, def:0, rangeAtk:0, rangeStr:0, magicAtk:0, magicStr:0, crit:0};
@@ -14220,7 +14396,13 @@ function tryRun(name, fn){
 }
 function assert(cond, msg){ if(!cond) throw new Error(msg); }
 
-// ── Snapshot G state for restore ──
+/* ── Snapshot G state for restore ──
+   b356: the raw `gold:G.gold` below is deliberate and is the second of the two
+   raw balance reads left in this file. This is the in-file test harness's
+   save/restore pair — its contract is "put G back EXACTLY as it was", so it
+   must copy whatever is actually there, including nothing. An accessor that can
+   answer UNKNOWN would restore a 0 or a dash into a live game. `restoreG` is
+   already a declared row in src/net/gold-sites.js for the same reason. */
 function snapshotG(){
   if(typeof G === 'undefined') return null;
   return JSON.parse(JSON.stringify({
@@ -15048,7 +15230,9 @@ function buildHeroCard(){
   var name = (G && G.playerName) || 'Adventurer';
   var cl = (typeof getCombatLevel === 'function') ? getCombatLevel() : '?';
   var tl = (typeof getTotalLevel === 'function') ? getTotalLevel() : '?';
-  var gold = G.gold || 0;
+  /* This card has always used its own `fmt` (K at 1,000). Passed through so
+     the sweep changes the UNKNOWN case and nothing else. */
+  var goldCell = balMarkup('gold', {format: fmt});
   var kills = (G.stats && G.stats.kills) || 0;
   // The actual HP state lives on G.playerHp / G.playerMaxHp (set in
   // ensureSave + bumped on hitpoints level-up). Earlier code here was
@@ -15077,7 +15261,7 @@ function buildHeroCard(){
     + '<div class="cr-hero-stats">'
       + '<div class="cr-hero-stat"><b>'+cl+'</b><span>Combat Lv</span></div>'
       + '<div class="cr-hero-stat"><b>'+tl+'</b><span>Total Lv</span></div>'
-      + '<div class="cr-hero-stat"><b>'+fmt(gold)+'</b><span>Gold</span></div>'
+      + '<div class="cr-hero-stat"><b>'+goldCell+'</b><span>Gold</span></div>'
       + '<div class="cr-hero-stat"><b>'+fmt(kills)+'</b><span>Kills</span></div>'
     + '</div>'
   + '</div>';
@@ -15298,7 +15482,7 @@ function parseSource(src){
 })();
 
 window._buyCompanion = function(id, price){
-  if(G.gold < price){ if(typeof notify==='function') notify('Not enough gold','kill'); return; }
+  if(!balCanAfford(price,'gold')){ if(typeof notify==='function') notify(balShortfall(price,'gold'),'kill'); return; }
   if(G.companions && G.companions.ownedIds.indexOf(id) >= 0){ if(typeof notify==='function') notify('Already owned','info'); return; }
   G.gold -= price;
   if(typeof window.unlockCompanion === 'function') window.unlockCompanion(id);

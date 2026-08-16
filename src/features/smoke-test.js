@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=354' directly.
+// modularised, will import { G } from '../state/game.js?v=355' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=354';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=354';
+import { on, snapshot } from '../net/events.js?v=355';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=355';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=354';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=355';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -22337,24 +22337,199 @@ const TESTS = [
         if (had) G[f] = was; else delete G[f];
       }
     }
-    /* CONTROL, AND IT IS THE EXACT PATH THE REAL FAILURE TOOK. These renders
-       must be capable of propagating a throw, or the loop above is an assertion
-       that asserts nothing — this file's most-repeated defect. `G.gold` is not
-       on the registry today, so setting it to a non-number is exactly the state
-       adding it would produce, at the site that actually crashed:
-       `G.gold.toLocaleString()` in updateTopbar. Set, not deleted, and restored
-       immediately: a control must not leave the live G damaged for whatever
-       runs next. */
+    /* ── THE CONTROL, AND WHY IT HAD TO CHANGE (b356) ─────────────────────
+       The original control set `G.gold = null` and required a throw, "the exact
+       path the real failure took": `G.gold.toLocaleString()` in updateTopbar.
+
+       ⚠ THAT CONTROL WAS SELF-DESTROYING. Its whole premise was that the gold
+         render sites are UNGUARDED — so the moment the UNKNOWN sweep landed and
+         gave them a guard, the control stopped throwing and B353-3 went RED
+         while the thing it guards got STRICTLY BETTER. A control that fails
+         when the code is fixed is not a control, it is a countdown.
+
+       What the control actually has to establish is narrower and permanent:
+       THESE RENDER FUNCTIONS PROPAGATE A THROW. So poison the one primitive
+       every balance render in the game ends at — `Number.prototype
+       .toLocaleString` — and require the propagation. It is independent of
+       which fields are on the registry and of how any one site is written, and
+       it additionally proves the renders really do FORMAT A NUMBER (a render
+       that had quietly stopped painting the balance at all would no longer
+       reach the poisoned method, and this would name it).
+
+       Restored in a `finally`: a control must not leave the page damaged for
+       whatever runs next. */
     let controlThrew = false;
-    const gold = G.gold;
+    const origToLocale = Number.prototype.toLocaleString;
     try {
-      G.gold = null;
+      // eslint-disable-next-line no-extend-native
+      Number.prototype.toLocaleString = function () { throw new Error('B353-3 control'); };
       try { for (const [, fn] of renders) fn(); } catch (e) { controlThrew = true; }
-    } finally { G.gold = gold; }
+    } finally {
+      // eslint-disable-next-line no-extend-native
+      Number.prototype.toLocaleString = origToLocale;
+    }
     assert(controlThrew,
-      'the control did not throw — these render functions swallow their own errors, so B353-3 cannot see a '
-      + 'crash and is an assertion that asserts nothing. Drive a path that propagates.');
+      'the control did not throw — either these render functions swallow their own errors (so B353-3 is an '
+      + 'assertion that asserts nothing) or not one of them formats a number any more. Drive a path that '
+      + 'propagates.');
     try { if (typeof window.refreshAll === 'function') window.refreshAll(); } catch (e) {}
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     B353-3b — THE FLIP, SIMULATED. GOLD AND GEMS AS UNKNOWN, THROUGH THE GAME.
+     ══════════════════════════════════════════════════════════════════════════
+     B353-3 sweeps the fields that are ALREADY on `SERVER_OF_RECORD`, and today
+     that is `offlineBudget` alone — which nothing formats. So B353-3 passes
+     without ever touching the failure it was written about, and it will keep
+     passing right up until the flip commit, at which point it goes red in
+     production instead of in CI. That is the wrong order.
+
+     This guard closes the gap by testing the CANDIDATES. `gold` and `gems` are
+     written into `record.js`'s registry block, commented, waiting; deleting
+     them from a live `G` puts the client in exactly the state arming those two
+     entries would — the state record.js measured as "the engine never booted".
+
+     It asserts three things, and the second and third are the Art Direction:
+
+       1. NOTHING THROWS. The b353 crash, guarded by name.
+       2. NOTHING LIES. No render may put "NaN", "undefined", "null" or the
+          string "0" where a balance was. `0` is the dangerous one and the
+          reason it is worth a guard of its own: it is the value every
+          `(G.gold || 0)` in the pre-sweep client produced, it does not look
+          like a bug in a screenshot, and it tells a player their money is gone.
+       3. IT SAYS SOMETHING. The pending presentation has to actually be on the
+          screen — the em dash, in an element carrying the pending class, with
+          an accessible label. A balance that renders as empty space is honest
+          and useless.
+
+     PROVED RED by reverting `updateTopbar` to `G.gold.toLocaleString()`
+     (assertion 1, by name) and, separately, by giving `fmtBalance` an UNKNOWN
+     answer of `'0'` (assertion 2, by name). */
+  () => tryRun('B353-3b: gold and gems render an honest PENDING state when the server has not answered', () => {
+    const B = window.HearthriseBalance;
+    const G = window.G;
+    assert(B && G, 'src/net/balance.js did not load — the UNKNOWN accessor is the whole contract');
+    assert(typeof B.balanceOf === 'function' && typeof B.fmtBalance === 'function'
+      && typeof B.canAfford === 'function' && typeof B.paintBalance === 'function',
+      'the balance accessor is missing one of its four forms (read / display / decide / paint)');
+
+    /* THE CONTRACT ITSELF, unit-first, so a failure below can be read as
+       "the accessor is wrong" vs "a screen is wrong" rather than as one blur. */
+    const probe = { gold: 1234, gems: 7 };
+    assert(B.balanceNum(probe, 'gold') === 1234, 'a known balance does not read back');
+    assert(B.fmtBalance(probe, 'gold') === (1234).toLocaleString(), 'a known balance does not format');
+    assert(B.canAfford(probe, 1234, 'gold') === true && B.canAfford(probe, 1235, 'gold') === false,
+      'affordability is wrong on a KNOWN balance');
+    for (const bad of [{}, { gold: undefined }, { gold: null }, { gold: NaN }, { gold: -5 }, { gold: 'x' }]) {
+      assert(B.balanceNum(bad, 'gold') === null,
+        'balanceNum vouched for ' + JSON.stringify(bad) + ' — UNKNOWN must be null, never a substituted number');
+      assert(B.fmtBalance(bad, 'gold') === B.UNKNOWN_TEXT,
+        'an UNKNOWN balance formatted as "' + B.fmtBalance(bad, 'gold') + '" instead of the pending glyph');
+      assert(B.canAfford(bad, 1, 'gold') === false,
+        'an UNKNOWN balance afforded a purchase — a spend against a number nobody has read is exactly the '
+        + 'client authoring a value that the whole program exists to prevent');
+      assert(B.affordability(bad, 1, 'gold') === 'unknown',
+        'affordability collapsed UNKNOWN into a plain no — the caller can no longer tell "you are short" '
+        + 'from "we have not been told", which is the difference between two very different messages');
+    }
+    /* ⚠ A KNOWN BALANCE MUST ADD NOTHING TO THE TREE — the regression this
+       sweep shipped once and then measured. The first cut wrapped the real
+       figure in `<span class="bal-known">` for symmetry; this codebase ships
+       several `… span { font-size: … }` / `… span { color: … }` readability
+       blankets, so the Home user card's gold figure rendered at 14.5px inside
+       a 21.5px `<b>` and in the wrong colour in cozy-light. The promise of the
+       whole sweep is that a KNOWN balance renders exactly as it did before, and
+       the only structural way to keep it is to emit no element. */
+    assert(B.balanceMarkup({ gold: 1234 }, 'gold') === (1234).toLocaleString(),
+      'balanceMarkup wrapped a KNOWN balance in an element ("' + B.balanceMarkup({ gold: 1234 }, 'gold')
+      + '"). A span inside a numeral is restyled by this codebase\'s span-targeting readability blankets, '
+      + 'so the figure changes size and colour on the screens that have one — the sweep is supposed to be '
+      + 'invisible when the balance is known.');
+    assert(/^<span class="bal-pending"/.test(B.balanceMarkup({}, 'gold')),
+      'balanceMarkup did not produce a pending ELEMENT for an UNKNOWN balance — a bare dash carries no '
+      + 'class, no label and none of the pending treatment');
+
+    assert(B.shortfallMessage({}, 5, 'gold') !== B.shortfallMessage({ gold: 0 }, 5, 'gold'),
+      'the refusal copy is identical for "you are short" and "we do not know yet" — telling a player they '
+      + 'have not got enough gold when the client has simply not been told the balance is a bug report they '
+      + 'would be right to file');
+
+    /* THE REAL RENDERS, with both candidates deleted from the live G. */
+    const renders = [
+      ['updateTopbar', window.updateTopbar],
+      ['renderProfile', window.renderProfile],
+      ['renderShop', window.renderShop],
+      ['renderHouse', window.renderHouse],
+      ['refreshAll', window.refreshAll],
+    ].filter((r) => typeof r[1] === 'function');
+    assert(renders.length >= 3,
+      'fewer than three render paths were reachable — this guard would pass by not looking. Reachable: '
+      + renders.map((r) => r[0]).join(', '));
+
+    const CANDIDATES = ['gold', 'gems'];
+    const saved = {};
+    const had = {};
+    for (const f of CANDIDATES) { had[f] = Object.prototype.hasOwnProperty.call(G, f); saved[f] = G[f]; }
+    let topbarText = '';
+    let topbarPending = false;
+    let topbarLabelled = false;
+    try {
+      for (const f of CANDIDATES) delete G[f];
+      for (const [name, fn] of renders) {
+        try {
+          fn();
+        } catch (e) {
+          assert(false,
+            name + '() threw with gold/gems UNKNOWN: ' + (e && e.message) + '. That is the exact state '
+            + 'arming those two entries in SERVER_OF_RECORD produces, and record.js measured it as "the '
+            + 'engine never booted". Route the read through src/net/balance.js.');
+        }
+      }
+      const cell = document.getElementById('top-gold');
+      assert(cell, 'the topbar gold cell is gone — this guard would then measure nothing');
+      topbarText = String(cell.textContent || '');
+      topbarPending = !!(cell.classList && cell.classList.contains(B.PENDING_CLASS));
+      topbarLabelled = !!(cell.getAttribute && cell.getAttribute('aria-label'));
+
+      /* NOTHING LIES — swept over the whole rendered document, not just the one
+         cell, because the lie that matters is the one on the screen the player
+         happens to be looking at. */
+      for (const id of ['top-gold', 'top-gems']) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const t = String(el.textContent || '').trim();
+        assert(!/NaN|undefined|null/i.test(t),
+          '#' + id + ' rendered "' + t + '" with the balance UNKNOWN');
+        assert(t !== '0',
+          '#' + id + ' rendered "0" with the balance UNKNOWN. That is not a placeholder, it is a claim that '
+          + 'the player has nothing — the single most alarming thing this state could say, and it is what '
+          + 'every `(G.gold || 0)` in the pre-sweep client produced.');
+      }
+
+      // IT SAYS SOMETHING.
+      assert(topbarText === B.UNKNOWN_TEXT,
+        'the topbar balance rendered "' + topbarText + '" instead of the pending glyph "' + B.UNKNOWN_TEXT
+        + '". A balance that renders as empty space is honest and useless.');
+      assert(topbarPending,
+        'the pending balance carries no `' + B.PENDING_CLASS + '` class, so it gets none of the pending '
+        + 'treatment — it is an em dash in the numeral colour, which reads as a dead field');
+      assert(topbarLabelled,
+        'the pending balance has no accessible label — a screen reader is handed a bare dash and the fact '
+        + 'that the number is still loading is lost entirely');
+    } finally {
+      for (const f of CANDIDATES) { if (had[f]) G[f] = saved[f]; else delete G[f]; }
+      try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
+      try { if (typeof window.refreshAll === 'function') window.refreshAll(); } catch (e) {}
+    }
+
+    /* AND IT MUST GO BACK. A pending state that never clears is worse than no
+       pending state, and `paintBalance` toggling a class ON is a different code
+       path from toggling it OFF — the second one is the one nobody tests. */
+    const cell2 = document.getElementById('top-gold');
+    assert(cell2 && !cell2.classList.contains(B.PENDING_CLASS),
+      'the topbar stayed in the pending state after the balance came back — paintBalance does not clear it');
+    assert(cell2 && !cell2.getAttribute('aria-label'),
+      'the pending accessible label survived the balance arriving, so the cell now lies to a screen reader');
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -22846,7 +23021,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=354');
+    const KIT = await import('../data/start-kit.js?v=355');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -27973,7 +28148,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=354');
+    const S = await import('../data/shops.js?v=355');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -29341,7 +29516,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=354');
+    const S = await import('../data/shops.js?v=355');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '

@@ -9,6 +9,105 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-16 · b356 — the UNKNOWN-balance sweep (branch `agent-aa23f5924255d1d3d`)
+
+**The brief, and the number in it was wrong in a way worth recording.** Handoff item (2) said "359
+unguarded `G.gold` reads block gold/gems entering `SERVER_OF_RECORD`". Measured: 359 was a `G.gold`
+grep over ALL of `src/**` **including `smoke-test.js`, which owns 330 of them**. The real production
+surface is **171 raw `G.gold`/`G.gems` occurrences in 28 files**, of which the gold-site census
+already accounts for **60 as WRITES** (not mine, untouched by contract). So the job was ~67 READ
+occurrences, not 359 — and knowing that is the difference between a two-day mechanical crawl and a
+pass that can be reviewed as a whole. **Count the census before you accept the census.**
+
+**The seam that was "ready" was the RECORD half, not the RENDER half.** `record.js`'s `recordValue`,
+`decodeBalance` and `fingerprintBalance` are live and correct — they answer `{known:false}`. What did
+not exist anywhere was a thing to DO with `known:false`. So `src/net/balance.js` is new, and its whole
+content is that a balance has **three** states and every caller must pick which of three forms it
+wants: `balanceNum` (arithmetic, **null** on UNKNOWN — not 0, not NaN), `fmtBalance`/`balanceMarkup`
+(display, an em dash), `canAfford` (decision, **fail-closed**), `balanceOr` (an explicit, greppable
+fallback for the reads that genuinely are not authority). `||0` was never a sentence; `balanceOr` is.
+
+**UNKNOWN is reachable WITHOUT arming the registry, and that is the design decision the guard rests
+on.** Two sources, unioned: the registry (`recordValue`, incl. its b347 fingerprint check) **or**
+presence (absent / non-finite / negative). So `delete G.gold` puts the client in exactly the state
+the flip produces — testable today — while the accessor is a byte-for-byte no-op on every live save,
+because `G.gold` is a finite number on all of them. A sweep of 100+ sites that cannot change today's
+behaviour is a sweep you can actually ship.
+
+**Three bugs found in the sweep that were NOT rendering bugs, and each would have shipped with the
+flip.** All three are the same shape — `(G.gold||0)` reading UNKNOWN as **zero** and then being
+subtracted from a later real number:
+- `checkDailyGold` took the midnight baseline as `{gold: 0}`, so the **first envelope's entire
+  fortune** read as "earned today" and auto-completed the *Earn 500 gold* daily.
+- The `_goldSeen` income poller had it verbatim, one function down.
+- `profile-launchpad.js`'s daily snapshot had a THIRD copy, feeding two more surfaces.
+Each now refuses to take a baseline it cannot measure. **A zero-valued baseline is not a small error;
+it is a full-balance error with the sign hidden.**
+
+**Art direction — the pending state, and it took three measured corrections to get right.**
+Em dash (not `0` — a claim; not `?` — an error; not a spinner in a numeral slot), `--ink-3`,
+`min-inline-size` so it cannot collapse, a 2.4s opacity breath with `prefers-reduced-motion`
+honoured, `aria-label` + `title` because a bare dash tells a screen reader nothing.
+1. **`!important` was NOT enough.** Two rules are *also* `!important` **and id-anchored**:
+   `body[data-theme="hearthlight"] #top-gems` painted the pending gem dash in the **gem role colour**
+   (the one thing this state must never look like) and `#panel-house :not(…)` painted the House cost
+   dash in full `--ink`. Found by reading the **matched-rule list off the live element**, not by
+   guessing. The colour rule is now exactly one step above the higher of the two (1,3,1) and no
+   further.
+2. **The pending dash rendered at 14.5px inside a 21.5px `<b>`.** This codebase ships several
+   `… span { font-size: … }` readability blankets, so `font-size: inherit` is the only answer that is
+   right on every host at once — and it stays reachable by the b227 dial, which a px value would not.
+3. **⚠ THE ONE I SHIPPED AND THEN CAUGHT: wrapping the KNOWN figure in `<span class="bal-known">`
+   "for DOM symmetry" restyled it.** Measured on Home's user card: 21.5px → **14.5px**, and a
+   different colour again in cozy-light. Those same span blankets. **A KNOWN balance now emits NO
+   ELEMENT AT ALL**, which makes "the sweep is invisible when the balance is known" structural
+   instead of hoped for. **Never introduce a wrapper inside a numeral in this codebase.** Guarded.
+
+**The B353-3 control was a countdown, not a control.** It set `G.gold = null` and required a throw —
+its entire premise being that the gold sites are UNGUARDED. The moment this sweep guarded them the
+control stopped throwing and **B353-3 went red while the thing it guards got strictly better.** It
+now poisons `Number.prototype.toLocaleString` instead: independent of the registry and of how any one
+site is written, and it additionally proves the renders still format a number at all. **A control
+that fails when the code is fixed is not a control.**
+
+**`B353-3b` is the new guard and it is the one that actually proves the flip.** B353-3 sweeps the
+fields already on the registry — today only `offlineBudget`, which nothing formats — so it passes
+without ever touching the failure it was written about. B353-3b sweeps the **candidates**: deletes
+`gold`+`gems` from the live G, runs five real render paths, and asserts (1) nothing throws, (2)
+nothing lies — no `NaN`/`undefined`/`null` and specifically **not the string `0`**, and (3) it says
+something — the glyph, the class, the accessible label — plus that the state **clears** again.
+**Proved RED four ways**, each by re-introducing the real bug: the original `G.gold.toLocaleString()`
+(named the site), `fmtBalance` answering `'0'`, `canAfford` treating UNKNOWN as yes, and the
+`bal-known` wrapper.
+
+**Verified in-browser** (Playwright + `__HR_TEST_HARNESS__`, static server on :8231) at **1440×900
+and 922×423**, in **hearthlight AND cozy-light**, with both fields deleted from a live `G`:
+seven render paths, **0 throws, 0 page errors**, all four pending sites at `--ink-3` and at their
+host's own size, **10/10 shop Buy controls disabled**, 0 `NaN`/`undefined`/`0` in any balance slot,
+and the topbar back to `500` with the class and the aria-label removed. Smoke **732→734/734, 0
+runtime errors, three consecutive runs**; `bump-version.sh --check` OK; **no version bump**.
+
+**Known limitations — be honest.**
+- **No screenshots again.** The Browser pane in this session never composited
+  (`the Browser pane is not displayed`), same as b327. Everything above is `getComputedStyle` /
+  `getBoundingClientRect` measurement and matched-rule inspection, not a picture.
+- **I did not arm the registry.** `gold`/`gems` stay commented in `SERVER_OF_RECORD`. That is item
+  (5) of the operational list and wants Security's look at the 33 deferred sites; the client is now
+  ready for it and `record.js` says so.
+- **Ten raw reads remain and every one is accounted for**: five are the fallback arm of a
+  `typeof window.balOr === 'function' ? … : raw` ternary in the files that load BEFORE legacy.js
+  publishes the bridge (`observability.js`, `profile-launchpad.js`, `bug-report.js`, `renown.js`);
+  two are documented exemptions (`__FRESH_START` reads the fresh-G **literal**, not a player balance;
+  `snapshotG` must restore G *exactly*, including absent); one is `accrue.js`'s
+  `describeReplacement`, which sits UNDER record.js in the dependency chain and compares against a
+  save rather than displaying; two are `events.js`'s `snapshot()`, which record.js explicitly states
+  is UNCHANGED.
+- **Pre-existing emoji in copy I edited was kept verbatim** — `'Need more 💎. Open the Store.'` and
+  `'Not enough gems. Tap "Get Gems".'` in `legacy.js`. Changing them was out of scope for a
+  correctness sweep, but they are live 0-emoji-rule violations in player-facing copy.
+- The topbar numeral slot still narrows ~8px when the figure becomes a dash. `min-inline-size:1.6ch`
+  stops a collapse; it cannot reserve the width of a number nobody has been told.
+
 ### 2026-08-11 · b327 — the bag on a 423px-tall screen (paione bug #24, LIVE)
 
 **The report, and it was literally true.** "inventory screen is like overlapping, can't see my

@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=354';
+//   import { setupSync } from './net/sync.js?v=355';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,12 +16,15 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=354';
+import { on, snapshot } from './events.js?v=355';
 /* b342 — WHICH CHARACTER'S SAVE IS THIS? The same resolver src/net/{accrue,
    character,record}.js use, imported rather than re-derived: multi-character.js
    owns the answer and a second reader of that record is a second thing to
    drift. accrue.js has no imports of its own, so this adds no cycle. */
-import { resolveActiveSlot } from './accrue.js?v=354';
+import { resolveActiveSlot } from './accrue.js?v=355';
+/* Read-only, for the cloud-save self-test's report. A balance the client has
+   not been told is a different fact from a balance of zero. */
+import { balanceState } from './balance.js?v=355';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -852,8 +855,15 @@ export async function verifyCloudSave() {
     const invCount = (o) => (o && typeof o === 'object') ? Object.keys(o).length : 0;
     const rows = [
       ['Total level', cloud.totalLevel, (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : undefined)],
-      ['Gold', cloud.gold, G.gold],
-      ['Gems', cloud.gems, G.gems],
+      /* THE ROUND-TRIP CHECK REPORTS WHAT IT CAN SEE, AND SAYS SO WHEN IT
+         CANNOT. Once a balance is on SERVER_OF_RECORD the local copy is
+         stripped at load, so `G.gold` is legitimately absent — and printing
+         `undefined` beside a cloud figure would read as data loss in the one
+         tool a worried player opens to check for data loss. `balanceState`
+         gives the honest word ("UNKNOWN:absent"), and the row still compares:
+         a genuine mismatch is still a mismatch. */
+      ['Gold', cloud.gold, balanceState(G).gold],
+      ['Gems', cloud.gems, balanceState(G).gems],
       ['Kills', cloud.stats && cloud.stats.kills, G.stats && G.stats.kills],
       ['Inventory item types', invCount(cloud.inventory), invCount(G.inventory)],
       ['Name', cloud.playerName, G.playerName],

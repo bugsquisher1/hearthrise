@@ -207,7 +207,12 @@
     var streakBest = (G.streak && (G.streak.best || G.streak.count)) || 0;
     r += streakBest * W.streakBest;
 
-    var gold = G.gold || 0;
+    /* A SCORE TERM, and it must not swing on a transport hiccup. An UNKNOWN
+       balance contributes NOTHING (0 is what `G.gold || 0` produced anyway, so
+       this is not a behaviour change) — and the b226 ratchet above is what makes
+       that safe: `renownHigh` is a high-water mark, so a term that momentarily
+       reads as absent can never demote a rank the player has already earned. */
+    var gold = (typeof window.balOr === 'function') ? window.balOr('gold', 0) : (G.gold || 0);
     if (gold > 1000) r += (Math.log(gold) / Math.LN10 - 3) * W.goldLog;
 
     return Math.floor(r);

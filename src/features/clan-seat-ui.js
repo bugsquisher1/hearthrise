@@ -2076,6 +2076,13 @@
           '<div class="hr-cs-grow">' +
             '<div class="hr-cs-nm">' + (r.effect || '') + '</div>' +
             (r.costs ? '<div class="hr-cs-meta">' + r.costs.map(function (c) {
+              /* `known === false` is a balance the server has not sent yet. It
+                 is neither full nor short — it renders as the pending dash, the
+                 same glyph the rest of the game uses for that state. */
+              if (c.known === false) {
+                return '<span class="hr-cs-qty"><span class="bal-pending" role="status" '
+                  + 'title="Waiting for the server">—</span>/' + nfmt(c.need) + ' ' + esc(c.label) + '</span>';
+              }
               return '<span class="hr-cs-qty' + (c.have >= c.need ? ' is-full' : '') + '">' +
                 (c.have != null ? nfmt(c.have) + '/' : '') + nfmt(c.need) + ' ' + esc(c.label) + '</span>';
             }).join(' &middot; ') + '</div>' : '') +

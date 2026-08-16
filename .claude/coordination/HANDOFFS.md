@@ -2,6 +2,22 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-16 — FROM Art Director → TO Coordinator, Systems Engineer, Security, QA (b356 — the UNKNOWN-balance blocker is cleared; the flip is a one-line change now)
+
+Worktree `agent-aa23f5924255d1d3d`. Smoke **732 → 734/734, 0 runtime errors, three consecutive runs.** `bump-version.sh --check` OK. **No version bump, nothing deployed, `supabase/**` untouched.** New file: `src/net/balance.js`.
+
+**1. TO THE COORDINATOR / WHOEVER OWNS THE FLIP COMMIT — deferred item (2) is DONE, and item (5) is now genuinely one line.** `gold` and `gems` stay COMMENTED in `SERVER_OF_RECORD` on purpose: arming them is item (5), which the handoff says wants Security's look at the 33 deferred sites. What has changed is that the *client* no longer blocks it. Every display renders a pending em dash, every affordability check is fail-closed, and no path does arithmetic on a balance it has not been told. `src/net/record.js`'s b353 block now says so, and **`B353-3b` proves it in CI**: it deletes both fields from a live `G` — exactly the state arming those entries produces — and drives five real render paths. When you uncomment the two entries, that guard is your evidence, not a hope.
+
+**2. TO SYSTEMS — I CHANGED THE B353-3 CONTROL, AND YOU SHOULD KNOW WHY.** Its old control set `G.gold = null` and required a throw. That premise was *"the gold render sites are unguarded"*, so the moment this sweep guarded them B353-3 went **RED while the thing it guards got strictly better** — I hit that on my first run. It now poisons `Number.prototype.toLocaleString`, which proves the same property (these renders propagate a throw) without depending on any site staying broken. **General rule worth carrying: a control whose premise is the bug will fail when the bug is fixed.**
+
+**3. TO SYSTEMS — THREE REAL BUGS, NOT RENDERING BUGS, FIXED IN THIS COMMIT.** All the same shape: `(G.gold||0)` reading UNKNOWN as **zero** into a baseline, so the first envelope's *entire balance* is later measured as income. `legacy.js` `checkDailyGold`, `legacy.js`'s `_goldSeen` poller, and `features/profile-launchpad.js`'s midnight snapshot. Each now refuses to take a baseline it cannot measure. **The same pattern exists for every field that follows gold onto the registry** — inventory qty, skill xp, hearth tokens all have watermark/delta readers. Worth a sweep of its own when those move.
+
+**4. TO SECURITY — the affordability direction, stated so you can disagree.** `canAfford` on an UNKNOWN balance returns **false**, everywhere, with no exception. A purchase gesture cannot be started against a number the client has not been told. `affordability()` returns a third answer (`'unknown'`) so the *copy* can distinguish "you are short" from "we have not been told" — a player told "Not enough gold" during a transport hiccup would file a bug about missing money and be right to. Nothing in this commit touches a write path, an envelope, or the prediction ledger.
+
+**5. TO QA — what to re-run and what it costs.** `B353-3b` and the rewritten `B353-3` control are the only new/changed arms. Reproduce the browser verification with Playwright + `__HR_TEST_HARNESS__` against a static server, `delete G.gold; delete G.gems`, then run `updateTopbar/renderProfile/renderShop/renderHouse/renderInventory/renderFarm/refreshAll`. Expect 0 throws, `#top-gold`/`#top-gems` = `—` with class `bal-pending` + `aria-label`, and every shop Buy control disabled. Verified at 1440×900 and 922×423 in hearthlight and cozy-light.
+
+**6. TO THE ASSET DIRECTOR / SYSTEMS — two live 0-emoji violations in copy I touched and deliberately did NOT change.** `src/legacy.js`: `'Need more 💎. Open the Store.'` (buyTheme) and `'Not enough gems. Tap "Get Gems".'` (buyCosmetic, buyBankSpaceGem). Rewriting player-facing copy was out of scope for a correctness sweep, but these are emoji rendered as art in a notification.
+
 ### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Security, QA (b349 — the 42501 flood is two sources, one of them ours on purpose)
 
 Worktree `agent-aea11985dd254af77`, commit **`ce9dc9c`**. Smoke **710/710** (baseline 707; +3), 0 runtime errors, four consecutive runs, nine mutations each RED on target. **No version bump, nothing deployed. No grant changed, `hr_client_rpc_baseline` untouched.**

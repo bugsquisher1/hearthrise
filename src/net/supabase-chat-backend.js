@@ -21,7 +21,7 @@
 // INSERTs for any channel it has read access to under RLS.
 // ============================================================
 
-import { getSession } from './auth.js?v=354';
+import { getSession } from './auth.js?v=355';
 
 const REST_HEADERS = (cfg, session) => ({
   'apikey': cfg.anonKey,

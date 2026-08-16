@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 355 — 2026-08-16 (Under the hood)
+
+- 🔧 Groundwork for the server owning your gold/gem balances outright: every screen now reads balances through one guarded path, and three subtle daily-quest accounting bugs found along the way were fixed before they could ever fire. Nothing visible changes today.
+
 ## v0.9.2-beta build 354 — 2026-08-16 (Small quality-of-life pair)
 
 - 🍖 **Auto-Eat is now also in the Bounty Shop** (100 marks) — same trait, second storefront, so it can't be missed by players who skip the trait screen.

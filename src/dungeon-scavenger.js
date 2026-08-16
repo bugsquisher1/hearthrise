@@ -563,8 +563,11 @@
         return false;
       }
     }
-    if(d.cost.gold && (window.G.gold || 0) < d.cost.gold){
-      if(typeof window.notify === 'function') window.notify('Need ' + d.cost.gold + ' gold', 'kill');
+    if(d.cost.gold && !window.balCanAfford(d.cost.gold, 'gold')){
+      if(typeof window.notify === 'function'){
+        window.notify(window.balKnown('gold') ? ('Need ' + d.cost.gold + ' gold')
+          : window.balShortfall(d.cost.gold, 'gold'), 'kill');
+      }
       return false;
     }
     if(d.cost.hearth_token && (window.G.inventory.hearth_token || 0) < d.cost.hearth_token){

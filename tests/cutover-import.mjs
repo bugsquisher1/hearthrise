@@ -157,6 +157,23 @@ function snapshots(cat) {
       stats: {}, bountyHunter: {},
     },
 
+    // F1 (Security): values ABOVE bigint range (~9.2e18). The devtools threat
+    // model in CLAUDE.md is literally `G.gold = 1e308`. Must clamp-and-report,
+    // never throw 22003 on the ::bigint cast. FORGED uses 1e12, which is well
+    // inside bigint and never exercises this path.
+    FORGEDBIG: {
+      ...base,
+      gold: 1e308, gems: 1e308,
+      bank: {}, skills: { mining: 1e308, hitpoints: 1e308 },
+      inventory: { [someItem]: 1e308 },
+      equipment: {}, farmPlots: [],
+      rooms: {}, homestead: { tier: 0 }, plotLevels: 1,
+      plotBuildings: [], workers: { hired: [] }, traits: {},
+      autoActions: {}, foodSlot: null, autoEatPct: 1e308, toolCarry: {},
+      ownedThemes: [], ownedCosmetics: [], entitlements: {}, unlockedRecipes: {},
+      stats: { kills: 1e308 }, bountyHunter: {},
+    },
+
     UNKNOWN: {
       ...base,
       gold: 100, gems: 0, bank: { an_item_removed_in_a_rename: 12 },
@@ -414,6 +431,34 @@ export async function cutoverImportGuard({ patches, toolPath } = {}) {
     }
     if (Number(e.state.auto_eat_pct) < 0 || Number(e.state.auto_eat_pct) > 100) {
       fail(`E11: auto_eat_pct ${e.state.auto_eat_pct} is outside 0..100`);
+    }
+  }
+
+  // ── E2. ABOVE BIGINT RANGE (F1, Security) — clamp AND report, never 22003 ──
+  // The devtools threat model in CLAUDE.md is `G.gold = 1e308`. Above bigint
+  // (~9.2e18) the clamp must happen in NUMERIC before the ::bigint cast, or the
+  // cast throws 22003 and fails the player instead of clamping under amnesty.
+  // FORGED (1e12) is well inside bigint and never exercises this.
+  {
+    const r = results.FORGEDBIG.out;
+    const e = env('FORGEDBIG');
+    if (!r || r.ok !== true) {
+      fail(`E2-1: an above-bigint snapshot FAILED instead of clamping: ${JSON.stringify(r)}`);
+    } else {
+      if (Number(e.state.gold) !== 1000000000) fail(`E2-2: 1e308 gold read back as ${e.state.gold}`);
+      if (Number(e.state.gems) !== 10000000) fail(`E2-3: 1e308 gems read back as ${e.state.gems}`);
+      if (Number(e.skills.mining.xp) !== XP99) fail(`E2-4: 1e308 xp read back as ${e.skills.mining.xp}`);
+      if (Number(e.inventory[cat.items[0]]) !== 100000000) {
+        fail(`E2-5: 1e308 qty read back as ${e.inventory[cat.items[0]]}`);
+      }
+      const prog = new Map((e.progress || []).map((p) => [`${p.kind} ${p.key}`, Number(p.value)]));
+      if (prog.get('stat kills') !== 1000000000) fail(`E2-6: 1e308 stat clamped to ${prog.get('stat kills')}`);
+      // The report must carry the REAL magnitude (from is numeric, not a
+      // truncated bigint) — a clamp nobody can size is a clamp nobody trusts.
+      const goldClamp = (r.clamps || []).find((c) => c.field === 'gold');
+      if (!goldClamp || Number(goldClamp.from) < 9.2e18) {
+        fail(`E2-7: the above-bigint gold clamp did not report the real magnitude: ${JSON.stringify(goldClamp)}`);
+      }
     }
   }
 
@@ -771,6 +816,16 @@ const MUTATIONS = [
     },
   },
   {
+    name: 'M18 — F1: a magnitude clamp casts to bigint BEFORE clamping; 1e308 throws 22003 not clamp',
+    // Reverting gold to cast-before-clamp makes the migration\'s own §4(c-iii-b)
+    // probe (gold 1e308) throw 22003 during the chain replay, failing the apply.
+    expect: /out of range|22003|clamp|chain:/,
+    patches: new Map([[MIGRATION, [[
+      "      v_num := floor(greatest(0, (p_plan->'state'->>'gold')::numeric));\n      if v_num > c_max_gold then\n        v_clamps := v_clamps || jsonb_build_object('field','gold','from',v_num,'to',c_max_gold);\n        v_num := c_max_gold;\n      end if;\n      v_gold := v_num::bigint;",
+      "      v_n := floor(greatest(0, (p_plan->'state'->>'gold')::numeric))::bigint;\n      if v_n > c_max_gold then\n        v_clamps := v_clamps || jsonb_build_object('field','gold','from',v_n,'to',c_max_gold);\n        v_n := c_max_gold;\n      end if;\n      v_gold := v_n;",
+    ]]]]),
+  },
+  {
     name: 'M1 — a FIELD_MAP entry is DELETED (the brief\'s "drop a mapping")',
     expect: /FIELD_MAP does not declare rooms/,
     async run() {
@@ -794,9 +849,9 @@ const MUTATIONS = [
   },
   {
     name: 'M3 — the gold clamp is removed from the RPC',
-    expect: /forged gold read back as|clamped SILENTLY/,
+    expect: /forged gold read back as|clamped SILENTLY|out of range|22003|chain:/,
     patches: new Map([[MIGRATION, [[
-      "      if v_n > c_max_gold then\n        v_clamps := v_clamps || jsonb_build_object('field','gold','from',v_n,'to',c_max_gold);\n        v_n := c_max_gold;\n      end if;",
+      "      if v_num > c_max_gold then\n        v_clamps := v_clamps || jsonb_build_object('field','gold','from',v_num,'to',c_max_gold);\n        v_num := c_max_gold;\n      end if;",
       '      -- clamp removed by mutation',
     ]]]]),
   },

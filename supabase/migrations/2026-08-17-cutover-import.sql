@@ -336,6 +336,14 @@ declare
   v_k        text;
   v_v        jsonb;
   v_n        bigint;
+  -- F1 (Security, APPLY-blocking): every magnitude is clamped in NUMERIC before
+  -- the ::bigint cast. A snapshot value above bigint range (~9.2e18 — a devtools
+  -- `G.gold = 1e308`) would otherwise throw 22003 on the cast BEFORE the clamp,
+  -- failing that player's import instead of clamping-and-reporting as amnesty
+  -- promises. numeric has no meaningful upper bound, so nothing reaches a cast
+  -- out of range. `from` in the report is the numeric, so the receipt shows the
+  -- real forged value rather than a truncated one.
+  v_num      numeric;
   v_i        int;
   v_txt      text;
   v_row      jsonb;
@@ -479,24 +487,24 @@ begin
         return jsonb_build_object('ok', false, 'error', 'bad_number',
                  'detail', jsonb_build_object('at', 'state.gold'));
       end if;
-      v_n := floor(greatest(0, (p_plan->'state'->>'gold')::numeric))::bigint;
-      if v_n > c_max_gold then
-        v_clamps := v_clamps || jsonb_build_object('field','gold','from',v_n,'to',c_max_gold);
-        v_n := c_max_gold;
+      v_num := floor(greatest(0, (p_plan->'state'->>'gold')::numeric));
+      if v_num > c_max_gold then
+        v_clamps := v_clamps || jsonb_build_object('field','gold','from',v_num,'to',c_max_gold);
+        v_num := c_max_gold;
       end if;
-      v_gold := v_n;
+      v_gold := v_num::bigint;
     end if;
     if p_plan->'state' ? 'gems' then
       if jsonb_typeof(p_plan->'state'->'gems') <> 'number' then
         return jsonb_build_object('ok', false, 'error', 'bad_number',
                  'detail', jsonb_build_object('at', 'state.gems'));
       end if;
-      v_n := floor(greatest(0, (p_plan->'state'->>'gems')::numeric))::bigint;
-      if v_n > c_max_gems then
-        v_clamps := v_clamps || jsonb_build_object('field','gems','from',v_n,'to',c_max_gems);
-        v_n := c_max_gems;
+      v_num := floor(greatest(0, (p_plan->'state'->>'gems')::numeric));
+      if v_num > c_max_gems then
+        v_clamps := v_clamps || jsonb_build_object('field','gems','from',v_num,'to',c_max_gems);
+        v_num := c_max_gems;
       end if;
-      v_gems := v_n;
+      v_gems := v_num::bigint;
     end if;
     -- The IAP bond. Its own column and its own bound, and the import is not an
     -- IAP path: the blob carries no hearth-token field today, so this is 0 in
@@ -506,34 +514,36 @@ begin
         return jsonb_build_object('ok', false, 'error', 'bad_number',
                  'detail', jsonb_build_object('at', 'state.hearth_tokens'));
       end if;
-      v_n := floor(greatest(0, (p_plan->'state'->>'hearth_tokens')::numeric))::bigint;
-      if v_n > c_max_tokens then
-        v_clamps := v_clamps || jsonb_build_object('field','hearth_tokens','from',v_n,'to',c_max_tokens);
-        v_n := c_max_tokens;
+      v_num := floor(greatest(0, (p_plan->'state'->>'hearth_tokens')::numeric));
+      if v_num > c_max_tokens then
+        v_clamps := v_clamps || jsonb_build_object('field','hearth_tokens','from',v_num,'to',c_max_tokens);
+        v_num := c_max_tokens;
       end if;
-      v_tokens := v_n;
+      v_tokens := v_num::bigint;
     end if;
     if p_plan->'state' ? 'bank_cap' then
       if jsonb_typeof(p_plan->'state'->'bank_cap') <> 'number' then
         return jsonb_build_object('ok', false, 'error', 'bad_number',
                  'detail', jsonb_build_object('at', 'state.bank_cap'));
       end if;
-      v_n := floor((p_plan->'state'->>'bank_cap')::numeric)::bigint;
-      if v_n < 1 then v_n := 1; end if;
-      if v_n > c_max_bank_cap then
-        v_clamps := v_clamps || jsonb_build_object('field','bank_cap','from',v_n,'to',c_max_bank_cap);
-        v_n := c_max_bank_cap;
+      v_num := floor((p_plan->'state'->>'bank_cap')::numeric);
+      if v_num < 1 then v_num := 1; end if;
+      if v_num > c_max_bank_cap then
+        v_clamps := v_clamps || jsonb_build_object('field','bank_cap','from',v_num,'to',c_max_bank_cap);
+        v_num := c_max_bank_cap;
       end if;
-      v_cap := v_n::int;
+      v_cap := v_num::int;
     end if;
     if p_plan->'state' ? 'auto_eat_pct' then
-      v_n := floor(coalesce((p_plan->'state'->>'auto_eat_pct')::numeric, 50))::bigint;
-      if v_n < 0 or v_n > 100 then
-        v_clamps := v_clamps || jsonb_build_object('field','auto_eat_pct','from',v_n,
-                                                   'to', least(100, greatest(0, v_n)));
-        v_n := least(100, greatest(0, v_n));
+      -- Clamped to [0,100] in numeric before the cast, same F1 rule: a devtools
+      -- auto_eat_pct of 1e308 must clamp, not throw 22003 on ::bigint.
+      v_num := floor(coalesce((p_plan->'state'->>'auto_eat_pct')::numeric, 50));
+      if v_num < 0 or v_num > 100 then
+        v_clamps := v_clamps || jsonb_build_object('field','auto_eat_pct','from',v_num,
+                                                   'to', least(100, greatest(0, v_num)));
+        v_num := least(100, greatest(0, v_num));
       end if;
-      v_ae_pct := v_n::int;
+      v_ae_pct := v_num::int;
     end if;
     v_ae_on   := coalesce((p_plan->'state'->>'auto_eat_enabled')::boolean, false);
     v_ae_food := nullif(p_plan->'state'->>'auto_eat_food', '');
@@ -564,11 +574,12 @@ begin
                                                  'reason','not_a_number','value',v_v);
         continue;
       end if;
-      v_n := floor(greatest(0, (v_v#>>'{}')::numeric))::bigint;
-      if v_n > c_max_xp then
-        v_clamps := v_clamps || jsonb_build_object('field','skill:'||v_k,'from',v_n,'to',c_max_xp);
-        v_n := c_max_xp;
+      v_num := floor(greatest(0, (v_v#>>'{}')::numeric));
+      if v_num > c_max_xp then
+        v_clamps := v_clamps || jsonb_build_object('field','skill:'||v_k,'from',v_num,'to',c_max_xp);
+        v_num := c_max_xp;
       end if;
+      v_n := v_num::bigint;
       update public.player_skills set xp = v_n
        where user_id = p_user and slot = v_slot and skill_id = v_k;
       if not found then
@@ -610,15 +621,16 @@ begin
                                                  'reason','not_a_number','value',v_v);
         continue;
       end if;
-      v_n := floor((v_v#>>'{}')::numeric)::bigint;
-      if v_n <= 0 then
+      v_num := floor((v_v#>>'{}')::numeric);
+      if v_num <= 0 then
         -- A zero row is deleted, never stored (the column's own CHECK says so).
         continue;
       end if;
-      if v_n > c_max_qty then
-        v_clamps := v_clamps || jsonb_build_object('field','item:'||v_k,'from',v_n,'to',c_max_qty);
-        v_n := c_max_qty;
+      if v_num > c_max_qty then
+        v_clamps := v_clamps || jsonb_build_object('field','item:'||v_k,'from',v_num,'to',c_max_qty);
+        v_num := c_max_qty;
       end if;
+      v_n := v_num::bigint;
       insert into public.player_inventory (user_id, slot, item_id, qty)
         values (p_user, v_slot, v_k, v_n)
         on conflict (user_id, slot, item_id) do update set qty = excluded.qty;
@@ -745,16 +757,17 @@ begin
                                                  'reason','bad_shape');
         continue;
       end if;
-      v_n := floor(coalesce((v_row->>'value')::numeric, 0))::bigint;
-      if v_n <= 0 then
+      v_num := floor(coalesce((v_row->>'value')::numeric, 0));
+      if v_num <= 0 then
         -- A zero flag is an absent flag. Writing it would be a row that reads
         -- as "not unlocked" while occupying space and confusing every report.
         continue;
       end if;
-      if v_n > c_max_value then
-        v_clamps := v_clamps || jsonb_build_object('field','progress:'||v_txt,'from',v_n,'to',c_max_value);
-        v_n := c_max_value;
+      if v_num > c_max_value then
+        v_clamps := v_clamps || jsonb_build_object('field','progress:'||v_txt,'from',v_num,'to',c_max_value);
+        v_num := c_max_value;
       end if;
+      v_n := v_num::bigint;
       begin
         insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
           values (p_user, v_slot, v_k, v_txt, v_n, '', null)
@@ -1131,6 +1144,37 @@ begin
   if (v_r->'envelope'->'skills'->'mining'->>'xp')::bigint <> 13034431 then
     raise exception '§4(c-iii): forged mining xp read back as %',
                     v_r->'envelope'->'skills'->'mining'->>'xp';
+  end if;
+
+  -- (c-iii-b) F1 (Security, APPLY-blocking): a value ABOVE bigint range must
+  --   CLAMP AND REPORT, not throw 22003 on the ::bigint cast. 1e308 is the
+  --   devtools threat model in CLAUDE.md (`G.gold = 1e308`), and it is passed
+  --   as a JSON NUMBER — not `::bigint`, which would itself throw before the
+  --   RPC ever ran. If this raises 22003 the whole DO block fails, which is the
+  --   RED this fixture exists to make impossible.
+  v_r := public.hr_import_apply(
+    v_uid, v_slot,
+    ('{"state":{"gold":1e308,"gems":1e308,"auto_eat_pct":1e308},'
+      || '"skills":{"mining":1e308},"inventory":{},'
+      || '"progress":[{"kind":"stat","key":"kills","value":1e308}]}')::jsonb,
+    '{}'::jsonb, false);
+  if coalesce(v_r->>'ok','') <> 'true' then
+    raise exception '§4(c-iii-b): an above-bigint snapshot FAILED instead of clamping: %', v_r;
+  end if;
+  if (v_r->'envelope'->'state'->>'gold')::bigint <> 1000000000 then
+    raise exception '§4(c-iii-b): above-bigint gold read back as % — the numeric clamp did not apply',
+                    v_r->'envelope'->'state'->>'gold';
+  end if;
+  if (v_r->'envelope'->'skills'->'mining'->>'xp')::bigint <> 13034431 then
+    raise exception '§4(c-iii-b): above-bigint xp read back as %',
+                    v_r->'envelope'->'skills'->'mining'->>'xp';
+  end if;
+  -- The report must carry the REAL forged magnitude, not a truncated one: `from`
+  -- is numeric, so 1e308 survives into the receipt.
+  if not exists (select 1 from jsonb_array_elements(v_r->'clamps') c
+                  where c->>'field' = 'gold' and (c->>'from')::numeric > 9.2e18) then
+    raise exception '§4(c-iii-b): the above-bigint clamp did not report the real magnitude: %',
+                    v_r->'clamps';
   end if;
 
   -- (c-iv) AN UNKNOWN ITEM ID IS DROPPED BY NAME, never guessed.

@@ -24,6 +24,7 @@ import { goalCountersGuard } from './goal-counters.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
+import { cutoverImportGuard } from './cutover-import.mjs';
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
 import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
@@ -1230,6 +1231,7 @@ const run = async () => {
         + 'by name with gold measured.');
     }
 
+<<<<<<< HEAD
     /* ── The market guard (market v2) ───────────────────────────────────
        THE FIRST CROSS-PLAYER VALUE TRANSFER. Every other economy guard in this
        suite measures ONE character, because every other verb touches one;
@@ -1274,6 +1276,33 @@ const run = async () => {
         + 'price, braced uuid, SQL-shaped listing) is refused by name before it costs a database '
         + 'statement; the buyer\'s wire binds a listing and a count and no price; a replay carries '
         + 'the envelope and no receipt.');
+    }
+
+    /* ── The cutover import (b355) ──────────────────────────────────────
+       The one moment a client-authored save blob is allowed to become server
+       state. Six synthetic snapshots — normal, maxed, forged (1e12 gold),
+       unknown ids, unlocks, corrupt — driven through the REAL tool and the
+       REAL RPC on a real PostgreSQL with the whole chain applied, so
+       2026-08-17-cutover-import.sql's own self-verifying block executes here
+       on every run.
+
+       The two arms worth naming: a FIELD_MAP with a missing entry fails the
+       run BY NAME (the b350 declaration-gap lesson applied to a one-off), and
+       an imported Kitchen rung is followed all the way to
+       makeBonus('noBurn') > 0 through hr_perks_of — because "the row is in
+       the table" is not the claim, "the Kitchen stops burning food" is, and
+       that is the ordering dependency the artisan flip waits on.
+       `node tests/cutover-import.mjs --selftest` plants thirteen real
+       defects; every one must read RED. */
+    const cutoverProblems = await cutoverImportGuard();
+    if (cutoverProblems.length) {
+      console.log('\nCutover import guard — FAILED:');
+      for (const p of cutoverProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nCutover import guard — a maxed save imports unclamped, a forged one clamps AND '
+        + 'reports, unknown ids drop by name, an imported Kitchen rung reaches makeBonus(\'noBurn\'), '
+        + 'and a re-run skips on the marker.');
     }
 
     /* ── The client-write-grant sweep, batch 2 (Security) ───────────────

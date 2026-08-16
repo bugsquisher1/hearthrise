@@ -669,6 +669,25 @@ export function getPredictionSeam() { return predictionSeam; }
  *        one. Absent from the away and activity paths, which own no gold
  *        gesture — they still sweep, they just retire nothing.
  */
+/** How many copies of `id` a slot map is wearing. Pure; ignores slot names. */
+export function equippedCount(equipment, id) {
+  if (!equipment || typeof equipment !== 'object' || !id) return 0;
+  let n = 0;
+  for (const slot of Object.keys(equipment)) if (equipment[slot] === id) n++;
+  return n;
+}
+
+/**
+ * b362 — copies worn on THIS client that the server's inventory figure has not
+ * been told about. Pure. See the block in applyEnvelopeState for the proof.
+ */
+export function unaccountedEquipped(G, res, id) {
+  const local = equippedCount(G && G.equipment, id);
+  if (!local) return 0;
+  const server = equippedCount(res && res.equipment, id);
+  return Math.max(0, local - server);
+}
+
 export function applyEnvelopeState(G, res, ownKey) {
   const st = (res && res.state) || {};
   const written = { skills: {}, inventory: 0 };
@@ -724,7 +743,40 @@ export function applyEnvelopeState(G, res, ownKey) {
 
   const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
   for (const k of Object.keys(res.inventory || {})) {
-    const q = Number(res.inventory[k]);
+    /* ══════════════════════════════════════════════════════════════════════
+       P0 FIX (b362) — THE MAX MUST NOT RESURRECT A COPY THAT IS NOW WORN.
+
+       REPORTED LIVE: "every time I am using the corresponding weapon type it
+       gets duplicated when I equip it." One dupe per equip round trip, on
+       tradeable gear.
+
+       THE MODEL, PROVED NOT GUESSED. Both sides hold gear DISJOINTLY —
+       equipped copies are NOT also counted in the bag:
+         • server: hr_apply's `equip` op is a TRANSFER (2026-08-11-apply-engine
+           .sql §EQUIPMENT — debits player_inventory, inserts player_equipment),
+           and hr_create_character asserts no starting item is in both
+           (2026-08-14-character-bootstrap.sql: "a starting item exists in BOTH
+           equipment and inventory — equip/unequip would duplicate it");
+         • client: equipItem/equipToSlot/applyLoadout all `removeItem(id,1)`
+           and write G.equipment[slot].
+
+       The break is that NOTHING TELLS THE SERVER ABOUT A CLIENT EQUIP — there
+       is no equip verb anywhere in src/net/*. So the server's inventory row is
+       a STALE view that still counts the copy the player is wearing, the client
+       correctly counts 0, and the b359 max hands the stale figure back into the
+       bag while the same copy sits in the slot. Item created from nothing.
+
+       THE ACCOUNTING: only copies the client has equipped that the ENVELOPE
+       does not also show equipped are unknown to the server's figure, so only
+       those are subtracted. When the server agrees the item is worn (starter
+       gear, or any future equip verb) its inventory figure already excludes it
+       and nothing is deducted — no double subtraction.
+
+       DIRECTION, DELIBERATE: this can only ever LOWER the server's figure, so
+       the worst case is under-crediting a bag copy, which the next settle
+       heals. A dupe never heals. Counted by ITEM ID, never by slot name, so
+       client and server slot vocabularies cannot drift into a wrong deduction. */
+    const q = Number(res.inventory[k]) - unaccountedEquipped(G, res, k);
     const have = Number(inv[k]) || 0;
     /* MAX for a NAMED key too — and this is the clause that actually saved the
        reporting player, so do not weaken it to a plain assignment. `dragon_scale`
@@ -1154,6 +1206,7 @@ if (typeof window !== 'undefined') {
     isServerAccrualEnabled, setServerAccrualEnabled, __clearAccrualOverride,
     stampAwayWatermarks, clampSlot, resolveActiveSlot, mayClientWrite,
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement,
+    equippedCount, unaccountedEquipped,
     showReplacementSheet, hideReplacementSheet,
     configureAccrual, getAccrualConfig, accrueEndpoint,
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,

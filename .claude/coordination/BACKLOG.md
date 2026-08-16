@@ -28,6 +28,15 @@ Triaged from Tyler's list. P0 critical · P1 major · P2 meaningful · P3 minor.
 | 18 | Clan/castle page OUT of the Social tab — its own easier-to-find destination (placement = Designer+Art call; it's a twin PILLAR, warrants top-level nav like Events got) | **P1** | Art + Designer (Systems) | after #17 merges (nav/index.html collision) |
 | 19 | SECOND text-size pass — b218's ~x1.13 (body 14→16) is still too small "in a lot of places"; raise the FLOOR (micro/small/label tiers + missed hardcoded spots), not just the base; verify screen-by-screen | **P1** | Art | after #17 merges |
 
+## Tyler batch 2026-08-16 (brand/art session — deferred, NOT started)
+Raised while shipping the b361 Hearthrise rebrand. Tyler said "add the rest to the backlog" — these are queued, not in flight.
+| # | Item | P | Owner (support) | Notes |
+|---|---|---|---|---|
+| 27 | **Themes tab uses emoji icons** (🏠🌲🌵❄️🌋🧚 for Cozy Cottage / Forest Lodge / Desert Oasis / Winter Chalet / Volcanic Keep / Fairy Glen) — replace with a painted badge-icon set. Prompts drafted (brand session). | P2 | Asset + Art | Recraft credits; 6-icon consistent set. Tyler generates, then wire into the Themes cards. |
+| 28 | **Themes "Buy" buttons render BLUE** — hardcoded color, not the gilt/warm token like the rest of the UI (violates the no-hardcoded-colors rule). Code fix, NO art/credits. High value-for-effort on that screen. | **P1 (cheap)** | Systems (Art) | Homestead theme UI; convert the button color to a token. Can ride any homestead-screen branch. |
+| 29 | **Homestead room thumbnails** (Kitchen/Forge/Library/Garden/Trophy Room/Cellar/Workshop/Shrine) are grey pencil-sketch placeholders. Optional upgrade to painted color thumbnails. | P3 | Asset (Art) | 8 gated rooms; only after #27. Grey currently signals "locked", so low urgency. |
+| 30 | **Homestead-tier + clan silhouette backdrops** — the flat dusk-silhouette header art (Camp→Homestead→Farmstead→Manor→Keep) and clan-hold backdrop. Cohesive as-is; a painted replacement is a SYSTEMATIC set across every tier, not a one-off swap. Treat as its own project if pursued. | P3 (big) | Art + Asset | Do NOT piecemeal — mixing painted + flat across tiers looks broken. Deliberately deferred. |
+
 ## Tyler batch 2026-08-09 (b227/b228)
 | # | Item | Disposition |
 |---|---|---|

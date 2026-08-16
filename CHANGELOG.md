@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 363 — 2026-08-17 (Hotfix: weapon duplication)
+
+- 🛠️ **Fixed weapons duplicating when you equip them.** Swapping weapons could conjure a phantom copy into your bag each time (thanks Xarnathos — again). Equipped gear and bag counts now reconcile as one number. Existing extra copies will be tidied up separately; no action needed.
+- 🎨 **45 more item icons** join the new painted set (473 of 512) — including, at last, the fishing rods.
+
 ## v0.9.2-beta build 362 — 2026-08-17 (Hotfix: the combat screen, uncrushed)
 
 - 🚑 **Fixed the combat screen breaking after b361** — the new boss portraits were rendering at full size inside the boss cards, crushing the monster list, the loadout and the arena. Everything is back where it belongs, with the portraits at their proper size. Sorry about that one.

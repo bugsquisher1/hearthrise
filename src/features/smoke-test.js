@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=362' directly.
+// modularised, will import { G } from '../state/game.js?v=363' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=362';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=362';
+import { on, snapshot } from '../net/events.js?v=363';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=363';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=362';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=363';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -23984,7 +23984,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=362');
+    const KIT = await import('../data/start-kit.js?v=363');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -29195,7 +29195,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=362');
+    const S = await import('../data/shops.js?v=363');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -30563,7 +30563,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=362');
+    const S = await import('../data/shops.js?v=363');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -31134,6 +31134,65 @@ const TESTS = [
     assert(G.skills.attack === 1500, 'a named skill that is HIGHER must take the server value');
     assert(G.inventory.rune_bar === 9, 'a named item that is HIGHER must take the server value');
     assert(G.gold === 9, 'gold remains absolutely authoritative — its writer HAS moved');
+  }),
+
+  /* B362-DUPE-1 — EQUIPPING A WEAPON MUST NOT MINT A SECOND ONE.
+     The live P0 of 2026-08-18, reported by a T6 player who swaps weapons per
+     monster weakness: "every time I am using the corresponding weapon type it
+     gets duplicated when I equip it." Weapons are tradeable on the server
+     market, so this is an economy bug, one dupe per equip round trip.
+
+     THE MODEL, proved from the migrations, not assumed: BOTH sides hold gear
+     disjointly from the bag (hr_apply's equip op is a transfer; the bootstrap
+     asserts no starting item is in both), and NOTHING tells the server about a
+     client equip — there is no equip verb in src/net/*. So the server's
+     inventory figure still counts the worn copy, the client correctly counts
+     zero, and b359's max hands the stale figure back into the bag beside the
+     copy in the slot.
+
+     Fails in both directions: it proves the worn copy is not resurrected, AND
+     that the deduction is not applied twice when the server AGREES the item is
+     worn — a fix that blindly subtracted the local equipment would go red on
+     the second block, and reverting the fix goes red on the first. */
+  () => tryRun('B362-DUPE-1: an envelope may not resurrect a bag copy that is now equipped', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
+
+    /* 1. THE EXACT REPORTED SEQUENCE. One sword owned; the player equips it
+       (bag debited, slot filled); an envelope built before the equip arrives
+       still naming the sword at 1. Total owned must stay ONE. */
+    const G = { gold: 0, skills: {}, inventory: { iron_sword: 1 }, equipment: {} };
+    delete G.inventory.iron_sword; G.equipment.weapon = 'iron_sword';   // equipItem()
+    A.applyEnvelopeState(G, {
+      state: {}, skills: {}, inventory: { iron_sword: 1 }, equipment: {},
+    });
+    assert(!(Number(G.inventory.iron_sword) > 0),
+      'the worn copy must not come back to the bag — got ' + G.inventory.iron_sword + ' in the bag AND one equipped');
+    assert(G.equipment.weapon === 'iron_sword', 'the equipped copy must be untouched');
+
+    /* 2. NO DOUBLE DEDUCTION. When the envelope agrees the item is worn, its
+       inventory figure already excludes that copy, so a genuine spare in the
+       server's bag must still arrive. */
+    const G2 = { gold: 0, skills: {}, inventory: {}, equipment: { weapon: 'iron_sword' } };
+    A.applyEnvelopeState(G2, {
+      state: {}, skills: {}, inventory: { iron_sword: 2 },
+      equipment: { weapon: 'iron_sword' },
+    });
+    assert(G2.inventory.iron_sword === 2,
+      'a spare the server holds must survive when both sides agree the item is worn — got ' + G2.inventory.iron_sword);
+
+    /* 3. TWO SLOTS, ONE ITEM ID (rings). Counted by id, never by slot name,
+       because the client and server slot vocabularies are not the same list. */
+    const G3 = { gold: 0, skills: {}, inventory: { gold_ring: 1 },
+                 equipment: { ring1: 'gold_ring', ring2: 'gold_ring' } };
+    A.applyEnvelopeState(G3, { state: {}, skills: {}, inventory: { gold_ring: 3 }, equipment: {} });
+    assert(G3.inventory.gold_ring === 1,
+      'two worn rings must both be discounted from the server figure — got ' + G3.inventory.gold_ring);
+
+    /* 4. B359 IS NOT WEAKENED. Nothing equipped -> the max is untouched. */
+    const G4 = { gold: 0, skills: {}, inventory: { dragon_scale: 14 }, equipment: {} };
+    A.applyEnvelopeState(G4, { state: {}, skills: {}, inventory: { dragon_scale: 2 } });
+    assert(G4.inventory.dragon_scale === 14, 'b359: a named LOWER key must not pull a live stack down');
   }),
 
   /* ══════════════════════════════════════════════════════════════════════

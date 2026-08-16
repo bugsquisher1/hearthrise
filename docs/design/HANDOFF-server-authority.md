@@ -73,8 +73,10 @@ live verbs incl. unlock_buy (needs Tyler's password; re-provision the throwaway 
 it was wiped by the restore); (3) enable PITR-7 (~$105/mo) — **AMENDED by Tyler at cutover 2026-08-16: deferred past the
 cutover itself, goes on "closer to launch." Accepted risk, stated: until then a DB disaster
 costs up to 24h of ALL server-side progress with no client re-upload path (post-flip the
-load-strip takes the server value). HARD LINE: PITR is ROUND-2-LAUNCH-BLOCKING — it must be
-enabled before invites go out;
+load-strip takes the server value). SECOND AMENDMENT (Tyler, same night): betas may run
+~2 months and beta accounts are not worth insuring — PITR is deferred to the REAL launch
+(the feature/wipe launch), NOT round 2. Both beta rounds run on daily backups only,
+≤24h-loss accepted. PITR becomes REAL-LAUNCH-BLOCKING;
 (4) TOTAL wipe; (5) flip `'artisan'` payable + `gold` into SERVER_OF_RECORD (the flip
 commit — needs its own Security look at the 33 deferred-site behaviours, each now
 declared); (6) switch-on. Security's own queue: the 21 baselined tables (starting

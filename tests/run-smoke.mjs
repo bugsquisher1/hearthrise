@@ -989,6 +989,28 @@ async function monsterArtPreflight() {
   return 0;
 }
 
+/* The art-batch colour table (tools/lib/art-palette.mjs) + its deriver. Guards
+   the one failure that is invisible until ~600 funded images have been paid for:
+   an item whose subject line names a colour the table does not know is generated
+   with the STYLE ANCHOR's own palette, which is the salmon-pink-iron defect
+   art-direction-picker.md §0.10c exists to fix. Cheap — no browser, no API. */
+async function artPalettePreflight() {
+  const mod = join(ROOT, 'tests', 'art-palette.mjs');
+  try { await stat(mod); } catch { return 0; }
+  const { pathToFileURL } = await import('node:url');
+  const { artPaletteGuard } = await import(pathToFileURL(mod).href);
+  let problems = [];
+  try { problems = await artPaletteGuard(); } catch (e) { problems = [`guard threw: ${e.message}`]; }
+  if (problems.length) {
+    const NL = String.fromCharCode(10);
+    console.error(NL + 'Art palette preflight FAILED (' + problems.length + '):' + NL
+      + '  ' + problems.join(NL + '  ') + NL);
+    return 1;
+  }
+  console.log('Art palette preflight: 597/597 subject lines mapped, tier identity distinct, strip manifest joins');
+  return 0;
+}
+
 async function catalogueDriftPreflight() {
   const gen = join(ROOT, 'tools', 'gen-catalogues.mjs');
   try { await stat(gen); } catch { return 0; }
@@ -1122,6 +1144,7 @@ async function unlockModelPreflight() {
 
 const run = async () => {
   if (await monsterArtPreflight()) process.exit(1);
+  if (await artPalettePreflight()) process.exit(1);
   if (await catalogueDriftPreflight()) process.exit(1);
   if (await shopDriftPreflight()) process.exit(1);
   if (await perkDriftPreflight()) process.exit(1);

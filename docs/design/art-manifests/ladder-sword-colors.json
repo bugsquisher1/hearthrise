@@ -1,0 +1,9 @@
+{
+  "weapons/bronze_sword.png": [[183,116,60], [150,106,68], [26,28,32]],
+  "weapons/iron_sword.png": [[150,156,162], [150,106,68], [26,28,32]],
+  "weapons/steel_sword.png": [[198,208,218], [26,28,32]],
+  "weapons/mithril_sword.png": [[154,190,228], [26,28,32]],
+  "weapons/rune_sword.png": [[116,126,140], [110,214,206], [26,28,32]],
+  "weapons/ember_sword.png": [[58,62,78], [242,124,46], [26,28,32]],
+  "weapons/dawn_sword.png": [[238,240,236], [214,168,74], [26,28,32]]
+}

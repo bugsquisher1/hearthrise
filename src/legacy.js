@@ -16496,6 +16496,57 @@ window._monsterIcon = window._monsterIcon || {};
        further up; nothing is mapped here so that block wins. */
   };
 
+  /* ══════════════════════════════════════════════════════════════════════
+     HEARTHFIRE ART PILOT — items  ·  Art Director, 2026-08-16
+     STATUS: PILOT, pending Tyler's go/no-go. Not a shipped direction yet.
+
+     Source art: 1024² RGBA Recraft exports in `assets/art-pilot/hearthfire/`
+     (NOT shipped — raws stay out of the bundle). Processed by
+     `tools/art-pilot-process.mjs`: alpha-normalised (the exports come back
+     with the solid interior at alpha ~247, an export artifact that reads as
+     a faint wash over the dark hearthlight surface), auto-cropped to the
+     alpha bounding box, long edge scaled to 256 px, re-encoded PNG-24 RGBA.
+
+     256 and not the 128 in `docs/design/item-art-prompts.md`: that figure was
+     derived from the 64 px CSS box of the item-detail modal without accounting
+     for devicePixelRatio. At DPR 2 a 64 px box is 128 device px — 128 px art is
+     then exactly 1:1 with zero headroom, and on a DPR 3 phone it is upscaled.
+     256 restores the intended 2× and costs ~120 KB/icon. Spec amendment
+     proposed, not yet ratified.
+
+     This block is applied AFTER the literal above on purpose — these ids are
+     already mapped to the older `painted/` set and the pilot must win — and
+     BEFORE __mapGeneratedGearIcons(), so `leather_body` / `iron_platebody`
+     are not overwritten by the generated-tier slot art.
+
+     `oak_log` is deliberately ABSENT: the delivered `items/oak_log.png` is a
+     byte-for-byte duplicate of `weapons/bronze_sword.png` (md5 807eea02…), i.e.
+     it depicts a sword. Withheld pending a re-export rather than wired wrong —
+     this repo has shipped a boar named `bear.png` before.
+
+     To retire the pilot: delete this block, delete the monster block below,
+     and delete `assets/icons-bundle/hearthfire/`.
+     ══════════════════════════════════════════════════════════════════════ */
+  var HEARTHFIRE_ITEM_ICON = {
+    // Materials — iron_ore previously shared Res_14_stone.png with `coal`,
+    // so ore and fuel were the same grey rock in the Mining panel.
+    iron_ore:       'assets/icons-bundle/hearthfire/items/iron_ore.png',
+    // Weapons
+    bronze_sword:   'assets/icons-bundle/hearthfire/weapons/bronze_sword.png',
+    iron_sword:     'assets/icons-bundle/hearthfire/weapons/iron_sword.png',
+    // Armour — `leather_body` had NO painted art at all (the b282 guard skips
+    // every non-plate armourClass), so it rendered the 🎽 emoji. This is the
+    // pilot replacing emoji-as-art, not replacing a painting.
+    iron_platebody: 'assets/icons-bundle/hearthfire/armour/iron_platebody.png',
+    leather_body:   'assets/icons-bundle/hearthfire/armour/leather_body.png',
+    // Food — wheat_bread was likewise unmapped and rendered the 🍞 emoji.
+    cooked_shrimp:  'assets/icons-bundle/hearthfire/food/cooked_shrimp.png',
+    wheat_bread:    'assets/icons-bundle/hearthfire/food/wheat_bread.png',
+  };
+  Object.keys(HEARTHFIRE_ITEM_ICON).forEach(function(k){
+    LOCAL_ITEM_ICON[k] = HEARTHFIRE_ITEM_ICON[k];
+  });
+
   // House rooms — the ROOMS dict has 6 entries (kitchen, forge, library,
   // garden, trophy, cellar). We render these with a custom icon attribute
   // on the room card. b103 maps each to a hand-painted building.
@@ -16651,6 +16702,44 @@ window._monsterIcon = window._monsterIcon || {};
     lich:            'assets/icons-bundle/painted/monsters/lich.png',
     dragon:          'assets/icons-bundle/painted/monsters/dragon.png',
   };
+  /* ══════════════════════════════════════════════════════════════════════
+     HEARTHFIRE ART PILOT — monsters  ·  Art Director, 2026-08-16
+     STATUS: PILOT, pending Tyler's go/no-go. See the items block above for
+     the processing pipeline and the retire-the-pilot instructions.
+
+     Canvas here is exactly 256×256 SQUARE, per `monster-art-prompts.md` —
+     the bestiary row and the arena portrait both use `object-fit:cover` on a
+     square box, so a non-square portrait loses its edges. All five files are
+     verified 256×256 colour-type-6.
+
+     TWO of these five are honest id matches. THREE are PILOT PREVIEW ONLY —
+     `hellhound`, `grim_reaper` and `elk_king` are not live monsters yet, so
+     they are parked on the closest live id purely so Tyler can judge them on
+     a real screen instead of in a file browser. They are DELIBERATELY WRONG
+     identities and MUST be unparked before any of this ships. */
+  var HEARTHFIRE_MONSTER_ICON = {
+    // ── Real id matches ──────────────────────────────────────────────
+    // `barn_rat` is the pilot's name for the live `rat`.
+    rat:       'assets/icons-bundle/hearthfire/monsters/barn_rat.png',
+    /* `winter_wolf` → `dire_wolf`. This also clears a standing defect: the
+       b186 comment above admits wolf and dire_wolf SHARE one creature-pack
+       wolf, so the tier-up currently shows identical art. */
+    dire_wolf: 'assets/icons-bundle/hearthfire/monsters/winter_wolf.png',
+
+    // ── PILOT PREVIEW ONLY — deliberately wrong identities, do not ship ──
+    // hellhound (3-headed ember cerberus) parked on the fire-fiend slot.
+    lesser_demon: 'assets/icons-bundle/hearthfire/monsters/hellhound.png',   // PILOT PREVIEW ONLY
+    // grim_reaper (hooded skeleton + scythe) parked on the death-spirit slot.
+    wraith:       'assets/icons-bundle/hearthfire/monsters/grim_reaper.png', // PILOT PREVIEW ONLY
+    /* elk_king (mossy-antlered stag) parked on `bear`. Note `bear.png` is
+       itself a known mislabel — it is a BOAR — so this swaps one wrong
+       big-beast for another rather than destroying correct art. */
+    bear:         'assets/icons-bundle/hearthfire/monsters/elk_king.png',    // PILOT PREVIEW ONLY
+  };
+  Object.keys(HEARTHFIRE_MONSTER_ICON).forEach(function(k){
+    LOCAL_MONSTER_ICON[k] = HEARTHFIRE_MONSTER_ICON[k];
+  });
+
   window._monsterIcon = window._monsterIcon || {};
   Object.keys(LOCAL_MONSTER_ICON).forEach(function(k){
     window._monsterIcon[k] = LOCAL_MONSTER_ICON[k];

@@ -2,6 +2,34 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-16 · HEARTHFIRE ART PILOT wired + photographed (branch only — no bump, no push)
+
+Processed 13 Recraft 1024² exports, wired **12**, shot the game wearing them. Suite 736/736.
+Files: `tools/art-pilot-{process,alpha,shots}.mjs`, `assets/icons-bundle/hearthfire/**` (12 PNGs),
+two clearly-fenced blocks in `applyLocalIcons()`, one widened smoke assertion, one `.gitignore` line.
+
+**My verdict, stated plainly so it is on the record.** The Hearthfire lane is a real step up in
+*character* — the winter wolf, hellhound, grim reaper, elk king, shrimp, bread, leather jerkin and
+plate cuirass all read instantly at the sizes they render, and the brushwork has an authored quality
+the old CraftPix set never had. But **it is a different game's art**, and the inventory grid proves it:
+loose visible strokes and a dark rim-lit key against the old set's smooth airbrush and light rim.
+There is no half-adoption. **Go means all 426 items and the whole monster roster, or nothing.** That is
+the decision I'd put in front of Tyler, not "do these look nice".
+
+**Two things I would fix before a full run** (both in HANDOFFS to Asset Director): `iron_ore` is the one
+export that fails at render size — it reads as raw meat, not the ladder's "plain dark grey iron"; and
+`oak_log.png` is literally a copy of `bronze_sword.png`, which is the batch-QC lesson of the whole
+exercise (hash the set — a cross-category duplicate defeats every other automated check).
+
+**Three spec corrections I own and should land before the roster run** (detail in DISCOVERIES):
+the arena portrait is a **circle**, so the silhouette must fit the inscribed circle and not the square;
+item long-edge should be **256, not 128**, because the 128 figure ignored devicePixelRatio; and the
+exports arrive **~3% translucent** on their solid interior, which the pipeline now normalises.
+
+**Habit worth keeping:** I judged nothing from source. Every claim above came off a rendered screen,
+and the two failures I found (`oak_log`, `iron_ore`) were both invisible in the file browser and
+obvious in the inventory grid.
+
 ## Standing knowledge
 - Non-negotiables: 0 emoji as art; **"Forge & Stone" = the WORLD (castle, hearth, iron, stone, leather, timber) — as of 2026-08-16 it is a subject-matter rule, NOT a palette rule**; hearthlight (dark) default; earned containment (no wall-of-cards); Alegreya Sans + Cinzel; locked colour roles; wide surface value-ladder.
 - **Art direction is being reset (2026-08-16).** The shipped `assets/icons-bundle/painted/` set is retired as a style anchor — do not defend it, do not match it. Candidate directions live in `docs/design/art-direction-picker.md`; subject clauses (style-agnostic) in `item-art-prompts.md` + `monster-art-prompts.md`. **Item icons max out at 64×64 on screen; monster art must be square 256.**

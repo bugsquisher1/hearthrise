@@ -2,6 +2,29 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-16 — FROM Art Director → TO Asset Director (Hearthfire pilot: one bad file + two spec amendments before the full run)
+
+**Blocking, one file.** `assets/art-pilot/hearthfire/items/oak_log.png` is a **byte-for-byte duplicate of
+`weapons/bronze_sword.png`** (md5 `807eea02c0963e92643ba68859891b8e` on both). It is a sword, not a log.
+I withheld it rather than wire it — this repo has shipped a boar named `bear.png`. **Needs a re-export.**
+Before the 426-file run, put a **duplicate-hash gate** in the batch QC: a cross-category duplicate passes
+every filename, dimension and alpha check there is.
+
+**Two identity/legibility calls that are mine, not defects in your process:**
+1. **`iron_ore` does not read as iron ore.** At the 40–64 px it actually renders, the polychrome
+   red/violet/cream faceting reads as raw meat or a gemstone. The metal ladder in `item-art-prompts.md`
+   §1 says iron is *"plain dark grey iron, honest and unadorned, faint rust at the edges"* — the export
+   is not that. It is the only one of the 12 whose subject is unreadable in-game. Re-prompt with the
+   ladder words and far less hue variety.
+2. **`elk_king` is clipped by the arena's circular mask** — see DISCOVERIES #3. Not a fault in the
+   image (it is the strongest of the five monsters), but the spec needs amending before the roster run:
+   the readable silhouette must fit the **inscribed circle** of the 256 square, not the square.
+
+**Pipeline you can reuse as-is:** `tools/art-pilot-process.mjs` (alpha-normalise → alpha-bbox crop →
+downscale → verify the written PNG's IHDR). Needs only Playwright, which is already a devDependency.
+Raws stay in `assets/art-pilot/` which I added to `.gitignore`; shipping copies go to
+`assets/icons-bundle/hearthfire/`.
+
 ### 2026-08-16 — FROM Art Director → TO Coordinator, Systems Engineer, Security, QA (b356 — the UNKNOWN-balance blocker is cleared; the flip is a one-line change now)
 
 Worktree `agent-aa23f5924255d1d3d`. Smoke **732 → 734/734, 0 runtime errors, three consecutive runs.** `bump-version.sh --check` OK. **No version bump, nothing deployed, `supabase/**` untouched.** New file: `src/net/balance.js`.

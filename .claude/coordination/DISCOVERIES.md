@@ -4,6 +4,77 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-16 (b362) · Art Director · **A SHIPPED id is never re-reviewed, so five wrong icons have been live since b358 — and the way I found them was by using the shipped set as a CONTROL for a judgment call**
+
+**DISCOVERY 1 — five wired icons depict the wrong object, and they are wired, not withheld.**
+`assets/icons-bundle/hearthfire/items/`: **`oak_plank`, `duskwood_plank` and `runewood_plank` are
+round SHIELDS with bosses and rim studs. `bronze_bar` is a hammer resting on an anvil. `copper_bar`
+is a polished SPHERE.** They render that way in the Recipe Book right now — visible in
+`assets/art-pilot/_screenshots/wave2/06b-recipe-book.png`, where "Bronze Bar" and "Oak Plank" appear
+as ingredient chips wearing a hammer and a shield. Every one passed b358/b361 review.
+
+**AFFECTED SYSTEMS:** `src/data/item-art.js` `SHIPPED`, the icon bundle, every crafting/recipe/
+inventory surface. **REQUIRED ACTION:** re-shoot these five (Asset Director); until then they are the
+top of the worklist. Deliberately NOT unwired in b362 — unwiring swaps wrong art for a fallback glyph
+and needs its own verified pass, and mixing that into a wiring pass would hide it.
+
+**DISCOVERY 2, and this is the transferable one — the method, not the finding.** I did not go looking
+for these. I was deciding whether two marginal new planks (`willow_plank`, `yew_plank` — chunky, more
+timber-block than board) were good enough, and I built a contact sheet of the ALREADY-SHIPPED planks
+and bars to calibrate the bar. The control answered a different question than the one I asked it.
+**b360 established base-rate-against-the-shipped-control as the way to diagnose a failing class; this
+is the same instrument turned around — the control is also an audit, for free, every time you draw
+one.** The general rule: **a judgment call about new work is the cheapest moment to re-examine the
+old work, because you are already looking at both at the same size.** A review that only ever looks
+at the delta can never find a defect that shipped.
+
+**DISCOVERY 3 — `assets/items/` is 51 MB of 1024 px source raws tracked at the DEPLOY ROOT.**
+Committed in b361 alongside the wave. `CLAUDE.md` says `assets/icons-bundle/` is the only icon folder
+shipped; this one is not covered by that rule and is not gitignored, so it uploads. For scale, the
+entire hearthfire bundle is 23 MB. **REQUIRED ACTION:** Coordinator / Asset Director — move under
+`assets/art-pilot/` (already gitignored) or add an ignore. Not moved unilaterally here: it is Tyler's
+own source drop and relocating tracked files is an integration decision, not an art one.
+## 2026-08-18 · QA · P0 LIVE ITEM DUPLICATION ON EQUIP · accrue.js envelope merge / equip flow · FIXED in lane
+
+Reported by a T6 player: "every time I am using the corresponding weapon type it gets duplicated when
+I equip it." Weapons are tradeable on the server market, so this is economy-severity — one dupe per
+equip round trip. Severity P0. Fixed by QA (merge-site, `src/net/accrue.js`); no design/art impact.
+
+**Model, proved from the migrations rather than assumed.** Both sides hold gear DISJOINTLY from the
+bag: server-side `hr_apply`'s `equip` op is a transfer (2026-08-11-apply-engine.sql §EQUIPMENT debits
+`player_inventory`, inserts `player_equipment`) and `hr_create_character` explicitly asserts no
+starting item is in both; client-side `equipItem`/`equipToSlot`/`applyLoadout` all `removeItem(id,1)`
+and write `G.equipment[slot]`. **But nothing tells the server about a client equip — there is no
+equip verb anywhere in `src/net/*`.** So the server's inventory row is a stale view that still counts
+the worn copy, the client correctly counts zero, and b359's per-key MAX hands the stale figure back
+into the bag beside the copy in the slot.
+
+**Fix (minimal; b359 max-merge intact).** `applyEnvelopeState` subtracts, from a NAMED key's server
+figure, only the copies equipped locally that the envelope does NOT also show equipped
+(`unaccountedEquipped`, counted by item id, never by slot name). It can only lower the server figure,
+so the worst case is under-crediting a bag copy — which the next settle heals; a dupe never does.
+Regression `B362-DUPE-1` (4 blocks incl. no-double-deduction and two rings of one id);
+mutation-proved red on revert.
+
+**Sweep of the same class.** Market listing is SAFE — `market_list` deletes from `player_inventory`
+server-side (2026-08-17-market-v2.sql:838). The food slot is a POINTER, not a transfer (food stays in
+the bag until eaten). `G.tools` is vestigial (never debited). Seed planting, crafting, burying and
+vendor sales are CONSUMPTION, not transfers — they fall under b359's already-documented and accepted
+under-deduction (double-spend) risk, not the dupe class. Loadout apply routes through the same
+`G.equipment` transfer and is covered by the merge-site fix.
+
+**REQUIRED ACTION (Systems Engineer, not done here):** the real end state is an `equip` INTENT so the
+server learns about equips; this deduction retires with it, exactly as b359's max retires when live
+drops become server-authored.
+
+**Recoverability.** Existing dupes are identifiable only in principle: `player_ledger` records
+server-side grants and market moves, so an inventory count exceeding (ledger grants − ledger spends)
+for a gear item is a dupe candidate. But the extra copy only ever existed in the client snapshot and
+equips are unjournalled entirely, so no count can be attributed to a specific equip event. No cleanup
+action taken; the beta wipe at cutover subsumes it.
+
+---
+
 ### 2026-08-16 (b361) · Art Director · **An AI image model draws a garment correctly only if you tell it the garment is EMPTY — and a test control keyed to a hardcoded id list has a shelf life**
 
 **DISCOVERY 1 — the state, not the words.** Describing clothing as an *object at rest* ("an empty

@@ -4,6 +4,18 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-17 · STABILIZATION GATE + a second session in flight (Tyler, direct)
+**Decision.** (1) A SECOND Claude session is working logo/avatar reworks and will coordinate with
+this session when ready — integrate through the standard pipeline (merge → suite → visual gate);
+watch coordination files and incoming session messages. (2) After the current two builds land
+(item wave wiring + combat rework Phase 1): **FULL STOP for a QA/audit/playthrough** — the game
+played end-to-end as a player, every screen and system, desktop + mobile-landscape, ranked
+broken-list, fixes shipped — BEFORE any further feature work. Tyler: 'lets do a full
+QA/Audit/Playthrough of the game and fix whatever is broken before we keep moving forward.'
+**Date:** 2026-08-17.
+
+---
+
 ### 2026-08-17 · COMBAT REWORK SPEC — APPROVED by Tyler ('i like the combat spec')
 **Decision (Tyler, direct).** docs/design/combat-screen-rework.md is approved: the two-screen
 architecture (THE WAR TABLE menu + THE FIGHT stage), Melvor-density-with-order as the bar, the

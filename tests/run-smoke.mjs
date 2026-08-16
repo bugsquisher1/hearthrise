@@ -1231,7 +1231,6 @@ const run = async () => {
         + 'by name with gold measured.');
     }
 
-<<<<<<< HEAD
     /* ── The market guard (market v2) ───────────────────────────────────
        THE FIRST CROSS-PLAYER VALUE TRANSFER. Every other economy guard in this
        suite measures ONE character, because every other verb touches one;

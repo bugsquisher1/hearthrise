@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 360 — 2026-08-17 (The new look begins)
+
+- 🎨 **Nearly 400 items get brand-new hand-painted artwork** — weapons, armour, food, materials, runes and whetstones, all in Hearthrise's new painted style. The rest keep their old icons until their replacements pass review; monsters are getting the same treatment next.
+- ⚔️ **Boss fights now survive the sync.** Long fights are remembered by the server mid-fight instead of quietly restarting — which also fixes a subtle under-payment when you switched targets mid-battle.
+
 ## v0.9.2-beta build 359 — 2026-08-17 (Fix: items and skills were being taken back)
 
 - 🛠️ **Fixed a serious bug that erased progress you earned while playing.** Items you farmed and XP you trained at the keyboard could be silently reverted whenever the game synced with the server — a stack of 14 sliding back to 2, or a newly-trained skill dropping to level 1. The server had never been told about live gameplay, so anything it hadn't seen was treated as if it didn't exist.

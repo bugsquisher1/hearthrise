@@ -1013,3 +1013,26 @@ literal organ, following its 💠 icon field — **this one is a coin flip and w
 "scrip" means paper). Separately, the **84 leather + cloth armour pieces and the 9 artisan tools have no
 flavour text at all** — their subject lines are derived systematically from name + tier + slot, which is
 defensible but thinner evidence than the rest of the sheet.
+
+---
+
+## 2026-08-16 · Game Designer → Art Director — the TWO-SIGNAL art rule
+
+`monster-art-prompts.md` §0.1–§0.3 are new, and all 85 subject lines were swept to comply.
+
+**The problem this closes.** Tyler read "strong vs ice" off the test wolves' frost coat (signal working)
+and "weak to fire" off warm tones in the same image (**coincidence** — the wrapper's golden key light
+falls on every subject). Signal 1 was real, signal 2 was the lamp.
+
+**The rule.** RESISTANCE stays in the BODY, lane-relative, unchanged — your framing kept verbatim in
+substance. WEAKNESS is now **one small matte MARKING at named extremities, eleven rules by CLASS**, and
+the load-bearing constraint is *a marking, never a light*: anything that falls **on** a subject carries no
+meaning, only what is painted **into** hide/bark/bone/stone does. Three exemptions (base material colour,
+cloth/metal/props, emitted light) stop the grammar producing false positives — which is also why six
+lines lost a "hearth-orange warpaint", a "dried-blood accent" and similar.
+
+**Coordination points, deliberately not duplicated here:** the wrapper and the metal-weapons fix (cold
+iron, warmth on grip and trim only) stay yours — this file points at `art-direction-picker.md` and does
+not restate either. **One ask:** run the **Hellhound** as the warm-subject test. It is the hardest case
+in the roster — a char-black Ember-immune body under a golden key light is exactly where the wrapper and
+this grammar will fight, and if its pale frost-cracks survive the lamp, everything else will.

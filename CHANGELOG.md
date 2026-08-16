@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 356 — 2026-08-16 (Your crafting nights now pay)
+
+- 🔨 **Smithing, fletching and crafting now pay while you're away.** Leave your character at a workbench and the server works the night the same way it works a fight: real materials consumed, real items and XP earned, capped by your offline limit. Before this, a crafting night simply idled and paid nothing.
+- 🍳 **Cooking is the exception, for now.** It stays unpaid until kitchen upgrades are owned by the server — otherwise the server could burn food your Kitchen says it saves. It's next.
+- 🛑 **You can always stop.** If an activity ever gets stuck in a state the server won't pay, pressing stop now clears it cleanly instead of leaving you wedged.
+
 ## v0.9.2-beta build 355 — 2026-08-16 (Under the hood)
 
 - 🔧 Groundwork for the server owning your gold/gem balances outright: every screen now reads balances through one guarded path, and three subtle daily-quest accounting bugs found along the way were fixed before they could ever fire. Nothing visible changes today.

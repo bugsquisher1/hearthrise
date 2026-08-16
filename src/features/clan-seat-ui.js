@@ -1760,8 +1760,28 @@
   //     {kind:'meter',  label, value, max, valueText, foot, tone}
   //     {kind:'rows',   title, rows:[{name, meta, right, bar, action}], empty}
   //     {kind:'ladder', title, current, cap, rows:[…], note}
-  //     {kind:'actions',buttons:[{label, action, data, primary, danger, disabled, why}]}
+  //     {kind:'actions',buttons:[{label, action, data, primary, danger, disabled, why, pin, costs}]}
   //     {kind:'field',  title, select:{name,options}, qty:{name,value}, button:{…}, preview}
+  //
+  //   ── `pin: true` — THE BUILD BAR (b354) ────────────────────────────────
+  //   Tyler: the Build button sat under the flavour, the current bonuses and a
+  //   five-rung ladder, so on a phone — and on a 90vh desktop card with a
+  //   168px scene — the one control the screen exists for was BELOW THE FOLD.
+  //   A player had to scroll a modal to find out they could act at all.
+  //
+  //   `pin` moves ONE control out of the scrolling body and into a bar between
+  //   the header and the body, which never scrolls. It is a flag on the button
+  //   (or on a ladder row's `action`) rather than a new section kind, because
+  //   the descriptor builders already decide which control is the primary one
+  //   and a second grammar for "the same button, higher up" would let a screen
+  //   pin something that is not in its own section list.
+  //
+  //   Rules, deliberately narrow: the FIRST pinned control wins (a modal with
+  //   two primary actions has a design problem, not a rendering one), it is
+  //   REMOVED from its in-body position so the player never sees two buttons
+  //   that do one thing, and `costs:[{have,need,label}]` rides with it — a
+  //   Build button whose price is on the other side of a scroll is the same bug
+  //   in a smaller font.
   //
   //   The LADDER is the piece that matters most for reuse: "what does level N+1
   //   cost and what does it give me" is the same question a stove upgrade asks
@@ -1852,6 +1872,90 @@
       } catch (e) {}
     }
 
+    /* ── THE PIN PASS ────────────────────────────────────────────────────
+       Pure: takes the descriptor's section list and returns
+       `{ pin, sections }` — the pinned control and a section list with that
+       control removed. It never mutates the descriptor, because `_build()` is
+       also what the smoke suite and the grid cards read, and a render that
+       edited its input would make "what the descriptor says" depend on whether
+       anything had painted it yet.
+
+       Two shapes carry a pin, and they are the two shapes that already express
+       "the thing you came here to press":
+         · an `actions` button (the homestead's Build/Upgrade, which exists even
+           when it is disabled — a named reason at the top of the modal is worth
+           more than a button at the bottom);
+         · a `ladder` row's `action` (the castle's Commission / Raise the hold,
+           which only exists when it can actually be taken). The row's own
+           `costs` come with it, so the bar states the price without any caller
+           restating one. */
+    function hoistPin(sections) {
+      var list = sections || [], out = [], pin = null, i, j;
+      for (i = 0; i < list.length; i++) {
+        var s = list[i];
+        if (!s) { out.push(s); continue; }
+        if (!pin && s.kind === 'actions' && s.buttons) {
+          var keep = [];
+          for (j = 0; j < s.buttons.length; j++) {
+            var b = s.buttons[j];
+            if (!pin && b && b.pin) {
+              pin = { label: b.label, action: b.action, data: b.data, disabled: !!b.disabled,
+                      why: b.why || '', costs: b.costs || null, level: b.level || null,
+                      primary: b.primary !== false };
+            } else keep.push(b);
+          }
+          /* A section that held ONLY the pinned button must not leave an empty
+             action row behind — an 8px gap where a button used to be reads as a
+             rendering fault. */
+          if (pin && !keep.length) continue;
+          out.push(pin ? { kind: 'actions', buttons: keep } : s);
+          continue;
+        }
+        if (!pin && s.kind === 'ladder' && s.rows) {
+          var rows = s.rows.map(function (r) {
+            if (pin || !r || !r.action || !r.action.pin) return r;
+            var a = r.action;
+            pin = { label: a.label, action: a.name, data: a.data, disabled: false,
+                    why: '', costs: r.costs || null, level: r.level == null ? null : r.level,
+                    primary: true };
+            var copy = {}; for (var k in r) if (Object.prototype.hasOwnProperty.call(r, k)) copy[k] = r[k];
+            copy.action = null;
+            return copy;
+          });
+          out.push(pin ? { kind: 'ladder', title: s.title, rows: rows, note: s.note } : s);
+          continue;
+        }
+        out.push(s);
+      }
+      return { pin: pin, sections: out };
+    }
+
+    /* The bar itself. Everything in it is already-computed descriptor data —
+       no price is derived here, and the cost chips are the SAME `hr-cs-qty`
+       have/need component the ladder uses, so "met" reads identically in both
+       places. */
+    function buildBar(p) {
+      if (!p) return '';
+      var chips = (p.costs || []).map(function (c) {
+        return '<span class="hr-cs-qty' + (c.have != null && c.have >= c.need ? ' is-full' : '') + '">' +
+          (c.have != null ? nfmt(c.have) + '/' : '') + nfmt(c.need) + ' ' + esc(c.label) + '</span>';
+      }).join(' &middot; ');
+      var btn = p.disabled
+        ? '<button class="btn btn-sm" disabled title="' + esc(p.why || '') + '">' + esc(p.label) + '</button>'
+        : '<button class="btn btn-sm ' + (p.primary ? 'btn-primary' : '') + '" data-cs="' + esc(p.action) + '"' +
+          (p.data ? Object.keys(p.data).map(function (k) {
+            return ' data-' + k + '="' + esc(p.data[k]) + '"';
+          }).join('') : '') + '>' + esc(p.label) + '</button>';
+      return '<div class="hr-room-build">' +
+        '<div class="hr-cs-grow">' +
+          (p.level != null ? '<span class="hr-room-build-lv">Lv ' + esc(p.level) + '</span>' : '') +
+          (chips ? '<span class="hr-room-build-cost">' + chips + '</span>'
+                 : '<span class="hr-room-build-cost is-free">Ready to build</span>') +
+          (p.disabled && p.why ? '<div class="hr-room-build-why">' + esc(p.why) + '</div>' : '') +
+        '</div>' + btn +
+      '</div>';
+    }
+
     function paint() {
       var d = _build();
       if (!d) { close(); return null; }
@@ -1860,6 +1964,7 @@
       var keep = snapshotFields(prev);
       if (prev) prev.remove();
 
+      var hoisted = hoistPin(d.sections);
       var sc = document.createElement('div');
       sc.className = 'hr-room-scrim hr-cs';
       sc.innerHTML =
@@ -1871,7 +1976,10 @@
               (d.subtitle ? '<div class="hr-room-sub">' + d.subtitle + '</div>' : '') + '</div>' +
             '<button class="hr-room-x" data-close="1" aria-label="Close">' + (gly('uiClose', 13) || '&#10005;') + '</button>' +
           '</div>' +
-          '<div class="hr-room-body">' + (d.sections || []).map(section).join('') + '</div>' +
+          /* OUTSIDE `.hr-room-body`, which is the element that scrolls. That is
+             the whole fix: no amount of body content can push this off screen. */
+          buildBar(hoisted.pin) +
+          '<div class="hr-room-body">' + hoisted.sections.map(section).join('') + '</div>' +
         '</div>';
       sc.addEventListener('click', function (e) {
         if (e.target === sc || (e.target.closest && e.target.closest('[data-close]'))) { close(); return; }
@@ -1986,7 +2094,8 @@
         (s.note ? '<div class="hr-room-note">' + s.note + '</div>' : '');
     }
 
-    return { open: open, close: close, refresh: refresh, isOpen: isOpen, _section: section };
+    return { open: open, close: close, refresh: refresh, isOpen: isOpen,
+             _section: section, _hoistPin: hoistPin };
   })();
   window.HearthriseRoomModal = RoomModal;
 
@@ -2500,8 +2609,12 @@
         effect: perkAt(b, to) + (to === cur + 1 && cur > 0 ? ' (now ' + perkAt(b, cur) + ')' : ''),
         costs: costs,
         why: to === cur + 1 ? why : '',
+        /* `pin` — the next rung's Commission is the control this room exists
+           for, so it rides in the build bar above the scroll with this row's
+           own costs. Only the next rung can carry it; hoistPin takes the first
+           it finds, and a further rung is a plan rather than an action. */
         action: (to === cur + 1 && !why)
-          ? { name: 'post', label: 'Commission', data: { b: b.id } } : null
+          ? { name: 'post', label: 'Commission', data: { b: b.id }, pin: true } : null
       });
     }
     return {
@@ -2596,7 +2709,7 @@
               ' Hunt in the last 28 days.' : '') +
             (spoils ? ' It also takes ' + n(spoils.qty) + ' combat spoils from tier ' +
               spoils.tiers.join(' or ') + ' monsters.' : ''),
-          action: isLeader() ? { name: 'tier-up', label: 'Raise the hold' } : null
+          action: isLeader() ? { name: 'tier-up', label: 'Raise the hold', pin: true } : null
         }], note: isLeader() ? '' : 'Only the leader can raise the hold.' });
       } else {
         sections.push({ kind: 'note', html:

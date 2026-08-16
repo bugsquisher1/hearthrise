@@ -1718,3 +1718,62 @@ Guarded by **AWAY-24**, four mutations, each RED independently after a green con
 RED as expected — `src/core` changed, so the deployed `hr-accrue` bytes no longer match the repo
 (`2673befa442f5c40…` deployed vs `788b4222fb255f75…` packed). Redeploy is the Coordinator's, not
 mine; no push, no deploy, no migration.
+
+## 2026-08-16 · b354 · Two small client features, and the one I nearly built twice as expensive
+
+**Task.** (1) Sell auto-eat (100 Bounty Marks, Tyler 2026-08-09) in the Bounty Shop, where the marks
+are. (2) Move the Build button on every building-upgrade panel above the fold.
+
+**1 — the offer.** The instruction was "add the row in the SOURCE the generator reads and
+regenerate". I did exactly that first: a `{trait:'auto_eat'}` row in `legacy.js` BOUNTY_SHOP,
+`spendMarks` delegating to `buyTrait`, `gen-shops.mjs` mapping a delegating row to `trait:auto_eat`,
+both generated files regenerated. It worked, 735/735 in-page — and the **Edge payload guard went
+RED**: `src/data/shops.js` is bundled into the deployed `hr-accrue` payload, so a shop-table change
+of any size requires a production redeploy. Measured, not assumed: HEAD packs to `295c0c62…`, which
+is exactly what production reports.
+
+That is the cost that made me look at the design again, and the design was wrong on its own terms:
+`bounty.auto_eat` and `trait.auto_eat` would be **two offer ids for one purchase** — same price, same
+currency, same unlock — which is a second thing to bookkeep once-per-character the day marks get a
+server home, and a permanently-refused `namespace_unsupported:trait` row in `hr_unlock_offers` until
+then. The generated catalogue's unit is the purchase, not the button.
+
+Shipped instead: `bountyShopOffers()` — the board's own upgrades **plus every trait priced in
+marks**, composed at render. One authored offer, two storefronts. The catalogue, both generated
+migrations and the Edge payload are byte-identical to HEAD; no redeploy, no migration, nothing
+staged. It also scales by data: the next marks-priced trait appears on that screen by existing, and
+a test asserts that rule rather than that row.
+
+**Bounty purchases are still 100% client-side** — `spendMarks` moves `G.bountyHunter.marks` locally,
+and `marks` has no server column at all (`catalogue.js` refuses every marks-priced offer by name).
+Nothing here made that better or worse; it is the same debt, now with one more thing priced in it.
+
+**2 — the Build button.** The cause was structural, not cosmetic: `actions` was the LAST section of a
+descriptor whose earlier sections are a flavour note, a bonus list and a five-rung ladder, all inside
+`.hr-room-body`, which is the element that scrolls. Fixed in the **shared seam** rather than in two
+callers: a descriptor marks one control `pin: true`, `RoomModal` hoists it out of the body into a bar
+between the header and the scroll container, with its `costs` chips. Both pillars adopt it by adding
+a flag (homestead Build/Upgrade — pinned even when disabled, because "here is what is short" is the
+answer the player came for; castle Commission and Raise the hold). Any future consumer of the seam
+gets it free, and `hoistPin` is pure and returns a new section list, so `roomDescriptor` stays the
+one answer to "what controls exist" while the renderer owns "where they are drawn".
+
+**Learnings.**
+- **A guard that fails on a correct change is telling you the change costs more than you thought.**
+  The Edge payload guard did not find a bug in my row; it priced it. A redeploy of the engine that
+  owns every progression value, to sell an offer the server refuses by name, is a bad trade — and it
+  was only visible because that guard was made un-skippable after the b343 incident.
+- **"Add it to the source the generator reads" is right for a NEW thing and wrong for a SECOND
+  STOREFRONT.**
+- **Pin the disabled control too.** The pre-fix screen's real failure was a player opening a room and
+  seeing nothing actionable; a Build button reading "Missing 500 gold" at the top answers that, and
+  one hidden below three sections does not.
+- Mutation-proven, each RED alone after a green control: build bar removed → the b354 DOM test only;
+  composition removed → the b354 offer test only; `spendMarks` charging before delegating (the
+  double-debit) → the offer test, on the exact 137→37 arm.
+
+**Verification.** 735/735, 0 failures, 0 runtime errors, **three consecutive runs**, every infra
+guard green including Edge payload parity. Runtime-verified in Chromium at 1280×820 and at 922×423
+(paione's landscape phone): Build fully in the viewport with the body genuinely scrolling under it,
+console clean, Auto-Eat at the top of the Bounty Shop at 100 marks. No new persistent state, so
+nothing to migrate. No push, no version bump, no deploy, no migration.

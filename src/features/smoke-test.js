@@ -29286,6 +29286,225 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════
+     b354 — AUTO-EAT IS SOLD WHERE THE MARKS ARE.
+
+     Tyler ruled (2026-08-09) that auto-eat costs 100 Bounty Marks. It was
+     reachable only from the Shop tab's trait strip — a screen a player who
+     spends marks never opens — so the currency and the only thing worth
+     buying with it lived on two different tabs.
+
+     The interesting risk in adding it is NOT the row. It is that a second
+     storefront becomes a second OWNER: a bounty row that set its own upgrades
+     key would make `hasTrait('auto_eat')` and `upgrades.autoEat` two answers
+     to one question, and a row that charged its own marks before delegating
+     would take 200 for a 100-mark trait. Both are asserted below, in the
+     direction that fails if the delegation is ever unpicked.
+
+     The panel's offer list is COMPOSED (`bountyShopOffers()`) — the board's own
+     upgrades plus everything in the game priced in marks — rather than a second
+     authored row, so there is exactly one offer id for one purchase and the
+     generated server catalogue is untouched.
+     ══════════════════════════════════════════════════════════════════════ */
+  () => tryRunAsync('b354: the Bounty Shop sells Auto-Eat at 100 Marks, through the ONE writer of the trait', async () => {
+    assert(typeof window.bountyShopOffers === 'function',
+      'bountyShopOffers() is not published — this test must read the REAL offer list the panel '
+      + 'renders from, never a copy of it');
+    const SHOP = window.bountyShopOffers();
+    assert(Array.isArray(SHOP) && SHOP.length >= 6, 'the composed offer list is ' + SHOP.length + ' long');
+
+    /* (1) THE ROW, in the real list, at the ruled price. */
+    const row = SHOP.filter((r) => r.trait === 'auto_eat')[0];
+    assert(row, 'the Bounty Shop has no auto-eat offer — a player with 100 marks has nothing to '
+      + 'spend them on that they came for');
+    assert(row.cost === 100, 'auto-eat is 100 Bounty Marks (Tyler, 2026-08-09), the row says ' + row.cost);
+    assert(!row.flag, 'a delegating row must not also carry a `flag` — that is the second owner');
+    assert(!row.repeatable, 'a permanent trait is not a repeatable purchase');
+    assert(window.BOUNTY_SHOP.every((r) => !r.trait),
+      'the marks-priced trait was COPIED into BOUNTY_SHOP as well — that is a second offer id for '
+      + 'one purchase, and it is what the composition exists to avoid');
+
+    /* (2) THE PRICE HAS ONE SOURCE — the row IS the trait's own price, so the
+       shop cannot advertise 100 and charge 250. Asserted against TRAITS
+       directly, because the composition is exactly what would hide a drift. */
+    const T = (window.TRAITS || {}).auto_eat;
+    assert(T && T.currency === 'marks' && T.cost === row.cost,
+      'TRAITS.auto_eat charges ' + (T && T.cost) + ' ' + (T && T.currency)
+      + ' while the Bounty Shop advertises ' + row.cost + ' marks');
+    /* THE RULE, not the row: every marks-priced trait reaches this screen. A
+       future one that did not would repeat the whole bug. */
+    Object.keys(window.TRAITS).forEach((id) => {
+      if (window.TRAITS[id].currency !== 'marks') return;
+      assert(SHOP.some((r) => r.trait === id),
+        'TRAITS.' + id + ' is priced in Bounty Marks but is not sold on the Bounty Shop');
+    });
+
+    /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
+       purchase, one offer id, priced in marks, granting the trait unlock. */
+    const S = await import('../data/shops.js?v=353');
+    const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
+    assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
+      'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
+      + 'storefront must not become a second offer id the server would have to bookkeep separately');
+    const off = S.SHOP_OFFERS.filter((o) => o.id === 'trait.auto_eat')[0];
+    assert(off.cost.length === 1 && off.cost[0].kind === 'currency'
+      && off.cost[0].id === 'marks' && off.cost[0].amount === row.cost,
+      'trait.auto_eat is priced ' + JSON.stringify(off.cost) + ' in the catalogue, not '
+      + row.cost + ' marks');
+
+    /* (4) THE PLAYER'S PATH, driven end to end. */
+    const snap = snapshotG();
+    try {
+      window.G.traits = {};
+      window.ensureBountyState && window.ensureBountyState();
+      window.G.bountyHunter.marks = 40;
+      window.showTab('bounty');
+      window.renderBountyTab();
+
+      const node = document.querySelector('#bounty-shop-body .bounty-shop-row[data-offer="' + row.id + '"]');
+      assert(node, 'the Auto-Eat row is not on the Bounty Shop panel');
+      assert(/Auto-Eat/.test(node.textContent), 'the row must name what it sells');
+      assert(/100/.test(node.querySelector('.price').textContent),
+        'the row must PRINT the price, got "' + node.querySelector('.price').textContent + '"');
+      assert(node.querySelector('button').disabled,
+        'at 40 marks the Buy button must be disabled — a control that cannot act must not look like it can');
+
+      // Too poor: nothing is taken and nothing is granted.
+      window.spendMarks(row.id);
+      assert(window.G.bountyHunter.marks === 40,
+        'a refused purchase took marks anyway (' + window.G.bountyHunter.marks + ')');
+      assert(!window.hasTrait('auto_eat'), 'a refused purchase granted the trait');
+
+      // Affordable: charged EXACTLY once, and by the trait's own price.
+      window.G.bountyHunter.marks = 137;
+      window.spendMarks(row.id);
+      assert(window.hasTrait('auto_eat'), 'buying auto-eat in the Bounty Shop did not unlock it');
+      assert(window.G.bountyHunter.marks === 37,
+        'the purchase debited ' + (137 - window.G.bountyHunter.marks) + ' marks, not 100 — the shop '
+        + 'row is charging on top of buyTrait()');
+      assert(!(window.G.bountyHunter.upgrades || {}).auto_eat
+        && !(window.G.bountyHunter.upgrades || {}).autoEat,
+        'the bounty shop wrote its own ownership key — hasTrait() and upgrades are now two answers');
+
+      // …and the panel says so without being told twice.
+      window.renderBountyTab();
+      const after = document.querySelector('#bounty-shop-body .bounty-shop-row[data-offer="' + row.id + '"]');
+      assert(/Owned/.test(after.querySelector('button').textContent),
+        'an owned trait must read Owned in the Bounty Shop, got "'
+        + after.querySelector('button').textContent + '"');
+      assert(after.querySelector('button').disabled, 'an owned trait must not be buyable again');
+
+      // Buying it twice must not cost a second 100.
+      window.spendMarks(row.id);
+      assert(window.G.bountyHunter.marks === 37, 'a second purchase of an owned trait charged again');
+    } finally { restoreG(snap); }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b354 — THE BUILD BUTTON IS ABOVE THE FOLD, IN BOTH PILLARS.
+
+     Reported by Tyler: on a building-upgrade panel you have to scroll to
+     reach Build. The cause is structural rather than cosmetic — `actions` was
+     the LAST section of a descriptor whose earlier sections are a flavour
+     note, a bonus list and a five-rung ladder, all inside `.hr-room-body`,
+     which is the element that scrolls. So the fix is structural too: the
+     pinned control renders as a SIBLING of the scroll container.
+
+     This is asserted as DOM ORDER + containment rather than by measuring
+     pixels: a test that checked `getBoundingClientRect().top` would pass on a
+     tall desktop viewport while the phone stayed broken, which is exactly the
+     bug it is meant to catch.
+     ══════════════════════════════════════════════════════════════════════ */
+  () => tryRun('b354: the Build button renders above the scrollable details (homestead room + castle wing)', () => {
+    const RM = window.HearthriseRoomModal, H = window.HearthriseHomestead;
+    if (!RM || !H || typeof H.openRoom !== 'function') { assert(true, 'seam absent'); return; }
+
+    /* The pin pass itself, driven directly — it is the rule, and the two
+       renders below are the proof it reaches the screen. */
+    const probe = RM._hoistPin([
+      { kind: 'note', html: 'x' },
+      { kind: 'actions', buttons: [{ label: 'Build', action: 'build', pin: true },
+                                   { label: 'Go', action: 'go' }] }
+    ]);
+    assert(probe.pin && probe.pin.action === 'build', 'hoistPin did not lift the pinned button');
+    assert(probe.sections[1].buttons.length === 1 && probe.sections[1].buttons[0].action === 'go',
+      'the pinned button must be REMOVED from the body — two buttons for one action is worse than one '
+      + 'in the wrong place');
+    const none = RM._hoistPin([{ kind: 'actions', buttons: [{ label: 'Go', action: 'go' }] }]);
+    assert(!none.pin && none.sections.length === 1,
+      'a descriptor with nothing pinned must be rendered exactly as before');
+
+    const above = (what) => {
+      const wrap = document.querySelector('.hr-room-wrap');
+      const bar = wrap && wrap.querySelector(':scope > .hr-room-build');
+      const body = wrap && wrap.querySelector(':scope > .hr-room-body');
+      assert(bar, what + ': no build bar was rendered');
+      assert(body, what + ': the modal has no body');
+      assert(!bar.closest('.hr-room-body'),
+        what + ': the build bar is INSIDE the scroll container, which is the whole bug');
+      assert(bar.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING,
+        what + ': the details are not after the build button in the DOM');
+      assert(getComputedStyle(body).overflowY === 'auto',
+        what + ': .hr-room-body is not the scroll container, so "outside it" proves nothing');
+      const btn = bar.querySelector('button');
+      assert(btn, what + ': the build bar has no button');
+      assert(body.querySelectorAll('[data-cs="build"],[data-cs="post"],[data-cs="tier-up"]').length === 0,
+        what + ': the build control is ALSO still in the scrolling body');
+      return { bar: bar, btn: btn, body: body };
+    };
+
+    const snap = snapshotG();
+    try {
+      // ── PILLAR 1: a homestead room ────────────────────────────────────
+      window.G.homestead = { tier: 3 };
+      window.G.rooms = {};
+      window.G.gold = 500000;
+      window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 999, normal_plank: 999 });
+      H.openRoom('kitchen');
+      let seen = above('homestead kitchen');
+      assert(/Build/.test(seen.btn.textContent), 'an unbuilt room offers Build, got "' + seen.btn.textContent + '"');
+      assert(!seen.btn.disabled, 'an affordable rung must be buildable from the bar');
+      assert(/Gold/i.test(seen.bar.textContent) && /\d+\s*\/\s*\d+/.test(seen.bar.textContent),
+        'the cost must travel WITH the button — a price on the other side of a scroll is the same bug: "'
+        + seen.bar.textContent.replace(/\s+/g, ' ') + '"');
+      // It really acts from up there.
+      seen.btn.click();
+      assert((window.G.rooms || {}).kitchen === 1, 'clicking Build in the bar did not build the room');
+
+      // Unaffordable: still pinned, still priced, and it NAMES what is short.
+      window.G.gold = 0; window.G.inventory = {};
+      RM.refresh();
+      seen = above('homestead kitchen, unaffordable');
+      assert(seen.btn.disabled, 'an unaffordable rung must be disabled');
+      assert(/Missing/.test(seen.bar.textContent),
+        'a disabled build must say what is short, in the bar: "' + seen.bar.textContent.replace(/\s+/g, ' ') + '"');
+      RM.close();
+
+      // ── PILLAR 2: a clan castle wing ──────────────────────────────────
+      const UI = window.HearthriseClanSeatUI;
+      if (UI && typeof UI.roomDescriptor === 'function') {
+        try {
+          UI._reset();
+          UI._setClan({ id: 'clan-1', name: 'Probe Hold', level: 1, treasury: 0, join_policy: 'open', myRole: 'leader' });
+          UI._setSeat({ castle_tier: 1, standing: 0, upgrades: {}, my_role: 'leader', members: 2,
+                        member_cap: 10, stores: {}, orders: [], upkeep_state: 'active' }, 'clan-1');
+          const d = UI.roomDescriptor('treasury');
+          const lad = d.sections.filter((s) => s.kind === 'ladder')[0];
+          assert(lad && lad.rows[0] && lad.rows[0].action && lad.rows[0].action.pin,
+            'the castle wing\'s next rung must pin its Commission button');
+          RM.open(function () { return UI.roomDescriptor('treasury'); });
+          const cs = above('clan castle treasury');
+          assert(/Commission/.test(cs.btn.textContent),
+            'the castle bar must carry the wing\'s own verb, got "' + cs.btn.textContent + '"');
+          assert(/\d+\s*\/\s*\d+/.test(cs.bar.textContent),
+            'the wing\'s bundle must be shown with the button: "' + cs.bar.textContent.replace(/\s+/g, ' ') + '"');
+          assert(cs.bar.querySelector('[data-b="treasury"]'),
+            'the pinned button must carry its action data, or pressing it does nothing');
+        } finally { UI._reset(); }
+      }
+    } finally { restoreG(snap); RM.close(); }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

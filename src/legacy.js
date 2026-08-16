@@ -6196,8 +6196,12 @@ try{ window.openBankModal=openBankModal; window.closeBankModal=closeBankModal; }
    HearthriseAuto.maybeAutoEat() so it can't be bypassed via the settings
    toggle. Data-driven so more QoL traits can be added later. */
 const TRAITS={
-  /* b227 (Tyler): auto-eat is earned at the bounty board, not bought with gold. */
-  auto_eat:{name:'Auto-Eat',cost:100,currency:'marks',glyph:'meat',desc:'Eats for you when your health drops, INCLUDING while you\'re away — your fights stop being ninety seconds long. Earned with Bounty Marks; set the threshold in Settings → Gameplay.'},
+  /* b227 (Tyler): auto-eat is earned at the bounty board, not bought with gold.
+     b354: and it is now SOLD at the bounty board too — bountyShopOffers() lifts
+     every marks-priced trait onto the Bounty Shop panel. `desc` is therefore
+     read on two screens; the old copy ended "Earned with Bounty Marks", which
+     was a signpost to a currency the reader is now standing in. */
+  auto_eat:{name:'Auto-Eat',cost:100,currency:'marks',glyph:'meat',desc:'Eats for you when your health drops, INCLUDING while you\'re away — your fights stop being ninety seconds long. Set the threshold in Settings → Gameplay.'},
 };
 window.TRAITS=TRAITS;
 function hasTrait(id){return !!(G.traits&&G.traits[id]);}
@@ -7889,8 +7893,54 @@ const BOUNTY_SHOP = [
   {id:'cosmetic_cape', name:'Hunter Cloak',      glyph:'uiCape',      cost:300,desc:'Cosmetic cloak unlock (Hearth Hall slot).', flag:'cosmeticCloak', value:true},
 ];
 
+/* ── WHAT THE BOUNTY SHOP SELLS = the board's own upgrades PLUS everything
+   else in the game that is PRICED IN BOUNTY MARKS ────────────────────────────
+   b354. Tyler ruled (2026-08-09) that auto-eat costs 100 Bounty Marks, and it
+   ended up sold only on the Shop tab's trait strip — a screen a player who is
+   grinding bounties never opens. The marks and the one thing worth spending
+   them on were two tabs apart.
+
+   The fix is the RULE, not the row: anything whose price is in marks belongs on
+   the screen that holds the marks. So this composes rather than copies, and the
+   next marks-priced trait appears here by being DATA.
+
+   Why not a second authored row in BOUNTY_SHOP: it would be a second OFFER ID
+   for one purchase. `trait.auto_eat` is already in the generated server
+   catalogue (tools/gen-shops.mjs → src/data/shops.js) at 100 marks granting
+   `trait:auto_eat`; a `bounty.auto_eat` beside it would be a second id for the
+   same transaction — the shape that needs its own once-per-character
+   bookkeeping the day marks get a server home, and a permanently-refused row in
+   hr_unlock_offers until then. Measured cost of that alternative: it changes
+   src/data/shops.js, which the hr-accrue Edge payload bundles, so it would have
+   required a production redeploy to sell nothing new.
+
+   A composed row carries `trait:`, which means it DELEGATES: buyTrait owns the
+   price, the debit and G.traits. This list never owns state. */
+function bountyShopOffers(){
+  const T = window.TRAITS || {};
+  const marksTraits = Object.keys(T)
+    .filter(function(id){ return T[id] && T[id].currency === 'marks'; })
+    .map(function(id){
+      return { id:'trait_'+id, trait:id, name:T[id].name, glyph:T[id].glyph,
+               cost:T[id].cost, desc:T[id].desc };
+    });
+  return marksTraits.concat(BOUNTY_SHOP);
+}
+try{ window.BOUNTY_SHOP = BOUNTY_SHOP; window.bountyShopOffers = bountyShopOffers; }catch(_){}
+
 function spendMarks(itemId){
-  const def = BOUNTY_SHOP.find(x=>x.id===itemId); if(!def) return;
+  const def = bountyShopOffers().find(x=>x.id===itemId); if(!def) return;
+  /* A trait row DELEGATES. buyTrait is the single writer of G.traits and the
+     single place the marks are debited for it — this function must not charge
+     first and then call it, or the player pays twice, and it must not set an
+     ownership key of its own. Affordability, the refusal message, the save and
+     the shop repaint all belong to buyTrait; the only thing owed here is a
+     repaint of THIS panel, which buyTrait has no business knowing about. */
+  if(def.trait){
+    if(typeof window.buyTrait === 'function') window.buyTrait(def.trait);
+    renderBountyTab();
+    return;
+  }
   const have = G.bountyHunter?.marks || 0;
   if(have < def.cost){ notify(`Need ${def.cost - have} more Marks`, 'kill'); return; }
   G.bountyHunter.marks -= def.cost;
@@ -7955,13 +8005,18 @@ function renderBountyTab(){
 
   const shop = document.getElementById('bounty-shop-body');
   if(shop){
-    shop.innerHTML = BOUNTY_SHOP.map(it=>{
-      const owned = G.bountyHunter?.upgrades?.[it.flag] && !it.repeatable;
-      const can = (G.bountyHunter?.marks || 0) >= it.cost;
-      return `<div class="bounty-shop-row">
+    shop.innerHTML = bountyShopOffers().map(it=>{
+      /* A delegating row asks the OWNER of the fact, never a second key: the
+         price is the one buyTrait will charge and ownership is hasTrait(). */
+      const cost = it.cost;
+      const owned = it.trait
+        ? (typeof hasTrait === 'function' && hasTrait(it.trait))
+        : (G.bountyHunter?.upgrades?.[it.flag] && !it.repeatable);
+      const can = (G.bountyHunter?.marks || 0) >= cost;
+      return `<div class="bounty-shop-row" data-offer="${it.id}">
         <span class="si">${(window.HR && window.HR.icon) ? (window.HR.icon(it.glyph, 22, 'currentColor') || '') : ''}</span>
         <div class="info"><b>${it.name}</b><span>${it.desc}</span></div>
-        <span class="price">${(window.HR&&window.HR.amount)?window.HR.amount('bountyHunter',it.cost,13,'--gold-2'):it.cost+' Marks'}</span>
+        <span class="price">${(window.HR&&window.HR.amount)?window.HR.amount('bountyHunter',cost,13,'--gold-2'):cost+' Marks'}</span>
         <button class="btn btn-sm ${owned?'':can?'btn-primary':''}" ${owned||!can?'disabled':''} onclick="spendMarks('${it.id}')">${owned?'Owned':'Buy'}</button>
       </div>`;
     }).join('');

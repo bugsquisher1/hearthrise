@@ -2,6 +2,35 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-16 — b355 — the invisible blueprint (Tyler, live, Kitchen room modal)
+
+**Symptom.** "This doesn't tell me anywhere it requires a blueprint or how to get a blueprint."
+
+**Root cause — structural, not copy.** The blueprint check was an inline loop over `ITEMS` *inside*
+`upgradeRoom`, reachable only by ACTING. So no surface could state it — and worse, the view
+DISAGREED with the authority: `roomDescriptor().next.affordable` looked only at gold/materials, so a
+player holding the gold and the logs got a lit, PRIMARY Build button that then refused with a toast.
+
+**The seam.** `window.roomRungItemGate(id, want)` in `legacy.js` — TOTAL (answers for any rung,
+owned or not), returns `{id,name,need,have,ok,source}` or `null`. `upgradeRoom` now enforces with
+the same function every view reads, so authority and view cannot drift. `source` comes from
+`window.itemSourceLine` (b242), never from prose.
+
+**Learning worth keeping.** The b242 reverse index did NOT index dungeon loot or the Quartermaster —
+which is exactly why the old toast had to hardcode "they drop from dungeons". A requirement that can
+only be discovered by failing is not a requirement, it is a trap; and hardcoded prose in a toast is
+the tell that some seam is missing data. Both are fixed at the data layer now, so every dungeon-only
+item (8 blueprints, farm deeds, the signature boss weapons) describes itself everywhere.
+
+**Requirement classes are now three, deliberately.** (a) met cost and (b) short cost are the same
+component in two states — correct. (c) ITEM GATE gets its OWN line, because rendering it as a third
+cost chip ("0/1 Kitchen Blueprint II") reads as one more plank when it means "you cannot start".
+
+**Handoff / open.** `farm-progression.js`'s Farmer's Deed card (House › Plot) is the one other
+GATED-BY-ITEM surface. It is NOT invisible — it already prints "Have N Deeds · need M" at the
+decision point — but it never says where deeds come from and it is hand-rolled rather than going
+through the `gates` seam. Worth folding onto the seam when that card is next touched; not urgent.
+
 ## 2026-08-15 — b349 — 19% of all traffic was a question the client had no right to ask
 
 Worktree `agent-aea11985dd254af77`, commit `ce9dc9c`. Suite **710/710** (baseline 707; +3), 0 runtime

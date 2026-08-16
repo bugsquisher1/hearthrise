@@ -391,6 +391,17 @@
     return canBuildRoom(id);
   }
 
+  /* b355 — the ITEM gate (housing blueprints), asked of the same authority
+     upgradeRoom enforces with. An ARRAY, not a single object: a rung needing
+     two keys is a data change, not a rendering change. Empty when the rung has
+     no item gate at all, which is most of them. */
+  function rungItemGates(id, want) {
+    if (typeof window.roomRungItemGate !== 'function') return [];
+    var g = null;
+    try { g = window.roomRungItemGate(id, want); } catch (e) { g = null; }
+    return g ? [g] : [];
+  }
+
   // 'locked' | 'unbuilt' | 'built' | 'max' — the four states §5 names.
   function roomState(id) {
     var lv = roomLevel(id);
@@ -441,6 +452,13 @@
     var nextRung = lv < cap ? r.levels[lv] : null;
     var gate = nextRung ? rungGate(id, lv + 1) : { ok: true };
     var missing = nextRung ? costAffordable(nextRung.cost) : [];
+    /* b355 — the blueprint requirement was invisible until you CLICKED, and
+       worse, `affordable` said yes while upgradeRoom said no: gold and planks
+       met with no blueprint lit the pinned Build button primary and then
+       refused with a toast. A view that disagrees with the authority about
+       whether an action is possible is a bug before it is a copy problem. */
+    var nextGates = nextRung ? rungItemGates(id, lv + 1) : [];
+    var gatesMet = nextGates.every(function (g) { return g.ok; });
 
     // what it does RIGHT NOW — never a promise
     var now = rungEffects(cur).map(function (e) {
@@ -462,6 +480,11 @@
         // Stated on the rung rather than silently omitted OR falsely promised.
         reserved: rung.resv || null,
         cost: costTriples(rung.cost),
+        /* The item gate rides on EVERY rung, owned ones included — an owned
+           rung reads "Kitchen Blueprint II ✓ spent" rather than dropping the
+           requirement, so a player scanning the ladder learns that rungs 2 and
+           3 want blueprints BEFORE they arrive at one they cannot pay. */
+        gates: rungItemGates(id, level),
         owned: level <= lv,
         next: level === lv + 1,
         locked: level > lv && !g.ok,
@@ -487,7 +510,8 @@
       next: nextRung
         ? { level: lv + 1, name: nextRung.nm || ('Level ' + (lv + 1)), bonus: nextRung.bonus,
             gated: !gate.ok, gateReason: gate.ok ? null : gate.reason,
-            affordable: gate.ok && !missing.length,
+            gates: nextGates, gatesMet: gatesMet,
+            affordable: gate.ok && gatesMet && !missing.length,
             missing: missing }
         : null,
       go: meta.go || null
@@ -798,6 +822,15 @@
           costs: row.owned ? null : row.cost.map(function (c) {
             return { have: c.have, known: c.known, need: c.need, label: c.label };
           }),
+          /* The third requirement class, handed to the seam as data. Costs are
+             a number you grind toward; an item gate is a THING you either hold
+             or must go somewhere specific to get, so it gets its own line with
+             its own source rather than being mixed into the price chips where
+             "0/1 Kitchen Blueprint II" reads like 1 more plank. */
+          gates: (row.gates || []).map(function (g) {
+            return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok,
+                     source: g.source || '', spent: !!row.owned };
+          }),
           why: row.gateReason || null,
           locked: row.locked,
           next: row.next && !row.locked
@@ -829,21 +862,43 @@
       var costs = nextRow ? nextRow.cost.map(function (c) {
         return { have: c.have, need: c.need, label: c.label };
       }) : null;
-      if (d.next.gated) {
-        buttons.push({ label: label, action: 'noop', disabled: true, why: d.next.gateReason,
-                       pin: true, costs: costs, level: d.next.level });
-      } else if (!d.next.affordable) {
-        var short = d.next.missing.map(function (m) {
+      /* The pinned bar carries the gate too, so the answer to "why can't I
+         press this" is ON the bar (item, held/not, and where it comes from)
+         instead of arriving in a toast after the click. */
+      var pinGates = (d.next.gates || []).map(function (g) {
+        return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok, source: g.source || '' };
+      });
+      var unmet = pinGates.filter(function (g) { return !g.ok; });
+      /* ONE reason string, built from every blocker rather than the first one.
+         The branch chain this replaces returned only the highest-priority
+         reason, so a rung short of BOTH a blueprint and 40 planks named one of
+         them and the player fixed it to find the button still dead. b213's rule
+         — name what is short, never "not enough" — applied to all three classes. */
+      var reasons = [];
+      if (d.next.gated) reasons.push(d.next.gateReason);
+      if (unmet.length) reasons.push('Needs ' + unmet.map(function (g) { return g.name; }).join(' and '));
+      if (!d.next.gated && d.next.missing.length) {
+        reasons.push('Missing ' + d.next.missing.map(function (m) {
           var n = (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id;
           if (m.known === false) return m.id + ' balance not loaded yet';
           return m.id === 'gold' ? ((m.need - m.have) + ' gold') : (n + ' ×' + (m.need - m.have));
-        }).join(', ');
-        // b213's lesson as a rule: name what is short, never "not enough".
-        buttons.push({ label: label, action: 'noop', disabled: true, why: 'Missing ' + short,
-                       pin: true, costs: costs, level: d.next.level });
+        }).join(', '));
+      }
+      if (reasons.length) {
+        /* `why` stays COMPLETE — it is the button's hover title and the text an
+           unpinned, gate-line-less actions row appends. But when the gate is the
+           only blocker, a bar that prints "Needs Kitchen Blueprint II" directly
+           above a block that says "Kitchen Blueprint II — you have none" is the
+           same sentence twice, which this codebase already treats as a rendering
+           fault rather than as emphasis. `whyCovered` tells the renderer the
+           detail lines say everything the verdict does — a boolean, so nobody
+           has to parse prose to find out. */
+        buttons.push({ label: label, action: 'noop', disabled: true, why: reasons.join(' · '),
+                       whyCovered: reasons.length === 1 && unmet.length > 0,
+                       pin: true, costs: costs, gates: pinGates, level: d.next.level });
       } else {
         buttons.push({ label: label, action: 'build', data: { room: id }, primary: true,
-                       pin: true, costs: costs, level: d.next.level });
+                       pin: true, costs: costs, gates: pinGates, level: d.next.level });
       }
     }
     if (d.go) buttons.push({ label: d.go.label, action: 'go', data: { room: id } });
@@ -932,12 +987,25 @@
       var costLine = '';
       if (d.next && !d.next.gated) {
         var rung = d.ladder[d.next.level - 1];
-        costLine = '<span class="hh-room-cost">' + rung.cost.map(function (c) {
+        var chips = rung.cost.map(function (c) {
           return '<span class="hh-cost ' + (c.known === false ? '' : (c.have >= c.need ? 'is-met' : 'is-short')) + '" title="' +
             esc(c.need.toLocaleString() + ' ' + c.label + ' — you have '
               + (c.known === false ? 'no figure yet (waiting for the server)' : c.have.toLocaleString())) + '">' +
             '<b>' + esc(c.need.toLocaleString()) + '</b> ' + esc(c.label) + '</span>';
-        }).join('<i aria-hidden="true">&middot;</i>') + '</span>';
+        });
+        /* b355 — the card is a decision point too. A blueprint requirement that
+           only exists inside the modal still makes the House screen lie: the
+           card would print a price the player can fully afford next to a room
+           they cannot build. The gate gets a chip in the SAME cost strip, met /
+           short exactly like the others, with its source in the hover. */
+        (d.next.gates || []).forEach(function (g) {
+          chips.push('<span class="hh-cost hh-cost-gate ' + (g.ok ? 'is-met' : 'is-short') + '" title="' +
+            esc(g.name + ' — ' + (g.ok ? 'in your bags' : 'you have none') +
+                (g.source ? '. ' + g.source : '')) + '">' +
+            '<b>' + esc(g.need.toLocaleString()) + '</b> ' + esc(g.name) + '</span>');
+        });
+        costLine = '<span class="hh-room-cost">' +
+          chips.join('<i aria-hidden="true">&middot;</i>') + '</span>';
       }
       /* The footer answers "what's next", and only when that is a DIFFERENT
          fact from the line above it. A locked room already states its lock in
@@ -948,7 +1016,17 @@
       else if (!d.next) foot = 'Fully built';
       else if (d.next.gated) foot = 'Next: ' + esc(d.next.name) + ' &mdash; needs ' +
         esc(String(d.next.gateReason || '').replace(/^Requires /, ''));
-      else foot = 'Next: ' + esc(d.next.name) + (d.next.affordable ? ' &mdash; ready' : '');
+      else {
+        /* An unmet item gate is named in the footer for the same reason a tier
+           gate is: "needs a bigger property" and "needs a blueprint" are both
+           answers to "why is this not ready", and only one of the two was ever
+           given. Short costs deliberately stay unnamed here — the chips below
+           already colour them, and the modal carries the full ledger. */
+        var ug = (d.next.gates || []).filter(function (g) { return !g.ok; });
+        foot = 'Next: ' + esc(d.next.name) + (ug.length
+          ? ' &mdash; needs ' + esc(ug.map(function (g) { return g.name; }).join(' and '))
+          : (d.next.affordable ? ' &mdash; ready' : ''));
+      }
       return '<button type="button" class="hh-room ' + cls + '" data-room="' + esc(id) + '" ' +
         'aria-label="' + esc(d.title + ' — ' + (owned ? 'level ' + d.level : d.state === 'locked' ? 'locked' : 'not built')) + '">' +
         '<span class="hh-room-art">' + roomThumb(id, owned) + '</span>' +

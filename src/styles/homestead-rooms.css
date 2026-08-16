@@ -351,6 +351,12 @@ body[data-theme="hearthlight"] #panel-house .hh-room-badge,
 .hh-cost.is-met   { color: var(--green, var(--gold-2)); }
 .hh-cost.is-short { color: var(--red, var(--ink-3)); }
 .hh-cost .hr-cost-art { flex: 0 0 auto; }
+/* b355 — an item gate (blueprint) sits in the same strip as the costs so the
+   card states EVERY requirement, but it is not the same kind of thing: costs
+   are grindable, a blueprint is a place you have to go. The dotted underline
+   is the tell that this chip's hover carries the source. Same met/short
+   colours as any cost, inherited — no new colour enters the card. */
+.hh-cost-gate { text-decoration: underline dotted; text-underline-offset: 3px; }
 
 /* The legacy House rows (Plot tab, and the rooms fallback) run their costs
    inline inside a `.shop-row .info span`, which is set small elsewhere. The

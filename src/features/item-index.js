@@ -33,7 +33,7 @@ let _idx = null;
 function build() {
   const src = {};   // id -> { craft:{skill,req}, gather:label, farm:bool, monsters:Set }
   const used = {};  // id -> Set of output item names
-  const S = (id) => (src[id] = src[id] || { monsters: new Set() });
+  const S = (id) => (src[id] = src[id] || { monsters: new Set(), dungeons: new Set() });
 
   const M = window.MONSTERS || MONSTERS;
   Object.values(M || {}).forEach((m) => {
@@ -55,10 +55,31 @@ function build() {
     });
   });
 
+  /* b355 — DUNGEON LOOT AND THE QUARTERMASTER ARE SOURCES TOO.
+     The index answered "where's this from?" from monsters, recipes, nodes and
+     crops only, so every dungeon-only item — the eight housing blueprints, the
+     farm deeds, the signature boss weapons — returned an EMPTY source line.
+     That emptiness is what forced the room modal's blueprint gate to carry
+     hardcoded prose ("they drop from dungeons"), which is the thing this index
+     exists to make unnecessary. Data in, sentence out: a blueprint moved to a
+     new dungeon, or added to the scrip shop, now re-describes itself. */
+  const D = window.DUNGEONS || null;
+  if (D) {
+    Object.values(D).forEach((d) => {
+      (d.loot || []).forEach((L) => { if (L && L.id) S(L.id).dungeons.add(d.name || 'a dungeon'); });
+    });
+  }
+  (window.QM_STOCK || []).forEach((q) => { if (q && q.id) S(q.id).scrip = q.scrip; });
+
   _idx = { src, used };
+  /* Do NOT memoise a half-built index. dungeons.js is a classic script and the
+     first sourceLine() call can legitimately land before it has run; caching
+     that answer would leave every dungeon item sourceless for the session. */
+  _full = !!D;
   return _idx;
 }
-function idx() { return _idx || build(); }
+let _full = false;
+function idx() { return (_idx && _full) ? _idx : build(); }
 
 function sourceLine(id) {
   const s = idx().src[id];
@@ -71,6 +92,11 @@ function sourceLine(id) {
     const list = [...s.monsters];
     parts.push('Dropped by ' + list.slice(0, 2).join(', ') + (list.length > 2 ? ' +' + (list.length - 2) : ''));
   }
+  if (s.dungeons && s.dungeons.size) {
+    const list = [...s.dungeons];
+    parts.push('Drops in ' + list.slice(0, 2).join(', ') + (list.length > 2 ? ' +' + (list.length - 2) : ''));
+  }
+  if (s.scrip) parts.push('Quartermaster · ' + s.scrip + ' Dungeon Scrip');
   return parts.join(' · ');
 }
 function usedInLine(id) {

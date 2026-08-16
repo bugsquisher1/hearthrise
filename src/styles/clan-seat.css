@@ -555,6 +555,52 @@
 .hr-room-build-cost { font-size: 13px; color: var(--ink-2); }
 .hr-room-build-cost.is-free { color: var(--ink-3); }
 .hr-room-build-why { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+
+/* ── ITEM GATES (b355) ─────────────────────────────────────────────────────
+ * The third requirement class — a blueprint or key you either hold or must go
+ * somewhere specific for. Deliberately NOT shaped like a cost chip: a chip
+ * reads as "one more of a number" and an item gate is "you cannot start". So
+ * it is a stacked line, indented behind a status rule, with the source in the
+ * quiet second row.
+ *
+ * Colour is carried by the RULE, not by the item's name — a name in red at
+ * body size fights the button for attention, and the player still has to read
+ * the words either way. Every value is a token; `--red`/`--green` fall back to
+ * the ink ramp so a theme that has not defined them degrades to legible grey
+ * rather than to black-on-black. */
+.hr-room-gates { margin-top: 6px; display: flex; flex-direction: column; gap: 5px; }
+.hr-room-gate {
+  min-width: 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--line);
+}
+.hr-room-gate.is-need  { border-left-color: var(--red, var(--ink-3)); }
+.hr-room-gate.is-met   { border-left-color: var(--green, var(--gold-2)); }
+.hr-room-gate.is-spent { border-left-color: var(--line-soft, var(--line)); opacity: .72; }
+.hr-room-gate-hd {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px;
+  font-size: 13px; line-height: 1.35;
+}
+.hr-room-gate-nm { color: var(--ink); font-weight: 700; }
+.hr-room-gate-st { font-size: 12px; letter-spacing: .02em; color: var(--ink-3); }
+.hr-room-gate.is-need .hr-room-gate-st { color: var(--red, var(--ink-2)); }
+.hr-room-gate.is-met  .hr-room-gate-st { color: var(--green, var(--gold-2)); }
+/* "Where do I get one" — the answer, from the reverse index. It wraps rather
+ * than ellipsing: a truncated source line is the original bug in a new place. */
+.hr-room-gate-src {
+  display: block;
+  font-size: 12px; line-height: 1.35;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+/* A landscape phone (922x423) gives the pinned bar very little height, and the
+ * bar must never grow enough to push the ladder out of the body. One gate is
+ * two short lines; if a rung ever needs several, they scroll inside the bar
+ * instead of stretching it. */
+@media (max-height: 540px) {
+  .hr-room-gates { max-height: 4.6em; overflow-y: auto; }
+  .hr-room-gate-src { font-size: 11.5px; }
+}
 /* The button must not be squeezed to an ellipsis by a long cost list — the
  * label is what says whether this is a Build or an Upgrade. */
 .hr-room-build > .btn { flex: 0 0 auto; }

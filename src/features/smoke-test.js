@@ -1353,6 +1353,135 @@ const TESTS = [
     } finally { restoreG(snap); window.HearthriseRoomModal.close(); }
   }),
 
+  /* ── b355 · THE INVISIBLE BLUEPRINT ──────────────────────────────────────
+     Tyler, live, on the Kitchen room modal: "this doesn't tell me anywhere it
+     requires a blueprint or how to get a blueprint. that should be made way
+     more obvious."
+
+     He could afford Iron Stove — gold and logs both green — so the pinned
+     Build button was lit and PRIMARY. Clicking it produced a toast and no
+     stove. The requirement existed only inside upgradeRoom, so no surface
+     could state it and the view actively disagreed with the authority about
+     whether the action was possible.
+
+     These three tests are the contract: the gate is DATA on the descriptor,
+     it REACHES the DOM with the item's name, its held state and its real
+     source, and the button is dead-with-a-reason rather than lit-and-lying. */
+  () => tryRun('b355: an item-gated rung states the blueprint, its state and its source', () => {
+    const H = window.HearthriseHomestead;
+    if (!H || typeof H.modalDescriptor !== 'function' || !window.HearthriseRoomModal) return;
+    if (typeof window.roomRungItemGate !== 'function') { assert(false, 'roomRungItemGate must be published'); return; }
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 3 };
+      window.G.rooms = { kitchen: 1 };
+      window.G.gold = 999999;
+      window.G.inventory = { normal_log: 999, oak_log: 999 };
+
+      // ── the descriptor carries it, on the rung AND on `next`
+      const d = H.roomDescriptor('kitchen');
+      const rung2 = d.ladder[1];
+      assert(rung2.gates && rung2.gates.length === 1, 'kitchen rung 2 must carry exactly one item gate');
+      assert(rung2.gates[0].id === 'kitchen_blueprint_t2', 'the gate must be the Kitchen Blueprint II');
+      assert(rung2.gates[0].ok === false, 'with an empty bag the gate must be unmet');
+      assert(rung2.gates[0].source, 'the gate must know where the blueprint comes from');
+      assert(/Crypt of Bones/.test(rung2.gates[0].source),
+        'the source must come from the real loot table, got: ' + rung2.gates[0].source);
+      assert(d.ladder[0].gates.length === 0, 'rung 1 has no blueprint and must claim none');
+
+      /* THE BUG ITSELF: affordable said yes while upgradeRoom said no. */
+      assert(d.next.affordable === false,
+        'a rung missing its blueprint is NOT affordable, however much gold you hold');
+      assert(window.upgradeRoom('kitchen') === false && (window.G.rooms.kitchen === 1),
+        'the authority must still refuse — and the view must agree with it');
+
+      // ── it reaches the DOM, in the ladder, with name + state + source
+      H.openRoom('kitchen');
+      const gates = document.querySelectorAll('.hr-room-body .hr-room-gate');
+      assert(gates.length >= 1, 'the ladder must render a requirement line for the gated rung');
+      const txt = [].map.call(gates, (g) => g.textContent).join(' | ');
+      assert(/Kitchen Blueprint II/.test(txt), 'the requirement line must NAME the item: ' + txt);
+      assert(/You have none/.test(txt), 'it must say whether you hold one');
+      assert(/Crypt of Bones/.test(txt), 'it must say where one comes from');
+      const need = document.querySelector('.hr-room-body .hr-room-gate.is-need');
+      assert(need, 'an unheld gate must be marked as needed, not styled like a met cost');
+
+      // ── holding one flips the same line, and unblocks the rung
+      window.G.inventory.kitchen_blueprint_t2 = 1;
+      window.HearthriseRoomModal.refresh();
+      assert(document.querySelector('.hr-room-body .hr-room-gate.is-met'), 'holding the blueprint must show as met');
+      assert(/In your bags/.test(document.querySelector('.hr-room-body .hr-room-gate.is-met').textContent),
+        'a held blueprint must say so in words');
+      assert(H.roomDescriptor('kitchen').next.affordable === true,
+        'with the blueprint and the cost in hand the rung must be buildable');
+
+      // ── an OWNED rung keeps the requirement visible, marked spent, so the
+      //    ladder teaches the pattern before you hit the rung you cannot pay.
+      window.G.rooms = { kitchen: 3 };
+      window.HearthriseRoomModal.refresh();
+      assert(document.querySelector('.hr-room-body .hr-room-gate.is-spent'),
+        'a built gated rung must still show its requirement, marked spent');
+    } finally { restoreG(snap); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
+  }),
+
+  () => tryRun('b355: the pinned Build bar says WHY it is blocked — never a toast', () => {
+    const H = window.HearthriseHomestead;
+    if (!H || !window.HearthriseRoomModal) return;
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 3 };
+      window.G.rooms = { kitchen: 1 };
+      window.G.gold = 999999;
+      window.G.inventory = { normal_log: 999 };
+
+      const m = H.modalDescriptor('kitchen');
+      const acts = m.sections.find((s) => s.kind === 'actions');
+      const btn = acts.buttons.find((b) => /^Upgrade|^Build/.test(b.label));
+      assert(btn && btn.pin, 'the Build control must still be the pinned one');
+      assert(btn.disabled, 'a blueprint-gated Build button must be disabled, not lit');
+      assert(/Kitchen Blueprint II/.test(btn.why || ''), 'the button must name the gate: ' + btn.why);
+      assert(btn.gates && btn.gates.length === 1, 'the pinned control must carry the gate as data');
+
+      H.openRoom('kitchen');
+      const bar = document.querySelector('.hr-room-build');
+      assert(bar, 'the pinned build bar must exist');
+      assert(/Kitchen Blueprint II/.test(bar.textContent), 'the BAR must name the gate, not a toast');
+      assert(/Crypt of Bones/.test(bar.textContent), 'the bar must say where to get one');
+      assert(bar.querySelector('.hr-room-gate.is-need'), 'the bar gate must render in its unmet state');
+      assert(bar.querySelector('button[disabled]'), 'the bar button must be dead while the gate is unmet');
+      assert(/Kitchen Blueprint II/.test(bar.querySelector('button[disabled]').getAttribute('title') || ''),
+        'the reason must survive on the button hover too');
+      /* Said ONCE. A bar that prints "Needs Kitchen Blueprint II" above a block
+         saying "Kitchen Blueprint II — you have none" reads as a rendering
+         fault, which is the same standard the House card already holds. */
+      assert((bar.textContent.match(/Kitchen Blueprint II/g) || []).length === 1,
+        'the gate must be stated once in the bar, not twice');
+      /* The whole point of the pin: this is ABOVE the scroll container. */
+      assert(!bar.closest('.hr-room-body'), 'the build bar must never be inside the scrolling body');
+
+      /* Two blockers at once must name BOTH — fixing the one you were told
+         about only to find the button still dead is the same bug again. */
+      window.G.gold = 0;
+      const both = H.modalDescriptor('kitchen');
+      const b2 = both.sections.find((s) => s.kind === 'actions').buttons.find((b) => /^Upgrade/.test(b.label));
+      assert(/Kitchen Blueprint II/.test(b2.why) && /Missing/.test(b2.why),
+        'both the gate and the shortfall must be named: ' + b2.why);
+    } finally { restoreG(snap); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
+  }),
+
+  () => tryRun('b355: dungeon loot and the Quartermaster are real sources in the item index', () => {
+    /* The gate line refuses to invent prose, so an item the reverse index has
+       no route for would show a bare name. Blueprints are dungeon-only, and
+       the index knew nothing about dungeons — that emptiness is exactly why
+       the old toast hardcoded "they drop from dungeons". */
+    if (typeof window.itemSourceLine !== 'function') return;
+    const bp = window.itemSourceLine('kitchen_blueprint_t2');
+    assert(/Crypt of Bones/.test(bp), 'a blueprint must name the dungeon it drops in: ' + bp);
+    assert(/Quartermaster/.test(bp) && /55/.test(bp), 'the deterministic scrip route must be named too: ' + bp);
+    // Nothing the index already answered may regress.
+    assert(/Dropped by/.test(window.itemSourceLine('big_bones') || ''), 'monster drops must still resolve');
+  }),
+
   () => tryRun('b227: the House grid shows ownership at a glance (the acceptance test)', () => {
     // Tyler's own bar: open House and KNOW the Forge is yours, at what level,
     // and what is next — without reading a paragraph.

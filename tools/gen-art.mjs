@@ -57,6 +57,8 @@ const LIMIT = Number(flag('limit', Infinity));
 const CONC = Math.max(1, Number(flag('concurrency', 3)));
 const MODEL = flag('model', 'recraftv3');
 const OUT = flag('out', 'assets/art-pilot/hearthfire');
+const STYLE_ID = flag('style-id', process.env.RECRAFT_STYLE_ID || '');
+const NO_SNAP = argv.includes('--no-alpha-snap');
 
 if (!manifestPath) {
   console.error('usage: node tools/gen-art.mjs <manifest.md|manifest.json> [--confirm] [--limit N]');
@@ -106,7 +108,17 @@ function parseManifest(p) {
     out.push({ file: `${folder}/${h3[1]}`, prompt });
   }
   if (!out.length) throw new Error('manifest parsed to zero entries — wrong file or wrong shape');
-  return out;
+  // A later section that names the same output file is a CORRECTION of an
+  // earlier one (art-pilot-prompts.md's re-run block is exactly this), so the
+  // last occurrence wins. Without this the same path is generated twice in one
+  // run and which prompt survives depends on which worker finishes last —
+  // a nondeterministic result nobody would ever debug.
+  const byFile = new Map();
+  for (const j of out) {
+    if (byFile.has(j.file)) console.log(`  note: ${j.file} redefined later in the manifest — using the LAST definition`);
+    byFile.set(j.file, j);
+  }
+  return [...byFile.values()];
 }
 
 function pngColourType(buf) {
@@ -131,9 +143,15 @@ async function post(token, url, body) {
 async function generateOne(token, job) {
   const dest = path.join(OUT, job.file);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
-  const gen = await post(token, `${API}/images/generations`, {
+  const body = {
     prompt: job.prompt, model: MODEL, n: 1, size: '1024x1024', response_format: 'url',
-  });
+  };
+  // A Recraft custom Style is the only lever that acts on all 600 images at
+  // once — prompt text pins subject and bans, not HAND. See
+  // docs/design/art-direction-picker.md §0.10. `style` and `style_id` are
+  // mutually exclusive at the API, so we only ever send the one we were given.
+  if (STYLE_ID) body.style_id = STYLE_ID;
+  const gen = await post(token, `${API}/images/generations`, body);
   const url = gen?.data?.[0]?.url;
   if (!url) throw new Error('no image url in response');
   let buf = Buffer.from(await (await fetch(url)).arrayBuffer());

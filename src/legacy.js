@@ -14738,7 +14738,9 @@ window.companionIconHtml = function(id, px){
   var path = COMPANION_PORTRAIT[id];
   if(path){
     return '<img src="'+path+'" alt="" loading="lazy" draggable="false" '
-      + 'style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;flex-shrink:0;'
+      /* b357: creatures take the square portrait mask (see --r-portrait). A
+         circle + cover cropped the hawk's wings off its own portrait. */
+      + 'style="width:'+size+'px;height:'+size+'px;border-radius:var(--r-portrait,6px);object-fit:contain;flex-shrink:0;'
       + 'border:2px solid var(--gold-2);box-shadow:0 0 6px rgba(0,0,0,.45)" onerror="this.remove()" />';
   }
   return (window.HR && window.HR.medallion) ? (window.HR.medallion('uiPaw', size) || '') : '';

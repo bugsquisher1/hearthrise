@@ -13943,6 +13943,45 @@ const TESTS = [
     }
   }),
 
+  // b357: creature portraits are SQUARE, and they CONTAIN.
+  // The arena portrait was a 96px circle with object-fit:cover — two crops
+  // stacked. `cover` threw ~35% of the width away on every non-square monster
+  // file (30 of the 36 shipped ones are 128px long-edge and non-square), and
+  // the circle then took the corners off what survived — which is exactly
+  // where a creature keeps its silhouette (antlers, horns, a scythe, a crest).
+  // It also silently imposed a "compose inside an inscribed circle" rule on
+  // every future generation. This guard fails if either crop comes back.
+  () => tryRun('b357: creature portraits are square-masked and contain (no circle, no cover)', () => {
+    const mk = (cls, tag) => { const e = document.createElement(tag || 'div'); e.className = cls; return e; };
+    // Build the real nesting so the real selectors match, off-screen.
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:-9999px;top:0;width:600px';
+    const vs = mk('arena-vs'); const side = mk('arena-side foe');
+    const port = mk('arena-portrait'); const img = mk('', 'img');
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+    port.appendChild(img); side.appendChild(port); vs.appendChild(side); host.appendChild(vs);
+    const bes = mk('bestiary-row'); const bi = mk('br-icon'); const bimg = mk('', 'img');
+    bimg.src = img.src; bi.appendChild(bimg); bes.appendChild(bi); host.appendChild(bes);
+    document.body.appendChild(host);
+    try {
+      const isRound = (v) => /%/.test(String(v)) || parseFloat(v) > 16;
+      const pcs = getComputedStyle(port), pics = getComputedStyle(img);
+      assert(!isRound(pcs.borderRadius),
+        'the arena portrait must not be a circle — got border-radius ' + pcs.borderRadius);
+      assert(pics.objectFit === 'contain',
+        'the arena portrait image must CONTAIN (cover crops the silhouette) — got ' + pics.objectFit);
+      const bcs = getComputedStyle(bi), bics = getComputedStyle(bimg);
+      assert(!isRound(bcs.borderRadius),
+        'the bestiary row icon must not be a circle — got ' + bcs.borderRadius);
+      assert(bics.objectFit === 'contain',
+        'the bestiary row image must CONTAIN — got ' + bics.objectFit);
+      // The mask is one shared token, so a future screen cannot invent its own.
+      const tok = getComputedStyle(document.body).getPropertyValue('--r-portrait').trim();
+      assert(tok && parseFloat(tok) > 0 && parseFloat(tok) <= 16,
+        '--r-portrait must be a small square-ish radius, got "' + tok + '"');
+    } finally { host.remove(); }
+  }),
+
   // b299: the cloud-save observability tools — status API + verify self-test.
   // The real sync path now records success (cloudSyncedAt) and exposes a
   // round-trip verifier. Guard the CONTRACT synchronously (the verify itself

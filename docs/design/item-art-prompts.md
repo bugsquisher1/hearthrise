@@ -31,10 +31,30 @@ deliberate, so the art direction can be swapped without rewriting 512 lines. Wra
 <STYLE PREFIX — ITEMS>  +  <the subject line for this item>  +  <STYLE SUFFIX>
 ```
 
-**Take the prefix and suffix from the lane Tyler picks in
-[`art-direction-picker.md`](./art-direction-picker.md).** Use the **ITEMS** prefix (single object,
-three-quarter top-down loot-icon angle), not the MONSTERS one. Do not mix lanes across a batch — the
-whole value of a single direction is that 426 icons sit on one shelf and look like one game.
+**RATIFIED 2026-08-16 — the lane is HEARTHFIRE and the production wrapper is
+[`art-direction-picker.md` §0](./art-direction-picker.md).** Assemble every item prompt as
+
+```
+P-ITEM or P-WEAPON (picker §0.2/§0.3)  +  the subject line below
+   +  C-METAL if the object is metal (§0.5)  +  C-NEUTRAL if it is a weapon, ammo or tool (§0.6)
+   +  SUFFIX (§0.8)
+```
+
+Use the **ITEMS** prefix for everything except weapons, ammo, staves, bows and the gathering tools,
+which take the weapon prefix's fixed orientation. Do not mix lanes across a batch — the whole value of
+a single direction is that 426 icons sit on one shelf and look like one game.
+
+**Two wrapper rules changed the subject lines in this file and you should know why before editing one.**
+1. **ONE OVERSIZED SPECIMEN** (§0.2). Every "a handful of…", "a pile of…", "a heap of…", "a stack of…",
+   "a bundle of…" and every "…on a wooden board" was rewritten to a single large object. The pilot's
+   `cooked_shrimp` proved it: five small shrimp on a chopping board reads, at the 34 px shop row, as a
+   board. **38 lines were affected.**
+2. **MATERIAL HONESTY** (§0.8). The warm palette belongs to the light, never to the object's own
+   material. The pilot's `iron_ore` — specced as grey rock with rust streaks — came back polychrome red
+   and violet (38% of its opaque pixels warm-dominant, against 16% for the correctly-cold `iron_sword`).
+   The wrapper now pins this for the whole batch, and the neutral-material lines below say it again
+   locally, because those are the lines with no legitimate colour of their own for the palette to land
+   on.
 
 ### Output spec (hard requirements — checked before wiring)
 
@@ -321,14 +341,14 @@ Every subject line below already uses this table; keep it if you edit them.
 
 | id | Name | Subject line | File |
 |---|---|---|---|
-| bronze_arrows | Bronze Arrows | a small bundle of arrows with blunt ruddy cast-bronze heads on plain pale shafts and grey goose fletching | `bronze_arrows.png` |
-| barbed_arrows | Barbed Arrows | a small bundle of arrows with dark iron heads filed with a backward barb, plain shafts, brown fletching | `barbed_arrows.png` |
-| steel_arrows | Steel Arrows | a small bundle of arrows with needle-ground bright steel points and neat white fletching | `steel_arrows.png` |
-| mithril_arrows | Mithril Arrows | a small bundle of arrows with pale blue-silver mithril heads on slender shafts and pale fletching | `mithril_arrows.png` |
-| rune_arrows | Rune Arrows | a small bundle of arrows with deep silvered rune-etched points glowing faintly at the tip | `rune_arrows.png` |
-| emberhead_arrows | Emberhead Arrows | a small bundle of arrows with dark heat-blued heads still glowing faintly orange, scorched fletching | `emberhead_arrows.png` |
-| dawnpoint_arrows | Dawnpoint Arrows | a small bundle of arrows with near-white radiant dawnsteel points and gold-banded shafts | `dawnpoint_arrows.png` |
-| iron_arrows | Iron Arrows | a small bundle of plain dark grey iron-tipped arrows on straight shafts with brown fletching | `iron_arrows.png` |
+| bronze_arrows | Bronze Arrows | a single oversized arrow with a blunt ruddy cast-bronze head, a plain pale shaft and grey goose fletching | `bronze_arrows.png` |
+| barbed_arrows | Barbed Arrows | a single oversized arrow with a dark iron head filed with a backward barb, a plain shaft and brown fletching | `barbed_arrows.png` |
+| steel_arrows | Steel Arrows | a single oversized arrow with a needle-ground bright steel point and neat white fletching | `steel_arrows.png` |
+| mithril_arrows | Mithril Arrows | a single oversized arrow with a pale blue-silver mithril head, a slender shaft and pale fletching | `mithril_arrows.png` |
+| rune_arrows | Rune Arrows | a single oversized arrow with a deep silvered rune-etched point glowing faintly at the tip | `rune_arrows.png` |
+| emberhead_arrows | Emberhead Arrows | a single oversized arrow with a dark heat-blued head still glowing faintly orange and scorched fletching | `emberhead_arrows.png` |
+| dawnpoint_arrows | Dawnpoint Arrows | a single oversized arrow with a near-white radiant dawnsteel point and a gold-banded shaft | `dawnpoint_arrows.png` |
+| iron_arrows | Iron Arrows | a single oversized arrow with a plain dark grey iron head, a straight shaft and brown fletching | `iron_arrows.png` |
 
 ### 2.7 Jewelry — earrings (6)
 
@@ -403,15 +423,15 @@ Every subject line below already uses this table; keep it if you edit them.
 
 | id | Name | Subject line | File |
 |---|---|---|---|
-| bones | Bones | a small loose pile of bleached animal bones, a rib and a long bone crossed on top | `bones.png` |
-| big_bones | Big Bones | a heavy pile of large yellowed bones from a big brute, one thick femur dominating | `big_bones.png` |
-| dragon_bones | Dragon Bones | a pile of dense blackened dragon bones, one huge curved rib arcing over the rest | `dragon_bones.png` |
+| bones | Bones | one large bleached animal thigh bone, knuckled at both ends; the bone is neutral chalk white, never pink or gold | `bones.png` |
+| big_bones | Big Bones | one massive yellowed femur from a big brute, thick and heavy, cracked at one knuckle; aged ivory, never pink or gold | `big_bones.png` |
+| dragon_bones | Dragon Bones | a single enormous blackened dragon rib, dense and deeply curved, cracked along one edge | `dragon_bones.png` |
 | slime_gel | Slime Gel | a quivering blob of translucent green ooze holding a soft dome shape, glassy highlights | `slime_gel.png` |
 | goblin_ear | Goblin Ear | a single severed pointed goblin ear, green-grey and notched, with a small brass hoop through it | `goblin_ear.png` |
 | bat_wing | Bat Wing | a single torn leathery bat wing, dark grey membrane stretched between thin finger bones | `bat_wing.png` |
 | wolf_pelt | Wolf Pelt | a rolled grey wolf pelt with the head still attached, tanned and tied with cord | `wolf_pelt.png` |
 | troll_hide | Troll Hide | a thick folded slab of warty green-grey troll hide, coarse and stiff | `troll_hide.png` |
-| vamp_dust | Vampire Dust | a small heap of fine pale ash with a faint red glimmer in it, spilling from a torn cloth | `vamp_dust.png` |
+| vamp_dust | Vampire Dust | a torn cloth pouch tipped on its side, fine pale ash with a faint red glimmer spilling from its mouth | `vamp_dust.png` |
 | demon_shard | Demon Shard | a jagged shard of hardened dark red demon flesh, still hot, glowing along its cracks | `demon_shard.png` |
 | dragon_scale | Dragon Scale | a single large green dragon scale, thick and iridescent, one edge chipped | `dragon_scale.png` |
 | lich_soul | Lich Soul | a cold pale blue soul-wisp curling inside a cracked glass phial, murmuring light | `lich_soul.png` |
@@ -423,7 +443,7 @@ Every subject line below already uses this table; keep it if you edit them.
 | sticky_core | Sticky Core | a dense gluey amber-green core prised from a giant slime, strands still trailing from it | `sticky_core.png` |
 | rat_tail | Rat Tail | a single scrawny pink rat's tail, curled, with a few coarse hairs | `rat_tail.png` |
 | small_fang | Small Fang | a single small ivory fang from a lesser beast, root end stained | `small_fang.png` |
-| bone_chips | Bone Chips | a scattered handful of pale splintered bone chips and coarse bone meal | `bone_chips.png` |
+| bone_chips | Bone Chips | a single large splintered bone shard, pale and sharp-edged, its broken end crumbling to coarse bone meal | `bone_chips.png` |
 | ancient_fragment | Ancient Fragment | a worn broken shard of a carved stone relic, its surface half-effaced by age | `ancient_fragment.png` |
 | goblin_totem | Goblin Totem | a crude goblin shaman's idol of lashed sticks, feathers and a carved wooden face | `goblin_totem.png` |
 | night_fang | Night Fang | a long blackened fang from a nocturnal predator, glossy and needle-sharp | `night_fang.png` |
@@ -473,11 +493,11 @@ Every subject line below already uses this table; keep it if you edit them.
 
 | id | Name | Subject line | File |
 |---|---|---|---|
-| copper_ore | Copper Ore | a rough chunk of grey rock veined with bright orange-green copper ore | `copper_ore.png` |
-| iron_ore | Iron Ore | a rough chunk of grey rock streaked with rusty red-brown iron ore | `iron_ore.png` |
-| coal | Coal | a small heap of glossy black coal lumps with sharp fractured faces | `coal.png` |
+| copper_ore | Copper Ore | a rough chunk of plain grey stone with narrow bright orange-green copper veins across one face; the stone itself stays neutral grey | `copper_ore.png` |
+| iron_ore | Iron Ore | a rough chunk of plain dark grey stone, matte and unpolished, with a few narrow rust-brown streaks of iron ore across two faces; the rock itself is neutral grey — no red, orange or violet in the stone | `iron_ore.png` |
+| coal | Coal | a single large lump of glossy black coal with sharp fractured faces; the coal is pure black and stays black | `coal.png` |
 | gold_ore | Gold Ore | a rough chunk of pale rock threaded with gleaming yellow gold | `gold_ore.png` |
-| mithril_ore | Mithril Ore | a rough chunk of dark rock shot through with blue-tinged pale mithril | `mithril_ore.png` |
+| mithril_ore | Mithril Ore | a rough chunk of plain dark grey stone shot through with cold blue-tinged pale mithril; the stone itself stays neutral grey | `mithril_ore.png` |
 | normal_log | Normal Log | a single short cut log of pale untreated softwood, bark on, sawn clean at both ends | `normal_log.png` |
 | oak_log | Oak Log | a single short cut log of warm brown oak with thick furrowed bark and a close-grained end | `oak_log.png` |
 | willow_log | Willow Log | a single short cut log of pale supple willow, slightly greenish, with thin smooth bark | `willow_log.png` |
@@ -490,20 +510,20 @@ Every subject line below already uses this table; keep it if you edit them.
 |---|---|---|---|
 | copper_bar | Copper Bar | a single cast ingot of soft orange copper with rounded edges and a faint patina | `copper_bar.png` |
 | bronze_bar | Bronze Bar | a single cast ingot of ruddy warm bronze, slightly pitted on the top face | `bronze_bar.png` |
-| iron_bar | Iron Bar | a single cast ingot of plain dark grey iron with a rough scaled surface | `iron_bar.png` |
-| steel_bar | Steel Bar | a single cast ingot of bright tempered steel with clean edges and a hard sheen | `steel_bar.png` |
+| iron_bar | Iron Bar | a single cast ingot of plain dark grey iron with a rough scaled surface; the iron is cold neutral grey with no warm tint | `iron_bar.png` |
+| steel_bar | Steel Bar | a single cast ingot of bright tempered steel with clean edges and a hard sheen; the steel is cold silver-blue with no warm tint | `steel_bar.png` |
 | gold_bar | Gold Bar | a single cast ingot of gleaming yellow gold, mirror-bright on the top face | `gold_bar.png` |
 | mithril_bar | Mithril Bar | a single cast ingot of pale blue-silver mithril, unnaturally light, with fine seams | `mithril_bar.png` |
 | rune_bar | Rune Bar | a single cast ingot of deep silvered metal with runes glowing faintly across its face | `rune_bar.png` |
 | ember_bar | Emberforged Bar | a single cast ingot of dark heat-blued metal with glowing molten seams still cooling in it | `ember_bar.png` |
 | dawn_bar | Dawnsteel Bar | a single cast ingot of near-white radiant steel with warm gold light along its edges | `dawn_bar.png` |
-| normal_plank | Normal Plank | a short stack of plain sawn softwood planks, pale and roughly finished | `normal_plank.png` |
-| oak_plank | Oak Plank | a short stack of warm brown oak planks, close-grained and cleanly dressed | `oak_plank.png` |
-| willow_plank | Willow Plank | a short stack of pale supple willow planks, slightly greenish | `willow_plank.png` |
-| maple_plank | Maple Plank | a short stack of golden-honey maple planks with a rippled figure in the grain | `maple_plank.png` |
-| yew_plank | Yew Plank | a short stack of red-brown yew planks with cream sapwood stripes | `yew_plank.png` |
-| runewood_plank | Runewood Plank | a short stack of dark planks with glowing rune-veins running through the grain | `runewood_plank.png` |
-| duskwood_plank | Duskwood Plank | a short stack of near-black duskwood planks with a cold silver sheen along the grain | `duskwood_plank.png` |
+| normal_plank | Normal Plank | a single dressed plank of plain sawn softwood, pale and roughly finished, one end cut clean | `normal_plank.png` |
+| oak_plank | Oak Plank | a single dressed plank of warm brown oak, close-grained and cleanly dressed, one end cut clean | `oak_plank.png` |
+| willow_plank | Willow Plank | a single dressed plank of pale supple willow, slightly greenish, one end cut clean | `willow_plank.png` |
+| maple_plank | Maple Plank | a single dressed plank of golden-honey maple with a rippled figure in the grain | `maple_plank.png` |
+| yew_plank | Yew Plank | a single dressed plank of red-brown yew with a cream sapwood stripe along one edge | `yew_plank.png` |
+| runewood_plank | Runewood Plank | a single dressed dark plank with glowing rune-veins running through the grain | `runewood_plank.png` |
+| duskwood_plank | Duskwood Plank | a single dressed plank of near-black duskwood with a cold silver sheen along the grain | `duskwood_plank.png` |
 
 ### 2.15 Late-game ores and logs (4)
 
@@ -521,7 +541,7 @@ Every subject line below already uses this table; keep it if you edit them.
 | turnip | Turnip | a single pale purple-and-white turnip with the leafy green top still attached and soil on the root | `turnip.png` |
 | carrot | Carrot | a single crisp orange carrot with a feathery green top and a little soil at the tip | `carrot.png` |
 | wheat | Wheat | a small tied sheaf of golden wheat with full ripe ears bending at the top | `wheat.png` |
-| potato | Potato | two firm brown-skinned potatoes with soil still clinging to their eyes | `potato.png` |
+| potato | Potato | one large firm brown-skinned potato with soil still clinging to its eyes | `potato.png` |
 | tomato | Tomato | a ripe red tomato on the vine with a green calyx and a bright highlight on its skin | `tomato.png` |
 | pumpkin | Pumpkin | a fat ribbed orange pumpkin with a thick curled green stem | `pumpkin.png` |
 | goldenroot | Goldenroot | a radiant amber tuber with translucent skin, glowing faintly, its fine roots trailing soil | `goldenroot.png` |
@@ -543,7 +563,7 @@ Every subject line below already uses this table; keep it if you edit them.
 
 | id | Name | Subject line | File |
 |---|---|---|---|
-| shrimp | Raw Shrimp | a small handful of raw pink shellfish, translucent shells and black eyes, still wet | `shrimp.png` |
+| shrimp | Raw Shrimp | one oversized raw prawn, translucent pink shell, black eye, still wet | `shrimp.png` |
 | herring | Raw Herring | a single small silver baitfish, bony and raw, scales catching the light | `herring.png` |
 | trout | Raw Trout | a single speckled brown river trout, raw and slick, mouth slightly open | `trout.png` |
 | swordfish | Raw Swordfish | a single long-billed blue-grey swordfish, raw, its bill dominating the composition | `swordfish.png` |
@@ -556,14 +576,14 @@ Every subject line below already uses this table; keep it if you edit them.
 
 | id | Name | Subject line | File |
 |---|---|---|---|
-| cooked_shrimp | Cooked Shrimp | a small handful of seared pink-orange shrimp curled on a wooden board, faint char on the shells | `cooked_shrimp.png` |
-| cooked_herring | Cooked Herring | a small pan-cooked silver fish with browned crisped skin on a wooden board | `cooked_herring.png` |
-| cooked_trout | Cooked Trout | a whole trout crisped over coals, skin browned and split, on a wooden board | `cooked_trout.png` |
+| cooked_shrimp | Cooked Shrimp | one oversized seared prawn curled on itself, pink-orange shell with faint char across it | `cooked_shrimp.png` |
+| cooked_herring | Cooked Herring | a small pan-cooked silver fish with browned crisped skin | `cooked_herring.png` |
+| cooked_trout | Cooked Trout | a whole trout crisped over coals, skin browned and split | `cooked_trout.png` |
 | cooked_swordfish | Swordfish Steak | a thick seared swordfish steak with dark grill marks across the pale flesh | `cooked_swordfish.png` |
 | cooked_lobster | Cooked Lobster | a bright red cooked lobster with one claw cracked open showing white buttered meat | `cooked_lobster.png` |
 | cooked_frostfin | Frostfin Supper | a steaming pale fish supper in a shallow wooden bowl, thin broth and a sprig of herb | `cooked_frostfin.png` |
-| cooked_moonfish | Moonfish Fillet | a delicate pale fillet with a faint silver luminescence, plated on a dark slate | `cooked_moonfish.png` |
-| cooked_shark | Cooked Shark | a thick seared shark steak, dark crust outside and dense pale flesh, on a wooden board | `cooked_shark.png` |
+| cooked_moonfish | Moonfish Fillet | a delicate pale fillet with a faint silver luminescence along its edge | `cooked_moonfish.png` |
+| cooked_shark | Cooked Shark | a thick seared shark steak, dark crust outside and dense pale flesh | `cooked_shark.png` |
 | turnip_mash | Turnip Mash | a rough bowl of pale mashed turnip with a knob of butter melting on top | `turnip_mash.png` |
 | baked_potato | Baked Potato | a potato roasted soft in its skin, split open and steaming, butter melting into it | `baked_potato.png` |
 | wheat_bread | Wheat Bread | a round crusty golden loaf of bread with a slashed top and a torn piece beside it | `wheat_bread.png` |
@@ -575,27 +595,27 @@ Every subject line below already uses this table; keep it if you edit them.
 
 | id | Name | Subject line | File |
 |---|---|---|---|
-| raw_wolf_meat | Raw Wolf Meat | a tough dark red raw cut of wolf meat on a wooden board, sinew visible | `raw_wolf_meat.png` |
-| raw_panther_meat | Raw Panther Meat | a lean dark raw cut of panther meat on a wooden board, close-grained and glossy | `raw_panther_meat.png` |
-| raw_bear_meat | Raw Bear Meat | a thick fatty raw slab of bear meat on a wooden board, marbled with white fat | `raw_bear_meat.png` |
-| cooked_wolf_meat | Cooked Wolf Meat | a roasted dark cut of wolf meat with a charred crust, resting on a wooden board | `cooked_wolf_meat.png` |
+| raw_wolf_meat | Raw Wolf Meat | a tough dark red raw cut of wolf meat, sinew visible | `raw_wolf_meat.png` |
+| raw_panther_meat | Raw Panther Meat | a lean dark raw cut of panther meat, close-grained and glossy | `raw_panther_meat.png` |
+| raw_bear_meat | Raw Bear Meat | a thick fatty raw slab of bear meat, marbled with white fat | `raw_bear_meat.png` |
+| cooked_wolf_meat | Cooked Wolf Meat | a roasted dark cut of wolf meat with a charred crust | `cooked_wolf_meat.png` |
 | cooked_panther_meat | Cooked Panther Meat | a dark seared cut of panther meat sliced to show a rare pink centre | `cooked_panther_meat.png` |
-| cooked_bear_meat | Cooked Bear Meat | a fat-rich roasted bear joint, crackling browned skin, on a wooden board | `cooked_bear_meat.png` |
-| roasted_carrot | Roasted Carrot | two fire-roasted carrots, caramelised and darkened at the edges, on a wooden board | `roasted_carrot.png` |
-| roasted_pumpkin | Roasted Pumpkin | roasted pumpkin wedges, caramelised at the edges and glistening, on a wooden board | `roasted_pumpkin.png` |
+| cooked_bear_meat | Cooked Bear Meat | a fat-rich roasted bear joint, crackling browned skin | `cooked_bear_meat.png` |
+| roasted_carrot | Roasted Carrot | one large fire-roasted carrot, caramelised and darkened at the edges, still on its stem | `roasted_carrot.png` |
+| roasted_pumpkin | Roasted Pumpkin | one thick roasted pumpkin wedge, caramelised at the edges and glistening | `roasted_pumpkin.png` |
 | vegetable_stew | Vegetable Stew | a thick garden stew of mixed roots in a heavy iron pot, steam rising from it | `vegetable_stew.png` |
 | bear_claw_pie | Bear Claw Pie | a rugged deep pie with a rough pastry lid, one bear claw pressed into the crust as decoration | `bear_claw_pie.png` |
 | hunters_feast | Hunter's Feast | a laden wooden platter of roast joints, bread and root vegetables piled high | `hunters_feast.png` |
 | dragon_stew | Dragon Stew | a fierce dark stew in a heavy iron pot, red-orange steam curling off it, a scale floating on top | `dragon_stew.png` |
 | lich_soul_soup | Lich Soul Soup | a cold pale broth in a stone bowl with a faint blue wisp curling up out of it | `lich_soul_soup.png` |
 | void_banquet | Void Banquet | a dark otherworldly spread on a black slab, unidentifiable dishes edged with faint violet light | `void_banquet.png` |
-| burnt_food | Burnt Food | a charred blackened lump of inedible food, cracked and smoking faintly, on a wooden board | `burnt_food.png` |
+| burnt_food | Burnt Food | a charred blackened lump of inedible food, cracked and smoking faintly | `burnt_food.png` |
 
 ### 2.20 Late crop dishes (3)
 
 | id | Name | Subject line | File |
 |---|---|---|---|
-| goldenroot_roast | Goldenroot Roast | a glistening roast of amber goldenroot on a wooden board, glowing faintly through its glaze | `goldenroot_roast.png` |
+| goldenroot_roast | Goldenroot Roast | a glistening roast of amber goldenroot, glowing faintly through its glaze | `goldenroot_roast.png` |
 | ember_tart | Ember Tart | a small smouldering tart of emberfruit, filling glowing orange through a lattice crust | `ember_tart.png` |
 | moonbloom_elixir | Moonbloom Elixir | a slim glass phial of luminous silver draught, corked, light rising through the liquid | `moonbloom_elixir.png` |
 
@@ -633,7 +653,7 @@ Every subject line below already uses this table; keep it if you edit them.
 | timber_beam | Timber Beam | a single squared and seasoned timber beam with chamfered edges and a carpenter's mark burned into the end | `timber_beam.png` |
 | iron_fitting | Iron Fitting | a cast-iron bracket with a heavy bolt through it, plain dark grey iron with faint rust | `iron_fitting.png` |
 | field_ration | Field Ration | a dense dark travel loaf wrapped in waxed cloth and tied with cord, one end cut open | `field_ration.png` |
-| keystone | Keystone | a cut wedge-shaped masonry keystone of pale dressed stone with clean chisel marks on its faces | `keystone.png` |
+| keystone | Keystone | a cut wedge-shaped masonry keystone of pale dressed stone with clean chisel marks on its faces; the stone is neutral grey-cream and takes no colour from the light | `keystone.png` |
 
 ### 2.24 Hunt materials (5)
 
@@ -805,18 +825,18 @@ Only the plan groups whose members are actually named in the source specs are li
 (arrows) and **-05**'s `keystone` are already live and appear in §2. **ITEM-PLAN-07** (bow re-home),
 **-08** (signature drops), **-09** (descriptions) and **-10** (seal sink) add no new item art.
 
-**ITEM-PLAN-02 — bound runes** (`consumable-economy.md` §6.2). Shared descriptors: *a small flat
-rune-stone chip carved with one glyph, a loose handful shown as a stack.*
+**ITEM-PLAN-02 — bound runes** (`consumable-economy.md` §6.2). Shared descriptors: *one large flat
+rune-stone chip carved with a single glyph — ONE chip, never a stack or handful (picker §0.2).*
 
 | review id | Name | Subject line | File |
 |---|---|---|---|
-| ITEM-PLAN-02a | Air Rune | a small stack of flat pale grey rune chips each carved with one glyph glowing soft white | `air_rune.png` |
-| ITEM-PLAN-02b | Earth Rune | a small stack of flat brown-ochre rune chips each carved with one glyph glowing dull amber | `earth_rune.png` |
-| ITEM-PLAN-02c | Water Rune | a small stack of flat blue-grey rune chips each carved with one glyph glowing cool blue | `water_rune.png` |
-| ITEM-PLAN-02d | Fire Rune | a small stack of flat red-black rune chips each carved with one glyph glowing hot orange | `fire_rune.png` |
-| ITEM-PLAN-02e | Chaos Rune | a small stack of flat cracked green-grey rune chips each carved with one unstable glyph | `chaos_rune.png` |
-| ITEM-PLAN-02f | Death Rune | a small stack of flat bone-white rune chips each carved with one glyph glowing pale violet | `death_rune.png` |
-| ITEM-PLAN-02g | Blood Rune | a small stack of flat dark red rune chips each carved with one glyph wet with a slow red glow | `blood_rune.png` |
+| ITEM-PLAN-02a | Air Rune | one large flat pale grey rune chip carved with a single glyph glowing soft white | `air_rune.png` |
+| ITEM-PLAN-02b | Earth Rune | one large flat brown-ochre rune chip carved with a single glyph glowing dull amber | `earth_rune.png` |
+| ITEM-PLAN-02c | Water Rune | one large flat blue-grey rune chip carved with a single glyph glowing cool blue | `water_rune.png` |
+| ITEM-PLAN-02d | Fire Rune | one large flat red-black rune chip carved with a single glyph glowing hot orange | `fire_rune.png` |
+| ITEM-PLAN-02e | Chaos Rune | one large flat cracked green-grey rune chip carved with a single unstable glyph | `chaos_rune.png` |
+| ITEM-PLAN-02f | Death Rune | one large flat bone-white rune chip carved with a single glyph glowing pale violet | `death_rune.png` |
+| ITEM-PLAN-02g | Blood Rune | one large flat dark red rune chip carved with a single glyph wet with a slow red glow | `blood_rune.png` |
 
 **ITEM-PLAN-03 — whetstones** (§6.3). Shared descriptors: *a rectangular hand-stone with rounded worn
 corners, one face scored from use.*

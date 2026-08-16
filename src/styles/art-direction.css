@@ -113,6 +113,16 @@ body[data-theme="hearthlight"] {
   --r: 3px;
   --r-lg: 5px;
 
+  /* Creature portraits are SQUARE — one mask for every place a monster, foe or
+   * companion is shown. A circle cropped the corners of the frame, and the
+   * corners are where a creature keeps the information a bestiary is read by:
+   * antlers, horns, a scythe, ears, a crest. An inscribed circle also throws
+   * away ~21% of a square source and silently imposes a "keep the subject
+   * inside the circle" rule on every future generation — a constraint paid
+   * 600 times over for a mask nobody asked for. The plate keeps the frame,
+   * the plinth and the gilt edge; only the mask changed. */
+  --r-portrait: 6px;
+
   /* ── 3. COLOUR ROLES ───────────────────────────────────────────────────
    * Every accent below has exactly one job. Nothing in the UI may use a hue
    * for a purpose not on this list. */

@@ -48,6 +48,7 @@
   --green-bg:rgba(127,154,79,.15);
   --red:#b23a2c;           /* oxblood — danger/combat */
   --red-bg:rgba(178,58,44,.16);
+  --red-line:#cf5340;      /* b357: the danger EDGE — a ring drawn in --red goes to mud on near-black */
   --purple:#6a4560;        /* heraldic plum */
   --purple-bg:rgba(106,69,96,.20);
 
@@ -1124,7 +1125,9 @@ img,svg{display:block;max-width:100%}
 }
 .mon-detail.show .mon-detail-card{transform:translateY(0)}
 .mon-detail-portrait{
-  width:128px;height:128px;margin:0 auto 14px;border-radius:24px;
+  /* b357: 24px was a pill-ish fillet that fought the near-square shape
+     language and clipped a 128px portrait's corners. Shared portrait mask. */
+  width:128px;height:128px;margin:0 auto 14px;border-radius:var(--r-portrait,6px);
   background:radial-gradient(circle at 50% 35%,rgba(229,189,108,.22),rgba(0,0,0,.4));
   border:2px solid rgba(229,189,108,.4);
   display:flex;align-items:center;justify-content:center;font-size:calc(80px * var(--ui-scale, 1));
@@ -2212,7 +2215,7 @@ body[data-theme="dark"] .lane1-toggle{
 .skill-tile .sicon{display:flex;align-items:center;justify-content:center;width:36px;height:36px;font-size:0!important;overflow:hidden}
 .skill-card .sicon,.skill-card .icon{display:flex;align-items:center;justify-content:center;width:42px;height:42px;font-size:0!important;overflow:hidden}
 .monster-row .mi{display:flex;align-items:center;justify-content:center;width:42px;height:42px;font-size:0!important;overflow:hidden}
-.monster-row .mi img{border-radius:6px}
+.monster-row .mi img{border-radius:var(--r-portrait,6px)}
 
 /* Empty-state acquisition popover */
 .acq-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:none;align-items:center;justify-content:center;padding:20px}
@@ -2231,8 +2234,8 @@ body[data-theme="dark"] .lane1-toggle{
 .acq-close:hover{color:var(--ink);border-color:var(--gold-2)}
 
 /* ===== block 14: poneti-v3-css ===== */
-.fighter .portrait{display:flex;align-items:center;justify-content:center;width:64px;height:64px;font-size:0!important;overflow:hidden;border-radius:8px;background:rgba(0,0,0,.2)}
-.fighter .portrait img{width:100%;height:100%;object-fit:cover}
+.fighter .portrait{display:flex;align-items:center;justify-content:center;width:64px;height:64px;font-size:0!important;overflow:hidden;border-radius:var(--r-portrait,6px);background:rgba(0,0,0,.2)}
+.fighter .portrait img{width:100%;height:100%;object-fit:contain}
 .bounty-option .row b img{width:24px;height:24px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:4px}
 
 /* ===== block 15: character-page-css ===== */
@@ -2422,8 +2425,11 @@ body[data-theme="dark"] .lane1-toggle{
 .bestiary-row{display:flex;align-items:center;gap:8px;padding:8px;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:5px}
 .bestiary-row.discovered{background:rgba(243,209,129,.06);border-color:rgba(243,209,129,.3)}
 .bestiary-row.undiscovered{opacity:.4;filter:grayscale(.8)}
-.bestiary-row .br-icon{width:36px;height:36px;border-radius:4px;overflow:hidden;flex-shrink:0;background:rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center}
-.bestiary-row .br-icon img{width:100%;height:100%;object-fit:cover}
+/* b357: `cover` here cropped ~35% off the width of every non-square monster
+   file (30 of 36 shipped ones). A bestiary row is a silhouette test — it must
+   show the WHOLE creature. Square mask, contain, no crop. */
+.bestiary-row .br-icon{width:36px;height:36px;border-radius:var(--r-portrait,6px);overflow:hidden;flex-shrink:0;background:rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center}
+.bestiary-row .br-icon img{width:100%;height:100%;object-fit:contain}
 .bestiary-row .br-info{flex:1;min-width:0}
 .bestiary-row .br-info b{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink);display:block}
 .bestiary-row .br-info small{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}

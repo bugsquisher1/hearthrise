@@ -14,8 +14,11 @@
 
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=356';
 
-const SKILL_ORDER = ['smithing', 'crafting', 'cooking', 'prayer'];
-const SKILL_LABEL = { smithing: 'Smithing', crafting: 'Crafting', cooking: 'Cooking', prayer: 'Prayer' };
+const SKILL_ORDER = ['smithing', 'crafting', 'cooking', 'runecrafting', 'stonemason', 'prayer'];
+const SKILL_LABEL = {
+  smithing: 'Smithing', crafting: 'Crafting', cooking: 'Cooking', prayer: 'Prayer',
+  runecrafting: 'Runecrafting', stonemason: 'Stonemason',
+};
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

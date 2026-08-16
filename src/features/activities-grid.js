@@ -46,7 +46,14 @@ const effMs = (skillId, action, fallbackMs) => {
   const r = rateOf(skillId, action);
   if (r) return r.ms;
   const base = (typeof window.pacedActionMs === 'function') ? window.pacedActionMs(fallbackMs) : fallbackMs;
-  const key = { cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed' }[skillId] || 'gatherSpeed';
+  /* The fifth copy of the speed-key map lived here; it now delegates to the
+     one list in core/pacing.js (published as window.speedKeyFor). The literal
+     fallback survives only for the pre-boot window this whole helper exists to
+     cover — see the header note about rendering before legacy.js publishes. */
+  const key = (typeof window.speedKeyFor === 'function')
+    ? window.speedKeyFor(skillId)
+    : ({ cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed',
+         runecrafting:'craftSpeed', stonemason:'craftSpeed' }[skillId] || 'gatherSpeed');
   const speed = (typeof window.getBonus === 'function') ? window.getBonus(key) : 0;
   return Math.max(500, Math.floor(base * window.speedClamp(speed)));
 };

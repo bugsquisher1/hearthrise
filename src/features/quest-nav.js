@@ -74,6 +74,7 @@
     woodcutting: 'Go chop', mining: 'Go mine', fishing: 'Go fish',
     cooking: 'Go cook', smithing: 'Go smith', crafting: 'Go craft',
     prayer: 'Go pray', farming: 'Go farm',
+    runecrafting: 'Go bind', stonemason: 'Go cut stone',
   };
   function SKILL(id) {
     var def = window.SKILLS_DEF && window.SKILLS_DEF[id];

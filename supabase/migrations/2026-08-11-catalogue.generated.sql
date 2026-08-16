@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: fe7588c1624f66acc41157e2f63822c4cf37dfd48a301673baf1c106cc323a76
---   rows: 426 items (15 untradeable) ·
---         222 item-slot pairs · 15 equip slots ·
---         15 skills · 9 crops · 344 activities
+--   catalogue digest: 86d02aa8a207a0ce3c9268a2431994acd9a09cd30383d864b8ded47cea2136d2
+--   rows: 450 items (15 untradeable) ·
+--         236 item-slot pairs · 15 equip slots ·
+--         17 skills · 9 crops · 373 activities
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
 --              → 2026-08-11-market-v2.sql
@@ -136,6 +136,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('adept_gloves','Adept Gloves',true,'armor',65,'defense',15,null,false),
   ('adept_helmet','Adept Hat',true,'armor',110,'defense',15,null,false),
   ('adept_pants','Adept Robe Bottom',true,'armor',200,'defense',15,null,false),
+  ('air_rune','Air Rune',true,'ammo',1,'magic',1,null,false),
   ('alpha_cloak','Alpha Cloak',true,'armor',1500,null,null,null,false),
   ('alpha_fang','Alpha Fang',true,null,450,null,null,null,false),
   ('alpha_pattern','Alpha Cloak Pattern',true,null,0,null,null,null,false),
@@ -158,14 +159,18 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('archmage_helmet','Archmage Hat',true,'armor',10920,'defense',75,null,false),
   ('archmage_pants','Archmage Robe Bottom',true,'armor',20020,'defense',75,null,false),
   ('ashcrown_greatsword','Ashcrown Greatsword',false,'weapon',40000,'attack',65,null,false),
+  ('ashlar','Ashlar',true,null,1500,null,null,null,false),
   ('baked_potato','Baked Potato',true,null,150,null,null,20,true),
   ('banded_signet','Banded Signet',true,'jewelry',260,'defense',18,null,false),
   ('barbed_arrows','Barbed Arrows',true,'ammo',1,'ranged',15,null,false),
+  ('basalt','Basalt Stone',true,null,60,null,null,null,false),
+  ('basalt_block','Basalt Block',true,null,230,null,null,null,false),
   ('bat_wing','Bat Wing',true,null,12,null,null,null,false),
   ('bear_claw','Bear Claw',true,null,180,null,null,null,false),
   ('bear_claw_pie','Bear Claw Pie',true,null,280,null,null,32,false),
   ('bear_pelt','Bear Pelt',true,null,260,null,null,null,false),
   ('big_bones','Big Bones',true,null,3,null,null,null,false),
+  ('blood_rune','Blood Rune',true,'ammo',12,'magic',88,null,false),
   ('boarhide_belt','Boarhide Belt',true,'armor',280,'defense',30,null,false),
   ('boarhide_body','Boarhide Body',true,'armor',1050,'defense',30,null,false),
   ('boarhide_boots','Boarhide Boots',true,'armor',280,'defense',30,null,false),
@@ -197,12 +202,14 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('carrot','Carrot',true,null,35,null,null,3,true),
   ('carrot_seed','Carrot Seed',true,null,10,null,null,null,false),
   ('carrot_stew','Carrot Stew',true,null,200,null,null,24,false),
+  ('chaos_rune','Chaos Rune',true,'ammo',6,'magic',60,null,false),
   ('chief_blade','Chief''s Blade',true,'weapon',900,null,null,null,false),
   ('chief_blade_recipe','Chief''s Blade Recipe',true,null,0,null,null,null,false),
   ('chitinweave_cloak','Chitinweave Cloak',true,'armor',15200,'defense',76,null,false),
   ('choirbone','Choirbone',true,null,3800,null,null,null,false),
   ('choirbone_gauntlets','Choirbone Gauntlets',true,'armor',63000,null,null,null,false),
   ('coal','Coal',true,null,40,null,null,null,false),
+  ('coarse_whetstone','Coarse Whetstone',true,'ammo',4,'attack',1,null,false),
   ('cooked_bear_meat','Cooked Bear Meat',true,null,42,null,null,13,true),
   ('cooked_frostfin','Frostfin Supper',true,null,1300,null,null,28,true),
   ('cooked_herring','Cooked Herring',true,null,40,null,null,6,true),
@@ -218,6 +225,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('copper_ore','Copper Ore',true,null,10,null,null,null,false),
   ('copper_ring','Copper Ring',true,'jewelry',120,null,null,null,false),
   ('copper_studs','Copper Studs',true,'jewelry',60,null,null,null,false),
+  ('copper_whetstone','Copper Whetstone',true,'ammo',15,'attack',15,null,false),
   ('cracked_spellstone','Cracked Spellstone',true,null,260,null,null,null,false),
   ('crown_of_the_fallen_king','Crown of the Fallen King',true,'armor',17000,'defense',85,null,false),
   ('dark_sigil','Dark Sigil',true,null,180,null,null,null,false),
@@ -232,13 +240,16 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dawn_platelegs','Dawnsteel Platelegs',true,'armor',79200,'defense',88,null,false),
   ('dawn_sword','Dawnsteel Sword',true,'weapon',36000,'attack',88,null,false),
   ('dawn_warhammer','Dawnsteel Warhammer',true,'weapon',39600,'attack',88,null,false),
+  ('dawn_whetstone','Dawnsteel Whetstone',true,'ammo',990,'attack',88,null,false),
   ('dawnbound_amulet','Dawnbound Amulet',true,'jewelry',72000,'defense',86,null,false),
   ('dawnforged_signet','Dawnforged Signet',true,'jewelry',72000,'defense',84,null,false),
   ('dawnlit_mantle','Dawnlit Mantle',true,'armor',86400,'defense',88,null,false),
   ('dawnpoint_arrows','Dawnpoint Arrows',true,'ammo',12,'ranged',88,null,false),
   ('dawnsteel_rod','Dawnsteel Rod',true,'tool',58000,null,null,null,false),
   ('dawnstone_ore','Dawnstone Ore',true,null,1400,null,null,null,false),
+  ('death_rune','Death Rune',true,'ammo',9,'magic',75,null,false),
   ('death_steel','Death Steel',true,null,550,null,null,null,false),
+  ('deep_rune_blank','Deep Rune Blank',true,null,60,null,null,null,false),
   ('demon_shard','Demon Shard',true,null,200,null,null,null,false),
   ('demoncaller_staff','Demoncaller',true,'weapon',13600,'magic',68,null,false),
   ('dire_fang','Dire Fang',true,null,150,null,null,null,false),
@@ -258,12 +269,14 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dragonhide_pants','Dragonhide Chaps',true,'armor',20020,'defense',75,null,false),
   ('dragonrend_greatblade','Dragonrend',true,'weapon',17600,'attack',88,null,false),
   ('dragonsbane_key','Dragonsbane Key',false,null,0,null,null,null,false),
+  ('dressed_block','Dressed Block',true,null,22,null,null,null,false),
   ('dungeon_scrip','Dungeon Scrip',false,null,0,null,null,null,false),
   ('duskwood_bow','Duskwood Bow',true,'weapon',37800,'ranged',88,null,false),
   ('duskwood_log','Duskwood Log',true,null,1150,null,null,null,false),
   ('duskwood_plank','Duskwood Plank',true,null,2600,null,null,null,false),
   ('duskwood_rod','Duskwood Rod',true,'tool',23000,null,null,null,false),
   ('duskwood_staff','Duskwood Staff',true,'weapon',36000,'magic',88,null,false),
+  ('earth_rune','Earth Rune',true,'ammo',1,'magic',15,null,false),
   ('elderscale_heart','Elderscale Heart',true,null,9000,null,null,null,false),
   ('ember_axe','Emberforged Axe',true,'tool',22000,null,null,null,false),
   ('ember_bar','Emberforged Bar',true,null,1600,null,null,null,false),
@@ -287,6 +300,8 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('farm_deed','Farmer''s Deed',true,null,250,null,null,null,false),
   ('field_cookbook','Field Cookbook',true,null,0,null,null,null,false),
   ('field_ration','Field Ration',true,null,90,null,null,null,false),
+  ('fine_rune_blank','Fine Rune Blank',true,null,28,null,null,null,false),
+  ('fire_rune','Fire Rune',true,'ammo',4,'magic',45,null,false),
   ('forge_blueprint_t2','Forge Blueprint II',true,null,500,null,null,null,false),
   ('forge_blueprint_t3','Forge Blueprint III',true,null,2000,null,null,null,false),
   ('fox_companion','Fox Companion',true,'companion',600,null,null,null,false),
@@ -302,6 +317,8 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('goldenroot','Goldenroot',true,null,260,null,null,12,true),
   ('goldenroot_roast','Goldenroot Roast',true,null,700,null,null,26,false),
   ('goldenroot_seed','Goldenroot Seed',true,null,90,null,null,null,false),
+  ('granite','Granite Stone',true,null,22,null,null,null,false),
+  ('granite_block','Granite Block',true,null,85,null,null,null,false),
   ('grave_dust','Grave Dust',true,null,95,null,null,null,false),
   ('hearth_token','Hearth Token',true,null,25000,null,null,null,false),
   ('hell_ember','Hell Ember',true,null,600,null,null,null,false),
@@ -325,6 +342,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('iron_platelegs','Iron Platelegs',true,'armor',285,'defense',15,null,false),
   ('iron_sword','Iron Sword',true,'weapon',200,null,null,null,false),
   ('iron_warhammer','Iron Warhammer',true,'weapon',550,null,null,null,false),
+  ('iron_whetstone','Iron Whetstone',true,'ammo',48,'attack',30,null,false),
   ('keystone','Keystone',true,null,3000,null,null,null,false),
   ('kitchen_blueprint_t2','Kitchen Blueprint II',true,null,500,null,null,null,false),
   ('kitchen_blueprint_t3','Kitchen Blueprint III',true,null,2000,null,null,null,false),
@@ -361,6 +379,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('mithril_platelegs','Mithril Platelegs',true,'armor',3300,'defense',45,null,false),
   ('mithril_sword','Mithril Sword',true,'weapon',1500,'attack',45,null,false),
   ('mithril_warhammer','Mithril Warhammer',true,'weapon',1650,'attack',45,null,false),
+  ('mithril_whetstone','Mithril Whetstone',true,'ammo',190,'attack',60,null,false),
   ('moonbloom','Moonbloom',true,null,850,null,null,20,true),
   ('moonbloom_elixir','Moonbloom Elixir',true,null,2600,null,null,40,false),
   ('moonbloom_seed','Moonbloom Seed',true,null,280,null,null,null,false),
@@ -392,6 +411,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('riftmaw_husk','Riftmaw Husk',true,null,4200,null,null,null,false),
   ('roasted_carrot','Roasted Carrot',true,null,12,null,null,5,false),
   ('roasted_pumpkin','Roasted Pumpkin',true,null,90,null,null,22,false),
+  ('rubble','Rubble',true,null,6,null,null,null,false),
   ('ruby','Ruby',true,null,400,null,null,null,false),
   ('ruby_signet','Ruby Signet',true,'jewelry',9000,'defense',52,null,false),
   ('rubyfire_studs','Rubyfire Studs',true,'jewelry',4500,'defense',66,null,false),
@@ -399,6 +419,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_axe','Rune Axe',true,'tool',9000,null,null,null,false),
   ('rune_bar','Rune Bar',true,null,1200,null,null,null,false),
   ('rune_belt','Rune Belt',true,'armor',3600,'defense',60,null,false),
+  ('rune_blank','Rune Blank',true,null,5,null,null,null,false),
   ('rune_boots','Rune Boots',true,'armor',3600,'defense',60,null,false),
   ('rune_frag','Rune Fragment',true,null,30,null,null,null,false),
   ('rune_gauntlets','Rune Gauntlets',true,'armor',3150,'defense',60,null,false),
@@ -411,6 +432,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_platelegs','Rune Platelegs',true,'armor',9900,'defense',60,null,false),
   ('rune_sword','Rune Sword',true,'weapon',5000,null,null,null,false),
   ('rune_warhammer','Rune Warhammer',true,'weapon',4950,'attack',60,null,false),
+  ('rune_whetstone','Rune Whetstone',true,'ammo',365,'attack',75,null,false),
   ('runewood_bow','Runewood Bow',true,'weapon',13650,'ranged',75,null,false),
   ('runewood_log','Runewood Log',true,null,480,null,null,null,false),
   ('runewood_plank','Runewood Plank',true,null,1150,null,null,null,false),
@@ -466,6 +488,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('steel_platelegs','Steel Platelegs',true,'armor',1100,'defense',30,null,false),
   ('steel_sword','Steel Sword',true,'weapon',800,null,null,null,false),
   ('steel_warhammer','Steel Warhammer',true,'weapon',550,'attack',30,null,false),
+  ('steel_whetstone','Steel Whetstone',true,'ammo',108,'attack',45,null,false),
   ('sticky_core','Sticky Core',true,null,35,null,null,null,false),
   ('stone_maul','Stone Maul',true,'weapon',110,null,null,null,false),
   ('studded_belt','Studded Leather Belt',true,'armor',75,'defense',15,null,false),
@@ -525,6 +548,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('warlord_badge','Warlord Badge',true,null,350,null,null,null,false),
   ('warlords_torc','Warlord''s Torc',true,'jewelry',3000,'defense',52,null,false),
   ('wartusk_cleaver','Wartusk Cleaver',false,'weapon',4500,'attack',35,null,false),
+  ('water_rune','Water Rune',true,'ammo',2,'magic',30,null,false),
   ('wheat','Wheat',true,null,50,null,null,1,true),
   ('wheat_bread','Wheat Bread',true,null,120,null,null,18,true),
   ('wheat_seed','Wheat Seed',true,null,15,null,null,null,false),
@@ -563,6 +587,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('adept_gloves','gloves'),
   ('adept_helmet','helmet'),
   ('adept_pants','pants'),
+  ('air_rune','ammo'),
   ('alpha_cloak','cape'),
   ('alphaheart_longbow','weapon'),
   ('apprentice_belt','belt'),
@@ -582,6 +607,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('banded_signet','ring1'),
   ('banded_signet','ring2'),
   ('barbed_arrows','ammo'),
+  ('blood_rune','ammo'),
   ('boarhide_belt','belt'),
   ('boarhide_body','body'),
   ('boarhide_boots','boots'),
@@ -597,12 +623,15 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('bronze_platelegs','pants'),
   ('bronze_sword','weapon'),
   ('captains_ribblade','weapon'),
+  ('chaos_rune','ammo'),
   ('chief_blade','weapon'),
   ('chitinweave_cloak','cape'),
   ('choirbone_gauntlets','gloves'),
+  ('coarse_whetstone','ammo'),
   ('copper_ring','ring1'),
   ('copper_ring','ring2'),
   ('copper_studs','earrings'),
+  ('copper_whetstone','ammo'),
   ('crown_of_the_fallen_king','helmet'),
   ('dawn_belt','belt'),
   ('dawn_boots','boots'),
@@ -612,11 +641,13 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('dawn_platelegs','pants'),
   ('dawn_sword','weapon'),
   ('dawn_warhammer','weapon'),
+  ('dawn_whetstone','ammo'),
   ('dawnbound_amulet','necklace'),
   ('dawnforged_signet','ring1'),
   ('dawnforged_signet','ring2'),
   ('dawnlit_mantle','cape'),
   ('dawnpoint_arrows','ammo'),
+  ('death_rune','ammo'),
   ('demoncaller_staff','weapon'),
   ('dragon_gem_earrings','earrings'),
   ('dragonfang_pike','weapon'),
@@ -629,6 +660,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('dragonrend_greatblade','weapon'),
   ('duskwood_bow','weapon'),
   ('duskwood_staff','weapon'),
+  ('earth_rune','ammo'),
   ('ember_belt','belt'),
   ('ember_boots','boots'),
   ('ember_gauntlets','gloves'),
@@ -641,6 +673,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('emberhead_arrows','ammo'),
   ('fang_studs','earrings'),
   ('fangdart_recurve','weapon'),
+  ('fire_rune','ammo'),
   ('fox_companion','companion'),
   ('gold_amulet','necklace'),
   ('gold_ring','ring1'),
@@ -658,6 +691,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('iron_platelegs','pants'),
   ('iron_sword','weapon'),
   ('iron_warhammer','weapon'),
+  ('iron_whetstone','ammo'),
   ('leather_belt','belt'),
   ('leather_body','body'),
   ('leather_boots','boots'),
@@ -676,6 +710,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('mithril_platelegs','pants'),
   ('mithril_sword','weapon'),
   ('mithril_warhammer','weapon'),
+  ('mithril_whetstone','ammo'),
   ('nightstalker_pelt','body'),
   ('oak_staff','weapon'),
   ('panthers_eye_pendant','necklace'),
@@ -693,6 +728,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('rune_platelegs','pants'),
   ('rune_sword','weapon'),
   ('rune_warhammer','weapon'),
+  ('rune_whetstone','ammo'),
   ('runewood_bow','weapon'),
   ('runewood_staff','weapon'),
   ('scholar_belt','belt'),
@@ -729,6 +765,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('steel_platelegs','pants'),
   ('steel_sword','weapon'),
   ('steel_warhammer','weapon'),
+  ('steel_whetstone','ammo'),
   ('stone_maul','weapon'),
   ('studded_belt','belt'),
   ('studded_body','body'),
@@ -761,6 +798,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('warlock_pants','pants'),
   ('warlords_torc','necklace'),
   ('wartusk_cleaver','weapon'),
+  ('water_rune','ammo'),
   ('whispering_codex','weapon'),
   ('widows_fang','weapon'),
   ('willow_longbow','weapon'),
@@ -809,7 +847,9 @@ insert into public.hr_skills (skill_id, name, cat) values
   ('mining','Mining','gather'),
   ('prayer','Prayer','combat'),
   ('ranged','Ranged','combat'),
+  ('runecrafting','Runecrafting','artisan'),
   ('smithing','Smithing','artisan'),
+  ('stonemason','Stonemason','artisan'),
   ('strength','Strength','combat'),
   ('woodcutting','Woodcutting','gather');
 
@@ -825,6 +865,13 @@ insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv) 
   ('wheat','wheat_seed','wheat',8,20);
 
 insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
+  ('artisan','bind_air_runes','runecrafting',1),
+  ('artisan','bind_blood_runes','runecrafting',88),
+  ('artisan','bind_chaos_runes','runecrafting',60),
+  ('artisan','bind_death_runes','runecrafting',75),
+  ('artisan','bind_earth_runes','runecrafting',15),
+  ('artisan','bind_fire_runes','runecrafting',45),
+  ('artisan','bind_water_runes','runecrafting',30),
   ('artisan','bury_big','prayer',15),
   ('artisan','bury_bones','prayer',1),
   ('artisan','bury_dragon','prayer',35),
@@ -908,7 +955,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
   ('artisan','craft_gold_ring','crafting',25),
   ('artisan','craft_hollow_sigil_ring','crafting',35),
   ('artisan','craft_iron_arrows','crafting',20),
-  ('artisan','craft_keystone','crafting',60),
+  ('artisan','craft_keystone','stonemason',60),
   ('artisan','craft_leather_belt','crafting',4),
   ('artisan','craft_leather_body','crafting',11),
   ('artisan','craft_leather_helmet','crafting',6),
@@ -968,6 +1015,17 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
   ('artisan','craft_wyvernhide_gloves','crafting',61),
   ('artisan','craft_wyvernhide_helmet','crafting',65),
   ('artisan','craft_wyvernhide_pants','crafting',68),
+  ('artisan','cut_ashlar','stonemason',45),
+  ('artisan','cut_deep_blanks','stonemason',74),
+  ('artisan','cut_fine_blanks','stonemason',38),
+  ('artisan','cut_rune_blanks','stonemason',8),
+  ('artisan','deepbind_blood','runecrafting',93),
+  ('artisan','deepbind_chaos','runecrafting',69),
+  ('artisan','deepbind_earth','runecrafting',24),
+  ('artisan','deepbind_water','runecrafting',39),
+  ('artisan','dress_basalt','stonemason',70),
+  ('artisan','dress_granite','stonemason',30),
+  ('artisan','dress_rubble','stonemason',1),
   ('artisan','fletch_barbed_arrows','crafting',18),
   ('artisan','fletch_bronze_arrows','crafting',5),
   ('artisan','fletch_dawnpoint_arrows','crafting',91),
@@ -1056,6 +1114,13 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
   ('artisan','forge_warband_bulwark','smithing',35),
   ('artisan','forge_warden_girdle','smithing',92),
   ('artisan','forge_widows_fang','smithing',38),
+  ('artisan','grind_coarse_whetstone','stonemason',6),
+  ('artisan','grind_copper_whetstone','stonemason',16),
+  ('artisan','grind_dawn_whetstone','stonemason',91),
+  ('artisan','grind_iron_whetstone','stonemason',31),
+  ('artisan','grind_mithril_whetstone','stonemason',61),
+  ('artisan','grind_rune_whetstone','stonemason',76),
+  ('artisan','grind_steel_whetstone','stonemason',46),
   ('artisan','jewel_banded_signet','crafting',22),
   ('artisan','jewel_copper_ring','crafting',20),
   ('artisan','jewel_copper_studs','crafting',10),
@@ -1090,6 +1155,9 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
   ('artisan','make_willow_staff','crafting',36),
   ('artisan','make_yew_bow','crafting',65),
   ('artisan','make_yew_staff','crafting',66),
+  ('artisan','quarry_basalt','stonemason',70),
+  ('artisan','quarry_granite','stonemason',30),
+  ('artisan','quarry_rubble','stonemason',1),
   ('artisan','saw_duskwood','crafting',90),
   ('artisan','saw_maple','crafting',45),
   ('artisan','saw_normal','crafting',1),
@@ -1107,6 +1175,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
   ('artisan','smelt_rune','smithing',75),
   ('artisan','smelt_steel','smithing',35),
   ('artisan','smith_iron_fitting','smithing',25),
+  ('artisan','split_rune_blanks','stonemason',22),
   ('artisan','tailor_dawnlit_mantle','crafting',91),
   ('artisan','tailor_houndskin_cloak','crafting',28),
   ('artisan','tailor_leather_boots','crafting',8),
@@ -1194,7 +1263,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
   ('weapon','bronze_sword');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'fe7588c1624f66acc41157e2f63822c4cf37dfd48a301673baf1c106cc323a76', now())
+  values (true, '86d02aa8a207a0ce3c9268a2431994acd9a09cd30383d864b8ded47cea2136d2', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1222,13 +1291,13 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 426 then raise exception 'hr_items has % rows, generator emitted 426', v_n; end if;
+  if v_n <> 450 then raise exception 'hr_items has % rows, generator emitted 450', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 15 then
     raise exception 'untradeable count is %, generator emitted 15', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 344 then raise exception 'hr_activities has % rows, expected 344', v_n; end if;
+  if v_n <> 373 then raise exception 'hr_activities has % rows, expected 373', v_n; end if;
 
   -- AUTO-EATABLE. The count is asserted, so a re-apply against a database that
   -- created hr_items before the column existed cannot leave every row on the
@@ -1323,6 +1392,6 @@ begin
     raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
   end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, digest fe7588c1624f66acc41157e2f63822c4cf37dfd48a301673baf1c106cc323a76',
+  raise notice 'CATALOGUES OK — % items, % activities, digest 86d02aa8a207a0ce3c9268a2431994acd9a09cd30383d864b8ded47cea2136d2',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities);
 end $$;

@@ -15,7 +15,10 @@ import { ARTISAN_RECIPES } from '../data/recipes.js?v=356';
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=356';
 import { ITEM_DESC } from '../data/item-descriptions.js?v=356';
 
-const SKILL_LABEL = { smithing: 'Smithing', crafting: 'Crafting', cooking: 'Cooking', prayer: 'Prayer' };
+const SKILL_LABEL = {
+  smithing: 'Smithing', crafting: 'Crafting', cooking: 'Cooking', prayer: 'Prayer',
+  runecrafting: 'Runecrafting', stonemason: 'Stonemason',
+};
 
 function inputsOf(r) {
   if (r.inputs) return r.inputs;

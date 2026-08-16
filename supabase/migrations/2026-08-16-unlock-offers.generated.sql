@@ -8,7 +8,7 @@
 --   here is reverted by the next generation and FAILS
 --   `node tools/gen-unlock-offers.mjs --check`, a preflight in tests/run-smoke.mjs.
 --
---   offer digest: 034a77e98fb5db39f99456c14b8ecf9fd4fbbec2c906c282cb7fc99982535ced
+--   offer digest: 400fbaf2df7f825623e1389dc6d9d903f6cc10c5ae41aa840fbc8b8fdd1add8f
 --   93 authored unlock offers · 45 sellable (property=5 · room=40) · refused: multi_line_grant=1 · namespace_unsupported=47
 --
 -- ── WHAT THIS TABLE IS ──────────────────────────────────────────────────
@@ -143,11 +143,11 @@ values
   ('plot.scarecrow', 'plot', 'Scarecrow', 'plot:scarecrow', 1, null, null, null, null, 'namespace_unsupported:plot'),
   ('plot.toolshed', 'plot', 'Tool Shed', 'plot:toolshed', 1, null, null, null, null, 'namespace_unsupported:plot'),
   ('plot.watchtower', 'plot', 'Watchtower', 'plot:watchtower', 1, null, null, null, null, 'namespace_unsupported:plot'),
-  ('property.castle', 'property', 'Hearthrise Castle', 'property:castle', 5, 150000, '{"dragon_scale":4,"mithril_bar":40,"rune_bar":8,"yew_plank":70}'::jsonb, 4, null, null),
+  ('property.castle', 'property', 'Hearthrise Castle', 'property:castle', 5, 150000, '{"ashlar":25,"dragon_scale":4,"mithril_bar":40,"rune_bar":8,"yew_plank":70}'::jsonb, 4, null, null),
   ('property.farmstead', 'property', 'Fieldworth Farmstead', 'property:farmstead', 2, 2500, '{"cooked_shrimp":10,"copper_ore":25,"oak_log":40,"wolf_pelt":4}'::jsonb, 1, null, null),
   ('property.homestead', 'property', 'Hearthside Homestead', 'property:homestead', 1, 400, '{"copper_ore":20,"normal_log":30}'::jsonb, 0, null, null),
-  ('property.keep', 'property', 'Ironvale Keep', 'property:keep', 4, 40000, '{"bear_pelt":5,"big_bones":20,"maple_plank":50,"steel_bar":35}'::jsonb, 3, null, null),
-  ('property.manor', 'property', 'Stonecross Manor', 'property:manor', 3, 10000, '{"iron_ore":40,"silk_thread":8,"willow_plank":35}'::jsonb, 2, null, null),
+  ('property.keep', 'property', 'Ironvale Keep', 'property:keep', 4, 40000, '{"ashlar":12,"bear_pelt":5,"big_bones":20,"maple_plank":50,"steel_bar":35}'::jsonb, 3, null, null),
+  ('property.manor', 'property', 'Stonecross Manor', 'property:manor', 3, 10000, '{"ashlar":6,"iron_ore":40,"silk_thread":8,"willow_plank":35}'::jsonb, 2, null, null),
   ('room.cellar.1', 'room', 'Cellar — Root Cellar', 'room:cellar', 1, 1200, '{"normal_log":60}'::jsonb, 2, null, null),
   ('room.cellar.2', 'room', 'Cellar — Stone Cellar', 'room:cellar', 2, 4000, '{"oak_log":60}'::jsonb, 2, null, null),
   ('room.cellar.3', 'room', 'Cellar — The Vault', 'room:cellar', 3, 12000, '{"willow_log":50}'::jsonb, 2, null, null),

@@ -26,6 +26,15 @@ export * as farm from './farm.js?v=356';
 export * as progression from './progression.js?v=356';
 export * as styles from './styles.js?v=356';
 export * as artisan from './artisan.js?v=356';
+/* b357 — THE CONSUMPTION SEAM. Authored ahead of its consumers on purpose:
+   Fletching, Runecrafting and Stonemason are all specified against one field
+   (`ammoPerShot`) and are being built by different agents at different times,
+   so the arithmetic is published ONCE and every consumer imports it. The
+   pre-flight supply projection and the away card must call the SAME
+   `hoursOfSupply`/`dryAtMs` the fight will, or the player is quoted a number
+   the night does not honour.
+   ⚠ NOT yet called by combat-sim.js — see the header of ./ammo.js. */
+export * as ammo from './ammo.js?v=356';
 export * as bounty from './bounty.js?v=356';
 /* Auto-eat is the ONE fx handler combat-sim.js calls that the server accrual
    engine did not implement, and a missing handler is a silent no-op — so the

@@ -57,6 +57,13 @@ import * as skillSim from './core/skill-sim.js?v=356';
    form. It runs on `skillSim.sliceSpan`, so there is still exactly one
    buff-expiry timeline. */
 import * as artisanSim from './core/artisan-sim.js?v=356';
+/* b357 — the consumption seam (R1: one field, one carry, one guard). Published
+   because BOTH the pre-flight supply projection and the away card are client
+   surfaces, and §4.5 requires them to call the same `hoursOfSupply`/`dryAtMs`
+   the server's accrual will — "if the projection computes its own copy, the two
+   will disagree, and the player will be told a number the night does not
+   honour." Nothing in the fight calls it yet; see src/core/ammo.js's header. */
+import * as ammo from './core/ammo.js?v=356';
 /* The auto-eat DECISION, shared with the server accrual engine. Published so
    src/features/auto-actions.js — a classic script, which cannot import — can
    delegate to the same predicate Deno runs. */
@@ -244,7 +251,7 @@ window.HearthriseCore = {
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, drops, pacing, rested, tools, farm, progression,
   styles, artisan, bounty, away, botd, buffs, combatSim, skillSim, artisanSim,
-  autoEat, perks,
+  autoEat, perks, ammo,
 
   /* The session RNG. */
   get rng() { return rng; },

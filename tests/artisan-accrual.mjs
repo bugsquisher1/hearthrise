@@ -722,6 +722,44 @@ function burnGuard() {
   }
   ok(payableCount > 0, 'T6a: NO recipe is payable — `artisan` is in PAYABLE_KINDS and pays nothing');
 
+  /* ── T6a-2 (b357). THE TWO NEW BENCHES ARE PAYABLE, BY NAME.
+     The default above is "an unlisted bench pays", which is the right default
+     and is exactly why it must not be the whole story for a bench that has just
+     been ADDED: "it passed because nobody had an opinion about it" and "it was
+     reviewed and it is safe" are indistinguishable from a green tick.
+
+     The review, recorded: neither bench can reach a value-DESTROYING bonus key.
+     `resolveArtisanAction` rolls the burn only for `skillId === 'cooking'` and
+     refunds via craftSave only for `'crafting'`, so every key Runecrafting and
+     Stonemason can read is additive — and an additive key sourced from a
+     stale-low server copy merely UNDER-pays, which is the direction this engine
+     is already deliberately wrong in for renown, the clan castle and companions.
+     Cooking is the sole exception in the catalogue because `noBurn` decides
+     whether the input becomes the dish or becomes `burnt_food`.
+
+     If a future rung on either bench does need a destructive key, this
+     assertion is what forces that to be a decision with a diff attached. */
+  for (const bench of ['runecrafting', 'stonemason']) {
+    ok(benches.includes(bench),
+      `T6a-2: ARTISAN_RECIPES has no '${bench}' lane — the b357 skill did not reach the engine, so `
+      + 'every assertion about it below is vacuous');
+    ok(benchPayable(bench) === true,
+      `T6a-2: '${bench}' is NOT server-payable (blocked by ${benchBlockedBy(bench)}). The accrual `
+      + 'engine would refuse every night on it — and because a pointer that can be SET and not PAID '
+      + 'is a lockout (see recipePayable), the player could not switch away from it either.');
+    ok(BENCH_DESTRUCTIVE_KEYS[bench] === undefined,
+      `T6a-2: '${bench}' declares a destructive bonus key. That may well be correct, but it makes the `
+      + 'bench unpayable until the key is server-owned end to end — take it to Security rather than '
+      + 'shipping a skill the server refuses.');
+    const lane = ARTISAN_RECIPES[bench] || [];
+    ok(lane.length > 0, `T6a-2: the '${bench}' lane is empty`);
+    for (const r of lane) {
+      ok(recipePayable(ARTISAN_RECIPES_ALL, r.id),
+        `T6a-2: '${r.id}' (${bench}) is not payable, though its bench is — the index and the `
+        + 'predicate disagree about one row');
+    }
+  }
+
   /* ── T6b. A BLOCKED BENCH IS REFUSED BY NAME, AND THE REFUSAL DEFERS. */
   if (blockedCount > 0) {
     const blockedId = Object.keys(ARTISAN_RECIPES_ALL)

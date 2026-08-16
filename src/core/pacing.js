@@ -49,7 +49,22 @@ export function pacedActionMs(ms) {
 }
 
 export const GATHER_SKILLS = ['woodcutting', 'mining', 'fishing'];
-const ARTISAN_SPEED_KEY = { cooking: 'cookSpeed', smithing: 'smithSpeed', crafting: 'craftSpeed', prayer: 'prayerSpeed' };
+/* ⚠ THE FALLBACK BELOW IS `gatherSpeed`, AND THAT MAKES AN UNLISTED ARTISAN
+   SKILL A LIVE BUG RATHER THAN A GAP (consumable-economy.md §5.1). Runecrafting
+   and Stonemason would otherwise have been silently sped up by the Garden/tool
+   `gatherSpeed` stack — a bench running at a gathering perk's rate, on the
+   server as well as the client.
+
+   They map to `craftSpeed`, NOT to new `runeSpeed` / `masonSpeed` keys. Each
+   new key needs a ROOM RUNG to produce it and there are no more rooms, so a
+   bespoke key would be a GHOST KEY WITH NO PRODUCER — which is exactly the
+   dead-perk failure the b227 Cellar ruling was written to end. The Workshop
+   speeds the whole crafting family instead, which is a sentence a player can
+   read off the building. */
+const ARTISAN_SPEED_KEY = {
+  cooking: 'cookSpeed', smithing: 'smithSpeed', crafting: 'craftSpeed', prayer: 'prayerSpeed',
+  runecrafting: 'craftSpeed', stonemason: 'craftSpeed',
+};
 
 /** Which perk key governs this skill's action speed. One list, so a new
     skill wires its speed perk by adding a row rather than editing a site. */

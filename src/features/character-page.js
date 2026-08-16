@@ -117,7 +117,11 @@ const rateOf = (skillId, action) => {
 };
 
 function gatherRates() {
-  const skills = ['woodcutting', 'mining', 'fishing', 'farming', 'cooking', 'smithing', 'crafting'];
+  /* Derived from SKILLS_DEF's own `cat` (gather + artisan), the twin of
+     legacy.js's gatherRates(): a new bench is quoted a rate by adding a data
+     row rather than by editing two hand-kept lists that can drift. */
+  const skills = Object.keys(SKILLS_DEF)
+    .filter((k) => SKILLS_DEF[k].cat === 'gather' || SKILLS_DEF[k].cat === 'artisan');
   const TABLES = {
     woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS,
     farming: Object.values(CROPS),
@@ -346,7 +350,7 @@ function buildSkillsHeader() {
    renders, appended at the end, so adding a skill can never drop it silently. */
 const SKILL_ORDER = [
   'woodcutting', 'mining', 'fishing', 'farming',
-  'cooking', 'crafting', 'smithing',
+  'cooking', 'crafting', 'smithing', 'runecrafting', 'stonemason',
   'attack', 'strength', 'defense', 'hitpoints',
   'magic', 'ranged', 'prayer', 'bountyHunter',
 ];

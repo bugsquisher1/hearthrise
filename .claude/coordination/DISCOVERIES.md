@@ -4,6 +4,54 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-17 · Game Designer · P1 · THE PER-CALL ITEM CLAMP IS A CONTENT-DESIGN CONSTANT, AND IT PINS EVERY CONSUMABLE BATCH IN THE GAME
+
+Found while sizing Runecrafting and Stonemason (b357). `hr_apply`'s `c_max_item_delta` is **1,000,000
+units of any one item per call** and the reachable offline cap is **15 h**, so the arithmetic every
+future recipe author needs is:
+
+```
+units_at_the_cap = floor(54,000,000 / (recipe.ms × PACE.actionMs)) × recipe.outputQty
+```
+
+That caps production at **~40,000 units per hour of crafting, for anything**, and the guard line is
+60% of the clamp. It is not a server detail — it is the single hardest constraint on consumable
+design in the game, and it decides the answer to "how long does supplying a night cost?" before any
+designer opens a spreadsheet. Magic burns 1,429 runes/h, so the clamp *mandates* ~21 hours of
+casting supplied per hour of crafting and no more. The seven shipped `fletch_*` rows (batch 500-1000)
+sit at **4.0-7.7×** the clamp and are amnestied in `AMMO_CLAMP_BASELINE`; they pay a player ~1/8 of
+their night with an incident logged on every degrade attempt.
+
+**AFFECTED:** every `outputQty` in `src/data/**`, `tests/accrual-engine.mjs` clamp guard, Fletching.
+**ACTION:** size batches from the formula, not from "how many arrows feels like a stack". The full
+derivation — and the design argument for why ~23 min/night is *better* than the 500-batch's ~4 min —
+lives in the header of `src/data/stonecraft.js`. Do not add to the amnesty list.
+
+---
+
+### 2026-08-17 · Game Designer · P2 · A NEW SKILL RENDERS CORRECTLY AND LOOKS UNFINISHED — TWO ART GAPS, NEITHER MINE TO FIX
+
+Verified in a real browser (1440×980, zero console errors) with Runecrafting 34 / Stonemason 48.
+Both skills list, open, paint their tile grid and drive the lane strip natively. Two legibility gaps:
+
+**1. NO SKILL MEDALLION (→ Art Director).** In the Activities rail every existing skill shows a gilt
+medallion; Runecrafting and Stonemason show **blank space** where it should be, because
+`HearthriseIconSet.medallion(id, 30)` has no entry for them and the fallback is empty rather than a
+glyph. Two rows in the sixteen read as broken rather than as new.
+
+**2. EVERY RECIPE TILE FALLS BACK TO A PLACEHOLDER (→ Asset Director).** All 11 Runecrafting tiles
+draw the same **chest** glyph and all 7 whetstone tiles the same **sparkle**, because the 24 new item
+ids have no entry in `LOCAL_ITEM_ICON` / `_itemPath`. A ladder whose rungs are visually identical is
+a ladder the player reads as one thing — which is precisely what the tier tint (`itemTintClass`) was
+introduced to solve for shared sprites, and it cannot help here because there is no sprite at all.
+
+**AFFECTED:** `applyLocalIcons()` in `src/legacy.js`, `assets/icons-bundle/resources/`,
+`HearthriseIconSet.medallion`. **ACTION:** 24 item icons (3 stone, 3 block, 3 blank, 7 rune,
+7 whetstone, 1 ashlar) + 2 skill medallions. The mechanics are complete and tested; this is the
+difference between shipping it and shipping it well.
+
+---
+
 ### 2026-08-16 · Art Director · P1 · A `<span>` INSIDE A NUMERAL IS RESTYLED BY THIS CODEBASE, AND `|| 0` IS A FULL-BALANCE BUG WITH THE SIGN HIDDEN
 
 **Three findings from the UNKNOWN-balance sweep (b356), all measured, all of which will bite the next agent.**

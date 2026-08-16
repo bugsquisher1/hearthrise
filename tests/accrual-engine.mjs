@@ -2216,6 +2216,48 @@ async function clampGuard() {
     for (const id of stale) {
       clampGuard.ammo.push(`${id} no longer overflows — REMOVE it from AMMO_CLAMP_BASELINE`);
     }
+    /* (3b) b357 — THE TWO NEW ARTISAN LANES ARE NAMED, NOT MERELY ABSENT.
+       Property (1) already fails the build on any unlisted recipe that crosses
+       the clamp, so Runecrafting and Stonemason are covered by it. That is not
+       enough: "not on the over-clamp list" is also what a lane looks like when
+       the sweep never reached it — an empty set satisfies (1) perfectly.
+
+       So the two lanes b357 added are checked POSITIVELY, and against the same
+       60% line the rest of the guard uses rather than against the 100% the
+       amnesty list represents. The design was BUILT to that number (the batch
+       sizes in src/data/stonecraft.js are derived from it: `units = floor(
+       54,000,000 / (ms x PACE.actionMs)) x outputQty`), so a balance change
+       that quietly walks a rung toward the clamp should fail HERE, naming the
+       rung, rather than in the aggregate `worst` line naming whichever recipe
+       happened to be largest that day. */
+    {
+      const NEW_LANES = ['runecrafting', 'stonemason'];
+      const laneIds = new Set();
+      for (const skill of NEW_LANES) {
+        for (const r of (ARTISAN_RECIPES[skill] || [])) laneIds.add(r.id);
+      }
+      ok(laneIds.size > 0,
+        'CLAMP b357: ARTISAN_RECIPES has no runecrafting/stonemason rows — the lanes did not reach '
+        + 'the engine and every assertion below would pass against an empty set');
+      let seen = 0;
+      for (const [where, d] of artisanSweep(REACHABLE_CAP_H)) {
+        const id = where.split(' ')[1];
+        if (!laneIds.has(id)) continue;
+        seen++;
+        const units = Math.max(0, ...Object.values(d.items || {}).map(Math.abs));
+        ok(units <= C.max_item_delta * HEADROOM,
+          `CLAMP b357: '${id}' moves ${units} units of one item at the ${REACHABLE_CAP_H}h reachable `
+          + `cap — ${(units / C.max_item_delta * 100).toFixed(1)}% of c_max_item_delta, over the `
+          + `${HEADROOM * 100}% line. The seven fletch_* rows are amnestied and pay ~1/8 of a night; `
+          + 'these lanes were sized so they never need to be. Reduce outputQty (or raise ms) — the '
+          + 'arithmetic is in the header of src/data/stonecraft.js.');
+      }
+      ok(seen === laneIds.size,
+        `CLAMP b357: the sweep priced ${seen} of ${laneIds.size} new-lane recipes. A recipe the sweep `
+        + 'cannot run is a recipe with no headroom measurement at all — check benchPayable and that '
+        + 'artisanSupply() can stock its inputs.');
+    }
+
     /* (4) AND THE CONTROL: the sweep must still SEE the lane. A change that made
        artisanSweep return nothing would satisfy (1) and (2) vacuously and this
        whole block would pass while measuring an empty set. */

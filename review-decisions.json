@@ -1,0 +1,565 @@
+{
+  "generatedAt": 1786857297242,
+  "entries": [
+    {
+      "id": "REC-MONSTERS",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "DEC-ELEM-04",
+      "verdict": "approve",
+      "note": "Instead of blight, i like poison"
+    },
+    {
+      "id": "DEC-DRA-01",
+      "verdict": null,
+      "note": "Ember"
+    },
+    {
+      "id": "DEC-NEUT-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "DEC-WAVE-01",
+      "verdict": null,
+      "note": "all of it so i can get the AI artwork prompt working asap. Make sure you are filling all of the tiers."
+    },
+    {
+      "id": "DEC-ALIAS-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-BEA-09",
+      "verdict": null,
+      "note": "i dont like names that are this long"
+    },
+    {
+      "id": "MON-VER-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-VER-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-HUM-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-HUM-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-HUM-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-HUM-04",
+      "verdict": null,
+      "note": "Rock Troll"
+    },
+    {
+      "id": "MON-HUM-05",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-HUM-06",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-HUM-07",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-HUM-08",
+      "verdict": "approve",
+      "note": "just Stonejaw"
+    },
+    {
+      "id": "MON-UND-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-UND-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-UND-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-UND-04",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-UND-05",
+      "verdict": "approve",
+      "note": "Grave Banshee"
+    },
+    {
+      "id": "MON-UND-06",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-UND-07",
+      "verdict": null,
+      "note": "Vampire Bride"
+    },
+    {
+      "id": "MON-ARC-01",
+      "verdict": null,
+      "note": "Witch's Apprentice"
+    },
+    {
+      "id": "MON-ARC-02",
+      "verdict": "approve",
+      "note": "Cultist"
+    },
+    {
+      "id": "MON-ARC-03",
+      "verdict": "approve",
+      "note": "Adept"
+    },
+    {
+      "id": "MON-ARC-04",
+      "verdict": null,
+      "note": "Conjurer"
+    },
+    {
+      "id": "MON-ARC-05",
+      "verdict": null,
+      "note": "Astrologer"
+    },
+    {
+      "id": "MON-ARC-06",
+      "verdict": null,
+      "note": "Necromancer"
+    },
+    {
+      "id": "MON-DEM-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-DEM-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-DEM-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-DEM-04",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-DEM-05",
+      "verdict": null,
+      "note": "Vharek"
+    },
+    {
+      "id": "MON-DRA-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-DRA-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-DRA-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-DRA-04",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-DRA-05",
+      "verdict": null,
+      "note": "Draconia"
+    },
+    {
+      "id": "MON-DRA-06",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-DRA-07",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-VOI-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-VOI-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-VOI-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-VOI-04",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "REC-ITEMS",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-PLAN-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-PLAN-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-PLAN-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-PLAN-04",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-PLAN-05",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-PLAN-06",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-01",
+      "verdict": null,
+      "note": "no"
+    },
+    {
+      "id": "ITEM-NEW-02",
+      "verdict": null,
+      "note": "Lazlo's Maul"
+    },
+    {
+      "id": "ITEM-NEW-03",
+      "verdict": null,
+      "note": "How about Dragon Rib Bow or something"
+    },
+    {
+      "id": "ITEM-NEW-04",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-05",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-06",
+      "verdict": null,
+      "note": "no"
+    },
+    {
+      "id": "ITEM-NEW-07",
+      "verdict": null,
+      "note": "Rat Stick"
+    },
+    {
+      "id": "ITEM-NEW-08",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-09",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-10",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-11",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-12",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-13",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-14",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-15",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-16",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-17",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-18",
+      "verdict": "reject",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-19",
+      "verdict": null,
+      "note": "no"
+    },
+    {
+      "id": "ITEM-NEW-20",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-21",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-22",
+      "verdict": "reject",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-23",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-24",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-25",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-26",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-27",
+      "verdict": "reject",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-28",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-29",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-30",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-31",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-32",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-33",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-34",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-35",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-36",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-37",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-38",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-39",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-40",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-41",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-42",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-43",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-NEW-44",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "REC-PROGRESSION",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "PROG-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "PROG-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "PROG-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "PROG-04",
+      "verdict": "maybe",
+      "note": ""
+    },
+    {
+      "id": "PROG-05",
+      "verdict": "maybe",
+      "note": ""
+    },
+    {
+      "id": "PROG-07",
+      "verdict": "maybe",
+      "note": ""
+    },
+    {
+      "id": "PROG-08",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "PROG-09",
+      "verdict": "maybe",
+      "note": ""
+    },
+    {
+      "id": "PROG-10",
+      "verdict": "maybe",
+      "note": ""
+    },
+    {
+      "id": "EVT-RENAME",
+      "verdict": "approve",
+      "note": "i think each item in the game (other than super rare items) should have an ember value that is higher than gold; to convince folks to donate the stuff they dont want like extra gathering mats or something they crafted to raise levels. other than that i love it."
+    },
+    {
+      "id": "EVT-POOL",
+      "verdict": null,
+      "note": "read my other note and then adjust this"
+    },
+    {
+      "id": "EVT-LIBRARY",
+      "verdict": "approve",
+      "note": "if a vote ties it's 50/50 decided by the server."
+    },
+    {
+      "id": "EVT-VOTE",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "EVT-RETIRE",
+      "verdict": "approve",
+      "note": ""
+    }
+  ]
+}

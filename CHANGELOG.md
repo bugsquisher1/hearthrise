@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 354 — 2026-08-16 (Small quality-of-life pair)
+
+- 🍖 **Auto-Eat is now also in the Bounty Shop** (100 marks) — same trait, second storefront, so it can't be missed by players who skip the trait screen.
+- 🔨 **The Build button moved to the top** of every room and castle upgrade panel, with its cost beside it — no more scrolling to find it.
+
 ## v0.9.2-beta build 353 — 2026-08-16 (Your progress now lives on the server)
 
 - 🌐 **Hearthrise is now server-run.** Your character, your away time and your trades are held and worked out by the server instead of by your browser. Your progress was imported to the server at the freeze — nothing was reset, and nothing was taken away. The practical difference: your save is no longer a file on one device, so it can't be lost with a cleared cache, and it can't be edited.

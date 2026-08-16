@@ -9,7 +9,7 @@
     "test:headed": "node tests/run-smoke.mjs --headed",
     "check:version": "bash bump-version.sh --check",
     "test:sql": "node tests/run-sql-tests.mjs",
-    "test:activity-intent": "node tests/activity-intent.mjs --selftest",
+    "test:activity-intent": "node tests/activity-intent.mjs",
     "test:claim-intent": "node tests/claim-intent.mjs --selftest",
     "test:market-offers": "node tests/market-offers-guard.mjs",
     "test:market-lockdown": "node tests/market-offers-lockdown.mjs",
@@ -20,7 +20,6 @@
     "test:raid-card": "node tests/raid-card-copy.mjs",
     "test:clan-journal": "node tests/clan-journal-guard.mjs --selftest",
     "test:anon-rate": "node tests/anon-rate-gate.mjs --selftest",
-    "test:activity-intent": "node tests/activity-intent.mjs",
     "test:activity-intent:selftest": "node tests/activity-intent.mjs --selftest",
     "test:gold-intents": "node tests/gold-intents.mjs",
     "test:gold-intents:selftest": "node tests/gold-intents.mjs --selftest",
@@ -33,7 +32,9 @@
     "test:gem-budget:selftest": "node tests/gem-daily-budget.mjs --mutate",
     "test:conservation": "node tests/conservation-fuzz.mjs --ops=400",
     "test:conservation:selftest": "node tests/conservation-fuzz.mjs --selftest --ops=400",
-    "test:conservation:soak": "node tests/conservation-fuzz.mjs --ops=5000 --users=6 --slots=2"
+    "test:conservation:soak": "node tests/conservation-fuzz.mjs --ops=5000 --users=6 --slots=2",
+    "test:bug-triage": "node tests/bug-triage.mjs",
+    "test:bug-triage:mutate": "node tests/bug-triage.mjs --mutate"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",

@@ -31,6 +31,8 @@ import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
 import { clientWriteSweep5Guard } from './client-write-sweep-5.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
+import { runAll as liveSettlementGuards, engineGuard as settleReport,
+  sqlGuard as settleSqlReport } from './live-settlement.mjs';
 import { runAll as goldCensusGuard } from './gold-site-census.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
@@ -1106,6 +1108,14 @@ async function unlockModelPreflight() {
     ['derive-grant-hygiene.mjs', 'hr_assert_grant_hygiene derivation',
       'the restated grant detector is no longer grant-hygiene\'s body plus its declared patch — '
       + 'i.e. a check may have been deleted while every self-check still passed'],
+    /* Phase 0 of live settlement. The SAME rule applied to the two biggest
+       bodies in the repo: 2026-08-17-fight-carry.sql restates the WHOLE of
+       hr_apply (63 KB) and hr_state_of, and a hand-edit between the anchors is
+       how b346's ownership flag, b348's tool_carry key, the S5 accrued_to stamp
+       and the 12M XP clamp silently disappear from a body nobody reads. */
+    ['derive-fight-carry.mjs', 'fight-carry derivation',
+      'the restated hr_apply / hr_state_of in 2026-08-17-fight-carry.sql are no longer '
+      + 'gem-daily-budget\'s and tool-carry\'s bodies plus this file\'s declared patches'],
   ]) {
     const gen = join(ROOT, 'tools', tool);
     try { await stat(gen); } catch { continue; }
@@ -1120,7 +1130,37 @@ async function unlockModelPreflight() {
   return 0;
 }
 
+/* ── MUTATION RESIDUE RECOVERY — RUNS BEFORE EVERYTHING ELSE ──────────────
+   Two of this repo's harnesses (`artisan-accrual.mjs --selftest`,
+   `live-settlement.mjs --mutate`) plant real defects in real production files
+   and restore them afterwards. On 2026-08-16 one of those runs was killed by a
+   timeout partway through and the restore never ran: `bag[id] = have - take;`
+   in the deployed accrual engine stayed replaced by a comment — the artisan
+   simulation stopped debiting its inputs, i.e. an ITEM-DUPLICATION BUG sitting
+   in the working tree, found only because a reviewer read the diff.
+
+   ⚠ A SIGNAL HANDLER DOES NOT CLOSE THIS ON WINDOWS. Measured: Node cannot trap
+     SIGTERM there — the handler is registered and never called — and a harness
+     timeout IS a SIGTERM. So the durable mechanism is a JOURNAL written to disk
+     BEFORE the first mutation, and this is the thing that reads it.
+
+   It runs first, unconditionally, and it SHOUTS rather than healing silently:
+   a leaked mutation means a run died, and that is worth knowing even after it
+   has been put right. It cannot fail the suite for a clean tree — with no
+   journal it does nothing at all. */
+const recoverMutationResidue = async () => {
+  const { recoverJournal } = await import('./mutation-safety.mjs');
+  const fixed = recoverJournal();
+  if (fixed.length) {
+    console.log(`\n⚠ Mutation residue recovered — ${fixed.length} production file(s) were left `
+      + 'MUTATED by an interrupted mutation harness and have been restored from the journal:');
+    for (const f of fixed) console.log(`    ${f}`);
+    console.log('  Check `git diff` before committing; the run that died proved nothing.\n');
+  }
+};
+
 const run = async () => {
+  await recoverMutationResidue();
   if (await monsterArtPreflight()) process.exit(1);
   if (await catalogueDriftPreflight()) process.exit(1);
   if (await shopDriftPreflight()) process.exit(1);
@@ -1310,6 +1350,36 @@ const run = async () => {
         + "pays, production is clamped to the SERVER'S inventory and swept across five supply levels, "
         + 'running out stops the run and clears the pointer, and the recipe gate is a server row that '
         + 'fails closed.');
+    }
+
+    /* ── Live settlement, PHASE 0 (the in-flight fight is server state) ──
+       The defect it guards is not a rounding loss: before this, every accrual
+       window started a FRESH monster at full HP, so any target whose
+       time-to-kill exceeded the window paid ZERO — measured 0 kills / 0 gold at
+       60 s, 90 s, 120 s and 300 s cadences against a 520 HP dragon that one
+       60-minute window pays 3 kills for. It is also a live under-payment today
+       on every set_activity collect.
+
+       It grades BOTH halves, because either alone is trustable and wrong: the
+       engine half (does a settled hour pay what one window pays, and is a
+       span that starts fresh byte-identical either way) and the SQL half, on
+       real PostgreSQL through the whole migration chain — a forged checkpoint
+       is refused against the GENERATED monster ceiling, and a banked
+       nearly-dead boss is voided by any activity change, including a switch
+       back to the same target. `node tests/live-settlement.mjs --mutate`
+       plants seven real defects, one of which is the shipped bug itself, and
+       requires all seven to go red. See tests/live-settlement.mjs. */
+    const settleProblems = await liveSettlementGuards();
+    if (settleProblems.length) {
+      console.log('\nLive settlement Phase 0 (the in-flight fight is server state) — FAILED:');
+      for (const p of settleProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nLive settlement Phase 0 — a settled hour pays what one window pays, a span that '
+        + 'starts fresh is byte-identical with and without the column, a forged checkpoint is refused '
+        + 'against the generated monster ceiling, and a banked boss does not survive a switch.');
+      for (const line of settleReport.report || []) console.log(`  ${line}`);
+      for (const line of settleSqlReport.report || []) console.log(`  ${line}`);
     }
 
     /* ── The unlock-purchase guard (b354) ───────────────────────────────

@@ -1329,13 +1329,29 @@ async function selftest() {
   const { readFile, writeFile } = await import('node:fs/promises');
   const { execFile } = await import('node:child_process');
   const { promisify } = await import('node:util');
+  const { snapshot, assertNoResidue, noteDirtyTree, finish } = await import('./mutation-safety.mjs');
   const run = promisify(execFile);
+
+  /* ⚠ THE RESTORE IS NOT THE STATEMENT AFTER THE PROBE ANY MORE, and this is
+     an incident fix rather than tidying. M1 replaces `bag[id] = have - take;`
+     in the deployed accrual engine — i.e. it turns off the artisan input debit,
+     an ITEM-DUPLICATION BUG. The restore used to be a plain statement on the
+     happy path: no `finally`, no signal handler. A run killed by a harness
+     timeout on 2026-08-16 left that mutation sitting in the working tree as a
+     real diff until a reviewer read it. tests/mutation-safety.mjs restores on
+     every exit path INCLUDING a signal, verifies by sha256 rather than by
+     "we wrote it back", and refuses to start against a tree that is already
+     dirty — because a previous run's residue is indistinguishable from an
+     original once it has been snapshotted. */
+  assertNoResidue(MUTATIONS.flatMap(([, sites]) =>
+    sites.map(([file, find, repl]) => ({ file, from: find, to: repl }))));
+  noteDirtyTree([...new Set(MUTATIONS.flatMap(([, sites]) => sites.map(([f]) => f)))]);
 
   let slipped = 0;
   for (const [name, sites, why] of MUTATIONS) {
     const originals = new Map();
     for (const [file] of sites) {
-      if (!originals.has(file)) originals.set(file, await readFile(file, 'utf8'));
+      if (!originals.has(file)) originals.set(file, snapshot(file));
     }
     let bad = null;
     for (const [file, find, repl] of sites) {
@@ -1375,11 +1391,16 @@ async function selftest() {
     console.log(`  ${red.length ? 'CAUGHT ' : 'SLIPPED'} ${name}`);
     console.log(`            ${red.length ? red[0] : why}`);
   }
+  /* `finish()` restores every snapshotted file, RE-HASHES it against the
+     pre-mutation snapshot, and exits 3 naming the file if any of them is still
+     mutated. So a leaked mutation fails the run instead of riding out in
+     `git diff` — which is the entire lesson of the 2026-08-16 incident. */
   if (slipped) {
     console.log(`\n${slipped} mutation(s) SLIPPED — the guard cannot see them.`);
-    process.exit(1);
+    finish(1);
   }
   console.log(`\nall ${MUTATIONS.length} mutations CAUGHT.`);
+  finish(0);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href

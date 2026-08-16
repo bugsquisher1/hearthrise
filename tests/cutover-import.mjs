@@ -193,7 +193,13 @@ function snapshots(cat) {
       ...base,
       gold: 500, gems: 0, bank: {},
       skills: { hitpoints: 1154, cooking: 100000 },
-      inventory: {}, equipment: {}, farmPlots: [],
+      inventory: {},
+      // THE LEGACY FOX MIRROR: `fox_companion` IS a catalogued item whose slot IS
+      // `companion`, so it passes every catalogue check and would import — while
+      // every other player's raw COMPANIONS id dropped. The asymmetry is the
+      // point of this fixture.
+      equipment: { companion: 'fox_companion' },
+      farmPlots: [],
       rooms: { kitchen: 4 }, homestead: { tier: 3 }, plotLevels: 3,
       plotBuildings: [{ id: 'toolshed', uid: 1 }], workers: { hired: [{}] },
       traits: {}, autoActions: {}, foodSlot: null, autoEatPct: 0.5, toolCarry: {},
@@ -309,10 +315,11 @@ export async function cutoverImportGuard({ patches, toolPath } = {}) {
       fail(`B (${name}): the RPC refused a well-formed plan: ${JSON.stringify(out)}`);
       continue;
     }
-    // BOTH reports: the tool drops an uncatalogued id before proposing it, the
-    // RPC drops one that got past. A verifier handed only one of them calls the
-    // other side's honest drops "unreported".
-    const mism = tool.verify(snap, out.envelope, toolCat, gameData, out, report);
+    // ⚠ verifyImport, NOT verify. The guard must drive the SAME composition
+    //   production drives. Assembling the arguments here is what let the
+    //   2026-08-16 rehearsal fail 4 of 6 players against a green suite: the
+    //   test passed (out, report), run() passed (out) only.
+    const mism = tool.verifyImport(snap, out, report, toolCat, gameData);
     results[name].mismatches = mism;
     if (mism.length) fail(`B (${name}): verification found ${mism.length}: ${mism.slice(0, 4).join(' | ')}`);
   }
@@ -462,6 +469,45 @@ export async function cutoverImportGuard({ patches, toolPath } = {}) {
     }
   }
 
+  // ── Q. THE COMPANION SLOT (2026-08-16, full-batch rehearsal) ─────────
+  // Production froze with 4 of 6 players MISMATCH: "equip companion: <id> was
+  // dropped without a report". Two defects, both graded here.
+  //
+  //   Q1-Q3  the slot is dropped BY NAME for BOTH id-spaces it carries — a raw
+  //          COMPANIONS id (NORMAL: rock_golem) and the legacy fox ITEM mirror
+  //          (UNLOCKS: fox_companion, which is a CATALOGUED item in this slot
+  //          and would otherwise import for fox owners alone).
+  //   Q4     the snapshot rehearses CLEAN — zero mismatches — which is the
+  //          property the frozen batch needs before --apply.
+  {
+    for (const [name, id] of [['NORMAL', 'rock_golem'], ['UNLOCKS', 'fox_companion']]) {
+      const r = results[name];
+      const drops = [...(r.report.dropped || []), ...((r.out && r.out.drops) || [])];
+      const hit = drops.find((d) => String(d.id) === id && d.kind === 'equipped_companion');
+      if (!hit) {
+        fail(`Q1 (${name}): the equipped companion "${id}" was dropped WITHOUT a named report: `
+          + JSON.stringify(drops));
+      } else if (!/client_owned_companion/.test(String(hit.reason))) {
+        fail(`Q2 (${name}): "${id}" dropped with reason "${hit.reason}" — it must name the `
+          + 'client-owned companion model, not a generic catalogue miss');
+      }
+      if ((env(name).equipment || {}).companion) {
+        fail(`Q3 (${name}): a companion reached player_equipment: ${env(name).equipment.companion}`);
+      }
+      // THE FROZEN-BATCH PROPERTY: clean rehearsal.
+      if ((r.mismatches || []).length) {
+        fail(`Q4 (${name}): a snapshot with an equipped companion did not rehearse clean: `
+          + `${r.mismatches.join(' | ')}`);
+      }
+    }
+    // The control: `fox_companion` really IS catalogued for this slot, so Q
+    // cannot pass merely because the catalogue lacks it.
+    if (!toolCat.items.has('fox_companion') || !toolCat.itemSlots.has('fox_companion companion')) {
+      fail('Q5: fox_companion is not a catalogued companion-slot item in this replay — the '
+        + 'asymmetry Q exists to close is not reproduced, so Q1/Q2 prove less than they claim');
+    }
+  }
+
   // ── F. UNKNOWN IDS — dropped BY NAME, never guessed ──────────────────
   {
     const rep = results.UNKNOWN.report;
@@ -576,20 +622,81 @@ export async function cutoverImportGuard({ patches, toolPath } = {}) {
         fail(`J1: the import did not refuse a character that has already played: ${JSON.stringify(over)}`);
       }
 
+      // ── J2. A REFUSAL LEAVES NOTHING BEHIND (2026-08-16 production leak) ──
+      // Every refusal fires AFTER hr_create_character has made a character, and
+      // a plain `return` from a block with an EXCEPTION clause COMMITS the
+      // subtransaction — so a p_commit=false DRY RUN created a real character in
+      // production. A malformed plan is used (not already-played) because it
+      // refuses MID-FLIGHT, after the bag has already been deleted, which is the
+      // worst version of the same bug: a committed empty inventory.
+      {
+        await db.exec(`delete from public.player_state where user_id='${UID}';`);
+        const ledgerBefore = Number((await q(`select count(*) n from public.player_ledger
+                                               where user_id='${UID}'`))[0].n);
+        const badPlan = { state: { gold: 5 }, inventory: { [cat.items[0]]: 3 }, farm: 'not-an-array' };
+        const refused = await callImport(db, badPlan, { snapshot_sha: 'f'.repeat(64) }, false);
+        if (!refused || refused.ok !== false || refused.error !== 'bad_plan') {
+          fail(`J2-0 CONTROL: the malformed plan did not refuse (${JSON.stringify(refused)}) — the `
+            + 'leak assertions below would pass for the wrong reason');
+        }
+        const st = Number((await q(`select count(*) n from public.player_state where user_id='${UID}'`))[0].n);
+        if (st !== 0) fail(`J2-1: a REFUSED import left ${st} player_state row(s) — a dry run wrote to the database`);
+        const sk = Number((await q(`select count(*) n from public.player_skills where user_id='${UID}'`))[0].n);
+        if (sk !== 0) fail(`J2-2: a REFUSED import left ${sk} player_skills row(s)`);
+        const ledgerAfter = Number((await q(`select count(*) n from public.player_ledger
+                                              where user_id='${UID}'`))[0].n);
+        if (ledgerAfter !== ledgerBefore) {
+          fail(`J2-3: a REFUSED import left ${ledgerAfter - ledgerBefore} ledger row(s) — and the `
+            + 'ledger is append-only, so they can never be cleaned up');
+        }
+      }
+
+      // ── J3. LEDGER RESIDUE FROM A DELETED CHARACTER MUST NOT BLOCK ───
+      // player_ledger is append-only, so rows outlive the character they
+      // describe. The 2026-08-11 apply-engine verification left `accrue` rows on
+      // a REAL player's slot against a character since deleted; unscoped, the
+      // already-played check refused that player's import FOREVER, and the rows
+      // cannot be deleted by design. Scoped to `at >= player_state.created_at`,
+      // an older row is not evidence that THIS character has played.
+      {
+        await db.exec(`insert into public.player_ledger (user_id, slot, kind, intent, gold, at)
+                       values ('${UID}', 0, 'combat', 'accrue', 4, now() - interval '5 days');`);
+        const ok2 = await callImport(db, plan, { snapshot_sha: '9'.repeat(64) }, false);
+        if (!ok2 || ok2.ok !== true) {
+          fail(`J3-1: ledger residue PREDATING the character blocked the import: ${JSON.stringify(ok2)}`);
+        }
+        // ...and a row written SINCE the character was created must STILL refuse,
+        // or the scoping has simply switched the protection off.
+        const seeded = await callImport(db, plan, { snapshot_sha: '8'.repeat(64) }, true);
+        if (!seeded || seeded.ok !== true) fail('J3-2 harness: could not seed a committed character');
+        await db.exec(`delete from public.hr_import_marker where user_id='${UID}';`);
+        await db.exec(`insert into public.player_ledger (user_id, slot, kind, intent, gold, at)
+                       values ('${UID}', 0, 'combat', 'accrue', 4, now());`);
+        const blocked = await callImport(db, plan, { snapshot_sha: '7'.repeat(64) }, false);
+        if (!blocked || blocked.error !== 'character_already_played') {
+          fail('J3-3: a ledger row written SINCE the character was created did not refuse: '
+            + `${JSON.stringify(blocked)} — the scoping switched the protection off`);
+        }
+        // K needs the UNLOCKS character live and committed. The ledger rows stay
+        // (append-only, and the trigger correctly refuses deleting them).
+      }
+
       // ── K. THE VERIFIER SEES A PLANTED SERVER-SIDE DISCREPANCY ───────
       // Edit the row behind the RPC's back, re-read the envelope, and require
       // the tool's verifier to catch it. A verifier that has only ever seen
       // agreement has asserted nothing.
       await db.exec(`update public.player_state set gold = gold + 7 where user_id='${UID}';`);
       const envNow = (await q(`select public.hr_state_of('${UID}'::uuid, 0) as e`))[0].e;
-      const caught = tool.verify(SN.UNLOCKS, envNow, toolCat, gameData, { clamps: [], drops: [] });
+      const caught = tool.verifyImport(SN.UNLOCKS, { envelope: envNow, clamps: [], drops: [] },
+        results.UNLOCKS.report, toolCat, gameData);
       if (!caught.some((s) => s.startsWith('gold:'))) {
         fail(`K1: the verifier did not catch a planted +7 gold discrepancy: ${JSON.stringify(caught)}`);
       }
       // ...and it must pass on the honest state, or K1 proves nothing.
       await db.exec(`update public.player_state set gold = gold - 7 where user_id='${UID}';`);
       const envOk = (await q(`select public.hr_state_of('${UID}'::uuid, 0) as e`))[0].e;
-      const clean = tool.verify(SN.UNLOCKS, envOk, toolCat, gameData, { clamps: [], drops: [] });
+      const clean = tool.verifyImport(SN.UNLOCKS, { envelope: envOk, clamps: [], drops: [] },
+        results.UNLOCKS.report, toolCat, gameData);
       if (clean.length) fail(`K2: the verifier fails on honest state: ${clean.slice(0, 4).join(' | ')}`);
     }
   }
@@ -826,6 +933,48 @@ const MUTATIONS = [
     ]]]]),
   },
   {
+    name: 'M19 — the companion slot loses its named drop and falls back to the silent catalogue path',
+    expect: /Q1|dropped WITHOUT a named report|dropped without a report/,
+    async run() {
+      const f = await mutantTool(
+        "    if (slot === COMPANION_SLOT) {\n      drop('equipped_companion', id, companionDropReason(id), { slot });\n      continue;\n    }",
+        '    // companion branch removed by mutation',
+        'M19');
+      try { return await cutoverImportGuard({ toolPath: f }); } finally { await unlink(f).catch(() => {}); }
+    },
+  },
+  {
+    name: 'M20 — verifyImport drops the TOOL report (the exact 2026-08-16 production divergence)',
+    expect: /was dropped without a report/,
+    async run() {
+      // This reproduces the freeze verbatim: verify sees only the SERVER report,
+      // so every drop the tool made before the RPC reads as unreported.
+      const f = await mutantTool(
+        'return verify(snapshot, serverOut && serverOut.envelope, cat, game, serverOut, toolReport);',
+        'return verify(snapshot, serverOut && serverOut.envelope, cat, game, serverOut);',
+        'M20');
+      try { return await cutoverImportGuard({ toolPath: f }); } finally { await unlink(f).catch(() => {}); }
+    },
+  },
+  {
+    // The exact production leak: a refusal that RETURNS instead of raising
+    // commits the character hr_create_character just made.
+    name: 'M21 — a refusal RETURNS instead of raising; a dry run commits a character to the database',
+    expect: /J2-1|left .* player_state row|REFUSED import left|chain:/,
+    patches: new Map([[MIGRATION, [[
+      "      v_payload := jsonb_build_object('ok', false, 'error', 'bad_plan',\n               'detail', jsonb_build_object('at', 'farm'));\n      raise exception using errcode = 'HR001', message = v_payload::text;",
+      "      return jsonb_build_object('ok', false, 'error', 'bad_plan',\n               'detail', jsonb_build_object('at', 'farm'));",
+    ]]]]),
+  },
+  {
+    name: 'M22 — the already-played ledger check loses its created_at scope; residue blocks forever',
+    expect: /J3-1|residue PREDATING the character blocked/,
+    patches: new Map([[MIGRATION, [[
+      "     and coalesce(intent, '') <> 'create_character'\n     and at >= v_char_at;",
+      "     and coalesce(intent, '') <> 'create_character';",
+    ]]]]),
+  },
+  {
     name: 'M1 — a FIELD_MAP entry is DELETED (the brief\'s "drop a mapping")',
     expect: /FIELD_MAP does not declare rooms/,
     async run() {
@@ -883,8 +1032,8 @@ const MUTATIONS = [
     name: 'M7 — the idempotency marker is never consulted; a re-run re-imports',
     expect: /a re-run did not skip|marker rows after three calls/,
     patches: new Map([[MIGRATION, [[
-      '   where user_id = p_user and slot = v_slot;\n  if found then\n    return jsonb_build_object(',
-      '   where user_id = p_user and slot = v_slot;\n  if false then\n    return jsonb_build_object(',
+      '   where user_id = p_user and slot = v_slot;\n  if found then\n    v_payload := jsonb_build_object(',
+      '   where user_id = p_user and slot = v_slot;\n  if false then\n    v_payload := jsonb_build_object(',
     ]]]]),
   },
   {
@@ -910,9 +1059,9 @@ const MUTATIONS = [
     name: 'M10 — BOTH character-already-played refusals are removed (version + ledger)',
     expect: /did not refuse a character that has already played/,
     patches: new Map([[MIGRATION, [
-      ["  if v_ver > 0 then\n    return jsonb_build_object('ok', false, 'error', 'character_already_played',\n             'detail', jsonb_build_object('version', v_ver));\n  end if;",
+      ["  if v_ver > 0 then\n    v_payload := jsonb_build_object('ok', false, 'error', 'character_already_played',\n             'detail', jsonb_build_object('version', v_ver));\n    raise exception using errcode = 'HR001', message = v_payload::text;\n  end if;",
         '  -- version refusal removed by mutation'],
-      ["  if v_ledger_n > 0 then\n    return jsonb_build_object('ok', false, 'error', 'character_already_played',\n             'detail', jsonb_build_object('ledger_rows', v_ledger_n));\n  end if;",
+      ["  if v_ledger_n > 0 then\n    v_payload := jsonb_build_object('ok', false, 'error', 'character_already_played',\n             'detail', jsonb_build_object('ledger_rows', v_ledger_n));\n    raise exception using errcode = 'HR001', message = v_payload::text;\n  end if;",
         '  -- ledger refusal removed by mutation'],
     ]]]),
   },

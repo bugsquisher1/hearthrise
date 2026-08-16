@@ -1,0 +1,1078 @@
+{
+  "mode": "dry-run",
+  "at": "2026-08-16T02:33:57.929Z",
+  "tool": "tools/cutover-import.mjs@local",
+  "reports": [
+    {
+      "user_id": "39e28e92-b519-4d11-a918-feab730c0ca2",
+      "slot": 0,
+      "saved_at": "2026-08-15 04:44:44.854305+00",
+      "status": "PLANNED",
+      "snapshot_sha": "7470b42f60100bc6a1322459b11c56faadf02ea3aab05c9630dcbe10bf6f43d8",
+      "plan": {
+        "imported": {
+          "gold": 11313,
+          "gems": 6,
+          "bank_cap": 100,
+          "skills": 15,
+          "items": 17,
+          "equipment": 1,
+          "farm": 2,
+          "progress": 13
+        },
+        "dropped": [],
+        "clamped": [],
+        "aliased": [],
+        "client": [
+          "buffs",
+          "daily",
+          "quests",
+          "renown",
+          "streak",
+          "dropLog",
+          "bestiary",
+          "dungeons",
+          "loadouts",
+          "restedAt",
+          "restedXp",
+          "settings",
+          "chronicle",
+          "collection",
+          "companions",
+          "dailyGoals",
+          "houseTheme",
+          "renownHigh",
+          "combatStyle",
+          "dailyReward",
+          "lastWelcome",
+          "marketStats",
+          "weeklyGoals",
+          "achievements",
+          "dungeonStats",
+          "viewingSkill",
+          "lifetimeKills",
+          "dailyGoldStart",
+          "wieldGrandfather",
+          "currentCombatTier",
+          "combatKillsThisFoe",
+          "lastSessionSummary"
+        ],
+        "derived": [
+          "raids",
+          "clanId",
+          "muster",
+          "clanName",
+          "bossKills",
+          "playerName",
+          "totalLevel",
+          "combatLevel",
+          "rallyPledge",
+          "lastActivity",
+          "offlineBudget"
+        ],
+        "device": [
+          "account",
+          "cloudSyncedAt"
+        ],
+        "meta": {
+          "v": 13,
+          "lastSeen": 1786769080347,
+          "createdAt": 1786245695681,
+          "schemaVersion": 1,
+          "migratedToV3At": 1786239418371
+        },
+        "undeclaredStatKeys": [
+          "burnt",
+          "playMs",
+          "planted",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "killsByTier",
+          "buffsConsumed",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [
+            "theme:default"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        }
+      ]
+    },
+    {
+      "user_id": "4f65981b-cd16-468f-bb81-be1e326f6c4b",
+      "slot": 0,
+      "saved_at": "2026-08-16 00:43:01.251192+00",
+      "status": "PLANNED",
+      "snapshot_sha": "00611c8f1e15948264cc527ea7fa79778a2055f45cf3f0524e728f9bbbcbea59",
+      "plan": {
+        "imported": {
+          "gold": 840861,
+          "gems": 86,
+          "bank_cap": 320,
+          "skills": 15,
+          "items": 114,
+          "equipment": 12,
+          "farm": 10,
+          "progress": 38
+        },
+        "dropped": [
+          {
+            "kind": "item",
+            "id": "bunny",
+            "reason": "not_in_hr_items",
+            "where": "inventory",
+            "qty": 1
+          },
+          {
+            "kind": "equipped_item",
+            "id": "silkling",
+            "reason": "not_in_hr_items",
+            "slot": "companion"
+          },
+          {
+            "kind": "skill",
+            "id": "combat",
+            "reason": "not_in_hr_skills",
+            "xp": 3018
+          }
+        ],
+        "clamped": [],
+        "aliased": [
+          {
+            "from": "bounty:goldBoost",
+            "to": "bounty:mark_pouch",
+            "source": "bountyHunter.upgrades"
+          },
+          {
+            "from": "bounty:autoBounty",
+            "to": "bounty:auto_bounty_1",
+            "source": "bountyHunter.upgrades"
+          },
+          {
+            "from": "bounty:extraRerolls",
+            "to": "bounty:free_reroll_2",
+            "source": "bountyHunter.upgrades"
+          },
+          {
+            "from": "bounty:cosmeticCloak",
+            "to": "bounty:cosmetic_cape",
+            "source": "bountyHunter.upgrades"
+          }
+        ],
+        "client": [
+          "buffs",
+          "daily",
+          "quests",
+          "renown",
+          "streak",
+          "buyback",
+          "dropLog",
+          "bestiary",
+          "dungeons",
+          "loadouts",
+          "restedAt",
+          "restedXp",
+          "settings",
+          "chronicle",
+          "collection",
+          "companions",
+          "dailyGoals",
+          "houseTheme",
+          "renownHigh",
+          "combatStyle",
+          "dailyReward",
+          "lastWelcome",
+          "marketStats",
+          "weeklyGoals",
+          "achievements",
+          "dungeonStats",
+          "viewingSkill",
+          "collectionLog",
+          "lifetimeKills",
+          "dailyGoldStart",
+          "wieldGrandfather",
+          "currentCombatTier",
+          "combatKillsThisFoe",
+          "lastSessionSummary"
+        ],
+        "derived": [
+          "raids",
+          "clanId",
+          "muster",
+          "clanName",
+          "bossKills",
+          "playerName",
+          "totalLevel",
+          "combatLevel",
+          "rallyPledge",
+          "lastActivity",
+          "offlineBudget"
+        ],
+        "device": [
+          "account",
+          "cloudSyncedAt"
+        ],
+        "meta": {
+          "v": 13,
+          "lastSeen": 1786840981047,
+          "createdAt": 1786231643623,
+          "schemaVersion": 1,
+          "migratedToV3At": 1786274907142
+        },
+        "undeclaredStatKeys": [
+          "burnt",
+          "playMs",
+          "planted",
+          "refined",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "roomsBuilt",
+          "killsByTier",
+          "buffsConsumed",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [
+            "recipe:captain_recipe",
+            "recipe:field_cookbook",
+            "recipe:chief_blade_recipe"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [
+            "trait:auto_eat"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [
+            "theme:default"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [
+            "room:forge",
+            "room:cellar",
+            "room:garden",
+            "room:shrine",
+            "room:trophy",
+            "room:kitchen",
+            "room:library",
+            "room:workshop"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [
+            "plot:farm_plot",
+            "plot:toolshed",
+            "plot:scarecrow",
+            "plot:watchtower"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [
+            {
+              "from": "bounty:goldBoost",
+              "to": "bounty:mark_pouch"
+            },
+            {
+              "from": "bounty:autoBounty",
+              "to": "bounty:auto_bounty_1"
+            },
+            {
+              "from": "bounty:extraRerolls",
+              "to": "bounty:free_reroll_2"
+            },
+            {
+              "from": "bounty:cosmeticCloak",
+              "to": "bounty:cosmetic_cape"
+            }
+          ],
+          "unmapped": []
+        }
+      ]
+    },
+    {
+      "user_id": "52dcd2bc-63c2-488a-998a-e0899084be38",
+      "slot": 0,
+      "saved_at": "2026-08-08 15:27:21.699+00",
+      "status": "PLANNED",
+      "snapshot_sha": "a3dda8c6ecf20a28f3aa88fa9c15811d8d7a835be161ce4a8fe83e01b65d6461",
+      "plan": {
+        "imported": {
+          "gold": 3503,
+          "gems": 0,
+          "bank_cap": 100,
+          "skills": 15,
+          "items": 8,
+          "equipment": 1,
+          "farm": 5,
+          "progress": 6
+        },
+        "dropped": [],
+        "clamped": [],
+        "aliased": [],
+        "client": [
+          "companions"
+        ],
+        "derived": [
+          "playerName",
+          "totalLevel"
+        ],
+        "device": [],
+        "meta": {
+          "schemaVersion": 1
+        },
+        "undeclaredStatKeys": [
+          "planted",
+          "refined",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "killsByTier",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [
+            "room:forge"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        }
+      ]
+    },
+    {
+      "user_id": "6fc9a60d-8eb2-4797-83b2-4e1f2adb8925",
+      "slot": 0,
+      "saved_at": "2026-08-15 03:48:54.149857+00",
+      "status": "PLANNED",
+      "snapshot_sha": "6eff3c44f52b8e801d710aaf50f93cbdb14f663891e374e8536042c5ecb31b7b",
+      "plan": {
+        "imported": {
+          "gold": 12214,
+          "gems": 24,
+          "bank_cap": 220,
+          "skills": 15,
+          "items": 42,
+          "equipment": 5,
+          "farm": 6,
+          "progress": 20
+        },
+        "dropped": [
+          {
+            "kind": "equipped_item",
+            "id": "rock_golem",
+            "reason": "not_in_hr_items",
+            "slot": "companion"
+          },
+          {
+            "kind": "skill",
+            "id": "combat",
+            "reason": "not_in_hr_skills",
+            "xp": 1251
+          }
+        ],
+        "clamped": [],
+        "aliased": [],
+        "client": [
+          "buffs",
+          "daily",
+          "quests",
+          "renown",
+          "streak",
+          "dropLog",
+          "bestiary",
+          "dungeons",
+          "loadouts",
+          "restedAt",
+          "restedXp",
+          "settings",
+          "chronicle",
+          "collection",
+          "companions",
+          "dailyGoals",
+          "houseTheme",
+          "renownHigh",
+          "combatStyle",
+          "dailyReward",
+          "lastWelcome",
+          "marketStats",
+          "weeklyGoals",
+          "achievements",
+          "dungeonStats",
+          "viewingSkill",
+          "collectionLog",
+          "lifetimeKills",
+          "dailyGoldStart",
+          "wieldGrandfather",
+          "currentCombatTier",
+          "combatKillsThisFoe",
+          "lastSessionSummary"
+        ],
+        "derived": [
+          "raids",
+          "clanId",
+          "muster",
+          "clanName",
+          "bossKills",
+          "playerName",
+          "totalLevel",
+          "combatLevel",
+          "lastActivity",
+          "offlineBudget"
+        ],
+        "device": [
+          "account",
+          "cloudSyncedAt"
+        ],
+        "meta": {
+          "v": 13,
+          "lastSeen": 1786765734080,
+          "createdAt": 1786246129652,
+          "schemaVersion": 1,
+          "migratedToV3At": 1786235473910
+        },
+        "undeclaredStatKeys": [
+          "burnt",
+          "buried",
+          "playMs",
+          "planted",
+          "refined",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "roomsBuilt",
+          "killsByTier",
+          "buffsConsumed",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [
+            "theme:default"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [
+            "room:forge",
+            "room:cellar",
+            "room:kitchen",
+            "room:workshop"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [
+            "plot:farm_plot"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        }
+      ]
+    },
+    {
+      "user_id": "b94fa8c0-3627-426a-9714-69c363f8929c",
+      "slot": 0,
+      "saved_at": "2026-08-15 22:24:59.227544+00",
+      "status": "PLANNED",
+      "snapshot_sha": "e39f9854830a315714f4e070c03e3e57945870f85a8c8ed3c1d0064cd72c9f61",
+      "plan": {
+        "imported": {
+          "gold": 418978,
+          "gems": 116,
+          "bank_cap": 100,
+          "skills": 15,
+          "items": 76,
+          "equipment": 10,
+          "farm": 8,
+          "progress": 29
+        },
+        "dropped": [
+          {
+            "kind": "equipped_item",
+            "id": "wolf_pup",
+            "reason": "not_in_hr_items",
+            "slot": "companion"
+          },
+          {
+            "kind": "skill",
+            "id": "combat",
+            "reason": "not_in_hr_skills",
+            "xp": 2684
+          }
+        ],
+        "clamped": [],
+        "aliased": [],
+        "client": [
+          "buffs",
+          "daily",
+          "quests",
+          "renown",
+          "streak",
+          "buyback",
+          "dropLog",
+          "bestiary",
+          "dungeons",
+          "loadouts",
+          "restedAt",
+          "restedXp",
+          "settings",
+          "chronicle",
+          "collection",
+          "companions",
+          "dailyGoals",
+          "houseTheme",
+          "renownHigh",
+          "combatStyle",
+          "dailyReward",
+          "lastWelcome",
+          "marketStats",
+          "weeklyGoals",
+          "achievements",
+          "dungeonStats",
+          "viewingSkill",
+          "collectionLog",
+          "lifetimeKills",
+          "dailyGoldStart",
+          "wieldGrandfather",
+          "currentCombatTier",
+          "combatKillsThisFoe",
+          "lastSessionSummary"
+        ],
+        "derived": [
+          "raids",
+          "clanId",
+          "muster",
+          "clanName",
+          "bossKills",
+          "playerName",
+          "totalLevel",
+          "combatLevel",
+          "lastActivity",
+          "offlineBudget"
+        ],
+        "device": [
+          "account",
+          "cloudSyncedAt"
+        ],
+        "meta": {
+          "v": 13,
+          "lastSeen": 1786832638622,
+          "createdAt": 1786248505932,
+          "schemaVersion": 1,
+          "migratedToV3At": 1786248558957
+        },
+        "undeclaredStatKeys": [
+          "burnt",
+          "buried",
+          "playMs",
+          "planted",
+          "refined",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "roomsBuilt",
+          "killsByTier",
+          "buffsConsumed",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [
+            "trait:auto_eat"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [
+            "theme:default"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [
+            "room:forge",
+            "room:cellar",
+            "room:garden",
+            "room:kitchen",
+            "room:library",
+            "room:workshop"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [
+            "plot:farm_plot",
+            "plot:toolshed",
+            "plot:watchtower",
+            "plot:scarecrow"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        }
+      ]
+    },
+    {
+      "user_id": "bf18bd7f-f8be-493c-8232-37d10711c2f6",
+      "slot": 0,
+      "saved_at": "2026-08-15 08:40:04.540654+00",
+      "status": "PLANNED",
+      "snapshot_sha": "5fee01e3f9b579d625d40794bcf00bff515df7852508b28bfac4656284f84e23",
+      "plan": {
+        "imported": {
+          "gold": 39068,
+          "gems": 82,
+          "bank_cap": 100,
+          "skills": 15,
+          "items": 68,
+          "equipment": 12,
+          "farm": 8,
+          "progress": 32
+        },
+        "dropped": [
+          {
+            "kind": "item",
+            "id": "wolf_pup",
+            "reason": "not_in_hr_items",
+            "where": "inventory",
+            "qty": 1
+          },
+          {
+            "kind": "skill",
+            "id": "combat",
+            "reason": "not_in_hr_skills",
+            "xp": 2724
+          }
+        ],
+        "clamped": [],
+        "aliased": [
+          {
+            "from": "bounty:goldBoost",
+            "to": "bounty:mark_pouch",
+            "source": "bountyHunter.upgrades"
+          },
+          {
+            "from": "bounty:autoBounty",
+            "to": "bounty:auto_bounty_1",
+            "source": "bountyHunter.upgrades"
+          }
+        ],
+        "client": [
+          "buffs",
+          "daily",
+          "quests",
+          "renown",
+          "streak",
+          "buyback",
+          "dropLog",
+          "bestiary",
+          "dungeons",
+          "loadouts",
+          "restedAt",
+          "restedXp",
+          "settings",
+          "chronicle",
+          "collection",
+          "companions",
+          "dailyGoals",
+          "houseTheme",
+          "renownHigh",
+          "combatStyle",
+          "dailyReward",
+          "lastWelcome",
+          "marketStats",
+          "weeklyGoals",
+          "achievements",
+          "dungeonStats",
+          "viewingSkill",
+          "collectionLog",
+          "lifetimeKills",
+          "dailyGoldStart",
+          "wieldGrandfather",
+          "currentCombatTier",
+          "combatKillsThisFoe",
+          "lastSessionSummary"
+        ],
+        "derived": [
+          "raids",
+          "clanId",
+          "muster",
+          "clanName",
+          "bossKills",
+          "playerName",
+          "totalLevel",
+          "combatLevel",
+          "rallyPledge",
+          "lastActivity",
+          "offlineBudget"
+        ],
+        "device": [
+          "account",
+          "cloudSyncedAt"
+        ],
+        "meta": {
+          "v": 13,
+          "lastSeen": 1786783129939,
+          "createdAt": 1786255131418,
+          "schemaVersion": 1,
+          "migratedToV3At": 1786263430906
+        },
+        "undeclaredStatKeys": [
+          "burnt",
+          "buried",
+          "playMs",
+          "planted",
+          "refined",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "roomsBuilt",
+          "killsByTier",
+          "buffsConsumed",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [
+            "recipe:captain_recipe"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [
+            "trait:auto_eat"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [
+            "theme:default"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [
+            "room:forge",
+            "room:cellar",
+            "room:kitchen",
+            "room:library",
+            "room:workshop"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [
+            "plot:toolshed",
+            "plot:farm_plot",
+            "plot:watchtower",
+            "plot:scarecrow"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [
+            {
+              "from": "bounty:goldBoost",
+              "to": "bounty:mark_pouch"
+            },
+            {
+              "from": "bounty:autoBounty",
+              "to": "bounty:auto_bounty_1"
+            }
+          ],
+          "unmapped": []
+        }
+      ]
+    }
+  ]
+}

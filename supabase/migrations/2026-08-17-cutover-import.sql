@@ -250,6 +250,19 @@ revoke all on public.hr_import_marker from public, anon, authenticated, service_
 --     clamps:[…], drops:[…], counts:{…}, envelope:<hr_state_of> }
 --   { ok:false, error:<name>, detail:{…} }
 --
+-- ⚠ EVERY REFUSAL ROLLS BACK, and that is not decoration. Found by the
+--   full-batch rehearsal on 2026-08-16: a refusal used to be a plain `return`,
+--   and a plain return from a block with an EXCEPTION clause COMMITS the
+--   subtransaction. So a p_commit=false DRY RUN that hit
+--   `character_already_played` left behind the character `hr_create_character`
+--   had just made — player_state + 15 player_skills + 4 player_farm rows + a
+--   create_character ledger row, in PRODUCTION, from a run whose entire promise
+--   is "nothing persists". Worse, a `bad_plan` inside the inventory loop
+--   returned AFTER `delete from player_inventory`, which would have committed
+--   an EMPTIED BAG. Every refusal now raises HR001 and returns through the same
+--   handler as the dry run, so the rollback is structural rather than a
+--   property of where the refusal happens to sit.
+--
 -- ERROR TAXONOMY (every one is a REFUSAL of that player, never of the batch —
 -- the tool catches, reports, and continues):
 --   bad_args              null user/slot, slot outside 0..5
@@ -331,6 +344,7 @@ declare
   v_slot     int;
   v_marker   public.hr_import_marker%rowtype;
   v_ver      bigint;
+  v_char_at  timestamptz;
   v_ledger_n int;
   v_created  jsonb;
   v_k        text;
@@ -375,21 +389,25 @@ declare
 begin
   -- ── (a) ARGUMENTS ─────────────────────────────────────────────────────
   if p_user is null or p_slot is null then
-    return jsonb_build_object('ok', false, 'error', 'bad_args');
+    v_payload := jsonb_build_object('ok', false, 'error', 'bad_args');
+    raise exception using errcode = 'HR001', message = v_payload::text;
   end if;
   v_slot := p_slot;
   if v_slot < 0 or v_slot > 5 then
-    return jsonb_build_object('ok', false, 'error', 'bad_args', 'detail',
+    v_payload := jsonb_build_object('ok', false, 'error', 'bad_args', 'detail',
              jsonb_build_object('slot', v_slot));
+    raise exception using errcode = 'HR001', message = v_payload::text;
   end if;
   if p_plan is null or jsonb_typeof(p_plan) <> 'object' then
-    return jsonb_build_object('ok', false, 'error', 'bad_plan', 'detail',
+    v_payload := jsonb_build_object('ok', false, 'error', 'bad_plan', 'detail',
              jsonb_build_object('type', jsonb_typeof(p_plan)));
+    raise exception using errcode = 'HR001', message = v_payload::text;
   end if;
   for v_k in select jsonb_object_keys(p_plan) loop
     if not (v_k = any (c_plan_keys)) then
-      return jsonb_build_object('ok', false, 'error', 'bad_plan_key', 'detail',
+      v_payload := jsonb_build_object('ok', false, 'error', 'bad_plan_key', 'detail',
                jsonb_build_object('key', v_k, 'accepted', to_jsonb(c_plan_keys)));
+      raise exception using errcode = 'HR001', message = v_payload::text;
     end if;
   end loop;
 
@@ -404,7 +422,7 @@ begin
   select * into v_marker from public.hr_import_marker
    where user_id = p_user and slot = v_slot;
   if found then
-    return jsonb_build_object(
+    v_payload := jsonb_build_object(
       'ok', true, 'imported', false, 'skipped', 'already_imported',
       'marker', jsonb_build_object(
         'snapshot_sha', v_marker.snapshot_sha, 'snapshot_at', v_marker.snapshot_at,
@@ -412,6 +430,7 @@ begin
       -- The disagreement, if there is one, is REPORTED rather than acted on.
       -- Re-importing over a live character is never the right automatic answer.
       'sha_matches', (v_marker.snapshot_sha = coalesce(p_meta->>'snapshot_sha', '')));
+    raise exception using errcode = 'HR001', message = v_payload::text;
   end if;
 
   -- ── (d) THE CHARACTER ─────────────────────────────────────────────────
@@ -440,8 +459,9 @@ begin
   perform set_config('request.jwt.claim.sub', '', true);
 
   if not coalesce((v_created->>'ok')::boolean, false) then
-    return jsonb_build_object('ok', false, 'error', 'no_character',
+    v_payload := jsonb_build_object('ok', false, 'error', 'no_character',
              'detail', v_created);
+    raise exception using errcode = 'HR001', message = v_payload::text;
   end if;
 
   -- ── (e) REFUSE TO IMPORT OVER A CHARACTER THAT HAS PLAYED ─────────────
@@ -449,34 +469,54 @@ begin
   -- server-side, the blob is older than the server's own record and importing
   -- it would roll a real player backwards — the anti-rollback invariant
   -- (save-invariant #1) stated for the server side.
-  select version into v_ver from public.player_state
+  select version, created_at into v_ver, v_char_at from public.player_state
    where user_id = p_user and slot = v_slot for update;
   if v_ver is null then
-    return jsonb_build_object('ok', false, 'error', 'no_character',
+    v_payload := jsonb_build_object('ok', false, 'error', 'no_character',
              'detail', jsonb_build_object('why', 'row absent after create'));
+    raise exception using errcode = 'HR001', message = v_payload::text;
   end if;
   if v_ver > 0 then
-    return jsonb_build_object('ok', false, 'error', 'character_already_played',
+    v_payload := jsonb_build_object('ok', false, 'error', 'character_already_played',
              'detail', jsonb_build_object('version', v_ver));
+    raise exception using errcode = 'HR001', message = v_payload::text;
   end if;
+  -- ⚠ SCOPED TO THE CURRENT CHARACTER (`at >= created_at`), and that scope is
+  --   the difference between a check that means what it says and one that
+  --   refuses forever. player_ledger is APPEND-ONLY inside its retention window,
+  --   so rows outlive the character they describe: the 2026-08-11 apply-engine
+  --   verification left `set_activity` + `accrue` rows on a REAL player's slot
+  --   (documented in the handoff as "Residue: 3 rows remain… append-only refused
+  --   deletion, correctly"), against a character that was deleted afterwards.
+  --   Unscoped, this check refused that player's import PERMANENTLY, with no
+  --   remedy — the rows cannot be deleted by design.
+  --   A ledger row written BEFORE this character existed cannot describe this
+  --   character's progress, so it is not evidence that this character has
+  --   played. Rows written since `created_at` still refuse, which is the whole
+  --   protection: combined with `version > 0` above, any accrual against the
+  --   CURRENT row is still caught twice.
   select count(*) into v_ledger_n from public.player_ledger
    where user_id = p_user and slot = v_slot
-     and coalesce(intent, '') <> 'create_character';
+     and coalesce(intent, '') <> 'create_character'
+     and at >= v_char_at;
   if v_ledger_n > 0 then
-    return jsonb_build_object('ok', false, 'error', 'character_already_played',
+    v_payload := jsonb_build_object('ok', false, 'error', 'character_already_played',
              'detail', jsonb_build_object('ledger_rows', v_ledger_n));
+    raise exception using errcode = 'HR001', message = v_payload::text;
   end if;
 
   -- ── (f) STATE ─────────────────────────────────────────────────────────
   if p_plan ? 'state' then
     if jsonb_typeof(p_plan->'state') <> 'object' then
-      return jsonb_build_object('ok', false, 'error', 'bad_plan',
+      v_payload := jsonb_build_object('ok', false, 'error', 'bad_plan',
                'detail', jsonb_build_object('at', 'state'));
+      raise exception using errcode = 'HR001', message = v_payload::text;
     end if;
     for v_k in select jsonb_object_keys(p_plan->'state') loop
       if not (v_k = any (c_state_keys)) then
-        return jsonb_build_object('ok', false, 'error', 'bad_state_key',
+        v_payload := jsonb_build_object('ok', false, 'error', 'bad_state_key',
                  'detail', jsonb_build_object('key', v_k, 'accepted', to_jsonb(c_state_keys)));
+        raise exception using errcode = 'HR001', message = v_payload::text;
       end if;
     end loop;
 
@@ -484,8 +524,9 @@ begin
     -- artefact, not a decision, and bigint cannot hold it either way.
     if p_plan->'state' ? 'gold' then
       if jsonb_typeof(p_plan->'state'->'gold') <> 'number' then
-        return jsonb_build_object('ok', false, 'error', 'bad_number',
+        v_payload := jsonb_build_object('ok', false, 'error', 'bad_number',
                  'detail', jsonb_build_object('at', 'state.gold'));
+        raise exception using errcode = 'HR001', message = v_payload::text;
       end if;
       v_num := floor(greatest(0, (p_plan->'state'->>'gold')::numeric));
       if v_num > c_max_gold then
@@ -496,8 +537,9 @@ begin
     end if;
     if p_plan->'state' ? 'gems' then
       if jsonb_typeof(p_plan->'state'->'gems') <> 'number' then
-        return jsonb_build_object('ok', false, 'error', 'bad_number',
+        v_payload := jsonb_build_object('ok', false, 'error', 'bad_number',
                  'detail', jsonb_build_object('at', 'state.gems'));
+        raise exception using errcode = 'HR001', message = v_payload::text;
       end if;
       v_num := floor(greatest(0, (p_plan->'state'->>'gems')::numeric));
       if v_num > c_max_gems then
@@ -511,8 +553,9 @@ begin
     -- practice and the branch exists so a future one cannot arrive unbounded.
     if p_plan->'state' ? 'hearth_tokens' then
       if jsonb_typeof(p_plan->'state'->'hearth_tokens') <> 'number' then
-        return jsonb_build_object('ok', false, 'error', 'bad_number',
+        v_payload := jsonb_build_object('ok', false, 'error', 'bad_number',
                  'detail', jsonb_build_object('at', 'state.hearth_tokens'));
+        raise exception using errcode = 'HR001', message = v_payload::text;
       end if;
       v_num := floor(greatest(0, (p_plan->'state'->>'hearth_tokens')::numeric));
       if v_num > c_max_tokens then
@@ -523,8 +566,9 @@ begin
     end if;
     if p_plan->'state' ? 'bank_cap' then
       if jsonb_typeof(p_plan->'state'->'bank_cap') <> 'number' then
-        return jsonb_build_object('ok', false, 'error', 'bad_number',
+        v_payload := jsonb_build_object('ok', false, 'error', 'bad_number',
                  'detail', jsonb_build_object('at', 'state.bank_cap'));
+        raise exception using errcode = 'HR001', message = v_payload::text;
       end if;
       v_num := floor((p_plan->'state'->>'bank_cap')::numeric);
       if v_num < 1 then v_num := 1; end if;
@@ -560,8 +604,9 @@ begin
   -- creating a row nothing can read.
   if p_plan ? 'skills' then
     if jsonb_typeof(p_plan->'skills') <> 'object' then
-      return jsonb_build_object('ok', false, 'error', 'bad_plan',
+      v_payload := jsonb_build_object('ok', false, 'error', 'bad_plan',
                'detail', jsonb_build_object('at', 'skills'));
+      raise exception using errcode = 'HR001', message = v_payload::text;
     end if;
     for v_k, v_v in select key, value from jsonb_each(p_plan->'skills') loop
       if not exists (select 1 from public.hr_skills where skill_id = v_k) then
@@ -605,8 +650,9 @@ begin
   delete from public.player_inventory where user_id = p_user and slot = v_slot;
   if p_plan ? 'inventory' then
     if jsonb_typeof(p_plan->'inventory') <> 'object' then
-      return jsonb_build_object('ok', false, 'error', 'bad_plan',
+      v_payload := jsonb_build_object('ok', false, 'error', 'bad_plan',
                'detail', jsonb_build_object('at', 'inventory'));
+      raise exception using errcode = 'HR001', message = v_payload::text;
     end if;
     for v_k, v_v in select key, value from jsonb_each(p_plan->'inventory') loop
       if not exists (select 1 from public.hr_items where item_id = v_k) then
@@ -660,6 +706,21 @@ begin
     for v_k, v_v in select key, value from jsonb_each(p_plan->'equipment') loop
       v_txt := nullif(v_v#>>'{}', '');
       if v_txt is null then continue; end if;
+      -- THE COMPANION SLOT IS CLIENT-OWNED WHOLESALE (found by the full-batch
+      -- rehearsal 2026-08-16). It carries TWO id-spaces — raw COMPANIONS ids for
+      -- every pet, and the legacy `fox_companion` ITEM id for the fox alone —
+      -- and `fox_companion` IS a catalogued item in the companion slot, so
+      -- without this branch one player's fox would import while every other
+      -- player's companion dropped. hr_perks_of declares
+      -- companions='blocked:no_server_pet_model': there is nothing to import
+      -- into. Refused here as well as in the tool, because the tool proposes and
+      -- the server disposes — a plan that names this slot is refused whatever
+      -- built it.
+      if v_k = 'companion' then
+        v_drops := v_drops || jsonb_build_object('kind','equipped_companion','id',v_txt,
+                                                 'slot',v_k,'reason','client_owned_companion_slot');
+        continue;
+      end if;
       if not exists (select 1 from public.hr_equip_slots where equip_slot = v_k) then
         v_drops := v_drops || jsonb_build_object('kind','equip_slot','id',v_k,
                                                  'reason','not_in_hr_equip_slots','value',v_txt);
@@ -693,8 +754,9 @@ begin
   delete from public.player_farm where user_id = p_user and slot = v_slot;
   if p_plan ? 'farm' then
     if jsonb_typeof(p_plan->'farm') <> 'array' then
-      return jsonb_build_object('ok', false, 'error', 'bad_plan',
+      v_payload := jsonb_build_object('ok', false, 'error', 'bad_plan',
                'detail', jsonb_build_object('at', 'farm'));
+      raise exception using errcode = 'HR001', message = v_payload::text;
     end if;
     for v_row in select value from jsonb_array_elements(p_plan->'farm') loop
       v_i := coalesce((v_row->>'i')::int, -1);
@@ -741,13 +803,15 @@ begin
   --   copies of it drift. §0 refuses to install if the trigger is absent.
   if p_plan ? 'progress' then
     if jsonb_typeof(p_plan->'progress') <> 'array' then
-      return jsonb_build_object('ok', false, 'error', 'bad_plan',
+      v_payload := jsonb_build_object('ok', false, 'error', 'bad_plan',
                'detail', jsonb_build_object('at', 'progress'));
+      raise exception using errcode = 'HR001', message = v_payload::text;
     end if;
     if jsonb_array_length(p_plan->'progress') > c_max_progress then
-      return jsonb_build_object('ok', false, 'error', 'bad_plan',
+      v_payload := jsonb_build_object('ok', false, 'error', 'bad_plan',
                'detail', jsonb_build_object('at','progress','n',jsonb_array_length(p_plan->'progress'),
                                             'limit', c_max_progress));
+      raise exception using errcode = 'HR001', message = v_payload::text;
     end if;
     for v_row in select value from jsonb_array_elements(p_plan->'progress') loop
       v_k   := v_row->>'kind';
@@ -1236,8 +1300,38 @@ begin
     raise exception '§4(c-viii): an unhandled plan key was accepted: %', v_r;
   end if;
 
+  -- (c-ix) A REFUSAL LEAVES NOTHING BEHIND (2026-08-16, the production leak).
+  --        Every refusal path runs AFTER hr_create_character has made a
+  --        character, and a plain `return` would COMMIT it. This drives the
+  --        refusal that fired in production — a plan whose shape is rejected
+  --        mid-flight — and then asserts the character does not exist.
+  --        The control matters: the refusal must actually fire, or "nothing was
+  --        created" is true for the wrong reason.
+  v_r := public.hr_import_apply(
+    v_uid, v_slot,
+    jsonb_build_object('state', jsonb_build_object('gold', 5),
+                       'inventory', jsonb_build_object(v_item, 3),
+                       'farm', '"not-an-array"'::jsonb),
+    '{}'::jsonb, false);
+  if coalesce(v_r->>'error','') <> 'bad_plan' then
+    raise exception '§4(c-ix) CONTROL: the malformed plan was ACCEPTED (%) — the leak assertion '
+                    'below would pass for the wrong reason', v_r;
+  end if;
+  if exists (select 1 from public.player_state where user_id = v_uid and slot = v_slot) then
+    raise exception '§4(c-ix): a REFUSED import left a player_state row behind. A plain `return` '
+                    'from a block with an EXCEPTION clause COMMITS the subtransaction, so the '
+                    'character hr_create_character just made survives a p_commit=false run. This '
+                    'is the defect that put a character into production on 2026-08-16.';
+  end if;
+  if exists (select 1 from public.player_ledger
+              where user_id = v_uid and slot = v_slot and at > now() - interval '1 minute') then
+    raise exception '§4(c-ix): a REFUSED import left a ledger row behind — and player_ledger is '
+                    'append-only, so that row can never be cleaned up.';
+  end if;
+
   raise notice '§4 PASSED: ACL closed on four roles; a rehearsal imports, reads back through '
-               'hr_state_of, and rolls back leaving no marker and no player_state; 1e12 gold and '
-               'over-99 xp clamp AND report; an unknown item, an off-ladder rung, a mis-kinded '
-               'rung and an ungated auto-eat are each refused by name.';
+               'hr_state_of, and rolls back leaving no marker and no player_state; a REFUSAL '
+               'leaves neither a character nor a ledger row; 1e12 gold and over-99 xp clamp AND '
+               'report; an unknown item, an off-ladder rung, a mis-kinded rung and an ungated '
+               'auto-eat are each refused by name.';
 end $$;

@@ -1,0 +1,3126 @@
+{
+  "mode": "rehearse",
+  "at": "2026-08-16T03:39:44.232Z",
+  "tool": "tools/cutover-import.mjs@local",
+  "reports": [
+    {
+      "user_id": "39e28e92-b519-4d11-a918-feab730c0ca2",
+      "slot": 0,
+      "saved_at": "2026-08-15 04:44:44.854305+00",
+      "status": "FAILED",
+      "snapshot_sha": "7470b42f60100bc6a1322459b11c56faadf02ea3aab05c9630dcbe10bf6f43d8",
+      "plan": {
+        "imported": {
+          "gold": 11313,
+          "gems": 6,
+          "bank_cap": 100,
+          "skills": 15,
+          "items": 17,
+          "equipment": 1,
+          "farm": 2,
+          "progress": 13
+        },
+        "dropped": [],
+        "clamped": [],
+        "aliased": [],
+        "client": [
+          "buffs",
+          "daily",
+          "quests",
+          "renown",
+          "streak",
+          "dropLog",
+          "bestiary",
+          "dungeons",
+          "loadouts",
+          "restedAt",
+          "restedXp",
+          "settings",
+          "chronicle",
+          "collection",
+          "companions",
+          "dailyGoals",
+          "houseTheme",
+          "renownHigh",
+          "combatStyle",
+          "dailyReward",
+          "lastWelcome",
+          "marketStats",
+          "weeklyGoals",
+          "achievements",
+          "dungeonStats",
+          "viewingSkill",
+          "lifetimeKills",
+          "dailyGoldStart",
+          "wieldGrandfather",
+          "currentCombatTier",
+          "combatKillsThisFoe",
+          "lastSessionSummary"
+        ],
+        "derived": [
+          "raids",
+          "clanId",
+          "muster",
+          "clanName",
+          "bossKills",
+          "playerName",
+          "totalLevel",
+          "combatLevel",
+          "rallyPledge",
+          "lastActivity",
+          "offlineBudget"
+        ],
+        "device": [
+          "account",
+          "cloudSyncedAt"
+        ],
+        "meta": {
+          "v": 13,
+          "lastSeen": 1786769080347,
+          "createdAt": 1786245695681,
+          "schemaVersion": 1,
+          "migratedToV3At": 1786239418371
+        },
+        "undeclaredStatKeys": [
+          "burnt",
+          "playMs",
+          "planted",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "killsByTier",
+          "buffsConsumed",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [
+            "theme:default"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        }
+      ],
+      "server": {
+        "ok": false,
+        "error": "character_already_played",
+        "detail": {
+          "ledger_rows": 2
+        }
+      },
+      "reason": "character_already_played"
+    },
+    {
+      "user_id": "4f65981b-cd16-468f-bb81-be1e326f6c4b",
+      "slot": 0,
+      "saved_at": "2026-08-16 00:43:01.251192+00",
+      "status": "MISMATCH",
+      "snapshot_sha": "00611c8f1e15948264cc527ea7fa79778a2055f45cf3f0524e728f9bbbcbea59",
+      "plan": {
+        "imported": {
+          "gold": 840861,
+          "gems": 86,
+          "bank_cap": 320,
+          "skills": 15,
+          "items": 114,
+          "equipment": 12,
+          "farm": 10,
+          "progress": 38
+        },
+        "dropped": [
+          {
+            "kind": "item",
+            "id": "bunny",
+            "reason": "not_in_hr_items",
+            "where": "inventory",
+            "qty": 1
+          },
+          {
+            "kind": "equipped_item",
+            "id": "silkling",
+            "reason": "not_in_hr_items",
+            "slot": "companion"
+          },
+          {
+            "kind": "skill",
+            "id": "combat",
+            "reason": "not_in_hr_skills",
+            "xp": 3018
+          }
+        ],
+        "clamped": [],
+        "aliased": [
+          {
+            "from": "bounty:goldBoost",
+            "to": "bounty:mark_pouch",
+            "source": "bountyHunter.upgrades"
+          },
+          {
+            "from": "bounty:autoBounty",
+            "to": "bounty:auto_bounty_1",
+            "source": "bountyHunter.upgrades"
+          },
+          {
+            "from": "bounty:extraRerolls",
+            "to": "bounty:free_reroll_2",
+            "source": "bountyHunter.upgrades"
+          },
+          {
+            "from": "bounty:cosmeticCloak",
+            "to": "bounty:cosmetic_cape",
+            "source": "bountyHunter.upgrades"
+          }
+        ],
+        "client": [
+          "buffs",
+          "daily",
+          "quests",
+          "renown",
+          "streak",
+          "buyback",
+          "dropLog",
+          "bestiary",
+          "dungeons",
+          "loadouts",
+          "restedAt",
+          "restedXp",
+          "settings",
+          "chronicle",
+          "collection",
+          "companions",
+          "dailyGoals",
+          "houseTheme",
+          "renownHigh",
+          "combatStyle",
+          "dailyReward",
+          "lastWelcome",
+          "marketStats",
+          "weeklyGoals",
+          "achievements",
+          "dungeonStats",
+          "viewingSkill",
+          "collectionLog",
+          "lifetimeKills",
+          "dailyGoldStart",
+          "wieldGrandfather",
+          "currentCombatTier",
+          "combatKillsThisFoe",
+          "lastSessionSummary"
+        ],
+        "derived": [
+          "raids",
+          "clanId",
+          "muster",
+          "clanName",
+          "bossKills",
+          "playerName",
+          "totalLevel",
+          "combatLevel",
+          "rallyPledge",
+          "lastActivity",
+          "offlineBudget"
+        ],
+        "device": [
+          "account",
+          "cloudSyncedAt"
+        ],
+        "meta": {
+          "v": 13,
+          "lastSeen": 1786840981047,
+          "createdAt": 1786231643623,
+          "schemaVersion": 1,
+          "migratedToV3At": 1786274907142
+        },
+        "undeclaredStatKeys": [
+          "burnt",
+          "playMs",
+          "planted",
+          "refined",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "roomsBuilt",
+          "killsByTier",
+          "buffsConsumed",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [
+            "recipe:captain_recipe",
+            "recipe:field_cookbook",
+            "recipe:chief_blade_recipe"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [
+            "trait:auto_eat"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [
+            "theme:default"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [
+            "room:forge",
+            "room:cellar",
+            "room:garden",
+            "room:shrine",
+            "room:trophy",
+            "room:kitchen",
+            "room:library",
+            "room:workshop"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [
+            "plot:farm_plot",
+            "plot:toolshed",
+            "plot:scarecrow",
+            "plot:watchtower"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [
+            {
+              "from": "bounty:goldBoost",
+              "to": "bounty:mark_pouch"
+            },
+            {
+              "from": "bounty:autoBounty",
+              "to": "bounty:auto_bounty_1"
+            },
+            {
+              "from": "bounty:extraRerolls",
+              "to": "bounty:free_reroll_2"
+            },
+            {
+              "from": "bounty:cosmeticCloak",
+              "to": "bounty:cosmetic_cape"
+            }
+          ],
+          "unmapped": []
+        }
+      ],
+      "server": {
+        "ok": true,
+        "drops": [],
+        "clamps": [],
+        "counts": {
+          "farm": 10,
+          "items": 114,
+          "skills": 15,
+          "stacks": 114,
+          "progress": 38,
+          "equipment": 12
+        },
+        "derived": {
+          "hp": 65,
+          "max_hp": 65,
+          "bank_cap": 320
+        },
+        "dry_run": true,
+        "envelope": {
+          "ok": true,
+          "now": "2026-08-16T03:39:40.978035+00:00",
+          "farm": [
+            {
+              "i": 0,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T20:46:09.231+00:00",
+              "watered_at": "2026-08-15T23:26:30.543+00:00"
+            },
+            {
+              "i": 1,
+              "crop": "wheat",
+              "planted_at": "2026-08-15T20:46:18.987+00:00",
+              "watered_at": "2026-08-15T23:26:30.543+00:00"
+            },
+            {
+              "i": 2,
+              "crop": "wheat",
+              "planted_at": "2026-08-15T20:46:17.678+00:00",
+              "watered_at": "2026-08-15T23:26:30.544+00:00"
+            },
+            {
+              "i": 3,
+              "crop": "wheat",
+              "planted_at": "2026-08-15T20:46:16.57+00:00",
+              "watered_at": "2026-08-15T23:26:30.544+00:00"
+            },
+            {
+              "i": 4,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T20:46:10.629+00:00",
+              "watered_at": "2026-08-15T23:26:30.544+00:00"
+            },
+            {
+              "i": 5,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T20:46:12.684+00:00",
+              "watered_at": "2026-08-15T23:26:30.544+00:00"
+            },
+            {
+              "i": 6,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T20:46:12.91+00:00",
+              "watered_at": "2026-08-15T23:26:30.544+00:00"
+            },
+            {
+              "i": 7,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T20:46:13.142+00:00",
+              "watered_at": "2026-08-15T23:26:30.544+00:00"
+            },
+            {
+              "i": 8,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T20:46:13.369+00:00",
+              "watered_at": "2026-08-15T23:26:30.544+00:00"
+            },
+            {
+              "i": 9,
+              "crop": "carrot",
+              "planted_at": "2026-08-16T00:25:55.854+00:00",
+              "watered_at": "2026-08-16T00:25:56.347+00:00"
+            }
+          ],
+          "state": {
+            "hp": 65,
+            "gems": 86,
+            "gold": 840861,
+            "slot": 0,
+            "max_hp": 65,
+            "bank_cap": 320,
+            "active_id": null,
+            "accrued_to": "2026-08-16T03:39:40.978035+00:00",
+            "tool_carry": {
+              "mining": 0.48000000000001225,
+              "cooking": 0.16000000000003423,
+              "fishing": 0.28000000000001024,
+              "crafting": 0.3400000000000009,
+              "smithing": 0.5400000000000107,
+              "woodcutting": 0.1599999999999999
+            },
+            "active_kind": "idle",
+            "active_since": null,
+            "auto_eat_pct": 90,
+            "auto_eat_food": "cooked_trout",
+            "hearth_tokens": 0,
+            "auto_eat_enabled": true
+          },
+          "skills": {
+            "magic": {
+              "xp": 198747,
+              "level": 56
+            },
+            "attack": {
+              "xp": 604511,
+              "level": 67
+            },
+            "mining": {
+              "xp": 313089,
+              "level": 61
+            },
+            "prayer": {
+              "xp": 0,
+              "level": 1
+            },
+            "ranged": {
+              "xp": 303168,
+              "level": 61
+            },
+            "cooking": {
+              "xp": 123598,
+              "level": 51
+            },
+            "defense": {
+              "xp": 463186,
+              "level": 65
+            },
+            "farming": {
+              "xp": 474280,
+              "level": 65
+            },
+            "fishing": {
+              "xp": 13448,
+              "level": 30
+            },
+            "crafting": {
+              "xp": 187667,
+              "level": 56
+            },
+            "smithing": {
+              "xp": 256264,
+              "level": 59
+            },
+            "strength": {
+              "xp": 634950,
+              "level": 68
+            },
+            "hitpoints": {
+              "xp": 463366,
+              "level": 65
+            },
+            "woodcutting": {
+              "xp": 64352,
+              "level": 45
+            },
+            "bountyHunter": {
+              "xp": 51521,
+              "level": 43
+            }
+          },
+          "version": 1,
+          "progress": [
+            {
+              "key": "bounty:auto_bounty_1",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "bounty:cosmetic_cape",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "bounty:free_reroll_2",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "bounty:mark_pouch",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "recipe:captain_recipe",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "recipe:chief_blade_recipe",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "recipe:field_cookbook",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "theme:default",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "trait:auto_eat",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "chopped",
+              "kind": "stat",
+              "state": null,
+              "value": 4801,
+              "period": ""
+            },
+            {
+              "key": "crits",
+              "kind": "stat",
+              "state": null,
+              "value": 1582,
+              "period": ""
+            },
+            {
+              "key": "ev:cooked",
+              "kind": "stat",
+              "state": null,
+              "value": 6569,
+              "period": ""
+            },
+            {
+              "key": "ev:crafted",
+              "kind": "stat",
+              "state": null,
+              "value": 11258,
+              "period": ""
+            },
+            {
+              "key": "ev:gather",
+              "kind": "stat",
+              "state": null,
+              "value": 23442,
+              "period": ""
+            },
+            {
+              "key": "ev:harvest",
+              "kind": "stat",
+              "state": null,
+              "value": 1266,
+              "period": ""
+            },
+            {
+              "key": "ev:kill_any",
+              "kind": "stat",
+              "state": null,
+              "value": 8820,
+              "period": ""
+            },
+            {
+              "key": "ev:smithed",
+              "kind": "stat",
+              "state": null,
+              "value": 17714,
+              "period": ""
+            },
+            {
+              "key": "fished",
+              "kind": "stat",
+              "state": null,
+              "value": 1438,
+              "period": ""
+            },
+            {
+              "key": "gathered",
+              "kind": "stat",
+              "state": null,
+              "value": 23442,
+              "period": ""
+            },
+            {
+              "key": "kills",
+              "kind": "stat",
+              "state": null,
+              "value": 8820,
+              "period": ""
+            },
+            {
+              "key": "mined",
+              "kind": "stat",
+              "state": null,
+              "value": 17203,
+              "period": ""
+            },
+            {
+              "key": "plot:farm_plot",
+              "kind": "stat",
+              "state": null,
+              "value": 10,
+              "period": ""
+            },
+            {
+              "key": "plot:scarecrow",
+              "kind": "stat",
+              "state": null,
+              "value": 2,
+              "period": ""
+            },
+            {
+              "key": "plot:toolshed",
+              "kind": "stat",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "plot:watchtower",
+              "kind": "stat",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "rare_drops",
+              "kind": "stat",
+              "state": null,
+              "value": 192,
+              "period": ""
+            },
+            {
+              "key": "tool_doubles",
+              "kind": "stat",
+              "state": null,
+              "value": 292,
+              "period": ""
+            },
+            {
+              "key": "worker",
+              "kind": "stat",
+              "state": null,
+              "value": 4,
+              "period": ""
+            },
+            {
+              "key": "farm_plot_tier",
+              "kind": "unlock",
+              "state": null,
+              "value": 4,
+              "period": ""
+            },
+            {
+              "key": "property:keep",
+              "kind": "unlock",
+              "state": null,
+              "value": 4,
+              "period": ""
+            },
+            {
+              "key": "room:cellar",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "room:forge",
+              "kind": "unlock",
+              "state": null,
+              "value": 2,
+              "period": ""
+            },
+            {
+              "key": "room:garden",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "room:kitchen",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "room:library",
+              "kind": "unlock",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "room:shrine",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "room:trophy",
+              "kind": "unlock",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "room:workshop",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            }
+          ],
+          "equipment": {
+            "ammo": "iron_arrows",
+            "belt": "snakeskin_belt",
+            "body": "mithril_platebody",
+            "cape": "warband_bulwark",
+            "boots": "snakeskin_boots",
+            "pants": "plaguewarden_greaves",
+            "ring1": "gold_ring",
+            "ring2": "gold_ring",
+            "gloves": "steel_gauntlets",
+            "helmet": "snakeskin_helmet",
+            "weapon": "ashcrown_greatsword",
+            "necklace": "gold_amulet"
+          },
+          "inventory": {
+            "coal": 41755,
+            "ruby": 1,
+            "bones": 2887,
+            "trout": 37265,
+            "wheat": 354,
+            "carrot": 91,
+            "potato": 56,
+            "tomato": 479,
+            "turnip": 153,
+            "herring": 553,
+            "oak_log": 3240,
+            "pumpkin": 21,
+            "bat_wing": 61,
+            "bone_key": 11,
+            "gold_bar": 2263,
+            "gold_ore": 6656,
+            "iron_bar": 11188,
+            "iron_ore": 3767,
+            "bear_claw": 88,
+            "bear_pelt": 272,
+            "big_bones": 3464,
+            "dire_fang": 55,
+            "farm_deed": 17,
+            "maple_log": 36193,
+            "maple_rod": 1,
+            "oak_plank": 2890,
+            "rune_frag": 129,
+            "slime_gel": 864,
+            "steel_bar": 1127,
+            "vamp_dust": 36,
+            "venom_sac": 224,
+            "void_core": 2,
+            "war_crown": 17,
+            "wolf_pelt": 394,
+            "bone_chips": 365,
+            "bronze_bar": 1,
+            "copper_bar": 1640,
+            "copper_ore": 6185,
+            "goblin_ear": 351,
+            "grave_dust": 505,
+            "hell_ember": 6,
+            "normal_log": 4769,
+            "razor_claw": 17,
+            "small_fang": 170,
+            "spider_eye": 14,
+            "steel_belt": 1,
+            "troll_hide": 89,
+            "alpha_cloak": 1,
+            "arcane_tome": 42,
+            "brute_plate": 244,
+            "carrot_seed": 18,
+            "chief_blade": 3,
+            "death_steel": 42,
+            "demon_shard": 121,
+            "goblin_seal": 55,
+            "iron_arrows": 1,
+            "maple_plank": 12,
+            "maple_staff": 1,
+            "mithril_axe": 1,
+            "mithril_bar": 53,
+            "mithril_ore": 13251,
+            "potato_seed": 8,
+            "shadow_pelt": 49,
+            "silk_thread": 146,
+            "steel_knife": 2,
+            "sticky_core": 18,
+            "swarm_heart": 8,
+            "tomato_seed": 9,
+            "turnip_seed": 20,
+            "void_chitin": 122,
+            "wraith_veil": 50,
+            "ancient_claw": 10,
+            "ancient_rune": 123,
+            "baked_potato": 3,
+            "cooked_trout": 2214,
+            "dragon_bones": 73,
+            "goblin_totem": 104,
+            "hollow_sigil": 11,
+            "iron_fitting": 27,
+            "lexarch_seal": 2,
+            "mithril_helm": 1,
+            "normal_plank": 575,
+            "plague_ichor": 305,
+            "pumpkin_seed": 12,
+            "steel_hammer": 2,
+            "steel_needle": 1,
+            "warlock_body": 1,
+            "willow_plank": 7595,
+            "captain_medal": 97,
+            "cooked_shrimp": 41,
+            "dungeon_scrip": 266,
+            "magic_essence": 403,
+            "raw_bear_meat": 122,
+            "raw_wolf_meat": 375,
+            "shadow_thread": 87,
+            "void_fragment": 36,
+            "warlock_pants": 1,
+            "warlord_badge": 194,
+            "cooked_herring": 1,
+            "obsidian_sigil": 38,
+            "warlock_helmet": 1,
+            "mithril_pickaxe": 1,
+            "wartusk_cleaver": 4,
+            "ancient_fragment": 24,
+            "cooked_bear_meat": 69,
+            "fangdart_recurve": 1,
+            "raw_panther_meat": 40,
+            "mithril_platelegs": 1,
+            "mithril_warhammer": 1,
+            "alphaheart_longbow": 1,
+            "cracked_spellstone": 27,
+            "forge_blueprint_t2": 7,
+            "cooked_panther_meat": 2,
+            "kitchen_blueprint_t2": 4
+          },
+          "total_level": 793,
+          "progress_truncated": false
+        },
+        "imported": true
+      },
+      "mismatches": [
+        "equip companion: silkling was dropped without a report"
+      ]
+    },
+    {
+      "user_id": "52dcd2bc-63c2-488a-998a-e0899084be38",
+      "slot": 0,
+      "saved_at": "2026-08-08 15:27:21.699+00",
+      "status": "REHEARSED",
+      "snapshot_sha": "a3dda8c6ecf20a28f3aa88fa9c15811d8d7a835be161ce4a8fe83e01b65d6461",
+      "plan": {
+        "imported": {
+          "gold": 3503,
+          "gems": 0,
+          "bank_cap": 100,
+          "skills": 15,
+          "items": 8,
+          "equipment": 1,
+          "farm": 5,
+          "progress": 6
+        },
+        "dropped": [],
+        "clamped": [],
+        "aliased": [],
+        "client": [
+          "companions"
+        ],
+        "derived": [
+          "playerName",
+          "totalLevel"
+        ],
+        "device": [],
+        "meta": {
+          "schemaVersion": 1
+        },
+        "undeclaredStatKeys": [
+          "planted",
+          "refined",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "killsByTier",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [
+            "room:forge"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        }
+      ],
+      "server": {
+        "ok": true,
+        "drops": [],
+        "clamps": [],
+        "counts": {
+          "farm": 5,
+          "items": 8,
+          "skills": 15,
+          "stacks": 8,
+          "progress": 6,
+          "equipment": 1
+        },
+        "derived": {
+          "hp": 10,
+          "max_hp": 10,
+          "bank_cap": 100
+        },
+        "dry_run": true,
+        "envelope": {
+          "ok": true,
+          "now": "2026-08-16T03:39:41.757579+00:00",
+          "farm": [
+            {
+              "i": 0,
+              "crop": null,
+              "planted_at": null,
+              "watered_at": null
+            },
+            {
+              "i": 1,
+              "crop": null,
+              "planted_at": null,
+              "watered_at": null
+            },
+            {
+              "i": 2,
+              "crop": null,
+              "planted_at": null,
+              "watered_at": null
+            },
+            {
+              "i": 3,
+              "crop": null,
+              "planted_at": null,
+              "watered_at": null
+            },
+            {
+              "i": 4,
+              "crop": null,
+              "planted_at": null,
+              "watered_at": null
+            }
+          ],
+          "state": {
+            "hp": 10,
+            "gems": 0,
+            "gold": 3503,
+            "slot": 0,
+            "max_hp": 10,
+            "bank_cap": 100,
+            "active_id": null,
+            "accrued_to": "2026-08-16T03:39:41.757579+00:00",
+            "tool_carry": {},
+            "active_kind": "idle",
+            "active_since": null,
+            "auto_eat_pct": 50,
+            "auto_eat_food": null,
+            "hearth_tokens": 0,
+            "auto_eat_enabled": false
+          },
+          "skills": {
+            "magic": {
+              "xp": 0,
+              "level": 1
+            },
+            "attack": {
+              "xp": 118,
+              "level": 2
+            },
+            "mining": {
+              "xp": 162,
+              "level": 2
+            },
+            "prayer": {
+              "xp": 0,
+              "level": 1
+            },
+            "ranged": {
+              "xp": 0,
+              "level": 1
+            },
+            "cooking": {
+              "xp": 0,
+              "level": 1
+            },
+            "defense": {
+              "xp": 0,
+              "level": 1
+            },
+            "farming": {
+              "xp": 127,
+              "level": 2
+            },
+            "fishing": {
+              "xp": 123430,
+              "level": 51
+            },
+            "crafting": {
+              "xp": 0,
+              "level": 1
+            },
+            "smithing": {
+              "xp": 195,
+              "level": 3
+            },
+            "strength": {
+              "xp": 0,
+              "level": 1
+            },
+            "hitpoints": {
+              "xp": 1180,
+              "level": 10
+            },
+            "woodcutting": {
+              "xp": 627250,
+              "level": 68
+            },
+            "bountyHunter": {
+              "xp": 0,
+              "level": 1
+            }
+          },
+          "version": 1,
+          "progress": [
+            {
+              "key": "ev:gather",
+              "kind": "stat",
+              "state": null,
+              "value": 54573,
+              "period": ""
+            },
+            {
+              "key": "ev:harvest",
+              "kind": "stat",
+              "state": null,
+              "value": 14,
+              "period": ""
+            },
+            {
+              "key": "ev:kill_any",
+              "kind": "stat",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "gathered",
+              "kind": "stat",
+              "state": null,
+              "value": 54573,
+              "period": ""
+            },
+            {
+              "key": "kills",
+              "kind": "stat",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "room:forge",
+              "kind": "unlock",
+              "state": null,
+              "value": 1,
+              "period": ""
+            }
+          ],
+          "equipment": {
+            "weapon": "bronze_sword"
+          },
+          "inventory": {
+            "bones": 1,
+            "shrimp": 24807,
+            "turnip": 14,
+            "copper_bar": 13,
+            "normal_log": 35841,
+            "wheat_seed": 5,
+            "carrot_seed": 3,
+            "raw_wolf_meat": 1
+          },
+          "total_level": 146,
+          "progress_truncated": false
+        },
+        "imported": true
+      },
+      "mismatches": []
+    },
+    {
+      "user_id": "6fc9a60d-8eb2-4797-83b2-4e1f2adb8925",
+      "slot": 0,
+      "saved_at": "2026-08-15 03:48:54.149857+00",
+      "status": "MISMATCH",
+      "snapshot_sha": "6eff3c44f52b8e801d710aaf50f93cbdb14f663891e374e8536042c5ecb31b7b",
+      "plan": {
+        "imported": {
+          "gold": 12214,
+          "gems": 24,
+          "bank_cap": 220,
+          "skills": 15,
+          "items": 42,
+          "equipment": 5,
+          "farm": 6,
+          "progress": 20
+        },
+        "dropped": [
+          {
+            "kind": "equipped_item",
+            "id": "rock_golem",
+            "reason": "not_in_hr_items",
+            "slot": "companion"
+          },
+          {
+            "kind": "skill",
+            "id": "combat",
+            "reason": "not_in_hr_skills",
+            "xp": 1251
+          }
+        ],
+        "clamped": [],
+        "aliased": [],
+        "client": [
+          "buffs",
+          "daily",
+          "quests",
+          "renown",
+          "streak",
+          "dropLog",
+          "bestiary",
+          "dungeons",
+          "loadouts",
+          "restedAt",
+          "restedXp",
+          "settings",
+          "chronicle",
+          "collection",
+          "companions",
+          "dailyGoals",
+          "houseTheme",
+          "renownHigh",
+          "combatStyle",
+          "dailyReward",
+          "lastWelcome",
+          "marketStats",
+          "weeklyGoals",
+          "achievements",
+          "dungeonStats",
+          "viewingSkill",
+          "collectionLog",
+          "lifetimeKills",
+          "dailyGoldStart",
+          "wieldGrandfather",
+          "currentCombatTier",
+          "combatKillsThisFoe",
+          "lastSessionSummary"
+        ],
+        "derived": [
+          "raids",
+          "clanId",
+          "muster",
+          "clanName",
+          "bossKills",
+          "playerName",
+          "totalLevel",
+          "combatLevel",
+          "lastActivity",
+          "offlineBudget"
+        ],
+        "device": [
+          "account",
+          "cloudSyncedAt"
+        ],
+        "meta": {
+          "v": 13,
+          "lastSeen": 1786765734080,
+          "createdAt": 1786246129652,
+          "schemaVersion": 1,
+          "migratedToV3At": 1786235473910
+        },
+        "undeclaredStatKeys": [
+          "burnt",
+          "buried",
+          "playMs",
+          "planted",
+          "refined",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "roomsBuilt",
+          "killsByTier",
+          "buffsConsumed",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [
+            "theme:default"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [
+            "room:forge",
+            "room:cellar",
+            "room:kitchen",
+            "room:workshop"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [
+            "plot:farm_plot"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        }
+      ],
+      "server": {
+        "ok": true,
+        "drops": [],
+        "clamps": [],
+        "counts": {
+          "farm": 6,
+          "items": 42,
+          "skills": 15,
+          "stacks": 42,
+          "progress": 20,
+          "equipment": 5
+        },
+        "derived": {
+          "hp": 26,
+          "max_hp": 26,
+          "bank_cap": 220
+        },
+        "dry_run": true,
+        "envelope": {
+          "ok": true,
+          "now": "2026-08-16T03:39:42.799411+00:00",
+          "farm": [
+            {
+              "i": 0,
+              "crop": "turnip",
+              "planted_at": "2026-08-15T00:05:22.027+00:00",
+              "watered_at": "2026-08-15T00:05:23.186+00:00"
+            },
+            {
+              "i": 1,
+              "crop": "turnip",
+              "planted_at": "2026-08-15T00:05:21.701+00:00",
+              "watered_at": "2026-08-15T00:05:23.186+00:00"
+            },
+            {
+              "i": 2,
+              "crop": "turnip",
+              "planted_at": "2026-08-15T00:05:21.375+00:00",
+              "watered_at": "2026-08-15T00:05:23.186+00:00"
+            },
+            {
+              "i": 3,
+              "crop": "turnip",
+              "planted_at": "2026-08-15T00:05:21.123+00:00",
+              "watered_at": "2026-08-15T00:05:23.186+00:00"
+            },
+            {
+              "i": 4,
+              "crop": "turnip",
+              "planted_at": "2026-08-15T00:05:20.74+00:00",
+              "watered_at": "2026-08-15T00:05:23.186+00:00"
+            },
+            {
+              "i": 5,
+              "crop": "turnip",
+              "planted_at": "2026-08-15T00:05:20.503+00:00",
+              "watered_at": "2026-08-15T00:05:23.186+00:00"
+            }
+          ],
+          "state": {
+            "hp": 26,
+            "gems": 24,
+            "gold": 12214,
+            "slot": 0,
+            "max_hp": 26,
+            "bank_cap": 220,
+            "active_id": null,
+            "accrued_to": "2026-08-16T03:39:42.799411+00:00",
+            "tool_carry": {},
+            "active_kind": "idle",
+            "active_since": null,
+            "auto_eat_pct": 50,
+            "auto_eat_food": null,
+            "hearth_tokens": 0,
+            "auto_eat_enabled": false
+          },
+          "skills": {
+            "magic": {
+              "xp": 0,
+              "level": 1
+            },
+            "attack": {
+              "xp": 16765,
+              "level": 32
+            },
+            "mining": {
+              "xp": 110684,
+              "level": 50
+            },
+            "prayer": {
+              "xp": 849,
+              "level": 8
+            },
+            "ranged": {
+              "xp": 0,
+              "level": 1
+            },
+            "cooking": {
+              "xp": 6692,
+              "level": 23
+            },
+            "defense": {
+              "xp": 50,
+              "level": 1
+            },
+            "farming": {
+              "xp": 8576,
+              "level": 25
+            },
+            "fishing": {
+              "xp": 7028,
+              "level": 24
+            },
+            "crafting": {
+              "xp": 407,
+              "level": 5
+            },
+            "smithing": {
+              "xp": 3336,
+              "level": 17
+            },
+            "strength": {
+              "xp": 12276,
+              "level": 29
+            },
+            "hitpoints": {
+              "xp": 8943,
+              "level": 26
+            },
+            "woodcutting": {
+              "xp": 337211,
+              "level": 62
+            },
+            "bountyHunter": {
+              "xp": 135,
+              "level": 2
+            }
+          },
+          "version": 1,
+          "progress": [
+            {
+              "key": "theme:default",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "chopped",
+              "kind": "stat",
+              "state": null,
+              "value": 20406,
+              "period": ""
+            },
+            {
+              "key": "ev:cooked",
+              "kind": "stat",
+              "state": null,
+              "value": 452,
+              "period": ""
+            },
+            {
+              "key": "ev:crafted",
+              "kind": "stat",
+              "state": null,
+              "value": 113,
+              "period": ""
+            },
+            {
+              "key": "ev:gather",
+              "kind": "stat",
+              "state": null,
+              "value": 27390,
+              "period": ""
+            },
+            {
+              "key": "ev:harvest",
+              "kind": "stat",
+              "state": null,
+              "value": 62,
+              "period": ""
+            },
+            {
+              "key": "ev:kill_any",
+              "kind": "stat",
+              "state": null,
+              "value": 830,
+              "period": ""
+            },
+            {
+              "key": "ev:smithed",
+              "kind": "stat",
+              "state": null,
+              "value": 546,
+              "period": ""
+            },
+            {
+              "key": "fished",
+              "kind": "stat",
+              "state": null,
+              "value": 708,
+              "period": ""
+            },
+            {
+              "key": "gathered",
+              "kind": "stat",
+              "state": null,
+              "value": 27390,
+              "period": ""
+            },
+            {
+              "key": "kills",
+              "kind": "stat",
+              "state": null,
+              "value": 830,
+              "period": ""
+            },
+            {
+              "key": "mined",
+              "kind": "stat",
+              "state": null,
+              "value": 4506,
+              "period": ""
+            },
+            {
+              "key": "plot:farm_plot",
+              "kind": "stat",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "rare_drops",
+              "kind": "stat",
+              "state": null,
+              "value": 6,
+              "period": ""
+            },
+            {
+              "key": "worker",
+              "kind": "stat",
+              "state": null,
+              "value": 2,
+              "period": ""
+            },
+            {
+              "key": "property:farmstead",
+              "kind": "unlock",
+              "state": null,
+              "value": 2,
+              "period": ""
+            },
+            {
+              "key": "room:cellar",
+              "kind": "unlock",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "room:forge",
+              "kind": "unlock",
+              "state": null,
+              "value": 2,
+              "period": ""
+            },
+            {
+              "key": "room:kitchen",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "room:workshop",
+              "kind": "unlock",
+              "state": null,
+              "value": 1,
+              "period": ""
+            }
+          ],
+          "equipment": {
+            "body": "iron_platebody",
+            "ring1": "copper_ring",
+            "gloves": "leather_gloves",
+            "weapon": "iron_warhammer",
+            "necklace": "hunter_necklace"
+          },
+          "inventory": {
+            "coal": 33150,
+            "bones": 45,
+            "trout": 30,
+            "shrimp": 161,
+            "turnip": 62,
+            "herring": 44168,
+            "oak_log": 30,
+            "yew_log": 689,
+            "bat_wing": 50,
+            "bone_key": 8,
+            "gold_ore": 389,
+            "iron_bar": 11,
+            "rat_tail": 75,
+            "dire_fang": 5,
+            "iron_helm": 2,
+            "slime_gel": 267,
+            "venom_sac": 10,
+            "wolf_pelt": 26,
+            "bone_chips": 91,
+            "burnt_food": 8,
+            "copper_bar": 536,
+            "copper_ore": 1312,
+            "goblin_ear": 10,
+            "grave_dust": 1,
+            "iron_sword": 1,
+            "night_fang": 2,
+            "small_fang": 41,
+            "wheat_seed": 5,
+            "willow_log": 20256,
+            "brute_plate": 5,
+            "carrot_seed": 3,
+            "steel_sword": 1,
+            "sticky_core": 2,
+            "turnip_seed": 52,
+            "bronze_sword": 1,
+            "normal_plank": 113,
+            "cooked_shrimp": 61,
+            "raw_wolf_meat": 40,
+            "cooked_herring": 314,
+            "iron_platebody": 1,
+            "steel_platebody": 1,
+            "ancient_fragment": 2
+          },
+          "total_level": 306,
+          "progress_truncated": false
+        },
+        "imported": true
+      },
+      "mismatches": [
+        "equip companion: rock_golem was dropped without a report"
+      ]
+    },
+    {
+      "user_id": "b94fa8c0-3627-426a-9714-69c363f8929c",
+      "slot": 0,
+      "saved_at": "2026-08-15 22:24:59.227544+00",
+      "status": "MISMATCH",
+      "snapshot_sha": "e39f9854830a315714f4e070c03e3e57945870f85a8c8ed3c1d0064cd72c9f61",
+      "plan": {
+        "imported": {
+          "gold": 418978,
+          "gems": 116,
+          "bank_cap": 100,
+          "skills": 15,
+          "items": 76,
+          "equipment": 10,
+          "farm": 8,
+          "progress": 29
+        },
+        "dropped": [
+          {
+            "kind": "equipped_item",
+            "id": "wolf_pup",
+            "reason": "not_in_hr_items",
+            "slot": "companion"
+          },
+          {
+            "kind": "skill",
+            "id": "combat",
+            "reason": "not_in_hr_skills",
+            "xp": 2684
+          }
+        ],
+        "clamped": [],
+        "aliased": [],
+        "client": [
+          "buffs",
+          "daily",
+          "quests",
+          "renown",
+          "streak",
+          "buyback",
+          "dropLog",
+          "bestiary",
+          "dungeons",
+          "loadouts",
+          "restedAt",
+          "restedXp",
+          "settings",
+          "chronicle",
+          "collection",
+          "companions",
+          "dailyGoals",
+          "houseTheme",
+          "renownHigh",
+          "combatStyle",
+          "dailyReward",
+          "lastWelcome",
+          "marketStats",
+          "weeklyGoals",
+          "achievements",
+          "dungeonStats",
+          "viewingSkill",
+          "collectionLog",
+          "lifetimeKills",
+          "dailyGoldStart",
+          "wieldGrandfather",
+          "currentCombatTier",
+          "combatKillsThisFoe",
+          "lastSessionSummary"
+        ],
+        "derived": [
+          "raids",
+          "clanId",
+          "muster",
+          "clanName",
+          "bossKills",
+          "playerName",
+          "totalLevel",
+          "combatLevel",
+          "lastActivity",
+          "offlineBudget"
+        ],
+        "device": [
+          "account",
+          "cloudSyncedAt"
+        ],
+        "meta": {
+          "v": 13,
+          "lastSeen": 1786832638622,
+          "createdAt": 1786248505932,
+          "schemaVersion": 1,
+          "migratedToV3At": 1786248558957
+        },
+        "undeclaredStatKeys": [
+          "burnt",
+          "buried",
+          "playMs",
+          "planted",
+          "refined",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "roomsBuilt",
+          "killsByTier",
+          "buffsConsumed",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [
+            "trait:auto_eat"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [
+            "theme:default"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [
+            "room:forge",
+            "room:cellar",
+            "room:garden",
+            "room:kitchen",
+            "room:library",
+            "room:workshop"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [
+            "plot:farm_plot",
+            "plot:toolshed",
+            "plot:watchtower",
+            "plot:scarecrow"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        }
+      ],
+      "server": {
+        "ok": true,
+        "drops": [],
+        "clamps": [],
+        "counts": {
+          "farm": 8,
+          "items": 76,
+          "skills": 15,
+          "stacks": 76,
+          "progress": 29,
+          "equipment": 10
+        },
+        "derived": {
+          "hp": 64,
+          "max_hp": 64,
+          "bank_cap": 100
+        },
+        "dry_run": true,
+        "envelope": {
+          "ok": true,
+          "now": "2026-08-16T03:39:43.476593+00:00",
+          "farm": [
+            {
+              "i": 0,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T15:55:18.304+00:00",
+              "watered_at": "2026-08-15T20:04:17.213+00:00"
+            },
+            {
+              "i": 1,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T15:55:19.929+00:00",
+              "watered_at": "2026-08-15T20:04:17.214+00:00"
+            },
+            {
+              "i": 2,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T15:55:21.165+00:00",
+              "watered_at": "2026-08-15T20:04:17.214+00:00"
+            },
+            {
+              "i": 3,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T15:55:22.346+00:00",
+              "watered_at": "2026-08-15T20:04:17.214+00:00"
+            },
+            {
+              "i": 4,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T15:55:23.332+00:00",
+              "watered_at": "2026-08-15T20:04:17.214+00:00"
+            },
+            {
+              "i": 5,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T15:55:24.412+00:00",
+              "watered_at": "2026-08-15T20:04:17.215+00:00"
+            },
+            {
+              "i": 6,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T15:55:25.805+00:00",
+              "watered_at": "2026-08-15T20:04:17.215+00:00"
+            },
+            {
+              "i": 7,
+              "crop": "tomato",
+              "planted_at": "2026-08-15T15:55:27.155+00:00",
+              "watered_at": "2026-08-15T20:04:17.215+00:00"
+            }
+          ],
+          "state": {
+            "hp": 64,
+            "gems": 116,
+            "gold": 418978,
+            "slot": 0,
+            "max_hp": 64,
+            "bank_cap": 100,
+            "active_id": null,
+            "accrued_to": "2026-08-16T03:39:43.476593+00:00",
+            "tool_carry": {
+              "mining": 0.8200000000000222
+            },
+            "active_kind": "idle",
+            "active_since": null,
+            "auto_eat_pct": 50,
+            "auto_eat_food": "trout",
+            "hearth_tokens": 0,
+            "auto_eat_enabled": true
+          },
+          "skills": {
+            "magic": {
+              "xp": 1032554,
+              "level": 73
+            },
+            "attack": {
+              "xp": 43637,
+              "level": 41
+            },
+            "mining": {
+              "xp": 226630,
+              "level": 58
+            },
+            "prayer": {
+              "xp": 20976,
+              "level": 34
+            },
+            "ranged": {
+              "xp": 0,
+              "level": 1
+            },
+            "cooking": {
+              "xp": 123185,
+              "level": 51
+            },
+            "defense": {
+              "xp": 832861,
+              "level": 71
+            },
+            "farming": {
+              "xp": 202228,
+              "level": 56
+            },
+            "fishing": {
+              "xp": 31581,
+              "level": 38
+            },
+            "crafting": {
+              "xp": 49011,
+              "level": 42
+            },
+            "smithing": {
+              "xp": 18755,
+              "level": 33
+            },
+            "strength": {
+              "xp": 43637,
+              "level": 41
+            },
+            "hitpoints": {
+              "xp": 444853,
+              "level": 64
+            },
+            "woodcutting": {
+              "xp": 243467,
+              "level": 58
+            },
+            "bountyHunter": {
+              "xp": 476,
+              "level": 5
+            }
+          },
+          "version": 1,
+          "progress": [
+            {
+              "key": "theme:default",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "trait:auto_eat",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "chopped",
+              "kind": "stat",
+              "state": null,
+              "value": 15671,
+              "period": ""
+            },
+            {
+              "key": "deaths",
+              "kind": "stat",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "ev:cooked",
+              "kind": "stat",
+              "state": null,
+              "value": 7632,
+              "period": ""
+            },
+            {
+              "key": "ev:crafted",
+              "kind": "stat",
+              "state": null,
+              "value": 3057,
+              "period": ""
+            },
+            {
+              "key": "ev:gather",
+              "kind": "stat",
+              "state": null,
+              "value": 27698,
+              "period": ""
+            },
+            {
+              "key": "ev:harvest",
+              "kind": "stat",
+              "state": null,
+              "value": 700,
+              "period": ""
+            },
+            {
+              "key": "ev:kill_any",
+              "kind": "stat",
+              "state": null,
+              "value": 10040,
+              "period": ""
+            },
+            {
+              "key": "ev:smithed",
+              "kind": "stat",
+              "state": null,
+              "value": 1740,
+              "period": ""
+            },
+            {
+              "key": "fished",
+              "kind": "stat",
+              "state": null,
+              "value": 3214,
+              "period": ""
+            },
+            {
+              "key": "gathered",
+              "kind": "stat",
+              "state": null,
+              "value": 27698,
+              "period": ""
+            },
+            {
+              "key": "kills",
+              "kind": "stat",
+              "state": null,
+              "value": 10040,
+              "period": ""
+            },
+            {
+              "key": "mined",
+              "kind": "stat",
+              "state": null,
+              "value": 10585,
+              "period": ""
+            },
+            {
+              "key": "plot:farm_plot",
+              "kind": "stat",
+              "state": null,
+              "value": 8,
+              "period": ""
+            },
+            {
+              "key": "plot:scarecrow",
+              "kind": "stat",
+              "state": null,
+              "value": 2,
+              "period": ""
+            },
+            {
+              "key": "plot:toolshed",
+              "kind": "stat",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "plot:watchtower",
+              "kind": "stat",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "rare_drops",
+              "kind": "stat",
+              "state": null,
+              "value": 450,
+              "period": ""
+            },
+            {
+              "key": "tool_doubles",
+              "kind": "stat",
+              "state": null,
+              "value": 49,
+              "period": ""
+            },
+            {
+              "key": "worker",
+              "kind": "stat",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "farm_plot_tier",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "property:manor",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "room:cellar",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "room:forge",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "room:garden",
+              "kind": "unlock",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "room:kitchen",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "room:library",
+              "kind": "unlock",
+              "state": null,
+              "value": 2,
+              "period": ""
+            },
+            {
+              "key": "room:workshop",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            }
+          ],
+          "equipment": {
+            "belt": "adept_belt",
+            "body": "scholar_body",
+            "cape": "traveler_cape",
+            "boots": "apprentice_boots",
+            "pants": "scholar_pants",
+            "ring1": "copper_ring",
+            "gloves": "adept_gloves",
+            "helmet": "scholar_helmet",
+            "weapon": "willow_staff",
+            "necklace": "hunter_necklace"
+          },
+          "inventory": {
+            "coal": 45826,
+            "trout": 37906,
+            "wheat": 154,
+            "potato": 284,
+            "turnip": 213,
+            "herring": 41083,
+            "oak_log": 6969,
+            "bat_wing": 5,
+            "bone_key": 240,
+            "gold_ore": 1879,
+            "iron_bar": 336,
+            "iron_ore": 6375,
+            "shortbow": 1,
+            "bear_pelt": 1,
+            "big_bones": 1072,
+            "farm_deed": 4,
+            "iron_helm": 1,
+            "maple_log": 900,
+            "oak_plank": 745,
+            "rune_frag": 651,
+            "slime_gel": 891,
+            "vamp_dust": 20,
+            "venom_sac": 301,
+            "wolf_pelt": 115,
+            "bone_chips": 140,
+            "bronze_bar": 299,
+            "burnt_food": 1,
+            "copper_bar": 202,
+            "copper_ore": 14439,
+            "goblin_ear": 50,
+            "grave_dust": 4617,
+            "hell_ember": 54,
+            "iron_sword": 1,
+            "normal_log": 13394,
+            "small_fang": 2,
+            "spider_eye": 26,
+            "troll_hide": 7,
+            "wheat_seed": 31,
+            "willow_log": 14586,
+            "willow_rod": 1,
+            "carrot_seed": 36,
+            "demon_shard": 907,
+            "goblin_seal": 15,
+            "silk_thread": 91,
+            "sticky_core": 37,
+            "timber_beam": 136,
+            "tomato_seed": 52,
+            "void_chitin": 2,
+            "wheat_bread": 3,
+            "wraith_veil": 33,
+            "adept_gloves": 1,
+            "adept_helmet": 1,
+            "ancient_rune": 9,
+            "cooked_trout": 11,
+            "goblin_totem": 7,
+            "normal_plank": 2,
+            "pumpkin_seed": 39,
+            "willow_plank": 1104,
+            "dungeon_scrip": 135,
+            "leather_boots": 1,
+            "magic_essence": 12,
+            "shadow_thread": 20,
+            "warlord_badge": 2,
+            "bronze_pickaxe": 1,
+            "cooked_herring": 7375,
+            "iron_warhammer": 1,
+            "leather_gloves": 1,
+            "scholar_helmet": 1,
+            "apprentice_belt": 1,
+            "apprentice_body": 1,
+            "goldenroot_seed": 33,
+            "ancient_fragment": 289,
+            "apprentice_boots": 1,
+            "apprentice_helmet": 1,
+            "cracked_spellstone": 2,
+            "forge_blueprint_t2": 2
+          },
+          "total_level": 666,
+          "progress_truncated": false
+        },
+        "imported": true
+      },
+      "mismatches": [
+        "equip companion: wolf_pup was dropped without a report"
+      ]
+    },
+    {
+      "user_id": "bf18bd7f-f8be-493c-8232-37d10711c2f6",
+      "slot": 0,
+      "saved_at": "2026-08-15 08:40:04.540654+00",
+      "status": "REHEARSED",
+      "snapshot_sha": "5fee01e3f9b579d625d40794bcf00bff515df7852508b28bfac4656284f84e23",
+      "plan": {
+        "imported": {
+          "gold": 39068,
+          "gems": 82,
+          "bank_cap": 100,
+          "skills": 15,
+          "items": 68,
+          "equipment": 12,
+          "farm": 8,
+          "progress": 32
+        },
+        "dropped": [
+          {
+            "kind": "item",
+            "id": "wolf_pup",
+            "reason": "not_in_hr_items",
+            "where": "inventory",
+            "qty": 1
+          },
+          {
+            "kind": "skill",
+            "id": "combat",
+            "reason": "not_in_hr_skills",
+            "xp": 2724
+          }
+        ],
+        "clamped": [],
+        "aliased": [
+          {
+            "from": "bounty:goldBoost",
+            "to": "bounty:mark_pouch",
+            "source": "bountyHunter.upgrades"
+          },
+          {
+            "from": "bounty:autoBounty",
+            "to": "bounty:auto_bounty_1",
+            "source": "bountyHunter.upgrades"
+          }
+        ],
+        "client": [
+          "buffs",
+          "daily",
+          "quests",
+          "renown",
+          "streak",
+          "buyback",
+          "dropLog",
+          "bestiary",
+          "dungeons",
+          "loadouts",
+          "restedAt",
+          "restedXp",
+          "settings",
+          "chronicle",
+          "collection",
+          "companions",
+          "dailyGoals",
+          "houseTheme",
+          "renownHigh",
+          "combatStyle",
+          "dailyReward",
+          "lastWelcome",
+          "marketStats",
+          "weeklyGoals",
+          "achievements",
+          "dungeonStats",
+          "viewingSkill",
+          "collectionLog",
+          "lifetimeKills",
+          "dailyGoldStart",
+          "wieldGrandfather",
+          "currentCombatTier",
+          "combatKillsThisFoe",
+          "lastSessionSummary"
+        ],
+        "derived": [
+          "raids",
+          "clanId",
+          "muster",
+          "clanName",
+          "bossKills",
+          "playerName",
+          "totalLevel",
+          "combatLevel",
+          "rallyPledge",
+          "lastActivity",
+          "offlineBudget"
+        ],
+        "device": [
+          "account",
+          "cloudSyncedAt"
+        ],
+        "meta": {
+          "v": 13,
+          "lastSeen": 1786783129939,
+          "createdAt": 1786255131418,
+          "schemaVersion": 1,
+          "migratedToV3At": 1786263430906
+        },
+        "undeclaredStatKeys": [
+          "burnt",
+          "buried",
+          "playMs",
+          "planted",
+          "refined",
+          "levelups",
+          "firstSeen",
+          "killStreak",
+          "roomsBuilt",
+          "killsByTier",
+          "buffsConsumed",
+          "killsByFamily",
+          "bestKillStreak",
+          "cropsHarvested",
+          "totalGoldSpent",
+          "totalGoldEarned"
+        ]
+      },
+      "audit": [
+        {
+          "store": "unlockedRecipes",
+          "namespace": "recipe",
+          "mapped": [
+            "recipe:captain_recipe"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "traits",
+          "namespace": "trait",
+          "mapped": [
+            "trait:auto_eat"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedCosmetics",
+          "namespace": "cosmetic",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "ownedThemes",
+          "namespace": "theme",
+          "mapped": [
+            "theme:default"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "entitlements",
+          "namespace": "entitlement",
+          "mapped": [],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "rooms",
+          "namespace": "room",
+          "mapped": [
+            "room:forge",
+            "room:cellar",
+            "room:kitchen",
+            "room:library",
+            "room:workshop"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "plotBuildings",
+          "namespace": "plot",
+          "mapped": [
+            "plot:toolshed",
+            "plot:farm_plot",
+            "plot:watchtower",
+            "plot:scarecrow"
+          ],
+          "aliased": [],
+          "unmapped": []
+        },
+        {
+          "store": "bountyHunter.upgrades",
+          "namespace": "bounty",
+          "mapped": [],
+          "aliased": [
+            {
+              "from": "bounty:goldBoost",
+              "to": "bounty:mark_pouch"
+            },
+            {
+              "from": "bounty:autoBounty",
+              "to": "bounty:auto_bounty_1"
+            }
+          ],
+          "unmapped": []
+        }
+      ],
+      "server": {
+        "ok": true,
+        "drops": [],
+        "clamps": [],
+        "counts": {
+          "farm": 8,
+          "items": 68,
+          "skills": 15,
+          "stacks": 68,
+          "progress": 32,
+          "equipment": 12
+        },
+        "derived": {
+          "hp": 50,
+          "max_hp": 50,
+          "bank_cap": 100
+        },
+        "dry_run": true,
+        "envelope": {
+          "ok": true,
+          "now": "2026-08-16T03:39:44.100349+00:00",
+          "farm": [
+            {
+              "i": 0,
+              "crop": "wheat",
+              "planted_at": "2026-08-13T10:46:43.512+00:00",
+              "watered_at": "2026-08-13T10:46:47.476+00:00"
+            },
+            {
+              "i": 1,
+              "crop": "wheat",
+              "planted_at": "2026-08-13T10:46:43.922+00:00",
+              "watered_at": "2026-08-13T10:46:47.477+00:00"
+            },
+            {
+              "i": 2,
+              "crop": "wheat",
+              "planted_at": "2026-08-13T10:46:44.147+00:00",
+              "watered_at": "2026-08-13T10:46:47.477+00:00"
+            },
+            {
+              "i": 3,
+              "crop": "wheat",
+              "planted_at": "2026-08-13T10:46:44.395+00:00",
+              "watered_at": "2026-08-13T10:46:47.477+00:00"
+            },
+            {
+              "i": 4,
+              "crop": "wheat",
+              "planted_at": "2026-08-13T10:46:45.312+00:00",
+              "watered_at": "2026-08-13T10:46:47.477+00:00"
+            },
+            {
+              "i": 5,
+              "crop": "wheat",
+              "planted_at": "2026-08-13T10:46:45.515+00:00",
+              "watered_at": "2026-08-13T10:46:47.482+00:00"
+            },
+            {
+              "i": 6,
+              "crop": "wheat",
+              "planted_at": "2026-08-13T10:46:45.75+00:00",
+              "watered_at": "2026-08-13T10:46:47.482+00:00"
+            },
+            {
+              "i": 7,
+              "crop": "wheat",
+              "planted_at": "2026-08-13T10:46:46.003+00:00",
+              "watered_at": "2026-08-13T10:46:47.482+00:00"
+            }
+          ],
+          "state": {
+            "hp": 50,
+            "gems": 82,
+            "gold": 39068,
+            "slot": 0,
+            "max_hp": 50,
+            "bank_cap": 100,
+            "active_id": null,
+            "accrued_to": "2026-08-16T03:39:44.100349+00:00",
+            "tool_carry": {
+              "mining": 0.6600000000000028,
+              "cooking": 0.8400000000000043,
+              "smithing": 0.6000000000000001,
+              "woodcutting": 0.6400000000000013
+            },
+            "active_kind": "idle",
+            "active_since": null,
+            "auto_eat_pct": 75,
+            "auto_eat_food": "trout",
+            "hearth_tokens": 0,
+            "auto_eat_enabled": true
+          },
+          "skills": {
+            "magic": {
+              "xp": 56110,
+              "level": 44
+            },
+            "attack": {
+              "xp": 52078,
+              "level": 43
+            },
+            "mining": {
+              "xp": 200897,
+              "level": 56
+            },
+            "prayer": {
+              "xp": 12830,
+              "level": 29
+            },
+            "ranged": {
+              "xp": 49314,
+              "level": 42
+            },
+            "cooking": {
+              "xp": 11770,
+              "level": 28
+            },
+            "defense": {
+              "xp": 55060,
+              "level": 43
+            },
+            "farming": {
+              "xp": 83289,
+              "level": 48
+            },
+            "fishing": {
+              "xp": 4815,
+              "level": 20
+            },
+            "crafting": {
+              "xp": 302187,
+              "level": 60
+            },
+            "smithing": {
+              "xp": 69140,
+              "level": 46
+            },
+            "strength": {
+              "xp": 166446,
+              "level": 54
+            },
+            "hitpoints": {
+              "xp": 106107,
+              "level": 50
+            },
+            "woodcutting": {
+              "xp": 158537,
+              "level": 54
+            },
+            "bountyHunter": {
+              "xp": 3391,
+              "level": 17
+            }
+          },
+          "version": 1,
+          "progress": [
+            {
+              "key": "bounty:auto_bounty_1",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "bounty:mark_pouch",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "recipe:captain_recipe",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "theme:default",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "trait:auto_eat",
+              "kind": "flag",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "chopped",
+              "kind": "stat",
+              "state": null,
+              "value": 12083,
+              "period": ""
+            },
+            {
+              "key": "crits",
+              "kind": "stat",
+              "state": null,
+              "value": 91,
+              "period": ""
+            },
+            {
+              "key": "deaths",
+              "kind": "stat",
+              "state": null,
+              "value": 8,
+              "period": ""
+            },
+            {
+              "key": "ev:cooked",
+              "kind": "stat",
+              "state": null,
+              "value": 613,
+              "period": ""
+            },
+            {
+              "key": "ev:crafted",
+              "kind": "stat",
+              "state": null,
+              "value": 11826,
+              "period": ""
+            },
+            {
+              "key": "ev:gather",
+              "kind": "stat",
+              "state": null,
+              "value": 22270,
+              "period": ""
+            },
+            {
+              "key": "ev:harvest",
+              "kind": "stat",
+              "state": null,
+              "value": 346,
+              "period": ""
+            },
+            {
+              "key": "ev:kill_any",
+              "kind": "stat",
+              "state": null,
+              "value": 9415,
+              "period": ""
+            },
+            {
+              "key": "ev:smithed",
+              "kind": "stat",
+              "state": null,
+              "value": 3723,
+              "period": ""
+            },
+            {
+              "key": "fished",
+              "kind": "stat",
+              "state": null,
+              "value": 661,
+              "period": ""
+            },
+            {
+              "key": "gathered",
+              "kind": "stat",
+              "state": null,
+              "value": 22270,
+              "period": ""
+            },
+            {
+              "key": "kills",
+              "kind": "stat",
+              "state": null,
+              "value": 9415,
+              "period": ""
+            },
+            {
+              "key": "mined",
+              "kind": "stat",
+              "state": null,
+              "value": 9526,
+              "period": ""
+            },
+            {
+              "key": "plot:farm_plot",
+              "kind": "stat",
+              "state": null,
+              "value": 8,
+              "period": ""
+            },
+            {
+              "key": "plot:scarecrow",
+              "kind": "stat",
+              "state": null,
+              "value": 2,
+              "period": ""
+            },
+            {
+              "key": "plot:toolshed",
+              "kind": "stat",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "plot:watchtower",
+              "kind": "stat",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "rare_drops",
+              "kind": "stat",
+              "state": null,
+              "value": 180,
+              "period": ""
+            },
+            {
+              "key": "tool_doubles",
+              "kind": "stat",
+              "state": null,
+              "value": 71,
+              "period": ""
+            },
+            {
+              "key": "worker",
+              "kind": "stat",
+              "state": null,
+              "value": 4,
+              "period": ""
+            },
+            {
+              "key": "farm_plot_tier",
+              "kind": "unlock",
+              "state": null,
+              "value": 2,
+              "period": ""
+            },
+            {
+              "key": "property:keep",
+              "kind": "unlock",
+              "state": null,
+              "value": 4,
+              "period": ""
+            },
+            {
+              "key": "room:cellar",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            },
+            {
+              "key": "room:forge",
+              "kind": "unlock",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "room:kitchen",
+              "kind": "unlock",
+              "state": null,
+              "value": 2,
+              "period": ""
+            },
+            {
+              "key": "room:library",
+              "kind": "unlock",
+              "state": null,
+              "value": 1,
+              "period": ""
+            },
+            {
+              "key": "room:workshop",
+              "kind": "unlock",
+              "state": null,
+              "value": 3,
+              "period": ""
+            }
+          ],
+          "equipment": {
+            "ammo": "iron_arrows",
+            "belt": "steel_belt",
+            "body": "steel_platebody",
+            "cape": "traveler_cape",
+            "boots": "steel_boots",
+            "pants": "steel_platelegs",
+            "ring1": "copper_ring",
+            "gloves": "steel_gauntlets",
+            "helmet": "iron_helm",
+            "weapon": "steel_sword",
+            "necklace": "hunter_necklace",
+            "companion": "fox_companion"
+          },
+          "inventory": {
+            "coal": 65849,
+            "trout": 5072,
+            "wheat": 218,
+            "carrot": 7,
+            "shrimp": 91,
+            "turnip": 101,
+            "herring": 378,
+            "lobster": 2,
+            "longbow": 1,
+            "oak_log": 9182,
+            "bone_key": 21,
+            "gold_ore": 236,
+            "iron_bar": 93,
+            "iron_ore": 21131,
+            "rat_tail": 810,
+            "bear_claw": 3,
+            "dire_fang": 1,
+            "farm_deed": 3,
+            "maple_log": 23703,
+            "oak_plank": 1197,
+            "oak_staff": 1,
+            "rune_frag": 64,
+            "slime_gel": 1646,
+            "steel_axe": 1,
+            "steel_bar": 1565,
+            "venom_sac": 71,
+            "wolf_pelt": 423,
+            "bone_chips": 643,
+            "burnt_food": 28,
+            "copper_bar": 389,
+            "copper_ore": 23527,
+            "goblin_ear": 1122,
+            "grave_dust": 42,
+            "normal_log": 615,
+            "small_fang": 400,
+            "spider_eye": 6,
+            "wheat_seed": 163,
+            "willow_log": 11771,
+            "willow_rod": 3,
+            "arcane_tome": 7,
+            "brute_plate": 29,
+            "carrot_seed": 194,
+            "goblin_seal": 19,
+            "iron_arrows": 6,
+            "maple_plank": 5800,
+            "silk_thread": 32,
+            "steel_knife": 1,
+            "sticky_core": 43,
+            "turnip_seed": 72,
+            "cooked_trout": 398,
+            "goblin_totem": 65,
+            "normal_plank": 557,
+            "steel_hammer": 1,
+            "willow_plank": 3567,
+            "captain_medal": 3,
+            "dungeon_scrip": 297,
+            "magic_essence": 112,
+            "raw_bear_meat": 4,
+            "raw_wolf_meat": 794,
+            "steel_pickaxe": 1,
+            "warlord_badge": 10,
+            "cooked_herring": 42,
+            "iron_warhammer": 1,
+            "obsidian_sigil": 1,
+            "ancient_fragment": 18,
+            "warboss_standard": 1,
+            "cracked_spellstone": 11,
+            "kitchen_blueprint_t2": 1
+          },
+          "total_level": 634,
+          "progress_truncated": false
+        },
+        "imported": true
+      },
+      "mismatches": []
+    }
+  ]
+}

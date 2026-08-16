@@ -71,6 +71,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { sliceLiteral, makeDie } from './lib/slice-literal.mjs';
 import { GOAL_EVENTS, goalKey } from '../src/core/goals.js';
 import { levelFromXp } from '../src/core/xp.js';
+import { COMPANIONS } from '../src/data/companions.js';
 
 export const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
 const die = makeDie('cutover-import');
@@ -187,6 +188,41 @@ function bankCapOf(bank, BANK_SPACE) {
    object for both, which is exactly the kind of shape an importer must know
    about explicitly rather than discover. */
 const BANK_RESERVED = new Set(['goldBuys', 'gemBuys', 'grandfather']);
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE COMPANION SLOT IS CLIENT-OWNED, WHOLESALE.
+
+   Found by the full-batch --rehearse on 2026-08-16 (4 of 6 players MISMATCH).
+   `G.equipment.companion` is NOT an ordinary equipment slot:
+
+     · b229 (src/legacy.js ~12524): `equipCompanion()` mirrors the legacy
+       `fox_companion` ITEM id into the slot for the FOX ONLY; every other
+       companion writes its raw COMPANIONS id (`wolf_pup`, `silkling`, …),
+       which `ITEMS` does not have. Two id-spaces in one slot.
+     · `fox_companion` IS a real item (`src/data/items.js`, slot:'companion'),
+       so it is in hr_items AND hr_item_slots and WOULD import — while every
+       other player's companion dropped. That asymmetry is the sweep finding:
+       one player ends up with a server-side equipped companion granting
+       strB:2/xpB:.02 and nobody else does.
+     · `hr_perks_of` declares `companions: 'blocked:no_server_pet_model'`.
+       There is no server companion model to import INTO.
+
+   So the whole slot is dropped BY NAME, fox included. Importing one player's
+   fox but nobody else's wolf is worse than importing none: it is silently
+   unfair, and it contradicts a channel the server itself says is blocked.
+   Same reason as FIELD_MAP's `companions` entry — one decision, two surfaces.
+   ══════════════════════════════════════════════════════════════════════════ */
+export const COMPANION_SLOT = 'companion';
+export const COMPANION_IDS = new Set(Object.keys(COMPANIONS));
+/** The legacy ITEM id the fox (and only the fox) mirrors into the slot. */
+export const LEGACY_COMPANION_ITEM = 'fox_companion';
+
+/** Why an id in the companion slot is client-owned — named, never silent. */
+export function companionDropReason(id) {
+  if (COMPANION_IDS.has(id)) return 'client_owned_companion_no_server_pet_model';
+  if (id === LEGACY_COMPANION_ITEM) return 'client_owned_companion_legacy_item_mirror';
+  return 'client_owned_companion_slot_unknown_id';
+}
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const int = (v) => { const n = num(v); return n === null ? null : Math.floor(n); };
@@ -576,6 +612,14 @@ export function buildPlan(snapshot, cat, game) {
   // ── equipment ──────────────────────────────────────────────────────────
   for (const [slot, id] of Object.entries(S.equipment || {})) {
     if (!id) continue;
+    // THE COMPANION SLOT IS CLIENT-OWNED WHOLESALE — checked FIRST, before the
+    // catalogue lookups, because `fox_companion` would otherwise pass all three
+    // of them and import for one player while every other companion dropped.
+    // See COMPANION_SLOT above.
+    if (slot === COMPANION_SLOT) {
+      drop('equipped_companion', id, companionDropReason(id), { slot });
+      continue;
+    }
     if (!cat.equipSlots.has(slot)) { drop('equip_slot', slot, 'not_in_hr_equip_slots', { item: id }); continue; }
     if (!cat.items.has(id)) { drop('equipped_item', id, 'not_in_hr_items', { slot }); continue; }
     if (!cat.itemSlots.has(`${id} ${slot}`)) {
@@ -853,6 +897,15 @@ export function verify(snapshot, envelope, cat, game, ...reports) {
   const haveEq = env.equipment || {};
   for (const [slot, id] of Object.entries(S.equipment || {})) {
     if (!id) continue;
+    // The companion slot is EXPECTED ABSENT server-side, whatever it holds —
+    // including `fox_companion`, which is a legal catalogued item in this slot
+    // and would otherwise read as "legal, so it must be present". See
+    // COMPANION_SLOT.
+    if (slot === COMPANION_SLOT) {
+      if (haveEq[slot]) bad.push(`equip ${slot}: ${haveEq[slot]} reached the server — the companion slot is client-owned`);
+      else if (!droppedIds.has(String(id))) bad.push(`equip ${slot}: ${id} was dropped without a report`);
+      continue;
+    }
     const legal = cat.equipSlots.has(slot) && cat.items.has(id) && cat.itemSlots.has(`${id} ${slot}`);
     if (!legal) {
       if (haveEq[slot] === id) bad.push(`equip ${slot}: illegal item ${id} reached the server`);
@@ -947,6 +1000,30 @@ export function verify(snapshot, envelope, cat, game, ...reports) {
   else if (state.auto_eat_food) bad.push(`auto_eat_food: server holds ${state.auto_eat_food} which is not auto-eatable`);
 
   return bad;
+}
+
+/**
+ * THE ONE VERIFICATION CALL. Both `run()` and tests/cutover-import.mjs go
+ * through here, and that is the whole point of its existence.
+ *
+ * ⚠ WHY THIS FUNCTION EXISTS — the full-batch rehearsal on 2026-08-16 failed
+ *   4 of 6 players with "equip companion: <id> was dropped without a report",
+ *   while the guard had been GREEN on the same shape for two days. The defect
+ *   was not in `verify` and not in `buildPlan`: BOTH were correct. It was that
+ *   `run()` called `verify(..., out)` — the SERVER report only — while the test
+ *   called `verify(..., out, report)` — server AND tool. A drop the tool makes
+ *   before the RPC ever sees the plan is in `report`, never in `out`, so
+ *   production ran a composition the test never exercised.
+ *
+ *   That is the instance-#18 family (same bytes, different composition) landing
+ *   in the verifier of the tool built to catch exactly this. The fix is not to
+ *   add the argument at the call site — that is the same fix that was already
+ *   "obviously" right in the test. It is to make ONE call site exist, so the two
+ *   CANNOT differ. A test that assembles its own arguments is testing its own
+ *   assembly.
+ */
+export function verifyImport(snapshot, serverOut, toolReport, cat, game) {
+  return verify(snapshot, serverOut && serverOut.envelope, cat, game, serverOut, toolReport);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1143,7 +1220,8 @@ export async function run(argv) {
       }
 
       // ── PER-PLAYER VERIFICATION ──────────────────────────────────────
-      const problems = verify(snap, out.envelope, cat, game, out);
+      // ONE call site, shared with the guard — see verifyImport's header.
+      const problems = verifyImport(snap, out, report, cat, game);
       rec.mismatches = problems;
       if (problems.length) {
         rec.status = 'MISMATCH';

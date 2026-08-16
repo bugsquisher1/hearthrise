@@ -138,6 +138,23 @@ const NAMESPACES = {
        + "kind='flag' and value > 0. Untouched by this catalogue.",
   },
   bounty: { merge: 'flag', progress_kind: 'flag', why: 'Boolean bounty-board upgrades.' },
+  // ── CUTOVER IMPORT RULING (game-designer, 2026-08-15, binding) ──────────
+  // The client stores bounty upgrades in G.bountyHunter.upgrades under FLAG
+  // names (src/legacy.js BOUNTY_SHOP `flag:`), NOT the catalogue id. The import
+  // tool MUST alias flag -> catalogue id. Mapping is 1:1 and unambiguous (one
+  // shop offer per flag; the `_1`/`_2` suffixes are id text, NOT tiers, and the
+  // bounty namespace has NO rungs). ALIAS ALL FOUR, DROP NONE:
+  //   goldBoost     -> bounty:mark_pouch
+  //   autoBounty    -> bounty:auto_bounty_1
+  //   extraRerolls  -> bounty:free_reroll_2   (client stores a count via incr,
+  //                    but the UI caps ownership at 1, so import as flag=1;
+  //                    a legacy save with >1 loses only the extra +1/day, under
+  //                    the pre-cutover amnesty — acceptable)
+  //   cosmeticCloak -> bounty:cosmetic_cape
+  // `reroll_token` is a repeatable consumable that leaves NO upgrades key —
+  // nothing to import. This is the FIRST INSTANCE of a class: client id-space
+  // != server catalogue id-space at import. Audit unlockedRecipes/traits/
+  // cosmetics/room-perks the same way in the dry-run.
   character_slot: { merge: 'flag', progress_kind: 'flag', why: 'Boolean per slot id.' },
   companion: { merge: 'flag', progress_kind: 'flag', why: 'Owned or not.' },
   cosmetic: { merge: 'flag', progress_kind: 'flag', why: 'Owned or not.' },

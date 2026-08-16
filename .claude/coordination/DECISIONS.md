@@ -4,6 +4,19 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-16 · HUNT BAND FAIRNESS — APPLIED to production (Coordinator)
+`2026-08-12-raid-band-fairness.sql` is **APPLIED** (was staged since 2026-08-12; item #1 in Tyler's
+locked build order). Replaced 4 functions: `hr_hunt_share`, `hr_hunt_band`, `hr_hunt_band_mul`,
+`raid_claim__ungated`. Its self-checks include LIVE controls (an ordinary current-week solo claim
+must still work and write a ledger row; an eligibility refusal must survive the rewrite) — all
+passed at apply time, which is the verification. **Effect for players: `below_band` is deleted as
+an outcome — no action by any clanmate can move another member below being paid; the band is now
+measured against your share of the boss (`max_hp / members_at_declare`), not against other players'
+damage.** Still open, unchanged: when `2026-08-12-clan-members-rls-drop.sql` lands it MUST ship a
+companion revoke of clan_members/clans i/u/d grants or the nightly detector raises. **Date:** 2026-08-16.
+
+---
+
 ### 2026-08-16 · BESTIARY CHARMS (PROG-01, Tibia-style) — direction APPROVED by Tyler
 **Decision (Tyler, direct: "The bestiary system that tibia has would be SOOOOOO SICK").** The
 Tibia-style bestiary is approved as a direction: kill-count progress per monster unlocks bestiary

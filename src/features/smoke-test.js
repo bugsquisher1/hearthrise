@@ -15994,7 +15994,7 @@ const TESTS = [
       const cat = window.HearthriseArtisanCat;
       assert(cat && typeof cat.strip === 'function', 'the artisan lane strip helper must be published');
       const strip = cat.strip('stonemason') || '';
-      ['Quarry', 'Masonry', 'Rune Blanks', 'Whetstones', 'Castle Stores'].forEach((label) => {
+      ['Quarry', 'Masonry', 'Blank Runes', 'Whetstones', 'Castle Stores'].forEach((label) => {
         assert(strip.indexOf(label) >= 0, 'the Stonemason lane strip is missing "' + label + '"');
       });
       // And selecting a lane returns only that lane's recipes.

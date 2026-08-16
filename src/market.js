@@ -585,7 +585,10 @@
     if(l.sellerId === currentSellerId()) return { ok:false, reason:"Can't buy your own listing" };
     qtyWanted = Math.max(1, Math.min(qtyWanted, l.qty));
     var totalCost = qtyWanted * l.askEach;
-    if((window.G.gold||0) < totalCost) return { ok:false, reason:'Need ' + totalCost + ' gold' };
+    if(!window.balCanAfford(totalCost, 'gold')){
+      return { ok:false, reason: window.balKnown('gold') ? ('Need ' + totalCost + ' gold')
+        : window.balShortfall(totalCost, 'gold') };
+    }
 
     /* Transfer (optimistic — the server RPC is the race arbiter).
        b355: the gold half goes through the ONE payment choke point, so the
@@ -661,7 +664,11 @@
       willSpend += take * pool[i].askEach;
       willGet  += take;
     }
-    if((window.G.gold||0) < willSpend) return { ok:false, reason:'Need ' + willSpend.toLocaleString() + ' gold for those ' + willGet + ' items' };
+    if(!window.balCanAfford(willSpend, 'gold')){
+      return { ok:false, reason: window.balKnown('gold')
+        ? ('Need ' + willSpend.toLocaleString() + ' gold for those ' + willGet + ' items')
+        : window.balShortfall(willSpend, 'gold') };
+    }
 
     // Execute. Mutate `list` in-place (find each pool entry by id).
     var bought = 0, spent = 0;
@@ -744,7 +751,11 @@
     if(!item) return { ok:false, reason:'Unknown item' };
     if(item.bop) return { ok:false, reason:'Bind-on-Pickup items can\'t be ordered' };
     var totalEscrow = qty * maxEach;
-    if((window.G.gold||0) < totalEscrow) return { ok:false, reason:'Need ' + totalEscrow.toLocaleString() + ' gold to escrow' };
+    if(!window.balCanAfford(totalEscrow, 'gold')){
+      return { ok:false, reason: window.balKnown('gold')
+        ? ('Need ' + totalEscrow.toLocaleString() + ' gold to escrow')
+        : window.balShortfall(totalEscrow, 'gold') };
+    }
 
     // Per-character cap on open buy offers (keep it bounded)
     var offers = loadOffers();
@@ -1286,7 +1297,11 @@
       +     '<div class="bm-stat-row">'
       +       '<div class="bm-stat"><div class="bm-lbl">PRICE EACH</div><div class="bm-val">' + atPrice.toLocaleString() + 'g</div></div>'
       +       '<div class="bm-stat"><div class="bm-lbl">AVAILABLE AT THIS PRICE</div><div class="bm-val">' + available.toLocaleString() + '</div></div>'
-      +       '<div class="bm-stat"><div class="bm-lbl">YOUR GOLD</div><div class="bm-val">' + (window.G.gold||0).toLocaleString() + 'g</div></div>'
+      /* The buyer's own purse, on the sheet where they commit gold. A pending
+         balance renders as the dash — "0g" here would be a claim, and on this
+         particular sheet a badly wrong one. */
+      +       '<div class="bm-stat"><div class="bm-lbl">YOUR GOLD</div><div class="bm-val">'
+      +         window.balMarkup('gold') + (window.balKnown('gold') ? 'g' : '') + '</div></div>'
       +     '</div>'
       +     '<div class="bm-qty-row">'
       +       '<label>Quantity</label>'
@@ -1337,7 +1352,7 @@
       var residual = qWanted - fillNow;
       var escrow = residual * atPrice;
       var totalGold = spend + (offerOn() ? escrow : 0);
-      var canAfford = (window.G.gold||0) >= totalGold;
+      var canAfford = window.balCanAfford(totalGold, 'gold');
       var hasResidual = residual > 0;
       var lines = [];
       if(fillNow > 0){

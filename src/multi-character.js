@@ -144,8 +144,9 @@
     var hasPremium = profile.entitlements && profile.entitlements.hearthHall;
     var freeFromPremium = hasPremium && slotId >= 1 && slotId <= 3;
     if(!freeFromPremium){
-      if((window.G && (window.G.gems||0) < cost)){
-        return { ok:false, reason:'Need ' + cost + ' gems' };
+      if(!window.balCanAfford(cost, 'gems')){
+        return { ok:false, reason: window.balKnown('gems') ? ('Need ' + cost + ' gems')
+          : window.balShortfall(cost, 'gems') };
       }
       window.G.gems -= cost;
     }

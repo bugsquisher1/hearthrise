@@ -310,7 +310,10 @@
         return { ok: false, reason: 'Need a ' + keyName };
       }
     }
-    if(d.cost.gold && (window.G.gold || 0) < d.cost.gold) return { ok: false, reason: 'Need ' + d.cost.gold + ' gold' };
+    if(d.cost.gold && !window.balCanAfford(d.cost.gold, 'gold')){
+      return { ok: false, reason: window.balKnown('gold') ? ('Need ' + d.cost.gold + ' gold')
+        : window.balShortfall(d.cost.gold, 'gold') };
+    }
     if(d.cost.hearth_token && (window.G.inventory.hearth_token || 0) < d.cost.hearth_token) {
       return { ok: false, reason: 'Need ' + d.cost.hearth_token + ' Hearth Tokens' };
     }
@@ -473,7 +476,7 @@
                 // for level/cost reasons. Auto-run still blocks on cooldown.
                 var hasManual = !!(d.phases || (window.SCAVENGER_CONFIGS && window.SCAVENGER_CONFIGS[id]));
                 var lvOk = (typeof window.getCombatLevel === 'function') ? (window.getCombatLevel() >= d.reqLv) : true;
-                var goldOk = !d.cost.gold || (window.G && (window.G.gold||0) >= d.cost.gold);
+                var goldOk = !d.cost.gold || window.balCanAfford(d.cost.gold, 'gold');
                 var tokenOk = !d.cost.hearth_token || (window.G && (window.G.inventory.hearth_token||0) >= d.cost.hearth_token);
                 var keyOk = !d.cost.key || (window.G && (window.G.inventory[d.cost.key]||0) >= 1);
                 var manualOk = hasManual && lvOk && goldOk && tokenOk && keyOk;

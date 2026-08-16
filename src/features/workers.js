@@ -65,7 +65,11 @@
       return null;
     }
     var cost = hireCost();
-    if ((G.gold || 0) < cost) { if (window.notify) notify('Need ' + cost.toLocaleString() + ' gold to hire', 'kill'); return null; }
+    if (!window.balCanAfford(cost, 'gold')) {
+      if (window.notify) notify(window.balKnown('gold') ? ('Need ' + cost.toLocaleString() + ' gold to hire')
+        : window.balShortfall(cost, 'gold'), 'kill');
+      return null;
+    }
     G.gold -= cost;
     var used = G.workers.hired.map(function (w) { return w.name; });
     var pool = NAMES.filter(function (n) { return used.indexOf(n) < 0; });

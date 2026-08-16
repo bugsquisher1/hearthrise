@@ -156,13 +156,31 @@
     return { ok: false, room: room, reason: 'Build the ' + roomName + ' at your homestead first' };
   }
 
-  function costAffordable(cost) {
+  /* ONE HOLDING READ for this whole file — `k === 'gold' ? (G.gold || 0) : …`
+     used to appear three times, and three copies is three chances to teach only
+     two of them that a balance can be UNKNOWN.
+
+     UNKNOWN is reported as `known:false` with `have:-1`, which can never
+     satisfy a positive requirement — FAIL-CLOSED, so a Build button cannot
+     light up against a balance nobody has read. Every renderer below checks
+     `known` before printing the figure, because `(0).toLocaleString()` in a
+     have/need line is a claim about the player's purse, not a placeholder. */
+  function heldOf(k) {
     var G = G_();
+    if (k === 'gold' || k === 'gems') {
+      var known = (typeof window.balKnown === 'function') ? window.balKnown(k) : typeof G[k] === 'number';
+      var n = (typeof window.balOr === 'function') ? window.balOr(k, -1) : (typeof G[k] === 'number' ? G[k] : -1);
+      return { have: known ? n : -1, known: known };
+    }
+    return { have: ((G.inventory || {})[k] || 0), known: true };
+  }
+
+  function costAffordable(cost) {
     var missing = [];
     Object.keys(cost || {}).forEach(function (k) {
       var need = cost[k];
-      var have = k === 'gold' ? (G.gold || 0) : ((G.inventory || {})[k] || 0);
-      if (have < need) missing.push({ id: k, need: need, have: have });
+      var h = heldOf(k);
+      if (!h.known || h.have < need) missing.push({ id: k, need: need, have: h.have, known: h.known });
     });
     return missing;
   }
@@ -176,6 +194,7 @@
     if (missing.length) {
       if (window.notify) notify('Missing: ' + missing.map(function (m) {
         var n = (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id;
+        if (!m.known) return m.id + ' balance not loaded yet';
         return (m.id === 'gold' ? m.need + ' gold' : n + ' ×' + m.need);
       }).join(', '), 'kill');
       return false;
@@ -194,12 +213,12 @@
 
   // ---------- UI: property card injected at the top of the House panel ----------
   function fmtCostRow(cost) {
-    var G = G_();
     return Object.keys(cost).map(function (k) {
       var need = cost[k];
-      var have = k === 'gold' ? (G.gold || 0) : ((G.inventory || {})[k] || 0);
+      var h = heldOf(k);
+      var have = h.have;
       var name = k === 'gold' ? 'Gold' : ((window.ITEMS && window.ITEMS[k] && window.ITEMS[k].n) || k);
-      var ok = have >= need;
+      var ok = h.known && have >= need;
       /* b217: this rendered as "✓ Gold 400/400 · Normal Log 0/30" — a raw
          text checkmark, a middle dot standing in for "not met", and three
          requirements run together in one sentence. A requirement list is a
@@ -211,7 +230,9 @@
       return '<span class="hh-req' + (ok ? ' is-met' : '') + '">' +
         '<span class="hh-req-art">' + art + '</span>' +
         '<span class="hh-req-name">' + name + '</span>' +
-        '<b>' + Math.min(have, need) + ' / ' + need + '</b></span>';
+        '<b>' + (h.known ? Math.min(have, need)
+          : '<span class="bal-pending" role="status" title="Waiting for the server">—</span>')
+        + ' / ' + need + '</b></span>';
     }).join('');
   }
 
@@ -372,12 +393,13 @@
   }
 
   function costTriples(cost) {
-    var G = G_();
     return Object.keys(cost || {}).map(function (k) {
+      var h = heldOf(k);
       return {
         id: k,
         need: cost[k],
-        have: k === 'gold' ? (G.gold || 0) : ((G.inventory || {})[k] || 0),
+        have: h.have,
+        known: h.known,
         label: k === 'gold' ? 'Gold' : ((window.ITEMS && window.ITEMS[k] && window.ITEMS[k].n) || k)
       };
     });
@@ -754,7 +776,7 @@
             (row.reserved ? '<span class="hh-rung-resv">' + esc(row.reserved) + '</span>' : ''),
           // An owned rung shows no price — you already paid it.
           costs: row.owned ? null : row.cost.map(function (c) {
-            return { have: c.have, need: c.need, label: c.label };
+            return { have: c.have, known: c.known, need: c.need, label: c.label };
           }),
           why: row.gateReason || null,
           locked: row.locked,
@@ -774,6 +796,7 @@
       } else if (!d.next.affordable) {
         var short = d.next.missing.map(function (m) {
           var n = (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id;
+          if (m.known === false) return m.id + ' balance not loaded yet';
           return m.id === 'gold' ? ((m.need - m.have) + ' gold') : (n + ' ×' + (m.need - m.have));
         }).join(', ');
         // b213's lesson as a rule: name what is short, never "not enough".
@@ -869,8 +892,9 @@
       if (d.next && !d.next.gated) {
         var rung = d.ladder[d.next.level - 1];
         costLine = '<span class="hh-room-cost">' + rung.cost.map(function (c) {
-          return '<span class="hh-cost ' + (c.have >= c.need ? 'is-met' : 'is-short') + '" title="' +
-            esc(c.need.toLocaleString() + ' ' + c.label + ' — you have ' + c.have.toLocaleString()) + '">' +
+          return '<span class="hh-cost ' + (c.known === false ? '' : (c.have >= c.need ? 'is-met' : 'is-short')) + '" title="' +
+            esc(c.need.toLocaleString() + ' ' + c.label + ' — you have '
+              + (c.known === false ? 'no figure yet (waiting for the server)' : c.have.toLocaleString())) + '">' +
             '<b>' + esc(c.need.toLocaleString()) + '</b> ' + esc(c.label) + '</span>';
         }).join('<i aria-hidden="true">&middot;</i>') + '</span>';
       }

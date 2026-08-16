@@ -721,8 +721,15 @@
     if (id === 'gold') return 'Gold';
     return (window.ITEMS && window.ITEMS[id] && window.ITEMS[id].n) || String(id).replace(/_/g, ' ');
   }
+  /* Returns NULL for a balance the client has not been told, rather than 0.
+     "0/400 Gold" is a claim about the player's purse; the caller renders the
+     pending dash instead, because a cost line that says you have nothing is
+     the single most alarming way to spell "still loading". */
   function itemHeld(G, id) {
-    if (id === 'gold') return G.gold || 0;
+    if (id === 'gold' || id === 'gems') {
+      return (typeof window.balNum === 'function') ? window.balNum(id)
+        : (typeof G[id] === 'number' ? G[id] : null);
+    }
     return (G.inventory && G.inventory[id]) || 0;
   }
 
@@ -955,6 +962,12 @@
         try {
           costHtml = Object.keys(hsNext.cost || {}).map(function (k) {
             var need = hsNext.cost[k], have = itemHeld(G, k);
+            // UNKNOWN reads as pending, not as a shortfall — and it is NOT
+            // marked `short`, because we do not know that it is.
+            if (have === null) {
+              return '<span><i class="bal-pending" role="status" title="Waiting for the server">—</i>/'
+                + num(need) + ' ' + esc(itemName(k)) + '</span>';
+            }
             // Clamp to the requirement: "1,000/400 Gold" reads as a shortfall
             // at a glance even though it is a surplus. Same as the House panel.
             return '<span><i class="' + (have >= need ? '' : 'short') + '">' +

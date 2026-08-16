@@ -222,10 +222,28 @@ export const SERVER_OF_RECORD = Object.freeze([
      owner (Art Director) and it is the last thing standing between the gold
      seam and the record.
 
+     ✅ b356 — THAT BLOCKER IS CLEARED. `src/net/balance.js` is the accessor and
+        the whole client read side goes through it: every display renders a
+        pending em dash rather than a number, every affordability check is
+        FAIL-CLOSED on UNKNOWN, and no code path does arithmetic on a balance
+        it has not been told. Measured with both fields deleted from a live G,
+        at 1440×900 and 922×423, in hearthlight AND cozy-light: seven render
+        paths, zero throws, zero page errors, zero "NaN"/"undefined"/"0" in any
+        balance slot, all ten shop Buy controls correctly disabled.
+
+        WHAT REMAINS BEFORE THE TWO ENTRIES BELOW ARE UNCOMMENTED is no longer
+        a client-rendering problem. It is item (5) of the operational list in
+        docs/design/HANDOFF-server-authority.md: Security's look at the 33
+        deferred-site behaviours in src/net/gold-sites.js, each of which is
+        already declared by `flipBehaviourOf`. Arming these entries is that
+        commit's one-line change; this file and the screens are ready for it.
+
      `B353-3` in src/features/smoke-test.js is the guard that makes this
      mechanical instead of remembered: every field on SERVER_OF_RECORD must
-     survive being UNKNOWN through a real render. Add either entry below without
-     the accessor and it goes red, by name, before a player sees it.
+     survive being UNKNOWN through a real render. `B353-3b` beside it runs the
+     same sweep over the CANDIDATES — gold and gems — so the flip is proven in
+     CI before it is proven in production, and it additionally asserts the
+     pending state is honest (no "0", a real glyph, a labelled element).
 
   Object.freeze({ field: 'gold', from: 'gold', since: 'b3xx',
     decode: decodeBalance, fingerprint: fingerprintBalance }),

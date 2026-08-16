@@ -402,7 +402,7 @@
     amount = Math.floor(+amount || 0);
     var G = window.G || {};
     if (amount <= 0) return false;
-    if ((G.gold || 0) < amount) { notify('Not enough gold', 'kill'); return false; }
+    if (!window.balCanAfford(amount, 'gold')) { notify(window.balShortfall(amount, 'gold'), 'kill'); return false; }
     if (!requireOnline() || !_myClan) return false;
     var res = await fetch(cfg().url + '/rest/v1/rpc/clan_contribute', {
       method: 'POST', headers: headers(true),

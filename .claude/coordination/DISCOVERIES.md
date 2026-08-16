@@ -4,6 +4,38 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-16 · Art Director · P1 · A `<span>` INSIDE A NUMERAL IS RESTYLED BY THIS CODEBASE, AND `|| 0` IS A FULL-BALANCE BUG WITH THE SIGN HIDDEN
+
+**Three findings from the UNKNOWN-balance sweep (b356), all measured, all of which will bite the next agent.**
+
+**1. NEVER WRAP A RENDERED NUMBER IN A NEW ELEMENT.** `src/styles/*` ship several
+`… span { font-size: … }` and `… span { color: … }` readability blankets. Adding
+`<span class="bal-known">1,234,567</span>` inside an existing `<b>` — purely for DOM symmetry, no
+styling of its own — dropped Home's user-card gold figure from **21.5px to 14.5px** and changed its
+colour in cozy-light. The blankets target the tag, so the wrapper is the thing that gets styled.
+**AFFECTED:** any renderer that thinks about wrapping a value for a hook. **ACTION:** put the class
+on the element that already holds the number (`paintBalance` does), or emit bare text. If you must
+introduce an element, it needs `font-size: inherit` and a colour at a specificity that beats an
+id-anchored `!important` — see §16 of `art-direction.css` for the measured numbers.
+
+**2. A STATE CLASS NEEDS MORE THAN `!important` HERE — READ THE MATCHED-RULE LIST.** Two live rules
+are `!important` **and** id-anchored (`body[data-theme="hearthlight"] #top-gems`,
+`body[data-theme="hearthlight"] #panel-house :not(…)`). A new `.my-state { color: X !important }`
+loses to both. The reliable way to find out *which* rule is winning is to walk
+`document.styleSheets` and `el.matches(sel)` on the live element — guessing from source cost an hour.
+
+**3. `(G.value || 0)` AS A BASELINE IS A FULL-VALUE BUG, NOT A ROUNDING ONE.** Three independent
+copies of "record today's starting gold" used `G.gold || 0`. Once `gold` can be UNKNOWN the baseline
+is recorded as **zero**, and the first server envelope's *entire balance* is then reported as
+"earned today" — auto-completing the *Earn 500 gold* daily and inflating two Home surfaces.
+**AFFECTED:** every watermark/delta pattern, not just gold — inventory, skill xp and hearth tokens
+follow the same field onto `SERVER_OF_RECORD`. **ACTION:** a baseline you cannot measure is not
+taken. Refuse and re-attempt on the next tick; do not substitute a zero.
+
+**AND A NOTE ON CENSUSES:** the handoff's "359 unguarded `G.gold` reads" counted `smoke-test.js`,
+which owns 330 of the 501 occurrences in `src/**`. The production surface was 171. Re-derive a
+census before you plan against it.
+
 ### 2026-08-15 · Systems Engineer · P0 (integration) · A DERIVED SERVER LIST WIDENS SILENTLY, AND THE CLIENT HALF OF THE CONTRACT DOES NOT COME WITH IT
 
 **Discovery:** `supabase/functions/hr-accrue/set-activity.js` defines

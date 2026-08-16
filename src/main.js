@@ -141,6 +141,15 @@ import './net/character.js?v=353';
 // the switch is on and this module is absent, rather than silently reading a
 // moved field back out of the save blob. B340-7 asserts the pairing.
 import './net/record.js?v=353';
+// The READ side of a server-owned balance. AFTER record.js, which it imports:
+// once `gold`/`gems` are on SERVER_OF_RECORD, `recordValue` is the only thing
+// entitled to say a balance is known, and this module is the single accessor
+// every display and every affordability check in the client goes through so
+// that UNKNOWN renders as a pending state instead of crashing (the measurement
+// that held the flip back — see the b353 block in src/net/record.js).
+// It is NOT behind the kill switch: it is a read shape, correct in both
+// positions, and today it answers exactly what the raw read answered.
+import './net/balance.js?v=353';
 // b347 — the ACTIVITY intent (`set_activity`). AFTER accrue.js: it imports the
 // same kill switch, the same slot resolver, the same endpoint derivation AND the
 // envelope/receipt writers, so the switch verb and the accrue verb cannot form

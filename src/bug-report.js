@@ -101,7 +101,13 @@ function gameStateSnapshot() {
     playerName: G.playerName || null,
     activeTab: tab,
     totalLevel: (typeof window.getTotalLevel === 'function') ? window.getTotalLevel() : (G.totalLevel || 0),
-    gold: G.gold || 0,
+    /* A bug report must say WHICH state the client was in. `G.gold || 0` would
+       report "0 gold" for a player whose balance simply had not arrived — the
+       single most misleading line this payload could carry, because it turns a
+       transport problem into what looks like a lost fortune. */
+    gold: (window.HearthriseBalance && typeof window.HearthriseBalance.balanceState === 'function')
+      ? window.HearthriseBalance.balanceState(G).gold
+      : (G.gold === undefined ? 'UNKNOWN:absent' : (G.gold || 0)),
     activity: activity,
     skillLevels,
     inventoryCount: inv,

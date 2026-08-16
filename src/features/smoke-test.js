@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=357' directly.
+// modularised, will import { G } from '../state/game.js?v=358' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=357';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=357';
+import { on, snapshot } from '../net/events.js?v=358';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=358';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=357';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=358';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -8817,14 +8817,19 @@ const TESTS = [
   // (hr_lb_boards / hr_lb_skills). A skill renamed on one side and not the
   // other produces a board that silently returns nothing, so both sides assert
   // the same numbers: 6 + 15 = 21.
-  () => tryRun('b222: the board namespace matches the migration — 21 boards, 15 skills', () => {
+  () => tryRun('b222: the board namespace matches the migration — 23 boards, 17 skills', () => {
     const LB = window.HearthriseLeaderboards;
     const ids = Object.keys(LB.BOARDS);
-    assert(ids.length === 21, 'expected 21 boards, got ' + ids.length);
+    /* b357: 21 → 23. Runecrafting and Stonemason are skills, and every skill
+       gets a board — the client half is here, the server half is the staged
+       migration `2026-08-17-leaderboard-skills.sql` (which asserts 23 from its
+       own side). The equality below against SKILLS_DEF is what makes the two
+       halves impossible to ship apart. */
+    assert(ids.length === 23, 'expected 23 boards, got ' + ids.length);
 
     const skillBoards = ids.filter((i) => i.indexOf('skill:') === 0).map((i) => i.slice(6)).sort();
     const defs = Object.keys(window.SKILLS_DEF).sort();
-    assert(skillBoards.length === 15, 'expected 15 skill boards, got ' + skillBoards.length);
+    assert(skillBoards.length === 17, 'expected 17 skill boards, got ' + skillBoards.length);
     assert(skillBoards.join(',') === defs.join(','),
       'skill boards must be exactly SKILLS_DEF — got ' + skillBoards.join(',') + ' vs ' + defs.join(','));
     assert(ids.indexOf('skill:bountyHunter') >= 0, 'the camelCase skill id must survive');
@@ -8853,7 +8858,7 @@ const TESTS = [
 
     const fullCats = LB._categoriesFor('full').map((c) => c.id);
     assert(fullCats.length === 5, 'migrated, all five categories are offered');
-    assert(LB._boardsIn('skills', 'full').length === 15, 'migrated, all 15 skill boards appear');
+    assert(LB._boardsIn('skills', 'full').length === 17, 'migrated, all 17 skill boards appear');
 
     // A selection is always resolved onto a board that exists — this is what
     // stops a player who picked "Mining" pre-migration from staring at a board
@@ -9088,14 +9093,29 @@ const TESTS = [
       assert(res.uncategorized.length === 0, skill + ' stranded a recipe: ' + res.uncategorized.map((r) => r.id).join(','));
       return (res.groups.find((g) => g.key === 'castle') || { recipes: [] }).recipes;
     };
-    const crafting = laneOf('crafting'), smithing = laneOf('smithing'), cooking = laneOf('cooking');
-    assert(crafting.length === 2, 'crafting Castle Stores should hold 2, got ' + crafting.length);
+    /* b357 — FOUR SKILLS, FIVE GOODS. Stonemason joins the castle lane and
+       ADOPTS `craft_keystone` from Crafting (consumable-economy.md §8.1: a
+       keystone is the most masonic object in architecture, and the row had the
+       same story as the seven `fletch_*` rows — written where a skill existed,
+       waiting for the skill that should own it). The recipe id, inputs, xp and
+       req are unchanged, so clan-seat.js's material route still resolves.
+       `ashlar` is the new personal capstone good; it sits beside timber_beam
+       (Crafting) and iron_fitting (Smithing) so the artisan pillars contribute
+       one material each to the property ladder. */
+    const crafting = laneOf('crafting'), smithing = laneOf('smithing'),
+          cooking = laneOf('cooking'), stonemason = laneOf('stonemason');
+    assert(crafting.length === 1, 'crafting Castle Stores should hold 1, got ' + crafting.length);
     assert(smithing.length === 1, 'smithing Castle Stores should hold 1, got ' + smithing.length);
     assert(cooking.length === 1, 'cooking Castle Stores should hold 1, got ' + cooking.length);
-    const ids = crafting.concat(smithing, cooking).map((r) => r.output).sort().join(',');
-    assert(ids === 'field_ration,iron_fitting,keystone,timber_beam', 'lane contents drifted: ' + ids);
+    assert(stonemason.length === 2, 'stonemason Castle Stores should hold 2, got ' + stonemason.length);
+    const ids = crafting.concat(smithing, cooking, stonemason).map((r) => r.output).sort().join(',');
+    assert(ids === 'ashlar,field_ration,iron_fitting,keystone,timber_beam', 'lane contents drifted: ' + ids);
+    // Runecrafting deliberately has NO castle lane — it makes consumables, not
+    // masonry — so its category list must not declare one.
+    assert(!window.ARTISAN_CATEGORIES.runecrafting.some((d) => d.key === 'castle'),
+      'runecrafting declares a Castle Stores lane it can never fill — an empty tab is a dead end');
     // Every declared lane carries a label the panel can print.
-    ['smithing', 'crafting', 'cooking'].forEach((s) => {
+    ['smithing', 'crafting', 'cooking', 'stonemason'].forEach((s) => {
       const def = window.ARTISAN_CATEGORIES[s].find((d) => d.key === 'castle');
       assert(def && def.label === 'Castle Stores', s + ' is missing the Castle Stores category definition');
     });
@@ -9122,7 +9142,10 @@ const TESTS = [
       ['crafting', 'craft_timber_beam',  210,  300,  0.43],
       ['smithing', 'smith_iron_fitting', 360,  480,  0.33],
       ['cooking',  'cook_field_ration',  294,  360,  0.22],
-      ['crafting', 'craft_keystone',     2770, 3000, 0.08],
+      /* b357: the keystone's BENCH moved to Stonemason; its cost, output and
+         margin did not. Adopting a recipe verbatim is exactly the change that
+         should leave this assertion alone except for the skill key. */
+      ['stonemason', 'craft_keystone',   2770, 3000, 0.08],
     ];
     cases.forEach(([skill, id, wantCost, wantOut, wantMargin]) => {
       const rec = find(skill, id);
@@ -9139,7 +9162,15 @@ const TESTS = [
     assert(find('crafting', 'craft_timber_beam').req === 25, 'Timber Beam must gate at crafting 25');
     assert(find('smithing', 'smith_iron_fitting').req === 25, 'Iron Fitting must gate at smithing 25');
     assert(find('cooking', 'cook_field_ration').req === 22, 'Field Ration must gate at cooking 22');
-    assert(find('crafting', 'craft_keystone').req === 60, 'Keystone must gate at crafting 60');
+    assert(find('stonemason', 'craft_keystone').req === 60, 'Keystone must gate at stonemason 60');
+    /* b357: and it must be gone from Crafting. An adoption that LEFT the row
+       behind would put one recipe id on two benches, which `indexArtisanRecipes`
+       resolves by "first id wins" — i.e. silently, by object key order. */
+    assert(!find('crafting', 'craft_keystone'),
+      'craft_keystone was adopted by Stonemason and must not remain on the Crafting bench');
+    /* b357: ashlar, the personal capstone good, gates where the property tier
+       that needs it becomes reachable. */
+    assert(find('stonemason', 'cut_ashlar').req === 45, 'Ashlar must gate at stonemason 45');
     assert(find('cooking', 'cook_field_ration').outputQty === 4, 'Field Rations are made four at a time');
   }),
 
@@ -9661,7 +9692,13 @@ const TESTS = [
     ids.forEach((id) => assert(ROUTES.indexOf(R[id].route) >= 0, id + ' has an unknown route: ' + R[id].route));
     // The four `recipe` routes are the ones that are LIVE today — they must
     // really appear as inputs on the recipe they name.
-    const allRecipes = ['crafting', 'smithing', 'cooking'].reduce((a, s) => a.concat(window.ARTISAN_RECIPES[s]), []);
+    /* b357: search EVERY bench rather than three named ones. `craft_keystone`
+       moved to Stonemason and this list would have reported the route as
+       broken when only its bench had changed — a hardcoded skill list turning
+       a relocation into a false red is precisely the drift this suite exists
+       to catch, so the list is now derived. */
+    const allRecipes = Object.keys(window.ARTISAN_RECIPES)
+      .reduce((a, s) => a.concat(window.ARTISAN_RECIPES[s] || []), []);
     const recipeRoutes = ids.filter((id) => R[id].route === 'recipe');
     assert(recipeRoutes.length === 4, 'exactly four spoils should be live recipe inputs, got ' + recipeRoutes.length);
     recipeRoutes.forEach((id) => {
@@ -15399,8 +15436,27 @@ const TESTS = [
        the same anti-faucet inequality the arrow prices are. The contract the
        test is actually protecting is "no rung above tier 1 is free", which is
        what this asserts. */
+    /* `> 0`, not `>= 1`. b343 wrote this as `>= 1` when arrows were the only
+       ammo in the game and one arrow per shot was the only rate imaginable.
+       b357's whetstones burn at 0.02 — one honing per fifty swings — which is
+       the R4 CHARGE ruling: a sharpening stone cannot be a timed buff, because
+       the away ruling FREEZES buffs (they neither pay nor tick down), so a
+       duration-based whetstone would pay nothing overnight in a game whose
+       pitch is that it plays while you are away. A fractional burn is still a
+       burn, and the property this line actually cares about — "an ammo rung
+       above tier 1 is SPENT rather than permanent" — is `> 0`. */
     assert(tiered.filter(([, it]) => it.tier >= 2).every(([, it]) => it.ammoPerShot > 0),
       'every ammo rung above tier 1 must actually be spent');
+    /* And the fractional case is DELIBERATE rather than a typo'd 1: a burn
+       under 1 must divide evenly enough that the deterministic carry in
+       src/core/ammo.js pays out on a whole number of swings. 0.02 → 50. */
+    tiered.filter(([, it]) => it.ammoPerShot > 0 && it.ammoPerShot < 1).forEach(([id, it]) => {
+      const swings = 1 / it.ammoPerShot;
+      assert(Math.abs(swings - Math.round(swings)) < 1e-9,
+        'fractional ammo "' + id + '" burns ' + it.ammoPerShot + '/swing, which is 1 per '
+        + swings + ' swings — a non-integer period makes the projection quote a duration '
+        + 'the carry cannot honour');
+    });
 
     /* Prices climb with the ladder — a cheaper better arrow is a free upgrade.
        b356: PER LANE, not across the whole slot. The ammo slot now holds three
@@ -15424,6 +15480,574 @@ const TESTS = [
           + sorted[i - 1][0] + ' (' + sorted[i - 1][1].v + ')');
       }
     });
+    /* ── PRICES CLIMB WITHIN A LADDER, NOT ACROSS THE SLOT (b357) ──────────
+       b343 sorted every ammo item by tier and demanded a monotone `v`, which
+       was exactly right while ARROWS WERE THE ONLY AMMO. There are now three
+       ladders in one slot — arrows (Ranged), runes (Magic), whetstones
+       (Attack) — and comparing across them is meaningless, because they burn
+       at wildly different RATES: an arrow goes at 1 per swing and a whetstone
+       at 0.02, so a whetstone covers fifty swings and is correctly ~30-50x the
+       price of the arrow at its own tier.
+
+       R7 states the property that actually matters and it is NOT item value:
+       "the gold-per-hour cost of being fully supplied is the same for all
+       three styles". Item value is an OUTPUT of that constraint, bounded by
+       the anti-faucet rule, not a number anybody chose. So the ladders are
+       grouped by the skill that wields them and each is checked on its own —
+       and the cross-ladder property is asserted separately, below, as the
+       thing it really is. */
+    const ladders = {};
+    tiered.forEach((e) => {
+      const k = e[1].reqSkill || 'unassigned';
+      (ladders[k] = ladders[k] || []).push(e);
+    });
+    assert(Object.keys(ladders).length >= 2,
+      'the ammo slot should hold more than one style ladder — got ' + Object.keys(ladders).join(','));
+    Object.keys(ladders).forEach((skill) => {
+      assert(skill !== 'unassigned',
+        'every ammo rung must declare the reqSkill whose ladder it belongs to — '
+        + 'an unassigned rung cannot be price-checked against anything');
+      const sorted = ladders[skill].slice().sort((a, b) => a[1].tier - b[1].tier);
+      for (let i = 1; i < sorted.length; i++) {
+        assert(sorted[i][1].v >= sorted[i - 1][1].v,
+          'ammo value must not go DOWN with tier inside the ' + skill + ' ladder: '
+          + sorted[i][0] + ' (' + sorted[i][1].v + ') <= ' + sorted[i - 1][0] + ' (' + sorted[i - 1][1].v + ')');
+      }
+    });
+  }),
+
+  /* ── R7, THE CROSS-LADDER IDENTITY (b357) ────────────────────────────────
+     consumable-economy.md R7: "The three ladders carry the SAME stat curve —
+     2/3/5/8/11/14/18 — because they are the same slot." One guard covering all
+     of them at once, so if a future item breaks the curve the failure NAMES
+     which one rather than leaving three ladders to be diffed by hand.
+
+     The doc asks for this guard explicitly (§15 coverage item 8), and it is
+     the only structural defence against the slow version of the failure: one
+     ladder getting a quiet +1 somewhere and one style being permanently ahead
+     without anyone deciding that it should be. */
+  () => tryRun('b357: arrows, runes and whetstones carry ONE stat curve (R7)', () => {
+    const ITEMS = window.ITEMS || {};
+    const CURVE = [2, 3, 5, 8, 11, 14, 18];
+    /* Each ladder pays the ONE stat its own style reads. A rune carrying
+       `rangeStrB` would be a stat nothing that equips it can use. */
+    const STAT = { ranged: 'rangeStrB', magic: 'magicStrB', attack: 'strB' };
+    const byLadder = {};
+    Object.entries(ITEMS).forEach(([id, it]) => {
+      if (!it || it.slot !== 'ammo' || !it.tier || !STAT[it.reqSkill]) return;
+      (byLadder[it.reqSkill] = byLadder[it.reqSkill] || []).push([id, it]);
+    });
+    const skills = Object.keys(byLadder);
+    assert(skills.length === 3,
+      'expected three ammo ladders (ranged/magic/attack), got: ' + skills.join(',') + '. '
+      + 'R7 is a claim about all three being the same slot — with fewer it asserts nothing');
+    skills.forEach((skill) => {
+      const stat = STAT[skill];
+      byLadder[skill].forEach(([id, it]) => {
+        const want = CURVE[it.tier - 1];
+        assert(want !== undefined, id + ' is at tier ' + it.tier + ', outside the 7-rung curve');
+        assert(it[stat] === want,
+          'R7: ' + id + ' (tier ' + it.tier + ', ' + skill + ') carries ' + stat + '=' + it[stat]
+          + ' but the shared curve says ' + want + ' — one slot, one curve, or a style is quietly ahead');
+        /* NO CROSS-STYLE STAT LEAK (§1.3 / coverage item 9). `equipmentStats`
+           sums `critB` from EVERY slot regardless of the active style, so a
+           melee player equipping a crit arrow banks it for free. The shipped
+           arrows already leak 0.01-0.03 that way and that is raised as a live
+           bug, not fixed here — but the two ladders b357 adds must not widen
+           it, so they are held to the strict rule: the style's own damage
+           stat, and nothing else. */
+        if (skill !== 'ranged') {
+          ['critB', 'spdB', 'atkB', 'defB'].forEach((leak) => {
+            assert(!it[leak],
+              'R7/§1.3: ' + id + ' carries ' + leak + ' — ammo-slot stats are summed across ALL '
+              + 'styles, so a stat its own style does not use is a free bonus for every other one');
+          });
+        }
+      });
+    });
+    /* The three ladders must actually be the same LENGTH, or "same curve" is
+       true of a ladder that simply stops early. */
+    const lens = skills.map((s) => byLadder[s].length);
+    assert(lens.every((n) => n === lens[0]),
+      'the three ammo ladders have different rung counts (' + skills.map((s, i) => s + ':' + lens[i]).join(', ')
+      + ') — a shorter ladder is a style with no top end, whatever curve it carries');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     b357 — RUNECRAFTING + STONEMASON, PLAYED.
+
+     The suite's rule is that a new feature ships an E2E that "exercises the
+     feature the way a player would". For an artisan skill that is not "the
+     recipe row exists" — it is: stand at the bench with an empty bag, work the
+     chain from its root, and end up holding the thing the chain is FOR. So
+     these two drive `simulateArtisanSpan` (the real away/accrual engine, the
+     one the server runs) once per rung, in order, feeding each rung's output
+     to the next, and assert on the bag at every step.
+
+     Starting from an EMPTY BAG is the load-bearing part. It is what proves the
+     §8.4 Quarry ruling actually closes the loop: if stone had no faucet, step
+     one would produce nothing and every later assertion would be vacuous.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRunClientAuthoritative('b357 E2E: a Runecrafter starts with nothing, quarries stone, and ends up holding cast-ready runes', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    const realNotify = window.notify;
+    try {
+      window.notify = function () {};
+      const recipes = C.artisanRecipes();
+
+      /* Run ONE rung to completion for `actions` actions and report the bag. */
+      const work = (recipeId, actions) => {
+        const entry = C.artisanRecipe(recipeId);
+        assert(entry, 'recipe does not resolve: ' + recipeId);
+        G.activeMonster = null;
+        G.activeSkill = entry.skill;
+        G.skillTargetId = recipeId;
+        G.buffs = [];
+        G.toolCarry = {};
+        const stepMs = C.artisanSim.artisanIntervalMs(G, entry.skill, entry.recipe,
+          { items: window.ITEMS, bonus: window.getBonus });
+        return C.artisanSim.simulateArtisanSpan(G, {
+          away: true, fromMs: 0, toMs: actions * stepMs,
+          rng: C.rng, items: window.ITEMS, recipes,
+          bonus: window.getBonus,
+          fx: {
+            addItem: (id, q) => window.addItem(id, q),
+            removeItem: (id, q) => window.removeItem(id, q),
+            addXp: (sk, amt) => window.addXp(sk, amt),
+            updateDaily: () => {}, updateQuest: () => {},
+          },
+        });
+      };
+      const have = (id) => (G.inventory && G.inventory[id]) || 0;
+
+      // A brand-new mason/runecrafter: no stone, no blanks, no runes, no levels.
+      G.inventory = {};
+      G.equipment = Object.assign({}, G.equipment, { ammo: null });
+      G.unlockedRecipes = {};
+      G.stats = Object.assign({}, G.stats);
+      G.skills = Object.assign({}, G.skills, { stonemason: 0, runecrafting: 0 });
+      C.reseed(0xB0A57E);
+
+      /* ── 1. THE QUARRY. Input-free, so it works with an empty bag at level 1
+         — which IS the §8.4 ruling, executed rather than asserted in a comment.
+         A mining by-product (the rejected P1) would produce ZERO here. */
+      const q = work('quarry_rubble', 200);
+      assert(q.stoppedBy === null,
+        'the quarry stopped (' + q.stoppedBy + ') — an input-free rung must never run dry');
+      assert(q.ticks === 200, 'the quarry ran ' + q.ticks + ' of 200 actions');
+      assert(have('rubble') >= 200 * 5,
+        'quarrying 200 times should yield at least 1000 rubble, got ' + have('rubble'));
+      assert((G.skills.stonemason || 0) > 0, 'quarrying must pay Stonemason XP');
+
+      /* ── 2. DRESS. Stone → the common trunk every lane branches off. */
+      const rubbleBefore = have('rubble');
+      const d = work('dress_rubble', 100);
+      assert(d.ticks === 100 && d.stoppedBy === null, 'dressing stopped early: ' + d.stoppedBy);
+      assert(have('dressed_block') === 200, 'expected 200 dressed blocks, got ' + have('dressed_block'));
+      assert(have('rubble') === rubbleBefore - 400, 'dressing must consume 4 rubble per action');
+
+      /* ── 3. CUT BLANKS — the Stonemason → Runecrafting seam. */
+      const b = work('cut_rune_blanks', 50);
+      assert(b.ticks === 50 && b.stoppedBy === null, 'blank-cutting stopped early: ' + b.stoppedBy);
+      assert(have('rune_blank') === 600, 'expected 600 rune blanks, got ' + have('rune_blank'));
+
+      /* ── 4. BIND. The bench CHANGES here — Runecrafting, a different skill,
+         paid out of a different XP pool. `simulateArtisanSpan` derives the
+         bench from the recipe index rather than the pointer, so this is also a
+         check that the new lane is actually indexed. */
+      const rcBefore = G.skills.runecrafting || 0;
+      const r = work('bind_air_runes', 40);
+      assert(r.skill === 'runecrafting',
+        'binding runes must pay the runecrafting bench, got ' + r.skill);
+      assert(r.ticks === 40 && r.stoppedBy === null, 'binding stopped early: ' + r.stoppedBy);
+      assert(have('air_rune') === 40 * 42, 'expected 1680 air runes, got ' + have('air_rune'));
+      assert((G.skills.runecrafting || 0) > rcBefore, 'binding must pay Runecrafting XP');
+      assert(have('rune_blank') === 600 - 40 * 6, 'binding must consume 6 blanks per action');
+
+      /* ── 5. THE THING IT WAS ALL FOR: the rune is equippable ammo that a
+         mage can actually socket. A supply chain that ends in an item nothing
+         can equip is four rungs of busywork. */
+      const rune = window.ITEMS.air_rune;
+      assert(rune && rune.slot === 'ammo' && rune.type === 'ammo',
+        'a bound rune must be ammo-slot equipment');
+      assert(rune.magicStrB > 0, 'a bound rune must pay the magic damage stat');
+      assert(window.EQUIP_SLOTS.indexOf('ammo') >= 0, 'the ammo slot must exist on the doll');
+    } finally { window.notify = realNotify; restoreG(snap); }
+  }),
+
+  () => tryRunClientAuthoritative('b357 E2E: a Stonemason turns quarried stone into whetstones and an Ashlar the castle actually wants', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    const realNotify = window.notify;
+    try {
+      window.notify = function () {};
+      const recipes = C.artisanRecipes();
+      const work = (recipeId, actions) => {
+        const entry = C.artisanRecipe(recipeId);
+        assert(entry, 'recipe does not resolve: ' + recipeId);
+        G.activeSkill = entry.skill; G.skillTargetId = recipeId;
+        G.buffs = []; G.toolCarry = {};
+        const stepMs = C.artisanSim.artisanIntervalMs(G, entry.skill, entry.recipe,
+          { items: window.ITEMS, bonus: window.getBonus });
+        return C.artisanSim.simulateArtisanSpan(G, {
+          away: true, fromMs: 0, toMs: actions * stepMs,
+          rng: C.rng, items: window.ITEMS, recipes, bonus: window.getBonus,
+          fx: {
+            addItem: (id, q) => window.addItem(id, q),
+            removeItem: (id, q) => window.removeItem(id, q),
+            addXp: (sk, amt) => window.addXp(sk, amt),
+            updateDaily: () => {}, updateQuest: () => {},
+          },
+        });
+      };
+      const have = (id) => (G.inventory && G.inventory[id]) || 0;
+
+      G.activeMonster = null;
+      G.inventory = {};
+      G.unlockedRecipes = {};
+      G.skills = Object.assign({}, G.skills, { stonemason: 0 });
+      C.reseed(0x570BE0);
+
+      // Quarry both grades, dress both, then take each branch.
+      work('quarry_rubble', 300);
+      work('quarry_granite', 300);
+      work('dress_rubble', 120);
+      work('dress_granite', 120);
+      assert(have('dressed_block') === 240, 'expected 240 dressed blocks, got ' + have('dressed_block'));
+      assert(have('granite_block') === 240, 'expected 240 granite blocks, got ' + have('granite_block'));
+
+      /* ── THE MELEE BRANCH. Coarse whetstones need nothing but dressed stone,
+         so the very first whetstone is reachable from an empty bag — which is
+         what makes melee's supply loop openable on day one. */
+      const w = work('grind_coarse_whetstone', 20);
+      assert(w.ticks === 20 && w.stoppedBy === null, 'grinding stopped early: ' + w.stoppedBy);
+      assert(have('coarse_whetstone') === 200, 'expected 200 whetstones, got ' + have('coarse_whetstone'));
+      const stone = window.ITEMS.coarse_whetstone;
+      assert(stone.slot === 'ammo' && stone.strB > 0,
+        'a whetstone must be an ammo-slot item that pays melee damage');
+
+      /* ── THE CASTLE BRANCH. `cut_ashlar` also needs an Iron Fitting, which is
+         Smithing's castle good — deliberately, so the property ladder is fed by
+         more than one artisan pillar. Granted here rather than smithed, because
+         this test is about the MASON's half of the chain. */
+      G.inventory.iron_fitting = 10;
+      const a = work('cut_ashlar', 8);
+      assert(a.ticks === 8 && a.stoppedBy === null, 'ashlar cutting stopped early: ' + a.stoppedBy);
+      assert(have('ashlar') === 8, 'expected 8 ashlar, got ' + have('ashlar'));
+
+      /* ── AND THE SINK IS REAL. An `ashlar` that nothing consumes would be the
+         Cellar's "+500 storage" bug in a new coat: a good with a recipe, a
+         value and a category tab, feeding nothing. It is a cost of the top
+         three property tiers, and those costs are SERVER-SIDE (they regenerate
+         into hr_unlock_offers, which hr_unlock_buy charges out of). */
+      const TIERS = window.HearthriseHomestead && window.HearthriseHomestead.TIERS;
+      assert(Array.isArray(TIERS), 'the homestead tier table must be published');
+      const wanters = TIERS.filter((t) => t.cost && t.cost.ashlar > 0);
+      assert(wanters.length === 3,
+        'exactly three property tiers should demand ashlar, got ' + wanters.length);
+      assert(wanters.every((t) => t.cost.ashlar > 0), 'an ashlar cost of 0 is not a sink');
+
+      /* ── NO DEADLOCK, AND IT IS PROVED RATHER THAN ARGUED (R8 / b213 / b227).
+         Both historical deadlocks were a property tier demanding a material
+         whose BENCH that tier unlocked. Stonemason has no workbench, so an
+         ashlar must be makeable at property tier 0 — which the whole run above
+         just did, having started from an empty bag with no rooms. */
+      const H = window.HearthriseHomestead;
+      assert(!(H.WORKBENCH || {}).stonemason,
+        'Stonemason must require NO workbench (R8) — a bench here re-opens the b227 deadlock class');
+      assert(!(H.WORKBENCH || {}).runecrafting, 'Runecrafting must require no workbench');
+    } finally { window.notify = realNotify; restoreG(snap); }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     b357 — THE SHARED CONSUMPTION PRIMITIVE (src/core/ammo.js).
+
+     R1: one field, one carry, one guard. These grade the SEAM, which is what
+     Fletching will inherit — so a break here is a break in all three skills at
+     once, and the failure should say so.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRun('b357 AMMO-1: running dry is FAIL-SOFT at x0.25, and melee is exempt (R2/R5)', () => {
+    const A = window.HearthriseCore && window.HearthriseCore.ammo;
+    assert(A && typeof A.ammoDamageMult === 'function',
+      'src/core/ammo.js is not published on HearthriseCore — the projection can never call it');
+    assert(A.AMMO_DRY_MULT === 0.25,
+      'the unsupplied multiplier is 0.25 (measured: 26-38% of a supplied night). '
+      + 'Changing it is a design decision — see consumable-economy.md §3.3');
+
+    // An ammo-hungry style with an empty quiver keeps fighting, weakly.
+    assert(A.ammoDamageMult({ weaponType: 'ranged', perShot: 1, stock: 0 }) === 0.25,
+      'an archer with no arrows must fight at x0.25 — NOT be stopped');
+    assert(A.ammoDamageMult({ weaponType: 'magic', perShot: 1, stock: 0 }) === 0.25,
+      'a mage with no runes must fight at x0.25');
+    // Supplied is full strength.
+    assert(A.ammoDamageMult({ weaponType: 'ranged', perShot: 1, stock: 1 }) === 1,
+      'one arrow left is still full strength — the penalty is for EMPTY');
+
+    /* R5 — MELEE'S FLOOR IS FREE. The starting weapon is a Bronze Sword; a paid
+       melee floor would put every brand-new character in the penalty state from
+       second one, and the only other way to price it is weapon durability. */
+    assert(A.ammoDamageMult({ weaponType: 'sword', perShot: 0, stock: 0 }) === 1,
+      'an unsharpened sword must swing at full strength (R5)');
+    assert(A.ammoDamageMult({ weaponType: 'hammer', perShot: 0, stock: 0 }) === 1,
+      'an unsharpened hammer must swing at full strength');
+    assert(A.styleNeedsAmmo('ranged') && A.styleNeedsAmmo('magic'), 'ranged and magic spend ammo');
+    assert(!A.styleNeedsAmmo('sword') && !A.styleNeedsAmmo('hammer') && !A.styleNeedsAmmo('neutral'),
+      'no melee family — and not an unarmed player — may take the depletion penalty');
+
+    /* THE FREE TIER-1 RUNG never triggers the penalty, because it is never
+       spent. This is what makes the mechanic invisible to a beginner, which
+       §12.2 argues is the right failure mode for shipping it to new players. */
+    assert(A.ammoDamageMult({ weaponType: 'magic', perShot: 0, stock: 0 }) === 1,
+      'a free tier-1 rung must never put a player into the penalty state');
+    assert(window.ITEMS.air_rune.ammoPerShot === 0 && window.ITEMS.coarse_whetstone.ammoPerShot === 0,
+      'the tier-1 rung of each new ladder must be free to fire');
+  }),
+
+  () => tryRun('b357 AMMO-2: burn is deterministic, time-only, and the projection matches the outcome', () => {
+    const A = window.HearthriseCore.ammo;
+
+    /* R3 — BURN IS A PURE FUNCTION OF TIME. 1,000 swings at 0.02 spends
+       exactly 20 whetstones, twice, with no RNG anywhere near it. */
+    const runCarry = () => {
+      const carry = {};
+      let total = 0;
+      for (let i = 0; i < 1000; i++) total += A.advanceAmmoCarry(carry, 'steel_whetstone', 1, 0.02);
+      return { total, carry: carry.steel_whetstone };
+    };
+    const a = runCarry(); const b = runCarry();
+    assert(a.total === 20, '1000 swings at 0.02 must spend exactly 20 stones, got ' + a.total);
+    assert(a.total === b.total, 'the carry is not deterministic: ' + a.total + ' vs ' + b.total);
+    /* The float correction matters: 0.02 accumulated fifty times lands at
+       0.9999999999999999 without the +1e-9 and the stone is never spent. */
+    assert(Math.abs(a.carry) < 1e-9, 'the carry should land clean on a whole multiple, got ' + a.carry);
+    // One call for 1000 swings == 1000 calls of one swing (the aggregation rule).
+    const bulk = {};
+    assert(A.advanceAmmoCarry(bulk, 'steel_whetstone', 1000, 0.02) === 20,
+      'charging a whole slice at once must equal charging swing by swing — §13.2 requires the '
+      + 'span to write ONE aggregated ledger row, not 13,636 of them');
+
+    /* THE PROJECTION AND THE OUTCOME COME FROM ONE EXPRESSION. §10: "a player
+       who buys exactly what they were quoted must not run dry in the last
+       minute." Ten random loadouts, pre-flight vs post-hoc. */
+    const TICK = [2112, 2520, 2400, 3240, 1689];
+    for (let i = 0; i < 10; i++) {
+      const tickMs = TICK[i % TICK.length];
+      const perShot = (i % 3 === 0) ? 0.02 : 1;
+      const stock = 500 + i * 733;
+      const hours = A.hoursOfSupply(stock, tickMs, perShot);
+      const dry = A.dryAtMs(0, stock, perShot, tickMs);
+      assert(dry !== null, 'a spent rung must report a dry-out moment');
+      /* dryAtMs floors to a whole swing, so it can be up to one tick EARLIER
+         than the continuous projection — never later, which is the direction
+         that would make the quote a lie. */
+      const projectedMs = hours * 3600000;
+      assert(dry <= projectedMs + 1e-6 && dry > projectedMs - tickMs - 1e-6,
+        'the pre-flight projection (' + projectedMs.toFixed(0) + 'ms) and the reported dry-out ('
+        + dry + 'ms) disagree by more than one swing — one of them is lying to the player');
+    }
+    // A free rung and an empty slot both mean "never runs out", not "runs out now".
+    assert(A.hoursOfSupply(1, 2112, 0) === Infinity, 'a free rung must never run dry');
+    assert(A.dryAtMs(0, 1, 0, 2112) === null, 'a free rung has no dry-out moment');
+
+    /* THE PUBLISHED BURN BANDS, so a retune of the swing formula is caught here
+       rather than by a player being quoted the wrong number of arrows. */
+    assert(Math.round(A.consumablesPerHour(2112, 1)) === 1705, 'a Rapid bow should burn ~1705 arrows/h');
+    assert(Math.round(A.consumablesPerHour(2520, 1)) === 1429, 'a staff should burn ~1429 runes/h');
+    assert(Math.round(A.consumablesPerHour(2400, 0.02)) === 30, 'a sword should burn ~30 whetstones/h');
+  }),
+
+  () => tryRun('b357 AMMO-3: a quiver is SPENT — the stack drains, stops at zero, and reports the moment', () => {
+    const A = window.HearthriseCore.ammo;
+    const spent = [];
+    const state = {
+      equipment: { ammo: 'earth_rune' },
+      inventory: { earth_rune: 100 },
+    };
+    const ctx = {
+      items: window.ITEMS, weaponType: 'magic',
+      fx: { removeItem: (id, q) => spent.push([id, q]) },
+    };
+    // 40 casts spend 40 runes, in ONE call.
+    let r = A.spendForSwings(state, 40, ctx);
+    assert(r.spent === 40 && r.dryAfterSwings === null, 'expected 40 spent, got ' + r.spent);
+    assert(spent.length === 1, 'a slice must cost exactly one removeItem call, got ' + spent.length);
+    state.inventory.earth_rune -= r.spent;
+
+    // The stack runs out MID-RUN: charge only for what it covered, and say so.
+    r = A.spendForSwings(state, 200, ctx);
+    assert(r.spent === 60, 'the last 60 runes should be spent, got ' + r.spent);
+    assert(r.dryAfterSwings === 60,
+      'the span must report WHICH swing emptied the stack (got ' + r.dryAfterSwings + ') — '
+      + 'the away card cannot say "you ran out 4h 20m in" from a number nobody stated');
+    assert(r.dry === true && r.mult === 0.25, 'after the stack empties the run continues at x0.25');
+    state.inventory.earth_rune -= r.spent;
+    assert(state.inventory.earth_rune === 0, 'the quiver must not go negative');
+
+    // Empty: nothing more is spent, and the fight is NOT stopped.
+    r = A.spendForSwings(state, 500, ctx);
+    assert(r.spent === 0, 'an empty quiver must spend nothing, got ' + r.spent);
+    assert(r.mult === 0.25, 'an empty quiver still fights, weakly');
+
+    // MELEE with an empty slot spends nothing and is not penalised.
+    const melee = { equipment: { ammo: null }, inventory: {} };
+    const mr = A.spendForSwings(melee, 5000, { items: window.ITEMS, weaponType: 'sword', fx: {} });
+    assert(mr.spent === 0 && mr.mult === 1, 'a sword with an empty ammo slot pays nothing and loses nothing');
+
+    /* THE SLOT IS A POINTER, NOT A CONTAINER (§2.2). The whole quiver stays in
+       the inventory, so the supply the player is asked about is literally
+       `inventory[ammoId]` with no second place for it to hide. */
+    const info = A.readAmmo({ equipment: { ammo: 'blood_rune' }, inventory: { blood_rune: 7 } },
+      { items: window.ITEMS, weaponType: 'magic' });
+    assert(info.stock === 7 && info.id === 'blood_rune',
+      'readAmmo must read the stack out of the INVENTORY, not out of the slot');
+  }),
+
+  /* The two skills have to be FINDABLE. A bench that exists only in the data
+     is content the player cannot reach, which is the same as no content — so
+     this drives the real renderers and reads the real DOM: the Activities list
+     must offer both skills, opening one must paint its tiles, and the lane
+     strip must be there to navigate Stonemason's four lanes. */
+  () => tryRunClientAuthoritative('b357 UI: both new skills appear in Activities and paint a working tile grid', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      G.skills = Object.assign({}, G.skills, { stonemason: 0, runecrafting: 0 });
+      window.showTab('skills');
+      window.renderSkillsList();
+      const list = document.getElementById('skills-list');
+      assert(list, 'the Activities list must exist');
+      const listed = list.textContent || '';
+      assert(/Runecrafting/.test(listed), 'Runecrafting is missing from the Activities list');
+      assert(/Stonemason/.test(listed), 'Stonemason is missing from the Activities list');
+
+      ['stonemason', 'runecrafting'].forEach((skill) => {
+        window.openSkillDetail(skill);
+        window.renderSkillDetail(skill);
+        const detail = document.getElementById('skill-detail');
+        assert(detail, 'the skill detail host must exist');
+        const tiles = detail.querySelectorAll('.act-tile, .monster-row');
+        /* `> 0`, not `=== recipes.length`: the lane strip filters the grid to
+           ONE category at a time, which is the whole reason Stonemason has a
+           strip. Asserting the full count here would demand the strip not
+           work. */
+        assert(tiles.length > 0,
+          skill + ' painted no activity tiles — the bench is unreachable from the UI');
+        assert(!/No activities/.test(detail.textContent || ''),
+          skill + ' rendered the "no activities" empty state despite having '
+          + window.ARTISAN_RECIPES[skill].length + ' recipes');
+      });
+
+      /* Stonemason's four lanes need the category strip, or a mason hunting the
+         next whetstone scrolls past quarry rungs, blocks and blanks to find it.
+         Read off the SAME published helper both renderers use, so this cannot
+         pass against a strip only one of the twins builds. */
+      const cat = window.HearthriseArtisanCat;
+      assert(cat && typeof cat.strip === 'function', 'the artisan lane strip helper must be published');
+      const strip = cat.strip('stonemason') || '';
+      ['Quarry', 'Masonry', 'Rune Blanks', 'Whetstones', 'Castle Stores'].forEach((label) => {
+        assert(strip.indexOf(label) >= 0, 'the Stonemason lane strip is missing "' + label + '"');
+      });
+      // And selecting a lane returns only that lane's recipes.
+      assert(cat.recipesFor('stonemason').length > 0, 'the lane filter returned no Stonemason recipes');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b357: the Quarry lane is a faucet, and it is priced like one', () => {
+    /* An input-free recipe mints from nothing at a fixed rate, which is
+       economically identical to a mining node — so its output must vendor at
+       VENDOR_RAW_RATE like ore, or Stonemason becomes a gold printer that
+       beats Mining at its own job.
+
+       DERIVED from the recipe table rather than from a hand list, which is the
+       whole point: items.js cannot import recipes.js (the cycle would leave
+       ITEMS half-built), so the `raw` flag there IS a hand list — and this is
+       what stops a future quarry rung from being added without it. */
+    const R = window.ARTISAN_RECIPES;
+    const inputsOf = (r) => r.inputs || (r.input ? { [r.input]: r.inputQty || 1 } : {});
+    const minted = [];
+    Object.keys(R).forEach((skill) => {
+      (R[skill] || []).forEach((r) => {
+        if (r.output && Object.keys(inputsOf(r)).length === 0) minted.push([skill, r]);
+      });
+    });
+    assert(minted.length >= 3,
+      'expected the three Quarry rungs to be input-free, found ' + minted.length
+      + ' — if this is 0 the assertion below proves nothing');
+    minted.forEach(([skill, r]) => {
+      const out = window.ITEMS[r.output];
+      assert(out, r.id + ' mints an item that does not exist: ' + r.output);
+      assert(out.raw === true,
+        r.id + ' mints "' + r.output + '" from NOTHING but it is not flagged raw — the vendor would '
+        + 'pay full book value for a material the player conjured, which is a gold faucet. '
+        + 'Add it to RAW_QUARRIED in src/data/items.js.');
+      assert(window.vendorPrice(r.output) < out.v,
+        'the vendor must bid less than book for ' + r.output);
+      assert(skill === 'stonemason',
+        'a new input-free lane appeared on "' + skill + '" — minting from nothing is a Quarry-lane '
+        + 'ruling (§8.4), not a pattern to copy without one');
+    });
+  }),
+
+  () => tryRun('b357: both new benches are SERVER-PAYABLE, and their lanes strand no recipe', () => {
+    const C = window.HearthriseCore;
+    const AS = C.artisanSim;
+    assert(AS && typeof AS.benchPayable === 'function', 'the bench-payability model must be published');
+
+    /* A bench is payable when every bonus key that can DESTROY value on it is
+       server-owned end to end. Cooking is the one bench that is not, because
+       `noBurn` decides whether the input becomes the dish or becomes
+       burnt_food, and the server's copy of the Kitchen rung goes stale-low.
+
+       Neither new bench has such a key: `resolveArtisanAction` rolls a burn
+       only for `skillId === 'cooking'` and craftSave only for `'crafting'`, so
+       every bonus these two can read is additive and a stale zero merely
+       UNDER-pays — the safe direction. Asserted rather than assumed, because
+       "payable by default" is exactly the kind of thing that should be a
+       DECISION on the record and not an oversight. */
+    ['runecrafting', 'stonemason'].forEach((skill) => {
+      assert(AS.benchPayable(skill) === true,
+        skill + ' is not server-payable — the accrual engine would refuse every night on it, '
+        + 'and (because a pointer that can be set and not paid is a lockout) the player could not '
+        + 'even switch away. Blocked by: ' + AS.benchBlockedBy(skill));
+      assert(AS.benchBlockedBy(skill) === null, skill + ' reports a blocking bonus key');
+      assert(!AS.BENCH_DESTRUCTIVE_KEYS[skill],
+        skill + ' declares a destructive bonus key — if that is real it must be reviewed, not added');
+    });
+    /* And every one of their recipes is settable AND payable, which is one
+       answer to two questions on purpose (see recipePayable's header). */
+    const index = C.artisanRecipes();
+    ['runecrafting', 'stonemason'].forEach((skill) => {
+      window.ARTISAN_RECIPES[skill].forEach((r) => {
+        assert(AS.recipePayable(index, r.id),
+          r.id + ' is not payable — hr_apply would stamp accrued_to on a pointer the engine refuses');
+      });
+    });
+
+    /* CATEGORY COMPLETENESS, in the same commit as the recipes (§15 item 12).
+       `uncategorized` being non-empty means a recipe the player can never find
+       through the lane strip — content made unreachable by a missing branch. */
+    ['runecrafting', 'stonemason'].forEach((skill) => {
+      const res = window.categorizeRecipes(skill, window.ARTISAN_RECIPES[skill], window.ITEMS);
+      assert(res.uncategorized.length === 0,
+        skill + ' stranded ' + res.uncategorized.length + ' recipe(s) outside every lane: '
+        + res.uncategorized.map((r) => r.id).join(', '));
+      assert(res.total > 0, skill + ' has no recipes at all');
+      // Every declared lane is filled — an empty tab is a dead end, not a lane.
+      const declared = window.ARTISAN_CATEGORIES[skill].map((d) => d.key).sort();
+      const filled = res.groups.map((g) => g.key).sort();
+      assert(declared.join(',') === filled.join(','),
+        skill + ' declares lanes it cannot fill: declared [' + declared + '] vs filled [' + filled + ']');
+    });
+
+    /* THE SPEED KEY. `speedKeyFor` falls back to `gatherSpeed` for anything it
+       does not know, so an unwired artisan bench is not merely unconfigured —
+       it runs at the GARDEN's rate, on the server as well as the client. */
+    assert(window.speedKeyFor('runecrafting') === 'craftSpeed', 'Runecrafting must run on craftSpeed');
+    assert(window.speedKeyFor('stonemason') === 'craftSpeed', 'Stonemason must run on craftSpeed');
+    assert(window.speedKeyFor('nonsense_skill') === 'gatherSpeed', 'control: the fallback still exists');
   }),
 
   () => tryRun('b343: the spdB speed budget is closed (the pacing anchor holds)', () => {
@@ -15593,8 +16217,18 @@ const TESTS = [
        build the moment the skill or the engine lands, which is what makes this
        a hatch rather than a hole. */
     const KINDS = (window.HearthriseItemEffects || {}).EFFECT_KINDS || {};
+    /* b357 — the THIRD hatch. `pendingSkill` closed correctly when Runecrafting
+       and Stonemason shipped, and ten items fell through it: their blocker was
+       never the skill, it is the SYSTEM their top rungs belong to (elemental
+       enchanting, the castle-tier numbers, the mason tool ladder). An exemption
+       that expires against the wrong event is worse than none, so the blocker
+       is now named. Same contract: flip `live` in PENDING_SYSTEMS and this
+       guard demands a real recipe on the next run. An UNKNOWN system name is
+       deliberately NOT dormant — a typo must fail loudly, not exempt silently. */
+    const SYSTEMS = (window.HearthriseItemEffects || {}).PENDING_SYSTEMS || {};
     const isDormant = (it) => {
       if (it.pendingSkill && !(window.SKILLS_DEF || {})[it.pendingSkill]) return true;
+      if (it.pendingSystem && SYSTEMS[it.pendingSystem] && !SYSTEMS[it.pendingSystem].live) return true;
       return ((it.effects) || []).some((k) => !(KINDS[k] && KINDS[k].live));
     };
     const isExempt = (id) => { const it = ITEMS[id] || {}; return EXEMPT.has(id) || it.premium || it.rarity === 'currency' || it.type === 'companion' || it.unlocks || it.recipe || isDormant(it); };
@@ -23076,7 +23710,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=357');
+    const KIT = await import('../data/start-kit.js?v=358');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -28275,7 +28909,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=357');
+    const S = await import('../data/shops.js?v=358');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -29643,7 +30277,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=357');
+    const S = await import('../data/shops.js?v=358');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '

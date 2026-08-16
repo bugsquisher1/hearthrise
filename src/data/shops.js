@@ -16,8 +16,8 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 3ff135cbd7a494c0162bdb1f56e975b4f839d3173e7eb099c405fcc37ecc285a
-//   128 offers · 221 cost lines · 6 prices that are formulas, not data
+//   catalogue digest: ece0100799356d6069ef03bac3e33a572a17958305e84f1644a8b169093678f5
+//   128 offers · 224 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "3ff135cbd7a494c0162bdb1f56e975b4f839d3173e7eb099c405fcc37ecc285a";
+export const SHOPS_DIGEST = "ece0100799356d6069ef03bac3e33a572a17958305e84f1644a8b169093678f5";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -492,7 +492,7 @@ export const SHOP_OFFERS = [
   {
     id: "property.castle", table: "property",
     name: "Hearthrise Castle",
-    cost: [{ kind: "currency", id: "gold", amount: 150000 }, { kind: "item", id: "dragon_scale", amount: 4 }, { kind: "item", id: "mithril_bar", amount: 40 }, { kind: "item", id: "rune_bar", amount: 8 }, { kind: "item", id: "yew_plank", amount: 70 }],
+    cost: [{ kind: "currency", id: "gold", amount: 150000 }, { kind: "item", id: "ashlar", amount: 25 }, { kind: "item", id: "dragon_scale", amount: 4 }, { kind: "item", id: "mithril_bar", amount: 40 }, { kind: "item", id: "rune_bar", amount: 8 }, { kind: "item", id: "yew_plank", amount: 70 }],
     grant: [{ kind: "unlock", id: "property:castle", amount: 5 }],
   },
   {
@@ -510,13 +510,13 @@ export const SHOP_OFFERS = [
   {
     id: "property.keep", table: "property",
     name: "Ironvale Keep",
-    cost: [{ kind: "currency", id: "gold", amount: 40000 }, { kind: "item", id: "bear_pelt", amount: 5 }, { kind: "item", id: "big_bones", amount: 20 }, { kind: "item", id: "maple_plank", amount: 50 }, { kind: "item", id: "steel_bar", amount: 35 }],
+    cost: [{ kind: "currency", id: "gold", amount: 40000 }, { kind: "item", id: "ashlar", amount: 12 }, { kind: "item", id: "bear_pelt", amount: 5 }, { kind: "item", id: "big_bones", amount: 20 }, { kind: "item", id: "maple_plank", amount: 50 }, { kind: "item", id: "steel_bar", amount: 35 }],
     grant: [{ kind: "unlock", id: "property:keep", amount: 4 }],
   },
   {
     id: "property.manor", table: "property",
     name: "Stonecross Manor",
-    cost: [{ kind: "currency", id: "gold", amount: 10000 }, { kind: "item", id: "iron_ore", amount: 40 }, { kind: "item", id: "silk_thread", amount: 8 }, { kind: "item", id: "willow_plank", amount: 35 }],
+    cost: [{ kind: "currency", id: "gold", amount: 10000 }, { kind: "item", id: "ashlar", amount: 6 }, { kind: "item", id: "iron_ore", amount: 40 }, { kind: "item", id: "silk_thread", amount: 8 }, { kind: "item", id: "willow_plank", amount: 35 }],
     grant: [{ kind: "unlock", id: "property:manor", amount: 3 }],
   },
   {

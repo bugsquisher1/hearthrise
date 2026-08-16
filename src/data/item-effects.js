@@ -46,6 +46,48 @@
  * `live: true` means an engine in this repo actually reads it TODAY, and a
  * test proves it. Exactly one kind qualifies right now.
  */
+/**
+ * THE THIRD HATCH — a system that is not built yet (b357).
+ *
+ * `pendingSkill` said "nothing can produce this because its SKILL is absent".
+ * Runecrafting and Stonemason then shipped, that hatch closed correctly, and
+ * ten items fell through it — not because their skill is missing but because
+ * the SYSTEM their top rungs belong to is. An item whose blocker is named
+ * wrongly is worse than one with no name: the exemption expires against the
+ * wrong event, so it either fails the build early (this) or, worse, lifts
+ * silently while the item is still unobtainable.
+ *
+ * Same self-closing contract as `EFFECT_KINDS`: flip `live` when the system
+ * lands and the b243 reachability guard immediately demands a real recipe.
+ * Nothing here may stay `live:false` and unowned.
+ */
+export const PENDING_SYSTEMS = Object.freeze({
+  elements: {
+    live: false,
+    owner: 'game-designer',
+    note: 'Elemental enchanting (consumable-economy §11). Tyler sequenced it '
+        + 'AFTER the monster rework because it hangs off the weakness axis. '
+        + 'The element axis exists as DATA on all 111 monsters (b357) but no '
+        + 'combat term reads it yet. Blocks the 6 elemental rune/whetstone '
+        + 'variants — they are the phase-two content itself, not a rung.',
+  },
+  castle_tiers: {
+    live: false,
+    owner: 'systems',
+    note: 'hr_castle_tiers numbers are set only AFTER the clan_power treasury '
+        + 'fix (consumable-economy §8.2). Blocks `vaultstone`: shipping a '
+        + 'top-tier building stone with no sink repeats the Cellar "+500 '
+        + 'storage" bug in a new coat.',
+  },
+  tool_ladder: {
+    live: false,
+    owner: 'game-designer',
+    note: 'The Stonemason tool ladder (mason\'s rules) was catalogued with the '
+        + 'item wave but its recipes were not authored with the skill. Three '
+        + 'rungs, no engine work — the cheapest of the three to close.',
+  },
+});
+
 export const EFFECT_KINDS = Object.freeze({
   /* ── LIVE ───────────────────────────────────────────────────────────── */
   bane: {

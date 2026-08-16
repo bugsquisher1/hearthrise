@@ -59,8 +59,18 @@
   var SKILL_ORDER = [
     'attack', 'strength', 'defense', 'hitpoints', 'prayer', 'magic', 'ranged',
     'woodcutting', 'mining', 'fishing', 'farming',
-    'cooking', 'crafting', 'smithing', 'bountyHunter'
+    'cooking', 'crafting', 'smithing', 'runecrafting', 'stonemason', 'bountyHunter'
   ];
+  /* ⚠ RUNECRAFTING AND STONEMASON NEED THE STAGED MIGRATION
+     `2026-08-17-leaderboard-skills.sql`, which adds them to
+     `public.hr_lb_skills()`. Until it is APPLIED, `hr_leaderboard('skill:
+     runecrafting')` answers with an empty board rather than an error — the
+     board namespace is CLOSED server-side precisely so a junk key cannot
+     invent a board, and an unmigrated server simply has no rows for these two.
+     That is the right failure (an empty honour roll, not a broken screen), and
+     it resolves itself the moment the migration lands. The smoke suite's board
+     test asserts this list is exactly SKILLS_DEF, which is what forces the two
+     halves to be shipped together. */
 
   var TOP_N = 25;      // leaderboards.md §4 — an honour roll, not a podium
   var SPAN  = 1;       // one rival above, one below

@@ -13,14 +13,15 @@
 // new-bar / gated-recipe chains were all dead. This module is now the
 // single source of truth.
 
-import { GEAR_RECIPES } from './gear-tiers.js?v=357';
-import { WAVE3_RECIPES } from './wave3-uniques.js?v=357';
-import { SLOT_RECIPES } from './slot-ladders.js?v=357';
+import { GEAR_RECIPES } from './gear-tiers.js?v=358';
+import { WAVE3_RECIPES } from './wave3-uniques.js?v=358';
+import { SLOT_RECIPES } from './slot-ladders.js?v=358';
 /* b356 — the review-book catalogue's faucets. APPENDED ONLY: this import and
    the two `LIB2_RECIPES.*` terms in ARTISAN_RECIPES below are the whole edit,
    so the parallel Runecrafting/Stonemason lanes merge without a conflict. */
-import { LIB2_RECIPES } from './library2-items.js?v=357';
-import { ITEMS, foodClassOf } from './items.js?v=357';
+import { LIB2_RECIPES } from './library2-items.js?v=358';
+import { ITEMS, foodClassOf } from './items.js?v=358';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=358';
 
 const BASE_RECIPES = {
   cooking: [
@@ -212,7 +213,14 @@ const BASE_RECIPES = {
     {id:'craft_timber_beam', name:'Timber Beam', icon:'🪵', inputs:{normal_plank:5, oak_plank:2, slime_gel:2}, output:'timber_beam', xp:200, req:25, ms:4200},
     /* The top of the ladder: two castle goods plus two of the rarest orphan
        drops in the game (Ancient Fragment, Cracked Spellstone). */
-    {id:'craft_keystone', name:'Keystone', icon:'🧱', inputs:{timber_beam:3, iron_fitting:3, ancient_fragment:2, cracked_spellstone:1}, output:'keystone', xp:900, req:60, ms:6500},
+    /* `craft_keystone` MOVED TO STONEMASON (consumable-economy.md §8.1/§8.2).
+       A keystone is the single most masonic object in architecture, and this
+       row had exactly the same story as the seven `fletch_*` rows: written
+       where a skill existed, waiting for the skill that should own it. The id,
+       inputs, xp and req are unchanged, so `clan-seat.js`'s material route
+       (`ancient_fragment` / `cracked_spellstone` → via: 'craft_keystone') and
+       the eight shop offers that spend keystones all still resolve. See
+       src/data/stonecraft.js's castle lane. */
     /* b223 — the sixth Hunt-forged piece. The Crownless Wyrm's gilding is
        worked into cloth rather than steel, which is what gives the cape slot
        its first endgame rung (it has had exactly two entries since launch). */
@@ -260,6 +268,12 @@ export const ARTISAN_RECIPES = {
   smithing: mergeGenerated(BASE_RECIPES.smithing, GEAR_RECIPES.smithing.concat(WAVE3_RECIPES.smithing, SLOT_RECIPES.smithing, LIB2_RECIPES.smithing)),
   crafting: mergeGenerated(BASE_RECIPES.crafting, GEAR_RECIPES.crafting.concat(WAVE3_RECIPES.crafting, SLOT_RECIPES.crafting, LIB2_RECIPES.crafting)),
   prayer:   BASE_RECIPES.prayer,
+  /* The consumable economy's two new benches (R6). Sorted by req like every
+     other lane so each panel reads as a ladder rather than as authoring order.
+     No `mergeGenerated` — nothing generates into these yet; the staff/bow
+     generator hand-off (E7) is Fletching's to make. */
+  runecrafting: STONECRAFT_RECIPES.runecrafting.slice().sort((a, b) => (a.req || 0) - (b.req || 0)),
+  stonemason:   STONECRAFT_RECIPES.stonemason.slice().sort((a, b) => (a.req || 0) - (b.req || 0)),
 };
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -324,6 +338,25 @@ export const ARTISAN_CATEGORIES = {
     { key: 'feasts',     label: 'Feasts & Draughts' },
     { key: 'castle',     label: 'Castle Stores' },
   ],
+  /* Runecrafting's two lanes are thin enough to read as one column today, but
+     the tabs are authored NOW because phase two adds the three enchanting
+     runes and the (deferred) staff ladder — and because a skill with no
+     category strip renders differently from its four siblings. */
+  runecrafting: [
+    { key: 'runes', label: 'Runes' },
+  ],
+  /* Stonemason has FOUR lanes, which is the reason it needs a strip at all:
+     a mason who wants "the next whetstone" must not scroll past quarry rungs,
+     blocks and blanks to find it. Landed in the SAME commit as the recipes,
+     because `categorizeRecipes(...).uncategorized` being empty is a regression
+     test and adding the rows alone would break it. */
+  stonemason: [
+    { key: 'quarry',     label: 'Quarry' },
+    { key: 'masonry',    label: 'Masonry' },
+    { key: 'blanks',     label: 'Rune Blanks' },
+    { key: 'whetstones', label: 'Whetstones' },
+    { key: 'castle',     label: 'Castle Stores' },
+  ],
 };
 
 /* isCastleGood(item) — the single predicate behind the lane AND the Storehouse
@@ -364,6 +397,25 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (type === 'armor') return 'armour';        // leather + cloth
     if (out && out.tag === 'crafting-mat') return 'materials'; // b356 — woven/worked intermediates
     if (isCastleGood(out)) return 'castle';       // b222 — Timber Beam, Keystone
+    return null;
+  }
+
+  if (skillId === 'runecrafting') {
+    if (type === 'ammo') return 'runes';
+    return null;
+  }
+
+  if (skillId === 'stonemason') {
+    /* THE QUARRY LANE IS DERIVED FROM ITS DEFINING PROPERTY, not from a tag:
+       a Stonemason rung with no inputs is a rung where stone ENTERS the game
+       (§8.4). Read off the same `recipeInputs`-shaped fields the engine reads,
+       so a quarry rung cannot be added without landing in the right tab. */
+    const inputs = recipe.inputs || (recipe.input ? { [recipe.input]: 1 } : {});
+    if (Object.keys(inputs).length === 0) return 'quarry';
+    if (type === 'ammo') return 'whetstones';      // strB stones, ammo slot
+    if (/_blank$/.test(outId)) return 'blanks';    // Runecrafting's supply
+    if (/_block$/.test(outId)) return 'masonry';   // stone → dressed block
+    if (isCastleGood(out)) return 'castle';        // ashlar, keystone
     return null;
   }
 

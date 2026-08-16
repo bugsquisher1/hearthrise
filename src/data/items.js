@@ -1,10 +1,11 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=357';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=357';
-import { SLOT_ITEMS } from './slot-ladders.js?v=357';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=357';
-import { LIB2_ITEMS } from './library2-items.js?v=357';
+import { GEAR_ITEMS } from './gear-tiers.js?v=358';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=358';
+import { SLOT_ITEMS } from './slot-ladders.js?v=358';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=358';
+import { LIB2_ITEMS } from './library2-items.js?v=358';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=358';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -27,6 +28,10 @@ export const ITEMS={
      override one. See src/data/library2-items.js for the derivation, the three
      landing states, and the power-budget accounting. */
   ...LIB2_ITEMS,
+  /* Runecrafting + Stonemason: quarried stone, dressed blocks, rune blanks,
+     the 7-tier rune ladder, the 7-tier whetstone ladder and `ashlar`.
+     New ids only. See src/data/stonecraft.js for every ruling behind them. */
+  ...STONECRAFT_ITEMS,
 
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool
@@ -657,7 +662,21 @@ const RAW_DROPS = [
   'raw_wolf_meat', 'raw_panther_meat', 'raw_bear_meat',
 ];
 
-export const RAW_MATERIAL_IDS = [...new Set([...RAW_GATHERED, ...RAW_DROPS])];
+/* QUARRIED STONE — the outputs of Stonemason's input-free Quarry lane
+   (stonecraft.js §8.4 ruling). Economically these are gathered material: a
+   quarry rung mints from nothing at a fixed rate, exactly as a mining node
+   does, so the vendor must bid the same 20% or the lane becomes a gold
+   printer that beats mining at its own job.
+
+   Listed explicitly rather than derived because items.js CANNOT import
+   recipes.js — recipes.js imports this file, and the cycle would leave ITEMS
+   half-built at the moment RAW_MATERIAL_IDS runs. The safety net is instead a
+   smoke guard: every input-free artisan recipe's output must be `raw`, so a
+   future quarry rung that forgets this list fails the build rather than
+   quietly vendoring at full book value. */
+const RAW_QUARRIED = ['rubble', 'granite', 'basalt'];
+
+export const RAW_MATERIAL_IDS = [...new Set([...RAW_GATHERED, ...RAW_DROPS, ...RAW_QUARRIED])];
 for (const id of RAW_MATERIAL_IDS) { if (ITEMS[id]) ITEMS[id].raw = true; }
 
 /* ══════════════════════════════════════════════════════════════════════

@@ -14,6 +14,31 @@ an outcome — no action by any clanmate can move another member below being pai
 measured against your share of the boss (`max_hp / members_at_declare`), not against other players'
 damage.** Still open, unchanged: when `2026-08-12-clan-members-rls-drop.sql` lands it MUST ship a
 companion revoke of clan_members/clans i/u/d grants or the nightly detector raises. **Date:** 2026-08-16.
+### 2026-08-17 · §8.4 RULED — STONE COMES FROM A QUARRY LANE (P2), NOT A MINING BY-PRODUCT (P1)
+**Decision (Game Designer, under delegated design authority; `consumable-economy.md` §8.4 left this
+OPEN and recommended P1).** Stonemason gains three **input-free** recipes — Quarry Rubble (1),
+Quarry Granite (30), Quarry Basalt (70) — and that is where stone enters the game. The `byprod:`
+field on `ROCKS` proposed by P1 is **not** built.
+
+**Why, in the order the reasons mattered.** (1) **Server authority decides it.** P1 edits
+`resolveGatherAction`, which is vendored into `hr-accrue` under a pinned payload hash; P2 is legal
+server-side today (`artisan` is a PAYABLE_KIND, `recipeInputs({})` already works, and Prayer's bury
+actions ship the mirror case). A content skill must not be the change that re-pins the combat
+engine. (2) **The new-player wall.** Round 2 is a wipe, so *every* player meets this skill at level
+1; under P1 a player with no mining history opens an empty skill, under P2 they press one button and
+are a mason. (3) **Time is the honest price of a castle** — P1 makes stone a free rider on an
+activity already being done, so castle goods would cost no time that was not already spent.
+(4) **It does not duplicate the mining fantasy** (the doc's stated objection): mining pulls metal for
+the forge, quarrying cuts building stone for the wall, and a quarry rung is not in `ROCKS` so it
+cannot disturb the b226 "every gathering rung is strictly better" invariant.
+
+**The cost, stated:** the lane mints from nothing, so all three stones are `raw: true` (vendor bids
+20%) and a smoke guard asserts every input-free artisan output carries the flag. **P1 remains
+available later as a pure convenience** that tops up the same items; it composes with this lane
+rather than replacing it, and is a better second change than it would have been a first.
+
+**AFFECTED:** Systems (no engine change requested), Security (one priced faucet), Fletching (the
+precedent for lane shape), Art/Asset (three new material icons).
 
 ---
 

@@ -71,7 +71,7 @@
 // line.vmul), the same expression the generator uses.
 // ============================================================
 
-import { MAX_BANE_MULT } from '../core/bane.js?v=357';
+import { MAX_BANE_MULT } from '../core/bane.js?v=358';
 
 /* The generator's own value expression, so a hand-authored rung and a generated
    one can never price differently. Kept local rather than exported from
@@ -377,7 +377,7 @@ const SUPPLY_CHAINS = Object.fromEntries([
      CLAN sink     = vaultstone (hr_castle_tiers 4-5). They must not share a
      good, or a player chooses between their house and their clan's wall. */
   ['ashlar',     { n: 'Ashlar',     icon: '🧱', v: 1200, tier: 4, tag: 'castle', pendingSkill: 'stonemason' }],
-  ['vaultstone', { n: 'Vaultstone', icon: '🧱', v: 9000, tier: 7, tag: 'castle', pendingSkill: 'stonemason' }],
+  ['vaultstone', { n: 'Vaultstone', icon: '🧱', v: 9000, tier: 7, tag: 'castle', pendingSkill: 'stonemason', pendingSystem: 'castle_tiers' }],
 
   /* ITEM-PLAN-02 · the bound rune ladder (§6.2). Rune values equal arrow values
      exactly, which is what makes magic's and ranged's supply cost comparable. */
@@ -400,15 +400,15 @@ const SUPPLY_CHAINS = Object.fromEntries([
   /* ITEM-PLAN-06 · phase two, 9 items and not 42 (§11.3). Elemental variants
      exist at ONE high tier band only. `element` is authored now so the element
      axis, when it ships, is a read and not a re-tag. */
-  ['rune_of_ember',  { n: 'Rune of Ember',  icon: '🔥', v: 9, type: 'ammo', slot: 'ammo', tier: 5, rarity: 'legendary', reqSkill: 'magic', reqLv: 65, magicStrB: 11, ammoPerShot: 1, element: 'ember',  pendingSkill: 'runecrafting' }],
-  ['rune_of_frost',  { n: 'Rune of Frost',  icon: '❄️', v: 6, type: 'ammo', slot: 'ammo', tier: 4, rarity: 'epic',      reqSkill: 'magic', reqLv: 45, magicStrB: 8,  ammoPerShot: 1, element: 'frost',  pendingSkill: 'runecrafting' }],
-  ['rune_of_poison', { n: 'Rune of Poison', icon: '🟣', v: 12, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'magic', reqLv: 85, magicStrB: 14, ammoPerShot: 1, element: 'poison', pendingSkill: 'runecrafting' }],
+  ['rune_of_ember',  { n: 'Rune of Ember',  icon: '🔥', v: 9, type: 'ammo', slot: 'ammo', tier: 5, rarity: 'legendary', reqSkill: 'magic', reqLv: 65, magicStrB: 11, ammoPerShot: 1, element: 'ember',  pendingSkill: 'runecrafting', pendingSystem: 'elements' }],
+  ['rune_of_frost',  { n: 'Rune of Frost',  icon: '❄️', v: 6, type: 'ammo', slot: 'ammo', tier: 4, rarity: 'epic',      reqSkill: 'magic', reqLv: 45, magicStrB: 8,  ammoPerShot: 1, element: 'frost',  pendingSkill: 'runecrafting', pendingSystem: 'elements' }],
+  ['rune_of_poison', { n: 'Rune of Poison', icon: '🟣', v: 12, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'magic', reqLv: 85, magicStrB: 14, ammoPerShot: 1, element: 'poison', pendingSkill: 'runecrafting', pendingSystem: 'elements' }],
   ['arrows_of_ember',  { n: 'Ember Arrows',  icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'ember',  pendingSkill: 'fletching' }],
   ['arrows_of_frost',  { n: 'Frost Arrows',  icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'frost',  pendingSkill: 'fletching' }],
   ['arrows_of_poison', { n: 'Poison Arrows', icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'poison', pendingSkill: 'fletching' }],
-  ['whetstone_of_ember',  { n: 'Ember Whetstone',  icon: '🔥', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'ember',  pendingSkill: 'stonemason' }],
-  ['whetstone_of_frost',  { n: 'Frost Whetstone',  icon: '❄️', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'frost',  pendingSkill: 'stonemason' }],
-  ['whetstone_of_poison', { n: 'Poison Whetstone', icon: '🟣', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'poison', pendingSkill: 'stonemason' }],
+  ['whetstone_of_ember',  { n: 'Ember Whetstone',  icon: '🔥', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'ember',  pendingSkill: 'stonemason', pendingSystem: 'elements' }],
+  ['whetstone_of_frost',  { n: 'Frost Whetstone',  icon: '❄️', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'frost',  pendingSkill: 'stonemason', pendingSystem: 'elements' }],
+  ['whetstone_of_poison', { n: 'Poison Whetstone', icon: '🟣', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'poison', pendingSkill: 'stonemason', pendingSystem: 'elements' }],
 
   /* ITEM-NEW-41/42 · the two artisan TOOL ladders. Artisan skills get 3 rungs
      where gathering gets 7 (the live shape: bronze/steel/rune hammer at
@@ -418,9 +418,9 @@ const SUPPLY_CHAINS = Object.fromEntries([
   ['bone_fletching_knife',  { n: 'Bone Fletching Knife',  icon: '🔪', v: 70,   type: 'tool', toolSkill: 'fletching',  toolTier: 1, toolSpeed: 0.05, pendingSkill: 'fletching' }],
   ['steel_fletching_knife', { n: 'Steel Fletching Knife', icon: '🔪', v: 950,  type: 'tool', toolSkill: 'fletching',  toolTier: 3, toolSpeed: 0.15, pendingSkill: 'fletching' }],
   ['dawn_fletching_knife',  { n: 'Dawnsteel Fletching Knife', icon: '🔪', v: 9200, type: 'tool', toolSkill: 'fletching', toolTier: 5, toolSpeed: 0.25, pendingSkill: 'fletching' }],
-  ['bronze_masons_rule', { n: "Bronze Mason's Rule", icon: '📐', v: 70,   type: 'tool', toolSkill: 'stonemason', toolTier: 1, toolSpeed: 0.05, pendingSkill: 'stonemason' }],
-  ['steel_masons_rule',  { n: "Steel Mason's Rule",  icon: '📐', v: 950,  type: 'tool', toolSkill: 'stonemason', toolTier: 3, toolSpeed: 0.15, pendingSkill: 'stonemason' }],
-  ['dawn_masons_rule',   { n: "Dawnsteel Mason's Rule", icon: '📐', v: 9200, type: 'tool', toolSkill: 'stonemason', toolTier: 5, toolSpeed: 0.25, pendingSkill: 'stonemason' }],
+  ['bronze_masons_rule', { n: "Bronze Mason's Rule", icon: '📐', v: 70,   type: 'tool', toolSkill: 'stonemason', toolTier: 1, toolSpeed: 0.05, pendingSkill: 'stonemason', pendingSystem: 'tool_ladder' }],
+  ['steel_masons_rule',  { n: "Steel Mason's Rule",  icon: '📐', v: 950,  type: 'tool', toolSkill: 'stonemason', toolTier: 3, toolSpeed: 0.15, pendingSkill: 'stonemason', pendingSystem: 'tool_ladder' }],
+  ['dawn_masons_rule',   { n: "Dawnsteel Mason's Rule", icon: '📐', v: 9200, type: 'tool', toolSkill: 'stonemason', toolTier: 5, toolSpeed: 0.25, pendingSkill: 'stonemason', pendingSystem: 'tool_ladder' }],
 ]);
 
 export const LIB2_ITEMS = {

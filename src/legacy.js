@@ -72,6 +72,11 @@ const SKILLS_DEF={
   fishing:{name:'Fishing',icon:'🎣',cat:'gather'},farming:{name:'Farming',icon:'🌾',cat:'gather'},
   cooking:{name:'Cooking',icon:'🍳',cat:'artisan'},crafting:{name:'Crafting',icon:'🔨',cat:'artisan'},
   smithing:{name:'Smithing',icon:'🔩',cat:'artisan'},
+  /* Kept in lockstep with src/data/skills.js, which is the AUTHORING copy —
+     main.js merges the two into one identity. This inline table is what the
+     monolith reads before the merge lands. */
+  runecrafting:{name:'Runecrafting',icon:'🔮',cat:'artisan'},
+  stonemason:{name:'Stonemason',icon:'🧱',cat:'artisan'},
   bountyHunter:{name:'Bounty Hunter',icon:'🎯',cat:'combat'},
 };
 
@@ -2868,6 +2873,14 @@ function actionRate(skillId, action, opts){
 window.pacedXp = pacedXp;
 window.pacedActionMs = pacedActionMs;
 window.actionRate = actionRate;
+/* ONE speed-key lookup, published (core/pacing.js ARTISAN_SPEED_KEY).
+   This file held FOUR hand-written copies of `{cooking:'cookSpeed', …}` and
+   activities-grid.js a fifth — five places to forget a new bench, against a
+   fallback (`gatherSpeed`) that fails LOUDLY WRONG rather than absent: an
+   unlisted artisan skill silently runs at the Garden/tool gathering rate.
+   Adding Runecrafting and Stonemason was the change that made five copies
+   indefensible, so the copies now delegate. */
+window.speedKeyFor = function(skillId){ return window.HearthriseCore.pacing.speedKeyFor(skillId); };
 
 /* ════════════════════════════════════════════════════════════════
    b227 — THE SESSION GATE on the blessing calendar.
@@ -3041,8 +3054,12 @@ function activeBonusKeys(){
     }else if(['woodcutting','mining','fishing'].indexOf(sk)>=0){
       keys.push('gatherSpeed');
     }else{
-      const k={cooking:'cookSpeed',smithing:'smithSpeed',crafting:'craftSpeed',prayer:'prayerSpeed'}[sk];
-      if(k) keys.push(k);
+      /* speedKeyFor answers 'gatherSpeed' for anything unknown, which is
+         already handled by the gathering branch above — so an artisan skill
+         that reaches here and still says gatherSpeed is an UNWIRED bench and
+         must not push a key it does not own. */
+      const k=window.speedKeyFor(sk);
+      if(k && k!=='gatherSpeed') keys.push(k);
       if(sk==='cooking') keys.push('noBurn');
     }
   }
@@ -4287,7 +4304,7 @@ function currentActionDef(){
   if(window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[type]){
     const r=window.ARTISAN_RECIPES[type].find(x=>x.id===tid);
     if(!r) return null;
-    return {act:r, artisan:true, key:({cooking:'cookSpeed',smithing:'smithSpeed',crafting:'craftSpeed',prayer:'prayerSpeed'})[type]||'gatherSpeed'};
+    return {act:r, artisan:true, key:window.speedKeyFor(type)};
   }
   let a=null;
   if(type==='woodcutting'&&typeof TREES!=='undefined')a=TREES.find(t=>t.id===tid);
@@ -5390,7 +5407,10 @@ function renderSkillDetail(id){
   if(id==='woodcutting'){acts=renderActivities(TREES,id);calc=TREES.find(a=>a.id===G.skillTargetId)||TREES.find(a=>getLevel(id)>=a.req)||TREES[0];}
   else if(id==='mining'){acts=renderActivities(ROCKS,id);calc=ROCKS.find(a=>a.id===G.skillTargetId)||ROCKS.find(a=>getLevel(id)>=a.req)||ROCKS[0];}
   else if(id==='fishing'){acts=renderActivities(FISH_SPOTS,id);calc=FISH_SPOTS.find(a=>a.id===G.skillTargetId)||FISH_SPOTS.find(a=>getLevel(id)>=a.req)||FISH_SPOTS[0];}
-  else if(typeof window.renderArtisanActivities==='function' && (id==='cooking'||id==='smithing'||id==='crafting'||id==='prayer')){acts=window.renderArtisanActivities(id);}
+  /* DERIVED from the recipe table rather than a name list: a bench exists iff
+     ARTISAN_RECIPES has a lane for it, which is what made Runecrafting and
+     Stonemason data rows instead of five more edits to this file. */
+  else if(typeof window.renderArtisanActivities==='function' && window.ARTISAN_RECIPES && Array.isArray(window.ARTISAN_RECIPES[id])){acts=window.renderArtisanActivities(id);}
   else acts=`<div class="empty"><span class="em-icon">⚔️</span>Train ${s.name} by fighting in the Combat tab.</div>`;
   let calcHtml='';
   if(calc){
@@ -8819,6 +8839,8 @@ function refreshActivityBar(){
   /* Artisan (cooking/smithing/crafting recipes) — Phase A.1 onwards uses
      this path instead of legacy activeAction. */
   if(G.activeArtisanRecipe){
+    /* icon key per bench; anything unmapped falls through to the uiAnvil
+       default below, which is the right picture for a workbench. */
     const map = {cooking:'cooking', smithing:'smithing', crafting:'crafting', prayer:'prayer'};
     const skill = G.activeArtisanSkill || 'cooking';
     bar.classList.remove('idle','combat');
@@ -10594,7 +10616,9 @@ window.renderCharacter = function(){
 
   var combat = ['attack','strength','defense','hitpoints','prayer','magic','ranged','bountyHunter'];
   var gather = ['woodcutting','mining','fishing','farming'];
-  var artisan = ['cooking','crafting','smithing'];
+  /* Derived from SKILLS_DEF's own `cat`, so a new bench appears on the
+     Character page by adding its data row (it did not, before b357). */
+  var artisan = Object.keys(SKILLS_DEF).filter(function(k){return SKILLS_DEF[k].cat==='artisan';});
 
   var avatarSrc = window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png';
 
@@ -11630,7 +11654,7 @@ window._armArtisanTimers = function(ms){
 function artisanIntervalMs(skillId, r){
   var ms = (typeof window.activityIntervalMs === 'function') ? window.activityIntervalMs() : null;
   if(ms != null) return ms;
-  var bonusKey = ({cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed'})[skillId] || 'gatherSpeed';
+  var bonusKey = window.speedKeyFor(skillId);
   var speed = (typeof getBonus==='function') ? getBonus(bonusKey) : 0;
   return Math.max(500, Math.floor(window.pacedActionMs(r.ms) * (1 - speed)));
 }
@@ -12112,7 +12136,7 @@ window._itemPath = window._itemPath || {};
 window._itemSVG = window._itemSVG || {};
 
 /* ─── Phase A.1: ARTISAN_RECIPES additions ─────────────── */
-window.ARTISAN_RECIPES = window.ARTISAN_RECIPES || {cooking:[], smithing:[], crafting:[], prayer:[]};
+window.ARTISAN_RECIPES = window.ARTISAN_RECIPES || {cooking:[], smithing:[], crafting:[], prayer:[], runecrafting:[], stonemason:[]};
 function add(skill, recipe){ window.ARTISAN_RECIPES[skill].push(recipe); }
 function has(skill, id){ return (window.ARTISAN_RECIPES[skill]||[]).some(function(r){return r.id===id;}); }
 
@@ -15351,7 +15375,13 @@ function getEquipmentBonusFor(style){
 
 function gatherRates(){
   /* For each gather/artisan skill, compute XP/hr */
-  var skills = ['woodcutting','mining','fishing','farming','cooking','smithing','crafting'];
+  /* Derived from SKILLS_DEF (gather + artisan), so a new bench is quoted a
+     rate on the home dashboard by adding its data row rather than by editing
+     this list. `prayer` joins for the first time as a side effect, which is
+     correct — it is an artisan bench with recipes and a rate. */
+  var skills = Object.keys(SKILLS_DEF).filter(function(k){
+    var c = SKILLS_DEF[k].cat; return c==='gather' || c==='artisan';
+  });
   var results = [];
   var TABLES = {
     woodcutting: typeof TREES !== 'undefined' ? TREES : [],

@@ -20,12 +20,12 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=357';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=357';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=357';
+import { SKILLS_DEF } from '../data/skills.js?v=358';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=358';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=358';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
-import { balanceMarkup } from '../net/balance.js?v=357';
+import { balanceMarkup } from '../net/balance.js?v=358';
 
 function deriveClass() {
   const G = window.G;
@@ -117,7 +117,11 @@ const rateOf = (skillId, action) => {
 };
 
 function gatherRates() {
-  const skills = ['woodcutting', 'mining', 'fishing', 'farming', 'cooking', 'smithing', 'crafting'];
+  /* Derived from SKILLS_DEF's own `cat` (gather + artisan), the twin of
+     legacy.js's gatherRates(): a new bench is quoted a rate by adding a data
+     row rather than by editing two hand-kept lists that can drift. */
+  const skills = Object.keys(SKILLS_DEF)
+    .filter((k) => SKILLS_DEF[k].cat === 'gather' || SKILLS_DEF[k].cat === 'artisan');
   const TABLES = {
     woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS,
     farming: Object.values(CROPS),
@@ -346,7 +350,7 @@ function buildSkillsHeader() {
    renders, appended at the end, so adding a skill can never drop it silently. */
 const SKILL_ORDER = [
   'woodcutting', 'mining', 'fishing', 'farming',
-  'cooking', 'crafting', 'smithing',
+  'cooking', 'crafting', 'smithing', 'runecrafting', 'stonemason',
   'attack', 'strength', 'defense', 'hitpoints',
   'magic', 'ranged', 'prayer', 'bountyHunter',
 ];

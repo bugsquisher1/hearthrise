@@ -26,7 +26,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { advanceToolCarry } from './tools.js?v=357';
+import { advanceToolCarry } from './tools.js?v=358';
 
 /* ── Burn (open-fire cooking) ─────────────────────────────────────────
    Values unchanged from b225 / b227. Documented at length in
@@ -122,6 +122,16 @@ export const BENCH_COUNTERS = {
   cooking: { stats: { cooked: 1 }, progress: ['cooked'] },
   smithing: { stats: { refined: 1, smithed: 1 }, progress: ['smithed'] },
   crafting: { stats: { refined: 1, crafted: 1 }, progress: ['crafted'] },
+  /* The two new benches count as CRAFTS. Deliberately reusing the `crafted`
+     progress key rather than minting `bound` / `quarried` keys: a progress key
+     is only real if a daily/quest actually names it, and inventing two that
+     nothing reads would be a counter that ticks into the void — the same
+     ghost-key failure §5.1 rejects for speed perks. Reusing `crafted` means
+     "craft N things" dailies are completable at the new benches from day one,
+     which is what a player expects of a skill in the Artisan column.
+     `refined: 1` matches smithing/crafting so the lifetime stat is comparable. */
+  runecrafting: { stats: { refined: 1, crafted: 1 }, progress: ['crafted'] },
+  stonemason:   { stats: { refined: 1, crafted: 1 }, progress: ['crafted'] },
 };
 
 /**

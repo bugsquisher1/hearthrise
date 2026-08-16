@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 358 — 2026-08-17 (Two new skills)
+
+- ⚒️ **Stonemason.** Quarry your own stone from nothing, dress it into blocks, and cut the whetstones that keep a melee weapon sharp. It feeds the clan castle, and it needs no workbench — press one button at level 1 and you're a mason.
+- 🔮 **Runecrafting.** Bind runes for every element across seven tiers, up to the deep Deepbind rungs.
+- 🪨 Both are proper artisan skills, so they **pay while you're away** like smithing and crafting do.
+- 🏹 Groundwork for ammunition: arrows, runes and whetstones now share one consumption system, and running dry will weaken you rather than stop you. It isn't wired into combat yet — no ammo is spent in a fight today.
+
 ## v0.9.2-beta build 357 — 2026-08-16 (The bestiary triples)
 
 - 🐗 **The monster roster goes from 31 to 111.** Eleven creature classes — beasts, vermin, plants, humanoids, people, undead, demons, dragons, elementals, constructs and things from elsewhere — each with its own weapon and elemental weaknesses. Learn eleven rules instead of memorising a hundred rows.

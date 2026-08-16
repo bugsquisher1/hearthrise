@@ -34,6 +34,17 @@ Run the suite with `Ctrl+Shift+T` or the floating 🧪 button.
 - Don't add a bare relative ESM import (`from './x.js'` with no `?v=`) — the bump script + smoke test expect every module import to carry a version. `bump-version.sh` fails loudly if it finds an unversioned one.
 - **That rule is scoped to what the BROWSER loads: `index.html` + `src/**`. Outside it — `supabase/functions/**`, `tests/**` — a relative import must carry NO `?v=` at all** (b332). `bump-version.sh` walks `src/` only, so a version there can never be bumped: the Edge Function's imports sat frozen at `?v=326` for five builds while their targets moved to `?v=331`, and Supabase's hosted bundler then rejected the deploy outright because it resolves a specifier as a literal file path, query included. `versionQueryGuard()` in `tools/pack-edge.mjs` (run by `tests/run-smoke.mjs`) fails the build on one. Do NOT "fix" the drift by widening the bump script's `find`.
 - Service worker derives its cache name from the `?v=` it sees on script tags (`hearthrise-<NNN>`). The b124 universal kill-switch in `<head>` purges any cache whose name doesn't match the current build — don't reintroduce a fixed cache name.
+- **THE RELEASE VISUAL GATE (Tyler, 2026-08-17, after the b361 combat-screen break — NON-NEGOTIABLE).**
+  No release that touches UI, CSS, icons, or any rendered surface ships until the ASSEMBLED
+  release (merged main, not the feature branch) has been LOOKED AT: boot the real game, open
+  every screen the diff touches plus the combat screen and inventory (the two densest), at
+  desktop AND mobile-landscape (922×423), and READ the screenshots — measurements alone do not
+  count, and per-branch verification by the authoring agent does not count, because the b361
+  break was an emergent interaction between two individually-verified branches (256px portraits
+  meeting an unsized icon slot). The smoke suite cannot see layout. If the Coordinator cannot
+  do the pass, the Art Director does; either way the screenshots exist before the push.
+  Tyler's words: "THIS SHOULD HAVE NEVER GONE LIVE WITHOUT SOMEONE FROM THE UX/UI/DESIGN TEAM
+  APPROVING IT."
 - After bumping, give Tyler the literal git push command. He runs git himself.
 
 ---

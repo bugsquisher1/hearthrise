@@ -4,6 +4,66 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-16 · Art Director · **A flat studio key does not need a paid matte — it needs a flood fill**
+
+**DISCOVERY.** The 73-portrait monster wave arrived as flattened Recraft WEB-UI JPEGs and was routed to
+the vendor's paid `removeBackground` endpoint. It did not need it. I measured the backdrop first
+(`tools/art-bg-probe.mjs`): **82 of 83 files key on a flat near-white**, the 83rd is a baked
+transparency CHECKERBOARD whose two greys the same code path picks up automatically, and exactly one
+alternate has a genuinely painted sky. A learned matte buys nothing against a known uniform key — and
+this repo already documents what the paid one actually delivers (`tools/art-batch-process.mjs`
+header): a **~3%-translucent subject interior**, a canvas-wide speckle that defeats the bbox crop, and
+a soft-alpha backdrop band. Every one of those is a defect the local pipeline then has to undo.
+**Cost: $0.00 instead of ~$0.83, and a better matte.**
+
+**THE THREE THINGS THAT MAKE A LOCAL MATTE CORRECT** (all three earned by looking at the output, not by
+reasoning): (1) **flood fill from the border, never a global "white is transparent" test** — this wave
+contains a frost giant's beard, a mountain ram's fleece, a banshee's smoke and a mammoth's ivory, and
+a global threshold punches holes through all of them; (2) **the key is MEASURED off the border ring**,
+which is why the checkerboard file needed no special case; (3) **colour decontamination on the soft
+edge** — skip it and every dark subject ships a white halo that is invisible on a light review surface
+and glaring on hearthlight.
+
+**THE PART THAT ONLY SHOWED UP ON A MAGENTA CONTACT SHEET.** Border connectivity cannot reach a key
+region **enclosed by the subject** — the white between a mammoth's trunk and tusks, inside a wyvern's
+furled wing, between a brood spider's legs, under a wasp's abdomen. Those shipped as blown-out white
+blobs and were **completely invisible on a dark review tile**. The discriminator is not "is it white"
+(most white here is paint) but **"is it FLAT"**: composited backdrop has a luminance standard
+deviation near zero over a large area; nothing a hand painted does. `std < 2.5 over >= 1200 px` fixed
+all four and left every painted white intact.
+
+**AFFECTED SYSTEMS.** Any future art delivery that arrives flattened; `tools/art-wave-matte.mjs`;
+`tools/art-bg-probe.mjs`; the art budget.
+
+**REQUIRED ACTION.** Before funding background removal on a delivery, run `art-bg-probe.mjs` on it.
+If `flat%` is high and the mode is a uniform light neutral, use `art-wave-matte.mjs` and spend nothing.
+Reserve the paid endpoint for genuinely painted backdrops — which in this wave was **one file out of
+83**, and that one is unshippable for other reasons anyway.
+
+---
+
+### 2026-08-16 · Art Director · **The item-detail popup rendered a raw emoji at 48px — the largest item render in the game**
+
+**DISCOVERY.** Tyler reported the item popup "still shows the OLD icon". It was not a stale map:
+`openInvDetail()` in `legacy.js` interpolated **`it.icon` — the emoji out of the ITEMS data table** —
+straight into hand-rolled HTML, at `font-size:48px`. So the single biggest item render in Hearthrise
+was a system pictograph, on a project whose first non-negotiable is "no emoji as art anywhere". Three
+more were in the same card (`🪙` in the value stat and both Sell buttons) and a `✕` close mark.
+
+**WHY IT SURVIVED b217.** The b217 no-emoji backstop works by making the *renderers* incapable of
+drawing an emoji (`itemArt()` / `itemImg()` → `_itemPath` → gilt-glyph fallback). This site called
+neither, so it was outside the backstop's reach **and** outside `__applyHearthfireItemIcons()`'s. A
+hand-rolled HTML string is how an emoji gets back onto the screen.
+
+**AFFECTED SYSTEMS.** `openInvDetail()`; `.inv-detail-icon` styling; the no-emoji invariant.
+
+**REQUIRED ACTION.** When adding any surface that shows an item, call `itemArt(id, px)` — never
+`it.icon`. Also note `.hr-item-art` has **no size rule anywhere in the sheets**: an unconstrained
+hearthfire PNG lays out at its intrinsic 256px. Every existing call site happens to sit in a
+constraining container; a new one will not.
+
+---
+
 ### 2026-08-16 · Art Director · **A batch can pass every automated QC check and still be 21% WRONG**
 
 **DISCOVERY.** The 512-image item batch was handed over "QC-verified: real alpha, zero hash-duplicates,

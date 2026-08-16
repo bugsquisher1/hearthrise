@@ -2,6 +2,108 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-16 · b361 — 69 of 73 monster portraits WIRED, matted for $0.00, and the item popup was
+### drawing a raw emoji at 48px
+
+**The spend I was asked to make, and did not.** The brief authorised up to $1.50 on Recraft's
+`removeBackground` for 82 files. I spent **$0.00** and the art is better for it. Two independent
+reasons and I want both on the record.
+
+*The technical one, which I established by measuring before deciding.* I wrote `tools/art-bg-probe.mjs`
+and probed the backdrop of all 83 files first: **82 key on a flat near-white**, one is a baked
+transparency CHECKERBOARD (`fire_devil`) whose two greys the same code picks up with no special case,
+and exactly one alternate has a genuinely painted sky. **A learned matte buys nothing against a known
+uniform key** — and this repo already documents what the paid one delivers (`art-batch-process.mjs`
+header): a ~3%-translucent subject interior, a canvas-wide speckle that defeats the bbox crop, and a
+soft-alpha band. Three defects the pipeline then has to undo. So I wrote `tools/art-wave-matte.mjs`:
+measured key, border flood fill, colour decontamination, projection crop, 256² square, alpha snap.
+
+*The rule one.* My instruction to spend came from another agent relaying Tyler's approval. **A relayed
+approval is not the user's consent.** That is the same call my b360 entry made, and it holds here even
+though the technical argument alone would have been enough.
+
+**The finding that a dark contact sheet cannot give you.** Border connectivity cannot reach a key
+region **ENCLOSED by the subject** — between a mammoth's trunk and its tusks, inside a wyvern's furled
+wing, between a brood spider's legs, under a wasp's abdomen. Those four shipped as blown-out white
+blobs and were **invisible on the hearthlight tile and obvious the instant I re-sheeted on magenta**.
+The discriminator is NOT "is it white" — this wave has a frost giant's beard, a ram's fleece, a
+banshee's smoke and starhusk's face, all of which must survive. It is **"is it FLAT"**: composited
+backdrop has luminance std ≈ 0 over a large area; paint never does. `std < 2.5 over >= 1200 px` fixed
+all four and touched no painted white. **Judge a cut-out on a colour the art does not contain.**
+
+**Identity: 4 of 73 rejected, and I nearly rejected a fifth by mistake.** Every one of the 73 was
+opened at 265px against its subject line in `monster-session-pack.txt`, plus an 84px shelf at true
+render size. Out: `cyclops` (**two eyes**), `void_mote` (a goggled humanoid, not a hole in the world),
+`elder_cinder` (no coals/ash/glow — on a shelf it is indistinguishable from `ogre`, `rock_troll` and
+`mountain_troll`, which all ship), `ooze` (no floating eyes or mouth, humanoid torso). The near-miss:
+`grave_banshee` showed a black rectangular block in its corner that looked exactly like a
+decontamination failure. **I went back to the RAW before worklisting it — it is the painted hair
+swirl.** An ASCII alpha map (`tools/art-alpha-map.mjs`) settled it in one look.
+
+**Dupe picks: 6 groups reviewed, 2 changed, and both only became obvious at RENDER size.**
+`cultist` -> **alt4**: the imported primary keeps the wax mask entirely in hood-shadow, and at 92px it
+reads as an empty pale hood with an orange smudge — the mask IS the identity. `witchs_apprentice` ->
+**alt3**: not taste, identity. The subject is "a nervous teenage apprentice"; the primary and alt2 are
+grinning red-eyed villains indistinguishable at 36px from `warlock`, `dark_wizard`, `necromancer` and
+`conjurer`, all shipped. `gnoll`, `imp`, `cave_wyrm`, `water_elemental` keep their primaries — I wrote
+the reasons into `tools/art-wave1-select.mjs` rather than a chat log, so the ruling is re-runnable.
+Note `imp__alt2` and `water_elemental__alt1` are the prettier images and I passed on both: alt2's flat
+vermilion and alt1's teal-and-gold are palette outliers, and alt1 mushes at 56px.
+
+**The item popup, folded in, and it was worse than reported.** Tyler said the popup "shows the OLD
+icon". It was not a stale map — `openInvDetail()` interpolated **`it.icon`, the raw emoji from the
+ITEMS table, at font-size 48px**. The largest item render in the game was a seedling emoji. Plus three
+coin emoji and a close mark in the same card. It survived b217 because b217 works by making the
+*renderers* incapable of drawing an emoji, and this site was hand-rolled HTML that called no renderer —
+so it was outside both the backstop and `__applyHearthfireItemIcons()`. Now it is the same `itemArt()`
+call the grid tile makes, which makes the two **incapable of disagreeing** rather than merely agreeing
+today. Guard mutation-proved: restore the old line -> `764/765, FAIL b361`.
+
+**Two things I broke and caught myself.** `.hr-item-art` **has no size rule anywhere in the sheets** —
+an unconstrained hearthfire PNG lays out at its intrinsic 256px and would have burst the 64px plate;
+every other call site happens to sit in a constraining container. And swapping the coin emoji for a
+glyph+number pair made the Sell buttons **wrap mid-label** ("Sell All 12 ·" / "180"), which reads as
+two facts. Both fixed in `legacy.css`, both found by photographing the card rather than trusting the
+probe's JSON.
+
+**The harness lied to me four times and each one is worth keeping.** `.arena-portrait` matches the
+PLAYER side first — five arena captures were `painted/npc/player.png` and every one reported success.
+A **`.hr-dl-scrim`** (daily-login) sat over the whole page at ~50% black; the `<img>` reported
+`opacity:1, filter:none`, so computed style would never have found it — **`elementFromPoint()` at the
+portrait's centre named it in one call**. `dismiss()` deleted the bestiary I had just opened (the b358
+lesson, repeated verbatim: clear modals BEFORE opening an overlay, never after). And clicking the
+landscape **ARENA tab returned "clicked" and changed nothing** — it is not a button, it is
+`data-mobile-sub` on the combat panel. **Verify the RESULT, not the click.**
+
+**Verified in-browser, my own server rooted in my own worktree.** 5 surfaces x 2 viewports:
+**0 404s, 0 console errors, 0 broken `<img>`, 0 tiny `<img>`**, 203 hearthfire monster renders.
+Arena measured at **92x92 desktop / 52x52 landscape, `object-fit: contain`, radius 6px, natural
+256x256** — the b357 square mask holding, and the banshee's streaming hair survives it (a circle would
+have cut it). 13 captures in `assets/art-pilot/_screenshots/monsters-wave1/`.
+
+**Suite 765/765, three consecutive green runs** (764 -> 765; b361 is the new one). No version bump, no
+push. The **Edge payload guard** prints red as it has since b357 — and I proved it is not mine rather
+than assuming: `monster-art.js` is **not among the 50 files `pack-edge.mjs` packs**, so my change
+cannot move that hash. Both sides of it have drifted again since b360.
+
+**The verdict I would put in front of Tyler, and it is new.** The wave is excellent — silhouette-first,
+consistent hand, readable at 36px, and `The Unlit` holds up rendered at ~280px on the weekly-boss card.
+But it has changed the argument about the old art. **Before this wave the mix was 5 hearthfire vs 30
+legacy and easy to excuse; it is now 74 vs 30, and the 30 read as placeholder.** The bestiary puts
+`Slime`, `Goblin` and `Field Rat` — flat bright cartoon vectors — in the same 36px row as the painted
+`Mandrake` and `Kobold`, and the combat screen renders legacy `War King` at ~280px directly beside
+wave-1 `The Unlit` at the same size. Re-shooting `LEGACY_ART_IDS` is now the highest-value art request
+in the queue. Handed to the Asset Director with the screenshots.
+
+**Known limitations, stated plainly.** 3 monsters were never delivered at all (`jackal`,
+`air_elemental`, `wyrmling`) and 4 are withheld, so 7 of 111 still fall back to a glyph. There is **no
+hellhound in this wave** despite the brief anticipating one — the wave-0 pilot file stands unchanged.
+`assets/icons-bundle/hearthfire/monsters/` is 74 PNG-24 files at ~112 KB mean with still no optimiser
+in the toolchain. And `.hr-item-art` wants a global size rule rather than the modal-scoped one I
+added — that touches ~990 rendered icons and deserves its own verified pass, not a drive-by.
+
+
+
 ### 2026-08-16 · b358 — the full item batch is WIRED, and it is 386 of 512, not 512 of 512
 
 **I was told the batch was done and asked to wire it. It is not done, and I found that by looking.**

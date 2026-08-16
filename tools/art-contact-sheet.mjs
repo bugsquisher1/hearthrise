@@ -15,10 +15,21 @@ const a = process.argv.slice(2);
 const DIR = a[0], OUT = a[1];
 const opt = (n, d) => { const i = a.indexOf(n); return i > 0 ? +a[i + 1] : d; };
 const COLS = opt('--cols', 8), CELL = opt('--cell', 150), FROM = opt('--from', 0), COUNT = opt('--count', 48);
+/* `--tile <css>` swaps the cell backdrop. Hearthlight is the ship surface, but
+   a saturated magenta is the one that EXPOSES a matte defect: a white key halo
+   and a punched-through hole are both invisible on a dark brown tile. */
+const ti = a.indexOf('--tile');
+const TILE = ti > 0 ? a[ti + 1] : '#221b16';
 
-function walk(d) { let o = []; for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) o = o.concat(walk(p)); else if (/\.png$/i.test(e.name)) o.push(p); } return o; }
+function walk(d) { let o = []; for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) o = o.concat(walk(p)); else if (/\.(png|jpe?g)$/i.test(e.name)) o.push(p); } return o; }
 const all = walk(DIR).sort();
-const files = all.slice(FROM, FROM + COUNT);
+/* `--only a,b,c` sheets a named subset — the identity pass needs to put a
+   dozen ambiguous subjects side by side at review size without copying files
+   into a scratch folder first. */
+const oi = a.indexOf('--only');
+const ONLY = oi > 0 ? new Set(a[oi + 1].split(',').map((s) => s.trim())) : null;
+const pool = ONLY ? all.filter((f) => ONLY.has(path.basename(f).replace(/\.(png|jpe?g)$/i, ''))) : all;
+const files = pool.slice(FROM, FROM + COUNT);
 if (!files.length) { console.log('nothing to sheet'); process.exit(0); }
 
 /* Inlined rather than imported from art-batch-process.mjs: that module runs
@@ -38,14 +49,14 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewportSize: { width: COLS * CELL + 24, height: 200 }, deviceScaleFactor: 1 });
 
 const tiles = files.map((f) => ({
-  label: path.relative(DIR, f).replace(/\\/g, '/').replace(/\.png$/, ''),
-  src: 'data:image/png;base64,' + fs.readFileSync(f).toString('base64'),
+  label: path.relative(DIR, f).replace(/\\/g, '/').replace(/\.(png|jpe?g)$/i, ''),
+  src: `data:image/${/\.png$/i.test(f) ? 'png' : 'jpeg'};base64,` + fs.readFileSync(f).toString('base64'),
 }));
 
 await page.setContent(`<html><body style="margin:0;background:#16120f;font-family:system-ui">
 <div style="display:grid;grid-template-columns:repeat(${COLS},${CELL}px);gap:0;padding:12px">
 ${tiles.map((t) => `<figure style="margin:0;padding:6px;display:flex;flex-direction:column;align-items:center;gap:4px">
-  <div style="width:${CELL - 24}px;height:${CELL - 24}px;display:flex;align-items:center;justify-content:center;background:#221b16;border:1px solid #3a2f26;border-radius:3px">
+  <div style="width:${CELL - 24}px;height:${CELL - 24}px;display:flex;align-items:center;justify-content:center;background:${TILE};border:1px solid #3a2f26;border-radius:3px">
     <img src="${t.src}" style="max-width:100%;max-height:100%;object-fit:contain">
   </div>
   <figcaption style="color:#d8c9b4;font-size:10px;text-align:center;line-height:1.1;word-break:break-all">${t.label}</figcaption>
@@ -55,4 +66,4 @@ await page.waitForTimeout(400);
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 await page.screenshot({ path: OUT, fullPage: true });
 await browser.close();
-console.log(`${OUT}  (${files.length} of ${all.length}, from ${FROM})`);
+console.log(`${OUT}  (${files.length} of ${pool.length}, from ${FROM})`);

@@ -538,6 +538,64 @@ const TESTS = [
     assert(!ids.some((id) => (A.REJECTED_WRONG_SUBJECT || []).some((k) => k.split('/')[1] === id)),
       'a file withheld for depicting the wrong object got wired anyway');
   }),
+  /* b361 — THE ITEM-DETAIL POPUP DREW A RAW EMOJI AT 48px.
+     Tyler, live: "click an item (e.g. Wheat Seed) and the popup still shows
+     the OLD icon while the grid shows the new art." `openInvDetail()` was
+     hand-rolled HTML that interpolated `it.icon` — the emoji in the ITEMS data
+     table — so the LARGEST item render in the game bypassed both `_itemPath`
+     and the b217 no-emoji backstop, on a project whose first rule is "no emoji
+     as art anywhere".
+
+     The contract this asserts is not "the modal shows an image" but "the modal
+     and the GRID resolve the SAME id to the SAME source" — agreement by
+     construction, since both now go through `itemArt()`. It also sweeps the
+     whole card for emoji, because the icon was not the only one in it (three
+     coins and a close mark went with it). */
+  () => tryRun('b361: item-detail modal icon === grid icon, and the card carries no emoji', () => {
+    assert(typeof window.openInvDetail === 'function', 'openInvDetail missing');
+    const A = window.HearthriseItemArt;
+    const wired = (A && A.wiredIconMap && A.wiredIconMap()) || {};
+    /* A hearthfire-wired id that is really in ITEMS. Prefer the one Tyler
+       reported so the regression is the reported bug, not a cousin of it. */
+    const id = (wired.wheat_seed && window.ITEMS.wheat_seed) ? 'wheat_seed'
+      : Object.keys(wired).find((k) => window.ITEMS && window.ITEMS[k]);
+    assert(id, 'no hearthfire-wired item id available to test with');
+
+    const expect = (window._itemPath || {})[id];
+    assert(expect && /^assets\/icons-bundle\//.test(expect), 'grid path for ' + id + ' is not shipped art: ' + expect);
+    /* What the GRID would draw, from the shared helper the tiles use. */
+    assert(typeof window.itemArt === 'function' || typeof itemArt === 'function', 'itemArt() helper missing');
+
+    const hadQty = (window.G.inventory || {})[id];
+    window.G.inventory[id] = Math.max(2, hadQty || 0);
+    let card = null;
+    try {
+      window.openInvDetail(id);
+      const d = document.getElementById('inv-detail-overlay');
+      assert(d && d.classList.contains('show'), 'openInvDetail did not open the card');
+      const ic = d.querySelector('.inv-detail-icon');
+      assert(ic, 'card has no .inv-detail-icon');
+      const img = ic.querySelector('img');
+      assert(img, 'the detail icon is not an <img> — it fell back to text/emoji for a wired id');
+      /* THE point: same id, same source as the grid. */
+      assert(img.getAttribute('src') === expect,
+        'modal icon !== grid icon for ' + id + ': modal ' + img.getAttribute('src') + ' vs grid ' + expect);
+
+      /* No emoji anywhere in the card — icon, stats, or buttons. */
+      const emojiRe = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u;
+      const leaks = [];
+      d.querySelectorAll('*').forEach((n) => {
+        if (n.children.length) return;
+        if (emojiRe.test(n.textContent || '')) leaks.push((n.className || n.tagName) + ':' + n.textContent.trim().slice(0, 12));
+      });
+      assert(leaks.length === 0, 'emoji rendered as art in the item card: ' + leaks.join(', '));
+      card = true;
+    } finally {
+      try { window.closeInvDetail && window.closeInvDetail(); } catch (e) {}
+      if (hadQty === undefined) delete window.G.inventory[id]; else window.G.inventory[id] = hadQty;
+    }
+    assert(card, 'card never rendered');
+  }),
   () => tryRun('b201: homestead tiers are sane + API present', () => {
     const H = window.HearthriseHomestead;
     assert(H && Array.isArray(H.TIERS) && H.TIERS.length === 6, 'HearthriseHomestead.TIERS should have 6 tiers');

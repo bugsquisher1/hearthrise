@@ -1045,6 +1045,13 @@ img,svg{display:block;max-width:100%}
 .inv-detail.show .inv-detail-card{transform:translateY(0)}
 .inv-detail-head{display:flex;align-items:center;gap:14px;margin-bottom:13px}
 .inv-detail-icon{font-size:calc(48px * var(--ui-scale, 1));line-height:1;width:64px;height:64px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:var(--r)}
+/* b361 — this plate now holds real art instead of a 48px emoji. `.hr-item-art`
+   has no size rule anywhere in the sheets, so an unconstrained hearthfire PNG
+   would lay out at its intrinsic 256px and burst the card. `contain` also
+   matters more here than anywhere else: this is the largest item render in the
+   game, so a `cover` crop would cut the very silhouette the player opened the
+   card to look at. Padding keeps the subject off the plate's own border. */
+.inv-detail-icon img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;padding:3px;box-sizing:border-box}
 .inv-detail-name{font-family:var(--f-display);font-size:calc(21.5px * var(--ui-scale, 1));color:var(--gold-2);font-weight:700}
 .inv-detail-meta{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-top:2px}
 .inv-detail-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:12px}
@@ -1059,6 +1066,12 @@ img,svg{display:block;max-width:100%}
 }
 .inv-detail-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-top:10px}
 .inv-detail-actions .btn[disabled]{opacity:.5;cursor:default}
+/* b361 — the sell buttons carry a price, and the price is now a glyph+number
+   pair rather than a "180🪙" string. In a 120px grid track that pair wrapped
+   mid-label ("Sell All 12 ·" / "180"), which reads as two different facts.
+   Keep each button's label on one line and let the auto-fit track grow. */
+.inv-detail-actions .btn{white-space:nowrap}
+.inv-detail-actions .btn .hr-inline{display:inline-flex;align-items:center;gap:3px;vertical-align:-2px}
 
 /* b224: the Combat screen's food controls — Eat first, auto-eat second,
    one line of plain English underneath. */

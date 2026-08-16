@@ -18,8 +18,13 @@ const SRC_CONTENT = path.join(ROOT, 'docs', 'design', 'review-book-content.md');
 const SRC_EVENTS = path.join(ROOT, 'docs', 'design', 'events-donations-and-voting.md');
 const OUT = path.join(ROOT, 'docs', 'design', 'review-book.html');
 
-const md = readFileSync(SRC_CONTENT, 'utf8');
-const ev = readFileSync(SRC_EVENTS, 'utf8');
+// Normalise line endings on read. Git checks these files out as CRLF on Windows
+// (core.autocrlf), and every anchor/fence regex below is written against \n — without this
+// the parse silently depends on which platform cloned the repo, which is the opposite of
+// the deterministic-output promise in the header.
+const read = p => readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
+const md = read(SRC_CONTENT);
+const ev = read(SRC_EVENTS);
 
 // ---------------------------------------------------------------- helpers
 
@@ -73,7 +78,7 @@ function grabTable(src, anchor) {
 
 // ---------------------------------------------------------------- parse: monsters
 
-const monSection = md.slice(idx(md, '## 1C'), idx(md, '# LIBRARY 2'));
+const monSection = md.slice(idx(md, '## 1C'), idx(md, '## 1D'));
 const monsterGroups = [];
 for (const chunk of monSection.split('\n### ').slice(1)) {
   const heading = chunk.split('\n', 1)[0];
@@ -160,6 +165,23 @@ const DEC = decTable.rows.map(r => ({
   lines: [inline(r[1])],
 }));
 
+// ---------------------------------------------------------------- parse: dungeon (Library 5)
+
+const dngTable = grabTable(md, '# LIBRARY 5');
+const DNG = dngTable.rows.map(r => ({
+  id: stripMd(r[0]).trim(),
+  name: stripMd(r[1]).trim(),
+  lib: 'dungeon', cat: 'The Long Night (vampire household)',
+  meta: `${esc(stripMd(r[2]))}`,
+  lines: [
+    inline(r[3]),
+    `<strong>Drop:</strong> ${r[4] && r[4] !== '—' ? inline(r[4]) : '<em>none — this card is the frame, not a piece</em>'}`,
+    `<strong>Note:</strong> ${inline(r[5])}`,
+  ],
+}));
+
+const dngIntro = paras(md.slice(idx(md, '**A vampire household.**'), idx(md, '| id | Name | Role |')));
+
 const sec0 = md.slice(idx(md, '## 0 ·'), idx(md, '## 0.1'));
 const recMatch = sec0.match(/\*\*MONSTERS\.\*\*([\s\S]*?)\n\n\*\*ITEMS\.\*\*([\s\S]*?)\n\n\*\*PROGRESSION\.\*\*([\s\S]*?)\n\n\*\*The constraint/);
 if (!recMatch) fail('could not parse section 0 recommendations');
@@ -181,6 +203,7 @@ const readingNotes = sec01.split('\n').filter(l => /^- |^  /.test(l))
 // tables for context
 const taxonomyTable = grabTable(md, '**Eleven categories.**');
 const foldTable = grabTable(md, '## 1B');
+const coverageTable = grabTable(md, '## 1D');
 const liveItemsTable = grabTable(md, '## 2A');
 
 // ---------------------------------------------------------------- parse: events
@@ -269,12 +292,13 @@ ${cards.join('\n')}
 const secMonsters = `
 <section data-lib="monsters">
 <h2>Library 1 · Monsters</h2>
-<p class="secnote">31 live monsters across 6 families today. The proposal: an 11-category taxonomy where the <strong>category carries the weakness profile</strong> and a monster may override at most one axis. 74 candidates below.</p>
+<p class="secnote">31 live monsters across 6 families today. The proposal: the <strong>eleven Tibia bestiary classes</strong> that fit our roster, where the <strong>class carries the weakness profile</strong> and a monster may override at most one axis. ${MON.length} candidates below, every tier filled.</p>
 ${card(REC_MON)}
 ${DEC.map(card).join('\n')}
 <details class="ctx" open><summary>Context: what an approval commits us to (b342 audit)</summary><ul>${readingNotes.map(n => `<li>${n}</li>`).join('')}</ul></details>
 ${renderTable('The 11-category taxonomy — the category carries the weakness profile', taxonomyTable)}
 ${renderTable('Where the current 31 live monsters land (folds, not renames)', foldTable)}
+${renderTable('Tier coverage — C = candidate, L = live monster folded in, — = deliberate band', coverageTable)}
 ${monsterGroups.map(g => group(g.cat, g.note, g.entries.map(card))).join('\n')}
 </section>`;
 
@@ -346,6 +370,13 @@ const EVT = [
   },
 ];
 
+const secDungeon = `
+<section data-lib="dungeon">
+<h2>Library 5 · Dungeon — The Long Night</h2>
+${dngIntro.map(p => `<p class="secnote">${inline(p)}</p>`).join('\n')}
+${group('The Long Night (vampire household)', 'one card per resident, per drop, and per rule', DNG.map(card))}
+</section>`;
+
 const secEvents = `
 <section data-lib="events">
 <h2>Library 4 · Events rework — The Kindling & The Beacon</h2>
@@ -356,7 +387,7 @@ ${EVT.map(card).join('\n')}
 // ---------------------------------------------------------------- sanity checks against sources
 
 const srcIds = new Set();
-for (const m of (md + '\n' + ev).matchAll(/\b(?:MON-[A-Z]{3}-\d{2}|ITEM-(?:NEW|PLAN)-\d{2}|PROG-\d{2}|DEC-[A-Z]+-\d{2})\b/g)) {
+for (const m of (md + '\n' + ev).matchAll(/\b(?:MON-[A-Z]{3}-\d{2}|ITEM-(?:NEW|PLAN)-\d{2}|PROG-\d{2}|DEC-[A-Z]+-\d{2}|DNG-[A-Z]+-\d{2})\b/g)) {
   srcIds.add(m[0]);
 }
 const cardIds = new Set(allEntries.map(e => e.id));
@@ -364,12 +395,28 @@ if (cardIds.size !== allEntries.length) fail('duplicate card ids');
 for (const id of srcIds) if (!cardIds.has(id)) fail('source id has no card: ' + id);
 const counts = {
   MON: MON.length, ITEM_NEW: ITEM_NEW.length, ITEM_PLAN: ITEM_PLAN.length,
-  PROG: PROG.length, DEC: DEC.length, REC: 3, EVT: EVT.length,
+  PROG: PROG.length, DEC: DEC.length, REC: 3, EVT: EVT.length, DNG: DNG.length,
 };
-if (counts.MON !== 74) fail('expected 74 monster candidates, got ' + counts.MON);
-if (counts.ITEM_NEW !== 44) fail('expected 44 new items, got ' + counts.ITEM_NEW);
+if (counts.MON !== 81) fail('expected 81 monster candidates, got ' + counts.MON);
+if (counts.ITEM_NEW !== 38) fail('expected 38 new items, got ' + counts.ITEM_NEW);
 if (counts.ITEM_PLAN !== 10) fail('expected 10 planned items, got ' + counts.ITEM_PLAN);
-if (counts.DEC !== 5) fail('expected 5 open decisions, got ' + counts.DEC);
+if (counts.DEC !== 6) fail('expected 6 open decisions, got ' + counts.DEC);
+if (counts.DNG !== 6) fail('expected 6 dungeon cards, got ' + counts.DNG);
+
+// every monster candidate must sit in one of the eleven adopted classes, and the retired
+// Fey class must not come back through a copy-paste.
+const CLASSES = ['Mammal', 'Vermin', 'Plant', 'Humanoid', 'Human', 'Undead', 'Demon', 'Dragon',
+  'Elemental', 'Construct', 'Extra Dimensional'];
+for (const g of monsterGroups) {
+  if (!CLASSES.includes(g.cat)) fail('monster group is not one of the eleven classes: ' + g.cat);
+}
+if (monsterGroups.length !== 11) fail('expected 11 monster classes, got ' + monsterGroups.length);
+if (/\bMON-FEY\b/.test(md)) fail('the Fey ids are retired and must not be reused');
+// "Blight" may only survive as revision history in prose. It must never appear in a
+// taxonomy row or a monster/item card, which is where it would become live content.
+const blightRows = [...taxonomyTable.rows, ...MON.map(m => m.lines), ...ITEM_NEW.map(i => i.lines)]
+  .filter(r => /\bBlight\b/i.test(r.join(' ')));
+if (blightRows.length) fail('Blight was renamed to Poison — found ' + blightRows.length + ' live row(s)');
 
 const total = allEntries.length;
 
@@ -652,6 +699,7 @@ const html = `<!doctype html>
 <option value="items">2 · Items</option>
 <option value="progression">3 · Progression</option>
 <option value="events">4 · Events rework</option>
+<option value="dungeon">5 · Dungeon — The Long Night</option>
 <option value="decisions">Open decisions</option>
 </select>
 <select id="f-cat" aria-label="category filter"><option value="">All categories</option></select>
@@ -677,6 +725,7 @@ ${secMonsters}
 ${secItems}
 ${secProg}
 ${secEvents}
+${secDungeon}
 </main>
 <div id="toast" role="status"></div>
 <script>${JS}</script>
@@ -688,5 +737,5 @@ writeFileSync(OUT, html);
 console.log('wrote ' + OUT);
 console.log('entries: ' + total + '  (monsters ' + counts.MON + ', items-new ' + counts.ITEM_NEW +
   ', items-planned ' + counts.ITEM_PLAN + ', progression ' + counts.PROG + ', decisions ' + counts.DEC +
-  ', recommendations ' + counts.REC + ', events ' + counts.EVT + ')');
+  ', recommendations ' + counts.REC + ', events ' + counts.EVT + ', dungeon ' + counts.DNG + ')');
 console.log('source ids matched: ' + srcIds.size);

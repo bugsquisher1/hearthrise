@@ -957,3 +957,29 @@ unconditional `create or replace` — that is the `clan_members "join as self"` 
 until the unlock intent exists — by design, and it is why applying this changes no player's night.
 Artisan is still refused (`unlockedRecipes` remains). True concurrency is unraced, as everywhere.
 `hr_perks_of` adds no round trip (it rides the seed transaction) and no table grant.
+
+---
+
+## 2026-08-16 · Game Designer → Art/Asset, Systems — Review Book revision 2
+
+**To Art Director + Asset Director.** `docs/design/monster-art-prompts.md` is new and production-ready:
+85 subject lines (81 monsters + 4 dungeon residents) with a shared Style B prefix/suffix, the 256×256
+RGBA output spec, filename = game id, and a staged batch order. **Two checks a prompt cannot enforce and
+a human must:** identity (this repo has shipped a boar as `bear.png` and a vampire as `dragon.png`) and
+style fit. Palette hooks are load-bearing — a Frost-resistant monster whose art has no cold read breaks
+the one-override rule the taxonomy is built on. Also flagged inside: no portrait in the vampire dungeon
+may resemble a specific performer or reference any television series — that is a legal constraint, not a
+style note.
+
+**To Systems (economy, when EVT-POOL is built).** The donation valuation changed shape:
+`blessing_catalogue.embers = ITEMS[id].v` for every item that is **not** super-rare (legendary/mythic/
+unique, boss-signature, BoP, tier-8, currencies), `donatable = false` for the rest, gold stays at `/5`.
+Donating therefore beats vendoring by 10–25× **by construction** — assert that as a loop over the whole
+catalogue, not a sample. Thresholds and per-player caps both move **2.5×** to hold the tier pacing
+against the much larger fuel supply. The anti-dupe property is that **embers are terminal**: no balance,
+no shop, no trade, no refund — keep it that way or the whole review has to be redone. Vote ties are now
+a **seeded server coin flip** (`FNV-1a(weekKey + sorted tied ids) mod n`), journalled with the tally.
+
+**To Systems (taxonomy, when the roster is built).** `DEC-NEUT-01` is resolved: `neutral` is retired and
+`NEUTRAL_DROP_BONUS ×1.15` needs re-homing or an accepted nerf on 7 monsters. `DEC-ALIAS-01` is approved
+and **ships first, as its own commit** — a rename without `MONSTER_ALIAS` costs live Renown (measured).

@@ -3,6 +3,24 @@
 **Donation pools that raise the blessing, and a weekly vote that chooses it.**
 
 **Author:** Game Designer · **Date:** 2026-08-16 · **Status:** SPEC (buildable; no code changed)
+
+> ## REVISION 2 — 2026-08-16, applying Tyler's verdicts
+>
+> `EVT-RENAME` **approved** · `EVT-LIBRARY` **approved** · `EVT-VOTE` **approved** · `EVT-RETIRE`
+> **approved** · `EVT-POOL` **revised per his note**. Three changes, all in this edition:
+>
+> 1. **Almost every item in the game is now donatable, and every one of them is worth MORE as embers
+>    than as vendor gold** (Tyler: *"each item in the game (other than super rare items) should have an
+>    ember value that is higher than gold; to convince folks to donate the stuff they don't want, like
+>    extra gathering mats or something they crafted to raise levels"*). §2.2 is rewritten around a single
+>    rule: **1 ember per 1 gold of book value, for anything that is not super-rare.** Vendoring the same
+>    item and donating the gold pays 10–25× less. §2.3's thresholds and caps are re-scaled 2.5× to hold
+>    the tier pacing that made +3 normal and +5 a story.
+> 2. **A tied vote is decided 50/50 by the server** (Tyler, `EVT-LIBRARY` note). §4.4's two deterministic
+>    tie-breaks are replaced by one seeded coin flip; the reasoning for choosing a flip over splitting
+>    the week is stated there.
+> 3. **"Blight" is "Poison" everywhere** (`DEC-ELEM-04`). No blessing in this spec names an element, so
+>    this is a cross-doc consistency note rather than a change here.
 **Authority:** Tyler's ruling, `DECISIONS.md` 2026-08-16 ("Events rework"). Shape is binding; balance
 detail is delegated to this role and is final unless superseded here.
 
@@ -92,15 +110,27 @@ valuing it at zero, so a "junk dump" is a rejected call, not a silent no-op.
 
 | Donatable | Ember value | Why |
 |---|---|---|
-| **Gold** | `floor(gold / 5)` | A real sink, and the fallback route for a player with no larder. |
-| **Cooked food** (`foodClass` ∈ healing/utility, any tier) | `v` (full book value) | The intended fuel. Cooked Trout 55, Cooked Lobster 240, Cooked Shark 900. |
-| **Crops & raw food** (raw fish/meat, crop produce) | `floor(v × 0.20)` | Exactly the vendor bid (`VENDOR_RAW_RATE`, `shops.js:1088`). Donating a raw is never better than selling it, so raws cannot be arbitraged into the pool. |
-| **Everything else** | **not donatable** | Equipment, materials, seeds, Keystones, gems, Bounty Marks, Hearth Tokens, bonds. |
+| **Any item that is not super-rare** — materials, ores, bars, logs, planks, crops, seeds, raw and cooked food, ammo, tools, and crafted gear up to tier 7 | **`v` — one ember per gold of book value** | The rule Tyler asked for, applied as one line instead of a schedule. The spare ore, the surplus trout, the fifty bronze swords you smithed to reach level 40: all of it is worth *more* here than anywhere else in the game. |
+| **Gold** | `floor(gold / 5)` | Deliberately the *worst* route. A real sink, and the fallback for a player with an empty larder. |
+| **Super-rare items** — rarity `legendary` / `mythic` / `unique`, every boss-signature and BoP drop, every tier-8 capstone, Keystones, gems, Bounty Marks, Hearth Tokens, bonds | **not donatable** | Tyler's carve-out. Also a player-protection rule: nobody should be able to feed a raid unique into a progress bar at 3 a.m. and want it back on Monday. |
 
-**Food is ~5× more ember-efficient per gold of value than gold itself, and that is deliberate.** It
-gives cooking and farming a permanent, non-vendor destination (a standing complaint: the artisan tail
-has nowhere to go), and it stops the pool from being something a player with a large bank simply buys.
-The tuning knob is the gold divisor; do not "fix" a participation problem by widening the catalogue.
+**Why one ember per gold of book value beats every schedule I tried.** It is one sentence, the UI can
+show it without a table, and it makes the comparison the player actually cares about trivially true:
+
+```
+donate the item          → v embers
+vendor it, donate gold   → (VENDOR_RATE × v) / 5 embers      VENDOR_RATE is 0.20–0.50
+                         → between v/25 and v/10
+```
+
+**Donating an item is 10–25× better than selling it and donating the proceeds.** That is the whole
+motivation lever, it needs no explaining, and it points every dead-stock pile in the game — the gathering
+overflow, the levelling craft, the raw fish nobody cooks — at one destination. Cooked food loses its old
+5× privilege and simply competes on book value like everything else, which is the right outcome: the
+feature should reward *playing*, not reward *cooking*.
+
+**The gold divisor is now the only thing standing between a large bank and a bought tier**, so it stays
+at 5 and it is the last knob anyone should touch. If participation ever needs a nudge, move the caps.
 
 **Hearth Tokens and gems are not donatable, and no donation ever mints anything.** A bond-funded
 player can convert gold to embers like anyone else, bounded by the same per-player cap, and what they
@@ -119,25 +149,32 @@ A = max(MIN_ROSTER, active_7d)          MIN_ROSTER = 8
                 excluding accounts <24h old (see §2.5)
 A is SNAPSHOTTED when the pool opens and FROZEN for the period.
 
-daily  thresholds (embers) = A × [ 100,  220,  380,  620, 1000 ]   → +1..+5
-weekly thresholds (embers) = A × [ 500, 1100, 1900, 3100, 5000 ]   → +1..+5
+daily  thresholds (embers) = A × [  250,  550,  950, 1550, 2500 ]   → +1..+5
+weekly thresholds (embers) = A × [ 1250, 2750, 4750, 7750,12500 ]   → +1..+5
 ```
 
 Per-player caps (enforced from the append-only journal, `clan_deposit`-style):
 
 | Cap | Value | In plain terms |
 |---|---|---|
-| Daily, per player | **1,200 embers** | 6,000 gold, or 5 Cooked Lobsters, or ~1⅓ Cooked Shark |
-| Weekly, per player | **6,000 embers** | separate budget from the daily pool |
-| Per call | **600 embers**, ≤10 item ids, ≤10,000 qty per id | bounds a single forged call |
+| Daily, per player | **3,000 embers** | 15,000 gold, or ~55 Copper Ore, or 12 Cooked Lobsters, or three levelling-craft bronze swords |
+| Weekly, per player | **15,000 embers** | separate budget from the daily pool |
+| Per call | **1,500 embers**, ≤10 item ids, ≤10,000 qty per id | bounds a single forged call |
 
-**Why these numbers.** Assume ~35% of the active roster donates on a given day at ~60% of cap →
-expected inflow ≈ 0.21 × 1,200 ≈ **250 embers per active player per day**. That lands a normal day
-between **tier 2 and tier 3**, a good day at tier 4, and makes **tier 5 a genuine push** (≈4× a normal
-day; it needs ~83% of the roster at full cap). At beta size that is reachable on a coordinated night,
-which is the best thing this feature can produce: a day the server decided to do something together
-and could see that it worked. At launch scale participation regresses to the mean and tier 3 becomes
-the typical ceiling — correct, because +3 should be normal and +5 should be a story.
+**Why these numbers, and why they moved.** Revision 1's thresholds were sized for a world where the only
+fuel was cooked food, which is scarce. Opening the catalogue to every non-rare item multiplies the
+available ember supply by roughly 2.5× for an ordinary player's larder (measured against a typical
+mid-game bank: ~40% of book value sitting in gathering overflow, ~25% in levelling crafts, ~20% in raw
+food). **So thresholds and caps both move 2.5× and the pacing is preserved exactly.** Assume ~35% of the
+active roster donates on a given day at ~60% of cap → expected inflow ≈ 0.21 × 3,000 ≈ **630 embers per
+active player per day**. That lands a normal day between **tier 2 and tier 3**, a good day at tier 4, and
+makes **tier 5 a genuine push** (≈4× a normal day; it needs ~83% of the roster at full cap) — the same
+three sentences as before, which is the point. **+3 should be normal and +5 should be a story**, and that
+is true whether the fuel is lobster or leftover ore.
+
+**What actually changed for the player** is not the difficulty of the tier — it is that *everyone* can
+now participate with what they already have, instead of only the cooks. That was Tyler's ask, and it is
+the correct one: a public-good mechanic that only one skill can feed is a tax on that skill.
 
 The weekly ladder is the daily ladder × 5, so a player who caps every day and every week contributes
 the same *share* of both — the two pools never compete for attention on different terms.
@@ -177,18 +214,38 @@ Kindling card says so and the donate button reads *"Already at the realm's cap"*
 | Value is computed from a **server catalogue**, never from a client number | `blessing_catalogue` table, generated from `ITEMS` at migration time |
 | Items/gold are **debited atomically with the pool credit**, by the existing apply engine | one transaction in `hr_blessing_donate` |
 | Per-player per-period ember cap, read from an **append-only journal** | `blessing_donations`, exactly `clan_deposit`'s day-clamp shape |
-| Per-call clamp (600 embers / 10 ids / 10,000 qty) | RPC constants |
+| Per-call clamp (1,500 embers / 10 ids / 10,000 qty) | RPC constants |
+| **Super-rare is decided server-side from the catalogue's own rarity/flags, never from a client hint** | `blessing_catalogue.donatable` is generated, not passed |
+| **Embers are not a currency.** They cannot be spent, held, traded, gifted, refunded or converted. The only thing an ember does is increment a pool row | invariant; there is deliberately no ember shop and no ember balance on the player |
 | Eligibility floor: account **≥24h old** and **total level ≥10** | throwaway alts can neither pad the pool nor inflate `A` |
 | Roster `A` frozen at open | late arrivals only ever help |
 | **No personal material reward for donating** | there is nothing to farm; see §2.6 |
 | No refunds, no un-donating | removes the "donate to snipe the tier, withdraw" pattern before it exists |
 | Every donation journalled with actor, period, payload, server `now()` | abuse detectable and reversible, per CLAUDE.md |
 
-**Gold-dupe review.** Donations are strictly value-destroying: gold and items leave the player and
-become an integer on a pool row. Nothing here mints gold, items, gems, renown or Hearth Tokens, and
-the only output is a percentage on a presence-gated buff. There is no reverse path, so there is no
-dupe surface — the entire risk is *tier trivialisation*, which the per-player cap and the per-capita
-thresholds bound.
+**Gold-dupe review, re-done for the wider catalogue.** Donations are strictly value-destroying: gold and
+items leave the player and become an integer on a pool row. Nothing here mints gold, items, gems, renown
+or Hearth Tokens, and the only output is a percentage on a presence-gated buff.
+
+The one new question this revision opens is the **market/vendor/donation triangle**, because embers are
+now worth more than vendor gold. Walked deliberately:
+
+| Route | Costs | Returns | Verdict |
+|---|---|---|---|
+| Buy an item on the market for `P` gold, donate it | `P` gold | `v` embers | A **spend**, always. Embers buy nothing, so there is no currency you can be "up" in. If `P < v` the buyer got a good deal in *embers*, and embers are not fungible with anything. |
+| Buy on the market, vendor it back | `P` gold | `0.2–0.5 × v` gold | The pre-existing arbitrage, unchanged by this feature and already bounded by the vendor rate being below every sane market price. |
+| Craft an item from gathered mats, donate it | time + mats | `v` embers | Exactly the behaviour Tyler is buying. No gold is created; the mats are time-gated by gathering. |
+| Donate, then reverse it | — | — | Impossible: no refunds, no un-donating, no ember balance to spend. |
+
+**The load-bearing property is that embers are terminal.** They are not a balance, not an item, not
+tradeable, and there is no shop that takes them — so no matter how favourably an item converts, the
+conversion has no exit back into gold, gear, renown or rank. The remaining risk is therefore still only
+*tier trivialisation*, which the per-player cap and the per-capita thresholds bound, and which §2.3
+re-scaled 2.5× precisely because the fuel supply grew.
+
+**Flag to Systems, deliberate:** widening the catalogue makes the Kindling a **large new item sink** on
+top of the gold sink. That is a good thing for an economy whose junk-material pile only grows, but it
+should be measured alongside the muster-chest faucet removal in the same week, not separately.
 
 **Economy note (flag to Systems).** Retiring the muster chest removes roughly **7,500 gold and 10 gems
 per player per day** of faucet, and the Kindling adds a sink on top. That is a large one-directional
@@ -402,10 +459,20 @@ the single most important rule in this spec — merge them and the weekly blessi
   chosen: War Drums — lit Sunday night"**, with the final tally. That 24-hour gap is not
   administrative slack; it is the anticipation window, and it lets players plan the week (bank the
   logs, stock the food, book the evening).
-- **Tie-break 1 — the longest unseen wins.** Among tied candidates, the one whose blessing has gone
-  the most weeks without being active. Favours variety, is trivially explainable, and is deterministic.
-- **Tie-break 2 — hash order.** Still tied → the candidate earliest in the slate's derived order.
-  Public, reproducible, no coin flips on the server.
+- **Tie-break — the server flips a coin, 50/50** (Tyler's ruling, `EVT-LIBRARY`). Among tied candidates
+  the winner is drawn **uniformly at random by the server** at close: `FNV-1a(beaconWeekKey + '|' + the
+  sorted tied ids) mod n`. It is a genuine 50/50 (uniform over however many tied), it is computed
+  server-side from server time, and because the seed is public it is **reproducible and auditable** —
+  anyone can check the flip was not steered. The result and the seed are journalled with the tally.
+- **Why a flip and not "split the week".** The other reading of 50/50 was to run each tied blessing for
+  half the week. Rejected for three concrete reasons: the Beacon pool ratchets into *one* blessing's
+  bonus map, so a mid-week swap either strands the donations or doubles their cost; the 24-hour
+  anticipation window exists so players can bank logs and stock food for a known week, and a Thursday
+  switch destroys exactly that; and "the realm has chosen" is a much better sentence than "the realm was
+  undecided, so you get halves." **A tie should still produce a decision.**
+- **Ties are rare and the flip is honest about it.** The results card says *"A tie — the coin fell to
+  War Drums"* and shows both tallies. Hiding a tie behind a deterministic rule players cannot see is how
+  a vote loses trust; showing the flip is how it keeps it.
 - **Turnout floor.** If total ballots < `max(3, ceil(0.10 × eligible))`, the vote is void and the week
   falls back to the **existing deterministic hash roll** over the full weekly pool. The card says
   *"Too few voices — the calendar chose this week."* No guilt copy, no shaming. At 6–20 players a
@@ -452,9 +519,13 @@ unobtainable. Nothing is deleted without a destination.
 > **The Muster is out. The Kindling is in.**
 > The old twice-a-day muster asked you to be at your screen at a particular minute and then to pick
 > between two rallies that never really felt different. Both are gone. In their place: **The
-> Kindling** — a shared fire the whole realm feeds. Donate food or gold at the Events screen and the
-> pool fills; every tier it crosses adds **+1% to today's blessing**, up to +5%, live, for everyone,
-> for the rest of the day. **The Beacon** is the same thing on a weekly scale, and it comes with a
+> Kindling** — a shared fire the whole realm feeds. Bring almost anything you own to the Events screen
+> — spare ore, surplus fish, the forty swords you smithed to reach level 40 — and the pool fills; every
+> tier it crosses adds **+1% to today's blessing**, up to +5%, live, for everyone, for the rest of the
+> day. **An item is worth far more to the fire than it is to a vendor** (gold works too, but it is the
+> worst way to give), and your rarest things are not accepted at all, on purpose — nobody should be able
+> to feed a raid drop into a progress bar at three in the morning and want it back on Monday.
+> **The Beacon** is the same thing on a weekly scale, and it comes with a
 > vote: every week you choose from four candidate blessings, voting closes Saturday night, and the
 > winner is lit **Sunday night**. So the week's bonus is now something the realm picks, and how strong
 > it is, is something the realm pays for. Muster Seals convert to gold automatically, and everything
@@ -472,9 +543,9 @@ the contract.
 
 | # | Phase | Layer | Size | Owner | Contents |
 |---|---|---|---|---|---|
-| 1 | **Pool foundation** | server verb | **M** | Backend | Tables `blessing_pools`, `blessing_donations` (append-only), `blessing_catalogue` (generated from `ITEMS`). `hr_blessing_state()` → `{dayKey, beaconWeekKey, daily:{id,bonus,tier,pool,thresholds,roster}, weekly:{…}, me:{donated_today, donated_week, caps}}`. `hr_blessing_donate(p_scope,p_gold,p_items)` → `{accepted_embers, spent, my_period_total, pool_total, tier_before, tier_after, capped_reason}` — atomic debit + credit, per-call/per-period clamps, catalogue-only valuation, journalled. |
+| 1 | **Pool foundation** | server verb | **M** | Backend | Tables `blessing_pools`, `blessing_donations` (append-only), `blessing_catalogue` (generated from `ITEMS`, one row per item with `embers = v` and `donatable = NOT super_rare`). `hr_blessing_state()` → `{dayKey, beaconWeekKey, daily:{id,bonus,tier,pool,thresholds,roster}, weekly:{…}, me:{donated_today, donated_week, caps}}`. `hr_blessing_donate(p_scope,p_gold,p_items)` → `{accepted_embers, spent, my_period_total, pool_total, tier_before, tier_after, capped_reason}` — atomic debit + credit, per-call/per-period clamps, catalogue-only valuation, journalled. |
 | 2 | **Blessing library + key cap** | data + engine | **M** | Systems + Designer | The 12 new rolls; the daily/weekly eligibility flags; the shared blessing module read by BOTH the client render and the accrual/apply engine; `BLESSING_KEY_CAP`; the fuse assertion split (§2.8); delete `blessed:false` at `combat-sim.js:415`. |
-| 3 | **Kindling & Beacon cards** | client render | **M** | Systems + Art | Events-screen cards: tier ladder with the live pool bar, "your share" line, donate sheet (larder picker + gold field, ember preview from server values only), Kindling Roll top-10, cap notice. Topbar pill retarget. |
+| 3 | **Kindling & Beacon cards** | client render | **M** | Systems + Art | Events-screen cards: tier ladder with the live pool bar, "your share" line, donate sheet (inventory picker with a "junk first" sort + gold field, ember preview from server values only, and a plain "vendor would pay X" comparison line so the 10–25× is visible rather than asserted), Kindling Roll top-10, cap notice. Topbar pill retarget. |
 | 4 | **The Beacon Vote** | server verb + client | **M** | Backend + Systems | `blessing_votes(week_key,user_id)` PK, `blessing_weeks(week_key, slate, winner, decided_at, turnout)`. `hr_blessing_vote(p_week_key,p_choice)` → `{recorded, tallies}`. Slate derivation with the diversity constraint; eligibility gate; close-time enforcement from `now()`; tie-breaks; turnout floor + hash fallback; results card. |
 | 5 | **Muster retirement** | client + server | **S** | Systems | Delete the live-window/pledge/chest path; `muster.js` → `kindling.js`; one-shot journalled Seal→gold conversion; Quartermaster exclusives to the Bounty shop; changelog copy. |
 | 6 | **Boundary jobs** | cron | **S** | Backend | Lazy-resolve on first call after a boundary (open pool, snapshot roster, resolve vote) **plus** a pg_cron safety net at 00:05 UTC daily and Mon 03:05 UTC weekly. Lazy is authoritative; cron only guarantees a quiet server still rolls over. |
@@ -483,8 +554,10 @@ the contract.
 
 ### Test coverage required (per `CLAUDE.md`)
 
-1. **Valuation.** A raw donated at `0.20 × v`, a cooked at `v`, gold at `/5`; an uncatalogued id is
-   **rejected**, not zero-valued.
+1. **Valuation.** A non-rare item donated at exactly `v`, gold at `/5`; a **super-rare id is rejected**,
+   not zero-valued; an uncatalogued id is rejected. Plus the property test that matters:
+   **for every donatable item, `v > (VENDOR_RATE × v) / 5`** — i.e. donating always beats vendoring, for
+   every row in the catalogue, asserted in a loop rather than on one sample.
 2. **Caps.** Donate past the per-call clamp → clamped; past the daily cap → `capped`, no debit taken
    for the rejected excess (nothing is ever consumed without crediting).
 3. **Atomicity.** A donate that fails after debit leaves gold/inventory untouched (forced-failure test).
@@ -498,7 +571,9 @@ the contract.
    someone giving donations their own channel.
 8. **Fuse.** `permanent ≤ 0.60` and `calendar ≤ 0.12`, asserted separately.
 9. **Vote.** Ineligible account rejected; recast overwrites; a ballot at close+1s rejected from server
-   time regardless of client clock; tie-break 1 then 2; turnout floor falls back to the hash roll.
+   time regardless of client clock; **the tie flip is uniform over the tied set and reproducible from
+   its journalled seed** (same seed → same winner, across two independent runs); turnout floor falls
+   back to the hash roll.
 10. **Anchor.** `beaconWeekKey` rolls at Monday 03:00 UTC across a DST boundary in both directions, and
     `utcWeekKey` is **unchanged** (raids regression).
 
@@ -521,4 +596,6 @@ the contract.
 - **Designer (me) owns:** the ember rates, the threshold multipliers, the caps, `BLESSING_KEY_CAP`,
   the library and its eligibility flags, the slate size and diversity constraint, and the turnout
   floor. First retune after **two full weeks** of live pools; the lever for low participation is the
-  **gold divisor and the daily cap**, not the tier magnitudes.
+  **daily cap**, not the tier magnitudes and **not** the gold divisor (which is now the only thing
+  keeping a large bank from buying a tier). The super-rare carve-out list is mine to maintain, and it
+  errs toward *not* donatable: an item a player can regret giving away does not belong in the box.

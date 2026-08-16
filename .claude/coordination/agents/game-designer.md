@@ -338,3 +338,36 @@ Read-only plan per Tyler's directive + guardrail. No game code touched. Mapped e
 **Sequencing:** build AFTER `bonus-rebase` (b228) + `rally-v2` merge. The real collision is `home-dashboard.js` (rally-v2 edits "The realm"; we add "Your Heroes" — land it as a new self-contained function after they merge). character-page rates read `getBonus` (numeric-only impact from b228, no structural collision). Phase 1 = combined screen + Heroes-on-Home behind existing render seams; Phase 2 = OSRS-grid art + Time Played counter + doll/Hero stats de-dup. Full test list (baseline + new) in §7.3.
 
 **For Tyler's reaction:** the sub-tab order (Skills default) and the CUT of the fake paywall "Your Heroes" are the two calls most worth confirming before build.
+
+---
+
+## 2026-08-16 · Review Book REVISION 2 — taxonomy from Tibia, roster rewrite, ember rework, vampire dungeon
+
+**Files:** `docs/design/review-book-content.md` (rewritten Library 1, revised 2 + 4, new Library 5),
+`docs/design/events-donations-and-voting.md` (REVISION header + §2.2/2.3/2.5/4.4/6/7/8),
+`docs/design/monster-art-prompts.md` (new, 85 prompt lines), `tools/gen-review-book.mjs`,
+`docs/design/review-book.html` (regenerated). **No `src/`, no `supabase/`.**
+
+**What I learned / what future-me should not re-derive:**
+
+* **`gen-review-book.mjs` was silently platform-dependent.** Every anchor/fence regex is written
+  against `\n`, but git checks these docs out **CRLF** on Windows (`core.autocrlf`), so
+  `/```\n/` never matched and §2.3's threshold block failed to parse the moment the events doc was
+  touched by an editor that preserved CRLF. Fixed by normalising on read. The "output is
+  deterministic" promise in that file's header was only true per-platform before this.
+* **Section §1D would have poisoned the last monster group.** The monster parser slices `## 1C` →
+  `# LIBRARY 2` and then collects *every* `|`-line in each `### ` chunk, so a table under a `##`
+  heading inside that range gets absorbed into the preceding category's card list. The slice now
+  ends at `## 1D`. Any new table between 1C and Library 2 must live under its own `##` **after**
+  that boundary, or it becomes monsters.
+* **Ids are load-bearing, category prefixes are not.** `MON-BEA-*` is now Mammal, `MON-ARC-*` is
+  Human, `MON-VOI-*` is Extra Dimensional. Do not "tidy" the prefixes — the id is the approval key
+  and (later) the save key; the letters in the middle are history.
+* **Guards added to the generator** so this revision cannot silently rot: 11-class whitelist,
+  no `MON-FEY` id reuse, no "Blight" in any live row (prose history is allowed), and exact counts
+  (81 / 38 / 10 / 6 / 6).
+
+**HANDOFFS raised:** Art Director + Asset Director own `monster-art-prompts.md` (Style B, 256×256,
+identity + style fit are the two checks a prompt cannot enforce). Systems owns the ember-valuation
+contract (`blessing_catalogue.embers = v`, `donatable = NOT super_rare`), the 2.5× threshold/cap
+re-scale, and the seeded 50/50 tie flip.

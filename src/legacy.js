@@ -16692,55 +16692,44 @@ window._monsterIcon = window._monsterIcon || {};
 
 
   /* ══════════════════════════════════════════════════════════════════════
-     HEARTHFIRE ART PILOT — items  ·  Art Director, 2026-08-16
-     STATUS: PILOT, pending Tyler's go/no-go. Not a shipped direction yet.
+     HEARTHFIRE ITEM ART — the full batch  ·  Art Director, 2026-08-16
+     Supersedes the 7-line b357 pilot literal that used to sit here.
 
-     Source art: 1024² RGBA Recraft exports in `assets/art-pilot/hearthfire/`
-     (NOT shipped — raws stay out of the bundle). Processed by
-     `tools/art-pilot-process.mjs`: alpha-normalised (the exports come back
-     with the solid interior at alpha ~247, an export artifact that reads as
-     a faint wash over the dark hearthlight surface), auto-cropped to the
-     alpha bounding box, long edge scaled to 256 px, re-encoded PNG-24 RGBA.
+     THE MAP MOVED TO `src/data/item-art.js` and this is only the applier.
+     Same reasoning as the b356 monster move: at 386 entries a hand-written
+     literal can only be wrong (a mis-map, or a path that drifts from the
+     filename), so the manifest DERIVES `<id>.png` from the id and
+     `tests/run-smoke.mjs` reconciles it against the real filesystem in both
+     directions. What art exists is data; where it goes is code.
 
-     256 and not the 128 in `docs/design/item-art-prompts.md`: that figure was
-     derived from the 64 px CSS box of the item-detail modal without accounting
-     for devicePixelRatio. At DPR 2 a 64 px box is 128 device px — 128 px art is
-     then exactly 1:1 with zero headroom, and on a DPR 3 phone it is upscaled.
-     256 restores the intended 2× and costs ~120 KB/icon. Spec amendment
-     proposed, not yet ratified.
+     WHY AN APPLIER RATHER THAN AN IMPORT: this IIFE runs while legacy.js
+     loads, BEFORE main.js merges the ESM data. main.js calls this function
+     once the manifest is imported, which is still BEFORE the 1500 ms
+     `__mapGeneratedGearIcons()` re-run below — so hearthfire art is already
+     in `LOCAL_ITEM_ICON` when the generated-tier slot art looks for gaps,
+     and the `if (LOCAL_ITEM_ICON[id]) return` guard there keeps a generic
+     tier silhouette from overwriting a real painting. That merge order is
+     the whole trap; it is asserted by the b358 smoke guard.
 
-     This block is applied AFTER the literal above on purpose — these ids are
-     already mapped to the older `painted/` set and the pilot must win — and
-     BEFORE __mapGeneratedGearIcons(), so `leather_body` / `iron_platebody`
-     are not overwritten by the generated-tier slot art.
-
-     `oak_log` is deliberately ABSENT: the delivered `items/oak_log.png` is a
-     byte-for-byte duplicate of `weapons/bronze_sword.png` (md5 807eea02…), i.e.
-     it depicts a sword. Withheld pending a re-export rather than wired wrong —
-     this repo has shipped a boar named `bear.png` before.
-
-     To retire the pilot: delete this block, delete the monster block below,
-     and delete `assets/icons-bundle/hearthfire/`.
+     Source art: 1024² RGBA exports in `assets/art-pilot/batch-items/` (NOT
+     shipped — raws stay out of the bundle). Processed by
+     `tools/art-batch-process.mjs` (alpha-normalised, projection-cropped,
+     long edge 128 px, PNG-24 RGBA). 128 and not the pilot's 256: see the
+     measured argument at the top of `src/data/item-art.js`.
      ══════════════════════════════════════════════════════════════════════ */
-  var HEARTHFIRE_ITEM_ICON = {
-    // Materials — iron_ore previously shared Res_14_stone.png with `coal`,
-    // so ore and fuel were the same grey rock in the Mining panel.
-    iron_ore:       'assets/icons-bundle/hearthfire/items/iron_ore.png',
-    // Weapons
-    bronze_sword:   'assets/icons-bundle/hearthfire/weapons/bronze_sword.png',
-    iron_sword:     'assets/icons-bundle/hearthfire/weapons/iron_sword.png',
-    // Armour — `leather_body` had NO painted art at all (the b282 guard skips
-    // every non-plate armourClass), so it rendered the 🎽 emoji. This is the
-    // pilot replacing emoji-as-art, not replacing a painting.
-    iron_platebody: 'assets/icons-bundle/hearthfire/armour/iron_platebody.png',
-    leather_body:   'assets/icons-bundle/hearthfire/armour/leather_body.png',
-    // Food — wheat_bread was likewise unmapped and rendered the 🍞 emoji.
-    cooked_shrimp:  'assets/icons-bundle/hearthfire/food/cooked_shrimp.png',
-    wheat_bread:    'assets/icons-bundle/hearthfire/food/wheat_bread.png',
+  window.__applyHearthfireItemIcons = function applyHearthfireItemIcons(map){
+    if (!map) return 0;
+    var n = 0;
+    Object.keys(map).forEach(function(k){
+      LOCAL_ITEM_ICON[k] = map[k];
+      window._itemPath = window._itemPath || {};
+      window._itemPath[k] = map[k];
+      window._itemSVG = window._itemSVG || {};
+      window._itemSVG[k] = '<img src="'+map[k]+'" alt="" loading="lazy" draggable="false" style="width:100%;height:100%;object-fit:contain" />';
+      n++;
+    });
+    return n;
   };
-  Object.keys(HEARTHFIRE_ITEM_ICON).forEach(function(k){
-    LOCAL_ITEM_ICON[k] = HEARTHFIRE_ITEM_ICON[k];
-  });
 
 
   // House rooms — the ROOMS dict has 6 entries (kitchen, forge, library,

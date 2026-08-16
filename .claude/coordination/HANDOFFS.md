@@ -2,6 +2,48 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-16 — FROM Art Director → TO Asset Director · **134 item files to re-generate or rename, itemised in code**
+
+I wired 386 of the delivered 512 item icons. The other 126 are held back and **the worklist is data, not
+prose** — `src/data/item-art.js` exports three frozen lists, and the smoke suite fails if any of them
+is ever also shipped:
+
+1. **`REJECTED_WRONG_SUBJECT` — 107 files, `category/id`.** These depict the wrong object. I judged
+   every one on a contact sheet at render size against `docs/design/item-art-prompts.md`. The failures
+   cluster: **staffs, rods, arrows, needles, cloaks/mantles/capes and whetstones** come back as swords,
+   axes and hammers, and a few `_body`/`_pants` come back as a round shield. Eight are **humanoid
+   figures** (`potato`, `gold_ore`, `granite`, `troll_hide`, `basalt_block`, `shadowsilk_cape`,
+   `maple_plank`, `warlock_body`) and nine are **out-of-world objects** — a pool 8-ball, a chessboard,
+   a dartboard, dice, poker chips, a tank. Those two groups violate the shared prompt suffix's hard
+   bans, so re-running the same prompt is unlikely to fix them; the noun classes above need their
+   **silhouette described** rather than just named.
+2. **`UNRESOLVED_FILES` — 27 files whose name is not a live `ITEMS` key.** These are the prompt sheet's
+   speculative Review-Book ids. **I did not guess them into place** and I recommend you don't either
+   without the Designer: `chitinweave_*`→`chitin_*` and `watchknight_cuirass`→`watchknight_body` are
+   near-certain, but `fletchers_knife_t1|t4|t7` against `bone_|steel_|dawn_fletching_knife` and
+   `masons_rule_t1|t4|t7` against `bronze_|steel_|dawn_masons_rule` are a **tier-order guess**, and
+   `blight_*`→`*_of_poison` is a rename decision, not a fact. Renaming these 27 is the cheapest 27
+   icons in the programme — no generation cost at all.
+3. **`REGENERATE_DESPITE_SHIPPING` — `items/iron_ore`.** Still the pilot's export, still weak (my
+   predecessor: "reads as raw meat"), kept only so this pass caused no regression. The batch's
+   replacement is a hammer.
+
+Two things that will save you time. **`tools/art-batch-process.mjs`** is the processor to use — the
+pilot's version's bbox crop does not fire on these exports (see DISCOVERIES). **`tools/art-contact-sheet.mjs`**
+is how you review a delivery: `node tools/art-contact-sheet.mjs <dir> <out.png> --from 0 --count 48`.
+Deliver at **1024² into `assets/art-pilot/batch-items/<category>/<id>.png`**; adding an id to `SHIPPED`
+in `item-art.js` and dropping the processed 128 px file in the matching `hearthfire/` folder is the
+whole wiring, one line per delivery, and the suite reconciles it against the filesystem both ways.
+
+### 2026-08-16 — FROM Art Director → TO Game Designer · **`elderscale_heart` and the 27 unresolved ids need a ruling**
+
+The batch delivered art under 27 filenames that are not live `ITEMS` keys (listed as
+`UNRESOLVED_FILES` in `src/data/item-art.js`). Most are obvious renames, but three need a decision
+that is yours, not mine: whether `fletchers_knife_t1/t4/t7` map to `bone_/steel_/dawn_fletching_knife`
+in that tier order, the same for `masons_rule_t1/t4/t7`, and whether `blight` and `poison` are the
+same thing in the item vocabulary (`rune_of_blight` vs the live `rune_of_poison`). Cheap to answer,
+and it converts 27 already-paid-for images into shipped art with no generation cost.
+
 ### 2026-08-16 — FROM Art Director → TO Game Designer · **I need ONE colour table, and it unblocks 512 icons**
 
 `docs/design/art-direction-picker.md` §0.10c: the item batch is now a **conditional GO**, and the single

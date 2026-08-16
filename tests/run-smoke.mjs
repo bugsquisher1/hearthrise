@@ -989,6 +989,77 @@ async function monsterArtPreflight() {
   return 0;
 }
 
+// PREFLIGHT — the ITEM ART MANIFEST must match the filesystem, both ways.
+//
+// The item-side twin of monsterArtPreflight(), and it exists for the same
+// reason at 4x the scale: src/data/item-art.js claims 386 item ids have art,
+// and the browser cannot stat a file, so that claim is data. Untrusted data.
+// This walks assets/icons-bundle/hearthfire/{armour,food,items,weapons} in
+// Node and fails in BOTH directions:
+//
+//   * an id in SHIPPED with no file          -> a 404 and a broken slot
+//   * a file on disk not in SHIPPED          -> art delivered and never wired
+//   * an id in SHIPPED that is not an ITEMS key -> the mis-map class of defect
+//   * a wired path outside assets/icons-bundle/ -> an unshipped folder
+//   * an id listed in two category folders   -> pathFor() would be ambiguous
+//
+// It also asserts the WITHHOLD lists stay honest: a REJECTED_WRONG_SUBJECT or
+// UNRESOLVED_FILES entry must NOT also be shipped, or the whole point of
+// reviewing 512 images at render size is lost the first time someone
+// regenerates the manifest.
+async function itemArtPreflight() {
+  const mod = join(ROOT, 'src', 'data', 'item-art.js');
+  try { await stat(mod); } catch { return 0; }
+  const { readdir } = await import('node:fs/promises');
+  const { pathToFileURL } = await import('node:url');
+  const art = await import(pathToFileURL(mod).href);
+  const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src', 'data', 'items.js')).href);
+
+  const problems = [];
+  const seen = new Map();          // id -> category, to catch a duplicate id
+  for (const cat of art.CATEGORIES) {
+    const list = art.SHIPPED[cat] || [];
+    for (const id of list) {
+      if (seen.has(id)) problems.push(`"${id}" is in both ${seen.get(id)}/ and ${cat}/ — pathFor() is ambiguous`);
+      seen.set(id, cat);
+      if (!ITEMS[id]) problems.push(`SHIPPED.${cat} lists "${id}", which is not an ITEMS key`);
+    }
+    let files = [];
+    try { files = await readdir(join(ROOT, art.HEARTHFIRE_DIR, cat)); } catch { files = []; }
+    const onDisk = new Set(files.filter((f) => f.endsWith('.png')).map((f) => f.slice(0, -4)));
+    list.forEach((id) => {
+      if (!onDisk.has(id)) problems.push(`SHIPPED.${cat} lists "${id}" but ${art.HEARTHFIRE_DIR}${cat}/${art.fileFor(id)} does not exist (would 404)`);
+    });
+    const inList = new Set(list);
+    onDisk.forEach((id) => {
+      if (!inList.has(id)) problems.push(`${cat}/${id}.png is on disk but not in SHIPPED.${cat} — art delivered, never wired`);
+    });
+  }
+
+  const wired = art.wiredIconMap();
+  Object.keys(wired).forEach((id) => {
+    if (!/^assets\/icons-bundle\//.test(wired[id])) problems.push(`${id} wired to an unshipped folder: ${wired[id]}`);
+    if (art.pathFor(id) !== wired[id]) problems.push(`${id}: pathFor() and wiredIconMap() disagree`);
+  });
+  /* A withheld file must never also be shipped. */
+  [...art.REJECTED_WRONG_SUBJECT, ...art.UNRESOLVED_FILES, ...(art.WITHHELD_BESPOKE_ART || [])].forEach((key) => {
+    const [cat, id] = String(key).split('/');
+    if ((art.SHIPPED[cat] || []).indexOf(id) >= 0) problems.push(`"${key}" is withheld AND shipped — pick one`);
+  });
+
+  if (problems.length) {
+    const NL = String.fromCharCode(10);
+    console.error(NL + 'Item art preflight FAILED (' + problems.length + '):' + NL
+      + '  ' + problems.join(NL + '  ') + NL);
+    return 1;
+  }
+  const n = art.CATEGORIES.reduce((a, c) => a + (art.SHIPPED[c] || []).length, 0);
+  const uncovered = Object.keys(ITEMS).filter((id) => !art.pathFor(id)).length;
+  console.log(`Item art preflight: ${n} item icons wired, ${art.REJECTED_WRONG_SUBJECT.length} withheld (wrong subject), `
+    + `${art.UNRESOLVED_FILES.length} unresolved filenames, ${uncovered} items still on old art/emoji, 0 mismatches`);
+  return 0;
+}
+
 /* The art-batch colour table (tools/lib/art-palette.mjs) + its deriver. Guards
    the one failure that is invisible until ~600 funded images have been paid for:
    an item whose subject line names a colour the table does not know is generated
@@ -1144,6 +1215,7 @@ async function unlockModelPreflight() {
 
 const run = async () => {
   if (await monsterArtPreflight()) process.exit(1);
+  if (await itemArtPreflight()) process.exit(1);
   if (await artPalettePreflight()) process.exit(1);
   if (await catalogueDriftPreflight()) process.exit(1);
   if (await shopDriftPreflight()) process.exit(1);

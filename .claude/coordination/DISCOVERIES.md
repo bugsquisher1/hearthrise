@@ -4,6 +4,37 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-16 (b362) · Art Director · **A SHIPPED id is never re-reviewed, so five wrong icons have been live since b358 — and the way I found them was by using the shipped set as a CONTROL for a judgment call**
+
+**DISCOVERY 1 — five wired icons depict the wrong object, and they are wired, not withheld.**
+`assets/icons-bundle/hearthfire/items/`: **`oak_plank`, `duskwood_plank` and `runewood_plank` are
+round SHIELDS with bosses and rim studs. `bronze_bar` is a hammer resting on an anvil. `copper_bar`
+is a polished SPHERE.** They render that way in the Recipe Book right now — visible in
+`assets/art-pilot/_screenshots/wave2/06b-recipe-book.png`, where "Bronze Bar" and "Oak Plank" appear
+as ingredient chips wearing a hammer and a shield. Every one passed b358/b361 review.
+
+**AFFECTED SYSTEMS:** `src/data/item-art.js` `SHIPPED`, the icon bundle, every crafting/recipe/
+inventory surface. **REQUIRED ACTION:** re-shoot these five (Asset Director); until then they are the
+top of the worklist. Deliberately NOT unwired in b362 — unwiring swaps wrong art for a fallback glyph
+and needs its own verified pass, and mixing that into a wiring pass would hide it.
+
+**DISCOVERY 2, and this is the transferable one — the method, not the finding.** I did not go looking
+for these. I was deciding whether two marginal new planks (`willow_plank`, `yew_plank` — chunky, more
+timber-block than board) were good enough, and I built a contact sheet of the ALREADY-SHIPPED planks
+and bars to calibrate the bar. The control answered a different question than the one I asked it.
+**b360 established base-rate-against-the-shipped-control as the way to diagnose a failing class; this
+is the same instrument turned around — the control is also an audit, for free, every time you draw
+one.** The general rule: **a judgment call about new work is the cheapest moment to re-examine the
+old work, because you are already looking at both at the same size.** A review that only ever looks
+at the delta can never find a defect that shipped.
+
+**DISCOVERY 3 — `assets/items/` is 51 MB of 1024 px source raws tracked at the DEPLOY ROOT.**
+Committed in b361 alongside the wave. `CLAUDE.md` says `assets/icons-bundle/` is the only icon folder
+shipped; this one is not covered by that rule and is not gitignored, so it uploads. For scale, the
+entire hearthfire bundle is 23 MB. **REQUIRED ACTION:** Coordinator / Asset Director — move under
+`assets/art-pilot/` (already gitignored) or add an ignore. Not moved unilaterally here: it is Tyler's
+own source drop and relocating tracked files is an integration decision, not an art one.
+
 ### 2026-08-16 (b361) · Art Director · **An AI image model draws a garment correctly only if you tell it the garment is EMPTY — and a test control keyed to a hardcoded id list has a shelf life**
 
 **DISCOVERY 1 — the state, not the words.** Describing clothing as an *object at rest* ("an empty

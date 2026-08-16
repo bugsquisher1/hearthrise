@@ -2,6 +2,41 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-16 (b362) — FROM Art Director → TO Coordinator + Asset Director · **Tyler's hand-made wave is wired: 428 → 473 of 512, for $0.00. The worklist is 20, and FIVE of the ids you should re-shoot are ones that already SHIPPED**
+
+Supersedes the counts below (65 → **20**). No API spend of any kind; the four flattened exports were
+matted locally. Suite 775/775 ×3, 0 404s, 0 console errors, screenshots in
+`assets/art-pilot/_screenshots/wave2/`. No version bump, no push.
+
+1. **`src/data/item-art.js` is still the worklist and it is still data.** `REJECTED_WRONG_SUBJECT` is
+   now **20**. `UNRESOLVED_FILES` is unchanged except that **`deathsteel_ingot` finally resolved — the
+   live id is `death_steel`** — which is worth knowing because the other 26 entries are the same kind
+   of near-miss and are still an Asset Director RENAME job, not a generation job. This wave delivered
+   good art for seven of them (`blight_arrows`, `frost_arrows`, `chitinweave_chaps`,
+   `chitinweave_helm`, `masons_rule_t4`, `masons_rule_t7`, `watchknight_sabatons`): the pictures are
+   correct and there is simply no id to hang them on. **Resolve those seven names and seven icons
+   land with no further art work at all** — the raws are in `assets/art-pilot/wave2-raw/`.
+2. **FIVE ALREADY-WIRED ICONS ARE WRONG and are the top of the re-shoot list** — `oak_plank`,
+   `duskwood_plank`, `runewood_plank` (all round shields), `bronze_bar` (a hammer on an anvil),
+   `copper_bar` (a sphere). Full detail + how they were found in DISCOVERIES b362. They shipped in
+   b358/b361 and nothing re-reviews a shipped id. Please fold them into the next shoot.
+3. **The staff/rod class is HALF solved and the half that failed failed the same way as always.**
+   4 of 6 fishing rods and 4 of 7 staves are now correct — the rods Tyler redid by hand in the web UI
+   are the best in the programme. `apprentice_staff`, `maple_staff` and `oak_staff` came back as the
+   identical **short fat baton** b361 documented, and `maple_rod` as a solid cone. **b361's ruling
+   stands: do not re-word that class a fifth time.** But note what DID work — Tyler typing a plain
+   correction at the image ("way too thick to be a fishing rod", "give me this exact pole but in a
+   duskwood shade") produced the four best rods in two years of this programme. **Iterative correction
+   in the web UI beat every prompt-engineering round.** That is the technique to repeat.
+4. **`assets/items/` is 51 MB of source raws tracked at the deploy root** (DISCOVERIES b362 item 3).
+   Coordinator: worth an ignore or a move before the next release.
+5. **10 refusals with a one-line reason each are in `tools/art-wave2-select.mjs` `REFUSED`** — code,
+   not prose, so the next shoot can import them. The two that need a design steer rather than a
+   re-roll: `widows_fang` came back as a broad crescent sickle with an eyeball boss (the brief says
+   "slim dagger" — the sickle is honestly the more interesting object, so **Game Designer/Asset
+   Director may prefer to change the ITEM rather than the art**), and `rune_needle` is a runed sword,
+   which suggests the model cannot hold "needle" at heroic proportions at all.
+
 ### 2026-08-16 (b361) — FROM Art Director → TO Coordinator + Asset Director · **the re-roll is done; the worklist is 65, and one blocker is Tyler-only**
 
 Supersedes the counts in the handoff below (107 → **65**). 428 of 512 item icons are now wired.

@@ -104,9 +104,21 @@ const crops = Object.keys(CROPS).sort().map((id) => ({
 // Activities: every id `player_state.active_id` may legally hold, with the
 // skill gate the server re-checks. Combat "activities" are monsters.
 const activities = [];
+//
+// `max_hp` is the MONSTER'S HIT POINTS, and it is null for every non-combat
+// row. It exists because Phase 0 of docs/design/live-settlement.md carries an
+// in-flight fight across accrual windows as `player_state.fight`, and hr_apply
+// has to RE-DERIVE the ceiling that fight's HP must lie under rather than trust
+// the number the Edge Function proposed. Before this column the server held no
+// monster HP anywhere — there is no hr_monsters table — so the re-clamp the
+// spec asks for was not expressible in SQL at all.
+// GENERATED from src/data/monsters.js, never retyped: a hand-copied HP table is
+// exactly the data double-copy this repo has been burned by, and here the copy
+// would be the CLAMP, so drift would silently widen or narrow it.
 const pushNodes = (arr, skill) => {
   for (const n of arr) activities.push({
     kind: 'gather', activity_id: n.id, req_skill: skill, req_lv: Math.trunc(n.req ?? 1),
+    max_hp: null,
   });
 };
 pushNodes(TREES, 'woodcutting');
@@ -115,11 +127,22 @@ pushNodes(FISH_SPOTS, 'fishing');
 for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) {
   for (const r of list) activities.push({
     kind: 'artisan', activity_id: r.id, req_skill: skill, req_lv: Math.trunc(r.req ?? 1),
+    max_hp: null,
   });
 }
-for (const id of Object.keys(MONSTERS).sort()) activities.push({
-  kind: 'combat', activity_id: id, req_skill: null, req_lv: null,
-});
+for (const id of Object.keys(MONSTERS).sort()) {
+  const hp = Math.trunc(Number(MONSTERS[id].hp));
+  /* FAIL THE GENERATOR, not the migration. A monster with no positive HP would
+     emit a null ceiling, and a null ceiling makes hr_apply's fight clamp
+     vacuous for that id — the clamp would still be there, still run, and still
+     admit anything. An unauthored number that disables a control is worse than
+     an absent control, so it is a build failure here. */
+  if (!Number.isFinite(hp) || hp <= 0) {
+    throw new Error(`monster '${id}' has hp ${JSON.stringify(MONSTERS[id].hp)} — every combat `
+      + 'activity must carry a positive max_hp, because hr_apply clamps a carried fight against it');
+  }
+  activities.push({ kind: 'combat', activity_id: id, req_skill: null, req_lv: null, max_hp: hp });
+}
 activities.sort((a, b) => (a.kind + a.activity_id).localeCompare(b.kind + b.activity_id));
 
 // ── 2b. THE STARTING KIT (b338) ──────────────────────────────────────────
@@ -291,6 +314,24 @@ create table if not exists public.hr_activities (
   req_lv      int,
   primary key (kind, activity_id)
 );
+-- Additive, for the same reason hr_items.auto_eatable is: hr_activities already
+-- exists on every database that ran an earlier revision of this file, where
+-- "create table if not exists" would skip a widened column list IN SILENCE.
+-- NULLABLE, because only a combat row has one — and the self-check below
+-- asserts the count, so a re-apply against an older database cannot leave every
+-- combat row on a null ceiling and quietly make hr_apply's fight clamp vacuous.
+alter table public.hr_activities
+  add column if not exists max_hp int;
+do $$
+begin
+  if not exists (select 1 from pg_constraint
+                  where conrelid = 'public.hr_activities'::regclass
+                    and conname = 'hr_activities_max_hp_positive') then
+    alter table public.hr_activities
+      add constraint hr_activities_max_hp_positive
+      check (max_hp is null or max_hp > 0);
+  end if;
+end $$;
 
 -- ── THE STARTING KIT (b338) ──────────────────────────────────────────────
 -- What hr_create_character() gives a brand new character. Catalogue rows, not
@@ -356,8 +397,8 @@ ${valuesBlock(skills, (r) => `  (${q(r.skill_id)},${q(r.name)},${q(r.cat)})`)};
 insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv) values
 ${valuesBlock(crops, (r) => `  (${q(r.crop_id)},${q(r.seed_item)},${q(r.prod_item)},${n(r.base_hours)},${n(r.req_lv)})`)};
 
-insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
-${valuesBlock(activities, (r) => `  (${q(r.kind)},${q(r.activity_id)},${q(r.req_skill)},${n(r.req_lv)})`)};
+insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp) values
+${valuesBlock(activities, (r) => `  (${q(r.kind)},${q(r.activity_id)},${q(r.req_skill)},${n(r.req_lv)},${n(r.max_hp)})`)};
 
 -- The starting kit. hr_start_kit is a ONE-ROW table (only_row), so it is an
 -- upsert rather than a delete+insert: hr_create_character() reads it, and a
@@ -416,6 +457,21 @@ begin
   end if;
   select count(*) into v_n from public.hr_activities;
   if v_n <> ${activities.length} then raise exception 'hr_activities has % rows, expected ${activities.length}', v_n; end if;
+
+  -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
+  -- re-apply against a database that created hr_activities before the column
+  -- existed must not leave the combat rows on a null ceiling. A null ceiling
+  -- does not fail — it makes hr_apply's carried-fight clamp ADMIT ANYTHING,
+  -- which is the "assertion that asserts nothing" family in SQL form.
+  select count(*) into v_n from public.hr_activities where kind = 'combat' and max_hp is not null;
+  if v_n <> ${activities.filter((r) => r.kind === 'combat').length} then
+    raise exception 'combat activities with a max_hp: %, generator emitted ${activities.filter((r) => r.kind === 'combat').length} — '
+      'hr_apply''s carried-fight clamp would be vacuous for the rest', v_n;
+  end if;
+  -- ...and the converse, so a non-combat row can never acquire a fight ceiling
+  -- that would let a carried fight name a tree.
+  select count(*) into v_bad from public.hr_activities where kind <> 'combat' and max_hp is not null;
+  if v_bad > 0 then raise exception '% non-combat activities carry a max_hp', v_bad; end if;
 
   -- AUTO-EATABLE. The count is asserted, so a re-apply against a database that
   -- created hr_items before the column existed cannot leave every row on the

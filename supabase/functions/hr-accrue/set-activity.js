@@ -631,6 +631,20 @@ async function collectCurrentWindow(o) {
        because hr_apply's answer to an unknown key is a 409 that costs the
        window this collect exists to pay. */
     toolCarry: st.tool_carry ?? null,
+    /* THE IN-FLIGHT FIGHT (Phase 0) — and this call site is the one that made
+       it urgent BEFORE any settle timer exists. A switch collects first, and a
+       collect that restarts the fight at full monster HP throws away every
+       swing landed since the last watermark: a player who re-targets mid-fight
+       loses the partial TODAY. `?? null` is the same self-configuring switch
+       toolCarry uses — see the field's note in computeAccrual's contract.
+
+       ⚠ THE CHECKPOINT THIS PROPOSES IS THEN VOIDED BY hr_apply, on purpose,
+         whenever the same delta carries an `activity` key — which a switch
+         always does. The collect is paid for the partial; the fight does not
+         survive the switch. That is the whole answer to "can you bank a
+         nearly-dead boss?", and it is enforced in SQL rather than here.
+       Mirrors index.ts field for field (A14). */
+    fight: st.fight ?? null,
     /* THE PERMANENT PERK STACK (b349). A collect that priced a window at zero
        perks while an accrue over the same window priced it at the player's real
        Kitchen would pay DIFFERENT amounts for the identical time — which is the

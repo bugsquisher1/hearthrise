@@ -78,3 +78,8 @@ race-out.txt
 # Hearthfire art pilot RAWS (1024px Recraft exports) — source only, never shipped.
 # The processed shipping copies live in assets/icons-bundle/hearthfire/.
 assets/art-pilot/
+
+# Mutation-harness journal (tests/mutation-safety.mjs). Written before a
+# harness mutates a production file, deleted after a hash-verified restore.
+# A committed one would mean a run died holding a mutation.
+tests/.mutation-journal.json

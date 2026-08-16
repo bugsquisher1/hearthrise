@@ -547,6 +547,23 @@ function nat(v, fallback) {
  *                written. Cost of the gap: at most one bonus unit per skill
  *                per accrual (~0.5 expected), measured in
  *                tests/accrual-engine.mjs' carry-continuity fixture.
+ *   fight        player_state.fight — the IN-FLIGHT FIGHT at `accrued_to`,
+ *                `{ monster, hp, kills }` or `{}` for none. **NULL means the
+ *                column does not exist yet**, the same self-configuring switch
+ *                `toolCarry` uses and for the same reason: the engine then
+ *                starts every span at full monster HP and OMITS `fight` from
+ *                the delta, which is byte-for-byte the pre-Phase-0 behaviour.
+ *                ⚠ COST OF THE GAP IS NOT A ROUNDING LOSS. Without this input
+ *                  a target whose time-to-kill exceeds the span pays ZERO,
+ *                  forever — measured 0 kills / 0 gold at 60 s, 120 s and
+ *                  300 s cadences against a 520 HP dragon that a single
+ *                  60-minute window pays 1 kill / 575 gold for
+ *                  (tools/probe-live-settle.mjs P3). See §0 of
+ *                  docs/design/live-settlement.md.
+ *                ⚠ IT IS ENGINE OUTPUT, NEVER CLIENT INPUT, and hr_apply
+ *                  re-derives the monster's HP ceiling from the catalogue and
+ *                  REFUSES a proposal outside it rather than clamping — the
+ *                  engine's proposal is checked, not trusted.
  *
  * @returns { accrued: false, reason } | { accrued: true, delta, summary, … }
  */
@@ -694,9 +711,51 @@ export function computeAccrual(input) {
   const style = resolveStyle(eq.weaponType, null);
 
   const maxHp = Math.max(1, nat(inp.maxHp, 10));
+
+  /* ── THE CHECKPOINT (Phase 0) ────────────────────────────────────────────
+     `fight0` is the fight that was in flight at `accrued_to`. `null` means this
+     database has no `fight` column and the engine must not propose the key at
+     all (see normaliseFight). `{}` means there was no fight.
+
+     THE GUARD IS `fight.monster === activeId`, and it FAILS CLOSED: a carried
+     fight that does not name the target the pointer names starts fresh. The
+     only direction a mismatch can be wrong in is a small under-payment (one
+     restarted fight), and the direction it must never be wrong in — resuming a
+     half-dead monster the character is no longer fighting — is exactly the
+     "bank a nearly-dead boss" exploit. hr_apply enforces the same agreement
+     against the row it is writing, from the OTHER side of the hop, and voids
+     the whole triple on any `activity` delta; neither check is load-bearing
+     alone. See §2.2 of docs/design/live-settlement.md.
+
+     `monsterMaxHp` is re-derived from the CATALOGUE, never carried: it is a
+     property of the monster, not of the fight, and carrying it would make a
+     forged max the divisor of every later clamp. `monsterHp` is additionally
+     capped at it here, so even a proposal hr_apply somehow admitted cannot
+     start a fight with more HP than the monster has.
+
+     `combatKillsThisFoe` is carried because it is the same fact the client's
+     kill-streak readout shows (legacy.js:8742) and a settle must not reset it.
+     ⚠ STATED HONESTLY: it drives NOTHING inside the simulation today —
+       resolveKill increments it and nothing reads it. It is carried so the
+       counter survives the cutover to server-of-record, not because a number
+       changes. */
+  const fight0 = normaliseFight(inp.fight);
+  const resumed = (fight0 && fight0.monster === inp.activeId
+                   && monsters[inp.activeId] && fight0.hp > 0)
+    ? { hp: Math.min(fight0.hp, Math.max(1, nat(monsters[inp.activeId].hp, 1))),
+        maxHp: Math.max(1, nat(monsters[inp.activeId].hp, 1)),
+        kills: fight0.kills }
+    : null;
+
   const state = {
     activeMonster: inp.activeId,
-    monsterHp: 0, monsterMaxHp: 0,          // repaired by simulateSpan
+    /* 0/0 when there is nothing to resume — repaired to a FULL monster by
+       simulateSpan, which is byte-for-byte the pre-Phase-0 behaviour and the
+       reason the AWAY-1 parity fixtures still cover the bytes they were
+       written against. A resumed fight is the SAME simulation started from a
+       checkpoint; it is not a second code path. */
+    monsterHp: resumed ? resumed.hp : 0,
+    monsterMaxHp: resumed ? resumed.maxHp : 0,
     playerHp: Math.min(maxHp, Math.max(0, nat(inp.hp, maxHp))),
     playerMaxHp: maxHp,
     gold: 0,                                 // a DELTA accumulator, see below
@@ -708,7 +767,7 @@ export function computeAccrual(input) {
        the always-null-probe shape this program has been bitten by four times. */
     skills: { ...skills0 },
     stats: {},
-    combatKillsThisFoe: 0,
+    combatKillsThisFoe: resumed ? resumed.kills : 0,
   };
   /* `state.gold` starts at ZERO rather than at the player's balance. resolveKill
      does `state.gold = state.gold + gp`, so it accumulates the delta directly —
@@ -1092,6 +1151,33 @@ export function computeAccrual(input) {
   // restating an unchanged pointer buys nothing but a catalogue lookup.
   if (summary.died || !state.activeMonster) delta.activity = { kind: 'idle', id: null };
 
+  /* ── THE END-OF-WINDOW CHECKPOINT (Phase 0) ──────────────────────────────
+     ABSOLUTE, not a delta — the second key in this contract that is, and for
+     the same reason `tool_carry` is: the engine computes the RESULTING state
+     from a starting one it was handed, and adding two partial fights is
+     arithmetic nobody defined.
+
+     `if (fight0)` is the self-configuring switch: a null input means the column
+     does not exist and the key must be OMITTED, because hr_apply refuses an
+     unknown delta key with a 409 that costs the player the whole window.
+
+     `{}` — an explicit VOID — is sent whenever the fight ended, which is the
+     honest statement and not merely the absence of one: a death, a stop, or a
+     monster on exactly 0 HP all mean "there is nothing in flight", and leaving
+     the previous checkpoint in place would resume a fight the simulation has
+     already finished. Note that a KILL respawns the same foe at full HP inside
+     resolveKill, so the ordinary end of a combat window is a full-HP
+     checkpoint, which is byte-for-byte equivalent to no checkpoint at all. */
+  if (fight0) {
+    const alive = state.activeMonster && !summary.died
+      && Number.isFinite(state.monsterHp) && state.monsterHp > 0;
+    delta.fight = alive
+      ? { monster: state.activeMonster,
+          hp: Math.floor(state.monsterHp),
+          kills: Math.max(0, Math.floor(state.combatKillsThisFoe || 0)) }
+      : {};
+  }
+
   return {
     accrued: true,
     delta,
@@ -1173,6 +1259,47 @@ export function normaliseToolCarry(raw) {
     if (Number.isFinite(n) && n > 0 && n < 1) out[k] = n;
   }
   return out;
+}
+
+/* ── THE IN-FLIGHT FIGHT, NORMALISED (Phase 0, docs/design/live-settlement.md) ─
+   `player_state.fight` is jsonb the database CHECKs is an object. Empty object
+   = no fight in flight. A populated one is `{ monster, hp, kills }` — the state
+   of the fight AT `accrued_to`, so the next span can resume it instead of
+   restarting it.
+
+   ⚠ WHY THIS EXISTS. Without it every span starts a FRESH monster at full HP,
+     which means any target whose time-to-kill exceeds the span pays ZERO,
+     forever, at every cadence. Measured (tools/probe-live-settle.mjs P3): a
+     520 HP dragon against mediocre offence is ~488 ticks — about 20 minutes —
+     for one kill. One 60-minute window pays 1 kill / 575 gold; sixty 60-second
+     windows pay 0 kills / 0 gold / 0 XP. It is a total confiscation, not a
+     rounding loss, and it is live TODAY on every set_activity collect.
+
+   Returns null when the input is null/absent, and that null is load-bearing —
+   exactly the `tool_carry` self-configuring switch: a database without the
+   column yields null, the engine starts fresh and OMITS `fight` from the delta,
+   because hr_apply refuses an unknown delta key and that refusal costs a whole
+   window. There is no flag to forget to flip.
+
+   A CORRUPT FIGHT READS AS NO FIGHT ({}), never as a repaired one. The only
+   direction that can be wrong here is a small under-payment (one restarted
+   fight); silently repairing an impossible value is how a compromised engine's
+   bug becomes the server's opinion. hr_apply re-derives the ceiling from the
+   catalogue anyway and REFUSES an out-of-range proposal — this is the engine's
+   own promise, that is the database's verification of it. */
+export function normaliseFight(raw) {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const monster = raw.monster;
+  if (typeof monster !== 'string' || !/^[a-z0-9_]{1,64}$/.test(monster)) return {};
+  const hp = Number(raw.hp);
+  if (!Number.isFinite(hp) || hp <= 0 || Math.floor(hp) !== hp) return {};
+  const kills = Number(raw.kills);
+  return {
+    monster,
+    hp,
+    kills: (Number.isFinite(kills) && kills >= 0) ? Math.floor(kills) : 0,
+  };
 }
 
 /**

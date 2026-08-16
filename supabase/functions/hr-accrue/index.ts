@@ -561,6 +561,15 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          switch — there is no flag to forget to flip.
          Mirrors set-activity.js field for field (A14). */
       toolCarry: st.tool_carry ?? null,
+      /* THE IN-FLIGHT FIGHT (Phase 0). `?? null` and NOT `?? {}`, for exactly
+         the reason above: null means the column does not exist on this
+         database, the engine starts every span at full monster HP and omits
+         the `fight` delta key, which is the pre-Phase-0 behaviour. With the
+         column, a settle RESUMES the fight instead of restarting it — without
+         it, any monster whose time-to-kill exceeds the span pays zero forever
+         (docs/design/live-settlement.md §0).
+         Mirrors set-activity.js field for field (A14). */
+      fight: st.fight ?? null,
       /* THE PERMANENT PERK STACK. Server-owned unlock rows only — the room
          rung, the plot buildings, the property tier. `null` means the channel
          is absent or the character has bought nothing, and the engine reads

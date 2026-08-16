@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 362 — 2026-08-17 (Hotfix: the combat screen, uncrushed)
+
+- 🚑 **Fixed the combat screen breaking after b361** — the new boss portraits were rendering at full size inside the boss cards, crushing the monster list, the loadout and the arena. Everything is back where it belongs, with the portraits at their proper size. Sorry about that one.
+- 🔄 **"Away 0h" toasts are gone.** Short syncs while you're playing now read "Synced — +13 items, +104 XP"; the full away report is reserved for genuine time away.
+- 🧾 **Your market stall keeps books now.** A new Sales history in the market shows what sold and for how much — and if listings sold while you were away, your welcome-back report says so: "2 listings sold · +340 gold."
+
 ## v0.9.2-beta build 361 — 2026-08-17 (The bestiary gets its faces)
 
 - 🐺 **104 of 111 monsters now have hand-painted portraits** — the whole new roster, from the barn rat to the bosses, painted in the game's new style. (The 30 original monsters keep their old icons a little longer; they're next.)

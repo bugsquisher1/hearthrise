@@ -3623,7 +3623,17 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .hr-botd .botd-kicker{text-transform:uppercase;letter-spacing:.09em;font-size:calc(14.5px * var(--ui-scale,1));font-weight:700;color:var(--gold-2)}
 .hr-botd .botd-timer{font-variant-numeric:tabular-nums;font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3)}
 .hr-botd .botd-body{display:flex;align-items:center;gap:10px}
-.hr-botd .botd-icon{font-size:calc(30px * var(--ui-scale,1));line-height:1;flex:0 0 auto}
+/* b362 HOTFIX — the icon slot is a fixed BOX, not a font-size. The renderer
+   puts an `<img style="width:100%;height:100%">` inside this span; with only a
+   font-size here, 100% resolved against the CARD, so a 256px wave-1 portrait
+   rendered at full card width and crushed the entire combat layout (live,
+   Tyler-reported, b361). An emoji fallback still centres in the same box.
+   The latent form of this was flagged two passes ago and left as a note —
+   an image slot without a size box is a defect, not a nitpick. */
+.hr-botd .botd-icon{font-size:calc(30px * var(--ui-scale,1));line-height:1;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  width:calc(72px * var(--ui-scale,1));height:calc(72px * var(--ui-scale,1));overflow:hidden}
+.hr-botd .botd-icon img{width:100%;height:100%;object-fit:contain;display:block}
 .hr-botd .botd-main{min-width:0;flex:1}
 .hr-botd .botd-name{font-weight:700;font-size:calc(16px * var(--ui-scale,1));color:var(--ink)}
 .hr-botd .botd-sub{font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3)}

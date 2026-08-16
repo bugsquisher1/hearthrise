@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=361' directly.
+// modularised, will import { G } from '../state/game.js?v=362' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=361';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=361';
+import { on, snapshot } from '../net/events.js?v=362';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=362';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=361';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=362';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -23984,7 +23984,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=361');
+    const KIT = await import('../data/start-kit.js?v=362');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -29195,7 +29195,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=361');
+    const S = await import('../data/shops.js?v=362');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -30563,7 +30563,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=361');
+    const S = await import('../data/shops.js?v=362');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -31134,6 +31134,247 @@ const TESTS = [
     assert(G.skills.attack === 1500, 'a named skill that is HIGHER must take the server value');
     assert(G.inventory.rune_bar === 9, 'a named item that is HIGHER must take the server value');
     assert(G.gold === 9, 'gold remains absolutely authoritative — its writer HAS moved');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b361 regression suite — "AWAY 0h" DURING LIVE PLAY (Tyler, screenshot)
+     ══════════════════════════════════════════════════════════════════════
+     Reported: "⏳ Away 0h — the server credited +13 items, +104 XP, +0 gold"
+     fired while he was at the keyboard watching the fight. Since b356–b360 a
+     span settled WHILE ONLINE goes through the same envelope, the same
+     applier and the same receipt as a real absence (by design — one payment
+     path, live-settlement.md §0), and the only thing telling the two apart
+     was `source === 'switch'`, which an accrue-triggered settle never sets.
+
+     These fail without the classifier and NONE of them touches what is
+     credited — every one of them is a pure function of a receipt that has
+     already been applied. */
+
+  () => tryRun('SYNC-1: a short credited span is a SYNC, a long one is an AWAY — both sides of the line', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.classifyReceipt === 'function', 'classifyReceipt must be published');
+    const T = A.SYNC_MAX_MS;
+    assert(T === 10 * 60000, 'the threshold must be 10 minutes, got ' + T);
+    const rc = (ms, extra) => Object.assign({ awayMs: ms, gainedItems: 13, gainedXp: 104, gainedGold: 0 }, extra || {});
+    // THE REPORTED CASE: a 90s live settle must not claim an absence.
+    assert(A.classifyReceipt(rc(90 * 1000)) === 'sync',
+      'a 90s settle claimed an absence — this is the reported "Away 0h" bug');
+    // Boundary, both sides. Exactly the threshold is an ABSENCE (`< T` is sync).
+    assert(A.classifyReceipt(rc(T - 1)) === 'sync', 'one ms under the threshold must be a sync');
+    assert(A.classifyReceipt(rc(T)) === 'away', 'exactly the threshold must be an absence');
+    assert(A.classifyReceipt(rc(T + 1)) === 'away', 'one ms over the threshold must be an absence');
+    // A real absence still gets the away treatment, untouched.
+    assert(A.classifyReceipt(rc(8 * 3600000)) === 'away', 'an eight-hour night must still be an absence');
+    // A switch keeps its own sentence whatever the span.
+    assert(A.classifyReceipt(rc(30 * 1000, { source: 'switch' })) === 'switch',
+      'an activity switch must keep its own sentence');
+    assert(A.classifyReceipt(rc(9 * 3600000, { source: 'switch' })) === 'switch',
+      'a switch is a switch however wide the collected window');
+  }),
+
+  () => tryRun('SYNC-2: a zero-value sync says NOTHING; a death always speaks', () => {
+    const A = window.HearthriseAccrual;
+    const zero = { awayMs: 90000, gainedItems: 0, gainedXp: 0, gainedGold: 0, gainedKills: 0 };
+    const n0 = A.receiptNotice(zero);
+    assert(n0.kind === 'sync' && n0.announce === false,
+      'a zero-value live settle must be silent — at a 90s cadence this is the common case');
+    // One moved channel is enough to speak.
+    ['gainedItems', 'gainedXp', 'gainedGold', 'gainedKills'].forEach((k) => {
+      const one = Object.assign({}, zero); one[k] = 1;
+      assert(A.receiptNotice(one).announce === true, k + ' moved but the toast stayed silent');
+    });
+    // A level-up is news even when nothing else is.
+    assert(A.receiptNotice(Object.assign({}, zero, { levelUps: [{ skill: 'mining', to: 12 }] })).announce === true,
+      'a level-up must not be swallowed by the zero-value gate');
+    /* DEATH OVERRIDES BOTH: it is an absence whatever the span (b343's ruling,
+       reused rather than re-decided) and it announces on a zero receipt. */
+    const dead = Object.assign({}, zero, { combat: { kills: 0, died: true } });
+    assert(A.classifyReceipt(dead) === 'away', 'a death must be an absence however short the span');
+    assert(A.receiptNotice(dead).announce === true, 'a death must always be announced');
+  }),
+
+  () => tryRun('SYNC-4: the literal reported sentence — "Away 0h" can never be said of a live settle', () => {
+    /* THE REGRESSION, quoted. Tyler's screenshot: "⏳ Away 0h — the server
+       credited +13 items, +104 XP, +0 gold" while he was at the keyboard.
+       `receiptSentence` exists as a pure function precisely so this string is
+       readable by a test — inline in `applyServerEnvelope` it needed a live
+       envelope, a live session and a live server to reach, which is why the
+       sentence shipped wrong in the first place. */
+    const A = window.HearthriseAccrual;
+    assert(typeof A.receiptSentence === 'function', 'receiptSentence must be published');
+    const reported = { awayMs: 90000, hrs: 0, gainedItems: 13, gainedXp: 104, gainedGold: 0, gainedKills: 0 };
+    const said = A.receiptSentence(reported);
+    assert(said === 'Synced — +13 items, +104 XP', 'got ' + JSON.stringify(said));
+    assert(said.indexOf('Away') === -1, 'a live settle must never say "Away"');
+    assert(said.indexOf('+0 gold') === -1, 'a live settle must not name a channel that did not move');
+    // Zero-value settle: NOTHING is said at all.
+    assert(A.receiptSentence({ awayMs: 90000, gainedItems: 0, gainedXp: 0, gainedGold: 0 }) === null,
+      'a zero-value live settle must produce no toast at all');
+    // A genuine absence keeps its full receipt, verbatim, "+0 gold" included.
+    const night = { awayMs: 8 * 3600000, hrs: 8, gainedItems: 13, gainedXp: 104, gainedGold: 0 };
+    assert(A.receiptSentence(night) === '⏰ Away 8h — the server credited +13 items, +104 XP, +0 gold',
+      'a real absence must still get the full away receipt, got ' + A.receiptSentence(night));
+    // The market line rides on whichever sentence is chosen.
+    assert(A.receiptSentence(reported, { saleLine: '2 listings sold · +340 gold' })
+      === 'Synced — +13 items, +104 XP · 2 listings sold · +340 gold',
+      'the sales line must ride the sync toast');
+    assert(A.receiptSentence(night, { saleLine: '2 listings sold · +340 gold' }).indexOf('2 listings sold') > 0,
+      'the sales line must ride the away toast too');
+    // A switch still speaks as a switch, through the injected span formatter.
+    const sw = { source: 'switch', awayMs: 90000, gainedItems: 1, gainedXp: 2, gainedGold: 3 };
+    assert(A.receiptSentence(sw, { spanLabel: () => '1m' }) === 'Collected 1m — +3 gold, +2 XP, +1 items',
+      'a switch must keep its own sentence, got ' + A.receiptSentence(sw, { spanLabel: () => '1m' }));
+  }),
+
+  () => tryRun('SYNC-3: the Home away card and the toast read ONE classifier', () => {
+    /* The b342 failure was two surfaces telling different stories about one
+       absence. The card's liveness gate is now the same function the toast
+       reads, so this asserts they cannot drift apart again. */
+    const A = window.HearthriseAccrual;
+    const H = window.HearthriseHome;
+    assert(H && typeof H.__awayCardHtml === 'function', 'the away card test seam must exist');
+    const G = window.G;
+    const snap = G.lastOfflineSummary;
+    try {
+      const settle = { at: Date.now(), awayMs: 90000, hrs: 0.0, gainedItems: 13, gainedXp: 104,
+        gainedGold: 0, gainedKills: 2, serverAuthoritative: true };
+      G.lastOfflineSummary = settle;
+      assert(A.classifyReceipt(settle) === 'sync', 'fixture must classify as a sync');
+      window.showTab('profile');
+      const home = document.getElementById('panel-profile') || document.body;
+      assert(home.innerHTML.indexOf('While you were away') === -1,
+        'a 90s live settle drew the "While you were away" card — the card and the toast disagree');
+      // ...and a real night still draws it, so this is a gate and not a delete.
+      const night = Object.assign({}, settle, { awayMs: 8 * 3600000, hrs: 8 });
+      assert(A.classifyReceipt(night) === 'away', 'an 8h absence must classify as away');
+      const card = H.__awayCardHtml(night);
+      assert(card.indexOf('While you were away') >= 0, 'a real absence must still render the full away card');
+      assert(card.indexOf('+13') >= 0 && card.indexOf('104') >= 0,
+        'the away card must still state what the night paid');
+    } finally { G.lastOfflineSummary = snap; }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b361 regression suite — THE TRADE LEDGER
+     Since market-v2 a listing sells server-side and the gold just arrives.
+     These cover the pure half end to end from a fixture: normalisation,
+     the away-window summary, and the panel's own render.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('LEDGER-1: market_sales rows normalise into signed, role-tagged entries', () => {
+    const MH = window.HearthriseMarketHistory;
+    assert(MH && typeof MH.normalizeSales === 'function', 'the market history module must be published');
+    const me = 'user-me';
+    const rows = [
+      { id: 1, listing_id: 'L1', seller_user_id: me, buyer_user_id: 'other', item_id: 'oak_log',
+        qty: 10, gold_gross: 200, tax: 10, gold_net: 190, at: '2026-08-17T10:00:00Z' },
+      { id: 2, listing_id: 'L2', seller_user_id: 'other', buyer_user_id: me, item_id: 'copper_ore',
+        qty: 4, gold_gross: 80, tax: 4, gold_net: 76, at: '2026-08-17T12:00:00Z' },
+      { id: 3, listing_id: 'L3', seller_user_id: 'a', buyer_user_id: 'b', item_id: 'coal',
+        qty: 1, gold_gross: 5, tax: 0, gold_net: 5, at: '2026-08-17T13:00:00Z' },
+    ];
+    const out = MH.normalizeSales(rows, me);
+    assert(out.length === 2, 'a row belonging to neither side must be dropped, got ' + out.length);
+    // NEWEST FIRST.
+    assert(out[0].id === '2' && out[1].id === '1', 'entries must be newest-first');
+    const sale = out[1];
+    assert(sale.role === 'sale' && sale.goldDelta === 190,
+      'a sale credits the NET (tax already taken), got ' + sale.goldDelta);
+    const buy = out[0];
+    assert(buy.role === 'purchase' && buy.goldDelta === -80,
+      'a purchase costs the GROSS, got ' + buy.goldDelta);
+    assert(sale.at > 0 && buy.at > sale.at, 'timestamps must parse to real, ordered ms');
+  }),
+
+  () => tryRun('LEDGER-2: the away summary gains a sales line only when sales fall inside the window', () => {
+    const MH = window.HearthriseMarketHistory;
+    const me = 'user-me';
+    const T = Date.parse('2026-08-17T12:00:00Z');
+    const entries = MH.normalizeSales([
+      // inside the window
+      { id: 1, seller_user_id: me, buyer_user_id: 'x', item_id: 'oak_log', qty: 10,
+        gold_gross: 210, tax: 10, gold_net: 200, at: new Date(T - 3600000).toISOString() },
+      { id: 2, seller_user_id: me, buyer_user_id: 'y', item_id: 'coal', qty: 5,
+        gold_gross: 150, tax: 10, gold_net: 140, at: new Date(T - 1800000).toISOString() },
+      // BEFORE the window — already reported on a previous return
+      { id: 3, seller_user_id: me, buyer_user_id: 'z', item_id: 'coal', qty: 5,
+        gold_gross: 999, tax: 0, gold_net: 999, at: new Date(T - 99 * 3600000).toISOString() },
+      // a PURCHASE inside the window: the player's own action, never news
+      { id: 4, seller_user_id: 'q', buyer_user_id: me, item_id: 'iron_ore', qty: 2,
+        gold_gross: 500, tax: 0, gold_net: 500, at: new Date(T - 600000).toISOString() },
+    ], me);
+    const receipt = { at: T, awayMs: 8 * 3600000, windowFrom: T - 8 * 3600000, windowTo: T };
+    const line = MH.salesLineForReceipt(receipt, entries);
+    assert(line === '2 listings sold · +340 gold',
+      'expected "2 listings sold · +340 gold", got ' + JSON.stringify(line));
+    // Singular reads as English, not as "1 listings".
+    const one = MH.salesLineForReceipt(receipt, entries.filter((e) => e.itemId === 'oak_log'));
+    assert(one === '1 listing sold · +200 gold', 'singular must not say "1 listings", got ' + one);
+    // NOTHING in the window -> NO LINE AT ALL (never "0 sold").
+    const quiet = { at: T, awayMs: 60000, windowFrom: T - 60000, windowTo: T };
+    assert(MH.salesLineForReceipt(quiet, entries) === null,
+      'a window with no sales must produce no line');
+    // A receipt that names no usable window must not have one guessed for it.
+    assert(MH.salesLineForReceipt({}, entries) === null, 'a windowless receipt must produce no line');
+    /* The server-stated window WINS over the derived one: same receipt, but
+       windowFrom pushed past both sales, so the fallback (at - awayMs) would
+       still find them and the stated window must not. */
+    const stated = { at: T, awayMs: 8 * 3600000, windowFrom: T - 60000, windowTo: T };
+    assert(MH.salesLineForReceipt(stated, entries) === null,
+      'the server-stated window must win over the duration fallback');
+    // ...and with no stated window, the fallback reconstructs it from the span.
+    assert(MH.salesLineForReceipt({ at: T, awayMs: 8 * 3600000 }, entries) === '2 listings sold · +340 gold',
+      'the fallback window must reconstruct from at - awayMs');
+  }),
+
+  () => tryRun('LEDGER-3: the market panel renders history rows, an empty state, and never invents one', () => {
+    const MH = window.HearthriseMarketHistory;
+    const before = MH.getHistory();
+    const me = 'user-me';
+    try {
+      /* UNKNOWN — never read. Must NOT claim "no trades": that is the client
+         asserting something it cannot know, the same absence-is-not-a-claim
+         rule applyEnvelopeState follows. */
+      MH.__setHistoryCache({ status: 'unknown', entries: [] });
+      window.showTab('market');
+      window.renderMarket();
+      let root = document.getElementById('market-root');
+      assert(root, 'the market root must exist');
+      assert(root.innerHTML.indexOf('Your trade history') >= 0, 'the ledger block must render');
+      assert(root.innerHTML.indexOf('No trades yet') === -1,
+        'an unread ledger must not claim the player has never traded');
+
+      // EMPTY — read, and genuinely nothing.
+      MH.__setHistoryCache({ status: 'ok', entries: [], userId: me, at: Date.now() });
+      window.renderMarket();
+      root = document.getElementById('market-root');
+      assert(root.innerHTML.indexOf('No trades yet') >= 0, 'an empty ledger must say so plainly');
+
+      // POPULATED — rows from a fixture, both roles.
+      MH.__setHistoryCache({
+        status: 'ok', userId: me, at: Date.now(),
+        entries: MH.normalizeSales([
+          { id: 7, seller_user_id: me, buyer_user_id: 'x', item_id: 'oak_log', qty: 10,
+            gold_gross: 210, tax: 10, gold_net: 200, at: new Date(Date.now() - 3600000).toISOString() },
+          { id: 8, seller_user_id: 'y', buyer_user_id: me, item_id: 'coal', qty: 3,
+            gold_gross: 90, tax: 0, gold_net: 90, at: new Date(Date.now() - 7200000).toISOString() },
+        ], me),
+      });
+      window.renderMarket();
+      root = document.getElementById('market-root');
+      const html = root.innerHTML;
+      assert(html.indexOf('No trades yet') === -1, 'a populated ledger must not render the empty state');
+      assert(html.indexOf('1 sold') >= 0 && html.indexOf('1 bought') >= 0,
+        'the ledger header must total both sides');
+      assert(html.indexOf('+200g') >= 0, 'a sale must show the NET it actually paid');
+      assert(html.indexOf('21g each') >= 0, 'a sale must show the per-unit price it traded at');
+      assert(html.indexOf('10g house tax') >= 0, 'a sale must name the house tax it lost');
+      assert(html.indexOf('mk-ledger-tab') >= 0, 'the All/Sold/Bought filter must render');
+      /* NO COUNTERPARTY IDENTITY. market-v2 exposes no name on this table and
+         publishing the auth UUID is the exact hole S17 closed — so the render
+         must not leak one even though the row carries it. */
+      assert(html.indexOf('user-me') === -1, 'the ledger leaked an auth user id into the DOM');
+    } finally { MH.__setHistoryCache(before); }
   }),
 
 ];

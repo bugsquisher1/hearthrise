@@ -625,6 +625,23 @@
       notes.push({ tone: 'held', icon: 'uiHourglass',
         text: 'Food buffs paused — their time was kept, not spent.' });
     }
+    /* ── b361: WHAT THE MARKET DID WHILE YOU WERE OUT ──────────────────────
+       A listing selling is the one economic event that happens TO the player
+       rather than because of them, and since market-v2 it happened in total
+       silence: gold appeared and nothing said why. Keyed by the RECEIPT's own
+       window (`windowFrom`/`windowTo`, stated by the server), read from rows
+       the player can already SELECT for themselves — no new save field, no new
+       server state, and no line at all when nothing sold or the ledger has not
+       been read. Purchases are excluded on purpose: those were the player's
+       own actions and are not news on a welcome-back card. */
+    try {
+      var MH = window.HearthriseMarketHistory;
+      var saleLine = MH && MH.salesLineFor(off);
+      if (saleLine) {
+        notes.push({ tone: 'good', icon: 'gold',
+          text: 'Your market stall: ' + saleLine + '.' });
+      }
+    } catch (e) { /* the ledger is never load-bearing for this card */ }
     /* b345 — THE CEILING ONLY COST YOU SOMETHING IF YOU WERE STILL EARNING
        WHEN IT CLOSED. Measured on the card this fix was written for:
        "Cooking ran out of Raw Shrimp 30s in — the remaining 11h 59m paid
@@ -855,8 +872,21 @@
        seconds in, and a receipt whose paid span rounds to nothing is exactly
        that receipt. FRESHNESS is unchanged: 30 minutes off `summary.at`. */
     var _bad = !!(_off && (_off.died || (_off.combat && _off.combat.died)));
-    if (_off && _off.at && (Date.now() - _off.at) < 30 * 60000
-        && ((_off.hrs || 0) >= 0.1 || _bad)) {
+    /* b361: the LIVENESS gate is now the SAME classifier the toast reads
+       (`HearthriseAccrual.receiptNotice`), so a live settle cannot be narrated
+       as an absence on one surface and a sync on the other — the exact
+       two-surfaces-one-absence failure b342 was built to end. It is a strictly
+       tighter gate than the `>= 0.1h` it replaces (6 min → 10 min) and keeps
+       b343's ruling verbatim: a DEATH is admitted on its own terms regardless
+       of the claimed span, because the absence that most needs explaining is
+       the one that ended sixty seconds in. `>= 0.1h` survives as the fallback
+       for a build where the accrual module never published.
+       FRESHNESS is unchanged: 30 minutes off `summary.at`. */
+    var _A = window.HearthriseAccrual;
+    var _away = _off && (_A && typeof _A.classifyReceipt === 'function'
+      ? _A.classifyReceipt(_off) === 'away'
+      : ((_off.hrs || 0) >= 0.1 || _bad));
+    if (_off && _off.at && (Date.now() - _off.at) < 30 * 60000 && _away) {
       html += awayCardHtml(_off);
     }
 

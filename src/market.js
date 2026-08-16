@@ -953,15 +953,117 @@
   // Persisted UI state for search/sort. Survives reload.
   var UI_STATE_KEY = 'hearthrise:market:ui';
   function loadUiState(){
-    try { return Object.assign({ q:'', sort:'price-asc' }, JSON.parse(localStorage.getItem(UI_STATE_KEY) || '{}')); }
-    catch(e){ return { q:'', sort:'price-asc' }; }
+    try { return Object.assign({ q:'', sort:'price-asc', ledger:'all' }, JSON.parse(localStorage.getItem(UI_STATE_KEY) || '{}')); }
+    catch(e){ return { q:'', sort:'price-asc', ledger:'all' }; }
   }
   function saveUiState(s){
     /* b213 (phase 2): persist the SORT preference but never the search
        query — a stale filter from last session made the market open on
        "matching 'log' (0) — No matching listings", which reads as an
        empty market. */
-    try { localStorage.setItem(UI_STATE_KEY, JSON.stringify({ sort: s.sort })); } catch(e){}
+    try { localStorage.setItem(UI_STATE_KEY, JSON.stringify({ sort: s.sort, ledger: s.ledger })); } catch(e){}
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b361 — YOUR TRADE LEDGER, ON THE MARKET SCREEN
+     ══════════════════════════════════════════════════════════════════════
+     Tyler: since market-v2 a listing sells server-side and the gold just
+     arrives, with no player-visible record anywhere. This is the record.
+
+     WHERE THE DATA COMES FROM: `market_sales`, read by the player for their
+     OWN rows under the `own sales readable` policy that market-v2 already
+     ships (`auth.uid() = seller_user_id or auth.uid() = buyer_user_id`, with
+     `grant select … to authenticated`). No RPC, no definer, no migration —
+     see src/net/market-history.js and the block above `fetchSalesHistory` in
+     src/net/supabase-market-backend.js for the quoted policy.
+
+     WHAT IT DELIBERATELY DOES NOT SHOW: the counterparty's name. market-v2
+     carries no denormalised name on this table — S17 stripped the table's
+     public read precisely because it published both auth UUIDs — so a name
+     would need a new join or a new definer function. The row names the ITEM
+     and the GOLD and stays silent about who, which is the honest render of
+     what the server actually exposes.
+
+     THREE STATES, AND THE MIDDLE ONE IS THE ONE THAT MATTERS: unknown (never
+     read — say so), empty (read, genuinely nothing) and populated. Rendering
+     "no trades yet" for a read that failed would be the client asserting
+     something it cannot know. */
+  function ledgerAgo(ms, now){
+    var d = Math.max(0, now - ms);
+    if(d < 60000) return 'just now';
+    var m = Math.floor(d/60000);
+    if(m < 60) return m + 'm ago';
+    var h = Math.floor(m/60);
+    if(h < 24) return h + 'h ago';
+    return Math.floor(h/24) + 'd ago';
+  }
+
+  function historyBlockHtml(hist, filter, now){
+    var head = '<div class="mk-block mk-ledger"><h3>Your trade history</h3>';
+    if(!hist || hist.status !== 'ok'){
+      return head + '<div class="mk-empty">Your sales and purchases will appear here once '
+        + 'the market ledger has been read. Sign in and open the market again.</div></div>';
+    }
+    var all = hist.entries || [];
+    var rows = all.filter(function(e){
+      return filter === 'sold' ? e.role === 'sale'
+           : filter === 'bought' ? e.role === 'purchase'
+           : true;
+    });
+    /* The header totals speak for EVERYTHING read, not for the current filter
+       — a total that changes when you flip a tab is a total nobody trusts. */
+    var soldN = 0, earned = 0, boughtN = 0, spent = 0;
+    all.forEach(function(e){
+      if(e.role === 'sale'){ soldN++; earned += e.goldNet; }
+      else { boughtN++; spent += e.goldGross; }
+    });
+    var totals = '<div class="mk-stats mk-ledger-totals">'
+      + '<span class="mk-stat">' + soldN + ' sold <b>+' + earned.toLocaleString() + 'g</b></span>'
+      + '<span class="mk-stat">' + boughtN + ' bought <b>-' + spent.toLocaleString() + 'g</b></span>'
+      + '</div>';
+    var tabs = '<div class="mk-ledger-tabs">'
+      + [['all','All'],['sold','Sold'],['bought','Bought']].map(function(t){
+          return '<button class="mk-ledger-tab' + (filter === t[0] ? ' is-on' : '')
+            + '" data-ledger="' + t[0] + '">' + t[1] + '</button>';
+        }).join('')
+      + '</div>';
+    var body;
+    if(!rows.length){
+      body = '<div class="mk-empty">'
+        + (filter === 'sold' ? 'Nothing of yours has sold yet — list an item above and it will show up here.'
+         : filter === 'bought' ? 'You haven\'t bought anything from the market yet.'
+         : 'No trades yet. Anything you buy or sell will be recorded here.')
+        + '</div>';
+    } else {
+      body = rows.map(function(e){
+        var item = window.ITEMS && window.ITEMS[e.itemId];
+        var iconHtml = (window._itemPath && window._itemPath[e.itemId])
+          ? '<img src="' + window._itemPath[e.itemId] + '" alt="">'
+          : '<span>' + ((item && item.icon) || '📦') + '</span>';
+        var sold = e.role === 'sale';
+        /* GROSS per unit on both sides: it is the price the listing actually
+           traded at, which is the same number for buyer and seller. The tax
+           is a separate, seller-only clause below — folding it into "each"
+           would quote a price no listing was ever posted at. */
+        var each = e.qty > 0 ? Math.round(e.goldGross / e.qty) : 0;
+        var meta = (sold ? 'Sold' : 'Bought') + ' ' + each.toLocaleString() + 'g each · '
+          + ledgerAgo(e.at, now)
+          + (sold && e.tax > 0 ? ' · ' + e.tax.toLocaleString() + 'g house tax' : '');
+        return '<div class="mk-row mk-ledger-row">'
+          + '<div class="mk-icon">' + iconHtml + '</div>'
+          + '<div class="mk-info">'
+          +   '<div class="mk-name">' + escapeAttr((item && item.n) || e.itemId)
+          +     '<span class="mk-qty">×' + e.qty.toLocaleString() + '</span></div>'
+          +   '<div class="mk-meta">' + escapeAttr(meta) + '</div>'
+          + '</div>'
+          /* +/− carries the direction, not colour — see the ledger block in
+             audit-overrides.css for the measurement behind that. */
+          + '<div class="mk-action"><span class="mk-qty">'
+          +   (sold ? '+' : '−') + Math.abs(e.goldDelta).toLocaleString() + 'g</span></div>'
+          + '</div>';
+      }).join('');
+    }
+    return head + totals + tabs + body + '</div>';
   }
 
   function render(){
@@ -1161,7 +1263,30 @@
         '<div class="mk-form-hint" id="mk-list-hint">Pick an item to see how many you have and the NPC vendor price.</div>' +
       '</div>';
 
-    panel.innerHTML = housing + listForm + moversBlock + mineBlock + offersBlock + toolbar + othersBlock;
+    /* THE LEDGER. Placed directly under "Your listings", because the question
+       it answers ("did my stuff sell?") is the same question that block
+       raises. Refreshed lazily and coalesced — the module re-renders the panel
+       itself when a stale read lands, so this never blocks a paint and never
+       fires a request per keystroke. */
+    var MH = window.HearthriseMarketHistory;
+    var historyBlock = '';
+    if(MH){
+      try{
+        MH.refreshHistoryIfStale();
+        historyBlock = historyBlockHtml(MH.getHistory(), ui.ledger || 'all', Date.now());
+      }catch(e){ historyBlock = ''; }
+    }
+
+    panel.innerHTML = housing + listForm + moversBlock + mineBlock + historyBlock
+      + offersBlock + toolbar + othersBlock;
+
+    panel.querySelectorAll('button.mk-ledger-tab[data-ledger]').forEach(function(b){
+      b.addEventListener('click', function(){
+        ui.ledger = b.getAttribute('data-ledger') || 'all';
+        saveUiState(ui);
+        render();
+      });
+    });
 
     // ── Wire search + sort ──
     var searchEl = panel.querySelector('#mk-search');
@@ -1417,7 +1542,29 @@
      one render path, and it works for every alias (`market`, `exchange`,
      `shops` with Market remembered) rather than only for the literal string
      this wrapper happened to compare against. */
-  function start(){ injectPanel(); }
+  /* b361: repaint when the trade ledger lands. ONE subscription, taken lazily
+     because market-history.js is an ESM module and this is a classic script —
+     binding at definition time would silently bind nothing, the same
+     "guarded call to a name that never existed" shape b334 found. */
+  var _ledgerBound = false;
+  function bindLedger(attempt){
+    if(_ledgerBound) return;
+    var MH = window.HearthriseMarketHistory;
+    if(MH && typeof MH.onHistoryChange === 'function'){
+      _ledgerBound = true;
+      MH.onHistoryChange(function(){
+        var panel = document.getElementById('panel-market');
+        /* Only when the market is actually on screen: a background repaint
+           would blow away a half-typed search box for no benefit. */
+        if(panel && panel.classList.contains('active')){ try{ render(); }catch(e){} }
+      });
+      return;
+    }
+    if((attempt||0) >= 60) return;
+    setTimeout(function(){ bindLedger((attempt||0)+1); }, 500);
+  }
+
+  function start(){ injectPanel(); bindLedger(0); }
   if(document.readyState !== 'loading') setTimeout(start, 60);
   else document.addEventListener('DOMContentLoaded', start);
 

@@ -77,14 +77,14 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, summaryFromAway, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
-} from './accrue.js?v=361';
+} from './accrue.js?v=362';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
    `computeAccrual` and the intent's shape check read, so the client, the engine
    and the intent cannot disagree about which benches exist tonight. Precedent:
    src/net/gold.js already imports src/data/shops.js for exactly this reason. */
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=361';
-import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=361';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=362';
+import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=362';
 
 export const ACTIVITY_VERB = 'set_activity';
 

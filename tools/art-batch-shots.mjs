@@ -83,7 +83,14 @@ async function dismiss(page) {
   for (let i = 0; i < 4; i++) {
     const closed = await page.evaluate(() => {
       let n = 0;
-      document.querySelectorAll('.modal, .modal-backdrop, .overlay, [class*="daily"], [class*="ftue"]').forEach((el) => {
+      /* `.inv-detail` was MISSING and it cost a capture: the item-detail popup
+         opened for shot 02 survived three dismiss() rounds and four tab switches,
+         and the first combat screenshot came back with the whole screen behind its
+         scrim. dismiss() reported success every time, because it only ever counted
+         what its own selector list could see. The class is `.inv-detail.show` —
+         and I know that because `topmost()` NAMED it, not because I guessed
+         (`.qm-overlay` and `.item-popup` were my guesses; both were wrong). */
+      document.querySelectorAll('.modal, .modal-backdrop, .overlay, .inv-detail, [class*="daily"], [class*="ftue"]').forEach((el) => {
         const cs = getComputedStyle(el);
         if (cs.display === 'none' || cs.visibility === 'hidden') return;
         const r = el.getBoundingClientRect();
@@ -98,6 +105,17 @@ async function dismiss(page) {
   }
   await page.keyboard.press('Escape').catch(() => {});
   await page.waitForTimeout(300);
+}
+
+/** What is ACTUALLY on top at the middle of the screen. Computed style cannot
+ *  find a scrim (the elements under it still report opacity 1, filter none);
+ *  elementFromPoint names it in one call. b361 learned this on a daily-login
+ *  scrim and this pass re-learned it on the item-detail popup. */
+async function topmost(page) {
+  return page.evaluate(() => {
+    const el = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+    return el ? el.tagName.toLowerCase() + '.' + (el.className || '').toString().split(' ').slice(0, 2).join('.') : 'none';
+  });
 }
 
 async function shot(page, name, opts = {}) {
@@ -202,6 +220,16 @@ const audits = [];
   console.log('  recipe-book control found: ' + opened + ', hearthfire imgs on screen: ' + shown);
   await shot(page, '06b-recipe-book', { full: true });
   audits.push(['recipe book', await auditImgs(page, 'recipe-book')]);
+
+  /* COMBAT — required by the RELEASE VISUAL GATE (CLAUDE.md), and it is here
+     rather than in the monster harness on purpose: the b361 break was a 256 px
+     PORTRAIT meeting an UNSIZED ICON SLOT, i.e. an interaction between the two
+     harnesses' blind spots. An item pass that never photographs combat cannot
+     see the food/ammo/loot slots it just filled sitting next to a portrait. */
+  await go(page, 'combat');
+  console.log('  combat topmost at centre: ' + await topmost(page));
+  await shot(page, '09-combat', { full: true });
+  audits.push(['combat', await auditImgs(page, 'combat')]);
   await ctx.close();
 }
 
@@ -222,6 +250,9 @@ const audits = [];
   await go(page, 'inventory');
   await shot(page, '08-mobile-landscape-inventory');
   audits.push(['inventory/mobile-landscape', await auditImgs(page, 'mobile')]);
+  await go(page, 'combat');
+  await shot(page, '10-mobile-landscape-combat');
+  audits.push(['combat/mobile-landscape', await auditImgs(page, 'mobile-combat')]);
   await ctx.close();
 }
 

@@ -2,6 +2,90 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-16 · b362 — Tyler's hand-made wave: 428 → 473 wired for $0.00. The control sheet I drew
+### to settle a marginal call found FIVE wrong icons that have been live since b358.
+
+**The finding I would put in front of Tyler first is not about his new art, it is about the old.**
+Two of his planks (`willow_plank`, `yew_plank`) came back chunkier than the brief's "long flat sawn
+board", and rather than rule on taste I built a contact sheet of the **already-shipped** planks and
+bars to calibrate. **`oak_plank`, `duskwood_plank` and `runewood_plank` are round SHIELDS.
+`bronze_bar` is a hammer on an anvil. `copper_bar` is a sphere.** All five passed b358/b361 review and
+render wrong in the Recipe Book today. The marginal call answered itself instantly — Tyler's timber
+is unambiguously better than a shield — but the real lesson is the instrument. b360 established
+base-rate-against-the-shipped-control for diagnosing a failing class; **this is the same instrument
+turned around. The control is also a free audit, every time you draw one.** A review that only looks
+at the delta cannot find a defect that already shipped, and nothing in this pipeline ever re-opens a
+wired id. I did NOT unwire them — that swaps wrong art for a fallback glyph and deserves its own
+verified pass, and burying it inside a wiring pass would hide it. Worklisted loudly instead.
+
+**No spend, and this time no rule was even needed.** 67 of 71 exports carry real alpha. Four were
+flattened — three with the Recraft UI's **transparency checkerboard exported as pixels** — and
+`art-wave-matte.mjs` handled all four with no special case, exactly as its header predicted for
+`fire_devil`. Two flagged "key ate the subject (bg > 92%)"; that heuristic is calibrated for a
+monster BUST and **a fishing rod legitimately occupies under 8% of a square canvas.** Read the
+suspects, don't obey them.
+
+**Judged all 71 by eye at three sizes, and the middle size is the one that earned its keep.** A 265 px
+identity sheet, a 420 px zoom on every marginal, a 38 px shelf at true render size. The zoom is what
+changed verdicts: `alphaheart_longbow` reads as a plausible bow on the identity sheet and is a pair of
+curved **horns with fur tufts** at 420 px — no limb, no string. `rune_needle` reads as a slim glinting
+thing and is a **sword** with a ricasso, a guard and a ring pommel. `vaultstone` is a strapped
+**crate**, not a keystone. **45 wired, 10 refused, 7 correct but unmappable to any live ITEMS key.**
+
+**THE TECHNIQUE FINDING, and I think it is the most valuable thing in this pass.** Six of the 71 files
+are named after a sentence Tyler typed *at an image he did not like* — `way-too-thick-to-be-a-fishing-
+rod`, `give-me-this-exact-pole-but-in-a-duskwood-shade`, `this-should-have-a-skull-etched-on-it`.
+**Every one of those six is better than its sibling and four of them are the best rods this programme
+has produced.** The staff/rod class survived four rounds of prompt re-wording, two funded probes and a
+documented "this is a model limit" ruling — and it half-fell to a human looking at an output and
+saying what was wrong with it. b361's ruling stands (don't re-word), but the corollary is new:
+**iterative correction beats prompt engineering, and the loop has to contain an eye.**
+
+**Where I refused Tyler's art, and the two calls I'd defend hardest.** `yew_rod` is a perfectly nice
+painting and it is SILVER for an id whose material is dark yew — and it is a near-clone of
+`dawnsteel_rod`, two fishing tiers away. **Two adjacent tiers wearing the same silver art is worse on
+a shelf than one honest gap.** And I did NOT re-point it at another id to "use" it; deriving the
+filename from the id is the whole reason `item-art.js` exists. Second: the rod ladder now ships **4 of
+7** painted, which is a mixed family, and b361 withheld a lone good rod for exactly that reason. I
+wired anyway because **the ratio inverted** — refusing 4 good rods to protect a consistency argument
+written when 6 of 7 were broken is applying a rule past its premise.
+
+**The fused filename, settled by looking.** `----void-censer-png---------void-chitin-weave-png-.png`
+names two ids and **depicts the second** — a stack of flat iridescent plates, no dome, no chain, no
+smoke. Unusable either way (`void_chitin_weave` is not a live id), and the real censer is the other
+file. **Rotations applied: ZERO.** Tyler's permission to rotate was real and the need was not — every
+rod and staff already sits on the same lower-left-to-upper-right diagonal as the rest of the shelf, so
+rotating would have introduced the inconsistency it was meant to remove. Saying "I rotated seven
+files" would have sounded like more work and been worse art.
+
+**One id genuinely resolved:** `deathsteel_ingot` → **`death_steel`**. That is one of 27 names in
+`UNRESOLVED_FILES`, and it proves the others are tractable — seven more good icons in this wave are
+blocked on nothing but a name.
+
+**The harness lied again and the fix is the same one as last time.** My first combat capture came back
+with the whole screen behind a scrim: the item-detail popup from shot 02 had survived **three
+`dismiss()` rounds and four tab switches**, and `dismiss()` reported success every time because it
+only counts what its own selector list can see. I guessed `.qm-overlay` and `.item-popup` — **both
+wrong.** `topmost()` (elementFromPoint at centre, the b361 daily-scrim trick) named it in one call:
+`.inv-detail.show`. **Guessing a selector costs a whole run; asking the page costs nothing.** Both the
+probe and the fix are now in `art-batch-shots.mjs`, along with the combat captures the release visual
+gate requires — an item pass that never photographs combat structurally cannot see the b361 failure
+mode, which was an item slot meeting a portrait.
+
+**Verified in-browser, my own server rooted in my own worktree.** 10 surfaces × 3 contexts:
+**0 404s, 0 console errors, 0 broken `<img>`, 0 tiny `<img>`, 1251 hearthfire icons**, including a
+recipe book carrying 948 on one screen. Then I READ the captures rather than the audit JSON —
+inventory, combat, recipe book, shop, desktop + 922×423 — and every icon is contained in its slot at
+34–64 px with no burst. **Suite 775/775, three green runs. No version bump, no push.**
+
+**Known limitations, stated plainly.** `willow_rod` still has no art, so the fishing ladder is 4 of 7.
+`mithril_arrows` is the weakest thing I wired — the vanes read as petals at 38 px — and I passed it
+because the parts are in the right order and the bar it has to clear is a shelf currently containing
+a shield called a plank. `void_chitin` is warm brown where the void tier is violet. The hearthfire
+bundle is now **23 MB of PNG-24 with still no optimiser in the toolchain** — the third pass to say so.
+And `assets/items/` is **51 MB of 1024 px raws tracked at the deploy root**, which I flagged rather
+than moved because relocating tracked files is an integration call.
+
 ### 2026-08-16 · b360 — the 107 diagnosed by BASE RATE. One class confirmed and fixed; one
 ### hypothesis disconfirmed; NOT GENERATED — the spend was never authorised by Tyler to me.
 

@@ -24,8 +24,19 @@ Supabase is LIVE in production — chat/market/clans/raids/leaderboards are genu
 ## Art direction (current)
 "Forge & Stone" medieval, hearthlight (dark) default theme. 0 emoji rendered as art. Icons = baked atlas in `src/data/glyphs.js`. Type: Alegreya Sans + Cinzel. Containment is earned (no wall-of-cards). See `.claude/coordination/agents/art-director.md` and project memory `art-direction-system`.
 
-**Hearthfire adoption (b361, worktree `agent-a0527b0b5704290df` — not integrated, not bumped, not pushed).**
-- **Items:** 386 of 512 wired (`src/data/item-art.js`); 126 withheld and worklisted in code.
+**Hearthfire adoption — ITEMS UPDATED b362 (worktree `agent-a5cb9a90f10977eb5` — not integrated, not bumped, not pushed).**
+- **Items: 473 of 512 wired** (`src/data/item-art.js`). b362 wired Tyler's 71 hand-made web-UI exports
+  (**$0.00 — no API spend**; 4 flattened files matted locally): **45 wired, 10 refused, 7 correct but
+  mapping to no live `ITEMS` key.** `REJECTED_WRONG_SUBJECT` is down to **20**. Bars, ores, `potato`
+  and `slime_gel` are fixed; the staff/rod class is now half-solved (4 of 6 rods, 4 of 7 staves).
+- **⚠️ FIVE ALREADY-WIRED ICONS DEPICT THE WRONG OBJECT** and have since b358: `oak_plank`,
+  `duskwood_plank`, `runewood_plank` (round shields), `bronze_bar` (hammer+anvil), `copper_bar`
+  (sphere). Visible in the Recipe Book. NOT unwired in b362 — top of the re-shoot worklist. See
+  DISCOVERIES b362.
+- **⚠️ `assets/items/` is 51 MB of source raws tracked at the deploy root** — needs an ignore or a move.
+- b362 evidence: suite **775/775 ×3**, 10 surfaces × 3 contexts, 0 404s / 0 console errors / 0 broken
+  imgs, 1251 hearthfire renders. Screenshots `assets/art-pilot/_screenshots/wave2/` (gitignored).
+- _(superseded)_ b361 figure was 386→428 of 512.
 - **Monsters:** **104 of 111 wired** (`src/data/monster-art.js`) — 74 hearthfire + 30 legacy `painted/`.
   Wave 1 added 69. Still owed: `jackal`, `air_elemental`, `wyrmling` (never delivered) and
   `cyclops`, `void_mote`, `elder_cinder`, `ooze` (delivered, **withheld — wrong subject**, listed with

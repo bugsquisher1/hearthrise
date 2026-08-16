@@ -1298,20 +1298,20 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
   }
 
-  /* Show ONLY the section matching the active mobile sub-tab.
-   * data-mobile-sub is set by combat-mobile-tabs.js. */
-#panel-combat[data-mobile-sub="style"] .combat-picker,
-#panel-combat[data-mobile-sub="style"] .combat-arena {
-    display: none !important;
-  }
-  #panel-combat[data-mobile-sub="monsters"] .combat-style-block,
-#panel-combat[data-mobile-sub="monsters"] .combat-arena {
-    display: none !important;
-  }
-  #panel-combat[data-mobile-sub="arena"] .combat-style-block,
-  #panel-combat[data-mobile-sub="arena"] .combat-picker {
-    display: none !important;
-  }
+  /* b362 — THE COMBAT SUB-TAB RULES ARE GONE. THE INVENTORY ONES ARE NOT.
+     These three said "show only the section matching the active sub-tab", and
+     the arena appeared in two of them. Combined with the picker hide during a
+     live fight, that is the machine that produced b230 ("click fight and the
+     screen is blank") and b334 ("combat style can't be chosen while in
+     combat") — two hides that could both be true at once, on a screen with no
+     third thing to fall back to.
+     The two-screen split removes the machine: the Fight screen has no sub-tabs,
+     the stage IS the screen, and the style picker is a row on that stage. What
+     remains of `data-mobile-sub` on this panel is a hidden tab bar and an
+     attribute nobody reads, so leaving these rules in place would only mean the
+     next person to set that attribute blanks the combat screen again.
+     (`#cmb-mob-tabs` itself is hidden by combat-screens.css; the module stays
+     because its sync seam is still asserted.) */
   /* b256: the Boss of the Day card belongs to the "choose a fight" context — it
      lives ONLY on the Foes (monsters) sub-tab. Without this it sat at the panel
      top on every sub-tab and dropped into the middle of an active fight on the

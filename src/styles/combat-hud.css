@@ -259,14 +259,21 @@ body.in-combat #combat-area > .cbt-food { flex: 0 0 auto; }
  * undoing one — the desktop grid is told to stop applying where a desktop grid
  * cannot fit. The mobile query is the project's own (CLAUDE.md § Mobile rules),
  * copied exactly so this tracks the sub-tab bar it shares a layout with. */
+/* b362: the `display:block` half of this block is GONE. It existed to stop the
+ * three-column desktop grid applying on a phone; the grid itself is gone now,
+ * and combat-screens.css lays the panel out as a flex column at every width.
+ * Leaving `body.in-combat #panel-combat.active { display:block !important }`
+ * here was not harmless — it out-specifies the new rule (1 id + 3 classes vs
+ * 1 id + 1 class, both weighted), so on paione's exact geometry the panel
+ * silently stopped being a flex column and the fight view's height chain
+ * collapsed. Measured in the b362 iframe probe: the stage computed 846x0.
+ * The overflow rules stay; they are still doing their own job. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   #panel-combat.active,
   body.in-combat #panel-combat.active {
-    display: block !important;
     grid-template-columns: none !important;
     grid-template-rows: none !important;
     grid-template-areas: none !important;
-    overflow-y: auto !important;
     overflow-x: hidden !important;
   }
   /* The cards were sized by grid rows that no longer exist; let them be as
@@ -299,9 +306,17 @@ body.in-combat #combat-area > .cbt-food { flex: 0 0 auto; }
      picker's controls, everything else shows the arena. b230's blank-screen
      safety net is intact, because on the one sub-tab where the arena is now
      allowed to hide, the style block is guaranteed visible. */
-  body.in-combat #panel-combat.active:not([data-mobile-sub="style"]) .combat-arena { display: flex !important; }
+  /* b362 — THE THREE SUB-TAB RULES ARE GONE, AND SO IS THE TRAP.
+     The rules that used to live here made the arena and the style picker mutually
+     exclusive on a phone, keyed on `data-mobile-sub`. That pairing is what
+     produced b230 ("click fight and the screen is blank") and b334 ("combat style
+     can't be chosen while in combat"): two hides that could both be true at once.
+     The two-screen split removes the mechanism rather than re-balancing it — the
+     Fight screen has NO sub-tabs, the stage is the screen, and the style picker
+     is a row on that stage. There is nothing left to be on the wrong tab of.
+     The picker hide stays (a live fight is not a browsing screen) and is now
+     owned outright by combat-screens.css along with the rest of the layout. */
   body.in-combat #panel-combat.active .combat-picker { display: none !important; }
-  body.in-combat #panel-combat.active:not([data-mobile-sub="style"]) .combat-style-block { display: none !important; }
   /* The stage is the one thing worth the vertical budget on a 420px screen. */
   #panel-combat .arena-vs { padding: 10px 12px; gap: 10px; }
   #panel-combat .arena-vs .arena-portrait { width: 56px; height: 56px; font-size: 30px; }

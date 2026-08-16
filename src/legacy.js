@@ -548,6 +548,14 @@ if (typeof window !== 'undefined') {
       TREES: TREES, ROCKS: ROCKS, FISH_SPOTS: FISH_SPOTS, CROPS: CROPS,
       EQUIP_SLOTS: EQUIP_SLOTS, EQUIP_SLOT_META: EQUIP_SLOT_META,
     };
+    /* b362: the two slot tables are also published as plain globals. They are
+       top-level `const`s, so a MODULE could only reach them through the global
+       lexical scope chain — which works, but silently, and it is the exact
+       shadowing trap the block above exists to warn about. The gear quick-swap
+       strip on the Fight screen reads these; naming the seam is cheaper than
+       relying on scope-chain trivia holding for the next reader. */
+    window.EQUIP_SLOTS = EQUIP_SLOTS;
+    window.EQUIP_SLOT_META = EQUIP_SLOT_META;
   } catch (e) {}
 }
 
@@ -909,14 +917,20 @@ window.remapItemIds = remapItemIds;
    under a new id writes a SECOND "First kill" row because the idempotency
    key it de-dupes on was orphaned.
 
-   THIS MAP IS DELIBERATELY EMPTY TODAY. The 2026-08-16 roster wave renamed
-   no live id precisely BECAUSE this layer did not exist yet; it ships first,
-   as its own change, so that the next rename is a one-line map edit instead
-   of surgery. Guarded by the MON-ALIAS-* regression tests, which populate it.
+   THE MAP SHIPPED EMPTY and now carries its first three entries — the b362
+   fold audit (docs/design/combat-screen-rework.md §7.2). Each line is a MERGE,
+   not a deletion: the fold target is a live id, so every counter the old id
+   keyed lands on the survivor instead of being stranded. That is the whole
+   reason this layer was built before it was needed.
    ══════════════════════════════════════════════════════════════════════ */
 window.MONSTER_ALIAS = window.MONSTER_ALIAS || {
   /* oldId: 'newId'  (or oldId: null to retire). Aliases ACCUMULATE — a
      veteran's save may carry any historical id, so entries are never removed. */
+  /* FOLD-31/32/33 — three duplicate pairs a player could not tell apart by
+     role, each merged onto the id that carries the kill counts. */
+  barn_rat: 'rat',
+  jackal: 'wolf',
+  cultist: 'dark_wizard',
 };
 
 /* `family` is not an id, so the 2026-08-16 folds (Beast->Mammal,
@@ -9619,11 +9633,26 @@ console.log('Activity bar: loaded');
     var id = row.getAttribute('data-monster');
     if(!id) return;
     e.preventDefault(); e.stopPropagation();
-    // Tapping the foe you are already fighting stops the fight (unchanged).
+    /* b362 — THE PREVIEW MOVED, THE RULE DID NOT. The one-tap-to-fight ban
+       above is the whole point of this listener and it is unchanged; only the
+       DESTINATION changed. The forecast modal is superseded by the Fight
+       screen's preview state (COMBAT-UI-15) — the same layout as the fight,
+       the foe plate already painted, both stat rows filled, the bars full and
+       still. A modal that interrupts a decision is strictly worse than the
+       decision screen being the fight screen with the fight not started.
+       The modal stays in the file and stays reachable as the fallback: if the
+       new screens have not booted (a cold load, a module error), a monster row
+       still opens an honest forecast rather than doing nothing. */
+    const CS = window.HearthriseCombatScreens;
     if(window.G && window.G.activeMonster === id){
+      /* Tapping the foe you are already fighting: with the two-screen split
+         this is a request to WATCH it, not to stop it. Stopping is the Stop
+         button on the stage, which is the only control that says so. */
+      if(CS && typeof CS.setView === 'function'){ CS.setView('fight'); return; }
       if(typeof window.stopCombat === 'function') window.stopCombat();
       return;
     }
+    if(CS && typeof CS.preview === 'function' && CS.preview(id)) return;
     renderPreview(id);
   }, true);
 
@@ -11058,8 +11087,23 @@ window._renderCharacterExtras = function(){
   host.insertAdjacentHTML('beforeend', combatBlock + loadoutBlock);
 };
 
-/* ─── Combat empty-state next-fight suggestion ─── */
+/* ─── Combat empty-state next-fight suggestion ───
+   b362 — RETIRED, AND THE VOID WITH IT. `AWAITING A FOE` was the largest
+   element on the combat screen and it was a placeholder: the arena had an idle
+   state because the arena shared a screen with the thing that chose its foe.
+   The two-screen split (docs/design/combat-screen-rework.md) removes the reason
+   for it — the Fight screen cannot be reached without choosing someone, so it
+   has no idle state to fill, and "what do I fight next?" is now answered by a
+   whole screen (the War Table) instead of by three suggestions duplicating the
+   list two columns to their left.
+
+   The function survives as a NO-OP rather than being deleted because it is
+   called from a showTab wrapper and from the suite, and a missing global on a
+   17k-line engine is a null-render at the worst moment. It bails the instant
+   the new screens are up; if they have NOT booted, it still paints the old
+   empty state, so a cold load never shows a blank arena. */
 window._renderCombatEmpty = function(){
+  if(window.HearthriseCombatScreens) return;
   var area = document.getElementById('combat-area');
   if(!area || G.activeMonster) return;
   if(typeof MONSTERS === 'undefined' || typeof getCombatLevel !== 'function') return;

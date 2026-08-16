@@ -7072,9 +7072,19 @@ const TESTS = [
       });
       assert(!/Drops:/.test(area.textContent), 'the raw drop-rate line is still under the arena');
 
-      // (2) Both affordances are on the ENEMY side of the stage.
-      const foe = document.querySelector('.arena-vs .arena-side.foe #arena-act-foe');
+      /* (2) Both affordances are on the STAGE, in the non-scrolling region.
+         b362 moved the two reference chips from under the foe's portrait into
+         the Fight screen's action bar, which spans both fighters directly under
+         them. b227's actual property is unchanged and is what is asserted:
+         Loot and Stats are reachable during a fight WITHOUT scrolling, because
+         they are not in `#combat-area`. The b227 defect (the control 470px
+         below the fold, inside the one scrolling box) is now structurally
+         impossible rather than merely fixed — the stage does not scroll and the
+         action bar is part of it. */
+      const foe = document.querySelector('#panel-combat .arena-vs #arena-act-foe');
       assert(foe, 'the enemy has no action slot');
+      assert(!document.getElementById('combat-area').contains(foe),
+        'the reference chips are back inside #combat-area, the box that scrolls');
       assert(foe.querySelector('[data-arena-act="loot"]'), 'no Loot control beside the enemy');
       assert(foe.querySelector('[data-arena-act="stats"]'), 'no Stats control beside the enemy');
 
@@ -13152,19 +13162,33 @@ const TESTS = [
     const panel = document.getElementById('panel-combat');
     assert(panel, 'panel-combat must exist');
 
-    // (1) CSS safety net — the arena is forced visible whenever body.in-combat.
-    let cssGuard = false;
-    for (const sheet of document.styleSheets) {
-      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
-      if (!rules) continue;
-      const walk = (list) => { for (const r of list) {
-        if (r.cssRules && r.media) { walk(r.cssRules); continue; }
-        if (r.selectorText && /body\.in-combat[^,]*\.combat-arena/.test(r.selectorText)
-            && r.style && r.style.display && r.style.display !== 'none') cssGuard = true;
-      } };
-      walk(rules);
+    /* (1) THE SAFETY NET, AND WHY IT IS NO LONGER A CSS RULE (b362).
+       The net used to be `body.in-combat ... .combat-arena { display:flex }` —
+       a rule whose whole job was to out-specify ANOTHER rule that hid the arena
+       on the wrong sub-tab. The two-screen split deletes the hider instead of
+       adding to the pile: there are no combat sub-tabs, and the stage is the
+       Fight view. So the net is now STRUCTURAL and is asserted as such — with a
+       fight live, the panel is on the fight view and the stage is laid out.
+       That is a stronger claim than the rule ever made, because it survives a
+       future sheet that hides the arena by some other mechanism. */
+    const CS = window.HearthriseCombatScreens;
+    assert(CS, 'the two screens did not boot — there is no blank-combat net at all');
+    const Gb = window.G;
+    const wasFighting = Gb.activeMonster;
+    try {
+      window.showTab('combat');
+      window.startCombat('slime');
+      assert(panel.dataset.combatView === 'fight',
+        'a live fight does not put the panel on the stage — that is the blank combat screen');
+      const stage = document.querySelector('#panel-combat .arena-vs.fs-stage');
+      assert(stage, 'the stage is missing during a live fight');
+      const sr = stage.getBoundingClientRect();
+      assert(getComputedStyle(stage).display !== 'none' && sr.width > 0 && sr.height > 0,
+        'THE b230/b231 BLANK SCREEN: the stage is not laid out during a live fight');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      if (wasFighting) { try { window.startCombat(wasFighting); } catch (e) {} }
     }
-    assert(cssGuard, 'a `body.in-combat ... .combat-arena { display:<visible> }` rule must exist (blank-combat safety net)');
 
     // (2) Behavioural — the sub-tab follows combat state.
     assert(typeof window.__cmbSyncCombatSub === 'function', 'combat sub-tab sync seam missing');
@@ -15244,16 +15268,34 @@ const TESTS = [
     B.render();
     const card = document.getElementById('hr-botd-card');
     assert(card && card.parentElement === panel, 'the card must be a child of #panel-combat');
-    const picker = panel.querySelector('.combat-picker');
-    if(picker){ assert(card.nextElementSibling === picker, 'the card must sit just before the monster picker'); }
-    // During a fight (desktop rule) the card follows the picker out of view.
+    /* b362 — THE CARD'S PLACEMENT CLAIM IS RETIRED, ITS BEHAVIOUR CLAIM IS NOT.
+       "sits just before the monster picker" was an ordering rule for a screen
+       where three cards shared one grid. The picker is now inside the War Table
+       view (so it is not even a sibling), and the featured boss has a real front
+       door: a DESTINATION CARD on the War Table (COMBAT-UI-05), which is where a
+       destination belongs. What paione actually reported — the boss card
+       appearing on top of a live fight — is asserted below, unchanged, plus the
+       replacement surface, so the entry point cannot silently vanish. */
+    const CS = window.HearthriseCombatScreens;
+    if (CS) {
+      CS.setView('table'); CS.render();
+      const dests = document.getElementById('wt-dests');
+      assert(dests && /Boss of the Day/i.test(dests.textContent),
+        'the War Table has no Boss of the Day destination — the featured boss lost its front door');
+    }
     const hadActive = panel.classList.contains('active');
     const hadCombat = document.body.classList.contains('in-combat');
     panel.classList.add('active'); document.body.classList.add('in-combat');
     try {
       assert(getComputedStyle(card).display === 'none', 'the card must be hidden during an active fight');
       document.body.classList.remove('in-combat');
-      assert(getComputedStyle(card).display !== 'none', 'the card must be visible again when not fighting');
+      /* With the two-screen split the legacy card is retired outright on the
+         combat panel (combat-screens.css); the destination row replaced it.
+         What must never happen is the b290/b292 report: it drawing over a
+         fight. Assert the strong form — it is not on the fighting screen —
+         and let the destination assertion above own "it is still reachable". */
+      assert(getComputedStyle(card).display === 'none' || CS == null,
+        'the retired boss card is drawing on the combat panel beside its own destination card');
     } finally {
       if(!hadActive) panel.classList.remove('active');
       if(hadCombat) document.body.classList.add('in-combat'); else document.body.classList.remove('in-combat');
@@ -22656,32 +22698,60 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b334: on a PHONE mid-fight, the Style sub-tab actually shows the style picker', () => {
+  () => tryRun('b334: on a PHONE mid-fight, the style picker and the stage are BOTH laid out', () => {
     /* Measured at a real phone geometry, because this defect is 100% CSS and
        invisible at the desktop width the rest of the suite runs at. Same iframe
        technique as the b310 inventory probe: media queries inside an iframe
        evaluate against the IFRAME's viewport, so 922x423 reproduces the device.
-       Proved RED against the b333 rule (`body.in-combat ... .combat-style-block
-       {display:none}` with no sub-tab exclusion): styleTabBlock 'none' -> the
-       player taps Style during a fight and gets an empty screen. */
+
+       WHAT CHANGED IN b362, AND WHY THIS TEST GOT STRONGER.
+       The original bug was a PAIR of hides keyed on `data-mobile-sub`: the
+       arena was hidden on the Style sub-tab and the style picker was hidden on
+       every other one. Either rule alone is defensible; together they made
+       "combat style can't be chosen while in combat" (b334) and "click fight
+       and the screen is blank" (b230) reachable from a 423px-tall phone.
+       The two-screen split deletes the mechanism instead of re-tuning it — the
+       Fight screen has no sub-tabs — so the assertion is no longer "the right
+       thing is visible on the right tab" but the stronger property that made
+       the tab irrelevant: MID-FIGHT, ON A PHONE, THE STAGE AND THE STYLE PICKER
+       ARE BOTH LAID OUT, WHATEVER `data-mobile-sub` SAYS.
+       MUTATION PROVEN: restore either `:not([data-mobile-sub="style"])` hide in
+       combat-hud.css §7 and one of the three sub-tab passes below goes to
+       display:none. */
     let css = '';
     let sheetsSeen = 0;
     for (const sheet of document.styleSheets) {
       let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
       const href = sheet.href || '';
-      if (href && !/(legacy|audit-overrides|theme-cozy|art-direction|combat-hud)\.css/.test(href)) continue;
+      if (href && !/(legacy|audit-overrides|theme-cozy|art-direction|combat-hud|combat-screens)\.css/.test(href)) continue;
       if (href) sheetsSeen++;
       for (const r of rules) css += r.cssText + '\n';
     }
-    assert(sheetsSeen >= 5, 'the probe must find all five combat stylesheets, saw ' + sheetsSeen);
+    assert(sheetsSeen >= 6, 'the probe must find all six combat stylesheets, saw ' + sheetsSeen);
     assert(css.length > 100000, 'the CSS blob looks empty (' + css.length + ' chars) — the probe would pass vacuously');
 
+    /* The real structure the module builds: two views under the panel, the
+       arena card inside the Fight view, the one style block adopted onto the
+       stage. A probe that models the OLD markup would pass forever. */
     const panelInner =
       '<div id="cmb-mob-tabs" class="cmb-mob-tabs"><button class="cmt-btn" data-sub="style">Style</button></div>'
-      + '<div class="combat-style-block"><h4>Combat Style</h4><div class="csb-meta">m</div>'
-      + '<div class="combat-style-buttons"><button class="csb-btn" data-style-key="accurate">Accurate</button></div></div>'
-      + '<div class="combat-picker"><div class="monster-row">Goblin</div></div>'
-      + '<div class="combat-arena"><div class="arena-vs">vs</div></div>';
+      + '<div class="cbt-views">'
+      + '<section class="wt-view"><div class="combat-picker"><div class="monster-row">Goblin</div></div>'
+      + '<div class="wt-grid"><button class="wt-card"><span class="wtc-name">Goblin</span></button></div></section>'
+      + '<section class="fs-view"><div class="fs-top"><button class="fs-back">Back</button></div>'
+      + '<div id="fs-stage-host" class="fs-stage-host"><div class="card combat-arena">'
+      + '<div class="arena-vs fs-stage"><div class="arena-side player">'
+      + '<div class="arena-portrait"></div>'
+      + '<div class="arena-hp-bar"><i></i><span class="arena-hp-text">10 / 10</span></div>'
+      + '<div id="fs-style" class="fs-style"><div class="combat-style-block"><h4>Combat Style</h4>'
+      + '<div class="csb-meta">m</div><div class="combat-style-buttons">'
+      + '<button class="csb-btn" data-style-key="accurate">Accurate<small>'
+      + '<span class="csb-trains">attack</span></small></button></div></div></div>'
+      + '</div><div class="arena-side foe"><div class="arena-portrait"></div></div>'
+      + '<div class="fs-actionbar"><div class="arena-act" id="arena-act-player"></div>'
+      + '<button class="btn fs-stop">Stop</button></div></div>'
+      + '<div class="fs-logrow"><div id="combat-area"><div class="combat-log">log</div></div></div>'
+      + '</div></div></section></div>';
 
     const frame = document.createElement('iframe');
     frame.setAttribute('style', 'position:fixed;left:-4000px;top:0;width:922px;height:423px;border:0;visibility:hidden');
@@ -22690,9 +22760,17 @@ const TESTS = [
     try {
       const doc = frame.contentDocument;
       doc.open();
-      doc.write('<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>'
+      /* THE SHELL'S HEIGHT IS PART OF THE FIXTURE. The Fight view is a flex
+         column inside a flex column inside the app grid, and every one of them
+         is `min-height: 0` — correct in the real shell, where #app is 100vh,
+         and a guaranteed zero-height collapse in a bare iframe. Without these
+         four rules the probe measures an unlaid-out panel and reports the
+         style buttons as "unclickable" no matter what the sheets say. */
+      doc.write('<!doctype html><html><head><meta charset="utf-8"><style>' + css
+        + 'html,body{margin:0;height:100%}#app{height:100%}.main{height:100%}</style></head>'
         + '<body class="in-combat" data-theme="hearthlight"><div id="app" class="app"><main class="main">'
-        + '<section class="panel active" id="panel-combat" data-mobile-sub="style">' + panelInner + '</section>'
+        + '<section class="panel active" id="panel-combat" data-combat-view="fight" data-fight-state="live" '
+        + 'data-mobile-sub="style">' + panelInner + '</section>'
         + '</main></div></body></html>');
       doc.close();
       const win = frame.contentWindow;
@@ -22701,33 +22779,27 @@ const TESTS = [
       const seen = (sel) => { const el = doc.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
 
       out = { vpW: win.innerWidth, vpH: win.innerHeight };
-      // Sanity: the probe must actually be inside the mobile media query, or it
-      // is measuring the desktop layout and proving nothing.
       assert(win.innerWidth <= 1024 && win.innerHeight <= 540,
         'the probe viewport (' + win.innerWidth + 'x' + win.innerHeight + ') is not a phone — the mobile rules would not apply');
 
-      // THE REPORT: Style sub-tab, fight running.
+      /* THE REPORT, in its strong form: every legacy sub-tab value, mid-fight,
+         and the answer must not change — because the sub-tab no longer governs
+         anything on this panel. */
+      ['style', 'arena', 'monsters'].forEach((sub) => {
+        panel.setAttribute('data-mobile-sub', sub);
+        assert(disp('.combat-style-block') !== 'none',
+          'mid-fight with data-mobile-sub="' + sub + '" the style picker computes display:none — this IS the player report');
+        assert(seen('.csb-btn') === true,
+          'the style buttons render at zero size with data-mobile-sub="' + sub + '" — unclickable');
+        assert(disp('.combat-arena') !== 'none',
+          'the stage is hidden mid-fight with data-mobile-sub="' + sub + '" — that is the b230 blank screen');
+        assert(seen('.fs-stop') === true,
+          'the Stop control is not laid out with data-mobile-sub="' + sub + '" — a fight with no visible exit');
+      });
       out.styleTabBlock = disp('.combat-style-block');
-      out.styleTabBtnVisible = seen('.csb-btn');
-      assert(out.styleTabBlock !== 'none',
-        'mid-fight on the Style sub-tab the style picker computes display:none — this IS the player report');
-      assert(out.styleTabBtnVisible === true,
-        'the style buttons render at zero size on the Style sub-tab mid-fight — unclickable');
+      /* b230's other half is intact: a live fight is not a browsing screen. */
       assert(disp('.combat-picker') === 'none',
         'the monster picker must stay hidden during a live fight (b230)');
-
-      // …and b230 is intact: on every other sub-tab the arena is the screen and
-      // the picker ribbon stays out of the way.
-      panel.setAttribute('data-mobile-sub', 'arena');
-      out.arenaTabArena = disp('.combat-arena');
-      out.arenaTabBlock = disp('.combat-style-block');
-      assert(out.arenaTabArena !== 'none',
-        'the arena is hidden mid-fight on the Arena sub-tab — b230 blank combat screen is back');
-      assert(out.arenaTabBlock === 'none',
-        'the style ribbon is back on the arena sub-tab, eating a 423px-tall screen');
-      panel.setAttribute('data-mobile-sub', 'monsters');
-      assert(disp('.combat-arena') !== 'none',
-        'the arena is hidden mid-fight on the Foes sub-tab — that is the exact b230 blank screen');
     } finally {
       frame.remove();
     }
@@ -28274,9 +28346,25 @@ const TESTS = [
       row.click();
       assert(G.activeMonster === null,
         'THE b341 BUG: tapping ' + id + ' started the fight instead of opening the preview');
-      const ov = document.getElementById('mob-preview');
-      assert(ov && ov.classList.contains('open'),
-        'the row tap opened nothing at all — delegation is not bound (a silent row is safe, but it is not the feature)');
+      /* b362: the preview MOVED from a modal to the Fight screen's preview
+         state (COMBAT-UI-15) — same guarantee, better surface. The rule under
+         test is unchanged and is asserted against whichever preview is live:
+         the tap must land on an honest forecast for THIS foe, never in combat. */
+      const CS = window.HearthriseCombatScreens;
+      if (CS) {
+        assert(CS.view() === 'fight' && CS.previewId === id,
+          'the row tap opened nothing at all — delegation is not bound (a silent row is safe, '
+          + 'but it is not the feature). view=' + CS.view() + ' preview=' + CS.previewId);
+        const panel = document.getElementById('panel-combat');
+        assert(panel.dataset.fightState === 'preview',
+          'the fight screen opened LIVE instead of in preview — one tap entered combat');
+        assert(/\d/.test(document.getElementById('fs-foe-tiles').textContent),
+          'the preview shows no forecast for the foe — the honest screen is empty');
+      } else {
+        const ov = document.getElementById('mob-preview');
+        assert(ov && ov.classList.contains('open'),
+          'the row tap opened nothing at all — delegation is not bound (a silent row is safe, but it is not the feature)');
+      }
     } finally {
       if (typeof window.closeMobPreview === 'function') window.closeMobPreview();
       try { window.stopCombat(); } catch (e) {}
@@ -28974,27 +29062,37 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b342-3: the arena\'s Recommended card cannot start a fight — the fastest path still meets the forecast', () => {
+  () => tryRun('b342-3: the War Table card cannot start a fight — the fastest path still meets the forecast', () => {
     /* THE MEASURED BUG. b341 removed one-tap-to-fight from every monster ROW
        and left it on `<button class="ce-next" onclick="startCombat('slime')">`
        — the single most likely first click in the game, the only call to action
        on an empty arena. So the honesty work (the survival forecast and the
        Away line) could be routed around by the shortest path through the
        screen.
-       MUTATION PROVEN: restore the inline `onclick="startCombat(...)"` on
-       .ce-next and this fails on "started the fight"; narrow the delegated
-       selector back to `.monster-row` and it fails on "opened nothing". */
+
+       b362 — THE SURFACE MOVED, THE RULE DID NOT. The empty arena and its
+       Recommended card are gone with `AWAITING A FOE` (the Fight screen has no
+       idle state to fill), and the fastest path into a fight is now a WAR TABLE
+       CARD. That is what this grades, because the rule was never about a
+       particular button: no single tap anywhere on this panel may put a player
+       in front of a foe they have not been shown.
+       MUTATION PROVEN: give a `.wt-card` an inline `onclick="startCombat(...)"`
+       and this fails on "started the fight"; narrow the delegated selector in
+       legacy.js back to `.monster-row` and it fails on "opened nothing". */
     const G = window.G;
     const snap = snapshotG();
     const prevTab = window.activeTab;
+    const CS = window.HearthriseCombatScreens;
     try {
+      assert(CS, 'HearthriseCombatScreens is not published — the two screens did not boot');
       window.showTab('combat');
       G.activeMonster = null;
-      window._renderCombatEmpty();
-      const btn = document.querySelector('#panel-combat .ce-next');
-      assert(btn, 'the Recommended card did not render — nothing to grade');
+      CS.setView('table');
+      CS.render();
+      const btn = document.querySelector('#panel-combat .wt-grid .wt-card:not([disabled])');
+      assert(btn, 'the War Table rendered no reachable monster card — nothing to grade');
       assert(!/startCombat/.test(btn.getAttribute('onclick') || ''),
-        'THE b342 BUG: the Recommended card carries a live inline startCombat(): '
+        'THE b342 BUG: a War Table card carries a live inline startCombat(): '
         + btn.getAttribute('onclick'));
       const id = btn.getAttribute('data-monster');
       assert(id && window.MONSTERS[id],
@@ -29002,14 +29100,19 @@ const TESTS = [
 
       btn.click();
       assert(G.activeMonster === null,
-        'THE b342 BUG: the Recommended card started the fight instead of opening the preview');
-      const ov = document.getElementById('mob-preview');
-      assert(ov && ov.classList.contains('open'),
-        'the card opened nothing at all — a silent button is safe, but it is not the feature');
-      /* And the screen it lands on is the one that tells the truth. */
-      const away = document.querySelector('#mp-modal .mp-away-line');
-      assert(away && away.textContent.trim().length > 0,
-        'the preview it routes to carries no Away line, which is the reason for routing here');
+        'THE b342 BUG: the War Table card started the fight instead of opening the preview');
+      const panel = document.getElementById('panel-combat');
+      assert(panel.dataset.combatView === 'fight' && panel.dataset.fightState === 'preview',
+        'the card opened nothing at all — a silent button is safe, but it is not the feature. view='
+        + panel.dataset.combatView + ' state=' + panel.dataset.fightState);
+      assert(CS.previewId === id, 'the preview is for the wrong foe: ' + CS.previewId + ' != ' + id);
+      /* And the screen it lands on is the one that tells the truth: the foe's
+         own forecast, and the survival span that says whether this fight can be
+         left running. A preview with no numbers is the old modal's failure. */
+      assert(/\d/.test(document.getElementById('fs-foe-tiles').textContent),
+        'the preview carries no forecast for the foe');
+      assert(/last/i.test(document.getElementById('fs-metrics').textContent),
+        'the preview it routes to carries no survival line, which is the reason for routing here');
     } finally {
       try { if (typeof window.closeMobPreview === 'function') window.closeMobPreview(); } catch (e) {}
       const ov = document.getElementById('mob-preview'); if (ov) ov.classList.remove('open');
@@ -30831,6 +30934,351 @@ const TESTS = [
       assert(G.dropLog.wolf.drops.wolf_pelt === 5,
         'per-monster drop counts must MERGE (4+1), got ' + G.dropLog.wolf.drops.wolf_pelt);
     } finally { window.ITEM_ALIAS = alias; Object.assign(G, snap); }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b362 — THE FOLD AUDIT and THE TWO SCREENS
+     (docs/design/combat-screen-rework.md, cards COMBAT-UI-01…16, FOLD-01…33)
+
+     The fold and the split ship together, so they are guarded together. Each
+     test below names the thing that would silently rot without it — a merged
+     monster's kill counts, a fight with no visible exit, a hub that shows three
+     items on a 1900px screen.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('FOLD-MERGE-1: the three merges are live, and a veteran keeps every kill', () => {
+    /* The merge is only free because MONSTER_ALIAS makes it free. If a future
+       edit deletes a row without its alias line, the counters key on an id that
+       is no longer a monster and `foldById` DROPS them — a silent, permanent
+       loss of the one number the War Table card exists to show. */
+    const A = window.MONSTER_ALIAS;
+    const MERGES = { barn_rat: 'rat', jackal: 'wolf', cultist: 'dark_wizard' };
+    Object.keys(MERGES).forEach((old) => {
+      assert(!window.MONSTERS[old], 'the merged monster "' + old + '" is still in the roster');
+      assert(A[old] === MERGES[old],
+        'MONSTER_ALIAS is missing the ' + old + ' -> ' + MERGES[old] + ' line — every counter keyed on '
+        + old + ' would be dropped on the next load');
+      assert(window.MONSTERS[MERGES[old]], 'the fold TARGET ' + MERGES[old] + ' must be a live monster');
+    });
+
+    const G = window.G;
+    const snap = { bestiary: G.bestiary, dropLog: G.dropLog, bountyHunter: G.bountyHunter,
+      activeMonster: G.activeMonster, lastActivity: G.lastActivity };
+    try {
+      G.bestiary = { barn_rat: { kills: 204, first: 5 }, rat: { kills: 12, first: 9 },
+        jackal: { kills: 30 }, cultist: { kills: 7 } };
+      G.dropLog = { barn_rat: { kills: 204, drops: { rat_tail: 88 } } };
+      G.bountyHunter = { board: [], active: { id: 'cull_barn_rat_1700_42', target: 'barn_rat', type: 'cull' } };
+      G.activeMonster = 'jackal';
+      G.lastActivity = { kind: 'monster', id: 'cultist' };
+
+      window.remapMonsterIds(G);
+
+      assert(!G.bestiary.barn_rat && !G.bestiary.jackal && !G.bestiary.cultist,
+        'a merged id survived in the bestiary');
+      assert(G.bestiary.rat && G.bestiary.rat.kills === 216,
+        'the merged kills must ADD (204+12), got ' + JSON.stringify(G.bestiary.rat));
+      assert(G.bestiary.rat.first === 5, 'the earlier first-kill timestamp must win the merge');
+      assert(G.bestiary.wolf && G.bestiary.wolf.kills === 30, 'jackal kills must land on wolf');
+      assert(G.bestiary.dark_wizard && G.bestiary.dark_wizard.kills === 7, 'cultist kills must land on dark_wizard');
+      assert(G.dropLog.rat && G.dropLog.rat.drops.rat_tail === 88, 'the drop history must fold too');
+      assert(G.bountyHunter.active.target === 'rat' && G.bountyHunter.active.id === 'cull_rat_1700_42',
+        'an accepted bounty for a merged monster must fold, or it can never be completed: '
+        + JSON.stringify(G.bountyHunter.active));
+      assert(G.activeMonster === 'wolf', 'a fight in flight against a merged monster must fold, not stop');
+      assert(G.lastActivity.id === 'dark_wizard', 'Resume must fold to the surviving id');
+    } finally { Object.assign(G, snap); }
+  }),
+
+  () => tryRun('FOLD-RENAME-1: the four renames are display-only — every id is untouched', () => {
+    /* A rename that reaches an ID is the defect MONSTER_ALIAS exists to absorb;
+       a rename that stops at the NAME costs nothing at all. These four stopped
+       at the name, and this is what proves it stayed that way. */
+    const want = { rat: 'Giant Rat', small_wolf: 'Wolf Cub', weak_skeleton: 'Brittle Skeleton',
+      lesser_demon: 'Horned Demon' };
+    Object.keys(want).forEach((id) => {
+      assert(window.MONSTERS[id], 'the renamed monster lost its id: ' + id);
+      assert(window.MONSTERS[id].name === want[id],
+        id + ' should read "' + want[id] + '", got "' + window.MONSTERS[id].name + '"');
+    });
+    ['Small Wolf', 'Weak Skeleton', 'Lesser Demon', 'Field Rat'].forEach((dead) => {
+      const still = Object.keys(window.MONSTERS).filter((id) => window.MONSTERS[id].name === dead);
+      assert(still.length === 0, 'the retired display name "' + dead + '" is back on ' + still.join(', '));
+    });
+  }),
+
+  () => tryRun('FOLD-15: zombie and ghoul are opposite fights, and both stay inside the tier band', () => {
+    /* The pair shared a tier, a class and a role, which is exactly the "why are
+       all the old monsters still there" complaint. Differentiating them by
+       pushing them to opposite CORNERS of the same band is the cheap fix; doing
+       it by leaving the band would be a balance change wearing a UI hat. */
+    const z = window.MONSTERS.zombie, g = window.MONSTERS.ghoul;
+    assert(z && g, 'both halves of the pair must exist');
+    assert(z.tier === g.tier && z.cls === g.cls, 'the test only means something while they share a tier and class');
+    assert(z.hp > g.hp * 1.4, 'the zombie must read as the punching bag: ' + z.hp + ' vs ' + g.hp);
+    assert(g.atk > z.atk * 1.4, 'the ghoul must read as the race: ' + g.atk + ' vs ' + z.atk);
+    assert(z.def > g.def, 'the armour axis must agree with the identity');
+    /* The band check is done against the BAND, not by re-auditing a two-monster
+       roster — `audit()` also grades tier coverage (MIN_CLASSES_PER_TIER), which
+       a two-row fixture can never satisfy and which has nothing to do with this
+       pair. The full-roster audit is MON-TAX-1's job and it covers these rows. */
+    const T = window.HearthriseMonsterClasses;
+    if (T && T.TIER_BANDS && T.TIER_BANDS[z.tier]) {
+      const b = T.TIER_BANDS[z.tier];
+      [['hp', z], ['atk', z], ['def', z], ['hp', g], ['atk', g], ['def', g]].forEach(([k, m]) => {
+        assert(m[k] >= b[k][0] && m[k] <= b[k][1],
+          'the differentiation left the measured tier band on ' + k + ' (' + m[k]
+          + ' outside ' + b[k].join('–') + ') — that is a balance change, not a UI one');
+      });
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-01: Combat opens the LIVE FIGHT if one is running, else the War Table', () => {
+    /* The idle-game rule: a player taps Combat to CHECK ON something far more
+       often than to start something new. One tap back to the hub is cheap; one
+       tap into a menu when you wanted your fight is a wrong-screen every
+       session. MUTATION PROVEN: make openFromNav() always route to 'table' and
+       the second half fails. */
+    const CS = window.HearthriseCombatScreens;
+    assert(CS, 'the two screens did not boot');
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      const panel = document.getElementById('panel-combat');
+      try { window.stopCombat(); } catch (e) {}
+      G.activeMonster = null;
+      window.showTab('profile');
+      window.showTab('combat');
+      assert(panel.dataset.combatView === 'table',
+        'with no fight running, Combat must open the War Table, got ' + panel.dataset.combatView);
+
+      window.startCombat('slime');
+      assert(G.activeMonster === 'slime', 'the fixture needs a live fight');
+      assert(panel.dataset.combatView === 'fight',
+        'starting a fight must take the camera to the stage, got ' + panel.dataset.combatView);
+
+      // Back to the hub — and the fight is STILL RUNNING. That is the contract.
+      panel.querySelector('.fs-back').click();
+      assert(panel.dataset.combatView === 'table', 'Back did not reach the War Table');
+      assert(G.activeMonster === 'slime',
+        'THE CONTRACT: leaving The Fight stopped the fight. A screen is a camera, not a pointer');
+
+      window.showTab('profile');
+      window.showTab('combat');
+      assert(panel.dataset.combatView === 'fight',
+        'with a fight live, the Combat nav must open the fight, got ' + panel.dataset.combatView);
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-02: the War Table carries a return ribbon while a fight is live', () => {
+    const CS = window.HearthriseCombatScreens;
+    assert(CS, 'the two screens did not boot');
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      try { window.stopCombat(); } catch (e) {}
+      G.activeMonster = null;
+      CS.setView('table'); CS.render();
+      const ribbon = document.getElementById('wt-ribbon');
+      assert(ribbon, 'the ribbon element is missing entirely');
+      assert(ribbon.hidden, 'the ribbon must not be on screen when nothing is running');
+
+      window.startCombat('slime');
+      G.playerHp = 7; G.playerMaxHp = 10; G.monsterHp = 3; G.monsterMaxHp = 8;
+      G.combatKillsThisFoe = 4;
+      CS.setView('table'); CS.render();
+      assert(!ribbon.hidden, 'a live fight must put the return ribbon on the hub');
+      const txt = ribbon.textContent.replace(/\s+/g, ' ');
+      assert(/Slime/.test(txt), 'the ribbon must name the foe: ' + txt);
+      assert(/3 \/ 8/.test(txt) && /7 \/ 10/.test(txt),
+        'the ribbon must carry BOTH health bars with numerals: ' + txt);
+      assert(/4/.test(txt), 'the ribbon must carry the kill count for this fight: ' + txt);
+      const go = ribbon.querySelector('[data-cs-act="return"]');
+      assert(go, 'the ribbon has no way back to the fight');
+      go.click();
+      assert(document.getElementById('panel-combat').dataset.combatView === 'fight',
+        'Return to the fight did not return to the fight');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-03: the War Table shows a WHOLE TIER at once — the hub is not a sliver', () => {
+    /* Tyler: "the monsters list is cramped". The measured answer is that the
+       list IS the screen now. A menu that shows three items on a 1900px screen
+       is a failure, so this asserts every monster in the tier is PAINTED and
+       that the grid is a multi-column layout rather than a 280px column. */
+    const CS = window.HearthriseCombatScreens;
+    assert(CS, 'the two screens did not boot');
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      try { window.stopCombat(); } catch (e) {}
+      G.activeMonster = null;
+      G.currentCombatTier = 4;                       // the largest tier
+      CS.setView('table'); CS.render();
+      const grid = document.getElementById('wt-grid');
+      assert(grid, 'no War Table grid');
+      const expect = Object.keys(window.MONSTERS).filter((id) => window.MONSTERS[id].tier === 4);
+      const cards = grid.querySelectorAll('.wt-card');
+      assert(cards.length === expect.length,
+        'the grid shows ' + cards.length + ' of tier 4\'s ' + expect.length + ' monsters');
+      const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+      assert(cols >= 6, 'the grid is ' + cols + ' columns wide — that is the old 280px sliver, not a hub');
+      /* Locked monsters stay VISIBLE: a menu that hides its own future has no
+         pull. And each card carries its decision inputs. */
+      const first = cards[0];
+      assert(first.querySelector('.wtc-name') && first.querySelector('.wtc-stats')
+        && first.querySelector('.wtc-kills'),
+        'a card is missing name / weakness+HP / kill-count — those are the decision inputs');
+      assert(/NEW|×\d|Lv \d/.test(first.querySelector('.wtc-kills').textContent),
+        'the card must say NEW, a kill count or its unlock level: ' + first.querySelector('.wtc-kills').textContent);
+    } finally {
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-15: the preview state is the fight screen with the fight not started', () => {
+    const CS = window.HearthriseCombatScreens;
+    assert(CS, 'the two screens did not boot');
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      try { window.stopCombat(); } catch (e) {}
+      G.activeMonster = null;
+      assert(CS.preview('goblin'), 'preview() refused a live monster id');
+      const panel = document.getElementById('panel-combat');
+      assert(panel.dataset.combatView === 'fight' && panel.dataset.fightState === 'preview',
+        'preview did not land on the fight screen in its preview state');
+      assert(G.activeMonster === null, 'opening a preview STARTED THE FIGHT — the honest screen was skipped');
+
+      // The stage is painted: the foe, its plate, both stat rows, and the bars full.
+      assert(/Goblin/i.test(document.getElementById('fs-title').textContent), 'the preview does not name the foe');
+      assert(document.getElementById('arena-foe-portrait').innerHTML.trim().length > 0,
+        'the foe plate is empty — the point of the preview is seeing the arena you are committing to');
+      assert(document.getElementById('arena-foe-hp').style.width === '100%',
+        'a preview foe must be at full health');
+      assert(/\d/.test(document.getElementById('fs-player-tiles').textContent)
+        && /\d/.test(document.getElementById('fs-foe-tiles').textContent),
+        'both stat tile rows must be filled with the projection');
+
+      // The primary control is FIGHT, not Eat. Pressing it starts the fight on
+      // a screen that has not moved a pixel.
+      const fight = panel.querySelector('.fs-fight');
+      assert(fight && getComputedStyle(fight).display !== 'none', 'the preview has no Fight button');
+      assert(getComputedStyle(document.getElementById('arena-act-player')).display === 'none',
+        'the Eat slot is showing on a fight that has not started');
+      fight.click();
+      assert(G.activeMonster === 'goblin', 'the Fight button did not start the fight');
+      assert(panel.dataset.fightState === 'live', 'the stage did not come alive');
+      /* AND THE VOID IS GONE. */
+      assert(!document.querySelector('#panel-combat .ce-standby'),
+        'AWAITING A FOE is back — the largest element on the screen is a placeholder again');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-13: the action bar carries Eat with its real food, and a reachable Stop', () => {
+    /* Two claims, both measured on the live DOM:
+       (1) Eat names the food the player actually holds and the heal it actually
+           gives — the control carries live data, which is the Melvor lesson.
+       (2) STOP IS REACHABLE. The old sheet hid `#combat-stop` and every
+           `.btn-danger` in the arena with `display:none !important` because the
+           card header was hidden, so a fight could be started with no visible
+           way out. That hack is deleted; this is what stops it coming back. */
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 12 });
+      G.playerMaxHp = 100; G.playerHp = 30;
+      window.startCombat('slime');
+      const bar = document.getElementById('fs-actionbar');
+      assert(bar, 'the fight screen has no action bar');
+
+      const eat = bar.querySelector('#arena-act-player .arena-eat');
+      assert(eat, 'no Eat control in the action bar');
+      const eatTxt = eat.textContent.replace(/\s+/g, ' ');
+      const heals = window.ITEMS.cooked_shrimp.heals;
+      assert(/Cooked Shrimp/i.test(eatTxt), 'Eat does not name the food it will spend: ' + eatTxt);
+      assert(eatTxt.indexOf('+' + heals) >= 0, 'Eat does not carry the real heal amount (+' + heals + '): ' + eatTxt);
+      assert(/12/.test(eatTxt), 'Eat does not carry how many are left: ' + eatTxt);
+      const r = eat.getBoundingClientRect();
+      assert(r.width > 0 && r.height > 0, 'the Eat control has no box');
+
+      const stop = bar.querySelector('[data-cs-act="stop"]');
+      assert(stop, 'THE HIDDEN-FLEE BUG: the fight has no Stop control at all');
+      const sr = stop.getBoundingClientRect();
+      assert(getComputedStyle(stop).display !== 'none' && sr.width > 0 && sr.height > 0,
+        'THE HIDDEN-FLEE BUG IS BACK: the only way out of a fight computes to display:none');
+      assert(!document.getElementById('combat-area').contains(stop),
+        'Stop is inside the scrolling box — that is how it got 470px below the fold last time');
+
+      // Drops and Loot history are on the bar too, and they are reference, not moves.
+      assert(bar.querySelector('[data-arena-act="loot"]'), 'no Drops control on the action bar');
+      assert(bar.querySelector('[data-cs-act="history"]'), 'no Loot history control on the action bar');
+
+      // And Stop actually ends the fight and returns the camera to the hub.
+      stop.click();
+      assert(G.activeMonster === null, 'Stop did not end the fight');
+      assert(document.getElementById('panel-combat').dataset.combatView === 'table',
+        'after a fight ends the camera must land somewhere real, not on an empty stage');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-21: the metrics strip refuses to quote a rate it has not measured', () => {
+    /* THE HARD GATE (spec §6, raised in CONFLICTS.md): design will not
+       advertise a number the server pays as zero. A long fight — one whose
+       first kill has not landed — pays nothing yet, and the strip must SAY so
+       rather than extrapolate a DPS figure into an XP/min promise.
+       MUTATION PROVEN: derive the strip from forecast().xpHr instead of the
+       ledger and the second assertion fails, because a Green Dragon at level 3
+       has a beautiful theoretical rate and pays nothing for twenty minutes. */
+    const CS = window.HearthriseCombatScreens;
+    assert(CS && CS._ledger, 'the ledger seam is not published');
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      window.startCombat('slime');
+      CS.renderFight();
+      const strip = document.getElementById('fs-metrics');
+      assert(strip, 'no metrics strip on the stage');
+      const early = strip.textContent.replace(/\s+/g, ' ');
+      assert(/measuring/i.test(early),
+        'a fight one second old already quotes a rate — that rate is fiction: ' + early);
+      assert(!/\/min/.test(early), 'a per-minute rate was quoted before a single credit landed: ' + early);
+      /* The one thing it may always say is the SURVIVAL span, because that
+         comes from the shared estimator rather than from a promise about pay. */
+      assert(/last/i.test(early), 'the strip dropped the survival clause: ' + early);
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
   }),
 
   () => tryRun('MON-TAX-1: every monster has a valid class and a resolvable weakness profile', () => {

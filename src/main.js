@@ -25,7 +25,7 @@
 // 1. Data — single source of truth
 import { SKILLS_DEF } from './data/skills.js?v=362';
 import { MONSTERS } from './data/monsters.js?v=362';
-import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoster } from './data/monster-classes.js?v=362';
+import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoster, TIER_BANDS } from './data/monster-classes.js?v=362';
 import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=362';
 import * as ItemArt from './data/item-art.js?v=362';
 import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=362';
@@ -97,6 +97,9 @@ function unifyArray(name, esmArr) {
 window.HearthriseMonsterClasses = {
   CLASSES: MONSTER_CLASSES, ORDER: MONSTER_CLASS_ORDER,
   profileOf: resolveMonsterProfile, audit: auditRoster,
+  /* b362: the measured progression curve, published so a guard can check ONE
+     row against its band without re-auditing a whole fixture roster. */
+  TIER_BANDS,
 };
 window.HearthriseMonsterArt = { expected: MONSTER_ART_EXPECTED, pending: pendingArt };
 window._monsterIcon = Object.assign(window._monsterIcon || {}, wiredIconMap());
@@ -238,6 +241,7 @@ import { setupCompanions } from './features/companions.js?v=362';
 import { setupActivitiesGrid } from './features/activities-grid.js?v=362';
 import { setupCharacterPage } from './features/character-page.js?v=362';
 import { setupCombatRender } from './features/combat-render.js?v=362';
+import { setupCombatScreens } from './features/combat-screens.js?v=362';
 import { setupRecipeBook } from './features/recipe-book.js?v=362';
 import { setupItemIndex } from './features/item-index.js?v=362';
 
@@ -274,6 +278,9 @@ function tryBootFeatures() {
   boot('activities-grid', setupActivitiesGrid);
   boot('character-page', setupCharacterPage);
   boot('combat-render', setupCombatRender);
+  /* AFTER combat-render, which installs HearthriseCombatHud — the Fight screen
+     reads the HUD's forecast and hands it the two action mounts. */
+  boot('combat-screens', setupCombatScreens);
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);
   /* b228: setupCompanions() wraps window.getBonus, and it is the LAST wrapper

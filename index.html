@@ -120,6 +120,11 @@
        [data-room-theme] values that sheet's component reads; it deliberately
        restyles none of that component. -->
   <link rel="stylesheet" href="src/styles/homestead-rooms.css?v=362">
+  <!-- b362: THE WAR TABLE and THE FIGHT. Loads after combat-hud.css because it
+       replaces the three-card combat grid those sheets were written against —
+       it is the newest statement about #panel-combat and must be the last one.
+       See docs/design/combat-screen-rework.md. -->
+  <link rel="stylesheet" href="src/styles/combat-screens.css?v=362">
 </head>
 <body>
 <!-- b259 — Landscape-only on phones. Pure-CSS portrait gate: shown ONLY on a

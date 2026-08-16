@@ -433,6 +433,41 @@ create index market_sales_item_idx   on public.market_sales (item_id, at desc);
 create index market_sales_seller_idx on public.market_sales (seller_user_id, at desc);
 create index market_sales_buyer_idx  on public.market_sales (buyer_user_id, at desc);
 
+-- ── 1b. THE LISTING IS IMMUTABLE IN THREE COLUMNS — BY CONSTRUCTION (M4) ──
+-- §4c and §7 both depend on seller_user_id, seller_slot and ask_each never
+-- changing after insert: the UNLOCKED routing read uses the first two to derive
+-- the advisory key before taking any lock, and the buy intent name is price-free
+-- precisely because ask_each cannot move under a live listing. §11(j) asserts no
+-- function in THIS file updates them — but a regex over four function bodies is a
+-- commit-time HINT, not a guarantee: it misses an unqualified `update
+-- market_listings`, an alias, a CTE, a future function outside this file, and a
+-- hand `psql` UPDATE during an incident. The GUARANTEE is this trigger, which
+-- refuses the change whoever attempts it and however it is spelled. qty (a
+-- partial buy) and every other column stay mutable; only the three the routing
+-- read trusts are frozen.
+create or replace function public.hr_market_listing_immutable()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.seller_user_id is distinct from old.seller_user_id
+     or new.seller_slot is distinct from old.seller_slot
+     or new.ask_each   is distinct from old.ask_each then
+    raise exception 'market_listings.% is immutable after insert — §4c''s unlocked routing read and '
+                    '§7''s price-free buy intent both depend on it never changing',
+      (case when new.seller_user_id is distinct from old.seller_user_id then 'seller_user_id'
+            when new.seller_slot    is distinct from old.seller_slot    then 'seller_slot'
+            else 'ask_each' end)
+      using errcode = '42501';
+  end if;
+  return new;
+end $$;
+revoke execute on function public.hr_market_listing_immutable() from public;
+revoke execute on function public.hr_market_listing_immutable()
+  from anon, authenticated, service_role, hr_engine;
+drop trigger if exists trg_market_listing_immutable on public.market_listings;
+create trigger trg_market_listing_immutable
+  before update on public.market_listings
+  for each row execute function public.hr_market_listing_immutable();
+
 -- ── 2. RLS + GRANTS ──────────────────────────────────────────────────────
 -- Listings are public (it is a market) and writable by nobody.
 --
@@ -473,6 +508,20 @@ revoke all on sequence public.market_sales_id_seq
 --   empty chart. The mitigation is that this view selects NO identity column at
 --   all and is bounded to 30 days. If the column list ever changes, re-read
 --   this comment before adding one.
+--
+-- ⚠ WASH TRADES ARE EXCLUDED FROM THE CHART (Security M3). A seller who buys
+--   their own goods through a second character (same auth account, different
+--   slot) settles a real sale — gold is conserved, the tax is paid — but the
+--   PRICE is fictional: it is a number one person paid themselves to plant a
+--   floor or a spike. `seller_user_id <> buyer_user_id` drops every such row
+--   from the public price history, so a chart a stranger reads cannot be moved
+--   by an account trading with itself. It is a DISPLAY control only — the sale
+--   itself is legal and journalled (both meta rows carry `self_trade`); Security
+--   ruled a price CAP out of scope, so this filters the deception rather than
+--   preventing the trade. Same-account cross-slot is the whole wash surface: the
+--   own_listing guard already refuses same (user, slot), so the account is the
+--   only granularity a wash can hide behind, and the account is what is compared.
+--   The compared columns are still NOT selected — the view exposes no identity.
 drop view if exists public.market_price_history;
 create view public.market_price_history
   with (security_invoker = false) as
@@ -482,7 +531,8 @@ create view public.market_price_history
          (gold_gross / greatest(qty, 1)) as each,
          at
     from public.market_sales
-   where at > now() - interval '30 days';
+   where at > now() - interval '30 days'
+     and seller_user_id <> buyer_user_id;
 revoke all on public.market_price_history from public, anon, authenticated, service_role, hr_engine;
 grant select on public.market_price_history to anon, authenticated, service_role;
 
@@ -606,6 +656,16 @@ declare
   -- a concurrent cap does not touch — list/cancel/list is otherwise a free
   -- unbounded loop through the escrow path.
   c_max_lists_per_day constant int := 200;
+  -- ⚠ AND A SECOND DIMENSION THE COUNT DOES NOT BOUND (Security M2). A count of
+  --   listings is not a bound on an ITEM DRAIN: 200 listings of 1e8 units each is
+  --   2e10 units of a tradeable item pushed into escrow in a day, under the count
+  --   cap, and market gold moves the moment a buyer settles them. This clamps the
+  --   escrowed QUANTITY per (character, day), ledger-derived from the same
+  --   append-only rows the churn count reads — the clan_deposit shape, one dimension
+  --   over. It is a blast-radius fuse, not balance: max_gross already bounds one
+  --   listing; this bounds the day. The buyer/seller gold flows have their own
+  --   per-day clamps in hr_market_buy; this is the ITEM half of the same fuse.
+  c_max_escrow_qty_per_day constant bigint := 10000000000;
 
   v_uid   uuid;
   v_role  text;
@@ -615,6 +675,7 @@ declare
   v_have  bigint;
   v_open  int;
   v_today int;
+  v_esc_today bigint;
   v_day   text;
   v_id    uuid;
   v_prev  jsonb; v_prev_intent text; v_prev_slot int;
@@ -737,6 +798,21 @@ begin
     if v_today >= c_max_lists_per_day then
       perform public.hr_reject('market_list_daily_cap',
         jsonb_build_object('used', v_today, 'limit', c_max_lists_per_day, 'day', v_day));
+    end if;
+
+    -- (b2) THE PER-DAY ESCROWED-QUANTITY CLAMP (Security M2). Sum the QUANTITY
+    --     escrowed by this character today from the same append-only ledger the
+    --     count above reads — `qty` is negative on a market_list row (items left
+    --     the bag), so `sum(-qty)` is the day's escrowed total. A count of
+    --     listings is not a bound on an item drain; this is.
+    select coalesce(sum(-qty), 0) into v_esc_today from public.player_ledger
+     where user_id = v_uid and slot = v_slot
+       and kind = 'trade' and intent like 'market\_list:%'
+       and public.hr_utc_day_key(at) = v_day;
+    if v_esc_today + p_qty > c_max_escrow_qty_per_day then
+      perform public.hr_reject('market_escrow_daily_cap',
+        jsonb_build_object('used', v_esc_today, 'need', p_qty,
+                           'limit', c_max_escrow_qty_per_day, 'day', v_day));
     end if;
 
     -- (c) THE OPEN-LISTING CAP. Bounded: the question is "at the cap?", never
@@ -1149,7 +1225,23 @@ begin
   -- ROUTING READ, UNLOCKED (§4c) — it exists only to learn WHOSE advisory lock
   -- to take second. Everything is re-read under the locks.
   select * into v_route from public.market_listings where id = p_listing_id;
-  if not found then return jsonb_build_object('ok', false, 'error', 'gone'); end if;
+  if not found then
+    -- (M9) A SILENT REFUSAL LEAVES NO TRACE. `gone` is ordinary contention —
+    --   someone bought the listing out from under this caller — so it is SAMPLED,
+    --   the rate-limit branch's mechanism reused: hr_record_rejection aggregates
+    --   one row per (character, code, day), but the UPDATE still costs a row lock,
+    --   and a hot market makes `gone` frequent. hr_rate_sample_weight fires only
+    --   at the caller's 1st, 10th, 50th, 1,000th… apply-bucket call this window
+    --   (the gate already bumped it above), carrying a weight so the aggregate `n`
+    --   still counts real events. Enough to see a pattern, cheap enough not to
+    --   amplify (the game_events 1.6M-row lesson).
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply')) > 0 then
+      perform public.hr_record_rejection(v_uid, v_slot, v_intent, 'gone',
+        jsonb_build_object('listing', p_listing_id, 'stage', 'routing'),
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply')));
+    end if;
+    return jsonb_build_object('ok', false, 'error', 'gone');
+  end if;
   if v_route.seller_user_id = v_uid and v_route.seller_slot = v_slot then
     -- (S9) JOURNALLED. Buying your own listing is refused, but a refusal that
     -- leaves no trace is a refusal nobody can investigate: repeated
@@ -1162,35 +1254,77 @@ begin
     return jsonb_build_object('ok', false, 'error', 'own_listing');
   end if;
 
-  -- (1) BOTH ADVISORY LOCKS, IN CANONICAL ORDER (S16). Ordered by (user_id,
-  --     slot) as text so two players buying from each other request the SAME
-  --     two locks in the SAME order and one waits instead of deadlocking.
+  -- (1) BOTH ADVISORY LOCKS, IN CANONICAL ORDER (S16), AS TWO EXPLICIT CALLS
+  --     UNDER AN EXPLICIT BRANCH (Security M8). Ordered by (user_id::text, slot)
+  --     ascending so two players buying from each other request the SAME two locks
+  --     in the SAME order and one waits instead of deadlocking.
+  --     ⚠ WHY NOT AN ORDERED SUBQUERY. The first revision acquired both locks in
+  --       one `perform pg_advisory_xact_lock(k) from (… order by u, s)`. That
+  --       relies on the planner acquiring the lock function in the SORTED order —
+  --       i.e. on volatile-function postponement past the Sort — which is planner
+  --       behaviour, not a guarantee: a plan that evaluated the lock before the
+  --       sort would take them in scan order, and two buyers crossing would then
+  --       deadlock (40P01), an unhandled 500 in the MIDDLE of a value transfer.
+  --       The comparison is spelled out and the two locks are separate statements
+  --       so the order is the code's, not the optimiser's.
   --     ⚠ SAME-USER, DIFFERENT-SLOT is a real case (a player's slot 0 buying
-  --       from their own slot 2) and it is allowed: they are different
-  --       characters with different bags. Taking the same lock key twice in one
-  --       transaction is a no-op in Postgres, and the pair below is DISTINCT by
-  --       construction because the self-trade guard above rejected the equal
-  --       case, so no key is requested twice.
-  perform pg_advisory_xact_lock(k) from (
-    select hashtextextended(u || ':' || s::text, 0) as k
-      from (values (v_uid::text, v_slot),
-                   (v_route.seller_user_id::text, v_route.seller_slot)) as t(u, s)
-     order by u, s) ordered;
+  --       from their own slot 2) and it is allowed: they are different characters
+  --       with different bags. The pair is DISTINCT by construction because the
+  --       self-trade guard above rejected the equal (user, slot) case, so exactly
+  --       one branch runs and two distinct keys are taken.
+  if (v_uid::text, v_slot) < (v_route.seller_user_id::text, v_route.seller_slot) then
+    perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || v_slot::text, 0));
+    perform pg_advisory_xact_lock(
+      hashtextextended(v_route.seller_user_id::text || ':' || v_route.seller_slot::text, 0));
+  else
+    perform pg_advisory_xact_lock(
+      hashtextextended(v_route.seller_user_id::text || ':' || v_route.seller_slot::text, 0));
+    perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || v_slot::text, 0));
+  end if;
 
   -- (2) THE LISTING, UNDER THE LOCKS. Everything from here is the row's, not
   --     the routing read's — including ask_each, which is the price the buyer
   --     is charged and the one number the caller most wants to author.
   select * into v_row from public.market_listings where id = p_listing_id for update;
-  if not found then return jsonb_build_object('ok', false, 'error', 'gone'); end if;
+  if not found then
+    -- (M9) sampled — see the routing `gone` above for the mechanism and why.
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply')) > 0 then
+      perform public.hr_record_rejection(v_uid, v_slot, v_intent, 'gone',
+        jsonb_build_object('listing', p_listing_id, 'stage', 'locked'),
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply')));
+    end if;
+    return jsonb_build_object('ok', false, 'error', 'gone');
+  end if;
   if v_row.seller_user_id <> v_route.seller_user_id
      or v_row.seller_slot <> v_route.seller_slot then
-    -- Unreachable: the columns are immutable (§11(j)). Refused rather than
-    -- asserted, because the failure mode of trusting it is a trade settled
-    -- under one player's lock and credited to another's row.
+    -- Unreachable: the columns are immutable (§1b trigger + §11(j)). Refused
+    -- rather than asserted, because the failure mode of trusting it is a trade
+    -- settled under one player's lock and credited to another's row. (M9) It is
+    -- ALSO recorded UNCONDITIONALLY, not sampled: unlike `gone`/`expired`/
+    -- `not_enough` this is not ordinary contention — reaching it means the
+    -- immutability trigger was somehow bypassed, which is an incident.
+    perform public.hr_record_rejection(v_uid, v_slot, v_intent, 'listing_moved',
+      jsonb_build_object('listing', p_listing_id,
+                         'route', jsonb_build_object('u', v_route.seller_user_id, 's', v_route.seller_slot),
+                         'locked', jsonb_build_object('u', v_row.seller_user_id, 's', v_row.seller_slot)));
     return jsonb_build_object('ok', false, 'error', 'listing_moved');
   end if;
-  if v_row.expires_at <= now() then return jsonb_build_object('ok', false, 'error', 'expired'); end if;
+  if v_row.expires_at <= now() then
+    -- (M9) sampled — expiry racing a buy is ordinary contention.
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply')) > 0 then
+      perform public.hr_record_rejection(v_uid, v_slot, v_intent, 'expired',
+        jsonb_build_object('listing', p_listing_id),
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply')));
+    end if;
+    return jsonb_build_object('ok', false, 'error', 'expired');
+  end if;
   if v_row.qty < p_qty then
+    -- (M9) sampled — a partial-buy race that leaves fewer than asked is contention.
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply')) > 0 then
+      perform public.hr_record_rejection(v_uid, v_slot, v_intent, 'not_enough',
+        jsonb_build_object('listing', p_listing_id, 'available', v_row.qty, 'need', p_qty),
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply')));
+    end if;
     return jsonb_build_object('ok', false, 'error', 'not_enough',
              'detail', jsonb_build_object('available', v_row.qty));
   end if;
@@ -1256,7 +1390,13 @@ begin
         jsonb_build_object('gross', v_gross_n, 'max_gross', v_cfg.max_gross));
     end if;
     v_gross := v_gross_n::bigint;
-    v_tax   := trunc(v_gross_n * v_cfg.house_tax_bp::numeric / 10000)::bigint;  -- the gold sink
+    -- THE GOLD SINK, ROUNDED UP (Game Designer ruling on Security cond. 12). ceil,
+    -- not trunc: trunc lets a whole-number split to zero (sixty 1-gold buys paid 0
+    -- tax; ceil makes them pay 60), and rounding in the SINK's favour is correct
+    -- for an anti-inflation drain. NO max(1,…) floor — ceil(0)=0 keeps a disabled
+    -- tax (house_tax_bp=0) disabled, which a floor would wrongly override. The §7(5)
+    -- overflow guard is unaffected: ceil adds at most 1 to an already-bounded product.
+    v_tax   := ceil(v_gross_n * v_cfg.house_tax_bp::numeric / 10000)::bigint;
     v_net   := v_gross - v_tax;
 
     -- (6) THE PER-DAY TRANSFER CLAMPS, both from the append-only ledger.
@@ -1338,17 +1478,27 @@ begin
     --      stamping the seller's side as inflow would spend their mint budget on
     --      somebody else's purchase. `transfer:true` in meta is what lets the
     --      audit tell conserved gold from minted gold without reading intents.
+    -- ⚠ `self_trade` STAMPS BOTH ROWS (Security M3). A buyer whose auth account
+    --   is the seller's (a same-account, cross-slot wash — the own_listing guard
+    --   already refused same (user, slot)) settles a real, conserved sale, but the
+    --   price is fictional. The boolean is the audit's handle on that: it is the
+    --   condition market_price_history filters on, and it lets an investigation
+    --   count a character's wash volume without re-joining seller to buyer. It is
+    --   the ACCOUNT comparison, not the slot, because the account is the only
+    --   granularity a wash can hide behind.
     insert into public.player_ledger
       (user_id, slot, kind, intent, item_id, qty, gold, gold_in, xp_in, qty_in, gems_in, meta)
     values
       (v_uid, v_slot, 'trade', v_intent, v_row.item_id, p_qty, -v_gross, 0, 0, 0, 0,
        jsonb_build_object('listing', p_listing_id, 'each', v_row.ask_each,
-                          'counterparty', v_row.seller_user_id, 'transfer', true)),
+                          'counterparty', v_row.seller_user_id, 'transfer', true,
+                          'self_trade', v_row.seller_user_id = v_uid)),
       (v_row.seller_user_id, v_row.seller_slot, 'trade',
        'market_sold:' || p_listing_id::text || ':' || p_qty::text,
        v_row.item_id, -p_qty, v_net, 0, 0, 0, 0,
        jsonb_build_object('listing', p_listing_id, 'each', v_row.ask_each, 'tax', v_tax,
-                          'counterparty', v_uid, 'transfer', true));
+                          'counterparty', v_uid, 'transfer', true,
+                          'self_trade', v_row.seller_user_id = v_uid));
 
     -- (11) THE RECEIPT, STATED BY THE SERVER (C4's rule, applied here). The
     --      Edge Function renders it and must not build one out of its own
@@ -1408,6 +1558,20 @@ end $$;
 -- ⚠ IT USES THE SAME DELETE-AS-ARBITER RULE AS CANCEL. `for update skip locked`
 --   avoids queueing behind a live trade; the `delete … returning` is what makes
 --   the escrow return exactly-once even if a cancel lands in between.
+--
+-- ⚠ AND IT TAKES THE SELLER'S ADVISORY LOCK BEFORE THE DELETE (Security M1). The
+--   `for update skip locked` on the LISTING row is not the seller's serialising
+--   key — hr_market_list/cancel/buy serialise on hashtextextended(seller:slot),
+--   NOT on the listing row lock, and hr_market_list on a first-of-its-kind item
+--   (no existing stack) never touches the listing being expired at all. So a
+--   sweep and a concurrent hr_apply/hr_market_list on the SAME (seller, slot)
+--   could interleave their player_inventory upserts with no shared lock — the
+--   escrow-return upsert here racing the seller's own write, corrupting the row
+--   this function is mid-returning. `pg_try_advisory_xact_lock` (TRY, not the
+--   blocking form) is the fix: if the seller's character is busy this instant,
+--   the sweep SKIPS this listing and the next 5-minute sweep collects it — a few
+--   minutes in limbo, never a corrupted bag. Blocking here would let one busy
+--   character stall the whole batch.
 create or replace function public.hr_market_expire(p_limit int default 200)
 returns int language plpgsql security definer set search_path = public as $$
 declare v_id uuid; v_row public.market_listings%rowtype; v_n int := 0;
@@ -1417,6 +1581,16 @@ begin
      order by expires_at limit greatest(1, least(200, coalesce(p_limit, 200)))
      for update skip locked
   loop
+    -- SERIALISE AGAINST THE SELLER'S CHARACTER — hr_apply's / hr_market_*'s key,
+    -- so the escrow-return upsert below cannot interleave with a concurrent write
+    -- on the same (seller, slot). Read the seller off the routing row first; TRY,
+    -- so a busy character defers to the next sweep instead of stalling the batch.
+    select * into v_row from public.market_listings where id = v_id;
+    if not found then continue; end if;   -- a cancel or a buy took it first
+    if not pg_try_advisory_xact_lock(
+         hashtextextended(v_row.seller_user_id::text || ':' || v_row.seller_slot::text, 0)) then
+      continue;   -- the seller is mid-transaction; the next 5-minute sweep gets it
+    end if;
     delete from public.market_listings where id = v_id returning * into v_row;
     if not found then continue; end if;   -- a cancel or a buy took it first
 
@@ -1587,15 +1761,26 @@ declare
     --   ceiling) AND per DAY (list churn; gold sent; gold received) from the
     --   append-only ledger — the dimension a rate limit does not bound.
     --
-    --   NO NEW TARGET, and this is the clause that had to be argued hardest,
-    --   because hr_market_buy writes a row belonging to a user the caller did
-    --   not name. It does not TAKE a counterparty: the second row it touches is
-    --   whoever the LISTING says posted the goods, and a listing row can only be
-    --   created by hr_market_list acting for a JWT-verified seller. So the
-    --   engine cannot select a victim; it can only settle a trade a real seller
-    --   opened, in the direction the seller chose, at the seller's price, and the
-    --   settlement is gold-conserving (buyer -gross, seller +net, tax burned).
-    --   p_user is the parameter the engine already passes to hr_apply.
+    --   THE TARGET CLAUSE, STATED HONESTLY (Security M2). The earlier draft
+    --   claimed "the engine cannot select a victim". That is FALSE and is the
+    --   correction: the engine holds hr_market_list(p_user, …) for ANY user, so a
+    --   compromised engine can open a listing FOR a victim it names and then
+    --   settle it to itself with hr_market_buy — it can choose both sides of a
+    --   trade. What admits these three is therefore NOT "no victim" but BOUNDED
+    --   BLAST RADIUS: every path is a CONSERVED transfer of TRADEABLE items
+    --   (buyer -gross, seller +net, tax burned — nothing minted, nothing an
+    --   honest player did not already own), the item must be `tradeable` in the
+    --   client-unwritable hr_items, BOTH SIDES ARE JOURNALLED (transfer +
+    --   self_trade in meta), and the flows are CLAMPED PER DAY off the
+    --   append-only ledger on three dimensions the engine cannot widen: escrowed
+    --   item quantity (list), gold sent (buy) and gold received (buy).
+    --   ⚠ THOSE CLAMPS ARE THE MARKET'S OWN, NOT hr_day_budget_check. A market
+    --   transfer is conserved, so it is deliberately absent from the mint
+    --   budget's qty dimension — charging a sale to the seller's daily inflow
+    --   would let a stranger drain their accrual (the griefing vector in
+    --   hr_market_buy's header). So the item-drain and gold-move ceilings live
+    --   here and only here. p_user is the parameter the engine already passes to
+    --   hr_apply.
     --
     --   WHY THE ENGINE NEEDS THEM: hr_apply is single-character by construction
     --   — one lock, one version, one journal target — so a delta shape that
@@ -1667,8 +1852,6 @@ declare
     'hr_level_from_xp(bigint)',
     -- pure function of its argument
     'hr_xp_for_level(integer)',
-    -- writes, but only the "return the lapsed seller's own goods" path, capped at 200
-    'market_expire(integer)',
     -- read-only, one integer, bounded at 24h by its own ceiling; on the list because
     -- capMs multiplies a whole night's grant, so the engine must not own its own cap
     'hr_offline_cap_ms(uuid,integer)',
@@ -2058,6 +2241,22 @@ begin
                     'under. Single-threaded the two reads agree, so no test on one backend can '
                     'tell them apart — which is why this is asserted here.';
   end if;
+  --       (1b) THE TWO ADVISORY LOCKS ARE ACQUIRED UNDER AN EXPLICIT ORDER
+  --           BRANCH (Security M8). The first revision acquired both in one
+  --           `pg_advisory_xact_lock(k) from (… order by u, s)`, which relies on
+  --           the planner postponing the volatile lock function past the Sort —
+  --           planner behaviour, not a guarantee. A plan that took them in scan
+  --           order would let two buyers crossing deadlock (40P01) — an unhandled
+  --           500 mid-transfer. Asserted positively against the explicit tuple
+  --           comparison, because single-backend PGlite can never make two
+  --           transactions contend to surface the deadlock by execution.
+  if v_txt !~ 'if \(v_uid::text, v_slot\) < \(v_route\.seller_user_id::text, v_route\.seller_slot\) then' then
+    raise exception 'hr_market_buy does not order its two advisory locks with an explicit '
+                    'if (v_uid, v_slot) < (seller, seller_slot) branch. An ordered subquery relies on '
+                    'planner volatile-postponement, not a guarantee; two buyers crossing could then '
+                    'take the locks in opposite order and deadlock (40P01) in the middle of a value '
+                    'transfer. The order must be the code''s, not the optimiser''s.';
+  end if;
   --       (2) THE DELETE MUST BE THE ARBITER in the expiry sweep. `select then
   --           delete` returns an escrow that a concurrent cancel already
   --           returned — one stack in the bag twice — and again, sequentially
@@ -2069,6 +2268,26 @@ begin
     raise exception 'hr_market_expire does not use DELETE … RETURNING as the arbiter. A read '
                     'followed by a delete lets a sweep return an escrow a concurrent cancel has '
                     'already returned — the same stack in the bag twice.';
+  end if;
+  --       (3) THE EXPIRY SWEEP MUST TAKE THE SELLER'S ADVISORY LOCK (Security M1).
+  --           hr_market_expire was the one market writer taking NO advisory lock:
+  --           its `for update skip locked` locks the LISTING row, not the seller's
+  --           serialising key (hashtextextended(seller:slot)), so its escrow-return
+  --           upsert into player_inventory could interleave with a concurrent
+  --           hr_apply or hr_market_list on the SAME (seller, slot) — the one such
+  --           list, on a first-of-its-kind item with no existing stack, never
+  --           touches the listing being expired, so the row lock is no barrier at
+  --           all. Asserted here because PGlite cannot race it: a single-backend
+  --           test runs the sweep and the seller's write sequentially and never
+  --           sees the interleave.
+  if v_txt !~ 'pg_try_advisory_xact_lock' then
+    raise exception 'hr_market_expire takes no per-seller advisory lock. Its `for update skip '
+                    'locked` locks the LISTING row, not hashtextextended(seller:slot) — the key '
+                    'hr_apply/hr_market_list/cancel/buy serialise a character on. A concurrent '
+                    'hr_market_list for a first-of-its-kind item never touches the expiring listing, '
+                    'so nothing stops its escrow-return upsert into player_inventory from '
+                    'interleaving with the seller''s own write and overwriting the row it is '
+                    'mid-returning. It must pg_try_advisory_xact_lock the seller before the delete.';
   end if;
 
   -- (j) THE IMMUTABILITY THE UNLOCKED ROUTING READ DEPENDS ON. §4c says
@@ -2085,6 +2304,18 @@ begin
     raise exception 'these functions UPDATE an immutable listing column: %. §4c''s unlocked routing '
                     'read and §7''s price-free intent name both depend on those three never '
                     'changing after insert.', v_txt;
+  end if;
+  -- (j-2) THE IMMUTABILITY GUARANTEE — the TRIGGER, not the regex (M4). The scan
+  --       above is a commit-time hint that misses unqualified / alias / CTE forms
+  --       and anything outside this file. The trigger refuses the change whoever
+  --       attempts it, so its ATTACHMENT is what §4c actually rests on.
+  if not exists (select 1 from pg_trigger t join pg_class c on c.oid = t.tgrelid
+                  where c.relname = 'market_listings' and not t.tgisinternal
+                    and t.tgname = 'trg_market_listing_immutable') then
+    raise exception 'trg_market_listing_immutable is not attached to market_listings — the §11(j) '
+                    'regex is only a hint; without the trigger, an UPDATE to seller_user_id, '
+                    'seller_slot or ask_each in any form the regex misses would corrupt the routing '
+                    'read''s trust and the buy intent''s price-free name.';
   end if;
 
   -- (k) THE ENGINE'S CAPABILITY LIST — DELEGATED, NOT INLINED (S9). The

@@ -282,8 +282,9 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // b354 / Security C3. The first link in this chain that REPLACES lines — see
   // DECLARED_REMOVALS below, which is this chain's first non-empty list.
   '2026-08-16-client-write-grant-sweep.sql',
-  // market v2 — link 4, and back to an INSERTION (three engine grants at the
-  // head of c_engine_allow), so its declared-removals list is EMPTY again.
+  // market v2 — link 4: an INSERTION (three engine grants at the head of
+  // c_engine_allow) AND one REMOVAL (the stale market_expire(integer) entry,
+  // Security M7), so its declared-removals list below is NON-empty.
   '2026-08-17-market-v2.sql',
 ];
 
@@ -868,6 +869,17 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
       '    from information_schema.role_table_grants',
       "   where table_schema = 'public' and grantee in ('anon','authenticated','PUBLIC')",
       "     and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER');",
+    ],
+
+    /* ── market v2 (Security M7) ───────────────────────────────────────────
+       Link 4 is an insertion (three engine grants at the head of c_engine_allow)
+       PLUS one removal: the stale `market_expire(integer)` entry, whose function
+       was renamed hr_market_expire and is asserted NOT engine-holdable. Its
+       comment line and its entry line are these two declared removals; anything
+       else this link drops is a silent regression. */
+    '2026-08-17-market-v2.sql': [
+      '    -- writes, but only the "return the lapsed seller\'s own goods" path, capped at 200',
+      "    'market_expire(integer)',",
     ],
   };
 

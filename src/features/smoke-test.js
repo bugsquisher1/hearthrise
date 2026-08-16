@@ -25669,6 +25669,68 @@ const TESTS = [
     }
   }),
 
+  () => tryRunAsync('B355-4: the client-authored buy-offer sub-market is INERT under the seam (Security M5/M6)', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseMarket;
+    const G = window.G;
+    assert(M && typeof M.placeBuyOffer === 'function', 'src/market.js buy-offer API is absent');
+
+    const wasOn = A.isServerAccrualEnabled();
+    const save = { gold: G.gold };
+    const savedOffers = localStorage.getItem('hearthrise:market:offers');
+    const savedListings = localStorage.getItem('hearthrise:market:listings');
+    try {
+      /* ── SWITCH ON: every buy-offer gesture is refused BEFORE it moves gold.
+         The bug this guards: placeBuyOffer/cancelBuyOffer escrow and refund with
+         a bare `G.gold -=` / `+=` that NO server verb reconciles, so under the
+         absolute-envelope switch they would be silently refunded/minted at the
+         next envelope. Inert = the gesture is refused and gold is UNCHANGED. */
+      A.setServerAccrualEnabled(true);
+      G.gold = 100000;
+      G.inventory = { normal_log: 0 };
+      localStorage.setItem('hearthrise:market:offers', JSON.stringify([]));
+
+      const before = G.gold;
+      const p = M.placeBuyOffer('normal_log', 5, 100);
+      assert(p && p.ok === false,
+        'placeBuyOffer succeeded under the seam: ' + JSON.stringify(p) + ' — the buy-offer sub-market '
+        + 'has no server model, so escrowing gold here is a value the next envelope silently refunds');
+      assert(G.gold === before,
+        'placeBuyOffer moved gold (' + before + ' -> ' + G.gold + ') under the seam before being '
+        + 'refused — it must not touch the balance at all');
+      assert(M.listOffers().length === 0, 'placeBuyOffer wrote an offer row under the seam');
+
+      /* A pre-existing local offer cannot be cancelled for a refund under the
+         seam (that would mint gold the server never saw leave). */
+      localStorage.setItem('hearthrise:market:offers', JSON.stringify([{
+        id: 'O-stale', buyerId: (M.list, 'anyone'), buyerName: 'x', itemId: 'normal_log',
+        qty: 2, maxEach: 50, postedAt: Date.now(), escrowed: 100,
+      }]));
+      const c = M.cancelBuyOffer('O-stale');
+      assert(c && c.ok === false && G.gold === before,
+        'cancelBuyOffer refunded escrow under the seam (gold ' + before + ' -> ' + G.gold + ') — that '
+        + 'is a mint of gold the server never saw leave');
+
+      /* ── SWITCH OFF: the sub-market is the pre-seam behaviour, byte for byte —
+         the gating is a flag, not a deletion (the row stays `deferred`). */
+      A.setServerAccrualEnabled(false);
+      G.gold = 100000;
+      localStorage.setItem('hearthrise:market:offers', JSON.stringify([]));
+      const off = M.placeBuyOffer('normal_log', 5, 100);
+      assert(off && off.ok === true, 'placeBuyOffer refused with the switch OFF: ' + JSON.stringify(off)
+        + ' — the gating must be the flag, not a removal of the feature');
+      assert(G.gold === 100000 - 500, 'the switch-off offer did not escrow its gold (5 x 100)');
+    } finally {
+      if (!wasOn) A.setServerAccrualEnabled(false);
+      if (savedOffers === null) localStorage.removeItem('hearthrise:market:offers');
+      else localStorage.setItem('hearthrise:market:offers', savedOffers);
+      if (savedListings === null) localStorage.removeItem('hearthrise:market:listings');
+      else localStorage.setItem('hearthrise:market:listings', savedListings);
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════
      b354 ROUND 2 — SECURITY'S FINDINGS, EACH WITH ITS OWN GUARD.
 

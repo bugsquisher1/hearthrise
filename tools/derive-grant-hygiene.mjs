@@ -74,14 +74,17 @@ export const LINKS = [
     target: '2026-08-16-client-write-grant-sweep.sql',
     patchIds: ['client_write_no_policy'],
   },
-  /* Link 4 — market v2. Back to an INSERTION, so this link's declared-removals
-     list in PART 1f-ii is empty again. It records THREE engine grants at once,
-     which is the largest single widening of the engine's capability since
-     hr_apply, and the argument for each is in the patch body. */
+  /* Link 4 — market v2. It records THREE engine grants at once (an INSERTION at
+     the head), which is the largest single widening of the engine's capability
+     since hr_apply — AND it REMOVES the stale `market_expire(integer)` entry
+     (Security M7): the function was renamed hr_market_expire and is asserted NOT
+     engine-holdable (§11(e)), so the old name pre-approves a function that no
+     longer exists. That removal is the SECOND patch (`drop_market_expire`), which
+     is why this link's declared-removals list in PART 1f-ii is NON-empty. */
   {
     base: '2026-08-16-client-write-grant-sweep.sql',
     target: '2026-08-17-market-v2.sql',
-    patchIds: ['market_v2'],
+    patchIds: ['market_v2', 'drop_market_expire'],
   },
 ];
 
@@ -263,15 +266,26 @@ export const PATCHES = [
     --   ceiling) AND per DAY (list churn; gold sent; gold received) from the
     --   append-only ledger — the dimension a rate limit does not bound.
     --
-    --   NO NEW TARGET, and this is the clause that had to be argued hardest,
-    --   because hr_market_buy writes a row belonging to a user the caller did
-    --   not name. It does not TAKE a counterparty: the second row it touches is
-    --   whoever the LISTING says posted the goods, and a listing row can only be
-    --   created by hr_market_list acting for a JWT-verified seller. So the
-    --   engine cannot select a victim; it can only settle a trade a real seller
-    --   opened, in the direction the seller chose, at the seller's price, and the
-    --   settlement is gold-conserving (buyer -gross, seller +net, tax burned).
-    --   p_user is the parameter the engine already passes to hr_apply.
+    --   THE TARGET CLAUSE, STATED HONESTLY (Security M2). The earlier draft
+    --   claimed "the engine cannot select a victim". That is FALSE and is the
+    --   correction: the engine holds hr_market_list(p_user, …) for ANY user, so a
+    --   compromised engine can open a listing FOR a victim it names and then
+    --   settle it to itself with hr_market_buy — it can choose both sides of a
+    --   trade. What admits these three is therefore NOT "no victim" but BOUNDED
+    --   BLAST RADIUS: every path is a CONSERVED transfer of TRADEABLE items
+    --   (buyer -gross, seller +net, tax burned — nothing minted, nothing an
+    --   honest player did not already own), the item must be \`tradeable\` in the
+    --   client-unwritable hr_items, BOTH SIDES ARE JOURNALLED (transfer +
+    --   self_trade in meta), and the flows are CLAMPED PER DAY off the
+    --   append-only ledger on three dimensions the engine cannot widen: escrowed
+    --   item quantity (list), gold sent (buy) and gold received (buy).
+    --   ⚠ THOSE CLAMPS ARE THE MARKET'S OWN, NOT hr_day_budget_check. A market
+    --   transfer is conserved, so it is deliberately absent from the mint
+    --   budget's qty dimension — charging a sale to the seller's daily inflow
+    --   would let a stranger drain their accrual (the griefing vector in
+    --   hr_market_buy's header). So the item-drain and gold-move ceilings live
+    --   here and only here. p_user is the parameter the engine already passes to
+    --   hr_apply.
     --
     --   WHY THE ENGINE NEEDS THEM: hr_apply is single-character by construction
     --   — one lock, one version, one journal target — so a delta shape that
@@ -284,6 +298,20 @@ export const PATCHES = [
     'hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint)',
 `,
     where: 'after',
+  },
+  {
+    id: 'drop_market_expire',
+    name: "the stale market_expire(integer) allowlist entry",
+    /* A REMOVAL (Security M7). `market_expire(integer)` was the pre-market-v2
+       name; the function is now hr_market_expire(int) and is asserted NOT
+       engine-holdable (§11(e) refuses it to hr_engine), so the old name
+       pre-approves a function that does not exist. Its two lines are the
+       declared removals for this link in tests/run-sql-tests.mjs PART 1f-ii. */
+    find: `    -- writes, but only the "return the lapsed seller's own goods" path, capped at 200
+    'market_expire(integer)',
+`,
+    add: '',
+    where: 'replace',
   },
 ];
 

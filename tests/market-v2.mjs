@@ -261,6 +261,89 @@ const MUTATIONS = {
     find: "       v_row.item_id, -p_qty, v_net, 0, 0, 0, 0,",
     repl: "       v_row.item_id, -p_qty, v_net, v_net, 0, 0, 0,",
   },
+  // ── SECURITY M1 · THE EXPIRY SWEEP TAKES NO PER-SELLER LOCK ─────────────
+  expire_no_seller_lock: {
+    why: 'Security M1 — hr_market_expire drops the pg_try_advisory_xact_lock on the seller, so its '
+       + 'escrow-return upsert can interleave with a concurrent hr_market_list on the same '
+       + '(seller, slot). §11(i-2)(3) refuses the migration; a single backend cannot race it',
+    find: '    if not pg_try_advisory_xact_lock(\n'
+        + '         hashtextextended(v_row.seller_user_id::text || \'\:\' || v_row.seller_slot::text, 0)) then\n'
+        + '      continue;   -- the seller is mid-transaction; the next 5-minute sweep gets it\n'
+        + '    end if;\n',
+    repl: '',
+  },
+  // ── SECURITY M2 · THE PER-DAY ESCROW-QUANTITY CLAMP ────────────────────
+  escrow_cap_off: {
+    why: 'Security M2 — the per-day escrowed-quantity clamp is gone, so a count of listings is the '
+       + 'only bound on an item drain: 200 listings of 1e8 each is 2e10 units pushed into escrow in '
+       + 'a day, under the count cap',
+    find: '    if v_esc_today + p_qty > c_max_escrow_qty_per_day then',
+    repl: '    if false then',
+  },
+  // ── SECURITY M4 · THE LISTING IS IMMUTABLE BY CONSTRUCTION ─────────────
+  listing_immutable_trigger_off: {
+    why: 'Security M4 — the immutability trigger is never attached, so seller_user_id / seller_slot '
+       + '/ ask_each become mutable in any form §11(j)\'s regex misses. §11(j-2) refuses the '
+       + 'migration; the regex is only a hint',
+    find: 'drop trigger if exists trg_market_listing_immutable on public.market_listings;\n'
+        + 'create trigger trg_market_listing_immutable\n'
+        + '  before update on public.market_listings\n'
+        + '  for each row execute function public.hr_market_listing_immutable();',
+    repl: '-- MUTATED: the immutability trigger is not attached',
+  },
+  // ── SECURITY M3 · WASH TRADES DECEIVE THE PRICE CHART ──────────────────
+  wash_in_chart: {
+    why: 'Security M3 — the price-history view stops excluding same-account trades, so a seller '
+       + 'buying their own goods through a second character plants an arbitrary public price',
+    find: '   where at > now() - interval \'30 days\'\n     and seller_user_id <> buyer_user_id;',
+    repl: '   where at > now() - interval \'30 days\';',
+  },
+  self_trade_meta_off: {
+    why: 'Security M3 — the buyer-side journal row stops carrying `self_trade`, so an abuse '
+       + 'investigation cannot tell a wash from an honest trade without re-joining seller to buyer',
+    find: '                          \'counterparty\', v_row.seller_user_id, \'transfer\', true,\n'
+        + '                          \'self_trade\', v_row.seller_user_id = v_uid)),',
+    repl: '                          \'counterparty\', v_row.seller_user_id, \'transfer\', true)),',
+  },
+  // ── SECURITY M8 · THE TWO LOCKS MUST BE ORDERED BY THE CODE ────────────
+  buy_lock_unordered: {
+    why: 'Security M8 — the two advisory locks go back to a single `order by u, s` subquery, which '
+       + 'relies on planner volatile-postponement; two buyers crossing could deadlock (40P01) mid-'
+       + 'transfer. §11(i-2)(1b) refuses the migration; a single backend cannot contend to race it',
+    find: '  if (v_uid::text, v_slot) < (v_route.seller_user_id::text, v_route.seller_slot) then\n'
+        + '    perform pg_advisory_xact_lock(hashtextextended(v_uid::text || \'\:\' || v_slot::text, 0));\n'
+        + '    perform pg_advisory_xact_lock(\n'
+        + '      hashtextextended(v_route.seller_user_id::text || \'\:\' || v_route.seller_slot::text, 0));\n'
+        + '  else\n'
+        + '    perform pg_advisory_xact_lock(\n'
+        + '      hashtextextended(v_route.seller_user_id::text || \'\:\' || v_route.seller_slot::text, 0));\n'
+        + '    perform pg_advisory_xact_lock(hashtextextended(v_uid::text || \'\:\' || v_slot::text, 0));\n'
+        + '  end if;',
+    repl: '  perform pg_advisory_xact_lock(k) from (\n'
+        + '    select hashtextextended(u || \'\:\' || s::text, 0) as k\n'
+        + '      from (values (v_uid::text, v_slot),\n'
+        + '                   (v_route.seller_user_id::text, v_route.seller_slot)) as t(u, s)\n'
+        + '     order by u, s) ordered;',
+  },
+  // ── DESIGNER / COND. 12 · THE SINK ROUNDS UP ──────────────────────────
+  tax_trunc: {
+    why: 'the house tax reverts to trunc, so a sub-unit tax (60 units @ 1g, 0.9 tax) floors to 0 — '
+       + 'a tax-free trade, the split-to-zero hole the ceil ruling closes',
+    find: '    v_tax   := ceil(v_gross_n * v_cfg.house_tax_bp::numeric / 10000)::bigint;',
+    repl: '    v_tax   := trunc(v_gross_n * v_cfg.house_tax_bp::numeric / 10000)::bigint;',
+  },
+  // ── SECURITY M9 · A SILENT REFUSAL LEAVES NO TRACE ─────────────────────
+  gone_not_recorded: {
+    why: 'Security M9 — the routing `gone` refusal stops recording a (sampled) rejection, so a '
+       + 'listing bought out from under a caller leaves no durable trace for an abuse investigation',
+    find: '    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, \'apply\')) > 0 then\n'
+        + '      perform public.hr_record_rejection(v_uid, v_slot, v_intent, \'gone\',\n'
+        + '        jsonb_build_object(\'listing\', p_listing_id, \'stage\', \'routing\'),\n'
+        + '        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, \'apply\')));\n'
+        + '    end if;\n'
+        + '    return jsonb_build_object(\'ok\', false, \'error\', \'gone\');',
+    repl: '    return jsonb_build_object(\'ok\', false, \'error\', \'gone\');',
+  },
 };
 
 // ── args ────────────────────────────────────────────────────────────────
@@ -389,7 +472,7 @@ async function run(mutate) {
     [o.user, o.slot ?? 0, o.version ?? await versionOf(o.user), o.key || uuid(), o.listing]);
   const buy = async (o) => call(
     'select public.hr_market_buy($1::uuid,$2::int,$3::bigint,$4::uuid,$5::uuid,$6::bigint) r',
-    [o.user, 0, o.version ?? await versionOf(o.user), o.key || uuid(), o.listing, o.qty]);
+    [o.user, o.slot ?? 0, o.version ?? await versionOf(o.user), o.key || uuid(), o.listing, o.qty]);
 
   /* THE GOODS, chosen from the SERVER's own generated catalogue by the property
      that matters (tradeable, stackable), never by name — a hard-coded item id
@@ -445,7 +528,10 @@ async function run(mutate) {
 
     const after = await snapshot(db, ITEM);
     const gross = QTY * ASK;
-    const tax = (gross * TAX_BP) / 10000n;
+    /* ceil, matching the server sink (Game Designer ruling on Security cond. 12).
+       For QTY*ASK=5000 @ 150bp this is exactly 75 either way; the ceil case that
+       actually moves is exercised in M22. */
+    const tax = (gross * TAX_BP + 9999n) / 10000n;
     const net = gross - tax;
 
     ok(after.buyer.gold === before.buyer.gold - gross,
@@ -779,6 +865,148 @@ async function run(mutate) {
     end $$;`);
   } catch (e) { if (!(e instanceof Red)) throw e; }
 
+  // ══ M19 · THE LISTING IS IMMUTABLE IN THREE COLUMNS (Security M4) ══════
+  //    Driven by a DIRECT update as the table owner — the trigger fires whoever
+  //    attempts the write and however it is spelled, which is the guarantee the
+  //    §11(j) regex only hints at. Paired with a control so a trigger that raised
+  //    on every update would not pass.
+  try {
+    await stock();
+    const l = await list({ user: SELLER, item: ITEM, qty: 3, ask: ASK });
+    ok(l.ok === true, `M19: setup list refused: ${JSON.stringify(l)}`);
+    let threw = false;
+    try {
+      await db.query('update public.market_listings set ask_each = ask_each + 1 where id = $1',
+        [l.listed.listing_id]);
+    } catch (e) { threw = true; }
+    ok(threw, 'M19: a direct UPDATE to ask_each was ALLOWED — the immutability trigger is not '
+      + 'guarding, so §4c\'s unlocked routing read and §7\'s price-free buy intent both rest on a lie');
+    const row = (await db.query('select ask_each::text a from public.market_listings where id=$1',
+      [l.listed.listing_id])).rows[0];
+    ok(row && BigInt(row.a) === ASK, `M19: ask_each changed to ${row && row.a} despite the refusal`);
+    /* CONTROL: a partial-buy-shaped update (qty only) must still be allowed. */
+    let ctrlOk = true;
+    try {
+      await db.query('update public.market_listings set qty = qty - 1 where id = $1',
+        [l.listed.listing_id]);
+    } catch (e) { ctrlOk = false; }
+    ok(ctrlOk, 'M19 CONTROL: a qty-only update was refused — the trigger over-fires and a partial '
+      + 'buy could never consume a listing');
+  } catch (e) { if (!(e instanceof Red)) throw e; }
+
+  // ══ M20 · A WASH TRADE IS EXCLUDED FROM THE PRICE CHART (Security M3) ══
+  //    A same-account, cross-slot self-buy settles a real, conserved sale, but
+  //    its price is fictional. It must not reach market_price_history, and both
+  //    journal rows must carry `self_trade`.
+  try {
+    await stock();
+    /* SELLER needs a second character to buy their own slot-0 listing with. */
+    await db.exec(`do $$ begin
+      perform set_config('request.jwt.claim.sub', '${SELLER}', true);
+      perform public.hr_create_character(1);
+      perform set_config('request.jwt.claim.sub', '', true);
+    end $$;`);
+    await db.query('update public.player_state set gold = 1000000 where user_id=$1 and slot=1', [SELLER]);
+    const slot1Version = () => db.query(
+      'select version::text v from public.player_state where user_id=$1 and slot=1', [SELLER])
+      .then((r) => r.rows[0].v);
+
+    const l = await list({ user: SELLER, item: ITEM, qty: 2, ask: ASK });
+    ok(l.ok === true, `M20: setup list refused: ${JSON.stringify(l)}`);
+    const phBefore = Number((await db.query(
+      'select count(*)::int n from public.market_price_history where item_id=$1', [ITEM])).rows[0].n);
+    const salesBefore = Number((await db.query('select count(*)::int n from public.market_sales')).rows[0].n);
+
+    const w = await buy({ user: SELLER, slot: 1, listing: l.listed.listing_id, qty: 2,
+      version: await slot1Version() });
+    ok(w.ok === true, `M20: the same-account cross-slot buy refused: ${JSON.stringify(w)} — a wash `
+      + 'is a legal (conserved) trade; it is only hidden from the chart, not prevented');
+
+    const salesAfter = Number((await db.query('select count(*)::int n from public.market_sales')).rows[0].n);
+    ok(salesAfter === salesBefore + 1, 'M20: the wash wrote no market_sales row — the sale is real');
+    const phAfter = Number((await db.query(
+      'select count(*)::int n from public.market_price_history where item_id=$1', [ITEM])).rows[0].n);
+    ok(phAfter === phBefore,
+      `M20: THE WASH REACHED THE PUBLIC PRICE CHART (${phBefore} -> ${phAfter}). A seller trading `
+      + 'with their own second character could plant an arbitrary floor or spike for a stranger to read');
+
+    const buyerMeta = (await db.query(
+      `select meta from public.player_ledger where user_id=$1 and slot=1
+        and intent like 'market\\_buy:%' order by at desc limit 1`, [SELLER])).rows[0];
+    ok(buyerMeta && buyerMeta.meta && buyerMeta.meta.self_trade === true,
+      'M20: the buyer-side journal row of a wash is not stamped self_trade=true');
+    const sellerMeta = (await db.query(
+      `select meta from public.player_ledger where user_id=$1 and slot=0
+        and intent like 'market\\_sold:%' order by at desc limit 1`, [SELLER])).rows[0];
+    ok(sellerMeta && sellerMeta.meta && sellerMeta.meta.self_trade === true,
+      'M20: the seller-side journal row of a wash is not stamped self_trade=true');
+
+    /* CONTROL: an honest cross-account trade IS in the chart and is self_trade=false. */
+    await stock();
+    const l2 = await list({ user: SELLER, item: ITEM, qty: 2, ask: ASK });
+    const phPre = Number((await db.query(
+      'select count(*)::int n from public.market_price_history where item_id=$1', [ITEM])).rows[0].n);
+    const r = await buy({ user: BUYER, listing: l2.listed.listing_id, qty: 2 });
+    ok(r.ok === true, `M20 CONTROL: honest buy refused: ${JSON.stringify(r)}`);
+    const phPost = Number((await db.query(
+      'select count(*)::int n from public.market_price_history where item_id=$1', [ITEM])).rows[0].n);
+    ok(phPost === phPre + 1,
+      'M20 CONTROL: an honest cross-account trade did NOT reach the chart — the filter excludes real '
+      + 'sales too, so the chart it protects is empty');
+    const honestMeta = (await db.query(
+      `select meta from public.player_ledger where user_id=$1 and slot=0
+        and intent like 'market\\_buy:%' order by at desc limit 1`, [BUYER])).rows[0];
+    ok(honestMeta && honestMeta.meta && honestMeta.meta.self_trade === false,
+      'M20 CONTROL: an honest trade is stamped self_trade=true — the flag no longer distinguishes');
+  } catch (e) { if (!(e instanceof Red)) throw e; }
+
+  // ══ M21 · A SILENT REFUSAL LEAVES A DURABLE TRACE (Security M9) ════════
+  //    `gone` is sampled (hr_rate_sample_weight), so the counter is cleared first
+  //    to put the caller on sample point 1 — the same mechanism the rate-limit
+  //    branch uses, driven to a known point rather than left to chance.
+  try {
+    await db.query('delete from public.hr_rate_counters where user_id=$1', [BUYER]);
+    const before = Number((await db.query(
+      "select coalesce(sum(n),0)::int c from public.hr_rejections where user_id=$1 and code='gone'",
+      [BUYER])).rows[0].c);
+    const r = await buy({ user: BUYER, listing: uuid(), qty: 1 });
+    ok(r.ok === false && r.error === 'gone', `M21: buying a nonexistent listing answered ${JSON.stringify(r)}`);
+    const after = Number((await db.query(
+      "select coalesce(sum(n),0)::int c from public.hr_rejections where user_id=$1 and code='gone'",
+      [BUYER])).rows[0].c);
+    ok(after > before,
+      `M21: a \`gone\` refusal recorded NO rejection (${before} -> ${after}). A listing bought out `
+      + 'from under a caller left no trace — a refusal nobody can investigate');
+  } catch (e) { if (!(e instanceof Red)) throw e; }
+
+  // ══ M22 · THE TAX ROUNDS UP — no split-to-zero (Designer / cond. 12) ══
+  //    A sub-unit tax that trunc would drop to zero. 60 units @ 1g = 60 gross;
+  //    60 * 150bp / 10000 = 0.9, which trunc floors to 0 (a tax-free trade) and
+  //    ceil rounds to 1. The sink must charge the 1. Runs BEFORE M14, which plants
+  //    a day's spend for BUYER and would otherwise trip the spend cap here.
+  try {
+    await stock();
+    const l = await list({ user: SELLER, item: ITEM, qty: 60n, ask: 1n });
+    ok(l.ok === true, `M22: setup list refused: ${JSON.stringify(l)}`);
+    const before = await snapshot(db, ITEM);
+    const r = await buy({ user: BUYER, listing: l.listed.listing_id, qty: 60n });
+    ok(r.ok === true, `M22: buy refused: ${JSON.stringify(r)}`);
+    const gross = 60n;
+    const tax = (gross * TAX_BP + 9999n) / 10000n;   // ceil(0.9) = 1
+    ok(tax === 1n, `M22: harness ceil math is wrong — expected 1, got ${tax}`);
+    ok(BigInt(r.bought.tax) === 1n,
+      `M22: THE SUB-UNIT TAX SPLIT TO ${r.bought.tax}, not 1. trunc(0.9)=0 makes a sub-unit trade `
+      + 'tax-free — sixty 1-gold buys would drain nothing into the sink. ceil closes that.');
+    const after = await snapshot(db, ITEM);
+    /* The seller receives gross - ceil(tax); conservation still holds (the coin
+       the seller does NOT get is the coin the sink DID). */
+    ok(after.seller.gold === before.seller.gold + (gross - 1n),
+      `M22: seller got ${after.seller.gold - before.seller.gold}, expected ${gross - 1n} (gross - ceil tax)`);
+    ok(after.tax === before.tax + 1n, 'M22: the sink did not receive the rounded-up coin');
+    ok(goldTotal(after) === goldTotal(before),
+      'M22 CONSERVATION: Σgold+Σtax moved — ceil must reallocate the sub-unit coin, never mint it');
+  } catch (e) { if (!(e instanceof Red)) throw e; }
+
   // ══ M14 · THE PER-DAY TRANSFER FUSES BITE ═════════════════════════════
   try {
     /* Driven by moving the CEILING down to what this run can reach, rather than
@@ -840,8 +1068,38 @@ async function run(mutate) {
       'M14 SELLER SIDE: the refused trade still credited the seller');
     /* NOT cleaned up: player_ledger refuses a DELETE inside the retention
        window, which is the immutability trigger working. So this block runs
-       LAST — a planted day's spend would otherwise make every later purchase
-       by this buyer hit the same fuse and read as a different bug. */
+       near the LAST — a planted day's spend would otherwise make every later
+       purchase by this buyer hit the same fuse and read as a different bug. */
+  } catch (e) { if (!(e instanceof Red)) throw e; }
+
+  // ══ M18 · THE PER-DAY ESCROW-QUANTITY FUSE BITES (Security M2) ═════════
+  //    RUNS LAST: it plants a day's escrow in the append-only ledger, which
+  //    player_ledger will not let a later leg delete, so it would poison every
+  //    subsequent list by this seller. Driven by moving the day's ledger past
+  //    the CONSTANT the function reads — the same code path a real drain takes.
+  try {
+    const src = (await db.query(
+      `select prosrc from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+        where n.nspname='public' and p.proname='hr_market_list'`)).rows[0].prosrc;
+    const m = /c_max_escrow_qty_per_day\s+constant\s+bigint\s*:=\s*(\d+)/.exec(src);
+    ok(!!m, 'M18: the per-day escrow-quantity clamp is not a named constant any more — a fuse '
+      + 'nobody can find is a fuse nobody can audit');
+    const cap = BigInt(m[1]);
+    /* Plant a day's escrow directly in the ledger the clamp reads — qty is
+       NEGATIVE on a market_list row, so `sum(-qty)` is the day's escrowed total. */
+    await db.query(
+      `insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, gold_in, xp_in, qty_in, gems_in)
+       values ($1, 0, 'trade', 'market_list:planted', $2, $3, 0, 0, 0, 0)`,
+      [SELLER, ITEM, (-cap).toString()]);
+    await stock();
+    const before = await snapshot(db, ITEM);
+    const r = await list({ user: SELLER, item: ITEM, qty: 1n, ask: ASK });
+    ok(r.ok === false && r.error === 'market_escrow_daily_cap',
+      `M18: the per-day escrow fuse did not bite: ${JSON.stringify(r)} — a count of listings is not `
+      + 'a bound on an item drain');
+    const after = await snapshot(db, ITEM);
+    ok(itemTotal(after) === itemTotal(before) && after.escrow === before.escrow,
+      'M18: the refused list still escrowed items — the protected block did not roll back in full');
   } catch (e) { if (!(e instanceof Red)) throw e; }
 
   await db.close?.();
@@ -886,7 +1144,8 @@ if (out.length) {
   console.error(`\nmarket-v2: ${out.length} failure(s)`);
   process.exit(1);
 }
-console.log('market-v2: 15 checks green — two players, both sides measured, conservation held');
+console.log('market-v2: all checks green — two players, both sides measured, conservation held, '
+  + 'escrow/expiry/immutability/wash/silent-refusal closed');
 
 /** Exported so tests/run-smoke.mjs runs this as one guard. */
 export async function marketV2Guard() {

@@ -379,7 +379,7 @@
       if(!sales || !sales.length) return;
       var total = 0;
       sales.forEach(function(s){
-        var net = Math.floor(s.goldTotal * (1 - HOUSE_TAX));   // house tax = gold sink
+        var net = s.goldTotal - Math.ceil(s.goldTotal * HOUSE_TAX);   // ceil tax = sink rounds UP, matching the server
         total += net;
         recordSale(s.itemId, Math.round(s.goldTotal / Math.max(1, s.qty)), s.qty);
       });
@@ -507,9 +507,15 @@
       postedAt: Date.now(),
     };
     list.push(newL);
-    // Try to auto-fill any matching open buy offers BEFORE we save —
-    // this drains the new listing's qty in-place if there are takers.
-    autoMatchAgainstOffers(newL);
+    /* Try to auto-fill any matching open buy offers BEFORE we save — this drains
+       the new listing's qty in-place if there are takers.
+       ⚠ b355 — NOT UNDER THE SEAM (Security M5/M6). Auto-match pays a LOCAL buy
+       offer out of a listing the SERVER now owns as escrow: it would deliver goods
+       and move gold the server never heard of, against a client-authored buy-offer
+       sub-market that market-v2 does not implement. Under the seam hr_market_list
+       owns the escrow and there is no buy-offer model to match against, so this is
+       skipped entirely — the listing goes to the server at its full qty. */
+    if(!serverMarketActive()) autoMatchAgainstOffers(newL);
     if(newL.qty <= 0){
       // Fully consumed by buy offers — drop the listing entirely.
       list.pop();
@@ -615,7 +621,7 @@
     // Seller's gold credited net of house tax. NOTE: in dev mode the
     // seller is the same player on the same browser, so we just no-op.
     // In production this writes to the seller's account via Supabase.
-    var sellerNet = Math.floor(totalCost * (1 - HOUSE_TAX));
+    var sellerNet = totalCost - Math.ceil(totalCost * HOUSE_TAX);   // ceil tax, matching the server sink
     // (server-side: credit sellerId gold += sellerNet)
     void sellerNet;
 
@@ -696,7 +702,10 @@
 
     var residual = qtyWanted - bought;
     var offerCreated = null;
-    if(residual > 0 && placeOffer){
+    /* b355 — the residual buy-offer is part of the client-authored sub-market and
+       is inert under the seam (placeBuyOffer refuses it anyway; this skips the
+       attempt so the residual reads as "not available" rather than a failed offer). */
+    if(residual > 0 && placeOffer && !serverMarketActive()){
       var r = placeBuyOffer(itemId, residual, maxEach);
       if(r.ok) offerCreated = r.offer;
     }
@@ -720,6 +729,16 @@
 
   // ── Buy offer operations ───────────────────────────────────
   function placeBuyOffer(itemId, qty, maxEach){
+    /* ⚠ b355 — INERT UNDER THE SEAM (Security M5/M6). This is the client-authored
+       buy-offer sub-market: it escrows gold with a bare `G.gold -= totalEscrow`
+       that NO server verb reconciles (market-v2 implements SELL listings only,
+       and `market_buy_offers` has no RPC — see src/net/gold-sites.js
+       B.MARKET_BUY_OFFERS). Under the switch, applyEnvelopeState writes gold
+       ABSOLUTELY, so that local debit would be silently refunded at the next
+       envelope — a mint the seam exists to make unspellable. Refused BEFORE any
+       gold moves, so the site is provably inert under the flag; the row in the
+       gold census stays `deferred`, blocked on a server buy-offer model. */
+    if(serverMarketActive()) return { ok:false, reason:'Buy offers are not available yet' };
     if(qty <= 0 || maxEach <= 0) return { ok:false, reason:'Invalid amount' };
     var item = window.ITEMS && window.ITEMS[itemId];
     if(!item) return { ok:false, reason:'Unknown item' };
@@ -752,6 +771,13 @@
   }
 
   function cancelBuyOffer(offerId){
+    /* ⚠ b355 — INERT UNDER THE SEAM (Security M5/M6). Cancelling refunds escrow
+       with a bare `G.gold += escrowed` — gold the server never saw leave, since
+       placeBuyOffer is itself gated off under the flag. Refunding it would be a
+       mint at the next absolute envelope. Refused before any gold moves; any local
+       offers left over from before the flip stay untouched and are wiped at
+       cutover with the rest of the beta. */
+    if(serverMarketActive()) return { ok:false, reason:'Buy offers are not available yet' };
     var offers = loadOffers();
     var idx = offers.findIndex(function(o){ return o.id === offerId; });
     if(idx < 0) return { ok:false, reason:'Offer not found' };
@@ -771,6 +797,11 @@
   // credits the buyer, and the seller still gets their gold elsewhere.
   // (For now: matches against ALL buyers' offers, not just mine.)
   function autoMatchAgainstOffers(newListing){
+    /* ⚠ b355 — INERT UNDER THE SEAM (Security M5/M6), defence in depth. listItem
+       already skips this call under the flag; guarding here too means a future
+       caller cannot reintroduce the client-authored fill (delivering goods and
+       moving gold the server never authorised) by wiring auto-match somewhere new. */
+    if(serverMarketActive()) return;
     var offers = loadOffers();
     if(!offers.length) return;
     var matches = offers
@@ -1038,7 +1069,11 @@
         + '<div class="mk-action"><button class="mk-cancel-offer mk-cancel" data-cancel-offer="' + o.id + '">Cancel offer</button></div>'
         + '</div>';
     };
-    var offersBlock = myOffers.length
+    /* b355 — the buy-offer sub-market is HIDDEN under the seam (Security M5/M6):
+       it is client-authored and has no server story, so its UI is not shown when
+       server market authority is on. Any pre-flip local offers stay in storage,
+       untouched and unshown, and are wiped at cutover. */
+    var offersBlock = (myOffers.length && !serverMarketActive())
       ? ('<div class="mk-block"><h3>📥 Your buy offers (' + myOffers.length + ')</h3>'
         + myOffers.map(offerRow).join('')
         + '</div>')
@@ -1258,8 +1293,13 @@
       +       '</div>'
       +     '</div>'
       +     '<div class="bm-summary" id="bm-summary"></div>'
-      +     '<label class="bm-offer-toggle"><input type="checkbox" id="bm-offer" checked>'
-      +       '<span>If short, place a buy offer for the remainder at this price</span></label>'
+      /* b355 — the "place a buy offer for the remainder" toggle is part of the
+         client-authored buy-offer sub-market and is HIDDEN under the seam
+         (Security M5/M6). With it gone, a short buy simply fills what the market
+         has and reports the residual as unavailable. */
+      +     (serverMarketActive() ? ''
+        : ('<label class="bm-offer-toggle"><input type="checkbox" id="bm-offer" checked>'
+      +       '<span>If short, place a buy offer for the remainder at this price</span></label>'))
       +   '</div>'
       +   '<div class="bm-actions">'
       +     '<button class="btn" id="bm-cancel">Cancel</button>'
@@ -1270,8 +1310,11 @@
 
     var qtyEl     = modal.querySelector('#bm-qty');
     var summary   = modal.querySelector('#bm-summary');
-    var offerEl   = modal.querySelector('#bm-offer');
+    var offerEl   = modal.querySelector('#bm-offer');   // null under the seam (toggle hidden)
     var confirmEl = modal.querySelector('#bm-confirm');
+    /* b355 — the offer toggle is absent under the seam, so its checked-state is
+       read through one null-safe helper rather than off a possibly-missing node. */
+    var offerOn = function(){ return !!(offerEl && offerEl.checked); };
 
     function updateSummary(){
       var qWanted = Math.max(1, parseInt(qtyEl.value, 10) || 1);
@@ -1286,7 +1329,7 @@
       }
       var residual = qWanted - fillNow;
       var escrow = residual * atPrice;
-      var totalGold = spend + (offerEl.checked ? escrow : 0);
+      var totalGold = spend + (offerOn() ? escrow : 0);
       var canAfford = (window.G.gold||0) >= totalGold;
       var hasResidual = residual > 0;
       var lines = [];
@@ -1297,7 +1340,7 @@
           '</div>');
       }
       if(hasResidual){
-        if(offerEl.checked){
+        if(offerOn()){
           lines.push('<div class="bm-line offer">' +
             '<span>Buy offer (escrow): <b>' + residual.toLocaleString() + '</b> @ ' + atPrice.toLocaleString() + 'g</span>' +
             '<span class="num">' + escrow.toLocaleString() + 'g</span>' +
@@ -1312,15 +1355,15 @@
       lines.push('<div class="bm-line total"><span><b>Total</b></span>' +
         '<span class="num"><b>' + totalGold.toLocaleString() + 'g</b></span></div>');
       summary.innerHTML = lines.join('');
-      confirmEl.disabled = !canAfford || (fillNow === 0 && (!hasResidual || !offerEl.checked));
+      confirmEl.disabled = !canAfford || (fillNow === 0 && (!hasResidual || !offerOn()));
       confirmEl.textContent = canAfford
-        ? (fillNow === qWanted ? 'Buy ' + fillNow : (offerEl.checked ? 'Buy ' + fillNow + ' + offer ' + residual : 'Buy ' + fillNow))
+        ? (fillNow === qWanted ? 'Buy ' + fillNow : (offerOn() ? 'Buy ' + fillNow + ' + offer ' + residual : 'Buy ' + fillNow))
         : 'Not enough gold';
     }
     updateSummary();
 
     qtyEl.addEventListener('input', updateSummary);
-    offerEl.addEventListener('change', updateSummary);
+    if(offerEl) offerEl.addEventListener('change', updateSummary);   // absent under the seam
     modal.querySelectorAll('.bm-quick button').forEach(function(b){
       b.addEventListener('click', function(){
         var v = b.getAttribute('data-q');
@@ -1333,7 +1376,7 @@
     modal.querySelector('#bm-cancel').addEventListener('click', closeBuyModal);
     confirmEl.addEventListener('click', function(){
       var qWanted = Math.max(1, parseInt(qtyEl.value, 10) || 1);
-      var r = buyAggregated(itemId, qWanted, atPrice, offerEl.checked);
+      var r = buyAggregated(itemId, qWanted, atPrice, offerOn());
       if(!r.ok){
         if(typeof window.notify === 'function') window.notify(r.reason, 'kill');
         return;

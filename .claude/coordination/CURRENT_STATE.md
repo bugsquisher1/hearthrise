@@ -24,6 +24,18 @@ Supabase is LIVE in production — chat/market/clans/raids/leaderboards are genu
 ## Art direction (current)
 "Forge & Stone" medieval, hearthlight (dark) default theme. 0 emoji rendered as art. Icons = baked atlas in `src/data/glyphs.js`. Type: Alegreya Sans + Cinzel. Containment is earned (no wall-of-cards). See `.claude/coordination/agents/art-director.md` and project memory `art-direction-system`.
 
+**Hearthfire adoption (b361, worktree `agent-a0527b0b5704290df` — not integrated, not bumped, not pushed).**
+- **Items:** 386 of 512 wired (`src/data/item-art.js`); 126 withheld and worklisted in code.
+- **Monsters:** **104 of 111 wired** (`src/data/monster-art.js`) — 74 hearthfire + 30 legacy `painted/`.
+  Wave 1 added 69. Still owed: `jackal`, `air_elemental`, `wyrmling` (never delivered) and
+  `cyclops`, `void_mote`, `elder_cinder`, `ooze` (delivered, **withheld — wrong subject**, listed with
+  regeneration briefs in `WAVE1_REJECTED`, enforced by the monster-art preflight in both directions).
+- **THE OPEN ART PROBLEM:** the mixed shelf is now 74 hearthfire vs **30 legacy `painted/`**, and the
+  bestiary and boss cards render them side by side at the same size. The 30 now read as placeholder
+  art. Re-shooting `LEGACY_ART_IDS` is the highest-value art request in the queue — see HANDOFFS.
+- Flattened art deliveries do **not** need paid background removal: probe with `tools/art-bg-probe.mjs`,
+  matte with `tools/art-wave-matte.mjs` (256² square, ct6). Wave 1 cost **$0.00**.
+
 ## Gameplay direction (current)
 Online-only social idle-RPG, OSRS-scale north star. All skills to 99 (data-driven gear tiers in `src/data/gear-tiers.js`). "Rise to the Throne" renown meta-spine + daily login + collection log are the retention pillars. No pay-to-win (Season Pass removed).
 

@@ -974,6 +974,15 @@ async function monsterArtPreflight() {
     if (!MONSTERS[id]) problems.push(`${id}.png is on disk but "${id}" is not a monster id (mis-named delivery?)`);
     else if (!shipped.has(id)) problems.push(`${id}.png is on disk but "${id}" is not in SHIPPED — art delivered, never wired`);
   });
+  /* A reviewed reject may never also be shipped. The item side learned this
+     as `REJECTED_WRONG_SUBJECT` in b358: without the guard, a later pass that
+     re-copies a whole delivery folder silently un-rejects the wrong art. */
+  Object.keys(art.WAVE1_REJECTED || {}).forEach((id) => {
+    if (shipped.has(id)) problems.push(`"${id}" is in WAVE1_REJECTED AND in SHIPPED — pick one`);
+    if (onDisk.has(id)) problems.push(`"${id}" is in WAVE1_REJECTED but ${id}.png is on disk — a reject must not be delivered`);
+    if (!MONSTERS[id]) problems.push(`WAVE1_REJECTED lists "${id}", which is not a monster`);
+  });
+
   /* Every wired path must point INTO the shipped icons-bundle. */
   const wired = art.wiredIconMap();
   Object.keys(wired).forEach((id) => {

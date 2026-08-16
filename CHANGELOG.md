@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 361 — 2026-08-17 (The bestiary gets its faces)
+
+- 🐺 **104 of 111 monsters now have hand-painted portraits** — the whole new roster, from the barn rat to the bosses, painted in the game's new style. (The 30 original monsters keep their old icons a little longer; they're next.)
+- 🖼️ **Item popups now show the real artwork** — clicking an item used to show a plain emoji at the biggest size in the game; it now shows the same painted icon as your inventory.
+- 📋 **Locked upgrades now tell you why, up front.** Room and building upgrades that need a blueprint (or any special item) say so right on the upgrade — what you need, whether you have it, and where it comes from — instead of letting you click first and find out after.
+- 🧱 A few item names cleaned up ("Blank Runes"), and 42 more item icons joined the new set (428 of 512).
+
 ## v0.9.2-beta build 360 — 2026-08-17 (The new look begins)
 
 - 🎨 **Nearly 400 items get brand-new hand-painted artwork** — weapons, armour, food, materials, runes and whetstones, all in Hearthrise's new painted style. The rest keep their old icons until their replacements pass review; monsters are getting the same treatment next.

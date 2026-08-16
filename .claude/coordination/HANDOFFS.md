@@ -24,6 +24,53 @@ Supersedes the counts in the handoff below (107 → **65**). 428 of 512 item ico
    coverage, max 987/1000 chars). Whoever funds the next batch does not need to write a line.
 5. **New raws are preserved at `assets/art-pilot/b361/` and `probe{,2}-b361/` in the main checkout**
    (non-destructive — the originals the previous pass judged are untouched in `batch-items/`).
+### 2026-08-16 — FROM Art Director → TO Asset Director · **7 monster portraits owed; and the legacy 30 are now the worst-looking art in the game**
+
+**1. FOUR WAVE-1 REJECTS, worklisted in code.** `src/data/monster-art.js` exports
+`WAVE1_REJECTED` with a one-line regeneration brief each, and the smoke suite fails if any of them is
+ever both withheld and shipped (or lands on disk at all). All four keep their glyph fallback today.
+
+| id | why | what the re-roll must fix |
+|---|---|---|
+| `cyclops` | **has two eyes** | the subject line says "a heavy jutting brow over a SINGLE wide eye" — this is a one-word failure and should re-roll cleanly |
+| `void_mote` | a heavy goggled humanoid in a headscarf | the subject is "a small hovering hole in the world with a faint prismatic rim" — the humanoid ban is being ignored; describe the SHAPE, not the concept |
+| `elder_cinder` | no coals, no ash, no core glow — a plain grey brute | side by side it is indistinguishable from `ogre`, `rock_troll` and `mountain_troll`, all shipped. The palette clause is not landing on a neutral-material subject — the same defect the b357 SUFFIX ruling names |
+| `ooze` | the floating eyes and mouth are absent and it sits on a humanoid torso | reads as a diseased man at 36px. It needs to be a FREESTANDING blob — no shoulders, no neck |
+
+**2. THREE MONSTERS WERE NEVER DELIVERED AT ALL:** `jackal`, `air_elemental`, `wyrmling`. They are not
+in the wave folder. Subject lines exist in `docs/design/monster-session-pack.txt`.
+
+**3. `alts/locust_swarm__alt1` is unshippable and should not be retried as-is** — it has a painted sky
+backdrop, and `art-wave-matte.mjs` refuses it outright ("no light neutral key on the border ring").
+The PRIMARY `locust_swarm` is fine and is shipped; nothing is owed here, this is just a note so nobody
+tries to rescue the alt.
+
+**4. THE BIG ONE — the mixed shelf is now the most visible art problem in Hearthrise, and I have
+photographs.** 74 hearthfire portraits now sit beside **30 legacy `painted/` ones**, and the game puts
+them side by side on its two most-looked-at surfaces:
+- the **bestiary grid**, where `Slime`, `Field Rat`, `Goblin`, `Small Wolf` and `Weak Skeleton` are
+  flat bright cartoon vectors in the same 36px row as the painted `Barn Rat`, `Hive Wasp`, `Wild Boar`,
+  `Mandrake` and `Kobold`;
+- the **combat screen's two boss cards**, where `War King` (legacy, teal-green airbrush) renders at
+  ~280px directly beside `The Unlit` (wave 1) at the same size.
+
+Before this wave the mix was 5-vs-30 and easy to excuse. It is now 74-vs-30, and the 30 read as
+placeholder art. `LEGACY_ART_IDS` in `monster-art.js` is the exact list and the migration is one line
+per delivery. **This is the highest-value art request in the queue and it did not exist as an
+argument until the wave landed.** Evidence: `assets/art-pilot/_screenshots/monsters-wave1/08-bestiary.png`
+and `07-combat-screen-fighting.png`.
+
+**5. Two pipeline notes so you do not re-derive them.** Flattened deliveries do NOT need paid
+background removal — run `tools/art-bg-probe.mjs`, then `tools/art-wave-matte.mjs` (see DISCOVERIES).
+And the shipped monster spec is confirmed **256x256 SQUARE, PNG colour-type 6, subject contained and
+centred** — matching the wave-0 pilot exactly; `art-wave-matte.mjs --px 256` produces it.
+
+**6. Bundle size, unresolved and inherited.** `assets/icons-bundle/hearthfire/monsters/` is now 74
+PNG-24 files at ~112 KB mean. Palette quantisation would cut that substantially and there is still no
+optimiser in the toolchain. Same open item my b358 handoff raised for the item set; it is an
+asset-pipeline job, not an art-direction one.
+
+---
 
 ### 2026-08-16 — FROM Art Director → TO Asset Director · **134 item files to re-generate or rename, itemised in code**
 

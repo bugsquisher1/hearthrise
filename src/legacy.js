@@ -7257,12 +7257,12 @@ function openInvDetail(id){
   /* Stats grid for gear/tools, otherwise show value/qty */
   const stats = [];
   stats.push(`<div><b>${qty.toLocaleString()}</b><span>quantity</span></div>`);
-  stats.push(`<div><b>🪙 ${(it.v||0).toLocaleString()}</b><span>value each</span></div>`);
+  stats.push(`<div><b>${_gp(it.v||0)}</b><span>value each</span></div>`);
   /* b226: for a raw material the book value and the vendor's bid are different
      numbers, so say both. A player who sees "1,400 value" and is paid 280 has
      been told a half-truth; a player who is told the vendor lowballs raws has
      been handed the reason the player market exists. */
-  if(it.raw) stats.push(`<div><b>🪙 ${vendorPrice(id).toLocaleString()}</b><span>vendor pays</span></div>`);
+  if(it.raw) stats.push(`<div><b>${_gp(vendorPrice(id))}</b><span>vendor pays</span></div>`);
   if(it.atkB) stats.push(`<div><b>+${it.atkB}</b><span>attack</span></div>`);
   if(it.strB) stats.push(`<div><b>+${it.strB}</b><span>strength</span></div>`);
   if(it.defB) stats.push(`<div><b>+${it.defB}</b><span>defense</span></div>`);
@@ -7340,8 +7340,8 @@ function openInvDetail(id){
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')">Unlock</button>`);
     } else {
       if(vendorPrice(id) > 0){
-        acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 (${vendorPrice(id)}🪙)</button>`);
-        if(qty > 1) acts.push(`<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${qty} (${(vendorPrice(id)*qty).toLocaleString()}🪙)</button>`);
+        acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 · ${_gp(vendorPrice(id))}</button>`);
+        if(qty > 1) acts.push(`<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${qty} · ${_gp(vendorPrice(id)*qty)}</button>`);
       }
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold">Lock</button>`);
     }
@@ -7383,10 +7383,30 @@ function openInvDetail(id){
   if(_src)  infoBlock += `<div class="inv-detail-info"><b>Source</b><span>${_src}</span></div>`;
   if(_used) infoBlock += `<div class="inv-detail-info"><b>Used in</b><span>${_used}</span></div>`;
 
+  /* b361 — Tyler, live: "click an item (e.g. Wheat Seed) and the popup still
+     shows the OLD icon while the grid shows the new art."
+
+     He was looking at THIS line, and it was worse than a stale map. The head
+     drew `it.icon` — the RAW EMOJI out of the ITEMS data table — at 48px. So
+     the single LARGEST item render in the game was a system pictograph, on a
+     project whose first non-negotiable is "no emoji as art anywhere".
+
+     Why the grid was right and this was wrong: every other item surface goes
+     through `itemArt()` / `itemImg()`, which read `window._itemPath` — the one
+     map that `__applyHearthfireItemIcons()` and `applyLocalIcons()` both write
+     into — and fall back to the b217 gilt-glyph backstop. This site was
+     hand-rolled HTML that never called either, so it could not see art that
+     had been mapped and could not be reached by the backstop. It is now the
+     same `itemArt()` call the grid tile makes, which makes the two incapable
+     of disagreeing rather than merely agreeing today.
+
+     The close mark and the three coin emoji in the same card go with it: same
+     rule, same card, and `uiClose` / `HR.amount('gold', …)` already exist. */
+  const closeGlyph = (window.HR && window.HR.icon) ? (window.HR.icon('uiClose', 14, 'currentColor') || '') : '';
   d.innerHTML = `<div class="inv-detail-card">
-    <div class="inv-detail-close" onclick="closeInvDetail()">✕</div>
+    <div class="inv-detail-close" onclick="closeInvDetail()" role="button" aria-label="Close">${closeGlyph || '&times;'}</div>
     <div class="inv-detail-head">
-      <div class="inv-detail-icon">${it.icon||'❓'}</div>
+      <div class="inv-detail-icon">${itemArt(id, 48)}</div>
       <div>
         <div class="inv-detail-name">${it.n}</div>
         <div class="inv-detail-meta">${cat}${it.slot?' · '+it.slot:''}${it.weaponType?' · '+it.weaponType:''}${_itemTier(id)?' · T'+_itemTier(id):''}</div>

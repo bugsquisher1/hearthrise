@@ -975,7 +975,17 @@ function loadLocal(){
   G.ownedCosmetics=G.ownedCosmetics||[];
   G.settings=Object.assign({sfx:true,reduceFx:false,leftHand:false},G.settings||{});
   delete G.settings.scale;   // b227: migrate old saves off the dead UI-scale key
-  G.gems=G.gems||0;
+  /* b353: THE THIRD WRITER, CAUGHT BEFORE IT EXISTED. This line ran
+     unconditionally, fourteen lines after `forgetServerOfRecord(G)`. The day
+     `gems` joins SERVER_OF_RECORD it becomes exactly the writer record.js's
+     header says does not exist — re-creating a client-authored 0 over a field
+     the strip has just deleted, and a 0 is indistinguishable from a real empty
+     purse until the envelope lands. It asks now. `gems` is not on the registry
+     yet (see the b353 block in src/net/record.js for the blocker), so today the
+     predicate is always true and this is byte-for-byte the b352 line — which is
+     the point: the site is already right, so arming the field is one entry and
+     not a hunt. */
+  if(clientMayWriteRecordField('gems')) G.gems=G.gems||0;
   G.bank=Object.assign({goldBuys:0,gemBuys:0,grandfather:0},G.bank||{});
   generateDailyTasks(false);
   G.playerMaxHp=levelFromXp(G.skills.hitpoints||0);

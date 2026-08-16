@@ -153,7 +153,7 @@ export const STONECRAFT_ITEMS = {
   basalt:  { n: 'Basalt Stone',  icon: '🪨', v: 60, tier: 5, rarity: 'rare' },
 
   /* ══ DRESSED BLOCKS — the intermediate every Stonemason lane runs on ═════
-     Not a sink and not a reward: the common trunk. Whetstones, rune blanks
+     Not a sink and not a reward: the common trunk. Whetstones, blank runes
      and castle goods all branch off these three, which is what stops the
      skill being four unrelated ladders sharing a name. */
   dressed_block: { n: 'Dressed Block', icon: '🧱', v: 22,  tier: 1, rarity: 'common' },
@@ -166,9 +166,9 @@ export const STONECRAFT_ITEMS = {
      That is paid for by magic's 2,520 ms cast interval — it burns 16% fewer
      consumables per hour than a bow at identical item values (§6.2). The
      deeper chain buys the cheaper burn. */
-  rune_blank:      { n: 'Rune Blank',      icon: '⬜', v: 5,  tier: 1, rarity: 'common' },
-  fine_rune_blank: { n: 'Fine Rune Blank', icon: '🔲', v: 28, tier: 3, rarity: 'uncommon' },
-  deep_rune_blank: { n: 'Deep Rune Blank', icon: '🔳', v: 60, tier: 5, rarity: 'rare' },
+  rune_blank:      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, rarity: 'common' },
+  fine_rune_blank: { n: 'Fine Blank Rune', icon: '🔲', v: 28, tier: 3, rarity: 'uncommon' },
+  deep_rune_blank: { n: 'Deep Blank Rune', icon: '🔳', v: 60, tier: 5, rarity: 'rare' },
 
   /* ══ RUNES — magic's ammo. The staff has a socket; you load a bound rune ══
      Values are IDENTICAL to the arrow ladder at every tier (1/1/2/4/6/9/12).
@@ -313,10 +313,10 @@ export const STONECRAFT_RECIPES = {
        bind their essence, cast at mages. Sized at 1 essence per 20 blanks so a
        full capped night of tier-6 casting costs ~115 essence, against a drop
        rate of 0.40-0.80 per wizard kill over thousands of kills. */
-    { id: 'cut_rune_blanks',   name: 'Cut Rune Blanks',      icon: '⬜', inputs: { dressed_block: 2 },                       output: 'rune_blank',      outputQty: 12, xp: 36,  req: 8,  ms: 2800 },
-    { id: 'split_rune_blanks', name: 'Split Rune Blanks',    icon: '⬜', inputs: { dressed_block: 3 },                       output: 'rune_blank',      outputQty: 20, xp: 92,  req: 22, ms: 3000 },
-    { id: 'cut_fine_blanks',   name: 'Cut Fine Rune Blanks', icon: '🔲', inputs: { granite_block: 2, dressed_block: 2 },     output: 'fine_rune_blank', outputQty: 14, xp: 400, req: 38, ms: 3400 },
-    { id: 'cut_deep_blanks',   name: 'Cut Deep Rune Blanks', icon: '🔳', inputs: { basalt_block: 3, magic_essence: 1 },      output: 'deep_rune_blank', outputQty: 20, xp: 1500, req: 74, ms: 4000 },
+    { id: 'cut_rune_blanks',   name: 'Cut Blank Runes',      icon: '⬜', inputs: { dressed_block: 2 },                       output: 'rune_blank',      outputQty: 12, xp: 36,  req: 8,  ms: 2800 },
+    { id: 'split_rune_blanks', name: 'Split Blank Runes',    icon: '⬜', inputs: { dressed_block: 3 },                       output: 'rune_blank',      outputQty: 20, xp: 92,  req: 22, ms: 3000 },
+    { id: 'cut_fine_blanks',   name: 'Cut Fine Blank Runes', icon: '🔲', inputs: { granite_block: 2, dressed_block: 2 },     output: 'fine_rune_blank', outputQty: 14, xp: 400, req: 38, ms: 3400 },
+    { id: 'cut_deep_blanks',   name: 'Cut Deep Blank Runes', icon: '🔳', inputs: { basalt_block: 3, magic_essence: 1 },      output: 'deep_rune_blank', outputQty: 20, xp: 1500, req: 74, ms: 4000 },
 
     /* ── THE WHETSTONE LANE — melee's supply. Batches of 10 against a burn of
        ~30/hour, so one action covers twenty minutes of swinging. Every rung's

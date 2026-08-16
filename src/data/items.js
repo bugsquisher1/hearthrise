@@ -28,7 +28,7 @@ export const ITEMS={
      override one. See src/data/library2-items.js for the derivation, the three
      landing states, and the power-budget accounting. */
   ...LIB2_ITEMS,
-  /* Runecrafting + Stonemason: quarried stone, dressed blocks, rune blanks,
+  /* Runecrafting + Stonemason: quarried stone, dressed blocks, blank runes,
      the 7-tier rune ladder, the 7-tier whetstone ladder and `ashlar`.
      New ids only. See src/data/stonecraft.js for every ruling behind them. */
   ...STONECRAFT_ITEMS,

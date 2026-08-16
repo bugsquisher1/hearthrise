@@ -856,7 +856,7 @@ corners, one face scored from use.*
 | ITEM-PLAN-03f | Rune Whetstone | a dark hand whetstone bound in deep silvered metal with runes glowing faintly along its edge | `rune_whetstone.png` |
 | ITEM-PLAN-03g | Dawnsteel Whetstone | a pale hand whetstone bound in near-white radiant dawnsteel with warm gold at the corners | `dawn_whetstone.png` |
 
-**ITEM-PLAN-04 — stone raws, blocks and rune blanks** (§8.4, §9.5)
+**ITEM-PLAN-04 — stone raws, blocks and blank runes** (§8.4, §9.5)
 
 | review id | Name | Subject line | File |
 |---|---|---|---|
@@ -866,9 +866,9 @@ corners, one face scored from use.*
 | ITEM-PLAN-04d | Dressed Block | a single squared grey building block, faces flattened with visible chisel marks | `dressed_block.png` |
 | ITEM-PLAN-04e | Granite Block | a single squared speckled pink-grey granite block, faces dressed smooth | `granite_block.png` |
 | ITEM-PLAN-04f | Basalt Block | a single squared dark basalt block, faces dressed smooth with a dull sheen | `basalt_block.png` |
-| ITEM-PLAN-04g | Rune Blank | a small stack of blank uncarved flat grey stone chips with clean cut edges | `rune_blank.png` |
-| ITEM-PLAN-04h | Fine Rune Blank | a small stack of blank uncarved flat granite chips, faces polished smooth | `fine_rune_blank.png` |
-| ITEM-PLAN-04i | Deep Rune Blank | a small stack of blank uncarved flat basalt chips, faces polished to a dark mirror | `deep_rune_blank.png` |
+| ITEM-PLAN-04g | Blank Rune | a small stack of blank uncarved flat grey stone chips with clean cut edges | `rune_blank.png` |
+| ITEM-PLAN-04h | Fine Blank Rune | a small stack of blank uncarved flat granite chips, faces polished smooth | `fine_rune_blank.png` |
+| ITEM-PLAN-04i | Deep Blank Rune | a small stack of blank uncarved flat basalt chips, faces polished to a dark mirror | `deep_rune_blank.png` |
 
 **ITEM-PLAN-05 — castle goods** (`keystone` is already live, §2.23)
 

@@ -353,7 +353,7 @@ export const ARTISAN_CATEGORIES = {
   stonemason: [
     { key: 'quarry',     label: 'Quarry' },
     { key: 'masonry',    label: 'Masonry' },
-    { key: 'blanks',     label: 'Rune Blanks' },
+    { key: 'blanks',     label: 'Blank Runes' },
     { key: 'whetstones', label: 'Whetstones' },
     { key: 'castle',     label: 'Castle Stores' },
   ],

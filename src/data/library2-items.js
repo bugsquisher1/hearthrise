@@ -366,9 +366,9 @@ const SUPPLY_CHAINS = Object.fromEntries([
   ['dressed_block', { n: 'Dressed Block', icon: '🧱', v: 20,  tier: 1, pendingSkill: 'stonemason' }],
   ['granite_block', { n: 'Granite Block', icon: '🧱', v: 120, tier: 3, pendingSkill: 'stonemason' }],
   ['basalt_block',  { n: 'Basalt Block',  icon: '🧱', v: 300, tier: 5, pendingSkill: 'stonemason' }],
-  ['rune_blank',      { n: 'Rune Blank',      icon: '⬜', v: 5,  tier: 1, pendingSkill: 'stonemason' }],
-  ['fine_rune_blank', { n: 'Fine Rune Blank', icon: '⬜', v: 24, tier: 3, pendingSkill: 'stonemason' }],
-  ['deep_rune_blank', { n: 'Deep Rune Blank', icon: '⬜', v: 60, tier: 5, pendingSkill: 'stonemason' }],
+  ['rune_blank',      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, pendingSkill: 'stonemason' }],
+  ['fine_rune_blank', { n: 'Fine Blank Rune', icon: '⬜', v: 24, tier: 3, pendingSkill: 'stonemason' }],
+  ['deep_rune_blank', { n: 'Deep Blank Rune', icon: '⬜', v: 60, tier: 5, pendingSkill: 'stonemason' }],
 
   /* ITEM-PLAN-05 · the castle goods. `keystone` already exists (items.js, b222)
      and is NOT re-declared here — it is adopted by Stonemason, recipe and cost

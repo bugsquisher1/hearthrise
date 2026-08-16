@@ -74,15 +74,31 @@ export const LINKS = [
     target: '2026-08-16-client-write-grant-sweep.sql',
     patchIds: ['client_write_no_policy'],
   },
-  /* Link 4 — market v2. It records THREE engine grants at once (an INSERTION at
-     the head), which is the largest single widening of the engine's capability
-     since hr_apply — AND it REMOVES the stale `market_expire(integer)` entry
-     (Security M7): the function was renamed hr_market_expire and is asserted NOT
-     engine-holdable (§11(e)), so the old name pre-approves a function that no
-     longer exists. That removal is the SECOND patch (`drop_market_expire`), which
-     is why this link's declared-removals list in PART 1f-ii is NON-empty. */
+  /* Link 4 (Security batch 5) — THE DETECTOR TAKEOVER. Its base is link 3's
+     TARGET (batch 1's committed body, which production runs — verified by
+     prosrc md5), so it cannot silently drop what link 3 recorded. It is the
+     SECOND replacing link: it swaps check (4)'s whole information_schema query
+     for a has_table_privilege query over the full PG17 vocabulary (so MAINTAIN
+     becomes visible) and over every relkind including matviews (so
+     leaderboard_ranked stops being a blind spot). Its declared-removals list in
+     tests/run-sql-tests.mjs PART 1f-ii is this chain's second non-empty one. */
   {
     base: '2026-08-16-client-write-grant-sweep.sql',
+    target: '2026-08-16-client-write-grant-sweep-5.sql',
+    patchIds: ['client_write_full_vocab'],
+  },
+  /* Link 5 — market v2. Rebased onto batch 5's NOW-LIVE body (sweep-5) rather
+     than the pre-batch-5 body it was first cut against: applied after batch 5,
+     an older base would silently REVERT check (4)'s has_table_privilege rewrite
+     (the MAINTAIN/matview visibility), the exact drift PART 1f-ii exists to
+     catch. It records THREE engine grants at once (an INSERTION at the head of
+     c_engine_allow) — the largest single widening since hr_apply — AND REMOVES
+     the stale `market_expire(integer)` entry (Security M7): the function was
+     renamed hr_market_expire and is asserted NOT engine-holdable (§11(e)), so
+     the old name pre-approves a function that no longer exists. Insertion +
+     removal only, so its declared-removals list is exactly those two lines. */
+  {
+    base: '2026-08-16-client-write-grant-sweep-5.sql',
     target: '2026-08-17-market-v2.sql',
     patchIds: ['market_v2', 'drop_market_expire'],
   },
@@ -238,8 +254,81 @@ export const PATCHES = [
     where: 'replace',
   },
   {
+    id: 'client_write_full_vocab',
+    name: "check (4)'s grant query (the has_table_privilege takeover)",
+    /* THE SECOND REPLACEMENT in this chain, and the reason it must be a
+       replacement: the instrument itself is wrong. information_schema.role_table_
+       grants reports SQL-standard privileges only — it cannot see MAINTAIN (PG17)
+       and it omits MATERIALIZED VIEWS entirely — so a single-line widening cannot
+       reach the two populations this file exists to make visible. The whole
+       two-arm SELECT is swapped for a has_table_privilege query over pg_class.
+       Its removed lines are declared in tests/run-sql-tests.mjs PART 1f-ii. */
+    find: `  select coalesce(jsonb_agg(distinct x.g order by x.g), '[]'::jsonb) into v_client_trunc from (
+    select table_name as g
+      from information_schema.role_table_grants
+     where table_schema = 'public' and grantee in ('anon','authenticated','PUBLIC')
+       and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER')
+    union all
+    select g.table_name || ':' || g.grantee || ':' || g.privilege_type
+      from information_schema.role_table_grants g
+      join pg_class c on c.relname = g.table_name
+                     and c.relnamespace = 'public'::regnamespace
+     where g.table_schema = 'public' and g.grantee in ('anon','authenticated','PUBLIC')
+       and g.privilege_type in ('INSERT','UPDATE','DELETE')
+       and c.relrowsecurity
+       and not exists (select 1 from pg_policies p
+                        where p.schemaname = 'public' and p.tablename = g.table_name
+                          and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
+       and not exists (select 1 from public.hr_client_write_baseline b
+                        where b.table_name = g.table_name and b.grantee = g.grantee)
+  ) x;
+`,
+    add: `  --     b350 (Security batch 5) — THE DETECTOR TAKEOVER. This query no longer
+  --     reads information_schema.role_table_grants, which reports SQL-standard
+  --     privileges ONLY: it cannot see MAINTAIN (the PG17 VACUUM/ANALYZE/CLUSTER/
+  --     REINDEX/REFRESH privilege) and it OMITS materialized views entirely. Both
+  --     are exactly where dead client write grants hid — 28 MAINTAIN pairs and the
+  --     leaderboard_ranked matview were invisible to every nightly run.
+  --     has_table_privilege over pg_class sees the full PG17 vocabulary AND every
+  --     relkind. Two arms, the same meaning check (4) has always had:
+  --       ARM 1 — a verb NO CLIENT EVER NEEDS, on ANY relation (table, partition
+  --               or MATVIEW): TRUNCATE, REFERENCES, TRIGGER, and now MAINTAIN. A
+  --               write policy is no defence against any of these, so the grant is
+  --               a finding wherever it lives.
+  --       ARM 2 — INSERT/UPDATE/DELETE on a table with RLS ON and NO write policy,
+  --               minus hr_client_write_baseline. Unchanged. Matviews carry no RLS
+  --               and cannot be written through any path, so an i/u/d bit on one is
+  --               inert and deliberately NOT arm 2's business.
+  --     PUBLIC is not enumerated separately: a grant to PUBLIC makes
+  --     has_table_privilege true for anon AND authenticated, so it surfaces under
+  --     both without a third grantee.
+  select coalesce(jsonb_agg(distinct x.g order by x.g), '[]'::jsonb) into v_client_trunc from (
+    select c.relname || ':' || gg || ':' || pv as g
+      from pg_class c
+      cross join unnest(array['anon','authenticated']) gg
+      cross join unnest(array['TRUNCATE','REFERENCES','TRIGGER','MAINTAIN']) pv
+     where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p','m')
+       and has_table_privilege(gg, c.oid, pv)
+    union all
+    select c.relname || ':' || gg || ':' || pv
+      from pg_class c
+      cross join unnest(array['anon','authenticated']) gg
+      cross join unnest(array['INSERT','UPDATE','DELETE']) pv
+     where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p')
+       and c.relrowsecurity
+       and has_table_privilege(gg, c.oid, pv)
+       and not exists (select 1 from pg_policies pp
+                        where pp.schemaname = 'public' and pp.tablename = c.relname
+                          and pp.cmd in ('INSERT','UPDATE','DELETE','ALL'))
+       and not exists (select 1 from public.hr_client_write_baseline bl
+                        where bl.table_name = c.relname and bl.grantee = gg)
+  ) x;
+`,
+    where: 'replace',
+  },
+  {
     id: 'market_v2',
-    name: 'the c_engine_allow array head (link 4)',
+    name: 'the c_engine_allow array head (link 5)',
     find: '  c_engine_allow constant text[] := array[\n',
     add: `    -- ── ADDED 2026-08-17 — THE THREE MARKET WRITERS ─────────────────────
     -- At the HEAD, an insertion, for the same reason as links 1 and 2: it

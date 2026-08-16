@@ -24,6 +24,10 @@ import { goalCountersGuard } from './goal-counters.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
+import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
+import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
+import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
+import { clientWriteSweep5Guard } from './client-write-sweep-5.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as goldCensusGuard } from './gold-site-census.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
@@ -1270,6 +1274,118 @@ const run = async () => {
         + 'price, braced uuid, SQL-shaped listing) is refused by name before it costs a database '
         + 'statement; the buyer\'s wire binds a listing and a count and no price; a replay carries '
         + 'the envelope and no receipt.');
+    }
+
+    /* ── The client-write-grant sweep, batch 2 (Security) ───────────────
+       display_names and leaderboard_meta — the two cross-player identity /
+       ranking surfaces among the 21 tables the batch-1 baseline recorded. The
+       grants are dead (RLS on, SELECT-only policy) and each is ONE plausible
+       policy away from being live: a rename policy on display_names bypasses
+       the reserved-name list, the length bound and the charset rule, all of
+       which exist ONLY inside claim_display_name; an UPDATE on
+       leaderboard_meta pins the staleness gate and freezes all 21 boards.
+       The whole chain replays here, so the migration's four refuse-to-install
+       checks and its execute-the-refusal probe run on every suite run, and
+       both confirmed writers are then DRIVEN for real. `--selftest` plants
+       eight real defects; every one must read RED. */
+    const sweep2Problems = await clientWriteSweep2Guard();
+    if (sweep2Problems.length) {
+      console.log('\nClient write grant sweep batch 2 (display_names, leaderboard_meta) — FAILED:');
+      for (const p of sweep2Problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nClient write sweep guard — no client write privilege survives on display_names '
+        + 'or leaderboard_meta (MAINTAIN included), the refusal is on the GRANT rather than on RLS, '
+        + 'both writer RPCs still work, and the four baseline rows are consumed.');
+    }
+
+    /* ── The client-write-grant sweep, batch 3 (Security) ───────────────
+       raid_claims and raid_contributions — the batch-2 reviewer's #1 pick on
+       blast radius, because raid_contributions is the ONE table in the baseline
+       that has already hosted a LIVE client-write exploit: the b209 "own
+       contribution claim" UPDATE policy, removed by raid-hardening, whose GRANT
+       was never removed. Its damage/strikes set the payout BAND and, on a
+       partial kill, the clan-wide factor — how much SOMEBODY ELSE is paid — and
+       DELETE on raid_claims is unlimited weekly chest replay.
+       Plus PART B: the MAINTAIN pass over batch 1's six catalogues, which
+       reported "0 remain" and were not — information_schema cannot see PG17's
+       MAINTAIN, so every measurement in that file was blind to it. C2b
+       demonstrates that blindness rather than asserting it.
+       The whole chain replays here, so the migration's refuse-to-install checks
+       (including the server-DERIVED privilege vocabulary) and its
+       execute-the-refusal probe run on every suite run, and both confirmed
+       writers are then DRIVEN as a signed-in player. `--selftest` plants twelve
+       real defects; every one must read RED. */
+    const sweep3Problems = await clientWriteSweep3Guard();
+    if (sweep3Problems.length) {
+      console.log('\nClient write grant sweep batch 3 (raid_claims, raid_contributions, MAINTAIN) '
+        + '— FAILED:');
+      for (const p of sweep3Problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nClient write sweep batch 3 — no client write privilege survives on either raid '
+        + "table or on batch 1's six catalogues (MAINTAIN included), the refusal is on the GRANT "
+        + 'rather than on RLS, raid_claim and raid_strike still write, and the four baseline rows '
+        + 'are consumed.');
+    }
+
+    /* ── The client write grant sweep, BATCH 4 — the last one ───────────
+       All seventeen remaining baselined tables in one change: world_event_*
+       (world_event_totals is a shared, whole-population aggregate — its goal
+       and met_at decide what EVERY participant is paid), clan_* (clan_ledger
+       is the append-only journal every clan daily cap is READ FROM; a client
+       DELETE resets every cap and erases the evidence they were spent), and
+       maintenance_* (where the nightly detector's own failures surface).
+       After it, public.hr_client_write_baseline is EMPTY — every table batch 1
+       found in the dead-grant class has been swept rather than recorded.
+
+       ⚠ THE TWO THINGS THIS GUARD CARRIES THAT ITS PREDECESSORS COULD NOT:
+       (1) ALL FORTY-TWO confirmed writers are driven for real BEFORE and AFTER
+           the revoke on identical fixtures, and each must actually CHANGE its
+           target table (row fingerprint, not a returned ok:true). An after-only
+           drive cannot tell "the revoke was harmless" from "this never worked
+           on the replay".
+       (2) THE LIVE-POLICY RECONCILIATION. clan_members ("join as self",
+           "leave as self") and clans ("clans creatable") carry LIVE client
+           write policies, so their grants are NOT dead, they were never in the
+           class and never baselined, and this batch must not touch them. C6
+           asserts they keep their policies, keep the grants behind them, stay
+           unbaselined, and that the raw client founding/joining path still
+           WORKS — the one arm that catches a sweep quietly widening its revoke.
+       `--selftest` plants twenty-one real defects; every one must read RED. */
+    const sweep4Problems = await clientWriteSweep4Guard();
+    if (sweep4Problems.length) {
+      console.log('\nClient write grant sweep batch 4 (world_event_*, clan_*, maintenance_*) '
+        + '— FAILED:');
+      for (const p of sweep4Problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nClient write sweep batch 4 — no client write privilege survives on any of the '
+        + '17 remaining tables (MAINTAIN included), all 42 confirmed writers still write before AND '
+        + 'after the revoke, clan_members/clans keep the live policies and grants they need, and '
+        + 'the dead-grant baseline is now EMPTY.');
+    }
+
+    /* ── Client write sweep batch 5 (the state becomes a property) ────────
+       Three coupled pieces in one migration: (1) a FAIL-CLOSED default ACL so a
+       new table is not born client-writable; (2) a SCHEMA-WIDE MAINTAIN revoke
+       so nothing keeps the one privilege the detector could not see; (3) the
+       DETECTOR TAKEOVER — check (4) moves off information_schema (blind to
+       MAINTAIN and to matviews) onto has_table_privilege over pg_class. The
+       guard proves a fresh table is born SELECT-only, zero client MAINTAIN pairs
+       remain, and a re-granted MAINTAIN — on a table OR a matview — is named and
+       fatal, while clan_members/clans keep the live grants their policies use.
+       `--selftest` plants seven real defects; every one must read RED. */
+    const sweep5Problems = await clientWriteSweep5Guard();
+    if (sweep5Problems.length) {
+      console.log('\nClient write grant sweep batch 5 (fail-closed default ACL + MAINTAIN revoke + '
+        + 'detector takeover) — FAILED:');
+      for (const p of sweep5Problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nClient write sweep batch 5 — the generator is fail-closed (a new table is born '
+        + 'SELECT-only), zero client MAINTAIN pairs remain across tables and matviews, and check (4) '
+        + 'now names and fails on a MAINTAIN grant permanently.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

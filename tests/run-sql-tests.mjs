@@ -187,14 +187,19 @@ const ALSO_LINTED = [
      defence against. */
   '2026-08-16-unlock-buy.sql',
   /* b354 / Security C3 — the dead-client-write-grant sweep. It revokes on six
-     content catalogues and `create or replace`s the detector to widen check (4);
-     it is the CURRENT last toucher of hr_assert_grant_hygiene. */
+     content catalogues and `create or replace`s the detector to widen check (4). */
   '2026-08-16-client-write-grant-sweep.sql',
+  /* b350 (Security batch 5) — the detector TAKEOVER. It `create or replace`s
+     hr_assert_grant_hygiene to move check (4) onto has_table_privilege (so
+     MAINTAIN and matviews stop being blind spots). PART 1f-ii walks it as the
+     fourth link; market-v2 (below) then takes over as the fifth and last. */
+  '2026-08-16-client-write-grant-sweep-5.sql',
   /* market v2 — three SECURITY DEFINER functions that WRITE player state, one
      of which writes a SECOND player's row, plus a `create or replace` of the
-     detector to record them. It is the CURRENT last toucher of
-     hr_assert_grant_hygiene; PART 1f-ii below pins that chain as a fourth link.
-     It is also the file PART 1e's destructive-migration interlocks read. */
+     detector to record them (rebased onto batch 5's now-live body). It is the
+     CURRENT last toucher of hr_assert_grant_hygiene; PART 1f-ii pins that chain
+     as the fifth link. It is also the file PART 1e's destructive-migration
+     interlocks read. */
   '2026-08-17-market-v2.sql',
 ];
 
@@ -282,9 +287,16 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // b354 / Security C3. The first link in this chain that REPLACES lines — see
   // DECLARED_REMOVALS below, which is this chain's first non-empty list.
   '2026-08-16-client-write-grant-sweep.sql',
-  // market v2 — link 4: an INSERTION (three engine grants at the head of
-  // c_engine_allow) AND one REMOVAL (the stale market_expire(integer) entry,
-  // Security M7), so its declared-removals list below is NON-empty.
+  // b350 / Security batch 5 — THE DETECTOR TAKEOVER, and the SECOND replacing
+  // link. It swaps check (4)'s whole information_schema query for a
+  // has_table_privilege query over pg_class (full PG17 vocabulary + every
+  // relkind), so MAINTAIN and matviews become permanently visible. Its removed
+  // lines are the second non-empty entry in DECLARED_REMOVALS below.
+  '2026-08-16-client-write-grant-sweep-5.sql',
+  // market v2 — link 5, rebased onto batch 5's now-live body: an INSERTION
+  // (three engine grants at the head of c_engine_allow) AND one REMOVAL (the
+  // stale market_expire(integer) entry, Security M7), so its declared-removals
+  // list below is NON-empty. It is the new last toucher of the detector.
   '2026-08-17-market-v2.sql',
 ];
 
@@ -871,12 +883,39 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
       "     and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER');",
     ],
 
-    /* ── market v2 (Security M7) ───────────────────────────────────────────
-       Link 4 is an insertion (three engine grants at the head of c_engine_allow)
-       PLUS one removal: the stale `market_expire(integer)` entry, whose function
-       was renamed hr_market_expire and is asserted NOT engine-holdable. Its
-       comment line and its entry line are these two declared removals; anything
-       else this link drops is a silent regression. */
+    /* ── hr_assert_grant_hygiene's SECOND replacing link (b350, Security batch 5)
+       — THE DETECTOR TAKEOVER. Batch 1 could only widen the VERB LIST; it stayed
+       on information_schema, which reports SQL-standard privileges (no MAINTAIN)
+       and omits matviews. Batch 5 replaces the whole two-arm SELECT with a
+       has_table_privilege query over pg_class. The fifteen lines below are batch
+       1's information_schema query; the shared lines (`select coalesce(... into
+       v_client_trunc from (`, `union all`, `and c.relrowsecurity`, `) x;`)
+       survive into the new body and are correctly NOT listed. A sixteenth removal
+       would be a silent regression. */
+    '2026-08-16-client-write-grant-sweep-5.sql': [
+      '    select table_name as g',
+      '      from information_schema.role_table_grants',
+      "     where table_schema = 'public' and grantee in ('anon','authenticated','PUBLIC')",
+      "       and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER')",
+      "    select g.table_name || ':' || g.grantee || ':' || g.privilege_type",
+      '      from information_schema.role_table_grants g',
+      '      join pg_class c on c.relname = g.table_name',
+      "                     and c.relnamespace = 'public'::regnamespace",
+      "     where g.table_schema = 'public' and g.grantee in ('anon','authenticated','PUBLIC')",
+      "       and g.privilege_type in ('INSERT','UPDATE','DELETE')",
+      '       and not exists (select 1 from pg_policies p',
+      "                        where p.schemaname = 'public' and p.tablename = g.table_name",
+      "                          and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))",
+      '       and not exists (select 1 from public.hr_client_write_baseline b',
+      '                        where b.table_name = g.table_name and b.grantee = g.grantee)',
+    ],
+
+    /* ── market v2, link 5 (Security M7), rebased onto batch 5's body ────────
+       An insertion (three engine grants at the head of c_engine_allow) PLUS one
+       removal: the stale `market_expire(integer)` entry, whose function was
+       renamed hr_market_expire and is asserted NOT engine-holdable. Its comment
+       line and its entry line are these two declared removals; anything else this
+       link drops is a silent regression. */
     '2026-08-17-market-v2.sql': [
       '    -- writes, but only the "return the lapsed seller\'s own goods" path, capped at 200',
       "    'market_expire(integer)',",

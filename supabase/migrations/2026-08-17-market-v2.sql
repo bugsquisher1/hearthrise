@@ -1924,24 +1924,45 @@ begin
   --     it would report all 40-odd tables and the check could never be strict.
   --     That is a platform posture and a separate program; stated here so its
   --     absence is a decision rather than an oversight.
+  --     b350 (Security batch 5) — THE DETECTOR TAKEOVER. This query no longer
+  --     reads information_schema.role_table_grants, which reports SQL-standard
+  --     privileges ONLY: it cannot see MAINTAIN (the PG17 VACUUM/ANALYZE/CLUSTER/
+  --     REINDEX/REFRESH privilege) and it OMITS materialized views entirely. Both
+  --     are exactly where dead client write grants hid — 28 MAINTAIN pairs and the
+  --     leaderboard_ranked matview were invisible to every nightly run.
+  --     has_table_privilege over pg_class sees the full PG17 vocabulary AND every
+  --     relkind. Two arms, the same meaning check (4) has always had:
+  --       ARM 1 — a verb NO CLIENT EVER NEEDS, on ANY relation (table, partition
+  --               or MATVIEW): TRUNCATE, REFERENCES, TRIGGER, and now MAINTAIN. A
+  --               write policy is no defence against any of these, so the grant is
+  --               a finding wherever it lives.
+  --       ARM 2 — INSERT/UPDATE/DELETE on a table with RLS ON and NO write policy,
+  --               minus hr_client_write_baseline. Unchanged. Matviews carry no RLS
+  --               and cannot be written through any path, so an i/u/d bit on one is
+  --               inert and deliberately NOT arm 2's business.
+  --     PUBLIC is not enumerated separately: a grant to PUBLIC makes
+  --     has_table_privilege true for anon AND authenticated, so it surfaces under
+  --     both without a third grantee.
   select coalesce(jsonb_agg(distinct x.g order by x.g), '[]'::jsonb) into v_client_trunc from (
-    select table_name as g
-      from information_schema.role_table_grants
-     where table_schema = 'public' and grantee in ('anon','authenticated','PUBLIC')
-       and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER')
+    select c.relname || ':' || gg || ':' || pv as g
+      from pg_class c
+      cross join unnest(array['anon','authenticated']) gg
+      cross join unnest(array['TRUNCATE','REFERENCES','TRIGGER','MAINTAIN']) pv
+     where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p','m')
+       and has_table_privilege(gg, c.oid, pv)
     union all
-    select g.table_name || ':' || g.grantee || ':' || g.privilege_type
-      from information_schema.role_table_grants g
-      join pg_class c on c.relname = g.table_name
-                     and c.relnamespace = 'public'::regnamespace
-     where g.table_schema = 'public' and g.grantee in ('anon','authenticated','PUBLIC')
-       and g.privilege_type in ('INSERT','UPDATE','DELETE')
+    select c.relname || ':' || gg || ':' || pv
+      from pg_class c
+      cross join unnest(array['anon','authenticated']) gg
+      cross join unnest(array['INSERT','UPDATE','DELETE']) pv
+     where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p')
        and c.relrowsecurity
-       and not exists (select 1 from pg_policies p
-                        where p.schemaname = 'public' and p.tablename = g.table_name
-                          and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
-       and not exists (select 1 from public.hr_client_write_baseline b
-                        where b.table_name = g.table_name and b.grantee = g.grantee)
+       and has_table_privilege(gg, c.oid, pv)
+       and not exists (select 1 from pg_policies pp
+                        where pp.schemaname = 'public' and pp.tablename = c.relname
+                          and pp.cmd in ('INSERT','UPDATE','DELETE','ALL'))
+       and not exists (select 1 from public.hr_client_write_baseline bl
+                        where bl.table_name = c.relname and bl.grantee = gg)
   ) x;
 
   -- (5) D4 — THE POSITIVE ASSERTION. For every role that owns a function in

@@ -984,8 +984,36 @@ async function run(mutate) {
     const based = (await db.query(
       "select table_name || ':' || grantee as k from public.hr_client_write_baseline order by 1"))
       .rows.map((r) => r.k);
-    ok(classNow.length > 0,
-      'U14: the dead-grant class is EMPTY on the replay, so the two comparisons below are vacuous');
+    /* ⚠ THE CLASS IS ALLOWED TO BE EMPTY, since sweep batch 4 — and this control
+       had to change with it. It used to be `classNow.length > 0`, whose purpose
+       was "the class predicate has not gone blind". Batch 4 sweeps the last
+       seventeen tables, so an EMPTY class (and an empty baseline) is now the
+       correct end state and that assertion fails on a FINISHED programme —
+       exactly the pressure that gets a guard loosened instead of fixed. So the
+       property is proven directly instead: plant a table with RLS on, no write
+       policy and an authenticated INSERT grant, and demand the very same query
+       NAMES it. That tests the predicate rather than the size of its output. */
+    await db.query('savepoint u14cls');
+    await db.query('create table public.hr__u14_probe (id int primary key)');
+    await db.query('alter table public.hr__u14_probe enable row level security');
+    await db.query('revoke all on public.hr__u14_probe from public, anon, authenticated, service_role');
+    await db.query('grant insert on public.hr__u14_probe to authenticated');
+    const clsProbe = (await db.query(`
+      select g.table_name || ':' || g.grantee as k
+        from information_schema.role_table_grants g
+        join pg_class c on c.relname = g.table_name and c.relnamespace = 'public'::regnamespace
+       where g.table_schema = 'public' and g.grantee in ('anon','authenticated','PUBLIC')
+         and g.privilege_type in ('INSERT','UPDATE','DELETE') and c.relrowsecurity
+         and not exists (select 1 from pg_policies p
+                          where p.schemaname='public' and p.tablename = g.table_name
+                            and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
+       group by 1`)).rows.map((r) => r.k);
+    await db.query('rollback to savepoint u14cls');
+    await db.query('release savepoint u14cls').catch(() => {});
+    ok(clsProbe.includes('hr__u14_probe:authenticated'),
+      'U14 CONTROL: the dead-grant class predicate did NOT name a freshly-created table with RLS '
+      + 'on, no write policy and an authenticated INSERT grant. The predicate has gone blind, so '
+      + `the comparison below is vacuous. saw=${clsProbe.join(', ') || '(nothing)'}`);
     ok(JSON.stringify(classNow) === JSON.stringify(based),
       `U14 (C3a): the declared baseline and reality disagree.\n    class only: `
       + `${classNow.filter((k) => !based.includes(k)).join(', ') || '(none)'}\n    baseline only: `

@@ -102,8 +102,9 @@
 
 import { readFile, readdir, cp, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
 import { bootChain, ROOT } from './pglite-chain.mjs';
 
@@ -437,8 +438,18 @@ async function run(mutate) {
     note(!!want, 'T5: index.ts no longer imports `npm:postgres@<version>` — this guard cannot tell '
       + 'whether the driver it is exercising is the one that deploys');
     if (want) {
-      const have = JSON.parse(
-        await readFile(join(ROOT, 'node_modules', 'postgres', 'package.json'), 'utf8')).version;
+      /* Resolve postgres through Node's own module resolution rather than a
+         hardcoded `ROOT/node_modules` join. A git worktree has no node_modules
+         of its own; resolution walks up from this file and finds the main
+         checkout's copy (the worktree is nested under it), so the guard runs in
+         a worktree instead of aborting the whole suite at exitCode 2 — the
+         papercut that cost five agents their suite tally. postgres blocks
+         './package.json' in its exports map, so resolve the entry point and walk
+         up to the package root (the segment ending in node_modules/postgres). */
+      const entry = createRequire(import.meta.url).resolve('postgres');
+      const marker = `${sep}node_modules${sep}postgres${sep}`;
+      const pgRoot = entry.slice(0, entry.lastIndexOf(marker) + marker.length);
+      const have = JSON.parse(await readFile(join(pgRoot, 'package.json'), 'utf8')).version;
       note(have === want,
         `T5: the Edge Function deploys postgres@${want} but this harness is exercising `
         + `postgres@${have}. The binding behaviour under test is version-specific (the serializer `

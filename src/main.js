@@ -33,6 +33,12 @@ import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes,
 // hand-authored recipe wins the merge, so the two can disagree; see gear-tiers).
 import { GEAR_LADDERS, MATERIAL_TIERS } from './data/gear-tiers.js?v=356';
 import { COMPANIONS } from './data/companions.js?v=356';
+/* b356 — the review-book catalogue's two published seams. `EFFECT_KINDS` is
+   what the reachability guard reads to decide whether an item is legitimately
+   not-yet-obtainable; `LIB2_ICON_FILES` is the art batch's work order. Both are
+   plain data with no legacy twin, so no unify is needed. */
+import { EFFECT_KINDS, effectsAreLive, dormantEffects } from './data/item-effects.js?v=356';
+import { LIB2_ICON_FILES } from './data/library2-items.js?v=356';
 import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=356';
 /* b349 — CLAIMABLE REWARDS. The daily-login cycle used to be a literal inside
    src/features/daily-reward.js, a classic <script> that neither Deno nor Node
@@ -89,6 +95,8 @@ Object.assign(window, {
   FISH_SPOTS:      unifyArray('FISH_SPOTS', FISH_SPOTS),
   EQUIP_SLOTS:     unifyArray('EQUIP_SLOTS', EQUIP_SLOTS),
   ARTISAN_RECIPES, COMPANIONS,
+  // b356 — see src/data/item-effects.js for what these guard.
+  HearthriseItemEffects: { EFFECT_KINDS, effectsAreLive, dormantEffects, LIB2_ICON_FILES },
   // b281 — the canonical data-driven boss registry (data/bosses.js). A new global
   // object, so no merge needed; surfaces read boss identity/weakness/mechanic by id.
   BOSSES, BOSS_BY_DUNGEON,

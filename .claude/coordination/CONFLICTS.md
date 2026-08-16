@@ -157,6 +157,45 @@ Clan-overhaul spec introduces a new `getBonus('raidPower')` that `src/features/r
 ### 2026-08-08 · DEPENDENCY · `snapshot.renown` for leaderboards (Game Designer → Systems Engineer)
 Flagship Throne board needs `renown` written into the client save snapshot on save (leaderboards §3.2). Touches the fragile `snapshotG` allowlist — Systems change. Wave 3.
 
+
+### 2026-08-16 · DEPENDENCY · bane gear needs the monster `family` re-point (Systems → Monster workstream)
+`src/core/bane.js` normalises `monster.class || monster.family` against the eleven Library-1 classes and
+carries a `CLASS_ALIAS` for the legacy six (Beast→Mammal, Goblinoid→Humanoid, Arcane→Human).
+**`Mythic` is deliberately unmapped** — it covers both `lesser_demon` (→Demon) and `dragon` (→Dragon) in the
+live table, so any guess makes one of the two bane weapons fire at the wrong thing. Consequence today:
+**Dragonrib Bow (ITEM-NEW-03) is inert** until `dragon.family` becomes `'Dragon'`. The other four bane
+weapons work now. Nothing breaks either way — an unmapped family yields NO bane, which is the strict
+direction. Verified: `weaknessInfo(dragon@Mythic)` → 1.00; `weaknessInfo(dragon@Dragon)` → 1.68.
+Monster workstream: an explicit `class:` field wins over `family:` if you would rather not overload it.
+
+### 2026-08-16 · DEPENDENCY · the `pendingSkill` handshake (Systems → Skills workstream)
+34 ITEM-PLAN rows (7 bound runes · 7 whetstones · 3 stone raws + 3 blocks + 3 rune blanks · ashlar ·
+vaultstone · 9 phase-two elementals · 6 artisan tools) landed as ITEM ROWS ONLY, each carrying
+`pendingSkill: 'stonemason' | 'runecrafting' | 'fletching'`. **No recipe produces any of them** — those
+are yours. The b243 reachability guard exempts an item only while its `pendingSkill` is absent from
+`SKILLS_DEF`, and **B356-4 fails the build the moment you add the skill row** unless the item has a real
+faucet. That is the handshake: add the skill and the recipes in one commit and both guards go quiet.
+Ids/stats/values/levels are taken verbatim from `consumable-economy.md` §6.2/§6.3/§8.2/§9.5/§11.3 — do not
+re-derive them. One rename applied per the review book: `rune_of_blight` → `rune_of_poison`.
+
+### 2026-08-16 · SEMANTIC · two approved items shipped WITHOUT their signature mechanic (Systems → Designer)
+Everything whose effect has no engine landed unobtainable (see `src/data/item-effects.js`). **Two did not**,
+and the Designer should re-read the call at integration:
+- **Watchknight Shell** (ITEM-NEW-33) — ships as honest plate T5 with the derived set bonus; its
+  "damage taken while away" identity is declared `away_mitigation` and dormant. Held back it would strand
+  `deathsteel_bar`, which is the only thing closing the `death_steel` orphan (ITEM-NEW-43's whole purpose).
+- **Quiet Coat** (ITEM-NEW-34) — ships as honest cloth T6; `first_strike_deny` is dormant (there is no
+  first-strike model at all). Held back it strands `voidchitin_weave`, which is the only thing closing
+  `void_chitin` + `hell_ember` + `war_crown` (ITEM-NEW-44).
+Neither description promises the unshipped effect. If the Designer would rather they wait for their
+mechanic, remove the two recipes and the guard will re-classify them automatically.
+
+### 2026-08-16 · DEPENDENCY · hr-accrue REDEPLOY required (Systems → Coordinator)
+`src/core/combat.js` + `src/core/bane.js` + `src/data/*` are vendored into the Edge payload, so the payload
+guard is correctly RED: `the deployed hr-accrue reports payload 122e57cf… but this repo packs to 886e8268…`.
+Bane reads through `equipmentStats` → `weaknessInfo`, which accrual.js already calls at every site
+(accrual.js:686/1203/1479, :950), so away accrual gets it for free — **but only after the redeploy.**
+
 ## Resolved
 
 ### 2026-08-15 · BLOCKER · the away buff rule reached only one of three away callers — RESOLVED in b347 (Systems)

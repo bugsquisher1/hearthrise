@@ -5,10 +5,12 @@
 
 import { WAVE3_DESC } from './wave3-uniques.js?v=356';
 import { SLOT_DESC } from './slot-ladders.js?v=356';
+import { LIB2_DESC } from './library2-items.js?v=356';
 
 export const ITEM_DESC = {
   ...WAVE3_DESC, // b247: the 14 Wave-3 unique item flavour lines
   ...SLOT_DESC,  // b343: the ammo / earrings / cape / jewelry ladders
+  ...LIB2_DESC,  // b356: the approved review-book catalogue (Library 2)
   'abyssal_greaves': 'Greaves quenched in abyssal pearl, warding legs beyond any forged steel',
   'abyssal_pearl': 'A cold, iridescent pearl dredged from the abyss, a rare Hunt spoil',
   'alpha_cloak': 'Alpha-beast pelt worn as a cape, warding blows and sharpening the strike',

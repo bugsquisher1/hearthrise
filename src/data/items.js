@@ -4,6 +4,7 @@ import { GEAR_ITEMS } from './gear-tiers.js?v=356';
 import { WAVE3_ITEMS } from './wave3-uniques.js?v=356';
 import { SLOT_ITEMS } from './slot-ladders.js?v=356';
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=356';
+import { LIB2_ITEMS } from './library2-items.js?v=356';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -19,6 +20,13 @@ export const ITEMS={
      earrings (0), cape (holes at 5 of 7 tiers) and jewelry (no capstone).
      New ids only. See src/data/slot-ladders.js for the stat rationale. */
   ...SLOT_ITEMS,
+
+  /* b356: the approved review-book catalogue (Library 2 — every surviving
+     ITEM-NEW-* card and every ITEM-PLAN-* group). New ids only; spread here
+     with the other generated blocks so a hand-authored entry below could still
+     override one. See src/data/library2-items.js for the derivation, the three
+     landing states, and the power-budget accounting. */
+  ...LIB2_ITEMS,
 
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool

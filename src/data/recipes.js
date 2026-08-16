@@ -16,6 +16,10 @@
 import { GEAR_RECIPES } from './gear-tiers.js?v=356';
 import { WAVE3_RECIPES } from './wave3-uniques.js?v=356';
 import { SLOT_RECIPES } from './slot-ladders.js?v=356';
+/* b356 — the review-book catalogue's faucets. APPENDED ONLY: this import and
+   the two `LIB2_RECIPES.*` terms in ARTISAN_RECIPES below are the whole edit,
+   so the parallel Runecrafting/Stonemason lanes merge without a conflict. */
+import { LIB2_RECIPES } from './library2-items.js?v=356';
 import { ITEMS, foodClassOf } from './items.js?v=356';
 
 const BASE_RECIPES = {
@@ -253,8 +257,8 @@ function mergeGenerated(base, generated) {
 
 export const ARTISAN_RECIPES = {
   cooking:  BASE_RECIPES.cooking.slice().sort((a, b) => (a.req || 0) - (b.req || 0)),
-  smithing: mergeGenerated(BASE_RECIPES.smithing, GEAR_RECIPES.smithing.concat(WAVE3_RECIPES.smithing, SLOT_RECIPES.smithing)),
-  crafting: mergeGenerated(BASE_RECIPES.crafting, GEAR_RECIPES.crafting.concat(WAVE3_RECIPES.crafting, SLOT_RECIPES.crafting)),
+  smithing: mergeGenerated(BASE_RECIPES.smithing, GEAR_RECIPES.smithing.concat(WAVE3_RECIPES.smithing, SLOT_RECIPES.smithing, LIB2_RECIPES.smithing)),
+  crafting: mergeGenerated(BASE_RECIPES.crafting, GEAR_RECIPES.crafting.concat(WAVE3_RECIPES.crafting, SLOT_RECIPES.crafting, LIB2_RECIPES.crafting)),
   prayer:   BASE_RECIPES.prayer,
 };
 
@@ -305,6 +309,14 @@ export const ARTISAN_CATEGORIES = {
     { key: 'jewellery',  label: 'Jewellery' },
     { key: 'tools',      label: 'Tools' },
     { key: 'ammunition', label: 'Ammunition' },
+    /* b356 — Crafting's INTERMEDIATE lane. Smithing has had one since the
+       beginning (`/_bar$/` → Smelting) and Crafting has had half of one
+       (`/_plank$/` → Sawmill), but a crafted material that is neither a bar
+       nor a plank had nowhere to land: `weave_voidchitin` (the recipe that
+       finally gives void_chitin, hell_ember and war_crown a shared target)
+       fell straight through to `uncategorized`, which b220 asserts is empty.
+       Keyed on the EXISTING `tag:'crafting-mat'` field rather than a new one. */
+    { key: 'materials',  label: 'Materials' },
     { key: 'castle',     label: 'Castle Stores' },
   ],
   cooking: [
@@ -350,6 +362,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (type === 'jewelry') return 'jewellery';
     if (type === 'weapon') return 'weapons';      // bows + staves
     if (type === 'armor') return 'armour';        // leather + cloth
+    if (out && out.tag === 'crafting-mat') return 'materials'; // b356 — woven/worked intermediates
     if (isCastleGood(out)) return 'castle';       // b222 — Timber Beam, Keystone
     return null;
   }

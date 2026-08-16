@@ -32,6 +32,7 @@
 import * as rngMod from './core/rng.js?v=356';
 import * as xp from './core/xp.js?v=356';
 import * as combat from './core/combat.js?v=356';
+import * as bane from './core/bane.js?v=356';
 import * as drops from './core/drops.js?v=356';
 import * as pacing from './core/pacing.js?v=356';
 import * as rested from './core/rested.js?v=356';
@@ -242,7 +243,7 @@ function xpGrantCtx(opts) {
 window.HearthriseCore = {
   /* The modules, verbatim — nothing is re-wrapped, so a caller reading
      this object is reading the same functions Deno will run. */
-  rngMod, xp, combat, drops, pacing, rested, tools, farm, progression,
+  rngMod, xp, combat, bane, drops, pacing, rested, tools, farm, progression,
   styles, artisan, bounty, away, botd, buffs, combatSim, skillSim, artisanSim,
   autoEat, perks,
 

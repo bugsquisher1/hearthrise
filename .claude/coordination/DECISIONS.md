@@ -4,6 +4,22 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-17 · LIVE-PLAY SETTLEMENT is the next program — SUPERSEDES the feature order (Tyler, direct)
+**Decision (Tyler, after the b359 P0):** live play must be recorded server-side — "kill monster,
+kill is recorded on the server, exp is recorded on the server, and all loot gained is recorded on
+the server." The working architecture: **live play is away accrual that happens while you're
+watching** — the client tick becomes display prediction, and the client SETTLES every ~30-60s (and
+on switch/hide/close) through the SAME accrual engine, watermark, and idempotent apply that already
+pay away time. No per-swing round trips. Spec first (backend-architect, in flight →
+docs/design/live-settlement.md), phased strangler-fig build after, Security gate before each deploy.
+**This outranks the remaining feature list** until live play is server-recorded, because it retires
+the b359 emergency merge (a deliberate, temporary authority weakening) and closes the last
+client-authored progression surface. The b359 merge and its test forms (B359-1, the rewritten b337
+and B339-5) retire ONLY when settlement makes the envelope complete — record.js:119-144 is the
+ordering rule. **Date:** 2026-08-17.
+
+---
+
 ### 2026-08-16 · HUNT BAND FAIRNESS — APPLIED to production (Coordinator)
 `2026-08-12-raid-band-fairness.sql` is **APPLIED** (was staged since 2026-08-12; item #1 in Tyler's
 locked build order). Replaced 4 functions: `hr_hunt_share`, `hr_hunt_band`, `hr_hunt_band_mul`,

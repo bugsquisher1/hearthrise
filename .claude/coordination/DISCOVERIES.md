@@ -4,6 +4,64 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-16 · Art Director · **A batch can pass every automated QC check and still be 21% WRONG**
+
+**DISCOVERY.** The 512-image item batch was handed over "QC-verified: real alpha, zero hash-duplicates,
+zero backdrops". All three claims are true and I re-verified all three. **107 of the 512 depict the
+wrong object**, and no automatable check in this repo could have caught one of them. `yew_staff` is a
+woodcutting axe. `iron_ore` is a hammer. `slime_gel` is a **pool 8-ball**. `yew_plank` is a
+**chessboard**. `spellstone_diagram` is a **dartboard**. `potato`, `gold_ore`, `granite`, `troll_hide`
+and `warlock_body` are **humanoid figures**, which the prompt wrapper bans outright. The failure
+CLUSTERS by noun class — staffs, rods, arrows, needles, cloaks/mantles/capes and whetstones collapse
+into swords, axes and hammers, and `_body`/`_pants` sometimes collapse into a round shield — which is
+a generator behaviour, not random noise.
+
+**AFFECTED SYSTEMS.** Any future funded art batch; `tools/qc-art.mjs`; the prompt sheets.
+
+**REQUIRED ACTION.** **Budget a human review pass at RENDER SIZE for every funded batch, and treat it
+as non-optional rather than as polish.** The mechanism that made 512 reviewable in one sitting is
+`tools/art-contact-sheet.mjs` — 48 icons per sheet on the hearthlight surface with the id printed
+under each. Eight sheets, eight looks. **Not one of these defects was visible in a file browser and
+not one was invisible on a contact sheet.** This is the same lesson as the pilot's `oak_log`
+duplicate, one order of magnitude larger: automated QC proves a file is well-FORMED, never that it is
+CORRECT. Corollary for prompt work: naming the object is not enough for a noun the model has a strong
+prior against (a "rod" becomes a hammer); those classes need their silhouette described, or a
+different lane.
+
+### 2026-08-16 · Art Director · **The item size spec is 128 px long edge — measured, not argued**
+
+**DISCOVERY.** `item-art-prompts.md` said 128, the b357 pilot shipped 256 on a devicePixelRatio
+argument, and **the pilot's argument double-counts**. The measured render ceiling is 64 CSS px (the
+item-detail popup); the inventory grid is 34 px. 64 CSS px at DPR 2 is **128 device px**, so 128 px
+art is exactly 1:1 there. On a DPR 3 phone items render 34–44 CSS px = 102–132 device px, so 128 is
+~1:1 there too. I rendered a 128-vs-256 A/B into the real 64 px and 34 px boxes at DPR 2 and the two
+rows are **indistinguishable** — while 256 costs **47 MB against 14 MB** across the batch, on an
+`assets/icons-bundle/` that is 6 MB in total.
+
+**AFFECTED SYSTEMS.** `docs/design/item-art-prompts.md` spec table; `tools/art-batch-process.mjs`;
+bundle weight on mobile. Monsters are unaffected — they stay **square 256**, because a bestiary
+portrait is a different render size with a different ceiling.
+
+**REQUIRED ACTION.** The ruling and its measurements are written into the header of
+`src/data/item-art.js` so the discrepancy cannot drift back. Someone should copy the number into the
+prompt sheet's spec table.
+
+### 2026-08-16 · Art Director · **The batch exports have a full-canvas alpha speckle that defeats a bbox crop**
+
+**DISCOVERY.** `tools/art-pilot-process.mjs` auto-crops to the alpha bounding box at threshold 8. On
+the full batch that crop **never fired — 501 of 512 sources returned a bbox of exactly 1024×1024.**
+The exports carry a faint uniform speckle across the entire canvas (~0.1% of pixels in every one of
+the 16 alpha bins; corners measured at alpha 2–32), so "is any pixel here?" always hits the frame
+edge, and raising the threshold to 128 does not help because the speckle reaches that high too. Left
+in, it renders as a grey haze over the whole tile on the dark surface.
+
+**AFFECTED SYSTEMS.** Every future batch processed through the pilot tool.
+
+**REQUIRED ACTION.** `tools/art-batch-process.mjs` replaces the bbox with a **row/column projection
+with a minimum run**, and zeroes alpha ≤ 32 before cropping. Use it, not the pilot tool, for anything
+larger than a handful of files. The alpha histogram is strongly bimodal (0–15 and 240–255, ~1.5% in
+between), which is what makes both thresholds safe.
+
 ## 2026-08-16 · Art Director · P1 — a Recraft custom style transfers the seeds' PALETTE, not just their hand; `controls.colors` is the only override
 **Affected systems:** `tools/gen-art.mjs`, `docs/design/art-direction-picker.md` §0.10c, the whole ~600-image art batch.
 

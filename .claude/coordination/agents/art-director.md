@@ -2,6 +2,82 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-16 · b358 — the full item batch is WIRED, and it is 386 of 512, not 512 of 512
+
+**I was told the batch was done and asked to wire it. It is not done, and I found that by looking.**
+512 files, all technically clean — 1024² RGBA, real alpha, no hash-duplicates, no backdrops; I
+re-verified all three claims and all three hold. Then I built a contact-sheet tool and looked at every
+one of the 512 at render size on the hearthlight surface against the prompt sheet. **107 depict the
+wrong object.** `yew_staff` is a woodcutting axe. `iron_ore` is a hammer. `slime_gel` is a pool
+8-ball, `yew_plank` is a chessboard, `spellstone_diagram` is a dartboard. `potato`, `gold_ore`,
+`granite`, `troll_hide` and four others are **humanoid figures** — the one thing the shared suffix
+bans outright. **Wiring all 512 would have been the worst regression this repo has shipped**, and it
+would have passed every guard in the suite, because no guard can tell a hammer from an ore.
+
+**So I split the ruling rather than obeying it or refusing it.** Tyler's "all 426 or nothing" is about
+STYLE adoption — a mixed shelf of two art directions — and that argument is untouched by a file
+depicting the wrong noun. The 386 correct files are wired **game-wide**; the 107 wrong ones and the 27
+whose filename resolves to no live id are withheld, keep their existing fallback, and are worklisted
+in code (`REJECTED_WRONG_SUBJECT`, `UNRESOLVED_FILES`, `REGENERATE_DESPITE_SHIPPING`) with a suite
+guard that fails if a withheld file is ever also shipped. **Total adoption stays available at the cost
+of one array** once the re-generations land. That is the decision I'd defend: I did not quietly
+downgrade the directive, and I did not ship a chessboard called "yew plank".
+
+**The size discrepancy is dead, and the pilot was wrong — including where the pilot was me.** 128, not
+256. The pilot's DPR argument double-counts: the measured ceiling is 64 CSS px, which at DPR 2 is 128
+DEVICE px, so 128 px art is 1:1 there; a DPR 3 phone renders items at 34–44 CSS px = 102–132 device
+px, so 128 is ~1:1 there too. **I did not argue it, I rendered it** — a 128-vs-256 A/B into the real
+64 px and 34 px boxes at DPR 2, indistinguishable — and 256 costs **47 MB against 14 MB** on a
+6 MB icon bundle. Shipped set is 13 MB. The measurements live in the header of `src/data/item-art.js`.
+
+**Two mechanism decisions worth keeping.**
+*The manifest, not a literal* — `src/data/item-art.js` is the item twin of `monster-art.js`: the
+filename is DERIVED from the id, so a 386-line map cannot drift, and `itemArtPreflight()` in
+`run-smoke.mjs` reconciles it against the real filesystem in both directions plus "is this a live
+ITEMS key" plus "is this id in two folders".
+*The applier, not an import* — the merge-order trap is real and I proved it rather than reasoning
+about it. `__mapGeneratedGearIcons()` re-runs **1500 ms after load** and only skips ids it can see in
+legacy's own `LOCAL_ITEM_ICON` closure. Writing `window._itemPath` directly from main.js — the obvious
+way — would have let a generic iron platebody overwrite ~90 real paintings a second and a half after
+the player saw them land. So legacy exposes `__applyHearthfireItemIcons()` and main.js calls it, and
+the b358 guard **re-runs the generated mapper as its mutation** and asserts nothing moved, with a
+control proving the generated mapper is still doing its job for uncovered ids.
+
+**Three things I nearly shipped wrong, all caught by checking rather than assuming.**
+`iron_ore` — my copy step wiped the pilot's file because the batch's replacement was rejected, which
+would have been a silent regression caused by *my* change. Re-ran the pilot raw at the new spec and
+kept it. `muster_seal` — the batch has a perfectly good painting and I withheld it anyway: it is a
+CURRENCY rendered inside the `.hr-med` medallion, whose whole design language is a centred vector
+glyph that cannot go soft. I widened the `b193` guard (its property is "a curated shipped folder",
+like `b186` before it) but **left `b220` strict** rather than weakening a guard to let my own change
+through. And the screenshot harness told me "recipe-book control found: true" **twice while
+photographing the wrong screen** — `dismiss()` was deleting the overlay I had just opened. A harness
+that reports success is not evidence; the capture is.
+
+**Verified in-browser, my own server rooted in my own worktree** (the pilot's twenty-minute lesson).
+8 surfaces × 3 contexts: **0 404s, 0 console errors, 0 broken `<img>`, 0 tiny `<img>`**, 990 hearthfire
+icons rendered, including a recipe book carrying 726 of them on one screen. Desktop hearthlight,
+cozy-light (no leak, icons read fine on the light surface), mobile-landscape 922×423 scaled-desktop.
+9 captures in `assets/art-pilot/_screenshots/full-wire/`.
+
+**Suite 764/764, three consecutive green runs, no version bump, no push, monsters and supabase
+untouched.** One caveat, chased down rather than waved at: a mid-pass run showed **763/764 and I had
+not captured which test**, so I kept running until it reappeared with its name. It is the **Edge
+payload guard** — the deployed `hr-accrue` reports `f616d3b8…` while this repo packs to `7ad2bd94…`.
+**Not mine**, and I proved that rather than assuming it: the repo-side hash is `7ad2bd94…` in the
+FIRST run of my pass (when it passed) and identical in the last, and `node tools/pack-edge.mjs` shows
+`src/data/item-art.js` is not among the 50 packed files. The DEPLOYED side moved under us. My
+predecessor's b357 entry already records this guard as pre-existing red. **Lesson I'd repeat: a
+failure you cannot name is not a flake, it is an unread message — run it again until it speaks.**
+
+**Known limitations.** The item-detail popup capture landed on `turnip_seed`, which keeps its painted
+crop art by the b217 seed ruling — so the largest item render is photographed, but not wearing a
+hearthfire icon. The shipped bundle is now 13 MB of PNG-24; **palette quantisation would cut that
+60–75% and I did not do it** — no optimiser in the toolchain, and it is an asset-pipeline job. And
+`rune_*` items read bright teal while `void*`/`warlock_*` read heavily purple; both are legible tier
+languages rather than drift, but they are the two palettes the standing non-negotiables name, so they
+should get an explicit ruling rather than arriving by default.
+
 ### 2026-08-16 · The Recraft unblock — both proposed levers FAIL; `controls.colors` is the one that works
 
 Ran the two unblock paths Tyler said "try both" to, plus a third I derived from what A proved.

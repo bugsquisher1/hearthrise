@@ -486,10 +486,57 @@ const TESTS = [
   }),
   () => tryRun('b193: painted consumables/drops/crops wired to shipped paths', () => {
     const ip = window._itemPath || {};
+    /* b358 — the full Hearthfire item batch re-homes most of these ids from
+       painted/items/ to icons-bundle/hearthfire/<category>/. Widened for the
+       same reason b186 above was: the property this guard protects is "wired
+       to a CURATED, SHIPPED folder and never to an unshipped one", not "wired
+       to that ONE folder". `slime_gel` deliberately stays on painted/ — its
+       Hearthfire file is a pool ball and was withheld (see item-art.js). */
     ['slime_gel', 'bones', 'carrot', 'cooked_shark', 'ruby', 'bat_wing', 'turnip_seed'].forEach((id) => {
       const p = ip[id];
-      assert(p && /assets\/icons-bundle\/painted\/items\//.test(p), 'painted item icon missing/unshipped for ' + id + ': ' + p);
+      assert(p && /assets\/icons-bundle\/(painted\/items|hearthfire\/(items|food|armour|weapons))\//.test(p),
+        'item icon missing/unshipped for ' + id + ': ' + p);
+      assert(!/raw-bundle|icons3|assets\/pixel/.test(p), id + ' icon references unshipped folder: ' + p);
     });
+  }),
+  /* b358 — THE MERGE-ORDER TRAP. `__mapGeneratedGearIcons()` paints every
+     generated tier piece with a shared slot silhouette, and it re-runs 1500 ms
+     after load. It skips an id only if that id is already in legacy's own
+     LOCAL_ITEM_ICON closure — so if the Hearthfire manifest were applied by
+     writing `_itemPath` directly (the obvious way), a generic iron platebody
+     would silently overwrite ~90 real paintings a second and a half after the
+     player saw them land. Re-running it here is the mutation: it must be a
+     no-op over every hearthfire-wired id, forever. */
+  () => tryRun('b358: hearthfire item art survives a __mapGeneratedGearIcons re-run', () => {
+    const A = window.HearthriseItemArt;
+    assert(A && typeof A.wiredIconMap === 'function', 'HearthriseItemArt manifest not published');
+    const wired = A.wiredIconMap();
+    const ids = Object.keys(wired);
+    assert(ids.length > 300, 'expected the full item batch to be wired, got ' + ids.length);
+    assert(typeof window.__applyHearthfireItemIcons === 'function',
+      'legacy.js must expose the applier — writing _itemPath directly loses the LOCAL_ITEM_ICON guard');
+
+    const before = ids.map((id) => (window._itemPath || {})[id]);
+    const missed = ids.filter((id, i) => before[i] !== wired[id]);
+    assert(missed.length === 0, missed.length + ' hearthfire ids never reached _itemPath, e.g. ' + missed.slice(0, 3));
+
+    window.__mapGeneratedGearIcons();
+    const clobbered = ids.filter((id) => (window._itemPath || {})[id] !== wired[id]);
+    assert(clobbered.length === 0,
+      clobbered.length + ' hearthfire paintings were overwritten by generated slot art, e.g. ' + clobbered.slice(0, 3));
+
+    /* Control: the generated map must still be doing its job for ids the
+       batch did NOT cover, or the assertion above passes vacuously. */
+    const uncovered = Object.keys(window.ITEMS || {}).filter((id) => !wired[id] && /_(helm|platebody|sword)$/.test(id));
+    const painted = uncovered.filter((id) => /icons-bundle/.test((window._itemPath || {})[id] || ''));
+    assert(painted.length > 0, 'control failed: no un-covered gear id is painted by the generated map');
+
+    /* Every wired path is inside the one shipped bundle, and none is an emoji. */
+    ids.forEach((id) => {
+      assert(/^assets\/icons-bundle\/hearthfire\//.test(wired[id]), id + ' wired outside the hearthfire folder: ' + wired[id]);
+    });
+    assert(!ids.some((id) => (A.REJECTED_WRONG_SUBJECT || []).some((k) => k.split('/')[1] === id)),
+      'a file withheld for depicting the wrong object got wired anyway');
   }),
   () => tryRun('b201: homestead tiers are sane + API present', () => {
     const H = window.HearthriseHomestead;

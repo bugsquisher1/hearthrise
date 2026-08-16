@@ -27,6 +27,7 @@ import { SKILLS_DEF } from './data/skills.js?v=359';
 import { MONSTERS } from './data/monsters.js?v=359';
 import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoster } from './data/monster-classes.js?v=359';
 import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=359';
+import * as ItemArt from './data/item-art.js?v=359';
 import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=359';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=359';
 import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=359';
@@ -99,6 +100,15 @@ window.HearthriseMonsterClasses = {
 };
 window.HearthriseMonsterArt = { expected: MONSTER_ART_EXPECTED, pending: pendingArt };
 window._monsterIcon = Object.assign(window._monsterIcon || {}, wiredIconMap());
+
+/* b358 — the Hearthfire ITEM art manifest, same shape as the monster one.
+   Applied through the applier legacy.js exposes rather than by writing
+   `_itemPath` directly, because the map must land in legacy's own
+   `LOCAL_ITEM_ICON` closure: `__mapGeneratedGearIcons()` re-runs 1500 ms
+   after load and only skips ids IT can see there. Writing `_itemPath` alone
+   would let a generic tier silhouette overwrite a real painting. */
+window.HearthriseItemArt = ItemArt;
+window.__hearthfireItemsWired = (window.__applyHearthfireItemIcons || (() => 0))(ItemArt.wiredIconMap());
 
 Object.assign(window, {
   SKILLS_DEF:      unifyObject('SKILLS_DEF', SKILLS_DEF),

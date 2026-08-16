@@ -213,11 +213,11 @@ A hook ending in *(REVISED: was X)* means the id survived and only its name/read
 | MON-VER-01 | **Barn Rat** | 1 | default | Tibia Rats | Folds beside `rat`; the homestead's own pest, killable in the first minute. |
 | MON-VER-02 | **Hive Wasp** | 1 | W: ranged *(override)* | Tibia Insects | Flies. The one T1 monster that answers a bow, so the ranged starter has a target. |
 | MON-VER-03 | **Locust Swarm** | 2 | default | Tibia Vermin | Eats your farm plot's yield if left alive — the first monster with a *reason* beyond XP. *(REVISED: was Grain Weevil Swarm)* |
-| MON-VER-04 | **Ooze** | 2 | W: hammer, E resist: all | Tibia Slime class | Splits conceptually from `slime`; immune to every element, so it is a pure weapon-triangle check. *(REVISED: was Cellar Ooze)* |
-| MON-VER-05 | **Centipede** | 3 | default | Tibia Myriapods | Mining-adjacent spawn; drops the chitin that starts the leather-alternative armour line. *(REVISED: was Tunnel Centipede)* |
-| MON-VER-06 | **Giant Spider** | 4 | default | Tibia Arachnids / OSRS Kalrag | Silk faucet for the Emberhead arrow chain, which is currently silk-starved. *(REVISED: was Brood Widow)* |
-| MON-VER-07 | **Carrion Swarm** | 5 | E resist: **all but Frost** | Tibia Hive Born | Dense enough that only cold thins it — the clearest single-element puzzle in the mid game. *(REVISED: was Carrion Fly Cloud)* |
-| MON-VER-08 | **Broodmother** | 6 | default, `boss` | Tibia Hive / OSRS Kalphite Queen | Two-phase in fiction (she is why the brood exists); the Vermin capstone the family has never had. *(REVISED: was Chitin Broodmother; id VER-07's old slot is now VER-08 to keep tier order readable — both ids are new, so nothing moves)* |
+| MON-VER-08 | **Ooze** | 2 | W: hammer, E resist: all | Tibia Slime class | Splits conceptually from `slime`; immune to every element, so it is a pure weapon-triangle check. *(REVISED: was Cellar Ooze)* |
+| MON-VER-04 | **Centipede** | 3 | default | Tibia Myriapods | Mining-adjacent spawn; drops the chitin that starts the leather-alternative armour line. *(REVISED: was Tunnel Centipede)* |
+| MON-VER-05 | **Giant Spider** | 4 | default | Tibia Arachnids / OSRS Kalrag | Silk faucet for the Emberhead arrow chain, which is currently silk-starved. *(REVISED: was Brood Widow)* |
+| MON-VER-06 | **Carrion Swarm** | 5 | E resist: **all but Frost** | Tibia Hive Born | Dense enough that only cold thins it — the clearest single-element puzzle in the mid game. *(REVISED: was Carrion Fly Cloud)* |
+| MON-VER-07 | **Broodmother** | 6 | default, `boss` | Tibia Hive / OSRS Kalphite Queen | Two-phase in fiction (she is why the brood exists); the Vermin capstone the family has never had. *(REVISED: was Chitin Broodmother)* |
 
 ### Plant — MON-PLA *(new class; replaces the rejected Fey)*
 | id | Name | T | Profile | Inspiration | Hook |

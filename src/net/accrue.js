@@ -516,6 +516,14 @@ export async function requestAccrual(opts) {
 /** The ONE place an outcome becomes state. Everything funnels here. */
 function settle(verdict, now) {
   const wasHalted = gate.halted;
+  /* PHASE 1: the cadence watermark follows EVERY answered accrual, not just the
+     ones the timer started. A cold-load accrual, a retry from the halted sheet
+     and an intent settle all close the same server span, so the interval must
+     restart from here or the loop would immediately re-settle a span of
+     milliseconds and earn a `below_min_span`. Guarded: this runs before
+     `settleState` exists on no path, but the try costs nothing and a throw in
+     the bookkeeping must never lose a grant. */
+  try { if (settleState) settleState.lastSettleAt = now; } catch (e) {}
   gate = accrualGateStep(gate, verdict.outcome, now, verdict.reason);
   let applied = false;
   if (verdict.outcome === 'accrued') {
@@ -681,11 +689,49 @@ export function equippedCount(equipment, id) {
  * b362 — copies worn on THIS client that the server's inventory figure has not
  * been told about. Pure. See the block in applyEnvelopeState for the proof.
  */
+/* ⏳ RETIREMENT (live-settlement.md §8). This discount exists ONLY because no
+   equip intent tells the server about a client equip, so the server's inventory
+   figure is a stale view that still counts the worn copy. It retires on
+   WHICHEVER COMES FIRST:
+     • the equip intent landing (the server then knows, and its figure is
+       already correct — the discount would become a double subtraction), or
+     • the Phase 2 flip, when `applyEnvelopeState` reverts to absolute
+       replacement and the client holds no rival copy to reconcile.
+   It is NOT retired by Phase 1. Do not delete it alongside the max-merge
+   without checking which of the two conditions actually fired — they are
+   different dates and the b362 dupe comes straight back if this goes early. */
 export function unaccountedEquipped(G, res, id) {
   const local = equippedCount(G && G.equipment, id);
   if (!local) return 0;
   const server = equippedCount(res && res.equipment, id);
   return Math.max(0, local - server);
+}
+
+/**
+ * b364 / live-settlement.md §5.2 — WHICH ITEM IDS DID THE SERVER *SPEND*?
+ *
+ * The away receipt (`res.away.items`) is the SIGNED delta the server actually
+ * applied: positive for a drop it rolled, NEGATIVE for a unit it consumed
+ * (auto-eat food today; artisan inputs and ammunition as those land). It is
+ * produced by `accrual.js`'s item block — the same map the gains ride in,
+ * because `hr_apply`'s item op is signed and re-checks `have + delta >= 0`
+ * under the row lock.
+ *
+ * This is a POSITIVE STATEMENT by the server, which is what makes it usable
+ * where an omission is not: b359's rule is "absent means unknown", and a key
+ * named here is the opposite of absent.
+ *
+ * Pure. Returns a Set of ids, never null.
+ */
+export function consumedKeysOf(res) {
+  const out = new Set();
+  const items = res && res.away && res.away.items;
+  if (!items || typeof items !== 'object') return out;
+  for (const k of Object.keys(items)) {
+    const n = Number(items[k]);
+    if (Number.isFinite(n) && n < 0) out.add(k);
+  }
+  return out;
 }
 
 export function applyEnvelopeState(G, res, ownKey) {
@@ -742,7 +788,56 @@ export function applyEnvelopeState(G, res, ownKey) {
   G.skills = skills;
 
   const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
-  for (const k of Object.keys(res.inventory || {})) {
+  /* ══════════════════════════════════════════════════════════════════════
+     PHASE 1 (b364) — DEBITS ABSOLUTE, CREDITS BY MAX. live-settlement.md §5.2.
+
+     THE HOLE THIS CLOSES, AND WHY IT BECAME URGENT. The b359 max below is a
+     one-way ratchet: it can only ever RAISE the client's copy. That is exactly
+     right for a DROP the server has not been told about, and exactly wrong for
+     a unit the server SPENT — its own header said so ("an item the server
+     legitimately CONSUMED while he was away will not be deducted"). Away, that
+     fired on the rare night that auto-ate. Settling every 90 s fires it ~320
+     times a day, and a duplication that fires 320 times a day is a faucet.
+
+     THE RULE, and it is exact rather than heuristic: a key the server states it
+     DEBITED is a key the server's figure is authoritative for, because the
+     client cannot have spent it on the server's behalf. So a debited key is
+     ASSIGNED; every other key keeps b359's max untouched.
+
+     ⚠ A FULLY-CONSUMED KEY IS OMITTED FROM THE ENVELOPE, NOT NAMED AT ZERO.
+     Verified in 2026-08-11-apply-engine.sql: the item block DELETEs the
+     `player_inventory` row when `have + delta = 0`, and `hr_state_of` builds
+     `inventory` by aggregating the surviving rows. So "ate the last three
+     shrimp" arrives as `away.items = {shrimp:-3}` with NO `inventory.shrimp` —
+     and a fix that only walked the envelope's own keys would close nothing in
+     precisely the case that matters most. The debit list is therefore part of
+     the key set, and an omitted DEBITED key reads as a real zero. That does not
+     reopen B359-1: omission is only load-bearing here for a key the server
+     explicitly named as spent.
+
+     PRECEDENCE WITH THE b362 EQUIP DISCOUNT — both apply, discount FIRST. The
+     discount corrects a known over-count in the server's *figure* (copies worn
+     on this client that its inventory row still counts) and is orthogonal to
+     whether the span also spent some. Applying it to a debited key can only
+     lower the result, which is the safe direction the b362 block already
+     argues for; skipping it would let an equip dupe ride in on any span that
+     happened to auto-eat.
+
+     RESIDUAL, STATED (§5.2): an item both credited AND debited inside one span
+     nets to a single positive receipt entry and is treated as a credit. That
+     can only under-deduct, by at most what the same span credited. It is gone
+     at Phase 2.
+
+     ⏳ RETIRES AT PHASE 2 together with the max itself — see §8. At the flip
+     this whole block becomes plain absolute assignment and the debit/credit
+     distinction stops existing, because the envelope will name every key it
+     owns. Do not build anything new on top of it. */
+  const consumed = consumedKeysOf(res);
+  const namedKeys = Object.keys(res.inventory || {});
+  const invKeys = consumed.size
+    ? Array.from(new Set(namedKeys.concat(Array.from(consumed))))
+    : namedKeys;
+  for (const k of invKeys) {
     /* ══════════════════════════════════════════════════════════════════════
        P0 FIX (b362) — THE MAX MUST NOT RESURRECT A COPY THAT IS NOW WORN.
 
@@ -776,8 +871,21 @@ export function applyEnvelopeState(G, res, ownKey) {
        the worst case is under-crediting a bag copy, which the next settle
        heals. A dupe never heals. Counted by ITEM ID, never by slot name, so
        client and server slot vocabularies cannot drift into a wrong deduction. */
-    const q = Number(res.inventory[k]) - unaccountedEquipped(G, res, k);
+    const isDebit = consumed.has(k);
+    const raw = Number((res.inventory || {})[k]);
+    /* A debited key the envelope omits is a REAL zero (the row was deleted).
+       For every other key, an unreadable figure is still "unknown" and skipped. */
+    const figure = Number.isFinite(raw) ? raw : (isDebit ? 0 : NaN);
+    if (!Number.isFinite(figure)) continue;
+    const q = figure - unaccountedEquipped(G, res, k);
     const have = Number(inv[k]) || 0;
+    if (isDebit) {
+      /* ABSOLUTE. The client's convention is that a zero row does not exist
+         (legacy.js `removeItem` deletes at <= 0), and it is the server's too. */
+      const next = Math.max(0, q);
+      if (next > 0) inv[k] = next; else delete inv[k];
+      continue;
+    }
     /* MAX for a NAMED key too — and this is the clause that actually saved the
        reporting player, so do not weaken it to a plain assignment. `dragon_scale`
        WAS named (the server held 2 from away accrual); only taking the max keeps
@@ -1030,6 +1138,387 @@ export function receiptSentence(summary, opts) {
     + c.xp + ' XP, +' + c.gold + ' gold' + tail;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 1 — LIVE SETTLEMENT. docs/design/live-settlement.md §3, §7.
+   ═══════════════════════════════════════════════════════════════════════════
+   THE MODEL, IN ONE SENTENCE: away accrual and live play are the SAME
+   operation at different intervals, so this adds a TRIGGER and nothing else —
+   no verb, no engine, no idempotency scheme, no second concurrency model. Every
+   settle below funnels into `requestAccrual`, which owns the in-flight mutex,
+   the gate, the backoff and the halt. **THERE IS DELIBERATELY NO SECOND
+   SCHEDULER AND NO SECOND BREAKER.** A retry policy that lived out here could
+   disagree with the one in `settle()` during exactly the incident both exist
+   for.
+
+   THE CLIENT'S TIMER IS A TRIGGER, NEVER A MEASUREMENT (§7). The body is
+   `{"slot":N}` and carries no timestamp; both ends of the paid span come from
+   `select now()` in Postgres. A device with a clock a year fast settles at the
+   wrong wall time and is paid the correct amount. `lastSettleAt` below is a
+   local estimate used ONLY to avoid spending a rate budget on a span the server
+   will refuse — it is never authority, and a wrong estimate costs at most one
+   `below_min_span`, which is a non-event (§3.4) and loses nothing (the server
+   leaves `accrued_to` alone on a refusal, so the next settle prices a wider
+   span).
+
+   ── THE TWO NUMBERS, AND WHY NEITHER MOVES ────────────────────────────────
+   Security's standing rulings are honoured WITHOUT touching either: the server
+   floor stays at 60 s and `hr_rate_gate` stays at 30 accrue/min. Setting the
+   cadence ABOVE the floor achieves what lowering the floor was meant to
+   achieve, and leaves the floor as the second line of defence against a client
+   that settles in a loop. SETTLE-6 asserts both, arithmetically. */
+
+/** The cadence (§3.1). 90 s, not 60: `setInterval` drift, a throttled tab and
+ *  the previous round trip all push a 60 s timer's real span UNDER the server
+ *  floor, and every one of those is a wasted invocation and a settle that
+ *  silently did not happen. 90 s clears the floor by 50 % with no tuning. */
+export const SETTLE_INTERVAL_MS = 90000;
+
+/** A MIRROR of the server's `ACCRUE_MIN_MS`, and it is a mirror on purpose:
+ *  this file may not change the floor, only decline to waste a call under it.
+ *  ⚠ DO NOT LOWER. §3.6's event trigger wants it at 30 s; that change is one
+ *  reviewed unit with Security and has NOT cleared, so the event trigger ships
+ *  in its DEGRADED form below instead. */
+export const ACCRUE_MIN_SPAN_MS = 60000;
+
+/** The server's own budget, mirrored so the arithmetic is assertable. */
+export const ACCRUE_RATE_PER_MIN = 30;
+
+const SETTLE_KINDS_IDLE = 'idle';
+
+let settleState = null;
+let settleEnv = null;
+
+export function newSettleState() {
+  return {
+    running: false, timer: null, wired: false,
+    lastSettleAt: 0, eventAt: 0, eventKind: null,
+    settles: 0, unloadSettles: 0, events: 0, lastDecision: null,
+  };
+}
+settleState = newSettleState();
+
+/* The environment, injectable ENTIRELY so the suite can drive a fake clock, a
+   fake timer and a fake transport without a live server or a 90-second wait —
+   the same reason `buildAccrueRequest` is pure. Nothing here reaches for a
+   global at module scope; every default resolves at CALL time, so a page that
+   loads this before `localActivityPointer` exists still works. */
+function defaultSettleEnv() {
+  return {
+    now: nowMs,
+    setTimer: (fn, ms) => (typeof setTimeout === 'function' ? setTimeout(fn, ms) : null),
+    clearTimer: (h) => { if (typeof clearTimeout === 'function' && h != null) clearTimeout(h); },
+    /* §3.1: "while the tab is VISIBLE". A document that does not exist (Node,
+       the suite's pure blocks) counts as visible — there is nothing to hide. */
+    visible: () => (typeof document === 'undefined' ? true : !document.hidden),
+    /* The switch and the wiring are read THROUGH the env for the same reason
+       the clock is: they are ambient module state, and a test that cannot
+       control them can only assert the loop in whatever position the previous
+       test happened to leave it. The defaults are the real readers, so nothing
+       about production behaviour is indirected away. */
+    enabled: () => isServerAccrualEnabled(),
+    configured: () => !!config,
+    /* legacy.js owns the pointer and publishes ONE translation of it
+       (`localActivityPointer`). Read, never re-derived: a second reader of
+       `G.activeMonster`/`G.activeSkill` here is a second idea of what counts as
+       an activity, which is the b348 defect exactly. */
+    pointer: () => {
+      try {
+        const f = (typeof window !== 'undefined') && window.localActivityPointer;
+        return (typeof f === 'function') ? f() : null;
+      } catch (e) { return null; }
+    },
+    request: (o) => requestAccrual(o),
+    fetch: (u, i) => fetch(u, i),
+  };
+}
+
+/** Test seam. `null` restores the real clock/timer/transport. */
+export function setSettleEnv(env) {
+  settleEnv = env ? { ...defaultSettleEnv(), ...env } : null;
+  return settleEnv;
+}
+function env() { return settleEnv || defaultSettleEnv(); }
+
+export function getSettleState() {
+  const e = env();
+  const p = e.pointer() || { kind: SETTLE_KINDS_IDLE };
+  return {
+    ...settleState,
+    intervalMs: SETTLE_INTERVAL_MS,
+    minSpanMs: ACCRUE_MIN_SPAN_MS,
+    visible: !!e.visible(),
+    kind: p.kind || SETTLE_KINDS_IDLE,
+  };
+}
+
+/**
+ * SHOULD WE SETTLE RIGHT NOW, AND IF NOT, WHEN DO WE LOOK AGAIN?
+ *
+ * PURE — takes the whole world as an argument and returns a verdict, so every
+ * condition in §3.1 is assertable without a timer, a document or a server.
+ * `waitMs` is part of the verdict rather than a constant at the call site: the
+ * event trigger's whole behaviour is "come back at the earliest LEGAL instant",
+ * and a caller that re-derived that would be a second copy of the rule.
+ */
+export function decideSettle(st, now) {
+  const wait = SETTLE_INTERVAL_MS;
+  if (!st || typeof st !== 'object') return { settle: false, reason: 'no-state', waitMs: wait };
+  if (!st.enabled) return { settle: false, reason: 'switch-off', waitMs: wait };
+  /* Not signed in / not wired yet. Keep ticking: sign-in happens mid-session
+     and a loop that gave up here would never notice. */
+  if (!st.configured) return { settle: false, reason: 'unconfigured', waitMs: wait };
+  if (!st.visible) return { settle: false, reason: 'hidden', waitMs: wait };
+  const kind = st.kind || SETTLE_KINDS_IDLE;
+  if (kind === SETTLE_KINDS_IDLE) return { settle: false, reason: 'idle', waitMs: wait };
+
+  const last = Number(st.lastSettleAt);
+  /* A garbage or FUTURE watermark must not park the loop forever — the same
+     posture rule 5 takes with `offlineBudget.at`. Treat it as "settle now",
+     which is safe because the SERVER prices the span and simply refuses one
+     that is too short. Note `0` is a LEGITIMATE watermark (a fake clock, and
+     the instant of an epoch-zero boot), so the test is `>= 0`, not `> 0`. */
+  const since = (Number.isFinite(last) && last >= 0 && last <= now) ? (now - last) : Infinity;
+
+  /* §3.6 EVENT TRIGGER, DEGRADED FORM. The player SAW a rare drop or a boss
+     die; the server's roll for that span should land within seconds so the
+     journal makes it permanent. The undegraded version settles IMMEDIATELY,
+     which needs `ACCRUE_MIN_MS` lowered — a change that has NOT cleared
+     Security. So: settle at the NEXT LEGAL INSTANT, which still beats the 90 s
+     interval by up to half a minute and costs nothing to ship. Firing early
+     would only earn a `below_min_span` and burn a rate spend. */
+  if (st.eventAt) {
+    if (since >= ACCRUE_MIN_SPAN_MS) return { settle: true, reason: 'event', waitMs: wait };
+    return { settle: false, reason: 'event-early', waitMs: Math.max(1, ACCRUE_MIN_SPAN_MS - since) };
+  }
+  if (since >= SETTLE_INTERVAL_MS) return { settle: true, reason: 'interval', waitMs: wait };
+  return { settle: false, reason: 'early', waitMs: Math.max(1, SETTLE_INTERVAL_MS - since) };
+}
+
+function scheduleSettle(ms) {
+  const e = env();
+  if (settleState.timer != null) { e.clearTimer(settleState.timer); settleState.timer = null; }
+  if (!settleState.running) return null;
+  settleState.timer = e.setTimer(settleTick, Math.max(1, Math.floor(ms)));
+  return settleState.timer;
+}
+
+/** ONE tick: decide, maybe fire, always re-arm. Never throws into the timer. */
+export function settleTick() {
+  settleState.timer = null;
+  if (!settleState.running) return null;
+  const e = env();
+  const now = e.now();
+  let p = null;
+  try { p = e.pointer(); } catch (err) { p = null; }
+  const d = decideSettle({
+    enabled: !!e.enabled(),
+    configured: !!e.configured(),
+    visible: !!e.visible(),
+    kind: (p && p.kind) || SETTLE_KINDS_IDLE,
+    lastSettleAt: settleState.lastSettleAt,
+    eventAt: settleState.eventAt,
+  }, now);
+  settleState.lastDecision = { ...d, at: now };
+  if (d.settle) {
+    /* Stamped BEFORE the request, not in its callback: a settle that is
+       throttled by the gate, or that never answers, must still cost the cadence
+       its interval. Stamping on success would turn an outage into a tight loop
+       against the endpoint the breaker exists to protect. */
+    settleState.lastSettleAt = now;
+    settleState.eventAt = 0;
+    settleState.eventKind = null;
+    settleState.settles++;
+    try {
+      const r = e.request({ reason: d.reason });
+      if (r && typeof r.catch === 'function') r.catch(() => {});
+    } catch (err) { /* the breaker owns failure; the loop only owns cadence */ }
+  }
+  scheduleSettle(d.waitMs);
+  return d;
+}
+
+/** Arm the loop. Idempotent; safe to call from every boot path.
+ *
+ *  ⚠ AN ALREADY-RUNNING LOOP IGNORES `opts`, INCLUDING `lastSettleAt`. That is
+ *  deliberate — re-arming must never reset the cadence, or a page that called
+ *  this on every wire-up would settle far more often than the interval and walk
+ *  into the rate gate. It IS a sharp edge for a caller trying to backdate the
+ *  watermark (it cost the author a confused ten minutes at a debugger), so:
+ *  stop the loop first if you mean to re-seed it. */
+export function startSettleLoop(opts) {
+  const o = opts || {};
+  const e = env();
+  if (settleState.running) return settleState;
+  settleState.running = true;
+  /* Seed the watermark to NOW rather than to zero. The cold-load accrual
+     (`processOffline` -> `ensureThenAccrue`) has just fired or is in flight, so
+     an unseeded loop would settle a second time against a span of milliseconds
+     and earn nothing but a `below_min_span` and a rate spend. */
+  settleState.lastSettleAt = Number.isFinite(Number(o.lastSettleAt)) ? Number(o.lastSettleAt) : e.now();
+  scheduleSettle(o.firstWaitMs != null ? o.firstWaitMs : SETTLE_INTERVAL_MS);
+  return settleState;
+}
+
+export function stopSettleLoop() {
+  const e = env();
+  if (settleState.timer != null) { e.clearTimer(settleState.timer); settleState.timer = null; }
+  settleState.running = false;
+  return settleState;
+}
+
+/** Full reset — the suite's teardown, and the only way to clear the counters. */
+export function resetSettleLoop() {
+  stopSettleLoop();
+  /* `wired` SURVIVES a reset, deliberately. The listeners are attached to
+     `window`/`document` for the life of the page and there is no detach path;
+     clearing the flag would let the next `wireSettleTriggers()` attach a SECOND
+     set, so every suite run that reset the loop would leave the page settling
+     twice on each unload. Counters and cadence reset; wiring is permanent. */
+  const wired = settleState.wired;
+  settleState = newSettleState();
+  settleState.wired = wired;
+  return settleState;
+}
+
+/**
+ * §3.6 — "the player just SAW something they must not lose."
+ *
+ * Records that a settle is wanted as soon as one is legal, and re-arms the
+ * timer so the loop looks again at that instant instead of at the next 90 s
+ * boundary. The FIRST event in a window wins: three rares in one span are one
+ * settle, because the span is what gets paid, not the drop.
+ *
+ * It records an INTENT TO SETTLE, never the drop itself. The client's roll is a
+ * prediction (§6); the server rolls its own dice for the span and that roll is
+ * the record. Nothing here crosses the wire.
+ */
+export function noteSettleEvent(kind) {
+  const e = env();
+  const now = e.now();
+  settleState.events++;
+  if (!settleState.eventAt) {
+    settleState.eventAt = now;
+    settleState.eventKind = kind || 'event';
+    if (settleState.running) scheduleSettle(1);
+  }
+  return settleState.eventAt;
+}
+
+/* ── THE UNLOAD SETTLE (§3.3) ───────────────────────────────────────────────
+   `navigator.sendBeacon` CANNOT SET AN `Authorization` HEADER, and index.ts's
+   only identity is the bearer JWT — there is no query-parameter or body token
+   path and it must never gain one. A beacon therefore arrives `not_signed_in`,
+   401. `fetch(..., {keepalive:true})` carries headers, survives unload in every
+   browser that ships sendBeacon, and is capped at a 64 KB body; ours is
+   `{"slot":0}`. SETTLE-4 asserts the literal bytes AND that no `sendBeacon`
+   call site exists anywhere in src/net.
+
+   COST, STATED: keepalive is best-effort. A hard tab kill or an OS process kill
+   loses it, and that costs the player NOTHING — the window is simply still
+   unpaid and the next login's cold-load accrual pays it as away time. */
+export function buildKeepaliveRequest(opts) {
+  const { url, init } = buildAccrueRequest(opts);
+  return { url, init: { ...init, keepalive: true } };
+}
+
+/**
+ * Fire the unload settle. Returns the request it built (for the suite), or null
+ * with a stated reason when it declined.
+ *
+ * DELIBERATELY NOT through `requestAccrual`: the document is going away, so
+ * there is nobody left to apply an envelope to, and the in-flight mutex would
+ * make a settle already on the wire silently swallow this one. It still CONSULTS
+ * the same gate — an endpoint the breaker has backed off from does not get a
+ * parting shot.
+ */
+export function settleOnUnload() {
+  if (!isServerAccrualEnabled()) return null;
+  if (!config) return null;
+  const token = tokenOf();
+  if (!token) return null;
+  const e = env();
+  const now = e.now();
+  let p = null;
+  try { p = e.pointer(); } catch (err) { p = null; }
+  if (!p || !p.kind || p.kind === SETTLE_KINDS_IDLE) return null;
+  if (!decideAccrualGate(gate, now).allow) return null;
+  /* Below the server floor: the span is NOT lost (§7 — `accrued_to` is left
+     alone on a refusal), so declining here trades nothing for one fewer
+     guaranteed-refused invocation on the way out. */
+  const last = Number(settleState.lastSettleAt) || 0;
+  if (last > 0 && last <= now && (now - last) < ACCRUE_MIN_SPAN_MS) return null;
+  const req = buildKeepaliveRequest({
+    url: config.url, apiKey: config.apiKey, token,
+    slot: resolveActiveSlot(config.slot),
+  });
+  try {
+    const r = e.fetch(req.url, req.init);
+    if (r && typeof r.catch === 'function') r.catch(() => {});
+  } catch (err) { /* unload is best-effort by definition */ }
+  settleState.lastSettleAt = now;
+  settleState.unloadSettles++;
+  return req;
+}
+
+/**
+ * §3.5 — SETTLE BEFORE A VALUE-MOVING INTENT.
+ *
+ * Awaitable, unlike everything else here. A player holding 40 unpaid seconds of
+ * gold who spends it will be refused `insufficient_gold` once gold is
+ * server-of-record; settling first makes the server's balance the one the
+ * player is looking at.
+ *
+ * THIS IS A CLIENT SEQUENCING RULE, NOT A REGISTRY CHANGE. `collectsFirst`
+ * stays `false` on every spend verb — flipping it would make a purchase
+ * CONFISCATE on a refused collect, which is a strictly worse trade.
+ */
+export async function settleBeforeIntent() {
+  if (!isServerAccrualEnabled() || !config) return { settled: false, reason: 'unconfigured' };
+  const e = env();
+  const now = e.now();
+  let p = null;
+  try { p = e.pointer(); } catch (err) { p = null; }
+  if (!p || !p.kind || p.kind === SETTLE_KINDS_IDLE) return { settled: false, reason: 'idle' };
+  const last = Number(settleState.lastSettleAt) || 0;
+  if (last > 0 && last <= now && (now - last) < ACCRUE_MIN_SPAN_MS) {
+    return { settled: false, reason: 'below-min-span' };
+  }
+  settleState.lastSettleAt = now;
+  settleState.settles++;
+  let r = null;
+  try { r = await e.request({ reason: 'intent' }); } catch (err) { r = null; }
+  return { settled: true, reason: 'intent', outcome: (r && r.outcome) || null };
+}
+
+/* ── THE TRIGGERS (§3.1) ────────────────────────────────────────────────────
+   Wired ONCE, guarded on `typeof window`, and every listener is a one-liner
+   that delegates — the decision lives in `decideSettle` / `settleOnUnload` and
+   nowhere else, so a listener cannot acquire its own idea of the rules.
+
+   `pagehide` AND `visibilitychange`->hidden are BOTH wired because neither
+   alone covers the field: iOS Safari has historically fired `pagehide` without
+   a preceding `visibilitychange`, and a tab switched away (rather than closed)
+   fires only the latter. Firing both is harmless — the second finds the span
+   under the floor and declines. */
+export function wireSettleTriggers() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+  if (settleState.wired) return false;
+  settleState.wired = true;
+  const hide = () => { try { settleOnUnload(); } catch (e) {} };
+  window.addEventListener('pagehide', hide);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { hide(); return; }
+    /* Back in front: look again NOW rather than at the end of whatever wait was
+       armed while hidden, or a player who tabs away for ten minutes waits a
+       further ninety seconds for a settle that was already due. */
+    if (settleState.running) scheduleSettle(1);
+  });
+  /* §3.1 reconnect. Reuses the gate/backoff — a reconnect storm cannot outpace
+     the breaker, and `decideSettle` still holds the cadence floor. */
+  window.addEventListener('online', () => { if (settleState.running) scheduleSettle(1); });
+  return true;
+}
+
 /* ── THE HONESTY SHEET (b331's posture, not a rival modal) ──────────────────
    b331 owns "your session is broken"; b302 owns "you were signed out here".
    This owns a third, genuinely different sentence — "we could not find out what
@@ -1206,7 +1695,12 @@ if (typeof window !== 'undefined') {
     isServerAccrualEnabled, setServerAccrualEnabled, __clearAccrualOverride,
     stampAwayWatermarks, clampSlot, resolveActiveSlot, mayClientWrite,
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement,
-    equippedCount, unaccountedEquipped,
+    equippedCount, unaccountedEquipped, consumedKeysOf,
+    /* Phase 1 — live settlement (docs/design/live-settlement.md §3). */
+    SETTLE_INTERVAL_MS, ACCRUE_MIN_SPAN_MS, ACCRUE_RATE_PER_MIN,
+    decideSettle, settleTick, startSettleLoop, stopSettleLoop, resetSettleLoop,
+    newSettleState, getSettleState, setSettleEnv, noteSettleEvent,
+    buildKeepaliveRequest, settleOnUnload, settleBeforeIntent, wireSettleTriggers,
     showReplacementSheet, hideReplacementSheet,
     configureAccrual, getAccrualConfig, accrueEndpoint,
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,

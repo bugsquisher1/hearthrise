@@ -31105,7 +31105,18 @@ const TESTS = [
      means UNKNOWN, not zero.
      This test fails against the replace in either direction: it proves omitted
      keys SURVIVE, and it proves named keys still WIN, including downward, so a
-     future "fix" that simply stops trusting the server also goes red. */
+     future "fix" that simply stops trusting the server also goes red.
+
+     ⏳ RETIREMENT (live-settlement.md §8, §5.4). THIS TEST INVERTS AT PHASE 2 —
+     it is the one place the spec asks a test to reverse its assertion, and that
+     is legitimate only because the CONTRACT inverts with it. At the flip,
+     "omission leaves a key alone" becomes "omission DELETES the key", because
+     the envelope will name every key it owns and absence stops being ambiguous.
+     It must invert in the SAME COMMIT that puts `skills`/`inventory` on
+     SERVER_OF_RECORD, never before, and that commit must state §5.3's measured
+     gate (`describeReplacement().destructive === false` across a full day of
+     live beta play). Phase 1 does NOT touch it: SETTLE-2 below closes only the
+     consumption hole, and re-asserts this test's protections while doing so. */
   () => tryRun('B359-1: an envelope overwrites the keys it names and preserves the ones it omits', () => {
     const A = window.HearthriseAccrual;
     assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
@@ -31193,6 +31204,335 @@ const TESTS = [
     const G4 = { gold: 0, skills: {}, inventory: { dragon_scale: 14 }, equipment: {} };
     A.applyEnvelopeState(G4, { state: {}, skills: {}, inventory: { dragon_scale: 2 } });
     assert(G4.inventory.dragon_scale === 14, 'b359: a named LOWER key must not pull a live stack down');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     PHASE 1 — LIVE SETTLEMENT. docs/design/live-settlement.md §3, §5.2, §7.
+     ══════════════════════════════════════════════════════════════════════
+     Phase 0 (the in-fight carry) is live and is graded by tests/live-settlement
+     .mjs against the real engine and real PostgreSQL. THESE tests are the
+     CLIENT half: the trigger, the cadence, and the consumption fix.
+
+     Every one of them is driven through an injected clock, timer and transport
+     (`setSettleEnv`), because a test that actually waited ninety seconds is a
+     test nobody runs — and the reason `decideSettle` is a pure function taking
+     the whole world as an argument is so the §3.1 table is assertable without
+     a document, a timer or a server. */
+
+  () => tryRun('SETTLE-2: a settle that DEBITS an item reduces the client copy; a credit still merges', () => {
+    /* §5.2 — the consumption hole in the b359 max, and the reason Phase 1 has
+       to close it now rather than at Phase 2. The max is a one-way ratchet: it
+       can only raise the client's number. Away, "the server ate three shrimp
+       and the client kept them" fired on the rare night that auto-ate. At a
+       90 s cadence it fires ~320 times a day, which is a faucet.
+
+       MUTATION PROOF: revert the debit branch to the plain `Math.max` and
+       blocks 1, 2 and 3 all go red. Block 4 is the other direction — a fix that
+       simply started trusting the envelope absolutely would take the reporting
+       player's 14 dragon scales back, so B359-1's protection is re-asserted
+       here against a change made in THIS block. */
+    const A = window.HearthriseAccrual;
+    assert(typeof A.consumedKeysOf === 'function', 'consumedKeysOf must be published');
+
+    /* 1. THE CRAFT NIGHT. The server consumed 3 of 10 shrimp auto-eating; the
+       client's own prediction had not caught up and still shows 10. The server
+       figure is authoritative for a key it says it SPENT, because the client
+       cannot have spent it on the server's behalf. */
+    const G = { gold: 0, skills: {}, inventory: { shrimp: 10, dragon_scale: 14 }, equipment: {} };
+    A.applyEnvelopeState(G, {
+      state: {}, skills: {}, inventory: { shrimp: 7 }, equipment: {},
+      away: { items: { shrimp: -3 } },
+    });
+    assert(G.inventory.shrimp === 7,
+      'a DEBITED item must take the server figure even though the client held MORE — got ' + G.inventory.shrimp);
+    assert(G.inventory.dragon_scale === 14,
+      'b359 must survive: an omitted key is still unknown, not zero — got ' + G.inventory.dragon_scale);
+
+    /* 2. THE CASE THAT MATTERS MOST, AND THAT A NAIVE FIX MISSES ENTIRELY.
+       hr_apply DELETEs the `player_inventory` row at qty 0 (2026-08-11-apply-
+       engine.sql) and `hr_state_of` aggregates the surviving rows — so "ate the
+       LAST three shrimp" arrives as `away.items:{shrimp:-3}` with NO
+       `inventory.shrimp` at all. A fix that only walked the envelope's own keys
+       would close nothing here. The debit list is a POSITIVE statement, which is
+       what makes reading its omission as zero legitimate. */
+    const G2 = { gold: 0, skills: {}, inventory: { shrimp: 3, ember_bar: 5 }, equipment: {} };
+    A.applyEnvelopeState(G2, {
+      state: {}, skills: {}, inventory: {}, equipment: {},
+      away: { items: { shrimp: -3 } },
+    });
+    assert(!('shrimp' in G2.inventory),
+      'a FULLY consumed item is omitted by the envelope and must go to zero — got ' + G2.inventory.shrimp);
+    assert(G2.inventory.ember_bar === 5,
+      'an ordinary omitted key must still survive — omission only speaks for a key the receipt DEBITED');
+
+    /* 3. PRECEDENCE WITH THE b362 EQUIP DISCOUNT — both apply, discount first.
+       An artisan input that is also worn (a torch, a tool) must not ride an
+       equip dupe in on a span that happened to spend some. */
+    const G3 = { gold: 0, skills: {}, inventory: {}, equipment: { tool: 'iron_pick' } };
+    A.applyEnvelopeState(G3, {
+      state: {}, skills: {}, inventory: { iron_pick: 1 }, equipment: {},
+      away: { items: { iron_pick: -1 } },
+    });
+    assert(!(Number(G3.inventory.iron_pick) > 0),
+      'the equip discount must still apply to a debited key — got ' + G3.inventory.iron_pick + ' in the bag AND one worn');
+
+    /* 4. B359 AND B362 ARE NOT WEAKENED BY THE NEW BRANCH. A CREDIT still
+       merges by max, so a live-earned stack the server has never seen survives
+       an envelope that also debits something else. */
+    const G4 = { gold: 0, skills: {}, inventory: { dragon_scale: 14, shrimp: 4 }, equipment: {} };
+    A.applyEnvelopeState(G4, {
+      state: {}, skills: {}, inventory: { dragon_scale: 2, shrimp: 3, rune_bar: 9 }, equipment: {},
+      away: { items: { shrimp: -1, rune_bar: 9 } },
+    });
+    assert(G4.inventory.dragon_scale === 14, 'a CREDITED/untouched key must keep b359\'s max');
+    assert(G4.inventory.shrimp === 3, 'the debited key must take the server figure');
+    assert(G4.inventory.rune_bar === 9, 'a positive receipt entry is a CREDIT and must arrive');
+
+    /* 5. NO RECEIPT AT ALL (an activity-switch envelope carries no `away`) must
+       behave exactly as b359/b362 did. The fix may not change the shape of a
+       call it was not written for. */
+    const G5 = { gold: 0, skills: {}, inventory: { shrimp: 10 }, equipment: {} };
+    A.applyEnvelopeState(G5, { state: {}, skills: {}, inventory: { shrimp: 7 } });
+    assert(G5.inventory.shrimp === 10,
+      'with no away receipt there is no debit statement, so the max must stand — got ' + G5.inventory.shrimp);
+    assert(A.consumedKeysOf({}).size === 0 && A.consumedKeysOf(null).size === 0,
+      'consumedKeysOf must fail closed to an EMPTY set, never null');
+  }),
+
+  () => tryRun('SETTLE-3: `below_min_span` is a NON-EVENT — no sheet, no receipt reset, no halt', () => {
+    /* §3.4. Today `accrued:false` is outcome `nothing`; under live settlement it
+       becomes the MODAL answer — every settle that races an activity switch,
+       every retry, every visibility flap. If it counted as a failure the player
+       would meet the halted sheet within five minutes of ordinary play. */
+    const A = window.HearthriseAccrual;
+    const v = A.classifyAccrueResponse(200, { ok: true, accrued: false, reason: 'below_min_span' });
+    assert(v.outcome === 'nothing', 'below_min_span must classify as `nothing`, got ' + v.outcome);
+    assert(v.reason === 'below_min_span', 'the reason must survive for the log, got ' + v.reason);
+    assert(A.isAccrualFailure('nothing') === false,
+      'below_min_span counted as a failure — at a 90s cadence that halts the player mid-session');
+    /* It resets the gate exactly as a paid settle does, so a refusal cannot
+       accumulate toward the halt across a session. */
+    const st = A.accrualGateStep({ streak: 2, firstAt: 1, halted: false, blockedUntil: 9e9 }, 'nothing', 1000, 'below_min_span');
+    assert(st.streak === 0 && st.halted === false && st.blockedUntil === 0,
+      'a below_min_span answer must clear the breaker, not feed it');
+    /* And it can never be applied: no envelope, so nothing overwrites the save
+       and `lastOfflineSummary` is left exactly as it was. */
+    assert(A.isEnvelopeApplicable({ ok: true, accrued: false, reason: 'below_min_span' }) === false,
+      'a below_min_span answer must never be applicable — it would blank the receipt');
+    const G = { inventory: { x: 1 }, skills: {}, lastOfflineSummary: { hrs: 8, gainedGold: 500 } };
+    assert(A.applyEnvelope(G, { ok: true, accrued: false, reason: 'below_min_span' }) === null,
+      'applyEnvelope must refuse a below_min_span answer');
+    assert(G.lastOfflineSummary.gainedGold === 500,
+      'a refused settle CLEARED the away receipt — the player loses the record of their night');
+  }),
+
+  () => tryRunAsync('SETTLE-4: the unload settle is a keepalive FETCH with a bearer — `sendBeacon` cannot authenticate', async () => {
+    /* §3.3, and it is a hard fact rather than a preference: `navigator
+       .sendBeacon` CANNOT set an `Authorization` header, and hr-accrue's only
+       identity is the bearer JWT (`verifyJwt(bearerOf(...))`) with no query or
+       body token path. A beacon therefore arrives `not_signed_in`, 401 — a
+       settle that looks like it works and never pays anything.
+
+       Asserted on the LITERAL BYTES, per this file's own rule: twelve times
+       this repo has shipped an assertion that asserted nothing, and a network
+       test that cannot observe a request is the thirteenth. */
+    const A = window.HearthriseAccrual;
+    const req = A.buildKeepaliveRequest({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', token: 'jwt-token', slot: 2 });
+    assert(req.url === 'https://proj.supabase.co/functions/v1/hr-accrue', 'wrong endpoint: ' + req.url);
+    assert(req.init.keepalive === true, 'the unload settle must set keepalive:true or the document unload kills it');
+    assert(req.init.method === 'POST', 'must be a POST');
+    assert(req.init.headers.Authorization === 'Bearer jwt-token',
+      'no bearer — this is exactly what makes sendBeacon unusable and it must not be lost here');
+    assert(req.init.headers.apikey === 'anon-key', 'the gateway wants an apikey');
+    assert(req.init.body === '{"slot":2}', 'the body must be the contract body and nothing else, got ' + req.init.body);
+    assert(req.init.body.length < 64 * 1024, 'keepalive caps the body at 64KB');
+
+    /* THE BUILD GUARD. A `sendBeacon` call site anywhere in the accrual module
+       would be a silently-401ing settle, and the failure is invisible at
+       runtime — the request goes out, the player sees nothing wrong, and the
+       span is never paid. Read the shipped source and refuse it. */
+    const raw = await (await fetch('src/net/accrue.js?v=363')).text();
+    assert(raw.length > 1000, 'could not read the accrual module source to guard it');
+    /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
+       unusable, and a guard that cannot tell a warning from a call site would
+       fail on its own documentation — which teaches the next author to delete
+       the explanation rather than the call. Guard the CODE. */
+    const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+    assert(!/navigator\s*\.\s*sendBeacon|\bsendBeacon\s*\(/.test(src),
+      'a sendBeacon CALL SITE exists in src/net/accrue.js — it cannot carry an Authorization header, '
+      + 'so every unload settle it makes arrives 401 not_signed_in and pays nothing');
+    assert(/keepalive:\s*true/.test(src), 'the keepalive flag is no longer in the shipped source');
+  }),
+
+  () => tryRun('SETTLE-5: the 90s loop fires only when VISIBLE and an activity is set', () => {
+    /* §3.1. The four conditions, each falsified independently against the pure
+       decider, then the cadence itself driven on a fake clock. A loop that ran
+       hidden would settle a span the offline budget watermark has already
+       stopped advancing for; a loop that ran idle would spend a rate budget to
+       be told `idle` forever. */
+    const A = window.HearthriseAccrual;
+    const base = { enabled: true, configured: true, visible: true, kind: 'combat', lastSettleAt: 0, eventAt: 0 };
+    const at = (over, now) => A.decideSettle(Object.assign({}, base, over), now);
+    const T = A.SETTLE_INTERVAL_MS;
+
+    assert(at({ lastSettleAt: 1000 }, 1000 + T).settle === true, 'a due, visible, active settle must fire');
+    assert(at({ lastSettleAt: 1000, visible: false }, 1000 + T).settle === false, 'a HIDDEN tab must not settle');
+    assert(at({ lastSettleAt: 1000, kind: 'idle' }, 1000 + T).settle === false, 'an IDLE player must not settle');
+    assert(at({ lastSettleAt: 1000, enabled: false }, 1000 + T).settle === false,
+      'the kill switch must stop the loop dead — it is the incident lever');
+    assert(at({ lastSettleAt: 1000, configured: false }, 1000 + T).settle === false,
+      'a signed-out device must not settle');
+    // Every non-combat payable kind settles too — this is not a combat feature.
+    ['gather', 'artisan'].forEach((k) => {
+      assert(at({ lastSettleAt: 1000, kind: k }, 1000 + T).settle === true, k + ' must settle like any other activity');
+    });
+    // The boundary, both sides.
+    assert(at({ lastSettleAt: 1000 }, 1000 + T - 1).settle === false, 'one ms early must not fire');
+    assert(at({ lastSettleAt: 1000 }, 1000 + T - 1).waitMs === 1, 'the re-arm must be the exact remainder');
+    /* A garbage or FUTURE watermark must not park the loop forever — the same
+       posture rule 5 takes with `offlineBudget.at`. */
+    assert(at({ lastSettleAt: 9e15 }, 1000).settle === true, 'a FUTURE watermark must not freeze the loop');
+
+    /* THE LOOP ITSELF, on a fake clock and a fake timer. */
+    const before = A.getSettleState();
+    let clock = 0; let armed = null; const fired = [];
+    let kind = 'combat'; let visible = true;
+    try {
+      A.resetSettleLoop();
+      A.setSettleEnv({
+        now: () => clock,
+        setTimer: (fn, ms) => { armed = { fn, at: clock + ms }; return 1; },
+        clearTimer: () => { armed = null; },
+        visible: () => visible,
+        enabled: () => true,
+        configured: () => true,
+        pointer: () => ({ kind, id: 'x' }),
+        request: (o) => { fired.push(Object.assign({ at: clock }, o)); return Promise.resolve({ outcome: 'nothing' }); },
+      });
+      const run = (to) => { while (armed && armed.at <= to) { clock = armed.at; const f = armed.fn; armed = null; f(); } clock = to; };
+      A.startSettleLoop();
+      assert(fired.length === 0, 'starting the loop must not settle immediately — the cold-load accrual just ran');
+      run(10 * T);
+      assert(fired.length === 10, 'ten intervals must produce ten settles, got ' + fired.length);
+      assert(fired.every((f) => f.reason === 'interval'), 'the interval settles must be labelled `interval`');
+      /* 45x HEADROOM, asserted rather than asserted-about. */
+      const perMin = 60000 / T;
+      assert(perMin < A.ACCRUE_RATE_PER_MIN,
+        'the cadence spends ' + perMin + '/min against a ' + A.ACCRUE_RATE_PER_MIN + '/min gate');
+
+      // HIDDEN: the loop keeps ticking (so it resumes instantly) and pays nothing.
+      const n = fired.length;
+      visible = false; run(20 * T);
+      assert(fired.length === n, 'the loop settled ' + (fired.length - n) + ' times while the tab was HIDDEN');
+      visible = true; run(21 * T);
+      assert(fired.length > n, 'the loop did not resume when the tab came back');
+
+      // IDLE: same again. Nothing to pay, nothing spent.
+      const n2 = fired.length;
+      kind = 'idle'; run(30 * T);
+      assert(fired.length === n2, 'the loop settled ' + (fired.length - n2) + ' times with NO activity set');
+
+      // STOPPED means stopped — no orphan timer left running after a teardown.
+      kind = 'combat'; A.stopSettleLoop();
+      assert(armed === null, 'stopSettleLoop left a timer armed');
+    } finally {
+      A.setSettleEnv(null);
+      A.resetSettleLoop();
+      if (before.running) A.startSettleLoop();
+    }
+  }),
+
+  () => tryRun('SETTLE-6: a rare drop settles at the 60s FLOOR, not at the 90s interval — and neither number moved', () => {
+    /* §3.6, Tyler 2026-08-17: "if a person loots a rare item from a boss and
+       then disconnects 3 seconds after, they won't lose the item?" The
+       undegraded answer settles IMMEDIATELY, which needs `ACCRUE_MIN_MS`
+       lowered — a change Security has NOT cleared. So the DEGRADED form ships:
+       settle at the next LEGAL instant, which still beats the interval by up to
+       half a minute, and firing any earlier would only earn a `below_min_span`.
+
+       SECURITY'S PRIOR RULINGS, ASSERTED. Both are honoured by construction
+       here rather than by intention, so a future author who "optimises" the
+       cadence goes red instead of silently re-opening a reviewed decision. */
+    const A = window.HearthriseAccrual;
+    assert(A.ACCRUE_MIN_SPAN_MS === 60000,
+      'the server floor mirror moved to ' + A.ACCRUE_MIN_SPAN_MS + ' — ACCRUE_MIN_MS is 60000 and lowering it '
+      + 'is a reviewed change Security has not cleared (live-settlement.md §3.6)');
+    assert(A.SETTLE_INTERVAL_MS === 90000, 'the cadence must be 90s (§3.2), got ' + A.SETTLE_INTERVAL_MS);
+    assert(A.SETTLE_INTERVAL_MS > A.ACCRUE_MIN_SPAN_MS,
+      'the cadence must CLEAR the floor or every settle is a wasted invocation');
+    assert(A.ACCRUE_RATE_PER_MIN === 30, 'the mirrored rate gate must stay at the reviewed 30/min');
+    /* The worst legal burst: an event settle at the floor, forever. Still under
+       the gate — this is the arithmetic §10\'s "light" security gate asks for. */
+    assert(60000 / A.ACCRUE_MIN_SPAN_MS < A.ACCRUE_RATE_PER_MIN,
+      'even settling at the floor on every event must stay inside the rate gate');
+
+    const before = A.getSettleState();
+    let clock = 0; let armed = null; const fired = [];
+    try {
+      A.resetSettleLoop();
+      A.setSettleEnv({
+        now: () => clock,
+        setTimer: (fn, ms) => { armed = { fn, at: clock + ms }; return 1; },
+        clearTimer: () => { armed = null; },
+        visible: () => true,
+        enabled: () => true,
+        configured: () => true,
+        pointer: () => ({ kind: 'combat', id: 'dragon' }),
+        request: (o) => { fired.push(Object.assign({ at: clock }, o)); return Promise.resolve({ outcome: 'nothing' }); },
+      });
+      const run = (to) => { while (armed && armed.at <= to) { clock = armed.at; const f = armed.fn; armed = null; f(); } clock = to; };
+      A.startSettleLoop();                       // lastSettleAt = 0
+
+      // A rare drops 10s into the window. It must NOT go out at 10s.
+      clock = 10000; A.noteSettleEvent('rare-drop');
+      run(59999);
+      assert(fired.length === 0,
+        'the event settled BELOW the 60s floor — that call is refused `below_min_span` and burns a rate spend');
+      run(60000);
+      assert(fired.length === 1, 'the event did not settle at the floor, got ' + fired.length + ' settles');
+      assert(fired[0].reason === 'event', 'the settle must be labelled `event`, got ' + fired[0].reason);
+      assert(fired[0].at === 60000, 'the event must settle at the EXACT floor, got ' + fired[0].at);
+      // ...and that is 30s earlier than the interval would have been.
+      assert(fired[0].at < A.SETTLE_INTERVAL_MS, 'the event trigger bought nothing over the plain interval');
+
+      // The event is CONSUMED: three rares in one span are one settle, because
+      // the SPAN is what gets paid, not the drop.
+      A.noteSettleEvent('rare-drop'); A.noteSettleEvent('boss-kill'); A.noteSettleEvent('rare-drop');
+      run(60000 + 59999);
+      assert(fired.length === 1, 'a burst of events must coalesce into ONE settle at the next legal instant');
+      run(60000 + 60000);
+      assert(fired.length === 2, 'the coalesced event did not settle at its floor');
+      assert(fired[1].reason === 'event', 'the coalesced settle must still be an event settle');
+      // With no event pending, the cadence returns to 90s.
+      run(120000 + A.SETTLE_INTERVAL_MS);
+      assert(fired.length === 3 && fired[2].reason === 'interval',
+        'the loop did not return to the plain 90s interval after the event cleared');
+    } finally {
+      A.setSettleEnv(null);
+      A.resetSettleLoop();
+      if (before.running) A.startSettleLoop();
+    }
+  }),
+
+  () => tryRun('SETTLE-7: settling every 90s must NOT toast the player every 90s', () => {
+    /* The b361 classifier already owns this sentence; what Phase 1 changes is
+       that the zero-value settle stops being hypothetical and becomes the
+       overwhelmingly common case. 320 settles a day means 320 toasts a day if
+       the silence rule ever regresses, so it is asserted AT THE CADENCE. */
+    const A = window.HearthriseAccrual;
+    let spoke = 0;
+    for (let i = 0; i < 40; i++) {
+      const zero = { awayMs: A.SETTLE_INTERVAL_MS, hrs: 0, gainedItems: 0, gainedXp: 0, gainedGold: 0, gainedKills: 0 };
+      if (A.receiptSentence(zero) !== null) spoke++;
+    }
+    assert(spoke === 0, 'a zero-value settle toasted ' + spoke + '/40 times — that is an hour of spam per hour played');
+    // A settle that DID move something speaks, quietly, and never claims an absence.
+    const quiet = A.receiptSentence({ awayMs: A.SETTLE_INTERVAL_MS, hrs: 0, gainedItems: 2, gainedXp: 40, gainedGold: 0 });
+    assert(quiet === 'Synced — +2 items, +40 XP', 'the quiet sync sentence changed: ' + quiet);
+    assert(A.classifyReceipt({ awayMs: A.SETTLE_INTERVAL_MS }) === 'sync',
+      'the settle cadence must classify as a SYNC — the whole point of SYNC_MAX_MS is that it is a cadence ceiling');
+    assert(A.SETTLE_INTERVAL_MS < A.SYNC_MAX_MS,
+      'the cadence has outgrown the sync threshold, so live settles would start claiming absences');
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -31445,11 +31785,31 @@ export async function runSmokeTest(opts = {}) {
   /* b337: sequential, never Promise.all. These tests mutate the live G and
      several depend on the state the previous one left; running them
      concurrently would be a different suite that happens to share the names. */
+  /* ── PARK THE LIVE SETTLE LOOP FOR THE DURATION (Phase 1) ────────────────
+     The 90 s settle timer is armed at boot on the authority path, and the suite
+     takes minutes — so a real interval settle WILL land mid-run, against
+     whatever `window.fetch` the test in flight has stubbed and whatever
+     activity a player-action test left running. That is not a hypothetical: the
+     b337/B338 batteries COUNT requests and swap the transport, so one stray
+     settle is a flake with no obvious cause.
+
+     Parked and restored around the whole run, exactly as `__saveParked` handles
+     the 90 s autosave for the same reason. SETTLE-5/6 drive the loop themselves
+     on an injected clock, so nothing here is left untested by parking it. */
+  const _A = window.HearthriseAccrual;
+  const _loopWasRunning = !!(_A && typeof _A.getSettleState === 'function' && _A.getSettleState().running);
+  try { if (_loopWasRunning) _A.stopSettleLoop(); } catch (e) {}
   const results = [];
-  for (const t of TESTS) {
-    const r = await t();
-    if (verbose) console.log((r.status === 'PASS' ? '✓ ' : '✗ ') + r.name + (r.why ? ' — ' + r.why : ''));
-    results.push(r);
+  try {
+    for (const t of TESTS) {
+      const r = await t();
+      if (verbose) console.log((r.status === 'PASS' ? '✓ ' : '✗ ') + r.name + (r.why ? ' — ' + r.why : ''));
+      results.push(r);
+    }
+  } finally {
+    try {
+      if (_loopWasRunning && _A) { _A.setSettleEnv(null); _A.startSettleLoop(); }
+    } catch (e) {}
   }
   try { window.showTab(startTab); } catch {}
   const summary = {

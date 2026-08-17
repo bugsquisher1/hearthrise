@@ -25,6 +25,7 @@ import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
 import { runAll as equipIntentGuards } from './equip-intent.mjs';
+import { guard as skillRowUpsertGuard } from './skill-row-upsert.mjs';
 import { itemsCatalogueGuard, itemsCatalogueMutationGuard } from './items-catalogue.mjs';
 import { cutoverImportGuard } from './cutover-import.mjs';
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
@@ -1258,6 +1259,15 @@ async function unlockModelPreflight() {
     ['derive-equip-release.mjs', 'equip-release derivation',
       'the restated hr_apply in 2026-08-18-equip-release-codes.sql is no longer fight-carry’s '
       + 'body plus this file’s ONE declared patch'],
+    /* b370, the `unknown_skill` incident's permanent fix. The SAME rule one
+       more link down: 2026-08-18-skill-row-upsert.sql restates the WHOLE of
+       hr_apply (70 KB) to turn six lines of XP grant into a catalogue check
+       plus an upsert. Everything the three links above protect lives in that
+       body — including b366's five release codes, which a hand-edit would drop
+       while the diff still looked like it was about skills. */
+    ['derive-skill-row-upsert.mjs', 'skill-row-upsert derivation',
+      'the restated hr_apply in 2026-08-18-skill-row-upsert.sql is no longer equip-release-codes’ '
+      + 'body plus this file’s ONE declared patch'],
   ]) {
     const gen = join(ROOT, 'tools', tool);
     try { await stat(gen); } catch { continue; }
@@ -1555,6 +1565,35 @@ const run = async () => {
         + 'copy the player does not own is refused, a catalogue-staleness refusal releases the '
         + 'intent key and the ownership refusal does not, and the verb collects the window BEFORE '
         + 'it swaps the gear that prices it.');
+    }
+
+    /* ── The `unknown_skill` incident's permanent fix (b370) ────────────
+       hr_apply used to answer a legitimate XP grant with `unknown_skill`
+       whenever the character had no player_skills ROW for the skill — which is
+       every character older than the skill, because rows are seeded once at
+       creation and the catalogue grows afterwards. The refusal STORED itself
+       against the intent key so "Try again" replayed it, and hr_reject rolls
+       the protected block back WHOLE, so each one also discarded that window's
+       gold, items and every OTHER skill's XP. 51 aggregated rejections in one
+       night. A missing row is a row to CREATE. Production was backfilled by
+       hand, which removes the symptom and not the defect — the next skill added
+       to src/data/skills.js would do it again — so the guard grades the GRANT,
+       against a character whose row is deleted to reproduce the live state.
+       `node tests/skill-row-upsert.mjs --mutate` plants three real defects
+       (revert to the bare UPDATE; drop the catalogue check so a client string
+       mints a skill row; overwrite XP instead of adding) and requires all three
+       to read RED — each with the migration's own §3 deliberately blinded, so
+       the BEHAVIOUR is what fails rather than a static self-check. */
+    const skillRowProblems = await skillRowUpsertGuard();
+    if (skillRowProblems.length) {
+      console.log('\nSkill-row upsert (the unknown_skill incident) — FAILED:');
+      for (const p of skillRowProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nSkill-row upsert — a known-but-rowless skill is granted and its row created, a '
+        + 'genuinely unknown skill id still refuses unknown_skill and mints nothing, an existing '
+        + 'row still ACCUMULATES, and the per-call XP clamp still holds.');
+      for (const line of skillRowUpsertGuard.report || []) console.log(`  ${line}`);
     }
 
     const unlockProblems = await unlockBuyGuard();

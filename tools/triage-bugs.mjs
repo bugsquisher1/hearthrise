@@ -11,6 +11,30 @@
 //   node tools/triage-bugs.mjs show   <id> [--json]
 //   node tools/triage-bugs.mjs mark   <id> <new|triaged|fixed|wontfix> [--note "..."]
 //   node tools/triage-bugs.mjs stats
+//   node tools/triage-bugs.mjs incidents [--min-n 5] [--days 7] [--json]
+//
+// ── WHY `list` READS hr_rejections TOO (b370) ───────────────────────────────
+// A player-filed bug report is the SLOWEST detector this project has: it needs
+// a player to notice, care, and type. The server already knows — hr_apply
+// records every refusal into public.hr_rejections and DERIVES a severity from
+// the code, where `incident` means "a caller proposed something an honest game
+// loop cannot propose" (2026-08-11-player-state.sql §6b-ii). On the night of
+// 2026-08-17, 51 aggregated `unknown_skill` rejections at severity `incident`
+// accumulated there and were read by nobody until morning, because the ONLY
+// thing the triage loop looked at was bug_reports. A signal nobody reads is not
+// a signal, and the loop that runs on a schedule is this file.
+//
+// So the queue read now has two halves, and the server's half prints FIRST.
+// It is deliberately NOT a second command an operator has to remember: the
+// incident that motivated it happened while somebody was, in fact, running
+// `list`.
+//
+// ⚠ hr_rejections IS ALREADY AN AGGREGATE — one row per (user, slot, day, code)
+//   with a counter, precisely so it cannot become game_events (1.6M rows from
+//   six players; journal rule 6). This tool aggregates it AGAIN, to one line per
+//   code, and never prints a user_id: the operator question is "which refusal is
+//   firing", and a per-player dump would be both a privacy leak into a shared
+//   terminal and unreadable at scale. `--json` carries the same shape.
 //
 // ── WHY THE MANAGEMENT API AND NOT THE ANON CLIENT ──────────────────────────
 // public.bug_reports is deliberately write-only to the client: there is no
@@ -34,6 +58,7 @@
 // ============================================================================
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { pathToFileURL } from 'node:url';
 
 const PROJECT = 'nezapsylztqbbwuwembx';
 const URL_Q = `https://api.supabase.com/v1/projects/${PROJECT}/database/query`;
@@ -82,6 +107,75 @@ function dollarQuote(s) {
   return `$${tag}$${s}$${tag}$`;
 }
 
+// ── THE SERVER'S OWN QUEUE — hr_rejections, thresholded ─────────────────────
+// Exported and PURE so tests/bug-triage.mjs can run these exact bytes against a
+// real PostgreSQL fixture. A query that is only ever built inside a function
+// that also does a network call is a query nobody can grade, and this one has a
+// threshold in it — the single most testable and most silently-wrong kind of
+// number.
+export const INCIDENT_DEFAULTS = { minN: 5, days: 7, limit: 20 };
+
+/**
+ * One line per refusal code: how many times, how many characters, when last.
+ *
+ * ⚠ THE THRESHOLD IS ON THE *SUM*, NOT ON A ROW'S `n`. hr_rejections keys on
+ *   (user, slot, day, code), so 51 rejections spread over three players and two
+ *   days is six rows of n=8..9 — every one of them under a per-row threshold of
+ *   10, and the outage invisible. That is the exact shape of the night this
+ *   function exists for, so the HAVING clause sums first. A per-row filter is
+ *   the plausible-looking version of this query and it is wrong.
+ *
+ * ⚠ SEVERITY IS NOT A PARAMETER. `incident` is derived server-side from the
+ *   code by hr_record_rejection and cannot be supplied by a caller — that is
+ *   what makes it trustworthy — so this reads the derivation rather than
+ *   re-deciding what is serious, and a caller cannot widen it into a firehose.
+ */
+export function incidentsQuery({ minN, days, limit } = {}) {
+  const n = Math.max(1, parseInt(minN ?? INCIDENT_DEFAULTS.minN, 10) || INCIDENT_DEFAULTS.minN);
+  const d = Math.max(1, parseInt(days ?? INCIDENT_DEFAULTS.days, 10) || INCIDENT_DEFAULTS.days);
+  const l = Math.min(200, Math.max(1, parseInt(limit ?? INCIDENT_DEFAULTS.limit, 10)
+    || INCIDENT_DEFAULTS.limit));
+  return `
+    select code,
+           sum(n)::bigint                        as total,
+           count(distinct (user_id, slot))::int  as characters,
+           min(first_at)                         as first_at,
+           max(last_at)                          as last_at,
+           (array_agg(intent order by last_at desc))[1]      as last_intent,
+           (array_agg(last_detail order by last_at desc))[1] as last_detail
+      from public.hr_rejections
+     where severity = 'incident'
+       and last_at > now() - interval '${d} days'
+     group by code
+    having sum(n) >= ${n}
+     order by sum(n) desc
+     limit ${l}`;
+}
+
+export function formatIncidents(rows, { minN, days } = {}) {
+  const n = minN ?? INCIDENT_DEFAULTS.minN;
+  const d = days ?? INCIDENT_DEFAULTS.days;
+  if (!rows.length) {
+    return [`no severity=incident rejections with ${n}+ occurrences in the last ${d} day(s).`];
+  }
+  const out = [
+    `⚠ ${rows.length} SERVER-SIDE INCIDENT CODE(S) in the last ${d} day(s), `
+    + `${n}+ occurrences — hr_rejections. The server noticed these before any player did:`,
+    '',
+  ];
+  for (const r of rows) {
+    const when = String(r.last_at).replace('T', ' ').slice(0, 16);
+    out.push(`  ${String(r.code).padEnd(24)} ${String(r.total).padStart(6)}×  `
+      + `${String(r.characters).padStart(4)} character(s)  last ${when}`
+      + (r.last_intent ? `  via ${r.last_intent}` : ''));
+    const detail = r.last_detail && typeof r.last_detail === 'object'
+      ? JSON.stringify(r.last_detail) : String(r.last_detail || '');
+    if (detail && detail !== '{}') out.push(`      last detail: ${detail.slice(0, 200)}`);
+  }
+  out.push('');
+  return out;
+}
+
 const intId = (v) => {
   if (!/^\d+$/.test(String(v || ''))) die(`bad report id: ${v} (must be a positive integer)`);
   return String(v);
@@ -91,6 +185,14 @@ const intId = (v) => {
 // Projects the SPA screen and the device line out of the state jsonb rather than
 // duplicating them into columns, and counts the errors instead of dumping them,
 // so a list stays readable at a hundred rows. `show` has the full blob.
+async function incidents() {
+  const opts = { minN: flag('min-n'), days: flag('days'), limit: flag('limit') };
+  const rows = await q(incidentsQuery(opts));
+  if (has('json')) { console.log(JSON.stringify(rows, null, 2)); return rows; }
+  for (const line of formatIncidents(rows, opts)) console.log(line);
+  return rows;
+}
+
 async function list() {
   const status = flag('status', 'new');
   if (status !== 'all' && !STATUSES.includes(status)) die(`bad --status ${status} (one of: ${STATUSES.join(', ')}, all)`);
@@ -109,7 +211,33 @@ async function list() {
      order by created_at asc
      limit ${limit}`);
 
-  if (has('json')) { console.log(JSON.stringify(rows, null, 2)); return; }
+  /* THE SERVER'S HALF OF THE QUEUE, FIRST AND UNCONDITIONALLY. `--no-incidents`
+     exists for a scripted consumer that only wants reports; there is
+     deliberately no way to make the human path quiet, because "nobody looked"
+     is the failure this closes. */
+  const incOpts = { minN: flag('min-n'), days: flag('days') };
+  let incRows = [];
+  if (!has('no-incidents')) {
+    try { incRows = await q(incidentsQuery(incOpts)); }
+    catch (e) {
+      /* FAIL SOFT, LOUDLY. A missing hr_rejections (an old database, a partial
+         replay) must not take the bug queue offline — but it must not be
+         silent either, or the tool reports an all-clear it never checked. */
+      console.log(`(could not read hr_rejections — ${e.message.slice(0, 120)})\n`);
+    }
+  }
+
+  if (has('json')) {
+    /* ⚠ SHAPE CHANGE, DELIBERATE AND CALLED OUT: `list --json` was a bare array
+       of reports and is now { reports, incidents }. A consumer that kept the
+       array shape would silently never see the server's half, which is the
+       whole defect. `--no-incidents` still returns the bare array for anything
+       that genuinely only wants reports. */
+    console.log(JSON.stringify(has('no-incidents') ? rows : { reports: rows, incidents: incRows },
+      null, 2));
+    return;
+  }
+  if (!has('no-incidents')) for (const line of formatIncidents(incRows, incOpts)) console.log(line);
   if (!rows.length) { console.log(`no reports with status=${status} — the queue is empty.`); return; }
 
   console.log(`${rows.length} report(s), status=${status}, oldest first:\n`);
@@ -202,14 +330,31 @@ async function stats() {
   if (news && Number(news.n) > 0) {
     console.log(`\n${news.n} report(s) awaiting triage — node tools/triage-bugs.mjs list`);
   }
+  // The server's half, here too: `stats` is what the scheduled session runs
+  // first, and a shape-of-the-backlog that omits the backlog the SERVER is
+  // keeping is the omission this whole change is about.
+  console.log('');
+  try {
+    for (const line of formatIncidents(await q(incidentsQuery({})))) console.log(line);
+  } catch (e) { console.log(`(could not read hr_rejections — ${e.message.slice(0, 120)})`); }
 }
 
-const COMMANDS = { list, show, mark, stats };
-if (!cmd || !COMMANDS[cmd]) {
-  die(`usage:
-  node tools/triage-bugs.mjs list  [--status new|triaged|fixed|wontfix|all] [--limit 20] [--json]
-  node tools/triage-bugs.mjs show  <id> [--json]
-  node tools/triage-bugs.mjs mark  <id> <new|triaged|fixed|wontfix> [--note "why"]
-  node tools/triage-bugs.mjs stats`);
+const COMMANDS = { list, show, mark, stats, incidents };
+
+/* ⚠ THE CLI IS BEHIND A MAIN GUARD (b370). It used to dispatch at import time,
+   which meant `import { incidentsQuery } from './triage-bugs.mjs'` printed a
+   usage message and called process.exit(2) — i.e. the query could not be
+   tested without a live management token, so it would not have been. A guard
+   that cannot be exercised is the always-null probe with a network call. */
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  if (!cmd || !COMMANDS[cmd]) {
+    die(`usage:
+  node tools/triage-bugs.mjs list      [--status new|triaged|fixed|wontfix|all] [--limit 20]
+                                       [--min-n 5] [--days 7] [--no-incidents] [--json]
+  node tools/triage-bugs.mjs show      <id> [--json]
+  node tools/triage-bugs.mjs mark      <id> <new|triaged|fixed|wontfix> [--note "why"]
+  node tools/triage-bugs.mjs stats
+  node tools/triage-bugs.mjs incidents [--min-n 5] [--days 7] [--limit 20] [--json]`);
+  }
+  COMMANDS[cmd]().catch((e) => { console.error(`FAILED: ${e.message}`); process.exit(1); });
 }
-COMMANDS[cmd]().catch((e) => { console.error(`FAILED: ${e.message}`); process.exit(1); });

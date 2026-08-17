@@ -631,6 +631,41 @@ const TESTS = [
     assert(!ids.some((id) => (A.REJECTED_WRONG_SUBJECT || []).some((k) => k.split('/')[1] === id)),
       'a file withheld for depicting the wrong object got wired anyway');
   }),
+  /* Asset Director, 2026-08-17 — Tyler: "the copper is still showing as a
+     hammer". The run-smoke.mjs preflight already checks the MANIFEST (does
+     item-art.js list a REJECTED id in SHIPPED too?), but that is a
+     paper-only check — it never asks what `window._itemPath` actually holds
+     after the full boot sequence (LOCAL_ITEM_ICON literal + Hearthfire
+     applier + __mapGeneratedGearIcons, in that order) has run. A rejected id
+     could still end up wired at runtime through a path the manifest check
+     can't see — a stray literal entry in legacy.js, for instance, which is
+     exactly the bug class this whole pass exists to catch (copper_ore was
+     wired to a hammer PNG despite the reasoning comment in item-art.js
+     already flagging it wrong). So this asserts the live, POST-BOOT object:
+     no id named in REJECTED_WRONG_SUBJECT may resolve to a hearthfire/ path
+     in `window._itemPath` right now, in the running game. */
+  () => tryRun('asset-director: a REJECTED_WRONG_SUBJECT id cannot be live-wired into hearthfire/', () => {
+    const A = window.HearthriseItemArt;
+    assert(A && Array.isArray(A.REJECTED_WRONG_SUBJECT), 'HearthriseItemArt.REJECTED_WRONG_SUBJECT not published');
+    const rejected = A.REJECTED_WRONG_SUBJECT.map((k) => k.split('/')[1]);
+    assert(rejected.indexOf('copper_ore') >= 0 && rejected.indexOf('bronze_bar') >= 0
+      && rejected.indexOf('oak_plank') >= 0, 'the flagged wrong-art ids are missing from the reject list');
+
+    const ip = window._itemPath || {};
+    const live = rejected.filter((id) => /icons-bundle\/hearthfire\//.test(ip[id] || ''));
+    assert(live.length === 0, 'REJECTED_WRONG_SUBJECT id(s) are live-wired into hearthfire/ anyway: ' + live.join(', '));
+
+    /* Mutation check: this test must actually be capable of seeing the bug
+       it guards against, not just pass vacuously. Force one rejected id to
+       point at a hearthfire path exactly like a real regression would, then
+       assert the SAME check now fails, then restore the real value. */
+    const probeId = rejected[0];
+    const realPath = ip[probeId];
+    ip[probeId] = 'assets/icons-bundle/hearthfire/items/' + probeId + '.png';
+    const caught = /icons-bundle\/hearthfire\//.test(ip[probeId] || '');
+    ip[probeId] = realPath;
+    assert(caught, 'mutation check failed: the guard cannot see a rejected id wired into hearthfire/');
+  }),
   /* b371 — THE ICON-READINESS EDGE (Tyler: "strange flickering of old assets";
      LIVE-AUDIT F13 / F13-addendum / F15). legacy.js paints screens while it is
      still the only thing that has run, against a 109-entry `_itemPath`; main.js

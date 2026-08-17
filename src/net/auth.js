@@ -838,7 +838,12 @@ function renderAuthUi() {
 
 function showAuthModal() {
   if (!authConfig) {
-    alert('Cloud sync isn\'t configured yet. Talk to your developer to set up Supabase.');
+    // b373: in-game modal, never window.alert — a native dialog blocks the
+    // renderer main thread (src/utils/dialog.js).
+    const D = window.HearthriseDialog;
+    const msg = 'Cloud sync isn\'t configured yet. Talk to your developer to set up Supabase.';
+    if (D && D.alert) D.alert({ title: 'Cloud sync unavailable', body: msg });
+    else if (typeof window.notify === 'function') window.notify(msg, 'kill');
     return;
   }
   const overlay = document.createElement('div');

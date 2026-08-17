@@ -432,10 +432,22 @@ function wireDragonEggHatch() {
   const orig = window.invItemTap;
   window.invItemTap = function (id) {
     if (id === 'dragon_egg' && window.G?.inventory?.dragon_egg > 0) {
-      if (confirm('Hatch a Dragon Egg to gain a Whelp companion?')) {
-        window.G.inventory.dragon_egg--;
-        unlockCompanion('whelp');
-        if (typeof window.renderInvFancy === 'function') window.renderInvFancy();
+      /* b373: in-game modal, never window.confirm — the native dialog blocks
+         the renderer (src/utils/dialog.js). The egg is re-checked INSIDE the
+         answer: the modal does not stop the game, so the stack can change (a
+         second tap, a market sale) between the question and the hatch, and
+         consuming an egg the player no longer has would mint a companion. */
+      const D = window.HearthriseDialog;
+      if (D && D.confirm) {
+        D.confirm({ title: 'Hatch the Dragon Egg?',
+          body: 'The egg is consumed and a Whelp joins you as a companion.',
+          confirmLabel: 'Hatch' }).then(function (ok) {
+          if (!ok) return;
+          if (!(window.G?.inventory?.dragon_egg > 0)) return;
+          window.G.inventory.dragon_egg--;
+          unlockCompanion('whelp');
+          if (typeof window.renderInvFancy === 'function') window.renderInvFancy();
+        });
         return;
       }
     }

@@ -878,6 +878,12 @@
        ESM module (net/supabase-market-backend.js) read it, and the strangler-fig
        migration off client-authored tables cannot have three copies of the
        predicate that decides whether the narrowing is in effect. -->
+  <!-- b373: THE ONE WAY THE GAME ASKS A QUESTION. window.confirm/prompt/alert
+       block the renderer main thread and have frozen the tab twice (b371 slot
+       switch, b373 rename). Loaded here — dependency-free, before every script
+       that asks the player anything. tests/native-dialog.mjs refuses a new
+       native call site under src/. -->
+  <script src="src/utils/dialog.js?v=372"></script>
   <script src="src/net/server-rpc.js?v=372"></script>
   <!-- b225: THE ACCOUNT WALL. Loads directly after the storage seam (which it
        reads the cached session through) and before every game script, because

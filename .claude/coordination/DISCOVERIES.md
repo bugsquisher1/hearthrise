@@ -4,6 +4,44 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-17 · Systems Engineer (b373) · `prompt()` was not just a freeze — it BYPASSED the display-name rules; and the activity strip was never event-driven at all
+
+**AFFECTED SYSTEMS:** identity/display names · every dialog surface in the game · the activity pointer → strip render path · the smoke runner's guard set.
+
+1. **A native dialog is usually hiding a second shortcut.** The rename pencil (`legacy.js` Profile
+   card + `home-dashboard.js` `data-hd="rename"`) called `setDisplayName(prompt(...))`. The prompt
+   froze the renderer (b372 FTUE, same class as the b371 slot-switch `confirm()`) — but
+   `setDisplayName` is a LOCAL clamp-and-store that never calls `claim_display_name`, so a rename
+   also skipped the charset / reserved-word / profanity rules AND the uniqueness registry. Both
+   sites now route through `HearthriseLaunchpad.openRename()` → identity.js `openNameModal()`, the
+   validated, server-claimed modal first-run sign-in already uses. **Check what else the call site
+   was skipping; the shortcut is rarely only in the UI.**
+2. **A file-scoped guard cannot catch a CLASS of bug.** `tests/slot-switch.mjs` pinned `confirm(`
+   in `src/multi-character.js`; the next incident was `prompt(` in `src/legacy.js`.
+   `tests/native-dialog.mjs` generalises it — a static scan of all 150 files under `src/`, comments
+   AND string literals stripped, method calls (`deferredPrompt.prompt()`) excluded, an EMPTY
+   documented allowlist, a fixture self-test so "0 findings" cannot mean "the regex died", and a
+   `--mutate` control. 13 native call sites across 8 files converted onto one service:
+   `src/utils/dialog.js` → `window.HearthriseDialog.confirm/prompt/alert`.
+3. **"Strip says Idle for 20s" was not server lag — it was timer throttling.**
+   `refreshActivityBar()` had exactly ONE unconditional caller, `setInterval(…,100)`. Chrome
+   throttles a hidden tab's timers to 1/s and to **1/minute** under intensive throttling. Combat
+   looked fine only because `start/stopCombat` are wrapped to repaint synchronously — which is
+   precisely why the live report named woodcutting and cooking. Fixed at the funnel every start and
+   stop of every kind already passes through (`declareActivity` → `activityPointerChanged()`), not
+   with a 24th wrapper: future activity kinds get the repaint for free. **When one variant of a
+   feature works and the others don't, find the one-off that fixed the working variant.**
+4. **A non-blocking modal means the world can change while the question is open.** Every converted
+   confirm re-reads its subject ON THE ANSWER, not before it: sell-junk re-quotes, the Dragon Egg
+   re-checks the egg, tap-sell re-checks the item, loadout edits re-read `G.loadouts[idx]`.
+   `confirm()` hid this hazard by freezing the game.
+
+**REQUIRED ACTION:** ask with `window.HearthriseDialog` — never `window.confirm/prompt/alert`; the
+build now fails on a new one. Any new activity kind must declare through `declareActivity` (it
+already must, for the server seam) and gets the strip repaint as a consequence.
+
+---
+
 ### 2026-08-17 · Art Director (b371) · TWO of the audit's UI bugs were one UI SCRAPING ANOTHER UI, and neither is findable in a diff
 
 **DISCOVERY.** The quest badge and the toast column failed for the same species of

@@ -1568,7 +1568,45 @@ window.clientMayWriteRecordField=clientMayWriteRecordField;
    forgets one of the three. */
 let _activityQuiet=0;
 function activityQuietly(fn){ _activityQuiet++; try{ return fn(); } finally { _activityQuiet--; } }
+/* ══════════════════════════════════════════════════════════════════════════
+   b373 — THE STRIP FOLLOWS THE POINTER, IT DOES NOT POLL FOR IT.
+
+   REPORTED LIVE (FTUE run 2, b372, fresh character): "the activity strip said
+   'Idle — pick an activity' for ~20s while chopping was demonstrably running
+   (XP + logs accruing); it later corrected to 'Woodcutting — normal tree'.
+   Same staleness again when starting cooking."
+
+   THE MECHANISM. `refreshActivityBar()` had exactly ONE unconditional caller:
+   a `setInterval(…, 100)`. Combat was the exception — `startCombat`/
+   `stopCombat` are wrapped to repaint synchronously — which is precisely why
+   the report names woodcutting and cooking and NOT combat. A background or
+   occluded tab is subject to Chrome's timer throttling (1/s when hidden, and
+   as coarse as 1/MINUTE under intensive throttling after five minutes hidden),
+   so the only thing that repaints the strip stops running while every activity
+   underneath it keeps ticking. Twenty seconds of "Idle" over a running
+   activity is that timer, not the activity.
+
+   THE FIX IS THE LINK, NOT ANOTHER WRAPPER. `showTab` is wrapped 23× in this
+   codebase and it is the worst debt in it; a 24th wrapper per activity kind
+   would be that mistake again — and it would go stale the moment a new kind
+   is added, which is exactly how combat came to be the only kind that worked.
+   Every start and stop of every kind ALREADY funnels through one function to
+   tell the server what changed: this one. So the repaint hangs off the same
+   funnel — combat, gather, artisan, idle and any future kind, for free.
+
+   PLACED ABOVE THE QUIET GATE deliberately. `activityQuietly()` suppresses the
+   NETWORK declaration (one gesture = one intent), never the truth of what the
+   player is doing — and the reconcile applies the SERVER's answer inside a
+   quiet block, which is the one repaint we least want to skip.
+
+   The poll stays: it drives progress bars and the live per-fight numbers. It
+   is now a ticker, not the only way the strip learns what is running. */
+function activityPointerChanged(){
+  try{ if(typeof refreshActivityBar==='function') refreshActivityBar(); }catch(e){}
+}
+window.activityPointerChanged=activityPointerChanged;
 function declareActivity(kind,id){
+  activityPointerChanged();
   if(_activityQuiet)return null;
   const M=window.HearthriseActivity;
   if(!M||typeof M.declare!=='function')return null;
@@ -5059,6 +5097,35 @@ function harvestPlot(i){
 }
 
 /* ─── notifications ─── */
+/* ── b373: ASKING THE PLAYER SOMETHING ────────────────────────────────────
+   Three thin adapters onto src/utils/dialog.js, so this file has ONE spelling
+   for "ask" and no call site has to null-check the service. window.confirm /
+   prompt / alert block the renderer main thread until answered and have frozen
+   the tab twice in shipped builds (b371 slot switch, b373 rename); they are
+   banned under src/ and tests/native-dialog.mjs enforces it.
+
+   THE DEGRADED ANSWER IS THE SAFE ONE, never a native dialog: if the service
+   is somehow absent, a confirm resolves FALSE (the action does not happen), a
+   prompt resolves null (nothing is renamed), and an alert resolves silently
+   after routing its text to a toast — the player is still told. */
+function askConfirm(opts){
+  const D=window.HearthriseDialog;
+  if(D&&typeof D.confirm==='function')return D.confirm(opts);
+  return Promise.resolve(false);
+}
+function askPrompt(opts){
+  const D=window.HearthriseDialog;
+  if(D&&typeof D.prompt==='function')return D.prompt(opts);
+  return Promise.resolve(null);
+}
+function askAlert(opts){
+  const D=window.HearthriseDialog;
+  if(D&&typeof D.alert==='function')return D.alert(opts);
+  try{ notify(String((opts&&(opts.body||opts.title))||''),'info'); }catch(e){}
+  return Promise.resolve();
+}
+window.askConfirm=askConfirm;window.askPrompt=askPrompt;window.askAlert=askAlert;
+
 /* b213 (phase 2): toasts are system chrome — strip pictographs at the single
    render point instead of hunting emoji through a hundred call sites. The
    toast TYPE already carries the tone (kill=red, gold, levelup, info). */
@@ -5283,6 +5350,8 @@ function renderProfile(){
          writes are full-snapshot upserts and self-heal, so the word is
          "retrying", never "lost". */
       const subtitle = liveUser ? ('Online · ' + cloudSaveLine().text) : (G.account ? 'Online · '+G.account.displayName : 'Offline · progress saved on this device');
+      // b373: the pencil opens the in-game name modal (identity.js), NOT a
+      // native prompt() — see HearthriseLaunchpad.openRename for why.
       // b138 #5 / b139 (QA §2.1.2): inline rename pencil is now available
       // for ALL players, including cloud-signed-in. setDisplayName updates
       // G.playerName which the cloud sync layer round-trips through
@@ -5290,7 +5359,7 @@ function renderProfile(){
       // point of the feature for the most likely user.
       const canRename = true;
       const renameBtn = canRename
-        ? `<button class="btn btn-icon btn-ghost" title="Rename" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.setDisplayName(prompt('Display name:', window.G.playerName||'Adventurer')||window.G.playerName)" style="margin-left:6px;padding:2px 6px;font-size:calc(14.5px * var(--ui-scale, 1));opacity:.7">✏️</button>`
+        ? `<button class="btn btn-icon btn-ghost" title="Rename" data-rename="1" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.openRename()" style="margin-left:6px;padding:2px 6px;font-size:calc(14.5px * var(--ui-scale, 1));opacity:.7">✏️</button>`
         : '';
       return `<div class="activity-card">
       <div class="ac-icon">🧙</div>
@@ -6107,13 +6176,24 @@ function onItemTap(id){
   if(d.seed){showTab('farming');return;}
   /* default: prompt to sell */
   const _p=vendorPrice(id);
-  if(confirm(`Sell 1× ${d.n} for ${_p}gp?`)){
+  /* b373: an in-game modal, never window.confirm — see src/utils/dialog.js.
+     The sale moved INTO the answer rather than staying after a blocking call;
+     nothing between the question and the payment reads a value that could have
+     changed while the modal was open (the price is re-read below from the same
+     `_p` the player was quoted, which is the b354 quote-equals-payment rule). */
+  askConfirm({
+    title:`Sell ${d.n}?`,
+    body:`Sell 1× ${d.n} to the vendor for ${_p} gold.`,
+    confirmLabel:'Sell',
+  }).then(function(ok){
+    if(!ok) return;
+    if(!hasItem(id,1)) return;               // the bag can change while a modal is open
     const _k=goldIntentKey();
     goldSettle(_p,'vendor.tap_sell',_k);
     removeItem(id,1);
     if(_k&&window.HearthriseGold){const _q=window.HearthriseGold.sellItem(id,1,_k);if(_q&&_q.catch)_q.catch(()=>{});}
     notify(`Sold ${d.n}`,'loot');renderInventory();updateTopbar();
-  }
+  });
 }
 
 /* ────────────────────────────────────────────────
@@ -7143,7 +7223,7 @@ function openSettings(){
       <button class="btn tap" onclick="saveLocal();notify('Saved','info')">💾 Save now</button>
       <button class="btn tap" onclick="cloudSync()">☁️ Cloud sync</button>
       <button class="btn tap" onclick="exportSave()">⬇️ Export</button>
-      <button class="btn tap btn-danger" onclick="if(confirm('Erase save?')){if(window.HearthriseStorage){window.HearthriseStorage.remove(SAVE_KEY);}else{localStorage.removeItem(SAVE_KEY);}location.reload();}">🗑️ Reset</button>
+      <button class="btn tap btn-danger" onclick="eraseSaveAsk()">🗑️ Reset</button>
     </div>
     <div class="muted tiny" style="margin-top:8px">Last cloud sync: ${G.cloudSyncedAt?new Date(G.cloudSyncedAt).toLocaleString():'never'}.</div>
 
@@ -7157,10 +7237,36 @@ async function cloudSync(){
   notify(r.ok?'Cloud saved ☁️':'Cloud save failed','info');
   openSettings();
 }
+/* b373: the destructive settings action, out of an inline `confirm()` in an
+   onclick and into the shared modal. Named so the markup carries a verb rather
+   than a statement, and so the erase can be tested without a dialog stub. */
+function eraseSaveAsk(){
+  return askConfirm({
+    title:'Erase this save?',
+    body:'This character\'s local save is deleted and the game reloads. Other character slots are not affected.',
+    confirmLabel:'Erase', danger:true,
+  }).then(function(ok){
+    if(!ok) return false;
+    if(window.HearthriseStorage){window.HearthriseStorage.remove(SAVE_KEY);}
+    else{localStorage.removeItem(SAVE_KEY);}
+    location.reload();
+    return true;
+  });
+}
+window.eraseSaveAsk=eraseSaveAsk;
 function exportSave(){
   const data=btoa(unescape(encodeURIComponent(JSON.stringify(G))));
+  /* b373: the clipboard fallback used `prompt()` purely as a text box you can
+     select from. The modal does that better (readonly, focused, selected) and
+     without blocking the renderer for as long as the player takes to copy. */
   try{navigator.clipboard?.writeText(data);notify('Save exported to clipboard','info');}
-  catch(e){prompt('Copy your save:',data);}
+  catch(e){
+    askPrompt({
+      title:'Copy your save',
+      body:'Select all and copy. Keep it somewhere safe — this is your whole character.',
+      value:data, readOnly:true, confirmLabel:'Done', cancelLabel:'Close',
+    });
+  }
 }
 
 /* ────────────────────────────────────────────────
@@ -7440,8 +7546,16 @@ function installPwa(){
     if(!sessionStorage.getItem('install-prompted')){
       sessionStorage.setItem('install-prompted','1');
       setTimeout(()=>{
-        const ok=confirm('Install Hearthrise to your home screen for full-screen play?');
-        if(ok&&deferredPrompt){deferredPrompt.prompt();}
+        /* b373: our own nudge is an in-game modal. `deferredPrompt.prompt()`
+           below is the browser's BeforeInstallPromptEvent — a different API
+           that happens to share a name, and the only way to install. */
+        askConfirm({
+          title:'Install Hearthrise?',
+          body:'Add Hearthrise to your home screen for full-screen play.',
+          confirmLabel:'Install', cancelLabel:'Not now',
+        }).then(function(ok){
+          if(ok&&deferredPrompt){deferredPrompt.prompt();}
+        });
       },5000);
     }
   });
@@ -7624,16 +7738,34 @@ function applyLoadout(idx){
      sends nothing, so tapping a loadout twice cannot stamp a second window. */
   routeEquipGesture(_b);
 }
+/* b373: both of these asked with a native dialog. The loadout is re-read from
+   G inside the answer rather than captured before the question — a modal is
+   non-blocking, so the list can be re-rendered underneath it, and writing back
+   to a stale object reference would silently drop the edit. */
 function renameLoadout(idx){
   const l = G.loadouts[idx]; if(!l) return;
-  const nm = prompt(`Rename "${l.name}" to:`, l.name);
-  if(nm && nm.trim()){ l.name = nm.trim().slice(0,18); saveLocal(); renderInvNew(); }
+  askPrompt({
+    title:'Rename loadout', label:`Rename “${l.name}” to:`, value:l.name, maxLength:18,
+    confirmLabel:'Rename',
+    validate:function(v){ return String(v||'').trim() ? null : 'Give the loadout a name'; },
+  }).then(function(nm){
+    if(nm==null) return;
+    const cur = G.loadouts[idx]; if(!cur) return;
+    const t = String(nm).trim(); if(!t) return;
+    cur.name = t.slice(0,18); saveLocal(); renderInvNew();
+  });
 }
 function clearLoadout(idx){
   const l = G.loadouts[idx]; if(!l) return;
-  if(!confirm(`Clear loadout "${l.name}"?`)) return;
-  l.equipment = {}; l.tools = {}; l.foodSlot = null; l.set = false;
-  saveLocal(); renderInvNew();
+  askConfirm({
+    title:'Clear loadout?', body:`“${l.name}” is emptied. Nothing you own is lost — only the saved kit.`,
+    confirmLabel:'Clear', danger:true,
+  }).then(function(ok){
+    if(!ok) return;
+    const cur = G.loadouts[idx]; if(!cur) return;
+    cur.equipment = {}; cur.tools = {}; cur.foodSlot = null; cur.set = false;
+    saveLocal(); renderInvNew();
+  });
 }
 
 /* ───── Filters / search / sort ───── */
@@ -15613,7 +15745,10 @@ function addButton(){
     } else {
       msg += '✓ All clear';
     }
-    alert(msg);
+    /* b373: even the dev-tool readout uses the in-game modal. A native alert
+       here would block the renderer for as long as the report sits open — and
+       every native call site under src/ is one more the next author copies. */
+    askAlert({ title:'Smoke test', body:msg });
   };
   document.body.appendChild(b);
 }

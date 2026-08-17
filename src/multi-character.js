@@ -138,7 +138,18 @@
      Styling reuses the existing .qm-overlay / .qm-modal / .btn components — no
      new CSS, no new colours, tokens only (HARD RULE, CLAUDE.md).
      ══════════════════════════════════════════════════════════════════════ */
+  /* b373: THIS IMPLEMENTATION MOVED TO src/utils/dialog.js and is now shared.
+     It was the only non-blocking dialog in the codebase, which meant every
+     other surface that wanted to ask something either reimplemented it or
+     reached for window.confirm — and one of those (the rename prompt) froze
+     the tab in the b372 FTUE run. The markup contract is unchanged
+     (#hr-confirm-overlay / [data-hrc]), so tests/slot-switch.mjs answers it
+     exactly as before. The local body stays as a fallback ONLY for a build
+     where dialog.js failed to load: still not a native dialog, because a
+     native dialog is the bug. */
   function confirmDialog(opts){
+    var D = window.HearthriseDialog;
+    if(D && typeof D.confirm === 'function') return D.confirm(opts);
     var o = opts || {};
     return new Promise(function(resolve){
       if(typeof document === 'undefined' || !document.body){ resolve(false); return; }

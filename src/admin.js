@@ -253,10 +253,21 @@
       }
     },
     resetSave: function(){
-      if(!confirm('Wipe save and reload?')) return;
-      localStorage.removeItem('hearthbound-save-v2');
-      localStorage.removeItem('idle-game-v1');
-      location.reload();
+      /* b373: in-game modal, not window.confirm — the native one blocks the
+         renderer main thread (see src/utils/dialog.js). Dev tool or not, a
+         native call site here is one the next author copies into a player
+         surface. */
+      var D = window.HearthriseDialog;
+      var ask = (D && D.confirm)
+        ? D.confirm({ title:'Wipe save and reload?', body:'The local save is deleted and the page reloads.',
+                      confirmLabel:'Wipe', danger:true })
+        : Promise.resolve(false);
+      return ask.then(function(ok){
+        if(!ok) return;
+        localStorage.removeItem('hearthbound-save-v2');
+        localStorage.removeItem('idle-game-v1');
+        location.reload();
+      });
     },
     dumpState: function(){
       var snap = JSON.stringify(G, null, 2);

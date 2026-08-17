@@ -308,12 +308,19 @@
     return picks;
   }
 
-  function sellJunk(threshold){
+  /* b373 — THE QUOTE IS A VALUE, NOT A SIDE EFFECT OF THE DIALOG.
+     The sweep used to compute its total, ask with window.confirm() and pay, all
+     in one synchronous body. The ask is now a NON-BLOCKING modal (window.confirm
+     freezes the renderer — src/utils/dialog.js), and an await in the middle of
+     that body would have made the whole thing async, which is how the b354
+     quote-equals-payment invariant would quietly become untestable.
+
+     So the three jobs are three functions: quote, ask, settle. `settleJunk`
+     pays the quote it is HANDED — it does not recompute a price — which makes
+     "the quote is the payment" true by construction rather than by two loops
+     agreeing, and it is directly assertable without a dialog in the loop. */
+  function quoteJunk(threshold){
     var ids = selectJunk(threshold);
-    if(!ids.length){
-      if(typeof window.notify === 'function') window.notify('No junk to sell — your bag is clean.', 'info');
-      return 0;
-    }
     var totalGold = 0, totalCount = 0;
     ids.forEach(function(id){
       var qty = window.G.inventory[id] | 0;
@@ -321,8 +328,48 @@
       totalGold += qty * v;
       totalCount += qty;
     });
-    var msg = 'Sell ' + ids.length + ' stacks (' + totalCount.toLocaleString() + ' items) for ' + totalGold.toLocaleString() + ' gold?';
-    if(!window.confirm(msg)) return 0;
+    return { ids: ids, totalGold: totalGold, totalCount: totalCount };
+  }
+
+  function quoteText(q){
+    /* b373: "Sell 1 stacks (40 items)" — seen in the verification screenshot.
+       The old native confirm read the same way; a modal that is the only thing
+       on screen makes it obvious. */
+    var stacks = q.ids.length + (q.ids.length === 1 ? ' stack' : ' stacks');
+    var items = q.totalCount.toLocaleString() + (q.totalCount === 1 ? ' item' : ' items');
+    return 'Sell ' + stacks + ' (' + items + ') for ' + q.totalGold.toLocaleString() + ' gold?';
+  }
+
+  /** Ask, then settle. Resolves the gold paid (0 if declined or nothing to do). */
+  function sellJunk(threshold){
+    var q = quoteJunk(threshold);
+    if(!q.ids.length){
+      if(typeof window.notify === 'function') window.notify('No junk to sell — your bag is clean.', 'info');
+      return Promise.resolve(0);
+    }
+    var D = window.HearthriseDialog;
+    var ask = (D && D.confirm)
+      ? D.confirm({ title:'Sell junk?', body: quoteText(q), confirmLabel:'Sell' })
+      : Promise.resolve(false);
+    return ask.then(function(ok){
+      if(!ok) return 0;
+      /* RE-QUOTED AFTER THE ANSWER. The modal does not stop the game: a kill can
+         drop loot and a tick can consume a stack while it is open, so paying the
+         old total would pay for items that are no longer there (or leave new
+         junk behind holding its gold). The player is told if the number moved
+         rather than being silently charged a different price. */
+      var now = quoteJunk(threshold);
+      if(!now.ids.length) return 0;
+      if(now.totalGold !== q.totalGold && typeof window.notify === 'function'){
+        window.notify('Your bag changed — sold for ' + now.totalGold.toLocaleString() + 'g', 'info');
+      }
+      return settleJunk(now);
+    });
+  }
+
+  function settleJunk(q){
+    var ids = q.ids, totalGold = q.totalGold, totalCount = q.totalCount;
+    if(!ids || !ids.length) return 0;
     /* ⚠ THE QUOTE AND THE PAYMENT WERE TWO DIFFERENT PRICES. Found by the gold
        census: the loop above totals with `vendorPrice(id)` — the game's ONE
        vendor bid, raws discounted to 20% since b226 — and this loop used to pay
@@ -369,6 +416,9 @@
     close: hideMenu,
     selectJunk: selectJunk,
     sellJunk: sellJunk,
+    quoteJunk: quoteJunk,
+    settleJunk: settleJunk,
+    _quoteText: quoteText,
     // Test hooks
     _ctxFromTile: ctxFromTile,
     _buildOptions: buildOptions,

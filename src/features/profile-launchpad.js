@@ -36,6 +36,8 @@
 //   getTodayDelta()            — { xpGained, goldEarned, kills, gathered, harvested, deedsDropped }
 //   getNextMilestone()         — { kind, label, current, target, pct, icon, deepLink } | null
 //   setDisplayName(newName)    — applies + persists + (later) Supabase sync
+//   openRename()               — opens the in-game name modal (b373); the ONLY
+//                                rename entry point. Never a native prompt().
 // ============================================================
 
 (function(){
@@ -289,8 +291,51 @@
     return true;
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     b373 — THE RENAME AFFORDANCE. NOT `window.prompt`.
+
+     REPORTED LIVE (FTUE run 2, b372): clicking the rename pencil next to the
+     character name hard-hung the renderer. `prompt()` is the last native
+     BLOCKING dialog left on a player-reachable path after b371 removed the
+     switch-slot `confirm()`, and it fails the same way: it stops every timer,
+     tick, paint and input handler in the game for as long as it is up, and if
+     it is never answered (suppressed by Chrome's "prevent additional dialogs",
+     raised while the tab is not frontmost, or under automation) the tab is
+     bricked with no self-recovery.
+
+     Worse, the prompt path was ALSO wrong on the merits: it wrote the raw
+     string through setDisplayName(), which is a LOCAL clamp-and-store. It
+     never touched `claim_display_name`, so a rename bypassed the charset /
+     reserved-word / profanity rules AND the uniqueness registry — two players
+     could end up sharing a name, and a name the server would have rejected
+     still shipped to chat, market and leaderboards.
+
+     So this does not merely swap the dialog: it routes the rename onto the
+     ONE existing, validated, server-authoritative path — identity.js's
+     openNameModal(), the same modal first-run sign-in uses. Non-blocking,
+     tokens only, live availability check, and adopt() writes G.playerName +
+     saveLocal + refreshUi on success, which is exactly what the old call did
+     by hand.
+
+     No native fallback. If identity.js somehow is not loaded, we say so and
+     do nothing — reintroducing prompt() as a "safety net" would reintroduce
+     the freeze on precisely the degraded path least able to recover from it.
+     ══════════════════════════════════════════════════════════════════════ */
+  function openRename(){
+    var ID = window.HearthriseIdentity;
+    if(ID && typeof ID.openNameModal === 'function'){
+      ID.openNameModal();
+      return true;
+    }
+    if(typeof window.notify === 'function'){
+      window.notify('The name editor is still loading — try again in a moment.', 'info');
+    }
+    return false;
+  }
+
   // ── Public API ────────────────────────────────────────────
   window.HearthriseLaunchpad = {
+    openRename: openRename,
     recordStop: recordStop,
     getResumePayload: getResumePayload,
     resume: resume,

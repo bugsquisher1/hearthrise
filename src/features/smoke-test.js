@@ -6222,7 +6222,10 @@ const TESTS = [
     try { window.renderProfile(); } catch (e) {}
     const body = document.getElementById('dash-user-body');
     if (!body) return; // panel not in DOM yet — skip
-    const pencil = body.querySelector('button[onclick*="setDisplayName"]');
+    // b373: the pencil now routes to HearthriseLaunchpad.openRename() (the
+    // in-game modal) instead of setDisplayName(prompt(...)); the affordance
+    // itself — "every account state gets a pencil" — is what this pins.
+    const pencil = body.querySelector('button[title="Rename"]');
     assert(pencil != null,
       'expected rename pencil button in dash-user-body, none found');
   }),
@@ -19549,11 +19552,25 @@ const TESTS = [
         G.inventory.dragon_egg = 1;
         G.companions = G.companions || { ownedIds: [], xp: {}, equipped: null };
         G.companions.ownedIds = (G.companions.ownedIds || []).filter((x) => x !== 'whelp');
-        let prompts = 0;
-        window.confirm = function () { prompts++; return false; };   // the player declines
-        window.invItemTap('dragon_egg');
+        /* b373: the hatch asks with the IN-GAME modal now (window.confirm
+           blocks the renderer). Counted through the service rather than the
+           global, and the native global is stubbed alongside it so that a
+           regression to `confirm()` reads as ZERO in-game asks AND is caught
+           by tests/native-dialog.mjs. */
+        const D = window.HearthriseDialog;
+        const realDialogConfirm = D && D.confirm;
+        let prompts = 0, native = 0;
+        window.confirm = function () { native++; return false; };
+        if (D) D.confirm = function () { prompts++; return Promise.resolve(false); };
+        try {
+          window.invItemTap('dragon_egg');
+        } finally {
+          if (D && realDialogConfirm) D.confirm = realDialogConfirm;
+        }
+        assert(native === 0,
+          'the Dragon Egg tap raised a NATIVE confirm() — that blocks the renderer main thread (b371/b373)');
         assert(prompts === 1,
-          'one Dragon Egg tap raised ' + prompts + ' confirm prompts, expected exactly 1');
+          'one Dragon Egg tap raised ' + prompts + ' in-game confirm dialogs, expected exactly 1');
       }
     } finally {
       window.confirm = savedConfirm;
@@ -19886,6 +19903,146 @@ const TESTS = [
     } finally {
       window.confirm = realConfirm;
       if (p && p.catch) p.catch(() => {});
+    }
+  }),
+
+  /* ── b373 — THE LAST NATIVE DIALOG, AND THE STRIP THAT LIED ────────────
+     Two defects from the b372 FTUE run on a fresh character:
+       P1  the rename pencil opened window.prompt() and HARD-FROZE the renderer
+           ("all CDP evaluate/screenshot timed out until the tab was closed").
+           Same class as the b371 slot-switch confirm(); this was the last one.
+       P2  the activity strip said "Idle — pick an activity" for ~20s while
+           chopping was demonstrably running, then corrected itself.
+     The total ban on native dialogs under src/ is tests/native-dialog.mjs (a
+     static scan — an in-page test can only see the dialogs it thinks to
+     trigger, and nothing ever clicked this pencil). These are the behavioural
+     halves. */
+  () => tryRun('B373-1: the rename pencil opens the in-game name modal, never window.prompt()', () => {
+    const D = window.HearthriseDialog;
+    assert(D && typeof D.confirm === 'function' && typeof D.prompt === 'function'
+      && typeof D.alert === 'function',
+      'window.HearthriseDialog is missing — every converted call site silently degrades to "do nothing"');
+
+    const LP = window.HearthriseLaunchpad;
+    assert(LP && typeof LP.openRename === 'function',
+      'HearthriseLaunchpad.openRename() is gone — the rename has no non-blocking entry point');
+
+    const realPrompt = window.prompt;
+    let native = 0;
+    window.prompt = function () { native++; return null; };
+    try {
+      LP.openRename();
+      assert(native === 0,
+        'the rename raised a NATIVE prompt() — it blocks the renderer main thread until answered, and forever '
+        + 'if it never is. That is the b373 P1 freeze, and the b371 freeze before it.');
+      /* It must route through identity.js's name modal — the one path that
+         validates the name and claims it server-side. A bespoke text box here
+         would bypass the charset/reserved/profanity rules AND uniqueness. */
+      const scrim = document.querySelector('.hr-id-scrim');
+      assert(!!scrim, 'no in-game name modal appeared — the pencil asks with nothing at all');
+      assert(!!scrim.querySelector('input'), 'the name modal has no input to type a name into');
+      const buttons = [...scrim.querySelectorAll('button')].map((b) => b.textContent);
+      assert(buttons.some((t) => /cancel|not now/i.test(t)),
+        'the name modal has no way out — a modal you cannot dismiss is the freeze wearing CSS');
+    } finally {
+      window.prompt = realPrompt;
+      try { window.HearthriseIdentity && window.HearthriseIdentity.closeModal
+        ? window.HearthriseIdentity.closeModal() : document.querySelectorAll('.hr-id-scrim').forEach((s) => s.remove()); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('B373-1b: the Profile rename pencil is wired to openRename, not to a prompt()', () => {
+    if (typeof window.renderProfile !== 'function') return;
+    try { window.renderProfile(); } catch (e) {}
+    const body = document.getElementById('dash-user-body');
+    if (!body) return;
+    const pencil = body.querySelector('button[title="Rename"]');
+    assert(pencil != null, 'expected the rename pencil in dash-user-body, none found');
+    const onclick = pencil.getAttribute('onclick') || '';
+    assert(!/prompt\s*\(/.test(onclick),
+      'the pencil markup still calls prompt() inline — that is the exact b373 freeze, shipped in an attribute');
+    assert(/openRename/.test(onclick),
+      'the pencil no longer calls HearthriseLaunchpad.openRename() — it asks by some other means: ' + onclick);
+  }),
+
+  () => tryRunAsync('B373-2: sell-junk asks with the in-game modal, and cancelling pays nothing', async () => {
+    const G = window.G;
+    const CM = window.HearthriseInvCtx;
+    if (!CM || typeof CM.sellJunk !== 'function') return;
+    const save = { gold: G.gold, inventory: JSON.parse(JSON.stringify(G.inventory)),
+      lockedItems: G.lockedItems, confirm: window.confirm };
+    let native = 0;
+    window.confirm = function () { native++; return true; };
+    try {
+      const raw = Object.keys(window.ITEMS).find((id) => window.ITEMS[id].raw && Number(window.ITEMS[id].v) >= 10);
+      if (!raw) return;
+      G.lockedItems = {}; G.inventory = {}; G.inventory[raw] = 40; G.gold = 0;
+      const q = CM.quoteJunk(1e9);
+      const p = CM.sellJunk(1e9);
+      assert(p && typeof p.then === 'function',
+        'sellJunk must return a Promise — a synchronous sweep is one that asked with a blocking dialog');
+      await new Promise((r) => setTimeout(r, 0));
+      assert(native === 0, 'the sweep raised a native confirm()');
+      const ov = document.getElementById('hr-confirm-overlay');
+      assert(!!ov, 'no in-game confirmation appeared before a bulk sale of the player\'s bag');
+      assert(ov.textContent.replace(/,/g, '').includes(String(q.totalGold)),
+        'the modal does not state the gold it will pay (' + q.totalGold + '): ' + ov.textContent.slice(0, 120));
+      assert(G.gold === 0, 'the sweep paid BEFORE the player answered');
+      ov.querySelector('[data-hrc="no"]').click();
+      const paid = await p;
+      assert(paid === 0 && G.gold === 0, 'declining the sweep still paid ' + G.gold + ' gold');
+      assert(G.inventory[raw] === 40, 'declining the sweep still took the items');
+    } finally {
+      window.confirm = save.confirm;
+      try { window.HearthriseDialog.close(); } catch (e) {}
+      G.gold = save.gold; G.inventory = save.inventory; G.lockedItems = save.lockedItems;
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('B373-3: starting an activity repaints the strip in the SAME tick — it is not polled for', () => {
+    /* THE BUG: refreshActivityBar() had one unconditional caller, a
+       setInterval(…,100). A hidden or occluded tab has that timer throttled to
+       1/s — and to 1/MINUTE under Chrome's intensive throttling — so the strip
+       kept saying "Idle" over a running activity for ~20s on a fresh character.
+       Combat was the exception because start/stopCombat repaint synchronously,
+       which is exactly why the live report names woodcutting and cooking.
+
+       ASSERTED SYNCHRONOUSLY, IN THE SAME TASK as the start: the 100ms poll
+       cannot have run, so a pass can only mean the start path itself painted. */
+    const bar = document.getElementById('activity-bar');
+    const nameEl = document.getElementById('ab-name');
+    if (!bar || !nameEl || typeof window.startSkill !== 'function') return;
+    if (!window.TREES || !window.TREES.length) return;
+    const G = window.G;
+    const snap = { skill: G.activeSkill, target: G.skillTargetId, monster: G.activeMonster,
+      action: G.activeAction, recipe: G.activeArtisanRecipe, artisanSkill: G.activeArtisanSkill };
+    try {
+      const node = window.TREES[0];
+      if (typeof window.stopSkill === 'function') window.stopSkill();
+      /* Every other pointer cleared, because the strip renders the FIRST one it
+         finds: a cooking recipe left running by an earlier test would make the
+         "back to Idle" assertion below fail for a reason that is not this bug. */
+      G.activeMonster = null; G.activeAction = null;
+      G.activeArtisanRecipe = null; G.activeArtisanSkill = null;
+      window.startSkill('woodcutting', node.id, 3000);
+      const text = nameEl.textContent || '';
+      assert(!/^Idle/i.test(text),
+        'the strip still said "' + text + '" in the same tick the activity started. It only learns what is '
+        + 'running from a 100ms timer, and a backgrounded tab has that timer throttled to as little as once a '
+        + 'minute — which is the ~20s of "Idle" over a running fresh-character chop reported in the b372 FTUE run.');
+      assert(/wood/i.test(text) || text.toLowerCase().includes(String(node.name || '').toLowerCase()),
+        'the strip repainted but does not name the activity that was started: ' + text);
+      assert(!bar.classList.contains('idle'), 'the strip repainted its text but is still styled idle');
+      if (typeof window.stopSkill === 'function') window.stopSkill();
+      assert(/^Idle/i.test(document.getElementById('ab-name').textContent || ''),
+        'stopping the activity did not put the strip back to Idle in the same tick');
+    } finally {
+      G.activeSkill = snap.skill; G.skillTargetId = snap.target; G.activeMonster = snap.monster;
+      G.activeAction = snap.action; G.activeArtisanRecipe = snap.recipe;
+      G.activeArtisanSkill = snap.artisanSkill;
+      try { window.stopSkill && !snap.skill && window.stopSkill(); } catch (e) {}
+      try { window.saveLocal(); } catch (e) {}
     }
   }),
 
@@ -28891,10 +29048,17 @@ const TESTS = [
     }
   }),
 
+  /* b373: the sweep's confirmation moved off window.confirm (which blocks the
+     renderer) onto the shared modal, so the quote is no longer observable by
+     stubbing the global. It is observable as a VALUE instead — quoteJunk() —
+     which is a stronger assertion than reading a sentence: settleJunk() pays
+     the quote it is handed and computes no second price. The dialog half (the
+     modal states that same number, and cancelling pays nothing) is B373-2. */
   () => tryRun('B354-6: the sell-junk sweep pays the price it quoted (one vendor bid, not two)', () => {
     const G = window.G;
     const CM = window.HearthriseInvCtx;
-    assert(CM && typeof CM.sellJunk === 'function', 'src/features/inv-context-menu.js did not load');
+    assert(CM && typeof CM.quoteJunk === 'function' && typeof CM.settleJunk === 'function',
+      'src/features/inv-context-menu.js did not load, or no longer separates the quote from the payment');
     const save = { gold: G.gold, inventory: JSON.parse(JSON.stringify(G.inventory)),
       lockedItems: G.lockedItems, confirm: window.confirm };
     try {
@@ -28912,10 +29076,17 @@ const TESTS = [
       G.lockedItems = {};
       G.inventory = {}; G.inventory[raw] = 40;
       G.gold = 0;
-      let quoted = null;
-      window.confirm = function (msg) { quoted = Number(String(msg).replace(/,/g, '').match(/for (\d+) gold/)[1]); return true; };
-      const returned = CM.sellJunk(1e9);
-      assert(quoted !== null, 'the sweep never asked for confirmation, so there is no quote to compare against');
+      let native = 0;
+      window.confirm = function () { native++; return true; };
+      const q = CM.quoteJunk(1e9);
+      /* The quote the PLAYER is shown, from the same value the payment uses —
+         so "the dialog lied about it" cannot come back through the wording. */
+      const quoted = Number(String(CM._quoteText(q)).replace(/,/g, '').match(/for (\d+) gold/)[1]);
+      assert(quoted === q.totalGold, 'the sentence shown to the player (' + quoted + ') is not the quote ('
+        + q.totalGold + ') — the dialog and the payment are two numbers again');
+      const returned = CM.settleJunk(q);
+      assert(native === 0, 'the sweep raised a NATIVE confirm() — it blocks the renderer main thread (b371/b373)');
+      assert(q.ids.length > 0, 'the sweep selected nothing, so there is no quote to compare against');
       assert(G.gold === quoted,
         'THE SWEEP QUOTED ' + quoted + ' GOLD AND PAID ' + G.gold + '. It totalled with vendorPrice() and '
         + 'paid ITEMS[id].v — the undiscounted book value — so every raw material sold through this button '
@@ -36322,7 +36493,10 @@ function addButton() {
     } else {
       msg += '✓ All clear';
     }
-    alert(msg);
+    // b373: the shared non-blocking modal, like every other question the game
+    // asks. A native alert blocks the renderer while the report is open.
+    if (window.HearthriseDialog) window.HearthriseDialog.alert({ title: 'Smoke test', body: msg });
+    else if (typeof window.notify === 'function') window.notify(msg, 'info');
   };
   document.body.appendChild(b);
 }

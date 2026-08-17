@@ -31783,6 +31783,101 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('COMBAT-UI-22 (b368): the champion plate SHOWS THE CHOSEN AVATAR and follows a change', () => {
+    /* Tyler: "the avatar seems to be bugging back to the original even after
+       being changed on the combat screen."
+
+       Both painters of `#arena-player-portrait` wrote it as
+       `if (!pp.querySelector('img')) pp.innerHTML = …`. The guard is real (b186:
+       floating damage numbers and the DEFEATED stamp are CHILDREN of that node,
+       and a 200ms innerHTML rewrite erases them mid-swing) but it made the plate
+       WRITE-ONCE — it captured whatever `window._playerAvatar` was at first
+       paint and could never be corrected. Change your portrait and the topbar
+       and Character page update while the arena keeps the old face for the life
+       of the document. Now only the `src` ATTRIBUTE is diffed.
+
+       THIS TEST EXISTS ON THE b368 SIGNED-IN HARNESS SEAM. Everything before it
+       plays signed out, with no portrait to get wrong — which is precisely why
+       this shipped. See identity.js `installHarnessIdentity`.
+       MUTATION PROVEN, in-browser at both viewports: restore the innerHTML
+       write-once and the post-change assertion fails while the first two pass. */
+    const CS = window.HearthriseCombatScreens;
+    const I = window.HearthriseIdentity;
+    assert(CS && I, 'combat screens or identity did not boot');
+    assert(typeof I._installHarnessIdentity === 'function', 'the signed-in harness seam is missing');
+    assert(I._harnessAllowed() === true,
+      'the harness seam refused to arm under the smoke harness — no signed-in surface can be tested');
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    const A = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#e100b4"/></svg>');
+    const B = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#00d9ff"/></svg>');
+    const priorAvatar = window._playerAvatar;
+    try {
+      /* FAIL-CLOSED FIRST. A test-only identity seam that can arm without the
+         explicit harness global is not a seam, it is a backdoor — so prove it
+         refuses before proving it works. (The origin half of the rule is
+         b224's, and this delegates to that same predicate rather than keeping a
+         second copy of it.) */
+      window.__HR_TEST_HARNESS__ = undefined;
+      assert(I._harnessAllowed() === false, 'the identity seam arms WITHOUT the harness global');
+      assert(I._installHarnessIdentity({ name: 'Nope', avatar: A }) === null,
+        'the identity seam installed a fake identity with the harness global unset');
+      window.__HR_TEST_HARNESS__ = true;
+      /* The ORIGIN half of the rule is deliberately NOT re-asserted here: this
+         seam delegates to `HearthriseGate.isHarnessContext`, b224 already proves
+         that predicate refuses a player origin, and calling it again with
+         'hearthrise.net' fires the gate's intentional production-only
+         console.error — which the suite's console gate then reports as a real
+         error. One assertion, in the module that owns the rule. */
+
+      const inst = I._installHarnessIdentity({ name: 'Harness Knight', avatar: A });
+      assert(inst && inst.userId, 'the simulated identity did not install');
+      assert(window._playerAvatar === A,
+        'applyAvatar() did not publish the chosen portrait to the _playerAvatar seam');
+
+      window.showTab('combat');
+      try { window.stopCombat(); } catch (e) {}
+      G.activeMonster = null;
+      CS.preview('rat');
+      let img = document.querySelector('#arena-player-portrait img');
+      assert(img, 'the champion plate has no portrait at all');
+      assert(img.getAttribute('src') === A,
+        'the preview plate shows "' + String(img.getAttribute('src')).slice(0, 48) + '", not the chosen portrait');
+
+      /* And mid-fight, which is the state the report was made from. */
+      window.startCombat('slime');
+      CS.renderFight();
+      img = document.querySelector('#arena-player-portrait img');
+      assert(img && img.getAttribute('src') === A, 'the live plate lost the chosen portrait');
+
+      /* THE DEFECT: change it, and the plate must follow. */
+      const stamp = document.createElement('b');
+      stamp.className = 'hr-test-dmg';
+      document.getElementById('arena-player-portrait').appendChild(stamp);
+      I._installHarnessIdentity({ name: 'Harness Knight', avatar: B });
+      CS._champion();
+      img = document.querySelector('#arena-player-portrait img');
+      assert(img, 'the plate lost its <img> on an avatar change');
+      assert(img.getAttribute('src') === B,
+        'THE b368 DEFECT: after changing portrait the plate still shows the old one ('
+        + String(img.getAttribute('src')).slice(0, 48) + ')');
+      /* …without wiping the children the b186 write-once guard was protecting. */
+      assert(document.querySelector('#arena-player-portrait .hr-test-dmg'),
+        'updating the portrait erased the damage-number children — that is what the old guard existed to prevent');
+      assert(document.querySelectorAll('#arena-player-portrait img').length === 1,
+        'the plate accumulated more than one portrait');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      try { const s = document.querySelector('#arena-player-portrait .hr-test-dmg'); if (s) s.remove(); } catch (e) {}
+      try { I._clearHarnessIdentity(); } catch (e) {}
+      window._playerAvatar = priorAvatar;
+      try { CS._champion(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
   () => tryRun('COMBAT-UI-15b (b368): the Fight preview is COMPLETE with nothing equipped, and says Unarmed', () => {
     /* Tyler's live report was an EMPTY stage on a landscape phone — backdrop art
        and nothing else — while wearing no weapon at all. The empty loadout turned

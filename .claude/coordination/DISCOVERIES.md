@@ -4,6 +4,51 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-17 (b368) · Art Director · **NO AUTOMATED PASS HAS EVER PLAYED SIGNED IN — a whole class of defect is unreachable by the suite. Seam built; a real test account is the remaining gap (Tyler decision).**
+
+**DISCOVERY 1 — the class, not the bug.** The account gate's harness bypass lets all 815 tests into
+the game **as nobody**: no user id, no display name, no portrait. Every signed-in-only rendering path
+— avatar, claimed name, profile-derived surfaces — has therefore never been exercised automatically.
+That is how the Fight screen shipped a champion plate that ignores the player's chosen avatar, and
+why four in-browser probes went past it without seeing it (a plate showing the default *correctly* is
+indistinguishable from a plate that can only ever show the default). **The suite was not weak here,
+it was blind: the state in which the defect exists was unreachable.**
+**AFFECTED:** everything that renders identity. **ACTION TAKEN:** built the seam (below). **ACTION
+FOR OTHER AGENTS:** if your surface changes when a player is signed in, your test must install the
+simulated identity — a signed-out assertion proves nothing about it.
+
+**DISCOVERY 2 — the seam: `HearthriseIdentity._installHarnessIdentity({ name, avatar, userId })`.**
+Produces the CLIENT-SIDE state a signed-in player has (session object with a user id, claimed name,
+portrait as a local data URL) with **no real Supabase session and no network**. Guarded by
+DELEGATION to `HearthriseGate.isHarnessContext` — explicit global AND non-player origin, fail-closed
+if the gate is absent — so it is inert on hearthrise.net whatever anybody sets. It is a fake
+IDENTITY, never a fake credential. `_clearHarnessIdentity()` restores. Surfaces that genuinely need
+the wire still stub the transport, as the b337/b368 accrual tests do.
+**TRAP, already paid for:** a simulated identity MUST adopt the user id as already-seen, or
+identity's 2s `tick()` sees a new uid and fires `hydrateRemoteAvatar` / `resolveServerName` /
+`reconcile` — three live reads that against a simulated session can only fail (measured: two
+unhandled `Failed to fetch`, caught by the suite's clean-log guard).
+
+**DISCOVERY 3 — REQUIRED ACTION, TYLER DECISION: full fidelity needs a dedicated test account in the
+project's own Supabase.** The seam covers rendering paths that key on identity. It cannot exercise
+the real RPCs — name claim, avatar upload to the avatars bucket, profile reconcile, or any
+server-authoritative path that checks a genuine `auth.uid()`. Those need a real, disposable account
+(and ideally its own slot) whose credentials the harness can use. Listed here for Tyler because it is
+an account/credential decision, not an engineering one. Related known gap: the topbar still reads
+"Signed out" under the simulated identity, because legacy's sign-in chip asks `HearthriseAuth`
+directly — widening the seam to cover that would mean faking the auth session, which crosses from
+fake identity into fake credential. Deliberately not done.
+
+**DISCOVERY 4 — the same defect SHAPE twice in one day: a write-once DOM node.** Both
+`#arena-player-portrait` painters used `if (!node.querySelector('img')) node.innerHTML = …` to protect
+children (b186: floating damage numbers, the DEFEATED stamp) and thereby made the node uncorrectable.
+The general fix is to stop writing MARKUP and diff the ATTRIBUTE instead — children survive AND the
+value tracks. Worth checking anywhere else this idiom appears.
+**NOTED, NOT FIXED:** the game has two different "no portrait yet" defaults —
+`assets/avatars/_placeholder.webp` (identity) and `assets/icons-bundle/painted/npc/player.png`
+(legacy.js:17337, assigned unconditionally). Which face a portrait-less player wears is an art
+decision that deserves to be made deliberately.
+
 ### 2026-08-16 (b368) · Art Director · **`setupArenaVs()` in legacy.js is a SECOND AUTHOR of the Fight stage, and it wins the race on every resume-into-a-running-fight**
 
 **DISCOVERY 1 — one root cause behind three separate player reports.** legacy.js's `setupArenaVs()`

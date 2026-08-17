@@ -315,7 +315,86 @@
     return (window.HearthriseSupabase && window.HearthriseSupabase.getConfig &&
             window.HearthriseSupabase.getConfig()) || null;
   }
+  /* ── b368: THE SIMULATED-IDENTITY HARNESS SEAM (TEST-ONLY) ──────────────
+     Every automated pass this project has ever run plays SIGNED OUT. The
+     account gate has a harness bypass, so the suite gets into the game — but it
+     gets in as nobody: no user id, no display name, no portrait. That means no
+     signed-in-only rendering path has ever been exercised automatically, which
+     is exactly how the Fight screen shipped a champion plate that ignores the
+     player's chosen avatar. A whole class of defect was invisible because the
+     test player has no identity to render.
+
+     `installHarnessIdentity()` produces the CLIENT-SIDE STATE a signed-in
+     player has — a session object with a user id, a claimed display name, and a
+     portrait already stored locally as a data URL — WITHOUT a real Supabase
+     session and without touching the network. `avatar.data` is the "this
+     device, instant" branch of `avatarUrl()`, so nothing is fetched and
+     `hydrateRemoteAvatar()` correctly declines (a local copy always wins).
+
+     GUARDED THE SAME WAY THE ACCOUNT WALL IS, and deliberately by DELEGATION to
+     that same predicate rather than a second copy of the rule: an explicit
+     global AND a non-player origin. On hearthrise.net this function cannot do
+     anything, whatever anybody sets. It is a fake identity, never a fake
+     credential — it grants no server access, because a simulated session has no
+     token any server would accept. Surfaces that genuinely need the wire still
+     stub the transport, exactly as the b337/b368 accrual tests do.
+
+     FIDELITY LIMIT, stated plainly: this cannot exercise the real RPCs (name
+     claim, avatar upload, profile reconcile). Full fidelity needs a dedicated
+     test account in the project's own Supabase — recorded in DISCOVERIES for
+     Tyler, and NOT something this seam pretends to provide. */
+  var harnessSession = null;
+  function harnessAllowed() {
+    try {
+      if (window.__HR_TEST_HARNESS__ !== true) return false;
+      var g = window.HearthriseGate;
+      if (g && typeof g.isHarnessContext === 'function') return g.isHarnessContext(window);
+      return false;   // fail CLOSED: no gate module, no simulated identity
+    } catch (e) { return false; }
+  }
+  function installHarnessIdentity(opts) {
+    if (!harnessAllowed()) return null;
+    var o = opts || {};
+    var uid = o.userId || '00000000-0000-4000-8000-00000000cafe';
+    harnessSession = {
+      access_token: 'harness-not-a-credential',
+      refresh_token: 'harness-not-a-credential',
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      user: { id: uid, email: o.email || 'harness@localhost' }
+    };
+    load();
+    rec.userId = uid;
+    if (o.name) { rec.name = o.name; rec.canonical = canon(o.name); rec.status = 'claimed'; rec.at = Date.now(); }
+    if (o.avatar) {
+      rec.avatar = { data: o.avatar, remote: null, status: 'local', at: Date.now() };
+    }
+    persist();
+    /* A SIMULATED IDENTITY MUST NOT TRIGGER REAL SERVER RECONCILIATION. `tick()`
+       fires `hydrateRemoteAvatar` / `resolveServerName` / `reconcile` the first
+       time it sees a NEW user id — three live Supabase reads that, against a
+       simulated session, can only fail. (Measured: two unhandled `Failed to
+       fetch` rejections, which the suite's own clean-log guard correctly reported
+       as errors.) Adopting the id as already-seen is not a workaround, it is the
+       seam's contract: it fabricates client STATE, never server access. Anything
+       that genuinely needs the wire stubs the transport instead. The name prompt
+       is likewise pre-answered so a fake identity can never open a modal over a
+       test or a screenshot. */
+    lastUser = uid;
+    promptedThisSession = true;
+    applyAvatar();
+    return { userId: uid, avatar: avatarUrl(), name: rec.name };
+  }
+  function clearHarnessIdentity() {
+    if (!harnessAllowed()) { harnessSession = null; return false; }
+    harnessSession = null;
+    _reset(); persist();
+    lastUser = null; promptedThisSession = false;
+    applyAvatar();
+    return true;
+  }
+
   function session() {
+    if (harnessSession && harnessAllowed()) return harnessSession;
     return (window.HearthriseAuth && window.HearthriseAuth.getSession &&
             window.HearthriseAuth.getSession()) || null;
   }
@@ -1561,6 +1640,10 @@
     _resolveServerName: resolveServerName, _applyServerName: applyServerName,
     _serverAnswer: serverAnswer, _serverPending: serverPending,
     _resetServerName: _resetServerName, _SERVER_NAME_DEADLINE_MS: SERVER_NAME_DEADLINE_MS,
-    _shouldAdoptServerName: shouldAdoptServerName, _mustPrompt: mustPrompt
+    _shouldAdoptServerName: shouldAdoptServerName, _mustPrompt: mustPrompt,
+    /* b368 — TEST-ONLY. Inert on a player origin (see installHarnessIdentity). */
+    _installHarnessIdentity: installHarnessIdentity,
+    _clearHarnessIdentity: clearHarnessIdentity,
+    _harnessAllowed: harnessAllowed
   });
 })();

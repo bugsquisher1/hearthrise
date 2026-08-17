@@ -2,6 +2,72 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-17 · b368 (second pass) — the avatar defect, and THE REASON A WHOLE CLASS OF DEFECT
+### HAS BEEN INVISIBLE: every automated pass this project has ever run plays SIGNED OUT.
+
+**The bug, and it is the same shape as the one I fixed this morning — a write-once node.** Tyler:
+"the avatar seems to be bugging back to the original even after being changed on the combat screen."
+Both painters of `#arena-player-portrait` — mine and legacy's `refreshArenaVs` — wrote it as
+`if (!pp.querySelector('img')) pp.innerHTML = …`. That guard is not wrong: b186 put it there because
+floating damage numbers and the DEFEATED stamp are CHILDREN of that node, and an innerHTML rewrite
+every 200ms erases them mid-swing. But it makes the plate capture whatever `window._playerAvatar`
+happened to be at the FIRST paint and never re-read it. Change your portrait afterwards and
+`applyAvatar()` updates the seam, the topbar and the Character page — and the arena keeps the old
+face for the life of the document. The mutation run says it in Tyler's own words: with the latch
+restored the plate reads **`assets/avatars/_placeholder.webp`**, literally bugged back to the
+original. The fix is not to drop the guard but to stop writing MARKUP: the `<img>` is created once
+and thereafter only its `src` ATTRIBUTE is diffed, so the children survive and there is still one
+write per change rather than one per tick. **Twice in one day the defect was a node that could only
+be written once — worth remembering as a shape, not as two incidents.**
+
+**THE ROOT CAUSE OF THE CLASS, and it is the finding I would put in front of Tyler.** This shipped
+because **no automated pass in this project's history has ever played as a signed-in player.** The
+account gate has a harness bypass, so all 815 tests get into the game — as NOBODY. No user id, no
+display name, no portrait. A test player with no identity cannot catch a screen that renders identity
+wrongly, and my own four probes this morning went past this bug without seeing it, because the plate
+they photographed was showing the default *correctly*. **The suite was not weak here, it was blind:
+the state in which the defect exists was unreachable.**
+
+So the seam now exists — `HearthriseIdentity._installHarnessIdentity()`. It produces the CLIENT-SIDE
+STATE a signed-in player has (session object with a user id, claimed display name, portrait stored
+locally as a data URL) with no real Supabase session and no network. Three decisions in it I would
+defend:
+- **It is guarded by DELEGATION to the account gate's own `isHarnessContext`, not by a second copy of
+  the rule** — explicit global AND non-player origin, and it fails CLOSED if the gate module is
+  absent. On hearthrise.net it cannot do anything, whatever anybody sets. It is a fake IDENTITY,
+  never a fake credential: the token it carries is a string no server would accept.
+- **It adopts the user id as already-seen (`lastUser`).** Without that, identity's 2s `tick()` sees a
+  new uid and fires `hydrateRemoteAvatar` / `resolveServerName` / `reconcile` — three live reads that
+  against a simulated session can only fail. Measured: **two unhandled `Failed to fetch` rejections,
+  which the suite's own clean-log guard caught and reported.** That is the seam's contract stated in
+  code: it fabricates client state, never server access. The one time I let it imply otherwise, the
+  suite told me immediately.
+- **The test proves it refuses BEFORE it proves it works.** A test-only identity seam that can arm
+  without the explicit global is not a seam, it is a backdoor.
+
+**One assertion I wrote and then deleted, and the reason is worth keeping.** I had COMBAT-UI-22 also
+assert `isHarnessContext(win, 'hearthrise.net') === false`. It passed — and turned the suite red,
+because the gate answers that question by design with a loud `console.error`, and the clean-log guard
+correctly counted it. **Re-asserting another module's rule from outside can trip that module's own
+alarm.** One assertion, in the file that owns the rule (b224 already has it).
+
+**Fidelity limits, stated rather than papered over.** The topbar still reads "Signed out" under the
+simulated identity, because legacy's sign-in chip asks `HearthriseAuth`, not `HearthriseIdentity` —
+widening the seam to satisfy it would mean faking the auth session itself, which is where a fake
+identity starts becoming a fake credential, and I stopped short of that line deliberately. The real
+RPCs (name claim, avatar upload, profile reconcile) are still unexercised; **full fidelity needs a
+dedicated test account in the project's own Supabase**, which is a Coordinator decision listed for
+Tyler and NOT something this seam pretends to provide. Also noted, not fixed: the game has **two
+different "no portrait yet" defaults** — identity's `assets/avatars/_placeholder.webp` and legacy's
+`assets/icons-bundle/painted/npc/player.png` (legacy.js:17337 assigns the latter unconditionally,
+though identity's DCL+1200 boot wins the order today). Which face a portrait-less player wears is an
+art decision and deserves to be made deliberately, not inside a bug fix.
+
+**Verified in-browser at 1440×900 and 922×423**, signed in with a chosen portrait: preview plate,
+live plate, and a portrait CHANGED MID-FIGHT — the arena follows in the same frame as the topbar.
+Mutation-proven in the browser at both sizes before it was proven in the suite. Captures in
+`assets/art-pilot/_screenshots/b368-avatar/`. Suite **816/816**, exit 0, log read.
+
 ### 2026-08-16 · b368 — three player-reported defects, ONE root cause, and the fix I shipped
 ### is a class test on a div. The animation Tyler said I removed was never removed.
 

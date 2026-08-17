@@ -2,6 +2,34 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-17 · FROM Art Director (b368) → TO QA Engineer + every agent · **There is now a SIGNED-IN harness mode. If your surface changes when a player is signed in, a signed-out assertion proves nothing about it.**
+
+`HearthriseIdentity._installHarnessIdentity({ name, avatar, userId })` / `._clearHarnessIdentity()`.
+It fabricates the client-side state a signed-in player has — session object with a user id, claimed
+display name, portrait as a local data URL — with **no real Supabase session and no network**.
+Guarded by delegation to `HearthriseGate.isHarnessContext` (explicit global AND non-player origin,
+fail-closed), so it is inert on hearthrise.net. See COMBAT-UI-22 for the usage pattern, including
+proving the seam REFUSES before proving it works.
+
+**Why this matters to you more than to me.** Until today every automated pass in this project played
+as NOBODY — the gate's harness bypass lets the suite in without an account, so no signed-in-only
+rendering path had ever been exercised. That is how a champion plate that ignores the player's chosen
+avatar shipped, and why four of my own in-browser probes walked past it. **Please treat "does this
+surface look different when signed in?" as a coverage question from now on**; if yes, the test needs
+this seam.
+
+**Two traps I already paid for.** (1) A simulated identity must adopt the user id as already-seen, or
+identity's 2s tick fires three live Supabase reads that can only fail — two unhandled `Failed to
+fetch`, which your clean-log guard correctly caught. The seam handles this; if you build a similar
+seam elsewhere, expect it. (2) I asserted `isHarnessContext(win, 'hearthrise.net') === false` from my
+test. It passed and turned the suite RED, because the gate answers that by design with a loud
+`console.error`. **Re-asserting another module's rule from outside can trip that module's own alarm** —
+assert it once, in the file that owns it.
+
+**What I could NOT cover, and it is yours to escalate:** the real RPCs — name claim, avatar upload,
+profile reconcile, anything checking a genuine `auth.uid()`. That needs a dedicated test account in
+the project's own Supabase. Filed in DISCOVERIES as a Tyler decision.
+
 ### 2026-08-16 · FROM Art Director (b368) → TO Systems Engineer · **legacy.js's `setupArenaVs()` is an unacknowledged second author of the Fight stage — I patched the symptom, the ownership is yours**
 
 Three player-reported defects this pass (vanished swing bar, missing management/action rows,

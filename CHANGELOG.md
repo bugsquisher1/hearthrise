@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 369 — 2026-08-17 (Hotfix: the Fight screen comes back)
+
+- 🚑 **Fixed the Fight screen loading empty** — opening the game mid-fight (or reloading during one) could leave the whole combat stage blank for the session: no portraits, no stats, no Fight button. One startup race, now fixed and guarded by tests.
+- ⏱️ **The swing timer is back on phones.** Two style rules each hid the copy of the label the other relied on, so the swing time printed nowhere on landscape. It now reads under each fighter's health bar.
+- 🔕 **The "Away progress is paused" sheet now clears itself** the moment a sync succeeds — and re-checks whenever you return to the app — instead of waiting for you to dismiss it after the trouble has already passed.
+
 ## v0.9.2-beta build 368 — 2026-08-17 (Hotfix: unequipped items and your bag)
 
 - 🚑 **Fixed unequipped items vanishing from your bag.** Taking gear off right after b367 could make the item disappear from your bag view (it was never lost — the server still had it; thanks Tyler for the instant report). The server-authoritative inventory switch is paused until the equip pipeline is verified against live traffic; nothing about your items changes in the meantime.

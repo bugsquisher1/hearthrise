@@ -829,6 +829,50 @@ export function markEquipAuthorityLive(v) {
 }
 export function isEquipAuthorityLive() { return equipAuthorityLive; }
 
+/* ── INVENTORY AUTHORITY IS ITS OWN FLAG (P1 mitigation, 2026-08-17) ─────────
+   THE BUG THIS DECOUPLES. `isEnvelopeAbsolute()` was armed by EQUIP authority
+   (markEquipAuthorityLive, live today). But the general inventory bag is NOT
+   yet server-owned: LIVE play still crafts and drops on the client, and the
+   server settles craft chains out of order against an INCOMPLETE
+   `player_inventory` (materials from a not-yet-settled prior chain are invisible
+   to it). Under the absolute inventory branch below that stale, incomplete
+   figure is ASSIGNED wholesale — so a freshly crafted signet the server's
+   baseline cannot yet produce is DELETED. That deletion is irreversible.
+
+   Equip authority being live says nothing about whether the *bag* is
+   server-authoritative — that coupling is what turns settlement divergence into
+   data loss. So inventory gets its OWN authority flag, defaulting OFF, gated on
+   an inventory-baseline signal that does not exist yet. Until that signal is
+   built and something calls `markInventoryAuthorityLive`, the bag is ALWAYS
+   merge — Math.max on named keys, omitted keys survive, the b363
+   `unaccountedEquipped` discount stays live. That converts the irreversible
+   crafted-item DELETION into the (tolerable, pre-wipe) craft dupe.
+
+   EQUIPMENT AND GOLD ARE UNTOUCHED: gold is still assigned absolutely, skills
+   still follow `isEnvelopeAbsolute()`, and the b366 equip-dupe fix is intact —
+   equipment stays absolute. Only the general inventory bag reverts to merge. */
+let inventoryAuthorityLive = false;
+
+/** Declare that the SERVER owns the full inventory bag on this client. Nothing
+ *  calls this yet — it awaits an inventory-baseline signal (server settling
+ *  live craft/drop chains completely). Until then the bag stays merge. */
+export function markInventoryAuthorityLive(v) {
+  inventoryAuthorityLive = v !== false;
+  return inventoryAuthorityLive;
+}
+export function isInventoryAuthorityLive() { return inventoryAuthorityLive; }
+
+/** Is the general inventory BAG absolute on this device?
+ *  Two independent conditions, BOTH fail-closed toward merge (the direction
+ *  that can only ever over-credit — never delete a crafted item):
+ *    1. inventory authority must be live (it is not — no baseline signal yet),
+ *    2. and the shared envelope-merge kill switch must not be forcing merge.
+ *  Because (1) is false today, this is ALWAYS false today — the bag is merge. */
+export function isInventoryAbsolute() {
+  if (!inventoryAuthorityLive) return false;
+  return isEnvelopeAbsolute();
+}
+
 /** Is the envelope ABSOLUTE on this device?
  *  Two conditions, and BOTH are fail-closed toward the merge — the direction
  *  that can only ever over-credit, never delete and never duplicate. */
@@ -1113,8 +1157,17 @@ export function applyEnvelopeState(G, res, ownKey) {
        single most expensive mistake available here. The absolute branch is
        therefore entered ONLY when the envelope actually carries an inventory
        object; anything else falls through to the merge, which cannot delete. */
+  /* THE BAG USES ITS OWN AUTHORITY FLAG, NOT the equip-armed `absolute` above.
+     Gold (assigned outright) and skills (line ~974) keep `absolute`; only the
+     general inventory bag consults `isInventoryAbsolute()`, which is merge today
+     because no inventory-baseline signal exists. This is the P1 decoupling: the
+     absolute branch is what DELETES a crafted item the server's stale, out-of-
+     order craft baseline cannot yet reproduce, so the bag must not enter it
+     while inventory is not truly server-owned. */
+  const invAbsolute = isInventoryAbsolute();
+  written.inventoryAuthority = invAbsolute;
   const invNamed = res && res.inventory;
-  if (absolute && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
+  if (invAbsolute && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
     const next = {};
     for (const k of Object.keys(invNamed)) {
       const q = Number(invNamed[k]);
@@ -2103,6 +2156,7 @@ if (typeof window !== 'undefined') {
     stampAwayWatermarks, clampSlot, resolveActiveSlot, mayClientWrite,
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
+    isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
     equippedCount, unaccountedEquipped, consumedKeysOf,
     /* Phase 1 — live settlement (docs/design/live-settlement.md §3). */
     SETTLE_INTERVAL_MS, ACCRUE_MIN_SPAN_MS, ACCRUE_RATE_PER_MIN,

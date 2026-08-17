@@ -1,5 +1,31 @@
 # LIVE AUDIT — 2026-08-17 (all-night session, Tyler's live account, hearthrise.net b370)
 
+## FINAL RANKED SUMMARY (session end)
+
+P0 (live, unresolved at session end)
+1. Cloud save POSTs 503 ALL NIGHT (F1) — 0 successful client-observed writes across ~3h, before AND after the compute upgrade; UI still claims "cloud save active". (Server telemetry showed intermittent commits, but the client-visible failure rate is ~100% and invisible to players.)
+2. Hero-slot switch hard-freezes the tab (F10) — 3/3 repro, 60s+ renderer hang, only manual reload recovers; FTUE on fresh slot blocked. Systems engineer dispatched.
+
+P1
+3. Auto-eat broken (F7) — threshold set to 50%, watched HP at 30% across dozens of swings with provisions held; two deaths. Deaths are also nearly invisible (F8).
+4. Gem debit reverted on reload while slot unlock persisted (F11) — premium-currency dupe via two divergent stores under save failure; also no purchase confirmation (F9a) and stale header gem chip (F9b).
+
+P2
+5. First-paint icon miss / "old asset flicker" (F13/F15 + addendum) — screens render before icon wiring; inventory 21/28 icons missing then all paint ~4s later; farm, bounty cards, drop rows, provisions same. THE root of Tyler's flicker report.
+6. Drops-this-fight pollution (F5/F14) — logs ALL inventory gains during the fight window (crafting planks x295, shop-bought seeds x10). Filter by source.
+7. Avatar surface desync (F22) — header mini-avatar lags one reload behind; portrait has no single source of truth; placeholder asset 404s (F2).
+8. House upgrade requirement quantities invisible (F16); Premium Shop off-theme blue/hardcoded colors (F24); periodic multi-second renderer stalls + 1s full re-render of Home (F17).
+
+P3 (polish, studio-bar)
+9. Toasts clip off right viewport edge everywhere (F21). 10. Stable: generic paw icons + raw lock-id strings shown to players (F19/F20). 11. Runecrafting skill row missing icon (F12). 12. Necklace label wrap + air-rune-reads-as-play-button (F4/F6). 13. Replay-tutorial button dead (F23). 14. Combat-strip Dungeon "Enter" not gated visually (F25). 15. Quests badge desync; watered-timestamp format inconsistency; monospace trade history font; Hunt text truncation.
+
+NOT REPRODUCED: War Table blank portraits (checked twice on b370, all 200s + rendered).
+POSITIVES: bounty accept/CLAIMED/deep-link flow; dungeon cards (mechanics, drop tables, honest gating); portrait picker; quest claiming; clan blueprint art; local shop illustration; away-accrual copy ("away: until you fall"); item/monster art quality when it paints.
+
+VERDICT (how it feels to play): Hearthrise's bones are genuinely good — the loop of bounty -> fight -> drops -> skills -> farm reads clearly, the painted art is charming, and screens like the dungeon list and bounty board feel like a real game with a point of view. But tonight it feels like a beautiful town with the plumbing off: nothing you do is provably saved (and the UI won't tell you), your food won't save you from a Tier-1 slime, icons blink into existence seconds after every screen loads, and the one screen that asks for money looks like a default Bootstrap page. Fix the save path, auto-eat, the icon-wiring pass, and the freeze, and the moment-to-moment game underneath is already fun to idle in.
+
+---
+
 Auditor: live-player agent in Tyler's Chrome. One entry per finding.
 
 ---
@@ -41,6 +67,8 @@ Auditor: live-player agent in Tyler's Chrome. One entry per finding.
 - What: Player at Lv7 with "Raw Lobster +12 HP each, 1 held" as provisions. HP ground down 10->0 over ~90s; lobster never consumed; combat log ends "💀 You died! Respawning…" with `lobsters: 1` still in G. Fight gold reverted/lost (12,774 -> 12,765).
 - Expected: provisions exist to be eaten — auto-consume at threshold, or a clear manual eat button on the fight screen (none seen).
 - Also QUESTIONABLE: RAW lobster accepted as provisions at Cooking 6 — raw food healing 12 HP feels wrong vs cooking progression.
+- UPGRADED TO P1: Settings > Gameplay shows "Auto-eat HP threshold: 50%" ("Eat one Provision automatically on each swing your HP is below this percentage") — the feature IS configured on this account, and it did NOT fire through two full deaths (10->0 HP over ~90s each, lobster held throughout). Auto-eat is broken, not merely locked behind the bounty-shop unlock (or the setting UI lies about being active). Second death: bounty fight vs Brittle Skeleton, same pattern.
+- Note: Settings > "Replay tutorial: Show again" exists — usable FTUE path while slot switching is broken.
 
 ## F8 — P2 (game feel) — Death is nearly invisible
 - What: on death the screen just returns to the War Table; no death modal/summary (what you lost, where you respawned). A new player would not understand what happened. The activity bar flips to "Idle — pick an activity" — the punishment is confusion, not drama.
@@ -98,6 +126,23 @@ Auditor: live-player agent in Tyler's Chrome. One entry per finding.
 
 ## F21 — P3 (UI) — Toasts overflow/clip at the right viewport edge on desktop
 - Seen 4+ times tonight: "Your wor...", "Collected 4m — +0 go...", "Accepted bo...", "Defeate..." — every toast renders half off-screen at the right edge, so feedback text is unreadable. Toast container is positioned past the viewport (1745px wide window).
+
+## F13 addendum — Inventory: strongest A/B evidence
+- First paint: 28 occupied slots, ~7 icons visible, rest blank tiles with counts (ss_0948b9nw9). ~4s later: all 28 painted (ss_9175k39cf). Same repro class on Character skill grid, farm, bounty cards, drop rows, provisions. The item art itself is lovely once painted — the bug is purely the late icon-wiring pass.
+
+## F22 — P2 — Avatar-revert mechanism identified (Tyler's report #2): portrait surfaces read DIFFERENT sources and desync
+- Repro tonight: Character > Hero > Change Portrait -> picked a new stock portrait. Hero panel + Home banner updated immediately and SURVIVED a reload. But the top-left header mini-avatar kept showing the OLD portrait both before AND after reload — a persistent desync.
+- Mechanism: portrait persistence appears to ride the save blob / separate stores per surface (no dedicated portrait network write was observed on change; header chip caches its own copy). Under save-write failure (tonight's 503s) whichever surface reads the rolled-back store "reverts". Combined with the 404 placeholder (F2), a failed read falls to a MISSING placeholder image -> the "placeholder revert" Tyler sees on the combat screen.
+- Fix direction: one portrait source of truth read by ALL surfaces + ship the placeholder asset.
+- Picker itself is lovely (10 painted options + upload). "Setting your portrait..." spinner completed OK.
+
+## F23 — P3 — Settings > Gameplay > "Replay tutorial: Show again" does nothing (no tour on click, none after reload).
+
+## F22 addendum — header mini-avatar updated only after the SECOND reload: it lags one reload behind the real portrait. Cache-behind-by-one is the revert signature Tyler describes.
+
+## F24 — P2 (art) — Premium Shop is off-theme: default-blue Buy buttons and blue "Premium Store" label (hardcoded colors, not tokens), generic monochrome line icons vs the painted item art everywhere else. The one screen asking for real money is the least polished screen in the game. Copy note: platform detection line is good ("Detected: web", server-validated receipts).
+
+## F25 — P3 — Combat strip "DUNGEON — Enter" button looks enabled at CL8 but the dungeon list itself is correctly gated ("Combat Lv 25 required (you are 8)"). The strip button should show the same disabled/gated state instead of luring a click.
 
 ## Coordinator note — Tyler's live instructions (2026-08-17, verbatim from chat)
 1. "Gems are free to us lol just add the character slot and play through the game." — Tyler explicitly approved buying Hero slot 2 (200 gems) on his account for the fresh-character playthrough. His balance was credited to 1006 gems server-side by the Coordinator. Note whether the credit reaches the client cleanly, and whether the purchase flow debits/unlocks correctly.

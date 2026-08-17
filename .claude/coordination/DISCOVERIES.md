@@ -4,6 +4,75 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-17 · Art Director (b371) · The default portrait 404'd in production for its whole life because its filename starts with an underscore — GitHub Pages runs JEKYLL, and Jekyll excludes every `_`-prefixed file
+
+**DISCOVERY.** `assets/avatars/_placeholder.webp` — the face every player without a
+portrait sees, and the fallback every avatar surface resolves to — was committed,
+correctly pathed, and served by every local dev server. It 404'd on hearthrise.net.
+Verified live, same directory, same commit:
+
+    /assets/avatars/_placeholder.webp -> 404
+    /assets/avatars/knight.webp       -> 200
+
+The deploy is GitHub Pages (CNAME `hearthrise.net`), Pages runs Jekyll unless a
+`.nojekyll` file exists at the root, and **Jekyll silently excludes every file and
+directory whose name begins with an underscore.** There was no `.nojekyll`. Nothing
+in the toolchain could see this: the file exists in the repo, the smoke suite's own
+static server serves it, and the browser's `onerror` latch quietly swapped in
+`player.png` — so the visible symptom was "the default portrait is the retired
+player.png again", which reads as a regression in the wrong module entirely.
+
+**AFFECTED SYSTEMS.** Any asset under `assets/**` whose path has a `_`-prefixed
+segment. Today that was the avatar default; the rule is general, and it is a trap
+that costs nothing to hit and is invisible everywhere except production.
+
+**REQUIRED ACTION / RULE.** (1) Do not name a shipped asset (or a directory holding
+one) with a leading underscore. (2) `.nojekyll` now ships at the repo root, but that
+is a second line of defence — the naming rule is the contract. (3) `avatarAssetGuard()`
+in `tests/run-smoke.mjs` fails the build on either a `_`-prefixed referenced path or
+a referenced `assets/avatars/**` file that does not exist on disk; mutation-proven
+(rename the file back → guard red by name, plus two in-browser tests).
+**Note for the Asset Director:** `assets/art-pilot/_screenshots/` is a `_`-prefixed
+DIRECTORY. It is not referenced by any shipped code so nothing breaks today, but
+anything ever served from under it would 404 in exactly this way.
+
+---
+
+### 2026-08-17 · Art Director (b371) · Every portrait surface read the seam at its OWN render time — so "the portrait is stale" was never one bug, it was one bug per surface, each lagging by however long that surface goes between re-renders
+
+**DISCOVERY.** F22 was reported as "the header caches one reload behind". I booted the
+real client and enumerated every `<img>` in the document rather than checking the
+surface that was named. **The reported surface and the measured surface differ:** the
+header tracked correctly, and the **Home hearth banner** held the previous portrait
+across a tab switch and only caught up on the next boot. Cause is the same for both
+and for four more surfaces nobody reported yet: `window._playerAvatar` was read at
+render time and baked into an `innerHTML` string, and `identity.js`'s `refreshUi()`
+corrected exactly ONE of them, by selector (`.player-avatar img`). Two surfaces —
+the legacy arena plate and `combat-screens.js`'s preview plate — are painted once
+behind a `if (!pp.querySelector('img'))` guard, so a portrait changed mid-session
+**never reached them at all**.
+
+Second half: the seam only published at `boot()`, which is gate-open + 1200ms. Every
+panel rendered inside that window baked the DEFAULT face into its markup.
+
+**AFFECTED SYSTEMS.** `src/features/identity.js`, `src/utils/profile.js`,
+`src/features/{home-dashboard,character-page,combat-screens}.js`, `src/legacy.js`
+(four render sites + `getActiveAvatar`), `index.html`.
+
+**REQUIRED ACTION / RULE.** There is now ONE portrait source of truth with a
+REGISTRY, not a call list: every portrait `<img>` carries **`data-hr-avatar`**, and
+`HearthriseIdentity.paintAvatars()` repaints all of them whenever the value changes.
+`onAvatarChange(fn)` and a `hearthrise:avatar` window event exist for surfaces that
+need more than an `<img src>` swap. **If you add a portrait surface, add the
+attribute** — a smoke test scans the render sites for it (with comments stripped:
+the first version of that test passed against a file whose `<img>` had lost the
+attribute because the comment above it still said the words). And **never read the
+portrait out of the DOM**: `legacy.js`'s `getActiveAvatar()` used to read the topbar
+`<img>`, which made the header a SOURCE as well as a surface, so anything rendered
+from it inherited whatever the header happened to be showing.
+
+---
+
 <<<<<<< HEAD
 ### 2026-08-17 · Art Director (b369) · FIVE stylesheets were each authoring one piece of the paper-doll's grid, and the two that disagreed produced a live overlap on two surfaces
 

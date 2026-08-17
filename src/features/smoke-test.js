@@ -8699,7 +8699,7 @@ const TESTS = [
       const def = I.avatarUrl();
       // b360: the default is now the neutral placeholder silhouette, never the
       // retired painted player.png face.
-      assert(def && /assets\/avatars\/_placeholder\.webp/.test(def),
+      assert(def && /assets\/avatars\/placeholder-portrait\.webp/.test(def),
         'with no upload the portrait must be the neutral placeholder, got ' + def);
       assert(!/painted\/npc\/player\.png/.test(def),
         'player.png must no longer be the default face');
@@ -34016,7 +34016,7 @@ const TESTS = [
   // shares one default portrait, and the render seam must never resolve to it.
   () => tryRun('b360: player.png is retired as the default face', () => {
     const I = window.HearthriseIdentity;
-    assert(I.DEFAULT_AVATAR === 'assets/avatars/_placeholder.webp',
+    assert(I.DEFAULT_AVATAR === 'assets/avatars/placeholder-portrait.webp',
       'the default face must be the neutral placeholder, got ' + I.DEFAULT_AVATAR);
     assert(!/painted\/npc\/player\.png/.test(I.DEFAULT_AVATAR),
       'player.png must no longer be the default portrait');
@@ -34027,6 +34027,136 @@ const TESTS = [
       rec.avatar = { data: null, remote: null, status: null, at: 0 };
       assert(I.avatarUrl() === I.DEFAULT_AVATAR, 'with no upload the portrait must be the placeholder default');
     } finally { rec.avatar = saved; I.applyAvatar(); }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     b371 — ONE PORTRAIT SOURCE OF TRUTH (live audit F22).
+     Reported as "the header caches one reload behind". Measured in the real
+     client: change the portrait and the Home hearth banner keeps the PREVIOUS
+     face until the next boot, because it bakes its <img> into an innerHTML
+     string and only rebuilds on its own schedule. Same defect class on the
+     arena plates, which are painted once and never again. The reported surface
+     and the measured surface differ; the cause and the fix do not.
+
+     These three assert the CONTRACT, not the symptom:
+       (a) a portrait change reaches every registered surface with NO
+           re-render — that is what "in one frame" means here.
+       (b) the registry is not empty and every render site is enrolled — a
+           surface that quietly stops carrying the attribute must fail HERE,
+           not one reload later on a player's screen.
+       (c) a reboot-equivalent re-boot paints the CURRENT portrait, so first
+           paint is never the previous choice or the placeholder.
+     ═════════════════════════════════════════════════════════════════════ */
+
+  // (a) THE REGRESSION. Surfaces are stamped with a wrong portrait by hand and
+  // must all be corrected by ONE seam call, with nothing re-rendered in between.
+  // Mutation: restore the old refreshUi (header-only, by selector) → the two
+  // non-header surfaces keep the stale src and this goes red.
+  () => tryRun('b371: a portrait change repaints EVERY registered surface, with no re-render', () => {
+    const I = window.HearthriseIdentity;
+    assert(typeof I.paintAvatars === 'function', 'the seam must expose paintAvatars()');
+    assert(I.AVATAR_ATTR === 'data-hr-avatar', 'the registry attribute must be data-hr-avatar');
+    const STALE = 'assets/avatars/knight.webp';
+    const host = document.createElement('div');
+    host.style.cssText = 'position:absolute;left:-9999px;top:0';
+    // Three stand-ins for the three shapes that exist in the game: a static
+    // markup img with the one-shot onerror latch already tripped, a plain
+    // render-time img, and one that a failed load had hidden outright.
+    host.innerHTML =
+      '<img id="hr-t-static" data-hr-avatar src="' + STALE + '">' +
+      '<img id="hr-t-render" data-hr-avatar src="' + STALE + '">' +
+      '<img id="hr-t-hidden" data-hr-avatar src="' + STALE + '" style="display:none">';
+    document.body.appendChild(host);
+    host.querySelector('#hr-t-static').dataset.fellBack = '1';
+    try {
+      const want = window._playerAvatar || I.DEFAULT_AVATAR;
+      // Through applyAvatar(), i.e. the path a real portrait change takes —
+      // asserting paintAvatars() directly would pass against an applyAvatar()
+      // that never calls it, which is precisely the regression.
+      I.applyAvatar();
+      ['hr-t-static', 'hr-t-render', 'hr-t-hidden'].forEach((id) => {
+        const el = document.getElementById(id);
+        assert(el.getAttribute('src') === want,
+          id + ' must hold the current portrait after one seam call, got ' + el.getAttribute('src'));
+      });
+      assert(!document.getElementById('hr-t-static').dataset.fellBack,
+        'the one-shot fallback latch must be cleared, or a portrait that failed once can never be replaced');
+      assert(document.getElementById('hr-t-hidden').style.display !== 'none',
+        'a surface hidden by a previous failed load must be shown again');
+      assert(I.paintAvatars() >= 3, 'paintAvatars must see the registered surfaces');
+    } finally { host.remove(); }
+  }),
+
+  // (b) THE REGISTRY IS POPULATED. A source-shaped claim deliberately: the
+  // failure this catches is a render site being added (or reverted) WITHOUT the
+  // attribute, which no runtime assertion on the current DOM can see because
+  // that panel may not be mounted.
+  () => tryRunAsync('b371: every portrait render site is enrolled in the registry', async () => {
+    const SITES = [
+      ['index.html', /class="player-avatar"[\s\S]{0,200}?data-hr-avatar/],
+      ['src/features/home-dashboard.js', /hd-ava[\s\S]{0,400}?data-hr-avatar/],
+      ['src/features/character-page.js', /cr-hero-portrait[\s\S]{0,120}?data-hr-avatar/],
+      ['src/features/character-page.js', /csk-hero-portrait[\s\S]{0,120}?data-hr-avatar/],
+      ['src/features/combat-screens.js', /arena-player-portrait[\s\S]{0,600}?data-hr-avatar/],
+      ['src/legacy.js', /char-avatar[^\n]{0,120}data-hr-avatar/],
+      ['src/legacy.js', /cr-hero-portrait[^\n]{0,120}data-hr-avatar/],
+      ['src/legacy.js', /ce-champ[^\n]{0,120}data-hr-avatar/],
+    ];
+    // COMMENTS ARE STRIPPED FIRST, and that is not fussiness. The first run of
+    // this guard passed against a home-dashboard.js whose <img> had LOST the
+    // attribute, because the explanatory comment two lines above still said the
+    // words "data-hr-avatar". A source guard a comment can satisfy is not a
+    // guard — it is a spell-check.
+    const strip = (t) => t
+      .replace(/<!--[\s\S]*?-->/g, ' ')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/^[ 	]*\/\/.*$/gm, ' ');
+    const cache = {};
+    for (const [file, re] of SITES) {
+      if (!cache[file]) cache[file] = strip(await (await fetch(file + '?cache=' + Date.now())).text());
+      assert(re.test(cache[file]),
+        file + ' has a portrait render site with no data-hr-avatar — it will lag a portrait change');
+    }
+    // And the live document must actually carry some, or the attribute is a
+    // convention nobody follows.
+    assert(document.querySelectorAll('img[data-hr-avatar]').length >= 1,
+      'no registered portrait surface in the live document');
+  }),
+
+  // (c) FIRST PAINT. The seam must publish from STORAGE at script time, not
+  // from the deferred boot() — otherwise every render in the first ~1.2s bakes
+  // the default face into its markup and the header shows the placeholder.
+  // Simulated by resetting the in-memory mirror to what a cold document holds
+  // and re-running the same publish the script tail runs.
+  () => tryRunAsync('b371: a reboot publishes the CURRENT portrait, not the previous one', async () => {
+    const I = window.HearthriseIdentity;
+    const rec = I._record();
+    const saved = JSON.parse(JSON.stringify(rec.avatar));
+    const savedSeam = window._playerAvatar;
+    const host = document.createElement('div');
+    host.style.cssText = 'position:absolute;left:-9999px;top:0';
+    host.innerHTML = '<img id="hr-t-boot" data-hr-avatar src="' + I.DEFAULT_AVATAR + '">';
+    document.body.appendChild(host);
+    try {
+      await I.setAvatarFromPrefab('rogue');
+      const chosen = I._record().avatar.data;
+      assert(typeof chosen === 'string' && chosen.indexOf('data:') === 0, 'the pick must have persisted');
+      // A cold document: markup default in the DOM, legacy's boot assignment in
+      // the mirror, nothing else. This is exactly the state identity.js's
+      // script tail runs in.
+      host.querySelector('#hr-t-boot').src = I.DEFAULT_AVATAR;
+      window._playerAvatar = 'assets/icons-bundle/painted/npc/player.png';
+      I.applyAvatar();                                   // == the script-time publish
+      assert(window._playerAvatar === chosen,
+        'the seam must resolve the STORED portrait at boot, got ' + String(window._playerAvatar).slice(0, 40));
+      assert(document.getElementById('hr-t-boot').getAttribute('src') === chosen,
+        'first paint must show the current portrait, not the placeholder or the previous choice');
+    } finally {
+      host.remove();
+      rec.avatar = saved; I._persist();
+      window._playerAvatar = savedSeam;
+      I.applyAvatar();
+    }
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════

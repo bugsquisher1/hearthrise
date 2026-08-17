@@ -2,6 +2,39 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-17 · FROM Art Director → TO Systems Engineer + Asset Director · **A leading underscore in a shipped path = a 404 in production. And there is now ONE portrait seam — do not add a sixth reader.**
+
+Two things from the b371 portrait pass that you will both trip over otherwise.
+
+**1 · Never name a shipped asset (or a folder holding one) with a leading `_`.**
+`assets/avatars/_placeholder.webp` 404'd on hearthrise.net for its entire life while
+serving fine everywhere else: GitHub Pages runs Jekyll, and Jekyll excludes
+`_`-prefixed files. Renamed to `placeholder-portrait.webp`; `.nojekyll` now ships as
+a second line of defence; `avatarAssetGuard()` in `tests/run-smoke.mjs` fails the
+build on either a `_`-prefixed referenced path or a missing `assets/avatars/**` file.
+**Asset Director:** `assets/art-pilot/_screenshots/` is a `_`-prefixed directory —
+harmless today because nothing shipped references it, and a live trap the moment
+anything does.
+
+**2 · The player portrait has ONE source of truth and a registry.**
+`window.HearthriseIdentity.avatarUrl()` resolves it; `window._playerAvatar` is a
+mirror the seam keeps current; every portrait `<img>` carries **`data-hr-avatar`**
+and is repainted by `paintAvatars()` on every change. If you add a surface that draws
+the player's face, **add the attribute** — do not add another `window._playerAvatar ||
+'…/player.png'` read site, and above all do not read the portrait out of the DOM
+(`legacy.js`'s `getActiveAvatar()` used to read the topbar `<img>`, which made the
+header a source as well as a surface). `onAvatarChange(fn)` and the
+`hearthrise:avatar` window event are there for anything that needs more than an
+`<img src>` swap.
+
+**Systems Engineer, one for you specifically:** `legacy.js`'s arena plate and
+`combat-screens.js`'s preview plate are both painted exactly once behind
+`if (!pp.querySelector('img'))`. That guard is correct (damage-number children must
+survive) and it means those nodes can never be updated by their own renderer — any
+future per-fight state on them needs the same registry treatment, not a re-render.
+
+---
+
 ### 2026-08-17 · FROM Art Director → TO Asset Director · **A new asset CLASS is inbound: opaque 1920x1080 background plates. They must NOT go through the hearthfire icon pipeline.**
 
 `docs/design/background-session-pack.txt` specs 14 painted backdrops Tyler will hand-generate in the

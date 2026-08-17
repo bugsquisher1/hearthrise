@@ -825,7 +825,12 @@
 
     html += '<div class="hd-hearth">' + scene + '<div class="hd-hearth-in">';
     html += '<div class="hd-who"><div class="hd-ava">' +
-      '<img src="' + esc(window._playerAvatar || 'assets/avatars/_placeholder.webp') + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div style="min-width:0">';
+      /* b371 (F22): data-hr-avatar makes this one of the surfaces the identity
+         seam repaints. This banner is built as an innerHTML string and only
+         rebuilds on the Home panel's own schedule, so before the registry it
+         held the PREVIOUS portrait until the next boot — the measured half of
+         "one reload behind". */
+      '<img src="' + esc(window._playerAvatar || 'assets/avatars/placeholder-portrait.webp') + '" alt="" data-hr-avatar style="width:100%;height:100%;object-fit:cover;display:block"></div><div style="min-width:0">';
     html += '<div class="hd-eyebrow">' + esc((hsDef && hsDef.name) || "Wanderer's Camp") + '</div>';
     html += '<div class="hd-name">' + esc(playerName()) +
       '<button class="hd-rename" title="Rename" data-hd="rename">' + gly('uiEdit', 14, '', 'var(--ink-3)') + '</button></div>';

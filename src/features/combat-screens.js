@@ -1213,7 +1213,10 @@ function paintPreviewStage(id, m) {
   setHtmlOnce(document.getElementById('arena-foe-portrait'), monsterArt(id, 'fs-foe-img'), 'prev:' + id);
   const pp = document.getElementById('arena-player-portrait');
   if (pp && !pp.querySelector('img')) {
-    pp.innerHTML = `<img src="${window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png'}" alt="" />`;
+    /* b371 (F22): data-hr-avatar. This node is painted ONCE (the `!querySelector`
+       guard above), so before the registry a portrait changed mid-session never
+       reached the combat plate at all. */
+    pp.innerHTML = `<img src="${window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png'}" alt="" data-hr-avatar />`;
   }
   const fn = document.getElementById('arena-foe-name');
   if (fn) fn.textContent = m.name;

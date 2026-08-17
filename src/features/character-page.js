@@ -60,10 +60,14 @@ function getActiveAvatar() {
     const u = id.getAvatarUrl();
     if (u) return u;
   }
+  // b371 (F22): the seam mirror comes BEFORE the DOM read. Reading the topbar
+  // <img> first made the header a source as well as a surface, so anything
+  // rendered from here inherited whatever the header happened to be showing.
+  if (window._playerAvatar) return window._playerAvatar;
   const pa = document.querySelector('.player-avatar img');
   if (pa?.src) return pa.src;
   // b186: painted player portrait (was an unshipped raw-bundle path → 404)
-  return window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png';
+  return 'assets/icons-bundle/painted/npc/player.png';
 }
 
 // b214 lesson, applied preventatively: a display name is player-supplied
@@ -209,7 +213,7 @@ function buildHeroCard() {
   } catch (e) { /* renown optional */ }
 
   return `<div class="cr-hero">
-    <div class="cr-hero-portrait"><img src="${avatarSrc}" alt="" data-no-fallback /></div>
+    <div class="cr-hero-portrait"><img src="${avatarSrc}" alt="" data-hr-avatar data-no-fallback /></div>
     <div class="cr-hero-id">
       <div class="cr-name">${name}</div>
       ${founderMarkHtml()}
@@ -333,7 +337,7 @@ function buildSkillsHeader() {
   } catch (e) { /* renown optional */ }
   if (!sub) sub = esc(deriveClass().tagline);
   return `<div class="csk-hero">
-    <div class="csk-hero-portrait"><img src="${avatarSrc}" alt="" data-no-fallback /></div>
+    <div class="csk-hero-portrait"><img src="${avatarSrc}" alt="" data-hr-avatar data-no-fallback /></div>
     <div class="csk-hero-id">
       <div class="csk-hero-name">${name}</div>
       <div class="csk-hero-sub">${sub}</div>

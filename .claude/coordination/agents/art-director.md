@@ -2,6 +2,98 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-17 · b371 — F22 and F2. THE REPORTED SURFACE WAS NOT THE BROKEN ONE, and the
+### default portrait has been 404ing in production since the day it shipped, for a reason
+### that has nothing to do with the portrait.
+
+**The finding I would put first, because it is a verification lesson before it is a fix.**
+F22 says "the HEADER mini-avatar caches one reload behind; hero panel and Home banner update
+instantly". I booted the real client and, instead of checking the header, **enumerated every
+`<img>` in the document and fingerprinted its src** across change → reload → change → reload.
+The header tracked correctly every time. **The surface that held the previous portrait across a
+tab switch and only caught up on the next boot was the HOME HEARTH BANNER.** The report had the
+pair exactly backwards — and it did not matter, because the cause is one cause and the fix is one
+fix. A probe that had gone looking only for the named surface would have found nothing and
+reported "cannot reproduce". *Enumerate the class, do not check the instance.*
+
+**The actual defect, and why it is one bug per surface rather than one bug.** `window._playerAvatar`
+was read at RENDER time and baked into an `innerHTML` string at seven sites; `refreshUi()` then
+corrected exactly ONE of them, **by selector** (`.player-avatar img`). So every other surface was
+stale for however long it happened to go between its own re-renders — for the Home banner, until
+the next boot; and for the legacy arena plate and `combat-screens.js`'s preview plate, which are
+painted once behind `if (!pp.querySelector('img'))`, **forever**. A portrait changed mid-session
+never reached the combat plates at all, and nobody reported that because you have to change your
+face mid-fight to see it.
+
+**The fix is a REGISTRY, not a longer call list, and that distinction is the whole point.** Every
+portrait `<img>` carries `data-hr-avatar`; `paintAvatars()` repaints all of them from one value.
+Adding a portrait surface is now adding an ATTRIBUTE, and forgetting it fails immediately and
+visibly instead of one reload later on a player's screen. A call list has the opposite property:
+its failure mode is silence. Plus `onAvatarChange(fn)` and a `hearthrise:avatar` window event for
+anything that needs more than an `<img src>` swap.
+
+**The half of F22 nobody had named: the seam did not publish until boot()+1200ms.** identity.js
+defers its boot to gate-open + 1.2s — correct for the naming PROMPT, wrong for the portrait, because
+every panel that rendered inside that window baked the DEFAULT face into its markup. There is now a
+storage-only publish at SCRIPT time (identity.js loads after legacy.js, which assigns
+`window._playerAvatar` itself, so it wins). Measured at `domcontentloaded`, before any deferred
+work could run: **FIRST_PAINT header = the current portrait**, where before the fix it was the
+placeholder on every boot.
+
+**And I killed the DOM as a source.** `legacy.js`'s `getActiveAvatar()` read `.player-avatar img`
+FIRST. That made the header a SOURCE as well as a surface — anything rendered through it inherited
+whatever the header happened to be showing, including the placeholder before identity had run.
+Seam first, mirror second, DOM never. `character-page.js` had the same read one rank lower; reordered.
+
+**F2 — and this one is not an avatar bug at all.** `assets/avatars/_placeholder.webp` is committed,
+correctly pathed, and served by every local server; it 404s on hearthrise.net. **The deploy is
+GitHub Pages, Pages runs Jekyll, and Jekyll excludes every file whose name begins with an
+underscore.** Confirmed against the live site rather than reasoned about: `_placeholder.webp` → 404,
+`knight.webp` → 200, same directory, same commit. The symptom this produced was maximally
+misleading — the markup's `onerror` latch quietly swapped in `player.png`, so it looked like the
+*retired* default face had come back, i.e. a regression in a module that was working perfectly.
+Renamed to `placeholder-portrait.webp`, `.nojekyll` added as a second line of defence, and
+`avatarAssetGuard()` in run-smoke.mjs now fails the build on any `_`-prefixed shipped path OR a
+missing `assets/avatars/**` reference. **`assets/art-pilot/_screenshots/` — my own captures
+directory — is the same trap wearing a directory name.**
+
+**A test lesson worth more than the test.** My "every render site is enrolled" guard PASSED against
+a `home-dashboard.js` whose `<img>` had lost the attribute — because the explanatory comment two
+lines above still contained the words `data-hr-avatar`. **A source guard that a comment can satisfy
+is a spell-check.** It strips comments first now, and only then does it go red under that mutation.
+Same class of error as b366's "a measurement of the element you suspect is not a measurement of the
+screen".
+
+**Verified in-browser, my own server rooted in THIS worktree.** The shared launch.json points at
+the MAIN tree — the trap recorded four times in this log — and I proved it this time rather than
+assuming: a marker file written into the worktree returned an error page on port 8123. New probe:
+`tools/art-avatar-probe.mjs`. Sequence: change → walk panels → reload → change (panels NOT
+re-walked, so the registry is doing the work, not a re-render) → reload → reload. **Every surface
+moves in lockstep at every step; FIRST_PAINT is correct on the FIRST reload, not the second.
+0 404s, 0 console errors, 0 page errors.** Captures in `assets/art-pilot/_screenshots/avatar/`
+at 1440x900 AND 922x423, and I READ them: header chip, Character hero and Home hearth banner all
+carry the same face two reloads after the change, on both viewports.
+
+**Suite 826/826** (823 + 3). Mutations, all proven: restore the header-only selector `refreshUi`
+→ 2 of 3 red; drop the attribute from home-dashboard → the registry test red; rename the asset back
+to `_placeholder.webp` → the Node guard red BY NAME plus two existing identity tests. No version
+bump, no push.
+
+**Known limitations, stated plainly.** The signed-in remote-avatar path
+(`hydrateRemoteAvatar` → Supabase Storage URL) is exercised only against an intercepted transport
+in the probe; I cannot sign in — creating an account is not mine to do — so a genuine cross-device
+hydrate is unverified, though it resolves through the same `avatarUrl()` and therefore through the
+same registry. The probe's `dismiss()` decides what a modal is by GEOMETRY (fixed, >50% of the
+viewport) rather than by selector, after a selector-list version ate a panel whose class contained
+the word "overlay". The "Desktop Site looks turned on" banner fires in the probe at 922px because a
+headless desktop UA is exactly what it is built to catch — correct behaviour, an artifact here, and
+worth noting separately that it renders a raw warning pictograph as its icon, which our own
+direction forbids. And the deeper issue is unchanged: **`window._playerAvatar` is still a bare
+global any file can assign**, including legacy.js's icon IIFE. The registry makes a stale surface
+impossible; it does not make a rogue WRITER impossible.
+
+
+
 ### 2026-08-17 · the background set spec + prompt pack. The brief I was handed for the
 ### composition was WRONG, and I only know that because I photographed the screen.
 

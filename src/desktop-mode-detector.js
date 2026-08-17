@@ -36,24 +36,54 @@
   //     desktop-mode composites the 980px page at scale 1).
   // Either tell, combined with "touch + wide", is conservative enough to
   // avoid false positives while catching the accidental toggle.
-  function looksLikeDesktopMode() {
-    var isTouch = (navigator.maxTouchPoints || 0) > 0 ||
-      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
-      ('ontouchstart' in window);
-    if (!isTouch) return false;
+  // PHONE-SIZED MEANS PHONE-SIZED (b371). This was `physMin < 900`, and 900 is
+  // not a phone dimension — it is a LAPTOP one. A 1366x768 touchscreen laptop
+  // (the most common laptop resolution sold) reports screen 1366x768, so
+  // physMin is 768, under the old threshold; its UA carries no mobile marker
+  // (`!uaMobile` is true) and its innerWidth is over 820. Every clause passed,
+  // and every touchscreen laptop at 1366x768 or 1280x800 was greeted by a
+  // full-width red alert telling the player to turn off a setting they had
+  // never turned on. A false alarm on the chrome that exists to explain a
+  // broken layout is worse than no alarm: it teaches the player to dismiss it.
+  //
+  // 500 is chosen against the device the detector was written for. paione's
+  // Ulefone Armour 27T is 1080x2400 physical at DPR ~2.75 — 393 CSS px on the
+  // short edge, which is typical of the whole class (the widest common phone
+  // short edge is ~430). 500 keeps every phone and excludes every laptop, with
+  // ~70px of daylight on the phone side and ~270 on the laptop side.
+  var PHONE_MAX_SHORT_EDGE = 500;
 
-    var w = window.innerWidth || document.documentElement.clientWidth || 0;
-    if (w < 820) return false; // mobile layout is engaging normally
+  // The predicate reads its whole world through this object so a test can hand
+  // it a synthetic device. The comment below has claimed since b294 that the
+  // detector is driven "deterministically" by the smoke test; it was not —
+  // the test could only assert that the LIVE environment returns false, which
+  // is exactly the assertion that could not see this bug. Now it can.
+  function readEnv() {
+    return {
+      touch: (navigator.maxTouchPoints || 0) > 0 ||
+        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+        ('ontouchstart' in window),
+      innerWidth: window.innerWidth || document.documentElement.clientWidth || 0,
+      ua: navigator.userAgent || '',
+      dpr: window.devicePixelRatio || 1,
+      screenW: (window.screen && screen.width) || 0,
+      screenH: (window.screen && screen.height) || 0,
+    };
+  }
 
-    var ua = navigator.userAgent || '';
-    var uaMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
-    var lowDpr = (window.devicePixelRatio || 1) < 1.6;
+  function looksLikeDesktopMode(env) {
+    var e = env || readEnv();
+    if (!e.touch) return false;
+    if (e.innerWidth < 820) return false; // mobile layout is engaging normally
+
+    var uaMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(e.ua || '');
+    var lowDpr = (e.dpr || 1) < 1.6;
 
     // A genuine tablet/desktop with touch reports a mobile-less UA AND a
     // normal DPR AND a physically large screen. Require the screen to
     // actually be phone-sized so those don't false-positive.
-    var physMin = Math.min(screen.width || 0, screen.height || 0);
-    var phoneSized = physMin > 0 && physMin < 900;
+    var physMin = Math.min(e.screenW || 0, e.screenH || 0);
+    var phoneSized = physMin > 0 && physMin < PHONE_MAX_SHORT_EDGE;
 
     return (!uaMobile || lowDpr) && phoneSized;
   }
@@ -101,7 +131,7 @@
   }
 
   function evaluate() {
-    if (looksLikeDesktopMode()) build();
+    if (looksLikeDesktopMode(null)) build();
     else {
       var b = document.getElementById('hr-desktopmode-banner');
       if (b && b.parentNode) b.parentNode.removeChild(b);

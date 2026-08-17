@@ -4,6 +4,105 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-17 · Art Director (b371) · A CURE WRITTEN INSIDE `@media (max-height: 560px)` PROTECTS ONLY THE VIEWPORT WHERE THE ACCIDENT ALREADY HAPPENED — and the audit method that finds this class is "scroll the way a player can, then hit-test"
+
+**DISCOVERY 1 — the defect.** `#panel-combat[data-combat-view="fight"] .fs-view
+{ overflow-y: auto }` and its partner `.combat-arena { overflow: visible }` were
+authored in b366 for a 423px landscape phone and fenced inside
+`@media (max-height: 560px)`. The reasoning attached to them was correct and its
+SCOPE was not: the mechanism is "the stage's content is taller than the arena",
+and `.combat-arena` carries `overflow:hidden`, so the clipping element reports
+its own short height and the scroll container above it sees nothing to scroll.
+Measured on the shipped build at **1366x768 — the most common laptop panel in
+the world — the stage is 699px inside a 610px arena and FIGHT lands at
+y=776..813 on a 768px screen**, with zero scrollable ancestors. At 1280x800 it
+is 11px tall and not hit-testable. The b366 comment calls this class of defect a
+P0 in so many words, eleven lines above the media query that hides its cure.
+
+**RULE.** A reachability net is never scoped to a breakpoint. If a rule exists
+because a control could become unreachable, it applies at every size; the
+density budget is what makes the net unnecessary, not what makes it optional.
+
+**DISCOVERY 2 — the measurement trap, and it is the reusable half.**
+`Element.scrollIntoView()` SCROLLS `overflow:hidden` CONTAINERS. A reachability
+probe written the obvious way therefore reveals a control inside a box the
+player can never scroll and reports it reachable — the first draft of
+`tests/reachability.mjs` did exactly that and was green against the unfixed
+build. Any probe of this class must walk the ancestor chain itself and move only
+boxes whose computed `overflow-y` is `auto`/`scroll`. Second trap in the same
+file: `elementFromPoint` returns the ORIGINATING element for a pseudo-element,
+so a full-screen `body::after` scrim reads as `body`, and a naive
+`hit.contains(el)` check scores a covered control as a successful hit.
+
+**DISCOVERY 3 — "below the fold" and "unreachable" are different findings, and
+conflating them produces two wrong verdicts.** Of the four Y-axis defects in the
+b370 audit, only the Fight button was truly unreachable. The nav rail
+(`overflow-y:auto` since b225) and the Character panel (`overflow-y:auto`, 479px
+of travel) were both SCROLLABLE — the audit measured position without
+scrolling. They are still defects, but of a different kind and with a different
+fix: a persistent nav rail shows no scrollbar until touched and its last visible
+row looks exactly like the end of the list, so the rail must FIT, not scroll.
+A market table or a bounty board must not be held to that standard. The guard
+therefore carries a per-row `noScroll` flag rather than one global rule.
+
+**AFFECTED SYSTEMS.** `src/styles/combat-screens.css` (fight view),
+`src/styles/legacy.css` (`.sidebar`), `src/features/character-page.js`
+(`#char-shell`), `src/desktop-mode-detector.js`, `src/features/toasts.js`,
+`tests/reachability.mjs` (new), `tests/run-smoke.mjs`.
+
+**REQUIRED ACTION.** `tests/reachability.mjs` now runs in the smoke suite and
+asserts every declared primary CTA is on screen AND hit-testable at 1366x768,
+1280x800, 1440x900 and 922x423. **Extend `CTAS` with a data row when you add a
+screen — it is a declared list on purpose.** `node tests/reachability.mjs
+--mutate` re-plants each shipped defect and fails if the guard lets one through.
+
+---
+
+### 2026-08-17 · Art Director (b371) · `--t-micro` IS 14.5px, NOT 11px — every `var(--t-micro, 11px)` fallback in combat-screens.css is a fiction, and it is why two slot captions broke mid-word
+
+The fallback reads like the authored intent and never applies: `art-direction.css`
+defines `--t-micro: calc(14.5px * var(--ui-scale,1))` — b227's guarded legibility
+FLOOR. So the Fight rail's empty-slot caption renders at 14.5px in a 51px tile
+(232px rail / 4 columns), and "Offhand" and "Necklace" came back as
+**"OFFHAN / D"** and **"NECKLA / CE"** — the same half-a-word failure b139 ruled
+against, arriving from a third direction after b366's ellipsis and b368's
+`word-break`. **The type cannot shrink to fix it** (the 14.5px floor is scanned
+by a guard), so the TILE grew: three columns, 68px tiles, both captions whole.
+Renaming the two offenders was cheaper and wrong — the captions come from
+`EQUIP_SLOT_META`, which the Character paper-doll also reads, so a local rename
+would have one screen calling a slot Amulet and the other Necklace.
+
+**RULE.** Do not size a caption against the fallback in a `var()`. Measure the
+rendered `font-size` — and when a label does not fit, the honest lever on this
+project is the container, because the type floor is not negotiable.
+
+---
+
+### 2026-08-17 · Art Director (b371) · The desktop-mode detector's "phone-sized" threshold was 900px, and 900 is a LAPTOP dimension
+
+`src/desktop-mode-detector.js` gated its red "Desktop Site looks turned on"
+banner on `Math.min(screen.width, screen.height) < 900`. A 1366x768 touchscreen
+laptop reports a 768px short edge, carries no mobile UA marker (`!uaMobile` is
+true) and lays out well over 820px wide — every clause passed, so **every
+touchscreen laptop at 1366x768 or 1280x800 was greeted by a full-width red alert
+about a setting the player had never turned on.** Threshold is now 500 (the
+widest common phone short edge is ~430; paione's Ulefone is 393).
+
+The reason this survived since b294 is worth more than the fix: the existing
+test asserted only that the LIVE environment returns false, and the live
+environment is a non-touch headless desktop that bails at the first clause —
+**an assertion that can only ever confirm "the machine running the tests is not
+a phone".** The predicate now takes its environment as an argument and the new
+test drives it with ten real devices, which is what b294's own comment ("exposed
+so the smoke test can drive the detector deterministically") had claimed for six
+builds without it being true.
+
+**RULE.** A predicate that reads globals is not testable by calling it. If a
+comment claims a test drives something deterministically, check that the seam
+for doing so actually exists.
+
+---
+
 <<<<<<< HEAD
 ### 2026-08-17 · Art Director (b369) · FIVE stylesheets were each authoring one piece of the paper-doll's grid, and the two that disagreed produced a live overlap on two surfaces
 

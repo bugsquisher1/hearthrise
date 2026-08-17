@@ -166,6 +166,47 @@ const findToast = (mark) => findToasts(mark)[0] || null;
 
 // b127: snapshot every field the player-action tests can mutate.
 // Missing fields here = the test pollutes the player's save.
+/* b371 — MEASURE THE FIGHT SCREEN WITHOUT DEPENDING ON WHICH TAB IS OPEN.
+ *
+ * Layout tests in this suite have a systemic weakness: the suite runs ~800
+ * assertions in sequence and many of them switch tabs, so a test that measures
+ * "the Fight screen" measures whatever the tests before it happened to leave
+ * behind. Two b371 tests were written that way and both PASSED with their
+ * defect planted — the elements measured 0x0, the tests took their skip branch,
+ * and a skip renders identically to a pass. The mutation harness found it; no
+ * amount of reading would have.
+ *
+ * This forces `#panel-combat` active and its view attribute to `fight` for the
+ * duration of one synchronous measurement, then restores EXACTLY what it found
+ * — including the case where the attribute was absent, which is different from
+ * the case where it was `table`. It deliberately does not call `showTab`: that
+ * fires renderers, tick wrappers and save writes, and a measurement should not
+ * be able to change the player's state.
+ */
+function withFightScreen(fn) {
+  const panel = document.getElementById('panel-combat');
+  if (!panel) return null;
+  const hadActive = panel.classList.contains('active');
+  const hadView = panel.hasAttribute('data-combat-view')
+    ? panel.getAttribute('data-combat-view') : null;
+  const prevInline = panel.getAttribute('style');
+  try {
+    panel.classList.add('active');
+    panel.setAttribute('data-combat-view', 'fight');
+    // Force layout so the measurements below see the new state.
+    void panel.offsetHeight;
+    return fn();
+  } catch (e) {
+    return null;
+  } finally {
+    if (!hadActive) panel.classList.remove('active');
+    if (hadView === null) panel.removeAttribute('data-combat-view');
+    else panel.setAttribute('data-combat-view', hadView);
+    if (prevInline === null) panel.removeAttribute('style');
+    else panel.setAttribute('style', prevInline);
+  }
+}
+
 const snapshotG = () => {
   const G = window.G;
   if (!G) return null;
@@ -14774,6 +14815,285 @@ const TESTS = [
     window.__hrDesktopModeEvaluate();
     const stray = document.getElementById('hr-desktopmode-banner');
     assert(!stray, 'detector must not show its banner on a normal (non-touch) viewport');
+  }),
+
+  /* b371: the detector's phone-size threshold was 900px, and 900 is a LAPTOP
+     dimension. A 1366x768 touchscreen laptop — the most common laptop panel
+     sold — reports a 768px short edge, carries no mobile UA marker and lays
+     out well over 820px wide, so every clause passed and the player was
+     greeted by a full-width red alert telling them to turn off a setting they
+     had never turned on. A false alarm on the chrome whose entire job is to
+     explain a broken layout is worse than no alarm: it teaches the player that
+     our warnings are noise.
+
+     The b294 test above could not see this. It asserts only that the LIVE
+     environment returns false, and the live environment is a non-touch
+     headless desktop that bails at the first clause. So the predicate now
+     takes its environment as an argument and this drives it with real device
+     numbers — which is what b294's own comment ("exposed so the smoke test can
+     drive the detector deterministically") has claimed since it was written.
+
+     Every row below is a real device, and each false case names which clause
+     must reject it, so a future threshold change fails LOUDLY rather than
+     silently re-admitting a class. */
+  () => tryRun('b371: the desktop-mode detector does not false-positive on a touchscreen laptop', () => {
+    const check = window.__hrDesktopModeCheck;
+    assert(typeof check === 'function', '__hrDesktopModeCheck must be exposed');
+    assert(check.length >= 1, 'the predicate must accept an injected environment — otherwise this '
+      + 'test can only ever assert "the machine running the tests is not a phone", which is the '
+      + 'assertion that missed the 1366x768 laptop for six builds');
+
+    const CASES = [
+      // ── MUST NOT FIRE ──────────────────────────────────────────────
+      { want: false, why: '1366x768 touchscreen laptop (the b370 false positive)',
+        env: { touch: true, innerWidth: 1366, ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120', dpr: 1, screenW: 1366, screenH: 768 } },
+      { want: false, why: '1280x800 touchscreen laptop',
+        env: { touch: true, innerWidth: 1280, ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120', dpr: 1, screenW: 1280, screenH: 800 } },
+      { want: false, why: '1920x1080 touchscreen all-in-one',
+        env: { touch: true, innerWidth: 1920, ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120', dpr: 1, screenW: 1920, screenH: 1080 } },
+      { want: false, why: 'iPad in landscape (a real tablet, not a phone in desktop mode)',
+        env: { touch: true, innerWidth: 1024, ua: 'Mozilla/5.0 (iPad; CPU OS 17) Safari', dpr: 2, screenW: 1024, screenH: 1366 } },
+      { want: false, why: 'a plain non-touch desktop — rejected by the touch clause',
+        env: { touch: false, innerWidth: 1440, ua: 'Mozilla/5.0 (Macintosh) Chrome/120', dpr: 2, screenW: 1440, screenH: 900 } },
+      { want: false, why: 'paione\'s phone in LANDSCAPE with desktop mode OFF — mobile UA and a real phone DPR',
+        env: { touch: true, innerWidth: 922, ua: 'Mozilla/5.0 (Linux; Android 13; Ulefone) Mobile Chrome/120', dpr: 2.75, screenW: 393, screenH: 873 } },
+      { want: false, why: 'a phone in PORTRAIT — the mobile layout is engaging normally (width clause)',
+        env: { touch: true, innerWidth: 393, ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/120', dpr: 1, screenW: 393, screenH: 873 } },
+
+      // ── MUST FIRE — the case the detector exists for ───────────────
+      { want: true, why: 'paione\'s Ulefone with Desktop site ON: 980px layout, desktop UA, DPR collapsed',
+        env: { touch: true, innerWidth: 980, ua: 'Mozilla/5.0 (X11; Linux x86_64) Chrome/120', dpr: 1, screenW: 393, screenH: 873 } },
+      { want: true, why: 'a large phone (430px short edge) in desktop mode — the widest of the class',
+        env: { touch: true, innerWidth: 980, ua: 'Mozilla/5.0 (X11; Linux x86_64) Chrome/120', dpr: 1, screenW: 430, screenH: 932 } },
+      { want: true, why: 'a phone that kept its mobile UA but collapsed its DPR (the lowDpr tell)',
+        env: { touch: true, innerWidth: 980, ua: 'Mozilla/5.0 (Linux; Android 13) Mobile Chrome/120', dpr: 1, screenW: 393, screenH: 873 } },
+    ];
+
+    const wrong = CASES.filter((c) => check(c.env) !== c.want)
+      .map((c) => `${c.why} → expected ${c.want}, got ${!c.want}`);
+    assert(!wrong.length, 'the desktop-mode predicate misjudges:\n      ' + wrong.join('\n      '));
+  }),
+
+  /* b371: THE CHARACTER PANEL MUST BE ABLE TO SCROLL TO THE BOTTOM OF ITS OWN
+     CONTENT. `#panel-character` is the scroll container; `#char-shell` was
+     `flex:1` + `min-height:0`, which let the shell be SHORTER than the pane
+     inside it. The pane is `overflow:visible`, and content that spills out of a
+     visible box contributes nothing to any ancestor's scrollHeight — so the
+     panel reported less travel than its own content needed and the last rows
+     of the account block could not be scrolled to. Measured at 922x423: 14px
+     short. Fourteen pixels is not dramatic; the SHAPE is, because it gets worse
+     with every row added to the screen and nothing would have told us.
+
+     This asserts the relationship, not a number, so it stays true as the screen
+     grows. It is the exact contract `tests/reachability.mjs` cannot express —
+     see the note where its M3 mutation would have been. */
+  () => tryRun('b371: the Character panel can scroll to the bottom of its own content', () => {
+    const panel = document.getElementById('panel-character');
+    if (!panel) { assert(true, 'no character panel in this build'); return; }
+    /* SCOPED TO THE PANEL, not getElementById: an earlier test in this suite
+       builds a throwaway `#char-shell` in a sandbox to render an equipment
+       fixture, and a document-wide lookup finds whichever came first. */
+    const shell = panel.querySelector('#char-shell');
+    if (!shell) { assert(true, 'the combined shell has not been built yet'); return; }
+
+    /* THE ASSERTION IS `flex-shrink`, NOT `min-height`, and the distinction is
+       the actual mechanism. `min-height:0` is only load-bearing while the item
+       CAN shrink — it is the release that lets a flex item go under its content
+       size. With `flex-shrink:0` the shell cannot shrink at all and the
+       min-height declaration becomes inert. So the contract worth pinning is
+       "the shell never gets shorter than its pane", and asserting the release
+       rather than the shrink would pin a symptom of the old shape. */
+    const cs = getComputedStyle(shell);
+    assert(cs.flexShrink === '0',
+      '#char-shell must not shrink (flex-shrink:' + cs.flexShrink + '). A shell shorter than its '
+      + 'pane makes the pane\'s overflow invisible to the panel\'s scrollbar.');
+
+    // The relationship itself, measured: the shell must be at least as tall as
+    // the tallest pane it hosts.
+    const panes = [...panel.querySelectorAll('.char-pane')].filter((p) => {
+      const c = getComputedStyle(p); return c.display !== 'none' && p.getBoundingClientRect().height > 1;
+    });
+    const shellH = shell.getBoundingClientRect().height;
+    const tall = panes.filter((p) => p.getBoundingClientRect().height > shellH + 2)
+      .map((p) => (p.id || p.className) + ' is ' + Math.round(p.getBoundingClientRect().height)
+        + 'px inside a ' + Math.round(shellH) + 'px shell');
+    assert(!tall.length, 'a Character pane is taller than the shell that hosts it, so its bottom '
+      + 'cannot be scrolled to: ' + tall.join('; '));
+  }),
+
+  /* b371: THE FIGHT SCREEN'S SCROLL NET IS NOT ALLOWED BACK INSIDE A MEDIA
+     QUERY. This is a RULE scan rather than a measurement, and deliberately so:
+     one window size can never see a breakpoint it is not in, which is precisely
+     how the defect survived — the cure existed, correctly written, fenced
+     inside `@media (max-height:560px)`, and every desktop verification pass
+     ran outside it and saw a screen that looked fine.
+     `tests/reachability.mjs` catches the RESULT at four viewports; this catches
+     the CAUSE at any viewport, and between them a re-scoping cannot ship. */
+  () => tryRun('b371: the Fight screen scroll net is unconditional, not fenced behind a breakpoint', () => {
+    const wanted = [
+      { prop: 'overflow-y', on: '.fs-view', re: /\.fs-view/, val: /auto/ },
+      { prop: 'overflow', on: '.combat-arena', re: /\.combat-arena/, val: /visible/ },
+    ];
+    let checked = 0;
+    const found = { 'fs-view': false, 'combat-arena': false };
+
+    for (const sheet of [...document.styleSheets]) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+      if (!rules) continue;
+      // TOP LEVEL ONLY — a rule inside a CSSMediaRule is not walked, which is
+      // the entire assertion. If the declaration is only reachable through a
+      // media query it will simply not be found here, and this fails.
+      for (const rule of rules) {
+        if (rule.type !== 1 || !rule.selectorText) continue;
+        checked++;
+        const sel = rule.selectorText;
+        if (!/#panel-combat\[data-combat-view="fight"\]/.test(sel)) continue;
+        if (/\.fs-view/.test(sel) && /auto/.test(rule.style.overflowY || '')) found['fs-view'] = true;
+        if (/\.combat-arena/.test(sel) && /visible/.test(rule.style.overflow || rule.style.overflowY || '')) found['combat-arena'] = true;
+      }
+    }
+    assert(checked > 50, 'no stylesheets were readable — this scan proved nothing (' + checked + ' rules)');
+    assert(found['fs-view'],
+      'no UNCONDITIONAL rule gives `#panel-combat[data-combat-view="fight"] .fs-view` '
+      + '`overflow-y:auto`. Without it the Fight screen cannot scroll, and at 1366x768 the FIGHT '
+      + 'button sits below the fold with no gesture that reaches it (b370).');
+    assert(found['combat-arena'],
+      'no UNCONDITIONAL rule gives `#panel-combat[data-combat-view="fight"] .combat-arena` '
+      + '`overflow:visible`. While the arena clips, it reports its own short height and the scroll '
+      + 'container above it sees nothing to scroll — the net exists but can never engage (b370).');
+    void wanted;
+  }),
+
+  /* b371: the empty-slot captions on the Fight screen's equipment rail must not
+     break mid-word. b139 ruled that a chopped slot label reads as a random
+     string, and this failure has now arrived from three directions: ellipsised
+     ("OFFHA…", b366), over-eager `word-break` ("WEAPO / N", b368), and finally
+     a tile simply too narrow for the type ("OFFHAN / D" and "NECKLA / CE" at
+     51px). The type cannot shrink — `--t-micro` IS b227's guarded 14.5px floor
+     — so the TILE grew instead (three columns, b371). This asserts the outcome
+     rather than the column count, so a future rail redesign is free as long as
+     the words stay whole. */
+  /* AND IT BUILDS ITS OWN SUBJECT. The first version measured whatever was on
+     screen, and the in-page suite runs on whatever tab the previous ~800 tests
+     left active — so on most runs the rail measured 0x0, the test skipped, and
+     it PASSED with a four-column doll planted (caught by the mutation harness,
+     not by review). A test whose subject is ambient is a test that reports the
+     tab order. `withFightScreen()` forces the panel and the fight view visible
+     for the duration, measures, and puts everything back. */
+  () => tryRun('b371: Fight-rail slot captions never break a word in half', () => {
+    const out = withFightScreen(() => [...document.querySelectorAll('#panel-combat .fsm-slot.is-empty')]
+      .map((s) => {
+        const em = s.querySelector('em');
+        if (!em) return null;
+        const cs = getComputedStyle(em);
+        if (cs.display === 'none') return null;        // the phone rail drops them by design
+        const r = em.getBoundingClientRect();
+        if (r.width < 1) return null;
+        return { text: (em.textContent || '').trim(), width: r.width,
+          font: cs.font || (cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + '/' + cs.lineHeight + ' ' + cs.fontFamily),
+          ls: cs.letterSpacing };
+      }).filter(Boolean));
+    if (!out.length) { assert(true, 'the fight rail is not built in this session'); return; }
+    const bad = [];
+    // A single word that does not fit its line is the failure: the browser will
+    // break it mid-word (or clip it), and either way the player reads a
+    // fragment. Measure the longest WORD against the available line.
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;left:-9999px;top:0';
+    document.body.appendChild(probe);
+    out.forEach((s) => {
+      probe.style.font = s.font;
+      probe.style.letterSpacing = s.ls;
+      let widest = 0, word = '';
+      s.text.split(/\s+/).forEach((w) => {
+        probe.textContent = w;
+        const ww = probe.getBoundingClientRect().width;
+        if (ww > widest) { widest = ww; word = w; }
+      });
+      if (widest > s.width + 0.5) {
+        bad.push(`"${s.text}" — the word "${word}" needs ${Math.ceil(widest)}px in a `
+          + `${Math.round(s.width)}px caption`);
+      }
+    });
+    probe.remove();
+    assert(!bad.length, 'Fight-rail slot captions will break mid-word (b139): ' + bad.join('; '));
+  }),
+
+  /* b371: toasts must not stack over the Fight screen's action bar. The toast
+     module was BUILT for this — `OBSTACLES` measures live rects and lifts the
+     column — and its header says in so many words that new floating chrome
+     "registers its selector here". The Fight action bar never did, so a combat
+     burst (three "Equipped …", a level-up, a rare drop) parked itself on top of
+     Eat, Stop and the metrics strip.
+
+     THE GEOMETRY IS ASSERTED, NOT THE WIRING, and the first version of this
+     test is the reason. It fell back to "registering it again must not change
+     the offsets" whenever the Fight screen was not the active tab — which is
+     almost always, since the in-page suite runs on whatever the previous ~800
+     tests left open. That fallback is unfalsifiable: with the element measuring
+     0x0 the offsets are equal whether or not the selector is registered, so the
+     test PASSED with the registration deleted (caught by the mutation harness).
+     `withFightScreen()` gives the action bar a real box, so `layout()` has
+     something to measure and the assertion has something to be wrong about. */
+  () => tryRun('b371: the Fight action bar is registered as a toast obstacle', () => {
+    const T = window.HearthriseToasts;
+    if (!T || typeof T.layout !== 'function') { assert(true, 'the toast module is not loaded'); return; }
+
+    /* THE SUBJECT IS SYNTHESISED, because forcing the real one visible is not
+       reliable enough to assert on. `withFightScreen()` can reveal the panel,
+       but the real `.fs-actionbar` is six levels down inside `.combat-arena`
+       and legacy's `refreshArenaVs()` parks an inline `display:none` on the
+       stage whenever no fight is running — so on a run where no fight has
+       started the bar measures 0x0, the probe returns null, and the test skips.
+       A skip renders exactly like a pass, which is how the previous version of
+       this test survived the registration being deleted.
+
+       So: give `#panel-combat` the fight attribute, hang a `.fs-actionbar` off
+       it with a real fixed box, and ask the module to lay out. That is a HONEST
+       test of the registration, because `layout()` finds obstacles purely by
+       `document.querySelector(selector)` and measures whatever it gets — if the
+       selector is not in OBSTACLES, nothing moves. `visibility:hidden` keeps it
+       off the screen while still producing a box, and nothing here touches G. */
+    const panel = document.getElementById('panel-combat');
+    if (!panel) { assert(true, 'no combat panel in this build'); return; }
+    const hadView = panel.hasAttribute('data-combat-view') ? panel.getAttribute('data-combat-view') : null;
+    const prevStyle = panel.getAttribute('style');
+    const probe = document.createElement('div');
+    let off = null, barTop = 0;
+    try {
+      panel.setAttribute('data-combat-view', 'fight');
+      panel.style.setProperty('display', 'block', 'important');
+      panel.style.setProperty('visibility', 'hidden', 'important');
+      probe.className = 'fs-actionbar';
+      probe.style.cssText = 'position:fixed;left:0;right:0;bottom:120px;height:44px;pointer-events:none';
+      /* FIRST CHILD, NOT APPENDED — `layout()` resolves each obstacle with
+         `document.querySelector(sel)`, which returns the first match in
+         DOCUMENT ORDER. Appended, the probe sat after the real `.fs-actionbar`
+         (which is 0x0 with no fight running), so the module measured the real
+         one, skipped it as empty, and this test failed identically whether or
+         not the selector was registered — a false red that a mutation run
+         reads as a true catch. */
+      panel.insertBefore(probe, panel.firstChild);
+      const r = probe.getBoundingClientRect();
+      barTop = r.top;
+      assert(r.height > 1 && r.width > 1, 'the synthetic action bar has no box — this test cannot measure');
+      off = T.layout();
+    } finally {
+      probe.remove();
+      if (hadView === null) panel.removeAttribute('data-combat-view');
+      else panel.setAttribute('data-combat-view', hadView);
+      if (prevStyle === null) panel.removeAttribute('style');
+      else panel.setAttribute('style', prevStyle);
+      // Put the column back where the live screen wants it.
+      try { T.layout(); } catch (e) {}
+    }
+
+    const needed = window.innerHeight - barTop;
+    assert(off && off.bottom + 0.5 >= needed,
+      'the toast column rested ' + (off ? off.bottom : '?') + 'px off the bottom while the Fight '
+      + 'action bar started ' + Math.round(needed) + 'px up — toasts will stack over Eat and Stop '
+      + '(b371). Add `#panel-combat[data-combat-view="fight"] .fs-actionbar` to OBSTACLES in '
+      + 'src/features/toasts.js; do not invent an offset, the module computes it.');
   }),
 
   () => tryRun('b267: auto-eat food picker is reachable via a modal (paione: no food option on landscape)', () => {

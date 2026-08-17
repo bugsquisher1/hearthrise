@@ -2,6 +2,36 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-17 · FROM Art Director (b371) → TO Systems Engineer · **There are TWO notification systems fighting for the same corner, and the older one paints on the monster.**
+
+`src/features/toasts.js` is the managed column: it measures registered `OBSTACLES`
+and lifts/side-steps so it never covers chrome. b371 registered the Fight action
+bar there and it works exactly as designed (measured on a 900px screen: the
+column moves to `bottom:116px` against an action bar whose top is 794 — Eat, Stop
+and LOOT/STATS/HISTORY all clear).
+
+`.ach-toast` is NOT in that system. It is built in `legacy.js:11777` and anchored
+by `legacy.css:2425` at a hardcoded `position:fixed; top:80px; right:20px`, with
+its own 4s `ach-slide` animation. **On the Fight screen that is precisely where
+the foe plate lives.** Captured at all four viewports; at 922x423 it covers the
+monster completely, and on Inventory it sits on Multi-select / Manage.
+
+**What I recommend, and why I did not do it here.** The right fix is to route
+achievements through `HearthriseToasts.push()` so there is ONE obstacle-aware
+column — which is the argument `toasts.js`'s own header already makes ("Three
+pieces of floating chrome, one corner"). That changes copy, timing and the
+level-up/achievement tone mapping in a system I have not verified, and folding it
+into a CSS reachability commit is the b361 failure mode verbatim (two
+individually-verified changes interacting). It needs its own pass with its own
+screenshots. Evidence: `scratch/shots/v-fightprep-*.png`, `v-inventory-*.png`.
+
+**Also for you, smaller:** `#hr-desktopmode-banner` is `position:fixed; top:0`
+with nothing reserving space, so when it legitimately fires it eats ~90px off the
+top of the app with no layout compensation. Defensible (the banner exists because
+the layout is already wrong) but worth knowing.
+
+---
+
 ### 2026-08-17 · FROM Art Director → TO Asset Director · **A new asset CLASS is inbound: opaque 1920x1080 background plates. They must NOT go through the hearthfire icon pipeline.**
 
 `docs/design/background-session-pack.txt` specs 14 painted backdrops Tyler will hand-generate in the

@@ -12,6 +12,27 @@ _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE 
 - **✅ 7 migrations applied (2026-08-09).** **⚠️ PENDING migrations (run in order, after the earlier queue): rally-preselect, clan-governance, rally-v2, bonus-rebase (all `supabase/migrations/2026-08-09-*.sql`).** All idempotent, client-first, self-checking. More coming from in-flight agents: clan-governance, possibly bonus-rebase mirrors.
 - **Working tree:** worktree `manual-presence` (branch `agent-presence`) holds **b227 — the presence rework**, ready for integration: blessings are presence-gated, the flat ×1.12 is removed, the pool spans ten wired keys. Not version-bumped (`bump-version.sh --check` green at 226); the Coordinator bumps at ship.
 
+## Reachability (b371, Art Director — worktree `agent-acb1f7f449a1819de`, NOT bumped, NOT pushed)
+- **NEW GATE: `tests/reachability.mjs`** runs inside `node tests/run-smoke.mjs`. It asserts every
+  declared primary CTA is inside the viewport **and hit-testable via `elementFromPoint`** at
+  **1366x768, 1280x800, 1440x900, 922x423**. Extend by adding a row to `CTAS` — it is data.
+  `node tests/reachability.mjs --mutate` re-plants three real shipped defects and fails if any
+  escapes. Its banner is in `REQUIRED_GUARD_MARKERS`.
+- **P1 FIXED — FIGHT was unreachable at 1366x768** (y=776..813 on a 768px screen, zero scrollable
+  ancestors). Cause: the scroll net was fenced inside `@media (max-height:560px)`. It is now
+  unconditional, and the foe portrait carries a `calc(100vh - 540px)` term so the net stays unused.
+  Fight now lands at y=681..718.
+- **Two of the four audited defects DID NOT reproduce as reported.** The nav rail and the Character
+  panel are both `overflow-y:auto` and were reachable by scrolling; the audit measured position
+  without scrolling. They were fixed as FIT problems instead (rail compacted at `max-height:899px`;
+  `#char-shell` no longer shrinks below its pane). See DISCOVERIES b371.
+- **Desktop-mode banner no longer false-positives on touchscreen laptops** (threshold 900 → 500);
+  predicate now takes an injected environment and is asserted against ten real devices.
+- Suite **828/828**, 0 console/page errors across 4 viewports x 5 surfaces.
+- ⚠ **OPEN, handed to Systems Engineer:** `.ach-toast` is a SECOND notification system
+  (`legacy.css:2425`, fixed top-right) that paints on the foe portrait on every viewport and hides
+  the monster entirely at 922x423. Not fixed here — see HANDOFFS.
+
 ## Build/test state
 - **Smoke:** `node tests/run-smoke.mjs` → **337/337 green, 0 runtime errors** (b227 gate; 330 at b226 + 7 net from the presence rework).
 - **Version guard:** `bash bump-version.sh --check`.

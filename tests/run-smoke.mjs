@@ -42,6 +42,7 @@ import { runAll as goldCensusGuard } from './gold-site-census.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
 import { runAll as corsGuards } from './cors-preflight.mjs';
+import { reachabilityGuard } from './reachability.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
 import { createServer } from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
@@ -2055,6 +2056,31 @@ const run = async () => {
       console.log('Landscape guard — every screen fits a landscape phone, no sideways scroll.');
     }
 
+    /* ── The reachability guard (b371) ──────────────────────────────────
+       The landscape guard above asks whether a screen SPILLS SIDEWAYS. This
+       one asks the question that has now shipped broken twice: can the player
+       actually press the button. b366 put Eat and Stop below the fold of a
+       landscape phone; b370 put FIGHT — the primary action of the primary
+       screen — 8px below the fold of a 1366x768 laptop with nothing that
+       scrolls, and the cure written for b366 was fenced inside a media query
+       no desktop matches. Neither was visible to any test: the in-page suite
+       runs at one desktop size and cannot see a fold at all.
+       For each declared (screen, CTA) pair it scrolls only what a PLAYER can
+       scroll — `scrollIntoView` moves `overflow:hidden` boxes and would have
+       called the b370 defect reachable — then asserts the control is inside
+       the viewport and that `elementFromPoint` at its centre returns it.
+       `node tests/reachability.mjs --mutate` re-plants each shipped defect and
+       fails if the guard lets one through. */
+    const reachProblems = await reachabilityGuard(browser, url);
+    if (reachProblems.length) {
+      console.log('\nReachability guard (every primary CTA is pressable) — FAILED:');
+      for (const p of reachProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Reachability guard — every declared primary CTA is on screen and hit-testable '
+        + 'at 1366x768, 1280x800, 1440x900 and 922x423.');
+    }
+
     await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
 
     // The suite is registered by main.js's deferred feature boot.
@@ -2126,6 +2152,7 @@ const run = async () => {
       'Cutover import guard', 'Client write sweep guard', 'Client write sweep batch 3',
       'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
       'Clan-deposit ownership guard', 'Activity-seam guard', 'Delta-transport guard',
+      'Reachability guard',
       'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',
       'Secret guard',
     ];

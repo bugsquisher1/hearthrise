@@ -2,6 +2,96 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-17 · b371 — four Y-axis defects and a reachability guard. TWO OF THE FOUR DID NOT
+### REPRODUCE AS REPORTED, and finding that out is the most useful thing in the pass.
+
+**The finding I would put first, because it is a method and not a bug.** I was handed four
+"reachability defects, all invisible to the suite". Only ONE of them is a reachability defect.
+The Fight button genuinely is unreachable at 1366x768 — measured on the shipped build, the stage
+is **699px inside a 610px arena and FIGHT sits at y=776..813 on a 768px screen with ZERO
+scrollable ancestors**. But the nav rail has been `overflow-y:auto` since b225 and the Character
+panel is `overflow-y:auto` with **479px of travel against a deepest row at y=865** — both are
+reachable with a wheel, and the audit that called them unreachable measured position **without
+scrolling**. Same methodological error, twice, in a document I was told to trust. I only know
+because the first thing I built was a probe that scrolls before it judges.
+
+They are still defects. They are a DIFFERENT defect: a persistent nav rail shows no scrollbar
+until you touch it and its last visible row looks exactly like the end of the list, so **a rail
+must FIT, not scroll** — while a market table or a bounty board obviously must not be held to
+that standard. That distinction is now a per-row `noScroll` flag in the guard rather than one
+global rule, and writing it as one rule would have produced either a guard that misses the rail
+or a guard that declares every list in the game broken.
+
+**THE TRAP THAT DECIDES WHETHER THIS WHOLE GUARD IS REAL, and my first draft fell in it.**
+`Element.scrollIntoView()` **scrolls `overflow:hidden` containers.** So the obvious probe reveals
+a control inside a box the player can never scroll and reports it reachable — my first draft was
+**green against the unfixed build**, which is the worst possible result for a regression guard and
+the reason `tests/reachability.mjs` now walks the ancestor chain itself and moves only boxes whose
+computed `overflow-y` is `auto`/`scroll`. Second trap in the same file, found by mutation rather
+than by thought: `elementFromPoint` returns the **originating element** for a pseudo-element, so a
+full-screen `body::after` scrim reads as `body`, and my `hit.contains(el)` tolerance scored a
+covered button as a successful hit. An ancestor now counts only within two hops.
+
+**The root cause, and it is a scope error rather than a coding one.** The cure for this exact
+defect was written in b366, correctly, and fenced inside `@media (max-height: 560px)`. The
+mechanism is "the stage's content is taller than the arena" — `.combat-arena` is `overflow:hidden`,
+so the clipping element reports its own short height and `.fs-view` sees nothing to scroll. That is
+not a landscape-phone property. **b366's own comment calls this class of defect a P0 eleven lines
+above the media query that hides its cure.** The net is unconditional now, and the foe portrait
+carries a third `min()` term — `calc(100vh - 540px)`, derived from the 376px of fixed stage rows
+plus the 148px shell above the arena — so the net is a net and not the layout: Fight moved from
+**y=776..813 to y=681..718 at 1366x768** and `.fs-view` reports 657/657, i.e. no overflow at all.
+
+**`--t-micro` IS 14.5px AND EVERY `var(--t-micro, 11px)` IN combat-screens.css IS A FICTION.**
+That fallback reads like the authored intent, never applies, and is the whole explanation for
+"OFFHAN / D" and "NECKLA / CE" at a 51px tile — the caption renders at b227's guarded 14.5px
+floor, which **cannot be shrunk**. So the tile grew instead: three columns, 68px, both captions
+whole on one line, verified in the capture. I refused the cheaper fix of renaming the two
+offenders, because the captions come from `EQUIP_SLOT_META` and the Character paper-doll reads the
+same map — one screen would say Amulet and the other Necklace. The 68px tile also renders the
+painted item art at a size where it is an icon rather than a smear, which is the second reason.
+
+**The detector test that could only ever assert "this machine is not a phone".** b294's comment
+says the predicate is "exposed so the smoke test can drive the detector deterministically". It was
+not: `looksLikeDesktopMode()` read `navigator`/`screen` directly, so the only available assertion
+was that the LIVE environment returns false — and the live environment is a non-touch headless
+desktop that bails at the first clause. Six builds of a threshold of **900px, which is a LAPTOP
+dimension**, and every touchscreen laptop at 1366x768 got a full-width red alert about a setting
+they had never touched. Threshold 500, environment injected, ten real devices asserted including
+paione's Ulefone in both states. **Verified: predicate false at 1366x768, 1280x800 and 1440x900,
+banner absent; still true for a 393px screen with a desktop UA at DPR 1.**
+
+**Where I did NOT reach, and why.** The visual pass found `.ach-toast` (a SECOND notification
+system, `position:fixed; top:80px; right:20px`) sitting squarely on the foe portrait at every
+viewport — at 922x423 it hides the monster completely. That is the same class as the P3 I was
+given and it is not the same element: my brief's toast defect is the bottom-right `.notifs`
+column, which is now fixed by registering the Fight action bar in `toasts.js`'s OBSTACLES (**the
+column lifts to bottom:116px against an action bar whose top is 794 on a 900px screen — exact,
+measured**). Merging `.ach-toast` into the managed column is the right answer and it changes a
+system I have not verified; doing it inside this commit is exactly the b361 failure mode. Filed,
+with captures, not hacked.
+
+**Verified in-browser, my own server rooted in THIS worktree** (the launch.json trap this log has
+recorded four times). 4 viewports x 5 surfaces (War Table, fight prep, live fight, Character,
+Inventory), **zero console errors, zero page errors**, and I READ the captures rather than the
+numbers — the three-column doll, the compacted rail and the reachable Fight button are all things
+I confirmed by looking. Suite **828/828**. The reachability guard is green at four viewports and
+**mutation-proven three ways**, each mutation restoring a real shipped defect rather than shrinking
+a window (my first mutation did shrink the window, the guard stayed green, and the guard was
+right — the product survives 1366x360 now).
+
+**Known limitations, stated plainly.** `.ach-toast` over the foe plate is unfixed (above). At
+922x423 the Eat button's second line still sits at the very bottom edge — reachable via the new
+net, not above the fold; that is b368's recorded 416-of-423 budget and I did not spend the foe
+plate to buy it back. The `calc(100vh - 540px)` term is a measured constant, so a future change to
+the stage's fixed rows moves it — the reachability guard is what will say so. The rail compaction
+uses a 38px button against the 44px `--tap` floor, which is safe only because `.sidebar` is
+`display:none` on every touch layout; if that ever changes, this rule must go. And the Character
+fix is smaller than the audit implied: the panel under-reported its scroll extent by 14px, which
+no viewport guard can catch without a fixture tuned to within 14px, so that contract is asserted
+directly in `smoke-test.js` instead and the reachability guard's mutation list says so out loud
+rather than claiming coverage it does not have.
+
 ### 2026-08-17 · the background set spec + prompt pack. The brief I was handed for the
 ### composition was WRONG, and I only know that because I photographed the screen.
 

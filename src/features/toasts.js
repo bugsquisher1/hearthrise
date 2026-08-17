@@ -66,6 +66,23 @@
     '#chat-dock',   // the chat pill / expanded panel (draggable — see chat.js)
     '#hr-bug-btn',  // beta bug-report button, right column
     '#bottom-nav',  // mobile tab bar; full-width, so it always overlaps
+    /* b371 — the Fight screen's action bar. Eat, Stop and the reference row
+       sit at the very bottom of the arena, and the metrics strip is directly
+       under them; the toast column rests 12px off that same bottom edge, so a
+       combat burst (three "Equipped …", a level-up and a rare drop) stacks
+       straight over the two rows a player is actually reading and the two
+       buttons they may need to press. This is precisely the case the module's
+       header describes — "new floating chrome in that corner registers its
+       selector here" — so it is a registration, not a new offset.
+
+       The selector is scoped to the fight VIEW, and the scoping is what makes
+       it self-clearing: on the War Table `.fs-view` is `display:none`, the
+       element measures 0x0, and `layout()` skips it. The action bar rather
+       than the metrics strip because it is the higher of the two — clearing it
+       clears both — and the lift it forces (~110px at 900px tall) is well
+       inside MAX_LIFT_FRAC, so the column stays in its corner. It is
+       full-width, so the side-step branch correctly declines. */
+    '#panel-combat[data-combat-view="fight"] .fs-actionbar',
   ];
 
   // Toasts are system chrome: the TYPE carries the tone (kill/loot/levelup/

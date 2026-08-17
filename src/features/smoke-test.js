@@ -34772,10 +34772,11 @@ const TESTS = [
     assert(moved('gesture-threw') === 1, 'the gesture-threw drop must be counted');
   }),
 
-  () => tryRunAsync('EQUIP-FLIP-1: with the equip verb LIVE the envelope is ABSOLUTE — omission deletes', async () => {
+  () => tryRunAsync('EQUIP-FLIP-1: equip authority arms the flip; skills+gold go absolute, but the BAG stays MERGE (P1 mitigation)', async () => {
     const A = window.HearthriseAccrual;
     const E = window.HearthriseEquip;
     assert(A && typeof A.isEnvelopeAbsolute === 'function', 'isEnvelopeAbsolute must be published');
+    assert(A && typeof A.isInventoryAbsolute === 'function', 'isInventoryAbsolute must be published');
     assert(E && typeof E.configureEquip === 'function', 'HearthriseEquip must be published');
     assert(A.isEnvelopeAbsolute() === false,
       'the flip must be DISARMED until an equip has actually landed on the server — arming it early '
@@ -34783,7 +34784,14 @@ const TESTS = [
     const prev = E.getEquipConfig();
     try {
       await armEquipFlipForTest(E);
-      assert(A.isEnvelopeAbsolute() === true, 'an acknowledged equip round trip must arm the flip');
+      assert(A.isEnvelopeAbsolute() === true, 'an acknowledged equip round trip must arm the equip/skills flip');
+      /* ⚠ P1 MITIGATION (2026-08-17): equip authority arming the flip must NOT
+         make the general inventory BAG absolute. The bag has its own authority
+         flag, which is OFF (no inventory-baseline signal exists), so the bag is
+         merge even while the equip flip is armed. This is the decoupling that
+         converts the irreversible crafted-item DELETION into a tolerable dupe. */
+      assert(A.isInventoryAbsolute() === false,
+        'inventory must stay MERGE while equip authority is live — the bag is not server-owned yet');
 
       const G = {
         gold: 5,
@@ -34797,34 +34805,86 @@ const TESTS = [
         inventory: { dragon_scale: 2, rune_bar: 9 },
         equipment: {},
       });
-      /* THE INVERSION. An omitted stack is now a REAL ZERO, because
-         hr_state_of aggregates every surviving player_inventory row and
-         hr_apply DELETEs a row at zero — so the envelope is a complete
-         statement of the bag. This is the line that closes the faucet. */
-      assert(!(Number(G.inventory.ember_bar) > 0),
-        'an omitted item must be DELETED under absolute — got ' + G.inventory.ember_bar);
-      /* NAMED AND LOWER: the server wins DOWNWARD. That direction IS the
-         anti-forgery property — the only thing that scrubs a devtools-edited
-         stack instead of laundering it through a round trip. */
-      assert(G.inventory.dragon_scale === 2,
-        'a named LOWER stack must take the server value under absolute — got ' + G.inventory.dragon_scale);
-      assert(G.skills.attack === 1500, 'a named skill must take the server value');
-      /* ⚠ THE b363 DISCOUNT MUST NOT FIRE. Under absolute the server's figure
-         already excludes the worn copy; subtracting it again DELETES a bag copy
-         the player owns. `iron_sword` is worn locally and absent from the
-         envelope's equipment — precisely the condition `unaccountedEquipped`
-         triggers on — so if the discount were still on the path a named stack
-         would arrive short. */
-      assert(G.inventory.rune_bar === 9,
-        'the b363 equip discount must NOT be applied under absolute — got ' + G.inventory.rune_bar);
+      /* SKILLS + GOLD REMAIN ABSOLUTE — equip authority is intact. */
+      assert(G.skills.attack === 1500, 'a named skill must take the server value (absolute)');
+      assert(G.gold === 9, 'gold remains absolutely authoritative');
       /* THE ASYMMETRY, ASSERTED. An omitted SKILL survives, because hr_skills
-         is a generated catalogue that can lag a deploy by one apply — which is
-         the b361 Stonemason incident by name. Deleting here would have wiped
-         every player's Stonemason during that window. */
+         is a generated catalogue that can lag a deploy by one apply — the b361
+         Stonemason incident by name. */
       assert(G.skills.stonemason === 4321,
         'an omitted SKILL must survive even under absolute — a skill missing from hr_skills is a '
         + 'catalogue gap, not a zero (b361 Stonemason). Got ' + G.skills.stonemason);
-      assert(G.gold === 9, 'gold remains absolutely authoritative');
+      /* ── THE BAG IS MERGE (the mitigation). ─────────────────────────────────
+         An OMITTED stack SURVIVES: "absent" from a server whose craft baseline
+         is out-of-order/incomplete means "unknown", not zero. This is the exact
+         property that keeps a freshly-crafted signet the server cannot yet
+         reproduce from being DELETED. */
+      assert(G.inventory.ember_bar === 3,
+        'an omitted item must SURVIVE under merge (P1 mitigation) — got ' + G.inventory.ember_bar);
+      /* A named LOWER stack does NOT pull a live stack down — the max ratchet. */
+      assert(G.inventory.dragon_scale === 14,
+        'a named LOWER stack must not pull a live stack down under merge — got ' + G.inventory.dragon_scale);
+      /* A named HIGHER stack is credited (max). rune_bar is not worn, so the
+         b363 discount does not touch it. */
+      assert(G.inventory.rune_bar === 9,
+        'a named HIGHER stack is credited under merge — got ' + G.inventory.rune_bar);
+    } finally {
+      E.resetEquip();
+      if (prev) E.configureEquip(prev);
+    }
+    assert(A.isEnvelopeAbsolute() === false, 'the flip must disarm when the transport is torn down');
+  }),
+
+  /* ── CRAFT-VANISH-1 — A CRAFTED ITEM SURVIVES A STALE-BASELINE SETTLE ──────
+     THE P1 THIS MITIGATION CLOSES (2026-08-17). The server settles craft chains
+     out of order against an INCOMPLETE `player_inventory`: a signet crafted from
+     rune-bars the server has not yet settled is a stack the server's stale
+     baseline cannot produce, so it OMITS it from the envelope. Under the old
+     absolute-inventory branch — armed the instant EQUIP authority went live —
+     an omitted key is a real zero, so the freshly crafted signet was DELETED.
+     That deletion is irreversible.
+
+     THE FIX: the inventory bag is decoupled from equip authority. Even with the
+     equip flip ARMED (isEnvelopeAbsolute() === true), the bag stays MERGE
+     (isInventoryAbsolute() === false) because no inventory-baseline signal
+     exists, so an omitted crafted stack SURVIVES. The residual is a dupe, which
+     is tolerable pre-wipe; the deletion was not.
+
+     MUTATION THAT MUST GO RED: route the bag back through the absolute-delete
+     branch — e.g. make applyEnvelopeState read `isEnvelopeAbsolute()` for the
+     bag instead of `isInventoryAbsolute()`, or make `isInventoryAbsolute` return
+     `isEnvelopeAbsolute()`. Then the omitted signet is deleted and this fails. */
+  () => tryRunAsync('CRAFT-VANISH-1: an armed client keeps a crafted item the server\'s stale baseline omits', async () => {
+    const A = window.HearthriseAccrual;
+    const E = window.HearthriseEquip;
+    assert(A && typeof A.isEnvelopeAbsolute === 'function', 'isEnvelopeAbsolute must be published');
+    assert(A && typeof A.isInventoryAbsolute === 'function', 'isInventoryAbsolute must be published');
+    const prev = E.getEquipConfig();
+    try {
+      await armEquipFlipForTest(E);
+      /* Equip authority IS live — this is precisely the state in which the old
+         code deleted. The decoupling is the whole test. */
+      assert(A.isEnvelopeAbsolute() === true, 'equip authority must be armed for this test to mean anything');
+      assert(A.isInventoryAbsolute() === false,
+        'the BAG must stay merge while equip authority is live — otherwise a crafted item is deleted');
+
+      /* The player crafted a signet locally; the server settled a DIFFERENT
+         chain first and its baseline knows nothing of the signet, so its
+         envelope omits it (and spent the rune_bars it DID know about). */
+      const G = {
+        gold: 0, skills: {},
+        inventory: { arcane_signet: 1, rune_bar: 5 },
+        equipment: {},
+      };
+      A.applyEnvelopeState(G, {
+        state: {}, skills: {},
+        inventory: { rune_bar: 5 },   // signet OMITTED — the stale baseline can't produce it
+        equipment: {},
+      });
+      assert(G.inventory.arcane_signet === 1,
+        'the crafted signet must SURVIVE an envelope whose stale baseline omits it — got '
+        + G.inventory.arcane_signet + ' (absolute-branch regression: it was deleted)');
+      assert(G.inventory.rune_bar === 5, 'a named stack the server does know about is unchanged');
     } finally {
       E.resetEquip();
       if (prev) E.configureEquip(prev);

@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 364 — 2026-08-17 (The server watches you play — plus a new look at the door)
+
+- 🔄 **Live play now reaches the server every 90 seconds.** Your kills, drops and XP are recorded server-side while you play — not just when you leave. This is the foundation fix for every sync bug this week (the vanishing items, the resets, the duplicates): the server and your screen can no longer drift apart for hours at a time. Closing the tab settles your last moments too.
+- 🏰 **Hearthrise has a crest.** New logo and wordmark, a dawn-lit login screen, and a proper favicon — courtesy of the design team.
+- 🧑‍🎨 **Choose your face.** A new avatar picker with 10 hand-painted portraits at character creation and in settings.
+
 ## v0.9.2-beta build 363 — 2026-08-17 (Hotfix: weapon duplication)
 
 - 🛠️ **Fixed weapons duplicating when you equip them.** Swapping weapons could conjure a phantom copy into your bag each time (thanks Xarnathos — again). Equipped gear and bag counts now reconcile as one number. Existing extra copies will be tidied up separately; no action needed.

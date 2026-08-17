@@ -83,3 +83,6 @@ assets/art-pilot/
 # harness mutates a production file, deleted after a hash-verified restore.
 # A committed one would mean a run died holding a mutation.
 tests/.mutation-journal.json
+
+# watermark-fixed item sources (handoff to item pipeline; not shipped as-is)
+assets/_wm-fixed-item-sources/

@@ -2,6 +2,26 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-16 (b361 brand session) — FROM Coordinator (brand/logo session) → TO the OTHER active session · **Ship the Hearthrise rebrand + avatar picker as b361. Two branches READY, both verified green, NOT pushed — you own the assembled visual gate + the push.**
+
+Tyler asked me to hand today's work to you to take live. Everything below is READY and mergeable; **nothing is on `main` yet and nothing is pushed.** Two feature branches + one art handoff + backlog updates.
+
+**1 · TWO BRANCHES TO INTEGRATE (either order — independent features):**
+- **Brand rebrand** — branch `worktree-agent-a8761ff99aed27a3f`, commit **`70e8cdf`**. Smoke **767/767**. Shield+wordmark lockup (sidebar/login/favicon), dawn login-splash bg, favicon+apple-touch from the crest, **"Idle Homestead" dropped — game is now just "Hearthrise"**, and deduped login-gate copy. Touches: `index.html`, `src/styles/art-direction.css`, `src/legacy.js` (manifest name/icons), `src/net/account-gate.js`, `src/features/smoke-test.js` (append + 3 lines inside the b224 wall test), new `assets/brand/hearthrise-{crest,mark,wordmark,splash,badge}.*`, `tools/brand-process.mjs`; **deleted** `assets/brand/hearthrise-logo.svg`.
+- **Prefab avatar picker** — branch `worktree-agent-a1092c5052fa1bf61`, commit **`ca700f5`**. Smoke **778/778 ×3**. 10 selectable portraits + upload, `player.png` retired as default (→ neutral placeholder), avatar watermarks stripped, prefab picks sync cross-device via the existing pipeline. Touches: `src/features/identity.js`, `src/features/home-dashboard.js` (1 line), `index.html` (1-line topbar `src`), `src/features/smoke-test.js` (append + b186/b221/b229 updates), `.gitignore`, 11 new `assets/avatars/*.webp`.
+
+**2 · MERGE NOTES / overlaps (small, non-semantic):** both touch `index.html` (one-liners each) and `smoke-test.js` (both append + insert just before the final `];` — resolve as two independent array entries). No `legacy.js` collision between them.
+
+**3 · ⚠️ RELEASE VISUAL GATE — MANDATORY before you push (per CLAUDE.md, Tyler NON-NEGOTIABLE).** These two branches were each verified ALONE. The gate exists precisely because breaks emerge from the *interaction* of individually-green branches — and this pair is high-risk for exactly that: the avatar picker introduces 256px portraits and the brand branch restyles the topbar/character chrome. **Boot the ASSEMBLED main (both merged), and READ screenshots of: the login gate, the sidebar, the Character screen (avatar picker + hero portrait), the topbar portrait, plus Combat and Inventory (densest) — at desktop AND mobile-landscape 922×423.** Measurements/smoke do not satisfy this gate; eyes on the assembled build do.
+
+**4 · VERSION + PUSH:** run `bump-version.sh 361` ONCE after both are folded in (do NOT bump per-branch). Then CHANGELOG + build-info date by hand. Push is yours to time.
+
+**5 · OPEN DECISION for Tyler (fold into b361):** the login wordmark currently shows the tagline **"An Online Realm."** Tyler was undecided keep-vs-drop and never confirmed — confirm with him before push; dropping it is a one-line change in `account-gate.js`.
+
+**6 · ART HANDOFF (you own the item pipeline):** the AI-GENERATED watermark spot-check found **all 74 monsters clean**, but **28 item icons carried the pill**. 26 are re-exported CLEAN (id-named 1024² sources) in **`assets/_wm-fixed-item-sources/`** (gitignored) — **run your trim/resize on those 26 and replace the watermarked icons in `hearthfire/items/`.** The remaining 2 (`dragon_scale`, `riftmaw_husk`) aren't in the Recraft items project → backlog #31, deferred by Tyler. Full detail in DISCOVERIES.
+
+---
+
 ### 2026-08-16 (b362) — FROM Art Director → TO Coordinator + Asset Director · **Tyler's hand-made wave is wired: 428 → 473 of 512, for $0.00. The worklist is 20, and FIVE of the ids you should re-shoot are ones that already SHIPPED**
 
 Supersedes the counts below (65 → **20**). No API spend of any kind; the four flattened exports were

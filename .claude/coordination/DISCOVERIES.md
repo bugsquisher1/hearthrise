@@ -4,6 +4,26 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-16 (b361 brand session) · Coordinator · **Some Recraft DOWNLOADS carry a visible "AI GENERATED" watermark pill — the monster batch must be checked before shipping**
+
+**DISCOVERY.** The 10 player-avatar source PNGs Tyler downloaded from Recraft each carried a visible **"AI GENERATED" pill in the bottom-right corner** (confirmed on `assets/avatars/a-young-woman-knight-…png`). The prefab-avatar agent removed it (clone-from-above, feathered seam) before downscaling, and the shipped webps are clean. **BUT it is inconsistent:** the monster JPGs in `~/Downloads` (e.g. `drake-…jpg`) are watermark-FREE. So watermarking depends on HOW the asset left Recraft — the quick "download" button stamps it on the credit tier; the **Export dialog with "Add visible AI label" toggled OFF** does not (that is how the brand shield/wordmark/splash were exported, and they are clean).
+
+**AFFECTED SYSTEMS.** Any pipeline ingesting Recraft downloads: the **Hearthfire monster-portrait intake** (the ~80-image batch a parallel session is processing), future theme-icons (#27), any avatar re-rolls.
+
+**REQUIRED ACTION.** The monster-intake owner MUST visually check each portrait for the bottom-right "AI GENERATED" pill and strip it (or have Tyler re-export via the Export dialog with the AI-label toggle OFF) BEFORE downscaling — a stamped pill baked into a downscale is unrecoverable. Do not assume the batch is clean because one sample was. Going forward: prefer Recraft **Export (AI label OFF)** over the quick download button.
+
+**FOLLOW-UP SPOT-CHECK (Coordinator, same day).** Ran a full corner-crop contact-sheet pass over the *shipped* repo art (`hearthfire/monsters` 74, `hearthfire/items` 216):
+- **Monsters: ALL 74 CLEAN.** No pill on any.
+- **Items: 28 CARRY THE PILL** (out of 216). The shipped icons are only ~128 px and trimmed-to-content, so an automated luminance detector is NOT reliable at that size (it missed all 28 and false-flagged 4 bright-metal corners — `big_bones`, `colossus_plate`, `dawnbound_amulet`, `warlords_torc`, all verified clean). The list below is from a zoomed **visual** pass; the fixer should re-verify each after fixing.
+- **28 dirty items:** `abyssal_greaves, basalt_block, brute_plate, death_steel, deep_rune_blank, dragon_scale, fox_companion, gold_ore, granite, granite_block, heartwood_cape, iron_bar, lexarch_seal, mithril_bar, mithril_whetstone, razor_claw, riftmaw_husk, slime_gel, steel_bar, troll_hide, void_chitin, voidmaw_scepter, warband_bulwark, warboss_standard, warden_girdle, willow_plank, wyrmgilt_mantle, yew_plank`.
+- **RECOMMENDED FIX: re-export those 28 from Recraft with the AI-label toggle OFF**, then re-run the item trim/resize pipeline. Clone-painting a 128 px icon corner risks damaging real art (the pill often overlaps the item), so re-export beats de-watermarking here. **These must not ship as-is.** Contact sheets: `scratchpad/z_items_{1..4}.png`.
+
+**RESOLUTION (Coordinator, same day) — 26 of 28 re-exported clean; 2 still owed.** Bulk-selected all 99 objects in the Recraft **items** project (`e32ea37d-48df-49f6-b27e-8f6b045d939b`), confirmed the **"Add visible AI label" toggle was ON** (root cause), turned it OFF, and re-exported → clean 1024² PNGs. Matched to shipped ids by filename; disambiguated the 9 items that had two generations against the shipped icon. **Caught one trap:** `death_steel` shipped from a follow-up-prompt render (`this-should-have-a-skull-etched-on-it…`), NOT the `----death-steel----` generation — the skull variant is the correct source (verified visually). All 26 corners re-verified watermark-free.
+  - **DELIVERED:** 26 clean, id-named 1024² sources in **`assets/_wm-fixed-item-sources/`** (gitignored). **ACTION for the item-pipeline owner:** run the normal trim/resize on these 26 and replace the watermarked icons in `hearthfire/items/`.
+  - **STILL OWED (2):** `dragon_scale` and `riftmaw_husk` are **NOT in the items project** — they were generated elsewhere. Tyler needs to locate their source project and re-export (AI-label OFF), or point the Coordinator at it. Until then those two stay watermarked.
+
+---
+
 ### 2026-08-16 (b362) · Art Director · **A SHIPPED id is never re-reviewed, so five wrong icons have been live since b358 — and the way I found them was by using the shipped set as a CONTROL for a judgment call**
 
 **DISCOVERY 1 — five wired icons depict the wrong object, and they are wired, not withheld.**

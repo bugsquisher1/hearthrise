@@ -1,0 +1,1 @@
+desktop/hearthlight {"vh":1000,"mainBot":1000,"mainKids":["topbar:0-54","activity-bar:54-106","panel-combat:106-1000"],"panel":{"top":106,"bot":1000,"h":894,"sh":894,"ovf":"hidden"},"view":"missing","arena":{"top":245,"bot":988,"h":743,"sh":741,"ovf":"hidden"},"stage":"missing","bar":"missing","metrics":"missing","clipper":[]}

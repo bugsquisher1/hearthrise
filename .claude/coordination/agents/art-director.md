@@ -2,95 +2,97 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
-### 2026-08-17 · b371 — four Y-axis defects and a reachability guard. TWO OF THE FOUR DID NOT
-### REPRODUCE AS REPORTED, and finding that out is the most useful thing in the pass.
+### 2026-08-17 · b371 — F22 and F2. THE REPORTED SURFACE WAS NOT THE BROKEN ONE, and the
+### default portrait has been 404ing in production since the day it shipped, for a reason
+### that has nothing to do with the portrait.
 
-**The finding I would put first, because it is a method and not a bug.** I was handed four
-"reachability defects, all invisible to the suite". Only ONE of them is a reachability defect.
-The Fight button genuinely is unreachable at 1366x768 — measured on the shipped build, the stage
-is **699px inside a 610px arena and FIGHT sits at y=776..813 on a 768px screen with ZERO
-scrollable ancestors**. But the nav rail has been `overflow-y:auto` since b225 and the Character
-panel is `overflow-y:auto` with **479px of travel against a deepest row at y=865** — both are
-reachable with a wheel, and the audit that called them unreachable measured position **without
-scrolling**. Same methodological error, twice, in a document I was told to trust. I only know
-because the first thing I built was a probe that scrolls before it judges.
+**The finding I would put first, because it is a verification lesson before it is a fix.**
+F22 says "the HEADER mini-avatar caches one reload behind; hero panel and Home banner update
+instantly". I booted the real client and, instead of checking the header, **enumerated every
+`<img>` in the document and fingerprinted its src** across change → reload → change → reload.
+The header tracked correctly every time. **The surface that held the previous portrait across a
+tab switch and only caught up on the next boot was the HOME HEARTH BANNER.** The report had the
+pair exactly backwards — and it did not matter, because the cause is one cause and the fix is one
+fix. A probe that had gone looking only for the named surface would have found nothing and
+reported "cannot reproduce". *Enumerate the class, do not check the instance.*
 
-They are still defects. They are a DIFFERENT defect: a persistent nav rail shows no scrollbar
-until you touch it and its last visible row looks exactly like the end of the list, so **a rail
-must FIT, not scroll** — while a market table or a bounty board obviously must not be held to
-that standard. That distinction is now a per-row `noScroll` flag in the guard rather than one
-global rule, and writing it as one rule would have produced either a guard that misses the rail
-or a guard that declares every list in the game broken.
+**The actual defect, and why it is one bug per surface rather than one bug.** `window._playerAvatar`
+was read at RENDER time and baked into an `innerHTML` string at seven sites; `refreshUi()` then
+corrected exactly ONE of them, **by selector** (`.player-avatar img`). So every other surface was
+stale for however long it happened to go between its own re-renders — for the Home banner, until
+the next boot; and for the legacy arena plate and `combat-screens.js`'s preview plate, which are
+painted once behind `if (!pp.querySelector('img'))`, **forever**. A portrait changed mid-session
+never reached the combat plates at all, and nobody reported that because you have to change your
+face mid-fight to see it.
 
-**THE TRAP THAT DECIDES WHETHER THIS WHOLE GUARD IS REAL, and my first draft fell in it.**
-`Element.scrollIntoView()` **scrolls `overflow:hidden` containers.** So the obvious probe reveals
-a control inside a box the player can never scroll and reports it reachable — my first draft was
-**green against the unfixed build**, which is the worst possible result for a regression guard and
-the reason `tests/reachability.mjs` now walks the ancestor chain itself and moves only boxes whose
-computed `overflow-y` is `auto`/`scroll`. Second trap in the same file, found by mutation rather
-than by thought: `elementFromPoint` returns the **originating element** for a pseudo-element, so a
-full-screen `body::after` scrim reads as `body`, and my `hit.contains(el)` tolerance scored a
-covered button as a successful hit. An ancestor now counts only within two hops.
+**The fix is a REGISTRY, not a longer call list, and that distinction is the whole point.** Every
+portrait `<img>` carries `data-hr-avatar`; `paintAvatars()` repaints all of them from one value.
+Adding a portrait surface is now adding an ATTRIBUTE, and forgetting it fails immediately and
+visibly instead of one reload later on a player's screen. A call list has the opposite property:
+its failure mode is silence. Plus `onAvatarChange(fn)` and a `hearthrise:avatar` window event for
+anything that needs more than an `<img src>` swap.
 
-**The root cause, and it is a scope error rather than a coding one.** The cure for this exact
-defect was written in b366, correctly, and fenced inside `@media (max-height: 560px)`. The
-mechanism is "the stage's content is taller than the arena" — `.combat-arena` is `overflow:hidden`,
-so the clipping element reports its own short height and `.fs-view` sees nothing to scroll. That is
-not a landscape-phone property. **b366's own comment calls this class of defect a P0 eleven lines
-above the media query that hides its cure.** The net is unconditional now, and the foe portrait
-carries a third `min()` term — `calc(100vh - 540px)`, derived from the 376px of fixed stage rows
-plus the 148px shell above the arena — so the net is a net and not the layout: Fight moved from
-**y=776..813 to y=681..718 at 1366x768** and `.fs-view` reports 657/657, i.e. no overflow at all.
+**The half of F22 nobody had named: the seam did not publish until boot()+1200ms.** identity.js
+defers its boot to gate-open + 1.2s — correct for the naming PROMPT, wrong for the portrait, because
+every panel that rendered inside that window baked the DEFAULT face into its markup. There is now a
+storage-only publish at SCRIPT time (identity.js loads after legacy.js, which assigns
+`window._playerAvatar` itself, so it wins). Measured at `domcontentloaded`, before any deferred
+work could run: **FIRST_PAINT header = the current portrait**, where before the fix it was the
+placeholder on every boot.
 
-**`--t-micro` IS 14.5px AND EVERY `var(--t-micro, 11px)` IN combat-screens.css IS A FICTION.**
-That fallback reads like the authored intent, never applies, and is the whole explanation for
-"OFFHAN / D" and "NECKLA / CE" at a 51px tile — the caption renders at b227's guarded 14.5px
-floor, which **cannot be shrunk**. So the tile grew instead: three columns, 68px, both captions
-whole on one line, verified in the capture. I refused the cheaper fix of renaming the two
-offenders, because the captions come from `EQUIP_SLOT_META` and the Character paper-doll reads the
-same map — one screen would say Amulet and the other Necklace. The 68px tile also renders the
-painted item art at a size where it is an icon rather than a smear, which is the second reason.
+**And I killed the DOM as a source.** `legacy.js`'s `getActiveAvatar()` read `.player-avatar img`
+FIRST. That made the header a SOURCE as well as a surface — anything rendered through it inherited
+whatever the header happened to be showing, including the placeholder before identity had run.
+Seam first, mirror second, DOM never. `character-page.js` had the same read one rank lower; reordered.
 
-**The detector test that could only ever assert "this machine is not a phone".** b294's comment
-says the predicate is "exposed so the smoke test can drive the detector deterministically". It was
-not: `looksLikeDesktopMode()` read `navigator`/`screen` directly, so the only available assertion
-was that the LIVE environment returns false — and the live environment is a non-touch headless
-desktop that bails at the first clause. Six builds of a threshold of **900px, which is a LAPTOP
-dimension**, and every touchscreen laptop at 1366x768 got a full-width red alert about a setting
-they had never touched. Threshold 500, environment injected, ten real devices asserted including
-paione's Ulefone in both states. **Verified: predicate false at 1366x768, 1280x800 and 1440x900,
-banner absent; still true for a 393px screen with a desktop UA at DPR 1.**
+**F2 — and this one is not an avatar bug at all.** `assets/avatars/_placeholder.webp` is committed,
+correctly pathed, and served by every local server; it 404s on hearthrise.net. **The deploy is
+GitHub Pages, Pages runs Jekyll, and Jekyll excludes every file whose name begins with an
+underscore.** Confirmed against the live site rather than reasoned about: `_placeholder.webp` → 404,
+`knight.webp` → 200, same directory, same commit. The symptom this produced was maximally
+misleading — the markup's `onerror` latch quietly swapped in `player.png`, so it looked like the
+*retired* default face had come back, i.e. a regression in a module that was working perfectly.
+Renamed to `placeholder-portrait.webp`, `.nojekyll` added as a second line of defence, and
+`avatarAssetGuard()` in run-smoke.mjs now fails the build on any `_`-prefixed shipped path OR a
+missing `assets/avatars/**` reference. **`assets/art-pilot/_screenshots/` — my own captures
+directory — is the same trap wearing a directory name.**
 
-**Where I did NOT reach, and why.** The visual pass found `.ach-toast` (a SECOND notification
-system, `position:fixed; top:80px; right:20px`) sitting squarely on the foe portrait at every
-viewport — at 922x423 it hides the monster completely. That is the same class as the P3 I was
-given and it is not the same element: my brief's toast defect is the bottom-right `.notifs`
-column, which is now fixed by registering the Fight action bar in `toasts.js`'s OBSTACLES (**the
-column lifts to bottom:116px against an action bar whose top is 794 on a 900px screen — exact,
-measured**). Merging `.ach-toast` into the managed column is the right answer and it changes a
-system I have not verified; doing it inside this commit is exactly the b361 failure mode. Filed,
-with captures, not hacked.
+**A test lesson worth more than the test.** My "every render site is enrolled" guard PASSED against
+a `home-dashboard.js` whose `<img>` had lost the attribute — because the explanatory comment two
+lines above still contained the words `data-hr-avatar`. **A source guard that a comment can satisfy
+is a spell-check.** It strips comments first now, and only then does it go red under that mutation.
+Same class of error as b366's "a measurement of the element you suspect is not a measurement of the
+screen".
 
-**Verified in-browser, my own server rooted in THIS worktree** (the launch.json trap this log has
-recorded four times). 4 viewports x 5 surfaces (War Table, fight prep, live fight, Character,
-Inventory), **zero console errors, zero page errors**, and I READ the captures rather than the
-numbers — the three-column doll, the compacted rail and the reachable Fight button are all things
-I confirmed by looking. Suite **828/828**. The reachability guard is green at four viewports and
-**mutation-proven three ways**, each mutation restoring a real shipped defect rather than shrinking
-a window (my first mutation did shrink the window, the guard stayed green, and the guard was
-right — the product survives 1366x360 now).
+**Verified in-browser, my own server rooted in THIS worktree.** The shared launch.json points at
+the MAIN tree — the trap recorded four times in this log — and I proved it this time rather than
+assuming: a marker file written into the worktree returned an error page on port 8123. New probe:
+`tools/art-avatar-probe.mjs`. Sequence: change → walk panels → reload → change (panels NOT
+re-walked, so the registry is doing the work, not a re-render) → reload → reload. **Every surface
+moves in lockstep at every step; FIRST_PAINT is correct on the FIRST reload, not the second.
+0 404s, 0 console errors, 0 page errors.** Captures in `assets/art-pilot/_screenshots/avatar/`
+at 1440x900 AND 922x423, and I READ them: header chip, Character hero and Home hearth banner all
+carry the same face two reloads after the change, on both viewports.
 
-**Known limitations, stated plainly.** `.ach-toast` over the foe plate is unfixed (above). At
-922x423 the Eat button's second line still sits at the very bottom edge — reachable via the new
-net, not above the fold; that is b368's recorded 416-of-423 budget and I did not spend the foe
-plate to buy it back. The `calc(100vh - 540px)` term is a measured constant, so a future change to
-the stage's fixed rows moves it — the reachability guard is what will say so. The rail compaction
-uses a 38px button against the 44px `--tap` floor, which is safe only because `.sidebar` is
-`display:none` on every touch layout; if that ever changes, this rule must go. And the Character
-fix is smaller than the audit implied: the panel under-reported its scroll extent by 14px, which
-no viewport guard can catch without a fixture tuned to within 14px, so that contract is asserted
-directly in `smoke-test.js` instead and the reachability guard's mutation list says so out loud
-rather than claiming coverage it does not have.
+**Suite 826/826** (823 + 3). Mutations, all proven: restore the header-only selector `refreshUi`
+→ 2 of 3 red; drop the attribute from home-dashboard → the registry test red; rename the asset back
+to `_placeholder.webp` → the Node guard red BY NAME plus two existing identity tests. No version
+bump, no push.
+
+**Known limitations, stated plainly.** The signed-in remote-avatar path
+(`hydrateRemoteAvatar` → Supabase Storage URL) is exercised only against an intercepted transport
+in the probe; I cannot sign in — creating an account is not mine to do — so a genuine cross-device
+hydrate is unverified, though it resolves through the same `avatarUrl()` and therefore through the
+same registry. The probe's `dismiss()` decides what a modal is by GEOMETRY (fixed, >50% of the
+viewport) rather than by selector, after a selector-list version ate a panel whose class contained
+the word "overlay". The "Desktop Site looks turned on" banner fires in the probe at 922px because a
+headless desktop UA is exactly what it is built to catch — correct behaviour, an artifact here, and
+worth noting separately that it renders a raw warning pictograph as its icon, which our own
+direction forbids. And the deeper issue is unchanged: **`window._playerAvatar` is still a bare
+global any file can assign**, including legacy.js's icon IIFE. The registry makes a stale surface
+impossible; it does not make a rogue WRITER impossible.
+
+
 
 ### 2026-08-17 · the background set spec + prompt pack. The brief I was handed for the
 ### composition was WRONG, and I only know that because I photographed the screen.

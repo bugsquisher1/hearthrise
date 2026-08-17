@@ -49,7 +49,8 @@ import { reachabilityGuard } from './reachability.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
 import { createServer } from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
-import { extname, join, normalize } from 'node:path';
+import { extname, join, normalize, relative } from 'node:path';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -434,7 +435,71 @@ async function combatCreditGuard() {
     problems.push('core/combat-sim.js references the rail\'s attribution bucket — src/core is '
       + 'packed into the Edge Function and must stay free of client display concerns');
   }
-  return { problems, note: `1 declaration site (${writers[0] || 'none'}), away latched, core clean` };
+  return { problems, note: `1 declaration site (${writers[0] || 'none'}), away latched, core clean` };}
+
+// ── The avatar-asset guard (b371, live audit F2) ─────────────────────────────
+// `assets/avatars/_placeholder.webp` was the DEFAULT portrait — the one face a
+// player with no portrait sees, and the fallback every avatar surface resolves
+// to. It 404'd in production for its whole life. The file was committed, the
+// path was correct, and every local server served it: the deploy is GitHub
+// Pages, Pages runs Jekyll, and **Jekyll excludes every file and directory
+// whose name begins with an underscore**. Confirmed against the live site —
+// `/assets/avatars/_placeholder.webp` → 404 while its sibling `knight.webp`
+// → 200, same directory, same commit.
+//
+// Two claims, because either one alone would have missed it:
+//   1. EXISTENCE — every `assets/...` path referenced by index.html or src/**
+//      resolves to a real file in the repo. (Catches a rename or a typo.)
+//   2. NO LEADING UNDERSCORE in any shipped path segment. (Catches the class:
+//      a file that exists here and cannot exist on the deploy.) `.nojekyll`
+//      now ships too, but a hosting flag is a second line of defence, not the
+//      contract — this guard is the contract.
+//
+// Scoped to `assets/avatars/**` plus any referenced path whose segment starts
+// with `_`, so it is a sharp claim rather than a slow whole-tree crawl that
+// would rot into a skip.
+async function avatarAssetGuard() {
+  const problems = [];
+  const files = [join(ROOT, 'index.html')];
+  const walk = async (dir) => {
+    for (const e of await readdir(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) await walk(p);
+      else if (/\.(js|mjs|css|html)$/.test(e.name)) files.push(p);
+    }
+  };
+  await walk(join(ROOT, 'src'));
+  if (files.length < 50) return ['only ' + files.length + ' files scanned — the guard is checking nothing'];
+
+  const REF = /(?:^|['"`(\s])(assets\/[A-Za-z0-9_@./-]+\.(?:webp|png|jpg|jpeg|svg|gif|ico|webmanifest))/g;
+  const seen = new Map();                       // path → first file that names it
+  for (const f of files) {
+    const text = await readFile(f, 'utf8');
+    let m;
+    while ((m = REF.exec(text))) {
+      const p = m[1];
+      // Template-literal interpolation makes a path unresolvable statically.
+      if (p.includes('${') || p.includes("' +") || p.includes('" +')) continue;
+      if (!seen.has(p)) seen.set(p, relative(ROOT, f).replace(/\\/g, '/'));
+    }
+  }
+  const avatars = [...seen.keys()].filter((p) => p.startsWith('assets/avatars/'));
+  if (!avatars.length) problems.push('no assets/avatars/** reference found — the guard is checking nothing');
+
+  for (const [p, from] of seen) {
+    const underscored = p.split('/').some((seg) => seg.startsWith('_'));
+    if (underscored) {
+      problems.push(`${p} (referenced by ${from}) has a leading-underscore path segment — ` +
+        'GitHub Pages/Jekyll will not serve it. Rename the file.');
+    }
+    // Existence is checked for the avatar set (the F2 surface) and for anything
+    // the underscore rule already flagged.
+    if (!p.startsWith('assets/avatars/') && !underscored) continue;
+    if (!existsSync(join(ROOT, ...p.split('/')))) {
+      problems.push(`${p} (referenced by ${from}) does not exist in the repo`);
+    }
+  }
+  return problems;
 }
 
 // ── The secret guard (b322) ──────────────────────────────────────────────────
@@ -2112,6 +2177,15 @@ const run = async () => {
       console.log('Migration guard — every migration ends on a SQL terminator, no tool artifacts.');
     }
 
+    const avatarProblems = await avatarAssetGuard();
+    if (avatarProblems.length) {
+      console.log('\nAvatar asset guard — FAILED:');
+      for (const p of avatarProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Avatar asset guard — every referenced avatar asset exists and no shipped path starts with "_".');
+    }
+
     const secretProblems = await secretGuard();
     if (secretProblems.length) {
       console.log('\nSecret guard — FAILED:');
@@ -2275,7 +2349,7 @@ const run = async () => {
       'Clan-deposit ownership guard', 'Activity-seam guard', 'Delta-transport guard',
       'Reachability guard',
       'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',
-      'Icon boot-order guard',
+      'Icon boot-order guard', 'Avatar asset guard',
       'Secret guard', 'Slot-switch guard',
     ];
     if (exitCode === 0) {

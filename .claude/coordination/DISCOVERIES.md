@@ -4,102 +4,72 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
-### 2026-08-17 · Art Director (b371) · A CURE WRITTEN INSIDE `@media (max-height: 560px)` PROTECTS ONLY THE VIEWPORT WHERE THE ACCIDENT ALREADY HAPPENED — and the audit method that finds this class is "scroll the way a player can, then hit-test"
+### 2026-08-17 · Art Director (b371) · The default portrait 404'd in production for its whole life because its filename starts with an underscore — GitHub Pages runs JEKYLL, and Jekyll excludes every `_`-prefixed file
 
-**DISCOVERY 1 — the defect.** `#panel-combat[data-combat-view="fight"] .fs-view
-{ overflow-y: auto }` and its partner `.combat-arena { overflow: visible }` were
-authored in b366 for a 423px landscape phone and fenced inside
-`@media (max-height: 560px)`. The reasoning attached to them was correct and its
-SCOPE was not: the mechanism is "the stage's content is taller than the arena",
-and `.combat-arena` carries `overflow:hidden`, so the clipping element reports
-its own short height and the scroll container above it sees nothing to scroll.
-Measured on the shipped build at **1366x768 — the most common laptop panel in
-the world — the stage is 699px inside a 610px arena and FIGHT lands at
-y=776..813 on a 768px screen**, with zero scrollable ancestors. At 1280x800 it
-is 11px tall and not hit-testable. The b366 comment calls this class of defect a
-P0 in so many words, eleven lines above the media query that hides its cure.
+**DISCOVERY.** `assets/avatars/_placeholder.webp` — the face every player without a
+portrait sees, and the fallback every avatar surface resolves to — was committed,
+correctly pathed, and served by every local dev server. It 404'd on hearthrise.net.
+Verified live, same directory, same commit:
 
-**RULE.** A reachability net is never scoped to a breakpoint. If a rule exists
-because a control could become unreachable, it applies at every size; the
-density budget is what makes the net unnecessary, not what makes it optional.
+    /assets/avatars/_placeholder.webp -> 404
+    /assets/avatars/knight.webp       -> 200
 
-**DISCOVERY 2 — the measurement trap, and it is the reusable half.**
-`Element.scrollIntoView()` SCROLLS `overflow:hidden` CONTAINERS. A reachability
-probe written the obvious way therefore reveals a control inside a box the
-player can never scroll and reports it reachable — the first draft of
-`tests/reachability.mjs` did exactly that and was green against the unfixed
-build. Any probe of this class must walk the ancestor chain itself and move only
-boxes whose computed `overflow-y` is `auto`/`scroll`. Second trap in the same
-file: `elementFromPoint` returns the ORIGINATING element for a pseudo-element,
-so a full-screen `body::after` scrim reads as `body`, and a naive
-`hit.contains(el)` check scores a covered control as a successful hit.
+The deploy is GitHub Pages (CNAME `hearthrise.net`), Pages runs Jekyll unless a
+`.nojekyll` file exists at the root, and **Jekyll silently excludes every file and
+directory whose name begins with an underscore.** There was no `.nojekyll`. Nothing
+in the toolchain could see this: the file exists in the repo, the smoke suite's own
+static server serves it, and the browser's `onerror` latch quietly swapped in
+`player.png` — so the visible symptom was "the default portrait is the retired
+player.png again", which reads as a regression in the wrong module entirely.
 
-**DISCOVERY 3 — "below the fold" and "unreachable" are different findings, and
-conflating them produces two wrong verdicts.** Of the four Y-axis defects in the
-b370 audit, only the Fight button was truly unreachable. The nav rail
-(`overflow-y:auto` since b225) and the Character panel (`overflow-y:auto`, 479px
-of travel) were both SCROLLABLE — the audit measured position without
-scrolling. They are still defects, but of a different kind and with a different
-fix: a persistent nav rail shows no scrollbar until touched and its last visible
-row looks exactly like the end of the list, so the rail must FIT, not scroll.
-A market table or a bounty board must not be held to that standard. The guard
-therefore carries a per-row `noScroll` flag rather than one global rule.
+**AFFECTED SYSTEMS.** Any asset under `assets/**` whose path has a `_`-prefixed
+segment. Today that was the avatar default; the rule is general, and it is a trap
+that costs nothing to hit and is invisible everywhere except production.
 
-**AFFECTED SYSTEMS.** `src/styles/combat-screens.css` (fight view),
-`src/styles/legacy.css` (`.sidebar`), `src/features/character-page.js`
-(`#char-shell`), `src/desktop-mode-detector.js`, `src/features/toasts.js`,
-`tests/reachability.mjs` (new), `tests/run-smoke.mjs`.
-
-**REQUIRED ACTION.** `tests/reachability.mjs` now runs in the smoke suite and
-asserts every declared primary CTA is on screen AND hit-testable at 1366x768,
-1280x800, 1440x900 and 922x423. **Extend `CTAS` with a data row when you add a
-screen — it is a declared list on purpose.** `node tests/reachability.mjs
---mutate` re-plants each shipped defect and fails if the guard lets one through.
+**REQUIRED ACTION / RULE.** (1) Do not name a shipped asset (or a directory holding
+one) with a leading underscore. (2) `.nojekyll` now ships at the repo root, but that
+is a second line of defence — the naming rule is the contract. (3) `avatarAssetGuard()`
+in `tests/run-smoke.mjs` fails the build on either a `_`-prefixed referenced path or
+a referenced `assets/avatars/**` file that does not exist on disk; mutation-proven
+(rename the file back → guard red by name, plus two in-browser tests).
+**Note for the Asset Director:** `assets/art-pilot/_screenshots/` is a `_`-prefixed
+DIRECTORY. It is not referenced by any shipped code so nothing breaks today, but
+anything ever served from under it would 404 in exactly this way.
 
 ---
 
-### 2026-08-17 · Art Director (b371) · `--t-micro` IS 14.5px, NOT 11px — every `var(--t-micro, 11px)` fallback in combat-screens.css is a fiction, and it is why two slot captions broke mid-word
+### 2026-08-17 · Art Director (b371) · Every portrait surface read the seam at its OWN render time — so "the portrait is stale" was never one bug, it was one bug per surface, each lagging by however long that surface goes between re-renders
 
-The fallback reads like the authored intent and never applies: `art-direction.css`
-defines `--t-micro: calc(14.5px * var(--ui-scale,1))` — b227's guarded legibility
-FLOOR. So the Fight rail's empty-slot caption renders at 14.5px in a 51px tile
-(232px rail / 4 columns), and "Offhand" and "Necklace" came back as
-**"OFFHAN / D"** and **"NECKLA / CE"** — the same half-a-word failure b139 ruled
-against, arriving from a third direction after b366's ellipsis and b368's
-`word-break`. **The type cannot shrink to fix it** (the 14.5px floor is scanned
-by a guard), so the TILE grew: three columns, 68px tiles, both captions whole.
-Renaming the two offenders was cheaper and wrong — the captions come from
-`EQUIP_SLOT_META`, which the Character paper-doll also reads, so a local rename
-would have one screen calling a slot Amulet and the other Necklace.
+**DISCOVERY.** F22 was reported as "the header caches one reload behind". I booted the
+real client and enumerated every `<img>` in the document rather than checking the
+surface that was named. **The reported surface and the measured surface differ:** the
+header tracked correctly, and the **Home hearth banner** held the previous portrait
+across a tab switch and only caught up on the next boot. Cause is the same for both
+and for four more surfaces nobody reported yet: `window._playerAvatar` was read at
+render time and baked into an `innerHTML` string, and `identity.js`'s `refreshUi()`
+corrected exactly ONE of them, by selector (`.player-avatar img`). Two surfaces —
+the legacy arena plate and `combat-screens.js`'s preview plate — are painted once
+behind a `if (!pp.querySelector('img'))` guard, so a portrait changed mid-session
+**never reached them at all**.
 
-**RULE.** Do not size a caption against the fallback in a `var()`. Measure the
-rendered `font-size` — and when a label does not fit, the honest lever on this
-project is the container, because the type floor is not negotiable.
+Second half: the seam only published at `boot()`, which is gate-open + 1200ms. Every
+panel rendered inside that window baked the DEFAULT face into its markup.
 
----
+**AFFECTED SYSTEMS.** `src/features/identity.js`, `src/utils/profile.js`,
+`src/features/{home-dashboard,character-page,combat-screens}.js`, `src/legacy.js`
+(four render sites + `getActiveAvatar`), `index.html`.
 
-### 2026-08-17 · Art Director (b371) · The desktop-mode detector's "phone-sized" threshold was 900px, and 900 is a LAPTOP dimension
-
-`src/desktop-mode-detector.js` gated its red "Desktop Site looks turned on"
-banner on `Math.min(screen.width, screen.height) < 900`. A 1366x768 touchscreen
-laptop reports a 768px short edge, carries no mobile UA marker (`!uaMobile` is
-true) and lays out well over 820px wide — every clause passed, so **every
-touchscreen laptop at 1366x768 or 1280x800 was greeted by a full-width red alert
-about a setting the player had never turned on.** Threshold is now 500 (the
-widest common phone short edge is ~430; paione's Ulefone is 393).
-
-The reason this survived since b294 is worth more than the fix: the existing
-test asserted only that the LIVE environment returns false, and the live
-environment is a non-touch headless desktop that bails at the first clause —
-**an assertion that can only ever confirm "the machine running the tests is not
-a phone".** The predicate now takes its environment as an argument and the new
-test drives it with ten real devices, which is what b294's own comment ("exposed
-so the smoke test can drive the detector deterministically") had claimed for six
-builds without it being true.
-
-**RULE.** A predicate that reads globals is not testable by calling it. If a
-comment claims a test drives something deterministically, check that the seam
-for doing so actually exists.
+**REQUIRED ACTION / RULE.** There is now ONE portrait source of truth with a
+REGISTRY, not a call list: every portrait `<img>` carries **`data-hr-avatar`**, and
+`HearthriseIdentity.paintAvatars()` repaints all of them whenever the value changes.
+`onAvatarChange(fn)` and a `hearthrise:avatar` window event exist for surfaces that
+need more than an `<img src>` swap. **If you add a portrait surface, add the
+attribute** — a smoke test scans the render sites for it (with comments stripped:
+the first version of that test passed against a file whose `<img>` had lost the
+attribute because the comment above it still said the words). And **never read the
+portrait out of the DOM**: `legacy.js`'s `getActiveAvatar()` used to read the topbar
+`<img>`, which made the header a SOURCE as well as a surface, so anything rendered
+from it inherited whatever the header happened to be showing.
 
 ---
 

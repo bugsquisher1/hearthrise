@@ -9640,7 +9640,11 @@ console.log('Activity bar: loaded');
     var pp = document.getElementById('arena-player-portrait');
     // b186: painted player portrait (set once so damage-number children survive)
     if(pp && !pp.querySelector('img')){
-      pp.innerHTML = '<img src="'+(window._playerAvatar||'assets/icons-bundle/painted/npc/player.png')+'" alt="">';
+      /* b371 (F22): data-hr-avatar puts this plate on the identity seam's
+         repaint registry. It is painted ONCE by the guard above (so damage
+         numbers survive), which before the registry meant a portrait changed
+         mid-session never reached the arena at all. */
+      pp.innerHTML = '<img src="'+(window._playerAvatar||'assets/icons-bundle/painted/npc/player.png')+'" alt="" data-hr-avatar>';
     }
     var pnp = document.getElementById('arena-player-name');
     var php = document.getElementById('arena-player-hp');
@@ -11235,7 +11239,7 @@ window.renderCharacter = function(){
 
   host.innerHTML =
     '<div class="char-hero">' +
-      '<div class="char-avatar"><img src="' + avatarSrc + '" alt="" /></div>' +
+      '<div class="char-avatar"><img src="' + avatarSrc + '" alt="" data-hr-avatar /></div>' +
       '<div class="char-info">' +
         '<div class="char-name">' + (G.playerName || 'Adventurer') + '</div>' +
         '<div class="char-meta">' +
@@ -11645,7 +11649,7 @@ window._renderCombatEmpty = function(){
   }
   var html = '<div class="combat-empty">' +
     '<div class="ce-stage">' +
-      '<img class="ce-champ" src="' + avatar + '" alt="" />' +
+      '<img class="ce-champ" src="' + avatar + '" alt="" data-hr-avatar />' +
       '<div class="ce-standby">Awaiting a foe</div>' +
       '<div class="ce-hint">' + pickHint + '</div>' +
     '</div>';
@@ -15973,11 +15977,21 @@ function deriveClass(){
 
 /* Look up a sample monster pack icon for character avatars (currently use existing player avatar) */
 function getActiveAvatar(){
-  /* Use the topbar player avatar source if available */
+  /* b371 (F22): ask the identity seam, never the DOM. Reading the topbar
+     <img> made the header a SOURCE as well as a surface — so any surface
+     rendered from here inherited whatever the header happened to be showing,
+     including a stale value or the placeholder before identity had run. The
+     seam is the one source of truth; the DOM read stays only as a last
+     resort for a boot order where the seam has not published yet. */
+  var id = window.HearthriseIdentity;
+  if(id && typeof id.avatarUrl === 'function'){
+    try{ var u = id.avatarUrl(); if(u) return u; }catch(e){}
+  }
+  if(window._playerAvatar) return window._playerAvatar;
   var pa = document.querySelector('.player-avatar img');
   if(pa && pa.src) return pa.src;
   /* b186: painted player portrait (was unshipped raw-bundle → 404) */
-  return window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png';
+  return 'assets/icons-bundle/painted/npc/player.png';
 }
 
 function getEquipmentBonusFor(style){
@@ -16082,7 +16096,7 @@ function buildHeroCard(){
   })();
 
   return '<div class="cr-hero">'
-    + '<div class="cr-hero-portrait"><img src="'+avatarSrc+'" alt="" /></div>'
+    + '<div class="cr-hero-portrait"><img src="'+avatarSrc+'" alt="" data-hr-avatar /></div>'
     + '<div class="cr-hero-id">'
       + '<div class="cr-name">'+name+'</div>'
       + '<div class="cr-class">'+clsInfo.tagline+'</div>'

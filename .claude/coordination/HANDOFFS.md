@@ -2,33 +2,36 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
-### 2026-08-17 · FROM Art Director (b371) → TO Systems Engineer · **There are TWO notification systems fighting for the same corner, and the older one paints on the monster.**
+### 2026-08-17 · FROM Art Director → TO Systems Engineer + Asset Director · **A leading underscore in a shipped path = a 404 in production. And there is now ONE portrait seam — do not add a sixth reader.**
 
-`src/features/toasts.js` is the managed column: it measures registered `OBSTACLES`
-and lifts/side-steps so it never covers chrome. b371 registered the Fight action
-bar there and it works exactly as designed (measured on a 900px screen: the
-column moves to `bottom:116px` against an action bar whose top is 794 — Eat, Stop
-and LOOT/STATS/HISTORY all clear).
+Two things from the b371 portrait pass that you will both trip over otherwise.
 
-`.ach-toast` is NOT in that system. It is built in `legacy.js:11777` and anchored
-by `legacy.css:2425` at a hardcoded `position:fixed; top:80px; right:20px`, with
-its own 4s `ach-slide` animation. **On the Fight screen that is precisely where
-the foe plate lives.** Captured at all four viewports; at 922x423 it covers the
-monster completely, and on Inventory it sits on Multi-select / Manage.
+**1 · Never name a shipped asset (or a folder holding one) with a leading `_`.**
+`assets/avatars/_placeholder.webp` 404'd on hearthrise.net for its entire life while
+serving fine everywhere else: GitHub Pages runs Jekyll, and Jekyll excludes
+`_`-prefixed files. Renamed to `placeholder-portrait.webp`; `.nojekyll` now ships as
+a second line of defence; `avatarAssetGuard()` in `tests/run-smoke.mjs` fails the
+build on either a `_`-prefixed referenced path or a missing `assets/avatars/**` file.
+**Asset Director:** `assets/art-pilot/_screenshots/` is a `_`-prefixed directory —
+harmless today because nothing shipped references it, and a live trap the moment
+anything does.
 
-**What I recommend, and why I did not do it here.** The right fix is to route
-achievements through `HearthriseToasts.push()` so there is ONE obstacle-aware
-column — which is the argument `toasts.js`'s own header already makes ("Three
-pieces of floating chrome, one corner"). That changes copy, timing and the
-level-up/achievement tone mapping in a system I have not verified, and folding it
-into a CSS reachability commit is the b361 failure mode verbatim (two
-individually-verified changes interacting). It needs its own pass with its own
-screenshots. Evidence: `scratch/shots/v-fightprep-*.png`, `v-inventory-*.png`.
+**2 · The player portrait has ONE source of truth and a registry.**
+`window.HearthriseIdentity.avatarUrl()` resolves it; `window._playerAvatar` is a
+mirror the seam keeps current; every portrait `<img>` carries **`data-hr-avatar`**
+and is repainted by `paintAvatars()` on every change. If you add a surface that draws
+the player's face, **add the attribute** — do not add another `window._playerAvatar ||
+'…/player.png'` read site, and above all do not read the portrait out of the DOM
+(`legacy.js`'s `getActiveAvatar()` used to read the topbar `<img>`, which made the
+header a source as well as a surface). `onAvatarChange(fn)` and the
+`hearthrise:avatar` window event are there for anything that needs more than an
+`<img src>` swap.
 
-**Also for you, smaller:** `#hr-desktopmode-banner` is `position:fixed; top:0`
-with nothing reserving space, so when it legitimately fires it eats ~90px off the
-top of the app with no layout compensation. Defensible (the banner exists because
-the layout is already wrong) but worth knowing.
+**Systems Engineer, one for you specifically:** `legacy.js`'s arena plate and
+`combat-screens.js`'s preview plate are both painted exactly once behind
+`if (!pp.querySelector('img'))`. That guard is correct (damage-number children must
+survive) and it means those nodes can never be updated by their own renderer — any
+future per-fight state on them needs the same registry treatment, not a re-render.
 
 ---
 

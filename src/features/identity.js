@@ -77,7 +77,7 @@
   // new picker wants. (2) It is a 1 KB shipped asset that can never 404, so the
   // render seam never produces a broken image. player.png is retained only as a
   // deep onerror last-ditch in index.html — never the face a new player sees.
-  var DEFAULT_AVATAR   = 'assets/avatars/_placeholder.webp';
+  var DEFAULT_AVATAR   = 'assets/avatars/placeholder-portrait.webp';
 
   // ── Prefab portrait catalogue (b360, backlog #26) ────────────
   // Ten Recraft-painted faces, processed to the SAME 256² the upload pipeline
@@ -907,9 +907,67 @@
     return DEFAULT_AVATAR;
   }
 
+  // ── ONE PORTRAIT SOURCE OF TRUTH (b371, live audit F22) ─────
+  // The bug this closes: every portrait surface in the game read the seam at
+  // its OWN render time and baked the result into an innerHTML string. So a
+  // surface that does not re-render when the portrait changes keeps the
+  // PREVIOUS portrait until whatever does make it re-render happens — which,
+  // for the Home hearth banner and the arena plates, is a reload. Measured:
+  // change portrait → `.hd-ava img` still held the old face across a tab
+  // switch and only caught up on the next boot. "One reload behind."
+  //
+  // The fix is a REGISTRY, not a longer call list. Every portrait <img> in the
+  // game carries `data-hr-avatar`; the seam paints all of them from one value
+  // whenever that value changes. Adding a portrait surface is adding an
+  // attribute, and forgetting it shows up instantly instead of one reload
+  // later — the failure mode is now visible rather than latent.
+  var AVATAR_ATTR = 'data-hr-avatar';
+
+  function paintAvatars() {
+    var url = window._playerAvatar || DEFAULT_AVATAR;
+    var imgs = document.querySelectorAll('img[' + AVATAR_ATTR + ']');
+    var n = 0;
+    for (var i = 0; i < imgs.length; i++) {
+      var el = imgs[i];
+      // The prefab picker's tiles are portraits of OTHER faces, not of the
+      // player; they must never be repainted with the player's own.
+      if (el.closest && el.closest('.hr-id-grid')) continue;
+      n++;
+      if (el.getAttribute('src') === url) continue;
+      // Clear the markup's one-shot fallback latch, or a portrait that failed
+      // once can never be replaced by a good one.
+      try { delete el.dataset.fellBack; } catch (e) {}
+      el.src = url;
+      if (el.style.display === 'none') el.style.display = 'block';
+    }
+    return n;
+  }
+
+  // The change notification. Subscribers are for surfaces that need to do more
+  // than swap an <img src> (a canvas, a CSS background, a wrapper class); the
+  // DOM event is the same signal for classic scripts that load in any order.
+  var avatarSubs = [];
+  function onAvatarChange(fn) {
+    if (typeof fn !== 'function') return function () {};
+    if (avatarSubs.indexOf(fn) === -1) avatarSubs.push(fn);
+    return function () {
+      var i = avatarSubs.indexOf(fn);
+      if (i !== -1) avatarSubs.splice(i, 1);
+    };
+  }
+  function notifyAvatarChange(url) {
+    for (var i = 0; i < avatarSubs.length; i++) {
+      try { avatarSubs[i](url); } catch (e) {}
+    }
+    try { window.dispatchEvent(new CustomEvent('hearthrise:avatar', { detail: { url: url } })); }
+    catch (e) {}
+  }
+
   function applyAvatar() {
     window._playerAvatar = avatarUrl();
+    paintAvatars();
     refreshUi();
+    notifyAvatarChange(window._playerAvatar);
   }
 
   // Signed in on a device that has never seen this portrait: fetch it, and
@@ -932,16 +990,10 @@
   function refreshUi() {
     try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
     try { if (typeof window.renderCharacter === 'function') window.renderCharacter(); } catch (e) {}
-    try {
-      var pa = document.querySelector('.player-avatar img');
-      if (pa) {
-        // Clear the markup's one-shot fallback latch, or a portrait that
-        // failed once can never be replaced by a good one.
-        delete pa.dataset.fellBack;
-        pa.src = window._playerAvatar || DEFAULT_AVATAR;
-        pa.style.display = 'block';
-      }
-    } catch (e) {}
+    // Every portrait surface, including the ones those two renderers just
+    // rebuilt from scratch. The header used to be special-cased here by
+    // selector; it is now simply one of the registered surfaces.
+    try { paintAvatars(); } catch (e) {}
     try { decorateTopbarAvatar(); } catch (e) {}
   }
 
@@ -1602,6 +1654,24 @@
   if (window.HearthriseGate && typeof window.HearthriseGate.whenOpen === 'function') window.HearthriseGate.whenOpen(arm);
   else arm();
 
+  // b371 (F22, second half) — PUBLISH THE PORTRAIT AT SCRIPT TIME.
+  // boot() is deliberately deferred to gate-open + 1200ms, which is correct for
+  // the naming PROMPT and wrong for the portrait: until it ran, every surface
+  // that rendered in that window baked the DEFAULT face into its markup, and
+  // the header sat on index.html's placeholder. This file is a classic script
+  // that loads after legacy.js (which assigns window._playerAvatar itself), so
+  // running the seam here — before any panel has been painted — makes the
+  // stored portrait the value the very first render reads. It is storage-only:
+  // no network, no modal, no prompt.
+  try { load(); applyAvatar(); } catch (e) {}
+  // The DOM the header lives in may not be parsed yet if the script tag ever
+  // moves; repaint once it is, so first paint is correct either way.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      try { applyAvatar(); } catch (e) {}
+    });
+  }
+
   // ── The seam ────────────────────────────────────────────────
   // MERGE, never replace: src/utils/profile.js merges its read accessors
   // into this same object, and neither file may care which loaded first.
@@ -1621,6 +1691,9 @@
     processImage: processImage, setAvatarFromFile: setAvatarFromFile,
     setAvatarFromImage: setAvatarFromImage,
     clearAvatar: clearAvatar, applyAvatar: applyAvatar,
+    // b371 — the ONE portrait source of truth + its change notification.
+    AVATAR_ATTR: AVATAR_ATTR, paintAvatars: paintAvatars,
+    onAvatarChange: onAvatarChange,
     decorateCharacterPage: decorateCharacterPage,
     // b229: the one trigger both click affordances call — reused, not forked.
     openAvatarPicker: openAvatarPicker, decorateTopbarAvatar: decorateTopbarAvatar,

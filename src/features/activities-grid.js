@@ -188,11 +188,22 @@ function tileForArtisan(recipe, skillId) {
   /* b237 (tester): each input shows what you OWN (e.g. "2× Willow 200"), brightened
      and turned red when you're short of one action's worth. data-have/data-need let
      lightUpdate() refresh the count live as you consume stock. */
+  /* b372 — the input NAME (never the count, never the tile) opens that item's
+     flyout. A player staring at a red "Willow Plank 0" is asking exactly one
+     question and the tile could not answer it.
+
+     Only the name is the target, and that is deliberate: the tile's body is
+     the start button, so the link has to be a small, aimed gesture rather than
+     a region. Both outcomes of a mis-tap are cheap and reversible (a craft you
+     can stop, a popup you can close), which is what makes this safe to do
+     inside a click target at all. */
   const inputsLine = Object.entries(inputs).map(([id, q]) => {
     const d = window.ITEMS?.[id];
     const nm = d ? d.n.split(' ')[0] : id;
     const have = (window.G.inventory && window.G.inventory[id]) || 0;
-    return `${q > 1 ? q + '× ' : ''}${nm} <span class="at-have${have < q ? ' low' : ''}" data-have="${id}" data-need="${q}">${fmtQty(have)}</span>`;
+    const nmHtml = (typeof window.hrInspectSpan === 'function')
+      ? window.hrInspectSpan(id, nm, 'at-in-nm') : nm;
+    return `${q > 1 ? q + '× ' : ''}${nmHtml} <span class="at-have${have < q ? ' low' : ''}" data-have="${id}" data-need="${q}">${fmtQty(have)}</span>`;
   }).join(' + ');
   // b225: the campfire ruling — cooking is ungated but the open fire burns, so
   // every cooking tile carries its live burn risk. Built by the SAME helper the

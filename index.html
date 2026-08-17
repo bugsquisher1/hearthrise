@@ -911,6 +911,11 @@
   <!-- b138: Profile launchpad (resume / today / milestone / rename) -->
   <script src="src/features/profile-launchpad.js?v=371"></script>
   <script src="src/legacy.js?v=371"></script>
+  <!-- b372: every ITEM REQUIREMENT is a link to the bag's own item flyout.
+       Loads right after legacy.js because it wraps openInvDetail and because
+       every requirement renderer below (homestead, clan seat, dungeons)
+       splices window.hrInspectAttrs() into its chips. -->
+  <script src="src/features/item-inspect.js?v=371"></script>
   <!-- b219 (#7): the toast queue. Loads right after legacy.js — notify() in
        legacy.js delegates to it and falls back to its own minimal render if
        this ever fails to load, so order is a preference, not a hard dep. -->

@@ -257,10 +257,21 @@
          The requirement list is now the house style this game already has for
          costs (`.hh-room-cost` / `.hh-cost`, homestead-rooms.css): compact
          chips that WRAP, each carrying art, name and count as one unit. */
-      return '<span class="hh-req' + (ok ? ' is-met' : '') + '" title="' +
-        name + ': you hold ' + (h.known ? have : 'an unknown amount') + ' of ' + need + '">' +
+      /* b372 (KD420, verbatim): "clicking on the maple planks required for my
+         house upgrade and have it show where it's acquired." THIS is the chip
+         he was looking at — the property upgrade's requirement list — and it
+         was the end of the road: it named a plank, coloured it red, and left
+         the player to go and find out elsewhere that a Maple Plank is sawn at
+         Crafting 45 from a Maple Log. The reverse index has known that since
+         b242. The chip is now a link to the bag's own item flyout, which is
+         where that answer already lives. Gold is deliberately NOT a link —
+         hrInspectAttrs returns '' for it, so it stays ordinary text. */
+      var insp = (typeof window.hrInspectAttrs === 'function') ? window.hrInspectAttrs(k) : '';
+      var inspHint = (typeof window.hrInspectHint === 'function') ? window.hrInspectHint(k) : '';
+      return '<span class="hh-req' + (ok ? ' is-met' : '') + '"' + insp + ' title="' +
+        name + ': you hold ' + (h.known ? have : 'an unknown amount') + ' of ' + need + inspHint + '">' +
         '<span class="hh-req-art">' + art + '</span>' +
-        '<span class="hh-req-name">' + name + '</span>' +
+        '<span class="hh-req-name hr-si">' + name + '</span>' +
         '<b>' + (h.known ? Math.min(have, need)
           : '<span class="bal-pending" role="status" title="Waiting for the server">—</span>')
         + ' / ' + need + '</b></span>';
@@ -830,8 +841,12 @@
           effect: nm + mark + '<span class="hh-rung-eff">' + esc(row.effects) + '</span>' +
             (row.reserved ? '<span class="hh-rung-resv">' + esc(row.reserved) + '</span>' : ''),
           // An owned rung shows no price — you already paid it.
+          /* b372: `id` rides across the seam. The gate line below has always
+             carried one; the COST lines dropped it here, which would have left
+             the modal's blueprint inspectable and its planks not — the exact
+             requirement KD420 asked about. */
           costs: row.owned ? null : row.cost.map(function (c) {
-            return { have: c.have, known: c.known, need: c.need, label: c.label };
+            return { id: c.id, have: c.have, known: c.known, need: c.need, label: c.label };
           }),
           /* The third requirement class, handed to the seam as data. Costs are
              a number you grind toward; an item gate is a THING you either hold
@@ -871,7 +886,7 @@
       var nextRow = null;
       for (var li = 0; li < d.ladder.length; li++) if (d.ladder[li].next) nextRow = d.ladder[li];
       var costs = nextRow ? nextRow.cost.map(function (c) {
-        return { have: c.have, need: c.need, label: c.label };
+        return { id: c.id, have: c.have, known: c.known, need: c.need, label: c.label };
       }) : null;
       /* The pinned bar carries the gate too, so the answer to "why can't I
          press this" is ON the bar (item, held/not, and where it comes from)

@@ -63,10 +63,18 @@ function recipeCard(r, skill) {
   const outId = r.output;
   const outQty = r.outputQty || 1;
   const inputs = inputsOf(r);
+  /* b372 — THE BOOK'S WHOLE PREMISE WAS ONE TAP SHORT. This screen exists so a
+     player can "see the entire tree and plan toward it", and every ingredient
+     chip was a leaf: it named Willow Plank and stopped, so planning meant
+     leaving the Book to go and find out where a Willow Plank comes from. Each
+     ingredient now opens the item flyout — which carries the reverse index's
+     Source line — so the tree is walkable inside the Book. */
+  const insp = (i) => (typeof window.hrInspectAttrs === 'function') ? window.hrInspectAttrs(i) : '';
+  const hint = (i) => (typeof window.hrInspectHint === 'function') ? window.hrInspectHint(i) : '';
   const ings = Object.entries(inputs).map(([id, q]) => {
     const have = (G.inventory && G.inventory[id]) || 0;
-    return `<span class="rb-ing${have < q ? ' short' : ''}" title="${esc(nameOf(id))} — you have ${have}">
-      <span class="rb-ing-ic">${iconHtml(id)}</span>${q > 1 ? q + '× ' : ''}${esc(shortName(id))} <b>${fmtQty(have)}</b></span>`;
+    return `<span class="rb-ing${have < q ? ' short' : ''}"${insp(id)} title="${esc(nameOf(id))} — you have ${have}${esc(hint(id))}">
+      <span class="rb-ing-ic">${iconHtml(id)}</span>${q > 1 ? q + '× ' : ''}<span class="hr-si">${esc(shortName(id))}</span> <b>${fmtQty(have)}</b></span>`;
   }).join('<span class="rb-plus">+</span>');
   let lock = '';
   if (gatedLocked) lock = `<div class="rb-lockmsg">Locked · needs the ${esc(nameOf(r.gated))}</div>`;

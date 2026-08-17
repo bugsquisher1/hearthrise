@@ -2,98 +2,93 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
-### 2026-08-17 · b369 — two player-reported defects, and BOTH of them were a list that was
-### missing an entry. I found a third, worse instance of one of them while photographing the fix.
+### 2026-08-17 · the background set spec + prompt pack. The brief I was handed for the
+### composition was WRONG, and I only know that because I photographed the screen.
 
-**The Equipment tab, and the sentence I would put in front of the next person: a fixed grid row
-cannot describe a square cell whose width is fluid.** Five sheets were each authoring one piece of
-`.td-doll`'s geometry — legacy.css said three 110px columns for a doll placed in FOUR (stale since
-b216), legacy.css said it again in a mobile block at 130px, legacy.css said it a THIRD time at
-`.invc-equip-col` with `repeat(6,minmax(64px,90px))` rows on a `width:100%` grid, art-direction.css
-said fluid columns against a fixed 84px row, and theme-cozy.css said the slots were square with
-`height:auto`. Any two of those are fine alone. The row-plus-square pair only agrees when the column
-happens to resolve to exactly the row height, and the instant the host is wider every cell grows out
-of its row and paints over the row below.
+**The finding I would put first.** `combat-screen-rework.md` §5 — the spec I was told to build the
+prompts against — says to put the detail in the OUTER THIRDS and keep a quiet CENTRE. I booted the
+real client and measured the arena instead of trusting it. **The hole is not a centre, it is three
+vertical slots.** Desktop: `.combat-arena` spans x 432–1430; the player plate sits 587–756 and the
+foe plate 1019–1361; everything below the portraits — names, HP bars, swing bars, six stat tiles,
+four style buttons — is opaque type across the FULL width. So a backdrop is seen through gaps of
+roughly **155, 263 and 69 px, top half only**. At 922x423 it collapses further: one full-width band
+of ~85 px in a 291 px arena, **29%**. **A painted focal object — one arch, one throne — lands behind
+a hero plate and is never seen by anybody.** Hence the wrapper rule every prompt in the pack carries:
+landmarks in the TOP THIRD, and the landmark must REPEAT ACROSS THE WIDTH (a rank of trunks, a row of
+windows, a line of standing stones), with the lower half a dark quiet ground plane. That is not a
+refinement of §5, it is a different instruction, and the difference is one screenshot.
 
-**I proved that rather than asserting it, and the proof is the thing worth keeping.** My harness at
-922x423 did NOT reproduce Tyler's overlap — his host was wider than mine, so at first I had a
-screenshot I could not match. Widening the host in-page settled it in one probe: **340px host → 0
-overlapping pairs; 440px → 10; 700px → 10 (170px cells in an 84px row); 860px → 16 (210px cells).**
-A 210px cell holding a ~200px sprite across the CAPE slot IS his photograph. **A defect that only
-appears past a threshold is not intermittent — it is a threshold you have not crossed yet, and the
-way to cross it is to move the input, not to keep re-running the same viewport.** The regression
-test stretches the host to 860px for exactly that reason: a fixed-row regression is invisible at the
-natural width, which is precisely why it shipped.
+**The second measurement that changed a decision: one image, aspect ratios from 1.36 to 2.47.**
+`.combat-arena` is 998x736 on desktop (AR 1.36) and 672x291 on a landscape phone (AR 2.31);
+`#panel-skills` is 1.57 and 2.47. With `center top / cover` on a 16:9 source the guaranteed-visible
+region across every mount is the **central 84% of the width and the top 72% of the height** — one
+number the whole wave can be judged against. And the anchor has to change: the three existing
+dungeon.jpg rules use `center bottom`, which crops away the top third that carries the read, at
+exactly the viewport where the top third is all there is.
 
-**The third instance, found by photographing a surface I only opened because the release visual gate
-told me to.** The inventory Equip pane was not latent at all — `.invc-equip-col .td-doll` measured
-**152px cells and 19 overlapping pairs at 922x423, and 9 on a 1440px desktop, in the shipped build.**
-Nobody had reported it because that pane's doll sits behind a sub-tab. I only looked because the gate
-names inventory as one of the two densest screens, and I only measured because a screenshot of a dark
-overlapping grid on a dark card does not obviously read as broken. **The gate paid for itself on a
-surface that was not in my brief.**
+**Where I refused the brief's own presumption.** The task said the files "presumably" land in
+`assets/icons-bundle/hearthfire/backgrounds/`. They must not. `backgrounds/` already exists one level
+up, already ships, and is already referenced by three stylesheets; `hearthfire/` is a *class* —
+transparent, 256px, square, keyed to an ITEMS/MONSTERS id — and everything that walks that tree
+(`art-wave-matte.mjs`, the preflights, the smoke guard that counts hearthfire renders) assumes those
+properties. A 1920x1080 opaque plate satisfies none of them and would be matted by a tool whose
+entire job is removing backgrounds from things that are not backgrounds.
 
-**The fix is one knob, and the shape of it is the point.** `--td-cell` in legacy.css; columns
-`repeat(4, minmax(0, var(--td-cell)))` so a narrow container still shrinks them (b216's requirement:
-the doll has to fit Combat's 320px column) and a wide one gets a CENTRED doll instead of an inflated
-one; rows `auto`, so a row is whatever the square slot in it is and can never disagree with it. Every
-other sheet lost its tracks. Desktop went 71x84 → 84x84 square, and the doll lost 178px of dead
-panel because it declared six rows for a layout that has used four since b216 — the "Full inventory"
-button is attached to the doll now instead of stranded 300px below it.
+**The scheme, and why 11 and not 6 and not 108.** Class, not tier. 108 monsters, 11 classes, 6 tiers;
+`cls` is live on all 108 so it is a data lookup with no schema. Tier is a token tint on the
+`.fs-scrim` element that already exists for it. Per-tier was cheaper and is wrong for a reason worth
+keeping: **a player fights three classes inside one tier in a single sitting, so a tier scheme
+changes the backdrop when nothing about the fight changed and never changes it when the foe does.**
 
-**Two cascade findings I would have got wrong by reading.** (1) I first parked the `--td-cell: 84px`
-default on `body[data-theme] .td-doll`, which silently outranks the plain `.td-doll` the
-mobile-landscape media query uses — a themed page kept the DESKTOP cell on a phone and the media
-query looked like it was not firing. **A default belongs at the same specificity as its overrides.**
-Same family as the b361 base-rule trap, arriving from the other side. (2) The mobile block's
-`min-height:56px` was a third opinion about the cell's height; against a 52px cell it would have made
-a 52-wide, 56-tall slot — not square — to enforce a 44px tap floor the cell already clears by 8px.
+**Skills got a WALL, not a landscape, and that is the crop math talking.** `#panel-skills` scrolls
+and crops to AR 2.47 on a phone; a scene with a horizon loses its horizon. A craft-hall wall has no
+horizon to lose, reads for Woodcutting and for Smithing without pretending to be either, and fills
+the large dead area under the node grid that the desktop capture shows.
 
-**Where I spent the density budget, and the label ruling.** 52px is the largest cell whose four rows
-clear the fold under this screen's measured 179px header (doll 228px; 179+228 = 407 of 423). At 52px
-"NECKLACE" at the project's 14.5px type floor rendered as **"ECKLAC"** and "OFFHAND" as **"FFHAND"**
-spilling onto their neighbours — b139's banned half-word, and there is no cell size that fits both
-the word and the fold. So the word goes and the gilt glyph grows to 58%, which is the answer b216
-gave for the inventory doll and b366 gave for the fight rail at 168px. **Three passes reaching the
-same ruling independently is a house style, not a compromise.** Desktop keeps the words and they now
-fit completely, because the cell got wider.
+**The bounty board: what the painting ADDS vs REPLACES, decided by looking at the render.** The
+board is already the best-built object in the game — deckled notices, per-column tilt, hung lantern,
+recessed field. Two honest defects in the capture: it **stands in a void** (a contact shadow falling
+on nothing) and its plank field is a `repeating-linear-gradient` — perfectly regular 62px stripes,
+no grain, no knots, no nail rust. So: `bg_board_wall` ADDS the wall behind (`#panel-bounty`, nothing
+removed), `bg_board_planks` REPLACES only the gradient inside `.bb-board::before` — keeping the
+inset, both inset box-shadows and the lantern radial, because a flat photograph of planks with no
+recess is a step backwards. Frame, notices and lantern stay CSS: they respond to bounty count, and a
+painted 9-slice would freeze a board whose height changes with its content.
 
-**Defect 2 was the same shape as defect 1: a list with a missing entry.** `restoreEquipSnapshot`
-repainted three inventory surfaces on a server refusal. The b366 fight rail is a FOURTH surface that
-draws worn gear, and it is the one on screen when you equip from a fight — **so the refusal a player
-is most likely to see was the one the rollback could not correct.** Tyler saw his sword worn in the
-rail and in his bag at once. There is now one `repaintEquipSurfaces()` (published as
-`window.__repaintEquipSurfaces`), which also picks up the Character → Equipment doll, and each entry
-is guarded independently so a renderer that throws cannot stop the ones after it from being brought
-back into agreement. The fight rail's half is `HearthriseCombatScreens.repaintGear()` — deliberately
-NOT `renderManage`, which needs a foe and repaints a drop table that gear does not change.
+**The known risk, stated in the pack rather than buried.** The one thing this pack asks for is the
+thing three previous waves fought to prevent — an OPAQUE FULL-BLEED SCENE. Picker §0.10b/c is a long
+record of the model painting backdrops, ground planes, skies and frames when told not to. That is a
+good omen for this wave, not a bad one. What is genuinely unproven is the top-third/dark-bottom
+composition rule, so the pack ends by asking Tyler for ONE image first — the same "land one first to
+prove the composition" gate §5 already set, honoured rather than quietly skipped.
 
-**Why the existing landscape guard never saw any of this, which is the finding I would carry forward
-hardest.** b327 IS a 922x423 iframe probe and it is a good one — and it renders `#panel-inventory`
-markup only. The paper-doll also lives on Character → Equipment, in a different panel, and no guard
-had ever rendered that panel at a short viewport. **A guard keyed to a PANEL cannot protect a
-COMPONENT that has more than one mount.** b369's guard mounts the same doll twice on purpose —
-`#char-equip` and `.invc-equip-col` — and asserts the invariants (square, non-overlapping at any host
-width, above the fold, above the tap floor) rather than the numbers.
+**Three things I found while measuring that are not about backgrounds.** (1) **`cozy-light` is
+unreachable**: theme-picker has it commented out of `THEMES`, `readSaved()` returns `'hearthlight'`
+unconditionally, and `applyTheme('cozy-light')` REMOVES the attribute — so every
+`body[data-theme="cozy-light"]` rule in the codebase, including b362's carefully-argued light-stage
+block in combat-screens.css, is **dead CSS**, and any "verify cozy-light" that SETS the attribute is
+testing a state no player can reach. (2) **Five darkening layers** sit over one photograph on
+`.combat-arena` across four sheets, two of them `!important` — art-direction.css's own comment
+already apologises for the stack, and the wiring pass must delete rather than add a sixth.
+(3) `combat-screens.js:97` still returns a raw 👾 as monster art when nothing is wired — rarely
+reached at 104/111, but live, in the file that owns the two densest combat surfaces.
 
-**Verified in-browser, my own server rooted in THIS worktree** (the launch.json trap this log has
-recorded three times). 5 surfaces × 2 sizes: **0 404s, 0 console errors, 0 page errors, 0 broken or
-tiny images, 0 horizontal scroll.** Then I READ the captures — the Equipment tab at 922x423 and
-1440x900, inventory bag and equip, the War Table, and the Fight screen with its rail intact. Suite
-**821/821**, three green runs. Both tests mutation-proven and each names its own defect: restoring
-the fixed row track fails the natural-width overlap assert; restoring `.invc-equip-col`'s tracks
-fails the inventory-mount assert (9 pairs, "td-helmet over td-necklace by 139x310px"); removing the
-`repaintGear()` call leaves the rail counter at 0. **No version bump, no push.**
+**Verified in-browser, my own server rooted in THIS worktree** (launch.json serves the main tree —
+the trap recorded three times in this log). 2 viewports x 4 surfaces, **0 console errors, 0 page
+errors**. Captures in `assets/art-pilot/_screenshots/bg-spec/`, and I READ them — the desktop fight
+capture is where the three-slot finding came from, and the bounty capture is where the void behind
+the board came from. **No art generated, no spend, no wiring, no version bump, no push.** All 14
+prompts verified under the 1000-char cap (max 983, min 798) by the emitter that writes them, so the
+wrapper is byte-identical across all 13 scene prompts by construction rather than by proofreading.
 
-**Known limitations, stated plainly.** The Equipment pane is still a 228px doll centred in an 858px
-column with ~300px of dead space either side — a landscape phone's best asset is its WIDTH and this
-screen does not use it. Fixing that is a layout redesign (doll beside the Stats pane), not a defect
-fix, and I did not smuggle it in here. Ring 1 and Ring 2 are now indistinguishable at mobile density
-since they share a glyph and lost their words — pre-existing on the two surfaces that already made
-this trade, and the slots are in fixed learnable positions. The inventory doll's cell shrinks to 46px
-in its narrow column, 2px above the tap floor. And the two tab rows above the doll eat **179px of a
-423px screen (42%)**; I sized the doll around that rather than reforming it, and it is the next real
-win on this screen.
+**Known limitations.** The composition law is derived from the CURRENT Fight screen; if COMBAT-UI-18
+(loot history) or the metrics strip changes the row stack, the free band moves and the law needs
+re-measuring — which is an argument for generating one and photographing it. The tier-tint colours
+are specified as a ramp direction (T1 warm/green → T6 cold/violet), not as six token values; those
+are a wiring decision I did not pre-empt. And I did not spec a War Table backdrop (it is already a
+wall of 160px portraits — a backdrop there competes with 100 paintings and wins nothing) or
+dungeon/raid override scenes (the mount supports them; I have not measured those screens, and
+speccing art for a composition I have not measured is exactly the mistake this pass exists to fix).
 
 ### 2026-08-16 · b368 — three player-reported defects, ONE root cause, and the fix I shipped
 ### is a class test on a div. The animation Tyler said I removed was never removed.

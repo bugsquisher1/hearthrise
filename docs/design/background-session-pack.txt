@@ -1,0 +1,379 @@
+# Background Session Pack — 14 painted backdrops, ready to paste
+#
+# Art Director, 2026-08-17. Same flow as monster-session-pack.txt: paste a
+# prompt into the Recraft web UI (Create -> describe -> generate), 2 images
+# per generation, keep the better one.
+#
+# EXPORT SETTINGS — DIFFERENT FROM THE ITEM AND MONSTER WAVES. Read this.
+#   * Aspect: the WIDEST LANDSCAPE the UI offers. 16:9 preferred. Never square.
+#   * Background: OPAQUE. Do NOT tick transparent. These are backdrops — a
+#     transparent one is a hole in the screen, and they must not go through
+#     tools/art-wave-matte.mjs, which exists to cut backgrounds OUT.
+#   * Format: PNG out of Recraft is fine; Claude converts to JPEG at wiring.
+#   * No AI label.
+#
+# NAMING. Each prompt STARTS with its file id, so the auto-named download
+# already identifies itself — but if your browser names it anything else,
+# rename it to the "NAME THE DOWNLOAD" line above the prompt. Drop everything
+# in ONE folder. Do not rename beyond that; the id is what the wiring keys on.
+#
+# Any subset ships. Every unshipped class falls back to the current
+# dungeon.jpg, so a half-finished session is a half-improved game, not a
+# broken one.
+
+
+=========================================================================
+ 1 · THE SET, AND WHY IT IS 14 FILES AND NOT 108
+=========================================================================
+
+  11 combat backdrops, keyed to MONSTER CLASS (`cls`), not to the monster.
+     108 monsters, 11 classes, 6 tiers. Class is already the identity
+     carrier and is a live field on all 108, so this is a data lookup with
+     no new schema. TIER is a CSS token tint on the existing .fs-scrim
+     layer (T1 warm/green -> T6 cold/violet) — a tint, not 66 more files.
+     Counts per class, measured from src/data/monsters.js:
+       humanoid 15 · mammal 14 · undead 14 · vermin 12 · human 11 ·
+       demon 8 · elemental 8 · dragon 8 · plant 6 · construct 6 ·
+       extradimensional 6
+     Per-tier (6 files) was the cheaper option and it is the wrong one: a
+     player fights across three classes inside one tier in a single sitting,
+     so a tier scheme changes the backdrop when nothing about the fight
+     changed, and never changes it when the foe does. Class earns its keep.
+
+   1 skills backdrop. Deliberately ONE, and deliberately a WALL rather than
+     a landscape — see §2, the skills panel scrolls and crops hard, and a
+     scene with a horizon loses its horizon. A craft-hall wall reads for
+     Woodcutting and for Smithing without pretending to be either.
+
+   2 bounty board files. §3 spells out what they ADD and what they REPLACE.
+
+  NOT IN THIS PACK, on purpose: War Table hub, dungeon/raid override scenes,
+  a painted board FRAME. Reasons in §5.
+
+
+=========================================================================
+ 2 · THE COMPOSITION LAW — measured off the rendered game, not assumed
+=========================================================================
+
+  Every number below came from booting the real client and reading the
+  container rects at both shipping viewports (1440x900 desktop and 922x423
+  mobile-landscape). Screenshots: assets/art-pilot/_screenshots/bg-spec/
+
+  MOUNT SIZES (CSS px)
+    .combat-arena   desktop 998 x 736 (AR 1.36)   landscape 672 x 291 (AR 2.31)
+    #panel-skills   desktop 1260 x 803 (AR 1.57)  landscape 858 x 347 (AR 2.47)
+    #panel-bounty   desktop 1260 x 803            landscape 858 x 347
+    .bb-board       desktop 870 x 355 (AR 2.45)   landscape 794 x 337 (AR 2.36)
+    .bb-board plank field (inset 40/14/12) desktop 842 x 303
+
+  So: ONE image is asked to fit aspect ratios from 1.36 to 2.47. With
+  `background: center top / cover` on a 16:9 source, the guaranteed-visible
+  region across every mount is the CENTRAL 84% OF THE WIDTH and the TOP 72%
+  OF THE HEIGHT. Everything that has to be seen lives inside that box. The
+  outer 8% left and right, and the bottom 28%, are crop tolerance.
+
+  DELIVERY SIZE: 1920 x 1080. Not larger. The widest mount is 998 CSS px at
+  DPR 2 = 1996 device px; 1920 is within a hair of that and 2560 would be
+  paying for pixels no screen resolves. (The hearthfire bundle is already
+  23 MB with no optimiser in the toolchain — see §4.)
+
+  THE FINDING THAT CHANGED THE BRIEF. combat-screen-rework.md §5 says to put
+  the detail in the OUTER THIRDS and keep the CENTRE quiet. I photographed
+  the screen and that is not the shape of the hole. On desktop the two hero
+  plates sit at x 587-756 and x 1019-1361 inside an arena spanning 432-1430,
+  and every row below the portraits — names, HP bars, swing bars, six stat
+  tiles, four style buttons — is opaque type across the FULL width. The
+  painted plate is therefore seen through three vertical slots roughly 155,
+  263 and 69 px wide, in the TOP HALF ONLY. At 922x423 it is worse: the free
+  band is the top ~85 px of 291, about 29% of the arena, full width.
+
+  Hence the wrapper rule, and it is the whole reason these prompts are
+  written the way they are:
+
+    (a) ALL RECOGNISABLE LANDMARKS IN THE TOP THIRD. Below the top third the
+        image is under type at both viewports and its job is to be dark.
+    (b) THE LANDMARK MUST REPEAT ACROSS THE WIDTH. A single painted focal
+        object — one arch, one throne, one tree — will land behind a hero
+        plate and be invisible on desktop. A rank of trunks, a row of
+        windows, a line of standing stones survives being seen through a
+        155 px slot. This is why every subject line below says "across the
+        whole width" and why none of them names a hero object.
+    (c) THE LOWER HALF IS A DARK QUIET GROUND PLANE, held in the darkest two
+        value steps, so the scrim over it can be LIGHT.
+
+  THE SCRIM BUDGET (art-direction.css conventions). Today .combat-arena is
+  painted by three separate sheets stacking to ~90% black over dungeon.jpg,
+  which art-direction.css line 2027 already complains about in writing. The
+  wiring in §4 collapses that to ONE rule at COMBAT-UI-17 opacity: about 35%
+  at the edges and 12% at the centre. That alone recovers art we already own.
+  The art must be paintable UNDER a 12% scrim, i.e. it must arrive dark
+  enough on its own. A bright noon scene is unusable here at any scrim.
+
+  ANCHOR: `center top`, not `center bottom`. The current dungeon.jpg rules
+  use `center bottom`, which is exactly backwards for this composition — it
+  crops away the top third that carries the read, at the one viewport
+  (922x423) where the top third is all you get.
+
+
+=========================================================================
+ 3 · THE PROMPTS
+=========================================================================
+
+  Wrapper is byte-identical across all 13 scene prompts (the plank field is
+  a surface, not a place, and carries its own shorter wrapper). Every prompt
+  is under the 1000-character cap. Positive-only per art-direction-picker.md
+  §0.10d: the scenes are described by the state they are uniquely IN
+  ("silent and long deserted, the place itself as the subject") and never by
+  a list of what must not appear — b360 proved that naming a feature the
+  subject lacks is how you summon it.
+
+
+----- 3a · COMBAT BACKDROPS (11) --------------------------------------
+
+=== bg_combat_vermin.png ===  [class vermin · 12 monsters]
+NAME THE DOWNLOAD: bg_combat_vermin.png
+bg_combat_vermin, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a rotting granary interior, a row of leaning grain sacks along the back wall, heavy timber rafters and hanging chains across the top of the frame, spilt grain and chaff underfoot, dust hanging in a shaft of cold light from a high slot window; sour straw yellow, damp timber brown, mould grey. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_combat_mammal.png ===  [class mammal · 14 monsters]
+NAME THE DOWNLOAD: bg_combat_mammal.png
+bg_combat_mammal, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a deep pine wood, a rank of tall dark trunks marching across the whole width, low mist lying between them, pale gold shafts coming down through the canopy, needle litter and fallen boughs below; moss green, wet bark brown, cold silver mist. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_combat_plant.png ===  [class plant · 6 monsters]
+NAME THE DOWNLOAD: bg_combat_plant.png
+bg_combat_plant, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: an overgrown ruin, broken columns and a fallen lintel standing in a row, thick roots prying up the flagstones, curtains of vine hanging across the top of the frame, green gloom under a closed canopy; wet stone grey, deep leaf green, one pale sun break. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_combat_humanoid.png ===  [class humanoid · 15 monsters]
+NAME THE DOWNLOAD: bg_combat_humanoid.png
+bg_combat_humanoid, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a war camp at dusk, a sharpened timber palisade running the full width, banners on tall poles, cook-fires banked low along the line, hide tents ranked behind it, trodden mud churned in front; ember orange firelight, mud brown, cold blue dusk. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_combat_human.png ===  [class human · 11 monsters]
+NAME THE DOWNLOAD: bg_combat_human.png
+bg_combat_human, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a great stone hall, tall arched windows in a row the whole way down the wall, heavy tapestries hung between them, a banner rail above, a long flagstone floor running away into the dark; cold daylight in the windows, deep umber stone, faded crimson and gold cloth. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_combat_undead.png ===  [class undead · 14 monsters]
+NAME THE DOWNLOAD: bg_combat_undead.png
+bg_combat_undead, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a barrow field under a low moon, leaning standing stones scattered across the whole width, a long burial mound on the skyline, cropped grass, knee-deep ground fog; bone grey, cold moon blue, sickly green in the fog. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_combat_demon.png ===  [class demon · 8 monsters]
+NAME THE DOWNLOAD: bg_combat_demon.png
+bg_combat_demon, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a cracked basalt plain, jagged black rock spires standing in a broken line, deep fissures glowing from far below across the whole width, fine ash drifting down, heat shimmer above the cracks; ember orange and hot red from below, black basalt, grey ash. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_combat_dragon.png ===  [class dragon · 8 monsters]
+NAME THE DOWNLOAD: bg_combat_dragon.png
+bg_combat_dragon, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a high cliff ledge above the clouds, broken rock teeth along the whole edge, a flat sea of cloud beyond and below, huge weathered bones half buried in the scree; cold dawn blue-grey, pale gold on the rock rims, bone white. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_combat_elemental.png ===  [class elemental · 8 monsters]
+NAME THE DOWNLOAD: bg_combat_elemental.png
+bg_combat_elemental, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a shattered elemental node, slabs of raw stone hanging in the air in a broken ring across the width, arcs of charged light leaping between them, a bare scorched rock floor; cold steel blue, white-hot arc light, dark wet stone. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_combat_construct.png ===  [class construct · 6 monsters]
+NAME THE DOWNLOAD: bg_combat_construct.png
+bg_combat_construct, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a forge workshop floor, heavy chains and block-and-tackle hanging from the rafters across the whole width, half-built armoured forms standing on stands in a row, an open forge throwing orange light from one end; forge orange, iron grey, soot black. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_combat_extradimensional.png ===  [class extradimensional · 6 monsters]
+NAME THE DOWNLOAD: bg_combat_extradimensional.png
+bg_combat_extradimensional, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a torn stone arch opening on a starfield, the broken arch spanning the top of the frame, drifting rock shards turning slowly, the floor giving out into empty void below; violet-black void, cold white stars, faint gold catching the cut stone. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+
+----- 3b · SKILLS + BOUNTY BOARD (3) ---------------------------------
+
+=== bg_skills_crafthall.png ===  [skills screen · one file, all 10 skills]
+NAME THE DOWNLOAD: bg_skills_crafthall.png
+bg_skills_crafthall, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a guild craft-hall wall, a rank of heavy timber posts across the whole width, tools hung on pegs between them, axe and saw and tongs and hammer, shelves of stoppered jars above, a forge banked low at one end, a worn workbench edge along the bottom; hearth gold, deep umber timber, iron grey. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_board_wall.png ===  [bounty board · the wall BEHIND the board]
+NAME THE DOWNLOAD: bg_board_wall.png
+bg_board_wall, a wide painted fantasy environment plate, silent and long deserted, the place itself the subject: a village square wall at dusk, mortared fieldstone below and a timber-framed upper storey running the whole width, a shuttered window, an empty iron lantern bracket, a low doorway, wet cobbles along the bottom; warm lantern gold, damp grey stone, cold blue dusk. Backdrop composition: landmarks all in the top third and repeating across the entire width, no focal point and nothing at the exact centre; the lower half falls away to a plain dark ground plane with almost no detail. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range with the lower half in the darkest two steps; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== bg_board_planks.png ===  [bounty board · the plank FIELD inside the frame]
+NAME THE DOWNLOAD: bg_board_planks.png
+bg_board_planks, a painted texture plate seen flat-on and square to the viewer, one flat surface filling the whole frame: a weathered oak plank wall, five or six wide sawn boards running side to side edge to edge, deep grain, dark knots, split ends, rows of old square iron nail heads, a few torn paper corners still pinned under them, wax drips and rain staining; lit warm from the upper right corner and falling to near-black at the lower left; oak brown, grey weathering, lantern gold. Confident thick brush strokes, heavy darkened edges, one warm key light with a cool bounce fill, wide value range; ember orange, hearth gold, deep umber, steel-blue accents. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+
+=========================================================================
+ 4 · WIRING PLAN — where each file lands and what consumes it
+=========================================================================
+
+  NO WIRING HAS BEEN DONE. This section exists so the wave lands in one
+  pass when the art arrives.
+
+  4.1 · WHERE THE FILES GO
+
+    assets/icons-bundle/backgrounds/
+
+    NOT assets/icons-bundle/hearthfire/backgrounds/. Two reasons and the
+    second one is the load-bearing one:
+      * backgrounds/ ALREADY EXISTS at that path, already ships, and is
+        already referenced by three stylesheets (dungeon.jpg). CLAUDE.md:
+        "assets/ structure is frozen — prefer add over rename."
+      * hearthfire/ is the transparent 256px matted-icon class. Everything
+        that walks that tree (art-wave-matte.mjs, the item/monster preflight,
+        the smoke guards that count hearthfire renders) assumes alpha, a
+        square canvas and an ITEMS/MONSTERS id. A 1920x1080 opaque plate
+        satisfies none of those and would trip guards it has no business
+        being measured by.
+
+    FORMAT: convert to .jpg at quality ~82 before committing. These are
+    opaque and need no alpha; dungeon.jpg is 74 KB. Budget <= 180 KB each,
+    ~2.2 MB for all 14. Committing 14 unoptimised PNG-24 plates would add
+    roughly 25 MB to a bundle that is already 23 MB with no optimiser in the
+    toolchain (third pass to say so — see the art-director log).
+
+  4.2 · COMBAT (11 files)
+
+    CONSUMER: src/styles/combat-screens.css — a data-attribute lookup, one
+    rule per class, so the paths stay in CSS beside the rest of the stage and
+    no JS builds an asset path.
+
+      body[data-theme] #panel-combat[data-foe-class="vermin"] .combat-arena {
+        background-image: url('../../assets/icons-bundle/backgrounds/bg_combat_vermin.jpg') !important;
+      }
+      /* ...one per class... */
+      body[data-theme] #panel-combat .combat-arena {
+        background-position: center top !important;
+        background-size: cover !important;
+        background-repeat: no-repeat !important;
+      }
+
+    `!important` is required, not decoration: audit-overrides.css:560 and
+    art-direction.css:2039 both set `background: ... !important` on this same
+    element. combat-screens.css loads LAST (index.html:133) so it wins the
+    tie, but only if it is also important.
+
+    *** DELETE, DO NOT LAYER. *** Both of those older rules must lose their
+    dungeon.jpg + scrim stack in the same commit. Leaving them is how the
+    arena got to ~90% black in the first place; art-direction.css line 2027
+    is a comment about exactly that mistake happening once already.
+
+    THE ATTRIBUTE: src/features/combat-screens.js, renderFight(), directly
+    beside the line that already reads
+        p.dataset.fightState = live ? 'live' : 'preview';   (~line 1199)
+    add
+        p.dataset.foeClass = m.cls || '';
+        p.dataset.foeTier  = m.tier || '';
+    `m` is already in hand there and is already null-guarded four lines above.
+    No new lookup, no new module, no engine change.
+
+    TIER TINT: on the EXISTING .fs-scrim element (combat-screens.css:440),
+    which was built for this — its comment says so. One rule per tier:
+      #panel-combat[data-foe-tier="1"] .fs-scrim { --tier-tint: <warm green>; }
+      ... T6 <cold violet> ...
+    and the scrim gradient mixes --tier-tint at low alpha. Tokens only; no
+    hardcoded colours (CLAUDE.md hard rule).
+
+    SCRIM OPACITY: drop .fs-scrim to ~12% centre / ~35% edge as §2 specifies.
+    Do this in the SAME commit as the first backdrop, and look at it — the
+    scrim and the plate are one decision, and half of it is a regression.
+
+  4.3 · SKILLS (1 file)
+
+    CONSUMER: src/styles/art-direction.css, a new rule on #panel-skills.
+    Pure CSS, no JS.
+      body[data-theme] #panel-skills {
+        background:
+          linear-gradient(180deg, rgba(10,8,5,.62), rgba(8,6,4,.88)),
+          url('../../assets/icons-bundle/backgrounds/bg_skills_crafthall.jpg')
+          center top / cover no-repeat;
+      }
+    NOTE: #panel-skills is `overflow: hidden auto` and scrolls. Keep the
+    default `background-attachment: scroll` — on a scroll container that
+    pins the image to the padding box and it does NOT travel with the
+    content. Do NOT reach for an `position:absolute; inset:0` pseudo-element
+    here: b361 shipped exactly that on the login gate and the painting
+    stopped dead at 423 px while the content scrolled past it, because
+    `inset:0` resolves against the padding box, not the scroll height.
+    The scrim here is heavier than combat (62-88%) on purpose: this panel is
+    a dense two-column reading surface, not a stage.
+
+  4.4 · BOUNTY BOARD (2 files) — what ADDS and what REPLACES
+
+    ADDS  bg_board_wall  -> #panel-bounty background, board-and-shop.css.
+          Nothing is removed. Today the board is a built object standing in
+          a void with a contact shadow falling on nothing; this gives it the
+          wall it is nailed to and fills the large dead area below the
+          Unlocks row. Scrim ~55-80%, heavier than combat: the notices are
+          near-white paper and the wall must stay behind them.
+
+    REPLACES  bg_board_planks -> the plank field ONLY, i.e. the
+          `repeating-linear-gradient(...)` inside
+          `#panel-bounty .bb-board::before` (board-and-shop.css:231-243).
+          Swap the gradient for `url(...) center/cover`; KEEP the element,
+          KEEP its `inset: 40px 14px 12px`, KEEP the lantern radial in the
+          first background layer and KEEP the two inset box-shadows — those
+          are what recess the field behind the frame, and a flat photograph
+          of planks with no recess is a step backwards. The painting is lit
+          from the upper RIGHT to agree with .bb-lantern, which hangs at
+          `top:4px; right:22px` and is not moving.
+
+    UNTOUCHED, and this is a decision, not an omission: .bb-notice (deckle
+    clip-path, per-column tilt, drop-shadow), the timber frame gradient and
+    ::after top beam, the .bb-lantern SVG. Those are dynamic, respond to
+    content count, and are already the best-built thing on the screen. A
+    painted 9-slice frame would freeze a board whose height changes with the
+    bounty count, and painted notices cannot carry live text.
+
+  4.5 · THEME SCOPING
+
+    Author every rule under `body[data-theme]`. Verified today:
+    src/theme-picker.js only ever ships `hearthlight` (readSaved() returns it
+    unconditionally; cozy-light is commented out of THEMES), and applyTheme
+    REMOVES the attribute for cozy-light — so `body` always carries
+    data-theme="hearthlight" in the shipping game, and every existing
+    `body[data-theme="cozy-light"]` rule in combat-screens.css is currently
+    unreachable. Do not add more of them. Do not author unprefixed rules that
+    would leak if a light theme ever returns.
+
+  4.6 · GUARDS TO SHIP WITH THE WIRING
+
+    * every bg_*.jpg referenced by CSS exists on disk and is under 180 KB
+      (an asset guard, not a render guard — CI cannot see a picture);
+    * `data-foe-class` is set for all 11 classes across a synthetic sweep of
+      MONSTERS, and its value set equals the class set in monsters.js, so a
+      new class cannot ship with no backdrop and no noise;
+    * the dungeon.jpg rules in audit-overrides.css and art-direction.css are
+      GONE (a scan, mutation-proven) — this is the stacked-scrim regression.
+    * and the release visual gate: assembled main, combat + inventory +
+      skills + bounty, 1440x900 AND 922x423, screenshots read.
+
+
+=========================================================================
+ 5 · WHAT I DID NOT SPEC, AND WHY
+=========================================================================
+
+  * A WAR TABLE (hub) BACKDROP. The hub is a 160 px portrait-card grid, 9
+    across — a wall of art already. A backdrop behind it competes with 100
+    monster portraits and wins nothing. If the hub needs anything it needs a
+    quieter card, which is CSS, not a purchase of your time.
+
+  * DUNGEON / RAID OVERRIDE SCENES. The mount supports it (the same
+    data-attribute lookup takes a `data-scene` override) and it is the right
+    eventual answer for named boss arenas, but specifying it now would have
+    you generate art for a screen whose composition I have not measured.
+    Next wave.
+
+  * PER-TIER FILES. 6 more images to say something a CSS tint says for free.
+    See §1.
+
+  * A PAINTED BOARD FRAME, PAINTED NOTICES, PAINTED BUTTONS. See §4.4.
+
+  * HONEST CAVEAT ON THE TWO BOUNTY FILES, from the 922x423 capture rather
+    than from the desktop one. On a landscape phone the board grows to fill
+    the panel and the three notices cover nearly all of the plank field, so
+    bg_board_planks is glimpsed in ~20px gutters and bg_board_wall is
+    reduced to a ~60px strip above the top beam. Both files earn their keep
+    on DESKTOP and are close to invisible on a phone. That is a fair trade
+    for two images and it is not a defect — but it is the reason the board
+    pair sits BELOW the eleven combat plates in priority, and the reason I
+    would generate the combat set first if the session runs short.
+
+  * KNOWN RISK, stated up front: the one thing this pack asks for that the
+    programme has never successfully asked for is an OPAQUE FULL-BLEED SCENE.
+    Every previous wave fought the model to stop it painting backdrops,
+    ground planes, skies and frames (picker §0.10b/c) — which means the
+    failure mode we have been fighting for three waves is this pack's
+    deliverable, and that is a good sign, not a bad one. What is genuinely
+    unproven is the TOP-THIRD/DARK-BOTTOM composition rule. Generate ONE
+    (bg_combat_vermin or bg_combat_mammal), send it back, and let me wire and
+    photograph it on the real stage before you sit through the other ten.
+    That is the same "land one first to prove the composition" gate
+    combat-screen-rework.md §5 already set, and it is worth honouring.

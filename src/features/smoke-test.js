@@ -31445,6 +31445,152 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('COMBAT-UI-12b: the Fight screen carries a PERSISTENT loadout / food / drops rail', () => {
+    /* b366 (Tyler): "I think you forgot some buttons? Loot? Eat food? How is
+       someone supposed to manage their loadouts/armor/weapon?" — and, of the
+       preview: show the foe's DROP TABLE and the gear I am actually wearing.
+       b362's answer was six unclickable 34px chips in the title bar, and the
+       loot rail only existed while a fight was live. This asserts the whole
+       rail is on screen BEFORE the fight, wearing real data.
+       MUTATION PROVEN: delete `renderManage(m)` from renderFight and the doll,
+       food and drop assertions all fail. */
+    const CS = window.HearthriseCombatScreens;
+    assert(CS, 'the two screens did not boot');
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      try { window.stopCombat(); } catch (e) {}
+      G.activeMonster = null;
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 9, bronze_sword: 1 });
+      G.playerMaxHp = 100; G.playerHp = 40;
+      window.equipItem('bronze_sword');
+      assert(CS.preview('goblin'), 'preview() refused a live monster id');
+
+      // 1 · THE EQUIPMENT PANEL — present, populated, and CLICKABLE.
+      const doll = document.getElementById('fsm-doll');
+      assert(doll, 'there is no loadout panel on the Fight screen');
+      const slots = doll.querySelectorAll('.fsm-slot');
+      assert(slots.length >= 10, 'the loadout panel shows ' + slots.length + ' slots — that is a chip strip, not a panel');
+      const weapon = doll.querySelector('.fsm-slot[data-slot="weapon"]');
+      assert(weapon, 'no weapon slot');
+      assert(!weapon.classList.contains('is-empty'), 'the weapon slot reads empty while a Bronze Sword is worn');
+      /* THE SHOWCASE HALF: a worn item shows its own art, not a slot glyph. */
+      assert(weapon.querySelector('.fsm-slot-art'),
+        'the worn weapon is drawn as an empty-slot mark — the point is seeing what you are wearing');
+      assert(/Bronze Sword/i.test(weapon.getAttribute('title') || ''),
+        'the worn weapon does not name itself: ' + weapon.getAttribute('title'));
+      const r = weapon.getBoundingClientRect();
+      assert(r.width > 0 && r.height > 0, 'the loadout panel has no box on screen');
+      assert(/\+\d+ atk/.test(document.getElementById('fsm-totals').textContent),
+        'the rail does not carry the equipment totals: ' + document.getElementById('fsm-totals').textContent);
+
+      // 2 · THE FOOD SLOT — pre-fight, naming the food and the count.
+      const food = document.getElementById('fsm-food');
+      assert(food, 'there is no food slot on the Fight screen');
+      const ftxt = food.textContent.replace(/\s+/g, ' ');
+      assert(/Cooked Shrimp/i.test(ftxt), 'the food slot does not name what you will eat: ' + ftxt);
+      assert(/9/.test(ftxt), 'the food slot does not say how many you hold: ' + ftxt);
+      assert(/\+\d+ HP/.test(ftxt), 'the food slot does not carry the heal: ' + ftxt);
+
+      // 3 · THE DROPS CONTAINER — pre-fight it is the FOE'S TABLE, with chances.
+      const drops = document.getElementById('fsm-drops');
+      assert(drops, 'there is no drops container on the Fight screen');
+      const rows = drops.querySelectorAll('.fsm-drop');
+      const table = window.MONSTERS.goblin.drops || [];
+      assert(rows.length >= table.length,
+        'the preview shows ' + rows.length + ' drop rows for a foe with ' + table.length + ' drops');
+      const dtxt = drops.textContent.replace(/\s+/g, ' ');
+      assert(/Goblin Ear/i.test(dtxt), 'the drop table does not name the foe\'s drops: ' + dtxt);
+      assert(/%|always/.test(dtxt), 'the drop table carries no chances — that is a list, not a decision: ' + dtxt);
+      assert(/Gold/.test(dtxt), 'the drop table omits coin, which every foe pays');
+      assert(/what it drops/i.test(document.getElementById('fsm-drops-head').textContent),
+        'the drops block is not labelled as the foe\'s table before the fight');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-12c: a loadout slot swaps gear WITHOUT leaving the fight', () => {
+    /* Showing twelve slots you cannot change is what b362 shipped. The picker
+       equips through legacy's own `equipItem`, so the wield gate and the
+       inventory bookkeeping cannot diverge from the Inventory screen's. */
+    const CS = window.HearthriseCombatScreens;
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      try { window.stopCombat(); } catch (e) {}
+      G.activeMonster = null;
+      G.inventory = Object.assign({}, G.inventory, { bronze_sword: 1 });
+      G.equipment = Object.assign({}, G.equipment, { weapon: null });
+      CS.preview('goblin');
+      assert(CS.openSlotPicker('weapon'), 'the slot picker did not open');
+      const scrim = document.querySelector('.hr-room-scrim');
+      assert(scrim, 'the picker opened no modal');
+      const btn = scrim.querySelector('[data-cs="equip"][data-item="bronze_sword"]');
+      assert(btn, 'the picker does not offer a weapon that is in the bag');
+      btn.click();
+      assert(G.equipment.weapon === 'bronze_sword',
+        'equipping from the fight screen did nothing — the panel is read-only again');
+      assert(document.getElementById('panel-combat').dataset.combatView === 'fight',
+        'swapping gear threw the player off the fight screen');
+    } finally {
+      try { if (window.HearthriseRoomModal) window.HearthriseRoomModal.close(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-19b: the swing bar is ANIMATED, not repainted every tick', () => {
+    /* Tyler, on b365: "the bar for attack swing not being smooth is giving me a
+       headache, but I love the addition." The fill's width was written from a
+       200ms poll, so a 2.4s swing moved in twelve steps. It now runs one linear
+       scaleX animation whose duration IS the swing — one clock, no per-tick
+       geometry. MUTATION PROVEN: restore the `i.style.width` writes and the
+       inline-width assertion fails. */
+    const CS = window.HearthriseCombatScreens;
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      window.startCombat('slime');
+      CS.renderFight();
+      const bar = document.getElementById('fs-player-swing');
+      assert(bar, 'the player has no swing bar');
+      const fill = bar.querySelector('i');
+      const cs = getComputedStyle(fill);
+      if (CS._swing && CS._swing._reduced && CS._swing._reduced()) return;   // reduced motion keeps the stepped render
+      assert(bar.dataset.swing === 'run', 'a live fight must have the swing animation running, got ' + bar.dataset.swing);
+      assert(/hr-fs-swing/.test(cs.animationName),
+        'the swing fill carries no animation — it is being repainted: ' + cs.animationName);
+      assert(cs.animationTimingFunction === 'linear',
+        'a swing clock that eases is a swing clock that lies: ' + cs.animationTimingFunction);
+      const want = (window.combatTickMs ? window.combatTickMs() : 2400) / 1000;
+      const got = parseFloat(cs.animationDuration);
+      assert(Math.abs(got - want) < 0.05,
+        'the animation runs at ' + got + 's while the engine swings every ' + want + 's — that is a SECOND clock');
+      assert(!fill.style.width,
+        'the fill still carries an inline width — the per-tick repaint is back');
+      /* And it stops when the fight does. */
+      window.stopCombat();
+      CS.setView('table');
+      G.activeMonster = null;
+      CS.preview('slime');
+      assert(document.getElementById('fs-player-swing').dataset.swing !== 'run',
+        'the swing bar is still running on a fight that has not started');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
   () => tryRun('COMBAT-UI-13: the action bar carries Eat with its real food, and a reachable Stop', () => {
     /* Two claims, both measured on the live DOM:
        (1) Eat names the food the player actually holds and the heal it actually

@@ -129,6 +129,10 @@
 #panel-combat .wtd-body { display: flex; gap: 8px; align-items: center; min-height: 46px; }
 #panel-combat .wtd-img { width: 46px; height: 46px; object-fit: contain; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
 #panel-combat .wtd-img.is-emoji { font-size: 26px; }
+/* b366: the destination glyph is a baked atlas icon, not an emoji. */
+#panel-combat .wtd-img.is-glyph { color: var(--gold-2); }
+#panel-combat .wtd-img.is-glyph svg { width: 30px; height: 30px; }
+#panel-combat .wtr-kicker .hr-glyph { vertical-align: -2px; margin-right: 4px; }
 #panel-combat .wtd-main { display: flex; flex-direction: column; min-width: 0; }
 #panel-combat .wtd-main b {
   font-family: var(--f-display); font-size: var(--t-small, 13px); color: var(--ink);
@@ -230,11 +234,9 @@ body[data-theme="cozy-light"] #panel-combat .fs-tile {
 }
 body[data-theme="cozy-light"] #panel-combat .wtd-kick,
 body[data-theme="cozy-light"] #panel-combat .wtr-kicker,
-body[data-theme="cozy-light"] #panel-combat .fsl-head,
 body[data-theme="cozy-light"] #panel-combat .fss-lbl {
   color: var(--gold);
 }
-body[data-theme="cozy-light"] #panel-combat .fsg-slot,
 body[data-theme="cozy-light"] #panel-combat .fs-swing {
   background: var(--bg-3);
 }
@@ -261,22 +263,159 @@ body[data-theme="cozy-light"] #panel-combat .fs-swing {
 }
 #panel-combat .fs-title span { font-size: var(--t-micro, 11px); color: var(--ink-3); white-space: nowrap; }
 
-/* COMBAT-UI-12 — the quick-swap strip. 44px, six slots, live totals, and one
- * click to the full doll. This is the whole answer to "equipment needs
- * scrolling": the paper-doll column leaves the combat screen entirely. */
-#panel-combat .fs-gear { display: flex; align-items: center; gap: 4px; margin-left: auto; }
-#panel-combat .fsg-slot {
-  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+/* ══════════════════════════════════════════════════════════════════════════
+ * 3b · THE MANAGEMENT RAIL — COMBAT-UI-12, rebuilt (b366)
+ *
+ * Tyler, on b365: "I think you forgot some buttons? Loot? Eat food? How is
+ * someone supposed to manage their loadouts/armor/weapon?" — and, on the
+ * benchmark: "refer to the combat screen from Melvor. I think we need to
+ * incorporate more."
+ *
+ * b362's quick-swap strip read the brief too literally: it SHOWED six slots and
+ * could change none of them, and Melvor keeps the equipment panel, the food
+ * slot and the loot container permanently on the fight screen. The rail is the
+ * answer, and it is paid for out of space the stage was wasting — the b362
+ * layout left a wide empty band either side of the two plates, which is the
+ * "dead space is a defect" rule failing in the other direction.
+ *
+ * It sits BESIDE the stage rather than above it because the fight's own rows
+ * are the thing that must not move; a rail can scroll internally on a short
+ * screen without costing the stage a pixel of height.
+ * ════════════════════════════════════════════════════════════════════════*/
+/* THE RAIL IS ON THE LEFT, AND THAT IS A MEASURED CHOICE, NOT A STYLE ONE.
+ * It is where Melvor puts it, but the reason it moved after the first capture
+ * is ours: the notification stack and the Chat button both live at the RIGHT
+ * edge, so a right-hand rail spends its life under a toast — the b366 desktop
+ * capture had "Achievement unlocked", three "Equipped …" toasts and the daily
+ * reward sitting directly on top of the weapon row and the drop table. A
+ * persistent panel cannot share a column with transient overlays. */
+#panel-combat .fs-body {
+  flex: 1 1 auto; min-height: 0;
+  display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 10px;
+}
+#panel-combat .fs-manage {
+  min-height: 0; min-width: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 8px;
+  background: var(--surf-sunken, rgba(0,0,0,.18));
+  border: 1px solid var(--line-soft); border-radius: var(--r, 8px);
+}
+/* NEVER SHRINK. Measured at 922x423: with the default `flex-shrink: 1` the rail
+ * squeezed each block below its content height, and because the equipment grid's
+ * cells carry an `aspect-ratio` they did not shrink with it — so PROVISIONS
+ * printed straight across the boots and WHAT IT DROPS across the food line. A
+ * rail that runs out of room must SCROLL, not overlap itself. */
+#panel-combat .fsm-block { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
+#panel-combat .fsm-block-grow { flex: 1 1 auto; min-height: 74px; }
+#panel-combat .fsm-head {
+  display: flex; align-items: baseline; gap: 6px;
+  font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
+  font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--gold-2);
+}
+#panel-combat .fsm-head b {
+  margin-left: auto; color: var(--ink-2); letter-spacing: 0; text-transform: none;
+  font-family: var(--f-ui); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* THE EQUIPMENT PANEL. Twelve slots, four across, each wearing the item's own
+ * painted art — the empty state is legacy's gilt line glyph, never the emoji in
+ * EQUIP_SLOT_META. Click opens a picker filtered to that slot. */
+#panel-combat .fsm-doll { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+#panel-combat .fsm-slot {
+  position: relative; aspect-ratio: 1 / 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 3px;
+  background: var(--field-sunk, rgba(0,0,0,.3));
+  border: 1px solid var(--line-soft); border-radius: 6px;
+  cursor: pointer; overflow: hidden;
+  transition: border-color .12s;
+}
+#panel-combat .fsm-slot:hover, #panel-combat .fsm-slot:focus-visible { border-color: var(--gold-2); }
+#panel-combat .fsm-slot.is-empty { border-style: dashed; }
+#panel-combat .fsm-slot-art { display: flex; width: 100%; height: 100%; }
+#panel-combat .fsm-slot-art img { width: 100%; height: 100%; object-fit: contain; }
+#panel-combat .fsm-slot-gly { display: block; width: 46%; height: 46%; color: var(--gold-2); opacity: .55; }
+#panel-combat .fsm-slot-gly svg { width: 100%; height: 100%; }
+/* The slot NAME rides the bottom edge of the empty state only: a filled slot is
+ * identified by the thing in it, and printing a label over real art is how the
+ * b217 doll ended up illegible. */
+#panel-combat .fsm-slot em {
+  position: absolute; left: 0; right: 0; bottom: 1px;
+  font-style: normal; font-family: var(--f-label, var(--f-ui));
+  font-size: var(--t-micro, 11px); line-height: 1.05; letter-spacing: 0;
+  color: var(--ink-3); text-align: center;
+  /* WRAPS, NOT ELLIPSISES. At a 52px slot "Offhand" and "Necklace" came back
+   * as "OFFHA…" and "NECKL…" — and b139 already ruled that a truncated slot
+   * label reads as a random string rather than a slot name. Two short lines
+   * are legible; half a word is not. */
+  overflow: hidden; white-space: normal; word-break: break-word;
+}
+#panel-combat .fsm-slot:not(.is-empty) em { display: none; }
+
+/* THE FOOD SLOT. Not a second Eat button — the button is the HUD's, in the
+ * action bar. This is what you will eat, what it heals and how many you hold,
+ * visible BEFORE the fight, which is the only time that answer can still change
+ * your mind. */
+#panel-combat .fsm-food { display: flex; align-items: center; gap: 8px; }
+#panel-combat .fsm-food-slot {
+  position: relative; width: 44px; height: 44px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center; padding: 3px;
   background: var(--field-sunk, rgba(0,0,0,.3));
   border: 1px solid var(--line-soft); border-radius: 6px;
 }
-#panel-combat .fsg-slot img { width: 100%; height: 100%; object-fit: contain; }
-#panel-combat .fsg-slot i { font-style: normal; font-size: 15px; opacity: .55; }
-#panel-combat .fsg-slot.is-empty { opacity: .5; }
-#panel-combat .fsg-totals {
-  font-variant-numeric: tabular-nums; font-size: var(--t-micro, 11px);
-  font-weight: 800; color: var(--ink-2); margin: 0 4px; white-space: nowrap;
+#panel-combat .fsm-food-slot.is-empty { border-style: dashed; }
+#panel-combat .fsm-food-slot img { width: 100%; height: 100%; object-fit: contain; }
+#panel-combat .fsm-food-slot i {
+  position: absolute; right: 1px; bottom: 0;
+  font-style: normal; font-size: var(--t-micro, 11px); font-weight: 800;
+  color: var(--ink); text-shadow: 0 1px 2px rgba(0,0,0,.65);
+  font-variant-numeric: tabular-nums;
 }
+#panel-combat .fsm-food-txt { display: flex; flex-direction: column; min-width: 0; }
+#panel-combat .fsm-food-txt b {
+  font-family: var(--f-display); font-size: var(--t-small, 13px); color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#panel-combat .fsm-food-txt span { font-size: var(--t-micro, 11px); color: var(--ink-2); }
+
+/* THE DROPS CONTAINER — the foe's table before the fight, the ledger during it.
+ * The rarity band is the same ladder the Loot modal uses, carried as a colour on
+ * the CHANCE rather than on the whole row: the row is a name, the rarity is a
+ * property of the number beside it. */
+#panel-combat .fsm-drops {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 2px;
+}
+#panel-combat .fsm-drop {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--t-micro, 11px); color: var(--ink-2);
+}
+#panel-combat .fsm-drop-art {
+  width: 20px; height: 20px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center; color: var(--gold-2);
+}
+#panel-combat .fsm-drop-art svg { width: 16px; height: 16px; }
+#panel-combat .fsm-drop-art img { width: 100%; height: 100%; object-fit: contain; }
+#panel-combat .fsm-drop span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#panel-combat .fsm-drop b { color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#panel-combat .fsm-drop.r-common b { color: var(--ink-2); }
+#panel-combat .fsm-drop.r-uncommon b { color: var(--green); }
+#panel-combat .fsm-drop.r-rare b,
+#panel-combat .fsm-drop.is-coin b { color: var(--gold-2); }
+#panel-combat .fsm-drop.r-vrare b { color: var(--gem); }
+#panel-combat .fsm-drop.r-legendary b { color: var(--red); }
+#panel-combat .fsm-empty,
+#panel-combat .fsm-foot { font-size: var(--t-micro, 11px); color: var(--ink-3); }
+#panel-combat .fsm-foot { margin-top: 4px; border-top: 1px solid var(--line-soft); padding-top: 3px; }
+/* The picker's rows carry the item's art beside its name. */
+.hr-room-scrim .fsm-pick-art { display: inline-flex; width: 22px; height: 22px; vertical-align: -6px; margin-right: 6px; }
+.hr-room-scrim .fsm-pick-art img { width: 100%; height: 100%; object-fit: contain; }
+
+body[data-theme="cozy-light"] #panel-combat .fs-manage,
+body[data-theme="cozy-light"] #panel-combat .fsm-slot,
+body[data-theme="cozy-light"] #panel-combat .fsm-food-slot { background: var(--bg-3); }
+body[data-theme="cozy-light"] #panel-combat .fsm-head { color: var(--gold); }
 
 /* THE STAGE. The arena card is now the page: no monster column, no loadout
  * column. `.fs-scrim` is a real element rather than another background layer on
@@ -414,8 +553,38 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
 /* The phase fill is the one thing on this bar a player tracks out of the
  * corner of their eye, so it takes the accent itself rather than its 14%
  * background wash — measured in the gate: the wash was invisible on the dark
- * stage, which makes a swing bar decoration. */
-#panel-combat .fs-swing i { position: absolute; inset: 0 auto 0 0; background: var(--gold); opacity: .7; }
+ * stage, which makes a swing bar decoration.
+ *
+ * b366 — IT IS ANIMATED, NOT REPAINTED. Tyler: "the bar for attack swing not
+ * being smooth is giving me a headache, but I love the addition." The fill's
+ * width used to be written from the module's 200ms poll, so a 2.4s swing
+ * advanced in twelve visible steps. It now runs ONE linear `scaleX` animation
+ * whose duration is the swing itself (set inline from `combatTickMs()`, so
+ * there is still exactly one clock), and JS only restarts it — on a weapon
+ * swap, on start/stop, or on a real drift. `transform` also keeps the whole
+ * thing on the compositor: no layout, no paint, per frame. */
+@keyframes hr-fs-swing { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+#panel-combat .fs-swing i {
+  position: absolute; inset: 0 auto 0 0; width: 100%;
+  background: var(--gold); opacity: .7;
+  transform-origin: left center; transform: scaleX(0);
+  animation: hr-fs-swing 2.4s linear infinite;
+  animation-play-state: paused;
+  will-change: transform;
+}
+#panel-combat .fs-swing[data-swing="run"] i { animation-play-state: running; }
+/* REDUCED MOTION KEEPS THE STEPPED RENDER, and that is the honest reading of
+ * the setting rather than a concession: a player who has asked for no
+ * continuous movement is asking for exactly the thing b366 removed for
+ * everyone else. The module writes `--fs-phase` in that mode and nothing
+ * animates. */
+#panel-combat .fs-swing[data-swing="step"] i {
+  animation: none;
+  transform: scaleX(var(--fs-phase, 0));
+}
+@media (prefers-reduced-motion: reduce) {
+  #panel-combat .fs-swing i { animation: none; transform: scaleX(var(--fs-phase, 0)); }
+}
 #panel-combat .fs-swing span {
   position: relative; width: 100%; text-align: center;
   font-size: var(--t-micro, 11px); color: var(--ink-2);
@@ -450,7 +619,34 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
  * does not own, and takes only what the stage has room for. Its title and its
  * four-fact `.csb-meta` line are what ran 270px tall on a narrow window; the
  * same facts are on the buttons' own tooltips and in the Stats modal. */
-#panel-combat .fs-style { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; }
+/* AND IT STAYS IN ITS OWN COLUMN. Four nowrap style buttons measure wider than
+ * the player's half of the stage at 1440px as well as at 922px, and a grid
+ * column does not clip: the row ran across the VS divider and printed over the
+ * foe's "Weak to 1H Sword" line in the b366 desktop capture. A screen whose
+ * whole grammar is symmetric comparison cannot have one fighter's controls
+ * standing in the other fighter's column. */
+#panel-combat .fs-style {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center;
+  /* The same `min(100%, 300px)` track every other row on this side uses — the
+   * HP bar, the swing bar and the tile strip all take it, and the style row
+   * being the one element that sized itself to its content is exactly why it
+   * escaped. Four buttons wrap to two rows inside the column instead. */
+  width: min(100%, 300px); max-width: 100%; min-width: 0;
+}
+#panel-combat .fs-style .combat-style-block { max-width: 100%; min-width: 0; }
+#panel-combat .fs-style .csb-btn { flex: 0 1 auto; min-width: 0; }
+/* THE ONE-FRAME ESCAPE, AND IT IS A REAL BUG THE SCREENSHOTS CAUGHT.
+ * `adoptStyleBlock()` MOVES legacy's single `.combat-style-block` into the
+ * stage on each paint, but legacy re-creates it in its own home on some combat
+ * events — and in the ~200ms before the next adopt it renders OUTSIDE this
+ * sheet's `.fs-style` scope, unconstrained, ~800px wide, straight across the VS
+ * divider and over the foe's weakness line. Every measurement said 300px
+ * because measuring happens between frames; two captures said otherwise,
+ * which is the whole argument for reading the screenshot.
+ * So: while the Fight view is up, that block is visible ONLY where this sheet
+ * can see it. Specificity is equal with the rule below, so ORDER decides —
+ * this one must stay above it. */
+#panel-combat[data-combat-view="fight"] .combat-style-block { display: none !important; }
 #panel-combat .fs-style .combat-style-block {
   display: flex !important; align-items: center; gap: 4px; flex-wrap: wrap;
   background: none !important; border: 0 !important; box-shadow: none !important;
@@ -458,8 +654,18 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
 }
 #panel-combat .fs-style .combat-style-block h4,
 #panel-combat .fs-style .combat-style-block .csb-meta { display: none !important; }
+/* THE MEASUREMENT THAT SETTLED IT. The container is 300px in every state; the
+ * BUTTONS were 522→1319 mid-fight and 522→813 (wrapped, correct) in preview.
+ * So the block does not escape — its children do, and only once the live labels
+ * grow ("Accurate ATTACK · 2.35s"). Something upstream is winning `flex-wrap`
+ * in the live state, so wrap is asserted here and each button is given a real
+ * basis: two per row, shrinkable, never wider than the column. */
 #panel-combat .fs-style .combat-style-block .combat-style-buttons {
-  display: flex !important; gap: 4px; flex-wrap: wrap; justify-content: center;
+  display: flex !important; gap: 4px; flex-wrap: wrap !important; justify-content: center;
+  width: 100%; max-width: 100%; grid-auto-flow: row !important;
+}
+#panel-combat .fs-style .combat-style-block .csb-btn {
+  flex: 1 1 44%; max-width: 100%; min-width: 0;
 }
 #panel-combat .fss-lbl {
   font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
@@ -507,7 +713,7 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
  * screen is the same dead space the placeholder void used to be. */
 #panel-combat .fs-logrow {
   flex: 0 0 clamp(110px, 20vh, 210px); min-height: 0;
-  display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 8px;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px;
   padding: 0 14px 10px; position: relative; z-index: 1;
 }
 #panel-combat[data-combat-view="fight"] #combat-area {
@@ -526,22 +732,8 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
  * so the row does not exist until the fight does — and the stage, which grows,
  * takes the room. */
 #panel-combat[data-fight-state="preview"] .fs-logrow { display: none; }
-#panel-combat .fs-loot-rail {
-  min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  border-left: 1px solid var(--line-soft); padding-left: 8px;
-  display: flex; flex-direction: column; gap: 2px;
-}
-#panel-combat .fsl-head {
-  font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
-  font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
-  position: sticky; top: 0; background: var(--bg-2); padding-bottom: 2px;
-}
-#panel-combat .fsl-row { display: flex; align-items: center; gap: 6px; font-size: var(--t-micro, 11px); color: var(--ink-2); }
-#panel-combat .fsl-row img { width: 18px; height: 18px; object-fit: contain; }
-#panel-combat .fsl-row i { font-style: normal; }
-#panel-combat .fsl-row span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#panel-combat .fsl-row b { color: var(--ink); font-variant-numeric: tabular-nums; }
-#panel-combat .fsl-empty { font-size: var(--t-micro, 11px); color: var(--ink-3); }
+/* The log-row loot rail is gone — the management rail's DROPS block carries the
+ * same ledger, in a container that also exists before the fight. */
 
 /* ══════════════════════════════════════════════════════════════════════════
  * 4 · SHORT AND NARROW SCREENS — COMBAT-UI-07 and COMBAT-UI-16
@@ -575,6 +767,7 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
      emoji rather than a portrait is exactly the one that can least afford to
      lose legibility. */
   #panel-combat .wtd-img.is-emoji { font-size: 16px; }
+  #panel-combat .wtd-img.is-glyph svg { width: 18px; height: 18px; }
   #panel-combat .wt-dest footer .btn { padding: 0 6px; min-height: 0; }
   /* THE RAIL PAYS FOR THE SECOND ROW OF THE TIER.
    * §2.4 budgets the destination rail at 66px and the card grid at two full
@@ -638,8 +831,27 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
   #panel-combat .wtc-stats b { white-space: nowrap; flex: 0 0 auto; }
 
   #panel-combat .fs-top { padding: 0; gap: 6px; }
-  #panel-combat .fsg-slot { width: 20px; height: 20px; }
   #panel-combat .fs-back { padding: 2px 8px; }
+  /* THE RAIL ON A 423px SCREEN. It narrows to 168px and its three blocks
+   * scroll as one column — the equipment panel, the food slot and the drops
+   * are all reachable without a gesture the layout has not offered, which is
+   * the rule the b362 action-bar clip broke. The rail is NOT hidden here:
+   * Tyler's complaint is that these controls do not exist on the fight screen,
+   * and a phone is where "manage my loadout without leaving" matters most. */
+  #panel-combat .fs-body { grid-template-columns: 168px minmax(0, 1fr); gap: 6px; }
+  #panel-combat .fs-manage { padding: 5px; gap: 5px; }
+  #panel-combat .fsm-doll { gap: 3px; }
+  #panel-combat .fsm-food-slot { width: 34px; height: 34px; }
+  #panel-combat .fsm-drop-art { width: 16px; height: 16px; }
+  #panel-combat .fsm-head, #panel-combat .fsm-drop,
+  #panel-combat .fsm-food-txt span, #panel-combat .fsm-empty { line-height: 1.15; }
+  /* THE TOTALS TAKE THEIR OWN LINE, AND THEY WRAP. Measured by the 820x360
+   * landscape guard: "+12 atk · +34 str · +45 def" is ~130px of nowrap type
+   * sharing a 150px row with the word LOADOUT, so it spilled 43px past the
+   * right edge of the screen. A number a player cannot see is not denser than
+   * no number — it is a clipped screen. */
+  #panel-combat .fsm-head { flex-wrap: wrap; }
+  #panel-combat .fsm-head b { margin-left: 0; width: 100%; white-space: normal; }
   #panel-combat .fs-title b { font-size: var(--t-small, 13px); }
   /* THE 423px BUDGET. ~104px goes to the shell (topbar, activity bar, the
    * screen's own header row), leaving ~319px. The stage takes ~233 of it, the
@@ -698,28 +910,61 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
   #panel-combat .fs-tile { background: none; border: 0; flex-direction: row; gap: 3px; padding: 0 4px; }
   #panel-combat .fs-tile + .fs-tile { border-left: 1px solid var(--line-soft); }
   #panel-combat .fs-style .csb-btn { padding: 2px 6px; }
+  /* THE EMPTY-SLOT LABEL GOES, AND ONLY HERE. A 168px rail gives each slot 38px;
+   * at this breakpoint's 16px body type "Necklace" wrapped to "NECK / LACE" and
+   * "Offhand" to "OFFH / AND", which is the truncation defect wearing two lines.
+   * The gilt line glyph is the slot's identity — a helmet, a ring, a cape are
+   * legible shapes — and it grows to fill the slot it now has to itself. The
+   * `title` still names it. */
+  #panel-combat .fsm-slot em { display: none; }
+  #panel-combat .fsm-slot-gly { width: 68%; height: 68%; opacity: .7; }
+  /* THE STYLE ROW MUST STAY IN ITS OWN COLUMN. Four nowrap buttons measured
+   * wider than the player's half of the stage at 922px, so the row ran straight
+   * across the VS and printed over the foe's "Weak to 1H Sword" line. A grid
+   * whose whole job is symmetric comparison cannot have one side's controls
+   * standing in the other side's column. */
+  /* TWO ROWS OF TWO, AND THE PLATE PAYS FOR THE SECOND ROW. Four-across
+   * (`flex: 1 1 0`) fits a 69px cell in PREVIEW and wraps the live labels
+   * ("Aggressive STRENGTH · 2.35s") to four lines once the fight starts — the
+   * action bar measured 389px in preview and 506px live, i.e. Eat and Stop off
+   * a 423px screen the moment they matter. So the buttons keep the 44% basis
+   * that behaves the same in both states, and the 8px it costs comes off the
+   * foe plate, which is the only elastic row on this stage (b362's own note).
+   * Measured live: 372px, above the fold, in both states. */
+  #panel-combat .arena-vs.fs-stage .arena-side.foe .arena-portrait {
+    width: min(16vh, 64px); height: min(16vh, 64px);
+  }
+  /* Two rows of buttons cost their leading twice. The glyph sizes are
+   * untouched (b227's 14.5px floor is a TYPE rule, not a spacing one); this is
+   * pure leading and chrome, and it buys ~20px back for the action bar. */
+  #panel-combat .fs-style .combat-style-block .csb-btn { line-height: 1.1; padding: 1px 6px; }
+  #panel-combat .fs-style .combat-style-block .csb-btn small { line-height: 1.05; }
+  #panel-combat .fs-style { max-width: 100%; min-width: 0; }
+  #panel-combat .fs-style .combat-style-block { max-width: 100%; min-width: 0; }
+  #panel-combat .fs-style .csb-btn { flex: 0 1 auto; min-width: 0; }
   /* The log goes below the fold, and the rail goes with it. */
-  #panel-combat .fs-logrow { grid-template-columns: minmax(0, 1fr) 150px; padding: 0 8px 6px; min-height: 90px; }
+  #panel-combat .fs-logrow { padding: 0 8px 6px; min-height: 90px; }
 }
 
 /* Narrow — the destination rail scrolls sideways instead of squeezing, and the
  * stage stacks its two fighters rather than shrinking them past reading size. */
 @media (max-width: 900px) {
   #panel-combat .wt-dest { flex: 0 0 190px; }
-  #panel-combat .fs-gear { order: 3; width: 100%; margin-left: 0; justify-content: flex-start; }
   #panel-combat .fs-top { flex-wrap: wrap; }
+  #panel-combat .fs-body { grid-template-columns: 150px minmax(0, 1fr); }
+  /* Same 150px rail, same clipped totals — see the note at max-height:560. */
+  #panel-combat .fsm-head { flex-wrap: wrap; }
+  #panel-combat .fsm-head b { margin-left: 0; width: 100%; white-space: normal; }
 }
+/* Below 640px the two fighters stack, so the rail cannot also hold a column —
+ * it becomes the LAST row of a single column and scrolls with the screen. */
 @media (max-width: 640px) {
   #panel-combat .arena-vs.fs-stage {
     grid-template-columns: 1fr;
     grid-template-areas: "foe" "vs" "player" "bar" "metrics";
   }
   #panel-combat .arena-vs.fs-stage .arena-vs-divider { font-size: 16px; }
-  #panel-combat .fs-logrow { grid-template-columns: minmax(0, 1fr); }
-  /* In PREVIEW there is no log and no loot, because there is no fight yet. An
- * empty 150px box under a still stage is the placeholder void in a new costume,
- * so the row does not exist until the fight does — and the stage, which grows,
- * takes the room. */
-#panel-combat[data-fight-state="preview"] .fs-logrow { display: none; }
-#panel-combat .fs-loot-rail { display: none; }
+  #panel-combat .fs-body { grid-template-columns: minmax(0, 1fr); grid-auto-rows: min-content; }
+  #panel-combat .fs-manage { overflow: visible; }
+  #panel-combat[data-fight-state="preview"] .fs-logrow { display: none; }
 }

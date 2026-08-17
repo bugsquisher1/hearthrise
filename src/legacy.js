@@ -13013,6 +13013,12 @@ function slotGlyphSVG(slot){
   var d = P[slot] || '<circle cx="12" cy="12" r="6"/>';
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+d+'</svg>';
 }
+/* b366: EXPOSED, not duplicated. The Fight screen's persistent loadout panel
+   needs an EMPTY-slot mark, and the only alternative in reach was
+   `EQUIP_SLOT_META[slot].icon` — which is a raw emoji (⛑️📿💎…), the exact
+   thing b190 removed from the paper doll and the thing this project does not
+   ship as art. One glyph vocabulary, one definition. */
+window.slotGlyphSVG = slotGlyphSVG;
 
 /* b216: total equipment bonuses, summed across every equipped slot.
    Surfaced in a modal instead of a cramped always-on panel — the numbers are a

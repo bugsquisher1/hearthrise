@@ -77,6 +77,14 @@ function tickMs() {
 /** The unlock gate the whole game uses for a tier. One formula, one place. */
 function reqLevelFor(m) { return (((m && m.tier) || 1) - 1) * 15; }
 
+/* A chrome glyph from the baked atlas (src/data/glyphs.js). NEVER an emoji:
+   the War Table's destination cards shipped in b365 drawing 🎯 🏛 🛡 🌍 at 26px
+   as their ART, which is the one thing this project's art direction forbids
+   outright. Returns '' when the atlas has no key rather than a pictograph. */
+function uiGlyph(key, px) {
+  return (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 16, 'currentColor') || '') : '';
+}
+
 function monsterArt(id, cls) {
   const path = window._monsterIcon && window._monsterIcon[id];
   if (path) return `<img class="${cls}" src="${path}" alt="" loading="lazy" />`;
@@ -197,6 +205,9 @@ const Ledger = (() => {
    ══════════════════════════════════════════════════════════════════════ */
 const Swing = (() => {
   let lastTickAt = 0;
+  let animAt = 0;          // when the CSS animation was (re)started
+  let animSpan = 0;        // the span it was started for
+  let animRun = false;     // whether it is running or parked at zero
   function install() {
     const orig = window.combatTick;
     if (typeof orig !== 'function' || orig.__hrSwingStamped) return;
@@ -212,8 +223,75 @@ const Swing = (() => {
     const span = Math.max(1, tickMs());
     return clamp01((Date.now() - lastTickAt) / span);
   }
-  function reset() { lastTickAt = 0; }
-  return { install, phase, reset };
+  function reset() { lastTickAt = 0; animAt = 0; animSpan = 0; animRun = false; }
+
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  /* ── THE FILL IS ANIMATED, NOT REPAINTED (b366) ────────────────────────
+     Tyler, on b365: "the bar for attack swing not being smooth is giving me a
+     headache, but I love the addition." He was watching the truth: the fill's
+     width was written from a 200ms poll, so a 2.4s swing advanced in TWELVE
+     visible steps. The bar was never a clock, it was a stopwatch photographed
+     twelve times.
+
+     The fix is to stop writing the geometry at all. The fill runs one linear
+     `transform: scaleX()` animation whose DURATION IS THE SWING — the same
+     `combatTickMs()` the engine divides the span by, so there is still exactly
+     one clock — and this function only ever RESYNCS it: when the swing span
+     changes (a weapon swap, a speed bonus), when the fight starts or stops, or
+     when the engine's own tick stamp has drifted more than a fifth of a swing
+     out of phase with the animation. A restart is a class of event, not a
+     frame. Reduced motion keeps the stepped render, which is what that setting
+     asks for: no continuous movement. */
+  const DRIFT = 0.2;
+  function sync(bars, live) {
+    const span = Math.max(1, tickMs());
+    const stepped = reducedMotion();
+    const now = Date.now();
+    let restart = stepped ? false
+      : (live !== animRun || span !== animSpan || (!animAt && live));
+    if (!restart && live && lastTickAt) {
+      /* Where the ANIMATION thinks we are, against where the ENGINE says we
+         are. Both are phases in 0..1, and the comparison is circular. */
+      const a = ((now - animAt) % span) / span;
+      const e = clamp01((now - lastTickAt) / span);
+      const d = Math.abs(a - e);
+      if (Math.min(d, 1 - d) > DRIFT) restart = true;
+    }
+    bars.forEach((bar) => {
+      if (!bar) return;
+      const fill = bar.querySelector('i');
+      if (!fill) return;
+      if (stepped) {
+        bar.dataset.swing = 'step';
+        fill.style.setProperty('--fs-phase', live ? phase().toFixed(3) : '0');
+        return;
+      }
+      bar.dataset.swing = live ? 'run' : 'still';
+      fill.style.removeProperty('--fs-phase');
+      fill.style.animationDuration = (span / 1000).toFixed(3) + 's';
+      if (restart) {
+        /* Restart, IN PHASE WITH THE ENGINE. A resync can only happen on a
+           200ms poll, which is never the instant of a swing — so the animation
+           starts with a NEGATIVE delay equal to the time already elapsed since
+           the engine's own tick stamp, and lands exactly where the damage is.
+           Restarting at zero instead would make every resync a visible jump
+           backwards, which is the stutter this change exists to remove.
+           `animation: none` + a forced reflow is the one reliable way to re-run
+           a running CSS animation; without the reflow the writes coalesce. */
+        const into = live && lastTickAt ? ((now - lastTickAt) % span) : 0;
+        fill.style.animationName = 'none';
+        void fill.offsetWidth;
+        fill.style.animationName = '';
+        fill.style.animationDelay = (-into / 1000).toFixed(3) + 's';
+      }
+    });
+    if (restart) { animAt = live && lastTickAt ? lastTickAt : now; animSpan = span; animRun = live; }
+    else if (span !== animSpan) { animSpan = span; }
+  }
+  return { install, phase, reset, sync, _reduced: reducedMotion };
 })();
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -225,11 +303,58 @@ const Swing = (() => {
    so every legacy renderer, wrapper and test that addresses them by id keeps
    working. They are hidden by the stylesheet, not by removal — deleting a node
    a 17k-line engine writes into is how you get a silent null-render. */
-const QUICK_SLOTS = ['weapon', 'helmet', 'body', 'pants', 'gloves', 'ring1'];
+/* THE MANAGEMENT PANEL'S SLOT ORDER (b366). Four columns, three rows, read in
+   the order a player thinks about a fight: what you swing, what you block with,
+   then armour head-to-foot, then the trinkets. `companion` and `belt` are not
+   here — the companion has its own pane on Character and is not a mid-fight
+   decision, and belt carries no combat stat in any live item. */
+const MANAGE_SLOTS = [
+  'weapon', 'shield', 'ammo', 'necklace',
+  'helmet', 'body', 'pants', 'cape',
+  'gloves', 'boots', 'ring1', 'ring2',
+];
 
 function slotMeta(slot) {
   const M = window.EQUIP_SLOT_META || {};
   return M[slot] || { label: slot, icon: '·' };
+}
+
+/* The EMPTY-slot mark. legacy's own paper-doll glyph set, exposed rather than
+   copied — `EQUIP_SLOT_META[slot].icon` is a raw emoji and this project does
+   not render emoji as art. Returns '' if the monolith has not booted, which is
+   the honest empty rather than a pictograph fallback. */
+function slotGlyph(slot) {
+  return typeof window.slotGlyphSVG === 'function' ? window.slotGlyphSVG(slot) : '';
+}
+
+/* Which equipment slots an item can legitimately go into. This mirrors
+   legacy's `getPreferredSlot()` (legacy.js:2559) rather than calling it,
+   because that function ANSWERS ONE slot for an item (and for a ring it
+   answers "whichever finger is free") whereas a picker has to ask the
+   reverse question — "what could go HERE" — for both fingers at once. */
+function slotsForItem(def) {
+  if (!def) return [];
+  const s = def.slot || (def.type === 'weapon' ? 'weapon' : null);
+  if (!s) return [];
+  if (s === 'ring') return ['ring1', 'ring2'];
+  if (s === 'head') return ['helmet'];
+  if (s === 'legs') return ['pants'];
+  if (s === 'hands') return ['gloves'];
+  if (s === 'feet') return ['boots'];
+  return [s];
+}
+
+/* The one-line stat summary a gear row needs to be a decision rather than a
+   name. Only the fields that are non-zero, so a plain cape says nothing rather
+   than "+0 atk +0 str +0 def". */
+const GEAR_FIELDS = [['atkB', 'atk'], ['strB', 'str'], ['defB', 'def'],
+  ['rangeAtkB', 'rng'], ['magicAtkB', 'mag']];
+function gearLine(def) {
+  if (!def) return '';
+  const out = [];
+  GEAR_FIELDS.forEach(([k, lbl]) => { if (def[k]) out.push((def[k] > 0 ? '+' : '') + def[k] + ' ' + lbl); });
+  if (def.critB) out.push('+' + Math.round(def.critB * 100) + '% crit');
+  return out.join(' · ');
 }
 
 function panel() { return document.getElementById('panel-combat'); }
@@ -254,9 +379,24 @@ function ensureStructure() {
       <div class="fs-top">
         <button type="button" class="fs-back" data-cs-act="back">◀ <span>War Table</span></button>
         <div class="fs-title" id="fs-title"></div>
-        <div class="fs-gear" id="fs-gear"></div>
       </div>
-      <div class="fs-stage-host" id="fs-stage-host"></div>
+      <div class="fs-body">
+        <aside class="fs-manage" id="fs-manage" aria-label="Loadout, provisions and drops">
+          <section class="fsm-block">
+            <div class="fsm-head"><span>Loadout</span><b id="fsm-totals"></b></div>
+            <div class="fsm-doll" id="fsm-doll"></div>
+          </section>
+          <section class="fsm-block">
+            <div class="fsm-head"><span>Provisions</span></div>
+            <div class="fsm-food" id="fsm-food"></div>
+          </section>
+          <section class="fsm-block fsm-block-grow">
+            <div class="fsm-head"><span id="fsm-drops-head">Drops</span></div>
+            <div class="fsm-drops" id="fsm-drops"></div>
+          </section>
+        </aside>
+        <div class="fs-stage-host" id="fs-stage-host"></div>
+      </div>
     </section>`;
   p.appendChild(views);
 
@@ -320,20 +460,15 @@ function buildStage(arena) {
   if (head && head.nextSibling) arena.insertBefore(vs, head.nextSibling);
   else arena.insertBefore(vs, arena.firstChild);
 
-  /* The log row: legacy's `#combat-area` (which renderCombat owns outright)
-     beside a loot rail this module owns. The rail is a SIBLING of the area, not
-     a child, because renderCombat rewrites the area's innerHTML on every tick
-     and anything parked inside it would be destroyed 25 times a minute. */
+  /* The log row: legacy's `#combat-area` (which renderCombat owns outright) in
+     a wrapper this module owns, so the log can be given a fixed slice of the
+     stage's height without touching a node renderCombat rewrites every tick. */
   const area = arena.querySelector('#combat-area');
   if (area) {
     const row = document.createElement('div');
     row.className = 'fs-logrow';
     area.parentNode.insertBefore(row, area);
     row.appendChild(area);
-    const rail = document.createElement('div');
-    rail.className = 'fs-loot-rail';
-    rail.id = 'fs-loot-rail';
-    row.appendChild(rail);
   }
 }
 
@@ -407,6 +542,7 @@ function onPanelClick(e) {
       setView('table');
     } else if (act === 'history') { openHistory(); }
     else if (act === 'gear') { if (typeof window.showTab === 'function') window.showTab('inventory'); }
+    else if (act === 'slot') { openSlotPicker(btn.dataset.slot); }
     else if (act === 'tier') {
       const tier = parseInt(btn.dataset.tier || '1', 10);
       const g = G(); if (g) g.currentCombatTier = tier;
@@ -457,7 +593,7 @@ function renderRibbon() {
   if (host.dataset.sig === sig) return;
   host.dataset.sig = sig;
   host.innerHTML =
-    `<span class="wtr-kicker">⚔ Fighting</span>` +
+    `<span class="wtr-kicker">${uiGlyph('attack', 12)}Fighting</span>` +
     `<span class="wtr-art">${monsterArt(id, 'wtr-img')}</span>` +
     `<span class="wtr-name">${esc(m.name)}</span>` +
     `<span class="wtr-hp foe"><i style="width:${(fp * 100).toFixed(1)}%"></i>` +
@@ -488,7 +624,7 @@ function destinations() {
     });
   } else {
     out.push({
-      kick: 'Bounty', glyph: '🎯', name: 'No contract',
+      kick: 'Bounty', glyph: 'uiTarget', name: 'No contract',
       meta: 'Take one at the Bounty Board', verb: 'Board ▸', go: 'tab', tab: 'bounty',
     });
   }
@@ -511,7 +647,7 @@ function destinations() {
     const wm = wid && MONSTERS[wid];
     if (wm) {
       out.push({
-        kick: '★ Weekly Boss', art: wid, name: wm.name,
+        kick: 'Weekly Boss', art: wid, name: wm.name,
         meta: 'bonus drops & XP this week',
         timer: 'resets in ' + fmtCountdown(B.msUntilWeeklyRotate ? B.msUntilWeeklyRotate() : 0),
         verb: 'Fight ▸', go: 'weekly',
@@ -529,7 +665,7 @@ function destinations() {
       && (() => { try { return window.canRunDungeon(id).ok; } catch (e) { return false; } })());
     const next = ids.filter((id) => D[id].reqLv > lv).sort((a, b) => D[a].reqLv - D[b].reqLv)[0];
     out.push({
-      kick: 'Dungeon', glyph: '🏛',
+      kick: 'Dungeon', glyph: 'uiCastle',
       name: open.length ? D[open[0]].name : (next ? D[next].name : 'Dungeons'),
       meta: open.length ? `${open.length} ready to run` : (next ? `unlocks at Combat Lv ${D[next].reqLv}` : 'keys and cooldowns'),
       verb: 'Enter ▸', go: 'tab', tab: 'dungeons',
@@ -543,7 +679,7 @@ function destinations() {
     let boss = null;
     try { boss = R.bossOfWeek && R.bossOfWeek(); } catch (e) { boss = null; }
     out.push({
-      kick: 'Clan Raid', glyph: '🛡',
+      kick: 'Clan Raid', glyph: 'uiShield',
       name: (boss && (boss.name || boss.n)) || 'Weekly Hunt',
       meta: 'strike with your clan', verb: 'Join ▸', go: 'tab', tab: 'clan',
     });
@@ -555,7 +691,7 @@ function destinations() {
     let sum = null;
     try { sum = W.summaryFor && W.summaryFor(W.daily && W.daily()); } catch (e) { sum = null; }
     out.push({
-      kick: 'World Event', glyph: '🌍',
+      kick: 'World Event', glyph: 'uiStar',
       name: (sum && (sum.title || sum.name)) || 'Today\'s blessing',
       meta: (sum && sum.text) || 'a rotating bonus, every day',
       verb: 'Events ▸', go: 'tab', tab: 'events',
@@ -569,7 +705,8 @@ function renderDestinations() {
   if (!host) return;
   const list = destinations();
   const html = list.map((d) => {
-    const art = d.art ? monsterArt(d.art, 'wtd-img') : `<span class="wtd-img is-emoji">${d.glyph || '⚔'}</span>`;
+    const art = d.art ? monsterArt(d.art, 'wtd-img')
+      : `<span class="wtd-img is-glyph">${uiGlyph(d.glyph || 'attack', 30)}</span>`;
     const btn = d.locked
       ? `<button type="button" class="btn btn-sm" disabled>${esc(d.locked)}</button>`
       : `<button type="button" class="btn btn-sm btn-primary" data-cs-act="dest" data-go="${esc(d.go)}"` +
@@ -673,31 +810,235 @@ function tiles(host, rows) {
   host.innerHTML = html;
 }
 
-/* COMBAT-UI-12 — the quick-swap strip. The paper doll leaves combat for the
-   Character screen (where it already fits); what a fighting player needs is to
-   SEE the six slots that matter and their totals, and one click to the full
-   loadout. The weapon chip carries the swing time, which is how weapon speed
-   becomes a visible stat for the first time. */
-function renderGearStrip() {
-  const host = document.getElementById('fs-gear');
+/* ══════════════════════════════════════════════════════════════════════════
+   THE MANAGEMENT PANEL (b366) — COMBAT-UI-12, rebuilt against Tyler's ruling
+   ══════════════════════════════════════════════════════════════════════════
+   b362 answered "equipment needs scrolling" by deleting the loadout column and
+   leaving six 34px chips in the title bar. That reading was too literal:
+   Melvor's fight screen keeps the EQUIPMENT PANEL, the FOOD SLOT and the LOOT
+   CONTAINER permanently on the stage, and the b217 loadout column it replaced
+   at least let you change your gear. So the rail comes back — narrower, denser,
+   and PERSISTENT ACROSS BOTH STATES, which the old one was not:
+
+     LOADOUT     twelve slots wearing their real painted item art, click to
+                 swap from a picker filtered to that slot. Live pre-fight AND
+                 mid-fight — you can re-arm without leaving the fight.
+     PROVISIONS  the food slot: what you will eat, what it heals, how many are
+                 left. Visible BEFORE the fight, which is the one time the
+                 answer can still change your mind. The Eat BUTTON stays in the
+                 action bar (it is the HUD's mount and its own handler); this
+                 is the slot, not a second button.
+     DROPS       pre-fight, the foe's drop table with real chances — "what do I
+                 win". Mid-fight, what has actually landed. Same container,
+                 same place, so it never pops in and out.
+
+   Nothing here re-implements a number: worn art comes from `itemArt()`, the
+   totals from `getEquipmentStats()`, the food from `foodUseInfo()`, the drop
+   chances from the monster row the War Table card already reads. */
+
+function itemImg(id, cls) {
+  if (typeof window.itemArt === 'function') {
+    const html = window.itemArt(id, 26);
+    if (html) return `<span class="${cls}">${html}</span>`;
+  }
+  const path = window._itemPath && window._itemPath[id];
+  return path ? `<span class="${cls}"><img src="${path}" alt="" /></span>` : `<span class="${cls}"></span>`;
+}
+
+function renderDoll() {
+  const host = document.getElementById('fsm-doll');
   if (!host) return;
   const g = G(); if (!g) return;
-  const eq = typeof window.getEquipmentStats === 'function' ? window.getEquipmentStats() : {};
-  const cells = QUICK_SLOTS.map((slot) => {
-    const id = g.equipment && g.equipment[slot];
+  const eqp = g.equipment || {};
+  const html = MANAGE_SLOTS.map((slot) => {
+    const id = eqp[slot];
     const def = id && ITEMS[id];
-    const path = id && window._itemPath && window._itemPath[id];
     const meta = slotMeta(slot);
-    const extra = slot === 'weapon' ? ` · ${(tickMs() / 1000).toFixed(2)}s` : '';
-    const label = def ? def.n + extra : meta.label;
-    return `<span class="fsg-slot${def ? '' : ' is-empty'}" title="${esc(label)}">` +
-      (def && path ? `<img src="${path}" alt="" />` : `<i>${esc(def ? def.icon : meta.icon)}</i>`) + '</span>';
+    const title = def ? `${meta.label}: ${def.n} — click to change` : `${meta.label} — empty, click to equip`;
+    return `<button type="button" class="fsm-slot${def ? '' : ' is-empty'}" data-cs-act="slot"` +
+      ` data-slot="${esc(slot)}" title="${esc(title)}" aria-label="${esc(title)}">` +
+      (def ? itemImg(id, 'fsm-slot-art') : `<span class="fsm-slot-gly">${slotGlyph(slot)}</span>`) +
+      `<em>${esc(meta.label)}</em></button>`;
   }).join('');
-  const totals = `<span class="fsg-totals">+${Math.round(eq.atkB || 0)} atk · +${Math.round(eq.defB || 0)} def</span>`;
-  const html = cells + totals + '<button type="button" class="btn btn-sm fsg-more" data-cs-act="gear">Loadout</button>';
   if (host.dataset.sig === html) return;
   host.dataset.sig = html;
   host.innerHTML = html;
+}
+
+function renderTotals() {
+  const host = document.getElementById('fsm-totals');
+  if (!host) return;
+  const eq = typeof window.getEquipmentStats === 'function' ? window.getEquipmentStats() : {};
+  const txt = `+${Math.round(eq.atkB || 0)} atk · +${Math.round(eq.strB || 0)} str · +${Math.round(eq.defB || 0)} def`;
+  if (host.textContent !== txt) host.textContent = txt;
+}
+
+/* The food slot. Reads the SAME `bestProvisionId` / `foodUseInfo` pair the Eat
+   button reads, so the slot and the button can never name different food. */
+function renderFood() {
+  const host = document.getElementById('fsm-food');
+  if (!host) return;
+  const g = G();
+  const id = typeof window.bestProvisionId === 'function' ? window.bestProvisionId() : null;
+  const info = id && typeof window.foodUseInfo === 'function' ? window.foodUseInfo(id) : null;
+  let html;
+  if (!info) {
+    html = '<div class="fsm-food-slot is-empty" title="You have no Provisions">' +
+      '<span class="fsm-slot-gly"></span></div>' +
+      '<div class="fsm-food-txt"><b>No provisions</b><span>Cook fish or bake bread</span></div>';
+  } else {
+    const qty = (g && g.inventory && g.inventory[id]) || 0;
+    const def = ITEMS[id] || {};
+    html = `<div class="fsm-food-slot" title="${esc(def.n || id)}">${itemImg(id, 'fsm-slot-art')}` +
+      `<i>×${num(qty)}</i></div>` +
+      `<div class="fsm-food-txt"><b>${esc(def.n || id)}</b>` +
+      `<span>+${num(info.heals)} HP each · ${num(qty)} held</span></div>`;
+  }
+  if (host.dataset.sig === html) return;
+  host.dataset.sig = html;
+  host.innerHTML = html;
+}
+
+/* The rarity ladder is the one already used by the Loot modal's drop rows
+   (combat-render.js), repeated here rather than imported because that function
+   is a closure inside the HUD. Same thresholds; if they ever diverge the guard
+   in the smoke suite says so. */
+function rarityBand(ch) {
+  if (ch >= 0.5) return 'r-common';
+  if (ch >= 0.15) return 'r-uncommon';
+  if (ch >= 0.05) return 'r-rare';
+  if (ch >= 0.01) return 'r-vrare';
+  return 'r-legendary';
+}
+function pctText(ch) {
+  const p = ch * 100;
+  if (ch >= 1) return 'always';
+  if (p >= 1) return Math.round(p) + '%';
+  if (p >= 0.1) return p.toFixed(1) + '%';
+  return p.toFixed(2) + '%';
+}
+
+/* DROPS — one container, two truths.
+   PRE-FIGHT it is the foe's table: every drop it can pay and how often, which
+   is the "what do I win" half of the decision the preview exists to inform.
+   MID-FIGHT it is the ledger: what has actually landed, measured, never
+   predicted. Both are the same box in the same place, so the panel never pops
+   in and out under a player's cursor. */
+function renderDrops(m) {
+  const host = document.getElementById('fsm-drops');
+  const head = document.getElementById('fsm-drops-head');
+  if (!host) return;
+  const live = !!(G() && G().activeMonster);
+  let html;
+  if (live) {
+    if (head && head.textContent !== 'Drops this fight') head.textContent = 'Drops this fight';
+    const rows = Ledger.loot().slice(0, 24);
+    html = rows.length
+      ? rows.map((r) => {
+        const def = ITEMS[r.id] || {};
+        return `<div class="fsm-drop">${itemImg(r.id, 'fsm-drop-art')}` +
+          `<span>${esc(def.n || r.id)}</span><b>×${num(r.qty)}</b></div>`;
+      }).join('')
+      : '<div class="fsm-empty">No spoils yet — they land on the kill.</div>';
+  } else {
+    if (head && head.textContent !== 'What it drops') head.textContent = 'What it drops';
+    const drops = ((m && m.drops) || []).slice().sort((a, b) => b.ch - a.ch);
+    const coin = m && m.gp ? `<div class="fsm-drop is-coin"><span class="fsm-drop-art">${uiGlyph('gold', 16)}</span>` +
+      `<span>Gold</span><b>${num(m.gp[0])}–${num(m.gp[1])}</b></div>` : '';
+    html = coin + (drops.length
+      ? drops.map((d) => {
+        const def = ITEMS[d.id] || {};
+        return `<div class="fsm-drop ${rarityBand(d.ch)}">${itemImg(d.id, 'fsm-drop-art')}` +
+          `<span>${esc(def.n || d.id)}</span><b>${pctText(d.ch)}</b></div>`;
+      }).join('')
+      : '<div class="fsm-empty">This one carries nothing but coin.</div>');
+    if (m) html += `<div class="fsm-foot">${num(m.xp)} combat XP a kill</div>`;
+  }
+  if (host.dataset.sig === html) return;
+  host.dataset.sig = html;
+  host.innerHTML = html;
+}
+
+function renderManage(m) {
+  renderDoll();
+  renderTotals();
+  renderFood();
+  renderDrops(m);
+}
+
+/* ── THE SLOT PICKER ──────────────────────────────────────────────────────
+   Click a slot, get everything in the bag that could go in it, equip in one
+   press without leaving the fight. It EQUIPS THROUGH `equipItem()` and
+   `unequip()` — legacy's own functions, which carry the b246 wield gate, the
+   grandfather record and the inventory bookkeeping. Re-implementing any of
+   that here would be a second, wrong copy of the equip rules. */
+function openSlotPicker(slot) {
+  const RM = window.HearthriseRoomModal;
+  const g = G();
+  if (!RM || !g) {
+    if (typeof window.showTab === 'function') window.showTab('inventory');
+    return false;
+  }
+  const meta = slotMeta(slot);
+
+  const build = () => {
+    const gg = G();
+    const wornId = gg.equipment && gg.equipment[slot];
+    const worn = wornId && ITEMS[wornId];
+    const inv = gg.inventory || {};
+    const cands = Object.keys(inv)
+      .filter((id) => (inv[id] || 0) > 0 && ITEMS[id] && slotsForItem(ITEMS[id]).indexOf(slot) >= 0)
+      .sort((a, b) => (ITEMS[b].tier || 0) - (ITEMS[a].tier || 0)
+        || String(ITEMS[a].n).localeCompare(String(ITEMS[b].n)));
+
+    const rows = cands.map((id) => {
+      const def = ITEMS[id];
+      const w = typeof window.canWield === 'function' ? window.canWield(id) : { ok: true };
+      const line = gearLine(def);
+      const right = w.ok
+        ? `<button class="btn btn-sm btn-primary" data-cs="equip" data-item="${esc(id)}">Equip</button>`
+        : `<span class="hr-cs-amt">Lv ${esc(w.req.lv)} ${esc(w.req.skill)}</span>`;
+      return {
+        name: `${itemImg(id, 'fsm-pick-art')}${esc(def.n)}`,
+        meta: line || `×${num(inv[id])} held`,
+        right,
+      };
+    });
+
+    const sections = [];
+    sections.push({
+      kind: 'rows', title: 'Worn now',
+      empty: 'Nothing in this slot.',
+      rows: worn ? [{
+        name: `${itemImg(wornId, 'fsm-pick-art')}${esc(worn.n)}`,
+        meta: gearLine(worn) || meta.label,
+        right: '<button class="btn btn-sm" data-cs="unequip">Take off</button>',
+      }] : [],
+    });
+    sections.push({
+      kind: 'rows', title: 'In your bag',
+      empty: 'Nothing in your bag fits this slot.',
+      rows,
+    });
+    return {
+      id: 'combat-slot-' + slot, theme: 'vault',
+      title: meta.label,
+      subtitle: 'Change your gear without leaving the fight',
+      sections,
+      onAction: (act, el) => {
+        if (act === 'equip') {
+          const id = el.getAttribute('data-item');
+          if (id && typeof window.equipItem === 'function') window.equipItem(id);
+        } else if (act === 'unequip') {
+          if (typeof window.unequip === 'function') window.unequip(slot);
+        }
+        renderFight();
+        try { RM.refresh(); } catch (e) { /* the modal closed under us */ }
+      },
+    };
+  };
+  RM.open(build);
+  return true;
 }
 
 /* COMBAT-UI-14 — style moves to The Fight, beside the fighter it re-tunes.
@@ -751,22 +1092,11 @@ function renderMetrics(m, f) {
   host.innerHTML = html;
 }
 
-function renderLootRail() {
-  const host = document.getElementById('fs-loot-rail');
-  if (!host) return;
-  const rows = Ledger.loot().slice(0, 12);
-  const html = rows.length
-    ? '<div class="fsl-head">This fight</div>' + rows.map((r) => {
-      const def = ITEMS[r.id];
-      const path = window._itemPath && window._itemPath[r.id];
-      return `<div class="fsl-row">${path ? `<img src="${path}" alt="" />` : `<i>${esc((def && def.icon) || '📦')}</i>`}` +
-        `<span>${esc((def && def.n) || r.id)}</span><b>×${num(r.qty)}</b></div>`;
-    }).join('')
-    : '<div class="fsl-head">This fight</div><div class="fsl-empty">no spoils yet</div>';
-  if (host.dataset.sig === html) return;
-  host.dataset.sig = html;
-  host.innerHTML = html;
-}
+/* The log-row loot rail is GONE (b366) — not lost, MOVED. It only existed
+   while the fight was live and only under the log; the management rail carries
+   the same ledger in a container that is also there before the fight, holding
+   the drop table. Two lists of the same spoils on one screen is how a HUD comes
+   to disagree with itself. */
 
 function openHistory() {
   const RM = window.HearthriseRoomModal;
@@ -848,24 +1178,24 @@ function renderFight() {
   const flv = document.getElementById('fs-foe-lv');
   if (flv) flv.textContent = 'Lv ' + ((m.tier - 1) * 15 + 1);
 
-  // Swing bars — COMBAT-UI-19's Phase-1 landing, off the one clock.
-  const ph = live ? Swing.phase() : 0;
+  /* Swing bars — COMBAT-UI-19, and since b366 the FILL IS NOT WRITTEN HERE.
+     `Swing.sync` owns the geometry and only ever resyncs a CSS animation; this
+     block owns the two labels. See the Swing module's header. */
   const eq = typeof window.getEquipmentStats === 'function' ? window.getEquipmentStats() : {};
   const wid = g && g.equipment && g.equipment.weapon;
   const wname = (wid && ITEMS[wid] && ITEMS[wid].n) || weaponLabel(eq.weaponType) || 'Unarmed';
   const swingS = (tickMs() / 1000).toFixed(2) + 's';
   const ps = document.getElementById('fs-player-swing');
   if (ps) {
-    ps.querySelector('i').style.width = (ph * 100).toFixed(1) + '%';
     const lbl = `${wname} · ${swingS}`;
     const sp = ps.querySelector('span'); if (sp.textContent !== lbl) sp.textContent = lbl;
   }
   const fsw = document.getElementById('fs-foe-swing');
   if (fsw) {
-    fsw.querySelector('i').style.width = (ph * 100).toFixed(1) + '%';
     const lbl = `${esc(weaponLabel(m.weaponWeak) !== '—' ? m.family || 'Foe' : 'Foe')} · ${swingS}`;
     const sp = fsw.querySelector('span'); if (sp.textContent !== lbl) sp.textContent = lbl;
   }
+  Swing.sync([ps, fsw], live);
 
   // COMBAT-UI-11 — six tiles, three a side, from the ONE forecast.
   const f = forecastFor(m);
@@ -885,10 +1215,9 @@ function renderFight() {
     if (weak.textContent !== txt) weak.textContent = txt;
   }
 
-  renderGearStrip();
+  renderManage(m);
   adoptStyleBlock();
   renderMetrics(m, f);
-  renderLootRail();
 
   const badge = document.getElementById('fs-history-badge');
   const n = Ledger.lootCount();
@@ -984,7 +1313,7 @@ export function setupCombatScreens() {
   }
 
   window.HearthriseCombatScreens = {
-    preview, setView, view, render, renderFight, openFromNav,
+    preview, setView, view, render, renderFight, openFromNav, openSlotPicker,
     _ledger: Ledger, _swing: Swing,
     get previewId() { return previewId; },
   };

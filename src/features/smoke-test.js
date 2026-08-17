@@ -30424,6 +30424,25 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('b374: the hearth band is the PAINTED holding, not the flat-vector SVG', () => {
+    /* b374 — the Home banner was a flat-vector silhouette (backdrop.js
+       homesteadScene) that clashed with the painted account-gate/login. It now
+       shares the login's dawn plate. This guards two halves of that decision:
+       (1) the painted plate is actually the band's ::before background, and
+       (2) the retired flat-vector scene is NOT injected back into the band —
+       a plausible regression, since homesteadScene() is still exported. */
+    window.showTab('profile');
+    window.HearthriseHome.render();
+    const band = document.querySelector('#panel-profile .hd-hearth');
+    assert(band, 'the hearth band is missing');
+    const bg = getComputedStyle(band, '::before').backgroundImage || '';
+    assert(/hearthrise-splash/.test(bg),
+      'the hearth band no longer paints the login plate (::before background-image was "' + bg + '") — '
+      + 'reverting to the flat-vector scene reopens the "two games" clash Tyler flagged in b374');
+    assert(!band.querySelector('svg.hrs-svg'),
+      'the flat-vector homesteadScene SVG is back inside the hearth band — it was retired in b374');
+  }),
+
   () => tryRun('b341: a LOCKED auto-eat picker offers no choice it is going to refuse', () => {
     /* THE MEASURED BUG. setAutoEatFood() has always refused every pick without
        the Auto-Eat trait, but the picker rendered its rows live anyway: tapping

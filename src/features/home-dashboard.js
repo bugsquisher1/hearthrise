@@ -74,13 +74,24 @@
          picture is always ~a quarter of the screen, so it stays generous on a
          desktop monitor and never eats a landscape phone's working area. */
       R + '.hd-hearth{position:relative;height:clamp(104px,24vh,204px);overflow:hidden;isolation:isolate;',
+      'background-color:var(--scene-sky-0) !important;',   /* fallback if the plate fails to load — degrades to dusk, never white */
       'margin:-10px -10px 22px;border-bottom:1px solid var(--line) !important;',
       'box-shadow:0 10px 26px -22px rgba(0,0,0,.95)}',
-      /* Scrim: light hand over the sky, heavy under the identity block, so the
-         picture survives and the type still clears contrast. */
-      R + '.hd-hearth::after{content:"";position:absolute;inset:0;pointer-events:none;',
-      'background:linear-gradient(180deg,var(--scene-scrim-1) 0%,transparent 34%,var(--scene-scrim-2) 100%),',
-      'linear-gradient(90deg,var(--scene-scrim-2) 0%,transparent 44%)}',
+      /* b374 — the painted dawn holding, the same plate as the account gate.
+         Focal point held a touch above centre so the misty valley + warm
+         horizon land in the band and the bright sky is cropped out; the plate
+         is not a colour, so it is not a token, but its fallback surface above
+         is. */
+      R + '.hd-hearth::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;',
+      'background:url(assets/brand/hearthrise-splash.jpg?v=373) 50% 40%/cover no-repeat}',
+      /* Scrim, legibility-aware. The identity block sits bottom-left and the
+         ledger bottom-right, so both flanks and the floor darken to
+         --scene-scrim-2 while the centre-top stays open for the painting. Two
+         gradients, tokens + transparent only — the intermediate opacities are
+         the interpolation, not new hexes. */
+      R + '.hd-hearth::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;',
+      'background:linear-gradient(180deg,var(--scene-scrim-1) 0%,transparent 30%,transparent 54%,var(--scene-scrim-2) 100%),',
+      'linear-gradient(90deg,var(--scene-scrim-2) 0%,transparent 38%,transparent 55%,var(--scene-scrim-2) 90%,var(--scene-scrim-2) 100%)}',
       R + '.hd-hearth-in{position:relative;z-index:2;height:100%;max-width:1120px;margin:0 auto;',
       'padding:0 14px 16px;display:flex;align-items:flex-end;gap:16px}',
 
@@ -828,10 +839,14 @@
     var kills = today && (today.kills != null ? today.kills : (G.stats && G.stats.kills));
     var harvest = today && (today.harvested != null ? today.harvested : today.gathered);
 
-    var scene = '';
-    try { scene = window.HearthriseBackdrop && window.HearthriseBackdrop.homesteadScene(hsTier) || ''; } catch (e) {}
-
-    html += '<div class="hd-hearth">' + scene + '<div class="hd-hearth-in">';
+    /* b374 — the hearth band is now the PAINTED holding, not a flat-vector
+       silhouette. It shares the login's dawn plate (assets/brand/
+       hearthrise-splash.jpg, wired in .hd-hearth CSS), so Home and the front
+       door read as one game instead of two. The old SVG homesteadScene() is
+       still exported from backdrop.js (a future per-tier painted plate can
+       reuse its stage logic) but no longer drawn here — a flat vector beside a
+       painted login was the exact "two games" clash Tyler flagged. */
+    html += '<div class="hd-hearth"><div class="hd-hearth-in">';
     html += '<div class="hd-who"><div class="hd-ava">' +
       /* b371 (F22): data-hr-avatar makes this one of the surfaces the identity
          seam repaints. This banner is built as an innerHTML string and only

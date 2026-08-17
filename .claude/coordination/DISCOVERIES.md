@@ -4,6 +4,27 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-17 - Art Director (b374) - The Home hearth banner now shares the login's painted plate; the flat-vector SVG scene is retired from Home (still exported)
+
+**Discovery / change.** The Home dashboard's hearth band (`.hd-hearth`, built in
+`src/features/home-dashboard.js`) drew a flat-vector SVG silhouette landscape
+(`window.HearthriseBackdrop.homesteadScene(tier)` in `src/features/backdrop.js`). Beside the painted
+account-gate/login (`assets/brand/hearthrise-splash.jpg`, wired in `src/net/account-gate.js`) it read
+as "two games". The band now paints the SAME splash plate via `.hd-hearth::before`, with a
+legibility-aware two-gradient scrim (`--scene-scrim-*` tokens + transparent only) darkening the
+left flank (identity), right flank (XP/Kills/Harvest ledger) and floor, leaving the centre-top open
+for the painting. Name / eyebrow / rank-online subline / ledger verified fully legible at 1440x900
+AND 922x423 (compact 56px strip).
+
+**Affected systems.** `src/features/home-dashboard.js` (band CSS + scene injection removed);
+regression guard `b374` in `src/features/smoke-test.js`. `backdrop.js` UNTOUCHED — `homesteadScene()`
+stays exported (a future per-tier painted plate can reuse its stage logic).
+
+**Required action / known limitation.** The band LOST homestead-tier progression (the old SVG grew
+camp→cottage→manor→castle; the painted plate is fixed). The tier is still spoken by the eyebrow text
+("Wanderer's Camp" → "Hearthrise Castle"). Restoring visual tier progression = a set of 4-6 painted
+tier plates (ART request, briefed to Asset Director in HANDOFFS). Medium/nice-to-have, not blocking.
+
 ### 2026-08-17 - Game Designer (b373) - The FTUE's worst moment was not a missing feature: it was three correct systems each staying silent
 
 **Discovery.** The b372 audit's biggest FTUE gap ("first death is silent and punishing") decomposed

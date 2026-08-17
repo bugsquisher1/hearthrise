@@ -1,5 +1,52 @@
 # Art Director — running log
 
+### 2026-08-17 · b374 — the Home banner is repainted, and the win was NOT drawing a better silhouette,
+### it was DELETING the silhouette and reusing the front door's own painting.
+
+**The concrete ask, done.** Tyler pointed at the Home hearth banner ("this is OG") — the flat-vector
+SVG dusk landscape (`backdrop.js homesteadScene`, tent/windmill/hill silhouettes on `--scene-*`
+tokens). Beside the painted login (`hearthrise-splash.jpg`) it read as two games. I took Tyler's
+preferred path: the band now paints the SAME login plate via `.hd-hearth::before`, so Home and the
+account gate are one game. The old SVG injection is removed from `home-dashboard.js`; `homesteadScene()`
+stays exported in backdrop.js (a future per-tier plate can reuse its stage logic — I did not delete it).
+
+**The one real engineering problem was legibility, and I solved it with the scrim, not the crop.**
+The plate's brightest band (dawn sky + misty valley) sits dead-centre, and the XP/Kills/Harvest ledger
+sits top-right over it. First cut: numbers legible but soft over the bright mist — "readable" but not
+"a top studio shipped this". I strengthened ONLY the right flank of the `::after` scrim (90deg gradient
+now reaches `--scene-scrim-2` by 90% instead of feathering to the edge), which darkens the ledger's
+ground without touching the centre-left painting or the cottage the name sits on. Two gradients,
+`--scene-scrim-*` tokens + transparent only — the intermediate opacities are the interpolation, not new
+hexes (HARD RULE honoured). Verified by 2x element-clip captures of the band alone at BOTH viewports:
+name, "Wanderer's Camp" eyebrow, rank/online subline, and all three ledger numbers pop in both.
+
+**Cost I am NOT hiding: tier progression.** The old SVG grew camp→castle so the picture never lied
+about progress; the painted plate is fixed. The eyebrow text still speaks the tier. Restoring the
+visual ladder = 4-6 painted tier plates (handed to Asset Director). I judged a fixed painted holding
+beats a growing flat vector that clashes with everything around it — Tyler flagged THIS banner, and
+coherence with the painted game is the higher-order win.
+
+**Verification.** Own Playwright harness (`tools/_home-banner-shots.mjs`) rooted in THIS worktree
+(the launch.json-serves-main trap this log records ~5 times; MCP pane screenshots also time out here —
+the "not compositing" failure F17 noted). Home + a 7-surface survey at 1440x900 and 922x423,
+hearthlight. **0 404s, 0 console errors.** READ every capture. Before/after in
+`assets/art-pilot/_screenshots/home-banner/{before,after}/`. Suite **886/886** (+1: the `b374` guard
+asserts the band's `::before` paints the splash AND the flat-vector `svg.hrs-svg` is NOT back inside
+the band — mutation-proven by breaking the `splash` token). No bump, no push.
+
+**The audit (the second deliverable), ranked, from READING the survey captures.** What still clashes
+with the painted direction and whether it is CODE or ART:
+- **Combat/skills/farm empty BACKDROPS** — flat dark panels. ART, already briefed (the 14-prompt
+  bg-spec pack), blocked on Tyler exporting winners from Recraft. HIGHEST value, not mine to unblock.
+- **House room illustrations** (11) — cold grey concept-sketch vignettes, read as placeholder beside
+  warm icons. ART (HANDOFF filed). A warm-tint CSS stopgap is code-doable if Tyler wants it before paint.
+- **Home banner tier plates** (4-6) — ART, restores progression lost in b374. MEDIUM.
+- **Farm empty-plot tiles** — flat diagonal stripes. CODE-doable (tilled-soil texture); mine, LOW value,
+  not done this pass (out of banner scope).
+- **Global backdrop `scene()`** (castle silhouette behind everything) — flat SVG but ~fully occluded;
+  LOWEST priority, only shows in gutters.
+- Pre-existing: 30 legacy monster portraits, 5 wrong plank/bar icons, 19 companion portraits (ART, open).
+
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
 ### 2026-08-17 · b371 — the live-audit polish batch. TWO of the eight did not reproduce,

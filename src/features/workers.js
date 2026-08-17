@@ -37,6 +37,76 @@
     if (!G.workers || !Array.isArray(G.workers.hired)) G.workers = { hired: [] };
   }
 
+  // ---------- credit attribution (b370) ----------
+  // A worker payout is an inventory credit that DID NOT come from the fight the
+  // player is watching. The fight rail (features/combat-screens.js) measures
+  // loot as positive inventory deltas — it cannot tell a Slime Gel from a
+  // shipment of Oak Logs, so Aldric's haul was showing up under "Drops this
+  // fight". Rather than teach the rail about workers, every non-combat credit
+  // declares itself into ONE shared bucket that the rail folds into its
+  // baseline. Bounded (one key per item id), owner-less (no load-order
+  // dependency between a classic script and an ESM feature), and reusable by
+  // any future non-combat source — pets, farm auto-harvest, mail.
+  function noteNonCombatCredit(id, qty) {
+    if (!id || !(qty > 0)) return;
+    try {
+      var b = window.__hrNonCombatCredits || (window.__hrNonCombatCredits = {});
+      b[id] = (b[id] || 0) + qty;
+    } catch (e) { /* attribution is best-effort; never block a payout */ }
+  }
+
+  // ---------- the worker ledger (b370) ----------
+  // Tyler: "we should store that data somewhere so those who are interested can
+  // keep track of what their workers are gaining." So every banked payout is
+  // tallied per worker, lifetime, on the worker record itself — it rides G.workers
+  // into the save by default (denylist rule; never add it to NO_SYNC). Aggregates
+  // are DERIVED, not stored, so the two can never disagree.
+  // The session figure is deliberately in-memory only: same ruling as the
+  // Chronicle's Recent tier — "what have they done since I sat down" is a session
+  // question, and persisting it would put churn in the cloud snapshot.
+  var sessionByItem = {};
+  var sessionTotal = 0;
+
+  function recordCollect(w, id, qty) {
+    if (!id || !(qty > 0)) return;
+    if (!w.collected || typeof w.collected !== 'object') w.collected = {};
+    w.collected[id] = (w.collected[id] || 0) + qty;
+    w.collectedTotal = (w.collectedTotal || 0) + qty;
+    if (!w.collectedSince) w.collectedSince = Date.now();
+    sessionByItem[id] = (sessionByItem[id] || 0) + qty;
+    sessionTotal += qty;
+  }
+
+  // Derived view of the whole crew. byItem is lifetime; session is this sitting.
+  function ledger() {
+    ensureState();
+    var byItem = {}, total = 0;
+    var per = G_().workers.hired.map(function (w) {
+      var c = (w.collected && typeof w.collected === 'object') ? w.collected : {};
+      var t = 0;
+      for (var id in c) {
+        var q = c[id] || 0;
+        if (!(q > 0)) continue;
+        t += q; byItem[id] = (byItem[id] || 0) + q;
+      }
+      total += t;
+      return { uid: w.uid, name: w.name, total: t, byItem: c, since: w.collectedSince || 0 };
+    });
+    return {
+      byItem: byItem, total: total, workers: per,
+      session: { byItem: sessionByItem, total: sessionTotal },
+    };
+  }
+
+  // Lifetime tallies sorted biggest-first — what the summary line reads.
+  function ledgerTop(n) {
+    var by = ledger().byItem;
+    return Object.keys(by)
+      .map(function (id) { return { id: id, qty: by[id] }; })
+      .sort(function (a, b) { return b.qty - a.qty; })
+      .slice(0, n || 5);
+  }
+
   function slots() {
     return (window.HearthriseHomestead && window.HearthriseHomestead.workerSlots()) || 0;
   }
@@ -111,7 +181,14 @@
     if (ticks <= 0) return null;
     var avgQty = (act.qty[0] + act.qty[1]) / 2;
     var qty = Math.max(0, Math.floor(ticks * avgQty));
-    if (qty > 0 && typeof window.addItem === 'function') window.addItem(act.prod, qty);
+    if (qty > 0 && typeof window.addItem === 'function') {
+      window.addItem(act.prod, qty);
+      /* AFTER the credit lands, never before — the fight rail folds this into
+         its baseline on its next sample, and a note that preceded the actual
+         inventory write would discount loot that had not arrived yet. */
+      noteNonCombatCredit(act.prod, qty);
+      recordCollect(w, act.prod, qty);
+    }
     w.xp = (w.xp || 0) + Math.floor(ticks * act.xp * 0.5);   // worker XP, never player XP
     w.lastCollect = now - (elapsed - ticks * perTickMs);     // preserve remainder
     return qty > 0 ? { id: act.prod, qty: qty } : null;
@@ -142,6 +219,39 @@
   }
 
   // ---------- UI (renders into the host div inside the Property card) ----------
+  function fmtN(n) { return Math.round(n || 0).toLocaleString(); }
+  function itemName(id) {
+    return (window.ITEMS && window.ITEMS[id] && window.ITEMS[id].n) || id;
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+    });
+  }
+
+  /* THE LEDGER LINE. One sentence under the crew: the lifetime haul, its top
+     few items, and — only when they have actually produced while you sat here
+     — what they have brought in this session. Data over UI: no panel, no tab,
+     no chart. It answers "what are my workers gaining" at a glance and gets
+     out of the way. */
+  function ledgerHtml() {
+    var L = ledger();
+    if (!(L.total > 0)) return '';
+    var top = ledgerTop(4);
+    var extra = Object.keys(L.byItem).length - top.length;
+    var items = top.map(function (r) {
+      return esc(itemName(r.id)) + ' ×' + fmtN(r.qty);
+    }).join(' · ') + (extra > 0 ? ' · +' + extra + ' more' : '');
+    /* The session figure earns its line only when it says something the
+       lifetime figure does not. On a first sitting the two are the same number
+       and printing both is noise. */
+    var sess = (L.session.total > 0 && L.session.total < L.total)
+      ? '<div class="tiny muted">' + fmtN(L.session.total) + ' of it since you sat down.</div>'
+      : '';
+    return '<div class="tiny muted" style="margin-top:6px">' +
+      '<b>' + fmtN(L.total) + '</b> gathered by your workers — ' + items + '</div>' + sess;
+  }
+
   function taskOptions(w) {
     var out = '<option value="">— idle —</option>';
     [['woodcutting', window.TREES], ['mining', window.ROCKS], ['fishing', window.FISH_SPOTS]].forEach(function (pair) {
@@ -169,13 +279,19 @@
     var rows = G.workers.hired.map(function (w) {
       var rph = ratePerHour(w);
       var act = w.skill && actFor(w.skill, w.targetId);
+      /* The per-worker tally sits on the line that already answers "what is
+         this one doing" — one more fact in an existing sentence, not a new
+         surface. A worker who has banked nothing says nothing. */
+      var haul = (w.collectedTotal || 0) > 0
+        ? ' · <span title="Everything ' + w.name + ' has ever banked">' + fmtN(w.collectedTotal) + ' gathered</span>'
+        : '';
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line-soft)">' +
         ((window.HearthriseIconSet && window.HearthriseIconSet.path && window.HearthriseIconSet.path('navProfile'))
           ? '<svg viewBox="0 0 512 512" style="width:18px;height:18px;flex:0 0 auto" aria-hidden="true"><path fill="var(--gold-2,#cda24a)" d="' + window.HearthriseIconSet.path('navProfile') + '"/></svg>'
           : '<span style="font-size:calc(19px * var(--ui-scale, 1))">🧑‍🌾</span>') +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:calc(14.5px * var(--ui-scale, 1))"><b>' + w.name + '</b> <span class="tiny muted">Lv ' + level(w) + '</span></div>' +
-          '<div class="tiny muted">' + (act ? (act.name + ' · ~' + rph + '/hr') : 'Idle — assign a task') + '</div>' +
+          '<div class="tiny muted">' + (act ? (act.name + ' · ~' + rph + '/hr') : 'Idle — assign a task') + haul + '</div>' +
         '</div>' +
         '<select style="max-width:150px;font-size:calc(14.5px * var(--ui-scale, 1));background:rgba(0,0,0,.25);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:3px 6px" ' +
           'onchange="window.HearthriseWorkers._onAssign(\'' + w.uid + '\', this.value)">' + taskOptions(w) + '</select>' +
@@ -194,6 +310,7 @@
           ? '<button class="btn btn-sm" style="margin-top:8px" onclick="window.HearthriseWorkers.hire()">Hire worker — ' + hireCost().toLocaleString() + 'g</button>'
           : '') +
         (s > 0 ? '<div class="tiny muted" style="margin-top:6px">Workers gather while you\'re away (up to 24h). They only do what you\'ve mastered yourself.</div>' : '') +
+        ledgerHtml() +
       '</div>';
   }
 
@@ -207,6 +324,8 @@
     level: level,
     eff: eff,
     ratePerHour: ratePerHour,
+    ledger: ledger,
+    ledgerTop: ledgerTop,
     renderInto: renderInto,
     _onAssign: function (uid, value) {
       if (!value) { assign(uid, null, null); return; }

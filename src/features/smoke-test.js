@@ -25686,6 +25686,60 @@ const TESTS = [
       'applyEnvelope mutated the target before deciding it could not trust the envelope');
   }),
 
+  /* ── REGRESSION (Paione, 2026-08-18): away kills feed the kill COUNTERS ─────
+     The server pays away loot/XP through the envelope, but the three kill
+     counters a kill also feeds — lifetime `stats.kills`, the this-fight streak
+     `combatKillsThisFoe`, and kill quests/dailies — are not in the envelope
+     STATE, so an away night left "total kills", "kills this fight" and the
+     weekly kill-quest standing still. `creditServerAwayKills` replays the away
+     kill total through the SAME live seams a real kill uses, and ONLY for a
+     genuine 'away' receipt — a 'sync' or 'switch' already counted its kills
+     through the live combatTick, so re-crediting there would double-count.
+     Fails without the fix (the function does not exist / never runs). */
+  () => tryRun('away-kills: a genuine absence credits stats.kills, the this-fight streak and kill quests; a live sync does not', () => {
+    assert(typeof window.creditServerAwayKills === 'function',
+      'creditServerAwayKills is not wired — away kills never reach the counters');
+    const G = window.G;
+    const saved = {
+      kills: (G.stats && G.stats.kills) || 0,
+      foe: G.combatKillsThisFoe || 0,
+      active: G.activeMonster,
+      quests: G.quests,
+    };
+    try {
+      G.stats = G.stats || {};
+      G.stats.kills = 100;
+      G.combatKillsThisFoe = 3;
+      G.activeMonster = 'slime';                    // still fighting, so the streak resumes
+      /* A fresh, non-mirror kill_any quest so the assertion is self-contained. */
+      G.quests = [{ id: '__away_kills_probe', type: 'kill_any', progress: 0, goal: 1000, done: false }];
+
+      /* SYNC — a live settle of the last minute. Its kills were already counted
+         live, so nothing here may move. `awayMs` under SYNC_MAX_MS (10m). */
+      window.creditServerAwayKills({ awayMs: 60000, gainedKills: 5, combat: { kills: 5, died: false } });
+      assert((G.stats.kills || 0) === 100, 'a live sync double-credited stats.kills');
+      assert((G.combatKillsThisFoe || 0) === 3, 'a live sync double-credited the this-fight streak');
+      assert(G.quests[0].progress === 0, 'a live sync double-credited a kill quest');
+
+      /* AWAY — a real 8h absence the live loop did not run in. All three move. */
+      window.creditServerAwayKills({ awayMs: 8 * 3600000, gainedKills: 25, combat: { kills: 25, died: false } });
+      assert((G.stats.kills || 0) === 125, 'away kills did not reach lifetime stats.kills, got ' + G.stats.kills);
+      assert((G.combatKillsThisFoe || 0) === 28, 'away kills did not resume the this-fight streak, got ' + G.combatKillsThisFoe);
+      assert(G.quests[0].progress === 25, 'away kills did not advance the kill quest, got ' + G.quests[0].progress);
+
+      /* A DEATH ended the fight — the streak must NOT resume onto a foe that
+         killed the player (the next startCombat resets it). Lifetime still moves. */
+      window.creditServerAwayKills({ awayMs: 8 * 3600000, gainedKills: 4, combat: { kills: 4, died: true } });
+      assert((G.stats.kills || 0) === 129, 'a fatal away night must still credit lifetime kills');
+      assert((G.combatKillsThisFoe || 0) === 28, 'a fatal away night must not resume the this-fight streak');
+    } finally {
+      G.stats.kills = saved.kills;
+      G.combatKillsThisFoe = saved.foe;
+      G.activeMonster = saved.active;
+      G.quests = saved.quests;
+    }
+  }),
+
   () => tryRun('b337: the accrual endpoint is DERIVED from the project URL, and the intent carries one integer', () => {
     const A = window.HearthriseAccrual;
     assert(A.accrueEndpoint('https://x.supabase.co') === 'https://x.supabase.co/functions/v1/hr-accrue', 'bad endpoint derivation');

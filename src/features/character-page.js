@@ -573,7 +573,21 @@ function ensureCharStyle() {
   s.id = 'char-combined-css';
   const R = '#panel-character ';
   s.textContent = [
-    R + '#char-shell{display:flex;flex-direction:column;gap:0;min-height:0;flex:1}',
+    /* b371 — `min-height:0` HERE WAS THE REASON THE SCREEN COULD NOT SCROLL.
+       `#panel-character` is the scroll container (`overflow-y:auto`). The shell
+       is its only flex child, and `flex:1` + `min-height:0` let the shell be
+       SHORTER than its own content; the pane inside is `overflow:visible`, so
+       its overflow escapes without contributing to any ancestor's scrollHeight.
+       Measured at 1366x768: the panel reported scrollHeight 683 / client 677 —
+       6px of travel — while `#csk-account` genuinely ended at y=774. At 922x423
+       the same shape puts the Bounty Hunter row at 527 on a 423px screen. The
+       content was not clipped and it was not scrollable; it was simply gone.
+
+       `flex:1 0 auto` with the default `min-height:auto` keeps the grow (the
+       pane still fills a tall window, which is why `flex:1` was there) and
+       removes the shrink, so the shell is always at least as tall as its pane
+       and the panel's own scrollbar can reach the bottom of it. */
+    R + '#char-shell{display:flex;flex-direction:column;gap:0;flex:1 0 auto}',
     // Sub-tab strip
     R + '.char-subtabs{display:flex;gap:6px;flex-shrink:0;border-bottom:1px solid var(--gold-2);margin-bottom:14px}',
     R + '.char-subtab{flex:0 0 auto;padding:9px 20px;border-radius:8px 8px 0 0;border:1px solid var(--line);'

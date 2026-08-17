@@ -321,7 +321,24 @@ body[data-theme="cozy-light"] #panel-combat .fs-swing {
 /* THE EQUIPMENT PANEL. Twelve slots, four across, each wearing the item's own
  * painted art — the empty state is legacy's gilt line glyph, never the emoji in
  * EQUIP_SLOT_META. Click opens a picker filtered to that slot. */
-#panel-combat .fsm-doll { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+/* THREE ACROSS, NOT FOUR (b371) — and the reason is the LABEL, measured.
+ * `--t-micro` resolves to 14.5px (b227's legibility floor, guarded), so the
+ * empty-slot caption cannot be shrunk to fit. At four columns in a 232px rail
+ * each tile is 51px with 45px of usable line, and exactly two of the twelve
+ * captions are wider than that: "Offhand" and "Necklace" came back as
+ * "OFFHAN / D" and "NECKLA / CE" — the same half-a-word failure b139 ruled
+ * against and b368 fixed from the other side. Three columns give a 68px tile
+ * and a 62px line, which both fit whole.
+ *
+ * Renaming the two offenders was the cheaper fix and it is the wrong one: the
+ * captions come from `EQUIP_SLOT_META`, which the Character paper-doll also
+ * reads, so a local rename would make one screen call a slot Amulet and the
+ * other Necklace. Widening the tile costs 128px of rail height (the DROPS
+ * block, which grows, gives it up) and buys a second thing worth having — the
+ * painted item art renders at 68px instead of 51, which is the difference
+ * between reading an icon and recognising a smear. The 168px phone rail keeps
+ * four across: the captions are hidden there anyway. */
+#panel-combat .fsm-doll { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 #panel-combat .fsm-slot {
   position: relative; aspect-ratio: 1 / 1;
   display: flex; align-items: center; justify-content: center;
@@ -713,6 +730,60 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
 #panel-combat[data-fight-state="preview"] .fs-stop,
 #panel-combat[data-fight-state="live"] .fs-fight { display: none !important; }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * 3.9 · THE REACHABILITY NET — AT EVERY HEIGHT, NOT ONLY ON A PHONE (b371)
+ *
+ * These two rules used to live inside `@media (max-height: 560px)` below, and
+ * the reasoning attached to them there was right about everything except its
+ * own scope. `.combat-arena` carries `overflow: hidden` so a bleeding backdrop
+ * cannot escape the card; a clipping element reports its OWN short height, so
+ * the scroll container above it (`.fs-view`) sees nothing to scroll, and the
+ * rows the stage pushes past the fold are not clipped-but-scrollable — they
+ * are UNREACHABLE, with no gesture that can get to them.
+ *
+ * That is not a landscape-phone property. It is a property of "the stage's
+ * content is taller than the arena", and MEASURED AT 1366x768 — the most
+ * common laptop resolution there is — the stage is 699px inside a 610px arena
+ * and FIGHT lands at y=776..813 on a 768px screen: the primary call to action
+ * of the primary screen, entirely below the fold, with nothing that scrolls.
+ * At 1280x800 it is 11px tall and not hit-testable. The b366 comment called
+ * this class of defect a P0 and then fenced the cure behind a query no desktop
+ * matches.
+ *
+ * So the net is unconditional. It is still a NET and not the layout — the
+ * portrait budget below is tuned so the action bar lands above the fold and
+ * the net is never used — but a safety net that only exists on the viewport
+ * where the accident did not happen is not a safety net.
+ * ════════════════════════════════════════════════════════════════════════*/
+#panel-combat[data-combat-view="fight"] .fs-view {
+  overflow-y: auto; overscroll-behavior: contain;
+}
+#panel-combat[data-combat-view="fight"] .combat-arena {
+  overflow: visible !important;
+}
+
+/* THE FOE PORTRAIT PAYS FOR THE FOLD, BECAUSE IT IS THE ONLY ELASTIC ROW.
+ * Every other row of the stage grammar is fixed-height type or chrome: name,
+ * level, HP bar, swing bar, tiles, style row, action bar, metrics strip, gaps
+ * and padding measure 376px together at desktop and do not compress. The shell
+ * above the arena (topbar + activity bar + the screen's own header) is another
+ * ~148px. 376 + 148 = 524, so the portrait may have whatever a viewport has
+ * left over that — `calc(100vh - 540px)` keeps a 16px cushion.
+ *
+ * The three-term min() is deliberate and each term earns its place: 42vh is
+ * b365's art-direction ratio (the foe is the subject of the screen), 340px is
+ * the cap that stops a 4K monitor rendering a 900px slime, and the calc is the
+ * fold. On a 1080p screen the calc yields 540 and never binds; at 900 it
+ * yields 360 and the 340px cap wins; at 768 it yields 228 and it is the only
+ * thing standing between the player and an unreachable Fight button.
+ * Below ~700px tall the player's own 170px plate sets the row height instead,
+ * which is where the net above takes over — and the phone breakpoint sets both
+ * portraits explicitly, so this expression never reaches 922x423. */
+#panel-combat .arena-vs.fs-stage .arena-side.foe .arena-portrait {
+  width: min(42vh, 340px, calc(100vh - 540px));
+  height: min(42vh, 340px, calc(100vh - 540px));
+}
+
 /* The metrics strip. One sentence, always on — and it refuses to quote a rate
  * it has not measured (see the module's Ledger). */
 #panel-combat .fs-metrics {
@@ -856,7 +927,12 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
    * and a phone is where "manage my loadout without leaving" matters most. */
   #panel-combat .fs-body { grid-template-columns: 168px minmax(0, 1fr); gap: 6px; }
   #panel-combat .fs-manage { padding: 5px; gap: 5px; }
-  #panel-combat .fsm-doll { gap: 3px; }
+  /* FOUR ACROSS AGAIN on the 168px rail. The base grid went to three columns in
+   * b371 so the empty-slot captions fit whole; here the captions are hidden
+   * (see `.fsm-slot em { display: none }` below) so the argument does not apply,
+   * and three columns would make the doll 4 rows of 53px — 224px of a 423px
+   * screen for twelve slots nobody is reading labels on. */
+  #panel-combat .fsm-doll { grid-template-columns: repeat(4, 1fr); gap: 3px; }
   #panel-combat .fsm-food-slot { width: 34px; height: 34px; }
   #panel-combat .fsm-drop-art { width: 16px; height: 16px; }
   #panel-combat .fsm-head, #panel-combat .fsm-drop,
@@ -875,21 +951,14 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
    * the fold and only the log, which is watched rather than acted on, is not.
    * The stage stops growing here: on a short screen the slack belongs to the
    * controls, not to the painting. */
-  #panel-combat[data-combat-view="fight"] .fs-view { overflow-y: auto; overscroll-behavior: contain; }
-  /* THE ACTION BAR IS NOT ALLOWED TO BE CLIPPED. `.combat-arena` carries
-   * `overflow: hidden` so the stage can host a bleeding backdrop without the
-   * painting escaping its card. On a 423px screen that turned into a P0: the
-   * stage's content measured 425px inside a 277px arena box, and because the
-   * clipping element reports its own SHORT height, the scroll container above it
-   * (`.fs-view`) saw nothing to scroll — so Eat and Stop were cut off the bottom
-   * of the screen with no gesture that could reach them. A control a player
-   * cannot reach is worse than the hidden-Flee hack this rework just deleted.
-   * On short screens the arena therefore SCROLLS instead of clipping. It is a
-   * safety net, not the layout: the budget below is tuned so the action bar and
-   * the metrics strip land above the fold and the net is never used. */
-  #panel-combat[data-combat-view="fight"] .combat-arena {
-    overflow: visible !important;
-  }
+  /* THE ACTION BAR IS NOT ALLOWED TO BE CLIPPED — the two rules that make that
+   * true (`.fs-view` scrolls, `.combat-arena` stops clipping) MOVED OUT of this
+   * query in b371 and now apply at every height. They were authored here for
+   * the 423px screen, where the stage's content measured 425px inside a 277px
+   * arena; the same arithmetic holds at 1366x768, which is where the b370 audit
+   * found FIGHT eight pixels below the fold with nothing to scroll. See §3.9.
+   * Do not re-scope them to a breakpoint: an unreachable control is the one
+   * defect class this screen has now shipped twice. */
   #panel-combat .arena-vs.fs-stage { flex: 0 0 auto; padding: 2px 10px; gap: 1px 10px; }
   #panel-combat .arena-vs.fs-stage .arena-side.player .arena-portrait { width: 52px; height: 52px; }
   /* Trimmed from 21vh/88 to 18vh/72: the four rows below the plate (name, level,
@@ -978,6 +1047,11 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
   #panel-combat .wt-dest { flex: 0 0 190px; }
   #panel-combat .fs-top { flex-wrap: wrap; }
   #panel-combat .fs-body { grid-template-columns: 150px minmax(0, 1fr); }
+  /* A 150px rail cannot afford b371's three columns (42px tiles), and no
+   * caption is legible at that width either way — so this rail keeps the
+   * original four across and the density argument is settled by the tile size
+   * rather than by the label. */
+  #panel-combat .fsm-doll { grid-template-columns: repeat(4, 1fr); }
   /* Same 150px rail, same clipped totals — see the note at max-height:560. */
   #panel-combat .fsm-head { flex-wrap: wrap; }
   #panel-combat .fsm-head b { margin-left: 0; width: 100%; white-space: normal; }

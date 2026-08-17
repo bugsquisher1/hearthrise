@@ -1109,6 +1109,46 @@ img,svg{display:block;max-width:100%}
 }
 .nav-group-label:first-of-type{padding-top:5px;border-top:none;margin-top:5px}
 
+/* ─── b371: THE RAIL FITS A LAPTOP, IT DOES NOT JUST SCROLL ON ONE ───────────
+   MEASURED at 1366x768, the most common laptop resolution there is: the rail's
+   content is 889px in a 768px box, so Social and Settings — the last two
+   destinations, one of them the ONLY way to reach settings — sit at y=779..823,
+   below the fold.
+
+   b225 (#18) made `.sidebar` `overflow-y:auto` precisely so growth could not
+   hide a destination, and that rule is doing its job: the items ARE reachable
+   with a wheel. But a nav rail is not a document. It carries no scrollbar until
+   you touch it, its last visible row (Shops) looks exactly like the end of the
+   list, and the whole premise of a persistent rail is that the destinations are
+   VISIBLE, not merely present. b225's own comment says the list stood within
+   25px of the edge at 900px tall before Clan, Stable and Market were added —
+   three destinations later the overflow is 121px and the scroll has stopped
+   being a safety net and started being the layout.
+
+   So on short screens the rail is COMPACTED rather than scrolled: 6px off each
+   of fourteen buttons, 7px off each of three group labels, 1px off nineteen
+   gaps and 8px off the brand = 132px, which lands 889 -> 757 and puts Settings
+   back on screen at 768 with room to spare. Nothing is hidden, no type shrinks
+   (b227's 14.5px floor is untouched — this is all leading and chrome), and the
+   scroll stays underneath as the net it was meant to be.
+
+   The 38px button is a considered exception to the 44px `--tap` floor and it is
+   safe HERE specifically: `--tap` is a THUMB target, and this rail is
+   `display:none` on every touch layout (see the mobile query below) — it is
+   only ever driven by a mouse or a keyboard, where 38px is generous. The floor
+   is not relaxed anywhere a finger can reach it.
+
+   Cut-off is 899px because 900 is where the uncompacted rail exactly fits
+   (measured: 889 of 900). ─────────────────────────────────────────────────── */
+@media (max-height: 899px){
+  .sidebar{gap:3px;padding-top:8px}
+  .brand{padding:6px 10px 6px;margin-bottom:4px}
+  .nav-btn{min-height:38px;padding:5px 10px}
+  .nav-group-label{padding:5px 12px 2px;margin-top:0;padding-top:5px}
+  .nav-group-label:first-of-type{padding-top:3px;margin-top:2px}
+  .nav-foot{padding:5px 10px}
+}
+
 /* ─── Bounty panel layout ─── */
 #panel-bounty.active{
   grid-template-columns:minmax(0,1fr) minmax(280px,360px);

@@ -191,37 +191,62 @@
       'html[data-hr-gate="closed"] body{overflow:hidden}',
       'html[data-hr-gate="closed"] body > *:not(#hr-account-gate){visibility:hidden !important}',
 
-      /* The scene, not the game's --app-bg: that one puts its ember at 78% 3%,
-         which fights a centred lockup and leaves the composition lit from the
-         wrong corner. Same Forge & Stone dusk tokens, one light source, above
-         the crest. */
+      /* b361 — the front door is the dawn homestead, not a gradient.
+         The painting is the one screen in the game where an illustration can
+         carry the whole frame, so it does: `background-size:cover` on a fixed
+         full-viewport box, focal point held slightly above centre so the lit
+         valley and the smoking cottage survive a 16:9 crop.
+         The gradient it replaces stays as the background-COLOR underneath, so
+         a failed image request degrades to the b219 dusk rather than to white.
+         Everything readable sits on the scrim in ::after, never on the paint. */
       '.hr-gate{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;',
       '  justify-content:center;padding:28px 20px;overflow:auto;',
-      '  background:',
+      '  background-color:var(--scene-sky-0,#0c0a08);',
+      '  background-image:',
       '    radial-gradient(ellipse 72% 46% at 50% 0%,var(--scene-glow-2,rgba(206,116,50,.13)) 0%,var(--scene-glow-0,rgba(206,116,50,0)) 62%),',
       '    linear-gradient(180deg,var(--scene-sky-1,#16120e) 0%,var(--scene-sky-0,#0c0a08) 58%,var(--scene-ridge-near,#0b0806) 100%);',
-      '  font-family:var(--f-ui,system-ui,sans-serif);color:var(--ink,#ece1cc);',
+      '  font-family:var(--f-ui,system-ui,sans-serif);color:var(--scene-ink,#f4ecda);',
       '  -webkit-font-smoothing:antialiased}',
+      /* position:FIXED, not absolute, and this was a real defect before it was
+         a decision. `.hr-gate` is `overflow:auto`, and on a landscape phone the
+         form is taller than the viewport — an absolutely-positioned child
+         resolves `inset:0` against the padding box, so the painting stayed
+         423px tall while the content scrolled 900px past it and the lower half
+         of the screen went flat black. Fixed pins both layers to the viewport,
+         which is also the behaviour you want: the scene stays still and the
+         panel travels over it. Seen at 922x423; invisible at 1440x900. */
+      '.hr-gate::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;',
+      '  background:url(assets/brand/hearthrise-splash.jpg?v=364) 50% 42%/cover no-repeat}',
+      /* The scrim. --scene-scrim-* exist precisely for "keep UI legible on top
+         of the picture" and are dark in BOTH themes, so this one rule holds on
+         parchment too. Vignetted rather than flat: the lightest point sits
+         under the lockup, which is where the painting's own sunrise is. */
+      '.hr-gate::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;',
+      '  background:radial-gradient(ellipse 118% 86% at 50% 34%,',
+      '    var(--scene-scrim-1,rgba(9,7,5,.20)) 0%,var(--scene-scrim-2,rgba(9,7,5,.72)) 74%),',
+      '    var(--scene-scrim-2,rgba(9,7,5,.72))}',
 
-      '.hr-gate-col{position:relative;width:100%;max-width:404px;margin:auto;',
+      '.hr-gate-col{position:relative;z-index:1;width:100%;max-width:404px;margin:auto;',
       '  display:flex;flex-direction:column;align-items:center}',
 
-      /* ── crest + wordmark (the b218 lockup, stacked and centred) ── */
-      /* No local halo behind the crest — a soft disc at this size reads as a
-         rendering artefact, not as light. The one page-level ember above the
-         lockup is the whole light source. */
+      /* ── crest above wordmark — the stacked lockup ── */
+      /* No local halo behind the crest: a soft disc at this size reads as a
+         rendering artefact, not as light. The painting is the light source. */
       '.hr-gate-mark{position:relative;display:flex;flex-direction:column;align-items:center;',
-      '  gap:14px;margin-bottom:6px}',
-      '.hr-gate-mark svg{display:block;width:66px;height:73px}',
-      '.hr-gate-word{position:relative;font-family:var(--f-display,Georgia,serif);font-size:calc(37px * var(--ui-scale, 1));line-height:1;',
-      '  font-weight:600;letter-spacing:.085em;text-indent:.085em;',
-      '  background:linear-gradient(180deg,#f2dda6 0%,#dcbb6c 46%,#b58c37 100%);',
-      '  -webkit-background-clip:text;background-clip:text;color:transparent;',
-      '  -webkit-text-fill-color:transparent}',
+      '  gap:13px;margin-bottom:6px}',
+      '.hr-gate-crest{display:block;width:auto;height:104px;',
+      '  filter:drop-shadow(0 6px 14px rgba(0,0,0,.75))}',
+      '.hr-gate-word{display:block;width:246px;max-width:100%;height:auto;',
+      '  filter:drop-shadow(0 2px 5px rgba(0,0,0,.7))}',
       '.hr-gate-rule{width:112px;height:1px;margin:15px 0 11px;',
       '  background:linear-gradient(90deg,rgba(201,162,74,0),rgba(201,162,74,.62),rgba(201,162,74,0))}',
+      /* b361: --scene-ink-*, not --ink-*. Everything from here to the panel sits
+         ON the painting under a dark scrim, and --ink-3 is a cocoa brown in
+         cozy-light — the exact theme leak this project keeps re-finding. The
+         --scene-ink roles exist because their background is the scrim, not the
+         theme surface, and they stay light in both. */
       '.hr-gate-tag{font-family:var(--f-label,inherit);font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.2em;',
-      '  text-transform:uppercase;color:var(--ink-3,#9d8b70)}',
+      '  text-transform:uppercase;color:var(--scene-ink-3,#b0a186)}',
 
       /* ── the one contained object on the screen ── */
       /* The top edge is where the light lands: a gilt hairline, brighter than
@@ -272,16 +297,20 @@
       '.hr-gate-note[data-tone="ok"]{color:var(--gold-2,#e3c77e)}',
       '.hr-gate-note[data-tone="muted"]{color:var(--ink-3,#9d8b70)}',
 
+      /* Also on the picture — see the note on .hr-gate-tag. */
       '.hr-gate-foot{margin-top:20px;font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.6;text-align:center;',
-      '  color:var(--ink-3,#9d8b70);max-width:330px;text-wrap:balance}',
-      '.hr-gate-foot b{color:var(--ink-2,#c4b79e);font-weight:700}',
-      '.hr-gate-help{margin-top:10px;font-size:calc(14.5px * var(--ui-scale, 1));text-align:center;color:var(--ink-3,#8f8676)}',
-      '.hr-gate-help a{color:var(--gold,#e8c476);text-decoration:underline;text-underline-offset:2px}',
+      '  color:var(--scene-ink-3,#b0a186);max-width:330px;text-wrap:balance}',
+      '.hr-gate-foot b{color:var(--scene-ink-2,#d8cbb1);font-weight:700}',
+      '.hr-gate-help{margin-top:10px;font-size:calc(14.5px * var(--ui-scale, 1));text-align:center;color:var(--scene-ink-3,#b0a186)}',
+      '.hr-gate-help a{color:var(--scene-gilt,#ecd7a0);text-decoration:underline;text-underline-offset:2px}',
 
       /* the lapsed-session re-prompt: same form, but a sheet beside a running
          game rather than a door in front of it */
       '.hr-gate.reauth{background:rgba(6,5,3,.72);backdrop-filter:blur(3px);align-items:center}',
-      '.hr-gate.reauth::before{display:none}',
+      /* b361: BOTH pseudo-elements now paint the front door's scene, and the
+         re-prompt is a sheet over a running game — it must show the game
+         behind it, not the login painting. */
+      '.hr-gate.reauth::before,.hr-gate.reauth::after{display:none}',
       '.hr-gate.reauth .hr-gate-mark{display:none}',
       '.hr-gate.reauth .hr-gate-col{max-width:392px}',
       '.hr-gate.reauth .hr-gate-panel{margin-top:0;background:var(--bg-3,#2a241c)}',
@@ -289,35 +318,35 @@
       '  font:inherit;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#9d8b70);text-decoration:underline;cursor:pointer}',
       '.hr-gate-later:hover{color:var(--gold-2,#e3c77e)}',
 
-      '@media (max-height:620px){.hr-gate{align-items:flex-start}.hr-gate-word{font-size:calc(32px * var(--ui-scale, 1))}',
-      '  .hr-gate-mark svg{width:42px;height:46px}.hr-gate-panel{margin-top:18px}}',
-      '@media (max-width:420px){.hr-gate{padding:20px 14px}.hr-gate-word{font-size:calc(32px * var(--ui-scale, 1))}}'
+      /* Landscape phones (b310: scaled desktop, ~423px tall) — the lockup gives
+         up height first, because the form is the only thing that must fit. */
+      '@media (max-height:620px){.hr-gate{align-items:flex-start}',
+      '  .hr-gate-crest{height:62px}.hr-gate-word{width:186px}',
+      '  .hr-gate-mark{gap:9px}.hr-gate-panel{margin-top:18px}}',
+      '@media (max-width:420px){.hr-gate{padding:20px 14px}.hr-gate-word{width:194px}}'
     ].join('');
     document.head.appendChild(s);
   }
 
-  // The crest from the sidebar lockup, drawn at gate scale. Same shield +
-  // rising sun; no emoji anywhere in this file by project rule.
-  var CREST = '' +
-    '<svg viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">' +
-    '<defs>' +
-    '<radialGradient id="hrg-ember" cx="50%" cy="64%" r="62%">' +
-    '<stop offset="0%" stop-color="#f6d391" stop-opacity=".55"/>' +
-    '<stop offset="55%" stop-color="#c9902f" stop-opacity=".16"/>' +
-    '<stop offset="100%" stop-color="#c9902f" stop-opacity="0"/>' +
-    '</radialGradient>' +
-    '<linearGradient id="hrg-gild" x1="0" y1="0" x2="0" y2="1">' +
-    '<stop offset="0%" stop-color="#f4d489"/><stop offset="100%" stop-color="#c99433"/>' +
-    '</linearGradient>' +
-    '</defs>' +
-    '<path d="M5 5 L35 5 L35 21 Q35 34.5 20 41 Q5 34.5 5 21 Z" fill="#1a150d"/>' +
-    '<path d="M5 5 L35 5 L35 21 Q35 34.5 20 41 Q5 34.5 5 21 Z" fill="url(#hrg-ember)"/>' +
-    '<path d="M5 5 L35 5 L35 21 Q35 34.5 20 41 Q5 34.5 5 21 Z" fill="none" stroke="url(#hrg-gild)" stroke-width="1.6"/>' +
-    '<path d="M11 27 A9 9 0 0 1 29 27 Z" fill="url(#hrg-gild)"/>' +
-    '<line x1="9.5" y1="27" x2="30.5" y2="27" stroke="url(#hrg-gild)" stroke-width="1.6" stroke-linecap="round"/>' +
-    '<g stroke="#f4d489" stroke-width="1.4" stroke-linecap="round">' +
-    '<line x1="20" y1="11.5" x2="20" y2="15"/><line x1="12.5" y1="14" x2="14.6" y2="16.8"/>' +
-    '<line x1="27.5" y1="14" x2="25.4" y2="16.8"/></g></svg>';
+  // b361: the hand-drawn stand-in crest is gone. The front door now wears the
+  // same approved brand assets as the sidebar — crest above wordmark. Built as
+  // <img> nodes rather than an innerHTML blob so there is no HTML string to
+  // audit, and the wordmark carries the alt text (it IS the word "Hearthrise";
+  // an empty alt there would leave a screen reader with only the dialog label).
+  var BRAND = {
+    crest: 'assets/brand/hearthrise-crest.png?v=364',
+    word:  'assets/brand/hearthrise-wordmark.svg?v=364'
+  };
+  function brandImg(cls, src, alt, w, h) {
+    var i = document.createElement('img');
+    i.className = cls;
+    i.src = src;
+    i.alt = alt || '';
+    if (!alt) i.setAttribute('aria-hidden', 'true');
+    if (w) { i.width = w; i.height = h; }
+    i.decoding = 'async';
+    return i;
+  }
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -348,10 +377,8 @@
 
     if (!reauth) {
       var mark = el('div', 'hr-gate-mark');
-      var crest = el('span');
-      crest.innerHTML = CREST;                       // static, authored above
-      mark.appendChild(crest.firstChild);
-      mark.appendChild(el('div', 'hr-gate-word', 'Hearthrise'));
+      mark.appendChild(brandImg('hr-gate-crest', BRAND.crest, '', 311, 384));
+      mark.appendChild(brandImg('hr-gate-word', BRAND.word, 'Hearthrise'));
       col.appendChild(mark);
       col.appendChild(el('div', 'hr-gate-rule'));
       col.appendChild(el('div', 'hr-gate-tag', 'An online realm'));
@@ -420,7 +447,7 @@
           'nothing you have earned is lost either way.';
       } else {
         lead.textContent = creating
-          ? 'One account carries your name, your progress and your standing across every device you play on.'
+          ? 'Your account holds your name, your progress, and your place on the boards.'
           : 'Welcome back. Sign in to pick up where the realm left you.';
       }
     }
@@ -438,8 +465,8 @@
         foot.appendChild(document.createTextNode(
           ' Sign in and the save already on this browser is carried into your account. Nothing is erased.'));
       } else {
-        foot.textContent = 'Hearthrise is played online. Your account holds your progress, ' +
-          'your name, and your place on the boards.';
+        foot.textContent = 'Everything is saved to the cloud, so you can play on any ' +
+          'device and pick up right where you left off.';
       }
       // b225 (Coordinator ruling): the bug-report button lives BEHIND the wall,
       // so a player who cannot sign in must still have a way to reach us.

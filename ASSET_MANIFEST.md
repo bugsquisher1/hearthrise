@@ -39,7 +39,8 @@ smoke test — renaming folders would break references for zero visual gain.
 
 ```
 assets/
-├── brand/            hearthrise-logo.svg              — crest / favicon
+├── brand/            hearthrise-{crest.png,mark.png,wordmark.svg,splash.jpg,badge.svg}
+│                     b361 lockup — DERIVED by tools/brand-process.mjs, never hand-edited
 ├── bg/               homestead-scene.svg              — brand scene art
 ├── ornaments/        corner-flourish.svg, wax-seal.svg — UI frame flourishes
 ├── icons/            24 SVG nav/topbar glyphs          — our own cocoa-line set

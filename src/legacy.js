@@ -6719,7 +6719,9 @@ function bindEvents(){
 function installPwa(){
   /* inject manifest */
   const manifest={
-    name:'Hearthrise — Idle Homestead',
+    /* b361: "— Idle Homestead" dropped. The installed app's name is the game's
+       name; the launcher truncates anything longer anyway. */
+    name:'Hearthrise',
     short_name:'Hearthrise',
     description:'Idle homestead RPG — fight, farm, craft, build a home.',
     start_url:'./',
@@ -6731,11 +6733,12 @@ function installPwa(){
     theme_color:'#5c2d08',           // cocoa
     categories:['games','entertainment'],
     icons:[
-      // Real Hearthrise crest instead of emoji square. Available on the
-      // deploy at assets/brand/hearthrise-logo.svg.
-      {src:'assets/brand/hearthrise-logo.svg', sizes:'any', type:'image/svg+xml', purpose:'any'},
-      {src:'assets/brand/hearthrise-logo.svg', sizes:'192x192', type:'image/svg+xml'},
-      {src:'assets/brand/hearthrise-logo.svg', sizes:'512x512', type:'image/svg+xml'},
+      // b361: the approved heraldic crest, square-padded to 512² with a real
+      // alpha channel (tools/brand-process.mjs). `maskable` is deliberately NOT
+      // claimed — Android crops a maskable icon to its safe zone and would eat
+      // the scrollwork; "any" is honest and gets the whole crest.
+      {src:'assets/brand/hearthrise-mark.png', sizes:'512x512', type:'image/png', purpose:'any'},
+      {src:'assets/brand/hearthrise-mark.png', sizes:'192x192', type:'image/png'},
     ],
   };
   const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});

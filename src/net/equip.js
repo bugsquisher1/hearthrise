@@ -47,7 +47,7 @@
 // same bytes the browser runs.
 // ============================================================================
 
-import { markEquipAuthorityLive, isServerAccrualEnabled } from './accrue.js?v=365';
+import { markEquipAuthorityLive, isServerAccrualEnabled } from './accrue.js?v=366';
 
 export const EQUIP_VERB = 'equip';
 

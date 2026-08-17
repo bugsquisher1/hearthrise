@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 366 — 2026-08-17 (Manage your kit where you fight — and switch devices in peace)
+
+- 🎒 **The Fight screen grew a management rail.** Your full loadout (real item art, click any slot to swap), your food with count and heal value, and — before you commit — the foe's complete drop table with chances. Mid-fight the same panel shows what the fight has paid so far.
+- 📊 **The attack swing bar is smooth now** — one clean sweep per swing instead of visible steps.
+- 📱 **Switching devices no longer cries wolf.** Moving from your computer to your phone used to trigger false "being played on another device" warnings and a scary "progress will be permanently gone" popup. Those fired on every clean handoff; they now only appear when two devices are genuinely playing at once. A real bug found in the same pass — your old device briefly overwriting your new one's save right after a switch — is fixed too.
+- ⚙️ Under the hood: equipping gear is becoming a server action (the permanent fix for the duplication bugs). It arrives fully in the next build.
+
 ## v0.9.2-beta build 365 — 2026-08-17 (The War Table and the Fight)
 
 - ⚔️ **Combat is two screens now.** The Combat tab is a proper War Table — every monster of your tier laid out in dense cards, no scrolling walls — and choosing a foe takes you to a dedicated Fight screen built around the battle itself: bigger portraits, a live damage read, your Eat and Stop controls always in reach.

@@ -35531,6 +35531,8 @@ const TESTS = [
       try { window.stopCombat(); } catch (e) {}
       restoreG(snap);
     }
+  }),
+
   // ══════════════════════════════════════════════════════════════════════════
   // b371 regression suite — the live-audit polish batch (F16/F19/F20/F21/F23/
   // F24/F25 + the quest badge + the leaderboard availability flag).

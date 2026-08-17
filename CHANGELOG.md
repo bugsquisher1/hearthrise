@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 378 — 2026-08-18 (Clans & Castles: coming after launch)
+
+- 🏰 **Clans are marked "coming after launch."** The Clan screen now shows a roadmap card — a shared castle, treasury, work orders, clan chat, and a weekly boss no one downs alone — opening once the realm is populated enough for holds to feel alive. Your solo progress carries straight into your clan when they land. (Clans are more fun with a crowd; we're opening them when there's one.)
+- 🧩 Under the hood: the contribute and feast-deposit paths are fully disabled while clans are gated, closing the surfaces that weren't yet server-owned. One flag flips the whole system back on when clan support is ready.
+
 ## v0.9.2-beta build 377 — 2026-08-18 (Hotfix: selling big stacks pays you again)
 
 - 🚑 **Fixed "sell a huge stack, get no gold."** Selling more than 1,000 of one item at the shop (e.g. 4,600 iron platebodies, 3,500 bones) removed the stack but paid nothing. The vendor now settles big sells in batches, so you're paid for every single one. (Thanks Tyler.)

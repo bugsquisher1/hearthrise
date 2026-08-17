@@ -707,6 +707,12 @@
   /* THE FEAST. Fill contribution is the food's `heals` value, so a Cooked Shark
      counts 42 and a Cooked Shrimp counts 8 — the meter is honest about effort. */
   async function feastDeposit(itemId, qty) {
+    /* BETA GATE: clan_feast_deposit is a free meter (server-authority lock).
+       Hard-disabled client-side until clan pass-2 flips CLAN_LAUNCHED. The
+       castle UI is unreachable while gated anyway, but this closes the path
+       even via a stray control. */
+    if (window.HearthriseClans && window.HearthriseClans.clanLaunched &&
+        !window.HearthriseClans.clanLaunched()) { toast('Clans are coming after launch.', 'info'); return false; }
     qty = Math.max(0, Math.floor(+qty || 0));
     if (needServer()) return false;
     var def = (window.ITEMS || {})[itemId];

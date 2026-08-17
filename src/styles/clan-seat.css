@@ -845,6 +845,37 @@
   color: var(--gold-2);
 }
 .clan-empty p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+
+/* ── BETA: the Clans "Coming after launch" roadmap card ────────────────────
+   Clans ship as a visible-but-gated roadmap feature for the beta. This is the
+   only surface the panel draws while gated, so it must read as an intentional,
+   designed feature — not a placeholder or an outage. Tokens only: gilt hairline
+   + gold wash like the invitation inbox, so cozy-light is unchanged and
+   Hearthlight goes dark from the same variables. */
+#panel-clan .clan-soon { max-width: 760px; }
+.clan-soon {
+  margin: 6px 0 0; padding: 22px 24px 20px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--gold-bg);
+}
+.clan-soon-badge {
+  display: inline-block; margin: 0 0 12px;
+  padding: 3px 11px; border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--field-sunk);
+  font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--gold-2);
+}
+.clan-soon h3 {
+  margin: 0 0 10px;
+  font-family: var(--f-display, serif);
+  font-size: 24px; font-weight: 800; letter-spacing: .01em;
+  color: var(--gold-2);
+}
+.clan-soon p {
+  margin: 0; max-width: 60ch;
+  font-size: 14px; line-height: 1.6; color: var(--ink-2);
+}
 /* b330: the founding row gained the DOOR select, so it wraps rather than
    crushing the name box on a landscape phone. The colour is a token now
    (--field-sunk) — the value is unchanged, so cozy-light is untouched. */

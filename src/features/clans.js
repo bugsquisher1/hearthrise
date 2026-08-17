@@ -46,6 +46,19 @@
 (function () {
   'use strict';
 
+  /* ── BETA GATE (2026-08-17, game-designer ruling) ─────────────────────────
+     Clans ship as a "Coming Soon" roadmap feature for the beta: the nav tab
+     stays VISIBLE (the "more coming" signal is good), but the in-panel content
+     is a single intentional roadmap card, and the two FORGEABLE value-crossing
+     surfaces are hard-disabled client-side:
+       • contribute()  — debits G.gold client-side against clan_contribute,
+         which mints treasury server-side with NO debit (server-authority lock).
+       • the feast deposit path (clan_feast_deposit) — a free meter.
+     The server RPCs stay blocked per PRIORITY_BOARD §2; this is the CLIENT gate.
+     Flip ONE flag to re-enable everything when clan pass-2 lands. */
+  var CLAN_LAUNCHED = false;
+  function clanLaunched() { return CLAN_LAUNCHED; }
+
   var PERKS = [
     null,                                                       // Lv1 — founding
     null,
@@ -399,6 +412,10 @@
   }
 
   async function contribute(amount) {
+    /* BETA GATE: hard-disabled — this debits G.gold client-side against a
+       server RPC that mints treasury with no debit (server-authority lock).
+       No-op that moves no gold until clan pass-2 flips CLAN_LAUNCHED. */
+    if (!CLAN_LAUNCHED) { notify('Clans are coming after launch.', 'info'); return false; }
     amount = Math.floor(+amount || 0);
     var G = window.G || {};
     if (amount <= 0) return false;
@@ -551,6 +568,25 @@
     var cl = document.getElementById('clan-panel') || document.getElementById('social-panel');
     if (!cl) return;
     var G = window.G || {};
+    /* ── BETA: Clans are a roadmap feature. One intentional coming-soon card,
+       for every state — signed in or out, in a hold or not. This is the ONLY
+       thing the panel renders while CLAN_LAUNCHED is false, so no polished-but-
+       empty room and nothing value-crossing (contribute/feast/treasury) is ever
+       reachable through it. Copy reuses the real pitch so it reads as a designed
+       feature. Card styling is tokens-only (see .clan-soon in clan-seat.css). */
+    if (!CLAN_LAUNCHED) {
+      cl.innerHTML =
+        '<div class="clan-soon">' +
+          '<div class="clan-soon-badge">Coming after launch</div>' +
+          '<h3>Clans &amp; Castles</h3>' +
+          '<p>Raise a shared castle with your circle: a clan treasury, six rooms, ' +
+          'shared Work Orders, clan chat, and a weekly boss no one downs alone. ' +
+          'We’re opening this once the realm is populated enough for holds to ' +
+          'feel alive. For now, focus on your own rise — your progress carries ' +
+          'straight into your clan when they land.</p>' +
+        '</div>';
+      return;
+    }
     /* b225 (#18): this screen has no card head above it, so every state has to
        supply its own heading — a player who follows the Clan entry must never
        land on an unlabelled list or a bare button. */
@@ -702,6 +738,7 @@
   }
 
   window.HearthriseClans = {
+    clanLaunched: clanLaunched,
     PERKS: PERKS,
     perksFor: perksFor,
     myPerks: myPerks,

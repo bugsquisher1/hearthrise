@@ -9,19 +9,34 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 🧊 backlog · ⛔ blocked · ⏸️ back-burner (deprioritized, not cancelled).
 **Priority:** P0 (now) · P1 (soon) · P2 (this cycle) · P3 (nice-to-have).
 
-_Last updated: 2026-08-18 (b376). Current build: **b376**, live._
+_Last updated: 2026-08-17 (b377). Current build: **b377**, live._
 
----
+> **LOCKED DECISION (Tyler, 2026-08-17): FULL LIST BEFORE BETA, DATE SLIPS.**
+> Tyler chose to build the whole pre-beta list — server-authority program,
+> elements/enchanting, block clan, quest-board rework, kindling/beacon events —
+> THEN stand up the test account for a full team playthrough, THEN open the 20
+> keys (date moved past "tomorrow"; remaining budget goes to building now and
+> bug-fixing once keys open). Coordinator flagged the bug-injection + budget risk;
+> Tyler accepted it with eyes open. The five items below in §1a are now the gate.
 
-## 1 · LAUNCH READINESS (gate for inviting 10–20 new players)
+## 1a · THE PRE-BETA BUILD LIST (the locked gate)
 
 | Item | Status | Pri | Notes |
 |---|---|---|---|
-| Brand-new account signup + true first session | ⛔ | **P0** | The launch-gating unknown. NOBODY who isn't Tyler has created an account + played this build from zero. Coordinator **cannot create accounts** (prohibition) — needs Tyler or a test account. |
-| Dedicated test account | ⛔ | **P0** | Unblocks the above + every future new-player test forever. Tyler action: throwaway email + signup, or do signup while Coordinator observes. |
-| Clean FTUE re-run on current build | 🧊 | P1 | b372 run found bugs (slot-clone, silent death, identity bleed, rename freeze) — ALL fixed in b373/b374, never re-verified clean end-to-end. Needs the test account. |
+| Server-authority program (record flip: gold/skills/inventory + clan pass 2) | 🔧 | **P0** | backend-architect producing the review-ready plan; arming gated on security + reliability sign-off + restore drill. The data-loss-sensitive long pole. See §2. |
+| Block clan as "Coming Soon" | 🔧 | **P0** | systems-engineer building (game-designer ruling B): keep nav tab, swap panel for a roadmap card, hard-disable contribute/feast. Contained; needs the visual gate. |
+| Elements / enchanting | 📋→build | **P0** | Design DONE (game-designer, 2026-08-17): tight v1 — bind ember/frost/poison to weapon, ×1.15 vs element-weak, rides existing `weaknessInfo` seam (bane.js twin), one `enchant` verb cloning `equip`, essences drop→runes crafted at Crafting 25. Away-parity for free. Ready to build; queued behind clan-block integration. |
+| Quest-board rework | 📋→build | **P0** | Design DONE (game-designer, 2026-08-17, verified by playing a fresh save): CONSOLIDATION not new mechanics — 4 overlapping quest systems (onboarding chain, daily tasks, daily/weekly goals, bounties) → ONE board, 3 shelves + bounty tab, one progress model, one Claim gesture, capacity-gated daily draws (fixes "Kill 60 at CL1"). New `src/data/quests.js`. Server side (`player_quest_progress` + `claim_reward` for kind:'quest') UNBLOCKS DAILY_COUNTERS. Ready to build; queued. Client consolidation degrades gracefully to today's payout if server slips (switch OFF), so not beta-blocking. |
+| Kindling / Beacon events (Muster) | 📋 | **P0** | Approved design exists; needs build-ready spec reconciling it with current code, then build. |
+
+## 1 · LAUNCH READINESS (after the build list, before opening keys)
+
+| Item | Status | Pri | Notes |
+|---|---|---|---|
+| Dedicated test account | ⛔ | **P0** | Tyler action (Coordinator **cannot create accounts**). Unblocks the team playthrough + every future new-player test. |
+| Full-systems team playthrough | 🧊 | **P0** | After the build list lands: team runs every system (UI/UX/Art/Systems) on the test account, finds bugs. Then open 20 keys. |
 | Wire rooms + banner tiers | 🔧 | P1 | Generated & on disk; closes the last visible seam (grey placeholder rooms next to painted everything). |
-| Backups / restore DRILL | 🧊 | P2 | Pro plan now has daily backups; a RESTORE has never been tested. Reliability flagged it a HARD cutover blocker (matters most once server owns progression). |
+| Backups / restore DRILL | 🧊 | P1 | Pro plan has daily backups; a RESTORE has never been tested. HARD blocker for arming the server-authority record flip. |
 
 **Decision pending Tyler:** wipe vs. amnesty at cutover (acting on amnesty). See §7.
 
@@ -29,11 +44,14 @@ _Last updated: 2026-08-18 (b376). Current build: **b376**, live._
 
 ## 2 · SERVER-AUTHORITY PROGRAM (the integrity foundation — post-launch)
 
+_Backend-architect plan delivered 2026-08-17 (review-ready, in security review). Key rulings folded in below._
+
 | Item | Status | Pri | Notes |
 |---|---|---|---|
-| Record flip — server owns gold/skills/**inventory** | 🧊 | **P1** | Plumbed & tested, armed for equipment only. The permanent cure for the craft dupe AND the last self-forgeable economy. Highest-value server work. Needs Security review before arming inventory. |
-| Inventory baseline adoption (craft-dupe real fix) | 🧊 | P1 | Server must own the WHOLE bag so craft settlement replays against the real inventory. Same work as the record flip. Interim mitigation shipped b376 (no more data loss; dupe remains). |
-| Clan pass 2 | ⛔ | P1 | `clan_contribute` mints 10M/day (no debit), `clan_feast_deposit` free meter, slot-derivation fix, revoke dormant `clans` grants. Clan domain security-BLOCKED until done. |
+| **Gold + gems → SERVER_OF_RECORD** (the pre-beta piece) | 🔧 | **P0** | Security verdict (2026-08-17): **GO-WITH-FIXES**. F1–F10 CONFIRMED closed, strip switch-gated, snapshot denylist intact, RLS clean, reversible. Blockers before uncommenting record.js:248-251: **(1 P0)** gate `clans.js contribute()` under serverAccrualActive() — CONVERGES with the clan-block work (that gate closes this). **(2 P1)** confirm muster/raid/quest/bounty grant RPCs credit server gold or gate them (else earned rewards erased on flip). **(3 P1)** add a census guard: every deferred transfer site must be switch-gated or have no server counterparty. **(4)** reliability's restore drill (blob-stripped = no client re-upload path) — still outstanding, likely needs Tyler/reliability; won't fully arm tonight. |
+| Inventory-absolute flip — **REAL-LAUNCH, not beta** | 🧊 | P1 | Expert verdict: CANNOT be made safe pre-beta. Needs every live bag-writer server-side (Model A: gather/craft/combat-drop via the accrual window — multi-day) + a rehearsed restore drill + (under amnesty) a wipe first, or absolute-apply irreversibly deletes freshly-crafted items. **b376 merge-mitigation IS the correct beta posture** (no data loss, dupe remains). Do NOT rush-arm before beta. |
+| Live gather/craft/combat-drop → server (Model A) | 🧊 | P1 | Systems work that makes the bag complete so the inventory flip can later arm. Ship UNARMED (no flag) first, watch `envelopeDrift`. Prereq for the inventory flip; a real-launch track. |
+| Clan pass 2 | ⛔ | P1 | `clan_contribute` mints 10M/day (no debit), `clan_feast_deposit` free meter, slot-derivation fix, revoke dormant `clans` grants. Revoke of dormant grants = rank 2 (cheap, safe, shippable now); `clan_contribute_gold` depends on gold ownership above. |
 | Phase 3 ledger accumulator | 🧊 | P2 | Before real player growth (per-write journalling at scale). |
 | Leaderboards off server tables | ✅ | — | Shipped (b374). Last cross-player ranking forgery closed. |
 | Equip / market / clan-deposit authority | ✅ | — | Shipped. Forged values can't cross to another player's economy. |

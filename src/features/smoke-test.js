@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=377' directly.
+// modularised, will import { G } from '../state/game.js?v=378' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=377';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=377';
+import { on, snapshot } from '../net/events.js?v=378';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=378';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=377';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=378';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -22791,6 +22791,57 @@ const TESTS = [
     }
   }),
 
+  /* ── BETA GATE: Clans ship as a visible-but-gated "Coming Soon" roadmap
+     feature (game-designer ruling, 2026-08-17). Two facts must hold:
+       (a) the panel renders the intentional coming-soon card (no empty room,
+           no reachable treasury/browser), and
+       (b) contribute() is hard-disabled — it moves NO gold and issues NO
+           request, because it debits G.gold client-side against a server RPC
+           that mints with no debit (server-authority lock).
+     If clan pass-2 flips CLAN_LAUNCHED, this test is expected to be updated. */
+  () => tryRun('beta-gate: the Clan panel shows the coming-soon card and contribute is a gold-safe no-op', () => {
+    const Cl = window.HearthriseClans;
+    assert(Cl && typeof Cl.clanLaunched === 'function', 'HearthriseClans.clanLaunched must be published');
+    assert(Cl.clanLaunched() === false, 'the beta clan gate must be CLOSED (CLAN_LAUNCHED === false)');
+    assert(typeof Cl.contribute === 'function', 'HearthriseClans.contribute must be published');
+
+    // (a) the panel renders the coming-soon card, for a signed-in player.
+    const host = document.getElementById('clan-panel');
+    assert(host, 'the Clan Seat has no render host (#clan-panel)');
+    const realGetSession = window.HearthriseAuth && window.HearthriseAuth.getSession;
+    try {
+      if (window.HearthriseAuth) window.HearthriseAuth.getSession =
+        () => ({ access_token: 'probe-token', user: { id: 'probe-user' } });
+      if (typeof window.renderClan === 'function') { const r = window.renderClan(); if (r && r.catch) r.catch(() => {}); }
+      const card = host.querySelector('.clan-soon');
+      assert(card, 'the gated Clan panel must render the .clan-soon roadmap card');
+      assert(/Clans/i.test(card.textContent) && /coming/i.test(card.textContent),
+        'the coming-soon card must name Clans and read as a roadmap feature');
+      // Nothing value-crossing or clan-founding is reachable behind the card.
+      assert(!host.querySelector('.clan-found'), 'no founding form may be reachable while gated');
+      assert(!host.querySelector('[onclick*="contribute"]'), 'no contribute control may be reachable while gated');
+    } finally {
+      if (window.HearthriseAuth && realGetSession) window.HearthriseAuth.getSession = realGetSession;
+    }
+
+    // (b) contribute() moves no gold and issues no request while gated.
+    const G = window.G || (window.G = {});
+    const goldBefore = G.gold = 100000;
+    const calls = [];
+    const realFetch = window.fetch, realNotify = window.notify;
+    try {
+      window.notify = () => {};
+      window.fetch = function (url, opts) { calls.push(String(url)); return realFetch.apply(this, arguments); };
+      const p = Cl.contribute(5000);
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+      assert(G.gold === goldBefore, 'a gated contribute must not debit gold, saw ' + G.gold + ' (was ' + goldBefore + ')');
+      assert(calls.length === 0, 'a gated contribute must issue no request, saw ' + calls.length);
+    } finally {
+      window.fetch = realFetch;
+      window.notify = realNotify;
+    }
+  }),
+
   () => tryRun('b330: the kick control sends clan_kick with a CLAMPED ban, and the default is 168h', () => {
     const Cl = window.HearthriseClans;
     assert(Cl && typeof Cl.kick === 'function', 'HearthriseClans.kick must be published');
@@ -25908,7 +25959,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=377');
+    const KIT = await import('../data/start-kit.js?v=378');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -31545,7 +31596,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=377');
+    const S = await import('../data/shops.js?v=378');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -32939,7 +32990,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=377');
+    const S = await import('../data/shops.js?v=378');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -35451,7 +35502,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=377')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=378')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -36889,7 +36940,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=377');
+    const A = await import('../net/accrue.js?v=378');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -36913,7 +36964,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=377');
+    const A = await import('../net/accrue.js?v=378');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

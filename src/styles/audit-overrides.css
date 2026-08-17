@@ -3184,6 +3184,24 @@ body.in-combat #combat-area {
 }
 .ss-row:first-child { border-top: 0; }
 .ss-row.danger { background: rgba(227,97,97,.06); border-radius: 4px; padding: 8px 10px; margin-top: 6px; }
+/* b372 (F7) — A SETTING THE CHARACTER DOES NOT OWN.
+   Dimmed AND labelled, never dimmed alone: the same rule clan-seat.css states
+   for its locked rungs ("a greyed row with no reason is a bug report"). The
+   REASON and the price live in the `.ss-hint` underneath, so this pair only has
+   to read as "not yours yet" rather than "broken". Tokens only — no new colour
+   enters the sheet, so it themes with everything else. */
+.ss-row.is-locked .ss-label { color: var(--ink-3); }
+.ss-locked-tag {
+  flex: 0 0 auto;
+  font-size: calc(14.5px * var(--ui-scale, 1));   /* the b227 type floor */
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
 .ss-label {
   flex: 1;
   font-size:calc(16px * var(--ui-scale, 1));

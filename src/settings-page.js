@@ -400,12 +400,75 @@
       + row('Show damage numbers', toggle('showDamage', d.showDamage));
   }
 
+  /* ── AUTO-EAT, AND WHY THIS IS THREE ROWS INSTEAD OF ONE SLIDER ──────────
+     b372 (F7, live audit 2026-08-17). Tyler sat at 3/10 HP for dozens of swings
+     with edible food in the bag and died twice, having read "Auto-eat HP
+     threshold — 50%" on this very screen. Nothing was broken downstream: the
+     engine gate in features/auto-actions.js `maybeAutoEat()` is
+     `enabled && owned`, and BOTH were false. The screen was the defect. It
+     rendered a live, draggable, persisted control for a feature the character
+     did not own (Auto-Eat is 100 Bounty Marks, TRAITS.auto_eat) and for a
+     switch that has no other UI anywhere in the game — so the threshold read as
+     a promise of healing that could never be kept.
+
+     Two failures, so two fixes, and they are separate rows on purpose:
+
+       • UNOWNED → no operative control at all. A locked row that names the
+         price and the shop, plus the honest alternative (press Eat). Same
+         pattern the b361 combat screen already uses — `renderCombat()`'s
+         `_foodNote` says exactly this — so the two surfaces now agree instead
+         of one contradicting the other.
+
+       • OWNED → the ON/OFF switch is SHOWN. `autoActions.eat.enabled` was
+         reachable from precisely two places (buying the trait, and picking a
+         food), so a player who turned it off from the combat picker, or a
+         pre-b217 save grandfathered by migration v5→v6 with `enabled:false`,
+         had a threshold slider governing a switch they could not see and could
+         not turn back on. The switch is the feature; the threshold is a detail
+         of it.
+
+     The toggle carries `data-autoeat` rather than `data-set` because it is NOT
+     a `G.settings` key — `HearthriseAuto.setEat()` is the one authoritative
+     writer (b326/b329), and routing it through the generic settings binder
+     would create the second writer that whole comment block exists to prevent. */
+  function ownsAutoEat(){
+    try { return (typeof window.hasTrait === 'function') && !!window.hasTrait('auto_eat'); }
+    catch(e){ return false; }
+  }
+  function autoEatPrice(){
+    var t = (window.TRAITS && window.TRAITS.auto_eat) || { cost:100, currency:'marks' };
+    var n = Number(t.cost); if(!isFinite(n)) n = 100;
+    return n.toLocaleString() + (t.currency === 'marks' ? ' Bounty Marks' : ' gold');
+  }
+  function autoEatHtml(){
+    var d = window.G.settings;
+    if(!ownsAutoEat()){
+      return '<div class="ss-row is-locked"><div class="ss-label">Auto-eat HP threshold</div>'
+        +      '<span class="ss-locked-tag">Locked</span></div>'
+        +    '<div class="ss-hint">Auto-Eat is a Store unlock (' + esc(autoEatPrice())
+        +      ' — Store → Bounty Shop). Until you own it, healing in combat is manual: '
+        +      'press <b>Eat</b> beside your champion on the Combat screen.</div>';
+    }
+    var eat = (window.HearthriseAuto && window.HearthriseAuto.getEat)
+      ? window.HearthriseAuto.getEat() : null;
+    var on = !!(eat && eat.enabled);
+    return '<div class="ss-row"><div class="ss-label">Auto-eat</div>'
+      +      '<label class="ss-toggle"><input type="checkbox" data-autoeat="enabled"'
+      +        (on ? ' checked' : '') + ' />'
+      +        '<span class="ss-toggle-track"><span class="ss-toggle-knob"></span></span></label>'
+      +    '</div>'
+      + sliderRow('Auto-eat HP threshold', 'autoEatPct', d.autoEatPct, 0, 1, 0.05, pct(d.autoEatPct),
+          on
+            ? 'Eat one Provision automatically on each swing your HP is below this percentage. Feasts & Draughts are never auto-eaten.'
+            : 'Auto-eat is switched OFF — this threshold does nothing until you turn it on above.');
+  }
+
   // ── Gameplay ───────────────────────────────────────────────
   function gameplayHtml(){
     var d = window.G.settings;
     return ''
       + row('Left-handed mode (mobile)', toggle('leftHand', d.leftHand))
-      + sliderRow('Auto-eat HP threshold', 'autoEatPct', d.autoEatPct, 0, 1, 0.05, pct(d.autoEatPct), 'Eat one Provision automatically on each swing your HP is below this percentage.')
+      + autoEatHtml()
       + '<div class="ss-row"><div class="ss-label">Replay tutorial</div>'
       +   '<button class="btn btn-sm" id="set-replay-tutorial">Show again</button></div>';
   }
@@ -707,6 +770,30 @@
         if(el.type === 'range'){
           var disp = el.parentElement.querySelector('.ss-slider-value');
           if(disp) disp.textContent = pct(v);
+        }
+      });
+    });
+    /* b372 (F7): the auto-eat ON/OFF switch. Deliberately NOT a `data-set` key —
+       `autoActions.eat.enabled` lives in HearthriseAuto, whose `setEat()` is the
+       one writer, and it persists itself (debounced saveLocal). Re-rendering the
+       panel is what repaints the threshold hint underneath, which otherwise
+       still claims the slider is live after the switch goes off. */
+    root.querySelectorAll('[data-autoeat]').forEach(function(el){
+      el.addEventListener('change', function(){
+        if(window.HearthriseAuto && typeof window.HearthriseAuto.setEat === 'function'){
+          window.HearthriseAuto.setEat({ enabled: !!el.checked });
+        }
+        if(typeof window.saveLocal === 'function') window.saveLocal();
+        /* Repaint the ONE thing that changed rather than the whole panel: a
+           re-render would collapse every section the player had opened and
+           throw away their scroll position, which is a worse bug than the
+           stale sentence. */
+        var slider = root.querySelector('[data-set="autoEatPct"]');
+        var hint = slider && slider.closest('.ss-row') ? slider.closest('.ss-row').nextElementSibling : null;
+        if(hint && hint.classList && hint.classList.contains('ss-hint')){
+          hint.textContent = el.checked
+            ? 'Eat one Provision automatically on each swing your HP is below this percentage. Feasts & Draughts are never auto-eaten.'
+            : 'Auto-eat is switched OFF — this threshold does nothing until you turn it on above.';
         }
       });
     });

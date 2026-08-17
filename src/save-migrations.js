@@ -197,6 +197,26 @@
                        || (typeof save.foodSlot === 'string' && save.foodSlot);
         if(hadAutoEat && !save.traits.auto_eat){
           save.traits.auto_eat = true;
+          /* b372 (F7): granting the TRAIT is only half of "must not lose it".
+             The engine gate in features/auto-actions.js `maybeAutoEat()` is
+             `enabled && owned`, and the `foodSlot` arm of `hadAutoEat` above
+             matches saves whose `autoActions.eat.enabled` is FALSE — a legacy
+             player whose auto-eat lived entirely on `G.foodSlot` and the removed
+             combatTick watchdog. Those saves were handed a 100-Bounty-Mark trait
+             and an off switch with no UI anywhere to turn it on, so auto-eat
+             silently stayed dead for exactly the players this migration exists to
+             protect. Carry the food id across too: it is the choice they already
+             made, and `chooseFood()` falls back to the best Provision in the bag
+             if it is not eligible, so a bad id costs nothing. */
+          save.autoActions = save.autoActions || {};
+          save.autoActions.eat = Object.assign(
+            { threshold: 0.5, foodId: null },
+            save.autoActions.eat || {},
+            { enabled: true }
+          );
+          if(!save.autoActions.eat.foodId && typeof save.foodSlot === 'string' && save.foodSlot){
+            save.autoActions.eat.foodId = save.foodSlot;
+          }
         }
       },
     },

@@ -4,6 +4,53 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-17 · Systems Engineer (b372) · The server has been carrying the in-flight fight since Phase 0 and NO CLIENT CODE EVER READ IT — plus: a paid feature's only switch had no UI
+
+**DISCOVERY — TWO, and they share a shape.**
+
+**(1) `player_state.fight` had no client reader.** The Phase-0 fight carry
+(`supabase/migrations/2026-08-17-fight-carry.sql`) is real: `hr_state_of` projects
+`fight` into every envelope's `state`, and `functions/hr-accrue/accrual.js` resumes
+from it (`fight.monster === activeId && fight.hp > 0`). On the client, the ONLY
+consumer of an envelope's activity was `activityOf()` in `src/net/activity.js`,
+which reads `active_kind`/`active_id` and stops. So `reconcileActivityPointer()`
+could only ever say "you are fighting a dragon" and never "…and it is on 5 of 520",
+and its only tool is `startCombat()`, whose second statement is
+`G.monsterHp = m.hp`. **Every reconcile that had to move the pointer restarted the
+fight the server was still holding.** The server resumed; the client threw the
+partial away. On a 520-hp boss that is the entire fight, every settle — which is
+the exact loss the column was added to prevent, reappearing on the other side of
+the wire.
+
+**(2) `startCombat()` is a TOGGLE, and one caller treats it as an imperative.**
+`if(G.activeMonster===mId){stopCombat();return;}`. The Home dashboard's Resume chip
+took its "is anything running?" decision at PAINT time and called `startCombat` at
+CLICK time; a fight arriving in between (boot's `loadLocal()` re-arms the saved one)
+turned Resume into Stop. That is Tyler's "a Resume chip appeared but did not resume".
+
+**AFFECTED SYSTEMS.** `src/net/activity.js` (`fightOf`, `fire`, the two
+`onReconcile` sites) · `src/legacy.js` (`reconcileActivityPointer`,
+`applyCarriedFight`) · `src/features/profile-launchpad.js` · anything that will
+later resume an activity from a server envelope.
+
+**REQUIRED ACTION.**
+- **Any new server-owned in-flight field needs a client READER named in the same
+  change as the column.** A projected field with no consumer is invisible: nothing
+  fails, the numbers are simply wrong. `fightOf()` is now the pattern — a strict
+  parser that returns `null` for everything it is not certain about, with the clamp
+  done by the caller against its own catalogue.
+- **Never call `startCombat()` to *ensure* a fight.** It toggles. Guard on
+  `G.activeMonster !== id` at the moment of the call, never at render time.
+- Related, same family: **`G.autoActions.eat.enabled` had no UI at all** — reachable
+  only by buying the trait or picking a food — while Settings rendered a live,
+  persisted THRESHOLD slider above it, for a 100-mark trait the player might not
+  own. A control that governs a switch the player cannot see is a control that lies.
+  When gating a feature on a purchase, gate the SCREEN in the same change as the
+  engine (`hasTrait('auto_eat')`, `.ss-row.is-locked` + `.ss-locked-tag`).
+
+**NOTE FOR THE COORDINATOR:** this file arrived in the worktree carrying unresolved
+`<<<<<<< HEAD` conflict markers below this entry. Not mine, not touched.
+
 <<<<<<< HEAD
 ### 2026-08-17 · Art Director (b369) · FIVE stylesheets were each authoring one piece of the paper-doll's grid, and the two that disagreed produced a live overlap on two surfaces
 

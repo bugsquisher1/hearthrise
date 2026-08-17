@@ -2,6 +2,111 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-17 — b372 — F7 auto-eat never fires · F18 fight resume broken (live audit)
+
+**Branch:** worktree `agent-ab5e4fe2d47d3fce8` · **Smoke:** 830/830, 0 runtime errors, exit 0. No bump, no push.
+
+### F7 — WHICH BRANCH IT WAS, TRUTHFULLY
+Branch (a). Measured in a real browser on the audit's exact state (HP 3/10, Raw Lobster ×5):
+
+| | before | after |
+|---|---|---|
+| `isAutoEatable(ITEMS.lobster)` | **true** | true |
+| no trait: `maybeAutoEat()` | false | false *(correct)* |
+| no trait: Settings offers a live threshold slider | **YES — the bug** | no: `LOCKED` + price + "press Eat" |
+| trait owned: one live `combatTick()` | — | HP 3 → 10, one lobster consumed, `🍖 Auto-ate Raw Lobster (+12 HP)` |
+
+The food was never the problem and neither was the engine. The gate is
+`enabled && owned` (`features/auto-actions.js maybeAutoEat`) and BOTH were false.
+The SCREEN was the defect: Settings › Gameplay painted a live, draggable,
+**persisted** control for a 100-Bounty-Mark trait the character did not own — and
+for an `enabled` switch that had **no UI anywhere in the game** (reachable only by
+buying the trait or picking a food). The combat screen has said the honest thing
+since b361; Settings contradicted it.
+
+Also found and fixed, a genuine branch-(b) hole: migration **v5→v6** grants the
+trait when `save.foodSlot` is set, and that arm matches saves whose
+`autoActions.eat.enabled` is FALSE. Those players got a paid trait plus an off
+switch with no UI — auto-eat dead forever, for exactly the players the migration
+exists to protect.
+
+### F18 — TWO DEFECTS, ONE OF THEM ARCHITECTURAL
+1. **`startCombat` is a TOGGLE** (`if(G.activeMonster===mId){stopCombat();return;}`)
+   and `getResumePayload()`'s "is anything running" guard is evaluated at **paint**
+   time, not at click time. Home renders the chip while idle → boot's `loadLocal()`
+   re-arms the saved fight → the player presses Resume → **the fight stops.**
+   "A Resume chip appeared but did not resume", verbatim.
+2. **The client had no reader for the server's fight carry.** `player_state.fight`
+   has been server state since `2026-08-17-fight-carry.sql`, `hr_state_of` projects
+   it and hr-accrue resumes from it every span — but `activityOf()` read
+   `active_kind`/`active_id` and stopped there. So every reconcile that had to move
+   the pointer called `startCombat`, which sets `monsterHp = m.hp`, and **restarted**
+   the foe the server was still holding. On a 520-hp dragon that is the whole fight,
+   every settle. The server resumed; the client did not.
+
+Verified at runtime: a reconcile of `{combat,dragon}` + `{monster:dragon,hp:5,kills:4}`
+now lands on **dragon 5/520, 4 kills**; pressing Resume on a live dragon leaves it at
+**9 hp** instead of stopping it.
+
+### FILES CHANGED
+- `src/settings-page.js` — `ownsAutoEat()` / `autoEatPrice()` / `autoEatHtml()`; locked row when unowned, ON/OFF switch + slider when owned; `[data-autoeat]` binder routed through `HearthriseAuto.setEat` (NOT the generic `data-set` writer — one authoritative writer, per b326/b329).
+- `src/styles/audit-overrides.css` — `.ss-row.is-locked .ss-label`, `.ss-locked-tag`. Tokens only, 14.5px (the b227 floor — my first draft at 13px was caught by the type guard).
+- `src/save-migrations.js` — v5→v6 also sets `eat.enabled = true` and carries `foodSlot` → `eat.foodId`.
+- `src/net/activity.js` — new `fightOf(body)`; `lastServerFight` module state; `fire()` widened to a 3rd arg; both `onReconcile` call sites carry the fight; exported on `HearthriseActivity`.
+- `src/legacy.js` — new `applyCarriedFight(id,fight)`; `reconcileActivityPointer(a,fight)` applies it **only on a restart**; the `onReconcile` hook forwards it.
+- `src/features/profile-launchpad.js` — the Resume action re-asks at CLICK time.
+- `src/features/smoke-test.js` — 6 new guards (F7-1/2/3, F18-1/2/3/4).
+
+**Intentionally untouched:** `src/core/auto-eat.js` (the decision was already right),
+`combat-sim.js`, `accrue.js`, `snapshot()`/`NO_SYNC`, all SQL and the Edge payload.
+
+### BLAST RADIUS
+- `fire()` gained a 3rd parameter — additive; `onEnvelope`/`onOutcome` ignore it.
+- `applied.reconciled` shape is UNCHANGED (the fight is passed BESIDE the pointer, never merged into it), so the b347 diagnostic assertions still hold.
+- `reconcileActivityPointer`'s new parameter is optional; the gather/idle/artisan branches are byte-identical.
+- CSS: two new selectors, no existing rule touched, no new colour.
+
+### SAVE MIGRATION
+No new persistent field and no schema bump. The v5→v6 change is to an EXISTING
+migration and is guarded by the same `hadAutoEat` predicate, so a fresh save still
+cannot enter it (asserted in F7-3). `autoActions` already rides the snapshot.
+
+### MUTATION PROOF (each mutant RED, on its own guard, with the intended message)
+| mutation | guard that died |
+|---|---|
+| Resume click-time guard reverted | F18-4 "pressing Resume STOPPED the fight" |
+| `fight.monster!==id` neutered + carry apply removed | F18-2 "the dragon is on 520/520 instead of 5" |
+| carry applied to a LIVE fight too | F18-3 "the dragon went back to 520" |
+| `if(!ownsAutoEat())` → `if(false)` | F7-1 "the threshold slider is live without the trait" |
+| migration's `{enabled:true}` removed | F7-3 "the trait was granted but auto-eat stayed off" |
+| `fightOf`'s `hp > 0` guard removed | F18-1 "a zero-hp carry was accepted" |
+
+### VISUAL
+Settings › Gameplay screenshotted and READ at desktop 1280×900 and mobile-landscape
+922×423, both branches (locked / owned). Locked reads as "not yours yet" with the
+price, the shop and the alternative on one line; owned shows a real switch above the
+slider. Console clean in every context.
+
+### PERFORMANCE
+Nothing per-tick. `fightOf` runs once per envelope; `applyCarriedFight` only on a
+pointer restart. The Settings toggle repaints ONE hint node rather than re-rendering
+the panel (a re-render would collapse every open section and lose scroll position).
+
+### TECHNICAL DEBT
+Paid down: the client now reads the fight carry the server has been maintaining
+alone; `autoActions.eat.enabled` finally has a UI. Added: none.
+
+### KNOWN LIMITATIONS
+1. The carry is applied ONLY on a reconcile restart. A cold boot still resumes from
+   the LOCAL save (which does hold `activeMonster`/`monsterHp` — verified), and the
+   server's carry only corrects it on the first envelope. Cross-device mid-fight
+   resume therefore costs one settle round trip. Correct, but not instant.
+2. `fightOf` is wired to `set_activity` answers only. Wiring it to the plain
+   `accrue` envelope in `src/net/accrue.js` would close (1) — deliberately NOT done
+   here: that path owns the replacement gate and is outside this change's blast radius.
+3. Settings still has no auto-eat FOOD picker; that lives on the combat screen and
+   the inventory detail modal. Not regressed, not extended.
+
 ## 2026-08-16 — b355 — the invisible blueprint (Tyler, live, Kitchen room modal)
 
 **Symptom.** "This doesn't tell me anywhere it requires a blueprint or how to get a blueprint."

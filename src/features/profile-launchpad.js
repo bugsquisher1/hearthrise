@@ -155,8 +155,23 @@
         kind: 'monster', id: la.id,
         label: 'Resume fighting: ' + m.name,
         icon:  m.icon || '⚔️',
+        /* ⚠ b372 (F18): `startCombat` IS A TOGGLE — its first line is
+           `if(G.activeMonster===mId){stopCombat();return;}`. The guard eight
+           lines above is evaluated when the card is PAINTED, not when it is
+           pressed, and the gap between those two instants is exactly where a
+           fight arrives: the Home dashboard renders while idle, then the boot's
+           `loadLocal()` re-arms the saved fight (or a server reconcile does),
+           and the still-visible Resume button then STOPS the fight it offered to
+           resume. That is the reported symptom verbatim — "a Resume chip
+           appeared but did not resume" — and the button did exactly what it was
+           told; it was told at the wrong time.
+           Re-ask at CLICK time, and when the named foe is already live just take
+           the player to it. Deliberately NOT `if activeMonster then return`: a
+           DIFFERENT monster running is a real switch and startCombat's
+           stop-then-start is the correct behaviour for it. */
         action: function(){
-          if(typeof window.startCombat === 'function') window.startCombat(la.id);
+          if(window.G && window.G.activeMonster !== la.id
+             && typeof window.startCombat === 'function') window.startCombat(la.id);
           if(typeof window.showTab === 'function') window.showTab('combat');
         },
       };

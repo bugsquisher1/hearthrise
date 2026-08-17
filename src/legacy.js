@@ -143,7 +143,11 @@ const ITEMS={
   hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',atkB:2},
   leather_gloves:{n:'Leather Gloves',icon:'🧤',v:80,type:'armor',slot:'gloves',atkB:1,defB:1},
   bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt',defB:2},
-  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:60,type:'ammo',slot:'ammo',atkB:2,critB:.01},
+  /* v:1 + ammoPerShot:1 — MUST MATCH src/data/items.js, which carries the full
+     reasoning (the v:60 book value was a ~2.9M gold/hour vendor faucet). This
+     inline copy is the b137 divergence snapshot; data-integrity.js compares the
+     two and the ammo-ladder guard fails the build if they drift apart again. */
+  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',atkB:2,critB:.01,ammoPerShot:1},
   fox_companion:{n:'Fox Companion',icon:'🦊',v:600,type:'companion',slot:'companion',strB:2,xpB:.02},
   iron_ore:{n:'Iron Ore',icon:'⬜',v:25},
   normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:20},
@@ -12826,6 +12830,8 @@ function has(skill, id){ return (window.ARTISAN_RECIPES[skill]||[]).some(functio
   {id:'carve_longbow',          name:'Carve Longbow',           icon:'🏹', inputs:{willow_plank:3, silk_thread:2}, output:'longbow',          xp:240, req:25, ms:3600},
   {id:'carve_apprentice_staff', name:'Carve Apprentice Staff',  icon:'🪄', inputs:{oak_plank:2, magic_essence:1},  output:'apprentice_staff', xp:120, req:12, ms:2800},
   {id:'carve_oak_staff',        name:'Carve Oak Staff',         icon:'🪄', inputs:{willow_plank:3, magic_essence:2, ancient_rune:1}, output:'oak_staff', xp:300, req:30, ms:4000},
+  /* ×50 — MUST MATCH src/data/recipes.js, which carries the reasoning (raising
+     this to 500 trips the server's c_max_item_delta clamp on honest away play). */
   {id:'craft_iron_arrows',      name:'Craft Iron Arrows ×50',   icon:'🏹', inputs:{iron_bar:1, normal_plank:5},    output:'iron_arrows', outputQty:50, xp:120, req:20, ms:3500},
   /* Tailoring */
   {id:'tailor_leather_boots',   name:'Tailor Leather Boots',    icon:'🥾', inputs:{wolf_pelt:2}, output:'leather_boots', xp:80, req:8, ms:2400},

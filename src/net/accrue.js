@@ -859,6 +859,15 @@ export function noteEnvelopeDrift(loss) {
   return envelopeDrift;
 }
 
+/* ── THE CLIENT-TRADE LEDGER (2026-08-18) ───────────────────────────────────
+   A DIRECT IMPORT, not a registration seam like `predictionSeam` below, and the
+   difference is deliberate. That seam exists because gold.js imports THIS file
+   and the dependency could not be inverted. item-ledger.js is a pure leaf that
+   imports nothing, so there is no cycle to dodge — and a direct import has no
+   "unregistered, therefore silently inert" failure mode, which for a correction
+   that prevents an item dupe is the whole ballgame. */
+import * as itemLedger from './item-ledger.js?v=371';
+
 export function applyEnvelopeState(G, res, ownKey) {
   const st = (res && res.state) || {};
   const written = { skills: {}, inventory: 0 };
@@ -1030,6 +1039,12 @@ export function applyEnvelopeState(G, res, ownKey) {
     G.inventory = next;
     written.inventory = Object.keys(next).length;
     written.inventoryAbsolute = true;
+    /* AFTER the wholesale replace, never before. Under absolute the envelope
+       deletes anything the server has not heard of — which includes a
+       Quartermaster purchase, so these players were LOSING blueprints while
+       merge-mode players were getting them free. Same correction, both
+       branches, one call site each. */
+    written.itemLedger = itemLedger.reconcile(G, res);
     if (predictionSeam) {
       try { written.predictions = predictionSeam(G, res, ownKey); }
       catch (e) { console.warn('[accrue] prediction reconcile threw:', e && e.message); }
@@ -1106,6 +1121,14 @@ export function applyEnvelopeState(G, res, ownKey) {
   }
   G.inventory = inv;
   written.inventory = Object.keys(inv).length;
+
+  /* THE HALF-REVERTED TRADE (2026-08-18). The `Math.max` directly above is a
+     one-way ratchet, and a client-authored trade moves the bag in BOTH
+     directions: the scrip the player spent is a key the envelope NAMES (so the
+     max hands it straight back) while the blueprint they bought is a key the
+     envelope OMITS (so "absent means unknown" keeps it). Item kept, currency
+     refunded, every 90 seconds. See src/net/item-ledger.js. */
+  written.itemLedger = itemLedger.reconcile(G, res);
 
   /* LAST, and after every absolute write above, because the sweep re-adds
      outstanding predictions ON TOP of the server's numbers. Guarded: a throw in

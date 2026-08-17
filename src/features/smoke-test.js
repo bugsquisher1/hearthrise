@@ -33627,6 +33627,90 @@ const TESTS = [
     assert(G.gold === 9, 'gold remains absolutely authoritative — its writer HAS moved');
   }),
 
+  /* B372-SCRIP-1 — A PURCHASE REVERTS WHOLE, OR NOT AT ALL.
+     The live P0 of 2026-08-18, reported by Xarnathos: "when you buy e.g. a
+     blueprint, you will get the dungeon scrip back after a short amount of
+     time. You can buy every blueprint with minimum 160 scrip."
+
+     `dungeon_scrip` is an INVENTORY ITEM, not a currency field, and so is the
+     blueprint. The Quartermaster moves both purely client-side — there is no
+     server verb — and the settle envelope then reverts the two legs by
+     DIFFERENT rules: it NAMES scrip (so the b359 merge's `Math.max` refunds it)
+     and OMITS the blueprint (so "absent means unknown" keeps it). Half a
+     revert, every 90 seconds, forever.
+
+     The fix does NOT try to make the purchase stick. It makes the trade ATOMIC:
+     if the envelope hands the scrip back, the blueprint goes back with it. The
+     player loses nothing real by that, because `hr_unlock_buy` re-validates the
+     blueprint against `hr_unlock_offers` under the per-character lock — a
+     blueprint the server never received could never have bought its homestead
+     rung, so it was decorative, and the 160 scrip is the honest outcome.
+
+     This test pins the PROPERTY rather than the mechanism — both legs move
+     together — so it stays meaningful when the real `quartermaster_buy` intent
+     replaces the ledger.
+
+     MUTATION: delete either `itemLedger.reconcile` call in applyEnvelopeState
+     → RED (the merge branch on assertion 2, the absolute branch on the last). */
+  () => tryRun('B372-SCRIP-1: a Quartermaster purchase is not half-reverted by the settle envelope', () => {
+    const A = window.HearthriseAccrual;
+    const L = window.__itemLedger;
+    assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
+    assert(L && typeof L.record === 'function', 'the item ledger must be published (src/net/dungeon-purchase.js)');
+
+    /* The player had 200 scrip and bought a tier-3 blueprint for 160. The bag
+       below is what the client looks like AFTER the gesture. */
+    const G = { inventory: { dungeon_scrip: 40, kitchen_blueprint_t3: 1 } };
+    L.record(G, { dungeon_scrip: 160 }, { kitchen_blueprint_t3: 1 }, 'quartermaster');
+
+    /* The envelope the server produces: it still holds the PRE-purchase 200
+       scrip and has never heard of the blueprint. This is the exact shape that
+       produced the report. */
+    A.applyEnvelopeState(G, { state: {}, skills: {}, inventory: { dungeon_scrip: 200 } });
+
+    /* THE BUG, NAMED: scrip back AND blueprint kept. Either leg alone is fine;
+       the pair is the exploit. */
+    const refunded = (G.inventory.dungeon_scrip || 0) >= 200;
+    const kept = (G.inventory.kitchen_blueprint_t3 || 0) >= 1;
+    assert(!(refunded && kept),
+      'FREE BLUEPRINT: the envelope refunded the scrip (' + G.inventory.dungeon_scrip
+      + ') AND left the blueprint (' + G.inventory.kitchen_blueprint_t3 + ')');
+    assert(!kept,
+      'the scrip came back, so the blueprint must go back too — got '
+      + G.inventory.kitchen_blueprint_t3);
+    assert((G.pendingItemSpends || []).length === 0, 'the resolved trade must retire from the ledger');
+
+    /* AND IT MUST NOT DRIFT ON REPEAT. The settle runs ~320 times a day, so a
+       correction that re-applied itself would march a stack to zero or mint one
+       per envelope. The ledger is empty by now, but assert the property. */
+    const before = JSON.stringify(G.inventory);
+    A.applyEnvelopeState(G, { state: {}, skills: {}, inventory: { dungeon_scrip: 200 } });
+    A.applyEnvelopeState(G, { state: {}, skills: {}, inventory: { dungeon_scrip: 200 } });
+    assert(JSON.stringify(G.inventory) === before,
+      'repeat settles must be idempotent — bag drifted to ' + JSON.stringify(G.inventory));
+
+    /* THE TRADE THE SERVER CONFIRMS IS LEFT ALONE. This is the clause that
+       drains the whole mechanism the day a real `quartermaster_buy` verb ships:
+       the server names the goods, so the ledger stops caring. */
+    const G3 = { inventory: { dungeon_scrip: 40, kitchen_blueprint_t3: 1 } };
+    L.record(G3, { dungeon_scrip: 160 }, { kitchen_blueprint_t3: 1 }, 'quartermaster');
+    A.applyEnvelopeState(G3, {
+      state: {}, skills: {}, inventory: { dungeon_scrip: 40, kitchen_blueprint_t3: 1 },
+    });
+    assert(G3.inventory.kitchen_blueprint_t3 === 1,
+      'a trade the server CONFIRMS must survive untouched — got ' + G3.inventory.kitchen_blueprint_t3);
+    assert((G3.pendingItemSpends || []).length === 0, 'a confirmed trade must retire too');
+
+    /* THE OTHER BRANCH — absolute (b366) replaces the bag wholesale. It must
+       reach the SAME end state, or the two branches are two behaviours. */
+    const G2 = { inventory: { dungeon_scrip: 40, forge_blueprint_t3: 1 } };
+    L.record(G2, { dungeon_scrip: 160 }, { forge_blueprint_t3: 1 }, 'quartermaster');
+    A.applyEnvelopeState(G2, { state: {}, skills: {}, inventory: { dungeon_scrip: 200 } });
+    assert(!(G2.inventory.forge_blueprint_t3 >= 1 && G2.inventory.dungeon_scrip >= 200),
+      'the absolute branch must not leave a free blueprint either');
+    assert((G2.pendingItemSpends || []).length === 0, 'absolute branch must resolve the trade too');
+  }),
+
   /* B362-DUPE-1 — EQUIPPING A WEAPON MUST NOT MINT A SECOND ONE.
      The live P0 of 2026-08-18, reported by a T6 player who swaps weapons per
      monster weakness: "every time I am using the corresponding weapon type it

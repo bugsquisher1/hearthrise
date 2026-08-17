@@ -237,6 +237,25 @@
     if(gained === false){ if(window.notify) window.notify('Your bag is full — buy bank space first.', 'kill'); return false; }
     if(typeof window.removeItem === 'function') window.removeItem('dungeon_scrip', entry.scrip);
     else window.G.inventory.dungeon_scrip = scripHeld() - entry.scrip;
+    /* ── b372: RECORD THE TRADE AS ONE RECORD, BOTH LEGS ───────────────────
+       Reported 2026-08-18: "you will get the dungeon scrip back after a short
+       amount of time... you can buy every blueprint with minimum 160 scrip."
+
+       Neither leg above is known to the server — there is no Quartermaster
+       verb. The settle envelope then reverts them by DIFFERENT rules (it NAMES
+       scrip, so the merge's max refunds it; it OMITS the blueprint, so "absent
+       means unknown" keeps it), and the trade is only ever half-undone. The
+       ledger re-applies both legs together on top of every envelope, so the
+       purchase either stands whole or reverts whole. Full reasoning and the
+       server end-state (`quartermaster_buy`) in src/net/item-ledger.js.
+
+       Registered by src/net/dungeon-purchase.js, so this classic script has no
+       import to do; unwired (Node, a boot before the module loads) it is a
+       no-op and the behaviour is exactly today's. */
+    if(typeof window.__recordItemTrade === 'function'){
+      try { window.__recordItemTrade({ dungeon_scrip: entry.scrip }, { [id]: 1 }, 'quartermaster'); }
+      catch(e){ console.warn('[quartermaster] trade ledger threw:', e && e.message); }
+    }
     var it = window.ITEMS && window.ITEMS[id];
     if(window.notify) window.notify('Bought ' + (it ? it.n : id) + ' for ' + entry.scrip + ' Scrip', 'levelup');
     renderQuartermaster();

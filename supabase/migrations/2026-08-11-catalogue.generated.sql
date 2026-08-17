@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 4386b56f5ea77b82d141619fcddc47d2573b69ef1eea347005655ce91a8652f6
+--   catalogue digest: 64d33a0663e390796f5ef3829e4fff6838eb8f2585dfb472f0d29c97ed9c3f76
 --   rows: 512 items (16 untradeable) ·
 --         278 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 470 activities
@@ -377,7 +377,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('hunter_necklace','Hunter Necklace',true,'jewelry',180,null,null,null,false),
   ('hunters_feast','Hunter''s Feast',true,null,420,null,null,35,false),
   ('hunters_torc','Hunter''s Torc',true,'jewelry',750,null,null,null,false),
-  ('iron_arrows','Iron Arrows',true,'ammo',60,null,null,null,false),
+  ('iron_arrows','Iron Arrows',true,'ammo',1,null,null,null,false),
   ('iron_axe','Iron Axe',true,'tool',250,null,null,null,false),
   ('iron_bar','Iron Bar',true,null,90,null,null,null,false),
   ('iron_belt','Iron Belt',true,'armor',105,'defense',15,null,false),
@@ -1482,7 +1482,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
   ('weapon','bronze_sword');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '4386b56f5ea77b82d141619fcddc47d2573b69ef1eea347005655ce91a8652f6', now())
+  values (true, '64d33a0663e390796f5ef3829e4fff6838eb8f2585dfb472f0d29c97ed9c3f76', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1626,6 +1626,6 @@ begin
     raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
   end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, digest 4386b56f5ea77b82d141619fcddc47d2573b69ef1eea347005655ce91a8652f6',
+  raise notice 'CATALOGUES OK — % items, % activities, digest 64d33a0663e390796f5ef3829e4fff6838eb8f2585dfb472f0d29c97ed9c3f76',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities);
 end $$;

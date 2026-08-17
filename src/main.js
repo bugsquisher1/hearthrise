@@ -184,6 +184,12 @@ import './net/accrue.js?v=371';
 // switch from it) and BEFORE auth.js, which configures both with the same
 // credentials. Ships DARK behind the SAME switch as b337.
 import './net/character.js?v=371';
+// b372 — the Quartermaster trade ledger's classic-script door. AFTER accrue.js,
+// which applies the ledger inside applyEnvelopeState; this module only opens
+// `window.__recordItemTrade` for src/dungeons.js. Loading it late would mean a
+// purchase made in the first moments after boot is not recorded, so it sits
+// with the other net modules rather than behind a feature gate.
+import './net/dungeon-purchase.js?v=371';
 // The RECORD seam. AFTER accrue.js (it imports the same kill switch and the
 // same slot resolver) and BEFORE auth.js, which configures all three with one
 // copy of the credentials. Ships DARK behind the SAME switch as b337/b338.

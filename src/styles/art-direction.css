@@ -1978,19 +1978,22 @@ body[data-theme] .cr-rate-icon { display: inline-flex; align-items: center; colo
  * the locked hero slots: it reads as "component not built". A slot is a
  * recessed fitting waiting for a piece of gear.
  * ---------------------------------------------------------------------- */
-/* The doll is FOUR columns (b216 added ammo, earrings and two rings down the
- * right side), and its slots are positioned by explicit grid-column/grid-row,
- * so the ROW tracks have to stay fixed or the placed cells stretch and overlap.
- * The legacy sheet declared three 110px columns — 338px of content in Combat's
- * 320px Loadout column, with the whole fourth column cut off the screen.
- * Columns are fluid so it fits any container; rows stay fixed. */
-body[data-theme] .td-doll {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(6, 84px);
-  gap: 5px;
-  padding: 4px;
-  justify-content: stretch;
-}
+/* b369 — THE GEOMETRY LEFT THIS SHEET. It used to declare fluid columns
+ * against fixed 84px rows, which is one half of the overlap documented at
+ * `.td-doll` in legacy.css: a fixed row cannot describe a fluid cell. The
+ * tracks now live in exactly one place, driven by `--td-cell`; this sheet
+ * keeps only what it is for, which is how the doll LOOKS.
+ *
+ * `justify-content:stretch` also went with it. It was there to make the doll
+ * fill its container, and filling the container is precisely what turned a
+ * wide pane into 210px cells. A centred doll at a readable cell size is the
+ * correct answer at every width.
+ *
+ * No `--td-cell` default lives here either, deliberately: a `body[data-theme]`
+ * selector outranks the plain `.td-doll` the mobile-landscape rule uses, so a
+ * themed page would have kept the desktop cell size on a phone no matter what
+ * the media query said. A default belongs at the same specificity as its
+ * overrides. */
 body[data-theme] .td-doll .td-slot {
   border-radius: var(--r);
   background: rgba(0, 0, 0, .42);

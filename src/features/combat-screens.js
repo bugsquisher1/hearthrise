@@ -995,10 +995,26 @@ function renderDrops(m) {
   host.innerHTML = html;
 }
 
-function renderManage(m) {
+/* The gear half of the rail, repaintable WITHOUT a monster.
+   b369: the equip rollback in legacy.js (`restoreEquipSnapshot`) put
+   `G.equipment` back when the server refused a swap and then repainted the
+   inventory — `renderInventory`, `_renderInvFancy`, `renderLoadout` — and
+   stopped there. This rail is a fourth surface that draws `G.equipment`, and
+   it is the one the player is LOOKING AT when they equip from the Fight
+   screen, so a refused equip left the sword worn in the rail and back in the
+   bag at the same time. That is Tyler's report, and it is not a paint bug so
+   much as a missing entry on a list: the list of surfaces that must be
+   repainted has to be reachable from the rollback, not re-derived at each
+   call site. `renderDrops` is deliberately excluded — it needs the current
+   foe and gear does not change the drop table. */
+export function repaintGear() {
   renderDoll();
   renderTotals();
   renderFood();
+}
+
+function renderManage(m) {
+  repaintGear();
   renderDrops(m);
 }
 
@@ -1357,6 +1373,7 @@ export function setupCombatScreens() {
 
   window.HearthriseCombatScreens = {
     preview, setView, view, render, renderFight, openFromNav, openSlotPicker,
+    repaintGear,
     _ledger: Ledger, _swing: Swing,
     get previewId() { return previewId; },
   };

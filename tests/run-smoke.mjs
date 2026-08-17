@@ -374,6 +374,65 @@ async function migrationGuard() {
   return problems;
 }
 
+// ── The combat-drop attribution guard (b370) ────────────────────────────────
+// "Drops this fight" is an ALLOWLIST: it shows a credit only if the one
+// combat-drop credit site declared it. That design is fail-closed — a feature
+// added later that credits the bag is non-combat by default and cannot pollute
+// the rail — but the guarantee rests entirely on there being exactly ONE
+// writer. A second declaration site would quietly restore the old failure mode
+// (shop purchases, market buys and worker hauls listed as loot) with every
+// in-browser test still green, because those tests can only see behaviour they
+// thought to exercise. The structural invariant needs a structural guard.
+async function combatCreditGuard() {
+  const problems = [];
+  const files = [];
+  async function walkSrc(dir) {
+    let entries = [];
+    try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) { await walkSrc(full); continue; }
+      if (extname(e.name).toLowerCase() === '.js') files.push(full);
+    }
+  }
+  await walkSrc(join(ROOT, 'src'));
+  if (files.length < 20) problems.push(`only ${files.length} src files scanned — the guard is checking nothing`);
+  const writers = [];
+  for (const f of files) {
+    const rel = f.slice(ROOT.length + 1).replace(/\\/g, '/');
+    if (rel.includes('smoke-test')) continue;            // the suite may drive it
+    const text = await readFile(f, 'utf8');
+    if (!text.includes('__hrCombatCredits')) continue;
+    // combat-screens.js is the READER; everyone else touching it is a writer.
+    if (rel.endsWith('features/combat-screens.js')) continue;
+    writers.push(rel);
+  }
+  if (writers.length !== 1 || !writers[0].endsWith('legacy.js')) {
+    problems.push('the combat-drop declaration must have exactly one writer '
+      + '(COMBAT_FX.addItem in src/legacy.js) — found: ' + (writers.join(', ') || 'NONE'));
+  }
+  // The away replay runs the same resolveKill through the same fx, so it must
+  // keep overriding addItem with the silent binding. Without that override a
+  // whole night's drops land in the rail of the next fight the player starts.
+  const legacy = await readFile(join(ROOT, 'src', 'legacy.js'), 'utf8');
+  const binding = legacy.match(/addItem:function\(id,qty\)\{[\s\S]{0,400}?\n  \},/);
+  if (!binding) {
+    problems.push('could not find COMBAT_FX.addItem in src/legacy.js — the guard is checking nothing');
+  } else if (!/_awaySegmentAtMs\s*!=\s*null/.test(binding[0])) {
+    problems.push('COMBAT_FX.addItem no longer gates on the away latch — an away replay\'s drops '
+      + 'will be claimed by the live "Drops this fight" rail');
+  }
+  // src/core is packed verbatim into the hr-accrue Edge Function, so the
+  // attribution must never reach into it: that would drift the deployed
+  // payload for a purely client-side display concern.
+  const sim = await readFile(join(ROOT, 'src', 'core', 'combat-sim.js'), 'utf8');
+  if (/__hrCombatCredits/.test(sim)) {
+    problems.push('core/combat-sim.js references the rail\'s attribution bucket — src/core is '
+      + 'packed into the Edge Function and must stay free of client display concerns');
+  }
+  return { problems, note: `1 declaration site (${writers[0] || 'none'}), away latched, core clean` };
+}
+
 // ── The secret guard (b322) ──────────────────────────────────────────────────
 // A LIVE Discord webhook URL sat in src/bug-report.js as a plain constant for
 // ~200 builds. hearthrise.net is GitHub Pages serving a PUBLIC repo, so that
@@ -1999,6 +2058,15 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('\nAccount-wall guard — a clean boot is walled, nothing behind it, and no authenticated RPC left it.');
+    }
+
+    const creditProblems = await combatCreditGuard();
+    if (creditProblems.problems.length) {
+      console.log('\nCombat-drop attribution guard — FAILED:');
+      for (const p of creditProblems.problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log(`Combat-drop attribution guard — ${creditProblems.note}.`);
     }
 
     const migProblems = await migrationGuard();

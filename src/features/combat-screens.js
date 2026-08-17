@@ -146,34 +146,44 @@ const Ledger = (() => {
     run = {
       foe, at: Date.now(),
       xp0: combatXp(), gold0: goldEarned(), kills0: kills(),
-      inv: invSnapshot(), gained: {}, order: [],
+      inv: invSnapshot(), gained: {}, declared: {}, order: [],
     };
   }
   function end() { run = null; }
 
-  /* NON-COMBAT CREDITS (b370).
+  /* WHO PAID IT (b370) — the rail is an ALLOWLIST.
      Loot here is measured as a positive inventory delta, which is honest about
-     WHETHER something was paid but blind to WHO paid it: while you fight, your
-     hired workers keep banking Oak Logs, and every one of them was landing in
-     "Drops this fight". Tyler: "we can see the stuff your workers are
-     collecting as well... we should remove that."
+     WHETHER something was paid but blind to WHO paid it. Everything that
+     credited the bag mid-fight was claimed as a drop: first the workers' hauls
+     ("we can see the stuff your workers are collecting as well... we should
+     remove that"), then, once that was filtered, Tyler found the rest — "when
+     you are in combat and buying items from the shop (seeds or equipment) it is
+     also mentioned under 'drops this fight'."
 
-     The fix keeps the measure-don't-predict property intact. Non-combat
-     sources declare their credits into one shared bucket
-     (`window.__hrNonCombatCredits`) and we fold those quantities into the
-     BASELINE before diffing — so a worker payout of 12 logs moves `run.inv`
-     by 12 and reads as no gain, while a monster dropping the 13th still shows
-     up. Drained on every call, including while no fight is running, so a
-     credit banked between fights can never discount the next one's loot. */
-  function drainExternal(fold) {
-    const b = window.__hrNonCombatCredits;
+     The first fix asked every non-combat source to declare itself. That is a
+     DENYLIST, and it fails OPEN: the list is ~20 callers of addItem today and
+     every feature added later is a new leak nobody will remember to plug. So
+     it is inverted. There is exactly ONE combat-drop credit in the game
+     (`COMBAT_FX.addItem`, fed by the single `call(fx,'addItem')` in
+     core/combat-sim.js), and it declares into `window.__hrCombatCredits`. The
+     rail shows the intersection of what was DECLARED and what the inventory
+     ACTUALLY GAINED. Shop, market, rewards, farm, pets and accrue envelopes
+     need no code at all — they are excluded by not being combat.
+
+     Measure-don't-predict survives, and is in fact stronger: a declaration
+     alone shows nothing (a full bag refuses the drop, so there is no delta and
+     no row), and a delta alone shows nothing. Both must be true. */
+  function drainDeclared() {
+    const b = window.__hrCombatCredits;
     if (!b) return;
     for (const id in b) {
       const q = b[id] || 0;
-      /* Fold only into a baseline that predates the credit. A run that was
-         just begun already snapshotted an inventory containing it, so folding
-         would discount it TWICE and swallow a real drop later on. */
-      if (fold && run && q > 0) run.inv[id] = (run.inv[id] || 0) + q;
+      /* Drained even with no run, so a drop declared between fights can never
+         be attributed to the next one. */
+      if (run && q > 0) {
+        if (!run.declared[id]) run.order.unshift(id);
+        run.declared[id] = (run.declared[id] || 0) + q;
+      }
       delete b[id];
     }
   }
@@ -182,24 +192,21 @@ const Ledger = (() => {
      two credits inside one second to prove the attribution filter. */
   function sample(force) {
     const g = G();
-    if (!g || !g.activeMonster) { if (run) end(); drainExternal(false); return; }
-    let fresh = false;
-    if (!run || run.foe !== g.activeMonster) { begin(g.activeMonster); fresh = true; }
-    drainExternal(!fresh);
+    if (!g || !g.activeMonster) { if (run) end(); drainDeclared(); return; }
+    if (!run || run.foe !== g.activeMonster) begin(g.activeMonster);
+    drainDeclared();
     const now = Date.now();
     if (!force && now - lastSampleAt < 1000) return;
     lastSampleAt = now;
-    /* Loot: POSITIVE inventory deltas only. Eating a Provision is a negative
-       delta and is not loot; nothing else spends from the bag mid-fight. */
+    /* The MEASURED half. Positive inventory deltas only — eating a Provision
+       is a negative delta and is not loot. Recorded for every id, combat or
+       not; `loot()` is what applies the allowlist, so a delta that is never
+       declared simply never surfaces. */
     const g2 = g.inventory || {};
     for (const id in g2) {
       const before = run.inv[id] || 0;
       const after = g2[id] || 0;
-      if (after > before) {
-        const d = after - before;
-        if (!run.gained[id]) run.order.unshift(id);
-        run.gained[id] = (run.gained[id] || 0) + d;
-      }
+      if (after > before) run.gained[id] = (run.gained[id] || 0) + (after - before);
       run.inv[id] = after;
     }
     for (const id in run.inv) if (!(id in g2)) run.inv[id] = 0;
@@ -222,11 +229,17 @@ const Ledger = (() => {
       goldPerMin: elapsedS > 0 ? (dGold / elapsedS) * 60 : 0,
     };
   }
+  /* The intersection. A row needs BOTH a declaration (it was a combat drop)
+     and a measured credit (the bag actually took it) — `min` of the two, so a
+     drop refused by a full bag reads zero and a worker banking the same item
+     cannot inflate a real drop's count. */
   function loot() {
     if (!run) return [];
-    return run.order.map((id) => ({ id, qty: run.gained[id] }));
+    return run.order
+      .map((id) => ({ id, qty: Math.min(run.declared[id] || 0, run.gained[id] || 0) }))
+      .filter((r) => r.qty > 0);
   }
-  function lootCount() { return run ? run.order.length : 0; }
+  function lootCount() { return loot().length; }
 
   return { sample, metrics, loot, lootCount, _end: end };
 })();

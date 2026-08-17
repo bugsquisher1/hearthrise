@@ -4115,7 +4115,37 @@ const COMBAT_FX={
      dungeon keys and the collection log all stay in the chain, away included
      (they never were, because the away loop called none of these). */
   addXp:function(sk,amt){ addXp(sk,amt); },
-  addItem:function(id,qty){ addItem(id,qty); },
+  /* THE ONLY COMBAT-DROP CREDIT IN THE GAME (b370).
+     Every other inventory credit — a shop purchase, a market collect, a reward
+     claim, a farm harvest, a worker haul, an accrue envelope — reaches the bag
+     through some other caller of addItem(). So this binding is the one place
+     that can say "this credit is a drop from the fight you are watching", and
+     the fight rail is an ALLOWLIST fed from here rather than a denylist that
+     has to name every other source. That direction is deliberate: an allowlist
+     FAILS CLOSED, so a feature added next year that credits the bag cannot
+     pollute the rail without anyone remembering this rule. The denylist we
+     tried first failed open, which is exactly how shop purchases got in.
+     Declared only when addItem actually SUCCEEDED — a full bag refuses the
+     drop, and a refused drop is not loot.
+
+     AWAY kills are excluded through `_awaySegmentAtMs` — the ambient "which
+     instant is being simulated" latch that already exists, non-null only
+     inside `withAwaySegment`, which every away kill runs within. Two other
+     routes were tried and are wrong: threading `ctx` through core/combat-sim.js
+     drifts the hr-accrue Edge payload (src/core is packed verbatim, so a
+     one-word change there demands a redeploy for a purely cosmetic client
+     concern), and overriding this binding in `simulateAwayCombat`'s `ctx.fx`
+     silently does nothing, because `COMBAT_FX.killMonster` calls the global
+     `killMonster`, which rebuilds a FRESH `combatSimCtx()` and throws the
+     override away. The latch is the only signal that survives that hop. */
+  addItem:function(id,qty){
+    if(_awaySegmentAtMs!=null) { addItem(id,qty); return; }
+    if(addItem(id,qty)===false) return;
+    try{
+      const b = window.__hrCombatCredits || (window.__hrCombatCredits = {});
+      b[id] = (b[id]||0) + qty;
+    }catch(e){ /* attribution is best-effort; never block a drop */ }
+  },
   killMonster:function(m){
     const info=killMonster(m);
     /* b344 — THE ONE SAFE POINT IN A TICK FOR THE TARGET TO CHANGE. Every

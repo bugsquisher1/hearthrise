@@ -32321,60 +32321,138 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('COMBAT-UI-22: a worker payout mid-fight never appears in "Drops this fight"', () => {
-    /* Tyler, b370: "we can see the stuff your workers are collecting as well...
-       We should remove that." The fight rail measures loot as a positive
-       inventory delta, so ANY credit that landed during the fight was being
-       claimed as a drop — including the Oak Logs your hired workers bank on
-       their own 60s timer.
-       MUTATION PROVEN: delete the drainExternal() fold in combat-screens.js and
-       the first assertion fails — the worker's logs show up in the rail. Delete
-       the noteNonCombatCredit() call in workers.js and it fails the same way.
-       The SECOND assertion is the other half of the contract: filtering must
-       not make the rail deaf. A real monster drop still lands. */
+  () => tryRun('COMBAT-UI-22: only real combat drops reach "Drops this fight"', () => {
+    /* Tyler, b370, twice. First: "we can see the stuff your workers are
+       collecting as well... We should remove that." Then, after the worker
+       filter shipped: "when you are in combat and buying items from the shop
+       (seeds or equipment) it is also mentioned under 'drops this fight'.
+       Maybe it would also be the same for items bought in the market."
+
+       Both are the same bug. The rail measured loot as a positive inventory
+       delta, so EVERY credit landing mid-fight was claimed as a drop. The fix
+       is an ALLOWLIST — the one combat-drop credit in the game declares itself
+       and nothing else does — which is why this test exercises three unrelated
+       non-combat sources and expects no code to exist for any of them.
+
+       MUTATION PROVEN: drop the `Math.min(run.declared[id]...)` intersection in
+       loot() and every non-combat assertion below fails at once; drop the
+       declaration in COMBAT_FX.addItem and the real-drop assertion fails. */
     const CS = window.HearthriseCombatScreens;
     assert(CS && CS._ledger, 'the ledger seam is not published');
-    const G = window.G;
     const snap = snapshotG();
     const prevTab = window.activeTab;
     try {
       window.showTab('combat');
       window.startCombat('slime');
-      window.__hrNonCombatCredits = {};
+      window.__hrCombatCredits = {};
       CS._ledger.sample(true);                        // establish the baseline
 
-      /* A worker banks a haul, declaring itself the way workers.js does. */
-      window.addItem('normal_log', 7);
-      window.__hrNonCombatCredits.normal_log = (window.__hrNonCombatCredits.normal_log || 0) + 7;
-      /* ...and the monster pays a real drop in the same breath. */
-      window.addItem('slime_gel', 3);
+      /* Three non-combat credits, each the way its own system pays: a worker
+         haul, a shop purchase, a market collect. None of them declares — that
+         is the entire point of an allowlist. */
+      window.addItem('normal_log', 7);                // worker
+      window.addItem('potato_seed', 4);               // shop purchase
+      window.addItem('copper_ore', 9);                // market buy
+
+      /* ...and one REAL drop, credited the way the combat loop credits it. */
+      window.HearthriseCombatSim.fx.addItem('slime_gel', 3);
       CS._ledger.sample(true);
 
       const rows = CS._ledger.loot();
-      const worker = rows.filter((r) => r.id === 'normal_log');
-      assert(worker.length === 0,
-        'the workers\' haul is being claimed as combat loot: ' + JSON.stringify(rows));
-      const drop = rows.filter((r) => r.id === 'slime_gel')[0];
-      assert(drop && drop.qty === 3,
+      const seen = (id) => rows.filter((r) => r.id === id)[0];
+      assert(!seen('normal_log'), 'a worker haul is claimed as combat loot: ' + JSON.stringify(rows));
+      assert(!seen('potato_seed'), 'a SHOP PURCHASE is claimed as combat loot: ' + JSON.stringify(rows));
+      assert(!seen('copper_ore'), 'a MARKET BUY is claimed as combat loot: ' + JSON.stringify(rows));
+      assert(seen('slime_gel') && seen('slime_gel').qty === 3,
         'the real drop was lost by the attribution filter: ' + JSON.stringify(rows));
 
-      /* And a credit banked BETWEEN fights must not discount the next fight's
-         loot — the stale-bucket bug. */
+      /* A non-combat credit of the SAME item as a live drop must not inflate
+         the count — the rail shows the drop, not the shipment. */
+      window.addItem('slime_gel', 50);                // bought 50 on the market
+      CS._ledger.sample(true);
+      assert(seen('slime_gel') && CS._ledger.loot().filter((r) => r.id === 'slime_gel')[0].qty === 3,
+        'a market buy inflated a real drop count: ' + JSON.stringify(CS._ledger.loot()));
+
+      /* And a drop declared BETWEEN fights must not be attributed to the next
+         one — the stale-bucket bug. */
       window.stopCombat();
-      window.addItem('normal_log', 5);
-      window.__hrNonCombatCredits.normal_log = 5;
-      CS._ledger.sample(true);                        // no fight: drains, folds nothing
+      window.HearthriseCombatSim.fx.addItem('slime_gel', 5, { away: false });
+      CS._ledger.sample(true);                        // no fight: drains, keeps nothing
       window.startCombat('slime');
       CS._ledger.sample(true);
-      window.addItem('normal_log', 2);               // now a genuine monster drop
-      CS._ledger.sample(true);
-      const again = CS._ledger.loot().filter((r) => r.id === 'normal_log')[0];
-      assert(again && again.qty === 2,
-        'a worker credit banked between fights swallowed the next fight\'s loot: '
+      assert(CS._ledger.loot().length === 0,
+        'a drop declared between fights leaked into the next fight: '
         + JSON.stringify(CS._ledger.loot()));
     } finally {
       try { window.stopCombat(); } catch (e) {}
-      try { delete window.__hrNonCombatCredits; } catch (e) {}
+      try { delete window.__hrCombatCredits; } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-24: a real AWAY replay declares nothing to the live rail', () => {
+    /* The away replay runs the SAME resolveKill through the SAME effect object
+       as live play, so the declaration that makes the rail work is exactly the
+       thing that would let a night's accrual be dumped into whatever fight the
+       player starts on return. simulateAwayCombat overrides the binding with a
+       silent one; this drives the real away path and proves it.
+       MUTATION PROVEN: delete the `addItem` override in simulateAwayCombat's
+       ctx.fx and this goes red with a night's drops declared. */
+    assert(typeof window.simulateAwayCombat === 'function', 'the away combat seam is missing');
+    const snap = snapshotG();
+    try {
+      window.G.activeMonster = 'slime';
+      window.G.monsterHp = window.MONSTERS.slime.hp;
+      window.__hrCombatCredits = {};
+      const out = window.simulateAwayCombat(6, false, Date.now());
+      assert(out && (out.kills > 0 || out.gold >= 0), 'the away replay did no work — the test proves nothing');
+      assert(Object.keys(window.__hrCombatCredits).length === 0,
+        'an away replay declared drops to the live fight rail: '
+        + JSON.stringify(window.__hrCombatCredits));
+    } finally {
+      try { delete window.__hrCombatCredits; } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-23: a REAL kill declares its drops end to end', () => {
+    /* COMBAT-UI-22 drives the effect binding directly, which proves the filter
+       but not the WIRING. This one runs a real kill through the real loop —
+       resolveKill -> call(fx,'addItem',...) -> COMBAT_FX.addItem -> the rail —
+       on a monster whose drop table is guaranteed, so the declaration either
+       arrives by the genuine route or this test goes red. Without it, someone
+       could delete the `ctx` argument in combat-sim.js and every drop would
+       silently stop reaching the rail with COMBAT-UI-22 still green. */
+    const CS = window.HearthriseCombatScreens;
+    assert(CS && CS._ledger, 'the ledger seam is not published');
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    const prevMon = window.MONSTERS.slime;
+    try {
+      /* A foe that always pays, so the assertion is about wiring, not luck. */
+      window.MONSTERS.slime = Object.assign({}, prevMon, {
+        hp: 1, gp: [0, 0], drops: [{ id: 'slime_gel', ch: 1 }],
+      });
+      window.showTab('combat');
+      window.startCombat('slime');
+      window.__hrCombatCredits = {};
+      CS._ledger.sample(true);
+      const before = (window.G.inventory || {}).slime_gel || 0;
+
+      window.killMonster(window.MONSTERS.slime);
+      CS._ledger.sample(true);
+
+      const gained = ((window.G.inventory || {}).slime_gel || 0) - before;
+      assert(gained > 0, 'the kill credited no drop at all — the test foe is wrong, not the rail');
+      const row = CS._ledger.loot().filter((r) => r.id === 'slime_gel')[0];
+      assert(row && row.qty === gained,
+        'a real kill\'s drop did not reach the rail through the live path — the declaration is unwired: '
+        + JSON.stringify(CS._ledger.loot()));
+    } finally {
+      window.MONSTERS.slime = prevMon;
+      try { window.stopCombat(); } catch (e) {}
+      try { delete window.__hrCombatCredits; } catch (e) {}
       restoreG(snap);
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }

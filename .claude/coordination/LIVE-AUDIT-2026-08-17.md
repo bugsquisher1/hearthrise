@@ -148,3 +148,35 @@ Auditor: live-player agent in Tyler's Chrome. One entry per finding.
 1. "Gems are free to us lol just add the character slot and play through the game." — Tyler explicitly approved buying Hero slot 2 (200 gems) on his account for the fresh-character playthrough. His balance was credited to 1006 gems server-side by the Coordinator. Note whether the credit reaches the client cleanly, and whether the purchase flow debits/unlocks correctly.
 2. "Keep an eye out for strange flickering of old assets etc, I've noticed it quite a bit but it's hard to explain." — WATCH FOR: old/retired art appearing briefly before the current art paints (icon swap-in flicker, glyph->painted transitions, cache-version races). Catalog every instance: which asset, which screen, what it flashed FROM and TO, and whether a reload changes it. Suspects: the icon-swap timing in legacy applyLocalIcons vs __mapGeneratedGearIcons (1500ms re-run), service-worker cache serving stale versions, image-fallback.js swapping placeholder->real.
 3. Quality bar for the night, his words: "I expect studio quality when I wake up."
+
+## FTUE run (b371)
+
+Run date: 2026-08-17, live hearthrise.net, Tyler's real Chrome, build confirmed b371 (build-info.js?v=371).
+
+### P0 — Slot switch DUPLICATES the current character into the target slot (freeze is fixed; data corruption replaced it)
+
+**b371 freeze fix itself: VERIFIED WORKING.** In-game "Switch character?" modal (Stay here / Switch), no browser-native confirm, no hang; page reloads (performance navigation type = "reload").
+
+**But the switch corrupted the target slot.** Repro (happened first try, deterministic by mechanism):
+1. Slot 0 (Tyler, TL 232, 12,721g) active. Hero panel -> Play on Adventurer 2 (slot 1, Combat 1 / Total 1, last seen 4h ago). Confirm Switch.
+2. Game reloads. Active character is... Tyler (TL 232, 12,721g) with profile.activeSlot = 1. Hero panel shows TWO identical "Tyler Combat 8 Total 232" rows.
+3. Within ~2 min the autosave uploaded the clone: game_saves now has slot 0 AND slot 1 both {playerName Tyler, gold 12721, totalLevel 232} (slot 1 saved_at 12:14:01Z). **Adventurer 2's cloud save is overwritten — destroyed.**
+
+**Root cause (code-level, confirmed):**
+- `switchSlot()` (src/multi-character.js:276) correctly parks the old char, flips activeSlot, and clears SAVE_KEY so the engine creates a fresh char on reload; `switchSlotAsync` then calls `location.reload()` (line 256).
+- The reload fires `pagehide`. `src/legacy.js:7160` — `window.addEventListener('pagehide',()=>saveLocal())` — re-writes SAVE_KEY with the OLD character's still-in-memory G, un-doing the clear.
+- `src/net/sync.js:1355` — pagehide `snapshotIfDue(true,true)` — also uploads that G, and `resolveActiveSlot()` already reads the NEW slot id, so the old char's snapshot goes to the new slot's cloud row directly.
+- On boot: local SAVE_KEY (Tyler, timestamp now) vs cloud slot 1 (Adventurer 2, 4h old) -> freshness rule keeps local -> Tyler lives in slot 1; next autosave cements it in cloud.
+
+**Impact:** any slot switch duplicates the outgoing character (gold, items, levels) into the incoming slot and destroys the incoming slot's save. It is both a data-loss and an economy-dupe vector (12,721 gold duplicated in this run). This also means the b371 verification run could not proceed: slot 2 IS Tyler now, no fresh character exists to run FTUE on.
+
+**Fix direction:** the switch must suppress the pagehide save/snapshot once the slot swap has been committed (e.g. a `_switching`/`swapCommitted` latch checked by legacy.js:7160 and sync.js:1355 pagehide handlers), or switchSlot should stamp the swap and saveLocal should refuse to write when G's identity doesn't match profile.activeSlot (extend the b342 save-slot guard to cover the reload window). Ship with a regression test that switches to an empty slot and asserts SAVE_KEY stays empty through pagehide.
+
+**Recovery performed:** switched back to slot 0; Tyler verified intact (portrait on header + Home, 12,721g, TL 232, Combat 8, farm/quests present). Residue left deliberately for inspection: cloud game_saves slot 1 = Tyler clone; local char:1 also a Tyler copy. Adventurer 2 (was TL 1) is unrecoverable but negligible.
+
+### FTUE steps 2-4: NOT RUN
+Blocked by the P0 above — there is no fresh character to audit. Do not re-attempt the FTUE run until the pagehide/switch race is fixed; every attempt burns the target slot and mints a duplicate.
+
+### Environment notes
+- Chrome window was minimized; audit ran in a background-rendered tab (screenshots fine after opening a fresh tab).
+- The hero-panel DOM re-renders every tick, invalidating accessibility refs within ~1s; find/click by ref reliably fails. JS-click was needed. Worth noting for future browser automation and possibly a perf smell (full re-render per tick).

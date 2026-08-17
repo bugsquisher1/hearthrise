@@ -46,6 +46,7 @@ import { runAll as jwtGuards } from './jwt-verify.mjs';
 import { runAll as corsGuards } from './cors-preflight.mjs';
 import { runAll as iconBootOrderGuard } from './icon-boot-order.mjs';
 import { reachabilityGuard } from './reachability.mjs';
+import { recipeYieldGuard, recipeYieldMutationGuard } from './recipe-yield-guard.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
 import { createServer } from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
@@ -1449,6 +1450,50 @@ const recoverMutationResidue = async () => {
   }
 };
 
+// PREFLIGHT — no batch recipe may be a gold faucet.
+//
+// 2026-08-18: `iron_arrows` kept a v:60 book value the b343 ammo ladder had
+// rebased to 1-12, and `vendorPriceOf` pays non-raw items FULL book value —
+// 16.7x input, ~2.9M gold/hour, enough for ONE player to exhaust the
+// 25,000,000/day server-wide inflow budget in 8.6 hours through the
+// server-authoritative `vendor_sell` verb. Pure data, so it runs before the
+// browser starts. Mutation-proven; see the header of recipe-yield-guard.mjs for
+// why a plain "outputQty <= 50" cap would have missed this and failed eight
+// correct recipes.
+async function recipeYieldPreflight() {
+  const { problems, note } = await recipeYieldGuard();
+  if (problems.length) {
+    console.error(`\nRecipe faucet preflight FAILED:\n  · ${problems.join('\n  · ')}\n`);
+    return 1;
+  }
+  const m = await recipeYieldMutationGuard();
+  if (m.problems.length) {
+    console.error(`\nRecipe faucet preflight — THE GUARD ITSELF IS BROKEN:\n  · ${m.problems.join('\n  · ')}\n`);
+    return 1;
+  }
+  console.log(`Recipe faucet preflight: ${note}; ${m.note}`);
+  return 0;
+}
+
+// PREFLIGHT — the Quartermaster trade ledger, driven as a pure module.
+//
+// The browser suite's B372-SCRIP-1 drives the real `applyEnvelopeState`
+// end-to-end; this runs the unit-level properties that are only cheap to state
+// exhaustively — above all the 36-shape fuzz asserting the ledger can never
+// mint. See the header of tests/item-ledger.mjs.
+async function itemLedgerPreflight() {
+  const { spawnSync } = await import('node:child_process');
+  const f = join(ROOT, 'tests', 'item-ledger.mjs');
+  const r = spawnSync(process.execPath, [f], { encoding: 'utf8' });
+  if (r.status !== 0) {
+    console.error(`\nItem-ledger preflight FAILED:\n${r.stdout || ''}${r.stderr || ''}\n`);
+    return 1;
+  }
+  const passes = (r.stdout.match(/ PASS /g) || []).length;
+  console.log(`Item-ledger preflight: ${passes} assertions green (mint fuzz included)`);
+  return 0;
+}
+
 const run = async () => {
   await recoverMutationResidue();
   if (await monsterArtPreflight()) process.exit(1);
@@ -1456,6 +1501,8 @@ const run = async () => {
   if (await artPalettePreflight()) process.exit(1);
   if (await catalogueDriftPreflight()) process.exit(1);
   if (await itemsCataloguePreflight()) process.exit(1);
+  if (await recipeYieldPreflight()) process.exit(1);
+  if (await itemLedgerPreflight()) process.exit(1);
   if (await shopDriftPreflight()) process.exit(1);
   if (await perkDriftPreflight()) process.exit(1);
   if (await unlockModelPreflight()) process.exit(1);

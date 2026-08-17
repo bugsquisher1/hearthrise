@@ -177,6 +177,27 @@ const BASE_RECIPES = {
     {id:'carve_longbow',          name:'Carve Longbow',           icon:'🏹', inputs:{willow_plank:3, silk_thread:2},       output:'longbow',          xp:240, req:25, ms:3600},
     {id:'carve_apprentice_staff', name:'Carve Apprentice Staff',  icon:'🪄', inputs:{oak_plank:2, magic_essence:1},        output:'apprentice_staff', xp:120, req:12, ms:2800},
     {id:'carve_oak_staff',        name:'Carve Oak Staff',         icon:'🪄', inputs:{willow_plank:3, magic_essence:2, ancient_rune:1}, output:'oak_staff', xp:300, req:30, ms:4000},
+    /* ⚠ THE BATCH STAYS AT 50. DO NOT RAISE IT TO MATCH THE `fletch_*` LADDER.
+       This was tried on 2026-08-18 and the accrual guard caught it: at ×500 a
+       15-hour absence moves 4,821,000 units of one item against the server's
+       `c_max_item_delta = 1,000,000`, i.e. 482% of a clamp that HONEST PLAY
+       would then trip — costing the player part of an absence via index.ts's
+       degrade ladder. The seven `fletch_*` rungs are over that clamp too, but
+       they carry a named Security amnesty (AMMO_CLAMP_BASELINE in
+       tests/accrual-engine.mjs, ruled 2026-08-16). An eighth id on that list is
+       a NEW Security decision, not an inherited one, and it is not a bug fix's
+       to make.
+
+       The faucet was never the batch anyway — it was `iron_arrows.v` at 60,
+       fixed at the item (see the block in src/data/items.js). At v:1 this rung
+       vendors for 50 g against 180 g of input, i.e. it is no longer profitable
+       to farm, which is CORRECT for a consumable: arrows are made to be shot,
+       not sold, and paying for the capability is the point.
+
+       ⏳ REDUNDANCY, STATED FOR THE GAME DESIGNER: `fletch_barbed_arrows` is
+       the same iron-tier arrow, properly costed, at a supply rate ten times
+       this one — so this rung is now strictly dominated and is a retire-or-merge
+       candidate. Deliberately NOT done here: that is a content decision. */
     {id:'craft_iron_arrows',      name:'Craft Iron Arrows ×50',   icon:'🏹', inputs:{iron_bar:1, normal_plank:5},          output:'iron_arrows', outputQty:50, xp:120, req:20, ms:3500},
     // Tailoring
     {id:'tailor_leather_boots',   name:'Tailor Leather Boots',    icon:'🥾', inputs:{wolf_pelt:2},                          output:'leather_boots',  xp:80,  req:8,  ms:2400},

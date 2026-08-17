@@ -97,7 +97,32 @@ export const ITEMS={
   gold_amulet:{n:'Gold Amulet',icon:'📿',v:1100,type:'jewelry',slot:'necklace',atkB:4,defB:2},
   leather_gloves:{n:'Leather Gloves',icon:'🧤',v:80,type:'armor',slot:'gloves',atkB:1,defB:1},
   bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt',defB:2},
-  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:60,type:'ammo',slot:'ammo',atkB:2,critB:.01},
+  /* ⚠ v:1, NOT v:60 — DO NOT "RESTORE" THE OLD NUMBER (2026-08-18, reported as
+     "you get 500-ish arrows per craft"; the arrows were fine, this was not).
+
+     `iron_arrows` predates the b343 ammo ladder in src/data/slot-ladders.js and
+     its book value was never rebased when that ladder priced every arrow at
+     v 1-12 (bronze 1, barbed 1, steel 2 ... dawnpoint 12). It sat at **60** —
+     five times the price of the tier-7 mythic arrow, on a rung that gates at
+     level 20.
+
+     That is not cosmetic, because `vendorPriceOf` (supabase/functions/hr-accrue/
+     catalogue.js) pays FULL BOOK VALUE for a non-raw item — arrows are crafted,
+     so `raw` is false and the vendor paid 60g each. `craft_iron_arrows` turns
+     180g of input into 50 arrows every 3.5 s:
+
+         3,000 g gross / 180 g input  =  16.7x   (house median 2.14x)
+         2,820 g net x 1,029 actions/hr  =  ~2.9 MILLION gold/hour
+         one player exhausts the 25,000,000/day server-wide gross-inflow
+         budget (hr_day_budget_check) in 8.6 hours, through the
+         SERVER-AUTHORITATIVE `vendor_sell` verb — no client forgery needed.
+
+     v:1 is ladder parity with `barbed_arrows`, its exact tier peer (iron-tier,
+     lv 15 vs this rung's 20). `ammoPerShot: 1` matches every tier-2+ rung so
+     this stops being the one arrow in the game with no sink once the combat
+     loop starts spending (E1, src/core/ammo.js). Both are enforced by the
+     ammo-ladder guard in tests/recipe-yield-guard.mjs. */
+  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',atkB:2,critB:.01,ammoPerShot:1},
   fox_companion:{n:'Fox Companion',icon:'🦊',v:600,type:'companion',slot:'companion',strB:2,xpB:.02},
   iron_ore:{n:'Iron Ore',icon:'⬜',v:25},
   normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:20},

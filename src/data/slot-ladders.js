@@ -171,13 +171,13 @@ export const SLOT_RECIPES = {
   smithing: [],
   crafting: [
     /* ── fletching interface (see the block above) ── */
-    { id: 'fletch_bronze_arrows',    name: 'Fletch Bronze Arrows',    icon: '🏹', inputs: { bronze_bar: 6, normal_plank: 4 },                 output: 'bronze_arrows',    outputQty: 500,  xp: 90,  req: 5,  ms: 3200 },
-    { id: 'fletch_barbed_arrows',    name: 'Fletch Barbed Arrows',    icon: '🏹', inputs: { iron_bar: 2, oak_plank: 2 },                      output: 'barbed_arrows',    outputQty: 500,  xp: 150, req: 18, ms: 3400 },
-    { id: 'fletch_steel_arrows',     name: 'Fletch Steel Arrows',     icon: '🏹', inputs: { steel_bar: 2, willow_plank: 2 },                  output: 'steel_arrows',     outputQty: 500,  xp: 230, req: 33, ms: 3600 },
-    { id: 'fletch_mithril_arrows',   name: 'Fletch Mithril Arrows',   icon: '🏹', inputs: { mithril_bar: 1, maple_plank: 2 },                 output: 'mithril_arrows',   outputQty: 500,  xp: 330, req: 48, ms: 3800 },
-    { id: 'fletch_rune_arrows',      name: 'Fletch Rune Arrows',      icon: '🏹', inputs: { rune_bar: 1, yew_plank: 1 },                      output: 'rune_arrows',      outputQty: 500,  xp: 450, req: 63, ms: 4000 },
-    { id: 'fletch_emberhead_arrows', name: 'Fletch Emberhead Arrows', icon: '🏹', inputs: { ember_bar: 1, silk_thread: 16 },                  output: 'emberhead_arrows', outputQty: 500,  xp: 600, req: 78, ms: 4200 },
-    { id: 'fletch_dawnpoint_arrows', name: 'Fletch Dawnpoint Arrows', icon: '🏹', inputs: { dawn_bar: 1, duskwood_plank: 1 },                 output: 'dawnpoint_arrows', outputQty: 1000, xp: 820, req: 91, ms: 4400 },
+    { id: 'fletch_bronze_arrows',    name: 'Fletch Bronze Arrows ×500',    icon: '🏹', inputs: { bronze_bar: 6, normal_plank: 4 },                 output: 'bronze_arrows',    outputQty: 500,  xp: 90,  req: 5,  ms: 3200 },
+    { id: 'fletch_barbed_arrows',    name: 'Fletch Barbed Arrows ×500',    icon: '🏹', inputs: { iron_bar: 2, oak_plank: 2 },                      output: 'barbed_arrows',    outputQty: 500,  xp: 150, req: 18, ms: 3400 },
+    { id: 'fletch_steel_arrows',     name: 'Fletch Steel Arrows ×500',     icon: '🏹', inputs: { steel_bar: 2, willow_plank: 2 },                  output: 'steel_arrows',     outputQty: 500,  xp: 230, req: 33, ms: 3600 },
+    { id: 'fletch_mithril_arrows',   name: 'Fletch Mithril Arrows ×500',   icon: '🏹', inputs: { mithril_bar: 1, maple_plank: 2 },                 output: 'mithril_arrows',   outputQty: 500,  xp: 330, req: 48, ms: 3800 },
+    { id: 'fletch_rune_arrows',      name: 'Fletch Rune Arrows ×500',      icon: '🏹', inputs: { rune_bar: 1, yew_plank: 1 },                      output: 'rune_arrows',      outputQty: 500,  xp: 450, req: 63, ms: 4000 },
+    { id: 'fletch_emberhead_arrows', name: 'Fletch Emberhead Arrows ×500', icon: '🏹', inputs: { ember_bar: 1, silk_thread: 16 },                  output: 'emberhead_arrows', outputQty: 500,  xp: 600, req: 78, ms: 4200 },
+    { id: 'fletch_dawnpoint_arrows', name: 'Fletch Dawnpoint Arrows ×1000', icon: '🏹', inputs: { dawn_bar: 1, duskwood_plank: 1 },                 output: 'dawnpoint_arrows', outputQty: 1000, xp: 820, req: 91, ms: 4400 },
 
     /* ── earrings ── */
     { id: 'jewel_copper_studs',        name: 'Set Copper Studs',        icon: '💎', inputs: { copper_bar: 2 },                                            output: 'copper_studs',        xp: 60,   req: 10, ms: 2600 },

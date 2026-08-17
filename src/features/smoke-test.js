@@ -19868,6 +19868,169 @@ const TESTS = [
     }
   }),
 
+  /* ── b372 P0 — THE SWITCH DUPLICATED THE CHARACTER ─────────────────────
+     REPORTED LIVE (FTUE run on b371): switching to hero slot 1 produced a COPY
+     of the slot-0 character there and DESTROYED the save that had been in it.
+     Mechanism, three writes and one race:
+       1. switchSlot() moves profile.activeSlot to the target and REMOVES
+          SAVE_KEY (an empty target boots a fresh character);
+       2. location.reload() fires `pagehide`, and the page still holds the
+          OUTGOING character as window.G — legacy.js's pagehide autosave puts it
+          straight back into SAVE_KEY, and sync.js's pagehide snapshot uploads it
+          with the slot resolved LIVE, i.e. onto the TARGET's game_saves row;
+       3. boot prefers that "newer" local clone over the target's older cloud
+          save and the next autosave cements it.
+     Neither write is needed: switchSlotAsync has already saved locally AND
+     awaited a cloud flush of the outgoing character, and refuses to swap
+     without it. So the switch QUIESCES both.
+     MUTATION: delete the `if(_switchQuiesced()) return;` line in saveLocal and
+     this goes red on the SAVE_KEY assertion; make buildSnapshotRequest use
+     resolveActiveSlot() again and it goes red on the slot assertion. */
+  () => tryRunAsync('b372: a hero-slot switch cannot clone the outgoing character into the target slot (pagehide race)', async () => {
+    const HP = window.HearthriseProfile, S = window.HearthriseSync, G = window.G;
+    if (!HP || !HP.profile) return;
+    assert(typeof HP.saveQuiesced === 'function' && typeof HP.quiescedOutgoingSlot === 'function',
+      'the switch quiesce latch is gone — nothing stops the pagehide autosave from writing the outgoing '
+      + 'character into the incoming slot, which is the b372 duplication bug');
+    const SAVE_KEY = 'hearthbound-save-v2', TARGET = 1, CHAR1 = 'hearthrise:char:1';
+    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
+    const prevUnlocked = G.heroSlotsUnlocked;
+    const prevSave = localStorage.getItem(SAVE_KEY);
+    const prevChar1 = localStorage.getItem(CHAR1);
+    const prevChar0 = localStorage.getItem('hearthrise:char:0');
+    const realSnapshotIfDue = S && S.snapshotIfDue;
+    let during = null;
+    try {
+      HP.profile = { activeSlot: 0, unlockedSlots: 2, version: 1,
+        slots: [{ id: 0, name: 'Outgoing' }, { id: 1, name: 'Target' }] };
+      G.heroSlotsUnlocked = 2;                       // the entitlement lives in the save (b371)
+      localStorage.removeItem(CHAR1);                // target slot EMPTY — exactly the live repro
+      // The awaited pre-swap flush. Answering it is what lets the swap proceed.
+      if (S && typeof S.snapshotIfDue === 'function') S.snapshotIfDue = () => Promise.resolve(true);
+
+      const r = await HP.switchSlotAsync(TARGET, {
+        noReload: true,
+        /* THE TRANSITION WINDOW: pointer moved, page not yet replaced. This is
+           where the browser fires pagehide during the real reload. */
+        duringTransition: () => {
+          const quiesced = HP.saveQuiesced();
+          const outgoing = HP.quiescedOutgoingSlot();
+          const active = HP.activeSlot();
+          try { window.dispatchEvent(new Event('pagehide')); } catch (e) {}
+          try { window.saveLocal(); } catch (e) {}   // and any other autosave in the same window
+          during = { quiesced, outgoing, active,
+            save: localStorage.getItem(SAVE_KEY),
+            snapSlot: (S && typeof S.buildSnapshotRequest === 'function')
+              ? S.buildSnapshotRequest({ snapshotEndpoint: 'https://p.supabase.co/rest/v1/game_saves' },
+                'user-A', { gold: 1 }, Date.now()).body.slot
+              : null };
+        },
+      });
+
+      assert(r && r.ok, 'the switch itself failed, so nothing below was exercised: ' + (r && r.reason));
+      assert(during, 'the transition seam never ran — every assertion here would have been vacuous');
+      assert(during.active === TARGET,
+        'the slot pointer had not moved when the seam ran (active ' + during.active + ') — the hazard window '
+        + 'this test exists for was never entered');
+      assert(during.quiesced === true,
+        'saves were NOT quiesced during the switch — the pagehide autosave is free to run');
+      assert(during.outgoing === 0,
+        'the latch names slot ' + during.outgoing + ' as the character in memory; it is the OUTGOING slot 0, '
+        + 'and any write that escapes must be addressed there');
+      assert(during.save === null,
+        'THE b372 CLONE: pagehide during the switch rewrote ' + SAVE_KEY + ' with the OUTGOING character while '
+        + 'the profile already pointed at slot ' + TARGET + '. The next boot adopts that as the target hero — '
+        + 'one character duplicated, the one that lived there destroyed');
+      assert(during.snapSlot === 0,
+        'a snapshot sent during the switch is addressed to slot ' + during.snapSlot + ' — game_saves is '
+        + 'UNIQUE (user_id, slot), so that upsert overwrites the TARGET character\'s cloud row with the '
+        + 'outgoing one. It must carry the outgoing slot (0)');
+
+      // …and the latch does not outlive the switch: normal saving resumes.
+      assert(HP.saveQuiesced() === false,
+        'the quiesce latch was never released on a no-reload switch — local saving is now off for this session, '
+        + 'which trades a duplication bug for silent data loss');
+    } finally {
+      if (S && realSnapshotIfDue) S.snapshotIfDue = realSnapshotIfDue;
+      HP.profile = prevProfile;
+      G.heroSlotsUnlocked = prevUnlocked;
+      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
+      try { if (prevSave === null) localStorage.removeItem(SAVE_KEY); else localStorage.setItem(SAVE_KEY, prevSave); } catch (e) {}
+      try { if (prevChar1 === null) localStorage.removeItem(CHAR1); else localStorage.setItem(CHAR1, prevChar1); } catch (e) {}
+      try { if (prevChar0 === null) localStorage.removeItem('hearthrise:char:0'); else localStorage.setItem('hearthrise:char:0', prevChar0); } catch (e) {}
+      try { window.saveLocal(); } catch (e) {}
+      try { window.updateTopbar(); } catch (e) {}
+    }
+  }),
+
+  /* b372 — THE BOOT HALF. Even with the latch, a save that belongs to another
+     hero slot must never be adopted as this one: the latch closes the writer we
+     found, this closes the class. Park (recoverable), never delete, and boot as
+     if there were no local save — cloud or fresh character. */
+  () => tryRun('b372: loadLocal parks a save stamped for another hero slot instead of adopting it', () => {
+    const HP = window.HearthriseProfile, G = window.G;
+    if (!HP || !HP.profile) return;
+    const SAVE_KEY = 'hearthbound-save-v2';
+    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
+    const prevSave = localStorage.getItem(SAVE_KEY);
+    const prevGold = G.gold;
+    const parked = [];
+    /* loadLocal() ends by crediting away time and re-arming the live loops.
+       Neither is under test and both would perturb the suite's controlled G, so
+       they are stubbed for the three loads below and restored in the finally. */
+    const realProcessOffline = window.processOffline, realResume = window.resumeActiveActivity;
+    try {
+      window.processOffline = function () {};
+      window.resumeActiveActivity = function () {};
+      // (1) THE STAMP. saveLocal must write down which character these bytes are.
+      HP.profile = { activeSlot: 0, unlockedSlots: 2, version: 1, slots: [{ id: 0 }, { id: 1 }] };
+      window.saveLocal();
+      const stamped = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
+      assert(stamped._saveSlot === 0,
+        'the local save carries no _saveSlot stamp (' + stamped._saveSlot + ') — a blob written by one '
+        + 'character is then indistinguishable from the next one\'s, which is how the b372 clone survived boot');
+
+      // (2) THE REFUSAL. Same blob, profile now on slot 1: it is NOT this hero.
+      const clone = { ...stamped, gold: 999999, _saveSlot: 0 };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(clone));
+      HP.profile = { activeSlot: 1, unlockedSlots: 2, version: 1, slots: [{ id: 0 }, { id: 1 }] };
+      G.gold = 5;
+      window.loadLocal();
+      assert(G.gold !== 999999,
+        'THE b372 CLONE, AT BOOT: a save stamped for hero slot 0 was loaded as the slot-1 character. '
+        + 'decideRestore then sees a "newer local" and the next autosave uploads it over slot 1\'s cloud row');
+      assert(localStorage.getItem(SAVE_KEY) === null,
+        'the mis-slotted save is still live in ' + SAVE_KEY + ' — the very next autosave re-adopts it');
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf('hearthrise:save-backup:mis-slotted-') === 0) parked.push(k);
+      }
+      assert(parked.length > 0,
+        'the mis-slotted save was DELETED rather than parked — those bytes are somebody\'s real progress '
+        + 'and every set-aside in this codebase is recoverable (b318 policy)');
+
+      // (3) AND AN UNSTAMPED (pre-b372) SAVE IS NOT ACCUSED — that would park the live beta on upgrade.
+      const legacyBlob = { ...stamped, gold: 4242 };
+      delete legacyBlob._saveSlot;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(legacyBlob));
+      window.loadLocal();
+      assert(G.gold === 4242,
+        'an UNSTAMPED save was refused — every save written before b372 has no stamp, so this would park '
+        + 'every existing player on upgrade');
+    } finally {
+      if (realProcessOffline) window.processOffline = realProcessOffline;
+      if (realResume) window.resumeActiveActivity = realResume;
+      parked.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} });
+      HP.profile = prevProfile;
+      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
+      G.gold = prevGold;
+      try { if (prevSave === null) localStorage.removeItem(SAVE_KEY); else localStorage.setItem(SAVE_KEY, prevSave); } catch (e) {}
+      try { window.loadLocal(); } catch (e) {}
+      try { window.saveLocal(); } catch (e) {}
+      try { window.updateTopbar(); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b232: every route still resolves (character overview / skills activity / profile)', () => {
     const prevPane = window._charPane;
     try {

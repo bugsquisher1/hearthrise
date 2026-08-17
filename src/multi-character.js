@@ -215,6 +215,56 @@
   var _switching = false;
   function isSwitching(){ return _switching; }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     b372 — THE SAVE QUIESCE LATCH. THE SWITCH DUPLICATED THE CHARACTER.
+
+     REPORTED LIVE (Tyler, FTUE run on b371): switching to hero slot 1 produced
+     a COPY of the slot-0 character in slot 1, and destroyed the save that had
+     been there. Three writes, one race:
+
+       1. switchSlot() copies the outgoing character into charKey(outgoing),
+          MOVES profile.activeSlot to the target, and — for an empty target —
+          REMOVES SAVE_KEY so the engine boots a fresh character.
+       2. location.reload() then fires `pagehide`, and the page still holds the
+          OUTGOING character in memory as `window.G`:
+            · legacy.js  pagehide -> saveLocal()            rewrites SAVE_KEY
+              with the outgoing G — the removal in (1) is undone;
+            · net/sync.js pagehide -> snapshotIfDue(true,true) uploads that same
+              outgoing G, and buildSnapshotRequest resolves the slot LIVE, so it
+              lands on the TARGET slot's game_saves row.
+       3. Boot reads that "newer" local clone, decideRestore prefers it over the
+          target's older cloud row, and the next autosave cements the clone.
+
+     Neither write is needed for durability: switchSlotAsync has ALREADY done a
+     synchronous saveLocal() and an AWAITED cloud flush of the outgoing
+     character before anything is swapped, and refuses to swap at all if that
+     flush times out. During a switch these handlers carry no information and
+     nothing but hazard, so the switch QUIESCES them.
+
+     The latch is armed at the last instant before the pointer moves and is held
+     THROUGH the reload (the reload resets it: a fresh page has no latch). It
+     is NOT the `_switching` busy latch — that one is cleared in the promise
+     tail, which runs as a microtask BEFORE unload, i.e. before the very
+     handlers this has to stop.
+
+     SELF-HEALING BY AGE, not by a timer. A latch that somehow outlived its
+     reload (reload blocked, an exception between arm and navigate) would
+     silently disable local saves — trading one data-loss bug for a worse one.
+     After QUIESCE_MAX_MS it simply stops being believed. */
+  var QUIESCE_MAX_MS = 15000;
+  var _quiesce = null;          // {slot:<OUTGOING slot>, at:<ms>} | null
+  function beginQuiesce(outgoingSlot){ _quiesce = { slot: outgoingSlot|0, at: Date.now() }; }
+  function endQuiesce(){ _quiesce = null; }
+  function saveQuiesced(){
+    if(!_quiesce) return false;
+    if(Date.now() - _quiesce.at > QUIESCE_MAX_MS){ _quiesce = null; return false; }
+    return true;
+  }
+  /* The slot the in-memory G actually BELONGS to while quiesced — the outgoing
+     character. Any write that still escapes (a snapshot already in flight when
+     the pointer moved) must be addressed to this, never to the target. */
+  function quiescedOutgoingSlot(){ return saveQuiesced() ? _quiesce.slot : null; }
+
   /* ── THE SWITCH, ASYNC AND BOUNDED (b371) ──────────────────────────────
      ORDER IS THE DESIGN. Nothing is swapped until the current character is
      safely flushed, so a server that never answers leaves the player exactly
@@ -248,12 +298,34 @@
           + 'Your progress is saved on this device. Try again in a moment.', 'kill');
         return { ok:false, reason:'flush-' + res };
       }
+      /* b372 — ARM BEFORE THE POINTER MOVES. Everything the outgoing character
+         needed is already on disk (the saveLocal above) and in the cloud (the
+         flush we just awaited); from here until the page is replaced, any save
+         or snapshot would be the outgoing G written under the INCOMING slot. */
+      beginQuiesce(profile.activeSlot);
       var p = switchSlot(slotId);
       if(!p){
+        endQuiesce();                      // no swap happened — normal saving resumes
         notifySafe('Couldn’t switch characters — try again.', 'kill');
         return { ok:false, reason:'swap-failed' };
       }
-      if(!o.noReload && typeof location !== 'undefined' && location.reload) location.reload();
+      /* b372 TEST SEAM — the ONLY way to observe the transition window from
+         outside. Between the swap and the reload the page is in a state no
+         caller can otherwise reach (the reload is `location.reload()`, which
+         cannot be stubbed), and that window is precisely where the duplication
+         bug lived. The regression test fires `pagehide` here, exactly as the
+         browser does during the reload. Never passed in production. */
+      if(typeof o.duringTransition === 'function'){ try { o.duringTransition(); } catch(e){} }
+      if(!o.noReload && typeof location !== 'undefined' && location.reload){
+        /* HELD deliberately: pagehide fires during this navigation and the
+           latch is what makes it harmless. The new page starts unlatched. */
+        location.reload();
+        return { ok:true, reason:'flush-' + res };
+      }
+      /* No reload — the b342 guard's seam and the suite's. There is no teardown
+         to protect, and G is about to be re-pointed by the caller, so the latch
+         must not linger and suppress that character's saves. */
+      endQuiesce();
       return { ok:true, reason:'flush-' + res };
     }).catch(function(e){
       notifySafe('Couldn’t switch characters — try again.', 'kill');
@@ -529,6 +601,11 @@
     switchSlot: switchSlot,
     switchSlotAsync: switchSlotAsync,
     isSwitching: isSwitching,
+    /* b372 — the SAVE QUIESCE seam. legacy.js (saveLocal/loadLocal) and
+       src/net/sync.js read these; nobody else derives the answer. See the long
+       note on beginQuiesce() for the duplication bug they exist to stop. */
+    saveQuiesced: saveQuiesced,
+    quiescedOutgoingSlot: quiescedOutgoingSlot,
     confirmDialog: confirmDialog,
     flushCurrentCharacter: flushCurrentCharacter,
     SWITCH_FLUSH_TIMEOUT_MS: SWITCH_FLUSH_TIMEOUT_MS,

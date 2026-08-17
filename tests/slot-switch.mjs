@@ -73,9 +73,133 @@ async function sourceGuard(root) {
   return problems;
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   b372 — AND THE SWITCH MAY NEVER DUPLICATE THE CHARACTER.
+
+   THE INCIDENT (live FTUE run, b371, reproduced on Tyler's account): switching
+   to hero slot 1 put a COPY of the slot-0 character there and destroyed the
+   save that had been in it. `switchSlot` clears SAVE_KEY for an empty target
+   and calls `location.reload()`; the reload fires `pagehide`, and the page
+   still holds the OUTGOING character in `window.G`, so legacy.js's pagehide
+   autosave writes it straight back into SAVE_KEY — under the new slot — and
+   sync.js's pagehide snapshot uploads it onto the target's game_saves row.
+
+   WHY THIS LIVES HERE AND NOT ONLY IN THE IN-PAGE SUITE: the in-page test has
+   to simulate the teardown (it dispatches a synthetic `pagehide` through a test
+   seam, because `location.reload()` cannot be stubbed). This one drives a REAL
+   reload in a REAL browser and reads what actually survived in localStorage
+   afterwards — the only observation that answers "what does the next boot
+   find?" without any simulation in the loop.
+
+   MUTATION: the latch is neutered in-page (`saveQuiesced -> false`), which is
+   exactly the pre-fix build, and the guard must go RED. */
+async function pagehideRaceGuard(browser, url, opts = {}) {
+  const MUTATE = !!opts.mutate;
+  const problems = [];
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  try {
+    await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
+    await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
+    await page.waitForFunction(() => typeof window.G !== 'undefined' && !!window.HearthriseProfile,
+      { timeout: 60_000 });
+    await page.waitForTimeout(4_000);
+
+    const setup = await page.evaluate(({ mutate }) => {
+      const P = window.HearthriseProfile;
+      P.init();
+      window.G.gems = 5000;
+      const r = P.unlockSlot(1);
+      /* The switch refuses to swap unless the outgoing character's cloud flush
+         answers, and this harness is signed out. Answering it is not what is
+         under test here — the pagehide writes AFTER the swap are. */
+      if (window.HearthriseSync && typeof window.HearthriseSync.snapshotIfDue === 'function') {
+        window.HearthriseSync.snapshotIfDue = function () { return Promise.resolve(true); };
+      }
+      /* A recognisable OUTGOING character. If these bytes turn up under slot 1
+         after the switch, the character was duplicated. */
+      window.G.gold = 424242;
+      window.saveLocal();
+      if (mutate) {
+        P.saveQuiesced = function () { return false; };          // the pre-b372 build
+        P.quiescedOutgoingSlot = function () { return null; };
+      }
+      localStorage.removeItem('hearthrise:char:1');              // target slot EMPTY — the live repro
+      return { ok: !!(r && r.ok), active: P.activeSlot(), quiesceApi: typeof P.saveQuiesced === 'function' };
+    }, { mutate: MUTATE });
+    if (!setup.ok || setup.active !== 0) {
+      problems.push(`could not reach a two-character account on slot 0 (${JSON.stringify(setup)}) — nothing was tested`);
+      return problems;
+    }
+    if (!setup.quiesceApi && !MUTATE) {
+      problems.push('HearthriseProfile.saveQuiesced() does not exist — the switch has no way to stop the '
+        + 'pagehide autosave, which is the b372 duplication bug');
+    }
+
+    /* THE REAL SWITCH, WITH THE REAL RELOAD. Not awaited in-page — the
+       navigation is the point. */
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'load', timeout: 60_000 }).catch(() => null),
+      page.evaluate(() => { window.HearthriseProfile.switchSlotAsync(1); }),
+    ]);
+    await page.waitForFunction(() => typeof window.G !== 'undefined' && !!window.HearthriseProfile,
+      { timeout: 60_000 });
+    await page.waitForTimeout(3_000);
+
+    const after = await page.evaluate(() => {
+      let live = null;
+      try { live = JSON.parse(localStorage.getItem('hearthbound-save-v2') || 'null'); } catch (e) {}
+      return {
+        active: window.HearthriseProfile.activeSlot(),
+        liveGold: live ? live.gold : null,
+        liveSlot: live ? live._saveSlot : null,
+        gGold: window.G && window.G.gold,
+      };
+    });
+
+    if (after.active !== 1) {
+      problems.push(`the switch did not land on slot 1 (active ${after.active}) — the duplication assertions below `
+        + 'would be vacuous');
+    } else {
+      if (after.liveGold === 424242) {
+        problems.push('THE b372 DUPLICATION: after switching to an EMPTY hero slot, the live save is the OUTGOING '
+          + "character (gold 424242). The pagehide autosave fired during the switch's own reload and wrote slot 0's "
+          + 'character under slot 1 — one hero cloned, the hero that lived in the target destroyed.');
+      }
+      if (after.gGold === 424242) {
+        problems.push('the character now being PLAYED on slot 1 is the slot-0 character (gold 424242) — the clone '
+          + 'survived boot and the next autosave uploads it over slot 1\'s cloud save');
+      }
+      if (after.liveSlot != null && after.liveSlot !== 1) {
+        problems.push(`the live save is stamped for hero slot ${after.liveSlot} while slot 1 is active — a save `
+          + 'from another character is live');
+      }
+    }
+
+    if (MUTATE) {
+      if (problems.length) for (const p of problems) console.log('   [mutation caught by] ' + p.slice(0, 150));
+      return problems.length ? []
+        : ['MUTATION SURVIVED: the quiesce latch was neutered (saveQuiesced -> false), which is the pre-b372 build, '
+           + 'and this guard still passed. It is not testing the duplication.'];
+    }
+  } catch (err) {
+    problems.push('pagehide-race harness failure: ' + err.message);
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+  return problems;
+}
+
 export async function slotSwitchGuard(browser, url, opts = {}) {
   const MUTATE = !!opts.mutate;
   const problems = await sourceGuard(opts.root);
+  /* KEPT SEPARATE, not merged into `problems`. Under --mutate the freeze block
+     below reads `problems.length` as "the mutant died", and a duplication
+     finding (or a SURVIVED report) landing in that bucket would be mistaken for
+     the freeze mutation being caught — and a survivor would then be swallowed
+     by the very `return []` that reports success. These are two independent
+     mutations of two independent fixes; they are reported independently. */
+  const raceProblems = await pagehideRaceGuard(browser, url, opts);
 
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
@@ -266,16 +390,16 @@ export async function slotSwitchGuard(browser, url, opts = {}) {
          the disease under test rather than of some incidental assertion. */
       if (caught) for (const p of problems) console.log('   [mutation caught by] ' + p.slice(0, 150));
       return caught
-        ? []
+        ? raceProblems
         : ['MUTATION SURVIVED: the pre-b371 selectSlot (window.confirm + synchronous swap) was put back and this '
-           + 'guard still passed. It is not testing the freeze.'];
+           + 'guard still passed. It is not testing the freeze.', ...raceProblems];
     }
   } catch (err) {
     problems.push('harness failure: ' + err.message);
   } finally {
     await ctx.close().catch(() => {});
   }
-  return problems;
+  return problems.concat(raceProblems);
 }
 
 export default slotSwitchGuard;

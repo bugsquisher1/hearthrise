@@ -39,3 +39,8 @@ _Changes that are READY and waiting to integrate into `main`. Integrate **one lo
 | Order | Agent | Change | Branch/Commit | Depends on | Gate status |
 |---|---|---|---|---|---|
 | — | — | — | — | — | — |
+
+## Clan domain pass 2 (security conditions, 2026-08-18)
+- BEFORE NEXT BUILD: fix clan_deposit slot derivation (order by updated_at desc nulls last, or refuse ambiguous_slot) — the current derivation is slot-0-hardcoded, S6/b339 class.
+- Next server pass (domain stays blocked until done): clan_contribute ownership debit (P1 mint, 10M/member/day into treasury), clan_feast_deposit food debit (P1), player_ledger row for deposit debit (with slot), D7 budget-clamp ownership test, `revoke insert, update, delete on public.clans from anon, authenticated` (loaded-trap grants).
+- Do NOT wire any treasury-withdraw UI: clan_withdraw is currently a sink with no source (devtools call destroys treasury, credits nothing).

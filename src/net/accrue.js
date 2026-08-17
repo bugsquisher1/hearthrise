@@ -577,6 +577,20 @@ function settle(verdict, now) {
 export const ACCRUE_REPLACE_ACK_KEY = 'hr:serverAccrual:replaceAck';
 export const ACCRUE_REPLACE_SHEET_ID = 'hr-accrual-replace-gate';
 
+/**
+ * b366 — is the cloud reconcile (pull → decideRestore) still unresolved? That is
+ * exactly what sync.js's b314 snapshot hold means, so this asks it rather than
+ * inventing a second notion of "not settled" that could disagree with the first.
+ * Unknown/unwired → false: the deferral must never become a way for the envelope
+ * to stop applying on a device where sync is not running at all.
+ */
+export function isReconcilePending() {
+  try {
+    const S = (typeof window !== 'undefined') ? window.HearthriseSync : null;
+    return !!(S && typeof S.isSnapshotHeld === 'function' && S.isSnapshotHeld());
+  } catch (e) { return false; }
+}
+
 export function isReplacementAcknowledged() {
   try { return localStorage.getItem(ACCRUE_REPLACE_ACK_KEY) === 'yes'; } catch (e) { return false; }
 }
@@ -919,6 +933,23 @@ export function applyEnvelope(G, res) {
      recorded the grant against its own watermark, so the next accrual returns
      the same truth and nothing is lost by waiting for an answer. */
   const loss = describeReplacement(G, res);
+  /* b366 — DO NOT ASK A QUESTION THE ANSWER TO WHICH IS STILL BEING FETCHED.
+     `G` during a device handoff is whatever loadLocal() put there — on a phone
+     that has not played in a week, a stale save. Against it almost any envelope
+     looks "destructive" (the desktop session SPENT gold, so local > server on
+     nothing but arithmetic), so the player was shown a modal saying their
+     progress would be "permanently gone" while pullAndMaybeRestore was still in
+     flight with the real save. The gate is right; its ORDERING was wrong.
+     Defer while the reconcile is unresolved. Refusing costs nothing — the
+     server has already recorded the grant against its own watermark, so the
+     next accrual returns the same truth and the gate re-evaluates then, against
+     the save that actually won. Read through the global rather than an import:
+     sync.js imports THIS module, so importing back would be a cycle. */
+  if (loss.destructive && isReconcilePending()) {
+    console.warn('[accrue] deferring the replacement decision — the cloud reconcile has not settled, '
+      + 'so the local save being compared against may not be the one that wins.');
+    return null;
+  }
   if (loss.destructive && !isReplacementAcknowledged()) {
     console.warn('[accrue] REFUSING to overwrite local progress with the server character '
       + 'until the player confirms — would lose ' + loss.gold + ' gold, ' + loss.skillXp
@@ -1694,7 +1725,7 @@ if (typeof window !== 'undefined') {
     ACCRUE_REPLACE_ACK_KEY, ACCRUE_REPLACE_SHEET_ID, MAX_SLOT,
     isServerAccrualEnabled, setServerAccrualEnabled, __clearAccrualOverride,
     stampAwayWatermarks, clampSlot, resolveActiveSlot, mayClientWrite,
-    describeReplacement, isReplacementAcknowledged, acknowledgeReplacement,
+    describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     equippedCount, unaccountedEquipped, consumedKeysOf,
     /* Phase 1 — live settlement (docs/design/live-settlement.md §3). */
     SETTLE_INTERVAL_MS, ACCRUE_MIN_SPAN_MS, ACCRUE_RATE_PER_MIN,

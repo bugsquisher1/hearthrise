@@ -6,10 +6,10 @@
 /* b124: UNIVERSAL service-worker + cache reset.
  *
  * Symptom we keep seeing in the wild: console errors trace to
- * `legacy.js?v=111` (or some other old build) even though the
+ * `legacy.js?v=364` (or some other old build) even though the
  * deployed HTML has `?v=364`. That means an old service worker
  * is intercepting the HTML request and serving cached HTML with
- * stale <script src="...?v=111"> tags.
+ * stale <script src="...?v=364"> tags.
  *
  * The b119 kill-switch only fired for the original `hearthbound-v2`
  * cache. It misses the b111+ SW caches (`hearthrise-110`, `-111`,

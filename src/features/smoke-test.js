@@ -30366,20 +30366,15 @@ const TESTS = [
       }
       /* The other headline key off the same rung, so a delegation that only
          forwarded `bx` (or only `bk`) cannot pass. */
-      /* b364 — DELTA, not absolute. getBonus is a seven-layer ADDITIVE chain
-         (castle, companions, buffs… stack on top of the rung by design), and
-         an earlier test can legitimately leave a wrapper layer's module state
-         behind — snapshotG only restores G. The property THIS test owns is
-         "the rung's bk half reaches getBonus", which is the rung-0→rung-5
-         DIFFERENCE. The absolute form flaked at 0.11 and 0.14 depending on
-         which neighbour ran first; the pollutant was a lawful layer, not a
-         defect. */
+      /* b364 — DELTA, not absolute: getBonus is a seven-layer ADDITIVE chain and
+         earlier tests may lawfully leave a wrapper layer's module state behind
+         (snapshotG only restores G). This test owns the rung-0→rung-5 DELTA. */
       G.rooms = {};
       const base = window.getBonus('cookSpeed');
       const baseY = window.getBonus('yield_cooking');
       G.rooms = { kitchen: 5 };
       assert(Math.abs((window.getBonus('cookSpeed') - base) - 0.10) < 1e-9,
-        'Kitchen 5 adds cookSpeed ' + (window.getBonus('cookSpeed') - base) + ', expected +0.10 — the rung\'s bk '
+        'Kitchen 5 cookSpeed is ' + window.getBonus('cookSpeed') + ', expected 0.10 — the rung\'s bk '
         + 'half is not reaching getBonus');
       assert(Math.abs((window.getBonus('yield_cooking') - baseY) - 0.08) < 1e-9,
         'Kitchen 5 adds yield_cooking ' + (window.getBonus('yield_cooking') - baseY) + ', expected +0.08');
@@ -31831,6 +31826,90 @@ const TESTS = [
          must not leak one even though the row carries it. */
       assert(html.indexOf('user-me') === -1, 'the ledger leaked an auth user id into the DOM');
     } finally { MH.__setHistoryCache(before); }
+  }),
+
+  // ════════════════════════════════════════════════════════════
+  // b360 — PREFAB AVATAR PICKER (backlog #26)
+  // ════════════════════════════════════════════════════════════
+  // (a) The ten prefab portraits all ship and are in the ONE manifest. The
+  // image-load half is real: it decodes every webp off the deploy, so a
+  // manifest row pointing at a missing/renamed file fails here, not in front of
+  // a player who opened the picker to an empty tile.
+  () => tryRunAsync('b360: the ten prefab portraits all ship and are in the manifest', async () => {
+    const I = window.HearthriseIdentity;
+    const P = I.PREFABS;
+    assert(Array.isArray(P) && P.length === 10,
+      'there must be exactly ten prefab portraits, got ' + (P && P.length));
+    assert(new Set(P.map((p) => p.id)).size === 10, 'prefab ids must be unique');
+    P.forEach((p) => {
+      assert(p.id && p.name && p.src, 'each prefab needs id/name/src: ' + JSON.stringify(p));
+      assert(/^assets\/avatars\/[a-z]+\.webp$/.test(p.src),
+        'a prefab src must be a shipped avatars webp, got ' + p.src);
+      assert(!/raw-bundle|icons3/.test(p.src), 'a prefab must be a shipped asset, got ' + p.src);
+      assert(!/painted\/npc\/player\.png/.test(p.src), 'a prefab must not be the retired default face');
+      assert(I.prefabById(p.id) === p, 'prefabById must resolve every manifest id');
+    });
+    // Every file actually decodes off the deploy — no dead manifest rows.
+    const results = await Promise.all(P.map((p) => new Promise((res) => {
+      const im = new Image();
+      im.onload = () => res({ id: p.id, ok: im.naturalWidth > 0 });
+      im.onerror = () => res({ id: p.id, ok: false });
+      im.src = p.src + '?smoke=' + Date.now();
+    })));
+    const dead = results.filter((r) => !r.ok).map((r) => r.id);
+    assert(dead.length === 0, 'these prefab portraits failed to load off the deploy: ' + dead.join(', '));
+  }),
+
+  // (b) Selecting a prefab must flow through the SAME process+persist pipeline
+  // as an upload — proving it is a portrait, not a local-only preset id, which
+  // is what earns it cross-device sync. We assert the stored avatar is a
+  // freshly RE-ENCODED dataURL (only processImage produces that), not the bare
+  // bundled path, and that the render seam every surface reads now tracks it.
+  () => tryRunAsync('b360: choosing a prefab routes through process+persist and updates the seam', async () => {
+    const I = window.HearthriseIdentity;
+    const rec = I._record();
+    const saved = JSON.parse(JSON.stringify(rec.avatar));
+    try {
+      I.clearAvatar();
+      assert(I.avatarUrl() === I.DEFAULT_AVATAR, 'a cleared avatar must resolve to the default placeholder');
+      const res = await I.setAvatarFromPrefab('knight');
+      assert(res && ['local', 'synced', 'partial'].indexOf(res.action) >= 0,
+        'a prefab pick must complete through the upload pipeline, got ' + JSON.stringify(res));
+      const r2 = I._record();
+      assert(r2.avatar && typeof r2.avatar.data === 'string' &&
+        /^data:image\/(webp|jpeg|png)/.test(r2.avatar.data),
+        'the prefab must be re-encoded by processImage into a stored dataURL — proof it used the real pipeline, not a bare path');
+      assert(r2.avatar.data.indexOf('assets/avatars/') === -1,
+        'the stored portrait must be pixels, never the bundled prefab path (a preset id would not sync)');
+      I.applyAvatar();
+      assert(window._playerAvatar === r2.avatar.data, '_playerAvatar must track the chosen prefab through the seam');
+      assert(window._playerAvatar !== I.DEFAULT_AVATAR, 'a chosen prefab must replace the default face');
+      assert(!/painted\/npc\/player\.png/.test(window._playerAvatar),
+        'player.png must never be the shown portrait after a choice');
+    } finally {
+      rec.avatar = saved;
+      I._persist();
+      I.applyAvatar();
+    }
+  }),
+
+  // (c) player.png is retired as the default face — the picker exists so nobody
+  // shares one default portrait, and the render seam must never resolve to it.
+  () => tryRun('b360: player.png is retired as the default face', () => {
+    const I = window.HearthriseIdentity;
+    assert(I.DEFAULT_AVATAR === 'assets/avatars/_placeholder.webp',
+      'the default face must be the neutral placeholder, got ' + I.DEFAULT_AVATAR);
+    assert(!/painted\/npc\/player\.png/.test(I.DEFAULT_AVATAR),
+      'player.png must no longer be the default portrait');
+    assert(!/raw-bundle|icons3/.test(I.DEFAULT_AVATAR), 'the default must be a shipped asset');
+    const rec = I._record();
+    const saved = JSON.parse(JSON.stringify(rec.avatar));
+    try {
+      rec.avatar = { data: null, remote: null, status: null, at: 0 };
+      assert(I.avatarUrl() === I.DEFAULT_AVATAR, 'with no upload the portrait must be the placeholder default');
+    } finally { rec.avatar = saved; I.applyAvatar(); }
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════════
      b361 — THE BRAND. Three guards, and each one exists because the failure it
      names is INVISIBLE in source.
@@ -31963,88 +32042,6 @@ const TESTS = [
       assert(/assets\/brand\/hearthrise-mark\.png/.test(ic.src),
         'a manifest icon still points at a retired asset: ' + ic.src);
     });
-  }),
-
-  // ════════════════════════════════════════════════════════════
-  // b360 — PREFAB AVATAR PICKER (backlog #26)
-  // ════════════════════════════════════════════════════════════
-  // (a) The ten prefab portraits all ship and are in the ONE manifest. The
-  // image-load half is real: it decodes every webp off the deploy, so a
-  // manifest row pointing at a missing/renamed file fails here, not in front of
-  // a player who opened the picker to an empty tile.
-  () => tryRunAsync('b360: the ten prefab portraits all ship and are in the manifest', async () => {
-    const I = window.HearthriseIdentity;
-    const P = I.PREFABS;
-    assert(Array.isArray(P) && P.length === 10,
-      'there must be exactly ten prefab portraits, got ' + (P && P.length));
-    assert(new Set(P.map((p) => p.id)).size === 10, 'prefab ids must be unique');
-    P.forEach((p) => {
-      assert(p.id && p.name && p.src, 'each prefab needs id/name/src: ' + JSON.stringify(p));
-      assert(/^assets\/avatars\/[a-z]+\.webp$/.test(p.src),
-        'a prefab src must be a shipped avatars webp, got ' + p.src);
-      assert(!/raw-bundle|icons3/.test(p.src), 'a prefab must be a shipped asset, got ' + p.src);
-      assert(!/painted\/npc\/player\.png/.test(p.src), 'a prefab must not be the retired default face');
-      assert(I.prefabById(p.id) === p, 'prefabById must resolve every manifest id');
-    });
-    // Every file actually decodes off the deploy — no dead manifest rows.
-    const results = await Promise.all(P.map((p) => new Promise((res) => {
-      const im = new Image();
-      im.onload = () => res({ id: p.id, ok: im.naturalWidth > 0 });
-      im.onerror = () => res({ id: p.id, ok: false });
-      im.src = p.src + '?smoke=' + Date.now();
-    })));
-    const dead = results.filter((r) => !r.ok).map((r) => r.id);
-    assert(dead.length === 0, 'these prefab portraits failed to load off the deploy: ' + dead.join(', '));
-  }),
-
-  // (b) Selecting a prefab must flow through the SAME process+persist pipeline
-  // as an upload — proving it is a portrait, not a local-only preset id, which
-  // is what earns it cross-device sync. We assert the stored avatar is a
-  // freshly RE-ENCODED dataURL (only processImage produces that), not the bare
-  // bundled path, and that the render seam every surface reads now tracks it.
-  () => tryRunAsync('b360: choosing a prefab routes through process+persist and updates the seam', async () => {
-    const I = window.HearthriseIdentity;
-    const rec = I._record();
-    const saved = JSON.parse(JSON.stringify(rec.avatar));
-    try {
-      I.clearAvatar();
-      assert(I.avatarUrl() === I.DEFAULT_AVATAR, 'a cleared avatar must resolve to the default placeholder');
-      const res = await I.setAvatarFromPrefab('knight');
-      assert(res && ['local', 'synced', 'partial'].indexOf(res.action) >= 0,
-        'a prefab pick must complete through the upload pipeline, got ' + JSON.stringify(res));
-      const r2 = I._record();
-      assert(r2.avatar && typeof r2.avatar.data === 'string' &&
-        /^data:image\/(webp|jpeg|png)/.test(r2.avatar.data),
-        'the prefab must be re-encoded by processImage into a stored dataURL — proof it used the real pipeline, not a bare path');
-      assert(r2.avatar.data.indexOf('assets/avatars/') === -1,
-        'the stored portrait must be pixels, never the bundled prefab path (a preset id would not sync)');
-      I.applyAvatar();
-      assert(window._playerAvatar === r2.avatar.data, '_playerAvatar must track the chosen prefab through the seam');
-      assert(window._playerAvatar !== I.DEFAULT_AVATAR, 'a chosen prefab must replace the default face');
-      assert(!/painted\/npc\/player\.png/.test(window._playerAvatar),
-        'player.png must never be the shown portrait after a choice');
-    } finally {
-      rec.avatar = saved;
-      I._persist();
-      I.applyAvatar();
-    }
-  }),
-
-  // (c) player.png is retired as the default face — the picker exists so nobody
-  // shares one default portrait, and the render seam must never resolve to it.
-  () => tryRun('b360: player.png is retired as the default face', () => {
-    const I = window.HearthriseIdentity;
-    assert(I.DEFAULT_AVATAR === 'assets/avatars/_placeholder.webp',
-      'the default face must be the neutral placeholder, got ' + I.DEFAULT_AVATAR);
-    assert(!/painted\/npc\/player\.png/.test(I.DEFAULT_AVATAR),
-      'player.png must no longer be the default portrait');
-    assert(!/raw-bundle|icons3/.test(I.DEFAULT_AVATAR), 'the default must be a shipped asset');
-    const rec = I._record();
-    const saved = JSON.parse(JSON.stringify(rec.avatar));
-    try {
-      rec.avatar = { data: null, remote: null, status: null, at: 0 };
-      assert(I.avatarUrl() === I.DEFAULT_AVATAR, 'with no upload the portrait must be the placeholder default');
-    } finally { rec.avatar = saved; I.applyAvatar(); }
   }),
 
 ];

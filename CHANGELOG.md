@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 373 — 2026-08-18 (New-player polish, from playing it fresh)
+
+- 💀 **Death finally explains itself.** When you fall in a fight, a sheet now tells you what killed you, reminds you that you kept everything you were carrying (Hearthrise has no death loss — items are safe), and gives you one useful tip based on what you had. And you always respawn at full health — a display bug was reviving new players at 2 HP straight into another death.
+- ✍️ **Renaming can't freeze the game anymore**, and your name now claims properly on the server (the old rename skipped name rules and could clash with another player's).
+- 🧩 **Heroes are your characters; your name, portrait and clan are your account.** The UI now says so clearly instead of showing a fresh hero your account's name — and changing a portrait no longer changes it for a different character.
+- ⏳ **The activity bar stops falsely saying "Idle"** while a skill you just started is running in the background.
+- 🧹 Every last blocking pop-up dialog is gone — replaced with in-game panels you can always dismiss.
+
 ## v0.9.2-beta build 372 — 2026-08-18 (Player-request build: tap any requirement, and two dupes closed)
 
 - 🔍 **Tap any requirement to see where it comes from.** House upgrade needs 35 Maple Planks? Tap the chip — the same item card as your bag opens, telling you it's crafted at Crafting 45 from Maple Logs. Works on upgrade costs, recipe ingredients, blueprints, dungeon keys and bounty items. (Great request, KD420.)

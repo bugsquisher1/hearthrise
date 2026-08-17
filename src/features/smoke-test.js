@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=367' directly.
+// modularised, will import { G } from '../state/game.js?v=368' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=367';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=367';
+import { on, snapshot } from '../net/events.js?v=368';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=368';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=367';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=368';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -24102,7 +24102,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=367');
+    const KIT = await import('../data/start-kit.js?v=368');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -29612,7 +29612,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=367');
+    const S = await import('../data/shops.js?v=368');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -31006,7 +31006,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=367');
+    const S = await import('../data/shops.js?v=368');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -32161,6 +32161,29 @@ const TESTS = [
        unguarded. When the gesture lands and the merge is deleted, B359-1 and
        B362-DUPE-1 go with it — not before. */
 
+  /* ═══ b368 INCIDENT HOLD (regression) ═════════════════════════════════════
+     2026-08-17: a real player's unequip on live b367 produced ZERO equip
+     intents in player_intents while the armed absolute envelope deleted the
+     unequipped copy from their bag view. The arming condition proved the
+     routing function EXISTS, not that the transport DELIVERS. Until live
+     routing is observed, equipGestureWired() must answer false no matter what
+     the window publishes. Lifting the hold deletes EQUIP_FLIP_HELD and this
+     test's first branch together. */
+  () => tryRun('B368-HOLD-1: while EQUIP_FLIP_HELD, the flip cannot arm from the gesture', () => {
+    const AU = window.HearthriseAuth;
+    assert(AU && typeof AU.equipGestureWired === 'function', 'equipGestureWired must be published');
+    if (AU.EQUIP_FLIP_HELD === true) {
+      const fakeWin = { routeEquipGesture: function () {} };
+      assert(AU.equipGestureWired(fakeWin) === false,
+        'the incident hold must force gestureWired=false even when routeEquipGesture exists — '
+        + 'a real unequip on live b367 never reached the server while the flip was armed');
+    } else {
+      const fakeWin = { routeEquipGesture: function () {} };
+      assert(AU.equipGestureWired(fakeWin) === true,
+        'hold lifted: a published routeEquipGesture must arm the flip again');
+    }
+  }),
+
   () => tryRun('EQUIP-FLIP-1: with the equip verb LIVE the envelope is ABSOLUTE — omission deletes', () => {
     const A = window.HearthriseAccrual;
     const E = window.HearthriseEquip;
@@ -32756,7 +32779,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=367')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=368')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would

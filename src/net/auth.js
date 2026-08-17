@@ -6,7 +6,7 @@
 // become live, and cloud-sync auto-upgrades from offline to live.
 
 import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots,
-         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=367';
+         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=368';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -342,7 +342,17 @@ export function buildIntentWiring(cfg) {
    which is the safe direction: a merge can only over-credit, while an absolute
    envelope on a client that still equips locally is the b362 dupe at settle
    cadence. Arming on a constant would survive exactly that deletion. */
+/* ⚠ b368 INCIDENT HOLD — the flip is DISARMED in production. On 2026-08-17 a
+   real player's unequip on live b367 produced ZERO equip intents in the server
+   journal while the armed absolute envelope deleted the unequipped copy from
+   their bag view (the sword stayed server-side in player_equipment; repaired by
+   hand). The arming condition — "routeEquipGesture exists" — proved existence,
+   not that the transport delivers. Until an equip intent from a REAL client is
+   observed in player_intents, this hold forces merge semantics for everyone.
+   Lift it by deleting EQUIP_FLIP_HELD once live routing is verified. */
+export const EQUIP_FLIP_HELD = true;
 export function equipGestureWired(win) {
+  if (EQUIP_FLIP_HELD) return false;
   const w = win || (typeof window !== 'undefined' ? window : null);
   return !!(w && typeof w.routeEquipGesture === 'function');
 }
@@ -969,6 +979,8 @@ window.HearthriseAuth = {
   // b331 — expired-session recovery + the sheet that tells the player the truth
   recoverSession, syncFailureMessage, ESCALATE_AFTER_MS,
   showAuthExpiredGate, hideAuthExpiredGate,
+  // b368 — the incident hold and its gate, published so the suite grades them.
+  equipGestureWired, EQUIP_FLIP_HELD,
   /* b366 — exported so the release visual gate can render the eviction sheet
      without staging a real eviction; the copy changed and rendered surfaces
      get looked at before they ship. */

@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 368 — 2026-08-17 (Hotfix: unequipped items and your bag)
+
+- 🚑 **Fixed unequipped items vanishing from your bag.** Taking gear off right after b367 could make the item disappear from your bag view (it was never lost — the server still had it; thanks Tyler for the instant report). The server-authoritative inventory switch is paused until the equip pipeline is verified against live traffic; nothing about your items changes in the meantime.
+
 ## v0.9.2-beta build 367 — 2026-08-17 (Your gear lives on the server now)
 
 - 🛡️ **Equipping is a server action.** Every equip, unequip and loadout swap is now recorded and validated server-side — the permanent end of the weapon-duplication bugs. Swaps still feel instant; the server confirms in the background, and if it ever disagrees your gear snaps back with a message saying why.

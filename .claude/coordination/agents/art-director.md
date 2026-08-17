@@ -2,6 +2,99 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-17 · b369 — two player-reported defects, and BOTH of them were a list that was
+### missing an entry. I found a third, worse instance of one of them while photographing the fix.
+
+**The Equipment tab, and the sentence I would put in front of the next person: a fixed grid row
+cannot describe a square cell whose width is fluid.** Five sheets were each authoring one piece of
+`.td-doll`'s geometry — legacy.css said three 110px columns for a doll placed in FOUR (stale since
+b216), legacy.css said it again in a mobile block at 130px, legacy.css said it a THIRD time at
+`.invc-equip-col` with `repeat(6,minmax(64px,90px))` rows on a `width:100%` grid, art-direction.css
+said fluid columns against a fixed 84px row, and theme-cozy.css said the slots were square with
+`height:auto`. Any two of those are fine alone. The row-plus-square pair only agrees when the column
+happens to resolve to exactly the row height, and the instant the host is wider every cell grows out
+of its row and paints over the row below.
+
+**I proved that rather than asserting it, and the proof is the thing worth keeping.** My harness at
+922x423 did NOT reproduce Tyler's overlap — his host was wider than mine, so at first I had a
+screenshot I could not match. Widening the host in-page settled it in one probe: **340px host → 0
+overlapping pairs; 440px → 10; 700px → 10 (170px cells in an 84px row); 860px → 16 (210px cells).**
+A 210px cell holding a ~200px sprite across the CAPE slot IS his photograph. **A defect that only
+appears past a threshold is not intermittent — it is a threshold you have not crossed yet, and the
+way to cross it is to move the input, not to keep re-running the same viewport.** The regression
+test stretches the host to 860px for exactly that reason: a fixed-row regression is invisible at the
+natural width, which is precisely why it shipped.
+
+**The third instance, found by photographing a surface I only opened because the release visual gate
+told me to.** The inventory Equip pane was not latent at all — `.invc-equip-col .td-doll` measured
+**152px cells and 19 overlapping pairs at 922x423, and 9 on a 1440px desktop, in the shipped build.**
+Nobody had reported it because that pane's doll sits behind a sub-tab. I only looked because the gate
+names inventory as one of the two densest screens, and I only measured because a screenshot of a dark
+overlapping grid on a dark card does not obviously read as broken. **The gate paid for itself on a
+surface that was not in my brief.**
+
+**The fix is one knob, and the shape of it is the point.** `--td-cell` in legacy.css; columns
+`repeat(4, minmax(0, var(--td-cell)))` so a narrow container still shrinks them (b216's requirement:
+the doll has to fit Combat's 320px column) and a wide one gets a CENTRED doll instead of an inflated
+one; rows `auto`, so a row is whatever the square slot in it is and can never disagree with it. Every
+other sheet lost its tracks. Desktop went 71x84 → 84x84 square, and the doll lost 178px of dead
+panel because it declared six rows for a layout that has used four since b216 — the "Full inventory"
+button is attached to the doll now instead of stranded 300px below it.
+
+**Two cascade findings I would have got wrong by reading.** (1) I first parked the `--td-cell: 84px`
+default on `body[data-theme] .td-doll`, which silently outranks the plain `.td-doll` the
+mobile-landscape media query uses — a themed page kept the DESKTOP cell on a phone and the media
+query looked like it was not firing. **A default belongs at the same specificity as its overrides.**
+Same family as the b361 base-rule trap, arriving from the other side. (2) The mobile block's
+`min-height:56px` was a third opinion about the cell's height; against a 52px cell it would have made
+a 52-wide, 56-tall slot — not square — to enforce a 44px tap floor the cell already clears by 8px.
+
+**Where I spent the density budget, and the label ruling.** 52px is the largest cell whose four rows
+clear the fold under this screen's measured 179px header (doll 228px; 179+228 = 407 of 423). At 52px
+"NECKLACE" at the project's 14.5px type floor rendered as **"ECKLAC"** and "OFFHAND" as **"FFHAND"**
+spilling onto their neighbours — b139's banned half-word, and there is no cell size that fits both
+the word and the fold. So the word goes and the gilt glyph grows to 58%, which is the answer b216
+gave for the inventory doll and b366 gave for the fight rail at 168px. **Three passes reaching the
+same ruling independently is a house style, not a compromise.** Desktop keeps the words and they now
+fit completely, because the cell got wider.
+
+**Defect 2 was the same shape as defect 1: a list with a missing entry.** `restoreEquipSnapshot`
+repainted three inventory surfaces on a server refusal. The b366 fight rail is a FOURTH surface that
+draws worn gear, and it is the one on screen when you equip from a fight — **so the refusal a player
+is most likely to see was the one the rollback could not correct.** Tyler saw his sword worn in the
+rail and in his bag at once. There is now one `repaintEquipSurfaces()` (published as
+`window.__repaintEquipSurfaces`), which also picks up the Character → Equipment doll, and each entry
+is guarded independently so a renderer that throws cannot stop the ones after it from being brought
+back into agreement. The fight rail's half is `HearthriseCombatScreens.repaintGear()` — deliberately
+NOT `renderManage`, which needs a foe and repaints a drop table that gear does not change.
+
+**Why the existing landscape guard never saw any of this, which is the finding I would carry forward
+hardest.** b327 IS a 922x423 iframe probe and it is a good one — and it renders `#panel-inventory`
+markup only. The paper-doll also lives on Character → Equipment, in a different panel, and no guard
+had ever rendered that panel at a short viewport. **A guard keyed to a PANEL cannot protect a
+COMPONENT that has more than one mount.** b369's guard mounts the same doll twice on purpose —
+`#char-equip` and `.invc-equip-col` — and asserts the invariants (square, non-overlapping at any host
+width, above the fold, above the tap floor) rather than the numbers.
+
+**Verified in-browser, my own server rooted in THIS worktree** (the launch.json trap this log has
+recorded three times). 5 surfaces × 2 sizes: **0 404s, 0 console errors, 0 page errors, 0 broken or
+tiny images, 0 horizontal scroll.** Then I READ the captures — the Equipment tab at 922x423 and
+1440x900, inventory bag and equip, the War Table, and the Fight screen with its rail intact. Suite
+**821/821**, three green runs. Both tests mutation-proven and each names its own defect: restoring
+the fixed row track fails the natural-width overlap assert; restoring `.invc-equip-col`'s tracks
+fails the inventory-mount assert (9 pairs, "td-helmet over td-necklace by 139x310px"); removing the
+`repaintGear()` call leaves the rail counter at 0. **No version bump, no push.**
+
+**Known limitations, stated plainly.** The Equipment pane is still a 228px doll centred in an 858px
+column with ~300px of dead space either side — a landscape phone's best asset is its WIDTH and this
+screen does not use it. Fixing that is a layout redesign (doll beside the Stats pane), not a defect
+fix, and I did not smuggle it in here. Ring 1 and Ring 2 are now indistinguishable at mobile density
+since they share a glyph and lost their words — pre-existing on the two surfaces that already made
+this trade, and the slots are in fixed learnable positions. The inventory doll's cell shrinks to 46px
+in its narrow column, 2px above the tap floor. And the two tab rows above the doll eat **179px of a
+423px screen (42%)**; I sized the doll around that rather than reforming it, and it is the next real
+win on this screen.
+
 ### 2026-08-16 · b368 — three player-reported defects, ONE root cause, and the fix I shipped
 ### is a class test on a div. The animation Tyler said I removed was never removed.
 

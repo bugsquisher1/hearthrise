@@ -2587,20 +2587,51 @@ body.hide-profile-overflow #daily-goals-host{grid-column:1;grid-row:2}
 
 /* ===== block 20: ui-rework-v3-css ===== */
 /* ─────── TIBIA-STYLE PAPER-DOLL ─────── */
-/* 3-column humanoid layout, ~46px slots, no scroll */
+/* b369 — ONE CELL SIZE, AND THE ROWS ARE DERIVED FROM IT.
+ *
+ * The bug this replaces (Tyler, landscape phone, Character → Equipment): the
+ * grid's ROW track was authored in one rule as a fixed length, while a second
+ * rule made the SLOTS square with `aspect-ratio:1/1; height:auto`. Those two
+ * facts only agree when the column happens to resolve to exactly the row
+ * height. The instant the doll's container is wider than that, every cell
+ * grows out of its own row and paints over the row beneath it — the 200px
+ * weapon sprite sitting across CAPE in his screenshot. Measured before the
+ * fix, at 922x423 with the host widened: 340px host → 0 overlaps; 440px → 10;
+ * 700px → 10 (cells 170px in an 84px row); 860px → 16 (cells 210px).
+ *
+ * Three sheets were each authoring a piece of that geometry (this one: three
+ * 110px columns for a FOUR-column doll, stale since b216; art-direction.css:
+ * fluid columns + fixed 84px rows; theme-cozy.css mobile: fluid columns +
+ * square slots). Now there is exactly one knob — `--td-cell` — and rows are
+ * `auto`, so the row can never disagree with the cell it contains. A narrow
+ * container still shrinks the columns (b216's requirement: the doll has to fit
+ * Combat's 320px loadout column) and the square slots shrink WITH them, which
+ * is why the cells are square at every width instead of 71x84.
+ *
+ * Columns are capped at --td-cell rather than 1fr so a wide container gives a
+ * centred doll, not a doll blown up to fill it. Themes may retint it; no theme
+ * may re-author the tracks. */
 .td-doll{
+  --td-cell:84px;
   display:grid;
-  grid-template-columns:110px 110px 110px;
-  grid-template-rows:repeat(6,110px);
-  gap:4px;
+  grid-template-columns:repeat(4,minmax(0,var(--td-cell)));
+  /* FOUR rows, because buildTibiaDoll's LAYOUT places into four (b216 moved
+     the companion out to its own pane). Declaring six left two empty tracks
+     and their gaps below the boots — 178px of dead panel on desktop. `auto`
+     rather than a length, so the row is whatever the square cell in it is. */
+  grid-template-rows:repeat(4,auto);
+  grid-auto-rows:auto;
+  gap:5px;
   justify-content:center;
-  padding:8px;
+  padding:4px;
 }
 .td-doll .td-slot{
   background:rgba(0,0,0,.25);border:1px solid var(--line-soft);
   border-radius:8px;display:flex;align-items:center;justify-content:center;
   overflow:hidden;position:relative;cursor:pointer;transition:all .12s;
   font-size:calc(29px * var(--ui-scale, 1));
+  /* The slot is what makes the cell square, and the row follows it. */
+  aspect-ratio:1/1;height:auto;min-width:0;align-self:stretch;
 }
 .td-doll .td-slot:hover{border-color:var(--gold-2);transform:translate(-1px,-1px);box-shadow:0 0 6px rgba(243,209,129,.3)}
 .td-doll .td-slot img{width:100%;height:100%;object-fit:contain;padding:3px;pointer-events:none}
@@ -2821,11 +2852,18 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   background:rgba(255,255,255,.05);border:1px solid var(--line-soft);
   border-radius:6px;color:var(--gold-2);cursor:pointer;
 }
+/* b369: the tracks came out of here as well, and this one was not a latent
+   risk — it was a LIVE overlap on the inventory Equip pane at both sizes.
+   `grid-template-columns:repeat(3,1fr)` is three columns for a doll placed in
+   four (the same defect b233 fixed on mobile and nobody fixed here), and
+   `repeat(6,minmax(64px,90px))` is a bounded row against a `width:100%` grid,
+   so at 922x423 the cells measured 152px in a 90px row: 19 overlapping pairs,
+   9 on a 1440px desktop. Measured, not inferred. The doll now sizes from
+   `--td-cell` like every other surface and this rule keeps only the card
+   chrome it was really for. */
 .invc-equip-col .td-doll{
   background:var(--bg-card);border:1px solid var(--line);
   border-radius:8px;padding:8px;margin:0;width:100%;
-  grid-template-columns:repeat(3,1fr);
-  grid-template-rows:repeat(6,minmax(64px,90px));
   gap:6px;
 }
 
@@ -2897,9 +2935,16 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .invc-bonus-card .invc-bonus-stats span{display:inline-flex;align-items:baseline;gap:3px}
 
 
-/* Mobile: even bigger slots for touch */
+/* Mobile paper-doll sizing.
+   b369: this block used to say `grid-template-columns:130px 130px 130px` —
+   THREE columns for a doll whose slots are placed in FOUR, and 130px cells on
+   a phone. It is the same defect b233 fixed in theme-cozy.css and it survived
+   there, in a sheet nobody re-read, quietly winning the cascade on every
+   landscape phone: it is why the measured cell on a 922x423 screen was 130px
+   and the doll 808px tall in a 423px viewport. Sizing is `--td-cell` now and
+   the mobile value is set once, in theme-cozy.css beside the other
+   mobile-landscape density rules. Nothing here may re-declare a track. */
 @media (max-width:900px), (max-height:540px) and (max-width:1024px){
-  .td-doll{grid-template-columns:130px 130px 130px;grid-template-rows:repeat(6,130px);gap:6px}
   .td-doll .td-slot{font-size:calc(33px * var(--ui-scale, 1))}
   .td-doll .td-slot small{font-size:calc(14.5px * var(--ui-scale, 1))}
 }

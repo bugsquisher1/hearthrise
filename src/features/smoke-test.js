@@ -13618,6 +13618,220 @@ const TESTS = [
       'no emoji may render in the inventory sub-tab strip');
   }),
 
+  () => tryRun('b369: Character > Equipment survives a 922x423 landscape phone — square, contained, non-overlapping slots (Tyler: "the weapon sprite is floating over the Cape cell")', () => {
+    /* WHY THE EXISTING LANDSCAPE GUARD DID NOT CATCH THIS. b327 (immediately
+     * above) is the 922x423 iframe probe, and it renders `#panel-inventory`
+     * markup only. The paper-doll ALSO lives on Character > Equipment, in a
+     * different panel with a different host, and no guard ever rendered that
+     * one at a short viewport. The doll was covered on the surface nobody
+     * reported and uncovered on the surface Tyler photographed. This test
+     * closes that hole by probing the CHARACTER host at the same viewport,
+     * reusing b327's technique.
+     *
+     * THE BUG. Four sheets each authored a piece of one grid. legacy.css said
+     * three 110px columns for a doll whose slots are placed in FOUR, plus a
+     * mobile block that re-said it at 130px; art-direction.css said fluid
+     * columns against a FIXED 84px row; theme-cozy.css said the slots were
+     * square with `height:auto`. A fixed row track cannot describe a square
+     * cell whose width is fluid: the moment the host is wider than the row is
+     * tall, every cell grows out of its own row and paints over the row below.
+     * Measured on the shipped build at 922x423 by widening the host: 340px
+     * host -> 0 overlapping pairs; 440px -> 10; 700px -> 10 (170px cells in an
+     * 84px row); 860px -> 16 (210px cells). That is the ~200px weapon sprite
+     * sitting across CAPE. The doll also measured 808px tall in a 423px
+     * viewport, so boots and ring 2 were below the fold.
+     *
+     * SO THE ASSERTIONS ARE THE INVARIANTS, NOT THE NUMBERS: cells square, no
+     * two slots sharing a pixel AT ANY HOST WIDTH, everything above the fold,
+     * and the cell still tappable. The host is deliberately stretched to 860px
+     * inside the probe — a fixed-row regression is invisible at the natural
+     * width and obvious at that one, which is the whole reason it shipped. */
+    assert(typeof window.buildTibiaDoll === 'function', 'buildTibiaDoll must exist — it is the doll every equipment surface reuses');
+    const built = window.buildTibiaDoll();
+    assert(built, 'buildTibiaDoll must return a node to probe');
+    const markup = built.outerHTML;
+    assert(/td-doll/.test(markup) && (markup.match(/td-slot/g) || []).length >= 12,
+      'the probe needs a real doll with its slots — got ' + (markup.match(/td-slot/g) || []).length);
+
+    let css = '';
+    let sheetsSeen = 0;
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+      const href = sheet.href || '';
+      if (href && !/(legacy|audit-overrides|theme-cozy|art-direction)\.css/.test(href)) continue;
+      if (href) sheetsSeen++;
+      for (const r of rules) css += r.cssText + '\n';
+    }
+    assert(sheetsSeen >= 4, 'the probe must find all four stylesheets, saw ' + sheetsSeen);
+    assert(css.length > 100000, 'the CSS blob looks empty (' + css.length + ' chars) — the probe would pass vacuously');
+
+    const frame = document.createElement('iframe');
+    frame.setAttribute('style', 'position:fixed;left:-4000px;top:0;width:922px;height:423px;border:0;visibility:hidden');
+    document.body.appendChild(frame);
+    let out;
+    try {
+      const doc = frame.contentDocument;
+      doc.open();
+      doc.write(
+        '<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>' +
+        '<body data-theme="hearthlight"><div id="app" class="app"><main class="main">' +
+        '<section class="panel active" id="panel-character">' +
+        '<div id="char-shell"><div class="char-pane" id="char-equip">' + markup + '</div></div>' +
+        '</section>' +
+        /* The SECOND host, added because it is where the same doll was found
+           overlapping for real: the inventory Equip pane. One component, two
+           mounts, and a rule keyed to the mount can only ever be right on the
+           mount its author was looking at. */
+        '<section class="panel active" id="panel-inventory" data-mobile-sub="equip">' +
+        '<div class="invc-main"><div class="invc-equip-col">' + markup + '</div></div>' +
+        '</section>' +
+        '</main></div></body></html>'
+      );
+      doc.close();
+      const win = frame.contentWindow;
+      const doll = doc.querySelector('#char-equip .td-doll');
+      const invDoll = doc.querySelector('#panel-inventory .td-doll');
+      const measure = (root) => {
+        root = root || doll;
+        const slots = [...root.querySelectorAll('.td-slot')].map((el) => {
+          const b = el.getBoundingClientRect();
+          return { c: (el.className.match(/td-(?!slot)[a-z0-9]+/) || ['?'])[0], w: b.width, h: b.height, t: b.top, l: b.left };
+        });
+        let pairs = 0; let worst = null;
+        for (let i = 0; i < slots.length; i++) for (let j = i + 1; j < slots.length; j++) {
+          const a = slots[i]; const b = slots[j];
+          const x = Math.min(a.l + a.w, b.l + b.w) - Math.max(a.l, b.l);
+          const y = Math.min(a.t + a.h, b.t + b.h) - Math.max(a.t, b.t);
+          if (x > 1 && y > 1) { pairs++; worst = worst || (a.c + ' over ' + b.c + ' by ' + Math.round(x) + 'x' + Math.round(y) + 'px'); }
+        }
+        const db = root.getBoundingClientRect();
+        return {
+          slots: slots.length, pairs, worst,
+          cellW: slots[0] ? slots[0].w : 0, cellH: slots[0] ? slots[0].h : 0,
+          maxSkew: Math.max(...slots.map((s) => Math.abs(s.w - s.h))),
+          bottom: Math.max(...slots.map((s) => s.t + s.h)),
+          right: db.right, dollH: db.height,
+        };
+      };
+      const natural = measure(doll);
+      const inventory = invDoll ? measure(invDoll) : null;
+      // The stress: a host wider than the cell. This is the state Tyler's
+      // device was in, and the ONLY state in which a fixed row track shows.
+      doll.parentElement.style.width = '860px';
+      doll.parentElement.style.maxWidth = 'none';
+      const stretched = measure(doll);
+      out = { vpW: win.innerWidth, vpH: win.innerHeight, natural, stretched, inventory };
+    } finally {
+      frame.remove();
+    }
+
+    assert(out.vpW === 922 && out.vpH === 423, 'the probe frame must be exactly 922x423, got ' + out.vpW + 'x' + out.vpH);
+    assert(out.natural.slots >= 12, 'the doll must render its slots in the probe, got ' + out.natural.slots);
+
+    // (1) NO SLOT MAY SHARE A PIXEL WITH ANOTHER — at either host width.
+    assert(out.natural.pairs === 0,
+      'no two equipment slots may overlap at the natural host width — ' + out.natural.pairs + ' pairs, e.g. ' + out.natural.worst);
+    assert(out.stretched.pairs === 0,
+      'no two equipment slots may overlap when the host is WIDER than the cell — ' + out.stretched.pairs + ' pairs, e.g. ' + out.stretched.worst +
+      ' (a fixed grid-template-rows against a square slot; this is the exact shipped defect and it is invisible at the natural width)');
+
+    // (2) The cell is square, because the row is derived from it and not authored.
+    assert(out.natural.maxSkew <= 1,
+      'every slot must be square — worst width/height difference ' + Math.round(out.natural.maxSkew) + 'px (a non-square cell means two sheets are still sizing it)');
+    assert(out.stretched.maxSkew <= 1,
+      'slots must stay square when the host is stretched — worst difference ' + Math.round(out.stretched.maxSkew) + 'px');
+
+    // (3) A wide host must not inflate the cell. 210px cells were the report.
+    assert(out.stretched.cellW <= 96,
+      'a wide host must give a CENTRED doll, not an inflated one — cell measured ' + Math.round(out.stretched.cellW) + 'px (the shipped bug reached 210px)');
+
+    // (4) Still tappable, and still entirely on the 423px screen.
+    assert(out.natural.cellW >= 44,
+      'the slot must stay above the 44px tap floor on a phone — measured ' + Math.round(out.natural.cellW) + 'px');
+    /* THE FOLD, stated as a budget rather than a rendered top edge. The probe
+     * renders the doll alone — it does not reproduce the topbar, the activity
+     * strip, the Skills/Equipment/Hero tabs or the Equipment/Stats/Companion
+     * pills above it. Those measured 179px on the live page at this viewport
+     * (screenshot, not inference), so the doll's own height is what has to fit
+     * in what is left. The shipped doll was 808px against a 244px allowance. */
+    const HEADER_PX = 179;
+    assert(out.natural.dollH + HEADER_PX <= 423,
+      'the whole doll must fit above the fold on a 423px-tall landscape phone — doll ' + Math.round(out.natural.dollH) +
+      'px + ' + HEADER_PX + 'px of measured header = ' + Math.round(out.natural.dollH + HEADER_PX) +
+      ' of 423 (the shipped doll was 808px, putting boots and ring 2 off-screen)');
+    assert(out.natural.right <= 922,
+      'the doll must not run off the right edge — right edge at ' + Math.round(out.natural.right) + 'px');
+
+    /* (5) THE SECOND MOUNT. `.invc-equip-col .td-doll` carried its own
+     * `repeat(3,1fr)` columns and `repeat(6,minmax(64px,90px))` rows — three
+     * columns for a four-column doll against a bounded row on a `width:100%`
+     * grid. Measured live before the fix: 152px cells and 19 overlapping pairs
+     * at 922x423, 9 at 1440x900. Same component, same invariant. */
+    assert(out.inventory, 'the probe must also mount the doll in the inventory equip column');
+    assert(out.inventory.pairs === 0,
+      'no two slots may overlap on the INVENTORY equip pane either — ' + out.inventory.pairs + ' pairs, e.g. ' + out.inventory.worst +
+      ' (this mount had its own column/row tracks and was overlapping in the shipped build)');
+    assert(out.inventory.maxSkew <= 1,
+      'the inventory doll\'s slots must be square too — worst difference ' + Math.round(out.inventory.maxSkew) + 'px');
+    assert(out.inventory.cellW <= 96,
+      'the inventory doll must not inflate its cell to fill the column — measured ' + Math.round(out.inventory.cellW) + 'px (was 152px)');
+  }),
+
+  () => tryRun('b369: a REFUSED equip leaves every equipment surface agreeing — including the Fight screen rail (Tyler: sword worn in the rail and sitting in the bag at once)', () => {
+    /* `restoreEquipSnapshot` put `G.equipment` back and repainted three
+     * inventory surfaces. The b366 fight rail is a FOURTH surface that draws
+     * worn gear, and it is the one on screen when you equip from a fight — so
+     * the one refusal a player is most likely to see was also the one the
+     * rollback could not correct. The test asserts the LIST is complete by
+     * counting repaints on each seam, then asserts the state itself rolled
+     * back. Proved red by removing the repaintGear() call from
+     * repaintEquipSurfaces: the rail counter stays 0. */
+    assert(typeof window.restoreEquipSnapshot === 'function', 'the rollback seam must be published for this test to reach it');
+    assert(typeof window.equipStateSnapshot === 'function', 'the snapshot seam must exist');
+
+    const G = window.G;
+    const snap = snapshotG();
+    const CS = window.HearthriseCombatScreens;
+    const realRail = CS && CS.repaintGear;
+    const realLoadout = window.renderLoadout;
+    const realInv = window.renderInventory;
+    let railPaints = 0; let loadoutPaints = 0; let invPaints = 0;
+    try {
+      assert(CS && typeof realRail === 'function',
+        'the Fight screen must publish a gear repaint (HearthriseCombatScreens.repaintGear) — without one the rollback has no way to correct the rail');
+      CS.repaintGear = function () { railPaints++; };
+      window.renderLoadout = function () { loadoutPaints++; };
+      window.renderInventory = function () { invPaints++; };
+
+      // The player is wearing nothing in the weapon slot and owns a sword.
+      G.equipment = Object.assign({}, G.equipment, { weapon: null });
+      G.inventory = Object.assign({}, G.inventory, { steel_sword: 1 });
+      const before = window.equipStateSnapshot();
+
+      // The optimistic local swap: worn, and out of the bag.
+      G.equipment.weapon = 'steel_sword';
+      G.inventory.steel_sword = 0;
+      assert(G.equipment.weapon === 'steel_sword', 'the optimistic swap must have applied before we refuse it');
+
+      // The server refuses.
+      window.restoreEquipSnapshot(before);
+
+      assert(G.equipment.weapon === null,
+        'a refused equip must put the slot back — found ' + G.equipment.weapon);
+      assert(G.inventory.steel_sword === 1,
+        'a refused equip must put the item back in the bag — found ' + G.inventory.steel_sword);
+      assert(railPaints >= 1,
+        'the rollback must repaint the FIGHT SCREEN RAIL, or it keeps showing the sword the server refused (this is the reported bug)');
+      assert(loadoutPaints >= 1, 'the rollback must repaint the combat loadout strip');
+      assert(invPaints >= 1, 'the rollback must repaint the inventory');
+    } finally {
+      if (CS && realRail) CS.repaintGear = realRail;
+      window.renderLoadout = realLoadout;
+      window.renderInventory = realInv;
+      restoreG(snap);
+    }
+  }),
+
   () => tryRunClientAuthoritative('b255: offline combat actually accrues kills/loot/XP (paione: "combat not working offline")', () => {
     assert(typeof window.processOffline === 'function' && typeof window.simulateAwayCombat === 'function', 'away combat seams must exist');
     const snap = snapshotG();

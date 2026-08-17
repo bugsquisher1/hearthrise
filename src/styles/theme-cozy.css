@@ -651,25 +651,34 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     grid-template-columns: 1fr !important;
   }
 
-  /* #4 — paper-doll: responsive grid. b233-fix (Tyler, mobile Equipment tab):
-     the slots are positioned in a FOUR-column body layout (helmet centre,
-     ammo/earrings/rings out at grid-column 4). This mobile rule forced THREE
-     columns, so every column-4 slot fell into an implicit crushed column —
-     unreadable slivers down the left and an empty-slot glyph blown up into a
-     stray arrow. Match the 4-column layout the slots are actually placed in. */
+  /* #4 — paper-doll on a landscape phone. b233 made the grid four columns here
+     (correct — the slots are placed in four columns); b369 removes the rest of
+     what it declared, because `width:100%` + fluid columns is what blew the
+     cells up to 210px and `aspect-ratio` on the slot against the fixed row
+     track upstream is what made them overlap. Both facts now live at
+     `.td-doll` in legacy.css and are true at every width.
+
+     What is genuinely mobile-specific is the SIZE. On a 423px-tall landscape
+     phone the doll at the desktop 84px cell measured 532px tall — the bottom
+     rows (boots, ring 2) sat below the fold, which is the other half of
+     Tyler's report. 52px is the largest cell whose four rows clear the fold
+     under this screen's 179px header, and it is 8px above the 44px tap
+     floor. */
   .td-doll {
-    display: grid !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    --td-cell: 52px;
     gap: 4px !important;
-    max-width: 100% !important;
-    width: 100% !important;
   }
-  .td-doll .td-slot {
-    aspect-ratio: 1 / 1 !important;
-    min-width: 0 !important;
-    width: auto !important;
-    height: auto !important;
-  }
+  /* The empty-slot WORD cannot come with it, and that is a ruling rather than
+     a shrug. "NECKLACE" needs ~70px at the 14.5px type floor this project does
+     not go below; in a 52px cell it rendered as "ECKLAC" and "FFHAND" spilling
+     onto its neighbours — exactly the half-a-word failure b139 banned. Two
+     prior passes already answered this question the same way at this density
+     (b216 for the inventory doll, b366 for the fight rail): keep the gilt line
+     glyph, which is the shape a player recognises anyway, and let the `title`
+     carry the name. The glyph grows to fill the space the word gave up. */
+  .td-doll .td-slot .td-slot-lbl { display: none; }
+  .td-doll .td-slot.empty { padding: 4px; gap: 0; }
+  .td-doll .td-slot.empty svg { width: 58%; height: 58%; }
   /* Inventory bag tile grid — let it use the full width too */
 
 
@@ -1688,10 +1697,11 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
   .skill-tile {
     min-height: 64px !important;
   }
-  /* Inventory paper-doll slots */
-  .td-doll .td-slot {
-    min-height: 56px !important;
-  }
+  /* b369: the paper-doll slot's `min-height:56px` was removed from here. It was
+     a THIRD sheet with an opinion about the cell's height, and against the 52px
+     mobile cell it would have produced a 52-wide, 56-tall slot — not square,
+     for the sake of a tap floor the cell already clears by 8px. The slot is
+     square by construction now and its size has one owner, `--td-cell`. */
 }
 
 /* #8 — Reduce visual cramping. Bigger base text + breathing room. */
@@ -4937,9 +4947,17 @@ body[data-theme="hearthlight"] #panel-inventory .invc-slot:hover { transform: no
    scroll it, it has failed. Four tighter columns fit every slot in view; the
    name lives in the tooltip (each slot already carries a full `title`).
    ============================================================ */
+/* b369: the `grid-template-columns: repeat(4, minmax(0,1fr)) !important` that
+   lived here is gone. Two things were wrong with it. It stretched the doll to
+   whatever the equip column happened to be — 112px cells on a 1440px desktop
+   against the 84px the very same doll draws on Character > Equipment, so one
+   component rendered at two sizes two clicks apart. And, paired with the fixed
+   84px row track this sheet's siblings used to declare, 112px columns are the
+   overlap condition: this surface was one wide viewport away from the defect
+   Tyler photographed on the other one. The base rule caps the cell and centres
+   the doll in whatever room the column has. */
 body[data-theme="hearthlight"] #panel-inventory .td-doll,
 body[data-theme="hearthlight"] #panel-inventory#panel-inventory .td-doll {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 6px !important;
 }
 body[data-theme="hearthlight"] #panel-inventory .td-slot,

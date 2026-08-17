@@ -4,6 +4,61 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-17 · Art Director (b369) · FIVE stylesheets were each authoring one piece of the paper-doll's grid, and the two that disagreed produced a live overlap on two surfaces
+
+**DISCOVERY.** `.td-doll` is one component with five mounts and, until b369, five
+authors of its geometry: `legacy.css` (three 110px columns for a doll placed in
+FOUR — stale since b216), `legacy.css` again in a mobile block (three columns at
+130px), `legacy.css` a third time at `.invc-equip-col .td-doll`
+(`repeat(3,1fr)` columns + `repeat(6,minmax(64px,90px))` rows + `width:100%`),
+`art-direction.css` (fluid columns against a FIXED 84px row), and
+`theme-cozy.css` (square slots via `aspect-ratio:1/1; height:auto`).
+
+**A fixed row track cannot describe a square cell whose width is fluid.** The
+moment the host is wider than the row is tall, every slot grows out of its own
+row and paints over the row beneath it. Measured on the shipped build at
+922x423 by widening the host: 340px → 0 overlapping pairs; 440px → 10; 700px →
+10 (170px cells in an 84px row); 860px → 16 (210px cells). That is Tyler's
+report — "the weapon sprite is floating ~200px tall over the Cape cell". The
+inventory Equip pane was not latent at all: 152px cells and **19 overlapping
+pairs at 922x423, 9 on a 1440px desktop, in the shipped build**.
+
+**AFFECTED SYSTEMS.** Character → Equipment, Inventory → Equip, the Combat
+loadout column; `src/styles/{legacy,art-direction,theme-cozy}.css`.
+
+**REQUIRED ACTION / RULE.** Geometry for `.td-doll` now lives in exactly one
+place: `--td-cell` in `legacy.css`, columns capped at it, rows `auto` so a row
+can never disagree with the cell in it. **No other sheet may declare a track on
+`.td-doll`.** Themes retint; mounts add chrome; only the base rule sizes.
+
+**TWO SECOND-ORDER LESSONS.**
+1. *A default belongs at the same specificity as its overrides.* Parking
+   `--td-cell: 84px` on `body[data-theme] .td-doll` silently beat the plain
+   `.td-doll` the mobile-landscape media query uses, so a themed page kept the
+   desktop cell on a phone. Same family as the b361 base-rule trap.
+2. *The existing 922x423 landscape guard (b327) renders `#panel-inventory`
+   markup only.* The paper-doll also lives on Character → Equipment, and no
+   guard had ever rendered that panel at a short viewport — the component was
+   covered on the surface nobody reported and uncovered on the one Tyler
+   photographed. **A guard keyed to a PANEL cannot protect a COMPONENT that has
+   more than one mount.** b369's guard mounts the same doll twice on purpose.
+
+---
+
+### 2026-08-17 · Art Director (b369) · The equip rollback repainted three surfaces and there were four
+
+`restoreEquipSnapshot` in `legacy.js` put `G.equipment` back on a server refusal
+and repainted `renderInventory` / `renderLoadout` / `_renderInvFancy`. The b366
+Fight-screen management rail is a FOURTH surface that draws worn gear — and it
+is the one on screen when you equip from a fight, so the refusal a player is
+most likely to see was the one the rollback could not correct: Tyler saw his
+sword worn in the rail and sitting in his bag at the same time. There is now one
+`repaintEquipSurfaces()` list (published as `window.__repaintEquipSurfaces`),
+which also covers the Character → Equipment doll. **Anything new that paints
+`G.equipment` must be added to that list, not to a fourth call site.**
+
+---
+
 ### 2026-08-16 (b368) · Art Director · **`setupArenaVs()` in legacy.js is a SECOND AUTHOR of the Fight stage, and it wins the race on every resume-into-a-running-fight**
 
 **DISCOVERY 1 — one root cause behind three separate player reports.** legacy.js's `setupArenaVs()`

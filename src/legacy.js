@@ -5478,13 +5478,43 @@ function equipOpsFromSnapshot(before){
   });
   return n?ops:null;
 }
+/* EVERY SURFACE THAT DRAWS `G.equipment`, IN ONE LIST.
+   b369 — Tyler saw his sword worn on the Fight screen's rail and sitting in
+   his bag at the same time after the server refused an equip. The state was
+   correct; the SCREEN was not. `restoreEquipSnapshot` repainted the three
+   inventory surfaces it knew about and never the b366 fight rail, which is
+   precisely the surface the player is looking at when they equip from a
+   fight — the one place the disagreement is guaranteed to be visible.
+
+   The fix is a list rather than three more `try` blocks at the rollback,
+   because the failure mode is "a surface was added and the rollback was not
+   told". Anything that paints worn gear belongs here, and the b369 regression
+   test asserts a refused equip leaves all of them agreeing. Each call is
+   guarded independently: a renderer that throws must not stop the ones after
+   it from being brought back into agreement. */
+function repaintEquipSurfaces(){
+  try{ if(typeof renderInventory==='function')renderInventory(); }catch(e){}
+  try{ if(typeof renderLoadout==='function')renderLoadout(); }catch(e){}
+  try{ if(typeof window._renderInvFancy==='function')window._renderInvFancy(); }catch(e){}
+  /* The Fight screen's management rail (b366). ESM, so it may legitimately
+     not be published yet on an early gesture — absence is not an error. */
+  try{
+    var CS=window.HearthriseCombatScreens;
+    if(CS&&typeof CS.repaintGear==='function')CS.repaintGear();
+  }catch(e){}
+  /* The Character → Equipment paper-doll. `buildTibiaDoll` short-circuits when
+     a `.td-doll` already exists, so the pane has to be re-rendered rather than
+     the doll re-asked for. Only when that pane is the one on screen. */
+  try{
+    if(window._charPane==='equip'&&typeof window.renderCharacter==='function')window.renderCharacter();
+  }catch(e){}
+}
+window.__repaintEquipSurfaces=repaintEquipSurfaces;
 function restoreEquipSnapshot(before){
   if(!before||typeof G==='undefined'||!G)return;
   G.equipment={...before.equipment};
   G.inventory={...before.inventory};
-  try{ if(typeof renderInventory==='function')renderInventory(); }catch(e){}
-  try{ if(typeof renderLoadout==='function')renderLoadout(); }catch(e){}
-  try{ if(typeof window._renderInvFancy==='function')window._renderInvFancy(); }catch(e){}
+  repaintEquipSurfaces();
 }
 /* Wired lazily and once, for the reason wireServerActivity() states: legacy.js
    is a classic script and may run before the ESM module publishes itself. */
@@ -5724,6 +5754,11 @@ function routeEquipGesture(before){
 window.routeEquipGesture=routeEquipGesture;
 window.equipStateSnapshot=equipStateSnapshot;
 window.equipOpsFromSnapshot=equipOpsFromSnapshot;
+/* b369: a named seam so the regression test can exercise the ROLLBACK — the
+   half of the equip gesture that only runs when the server refuses, i.e. the
+   half no happy-path test can reach. Same reasoning as `__resetEquipAssertion`
+   above: a seam, not a test poking a closure. */
+window.restoreEquipSnapshot=restoreEquipSnapshot;
 
 function unequip(slot){const id=G.equipment[slot];if(!id)return;const _b=equipStateSnapshot();G.equipment[slot]=null;G.inventory[id]=(G.inventory[id]||0)+1;notify(`Unequipped ${ITEMS[id].n}`,'info');renderLoadout();renderInventory();routeEquipGesture(_b);}
 /* b246 (Tyler) — REAL GEAR LEVEL REQUIREMENTS. The flyout showed "Requires

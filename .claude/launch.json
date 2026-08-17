@@ -150,6 +150,16 @@
         "8216"
       ],
       "port": 8216
+    },
+    {
+      "name": "hearthrise-backgrounds",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8225"
+      ],
+      "port": 8225
     }
   ]
 }

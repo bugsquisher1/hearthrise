@@ -1238,6 +1238,26 @@ async function artPalettePreflight() {
   return 0;
 }
 
+/* COMBAT-UI-17 — the painted-backdrop wave. Filesystem + CSS-string guard
+   (see tests/background-wave.mjs header for the three things it proves).
+   Cheap — no browser. */
+async function backgroundWavePreflight() {
+  const mod = join(ROOT, 'tests', 'background-wave.mjs');
+  try { await stat(mod); } catch { return 0; }
+  const { pathToFileURL } = await import('node:url');
+  const { backgroundWaveGuard } = await import(pathToFileURL(mod).href);
+  let r;
+  try { r = backgroundWaveGuard(); } catch (e) { r = { ok: false, fails: [`guard threw: ${e.message}`] }; }
+  if (!r.ok) {
+    const NL = String.fromCharCode(10);
+    console.error(NL + 'Background wave preflight FAILED (' + r.fails.length + '):' + NL
+      + '  ' + r.fails.join(NL + '  ') + NL);
+    return 1;
+  }
+  console.log('Background wave preflight: 12 plates shipped (bg_combat_demon, bg_board_planks rejected at QC), all classes accounted for, no stacked dungeon.jpg layers');
+  return 0;
+}
+
 async function catalogueDriftPreflight() {
   const gen = join(ROOT, 'tools', 'gen-catalogues.mjs');
   try { await stat(gen); } catch { return 0; }
@@ -1500,6 +1520,7 @@ const run = async () => {
   if (await monsterArtPreflight()) process.exit(1);
   if (await itemArtPreflight()) process.exit(1);
   if (await artPalettePreflight()) process.exit(1);
+  if (await backgroundWavePreflight()) process.exit(1);
   if (await catalogueDriftPreflight()) process.exit(1);
   if (await itemsCataloguePreflight()) process.exit(1);
   if (await recipeYieldPreflight()) process.exit(1);

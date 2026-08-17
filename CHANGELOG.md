@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 376 — 2026-08-18 (Hotfix: crafted items no longer vanish)
+
+- 🚑 **Fixed crafted items disappearing.** Crafting certain items (like set signets) could consume your materials but leave you with nothing — the item vanished. That's fixed; your crafted goods now stay in your bag. (Thanks Xarnathos.)
+- 🧩 Under the hood: this was your bag's sync briefly trusting an incomplete server picture and deleting a real item. Inventory now uses the safe reconciliation that never deletes what it hasn't fully accounted for — the permanent fix (the server fully owning your bag) is part of the ongoing server-authority work.
+
 ## v0.9.2-beta build 375 — 2026-08-18 (Painted battlegrounds)
 
 - 🖼️ **Every fight now has a painted backdrop.** The combat stage changes with the kind of foe you're facing — a rotting granary for vermin, a barrow field for the undead, a forge for constructs, a cliff above the clouds for dragons, and more. Hand-detailed, painterly, and a huge step up from the plain stage.

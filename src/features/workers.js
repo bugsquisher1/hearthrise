@@ -37,25 +37,11 @@
     if (!G.workers || !Array.isArray(G.workers.hired)) G.workers = { hired: [] };
   }
 
-  // ---------- credit attribution (b370) ----------
-  // A worker payout is an inventory credit that DID NOT come from the fight the
-  // player is watching. The fight rail (features/combat-screens.js) measures
-  // loot as positive inventory deltas — it cannot tell a Slime Gel from a
-  // shipment of Oak Logs, so Aldric's haul was showing up under "Drops this
-  // fight". Rather than teach the rail about workers, every non-combat credit
-  // declares itself into ONE shared bucket that the rail folds into its
-  // baseline. Bounded (one key per item id), owner-less (no load-order
-  // dependency between a classic script and an ESM feature), and reusable by
-  // any future non-combat source — pets, farm auto-harvest, mail.
-  function noteNonCombatCredit(id, qty) {
-    if (!id || !(qty > 0)) return;
-    try {
-      var b = window.__hrNonCombatCredits || (window.__hrNonCombatCredits = {});
-      b[id] = (b[id] || 0) + qty;
-    } catch (e) { /* attribution is best-effort; never block a payout */ }
-  }
-
   // ---------- the worker ledger (b370) ----------
+  // (Workers used to declare themselves NON-combat so the fight rail could
+  // filter them out. That denylist is gone: the rail is now an allowlist fed by
+  // the single combat-drop credit in COMBAT_FX.addItem, so a worker haul is
+  // excluded by simply not being a drop. Nothing to declare here any more.)
   // Tyler: "we should store that data somewhere so those who are interested can
   // keep track of what their workers are gaining." So every banked payout is
   // tallied per worker, lifetime, on the worker record itself — it rides G.workers
@@ -183,10 +169,6 @@
     var qty = Math.max(0, Math.floor(ticks * avgQty));
     if (qty > 0 && typeof window.addItem === 'function') {
       window.addItem(act.prod, qty);
-      /* AFTER the credit lands, never before — the fight rail folds this into
-         its baseline on its next sample, and a note that preceded the actual
-         inventory write would discount loot that had not arrived yet. */
-      noteNonCombatCredit(act.prod, qty);
       recordCollect(w, act.prod, qty);
     }
     w.xp = (w.xp || 0) + Math.floor(ticks * act.xp * 0.5);   // worker XP, never player XP

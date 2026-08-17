@@ -32012,6 +32012,122 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('COMBAT-UI-22: a worker payout mid-fight never appears in "Drops this fight"', () => {
+    /* Tyler, b370: "we can see the stuff your workers are collecting as well...
+       We should remove that." The fight rail measures loot as a positive
+       inventory delta, so ANY credit that landed during the fight was being
+       claimed as a drop — including the Oak Logs your hired workers bank on
+       their own 60s timer.
+       MUTATION PROVEN: delete the drainExternal() fold in combat-screens.js and
+       the first assertion fails — the worker's logs show up in the rail. Delete
+       the noteNonCombatCredit() call in workers.js and it fails the same way.
+       The SECOND assertion is the other half of the contract: filtering must
+       not make the rail deaf. A real monster drop still lands. */
+    const CS = window.HearthriseCombatScreens;
+    assert(CS && CS._ledger, 'the ledger seam is not published');
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      window.startCombat('slime');
+      window.__hrNonCombatCredits = {};
+      CS._ledger.sample(true);                        // establish the baseline
+
+      /* A worker banks a haul, declaring itself the way workers.js does. */
+      window.addItem('normal_log', 7);
+      window.__hrNonCombatCredits.normal_log = (window.__hrNonCombatCredits.normal_log || 0) + 7;
+      /* ...and the monster pays a real drop in the same breath. */
+      window.addItem('slime_gel', 3);
+      CS._ledger.sample(true);
+
+      const rows = CS._ledger.loot();
+      const worker = rows.filter((r) => r.id === 'normal_log');
+      assert(worker.length === 0,
+        'the workers\' haul is being claimed as combat loot: ' + JSON.stringify(rows));
+      const drop = rows.filter((r) => r.id === 'slime_gel')[0];
+      assert(drop && drop.qty === 3,
+        'the real drop was lost by the attribution filter: ' + JSON.stringify(rows));
+
+      /* And a credit banked BETWEEN fights must not discount the next fight's
+         loot — the stale-bucket bug. */
+      window.stopCombat();
+      window.addItem('normal_log', 5);
+      window.__hrNonCombatCredits.normal_log = 5;
+      CS._ledger.sample(true);                        // no fight: drains, folds nothing
+      window.startCombat('slime');
+      CS._ledger.sample(true);
+      window.addItem('normal_log', 2);               // now a genuine monster drop
+      CS._ledger.sample(true);
+      const again = CS._ledger.loot().filter((r) => r.id === 'normal_log')[0];
+      assert(again && again.qty === 2,
+        'a worker credit banked between fights swallowed the next fight\'s loot: '
+        + JSON.stringify(CS._ledger.loot()));
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      try { delete window.__hrNonCombatCredits; } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('WORKER-LEDGER-1: worker hauls are tallied per worker and surfaced on the crew list', () => {
+    /* The other half of the same ruling: the data leaves the fight rail, so it
+       needs a home. It is a per-worker lifetime tally on the worker record —
+       which rides G.workers into the save by default — plus one derived
+       summary line under the crew. No new screen.
+       MUTATION PROVEN: drop the recordCollect() call in accrueWorker and both
+       the tally and the rendered line go to zero. */
+    const W = window.HearthriseWorkers, H = window.HearthriseHomestead;
+    assert(W && H && typeof W.ledger === 'function', 'the worker ledger seam is not published');
+    const G = window.G;
+    const saved = {
+      homestead: G.homestead, workers: G.workers, gold: G.gold,
+      inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: G.skills,
+    };
+    try {
+      G.homestead = { tier: 1 };
+      G.workers = { hired: [] }; G.gold = 10000;
+      G.skills = Object.assign({}, G.skills, { woodcutting: 100000 });
+      const w = W.hire();
+      assert(w, 'hire should succeed');
+      assert(W.assign(w.uid, 'woodcutting', 'normal_tree') === true, 'assign should succeed');
+      assert(W.ledger().total === 0, 'a worker who has banked nothing must tally nothing');
+
+      w.lastCollect = Date.now() - 3600000;
+      W.accrueAll(false);
+
+      const L = W.ledger();
+      assert(L.total > 200, 'the crew ledger did not record the haul: ' + L.total);
+      assert(L.byItem.normal_log === L.total, 'the ledger lost the item breakdown: ' + JSON.stringify(L.byItem));
+      assert(L.workers.length === 1 && L.workers[0].total === L.total,
+        'the per-worker tally disagrees with the crew total');
+      /* `>=`, not `===`: the session figure is crew-wide and survives a worker
+         being dismissed (or, here, an earlier test's throwaway crew), which is
+         the honest reading of "what have my workers brought in today". */
+      assert(L.session.total >= L.total, 'the session tally must count this sitting\'s haul: '
+        + L.session.total + ' < ' + L.total);
+      /* Persistence: it lives on the worker record, so it is inside the save
+         blob by default. Nothing here may be added to NO_SYNC. */
+      assert((w.collected && w.collected.normal_log) > 0, 'the tally must live on the worker record');
+      assert((window.NO_SYNC || []).indexOf('workers') < 0, 'G.workers must never be denylisted from the snapshot');
+
+      /* And it must be VISIBLE — a ledger nobody can read is not a ledger. */
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+      try {
+        W.renderInto(host);
+        const txt = host.textContent.replace(/\s+/g, ' ');
+        assert(/gathered by your workers/i.test(txt), 'no crew summary line rendered: ' + txt);
+        assert(/gathered/.test(txt) && new RegExp(L.total.toLocaleString()).test(txt),
+          'the summary line does not show the lifetime total: ' + txt);
+      } finally { host.remove(); }
+    } finally {
+      G.homestead = saved.homestead; G.workers = saved.workers; G.gold = saved.gold;
+      G.inventory = saved.inv; G.skills = saved.skills;
+    }
+  }),
+
   () => tryRun('MON-TAX-1: every monster has a valid class and a resolvable weakness profile', () => {
     const T = window.HearthriseMonsterClasses;
     assert(T && typeof T.audit === 'function', 'the taxonomy must be published on window');

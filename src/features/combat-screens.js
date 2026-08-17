@@ -151,12 +151,43 @@ const Ledger = (() => {
   }
   function end() { run = null; }
 
-  function sample() {
+  /* NON-COMBAT CREDITS (b370).
+     Loot here is measured as a positive inventory delta, which is honest about
+     WHETHER something was paid but blind to WHO paid it: while you fight, your
+     hired workers keep banking Oak Logs, and every one of them was landing in
+     "Drops this fight". Tyler: "we can see the stuff your workers are
+     collecting as well... we should remove that."
+
+     The fix keeps the measure-don't-predict property intact. Non-combat
+     sources declare their credits into one shared bucket
+     (`window.__hrNonCombatCredits`) and we fold those quantities into the
+     BASELINE before diffing — so a worker payout of 12 logs moves `run.inv`
+     by 12 and reads as no gain, while a monster dropping the 13th still shows
+     up. Drained on every call, including while no fight is running, so a
+     credit banked between fights can never discount the next one's loot. */
+  function drainExternal(fold) {
+    const b = window.__hrNonCombatCredits;
+    if (!b) return;
+    for (const id in b) {
+      const q = b[id] || 0;
+      /* Fold only into a baseline that predates the credit. A run that was
+         just begun already snapshotted an inventory containing it, so folding
+         would discount it TWICE and swallow a real drop later on. */
+      if (fold && run && q > 0) run.inv[id] = (run.inv[id] || 0) + q;
+      delete b[id];
+    }
+  }
+
+  /* `force` skips the 1s throttle. Used only by the suite, which has to observe
+     two credits inside one second to prove the attribution filter. */
+  function sample(force) {
     const g = G();
-    if (!g || !g.activeMonster) { if (run) end(); return; }
-    if (!run || run.foe !== g.activeMonster) begin(g.activeMonster);
+    if (!g || !g.activeMonster) { if (run) end(); drainExternal(false); return; }
+    let fresh = false;
+    if (!run || run.foe !== g.activeMonster) { begin(g.activeMonster); fresh = true; }
+    drainExternal(!fresh);
     const now = Date.now();
-    if (now - lastSampleAt < 1000) return;
+    if (!force && now - lastSampleAt < 1000) return;
     lastSampleAt = now;
     /* Loot: POSITIVE inventory deltas only. Eating a Provision is a negative
        delta and is not loot; nothing else spends from the bag mid-fight. */

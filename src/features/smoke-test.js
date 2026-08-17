@@ -19314,6 +19314,201 @@ const TESTS = [
     if (root) assert(/your heroes/i.test(root.textContent), 'Home must render a real "Your heroes" block from HearthriseProfile');
   }),
 
+  /* ── b371 — THE HERO-SLOT SURFACE ──────────────────────────────────────
+     Three defects from one live session, all on the "Your heroes" path:
+       P0  clicking Play on a second slot HARD-FROZE the tab for 60+ seconds
+           with no self-recovery — `window.confirm()` blocks the renderer's main
+           thread until answered, and an unanswered one blocks it forever.
+       P2  buying a slot spent premium currency with NO confirmation.
+       P2  the header gem chip kept painting the pre-purchase balance until a
+           reload (chip 1006, G.gems 806).
+     These three are the synchronous half. The half no in-page test can reach —
+     "the main thread kept running while the server did not answer" — is
+     tests/slot-switch.mjs, which measures it from OUT of the process. */
+  () => tryRun('b371: switching character never raises a native dialog (the tab-freeze class)', () => {
+    const HP = window.HearthriseProfile;
+    if (!HP || !HP.profile) return;                 // signed out: nothing to switch
+    const realConfirm = window.confirm;
+    let native = 0;
+    window.confirm = function () { native++; return false; };
+    let p = null;
+    try {
+      const target = HP.profile.activeSlot === 0 ? 1 : 0;
+      p = HP.selectSlot(target);
+      assert(p && typeof p.then === 'function',
+        'selectSlot must return a Promise — a synchronous switch is a synchronous BLOCK, which is the b371 freeze');
+      assert(native === 0,
+        'selectSlot called window.confirm — a native dialog stops every timer, paint and input handler in the '
+        + 'game until it is answered, and forever if it never is. That is the b371 P0.');
+      const ov = document.getElementById('hr-confirm-overlay');
+      assert(!!ov, 'the in-game confirm modal must be shown in its place');
+      assert(!!ov.querySelector('[data-hrc="yes"]') && !!ov.querySelector('[data-hrc="no"]'),
+        'the modal needs both a confirm and a cancel — a modal with no way out is the freeze wearing CSS');
+      ov.querySelector('[data-hrc="no"]').click();
+      assert(!document.getElementById('hr-confirm-overlay'), 'cancelling must remove the modal');
+    } finally {
+      window.confirm = realConfirm;
+      if (p && p.catch) p.catch(() => {});
+    }
+  }),
+
+  () => tryRun('b371: buying a hero slot asks before it spends premium currency', () => {
+    const HP = window.HearthriseProfile;
+    if (!HP || !HP.profile) return;
+    assert(typeof HP.buySlot === 'function',
+      'HearthriseProfile.buySlot must be the ONE shared buy action — two copies of a confirmation is one that drifts');
+    const next = HP.canUnlockNext();
+    if (!next) return;                              // every slot already owned
+    const G = window.G;
+    const prevGems = G.gems, prevUnlocked = HP.profile.unlockedSlots;
+    const realConfirm = window.confirm;
+    let native = 0;
+    window.confirm = function () { native++; return true; };
+    let p = null;
+    try {
+      G.gems = (next.cost || 0) + 100;
+      p = HP.buySlot(next.slotId);
+      assert(native === 0, 'buySlot used a native dialog — see b371');
+      const ov = document.getElementById('hr-confirm-overlay');
+      assert(!!ov, 'a premium-currency purchase was made with NO confirmation step (b371 P2)');
+      assert(next.free || /gem/i.test(ov.textContent), 'the confirmation must state what it costs');
+      assert(G.gems === (next.cost || 0) + 100, 'gems were spent BEFORE the player confirmed');
+      assert(HP.profile.unlockedSlots === prevUnlocked, 'the slot was unlocked BEFORE the player confirmed');
+      ov.querySelector('[data-hrc="no"]').click();
+      assert(G.gems === (next.cost || 0) + 100, 'declining the purchase still spent the gems');
+    } finally {
+      window.confirm = realConfirm;
+      G.gems = prevGems;
+      if (p && p.catch) p.catch(() => {});
+    }
+  }),
+
+  () => tryRun('b371: the slot purchase repaints the gem chip and persists the spend immediately', () => {
+    const HP = window.HearthriseProfile;
+    if (!HP || !HP.profile) return;
+    const next = HP.canUnlockNext();
+    if (!next || next.free) return;                 // only a real gem spend proves this
+    const G = window.G;
+    const prevGems = G.gems;
+    const prevUnlocked = G.heroSlotsUnlocked;
+    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
+    const chip = document.getElementById('top-gems');
+    try {
+      G.gems = next.cost + 1000;
+      window.updateTopbar();
+      const before = chip ? chip.textContent : '';
+      const hadDigits = /\d/.test(before);
+      const r = HP.unlockSlot(next.slotId);
+      assert(r && r.ok, 'unlockSlot must succeed when the player can afford it: ' + (r && r.reason));
+      assert(G.gems === 1000, 'the gems were not actually spent');
+      if (chip && hadDigits) {
+        assert(chip.textContent !== before,
+          'the header gem chip still shows the pre-purchase balance — the spend never repainted the topbar, so '
+          + 'the player sees a stale number until they reload (b371 P2)');
+        assert(chip.textContent.replace(/[^0-9]/g, '') === String(G.gems),
+          'the gem chip must show the live balance after a spend, not a formatted stale one');
+      }
+      const raw = localStorage.getItem('hearthbound-save-v2');
+      if (raw) {
+        const d = JSON.parse(raw);
+        assert(d.gems === G.gems,
+          'the gem spend was not persisted — a reload before the next autosave refunds the gems and KEEPS the '
+          + 'slot, because the profile record is written immediately and the save is not');
+      }
+    } finally {
+      G.gems = prevGems;
+      G.heroSlotsUnlocked = prevUnlocked;
+      HP.profile = prevProfile;
+      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
+      try { window.saveLocal(); } catch (e) {}
+      try { window.updateTopbar(); } catch (e) {}
+    }
+  }),
+
+  /* ── b371 P1 — THE GEM DUPE ────────────────────────────────────────────
+     REPORTED LIVE: a 200-gem purchase of slot 2 debited the gems, a cloud
+     restore then handed them back — AND THE SLOT STAYED UNLOCKED. Free slot.
+     The cause was two stores with two lifetimes: gems in the save (restorable),
+     the unlock in localStorage['hearthrise:profile'] (never uploaded, never
+     rolled back). This asserts they are now ONE record, by doing the thing the
+     restore does and demanding both halves rewind. */
+  () => tryRun('b371: a slot purchase and its gem debit revert TOGETHER on a save restore (no free slot)', () => {
+    const HP = window.HearthriseProfile, G = window.G;
+    if (!HP || !HP.profile) return;
+    assert(typeof HP.unlockedCount === 'function',
+      'HearthriseProfile.unlockedCount() must be the ONE answer to how many slots are owned');
+    const next = HP.canUnlockNext();
+    if (!next || next.free) return;                 // only a real gem spend proves this
+    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
+    try {
+      G.gems = next.cost + 1000;
+      // The cloud snapshot as it stood BEFORE the purchase.
+      const older = { gems: G.gems, heroSlotsUnlocked: HP.unlockedCount() };
+      const r = HP.unlockSlot(next.slotId);
+      assert(r && r.ok, 'the purchase should succeed here: ' + (r && r.reason));
+      assert(G.gems === 1000, 'the gems were not debited');
+      assert(HP.unlockedCount() === next.slotId + 1, 'the slot was not unlocked');
+      assert(G.heroSlotsUnlocked === next.slotId + 1,
+        'the entitlement is not in the save — it is back in a store the restore cannot rewind');
+
+      // THE RESTORE. decideRestore replaces the fields the snapshot carries and
+      // does not touch localStorage['hearthrise:profile'] — this is that.
+      G.gems = older.gems;
+      G.heroSlotsUnlocked = older.heroSlotsUnlocked;
+
+      assert(HP.unlockedCount() === next.slotId,
+        'THE b371 GEM DUPE: the restore gave the gems back and the slot STAYED unlocked — the purchase was free');
+      const rows = HP.slotRows();
+      assert(!rows.some((row) => row.kind === 'char' && row.id === next.slotId),
+        'the reverted slot is still listed as a playable character');
+      const nx = HP.canUnlockNext();
+      assert(nx && nx.slotId === next.slotId,
+        'the reverted slot must be buyable again — the player has their gems back and owns nothing');
+      // …and the device-local record may not re-grant what the save took away.
+      HP.profile.unlockedSlots = 5;
+      assert(HP.unlockedCount() === next.slotId,
+        'localStorage["hearthrise:profile"] re-granted the slot — it is a metadata CACHE, not the authority');
+      assert(HP.switchSlot(next.slotId) === null,
+        'a slot the account no longer owns can still be switched to');
+    } finally {
+      G.gems = prevGems;
+      G.heroSlotsUnlocked = prevUnlocked;
+      HP.profile = prevProfile;
+      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
+      try { window.saveLocal(); } catch (e) {}
+      try { window.updateTopbar(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b371: a slot purchase that cannot be saved charges nothing (atomic-or-nothing)', () => {
+    const HP = window.HearthriseProfile, G = window.G;
+    if (!HP || !HP.profile) return;
+    const next = HP.canUnlockNext();
+    if (!next || next.free) return;
+    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
+    const realSave = window.saveLocal;
+    try {
+      G.gems = next.cost + 1000;
+      // Production was failing saves when the dupe was reported. This is that.
+      window.saveLocal = function () { throw new Error('quota exceeded'); };
+      const r = HP.unlockSlot(next.slotId);
+      assert(r && !r.ok, 'a purchase whose save failed reported success');
+      assert(/couldn.t save/i.test(r.reason || ''), 'the failure must say the purchase did not go through: ' + r.reason);
+      assert(G.gems === next.cost + 1000, 'the player was charged for a purchase that could not be saved');
+      assert(HP.unlockedCount() === next.slotId, 'the slot was granted even though the purchase failed');
+    } finally {
+      window.saveLocal = realSave;
+      G.gems = prevGems;
+      G.heroSlotsUnlocked = prevUnlocked;
+      HP.profile = prevProfile;
+      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
+      try { window.saveLocal(); } catch (e) {}
+      try { window.updateTopbar(); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b232: every route still resolves (character overview / skills activity / profile)', () => {
     const prevPane = window._charPane;
     try {

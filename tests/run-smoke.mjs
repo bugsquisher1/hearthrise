@@ -33,6 +33,7 @@ import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
 import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
 import { clientWriteSweep5Guard } from './client-write-sweep-5.mjs';
 import { bugTriageGuard } from './bug-triage.mjs';
+import { slotSwitchGuard } from './slot-switch.mjs';
 import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
@@ -2046,6 +2047,16 @@ const run = async () => {
       console.log('Save-slot guard — on character 3, the real save path reads and writes slot 2 on the wire.');
     }
 
+    const switchProblems = await slotSwitchGuard(browser, url, { root: ROOT });
+    if (switchProblems.length) {
+      console.log('\nSlot-switch guard (a hung server may not freeze the tab) — FAILED:');
+      for (const p of switchProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Slot-switch guard — against a transport that never answers, the switch stays off the main '
+        + 'thread, raises no native dialog, fails in bounded time and tells the player.');
+    }
+
     const landProblems = await landscapeGuard(browser, url);
     if (landProblems.length) {
       console.log('\nLandscape guard (820×360 phone) — FAILED:');
@@ -2127,7 +2138,7 @@ const run = async () => {
       'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
       'Clan-deposit ownership guard', 'Activity-seam guard', 'Delta-transport guard',
       'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',
-      'Secret guard',
+      'Secret guard', 'Slot-switch guard',
     ];
     if (exitCode === 0) {
       const said = TRANSCRIPT.join('\n');

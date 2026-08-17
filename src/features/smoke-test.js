@@ -30397,6 +30397,22 @@ const TESTS = [
 
   () => tryRun('B349-1: the real getBonus reads the room rung through core — noBurn, rung by rung', () => {
     const snap = snapshotG();
+    /* PIN THE CALENDAR TO A QUIET SEASON FIRST.
+       This test measures what a ROOM RUNG pays, but `getBonus` is additively
+       wrapped by world-events.js, so an active blessing lands in the same
+       number. That made the assertions silently date-dependent: on a `feast_day`
+       (`+0.04 cookSpeed`) the Kitchen-5 row reads 0.14 instead of 0.10, and on a
+       `steady_fire` (`+0.25 noBurn`) EVERY noBurn row goes red — two of the
+       eleven daily events, so this was a ~1-in-6 chance of a red suite that had
+       nothing to do with the code under test. `QUIET` exists in world-events.js
+       for exactly this ("the 'no calendar' control every gate test needs, so an
+       assertion never depends on today's date"); this test simply never took it.
+       Caught on 2026-08-16 when the daily rotated into feast_day mid-session:
+       the same tree ran green three times, then red three times, with no edit in
+       between — and b363 reproduced it identically, which is what proved it was
+       the calendar and not the change under review. */
+    const WE = window.HearthriseWorldEvents;
+    if (WE && typeof WE._force === 'function') WE._force({ daily: WE.QUIET, weekly: WE.QUIET });
     try {
       /* MEASURED EXPECTATIONS, not restated from the table under test:
          src/core/artisan.js BURN_BASE is 0.25 and the Kitchen ladder is
@@ -30429,7 +30445,11 @@ const TESTS = [
         + 'half is not reaching getBonus');
       assert(Math.abs(window.getBonus('yield_cooking') - 0.08) < 1e-9,
         'Kitchen 5 yield_cooking is ' + window.getBonus('yield_cooking') + ', expected 0.08');
-    } finally { restoreG(snap); }
+    } finally {
+      restoreG(snap);
+      // Hand the calendar back to the real date for every test after this one.
+      if (WE && typeof WE._force === 'function') WE._force(null);
+    }
   }),
   /* ══════════════════════════════════════════════════════════════════════
      b349 — THE CALL THAT WAS MADE BEFORE THE CLIENT HAD THE RIGHT TO MAKE IT

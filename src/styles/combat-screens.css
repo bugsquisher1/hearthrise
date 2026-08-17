@@ -564,17 +564,39 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
    * chip's job here is only "this exists and it is one tap away". The rail
    * scrolls sideways, which is how the sixth one stays reachable. */
   #panel-combat .wt-dest {
-    flex: 0 0 auto; min-width: 132px; max-width: 180px; padding: 3px 6px; gap: 2px;
+    flex: 0 0 auto; min-width: 132px; max-width: 180px; padding: 2px 6px; gap: 0;
   }
   #panel-combat .wt-dest .wtd-body { min-height: 0; gap: 5px; }
   #panel-combat .wtd-timer, #panel-combat .wtd-main span { display: none; }
-  #panel-combat .wtd-img { width: 24px; height: 24px; }
+  #panel-combat .wtd-img { width: 20px; height: 20px; }
+  /* 16px, not 14: b227's floor is 14.5px and its guard is a blanket scan of the
+     sheets, so shrinking a glyph here trips it. The chip's height is bought from
+     leading and button chrome below instead — a destination that renders as an
+     emoji rather than a portrait is exactly the one that can least afford to
+     lose legibility. */
   #panel-combat .wtd-img.is-emoji { font-size: 16px; }
   #panel-combat .wt-dest footer .btn { padding: 0 6px; min-height: 0; }
+  /* THE RAIL PAYS FOR THE SECOND ROW OF THE TIER.
+   * §2.4 budgets the destination rail at 66px and the card grid at two full
+   * rows with a third peeking. Measured at 922x423 the rail came in at 96px and
+   * the grid at 175 — 1.7 rows, so the tier read as a single strip of clipped
+   * names and the scroll affordance the peek exists to create was gone. These
+   * four lines are the 30px, taken from leading and button chrome rather than
+   * from anything a player reads: the chip still carries kicker, art, name and
+   * verb, which is everything §2.4 asks of it. */
+  #panel-combat .wtd-kick { line-height: 1.15; }
+  #panel-combat .wtd-main b { font-size: var(--t-micro, 11px); line-height: 1.15; }
+  #panel-combat .wt-dest footer .btn { min-height: 18px; line-height: 18px; font-size: var(--t-micro, 11px); }
+  #panel-combat .wt-bar { padding: 0; }
   /* One filter row, scrolling sideways rather than wrapping to three. */
   #panel-combat .wt-bar { flex-wrap: nowrap; gap: 8px; overflow: hidden; }
   #panel-combat .wt-chips { flex-wrap: nowrap; }
   #panel-combat .wt-classes { overflow-x: auto; overscroll-behavior-x: contain; }
+  /* NOT SHRUNK ON PURPOSE. These chips resolve to 40px from
+     `.panel .chip { min-height: 40px !important }` in theme-cozy.css — b285's
+     deliberate thumb-target floor for in-panel filters on a landscape phone.
+     The second card row is worth 16px; a filter you cannot reliably hit with a
+     thumb is not. The row below pays for the grid instead. */
   #panel-combat .wt-chips .chip { padding: 1px 8px; white-space: nowrap; }
   #panel-combat .wt-ribbon { padding: 3px 8px; gap: 8px; }
   #panel-combat .wtr-art { width: 24px; height: 24px; }
@@ -585,12 +607,35 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
    * display type is 18px, and 18px is the difference between seeing the second
    * row of the tier and seeing half of it. */
   #panel-combat .wt-grid { grid-template-columns: repeat(auto-fill, minmax(102px, 1fr)); gap: 4px; }
-  #panel-combat .wt-card { padding: 4px 4px 3px; gap: 0; min-height: 100px; }
-  #panel-combat .wtc-art { flex: 0 0 52px; }
-  #panel-combat .wtc-img { max-height: 52px; }
+  /* THE CARD IS SIZED FROM THE ROW BUDGET, NOT THE OTHER WAY ROUND. After the
+     rail trim the grid measures 188px at 922x423. At 100px the card gave 1.8
+     rows — a clipped second row and no peek, which is the "cramped list" this
+     rework exists to answer wearing a new costume. At 86 (+4 gap = 90) two full
+     rows land in 180px and the third peeks by 8px, which is exactly §2.4: two
+     rows readable, the scroll discoverable. */
+  #panel-combat .wt-card { padding: 3px 4px; gap: 0; min-height: 86px; }
+  #panel-combat .wtc-art { flex: 0 0 40px; }
+  #panel-combat .wtc-img { max-height: 40px; }
+  /* The two text rows inherit the 16px body size this breakpoint sets for
+     legibility, which resolved them to 20px LINES — 14px of pure leading across
+     the card, which is the difference between two rows of the tier and one and a
+     half. The glyphs keep their size; only the leading is spent. */
+  #panel-combat .wtc-stats,
+  #panel-combat .wtc-kills { line-height: 1.1; }
   #panel-combat .wtc-img.is-emoji { font-size: 30px; }
   #panel-combat .wtc-name { -webkit-line-clamp: 1; }
   #panel-combat .wtc-drops { display: none; }
+  /* THE WEAKNESS+HP LINE MUST BE ONE LINE. §2.4's whole point is that the two
+     numbers a player compares between foes sit in a FIXED position so the grid
+     scans straight down; at 102px wide "2H Hammer 100 HP" wrapped to two lines,
+     which both broke that alignment and pushed the card ~16px over its budget,
+     costing the second row. Shrinking the gap and letting the label ellipsise
+     keeps both numbers visible and the row count honest. */
+  #panel-combat .wtc-stats { flex-wrap: nowrap; gap: 3px; min-width: 0; }
+  #panel-combat .wtc-stats em {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  }
+  #panel-combat .wtc-stats b { white-space: nowrap; flex: 0 0 auto; }
 
   #panel-combat .fs-top { padding: 0; gap: 6px; }
   #panel-combat .fsg-slot { width: 20px; height: 20px; }
@@ -603,10 +648,28 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
    * The stage stops growing here: on a short screen the slack belongs to the
    * controls, not to the painting. */
   #panel-combat[data-combat-view="fight"] .fs-view { overflow-y: auto; overscroll-behavior: contain; }
+  /* THE ACTION BAR IS NOT ALLOWED TO BE CLIPPED. `.combat-arena` carries
+   * `overflow: hidden` so the stage can host a bleeding backdrop without the
+   * painting escaping its card. On a 423px screen that turned into a P0: the
+   * stage's content measured 425px inside a 277px arena box, and because the
+   * clipping element reports its own SHORT height, the scroll container above it
+   * (`.fs-view`) saw nothing to scroll — so Eat and Stop were cut off the bottom
+   * of the screen with no gesture that could reach them. A control a player
+   * cannot reach is worse than the hidden-Flee hack this rework just deleted.
+   * On short screens the arena therefore SCROLLS instead of clipping. It is a
+   * safety net, not the layout: the budget below is tuned so the action bar and
+   * the metrics strip land above the fold and the net is never used. */
+  #panel-combat[data-combat-view="fight"] .combat-arena {
+    overflow: visible !important;
+  }
   #panel-combat .arena-vs.fs-stage { flex: 0 0 auto; padding: 2px 10px; gap: 1px 10px; }
   #panel-combat .arena-vs.fs-stage .arena-side.player .arena-portrait { width: 52px; height: 52px; }
+  /* Trimmed from 21vh/88 to 18vh/72: the four rows below the plate (name, level,
+   * HP, swing) plus the tiles, the style row, the action bar and the metrics
+   * strip are all fixed-height, so the plate is the ONLY row that can pay for
+   * the overflow measured above. The foe is still the largest thing on screen. */
   #panel-combat .arena-vs.fs-stage .arena-side.foe .arena-portrait {
-    width: min(21vh, 88px); height: min(21vh, 88px);
+    width: min(18vh, 72px); height: min(18vh, 72px);
   }
   #panel-combat[data-combat-view="fight"] .fs-view { gap: 2px; }
   #panel-combat .arena-vs.fs-stage .arena-name { font-size: var(--t-micro, 11px); line-height: 1.1; }

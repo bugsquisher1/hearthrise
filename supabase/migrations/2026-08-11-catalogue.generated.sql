@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 23670b845b67fc182908d248f2b2fd1830743f3168979d2f807f8637e37d9e25
+--   catalogue digest: 4386b56f5ea77b82d141619fcddc47d2573b69ef1eea347005655ce91a8652f6
 --   rows: 512 items (16 untradeable) ·
 --         278 item-slot pairs · 15 equip slots ·
---         17 skills · 9 crops · 473 activities
+--         17 skills · 9 crops · 470 activities
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
 --              → 2026-08-11-market-v2.sql
@@ -1333,7 +1333,6 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp) 
   ('combat','ashwing',null,null,472),
   ('combat','astrologer',null,null,196),
   ('combat','bandit_lord',null,null,212),
-  ('combat','barn_rat',null,null,9),
   ('combat','barrow_knight',null,null,148),
   ('combat','bear',null,null,140),
   ('combat','bog_vine',null,null,70),
@@ -1345,7 +1344,6 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp) 
   ('combat','chained_demon',null,null,240),
   ('combat','clay_golem',null,null,78),
   ('combat','conjurer',null,null,110),
-  ('combat','cultist',null,null,26),
   ('combat','cutpurse',null,null,11),
   ('combat','cyclops',null,null,256),
   ('combat','dark_wizard',null,null,28),
@@ -1365,7 +1363,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp) 
   ('combat','frost_giant',null,null,248),
   ('combat','fury',null,null,202),
   ('combat','gargoyle',null,null,254),
-  ('combat','ghoul',null,null,65),
+  ('combat','ghoul',null,null,52),
   ('combat','giant_bat',null,null,24),
   ('combat','giant_boar',null,null,252),
   ('combat','giant_spider',null,null,118),
@@ -1381,7 +1379,6 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp) 
   ('combat','ice_elemental',null,null,128),
   ('combat','imp',null,null,10),
   ('combat','iron_colossus',null,null,518),
-  ('combat','jackal',null,null,27),
   ('combat','kobold',null,null,12),
   ('combat','lesser_demon',null,null,150),
   ('combat','lich',null,null,350),
@@ -1485,7 +1482,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
   ('weapon','bronze_sword');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '23670b845b67fc182908d248f2b2fd1830743f3168979d2f807f8637e37d9e25', now())
+  values (true, '4386b56f5ea77b82d141619fcddc47d2573b69ef1eea347005655ce91a8652f6', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1519,7 +1516,7 @@ begin
     raise exception 'untradeable count is %, generator emitted 16', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 473 then raise exception 'hr_activities has % rows, expected 473', v_n; end if;
+  if v_n <> 470 then raise exception 'hr_activities has % rows, expected 470', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -1527,8 +1524,8 @@ begin
   -- does not fail — it makes hr_apply's carried-fight clamp ADMIT ANYTHING,
   -- which is the "assertion that asserts nothing" family in SQL form.
   select count(*) into v_n from public.hr_activities where kind = 'combat' and max_hp is not null;
-  if v_n <> 111 then
-    raise exception 'combat activities with a max_hp: %, generator emitted 111 — '
+  if v_n <> 108 then
+    raise exception 'combat activities with a max_hp: %, generator emitted 108 — '
       'hr_apply''s carried-fight clamp would be vacuous for the rest', v_n;
   end if;
   -- ...and the converse, so a non-combat row can never acquire a fight ceiling
@@ -1629,6 +1626,6 @@ begin
     raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
   end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, digest 23670b845b67fc182908d248f2b2fd1830743f3168979d2f807f8637e37d9e25',
+  raise notice 'CATALOGUES OK — % items, % activities, digest 4386b56f5ea77b82d141619fcddc47d2573b69ef1eea347005655ce91a8652f6',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities);
 end $$;

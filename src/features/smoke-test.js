@@ -22271,6 +22271,250 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     b371 — THE CLOUD-SAVE HEALTH LIE
+
+     LIVE, 2026-08-16: a player's header read "Online · cloud save active"
+     through FOUR consecutive failed game_saves upserts, while production
+     PostgREST was killing write requests ~100x/hour. Not a corner case — the
+     common case for a day.
+
+     MECHANISM: one boolean for two different facts. `reportSync(ok)` fired from
+     fetchWithAuthRetry on ANY res.ok, and the claim poll + the game_saves READ
+     answer 200 while every upsert 503s. So a successful READ re-latched sync
+     health true and popped "✅ Back online — progress synced" — while nothing
+     had reached the cloud. The three UI strings made it worse by asserting save
+     health from the SESSION alone.
+
+     This is that sequence, through the real reportSync/fetch path: 503 on the
+     write, 200 on the read, interleaved exactly as production served them.
+
+     MUTATION PROVEN: restore `if (res.ok) reportSync(true)` in
+     fetchWithAuthRetry (the pre-b371 line) → the read fires onSyncRecovered and
+     the toast assertion goes red. Derive the header claim from the session
+     again → the "does not claim active" assertion goes red. */
+  () => tryRunAsync('b371: 503 writes + 200 reads must NOT claim "cloud save active" — and no "Back online" toast', async () => {
+    const S = window.HearthriseSync;
+    assert(typeof S.saveHealthLine === 'function',
+      'sync.js no longer exposes a WRITE-health verdict — the header is back to asserting save health from connectivity');
+    const realFetch = window.fetch;
+    const G = window.G;
+    const savedSyncedAt = G ? G.cloudSyncedAt : undefined;
+    const savedAuth = window.HearthriseAuth;
+    let recovered = 0, failures = 0, writes = 0, reads = 0;
+    let writeStatus = 503;
+    // The b314 reconcile gate would short-circuit the write before the network
+    // and make every assertion below vacuous. Release it for the probe, put it
+    // back exactly as found.
+    const wasHeld = S.isSnapshotHeld();
+    try {
+      if (wasHeld) S.releaseSnapshots();
+      window.fetch = function (u, init) {
+        const url = String(u);
+        if (!/example\.invalid/.test(url)) return realFetch.apply(this, arguments);
+        const method = (init && init.method) || 'GET';
+        if (method === 'GET') { reads++; return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } })); }
+        writes++;
+        return Promise.resolve(new Response('{"message":"canceling statement due to statement timeout"}', { status: writeStatus }));
+      };
+      S.setClockTrusted(true);
+      S.resetAuthGate();
+      S.__resetSyncHealth();
+      const cfg = {
+        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+        claimEndpoint: null,
+        apiKey: 'anon', userId: () => 'u1', authToken: () => 'opaque-token',
+        onAuthError: async () => true, onAuthExpired: () => {},
+        onSyncFailure: () => { failures++; },
+        onSyncRecovered: () => { recovered++; },
+        snapshotIntervalMs: 60000,
+      };
+      await S.__withConfig(cfg, async () => {
+        // Production's actual mix: the save fails, the read succeeds, over and over.
+        for (let i = 0; i < S.SAVE_FAIL_WARN_STREAK; i++) {
+          await S.snapshotIfDue(true, false);
+          await S.pullLatestDetailed();
+        }
+      });
+      assert(writes >= S.SAVE_FAIL_WARN_STREAK,
+        'the write path never reached the network (' + writes + ' upserts) — the rest of this test would pass vacuously');
+      assert(reads >= 1, 'the read path never reached the network — the interference this guards against was not staged');
+
+      const line = S.saveHealthLine();
+      assert(!/cloud save active/i.test(line.text),
+        'after ' + writes + ' failed upserts the game still claims "' + line.text + '" — a 200 on a READ is not a saved game');
+      assert(line.level === 'warn',
+        'four consecutive failed saves must reach the explicit warning state, got level=' + line.level + ' (' + line.text + ')');
+      assert(/retry/i.test(line.text),
+        'the failure copy must say it is RETRYING (upserts are full snapshots and self-heal) — got: ' + line.text);
+      assert(!/lost|corrupt|gone/i.test(line.text), 'the copy is alarmist — nothing is lost: ' + line.text);
+      assert(recovered === 0,
+        'a successful READ popped the "Back online — progress synced" toast while every save was failing — '
+        + 'fired ' + recovered + 'x. This is the exact lie the player saw.');
+      assert(failures >= 1, 'four failed saves reported no sync failure at all');
+      assert(S.getSaveHealth().failStreak >= S.SAVE_FAIL_WARN_STREAK,
+        'the write-failure streak is not being counted');
+
+      /* THE SURFACE, not just the verdict. Reach the signed-in branch of the
+         header with a stubbed session, because "the data is right" is precisely
+         the assertion this repo keeps mistaking for "the player is told the
+         truth". */
+      const body = document.getElementById('dash-user-body');
+      if (body && typeof window.renderProfile === 'function') {
+        window.HearthriseAuth = { ...(savedAuth || {}), getSession: () => ({ user: { email: 'probe@example.invalid' } }) };
+        try { window.renderProfile(); } catch (e) {}
+        assert(!/cloud save active/i.test(body.textContent),
+          'the header still says "cloud save active" with four failed upserts behind it: ' + body.textContent.slice(0, 160));
+      }
+
+      /* SURFACE 2 — Settings > Account. This one was a HARDCODED string
+         ("☁️ Cloud save active · syncing every 30s"), so nothing about the
+         session or the network could ever have changed it. */
+      if (typeof window.openSettings === 'function') {
+        window.HearthriseAuth = { ...(savedAuth || {}), getSession: () => ({ user: { email: 'probe@example.invalid' } }) };
+        try { window.openSettings(); } catch (e) {}
+        const sBody = document.getElementById('settings-body');
+        if (sBody && /probe@example\.invalid/.test(sBody.textContent)) {
+          assert(!/cloud save active/i.test(sBody.textContent),
+            'Settings still asserts "Cloud save active" from the session alone');
+          assert(/retry/i.test(sBody.textContent),
+            'Settings says nothing about saves retrying while four upserts have failed');
+          assert(!/every 30s/.test(sBody.textContent),
+            'Settings still advertises the 30s cadence the game stopped using when snapshotIntervalMs became 60000');
+        }
+        const modal = document.getElementById('settings-modal');
+        if (modal) modal.classList.remove('show');
+      }
+
+      /* SURFACE 3 — the home dashboard hearth line. Only renders while the
+         profile panel is the active tab, so it is asserted when reachable. */
+      if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') {
+        window.HearthriseAuth = { ...(savedAuth || {}), getSession: () => ({ user: { email: 'probe@example.invalid' } }) };
+        try { window.HearthriseHome.render(); } catch (e) {}
+        const sub = document.querySelector('.hd-sub');
+        if (sub && /Online/.test(sub.textContent)) {
+          assert(!/cloud save active/i.test(sub.textContent),
+            'the home dashboard still claims "cloud save active" with four failed upserts behind it: ' + sub.textContent);
+        }
+      }
+
+      // …and a real successful upsert restores the claim, exactly once.
+      writeStatus = 200;
+      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      const ok = S.saveHealthLine();
+      assert(ok.level === 'ok' && /cloud save active/i.test(ok.text),
+        'a confirmed game_saves upsert must restore the claim, got level=' + ok.level + ' (' + ok.text + ')');
+      assert(recovered === 1, 'recovery must be announced exactly once by the WRITE that earned it, got ' + recovered);
+      assert(S.getSaveHealth().failStreak === 0, 'a successful save must clear the failure streak');
+    } finally {
+      window.fetch = realFetch;
+      if (wasHeld) S.holdSnapshots();
+      if (savedAuth) window.HearthriseAuth = savedAuth; else try { delete window.HearthriseAuth; } catch (e) {}
+      if (G) { if (savedSyncedAt === undefined) delete G.cloudSyncedAt; else G.cloudSyncedAt = savedSyncedAt; }
+      S.resetAuthGate();
+      S.__resetSyncHealth();
+      if (typeof window.renderProfile === 'function') try { window.renderProfile(); } catch (e) {}
+      if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') try { window.HearthriseHome.render(); } catch (e) {}
+    }
+  }),
+
+  /* b371 — THE GATEWAY CASUALTY.
+     Reliability tracing: production PostgREST kills in-flight handlers at a
+     steady ~50/hr, unchanged across the compute upgrade (so: not load), and the
+     game_saves upsert is the only request of ours long and body-heavy enough to
+     be caught mid-flight. That is a transport casualty, not a refusal — the
+     same bytes a moment later succeed. So: ONE jittered retry, writes only.
+     The two halves that keep it honest, and both are asserted here:
+       · retried-and-SUCCEEDED is silent — the player had no problem;
+       · retried-and-FAILED is ONE failure toward the N=4 warning, not two, and
+         never an unbounded loop against a struggling backend.
+     MUTATION PROVEN: drop the `opts.retryWrite` block in fetchWithAuthRetry →
+     the silent-recovery half goes red (a failure fires and nothing saves). */
+  () => tryRunAsync('b371: a write killed in flight is retried ONCE, silently — and a real outage still counts as one failure', async () => {
+    const S = window.HearthriseSync;
+    assert(typeof S.isRetryableServerError === 'function', 'the gateway-casualty rule is gone');
+    assert(S.isRetryableServerError(503) && S.isRetryableServerError(502) && S.isRetryableServerError(504),
+      'a killed/absent gateway answer must be retryable — that is the entire incident');
+    assert(!S.isRetryableServerError(500) && !S.isRetryableServerError(400) && !S.isRetryableServerError(409),
+      'a REFUSAL must never be retried — that is how one bad request becomes an outage');
+    assert(S.writeRetryDelayMs(0) === S.WRITE_RETRY_MIN_MS && S.writeRetryDelayMs(1) === S.WRITE_RETRY_MAX_MS,
+      'the retry jitter no longer spans ' + S.WRITE_RETRY_MIN_MS + '–' + S.WRITE_RETRY_MAX_MS + 'ms');
+
+    const realFetch = window.fetch;
+    const G = window.G;
+    const savedSyncedAt = G ? G.cloudSyncedAt : undefined;
+    const wasHeld = S.isSnapshotHeld();
+    let attempts = 0, failures = 0, recovered = 0;
+    let plan = [503, 200];
+    try {
+      if (wasHeld) S.releaseSnapshots();
+      window.fetch = function (u, init) {
+        if (!/example\.invalid/.test(String(u))) return realFetch.apply(this, arguments);
+        const status = plan[Math.min(attempts, plan.length - 1)];
+        attempts++;
+        return Promise.resolve(new Response(status === 200 ? '{}' : '{"message":"timeout"}', { status }));
+      };
+      S.setClockTrusted(true); S.resetAuthGate(); S.__resetSyncHealth();
+      const cfg = {
+        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+        claimEndpoint: null, apiKey: 'anon', userId: () => 'u1', authToken: () => 'opaque-token',
+        onAuthError: async () => true, onAuthExpired: () => {},
+        onSyncFailure: () => { failures++; }, onSyncRecovered: () => { recovered++; },
+      };
+
+      // (1) killed in flight, then fine. The player must never learn of it.
+      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      assert(attempts === 2, 'the killed write was not retried exactly once — ' + attempts + ' attempt(s)');
+      assert(failures === 0, 'a transport casualty that immediately succeeded was reported to the player as a save failure');
+      assert(recovered === 0, 'nothing broke, so nothing "recovered" — a spurious toast is noise');
+      const okLine = S.saveHealthLine();
+      assert(okLine.level === 'ok', 'a retried-and-succeeded write must be healthy, got ' + okLine.level);
+      assert(S.getLastCloudSaveAt() > 0, 'the successful retry did not record a cloud save');
+
+      // (2) a real outage: both attempts fail. ONE failure, not two, and the
+      //     retry must not become a loop.
+      attempts = 0; plan = [503, 503];
+      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      assert(attempts === 2, 'a persistent 503 must cost exactly 2 requests per save — got ' + attempts
+        + ' (an unbounded retry multiplies load on a backend that is already failing)');
+      assert(S.getSaveHealth().failStreak === 1,
+        'a retried-and-failed write must count as ONE failure toward the warning, got ' + S.getSaveHealth().failStreak);
+      assert(failures === 1, 'the outage must surface exactly once, got ' + failures);
+
+      // (3) a refusal is answered, not retried.
+      attempts = 0; plan = [500, 200];
+      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      assert(attempts === 1, 'a 500 is a real answer and must not be retried — got ' + attempts + ' attempts');
+    } finally {
+      window.fetch = realFetch;
+      if (wasHeld) S.holdSnapshots();
+      if (G) { if (savedSyncedAt === undefined) delete G.cloudSyncedAt; else G.cloudSyncedAt = savedSyncedAt; }
+      S.resetAuthGate(); S.__resetSyncHealth();
+    }
+  }),
+
+  () => tryRun('b371: the save-health verdict is pure and honest at every age (no surface may hardcode it)', () => {
+    const S = window.HearthriseSync;
+    const D = S.describeSaveHealth;
+    const now = 1000000000;
+    assert(D({ lastOkAt: now - 5000, failStreak: 0 }, now).level === 'ok', 'a save 5s ago is healthy');
+    assert(D({ lastOkAt: now - (S.SAVE_FRESH_MS + 1000), failStreak: 0 }, now).level === 'stale',
+      'a save older than the freshness window may not be reported as active');
+    assert(D({ lastOkAt: 0, failStreak: 0 }, now).level === 'unknown',
+      'having saved NOTHING yet is not a failure — but it is certainly not "active"');
+    assert(!/active/i.test(D({ lastOkAt: 0, failStreak: 0 }, now).text),
+      'the pre-first-save state claims success it cannot substantiate');
+    // A single transient 503 must not alarm — writes are full snapshots and self-heal.
+    for (let n = 1; n < S.SAVE_FAIL_WARN_STREAK; n++) {
+      assert(D({ lastOkAt: now - 1000, failStreak: n }, now).level !== 'warn',
+        n + ' failure(s) must not reach the warning state — that would scare a player over a hiccup');
+    }
+    assert(D({ lastOkAt: now - 1000, failStreak: S.SAVE_FAIL_WARN_STREAK }, now).level === 'warn',
+      'the warning state must be reachable at N=' + S.SAVE_FAIL_WARN_STREAK);
+    assert(/12m ago/.test(D({ lastOkAt: now - 12 * 60000, failStreak: 9 }, now).text),
+      'the warning must say HOW LONG it has been — "something is wrong" without an age is not actionable');
+  }),
+
   () => tryRun('b331: after N minutes of dead auth the player is told the truth, not "Reconnecting"', () => {
     const A = window.HearthriseAuth;
     assert(A && typeof A.syncFailureMessage === 'function',

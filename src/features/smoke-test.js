@@ -32051,6 +32051,200 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
+     PHASE 2 (b366) — THE EQUIP INTENT AND THE FLIP TO ABSOLUTE.
+     docs/design/live-settlement.md §5.3, §8, §10 PHASE 2.
+     ══════════════════════════════════════════════════════════════════════
+     The SERVER half is graded by tests/equip-intent.mjs against real
+     PostgreSQL (the verb, the transfer, the dupe refusal, the release class).
+     THESE are the client half: the transport's bytes, and the one behavioural
+     change that matters — the envelope stops being merged and starts being
+     believed.
+
+     ⚠ WHY B359-1 AND B362-DUPE-1 ABOVE ARE UNCHANGED RATHER THAN INVERTED.
+       §5.4 says B359-1 "inverts at Phase 2". It does — but only for a client
+       whose equip gesture is WIRED, and that is not a date, it is a
+       registration (`markEquipAuthorityLive`). The suite runs with the flip
+       DISARMED, exactly as a browser does until the gesture is routed, so both
+       tests keep asserting the merge semantics that are still live. The
+       inversion is asserted HERE instead, with the flip armed explicitly, so
+       the suite grades BOTH contracts and the transition leaves neither one
+       unguarded. When the gesture lands and the merge is deleted, B359-1 and
+       B362-DUPE-1 go with it — not before. */
+
+  () => tryRun('EQUIP-FLIP-1: with the equip verb LIVE the envelope is ABSOLUTE — omission deletes', () => {
+    const A = window.HearthriseAccrual;
+    const E = window.HearthriseEquip;
+    assert(A && typeof A.isEnvelopeAbsolute === 'function', 'isEnvelopeAbsolute must be published');
+    assert(E && typeof E.configureEquip === 'function', 'HearthriseEquip must be published');
+    assert(A.isEnvelopeAbsolute() === false,
+      'the flip must be DISARMED until the equip gesture is wired — arming it early assigns the '
+      + "server's stale bag figure and reopens the b362 dupe at settle cadence");
+    const prev = E.getEquipConfig();
+    try {
+      E.configureEquip({ url: 'https://example.test', apiKey: 'k', token: 't', slot: 0, gestureWired: true });
+      assert(A.isEnvelopeAbsolute() === true, 'configuring a wired gesture must arm the flip');
+
+      const G = {
+        gold: 5,
+        skills: { attack: 1000, stonemason: 4321 },
+        inventory: { dragon_scale: 14, ember_bar: 3, rune_bar: 7 },
+        equipment: { weapon: 'iron_sword' },
+      };
+      A.applyEnvelopeState(G, {
+        state: { gold: 9 },
+        skills: { attack: { xp: 1500 } },
+        inventory: { dragon_scale: 2, rune_bar: 9 },
+        equipment: {},
+      });
+      /* THE INVERSION. An omitted stack is now a REAL ZERO, because
+         hr_state_of aggregates every surviving player_inventory row and
+         hr_apply DELETEs a row at zero — so the envelope is a complete
+         statement of the bag. This is the line that closes the faucet. */
+      assert(!(Number(G.inventory.ember_bar) > 0),
+        'an omitted item must be DELETED under absolute — got ' + G.inventory.ember_bar);
+      /* NAMED AND LOWER: the server wins DOWNWARD. That direction IS the
+         anti-forgery property — the only thing that scrubs a devtools-edited
+         stack instead of laundering it through a round trip. */
+      assert(G.inventory.dragon_scale === 2,
+        'a named LOWER stack must take the server value under absolute — got ' + G.inventory.dragon_scale);
+      assert(G.skills.attack === 1500, 'a named skill must take the server value');
+      /* ⚠ THE b363 DISCOUNT MUST NOT FIRE. Under absolute the server's figure
+         already excludes the worn copy; subtracting it again DELETES a bag copy
+         the player owns. `iron_sword` is worn locally and absent from the
+         envelope's equipment — precisely the condition `unaccountedEquipped`
+         triggers on — so if the discount were still on the path a named stack
+         would arrive short. */
+      assert(G.inventory.rune_bar === 9,
+        'the b363 equip discount must NOT be applied under absolute — got ' + G.inventory.rune_bar);
+      /* THE ASYMMETRY, ASSERTED. An omitted SKILL survives, because hr_skills
+         is a generated catalogue that can lag a deploy by one apply — which is
+         the b361 Stonemason incident by name. Deleting here would have wiped
+         every player's Stonemason during that window. */
+      assert(G.skills.stonemason === 4321,
+        'an omitted SKILL must survive even under absolute — a skill missing from hr_skills is a '
+        + 'catalogue gap, not a zero (b361 Stonemason). Got ' + G.skills.stonemason);
+      assert(G.gold === 9, 'gold remains absolutely authoritative');
+    } finally {
+      E.resetEquip();
+      if (prev) E.configureEquip(prev);
+    }
+    assert(A.isEnvelopeAbsolute() === false, 'the flip must disarm when the transport is torn down');
+  }),
+
+  () => tryRun('EQUIP-FLIP-2: the flip fails CLOSED — kill switch, malformed envelope, bad quantity', () => {
+    const A = window.HearthriseAccrual;
+    const E = window.HearthriseEquip;
+    const prev = E.getEquipConfig();
+    let hadKey = null;
+    try { hadKey = localStorage.getItem(A.ENVELOPE_MERGE_KEY); } catch (e) { hadKey = null; }
+    try {
+      E.configureEquip({ url: 'https://example.test', apiKey: 'k', token: 't', slot: 0, gestureWired: true });
+
+      /* 1. THE INCIDENT LEVER. One device, no deploy, back to b359 semantics.
+         An opt-BACK-IN rather than an opt-out, because that is the shape that
+         works at 3am: the thing you type restores the SAFE behaviour. */
+      try { localStorage.setItem(A.ENVELOPE_MERGE_KEY, 'on'); } catch (e) {}
+      assert(A.isEnvelopeAbsolute() === false, 'hr:envelopeMerge=on must restore merge semantics');
+      const G = { gold: 0, skills: {}, inventory: { ember_bar: 3 }, equipment: {} };
+      A.applyEnvelopeState(G, { state: {}, skills: {}, inventory: { rune_bar: 1 } });
+      assert(G.inventory.ember_bar === 3,
+        'under the kill switch an omitted key must survive — got ' + G.inventory.ember_bar);
+      try { localStorage.removeItem(A.ENVELOPE_MERGE_KEY); } catch (e) {}
+      assert(A.isEnvelopeAbsolute() === true, 'removing the switch must re-arm the flip');
+
+      /* 2. A MALFORMED ENVELOPE MUST NOT WIPE THE BAG. An envelope with no
+         readable inventory object is an answer this code could not read — NOT a
+         claim that the player owns nothing. Wiping on one is the single most
+         expensive mistake available here, so the absolute branch is entered
+         only when an inventory object actually arrived. */
+      const MALFORMED = [undefined, null, 'nope', 42, ['ember_bar']];
+      for (let i = 0; i < MALFORMED.length; i++) {
+        const G2 = { gold: 0, skills: {}, inventory: { ember_bar: 3 }, equipment: {} };
+        A.applyEnvelopeState(G2, { state: {}, skills: {}, inventory: MALFORMED[i] });
+        assert(G2.inventory.ember_bar === 3,
+          'a malformed inventory (' + JSON.stringify(MALFORMED[i]) + ') must leave the bag alone — got '
+          + G2.inventory.ember_bar);
+      }
+
+      /* 3. AN UNREADABLE QUANTITY IS SKIPPED, NOT ZEROED, and a zero stack does
+         not exist — the client's own convention (removeItem deletes at <= 0)
+         and the server's (hr_apply DELETEs the row at zero). */
+      const G3 = { gold: 0, skills: {}, inventory: {}, equipment: {} };
+      A.applyEnvelopeState(G3, { state: {}, skills: {},
+        inventory: { good: 4, nan: 'x', zero: 0, neg: -2 } });
+      assert(G3.inventory.good === 4, 'a readable stack must arrive');
+      assert(!('nan' in G3.inventory) && !('zero' in G3.inventory) && !('neg' in G3.inventory),
+        'unreadable / zero / negative stacks must not be written — got '
+        + JSON.stringify(G3.inventory));
+    } finally {
+      try {
+        if (hadKey === null) localStorage.removeItem(A.ENVELOPE_MERGE_KEY);
+        else localStorage.setItem(A.ENVELOPE_MERGE_KEY, hadKey);
+      } catch (e) {}
+      E.resetEquip();
+      if (prev) E.configureEquip(prev);
+    }
+  }),
+
+  () => tryRun('EQUIP-WIRE-1: the equip request carries NAMES only, and refuses a bad map WHOLE', () => {
+    const E = window.HearthriseEquip;
+    assert(E && typeof E.buildEquipRequest === 'function', 'HearthriseEquip must be published');
+
+    const built = E.buildEquipRequest({
+      url: 'https://x.supabase.co', apiKey: 'k', token: 'tok', slot: 0,
+      intentId: '11111111-1111-4111-a111-111111111111',
+      equip: { weapon: 'iron_sword', shield: null },
+    });
+    assert(/\/functions\/v1\/hr-accrue$/.test(built.url),
+      'the endpoint must be hr-accrue, got ' + built.url);
+    assert(built.init.headers['Authorization'] === 'Bearer tok',
+      'the equip intent must authenticate with a BEARER — the function reads identity from that '
+      + 'header and nowhere else, which is also why sendBeacon can never carry one');
+    const body = JSON.parse(built.init.body);
+    assert(body.verb === 'equip', 'the verb must be `equip`, got ' + body.verb);
+    assert(body.equip.weapon === 'iron_sword' && body.equip.shield === null,
+      "a string means WEAR and null means TAKE OFF — hr_apply's own vocabulary, not a mode flag "
+      + 'invented at the wire');
+    /* ⚠ NO NUMBER MAY CROSS THIS BOUNDARY. An equip moves exactly one unit and
+       the server decides where it came from. Every extra field is a number the
+       server would have to disbelieve — and one day might not. */
+    const FORBIDDEN = ['qty', 'price', 'stats', 'bonus', 'power', 'cost', 'from'];
+    for (let i = 0; i < FORBIDDEN.length; i++) {
+      const bad = FORBIDDEN[i];
+      assert(!(bad in body) && !(bad in body.equip),
+        'the equip request carries a `' + bad + '` field — gear would be forgeable from devtools');
+    }
+
+    /* WHOLE-MAP REFUSAL. Half-sending a loadout because one slot name was wrong
+       is a partial write, and a client that trimmed the bad pair would be
+       inventing an instruction the player never gave. */
+    const HOSTILE = [
+      ['a numeric item', { weapon: 5 }],
+      ['an uppercase id', { weapon: 'Iron_Sword' }],
+      ['a bad slot name', { 'wea pon': 'iron_sword' }],
+      ['one bad pair among good ones', { weapon: 'iron_sword', shield: 'BAD!' }],
+      ['an empty map', {}],
+      ['an array', ['weapon']],
+    ];
+    for (let i = 0; i < HOSTILE.length; i++) {
+      assert(E.validateEquipOps(HOSTILE[i][1]).ok === false,
+        'validateEquipOps ACCEPTED ' + HOSTILE[i][0]);
+    }
+    assert(E.validateEquipOps({ weapon: 'iron_sword' }).ok === true,
+      'validateEquipOps refused an HONEST map — every refusal above would then pass for the wrong '
+      + 'reason, which is the assertion-that-asserts-nothing family');
+
+    /* RULE 1: WE WERE NOT ANSWERED => REUSE THE KEY. A fresh key on an
+       unanswered call is how one swap applies twice; a CORS failure, a DNS
+       failure and a dead network are indistinguishable by design of the fetch
+       spec and all three land here. */
+    assert(E.isAnswered('unreachable') === false && E.isAnswered('timeout') === false,
+      'an unanswered outcome must not mint a new key');
+    assert(E.isAnswered('refused') === true && E.isAnswered('rate-limited') === true,
+      'an ANSWERED refusal must mint a new key — a reused one replays the stored rejection');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
      PHASE 1 — LIVE SETTLEMENT. docs/design/live-settlement.md §3, §5.2, §7.
      ══════════════════════════════════════════════════════════════════════
      Phase 0 (the in-fight carry) is live and is graded by tests/live-settlement

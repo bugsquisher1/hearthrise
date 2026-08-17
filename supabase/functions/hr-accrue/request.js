@@ -108,7 +108,20 @@ export const VERBS = Object.freeze(
        field is a dispatch table one typo away from performing a different
        intent than the one asked for (the same reason an unknown verb is a hard
        null below). */
-    'market_list', 'market_cancel', 'market_buy']);
+    'market_list', 'market_cancel', 'market_buy',
+    /* b366 — THE EQUIP VERB. Phase 2 of docs/design/live-settlement.md, and the
+       gap that made the b362/b363 equip-dupe class possible at all: NOTHING
+       told the server about a client equip, so its `player_inventory` row went
+       on counting a copy the player was wearing and the b359 max handed that
+       stale figure back into the bag. One verb closes it, because hr_apply's
+       equip op is a TRANSFER (inventory -> equipment) and a transfer conserves.
+
+       ONE verb for equip AND unequip, unlike the market's three. The market's
+       three touch DIFFERENT ROWS with different authorities; these two are the
+       same operation on the same (slot -> item) map, distinguished by whether
+       the value is a string or `null` — which is hr_apply's own vocabulary, not
+       a mode flag invented at the wire. */
+    'equip']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`
@@ -171,8 +184,26 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty', 'reward',
-    'listing', 'ask'],
+    'listing', 'ask', 'equip'],
 );
+
+/** An equip-slot name. The SAME bounded shape as a catalogue id and
+    deliberately NOT allowlisted here against EQUIP_SLOTS: `hr_equip_slots` is
+    the authority and the intent layer must be able to answer
+    `unknown_equip_slot` BY NAME, which a parser that collapsed it into `null`
+    would turn into "malformed request" (the readActivity rule, applied again). */
+export const EQUIP_SLOT_RE = /^[a-z0-9_]{1,32}$/;
+
+/** How many slot operations ONE equip call may carry.
+    Not 1, because "wear this loadout" is a real gesture and fifteen round trips
+    for it is fifteen chances to half-apply a set. Not unbounded, because every
+    op is a row lock inside one hr_apply. 15 is EQUIP_SLOTS.length — a call that
+    names more slots than a character HAS is naming a slot twice or naming one
+    that does not exist, and both are refusals. Stated as a literal rather than
+    imported because request.js is the outermost layer and must not depend on a
+    catalogue to answer a SHAPE question; hr_apply's own `c_max_equip_kinds` is
+    the authoritative bound and is checked under the lock. */
+export const MAX_EQUIP_OPS = 15;
 
 /** The largest ask a seller may name, per unit. THE SAME NUMBER the migration's
  *  `ask_each` CHECK constraint carries (1e9), stated here so a listing that the
@@ -206,6 +237,55 @@ export function parseIntent(body) {
   out.reward = readReward(body);
   out.listing = readListing(body);
   out.ask = readAsk(body);
+  out.equip = readEquip(body);
+  return out;
+}
+
+/**
+ * THE EQUIP OPERATIONS. `{ "<equipSlot>": "<itemId>" | null }`.
+ *
+ * A string VALUE means "wear this"; `null` means "take off whatever is there".
+ * That is hr_apply's own vocabulary (its equip block branches on
+ * `jsonb_typeof(v) = 'null'`), so the wire says the same thing the authority
+ * says, in the same words, with no translation layer to get backwards.
+ *
+ * ⚠ NO QUANTITY, NO PRICE, NO STAT, NO SOURCE SLOT. An equip moves exactly one
+ *   unit and the server decides where it came from — the player's own
+ *   `player_inventory` row, debited under a lock. There is nothing else a
+ *   client could truthfully contribute and every field it might send would be
+ *   a number the server would then have to disbelieve.
+ *
+ * WHOLE-OBJECT REFUSAL, unlike readActivity's field-wise null. A malformed
+ * activity has two independent fields and the intent layer must be able to tell
+ * "unknown kind" and "unknown id" apart. An equip map is ONE gesture: if any pair in
+ * it is unreadable the gesture is unreadable, and half-applying a loadout
+ * because one slot name had a capital letter is exactly the kind of partial
+ * write this contract exists to make impossible.
+ *
+ * @returns a null-prototype `{slot: itemId|null}`, or `null` when absent or
+ *          unreadable. NEVER a partially-populated map.
+ */
+export function readEquip(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'equip')) return null;
+  const e = body.equip;
+  if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
+
+  /* OWN keys only. `Object.keys` already excludes inherited ones, but a body
+     parsed from JSON can carry a literal `"__proto__"` OWN key, which is why
+     the map being built is null-prototype and the write below is unconditional
+     rather than an assignment onto a plain object. */
+  const keys = Object.keys(e);
+  if (keys.length === 0 || keys.length > MAX_EQUIP_OPS) return null;
+
+  const out = Object.create(null);
+  for (const k of keys) {
+    if (!EQUIP_SLOT_RE.test(k)) return null;
+    const v = e[k];
+    if (v === null) { out[k] = null; continue; }
+    if (typeof v !== 'string' || !CATALOGUE_ID_RE.test(v)) return null;
+    out[k] = v;
+  }
   return out;
 }
 

@@ -80,6 +80,7 @@ import { runVendorSell } from './vendor-sell.js';
 import { runClaimReward } from './claim-reward.js';
 import { runUnlockBuy } from './unlock-buy.js';
 import { runMarketList, runMarketCancel, runMarketBuy } from './market.js';
+import { runEquip } from './equip.js';
 import { withCors } from './cors.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
@@ -275,6 +276,23 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         slot,
         intentId: intent.intentId,
         activity: intent.activity,
+      });
+      return json(out.body, out.status);
+    }
+
+    /* ── THE EQUIP VERB (b366) ─────────────────────────────────────────────
+       A LOADOUT MAP OF NAMES, and nothing else. No quantity (an equip is
+       always one unit), no stats (`ITEMS[id]` is server-side), no source slot
+       (the source is the player's own inventory row, debited under a lock).
+       If a `stats`, `bonus`, `qty` or `power` ever appears in this argument
+       list, gear is forgeable from devtools again. */
+    if (intent.verb === 'equip') {
+      const out = await runEquip({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        intentId: intent.intentId,
+        equip: intent.equip,
       });
       return json(out.body, out.status);
     }

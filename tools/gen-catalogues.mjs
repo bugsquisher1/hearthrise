@@ -39,7 +39,8 @@ const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 // ── 1. Read the single source of truth ───────────────────────────────────
 const { ITEMS, isAutoEatable } = await imp('src/data/items.js');
 const { SKILLS_DEF } = await imp('src/data/skills.js');
-const { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } = await imp('src/data/gathering.js');
+const { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, expandItemSlot }
+  = await imp('src/data/gathering.js');
 const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
 const { MONSTERS } = await imp('src/data/monsters.js');
 // b338 — what a brand new character owns. See src/data/start-kit.js for why
@@ -49,10 +50,11 @@ const { START_CURRENCY, START_SKILL_XP, START_INVENTORY, START_EQUIPMENT }
 
 // ── 2. Derive the rows ───────────────────────────────────────────────────
 // The `slot` an item authors ('ring') is not always an equip slot the player
-// has ('ring1'/'ring2'). Expansion happens HERE, in JS, next to the data —
-// never as a special case inside PL/pgSQL, which is how the two copies would
-// start to disagree.
-const SLOT_EXPANSION = { ring: ['ring1', 'ring2'] };
+// has ('ring1'/'ring2'). Expansion happens in JS, next to the data — never as a
+// special case inside PL/pgSQL, which is how the two copies would start to
+// disagree. b366 MOVED the table itself into src/data/gathering.js beside
+// EQUIP_SLOTS, because the equip intent became a SECOND consumer of it and a
+// generator-private copy would have been re-typed into the Edge Function.
 
 const itemIds = Object.keys(ITEMS).sort();
 const items = itemIds.map((id) => {
@@ -83,7 +85,7 @@ const itemSlots = [];
 for (const id of itemIds) {
   const raw = ITEMS[id]?.slot;
   if (!raw) continue;
-  for (const s of (SLOT_EXPANSION[raw] || [raw])) itemSlots.push({ item_id: id, equip_slot: s });
+  for (const s of expandItemSlot(raw)) itemSlots.push({ item_id: id, equip_slot: s });
 }
 itemSlots.sort((a, b) => (a.item_id + a.equip_slot).localeCompare(b.item_id + b.equip_slot));
 

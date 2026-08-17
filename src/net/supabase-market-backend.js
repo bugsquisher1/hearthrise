@@ -60,6 +60,45 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { getSession } from './auth.js?v=365';
+import { settleBeforeIntent } from './accrue.js?v=365';
+
+/* ── §3.5 — SETTLE BEFORE A VALUE-MOVING INTENT (b366, Phase 2) ─────────────
+   THE PROBLEM IT SOLVES, AND IT IS A NEW ONE. Before live settling the client
+   and the server were rarely more than a login apart. Under a 90 s cadence a
+   player can be holding up to ninety seconds of gold and drops that the server
+   has not paid yet — and once `gold` and `inventory` are the server's record,
+   spending them is refused `insufficient_gold` / `insufficient_item` about a
+   balance the player is looking at on screen. Settling first makes the server's
+   number the one the gesture is priced against.
+
+   ⚠ THIS IS A CLIENT SEQUENCING RULE, NOT A REGISTRY CHANGE, and the difference
+     is the whole reason it lives here in five lines instead of in intents.js.
+     Flipping `collectsFirst` on the market verbs would make a purchase
+     CONFISCATE the window on a refused collect — a strictly worse trade than
+     the refusal it would prevent. See intents.js §"THE GOLD VERBS".
+
+   ⚠ IT NEVER BLOCKS THE GESTURE. A settle that fails, is rate-limited, is under
+     the 60 s server floor or finds no activity returns a verdict and the trade
+     proceeds regardless. The gesture is the player's; the settle is an attempt
+     to make it succeed, and turning a flaky network into "you cannot sell
+     anything" would be a far larger fault than the one it is fixing.
+
+   WHERE IT IS APPLIED, AND THE DECISION FOR EACH — the rule is "does this
+   gesture's SUCCESS depend on a balance the server has not paid up to yet?":
+     · createListing  YES — escrows ITEMS out of the server's inventory
+     · buyListing     YES — spends GOLD the server holds
+     · placeOffer     YES — escrows GOLD
+     · cancelListing  NO  — returns escrow TO the player; it cannot be short
+     · cancelOffer    NO  — same
+     · collectSales   NO  — a credit, never a debit
+   Stated as a list rather than sprinkled, because the next person adding a
+   market gesture needs the question, not the answer. */
+async function settleFirst(what) {
+  try { return await settleBeforeIntent(); } catch (e) {
+    console.warn('[market] pre-' + what + ' settle threw:', e && e.message);
+    return { settled: false, reason: 'threw' };
+  }
+}
 
 /* The market RPCs ship in ONE migration, so one capability governs all four
    decisions below (list / cancel / buy / collect). Probing them separately
@@ -236,6 +275,7 @@ const SupabaseMarketBackend = {
    * v1 branch has always had.
    */
   async createListing({ itemId, qty, askEach, sellerSlot, sellerName }) {
+    await settleFirst('list');
     const cfg = getCfg();
     const session = currentSession();
     if (!cfg || !session) throw new Error('Not signed in');
@@ -297,6 +337,7 @@ const SupabaseMarketBackend = {
   },
 
   async buyListing(listingId, qtyWanted) {
+    await settleFirst('buy');
     const cfg = getCfg();
     const session = currentSession();
     if (!cfg || !session) throw new Error('Not signed in');
@@ -471,6 +512,7 @@ const SupabaseMarketBackend = {
      an RPC would buy nothing and would invent a third market authority model.
      Revisit when buy offers get a server-side matcher; not before. */
   async placeOffer({ itemId, qty, maxEach, buyerSlot, buyerName }) {
+    await settleFirst('offer');
     const cfg = getCfg();
     const session = currentSession();
     if (!cfg || !session) throw new Error('Not signed in');

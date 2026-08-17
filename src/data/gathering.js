@@ -95,6 +95,24 @@ export const CROPS={
    migrateEquipmentSlots fills every known slot with null — so it's save-safe. */
 export const EQUIP_SLOTS=['helmet','necklace','earrings','cape','weapon','shield','ammo','ring1','body','ring2','gloves','belt','pants','boots','companion'];
 
+/* ── AUTHORED SLOT → PLAYER SLOTS (moved here from tools/gen-catalogues.mjs,
+   b366) ──────────────────────────────────────────────────────────────────────
+   An item AUTHORS `slot:'ring'`; a player HAS `ring1` and `ring2`. That
+   expansion used to live only in the catalogue generator, which was correct
+   while the generator was the only consumer. The equip INTENT is the second
+   consumer — it has to answer "does this item fit this slot?" one round trip
+   before `hr_item_slots` does — and a second copy of an expansion table is the
+   `unifyObject` failure this whole program exists to prevent. So it lives HERE,
+   beside EQUIP_SLOTS, and both the generator and the Edge Function import it.
+   The generated SQL is byte-identical (gen-catalogues --check proves it). */
+export const SLOT_EXPANSION={ring:['ring1','ring2']};
+
+/** Every player slot an item authoring `raw` may occupy. Pure; frozen inputs. */
+export function expandItemSlot(raw){
+  if(!raw||typeof raw!=='string')return[];
+  return SLOT_EXPANSION[raw]||[raw];
+}
+
 export const EQUIP_SLOT_META={
   helmet:{label:'Helmet',icon:'⛑️'},necklace:{label:'Necklace',icon:'📿'},earrings:{label:'Earrings',icon:'💎'},
   cape:{label:'Cape',icon:'🦸'},weapon:{label:'Weapon',icon:'⚔️'},shield:{label:'Offhand',icon:'🛡️'},ammo:{label:'Ammo',icon:'🏹'},

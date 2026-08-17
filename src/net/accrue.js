@@ -713,7 +713,16 @@ export function equippedCount(equipment, id) {
        replacement and the client holds no rival copy to reconcile.
    It is NOT retired by Phase 1. Do not delete it alongside the max-merge
    without checking which of the two conditions actually fired — they are
-   different dates and the b362 dupe comes straight back if this goes early. */
+   different dates and the b362 dupe comes straight back if this goes early.
+
+   ✅ b366 — BOTH CONDITIONS FIRED, AND IT IS NO LONGER ON THE LIVE PATH. The
+      equip verb landed AND the flip landed, in one commit, so the absolute
+      branch in `applyEnvelopeState` never calls this: under absolute the
+      server's figure already excludes the worn copy, and subtracting it again
+      would DELETE a bag copy the player owns. It survives here, unchanged and
+      still tested, solely to serve the merge branch the `hr:envelopeMerge`
+      kill switch restores — deleting it would make the incident lever a
+      REGRESSION lever. Delete it when the switch goes. */
 export function unaccountedEquipped(G, res, id) {
   const local = equippedCount(G && G.equipment, id);
   if (!local) return 0;
@@ -748,9 +757,100 @@ export function consumedKeysOf(res) {
   return out;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   PHASE 2 (b366) — THE FLIP TO ABSOLUTE. live-settlement.md §5.3, §8.
+
+   THE PRECONDITION THAT WAS MISSING UNTIL NOW, and it is the whole reason this
+   is a flag and not a rewrite: `hr_apply` owned equipment all along, but NO
+   VERB COULD REACH IT. There was no equip intent anywhere in src/net, so the
+   server's `player_inventory` row was a stale view that still counted the copy
+   the player was wearing. Under ABSOLUTE that stale figure would be written
+   straight into the bag — the b362 dupe, no longer merged in but ASSIGNED in.
+   b366 ships the verb (supabase/functions/hr-accrue/equip.js), the server's
+   figure becomes correct, and only then may the envelope be believed outright.
+
+   ⚠ THE ORDER IS LOAD-BEARING AND IT IS NOT REVERSIBLE BY A REDEPLOY: the equip
+     verb must be DEPLOYED before this constant is armed. Armed against an Edge
+     payload with no equip verb, every equip a player performs is invisible to
+     the server and the next settle assigns the worn copy back into the bag —
+     which is the same dupe, running 320 times a day instead of once per
+     gesture.
+
+   THE KILL SWITCH IS AN OPT-BACK-IN, NOT AN OPT-OUT, because that is the shape
+   that works in an incident: `localStorage['hr:envelopeMerge'] = 'on'` restores
+   b359 merge semantics for ONE device, immediately, with no deploy. It is the
+   `ACCRUE_KILL_KEY` pattern and it exists for the same reason.
+
+   AN OLD CLIENT IS NOT AFFECTED AT ALL. This is client code: a player on a
+   stale build runs their own copy of the merge and keeps merge semantics until
+   they load the new one. There is no server flag to get wrong. */
+export const ENVELOPE_MERGE_KEY = 'hr:envelopeMerge';
+
+/* ── THE ARMING CONDITION IS A REGISTRATION, NOT A DATE ─────────────────────
+   ⚠ THE MOST DANGEROUS THING IN THIS FILE, so it is a mechanism rather than a
+     note. ABSOLUTE is only sound while the server actually knows about every
+     equipment move. If the envelope is believed outright on a client whose
+     equip gestures are still local, the server's `player_inventory` row still
+     counts the worn copy and the settle ASSIGNS it back into the bag — the b362
+     dupe, running 320 times a day instead of once per gesture. That is worse
+     than the merge this replaces.
+
+   "Remember to arm this after the equip gesture is wired" is exactly the shape
+   of instruction this repo has been burned by. So the flip arms ITSELF, off the
+   only fact that matters: has an equip TRANSPORT been registered on this
+   client? `src/net/equip.js` calls `markEquipAuthorityLive()` when it is
+   configured with a real endpoint, and the gesture wiring in the game loop is
+   what causes that module to load. Until then every envelope keeps b359 merge
+   semantics — the live beta stays exactly as green as it is today — and the
+   flip lands the moment the last piece does, with no second deploy decision and
+   nothing to forget.
+
+   A player on a STALE BUILD is unaffected in either direction: this is client
+   code and they run their own copy. */
+let equipAuthorityLive = false;
+
+/** Declare that this client sends equip INTENTS. Called by src/net/equip.js. */
+export function markEquipAuthorityLive(v) {
+  equipAuthorityLive = v !== false;
+  return equipAuthorityLive;
+}
+export function isEquipAuthorityLive() { return equipAuthorityLive; }
+
+/** Is the envelope ABSOLUTE on this device?
+ *  Two conditions, and BOTH are fail-closed toward the merge — the direction
+ *  that can only ever over-credit, never delete and never duplicate. */
+export function isEnvelopeAbsolute() {
+  if (!equipAuthorityLive) return false;
+  try {
+    if (typeof localStorage === 'undefined') return true;
+    return localStorage.getItem(ENVELOPE_MERGE_KEY) !== 'on';
+  } catch (e) { return true; }
+}
+
+/* ── THE DRIFT COUNTER (§8 — `describeReplacement` REPURPOSED) ──────────────
+   §5.3 made the flip conditional on a MEASUREMENT ("no envelope names a key
+   whose client value exceeds it, for a full day"). The measurement does not
+   stop mattering once the flip lands — it becomes the permanent detector for
+   the client and the server disagreeing, and it is the only thing that would
+   notice the equip verb regressing. A counter, never a ledger row: journal
+   rule 6, and the `game_events` receipt behind it. */
+export const envelopeDrift = { applied: 0, destructive: 0, lastAt: 0, lastLoss: null };
+
+export function noteEnvelopeDrift(loss) {
+  envelopeDrift.applied++;
+  if (loss && loss.destructive) {
+    envelopeDrift.destructive++;
+    envelopeDrift.lastAt = nowMs();
+    envelopeDrift.lastLoss = loss;
+  }
+  return envelopeDrift;
+}
+
 export function applyEnvelopeState(G, res, ownKey) {
   const st = (res && res.state) || {};
   const written = { skills: {}, inventory: 0 };
+  const absolute = isEnvelopeAbsolute();
+  written.absolute = absolute;
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
   if (Number.isFinite(Number(st.hp))) { G.playerHp = Number(st.hp); written.hp = G.playerHp; }
@@ -791,14 +891,44 @@ export function applyEnvelopeState(G, res, ownKey) {
   const skills = (G.skills && typeof G.skills === 'object') ? { ...G.skills } : {};
   for (const k of Object.keys(res.skills || {})) {
     const xp = Number(res.skills[k] && res.skills[k].xp);
-    /* MAX, not assignment. XP never legitimately decreases, so the higher of
-       the two is the true one whichever side earned it. */
     if (Number.isFinite(xp)) {
       const have = Number(skills[k]) || 0;
-      skills[k] = Math.max(have, xp);
+      /* PHASE 2: ASSIGNMENT. The server wins every contest, INCLUDING DOWNWARD
+         — that direction IS the anti-forgery property, and the max above was
+         the one thing standing between a devtools-edited xp figure and a round
+         trip that laundered it into permanence.
+         PHASE 1: MAX. Kept behind the switch, not deleted, because it is the
+         incident lever. */
+      skills[k] = absolute ? xp : Math.max(have, xp);
       written.skills[k] = skills[k];
     }
   }
+  /* ⚠ A SKILL THE ENVELOPE OMITS IS **LEFT ALONE**, EVEN UNDER ABSOLUTE, AND
+     THAT IS A DELIBERATE ASYMMETRY WITH INVENTORY BELOW. State the reason,
+     because "be consistent" is the obvious wrong answer here:
+
+     `hr_state_of` builds `skills` from `player_skills`, which is seeded at
+     character creation from the GENERATED `hr_skills` catalogue. That catalogue
+     is one `apply` behind src/data/skills.js whenever a skill ships ahead of
+     its migration — which is not hypothetical, it is the b361 incident by name:
+     **Stonemason shipped to clients minutes before its hr_skills row landed.**
+     Under a symmetric rule, every envelope in that window would have DELETED
+     every player's Stonemason progress, permanently, and the deletion would
+     have looked exactly like the server correctly disagreeing.
+
+     An omitted skill therefore means "the server's catalogue has never heard of
+     this", which is a CATALOGUE GAP, not a zero. Inventory has no equivalent:
+     `hr_items` holds all 512 authored ids and an absent row genuinely means an
+     empty stack.
+
+     ⏳ THE CLOSING CONDITION, so this is a scheduled debt and not a permanent
+     hole: a parity assertion between src/data/skills.js and the envelope's
+     skill set — one that FAILS THE BUILD on a skill the server does not know —
+     makes omission unambiguous, and this branch can then delete like the bag
+     does. Until then the residual is stated: a skill deleted from src/data on
+     purpose keeps its client-side xp until the save is rewritten. That is a
+     stale display, not a mint: nothing tradeable, rankable or contributable
+     hangs off it, because leaderboard scores come off the server. */
   G.skills = skills;
 
   const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
@@ -846,6 +976,54 @@ export function applyEnvelopeState(G, res, ownKey) {
      this whole block becomes plain absolute assignment and the debit/credit
      distinction stops existing, because the envelope will name every key it
      owns. Do not build anything new on top of it. */
+  /* ══════════════════════════════════════════════════════════════════════
+     PHASE 2 (b366) — THE BAG IS THE SERVER'S. §5.3, and it is the whole point
+     of the phase.
+
+     `hr_state_of` builds `inventory` by aggregating EVERY surviving
+     `player_inventory` row, and `hr_apply` DELETEs a row when its quantity
+     reaches zero. So the envelope's inventory map is a COMPLETE STATEMENT of
+     what the player owns: a named key is the quantity, and an OMITTED key is a
+     real zero rather than "unknown". That equivalence is what b359 could not
+     rely on and what b366's equip verb finally makes true — the last thing the
+     server did not know about a player's bag was the copy they were wearing.
+
+     So: replace wholesale. Every faucet the merge left open closes at once —
+     the consumption hole (§5.2's residual: an item both credited and debited in
+     one span), the b362 equip dupe, and the forged-item survival b359 knowingly
+     traded for. The b363 `unaccountedEquipped` discount is NOT applied here and
+     must not be: under absolute the server's figure is already correct, and
+     subtracting a worn copy from a correct figure DELETES a bag copy the player
+     owns. Its own header names exactly this as the condition that retires it.
+
+     ⚠ FAIL-CLOSED ON A MALFORMED ENVELOPE. An envelope with no readable
+       `inventory` object is not a claim that the bag is empty — it is an answer
+       this function could not read, and wiping a player's bag on one is the
+       single most expensive mistake available here. The absolute branch is
+       therefore entered ONLY when the envelope actually carries an inventory
+       object; anything else falls through to the merge, which cannot delete. */
+  const invNamed = res && res.inventory;
+  if (absolute && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
+    const next = {};
+    for (const k of Object.keys(invNamed)) {
+      const q = Number(invNamed[k]);
+      /* An unreadable quantity is skipped rather than zeroed — the same
+         "act only on certainty" rule save-invariant #2 states, applied to one
+         stack. It reads as a deletion, which is the safe direction here
+         (the next settle restates it) and is not a mint in any direction. */
+      if (!Number.isFinite(q) || q <= 0) continue;
+      next[k] = Math.floor(q);
+    }
+    G.inventory = next;
+    written.inventory = Object.keys(next).length;
+    written.inventoryAbsolute = true;
+    if (predictionSeam) {
+      try { written.predictions = predictionSeam(G, res, ownKey); }
+      catch (e) { console.warn('[accrue] prediction reconcile threw:', e && e.message); }
+    }
+    return written;
+  }
+
   const consumed = consumedKeysOf(res);
   const namedKeys = Object.keys(res.inventory || {});
   const invKeys = consumed.size
@@ -933,6 +1111,7 @@ export function applyEnvelope(G, res) {
      recorded the grant against its own watermark, so the next accrual returns
      the same truth and nothing is lost by waiting for an answer. */
   const loss = describeReplacement(G, res);
+  noteEnvelopeDrift(loss);
   /* b366 — DO NOT ASK A QUESTION THE ANSWER TO WHICH IS STILL BEING FETCHED.
      `G` during a device handoff is whatever loadLocal() put there — on a phone
      that has not played in a week, a stale save. Against it almost any envelope
@@ -950,7 +1129,38 @@ export function applyEnvelope(G, res) {
       + 'so the local save being compared against may not be the one that wins.');
     return null;
   }
-  if (loss.destructive && !isReplacementAcknowledged()) {
+  /* ══════════════════════════════════════════════════════════════════════
+     PHASE 2 (b366) — THE GATE NARROWS TO THE CASE IT WAS BUILT FOR.
+
+     §8 says the replacement-ack sheet RETIRES at Phase 2 and should be deleted
+     outright. That is right about the end state and wrong about the transition,
+     and the difference matters on a live beta: under ABSOLUTE, `destructive` is
+     no longer an alarm — it is the NORMAL, EXPECTED answer every time the
+     client predicted a drop the server did not roll (§6's own table says so:
+     "Phase 2: it disappears at the next settle"). Leaving the gate as it stands
+     would put a consent modal in front of the player every 90 seconds, and the
+     only way through it is to consent, so it would protect nothing while
+     making the game unusable.
+
+     Deleting it outright is the other wrong answer, because the case it was
+     genuinely built for still exists and is still permanent: a COLD LOAD on a
+     device whose local save is real progress, answered by a server character
+     that is fresh or belongs to a different slot. That apply is not a 90-second
+     prediction correcting itself; it is one save overwriting another.
+
+     The line between them is measurable and is not a feeling: has this session
+     already applied an envelope? If it has, the client and the server have
+     already agreed once and every later difference is drift. If it has not,
+     this is the first contact and the sheet is exactly right.
+
+     ⏳ THE SHEET RETIRES FULLY when the client stops holding a rival copy at
+     all — i.e. when `gold`/`skills`/`inventory` are on SERVER_OF_RECORD and the
+     load strip deletes them, at which point `describeReplacement` is
+     permanently non-destructive and this branch is unreachable. That is a
+     record.js change, not this one, and it is named in the report. */
+  const firstContact = envelopeDrift.applied <= 1;
+  if (loss.destructive && !isReplacementAcknowledged()
+      && (!isEnvelopeAbsolute() || firstContact)) {
     console.warn('[accrue] REFUSING to overwrite local progress with the server character '
       + 'until the player confirms — would lose ' + loss.gold + ' gold, ' + loss.skillXp
       + ' skill XP and ' + loss.items + ' item(s). This is permanent and there is no merge.');
@@ -1726,6 +1936,7 @@ if (typeof window !== 'undefined') {
     isServerAccrualEnabled, setServerAccrualEnabled, __clearAccrualOverride,
     stampAwayWatermarks, clampSlot, resolveActiveSlot, mayClientWrite,
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
+    isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     equippedCount, unaccountedEquipped, consumedKeysOf,
     /* Phase 1 — live settlement (docs/design/live-settlement.md §3). */
     SETTLE_INTERVAL_MS, ACCRUE_MIN_SPAN_MS, ACCRUE_RATE_PER_MIN,

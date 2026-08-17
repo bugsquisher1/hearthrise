@@ -204,6 +204,18 @@ import './net/activity.js?v=365';
 // on: that helper THROWS rather than paying a client-authored number when this
 // module is absent, exactly as the b340 record strip does.
 import './net/gold.js?v=365';
+// b366 — the EQUIP intent (`equip`), Phase 2 of docs/design/live-settlement.md.
+// AFTER accrue.js, and for a reason stronger than the shared kill switch this
+// time: loading it is what makes `markEquipAuthorityLive` REACHABLE, and that
+// registration is the single condition `isEnvelopeAbsolute()` reads. It ships
+// DISARMED — the flip arms only when whoever owns the equip gesture calls
+// `configureEquip({..., gestureWired: true})`, i.e. when the player's equip
+// actually routes to the server instead of mutating G.equipment locally.
+// Importing it here does NOT arm it; it only makes the transport available.
+// Read the block above `equipAuthorityLive` in net/accrue.js before changing
+// either half — arming without the gesture reopens the b362 dupe at settle
+// cadence, which is worse than the merge it replaces.
+import './net/equip.js?v=365';
 // b361 — YOUR OWN TRADE LEDGER. A pure reader over rows the player can already
 // SELECT under market-v2's existing `own sales readable` policy; it authors
 // nothing and no payment path consults it. Imported EAGERLY (not lazily, the

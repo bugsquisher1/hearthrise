@@ -29,7 +29,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random, no fetch.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS } from '../../../src/data/gathering.js';
+import { TREES, ROCKS, FISH_SPOTS, EQUIP_SLOTS, expandItemSlot }
+  from '../../../src/data/gathering.js';
 import { indexGatherNodes } from '../../../src/core/skill-sim.js';
 import { ARTISAN_RECIPES } from '../../../src/data/recipes.js';
 import { indexArtisanRecipes, payableRecipeIndex } from '../../../src/core/artisan-sim.js';
@@ -80,6 +81,49 @@ export const GATHER_NODES = indexGatherNodes({
  */
 export const ARTISAN_RECIPES_ALL = indexArtisanRecipes(ARTISAN_RECIPES);
 export const ARTISAN_RECIPES_PAYABLE = payableRecipeIndex(ARTISAN_RECIPES_ALL);
+
+/* ════════════════════════════════════════════════════════════════════════
+   THE EQUIP CATALOGUE (b366) — the SAME two derivations
+   tools/gen-catalogues.mjs makes when it generates `hr_equip_slots` and
+   `hr_item_slots`, from the SAME two imports, so the intent's early answer and
+   the database's authoritative one cannot disagree about which item fits which
+   slot.
+
+   ⚠ THIS IS AN EARLY ANSWER, NOT THE AUTHORITY. `hr_apply`'s equip block
+     re-checks `hr_equip_slots` / `hr_item_slots` / `hr_items` / the
+     reqSkill+reqLv gate / ownership under a row lock, and it is the thing a
+     compromised Edge Function cannot lie to. What this buys is a NAMED refusal
+     one round trip earlier — and, more importantly, a refusal that costs the
+     player NO idempotency key and NO collect, because the equip verb collects
+     the accrual window before it acts (hr_apply stamps `accrued_to` on an
+     `equip` delta) and a shape refused here never reaches that collect.
+
+   NULL-PROTOTYPE, and it is the `__proto__` hazard again, not hygiene: an
+   equip-slot name off the wire is bounded by a character class that matches
+   `constructor`, and `{}.constructor` is truthy. `catalogueGet` is the reader.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/** Every equip slot a character HAS, in authored order. Frozen copy. */
+export const EQUIP_SLOT_IDS = Object.freeze(EQUIP_SLOTS.slice());
+
+const equipSlotSet = Object.create(null);
+for (const s of EQUIP_SLOTS) equipSlotSet[s] = true;
+/** `{ [equipSlot]: true }` — the `hr_equip_slots` allowlist, null-prototype. */
+export const EQUIP_SLOT_INDEX = Object.freeze(equipSlotSet);
+
+const itemSlotIdx = Object.create(null);
+for (const id of Object.keys(ITEMS)) {
+  const slots = expandItemSlot(ITEMS[id] && ITEMS[id].slot);
+  if (!slots.length) continue;
+  const m = Object.create(null);
+  for (const s of slots) m[s] = true;
+  itemSlotIdx[id] = Object.freeze(m);
+}
+/** `{ [itemId]: { [equipSlot]: true } }` — the `hr_item_slots` pairs, exactly
+    as the generator derives them (including the ring1/ring2 expansion, which is
+    imported rather than restated). An item with no `slot` is ABSENT, which is
+    what makes "this is not equipment" answerable without a database read. */
+export const ITEM_EQUIP_SLOTS = Object.freeze(itemSlotIdx);
 
 /* ════════════════════════════════════════════════════════════════════════
    THE ECONOMY CATALOGUE — prices, derived from src/data, never restated.

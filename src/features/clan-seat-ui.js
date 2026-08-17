@@ -617,6 +617,27 @@
     if (needServer()) return false;
     var have = (G_().inventory || {})[itemId] || 0;
     if (qty <= 0 || qty > have) { toast('You do not hold that many', 'kill'); return false; }
+    /* ── §3.5 — SETTLE BEFORE A VALUE-MOVING INTENT (b366, Phase 2) ───────
+       A deposit escrows ITEMS out of the server's inventory, and under a 90 s
+       settle cadence the player may be holding up to ninety seconds of drops
+       the server has not paid yet. Settling first makes the server's count the
+       one the deposit is priced against, so a deposit of something genuinely
+       earned at the keyboard is not refused for not existing yet.
+
+       ⚠ IT NEVER BLOCKS THE DEPOSIT. A settle that fails, is rate-limited or is
+         under the 60 s server floor returns a verdict and the deposit proceeds;
+         turning a flaky network into "you cannot contribute" would be a larger
+         fault than the one this fixes.
+
+       Reached through the WINDOW SEAM rather than an import because this file
+       is a classic script, not ESM — the same reason every other server call in
+       it goes through `window.HearthriseSupabase`. Absent (an old build, a boot
+       before accrue.js) it is simply skipped, which is the pre-b366 behaviour. */
+    try {
+      var A = window.HearthriseAccrual;
+      if (A && typeof A.settleBeforeIntent === 'function') await A.settleBeforeIntent();
+    } catch (e) { /* best effort by contract — see above */ }
+
     var body = { p_clan_id: clanId(), p_items: {} };
     body.p_items[itemId] = qty;
     var d = await call('clan_deposit', body, function (o) { return { out: o }; });

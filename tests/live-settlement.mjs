@@ -447,10 +447,58 @@ export async function sqlGuard() {
 // ── The derivation is not hand-edited ──────────────────────────────────────
 export async function derivationGuard() {
   const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8'));
-  ok(order.order[order.order.length - 1] === '2026-08-17-fight-carry.sql',
-    'SETTLE-SQL: 2026-08-17-fight-carry.sql is not LAST in the apply order. It is the last toucher of '
-    + 'hr_apply AND hr_state_of; a file applied after it silently deletes the whole carry while every '
-    + 'self-check still passes.');
+  /* ── LAST TOUCHER OF hr_state_of, AND OF hr_apply UNLESS SOMETHING DERIVES
+        FROM IT (b366) ────────────────────────────────────────────────────────
+     This used to read "fight-carry must be LAST in the apply order", full stop,
+     and that was the right assertion for a world in which nothing came after
+     it. It is the WRONG generalisation, and the difference matters: a later
+     file that `create or replace`s hr_apply is safe IF AND ONLY IF its body was
+     DERIVED from this one — which is exactly what tests/run-sql-tests.mjs PART
+     1f-ii re-derives, link by link, byte for byte. Keeping the crude form would
+     have forced the next author to either weaken this test or hand-edit a
+     57 KB body, and both roads end at the thing this test exists to prevent.
+
+     So the property is split into the two facts it was always standing in for:
+
+       (1) NOTHING after fight-carry may replace hr_state_of. There is no
+           derivation chain for hr_state_of, so a later toucher would silently
+           delete the `fight` projection and the engine would start every span
+           at full monster HP again — the P3 confiscation, back, with every
+           self-check green.
+       (2) Anything after it that replaces hr_apply must be ON the hr_apply
+           derivation chain. Membership is the whole check; PART 1f-ii proves
+           the bytes.
+
+     ⚠ NOTE WHAT IS NOT ASSERTED HERE: that the LATER file is correct. That is
+       its own file's job. This one only refuses to let it exist unaccounted
+       for. */
+  const idx = order.order.indexOf('2026-08-17-fight-carry.sql');
+  ok(idx >= 0, 'SETTLE-SQL: fight-carry is not in the apply order at all');
+  const after = order.order.slice(idx + 1);
+  for (const f of after) {
+    const body = await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8');
+    ok(!/create\s+or\s+replace\s+function\s+public\.hr_state_of\s*\(/i.test(body),
+      `SETTLE-SQL: ${f} is applied AFTER fight-carry and replaces hr_state_of. There is no `
+      + 'derivation chain for hr_state_of, so that silently deletes the `fight` projection and '
+      + 'every accrual window starts a fresh monster at full HP again — the P3 confiscation, with '
+      + 'every self-check still passing.');
+    if (/create\s+or\s+replace\s+function\s+public\.hr_apply\s*\(/i.test(body)) {
+      const chain = await readFile(join(ROOT, 'tests', 'run-sql-tests.mjs'), 'utf8');
+      /* THE ARRAY IS EXTRACTED BY INDEX, NOT MATCHED BY REGEX. A regex over a
+         JS array literal is a parser written in one line, and the failure mode
+         of a wrong one here is a FALSE RED that the next person fixes by
+         deleting the assertion. Two indexOf calls cannot be subtly wrong. */
+      const at = chain.indexOf('const HR_APPLY_CHAIN = [');
+      const listed = at >= 0
+        && chain.slice(at, chain.indexOf('];', at)).includes(`'${f}'`);
+      ok(listed,
+        `SETTLE-SQL: ${f} replaces hr_apply after fight-carry but is NOT on HR_APPLY_CHAIN in `
+        + 'tests/run-sql-tests.mjs. Unchained, its body is a hand-retyped 57 KB restatement that '
+        + 'nothing compares against the one it replaces — which is how b346’s ownership flag, '
+        + 'b348’s tool_carry key and this file’s entire fight block disappear in one commit '
+        + 'with a green suite.');
+    }
+  }
   const sql = await readFile(
     join(ROOT, 'supabase', 'migrations', '2026-08-17-fight-carry.sql'), 'utf8');
   for (const term of ['hr_activities', 'bad_fight_hp', "when p_delta ? 'activity' then '{}'::jsonb",

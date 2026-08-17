@@ -24,6 +24,7 @@ import { goalCountersGuard } from './goal-counters.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
+import { runAll as equipIntentGuards } from './equip-intent.mjs';
 import { cutoverImportGuard } from './cutover-import.mjs';
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
@@ -1219,6 +1220,14 @@ async function unlockModelPreflight() {
     ['derive-fight-carry.mjs', 'fight-carry derivation',
       'the restated hr_apply / hr_state_of in 2026-08-17-fight-carry.sql are no longer '
       + 'gem-daily-budget\'s and tool-carry\'s bodies plus this file\'s declared patches'],
+    /* Phase 2, part 1. The SAME rule again, one link further down the chain:
+       2026-08-18-equip-release-codes.sql restates the WHOLE of hr_apply (now
+       69 KB) to add five codes to one array. Everything the two links above
+       protect lives in that body, so a hand-edit here deletes it just as
+       thoroughly and with a much smaller-looking diff. */
+    ['derive-equip-release.mjs', 'equip-release derivation',
+      'the restated hr_apply in 2026-08-18-equip-release-codes.sql is no longer fight-carry’s '
+      + 'body plus this file’s ONE declared patch'],
   ]) {
     const gen = join(ROOT, 'tools', tool);
     try { await stat(gen); } catch { continue; }
@@ -1495,6 +1504,28 @@ const run = async () => {
        migrations' self-verifying blocks execute on every suite run, and the
        real Edge module then buys a real rung and cooks a real span with it.
        `--selftest` plants sixteen real defects; every one must read RED. */
+    /* ── Phase 2 — THE EQUIP INTENT (b366) ──────────────────
+       The verb that closes the b362 dupe class STRUCTURALLY: equipping is a
+       transfer through hr_apply, so the total a player owns is conserved and a
+       dupe is arithmetically impossible rather than merely unimplemented. The
+       whole migration chain replays here, so the new migration's self-verifying
+       block — including its load-bearing NEGATIVE, that insufficient_item is
+       NOT on the intent-key release list — executes on every suite run, and the
+       real Edge module then equips, unequips, and is refused a copy it does not
+       own. The CLIENT half is EQUIP-FLIP-1/2 and EQUIP-WIRE-1 in the browser
+       suite. */
+    const equipProblems = await equipIntentGuards();
+    if (equipProblems.length) {
+      console.log('\nEquip intent (Phase 2) — FAILED:');
+      for (const p of equipProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nEquip intent (Phase 2) — an equip is a CONSERVING transfer through hr_apply, a '
+        + 'copy the player does not own is refused, a catalogue-staleness refusal releases the '
+        + 'intent key and the ownership refusal does not, and the verb collects the window BEFORE '
+        + 'it swaps the gear that prices it.');
+    }
+
     const unlockProblems = await unlockBuyGuard();
     if (unlockProblems.length) {
       console.log('\nUnlock purchase guard (hr_unlock_buy) — FAILED:');

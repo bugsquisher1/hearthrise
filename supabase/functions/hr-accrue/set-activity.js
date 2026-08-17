@@ -156,7 +156,12 @@ export function activityDelta(kind, id, from) {
      rather than an interpolation because a bucket name is data. An unknown
      bucket fails closed inside hr_rate_gate, so a wrong row here is a 429, not a
      new unlimited namespace. */
-const READ_SQL = `
+/* EXPORTED since b366. `equip.js` is the SECOND verb that must collect before
+   it acts, and it opens the call with the identical gate-then-read. A private
+   copy there would be a second statement of "the gate is the first statement
+   and the read is conditional on it" — review D3's whole finding — in a file
+   nobody would think to re-check when the gate changes. */
+export const READ_SQL = `
   with g as (select public.hr_rate_gate($1::uuid, $2::int, $3::text) as allowed)
   select g.allowed                                                          as allowed,
          case when g.allowed then public.hr_state_of($1::uuid, $2::int) end  as state,
@@ -204,7 +209,7 @@ const SEED_SQL_NO_PERKS = `
    relying on the driver to stringify exactly once.
    index.ts's tagged-template apply must use the same shape.
    Guarded by tests/delta-transport.mjs, which drives the REAL postgres driver. */
-const APPLY_SQL = `
+export const APPLY_SQL = `
   select public.hr_apply($1::uuid, $2::int, $3::bigint, $4::uuid, $5::text::jsonb) as res`;
 
 /**
@@ -544,7 +549,7 @@ async function forceCloseWindow(o) {
  *
  * @returns { outcome: 'paid'|'nothing'|'refused', version, error?, detail?, receipt? }
  */
-async function collectCurrentWindow(o) {
+export async function collectCurrentWindow(o) {
   const { exec, user, slot, env, st, nowMs, capMs } = o;
 
   const accruedToMs = st.accrued_to ? new Date(st.accrued_to).getTime() : nowMs;

@@ -465,6 +465,37 @@ export const INTENT_REGISTRY = Object.freeze({
   market_list: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
   market_cancel: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
   market_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
+  /* ── b366 — THE EQUIP VERB. THE FIRST VERB THAT MUST COLLECT SINCE #2. ────
+     `collectsFirst: TRUE`, and it is the ONE row in this registry where that is
+     true besides `set_activity`. It is DERIVED, not chosen:
+     `STAMPING_DELTA_KEYS` is `['equip','activity']` — hr_apply stamps
+     `accrued_to = now()` on an `equip` delta, exactly as it does on an
+     `activity` one — so an equip that did NOT collect first would silently
+     discard every unpaid second since the last settle. At a 90 s cadence that
+     is up to 90 seconds of gold, XP and drops per equip gesture, and a player
+     re-gearing between fights would lose it on every swap, invisibly.
+
+     `guardStampKeys` re-checks this against the delta this verb actually
+     builds, so the row and the behaviour cannot drift apart; a row flipped to
+     `false` produces `would_confiscate` rather than a confiscation.
+
+     ⚠ THE COLLECT AND THE EQUIP ARE TWO APPLIES, and the order matters in one
+       direction only: the window is priced against the equipment the player had
+       WHILE they were wearing it, and only then does the swap land. Collecting
+       AFTER would price the whole unpaid span at the NEW gear — which is the
+       12.8x gold / 20x XP naked->BiS exposure live-settlement.md §12(1) names,
+       turned from a 90 s residue into a deliberate, repeatable exploit ("fight
+       naked all night, equip BiS, settle").
+
+     `bucket: 'activity'`, shared with set_activity, because they are one
+     surface — the character's own pointer and loadout — and a player spamming
+     that surface should exhaust ONE budget. 30/min against a gesture a human
+     performs a few times a minute. THE COST, stated rather than discovered: a
+     client applying a 15-slot loadout as fifteen calls can rate-limit its own
+     next activity switch. Batch the loadout into ONE call (the wire takes a
+     map, and `MAX_EQUIP_OPS` is exactly the slot count for that reason); do not
+     widen the gate. */
+  equip: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -617,6 +648,36 @@ export const INTENT_ERRORS = Object.freeze({
      bounds". Collapsing them would tell a player with a broken input box that
      the market has a rule they broke. */
   BAD_ASK: 'bad_ask',
+
+  /* ── b366 — THE EQUIP VERB ───────────────────────────────────────────────
+     ONE shape code produced HERE, and everything else about an equip is
+     hr_apply's own vocabulary returned verbatim:
+
+       bad_equip            400/409 — the map is unreadable, OR hr_apply refused
+                            its shape under the lock. SHARED WITH hr_apply
+                            DELIBERATELY, and it is the same bargain
+                            `unknown_item` already struck: one code means one
+                            thing ("that is not a usable equip instruction"),
+                            and the `stage` field says which layer said it.
+       unknown_equip_slot   409 — no such slot (hr_equip_slots)
+       wrong_slot           409 — real item, real slot, does not fit
+                            ⚠ SHARED with market_cancel's `wrong_slot`, which
+                              means a CHARACTER slot. Two meanings, one code —
+                              tolerated only because the two can never appear on
+                              one verb, and flagged here so the next person does
+                              not discover it in a support ticket.
+       unknown_item         409 — not in hr_items
+       requirement_not_met  409 — the reqSkill/reqLv gate, against SERVER skills
+       insufficient_item    409 — the player does not own a copy. THIS IS THE
+                            DUPE REFUSAL: equipping is a TRANSFER, the debit is
+                            the ownership check, and there is nothing else to
+                            check.
+       too_many_equip_ops   409 — more ops than hr_apply's c_max_equip_kinds
+
+     None of them is minted here except `bad_equip`, because inventing a second
+     name for a refusal the database already names is how a taxonomy stops
+     meaning one thing per code. */
+  BAD_EQUIP: 'bad_equip',
 });
 
 /* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────
@@ -677,6 +738,19 @@ export const STATELESS_REFUSALS = Object.freeze([
        prediction outstanding — which is how a local offset becomes permanent. */
   INTENT_ERRORS.BAD_LISTING,
   INTENT_ERRORS.BAD_ASK,
+  /* b366 — the equip verb's ONE shape refusal, answered from the parsed request
+     and the in-process catalogue BEFORE the rate gate and before any database
+     work. Nothing was written and, critically, NO COLLECT RAN — which is what
+     makes a malformed equip cost the player nothing at all rather than a
+     confiscated window.
+     ⚠ `bad_equip` HAS TWO PRODUCERS, exactly like `unknown_item`: hr_apply
+       raises it too, from under the row lock, and THAT one reached the database
+       and does carry an envelope. `refusalCarriesState` is consulted only on
+       this layer's own refusals (the shape path returns before any read), so
+       hr_apply's copy is never routed through this list. Stated because a code
+       on a stateless allowlist that can also arrive stateful is precisely how a
+       client ends up reconciling to an envelope that was never sent. */
+  INTENT_ERRORS.BAD_EQUIP,
 ]);
 
 /** Must a refusal with this code carry the `hr_state_of` envelope? */

@@ -4,6 +4,38 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-16 (b366 fight-screen density) · Art Director · **The layout defect that every MEASUREMENT said was fine, and only a screenshot found — plus two live emoji sites**
+
+**DISCOVERY 1 — a mid-fight-only overflow that computed style could not see.** The combat style
+selector's four buttons overflowed their 300px stage column by ~1000px in the LIVE state and printed
+across the VS divider over the foe's weakness line. Every probe I ran said the container was exactly
+300px, because the CONTAINER was: it is the CHILDREN that escape, and only once the live labels grow
+("Accurate ATTACK · 2.35s"). Something upstream wins `flex-wrap` in the live state. Fixed by asserting
+wrap and giving each button a real basis. **The lesson is the one the release visual gate is made of:
+a measurement of the element you suspect is not a measurement of the screen.** I only found it because
+I read a capture I had already declared clean, and only proved it by printing the buttons' own rects
+rather than the block's.
+
+**DISCOVERY 2 — the War Table shipped four emoji AS ART in b365.** Target, castle, shield and globe
+pictographs at 26px in the destination cards, plus a star kicker and a crossed-swords fallback — the
+one thing this project's art direction forbids outright. They came in with the b365 destination row and
+passed review because no guard can see a pictograph in a template literal. Now baked-atlas glyphs via
+`HR.icon`.
+
+**DISCOVERY 3 — the COMBAT LOG still renders emoji, and it is the last big site.** Shield-miss,
+sword-hit, box-drop, coin-loot, blood, whiff and sparkle-RARE glyphs — engine-authored strings in
+legacy's `renderCombat`, visible on the densest screen in the game. Out of scope for a render-layer
+pass (it is a vocabulary change across many call sites) and left untouched deliberately. **This is the
+highest-value emoji cleanup left in the game.**
+
+**AFFECTED SYSTEMS.** `src/features/combat-screens.js`, `src/styles/combat-screens.css`, the combat log
+in `src/legacy.js`.
+
+**REQUIRED ACTION.** Someone owns DISCOVERY 3 — it is a small, well-defined legacy pass with a real
+visual payoff. And when any agent verifies a layout: print the rects of the CHILDREN, not the box.
+
+---
+
 ### 2026-08-16 (b361 brand session) · Coordinator · **Some Recraft DOWNLOADS carry a visible "AI GENERATED" watermark pill — the monster batch must be checked before shipping**
 
 **DISCOVERY.** The 10 player-avatar source PNGs Tyler downloaded from Recraft each carried a visible **"AI GENERATED" pill in the bottom-right corner** (confirmed on `assets/avatars/a-young-woman-knight-…png`). The prefab-avatar agent removed it (clone-from-above, feathered seam) before downscaling, and the shipped webps are clean. **BUT it is inconsistent:** the monster JPGs in `~/Downloads` (e.g. `drake-…jpg`) are watermark-FREE. So watermarking depends on HOW the asset left Recraft — the quick "download" button stamps it on the credit tier; the **Export dialog with "Add visible AI label" toggled OFF** does not (that is how the brand shield/wordmark/splash were exported, and they are clean).

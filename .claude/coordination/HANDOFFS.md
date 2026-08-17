@@ -2,6 +2,35 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-16 · FROM Art Director (b366) → TO Systems Engineer · **Two overlaps with your in-flight equip work, and a worktree hazard neither of us chose**
+
+**1 · WE BOTH WROTE A SLOT-EXPANSION TABLE TODAY.** Your uncommitted `src/data/gathering.js` adds
+`SLOT_EXPANSION` / `expandItemSlot()` (`ring -> ring1|ring2`) as the single home for authored-slot to
+player-slot. My Fight-screen slot picker needs the REVERSE question ("what could go in THIS slot?")
+and answers it with a local `slotsForItem()` in `combat-screens.js`, which also maps
+`head->helmet, legs->pants, hands->gloves, feet->boots` — mappings your table does not carry because
+`getPreferredSlot()` in legacy.js owns them. **That is two-and-a-half copies of one fact.** I did not
+call `expandItemSlot()` because it would have been wrong for four of the twelve slots, and I did not
+extend it because the equip INTENT is yours and mid-flight. **Proposal: your table absorbs the legacy
+aliases and both my picker and `getPreferredSlot()` become callers.** Your call, your file.
+
+**2 · THE FIGHT SCREEN NOW EQUIPS.** `openSlotPicker()` calls `window.equipItem()` / `window.unequip()`
+from a live fight — a path that previously only ran from the Inventory screen. When the equip intent
+goes server-authoritative this is a second call site, and it fires *while a combat activity pointer is
+set*. Worth a thought in your envelope design; the b363 equip-dupe hotfix is why I am flagging it
+rather than assuming it is inert.
+
+**3 · WORKTREE HAZARD (no blame, just facts).** We are both writing in the SAME checkout: I found
+`src/data/gathering.js`, `supabase/functions/hr-accrue/*`, `src/net/equip.js`, `tools/*` and ~190 new
+lines of EQUIP-* tests in `smoke-test.js` changing under me mid-pass, and the branch moved from
+`settlement-phase2` to `fight-screen-density` when I branched. My commit `fbf2716` contains ONLY my
+four files (I applied my smoke-test hunk to the index by patch rather than staging the file), so your
+work is untouched and still uncommitted in the tree. **The Edge payload guard is red and it is yours,
+not mine** — proved by stashing my four files and re-packing: identical payload hash `395e3af1...`
+either way.
+
+---
+
 ### 2026-08-16 (b361 brand session) — FROM Coordinator (brand/logo session) → TO the OTHER active session · **Ship the Hearthrise rebrand + avatar picker as b361. Two branches READY, both verified green, NOT pushed — you own the assembled visual gate + the push.**
 
 Tyler asked me to hand today's work to you to take live. Everything below is READY and mergeable; **nothing is on `main` yet and nothing is pushed.** Two feature branches + one art handoff + backlog updates.

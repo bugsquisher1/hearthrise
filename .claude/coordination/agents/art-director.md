@@ -2,6 +2,78 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-16 · b366 — the Fight screen gets its management rail back, and the defect that
+### mattered most was invisible to every measurement I took.
+
+**What Tyler asked for and what he actually got.** "You forgot some buttons? Loot? Eat food? How is
+someone supposed to manage their loadouts/armor/weapon?" — plus, mid-pass, show the foe's DROP TABLE
+and the gear I am WEARING before I commit. The answer is a persistent left rail carrying twelve
+equipment slots in the player's own painted item art (click for a picker filtered to that slot,
+equipping through legacy's `equipItem()` so the b246 wield gate keeps one owner), a food slot that says
+what you will eat and how many you hold, and a drops container that is the foe's table with real
+chances pre-fight and the measured ledger mid-fight. **One container, two truths, in the same place —
+a panel that pops in and out is not a panel.** The log-row loot rail is retired into it; two lists of
+the same spoils on one screen is how a HUD comes to disagree with itself.
+
+**THE FINDING I WOULD PUT FIRST, and it is a verification lesson, not a layout one.** The style
+selector's four buttons overflowed their column by ~1000px and printed across the VS divider onto the
+foe's weakness line — **in the LIVE state only**, because the labels grow when the fight starts. I
+measured `#fs-style` four separate times and it was 300px every time. It IS 300px. The children escape
+it. I only found the defect by reading a capture I had already called clean, and only diagnosed it by
+printing the BUTTONS' own rects. **A measurement of the element you suspect is not a measurement of
+the screen** — which is the release visual gate's whole argument, arriving from a new direction.
+
+**The rail moved to the LEFT after the first capture, and that was a measurement too.** The right edge
+belongs to the notification stack and the Chat button: the first desktop shot had "Achievement
+unlocked", three "Equipped ..." toasts and the daily reward sitting directly on the weapon row and the
+drop table. **A persistent panel cannot share a column with transient overlays.** Melvor puts it left;
+our reason for agreeing is our own.
+
+**Three more defects the captures found and no probe would have.** (1) At 922x423 the rail's blocks
+inherited `flex-shrink: 1`, so they squeezed below their content while the equipment cells' own
+`aspect-ratio` refused to — PROVISIONS printed straight across the boots. A rail that runs out of room
+must SCROLL, not overlap itself. (2) Empty-slot labels ellipsised to "OFFHA..." / "NECKL...", which
+b139 already ruled reads as a random string; they wrap now on desktop and are dropped entirely at 168px
+in favour of the gilt line glyph, which is the shape a player recognises anyway. (3) **The War Table
+has been drawing four emoji as art since b365** — the one thing our art direction forbids outright,
+shipped past review because no guard can see a pictograph in a template literal. Baked-atlas glyphs now.
+
+**THE SWING BAR, and why the fix is a duration and not a tween.** Tyler: "the bar for attack swing not
+being smooth is giving me a headache, but I love the addition." He was watching the truth — the fill's
+width was written from a 200ms poll, so a 2.4s swing advanced in **twelve** visible steps. It is now
+one linear `scaleX` animation whose DURATION IS `combatTickMs()`, so there is still exactly one clock;
+JS never writes geometry again, it only RESYNCS — on a weapon swap, on start/stop, or when the engine's
+tick stamp drifts more than a fifth of a swing. **And a resync starts with a NEGATIVE animation-delay
+equal to the time already elapsed since that stamp**, because a resync can only happen on a poll, never
+on the instant of a swing: restarting at zero would make every correction a visible jump backwards —
+the stutter, reintroduced by the fix for the stutter. Reduced motion keeps the stepped render, which is
+what that setting actually asks for. Measured: **20 distinct scaleX values in 20 frames**, four
+contexts.
+
+**The budget I had to pay back, honestly.** Making the style buttons wrap cost a second row, which
+pushed the action bar to **429px on a 423px screen** — Eat and Stop off the fold, the exact class of
+defect b362's own comment warns about. Four-across fixed preview and broke live (the long labels wrap
+to four lines: 506px). So the buttons keep one basis that behaves the same in both states and the 8px
+comes off the foe plate, which the sheet already names as the only elastic row. Final: **413px preview,
+416px live, of 423.**
+
+**Verified in-browser, my own server rooted in this checkout.** 1440x900 and 922x423, hearthlight and
+cozy-light, pre-fight and mid-fight, plus the picker: **0 viewport spill, 0 broken or tiny images, 0
+visible emoji on the Fight screen, 0 console errors, 0 404s.** Captures in
+`assets/art-pilot/_screenshots/b366-final/`. Suite **803/803** (three new tests: the rail exists
+pre-fight wearing real data, a slot actually swaps gear, the swing bar carries the animation and no
+inline width). No version bump, no push. Commit `fbf2716` on `fight-screen-density`.
+
+**Known limitations, stated plainly.** The **combat log still renders emoji mid-fight** —
+engine-authored strings in `renderCombat`, the largest emoji site left in the game, deliberately not
+folded into a render-layer pass; filed in DISCOVERIES. At 922x423 the rail's content is 332px in a
+303px box, so the last drop rows need a scroll — reachable, not clipped, and I chose that over
+shrinking the equipment cells below thumb size. The ring picker equips through `getPreferredSlot()`,
+which puts a ring on the first FREE finger, so clicking RING 2 with RING 1 empty fills ring 1 — legacy
+behaviour, surfaced rather than forked. And `slotsForItem()` in my module duplicates part of a
+slot-expansion table the Systems Engineer wrote in `gathering.js` the same day; handed off rather than
+merged, because their file is mid-flight.
+
 ### 2026-08-16 · b362 — Tyler's hand-made wave: 428 → 473 wired for $0.00. The control sheet I drew
 ### to settle a marginal call found FIVE wrong icons that have been live since b358.
 

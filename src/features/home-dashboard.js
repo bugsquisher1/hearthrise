@@ -1202,7 +1202,11 @@
         e.preventDefault();
         var id = parseInt(el.getAttribute('data-hero'), 10);
         var HP = window.HearthriseProfile;
-        if (HP && typeof HP.selectSlot === 'function') HP.selectSlot(id);
+        // b371: selectSlot is a Promise now (the native confirm() that froze the
+        // tab is gone). Consume it, and never let a rejection go unhandled.
+        if (HP && typeof HP.selectSlot === 'function') {
+          Promise.resolve(HP.selectSlot(id)).catch(function () {});
+        }
       };
     });
     root.querySelectorAll('[data-herobuy]').forEach(function (el) {
@@ -1210,10 +1214,13 @@
         e.preventDefault();
         var id = parseInt(el.getAttribute('data-herobuy'), 10);
         var HP = window.HearthriseProfile;
-        if (!HP || typeof HP.unlockSlot !== 'function') return;
-        var r = HP.unlockSlot(id);
-        if (r && r.ok) render();
-        else if (r && typeof window.notify === 'function') window.notify(r.reason, 'kill');
+        // b371: buySlot = confirm-then-unlock, SHARED with the topbar drawer, so
+        // a premium-currency spend can never be one click on either surface.
+        if (!HP || typeof HP.buySlot !== 'function') return;
+        HP.buySlot(id).then(function (r) {
+          if (r && r.ok) render();
+          else if (r && !r.cancelled && typeof window.notify === 'function') window.notify(r.reason, 'kill');
+        }).catch(function () {});
       };
     });
     root.querySelectorAll('[data-hd]').forEach(function (el) {

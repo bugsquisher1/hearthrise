@@ -1,0 +1,203 @@
+# Home Banner Tier Plates — 6 painted dawn vistas, one per homestead tier
+#
+# Art Director, 2026-08-17. Same flow as background-session-pack.txt: paste a
+# prompt into the Recraft web UI, 2 images per generation, keep the better one.
+#
+# WHY. The b374 repaint pointed the Home hearth band (.hd-hearth) at ONE fixed
+# dawn plate (assets/brand/hearthrise-splash.jpg, shared with the login). That
+# unified Home and the front door — good — but it LOST the homestead
+# progression the old code-drawn SVG had: the band used to grow camp -> cottage
+# -> ... -> castle as the player's property tier rose (backdrop.js
+# homesteadScene(tier), still exported). This wave restores that progression as
+# PAINTED plates: one landscape per property tier, each visibly more developed
+# than the last, on the same dawn valley — so the band never lies about your
+# progress and Home stays a painting, not a flat vector.
+#
+# EXPORT SETTINGS (same as the background pack).
+#   * Aspect: 16:9, the widest landscape the UI offers. Never square.
+#   * Background: OPAQUE. Do NOT tick transparent.
+#   * Format: PNG out of Recraft is fine; Claude converts to JPEG at wiring.
+#   * No AI label.
+#
+# NAMING. Each prompt STARTS with its file id (banner_tier1 ... banner_tier6).
+# tier1 is the lowest holding, tier6 the castle — the numbers follow the
+# property ladder in order (§1). Rename the download to the "NAME THE DOWNLOAD"
+# line if the browser names it otherwise. The id is what the wiring keys on.
+#
+# Any subset ships. An un-generated tier keeps the current single splash plate
+# via the base ::before rule (§4), so a partial session degrades to the b374
+# banner, not to a hole.
+
+
+=========================================================================
+ 1 · THE SET — 6 PLATES, ONE PER PROPERTY TIER
+=========================================================================
+
+  Verified against src/features/homestead.js TIERS (the property ladder). There
+  are EXACTLY SIX buildable tiers, and the band's eyebrow already names the
+  current one (home-dashboard.js:857, esc(hsDef.name)). One plate per tier:
+
+    banner_tier1  camp       Wanderer's Camp      (start: a bedroll and a fire)
+    banner_tier2  homestead  Hearthside Homestead (a first cottage)
+    banner_tier3  farmstead  Fieldworth Farmstead (barn + fields)
+    banner_tier4  manor      Stonecross Manor     (cut-stone house)
+    banner_tier5  keep       Ironvale Keep        (ramparts + watch bell)
+    banner_tier6  castle     Hearthrise Castle    (the banner over the valley)
+
+  THE ONE RULE THAT MAKES THIS A SET: it is the SAME dawn valley in all six.
+  Same horizon line, same warm dawn sky, same hillside — only the HOLDING on
+  it grows. A player upgrading from farmstead to manor should see their own
+  place get grander, not teleport to a different world. Paint the same vista
+  six times and change only what stands on it.
+
+
+=========================================================================
+ 2 · THE COMPOSITION LAW — measured off the rendered mount, not assumed
+=========================================================================
+
+  THE MOUNT. .hd-hearth (home-dashboard.js:76) is a band:
+      height: clamp(104px, 24vh, 204px)   (desktop ~204px; landscape phone
+                                            collapses to a ~56px strip)
+      the plate paints .hd-hearth::before at: url(...) 50% 40% / cover
+  The band is much wider than tall (up to ~1120px wide inside the max-width
+  container), so on a 16:9 source `cover` shows a WIDE HORIZONTAL SLICE
+  centred a touch ABOVE the middle (focal 50% 40%): the upper-middle of your
+  image lands in the band, the very top and the lower third are crop tolerance.
+
+  WHAT SITS ON TOP (the .hd-hearth::after scrim + the content):
+    * BOTTOM-LEFT: the player avatar + display name + rank/status line.
+    * BOTTOM-RIGHT: the daily ledger (XP today / Kills / Harvest).
+    * The scrim already darkens both lower flanks and the floor to
+      --scene-scrim-2 and keeps the centre-top open for the painting.
+  So the composition law is the same as the background pack:
+    (a) THE HOLDING (camp/cottage/castle) sits on the horizon in the
+        UPPER-CENTRAL band, where the focal crop lands it and where nothing
+        covers it.
+    (b) THE LOWER THIRD IS A CALM DARKER GROUND held in the darkest two value
+        steps — a field, a track, mist — so the light name/avatar/ledger read
+        over it. Do NOT put a bright object or busy detail in the lower-left
+        or lower-right corners; that is exactly where the text goes.
+    (c) A warm misty dawn horizon behind the holding gives the band its glow.
+        Paint it dark enough overall to sit under light type; a bright noon
+        sky would blow out the name.
+
+  DELIVERY SIZE: 1920 x 1080, like the background pack (the widest mount is
+  ~1120 CSS px at DPR 2 = 2240 device px; 1920 is close enough and 2560 buys
+  nothing). Convert to .jpg quality ~82 at wiring; budget <= 180 KB each,
+  ~1.0 MB for all six.
+
+
+=========================================================================
+ 3 · THE PROMPTS
+=========================================================================
+
+  The wrapper tail is byte-identical across all six — that is the mechanism
+  that keeps the six plates one vista. Positive-only per art-direction-picker.md
+  §0.10d: each tier is described by what its holding uniquely HAS, never by a
+  ban list. Only the holding clause changes between prompts.
+
+
+=== banner_tier1.png ===  [camp · Wanderer's Camp]
+NAME THE DOWNLOAD: banner_tier1.png
+banner_tier1, a lone wanderer's camp standing on a bare green hillside on the horizon: a single bedroll under a lean-to of branches, one small campfire trailing thin smoke, two short rows of freshly turned dirt, an empty valley beyond, a wide painted fantasy landscape at dawn, the holding small and humble on the ridge, confident thick brush strokes, heavy darkened edges, one warm low dawn key light with a cool bounce fill, wide value range; ember orange, hearth gold, misty blue, deep umber, leaf green. Composition: the holding sits on the horizon in the upper-central band with a warm misty dawn sky behind it, the foreground lower third a calm darker ground held in the darkest two value steps, the lower-left and lower-right corners quiet and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== banner_tier2.png ===  [homestead · Hearthside Homestead]
+NAME THE DOWNLOAD: banner_tier2.png
+banner_tier2, a first small homestead standing on a green hillside on the horizon: a modest timber cottage with a smoking stone chimney, a small fenced garden patch, a stacked woodpile, a narrow track running down into the valley, a wide painted fantasy landscape at dawn, the holding modest but settled on the ridge, confident thick brush strokes, heavy darkened edges, one warm low dawn key light with a cool bounce fill, wide value range; ember orange, hearth gold, misty blue, deep umber, leaf green. Composition: the holding sits on the horizon in the upper-central band with a warm misty dawn sky behind it, the foreground lower third a calm darker ground held in the darkest two value steps, the lower-left and lower-right corners quiet and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== banner_tier3.png ===  [farmstead · Fieldworth Farmstead]
+NAME THE DOWNLOAD: banner_tier3.png
+banner_tier3, a working farmstead standing on a green hillside on the horizon: a cottage grown larger beside a tall timber barn, fenced fields in neat strips, two haystacks, a low stone wall, grazing land rolling into the valley, a wide painted fantasy landscape at dawn, the holding busy and productive on the ridge, confident thick brush strokes, heavy darkened edges, one warm low dawn key light with a cool bounce fill, wide value range; ember orange, hearth gold, misty blue, deep umber, leaf green. Composition: the holding sits on the horizon in the upper-central band with a warm misty dawn sky behind it, the foreground lower third a calm darker ground held in the darkest two value steps, the lower-left and lower-right corners quiet and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== banner_tier4.png ===  [manor · Stonecross Manor]
+NAME THE DOWNLOAD: banner_tier4.png
+banner_tier4, a cut-stone manor standing on a green hillside on the horizon: a two-storey stone house with a tiled roof, an iron gate and a walled garden, tidy outbuildings and a stone well, ordered fields beyond, a wide painted fantasy landscape at dawn, the holding grand and orderly on the ridge, confident thick brush strokes, heavy darkened edges, one warm low dawn key light with a cool bounce fill, wide value range; ember orange, hearth gold, misty blue, deep umber, leaf green. Composition: the holding sits on the horizon in the upper-central band with a warm misty dawn sky behind it, the foreground lower third a calm darker ground held in the darkest two value steps, the lower-left and lower-right corners quiet and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== banner_tier5.png ===  [keep · Ironvale Keep]
+NAME THE DOWNLOAD: banner_tier5.png
+banner_tier5, a fortified keep standing on a hilltop on the horizon: a square stone tower with ramparts and a watch-bell, an encircling curtain wall and a gatehouse, the farmstead sheltering below the walls, banners flying from the battlements, a wide painted fantasy landscape at dawn, the holding strong and commanding on the ridge, confident thick brush strokes, heavy darkened edges, one warm low dawn key light with a cool bounce fill, wide value range; ember orange, hearth gold, misty blue, deep umber, leaf green. Composition: the holding sits on the horizon in the upper-central band with a warm misty dawn sky behind it, the foreground lower third a calm darker ground held in the darkest two value steps, the lower-left and lower-right corners quiet and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== banner_tier6.png ===  [castle · Hearthrise Castle]
+NAME THE DOWNLOAD: banner_tier6.png
+banner_tier6, a great castle crowning the valley on the horizon: high crenellated towers around a tall central keep, a long curtain wall and a gatehouse, a proud banner flying over the whole vista, the realm spread out below, a wide painted fantasy landscape at dawn, the holding vast and triumphant on the ridge, confident thick brush strokes, heavy darkened edges, one warm low dawn key light with a cool bounce fill, wide value range; ember orange, hearth gold, misty blue, deep umber, leaf green. Composition: the holding sits on the horizon in the upper-central band with a warm misty dawn sky behind it, the foreground lower third a calm darker ground held in the darkest two value steps, the lower-left and lower-right corners quiet and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+
+=========================================================================
+ 4 · WIRING PLAN — a one-line data-attr + a per-tier ::before url swap
+=========================================================================
+
+  NO WIRING HAS BEEN DONE. This section exists so the wave lands in one pass.
+
+  4.1 · WHERE THE FILES GO
+    assets/icons-bundle/backgrounds/   (already ships; already referenced by
+    CSS. Convert each to banner_tier<N>.jpg quality ~82 before committing.)
+    NOT assets/brand/ — that dir is the login/splash's home; keeping the tier
+    set with the other in-game backgrounds keeps the deploy structure honest.
+
+  4.2 · WHERE THE TIER VALUE COMES FROM
+    home-dashboard.js already holds it, line ~815:
+        if (HS && HS.getTier) { hsTier = HS.getTier()|0; hsDef = HS.tierDef(); }
+    hsDef.id is one of: camp, homestead, farmstead, manor, keep, castle
+    (src/features/homestead.js TIERS). That id maps 1:1 to the six files:
+        camp->tier1  homestead->tier2  farmstead->tier3
+        manor->tier4  keep->tier5      castle->tier6
+
+  4.3 · THE SWAP — one data attribute on the band, six CSS rules
+    (a) In home-dashboard.js where the band opens (line ~849):
+            html += '<div class="hd-hearth">'
+        becomes
+            html += '<div class="hd-hearth" data-hs-tier="' + esc((hsDef&&hsDef.id)||'camp') + '">'
+    (b) In the SAME file's injected stylesheet (the R + '.hd-hearth::before{...}'
+        block at line ~85), keep the current splash as the DEFAULT and add six
+        tier overrides after it (the selector prefix R is #panel-profile #hd-root):
+            R + '.hd-hearth[data-hs-tier="camp"]::before{background-image:url(assets/icons-bundle/backgrounds/banner_tier1.jpg?v=NNN)}',
+            R + '.hd-hearth[data-hs-tier="homestead"]::before{background-image:url(.../banner_tier2.jpg?v=NNN)}',
+            R + '.hd-hearth[data-hs-tier="farmstead"]::before{background-image:url(.../banner_tier3.jpg?v=NNN)}',
+            R + '.hd-hearth[data-hs-tier="manor"]::before{background-image:url(.../banner_tier4.jpg?v=NNN)}',
+            R + '.hd-hearth[data-hs-tier="keep"]::before{background-image:url(.../banner_tier5.jpg?v=NNN)}',
+            R + '.hd-hearth[data-hs-tier="castle"]::before{background-image:url(.../banner_tier6.jpg?v=NNN)}',
+        Only background-IMAGE is overridden; the 50% 40% / cover positioning on
+        the base ::before is inherited, so the scrim and focal law are unchanged.
+        A missing tier file just falls through to the base splash — safe partial.
+        (?v=NNN follows the current build's cache-buster; bump-version.sh keeps
+        it in lockstep — do NOT hand-author a stale version.)
+
+  4.4 · GUARDS TO SHIP WITH THE WIRING
+    * every banner_tier<N>.jpg referenced by CSS exists on disk and is under
+      180 KB;
+    * the data-hs-tier value set the dashboard can emit equals the TIERS id set
+      in homestead.js (so a new property tier cannot ship with no plate and no
+      noise);
+    * the release visual gate: assembled main, the Home screen at three tiers
+      (camp, a mid tier, castle) at 1440x900 AND 922x423, name/avatar/ledger
+      legible over each plate, the 56px landscape strip still readable.
+
+
+=========================================================================
+ 5 · COUNT + CREDIT COST
+=========================================================================
+
+  6 prompts = 6 images. Recraft generates 2 per generation, keep the better,
+  so budget ~6 generations. At ~5 credits/generation, ~30 credits, plus a
+  re-roll allowance for the trickier tiers (keep/castle silhouettes), call it
+  ~45 credits worst case. Well inside the ~916-credit balance.
+
+  ⚠ CONSISTENCY GATE (the one real risk). The six must share ONE vista. Because
+  Recraft generation is stateless (no seed lever — art-direction-picker.md
+  §0.10), generate tier1 FIRST, pick the vista you like, then feed that image
+  back as a reference/style seed for tiers 2-6 if the UI allows, OR read all six
+  as a strip before accepting any — a tier that drifted to a different valley
+  fails the set, not the one file. Same "land one first" gate the background
+  pack used.
+
+  Every prompt above is under the 1000-character cap (verified).
+
+
+=========================================================================
+ 6 · COMBINED CREDIT ESTIMATE (both packs)
+=========================================================================
+
+  House rooms:   8 images  (~40-60 credits with re-rolls)
+  Banner tiers:  6 images  (~30-45 credits with re-rolls)
+  TOTAL:        14 images  (~70-105 credits worst case)
+  Against ~916 Recraft credits: comfortable. No re-up needed for either pack.

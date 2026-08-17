@@ -1,0 +1,199 @@
+# House Room Illustrations — 8 painted interiors, ready to paste
+#
+# Art Director, 2026-08-17. Same flow as background-session-pack.txt: paste a
+# prompt into the Recraft web UI (Create -> describe -> generate), 2 images per
+# generation, keep the better one. These REPLACE the cold, desaturated
+# code-drawn SVG room scenes (backdrop/homestead.js roomScene) on the House
+# screen's Rooms tab — grey silhouette concept-sketches that clash with the
+# warm painted item/monster art. This wave makes the eight rooms read as one
+# game's warm interiors.
+#
+# EXPORT SETTINGS (same as the background pack — read this).
+#   * Aspect: the WIDEST LANDSCAPE the UI offers. 16:9. Never square.
+#   * Background: OPAQUE. Do NOT tick transparent — these are illustrations
+#     that fill a card, not matted icons. They must NOT go through
+#     tools/art-wave-matte.mjs.
+#   * Format: PNG out of Recraft is fine; Claude converts to JPEG at wiring.
+#   * No AI label.
+#
+# STYLE: use the same painted hand as the item/monster waves. If you build a
+# Recraft custom Style anchor for these, seed it from the approved 1024px
+# pilots in assets/art-pilot/hearthfire/ so the rooms sit in the same family
+# as the shelf and the bestiary. Otherwise the wrapper below carries the hand.
+#
+# NAMING. Each prompt STARTS with its file id, so the auto-named download
+# already identifies itself. If the browser names it anything else, rename it
+# to the "NAME THE DOWNLOAD" line. Drop everything in ONE folder. The id is
+# what the wiring keys on (window._roomIcon[<id>]).
+#
+# Any subset ships. An un-generated room simply keeps its current SVG scene
+# via the built-in fallback (§4), so a half-finished session is a half-improved
+# screen, not a broken one.
+
+
+=========================================================================
+ 1 · THE SET — 8 FILES, ONE PER BUILDABLE ROOM
+=========================================================================
+
+  Verified against the live data (src/legacy.js ROOMS + src/features/
+  homestead.js SCENES/ROOM_META): there are EXACTLY EIGHT buildable rooms, not
+  eleven. The brief said "11 (or however many actually render)" — it is eight:
+
+    kitchen · forge · workshop · garden · cellar · library · shrine · trophy
+
+  (The Kitchen and Garden open at property tier 2, Workshop/Cellar/Forge at
+  tier 3, Library at tier 4, Shrine + Trophy Room at tier 5. Every room draws
+  a code SVG interior today; every one is being replaced by a painted plate.)
+
+  The GARDEN is the one exterior in the set — it is an outdoor walled bed, so
+  it carries warm dawn daylight rather than an interior hearth. Every other
+  room is an interior lit by its own fire/lantern/candle. That single
+  difference is deliberate and matches the SVG scenes it replaces.
+
+
+=========================================================================
+ 2 · THE COMPOSITION LAW — measured off the rendered mount, not assumed
+=========================================================================
+
+  THE MOUNT. Each room is a card in a responsive grid
+  (.hh-rooms: repeat(auto-fill, minmax(268px,1fr)), homestead-rooms.css:31).
+  The illustration sits in .hh-room-art, which declares:
+      aspect-ratio: 620 / 190   (= 3.26 : 1, a WIDE SHORT band)
+      object-fit: cover  (on .hh-room-img)
+  So a card ~268-400px wide renders the art at ~82-123px tall. The card TEXT
+  (room name, current rung, effect, cost) renders in a SEPARATE block BELOW
+  the art — the illustration is NOT painted behind the body copy. The only
+  thing that overlays the art is a small level/lock BADGE chip in the
+  TOP-RIGHT corner (.hh-room-badge).
+
+  WHAT THAT MEANS FOR THE PAINTING:
+    (a) Deliver 16:9. The mount is 3.26:1 and uses `cover`, so a 16:9 source
+        is cropped to its CENTRAL HORIZONTAL BAND — the top ~22% and bottom
+        ~22% of your image are crop tolerance and will usually not be seen.
+        Mass every key object (hearth, anvil, bookcase, altar) in the MIDDLE
+        THIRD vertically. Do not put the one readable thing near the top or
+        the floor edge.
+    (b) The subject must read ACROSS THE WHOLE WIDTH — one wide interior, not
+        a single centred hero object floating in a void. These are 268px-wide
+        cards; a scene fills them, a lone prop looks lost.
+    (c) Keep the UPPER-RIGHT CORNER calm and unbusy — the level/lock badge
+        sits there. A dark rafter or plain wall in that corner is ideal; a
+        bright window or a face there fights the chip.
+    (d) These rooms are OWNED and lived-in — warm, lit, occupied. Unlike the
+        combat backdrops (which are "silent and long deserted"), a kitchen
+        with a fire going and a pot on the crane is exactly right. The
+        homestead is the cosy half of the game; paint it that way.
+
+  DELIVERY SIZE: 1600 x 900 is ample (the mount never exceeds ~400px CSS wide
+  at DPR 2 = 800 device px). Convert to .jpg quality ~82 at wiring; budget
+  <= 140 KB each, ~1.1 MB for all eight.
+
+
+=========================================================================
+ 3 · THE PROMPTS
+=========================================================================
+
+  The wrapper tail is byte-identical across all eight. Positive-only per
+  art-direction-picker.md §0.10d: each room is described by what it uniquely
+  HAS and the warm state it is IN, never by a ban list.
+
+
+=== room_kitchen.png ===  [Kitchen · cooking room]
+NAME THE DOWNLOAD: room_kitchen.png
+room_kitchen, a cottage kitchen seen straight on across the whole width, a hooded stone hearth with a black iron pot hanging on a crane over a low warm fire, a dresser of stoppered jars and crockery along the back wall, a scrubbed work bench and a hanging bunch of dried herbs, warm and lived-in painted fantasy game interior, confident thick brush strokes, heavy darkened edges, one warm hearth key light with a cool bounce fill, wide value range; ember orange, hearth gold, deep umber, iron grey, steel-blue accents. Composition: the room fills the whole width with its key objects massed in the central horizontal band, the ceiling above and the floor below falling to the darkest two value steps as quiet margin, the upper-right corner calm and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== room_forge.png ===  [Forge · smithing room]
+NAME THE DOWNLOAD: room_forge.png
+room_forge, a smithy interior seen straight on across the whole width, a hooded stone forge glowing hot at one end, a leather bellows behind it, an iron anvil on an oak stump at the centre, a quench tub and hanging tongs, a warm haze of sparks in the air, warm and lived-in painted fantasy game interior, confident thick brush strokes, heavy darkened edges, one warm hearth key light with a cool bounce fill, wide value range; ember orange, hearth gold, deep umber, iron grey, steel-blue accents. Composition: the room fills the whole width with its key objects massed in the central horizontal band, the ceiling above and the floor below falling to the darkest two value steps as quiet margin, the upper-right corner calm and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== room_workshop.png ===  [Workshop · crafting room]
+NAME THE DOWNLOAD: room_workshop.png
+room_workshop, a carpenter's workshop seen straight on across the whole width, a timber plank wall with a hand saw and two set squares hung on pegs, a long workbench with an iron vice, stacked sawn planks beneath it, curls of wood shavings, cool daylight falling from one high window, warm and lived-in painted fantasy game interior, confident thick brush strokes, heavy darkened edges, one warm hearth key light with a cool bounce fill, wide value range; ember orange, hearth gold, deep umber, iron grey, steel-blue accents. Composition: the room fills the whole width with its key objects massed in the central horizontal band, the ceiling above and the floor below falling to the darkest two value steps as quiet margin, the upper-right corner calm and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== room_garden.png ===  [Garden · farming room, the one EXTERIOR]
+NAME THE DOWNLOAD: room_garden.png
+room_garden, a walled kitchen garden at warm dawn seen from the path across the whole width, three raised beds in tidy rows of green shoots, a low clipped hedge along the back, a watering can resting on turned dark earth, soft golden low sunlight, warm and lived-in painted fantasy garden exterior, confident thick brush strokes, heavy darkened edges, one warm low dawn key light with a cool bounce fill, wide value range; ember orange, hearth gold, leaf green, deep umber, steel-blue accents. Composition: the garden fills the whole width with its beds massed in the central horizontal band, the dawn sky above and the near earth below falling to the darkest two value steps as quiet margin, the upper-right corner calm and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== room_cellar.png ===  [Cellar · food-buff store]
+NAME THE DOWNLOAD: room_cellar.png
+room_cellar, a vaulted stone cellar seen straight on across the whole width, low stone arches, a rack of oak casks along the back wall, a single iron lantern hanging and casting warm light, a shelf of stoppered bottles, cold damp dressed stone, warm and lived-in painted fantasy game interior, confident thick brush strokes, heavy darkened edges, one warm lantern key light with a cool bounce fill, wide value range; ember orange, hearth gold, deep umber, iron grey, steel-blue accents. Composition: the room fills the whole width with its key objects massed in the central horizontal band, the vault above and the floor below falling to the darkest two value steps as quiet margin, the upper-right corner calm and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== room_library.png ===  [Library · all-XP room]
+NAME THE DOWNLOAD: room_library.png
+room_library, a quiet timber-walled study seen straight on across the whole width, two tall bookcases full of worn leather books flanking the room, a reading desk with an open book at the centre, a single lit candle, warm still light, warm and lived-in painted fantasy game interior, confident thick brush strokes, heavy darkened edges, one warm candle key light with a cool bounce fill, wide value range; ember orange, hearth gold, deep umber, iron grey, steel-blue accents. Composition: the room fills the whole width with its bookcases massed in the central horizontal band, the ceiling above and the floor below falling to the darkest two value steps as quiet margin, the upper-right corner calm and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== room_shrine.png ===  [Shrine · prayer room]
+NAME THE DOWNLOAD: room_shrine.png
+room_shrine, a small stone shrine seen straight on across the whole width, a tall arched window above a plain stone altar, a bronze offering bowl catching the light, two tall standing candles flanking the altar, a still and quiet room, warm and lived-in painted fantasy game interior, confident thick brush strokes, heavy darkened edges, one warm candle key light with a cool bounce fill, wide value range; ember orange, hearth gold, deep umber, iron grey, steel-blue accents. Composition: the room fills the whole width with the altar massed in the central horizontal band, the window above and the floor below falling to the darkest two value steps as quiet margin, the upper-right corner calm and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+=== room_trophy.png ===  [Trophy Room · combat-XP room]
+NAME THE DOWNLOAD: room_trophy.png
+room_trophy, a trophy hall seen straight on across the whole width, three mounted beast heads on wooden shields along the back wall, two long banners hanging between them, a rack of spears and swords standing along the floor, warm torchlight, warm and lived-in painted fantasy game interior, confident thick brush strokes, heavy darkened edges, one warm torch key light with a cool bounce fill, wide value range; ember orange, hearth gold, deep umber, iron grey, steel-blue accents. Composition: the room fills the whole width with its trophies massed in the central horizontal band, the ceiling above and the floor below falling to the darkest two value steps as quiet margin, the upper-right corner calm and unbusy. One opaque image filling the frame edge to edge, wide landscape, no border, no frame, no vignette, no text, no watermark, no signature.
+
+
+=========================================================================
+ 4 · WIRING PLAN — where each file lands and what consumes it
+=========================================================================
+
+  NO WIRING HAS BEEN DONE. This section exists so the wave lands in one pass
+  when the art arrives. THE SEAM ALREADY EXISTS — this is the easiest wave in
+  the programme to land.
+
+  4.1 · WHERE THE FILES GO
+    assets/icons-bundle/backgrounds/rooms/
+    (new subfolder under the already-shipped backgrounds/ dir. Convert each to
+    room_<id>.jpg quality ~82 before committing.)
+
+  4.2 · THE CONSUMER — already built, one map to populate
+    src/features/homestead.js roomThumb() (line 976) ALREADY reads
+    window._roomIcon[id]:
+
+        function roomThumb(id, lit) {
+          var path = (window._roomIcon || {})[id];
+          if (path) return '<img ... class="hh-room-img"/>';   // painted plate
+          return roomScene(id, lit);                            // SVG fallback
+        }
+
+    So wiring = populate window._roomIcon in the applyLocalIcons() IIFE at the
+    bottom of src/legacy.js (the single source of truth for icon paths,
+    per CLAUDE.md), exactly like LOCAL_*_ICON:
+
+        window._roomIcon = {
+          kitchen:  'assets/icons-bundle/backgrounds/rooms/room_kitchen.jpg',
+          forge:    'assets/icons-bundle/backgrounds/rooms/room_forge.jpg',
+          workshop: 'assets/icons-bundle/backgrounds/rooms/room_workshop.jpg',
+          garden:   'assets/icons-bundle/backgrounds/rooms/room_garden.jpg',
+          cellar:   'assets/icons-bundle/backgrounds/rooms/room_cellar.jpg',
+          library:  'assets/icons-bundle/backgrounds/rooms/room_library.jpg',
+          shrine:   'assets/icons-bundle/backgrounds/rooms/room_shrine.jpg',
+          trophy:   'assets/icons-bundle/backgrounds/rooms/room_trophy.jpg'
+        };
+
+    An id with no file simply keeps its SVG scene — partial waves are safe.
+    NO CSS CHANGE: .hh-room-img already exists (homestead-rooms.css:81,
+    object-fit:cover) and .hh-room-art already fixes the 620/190 band.
+
+  4.3 · THE MODAL. roomDescriptor() line 938 also renders roomScene(id) as the
+    modal's hero `scene`. Optional: point the modal at the same plate too, for
+    consistency — but that is a second, larger render (the modal is not the
+    620/190 band) and its composition was not measured here. Leave the modal
+    on the SVG this wave; revisit if the cards look good.
+
+  4.4 · GUARDS TO SHIP WITH THE WIRING
+    * every room_*.jpg referenced by window._roomIcon exists on disk and is
+      under 140 KB (asset guard, not a render guard);
+    * window._roomIcon keys are a subset of Object.keys(ROOMS) (no room gets a
+      path the game will never draw);
+    * the release visual gate: assembled main, the House screen's Rooms tab at
+      1440x900 AND 922x423, all eight cards read at card size, badge legible.
+
+
+=========================================================================
+ 5 · COUNT + CREDIT COST
+=========================================================================
+
+  8 prompts = 8 images. Recraft generates 2 per generation, keep the better,
+  so budget ~8 generations. At the ~5 credits/generation the item waves ran
+  at, ~40-48 credits, plus a re-roll allowance for any weak room, call it
+  ~60 credits worst case. Comfortably inside the ~916-credit balance.
+  Every prompt below is under the 1000-character cap (verified).

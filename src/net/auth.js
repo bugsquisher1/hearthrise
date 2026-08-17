@@ -943,6 +943,10 @@ window.HearthriseAuth = {
   // b331 — expired-session recovery + the sheet that tells the player the truth
   recoverSession, syncFailureMessage, ESCALATE_AFTER_MS,
   showAuthExpiredGate, hideAuthExpiredGate,
+  /* b366 — exported so the release visual gate can render the eviction sheet
+     without staging a real eviction; the copy changed and rendered surfaces
+     get looked at before they ship. */
+  showEvictedGate,
 };
 
 // Auto-render banner state once on load (in case the user is already signed in)

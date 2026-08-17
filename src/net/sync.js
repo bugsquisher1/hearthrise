@@ -48,6 +48,16 @@ const CONCURRENT_WINDOW_MS = 150000;   // eslint-disable-line no-unused-vars
 // = the owner is really gone (tab closed), and the surviving tab reclaims instead
 // of falsely locking itself out.
 const CLAIM_STALE_MS = 50000;
+// b374: how long a STRICTLY-NEWER-epoch owner may go quiet before this tab is
+// allowed to silently steal its claim back. Between CLAIM_STALE_MS and this, a
+// tab that the user explicitly chose more recently (it pressed "Bring it back
+// here" and is reloading, or was momentarily throttled) is given room to return
+// rather than being immediately re-grabbed — that grab-back is the ping-pong.
+// Past this it is genuinely gone (not reloading), so reclaim proceeds and the
+// "never lock a player out" invariant holds. Only ever applies when the owner
+// out-ranks us by epoch; a same-or-older-epoch dead tab is reclaimed at
+// CLAIM_STALE_MS exactly as before (TAKEOVER-2 is unaffected).
+const CLAIM_DEAD_MS = 300000;   // 5 min
 const INSTANCE_KEY = 'hr:instanceId';
 // b366: how long a cached claim view may be reused before a decision that
 // matters (warn / refuse an upload) re-reads it. The claim poll is 15s, so a
@@ -76,6 +86,22 @@ let concurrentWarned = '';   // b366: fallback when sessionStorage is unavailabl
 // answer: concurrency detection, eviction and the upload guard used to disagree
 // because they each asked a different question of a different table.
 let claimView = null;
+// b374 — THIS TAB'S OWN LAST EXPLICIT CLAIM EPOCH (ms). Set only when WE
+// successfully claim (startup, "Bring it back here", or a reclaim). It is the
+// yardstick for decideClaimAction: an owner whose epoch is STRICTLY NEWER than
+// this out-ranks us (the user chose them more recently), so we must not steal
+// the session back from them on a stale heartbeat. sessionStorage-backed so it
+// survives the location.reload() that "Bring it back here" performs — after the
+// reload the tab re-claims at startup and overwrites it with a fresh value, but
+// carrying it across means a poll that somehow fires first cannot briefly treat
+// our own just-made claim as foreign.
+let myEpochMs = 0;
+const MY_EPOCH_KEY = 'hr:claimEpoch';
+try { myEpochMs = Number(sessionStorage.getItem(MY_EPOCH_KEY)) || 0; } catch (e) {}
+function setMyEpoch(ms) {
+  myEpochMs = Number(ms) || 0;
+  try { sessionStorage.setItem(MY_EPOCH_KEY, String(myEpochMs)); } catch (e) {}
+}
 let paused = false;        // b302: set when this device is evicted — stops all cloud writes
 let evicted = false;       // b302: latch so we fire onEvicted once
 // b314: hold ALL snapshot uploads until the first cloud pull + reconcile has run.
@@ -1199,6 +1225,55 @@ export function decideUploadAllowed(view, me, nowMs) {
   return !decideConcurrent(view, me, nowMs).concurrent;
 }
 
+/**
+ * b374 — PURE. What should THIS instance DO with the session claim it just read?
+ * Returns 'owner' | 'evict' | 'reclaim' | 'claim'.
+ *
+ *   'claim'   — nobody owns the row. Take it.
+ *   'owner'   — the row is ours. Keep it alive (heartbeat).
+ *   'evict'   — someone else genuinely holds it. Park on the gate, stop writing.
+ *   'reclaim' — the owner is a dead/abandoned tab that does NOT out-rank us. Take
+ *               over silently, so closing one tab never locks out the other.
+ *
+ * THE PING-PONG THIS KILLS. Before b374 the only question asked of a foreign
+ * owner was "is its heartbeat fresh?" — fresh → evict, stale → reclaim. So the
+ * moment an owner's heartbeat lapsed (a background tab throttled by the browser,
+ * or a tab mid-reload right after the user pressed "Bring it back here"), any
+ * other tab would silently STEAL the claim back and re-evict the tab the user is
+ * actually using. Two live tabs could volley the session between them with no
+ * user action.
+ *
+ * The fix is last-EXPLICIT-intent wins. `claimed_at` is a monotonic epoch: it
+ * only advances when an instance deliberately claims (startup, "Bring it back
+ * here", or a legitimate reclaim). If the stale owner's epoch is STRICTLY NEWER
+ * than ours, the user chose that instance more recently than we last claimed —
+ * so we do NOT steal it back on a merely-stale heartbeat; we park and let it
+ * return. Only once it has been silent past CLAIM_DEAD_MS (genuinely gone, not
+ * reloading) do we reclaim, which preserves the "never lock a player out"
+ * invariant. An owner whose epoch is the same or OLDER than ours never out-ranks
+ * us, so a genuinely dead tab is still reclaimed at CLAIM_STALE_MS exactly as
+ * before — that is TAKEOVER-2, untouched.
+ *
+ * Every uncertain shape resolves toward NOT stealing and NOT locking out: a
+ * missing epoch (0) never out-ranks, and staleness math mirrors decideConcurrent.
+ */
+export function decideClaimAction(view, me, myEpoch, nowMs) {
+  if (!view || !view.owner) return 'claim';
+  if (view.owner === me) return 'owner';
+  const hb = Number(view.hbMs) || 0;
+  const ago = hb ? (nowMs - hb) : Infinity;
+  // Fresh heartbeat (and not future-dated) → the owner is demonstrably live.
+  if (hb && ago >= 0 && ago < CLAIM_STALE_MS) return 'evict';
+  // Stale heartbeat. Normally a dead tab we may take over — UNLESS the owner
+  // holds a strictly-newer explicit claim epoch than ours AND has not yet been
+  // silent long enough to be certainly gone. That window is where the ping-pong
+  // used to live; we park through it instead of grabbing.
+  const ownerEpoch = Number(view.epochMs) || 0;
+  const mine = Number(myEpoch) || 0;
+  if (ownerEpoch > mine && ago >= 0 && ago < CLAIM_DEAD_MS) return 'evict';
+  return 'reclaim';
+}
+
 /** b366 — have we already accused this instance? Survives a reload (P0-B). */
 export function hasWarnedConcurrent(other) {
   if (!other) return true;                       // nothing to warn about
@@ -1231,15 +1306,20 @@ async function fetchClaimRow() {
   if (!userId) return { status: 'skip' };
   if (!authPreflight('claim-poll')) return { status: 'skip' };
   let res;
-  try { res = await fetch(`${config.claimEndpoint}?user_id=eq.${encodeURIComponent(userId)}&select=device_id,heartbeat_at`, { headers: withAuthHeaders({}) }); }
+  try { res = await fetch(`${config.claimEndpoint}?user_id=eq.${encodeURIComponent(userId)}&select=device_id,heartbeat_at,claimed_at`, { headers: withAuthHeaders({}) }); }
   catch (e) { return { status: 'error' }; }
   if (!res.ok) return { status: 'error' };
   let rows; try { rows = await res.json(); } catch (e) { return { status: 'error' }; }
   const row = rows && rows[0];
   const owner = (row && row.device_id) || null;
   const hbMs = (row && row.heartbeat_at) ? Date.parse(row.heartbeat_at) : 0;
-  claimView = { owner, hbMs: Number.isFinite(hbMs) ? hbMs : 0, at: Date.now() };
-  return { status: 'ok', owner, hbMs: claimView.hbMs };
+  // b374 — the CLAIM EPOCH. claimed_at already carries a monotonic "this device
+  // took ownership at" stamp; reading it is all the epoch needs, so single-active
+  // session gains ping-pong resistance without a schema change.
+  const epMs = (row && row.claimed_at) ? Date.parse(row.claimed_at) : 0;
+  claimView = { owner, hbMs: Number.isFinite(hbMs) ? hbMs : 0,
+    epochMs: Number.isFinite(epMs) ? epMs : 0, at: Date.now() };
+  return { status: 'ok', owner, hbMs: claimView.hbMs, epochMs: claimView.epochMs };
 }
 
 /** The cached claim verdict, re-read if it has gone stale. null = unknown. */
@@ -1273,8 +1353,15 @@ export async function claimSession() {
      arriving device's restore. */
   if (res && res.ok) {
     evicted = false;
-    const now = Date.now();
-    claimView = { owner: getInstanceId(), hbMs: now, at: now };
+    const nowMs = Date.now();
+    /* b374 — a successful claim is THIS TAB's newest explicit intent to own.
+       Stamp our own epoch to the claimed_at we just wrote (parsed back from the
+       ISO string so client and stored value agree) so decideClaimAction knows we
+       out-rank any older-epoch owner, and record it in the view for the upload
+       guard before the next poll. */
+    const ep = Date.parse(now) || nowMs;
+    setMyEpoch(ep);
+    claimView = { owner: getInstanceId(), hbMs: nowMs, epochMs: ep, at: nowMs };
   }
   return !!(res && res.ok);
 }
@@ -1326,16 +1413,16 @@ export async function checkSessionClaim() {
   const r = await fetchClaimRow();
   if (r.status !== 'ok') return { status: r.status === 'skip' ? 'skip' : 'error' };
   const owner = r.owner;
-  if (!owner) { await claimSession(); return { status: 'claimed' }; }   // nobody owns → take it
-  if (owner === me) { heartbeatClaim(); return { status: 'owner' }; }   // still ours → keep alive
-  // A different instance owns it. Is it actually still alive?
-  const hb = r.hbMs;
-  const fresh = hb && (Date.now() - hb) < CLAIM_STALE_MS;
-  if (fresh) {                                            // genuinely active elsewhere → evict us
+  // b374 — ONE decision, epoch-aware, so a stale owner that out-ranks us by a
+  // newer explicit claim is PARKED-on rather than stolen back (the ping-pong).
+  const act = decideClaimAction(claimView, me, myEpochMs, Date.now());
+  if (act === 'claim') { await claimSession(); return { status: 'claimed' }; }   // nobody owns → take it
+  if (act === 'owner') { heartbeatClaim(); return { status: 'owner' }; }         // still ours → keep alive
+  if (act === 'evict') {                                  // genuinely active OR a newer-epoch owner mid-return
     if (!evicted) { evicted = true; safeCall(config.onEvicted, { owner }); }
     return { status: 'evicted', owner };
   }
-  await claimSession();                                   // owner abandoned (stale) → take over
+  await claimSession();                                   // owner abandoned (stale) and does not out-rank us → take over
   return { status: 'reclaimed', from: owner };
 }
 
@@ -1432,6 +1519,12 @@ window.HearthriseSync = {
   decideConcurrent, decideUploadAllowed, getClaimView,
   hasWarnedConcurrent, markWarnedConcurrent,
   CLAIM_STALE_MS,
+  // b374 — the epoch-aware claim decision + its horizon, exported so the suite
+  // drives the REAL function. __setMyEpoch/getMyEpoch stage this tab's own last
+  // explicit-claim epoch (normally set only by a successful claimSession).
+  decideClaimAction, CLAIM_DEAD_MS,
+  getMyEpoch: () => myEpochMs,
+  __setMyEpoch: (ms) => { setMyEpoch(ms); return myEpochMs; },
   /* Test seam: set the shared claim verdict directly. The b366 battery needs to
      stage "another instance owns this, beating / not beating" without a live
      session_claims row; every consumer reads this one variable, so staging it is

@@ -26550,6 +26550,84 @@ const TESTS = [
     } finally { S.__setClaimView(was); }
   }),
 
+  () => tryRun('TAKEOVER-1: a tab that reclaimed with a NEWER epoch is not stolen back by the parked tab on its next heartbeat', () => {
+    const S = window.HearthriseSync;
+    assert(typeof S.decideClaimAction === 'function', 'decideClaimAction must be exposed');
+    assert(typeof S.CLAIM_DEAD_MS === 'number' && S.CLAIM_DEAD_MS > S.CLAIM_STALE_MS,
+      'CLAIM_DEAD_MS must be exposed and exceed the stale window');
+    const NOW = 1770000000000;
+    const STALE = S.CLAIM_STALE_MS;
+    const A = 'i-desktop', B = 'i-phone';
+
+    /* THE PING-PONG. Tab B pressed "Bring it back here" and reclaimed at T2,
+       stamping claimed_at = T2 (a strictly-newer epoch than A's last claim at
+       T1). B is mid-reload, so its heartbeat is momentarily STALE. Pre-b374 A's
+       next poll saw "foreign owner, stale heartbeat" and RECLAIMED — stealing the
+       session straight back and re-evicting the tab the user just chose. With the
+       epoch, A parks instead: B out-ranks it.
+       MUTATION that turns this red: drop the epoch comparison from
+       decideClaimAction (reclaim on any stale foreign owner). */
+    const T1 = NOW - 120000;   // A's own last explicit claim
+    const T2 = NOW - 20000;    // B's newer claim (it reclaimed 20s ago, now reloading)
+    const bReloading = { owner: B, hbMs: NOW - (STALE + 4000), epochMs: T2, at: NOW };
+    assert(S.decideClaimAction(bReloading, A, T1, NOW) === 'evict',
+      'a strictly-newer-epoch owner mid-return must PARK the parked tab, not be reclaimed');
+
+    // And the same view, but A being the OWNER, is trivially kept.
+    assert(S.decideClaimAction({ owner: A, hbMs: NOW - 1000, epochMs: T1, at: NOW }, A, T1, NOW) === 'owner',
+      'our own live claim must be kept, never contended');
+
+    // A live newer-epoch owner (fresh heartbeat) is likewise an eviction, not a fight.
+    assert(S.decideClaimAction({ owner: B, hbMs: NOW - 3000, epochMs: T2, at: NOW }, A, T1, NOW) === 'evict',
+      'a live foreign owner must evict us regardless of epoch');
+
+    /* CONTROL — proof the epoch is what flips it. Same stale foreign owner, but
+       with an OLDER epoch than ours: now it does NOT out-rank us, so it is a dead
+       tab we may take over (that is TAKEOVER-2's mechanism, asserted here as the
+       negative of this test so a reversed comparison is caught). */
+    assert(S.decideClaimAction({ owner: B, hbMs: NOW - (STALE + 4000), epochMs: T1 - 1, at: NOW }, A, T1, NOW) === 'reclaim',
+      'a stale foreign owner with an OLDER epoch does not out-rank us and stays reclaimable');
+  }),
+
+  () => tryRun('TAKEOVER-2: a genuinely dead tab is still silently reclaimable (single-session must never deadlock)', () => {
+    const S = window.HearthriseSync;
+    const NOW = 1770000000000;
+    const STALE = S.CLAIM_STALE_MS;
+    const DEAD = S.CLAIM_DEAD_MS;
+    const ME = 'i-desktop', GHOST = 'i-old';
+
+    /* THE CLOSED TAB. The account's prior tab owns the row but was closed — its
+       heartbeat stopped beating past the stale window. The surviving/new tab must
+       take over silently rather than sit on an eviction gate for a tab that no
+       longer exists. */
+    // Owner epoch older-or-equal to ours → never out-ranks → reclaim at STALE.
+    assert(S.decideClaimAction({ owner: GHOST, hbMs: NOW - (STALE + 1000), epochMs: NOW - 200000, at: NOW }, ME, NOW - 100000, NOW) === 'reclaim',
+      'a stale owner that does not out-rank us must be reclaimed silently');
+    // A tab that never claimed before (myEpoch 0) meeting a nobody-owned row claims it.
+    assert(S.decideClaimAction({ owner: null, hbMs: 0, epochMs: 0, at: NOW }, ME, 0, NOW) === 'claim',
+      'an unowned claim row must be taken');
+
+    /* THE ESCAPE HATCH — never lock a player out. Even a NEWER-epoch owner, once
+       silent past CLAIM_DEAD_MS, is genuinely gone (not reloading), so it becomes
+       reclaimable. Without this a device that crashed right after claiming could
+       leave the account permanently gated on every other device.
+       MUTATION that turns this red: park unconditionally on a newer epoch. */
+    assert(S.decideClaimAction({ owner: GHOST, hbMs: NOW - (DEAD + 1000), epochMs: NOW - 10000, at: NOW }, ME, NOW - 100000, NOW) === 'reclaim',
+      'a newer-epoch owner silent past CLAIM_DEAD_MS is gone and must be reclaimable — never a permanent lockout');
+    // Just BEFORE the dead horizon, the same newer-epoch owner is still respected.
+    assert(S.decideClaimAction({ owner: GHOST, hbMs: NOW - (STALE + 1000), epochMs: NOW - 10000, at: NOW }, ME, NOW - 100000, NOW) === 'evict',
+      'inside the dead horizon a newer-epoch owner is still given room to return');
+
+    // The epoch round-trips through the live claim-view seam (the real input).
+    assert(typeof S.getMyEpoch === 'function' && typeof S.__setMyEpoch === 'function',
+      'the own-epoch seam must be exposed');
+    const wasEp = S.getMyEpoch();
+    try {
+      S.__setMyEpoch(NOW - 5000);
+      assert(S.getMyEpoch() === NOW - 5000, 'our own epoch must round-trip');
+    } finally { S.__setMyEpoch(wasEp); }
+  }),
+
   () => tryRun('ACCRUE-REPLACE-HANDOFF: the "permanently gone" sheet never fires while the cloud reconcile is unresolved', () => {
     const A = window.HearthriseAccrual;
     const S = window.HearthriseSync;

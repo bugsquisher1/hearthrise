@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 372 — 2026-08-18 (Player-request build: tap any requirement, and two dupes closed)
+
+- 🔍 **Tap any requirement to see where it comes from.** House upgrade needs 35 Maple Planks? Tap the chip — the same item card as your bag opens, telling you it's crafted at Crafting 45 from Maple Logs. Works on upgrade costs, recipe ingredients, blueprints, dungeon keys and bounty items. (Great request, KD420.)
+- 🏹 **Fixed iron arrows selling for 5× a mythic arrow.** An old price meant crafting-and-vendoring them paid absurdly well; arrows now cost and sell at their ladder price. Batch crafting (×500) is intended and stays. (Thanks Xarnathos.)
+- 🎟️ **Dungeon scrip no longer refunds itself after buying a blueprint** — the purchase now sticks as one piece: keep the blueprint, spend the scrip. (Also Xarnathos.)
+- 🛡️ **Character switching is fully safe.** A rare timing issue could copy your current character over the slot you switched to — fixed, with the exit-save now always addressed to the right character.
+
 ## v0.9.2-beta build 371 — 2026-08-18 (The all-night audit build)
 
 We played the game all night with a full team and fixed what we found. The big ones:

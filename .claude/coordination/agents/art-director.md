@@ -2,93 +2,71 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
-### 2026-08-17 · the background set spec + prompt pack. The brief I was handed for the
-### composition was WRONG, and I only know that because I photographed the screen.
+### 2026-08-17 · b368 (second pass) — the avatar defect, and THE REASON A WHOLE CLASS OF DEFECT
+### HAS BEEN INVISIBLE: every automated pass this project has ever run plays SIGNED OUT.
 
-**The finding I would put first.** `combat-screen-rework.md` §5 — the spec I was told to build the
-prompts against — says to put the detail in the OUTER THIRDS and keep a quiet CENTRE. I booted the
-real client and measured the arena instead of trusting it. **The hole is not a centre, it is three
-vertical slots.** Desktop: `.combat-arena` spans x 432–1430; the player plate sits 587–756 and the
-foe plate 1019–1361; everything below the portraits — names, HP bars, swing bars, six stat tiles,
-four style buttons — is opaque type across the FULL width. So a backdrop is seen through gaps of
-roughly **155, 263 and 69 px, top half only**. At 922x423 it collapses further: one full-width band
-of ~85 px in a 291 px arena, **29%**. **A painted focal object — one arch, one throne — lands behind
-a hero plate and is never seen by anybody.** Hence the wrapper rule every prompt in the pack carries:
-landmarks in the TOP THIRD, and the landmark must REPEAT ACROSS THE WIDTH (a rank of trunks, a row of
-windows, a line of standing stones), with the lower half a dark quiet ground plane. That is not a
-refinement of §5, it is a different instruction, and the difference is one screenshot.
+**The bug, and it is the same shape as the one I fixed this morning — a write-once node.** Tyler:
+"the avatar seems to be bugging back to the original even after being changed on the combat screen."
+Both painters of `#arena-player-portrait` — mine and legacy's `refreshArenaVs` — wrote it as
+`if (!pp.querySelector('img')) pp.innerHTML = …`. That guard is not wrong: b186 put it there because
+floating damage numbers and the DEFEATED stamp are CHILDREN of that node, and an innerHTML rewrite
+every 200ms erases them mid-swing. But it makes the plate capture whatever `window._playerAvatar`
+happened to be at the FIRST paint and never re-read it. Change your portrait afterwards and
+`applyAvatar()` updates the seam, the topbar and the Character page — and the arena keeps the old
+face for the life of the document. The mutation run says it in Tyler's own words: with the latch
+restored the plate reads **`assets/avatars/_placeholder.webp`**, literally bugged back to the
+original. The fix is not to drop the guard but to stop writing MARKUP: the `<img>` is created once
+and thereafter only its `src` ATTRIBUTE is diffed, so the children survive and there is still one
+write per change rather than one per tick. **Twice in one day the defect was a node that could only
+be written once — worth remembering as a shape, not as two incidents.**
 
-**The second measurement that changed a decision: one image, aspect ratios from 1.36 to 2.47.**
-`.combat-arena` is 998x736 on desktop (AR 1.36) and 672x291 on a landscape phone (AR 2.31);
-`#panel-skills` is 1.57 and 2.47. With `center top / cover` on a 16:9 source the guaranteed-visible
-region across every mount is the **central 84% of the width and the top 72% of the height** — one
-number the whole wave can be judged against. And the anchor has to change: the three existing
-dungeon.jpg rules use `center bottom`, which crops away the top third that carries the read, at
-exactly the viewport where the top third is all there is.
+**THE ROOT CAUSE OF THE CLASS, and it is the finding I would put in front of Tyler.** This shipped
+because **no automated pass in this project's history has ever played as a signed-in player.** The
+account gate has a harness bypass, so all 815 tests get into the game — as NOBODY. No user id, no
+display name, no portrait. A test player with no identity cannot catch a screen that renders identity
+wrongly, and my own four probes this morning went past this bug without seeing it, because the plate
+they photographed was showing the default *correctly*. **The suite was not weak here, it was blind:
+the state in which the defect exists was unreachable.**
 
-**Where I refused the brief's own presumption.** The task said the files "presumably" land in
-`assets/icons-bundle/hearthfire/backgrounds/`. They must not. `backgrounds/` already exists one level
-up, already ships, and is already referenced by three stylesheets; `hearthfire/` is a *class* —
-transparent, 256px, square, keyed to an ITEMS/MONSTERS id — and everything that walks that tree
-(`art-wave-matte.mjs`, the preflights, the smoke guard that counts hearthfire renders) assumes those
-properties. A 1920x1080 opaque plate satisfies none of them and would be matted by a tool whose
-entire job is removing backgrounds from things that are not backgrounds.
+So the seam now exists — `HearthriseIdentity._installHarnessIdentity()`. It produces the CLIENT-SIDE
+STATE a signed-in player has (session object with a user id, claimed display name, portrait stored
+locally as a data URL) with no real Supabase session and no network. Three decisions in it I would
+defend:
+- **It is guarded by DELEGATION to the account gate's own `isHarnessContext`, not by a second copy of
+  the rule** — explicit global AND non-player origin, and it fails CLOSED if the gate module is
+  absent. On hearthrise.net it cannot do anything, whatever anybody sets. It is a fake IDENTITY,
+  never a fake credential: the token it carries is a string no server would accept.
+- **It adopts the user id as already-seen (`lastUser`).** Without that, identity's 2s `tick()` sees a
+  new uid and fires `hydrateRemoteAvatar` / `resolveServerName` / `reconcile` — three live reads that
+  against a simulated session can only fail. Measured: **two unhandled `Failed to fetch` rejections,
+  which the suite's own clean-log guard caught and reported.** That is the seam's contract stated in
+  code: it fabricates client state, never server access. The one time I let it imply otherwise, the
+  suite told me immediately.
+- **The test proves it refuses BEFORE it proves it works.** A test-only identity seam that can arm
+  without the explicit global is not a seam, it is a backdoor.
 
-**The scheme, and why 11 and not 6 and not 108.** Class, not tier. 108 monsters, 11 classes, 6 tiers;
-`cls` is live on all 108 so it is a data lookup with no schema. Tier is a token tint on the
-`.fs-scrim` element that already exists for it. Per-tier was cheaper and is wrong for a reason worth
-keeping: **a player fights three classes inside one tier in a single sitting, so a tier scheme
-changes the backdrop when nothing about the fight changed and never changes it when the foe does.**
+**One assertion I wrote and then deleted, and the reason is worth keeping.** I had COMBAT-UI-22 also
+assert `isHarnessContext(win, 'hearthrise.net') === false`. It passed — and turned the suite red,
+because the gate answers that question by design with a loud `console.error`, and the clean-log guard
+correctly counted it. **Re-asserting another module's rule from outside can trip that module's own
+alarm.** One assertion, in the file that owns the rule (b224 already has it).
 
-**Skills got a WALL, not a landscape, and that is the crop math talking.** `#panel-skills` scrolls
-and crops to AR 2.47 on a phone; a scene with a horizon loses its horizon. A craft-hall wall has no
-horizon to lose, reads for Woodcutting and for Smithing without pretending to be either, and fills
-the large dead area under the node grid that the desktop capture shows.
+**Fidelity limits, stated rather than papered over.** The topbar still reads "Signed out" under the
+simulated identity, because legacy's sign-in chip asks `HearthriseAuth`, not `HearthriseIdentity` —
+widening the seam to satisfy it would mean faking the auth session itself, which is where a fake
+identity starts becoming a fake credential, and I stopped short of that line deliberately. The real
+RPCs (name claim, avatar upload, profile reconcile) are still unexercised; **full fidelity needs a
+dedicated test account in the project's own Supabase**, which is a Coordinator decision listed for
+Tyler and NOT something this seam pretends to provide. Also noted, not fixed: the game has **two
+different "no portrait yet" defaults** — identity's `assets/avatars/_placeholder.webp` and legacy's
+`assets/icons-bundle/painted/npc/player.png` (legacy.js:17337 assigns the latter unconditionally,
+though identity's DCL+1200 boot wins the order today). Which face a portrait-less player wears is an
+art decision and deserves to be made deliberately, not inside a bug fix.
 
-**The bounty board: what the painting ADDS vs REPLACES, decided by looking at the render.** The
-board is already the best-built object in the game — deckled notices, per-column tilt, hung lantern,
-recessed field. Two honest defects in the capture: it **stands in a void** (a contact shadow falling
-on nothing) and its plank field is a `repeating-linear-gradient` — perfectly regular 62px stripes,
-no grain, no knots, no nail rust. So: `bg_board_wall` ADDS the wall behind (`#panel-bounty`, nothing
-removed), `bg_board_planks` REPLACES only the gradient inside `.bb-board::before` — keeping the
-inset, both inset box-shadows and the lantern radial, because a flat photograph of planks with no
-recess is a step backwards. Frame, notices and lantern stay CSS: they respond to bounty count, and a
-painted 9-slice would freeze a board whose height changes with its content.
-
-**The known risk, stated in the pack rather than buried.** The one thing this pack asks for is the
-thing three previous waves fought to prevent — an OPAQUE FULL-BLEED SCENE. Picker §0.10b/c is a long
-record of the model painting backdrops, ground planes, skies and frames when told not to. That is a
-good omen for this wave, not a bad one. What is genuinely unproven is the top-third/dark-bottom
-composition rule, so the pack ends by asking Tyler for ONE image first — the same "land one first to
-prove the composition" gate §5 already set, honoured rather than quietly skipped.
-
-**Three things I found while measuring that are not about backgrounds.** (1) **`cozy-light` is
-unreachable**: theme-picker has it commented out of `THEMES`, `readSaved()` returns `'hearthlight'`
-unconditionally, and `applyTheme('cozy-light')` REMOVES the attribute — so every
-`body[data-theme="cozy-light"]` rule in the codebase, including b362's carefully-argued light-stage
-block in combat-screens.css, is **dead CSS**, and any "verify cozy-light" that SETS the attribute is
-testing a state no player can reach. (2) **Five darkening layers** sit over one photograph on
-`.combat-arena` across four sheets, two of them `!important` — art-direction.css's own comment
-already apologises for the stack, and the wiring pass must delete rather than add a sixth.
-(3) `combat-screens.js:97` still returns a raw 👾 as monster art when nothing is wired — rarely
-reached at 104/111, but live, in the file that owns the two densest combat surfaces.
-
-**Verified in-browser, my own server rooted in THIS worktree** (launch.json serves the main tree —
-the trap recorded three times in this log). 2 viewports x 4 surfaces, **0 console errors, 0 page
-errors**. Captures in `assets/art-pilot/_screenshots/bg-spec/`, and I READ them — the desktop fight
-capture is where the three-slot finding came from, and the bounty capture is where the void behind
-the board came from. **No art generated, no spend, no wiring, no version bump, no push.** All 14
-prompts verified under the 1000-char cap (max 983, min 798) by the emitter that writes them, so the
-wrapper is byte-identical across all 13 scene prompts by construction rather than by proofreading.
-
-**Known limitations.** The composition law is derived from the CURRENT Fight screen; if COMBAT-UI-18
-(loot history) or the metrics strip changes the row stack, the free band moves and the law needs
-re-measuring — which is an argument for generating one and photographing it. The tier-tint colours
-are specified as a ramp direction (T1 warm/green → T6 cold/violet), not as six token values; those
-are a wiring decision I did not pre-empt. And I did not spec a War Table backdrop (it is already a
-wall of 160px portraits — a backdrop there competes with 100 paintings and wins nothing) or
-dungeon/raid override scenes (the mount supports them; I have not measured those screens, and
-speccing art for a composition I have not measured is exactly the mistake this pass exists to fix).
+**Verified in-browser at 1440×900 and 922×423**, signed in with a chosen portrait: preview plate,
+live plate, and a portrait CHANGED MID-FIGHT — the arena follows in the same frame as the topbar.
+Mutation-proven in the browser at both sizes before it was proven in the suite. Captures in
+`assets/art-pilot/_screenshots/b368-avatar/`. Suite **816/816**, exit 0, log read.
 
 ### 2026-08-16 · b368 — three player-reported defects, ONE root cause, and the fix I shipped
 ### is a class test on a div. The animation Tyler said I removed was never removed.

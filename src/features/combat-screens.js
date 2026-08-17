@@ -1201,6 +1201,47 @@ function openHistory() {
   return rows.length >= 0;
 }
 
+/* ── THE CHAMPION PLATE (b368) ──────────────────────────────────────────────
+   Tyler: "the avatar seems to be bugging back to the original even after being
+   changed on the combat screen."
+
+   Both painters of this node — this module's preview paint and legacy's
+   `refreshArenaVs` — wrote it as `if (!pp.querySelector('img')) pp.innerHTML =
+   …`. The guard is there for a real reason (b186: the portrait accumulates
+   floating damage numbers and the DEFEATED stamp as CHILDREN, and an innerHTML
+   rewrite every 200ms would erase them mid-swing) but it makes the plate
+   WRITE-ONCE: it captures whatever `window._playerAvatar` happened to be at the
+   first paint and can never be corrected. Change your portrait afterwards and
+   `identity.applyAvatar()` updates `window._playerAvatar`, the topbar and the
+   Character page — and the arena keeps the old face for the life of the
+   document, which is the "bugging back to the original" being reported.
+
+   The fix is not to drop the guard, it is to stop rewriting markup at all:
+   the `<img>` is created once and thereafter only its `src` ATTRIBUTE is
+   diffed. Children survive, the portrait tracks the live value, and there is
+   still exactly one write per change rather than one per tick. The <img> is
+   also inserted FIRST so damage numbers appended later paint over it.
+
+   `window._playerAvatar` is deliberately the source rather than
+   `HearthriseIdentity.avatarUrl()`: it is the seam the topbar, Character page
+   and home dashboard already read, so the arena cannot disagree with them. */
+function championAvatar() {
+  return window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png';
+}
+function syncChampionPortrait() {
+  const pp = document.getElementById('arena-player-portrait');
+  if (!pp) return null;
+  let img = pp.querySelector('img');
+  if (!img) {
+    img = document.createElement('img');
+    img.alt = '';
+    pp.insertBefore(img, pp.firstChild);
+  }
+  const want = championAvatar();
+  if (img.getAttribute('src') !== want) img.setAttribute('src', want);
+  return img;
+}
+
 /* The preview paint. In a live fight legacy's own 200ms arena refresh owns
    these nodes; in preview it returns early (there is no active monster), so
    this module paints the same nodes with the same shapes — full bars, still
@@ -1211,10 +1252,6 @@ function paintPreviewStage(id, m) {
     el.dataset.paint = key; el.innerHTML = html;
   };
   setHtmlOnce(document.getElementById('arena-foe-portrait'), monsterArt(id, 'fs-foe-img'), 'prev:' + id);
-  const pp = document.getElementById('arena-player-portrait');
-  if (pp && !pp.querySelector('img')) {
-    pp.innerHTML = `<img src="${window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png'}" alt="" />`;
-  }
   const fn = document.getElementById('arena-foe-name');
   if (fn) fn.textContent = m.name;
   const pn = document.getElementById('arena-player-name');
@@ -1254,6 +1291,10 @@ function renderFight() {
   }
 
   if (!live) paintPreviewStage(id, m);
+  /* b368 — OUTSIDE the preview branch on purpose. The champion plate is the
+     player's own face and it is wrong in exactly the same way mid-fight; a fix
+     that only lands in preview would look fixed until they pressed Fight. */
+  syncChampionPortrait();
 
   // Levels — COMBAT-UI-09's second row, both sides.
   const plv = document.getElementById('fs-player-lv');
@@ -1405,7 +1446,7 @@ export function setupCombatScreens() {
   window.HearthriseCombatScreens = {
     preview, setView, view, render, renderFight, openFromNav, openSlotPicker,
     repaintGear,
-    _ledger: Ledger, _swing: Swing,
+    _ledger: Ledger, _swing: Swing, _champion: syncChampionPortrait,
     get previewId() { return previewId; },
   };
 

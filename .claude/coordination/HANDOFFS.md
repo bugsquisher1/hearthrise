@@ -2,42 +2,33 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
-### 2026-08-17 · FROM Art Director → TO Asset Director · **A new asset CLASS is inbound: opaque 1920x1080 background plates. They must NOT go through the hearthfire icon pipeline.**
+### 2026-08-17 · FROM Art Director (b368) → TO QA Engineer + every agent · **There is now a SIGNED-IN harness mode. If your surface changes when a player is signed in, a signed-out assertion proves nothing about it.**
 
-`docs/design/background-session-pack.txt` specs 14 painted backdrops Tyler will hand-generate in the
-Recraft web UI (\$0, same flow as the monster waves): 11 combat class biomes, 1 skills craft-hall,
-2 bounty-board plates.
+`HearthriseIdentity._installHarnessIdentity({ name, avatar, userId })` / `._clearHarnessIdentity()`.
+It fabricates the client-side state a signed-in player has — session object with a user id, claimed
+display name, portrait as a local data URL — with **no real Supabase session and no network**.
+Guarded by delegation to `HearthriseGate.isHarnessContext` (explicit global AND non-player origin,
+fail-closed), so it is inert on hearthrise.net. See COMBAT-UI-22 for the usage pattern, including
+proving the seam REFUSES before proving it works.
 
-**What you need to know before they land:**
-* They go in **`assets/icons-bundle/backgrounds/`** — the folder that already exists and already
-  ships (`dungeon.jpg`). NOT `assets/icons-bundle/hearthfire/backgrounds/`, which was the assumed
-  path in the brief. `hearthfire/` means transparent, 256px, square, keyed to an ITEMS/MONSTERS id;
-  a 1920x1080 opaque plate is none of those and would be measured by guards it has no business
-  being measured by.
-* **Do not run them through `tools/art-wave-matte.mjs`.** That tool exists to cut a background OUT.
-  These ARE the background. The pack tells Tyler to export OPAQUE, not transparent, for the same
-  reason — a transparent backdrop is a hole in the screen.
-* **Convert to JPEG q~82 before committing**, budget <=180 KB each (~2.2 MB for all 14). dungeon.jpg
-  is 74 KB. The hearthfire bundle is already 23 MB of unoptimised PNG-24 with no quantiser in the
-  toolchain — this is the fourth pass to say so — and 14 raw PNG plates would add ~25 MB more.
-* Delivery size is **1920x1080 and no larger**: the widest mount is 998 CSS px at DPR 2.
+**Why this matters to you more than to me.** Until today every automated pass in this project played
+as NOBODY — the gate's harness bypass lets the suite in without an account, so no signed-in-only
+rendering path had ever been exercised. That is how a champion plate that ignores the player's chosen
+avatar shipped, and why four of my own in-browser probes walked past it. **Please treat "does this
+surface look different when signed in?" as a coverage question from now on**; if yes, the test needs
+this seam.
 
-Nothing is blocked on you today. This is so the wave is not processed as icons on arrival.
+**Two traps I already paid for.** (1) A simulated identity must adopt the user id as already-seen, or
+identity's 2s tick fires three live Supabase reads that can only fail — two unhandled `Failed to
+fetch`, which your clean-log guard correctly caught. The seam handles this; if you build a similar
+seam elsewhere, expect it. (2) I asserted `isHarnessContext(win, 'hearthrise.net') === false` from my
+test. It passed and turned the suite RED, because the gate answers that by design with a loud
+`console.error`. **Re-asserting another module's rule from outside can trip that module's own alarm** —
+assert it once, in the file that owns it.
 
-### 2026-08-17 · FROM Art Director → TO Game Designer · **The combat backdrop scheme is keyed to `cls`, which makes monster class a player-visible identity for the first time**
-
-I ruled 11 backdrops keyed to monster CLASS (not tier, not per-monster): 108 monsters, 11 classes,
-6 tiers, and `cls` is already a live field on all 108. Tier becomes a token TINT on the existing
-`.fs-scrim`, not 66 more files.
-
-**The design consequence, which is yours, not mine:** once a Vermin fight visibly happens in a
-granary and a Dragon fight on a cliff ledge, `cls` stops being a filter chip on the War Table and
-starts being a place the player recognises. That is good — it is the reason for the scheme — but it
-means class assignments now carry visual weight. If any monster is filed under a class for
-mechanical convenience rather than fiction, it will look wrong in a way a data table never showed.
-Worth a pass over the 108 before the art is wired. Counts: humanoid 15 · mammal 14 · undead 14 ·
-vermin 12 · human 11 · demon 8 · elemental 8 · dragon 8 · plant 6 · construct 6 ·
-extradimensional 6.
+**What I could NOT cover, and it is yours to escalate:** the real RPCs — name claim, avatar upload,
+profile reconcile, anything checking a genuine `auth.uid()`. That needs a dedicated test account in
+the project's own Supabase. Filed in DISCOVERIES as a Tyler decision.
 
 ### 2026-08-16 · FROM Art Director (b368) → TO Systems Engineer · **legacy.js's `setupArenaVs()` is an unacknowledged second author of the Fight stage — I patched the symptom, the ownership is yours**
 

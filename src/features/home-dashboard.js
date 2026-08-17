@@ -1239,8 +1239,12 @@
         e.preventDefault();
         try {
           if (kind === 'rename') {
-            var nm = prompt('Display name:', (window.G && window.G.playerName) || 'Adventurer');
-            if (nm && LP().setDisplayName) { LP().setDisplayName(nm); render(); }
+            // b373: in-game modal, never prompt(). See
+            // HearthriseLaunchpad.openRename — a native dialog blocks the
+            // renderer, and this path also has to go through the server-side
+            // display-name claim so the realm's name rules actually apply.
+            var lp = LP();
+            if (lp && lp.openRename) lp.openRename();
           } else if (kind === 'collection') { if (window.HearthriseCollection) window.HearthriseCollection.open(); }
           else if (kind === 'daily') { if (window.HearthriseDaily) window.HearthriseDaily.open(); }
           else if (kind === 'renown') { if (window.HearthriseRenown) window.HearthriseRenown.openLadder(); }

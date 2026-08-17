@@ -35,6 +35,7 @@ import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
 import { clientWriteSweep5Guard } from './client-write-sweep-5.mjs';
 import { bugTriageGuard } from './bug-triage.mjs';
 import { slotSwitchGuard } from './slot-switch.mjs';
+import { nativeDialogGuard } from './native-dialog.mjs';
 import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
@@ -2279,6 +2280,22 @@ const run = async () => {
         + 'thread, raises no native dialog, fails in bounded time and tells the player.');
     }
 
+    /* b373: the generalisation of the slot-switch guard above. That one proves
+       ONE path cannot freeze; this one proves no path under src/ can, by
+       refusing a native confirm/prompt/alert call site anywhere. It is a static
+       scan and needs no browser — the rename prompt that froze the b372 FTUE
+       run sat one click from the most-visited screen and no in-page test ever
+       reached it. */
+    const nativeDialogProblems = await nativeDialogGuard(ROOT);
+    if (nativeDialogProblems.length) {
+      console.log('\nNative-dialog guard (no window.confirm/prompt/alert under src/) — FAILED:');
+      for (const p of nativeDialogProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Native-dialog guard — no main-thread-blocking confirm/prompt/alert call site exists under '
+        + 'src/, outside a documented allowlist.');
+    }
+
     const iconOrderProblems = await iconBootOrderGuard(browser, url);
     if (iconOrderProblems.length) {
       console.log('\nIcon boot-order guard (no icon arrives after first paint) — FAILED:');
@@ -2397,7 +2414,7 @@ const run = async () => {
       'Reachability guard',
       'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',
       'Icon boot-order guard', 'Avatar asset guard',
-      'Secret guard', 'Slot-switch guard',
+      'Secret guard', 'Slot-switch guard', 'Native-dialog guard',
     ];
     if (exitCode === 0) {
       const said = TRANSCRIPT.join('\n');

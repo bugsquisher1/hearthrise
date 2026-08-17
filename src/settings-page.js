@@ -24,6 +24,27 @@
 (function(){
   'use strict';
 
+  /* b373 — SETTINGS ASKS WITH THE SHARED MODAL, NEVER window.confirm/alert.
+     This page held SIX of the game's native dialogs — every one of them on a
+     DESTRUCTIVE action (sign out, disconnect, erase, restore, import), i.e.
+     precisely the moments a frozen tab is least recoverable and most costly.
+     A native dialog blocks the renderer main thread until answered and has
+     hard-hung shipped builds twice (b371, b373); see src/utils/dialog.js.
+
+     The safe answer when the service is missing is "no": a destructive action
+     that cannot be confirmed must not happen. */
+  function ask(opts){
+    var D = window.HearthriseDialog;
+    if(D && D.confirm) return D.confirm(opts);
+    return Promise.resolve(false);
+  }
+  function say(opts){
+    var D = window.HearthriseDialog;
+    if(D && D.alert) return D.alert(opts);
+    if(typeof window.notify === 'function') window.notify(String(opts && (opts.body||opts.title) || ''), 'kill');
+    return Promise.resolve();
+  }
+
   // ══════════════════════════════════════════════════════════════════════
   // UI SCALE (b227) — Settings › Display
   //
@@ -959,7 +980,10 @@
     if(btnSignUp) btnSignUp.addEventListener('click', function(){ openAuthFlow('signup'); });
     var btnCloudOut = root.querySelector('#set-cloud-signout');
     if(btnCloudOut) btnCloudOut.addEventListener('click', async function(){
-      if(!confirm('Sign out of your cloud account? Your save stays on this device — sign back in any time to resume cloud sync.')) return;
+      var ok = await ask({ title:'Sign out of your cloud account?',
+        body:'Your save stays on this device — sign back in any time to resume cloud sync.',
+        confirmLabel:'Sign out', danger:true });
+      if(!ok) return;
       try {
         if(window.HearthriseAuth && window.HearthriseAuth.signOut){ await window.HearthriseAuth.signOut(); }
         if(typeof window.notify === 'function') window.notify('Signed out.', 'info');
@@ -1014,10 +1038,14 @@
     });
     var sbDisconnect = root.querySelector('#set-sb-disconnect');
     if(sbDisconnect) sbDisconnect.addEventListener('click', function(){
-      if(!confirm('Disconnect from cloud? Your save will stay on this device but cloud sync, leaderboards, and live chat will stop.')) return;
-      if(window.HearthriseSupabase) window.HearthriseSupabase.reset();
-      if(typeof window.notify === 'function') window.notify('Disconnected. Reload to apply.', 'info');
-      setTimeout(function(){ location.reload(); }, 1000);
+      ask({ title:'Disconnect from cloud?',
+        body:'Your save will stay on this device, but cloud sync, leaderboards and live chat will stop.',
+        confirmLabel:'Disconnect', danger:true }).then(function(ok){
+        if(!ok) return;
+        if(window.HearthriseSupabase) window.HearthriseSupabase.reset();
+        if(typeof window.notify === 'function') window.notify('Disconnected. Reload to apply.', 'info');
+        setTimeout(function(){ location.reload(); }, 1000);
+      });
     });
 
     /* Tutorial replay.
@@ -1071,25 +1099,35 @@
     if(im) im.addEventListener('click', importSave);
     var rs = root.querySelector('#set-reset');
     if(rs) rs.addEventListener('click', function(){
-      if(!confirm('Erase the active character\'s save and reload?\n\nOther character slots are NOT affected.')) return;
-      try {
-        var SAVE_KEY = 'hearthbound-save-v2';
-        localStorage.removeItem(SAVE_KEY);
-      } catch(e){}
-      location.reload();
+      ask({ title:'Erase this character\'s save?',
+        body:'The active character\'s save is deleted and the game reloads. Other character slots are NOT affected.',
+        confirmLabel:'Erase', danger:true }).then(function(ok){
+        if(!ok) return;
+        try {
+          var SAVE_KEY = 'hearthbound-save-v2';
+          localStorage.removeItem(SAVE_KEY);
+        } catch(e){}
+        location.reload();
+      });
     });
     root.querySelectorAll('[data-restore]').forEach(function(b){
-      b.addEventListener('click', function(){
+      b.addEventListener('click', async function(){
         var key = b.getAttribute('data-restore');
         var ver = key.replace('hearthrise:save-backup:', '');
-        if(!confirm('Restore from backup ' + ver + '?\n\nThis will overwrite your current save and reload the game.\n\nA snapshot of your CURRENT save will be auto-created at\n"hearthrise:save-backup:pre-restore"\nso you can roll back if needed.')) return;
+        var ok = await ask({ title:'Restore from backup ' + ver + '?',
+          body:'This overwrites your current save and reloads the game.\n\nA snapshot of your CURRENT save is auto-created at "hearthrise:save-backup:pre-restore" so you can roll back.',
+          confirmLabel:'Restore', danger:true });
+        if(!ok) return;
         // Auto-snapshot the current save first so the restore is reversible.
         try {
           var SAVE_KEY = 'hearthbound-save-v2';
           var current = localStorage.getItem(SAVE_KEY);
           if(current) localStorage.setItem('hearthrise:save-backup:pre-restore', current);
         } catch(e){
-          if(!confirm('Couldn\'t auto-snapshot your current save (' + e.message + '). Restore anyway?')) return;
+          var anyway = await ask({ title:'Restore without a rollback point?',
+            body:'Couldn\'t auto-snapshot your current save (' + e.message + '). Restoring now cannot be undone.',
+            confirmLabel:'Restore anyway', danger:true });
+          if(!anyway) return;
         }
         if(typeof window.restoreSaveBackup === 'function'){
           window.restoreSaveBackup(key);
@@ -1160,11 +1198,14 @@
       var f = input.files && input.files[0];
       if(!f) return;
       var reader = new FileReader();
-      reader.onload = function(){
+      reader.onload = async function(){
         try {
           var parsed = JSON.parse(reader.result);
           if(typeof parsed !== 'object') throw new Error('Not a save file.');
-          if(!confirm('Replace your current save with the imported one? This cannot be undone unless you have a backup.')) return;
+          var ok = await ask({ title:'Replace your save with the imported one?',
+            body:'This cannot be undone unless you have a backup.',
+            confirmLabel:'Import', danger:true });
+          if(!ok) return;
           /* b372: an imported file may have been exported from a DIFFERENT hero
              slot, and loadLocal now parks a save stamped for another slot. This
              is an explicit, confirmed player action, so the blob is un-stamped
@@ -1173,7 +1214,7 @@
           localStorage.setItem('hearthbound-save-v2', JSON.stringify(parsed));
           location.reload();
         } catch(e){
-          alert('Import failed: ' + e.message);
+          say({ title:'Import failed', body: String(e.message || e) });
         }
       };
       reader.readAsText(f);

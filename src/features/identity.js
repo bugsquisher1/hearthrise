@@ -990,6 +990,11 @@
   function refreshUi() {
     try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
     try { if (typeof window.renderCharacter === 'function') window.renderCharacter(); } catch (e) {}
+    // b373: the Home dashboard also prints the name (and owns the second
+    // rename affordance). It used to repaint itself right after its own
+    // prompt(); now the modal owns the write, so the modal owns the repaint.
+    try { if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') window.HearthriseHome.render(); } catch (e) {}
+    try { if (typeof window.renderProfile === 'function') window.renderProfile(); } catch (e) {}
     // Every portrait surface, including the ones those two renderers just
     // rebuilt from scratch. The header used to be special-cased here by
     // selector; it is now simply one of the registered surfaces.

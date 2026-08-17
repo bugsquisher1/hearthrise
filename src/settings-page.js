@@ -1165,6 +1165,11 @@
           var parsed = JSON.parse(reader.result);
           if(typeof parsed !== 'object') throw new Error('Not a save file.');
           if(!confirm('Replace your current save with the imported one? This cannot be undone unless you have a backup.')) return;
+          /* b372: an imported file may have been exported from a DIFFERENT hero
+             slot, and loadLocal now parks a save stamped for another slot. This
+             is an explicit, confirmed player action, so the blob is un-stamped
+             and claimed by whichever character it is being imported into. */
+          try { delete parsed._saveSlot; } catch(e){}
           localStorage.setItem('hearthbound-save-v2', JSON.stringify(parsed));
           location.reload();
         } catch(e){

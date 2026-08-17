@@ -699,6 +699,41 @@ window.__FRESH_START = Object.freeze({
 /* ════════════════════════════════════════════════
    PERSISTENCE  (local + cloud-ready hook)
    ════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════
+   b372 — THE SLOT SEAM, READ-ONLY FROM HERE.
+
+   multi-character.js OWNS which character is live and whether a switch is
+   mid-flight; this file asks and never re-derives (a second reader of the
+   profile record is a second thing to drift — the same rule net/accrue.js
+   follows). Both accessors are defensive: multi-character.js may not have
+   loaded yet on an early boot, and "no profile module" must mean "one
+   character, saving normally", which is exactly the pre-b372 behaviour.
+
+   `_switchQuiesced()` — a switch has moved the pointer and the page is going
+   away; nothing may be written from this G.
+   `_activeSaveSlot()`  — the slot the in-memory G BELONGS to. While quiesced
+   that is the OUTGOING slot, never the incoming one. */
+function _switchQuiesced(){
+  try{
+    const P=window.HearthriseProfile;
+    return !!(P && typeof P.saveQuiesced==='function' && P.saveQuiesced());
+  }catch(e){ return false; }
+}
+function _activeSaveSlot(){
+  try{
+    const P=window.HearthriseProfile;
+    if(!P) return null;
+    if(typeof P.quiescedOutgoingSlot==='function'){
+      const out=P.quiescedOutgoingSlot();
+      if(typeof out==='number') return out;
+    }
+    if(typeof P.activeSlot==='function'){
+      const s=P.activeSlot();
+      if(typeof s==='number'&&s>=0) return s|0;
+    }
+  }catch(e){}
+  return null;
+}
 function saveLocal(){
   /* b224 ACCOUNT WALL — the single most dangerous line in this change.
      While the gate is closed boot() has NOT run, so loadLocal() has NOT run,
@@ -712,6 +747,16 @@ function saveLocal(){
      for its owner). Writing G back out now would resurrect it under the next
      account. Persistence resumes after the reload that follows a park. */
   if(window.__saveParked) return;
+  /* b372 (P0) SWITCH QUIESCE. A character switch has moved the slot pointer and
+     is tearing this page down; `G` still holds the OUTGOING character. Writing
+     it now rewrites SAVE_KEY — which switchSlot just cleared or replaced for the
+     INCOMING slot — with the wrong character, and boot then adopts that clone
+     over the target's real save. That is the b372 duplication bug, and its
+     loudest trigger is the `pagehide` autosave that fires during the switch's
+     own location.reload(). The outgoing character was saved and cloud-flushed
+     BEFORE the swap (multi-character.js switchSlotAsync), so there is nothing
+     here to lose. The latch self-heals by age — see beginQuiesce(). */
+  if(_switchQuiesced()) return;
   /* b318 (V2) OWNER STAMP. Binds this local save to the account that owns it so
      it can never be adopted by — or uploaded over — a different account. Kept
      under a `_` key on purpose: events.js snapshot() skips `_`-prefixed scratch,
@@ -738,6 +783,16 @@ function saveLocal(){
   if(G.offlineBudget && typeof G.offlineBudget==='object'
      && clientMayWriteRecordField('offlineBudget')
      && !(typeof document!=='undefined' && document.hidden)) G.offlineBudget.at=G.lastSeen;
+  /* b372 SLOT STAMP — WHICH CHARACTER THESE BYTES ARE. SAVE_KEY is a single key
+     that the switch re-points between five characters, so "the save on disk" and
+     "the character the profile says is live" are two different claims and every
+     cross-slot data-loss bug so far has been the gap between them. Stamping the
+     blob makes that gap CHECKABLE at boot (loadLocal) instead of silent.
+     `_`-prefixed on purpose: events.js snapshot() skips `_` scratch, so this
+     device-local address never rides to the cloud. Written on every save (unlike
+     the owner stamp) because it is not an identity claim to be defended — it is
+     simply where G is being played right now. */
+  try{ const _sl=_activeSaveSlot(); if(_sl!=null) G._saveSlot=_sl; }catch(e){}
   // Route through the platform Storage seam (src/platform/storage.js) so Steam
   // (electron-store) / mobile (Capacitor) can swap the backend without touching
   // this. Falls back to localStorage directly if the seam hasn't loaded.
@@ -1100,12 +1155,46 @@ function loadLocal(){
   // after loadLocal(), window.G.gold still held the pre-load mutation.
   // Object.assign keeps the same reference, so window.G stays correct.
   let raw=_readSave(SAVE_KEY);
+  let _misSlotted=false;
   /* b318 (V2): no live save, but this account has one parked here (they signed
      out on this device, or another account's boot set theirs aside). Give it
      back BEFORE the v1 migration path — a returning player must never be handed
      a fresh character while their real save sits in a backup slot. */
   if(!raw){ try{ if(unparkOwnSave()) raw=_readSave(SAVE_KEY); }catch(_){ } }
-  if(!raw){
+  /* b372 — A SAVE FROM ANOTHER SLOT IS NOT THIS CHARACTER, EVER.
+     The live incident: a write that escaped during a switch left the OUTGOING
+     character in SAVE_KEY while the profile pointed at the incoming slot. G
+     adopted it, decideRestore saw a "newer local" and kept it, and the next
+     autosave uploaded the clone over the target character's cloud row —
+     duplicating one character and destroying another. The quiesce latch closes
+     the known writer; this closes the CLASS, at the one place every boot passes
+     through, whatever wrote the blob.
+     Park, never delete (b318 policy): the bytes are somebody's real progress and
+     stay recoverable. Then boot exactly as if there were no local save — which
+     is the correct state for a slot whose save lives in the cloud or does not
+     exist yet.
+     UNSTAMPED IS NOT FOREIGN. Every save written before b372 carries no
+     `_saveSlot`, and accusing those would park the entire live beta on upgrade.
+     They are claimed by the active slot on the first save after upgrade. */
+  if(raw){
+    try{
+      const _d=JSON.parse(raw);
+      const _mine=_activeSaveSlot();
+      if(typeof _d._saveSlot==='number' && _mine!=null && _d._saveSlot!==_mine){
+        console.warn('[save] local save belongs to hero slot '+_d._saveSlot+' but slot '+_mine
+          +' is active — parking it instead of adopting it as this character.');
+        try{ localStorage.setItem(PARK_PREFIX+'mis-slotted-'+_d._saveSlot+':'+Date.now(), raw); }catch(_){ }
+        _removeSave(SAVE_KEY);
+        raw=null;
+        _misSlotted=true;
+      }
+    }catch(_){ /* unparseable — the corrupt-save path below owns that case */ }
+  }
+  /* …and do NOT fall through to the v1 migration for it. The v1 key holds the
+     pre-multi-character single save, i.e. slot 0's ancestor: adopting it here
+     would answer "this slot's save is not here" with a DIFFERENT character
+     again, which is the bug wearing another hat. Absent means fresh + cloud. */
+  if(!raw && !_misSlotted){
     /* migrate from v1 if present */
     raw=_readSave(LEGACY_KEY);
     if(raw)try{

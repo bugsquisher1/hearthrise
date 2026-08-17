@@ -2106,3 +2106,44 @@ only), one new gold-site census row (declared, `false-positive`).
    by this work, logged in CONFLICTS.md, Art Director's ruling.
 
 **Not done, per instructions:** no version bump, no push, no migration, no deploy. Imports at `?v=360`.
+
+---
+
+## b372 — P0: THE HERO-SLOT SWITCH DUPLICATED THE CHARACTER (live FTUE finding)
+
+**Root cause (confirmed in code, then reproduced in a real browser):** `switchSlot()` moves
+`profile.activeSlot` and clears/replaces SAVE_KEY, then `switchSlotAsync` calls `location.reload()`.
+The reload fires `pagehide` **while `window.G` is still the OUTGOING character**, and two listeners
+write it: `legacy.js` pagehide -> `saveLocal()` (rewrites SAVE_KEY, undoing the clear) and
+`net/sync.js` pagehide -> `snapshotIfDue(true,true)` (uploads it with the slot resolved LIVE, i.e.
+onto the **target's** `game_saves` row). Boot then prefers the "newer" local clone over the target's
+older cloud save and the next autosave cements it. Net effect per switch: one character cloned, one
+character's save destroyed.
+
+**Fix — a save QUIESCE LATCH, armed before the pointer moves, held through the reload.**
+`multi-character.js` `beginQuiesce(outgoingSlot)` / `saveQuiesced()` / `quiescedOutgoingSlot()`.
+`saveLocal` becomes a no-op while quiesced (the same shape as the b318 `__saveParked` gate);
+`snapshotIfDue` refuses to start a new upload; `buildSnapshotRequest` addresses an already-in-flight
+one to the **outgoing** slot. Nothing is lost: `switchSlotAsync` already does a synchronous
+`saveLocal()` **and an awaited cloud flush** of the outgoing character before it swaps, and refuses to
+swap at all if that flush times out. The latch **self-heals by age** (15s) so a reload that never
+happens can never silently disable local saving.
+
+**Second layer (the class, not the instance):** the save blob is now stamped `_saveSlot`
+(`_`-prefixed -> never uploaded), and `loadLocal` **parks** (never deletes) a save stamped for a
+different slot and boots as if there were no local save — cloud or fresh. Unstamped (pre-b372) saves
+are never accused, so no existing player is parked on upgrade.
+
+### LEARNINGS
+- **A busy latch cleared in a promise tail cannot protect a teardown.** `_switching` is cleared in a
+  `.then()` — a microtask, which runs *before* `unload`. Anything that must survive the navigation has
+  to be a separate latch that the *new page* resets.
+- **"Which slot is active" and "which character are these bytes" are two different questions.** Every
+  cross-slot data-loss bug so far (b339, b342, b372) is the gap between them. `resolveActiveSlot()`
+  answers the first; during a switch only the second is safe, which is why `ownerSlotForLiveG()` exists.
+- **`switchSlot()` removes SAVE_KEY via raw `localStorage`, bypassing `HearthriseStorage`,** whose
+  in-memory mirror therefore keeps a stale copy for the life of the page. Harmless today because a
+  reload always follows — a real trap for any future no-reload switch. Logged as debt.
+- The only way to observe the transition window from outside is a seam: `location.reload()` cannot be
+  stubbed. Hence `switchSlotAsync(id, { duringTransition })`, and a browser-level guard that drives a
+  REAL reload and reads what actually survived.

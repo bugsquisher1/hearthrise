@@ -796,9 +796,38 @@ async function flush() {
  * default, so a caller that forgets to say which character gets the live one
  * rather than silently getting someone else's.
  */
+/* b372 — WHICH CHARACTER THE IN-MEMORY G BELONGS TO, WHICH IS NOT ALWAYS THE
+   ACTIVE SLOT. During a hero-slot switch the profile pointer moves and the page
+   reloads; in the window between those two, `window.G` is still the OUTGOING
+   character while resolveActiveSlot() already answers with the INCOMING one. A
+   snapshot sent in that window — the pagehide keepalive, or one already in
+   flight — upsert-overwrote game_saves for the TARGET slot with the outgoing
+   character. That is half of the live duplication bug: one character copied
+   into the target's row, the target's save destroyed.
+   An explicitly pinned slot still wins (the suite's seam). Otherwise the switch
+   latch, when armed, is the more specific answer and is preferred. */
+function switchQuiesced() {
+  try {
+    const P = (typeof window !== 'undefined') && window.HearthriseProfile;
+    return !!(P && typeof P.saveQuiesced === 'function' && P.saveQuiesced());
+  } catch (e) { return false; }
+}
+
+function ownerSlotForLiveG(pinned) {
+  if (Number.isInteger(pinned)) return resolveActiveSlot(pinned);
+  try {
+    const P = (typeof window !== 'undefined') && window.HearthriseProfile;
+    if (P && typeof P.quiescedOutgoingSlot === 'function') {
+      const out = P.quiescedOutgoingSlot();
+      if (Number.isInteger(out)) return resolveActiveSlot(out);
+    }
+  } catch (e) {}
+  return resolveActiveSlot(pinned);
+}
+
 export function buildSnapshotRequest(cfg, userId, snap, nowMs) {
   // `slot` is NOT NULL on game_saves and CHECKed to 0..4.
-  const slot = resolveActiveSlot(cfg && cfg.slot);
+  const slot = ownerSlotForLiveG(cfg && cfg.slot);
   const headers = {
     'Content-Type': 'application/json',
     // resolution=merge-duplicates + on_conflict turns POST into an upsert.
@@ -897,6 +926,13 @@ export function derivedSnapshotFields(cfg, win) {
 async function snapshotIfDue(force, keepalive) {
   if (paused) return false;                 // b302: evicted device must not clobber the cloud
   if (snapshotHold) return false;           // b314: reconcile not done — never upload local yet
+  /* b372: a hero-slot switch is mid-flight. The outgoing character was flushed
+     to the cloud BEFORE the swap and the switch refuses to proceed without that
+     flush, so every send from here on is redundant — and it is sent from a page
+     whose slot pointer has already moved. Two layers, on purpose: this stops a
+     NEW upload starting (the pagehide keepalive), and ownerSlotForLiveG()
+     addresses one already in flight to the outgoing character. */
+  if (switchQuiesced()) return false;
   if (!config?.snapshotEndpoint) return false;
   // b331: check auth BEFORE the throttle watermark moves and before we write the
   // local snapshot cache — a blocked attempt must cost nothing and must not eat

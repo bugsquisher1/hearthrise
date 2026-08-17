@@ -1093,6 +1093,52 @@ img,svg{display:block;max-width:100%}
 .inv-detail-actions .btn{white-space:nowrap}
 .inv-detail-actions .btn .hr-inline{display:inline-flex;align-items:center;gap:3px;vertical-align:-2px}
 
+/* ── b372 · AN ITEM REQUIREMENT IS A LINK ──────────────────────────────────
+   KD420: "clicking on the maple planks required for my house upgrade and have
+   it show where it's acquired." Every requirement chip in the game now carries
+   data-inspect-item and opens the bag's own item flyout (src/features/
+   item-inspect.js). This is the AFFORDANCE for that, and it has to be quiet:
+   requirement lists are dense, they already carry a met/short colour that is
+   doing the important work, and a second loud treatment would fight it.
+   So: a dotted underline, the same one `.hh-cost-gate` has used since b355 —
+   already the game's mark for "there is more to know here" — and no colour of
+   its own until hover/focus.
+
+   TWO SELECTORS, and both are load-bearing. Most of these chips are
+   inline-flex (art + name + count), and per spec a flex container does NOT
+   propagate text-decoration to its items, so the underline on the chip itself
+   silently renders nothing. `.hr-si` is the inner name span those renderers
+   emit for exactly that case. Plain-text chips carry the decoration directly.
+   Emitting both means a new call site gets the affordance whichever shape it
+   is, instead of depending on the author knowing this rule. */
+[data-inspect-item]{
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  text-decoration:underline dotted;
+  text-underline-offset:3px;
+  text-decoration-thickness:1px;
+}
+[data-inspect-item] .hr-si{
+  text-decoration:underline dotted;
+  text-underline-offset:3px;
+  text-decoration-thickness:1px;
+}
+[data-inspect-item]:hover,
+[data-inspect-item]:hover .hr-si{color:var(--gold-2);text-decoration-style:solid}
+[data-inspect-item]:focus-visible{
+  outline:2px solid var(--gold-2);outline-offset:2px;border-radius:var(--r-sm,5px);
+}
+/* The met/short colour is the chip's whole job — hover must not overwrite the
+   one signal the player is scanning for. Lift it, don't repaint it. */
+[data-inspect-item].is-met:hover,[data-inspect-item].is-short:hover,
+[data-inspect-item].is-full:hover,[data-inspect-item].short:hover{color:inherit;filter:brightness(1.25)}
+/* The dungeon entry key carries its painted art beside the name (b372 replaced
+   the raw data emoji here), so it needs to be a flex line rather than a run of
+   inline text — and the underline moves to the `.hr-si` name for the same
+   flex-propagation reason as everywhere else. */
+.dgn-key-nm{display:inline-flex;align-items:center;gap:5px;vertical-align:-3px}
+.dgn-key-nm img{width:16px;height:16px;object-fit:contain}
+
 /* b224: the Combat screen's food controls — Eat first, auto-eat second,
    one line of plain English underneath. */
 .cbt-food{margin-top:9px;display:flex;flex-direction:column;gap:6px}

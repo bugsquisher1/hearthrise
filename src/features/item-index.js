@@ -14,11 +14,40 @@ import { MONSTERS } from '../data/monsters.js?v=371';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=371';
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=371';
 import { ITEM_DESC } from '../data/item-descriptions.js?v=371';
+import { SHOP_OFFERS } from '../data/shops.js?v=371';
 
 const SKILL_LABEL = {
   smithing: 'Smithing', crafting: 'Crafting', cooking: 'Cooking', prayer: 'Prayer',
   runecrafting: 'Runecrafting', stonemason: 'Stonemason',
 };
+
+/* b372 — WHICH COUNTER SELLS IT. The index answered "where's this from?" from
+   drops, recipes, nodes, crops and (b355) dungeons — but NOT from the shops,
+   which is how a player gets every seed, the starter weapons, the companions
+   and the bounty-shop stock. So the flyout for a Wheat Seed, opened from the
+   farm's own requirement, said nothing at all.
+
+   SHOP_OFFERS is the generated price catalogue (tools/gen-shops.mjs, guarded
+   by a preflight), so this is data in / sentence out like the rest of the
+   index: a new offer describes itself, and a price change is never restated
+   here. `table` is the offer's origin table and names the counter. */
+const SHOP_LABEL = {
+  equip: 'the Store', seed: 'the Seed shop', bounty: 'the Bounty shop',
+  trait: 'the Store', cosmetic: 'the Store', companion: 'the Store',
+  dungeon: 'the Quartermaster', iap: 'the Hearth Shop',
+};
+const CURRENCY_LABEL = {
+  gold: 'g', gems: ' Gems', marks: ' Bounty Marks', bounty_marks: ' Bounty Marks',
+  scrip: ' Dungeon Scrip', dungeon_scrip: ' Dungeon Scrip', hearth_token: ' Hearth Tokens',
+};
+function priceText(cost) {
+  const cur = (cost || []).find((c) => c && c.kind === 'currency');
+  if (!cur) return '';
+  const suffix = CURRENCY_LABEL[cur.id];
+  /* An unknown currency is NAMED rather than dropped or guessed at — a price
+     the index cannot label is still a price the player has to pay. */
+  return (cur.amount || 0).toLocaleString() + (suffix != null ? suffix : ' ' + cur.id);
+}
 
 function inputsOf(r) {
   if (r.inputs) return r.inputs;
@@ -43,13 +72,31 @@ function build() {
   const gtab = [[window.TREES || TREES, 'Woodcutting'], [window.ROCKS || ROCKS, 'Mining'], [window.FISH_SPOTS || FISH_SPOTS, 'Fishing']];
   gtab.forEach(([arr, label]) => { (arr || []).forEach((a) => { if (a && a.prod) S(a.prod).gather = label; }); });
 
+  /* b372: name the CROP, not just the skill. "Farming" told a player looking
+     at a Pumpkin requirement nothing they did not already suspect; "Farming ·
+     grow Pumpkin" tells them which seed to buy, and the seed's own flyout now
+     names the Seed shop. Two taps, no wiki. */
   const C = window.CROPS || CROPS || {};
-  Object.keys(C).forEach((k) => { S(k).farm = true; const p = C[k] && (C[k].prod || C[k].produce); if (p) S(p).farm = true; });
+  Object.keys(C).forEach((k) => {
+    const c = C[k] || {};
+    const p = c.prod || c.produce || k;
+    const s = S(p);
+    s.farm = true;
+    s.farmCrop = c.name || k;
+  });
 
   const R = window.ARTISAN_RECIPES || ARTISAN_RECIPES || {};
   Object.entries(R).forEach(([skill, list]) => {
     (list || []).forEach((r) => {
-      if (r.output) S(r.output).craft = { skill, req: r.req || 1 };
+      /* b372: carry the INPUTS. "Crafted · Crafting Lv 45" is a wall for a
+         player who does not already know a Maple Plank is sawn from a Maple
+         Log — the exact wall KD420 hit. Naming the inputs turns the flyout
+         into one step of a chain the player can walk. Capped at three so a
+         five-ingredient stew does not bury the line. */
+      if (r.output) {
+        const from = Object.keys(inputsOf(r));
+        S(r.output).craft = { skill, req: r.req || 1, from: from.length <= 3 ? from.map(nameOf) : [] };
+      }
       const outName = nameOf(r.output);
       Object.keys(inputsOf(r)).forEach((iid) => { (used[iid] = used[iid] || new Set()).add(outName); });
     });
@@ -71,6 +118,20 @@ function build() {
   }
   (window.QM_STOCK || []).forEach((q) => { if (q && q.id) S(q.id).scrip = q.scrip; });
 
+  /* b372 — the shop counters. Only offers that GRANT an item are sources; an
+     offer that SPENDS one (a dungeon key buying entry) is a use, not a route,
+     and belongs to the used-in index rather than here. First offer wins so a
+     one-off starter bundle cannot rename the counter a repeatable sells at. */
+  ((window.SHOP_OFFERS && window.SHOP_OFFERS.length) ? window.SHOP_OFFERS : SHOP_OFFERS || [])
+    .forEach((o) => {
+      (o.grant || []).forEach((g) => {
+        if (!g || g.kind !== 'item' || !g.id) return;
+        const s = S(g.id);
+        if (s.shop) return;
+        s.shop = { where: SHOP_LABEL[o.table] || 'a shop', price: priceText(o.cost) };
+      });
+    });
+
   _idx = { src, used };
   /* Do NOT memoise a half-built index. dungeons.js is a classic script and the
      first sourceLine() call can legitimately land before it has run; caching
@@ -85,9 +146,12 @@ function sourceLine(id) {
   const s = idx().src[id];
   if (!s) return '';
   const parts = [];
-  if (s.craft) parts.push('Crafted · ' + (SKILL_LABEL[s.craft.skill] || s.craft.skill) + ' Lv ' + s.craft.req);
+  if (s.craft) {
+    parts.push('Crafted · ' + (SKILL_LABEL[s.craft.skill] || s.craft.skill) + ' Lv ' + s.craft.req
+      + ((s.craft.from && s.craft.from.length) ? ' from ' + s.craft.from.join(' + ') : ''));
+  }
   if (s.gather) parts.push(s.gather);
-  if (s.farm) parts.push('Farming');
+  if (s.farm) parts.push('Farming' + (s.farmCrop ? ' · grow ' + s.farmCrop : ''));
   if (s.monsters && s.monsters.size) {
     const list = [...s.monsters];
     parts.push('Dropped by ' + list.slice(0, 2).join(', ') + (list.length > 2 ? ' +' + (list.length - 2) : ''));
@@ -97,6 +161,7 @@ function sourceLine(id) {
     parts.push('Drops in ' + list.slice(0, 2).join(', ') + (list.length > 2 ? ' +' + (list.length - 2) : ''));
   }
   if (s.scrip) parts.push('Quartermaster · ' + s.scrip + ' Dungeon Scrip');
+  if (s.shop) parts.push('Bought at ' + s.shop.where + (s.shop.price ? ' · ' + s.shop.price : ''));
   return parts.join(' · ');
 }
 function usedInLine(id) {

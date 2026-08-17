@@ -1671,6 +1671,184 @@ const TESTS = [
     assert(/Dropped by/.test(window.itemSourceLine('big_bones') || ''), 'monster drops must still resolve');
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════
+     b372 — AN ITEM REQUIREMENT IS A LINK  (KD420, via Tyler)
+     ══════════════════════════════════════════════════════════════════════
+     "you can right click and inspect items in your bag. It clearly shows like
+     where they are from... I'd like to do something similar with requirements
+     (ie clicking on the maple planks required for my house upgrade and have it
+     show where it's acquired.)"
+
+     Six tests, one per surface CLASS rather than per call site, because the
+     thing that must not regress is the seam: a renderer splices
+     hrInspectAttrs() into a chip, one document-level capture handler turns
+     that into the bag's own flyout, and the reverse index supplies the answer.
+     A seventh test guards the thing this feature could plausibly break —
+     tapping a requirement inside a click target must NOT fire that target. */
+
+  () => tryRun('b372: the inspect seam — an item links, gold and non-items do not', () => {
+    assert(typeof window.hrInspectAttrs === 'function' && typeof window.hrInspectSpan === 'function'
+      && typeof window.hrInspectHint === 'function', 'the b372 inspect seam must be published');
+    const a = window.hrInspectAttrs('maple_plank');
+    assert(/data-inspect-item="maple_plank"/.test(a), 'an item requirement must carry the inspect attribute: ' + a);
+    assert(/role="button"/.test(a) && /tabindex="0"/.test(a),
+      'a chip that answers a click must be reachable by keyboard too');
+    /* THE ONE THAT BITES: `gold` is a legitimate key on nearly every cost row
+       in the game and is NOT an item. A link there opens an empty flyout. */
+    assert(window.hrInspectAttrs('gold') === '', 'gold is not an item and must never render as a link');
+    assert(window.hrInspectAttrs('no_such_item_xyz') === '', 'an unknown id must not render as a link');
+    assert(window.hrInspectAttrs('') === '' && window.hrInspectAttrs(null) === '',
+      'a missing id must degrade to plain text, never to a dead link');
+    // The span form leaves non-items as ordinary markup rather than swallowing them.
+    assert(window.hrInspectSpan('gold', 'Gold') === 'Gold', 'a non-item span must be its own text');
+    assert(/data-inspect-item="wolf_pelt"/.test(window.hrInspectSpan('wolf_pelt', 'Wolf Pelt')),
+      'the span form must link a real item');
+  }),
+
+  () => tryRun('b372: the reverse index answers "where is it acquired" for every route', () => {
+    if (typeof window.itemSourceLine !== 'function') return;
+    /* KD420's exact item. "Crafted · Crafting Lv 45" was true and useless —
+       it did not say a plank is sawn from a LOG, which is the fact he needed. */
+    const plank = window.itemSourceLine('maple_plank');
+    assert(/Crafting/.test(plank) && /Maple Log/.test(plank),
+      'a crafted item must name the material it is made from, got: ' + plank);
+    // The shop counters — the whole class the index used to be blind to.
+    const seed = window.itemSourceLine('wheat_seed');
+    assert(/Seed shop/.test(seed), 'a seed must name the counter that sells it, got: ' + seed);
+    assert(/\d/.test(seed), 'and its price, got: ' + seed);
+    // Farming names the crop, so "which seed do I buy" is answerable.
+    const pump = window.itemSourceLine('pumpkin');
+    assert(/Farming/.test(pump) && /Pumpkin/.test(pump),
+      'a crop product must name the crop to grow, got: ' + pump);
+    // Regression: none of the pre-existing routes may be displaced.
+    assert(/Smithing/i.test(window.itemSourceLine('steel_sword')), 'crafted route regressed');
+    assert(/Mining/i.test(window.itemSourceLine('iron_ore')), 'gathered route regressed');
+    assert(/Crypt of Bones/.test(window.itemSourceLine('kitchen_blueprint_t2')), 'dungeon route regressed');
+  }),
+
+  () => tryRun('b372: KD420 — tapping the maple planks in the house upgrade shows where they come from', () => {
+    /* The literal request, end to end, as a player performs it: open House,
+       tap the requirement, read the source. */
+    const H = window.HearthriseHomestead;
+    if (!H || typeof H.renderCard !== 'function') return;
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 3 };   // next tier is the one that wants maple planks
+      window.showTab('house');
+      window.renderHouse();
+      const chip = document.querySelector('#hh-property-card .hh-req[data-inspect-item="maple_plank"]');
+      assert(chip, 'the property upgrade must render Maple Plank as an inspectable requirement');
+      assert(chip.querySelector('.hr-si'),
+        'the chip is flex, so the dotted-underline affordance needs its inner name span');
+      // Gold sits in the same strip and must NOT have become a link.
+      const goldChip = [].find.call(document.querySelectorAll('#hh-property-card .hh-req'),
+        (c) => /Gold/.test(c.textContent));
+      assert(goldChip && !goldChip.hasAttribute('data-inspect-item'), 'the gold requirement must stay plain text');
+
+      chip.click();
+      const ov = document.getElementById('inv-detail-overlay');
+      assert(ov && ov.classList.contains('show'), 'tapping the requirement must open the item flyout');
+      assert(/Maple Plank/.test(ov.textContent), 'the flyout must be about the item that was tapped');
+      const info = ov.querySelector('.inv-detail-info');
+      assert(info && /Maple Log/.test(ov.textContent),
+        'and it must answer where it is acquired: ' + (info ? info.textContent : 'no Source line at all'));
+      window.closeInvDetail();
+    } finally { restoreG(snap); window.closeInvDetail(); }
+  }),
+
+  () => tryRun('b372: a room rung cost and its blueprint gate are both inspectable', () => {
+    const H = window.HearthriseHomestead;
+    if (!H || !window.HearthriseRoomModal) return;
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 3 };
+      window.G.rooms = { kitchen: 1 };
+      window.G.gold = 999999;
+      window.G.inventory = { normal_log: 999, oak_log: 999 };
+      H.openRoom('kitchen');
+      const costLink = document.querySelector('.hr-room-scrim .hr-cs-qty[data-inspect-item]');
+      assert(costLink, 'a rung cost naming an item must be inspectable');
+      const gateLink = document.querySelector('.hr-room-scrim .hr-room-gate-nm[data-inspect-item="kitchen_blueprint_t2"]');
+      assert(gateLink, 'the blueprint gate — the requirement a player can least easily answer — must be inspectable');
+
+      /* THE STACKING BUG THIS FEATURE WOULD OTHERWISE SHIP: the room modal
+         scrim sits at z-index 100000 and `.inv-detail` at 1500, so the flyout
+         would have opened BEHIND the modal that launched it. */
+      gateLink.click();
+      const ov = document.getElementById('inv-detail-overlay');
+      assert(ov && ov.classList.contains('show'), 'the gate must open the flyout');
+      const scrimZ = parseInt(getComputedStyle(document.querySelector('.hr-room-scrim')).zIndex, 10) || 0;
+      assert(parseInt(ov.style.zIndex, 10) > scrimZ,
+        'the flyout must be lifted ABOVE the overlay it was opened from (' + ov.style.zIndex + ' vs ' + scrimZ + ')');
+      window.closeInvDetail();
+      assert(ov.style.zIndex === '', 'and the lift must be dropped on close, or the next bag open inherits it');
+    } finally { restoreG(snap); window.closeInvDetail(); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
+  }),
+
+  () => tryRun('b372: the Recipe Book tree is walkable — every ingredient opens its own source', () => {
+    const RB = window.HearthriseRecipeBook;
+    if (!RB || typeof RB.open !== 'function') return;
+    try {
+      RB.open();
+      const ing = document.querySelector('#rb-overlay .rb-ing[data-inspect-item]');
+      assert(ing, 'a recipe ingredient must be inspectable — the Book exists so the tree can be walked');
+      assert(ing.querySelector('.hr-si'), 'the flex chip needs its inner name span for the affordance');
+      ing.click();
+      const ov = document.getElementById('inv-detail-overlay');
+      assert(ov && ov.classList.contains('show'), 'the ingredient must open the item flyout');
+      assert(parseInt(ov.style.zIndex, 10) > 3000, 'and above the Book, which sits at 3000');
+      window.closeInvDetail();
+    } finally { window.closeInvDetail(); RB.close(); }
+  }),
+
+  () => tryRun('b372: a dungeon key and a proof bounty name a route, not just an item', () => {
+    // The two hardest requirements to answer, because neither can be grinded for.
+    if (typeof window.bountyLabel === 'function' && window.MONSTERS && window.MONSTERS.wolf) {
+      const label = window.bountyLabel({ type: 'proof', target: 'wolf', required: 5, proofItem: 'wolf_pelt' });
+      assert(/data-inspect-item="wolf_pelt"/.test(label),
+        'a proof bounty must link the item it wants: ' + label);
+    }
+    if (typeof window.renderDungeons === 'function' && document.getElementById('panel-dungeons')) {
+      window.renderDungeons();
+      const key = document.querySelector('#panel-dungeons .dgn-cost [data-inspect-item]');
+      assert(key, 'a dungeon entry key must be inspectable — it drops or it is bought, and the card said neither');
+      /* b372 also retired the raw data emoji on this line. "No emoji as art"
+         is a project rule; itemArt() is the one path every other item takes. */
+      const emoji = /[\u{1F300}-\u{1FAFF}]/u.test(key.textContent);
+      assert(!emoji, 'the entry key must render painted art, not a system pictograph: ' + key.textContent);
+    }
+  }),
+
+  () => tryRun('b372: tapping a requirement inside a click target does NOT fire that target', () => {
+    /* The one way this feature could make the game worse. Activity tiles are
+       one big start-the-craft button with the inputs printed inside them; a
+       link that let the click through would start a craft every time a player
+       asked where a plank comes from. The capture-phase handler is what stops
+       that, and this is its contract. */
+    if (typeof window.tileForArtisan !== 'function' || !window.ARTISAN_RECIPES) return;
+    const rec = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.inputs || r.input);
+    if (!rec) return;
+    const snap = snapshotG();
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    try {
+      window.G.activeSkill = null;
+      window.G.skillTargetId = null;
+      host.innerHTML = window.tileForArtisan(rec, 'smithing');
+      const nm = host.querySelector('.at-inputs [data-inspect-item]');
+      assert(nm, 'an artisan input name must be inspectable');
+      // The live COUNT stays inert — it is a number, not a noun.
+      const cnt = host.querySelector('.at-inputs .at-have');
+      assert(cnt && !cnt.hasAttribute('data-inspect-item'), 'the have-count must not be a link');
+      nm.click();
+      assert((document.getElementById('inv-detail-overlay') || {}).classList.contains('show'),
+        'the input name must open the flyout');
+      assert(!window.G.activeSkill && !window.G.skillTargetId,
+        'and it must NOT have started the craft the surrounding tile is a button for');
+      window.closeInvDetail();
+    } finally { host.remove(); window.closeInvDetail(); restoreG(snap); }
+  }),
+
   () => tryRun('b227: the House grid shows ownership at a glance (the acceptance test)', () => {
     // Tyler's own bar: open House and KNOW the Forge is yours, at what level,
     // and what is next — without reading a paragraph.

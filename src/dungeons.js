@@ -460,7 +460,22 @@
         if(d.cost.key){
           var ki = window.ITEMS && window.ITEMS[d.cost.key];
           var owned = (window.G && window.G.inventory && window.G.inventory[d.cost.key]) || 0;
-          costStr = '1× ' + (ki ? ki.icon + ' ' + ki.n : d.cost.key) + ' <span class="dgn-key-stock">(have ' + owned + ')</span>';
+          /* b372 — THE HARDEST REQUIREMENT IN THE GAME TO ANSWER. A dungeon key
+             cannot be gathered or crafted; it drops, or it is bought from the
+             Quartermaster for scrip, and this line named it and stopped. The
+             reverse index knows both routes (b355 taught it dungeon loot and
+             QM_STOCK), so the key now opens its flyout and says so.
+             The raw `ki.icon` emoji goes with it — itemArt() is the one path
+             every other item render in the game takes, and "no emoji as art"
+             is a project rule, not a preference. */
+          var keyArt = (typeof window.itemArt === 'function')
+            ? window.itemArt(d.cost.key, 16)
+            : (ki ? ki.icon : '');
+          var keyLabel = keyArt + ' <span class="hr-si">' + (ki ? ki.n : d.cost.key) + '</span>';
+          costStr = '1× ' + (typeof window.hrInspectSpan === 'function'
+              ? window.hrInspectSpan(d.cost.key, keyLabel, 'dgn-key-nm')
+              : keyLabel) +
+            ' <span class="dgn-key-stock">(have ' + owned + ')</span>';
         } else if(d.cost.gold){
           costStr = d.cost.gold + 'g';
         } else if(d.cost.hearth_token){

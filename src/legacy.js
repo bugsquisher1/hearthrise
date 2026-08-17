@@ -3481,7 +3481,13 @@ function bountyProofHave(b){
 function bountyLabel(b){
   const m=MONSTERS[b.target];
   if(!m)return 'Unknown Bounty';
-  if(b.type==='proof')return `Collect ${b.required} ${ITEMS[b.proofItem]?.n||b.proofItem}`;
+  /* b372: a proof bounty is a requirement like any other — "Collect 5 Wolf
+     Pelt" is only actionable if you know which monster drops one. The item
+     name opens its flyout, where the reverse index names the drop. */
+  if(b.type==='proof'){
+    const _pn = ITEMS[b.proofItem]?.n || b.proofItem;
+    return `Collect ${b.required} ${typeof window.hrInspectSpan==='function' ? window.hrInspectSpan(b.proofItem, _pn) : _pn}`;
+  }
   /* b356: the `neutral` branch is gone — DEC-NEUT-01 retired it, so every
      weapon bounty now names a real weapon type. */
   if(b.type==='weapon')return `Defeat ${b.required} ${m.name}s using ${WEAPON_TYPES[b.requiredWeaponType]||'any weapon'}`;
@@ -7883,7 +7889,11 @@ function openInvDetail(id){
     const el = document.createElement('div');
     el.id = 'inv-detail-overlay';
     el.className = 'inv-detail';
-    el.addEventListener('click',e=>{ if(e.target===el) el.classList.remove('show'); });
+    /* b372: route the backdrop tap through closeInvDetail() rather than
+       stripping the class here, so the one close path also clears the z-index
+       lift and _invDetailId. Two closes that do different amounts of cleanup
+       is how the lift would have leaked onto the next bag open. */
+    el.addEventListener('click',e=>{ if(e.target===el) closeInvDetail(); });
     document.body.appendChild(el);
     return el;
   })();
@@ -8054,7 +8064,15 @@ function openInvDetail(id){
   d.classList.add('show');
 }
 function closeInvDetail(){
-  document.getElementById('inv-detail-overlay')?.classList.remove('show');
+  const _d = document.getElementById('inv-detail-overlay');
+  if(_d){
+    _d.classList.remove('show');
+    /* b372: drop any per-open z-index lift (features/item-inspect.js raises the
+       flyout above whatever overlay a requirement chip was tapped in), so the
+       next ordinary bag open is back on the stylesheet's 1500. */
+    _d.style.zIndex = '';
+  }
+  window._invDetailId = null;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -14941,10 +14959,14 @@ function tileForArtisan(recipe, skillId){
   /* b237 (tester): show how many of each input you OWN on the tile (e.g. sawing
      planks → watch your log count fall), red when short of one action. data-have/
      data-need let the live refresh below update it as stock is consumed. */
+  /* b372: the input name links to that item's flyout — kept identical to the
+     ESM twin in features/activities-grid.js, which is the copy that actually
+     paints on most boots. Two renderers, one behaviour. */
   var inputsLine = Object.entries(inputs).map(function(kv){
     var d = ITEMS[kv[0]]; var nm = d?d.n.split(' ')[0]:kv[0];
     var have = (G.inventory && G.inventory[kv[0]]) || 0;
-    return (kv[1]>1?kv[1]+'× ':'')+nm+' <span class="at-have'+(have<kv[1]?' low':'')+'" data-have="'+kv[0]+'" data-need="'+kv[1]+'">'+fmtQty(have)+'</span>';
+    var nmHtml = (typeof window.hrInspectSpan==='function') ? window.hrInspectSpan(kv[0], nm, 'at-in-nm') : nm;
+    return (kv[1]>1?kv[1]+'× ':'')+nmHtml+' <span class="at-have'+(have<kv[1]?' low':'')+'" data-have="'+kv[0]+'" data-need="'+kv[1]+'">'+fmtQty(have)+'</span>';
   }).join(' + ');
   var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
   /* b345: the artisan tile carried the SAME two lies as the gather tile, plus

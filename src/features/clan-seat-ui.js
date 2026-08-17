@@ -1974,6 +1974,39 @@
        `spent` is the owned-rung state: the requirement stays visible on a rung
        you already built, so a player scanning the ladder sees that rungs 2 and
        3 want blueprints BEFORE reaching one they cannot pay for. */
+    /* ── ONE COST CHIP, TWO PLACES (b372) ─────────────────────────────────
+       The pinned build bar and the upgrade ladder were rendering the same
+       have/need chip from two nearly-identical expressions, and only one of
+       them handled `known === false`. They are one function now, which is what
+       lets the b372 inspect link land on BOTH without a second chance to get
+       it half-done.
+
+       The link itself: KD420 asked for the maple planks in his house upgrade
+       to say where they come from, and a room rung is the same question one
+       screen over. `c.id` rides on every cost line (homestead costTriples,
+       castle wingLadder); where it is absent — the gold line — hrInspectAttrs
+       returns '' and the chip stays inert text, which is correct because gold
+       is not an item and its flyout would be empty.
+
+       `.hr-si` on the label is the affordance hook: these chips are flex, and
+       a flex container does not propagate text-decoration to its children, so
+       the dotted underline has to sit on an inner inline span. */
+    function costChip(c) {
+      var insp = (typeof window.hrInspectAttrs === 'function') ? window.hrInspectAttrs(c.id) : '';
+      var hint = (typeof window.hrInspectHint === 'function') ? window.hrInspectHint(c.id) : '';
+      var label = '<span class="hr-si">' + esc(c.label) + '</span>';
+      var title = insp ? ' title="' + esc(c.label + hint) + '"' : '';
+      /* `known === false` is a balance the server has not sent yet. It is
+         neither full nor short — it renders as the pending dash, the same
+         glyph the rest of the game uses for that state. */
+      if (c.known === false) {
+        return '<span class="hr-cs-qty"' + insp + title + '><span class="bal-pending" role="status" '
+          + 'title="Waiting for the server">—</span>/' + nfmt(c.need) + ' ' + label + '</span>';
+      }
+      return '<span class="hr-cs-qty' + (c.have != null && c.have >= c.need ? ' is-full' : '') + '"' + insp + title + '>' +
+        (c.have != null ? nfmt(c.have) + '/' : '') + nfmt(c.need) + ' ' + label + '</span>';
+    }
+
     function gateLines(list) {
       var g = (list || []).filter(Boolean);
       if (!g.length) return '';
@@ -1982,9 +2015,16 @@
         var state = x.spent ? 'Spent' : x.ok
           ? ('In your bags' + (x.have > 1 ? ' (' + nfmt(x.have) + ')' : ''))
           : 'You have none';
+        /* b372: the gate is the requirement a player is MOST likely to tap —
+           it is the one they cannot grind for. b355 already prints its source
+           line underneath; the name now also opens the full flyout, where the
+           value, the description and the complete source list live. */
+        var gi = (typeof window.hrInspectAttrs === 'function') ? window.hrInspectAttrs(x.id) : '';
+        var gh = (typeof window.hrInspectHint === 'function') ? window.hrInspectHint(x.id) : '';
         return '<div class="hr-room-gate ' + cls + '">' +
           '<span class="hr-room-gate-hd">' +
-            '<span class="hr-room-gate-nm">' + esc(x.name || x.id) + '</span>' +
+            '<span class="hr-room-gate-nm"' + gi + (gi ? ' title="' + esc((x.name || x.id) + gh) + '"' : '') +
+              '>' + esc(x.name || x.id) + '</span>' +
             '<span class="hr-room-gate-st">' + esc(state) + '</span>' +
           '</span>' +
           /* No source line is better than an invented one — an item the index
@@ -2000,10 +2040,7 @@
        places. */
     function buildBar(p) {
       if (!p) return '';
-      var chips = (p.costs || []).map(function (c) {
-        return '<span class="hr-cs-qty' + (c.have != null && c.have >= c.need ? ' is-full' : '') + '">' +
-          (c.have != null ? nfmt(c.have) + '/' : '') + nfmt(c.need) + ' ' + esc(c.label) + '</span>';
-      }).join(' &middot; ');
+      var chips = (p.costs || []).map(costChip).join(' &middot; ');
       var btn = p.disabled
         ? '<button class="btn btn-sm" disabled title="' + esc(p.why || '') + '">' + esc(p.label) + '</button>'
         : '<button class="btn btn-sm ' + (p.primary ? 'btn-primary' : '') + '" data-cs="' + esc(p.action) + '"' +
@@ -2143,17 +2180,7 @@
           '<div class="hr-room-rung-lv">Lv ' + r.level + '</div>' +
           '<div class="hr-cs-grow">' +
             '<div class="hr-cs-nm">' + (r.effect || '') + '</div>' +
-            (r.costs ? '<div class="hr-cs-meta">' + r.costs.map(function (c) {
-              /* `known === false` is a balance the server has not sent yet. It
-                 is neither full nor short — it renders as the pending dash, the
-                 same glyph the rest of the game uses for that state. */
-              if (c.known === false) {
-                return '<span class="hr-cs-qty"><span class="bal-pending" role="status" '
-                  + 'title="Waiting for the server">—</span>/' + nfmt(c.need) + ' ' + esc(c.label) + '</span>';
-              }
-              return '<span class="hr-cs-qty' + (c.have >= c.need ? ' is-full' : '') + '">' +
-                (c.have != null ? nfmt(c.have) + '/' : '') + nfmt(c.need) + ' ' + esc(c.label) + '</span>';
-            }).join(' &middot; ') + '</div>' : '') +
+            (r.costs ? '<div class="hr-cs-meta">' + r.costs.map(costChip).join(' &middot; ') + '</div>' : '') +
             (r.why ? '<div class="hr-cs-meta">' + esc(r.why) + '</div>' : '') +
             gateLines(r.gates) +
           '</div>' +
@@ -2278,9 +2305,14 @@
         var got = Math.min(need, Math.max(0, +(o.supplied || {})[k] || 0));
         var full = got >= need;
         var inStore = stored(k);
+        /* b372: "Iron Fittings 80 / 200" is an instruction only if the player
+           knows where a fitting comes from. The name opens its flyout. */
+        var wi = (typeof window.hrInspectAttrs === 'function') ? window.hrInspectAttrs(k) : '';
+        var wh = (typeof window.hrInspectHint === 'function') ? window.hrInspectHint(k) : '';
         return '<div class="hr-cs-wo-mat' + (full ? ' is-full' : '') + '">' +
           '<div class="hr-cs-wo-mat-top">' +
-            '<span class="hr-cs-wo-mat-nm">' + esc(itemName(k)) + '</span>' +
+            '<span class="hr-cs-wo-mat-nm"' + wi + (wi ? ' title="' + esc(itemName(k) + wh) + '"' : '') +
+              '>' + esc(itemName(k)) + '</span>' +
             '<span class="hr-cs-wo-mat-qty">' + n(got) + ' / ' + n(need) + '</span>' +
           '</div>' +
           bar(full ? '' : 'is-supply', got, need) +
@@ -2669,7 +2701,11 @@
     for (var to = cur + 1; to <= Math.min(10, cur + 3); to++) {
       var scale = C().materialScale(to);
       var costs = Object.keys(b.bundle).map(function (k) {
-        return { label: itemName(k), need: Math.ceil(b.bundle[k] * scale),
+        /* b372: `id` rides with every cost line so the renderer can turn the
+           chip into a link to that item's flyout. The homestead half of this
+           seam (costTriples) has always carried it; the castle half did not,
+           which would have made one pillar inspectable and the other not. */
+        return { id: k, label: itemName(k), need: Math.ceil(b.bundle[k] * scale),
                  have: to === cur + 1 ? stored(k) : null };
       });
       costs.push({ label: 'gold on completion', need: Math.ceil(b.gold * scale), have: null });
@@ -2768,7 +2804,7 @@
       if (next) {
         var bundle = C().TIER_BUNDLES[next.tier] || {};
         var costs = Object.keys(bundle).filter(function (k) { return k.charAt(0) !== '_'; }).map(function (k) {
-          return { label: itemName(k), need: bundle[k], have: stored(k) };
+          return { id: k, label: itemName(k), need: bundle[k], have: stored(k) };
         });
         var spoils = bundle._spoils;
         sections.push({ kind: 'ladder', title: 'Raise the hold', rows: [{

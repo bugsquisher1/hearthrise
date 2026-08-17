@@ -36543,6 +36543,55 @@ const TESTS = [
     assert(G3.playerHp === 9, 'the guard blocked a HEAL: ' + G3.playerHp);
   }),
 
+  () => tryRunAsync('b374: a hitpoints level gained via a server envelope raises maxHp + the heal cap live (no reload)', async () => {
+    /* THE BUG (Tyler backlog): "HP went from 10 to 11 but I had to refresh the
+       game for it to take effect." maxHp is DERIVED from the hitpoints level
+       (ensureSave: levelFromXp(skills.hitpoints)); the settle envelope raised
+       the xp but only set playerMaxHp from an explicit st.max_hp it does not
+       reliably carry, so the cap lagged until a reload re-derived it. */
+    assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
+      'xp helpers unavailable');
+    const A = await import('../net/accrue.js?v=374');
+
+    // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
+    const xp11 = window.xpForLevel(11);
+    const G = { playerHp: 10, playerMaxHp: 10, activeMonster: null,
+      skills: { hitpoints: window.xpForLevel(10) }, inventory: {}, equipment: {} };
+    A.applyEnvelopeState(G, { state: {}, skills: { hitpoints: { xp: xp11 } }, inventory: {} });
+
+    const expect = window.levelFromXp(xp11);
+    assert(expect > 10, 'test premise broken: level did not advance past 10');
+    // Same tick, no reload: the DERIVED max — which IS the heal/auto-eat cap —
+    // followed the freshly-applied xp.
+    assert(G.playerMaxHp === expect,
+      'maxHp did not follow the hitpoints level in the same settle: ' + G.playerMaxHp + ' vs ' + expect);
+    // A resting player keeps their current hp under the new, higher cap (they
+    // heal INTO it — the point is the ceiling rose, not that hp auto-jumps).
+    assert(G.playerHp === 10 && G.playerMaxHp > G.playerHp,
+      'a resting bar was mishandled: ' + G.playerHp + '/' + G.playerMaxHp);
+
+    // A downed player (0 hp) is topped up to the new max rather than left stuck
+    // one under it — the heal cap genuinely follows.
+    const Gd = { playerHp: 0, playerMaxHp: 10, activeMonster: null,
+      skills: { hitpoints: window.xpForLevel(10) }, inventory: {}, equipment: {} };
+    A.applyEnvelopeState(Gd, { state: {}, skills: { hitpoints: { xp: xp11 } }, inventory: {} });
+    assert(Gd.playerHp === expect && Gd.playerMaxHp === expect,
+      'a downed player was not healed into the new max: ' + Gd.playerHp + '/' + Gd.playerMaxHp);
+
+    /* RAISE-ONLY: never fights the b373 HP floor. A stale/low max_hp on the
+       envelope must not shrink a cap the hitpoints level supports — the derive
+       recovers it upward. maxHp == the hitpoints LEVEL, so level 20 -> max 20. */
+    const lvl20 = window.levelFromXp(window.xpForLevel(20));
+    const G2 = { playerHp: lvl20, playerMaxHp: lvl20, activeMonster: null,
+      skills: { hitpoints: window.xpForLevel(20) }, inventory: {}, equipment: {} };
+    A.applyEnvelopeState(G2, { state: { max_hp: 10 }, skills: {}, inventory: {} });
+    assert(G2.playerMaxHp === lvl20, 'a lower envelope max_hp clobbered the level-derived cap: ' + G2.playerMaxHp);
+
+    /* MUTATION: revert the b374 recompute in accrue.js (the levelFromXp block
+       after `G.skills = skills`) and the first two asserts go RED — maxHp stays
+       10 until a reload runs ensureSave. */
+  }),
+
   () => tryRun('b373: identity is ACCOUNT-scoped — a hero is addressed by its slot', () => {
     const P = window.HearthriseProfile;
     assert(P && typeof P.heroLabel === 'function', 'heroLabel is not published');

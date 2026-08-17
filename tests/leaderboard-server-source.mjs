@@ -427,13 +427,90 @@ export async function guard() {
     }
     ok(meRow.name === 'Honest',
       `LB-7: the row name is ${JSON.stringify(meRow.name)}, expected the profiles display_name.`);
-    ok(meRow.saved_at != null,
-      'LB-7: saved_at is null — it now comes from player_state.updated_at (a server clock) and '
-      + 'the client stamps "updated Nm ago" from it.');
+    /* saved_at is present-but-NULL by design (see LB-12 and the migration's
+       base CTE): sourcing it from player_state.updated_at made every active
+       player's rows rewrite on every refresh. The KEY must survive, because
+       normRow() reads it; the VALUE is null, which normRow already coalesces
+       (`r.saved_at || null`) and no code path renders. The per-board "updated
+       Nm ago" stamp uses refreshed_at, which is unaffected. */
+    ok(meRow.saved_at === null,
+      `LB-7: saved_at is ${JSON.stringify(meRow.saved_at)}, expected null. A per-settle timestamp `
+      + 'in a ranked row is the WAL churn LB-12 removed.');
   }
   ok(shape && shape.rank != null,
     'LB-7: the self block has no rank. "Where am I?" is the entire retention hook of the '
     + 'leaderboard and it must survive the rebuild.');
+
+  /* ── LB-12 — STEADY-STATE REFRESH WRITES NOTHING (the WAL churn). ────────
+     Reliability measured hr_leaderboard_refresh doing ~11,188 inserts + 11,175
+     deletes over 34h on a ~107-row board — every one of those rows decoded by
+     Realtime's walrus and thrown away, on an instance starved enough to be
+     dropping player save writes.
+
+     The instinct is to hand-roll upsert-and-prune. Measured instead, and that
+     would have been WRONG WORK: `refresh materialized view concurrently`
+     ALREADY diffs (0 of 32 rows rewritten when nothing changed; a plain
+     refresh rewrites all 32). The residual churn came from the ROW CONTENT —
+     saved_at was player_state.updated_at, which moves on every ~90s settle, so
+     every active player's rows changed every refresh and the diff had nothing
+     to save. 11,188/408 refreshes ≈ 27 rows each ≈ the active quarter of the
+     board, which is the signature of a working diff over volatile content, not
+     of a full rebuild (that would be 408 × 107 ≈ 43,656).
+
+     So this asserts the property, not the mechanism: after a settle that
+     changes no score, a concurrent refresh must rewrite ZERO rows — and,
+     paired with it so a matview that never updates at all cannot pass, a real
+     score change MUST still rewrite. Measured physically via tuple xmin
+     (pg_stat_user_tables reports 0/0/0 in PGlite even for a full rebuild, so
+     the stats collector is an always-null probe here). */
+  const xminMap = async () => new Map((await q(
+    'select board, subject_id::text sid, xmin::text::bigint x from leaderboard_ranked'))
+    .map((r) => [`${r.board}|${r.sid}`, Number(r.x)]));
+  const churn = async (fn) => {
+    const before = await xminMap();
+    await fn();
+    const after = await xminMap();
+    let rewritten = 0, added = 0, removed = 0;
+    for (const [k, x] of after) {
+      if (!before.has(k)) added++; else if (before.get(k) !== x) rewritten++;
+    }
+    for (const k of before.keys()) if (!after.has(k)) removed++;
+    return { rewritten, added, removed, rows: after.size };
+  };
+  const conc = () => db.exec('refresh materialized view concurrently leaderboard_ranked');
+
+  await conc();
+  const idle = await churn(conc);
+  ok(idle.rows > 0,
+    'LB-12 (the FIXTURE control): the matview is EMPTY, so a zero-churn result below would be '
+    + 'vacuously true. Nothing is being measured.');
+  ok(idle.rewritten === 0 && idle.added === 0 && idle.removed === 0,
+    `LB-12: a concurrent refresh with NOTHING changed rewrote ${idle.rewritten} of ${idle.rows} `
+    + 'rows. `refresh ... concurrently` diffs, so a non-zero result means a ranked row carries '
+    + 'content that moves on its own — almost certainly a timestamp.');
+
+  // A SETTLE that changes no score. This is the case that was churning.
+  await db.query('update player_state set updated_at = now()');
+  const settled = await churn(conc);
+  ok(settled.rewritten === 0 && settled.added === 0 && settled.removed === 0,
+    `LB-12: after every player settled (player_state.updated_at moved, no score changed) a `
+    + `concurrent refresh rewrote ${settled.rewritten} of ${settled.rows} rows — it must rewrite `
+    + 'ZERO. A per-settle timestamp in a ranked row makes every active player churn on every '
+    + 'refresh and defeats the diff entirely; that WAL is decoded by Realtime and discarded. '
+    + 'Source saved_at as null (or a coarse bucket), not as player_state.updated_at.');
+
+  /* THE PAIRED POSITIVE. Without this, a matview that silently stopped
+     updating — or one whose refresh is a no-op — would satisfy every zero
+     above perfectly. Zero churn is only a virtue if real changes still land. */
+  const beforeScore = await scoreOf('skill:mining', HONEST);
+  const bump = await apply(HONEST, { xp: { mining: 4000 } });
+  ok(bump && bump.ok === true, `LB-12: the xp grant was refused — ${JSON.stringify(bump)}`);
+  const moved = await churn(conc);
+  ok(moved.rewritten + moved.added > 0,
+    'LB-12 (the PAIRED POSITIVE): a real XP gain caused NO row to be rewritten. The refresh is a '
+    + 'no-op and every zero-churn assertion above is meaningless.');
+  ok(await scoreOf('skill:mining', HONEST) === beforeScore + 4000,
+    'LB-12: the concurrent refresh did not publish the new score.');
 
   /* ── LB-11 — THE A9 RATE GATE SURVIVED THE REBUILD (the one-way door). ────
      THE DEFECT THIS FILE'S FIRST REVISION ACTUALLY SHIPPED, so it is asserted
@@ -511,6 +588,10 @@ export async function guard() {
     + `board; a server-written 5000 xp / 5000 gold moved skill:mining, total_level and wealth.`,
     `LB: ${skills.length} skill boards + total_level/combat_level/wealth/clan_power sourced from `
     + 'player_state + player_skills; renown + bosses declared unsourced and rank nobody.',
+    `LB: refresh churn over ${idle.rows} ranked rows — idle ${idle.rewritten} rewritten, after `
+    + `EVERY player settled ${settled.rewritten} rewritten, after a real xp gain `
+    + `${moved.rewritten} rewritten + ${moved.added} added. Steady-state WAL is zero because `
+    + '`concurrently` already diffs and no ranked column moves on its own.',
   ];
   return problems;
 }
@@ -588,6 +669,17 @@ const MUTANTS = [
       + 'level disagrees with their own screen',
     edits: [["           coalesce(max(l.level) filter (where l.skill_id = 'attack'),    1),",
       "           coalesce(max(l.level) filter (where l.skill_id = 'attack'),    0),"], ...BLIND2],
+  },
+  {
+    /* THE WAL CHURN, RESTORED. saved_at re-sourced from player_state.updated_at
+       — which is what the design started with, and what made every active
+       player's rows rewrite on every 5-minute refresh despite `concurrently`
+       already diffing. */
+    id: 'M9', file: MIG,
+    what: 'saved_at is re-sourced from player_state.updated_at, so every active player\'s rows '
+      + 'churn on every refresh and the concurrent diff saves nothing',
+    edits: [['         null::timestamptz                          as saved_at,',
+      '         ps.updated_at                              as saved_at,'], ...BLIND2],
   },
   {
     /* THE DEFECT THIS FILE'S FIRST REVISION ACTUALLY SHIPPED. §4 replaced the

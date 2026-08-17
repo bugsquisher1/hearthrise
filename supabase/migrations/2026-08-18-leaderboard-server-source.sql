@@ -191,11 +191,47 @@ drop materialized view if exists public.leaderboard_ranked cascade;
 
 create materialized view public.leaderboard_ranked as
 with base as (
-  -- One row per RANKED CHARACTER. `saved_at` is player_state.updated_at, which
-  -- is stamped `now()` by hr_apply — a server clock, never a client timestamp.
+  /* One row per RANKED CHARACTER.
+
+     ⚠ `saved_at` IS DELIBERATELY NULL, AND IT IS A WAL DECISION. MEASURED.
+       The obvious source is player_state.updated_at (a server clock, stamped
+       now() by hr_apply). It is also stamped on EVERY settle — every ~90s for
+       every active player — so putting it in a ranked row makes that row
+       *change* every 90s even when the player's score, rank, name and clan are
+       all identical. `refresh materialized view concurrently` diffs, so it only
+       writes rows that changed; a volatile timestamp makes every active
+       player's rows change, which defeats the diff entirely.
+
+       Measured on the replay (8 players, 32 ranked rows, tuple xmin compared
+       across a concurrent refresh):
+         plain refresh, nothing changed ............ 32 of 32 rows rewritten
+         concurrently, nothing changed .............  0 of 32   (it diffs)
+         concurrently, ONE player settles ..........  4 of 32   (that player's)
+         concurrently, ALL players settle .......... 32 of 32   (full churn)
+         concurrently, a real xp gain ..............  4 rewritten + 1 added
+       i.e. with updated_at in the row, an all-active population reproduces
+       100% churn THROUGH the diff. That is the load reliability measured in
+       production: ~107 rows, 11,188 inserts + 11,175 deletes over 34h ≈ 27
+       rows per 5-minute refresh — about a quarter of the board, which is the
+       active subset, not the whole thing. (A non-diffing plain refresh would
+       have produced 408 × 107 ≈ 43,656.) So CONCURRENTLY was already working;
+       the residual churn was the timestamp.
+
+       And the column RENDERS NOTHING. src/features/leaderboards.js normRow()
+       copies it to `savedAt` (:186) and no code path reads it again — the
+       "updated Nm ago" stamp comes from the board-level `refreshed_at` in
+       leaderboard_meta, not from a per-row value. So the fix is to stop
+       sourcing it, NOT to add upsert-and-prune machinery on top of a refresh
+       that already upserts and prunes.
+
+       The COLUMN stays (as null, exactly like the clan_power branch always
+       has) so the matview shape, the RPC's jsonb_build_object and the client's
+       normRow() are all untouched. If a "last active" signal is ever wanted on
+       a board, source it as a COARSE bucket (date_trunc('day', …)) so it
+       churns once a day rather than once a settle — and measure it again. */
   select ps.user_id,
          ps.gold,
-         ps.updated_at                              as saved_at,
+         null::timestamptz                          as saved_at,
          coalesce(p.display_name, 'Adventurer')     as name,
          c.name                                     as clan_name
   from public.player_state ps
@@ -576,6 +612,18 @@ begin
   if public.hr_lb_combat_level(1,1,1,10,1,1,99) <> 50 then
     raise exception 'the MAGIC arm is not winning: got %, expected 50',
                     public.hr_lb_combat_level(1,1,1,10,1,1,99);
+  end if;
+
+  -- (h2) NO VOLATILE COLUMN IN A RANKED ROW. `refresh materialized view
+  --      concurrently` writes only the rows that CHANGED, so any column that
+  --      moves on every settle (player_state.updated_at does) makes every
+  --      active player's rows churn on every refresh and defeats the diff. See
+  --      the measurement in the base CTE. A non-null saved_at here means the
+  --      timestamp was re-sourced and the WAL churn is back.
+  if exists (select 1 from public.leaderboard_ranked where saved_at is not null) then
+    raise exception 'a ranked row carries a non-null saved_at — a per-settle timestamp in a '
+                    'ranked row rewrites that row on every refresh, which is the WAL churn this '
+                    'design removed. Source it as a coarse bucket or not at all.';
   end if;
 
   -- (i) THE RATE GATE SURVIVED. §4 replaced the __ungated twin precisely so

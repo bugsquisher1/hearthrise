@@ -2,6 +2,94 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-17 · the background set spec + prompt pack. The brief I was handed for the
+### composition was WRONG, and I only know that because I photographed the screen.
+
+**The finding I would put first.** `combat-screen-rework.md` §5 — the spec I was told to build the
+prompts against — says to put the detail in the OUTER THIRDS and keep a quiet CENTRE. I booted the
+real client and measured the arena instead of trusting it. **The hole is not a centre, it is three
+vertical slots.** Desktop: `.combat-arena` spans x 432–1430; the player plate sits 587–756 and the
+foe plate 1019–1361; everything below the portraits — names, HP bars, swing bars, six stat tiles,
+four style buttons — is opaque type across the FULL width. So a backdrop is seen through gaps of
+roughly **155, 263 and 69 px, top half only**. At 922x423 it collapses further: one full-width band
+of ~85 px in a 291 px arena, **29%**. **A painted focal object — one arch, one throne — lands behind
+a hero plate and is never seen by anybody.** Hence the wrapper rule every prompt in the pack carries:
+landmarks in the TOP THIRD, and the landmark must REPEAT ACROSS THE WIDTH (a rank of trunks, a row of
+windows, a line of standing stones), with the lower half a dark quiet ground plane. That is not a
+refinement of §5, it is a different instruction, and the difference is one screenshot.
+
+**The second measurement that changed a decision: one image, aspect ratios from 1.36 to 2.47.**
+`.combat-arena` is 998x736 on desktop (AR 1.36) and 672x291 on a landscape phone (AR 2.31);
+`#panel-skills` is 1.57 and 2.47. With `center top / cover` on a 16:9 source the guaranteed-visible
+region across every mount is the **central 84% of the width and the top 72% of the height** — one
+number the whole wave can be judged against. And the anchor has to change: the three existing
+dungeon.jpg rules use `center bottom`, which crops away the top third that carries the read, at
+exactly the viewport where the top third is all there is.
+
+**Where I refused the brief's own presumption.** The task said the files "presumably" land in
+`assets/icons-bundle/hearthfire/backgrounds/`. They must not. `backgrounds/` already exists one level
+up, already ships, and is already referenced by three stylesheets; `hearthfire/` is a *class* —
+transparent, 256px, square, keyed to an ITEMS/MONSTERS id — and everything that walks that tree
+(`art-wave-matte.mjs`, the preflights, the smoke guard that counts hearthfire renders) assumes those
+properties. A 1920x1080 opaque plate satisfies none of them and would be matted by a tool whose
+entire job is removing backgrounds from things that are not backgrounds.
+
+**The scheme, and why 11 and not 6 and not 108.** Class, not tier. 108 monsters, 11 classes, 6 tiers;
+`cls` is live on all 108 so it is a data lookup with no schema. Tier is a token tint on the
+`.fs-scrim` element that already exists for it. Per-tier was cheaper and is wrong for a reason worth
+keeping: **a player fights three classes inside one tier in a single sitting, so a tier scheme
+changes the backdrop when nothing about the fight changed and never changes it when the foe does.**
+
+**Skills got a WALL, not a landscape, and that is the crop math talking.** `#panel-skills` scrolls
+and crops to AR 2.47 on a phone; a scene with a horizon loses its horizon. A craft-hall wall has no
+horizon to lose, reads for Woodcutting and for Smithing without pretending to be either, and fills
+the large dead area under the node grid that the desktop capture shows.
+
+**The bounty board: what the painting ADDS vs REPLACES, decided by looking at the render.** The
+board is already the best-built object in the game — deckled notices, per-column tilt, hung lantern,
+recessed field. Two honest defects in the capture: it **stands in a void** (a contact shadow falling
+on nothing) and its plank field is a `repeating-linear-gradient` — perfectly regular 62px stripes,
+no grain, no knots, no nail rust. So: `bg_board_wall` ADDS the wall behind (`#panel-bounty`, nothing
+removed), `bg_board_planks` REPLACES only the gradient inside `.bb-board::before` — keeping the
+inset, both inset box-shadows and the lantern radial, because a flat photograph of planks with no
+recess is a step backwards. Frame, notices and lantern stay CSS: they respond to bounty count, and a
+painted 9-slice would freeze a board whose height changes with its content.
+
+**The known risk, stated in the pack rather than buried.** The one thing this pack asks for is the
+thing three previous waves fought to prevent — an OPAQUE FULL-BLEED SCENE. Picker §0.10b/c is a long
+record of the model painting backdrops, ground planes, skies and frames when told not to. That is a
+good omen for this wave, not a bad one. What is genuinely unproven is the top-third/dark-bottom
+composition rule, so the pack ends by asking Tyler for ONE image first — the same "land one first to
+prove the composition" gate §5 already set, honoured rather than quietly skipped.
+
+**Three things I found while measuring that are not about backgrounds.** (1) **`cozy-light` is
+unreachable**: theme-picker has it commented out of `THEMES`, `readSaved()` returns `'hearthlight'`
+unconditionally, and `applyTheme('cozy-light')` REMOVES the attribute — so every
+`body[data-theme="cozy-light"]` rule in the codebase, including b362's carefully-argued light-stage
+block in combat-screens.css, is **dead CSS**, and any "verify cozy-light" that SETS the attribute is
+testing a state no player can reach. (2) **Five darkening layers** sit over one photograph on
+`.combat-arena` across four sheets, two of them `!important` — art-direction.css's own comment
+already apologises for the stack, and the wiring pass must delete rather than add a sixth.
+(3) `combat-screens.js:97` still returns a raw 👾 as monster art when nothing is wired — rarely
+reached at 104/111, but live, in the file that owns the two densest combat surfaces.
+
+**Verified in-browser, my own server rooted in THIS worktree** (launch.json serves the main tree —
+the trap recorded three times in this log). 2 viewports x 4 surfaces, **0 console errors, 0 page
+errors**. Captures in `assets/art-pilot/_screenshots/bg-spec/`, and I READ them — the desktop fight
+capture is where the three-slot finding came from, and the bounty capture is where the void behind
+the board came from. **No art generated, no spend, no wiring, no version bump, no push.** All 14
+prompts verified under the 1000-char cap (max 983, min 798) by the emitter that writes them, so the
+wrapper is byte-identical across all 13 scene prompts by construction rather than by proofreading.
+
+**Known limitations.** The composition law is derived from the CURRENT Fight screen; if COMBAT-UI-18
+(loot history) or the metrics strip changes the row stack, the free band moves and the law needs
+re-measuring — which is an argument for generating one and photographing it. The tier-tint colours
+are specified as a ramp direction (T1 warm/green → T6 cold/violet), not as six token values; those
+are a wiring decision I did not pre-empt. And I did not spec a War Table backdrop (it is already a
+wall of 160px portraits — a backdrop there competes with 100 paintings and wins nothing) or
+dungeon/raid override scenes (the mount supports them; I have not measured those screens, and
+speccing art for a composition I have not measured is exactly the mistake this pass exists to fix).
+
 ### 2026-08-16 · b368 — three player-reported defects, ONE root cause, and the fix I shipped
 ### is a class test on a div. The animation Tyler said I removed was never removed.
 

@@ -2,6 +2,43 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-17 · FROM Art Director → TO Asset Director · **A new asset CLASS is inbound: opaque 1920x1080 background plates. They must NOT go through the hearthfire icon pipeline.**
+
+`docs/design/background-session-pack.txt` specs 14 painted backdrops Tyler will hand-generate in the
+Recraft web UI (\$0, same flow as the monster waves): 11 combat class biomes, 1 skills craft-hall,
+2 bounty-board plates.
+
+**What you need to know before they land:**
+* They go in **`assets/icons-bundle/backgrounds/`** — the folder that already exists and already
+  ships (`dungeon.jpg`). NOT `assets/icons-bundle/hearthfire/backgrounds/`, which was the assumed
+  path in the brief. `hearthfire/` means transparent, 256px, square, keyed to an ITEMS/MONSTERS id;
+  a 1920x1080 opaque plate is none of those and would be measured by guards it has no business
+  being measured by.
+* **Do not run them through `tools/art-wave-matte.mjs`.** That tool exists to cut a background OUT.
+  These ARE the background. The pack tells Tyler to export OPAQUE, not transparent, for the same
+  reason — a transparent backdrop is a hole in the screen.
+* **Convert to JPEG q~82 before committing**, budget <=180 KB each (~2.2 MB for all 14). dungeon.jpg
+  is 74 KB. The hearthfire bundle is already 23 MB of unoptimised PNG-24 with no quantiser in the
+  toolchain — this is the fourth pass to say so — and 14 raw PNG plates would add ~25 MB more.
+* Delivery size is **1920x1080 and no larger**: the widest mount is 998 CSS px at DPR 2.
+
+Nothing is blocked on you today. This is so the wave is not processed as icons on arrival.
+
+### 2026-08-17 · FROM Art Director → TO Game Designer · **The combat backdrop scheme is keyed to `cls`, which makes monster class a player-visible identity for the first time**
+
+I ruled 11 backdrops keyed to monster CLASS (not tier, not per-monster): 108 monsters, 11 classes,
+6 tiers, and `cls` is already a live field on all 108. Tier becomes a token TINT on the existing
+`.fs-scrim`, not 66 more files.
+
+**The design consequence, which is yours, not mine:** once a Vermin fight visibly happens in a
+granary and a Dragon fight on a cliff ledge, `cls` stops being a filter chip on the War Table and
+starts being a place the player recognises. That is good — it is the reason for the scheme — but it
+means class assignments now carry visual weight. If any monster is filed under a class for
+mechanical convenience rather than fiction, it will look wrong in a way a data table never showed.
+Worth a pass over the 108 before the art is wired. Counts: humanoid 15 · mammal 14 · undead 14 ·
+vermin 12 · human 11 · demon 8 · elemental 8 · dragon 8 · plant 6 · construct 6 ·
+extradimensional 6.
+
 ### 2026-08-16 · FROM Art Director (b368) → TO Systems Engineer · **legacy.js's `setupArenaVs()` is an unacknowledged second author of the Fight stage — I patched the symptom, the ownership is yours**
 
 Three player-reported defects this pass (vanished swing bar, missing management/action rows,

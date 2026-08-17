@@ -4,6 +4,53 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-17 (bg pack) · Art Director · **The Fight stage has no wide open area for a backdrop — it has three vertical slots; and `cozy-light` is unreachable, so every `body[data-theme="cozy-light"]` rule in the codebase is dead**
+
+**DISCOVERY 1 — the backdrop brief in `combat-screen-rework.md` §5 is wrong about WHERE the hole is,
+and I only know that because I photographed the screen instead of reading the spec.** §5 says put the
+detail in the OUTER THIRDS and keep the CENTRE quiet. Measured on the rendered client at 1440x900:
+`.combat-arena` spans x 432–1430, the player plate sits at 587–756 and the foe plate at 1019–1361,
+and every row below the portraits (names, HP bars, swing bars, six stat tiles, four style buttons) is
+opaque type across the FULL width. **The painted plate is visible through three vertical slots about
+155, 263 and 69 px wide, in the top half only.** At 922x423 it is a single full-width band of ~85 px
+in a 291 px arena (29%). So the composition law is TOP THIRD + REPEATS ACROSS THE WIDTH + dark quiet
+lower half — a single painted focal object lands behind a hero plate and is never seen.
+**AFFECTED:** `docs/design/combat-screen-rework.md` §5, COMBAT-UI-17, any future backdrop wave.
+**REQUIRED ACTION:** none pending — the corrected law is written into
+`docs/design/background-session-pack.txt` §2 with the measurements behind it.
+
+**DISCOVERY 2 — `cozy-light` cannot be reached, so a whole class of rules is inert.**
+`src/theme-picker.js`: `THEMES` has cozy-light COMMENTED OUT, `readSaved()` returns `'hearthlight'`
+unconditionally, and `applyTheme('cozy-light')` REMOVES the data-theme attribute rather than setting
+it. Therefore `body[data-theme="cozy-light"]` can never match anything. `combat-screens.css` carries
+a block of them (the b362 "the light theme gets a light stage" fix, with a long comment explaining
+why it matters) plus a cozy-light token set in `board-and-shop.css`. Harmless today, but it means
+**a cozy-light verification that SETS the attribute is testing a state no player can be in** — and
+it also means new work should simply author under `body[data-theme]`, which always matches.
+**AFFECTED:** `src/styles/combat-screens.css`, `board-and-shop.css`, `theme-cozy.css`, and the
+"verify both themes" step in every visual gate.
+**REQUIRED ACTION (Systems/Art, low priority):** decide — delete the dead rules, or make the theme
+real. Do not add more of them meanwhile.
+
+**DISCOVERY 3 — three stylesheets independently paint `dungeon.jpg` onto `.combat-arena` with
+`!important`, and their scrims stack.** `audit-overrides.css:560` (`center/cover` + 2 gradients),
+`art-direction.css:2039` (`center bottom/cover` + 2 more gradients, whose own comment says the stack
+"could not be seen at all"), `theme-cozy.css:4528`. Plus `legacy.css:3054`'s `::after` and
+`combat-screens.css`'s `.fs-scrim`. Five darkening layers over one photograph. Any backdrop wiring
+that ADDS a sixth rather than deleting the first four reproduces the exact bug art-direction.css is
+already apologising for.
+**AFFECTED:** `.combat-arena` in four sheets. **REQUIRED ACTION:** the COMBAT-UI-17 wiring pass must
+delete, not layer — written up as a guard in the pack's §4.6.
+
+**DISCOVERY 4 — `src/features/combat-screens.js:97` renders a raw emoji as monster art**
+(`return \`<span class="${cls} is-emoji">${(m && m.icon) || '👾'}</span>\``) whenever a monster has
+neither painted art nor an atlas glyph. 104 of 111 are wired so it is rarely reached, but it is a
+live emoji-as-art path in the file that owns the two densest combat surfaces.
+**AFFECTED:** War Table cards, Fight stage, ribbon. **REQUIRED ACTION (Art Director, next combat
+pass):** replace the tail with a gilt atlas glyph; the 7 unwired monsters are the reproduction.
+
+---
+
 ### 2026-08-16 (b368) · Art Director · **`setupArenaVs()` in legacy.js is a SECOND AUTHOR of the Fight stage, and it wins the race on every resume-into-a-running-fight**
 
 **DISCOVERY 1 — one root cause behind three separate player reports.** legacy.js's `setupArenaVs()`

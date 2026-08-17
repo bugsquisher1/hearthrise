@@ -324,8 +324,27 @@ export function buildIntentWiring(cfg) {
   /* b354 — the three economy verbs ride the same base. Five copies of a url
      would be five things to drift; the b332 lesson about five copies of one
      hash is recent enough not to need restating. */
+  /* b366 — the EQUIP intent rides the same base for the same reason. NOTE what
+     is NOT here: `gestureWired`. That flag is not a credential, it is an
+     ASSERTION that the player's equip gesture routes to the server, and it is
+     made in wireServerIntents() below by LOOKING for the routing function
+     rather than by a constant somebody has to remember to keep true. */
   return { accrual: { ...base }, character: { ...base, userId: c.userId },
-    record: { ...base }, activity: { ...base }, gold: { ...base } };
+    record: { ...base }, activity: { ...base }, gold: { ...base }, equip: { ...base } };
+}
+
+/* ── IS THE EQUIP GESTURE ACTUALLY ROUTED ON THIS CLIENT? (b366) ────────────
+   The single condition `isEnvelopeAbsolute()` reads, answered MECHANICALLY.
+   `window.routeEquipGesture` is published by the block in legacy.js that every
+   equip path (equip button, paper-doll drag, unequip, loadout apply) calls
+   after its local swap. If that block is deleted, renamed or fails to load, the
+   answer becomes false and every envelope falls back to b359 merge semantics —
+   which is the safe direction: a merge can only over-credit, while an absolute
+   envelope on a client that still equips locally is the b362 dupe at settle
+   cadence. Arming on a constant would survive exactly that deletion. */
+export function equipGestureWired(win) {
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  return !!(w && typeof w.routeEquipGesture === 'function');
 }
 
 /** Apply that wiring to whatever `win` publishes. Returns what was passed, so a
@@ -344,6 +363,13 @@ export function wireServerIntents(win, cfg) {
   catch (e) { console.warn('[auth] activity wiring skipped:', e && e.message); }
   try { if (win && win.HearthriseGold) win.HearthriseGold.configureGold(w.gold); }
   catch (e) { console.warn('[auth] gold wiring skipped:', e && e.message); }
+  /* ⚠ THIS CALL IS WHAT ARMS THE ENVELOPE FLIP, and only because the gesture is
+     really there — see equipGestureWired() above. The returned wiring records
+     the answer so a test asserts the LITERAL configuration rather than that
+     code exists which might produce it. */
+  w.equip = { ...w.equip, gestureWired: equipGestureWired(win) };
+  try { if (win && win.HearthriseEquip) win.HearthriseEquip.configureEquip(w.equip); }
+  catch (e) { console.warn('[auth] equip wiring skipped:', e && e.message); }
   return w;
 }
 

@@ -77,6 +77,7 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, summaryFromAway, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
+  isReconcilePending,
 } from './accrue.js?v=366';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
@@ -593,6 +594,21 @@ export function applyIntentEnvelope(G, body) {
   if (!G || typeof G !== 'object' || !env) return null;
 
   const loss = describeReplacement(G, env);
+  /* b366 — THE DEVICE-HANDOFF DEFERRAL, APPLIED TO THIS TWIN TOO. accrue.js's
+     applyEnvelope carries the same three lines and the same reasoning: `G`
+     during a handoff is whatever loadLocal() put there, and against a week-old
+     phone save almost any envelope reads "destructive" on nothing but
+     arithmetic (the desktop session SPENT gold, so local > server). Asking the
+     player to consent to losing progress while pullAndMaybeRestore is still in
+     flight with the real save is a question whose answer is being fetched.
+     Refusing costs nothing here: the switch's collect has already been recorded
+     against the server's own watermark, so the next answer carries the same
+     truth and the gate re-evaluates against the save that actually won. */
+  if (loss.destructive && isReconcilePending()) {
+    console.warn('[activity] deferring the replacement decision — the cloud reconcile has not settled, '
+      + 'so the local save being compared against may not be the one that wins.');
+    return null;
+  }
   if (loss.destructive && !isReplacementAcknowledged()) {
     console.warn('[activity] REFUSING to overwrite local progress with the server character '
       + 'until the player confirms — would lose ' + loss.gold + ' gold, ' + loss.skillXp

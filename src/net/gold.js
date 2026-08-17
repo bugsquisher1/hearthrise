@@ -115,7 +115,7 @@
 import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
-  showReplacementSheet, registerPredictionSeam,
+  showReplacementSheet, registerPredictionSeam, isReconcilePending,
 } from './accrue.js?v=366';
 import { SHOP_OFFERS } from '../data/shops.js?v=366';
 import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=366';
@@ -594,6 +594,22 @@ export function applyGoldEnvelope(G, body, ownKey) {
   }
 
   const loss = describeReplacement(G, env);
+  /* b366 — THE DEVICE-HANDOFF DEFERRAL, APPLIED TO THIS TWIN TOO. Same three
+     lines and same reasoning as accrue.js's applyEnvelope: during a handoff `G`
+     is whatever loadLocal() put there, so a stale phone save makes almost any
+     envelope read "destructive" on arithmetic alone, and the consent modal it
+     raises names a permanent loss while the real save is still in flight.
+     ⚠ THE PREDICTION IS ABANDONED, exactly as in the consent branch below (F3):
+     nothing is written, no second envelope is coming for this key, and leaving
+     it INFLIGHT would make it immortal — the F1 permanent offset wearing a
+     deferral instead of a dialog. The re-apply after the reconcile is absolute
+     and needs no carry to be correct. */
+  if (loss.destructive && isReconcilePending()) {
+    console.warn('[gold] deferring the replacement decision — the cloud reconcile has not settled, '
+      + 'so the local save being compared against may not be the one that wins.');
+    abandonPrediction(ownKey);
+    return null;
+  }
   if (loss.destructive && !isReplacementAcknowledged()) {
     console.warn('[gold] REFUSING to overwrite local progress with the server character '
       + 'until the player confirms — would lose ' + loss.gold + ' gold, ' + loss.skillXp

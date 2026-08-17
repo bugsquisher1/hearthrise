@@ -1749,6 +1749,10 @@ function applyServerEnvelope(res,opts){
           : '⏰ Away '+s.hrs+'h — the server credited +'+s.gainedItems+' items, +'+s.gainedXp+' XP, +'+s.gainedGold+' gold');
     if(_txt) notify(_txt,'info');
   }
+  /* b366 — EVERY envelope is a statement about the worn set, so this is where a
+     character the server never learnt about heals. Last, after the state is
+     written, and guarded: a self-heal must never be able to break an applier. */
+  try{ if(typeof assertEquipDeclaration==='function') assertEquipDeclaration(res); }catch(e){}
   return written;
 }
 window.applyServerEnvelope=applyServerEnvelope;
@@ -5408,7 +5412,289 @@ function renderLoadout(){
     </div>
     <div class="muted tiny" style="margin-top:8px">Tap a slot to unequip. Manage gear from the Inventory tab.</div>`;
 }
-function unequip(slot){const id=G.equipment[slot];if(!id)return;G.equipment[slot]=null;G.inventory[id]=(G.inventory[id]||0)+1;notify(`Unequipped ${ITEMS[id].n}`,'info');renderLoadout();renderInventory();}
+/* ══════════════════════════════════════════════════════════════════════════
+   THE EQUIP GESTURE, ROUTED TO THE SERVER (b366 — live-settlement.md §10 PHASE 2)
+   ══════════════════════════════════════════════════════════════════════════
+   Every way a player changes gear — the inventory Equip button, the paper-doll
+   drag, tapping a slot to take something off, and applying a saved loadout —
+   ends here. Before this block those four mutated `G.equipment` and nothing
+   else: the server's `player_inventory` row went on counting the copy in the
+   slot, which is the b362 dupe and the reason the envelope could not be
+   believed outright.
+
+   ── ONE DIFF, NOT FOUR OP BUILDERS ───────────────────────────────────────
+   Each call site does exactly two things: SNAPSHOT before, ROUTE after. The
+   operations are derived by DIFFING the snapshot against `G.equipment`, which
+   is why applying a fifteen-slot loadout is ONE request rather than fifteen
+   (the accrue bucket is 30/min and shared with settling), why a gesture that
+   changed nothing sends nothing, and why a fifth equip path added tomorrow is
+   wired by two lines rather than by re-deriving the wire format. A per-site op
+   builder is four chances to describe the same swap differently.
+
+   ── S4: A SWAP THAT CHANGES NOTHING MUST NOT BE SENT ─────────────────────
+   `hr_apply` stamps `accrued_to = now()` on any delta carrying `equip`, and the
+   verb collects first — but a collect under ACCRUE_MIN_MS (60 s) answers
+   `below_min_span`, and the STAMP still lands. So an equip inside the first
+   minute of a window confiscates that window. The client half of the fix is to
+   never spend a gesture on a no-op: re-equipping the item already in the slot,
+   or re-applying the loadout already worn, now sends nothing at all.
+   ⚠ RESIDUAL, STATED: a REAL swap inside that 60 s window still confiscates up
+   to 60 s of gold/XP/drops. That is a SERVER fix (make the equip delta's stamp
+   conditional on the collect having paid, or floor `accrued_to` at its old
+   value on `below_min_span`) and it is owned by the next migration pass. It is
+   bounded at <60 s per gesture and it is the pre-existing trade recorded in
+   intents.js for activity switches — not a new hole opened here.
+
+   ── PREDICTION AND ROLLBACK ──────────────────────────────────────────────
+   The local swap still happens first, so the paper doll answers the tap. It is
+   a PREDICTION: the server's envelope is the truth and it is applied through
+   the same applier the away card and the activity switch use. On an ANSWERED
+   refusal that wrote nothing, the snapshot is put back — otherwise the player
+   is left wearing something the server says they are not, and under the
+   absolute envelope that lie is corrected 90 seconds later by an item vanishing.
+   An UNANSWERED call (CORS, DNS, a dead network) leaves the prediction alone
+   and retries ONCE ON THE SAME KEY — rule 1, because a fresh key on a call that
+   may well have landed is how one swap applies twice. */
+function equipStateSnapshot(){
+  const eq={},inv={};
+  if(typeof G!=='undefined'&&G){
+    if(G.equipment)Object.keys(G.equipment).forEach(k=>{eq[k]=G.equipment[k]||null;});
+    if(G.inventory)Object.keys(G.inventory).forEach(k=>{inv[k]=G.inventory[k];});
+  }
+  return {equipment:eq,inventory:inv};
+}
+/** The slots that MOVED, as the wire's `{slot: itemId|null}` map. Null when
+    nothing moved — which is the S4 skip, not an error. */
+function equipOpsFromSnapshot(before){
+  if(!before||typeof G==='undefined'||!G||!G.equipment)return null;
+  const seen={},ops={};let n=0;
+  Object.keys(before.equipment||{}).forEach(k=>{seen[k]=1;});
+  Object.keys(G.equipment).forEach(k=>{seen[k]=1;});
+  Object.keys(seen).forEach(s=>{
+    const was=(before.equipment&&before.equipment[s])||null;
+    const now=G.equipment[s]||null;
+    if(was===now)return;
+    ops[s]=now;n++;
+  });
+  return n?ops:null;
+}
+function restoreEquipSnapshot(before){
+  if(!before||typeof G==='undefined'||!G)return;
+  G.equipment={...before.equipment};
+  G.inventory={...before.inventory};
+  try{ if(typeof renderInventory==='function')renderInventory(); }catch(e){}
+  try{ if(typeof renderLoadout==='function')renderLoadout(); }catch(e){}
+  try{ if(typeof window._renderInvFancy==='function')window._renderInvFancy(); }catch(e){}
+}
+/* Wired lazily and once, for the reason wireServerActivity() states: legacy.js
+   is a classic script and may run before the ESM module publishes itself. */
+function wireServerEquip(){
+  const M=window.HearthriseEquip;
+  if(!M)return null;
+  /* ⚠ ASK WHAT IS INSTALLED, DO NOT LATCH ON HAVING INSTALLED IT. `resetEquip()`
+     clears the hooks (the suite and any teardown call it), and a boolean latch
+     here would leave the transport wired to NOTHING: the swap would reach the
+     server and its envelope — real payment included, since the verb collects
+     first — would be dropped on the floor, silently, for the rest of the
+     session. */
+  const h=(typeof M.getEquipHooks==='function')?M.getEquipHooks():null;
+  if(h&&typeof h.onEnvelope==='function')return M;
+  /* THE SAME APPLIER as the away card and the activity switch. An equip's
+     envelope can carry real payment (the verb collects first), so a second
+     renderer for it would be a second idea of what a server answer means. */
+  M.setEquipHooks({onEnvelope:function(res){
+    const written=applyServerEnvelope(res,{intent:true});
+    reconcileEquipmentFromEnvelope(res,written);
+    return written;
+  }});
+  return M;
+}
+window.wireServerEquip=wireServerEquip;
+/* ── THE WORN SET, WHEN THE SERVER HAS JUST AUTHORED IT ────────────────────
+   `applyEnvelopeState` deliberately does NOT write `G.equipment` — and must
+   not, in general. Every OTHER envelope reports equipment the server inferred
+   from a `player_equipment` table that, for every character created before this
+   verb existed, is simply empty; assigning that wholesale would silently
+   unequip every beta player's gear on their first settle.
+
+   An EQUIP verb's own successful answer is the one envelope where that is not
+   true: the server has just performed the swap, so `equipment` is a statement
+   it authored this instant, and the inventory in the same envelope is the
+   matching half of the same transfer. Applying both together is conserving;
+   applying either alone is not. Hence the two conditions — the verb, and an
+   inventory that was actually applied ABSOLUTELY. Under the merge (flip
+   disarmed, or the kill switch on) the bag is not the server's, so clearing a
+   slot from a server that has not been told would drop the item on the floor. */
+function reconcileEquipmentFromEnvelope(res,written){
+  if(!res||res.ok!==true||res.verb!=='equip')return null;
+  if(!written||written.inventoryAbsolute!==true)return null;
+  const e=res.equipment;
+  if(!e||typeof e!=='object'||Array.isArray(e))return null;      // unreadable ⇒ leave it alone
+  if(typeof G==='undefined'||!G)return null;
+  const next={};
+  /* The CLIENT's slot vocabulary bounds the write: hr_equip_slots carries one
+     slot (`shield`) this build's paper doll has no home for, and inventing a
+     key here would put an item somewhere nothing renders. */
+  const slots=(typeof EQUIP_SLOTS!=='undefined'&&Array.isArray(EQUIP_SLOTS))?EQUIP_SLOTS:Object.keys(G.equipment||{});
+  slots.forEach(s=>{
+    const id=e[s];
+    next[s]=(typeof id==='string'&&id&&(typeof ITEMS==='undefined'||ITEMS[id]))?id:null;
+  });
+  G.equipment=next;
+  try{ if(typeof renderLoadout==='function')renderLoadout(); }catch(err){}
+  try{ if(typeof renderInventory==='function')renderInventory(); }catch(err){}
+  try{ if(typeof window._renderInvFancy==='function')window._renderInvFancy(); }catch(err){}
+  return next;
+}
+window.reconcileEquipmentFromEnvelope=reconcileEquipmentFromEnvelope;
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE SELF-HEAL FOR EVERY CHARACTER THAT EXISTED BEFORE THE EQUIP VERB
+   ══════════════════════════════════════════════════════════════════════════
+   ⚠ THIS IS THE CONDITION THAT MAKES ARMING THE FLIP SAFE, and without it the
+   flip has a real, one-off duplication in it.
+
+   A character created before b366 has `player_equipment` EMPTY and its worn
+   copies still counted in `player_inventory` — the server was never told about
+   a single equip. Under the merge that was invisible (the b363 discount hid
+   it). Under ABSOLUTE the server's bag figure is assigned outright, so the
+   first envelope hands the worn copy back into the bag WHILE THE PLAYER IS
+   STILL WEARING IT — and because that bag copy is one the server genuinely
+   believes in, the player can sell it on the market. One duplicated copy per
+   equipped item, once, on tradeable gear. That is b362 with the sign flipped.
+
+   The fix is the same shape as `assertActivityDeclaration`: state the fact the
+   server was never told, ONCE, and let the answer settle it. The equip verb is
+   a TRANSFER — it debits the bag and fills the slot under a row lock — so an
+   assertion is exactly the operation that reconciles the two views, and it is
+   conserving whether it lands or is refused.
+
+   Deliberately narrow:
+     · it only ever asserts what the player IS WEARING. It never asks the server
+       to take something off, because "the server thinks I wear nothing" and "I
+       want to unequip" are different sentences and only the first is knowable
+       here.
+     · it is LATCHED on the exact map it sent, so a server that keeps refusing
+       (`insufficient_item` — a client-only item the server never granted) costs
+       one intent, not one per envelope.
+     · it is SILENT. The player did not ask for it; a toast for a reconciliation
+       they cannot act on is noise. Refusals go to the console.
+     · it runs only when the flip is ARMED, because under the merge there is
+       nothing to heal and the b363 discount is still doing that job.
+
+   RESIDUAL, STATED: the opposite disagreement — the server wearing something
+   this client does not — is left alone. It cannot mint (the item is in the
+   server's equipment, so absolute inventory correctly omits it); it can only
+   under-show, and the next real gesture or `hr_load` restates it. */
+let _equipAsserted=null;
+let _equipAssertInFlight=false;
+function assertEquipDeclaration(res){
+  if(_equipAssertInFlight)return null;                 // the hook re-enters; the latch alone is not enough
+  if(typeof G==='undefined'||!G||!G.equipment)return null;
+  const A=window.HearthriseAccrual,M=window.HearthriseEquip;
+  if(!A||typeof A.isEnvelopeAbsolute!=='function'||!A.isEnvelopeAbsolute())return null;
+  if(!M||typeof M.sendEquip!=='function')return null;
+  const srv=res&&res.equipment;
+  /* NO STATEMENT ⇒ NOTHING TO DISAGREE WITH. An envelope that carries no
+     readable equipment is an answer we could not read, not a claim that the
+     player wears nothing — asserting against one would send a gesture on every
+     malformed answer. */
+  if(!srv||typeof srv!=='object'||Array.isArray(srv))return null;
+  const ops={};let n=0;
+  const slots=(typeof EQUIP_SLOTS!=='undefined'&&Array.isArray(EQUIP_SLOTS))?EQUIP_SLOTS:Object.keys(G.equipment);
+  slots.forEach(s=>{
+    const mine=G.equipment[s]||null;
+    if(!mine)return;                                   // never assert an unequip
+    if(srv[s]===mine)return;                           // already agreed
+    if(n>=((M.MAX_EQUIP_OPS||15)))return;
+    ops[s]=mine;n++;
+  });
+  if(!n)return null;
+  const sig=JSON.stringify(ops);
+  if(_equipAsserted===sig)return null;
+  _equipAsserted=sig;
+  wireServerEquip();
+  _equipAssertInFlight=true;
+  console.log('[equip] the server has never been told about '+n+' worn item(s) — asserting them once so its '
+    +'bag stops counting the copies in the slots');
+  let p=null;
+  try{ p=M.sendEquip(ops,{}); }catch(e){ _equipAssertInFlight=false; return null; }
+  return p.then(v=>{
+    _equipAssertInFlight=false;
+    if(v&&v.outcome!=='equipped'&&v.outcome!=='replayed'){
+      console.warn('[equip] the worn-set assertion was not accepted ('+v.outcome+(v.error?'/'+v.error:'')
+        +') — this client keeps wearing gear the server does not know about, which under-shows and '
+        +'cannot mint');
+    }
+    return v;
+  }).catch(e=>{ _equipAssertInFlight=false; return null; });
+}
+window.assertEquipDeclaration=assertEquipDeclaration;
+/* The latch is per-SESSION by design (one assertion per distinct worn set), so
+   the suite — which may run twice in one page — needs a way to return it. A
+   named seam, not a test poking a closure. */
+window.__resetEquipAssertion=function(){ _equipAsserted=null; _equipAssertInFlight=false; };
+
+function equipVerdictOutcome(v,before,ops,key){
+  const M=window.HearthriseEquip;
+  const o=(v&&v.outcome)||'unreachable';
+  if(o==='equipped'||o==='replayed')return v;
+  /* NOT ANSWERED ⇒ ONE RETRY ON THE SAME KEY, then leave the prediction
+     standing. The swap may have landed; the next envelope settles it either
+     way, and under the absolute envelope that is at most one settle away. */
+  if(M&&typeof M.isAnswered==='function'&&!M.isAnswered(o)){
+    if(key)return v;                       // this WAS the retry — stop here
+    return M.sendEquip(ops,{key:v&&v.key}).then(v2=>equipVerdictOutcome(v2,before,ops,(v&&v.key)||'retried'));
+  }
+  /* The transport never reached the network: the switch is off, this device has
+     no session, or our own validator refused the map. The local swap stands —
+     that is exactly the pre-b366 behaviour, and it is what a dark build must do. */
+  if(o==='switch-off'||o==='unconfigured')return v;
+  if(o==='undeliverable'){
+    console.warn('[equip] refused its own request ('+((v&&v.reason)||'?')+') — the server was never told '
+      +'about this swap, so the next envelope will undo it');
+    return v;
+  }
+  /* A 200 THAT IS NOT AN ENVELOPE is an answer we could not read, not a
+     refusal. Rolling back on one would undo a swap that very likely landed. */
+  if(o==='malformed')return v;
+  /* ANSWERED AND REFUSED. If the answer carried an envelope it has already been
+     applied by the hook and IS the truth — putting the snapshot back over it
+     would re-author the client's own guess on top of the server's statement. */
+  if(!(v&&v.applied))restoreEquipSnapshot(before);
+  const msg=(M&&typeof M.equipRefusalMessage==='function')
+    ? M.equipRefusalMessage(o==='rate-limited'?'rate_limited':(v&&v.error))
+    : 'The server refused that gear change.';
+  try{ if(typeof notify==='function')notify(msg,'kill'); }catch(e){}
+  return v;
+}
+/**
+ * ROUTE A COMPLETED LOCAL SWAP TO THE SERVER.
+ * @param before a snapshot taken by equipStateSnapshot() BEFORE the swap.
+ * @returns a promise, or null when there was nothing to send.
+ *
+ * ⚠ ITS EXISTENCE IS THE FLIP'S ARMING CONDITION. auth.js reads
+ * `typeof window.routeEquipGesture === 'function'` to decide whether to pass
+ * `gestureWired: true` to configureEquip, which is the single fact
+ * `isEnvelopeAbsolute()` consults. Delete or rename this function and the
+ * envelope falls back to b359 merge semantics — mechanically, with nothing to
+ * remember. Read the block above `equipAuthorityLive` in net/accrue.js.
+ */
+function routeEquipGesture(before){
+  const ops=equipOpsFromSnapshot(before);
+  if(!ops)return null;                      // S4: no equipment change, no stamp
+  const M=wireServerEquip();
+  if(!M||typeof M.sendEquip!=='function')return null;
+  try{
+    return M.sendEquip(ops,{}).then(v=>equipVerdictOutcome(v,before,ops,null))
+      .catch(e=>{ console.warn('[equip] gesture threw:',e&&e.message); return null; });
+  }catch(e){ console.warn('[equip] gesture threw:',e&&e.message); return null; }
+}
+window.routeEquipGesture=routeEquipGesture;
+window.equipStateSnapshot=equipStateSnapshot;
+window.equipOpsFromSnapshot=equipOpsFromSnapshot;
+
+function unequip(slot){const id=G.equipment[slot];if(!id)return;const _b=equipStateSnapshot();G.equipment[slot]=null;G.inventory[id]=(G.inventory[id]||0)+1;notify(`Unequipped ${ITEMS[id].n}`,'info');renderLoadout();renderInventory();routeEquipGesture(_b);}
 /* b246 (Tyler) — REAL GEAR LEVEL REQUIREMENTS. The flyout showed "Requires
    Lv X" but equipItem equipped anything — a phantom gate. Now armour is gated
    on Defence and weapons on their combat style, at the tier's level (Bronze 1 →
@@ -5439,11 +5725,13 @@ function equipItem(id){
   const w=canWield(id);   // b246: enforce the wield gate (grandfathered)
   if(!w.ok){ notify(`Requires ${(SKILLS_DEF[w.req.skill]&&SKILLS_DEF[w.req.skill].name)||w.req.skill} Lv ${w.req.lv} to wield ${def.n}`,'kill'); return; }
   const slot=getPreferredSlot(def);if(!slot||!EQUIP_SLOTS.includes(slot))return;
+  const _b=equipStateSnapshot();
   const old=G.equipment[slot];if(old)G.inventory[old]=(G.inventory[old]||0)+1;
   G.equipment[slot]=id;removeItem(id,1);
   G.wieldGrandfather=G.wieldGrandfather||{}; G.wieldGrandfather[id]=true;   // once worn, always re-wearable
   notify(`Equipped ${def.n}`,'info');
   renderInventory();renderLoadout();
+  routeEquipGesture(_b);
 }
 
 /* ────────────────────────────────────────────────
@@ -7014,6 +7302,11 @@ function saveLoadout(idx){
 }
 function applyLoadout(idx){
   const l = G.loadouts[idx]; if(!l || !l.set){ notify('Slot is empty — long-press to save current kit', 'kill'); return; }
+  /* ⚠ ONE SNAPSHOT FOR THE WHOLE KIT, so the fifteen slots below leave as ONE
+     equip request (the wire takes a map). Fifteen calls would spend half the
+     shared 30/min accrue bucket on one tap, run fifteen collects, and — because
+     each one stamps `accrued_to` — settle fourteen sub-minute windows. */
+  const _b = equipStateSnapshot();
   /* Equipment: items currently equipped that aren't in the preset go to bag */
   const newEq = {};
   Object.keys(G.equipment).forEach(slot=>{
@@ -7051,6 +7344,9 @@ function applyLoadout(idx){
   saveLocal();
   notify(`✓ Applied loadout: ${l.name}`, 'levelup');
   refreshAll();
+  /* S4 again: re-applying the kit you are already wearing diffs to nothing and
+     sends nothing, so tapping a loadout twice cannot stamp a second window. */
+  routeEquipGesture(_b);
 }
 function renameLoadout(idx){
   const l = G.loadouts[idx]; if(!l) return;
@@ -13981,6 +14277,7 @@ function equipToSlot(id, targetSlot){
   var _w = (typeof canWield === 'function') ? canWield(id) : {ok:true};
   if(!_w.ok){ if(typeof notify==='function') notify(`Requires ${(SKILLS_DEF[_w.req.skill]&&SKILLS_DEF[_w.req.skill].name)||_w.req.skill} Lv ${_w.req.lv} to wield ${def.n}`,'kill'); return; }
   /* Move existing item back to inventory */
+  var _b = (typeof equipStateSnapshot === 'function') ? equipStateSnapshot() : null;
   var old = G.equipment[targetSlot];
   if(old){ G.inventory[old] = (G.inventory[old]||0) + 1; }
   G.equipment[targetSlot] = id;
@@ -13990,6 +14287,7 @@ function equipToSlot(id, targetSlot){
   if(typeof renderInventory === 'function') renderInventory();
   if(typeof renderLoadout === 'function') renderLoadout();
   if(typeof window._renderInvFancy === 'function') window._renderInvFancy();
+  if(_b && typeof routeEquipGesture === 'function') routeEquipGesture(_b);
 }
 window._equipToSlot = equipToSlot;
 

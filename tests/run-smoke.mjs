@@ -25,6 +25,7 @@ import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
 import { runAll as equipIntentGuards } from './equip-intent.mjs';
+import { itemsCatalogueGuard, itemsCatalogueMutationGuard } from './items-catalogue.mjs';
 import { cutoverImportGuard } from './cutover-import.mjs';
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
@@ -1107,6 +1108,34 @@ async function catalogueDriftPreflight() {
   return 1;
 }
 
+// PREFLIGHT — SECURITY CONDITION S5: src/data/items.js ⊆ hr_items.
+//
+// The check above regenerates the SQL and compares it to the file, so both
+// sides come out of the same generator. THIS one reads the two artefacts
+// independently — the ids by importing the ESM module, the rows by parsing the
+// shipped .sql as text — because under the absolute envelope an item the server
+// has never heard of is omitted from every envelope, and omission means ZERO.
+// A new item that reaches clients before its catalogue row lands would be
+// deleted from every bag that holds it at the first settle. Full reasoning in
+// tests/items-catalogue.mjs; mutation-proven by ITEMS-CATALOGUE-GUARD.
+async function itemsCataloguePreflight() {
+  const { problems, note } = await itemsCatalogueGuard();
+  if (problems.length) {
+    console.error(`\nItem catalogue preflight (S5) FAILED:\n  · ${problems.join('\n  · ')}\n`);
+    return 1;
+  }
+  /* ITEMS-CATALOGUE-GUARD — the guard graded, not merely run. See the block in
+     tests/items-catalogue.mjs: a check that cannot demonstrate it sees failure
+     is treated as broken here, not as a pass. */
+  const m = await itemsCatalogueMutationGuard();
+  if (m.problems.length) {
+    console.error(`\nItem catalogue preflight (S5) — THE GUARD ITSELF IS BROKEN:\n  · ${m.problems.join('\n  · ')}\n`);
+    return 1;
+  }
+  console.log(`Item catalogue preflight (S5): ${note}; ${m.note}`);
+  return 0;
+}
+
 // PREFLIGHT — the price catalogue must match the shop tables it was extracted
 // from.
 //
@@ -1278,6 +1307,7 @@ const run = async () => {
   if (await itemArtPreflight()) process.exit(1);
   if (await artPalettePreflight()) process.exit(1);
   if (await catalogueDriftPreflight()) process.exit(1);
+  if (await itemsCataloguePreflight()) process.exit(1);
   if (await shopDriftPreflight()) process.exit(1);
   if (await perkDriftPreflight()) process.exit(1);
   if (await unlockModelPreflight()) process.exit(1);

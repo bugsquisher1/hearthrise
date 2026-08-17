@@ -24987,6 +24987,96 @@ const TESTS = [
     }
   }),
 
+  /* ── THE TWO TWINS OF THE ABOVE (b366) ────────────────────────────────────
+     The handoff deferral shipped in accrue.js's applyEnvelope and NOWHERE ELSE,
+     while `describeReplacement` + the same consent gate are copied into two
+     more appliers: the activity switch and the gold verbs. A device handoff
+     does not know which verb happens to answer first — a phone that wakes up
+     mid-reconcile and switches activity, or completes a purchase, reaches the
+     SAME stale-save comparison down a path that never got the fix. Recorded as
+     a handoff at the time; this is it being paid.
+     MUTATION for each: remove the isReconcilePending() branch from the named
+     function → RED. */
+  () => tryRun('ACCRUE-REPLACE-HANDOFF-2: the ACTIVITY envelope defers the same sheet mid-reconcile', () => {
+    const A = window.HearthriseAccrual;
+    const S = window.HearthriseSync;
+    const M = window.HearthriseActivity;
+    assert(M && typeof M.applyIntentEnvelope === 'function', 'applyIntentEnvelope must be published');
+    const body = {
+      ok: true, verb: 'set_activity', version: 3, now: '2026-08-16T00:00:00Z',
+      state: { slot: 0, gold: 40, hp: 100, max_hp: 100 },
+      skills: { woodcutting: { xp: 10, level: 2 } }, inventory: {},
+    };
+    const stalePhoneSave = () => ({ gold: 12000, skills: { woodcutting: 90000 }, inventory: { logs: 60 } });
+    const wasAck = A.isReplacementAcknowledged();
+    const wasHeld = S.isSnapshotHeld();
+    try {
+      A.acknowledgeReplacement(false);
+      A.hideReplacementSheet();
+      assert(A.describeReplacement(stalePhoneSave(), body).destructive === true,
+        'the fixture must actually look destructive, or this test proves nothing');
+
+      S.holdSnapshots();
+      const G1 = stalePhoneSave();
+      assert(M.applyIntentEnvelope(G1, body) === null, 'a deferred switch envelope must write nothing');
+      assert(G1.gold === 12000 && G1.skills.woodcutting === 90000,
+        'the save was mutated during the deferral: ' + JSON.stringify(G1));
+      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+        'the "permanently gone" sheet was shown by the ACTIVITY verb mid-handoff');
+
+      /* ORDERING, NOT AMNESTY — the same proof the accrue twin carries. */
+      S.releaseSnapshots();
+      const G2 = stalePhoneSave();
+      assert(M.applyIntentEnvelope(G2, body) === null, 'a genuinely destructive switch envelope must still refuse');
+      assert(document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+        'once reconcile has settled the activity verb must STILL ask the player');
+    } finally {
+      A.hideReplacementSheet();
+      A.acknowledgeReplacement(wasAck);
+      if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
+    }
+  }),
+
+  () => tryRun('ACCRUE-REPLACE-HANDOFF-3: the GOLD envelope defers too — and abandons its prediction (F3)', () => {
+    const A = window.HearthriseAccrual;
+    const S = window.HearthriseSync;
+    const Gd = window.HearthriseGold;
+    assert(Gd && typeof Gd.applyGoldEnvelope === 'function', 'applyGoldEnvelope must be published');
+    const body = {
+      ok: true, verb: 'vendor_sell', version: 9, now: '2026-08-16T00:00:00Z',
+      state: { slot: 0, gold: 40, hp: 100, max_hp: 100 },
+      skills: { woodcutting: { xp: 10, level: 2 } }, inventory: {},
+    };
+    const stalePhoneSave = () => ({ gold: 12000, skills: { woodcutting: 90000 }, inventory: { logs: 60 } });
+    const wasAck = A.isReplacementAcknowledged();
+    const wasHeld = S.isSnapshotHeld();
+    try {
+      Gd.resetGold();
+      A.acknowledgeReplacement(false);
+      A.hideReplacementSheet();
+      S.holdSnapshots();
+
+      const G1 = stalePhoneSave();
+      const key = Gd.newIntentKey();
+      Gd.settle(G1, 250, 'vendor.sell_one', key);
+      assert(Gd.getGoldState().inflight === 1, 'the fixture must have an outstanding prediction');
+      assert(Gd.applyGoldEnvelope(G1, body, key) === null, 'a deferred gold envelope must write nothing');
+      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+        'the "permanently gone" sheet was shown by a GOLD verb mid-handoff');
+      /* ⚠ EVERY EXIT MUST ACCOUNT FOR `ownKey`. A deferral that left the
+         prediction INFLIGHT would carry it onto every future envelope for the
+         rest of the session — F1 wearing a deferral instead of a dialog. */
+      const st = Gd.getGoldState();
+      assert(st.inflight === 0 && st.abandoned === 1,
+        'the deferral left the prediction inflight (' + JSON.stringify(st.pending) + ')');
+    } finally {
+      A.hideReplacementSheet();
+      A.acknowledgeReplacement(wasAck);
+      Gd.resetGold();
+      if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
+    }
+  }),
+
   () => tryRunAsync('B339-6: a pre-b338 server (ok:true, no `created`) is refused LOUDLY and asked exactly once', async () => {
     const C = window.HearthriseCharacter;
     const realFetch = window.fetch;
@@ -32242,6 +32332,283 @@ const TESTS = [
       'an unanswered outcome must not mint a new key');
     assert(E.isAnswered('refused') === true && E.isAnswered('rate-limited') === true,
       'an ANSWERED refusal must mint a new key — a reused one replays the stored rejection');
+  }),
+
+  /* ── EQUIP-GESTURE / EQUIP-BATCH (b366) ───────────────────────────────────
+     EQUIP-WIRE-1 above proves the TRANSPORT's bytes. These prove the thing that
+     actually arms the flip: that a PLAYER'S GESTURE reaches it. The distinction
+     is the whole reason `gestureWired` is a separate assertion from a
+     configured endpoint — a client that believes the server's bag while still
+     equipping locally is the b362 dupe at settle cadence.
+
+     Driven through `window.equipItem` / `window.applyLoadout` — the real
+     functions the buttons call — with only `fetch` replaced, so nothing here
+     can pass against a routing that exists only in a helper. */
+  () => tryRunAsync('EQUIP-GESTURE: a player equip goes to the SERVER, reconciles, and rolls back on a refusal', async () => {
+    const E = window.HearthriseEquip;
+    const A = window.HearthriseAccrual;
+    assert(E && typeof E.configureEquip === 'function', 'HearthriseEquip must be published');
+    assert(typeof window.routeEquipGesture === 'function',
+      'legacy.js must publish routeEquipGesture — it is what auth.js looks for to decide whether the '
+      + 'flip may arm, so its absence is the flip silently disarming');
+
+    const S = window.HearthriseSync;
+    const prevCfg = E.getEquipConfig();
+    const realFetch = window.fetch;
+    const wasAck = A.isReplacementAcknowledged();
+    const wasHeld = S.isSnapshotHeld();
+    const savedInv = { ...G.inventory }, savedEq = { ...G.equipment }, savedGold = G.gold;
+    const notified = [];
+    const realNotify = window.notify;
+    let sent = [];
+    const drain = () => new Promise((r) => setTimeout(r, 60));
+    try {
+      A.acknowledgeReplacement(true);
+      /* The handoff deferral is a REAL branch on this path now (b366): with the
+         reconcile unresolved a destructive-looking envelope writes nothing, and
+         a live harness may legitimately be holding. Release it so this test
+         measures the gesture rather than the gate — the gate has its own three. */
+      S.releaseSnapshots();
+      window.notify = function (msg) { notified.push(String(msg)); };
+      E.configureEquip({ url: 'https://equip.test', apiKey: 'k', authToken: () => 'tok', slot: 0, gestureWired: true });
+      assert(A.isEnvelopeAbsolute() === true, 'a wired gesture must arm the flip');
+
+      let reply = null;
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        sent.push(JSON.parse(init.body));
+        return Promise.resolve(new Response(JSON.stringify(reply.body), { status: reply.status }));
+      };
+
+      // ── 1. THE HAPPY PATH ────────────────────────────────────────────────
+      G.gold = 0; G.equipment.weapon = null; G.inventory = { bronze_sword: 1, oak_log: 4 };
+      reply = { status: 200, body: {
+        ok: true, verb: 'equip', version: 2, now: '2026-08-18T00:00:00Z',
+        state: { slot: 0, gold: 7, hp: 10, max_hp: 10 },
+        skills: {}, inventory: { oak_log: 4 },
+        equipment: { weapon: 'bronze_sword' }, collected: null,
+      } };
+      window.equipItem('bronze_sword');
+      await drain();
+      assert(sent.length === 1, 'one equip gesture must produce exactly ONE request — got ' + sent.length);
+      assert(sent[0].verb === 'equip' && sent[0].equip.weapon === 'bronze_sword',
+        'the gesture must send the swap it performed — got ' + JSON.stringify(sent[0]));
+      assert(E.isIntentKey(sent[0].intentId), 'every equip must carry a canonical idempotency key');
+      /* RECONCILED, not merely sent: the envelope is the truth and it was
+         applied through the same applier the away card uses. */
+      assert(G.gold === 7, 'the equip envelope must be applied — gold is ' + G.gold);
+      assert(G.equipment.weapon === 'bronze_sword', 'the server\'s worn set must land');
+      assert(!(Number(G.inventory.bronze_sword) > 0),
+        'the equipped copy must not sit in the bag as well — got ' + G.inventory.bronze_sword);
+
+      // ── 2. S4: A GESTURE THAT CHANGES NOTHING SENDS NOTHING ──────────────
+      /* hr_apply stamps accrued_to on ANY delta carrying `equip`, and a collect
+         under the 60 s floor answers below_min_span while the stamp still
+         lands — so a no-op gesture is a confiscated window. */
+      sent = [];
+      window.equipItem('bronze_sword');            // already worn
+      await drain();
+      assert(sent.length === 0,
+        'a swap that changes nothing must not be sent — it would stamp accrued_to and confiscate the '
+        + 'unpaid window for no gain (S4). Got ' + sent.length + ' request(s)');
+
+      // ── 3. A REFUSAL ROLLS THE PREDICTION BACK AND SAYS WHY ──────────────
+      sent = []; notified.length = 0;
+      G.equipment.weapon = null; G.inventory = { bronze_sword: 1 };
+      reply = { status: 409, body: { ok: false, verb: 'equip', error: 'requirement_not_met' } };
+      window.equipItem('bronze_sword');
+      await drain();
+      assert(sent.length === 1, 'the refused gesture must still have been sent');
+      assert(G.equipment.weapon === null && G.inventory.bronze_sword === 1,
+        'a refused equip must roll the local prediction back — the player is left wearing something the '
+        + 'server says they are not. Got equipment=' + JSON.stringify(G.equipment)
+        + ' inventory=' + JSON.stringify(G.inventory));
+      assert(notified.some((m) => /requirement/i.test(m)),
+        'the server\'s reason must reach the player through the toast path — got ' + JSON.stringify(notified));
+      /* THE REASON IS KEYED ON THE CODE ONLY, which is what makes the client
+         independent of 2026-08-18-equip-release-codes.sql being applied: that
+         migration changes which intent keys a refusal RELEASES and renames
+         nothing. And no refusal is auto-retried on the same key, so an
+         unpatched database cannot replay a stored rejection at us. */
+      assert(E.equipRefusalMessage('requirement_not_met') !== E.equipRefusalMessage('wrong_slot'),
+        'each released code must say something specific');
+      assert(/hr_unknown_code/.test(E.equipRefusalMessage('hr_unknown_code')),
+        'a code this build has never heard of must still be quotable in a bug report — got '
+        + E.equipRefusalMessage('hr_unknown_code'));
+    } finally {
+      window.fetch = realFetch;
+      window.notify = realNotify;
+      E.resetEquip();
+      if (prevCfg) E.configureEquip(prevCfg);
+      A.acknowledgeReplacement(wasAck);
+      if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
+      G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold;
+    }
+    assert(A.isEnvelopeAbsolute() === false, 'the flip must disarm when the transport is torn down');
+  }),
+
+  () => tryRunAsync('EQUIP-ASSERT-1: a character the server never learnt about states its worn set ONCE', async () => {
+    /* ⚠ THE CONDITION THAT MAKES ARMING THE FLIP SAFE. Every character created
+       before b366 has an EMPTY `player_equipment` and its worn copies still
+       counted in `player_inventory`. Under absolute, that bag figure is
+       assigned outright — so the worn copy comes back into the bag while the
+       player is still wearing it, and it is a copy the SERVER believes in, so
+       it is sellable on the real market. b362 with the sign flipped.
+       MUTATION: delete the assertEquipDeclaration() call from
+       applyServerEnvelope → the first block goes red. */
+    const E = window.HearthriseEquip;
+    const A = window.HearthriseAccrual;
+    const S = window.HearthriseSync;
+    const prevCfg = E.getEquipConfig();
+    const realFetch = window.fetch;
+    const realNotify = window.notify;
+    const wasAck = A.isReplacementAcknowledged();
+    const wasHeld = S.isSnapshotHeld();
+    const savedInv = { ...G.inventory }, savedEq = { ...G.equipment }, savedGold = G.gold;
+    let sent = [];
+    const drain = () => new Promise((r) => setTimeout(r, 60));
+    const awayEnvelope = (equipment) => ({
+      ok: true, accrued: true, version: 5, now: '2026-08-18T00:00:00Z',
+      state: { slot: 0, gold: 3, hp: 10, max_hp: 10 },
+      skills: {}, inventory: { iron_sword: 1 }, equipment,
+      away: { grantMs: 0, gold: 0, xp: {}, items: {} },
+    });
+    try {
+      window.__resetEquipAssertion();
+      A.acknowledgeReplacement(true);
+      S.releaseSnapshots();
+      window.notify = function () {};
+      E.configureEquip({ url: 'https://equip.test', apiKey: 'k', authToken: () => 'tok', slot: 0, gestureWired: true });
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        sent.push(JSON.parse(init.body));
+        return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'insufficient_item' }), { status: 409 }));
+      };
+
+      /* THE LEGACY CHARACTER: wearing a sword the server counts in the BAG. */
+      G.gold = 0; G.inventory = {}; G.equipment = { weapon: 'iron_sword' };
+      window.applyServerEnvelope(awayEnvelope({}), {});
+      await drain();
+      assert(sent.length === 1,
+        'an envelope whose equipment disagrees must assert the worn set exactly once — got ' + sent.length
+        + ' request(s). Without it the server keeps counting the worn copy in the bag, and under absolute '
+        + 'that copy is handed back to a player who is still wearing it.');
+      assert(sent[0].verb === 'equip' && sent[0].equip.weapon === 'iron_sword',
+        'the assertion must state what is WORN — got ' + JSON.stringify(sent[0].equip));
+      const takesOff = Object.keys(sent[0].equip).filter((k) => sent[0].equip[k] === null);
+      assert(takesOff.length === 0,
+        'the self-heal must never ask the server to take something OFF — "the server thinks I wear nothing" '
+        + 'and "I want to unequip" are different sentences. Got ' + JSON.stringify(sent[0].equip));
+
+      /* LATCHED. The refusal above is the realistic one (a client-only item the
+         server never granted); one intent, not one per envelope forever. */
+      sent = [];
+      window.applyServerEnvelope(awayEnvelope({}), {});
+      await drain();
+      assert(sent.length === 0,
+        'the assertion must be latched on the map it sent — got ' + sent.length + ' repeat(s), i.e. one '
+        + 'intent and one rate spend on every envelope for the rest of the session');
+
+      /* AGREEMENT IS SILENT. Nothing to heal, nothing sent. */
+      window.__resetEquipAssertion();
+      sent = [];
+      window.applyServerEnvelope(awayEnvelope({ weapon: 'iron_sword' }), {});
+      await drain();
+      assert(sent.length === 0,
+        'a server that already agrees must not be told again — got ' + sent.length + ' request(s)');
+
+      /* AND UNDER THE MERGE IT IS INERT: nothing is being assigned absolutely,
+         so there is nothing to heal and the b363 discount still does that job. */
+      window.__resetEquipAssertion();
+      E.resetEquip();
+      assert(A.isEnvelopeAbsolute() === false, 'the control: the flip must be disarmed here');
+      sent = [];
+      window.applyServerEnvelope(awayEnvelope({}), {});
+      await drain();
+      assert(sent.length === 0,
+        'the self-heal must not fire while the envelope is still MERGED — got ' + sent.length);
+    } finally {
+      window.fetch = realFetch;
+      window.notify = realNotify;
+      window.__resetEquipAssertion();
+      E.resetEquip();
+      if (prevCfg) E.configureEquip(prevCfg);
+      A.acknowledgeReplacement(wasAck);
+      if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
+      G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold;
+    }
+  }),
+
+  () => tryRunAsync('EQUIP-BATCH: applying a loadout is ONE request carrying the whole map', async () => {
+    /* The accrue bucket is 30/min and is SHARED with settling. Fifteen calls
+       for one tap would spend half of it, run fifteen collects, and stamp
+       fourteen sub-minute windows (S4, once per slot). The wire takes a map
+       precisely so a loadout is one gesture. */
+    const E = window.HearthriseEquip;
+    const A = window.HearthriseAccrual;
+    const S = window.HearthriseSync;
+    const prevCfg = E.getEquipConfig();
+    const realFetch = window.fetch;
+    const realNotify = window.notify;
+    const wasAck = A.isReplacementAcknowledged();
+    const wasHeld = S.isSnapshotHeld();
+    const savedInv = { ...G.inventory }, savedEq = { ...G.equipment }, savedGold = G.gold;
+    const savedLoadouts = G.loadouts;
+    let sent = [];
+    const drain = () => new Promise((r) => setTimeout(r, 60));
+    try {
+      A.acknowledgeReplacement(true);
+      S.releaseSnapshots();
+      window.notify = function () {};
+      E.configureEquip({ url: 'https://equip.test', apiKey: 'k', authToken: () => 'tok', slot: 0, gestureWired: true });
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        sent.push(JSON.parse(init.body));
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, verb: 'equip', version: 3, now: '2026-08-18T00:00:00Z',
+          state: { slot: 0, gold: 0, hp: 10, max_hp: 10 }, skills: {},
+          inventory: {}, equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' },
+          collected: null,
+        }), { status: 200 }));
+      };
+
+      G.gold = 0;
+      G.equipment = { weapon: null, helmet: null, body: null };
+      G.inventory = { bronze_sword: 1, bronze_helm: 1 };
+      G.loadouts = [{ name: 'Test kit', set: true,
+        equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: null }];
+      G.wieldGrandfather = { ...(G.wieldGrandfather || {}), bronze_sword: true, bronze_helm: true };
+
+      window.applyLoadout(0);
+      await drain();
+      assert(sent.length === 1,
+        'applying a loadout must be ONE request, not one per slot — got ' + sent.length
+        + ' (the accrue bucket is 30/min and shared with settling)');
+      const ops = sent[0].equip;
+      assert(ops.weapon === 'bronze_sword' && ops.helmet === 'bronze_helm',
+        'the batch must carry every slot that MOVED — got ' + JSON.stringify(ops));
+      assert(!('body' in ops),
+        'a slot that did not move must not be in the map — an unchanged slot is not an instruction the '
+        + 'player gave. Got ' + JSON.stringify(ops));
+      assert(Object.keys(ops).length <= E.MAX_EQUIP_OPS,
+        'a loadout must never exceed the server\'s MAX_EQUIP_OPS');
+
+      /* S4 AGAIN, AT BATCH SCALE: re-tapping the kit you already wear diffs to
+         nothing, so it cannot stamp a second window. */
+      sent = [];
+      window.applyLoadout(0);
+      await drain();
+      assert(sent.length === 0,
+        're-applying the loadout already worn must send nothing — got ' + sent.length + ' request(s)');
+    } finally {
+      window.fetch = realFetch;
+      window.notify = realNotify;
+      E.resetEquip();
+      if (prevCfg) E.configureEquip(prevCfg);
+      A.acknowledgeReplacement(wasAck);
+      if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
+      G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold; G.loadouts = savedLoadouts;
+    }
   }),
 
   /* ══════════════════════════════════════════════════════════════════════

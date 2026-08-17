@@ -4,50 +4,169 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
-### 2026-08-17 (b368) · Art Director · **NO AUTOMATED PASS HAS EVER PLAYED SIGNED IN — a whole class of defect is unreachable by the suite. Seam built; a real test account is the remaining gap (Tyler decision).**
+## 2026-08-17 · systems-engineer · "Strange flickering of old assets" is TWO bugs, and the one we could see is the smaller one
+**Affected systems:** boot order (legacy.js / main.js), every icon-bearing surface, the shipped icon bundle.
+**Required action:** ordering half is FIXED below; the payload half is an ASSET decision — see HANDOFFS.
 
-**DISCOVERY 1 — the class, not the bug.** The account gate's harness bypass lets all 815 tests into
-the game **as nobody**: no user id, no display name, no portrait. Every signed-in-only rendering path
-— avatar, claimed name, profile-derived surfaces — has therefore never been exercised automatically.
-That is how the Fight screen shipped a champion plate that ignores the player's chosen avatar, and
-why four in-browser probes went past it without seeing it (a plate showing the default *correctly* is
-indistinguishable from a plate that can only ever show the default). **The suite was not weak here,
-it was blind: the state in which the defect exists was unreachable.**
-**AFFECTED:** everything that renders identity. **ACTION TAKEN:** built the seam (below). **ACTION
-FOR OTHER AGENTS:** if your surface changes when a player is signed in, your test must install the
-simulated identity — a signed-out assertion proves nothing about it.
+Tyler's flicker report (LIVE-AUDIT F13 / F13-addendum / F15) was investigated by instrumenting the
+real boot in Playwright rather than by reading source. It is not one bug, and it is not caching.
 
-**DISCOVERY 2 — the seam: `HearthriseIdentity._installHarnessIdentity({ name, avatar, userId })`.**
-Produces the CLIENT-SIDE state a signed-in player has (session object with a user id, claimed name,
-portrait as a local data URL) with **no real Supabase session and no network**. Guarded by
-DELEGATION to `HearthriseGate.isHarnessContext` — explicit global AND non-player origin, fail-closed
-if the gate is absent — so it is inert on hearthrise.net whatever anybody sets. It is a fake
-IDENTITY, never a fake credential. `_clearHarnessIdentity()` restores. Surfaces that genuinely need
-the wire still stub the transport, as the b337/b368 accrual tests do.
-**TRAP, already paid for:** a simulated identity MUST adopt the user id as already-seen, or
-identity's 2s `tick()` sees a new uid and fires `hydrateRemoteAvatar` / `resolveServerName` /
-`reconcile` — three live reads that against a simulated session can only fail (measured: two
-unhandled `Failed to fetch`, caught by the suite's clean-log guard).
+### 1. The icon-map ordering gap — REAL, measured, now fixed
+`legacy.js` is a classic script and paints screens while it is the only thing that has run; at that
+moment `window._itemPath` holds **109** of the ~490 paths the game ships. `src/main.js` is a module,
+therefore deferred, and it is what completes the map. Worst observed ordering on a cold boot:
 
-**DISCOVERY 3 — REQUIRED ACTION, TYLER DECISION: full fidelity needs a dedicated test account in the
-project's own Supabase.** The seam covers rendering paths that key on identity. It cannot exercise
-the real RPCs — name claim, avatar upload to the avatars bucket, profile reconcile, or any
-server-authoritative path that checks a genuine `auth.uid()`. Those need a real, disposable account
-(and ideally its own slot) whose credentials the harness can use. Listed here for Tyler because it is
-an account/credential decision, not an engineering one. Related known gap: the topbar still reads
-"Signed out" under the simulated identity, because legacy's sign-in chip asks `HearthriseAuth`
-directly — widening the seam to cover that would mean faking the auth session, which crosses from
-fake identity into fake credential. Deliberately not done.
+```
+ 905 ms  renderInvNew()      _itemPath = 109   <- blank tiles, never repainted
+~960 ms  main.js merge       _itemPath = 484
+1006 ms  showTab('profile')                    <- repaints PROFILE only
+1732 ms  the old 1500 ms timer  _itemPath = 490
+```
 
-**DISCOVERY 4 — the same defect SHAPE twice in one day: a write-once DOM node.** Both
-`#arena-player-portrait` painters used `if (!node.querySelector('img')) node.innerHTML = …` to protect
-children (b186: floating damage numbers, the DEFEATED stamp) and thereby made the node uncorrectable.
-The general fix is to stop writing MARKUP and diff the ATTRIBUTE instead — children survive AND the
-value tracks. Worth checking anywhere else this idiom appears.
-**NOTED, NOT FIXED:** the game has two different "no portrait yet" defaults —
-`assets/avatars/_placeholder.webp` (identity) and `assets/icons-bundle/painted/npc/player.png`
-(legacy.js:17337, assigned unconditionally). Which face a portrait-less player wears is an art
-decision that deserves to be made deliberately.
+109/484 is 22% — which is exactly the audit's "28 occupied slots, ~7 icons visible". The old
+`setTimeout(__mapGeneratedGearIcons, 1500)` was both a guessed delay AND a forced full inventory
+repaint at ~1.7 s on **every** boot. Replaced by `window.__hrIconsReady()`, called by main.js at the
+instant the map is complete. Guarded by `tests/icon-boot-order.mjs`.
+
+### 2. The DOMINANT cause is ICON PAYLOAD WEIGHT — not fixed, asset domain
+Even with a perfect map, a freshly-innerHTML'd screen shows empty boxes until its PNGs arrive.
+Measured, Farm opened at the first opportunity, 1.5 Mbps / 60 ms latency (a normal phone):
+
+```
+   t+100 ms  0 / 9 crop icons painted
+   t+300 ms  6 / 9
+  t+1200 ms  9 / 9
+```
+
+On a settled connection the same screen fills in ~50 ms, which is why this only bites during boot
+and on first visit — precisely when Tyler was looking. Measured bundle:
+
+| folder | files | dims | avg | total |
+|---|---|---|---|---|
+| hearthfire/items | 216 | 128x105 | 28 KB | 6 MB |
+| hearthfire/armour | 126 | 128x128 | 30 KB | 4 MB |
+| hearthfire/food | 64 | 128x128 | 28 KB | 2 MB |
+| hearthfire/weapons | 67 | 127x128 | 20 KB | 1 MB |
+| hearthfire/monsters | 74 | 256x256 | **112 KB** | 8 MB |
+
+A 128x128 RGBA icon at 28 KB is ~1.8 bytes/pixel — PNG doing nearly nothing on noisy painted art.
+One inventory screen of 28 items is ~840 KB, which at 1.5 Mbps is ~4.5 s: the audit's "all 28
+painted 4 s later", to the second. The Bounty Board's F15 case is the same arithmetic at its worst —
+six 44px `.bb-cut` slots each fetching a **256px, 112 KB** monster portrait, ~670 KB for six
+thumbnails.
+
+**A blanket preloader was considered and rejected**: prefetching reorders the download, it does not
+shrink it, and at 27 MB it would be a hostile thing to do to a phone. The fix is at the asset layer.
+
+### 3. Method note
+Three theories were held and two were killed by measurement: "the ESM merge lands after first paint"
+(mostly false — it lands before boot in the common ordering) and "showTab caches a pre-rendered
+panel" (false — `showTab` re-renders). The one that survived was the one nobody had proposed. Boot
+races are not readable from source; instrument the real page.
+
+---
+
+<<<<<<< HEAD
+### 2026-08-17 · Art Director (b369) · FIVE stylesheets were each authoring one piece of the paper-doll's grid, and the two that disagreed produced a live overlap on two surfaces
+
+**DISCOVERY.** `.td-doll` is one component with five mounts and, until b369, five
+authors of its geometry: `legacy.css` (three 110px columns for a doll placed in
+FOUR — stale since b216), `legacy.css` again in a mobile block (three columns at
+130px), `legacy.css` a third time at `.invc-equip-col .td-doll`
+(`repeat(3,1fr)` columns + `repeat(6,minmax(64px,90px))` rows + `width:100%`),
+`art-direction.css` (fluid columns against a FIXED 84px row), and
+`theme-cozy.css` (square slots via `aspect-ratio:1/1; height:auto`).
+
+**A fixed row track cannot describe a square cell whose width is fluid.** The
+moment the host is wider than the row is tall, every slot grows out of its own
+row and paints over the row beneath it. Measured on the shipped build at
+922x423 by widening the host: 340px → 0 overlapping pairs; 440px → 10; 700px →
+10 (170px cells in an 84px row); 860px → 16 (210px cells). That is Tyler's
+report — "the weapon sprite is floating ~200px tall over the Cape cell". The
+inventory Equip pane was not latent at all: 152px cells and **19 overlapping
+pairs at 922x423, 9 on a 1440px desktop, in the shipped build**.
+
+**AFFECTED SYSTEMS.** Character → Equipment, Inventory → Equip, the Combat
+loadout column; `src/styles/{legacy,art-direction,theme-cozy}.css`.
+
+**REQUIRED ACTION / RULE.** Geometry for `.td-doll` now lives in exactly one
+place: `--td-cell` in `legacy.css`, columns capped at it, rows `auto` so a row
+can never disagree with the cell in it. **No other sheet may declare a track on
+`.td-doll`.** Themes retint; mounts add chrome; only the base rule sizes.
+
+**TWO SECOND-ORDER LESSONS.**
+1. *A default belongs at the same specificity as its overrides.* Parking
+   `--td-cell: 84px` on `body[data-theme] .td-doll` silently beat the plain
+   `.td-doll` the mobile-landscape media query uses, so a themed page kept the
+   desktop cell on a phone. Same family as the b361 base-rule trap.
+2. *The existing 922x423 landscape guard (b327) renders `#panel-inventory`
+   markup only.* The paper-doll also lives on Character → Equipment, and no
+   guard had ever rendered that panel at a short viewport — the component was
+   covered on the surface nobody reported and uncovered on the one Tyler
+   photographed. **A guard keyed to a PANEL cannot protect a COMPONENT that has
+   more than one mount.** b369's guard mounts the same doll twice on purpose.
+
+---
+
+### 2026-08-17 · Art Director (b369) · The equip rollback repainted three surfaces and there were four
+
+`restoreEquipSnapshot` in `legacy.js` put `G.equipment` back on a server refusal
+and repainted `renderInventory` / `renderLoadout` / `_renderInvFancy`. The b366
+Fight-screen management rail is a FOURTH surface that draws worn gear — and it
+is the one on screen when you equip from a fight, so the refusal a player is
+most likely to see was the one the rollback could not correct: Tyler saw his
+sword worn in the rail and sitting in his bag at the same time. There is now one
+`repaintEquipSurfaces()` list (published as `window.__repaintEquipSurfaces`),
+which also covers the Character → Equipment doll. **Anything new that paints
+`G.equipment` must be added to that list, not to a fourth call site.**
+=======
+### 2026-08-17 (bg pack) · Art Director · **The Fight stage has no wide open area for a backdrop — it has three vertical slots; and `cozy-light` is unreachable, so every `body[data-theme="cozy-light"]` rule in the codebase is dead**
+
+**DISCOVERY 1 — the backdrop brief in `combat-screen-rework.md` §5 is wrong about WHERE the hole is,
+and I only know that because I photographed the screen instead of reading the spec.** §5 says put the
+detail in the OUTER THIRDS and keep the CENTRE quiet. Measured on the rendered client at 1440x900:
+`.combat-arena` spans x 432–1430, the player plate sits at 587–756 and the foe plate at 1019–1361,
+and every row below the portraits (names, HP bars, swing bars, six stat tiles, four style buttons) is
+opaque type across the FULL width. **The painted plate is visible through three vertical slots about
+155, 263 and 69 px wide, in the top half only.** At 922x423 it is a single full-width band of ~85 px
+in a 291 px arena (29%). So the composition law is TOP THIRD + REPEATS ACROSS THE WIDTH + dark quiet
+lower half — a single painted focal object lands behind a hero plate and is never seen.
+**AFFECTED:** `docs/design/combat-screen-rework.md` §5, COMBAT-UI-17, any future backdrop wave.
+**REQUIRED ACTION:** none pending — the corrected law is written into
+`docs/design/background-session-pack.txt` §2 with the measurements behind it.
+
+**DISCOVERY 2 — `cozy-light` cannot be reached, so a whole class of rules is inert.**
+`src/theme-picker.js`: `THEMES` has cozy-light COMMENTED OUT, `readSaved()` returns `'hearthlight'`
+unconditionally, and `applyTheme('cozy-light')` REMOVES the data-theme attribute rather than setting
+it. Therefore `body[data-theme="cozy-light"]` can never match anything. `combat-screens.css` carries
+a block of them (the b362 "the light theme gets a light stage" fix, with a long comment explaining
+why it matters) plus a cozy-light token set in `board-and-shop.css`. Harmless today, but it means
+**a cozy-light verification that SETS the attribute is testing a state no player can be in** — and
+it also means new work should simply author under `body[data-theme]`, which always matches.
+**AFFECTED:** `src/styles/combat-screens.css`, `board-and-shop.css`, `theme-cozy.css`, and the
+"verify both themes" step in every visual gate.
+**REQUIRED ACTION (Systems/Art, low priority):** decide — delete the dead rules, or make the theme
+real. Do not add more of them meanwhile.
+
+**DISCOVERY 3 — three stylesheets independently paint `dungeon.jpg` onto `.combat-arena` with
+`!important`, and their scrims stack.** `audit-overrides.css:560` (`center/cover` + 2 gradients),
+`art-direction.css:2039` (`center bottom/cover` + 2 more gradients, whose own comment says the stack
+"could not be seen at all"), `theme-cozy.css:4528`. Plus `legacy.css:3054`'s `::after` and
+`combat-screens.css`'s `.fs-scrim`. Five darkening layers over one photograph. Any backdrop wiring
+that ADDS a sixth rather than deleting the first four reproduces the exact bug art-direction.css is
+already apologising for.
+**AFFECTED:** `.combat-arena` in four sheets. **REQUIRED ACTION:** the COMBAT-UI-17 wiring pass must
+delete, not layer — written up as a guard in the pack's §4.6.
+
+**DISCOVERY 4 — `src/features/combat-screens.js:97` renders a raw emoji as monster art**
+(`return \`<span class="${cls} is-emoji">${(m && m.icon) || '👾'}</span>\``) whenever a monster has
+neither painted art nor an atlas glyph. 104 of 111 are wired so it is rarely reached, but it is a
+live emoji-as-art path in the file that owns the two densest combat surfaces.
+**AFFECTED:** War Table cards, Fight stage, ribbon. **REQUIRED ACTION (Art Director, next combat
+pass):** replace the tail with a gilt atlas glyph; the 7 unwired monsters are the reproduction.
+>>>>>>> worktree-agent-a5eae785e9a4bf6e5
+
+---
 
 ### 2026-08-16 (b368) · Art Director · **`setupArenaVs()` in legacy.js is a SECOND AUTHOR of the Fight stage, and it wins the race on every resume-into-a-running-fight**
 

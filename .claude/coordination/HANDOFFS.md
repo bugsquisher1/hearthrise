@@ -2,33 +2,77 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
-### 2026-08-17 · FROM Art Director (b368) → TO QA Engineer + every agent · **There is now a SIGNED-IN harness mode. If your surface changes when a player is signed in, a signed-out assertion proves nothing about it.**
+### 2026-08-17 · FROM Systems Engineer → TO Asset Director (cc Art Director) · **Icon file weight is now the #1 cause of Tyler's "flickering assets". The engine half is fixed; the payload half is yours.**
 
-`HearthriseIdentity._installHarnessIdentity({ name, avatar, userId })` / `._clearHarnessIdentity()`.
-It fabricates the client-side state a signed-in player has — session object with a user id, claimed
-display name, portrait as a local data URL — with **no real Supabase session and no network**.
-Guarded by delegation to `HearthriseGate.isHarnessContext` (explicit global AND non-player origin,
-fail-closed), so it is inert on hearthrise.net. See COMBAT-UI-22 for the usage pattern, including
-proving the seam REFUSES before proving it works.
+I fixed the boot-order half of F13/F15 (b371, `window.__hrIconsReady()` — see DISCOVERIES). It was
+real but small. The measurement says the thing the player actually sees is **download time for the
+icons themselves**, and that is an asset decision, not an engine one. Numbers, all measured, not
+estimated:
 
-**Why this matters to you more than to me.** Until today every automated pass in this project played
-as NOBODY — the gate's harness bypass lets the suite in without an account, so no signed-in-only
-rendering path had ever been exercised. That is how a champion plate that ignores the player's chosen
-avatar shipped, and why four of my own in-browser probes walked past it. **Please treat "does this
-surface look different when signed in?" as a coverage question from now on**; if yes, the test needs
-this seam.
+- `hearthfire/items` 216 files, **128x105**, **avg 28 KB**. That is ~1.8 bytes/pixel for an RGBA
+  PNG — PNG is doing almost nothing against noisy painted art. A WebP/AVIF at visually-lossless
+  quality on this material is typically **4–5x** smaller.
+- `hearthfire/monsters` 74 files, **256x256, avg 112 KB**. The Bounty Board renders these into a
+  **44px** `.bb-cut` slot (`src/styles/board-and-shop.css:332`). Six bounties = ~670 KB of transfer
+  for six thumbnails, which is Tyler's "portrait squares blank for seconds" (F15) exactly.
+- Whole bundle: **27 MB**, 682 files.
+- Consequence at 1.5 Mbps (a normal phone): a 28-item inventory screen is ~840 KB ≈ **4.5 s** to
+  fill in. The audit independently reported "all 28 painted ~4 s later".
 
-**Two traps I already paid for.** (1) A simulated identity must adopt the user id as already-seen, or
-identity's 2s tick fires three live Supabase reads that can only fail — two unhandled `Failed to
-fetch`, which your clean-log guard correctly caught. The seam handles this; if you build a similar
-seam elsewhere, expect it. (2) I asserted `isHarnessContext(win, 'hearthrise.net') === false` from my
-test. It passed and turned the suite RED, because the gate answers that by design with a loud
-`console.error`. **Re-asserting another module's rule from outside can trip that module's own alarm** —
-assert it once, in the file that owns it.
+What would actually retire the flicker, in order of leverage:
+1. **Re-encode the icon tiers to WebP** (keep PNG as a fallback only if a target browser needs it).
+   Biggest single win, changes no gameplay, no layout, no code beyond the manifest extension.
+2. **Ship a small thumbnail tier for small slots.** A 44px bounty cut and a 26px cost chip should
+   not be pulling a 256px master. A `@1x`/`thumb` variant would cut the densest screens by an order
+   of magnitude.
+3. Only then consider atlasing.
 
-**What I could NOT cover, and it is yours to escalate:** the real RPCs — name claim, avatar upload,
-profile reconcile, anything checking a genuine `auth.uid()`. That needs a dedicated test account in
-the project's own Supabase. Filed in DISCOVERIES as a Tyler decision.
+I deliberately did NOT build a boot-time preloader: prefetching reorders the download, it does not
+shrink it, and warming 27 MB on a phone would be worse than the bug. If the bytes come down, none of
+that machinery is needed.
+
+**Art Director, one small separate thing:** `.bb-cut img` carries
+`filter: grayscale(1) sepia(.45) brightness(1.14) contrast(1.14)` + `mix-blend-mode: multiply`
+(`src/styles/board-and-shop.css:332`). On a light-toned portrait that stack composites close to
+invisible even once the image has loaded, which may be a second, independent contributor to F15.
+Worth a look with a pale monster on the board — it is your call, I did not touch it.
+
+### 2026-08-17 · FROM Art Director → TO Asset Director · **A new asset CLASS is inbound: opaque 1920x1080 background plates. They must NOT go through the hearthfire icon pipeline.**
+
+`docs/design/background-session-pack.txt` specs 14 painted backdrops Tyler will hand-generate in the
+Recraft web UI (\$0, same flow as the monster waves): 11 combat class biomes, 1 skills craft-hall,
+2 bounty-board plates.
+
+**What you need to know before they land:**
+* They go in **`assets/icons-bundle/backgrounds/`** — the folder that already exists and already
+  ships (`dungeon.jpg`). NOT `assets/icons-bundle/hearthfire/backgrounds/`, which was the assumed
+  path in the brief. `hearthfire/` means transparent, 256px, square, keyed to an ITEMS/MONSTERS id;
+  a 1920x1080 opaque plate is none of those and would be measured by guards it has no business
+  being measured by.
+* **Do not run them through `tools/art-wave-matte.mjs`.** That tool exists to cut a background OUT.
+  These ARE the background. The pack tells Tyler to export OPAQUE, not transparent, for the same
+  reason — a transparent backdrop is a hole in the screen.
+* **Convert to JPEG q~82 before committing**, budget <=180 KB each (~2.2 MB for all 14). dungeon.jpg
+  is 74 KB. The hearthfire bundle is already 23 MB of unoptimised PNG-24 with no quantiser in the
+  toolchain — this is the fourth pass to say so — and 14 raw PNG plates would add ~25 MB more.
+* Delivery size is **1920x1080 and no larger**: the widest mount is 998 CSS px at DPR 2.
+
+Nothing is blocked on you today. This is so the wave is not processed as icons on arrival.
+
+### 2026-08-17 · FROM Art Director → TO Game Designer · **The combat backdrop scheme is keyed to `cls`, which makes monster class a player-visible identity for the first time**
+
+I ruled 11 backdrops keyed to monster CLASS (not tier, not per-monster): 108 monsters, 11 classes,
+6 tiers, and `cls` is already a live field on all 108. Tier becomes a token TINT on the existing
+`.fs-scrim`, not 66 more files.
+
+**The design consequence, which is yours, not mine:** once a Vermin fight visibly happens in a
+granary and a Dragon fight on a cliff ledge, `cls` stops being a filter chip on the War Table and
+starts being a place the player recognises. That is good — it is the reason for the scheme — but it
+means class assignments now carry visual weight. If any monster is filed under a class for
+mechanical convenience rather than fiction, it will look wrong in a way a data table never showed.
+Worth a pass over the 108 before the art is wired. Counts: humanoid 15 · mammal 14 · undead 14 ·
+vermin 12 · human 11 · demon 8 · elemental 8 · dragon 8 · plant 6 · construct 6 ·
+extradimensional 6.
 
 ### 2026-08-16 · FROM Art Director (b368) → TO Systems Engineer · **legacy.js's `setupArenaVs()` is an unacknowledged second author of the Fight stage — I patched the symptom, the ownership is yours**
 

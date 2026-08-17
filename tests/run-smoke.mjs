@@ -44,6 +44,7 @@ import { runAll as goldCensusGuard } from './gold-site-census.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
 import { runAll as corsGuards } from './cors-preflight.mjs';
+import { runAll as iconBootOrderGuard } from './icon-boot-order.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
 import { createServer } from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
@@ -2156,6 +2157,16 @@ const run = async () => {
         + 'thread, raises no native dialog, fails in bounded time and tells the player.');
     }
 
+    const iconOrderProblems = await iconBootOrderGuard(browser, url);
+    if (iconOrderProblems.length) {
+      console.log('\nIcon boot-order guard (no icon arrives after first paint) — FAILED:');
+      for (const p of iconOrderProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Icon boot-order guard — the icon map is complete before the engine\'s first paint, '
+        + 'and a late map still repaints the active screen.');
+    }
+
     const landProblems = await landscapeGuard(browser, url);
     if (landProblems.length) {
       console.log('\nLandscape guard (820×360 phone) — FAILED:');
@@ -2237,6 +2248,7 @@ const run = async () => {
       'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
       'Clan-deposit ownership guard', 'Activity-seam guard', 'Delta-transport guard',
       'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',
+      'Icon boot-order guard',
       'Secret guard', 'Slot-switch guard',
     ];
     if (exitCode === 0) {

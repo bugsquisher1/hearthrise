@@ -107,9 +107,11 @@ window._monsterIcon = Object.assign(window._monsterIcon || {}, wiredIconMap());
 /* b358 — the Hearthfire ITEM art manifest, same shape as the monster one.
    Applied through the applier legacy.js exposes rather than by writing
    `_itemPath` directly, because the map must land in legacy's own
-   `LOCAL_ITEM_ICON` closure: `__mapGeneratedGearIcons()` re-runs 1500 ms
-   after load and only skips ids IT can see there. Writing `_itemPath` alone
-   would let a generic tier silhouette overwrite a real painting. */
+   `LOCAL_ITEM_ICON` closure: `__mapGeneratedGearIcons()` re-runs at the icon-
+   readiness edge below and only skips ids IT can see there. Writing
+   `_itemPath` alone would let a generic tier silhouette overwrite a real
+   painting. It must therefore stay ABOVE that edge (b371 moved the re-run off
+   a 1500 ms timer; this ordering is what the b358 smoke guard asserts). */
 window.HearthriseItemArt = ItemArt;
 window.__hearthfireItemsWired = (window.__applyHearthfireItemIcons || (() => 0))(ItemArt.wiredIconMap());
 
@@ -142,6 +144,17 @@ Object.assign(window, {
   // recipe authorities (generated curve vs hand-authored row) in order.
   GEAR_LADDERS, MATERIAL_TIERS,
 });
+
+/* b371 — THE ICON-READINESS EDGE (see the long block at `__hrIconsReady` in
+   src/legacy.js). This is the earliest instant at which the icon picture is
+   COMPLETE: the Hearthfire manifest is applied above, and `ITEMS` has just
+   been unified, which is what the generated-gear pass needs in order to find
+   anything. Calling it HERE rather than on a 1500 ms timer is the whole fix
+   for the audit's F13 flicker — the engine may already have painted a screen
+   against the 109-entry map legacy.js could see while it loaded, and this is
+   the signal that tells it to repaint. Idempotent and one-shot; legacy keeps a
+   1500 ms fallback for the case where this module never executes at all. */
+window.__hrIconsReady?.();
 
 /* b349 — the claimable-reward tables, published for the classic scripts that
    cannot import (src/features/daily-reward.js). A NAMESPACE rather than seven

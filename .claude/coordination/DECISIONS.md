@@ -4,6 +4,46 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-17 - DESIGN RULING (b373) - Two rulings from the b372 FTUE run: the death moment, and identity scoping
+**Game Designer, acting under design authority. Both are binding until superseded.**
+
+**RULING 1 - DEATH COSTS THE RUN, NEVER THE HEALTH. Every live death opens a receipt.**
+A death fully heals the player, at every level, always - no "first N deaths" carve-out, no
+partial respawn, no recovering debuff. *Why:* the penalty that already exists is the right one and
+is enough - the run STOPS, away accrual stops paying, the bounty streak resets, and the time is
+gone. An HP penalty on top is a second punishment that lands **only** on the player who cannot pay
+it (a fresh character has 10 max HP, no auto-eat and no regen, so a partial respawn is a
+deterministic death spiral) and on nobody else (a veteran eats or regens it back for free). It is
+also actively wrong for an idle game, where the player is frequently not watching: "respawn wounded
+and resume" is a loop that kills an unattended player forever. `resolveDeath` in
+`src/core/combat-sim.js` already intended exactly this; the ruling makes it TRUE ON SCREEN.
+Item/gold loss on death stays at zero, and the death sheet now states that out loud - if a loss
+penalty is ever proposed, the "You kept everything you were carrying" row is the contract it has to
+renegotiate.
+Every LIVE death opens a one-screen sheet: what killed you, what it cost, ONE tip chosen from what
+you were actually carrying, and the two doors (fight again / war table). Not "first N deaths" - a
+live death always ends with the game idle, so the sheet is not an interruption, it IS the choice
+the player already owed. AWAY deaths never open it; the welcome-back receipt owns those.
+
+**RULING 2 - NAME, PORTRAIT AND CLAN ARE ACCOUNT-SCOPED. HEROES ARE SLOTS, NOT PEOPLE.**
+Per-character identity is REFUSED. The name is an ADDRESS (chat, market, leaderboard) held as a
+server-side UNIQUE INDEX on `auth.uid()`; the portrait lives at a derived path `avatars/<uid>/`
+precisely so it cannot disagree with its owner; clan membership, seat and ledger are account-keyed
+server-side. Per-character versions of any of the three mean a namespace multiplied by five, a
+cheaper impersonation surface, a storage migration and a second sync surface - for a cosmetic gain.
+What IS per-character is everything you PLAY: skills, inventory, gold, equipment, bound items,
+quests, farm. **So the UI stops implying otherwise**: heroes are addressed as "Hero N"
+(`HearthriseProfile.heroLabel`, derived and never stored), the Characters modal renders the account
+portrait deliberately on every row and its copy states the split in both directions, and Home's
+hearth carries a quiet "Hero N" chip so the account name reads as the account's.
+**Named server follow-up, deliberately NOT built:** per-hero nicknames need a server-side label
+column on the character row so they sync - `hearthrise:profile` is device-local, so a stored
+nickname would vanish on the player's second device. Better no nickname than a lying one.
+
+**Affected agents:** Systems Engineer (the two handoffs in CONFLICTS.md), Art Director (the death
+sheet is a new surface), QA (b373 suite).
+
+
 ### 2026-08-17 · STABILIZATION GATE + a second session in flight (Tyler, direct)
 **Decision.** (1) A SECOND Claude session is working logo/avatar reworks and will coordinate with
 this session when ready — integrate through the standard pipeline (merge → suite → visual gate);

@@ -875,8 +875,58 @@ export function applyEnvelopeState(G, res, ownKey) {
   written.absolute = absolute;
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
-  if (Number.isFinite(Number(st.hp))) { G.playerHp = Number(st.hp); written.hp = G.playerHp; }
   if (Number.isFinite(Number(st.max_hp))) { G.playerMaxHp = Number(st.max_hp); written.maxHp = G.playerMaxHp; }
+  /* ══════════════════════════════════════════════════════════════════════
+     b373 — HP IS FIGHT-LOCAL, AND AN IDLE PLAYER CANNOT BE WOUNDED BY AN
+     ENVELOPE. (Designer ruling, LIVE-AUDIT-2026-08-17 FTUE run 2 finding 2.)
+
+     THE MEASURED BUG. A fresh player died to the first slime and respawned at
+     **2/10 HP**, which reads as a punishment nobody designed. Nothing in the
+     combat rules produces it: `resolveDeath` in src/core/combat-sim.js sets
+     `state.playerHp = state.playerMaxHp` — a full heal — and always has. The 2
+     arrives HERE. The client resolved the death and healed; an envelope for a
+     window that ended BEFORE that death then landed and wrote the server's
+     mid-fight hp straight over the respawn. The next fight starts at 2 HP and
+     the new player dies again, having done nothing wrong.
+
+     WHY THIS IS THE RIGHT SEAM, and not a special case. src/net/events.js
+     already states the rule this file was breaking: `playerHp` and
+     `playerMaxHp` are in `NO_SYNC` — "in-flight combat — belongs to the device
+     you are fighting on". The snapshot has honoured that since it was written;
+     the envelope never did. So this is not a new exception, it is this module
+     finally obeying a rule the codebase already declares.
+
+     THE RULE: an envelope may RAISE hp freely, and may lower it only while a
+     fight is actually in flight. With no `activeMonster` there is nothing
+     hitting the player, and the server itself agrees — the accrual engine sets
+     the activity pointer to idle in the same delta as a death
+     (supabase/functions/hr-accrue/accrual.js: `if (summary.died ||
+     !state.activeMonster) delta.activity = {kind:'idle'}`), so a low hp
+     alongside an idle pointer is by construction a reading from a window that
+     has already been superseded.
+
+     NOT AN ECONOMY HOLE: hp is not tradeable, rankable or contributable, it is
+     already client-local by the project's own denylist, and away combat — the
+     only place hp materially gates earnings — runs with `activeMonster` set,
+     where the server keeps full authority. `written.hp` records the refusal so
+     the drift counter can still see it.
+
+     ⚠ THIS IS A CLIENT-SIDE FLOOR, NOT THE FIX. The correct end state is the
+     envelope carrying the death as a STATEMENT (it already computes
+     `summary.died`) and reporting post-respawn hp, so the two sides never
+     disagree in the first place. Raised for the Systems Engineer in
+     CONFLICTS.md — do not let this guard become the reason that never happens.
+     ══════════════════════════════════════════════════════════════════════ */
+  if (Number.isFinite(Number(st.hp))) {
+    const next = Number(st.hp);
+    const cur = Number(G.playerHp);
+    const inFight = !!G.activeMonster;
+    if (inFight || !Number.isFinite(cur) || next >= cur) {
+      G.playerHp = next; written.hp = G.playerHp;
+    } else {
+      written.hp = cur; written.hpRefused = next;
+    }
+  }
 
   /* skills: {<id>:{xp,level}} on the wire, {<id>: xp} in G. The LEVEL is
      derived from xp everywhere in this client, so taking the server's xp and

@@ -4,6 +4,37 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-17 - Game Designer (b373) - The FTUE's worst moment was not a missing feature: it was three correct systems each staying silent
+
+**Discovery.** The b372 audit's biggest FTUE gap ("first death is silent and punishing") decomposed
+into three things, and only one of them was a bug:
+1. `resolveDeath` **already full-heals**. The 2/10 respawn came from `src/net/accrue.js` overwriting
+   the heal - a module boundary, not a combat rule. See CONFLICTS.md.
+2. Death **already costs nothing but the run** - no item loss, no gold loss. The game had simply
+   never said so, so a new player's default RPG assumption ("I was robbed") went uncorrected.
+3. The player was **carrying the answer** (8 shrimp) and the word "Eat" appeared nowhere on screen
+   at the moment it mattered.
+**The lesson worth keeping:** when a moment feels punishing, check whether the rules are already
+generous and merely mute. Two of the three fixes here were statements, not mechanics.
+
+**Practical notes for whoever touches this next.**
+- `G.playerHp` is `NO_SYNC` **and** written by the accrual envelope. If a health bug is reported,
+  suspect the envelope before the sim.
+- `refreshActiveMeta()` in `src/multi-character.js` used to copy `G.playerName` into the active
+  slot's record on **every save tick**. Since `identity.js adopt()` sets `G.playerName` to the
+  account's server-claimed name, every hero an account played silently renamed itself to the account
+  - which is why the audit saw a list of identical "Tyler" rows. A per-tick mirror between two
+  scopes is a scope leak on a timer; it will not show up in a diff review of either file alone.
+- `hearthrise:profile` (slot metadata: names, levels, lastSeen) is **device-local and never
+  uploaded**. Anything stored there is a promise you cannot keep on the player's second device.
+  This is why per-hero nicknames were refused rather than faked.
+- Auto-Eat ownership is `G.traits.auto_eat` (a Bounty Marks purchase); the eligibility rule for what
+  counts as a healing provision is `src/core/auto-eat.js isAutoEatable`. Reuse both - the death
+  sheet names the food the game would actually have eaten, not the first row of the bag.
+- `window.prompt()` had survived in `home-dashboard.js` long after b371 killed `window.confirm()`
+  for the character switch. When you retire a class of native dialog, grep for the whole class.
+
+
 ### 2026-08-17 · Art Director (b371) · TWO of the audit's UI bugs were one UI SCRAPING ANOTHER UI, and neither is findable in a diff
 
 **DISCOVERY.** The quest badge and the toast column failed for the same species of

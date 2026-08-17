@@ -933,6 +933,10 @@
        so SKILLS_DEF / SKILL_ACTION_STAT exist; it only READS them at click
        time, so order here is a preference, not a hard dep. -->
   <script src="src/features/quest-nav.js?v=372"></script>
+  <!-- b373: the death moment. Loads AFTER icon-set.js (it draws glyphs) and
+       after legacy.js, whose COMBAT_FX.onDeath calls it — the call is guarded,
+       so a load failure degrades to the old toast rather than breaking combat. -->
+  <script src="src/features/death-sheet.js?v=372"></script>
   <!-- b154: rebuilt Home dashboard (revamp) — loads AFTER legacy.js so
        window.showTab / getTotalLevel / MONSTERS exist when it wraps them -->
   <script src="src/features/home-dashboard.js?v=372"></script>

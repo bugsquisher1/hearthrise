@@ -1,0 +1,241 @@
+<title>Hearthrise — Priority Board</title>
+<style>
+  :root {
+    /* light palette (complete) — warm hearth sand */
+    --bg:#e9dfca; --panel:#f3ecdb; --panel-2:#efe6d1; --ink:#2b2115; --ink-2:#6a5b43;
+    --line:rgba(43,33,21,.14); --line-2:rgba(43,33,21,.09);
+    --accent:#9a6a12; --accent-soft:#b98a2a; --ember:#b8551d;
+    --s-ship:#3f7d3c; --s-prog:#9a6a12; --s-spec:#3f6ea0; --s-back:#8a795c;
+    --s-block:#b23a2c; --s-burner:#6a5f86; --s-doc:#8a795c;
+    --shadow:0 1px 0 rgba(255,255,255,.5), 0 10px 30px rgba(43,33,21,.10);
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg:#14100a; --panel:#1e1710; --panel-2:#241c12; --ink:#ede0c6; --ink-2:#a19174;
+      --line:rgba(237,224,198,.12); --line-2:rgba(237,224,198,.07);
+      --accent:#e3b23c; --accent-soft:#caa049; --ember:#e08640;
+      --s-ship:#79b874; --s-prog:#e3b23c; --s-spec:#82a6cf; --s-back:#9a8c74;
+      --s-block:#e0685c; --s-burner:#a79fc4; --s-doc:#9a8c74;
+      --shadow:0 1px 0 rgba(255,255,255,.03), 0 12px 34px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#14100a; --panel:#1e1710; --panel-2:#241c12; --ink:#ede0c6; --ink-2:#a19174;
+    --line:rgba(237,224,198,.12); --line-2:rgba(237,224,198,.07);
+    --accent:#e3b23c; --accent-soft:#caa049; --ember:#e08640;
+    --s-ship:#79b874; --s-prog:#e3b23c; --s-spec:#82a6cf; --s-back:#9a8c74;
+    --s-block:#e0685c; --s-burner:#a79fc4; --s-doc:#9a8c74;
+    --shadow:0 1px 0 rgba(255,255,255,.03), 0 12px 34px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1180px; margin:0 auto; padding:clamp(20px,4vw,52px) clamp(16px,4vw,40px) 80px; }
+
+  header { display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px 26px; border-bottom:1px solid var(--line); padding-bottom:22px; }
+  .brand { display:flex; align-items:center; gap:14px; }
+  .crest { width:42px; height:42px; flex:0 0 auto; border-radius:9px;
+    background:radial-gradient(120% 120% at 50% 15%, var(--accent), transparent 62%), var(--panel-2);
+    border:1px solid var(--line); display:grid; place-items:center; font-size:22px; box-shadow:var(--shadow); }
+  h1 { font-family:Georgia,"Iowan Old Style","Times New Roman",serif; font-weight:600;
+    font-size:clamp(1.5rem,3.4vw,2.15rem); margin:0; letter-spacing:.01em; text-wrap:balance;
+    color:var(--ink); }
+  h1 small { display:block; font-family:system-ui,sans-serif; font-size:.62rem; font-weight:700;
+    letter-spacing:.28em; text-transform:uppercase; color:var(--accent); margin-top:6px; }
+  .stamp { margin-left:auto; font-size:.72rem; color:var(--ink-2); text-align:right; line-height:1.7;
+    font-variant-numeric:tabular-nums; }
+  .stamp b { color:var(--ink); font-weight:600; }
+
+  /* summary counts */
+  .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:10px; margin:26px 0 8px; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; box-shadow:var(--shadow); }
+  .stat .n { font-family:Georgia,serif; font-size:1.7rem; font-weight:600; font-variant-numeric:tabular-nums; line-height:1; }
+  .stat .l { font-size:.66rem; text-transform:uppercase; letter-spacing:.14em; color:var(--ink-2); margin-top:7px; }
+  .stat.ship .n{color:var(--s-ship)} .stat.prog .n{color:var(--s-prog)} .stat.queue .n{color:var(--s-spec)} .stat.block .n{color:var(--s-block)}
+
+  /* filter + legend */
+  .controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:22px 0 6px; }
+  .controls .lbl { font-size:.66rem; text-transform:uppercase; letter-spacing:.16em; color:var(--ink-2); margin-right:4px; }
+  .chip { appearance:none; cursor:pointer; font:inherit; font-size:.74rem; font-weight:600;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink-2);
+    padding:5px 11px; border-radius:999px; display:inline-flex; align-items:center; gap:7px; transition:.12s; }
+  .chip:hover { border-color:var(--accent-soft); color:var(--ink); }
+  .chip[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#1a1206; }
+  .chip .dot { width:8px; height:8px; border-radius:50%; background:currentColor; }
+  .chip:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  section.track { margin-top:34px; }
+  .track > h2 { font-family:Georgia,serif; font-weight:600; font-size:1.12rem; margin:0 0 3px;
+    display:flex; align-items:baseline; gap:10px; }
+  .track > h2 .idx { font-family:system-ui,sans-serif; font-size:.7rem; font-weight:800; letter-spacing:.1em;
+    color:var(--accent); border:1px solid var(--line); border-radius:6px; padding:2px 7px; }
+  .track > .sub { font-size:.82rem; color:var(--ink-2); margin:0 0 14px; }
+
+  .rows { border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--panel); box-shadow:var(--shadow); }
+  .row { display:grid; grid-template-columns:110px 46px 1fr; gap:14px; align-items:start;
+    padding:13px 16px; border-top:1px solid var(--line-2); }
+  .row:first-child { border-top:0; }
+  .row.hide { display:none; }
+  .row .st { display:inline-flex; align-items:center; gap:7px; font-size:.72rem; font-weight:700;
+    letter-spacing:.02em; white-space:nowrap; }
+  .row .st .dot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+  .pri { justify-self:start; font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:.7rem; font-weight:700;
+    border:1px solid var(--line); border-radius:6px; padding:2px 6px; color:var(--ink-2); }
+  .pri.p0 { color:#1a1206; background:var(--ember); border-color:var(--ember); }
+  .pri.p1 { color:var(--ember); border-color:color-mix(in srgb,var(--ember) 45%,var(--line)); }
+  .item .name { font-weight:600; font-size:.95rem; }
+  .item .note { font-size:.82rem; color:var(--ink-2); margin-top:3px; }
+
+  .s-ship{color:var(--s-ship)} .s-prog{color:var(--s-prog)} .s-spec{color:var(--s-spec)}
+  .s-back{color:var(--s-back)} .s-block{color:var(--s-block)} .s-burner{color:var(--s-burner)} .s-doc{color:var(--s-doc)}
+
+  footer { margin-top:44px; padding-top:18px; border-top:1px solid var(--line); font-size:.76rem; color:var(--ink-2); }
+  footer code { font-family:ui-monospace,Menlo,monospace; background:var(--panel-2); padding:1px 6px; border-radius:5px; }
+  @media (max-width:560px){ .row{grid-template-columns:1fr; gap:4px} .pri{margin-top:0} }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="crest">🔥</div>
+      <h1>The War Table<small>Hearthrise · living priority board</small></h1>
+    </div>
+    <div class="stamp">Build <b>b376</b> · live<br>Updated <b>2026-08-18</b></div>
+  </header>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="controls">
+    <span class="lbl">Filter</span>
+    <button class="chip" data-f="all" aria-pressed="true">All</button>
+    <button class="chip" data-f="ship"><span class="dot s-ship"></span>Shipped</button>
+    <button class="chip" data-f="prog"><span class="dot s-prog"></span>In progress</button>
+    <button class="chip" data-f="spec"><span class="dot s-spec"></span>Spec'd</button>
+    <button class="chip" data-f="backlog"><span class="dot s-back"></span>Backlog</button>
+    <button class="chip" data-f="block"><span class="dot s-block"></span>Blocked</button>
+  </div>
+
+  <div id="board"></div>
+
+  <footer>
+    Source of truth: <code>docs/planning/PRIORITY_BOARD.md</code> — the Coordinator adds backlog here as it arrives (player reports, ideas, discoveries) and redeploys this board. Nothing gets lost; order and notes stay current.
+  </footer>
+</div>
+
+<script>
+  const S = {
+    ship:{k:'ship',ic:'✅',lbl:'Shipped',c:'s-ship',bucket:'ship'},
+    prog:{k:'prog',ic:'🔧',lbl:'In progress',c:'s-prog',bucket:'prog'},
+    spec:{k:'spec',ic:'📋',lbl:"Spec'd",c:'s-spec',bucket:'spec'},
+    backlog:{k:'backlog',ic:'🧊',lbl:'Backlog',c:'s-back',bucket:'backlog'},
+    block:{k:'block',ic:'⛔',lbl:'Blocked',c:'s-block',bucket:'block'},
+    burner:{k:'burner',ic:'⏸️',lbl:'Back-burner',c:'s-burner',bucket:'backlog'},
+    doc:{k:'doc',ic:'🗒️',lbl:'Documented',c:'s-doc',bucket:'backlog'},
+    decide:{k:'decide',ic:'⚖️',lbl:'Decision',c:'s-spec',bucket:'spec'},
+  };
+  const tracks = [
+    { t:'Launch readiness', sub:'Gate for inviting 10–20 new players.', items:[
+      ['Brand-new account signup + true first session','block','P0','THE launch-gating unknown. No one but Tyler has created an account and played from zero on this build. Coordinator can’t create accounts — needs Tyler or a test account.'],
+      ['Dedicated test account','block','P0','Unblocks the above + every future new-player test. Tyler action: throwaway email + signup, or signup while Coordinator observes.'],
+      ['Clean FTUE re-run on current build','backlog','P1','b372 run found bugs (slot-clone, silent death, identity bleed, rename freeze) — all fixed b373/b374, never re-verified clean. Needs the test account.'],
+      ['Wire rooms + banner tiers','prog','P1','Generated & on disk; closes the last visible seam (grey placeholder rooms next to painted everything).'],
+      ['Backups / restore DRILL','backlog','P2','Pro has daily backups; a restore has never been tested. Hard cutover blocker once the server owns progression.'],
+    ]},
+    { t:'Server-authority program', sub:'The integrity foundation — post-launch. Forged client values must never cross to another player.', items:[
+      ['Record flip — server owns gold / skills / inventory','backlog','P1','Plumbed & tested, armed for equipment only. Permanent cure for the craft dupe AND the last self-forgeable economy. Needs Security review before arming inventory.'],
+      ['Inventory baseline adoption (craft-dupe real fix)','backlog','P1','Server must own the whole bag so craft settlement replays against the real inventory. Interim mitigation shipped b376 (no data loss; dupe remains).'],
+      ['Clan pass 2','block','P1','clan_contribute mints 10M/day (no debit), clan_feast_deposit free meter, slot-derivation fix, revoke dormant clans grants. Clan domain security-blocked until done.'],
+      ['Phase 3 ledger accumulator','backlog','P2','Before real player growth (per-write journalling at scale).'],
+      ['Leaderboards off server tables','ship','','Shipped b374 — last cross-player ranking forgery closed.'],
+      ['Equip / market / clan-deposit authority','ship','','Shipped — forged values can’t cross into another player’s economy.'],
+    ]},
+    { t:'Feature roadmap', sub:'The original ~15-point list — deliberately superseded mid-week by the integrity program; the parked systems resume once the base is proven.', items:[
+      ['Monster rework (Tibia 11 classes)','ship','','Folded 111→108, painted portraits.'],
+      ['Combat rework (War Table + Fight)','ship','','Shipped b365.'],
+      ['Items / itemization + Review Book','ship','','Review book shipped; item waves wired.'],
+      ['Hunt band fairness','ship','','Applied to prod.'],
+      ['Auto-eat in bounty shop','ship','','100-mark unlock; honesty fixed b373.'],
+      ['Muster → Kindling / Beacon events + donation pools + weekly blessing vote','spec','P2','Approved, NOT built (only name echoes in code). Weekly reset Sunday night; vote closes 1 day prior.'],
+      ['Bestiary Charms (PROG-01) · Diaries (PROG-02) · PROG-03/08','spec','P2','Approved, not built.'],
+      ['Elements / enchanting','backlog','P2','Was gated on the monster rework (done) → now next-eligible. Steal from RS / Melvor.'],
+      ['Completion Log · Quest Board rework · supply-projection UI · world-boss blessing','backlog','P3','From the batch-2 build sequence; mostly unbuilt.'],
+      ['Practice / familiarity tiers','burner','','Back-burner. Spec in progression-depth.md Phase 2.'],
+      ['Buy-offers return','burner','','Back-burner.'],
+    ]},
+    { t:'Art pipeline', sub:'Painterly high-detail is the standard now.', items:[
+      ['Combat / skills / bounty backgrounds (12)','ship','','Shipped b375 — painterly, per monster class.'],
+      ['Home banner repaint','ship','','Shipped b374 (dawn splash).'],
+      ['Rooms (8) + banner tiers (6)','prog','P1','Generated via API, on disk, queued to wire.'],
+      ['Re-roll 2 rejected backgrounds (demon, board planks)','backlog','P3','Fall back cleanly meanwhile.'],
+      ['Re-roll room interiors to matched painterly style','backlog','P3','Interiors came out more storybook-outlined than landscapes. Tyler’s call after seeing them wired.'],
+      ['Full icon re-do to quality bar (512 items + 111 monsters)','backlog','P2','The big future art investment — transparent, 32–64px, ~$25–40, multi-day. Post-ship.'],
+    ]},
+    { t:'Game modes', sub:'After the base game is proven. Needs server-authority to enforce.', items:[
+      ['Ironman · Group Ironman · Hardcore Ironman · Hardcore (normal) · Hardcore Group Ironman','backlog','','Ironman = server trade restriction; Hardcore = server-attested death. Per-account server flag at creation. Strong retention lever.'],
+    ]},
+    { t:'Deferred design specs', sub:'Ready to build when slotted.', items:[
+      ['Super-rare “fabled” drops (reveal + clan broadcast + shareable card)','spec','P2','~2-day Phase 1, plumbing 80% there. docs/design/super-rare-drops.md.'],
+      ['Layered-additive homestead art','backlog','P3','The clan-castle-style build-up; richer than tier-swap.'],
+    ]},
+    { t:'Decisions pending Tyler', sub:'Coordinator is acting on the defaults below until told otherwise.', items:[
+      ['Wipe vs. amnesty at cutover','decide','P1','Acting on amnesty. Recommend ONE wipe right before widening invite, gated on record-flip + currency authority + a restore drill.'],
+      ['Stand up the test account','decide','P0','Highest-leverage launch-prep enabler.'],
+      ['Room-interior style re-roll','decide','P3','After seeing rooms wired.'],
+    ]},
+    { t:'Known residuals / small bugs', sub:'', items:[
+      ['Craft material dupe','doc','P2','Accepted pre-wipe trade (dupe > data loss). Real fix = inventory authority.'],
+      ['32px requirement chips below 44px tap target','backlog','P3','Art-director handoff.'],
+      ['P3 polish backlog (various from audits)','backlog','P3','In .claude/coordination/DISCOVERIES.md.'],
+    ]},
+  ];
+
+  // summary counts by bucket
+  const counts = {ship:0,prog:0,queue:0,block:0};
+  tracks.forEach(tr=>tr.items.forEach(([n,st])=>{
+    const b=S[st].bucket;
+    if(b==='ship')counts.ship++; else if(b==='prog')counts.prog++;
+    else if(b==='block')counts.block++; else counts.queue++;
+  }));
+  document.getElementById('summary').innerHTML = [
+    ['ship','Shipped',counts.ship],['prog','In progress',counts.prog],
+    ['queue','Queued / spec’d',counts.queue],['block','Blocked',counts.block]
+  ].map(([c,l,n])=>`<div class="stat ${c}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+
+  // render tracks
+  const board = document.getElementById('board');
+  board.innerHTML = tracks.map((tr,i)=>`
+    <section class="track">
+      <h2><span class="idx">${String(i+1).padStart(2,'0')}</span>${tr.t}</h2>
+      ${tr.sub?`<p class="sub">${tr.sub}</p>`:''}
+      <div class="rows">
+        ${tr.items.map(([name,st,pri,note])=>{
+          const s=S[st];
+          const priCls = pri==='P0'?'p0':pri==='P1'?'p1':'';
+          return `<div class="row" data-bucket="${s.bucket}">
+            <span class="st ${s.c}"><span class="dot" style="background:currentColor"></span>${s.ic} ${s.lbl}</span>
+            <span class="pri ${priCls}">${pri||'—'}</span>
+            <div class="item"><div class="name">${name}</div>${note?`<div class="note">${note}</div>`:''}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </section>`).join('');
+
+  // filter
+  const chips=[...document.querySelectorAll('.chip')];
+  chips.forEach(c=>c.addEventListener('click',()=>{
+    chips.forEach(x=>x.setAttribute('aria-pressed', x===c?'true':'false'));
+    const f=c.dataset.f;
+    document.querySelectorAll('.row').forEach(r=>{
+      r.classList.toggle('hide', f!=='all' && r.dataset.bucket!==f);
+    });
+    document.querySelectorAll('.track').forEach(sec=>{
+      const any=[...sec.querySelectorAll('.row')].some(r=>!r.classList.contains('hide'));
+      sec.style.display=any?'':'none';
+    });
+  }));
+</script>

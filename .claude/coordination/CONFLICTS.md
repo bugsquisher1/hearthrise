@@ -2,6 +2,43 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+### 2026-08-17 - SEMANTIC - The accrual envelope writes `playerHp`, which `events.js` declares NO_SYNC (Designer -> Systems)
+**This is a real disagreement between two modules about who owns HP, and it produced a shipped
+player-facing bug.** `src/net/events.js` has said since it was written that `playerHp` /
+`playerMaxHp` are `NO_SYNC` - *"in-flight combat - belongs to the device you are fighting on"*. The
+snapshot honours that. `applyEnvelopeState` in `src/net/accrue.js` never did: it wrote the server's
+hp unconditionally.
+
+**Measured consequence (LIVE-AUDIT-2026-08-17, FTUE run 2):** a brand-new player died to the first
+slime and respawned at **2/10 HP**, then re-entered combat and died again. Nothing in the combat
+rules produces a 2 - `resolveDeath` full-heals and always has. The client resolved the death and
+healed to 10/10; an envelope for a window that ended *before* that death then landed and wrote the
+server's mid-fight hp over the respawn.
+
+**What I did (b373, client-side floor only):** an envelope may RAISE hp freely, and may lower it
+only while a fight is actually in flight (`G.activeMonster`). With no active monster there is
+nothing hitting the player, and the server itself agrees - `accrual.js` sets the activity pointer to
+idle in the same delta as a death. No economy exposure: hp is not tradeable, rankable or
+contributable, away combat runs with `activeMonster` set (full server authority preserved), and the
+refusal is recorded as `written.hpRefused` so the drift counter still sees it.
+
+**What SYSTEMS owns, and why the floor is not the fix.** The envelope already computes
+`summary.died`. The correct end state is that it says so, and reports POST-RESPAWN hp, so the two
+sides never disagree in the first place. Please do not let the client guard become the reason that
+never happens - and if you would rather delete the guard once the envelope is honest, do; the b373
+test "an idle player cannot be wounded by a server envelope" documents the property either way.
+
+### 2026-08-17 - DEPLOY COUPLING - A UI feature cannot cheaply touch `src/core/combat-sim.js` (Designer -> Systems, FYI)
+While building the death sheet I added a single field (`monsterId`) to the info object
+`resolveDeath` hands `fx.onDeath`. It turned the suite's **Edge payload guard** red: that file is
+packed into hr-accrue, so one changed byte - including a comment - demands a coordinated Edge
+redeploy before the client can ship. I reverted it and read `state.activeMonster` from the client
+instead (legal: `onDeath` fires before the caller stops the fight; asserted by a b373 test).
+**Not a complaint about the guard - it is doing its job.** Flagging it because it is a
+non-obvious cost that will bite the next person who adds a "harmless" field to a core sim, and it is
+worth knowing that a purely presentational need can force a server deploy.
+
+
 ### 2026-08-16 · CSS · The `#panel-market` theme sweep owns every colour on the market screen (Systems → Art Director)
 **Found while building the b361 trade-ledger panel, by measurement in a real browser rather than by
 reading the sheets.** `src/styles/art-direction.css` carries

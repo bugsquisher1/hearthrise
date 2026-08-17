@@ -4455,8 +4455,22 @@ const COMBAT_FX={
       if(info&&info.streakBroken)log.push('🎯 Bounty streak broken. Progress reset.');
       log.push('💀 You died! Respawning…');
     }
+    /* b373 — THE DEATH SHEET, READ BEFORE THE STATE IS TORN DOWN.
+       Order is load-bearing: HearthriseDeathSheet.show() reads `G.combatLog`
+       (to tell "held food and never ate it" from "ate everything and still
+       lost") and `G.combatKillsThisFoe`, and `stopCombat()` below re-renders
+       combat — which is what wipes the run. So the sheet is built FIRST and the
+       torn-down state is never what the player is shown.
+       Wrapped: a sheet that throws must never leave the fight loop running.
+       See src/features/death-sheet.js for the ruling this implements. */
+    let _sheet=null;
+    try{
+      if(window.HearthriseDeathSheet) _sheet=window.HearthriseDeathSheet.show(ctx,info);
+    }catch(e){}
     stopCombat();
-    notify('💀 You died!','kill');
+    /* The toast stays for the case the sheet declined (away, or no body yet) —
+       two statements of the same fact stacked on screen is noise. */
+    if(!_sheet) notify('💀 You died!','kill');
   },
 };
 

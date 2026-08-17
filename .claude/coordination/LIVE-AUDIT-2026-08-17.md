@@ -180,3 +180,44 @@ Blocked by the P0 above — there is no fresh character to audit. Do not re-atte
 ### Environment notes
 - Chrome window was minimized; audit ran in a background-rendered tab (screenshots fine after opening a fresh tab).
 - The hero-panel DOM re-renders every tick, invalidating accessibility refs within ~1s; find/click by ref reliably fails. JS-click was needed. Worth noting for future browser automation and possibly a perf smell (full re-render per tick).
+
+## FTUE run 2 (b372)
+
+Run on live hearthrise.net, build v=372 confirmed, Tyler's real Chrome, slot 2 (pre-purchased, wiped). Auditor: fresh-character FTUE re-run after the slot-clone P0 fix.
+
+### Verdicts on the fixes under test
+
+| Surface | Verdict | Evidence |
+|---|---|---|
+| **Slot-clone P0 (b372 quiesce latch + slot-stamped saves)** | **PASS** | Slot 2 booted as a genuinely fresh character: 500 gold, 0 gems, TL 24, CL 3, all skills 0 XP (hp 1,154 = Lv 10 starter). No trace of Tyler's stats. |
+| Switch integrity (both directions) | **PASS** | End of run: Tyler restored with EXACT pre-run values (12,721 gold, 1,006 gems, TL 232, own resume chip "Brittle Skeleton"); Adventurer row kept its own save (Combat 3 · Total 29, grown during the run). |
+| Switch confirm modal (b371) | **PASS** | In-game "Switch character?" modal, Stay here/Switch, no freeze, clean reload after save. |
+| Portrait registry (b371) | **PASS** (with a design flag, below) | Picked archer.webp on slot 2 — header, Home banner and combat plate all showed it in the same session, instantly. |
+| Drops rail fight-only (b370/371) | **PASS** | "Drops this fight — No spoils yet, they land on the kill" → Slime Gel ×3 only; no worker haul contamination. |
+| Auto-eat settings row (b371) | **PASS** | Settings → Gameplay: "Auto-eat HP threshold — LOCKED — Auto-Eat is a Store unlock (100 Bounty Marks — Store → Bounty Shop). Until you own it… press Eat beside your champion." Screenshot taken. |
+| Requirement-chip inspector (b372) | **PASS** | House-upgrade cost chip "Copper Ore 0/20" → item card with **Source: Mining · Dropped by Kobold, Cutpurse +2** and Used-in list. Level chips (Oak Tree "Level 15") give a toast instead — acceptable, different surface. |
+| Server bootstrap — all skills pay from first action | **PASS** | Attack 0→42 XP first fight; HP +xp; Woodcutting 0→20 in first 10s; Cooking 0→3 on first shrimp; Mining 0→8 on first ore. hr-accrue POSTs all 200. Zero refusal sheets all run. |
+
+### Minute-by-minute new-player narrative
+
+- **0:00** Play on slot 2 → confirm modal → reload lands as ADVENTURER, 500 gold. Tour opens unprompted. Good.
+- **0:30** Tour 6 steps: copy is genuinely good ("Combat is the part you play with your hands", the overnight-fight warning in step 4 is exactly what a new idle player needs). Steps 3–4 spotlight nav items; clicking the spotlit item advances — nice. Daily Reward modal queues politely AFTER the tour, Day 1 = 500g. Delightful sequencing.
+- **1:00** But the hero banner says **TYLER** with Tyler's veteran portrait over my brand-new character, and the header wears **[TestClan]**. First-session identity is a collage of account-level leftovers: I named nothing, I am "Adventurer", but the screen calls me Tyler, in a clan I never joined. Confusing.
+- **2:00** First fight (Slime, T1). Fight button reachable, swing bars smooth under both plates, my chosen elf portrait on the combat plate. Kills pay instantly (XP/gold/gel).
+- **3:30** **First death, and it's silent.** 8 raw shrimp in provisions, nothing eats them, no nudge to eat, no Eat button visible while idle — and death is a combat-log line ("💀 You died! Respawning…") plus a silent dump back to the war table. **Respawn leaves you at 2/10 HP.** A real new player re-fights at 2 HP and dies again, learning nothing. This is the single biggest FTUE gap in the run.
+- **4:30** The Eat button DOES exist — but only mid-fight. Ate a shrimp (8→7), fight went fine after. The tour's "you eat between kills" is the only teacher, and it's a sentence three screens earlier.
+- **6:00** First gather: Normal Tree pays immediately. **But the activity strip said "Idle — pick an activity" for ~20s while chopping was demonstrably running** (XP+logs accruing); it later corrected to "Woodcutting — normal tree". Same staleness again when starting cooking. Intermittent, display-only, but on a fresh account "Idle" while your first-ever activity runs reads as "the game is broken".
+- **7:30** First cook: Cook Shrimp, burns at 25% visible up front, quest "Cook 5 dishes" pinged, +200g quest gold. Satisfying loop.
+- **9:00** Requirement chip → item card with source line: this feature is excellent. Tap Copper Ore, learn where it comes from, close, go mine one. It pays out 8 XP + the ore instantly. The learn→act loop works.
+- **10:00** **Rename froze the game.** Clicking Rename appears to open a native `window.prompt()` — the renderer blocked hard (all CDP evaluate/screenshot timed out) until the tab was closed. Every other dialog in the game is an in-game modal; this one is (apparently) the last native holdout, and in a background tab it hard-hangs the session. Could not complete the naming flow. **Recommend: convert Rename to the standard modal (same class as the b371 switch-confirm fix).**
+
+### Findings list (new, this run)
+
+1. **P2 — Rename uses a native blocking dialog** (suspected `prompt()`): froze the renderer; naming flow untestable. Same class of bug b371 killed for character-switch. `src/legacy.js` rename handler.
+2. **P2 — First-death experience**: no death screen/summary, respawn at 2/10 HP with no heal and no eat nudge despite food held. Player learns nothing and likely dies twice.
+3. **P2 — Account-identity bleed on fresh character**: Home banner shows account display-name (Tyler) + account portrait over the new character; header shows account clan [TestClan]. Also **portrait is account-scoped** ("follows you to every device") so picking a portrait on slot 2 changed Tyler's — is that design or a gap? Characters modal copy says "Each character has its own…" which sets the opposite expectation. Needs a design ruling (per-character identity vs account identity). (Slot-2 portrait pick restored to veteran before run end; Tyler untouched.)
+4. **P3 — Activity strip intermittently stale** ("Idle" while gathering/cooking runs, ~10–20s, then corrects).
+5. **P3 — Characters modal shows generic 🧙 emoji for every hero** instead of their portraits.
+6. **P3 — WC XP burst on activity switch** (40→170 in one tick while backgrounded) — looks like an away-accrual chunk landing; verify it's the accrual grant and not double-pay.
+
+Environment notes (not game bugs): run was performed in a backgrounded tab in Tyler's live Chrome while he worked; seat clicks were offset/flaky and two window resizes (→ 355px mobile layout mid-run) came from normal desktop use. Mobile layout held up fine when it happened.

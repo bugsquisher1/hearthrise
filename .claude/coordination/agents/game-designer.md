@@ -2,6 +2,51 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-17 - b373 - The death moment + the identity scoping ruling
+
+Both rulings and their reasoning are in `DECISIONS.md`; the handoffs are in `CONFLICTS.md`. What I
+want to remember is how the work went, not what I decided.
+
+**I started by assuming the punishment was designed. It wasn't - it was a leak.**
+"Respawn at 2/10" reads like somebody chose a harsh death penalty, and I was ready to argue against
+it on genre grounds. Then I read `resolveDeath` and it full-heals, and always has. The 2 came from
+`applyEnvelopeState` in a completely different module writing the server's mid-fight hp over the
+respawn. **A design ruling that argues against a rule nobody wrote is a wasted ruling.** Find the
+line that produces the number before you decide whether the number is right. The ruling I ended up
+writing (full heal, always) was the easy half; the valuable half was locating the leak.
+
+**Two of the three fixes were statements, not mechanics.**
+Death already costs nothing but the run - the game had just never said so, so every new player
+supplied the default RPG assumption ("I was robbed"). The player was already carrying the answer,
+and the word "Eat" appeared nowhere at the moment it mattered. I built one sheet and changed no
+combat maths, and the moment goes from punishing to teaching. **When something feels bad, check
+whether the rules are already generous and merely mute.**
+
+**The suite caught a design bug, not a code bug.**
+My first tip-selection rule asked "bag empty AND owns Auto-Eat?" before "did you eat anything?", so a
+veteran who had just burned five Trout was told their bag was empty. Technically true; useless
+advice. That is a *design* error - wrong advice to a real player - and it was a table-driven test
+over the four states that found it, not review. **When a feature's whole value is picking the right
+one of N branches, enumerate all N in a test. The branch ordering IS the design.**
+
+**I reverted a correct change because of what it cost to ship.**
+Adding `monsterId` to the death info object was the clean shape. `src/core/combat-sim.js` is packed
+into the hr-accrue Edge Function, so one byte - including a comment - turned the Edge payload guard
+red and would have demanded a coordinated server redeploy for a field the client could already read.
+Reverted, read `G.activeMonster` instead, added a test asserting the ordering contract that makes
+that legal. **"Cleaner" loses to "shippable without a server deploy" when the cleaner version buys
+nothing.**
+
+**The identity bug was a scope leak on a timer.**
+`refreshActiveMeta()` copied `G.playerName` into the active slot's record on every save tick, and
+`identity.js` sets `G.playerName` to the account's server-claimed name - so every hero slowly
+renamed itself to the account. Neither file is wrong on its own; the bug only exists in the
+sentence that joins them, and no diff review of either would find it. I also refused per-hero
+nicknames on the grounds that the store they'd live in (`hearthrise:profile`) is device-local: a
+per-character name that vanishes on your phone is worse than no per-character name. **Check the
+lifetime of the store before you promise the player anything that lives in it.**
+
+
 ## 2026-08-12 · The Hunt band — the mechanic where one player's good week deleted another's chest
 
 Called it, implemented it, staged it. Migration `2026-08-12-raid-band-fairness.sql`, tests

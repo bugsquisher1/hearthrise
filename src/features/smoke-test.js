@@ -36412,6 +36412,221 @@ const TESTS = [
     assert(LB._boardsIn('throne', 'full').indexOf('renown') >= 0,
       'renown did not come back when the server said it was available again');  }),
 
+  // ════════════════════════════════════════════════════════════════════════
+  // b373 regression suite — THE DEATH MOMENT + THE IDENTITY SCOPING RULING
+  // (LIVE-AUDIT-2026-08-17 "FTUE run 2", findings 2, 3 and 5.)
+  //
+  // Two designer rulings, and every test below asserts the RULE rather than a
+  // sentence: tip selection by `tipKey`, respawn by arithmetic, scope by which
+  // module owns the value. Copy stays free to be reworded.
+  // ════════════════════════════════════════════════════════════════════════
+
+  () => tryRun('b373: death sheet — held-but-uneaten food picks the teaching tip', () => {
+    const D = window.HearthriseDeathSheet;
+    assert(D && typeof D.describeDeath === 'function', 'the death sheet model is not published');
+    /* THE AUDITED MOMENT, exactly: 8 raw shrimp in the bag, none eaten, first
+       slime, Auto-Eat not owned. This is the branch that has to name the food
+       and the Eat button, or the whole feature teaches nothing. */
+    const m = D.describeDeath({
+      monsterName: 'Slime', killsThisFoe: 0, foodQty: 8, foodName: 'Raw Shrimp',
+      ateThisFight: 0, autoEatOwned: false, maxHp: 10, deaths: 1,
+    });
+    assert(m.tipKey === 'food-unused', 'held-and-uneaten food did not select the food-unused tip: ' + m.tipKey);
+    assert(/8 x Raw Shrimp/.test(m.tip), 'the tip does not name what the player was carrying: ' + m.tip);
+    assert(/\bEat\b/.test(m.tip), 'the tip never says the word Eat: ' + m.tip);
+    assert(/Auto-Eat/.test(m.tip) && /Bounty Shop/.test(m.tip),
+      'a player who does not own Auto-Eat was not told where to get it: ' + m.tip);
+    assert(m.shopLink === true, 'the Bounty Shop door is missing on the one branch that needs it');
+    /* Pluralisation: item names are singular nouns of every shape, so the
+       quantity marker is the rule. "8 Raw Shrimps" shipped in the first draft. */
+    assert(!/Shrimps/.test(m.tip), 'the tip pluralised an item name: ' + m.tip);
+  }),
+
+  () => tryRun('b373: death sheet — every food state gets its own tip, and only one', () => {
+    const D = window.HearthriseDeathSheet;
+    const base = { monsterName: 'Slime', killsThisFoe: 2, maxHp: 40, deaths: 4, foodName: 'Trout' };
+    const cases = [
+      [{ foodQty: 3, ateThisFight: 0, autoEatOwned: false }, 'food-unused'],
+      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: true },  'auto-eat-idle'],
+      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: false }, 'no-food'],
+      [{ foodQty: 0, ateThisFight: 5, autoEatOwned: true },  'outmatched'],
+      [{ foodQty: 2, ateThisFight: 4, autoEatOwned: true },  'outmatched'],
+    ];
+    for (const [d, want] of cases) {
+      const m = D.describeDeath(Object.assign({}, base, d));
+      assert(m.tipKey === want,
+        'food=' + d.foodQty + ' ate=' + d.ateThisFight + ' autoEat=' + d.autoEatOwned
+        + ' selected ' + m.tipKey + ', expected ' + want);
+      assert(typeof m.tip === 'string' && m.tip.length > 20, 'tip ' + want + ' has no copy');
+      /* Never offer to sell a player something they already own. */
+      if (d.autoEatOwned) assert(m.shopLink === false, want + ' offered the shop to an owner');
+    }
+    assert(D._TIP_KEYS.length === 4, 'the tip branch list drifted from the four states');
+  }),
+
+  () => tryRun('b373: death sheet — the receipt states no-loss, full heal and the stopped run', () => {
+    const D = window.HearthriseDeathSheet;
+    const m = D.describeDeath({
+      monsterName: 'Brittle Skeleton', killsThisFoe: 3, foodQty: 0, ateThisFight: 2,
+      autoEatOwned: true, maxHp: 47, streakBroken: true, deaths: 2,
+    });
+    const keys = m.rows.map((r) => r.k);
+    for (const k of ['killed-by', 'kept', 'healed', 'run-stopped', 'streak']) {
+      assert(keys.indexOf(k) >= 0, 'the death receipt is missing the "' + k + '" row: ' + keys.join(','));
+    }
+    const healed = m.rows.find((r) => r.k === 'healed');
+    assert(healed.v === '47 / 47', 'the receipt did not state a FULL respawn: ' + healed.v);
+    assert(/Brittle Skeleton/.test(m.title), 'the title does not name what killed you: ' + m.title);
+    /* Streak reset is real and must only appear when it happened. */
+    const noStreak = D.describeDeath({ monsterName: 'Slime', maxHp: 10, foodQty: 1, ateThisFight: 0 });
+    assert(noStreak.rows.every((r) => r.k !== 'streak'), 'a streak row appeared on a death that broke no streak');
+    /* First fall gets the reassuring lead; later ones do not repeat it. */
+    assert(/first fall/i.test(D.describeDeath({ maxHp: 10, deaths: 1 }).lead), 'the first death lost its lead');
+    assert(!/first fall/i.test(m.lead), 'the second death still claims to be the first');
+  }),
+
+  () => tryRun('b373: an AWAY death never opens the sheet (the welcome-back receipt owns it)', () => {
+    const D = window.HearthriseDeathSheet;
+    assert(D.show({ away: true }, { died: true }) === null,
+      'the death sheet opened for an away death — the player was asleep and the welcome modal already reports it');
+  }),
+
+  () => tryRun('b373: death sheet — an unknown killer still produces a usable sheet', () => {
+    const D = window.HearthriseDeathSheet;
+    const m = D.describeDeath({ maxHp: 10, foodQty: 0, ateThisFight: 0 });
+    assert(typeof m.title === 'string' && m.title.length > 0, 'no title without a monster name');
+    assert(m.actions.length === 2 && m.actions[0].primary, 'the two doors are not both present');
+    assert(!/undefined|NaN|null/.test(JSON.stringify(m)), 'the sheet leaked a placeholder value: ' + JSON.stringify(m));
+  }),
+
+  () => tryRun('b373: RESPAWN IS A FULL HEAL — the sim heals and names its killer', () => {
+    const C = window.HearthriseCore;
+    assert(C && C.combatSim && typeof C.combatSim.resolveDeath === 'function', 'combat-sim is not published');
+    /* The audited symptom was a fresh player respawning at 2/10 and dying
+       again immediately. The RULE: a death costs the RUN, never the health —
+       an HP penalty in an idle game only ever bites the player who cannot pay
+       it. Asserted on the sim, which is the one death path (b325). */
+    const state = { playerHp: 0, playerMaxHp: 10, monsterHp: 4, activeMonster: 'slime', stats: {} };
+    let sawMonster = null;
+    C.combatSim.resolveDeath(state, {
+      away: true,
+      /* THE CONTRACT THE DEATH SHEET DEPENDS ON: onDeath fires while the fight
+         is still standing, so a handler can still read what killed the player.
+         Move `state.activeMonster = null` above the fx call and the sheet
+         silently loses its first line — this is what notices. */
+      fx: { onDeath: () => { sawMonster = state.activeMonster; } },
+    });
+    assert(state.playerHp === 10, 'respawn did not fully heal: ' + state.playerHp + '/10');
+    assert(state.stats.deaths === 1, 'the deaths stat did not increment');
+    assert(sawMonster === 'slime',
+      'onDeath fired after the target was cleared, so nothing can say what killed you: ' + sawMonster);
+  }),
+
+  () => tryRunAsync('b373: an idle player cannot be wounded by a server envelope', async () => {
+    /* THE ROOT CAUSE OF 2/10. src/net/events.js already declares playerHp
+       NO_SYNC — "belongs to the device you are fighting on" — but the accrual
+       envelope wrote it unconditionally, so an envelope for a window that
+       ended BEFORE the death landed on top of the respawn heal. */
+    const A = await import('../net/accrue.js?v=372');
+    const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
+    A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
+    assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
+
+    // In a fight the server keeps full authority — away combat depends on it.
+    const G2 = { playerHp: 10, playerMaxHp: 10, activeMonster: 'slime' };
+    A.applyEnvelopeState(G2, { state: { hp: 2, max_hp: 10 } });
+    assert(G2.playerHp === 2, 'the guard stole hp authority during a live fight: ' + G2.playerHp);
+
+    // Healing always applies, fight or no fight.
+    const G3 = { playerHp: 3, playerMaxHp: 10, activeMonster: null };
+    A.applyEnvelopeState(G3, { state: { hp: 9, max_hp: 10 } });
+    assert(G3.playerHp === 9, 'the guard blocked a HEAL: ' + G3.playerHp);
+  }),
+
+  () => tryRun('b373: identity is ACCOUNT-scoped — a hero is addressed by its slot', () => {
+    const P = window.HearthriseProfile;
+    assert(P && typeof P.heroLabel === 'function', 'heroLabel is not published');
+    assert(P.heroLabel(0) === 'Hero 1' && P.heroLabel(2) === 'Hero 3', 'heroLabel drifted: ' + P.heroLabel(0));
+    /* THE BUG: refreshActiveMeta used to copy G.playerName — which identity.js
+       sets to the ACCOUNT's server-claimed display name — into every slot
+       record, so a player's hero list slowly became "Tyler / Tyler / Tyler". */
+    const rows = P.slotRows().filter((r) => r.kind === 'char');
+    assert(rows.length > 0, 'no character rows to check');
+    const name = (window.G && window.G.playerName) || '';
+    for (const r of rows) {
+      assert(r.name === P.heroLabel(r.id), 'slot ' + r.id + ' is labelled "' + r.name + '", not by its slot');
+      if (name) assert(r.name !== name, 'a hero row is wearing the ACCOUNT name: ' + r.name);
+    }
+    /* And the write side: a save tick must not stamp the name back on. */
+    const before = JSON.stringify((P.profile.slots || []).map((s) => s.name));
+    if (window.G) { const keep = window.G.playerName; window.G.playerName = 'ScopeBleedProbe';
+      try { window.saveLocal(); } finally { window.G.playerName = keep; } }
+    assert(!/ScopeBleedProbe/.test(JSON.stringify((P.profile.slots || []).map((s) => s.name))),
+      'saving stamped the account name onto a slot record (was ' + before + ')');
+  }),
+
+  () => tryRun('b373 (FTUE finding 5): the Characters modal renders portraits, not an emoji', () => {
+    assert(typeof window.openCharacterSelect === 'function', 'the character drawer is not wired');
+    window.openCharacterSelect();
+    const modal = document.getElementById('cs-modal');
+    assert(modal, 'the characters modal did not open');
+    const imgs = modal.querySelectorAll('.cs-slot-portrait img[data-hr-avatar]');
+    assert(imgs.length > 0, 'no portrait <img> on any hero row — the 🧙 emoji is back');
+    for (const img of imgs) {
+      assert((img.getAttribute('src') || '').length > 0, 'a hero portrait has no source');
+      /* b361 class of break: an unsized image in an unsized slot. */
+      const r = img.getBoundingClientRect();
+      assert(r.width > 0 && r.width <= 64 && r.height > 0 && r.height <= 64,
+        'a hero portrait escaped its 48px frame: ' + Math.round(r.width) + 'x' + Math.round(r.height));
+    }
+    /* No emoji anywhere on the modal (Final Directive). */
+    assert(!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(modal.textContent || ''),
+      'the characters modal still renders emoji as art: ' + (modal.textContent || '').slice(0, 120));
+    /* And the copy states the scope split in BOTH directions, so nothing on
+       screen implies a per-character name or face. */
+    const sub = (modal.querySelector('.cs-sub') || {}).textContent || '';
+    assert(/account/i.test(sub) && /portrait/i.test(sub),
+      'the modal does not say that name and portrait are account-level: ' + sub);
+    assert(/separate/i.test(sub), 'the modal does not say what IS per-hero: ' + sub);
+    try { window.closeCharacterSelect(); } catch (e) {}
+  }),
+
+  () => tryRun('b373: renaming opens the real account-name flow, never a native prompt', () => {
+    /* Audit finding 1: Home's rename pencil called window.prompt() — a BLOCKING
+       native dialog that froze the renderer hard in a backgrounded tab — and it
+       wrote G.playerName, a PER-CHARACTER save field, for what is an
+       account-level, server-claimed, unique display name.
+
+       Asserted by BEHAVIOUR, not by reading the source: the pencil is clicked
+       with prompt() booby-trapped and openNameModal() spied, so this test fails
+       for a native dialog reintroduced by any route, including a new one. */
+    const ID = window.HearthriseIdentity;
+    assert(ID && typeof ID.openNameModal === 'function',
+      'the identity name modal is not available for the rename affordance to use');
+    window.showTab('profile');
+    const pencil = document.querySelector('[data-hd="rename"]');
+    assert(pencil, 'the Home rename affordance is gone');
+    assert(/account/i.test(pencil.getAttribute('title') || ''),
+      'the rename affordance does not say it renames the ACCOUNT: ' + pencil.getAttribute('title'));
+
+    const realPrompt = window.prompt;
+    const realOpen = ID.openNameModal;
+    let native = false, opened = false;
+    window.prompt = function () { native = true; return null; };
+    ID.openNameModal = function () { opened = true; };
+    try {
+      pencil.click();
+    } finally {
+      window.prompt = realPrompt;
+      ID.openNameModal = realOpen;
+      document.querySelectorAll('.hr-id-scrim').forEach((e) => e.remove());
+    }
+    assert(!native, 'the rename pencil raised a BLOCKING native prompt() — the b372 renderer freeze is back');
+    assert(opened, 'the rename pencil did not open the account-name modal');
+    /* And it must not have written the per-character field behind our back. */
+    assert(!window.G || window.G.playerName !== null, 'rename wrote a bare value onto G.playerName');
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

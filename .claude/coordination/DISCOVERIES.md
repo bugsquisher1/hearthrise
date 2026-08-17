@@ -4,43 +4,36 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
-### 2026-08-17 · Systems Engineer (b373) · `prompt()` was not just a freeze — it BYPASSED the display-name rules; and the activity strip was never event-driven at all
+### 2026-08-17 - Game Designer (b373) - The FTUE's worst moment was not a missing feature: it was three correct systems each staying silent
 
-**AFFECTED SYSTEMS:** identity/display names · every dialog surface in the game · the activity pointer → strip render path · the smoke runner's guard set.
+**Discovery.** The b372 audit's biggest FTUE gap ("first death is silent and punishing") decomposed
+into three things, and only one of them was a bug:
+1. `resolveDeath` **already full-heals**. The 2/10 respawn came from `src/net/accrue.js` overwriting
+   the heal - a module boundary, not a combat rule. See CONFLICTS.md.
+2. Death **already costs nothing but the run** - no item loss, no gold loss. The game had simply
+   never said so, so a new player's default RPG assumption ("I was robbed") went uncorrected.
+3. The player was **carrying the answer** (8 shrimp) and the word "Eat" appeared nowhere on screen
+   at the moment it mattered.
+**The lesson worth keeping:** when a moment feels punishing, check whether the rules are already
+generous and merely mute. Two of the three fixes here were statements, not mechanics.
 
-1. **A native dialog is usually hiding a second shortcut.** The rename pencil (`legacy.js` Profile
-   card + `home-dashboard.js` `data-hd="rename"`) called `setDisplayName(prompt(...))`. The prompt
-   froze the renderer (b372 FTUE, same class as the b371 slot-switch `confirm()`) — but
-   `setDisplayName` is a LOCAL clamp-and-store that never calls `claim_display_name`, so a rename
-   also skipped the charset / reserved-word / profanity rules AND the uniqueness registry. Both
-   sites now route through `HearthriseLaunchpad.openRename()` → identity.js `openNameModal()`, the
-   validated, server-claimed modal first-run sign-in already uses. **Check what else the call site
-   was skipping; the shortcut is rarely only in the UI.**
-2. **A file-scoped guard cannot catch a CLASS of bug.** `tests/slot-switch.mjs` pinned `confirm(`
-   in `src/multi-character.js`; the next incident was `prompt(` in `src/legacy.js`.
-   `tests/native-dialog.mjs` generalises it — a static scan of all 150 files under `src/`, comments
-   AND string literals stripped, method calls (`deferredPrompt.prompt()`) excluded, an EMPTY
-   documented allowlist, a fixture self-test so "0 findings" cannot mean "the regex died", and a
-   `--mutate` control. 13 native call sites across 8 files converted onto one service:
-   `src/utils/dialog.js` → `window.HearthriseDialog.confirm/prompt/alert`.
-3. **"Strip says Idle for 20s" was not server lag — it was timer throttling.**
-   `refreshActivityBar()` had exactly ONE unconditional caller, `setInterval(…,100)`. Chrome
-   throttles a hidden tab's timers to 1/s and to **1/minute** under intensive throttling. Combat
-   looked fine only because `start/stopCombat` are wrapped to repaint synchronously — which is
-   precisely why the live report named woodcutting and cooking. Fixed at the funnel every start and
-   stop of every kind already passes through (`declareActivity` → `activityPointerChanged()`), not
-   with a 24th wrapper: future activity kinds get the repaint for free. **When one variant of a
-   feature works and the others don't, find the one-off that fixed the working variant.**
-4. **A non-blocking modal means the world can change while the question is open.** Every converted
-   confirm re-reads its subject ON THE ANSWER, not before it: sell-junk re-quotes, the Dragon Egg
-   re-checks the egg, tap-sell re-checks the item, loadout edits re-read `G.loadouts[idx]`.
-   `confirm()` hid this hazard by freezing the game.
+**Practical notes for whoever touches this next.**
+- `G.playerHp` is `NO_SYNC` **and** written by the accrual envelope. If a health bug is reported,
+  suspect the envelope before the sim.
+- `refreshActiveMeta()` in `src/multi-character.js` used to copy `G.playerName` into the active
+  slot's record on **every save tick**. Since `identity.js adopt()` sets `G.playerName` to the
+  account's server-claimed name, every hero an account played silently renamed itself to the account
+  - which is why the audit saw a list of identical "Tyler" rows. A per-tick mirror between two
+  scopes is a scope leak on a timer; it will not show up in a diff review of either file alone.
+- `hearthrise:profile` (slot metadata: names, levels, lastSeen) is **device-local and never
+  uploaded**. Anything stored there is a promise you cannot keep on the player's second device.
+  This is why per-hero nicknames were refused rather than faked.
+- Auto-Eat ownership is `G.traits.auto_eat` (a Bounty Marks purchase); the eligibility rule for what
+  counts as a healing provision is `src/core/auto-eat.js isAutoEatable`. Reuse both - the death
+  sheet names the food the game would actually have eaten, not the first row of the bag.
+- `window.prompt()` had survived in `home-dashboard.js` long after b371 killed `window.confirm()`
+  for the character switch. When you retire a class of native dialog, grep for the whole class.
 
-**REQUIRED ACTION:** ask with `window.HearthriseDialog` — never `window.confirm/prompt/alert`; the
-build now fails on a new one. Any new activity kind must declare through `declareActivity` (it
-already must, for the server seam) and gets the strip repaint as a consequence.
-
----
 
 ### 2026-08-17 · Art Director (b371) · TWO of the audit's UI bugs were one UI SCRAPING ANOTHER UI, and neither is findable in a diff
 

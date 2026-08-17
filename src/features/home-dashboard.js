@@ -97,6 +97,14 @@
       'text-shadow:0 1px 6px rgba(0,0,0,.85)}',
       R + '.hd-sub b{font-family:var(--f-label);color:var(--scene-gilt) !important;font-weight:700;letter-spacing:.02em}',
       R + '.hd-sub .sep{opacity:.4}',
+      /* b373 — the "which hero" chip. Deliberately quiet: it sits beside a
+         display-font name three times its size, and it is a locator, not a
+         second title. Tokens only. */
+      R + '.hd-hero-chip{display:inline-block;vertical-align:middle;margin:0 8px;padding:2px 8px;',
+      'border-radius:99px;border:1px solid var(--line,rgba(255,255,255,.16));',
+      'background:rgba(0,0,0,.34);font-family:var(--f-label);font-weight:700;letter-spacing:.06em;',
+      'text-transform:uppercase;font-size:calc(12px * var(--ui-scale, 1));',
+      'color:var(--scene-ink-2) !important;text-shadow:none}',
       R + '.hd-rename{background:none !important;border:0;cursor:pointer;opacity:.45;padding:2px;line-height:0}',
       R + '.hd-rename:hover{opacity:1}',
       /* Today's ledger rides the band's dark corner: three numbers a player
@@ -832,8 +840,22 @@
          "one reload behind". */
       '<img src="' + esc(window._playerAvatar || 'assets/avatars/placeholder-portrait.webp') + '" alt="" data-hr-avatar style="width:100%;height:100%;object-fit:cover;display:block"></div><div style="min-width:0">';
     html += '<div class="hd-eyebrow">' + esc((hsDef && hsDef.name) || "Wanderer's Camp") + '</div>';
-    html += '<div class="hd-name">' + esc(playerName()) +
-      '<button class="hd-rename" title="Rename" data-hd="rename">' + gly('uiEdit', 14, '', 'var(--ink-3)') + '</button></div>';
+    /* b373 — WHICH HERO AM I? Under the account-scoped identity ruling (see
+       src/multi-character.js heroLabel) the big name on the hearth is the
+       ACCOUNT's, which is correct and is also exactly what confused the FTUE
+       auditor: a brand-new character greeted them as "TYLER". The name was
+       never the bug — the missing second half was. This chip is that half, and
+       it appears ONLY when the account actually owns more than one hero, so a
+       single-character player is not told about a system they do not have. */
+    var heroChip = '';
+    try {
+      var _HP = window.HearthriseProfile;
+      if (_HP && typeof _HP.unlockedCount === 'function' && _HP.unlockedCount() > 1) {
+        heroChip = '<span class="hd-hero-chip">' + esc(_HP.heroLabel(_HP.activeSlot())) + '</span>';
+      }
+    } catch (e) {}
+    html += '<div class="hd-name">' + esc(playerName()) + heroChip +
+      '<button class="hd-rename" title="Change your account name" data-hd="rename">' + gly('uiEdit', 14, '', 'var(--ink-3)') + '</button></div>';
     html += '<div class="hd-sub">' + rankLine +
       (rankLine ? '<span class="sep">·</span>' : '') +
       /* b224: see legacy.js updateNetStatus — with accounts required, the
@@ -1243,8 +1265,12 @@
             // HearthriseLaunchpad.openRename — a native dialog blocks the
             // renderer, and this path also has to go through the server-side
             // display-name claim so the realm's name rules actually apply.
+            // (The b372 FTUE run caught the old prompt() both freezing the tab
+            // AND writing G.playerName, a per-character field, for what is an
+            // account-level unique display name — this route fixes both.)
             var lp = LP();
             if (lp && lp.openRename) lp.openRename();
+            else if (window.HearthriseIdentity && window.HearthriseIdentity.openNameModal) window.HearthriseIdentity.openNameModal();
           } else if (kind === 'collection') { if (window.HearthriseCollection) window.HearthriseCollection.open(); }
           else if (kind === 'daily') { if (window.HearthriseDaily) window.HearthriseDaily.open(); }
           else if (kind === 'renown') { if (window.HearthriseRenown) window.HearthriseRenown.openLadder(); }

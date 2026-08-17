@@ -546,13 +546,86 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     b373 — THE IDENTITY RULING: NAME, PORTRAIT AND CLAN ARE ACCOUNT-SCOPED.
+     HEROES ARE SLOTS, NOT PEOPLE. (Designer, LIVE-AUDIT-2026-08-17 FTUE run 2
+     finding 3 + finding 5.)
+
+     WHAT THE AUDIT SAW. A brand-new character on slot 2 opened wearing the
+     ACCOUNT's name ("TYLER"), the account's veteran portrait, and a clan tag
+     ([TestClan]) it had never joined — while the surrounding UI (a per-slot
+     "Rename", per-slot rows, a Characters modal) implied each hero owned its
+     own identity. Worse, changing the portrait on one character changed it for
+     all, because the portrait IS account-level. The screen and the model
+     disagreed, and the model was the one that was right.
+
+     THE RULING — ACCOUNT-SCOPED, and the UI stops pretending otherwise:
+
+       NAME     Account. It is an ADDRESS, not a decoration: chat whispers it,
+                the market attributes a listing by it, the leaderboard ranks by
+                it, and `public.display_names.canonical` is a UNIQUE INDEX
+                keyed to `auth.uid()` (src/features/identity.js §"WHY
+                UNIQUENESS IS THE FEATURE"). Per-character names would multiply
+                the namespace by five, hand one account five addresses to be
+                confused between, and make impersonation cheaper — for a purely
+                cosmetic gain. Refused.
+       PORTRAIT Account. It is stored at a DERIVED path — avatars/<uid>/avatar
+                .webp — precisely so the path can never disagree with who owns
+                it. Per-character portraits mean a per-character key, a storage
+                migration and a second sync surface.
+       CLAN     Account. Clan membership, the seat and the deposit ledger are
+                all keyed to the account server-side. Nothing to decide.
+
+     WHAT IS ACTUALLY PER-CHARACTER, and this is the honest promise the
+     Characters modal now makes: skills, inventory, gold, equipment, bound
+     items, quests, farm — i.e. everything you PLAY. That is a real and
+     complete separation and it is the reason slots exist.
+
+     SO A HERO IS ADDRESSED BY ITS SLOT, not by a name. heroLabel() is the one
+     writer of that label. It is deliberately DERIVED rather than stored, for a
+     reason that is not tidiness: `hearthrise:profile` is DEVICE-LOCAL (see the
+     block above unlockedCount) and never uploaded, so a stored per-hero
+     nickname would silently vanish on the player's second device — a
+     "per-character name" that does not survive the character. Better to have
+     no nickname than a lying one.
+
+     ⚠ SERVER FOLLOW-UP, NAMED AND NOT BUILT HERE: if per-hero nicknames are
+     ever wanted, they need a server-side per-character label column on the
+     character row (alongside the existing slot addressing in
+     src/net/character.js) so they sync, plus the same profanity/charset rules
+     `validateName()` already applies. That is a Systems + server change, not a
+     client one, and this ruling does not block it — it just refuses to fake it
+     with device-local storage. Raised in DISCOVERIES.md. */
+  /* The shipped padlock from the icon atlas, with an honest empty fallback:
+     until the atlas has loaded the frame is simply blank, which reads as
+     "nothing here yet" rather than as a broken glyph box. */
+  function atlasGlyph(key, fill){
+    var IS = window.HearthriseIconSet;
+    var p = IS && IS.path && IS.path(key);
+    if(!p) return '';
+    return '<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="' + (fill || 'var(--ink-3)') + '" d="' + p + '"/></svg>';
+  }
+  function lockGlyph(){ return atlasGlyph('uiLock'); }
+  function closeGlyph(){ return atlasGlyph('uiClose', 'var(--ink-2)'); }
+
+  function heroLabel(slotId){
+    var n = (typeof slotId === 'number' && slotId >= 0) ? (slotId + 1) : 1;
+    return 'Hero ' + n;
+  }
+
   // ── Snapshot the active slot's meta (combat lv, total lv, etc.) ──
   function refreshActiveMeta(){
     var profile = window.HearthriseProfile.profile;
     if(!profile || !window.G) return;
     var slot = profile.slots[profile.activeSlot];
     if(!slot) return;
-    slot.name = window.G.playerName || slot.name;
+    /* b373 — THE NAME NO LONGER RIDES ALONG. (Designer ruling: identity is
+       ACCOUNT-scoped; see heroLabel() below.) This line used to copy
+       `G.playerName` — which src/features/identity.js adopt() sets to the
+       account's server-claimed display name — into the per-slot record. So
+       every character an account played eventually renamed itself to the
+       account's name, and the hero list showed "Tyler / Tyler / Tyler". The
+       slot record keeps levels and lastSeen; the NAME is not its business. */
     slot.combatLv = (typeof window.getCombatLevel === 'function') ? window.getCombatLevel() : 1;
     slot.totalLv  = (typeof window.getTotalLevel === 'function') ? window.getTotalLevel() : 1;
     slot.lastSeen = Date.now();
@@ -670,9 +743,10 @@
          device has never seen metadata for, and those must still be listed and
          playable rather than silently missing. */
       for(var k = 0; k < owned && k < MAX_SLOTS; k++){
-        var s = byId[k] || { id:k, name:'Adventurer ' + (k+1), combatLv:1, totalLv:1, lastSeen:0 };
+        var s = byId[k] || { id:k, combatLv:1, totalLv:1, lastSeen:0 };
         rows.push({
-          kind: 'char', id: k, name: s.name || 'Adventurer',
+          /* b373 — heroLabel(), never s.name. See the ruling on heroLabel. */
+          kind: 'char', id: k, name: heroLabel(k),
           combatLv: s.combatLv || 1, totalLv: s.totalLv || 1,
           active: k === active, lastSeen: s.lastSeen,
         });
@@ -700,9 +774,10 @@
     selectSlot: function(id){
       var p = this.profile; if(!p) return Promise.resolve(false);
       if(id === p.activeSlot) return Promise.resolve(false);
-      var slot = null, list = p.slots || [];
-      for(var i = 0; i < list.length; i++){ if(list[i].id === id){ slot = list[i]; break; } }
-      var nm = slot ? slot.name : ('Slot ' + (id + 1));
+      /* b373 — heroLabel(), so the confirm names the hero the same way the
+         list, the drawer and Home do. It used to read the slot's stored name,
+         which by then was the ACCOUNT's name on every row. */
+      var nm = heroLabel(id);
       return confirmDialog({
         title: 'Switch character?',
         body: 'Switch to ' + nm + '? Your current character is saved first, and the game reloads.',
@@ -714,6 +789,9 @@
     },
     timeSince: timeSince,
     esc: esc,
+    /* b373 — the ONE writer of a hero's on-screen label. Exported so the
+       Characters drawer, Home and the suite all read the same rule. */
+    heroLabel: heroLabel,
   };
 
   // Initialize on DOMContentLoaded so legacy.js has loaded first.
@@ -760,8 +838,19 @@
       var rows = window.HearthriseProfile.slotRows();
       var html = rows.map(function(r){
         if(r.kind === 'char'){
+          /* b373 — THE ACCOUNT PORTRAIT, DELIBERATELY, ON EVERY ROW.
+             This was a 🧙 emoji per row: an emoji-as-art violation (Final
+             Directive) and, worse, a lie of omission — it implied each hero had
+             a face of its own that the game just hadn't drawn. Under the
+             account-scoped ruling (see heroLabel) every hero genuinely wears the
+             account's portrait, so showing it identically on every row is the
+             TRUE picture, and the sub-copy below says why. `data-hr-avatar`
+             enrols these in the b371 portrait registry, so a portrait changed
+             while the drawer is open repaints them all at once. */
           return '<button class="cs-slot ' + (r.active?'active':'') + '" data-slot="' + r.id + '">' +
-            '<div class="cs-slot-portrait">🧙</div>' +
+            '<div class="cs-slot-portrait"><img src="' +
+              esc(window._playerAvatar || 'assets/avatars/placeholder-portrait.webp') +
+              '" alt="" data-hr-avatar></div>' +
             '<div class="cs-slot-meta">' +
               '<div class="cs-slot-name">' + esc(r.name) + (r.active?' <span class="cs-active-pill">active</span>':'') + '</div>' +
               '<div class="cs-slot-stats">Cmb Lv <b>' + (r.combatLv||1) + '</b> · Tot Lv <b>' + (r.totalLv||1) + '</b></div>' +
@@ -770,10 +859,14 @@
           '</button>';
         }
         return '<div class="cs-slot locked">' +
-          '<div class="cs-slot-portrait">🔒</div>' +
+          /* b373 — glyph, not 🔒. Same Final Directive fix as the portrait row
+             directly above; leaving one emoji on a modal we just de-emojified
+             is how the rule erodes. */
+          '<div class="cs-slot-portrait">' + lockGlyph() + '</div>' +
           '<div class="cs-slot-meta">' +
-            '<div class="cs-slot-name">Slot ' + (r.slotId+1) + (r.free ? ' <span class="cs-pill premium">Premium</span>' : '') + '</div>' +
-            '<div class="cs-slot-stats">' + (r.free ? 'Included with Hearth Hall' : (r.cost + ' 💎')) + '</div>' +
+            '<div class="cs-slot-name">Hero ' + (r.slotId+1) + (r.free ? ' <span class="cs-pill premium">Premium</span>' : '') + '</div>' +
+            /* b373 — "900 gems", not "900 💎". The last emoji on this modal. */
+            '<div class="cs-slot-stats">' + (r.free ? 'Included with Hearth Hall' : (r.cost + ' gems')) + '</div>' +
           '</div>' +
           (r.canBuy
             ? '<button class="cs-buy" data-buy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>'
@@ -782,9 +875,19 @@
       }).join('');
 
       modal.innerHTML =
-        '<button class="cs-close">✕</button>' +
+        /* b373 — the last literal glyph-character on this modal, swapped for
+           the shipped atlas close icon (Final Directive: no emoji/dingbats as
+           art). Falls back to the character only if the atlas has not loaded,
+           so the modal can never render a dismissless box. */
+        '<button class="cs-close" aria-label="Close">' + (closeGlyph() || '×') + '</button>' +
         '<h2>Characters</h2>' +
-        '<p class="cs-sub">Each character has its own skills, inventory, gold, and bound items. Up to ' + MAX_SLOTS + ' per profile.</p>' +
+        /* b373 — the copy now states the SCOPE SPLIT in both directions,
+           because the old sentence listed only what is separate and left the
+           player to discover the account-level half by being surprised by it
+           (audit: a fresh hero wearing the account's name, face and clan tag).
+           Two clauses, one line, and nothing on screen contradicts either. */
+        '<p class="cs-sub">Your name, portrait and clan belong to your account — every hero shares them. ' +
+        'Skills, inventory, gold, equipment and quests are separate for each. Up to ' + MAX_SLOTS + ' heroes.</p>' +
         '<div class="cs-slots">' + html + '</div>';
 
       modal.querySelector('.cs-close').addEventListener('click', close);

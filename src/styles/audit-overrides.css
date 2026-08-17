@@ -1825,6 +1825,19 @@ body.in-combat #combat-area {
   position: relative;
   box-shadow: 0 24px 80px rgba(0,0,0,.7);
 }
+/* b373: a landscape phone (922x423) has ~389px of modal to work with and five
+   hero rows to show. The sheet already scrolls, but at desktop padding only two
+   and a half rows are above the fold. Tightening the bands buys a whole extra
+   row without touching the desktop layout. */
+@media (max-height: 540px) {
+  .char-select-overlay { padding: 12px; }
+  .cs-modal { padding: 14px 16px; max-height: 96vh; }
+  .cs-modal h2 { font-size: calc(20px * var(--ui-scale, 1)); }
+  .cs-sub { margin: 0 0 9px; }
+  .cs-slots { gap: 6px; }
+  .cs-slot { padding: 7px 11px; gap: 10px; }
+  .cs-slot-portrait { width: 38px; height: 38px; }
+}
 .cs-close {
   position: absolute; top: 14px; right: 14px;
   background: rgba(255,255,255,.06);
@@ -1832,7 +1845,10 @@ body.in-combat #combat-area {
   color: var(--ink-2);
   width: 32px; height: 32px; border-radius: 50%;
   cursor: pointer;
+  /* b373: the close control now holds an atlas <svg> instead of a ✕ character. */
+  display: grid; place-items: center; padding: 0;
 }
+.cs-close svg { width: 14px; height: 14px; display: block; }
 .cs-modal h2 {
   margin: 0 0 6px; font-family: var(--f-display);
   font-size:calc(26px * var(--ui-scale, 1)); color: var(--ink); letter-spacing: .04em;
@@ -1865,7 +1881,19 @@ body.in-combat #combat-area {
   display: flex; align-items: center; justify-content: center;
   font-size:calc(30.5px * var(--ui-scale, 1));
   flex-shrink: 0;
+  /* b373: the portrait is a real <img> now (account-scoped identity ruling).
+     Explicit size + clip on BOTH the frame and the child — an unsized image
+     dropped into an unsized flex slot is exactly how the b361 combat-screen
+     break happened, and this frame is a 48px circle with neither. */
+  overflow: hidden;
 }
+.cs-slot-portrait img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
+.cs-slot-portrait svg { width: 22px; height: 22px; display: block; }
 .cs-slot-meta { flex: 1; min-width: 0; }
 .cs-slot-name {
   font-family: var(--f-display); font-weight: 800;

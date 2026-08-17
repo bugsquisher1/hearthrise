@@ -215,6 +215,15 @@ function enableLiveSync() {
       if (label) label.textContent = (reason === 'auth-expired') ? 'Sign in to save' : 'Reconnecting…';
       if (pill) pill.classList.add('off');
     },
+    /* b371: the save-health verdict changed (one upsert succeeded or failed).
+       Repaint the surfaces that quote it, so a player who is sitting on the
+       Home tab watching "cloud save active" sees it stop being true rather
+       than only finding out on their next navigation. At most one call per
+       save attempt (60s cadence), so this is not a repaint loop. */
+    onSaveHealth: () => {
+      try { if (typeof window.renderProfile === 'function') window.renderProfile(); } catch (e) {}
+      try { if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render(); } catch (e) {}
+    },
     onSyncRecovered: () => {
       syncDownSince = 0;
       hideAuthExpiredGate();

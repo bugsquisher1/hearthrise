@@ -15442,7 +15442,36 @@ console.log('[Smoke Test v1] loaded — run with __smokeTest() or Ctrl+Shift+T o
    ASSET_MANIFEST.md / the Asset Director's log. */
 var COMPANION_PORTRAIT = {
   wolf_pup: 'assets/icons-bundle/painted/companions/wolf_pup.png',
-  hawk:     'assets/icons-bundle/painted/companions/hawk.png'
+  hawk:     'assets/icons-bundle/painted/companions/hawk.png',
+  /* b371 (F19) — the ONE honest match in the shipped bundles. I looked at every
+     candidate at full size before wiring any of them, because b362 is a long
+     record of what happens when you trust a filename: `stone_golem.png` is a
+     cracked-stone humanoid bust and a Rock Golem IS that creature. The others I
+     checked and REFUSED: `imp.png` (a grinning imp holding a SPOON — reads
+     cooking, not Forge Imp), `lich.png` (a 128px legacy asset, and the legacy
+     30 already read as placeholders beside the hearthfire set), and
+     `drake.png` / `dragon.png` for Whelp and Dragonling (adult animals standing
+     in for hatchlings). Nineteen companions still have no portrait; that is an
+     art request, filed, not something to paper over with a near-enough
+     picture. */
+  rock_golem: 'assets/icons-bundle/hearthfire/monsters/stone_golem.png'
+};
+/* b371 (F19) — WHILE THE ART IS MISSING, THE MEDALLION SAYS WHAT THE PET DOES.
+   Twenty of twenty-two companions rendered the SAME paw glyph, so the Stable
+   was a wall of identical discs and pet identity was carried entirely by the
+   name text. There is no per-species glyph in the baked atlas (I checked all
+   134 keys — it is skills, chrome and gear), so inventing one is not available
+   and an emoji is forbidden. What IS available is the companion's own `role`,
+   which is also the actual question the screen answers: which of these helps me
+   fight, gather, craft, or earn. Four silhouettes turn one undifferentiated
+   wall into four legible families, and nothing here claims to be a picture of
+   the animal. */
+var COMPANION_ROLE_GLYPH = {
+  combat:  'uiSword',
+  gather:  'uiLeaf',
+  artisan: 'uiAnvil',
+  utility: 'uiSpark',
+  hybrid:  'uiPaw'
 };
 window.companionIconHtml = function(id, px){
   var size = px || 40;
@@ -15452,7 +15481,11 @@ window.companionIconHtml = function(id, px){
       + 'style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;flex-shrink:0;'
       + 'border:2px solid var(--gold-2);box-shadow:0 0 6px rgba(0,0,0,.45)" onerror="this.remove()" />';
   }
-  return (window.HR && window.HR.medallion) ? (window.HR.medallion('uiPaw', size) || '') : '';
+  var def = (window.COMPANIONS && window.COMPANIONS[id]) || null;
+  var glyph = (def && COMPANION_ROLE_GLYPH[def.role]) || 'uiPaw';
+  if(!(window.HR && window.HR.medallion)) return '';
+  return '<span class="comp-medallion" data-role="' + (def && def.role ? def.role : 'hybrid') + '">'
+    + (window.HR.medallion(glyph, size) || '') + '</span>';
 };
 
 // Companion XP curve. Level 1..30. Cumulative XP needed to REACH level L:
@@ -17667,6 +17700,36 @@ console.log('[Bundle Icons v1] applied:',
   function isComplete(goal, isWeekly){
     return getProgress(goal, isWeekly) >= goal.target;
   }
+
+  /* b371 — THE TOPBAR QUEST BADGE READ A SENTENCE THAT STOPPED BEING WRITTEN.
+     src/quests-topbar-button.js derived its count by running
+     /(\d+)\s*active/ over the text of `#global-quests-strip`, because when it
+     was written the strip said "QUESTS · 3 active". renderStrip() has emitted
+     PILLS since — a label, a `.gq-list` of quest chips and a reset time — and
+     the word "active" appears nowhere in it. The regex therefore matched
+     nothing and the badge returned the literal 0 for every player in every
+     state, which is what the live audit saw: a "0" beside a claimable reward.
+     A UI that scrapes another UI is a dependency nobody can see in a diff.
+     This is the state, computed from the same helpers the modal and the Claim
+     button use, so the badge can no longer disagree with them. */
+  window.questBadgeState = function(){
+    var out = { active: 0, claimable: 0 };
+    try {
+      var daily  = (typeof window.getGoalsForToday === 'function') ? (window.getGoalsForToday() || []) : [];
+      var weekly = (typeof window.getWeeklyGoals   === 'function') ? (window.getWeeklyGoals()   || []) : [];
+      daily.forEach(function(g){
+        if(isClaimed(g, false)) return;
+        out.active++;
+        if(isComplete(g, false)) out.claimable++;
+      });
+      weekly.forEach(function(g){
+        if(isClaimed(g, true)) return;
+        out.active++;
+        if(isComplete(g, true)) out.claimable++;
+      });
+    } catch(e){}
+    return out;
+  };
   function rewardFor(goalId, isWeekly){
     if(isWeekly){
       var def = WEEKLY_GOAL_POOL.find(function(p){return p.id===goalId;});

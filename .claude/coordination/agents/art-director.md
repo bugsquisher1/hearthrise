@@ -2,6 +2,119 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-17 · b371 — the live-audit polish batch. TWO of the eight did not reproduce,
+### and the one I reproduced was reproduced by the STALL, not by the CSS.
+
+**The finding I would put first, because it changes what "a UI bug" means here. Two of the
+audit's defects were one UI SCRAPING ANOTHER UI.** The topbar quest badge derives its count
+by running `/(\d+)\s*active/` over the *text* of `#global-quests-strip`. The strip said
+"QUESTS · 3 active" when that line was written; `renderStrip()` has emitted PILLS for many
+builds and the word "active" appears nowhere in it. So the regex has matched nothing for a
+long time and **the badge returned the literal 0 for every player in every state** — which
+is exactly the report ("0 while 1 claimable"). Nothing threw, nothing logged, and no diff to
+the quest strip could ever have shown that it broke a consumer. The fix is not a better
+regex, it is `window.questBadgeState()` published from the quests module and computed with
+the same `isComplete`/`isClaimed` the Claim button enforces with.
+
+**F21 reproduced, and the mechanism is not the one the report implies.** I could not
+reproduce "toasts clip off the right edge" at 1440, at 1745, or at 922 — the container
+measured 1353–1733 in a 1745 viewport, correctly inset, and long text wrapped. Then I
+measured the toasts *themselves* rather than the column: **left 1771 in a 1745px viewport,
+406px off the right edge, held there indefinitely.** `.notif` animates `notif-in` from
+`translateX(110%)` with `fill-mode: both`, and my Browser pane was not compositing — so the
+animation never advanced and every toast parked a full column-width to the right with its
+text cut at the window edge. That is all six of the audit's examples, and the same session
+filed F17: *"CDP screenshots time out for 30+ s"*. **An entrance transform whose from-state
+is outside the element's own footprint is a correctness bug, not a motion choice — it is
+only invisible while frames keep arriving.** 14px + opacity now. A second, independent
+overflow vector was real too: an unbroken token measured scrollWidth 410 in a 348px cell.
+Corollary worth keeping: *measuring the container is not measuring the thing inside it* —
+the same lesson b366 learned on the style buttons, arriving from the opposite side.
+
+**F16 was filed as "quantities invisible". They were never invisible.** The DOM said
+"400 / 400" and so did the screen — 1,600px away from its own label, because `.hh-req` was a
+full-width flex row with `flex:1` on the name. On a 1745px screen the number and the thing
+it counts are two unrelated objects. "Invisible" is a fair *report* of that, and it would
+have been a wrong *diagnosis*: I would have gone hunting for a colour bug. They are chips
+now, in the `.hh-cost` idiom the game already had one file away.
+
+**Where I disagreed with the audit's framing, and I think this is the most defensible call
+in the pass.** F24 says the Premium Shop has "default-blue Buy buttons". The sapphire role
+is a *deliberate, documented* decision (art-direction §6: only real money may be this hue)
+and I kept it. What was actually wrong was three things the word "blue" hides: the button's
+face was three literal hexes (a periwinkle #5f6fc4 — the no-hardcoded-colour rule exists for
+exactly this, and the retired light theme inherited a dark-theme hex); a theme blanket whose
+`:not(.iap-card)` excluded the card **but not its children** was painting a 230x42px opaque
+brown slab behind every product icon; and the glyph, the ribbon, the price AND the button
+were all cold, **so the colour that was supposed to single out real money was the same colour
+as everything around it, which is the same as marking nothing.** Sapphire now marks the price
+and the Buy button only; the mark and the ribbon are gilt. I only saw the last one by pulling
+a 4x element zoom — the card looked fine in the full screenshot.
+
+**TWO OF THE EIGHT DID NOT REPRODUCE, and I am reporting that rather than shipping a
+"fix".** F23 (Replay tutorial does nothing): driven in a real browser at HEAD it resets the
+flag, builds `.ftue-root`, shows `.ftue-card.show` at z-index 99999, and is the topmost
+element at screen centre — "Step 1 of 6 · Welcome to Hearthrise". F19's "Wolf Pup and Hawk
+render EMPTY circles": both have painted portraits and both render. What WAS true about F23
+is that the row had **no failure state** — it closed Settings and left you looking at the
+game, so a dead handler and a working one are indistinguishable. That is the report. It now
+says so when the tour fails to mount.
+
+**F19, and the line I would not cross.** Twenty of twenty-two companions rendered the same
+paw. There is no per-species glyph in the baked atlas (I checked all 134 keys) and an emoji
+is forbidden, so species identity is not available to me tonight. What IS available is
+`role` — which is also the question the screen answers. Four silhouettes, four families. I
+wired exactly **one** portrait (`rock_golem` → `stone_golem.png`, honest) and **refused
+four** after opening them at full size: `imp.png` is holding a **spoon**; `lich.png` is a
+128px legacy asset; `drake`/`dragon` are adults standing in for hatchlings. b229 withheld
+these for the same reason and it was right. Nineteen are handed off as an art request.
+
+**My own F20 fix reintroduced F20, and only the render showed it.** The humaniser resolved
+`hatch:dragon_egg` through ITEMS — and **there is no `dragon_egg` row in ITEMS at all**, so
+the card read "Hatched from a dragon_egg". A snake_case id leaking out of the function whose
+entire job is to stop snake_case ids leaking. Caught by reading the Stable capture, not the
+code. There is a `titleize` fallback now, and the guard walks every authored `source`.
+
+**The bug I found while photographing, not while looking for it.** At 922x423 the store gave
+one 794px-wide product card filling the whole screen — nine full-screen scrolls to reach the
+ninth pack. `legacy.css`'s `@media (max-width:900px), (max-height:540px) and (max-width:1024px)`
+forced `1fr`, and **a landscape phone satisfies the second clause.** CLAUDE.md is explicit
+that a wide landscape phone gets the scaled-desktop layout; the store was not honouring it.
+Three columns now, and portrait (<=540) still stacks. That breakpoint is shared by many
+rules and every `1fr` in it deserves the same re-read.
+
+**Verified in-browser, my own server rooted in THIS worktree** (launch.json serves the main
+tree — the trap this log has recorded four times). 11 surfaces × 2 viewports (1440x900 and
+922x423, the mobile context presenting a real Android UA so the "Desktop Site looks turned
+on" banner does not eat the capture): **0 404s, 0 console errors, 0 page errors.** I READ
+them — the dungeon gate, the toast column, the requirement chips, the Stable's four
+families, the store at both sizes, plus combat and inventory as the release visual gate
+requires — and pulled 4x element zooms on the product card and the ammo slot, because a
+220px card judged from a 1440px screenshot is how b362's "plausible bow" got through.
+Captures in `assets/art-pilot/_screenshots/b371-{before,after,gate}/`.
+
+**Suite 834/834, and all ten new tests are mutation-proven** — reverted in three batches,
+each named its own failure (6, then 3, then 1). The tenth needed a second pass: my first
+F24 assertion tested the medallion's *shape*, which the blanket does not touch, so it passed
+under mutation. It asserts the plate's **alpha** now. *A test that survives the mutation of
+the thing it is named after is not a test.*
+
+**One embarrassment worth recording so nobody repeats it: `git checkout --` on three files
+to undo a mutation ALSO reverted the real edits in those files.** I caught it in
+`git status` and re-applied. Copy the file, mutate the copy's target, restore from the copy —
+never reach for `checkout` while your own work is uncommitted in the same file.
+
+**Known limitations, stated plainly.** The `air_rune` source is **128x128**, half the
+hearthfire spec — rotating it fixed the play-button read but not its softness, and
+`earth_rune` in the same family depicts a man with a spade; both handed to the Asset
+Director. The ribbon is still visually heavier than I would like, and it cannot get smaller:
+14.5px is the b218 readability floor, so I took the weight out of the fill instead. The
+leaderboard `available:false` path is proven by unit test and by a **forced** local case
+(I marked `total_level` unavailable and photographed the chip withdrawing) — no board on
+this server answers `available:false` yet, so the real payload is unobserved. And I did not
+touch the Upgrade Property gating the audit noted alongside F16; that is behaviour, filed
+for the Systems Engineer rather than guessed at.
+
 ### 2026-08-17 · the background set spec + prompt pack. The brief I was handed for the
 ### composition was WRONG, and I only know that because I photographed the screen.
 

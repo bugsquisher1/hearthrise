@@ -29,6 +29,69 @@ function companionIconHtml(id, px) {
   return (typeof window.companionIconHtml === 'function') ? window.companionIconHtml(id, px) : '';
 }
 
+// ── b371 (F20) — THE LOCK HINT IS COPY, NOT A KEY ────────────────────────
+//
+// The Stable printed `Locked · ${def.source}` straight from the data, so the
+// player was shown "Locked · shop:8000:cooking25", "Locked · drop:small_wolf",
+// "Locked · hatch:dragon_egg" and "Locked · skill:fishing:2500" — nineteen
+// internal identifiers, on the screen whose entire job is to tell you how to
+// get the thing. `small_wolf` is not even the monster's name (it is "Wolf
+// Cub"), so the one hint a player could half-parse pointed at a creature that
+// does not exist under that name anywhere in the game.
+//
+// Every part is resolved from the same tables the rest of the UI reads, so a
+// renamed monster or a re-tuned rate updates here for free. Anything this
+// function cannot resolve degrades to the id it was given rather than to a
+// blank — an unhelpful hint beats a missing one, and it stays greppable.
+export function companionSourceLabel(source) {
+  const raw = String(source || '');
+  const p = raw.split(':');
+  /* Last-resort humaniser. `hatch:dragon_egg` was the case that proved it is
+     needed: there is no `dragon_egg` row in ITEMS at all (it is a hatch source
+     with no inventory entry), so the lookup fell through and my first pass
+     printed "Hatched from a dragon_egg" — the very defect this function
+     exists to remove, reintroduced by its own fallback. Caught by reading the
+     render, not the code. */
+  const titleize = (id) => String(id || '')
+    .split(/[_\-:]/).filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ');
+  const monster = (id) => {
+    const m = window.MONSTERS && window.MONSTERS[id];
+    return (m && (m.name || m.n)) || titleize(id);
+  };
+  const item = (id) => {
+    const it = window.ITEMS && window.ITEMS[id];
+    return (it && (it.n || it.name)) || titleize(id);
+  };
+  const skill = (id) => {
+    const s = window.SKILLS_DEF && window.SKILLS_DEF[id];
+    return (s && s.name) || titleize(id);
+  };
+  const num = (n) => Number(n || 0).toLocaleString();
+
+  switch (p[0]) {
+    case 'starter': return 'Yours from the start';
+    case 'drop':    return `Rare drop from ${monster(p[1])}`;
+    case 'hatch':   return `Hatched from a ${item(p[1])}`;
+    /* Exactly one quest source exists today (`quest:harvest100`, the Bunny).
+       A table rather than a parse, because "harvest100" is a milestone name,
+       not a grammar — guessing a sentence out of it would be inventing copy. */
+    case 'quest':   return ({ harvest100: 'Reward for harvesting 100 crops' })[p[1]] || 'Quest reward';
+    case 'shop':
+      // shop:GOLD  |  shop:GOLD:skillLEVEL  (e.g. shop:8000:cooking25)
+      if (p[2]) {
+        const gate = /^([a-z]+)(\d+)$/.exec(p[2]);
+        if (gate) return `Stable shop · ${num(p[1])} gold · needs ${skill(gate[1])} ${gate[2]}`;
+        return `Stable shop · ${num(p[1])} gold`;
+      }
+      return `Stable shop · ${num(p[1])} gold`;
+    case 'skill':   return `1 in ${num(p[2])} ${skill(p[1])} actions`;
+    case 'boss':    return `1 in ${num(p[2])} ${monster(p[1])} kills`;
+    default:        return `Locked · ${raw}`;
+  }
+}
+
 // XP curve: cumulative XP needed to reach level L.
 //
 // b228 — THE CAP DID NOT MATCH THE CURVE. The comment here said "~50K at L30"
@@ -430,7 +493,18 @@ function renderStable() {
   const sub = document.getElementById('stable-sub');
   if (sub) sub.textContent = `${G.companions.ownedIds.length}/${Object.keys(COMPANIONS).length} companions owned`;
 
-  const roleColor = { combat: '#e88a8a', gather: '#e3c77e', artisan: '#f3d181', utility: '#d4a8e8', hybrid: '#9aa3b0' };
+  /* b371 — was five literal hexes, one of them (#d4a8e8) a LAVENDER, which is
+     the exact palette drift the art direction forbids: there is no lavender
+     anywhere else in Hearthrise. These are the project's own semantic roles,
+     so they re-tint with the theme instead of being a private palette that
+     only this file knows about. */
+  const roleColor = {
+    combat:  'var(--red-line)',
+    gather:  'var(--green)',
+    artisan: 'var(--gold-2)',
+    utility: 'var(--steel)',
+    hybrid:  'var(--ink-3)',
+  };
   // b228: the three misspelled keys are gone from the data, so the Stable now
   // labels the real ones. `farmYield` moves out of the percent list — it is a
   // count of extra crops and always was.
@@ -471,7 +545,7 @@ function renderStable() {
         <div style="font-size:13.5px;color:var(--ink-3)">${xp.toLocaleString()} / ${nextXp.toLocaleString()} XP</div>
         ${def.proc ? `<div class="sc-bonuses" style="font-size:13.5px;font-style:italic">${def.proc.label} (${(def.proc.chance * 100).toFixed(0)}% on ${def.proc.trigger})</div>` : ''}
         <button class="sc-equip" onclick="${equipped ? 'window.unequipCompanion()' : `window.equipCompanion('${id}')`}">${equipped ? 'Unequip' : 'Equip'}</button>
-      ` : `<div class="sc-source">Locked · ${def.source}</div>`}
+      ` : `<div class="sc-source">${companionSourceLabel(def.source)}</div>`}
     </div>`;
   }).join('');
 
@@ -520,6 +594,12 @@ export function setupCompanions() {
   // G.companions, not after an arbitrary timer fires.
   window.renderStable = renderStable;
   window.unequipCompanion = unequipCompanion;
+  /* b371 (F20): the lock-hint humaniser is pure and is exactly the kind of copy
+     that rots silently when a monster or a skill is renamed, so it is published
+     for the guard that walks every authored `source` in the data. */
+  window.HearthriseCompanions = Object.assign(window.HearthriseCompanions || {}, {
+    sourceLabel: companionSourceLabel,
+  });
 
   // Hook into existing engine functions
   wireKillHook();

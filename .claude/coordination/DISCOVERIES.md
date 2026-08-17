@@ -4,6 +4,67 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-17 · Art Director (b371) · TWO of the audit's UI bugs were one UI SCRAPING ANOTHER UI, and neither is findable in a diff
+
+**DISCOVERY.** The quest badge and the toast column failed for the same species of
+reason: a consumer that depends on a producer's *rendered output* rather than its state.
+
+1. **`src/quests-topbar-button.js` derived the badge count with `/(\d+)\s*active/`
+   run over the TEXT of `#global-quests-strip`.** The strip said "QUESTS · 3 active"
+   when that was written. `renderStrip()` has emitted PILLS for many builds; the word
+   "active" appears nowhere in it. So the regex matched nothing and the badge returned
+   the literal **0 for every player in every state** — the audit saw a 0 next to a
+   claimable reward. Nothing failed, nothing logged, and no diff to the quest strip
+   could ever show that it had broken a consumer. Fixed by publishing
+   `window.questBadgeState()` from the quests module, computed with the same
+   `isComplete`/`isClaimed` the Claim button enforces with.
+
+2. **`.notif`'s entrance animated from `translateX(110%)` with `animation-fill-mode:
+   both`.** Measured live at 1745x950 with the renderer stalled: both toasts sat at
+   left **1771 in a 1745px viewport — 406px off the right edge, held there** with
+   their text cut at the window edge. That is F21's "toasts clip off the right
+   viewport edge", all six examples, and the same audit session recorded 30s+ renderer
+   stalls (F17). **An entrance transform whose from-state is outside the element's own
+   footprint is a correctness bug, not a motion choice** — it is only invisible while
+   frames keep arriving. Now 14px + opacity.
+
+**AFFECTED SYSTEMS.** Any UI reading another UI's DOM text; any entrance animation
+using a percentage translate.
+
+**REQUIRED ACTION.** If tempted to scrape a rendered string, publish state instead.
+If authoring an entrance, keep the from-state inside the element's box — the
+`b371 (F21)` guard in `smoke-test.js` scans the CSSOM for the keyframe.
+
+### 2026-08-17 · Art Director (b371) · `showTab('home')` leaves the app with NO active panel (blank screen). Home is `panel-profile`.
+
+**DISCOVERY.** `showTab()` with an unknown key deactivates every `.panel` and activates
+nothing — verified: `.panel.active` is `null` afterwards while `#panel-profile` still
+holds its 87 KB of rendered dashboard. No UI passes `'home'` today (the sidebar passes
+`'profile'`), so this is not live-reachable, but it means **a future nav typo is a blank
+screen rather than a no-op**, and it cost me one misread screenshot.
+**REQUIRED ACTION (Systems Engineer):** make `showTab` a no-op on an unknown key.
+
+### 2026-08-17 · Art Director (b371) · A theme blanket's `:not(.iap-card)` excluded the card but not its CHILDREN
+
+**DISCOVERY.** `theme-cozy.css`'s hearthlight blanket
+`#panel-shop [class*="iap"]:not(.iap-card) { background: var(--bg-2) !important }`
+matched `.iap-icon`, `.iap-foot` and `.iap-price`, so **every product card on the
+real-money screen wore a 230x42px opaque brown slab behind its icon.** Nobody chose
+that; it is a wildcard attribute selector meeting a component whose own styling lives
+in a different sheet. The audit read the result as "generic monochrome line icons".
+**REQUIRED ACTION.** When a blanket excludes a component, exclude `:not(.x):not(.x *)`.
+There are ~20 more `[class*="…"]` blankets in that file with the same shape.
+
+### 2026-08-17 · Art Director (b371) · The landscape-phone breakpoint was giving the store the PORTRAIT layout
+
+**DISCOVERY.** `legacy.css`'s `@media (max-width:900px), (max-height:540px) and
+(max-width:1024px)` forced `.iap-grid{grid-template-columns:1fr}`. A 922x423 landscape
+phone satisfies the SECOND clause, so it got **one 794px-wide product card filling the
+whole screen** — nine full-screen scrolls to see the store. CLAUDE.md's mobile ruling is
+explicit that a wide landscape phone gets the SCALED-DESKTOP layout. **That breakpoint
+is shared by many rules; any `1fr` inside it should be re-read with a landscape phone in
+mind, because the clause that catches portrait phones is only the first one.**
+
 <<<<<<< HEAD
 ### 2026-08-17 · Art Director (b369) · FIVE stylesheets were each authoring one piece of the paper-doll's grid, and the two that disagreed produced a live overlap on two surfaces
 

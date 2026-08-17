@@ -34163,6 +34163,290 @@ const TESTS = [
     });
   }),
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // b371 regression suite — the live-audit polish batch (F16/F19/F20/F21/F23/
+  // F24/F25 + the quest badge + the leaderboard availability flag).
+  //
+  // These are UI defects, and the suite cannot see layout — so each test
+  // asserts the STRUCTURAL fact the defect was made of, chosen so that
+  // reverting the fix fails it. Where the fact is geometric (the toast column)
+  // the assertion is on the pure placement function, not on a viewport, because
+  // one window size can never see a breakpoint it is not in (b368).
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /* F21 — the toast column parked itself 406px off the right edge whenever the
+     renderer stalled, because the entrance animated from translateX(110%) and
+     `both` holds the from-state for the whole (throttled) duration. Measured
+     live at 1745x950. The guard is on the KEYFRAME, since that is the fact:
+     an entrance transform must stay inside the element's own footprint. */
+  () => tryRun('b371 (F21): the toast entrance never leaves the element footprint', () => {
+    let from = null;
+    for (const sheet of Array.from(document.styleSheets)) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+      for (const r of Array.from(rules || [])) {
+        if (r.type === CSSRule.KEYFRAMES_RULE && r.name === 'notif-in') {
+          for (const kf of Array.from(r.cssRules || [])) {
+            if (/(^|,)\s*(0%|from)\s*$/.test(kf.keyText)) from = kf.style.transform;
+          }
+        }
+      }
+    }
+    assert(from != null, 'the notif-in keyframe has no from-state — cannot verify the entrance');
+    assert(!/%/.test(from),
+      'notif-in starts at "' + from + '" — a PERCENTAGE translate is a full-column '
+      + 'displacement, so a stalled frame leaves the toast off-screen');
+  }),
+
+  () => tryRun('b371 (F21): a long unbroken token cannot push a toast out of its box', () => {
+    if (!window.HearthriseToasts) throw new Error('HearthriseToasts missing');
+    window.HearthriseToasts.clear();
+    try {
+      window.notify('ToastProbeWrap ' + 'x'.repeat(90), 'info');
+      const el = findToast('ToastProbeWrap');
+      assert(el, 'notify() produced no toast element');
+      const t = el.querySelector('.notif-text');
+      assert(t, 'the toast has no .notif-text cell');
+      assert(t.scrollWidth <= t.clientWidth + 1,
+        'the toast text overflows its cell (' + t.scrollWidth + ' in ' + t.clientWidth + ') — '
+        + 'an id or a display name will run off the right edge');
+    } finally { window.HearthriseToasts.clear(); }
+  }),
+
+  () => tryRun('b371 (F21): the toast column is clamped inside the viewport', () => {
+    const T = window.HearthriseToasts;
+    if (!T || typeof T.computeOffsets !== 'function') throw new Error('computeOffsets missing');
+    // A full-width bottom bar, a corner pill, a tall panel, and an absurd
+    // obstacle far off-screen — the last one is the case a future edit to the
+    // branch logic could turn into a negative left edge.
+    const cases = [
+      { vw: 1440, vh: 900, obs: [{ left: 0, right: 1440, top: 840 }] },
+      { vw: 922,  vh: 423, obs: [{ left: 0, right: 922,  top: 360 }] },
+      { vw: 1745, vh: 950, obs: [{ left: 1600, right: 1740, top: 880 }] },
+      { vw: 1024, vh: 768, obs: [{ left: 400,  right: 1024, top: 40  }] },
+      { vw: 360,  vh: 640, obs: [{ left: -500, right: 1200, top: 100 }] },
+      { vw: 1280, vh: 800, obs: [] },
+    ];
+    cases.forEach((c) => {
+      const o = T.computeOffsets(c.vw, c.vh, c.obs);
+      assert(o.right >= 0, c.vw + 'x' + c.vh + ': right offset is ' + o.right);
+      assert(o.bottom >= 0, c.vw + 'x' + c.vh + ': bottom offset is ' + o.bottom);
+      const colW = Math.min((c.vh <= 560 ? 280 : 380), c.vw - 24);
+      assert(o.right + colW <= c.vw,
+        c.vw + 'x' + c.vh + ': the column (right ' + o.right + ' + width ' + colW
+        + ') hangs off the left edge of a ' + c.vw + 'px viewport');
+      assert(o.bottom < c.vh, c.vw + 'x' + c.vh + ': the column is above the viewport');
+    });
+  }),
+
+  /* F16 — the count was rendered and unreadable: `.hh-req` ran the full width
+     of the card with `flex:1` on the name, so on a wide screen the number sat
+     ~1,600px from its own label. The fact is the chip container + a non-growing
+     name; without both, the number floats away again. */
+  () => tryRun('b371 (F16): house upgrade requirements render name and count as one chip', () => {
+    if (!window.HearthriseHomestead) throw new Error('HearthriseHomestead missing');
+    showTab('house');
+    const host = document.getElementById('hh-property-card');
+    assert(host, 'the property card was not injected into the House panel');
+    const wrap = host.querySelector('.hh-reqs');
+    const req = host.querySelector('.hh-req');
+    if (!req) return;   // top tier: no next upgrade, nothing to require
+    assert(wrap, 'the requirements are not inside a .hh-reqs wrap — they will run the card width');
+    assert(getComputedStyle(wrap).flexWrap === 'wrap', '.hh-reqs does not wrap');
+    const b = req.querySelector('b');
+    assert(b && /\d|—/.test(b.textContent), 'a requirement chip carries no count: ' + req.textContent);
+    const nameEl = req.querySelector('.hh-req-name');
+    assert(nameEl, 'a requirement chip has no name cell');
+    assert(parseFloat(getComputedStyle(nameEl).flexGrow) === 0,
+      'the requirement name still grows — it will push the count to the far edge of the card');
+    // The whole point: the number is beside its label, not across the screen.
+    const gap = b.getBoundingClientRect().left - nameEl.getBoundingClientRect().right;
+    assert(gap >= 0 && gap < 60,
+      'the count sits ' + Math.round(gap) + 'px from its own label');
+  }),
+
+  /* F20 — the Stable printed raw ids at the player ("Locked · shop:8000:
+     cooking25"). Every source kind must resolve to a sentence, and no rendered
+     hint may still contain a colon-delimited id. */
+  () => tryRun('b371 (F20): companion lock hints are copy, never raw ids', () => {
+    const L = window.HearthriseCompanions && window.HearthriseCompanions.sourceLabel;
+    assert(typeof L === 'function', 'companionSourceLabel is not published');
+    const cases = {
+      'starter': /start/i,
+      'drop:small_wolf': /^Rare drop from Wolf Cub$/,
+      'shop:5000': /^Stable shop · 5,000 gold$/,
+      'shop:8000:cooking25': /^Stable shop · 8,000 gold · needs Cooking 25$/,
+      'quest:harvest100': /100 crops/,
+      'hatch:dragon_egg': /^Hatched from a Dragon Egg$/,
+      'skill:fishing:2500': /^1 in 2,500 Fishing actions$/,
+      'boss:dragon:200': /1 in 200 .* kills/,
+    };
+    Object.keys(cases).forEach((src) => {
+      const out = L(src);
+      assert(cases[src].test(out), src + ' renders as "' + out + '"');
+      assert(!/[a-z]+:[a-z0-9_]+/i.test(out), src + ' still leaks an id: "' + out + '"');
+      assert(!/_/.test(out), src + ' still leaks a snake_case id: "' + out + '"');
+    });
+    // Every source actually authored in the data must resolve.
+    const C = window.COMPANIONS || {};
+    Object.keys(C).forEach((id) => {
+      const out = L(C[id].source);
+      assert(!/^Locked · /.test(out), id + '\'s source "' + C[id].source + '" has no human copy');
+    });
+  }),
+
+  /* F19 — twenty of twenty-two companions rendered the same paw. The medallion
+     must differ BY ROLE, and it must never fall back to the emoji in the data. */
+  () => tryRun('b371 (F19): companion medallions distinguish the four roles', () => {
+    assert(typeof window.companionIconHtml === 'function', 'companionIconHtml missing');
+    const C = window.COMPANIONS || {};
+    const byRole = {};
+    Object.keys(C).forEach((id) => {
+      const html = window.companionIconHtml(id, 44);
+      assert(html && html.length, id + ' renders no companion art at all');
+      assert(!/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(html), id + ' renders an emoji as art');
+      if (/<img/.test(html)) return;                    // painted portrait wins
+      const m = /<path fill="[^"]*" d="([^"]{12})/.exec(html);
+      assert(m, id + ' medallion carries no glyph path');
+      byRole[C[id].role] = byRole[C[id].role] || m[1];
+      assert(byRole[C[id].role] === m[1], id + ' does not share its role\'s silhouette');
+    });
+    const shapes = Object.keys(byRole).map((r) => byRole[r]);
+    assert(new Set(shapes).size === shapes.length,
+      'two roles share one silhouette — the Stable is a wall of identical discs again');
+    assert(shapes.length >= 3, 'only ' + shapes.length + ' role silhouettes exist');
+  }),
+
+  /* F25 — the Dungeon destination offered a lit "Enter ▸" while the list it led
+     to gated at Combat Lv 25. The two boss cards beside it already used the
+     `locked` field; the dungeon card is the one that did not. */
+  () => tryRun('b371 (F25): the dungeon destination reflects its own combat gate', () => {
+    const CS = window.HearthriseCombatScreens;
+    assert(CS && typeof CS._destinations === 'function', 'combat-screens _destinations is not published');
+    const d = CS._destinations().filter((x) => x.kick === 'Dungeon')[0];
+    assert(d, 'there is no Dungeon destination');
+    const gated = /unlocks at Combat Lv/.test(d.meta || '');
+    if (gated) {
+      assert(d.locked, 'the dungeon card says "' + d.meta + '" and STILL offers a live Enter button');
+      assert(/Combat Lv \d+/.test(d.locked), 'the locked chip does not name the level: ' + d.locked);
+    } else {
+      assert(!d.locked, 'a runnable dungeon is showing a locked chip: ' + d.locked);
+    }
+  }),
+
+  /* The topbar quest badge derived its count with /(\d+)\s*active/ over the
+     quest strip's TEXT — a sentence renderStrip() stopped writing builds ago,
+     so it returned 0 for every player forever. The badge must read the game. */
+  () => tryRun('b371: the quest badge counts real quests, not a regex on another UI', () => {
+    assert(typeof window.questBadgeState === 'function',
+      'window.questBadgeState is missing — the badge is back to scraping the strip');
+    const st = window.questBadgeState();
+    assert(st && typeof st.active === 'number' && typeof st.claimable === 'number',
+      'questBadgeState returned ' + JSON.stringify(st));
+    const daily = (typeof window.getGoalsForToday === 'function' && window.getGoalsForToday()) || [];
+    assert(st.active <= daily.length + 12, 'the active count (' + st.active + ') exceeds the goal pool');
+    assert(st.claimable <= st.active, 'more quests are claimable than are active');
+    const btn = document.getElementById('hr-quests-btn');
+    assert(btn, 'the topbar quest button is missing');
+    const shown = parseInt((btn.querySelector('.hr-q-count') || {}).textContent, 10);
+    assert(isFinite(shown), 'the badge shows a non-number');
+    // The reported defect exactly: a claimable reward with a 0 on the badge.
+    assert(!(st.claimable > 0 && shown === 0),
+      st.claimable + ' quest rewards are claimable and the badge reads 0');
+  }),
+
+  /* F23 — filed as "Replay tutorial does nothing"; NOT REPRODUCED at HEAD (the
+     tour mounts and is topmost). What was true is that the row had no failure
+     state, so a dead handler and a working one looked identical. Guard the
+     wiring itself, which is the thing the report was really about. */
+  () => tryRun('b371 (F23): the Replay tutorial row is wired to the FTUE tour', () => {
+    assert(typeof window.startFTUE === 'function', 'window.startFTUE is missing — the row cannot work');
+    assert(typeof window.resetFTUE === 'function', 'window.resetFTUE is missing');
+    assert(typeof window.openSettings === 'function', 'openSettings is missing');
+    window.openSettings();
+    try {
+      const btn = document.getElementById('set-replay-tutorial');
+      assert(btn, 'the Replay tutorial button is not in the Settings page');
+      let started = 0;
+      const real = window.startFTUE;
+      window.startFTUE = function () { started++; };
+      try { btn.click(); } finally { window.startFTUE = real; }
+      assert(started === 1, 'clicking Replay tutorial called startFTUE ' + started + ' times');
+    } finally {
+      const m = document.getElementById('settings-modal');
+      if (m) m.classList.remove('show');
+      document.querySelectorAll('.ftue-root').forEach((el) => el.remove());
+    }
+  }),
+
+  /* F24 — the store's Buy button and product cards carried literal hexes (a
+     periwinkle #5f6fc4 and a retired cyan #7dd3fc), and a theme blanket painted
+     --bg-2 slabs behind every product icon. Both are structural. */
+  () => tryRun('b371 (F24): the premium store is token-driven and its icons are unslabbed', () => {
+    showTab('premium');
+    const card = document.querySelector('#iap-panel .iap-card');
+    assert(card, 'the premium store rendered no product cards');
+    const icon = card.querySelector('.iap-icon');
+    assert(icon, 'a product card has no icon slot');
+    const r = icon.getBoundingClientRect();
+    assert(Math.abs(r.width - r.height) <= 2,
+      'the product mark is ' + Math.round(r.width) + 'x' + Math.round(r.height)
+      + ' — it is a full-width slab again, not a struck medallion');
+    /* The slab was an OPAQUE `--bg-2` painted by a theme blanket whose
+       `:not(.iap-card)` excluded the card but not its children. A recess is a
+       translucent black well; an opaque fill means the blanket is back. */
+    const iconBg = getComputedStyle(icon).backgroundColor;
+    const alpha = /rgba?\(([^)]+)\)/.exec(iconBg);
+    const parts = alpha ? alpha[1].split(',').map((x) => parseFloat(x)) : [];
+    assert(parts.length === 4 && parts[3] < 0.95,
+      'the product mark sits on an opaque plate (' + iconBg + ') — the theme '
+      + 'blanket is painting inside .iap-card again');
+    const btn = card.querySelector('.btn-gem');
+    assert(btn, 'the product card has no gem-priced action');
+    const bg = getComputedStyle(btn).backgroundImage;
+    assert(/gradient/.test(bg), 'the Buy button lost its face: ' + bg);
+    // The tokens must resolve — a var() that resolves to nothing is how the
+    // "no hardcoded colours" rule turns into an invisible button.
+    ['--gem-face-0', '--gem-face-1', '--gem-face-2', '--gem-rim', '--gem-face-ink'].forEach((t) => {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(t).trim();
+      assert(v, 'the premium token ' + t + ' does not resolve');
+    });
+    // And the literals are gone from the sheets that owned them.
+    assert(!/#5f6fc4|#7dd3fc|#38bdf8/i.test(
+      Array.from(document.styleSheets).map((s) => {
+        try { return Array.from(s.cssRules).map((x) => x.cssText).join(''); } catch (e) { return ''; }
+      }).join('')),
+      'a retired blue literal is still authored in a stylesheet');
+  }),
+
+  /* The leaderboard rebuild ships boards with no server source as
+     {ok:true, available:false, top:[]}. Flattened into an ordinary accepted
+     board that rendered "No one has ranked on this board yet. Be first." —
+     an invitation to grind for a board nothing writes to. */
+  () => tryRun('b371: a leaderboard with available:false withdraws its chip', () => {
+    const LB = window.HearthriseLeaderboards;
+    assert(LB && typeof LB._reduceBoard === 'function', 'leaderboards reducers are not published');
+    const off = LB._reduceBoard(200, { ok: true, board: 'renown', available: false, top: [], total: 0 });
+    assert(off.action === 'accept', 'an unavailable board should still be an accepted answer');
+    assert(off.available === false, 'reduceBoard dropped available:false');
+    const on = LB._reduceBoard(200, { ok: true, board: 'overall', top: [], total: 0 });
+    assert(on.available === true, 'a board with no `available` field must default to available');
+
+    // The picker is data-driven off the same flag.
+    assert(LB._boardsIn('throne', 'full').indexOf('renown') >= 0, 'renown is not in the throne category');
+    try {
+      LB._markAvailability('renown', false);
+      assert(LB._available('renown', 'full') === false, 'available() ignores the unavailable flag');
+      assert(LB._boardsIn('throne', 'full').indexOf('renown') < 0,
+        'the renown chip is still offered after the server said it has no source');
+      // A normal board is untouched by another board's state.
+      assert(LB._available('overall', 'full') === true, 'marking renown unavailable disabled overall too');
+    } finally {
+      LB._markAvailability('renown', true);
+    }
+    assert(LB._boardsIn('throne', 'full').indexOf('renown') >= 0,
+      'renown did not come back when the server said it was available again');
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

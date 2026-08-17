@@ -2,6 +2,54 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-17 · FROM Art Director → TO Asset Director · **19 companion portraits are the biggest identity gap left in the game, and I refused four near-matches rather than fake them**
+
+The Stable (F19) showed 20 of 22 companions rendering the SAME paw glyph. I fixed what is
+mine — the medallion now carries a ROLE silhouette (sword/leaf/anvil/spark), so the wall
+reads as four families instead of one — but that is a holding pattern, not art.
+
+**Wired:** `rock_golem` → `hearthfire/monsters/stone_golem.png`. The only honest match in
+the shipped bundles; I opened every candidate at full size first.
+
+**Refused, with reasons, so nobody re-litigates them:**
+* `forge_imp` → `hearthfire/monsters/imp.png` — the imp is holding a **SPOON**. Reads
+  cooking, not forge.
+* `lichling` → `painted/monsters/lich.png` — 128px legacy asset; the legacy 30 already read
+  as placeholders beside the hearthfire set.
+* `whelp` → `drake.png`, `dragonling` → `dragon.png` — adult animals for hatchling pets.
+
+**Still owed (19), all 256px transparent busts to the hearthfire spec, ideally reading at
+44px:** fox, sparrow, bunny, honeybee, badger, whelp, scorpion, raccoon, owl, tortoise,
+beaver, heron, squirrel, phoenix_chick, forge_imp, silkling, grave_wisp, lichling,
+dragonling. They go in `assets/icons-bundle/painted/companions/<id>.png` and wire through
+`COMPANION_PORTRAIT` in `src/legacy.js` — one line each, no other change.
+
+### 2026-08-17 · FROM Art Director → TO Asset Director · **`air_rune.png` read as a media PLAY button; I rotated it, and it wants a proper re-shoot**
+
+The audit found the ammo slot rendering what looked like a broken/foreign icon. The asset is
+a stone disc carrying a solid **right-pointing triangle** — the universal play control at
+slot size. I rotated the source 90° CCW: the triangle now points UP, which is the classical
+alchemical sign for AIR, so the asset became *more* correct for its id rather than merely
+different. Verified at true slot size in the equipment doll.
+
+**Two things for you:** (1) the source is only **128x128**, half the hearthfire 256 spec, so
+it is soft next to its siblings; (2) `earth_rune.png` in the same family depicts **a human
+figure with a spade**, not a sigil — same wrong-subject class as the five planks/bars in the
+b362 worklist. Both want a re-shoot as carved sigils on a tinted disc, matching `fire_rune`
+and `water_rune`, which are correct.
+
+### 2026-08-17 · FROM Art Director → TO Systems Engineer · **Two robustness gaps found while fixing UI, neither in my domain**
+
+1. **`showTab()` with an unknown key blanks the app.** It deactivates every `.panel` and
+   activates nothing — `.panel.active` is `null` afterwards. Not live-reachable today (no
+   caller passes a bad key), but a nav typo is a white screen rather than a no-op. One-line
+   fix: bail if no panel matches. Details in DISCOVERIES.
+2. **F16's second half is yours, not mine.** The audit also noted "Upgrade Property appears
+   enabled while requirements are unmet (0/35)". I made the requirement counts legible
+   (they are chips now) but did **not** touch the button's gating — whether
+   `upgradeProperty()` should refuse, and whether the button should be `disabled`, is a
+   behaviour call on `src/features/homestead.js`. Filing rather than guessing.
+
 ### 2026-08-17 · FROM Art Director → TO Asset Director · **A new asset CLASS is inbound: opaque 1920x1080 background plates. They must NOT go through the hearthfire icon pipeline.**
 
 `docs/design/background-session-pack.txt` specs 14 painted backdrops Tyler will hand-generate in the

@@ -4439,9 +4439,15 @@ body[data-theme="hearthlight"] #panel-market fieldset,
 body[data-theme="hearthlight"] #panel-market section,
 body[data-theme="hearthlight"] #panel-market input,
 body[data-theme="hearthlight"] #panel-market select,
-body[data-theme="hearthlight"] #panel-shop [class*="card"]:not(.iap-card),
-body[data-theme="hearthlight"] #panel-shop [class*="sku"]:not(.iap-card),
-body[data-theme="hearthlight"] #panel-shop [class*="iap"]:not(.iap-card),
+/* b371 (F24): `:not(.iap-card)` excluded the CARD and nothing inside it, so this
+   blanket painted `--bg-2` onto `.iap-icon`, `.iap-foot` and `.iap-price` —
+   every product card on the real-money screen wore a 230x42px opaque slab of
+   dark brown behind its icon, which is the single ugliest object in the game
+   and was nobody's decision. The card's own styling lives in board-and-shop.css;
+   its descendants belong to it too. */
+body[data-theme="hearthlight"] #panel-shop [class*="card"]:not(.iap-card):not(.iap-card *),
+body[data-theme="hearthlight"] #panel-shop [class*="sku"]:not(.iap-card):not(.iap-card *),
+body[data-theme="hearthlight"] #panel-shop [class*="iap"]:not(.iap-card):not(.iap-card *),
 body[data-theme="hearthlight"] #panel-shop .row.between > button,
 body[data-theme="hearthlight"] #panel-dungeons [class*="card"],
 body[data-theme="hearthlight"] #panel-dungeons [class*="key-card"],
@@ -4480,7 +4486,7 @@ body[data-theme="hearthlight"] #panel-skills#panel-skills .act-head,
 body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="bounty-option"],
 body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="bounty-shop"],
 body[data-theme="hearthlight"] #panel-bounty#panel-bounty .row.between > button,
-body[data-theme="hearthlight"] #panel-shop#panel-shop [class*="iap"]:not(.iap-card),
+body[data-theme="hearthlight"] #panel-shop#panel-shop [class*="iap"]:not(.iap-card):not(.iap-card *),
 body[data-theme="hearthlight"] #panel-shop#panel-shop .row.between > button,
 body[data-theme="hearthlight"] #panel-farming .row.gap-sm > button {
   background: var(--bg-2) !important; border-color: var(--line) !important;

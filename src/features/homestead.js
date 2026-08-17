@@ -247,7 +247,18 @@
       var art = (typeof window.itemArt === 'function' && k !== 'gold')
         ? window.itemArt(k, 20)
         : ((window.HR && window.HR.icon) ? (window.HR.icon('gold', 16, 'currentColor') || '') : '');
-      return '<span class="hh-req' + (ok ? ' is-met' : '') + '">' +
+      /* b371 (F16) — THE COUNT WAS RENDERED AND STILL UNREADABLE. `.hh-req` was
+         a full-width flex row with `flex:1` on the name, so on a 1,700px screen
+         "Willow Plank" sat at the left margin and "0 / 35" sat 1,600px away at
+         the right — the live audit filed it as "quantities invisible", and that
+         is a fair reading of a number nothing connects to its own label. Same
+         defect b366 fixed on the store ("a price list with the numbers pushed
+         to the far wall"), arriving on a different screen.
+         The requirement list is now the house style this game already has for
+         costs (`.hh-room-cost` / `.hh-cost`, homestead-rooms.css): compact
+         chips that WRAP, each carrying art, name and count as one unit. */
+      return '<span class="hh-req' + (ok ? ' is-met' : '') + '" title="' +
+        name + ': you hold ' + (h.known ? have : 'an unknown amount') + ' of ' + need + '">' +
         '<span class="hh-req-art">' + art + '</span>' +
         '<span class="hh-req-name">' + name + '</span>' +
         '<b>' + (h.known ? Math.min(have, need)
@@ -303,7 +314,7 @@
         (nxt
           ? '<div style="border-top:1px solid var(--line-soft);padding-top:8px">' +
               '<div class="tiny" style="margin-bottom:4px;color:var(--ink-2)">Next: <b style="color:var(--gold-2)">' + nxt.name + '</b> — plots ' + nxt.plots + ', workers ' + nxt.workers + ', +' + nxt.offlineHours + 'h offline</div>' +
-              '<div style="margin-bottom:8px">' + fmtCostRow(nxt.cost) + '</div>' +
+              '<div class="hh-reqs">' + fmtCostRow(nxt.cost) + '</div>' +
               '<button class="btn btn-primary btn-sm" onclick="window.HearthriseHomestead.upgradeProperty()">Upgrade Property</button>' +
             '</div>'
           : '<div class="tiny" style="color:var(--gold-2)">The realm is yours. (Clan castles come next.)</div>') +

@@ -108,7 +108,20 @@
       return BOARDS[id].cat === cat && available(id, caps);
     });
   }
+  /* b371 — boards the SERVER has told us it cannot answer yet. Populated only
+     from a real `available:false` response, never guessed and never hardcoded:
+     the day a source lands behind `renown`, the server flips the flag and the
+     chip comes back with no client release. Session-scoped on purpose — a
+     cached "unavailable" that outlived a deploy is how a board stays hidden
+     after it is fixed. */
+  var UNAVAILABLE = Object.create(null);
+  function markAvailability(id, isAvailable) {
+    var was = !!UNAVAILABLE[id];
+    if (isAvailable) delete UNAVAILABLE[id]; else UNAVAILABLE[id] = true;
+    return was !== !!UNAVAILABLE[id];          // did the picker's shape change?
+  }
   function available(id, caps) {
+    if (UNAVAILABLE[id]) return false;
     return caps === 'full' ? true : !!BOARDS[id].legacy;
   }
   function categoriesFor(caps) {
@@ -202,6 +215,16 @@
     if (out.ok === false) return { action: 'fail', error: out.error || 'refused' };
     return {
       action: 'accept',
+      /* b371 — THE SERVER MAY NOW SAY "THIS BOARD HAS NO SOURCE YET".
+         The leaderboard rebuild ships `renown` and `bosses` as `ok:true,
+         available:false, top:[]`, which the old reducer flattened into an
+         ordinary accepted board with zero rows — and an accepted board with
+         zero rows renders "No one has ranked on this board yet. Be first."
+         That sentence is a LIE about the game: it invites a player to grind
+         for a place on a board that is not being written to by anything.
+         `available` defaults to TRUE so every board that predates the field,
+         and the whole degraded legacy reader, is unaffected. */
+      available: out.available !== false && out.unavailable !== true,
       board: out.board || null,
       refreshedAt: out.refreshed_at || null,
       total: Math.max(0, +out.total || 0),
@@ -573,6 +596,23 @@
       return;
     }
 
+    /* b371 — A BOARD WITH NO SOURCE IS NOT AN EMPTY BOARD. See the note in
+       reduceBoard: `available:false` used to render as "No one has ranked on
+       this board yet. Be first." The chip is withdrawn from the picker and the
+       screen moves to a board that can actually answer, which is one render
+       away because `available()` now consults the same flag the picker does.
+       If the flag was already set we do NOT re-render — that is what makes the
+       recursion terminate rather than chase itself around the categories. */
+    if (res.available === false) {
+      var reshaped = markAvailability(curBoard, false);
+      host.innerHTML = '<div class="lb-empty">' + esc(BOARDS[curBoard].label) +
+        ' is not being kept yet — this board opens when the realm starts recording it.</div>';
+      if (subEl) subEl.textContent = BOARDS[curBoard].label + ' · coming soon';
+      if (reshaped) return render();
+      return;
+    }
+    markAvailability(curBoard, true);
+
     var view = buildView(res, myId());
     host.innerHTML = boardHtml(curBoard, view);
     if (subEl) {
@@ -672,6 +712,9 @@
     _renownTitle: renownTitle,
     _agoText: agoText,
     _noteRpc: noteRpc,
-    _resetProbe: _resetProbe
+    _resetProbe: _resetProbe,
+    _markAvailability: markAvailability,
+    _available: available,
+    _pickerHtml: pickerHtml
   };
 })();

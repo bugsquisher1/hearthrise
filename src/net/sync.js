@@ -34,13 +34,32 @@ const MAX_BUFFER = 500;
 // "active elsewhere". Two devices both save on the ~60s cadence, so a 2.5-min
 // window reliably catches a genuinely concurrent session without false-positiving
 // on a device you closed a few minutes ago.
-const CONCURRENT_WINDOW_MS = 150000;
+// b366 — RETIRED AS A WARNING TRIGGER, kept as a documented constant so the
+// mistake is not made twice. "Someone wrote the save recently" is NOT evidence of
+// a concurrent session: on EVERY clean device handoff the departing device's b299
+// pagehide keepalive snapshot lands seconds before the arriving device connects,
+// so this window was ALWAYS satisfied and the arriving device was ALWAYS told
+// "this account is being played on another device — close one". That is the
+// warning Tyler hit just moving from his computer to his phone. Liveness is a
+// property of the session CLAIM (a heartbeat), not of the last write.
+const CONCURRENT_WINDOW_MS = 150000;   // eslint-disable-line no-unused-vars
 // b303: how long an owner's heartbeat can go quiet before another tab may take
 // over its claim. Poll is ~15s and heartbeat rides every poll, so 3 missed beats
 // = the owner is really gone (tab closed), and the surviving tab reclaims instead
 // of falsely locking itself out.
 const CLAIM_STALE_MS = 50000;
 const INSTANCE_KEY = 'hr:instanceId';
+// b366: how long a cached claim view may be reused before a decision that
+// matters (warn / refuse an upload) re-reads it. The claim poll is 15s, so a
+// view older than this means the poll has missed a beat and we ask again.
+const CLAIM_VIEW_TTL_MS = 20000;
+// b366: which foreign instance we have already warned about, persisted per TAB.
+// sessionStorage (not localStorage) because it is exactly "this running game
+// instance" — the same scope the claim keys on — and it SURVIVES the
+// location.reload() that a cloud restore performs, which is what stopped the
+// module-scope flag from working: the restore path reloads, the module is
+// re-evaluated, the flag resets, and the player is accused a second time.
+const CONCURRENT_WARN_KEY = 'hr:concurrentWarnedFor';
 
 let config = null;
 let buffer = [];
@@ -49,7 +68,14 @@ let concurrencyTimer = null;
 let claimTimer = null;
 let lastSnapshotAt = 0;
 let lastCloudSaveAt = 0;   // b299: last CONFIRMED cloud upload (for the verify tool + status)
-let concurrentWarned = false;
+let concurrentWarned = '';   // b366: fallback when sessionStorage is unavailable
+// b366 — THE ONE CLAIM VERDICT. { owner, hbMs, at } — who holds the session
+// claim, when their heartbeat last beat, and when we read it. Written by
+// checkSessionClaim / claimSession / fetchClaimRow and read by everything that
+// needs to know whether another instance is genuinely alive. One fetch, one
+// answer: concurrency detection, eviction and the upload guard used to disagree
+// because they each asked a different question of a different table.
+let claimView = null;
 let paused = false;        // b302: set when this device is evicted — stops all cloud writes
 let evicted = false;       // b302: latch so we fire onEvicted once
 // b314: hold ALL snapshot uploads until the first cloud pull + reconcile has run.
@@ -718,6 +744,35 @@ async function snapshotIfDue(force, keepalive) {
   if (!authPreflight('snapshot')) return false;
   const now = Date.now();
   if (!force && now - lastSnapshotAt < (config.snapshotIntervalMs || 60000)) return false;
+  /* b366 — THE CLOBBER WINDOW. Handoff timeline before this: the arriving phone
+     claims at t+1.5s and restores; the departing desktop only learns it lost the
+     claim on its next 15s poll — and its 60s snapshotIfDue could fire in between,
+     uploading a save from BEFORE the handoff over the phone's fresh one. The
+     player then watches progress they just made disappear.
+     The fix is a precondition on the WRITE, not a faster poll: do not upload
+     while another instance is the known, still-beating owner. Silent and local
+     (this is the device being left behind — there is nothing to tell the player,
+     and the very next thing that happens to it is the eviction gate). Refusal
+     requires CERTAINTY (invariant 2): unknown, unreadable, nobody-owns and
+     stale-owner all still upload.
+
+     PLACED AFTER THE THROTTLE, AND IT AWAITS ONLY WHEN IT HAS TO. Two reasons,
+     both learned the hard way here:
+       · after the throttle, so a call that was never going to upload does not
+         spend a network read — and so a REFUSAL does not move `lastSnapshotAt`
+         and eat the next 60s window.
+       · the `await` is behind the staleness test rather than in front of it,
+         because an unconditional await defers everything downstream (including
+         the fetch) into a microtask. Two b331 clock tests drive snapshotIfDue
+         and count requests synchronously; a gratuitous await made them read 0
+         of 3 and go red. An async function that can answer now must answer now.
+     A forced/keepalive save on pagehide never blocks on a network read — it
+     decides on whatever view it already has. */
+  if (config.claimEndpoint) {
+    const viewStale = !claimView || (now - claimView.at) >= CLAIM_VIEW_TTL_MS;
+    if (viewStale && !keepalive) await fetchClaimRow();     // error → view untouched → allows
+    if (!decideUploadAllowed(claimView, getInstanceId(), Date.now())) return false;
+  }
   lastSnapshotAt = now;
   const snap = snapshot(window.G);
   if (!snap) return false;
@@ -879,32 +934,77 @@ export async function verifyCloudSave() {
 }
 
 /**
- * b301 — CONCURRENT-DEVICE DETECTION. Pull the latest cloud save and see who
- * wrote it and when. If the last writer was a DIFFERENT device within the recent
- * window, the account is being played in two places at once — which, in a
- * last-writer-wins model, silently clobbers whichever device saves second.
- * We can only WARN (a web idle game can't force-log-out another tab), but a
- * warning lets the player stop before they lose progress.
+ * b301, REBUILT IN b366 — CONCURRENT-SESSION DETECTION.
  *
- * Reuses game_saves (device id lives inside the snapshot JSON) — no schema change.
- * Returns { concurrent, otherDevice, agoMs }.
+ * WAS: "did a different __device write game_saves in the last 150s?" — which is
+ * true on every single clean handoff, because the device you are leaving fires a
+ * keepalive snapshot on pagehide. The player closed one device and was told to
+ * close one. It never once described a concurrent session.
+ *
+ * IS: "does a DIFFERENT instance hold the session claim with a heartbeat that is
+ * still beating?" A heartbeat is the only positive evidence of liveness we have.
+ * A departed device stops beating; a live one keeps beating. That is the whole
+ * difference between a handoff and a genuine double-session.
+ *
+ * Shares ONE verdict with checkSessionClaim (the `claimView` cache) rather than
+ * issuing a second read of a second table — the two used to be able to disagree.
+ * Returns { concurrent, otherDevice, agoMs } where agoMs is heartbeat age.
  */
 export async function checkConcurrentDevice() {
   const out = { concurrent: false, otherDevice: null, agoMs: null };
-  if (!config?.snapshotEndpoint || !navigator.onLine) return out;
+  if (!config?.claimEndpoint || !navigator.onLine) return out;
   const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
   if (!userId) return out;
-  const snap = await pullLatest();
-  if (!snap) return out;
-  const me = getDeviceId();
-  const other = snap.__device;
-  const at = Number(snap.__cloudSavedAt) || 0;
-  const ago = at ? (Date.now() - at) : Infinity;
-  if (other && other !== me && ago >= 0 && ago < CONCURRENT_WINDOW_MS) {
-    out.concurrent = true; out.otherDevice = other; out.agoMs = ago;
-    if (!concurrentWarned) { concurrentWarned = true; safeCall(config.onConcurrentDevice, out); }
+  const view = await freshClaimView();
+  // UNKNOWN IS NOT CONCURRENT. A failed read tells us nothing, and a warning we
+  // cannot substantiate is exactly the bug being fixed here.
+  if (!view) return out;
+  const v = decideConcurrent(view, getInstanceId(), Date.now());
+  if (v.concurrent && !hasWarnedConcurrent(v.otherDevice)) {
+    markWarnedConcurrent(v.otherDevice);
+    safeCall(config.onConcurrentDevice, v);
   }
-  return out;
+  return v;
+}
+
+/**
+ * PURE. Given a claim view, who we are, and now — is another instance genuinely
+ * live? Every "no" case is deliberate: no view / no owner / it's us / no
+ * heartbeat / a stale or future-dated heartbeat all mean "no evidence", and no
+ * evidence never warns.
+ */
+export function decideConcurrent(view, me, nowMs) {
+  const out = { concurrent: false, otherDevice: null, agoMs: null };
+  if (!view || !view.owner || view.owner === me) return out;
+  const hb = Number(view.hbMs) || 0;
+  if (!hb) return out;
+  const ago = nowMs - hb;
+  if (ago < 0 || ago >= CLAIM_STALE_MS) return out;
+  return { concurrent: true, otherDevice: view.owner, agoMs: ago };
+}
+
+/**
+ * PURE — may THIS instance write the cloud save? Deliberately expressed as the
+ * negation of decideConcurrent so the two can never drift: "someone else is
+ * demonstrably live" is the same fact whether we are warning about it or
+ * declining to write because of it. Everything short of that demonstration —
+ * unknown view, no owner, no/short/stale heartbeat — allows the write, because
+ * refusing on uncertainty would mean a flaky connection could silently stop a
+ * player's saves, which is the failure mode invariant 2 exists to forbid.
+ */
+export function decideUploadAllowed(view, me, nowMs) {
+  return !decideConcurrent(view, me, nowMs).concurrent;
+}
+
+/** b366 — have we already accused this instance? Survives a reload (P0-B). */
+export function hasWarnedConcurrent(other) {
+  if (!other) return true;                       // nothing to warn about
+  try { return sessionStorage.getItem(CONCURRENT_WARN_KEY) === other; }
+  catch (e) { return concurrentWarned === other; }
+}
+export function markWarnedConcurrent(other) {
+  concurrentWarned = other || '';
+  try { sessionStorage.setItem(CONCURRENT_WARN_KEY, other || ''); } catch (e) {}
 }
 
 // ── b302: SINGLE ACTIVE DEVICE (session claim) ──────────────────────────────
@@ -913,6 +1013,41 @@ export async function checkConcurrentDevice() {
 // cardinal rule: evict ONLY on a definitive "a different device owns this" row —
 // never on a network error, a missing table, or being signed out — or a flaky
 // connection would lock a player out of their own account.
+
+/**
+ * b366 — the ONE read of session_claims. Returns
+ * {status:'ok'|'skip'|'error', owner, hbMs} and, on 'ok', updates `claimView` —
+ * the single verdict every other consumer reads. Errors NEVER write the view:
+ * an unreadable claim must leave the last known good answer in place rather than
+ * manufacture "nobody owns this", which would both silence a real eviction and
+ * green-light an upload we should refuse.
+ */
+async function fetchClaimRow() {
+  if (!config?.claimEndpoint || !navigator.onLine) return { status: 'skip' };
+  const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
+  if (!userId) return { status: 'skip' };
+  if (!authPreflight('claim-poll')) return { status: 'skip' };
+  let res;
+  try { res = await fetch(`${config.claimEndpoint}?user_id=eq.${encodeURIComponent(userId)}&select=device_id,heartbeat_at`, { headers: withAuthHeaders({}) }); }
+  catch (e) { return { status: 'error' }; }
+  if (!res.ok) return { status: 'error' };
+  let rows; try { rows = await res.json(); } catch (e) { return { status: 'error' }; }
+  const row = rows && rows[0];
+  const owner = (row && row.device_id) || null;
+  const hbMs = (row && row.heartbeat_at) ? Date.parse(row.heartbeat_at) : 0;
+  claimView = { owner, hbMs: Number.isFinite(hbMs) ? hbMs : 0, at: Date.now() };
+  return { status: 'ok', owner, hbMs: claimView.hbMs };
+}
+
+/** The cached claim verdict, re-read if it has gone stale. null = unknown. */
+async function freshClaimView() {
+  if (claimView && (Date.now() - claimView.at) < CLAIM_VIEW_TTL_MS) return claimView;
+  const r = await fetchClaimRow();
+  return r.status === 'ok' ? claimView : null;
+}
+
+/** Read-only accessor for the suite + diagnostics. */
+export function getClaimView() { return claimView ? { ...claimView } : null; }
 
 /** Claim the account's single active-session slot for THIS tab (instance). */
 export async function claimSession() {
@@ -927,7 +1062,17 @@ export async function claimSession() {
     headers: withAuthHeaders({ 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
     body: JSON.stringify(body),
   }), 'claim');
-  if (res && res.ok) { evicted = false; }   // we are the owner now
+  /* b366 — THE CLAIM EPOCH. A successful claim makes US the owner as of NOW, and
+     we record that locally so the upload guard (mayUploadSnapshot) has an answer
+     before the next 15s poll rather than after it. Without this stamp the
+     departing device's view still names itself for up to a poll interval, which
+     is precisely the window in which its 60s snapshot could land on top of the
+     arriving device's restore. */
+  if (res && res.ok) {
+    evicted = false;
+    const now = Date.now();
+    claimView = { owner: getInstanceId(), hbMs: now, at: now };
+  }
   return !!(res && res.ok);
 }
 
@@ -962,19 +1107,16 @@ export async function checkSessionClaim() {
   if (!userId) return { status: 'skip' };
   // b331: a blocked poll must behave exactly like a network error — it NEVER
   // evicts (b302's cardinal rule), it just does not happen.
-  if (!authPreflight('claim-poll')) return { status: 'skip' };
   const me = getInstanceId();
-  let res;
-  try { res = await fetch(`${config.claimEndpoint}?user_id=eq.${encodeURIComponent(userId)}&select=device_id,heartbeat_at`, { headers: withAuthHeaders({}) }); }
-  catch (e) { return { status: 'error' }; }              // network error → NEVER evict
-  if (!res.ok) return { status: 'error' };               // table missing / auth → NEVER evict
-  let rows; try { rows = await res.json(); } catch (e) { return { status: 'error' }; }
-  const row = rows && rows[0];
-  const owner = row && row.device_id;
+  // b366: ONE read, shared with checkConcurrentDevice via `claimView`. skip/error
+  // still never evict — the statuses are mapped straight through.
+  const r = await fetchClaimRow();
+  if (r.status !== 'ok') return { status: r.status === 'skip' ? 'skip' : 'error' };
+  const owner = r.owner;
   if (!owner) { await claimSession(); return { status: 'claimed' }; }   // nobody owns → take it
   if (owner === me) { heartbeatClaim(); return { status: 'owner' }; }   // still ours → keep alive
   // A different instance owns it. Is it actually still alive?
-  const hb = row.heartbeat_at ? Date.parse(row.heartbeat_at) : 0;
+  const hb = r.hbMs;
   const fresh = hb && (Date.now() - hb) < CLAIM_STALE_MS;
   if (fresh) {                                            // genuinely active elsewhere → evict us
     if (!evicted) { evicted = true; safeCall(config.onEvicted, { owner }); }
@@ -1038,8 +1180,11 @@ export function setupSync(opts = {}) {
   // b301: poll for a concurrent session on its own slower cadence (a GET each
   // time — kept off the 5s flush loop). One check shortly after connect catches
   // the "already open elsewhere" case fast.
+  // b366: gated on claimEndpoint now, not snapshotEndpoint — the verdict comes
+  // from session_claims, and without that table there is no liveness evidence to
+  // reason from and therefore nothing honest to say.
   if (concurrencyTimer) clearInterval(concurrencyTimer);
-  if (config.snapshotEndpoint) {
+  if (config.claimEndpoint) {
     concurrencyTimer = setInterval(() => { checkConcurrentDevice(); }, config.concurrencyIntervalMs || 45000);
     setTimeout(() => { checkConcurrentDevice(); }, 4000);
   }
@@ -1069,6 +1214,16 @@ window.HearthriseSync = {
   setupSync, flush, snapshotIfDue, pullLatest, buildSnapshotRequest, isAuthError,
   derivedSnapshotFields, countBossKills, verifyCloudSave, checkConcurrentDevice,
   claimSession, checkSessionClaim, pauseSync, pullLatestDetailed,
+  // b366 device-handoff: the pure verdicts, exported so the suite drives the
+  // REAL decision functions rather than a reimplementation of them.
+  decideConcurrent, decideUploadAllowed, getClaimView,
+  hasWarnedConcurrent, markWarnedConcurrent,
+  CLAIM_STALE_MS,
+  /* Test seam: set the shared claim verdict directly. The b366 battery needs to
+     stage "another instance owns this, beating / not beating" without a live
+     session_claims row; every consumer reads this one variable, so staging it is
+     staging the real input. Restores by passing null. */
+  __setClaimView: (v) => { claimView = v ? { ...v } : null; return getClaimView(); },
   holdSnapshots, releaseSnapshots, isSnapshotHeld,
   // b331 expired-token circuit breaker
   tokenStatus, nextAuthBackoffMs, newAuthGate, decideAuthGate, authGateStep,

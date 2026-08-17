@@ -24809,6 +24809,184 @@ const TESTS = [
     }
   }),
 
+  /* ── b366 — DEVICE HANDOFF ────────────────────────────────────────────────
+     Tyler, moving from his computer to his phone: "I keep getting warnings about
+     stuff not being synced, and all I tried to do was move from my computer to my
+     phone. Wildly terrible experience."
+     Four independent defects conspired, and each one below is the guard against
+     its own return. The shared root cause is worth naming once: the code kept
+     inferring LIVENESS ("someone is playing elsewhere") from a WRITE ("someone
+     saved recently"). A departing device's last act is a save, so every clean
+     handoff looked identical to a double-session. Liveness is a heartbeat. */
+
+  () => tryRun('CONCURRENT-1: a recent WRITER with no live CLAIM is not a concurrent session (the handoff false alarm)', () => {
+    const S = window.HearthriseSync;
+    assert(typeof S.decideConcurrent === 'function', 'decideConcurrent must be exposed');
+    const NOW = 1770000000000;
+    const ME = 'i-me', OTHER = 'i-desktop';
+    const STALE = S.CLAIM_STALE_MS;
+    assert(typeof STALE === 'number' && STALE > 0, 'CLAIM_STALE_MS must be exposed as a number');
+
+    /* THE REPRODUCTION. The desktop wrote game_saves 3 seconds ago (its b299
+       pagehide keepalive snapshot) and then STOPPED — its claim heartbeat is
+       older than the stale window because the tab is closed. Pre-b366 this was
+       the only input checked and it read "concurrent", every single handoff.
+       MUTATION that turns this red: gate on the save row's __device/__cloudSavedAt
+       instead of the claim heartbeat. */
+    const departed = { owner: OTHER, hbMs: NOW - (STALE + 1000), at: NOW };
+    assert(S.decideConcurrent(departed, ME, NOW).concurrent === false,
+      'a device that saved on its way out but stopped beating must NOT be called concurrent');
+
+    /* …and the genuine case must still be caught, or the fix is just a mute. */
+    const live = { owner: OTHER, hbMs: NOW - 5000, at: NOW };
+    const v = S.decideConcurrent(live, ME, NOW);
+    assert(v.concurrent === true && v.otherDevice === OTHER && v.agoMs === 5000,
+      'a still-beating foreign claim must be reported: ' + JSON.stringify(v));
+
+    // Every no-evidence shape resolves to "not concurrent" — never a guess.
+    assert(S.decideConcurrent(null, ME, NOW).concurrent === false, 'unknown claim view must not warn');
+    assert(S.decideConcurrent({ owner: null, hbMs: NOW, at: NOW }, ME, NOW).concurrent === false, 'no owner must not warn');
+    assert(S.decideConcurrent({ owner: ME, hbMs: NOW, at: NOW }, ME, NOW).concurrent === false, 'our OWN claim must never warn');
+    assert(S.decideConcurrent({ owner: OTHER, hbMs: 0, at: NOW }, ME, NOW).concurrent === false, 'a claim with no heartbeat must not warn');
+    assert(S.decideConcurrent({ owner: OTHER, hbMs: NOW + 60000, at: NOW }, ME, NOW).concurrent === false,
+      'a future-dated heartbeat (clock skew) must not warn');
+  }),
+
+  () => tryRun('CONCURRENT-2: the same device is never accused twice, not even across the restore reload', () => {
+    const S = window.HearthriseSync;
+    assert(typeof S.hasWarnedConcurrent === 'function' && typeof S.markWarnedConcurrent === 'function',
+      'the warned-state seam must be exposed');
+    const KEY = 'hr:concurrentWarnedFor';
+    let prior = null;
+    try { prior = sessionStorage.getItem(KEY); } catch (e) {}
+    try {
+      try { sessionStorage.removeItem(KEY); } catch (e) {}
+      S.markWarnedConcurrent('');
+      assert(S.hasWarnedConcurrent('i-desktop') === false, 'a device we have never warned about must be warnable');
+      S.markWarnedConcurrent('i-desktop');
+      assert(S.hasWarnedConcurrent('i-desktop') === true, 'we must not warn about the same device twice');
+
+      /* THE RELOAD. A cloud restore ends in location.reload(), which re-evaluates
+         the module and reset the old module-scope `concurrentWarned` flag — so the
+         player got the same accusation a second time, seconds later, having done
+         nothing. sessionStorage survives a reload; that is why the state lives
+         there. Simulated by reading the persisted key directly, which is exactly
+         what the freshly-evaluated module does.
+         MUTATION that turns this red: store warned-state in a module variable. */
+      let persisted = null;
+      try { persisted = sessionStorage.getItem(KEY); } catch (e) {}
+      assert(persisted === 'i-desktop',
+        'warned-state must be persisted per TAB so a reload cannot re-accuse the same device, got ' + persisted);
+
+      // A DIFFERENT device is a different fact and must still be able to warn.
+      assert(S.hasWarnedConcurrent('i-tablet') === false, 'a different device must still be warnable');
+      // Nothing to warn about is treated as already-warned (never fires a null warning).
+      assert(S.hasWarnedConcurrent(null) === true, 'a null device id must never produce a warning');
+    } finally {
+      try { if (prior === null) sessionStorage.removeItem(KEY); else sessionStorage.setItem(KEY, prior); } catch (e) {}
+      S.markWarnedConcurrent(prior || '');
+    }
+  }),
+
+  () => tryRun('CLAIM-CLOBBER: a snapshot upload from an instance that no longer owns the claim is refused', () => {
+    const S = window.HearthriseSync;
+    assert(typeof S.decideUploadAllowed === 'function', 'decideUploadAllowed must be exposed');
+    const NOW = 1770000000000;
+    const ME = 'i-desktop', PHONE = 'i-phone';
+    const STALE = S.CLAIM_STALE_MS;
+
+    /* THE CLOBBER WINDOW. The phone claims at t+1.5s and restores; the desktop
+       only learns it lost the claim at its next 15s poll — and its 60s
+       snapshotIfDue can fire in between, uploading a pre-handoff save over the
+       phone's fresh one. The player watches progress vanish.
+       MUTATION that turns this red: delete the mayUploadSnapshot() guard from
+       snapshotIfDue, or make it return true unconditionally. */
+    assert(S.decideUploadAllowed({ owner: PHONE, hbMs: NOW - 2000, at: NOW }, ME, NOW) === false,
+      'a non-owning instance must not upload over the live owner');
+
+    /* INVARIANT 2 — REFUSE ONLY ON CERTAINTY. Every uncertain shape must still
+       upload: a device that cannot read the claim table must never silently stop
+       saving. This half matters more than the half above — the failure it
+       prevents is total, silent data loss on a flaky connection. */
+    assert(S.decideUploadAllowed(null, ME, NOW) === true, 'an UNKNOWN claim must not block saving');
+    assert(S.decideUploadAllowed({ owner: null, hbMs: 0, at: NOW }, ME, NOW) === true, 'nobody owning the claim must not block saving');
+    assert(S.decideUploadAllowed({ owner: ME, hbMs: NOW - 1000, at: NOW }, ME, NOW) === true, 'the owner must be able to save');
+    assert(S.decideUploadAllowed({ owner: PHONE, hbMs: 0, at: NOW }, ME, NOW) === true, 'a heartbeat-less claim is not certainty');
+    assert(S.decideUploadAllowed({ owner: PHONE, hbMs: NOW - (STALE + 1), at: NOW }, ME, NOW) === true,
+      'an abandoned (stale) claim must not block saving — that is a closed tab, not a live session');
+
+    // The guard and the warning must be the SAME fact, always, or they will drift.
+    [null, { owner: PHONE, hbMs: NOW - 2000, at: NOW }, { owner: ME, hbMs: NOW, at: NOW },
+     { owner: PHONE, hbMs: NOW - (STALE + 1), at: NOW }].forEach((v) => {
+      assert(S.decideUploadAllowed(v, ME, NOW) === !S.decideConcurrent(v, ME, NOW).concurrent,
+        'the upload guard and the concurrency verdict disagree for ' + JSON.stringify(v));
+    });
+
+    // The claim view is a real, inspectable seam (the guard's live input).
+    assert(typeof S.getClaimView === 'function' && typeof S.__setClaimView === 'function',
+      'the claim view seam must be exposed');
+    const was = S.getClaimView();
+    try {
+      S.__setClaimView({ owner: PHONE, hbMs: NOW, at: NOW });
+      const cv = S.getClaimView();
+      assert(cv && cv.owner === PHONE, 'the claim view must round-trip');
+    } finally { S.__setClaimView(was); }
+  }),
+
+  () => tryRun('ACCRUE-REPLACE-HANDOFF: the "permanently gone" sheet never fires while the cloud reconcile is unresolved', () => {
+    const A = window.HearthriseAccrual;
+    const S = window.HearthriseSync;
+    assert(typeof A.isReconcilePending === 'function', 'isReconcilePending must be exposed');
+
+    /* THE RACE. On the phone, loadLocal() puts a WEEK-OLD save in G; the server
+       envelope reflects the desktop session, which SPENT gold — so local > server
+       on plain arithmetic and describeReplacement says "destructive". The sheet
+       fired, telling the player their progress would be "permanently gone",
+       while pullAndMaybeRestore was still in flight with the save that actually
+       wins. The gate is correct; its ORDERING was not.
+       MUTATION that turns this red: remove the isReconcilePending() deferral from
+       applyEnvelope. */
+    const envelope = {
+      ok: true, accrued: true, version: 3, now: '2026-08-16T00:00:00Z',
+      state: { slot: 0, gold: 40, hp: 100, max_hp: 100 },
+      skills: { woodcutting: { xp: 10, level: 2 } },
+      inventory: {},
+      away: { grantMs: 0, gold: 0, xp: {}, items: {} },
+    };
+    const stalePhoneSave = () => ({ gold: 12000, skills: { woodcutting: 90000 }, inventory: { logs: 60 } });
+
+    const wasAck = A.isReplacementAcknowledged();
+    const wasHeld = S.isSnapshotHeld();
+    try {
+      A.acknowledgeReplacement(false);
+      A.hideReplacementSheet();
+      assert(A.describeReplacement(stalePhoneSave(), envelope).destructive === true,
+        'the fixture must actually look destructive, or this test proves nothing');
+
+      // ── reconcile IN FLIGHT ────────────────────────────────────────────────
+      S.holdSnapshots();
+      assert(A.isReconcilePending() === true, 'the reconcile gate must be visible to accrue');
+      const G1 = stalePhoneSave();
+      assert(A.applyEnvelope(G1, envelope) === null, 'a deferred envelope must write nothing');
+      assert(G1.gold === 12000 && G1.skills.woodcutting === 90000 && G1.inventory.logs === 60,
+        'the save was mutated during the deferral: ' + JSON.stringify(G1));
+      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+        'the "permanently gone" sheet was shown mid-handoff, before the reconcile decided which save wins');
+
+      // ── reconcile SETTLED — the gate is NOT softened, only re-ordered ──────
+      S.releaseSnapshots();
+      assert(A.isReconcilePending() === false, 'releasing the gate must end the deferral');
+      const G2 = stalePhoneSave();
+      assert(A.applyEnvelope(G2, envelope) === null, 'a genuinely destructive envelope must still refuse');
+      assert(document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+        'once reconcile has settled, genuine divergence must STILL ask the player — the deferral is ordering, not amnesty');
+    } finally {
+      A.hideReplacementSheet();
+      A.acknowledgeReplacement(wasAck);
+      if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
+    }
+  }),
+
   () => tryRunAsync('B339-6: a pre-b338 server (ok:true, no `created`) is refused LOUDLY and asked exactly once', async () => {
     const C = window.HearthriseCharacter;
     const realFetch = window.fetch;

@@ -226,7 +226,12 @@ function enableLiveSync() {
     // saves (last writer wins). Fired once per session.
     onConcurrentDevice: () => {
       if (typeof window.notify === 'function') {
-        window.notify('⚠️ This account is being played on another device. Two at once can overwrite each other — close one to keep your progress safe.', 'kill');
+        /* b366: this now fires ONLY when another instance holds the session
+           claim with a live heartbeat (sync.js decideConcurrent) — i.e. the
+           account really is being played in two places right now, not merely
+           "some other device saved recently", which was true on every clean
+           handoff and is what made this warning noise. */
+        window.notify('⚠️ Hearthrise is open on another device right now. Two at once can overwrite each other — close one to keep your progress safe.', 'kill');
       }
     },
     // b302: this device LOST the single-active-session claim — the account was
@@ -903,12 +908,18 @@ function showEvictedGate() {
   ].join(';');
   el.innerHTML =
     '<div style="max-width:460px">' +
-    '<div style="font-size:44px;margin-bottom:8px">🔒</div>' +
-    '<h2 style="font-family:Cinzel,serif;font-size:24px;margin:0 0 10px">Signed out here</h2>' +
-    '<p style="margin:0 0 6px">Your account was just opened on another device.</p>' +
-    '<p style="margin:0 0 20px;opacity:.8">Hearthrise runs on one device at a time, so this one has paused to keep your progress safe.</p>' +
-    '<button id="hr-evicted-usehere" style="font:600 16px/1 system-ui,sans-serif;background:#d9a441;color:#1a130a;border:0;border-radius:10px;padding:14px 22px;cursor:pointer">Use this device instead</button>' +
-    '<div style="margin-top:14px;font-size:13px;opacity:.6">Tap above to move your session here (this will sign the other device out).</div>' +
+    /* b366 — SAY WHAT HAPPENED, NOT WHAT WENT WRONG. The old copy ("Signed out
+       here", 🔒, "this will sign the other device out") described a punishment
+       for a thing the player did on purpose: they picked up their phone. Same
+       mechanism, same single-session rule — but framed as the move it is, so
+       coming back to the desktop later is one obvious tap rather than a
+       standoff between two devices each offering to evict the other. */
+    '<div style="font-size:44px;margin-bottom:8px">📱</div>' +
+    '<h2 style="font-family:Cinzel,serif;font-size:24px;margin:0 0 10px">Your session moved</h2>' +
+    '<p style="margin:0 0 6px">Hearthrise is now open on your other device.</p>' +
+    '<p style="margin:0 0 20px;opacity:.8">It runs in one place at a time, so this one is paused. Nothing is lost — your progress is with the device you moved to.</p>' +
+    '<button id="hr-evicted-usehere" style="font:600 16px/1 system-ui,sans-serif;background:#d9a441;color:#1a130a;border:0;border-radius:10px;padding:14px 22px;cursor:pointer">Bring it back here</button>' +
+    '<div style="margin-top:14px;font-size:13px;opacity:.6">Tap to continue playing on this device instead.</div>' +
     '</div>';
   (document.body || document.documentElement).appendChild(el);
   const btn = el.querySelector('#hr-evicted-usehere');

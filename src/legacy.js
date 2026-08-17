@@ -1610,13 +1610,56 @@ window.assertActivityDeclaration=assertActivityDeclaration;
        fresh server character over the top — which is precisely the pair of
        events Tyler hit.
    ══════════════════════════════════════════════════════════════════════════ */
-function reconcileActivityPointer(a){
+/* ── THE CARRIED FIGHT, APPLIED (b372 / F18) ───────────────────────────────
+   `startCombat()` sets `monsterHp = m.hp` — it starts a fight, which is the
+   right thing for a tap on the War Table and the WRONG thing for a reconcile
+   that is meant to RESUME one. `player_state.fight` has been server state since
+   2026-08-17-fight-carry.sql and the server has been resuming from it in every
+   accrual span; the client never read it back, so a reload or any reconcile that
+   had to move the pointer handed the player a full-health monster and threw away
+   the damage the server was still holding. On a 520-hp dragon that is the whole
+   fight, every time.
+
+   This runs AFTER startCombat, never instead of it: startCombat owns the
+   interval, the combat log and the repaint, and a second way into a fight is a
+   second thing that forgets one of the three (the same reason the reconcile goes
+   through it at all). All this does is correct the two numbers it just reset.
+
+   FAIL-CLOSED, mirroring the Edge engine's own guard
+   (functions/hr-accrue/accrual.js: `fight.monster === activeId && fight.hp > 0`):
+   a carried fight that names a DIFFERENT monster is stale, and pouring its hp
+   into the current foe would be a free half-killed boss. The `min` against
+   `monsterMaxHp` is the client's half of the SQL re-clamp against
+   `hr_activities.max_hp` — a monster's hp can be lowered in src/data/monsters.js
+   while a fight is carried, and starting a foe with more hp than it has is how
+   you get one that cannot be killed. */
+function applyCarriedFight(id, fight){
+  if(!fight||typeof fight!=='object')return false;
+  if(fight.monster!==id)return false;
+  const hp=Number(fight.hp);
+  if(!isFinite(hp)||!(hp>0))return false;
+  const max=Number(G.monsterMaxHp);
+  if(!isFinite(max)||!(max>0))return false;
+  G.monsterHp=Math.min(hp,max);
+  const k=Number(fight.kills);
+  G.combatKillsThisFoe=(isFinite(k)&&k>=0)?Math.floor(k):0;
+  return true;
+}
+window.applyCarriedFight=applyCarriedFight;
+function reconcileActivityPointer(a,fight){
   if(!a||typeof a!=='object')return null;
   const kind=a.kind, id=a.id;
   const applied=activityQuietly(function(){
     if(kind==='combat'&&id&&MONSTERS[id]){
       if(G.activeSkill&&typeof stopSkill==='function')stopSkill();
-      if(G.activeMonster!==id&&typeof startCombat==='function')startCombat(id);
+      if(G.activeMonster!==id&&typeof startCombat==='function'){
+        startCombat(id);
+        /* Only on a RESTART. When the pointer already names this foe the local
+           fight is live and further along than any envelope — the server's
+           carry is a checkpoint from the last settle, so writing it over a
+           running fight would REVERT damage the player is watching land. */
+        if(applyCarriedFight(id,fight)&&typeof renderCombat==='function')renderCombat();
+      }
       return {kind:'combat',id:id};
     }
     if(kind==='gather'&&id){
@@ -1689,7 +1732,7 @@ function wireServerActivity(){
        measured in a real browser on a switch where the replacement gate had
        refused and NOTHING was written. */
     onEnvelope:function(res){ return applyServerEnvelope(res,{intent:true}); },
-    onReconcile:function(a){ return reconcileActivityPointer(a); },
+    onReconcile:function(a,verdict,fight){ return reconcileActivityPointer(a,fight); },
   });
 }
 /* ── ONE APPLIER FOR BOTH VERBS ───────────────────────────────────────────

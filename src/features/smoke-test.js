@@ -34814,6 +34814,275 @@ const TESTS = [
     });
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════
+     b372 — THE TWO LIVE-PLAY DEFECTS FROM THE 2026-08-17 AUDIT.
+
+     F7  AUTO-EAT NEVER FIRES.  Settings said "Auto-eat HP threshold 50%";
+         the character sat at 3/10 for dozens of swings with edible food in
+         the bag and died twice. Nothing downstream was broken — the engine
+         gate is `enabled && owned` and BOTH were false. The SCREEN was the
+         defect: it painted a live, draggable, persisted control for a trait
+         the character did not own, and for an `enabled` switch that had no
+         UI anywhere in the game.
+     F18 FIGHT RESUME BROKEN.  A mid-fight reload showed a Resume chip that
+         did not resume — `startCombat` is a TOGGLE and the chip's guard was
+         evaluated at PAINT time, so pressing it once the fight had re-armed
+         STOPPED it. And the server's Phase-0 fight carry
+         (`player_state.fight`) had no client reader at all, so any reconcile
+         that moved the pointer restarted the foe at full health.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('F7-1: Settings must not offer an operative auto-eat threshold without the trait', () => {
+    const realHasTrait = window.hasTrait;
+    const snap = snapshotG();
+    try {
+      /* UNOWNED. The screen may describe auto-eat; it may not offer a control
+         for it. A range input here is the bug verbatim — a persisted setting
+         that governs nothing, on a paid feature the player has not bought. */
+      window.hasTrait = function (id) { return id === 'auto_eat' ? false : realHasTrait.apply(this, arguments); };
+      window.openSettings();
+      const body = document.getElementById('settings-body');
+      assert(body, 'the settings modal did not render');
+      const lockedHtml = body.innerHTML;
+      const lockedTxt = body.textContent.replace(/\s+/g, ' ');
+      assert(!/data-set="autoEatPct"/.test(lockedHtml),
+        'THE F7 BUG: the auto-eat threshold slider is live for a character without the trait');
+      assert(!/data-autoeat=/.test(lockedHtml),
+        'an auto-eat ON/OFF switch is offered for a trait the character does not own');
+      assert(/ss-locked-tag/.test(lockedHtml), 'the auto-eat row is not marked locked');
+      /* Dimmed alone is a bug report. It must say WHERE to get it and WHAT to
+         do meanwhile — the same sentence renderCombat() already prints. */
+      assert(/Bounty Marks|gold/.test(lockedTxt) && /Store/.test(lockedTxt),
+        'the locked row never names the price or the shop: ' + lockedTxt.slice(0, 400));
+      assert(/manual|by hand|press .?Eat/i.test(lockedTxt),
+        'the locked row never tells the player how to heal instead: ' + lockedTxt.slice(0, 400));
+
+      /* OWNED. Both controls appear, and the switch is a real one. */
+      window.hasTrait = function (id) { return id === 'auto_eat' ? true : realHasTrait.apply(this, arguments); };
+      window.openSettings();
+      const owned = document.getElementById('settings-body');
+      assert(/data-set="autoEatPct"/.test(owned.innerHTML),
+        'the threshold slider is missing for a character who OWNS auto-eat');
+      const sw = owned.querySelector('[data-autoeat="enabled"]');
+      assert(sw, 'the auto-eat ON/OFF switch is missing — `enabled` is unreachable from the UI again');
+      assert(!/ss-locked-tag/.test(owned.innerHTML), 'auto-eat still reads as locked for an owner');
+    } finally {
+      window.hasTrait = realHasTrait;
+      try { document.getElementById('settings-modal').classList.remove('show'); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('F7-2: the Settings switch drives the ENGINE, and the whole eat chain fires', () => {
+    const A = window.HearthriseAuto;
+    assert(A && typeof A.maybeAutoEat === 'function', 'HearthriseAuto is not published');
+    const snap = snapshotG();
+    const eatBefore = A.getEat();
+    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
+    const realHasTrait = window.hasTrait;
+    try {
+      window.G.traits = { auto_eat: true };
+      window.hasTrait = function (id) { return id === 'auto_eat' ? true : realHasTrait.apply(this, arguments); };
+      /* Start from the state the audit found: the trait owned, the switch OFF.
+         Before b372 this state was unreachable from the UI — which is why a
+         grandfathered save could sit in it forever. */
+      A.setEat({ enabled: false, threshold: 0.5, foodId: null });
+      window.G.playerMaxHp = 10; window.G.playerHp = 3;
+      window.G.inventory = window.G.inventory || {};
+      window.G.inventory.cooked_shrimp = 4;
+      window.G.combatLog = [];
+      assert(A.maybeAutoEat() === false, 'auto-eat fired while switched off');
+
+      /* Now flip it THROUGH THE SCREEN — the click path, not the API. */
+      window.openSettings();
+      const sw = document.getElementById('settings-body').querySelector('[data-autoeat="enabled"]');
+      assert(sw, 'the switch is not on the Gameplay panel');
+      sw.checked = true;
+      sw.dispatchEvent(new Event('change', { bubbles: true }));
+      assert(A.getEat().enabled === true,
+        'the Settings switch did not reach the engine — `autoActions.eat.enabled` is still '
+        + A.getEat().enabled);
+
+      /* THRESHOLD CROSSED → FOOD CONSUMED → HP UP. The whole chain, in one go. */
+      const preHp = window.G.playerHp, preQty = window.G.inventory.cooked_shrimp;
+      assert(A.maybeAutoEat() === true, 'auto-eat still did not fire with the trait owned and the switch on');
+      assert(window.G.playerHp > preHp, 'HP did not rise: ' + preHp + ' -> ' + window.G.playerHp);
+      assert(window.G.inventory.cooked_shrimp === preQty - 1, 'no food was consumed');
+
+      /* And the trait gate is still unbypassable — the switch is not a way in. */
+      window.G.playerHp = 3;
+      window.G.traits = {};
+      assert(A.maybeAutoEat() === false,
+        'auto-eat fired WITHOUT the purchased trait — the 100-mark gate is gone');
+    } finally {
+      window.hasTrait = realHasTrait;
+      try { document.getElementById('settings-modal').classList.remove('show'); } catch (e) {}
+      A.setEat(eatBefore);
+      window.G.traits = traitsBefore;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('F7-3: the v5→v6 grandfather must switch auto-eat ON, not just grant the trait', () => {
+    assert(typeof window.applyMigrations === 'function', 'applyMigrations is not published');
+    /* The `foodSlot` arm of the migration matches saves whose
+       `autoActions.eat.enabled` is FALSE. Granting the trait alone left those
+       players with a 100-mark feature and an off switch that had no UI — the
+       exact state F7 was reported from. */
+    const legacy = window.applyMigrations({
+      v: 5, foodSlot: 'cooked_shrimp',
+      autoActions: { eat: { enabled: false, threshold: 0.3, foodId: null, pctSynced: true } },
+    });
+    assert(legacy.traits && legacy.traits.auto_eat === true, 'the trait was not grandfathered');
+    assert(legacy.autoActions.eat.enabled === true,
+      'THE F7-3 BUG: the trait was granted but auto-eat stayed switched off');
+    assert(legacy.autoActions.eat.foodId === 'cooked_shrimp',
+      'the legacy foodSlot choice was dropped: ' + legacy.autoActions.eat.foodId);
+    assert(legacy.autoActions.eat.threshold === 0.3,
+      'the migration overwrote a threshold the player had already chosen');
+    /* And it must stay a MIGRATION: a fresh save never enters this branch, so
+       a new player still has to buy the trait. */
+    const fresh = window.applyMigrations({ v: 5, autoActions: { eat: { enabled: false, threshold: 0.5, foodId: null } } });
+    assert(!(fresh.traits && fresh.traits.auto_eat),
+      'a save with no auto-eat history was handed the trait for free');
+    assert(!(fresh.autoActions && fresh.autoActions.eat && fresh.autoActions.eat.enabled),
+      'a save with no auto-eat history was switched on');
+  }),
+
+  () => tryRun('F18-1: fightOf() reads the server carry, and refuses everything it is unsure of', () => {
+    const M = window.HearthriseActivity;
+    assert(M && typeof M.fightOf === 'function',
+      'THE F18 BUG: nothing on the client reads `state.fight` — the server carries the fight and '
+      + 'the client throws it away');
+    const ok = M.fightOf({ state: { fight: { monster: 'slime', hp: 3, kills: 7 } } });
+    assert(ok && ok.monster === 'slime' && ok.hp === 3 && ok.kills === 7,
+      'a well-formed carry was not read: ' + JSON.stringify(ok));
+    /* The migration's own encoding: null = no column, {} = no fight. Both mean
+       "do not resume", and neither may become a phantom foe. */
+    assert(M.fightOf({ state: { fight: null } }) === null, 'a null carry became a fight');
+    assert(M.fightOf({ state: { fight: {} } }) === null, 'an empty carry became a fight');
+    assert(M.fightOf({ state: {} }) === null, 'an absent carry became a fight');
+    assert(M.fightOf(null) === null, 'a missing body became a fight');
+    /* hp 0 is a DEAD foe. Resuming one is how you get a monster that cannot be
+       killed, so it is refused rather than repaired. */
+    assert(M.fightOf({ state: { fight: { monster: 'slime', hp: 0, kills: 1 } } }) === null,
+      'a zero-hp carry was accepted');
+    assert(M.fightOf({ state: { fight: { monster: 'slime', hp: 'lots' } } }) === null,
+      'a non-numeric hp was accepted');
+    assert(M.fightOf({ state: { fight: { monster: '', hp: 5 } } }) === null,
+      'a nameless monster was accepted');
+    /* A missing kill count is 0, not NaN — it feeds G.combatKillsThisFoe. */
+    const k = M.fightOf({ state: { fight: { monster: 'slime', hp: 2 } } });
+    assert(k && k.kills === 0, 'a missing kill count did not default to 0: ' + JSON.stringify(k));
+  }),
+
+  () => tryRun('F18-2: a reconcile RESUMES the carried fight instead of restarting the foe', () => {
+    assert(typeof window.reconcileActivityPointer === 'function', 'the reconcile seam is gone');
+    const snap = snapshotG();
+    const killsBefore = window.G.combatKillsThisFoe;
+    try {
+      window.stopCombat();
+      /* A 520-hp boss and an unkillable champion, so the one live swing
+         `startCombat()` fires can end neither side. Without that this test
+         would be a coin flip on whatever gear the suite left equipped, and a
+         flaky guard is worse than no guard. It is also the case that MATTERS:
+         a foe whose time-to-kill exceeds one settle window is precisely what
+         the fight-carry column exists for. */
+      window.G.playerMaxHp = 1e6; window.G.playerHp = 1e6;
+      const max = window.MONSTERS.dragon.hp;
+      /* The server says: you are on the dragon, and it is nearly dead. Before
+         b372 this landed on startCombat() alone and the player got a brand-new
+         dragon at full health — the entire fight, thrown away, every settle. */
+      window.reconcileActivityPointer({ kind: 'combat', id: 'dragon' },
+        { monster: 'dragon', hp: 5, kills: 4 });
+      assert(window.G.activeMonster === 'dragon', 'the reconcile did not enter the fight');
+      assert(window.G.monsterMaxHp === max, 'the max HP is not the catalogue value');
+      assert(window.G.monsterHp <= 5, 'THE F18 BUG: the carried fight was discarded — the dragon is on '
+        + window.G.monsterHp + '/' + max + ' instead of 5');
+      assert(window.G.combatKillsThisFoe >= 4, 'the carried kill count was dropped: '
+        + window.G.combatKillsThisFoe);
+
+      /* STALE CARRY, FAIL CLOSED. A carry naming a different monster must never
+         pour its HP into the current foe — that is a free half-killed boss.
+         Mirrors the Edge engine's `fight.monster === activeId` guard. */
+      window.stopCombat();
+      window.reconcileActivityPointer({ kind: 'combat', id: 'dragon' },
+        { monster: 'goblin', hp: 5, kills: 99 });
+      assert(window.G.monsterHp > 5, 'a carry for ANOTHER monster was applied to this one');
+      assert(window.G.combatKillsThisFoe < 99, 'a stale carry moved the kill count');
+
+      /* And a carry above the catalogue ceiling is clamped, not trusted — a
+         monster with more HP than it has cannot be killed. */
+      window.stopCombat();
+      window.reconcileActivityPointer({ kind: 'combat', id: 'dragon' },
+        { monster: 'dragon', hp: 1e9, kills: 0 });
+      assert(window.G.monsterHp <= max, 'an over-ceiling carry was not clamped: ' + window.G.monsterHp);
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      window.G.combatKillsThisFoe = killsBefore;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('F18-3: a reconcile for the fight already running must not revert live damage', () => {
+    const snap = snapshotG();
+    try {
+      window.G.playerMaxHp = 1e6; window.G.playerHp = 1e6;
+      window.startCombat('dragon');
+      window.G.monsterHp = 5;                       // the player has nearly won
+      /* The carry is a CHECKPOINT from the last settle, so it is always older
+         than a fight this client is watching. Writing it over a running fight
+         would hand the monster its health back mid-swing. */
+      window.reconcileActivityPointer({ kind: 'combat', id: 'dragon' },
+        { monster: 'dragon', hp: window.MONSTERS.dragon.hp, kills: 0 });
+      assert(window.G.monsterHp <= 5,
+        'a stale checkpoint reverted a live fight: the dragon went back to ' + window.G.monsterHp);
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('F18-4: the Resume chip must never STOP the fight it offers to resume', () => {
+    const LP = window.HearthriseLaunchpad;
+    assert(LP && typeof LP.getResumePayload === 'function', 'the launchpad is not published');
+    const snap = snapshotG();
+    const realShowTab = window.showTab;
+    try {
+      window.showTab = () => {};
+      window.G.playerMaxHp = 1e6; window.G.playerHp = 1e6;
+      /* Paint the card in the state that produces it: idle, with a fight in the
+         recent past. */
+      window.stopCombat();
+      window.G.lastActivity = { kind: 'monster', id: 'dragon', stoppedAt: Date.now() };
+      const p = LP.getResumePayload();
+      assert(p && p.kind === 'monster' && p.id === 'dragon', 'no Resume payload for a recent fight');
+
+      /* THE RACE, REPRODUCED. Between the paint and the press, the boot's
+         loadLocal() re-arms the saved fight (or a server reconcile does). The
+         card is still on screen. `startCombat` is a toggle, so the old action
+         stopped the very fight it advertised — "a Resume chip appeared but did
+         not resume", verbatim. */
+      window.startCombat('dragon');
+      window.G.monsterHp = 9;
+      p.action();
+      assert(window.G.activeMonster === 'dragon',
+        'THE F18-4 BUG: pressing Resume STOPPED the fight (activeMonster is now '
+        + window.G.activeMonster + ')');
+      assert(window.G.monsterHp <= 9,
+        'Resume restarted the foe it was already fighting: ' + window.G.monsterHp);
+
+      /* A DIFFERENT foe running is a real switch and must still work. */
+      window.startCombat('goblin');
+      p.action();
+      assert(window.G.activeMonster === 'dragon', 'Resume no longer switches away from another foe');
+    } finally {
+      window.showTab = realShowTab;
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

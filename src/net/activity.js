@@ -140,6 +140,12 @@ let queued = null;
 let config = null;
 let last = null;
 let lastServerActivity = null;   // the newest activity the SERVER has stated
+/* b372 (F18): the in-flight fight that came WITH `lastServerActivity`. Held
+   beside it, never merged into it, because the two answer different questions —
+   "what is this character doing" and "how far through the current foe" — and a
+   pointer with a fight glued to it would leak a combat-only field into the
+   gather and idle branches of every consumer. */
+let lastServerFight = null;
 /* ── THE ACKNOWLEDGED POINTER (b348) ────────────────────────────────────────
    The newest declaration the server has AGREED WITH: a `{kind,id}` this client
    sent, which an answer then reported back as the server's own state. It is not
@@ -408,6 +414,45 @@ export function activityOf(body) {
 }
 
 /**
+ * THE IN-FLIGHT FIGHT THE SERVER IS HOLDING (Phase 0 fight-carry), OR NULL.
+ *
+ * b372 (F18, live audit 2026-08-17). `player_state.fight` has been server state
+ * since 2026-08-17-fight-carry.sql, `hr_state_of` projects it, and hr-accrue
+ * feeds it back into every span — but NOTHING ON THE CLIENT HAS EVER READ IT.
+ * The one consumer of an envelope's activity, `activityOf()` above, takes
+ * `active_kind`/`active_id` and stops there, so `reconcileActivityPointer()`
+ * could only ever answer "you are fighting a goblin" and never "…and it is on
+ * 40 of its 120 hit points". Its only tool is `startCombat()`, which sets
+ * `monsterHp = m.hp` — so every reconcile that had to move the pointer RESTARTED
+ * the fight the server was carrying, discarding the partial the column exists to
+ * preserve. The server resumes; the client did not.
+ *
+ * Returns `{ monster, hp, kills }` or null. STRICT, and each rejection is a
+ * different sentence the server might be saying:
+ *   • `null` / `{}`      → "no fight in flight" (the migration's own encoding:
+ *                          null means the column is absent, `{}` means idle).
+ *   • hp not a positive   → a dead or unstated foe. Resuming a fight at 0 hp is
+ *     finite number         how you get a monster that cannot be killed.
+ *   • monster not a        → an id this build cannot name. Never invent one.
+ *     non-empty string
+ * The CALLER clamps hp against its own catalogue — this function does not import
+ * the monster table, because a parser that silently repairs its input is a
+ * parser you cannot use to detect that the input was wrong.
+ */
+export function fightOf(body) {
+  const st = (body && typeof body === 'object' && body.state && typeof body.state === 'object')
+    ? body.state : null;
+  const f = st ? st.fight : null;
+  if (!f || typeof f !== 'object') return null;
+  const monster = f.monster;
+  if (typeof monster !== 'string' || !monster) return null;
+  const hp = Number(f.hp);
+  if (!Number.isFinite(hp) || !(hp > 0)) return null;
+  const kills = Number(f.kills);
+  return { monster, hp, kills: (Number.isFinite(kills) && kills >= 0) ? Math.floor(kills) : 0 };
+}
+
+/**
  * THE RECEIPT, OR NULL. Null both when the server sent none and when it sent
  * one that paid nothing — a zero receipt rendered is a welcome-back card that
  * says "+0 gold" over the real one, which is the mirror image of the bug this
@@ -530,10 +575,10 @@ export function setActivityHooks(h) { hooks = { ...hooks, ...(h || {}) }; }
    NOTHING was written. A state object that reports an intention as an outcome is
    the same family of bug as an assertion that asserts nothing, and it is worse
    here because it is what an incident would be read from. */
-function fire(name, a, b) {
+function fire(name, a, b, c) {
   const fn = hooks && hooks[name];
   if (typeof fn !== 'function') return null;
-  try { return fn(a, b); }
+  try { return fn(a, b, c); }
   catch (e) { console.warn('[activity] hook ' + name + ' threw:', e && e.message); return null; }
 }
 
@@ -549,6 +594,7 @@ export function getActivityState() {
 
 export function resetActivity() {
   inFlight = null; queued = null; last = null; lastServerActivity = null; confirmed = null;
+  lastServerFight = null;
 }
 
 /**
@@ -720,7 +766,14 @@ function settle(verdict, kind, id) {
       const acked = (verdict.outcome === 'switched' || verdict.outcome === 'replayed')
         && a.kind === kind && a.id === (id == null ? null : String(id));
       if (acked) confirmed = { kind: a.kind, id: a.id };
-      fire('onReconcile', { ...lastServerActivity }, verdict);
+      /* b372 (F18): the carried fight rides WITH the pointer, from the same
+         envelope, in the same call. Kept as module state for the no-envelope
+         branch below for the same reason `lastServerActivity` is: a refusal
+         carries no state, so the last thing the server actually said is still
+         the truth, and reconciling the pointer without the fight would restart
+         a foe the server is still holding at half health. */
+      lastServerFight = fightOf(body);
+      fire('onReconcile', { ...lastServerActivity }, verdict, lastServerFight);
       applied.reconciled = { ...lastServerActivity };
     }
   } else if (isAnswered(verdict.outcome) && verdict.outcome !== 'switched') {
@@ -730,7 +783,7 @@ function settle(verdict, kind, id) {
        its own optimistic guess: keeping the guess is the one thing a client is
        never allowed to do. */
     if (lastServerActivity) {
-      fire('onReconcile', { ...lastServerActivity }, verdict);
+      fire('onReconcile', { ...lastServerActivity }, verdict, lastServerFight);
       applied.reconciled = { ...lastServerActivity };
     } else {
       /* We have never been told. Nothing to reconcile TO, so the optimistic
@@ -841,7 +894,7 @@ if (typeof window !== 'undefined') {
     isActivityIntentEnabled, isDeclarableActivity, declarationFor, isPayableRecipe,
     buildActivityRequest,
     classifyActivityResponse, shouldRetryActivity,
-    envelopeOf, activityOf, collectedOf, awayFromCollected, applyIntentEnvelope,
+    envelopeOf, activityOf, fightOf, collectedOf, awayFromCollected, applyIntentEnvelope,
     configureActivity, getActivityConfig, setActivityHooks,
     declare, declareActivity, getActivityState, resetActivity, setLastServerActivity,
     isActivityConfirmed, setConfirmedActivity,

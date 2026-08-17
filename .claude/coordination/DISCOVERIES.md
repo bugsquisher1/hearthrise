@@ -4,69 +4,53 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
-## 2026-08-17 · systems-engineer · "Strange flickering of old assets" is TWO bugs, and the one we could see is the smaller one
-**Affected systems:** boot order (legacy.js / main.js), every icon-bearing surface, the shipped icon bundle.
-**Required action:** ordering half is FIXED below; the payload half is an ASSET decision — see HANDOFFS.
+### 2026-08-17 · Systems Engineer (b372) · The server has been carrying the in-flight fight since Phase 0 and NO CLIENT CODE EVER READ IT — plus: a paid feature's only switch had no UI
 
-Tyler's flicker report (LIVE-AUDIT F13 / F13-addendum / F15) was investigated by instrumenting the
-real boot in Playwright rather than by reading source. It is not one bug, and it is not caching.
+**DISCOVERY — TWO, and they share a shape.**
 
-### 1. The icon-map ordering gap — REAL, measured, now fixed
-`legacy.js` is a classic script and paints screens while it is the only thing that has run; at that
-moment `window._itemPath` holds **109** of the ~490 paths the game ships. `src/main.js` is a module,
-therefore deferred, and it is what completes the map. Worst observed ordering on a cold boot:
+**(1) `player_state.fight` had no client reader.** The Phase-0 fight carry
+(`supabase/migrations/2026-08-17-fight-carry.sql`) is real: `hr_state_of` projects
+`fight` into every envelope's `state`, and `functions/hr-accrue/accrual.js` resumes
+from it (`fight.monster === activeId && fight.hp > 0`). On the client, the ONLY
+consumer of an envelope's activity was `activityOf()` in `src/net/activity.js`,
+which reads `active_kind`/`active_id` and stops. So `reconcileActivityPointer()`
+could only ever say "you are fighting a dragon" and never "…and it is on 5 of 520",
+and its only tool is `startCombat()`, whose second statement is
+`G.monsterHp = m.hp`. **Every reconcile that had to move the pointer restarted the
+fight the server was still holding.** The server resumed; the client threw the
+partial away. On a 520-hp boss that is the entire fight, every settle — which is
+the exact loss the column was added to prevent, reappearing on the other side of
+the wire.
 
-```
- 905 ms  renderInvNew()      _itemPath = 109   <- blank tiles, never repainted
-~960 ms  main.js merge       _itemPath = 484
-1006 ms  showTab('profile')                    <- repaints PROFILE only
-1732 ms  the old 1500 ms timer  _itemPath = 490
-```
+**(2) `startCombat()` is a TOGGLE, and one caller treats it as an imperative.**
+`if(G.activeMonster===mId){stopCombat();return;}`. The Home dashboard's Resume chip
+took its "is anything running?" decision at PAINT time and called `startCombat` at
+CLICK time; a fight arriving in between (boot's `loadLocal()` re-arms the saved one)
+turned Resume into Stop. That is Tyler's "a Resume chip appeared but did not resume".
 
-109/484 is 22% — which is exactly the audit's "28 occupied slots, ~7 icons visible". The old
-`setTimeout(__mapGeneratedGearIcons, 1500)` was both a guessed delay AND a forced full inventory
-repaint at ~1.7 s on **every** boot. Replaced by `window.__hrIconsReady()`, called by main.js at the
-instant the map is complete. Guarded by `tests/icon-boot-order.mjs`.
+**AFFECTED SYSTEMS.** `src/net/activity.js` (`fightOf`, `fire`, the two
+`onReconcile` sites) · `src/legacy.js` (`reconcileActivityPointer`,
+`applyCarriedFight`) · `src/features/profile-launchpad.js` · anything that will
+later resume an activity from a server envelope.
 
-### 2. The DOMINANT cause is ICON PAYLOAD WEIGHT — not fixed, asset domain
-Even with a perfect map, a freshly-innerHTML'd screen shows empty boxes until its PNGs arrive.
-Measured, Farm opened at the first opportunity, 1.5 Mbps / 60 ms latency (a normal phone):
+**REQUIRED ACTION.**
+- **Any new server-owned in-flight field needs a client READER named in the same
+  change as the column.** A projected field with no consumer is invisible: nothing
+  fails, the numbers are simply wrong. `fightOf()` is now the pattern — a strict
+  parser that returns `null` for everything it is not certain about, with the clamp
+  done by the caller against its own catalogue.
+- **Never call `startCombat()` to *ensure* a fight.** It toggles. Guard on
+  `G.activeMonster !== id` at the moment of the call, never at render time.
+- Related, same family: **`G.autoActions.eat.enabled` had no UI at all** — reachable
+  only by buying the trait or picking a food — while Settings rendered a live,
+  persisted THRESHOLD slider above it, for a 100-mark trait the player might not
+  own. A control that governs a switch the player cannot see is a control that lies.
+  When gating a feature on a purchase, gate the SCREEN in the same change as the
+  engine (`hasTrait('auto_eat')`, `.ss-row.is-locked` + `.ss-locked-tag`).
 
-```
-   t+100 ms  0 / 9 crop icons painted
-   t+300 ms  6 / 9
-  t+1200 ms  9 / 9
-```
+**NOTE FOR THE COORDINATOR:** this file arrived in the worktree carrying unresolved
+`<<<<<<< HEAD` conflict markers below this entry. Not mine, not touched.
 
-On a settled connection the same screen fills in ~50 ms, which is why this only bites during boot
-and on first visit — precisely when Tyler was looking. Measured bundle:
-
-| folder | files | dims | avg | total |
-|---|---|---|---|---|
-| hearthfire/items | 216 | 128x105 | 28 KB | 6 MB |
-| hearthfire/armour | 126 | 128x128 | 30 KB | 4 MB |
-| hearthfire/food | 64 | 128x128 | 28 KB | 2 MB |
-| hearthfire/weapons | 67 | 127x128 | 20 KB | 1 MB |
-| hearthfire/monsters | 74 | 256x256 | **112 KB** | 8 MB |
-
-A 128x128 RGBA icon at 28 KB is ~1.8 bytes/pixel — PNG doing nearly nothing on noisy painted art.
-One inventory screen of 28 items is ~840 KB, which at 1.5 Mbps is ~4.5 s: the audit's "all 28
-painted 4 s later", to the second. The Bounty Board's F15 case is the same arithmetic at its worst —
-six 44px `.bb-cut` slots each fetching a **256px, 112 KB** monster portrait, ~670 KB for six
-thumbnails.
-
-**A blanket preloader was considered and rejected**: prefetching reorders the download, it does not
-shrink it, and at 27 MB it would be a hostile thing to do to a phone. The fix is at the asset layer.
-
-### 3. Method note
-Three theories were held and two were killed by measurement: "the ESM merge lands after first paint"
-(mostly false — it lands before boot in the common ordering) and "showTab caches a pre-rendered
-panel" (false — `showTab` re-renders). The one that survived was the one nobody had proposed. Boot
-races are not readable from source; instrument the real page.
-
----
-
-<<<<<<< HEAD
 ### 2026-08-17 · Art Director (b369) · FIVE stylesheets were each authoring one piece of the paper-doll's grid, and the two that disagreed produced a live overlap on two surfaces
 
 **DISCOVERY.** `.td-doll` is one component with five mounts and, until b369, five
@@ -119,7 +103,7 @@ sword worn in the rail and sitting in his bag at the same time. There is now one
 `repaintEquipSurfaces()` list (published as `window.__repaintEquipSurfaces`),
 which also covers the Character → Equipment doll. **Anything new that paints
 `G.equipment` must be added to that list, not to a fourth call site.**
-=======
+
 ### 2026-08-17 (bg pack) · Art Director · **The Fight stage has no wide open area for a backdrop — it has three vertical slots; and `cozy-light` is unreachable, so every `body[data-theme="cozy-light"]` rule in the codebase is dead**
 
 **DISCOVERY 1 — the backdrop brief in `combat-screen-rework.md` §5 is wrong about WHERE the hole is,
@@ -164,7 +148,6 @@ neither painted art nor an atlas glyph. 104 of 111 are wired so it is rarely rea
 live emoji-as-art path in the file that owns the two densest combat surfaces.
 **AFFECTED:** War Table cards, Fight stage, ribbon. **REQUIRED ACTION (Art Director, next combat
 pass):** replace the tail with a gilt atlas glyph; the 7 unwired monsters are the reproduction.
->>>>>>> worktree-agent-a5eae785e9a4bf6e5
 
 ---
 

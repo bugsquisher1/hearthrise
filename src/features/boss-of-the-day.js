@@ -148,10 +148,18 @@
     // Live with the monster picker ("choose a fight"), so the mobile sub-tabs
     // keep it on the Foes tab and out of an active fight. Sit just before the
     // picker card; fall back to the panel top if the picker isn't there yet.
+    /* b362: the picker moved INSIDE the War Table view, so it is no longer a
+       child of the panel and `insertBefore(card, picker)` threw NotFoundError
+       on every 1s tick — a hard uncaught error on the combat screen. The anchor
+       must be a real sibling or there must be no anchor at all. These two cards
+       are superseded by the War Table's destination row (COMBAT-UI-05) and are
+       hidden by combat-screens.css; they keep rendering because
+       HearthriseBossOfDay.fight() and the suite still read them. */
     var picker = panel.querySelector('.combat-picker');
-    var target = picker || panel.firstChild;
-    if (card.parentElement !== panel || (picker && card.nextElementSibling !== picker)) {
-      panel.insertBefore(card, target);
+    var target = (picker && picker.parentElement === panel) ? picker : panel.firstChild;
+    if (card.parentElement !== panel || (target && card.nextElementSibling !== target)) {
+      if (target && target.parentElement === panel) panel.insertBefore(card, target);
+      else panel.appendChild(card);
     }
     return card;
   }
@@ -254,8 +262,12 @@
     if (daily && daily.parentElement === panel) {
       if (card.previousElementSibling !== daily) panel.insertBefore(card, daily.nextSibling);
     } else if (card.parentElement !== panel) {
+      /* b362: same anchor guard as ensureCard() above — the picker is inside
+         the War Table view now and is not a sibling to insert before. */
       var picker = panel.querySelector('.combat-picker');
-      panel.insertBefore(card, picker || panel.firstChild);
+      var anchor = (picker && picker.parentElement === panel) ? picker : panel.firstChild;
+      if (anchor && anchor.parentElement === panel) panel.insertBefore(card, anchor);
+      else panel.appendChild(card);
     }
     return card;
   }

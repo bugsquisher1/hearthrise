@@ -20,12 +20,12 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=364';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=364';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=364';
+import { SKILLS_DEF } from '../data/skills.js?v=365';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=365';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=365';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
-import { balanceMarkup } from '../net/balance.js?v=364';
+import { balanceMarkup } from '../net/balance.js?v=365';
 
 function deriveClass() {
   const G = window.G;

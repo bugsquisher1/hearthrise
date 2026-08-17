@@ -1,0 +1,725 @@
+/* ==========================================================================
+ * src/styles/combat-screens.css — THE WAR TABLE and THE FIGHT (b362)
+ *
+ * Phase 1 of docs/design/combat-screen-rework.md. Loads LAST, after
+ * combat-hud.css, and everything in it is scoped to `#panel-combat` or to one
+ * of the `wt-` / `fs-` namespaces this rework introduced.
+ *
+ * WHY THERE ARE `!important`s IN HERE, AND ONLY WHERE THERE ARE
+ * -------------------------------------------------------------
+ * `audit-overrides.css` declares the three-column combat grid with `!important`
+ * and no media query (l.488), and combat-hud.css §7 already had to undo it once
+ * for a 420px landscape phone. The two-screen split replaces that layout
+ * outright, so the same undoing is needed at every width. Each `!important`
+ * below is cancelling a specific weighted rule in an older sheet, never winning
+ * an argument with an unweighted one. The legacy cards are HIDDEN, not deleted:
+ * `#monster-list`, `#loadout-panel` and `#combat-area` are still live render
+ * targets for the engine, so their hosts have to stay in the document.
+ *
+ * NO HARDCODED COLOURS. Every value is a theme token, so cozy-light and
+ * hearthlight both get a designed screen from one sheet. The one exception is
+ * the stage backdrop's black scrim, which is a LIGHTING layer over a photograph
+ * rather than a surface colour — it is authored as `rgba(0,0,0,·)` for the same
+ * reason a vignette is, and it is the layer COMBAT-UI-17's painted biomes drop
+ * into (see §THE STAGE below).
+ * ========================================================================== */
+
+/* ── 1 · THE PANEL BECOMES TWO VIEWS ──────────────────────────────────────*/
+#panel-combat.active {
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: none !important;
+  grid-template-rows: none !important;
+  grid-template-areas: none !important;
+  gap: 0 !important;
+  padding: 10px !important;
+  overflow: hidden !important;
+  min-height: 0;
+}
+
+/* The retired surfaces. Every one of these is REPLACED by a new element:
+ *   .combat-picker      → the War Table grid          (still owns #monster-list)
+ *   .combat-loadout     → the quick-swap strip        (still owns #loadout-panel)
+ *   .combat-style-block → the on-stage style selector
+ *   #hr-botd-card / #hr-weekly-card → destination cards
+ *   #cmb-mob-tabs       → the split itself; the Fight has no sub-tabs, which is
+ *                         what retires the b230 / b334 blank-screen trap class */
+#panel-combat.active .combat-picker,
+#panel-combat.active .combat-loadout,
+#panel-combat.active > .combat-style-block,
+#panel-combat.active #hr-botd-card,
+#panel-combat.active #hr-weekly-card,
+#panel-combat.active #cmb-mob-tabs {
+  display: none !important;
+}
+
+#panel-combat .cbt-views { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+#panel-combat .wt-view,
+#panel-combat .fs-view { display: none; flex: 1 1 auto; min-height: 0; }
+#panel-combat[data-combat-view="table"] .wt-view { display: flex; flex-direction: column; gap: 10px; }
+#panel-combat[data-combat-view="fight"] .fs-view { display: flex; flex-direction: column; gap: 8px; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 2 · THE WAR TABLE
+ * ════════════════════════════════════════════════════════════════════════*/
+
+/* COMBAT-UI-02 — the return ribbon. The hub's most prominent row when a fight
+ * is live, because that is what makes browsing anxiety-free: the fight is
+ * running, it is right there, and it is one tap back. */
+#panel-combat .wt-ribbon {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, var(--gold-bg), transparent);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r, 8px);
+  flex: 0 0 auto;
+}
+#panel-combat .wt-ribbon[hidden] { display: none; }
+#panel-combat .wtr-kicker {
+  font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
+  font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--gold-2);
+}
+#panel-combat .wtr-art { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
+#panel-combat .wtr-art img { width: 100%; height: 100%; object-fit: contain; }
+#panel-combat .wtr-name {
+  font-family: var(--f-display); font-weight: 800; font-size: var(--t-body, 15px);
+  color: var(--ink); white-space: nowrap;
+}
+#panel-combat .wtr-hp {
+  position: relative; flex: 1 1 120px; max-width: 220px; height: 18px;
+  background: var(--field-sunk, rgba(0,0,0,.3)); border: 1px solid var(--line-soft);
+  border-radius: 9px; overflow: hidden; display: flex; align-items: center;
+}
+/* The ribbon's two bars are the reason the ribbon exists — "am I winning?" at a
+ * glance from the hub — so the fill takes the real accent rather than its 18%
+ * wash, which measured as invisible against the sunken track. */
+#panel-combat .wtr-hp i { position: absolute; inset: 0 auto 0 0; background: var(--red); opacity: .55; }
+#panel-combat .wtr-hp.you i { background: var(--green); opacity: .55; }
+#panel-combat .wtr-hp b {
+  position: relative; width: 100%; text-align: center;
+  font-variant-numeric: tabular-nums; font-size: var(--t-micro, 11px);
+  font-weight: 800; color: var(--ink);
+}
+#panel-combat .wtr-kills { font-size: var(--t-micro, 11px); color: var(--ink-2); white-space: nowrap; }
+#panel-combat .wtr-go { margin-left: auto; white-space: nowrap; }
+
+/* COMBAT-UI-05 — the destination row. Cards are big because a destination is
+ * supposed to be, and none of them ever disappears: an empty slot in a menu is
+ * what teaches the rotation. */
+#panel-combat .wt-dest-rail { flex: 0 0 auto; overflow-x: auto; overscroll-behavior-x: contain; }
+#panel-combat .wt-dests { display: flex; gap: 8px; min-width: min-content; }
+#panel-combat .wt-dest {
+  flex: 1 1 200px; min-width: 190px; max-width: 320px;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 10px;
+  background: var(--surf-sunken, rgba(0,0,0,.18));
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r, 8px);
+}
+#panel-combat .wt-dest header { display: flex; align-items: baseline; gap: 6px; }
+#panel-combat .wtd-kick {
+  font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
+  font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-2);
+}
+#panel-combat .wtd-count {
+  font-variant-numeric: tabular-nums; font-weight: 800; font-size: var(--t-micro, 11px);
+  color: var(--ink); background: var(--gold-bg); border-radius: 999px; padding: 0 6px;
+}
+#panel-combat .wtd-timer { margin-left: auto; font-size: var(--t-micro, 11px); color: var(--ink-3); white-space: nowrap; }
+#panel-combat .wtd-body { display: flex; gap: 8px; align-items: center; min-height: 46px; }
+#panel-combat .wtd-img { width: 46px; height: 46px; object-fit: contain; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+#panel-combat .wtd-img.is-emoji { font-size: 26px; }
+#panel-combat .wtd-main { display: flex; flex-direction: column; min-width: 0; }
+#panel-combat .wtd-main b {
+  font-family: var(--f-display); font-size: var(--t-small, 13px); color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#panel-combat .wtd-main span { font-size: var(--t-micro, 11px); color: var(--ink-2); }
+#panel-combat .wt-dest footer { display: flex; }
+#panel-combat .wt-dest footer .btn { width: 100%; justify-content: center; }
+
+/* The filter bar — tier chips plus the class filter, one row. */
+#panel-combat .wt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; flex: 0 0 auto; }
+#panel-combat .wt-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+#panel-combat .wt-classes { opacity: .95; }
+#panel-combat .wt-chips .chip { padding: 3px 10px; font-size: var(--t-micro, 11px); }
+
+/* COMBAT-UI-03 — the grid. Sized FROM THE ROSTER: the largest tier is 21
+ * monsters, and at ~1600px of content a 160px track runs 9 across, so a whole
+ * tier is three rows with no scroll. A menu that shows three items on a 1900px
+ * screen is a failure, so the card bends to the roster and not the reverse. */
+#panel-combat .wt-grid {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  /* `min-content` rows and a `min-height` on the card, because a grid row that
+     is allowed to be shorter than its item makes the item's flex children
+     SHRINK — measured in the b362 gate at 922x423: the row resolved to 48px, the
+     128px portrait shrank to 9px, and every card was art-only with its name,
+     weakness and kill count squeezed to nothing. A browsing card whose contents
+     are negotiable is not a browsing card. */
+  grid-auto-rows: min-content;
+  gap: 8px;
+  align-content: start;
+  padding-right: 2px;
+}
+#panel-combat .wt-card {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 6px 6px;
+  background: var(--surf-sunken, rgba(0,0,0,.18));
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r, 8px);
+  cursor: pointer; text-align: center; overflow: hidden;
+  min-height: 186px;
+  transition: border-color .12s, transform .12s;
+}
+#panel-combat .wt-card:hover:not(:disabled),
+#panel-combat .wt-card:focus-visible { border-color: var(--gold-2); transform: translateY(-2px); }
+#panel-combat .wt-card.is-live { border-color: var(--gold-2); box-shadow: 0 0 0 1px var(--gold-2) inset; }
+#panel-combat .wt-card.is-locked { opacity: .5; cursor: default; }
+#panel-combat .wtc-art { width: 100%; flex: 0 0 108px; display: flex; align-items: center; justify-content: center; }
+#panel-combat .wtc-img { max-width: 100%; max-height: 108px; object-fit: contain; }
+#panel-combat .wtc-img.is-emoji { font-size: 54px; line-height: 1; }
+#panel-combat .wtc-name {
+  font-family: var(--f-display); font-size: var(--t-small, 13px); font-weight: 700;
+  color: var(--ink); line-height: 1.15;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* The two numbers a player compares between foes, in a FIXED position on every
+ * card so the grid can be scanned straight down instead of read row by row. */
+#panel-combat .wtc-stats {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: var(--t-micro, 11px); font-variant-numeric: tabular-nums;
+}
+#panel-combat .wtc-stats em { font-style: normal; color: var(--ink-3); text-transform: capitalize; }
+#panel-combat .wtc-stats b { color: var(--ink-2); }
+#panel-combat .wtc-kills {
+  font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
+  font-weight: 800; letter-spacing: .04em; color: var(--ink-2);
+}
+#panel-combat .wtc-kills.is-new { color: var(--gold-2); }
+#panel-combat .wtc-kills.is-live { color: var(--gold-2); }
+#panel-combat .wtc-kills.is-locked { color: var(--ink-3); }
+/* The drop summary is a HOVER reveal on desktop and simply absent on touch —
+ * the same two lines live in the preview state, which is where a phone reads
+ * them. It is absolutely positioned so revealing it cannot reflow the grid. */
+#panel-combat .wtc-drops {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 4px 6px;
+  background: var(--bg-3); border-top: 1px solid var(--line-soft);
+  font-size: var(--t-micro, 11px); color: var(--ink-2);
+  opacity: 0; transform: translateY(100%); transition: transform .12s, opacity .12s;
+  pointer-events: none;
+}
+#panel-combat .wt-card:hover:not(:disabled) .wtc-drops,
+#panel-combat .wt-card:focus-visible .wtc-drops { opacity: 1; transform: translateY(0); }
+
+/* COZY-LIGHT SURFACES. `--surf-sunken` resolves to `rgba(0,0,0,.3)` in every
+ * theme, which is a recessed well under hearthlight's warm dark and a muddy
+ * smear under cozy-light's parchment — with `--ink` (dark cocoa) printed on top
+ * of it. Measured in the b362 gate: the War Table cards read as dark-on-dark.
+ * The light theme takes its own elevated surface token instead, and the gilt
+ * kickers step down to the deeper gold, which is the one that survives on
+ * parchment. Tokens only; no theme is given a literal. */
+body[data-theme="cozy-light"] #panel-combat .wt-card,
+body[data-theme="cozy-light"] #panel-combat .wt-dest,
+body[data-theme="cozy-light"] #panel-combat .fs-tile {
+  background: var(--bg-3);
+  border-color: var(--line);
+}
+body[data-theme="cozy-light"] #panel-combat .wtd-kick,
+body[data-theme="cozy-light"] #panel-combat .wtr-kicker,
+body[data-theme="cozy-light"] #panel-combat .fsl-head,
+body[data-theme="cozy-light"] #panel-combat .fss-lbl {
+  color: var(--gold);
+}
+body[data-theme="cozy-light"] #panel-combat .fsg-slot,
+body[data-theme="cozy-light"] #panel-combat .fs-swing {
+  background: var(--bg-3);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 3 · THE FIGHT
+ * ════════════════════════════════════════════════════════════════════════*/
+#panel-combat .fs-top {
+  display: flex; align-items: center; gap: 10px; flex: 0 0 auto;
+  padding: 4px 2px;
+}
+#panel-combat .fs-back {
+  background: none; border: 1px solid var(--line-soft); border-radius: var(--r, 8px);
+  color: var(--ink-2); padding: 4px 10px; cursor: pointer;
+  font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
+  font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+}
+#panel-combat .fs-back:hover { color: var(--gold-2); border-color: var(--gold-2); }
+#panel-combat .fs-title { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+#panel-combat .fs-title b {
+  font-family: var(--f-display); font-size: var(--t-lead, 17px); font-weight: 800;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#panel-combat .fs-title span { font-size: var(--t-micro, 11px); color: var(--ink-3); white-space: nowrap; }
+
+/* COMBAT-UI-12 — the quick-swap strip. 44px, six slots, live totals, and one
+ * click to the full doll. This is the whole answer to "equipment needs
+ * scrolling": the paper-doll column leaves the combat screen entirely. */
+#panel-combat .fs-gear { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+#panel-combat .fsg-slot {
+  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  background: var(--field-sunk, rgba(0,0,0,.3));
+  border: 1px solid var(--line-soft); border-radius: 6px;
+}
+#panel-combat .fsg-slot img { width: 100%; height: 100%; object-fit: contain; }
+#panel-combat .fsg-slot i { font-style: normal; font-size: 15px; opacity: .55; }
+#panel-combat .fsg-slot.is-empty { opacity: .5; }
+#panel-combat .fsg-totals {
+  font-variant-numeric: tabular-nums; font-size: var(--t-micro, 11px);
+  font-weight: 800; color: var(--ink-2); margin: 0 4px; white-space: nowrap;
+}
+
+/* THE STAGE. The arena card is now the page: no monster column, no loadout
+ * column. `.fs-scrim` is a real element rather than another background layer on
+ * the card, because COMBAT-UI-17's painted biomes drop in behind it — the image
+ * goes on `.combat-arena`, the tier tint and the reduced scrim go here, and
+ * neither has to touch the other's rules to land. Ships at today's dark stage. */
+#panel-combat[data-combat-view="fight"] .combat-arena {
+  grid-area: auto !important;
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden !important;
+  position: relative;
+}
+#panel-combat .fs-stage-host { flex: 1 1 auto; min-height: 0; display: flex; }
+#panel-combat .fs-scrim {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 80% at 50% 40%, rgba(0,0,0,.12), rgba(0,0,0,.55) 92%);
+  z-index: 0;
+}
+/* THE LIGHT THEME GETS A LIGHT STAGE, AND THIS IS NOT A DETAIL.
+ * The arena card carries a dark dungeon photograph under a heavy scrim in every
+ * theme (audit-overrides.css l.554, unthemed). That was survivable while the
+ * arena was one third of the screen; now the stage IS the screen, and in
+ * cozy-light every label on it is `--ink` — dark cocoa on a black photo, which
+ * measured as illegible in the b362 visual gate (name, tiles and swing labels
+ * all vanished). Two ways out: force a light ink onto the stage, or stop making
+ * the stage dark in a light theme. The second is the honest one — cozy-light is
+ * a parchment theme and a black rectangle is not cozy — and it keeps every
+ * label on the theme's own token, which is what makes the type legible by
+ * construction rather than by a second palette that can drift.
+ * When the painted biomes land (COMBAT-UI-17) this is the one rule that decides
+ * whether they appear here, and the scrim layer above is where their tint goes. */
+body[data-theme="cozy-light"] #panel-combat[data-combat-view="fight"] .combat-arena {
+  background: var(--bg-card) !important;
+  border-color: var(--line) !important;
+}
+body[data-theme="cozy-light"] #panel-combat .fs-scrim {
+  background: radial-gradient(120% 80% at 50% 40%, rgba(0,0,0,0), rgba(0,0,0,.06) 92%);
+}
+body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
+  text-shadow: none;
+}
+#panel-combat[data-combat-view="fight"] .combat-arena .card-head { display: none !important; }
+
+/* `flex: 1 0 auto` — GROW, NEVER SHRINK. The no-shrink half is b227's rule and
+ * is asserted by its test: the log gives up height, never the champion. The
+ * grow half is this rework's: the stage is the page now, so it takes the slack
+ * instead of leaving a band of painted nothing between the action bar and the
+ * log. Dead space is a defect. */
+/* COMBAT-UI-09 — THE FIVE-ROW GRAMMAR IS A REAL GRID, NOT TWO COLUMNS THAT
+ * HAPPEN TO MATCH. Two independent flex columns drift the moment the plates
+ * differ in size (the foe's is 2x the player's by design), and a row that does
+ * not line up across the VS cannot be compared across it — which is the entire
+ * job of a symmetric frame. So `.arena-side` becomes `display: contents`: the
+ * wrappers keep their classes (legacy.js finds the portraits through
+ * `.arena-side.foe .arena-portrait` for the damage numbers, the pet perch and
+ * the death stamp) but lose their boxes, and every row on both sides shares one
+ * track. Name sits beside name, bar beside bar, tile beside tile, always. */
+/* THE ONE `display: !important` THAT IS NOT UNDOING A STYLESHEET.
+ * `refreshArenaVs()` in legacy.js hides the stage with an INLINE style whenever
+ * no fight is running — correct when the arena shared a screen with the picker
+ * (a stale foe lingering beside the monster list is a lie), and wrong now that
+ * the preview state IS the stage with the fight not started. An `!important`
+ * declaration outranks an inline style, so this is the whole fix, and the
+ * alternative — teaching the engine's 200ms tick about a view attribute — would
+ * put screen state inside the combat loop, which is the coupling this rework
+ * exists to remove. */
+#panel-combat[data-combat-view="fight"] .arena-vs.fs-stage { display: grid !important; }
+#panel-combat .arena-vs.fs-stage {
+  position: relative; z-index: 1;
+  flex: 1 0 auto;
+  align-content: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto auto auto auto auto;
+  align-items: end;
+  justify-items: center;
+  gap: 4px 16px;
+  padding: 12px 18px 8px;
+  margin: 0;
+}
+#panel-combat .arena-vs.fs-stage > .arena-side { display: contents; }
+#panel-combat .arena-vs.fs-stage .arena-side.player > * { grid-column: 1; }
+#panel-combat .arena-vs.fs-stage .arena-side.foe > * { grid-column: 3; }
+#panel-combat .arena-vs.fs-stage .arena-portrait { grid-row: 1; }
+#panel-combat .arena-vs.fs-stage .arena-name { grid-row: 2; }
+#panel-combat .arena-vs.fs-stage .fs-lv { grid-row: 3; }
+#panel-combat .arena-vs.fs-stage .arena-hp-bar { grid-row: 4; }
+#panel-combat .arena-vs.fs-stage .fs-swing { grid-row: 5; }
+#panel-combat .arena-vs.fs-stage .fs-tiles { grid-row: 6; }
+#panel-combat .arena-vs.fs-stage .fs-style,
+#panel-combat .arena-vs.fs-stage .fs-weak { grid-row: 7; }
+#panel-combat .arena-vs.fs-stage .arena-vs-divider {
+  grid-column: 2; grid-row: 1 / 4; align-self: center;
+}
+#panel-combat .fs-actionbar { grid-column: 1 / -1; grid-row: 8; width: 100%; }
+#panel-combat .fs-metrics { grid-column: 1 / -1; grid-row: 9; width: 100%; }
+
+/* COMBAT-UI-08 / 09 — the hero plates and the symmetric five-row grammar. Same
+ * rows on both sides, in the same order, so the eye compares across instead of
+ * hunting: name · level · HP+numerics · swing · stats. The foe is ~2x the art
+ * weight because it is the subject of the screen. */
+#panel-combat .arena-vs.fs-stage .arena-side.player .arena-portrait { width: 170px; height: 170px; }
+#panel-combat .arena-vs.fs-stage .arena-side.foe .arena-portrait {
+  width: min(42vh, 340px); height: min(42vh, 340px);
+}
+#panel-combat .arena-vs.fs-stage .arena-portrait img { image-rendering: auto; }
+#panel-combat .fs-lv {
+  font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
+  font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
+}
+
+/* COMBAT-UI-10 — the numerals live INSIDE the bar. One element instead of two,
+ * on both sides, tabular so the digits do not dance while you watch them. */
+#panel-combat .arena-vs.fs-stage .arena-hp-bar {
+  position: relative; width: min(100%, 300px); height: 20px; border-radius: 10px;
+  display: flex; align-items: center;
+}
+#panel-combat .arena-vs.fs-stage .arena-hp-bar i { position: absolute; inset: 0 auto 0 0; }
+#panel-combat .arena-vs.fs-stage .arena-hp-text {
+  position: relative; z-index: 1; width: 100%; text-align: center;
+  font-family: var(--f-ui); font-variant-numeric: tabular-nums;
+  font-size: var(--t-micro, 11px); font-weight: 800;
+  color: var(--ink); text-shadow: 0 1px 2px rgba(0,0,0,.55);
+}
+
+/* The swing bar, driven by the engine's own tick stamp and labelled with the
+ * weapon — which is what makes weapon speed a visible stat for the first time. */
+#panel-combat .fs-swing {
+  position: relative; width: min(100%, 300px); height: 13px;
+  background: var(--field-sunk, rgba(0,0,0,.3));
+  border: 1px solid var(--line-soft); border-radius: 7px;
+  overflow: hidden; display: flex; align-items: center;
+}
+/* The phase fill is the one thing on this bar a player tracks out of the
+ * corner of their eye, so it takes the accent itself rather than its 14%
+ * background wash — measured in the gate: the wash was invisible on the dark
+ * stage, which makes a swing bar decoration. */
+#panel-combat .fs-swing i { position: absolute; inset: 0 auto 0 0; background: var(--gold); opacity: .7; }
+#panel-combat .fs-swing span {
+  position: relative; width: 100%; text-align: center;
+  font-size: var(--t-micro, 11px); color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px;
+}
+
+/* COMBAT-UI-11 — three tiles a side, always on. The deep rows (evasion,
+ * resistances, per-style accuracy, the away projection) stay one click away in
+ * the Stats modal; these three are the ones that change a decision. */
+#panel-combat .fs-tiles { display: flex; gap: 4px; width: min(100%, 300px); }
+#panel-combat .fs-tile {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  padding: 3px 4px;
+  background: var(--surf-sunken, rgba(0,0,0,.22));
+  border: 1px solid var(--line-soft); border-radius: 5px;
+}
+#panel-combat .fs-tile em {
+  font-style: normal; font-family: var(--f-label, var(--f-ui));
+  font-size: var(--t-micro, 11px); letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+#panel-combat .fs-tile b {
+  font-family: var(--f-display); font-size: var(--t-small, 13px);
+  font-variant-numeric: tabular-nums; color: var(--ink);
+}
+#panel-combat .fs-weak { font-size: var(--t-micro, 11px); color: var(--ink-2); }
+
+/* COMBAT-UI-14 — the style selector, beside the fighter it re-tunes. The BLOCK
+ * is legacy's one-and-only `.combat-style-block`, moved here by the module
+ * rather than re-created (see adoptStyleBlock) — so this restyles a node it
+ * does not own, and takes only what the stage has room for. Its title and its
+ * four-fact `.csb-meta` line are what ran 270px tall on a narrow window; the
+ * same facts are on the buttons' own tooltips and in the Stats modal. */
+#panel-combat .fs-style { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; }
+#panel-combat .fs-style .combat-style-block {
+  display: flex !important; align-items: center; gap: 4px; flex-wrap: wrap;
+  background: none !important; border: 0 !important; box-shadow: none !important;
+  padding: 0 !important; margin: 0 !important; grid-area: auto !important;
+}
+#panel-combat .fs-style .combat-style-block h4,
+#panel-combat .fs-style .combat-style-block .csb-meta { display: none !important; }
+#panel-combat .fs-style .combat-style-block .combat-style-buttons {
+  display: flex !important; gap: 4px; flex-wrap: wrap; justify-content: center;
+}
+#panel-combat .fss-lbl {
+  font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
+  font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
+}
+#panel-combat .fs-style .csb-btn {
+  padding: 3px 9px; font-size: var(--t-micro, 11px); font-weight: 700;
+  background: var(--field-sunk, rgba(0,0,0,.3));
+  border: 1px solid var(--line-soft); border-radius: 4px;
+  color: var(--ink-2); cursor: pointer;
+}
+#panel-combat .fs-style .csb-btn.active { background: var(--gold-bg); border-color: var(--gold-2); color: var(--gold-2); }
+
+/* COMBAT-UI-13 — the action bar. Every control carries live data, and only Eat
+ * is bright: that is the existing button ladder and this rework does not touch
+ * it. Stop is the honest verb for a server-authoritative pointer — there is no
+ * pause state, because a pause state would lie. */
+#panel-combat .fs-actionbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0 0; border-top: 1px solid var(--line-soft);
+}
+#panel-combat .fs-act-primary { display: flex; align-items: center; gap: 8px; }
+#panel-combat .fs-act-ref { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+#panel-combat .fs-actionbar .arena-act { margin-top: 0; max-width: none; width: auto; }
+#panel-combat .fs-history em { font-style: normal; color: var(--gold-2); font-weight: 800; }
+/* The two states of the primary slot. In preview the fight has not started, so
+ * Eat is meaningless and Fight is the only move; live, the reverse. */
+#panel-combat[data-fight-state="preview"] #arena-act-player,
+#panel-combat[data-fight-state="preview"] .fs-stop,
+#panel-combat[data-fight-state="live"] .fs-fight { display: none !important; }
+
+/* The metrics strip. One sentence, always on — and it refuses to quote a rate
+ * it has not measured (see the module's Ledger). */
+#panel-combat .fs-metrics {
+  font-size: var(--t-micro, 11px); color: var(--ink-2);
+  padding: 4px 0 0; letter-spacing: .01em;
+}
+#panel-combat .fs-metrics b { color: var(--ink); font-variant-numeric: tabular-nums; }
+#panel-combat .fs-metrics s { text-decoration: none; color: var(--ink-3); margin: 0 4px; }
+
+/* The log row: the combat log takes the slack, the loot rail rides its right
+ * edge. Both live below the stage and neither can push the stage off screen. */
+/* The log is watched, not acted on, so it gets a fixed slice rather than every
+ * pixel the stage did not want — a 3-line log stretched over half a 1000px
+ * screen is the same dead space the placeholder void used to be. */
+#panel-combat .fs-logrow {
+  flex: 0 0 clamp(110px, 20vh, 210px); min-height: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 8px;
+  padding: 0 14px 10px; position: relative; z-index: 1;
+}
+#panel-combat[data-combat-view="fight"] #combat-area {
+  min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
+}
+/* Everything renderCombat draws that the stage has already said better. The
+ * combat LOG is the one thing here a player actually watches. */
+#panel-combat[data-combat-view="fight"] #combat-area > .arena,
+#panel-combat[data-combat-view="fight"] #combat-area > .empty,
+#panel-combat[data-combat-view="fight"] #combat-area > .cbt-food,
+#panel-combat[data-combat-view="fight"] #combat-area > .bounty-panel { display: none !important; }
+#panel-combat[data-combat-view="fight"] #combat-area > .combat-log { flex: 1 1 auto; min-height: 60px; max-height: none; }
+
+/* In PREVIEW there is no log and no loot, because there is no fight yet. An
+ * empty 150px box under a still stage is the placeholder void in a new costume,
+ * so the row does not exist until the fight does — and the stage, which grows,
+ * takes the room. */
+#panel-combat[data-fight-state="preview"] .fs-logrow { display: none; }
+#panel-combat .fs-loot-rail {
+  min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  border-left: 1px solid var(--line-soft); padding-left: 8px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+#panel-combat .fsl-head {
+  font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
+  font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
+  position: sticky; top: 0; background: var(--bg-2); padding-bottom: 2px;
+}
+#panel-combat .fsl-row { display: flex; align-items: center; gap: 6px; font-size: var(--t-micro, 11px); color: var(--ink-2); }
+#panel-combat .fsl-row img { width: 18px; height: 18px; object-fit: contain; }
+#panel-combat .fsl-row i { font-style: normal; }
+#panel-combat .fsl-row span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#panel-combat .fsl-row b { color: var(--ink); font-variant-numeric: tabular-nums; }
+#panel-combat .fsl-empty { font-size: var(--t-micro, 11px); color: var(--ink-3); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 4 · SHORT AND NARROW SCREENS — COMBAT-UI-07 and COMBAT-UI-16
+ *
+ * The target is paione's 922x423 landscape phone, which is WIDER than the
+ * project's 900px mobile breakpoint and therefore correctly gets the
+ * scaled-desktop layout (CLAUDE.md § Mobile rules, b310). So the query that
+ * matters here is HEIGHT: no desktop is 560px tall, and every landscape phone
+ * is. Nothing actionable is hidden at this size — the stage, both bars, the
+ * tiles, the action bar and the metrics strip are all above the fold; only the
+ * log, which is watched rather than acted on, goes below it.
+ * ════════════════════════════════════════════════════════════════════════*/
+@media (max-height: 560px) {
+  #panel-combat.active { padding: 6px !important; }
+  #panel-combat .wt-view { gap: 5px; }
+  /* §2.4 — DESTINATIONS BECOME A CHIP RAIL. At 423px a 150px destination card
+   * would eat a third of the screen to say the same six words, so each one
+   * drops to a single scannable chip: kicker, art, name, verb. The meta line
+   * and the countdown go — they are on the destination's own screen, and the
+   * chip's job here is only "this exists and it is one tap away". The rail
+   * scrolls sideways, which is how the sixth one stays reachable. */
+  #panel-combat .wt-dest {
+    flex: 0 0 auto; min-width: 132px; max-width: 180px; padding: 2px 6px; gap: 0;
+  }
+  #panel-combat .wt-dest .wtd-body { min-height: 0; gap: 5px; }
+  #panel-combat .wtd-timer, #panel-combat .wtd-main span { display: none; }
+  #panel-combat .wtd-img { width: 20px; height: 20px; }
+  /* 16px, not 14: b227's floor is 14.5px and its guard is a blanket scan of the
+     sheets, so shrinking a glyph here trips it. The chip's height is bought from
+     leading and button chrome below instead — a destination that renders as an
+     emoji rather than a portrait is exactly the one that can least afford to
+     lose legibility. */
+  #panel-combat .wtd-img.is-emoji { font-size: 16px; }
+  #panel-combat .wt-dest footer .btn { padding: 0 6px; min-height: 0; }
+  /* THE RAIL PAYS FOR THE SECOND ROW OF THE TIER.
+   * §2.4 budgets the destination rail at 66px and the card grid at two full
+   * rows with a third peeking. Measured at 922x423 the rail came in at 96px and
+   * the grid at 175 — 1.7 rows, so the tier read as a single strip of clipped
+   * names and the scroll affordance the peek exists to create was gone. These
+   * four lines are the 30px, taken from leading and button chrome rather than
+   * from anything a player reads: the chip still carries kicker, art, name and
+   * verb, which is everything §2.4 asks of it. */
+  #panel-combat .wtd-kick { line-height: 1.15; }
+  #panel-combat .wtd-main b { font-size: var(--t-micro, 11px); line-height: 1.15; }
+  #panel-combat .wt-dest footer .btn { min-height: 18px; line-height: 18px; font-size: var(--t-micro, 11px); }
+  #panel-combat .wt-bar { padding: 0; }
+  /* One filter row, scrolling sideways rather than wrapping to three. */
+  #panel-combat .wt-bar { flex-wrap: nowrap; gap: 8px; overflow: hidden; }
+  #panel-combat .wt-chips { flex-wrap: nowrap; }
+  #panel-combat .wt-classes { overflow-x: auto; overscroll-behavior-x: contain; }
+  /* NOT SHRUNK ON PURPOSE. These chips resolve to 40px from
+     `.panel .chip { min-height: 40px !important }` in theme-cozy.css — b285's
+     deliberate thumb-target floor for in-panel filters on a landscape phone.
+     The second card row is worth 16px; a filter you cannot reliably hit with a
+     thumb is not. The row below pays for the grid instead. */
+  #panel-combat .wt-chips .chip { padding: 1px 8px; white-space: nowrap; }
+  #panel-combat .wt-ribbon { padding: 3px 8px; gap: 8px; }
+  #panel-combat .wtr-art { width: 24px; height: 24px; }
+  /* 104px cards, 8 across, two full rows visible with the third peeking so the
+     scroll is discoverable. */
+  /* §2.4 — 104px cards, 8 across, TWO FULL ROWS with the third peeking so the
+   * scroll is discoverable. The name clamps to one line here: two lines of
+   * display type is 18px, and 18px is the difference between seeing the second
+   * row of the tier and seeing half of it. */
+  #panel-combat .wt-grid { grid-template-columns: repeat(auto-fill, minmax(102px, 1fr)); gap: 4px; }
+  /* THE CARD IS SIZED FROM THE ROW BUDGET, NOT THE OTHER WAY ROUND. After the
+     rail trim the grid measures 188px at 922x423. At 100px the card gave 1.8
+     rows — a clipped second row and no peek, which is the "cramped list" this
+     rework exists to answer wearing a new costume. At 86 (+4 gap = 90) two full
+     rows land in 180px and the third peeks by 8px, which is exactly §2.4: two
+     rows readable, the scroll discoverable. */
+  #panel-combat .wt-card { padding: 3px 4px; gap: 0; min-height: 86px; }
+  #panel-combat .wtc-art { flex: 0 0 40px; }
+  #panel-combat .wtc-img { max-height: 40px; }
+  /* The two text rows inherit the 16px body size this breakpoint sets for
+     legibility, which resolved them to 20px LINES — 14px of pure leading across
+     the card, which is the difference between two rows of the tier and one and a
+     half. The glyphs keep their size; only the leading is spent. */
+  #panel-combat .wtc-stats,
+  #panel-combat .wtc-kills { line-height: 1.1; }
+  #panel-combat .wtc-img.is-emoji { font-size: 30px; }
+  #panel-combat .wtc-name { -webkit-line-clamp: 1; }
+  #panel-combat .wtc-drops { display: none; }
+  /* THE WEAKNESS+HP LINE MUST BE ONE LINE. §2.4's whole point is that the two
+     numbers a player compares between foes sit in a FIXED position so the grid
+     scans straight down; at 102px wide "2H Hammer 100 HP" wrapped to two lines,
+     which both broke that alignment and pushed the card ~16px over its budget,
+     costing the second row. Shrinking the gap and letting the label ellipsise
+     keeps both numbers visible and the row count honest. */
+  #panel-combat .wtc-stats { flex-wrap: nowrap; gap: 3px; min-width: 0; }
+  #panel-combat .wtc-stats em {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  }
+  #panel-combat .wtc-stats b { white-space: nowrap; flex: 0 0 auto; }
+
+  #panel-combat .fs-top { padding: 0; gap: 6px; }
+  #panel-combat .fsg-slot { width: 20px; height: 20px; }
+  #panel-combat .fs-back { padding: 2px 8px; }
+  #panel-combat .fs-title b { font-size: var(--t-small, 13px); }
+  /* THE 423px BUDGET. ~104px goes to the shell (topbar, activity bar, the
+   * screen's own header row), leaving ~319px. The stage takes ~233 of it, the
+   * action bar 42 and the metrics strip 16 — so everything ACTIONABLE is above
+   * the fold and only the log, which is watched rather than acted on, is not.
+   * The stage stops growing here: on a short screen the slack belongs to the
+   * controls, not to the painting. */
+  #panel-combat[data-combat-view="fight"] .fs-view { overflow-y: auto; overscroll-behavior: contain; }
+  /* THE ACTION BAR IS NOT ALLOWED TO BE CLIPPED. `.combat-arena` carries
+   * `overflow: hidden` so the stage can host a bleeding backdrop without the
+   * painting escaping its card. On a 423px screen that turned into a P0: the
+   * stage's content measured 425px inside a 277px arena box, and because the
+   * clipping element reports its own SHORT height, the scroll container above it
+   * (`.fs-view`) saw nothing to scroll — so Eat and Stop were cut off the bottom
+   * of the screen with no gesture that could reach them. A control a player
+   * cannot reach is worse than the hidden-Flee hack this rework just deleted.
+   * On short screens the arena therefore SCROLLS instead of clipping. It is a
+   * safety net, not the layout: the budget below is tuned so the action bar and
+   * the metrics strip land above the fold and the net is never used. */
+  #panel-combat[data-combat-view="fight"] .combat-arena {
+    overflow: visible !important;
+  }
+  #panel-combat .arena-vs.fs-stage { flex: 0 0 auto; padding: 2px 10px; gap: 1px 10px; }
+  #panel-combat .arena-vs.fs-stage .arena-side.player .arena-portrait { width: 52px; height: 52px; }
+  /* Trimmed from 21vh/88 to 18vh/72: the four rows below the plate (name, level,
+   * HP, swing) plus the tiles, the style row, the action bar and the metrics
+   * strip are all fixed-height, so the plate is the ONLY row that can pay for
+   * the overflow measured above. The foe is still the largest thing on screen. */
+  #panel-combat .arena-vs.fs-stage .arena-side.foe .arena-portrait {
+    width: min(18vh, 72px); height: min(18vh, 72px);
+  }
+  #panel-combat[data-combat-view="fight"] .fs-view { gap: 2px; }
+  #panel-combat .arena-vs.fs-stage .arena-name { font-size: var(--t-micro, 11px); line-height: 1.1; }
+  #panel-combat .fs-lv { line-height: 1.05; }
+  #panel-combat .arena-vs.fs-stage .arena-hp-bar { height: 12px; }
+  /* The bar keeps its phase; its LABEL goes. At 8px tall there is nowhere to
+   * print a weapon name above the type floor, and the weapon is already named
+   * on the quick-swap strip two rows up. */
+  #panel-combat .fs-swing { height: 8px; }
+  #panel-combat .fs-swing span { display: none; }
+  #panel-combat .fs-tile { padding: 0 4px; }
+  #panel-combat .fs-style .csb-btn { padding: 0 6px; }
+  #panel-combat .fs-style .csb-btn small { font-size: var(--t-micro, 11px); }
+  #panel-combat .fs-actionbar .btn { padding: 2px 8px; min-height: 0; }
+  #panel-combat .fs-metrics { padding-top: 1px; line-height: 1.15; }
+  #panel-combat .arena-vs.fs-stage .arena-name { font-size: var(--t-small, 13px); }
+  #panel-combat .arena-vs.fs-stage .arena-hp-bar { height: 15px; }
+  #panel-combat .fs-swing { height: 10px; }
+  #panel-combat .fs-actionbar { padding-top: 4px; gap: 6px; }
+  #panel-combat .arena-vs.fs-stage .arena-eat { min-height: 34px; padding: 3px 8px; }
+  /* The XP route stays (b348 — Xarn's report); the swing time is the one that
+   * goes, because it is also printed on the player's own swing bar two rows up. */
+  #panel-combat .fs-style .csb-btn .csb-swing { display: none; }
+  /* The six numbers survive; only their boxes do not. */
+  #panel-combat .fs-tiles { gap: 0; }
+  #panel-combat .fs-tile { background: none; border: 0; flex-direction: row; gap: 3px; padding: 0 4px; }
+  #panel-combat .fs-tile + .fs-tile { border-left: 1px solid var(--line-soft); }
+  #panel-combat .fs-style .csb-btn { padding: 2px 6px; }
+  /* The log goes below the fold, and the rail goes with it. */
+  #panel-combat .fs-logrow { grid-template-columns: minmax(0, 1fr) 150px; padding: 0 8px 6px; min-height: 90px; }
+}
+
+/* Narrow — the destination rail scrolls sideways instead of squeezing, and the
+ * stage stacks its two fighters rather than shrinking them past reading size. */
+@media (max-width: 900px) {
+  #panel-combat .wt-dest { flex: 0 0 190px; }
+  #panel-combat .fs-gear { order: 3; width: 100%; margin-left: 0; justify-content: flex-start; }
+  #panel-combat .fs-top { flex-wrap: wrap; }
+}
+@media (max-width: 640px) {
+  #panel-combat .arena-vs.fs-stage {
+    grid-template-columns: 1fr;
+    grid-template-areas: "foe" "vs" "player" "bar" "metrics";
+  }
+  #panel-combat .arena-vs.fs-stage .arena-vs-divider { font-size: 16px; }
+  #panel-combat .fs-logrow { grid-template-columns: minmax(0, 1fr); }
+  /* In PREVIEW there is no log and no loot, because there is no fight yet. An
+ * empty 150px box under a still stage is the placeholder void in a new costume,
+ * so the row does not exist until the fight does — and the stage, which grows,
+ * takes the room. */
+#panel-combat[data-fight-state="preview"] .fs-logrow { display: none; }
+#panel-combat .fs-loot-rail { display: none; }
+}

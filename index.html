@@ -6,10 +6,10 @@
 /* b124: UNIVERSAL service-worker + cache reset.
  *
  * Symptom we keep seeing in the wild: console errors trace to
- * `legacy.js?v=364` (or some other old build) even though the
- * deployed HTML has `?v=364`. That means an old service worker
+ * `legacy.js?v=365` (or some other old build) even though the
+ * deployed HTML has `?v=365`. That means an old service worker
  * is intercepting the HTML request and serving cached HTML with
- * stale <script src="...?v=364"> tags.
+ * stale <script src="...?v=365"> tags.
  *
  * The b119 kill-switch only fired for the original `hearthbound-v2`
  * cache. It misses the b111+ SW caches (`hearthrise-110`, `-111`,
@@ -87,8 +87,8 @@
      old SVG: the crest is a painted gilt drawing with gradients, and every
      surface that consumes this (tab strip, PWA launcher, Android splash) scales
      it down, never up. See the b361 note in art-direction.css §30. -->
-<link rel="icon" type="image/png" sizes="512x512" href="assets/brand/hearthrise-mark.png?v=364">
-<link rel="apple-touch-icon" href="assets/brand/hearthrise-mark.png?v=364">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/brand/hearthrise-mark.png?v=365">
+<link rel="apple-touch-icon" href="assets/brand/hearthrise-mark.png?v=365">
 <!-- PWA manifest is inlined below at runtime so this works as a single file -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -100,32 +100,37 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;0,800;1,400&family=Alegreya+Sans+SC:wght@500;700;800&display=swap" rel="stylesheet">
 
 <!-- moved style#0 (style-0) -->
-  <link rel="stylesheet" href="src/styles/legacy.css?v=364">
-  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=364">
+  <link rel="stylesheet" href="src/styles/legacy.css?v=365">
+  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=365">
   <!-- theme-cozy MUST load last so it wins specificity over legacy.css :root + accumulated inline overrides -->
-  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=364">
+  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=365">
   <!-- b217: art direction — type scale, shape language, surface + button
        hierarchy. Loads after the three legacy sheets by design (see header). -->
-  <link rel="stylesheet" href="src/styles/art-direction.css?v=364">
+  <link rel="stylesheet" href="src/styles/art-direction.css?v=365">
   <!-- b221: the bounty board and the shop as physical places (noticeboard /
        shopfront counter). Loads last — see the file header for why the
        three-id selectors in it exist. -->
-  <link rel="stylesheet" href="src/styles/board-and-shop.css?v=364">
+  <link rel="stylesheet" href="src/styles/board-and-shop.css?v=365">
   <!-- b223 #10 Wave 3b: the Clan Seat. Third in-world screen after the bounty
        board and the shopfront, and the same deal: `.hr-cs` is carved out of the
        b174 readability blankets in theme-cozy.css, so this sheet owns its whole
        colour story and needs no !important and no stacked panel id. Loads last
        for the same reason board-and-shop.css does. -->
-  <link rel="stylesheet" href="src/styles/clan-seat.css?v=364">
+  <link rel="stylesheet" href="src/styles/clan-seat.css?v=365">
   <!-- b227: the combat stage's own controls (Eat beside your champion, Loot /
        Stats beside the foe) and the two modals they open. Loads last, after
        clan-seat.css, because it reconciles one class it deliberately reuses
        from legacy.css inside the shared room modal. See the file header. -->
-  <link rel="stylesheet" href="src/styles/combat-hud.css?v=364">
+  <link rel="stylesheet" href="src/styles/combat-hud.css?v=365">
   <!-- b227: the House screen's room grid + the homestead's themes on the
        [data-room-theme] values that sheet's component reads; it deliberately
        restyles none of that component. -->
-  <link rel="stylesheet" href="src/styles/homestead-rooms.css?v=364">
+  <link rel="stylesheet" href="src/styles/homestead-rooms.css?v=365">
+  <!-- b365: THE WAR TABLE and THE FIGHT. Loads after combat-hud.css because it
+       replaces the three-card combat grid those sheets were written against —
+       it is the newest statement about #panel-combat and must be the last one.
+       See docs/design/combat-screen-rework.md. -->
+  <link rel="stylesheet" href="src/styles/combat-screens.css?v=365">
 </head>
 <body>
 <!-- b259 — Landscape-only on phones. Pure-CSS portrait gate: shown ONLY on a
@@ -158,8 +163,8 @@
          Both files are DERIVED from Tyler's approved exports by
          tools/brand-process.mjs; do not hand-edit them. -->
     <div class="brand" role="img" aria-label="Hearthrise">
-      <img class="brand-emblem" src="assets/brand/hearthrise-crest.png?v=364" alt="" aria-hidden="true" width="311" height="384" decoding="async">
-      <img class="brand-word" src="assets/brand/hearthrise-wordmark.svg?v=364" alt="" aria-hidden="true" decoding="async">
+      <img class="brand-emblem" src="assets/brand/hearthrise-crest.png?v=365" alt="" aria-hidden="true" width="311" height="384" decoding="async">
+      <img class="brand-word" src="assets/brand/hearthrise-wordmark.svg?v=365" alt="" aria-hidden="true" decoding="async">
     </div>
     <!-- b211: labels unified with the mobile nav (Home / Skills — the panel
          ids stay profile/skills; icon-set paints gilt glyphs over the .ic
@@ -271,7 +276,7 @@
              reachable from first paint; src/features/identity.js wires the
              click/Enter/Space handlers + hover-ring class + tooltip onto
              this same node (it never gets replaced, only its <img src>). -->
-        <div class="player-avatar" role="button" tabindex="0"><img src="assets/avatars/_placeholder.webp?v=364" alt="" data-no-fallback data-fallback="assets/icons-bundle/painted/npc/player.png?v=364" onerror="if(this.dataset.fellBack){this.style.display='none';}else{this.dataset.fellBack='1';this.src=this.dataset.fallback;}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
+        <div class="player-avatar" role="button" tabindex="0"><img src="assets/avatars/_placeholder.webp?v=365" alt="" data-no-fallback data-fallback="assets/icons-bundle/painted/npc/player.png?v=365" onerror="if(this.dataset.fellBack){this.style.display='none';}else{this.dataset.fellBack='1';this.src=this.dataset.fallback;}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
         <div style="min-width:0">
           <div class="player-name" id="player-name">Adventurer</div>
           <div class="row tiny muted" style="gap:6px">
@@ -862,24 +867,24 @@
   <!-- observability.js MUST load first so window.captureException + window.onerror
        handlers are wired up before any other script can throw. -->
   <!-- build-info loads as a module (exports BUILD constant) -->
-  <script type="module" src="src/build-info.js?v=364"></script>
+  <script type="module" src="src/build-info.js?v=365"></script>
   <!-- theme-picker boots first so cozy-light applies before paint and avoids FOUC -->
-  <script src="src/theme-picker.js?v=364"></script>
-  <script src="src/observability.js?v=364"></script>
+  <script src="src/theme-picker.js?v=365"></script>
+  <script src="src/observability.js?v=365"></script>
   <!-- platform Storage seam (architecture layer 4) — load before legacy.js so saveLocal/loadLocal route through it -->
-  <script src="src/platform/storage.js?v=364"></script>
+  <script src="src/platform/storage.js?v=365"></script>
   <!-- b340: the ONE home for "does this server RPC exist yet?". Dependency-free
        and loaded early because both a classic script (features/clans.js) and an
        ESM module (net/supabase-market-backend.js) read it, and the strangler-fig
        migration off client-authored tables cannot have three copies of the
        predicate that decides whether the narrowing is in effect. -->
-  <script src="src/net/server-rpc.js?v=364"></script>
+  <script src="src/net/server-rpc.js?v=365"></script>
   <!-- b225: THE ACCOUNT WALL. Loads directly after the storage seam (which it
        reads the cached session through) and before every game script, because
        its verdict is what decides whether legacy.js boots at all. Client-side
        UX enforcement of an online-only product — NOT a security boundary; the
        server already owns the economy. See the file header. -->
-  <script src="src/net/account-gate.js?v=364"></script>
+  <script src="src/net/account-gate.js?v=365"></script>
   <!-- b323 hotfix: THE CORE READINESS GATE. Classic scripts run immediately;
        core-bridge.js is a module and therefore deferred, so every engine script
        below is armed before its maths exists. This file parks the boot timers
@@ -887,7 +892,7 @@
        then uninstalls itself. It MUST sit here: after the non-engine scripts
        above (which must never wait on the core) and before every engine script
        below. See the header in src/core-ready.js. -->
-  <script src="src/core-ready.js?v=364"></script>
+  <script src="src/core-ready.js?v=365"></script>
   <!-- Phase 0 (server authority): the shared, DOM-free simulation core.
        A MODULE, so it is deferred and runs after every classic script but
        before DOMContentLoaded — which is when legacy.js boots. It publishes
@@ -896,136 +901,136 @@
        Supabase Edge Function will import, so there is one implementation of
        the game's rules and never two. Placed before main.js so the core is up
        before any feature module boots. -->
-  <script type="module" src="src/core-bridge.js?v=364"></script>
-  <script src="src/save-migrations.js?v=364"></script>
+  <script type="module" src="src/core-bridge.js?v=365"></script>
+  <script src="src/save-migrations.js?v=365"></script>
   <!-- b133: foundation APIs — load BEFORE legacy.js so killMonster() can call recordKill() -->
   <!-- b136: farm-progression sits next to the others (Plot Lv API + deed drop hooks) -->
-  <script src="src/features/auto-actions.js?v=364"></script>
-  <script src="src/features/drop-log.js?v=364"></script>
-  <script src="src/features/farm-progression.js?v=364"></script>
+  <script src="src/features/auto-actions.js?v=365"></script>
+  <script src="src/features/drop-log.js?v=365"></script>
+  <script src="src/features/farm-progression.js?v=365"></script>
   <!-- b138: Profile launchpad (resume / today / milestone / rename) -->
-  <script src="src/features/profile-launchpad.js?v=364"></script>
-  <script src="src/legacy.js?v=364"></script>
+  <script src="src/features/profile-launchpad.js?v=365"></script>
+  <script src="src/legacy.js?v=365"></script>
   <!-- b219 (#7): the toast queue. Loads right after legacy.js — notify() in
        legacy.js delegates to it and falls back to its own minimal render if
        this ever fails to load, so order is a preference, not a hard dep. -->
-  <script src="src/features/toasts.js?v=364"></script>
-  <script src="src/admin.js?v=364"></script>
+  <script src="src/features/toasts.js?v=365"></script>
+  <script src="src/admin.js?v=365"></script>
   <!-- b158: scenic backdrop + glass panels (atmosphere) -->
-  <script src="src/features/backdrop.js?v=364"></script>
+  <script src="src/features/backdrop.js?v=365"></script>
   <!-- b217: baked icon atlas (was fetched from GitHub at runtime — see
        icon-set.js header). MUST load before icon-set.js, which reads it. -->
-  <script src="src/data/glyphs.js?v=364"></script>
+  <script src="src/data/glyphs.js?v=365"></script>
   <!-- b159: cohesive icon system (game-icons.net, recolored + medallioned) -->
-  <script src="src/features/icon-set.js?v=364"></script>
+  <script src="src/features/icon-set.js?v=365"></script>
   <!-- b227: one quest -> destination resolver, shared by every quest surface
        (Quests modal rows, Home's "Next up", the strip). Loads after legacy.js
        so SKILLS_DEF / SKILL_ACTION_STAT exist; it only READS them at click
        time, so order here is a preference, not a hard dep. -->
-  <script src="src/features/quest-nav.js?v=364"></script>
+  <script src="src/features/quest-nav.js?v=365"></script>
   <!-- b154: rebuilt Home dashboard (revamp) — loads AFTER legacy.js so
        window.showTab / getTotalLevel / MONSTERS exist when it wraps them -->
-  <script src="src/features/home-dashboard.js?v=364"></script>
+  <script src="src/features/home-dashboard.js?v=365"></script>
   <!-- meta-spine: "Rise to Jarl" Renown ladder (loads after legacy for XP_TABLE/getCombatLevel) -->
-  <script src="src/features/renown.js?v=364"></script>
+  <script src="src/features/renown.js?v=365"></script>
   <!-- retention: escalating daily login reward (built on the streak counter) -->
-  <script src="src/features/daily-reward.js?v=364"></script>
+  <script src="src/features/daily-reward.js?v=365"></script>
   <!-- completionism: Collection Log (bestiary + items, milestone rewards) -->
-  <script src="src/features/collection-log.js?v=364"></script>
+  <script src="src/features/collection-log.js?v=365"></script>
   <!-- b186: item rarity system (border colours: gray→green→blue→purple→gold→red) -->
-  <script src="src/features/rarity.js?v=364"></script>
+  <script src="src/features/rarity.js?v=365"></script>
   <!-- b201 SYS 1-3: the progression spine — tools ladder, homestead→castle
        property tiers (rooms are workbenches), idle workers. Order matters:
        tools (no deps) → homestead (gates) → workers (needs homestead slots). -->
-  <script src="src/features/tools.js?v=364"></script>
-  <script src="src/features/homestead.js?v=364"></script>
-  <script src="src/features/workers.js?v=364"></script>
+  <script src="src/features/tools.js?v=365"></script>
+  <script src="src/features/homestead.js?v=365"></script>
+  <script src="src/features/workers.js?v=365"></script>
   <!-- b225: the campfire ruling — cooking is never gated on the Kitchen; the
        open fire burns instead. Pure burn math, no deps (legacy.js reads it at
        cook time, not at parse time). -->
-  <script src="src/features/cooking-fire.js?v=364"></script>
+  <script src="src/features/cooking-fire.js?v=365"></script>
   <!-- b202 SYS-4: skilling + boss pets (rolls 'skill:'/'boss:' companion sources) -->
-  <script src="src/features/pets.js?v=364"></script>
+  <script src="src/features/pets.js?v=365"></script>
   <!-- b204 SYS-5: deterministic daily/weekly world events (date-seeded, serverless-shared) -->
-  <script src="src/features/world-events.js?v=364"></script>
+  <script src="src/features/world-events.js?v=365"></script>
   <!-- b254: Featured "Boss of the Day" — solo daily boss on the shared world-events
        clock. Loads AFTER world-events.js (needs its _hash/utcDayKey). -->
-  <script src="src/features/boss-of-the-day.js?v=364"></script>
+  <script src="src/features/boss-of-the-day.js?v=365"></script>
   <!-- b206 SYS-9/10: real clans + leaderboards (Supabase backbone, replaces NetClient mocks) -->
-  <script src="src/features/clans.js?v=364"></script>
+  <script src="src/features/clans.js?v=365"></script>
   <!-- b209 SYS-6: weekly async clan raids (shared boss HP pool, real combat-roll strikes) -->
-  <script src="src/features/raids.js?v=364"></script>
+  <script src="src/features/raids.js?v=365"></script>
   <!-- b220 #15/#14: the Muster — 2x/day joinable world-event windows, topbar
        countdown pill, and the top-level Events destination. Loads AFTER
        world-events.js (shared clock) and raids.js (owns the raid card). -->
-  <script src="src/features/muster.js?v=364"></script>
+  <script src="src/features/muster.js?v=365"></script>
   <!-- b222 #11: the 21 leaderboards + the pinned self block. Loads AFTER
        clans.js (which wraps renderSocial for the clan half) and renown.js
        (whose rank ladder supplies the Throne board's titles). -->
-  <script src="src/features/leaderboards.js?v=364"></script>
+  <script src="src/features/leaderboards.js?v=365"></script>
   <!-- b222 #10 Wave 3a: the Clan Seat FOUNDATION — pure formulas + RPC
        reducers only (docs/design/clan-overhaul.md v2). No UI, no panel, no
        fetch; inert until supabase/migrations/2026-08-08-clan-seat.sql is run
        and the castle modals land. Loads after clans.js so it can never be
        mistaken for the panel's dependency. -->
-  <script src="src/features/clan-seat.js?v=364"></script>
+  <script src="src/features/clan-seat.js?v=365"></script>
   <!-- b223 #10 Wave 3b: the VISIBLE Clan Seat — the hold band, the five modals,
        Work Orders, the Tavern and the castle's perk flow into getBonus. Loads
        AFTER clan-seat.js (every formula it draws comes from that module's
        tested reducers, never re-derived here) and after clans.js (whose
        renderSocial wrapper hands it the panel). Feature-detects both castle
        migrations: with neither run it renders the hold read-only and honest. -->
-  <script src="src/features/clan-seat-ui.js?v=364"></script>
-  <script src="src/item-ux.js?v=364"></script>
+  <script src="src/features/clan-seat-ui.js?v=365"></script>
+  <script src="src/item-ux.js?v=365"></script>
   <!-- b140 (Batch E): right-click context menu + Sell-junk helper. Loads
        AFTER item-ux.js so its capture-phase contextmenu listener can
        suppress item-ux's qty-slider handler. -->
-  <script src="src/features/inv-context-menu.js?v=364"></script>
-  <script src="src/dungeons.js?v=364"></script>
-  <script src="src/dungeon-scavenger.js?v=364"></script>
-  <script src="src/multi-character.js?v=364"></script>
-  <script src="src/market.js?v=364"></script>
+  <script src="src/features/inv-context-menu.js?v=365"></script>
+  <script src="src/dungeons.js?v=365"></script>
+  <script src="src/dungeon-scavenger.js?v=365"></script>
+  <script src="src/multi-character.js?v=365"></script>
+  <script src="src/market.js?v=365"></script>
   <!-- Chat: filter loads first (no deps), then the dock. -->
-  <script src="src/chat-filter.js?v=364"></script>
-  <script src="src/chat.js?v=364"></script>
+  <script src="src/chat-filter.js?v=365"></script>
+  <script src="src/chat.js?v=365"></script>
   <!-- b221 #9: unique display names (server-arbitrated) + player-uploaded
        portrait. Loads AFTER chat-filter.js (its profanity guard) and
        multi-character.js (the profile record it reads). -->
-  <script src="src/features/identity.js?v=364"></script>
-  <script src="src/settings-page.js?v=364"></script>
-  <script src="src/ftue.js?v=364"></script>
-  <script src="src/mobile.js?v=364"></script>
+  <script src="src/features/identity.js?v=365"></script>
+  <script src="src/settings-page.js?v=365"></script>
+  <script src="src/ftue.js?v=365"></script>
+  <script src="src/mobile.js?v=365"></script>
   <!-- Beta-tester loop tighteners -->
-  <script src="src/quests-topbar-button.js?v=364"></script>
-  <script src="src/nav-consolidation.js?v=364"></script>
+  <script src="src/quests-topbar-button.js?v=365"></script>
+  <script src="src/nav-consolidation.js?v=365"></script>
   <!-- b210: icon-swap.js RETIRED — it fought icon-set.js over the same nav/
        topbar slots with a different icon vocabulary (nondeterministic icons
        by timing). icon-set.js gilt glyphs are the single chrome-icon system;
        it now also covers bell/save/settings + strips chip/sub-tab emoji. -->
 
-  <script src="src/activity-bar-clickable.js?v=364"></script>
-  <script src="src/post-signup-welcome.js?v=364"></script>
-  <script src="src/mobile-keyboard.js?v=364"></script>
-  <script src="src/combat-mobile-tabs.js?v=364"></script>
-  <script src="src/mobile-more-chat.js?v=364"></script>
-  <script src="src/inventory-mobile-tabs.js?v=364"></script>
-  <script src="src/activities-mobile-tabs.js?v=364"></script>
-  <script src="src/bug-report.js?v=364"></script>
-  <script src="src/welcome-modal.js?v=364"></script>
+  <script src="src/activity-bar-clickable.js?v=365"></script>
+  <script src="src/post-signup-welcome.js?v=365"></script>
+  <script src="src/mobile-keyboard.js?v=365"></script>
+  <script src="src/combat-mobile-tabs.js?v=365"></script>
+  <script src="src/mobile-more-chat.js?v=365"></script>
+  <script src="src/inventory-mobile-tabs.js?v=365"></script>
+  <script src="src/activities-mobile-tabs.js?v=365"></script>
+  <script src="src/bug-report.js?v=365"></script>
+  <script src="src/welcome-modal.js?v=365"></script>
   <!-- b141 — beta launch prep: one-time disclaimer + Discord invite for new players -->
-  <script src="src/beta-banner.js?v=364"></script>
-  <script src="src/network-status.js?v=364"></script>
-  <script src="src/desktop-mode-detector.js?v=364"></script>
-  <script src="src/error-boundary.js?v=364"></script>
-  <script type="module" src="src/main.js?v=364"></script>
+  <script src="src/beta-banner.js?v=365"></script>
+  <script src="src/network-status.js?v=365"></script>
+  <script src="src/desktop-mode-detector.js?v=365"></script>
+  <script src="src/error-boundary.js?v=365"></script>
+  <script type="module" src="src/main.js?v=365"></script>
   <!-- b228 — the Chronicle (the topbar bell's panel). Loads LAST of the
        feature scripts on purpose: it installs wrappers on window.addXp,
        killMonster, celebrate etc., and every seam must exist first. -->
-  <script src="src/features/chronicle.js?v=364"></script>
+  <script src="src/features/chronicle.js?v=365"></script>
   <!-- b269 — equipped-pet session-impact tracker + topbar chip. Reads
        getCompanionBonus + HearthrisePowerBudget at call time, so load order is
        not critical; its record hooks are called from addXp / rollProc later. -->
-  <script src="src/features/pet-session.js?v=364"></script>
+  <script src="src/features/pet-session.js?v=365"></script>
   <!-- b228 — THE PER-KEY POWER BUDGET (docs/design/bonus-rebase.md §4.1).
        This MUST be the last thing that wraps window.getBonus: it clamps the
        whole chain, and anything installed after it would be added outside the
@@ -1033,6 +1038,6 @@
        is necessary but not sufficient (clan-seat-ui retries on a timer and the
        ESM boot installs after every classic script), so the module also
        re-wraps itself whenever it detects it is no longer outermost. -->
-  <script src="src/features/power-budget.js?v=364"></script>
+  <script src="src/features/power-budget.js?v=365"></script>
 </body>
 </html>

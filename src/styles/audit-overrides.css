@@ -582,8 +582,16 @@ body.in-combat #panel-combat.active .combat-picker { display: none !important; }
 body.in-combat #panel-combat.active #hr-botd-card,
 body.in-combat #panel-combat.active #hr-weekly-card { display: none !important; }
 #panel-combat.active .combat-arena .card-head { display: none !important; }
-#panel-combat.active .combat-arena #combat-stop,
-#panel-combat.active .combat-arena .btn-danger { display: none !important; }
+/* b362 — THE HIDDEN-FLEE HACK IS GONE.
+   `#combat-stop, .btn-danger { display:none !important }` lived here because
+   the arena's card-head was hidden and the Stop button rode inside it, so the
+   only way to un-clutter the header was to blank the one control that ends a
+   fight. That is a control being hidden by a LAYOUT decision, which is exactly
+   backwards: a player could start a fight they had no visible way to leave.
+   The Fight screen's action bar now carries Stop as a first-class control
+   beside Eat (COMBAT-UI-13), so the hack is deleted WITH its replacement in
+   place rather than before it. The legacy `#combat-stop` button still exists in
+   index.html and still works; it is simply no longer the only exit. */
 
 /* Combat-style ribbon: compact horizontal. */
 body.in-combat #panel-combat.active .combat-style-block h4 {

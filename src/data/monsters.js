@@ -1,7 +1,17 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/monsters.js — THE ROSTER
 //
-// 111 monsters across the 11-class taxonomy in `./monster-classes.js`.
+// 108 monsters across the 11-class taxonomy in `./monster-classes.js`.
+//
+// THE FOLD AUDIT (docs/design/combat-screen-rework.md §7, approved 2026-08-16):
+// three duplicate pairs were merged 111 -> 108 — barn_rat -> rat,
+// jackal -> wolf, cultist -> dark_wizard. A merge is NOT a deletion: each is one
+// `MONSTER_ALIAS` line in legacy.js, so kill counts, bounty targets, drop
+// history and the chronicle's idempotency keys all fold onto the surviving id
+// (guarded by MON-ALIAS-2 and by the FOLD-MERGE-1 regression). Three display
+// renames (Small Wolf -> Wolf Cub, Weak Skeleton -> Brittle Skeleton, Lesser
+// Demon -> Horned Demon, plus Field Rat -> Giant Rat with its merge) changed
+// NAMES ONLY — an id is never renamed in place.
 // Content approved by Tyler 2026-08-16 (`.claude/coordination/DECISIONS.md`
 // → "REVIEW BOOK ROUND 2"); authored in `docs/design/review-book-content.md`
 // Library 1. The 31 pre-wave monsters kept every id — see MONSTER_ALIAS in
@@ -43,7 +53,7 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=364';
+import { applyClassProfiles } from './monster-classes.js?v=365';
 
 export const MONSTERS = {
 
@@ -56,12 +66,16 @@ export const MONSTERS = {
     dropBonus: 1.15,
     hp: 8, atk: 2, def: 0, xp: 5, gp: [1, 3],
     drops: [{ id: 'slime_gel', ch: .8 }, { id: 'bones', ch: .25 }, { id: 'sticky_core', ch: .02 }] },
-  rat: { name: 'Field Rat', icon: '🐀', tier: 1, cls: 'vermin', family: 'Vermin',
+  /* FOLD-02 / FOLD-31 (combat-screen-rework.md §7): `barn_rat` merged INTO this
+     row via MONSTER_ALIAS. Two Tier-1 Vermin rats with the same weakness and the
+     same role were adjacent in the same list — there was no reading of the game
+     in which a player chose between them. The legacy id wins because it carries
+     the kill counts; the display name becomes the familiar-fantasy standard, and
+     `barn_rat`'s better drop line (wheat, the granary flavour) is absorbed here
+     so nothing the merged monster offered is lost. */
+  rat: { name: 'Giant Rat', icon: '🐀', tier: 1, cls: 'vermin', family: 'Vermin',
     hp: 9, atk: 2, def: 0, xp: 6, gp: [1, 4],
-    drops: [{ id: 'rat_tail', ch: .65 }, { id: 'small_fang', ch: .12 }, { id: 'bones', ch: .35 }] },
-  barn_rat: { name: 'Barn Rat', icon: '🐁', tier: 1, cls: 'vermin', family: 'Vermin',
-    hp: 9, atk: 2, def: 0, xp: 6, gp: [1, 4],
-    drops: [{ id: 'rat_tail', ch: .7 }, { id: 'wheat', ch: .3 }, { id: 'bones', ch: .3 }] },
+    drops: [{ id: 'rat_tail', ch: .7 }, { id: 'small_fang', ch: .12 }, { id: 'wheat', ch: .3 }, { id: 'bones', ch: .35 }] },
   hive_wasp: { name: 'Hive Wasp', icon: '🐝', tier: 1, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so the T1 bow finally has a target. */
     weaponWeak: 'ranged', weaponResist: [],
@@ -70,7 +84,9 @@ export const MONSTERS = {
   wild_boar: { name: 'Wild Boar', icon: '🐗', tier: 1, cls: 'mammal', family: 'Mammal',
     hp: 13, atk: 4, def: 1, xp: 11, gp: [2, 6],
     drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .45 }, { id: 'small_fang', ch: .14 }] },
-  small_wolf: { name: 'Small Wolf', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
+  /* FOLD-03: display rename only, the id is untouched. "Small X" reads as a dev
+     label; a Cub reads as a creature, and it is the head of the canine ladder. */
+  small_wolf: { name: 'Wolf Cub', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
     dropBonus: 1.15,
     hp: 16, atk: 5, def: 1, xp: 14, gp: [3, 9],
     drops: [{ id: 'wolf_pelt', ch: .32 }, { id: 'small_fang', ch: .18 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .6 }] },
@@ -89,7 +105,9 @@ export const MONSTERS = {
   cutpurse: { name: 'Cutpurse', icon: '🎭', tier: 1, cls: 'human', family: 'Human',
     hp: 11, atk: 4, def: 0, xp: 10, gp: [2, 6],
     drops: [{ id: 'rat_tail', ch: .2 }, { id: 'copper_ore', ch: .2 }, { id: 'bones', ch: .4 }] },
-  weak_skeleton: { name: 'Weak Skeleton', icon: '💀', tier: 1, cls: 'undead', family: 'Undead',
+  /* FOLD-05: display rename only. "Weak" is a stat; "Brittle" is a description
+     a player reads as fragile without being told it is the tutorial version. */
+  weak_skeleton: { name: 'Brittle Skeleton', icon: '💀', tier: 1, cls: 'undead', family: 'Undead',
     hp: 14, atk: 3, def: 2, xp: 12, gp: [2, 7],
     drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .45 }, { id: 'ancient_fragment', ch: .015 }] },
   imp: { name: 'Imp', icon: '👿', tier: 1, cls: 'demon', family: 'Demon',
@@ -119,10 +137,10 @@ export const MONSTERS = {
   stag: { name: 'Stag', icon: '🦌', tier: 2, cls: 'mammal', family: 'Mammal',
     hp: 26, atk: 9, def: 1, xp: 32, gp: [5, 14],
     drops: [{ id: 'wolf_pelt', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .55 }] },
-  jackal: { name: 'Jackal', icon: '🐕', tier: 2, cls: 'mammal', family: 'Mammal',
-    hp: 27, atk: 8, def: 2, xp: 29, gp: [5, 13],
-    drops: [{ id: 'wolf_pelt', ch: .55 }, { id: 'small_fang', ch: .3 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .5 }] },
-  wolf: { name: 'Wolf', icon: '🐺', tier: 2, cls: 'mammal', family: 'Mammal',
+  /* FOLD-32: `jackal` merged INTO `wolf` via MONSTER_ALIAS. Two Tier-2 Mammal
+     pack canines; the canine ladder is already five rungs and does not need two
+     animals on rung two. */
+  wolf:{ name: 'Wolf', icon: '🐺', tier: 2, cls: 'mammal', family: 'Mammal',
     hp: 30, atk: 8, def: 3, xp: 30, gp: [5, 15],
     drops: [{ id: 'wolf_pelt', ch: .7 }, { id: 'small_fang', ch: .35 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .7 }] },
   shrieker: { name: 'Shrieker', icon: '🍄', tier: 2, cls: 'plant', family: 'Plant',
@@ -139,10 +157,12 @@ export const MONSTERS = {
   dark_wizard: { name: 'Dark Wizard', icon: '🧙', tier: 2, cls: 'human', family: 'Human',
     dropBonus: 1.15,
     hp: 28, atk: 12, def: 1, xp: 55, gp: [10, 25],
-    drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .2 }, { id: 'dark_sigil', ch: .015 }] },
-  cultist: { name: 'Cultist', icon: '🕯️', tier: 2, cls: 'human', family: 'Human',
-    hp: 26, atk: 11, def: 1, xp: 44, gp: [8, 19],
-    drops: [{ id: 'magic_essence', ch: .35 }, { id: 'dark_sigil', ch: .01 }, { id: 'bones', ch: .6 }] },
+    drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .2 }, { id: 'bones', ch: .6 }, { id: 'dark_sigil', ch: .015 }] },
+  /* FOLD-33: `cultist` merged INTO `dark_wizard` above via MONSTER_ALIAS. Two
+     Tier-2 robed Human casters, both magic-styled; the Human class carries
+     eleven casters across six tiers and this is the one pair where the
+     redundancy is obvious enough to fix by merge. `cultist`'s bones line is
+     absorbed by dark_wizard so the merged drop table loses nothing. */
   skeleton: { name: 'Skeleton', icon: '💀', tier: 2, cls: 'undead', family: 'Undead',
     hp: 35, atk: 10, def: 2, xp: 45, gp: [8, 20],
     drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .6 }, { id: 'iron_ore', ch: .15 }, { id: 'ancient_fragment', ch: .025 }] },
@@ -214,11 +234,20 @@ export const MONSTERS = {
     weaponWeak: 'hammer', weaponResist: ['magic'],
     hp: 57, atk: 20, def: 9, xp: 112, gp: [19, 46],
     drops: [{ id: 'iron_bar', ch: .35 }, { id: 'steel_bar', ch: .12 }, { id: 'iron_fitting', ch: .25 }, { id: 'bones', ch: .8 }] },
+  /* FOLD-15 — THE DIFFERENTIATION. zombie and ghoul shared Tier 3 Undead and
+     were indistinguishable by role, so the pair is pushed to opposite corners of
+     the SAME tier band (monster-classes.js TIER_BANDS[3]: hp 52-78, atk 14-24,
+     def 5-12) rather than out of it:
+       zombie = the punching bag — band-top HP and armour, band-FLOOR damage.
+                It shambles; it will outlast you before it hurts you.
+       ghoul  = the race — band-floor HP and armour, band-TOP damage. It dies
+                fast and it takes chunks out of you while it does.
+     That is a real choice at the card, and it costs two data fields each. */
   zombie: { name: 'Zombie', icon: '🧟', tier: 3, cls: 'undead', family: 'Undead',
     hp: 78, atk: 14, def: 12, xp: 115, gp: [18, 45],
     drops: [{ id: 'grave_dust', ch: .65 }, { id: 'big_bones', ch: .5 }, { id: 'ancient_fragment', ch: .04 }] },
   ghoul: { name: 'Ghoul', icon: '🧟', tier: 3, cls: 'undead', family: 'Undead',
-    hp: 65, atk: 17, def: 9, xp: 103, gp: [17, 42],
+    hp: 52, atk: 24, def: 5, xp: 100, gp: [17, 42],
     drops: [{ id: 'grave_dust', ch: .55 }, { id: 'venom_sac', ch: .3 }, { id: 'big_bones', ch: .4 }, { id: 'bone_chips', ch: .5 }] },
   fire_devil: { name: 'Fire Devil', icon: '😈', tier: 3, cls: 'demon', family: 'Demon',
     hp: 56, atk: 22, def: 6, xp: 125, gp: [21, 52],
@@ -293,7 +322,9 @@ export const MONSTERS = {
     weaponWeak: 'magic',
     hp: 130, atk: 28, def: 20, xp: 246, gp: [43, 96],
     drops: [{ id: 'grave_dust', ch: .6 }, { id: 'big_bones', ch: .8 }, { id: 'lobster', ch: .3 }, { id: 'abyssal_pearl', ch: .008 }] },
-  lesser_demon: { name: 'Lesser Demon', icon: '😈', tier: 4, cls: 'demon', family: 'Demon',
+  /* FOLD-20: display rename only. "Lesser" is the same dev-label tell as
+     FOLD-03/05, and it is the only demon at its tier — lesser than nothing. */
+  lesser_demon: { name: 'Horned Demon', icon: '😈', tier: 4, cls: 'demon', family: 'Demon',
     dropBonus: 1.15,
     hp: 150, atk: 40, def: 18, xp: 340, gp: [60, 140],
     drops: [{ id: 'demon_shard', ch: .4 }, { id: 'rune_frag', ch: .3 }, { id: 'hell_ember', ch: .025 }] },

@@ -116,7 +116,23 @@
 
   function injectCombatDungeonsLink() {
     const combatPanel = document.getElementById('panel-combat');
-    if (!combatPanel || combatPanel.querySelector('#hr-dungeons-link')) return;
+    if (!combatPanel) return;
+    /* b362 — RETIRED BY THE WAR TABLE, AND IT WAS OVERLAPPING.
+       This shortcut has a fallback that absolutely-positions it in the panel's
+       top-right corner when the style ribbon is not up yet — and on the new
+       combat screen that corner belongs to the gear quick-swap strip, so the
+       two drew on top of each other (caught in the b362 visual gate). The old
+       path is not lost: Dungeons and World Events are both DESTINATION CARDS on
+       the War Table now (COMBAT-UI-05), with live counters the floating button
+       never had. Any copy injected before the views were built is removed here,
+       because this runs on a settling interval and would otherwise leave the
+       overlap behind on a slow boot. */
+    if (combatPanel.querySelector('.cbt-views')) {
+      const stale = combatPanel.querySelector('#hr-dungeons-link');
+      if (stale && !stale.closest('.combat-style-block')) stale.remove();
+      return;
+    }
+    if (combatPanel.querySelector('#hr-dungeons-link')) return;
     // Find a sensible insertion point — top of the combat panel
     const target = combatPanel.querySelector('.combat-style-block')
                 || combatPanel.querySelector('.card-head')

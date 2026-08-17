@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 365 — 2026-08-17 (The War Table and the Fight)
+
+- ⚔️ **Combat is two screens now.** The Combat tab is a proper War Table — every monster of your tier laid out in dense cards, no scrolling walls — and choosing a foe takes you to a dedicated Fight screen built around the battle itself: bigger portraits, a live damage read, your Eat and Stop controls always in reach.
+- 🐀 **The bestiary tightened up.** A few near-duplicate old monsters folded into their real counterparts (the barn rat and the rat were the same animal wearing two names), a few got clearer names, and zombies and ghouls are now actually different fights. No progress lost — your kill counts carried over.
+- 🧹 The old hidden-Flee workaround is gone; the Stop button does the job properly.
+
 ## v0.9.2-beta build 364 — 2026-08-17 (The server watches you play — plus a new look at the door)
 
 - 🔄 **Live play now reaches the server every 90 seconds.** Your kills, drops and XP are recorded server-side while you play — not just when you leave. This is the foundation fix for every sync bug this week (the vanishing items, the resets, the duplicates): the server and your screen can no longer drift apart for hours at a time. Closing the tab settles your last moments too.

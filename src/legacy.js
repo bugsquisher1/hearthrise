@@ -8533,6 +8533,39 @@ window.VENDOR_RAW_RATE = VENDOR_RAW_RATE;
 window.vendorPrice = vendorPrice;
 
 /* Sell helpers — wrap existing logic if available, else simple */
+/* ══════════════════════════════════════════════════════════════════════
+   b377 (Tyler) — CHUNKED VENDOR SELL. THE FIX FOR "SELL A BIG STACK, GET NO GOLD".
+   ══════════════════════════════════════════════════════════════════════
+   `vendor_sell` prices ONE item id per call and both the server and
+   src/net/gold.js bound a single intent at MAX_QTY (1,000). The old sell paths
+   settled the WHOLE stack as one gold prediction and then sent ONE oversized
+   `sellItem(id, qty)` — which, for qty > 1,000, was refused LOCALLY with
+   `qty_out_of_range`, and that refusal's rollback REVERSED THE ENTIRE PREDICTION.
+   So selling 4,600 iron platebodies deleted the stack and paid nothing.
+
+   The stack is genuinely sellable — the contract just prices ≤1,000 per call —
+   so split it into ceil(qty/1000) gestures, EACH with its own intent key, its
+   own `goldSettle` prediction and its own `sellItem`. Every chunk now has a real
+   server story and pays for itself; a rate-limited tail chunk (429) is
+   PROVABLY_UNWRITTEN and rolls back only its own leg, self-healing at the next
+   envelope. Purely client-side: no server change, no redeploy.
+
+   Returns the unit bid so callers can still total the receipt/notify. */
+function vendorSellChunked(id, qty, site){
+  const S = window.HearthriseGold;
+  const MAXQ = (S && S.MAX_QTY) || 1000;
+  const price = vendorPrice(id);
+  let remaining = qty;
+  while(remaining > 0){
+    const chunk = Math.min(remaining, MAXQ);
+    const _k = goldIntentKey();
+    goldSettle(price * chunk, site, _k);
+    if(_k && S){ const _p = S.sellItem(id, chunk, _k); if(_p && _p.catch) _p.catch(()=>{}); }
+    remaining -= chunk;
+  }
+  return price;
+}
+window.vendorSellChunked = vendorSellChunked;
 function invSellOne(id){
   const it = ITEMS[id]; if(!it) return;
   if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it first`,'kill'); return; }   // b240
@@ -8551,11 +8584,8 @@ function invSellAll(id){
   if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it first`,'kill'); return; }   // b240
   const qty = G.inventory[id]||0;
   if(qty <= 0){ notify('Nothing to sell','kill'); return; }
-  const price = vendorPrice(id);
-  const _k = goldIntentKey();
-  goldSettle(price*qty, 'vendor.sell_all', _k);
+  const price = vendorSellChunked(id, qty, 'vendor.sell_all');   // b377: ≤1,000 per intent
   delete G.inventory[id];
-  if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, qty, _k); if(_p && _p.catch) _p.catch(()=>{}); }
   recordVendorSale(id, qty, price);   // b240: undoable
   notify(`Sold ${qty}× ${it.n} (+${(price*qty).toLocaleString()}🪙)`,'loot');
   updateTopbar(); renderInvNew(); closeInvDetail();

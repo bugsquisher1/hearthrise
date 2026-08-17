@@ -552,12 +552,14 @@
        vendor path — ledger site `vendor.quick_sell` — and it happens BEFORE the
        items leave the bag. `goldSettle` THROWS when the kill switch is on and
        src/net/gold.js is absent, and a throw between "items gone" and "gold
-       paid" is the only way this handler can cost a player their stack. */
-    var _k = window.goldIntentKey();
-    window.goldSettle(goldGain, 'vendor.quick_sell', _k);
+       paid" is the only way this handler can cost a player their stack.
+       b377: chunk into ≤MAX_QTY intents so a stack over 1,000 pays fully instead
+       of having its whole prediction rolled back by one oversized refusal.
+       `vendorSellChunked` lives in legacy.js, which loads before this classic
+       script — the same assumption the goldSettle call it replaces already made. */
+    window.vendorSellChunked(id, qty, 'vendor.quick_sell');
     if(typeof window.removeItem === 'function') window.removeItem(id, qty);
     else { window.G.inventory[id] = Math.max(0, (window.G.inventory[id]||0) - qty); }
-    if(_k && window.HearthriseGold){ var _p = window.HearthriseGold.sellItem(id, qty, _k); if(_p && _p.catch) _p.catch(function(){}); }
     if(typeof window.recordVendorSale === 'function') window.recordVendorSale(id, qty, unit);
     if(typeof window.notify === 'function') window.notify('Sold ' + qty + '× ' + item.n + ' for ' + goldGain + 'g', 'loot');
     if(typeof window.renderInvFancy === 'function') window.renderInvFancy();

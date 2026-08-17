@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=376' directly.
+// modularised, will import { G } from '../state/game.js?v=377' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=376';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=376';
+import { on, snapshot } from '../net/events.js?v=377';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=377';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=376';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=377';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -25908,7 +25908,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=376');
+    const KIT = await import('../data/start-kit.js?v=377');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -29447,15 +29447,31 @@ const TESTS = [
       }
       assert(G.gold === 777777, 'the sale left gold at ' + G.gold + ' instead of the server\'s 777777');
 
-      /* A STACK ABOVE MAX_QTY HAS NO SERVER STORY AND SAYS SO. Refused locally
-         rather than spending a rate slot to be told `bad_qty` — and, more to the
-         point, so the gap is NAMED instead of discovered in production. */
-      G.gold = 500; G.inventory = { normal_log: Gd.MAX_QTY + 5 }; sent = [];
+      /* b377 REGRESSION — SELL A BIG STACK, GET PAID FOR ALL OF IT. `vendor_sell`
+         prices ≤MAX_QTY (1,000) per call; the old Sell All sent ONE oversized
+         intent whose local `qty_out_of_range` refusal rolled back the WHOLE gold
+         prediction — Tyler sold 4,600 iron platebodies and received nothing while
+         the stack vanished. It must now SPLIT into ceil(qty/MAX_QTY) intents,
+         each ≤MAX_QTY, so every chunk has a server story and pays for itself. */
+      const bigQty = Gd.MAX_QTY * 4 + 137;               // 4,137 — a Tyler-sized stack
+      const wantChunks = Math.ceil(bigQty / Gd.MAX_QTY); // 5
+      G.gold = 500; G.inventory = { normal_log: bigQty }; sent = [];
       window.invSellAll('normal_log');
       await drain();
-      assert(sent.length === 0 && Gd.getGoldState().last.reason === 'qty_out_of_range',
-        'a stack of ' + (Gd.MAX_QTY + 5) + ' was sent to a verb bounded at ' + Gd.MAX_QTY + ': '
+      assert(sent.length === wantChunks,
+        'selling a ' + bigQty + ' stack sent ' + sent.length + ' intents, expected ' + wantChunks
+        + ' chunks of ≤' + Gd.MAX_QTY + ' — an oversized single intent is refused and pays nothing: '
+        + JSON.stringify(sent.map((s) => s.qty)));
+      assert(sent.every((s) => s.verb === 'vendor_sell' && s.item === 'normal_log' && s.qty >= 1 && s.qty <= Gd.MAX_QTY),
+        'a chunk exceeded the per-intent bound or named the wrong verb/item: ' + JSON.stringify(sent));
+      assert(sent.reduce((n, s) => n + s.qty, 0) === bigQty,
+        'the chunks summed to ' + sent.reduce((n, s) => n + s.qty, 0) + ', not the whole ' + bigQty + '-stack');
+      assert(Gd.getGoldState().last.reason !== 'qty_out_of_range',
+        'the big sell still refused locally as qty_out_of_range instead of chunking: '
         + JSON.stringify(Gd.getGoldState().last));
+      assert(G.gold === 777777,
+        'the chunked sale left gold at ' + G.gold + ' instead of the server\'s absolute 777777 — '
+        + 'the old single-intent refusal rolled the whole prediction back to leave the player with nothing');
     } finally {
       window.fetch = realFetch;
       Gd.resetGold(); Gd.configureGold(null);
@@ -31529,7 +31545,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=376');
+    const S = await import('../data/shops.js?v=377');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -32923,7 +32939,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=376');
+    const S = await import('../data/shops.js?v=377');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -35435,7 +35451,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=376')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=377')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -36873,7 +36889,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=376');
+    const A = await import('../net/accrue.js?v=377');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -36897,7 +36913,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=376');
+    const A = await import('../net/accrue.js?v=377');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

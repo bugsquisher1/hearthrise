@@ -82,7 +82,15 @@ export const PATTERNS = Object.freeze([
      were wired, i.e. the guard would go quiet exactly when the surface became
      load-bearing. The id is the literal, so the row survives every edit that
      does not change the gesture. */
-  { name: 'seam', re: /goldSettle(?:Currency)?\(\s*[\s\S]{0,120}?['"]([\w.]+)['"]/g, seam: true },
+  /* `vendorSellChunked` (b377) is a SEAM WRAPPER, not an evasion: it is a thin
+     loop in legacy.js that calls `goldSettle(price*chunk, site, key)` once per
+     ≤MAX_QTY chunk, so the site id lives at ITS call, not at a bare goldSettle.
+     Registering it here keeps `seam:vendor.sell_all` / `seam:vendor.quick_sell`
+     visible to the census — the alternative (inlining the chunk loop at both
+     call sites) would be two copies of the same payment path, which is the exact
+     thing the seam exists to prevent. Same standing as goldSettle wrapping
+     settleCurrency. */
+  { name: 'seam', re: /(?:goldSettle(?:Currency)?|vendorSellChunked)\(\s*[\s\S]{0,120}?['"]([\w.]+)['"]/g, seam: true },
 
   /* ══════════════════════════════════════════════════════════════════════════
      F6 — THE FOUR EVASIONS. THE SCANNER WAS BLIND TO ITS OWN API.

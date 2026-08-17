@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 377 — 2026-08-18 (Hotfix: selling big stacks pays you again)
+
+- 🚑 **Fixed "sell a huge stack, get no gold."** Selling more than 1,000 of one item at the shop (e.g. 4,600 iron platebodies, 3,500 bones) removed the stack but paid nothing. The vendor now settles big sells in batches, so you're paid for every single one. (Thanks Tyler.)
+- 🧩 Under the hood: each vendor sale is a server-priced transaction bounded at 1,000 per call; the old path tried to send one oversized transaction, which was rejected and rolled the whole payment back. Large sells now split into ≤1,000 batches that each pay for themselves.
+
 ## v0.9.2-beta build 376 — 2026-08-18 (Hotfix: crafted items no longer vanish)
 
 - 🚑 **Fixed crafted items disappearing.** Crafting certain items (like set signets) could consume your materials but leave you with nothing — the item vanished. That's fixed; your crafted goods now stay in your bag. (Thanks Xarnathos.)

@@ -193,8 +193,10 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   'seam:vendor.sell_all': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
     site: 'src/legacy.js invSellAll() — the bag\'s Sell All (one item id, whole stack)',
-    note: 'A stack above MAX_QTY (1,000) has no server story and is refused LOCALLY by name '
-      + '(`qty_out_of_range`) instead of burning a rate slot to be told `bad_qty`.',
+    note: 'b377: a stack above MAX_QTY (1,000) is SPLIT into ceil(qty/1,000) intents by '
+      + '`vendorSellChunked`, each its own key/settle/send. The old path sent ONE oversized '
+      + 'intent, whose local `qty_out_of_range` refusal rolled back the WHOLE prediction — selling '
+      + 'a 4,600 stack deleted it and paid nothing. Chunks each have a real server story now.',
   },
   'seam:vendor.tap_sell': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',

@@ -283,3 +283,9 @@ _(New decisions below, newest first.)_
 ## 2026-08-17 — b364 + b365 shipped; stabilization begins with device handoff
 - b364 (settlement Phase 1 + rebrand + avatar picker) and b365 (War Table + Fight screen, fold 111->108) both passed the release visual gate (screenshots read at desktop + 922x423) and are live. Catalogue re-applied and hr-accrue redeployed BEFORE the b365 client push.
 - Tyler (2026-08-17, verbatim): "We desperately need to fix this server / local back and forth bullshit... all I tried to do was move from my computer to my phone. Wildly terrible experience." Device-handoff sync UX is the TOP stabilization item — QA audit dispatched; findings gate the fix wave before the full playthrough.
+
+## 2026-08-17 — Fresh-eyes audit (b370) outcomes
+- Verified by Coordinator against prod (the audit lacked SQL access): equip-release-codes, clan-deposit-ownership, and skill-row-upsert ARE all applied and verified by discriminating anchors. The audit's "Server" scorecard ratings stand.
+- P1 dispatched: Fight button unreachable at 1366x768/1280x800 (max-height:560px scoping) + 3 more Y-axis reachability defects + the CTA hit-test guard (2nd occurrence of the unreachable-control class).
+- Leaderboard rebuild over player_state/player_skills dispatched (S2) — URGENT since the audit surfaced that the WIPE WAS DEFERRED WITH AMNESTY (2026-08-17-cutover-import.sql), contradicting CLAUDE.md's "beta WILL BE WIPED". OPEN QUESTION FOR TYLER: wipe at cutover, or amnesty stands? Until answered, act as if amnesty stands (forgery laundering risk is live).
+- Record flip (gold/gems/skills/inventory onto SERVER_OF_RECORD + load strip) is plumbed, tested, fail-closed, and armed for ONE field — the audit calls the gap "a decision, not engineering". Sequence AFTER leaderboards land, with acknowledged-arming discipline.

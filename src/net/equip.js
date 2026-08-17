@@ -47,7 +47,7 @@
 // same bytes the browser runs.
 // ============================================================================
 
-import { markEquipAuthorityLive, isServerAccrualEnabled } from './accrue.js?v=366';
+import { markEquipAuthorityLive, isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=366';
 
 export const EQUIP_VERB = 'equip';
 
@@ -75,7 +75,15 @@ let hooks = { onEnvelope: null, pointer: null };
  * rather than to a stale absolute.
  */
 export function configureEquip(cfg) {
-  config = cfg && cfg.url ? { ...cfg } : null;
+  /* ⚠ `authToken` AND `slot` FOLLOW THE OTHER FOUR TRANSPORTS, and this is the
+     b339/b342 slot bug pre-empted rather than repeated. auth.js wires every
+     intent from ONE base — `{url, apiKey, authToken}` with NO slot — because a
+     token captured at sign-in is dead in an hour and a slot captured at sign-in
+     is wrong the moment the player switches character. This module's first
+     revision read `cfg.token` and pinned `cfg.slot`, which would have sent
+     every equip to character 1 while the player wore gear on character 3.
+     `token` is still honoured so a caller (and the suite) may pass a literal. */
+  config = cfg && cfg.url ? { ...cfg, authToken: cfg.authToken || cfg.token || null } : null;
   /* ⚠ `gestureWired` IS A SEPARATE, EXPLICIT ASSERTION AND IT IS NOT PEDANTRY.
      A configured transport means "this client CAN tell the server about an
      equip". The flip's real precondition is "this client DOES" — i.e. the
@@ -94,6 +102,11 @@ export function configureEquip(cfg) {
 }
 export function getEquipConfig() { return config; }
 export function setEquipHooks(h) { hooks = { ...hooks, ...(h || {}) }; }
+/** WHAT IS ACTUALLY INSTALLED. Exported because `resetEquip()` clears the hooks
+    and a caller that latched on "I already wired this" would then hold a
+    transport with NO envelope applier — a swap the server performed that the
+    client never reads. The gesture owner asks this instead of remembering. */
+export function getEquipHooks() { return { ...hooks }; }
 export function resetEquip() { config = null; hooks = { onEnvelope: null, pointer: null }; markEquipAuthorityLive(false); }
 
 function accrueEndpoint(url) {
@@ -201,6 +214,43 @@ export const EQUIP_OUTCOMES = Object.freeze([
 export const UNANSWERED_OUTCOMES = Object.freeze(['unreachable', 'timeout']);
 export function isAnswered(outcome) { return UNANSWERED_OUTCOMES.indexOf(outcome) === -1; }
 
+/* ── WHAT THE PLAYER IS TOLD WHEN THE SERVER SAYS NO ────────────────────────
+   ONE map, here rather than in the gesture, so the legacy call site and the
+   suite name the same sentences.
+
+   ⚠ IT IS KEYED ON THE ERROR CODE AND ON NOTHING ELSE, which is what makes it
+   INDEPENDENT OF `2026-08-18-equip-release-codes.sql` BEING APPLIED. That
+   migration changes exactly one thing: whether hr_apply RELEASES the intent key
+   a refusal claimed. It does not rename a code, add one, or remove one. So the
+   same five sentences are correct against the old release set and the new one.
+
+   The only behaviour that could depend on it is a RETRY ON THE SAME KEY, which
+   would replay the stored rejection against an unpatched database. We never do
+   that: `isAnswered()` is true for every refusal, so the next gesture mints a
+   fresh key (rule 1), and nothing here retries a refusal automatically.
+
+   An UNKNOWN code still says something true and names itself, because a code
+   this build has never heard of is exactly the case where the player must be
+   able to quote something in a bug report. */
+export const EQUIP_REFUSALS = Object.freeze({
+  bad_equip: 'That gear change could not be read. Nothing was changed.',
+  unknown_equip_slot: 'That equipment slot is not one the server knows.',
+  wrong_slot: 'That item does not go in that slot.',
+  unknown_item: "The server does not have that item yet — it may be a build newer than the server's.",
+  requirement_not_met: 'You do not meet the requirement to wear that yet.',
+  insufficient_item: 'The server says you do not have that item.',
+  too_many_equip_ops: 'That is too many gear changes at once.',
+  rate_limited: 'Slow down a moment — too many gear changes.',
+  no_character: 'The server has no character in this slot yet.',
+  version_conflict: 'Your gear changed somewhere else. Try again.',
+  intent_mismatch: 'That gear change did not match the one the server recorded.',
+});
+export function equipRefusalMessage(code) {
+  const k = String(code || '');
+  if (Object.prototype.hasOwnProperty.call(EQUIP_REFUSALS, k)) return EQUIP_REFUSALS[k];
+  return k ? `The server refused that gear change (${k}).` : 'The server refused that gear change.';
+}
+
 /** Classify an answer. Pure — status and body in, verdict out. */
 export function classifyEquipResponse(status, body) {
   if (status === 429) return { outcome: 'rate-limited', body };
@@ -242,7 +292,9 @@ export function envelopeOf(body) {
 export async function sendEquip(ops, o = {}) {
   if (!isServerAccrualEnabled()) return { outcome: 'switch-off', key: o.key || null };
   if (!config) return { outcome: 'unconfigured', key: o.key || null };
-  const token = typeof config.token === 'function' ? config.token() : config.token;
+  let token = null;
+  try { token = typeof config.authToken === 'function' ? config.authToken() : config.authToken; }
+  catch (e) { token = null; }
   if (!token) return { outcome: 'unconfigured', key: o.key || null };
 
   const v = validateEquipOps(ops);
@@ -251,7 +303,8 @@ export async function sendEquip(ops, o = {}) {
   const key = isIntentKey(o.key) ? o.key : newIntentKey();
   const { url, init } = buildEquipRequest({
     url: config.url, apiKey: config.apiKey, token,
-    slot: Number.isInteger(config.slot) ? config.slot : 0,
+    /* RESOLVED PER CALL, never captured. See configureEquip's block. */
+    slot: resolveActiveSlot(Number.isInteger(config.slot) ? config.slot : null),
     intentId: key, equip: v.ops,
   });
 
@@ -290,7 +343,8 @@ export async function sendEquip(ops, o = {}) {
 if (typeof window !== 'undefined') {
   window.HearthriseEquip = {
     EQUIP_VERB, MAX_EQUIP_OPS, EQUIP_OUTCOMES, UNANSWERED_OUTCOMES,
-    configureEquip, getEquipConfig, setEquipHooks, resetEquip,
+    EQUIP_REFUSALS, equipRefusalMessage,
+    configureEquip, getEquipConfig, setEquipHooks, getEquipHooks, resetEquip,
     validateEquipOps, buildEquipRequest, classifyEquipResponse, envelopeOf,
     newIntentKey, isIntentKey, isAnswered, sendEquip,
   };

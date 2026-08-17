@@ -1872,6 +1872,52 @@ function wireServerActivity(){
    followed, the save stamped and the screen repainted. This was the body of the
    b337 onApplied hook; it is a named function now because a second copy of it
    is a second idea of what a server answer means. */
+/* ── AWAY KILLS FEED THE KILL COUNTERS (Paione, 2026-08-18) ───────────────────
+   The server computes away kills through the SAME simulateSpan the live tick
+   runs, journals them (`stat:kills`, `ev:kill_any` in player_progress) and even
+   surfaces them on the receipt (`away.kills`) — but the applied envelope STATE
+   carries only gold/xp/inventory/hp. The three counters a kill ALSO feeds —
+   lifetime `stats.kills`, the this-fight streak `combatKillsThisFoe`, and kill
+   quests/dailies — are NOT in the envelope state, so an away night paid loot and
+   XP while "total kills", "kills this fight" and the weekly kill-quest stood
+   still. That is exactly Paione's report.
+
+   The fix replays the server's away kill TOTAL through the SAME live seams a
+   real kill uses (`updateDaily`/`updateQuest`, and `stats.kills` before them so a
+   mirrored quest reads the post-credit total), so an away kill and a live kill
+   move the same counters — "exactly the same as if the player was still online"
+   (Tyler, 2026-08-14).
+
+   ⚠ GATED ON A GENUINE ABSENCE, and this gate is load-bearing. Live combat is
+   client-authored: `combatTick` → `resolveKill` already increments all three
+   counters every swing while online. A live settle ('sync') and an activity
+   switch cover a window the live loop ALSO ran, so re-adding the server's figure
+   there would DOUBLE every count. A real absence ('away') is the one window the
+   live loop did not run in — with server accrual on, `processOffline` returns
+   before simulating anything, so nothing else credited these kills locally.
+   `classifyReceipt` is the one place that away/sync/switch rule lives. */
+function creditServerAwayKills(summary){
+  const A=window.HearthriseAccrual;
+  const s=summary||G.lastOfflineSummary;
+  if(!s)return 0;
+  const kind=(A&&typeof A.classifyReceipt==='function')?A.classifyReceipt(s):null;
+  if(kind!=='away')return 0;
+  const k=(s.combat&&Number(s.combat.kills))||Number(s.gainedKills)||0;
+  if(!(k>0))return 0;
+  G.stats=G.stats||{};
+  G.stats.kills=(G.stats.kills||0)+k;
+  /* The this-fight streak resumes only if the same fight is still standing — a
+     death ended it and the next startCombat resets it to 0 anyway. */
+  if(G.activeMonster&&!(s.combat&&s.combat.died)) G.combatKillsThisFoe=(G.combatKillsThisFoe||0)+k;
+  /* stats.kills is set ABOVE this, so the mirrored `hundred_kills` quest
+     (mirror:'stats.kills') reads the post-credit total; a non-mirror kill_any
+     quest and the kill_any dailies add `k`. An observer that throws must never
+     eat the credit, hence the guards. */
+  try{ if(typeof updateDaily==='function') updateDaily('kill_any',k); }catch(e){}
+  try{ if(typeof updateQuest==='function') updateQuest('kill_any',k); }catch(e){}
+  return k;
+}
+window.creditServerAwayKills=creditServerAwayKills;
 function applyServerEnvelope(res,opts){
   const o=opts||{};
   const A=window.HearthriseAccrual;
@@ -1880,6 +1926,10 @@ function applyServerEnvelope(res,opts){
   if(o.intent){ written=(M&&typeof M.applyIntentEnvelope==='function')?M.applyIntentEnvelope(G,res):null; }
   else { written=(A&&typeof A.applyEnvelope==='function')?A.applyEnvelope(G,res):null; }
   if(!written)return null;
+  /* BEFORE saveLocal + refreshAll below, so the credited counters persist and
+     repaint in the same pass. A gather-only night has combat:null and credits
+     nothing; a live settle/switch is gated out inside the helper. */
+  try{ creditServerAwayKills(G.lastOfflineSummary); }catch(e){}
   /* b340: the RECORD fields ride the same envelope, but they are written by
      record.js's applyRecord and by nothing else — one writer, three callers
      (this, the hr_load boot read, and now the switch), rather than three

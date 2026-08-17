@@ -4,54 +4,26 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
-## 2026-08-17 · Game Designer · b374 backlog pass (5 Tyler items)
+### 2026-08-17 - Art Director (b374) - The Home hearth banner now shares the login's painted plate; the flat-vector SVG scene is retired from Home (still exported)
 
-Branch `worktree-agent-a356451546eefca53`. All 890 smoke tests green. **Server-authoritative data
-changed → ship order below.** Files: `src/data/{stonecraft,slot-ladders,library2-items}.js`,
-`src/core/artisan.js`, `src/features/activities-grid.js`, `src/legacy.js`, `src/styles/legacy.css`,
-`src/features/smoke-test.js`, `tests/accrual-engine.mjs`, regenerated `2026-08-11-catalogue.generated.sql`.
+**Discovery / change.** The Home dashboard's hearth band (`.hd-hearth`, built in
+`src/features/home-dashboard.js`) drew a flat-vector SVG silhouette landscape
+(`window.HearthriseBackdrop.homesteadScene(tier)` in `src/features/backdrop.js`). Beside the painted
+account-gate/login (`assets/brand/hearthrise-splash.jpg`, wired in `src/net/account-gate.js`) it read
+as "two games". The band now paints the SAME splash plate via `.hd-hearth::before`, with a
+legibility-aware two-gradient scrim (`--scene-scrim-*` tokens + transparent only) darkening the
+left flank (identity), right flank (XP/Kills/Harvest ledger) and floor, leaving the centre-top open
+for the painting. Name / eyebrow / rank-online subline / ledger verified fully legible at 1440x900
+AND 922x423 (compact 56px strip).
 
-**1. Rock-gathering pays MINING, refining pays STONEMASON** (Tyler: "gathering the rocks should be
-mining, refining is the stonemason part"). New optional recipe field `xpSkill` — `resolveArtisanAction`
-redirects the grant; invisible to every recipe that omits it. Quarry (rubble/granite/basalt) now
-`xpSkill:'mining'`. Quarry STAYS an artisan lane on the Stonemason bench (a stone node in `ROCKS`
-would break the b226 "every mining rung strictly better" invariant — the reason §8.4 kept it out).
-So bench-gate stays on Stonemason level; only the XP pool moved. Quarry xp re-tuned for Mining's curve
-(granite 56→22, basalt 240→43) so each rung is below the comparable ore rung's xp/s — a supply
-activity, never the optimal Mining trainer. Stonemason not stranded: earliest XP is `dress_rubble`
-(Cut Stone Block, req 1). AFFECTED: artisan engine (client + vendored hr-accrue), stonecraft data,
-Mining/Stonemason progression. Regression `b374: rock-gathering pays Mining…`.
-UX handoff (Art Director, low): quarry tiles live on the Stonemason screen but train Mining — a
-one-line "trains Mining" hint would remove confusion.
+**Affected systems.** `src/features/home-dashboard.js` (band CSS + scene injection removed);
+regression guard `b374` in `src/features/smoke-test.js`. `backdrop.js` UNTOUCHED — `homesteadScene()`
+stays exported (a future per-tier painted plate can reuse its stage logic).
 
-**2. "Dress" jargon gone** (Tyler: "wtf is dress"). `Dress *` → `Cut Stone/Granite/Basalt Block`;
-`Dressed Block` → `Stone Block`. DISPLAY-NAME-ONLY — id `dressed_block` preserved (no art/catalogue
-re-key). Regression `b374: masonry "dress" jargon is gone…`.
-
-**3. Arrow batch 500→50** (Tyler ×2). Uniform `outputQty:50`, xp-per-action UNCHANGED (time-to-99
-intact). Worst rung now 527k units (54% of clamp, under the 60% line) → `AMMO_CLAMP_BASELINE`
-amnesty DELETED (tech-debt the consumable-economy doc flagged). Ammo is now a real recurring craft,
-correct for the ammo-hungry style. Regression `b374: arrow batches cut to a round ×50`.
-
-**4. Gather node vs product art** (Tyler: "oak log shown for Oak Tree"). Interim: keep the real
-product sprite, add a `Yields <Oak Log>` caption so the sprite reads as the harvest, not the node.
-Regression `b374: a gather tile names its yield…`. **ART BRIEF (deliverable to Art Director, NOT built):**
-per-tier NODE sprites — Woodcutting 7 trees, Mining 8 ore faces + 3 quarry stone faces, Fishing 8
-water spots, Farming a plot glyph; match the item-icon set (frame/pixel/tier tint). When they land,
-flip `actIconHtml` in `activities-grid.js` to prefer node art over `action.prod`.
-
-**5. Skill level-up feedback** (Tyler: "No popup for raising skill"). `hrLevelUpNotice()` keeps the
-toast (Chronicle rides it) AND raises a lightweight, non-blocking, auto-fading, tokens-only banner
-(`#hr-levelup-host` / `.hr-levelup-pop`, tap-to-dismiss, capped 3) naming skill + new level + what
-unlocked (`hrSkillUnlocksAt`). Regression `b374: leveling a skill fires the celebratory notice…`.
-
-**SHIP ORDER (REQUIRED ACTION):** (a) Redeploy Edge Function `hr-accrue` — it vendors `src/core` +
-`src/data`, changed here; smoke deploy-sync is red until then (expected). `node tools/pack-edge.mjs
-hr-accrue --out <dir>`. (b) Re-apply `2026-08-11-catalogue.generated.sql` (regenerated; digest
-`5b0a77e2…`). (c) Items 4 & 5 + CSS → assembled-main visual gate owed (desktop + 922×423: Skills
-screen "Yields …", and a level-up banner) — preview points at the shared checkout, not this worktree.
-
----
+**Required action / known limitation.** The band LOST homestead-tier progression (the old SVG grew
+camp→cottage→manor→castle; the painted plate is fixed). The tier is still spoken by the eyebrow text
+("Wanderer's Camp" → "Hearthrise Castle"). Restoring visual tier progression = a set of 4-6 painted
+tier plates (ART request, briefed to Asset Director in HANDOFFS). Medium/nice-to-have, not blocking.
 
 ### 2026-08-17 - Game Designer (b373) - The FTUE's worst moment was not a missing feature: it was three correct systems each staying silent
 

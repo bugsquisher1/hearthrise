@@ -2,6 +2,27 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-17 · FROM Art Director → TO Asset Director · **Home-banner visual-upgrade pass surfaced 3 art requests; b374 shipped the code-doable one (painted plate), these need generation**
+
+The b374 pass swapped the Home hearth banner from flat-vector SVG to the login's painted plate
+(coherent, shipped). Walking the rest of the game for the "a lot of the visuals" audit, three
+surfaces still clash with the painted direction and need GENERATED art (not code):
+
+1. **Homestead room illustrations** (House tab: Kitchen / Forge / Library / Garden / Trophy Room /
+   Cellar / Workshop / Shrine). Currently cold DESATURATED grey concept-sketch vignettes — beside the
+   warm painted item icons and the new painted banner they read as placeholder. Brief: warm hearth-lit
+   painted room interiors, Forge & Stone palette, same square/vignette framing they occupy now. ~11 rooms.
+   HIGH value (a whole dense tab). A cheap CODE stopgap (warm sepia tint) is possible but the real fix is paint.
+2. **Homestead TIER plates for the Home banner** (4-6): camp / cottage / farmstead / manor / castle
+   (16:9-ish wide crops). b374's painted banner is a FIXED plate and lost the old SVG's tier
+   progression; a per-tier painted plate restores "the picture never lies about your progress".
+   MEDIUM. The wiring is trivial once plates exist (swap the `.hd-hearth::before` url by tier).
+3. (already open) the 30 legacy `painted/` monster portraits + the 5 wrong plank/bar item icons +
+   19 companion portraits — pre-existing requests, not new here.
+
+Farm empty-plot tiles (flat diagonal-stripe placeholders) are CODE-doable (tilled-soil CSS texture) —
+mine, not yours; not done this pass (out of the banner's scope, low value). Flagged in my log.
+
 ### 2026-08-17 · FROM Art Director → TO Asset Director · **19 companion portraits are the biggest identity gap left in the game, and I refused four near-matches rather than fake them**
 
 The Stable (F19) showed 20 of 22 companions rendering the SAME paw glyph. I fixed what is

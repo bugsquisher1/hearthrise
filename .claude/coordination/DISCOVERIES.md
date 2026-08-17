@@ -4,6 +4,68 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-08-17 · systems-engineer · "Strange flickering of old assets" is TWO bugs, and the one we could see is the smaller one
+**Affected systems:** boot order (legacy.js / main.js), every icon-bearing surface, the shipped icon bundle.
+**Required action:** ordering half is FIXED below; the payload half is an ASSET decision — see HANDOFFS.
+
+Tyler's flicker report (LIVE-AUDIT F13 / F13-addendum / F15) was investigated by instrumenting the
+real boot in Playwright rather than by reading source. It is not one bug, and it is not caching.
+
+### 1. The icon-map ordering gap — REAL, measured, now fixed
+`legacy.js` is a classic script and paints screens while it is the only thing that has run; at that
+moment `window._itemPath` holds **109** of the ~490 paths the game ships. `src/main.js` is a module,
+therefore deferred, and it is what completes the map. Worst observed ordering on a cold boot:
+
+```
+ 905 ms  renderInvNew()      _itemPath = 109   <- blank tiles, never repainted
+~960 ms  main.js merge       _itemPath = 484
+1006 ms  showTab('profile')                    <- repaints PROFILE only
+1732 ms  the old 1500 ms timer  _itemPath = 490
+```
+
+109/484 is 22% — which is exactly the audit's "28 occupied slots, ~7 icons visible". The old
+`setTimeout(__mapGeneratedGearIcons, 1500)` was both a guessed delay AND a forced full inventory
+repaint at ~1.7 s on **every** boot. Replaced by `window.__hrIconsReady()`, called by main.js at the
+instant the map is complete. Guarded by `tests/icon-boot-order.mjs`.
+
+### 2. The DOMINANT cause is ICON PAYLOAD WEIGHT — not fixed, asset domain
+Even with a perfect map, a freshly-innerHTML'd screen shows empty boxes until its PNGs arrive.
+Measured, Farm opened at the first opportunity, 1.5 Mbps / 60 ms latency (a normal phone):
+
+```
+   t+100 ms  0 / 9 crop icons painted
+   t+300 ms  6 / 9
+  t+1200 ms  9 / 9
+```
+
+On a settled connection the same screen fills in ~50 ms, which is why this only bites during boot
+and on first visit — precisely when Tyler was looking. Measured bundle:
+
+| folder | files | dims | avg | total |
+|---|---|---|---|---|
+| hearthfire/items | 216 | 128x105 | 28 KB | 6 MB |
+| hearthfire/armour | 126 | 128x128 | 30 KB | 4 MB |
+| hearthfire/food | 64 | 128x128 | 28 KB | 2 MB |
+| hearthfire/weapons | 67 | 127x128 | 20 KB | 1 MB |
+| hearthfire/monsters | 74 | 256x256 | **112 KB** | 8 MB |
+
+A 128x128 RGBA icon at 28 KB is ~1.8 bytes/pixel — PNG doing nearly nothing on noisy painted art.
+One inventory screen of 28 items is ~840 KB, which at 1.5 Mbps is ~4.5 s: the audit's "all 28
+painted 4 s later", to the second. The Bounty Board's F15 case is the same arithmetic at its worst —
+six 44px `.bb-cut` slots each fetching a **256px, 112 KB** monster portrait, ~670 KB for six
+thumbnails.
+
+**A blanket preloader was considered and rejected**: prefetching reorders the download, it does not
+shrink it, and at 27 MB it would be a hostile thing to do to a phone. The fix is at the asset layer.
+
+### 3. Method note
+Three theories were held and two were killed by measurement: "the ESM merge lands after first paint"
+(mostly false — it lands before boot in the common ordering) and "showTab caches a pre-rendered
+panel" (false — `showTab` re-renders). The one that survived was the one nobody had proposed. Boot
+races are not readable from source; instrument the real page.
+
+---
+
 <<<<<<< HEAD
 ### 2026-08-17 · Art Director (b369) · FIVE stylesheets were each authoring one piece of the paper-doll's grid, and the two that disagreed produced a live overlap on two surfaces
 

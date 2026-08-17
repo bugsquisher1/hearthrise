@@ -530,8 +530,9 @@ const TESTS = [
     });
   }),
   /* b358 — THE MERGE-ORDER TRAP. `__mapGeneratedGearIcons()` paints every
-     generated tier piece with a shared slot silhouette, and it re-runs 1500 ms
-     after load. It skips an id only if that id is already in legacy's own
+     generated tier piece with a shared slot silhouette, and it re-runs at the
+     b371 icon-readiness edge (it used to be a 1500 ms timer — same trap, just
+     no longer a guessed delay). It skips an id only if that id is already in legacy's own
      LOCAL_ITEM_ICON closure — so if the Hearthfire manifest were applied by
      writing `_itemPath` directly (the obvious way), a generic iron platebody
      would silently overwrite ~90 real paintings a second and a half after the
@@ -588,6 +589,44 @@ const TESTS = [
     });
     assert(!ids.some((id) => (A.REJECTED_WRONG_SUBJECT || []).some((k) => k.split('/')[1] === id)),
       'a file withheld for depicting the wrong object got wired anyway');
+  }),
+  /* b371 — THE ICON-READINESS EDGE (Tyler: "strange flickering of old assets";
+     LIVE-AUDIT F13 / F13-addendum / F15). legacy.js paints screens while it is
+     still the only thing that has run, against a 109-entry `_itemPath`; main.js
+     is a deferred module and is what completes the map to ~490. A screen caught
+     in that window kept its blank tiles until an unrelated action happened to
+     re-render it — Tyler's Farm painted its crops only when he pressed "Plant
+     all". The old mitigation was a guessed `setTimeout(…, 1500)` that also
+     forced a visible full inventory repaint on every boot.
+
+     `__hrIconsReady()` is the replacement: one idempotent edge, driven by
+     main.js at the exact instant the map is complete, that repaints the ACTIVE
+     screen through `showTab(activeTab)` — the engine's own render entry point,
+     so a screen added at 10× content is covered with no registry to maintain.
+
+     This asserts the SHAPE and the one-shot contract in-page. The behavioural
+     half — "no path arrives after first paint", and "a late edge really does
+     repaint a stale Farm" — needs to observe boot from outside the page and
+     lives in tests/icon-boot-order.mjs. */
+  () => tryRun('b371: the icon-readiness edge exists, fired, and is one-shot', () => {
+    assert(typeof window.__hrIconsReady === 'function',
+      'legacy.js must expose __hrIconsReady() — the edge main.js drives when the icon map completes');
+    assert(typeof window.__hrRepaintActive === 'function',
+      'legacy.js must expose __hrRepaintActive() — the repaint half, so a test can falsify it alone');
+    assert(window.__hrIconsReadyAt > 0,
+      'the edge never fired: main.js did not call __hrIconsReady(), so a screen painted early stays blank');
+    assert(window.__hrBooted === true,
+      'boot() must set __hrBooted — it is how the edge tells "already painted" from "not painted yet"');
+    assert(window.__hrIconsReady() === false,
+      'the edge must be one-shot: a second call has to be a no-op, or the fallback timer double-repaints');
+    /* The repaint is safe to call at any time — it is the same code path the
+       player takes every time they change screens. Calling it must not throw
+       and must leave the same screen on. */
+    const shown = () => (document.querySelector('.panel.active') || {}).id || null;
+    const before = shown();
+    window.__hrRepaintActive();
+    const after = shown();
+    assert(after === before, 'the readiness repaint changed screens (was ' + before + ', now ' + after + ')');
   }),
   /* b361 — THE ITEM-DETAIL POPUP DREW A RAW EMOJI AT 48px.
      Tyler, live: "click an item (e.g. Wheat Seed) and the popup still shows

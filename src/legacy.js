@@ -7257,6 +7257,11 @@ function boot(){
   setInterval(()=>{saveLocal();},90000);
   /* expose dev helpers */
   window.G=G;window.IAP=IAP;window.NetClient=NetClient;window.generateBountyBoard=generateBountyBoard;
+  /* b371 — the engine has now PAINTED a screen (showTab('profile') above).
+     `__hrIconsReady()` reads this to decide whether the icon map arriving
+     late needs to force a repaint, or whether it beat first paint and has
+     nothing to correct. See the long block at `__hrIconsReady`. */
+  window.__hrBooted = true;
   window.testerBoost=()=>{G.gold+=5000;G.gems+=200;ensureBountyState();G.bountyHunter.marks+=50;['turnip_seed','carrot_seed','wheat_seed','potato_seed'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+10);['normal_log','copper_ore','iron_ore','shrimp','bones'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+25);['woodcutting','mining','fishing','farming','attack','strength','defense'].forEach(sk=>G.skills[sk]=(G.skills[sk]||0)+650);G.skills.hitpoints=Math.max(G.skills.hitpoints||0,1584);G.playerMaxHp=levelFromXp(G.skills.hitpoints);G.playerHp=G.playerMaxHp;notify('Tester boost applied','loot');refreshAll();};
 }
 /* b224 ACCOUNT WALL — the engine does not start behind the gate.
@@ -17331,19 +17336,93 @@ window._monsterIcon = window._monsterIcon || {};
     });
   };
   window.__mapGeneratedGearIcons();
-  /* This IIFE runs while legacy.js loads — BEFORE main.js merges the ESM data,
-     so the generated tier gear isn't in ITEMS yet and the pass above finds
-     nothing. Run it again once the merge has happened. */
-  setTimeout(function(){
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b371 — THE ICON-READINESS EDGE. Replaces a `setTimeout(…, 1500)`.
+
+     THE MEASURED PROBLEM (Tyler: "strange flickering of old assets";
+     LIVE-AUDIT F13 / F13-addendum / F15). This IIFE runs while legacy.js
+     LOADS, so at that moment `window._itemPath` holds 109 of the 490 paths
+     the game ships — the rest arrive when main.js (a module, therefore
+     deferred) merges `src/data/*` and applies the Hearthfire manifest.
+     Anything painted in that window renders `hr-blank-icon` for ~78% of its
+     items and is NEVER repainted, because nothing told it the map had grown.
+     Instrumented boot, worst observed ordering:
+
+         905 ms  renderInvNew()   _itemPath = 109   ← blank tiles, kept
+         ~960 ms main.js merge    _itemPath = 484
+        1006 ms  showTab('profile')                 ← repaints PROFILE only
+        1732 ms  the old 1500 ms timer               _itemPath = 490
+
+     That is exactly the audit's "28 slots, ~7 icons visible, all 28 painted
+     four seconds later": 109/484 ≈ the 7/28 he counted.
+
+     THE SHAPE OF THE FIX. Not a gate (delaying first paint to protect an
+     icon would trade a cosmetic pop for a blank screen), and not a
+     per-surface hack. ONE readiness edge that main.js drives:
+
+       • it is IDEMPOTENT and one-shot, so a double call is free;
+       • it runs the generated-gear pass at the only moment it can succeed —
+         after the ESM ITEMS merge — instead of guessing 1500 ms;
+       • it repaints the ACTIVE SCREEN through `showTab(activeTab)`, the
+         engine's own "render this destination" entry point, so a surface
+         added at 10× content is covered with no registry to maintain;
+       • it repaints ONLY if `boot()` has already run — i.e. a screen was
+         painted against the short map. In the fast ordering (and behind the
+         account wall, where boot is deferred until the gate opens) the edge
+         lands FIRST and the correct action is to do nothing at all, so this
+         costs one boolean read on the common path. `#panel-profile` ships
+         `class="panel active"` in index.html, so "is a panel active" is NOT
+         a usable proxy for "has the engine painted" — it is true before
+         `loadLocal()` has even run, and repainting there would render a
+         screen from default state.
+
+     The timer survives ONLY as a fallback for the case where main.js never
+     executes (module parse error, blocked asset). It is idempotent against
+     the real call, so the normal path costs one no-op.
+
+     THE LATCH IS `window.__hrIconsReadyAt`, NOT A PRIVATE BOOLEAN. The edge
+     is a fact about this page load, and a fact worth recording is the same
+     fact worth latching on — one piece of state instead of two that can
+     disagree. It also means the guard in tests/icon-boot-order.mjs can re-arm
+     the edge and drive the late-merge branch for real, rather than asserting
+     about source text; a branch no test can reach is a branch that rots.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* The repaint itself, named because it is the load-bearing half and the
+     thing a test must be able to falsify on its own. `showTab(activeTab)` is
+     the engine's own "render this destination" entry point, so every current
+     AND future icon-bearing screen is covered without a registry.
+
+     KNOWN LIMITATION: showTab() calls closeAllModals(). The edge that uses
+     this fires during boot, before the player can have opened anything, so
+     there is nothing to close — but do not repurpose this as a general
+     "refresh" for a running session without addressing that. */
+  window.__hrRepaintActive = function repaintActive(){
+    var tab = (typeof activeTab !== 'undefined' && activeTab) ? activeTab : null;
+    if (tab && typeof window.showTab === 'function') { window.showTab(tab); return true; }
+    if (typeof refreshAll === 'function') { refreshAll(); return true; }
+    return false;
+  };
+
+  window.__hrIconsReady = function iconsReady(){
+    if (window.__hrIconsReadyAt) return false;
+    window.__hrIconsReadyAt = Date.now();
     try {
       window.__mapGeneratedGearIcons();
       /* The doll is built once and cached (buildTibiaDoll bails when a
          .td-doll already exists), so drop it to force a rebuild with the
          freshly-mapped art. */
       document.querySelectorAll('.td-wrap, .td-doll').forEach(function(n){ n.remove(); });
-      if (typeof renderInventory === 'function') renderInventory();
-    } catch(e){}
-  }, 1500);
+      /* Did the engine already paint a screen with the short map? */
+      if (window.__hrBooted) {
+        window.__hrIconRepaint = true;
+        window.__hrRepaintActive();
+      }
+    } catch(e){ try { window.captureException && window.captureException(e); } catch(_){} }
+    return true;
+  };
+  setTimeout(function(){ try { window.__hrIconsReady(); } catch(e){} }, 1500);
 
   // Apply: override window._itemPath for known IDs. Item-render code
   // already prefers _itemPath over emoji.

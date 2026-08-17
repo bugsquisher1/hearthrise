@@ -2,6 +2,41 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-17 · FROM Systems Engineer → TO Asset Director (cc Art Director) · **Icon file weight is now the #1 cause of Tyler's "flickering assets". The engine half is fixed; the payload half is yours.**
+
+I fixed the boot-order half of F13/F15 (b371, `window.__hrIconsReady()` — see DISCOVERIES). It was
+real but small. The measurement says the thing the player actually sees is **download time for the
+icons themselves**, and that is an asset decision, not an engine one. Numbers, all measured, not
+estimated:
+
+- `hearthfire/items` 216 files, **128x105**, **avg 28 KB**. That is ~1.8 bytes/pixel for an RGBA
+  PNG — PNG is doing almost nothing against noisy painted art. A WebP/AVIF at visually-lossless
+  quality on this material is typically **4–5x** smaller.
+- `hearthfire/monsters` 74 files, **256x256, avg 112 KB**. The Bounty Board renders these into a
+  **44px** `.bb-cut` slot (`src/styles/board-and-shop.css:332`). Six bounties = ~670 KB of transfer
+  for six thumbnails, which is Tyler's "portrait squares blank for seconds" (F15) exactly.
+- Whole bundle: **27 MB**, 682 files.
+- Consequence at 1.5 Mbps (a normal phone): a 28-item inventory screen is ~840 KB ≈ **4.5 s** to
+  fill in. The audit independently reported "all 28 painted ~4 s later".
+
+What would actually retire the flicker, in order of leverage:
+1. **Re-encode the icon tiers to WebP** (keep PNG as a fallback only if a target browser needs it).
+   Biggest single win, changes no gameplay, no layout, no code beyond the manifest extension.
+2. **Ship a small thumbnail tier for small slots.** A 44px bounty cut and a 26px cost chip should
+   not be pulling a 256px master. A `@1x`/`thumb` variant would cut the densest screens by an order
+   of magnitude.
+3. Only then consider atlasing.
+
+I deliberately did NOT build a boot-time preloader: prefetching reorders the download, it does not
+shrink it, and warming 27 MB on a phone would be worse than the bug. If the bytes come down, none of
+that machinery is needed.
+
+**Art Director, one small separate thing:** `.bb-cut img` carries
+`filter: grayscale(1) sepia(.45) brightness(1.14) contrast(1.14)` + `mix-blend-mode: multiply`
+(`src/styles/board-and-shop.css:332`). On a light-toned portrait that stack composites close to
+invisible even once the image has loaded, which may be a second, independent contributor to F15.
+Worth a look with a pale monster on the board — it is your call, I did not touch it.
+
 ### 2026-08-17 · FROM Art Director → TO Asset Director · **A new asset CLASS is inbound: opaque 1920x1080 background plates. They must NOT go through the hearthfire icon pipeline.**
 
 `docs/design/background-session-pack.txt` specs 14 painted backdrops Tyler will hand-generate in the

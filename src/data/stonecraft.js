@@ -152,11 +152,13 @@ export const STONECRAFT_ITEMS = {
   granite: { n: 'Granite Stone', icon: '🪨', v: 22, tier: 3, rarity: 'uncommon' },
   basalt:  { n: 'Basalt Stone',  icon: '🪨', v: 60, tier: 5, rarity: 'rare' },
 
-  /* ══ DRESSED BLOCKS — the intermediate every Stonemason lane runs on ═════
+  /* ══ STONE BLOCKS — the intermediate every Stonemason lane runs on ═══════
      Not a sink and not a reward: the common trunk. Whetstones, blank runes
      and castle goods all branch off these three, which is what stops the
-     skill being four unrelated ladders sharing a name. */
-  dressed_block: { n: 'Dressed Block', icon: '🧱', v: 22,  tier: 1, rarity: 'common' },
+     skill being four unrelated ladders sharing a name. (b374: the item id
+     stays `dressed_block` so no catalogue/art re-key is needed — only the
+     display name drops the "dressed" jargon Tyler flagged.) */
+  dressed_block: { n: 'Stone Block', icon: '🧱', v: 22,  tier: 1, rarity: 'common' },
   granite_block: { n: 'Granite Block', icon: '🧱', v: 85,  tier: 3, rarity: 'uncommon' },
   basalt_block:  { n: 'Basalt Block',  icon: '🧱', v: 230, tier: 5, rarity: 'rare' },
 
@@ -290,19 +292,34 @@ export const STONECRAFT_RECIPES = {
   ],
 
   stonemason: [
-    /* ── THE QUARRY LANE (§8.4 ruling). Input-free by design: this is where
-       stone enters the game. Deliberately the WORST xp/second in the skill at
-       every band, so quarrying is never the optimal way to TRAIN Stonemason —
-       it is the way to SUPPLY it. A material lane that also happened to be the
-       best XP would collapse the whole skill into one button. */
-    { id: 'quarry_rubble',  name: 'Quarry Rubble',  icon: '🪨', inputs: {}, output: 'rubble',  outputQty: 5, xp: 7,  req: 1,  ms: 2600 },
-    { id: 'quarry_granite', name: 'Quarry Granite', icon: '🪨', inputs: {}, output: 'granite', outputQty: 3, xp: 56, req: 30, ms: 4200 },
-    { id: 'quarry_basalt',  name: 'Quarry Basalt',  icon: '🪨', inputs: {}, output: 'basalt',  outputQty: 2, xp: 240, req: 70, ms: 6000 },
+    /* ── THE QUARRY LANE — ROCK GATHERING, PAID TO MINING (b374, Tyler).
+       Input-free by design: this is where stone enters the game. Tyler's
+       ruling: "gathering the rocks should be mining, refining them is the
+       stonemason part." So every quarry rung carries `xpSkill: 'mining'` — the
+       action still lives on the Stonemason bench (it MUST stay an artisan lane,
+       because a stone node in ROCKS would disturb the b226 "every mining rung
+       strictly better" invariant that guards the ore ladder), but the XP it
+       pays goes to Mining.
 
-    /* ── THE BLOCK LANE. The common trunk — everything else branches here. */
-    { id: 'dress_rubble',  name: 'Dress Rubble',  icon: '🧱', inputs: { rubble: 4 },  output: 'dressed_block', outputQty: 2, xp: 16,   req: 1,  ms: 2400 },
-    { id: 'dress_granite', name: 'Dress Granite', icon: '🧱', inputs: { granite: 4 }, output: 'granite_block', outputQty: 2, xp: 195,  req: 30, ms: 3400 },
-    { id: 'dress_basalt',  name: 'Dress Basalt',  icon: '🧱', inputs: { basalt: 4 },  output: 'basalt_block',  outputQty: 2, xp: 900, req: 70, ms: 4600 },
+       The xp values were RE-TUNED for Mining's curve, not Stonemason's: each
+       quarry rung now sits BELOW the comparable Mining ore rung's xp/second, so
+       quarrying is a SUPPLY activity and never the optimal way to train Mining
+       (rubble 1.7 · granite 3.3 · basalt 4.5 xp/s effective, against ore's
+       4.4-9.3). Stonemason no longer earns anything from quarrying — it earns
+       from DRESSING (below), which is exactly the "refining is the stonemason
+       part" split. Its earliest XP is `dress_rubble` (Cut Stone Block, req 1),
+       reachable from an
+       empty bag by quarrying rubble first, so the skill is not stranded. */
+    { id: 'quarry_rubble',  name: 'Quarry Rubble',  icon: '🪨', inputs: {}, output: 'rubble',  outputQty: 5, xp: 7,  req: 1,  ms: 2600, xpSkill: 'mining' },
+    { id: 'quarry_granite', name: 'Quarry Granite', icon: '🪨', inputs: {}, output: 'granite', outputQty: 3, xp: 22, req: 30, ms: 4200, xpSkill: 'mining' },
+    { id: 'quarry_basalt',  name: 'Quarry Basalt',  icon: '🪨', inputs: {}, output: 'basalt',  outputQty: 2, xp: 43, req: 70, ms: 6000, xpSkill: 'mining' },
+
+    /* ── THE BLOCK LANE. The common trunk — everything else branches here.
+       This is the "refining" half that pays Stonemason. Renamed b374 (Tyler:
+       "wtf is dress") — the action makes a Stone/Granite/Basalt Block. */
+    { id: 'dress_rubble',  name: 'Cut Stone Block',   icon: '🧱', inputs: { rubble: 4 },  output: 'dressed_block', outputQty: 2, xp: 16,   req: 1,  ms: 2400 },
+    { id: 'dress_granite', name: 'Cut Granite Block', icon: '🧱', inputs: { granite: 4 }, output: 'granite_block', outputQty: 2, xp: 195,  req: 30, ms: 3400 },
+    { id: 'dress_basalt',  name: 'Cut Basalt Block',  icon: '🧱', inputs: { basalt: 4 },  output: 'basalt_block',  outputQty: 2, xp: 900, req: 70, ms: 4600 },
 
     /* ── THE BLANK LANE — Runecrafting's supply. Two rungs on the base blank
        (the second is strictly better per block AND per action), then one per
@@ -345,7 +362,7 @@ export const STONECRAFT_DESC = {
   granite: 'Hard grey stone with a bite that dulls picks, and the reason a manor outlasts its builder',
   basalt: 'Black stone from the old flows, so dense it rings under the hammer instead of chipping',
 
-  dressed_block: 'A block squared on six faces and true on all of them, which is most of what masonry is',
+  dressed_block: 'A stone block squared on six faces and true on all of them, which is most of what masonry is',
   granite_block: 'Granite squared and dressed — heavy enough that two men set one, and it never moves again',
   basalt_block: 'Basalt cut true, dark as a well and cold to the hand in high summer',
 

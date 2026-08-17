@@ -363,7 +363,7 @@ const SUPPLY_CHAINS = Object.fromEntries([
   ['rubble',  { n: 'Rubble',  icon: '🪨', v: 6,  tier: 1, raw: true, pendingSkill: 'stonemason' }],
   ['granite', { n: 'Granite', icon: '🪨', v: 22, tier: 3, raw: true, pendingSkill: 'stonemason' }],
   ['basalt',  { n: 'Basalt',  icon: '🪨', v: 60, tier: 5, raw: true, pendingSkill: 'stonemason' }],
-  ['dressed_block', { n: 'Dressed Block', icon: '🧱', v: 20,  tier: 1, pendingSkill: 'stonemason' }],
+  ['dressed_block', { n: 'Stone Block', icon: '🧱', v: 20,  tier: 1, pendingSkill: 'stonemason' }],
   ['granite_block', { n: 'Granite Block', icon: '🧱', v: 120, tier: 3, pendingSkill: 'stonemason' }],
   ['basalt_block',  { n: 'Basalt Block',  icon: '🧱', v: 300, tier: 5, pendingSkill: 'stonemason' }],
   ['rune_blank',      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, pendingSkill: 'stonemason' }],

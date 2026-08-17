@@ -1883,45 +1883,26 @@ const XP_HEADROOM = 0.95;
 const REACHABLE_CAP_H = reachableCapHours();
 const FORECAST_CAP_H = 24;
 
-/* ── THE AMMUNITION LANE: A RULED-ON EXCEPTION, ENUMERATED AND RATCHETED ────
-   (Security ruling 2026-08-16, "artisan flip re-review".)
+/* ── THE AMMUNITION LANE: AMNESTY REMOVED (b374, Game Designer) ─────────────
+   The seven `fletch_*` rows once produced 500-1,000 arrows per craft, so a full
+   15-hour offline auto-fletch minted 4-7.7 MILLION units of one item — over
+   `c_max_item_delta` (1,000,000) — and lived on this enumerated amnesty while
+   the degrade ladder paid ~1/8 of the night. That was always property (3)'s
+   "stale exception waiting to be removed": the real defect was the YIELD, and
+   the yield was the Game Designer's.
 
-   Eight crafting recipes fletch arrows at `outputQty` 500-1,000 per craft, so a
-   full night on one of them mints millions of UNITS of a low-value item. Seven
-   of the eight exceed `c_max_item_delta` (1,000,000) at the reachable cap.
+   b374 cut every fletch batch to `outputQty` 50 (Tyler, twice: "500 seems like
+   way too much for 1 craft"). At 50 the worst rung (bronze, ms 3200) moves
+   ~527,300 units on a 15h offline fletch — under the 60% honest-play line the
+   rest of this guard enforces — so the rows no longer overflow and the amnesty
+   is EMPTY. Property (1) now catches any fletch row (or any new recipe) that
+   crosses the clamp exactly like every other artisan recipe; the ratchet (2)
+   and stale-report (3) have nothing to hold, which is the intended end state.
 
-   Security HELD the clamp rather than raising it, and the reasoning is the part
-   worth keeping: a per-call clamp is a blast radius on ONE apply, and raising it
-   12x to accommodate eight rows would widen the blast radius of every
-   compromised apply in the game. The real defect is the yield — one tick
-   producing a thousand items — and that is the Game Designer's. Routed.
-
-   ⚠ SO THIS IS AN ACCEPTED RESIDUAL, NOT A PASS, AND IT IS WRITTEN DOWN THE WAY
-     THIS REPO WRITES DOWN ACCEPTED RESIDUALS: an enumerated baseline that
-     RATCHETS. The consequence is real and stated — a fletching night trips the
-     clamp, index.ts's degrade ladder halves the proposal until it fits, and the
-     player is paid roughly an eighth of the night with an incident recorded on
-     every rejected attempt.
-
-   The four properties this table buys, none of which a raised HEADROOM would:
-     1. a recipe NOT on this list that crosses the clamp still fails the build;
-     2. a recipe on it that gets WORSE still fails the build (the ratchet);
-     3. a recipe on it that stops overflowing is REPORTED, so a fixed yield
-        gets its amnesty removed instead of leaving a permanent hole;
-     4. the exception is eight named ids in a diff, not a number nobody can
-        attribute to a decision.
-
-   Values are the MEASURED maximum single-item movement at the reachable cap.
-   Re-measure with the same sweep if the pacing constants move. */
-const AMMO_CLAMP_BASELINE = Object.freeze({
-  fletch_dawnpoint_arrows: 7670000,   // outputQty 1000
-  fletch_bronze_arrows: 5273000,      // outputQty 500
-  fletch_barbed_arrows: 4963000,      // outputQty 500
-  fletch_steel_arrows: 4687500,       // outputQty 500
-  fletch_mithril_arrows: 4440500,     // outputQty 500
-  fletch_rune_arrows: 4218500,        // outputQty 500
-  fletch_emberhead_arrows: 4017500,   // outputQty 500
-});
+   If a future ammo rung is deliberately sized over the clamp again, re-populate
+   this table with its MEASURED maximum single-item movement at the reachable
+   cap AND take it to Security — do not raise HEADROOM to hide it. */
+const AMMO_CLAMP_BASELINE = Object.freeze({});
 
 /* THE HONEST MAXIMUM IS A CHARACTER THAT DOES NOT DIE, AND `hp: 9999` IS NOT
    ONE. Until 2026-08-15 both headroom sweeps below used `hp/maxHp = 9999` with

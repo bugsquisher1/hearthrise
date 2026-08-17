@@ -3359,7 +3359,13 @@ function addXp(sk,amt,opts){
   for(const ev of res.events){
     if(ev.type!=='levelup') continue;
     if(ev.skill==='hitpoints')G.playerMaxHp=ev.to;
-    notify(`🎉 ${SKILLS_DEF[ev.skill]?.name||ev.skill} ${ev.to}!`,'levelup');
+    /* b374 (Tyler: "No popup for raising skill"). Leveling was only a corner
+       toast — easy to miss in an idle burst, and it never said what the level
+       actually GAVE you. hrLevelUpNotice() keeps the toast (for the corner log
+       + Chronicle) AND raises a lightweight, non-blocking, auto-fading
+       celebratory banner that names the skill, the new level, and anything that
+       unlocked AT that level. Not a modal — idle games level constantly. */
+    hrLevelUpNotice(ev.skill, ev.to);
     refreshAll();
     // b134: train-to-level auto-stop. The engine self-disables after
     // firing so re-starting the same skill won't immediately stop again.
@@ -3368,6 +3374,59 @@ function addXp(sk,amt,opts){
     }
   }
 }
+/* ─── b374: skill level-up feedback (Tyler: "No popup for raising skill") ───
+   What UNLOCKS at `level` for `skill`: gathering nodes, crops, and artisan
+   recipes whose req is exactly this level. Gates on the BENCH skill (which for
+   artisan is `skill` itself), so a Mining level-up never claims a Stonemason
+   quarry rung and vice-versa. Pure read — safe to call from a test. */
+function hrSkillUnlocksAt(skill, level){
+  const out=[];
+  const add=(name)=>{ if(name && out.indexOf(name)<0) out.push(name); };
+  const gatherMap={woodcutting:TREES, mining:ROCKS, fishing:FISH_SPOTS};
+  if(gatherMap[skill]){ gatherMap[skill].forEach(a=>{ if(a.req===level) add(a.name); }); }
+  if(skill==='farming' && typeof CROPS!=='undefined'){ Object.values(CROPS).forEach(c=>{ if(c.req===level) add(c.name); }); }
+  const R=window.ARTISAN_RECIPES;
+  if(R && Array.isArray(R[skill])){ R[skill].forEach(r=>{ if(r.req===level) add(ITEMS[r.output]?.n || r.name); }); }
+  return out;
+}
+window.hrSkillUnlocksAt=hrSkillUnlocksAt;
+
+/* The celebratory banner itself. Non-blocking (the host is pointer-events:none),
+   auto-fading, dismissible on tap, tokens-only styling. Kept to at most three on
+   screen so a fast multi-level burst does not stack into a wall. */
+function _hrRenderLevelUpPop(name, skill, level, unlocks){
+  if(typeof document==='undefined' || !document.body) return;
+  let host=document.getElementById('hr-levelup-host');
+  if(!host){ host=document.createElement('div'); host.id='hr-levelup-host'; document.body.appendChild(host); }
+  const el=document.createElement('div'); el.className='hr-levelup-pop'; el.setAttribute('role','status');
+  const med=(window.HearthriseIconSet && window.HearthriseIconSet.medallion && window.HearthriseIconSet.medallion(skill,40))
+    || (SKILLS_DEF[skill] ? `<span class="lu-emoji">${SKILLS_DEF[skill].icon}</span>` : '');
+  const unlockHtml = unlocks && unlocks.length
+    ? `<div class="lu-unlock">Unlocked: ${unlocks.map(escapeHtml).join(', ')}</div>` : '';
+  el.innerHTML=`<div class="lu-medal">${med}</div>`
+    +`<div class="lu-body"><div class="lu-title">Level ${level}</div>`
+    +`<div class="lu-skill">${escapeHtml(name)}</div>${unlockHtml}</div>`;
+  el.onclick=function(){ try{ el.remove(); }catch(e){} };
+  host.appendChild(el);
+  setTimeout(function(){ try{ el.classList.add('leaving'); }catch(e){} }, 2200);
+  setTimeout(function(){ try{ el.remove(); }catch(e){} }, 2700);
+  while(host.children.length>3) host.removeChild(host.firstChild);
+}
+
+/* The one entry point the level-up branch calls. Records _hrLastLevelUp for the
+   regression test, keeps the corner toast (Chronicle feed rides on it), and
+   raises the banner. */
+function hrLevelUpNotice(skill, level){
+  const name=(SKILLS_DEF[skill] && SKILLS_DEF[skill].name) || skill;
+  const unlocks=hrSkillUnlocksAt(skill, level);
+  window._hrLastLevelUp={ skill:skill, level:level, unlocks:unlocks };
+  if(typeof notify==='function'){
+    notify(`${name} Level ${level}${unlocks.length ? ' — '+unlocks[0]+' unlocked!' : ''}`,'levelup');
+  }
+  try{ _hrRenderLevelUpPop(name, skill, level, unlocks); }catch(e){}
+}
+window.hrLevelUpNotice=hrLevelUpNotice;
+
 /* ─── Bank space (b269) ───────────────────────────────────────────────────
    Tyler's call: reverse the b227 "no inventory cap" ruling and ship a real,
    PURCHASABLE bank. The cap counts DISTINCT item stacks (not total quantity —

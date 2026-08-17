@@ -151,11 +151,22 @@ function tileForGather(action, skillId) {
      the identity), name under it, one meta line, and the level requirement is
      only shown when it actually gates you. "Qty: 0" is not information — the
      count appears only when you own some. */
+  /* b374 (Tyler: "Oak Tree — it's a picture of the item i gather ... shouldn't we
+     have a picture of an oak tree?"). The tile leads with the PRODUCT sprite
+     (an oak log) because no NODE art (a tree / a rock / a fishing spot) exists
+     yet — so the log read as if it WERE the tree. Interim honesty, cheap and
+     rules-clean: name the yield explicitly ("Yields Oak Log") so the sprite
+     reads as WHAT YOU HARVEST, not as the node. This matches the legacy
+     renderer, which already prints the product name in its meta line. The real
+     fix is dedicated node art — see the brief handed to the Art Director; when
+     those sprites land, `actIconHtml` should prefer node art over the product. */
+  const prodName = (window.ITEMS?.[action.prod]?.n) || action.prod;
   return `<div class="act-tile ${unlocked ? '' : 'locked'} ${active ? 'active' : ''}"
     data-prod="${action.prod}" onclick="${click}" title="${(action.name || '').replace(/"/g, '&quot;')}">
     <div class="at-icon">${actIconHtml(action.prod, action.icon)}</div>
     <div class="at-name">${action.name || action.id}</div>
     <div class="at-meta">${effXp(skillId, action)} XP · ${fmtSec(ms)}</div>
+    <div class="at-yield">Yields ${prodName}</div>
     ${qty > 0 ? `<div class="at-qty">${fmtQty(qty)}</div>` : ''}
     ${unlocked ? '' : `<div class="at-lock">${lockGlyph()}Level ${action.req}</div>`}
     ${active ? '<span class="at-stop">Active</span>' : ''}

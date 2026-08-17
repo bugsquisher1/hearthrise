@@ -176,6 +176,16 @@ export function resolveArtisanAction(recipe, ctx) {
 
   if (!recipe) return fail('no_recipe');
 
+  /* b374 — WHICH SKILL A RECIPE PAYS is a property of the recipe, not always
+     the bench it sits on. The Stonemason quarry lane (rubble/granite/basalt)
+     is rock GATHERING and pays Mining (Tyler: "gathering the rocks should be
+     mining, refining them is the stonemason part"); the refine lanes below it
+     keep paying the bench. A recipe declares `xpSkill` to redirect its grant;
+     everything else falls through to the bench id, so this is invisible to the
+     999 recipes that do not set it. The bench (skillId) still owns the counters
+     and the gate — only the XP pool moves. */
+  const xpSkillId = (recipe && recipe.xpSkill) || skillId;
+
   const missing = missingInput(recipe, c.inventory);
   /* legacy.js checked inputs BEFORE the gate, and the order is observable:
      an ungated-but-unaffordable recipe says "Out of X", not "Recipe locked". */
@@ -204,7 +214,7 @@ export function resolveArtisanAction(recipe, ctx) {
         consumed, saved, burnt: true,
         produced: { id: BURNT_ITEM, qty: 1 },
         extraYield: 0, toolDoubles: 0,
-        xpSkill: skillId, xpAmount: burnXp(recipe),
+        xpSkill: xpSkillId, xpAmount: burnXp(recipe),
         /* NO cooked/daily/quest counter. A "cook N dishes" goal counts
            SUCCESSFUL cooks only — letting a burn tick it would make the
            mechanic both invisible and dishonest. Nothing deadlocks: raw
@@ -243,7 +253,7 @@ export function resolveArtisanAction(recipe, ctx) {
     ok: true, reason: null, missing: null,
     consumed, saved, burnt: false, produced,
     extraYield, toolDoubles,
-    xpSkill: skillId, xpAmount,
+    xpSkill: xpSkillId, xpAmount,
     stats, progress: bench ? bench.progress.slice() : [],
     events,
   };

@@ -171,13 +171,28 @@ export const SLOT_RECIPES = {
   smithing: [],
   crafting: [
     /* ── fletching interface (see the block above) ── */
-    { id: 'fletch_bronze_arrows',    name: 'Fletch Bronze Arrows ×500',    icon: '🏹', inputs: { bronze_bar: 6, normal_plank: 4 },                 output: 'bronze_arrows',    outputQty: 500,  xp: 90,  req: 5,  ms: 3200 },
-    { id: 'fletch_barbed_arrows',    name: 'Fletch Barbed Arrows ×500',    icon: '🏹', inputs: { iron_bar: 2, oak_plank: 2 },                      output: 'barbed_arrows',    outputQty: 500,  xp: 150, req: 18, ms: 3400 },
-    { id: 'fletch_steel_arrows',     name: 'Fletch Steel Arrows ×500',     icon: '🏹', inputs: { steel_bar: 2, willow_plank: 2 },                  output: 'steel_arrows',     outputQty: 500,  xp: 230, req: 33, ms: 3600 },
-    { id: 'fletch_mithril_arrows',   name: 'Fletch Mithril Arrows ×500',   icon: '🏹', inputs: { mithril_bar: 1, maple_plank: 2 },                 output: 'mithril_arrows',   outputQty: 500,  xp: 330, req: 48, ms: 3800 },
-    { id: 'fletch_rune_arrows',      name: 'Fletch Rune Arrows ×500',      icon: '🏹', inputs: { rune_bar: 1, yew_plank: 1 },                      output: 'rune_arrows',      outputQty: 500,  xp: 450, req: 63, ms: 4000 },
-    { id: 'fletch_emberhead_arrows', name: 'Fletch Emberhead Arrows ×500', icon: '🏹', inputs: { ember_bar: 1, silk_thread: 16 },                  output: 'emberhead_arrows', outputQty: 500,  xp: 600, req: 78, ms: 4200 },
-    { id: 'fletch_dawnpoint_arrows', name: 'Fletch Dawnpoint Arrows ×1000', icon: '🏹', inputs: { dawn_bar: 1, duskwood_plank: 1 },                 output: 'dawnpoint_arrows', outputQty: 1000, xp: 820, req: 91, ms: 4400 },
+    /* b374 — BATCH CUT 500→50 (Tyler, said twice: "500 bronze arrows seems like
+       way too much for 1 craft"). The 500 figure was a real burn-rate calc, but
+       it made one 5-second craft supply ~18 minutes of ranged, which reads absurd
+       and — the engineering cost — put every fletch row OVER c_max_item_delta on a
+       15-hour offline auto-craft, so all seven lived on the AMMO_CLAMP_BASELINE
+       amnesty (a standing exception the consumable-economy doc flagged for removal).
+       At ×50 a full 15h offline fletch moves ~527k of one arrow, under the 600k
+       (60%) honest-play line, so the amnesty is DELETED with this change (see
+       tests/accrual-engine.mjs). xp-per-action is UNCHANGED, so Fletching's
+       time-to-99 is untouched — only the arrows-per-action moved. Consequence,
+       stated: arrow throughput per craft drops 10×, so a ranged main fletches
+       more often to stay stocked. That is correct for the ammo-HUNGRY style
+       (ammoPerShot 1.0, against the whetstone's 0.02 charge) and it makes ammo a
+       real recurring craft rather than a five-second lifetime supply. Batches are
+       uniform 50 across the ladder (dawnpoint drops its ×2). */
+    { id: 'fletch_bronze_arrows',    name: 'Fletch Bronze Arrows ×50',    icon: '🏹', inputs: { bronze_bar: 6, normal_plank: 4 },                 output: 'bronze_arrows',    outputQty: 50,  xp: 90,  req: 5,  ms: 3200 },
+    { id: 'fletch_barbed_arrows',    name: 'Fletch Barbed Arrows ×50',    icon: '🏹', inputs: { iron_bar: 2, oak_plank: 2 },                      output: 'barbed_arrows',    outputQty: 50,  xp: 150, req: 18, ms: 3400 },
+    { id: 'fletch_steel_arrows',     name: 'Fletch Steel Arrows ×50',     icon: '🏹', inputs: { steel_bar: 2, willow_plank: 2 },                  output: 'steel_arrows',     outputQty: 50,  xp: 230, req: 33, ms: 3600 },
+    { id: 'fletch_mithril_arrows',   name: 'Fletch Mithril Arrows ×50',   icon: '🏹', inputs: { mithril_bar: 1, maple_plank: 2 },                 output: 'mithril_arrows',   outputQty: 50,  xp: 330, req: 48, ms: 3800 },
+    { id: 'fletch_rune_arrows',      name: 'Fletch Rune Arrows ×50',      icon: '🏹', inputs: { rune_bar: 1, yew_plank: 1 },                      output: 'rune_arrows',      outputQty: 50,  xp: 450, req: 63, ms: 4000 },
+    { id: 'fletch_emberhead_arrows', name: 'Fletch Emberhead Arrows ×50', icon: '🏹', inputs: { ember_bar: 1, silk_thread: 16 },                  output: 'emberhead_arrows', outputQty: 50,  xp: 600, req: 78, ms: 4200 },
+    { id: 'fletch_dawnpoint_arrows', name: 'Fletch Dawnpoint Arrows ×50', icon: '🏹', inputs: { dawn_bar: 1, duskwood_plank: 1 },                 output: 'dawnpoint_arrows', outputQty: 50, xp: 820, req: 91, ms: 4400 },
 
     /* ── earrings ── */
     { id: 'jewel_copper_studs',        name: 'Set Copper Studs',        icon: '💎', inputs: { copper_bar: 2 },                                            output: 'copper_studs',        xp: 60,   req: 10, ms: 2600 },

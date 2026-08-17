@@ -551,13 +551,11 @@ img[src*="assets/raw-bundle"] {
   width: 100% !important;
   min-width: 0 !important;
   overflow: hidden !important;
-  /* b195: painted dungeon battle background + vignette/scrim so fighters +
-     stats stay legible over it. Lighter in the center (fighters), darker at
-     the edges and bottom. */
-  background:
-    radial-gradient(120% 80% at 50% 36%, rgba(6,6,9,.12), rgba(6,6,9,.72) 92%),
-    linear-gradient(180deg, rgba(10,9,12,.30), rgba(6,6,9,.86)),
-    url('../../assets/icons-bundle/backgrounds/dungeon.jpg') center/cover no-repeat !important;
+  /* COMBAT-UI-17: this used to also paint dungeon.jpg + a scrim here — one of
+     three sheets independently doing so (with art-direction.css and
+     theme-cozy.css), stacking to ~90% black. The painted-per-class backdrop
+     now lives ONLY in combat-screens.css (data-foe-class lookup, loads last).
+     Do not reintroduce a background-image here. */
   /* b217: was a pink-red hairline (rgba(227,97,97,.3)) — the danger colour
      used as decoration on a container that isn't dangerous. */
   border: 1px solid rgba(201,162,74,.22) !important;

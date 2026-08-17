@@ -1310,6 +1310,8 @@ function renderFight() {
     return;
   }
   p.dataset.fightState = live ? 'live' : 'preview';
+  p.dataset.foeClass = m.cls || '';
+  p.dataset.foeTier = m.tier || '';
 
   const title = document.getElementById('fs-title');
   const tsig = m.name + '|' + (m.family || '') + '|' + m.tier;

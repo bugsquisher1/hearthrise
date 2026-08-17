@@ -224,6 +224,22 @@ body[data-theme="cozy-light"] {
  * PART A — THE BOUNTY BOARD
  * ═══════════════════════════════════════════════════════════════════════ */
 
+/* COMBAT-UI-17 — the wall the board is nailed to. ADDS only; nothing below
+ * is removed. Today the board stood in a void with a contact shadow falling
+ * on nothing — this gives it a wall and fills the dead area below the
+ * Unlocks row. Higher specificity than `.panel.active` (art-direction.css)
+ * so it wins. Scrim is heavier than combat (~55-80%): the notices are
+ * near-white paper and the wall must stay behind them. `bg_board_planks`
+ * was REJECTED at QC (delivered as a perspective corridor, not the flat-on
+ * plank texture the plank-field swap needs) so `.bb-board::before` below is
+ * UNTOUCHED — still the procedural repeating-linear-gradient. */
+body[data-theme] #panel-bounty {
+  background:
+    linear-gradient(180deg, rgba(10, 8, 5, .55), rgba(8, 6, 4, .80)),
+    url('../../assets/icons-bundle/backgrounds/bg_board_wall.jpg')
+    center top / cover no-repeat !important;
+}
+
 /* The board is a built object: a timber frame around a recessed plank field,
    standing proud of the panel with its own contact shadow. */
 body[data-theme] #panel-bounty .bb-board {

@@ -454,10 +454,75 @@ body[data-theme="cozy-light"] #panel-combat .fsm-head { color: var(--gold); }
   position: relative;
 }
 #panel-combat .fs-stage-host { flex: 1 1 auto; min-height: 0; display: flex; }
+
+/* COMBAT-UI-17 — PAINTED PER-CLASS BACKDROPS.
+ * background-collapsed here (was three separate sheets independently
+ * painting dungeon.jpg onto this same element, stacking to ~90% black — see
+ * the removal notes left in art-direction.css / audit-overrides.css /
+ * theme-cozy.css). This is now the ONLY sheet that sets a background-image
+ * on .combat-arena, and it loads last (index.html) so it wins the cascade.
+ * `renderFight()` in combat-screens.js sets `data-foe-class`/`data-foe-tier`
+ * on #panel-combat beside the existing `data-fightState` line. An unmatched
+ * or missing class falls back cleanly to dungeon.jpg (the base rule below). */
+body[data-theme] #panel-combat .combat-arena {
+  background-image: url('../../assets/icons-bundle/backgrounds/dungeon.jpg') !important;
+  background-position: center top !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+}
+body[data-theme] #panel-combat[data-foe-class="vermin"] .combat-arena {
+  background-image: url('../../assets/icons-bundle/backgrounds/bg_combat_vermin.jpg') !important;
+}
+body[data-theme] #panel-combat[data-foe-class="mammal"] .combat-arena {
+  background-image: url('../../assets/icons-bundle/backgrounds/bg_combat_mammal.jpg') !important;
+}
+body[data-theme] #panel-combat[data-foe-class="plant"] .combat-arena {
+  background-image: url('../../assets/icons-bundle/backgrounds/bg_combat_plant.jpg') !important;
+}
+body[data-theme] #panel-combat[data-foe-class="humanoid"] .combat-arena {
+  background-image: url('../../assets/icons-bundle/backgrounds/bg_combat_humanoid.jpg') !important;
+}
+body[data-theme] #panel-combat[data-foe-class="human"] .combat-arena {
+  background-image: url('../../assets/icons-bundle/backgrounds/bg_combat_human.jpg') !important;
+}
+body[data-theme] #panel-combat[data-foe-class="undead"] .combat-arena {
+  background-image: url('../../assets/icons-bundle/backgrounds/bg_combat_undead.jpg') !important;
+}
+/* demon: NO PLATE — bg_combat_demon.png was rejected at QC (visible artist
+ * signature mark, bottom-left corner). Falls back to dungeon.jpg above.
+ * Regenerate and add a rule here when a clean plate lands. */
+body[data-theme] #panel-combat[data-foe-class="dragon"] .combat-arena {
+  background-image: url('../../assets/icons-bundle/backgrounds/bg_combat_dragon.jpg') !important;
+}
+body[data-theme] #panel-combat[data-foe-class="elemental"] .combat-arena {
+  background-image: url('../../assets/icons-bundle/backgrounds/bg_combat_elemental.jpg') !important;
+}
+body[data-theme] #panel-combat[data-foe-class="construct"] .combat-arena {
+  background-image: url('../../assets/icons-bundle/backgrounds/bg_combat_construct.jpg') !important;
+}
+body[data-theme] #panel-combat[data-foe-class="extradimensional"] .combat-arena {
+  background-image: url('../../assets/icons-bundle/backgrounds/bg_combat_extradimensional.jpg') !important;
+}
+
 #panel-combat .fs-scrim {
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(120% 80% at 50% 40%, rgba(0,0,0,.12), rgba(0,0,0,.55) 92%);
+  /* COMBAT-UI-17: lightened from .12/.55 to recover the painted plates above —
+   * ~12% at the centre where the fighters stand, ~35% at the edges. */
+  background: radial-gradient(120% 80% at 50% 40%, rgba(0,0,0,.12), rgba(0,0,0,.35) 92%);
   z-index: 0;
+}
+/* Tier tint — a token on .fs-scrim, mixed at low alpha, so six more files
+ * don't have to exist for the same read. T1 warm/green -> T6 cold/violet. */
+#panel-combat[data-foe-tier="1"] .fs-scrim { --tier-tint: rgba(154, 183, 106, .10); }
+#panel-combat[data-foe-tier="2"] .fs-scrim { --tier-tint: rgba(201, 162, 74, .10); }
+#panel-combat[data-foe-tier="3"] .fs-scrim { --tier-tint: rgba(224, 140, 74, .10); }
+#panel-combat[data-foe-tier="4"] .fs-scrim { --tier-tint: rgba(200, 90, 90, .10); }
+#panel-combat[data-foe-tier="5"] .fs-scrim { --tier-tint: rgba(110, 120, 200, .10); }
+#panel-combat[data-foe-tier="6"] .fs-scrim { --tier-tint: rgba(150, 90, 200, .10); }
+#panel-combat[data-foe-tier] .fs-scrim {
+  background:
+    radial-gradient(120% 80% at 50% 40%, var(--tier-tint, transparent), transparent 70%),
+    radial-gradient(120% 80% at 50% 40%, rgba(0,0,0,.12), rgba(0,0,0,.35) 92%);
 }
 /* THE LIGHT THEME GETS A LIGHT STAGE, AND THIS IS NOT A DETAIL.
  * The arena card carries a dark dungeon photograph under a heavy scrim in every

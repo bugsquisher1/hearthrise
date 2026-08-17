@@ -26,6 +26,7 @@ import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
 import { runAll as equipIntentGuards } from './equip-intent.mjs';
 import { guard as skillRowUpsertGuard } from './skill-row-upsert.mjs';
+import { guard as leaderboardSourceGuard } from './leaderboard-server-source.mjs';
 import { itemsCatalogueGuard, itemsCatalogueMutationGuard } from './items-catalogue.mjs';
 import { cutoverImportGuard } from './cutover-import.mjs';
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
@@ -1664,6 +1665,36 @@ const run = async () => {
         + 'genuinely unknown skill id still refuses unknown_skill and mints nothing, an existing '
         + 'row still ACCUMULATES, and the per-call XP clamp still holds.');
       for (const line of skillRowUpsertGuard.report || []) console.log(`  ${line}`);
+    }
+
+    /* ── Security S2: the boards stop ranking the save blob ──────────────
+       public.leaderboard_ranked was a materialized view over
+       game_saves.snapshot — the CLIENT-AUTHORED save file — so `G.gold = 1e12`
+       → autosave bought rank #1 on Wealth, and the same line took Total Level,
+       Combat Level and every skill board. It also read the display name out of
+       that blob when a player had no profiles row, which published a name of
+       their choosing to every other player's screen. Rebuilt over player_state
+       and player_skills by 2026-08-18-leaderboard-server-source.sql.
+         The guard asserts BOTH directions, which is the whole point: a view
+       that ranks nothing at all would satisfy "the forgery is dead" perfectly,
+       so every negative is paired with a legitimate server-written change that
+       MUST move the same board. `node tests/leaderboard-server-source.mjs
+       --mutate` plants six real defects (wealth re-sourced from the blob; the
+       F5 revoke dropped so the recreated matview re-inherits anon SELECT;
+       renown re-added from the blob; the playerName impersonation fallback
+       restored; the missing-skill-row coalesce defaulting to 0; and the §0
+       predecessor gate weakened to a term the older migration also contains)
+       and requires all six to read RED. */
+    const leaderboardProblems = await leaderboardSourceGuard();
+    if (leaderboardProblems.length) {
+      console.log('\nLeaderboard server source (S2) — FAILED:');
+      for (const p of leaderboardProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nLeaderboard server source — a forged game_saves snapshot moves no board, a '
+        + 'server-written XP/gold change does, the matview is not client-selectable, names come '
+        + 'from profiles, and the two boards with no server source rank nobody.');
+      for (const line of leaderboardSourceGuard.report || []) console.log(`  ${line}`);
     }
 
     const unlockProblems = await unlockBuyGuard();

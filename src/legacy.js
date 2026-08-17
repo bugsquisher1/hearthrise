@@ -1753,7 +1753,28 @@ function wireServerAccrual(){
        above it for why there is one applier and not two. */
     onApplied:function(res){ applyServerEnvelope(res,{intent:false}); },
   });
+  /* ── PHASE 1: LIVE SETTLEMENT (docs/design/live-settlement.md §3) ─────────
+     The 90 s settle loop and its triggers are armed HERE — the one place that
+     already runs exactly once, on the authority path, after the ESM module has
+     published itself. Both calls are idempotent, and the loop tolerates being
+     armed before sign-in: `decideSettle` answers `unconfigured` and keeps
+     ticking, so a mid-session sign-in starts settling with no extra wiring. */
+  try{
+    if(typeof A.wireSettleTriggers==='function') A.wireSettleTriggers();
+    if(typeof A.startSettleLoop==='function') A.startSettleLoop();
+  }catch(e){}
 }
+/* §3.6 — THE EVENT TRIGGER, from the two places a player SEES something they
+   would file a ticket over losing. Fired only for LIVE predictions: an away
+   receipt is already permanent, and settling on it would be asking the server
+   to re-pay a span it just paid. The client's roll is not sent and is not the
+   record — this schedules a settle, nothing more (§6). */
+function noteLiveSettleEvent(kind){
+  const A=window.HearthriseAccrual;
+  if(!A||typeof A.noteSettleEvent!=='function')return null;
+  try{ return A.noteSettleEvent(kind); }catch(e){ return null; }
+}
+window.noteLiveSettleEvent=noteLiveSettleEvent;
 window.serverAccrualActive=serverAccrualActive;
 function processOffline(){
   /* b337: THE AUTHORITY GATE. See the block above. Must stay first. */
@@ -4139,6 +4160,13 @@ const COMBAT_FX={
     if(ev.rare){
       if(Array.isArray(G.combatLog))G.combatLog.push(`<span class="rare">✨ RARE: ${itemName}</span>`);
       notify(`✨ Rare: ${itemName}!`,'levelup');
+      /* §3.6. Tyler: "if a person loots a rare item from a boss and then
+         disconnects 3 seconds after, they won't lose the item?" Under
+         interval-only settling the span IS re-paid honestly on return — but
+         with the SERVER's dice, so the player saw a rare that was never real.
+         Settling at the next legal instant puts the server's roll for this span
+         in the journal within seconds instead of within ninety. */
+      if(!ctx.away)noteLiveSettleEvent('rare-drop');
       return;
     }
     if(ctx.away||!Array.isArray(G.combatLog))return;
@@ -4147,6 +4175,10 @@ const COMBAT_FX={
   onKill:function(info,ctx){
     if(ctx.away)return;
     notify(`☠️ Defeated ${info.monster.name}`,'kill');
+    /* §3.6, the boss half. `boss:true` is authored in src/data/monsters.js and
+       read here rather than re-derived from tier — a data row is how this scales
+       to the next boss without touching code. */
+    if(info&&info.monster&&info.monster.boss)noteLiveSettleEvent('boss-kill');
     updateTopbar();
   },
   onDeath:function(ctx,info){

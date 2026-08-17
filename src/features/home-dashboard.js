@@ -833,7 +833,12 @@
       (rankLine ? '<span class="sep">·</span>' : '') +
       /* b224: see legacy.js updateNetStatus — with accounts required, the
          un-synced state is a connection problem, not an offer. */
-      (isOnline() ? 'Online · cloud save active' : 'Offline · progress saved on this device') + '</div>';
+      /* b371: the save claim is derived from the last CONFIRMED game_saves
+         upsert (legacy.js cloudSaveLine → sync.js write channel), not from
+         being signed in. See the note at cloudSaveLine. */
+      (isOnline()
+        ? ('Online · ' + esc((window.cloudSaveLine ? window.cloudSaveLine() : { text: 'Cloud save connecting…' }).text))
+        : 'Offline · progress saved on this device') + '</div>';
     html += '</div></div>';
     html += '<div class="hd-ledger">' +
       '<div class="hd-led"><b>' + (xp != null ? num(xp) : '0') + '</b><span>XP today</span></div>' +

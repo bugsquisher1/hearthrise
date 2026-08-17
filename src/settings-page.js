@@ -445,10 +445,23 @@
     var liveSession = (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
     var auth;
     if (liveSession && liveSession.user) {
+      /* b371 — THIS LINE WAS A HARDCODED STRING. It claimed "Cloud save active"
+         to anyone with a session, through any number of failed upserts, and
+         advertised a 30s cadence the game stopped using when snapshotIntervalMs
+         became 60000. Both halves are now derived: the claim from the last
+         CONFIRMED game_saves upsert, the cadence from the live sync config. */
+      var health = (window.cloudSaveLine ? window.cloudSaveLine() : { level: 'unknown', text: 'Cloud save connecting…' });
+      var syncCfg = null;
+      try { syncCfg = window.HearthriseSync && window.HearthriseSync.getConfig && window.HearthriseSync.getConfig(); } catch (e) {}
+      var everySec = Math.max(1, Math.round(((syncCfg && syncCfg.snapshotIntervalMs) || 60000) / 1000));
+      var meta = (health.level === 'ok')
+        ? ('☁️ ' + health.text + ' · syncing every ' + everySec + 's')
+        : ((health.level === 'warn' ? '⚠️ ' : '☁️ ') + health.text);
+      var metaStyle = (health.level === 'warn') ? ' style="color:var(--role-danger, var(--ink-2))"' : '';
       auth = ''
         + '<div class="ss-card">'
         +   '<div class="ss-card-title">' + esc(liveSession.user.email || 'Signed in') + '</div>'
-        +   '<div class="ss-card-meta">☁️ Cloud save active · syncing every 30s</div>'
+        +   '<div class="ss-card-meta"' + metaStyle + '>' + esc(meta) + '</div>'
         +   '<button class="btn btn-sm btn-danger" id="set-cloud-signout" style="margin-top:8px">Sign out</button>'
         + '</div>';
     } else if (acct) {

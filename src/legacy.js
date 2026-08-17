@@ -2392,6 +2392,31 @@ const NetClient=(()=>{
   };
 })();
 
+/* ── b371 — THE ONE SAVE-HEALTH SENTENCE ────────────────────────────────────
+   Three surfaces (this header, the home dashboard, Settings > Account) each
+   asserted "cloud save active" from CONNECTIVITY — two of them as hardcoded
+   strings, one of which also advertised a 30s cadence the game has not used
+   since the interval became 60s. A live player then watched all of it through
+   four consecutive failed game_saves upserts.
+
+   The verdict now comes from src/net/sync.js's WRITE channel — the last
+   CONFIRMED game_saves upsert — via one accessor, so the three surfaces cannot
+   drift into three different claims about the same fact again. Defined here
+   (classic script, loads first) so the ESM surfaces can share it without an
+   import cycle back into the monolith.
+
+   Returns { level:'ok'|'unknown'|'stale'|'warn', text, ageMs, failStreak }.
+   When sync.js is not loaded at all we return 'unknown' — never a success
+   claim we cannot substantiate. */
+function cloudSaveLine(nowMs){
+  try{
+    const S = window.HearthriseSync;
+    if (S && typeof S.saveHealthLine === 'function') return S.saveHealthLine(nowMs);
+  }catch(e){}
+  return { level:'unknown', ageMs:null, failStreak:0, text:'Cloud save connecting…' };
+}
+try{ window.cloudSaveLine = cloudSaveLine; }catch(e){}
+
 function updateNetStatus(){
   /* b229: this used to also drive #net-status (the sidebar-foot indicator),
      toggling it off NetClient.online() — which is `navigator.onLine &&
@@ -5107,7 +5132,15 @@ function renderProfile(){
          which advertised a mode the game no longer has. Reaching it now means
          the session lapsed mid-play — so it reports the truth about the
          player's progress rather than pitching account-less play. */
-      const subtitle = liveUser ? 'Online · cloud save active' : (G.account ? 'Online · '+G.account.displayName : 'Offline · progress saved on this device');
+      /* b371: "cloud save active" was asserted from the SESSION alone — being
+         signed in was treated as proof that saving works. It is not: a live
+         player watched this line through four consecutive failed game_saves
+         upserts while production PostgREST killed writes. The claim now comes
+         from sync.js's WRITE channel (last confirmed upsert), which is the only
+         fact it was ever about. Unknown/failing states say so, honestly:
+         writes are full-snapshot upserts and self-heal, so the word is
+         "retrying", never "lost". */
+      const subtitle = liveUser ? ('Online · ' + cloudSaveLine().text) : (G.account ? 'Online · '+G.account.displayName : 'Offline · progress saved on this device');
       // b138 #5 / b139 (QA §2.1.2): inline rename pencil is now available
       // for ALL players, including cloud-signed-in. setDisplayName updates
       // G.playerName which the cloud sync layer round-trips through

@@ -263,12 +263,126 @@ let syncHealthy = true;
 
 function safeCall(fn, arg) { if (typeof fn === 'function') { try { return fn(arg); } catch {} } }
 
+// ── b371: READS AND WRITES ARE DIFFERENT FACTS ──────────────────────────────
+// THE INCIDENT (live, 2026-08-16): a player watched the header say "Online ·
+// cloud save active" through FOUR consecutive failed game_saves upserts, and
+// production PostgREST has been killing write requests ~100x/hour for a day —
+// so this is the common case, not a corner. The mechanism was one shared
+// boolean: `reportSync(ok)` was called from fetchWithAuthRetry on ANY res.ok,
+// and a cloud SAVE is not the only thing that goes through it. The 20s claim
+// poll and the game_saves READ both answer 200 while every upsert 503s, so the
+// read popped "✅ Back online — progress synced" and re-latched `syncHealthy`
+// true — and the header's claim was derived from connectivity, never from a
+// save. The player was told their progress was safe while it was not reaching
+// the cloud at all.
+//
+// THE RULE: **"synced" is a claim about the last successful game_saves upsert
+// and nothing else.** A successful read is evidence of CONNECTIVITY and may
+// only speak to the connectivity channel (`readHealthy`, which the network
+// status pill owns). Recovery — the toast, and the header's right to say
+// "cloud save active" — is now issued ONLY by noteSaveOutcome(true).
+//
+// The failure direction is unchanged and deliberately stays sensitive: telling
+// a player "reconnecting" on any failed cloud request is honest. What may never
+// happen again is a read RETRACTING that.
+let readHealthy = true;                 // connectivity channel (reads/claims/events)
+
+/**
+ * WRITE health — the state of the ONE thing "cloud save" is a claim about.
+ *   lastOkAt   ms of the last CONFIRMED game_saves upsert (0 = never this session)
+ *   failStreak consecutive failed upserts since the last success
+ *   lastFailAt / lastReason  diagnostics for the readout + bug reports
+ */
+const saveHealth = { lastOkAt: 0, failStreak: 0, lastFailAt: 0, lastReason: null };
+
+/** A save this recent means the cadence is healthy (60s cadence + 30s slack). */
+export const SAVE_FRESH_MS = 90000;
+/** Consecutive failed upserts before the player is shown a warning state.
+ *  N=4, with the existing per-request backoff, so a single transient 503 —
+ *  which self-heals on the next full-snapshot upsert 60s later — never alarms. */
+export const SAVE_FAIL_WARN_STREAK = 4;
+
+/** Read channel. Never claims recovery; a 200 on a GET proves nothing about saving. */
 function reportSync(ok, info) {
-  if (ok === syncHealthy) return;        // only fire on a health transition
-  syncHealthy = ok;
-  if (ok) safeCall(config.onSyncRecovered);
-  else safeCall(config.onSyncFailure, info);
+  readHealthy = ok;
+  if (ok) return;
+  if (!syncHealthy) return;              // already down — fire on the transition only
+  syncHealthy = false;
+  safeCall(config && config.onSyncFailure, info);
 }
+
+/**
+ * WRITE channel. Called with the outcome of a real game_saves upsert, and the
+ * only thing in this module that may declare sync recovered.
+ */
+function noteSaveOutcome(ok, info, now) {
+  const at = now || Date.now();
+  if (ok) {
+    saveHealth.lastOkAt = at;
+    saveHealth.failStreak = 0;
+    saveHealth.lastReason = null;
+    if (!syncHealthy) { syncHealthy = true; safeCall(config && config.onSyncRecovered); }
+  } else {
+    saveHealth.failStreak++;
+    saveHealth.lastFailAt = at;
+    saveHealth.lastReason = info || 'server';
+    if (syncHealthy) { syncHealthy = false; safeCall(config && config.onSyncFailure, info || 'server'); }
+  }
+  safeCall(config && config.onSaveHealth, getSaveHealth());
+}
+
+/** Snapshot of write health (copy — callers must not mutate the live record). */
+export function getSaveHealth() {
+  return { ...saveHealth, freshMs: SAVE_FRESH_MS, warnStreak: SAVE_FAIL_WARN_STREAK };
+}
+
+function agoWords(ms) {
+  if (!(ms >= 0)) return 'just now';
+  if (ms < 60000) return 'just now';
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  return h + 'h ago';
+}
+
+/**
+ * PURE — the one place the player-facing save-health sentence is decided, so
+ * the header, the home dashboard and Settings cannot drift into three different
+ * claims about the same fact (they had, and two of the three were hardcoded).
+ *
+ * Levels:
+ *   'ok'      a confirmed upsert inside SAVE_FRESH_MS → we may say "active".
+ *   'unknown' signed in, nothing saved YET this session (the first ~60s). Not a
+ *             failure and NOT a licence to claim success.
+ *   'stale'   no recent save. Honest about age; if writes are actually failing
+ *             it says so, because writes self-heal (every upsert is a FULL
+ *             snapshot) — the truth is "retrying", never "lost".
+ *   'warn'    SAVE_FAIL_WARN_STREAK+ consecutive failed upserts. Explicit, still
+ *             not alarmist: nothing is lost, it is not reaching the cloud yet.
+ */
+export function describeSaveHealth(st, nowMs) {
+  const s = st || {};
+  const now = nowMs || Date.now();
+  const lastOk = Number(s.lastOkAt) || 0;
+  const streak = Math.max(0, Number(s.failStreak) || 0);
+  const ageMs = lastOk ? Math.max(0, now - lastOk) : null;
+  const tail = lastOk ? ('last saved ' + agoWords(ageMs)) : 'nothing saved yet this session';
+  if (streak >= SAVE_FAIL_WARN_STREAK) {
+    return { level: 'warn', ageMs, failStreak: streak,
+      text: 'Cloud save is not going through — still retrying · ' + tail };
+  }
+  if (lastOk && ageMs < SAVE_FRESH_MS) {
+    return { level: 'ok', ageMs, failStreak: streak, text: 'Cloud save active' };
+  }
+  if (streak > 0) {
+    return { level: 'stale', ageMs, failStreak: streak, text: 'Saving is retrying — ' + tail };
+  }
+  if (!lastOk) return { level: 'unknown', ageMs: null, failStreak: 0, text: 'Cloud save connecting…' };
+  return { level: 'stale', ageMs, failStreak: 0, text: 'Last cloud save ' + agoWords(ageMs) };
+}
+
+/** The sentence, for the three UI surfaces. Reads the live record. */
+export function saveHealthLine(nowMs) { return describeSaveHealth(saveHealth, nowMs); }
 
 /** Fresh Authorization + apikey headers — read per-call so a retry picks up a refreshed token. */
 function withAuthHeaders(base) {
@@ -529,6 +643,27 @@ function authPreflight(label) {
   return false;
 }
 
+// ── b371: the gateway-casualty retry, as pure parts ─────────────────────────
+export const WRITE_RETRY_MIN_MS = 250;
+export const WRITE_RETRY_MAX_MS = 750;
+/**
+ * Is this status a TRANSPORT casualty rather than a refusal? 502/504 are a
+ * gateway that never got (or never got back) an answer; 503 is PostgREST's
+ * "handler killed / unavailable". None of them mean the request was wrong, so
+ * the identical bytes are worth sending once more. Everything else — 4xx, 500 —
+ * is a real answer and must NOT be retried: retrying a refusal is how a client
+ * turns one bad request into an outage.
+ */
+export function isRetryableServerError(status) {
+  return status === 502 || status === 503 || status === 504;
+}
+/** Jittered delay, pure (inject `rand` to make the suite deterministic). */
+export function writeRetryDelayMs(rand) {
+  const r = typeof rand === 'number' ? rand : Math.random();
+  return WRITE_RETRY_MIN_MS + Math.floor(Math.max(0, Math.min(1, r)) * (WRITE_RETRY_MAX_MS - WRITE_RETRY_MIN_MS));
+}
+function sleepMs(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
 /**
  * fetch() with one refresh-and-retry on an auth error. `initFn()` is called
  * fresh per attempt so the retry uses newly-refreshed auth headers. Reports sync
@@ -536,8 +671,11 @@ function authPreflight(label) {
  *
  * b331: the retry is now CONDITIONAL on the refresh having actually produced a
  * live token. Re-sending a token we know is dead was half the 401 flood.
+ *
+ * b371: `opts.retryWrite` adds ONE jittered retry on 502/503/504. See
+ * isRetryableServerError for why that is the right shape and why it is one.
  */
-async function fetchWithAuthRetry(url, initFn, label) {
+async function fetchWithAuthRetry(url, initFn, label, opts) {
   let res;
   try { res = await fetch(url, initFn()); }
   catch (e) { console.warn('[sync] ' + label + ' network error:', e.message); reportSync(false, 'offline'); return null; }
@@ -552,6 +690,28 @@ async function fetchWithAuthRetry(url, initFn, label) {
       // else: the refresh definitively failed. A second request with the same
       // dead token can only 401 again — that is the loop this exists to stop.
     }
+  }
+  /* b371 — ONE JITTERED RETRY ON A GATEWAY-CLASS FAILURE, FOR WRITES ONLY.
+     Reliability tracing of the 2026-08-16 incident: production PostgREST kills
+     in-flight handlers at a steady ~50/hr — unchanged across the compute
+     upgrade, so it is not load — and the game_saves upsert is the only request
+     of ours long enough and body-heavy enough to be caught mid-flight. That is
+     a transport-level casualty, not a refusal: the identical request a moment
+     later succeeds. So it is retried once, immediately, and the player is told
+     nothing, because nothing happened to them.
+     ONE retry, never a loop: a genuine outage must reach the write-health state
+     and the honest UI rather than being papered over by an unbounded retry that
+     also multiplies load on an already-struggling backend. A retried-and-failed
+     write counts as exactly ONE failure toward the N=4 warning — the reporting
+     below is the single settle point for the whole call.
+     Jitter (250–750ms) so a fleet of clients does not resynchronise onto the
+     same instant after a shared gateway blip.
+     NOT for keepalive/pagehide sends: there is no page left to wait in. */
+  if (!res.ok && opts && opts.retryWrite && isRetryableServerError(res.status)) {
+    console.warn('[sync] ' + label + ' hit ' + res.status + ' — one retry');
+    await sleepMs(writeRetryDelayMs());
+    try { res = await fetch(url, initFn()); }
+    catch (e) { console.warn('[sync] ' + label + ' retry network error:', e.message); reportSync(false, 'offline'); return null; }
   }
   if (res.ok) { noteAuthOk(); reportSync(true); }
   else {
@@ -802,8 +962,15 @@ async function snapshotIfDue(force, keepalive) {
     };
     if (keepalive) init.keepalive = true;   // survive page teardown on close
     return init;
-  }, 'snapshot');
+    // b371: retry a gateway casualty once — except on the pagehide/keepalive
+    // send, where there is no page left to wait 500ms in.
+  }, 'snapshot', { retryWrite: !keepalive });
   const ok = !!(res && res.ok);
+  /* b371 — THE WRITE CHANNEL, AT ITS ONE SOURCE OF TRUTH. This is the only
+     call site: "cloud save is working" means exactly "this upsert returned
+     ok", and nothing else in the module may assert it. A null res (hard
+     network failure) is a failed save, not an absent one. */
+  noteSaveOutcome(ok, ok ? null : (res ? 'http-' + res.status : 'offline'), now);
   /* b299: the REAL sync now records that it succeeded, on G where the player can
      see it (Settings "Last synced"). Before this, cloudSyncedAt was only ever set
      by the DEAD mock cloudSync() path (legacy NetClient, no endpoint), so the
@@ -1061,7 +1228,7 @@ export async function claimSession() {
     method: 'POST',
     headers: withAuthHeaders({ 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
     body: JSON.stringify(body),
-  }), 'claim');
+  }), 'claim', { retryWrite: true });   // b371: the other write on session_claims
   /* b366 — THE CLAIM EPOCH. A successful claim makes US the owner as of NOW, and
      we record that locally so the upload guard (mayUploadSnapshot) has an answer
      before the next 15s poll rather than after it. Without this stamp the
@@ -1084,12 +1251,22 @@ async function heartbeatClaim() {
   if (!userId) return;
   if (!authPreflight('heartbeat')) return;                // b331
   const url = `${config.claimEndpoint}?user_id=eq.${encodeURIComponent(userId)}&device_id=eq.${encodeURIComponent(getInstanceId())}`;
+  const init = () => ({
+    method: 'PATCH',
+    headers: withAuthHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }),
+    body: JSON.stringify({ heartbeat_at: new Date().toISOString() }),
+  });
   try {
-    await fetch(url, {
-      method: 'PATCH',
-      headers: withAuthHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }),
-      body: JSON.stringify({ heartbeat_at: new Date().toISOString() }),
-    });
+    const res = await fetch(url, init());
+    /* b371: the session_claims PATCH is a WRITE and takes the same one jittered
+       retry on a gateway casualty. Deliberately NOT routed through
+       fetchWithAuthRetry: a missed heartbeat is harmless (the next 15s poll
+       re-beats), so it must never move sync health or the auth breaker — it
+       would report a save problem the player does not have. */
+    if (res && !res.ok && isRetryableServerError(res.status)) {
+      await sleepMs(writeRetryDelayMs());
+      await fetch(url, init());
+    }
   } catch (e) { /* a missed heartbeat is harmless — the next poll retries */ }
 }
 
@@ -1237,7 +1414,19 @@ window.HearthriseSync = {
   /* Test seam: the battery drives a real health TRANSITION, which latches
      syncHealthy. Put it back so a player who runs the suite in-game doesn't get
      a spurious "Back online" toast on their next successful save. */
-  __resetSyncHealth: () => { syncHealthy = true; },
+  __resetSyncHealth: () => {
+    syncHealthy = true; readHealthy = true;
+    saveHealth.lastOkAt = 0; saveHealth.failStreak = 0; saveHealth.lastFailAt = 0; saveHealth.lastReason = null;
+  },
+  /* b371 — write health. `__noteSaveOutcome` is a seam for staging a health
+     state the suite then renders through the REAL UI helpers; the incident
+     itself is driven through the real fetch path, not through this. */
+  getSaveHealth, describeSaveHealth, saveHealthLine,
+  SAVE_FRESH_MS, SAVE_FAIL_WARN_STREAK,
+  // b371 gateway-casualty retry (writes only, once, jittered)
+  isRetryableServerError, writeRetryDelayMs, WRITE_RETRY_MIN_MS, WRITE_RETRY_MAX_MS,
+  getReadHealthy: () => readHealthy,
+  __noteSaveOutcome: (ok, info, at) => { noteSaveOutcome(!!ok, info, at); return getSaveHealth(); },
   __withConfig: (patch, fn) => {
     const prev = config;
     config = { ...(config || {}), ...patch };

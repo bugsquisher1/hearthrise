@@ -3148,6 +3148,36 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 }
 .at-meta{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-align:center;line-height:1.4;pointer-events:none}
 .at-meta b{color:var(--gold-2);font-weight:700}
+/* b374: gather tiles name their yield so the product sprite reads as WHAT YOU
+   HARVEST, not as the node itself (Tyler's "oak log shown for Oak Tree"). Tokens
+   only; a touch dimmer than .at-meta so it reads as a secondary caption. */
+.at-yield{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-align:center;line-height:1.3;opacity:.82;pointer-events:none}
+
+/* b374 — SKILL LEVEL-UP BANNER (Tyler: "No popup for raising skill").
+   A lightweight, non-blocking, auto-fading celebratory notice. The host spans
+   the top of the screen and is pointer-events:none so it never eats a tap; only
+   the pop itself is interactive (tap to dismiss early). Tokens only. */
+#hr-levelup-host{
+  position:fixed;top:calc(70px + var(--safe-t, 0px));left:0;right:0;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  z-index:9400;pointer-events:none;
+}
+.hr-levelup-pop{
+  pointer-events:auto;display:flex;align-items:center;gap:12px;
+  padding:11px 18px;border-radius:14px;max-width:min(92vw,420px);
+  background:var(--panel, var(--panel-2));border:1px solid var(--gold-2);
+  box-shadow:0 6px 26px rgba(0,0,0,.35);color:var(--ink);
+  animation:hrLevelUpIn .3s ease;cursor:pointer;
+}
+.hr-levelup-pop.leaving{animation:hrLevelUpOut .5s ease forwards}
+.hr-levelup-pop .lu-medal{display:flex;align-items:center;justify-content:center;width:44px;height:44px;flex:0 0 auto}
+.hr-levelup-pop .lu-medal img{width:40px;height:40px;object-fit:contain}
+.hr-levelup-pop .lu-emoji{font-size:calc(32px * var(--ui-scale, 1));line-height:1}
+.hr-levelup-pop .lu-title{font-family:var(--f-display);font-weight:800;font-size:calc(17px * var(--ui-scale, 1));color:var(--gold-2);letter-spacing:.03em;line-height:1.1}
+.hr-levelup-pop .lu-skill{font-weight:700;color:var(--ink);font-size:calc(14.5px * var(--ui-scale, 1))}
+.hr-levelup-pop .lu-unlock{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);margin-top:2px}
+@keyframes hrLevelUpIn{from{opacity:0;transform:translateY(-12px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes hrLevelUpOut{to{opacity:0;transform:translateY(-10px) scale(.98)}}
 .at-icon{
   flex:1;min-height:0;width:100%;
   display:flex;align-items:center;justify-content:center;

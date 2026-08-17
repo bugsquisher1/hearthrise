@@ -16765,26 +16765,31 @@ const TESTS = [
       G.equipment = Object.assign({}, G.equipment, { ammo: null });
       G.unlockedRecipes = {};
       G.stats = Object.assign({}, G.stats);
-      G.skills = Object.assign({}, G.skills, { stonemason: 0, runecrafting: 0 });
+      G.skills = Object.assign({}, G.skills, { stonemason: 0, runecrafting: 0, mining: 0 });
       C.reseed(0xB0A57E);
 
       /* ── 1. THE QUARRY. Input-free, so it works with an empty bag at level 1
          — which IS the §8.4 ruling, executed rather than asserted in a comment.
-         A mining by-product (the rejected P1) would produce ZERO here. */
+         A mining by-product (the rejected P1) would produce ZERO here.
+         b374 (Tyler): rock GATHERING pays MINING, not Stonemason. */
       const q = work('quarry_rubble', 200);
       assert(q.stoppedBy === null,
         'the quarry stopped (' + q.stoppedBy + ') — an input-free rung must never run dry');
       assert(q.ticks === 200, 'the quarry ran ' + q.ticks + ' of 200 actions');
       assert(have('rubble') >= 200 * 5,
         'quarrying 200 times should yield at least 1000 rubble, got ' + have('rubble'));
-      assert((G.skills.stonemason || 0) > 0, 'quarrying must pay Stonemason XP');
+      assert((G.skills.mining || 0) > 0, 'quarrying must pay MINING XP (b374 — gathering rock is mining)');
+      assert((G.skills.stonemason || 0) === 0,
+        'quarrying must NOT pay Stonemason XP any more — refining does (got ' + (G.skills.stonemason || 0) + ')');
 
-      /* ── 2. DRESS. Stone → the common trunk every lane branches off. */
+      /* ── 2. DRESS (Cut Stone Block). Stone → the common trunk every lane
+         branches off. THIS is the "refining" half, and it pays Stonemason. */
       const rubbleBefore = have('rubble');
       const d = work('dress_rubble', 100);
       assert(d.ticks === 100 && d.stoppedBy === null, 'dressing stopped early: ' + d.stoppedBy);
       assert(have('dressed_block') === 200, 'expected 200 dressed blocks, got ' + have('dressed_block'));
       assert(have('rubble') === rubbleBefore - 400, 'dressing must consume 4 rubble per action');
+      assert((G.skills.stonemason || 0) > 0, 'dressing (refining) must pay Stonemason XP (b374)');
 
       /* ── 3. CUT BLANKS — the Stonemason → Runecrafting seam. */
       const b = work('cut_rune_blanks', 50);
@@ -17186,6 +17191,101 @@ const TESTS = [
     assert(window.speedKeyFor('runecrafting') === 'craftSpeed', 'Runecrafting must run on craftSpeed');
     assert(window.speedKeyFor('stonemason') === 'craftSpeed', 'Stonemason must run on craftSpeed');
     assert(window.speedKeyFor('nonsense_skill') === 'gatherSpeed', 'control: the fallback still exists');
+  }),
+
+  () => tryRun('b374: rock-gathering pays Mining, refining pays Stonemason (Tyler)', () => {
+    const R = window.ARTISAN_RECIPES.stonemason;
+    const find = (id) => R.find((r) => r.id === id);
+    ['quarry_rubble', 'quarry_granite', 'quarry_basalt'].forEach((id) => {
+      const r = find(id);
+      assert(r, id + ' is missing');
+      assert(r.xpSkill === 'mining',
+        id + ' must pay Mining XP (gathering rock is mining), got xpSkill=' + r.xpSkill);
+    });
+    // Refine lanes must NOT carry an xpSkill override — they pay the bench (Stonemason).
+    ['dress_rubble', 'dress_granite', 'dress_basalt', 'grind_coarse_whetstone', 'cut_rune_blanks'].forEach((id) => {
+      const r = find(id);
+      assert(r && !r.xpSkill, id + ' (refining) must pay Stonemason, but carries xpSkill=' + (r && r.xpSkill));
+    });
+    // The engine actually honours the override.
+    const C = window.HearthriseCore;
+    const res = C.artisan.resolveArtisanAction(find('quarry_rubble'), {
+      skillId: 'stonemason', inventory: {}, unlockedRecipes: {}, items: window.ITEMS,
+      bonus: () => 0, toolCarry: {}, rng: C.rng,
+    });
+    assert(res.ok && res.xpSkill === 'mining',
+      'resolveArtisanAction must redirect quarry XP to mining, got ' + res.xpSkill);
+    // Quarry stays a supply activity: below the comparable Mining ore rung's xp/s.
+    const rubble = find('quarry_rubble');
+    assert(rubble.xp / rubble.ms < 21 / 3000,
+      'quarry rubble xp/s (' + (rubble.xp / rubble.ms).toFixed(4) + ') must stay under Copper Rock ('
+      + (21 / 3000).toFixed(4) + ') so quarrying never out-trains ore');
+  }),
+
+  () => tryRun('b374: masonry "dress" jargon is gone — Stone/Granite/Basalt Block (Tyler)', () => {
+    const R = window.ARTISAN_RECIPES.stonemason;
+    const find = (id) => R.find((r) => r.id === id);
+    assert(!/dress/i.test(find('dress_rubble').name), 'dress_rubble label still says "dress": ' + find('dress_rubble').name);
+    assert(find('dress_rubble').name === 'Cut Stone Block', 'expected "Cut Stone Block", got ' + find('dress_rubble').name);
+    assert(find('dress_granite').name === 'Cut Granite Block', 'got ' + find('dress_granite').name);
+    assert(find('dress_basalt').name === 'Cut Basalt Block', 'got ' + find('dress_basalt').name);
+    // Product display name dropped "Dressed"; the id is preserved (no catalogue re-key).
+    assert(window.ITEMS.dressed_block, 'dressed_block id must survive (no catalogue re-key)');
+    assert(window.ITEMS.dressed_block.n === 'Stone Block',
+      'dressed_block must display as "Stone Block", got ' + window.ITEMS.dressed_block.n);
+    assert(!/dressed/i.test(window.ITEMS.dressed_block.n), 'the "dressed" jargon must be gone from the name');
+  }),
+
+  () => tryRun('b374: arrow batches cut to a round ×50 (Tyler: "500 is way too much")', () => {
+    const fletch = window.ARTISAN_RECIPES.crafting.filter((r) => r.id.startsWith('fletch_'));
+    assert(fletch.length === 7, 'expected 7 fletch rows, got ' + fletch.length);
+    fletch.forEach((r) => {
+      assert(r.outputQty === 50, r.id + ' must produce 50 per craft now, got ' + r.outputQty);
+      assert(/×50\b/.test(r.name), r.id + ' label must read ×50, got ' + r.name);
+    });
+    // xp-per-action is unchanged (time-to-99 preserved) — bronze is still 90 book.
+    assert(fletch.find((r) => r.id === 'fletch_bronze_arrows').xp === 90,
+      'fletch xp must be unchanged so Fletching time-to-99 is untouched');
+  }),
+
+  () => tryRun('b374: a gather tile names its yield so the sprite is not the node (Tyler)', () => {
+    const G = window.HearthriseActivitiesGrid;
+    assert(G && typeof G.__tileForGather === 'function', 'the gather-tile builder must be published');
+    // A real Oak Tree node (id/name/prod are the load-bearing fields for this tile).
+    const node = { id: 'oak_tree', name: 'Oak Tree', req: 15, xp: 23, ms: 4000, prod: 'oak_log', icon: '🌳' };
+    const html = G.__tileForGather(node, 'woodcutting');
+    const oakLogName = (window.ITEMS.oak_log && window.ITEMS.oak_log.n) || 'Oak Log';
+    assert(/at-yield/.test(html), 'the gather tile must carry a yield caption');
+    assert(html.indexOf('Yields ' + oakLogName) >= 0,
+      'the gather tile must name its product (' + oakLogName + ') as the yield, not imply the sprite is the tree');
+  }),
+
+  () => tryRun('b374: leveling a skill fires the celebratory notice; a plain tick does not (Tyler)', () => {
+    // Unlock lookup is honest per skill.
+    const woodUnlocks = window.hrSkillUnlocksAt('woodcutting', 15);
+    assert(woodUnlocks.indexOf('Oak Tree') >= 0,
+      'Woodcutting Lv 15 must report the Oak Tree unlock, got [' + woodUnlocks.join(', ') + ']');
+    assert(window.hrSkillUnlocksAt('woodcutting', 14).length === 0,
+      'a level with no new activity must report no unlocks');
+
+    const snap = snapshotG();
+    const realNotify = window.notify;
+    try {
+      window.notify = function () {};
+      window._hrLastLevelUp = null;
+      window.G.skills = Object.assign({}, window.G.skills, { woodcutting: 0 });
+      window.addXp('woodcutting', 200000);   // crosses several levels
+      assert(window._hrLastLevelUp && window._hrLastLevelUp.skill === 'woodcutting',
+        'a level-up MUST fire the notice with the right skill');
+      assert(window._hrLastLevelUp.level > 1, 'the notice must carry the new level, got ' + window._hrLastLevelUp.level);
+
+      // A plain XP tick at the cap must NOT fire it.
+      window._hrLastLevelUp = null;
+      window.G.skills.woodcutting = 13034431;  // level 99
+      window.addXp('woodcutting', 5);
+      assert(window._hrLastLevelUp === null,
+        'a normal XP tick that crosses no level boundary must NOT fire the notice');
+    } finally { window.notify = realNotify; restoreG(snap); }
   }),
 
   () => tryRun('b343: the spdB speed budget is closed (the pacing anchor holds)', () => {

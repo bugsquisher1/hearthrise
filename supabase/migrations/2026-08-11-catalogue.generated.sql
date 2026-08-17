@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 64d33a0663e390796f5ef3829e4fff6838eb8f2585dfb472f0d29c97ed9c3f76
+--   catalogue digest: 5b0a77e2e2bc10d70f8cda81edc50c6ef1a64108bbc25206d7ff030b3febb88a
 --   rows: 512 items (16 untradeable) ·
 --         278 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 470 activities
@@ -311,7 +311,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dragonrend_greatblade','Dragonrend',true,'weapon',17600,'attack',88,null,false),
   ('dragonrib_bow','Dragonrib Bow',true,'weapon',13650,'ranged',75,null,false),
   ('dragonsbane_key','Dragonsbane Key',false,null,0,null,null,null,false),
-  ('dressed_block','Dressed Block',true,null,22,null,null,null,false),
+  ('dressed_block','Stone Block',true,null,22,null,null,null,false),
   ('dungeon_scrip','Dungeon Scrip',false,null,0,null,null,null,false),
   ('duskwood_bow','Duskwood Bow',true,'weapon',37800,'ranged',88,null,false),
   ('duskwood_log','Duskwood Log',true,null,1150,null,null,null,false),
@@ -1482,7 +1482,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
   ('weapon','bronze_sword');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '64d33a0663e390796f5ef3829e4fff6838eb8f2585dfb472f0d29c97ed9c3f76', now())
+  values (true, '5b0a77e2e2bc10d70f8cda81edc50c6ef1a64108bbc25206d7ff030b3febb88a', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1626,6 +1626,6 @@ begin
     raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
   end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, digest 64d33a0663e390796f5ef3829e4fff6838eb8f2585dfb472f0d29c97ed9c3f76',
+  raise notice 'CATALOGUES OK — % items, % activities, digest 5b0a77e2e2bc10d70f8cda81edc50c6ef1a64108bbc25206d7ff030b3febb88a',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities);
 end $$;

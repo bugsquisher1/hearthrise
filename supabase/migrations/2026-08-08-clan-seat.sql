@@ -512,6 +512,18 @@ grant execute on function public.clan_upkeep_pay(uuid) to authenticated;
 
 -- ── 7. clan_deposit — the Storehouse ─────────────────────────
 --
+-- ⚠⚠ SUPERSEDED, 2026-08-18. The notice below was true when it was written and
+--    is NO LONGER THE LIVE BEHAVIOUR. `player_inventory` arrived on 2026-08-11
+--    (2026-08-11-player-state.sql), which turned "an honest limitation" into a
+--    live P0: a devtools `clan_deposit(clan, '{"keystone":100000}')` minted
+--    shared materials, castle tier, contribution points and clan_power ranking.
+--    supabase/migrations/2026-08-18-clan-deposit-ownership.sql replaces the
+--    body (under its A9 name, `clan_deposit__ungated`) with one that DEBITS
+--    player_inventory under `for update` and refuses `insufficient_item`.
+--    READ THAT FILE, not this comment, for the current contract. This block is
+--    kept verbatim because a rebuild replays it before the fix, and because
+--    deleting the sentence that was wrong is how the reasoning gets lost.
+--
 -- ⚠ POSSESSION IS CLIENT-TRUSTED AND CLAMPED (spec §12.3, CONFLICTS #8).
 --   This function is SERVER-AUTHORITATIVE for currency, gates, rewards and
 --   rate. It is CLIENT-TRUSTED for item possession, clamped and audited.

@@ -31,6 +31,7 @@ import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
 import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
 import { clientWriteSweep5Guard } from './client-write-sweep-5.mjs';
 import { bugTriageGuard } from './bug-triage.mjs';
+import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
 import { runAll as liveSettlementGuards, engineGuard as settleReport,
@@ -1743,6 +1744,27 @@ const run = async () => {
       console.log('\nBug-triage guard — the unrated fallback flood is reproduced then refused per-account, '
         + 'resolved is derived from status, triaged_at cannot be backdated, reports stay append-only, '
         + 'and the client still files each report exactly once.');
+    }
+
+    /* ── The clan Storehouse's possession check (Security P0, b366) ─────
+       `clan_deposit` validated the item, clamped it by gold value, journalled
+       it — and never debited the depositor. A devtools call therefore minted
+       materials into clan_stores, castle_tier, contribution points and the
+       clan_power leaderboard: four surfaces that all cross to other players.
+       2026-08-18-clan-deposit-ownership.sql ports hr_market_list's escrow debit
+       into it and moves the write section inside a protected block, so a mixed
+       batch with one short row rolls back WHOLE instead of committing the good
+       half. The guard drives two real players through the real A9-wrapped RPC
+       on a fully replayed PGlite chain; `--selftest` plants five real defects
+       (including the P0 itself) and every one must read RED. */
+    const clanDepositProblems = await clanDepositOwnershipGuard();
+    if (clanDepositProblems.length) {
+      console.log('\nClan Storehouse ownership debit — FAILED:');
+      for (const p of clanDepositProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nClan-deposit ownership guard — an unowned deposit is refused and moves nothing, an '
+        + 'owned one debits exactly, and a mixed batch with one short row rolls back whole.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

@@ -348,8 +348,15 @@ body[data-theme="cozy-light"] #panel-combat .fs-swing {
   /* WRAPS, NOT ELLIPSISES. At a 52px slot "Offhand" and "Necklace" came back
    * as "OFFHA…" and "NECKL…" — and b139 already ruled that a truncated slot
    * label reads as a random string rather than a slot name. Two short lines
-   * are legible; half a word is not. */
-  overflow: hidden; white-space: normal; word-break: break-word;
+   * are legible; half a word is not.
+   *
+   * b368: `word-break: break-word` is stronger than that argument needs and it
+   * broke words that FIT — the desktop capture reads "WEAPO / N" and "OFFHAN /
+   * D", which is the same "half a word" failure the rule above exists to
+   * prevent, arriving from the other side. `overflow-wrap` only breaks a word
+   * that cannot fit a line on its own, so Weapon and Offhand stay whole and
+   * Necklace still wraps rather than clipping. */
+  overflow: hidden; white-space: normal; word-break: normal; overflow-wrap: break-word;
 }
 #panel-combat .fsm-slot:not(.is-empty) em { display: none; }
 
@@ -566,7 +573,12 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
 @keyframes hr-fs-swing { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 #panel-combat .fs-swing i {
   position: absolute; inset: 0 auto 0 0; width: 100%;
-  background: var(--gold); opacity: .7;
+  /* b368: .7 -> .9. Photographed beside a saturated HP bar, gold at 70% over the
+   * sunk field resolved to a dull olive barely a value-step off its own trough —
+   * a moving element that reads as static is worse than no element, because the
+   * player stops looking at it. It is still quieter than HP, which is correct;
+   * it is no longer invisible, which is the whole point of a swing clock. */
+  background: var(--gold); opacity: .9;
   transform-origin: left center; transform: scaleX(0);
   animation: hr-fs-swing 2.4s linear infinite;
   animation-play-state: paused;
@@ -589,6 +601,10 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
   position: relative; width: 100%; text-align: center;
   font-size: var(--t-micro, 11px); color: var(--ink-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px;
+  /* The fill sweeps UNDER this label every swing, so the label has to be legible
+   * on the sunk field and on gold, twice per cycle. Same shadow the HP numerics
+   * already use for the same reason. */
+  text-shadow: 0 1px 2px rgba(0,0,0,.6);
 }
 
 /* COMBAT-UI-11 — three tiles a side, always on. The deep rows (evasion,
@@ -887,11 +903,22 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
   #panel-combat .arena-vs.fs-stage .arena-name { font-size: var(--t-micro, 11px); line-height: 1.1; }
   #panel-combat .fs-lv { line-height: 1.05; }
   #panel-combat .arena-vs.fs-stage .arena-hp-bar { height: 12px; }
-  /* The bar keeps its phase; its LABEL goes. At 8px tall there is nowhere to
-   * print a weapon name above the type floor, and the weapon is already named
-   * on the quick-swap strip two rows up. */
-  #panel-combat .fs-swing { height: 8px; }
-  #panel-combat .fs-swing span { display: none; }
+  /* b368 — THE LABEL STAYS. b366 hid it here ("the weapon is already named on
+   * the quick-swap strip two rows up") and, eleven rules further down, hid
+   * `.csb-swing` on the style buttons for the mirror-image reason ("the swing
+   * time is also printed on the player's own swing bar two rows up"). Each rule
+   * deleted the duplicate the other one was relying on, so on a landscape phone
+   * the swing time was printed NOWHERE — which is precisely what Tyler reported
+   * ("you also removed the attack swing timer"). Two rules that each defer to
+   * the other are not a density decision, they are a hole.
+   *
+   * The bar keeps desktop's 13px here rather than 10, because a 10px trough
+   * cannot hold 11px type. That is 3px of the 423px budget, and it is paid out
+   * of the action bar's own top padding rather than out of the foe plate: the
+   * plate is the screen's subject, and 2px of gutter above a row of buttons is
+   * the cheapest 423px in this sheet. Measured after: action bar bottom 414 of
+   * 423 (b366 shipped 416). */
+  #panel-combat .fs-swing { height: 13px; }
   #panel-combat .fs-tile { padding: 0 4px; }
   #panel-combat .fs-style .csb-btn { padding: 0 6px; }
   #panel-combat .fs-style .csb-btn small { font-size: var(--t-micro, 11px); }
@@ -899,8 +926,7 @@ body[data-theme="cozy-light"] #panel-combat .arena-vs.fs-stage .arena-hp-text {
   #panel-combat .fs-metrics { padding-top: 1px; line-height: 1.15; }
   #panel-combat .arena-vs.fs-stage .arena-name { font-size: var(--t-small, 13px); }
   #panel-combat .arena-vs.fs-stage .arena-hp-bar { height: 15px; }
-  #panel-combat .fs-swing { height: 10px; }
-  #panel-combat .fs-actionbar { padding-top: 4px; gap: 6px; }
+  #panel-combat .fs-actionbar { padding-top: 2px; gap: 6px; }
   #panel-combat .arena-vs.fs-stage .arena-eat { min-height: 34px; padding: 3px 8px; }
   /* The XP route stays (b348 — Xarn's report); the swing time is the one that
    * goes, because it is also printed on the player's own swing bar two rows up. */

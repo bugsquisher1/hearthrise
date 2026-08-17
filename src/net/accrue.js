@@ -531,6 +531,19 @@ function settle(verdict, now) {
     applied = true;
   }
   fire('onOutcome', { outcome: verdict.outcome, reason: verdict.reason || null, status: verdict.status || 0 });
+  /* ── b368: A RECOVERED SERVER TAKES ITS OWN SHEET DOWN ────────────────────
+     The halted sheet used to be removable by exactly one actor: the player.
+     Nothing else ever called `hideAccrualHaltedSheet`, so the sheet outlived
+     the condition it reported for as long as the document did — and on a phone
+     a document lives for DAYS. Tyler's report is that exact shape: yesterday a
+     server-side `unknown_skill` put his phone in the halted state, the server
+     was fixed, and this morning the app came back to the foreground still
+     wearing "the progress server refused the result" — a sentence that had
+     stopped being true overnight. His manual Try Again succeeded first go,
+     which is the proof: the accrual was fine, the SHEET was stale.
+     A statement about the server's health must be retracted by the server's
+     health, not only by the player tapping Not now. */
+  if (!isAccrualFailure(verdict.outcome)) hideAccrualHaltedSheet();
   if (gate.halted && !wasHalted && !haltAnnounced) {
     haltAnnounced = true;
     console.warn('[accrue] the server has not answered ' + gate.streak
@@ -1753,6 +1766,10 @@ export function wireSettleTriggers() {
        armed while hidden, or a player who tabs away for ten minutes waits a
        further ninety seconds for a settle that was already due. */
     if (settleState.running) scheduleSettle(1);
+    /* b368: and if this device is carrying a halt from an earlier session, ask
+       once before we keep telling the player the server is refusing them. On a
+       phone, "back in front" IS the boot most players experience. */
+    try { verifyHaltedState(); } catch (e) {}
   });
   /* §3.1 reconnect. Reuses the gate/backoff — a reconnect storm cannot outpace
      the breaker, and `decideSettle` still holds the cadence floor. */
@@ -1918,6 +1935,43 @@ export function hideAccrualHaltedSheet() {
   if (el) el.remove();
 }
 
+/**
+ * b368 — VERIFY A CARRIED-OVER HALT BEFORE STANDING BEHIND IT.
+ *
+ * The halt is a latch, and a latch that survives the outage is a lie waiting to
+ * be told. This runs on the two edges where a halt can be older than the
+ * evidence for it — the app coming back to the foreground, and a cold boot that
+ * restored a halted gate — and it does ONE forced request BEFORE the player is
+ * shown anything. Server answers: the sheet goes (settle() removes it) and the
+ * player never learns there was a question. Server refuses again: the sheet
+ * stands, unchanged, because a live repeated refusal is exactly what it is for.
+ *
+ * It deliberately does NOT weaken the first announcement. A halt EARNED in this
+ * session still raises the sheet the instant it is earned, on the third failure,
+ * with no extra request — `settle()` owns that and is untouched. This only ever
+ * re-examines a verdict that was reached earlier.
+ *
+ * Silent by construction: with `gate.halted` already true, `settle()`'s
+ * announce branch cannot fire (`wasHalted` is true), so a failed re-check has to
+ * re-raise the sheet itself.
+ */
+export async function verifyHaltedState() {
+  if (!gate.halted) return { checked: false, cleared: false, reason: 'not-halted' };
+  if (!isServerAccrualEnabled() || !config) return { checked: false, cleared: false, reason: 'unconfigured' };
+  if (!tokenOf()) return { checked: false, cleared: false, reason: 'no-token' };
+  /* Take the carried-over sheet down FOR the duration of the check. If the
+     server answers, the player never sees a claim that was already false; if it
+     refuses, the sheet comes straight back below. Leaving it up while we ask
+     would make "silently retry first" a retry the player watches. */
+  hideAccrualHaltedSheet();
+  let r = null;
+  try { r = await requestAccrual({ force: true }); } catch (e) { r = null; }
+  const outcome = (r && r.outcome) || 'unreachable';
+  if (!isAccrualFailure(outcome)) return { checked: true, cleared: true, outcome };
+  showAccrualHaltedSheet(outcome);
+  return { checked: true, cleared: false, outcome };
+}
+
 /* ── THE ENTRY POINT legacy.js CALLS ────────────────────────────────────────
    processOffline() returns immediately after calling this. It is async and its
    promise is deliberately NOT awaited by the caller: the game must not block a
@@ -1951,6 +2005,6 @@ if (typeof window !== 'undefined') {
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, classifyReceipt, receiptNotice, receiptSentence,
     getAccrualState, resetAccrualGate, setAccrualHooks,
-    showAccrualHaltedSheet, hideAccrualHaltedSheet,
+    showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,
   };
 }

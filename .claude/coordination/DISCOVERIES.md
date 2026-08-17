@@ -4,6 +4,43 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-16 (b368) · Art Director · **`setupArenaVs()` in legacy.js is a SECOND AUTHOR of the Fight stage, and it wins the race on every resume-into-a-running-fight**
+
+**DISCOVERY 1 — one root cause behind three separate player reports.** legacy.js's `setupArenaVs()`
+builds a pre-b365 `.arena-vs` into `#panel-combat .combat-arena` from a 200ms interval. On a COLD LOAD
+WITH `G.activeMonster` SET it runs before `setupCombatScreens()`, and `buildStage()` bailed on any
+`.arena-vs` at all — so the whole b365/b366 Fight screen (levels, swing bars, forecast tiles, style
+picker, action bar, metrics strip) was replaced by the legacy stage **for the rest of the session**.
+Downstream, `refreshArenaVs()` parks inline `display:none` on that stage whenever no fight is live,
+and the CSS that un-hides it in preview is scoped `.arena-vs.fs-stage` — which is why clicking a foe
+then produced a completely EMPTY stage showing only backdrop art. Fixed in combat-screens.js (class
+test + replace + re-assert per render); guarded by COMBAT-UI-19c, whose mutation also takes
+COMBAT-UI-13 and COMBAT-UI-21 down — that trio IS the blast radius players were photographing.
+**AFFECTED:** `src/legacy.js` (setupArenaVs / refreshArenaVs), `src/features/combat-screens.js`.
+**REQUIRED ACTION (Systems Engineer):** two modules author the same DOM region and only one knows it.
+Every future change there races. Retire `setupArenaVs`'s builder, or give it the same `.fs-stage`
+awareness, so the ownership is stated rather than won.
+
+**DISCOVERY 2 — a probe that starts the thing it measures can never see a boot-order bug.** b366
+measured the swing bar in four contexts and reported 20 distinct animation frames in 20. All true,
+and all blind to this: every one of those probes STARTED a fight and then looked. The defect only
+exists when the fight was already running before the module booted. **Any harness for a module that
+wraps or races the engine must include a state-restored-from-save path, not only a
+gesture-from-clean path.**
+
+**DISCOVERY 3 — `src/net/accrue.js` does NOT persist the accrual halt.** No localStorage, no snapshot
+field. What persisted in the field report was the SHEET: `hideAccrualHaltedSheet` had exactly one
+caller, the player's own button, so a halted sheet outlived the outage for as long as the document did
+(days, on a phone). Fixed: a recovered server takes its own sheet down, and `verifyHaltedState()`
+re-checks a carried-over halt with one silent forced request on the foreground edge before the player
+is told anything. A halt earned in-session still announces on the third failure, unchanged.
+**AFFECTED:** `src/net/accrue.js`. **REQUIRED ACTION:** none outstanding; guarded by HALT-BOOT-1.
+
+**NON-DISCOVERY, recorded so nobody re-chases it:** an empty equipment set does NOT break the Fight
+preview. `G.equipment = {}` renders every row at 1440×900 and 922×423 with zero console errors. The
+only real defect in that state was the swing row printing the damage CLASS ("Neutral · 2.40s")
+instead of "Unarmed", because a `|| 'Unarmed'` fallback sat behind a always-truthy label lookup.
+
 ### 2026-08-16 (b366 fight-screen density) · Art Director · **The layout defect that every MEASUREMENT said was fine, and only a screenshot found — plus two live emoji sites**
 
 **DISCOVERY 1 — a mid-fight-only overflow that computed style could not see.** The combat style

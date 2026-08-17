@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 370 — 2026-08-17 (Honest drops, a workers' ledger, and a tidy equipment page)
+
+- ⚔️ **"Drops this fight" now shows only the fight.** Your workers' hauls no longer sneak into the combat ledger — the rail counts what the monster paid, nothing else.
+- 👷 **Workers keep books now.** Each worker shows its lifetime haul ("1,800 gathered"), and the crew panel totals what they've brought in, by item. (Thanks Tyler for the idea.)
+- 🧰 **Fixed the Equipment page on phones** — slots were growing into each other and the worn weapon floated over the wrong cell. Every equipment view now uses one shared grid that keeps items in their slots at every size.
+- 🖥️ **After a refused gear change, every screen agrees again** — the fight rail no longer shows gear the server rolled back.
+- 🔎 Server-side: skill grants can no longer be refused for characters created before a skill existed, and repeating server rejections now surface in the bug-triage loop automatically instead of waiting for a player report.
+
 ## v0.9.2-beta build 369 — 2026-08-17 (Hotfix: the Fight screen comes back)
 
 - 🚑 **Fixed the Fight screen loading empty** — opening the game mid-fight (or reloading during one) could leave the whole combat stage blank for the session: no portraits, no stats, no Fight button. One startup race, now fixed and guarded by tests.

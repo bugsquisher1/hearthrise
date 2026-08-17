@@ -750,6 +750,13 @@ function destinations() {
       meta: open.length ? `${open.length} ready to run` : (next ? `unlocks at Combat Lv ${D[next].reqLv}` : 'keys and cooldowns'),
       verb: 'Enter ▸', go: 'tab', tab: 'dungeons',
       counter: open.length ? String(open.length) : null,
+      /* b371 (F25) — THE CARD ALREADY SAID "unlocks at Combat Lv 25" AND OFFERED
+         A LIT "Enter ▸" BUTTON UNDER IT. The two boss cards above use the
+         `locked` field for exactly this and render a disabled chip naming the
+         requirement; the dungeon card was the one destination that stated its
+         gate in prose and then contradicted it with an affordance. A player at
+         CL8 clicked through to a list where every row said no. */
+      locked: (!open.length && next) ? `Combat Lv ${D[next].reqLv}` : null,
     });
   }
 
@@ -1468,6 +1475,10 @@ export function setupCombatScreens() {
     preview, setView, view, render, renderFight, openFromNav, openSlotPicker,
     repaintGear,
     _ledger: Ledger, _swing: Swing, _champion: syncChampionPortrait,
+    /* b371 (F25): the destination list is pure and it is where the "Enter ▸ on
+       a gated dungeon" defect lived, so the guard reads it directly rather
+       than trying to find a disabled button in a strip the tick repaints. */
+    _destinations: destinations,
     get previewId() { return previewId; },
   };
 

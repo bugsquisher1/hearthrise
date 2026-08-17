@@ -127,6 +127,20 @@ body[data-theme="hearthlight"] {
   --sc-prem-bg:   rgba(120,136,220,.09);
   --sc-gem-tag:   #cdd4f0;
   --sc-gem-ink:   #1e2350;
+  /* b371 (F24) — THE REAL-MONEY BUTTON IS A JEWEL SET IN GOLD, not a web link.
+     The sapphire ROLE was right (art-direction.css §6: only real money is
+     allowed this hue) and the EXECUTION was a flat #5f6fc4→#38447f periwinkle
+     pill with a lavender border — three literal hexes, no relationship to any
+     other surface in the game, and the one control on the one screen that takes
+     a credit card looked like a default Bootstrap primary. It is now a deep,
+     saturated stone under a gilt rim: sapphire keeps the meaning, the gilt keeps
+     it inside Forge & Stone, and both ends are tokens so the retired light
+     theme re-tints instead of inheriting a dark-theme hex. */
+  --gem-face-0:   #4d5fc0;   /* lit top facet */
+  --gem-face-1:   #35459a;
+  --gem-face-2:   #232e6d;   /* deep bottom */
+  --gem-rim:      rgba(201,162,74,.62);   /* the gilt setting */
+  --gem-face-ink: #f2f4ff;
 }
 
 /* Cozy Day is the retired secondary theme, but every token must still resolve —
@@ -197,6 +211,13 @@ body[data-theme="cozy-light"] {
   --sc-prem-bg:   rgba(75,87,168,.08);
   --sc-gem-tag:   #dfe3fb;
   --sc-gem-ink:   #23295e;
+  /* Golden hour: the stone is lighter and the setting is warmer brass, so the
+     white lettering still clears the readability floor on a parchment page. */
+  --gem-face-0:   #5c6ecd;
+  --gem-face-1:   #3f4fa8;
+  --gem-face-2:   #2b3782;
+  --gem-rim:      rgba(122,92,49,.70);
+  --gem-face-ink: #f7f8ff;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -617,13 +638,25 @@ body[data-theme] #panel-shop#panel-shop .card:has(> #iap-panel) .card-head .card
 body[data-theme] #panel-shop #iap-panel .iap-card {
   /* cool cast — the premium shelf is lit differently from the warm shop */
   background: linear-gradient(180deg, var(--sc-prem-bg), rgba(0,0,0,.20)) !important;
-  border-color: var(--sc-prem-line) !important;
+  /* b371 (F24): the BORDER was sapphire too, and with nine cards on screen the
+     block read as a blue slab dropped into a warm game — the audit's exact
+     complaint. The cool WASH stays (it is the "lit differently" idea and it
+     works); the edge goes back to the shelf's own hairline so the shelf belongs
+     to the shop it is standing in. */
+  border-color: var(--line-soft) !important;
 }
-body[data-theme] #panel-shop #iap-panel .iap-card .iap-icon { color: var(--sc-prem-ink) !important; }
+/* SAPPHIRE IS SPENT WHERE IT MEANS SOMETHING.
+   The rule (art-direction.css §6) is that sapphire marks REAL MONEY. It never
+   said the whole card should be blue — but the product glyph, the ribbon, the
+   price and the button were all cold, so the one thing the colour was supposed
+   to single out was the same colour as everything around it, which is the same
+   as marking nothing. The price and the Buy button are the money; the mark and
+   the ribbon go back to gilt, the accent every other shelf in the game wears. */
+body[data-theme] #panel-shop #iap-panel .iap-card .iap-icon { color: var(--gold-2) !important; }
 body[data-theme] #panel-shop #iap-panel .iap-card .ribbon {
-  background: var(--sc-prem-bg) !important;
-  color: var(--sc-prem-ink) !important;
-  border-color: var(--sc-prem-line) !important;
+  background: var(--gold-bg) !important;
+  color: var(--gold-2) !important;
+  border-color: rgba(201,162,74,.34) !important;
 }
 body[data-theme] #panel-shop #iap-panel .iap-card .iap-price { color: var(--sc-prem-ink2) !important; }
 body[data-theme] #panel-shop .sc-token-card { margin-top: 12px; }

@@ -2,38 +2,53 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
-### 2026-08-17 · FROM Art Director → TO Systems Engineer + Asset Director · **A leading underscore in a shipped path = a 404 in production. And there is now ONE portrait seam — do not add a sixth reader.**
+### 2026-08-17 · FROM Art Director → TO Asset Director · **19 companion portraits are the biggest identity gap left in the game, and I refused four near-matches rather than fake them**
 
-Two things from the b371 portrait pass that you will both trip over otherwise.
+The Stable (F19) showed 20 of 22 companions rendering the SAME paw glyph. I fixed what is
+mine — the medallion now carries a ROLE silhouette (sword/leaf/anvil/spark), so the wall
+reads as four families instead of one — but that is a holding pattern, not art.
 
-**1 · Never name a shipped asset (or a folder holding one) with a leading `_`.**
-`assets/avatars/_placeholder.webp` 404'd on hearthrise.net for its entire life while
-serving fine everywhere else: GitHub Pages runs Jekyll, and Jekyll excludes
-`_`-prefixed files. Renamed to `placeholder-portrait.webp`; `.nojekyll` now ships as
-a second line of defence; `avatarAssetGuard()` in `tests/run-smoke.mjs` fails the
-build on either a `_`-prefixed referenced path or a missing `assets/avatars/**` file.
-**Asset Director:** `assets/art-pilot/_screenshots/` is a `_`-prefixed directory —
-harmless today because nothing shipped references it, and a live trap the moment
-anything does.
+**Wired:** `rock_golem` → `hearthfire/monsters/stone_golem.png`. The only honest match in
+the shipped bundles; I opened every candidate at full size first.
 
-**2 · The player portrait has ONE source of truth and a registry.**
-`window.HearthriseIdentity.avatarUrl()` resolves it; `window._playerAvatar` is a
-mirror the seam keeps current; every portrait `<img>` carries **`data-hr-avatar`**
-and is repainted by `paintAvatars()` on every change. If you add a surface that draws
-the player's face, **add the attribute** — do not add another `window._playerAvatar ||
-'…/player.png'` read site, and above all do not read the portrait out of the DOM
-(`legacy.js`'s `getActiveAvatar()` used to read the topbar `<img>`, which made the
-header a source as well as a surface). `onAvatarChange(fn)` and the
-`hearthrise:avatar` window event are there for anything that needs more than an
-`<img src>` swap.
+**Refused, with reasons, so nobody re-litigates them:**
+* `forge_imp` → `hearthfire/monsters/imp.png` — the imp is holding a **SPOON**. Reads
+  cooking, not forge.
+* `lichling` → `painted/monsters/lich.png` — 128px legacy asset; the legacy 30 already read
+  as placeholders beside the hearthfire set.
+* `whelp` → `drake.png`, `dragonling` → `dragon.png` — adult animals for hatchling pets.
 
-**Systems Engineer, one for you specifically:** `legacy.js`'s arena plate and
-`combat-screens.js`'s preview plate are both painted exactly once behind
-`if (!pp.querySelector('img'))`. That guard is correct (damage-number children must
-survive) and it means those nodes can never be updated by their own renderer — any
-future per-fight state on them needs the same registry treatment, not a re-render.
+**Still owed (19), all 256px transparent busts to the hearthfire spec, ideally reading at
+44px:** fox, sparrow, bunny, honeybee, badger, whelp, scorpion, raccoon, owl, tortoise,
+beaver, heron, squirrel, phoenix_chick, forge_imp, silkling, grave_wisp, lichling,
+dragonling. They go in `assets/icons-bundle/painted/companions/<id>.png` and wire through
+`COMPANION_PORTRAIT` in `src/legacy.js` — one line each, no other change.
 
----
+### 2026-08-17 · FROM Art Director → TO Asset Director · **`air_rune.png` read as a media PLAY button; I rotated it, and it wants a proper re-shoot**
+
+The audit found the ammo slot rendering what looked like a broken/foreign icon. The asset is
+a stone disc carrying a solid **right-pointing triangle** — the universal play control at
+slot size. I rotated the source 90° CCW: the triangle now points UP, which is the classical
+alchemical sign for AIR, so the asset became *more* correct for its id rather than merely
+different. Verified at true slot size in the equipment doll.
+
+**Two things for you:** (1) the source is only **128x128**, half the hearthfire 256 spec, so
+it is soft next to its siblings; (2) `earth_rune.png` in the same family depicts **a human
+figure with a spade**, not a sigil — same wrong-subject class as the five planks/bars in the
+b362 worklist. Both want a re-shoot as carved sigils on a tinted disc, matching `fire_rune`
+and `water_rune`, which are correct.
+
+### 2026-08-17 · FROM Art Director → TO Systems Engineer · **Two robustness gaps found while fixing UI, neither in my domain**
+
+1. **`showTab()` with an unknown key blanks the app.** It deactivates every `.panel` and
+   activates nothing — `.panel.active` is `null` afterwards. Not live-reachable today (no
+   caller passes a bad key), but a nav typo is a white screen rather than a no-op. One-line
+   fix: bail if no panel matches. Details in DISCOVERIES.
+2. **F16's second half is yours, not mine.** The audit also noted "Upgrade Property appears
+   enabled while requirements are unmet (0/35)". I made the requirement counts legible
+   (they are chips now) but did **not** touch the button's gating — whether
+   `upgradeProperty()` should refuse, and whether the button should be `disabled`, is a
+   behaviour call on `src/features/homestead.js`. Filing rather than guessing.
 
 ### 2026-08-17 · FROM Art Director → TO Asset Director · **A new asset CLASS is inbound: opaque 1920x1080 background plates. They must NOT go through the hearthfire icon pipeline.**
 

@@ -168,6 +168,16 @@
         bottom = Math.round(Math.min(lift, vh * MAX_LIFT_FRAC)); // tall obstacle, cap
       }
     }
+    /* b371 (F21) — THE COLUMN IS CLAMPED INTO THE VIEWPORT AS A LAST STEP.
+       Every branch above is individually correct today (the side-step is gated
+       on `sideFits`), which is exactly why this belongs here rather than inside
+       one of them: the guarantee "a toast is on screen" must not depend on a
+       future editor re-deriving the interaction between four branches. `right`
+       is bounded so the column's LEFT edge cannot leave the viewport, and
+       `bottom` so its top cannot. Cheap, total, and asserted by TOAST-FIT-1. */
+    var maxRight = Math.max(BASE_INSET, vw - colW - BASE_INSET);
+    right  = Math.max(0, Math.min(right, maxRight));
+    bottom = Math.max(0, Math.min(bottom, Math.max(0, vh - BASE_INSET)));
     return { bottom: bottom, right: right };
   }
 

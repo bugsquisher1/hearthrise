@@ -1020,13 +1020,39 @@
       setTimeout(function(){ location.reload(); }, 1000);
     });
 
-    // Tutorial replay
+    /* Tutorial replay.
+       b371 (F23) — the live audit filed this as "does nothing". I could not
+       reproduce it: driven in a real browser at HEAD the row resets the flag,
+       builds `.ftue-root`, shows `.ftue-card.show` at z-index 99999 and is the
+       topmost element at screen centre ("Step 1 of 6 · Welcome to Hearthrise").
+       Reported as NOT REPRODUCED rather than "fixed".
+       What IS true is that the row was SILENT: it closed Settings and left the
+       player looking at the game, so any failure of the tour to appear — a
+       module that did not load, an exception inside startFTUE — was
+       indistinguishable from the button being dead, which is exactly the
+       report. It now says so when the tour does not mount. A control with no
+       failure state cannot be told apart from a control with no handler. */
     var tut = root.querySelector('#set-replay-tutorial');
     if(tut) tut.addEventListener('click', function(){
+      if(typeof window.startFTUE !== 'function'){
+        if(typeof window.notify === 'function') window.notify('The tutorial could not be started.', 'kill');
+        return;
+      }
       if(typeof window.resetFTUE === 'function') window.resetFTUE();
-      if(typeof window.startFTUE === 'function') window.startFTUE();
+      try { window.startFTUE(); }
+      catch(e){
+        if(typeof window.notify === 'function') window.notify('The tutorial could not be started.', 'kill');
+        return;
+      }
       var m = document.getElementById('settings-modal');
       if(m) m.classList.remove('show');
+      /* startFTUE renders its first step on a 50ms timer, so the check has to
+         outlive it. If nothing mounted, say so instead of leaving the player on
+         a closed dialog wondering whether they missed something. */
+      setTimeout(function(){
+        if(document.querySelector('.ftue-root .ftue-card')) return;
+        if(typeof window.notify === 'function') window.notify('The tutorial could not be started.', 'kill');
+      }, 600);
     });
 
     // Block list

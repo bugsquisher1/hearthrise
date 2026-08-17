@@ -360,8 +360,12 @@ img,svg{display:block;max-width:100%}
 .btn-primary:hover:not(:disabled){background:linear-gradient(180deg,#d9b361,#c09539)}
 .btn-gold{background:linear-gradient(180deg,#e2b84e,#b88c1e);border-color:#f3d181;color:#1a1100}
 .btn-gold:hover:not(:disabled){background:linear-gradient(180deg,#f3d181,#e2b84e)}
-.btn-gem{background:linear-gradient(180deg,#7dd3fc,#38bdf8);border-color:#bae6fd;color:#062032}
-.btn-gem:hover:not(:disabled){background:linear-gradient(180deg,#bae6fd,#7dd3fc)}
+/* b371 (F24): was a bright cyan (#7dd3fc/#38bdf8) left over from a retired
+   palette — the literal "default blue" the live audit named on the real-money
+   screen, and the value an unthemed frame renders before theme-picker.js runs.
+   Sapphire is the premium role and it now comes from tokens in both sheets. */
+.btn-gem{background:linear-gradient(180deg,var(--gem-face-0,#4d5fc0),var(--gem-face-2,#232e6d));border-color:var(--gem-rim,rgba(201,162,74,.62));color:var(--gem-face-ink,#f2f4ff)}
+.btn-gem:hover:not(:disabled){background:linear-gradient(180deg,var(--gem-face-0,#4d5fc0),var(--gem-face-1,#35459a))}
 .btn-danger{background:var(--red-bg);border-color:rgba(248,81,73,.4);color:#ffb4ad}
 .btn-ghost{background:transparent}
 .btn-block{width:100%}
@@ -602,8 +606,9 @@ img,svg{display:block;max-width:100%}
 }
 .iap-card{
   position:relative;
-  background:linear-gradient(160deg,rgba(125,211,252,.10),rgba(201,162,74,.04));
-  border:1px solid rgba(125,211,252,.24);
+  /* b371 (F24): the same retired cyan, on the card itself. */
+  background:linear-gradient(160deg,var(--gem-bg,rgba(82,98,179,.18)),rgba(201,162,74,.04));
+  border:1px solid var(--sc-prem-line,rgba(120,136,220,.34));
   border-radius:var(--r);padding:13px;
   display:flex;flex-direction:column;gap:8px;
 }
@@ -636,7 +641,12 @@ img,svg{display:block;max-width:100%}
 /* ─── notifications ─── */
 .notifs{
   position:fixed;
-  right:max(12px,var(--safe-b));
+  /* b371 (F21): this read `var(--safe-b)` — the BOTTOM safe-area inset driving
+     the RIGHT offset. On a notched phone in landscape that is a wrong number in
+     the wrong axis. audit-overrides.css already used --safe-r; the two sheets
+     disagreed, and this one is what the fallback notify() path gets if
+     toasts.js (which writes both offsets inline) ever fails to load. */
+  right:max(12px,var(--safe-r, 0px));
   bottom:max(72px,calc(12px + var(--safe-b)));
   z-index:1000;display:flex;flex-direction:column;gap:5px;
   pointer-events:none;
@@ -796,7 +806,17 @@ img,svg{display:block;max-width:100%}
   /* topbar simplifies */
   .clan-tag{display:none}
 
-  /* mobile-only profile compact */
+  /* b371 (F24): this said `grid-template-columns:1fr` for the whole breakpoint,
+     and the breakpoint's SECOND clause — (max-height:540px) and
+     (max-width:1024px) — catches a LANDSCAPE PHONE. So a 922x423 device got a
+     single 794px-wide product card filling the entire screen, and reaching the
+     ninth pack meant nine full-screen scrolls. CLAUDE.md's mobile ruling is
+     explicit that a wide landscape phone gets the SCALED-DESKTOP layout, not
+     the portrait one; the store was not honouring it. A portrait phone (<=540)
+     still stacks, because there 220px really is the whole screen. */
+  .iap-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+}
+@media (max-width:540px){
   .iap-grid{grid-template-columns:1fr}
 }
 

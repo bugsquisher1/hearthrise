@@ -278,13 +278,26 @@ body[data-theme] .btn-gold:hover:not(:disabled) {
   color: #221803;
 }
 
-/* PREMIUM — sapphire. Real-money purchases only, so the colour keeps meaning. */
+/* PREMIUM — sapphire set in gilt. Real-money purchases only, so the colour
+ * keeps meaning. b371 (F24): the three literal hexes that used to live here
+ * are now the `--gem-face-*` / `--gem-rim` tokens (board-and-shop.css), which
+ * is what the no-hardcoded-colour rule exists for — the previous values were a
+ * dark-theme periwinkle that the retired light theme inherited unchanged. */
 body[data-theme] .btn-gem {
-  background: linear-gradient(180deg, #5f6fc4 0%, #47559d 55%, #38447f 100%);
-  border-color: #8b98d8;
-  color: #f0f2ff;
+  background: linear-gradient(180deg, var(--gem-face-0) 0%, var(--gem-face-1) 55%, var(--gem-face-2) 100%);
+  border-color: var(--gem-rim);
+  color: var(--gem-face-ink);
   font-weight: 700;
-  box-shadow: inset 0 1px 0 rgba(220, 228, 255, .35), 0 2px 5px -2px rgba(0, 0, 0, .7);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .55);
+  box-shadow:
+    inset 0 1px 0 rgba(226, 232, 255, .40),
+    inset 0 -2px 4px rgba(10, 14, 44, .55),
+    0 2px 6px -2px rgba(0, 0, 0, .75);
+}
+body[data-theme] .btn-gem:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--gem-face-0) 0%, var(--gem-face-0) 55%, var(--gem-face-1) 100%);
+  border-color: var(--gold-2);
+  color: var(--gem-face-ink);
 }
 
 /* DESTRUCTIVE — oxblood, outline only. Filled red was being used for ordinary
@@ -531,16 +544,31 @@ body[data-theme] #hr-quests-btn:hover {
   background: rgba(255, 236, 200, .05);
   filter: none;
 }
+/* b371 — the badge now counts a REAL number rather than a regex that had
+ * stopped matching, which changes what the states mean. It reads "quests in
+ * progress" most of the time, so the resting treatment is quiet: gilt is
+ * reserved for the one state that asks the player to do something. */
 body[data-theme="hearthlight"] #hr-quests-btn .hr-q-count,
 body[data-theme] #hr-quests-btn .hr-q-count {
-  background: var(--gold);
-  color: #1b1305;
+  background: rgba(255, 236, 200, .13);
+  color: var(--ink-2);
   border-radius: 2px;
   font-family: var(--f-ui);
   font-weight: 700;
   font-size:calc(14.5px * var(--ui-scale, 1));
   padding: 1px 6px;
   min-width: 17px;
+}
+/* A reward is sitting there. This is the only state worth a colour. */
+body[data-theme="hearthlight"] #hr-quests-btn.has-claim .hr-q-count,
+body[data-theme] #hr-quests-btn.has-claim .hr-q-count {
+  background: var(--gold);
+  color: #1b1305;
+}
+body[data-theme="hearthlight"] #hr-quests-btn.has-claim,
+body[data-theme] #hr-quests-btn.has-claim {
+  color: var(--gold-2);
+  border-color: rgba(201, 162, 74, .40);
 }
 /* Nothing waiting → the badge recedes instead of shouting a zero. */
 body[data-theme="hearthlight"] #hr-quests-btn.no-active .hr-q-count,
@@ -1221,13 +1249,35 @@ body[data-theme] .iap-card {
   box-shadow: inset 0 1px 0 rgba(255, 240, 210, .07);
 }
 body[data-theme] .iap-card.gold { border-color: rgba(201, 162, 74, .34); }
+/* b371 (F24) — THE PRODUCT MARK IS A STRUCK MEDALLION, not a floating line
+ * icon. The glyphs themselves are correct (baked atlas, one per SKU since
+ * b217); what was missing is a SETTING. A 34px monochrome outline sitting on
+ * nothing, flush left, in a 230px-wide box, is why the audit read the store's
+ * art as "generic line icons vs the painted item art everywhere else" — the
+ * icon had no object-ness. It now sits in a recessed disc with a gilt keyline:
+ * the same struck-metal idiom the sidebar, the bounty board and the shop
+ * counter already use, so the storefront stops being the one screen built out
+ * of a different vocabulary. */
 body[data-theme] .iap-card .iap-icon {
-  height: 42px;
-  display: flex; align-items: center;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surf-sunken);
+  border: 1px solid var(--line-soft);
+  box-shadow: var(--surf-sunken-edge), 0 0 0 1px rgba(0, 0, 0, .35);
   color: var(--gold-2);
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
-body[data-theme] .iap-card.gem .iap-icon { color: #8f9de0; }
+body[data-theme] .iap-card.gem .iap-icon,
+body[data-theme] .iap-card.gold .iap-icon { border-color: rgba(201, 162, 74, .30); }
+/* The glyph carries its own inline `--gsz` (34px, written by HR.icon), which an
+ * inline custom property means no stylesheet can override — so the disc is
+ * sized around the glyph rather than the other way round: 34 in 54 is the same
+ * mark-to-field ratio the sidebar medallions use. */
+body[data-theme] .iap-card .iap-icon .hr-glyph { display: grid; place-items: center; }
 body[data-theme] .iap-card h3 {
   font-family: var(--f-display);
   font-size:calc(20px * var(--ui-scale, 1));
@@ -1267,20 +1317,39 @@ body[data-theme] .iap-card .iap-price small {
   color: var(--ink-3);
   margin-top: 4px;
 }
-body[data-theme] .iap-card .btn { min-height: 34px; padding: 0 18px; font-size: var(--t-small); }
+/* b371: the store's CTA was 34px and 18px of padding — the smallest button on
+ * a screen whose cheapest action is $2.99. It is now the same weight as the
+ * primary action anywhere else in the game. */
+body[data-theme] .iap-card .btn { min-height: 38px; padding: 0 24px; font-size: var(--t-small); letter-spacing: .03em; }
 /* Ribbons were four different pill colours in four corners. One treatment. */
+/* b371: the ribbon was 14.5px in a `--f-label` small-caps face inside a padded
+ * box — on a 220px card that made "TRADABLE" the second-loudest thing after the
+ * product name, competing with the price for the corner of the eye. A ribbon is
+ * a marginal note. Micro type, tight box, and it recedes to where a "Popular"
+ * flag belongs. */
 body[data-theme] .iap-card .ribbon {
   font-family: var(--f-label);
-  font-size:calc(14.5px * var(--ui-scale, 1));
+  font-size: var(--t-micro);
   font-weight: 700;
-  letter-spacing: .02em;
-  text-transform: none;
-  background: rgba(201, 162, 74, .16);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  /* The type cannot get smaller — 14.5px is the b218 readability FLOOR and it
+   * is not negotiable for a ribbon. So the weight comes off the FILL instead:
+   * a hairline stamp rather than a filled tag. */
+  background: rgba(201, 162, 74, .07);
   color: var(--gold-2);
-  border: 1px solid rgba(201, 162, 74, .34);
+  border: 1px solid rgba(201, 162, 74, .28);
   border-radius: var(--r-sm);
-  padding: 2px 8px;
+  padding: 1px 7px;
+  line-height: 1.35;
 }
+
+/* b371 (F19) — the companion medallion wrapper. The ring stays gilt (medallion()
+ * writes `--ring` inline, and gilt is the unifying accent every other medallion
+ * in the game wears); the ROLE is carried by the silhouette inside it and by
+ * the role line under the name. `data-role` is here as a hook for tests and for
+ * the day real portraits land — it deliberately paints nothing. */
+body[data-theme] .comp-medallion { display: inline-flex; flex: 0 0 auto; line-height: 0; }
 
 /* Shop rows — one line per item: art, name, stock, price, action. */
 body[data-theme] .shop-row {
@@ -1496,23 +1565,40 @@ body[data-theme] .hh-stat span {
   color: var(--ink-3);
   margin-top: 4px;
 }
-body[data-theme] .hh-req {
+/* b371 (F16): the requirements WRAP as chips instead of running the full width
+ * of the card. A requirement is one unit — art, name, count — and the count is
+ * the part the player came for, so it must never be separable from its label by
+ * a thousand pixels of empty card. */
+body[data-theme] .hh-reqs {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-bottom: 10px;
+}
+body[data-theme] .hh-req {
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  padding: 5px 0;
+  gap: 7px;
+  padding: 4px 10px 4px 7px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  background: var(--surf-sunken);
   font-size: var(--t-small);
   color: var(--ink-3);
+  white-space: nowrap;
+  cursor: help;                     /* there IS hover text — say so */
 }
 body[data-theme] .hh-req-art { width: 20px; height: 20px; display: grid; place-items: center; opacity: .75; }
 body[data-theme] .hh-req-art img { width: 20px; height: 20px; object-fit: contain; }
-body[data-theme] .hh-req-name { flex: 1; }
+body[data-theme] .hh-req-name { flex: 0 1 auto; min-width: 0; }
 body[data-theme] .hh-req b { color: var(--ink-2); font-variant-numeric: tabular-nums; font-weight: 700; }
 /* Met requirements light; unmet stay quiet. Colour carries the state, so the
  * checkmark glyph isn't needed at all. */
-body[data-theme] .hh-req.is-met { color: var(--ink-2); }
+body[data-theme] .hh-req.is-met { color: var(--ink-2); border-color: var(--green-line); }
 body[data-theme] .hh-req.is-met .hh-req-art { opacity: 1; }
-body[data-theme] .hh-req.is-met b { color: #9ab76a; }
+/* b371: was the literal #9ab76a. `--green` is this project's moss role and it
+ * is defined per theme, which is the whole point of the no-literals rule. */
+body[data-theme] .hh-req.is-met b { color: var(--green); }
 
 /* Room rows — "Build" is the action of the row and was rendering as the
  * dimmest element on it. */
@@ -1790,7 +1876,30 @@ body[data-theme] .notif {
   color: var(--ink);
   animation: notif-in .22s ease-out both;
 }
-body[data-theme] .notif .notif-text { min-width: 0; }
+/* b371 (F21) — AN ENTRANCE TRANSFORM MUST NEVER LEAVE THE ELEMENT'S FOOTPRINT.
+ * legacy.css animates `notif-in` from `translateX(110%)`, so a toast is parked
+ * a full column-width to the RIGHT of the column for the duration of its
+ * entrance. That is invisible at 60fps and catastrophic the moment frames stop
+ * arriving: measured live at 1745x950 with the renderer stalled, both toasts
+ * sat at left 1771 in a 1745px viewport — 406px past the right edge, held
+ * there indefinitely, with their text cut at the window edge. That is exactly
+ * the "toasts clip off the right viewport edge" report (6+ examples), and the
+ * audit that filed it also recorded 30s+ renderer stalls in the same session.
+ *
+ * Redefining the keyframe here (this sheet loads after legacy.css, so the last
+ * definition of the name wins) fixes the fallback `notify()` path too. The
+ * motion still reads as a slide-in; it simply cannot put the box off-screen,
+ * because 14px is inside the column's own gutter. A frozen toast is now
+ * fully legible at 14px from home instead of unreadable at 406px from home. */
+@keyframes notif-in {
+  from { transform: translateX(14px); opacity: 0; }
+  to   { transform: none;             opacity: 1; }
+}
+/* A message can carry an id, a display name or a URL — one unbroken token wider
+ * than the column pushed the text out of the box (measured: scrollWidth 410 in
+ * a 348px text cell). `min-width:0` lets the flex child shrink; it does not
+ * make an unbreakable word break. */
+body[data-theme] .notif .notif-text { min-width: 0; overflow-wrap: anywhere; }
 /* Repeat counter. An idle game repeats itself constantly ("Defeated Wolf" x7);
  * counting is honest and costs one slot instead of seven. */
 body[data-theme] .notif .notif-count {

@@ -24,17 +24,29 @@
         || document.querySelector('.global-quests-strip');
   }
 
-  function getActiveQuestCount(strip) {
-    // Strip text patterns we've seen:
-    //   "QUESTS · No active quests."
-    //   "QUESTS · 3 active"
-    //   "QUESTS · 2 active · Click to open"
-    if (!strip) return 0;
-    const text = strip.textContent || '';
+  // b371 — ASK THE GAME, DON'T READ THE OTHER UI.
+  //
+  // This used to derive the count by running /(\d+)\s*active/ over the quest
+  // strip's text, from a time when the strip said "QUESTS · 3 active". It has
+  // rendered PILLS for many builds; the word "active" is gone; the regex has
+  // matched nothing ever since and the badge showed a hardcoded-looking 0 to
+  // every player — including one with a reward sitting there to claim, which
+  // is how the live audit found it.
+  //
+  // `window.questBadgeState()` is computed by the quests module itself from the
+  // same isComplete/isClaimed helpers the Claim button enforces with, so the
+  // badge cannot drift from the modal again. The strip scrape survives only as
+  // a fallback for the window in which legacy.js has not finished booting.
+  function questState(strip) {
+    if (typeof window.questBadgeState === 'function') {
+      try {
+        const s = window.questBadgeState();
+        if (s && typeof s.active === 'number') return s;
+      } catch (e) { /* fall through to the scrape */ }
+    }
+    const text = (strip && strip.textContent) || '';
     const m = text.match(/(\d+)\s*active/i);
-    if (m) return parseInt(m[1], 10);
-    if (/no active quest/i.test(text)) return 0;
-    return 0;
+    return { active: m ? parseInt(m[1], 10) : 0, claimable: 0 };
   }
 
   function ensureButton() {
@@ -80,14 +92,26 @@
   function sync() {
     const btn = ensureButton();
     if (!btn) return;
-    const strip = getStrip();
-    const count = getActiveQuestCount(strip);
+    const st = questState(getStrip());
+    // A badge is a call to action, so it counts the thing you can ACT on: a
+    // reward waiting to be claimed outranks a quest still in progress. When
+    // nothing is claimable it falls back to the in-progress count, so the
+    // button still says how much is live. `has-claim` lets the badge go gilt
+    // for the state that is worth a glance.
+    const claim = st.claimable > 0;
+    const count = claim ? st.claimable : st.active;
     const countEl = btn.querySelector('.hr-q-count');
     if (countEl) countEl.textContent = String(count);
     btn.classList.toggle('no-active', count === 0);
-    // Optional: hide the count entirely when there are 0 quests, just
-    // keep the button as a discovery surface.
+    btn.classList.toggle('has-claim', claim);
+    btn.title = claim
+      ? (st.claimable === 1 ? '1 quest reward ready to claim' : st.claimable + ' quest rewards ready to claim')
+      : (st.active ? (st.active === 1 ? '1 quest in progress' : st.active + ' quests in progress') : 'Quests');
   }
+  // The strip only repaints on quest events; progress toward a target can move
+  // a quest into "claimable" without touching it. A slow poll is enough for a
+  // badge and costs nothing next to the per-second dashboard re-render.
+  setInterval(sync, 5000);
 
   // Watch the strip for text changes (engine updates it on quest progress)
   function watch() {

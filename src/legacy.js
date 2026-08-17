@@ -5488,9 +5488,39 @@ function restoreEquipSnapshot(before){
 }
 /* Wired lazily and once, for the reason wireServerActivity() states: legacy.js
    is a classic script and may run before the ESM module publishes itself. */
+/* b369 — the gesture side of the same accounting src/net/equip.js now keeps.
+   `routeEquipGesture` had three bare `return null`s, and on live b367 a real
+   player's unequip produced no server row at all — with nothing left behind
+   anywhere to say which path had swallowed it. A drop is a drop wherever it
+   happens, so it lands in ONE set of counters (the transport's) rather than a
+   second set here that would have to be correlated with the first. */
+function noteEquipGestureDrop(reason,extra){
+  const M=window.HearthriseEquip;
+  if(M&&M.stats&&M.stats.drops){
+    M.stats.drops[reason]=(M.stats.drops[reason]||0)+1;
+    M.stats.lastDrop=reason; M.stats.lastDropAt=Date.now();
+    const w=M.stats.warned||(M.stats.warned={});
+    w[reason]=(w[reason]||0)+1;
+    if(w[reason]>3)return null;                 // counted only, same throttle as the module
+  }
+  /* `no-ops` is the S4 skip — re-applying the loadout already worn moved
+     nothing, so there is nothing to tell the server. Counted (it is still a
+     gesture that sent no intent, and a flood would mean the snapshot is being
+     taken wrong) but never warned: warning on it would drown the console the
+     next incident has to be read out of. */
+  if(reason!=='no-ops'){
+    console.warn('[equip] gesture DELIVERED NOTHING ('+reason+(extra?': '+extra:'')+') — the server was not '
+      +'told about this gear change. window.HearthriseEquip.stats has the counts.');
+  }
+  return null;
+}
+window.__noteEquipGestureDrop=noteEquipGestureDrop;
 function wireServerEquip(){
   const M=window.HearthriseEquip;
-  if(!M)return null;
+  /* THE TRANSPORT MODULE IS NOT LOADED. Under an ESM failure or a stale cached
+     main.js this is how every equip on the device becomes local-only — which
+     is survivable (it is pre-b366 behaviour) but must never be silent. */
+  if(!M)return noteEquipGestureDrop('no-transport','window.HearthriseEquip is not published');
   /* ⚠ ASK WHAT IS INSTALLED, DO NOT LATCH ON HAVING INSTALLED IT. `resetEquip()`
      clears the hooks (the suite and any teardown call it), and a boolean latch
      here would leave the transport wired to NOTHING: the swap would reach the
@@ -5682,13 +5712,14 @@ function equipVerdictOutcome(v,before,ops,key){
  */
 function routeEquipGesture(before){
   const ops=equipOpsFromSnapshot(before);
-  if(!ops)return null;                      // S4: no equipment change, no stamp
+  if(!ops)return noteEquipGestureDrop('no-ops');   // S4: no equipment change, no stamp
   const M=wireServerEquip();
-  if(!M||typeof M.sendEquip!=='function')return null;
+  if(!M)return null;                               // already counted by wireServerEquip
+  if(typeof M.sendEquip!=='function')return noteEquipGestureDrop('no-send','the module published no sendEquip');
   try{
     return M.sendEquip(ops,{}).then(v=>equipVerdictOutcome(v,before,ops,null))
-      .catch(e=>{ console.warn('[equip] gesture threw:',e&&e.message); return null; });
-  }catch(e){ console.warn('[equip] gesture threw:',e&&e.message); return null; }
+      .catch(e=>noteEquipGestureDrop('gesture-threw',(e&&e.message)||String(e)));
+  }catch(e){ return noteEquipGestureDrop('gesture-threw',(e&&e.message)||String(e)); }
 }
 window.routeEquipGesture=routeEquipGesture;
 window.equipStateSnapshot=equipStateSnapshot;

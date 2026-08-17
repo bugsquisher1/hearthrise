@@ -342,17 +342,23 @@ export function buildIntentWiring(cfg) {
    which is the safe direction: a merge can only over-credit, while an absolute
    envelope on a client that still equips locally is the b362 dupe at settle
    cadence. Arming on a constant would survive exactly that deletion. */
-/* ⚠ b368 INCIDENT HOLD — the flip is DISARMED in production. On 2026-08-17 a
-   real player's unequip on live b367 produced ZERO equip intents in the server
-   journal while the armed absolute envelope deleted the unequipped copy from
-   their bag view (the sword stayed server-side in player_equipment; repaired by
-   hand). The arming condition — "routeEquipGesture exists" — proved existence,
-   not that the transport delivers. Until an equip intent from a REAL client is
-   observed in player_intents, this hold forces merge semantics for everyone.
-   Lift it by deleting EQUIP_FLIP_HELD once live routing is verified. */
-export const EQUIP_FLIP_HELD = true;
+/* ⚠ b369 — THE b368 INCIDENT HOLD IS GONE, AND IT IS GONE BECAUSE THE ARMING
+   CONDITION WAS REPLACED RATHER THAN RE-TRUSTED.
+
+   The b368 hold (`EQUIP_FLIP_HELD = true`) was a constant that forced this
+   function to answer false for everyone. It was the right emergency lever and
+   the wrong permanent shape: a boolean somebody has to remember to flip back
+   is the same class of instruction as the arming condition it was holding.
+
+   What this function answers has NOT changed — "does the player's equip
+   gesture route to the transport on this client?" — and it is still a
+   NECESSARY condition for the flip. What changed is that it is no longer a
+   SUFFICIENT one. `src/net/equip.js` now arms `markEquipAuthorityLive()` only
+   after the SERVER has acknowledged an equip round trip in this session, so
+   the b367 state — gesture present, transport configured, nothing ever
+   delivered, flip armed — is unreachable by construction. Read the arming
+   block in src/net/equip.js before changing either half. */
 export function equipGestureWired(win) {
-  if (EQUIP_FLIP_HELD) return false;
   const w = win || (typeof window !== 'undefined' ? window : null);
   return !!(w && typeof w.routeEquipGesture === 'function');
 }
@@ -373,10 +379,11 @@ export function wireServerIntents(win, cfg) {
   catch (e) { console.warn('[auth] activity wiring skipped:', e && e.message); }
   try { if (win && win.HearthriseGold) win.HearthriseGold.configureGold(w.gold); }
   catch (e) { console.warn('[auth] gold wiring skipped:', e && e.message); }
-  /* ⚠ THIS CALL IS WHAT ARMS THE ENVELOPE FLIP, and only because the gesture is
-     really there — see equipGestureWired() above. The returned wiring records
-     the answer so a test asserts the LITERAL configuration rather than that
-     code exists which might produce it. */
+  /* ⚠ b369 — THIS CALL NO LONGER ARMS ANYTHING. It states a NECESSARY
+     condition (the gesture routes here) and configures the transport; the flip
+     arms in src/net/equip.js on the server's first `ok:true`. The returned
+     wiring still records the answer so a test asserts the LITERAL
+     configuration rather than that code exists which might produce it. */
   w.equip = { ...w.equip, gestureWired: equipGestureWired(win) };
   try { if (win && win.HearthriseEquip) win.HearthriseEquip.configureEquip(w.equip); }
   catch (e) { console.warn('[auth] equip wiring skipped:', e && e.message); }
@@ -980,7 +987,7 @@ window.HearthriseAuth = {
   recoverSession, syncFailureMessage, ESCALATE_AFTER_MS,
   showAuthExpiredGate, hideAuthExpiredGate,
   // b368 — the incident hold and its gate, published so the suite grades them.
-  equipGestureWired, EQUIP_FLIP_HELD,
+  equipGestureWired,
   /* b366 — exported so the release visual gate can render the eviction sheet
      without staging a real eviction; the copy changed and rendered surfaces
      get looked at before they ship. */

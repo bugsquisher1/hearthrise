@@ -66,13 +66,184 @@ const EQUIP_TIMEOUT_MS = 15000;
 let config = null;
 let hooks = { onEnvelope: null, pointer: null };
 
+/* ⚠ DECLARED HERE, ABOVE THE COUNTERS, AND NOT WHERE IT READS MOST NATURALLY
+   (next to `classifyEquipResponse`). `stats` pre-seeds a key per outcome at
+   module-evaluation time, and a `const` referenced before its declaration is a
+   TDZ ReferenceError — which in a module imported for its side effects means
+   the ENTIRE transport silently fails to publish. That is the incident class
+   this whole file is being changed to close, so it is not repeated here. */
+export const EQUIP_OUTCOMES = Object.freeze([
+  'equipped',       // 200 ok:true — the swap landed; the envelope is the truth
+  'replayed',       // 200 ok:true replayed:true — this exact intent already landed
+  'refused',        // 4xx/409 with a machine code
+  'rate-limited',   // 429 — shared with set_activity at 30/min
+  'not-signed-in',  // 401/403
+  'unavailable',    // 5xx
+  'malformed',      // a 200 that is not an envelope
+  'unreachable',    // no answer at all (CORS, DNS, offline)
+  'timeout',        // aborted — also no answer
+  'unconfigured',   // no endpoint / no token on this device
+  'switch-off',     // server accrual is off; nothing was sent
+  'undeliverable',  // the client refused its own request before sending it
+]);
+
+/* ══════════════════════════════════════════════════════════════════════════
+   b369 — EVERY WAY THIS TRANSPORT CAN DELIVER NOTHING, COUNTED BY NAME.
+
+   THE INCIDENT THAT BOUGHT THIS. On live b367 a player unequipped a bronze
+   sword. The flip was armed, the gesture was wired, `routeEquipGesture` existed
+   — and the server journal held ZERO equip rows. It took hours of log
+   archaeology to establish even THAT the transport had not delivered, because
+   every non-delivery in this file was a bare `return {outcome:'…'}` that
+   nothing counted, nothing logged, and no console could be asked about after
+   the fact. The bug was never "which line dropped it"; the bug was that the
+   answer was unknowable from a running client.
+
+   So: one counter per named outcome, one per drop REASON, and a first-sight
+   `console.warn` per reason (throttled — a silent no-op is the incident class,
+   but a warn on every tick is how a player's console becomes unreadable and
+   the next real warning is missed).
+
+   `window.HearthriseEquip.stats` is the whole diagnosis in one paste. It is a
+   COUNTER, never a ledger: no item ids, no keys, nothing a support request
+   should not carry.
+
+   ⚠ THE COUNTERS ARE NOT DECORATION — `acknowledged` IS THE FLIP'S ARMING
+     CONDITION. See `noteAck` below. */
+export const EQUIP_DROP_REASONS = Object.freeze([
+  'switch-off',        // the kill switch is off; nothing was sent
+  'unconfigured',      // no endpoint on this device
+  'no-token',          // configured, but this device has no session token
+  'token-threw',       // the token accessor threw
+  'undeliverable',     // our own validator refused the map
+  'unreachable',       // fetch itself failed — CORS, DNS, offline (INDISTINGUISHABLE)
+  'timeout',           // aborted after EQUIP_TIMEOUT_MS — also "not answered"
+  'no-transport',      // legacy: window.HearthriseEquip absent at gesture time
+  'no-send',           // legacy: the module is there but sendEquip is not
+  'no-ops',            // legacy: nothing actually moved (the S4 skip — benign)
+  'gesture-threw',     // legacy: the gesture itself threw
+]);
+
+function freshStats() {
+  const drops = Object.create(null);
+  for (const r of EQUIP_DROP_REASONS) drops[r] = 0;
+  const byOutcome = Object.create(null);
+  for (const o of EQUIP_OUTCOMES) byOutcome[o] = 0;
+  return {
+    attempted: 0,          // sendEquip calls that reached `fetch`
+    answered: 0,           // calls that came back with a status
+    acknowledged: 0,       // 200 ok:true — THE SERVER PERFORMED A SWAP
+    ackAt: 0,
+    drops, byOutcome,
+    lastOutcome: null, lastError: null, lastDrop: null, lastDropAt: 0,
+    warned: Object.create(null),
+  };
+}
+export const stats = freshStats();
+/** Test seam. Returns the counters to zero AND retires the session's proof —
+    the two are one fact, so they must not be resettable independently. */
+export function __resetEquipStats() {
+  const f = freshStats();
+  for (const k of Object.keys(f)) stats[k] = f[k];
+  markEquipAuthorityLive(false);
+  return stats;
+}
+export function equipStats() { return stats; }
+
+/* THROTTLED, NOT SUPPRESSED. The first three sightings of a reason are warned
+   in full; after that only the counter moves. Three because one can be a
+   startup race, two can be a retry, and three is a pattern — and because the
+   b367 incident would have been diagnosed off the FIRST one. */
+const WARN_LIMIT = 3;
+function noteDrop(reason, extra) {
+  const r = String(reason || 'unknown');
+  stats.drops[r] = (stats.drops[r] || 0) + 1;
+  stats.lastDrop = r;
+  stats.lastDropAt = Date.now();
+  const n = (stats.warned[r] = (stats.warned[r] || 0) + 1);
+  if (n <= WARN_LIMIT) {
+    console.warn(`[equip] gesture DELIVERED NOTHING (${r}${extra ? ': ' + extra : ''}) — the server was not told `
+      + `about this gear change. window.HearthriseEquip.stats has the counts.`
+      + (n === WARN_LIMIT ? ' (further warnings for this reason are counted only)' : ''));
+  }
+  return { outcome: r === 'no-token' || r === 'token-threw' ? 'unconfigured' : r, dropReason: r };
+}
+
+/* ── THE ARMING CONDITION, AFTER THE b367 INCIDENT ──────────────────────────
+   ⚠ READ THIS BEFORE CHANGING EITHER HALF.
+
+   b366 armed the flip on `configureEquip({gestureWired:true})` — an endpoint,
+   a token source, and the gesture owner's assertion that the player's tap
+   routes here. Every one of those is a statement about the CLIENT. None of
+   them is evidence that a single equip has ever reached the server, and on
+   live b367 none of them was: the flip was armed on a client whose equips the
+   server never heard, which is precisely the state the arming condition exists
+   to make impossible.
+
+   The property that actually matters is not "this client CAN send" but "this
+   client's equips ARE LANDING". That is only knowable one way — the server
+   answered `ok:true` to one of them. So the flip now arms on a
+   SERVER-ACKNOWLEDGED ROUND TRIP IN THIS SESSION, and on nothing else:
+
+     · a 200 `equipped` or `replayed` arms it (`replayed` counts — it means the
+       server holds this exact intent, which is the same proof);
+     · a refusal, a 5xx, a CORS failure, a timeout and a malformed answer all
+       leave it DISARMED, because none of them proves the swap landed;
+     · a page reload disarms it again (module state, deliberately not
+       persisted): a proof from yesterday's deploy is not a proof about the
+       payload running now, and this is exactly how the incident hid;
+     · tearing the transport down disarms it.
+
+   THE COST, STATED: the first envelope of a session is merged rather than
+   assigned, and a player who never touches their gear stays on merge
+   semantics forever. That is the correct trade in both directions — the merge
+   can only over-credit, it cannot delete, and `unaccountedEquipped` keeps it
+   honest about worn copies. The absolute envelope is the one that can DELETE a
+   bag copy, so it is the one that must be earned.
+
+   `gestureWired` is still required, and still means what its old block said:
+   a client that believes the server's bag outright while equipping locally is
+   the b362 dupe at settle cadence. It is now NECESSARY AND INSUFFICIENT, which
+   is what it always should have been. */
+let gestureWired = false;
+function noteAck() {
+  stats.acknowledged++;
+  stats.ackAt = Date.now();
+  if (stats.acknowledged === 1) {
+    console.log('[equip] the server acknowledged an equip on this client — the envelope may now be believed '
+      + 'outright (absolute inventory). Before this point every envelope was merged.');
+  }
+  markEquipAuthorityLive(gestureWired === true && !!config);
+  return stats.acknowledged;
+}
+/** Has a real equip landed on the server IN THIS SESSION? The single fact the
+    flip is armed on. Exported so a test, and a support paste, can ask. */
+export function isEquipTransportProven() {
+  return stats.acknowledged > 0 && gestureWired === true && !!config;
+}
+
+function noteVerdict(v) {
+  const o = (v && v.outcome) || null;
+  if (o) {
+    stats.byOutcome[o] = (stats.byOutcome[o] || 0) + 1;
+    stats.lastOutcome = o;
+  }
+  stats.lastError = (v && v.error) || null;
+  if (o === 'equipped' || o === 'replayed') noteAck();
+  return v;
+}
+
 /**
- * Configure the transport. ⚠ THIS IS ALSO WHAT ARMS THE ENVELOPE FLIP, and the
- * coupling is deliberate rather than incidental: an endpoint plus a token
- * source is exactly the condition "this client can tell the server about an
- * equip", which is exactly the precondition for believing the server's bag.
- * Configuring with no url DISARMS, so a torn-down client falls back to merge
- * rather than to a stale absolute.
+ * Configure the transport.
+ *
+ * ⚠ b369 — THIS NO LONGER ARMS THE FLIP. It cannot: an endpoint plus a token
+ * source is a statement about this client, and the b367 incident is what a
+ * client-side statement is worth. Configuring records `gestureWired` (a
+ * NECESSARY condition) and DISARMS, because a reconfiguration is a new
+ * transport whose delivery has not been demonstrated. `noteAck()` arms.
+ *
+ * Configuring with no url DISARMS too, so a torn-down client falls back to
+ * merge rather than to a stale absolute.
  */
 export function configureEquip(cfg) {
   /* ⚠ `authToken` AND `slot` FOLLOW THE OTHER FOUR TRANSPORTS, and this is the
@@ -86,18 +257,17 @@ export function configureEquip(cfg) {
   config = cfg && cfg.url ? { ...cfg, authToken: cfg.authToken || cfg.token || null } : null;
   /* ⚠ `gestureWired` IS A SEPARATE, EXPLICIT ASSERTION AND IT IS NOT PEDANTRY.
      A configured transport means "this client CAN tell the server about an
-     equip". The flip's real precondition is "this client DOES" — i.e. the
-     player's equip gesture in the game loop actually routes here instead of
-     mutating `G.equipment` locally. Those are different facts, and arming on
-     the first one would produce exactly the dangerous state: a client that
-     believes the server's bag outright while still equipping locally, so every
-     settle assigns the worn copy back in. That is the b362 dupe at settle
-     cadence.
-
-     So the caller that OWNS the gesture states it, once, by name. Absent, the
-     transport is fully usable and every envelope keeps merge semantics — which
-     is exactly what should happen while the gesture is half-wired. */
-  markEquipAuthorityLive(!!config && cfg.gestureWired === true);
+     equip". The gesture flag means the player's tap actually routes here
+     instead of mutating `G.equipment` locally. Believing the server's bag
+     outright while still equipping locally is the b362 dupe at settle cadence,
+     so this stays a NECESSARY condition — it is simply no longer a sufficient
+     one. See the arming block above. */
+  gestureWired = !!config && cfg && cfg.gestureWired === true;
+  /* ⚠ CONFIGURING DISARMS. Always. A new endpoint, a new token source or a
+     re-wire after a sign-in is a transport whose delivery has not been
+     demonstrated, and the b367 incident is exactly what an undemonstrated
+     transport is worth. The next `ok:true` arms it. */
+  markEquipAuthorityLive(false);
   return config;
 }
 export function getEquipConfig() { return config; }
@@ -107,7 +277,17 @@ export function setEquipHooks(h) { hooks = { ...hooks, ...(h || {}) }; }
     transport with NO envelope applier — a swap the server performed that the
     client never reads. The gesture owner asks this instead of remembering. */
 export function getEquipHooks() { return { ...hooks }; }
-export function resetEquip() { config = null; hooks = { onEnvelope: null, pointer: null }; markEquipAuthorityLive(false); }
+export function resetEquip() {
+  config = null;
+  gestureWired = false;
+  hooks = { onEnvelope: null, pointer: null };
+  /* THE SESSION'S PROOF GOES WITH THE TRANSPORT. A torn-down transport whose
+     ack survived would re-arm the flip the instant it was reconfigured, on
+     evidence about a transport that no longer exists. */
+  stats.acknowledged = 0;
+  stats.ackAt = 0;
+  markEquipAuthorityLive(false);
+}
 
 function accrueEndpoint(url) {
   const u = String(url || '').replace(/\/+$/, '');
@@ -190,21 +370,6 @@ export function buildEquipRequest(opts) {
     },
   };
 }
-
-export const EQUIP_OUTCOMES = Object.freeze([
-  'equipped',       // 200 ok:true — the swap landed; the envelope is the truth
-  'replayed',       // 200 ok:true replayed:true — this exact intent already landed
-  'refused',        // 4xx/409 with a machine code
-  'rate-limited',   // 429 — shared with set_activity at 30/min
-  'not-signed-in',  // 401/403
-  'unavailable',    // 5xx
-  'malformed',      // a 200 that is not an envelope
-  'unreachable',    // no answer at all (CORS, DNS, offline)
-  'timeout',        // aborted — also no answer
-  'unconfigured',   // no endpoint / no token on this device
-  'switch-off',     // server accrual is off; nothing was sent
-  'undeliverable',  // the client refused its own request before sending it
-]);
 
 /** Outcomes that mean WE WERE NOT ANSWERED. The key must be REUSED after one.
     An allowlist of the unanswered, not of the answered: a new outcome added
@@ -290,17 +455,44 @@ export function envelopeOf(body) {
  * @returns a verdict from EQUIP_OUTCOMES, with `key` so the caller can reuse it.
  */
 export async function sendEquip(ops, o = {}) {
-  if (!isServerAccrualEnabled()) return { outcome: 'switch-off', key: o.key || null };
-  if (!config) return { outcome: 'unconfigured', key: o.key || null };
+  /* ⚠ EVERY RETURN BELOW THAT DOES NOT REACH `fetch` GOES THROUGH `noteDrop`.
+     That is the whole b369 repair: on live b367 one of these fired on a real
+     player's gesture and left no trace anywhere — not a counter, not a console
+     line, not a server row — so "the flip is armed but nothing is delivered"
+     was invisible from inside a running client. If you add an early return
+     here, count it; the reason list is `EQUIP_DROP_REASONS`. */
+  if (!isServerAccrualEnabled()) {
+    noteDrop('switch-off');
+    return noteVerdict({ outcome: 'switch-off', key: o.key || null });
+  }
+  if (!config) {
+    noteDrop('unconfigured', 'configureEquip() has never been called with a url on this client');
+    return noteVerdict({ outcome: 'unconfigured', key: o.key || null, dropReason: 'unconfigured' });
+  }
   let token = null;
+  let tokenThrew = null;
   try { token = typeof config.authToken === 'function' ? config.authToken() : config.authToken; }
-  catch (e) { token = null; }
-  if (!token) return { outcome: 'unconfigured', key: o.key || null };
+  catch (e) { token = null; tokenThrew = String((e && e.message) || e); }
+  if (!token) {
+    /* SPLIT FROM `unconfigured` ON PURPOSE. "No endpoint" and "an endpoint but
+       no session" are different incidents with different fixes, and b367 could
+       not tell them apart because both answered with the same word. The wire
+       OUTCOME stays `unconfigured` (the caller's contract is unchanged and
+       equipVerdictOutcome must keep leaving the prediction standing); only the
+       diagnosis is finer. */
+    noteDrop(tokenThrew ? 'token-threw' : 'no-token', tokenThrew || 'the token accessor returned nothing');
+    return noteVerdict({ outcome: 'unconfigured', key: o.key || null,
+      dropReason: tokenThrew ? 'token-threw' : 'no-token' });
+  }
 
   const v = validateEquipOps(ops);
-  if (!v.ok) return { outcome: 'undeliverable', reason: v.why, key: o.key || null };
+  if (!v.ok) {
+    noteDrop('undeliverable', v.why);
+    return noteVerdict({ outcome: 'undeliverable', reason: v.why, key: o.key || null, dropReason: 'undeliverable' });
+  }
 
   const key = isIntentKey(o.key) ? o.key : newIntentKey();
+  stats.attempted++;
   const { url, init } = buildEquipRequest({
     url: config.url, apiKey: config.apiKey, token,
     /* RESOLVED PER CALL, never captured. See configureEquip's block. */
@@ -319,10 +511,16 @@ export async function sendEquip(ops, o = {}) {
   } catch (e) {
     const aborted = !!(ac && ac.signal && ac.signal.aborted);
     if (timer) clearTimeout(timer);
-    /* NOT ANSWERED ⇒ THE KEY COMES BACK so the caller reuses it. */
-    return { outcome: aborted ? 'timeout' : 'unreachable', key, reason: String((e && e.message) || e) };
+    /* NOT ANSWERED ⇒ THE KEY COMES BACK so the caller reuses it. Counted AND
+       warned: a CORS refusal and a dead network are indistinguishable to the
+       fetch spec, so this is the branch that looks most like "nothing
+       happened" from the outside — and the one an incident most needs to see. */
+    const reason = String((e && e.message) || e);
+    noteDrop(aborted ? 'timeout' : 'unreachable', reason);
+    return noteVerdict({ outcome: aborted ? 'timeout' : 'unreachable', key, reason });
   }
   if (timer) clearTimeout(timer);
+  stats.answered++;
 
   let body = null;
   try { body = await res.json(); } catch (e) { body = null; }
@@ -336,8 +534,18 @@ export async function sendEquip(ops, o = {}) {
   if (env && typeof hooks.onEnvelope === 'function') {
     try { verdict.applied = !!hooks.onEnvelope(body, verdict); }
     catch (e) { console.warn('[equip] envelope hook threw:', e && e.message); }
+  } else if (env && typeof hooks.onEnvelope !== 'function') {
+    /* AN ENVELOPE WITH NOWHERE TO GO. The verb collects first, so this answer
+       can carry real gold and XP the server has ALREADY applied; dropping it
+       silently reports applied payment as nothing. wireServerEquip() asks
+       getEquipHooks() precisely to prevent this state — if it is reached, that
+       ask has been bypassed. */
+    console.warn('[equip] the server returned an envelope but no onEnvelope hook is installed — a swap the '
+      + 'server performed (and any payment collected with it) has just been dropped. Call setEquipHooks().');
   }
-  return verdict;
+  /* ⚠ THE ONE PLACE AN ANSWER BECOMES THE FLIP'S PROOF. `noteVerdict` arms the
+     absolute envelope on `equipped`/`replayed` and on nothing else. */
+  return noteVerdict(verdict);
 }
 
 if (typeof window !== 'undefined') {
@@ -347,5 +555,10 @@ if (typeof window !== 'undefined') {
     configureEquip, getEquipConfig, setEquipHooks, getEquipHooks, resetEquip,
     validateEquipOps, buildEquipRequest, classifyEquipResponse, envelopeOf,
     newIntentKey, isIntentKey, isAnswered, sendEquip,
+    /* b369 — THE DIAGNOSIS, IN ONE PASTE. `stats` is the live object, not a
+       copy: a support request that says "paste HearthriseEquip.stats" must
+       show what the transport is doing NOW, and a snapshot taken at publish
+       time would show all zeros forever. */
+    EQUIP_DROP_REASONS, stats, equipStats, isEquipTransportProven, __resetEquipStats,
   };
 }

@@ -73,6 +73,36 @@ const tryRunAsync = (name, fn) => Promise.resolve()
   .then(() => pass(name), (e) => fail(name, e && (e.message || e)));
 const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
 
+/* ── b369 — HOW THE SUITE ARMS THE ENVELOPE FLIP, AND THE ONLY WAY IT MAY ────
+   From b369 the absolute envelope arms on ONE fact: the server acknowledged an
+   equip round trip in this session (src/net/equip.js, the arming block). There
+   is deliberately no `__armForTest()` seam — a seam that arms without a round
+   trip is the live b367 hole wearing a test-shaped name, and b367 is exactly
+   what "the client asserts it is wired" was worth.
+
+   So arming costs a REAL `sendEquip` through a stubbed `fetch`: the same bytes
+   the browser runs, answered the way the server answers. The envelope applier
+   is detached for the call — this round trip exists to prove DELIVERY, and
+   letting it write the live G would make every test that arms the flip also a
+   test of the applier. */
+async function armEquipFlipForTest(E, cfg) {
+  const realFetch = window.fetch;
+  const prevHooks = E.getEquipHooks();
+  window.fetch = () => Promise.resolve(new Response(JSON.stringify({
+    ok: true, verb: 'equip', version: 1, now: new Date().toISOString(),
+    state: {}, skills: {}, inventory: {}, equipment: {},
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+  try {
+    E.configureEquip(cfg
+      || { url: 'https://example.test', apiKey: 'k', token: 't', slot: 0, gestureWired: true });
+    E.setEquipHooks({ onEnvelope: null });
+    return await E.sendEquip({ weapon: 'iron_sword' }, {});
+  } finally {
+    E.setEquipHooks(prevHooks);
+    window.fetch = realFetch;
+  }
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    b353 — THE RUNNERS FOR THE **LOCAL AWAY PATH**, WHICH IS NOW THE OFF POSITION.
    ══════════════════════════════════════════════════════════════════════════
@@ -32376,41 +32406,201 @@ const TESTS = [
        unguarded. When the gesture lands and the merge is deleted, B359-1 and
        B362-DUPE-1 go with it — not before. */
 
-  /* ═══ b368 INCIDENT HOLD (regression) ═════════════════════════════════════
+  /* ═══ b369 — THE ARMING CONDITION, REBUILT ════════════════════════════════
      2026-08-17: a real player's unequip on live b367 produced ZERO equip
      intents in player_intents while the armed absolute envelope deleted the
      unequipped copy from their bag view. The arming condition proved the
-     routing function EXISTS, not that the transport DELIVERS. Until live
-     routing is observed, equipGestureWired() must answer false no matter what
-     the window publishes. Lifting the hold deletes EQUIP_FLIP_HELD and this
-     test's first branch together. */
-  () => tryRun('B368-HOLD-1: while EQUIP_FLIP_HELD, the flip cannot arm from the gesture', () => {
+     routing function EXISTS, not that the transport DELIVERS. b368 held the
+     flip with a constant; b369 replaces the condition instead — the flip arms
+     ONLY after the server has acknowledged an equip in this session.
+
+     ⚠ `armEquipFlipForTest` (defined beside tryRunAsync) IS THE ONLY WAY THE
+       SUITE MAY ARM THE FLIP, and that is the point. There is no
+       `__armForTest()` seam, because a seam that arms without a round trip is
+       the b367 hole with a test-shaped name. Arming costs a real `sendEquip`
+       through a stubbed `fetch` — the same bytes the browser runs, answered
+       the way the server answers. */
+
+  () => tryRun('B369-ARM-1: the gesture existing is NOT the arming condition', () => {
     const AU = window.HearthriseAuth;
     assert(AU && typeof AU.equipGestureWired === 'function', 'equipGestureWired must be published');
-    if (AU.EQUIP_FLIP_HELD === true) {
-      const fakeWin = { routeEquipGesture: function () {} };
-      assert(AU.equipGestureWired(fakeWin) === false,
-        'the incident hold must force gestureWired=false even when routeEquipGesture exists — '
-        + 'a real unequip on live b367 never reached the server while the flip was armed');
-    } else {
-      const fakeWin = { routeEquipGesture: function () {} };
-      assert(AU.equipGestureWired(fakeWin) === true,
-        'hold lifted: a published routeEquipGesture must arm the flip again');
+    assert(!('EQUIP_FLIP_HELD' in AU),
+      'EQUIP_FLIP_HELD is the b368 emergency constant. It is deleted in b369 because the arming '
+      + 'condition was replaced rather than re-trusted — a boolean somebody has to remember to flip '
+      + 'back is the same class of instruction as the bug it was holding.');
+    const fakeWin = { routeEquipGesture: function () {} };
+    assert(AU.equipGestureWired(fakeWin) === true,
+      'a published routeEquipGesture is still the NECESSARY condition — it says the tap routes here');
+    assert(AU.equipGestureWired({}) === false, 'no routing function must answer false');
+  }),
+
+  () => tryRunAsync('B369-ARM-2: a configured, wired transport does NOT arm the flip until the server answers', async () => {
+    const A = window.HearthriseAccrual;
+    const E = window.HearthriseEquip;
+    assert(E && typeof E.isEquipTransportProven === 'function', 'isEquipTransportProven must be published');
+    const prev = E.getEquipConfig();
+    try {
+      E.resetEquip();
+      E.configureEquip({ url: 'https://example.test', apiKey: 'k', token: 't', slot: 0, gestureWired: true });
+      /* ⚠ THE b367 STATE, ASSERTED UNREACHABLE. Endpoint present, token
+         present, gesture wired, flip DISARMED — because not one equip has
+         landed. This exact combination was armed on live b367. */
+      assert(A.isEnvelopeAbsolute() === false,
+        'a configured + wired transport must NOT arm the flip on its own — that is precisely the '
+        + 'live b367 state, in which the server never received a single equip');
+      assert(E.isEquipTransportProven() === false, 'nothing has been delivered, so nothing is proven');
+
+      /* A REFUSAL IS NOT A PROOF. The server answered, and what it said was no. */
+      const realFetch = window.fetch;
+      window.fetch = () => Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'wrong_slot' }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } }));
+      try { await E.sendEquip({ weapon: 'iron_sword' }, {}); } finally { window.fetch = realFetch; }
+      assert(A.isEnvelopeAbsolute() === false, 'a 409 refusal must never arm the flip');
+
+      /* AN UNANSWERED CALL IS NOT A PROOF EITHER — this is the CORS/dead-network
+         shape, the one that looks most like success from the client's side. */
+      const realFetch2 = window.fetch;
+      window.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+      let v = null;
+      try { v = await E.sendEquip({ weapon: 'iron_sword' }, {}); } finally { window.fetch = realFetch2; }
+      assert(v.outcome === 'unreachable', 'a rejected fetch is unreachable — got ' + v.outcome);
+      assert(A.isEnvelopeAbsolute() === false, 'an unreachable server must never arm the flip');
+
+      /* NOW the round trip lands. */
+      const ok = await armEquipFlipForTest(E);
+      assert(ok.outcome === 'equipped', 'the stubbed 200 must classify as equipped — got ' + ok.outcome);
+      assert(E.isEquipTransportProven() === true, 'a server-acknowledged equip is the proof');
+      assert(A.isEnvelopeAbsolute() === true, 'the flip arms on the acknowledged round trip and on nothing else');
+    } finally {
+      E.resetEquip();
+      if (prev) E.configureEquip(prev);
+    }
+    assert(A.isEnvelopeAbsolute() === false, 'tearing the transport down must retire the session proof');
+  }),
+
+  /* ═══ B369-DROP — EVERY WAY THE TRANSPORT CAN DELIVER NOTHING IS COUNTED ═══
+     THE INCIDENT, RESTATED AS A TEST. On live b367 an equip gesture delivered
+     nothing and left no trace: no counter, no console line, no server row. It
+     was not knowable from inside a running client WHICH path had dropped it,
+     or even THAT one had. Each branch below is driven into its drop and its
+     own counter is asserted to move — which is the mutation check too: delete
+     any `noteDrop` call and exactly one of these goes red, by name. */
+  () => tryRunAsync('B369-DROP-1: every silent no-op in sendEquip is counted and named', async () => {
+    const E = window.HearthriseEquip;
+    const A = window.HearthriseAccrual;
+    assert(E && E.stats && E.stats.drops, 'HearthriseEquip.stats.drops must be published — it is the '
+      + 'whole diagnosis in one paste, and its absence is the b367 blindness returning');
+    const prevCfg = E.getEquipConfig();
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    const before = { ...E.stats.drops };
+    const moved = (r) => (E.stats.drops[r] || 0) - (before[r] || 0);
+    const OPS = { weapon: 'iron_sword' };
+    try {
+      // 1. THE KILL SWITCH IS OFF — nothing is sent, deliberately, and counted.
+      E.configureEquip({ url: 'https://drop.test', apiKey: 'k', token: 't', slot: 0, gestureWired: true });
+      A.setServerAccrualEnabled(false);
+      let v = await E.sendEquip(OPS, {});
+      assert(v.outcome === 'switch-off', 'the switch being off must answer switch-off — got ' + v.outcome);
+      assert(moved('switch-off') === 1, 'the switch-off drop must be counted — got ' + moved('switch-off'));
+      A.setServerAccrualEnabled(true);
+
+      // 2. NO ENDPOINT. The state a client is in before auth wires it.
+      E.resetEquip();
+      v = await E.sendEquip(OPS, {});
+      assert(v.outcome === 'unconfigured' && v.dropReason === 'unconfigured',
+        'an unconfigured transport must name itself — got ' + JSON.stringify(v));
+      assert(moved('unconfigured') === 1, 'the unconfigured drop must be counted');
+
+      /* 3. AN ENDPOINT BUT NO SESSION — a DIFFERENT incident with a different
+            fix, which b367 could not distinguish because both said the same
+            word. The wire outcome stays `unconfigured` (equipVerdictOutcome
+            must keep leaving the prediction standing); only the diagnosis
+            sharpens. */
+      E.configureEquip({ url: 'https://drop.test', apiKey: 'k', authToken: () => null, slot: 0, gestureWired: true });
+      v = await E.sendEquip(OPS, {});
+      assert(v.outcome === 'unconfigured' && v.dropReason === 'no-token',
+        'a tokenless transport must be distinguishable from an unconfigured one — got ' + JSON.stringify(v));
+      assert(moved('no-token') === 1, 'the no-token drop must be counted');
+
+      // 4. THE TOKEN ACCESSOR THREW.
+      E.configureEquip({ url: 'https://drop.test', apiKey: 'k',
+        authToken: () => { throw new Error('boom'); }, slot: 0, gestureWired: true });
+      v = await E.sendEquip(OPS, {});
+      assert(v.dropReason === 'token-threw', 'a throwing token accessor must be named — got ' + JSON.stringify(v));
+      assert(moved('token-threw') === 1, 'the token-threw drop must be counted');
+
+      // 5. OUR OWN VALIDATOR REFUSED THE MAP — whole-map refusal, still counted.
+      E.configureEquip({ url: 'https://drop.test', apiKey: 'k', token: 't', slot: 0, gestureWired: true });
+      v = await E.sendEquip({ weapon: 'NOT VALID' }, {});
+      assert(v.outcome === 'undeliverable', 'a bad map must be undeliverable — got ' + v.outcome);
+      assert(moved('undeliverable') === 1, 'the undeliverable drop must be counted');
+
+      /* 6. THE ONE THAT LOOKS LIKE NOTHING HAPPENED. A CORS refusal, a DNS
+            failure and a dead network are indistinguishable by design of the
+            fetch spec — this is the branch an incident most needs to see, and
+            the leading candidate for what b367 actually hit. */
+      window.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+      v = await E.sendEquip(OPS, {});
+      assert(v.outcome === 'unreachable', 'a rejected fetch is unreachable — got ' + v.outcome);
+      assert(moved('unreachable') === 1, 'the unreachable drop must be counted');
+
+      // NONE OF THESE MAY ARM THE FLIP. Not one of them proves a swap landed.
+      assert(E.isEquipTransportProven() === false,
+        'six ways of delivering nothing must leave the transport UNPROVEN — this is the b367 state and '
+        + 'it must never be an armed one');
+      assert(A.isEnvelopeAbsolute() === false, 'and therefore the envelope must still be merged');
+    } finally {
+      window.fetch = realFetch;
+      if (wasOn) A.setServerAccrualEnabled(true); else A.setServerAccrualEnabled(false);
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      E.resetEquip();
+      if (prevCfg) E.configureEquip(prevCfg);
     }
   }),
 
-  () => tryRun('EQUIP-FLIP-1: with the equip verb LIVE the envelope is ABSOLUTE — omission deletes', () => {
+  () => tryRun('B369-DROP-2: the legacy gesture path counts its own dead ends too', () => {
+    const E = window.HearthriseEquip;
+    assert(typeof window.routeEquipGesture === 'function', 'legacy.js must publish routeEquipGesture');
+    assert(typeof window.__noteEquipGestureDrop === 'function',
+      'legacy.js must publish its drop counter seam — the gesture had three bare `return null`s and one '
+      + 'of them may be what live b367 hit');
+    const before = { ...E.stats.drops };
+    const moved = (r) => (E.stats.drops[r] || 0) - (before[r] || 0);
+
+    /* THE S4 SKIP, DRIVEN THROUGH THE REAL FUNCTION. A snapshot identical to
+       the current state moved nothing, so nothing is sent — benign, but still
+       a gesture that produced no intent, so it is counted (and NOT warned:
+       warning on it would drown the console the incident needs). */
+    const snap = window.equipStateSnapshot();
+    const r = window.routeEquipGesture(snap);
+    assert(r === null, 'a gesture that moved nothing must return null — got ' + r);
+    assert(moved('no-ops') === 1, 'the no-ops skip must be counted — got ' + moved('no-ops'));
+
+    /* THE TRANSPORT-MISSING BRANCH. Driven directly (removing the published
+       module mid-suite would break every test after this one), so what is
+       graded is that the counter exists and moves under the reason name the
+       gesture uses. */
+    window.__noteEquipGestureDrop('no-transport', 'driven by B369-DROP-2');
+    assert(moved('no-transport') === 1, 'the no-transport drop must be counted');
+    window.__noteEquipGestureDrop('no-send', 'driven by B369-DROP-2');
+    assert(moved('no-send') === 1, 'the no-send drop must be counted');
+    window.__noteEquipGestureDrop('gesture-threw', 'driven by B369-DROP-2');
+    assert(moved('gesture-threw') === 1, 'the gesture-threw drop must be counted');
+  }),
+
+  () => tryRunAsync('EQUIP-FLIP-1: with the equip verb LIVE the envelope is ABSOLUTE — omission deletes', async () => {
     const A = window.HearthriseAccrual;
     const E = window.HearthriseEquip;
     assert(A && typeof A.isEnvelopeAbsolute === 'function', 'isEnvelopeAbsolute must be published');
     assert(E && typeof E.configureEquip === 'function', 'HearthriseEquip must be published');
     assert(A.isEnvelopeAbsolute() === false,
-      'the flip must be DISARMED until the equip gesture is wired — arming it early assigns the '
-      + "server's stale bag figure and reopens the b362 dupe at settle cadence");
+      'the flip must be DISARMED until an equip has actually landed on the server — arming it early '
+      + "assigns the server's stale bag figure and reopens the b362 dupe at settle cadence");
     const prev = E.getEquipConfig();
     try {
-      E.configureEquip({ url: 'https://example.test', apiKey: 'k', token: 't', slot: 0, gestureWired: true });
-      assert(A.isEnvelopeAbsolute() === true, 'configuring a wired gesture must arm the flip');
+      await armEquipFlipForTest(E);
+      assert(A.isEnvelopeAbsolute() === true, 'an acknowledged equip round trip must arm the flip');
 
       const G = {
         gold: 5,
@@ -32459,14 +32649,14 @@ const TESTS = [
     assert(A.isEnvelopeAbsolute() === false, 'the flip must disarm when the transport is torn down');
   }),
 
-  () => tryRun('EQUIP-FLIP-2: the flip fails CLOSED — kill switch, malformed envelope, bad quantity', () => {
+  () => tryRunAsync('EQUIP-FLIP-2: the flip fails CLOSED — kill switch, malformed envelope, bad quantity', async () => {
     const A = window.HearthriseAccrual;
     const E = window.HearthriseEquip;
     const prev = E.getEquipConfig();
     let hadKey = null;
     try { hadKey = localStorage.getItem(A.ENVELOPE_MERGE_KEY); } catch (e) { hadKey = null; }
     try {
-      E.configureEquip({ url: 'https://example.test', apiKey: 'k', token: 't', slot: 0, gestureWired: true });
+      await armEquipFlipForTest(E);
 
       /* 1. THE INCIDENT LEVER. One device, no deploy, back to b359 semantics.
          An opt-BACK-IN rather than an opt-out, because that is the shape that
@@ -32608,8 +32798,10 @@ const TESTS = [
          measures the gesture rather than the gate — the gate has its own three. */
       S.releaseSnapshots();
       window.notify = function (msg) { notified.push(String(msg)); };
-      E.configureEquip({ url: 'https://equip.test', apiKey: 'k', authToken: () => 'tok', slot: 0, gestureWired: true });
-      assert(A.isEnvelopeAbsolute() === true, 'a wired gesture must arm the flip');
+      await armEquipFlipForTest(E,
+        { url: 'https://equip.test', apiKey: 'k', authToken: () => 'tok', slot: 0, gestureWired: true });
+      assert(A.isEnvelopeAbsolute() === true,
+        'an acknowledged equip round trip must arm the flip (b369 — a wired gesture alone no longer does)');
 
       let reply = null;
       window.fetch = function (u, init) {
@@ -32716,7 +32908,12 @@ const TESTS = [
       A.acknowledgeReplacement(true);
       S.releaseSnapshots();
       window.notify = function () {};
-      E.configureEquip({ url: 'https://equip.test', apiKey: 'k', authToken: () => 'tok', slot: 0, gestureWired: true });
+      /* b369: the self-heal only runs under the ABSOLUTE envelope, and absolute
+         is now earned by an acknowledged round trip rather than asserted by
+         configuration. Arm it the only way the suite may. */
+      await armEquipFlipForTest(E,
+        { url: 'https://equip.test', apiKey: 'k', authToken: () => 'tok', slot: 0, gestureWired: true });
+      window.__resetEquipAssertion();
       window.fetch = function (u, init) {
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
         sent.push(JSON.parse(init.body));
@@ -32798,7 +32995,8 @@ const TESTS = [
       A.acknowledgeReplacement(true);
       S.releaseSnapshots();
       window.notify = function () {};
-      E.configureEquip({ url: 'https://equip.test', apiKey: 'k', authToken: () => 'tok', slot: 0, gestureWired: true });
+      await armEquipFlipForTest(E,
+        { url: 'https://equip.test', apiKey: 'k', authToken: () => 'tok', slot: 0, gestureWired: true });
       window.fetch = function (u, init) {
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
         sent.push(JSON.parse(init.body));

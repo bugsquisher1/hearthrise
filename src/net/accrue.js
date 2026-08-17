@@ -1003,6 +1003,45 @@ export function applyEnvelopeState(G, res, ownKey) {
      hangs off it, because leaderboard scores come off the server. */
   G.skills = skills;
 
+  /* ══════════════════════════════════════════════════════════════════════
+     b374 — MAX-HP FOLLOWS THE HITPOINTS LEVEL LIVE (Tyler backlog: "HP went
+     from 10 to 11 but I had to refresh the game for it to take effect").
+
+     maxHp is DERIVED from the hitpoints level everywhere in this client —
+     `ensureSave` computes `G.playerMaxHp = levelFromXp(G.skills.hitpoints)`,
+     and the live-combat level-up handler (`addXp`) bumps it in the same tick.
+     The envelope updates `G.skills.hitpoints` above but only ever set
+     `playerMaxHp` from an explicit `st.max_hp` (line above), which the settle
+     envelope does not reliably carry. So a hitpoints level gained through
+     SERVER-computed away/settle accrual raised the xp but not the cap: the top
+     bar kept the old max and — worse — the heal/auto-eat cap stayed low, until
+     a reload re-ran `ensureSave`. This recomputes the derived max from the
+     freshly-applied xp so it applies in the same settle, no reload.
+
+     RAISE-ONLY, on purpose, and this is how it stays out of the b373 fight.
+     That HP FLOOR (the `st.hp` block above) blocks an envelope from LOWERING a
+     resting player's hp. A maxHp change here can only ever GROW (xp is
+     monotonic and the max is a pure function of it), so it never contends with
+     the floor — a level-up must raise the cap, and nothing here can shrink it.
+     If a would-be lower value ever arrived (a corrected/rolled-back xp), the
+     `> current` guard simply declines it rather than clobbering the display. */
+  try {
+    const lf = (typeof window !== 'undefined' && typeof window.levelFromXp === 'function')
+      ? window.levelFromXp : null;
+    if (lf) {
+      const derivedMax = Number(lf(Number(G.skills.hitpoints) || 0));
+      if (Number.isFinite(derivedMax) && derivedMax > (Number(G.playerMaxHp) || 0)) {
+        G.playerMaxHp = derivedMax;
+        written.maxHp = G.playerMaxHp;
+        /* Let a player who just leveled Hitpoints heal into the new headroom
+           instead of being stuck one under — but only top up a bar that is not
+           a valid live hp (0/NaN, i.e. not mid-fight). An in-fight hp is left
+           exactly where the fight put it. */
+        if (!(Number(G.playerHp) > 0)) G.playerHp = G.playerMaxHp;
+      }
+    }
+  } catch (e) {}
+
   const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
   /* ══════════════════════════════════════════════════════════════════════
      PHASE 1 (b364) — DEBITS ABSOLUTE, CREDITS BY MAX. live-settlement.md §5.2.

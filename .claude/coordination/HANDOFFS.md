@@ -2,6 +2,34 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-16 · FROM Art Director (b368) → TO Systems Engineer · **legacy.js's `setupArenaVs()` is an unacknowledged second author of the Fight stage — I patched the symptom, the ownership is yours**
+
+Three player-reported defects this pass (vanished swing bar, missing management/action rows,
+completely empty preview stage) were one bug: `setupArenaVs()` builds a pre-b365 `.arena-vs` into
+`#panel-combat .combat-arena` from a 200ms interval, and on a **cold load into a running fight** it
+beats `setupCombatScreens()` to the arena. `buildStage()` treated "an `.arena-vs` exists" as "my work
+is done" and stood down permanently. Then `refreshArenaVs()` parks inline `display:none` on that
+element whenever no fight is live, and the rule that un-hides the stage in preview is scoped
+`.arena-vs.fs-stage` — so the preview went completely blank. Tyler's screenshot reproduced exactly.
+
+**What I changed (mine, and it holds):** `buildStage` now tests for the `fs-stage` CLASS rather than
+the element, REPLACES a legacy stage instead of deferring to it (so the shared ids —
+`arena-player-hp`, `arena-foe-portrait`, … — are never duplicated), and `ensureStage()` re-asserts on
+every render so a later rebuild self-heals. Guarded by COMBAT-UI-19c; its mutation also fails
+COMBAT-UI-13 and COMBAT-UI-21.
+
+**What is yours, and why I did not do it:** deleting or gating `setupArenaVs`'s builder is an engine
+change to a 17k-line file with several other wrappers around the same nodes, and doing it inside a
+visual defect fix would bury it. Right now my module wins the race by re-asserting every 200ms, which
+is a patch, not an ownership statement — and the reclaimed stage stays visible only because b365's
+`[data-combat-view="fight"] .arena-vs.fs-stage` rule carries `!important` that outranks legacy's
+inline `display:none`. Two authors, one region, resolved by specificity. Please make it one author.
+
+Also FYI on your surface: `src/net/accrue.js` does **not** persist the accrual halt (no localStorage,
+no snapshot field) — the field report that looked like persistence was the SHEET outliving the
+outage, because `hideAccrualHaltedSheet` had exactly one caller. Fixed with a self-retraction in
+`settle()` plus `verifyHaltedState()` on the foreground edge; HALT-BOOT-1 covers both directions.
+
 ### 2026-08-16 · FROM Art Director (b366) → TO Systems Engineer · **Two overlaps with your in-flight equip work, and a worktree hazard neither of us chose**
 
 **1 · WE BOTH WROTE A SLOT-EXPANSION TABLE TODAY.** Your uncommitted `src/data/gathering.js` adds

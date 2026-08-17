@@ -24025,6 +24025,83 @@ const TESTS = [
     }
   }),
 
+  () => tryRunAsync('HALT-BOOT-1 (b368): a CARRIED-OVER halt is re-checked before the player is told, and a live refusal still tells them', async () => {
+    /* Tyler's report: yesterday a server-side `unknown_skill` (stonemason, since
+       fixed) put his phone into the halted state. This morning the app came back
+       to the foreground already showing "the server refused the result" — BEFORE
+       trying anything — and his manual Try Again succeeded on the first tap. The
+       accrual was healthy; the SHEET was stale. Nothing in this module ever took
+       that sheet down except the player, and on a phone the document that owns
+       it lives for days.
+
+       Two claims, and the second is the one that keeps the fix honest:
+        (1) a carried-over halt + a now-healthy transport shows NOTHING;
+        (2) a carried-over halt + a still-refusing transport shows the sheet.
+       MUTATION PROVEN: delete `verifyHaltedState`'s retry (return the halt
+       verbatim) → (1) fails; delete its `showAccrualHaltedSheet` → (2) fails;
+       delete the `hideAccrualHaltedSheet()` in settle() → the recovery half of
+       (1) fails. */
+    const A = window.HearthriseAccrual;
+    const realFetch = window.fetch;
+    const refuse = () => { window.fetch = function (u) {
+      if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+      return Promise.resolve(new Response('{"ok":false,"error":"unknown_skill"}', { status: 400 }));
+    }; };
+    const answer = () => { window.fetch = function (u) {
+      if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+      return Promise.resolve(new Response('{"ok":true,"accrued":false,"reason":"below_threshold"}', { status: 200 }));
+    }; };
+    try {
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      A.setServerAccrualEnabled(true);
+
+      // ── Yesterday: three real refusals halt the device and raise the sheet.
+      A.resetAccrualGate(); A.hideAccrualHaltedSheet();
+      refuse();
+      for (let i = 0; i < A.ACCRUE_HALT_AFTER_TRIES; i++) await A.requestAccrual({ force: true });
+      assert(A.getAccrualState().halted === true, 'three refusals did not halt the device');
+      assert(document.getElementById(A.ACCRUE_SHEET_ID),
+        'a LIVE repeated refusal no longer tells the player — this fix must not weaken that');
+
+      // ── This morning: the server is fixed, the halt (and the sheet) carried over.
+      answer();
+      const r = await A.verifyHaltedState();
+      assert(r.checked === true, 'the carried-over halt was never re-checked, it was just believed');
+      assert(r.cleared === true, 're-check read a healthy server as ' + r.outcome);
+      assert(!document.getElementById(A.ACCRUE_SHEET_ID),
+        'THE b368 DEFECT: the player is still being told the server refuses them, after it answered');
+      assert(A.getAccrualState().halted === false, 'a successful re-check left the halt latched');
+
+      // ── The other half: still refusing => the sheet stands. No amnesty.
+      A.resetAccrualGate(); A.hideAccrualHaltedSheet();
+      refuse();
+      for (let i = 0; i < A.ACCRUE_HALT_AFTER_TRIES; i++) await A.requestAccrual({ force: true });
+      A.hideAccrualHaltedSheet();                       // simulate the carry-over edge
+      const r2 = await A.verifyHaltedState();
+      assert(r2.checked === true && r2.cleared === false,
+        'a server that is still refusing was reported as recovered: ' + JSON.stringify(r2));
+      assert(document.getElementById(A.ACCRUE_SHEET_ID),
+        'a still-refusing server was silently hidden from the player — that is the pretending b337 exists to stop');
+      assert(A.getAccrualState().halted === true, 'the re-check cleared a halt the server has not earned back');
+
+      // ── And a device that is NOT halted spends no request on this at all.
+      A.resetAccrualGate(); A.hideAccrualHaltedSheet();
+      let calls = 0;
+      window.fetch = function (u) {
+        if (/hr-accrue/.test(String(u))) { calls++; return Promise.resolve(new Response('{"ok":true,"accrued":false}', { status: 200 })); }
+        return realFetch.apply(this, arguments);
+      };
+      const r3 = await A.verifyHaltedState();
+      assert(r3.checked === false && calls === 0,
+        'a healthy device fired ' + calls + ' extra accrual request(s) on every foreground');
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      A.resetAccrualGate();
+      A.hideAccrualHaltedSheet();
+    }
+  }),
+
   () => tryRun('b337: exactly one verdict can grant, and an incomplete envelope is never one of them', () => {
     const A = window.HearthriseAccrual;
     const full = {
@@ -31674,6 +31751,144 @@ const TESTS = [
       CS.preview('slime');
       assert(document.getElementById('fs-player-swing').dataset.swing !== 'run',
         'the swing bar is still running on a fight that has not started');
+      /* b368 — AND ITS LABEL IS NEVER HIDDEN AT ANY BREAKPOINT. b366 hid
+         `.fs-swing span` on short screens ("the weapon is named on the strip
+         above") and, eleven rules later, hid `.csb-swing` on the style buttons
+         ("the swing time is printed on the swing bar above"). Each rule deferred
+         to the other, so on a landscape phone the swing time was printed
+         NOWHERE — Tyler: "you also removed the attack swing timer". A viewport
+         assertion cannot catch this from one window size, so the RULE is the
+         subject. MUTATION PROVEN: re-add `.fs-swing span { display: none }`
+         under the max-height query → red. */
+      let hides = 0;
+      for (const sheet of Array.from(document.styleSheets)) {
+        let rules = null;
+        try { rules = sheet.cssRules; } catch (e) { continue; }   // cross-origin
+        const walk = (list) => {
+          for (const r of Array.from(list || [])) {
+            if (r.cssRules) { walk(r.cssRules); continue; }
+            if (!r.selectorText || !r.style) continue;
+            if (!/\.fs-swing\s+span/.test(r.selectorText)) continue;
+            if (r.style.display === 'none' || r.style.visibility === 'hidden') hides++;
+          }
+        };
+        walk(rules);
+      }
+      assert(hides === 0,
+        hides + ' rule(s) hide the swing bar\'s label — the swing timer disappears at that breakpoint');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-15b (b368): the Fight preview is COMPLETE with nothing equipped, and says Unarmed', () => {
+    /* Tyler's live report was an EMPTY stage on a landscape phone — backdrop art
+       and nothing else — while wearing no weapon at all. The empty loadout turned
+       out not to be the cause (that is COMBAT-UI-19c's legacy-stage race), but a
+       naked player is a state exactly one person in the beta is in and no test
+       covered, so it gets one now: every row of the stage renders, and the swing
+       row names the hands rather than the engine's weapon CLASS.
+       MUTATION PROVEN: restore `|| weaponLabel(eq.weaponType) || 'Unarmed'` →
+       the label reads "Neutral · 2.40s" and the last assertion fails. */
+    const CS = window.HearthriseCombatScreens;
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      try { window.stopCombat(); } catch (e) {}
+      G.activeMonster = null;
+      G.equipment = {};
+      assert(CS.preview('rat'), 'preview() refused a live monster id while unarmed');
+      const need = ['arena-player-name', 'arena-foe-name', 'fs-player-lv', 'fs-foe-lv',
+        'fs-player-swing', 'fs-foe-swing', 'fs-player-tiles', 'fs-foe-tiles', 'fs-style', 'fs-weak'];
+      for (const id of need) {
+        const el = document.getElementById(id);
+        assert(el, 'an unarmed preview is missing #' + id + ' — the stage did not finish rendering');
+        assert((el.textContent || '').trim() !== '' || el.children.length,
+          '#' + id + ' rendered empty while unarmed');
+      }
+      assert(document.querySelector('#panel-combat .fs-fight'), 'the unarmed preview offers no Fight button');
+      const tiles = (document.getElementById('fs-player-tiles').textContent || '');
+      assert(/hit/i.test(tiles) && !/NaN|undefined/.test(tiles),
+        'the unarmed forecast is not a number: ' + tiles);
+      const lbl = (document.querySelector('#fs-player-swing span').textContent || '');
+      assert(/unarmed/i.test(lbl), 'empty hands are labelled "' + lbl + '" — a player is not swinging a damage class');
+      assert(/\d\.\d\ds/.test(lbl), 'the unarmed swing row quotes no swing time: ' + lbl);
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('COMBAT-UI-19c (b368): a legacy .arena-vs is RECLAIMED — the swing bar cannot be lost on resume', () => {
+    /* THE DEFECT TYLER REPORTED, and it was never an animation bug.
+       `setupArenaVs()` in legacy.js builds a pre-b365 `.arena-vs` (portrait /
+       name / HP / action slot — no level, no swing bar, no forecast tiles, no
+       style row) from a 200ms interval. On a COLD LOAD INTO A RUNNING FIGHT it
+       wins the race against combat-screens' setup, and `buildStage` used to bail
+       on any `.arena-vs` at all — so the entire Fight screen silently degraded
+       to the legacy stage for the rest of the session, taking the swing bar with
+       it. Every fresh-start probe showed the bar animating perfectly, because a
+       fresh start never runs the race.
+
+       This reproduces the race directly: put a legacy-shaped stage in the arena,
+       render, and demand the b365/b366 stage back.
+       MUTATION PROVEN: restore `if (arena.querySelector(':scope > .arena-vs')) return;`
+       in buildStage → every assertion below fails. */
+    const CS = window.HearthriseCombatScreens;
+    assert(CS, 'the two screens did not boot');
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      window.startCombat('slime');
+      const arena = document.querySelector('#panel-combat .combat-arena');
+      assert(arena, 'no arena to stage');
+      const mine = arena.querySelector(':scope > .arena-vs.fs-stage');
+      assert(mine, 'the fight stage is not there to begin with');
+      const legacy = document.createElement('div');
+      legacy.className = 'arena-vs';
+      legacy.style.display = 'none';
+      legacy.innerHTML =
+        '<div class="arena-side player"><div class="arena-portrait" id="arena-player-portrait"></div>'
+        + '<div class="arena-name" id="arena-player-name">You</div>'
+        + '<div class="arena-hp-bar"><i id="arena-player-hp"></i></div></div>'
+        + '<div class="arena-side foe"><div class="arena-portrait" id="arena-foe-portrait"></div>'
+        + '<div class="arena-name" id="arena-foe-name">-</div>'
+        + '<div class="arena-hp-bar"><i id="arena-foe-hp"></i></div></div>';
+      mine.replaceWith(legacy);
+      assert(!document.getElementById('fs-player-swing'),
+        'the setup for this test did not actually remove the swing bar');
+
+      CS.renderFight();
+
+      const bar = document.getElementById('fs-player-swing');
+      assert(bar, 'THE b368 DEFECT: the swing bar did not come back — the legacy stage kept the screen');
+      assert(document.getElementById('fs-player-tiles') && document.getElementById('fs-style'),
+        'the stage came back without its forecast tiles / style row — it is still the legacy stage');
+      const stages = document.querySelectorAll('#panel-combat .combat-arena > .arena-vs');
+      assert(stages.length === 1,
+        'there are now ' + stages.length + ' stages in the arena — the ids are duplicated and every write is ambiguous');
+      assert(stages[0].classList.contains('fs-stage'), 'the surviving stage is the legacy one');
+      /* And the reclaimed bar is a running clock, not just markup. */
+      if (!(CS._swing && CS._swing._reduced && CS._swing._reduced())) {
+        assert(bar.dataset.swing === 'run',
+          'the reclaimed swing bar is not running during a live fight, got ' + bar.dataset.swing);
+        assert(/hr-fs-swing/.test(getComputedStyle(bar.querySelector('i')).animationName),
+          'the reclaimed swing bar carries no animation');
+      }
+      /* The log row survived the reclaim — #combat-area must not be orphaned or
+         double-wrapped, or renderCombat writes into a node nobody lays out. */
+      const area = document.getElementById('combat-area');
+      assert(area && area.parentNode && area.parentNode.classList.contains('fs-logrow'),
+        'the combat log lost its row wrapper during the reclaim');
+      assert(document.querySelectorAll('#panel-combat .fs-logrow').length === 1,
+        'the reclaim double-wrapped the combat log');
     } finally {
       try { window.stopCombat(); } catch (e) {}
       restoreG(snap);

@@ -359,9 +359,18 @@ function gearLine(def) {
 
 function panel() { return document.getElementById('panel-combat'); }
 
+/* b368 — the stage, re-asserted on every render. Cheap (one child query and a
+   class test) and it is the half of the resume-into-a-fight fix that survives a
+   LATER rebuild: `setupArenaVs`'s interval can create a legacy `.arena-vs` at
+   any moment, not only during boot. */
+function ensureStage() {
+  const p = panel(); if (!p) return;
+  buildStage(p.querySelector('.combat-arena'));
+}
+
 function ensureStructure() {
   const p = panel();
-  if (!p || p.querySelector('.cbt-views')) return !!p;
+  if (!p || p.querySelector('.cbt-views')) { if (p) ensureStage(); return !!p; }
 
   const views = document.createElement('div');
   views.className = 'cbt-views';
@@ -420,7 +429,26 @@ function ensureStructure() {
    are new and carry `fs-` names so nothing else can claim them. */
 function buildStage(arena) {
   if (!arena) return;
-  if (arena.querySelector(':scope > .arena-vs')) return;
+  /* ── b368: THE STAGE IS CLAIMED, NOT CONCEDED ──────────────────────────
+     This used to bail on ANY `.arena-vs` already in the arena, and that one
+     line cost the entire Fight screen on the single most common way a player
+     arrives at it: RESUMING A FIGHT THAT WAS ALREADY RUNNING. `setupArenaVs`
+     in legacy.js builds its own pre-b365 `.arena-vs` (portrait / name / HP /
+     action slot — no level, no swing bar, no forecast tiles, no style row)
+     from a 200ms interval, and on a cold load with `G.activeMonster` set it
+     wins the race against this module's setup. buildStage then found "an
+     `.arena-vs`", concluded its work was done, and left the player on the
+     legacy stage for the rest of the session — which is why Tyler's swing bar
+     "disappeared mid-fight" while every fresh-start probe showed it animating.
+     The element was not hidden or unanimated. It was never in the document.
+
+     The test for "is the stage mine" is therefore the `fs-stage` class, not the
+     presence of a div, and a legacy stage is REPLACED rather than left alone.
+     That also makes this function self-healing: anything that ever rebuilds
+     `.arena-vs` gets undone on the next render instead of permanently
+     downgrading the screen. */
+  const existing = arena.querySelector(':scope > .arena-vs');
+  if (existing && existing.classList.contains('fs-stage')) return;
   const vs = document.createElement('div');
   vs.className = 'arena-vs fs-stage';
   vs.innerHTML = `
@@ -456,15 +484,23 @@ function buildStage(arena) {
       </div>
     </div>
     <div class="fs-metrics" id="fs-metrics"></div>`;
-  const head = arena.querySelector('.card-head');
-  if (head && head.nextSibling) arena.insertBefore(vs, head.nextSibling);
-  else arena.insertBefore(vs, arena.firstChild);
+  if (existing) {
+    /* Replace, so the ids this markup shares with the legacy stage
+       (`arena-player-hp`, `arena-foe-portrait`, …) are never duplicated in the
+       document — a second `#arena-foe-hp` would silently take every write. Any
+       inline `display:none` legacy parked on it goes with it. */
+    existing.replaceWith(vs);
+  } else {
+    const head = arena.querySelector('.card-head');
+    if (head && head.nextSibling) arena.insertBefore(vs, head.nextSibling);
+    else arena.insertBefore(vs, arena.firstChild);
+  }
 
   /* The log row: legacy's `#combat-area` (which renderCombat owns outright) in
      a wrapper this module owns, so the log can be given a fixed slice of the
      stage's height without touching a node renderCombat rewrites every tick. */
   const area = arena.querySelector('#combat-area');
-  if (area) {
+  if (area && !(area.parentNode && area.parentNode.classList.contains('fs-logrow'))) {
     const row = document.createElement('div');
     row.className = 'fs-logrow';
     area.parentNode.insertBefore(row, area);
@@ -1183,7 +1219,14 @@ function renderFight() {
      block owns the two labels. See the Swing module's header. */
   const eq = typeof window.getEquipmentStats === 'function' ? window.getEquipmentStats() : {};
   const wid = g && g.equipment && g.equipment.weapon;
-  const wname = (wid && ITEMS[wid] && ITEMS[wid].n) || weaponLabel(eq.weaponType) || 'Unarmed';
+  /* b368 — EMPTY HANDS ARE "Unarmed", not "Neutral". The `|| 'Unarmed'` tail was
+     dead code: with no weapon worn, `eq.weaponType` is the engine's neutral
+     class and `weaponLabel` returns the WEAPON_TYPES string "Neutral", which is
+     truthy — so a player who has taken their sword off read "Neutral · 2.40s"
+     on the one row that is supposed to tell them what they are swinging.
+     Tyler is in exactly that state today. The weapon id is the test, not the
+     label's truthiness. */
+  const wname = (wid && ITEMS[wid] && ITEMS[wid].n) || (wid ? weaponLabel(eq.weaponType) : 'Unarmed');
   const swingS = (tickMs() / 1000).toFixed(2) + 's';
   const ps = document.getElementById('fs-player-swing');
   if (ps) {

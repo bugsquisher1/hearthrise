@@ -2,6 +2,105 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-16 · b368 — three player-reported defects, ONE root cause, and the fix I shipped
+### is a class test on a div. The animation Tyler said I removed was never removed.
+
+**The finding that matters, and it is a verification lesson before it is a layout one.** Tyler:
+"you also removed the attack swing timer." My b366 entry closes with *"Measured: 20 distinct scaleX
+values in 20 frames, four contexts."* Both statements are true. Every probe I ran in b366 — and the
+first four I ran today — **starts a fight and then looks**, and a fight that starts after the module
+has booted never runs the race that breaks this. The moment I booted the page INTO a running fight
+(save, reload, open Combat), `#fs-player-swing` **did not exist**, and neither did the levels, the
+forecast tiles, the style picker, the action bar or the metrics strip. The screen had silently
+fallen back to the pre-b365 legacy arena for the rest of the session.
+
+Cause: `setupArenaVs()` in legacy.js builds its own `.arena-vs` from a 200ms interval, and on a cold
+load with `G.activeMonster` set it wins the race against `setupCombatScreens()`. `buildStage` then
+did `if (arena.querySelector(':scope > .arena-vs')) return;` — **it asked whether A stage existed,
+not whether MY stage existed** — concluded its work was done, and never ran again. One class test
+(`.fs-stage`) plus REPLACING the impostor instead of deferring to it fixes it, and `ensureStage()`
+re-asserts on every render so a later rebuild self-heals rather than permanently downgrading the
+screen. **An idempotence guard that keys on a shape two modules both produce is not idempotence, it
+is a race with a winner.**
+
+**The Coordinator's third defect was the same bug wearing a different face, and I proved that rather
+than assuming it.** Tyler's live screenshot: click Giant Rat, get an EMPTY stage — backdrop art and
+nothing else, no VS, no Fight button. The stated hypothesis was that his empty weapon slot throws in
+the pre-fight forecast. **Disconfirmed in one probe: `G.equipment = {}` renders a complete preview at
+both sizes with zero console errors.** The real chain is that legacy's `refreshArenaVs()` parks
+`style="display:none"` on whatever `.arena-vs` it finds whenever no fight is live, and the CSS that
+un-hides the stage in preview is scoped `.arena-vs.fs-stage` — so once the legacy stage had claimed
+the arena, the preview had nothing to show. I ran Tyler's exact gesture sequence against HEAD and
+against my fix: **the pre-fix capture is his screenshot, pixel for pixel**, down to "+0 atk · +0 str
+· +0 def" and WHAT IT DROPS clipped at the fold. The mutation run agrees — restoring the old guard
+fails COMBAT-UI-19c *and* COMBAT-UI-13 (no action bar) *and* COMBAT-UI-21 (no metrics strip), which
+is the blast radius that screenshot was showing all along.
+
+**The half of "the swing timer is gone" that WAS about my art, and it is a self-contradicting pair of
+rules I wrote in the same file on the same day.** At `max-height: 560px` b366 hid `.fs-swing span`
+("the weapon is already named on the strip two rows up") and, eleven rules later, hid `.csb-swing` on
+the style buttons ("the swing time is also printed on the player's own swing bar two rows up").
+**Each rule deleted the duplicate the other one was relying on**, so on a landscape phone the swing
+time was printed NOWHERE. Two density rules that each defer to the other are not a decision, they are
+a hole — and neither one is wrong when you read it alone, which is exactly why a diff review cannot
+catch this. The label is back at 13px (3px of the 423 budget, paid out of the action bar's own top
+padding rather than out of the foe plate, which is the screen's subject): **action bar bottom 417 of
+423, against b366's 416.** The guard is a RULE scan, not a viewport assertion — one window size can
+never see a breakpoint it is not in.
+
+**Two contrast calls made by photographing, not by reading tokens.** The fill was `--gold` at
+`opacity:.7` over the sunk field, which resolves to a dull olive barely a value-step off its own
+trough: photographed beside a saturated HP bar it reads as decoration, and **a moving element that
+looks static is worse than no element, because the player stops looking at it.** Now .9 — still
+quieter than HP, which is correct. And the label sits over the fill, so it is legible on gold and on
+dark twice per swing only because it now carries the same shadow the HP numerics already use.
+Bonus, found in a capture rather than a report: the empty-slot labels read **"WEAPO / N"** and
+**"OFFHAN / D"** on desktop — `word-break: break-word` broke words that FIT, which is the same
+half-a-word failure b139 ruled against, arriving from the other side. `overflow-wrap` instead.
+
+**"Neutral · 2.40s" — the dead fallback.** `wname` ended `|| weaponLabel(eq.weaponType) || 'Unarmed'`,
+and with empty hands `weaponLabel` returns the WEAPON_TYPES string "Neutral", which is truthy — so
+the `'Unarmed'` tail could never run and the one row that tells you what you are swinging named a
+**damage class**. Tyler is in exactly that state today. The weapon ID is the test, not the label's
+truthiness.
+
+**P2, the stale halt sheet, and the brief's premise was wrong in a way that made the fix better.**
+I was told accrue.js "persists an accrual-halted state". **It does not — there is no localStorage,
+no snapshot field, nothing.** What persists is the SHEET: `hideAccrualHaltedSheet` had exactly one
+caller in the whole module, the player's own button, so the sheet outlived the condition for as long
+as the document did — and on a phone that is days. That is Tyler's report precisely: a server-side
+`unknown_skill` halted him yesterday, the server was fixed, and this morning the app came back to the
+foreground still wearing "the progress server refused the result". His Try Again succeeding on the
+first tap is the proof the accrual was healthy and the sentence was not. Two fixes: a recovered
+server now takes its own sheet down (`settle()`), and `verifyHaltedState()` re-checks a CARRIED-OVER
+halt with one forced request on the foreground edge before the player is shown anything — sheet
+hidden for the duration, so a healthy server means they never learn there was a question. **A halt
+earned in THIS session still raises the sheet on the third failure with no extra request; this only
+ever re-examines a verdict reached earlier.** HALT-BOOT-1 asserts both halves plus "a healthy device
+spends zero extra requests on every foreground".
+
+**"Answering in 8:43:01" is not a bug.** `muster.js:395` — `answering ? 'Answering in ' : 'Rally in '`,
+deliberate copy for a rally the player has already pledged to, with a smoke assertion on it since
+b225. Reported, not touched.
+
+**Verified in-browser, my own server rooted in this worktree** (launch.json serves the main tree —
+the trap my predecessors recorded twice). Four contexts × live fight: 20 distinct scaleX values in
+20 frames each, and 3 under `prefers-reduced-motion` where the stepped render is correct. Resume,
+background-and-return, and leave-and-return all keep the bar running. **0 console errors, 0 page
+errors.** Captures in `assets/art-pilot/_screenshots/b368-fight/`. Suite **815/815**; all three new
+tests mutation-proven, and 19c's mutation takes two neighbouring tests down with it. No version
+bump, no push.
+
+**Known limitations, stated plainly.** The reclaimed stage still carries legacy's inline
+`display:none` and is visible only because b365's `[data-combat-view="fight"] .fs-stage` rule is
+`!important` — correct today, and a dependency worth knowing about. The metrics strip sits ~14px
+below the fold at 423px; that predates this pass (b366's budget put the ACTION BAR above the fold,
+not the strip) and I did not spend the foe plate to buy it back. `.fsm-slot em` at 52px still wraps
+"Necklace" to two lines — legible, and better than clipping. The combat log still renders emoji
+mid-fight, unchanged from b366's entry. And the deeper issue behind all of this is unresolved:
+**`setupArenaVs()` is a live second author of the same DOM region**, and every future change to that
+region has to win a race it does not know it is in. Filed for the Systems Engineer.
+
 ### 2026-08-16 · b366 — the Fight screen gets its management rail back, and the defect that
 ### mattered most was invisible to every measurement I took.
 

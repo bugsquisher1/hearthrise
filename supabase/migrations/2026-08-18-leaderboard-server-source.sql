@@ -81,12 +81,54 @@
 -- view that had just been rebuilt and looked correct.
 --
 -- SAFE TO RE-RUN. Everything here is a `create or replace` or a drop-and-
--- recreate of derived data. REVERSIBILITY: re-applying 2026-08-08-leaderboards
--- .sql followed by 2026-08-17-leaderboard-skills.sql restores the previous
--- (blob-sourced) view exactly — but re-applying the 2026-08-08 file also
--- re-executes its `grant select on public.leaderboard_ranked to anon,
--- authenticated`, so 2026-08-14-leaderboard-view-lockdown.sql MUST be applied
--- again after any such revert. See §2's revoke for why.
+-- recreate of derived data.
+--
+-- ⚠⚠ REVERSIBILITY — RE-APPLYING 2026-08-08-leaderboards.sql IS **NOT** A
+--    SUPPORTED REVERT PATH. DO NOT RUN THAT FILE AGAINST A LIVE DATABASE.
+--    (Security review C2. An earlier draft of this note named only the first of
+--    the two consequences below, which is exactly how the second one gets
+--    forgotten at 3am during a rollback.)
+--
+--    That file is written for a 2026-08-08 database and does TWO things that
+--    are now destructive, and only one of them is visible in its own output:
+--
+--    (1) `grant select on public.leaderboard_ranked to anon, authenticated`
+--        (:208) — re-opens F5, the direct
+--        `/rest/v1/leaderboard_ranked?limit=100000` dump of every player's uuid
+--        and display name, around hr_leaderboard's p_limit clamp.
+--
+--    (2) `create or replace function public.hr_leaderboard(...)` (:287) plus
+--        `grant execute ... to anon, authenticated` (:357) — the public name is
+--        no longer the reader, it is the A9 RATE-GATE WRAPPER installed by §4 of
+--        2026-08-11-authenticated-surface-lockdown.sql. Re-applying OVERWRITES
+--        that wrapper with an ungated body and re-grants it to anon, leaving an
+--        ungated, anon-callable, unrate-limited RPC. Nothing in the 2026-08-08
+--        file mentions the gate, so it reports success while removing it. This
+--        is not theoretical: the first revision of THIS file made the same
+--        mistake in one line, and it surfaced only as
+--        `hr_assert_grant_hygiene → ungated_client_rpcs`, two guards away.
+--
+--    THE SUPPORTED REVERT is a NEW forward migration. Nothing here holds state
+--    — leaderboard_ranked is derived data, rebuildable in one statement — so a
+--    revert is purely definitional:
+--      (a) drop + recreate public.leaderboard_ranked using the SELECT body
+--          COPIED OUT of 2026-08-08-leaderboards.sql §3, then
+--          `revoke all on public.leaderboard_ranked from public, anon,
+--          authenticated, service_role` (do NOT copy that file's grant);
+--      (b) `create or replace function public.hr_leaderboard__ungated(...)`
+--          — the __ungated TWIN, NEVER the public name — with the reader body
+--          copied out of that file's §6;
+--      (c) touch neither the A9 wrapper nor its grants.
+--    Copy those two bodies by hand. Do not execute the file they live in.
+--
+--    IF SOMEONE RUNS IT ANYWAY, the database is left insecure in both ways
+--    above and BOTH of these must then be re-applied, in this order:
+--      · §4 of 2026-08-11-authenticated-surface-lockdown.sql — re-wraps
+--        hr_leaderboard. It is re-runnable: it skips already-wrapped targets
+--        (its `v_n_skip` counter) and re-wraps unwrapped ones.
+--      · 2026-08-14-leaderboard-view-lockdown.sql — re-revokes the matview.
+--    Verify with §6(b) and §6(i) of this file, or with LB-5/LB-11 in
+--    tests/leaderboard-server-source.mjs.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── 0. Preconditions ────────────────────────────────────────────────────

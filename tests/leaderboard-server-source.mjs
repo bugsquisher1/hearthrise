@@ -522,7 +522,24 @@ export async function guard() {
      anon-callable RPC. The migration now replaces the __ungated twin.
      Everything else in this file calls the public name and passed happily
      either way; the failure surfaced two guards away, as
-     hr_assert_grant_hygiene's `ungated_client_rpcs`. */
+     hr_assert_grant_hygiene's `ungated_client_rpcs`.
+
+     ⚠ THIS IS THE HOME OF THE "hr_leaderboard CALLS hr_rpc_gate" INVARIANT —
+       the one that keeps getting knocked over (Security review C2 asked for it
+       explicitly). It is asserted HERE, and not in
+       tests/leaderboard-lockdown-guard.mjs where it might seem to belong,
+       because that guard CANNOT CURRENTLY BOOT: it replays the whole declared
+       chain — which already contains 2026-08-14-leaderboard-view-lockdown.sql
+       — and then tries to reproduce the pre-lockdown state, so its BEFORE
+       phase dies on `anon could not read public.leaderboard (42P01)` and it
+       exits 2 before reaching a single assertion. MEASURED, and measured to be
+       PRE-EXISTING: identical failure with this migration removed and the
+       manifest reverted. It is also not wired into tests/run-smoke.mjs (only
+       the `test:lb-lockdown` npm script). An assertion added there would never
+       run. Reported to the Coordinator rather than silently fixed, since
+       repairing it means changing another migration's guard (its BEFORE phase
+       needs bootReplay's `upTo` to stop short of the lockdown file).
+       Mutant M8 proves the assertion below actually bites. */
   const srcOf = async (name) => {
     const r = await q('select prosrc s from pg_proc p join pg_namespace n on n.oid=p.pronamespace '
       + 'where n.nspname=$1 and p.proname=$2', ['public', name]);
@@ -692,8 +709,14 @@ const MUTANTS = [
     id: 'M8', file: MIG,
     what: 'the reader replaces the PUBLIC hr_leaderboard instead of the __ungated twin, deleting '
       + 'the A9 rate-gate wrapper and leaving an ungated anon-callable RPC (the one-way door)',
-    edits: [['create or replace function public.hr_leaderboard__ungated(',
-      'create or replace function public.hr_leaderboard('],
+    /* ⚠ THE ANCHOR CARRIES THE PARAMETER LIST ON PURPOSE. The bare
+       `create or replace function public.hr_leaderboard__ungated(` now appears
+       TWICE — once as the real statement, once inside the C2 reversibility
+       block in the header, which spells out the supported revert. The harness
+       caught that itself (anchor matched 2 times, must match 1) and refused to
+       report a verdict, which is the behaviour that keeps a "CAUGHT" honest. */
+    edits: [['create or replace function public.hr_leaderboard__ungated(\n  p_board text,',
+      'create or replace function public.hr_leaderboard(\n  p_board text,'],
     ['revoke all on function public.hr_leaderboard__ungated(text, int, int)\n'
       + '  from public, anon, authenticated, service_role;',
     'revoke all on function public.hr_leaderboard(text, int, int) from public;\n'

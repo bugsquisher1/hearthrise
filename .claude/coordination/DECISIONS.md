@@ -279,3 +279,7 @@ Art Director (the Hunt card gained three lines of rule copy — the density call
 **Affected agents:** all.
 
 _(New decisions below, newest first.)_
+
+## 2026-08-17 — b364 + b365 shipped; stabilization begins with device handoff
+- b364 (settlement Phase 1 + rebrand + avatar picker) and b365 (War Table + Fight screen, fold 111->108) both passed the release visual gate (screenshots read at desktop + 922x423) and are live. Catalogue re-applied and hr-accrue redeployed BEFORE the b365 client push.
+- Tyler (2026-08-17, verbatim): "We desperately need to fix this server / local back and forth bullshit... all I tried to do was move from my computer to my phone. Wildly terrible experience." Device-handoff sync UX is the TOP stabilization item — QA audit dispatched; findings gate the fix wave before the full playthrough.

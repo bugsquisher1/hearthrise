@@ -55,6 +55,57 @@ node tools/triage-bugs.mjs show <id>
 starve behind newer noise. It projects the SPA screen (`state.activeTab`), the
 device line, the console-error count, and whether a screenshot exists.
 
+#### The queue has TWO halves, and the server's half prints first
+
+A player-filed report is the **slowest detector this project has**: it needs a
+player to notice, to care, and to type. The server already knows — `hr_apply`
+records every refusal into `public.hr_rejections` and **derives** a severity from
+the code, where `incident` means *"a caller proposed something an honest game
+loop cannot propose"* (`2026-08-11-player-state.sql` §6b-ii).
+
+On the night of **2026-08-17, 51 aggregated `unknown_skill` rejections at
+severity `incident` sat there and were read by nobody until morning**, because
+this loop only ever looked at `bug_reports`. Every one of them was a player
+losing a whole accrual window. So `list` and `stats` now read both, and the
+server's half prints **first**:
+
+```bash
+node tools/triage-bugs.mjs list                      # reports + incidents
+node tools/triage-bugs.mjs incidents                 # just the server's half
+node tools/triage-bugs.mjs incidents --min-n 20 --days 1
+node tools/triage-bugs.mjs list --no-incidents       # reports only (scripts)
+```
+
+| Flag | Default | What it does |
+| --- | --- | --- |
+| `--min-n <n>` | `5` | Threshold on the **SUM** across rows, not on one row's `n` |
+| `--days <d>` | `7` | Only rejections whose `last_at` falls in the window |
+| `--limit <n>` | `20` | Cap on codes listed (`incidents` only) |
+| `--no-incidents` | off | Suppress the server's half (`list` only) |
+
+**The threshold is on the sum, and that is the whole design.** `hr_rejections`
+keys on `(user_id, slot, day, code)`, so that night's 51 was **not** one row of
+`n=51` — it was six rows of single digits across three characters and two dates.
+A per-row threshold of 10 looks correct, reads correctly in review, and would
+have shown **nothing**. `tests/bug-triage.mjs` R1 uses the real distribution and
+its `per-row-threshold` mutant must read RED.
+
+Two things the output deliberately does **not** contain: `severity` is not a
+parameter (it is derived server-side by `hr_record_rejection` and a caller
+cannot widen it into a firehose), and **no player UUIDs** — the aggregate counts
+distinct characters instead, and `last_detail` is passed through a key allowlist
+plus a UUID redaction before it reaches either the terminal or `--json`.
+`forbidden_impersonation` records `claimed_user`, a *third party's* id, and this
+output gets pasted into tickets and Discord. Guarded by R8.
+
+#### `list --json` shape
+
+`list --json` returns **`{ reports, incidents }`**. It was a bare array of
+reports; a consumer that kept the array shape would silently never see the
+server's half, which is the defect this closes. `list --no-incidents --json`
+still returns the bare array for anything that genuinely only wants reports.
+`incidents --json` returns a bare array of code aggregates.
+
 **Screenshots are not in the table.** They are Discord attachments. Storing a
 base64 copy would inflate the one database that holds every player's
 progression, and restores here run off *daily backups*, so table size is restore
@@ -83,6 +134,47 @@ note. Do not mark a report fixed because the code looks right.
   with the report id, and mark `triaged` with a note saying where it went.
 - **Won't fix** → `wontfix` with a note that a human would accept as a reason.
   "Working as intended" alone is not a reason; say *why* it is intended.
+
+### 3b. Close every incident line — **the ack rule**
+
+An incident line is **not** closed by reading it, and it has no `status` column
+to mark: `hr_rejections` is an append-only aggregate the server owns, pruned at
+180 days. Left to itself it will still be there tomorrow, one number larger, and
+the run after this one will see the same line and assume somebody already looked
+— which is exactly how 51 rejections survived a night.
+
+**An incident code is closed by creating a durable artefact that NAMES it:**
+
+- a `bug_reports` row whose `summary` contains the code (file it yourself; you
+  are an operator on the management API, so your insert is exempt from the
+  per-user backstop), **or**
+- an entry in `.claude/coordination/` (`ACTIVE_WORK.md` for something you are
+  taking now, `BACKLOG.md` for something triaged and deferred) whose text
+  contains the code.
+
+Either way the artefact must carry the **code**, the **count**, the **window**,
+and either a fix, an owner, or a stated reason it is benign. "Benign" needs the
+same standard as `wontfix`: say *why*, and a human has to accept it.
+
+**A run that reports an incident line and creates no artefact for it has not
+finished.** That is the failure mode this section exists for, and it is
+invisible unless it is written down as a rule — so it is written down here, and
+the routine's prompt contract below repeats it, because a rule only in a design
+doc is a rule the scheduled run does not read.
+
+> **Prompt contract for the scheduled triage routine.** Whatever dispatches this
+> loop MUST include, verbatim in the routine's instructions:
+>
+> > Run `node tools/triage-bugs.mjs list`. It prints **two** queues: player bug
+> > reports **and** server-side incident codes from `hr_rejections`. **Both are
+> > your responsibility.** For every incident line, either fix the cause or
+> > create a durable artefact naming the code — a `bug_reports` row, or an entry
+> > in `.claude/coordination/ACTIVE_WORK.md` or `BACKLOG.md` — recording the
+> > code, the count, the window, and a fix, an owner, or a reason it is benign.
+> > Do not end the run with an unacknowledged incident line. An incident code is
+> > the server telling you a caller proposed something an honest game loop
+> > cannot; the 2026-08-17 `unknown_skill` outage was 51 of them, read by nobody
+> > until morning.
 
 ### 4. Update status
 
@@ -131,6 +223,10 @@ blocker.
 
 ## Rules that bound this loop
 
+- **An incident line is closed by an artefact, never by having been read.** See
+  §3b. `hr_rejections` has no status column and the server will not stop
+  counting; the only durable record that somebody looked is a `bug_reports` row
+  or a coordination entry naming the code.
 - **Never mark a report fixed you did not verify.** Same standard as everything
   else here: *"I know this works because I verified it"*, never *"it should
   work."*
@@ -168,5 +264,6 @@ blocker.
 | Table reconstruction | `supabase/migrations/2026-08-10-dr-bug-reports-base.sql` |
 | Triage state + backstop | `supabase/migrations/2026-08-17-bug-triage.sql` |
 | Operator CLI | `tools/triage-bugs.mjs` |
+| The server's own queue | `public.hr_rejections` (`supabase/migrations/2026-08-11-player-state.sql` §6b-ii) |
 | Guard | `tests/bug-triage.mjs` (in the smoke suite; `--mutate` for the self-test) |
 | Setup / webhook secret | `docs/reports/BUG_REPORT_PIPELINE.md` |

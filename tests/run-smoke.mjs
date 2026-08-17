@@ -49,6 +49,16 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
+
+/* Everything this harness prints, kept so the run can assert at the end that
+   every guard it expected actually reported. See REQUIRED_GUARD_MARKERS. The
+   tap is install-once and passes through untouched — a harness that swallowed
+   or reordered its own output would be a worse problem than the one it guards. */
+const TRANSCRIPT = [];
+{
+  const real = console.log.bind(console);
+  console.log = (...args) => { TRANSCRIPT.push(args.join(' ')); real(...args); };
+}
 const argv = process.argv.slice(2);
 const argOf = (flag) => { const i = argv.indexOf(flag); return i >= 0 ? argv[i + 1] : null; };
 const HEADED = argv.includes('--headed');
@@ -2089,6 +2099,48 @@ const run = async () => {
       console.log('\nConsole errors:');
       for (const t of realErrors.slice(0, 15)) console.log(`  ! ${t}`);
       exitCode = 1;
+    }
+    /* ── "All green" MUST MEAN EVERY GUARD SPOKE (2026-08-17, review) ──────
+       A run was observed reporting All green while one server-tier guard had
+       silently not run at all. That is the worst possible failure for a test
+       harness: the absence of a verdict rendered as a passing verdict, and
+       nothing in the output distinguishes the two — the guard's paragraph is
+       simply not there, and nobody counts paragraphs.
+
+       So the manifest below is asserted against what was actually printed. It
+       is checked ONLY when the run is otherwise green, deliberately: a guard
+       that FAILS prints a different banner and would trip this too, producing a
+       confusing second error on top of a real one.
+
+       ⚠ THIS IS A MARKER CHECK, NOT A CALL-GRAPH CHECK, and the limitation is
+         real: it proves each guard EMITTED ITS LINE, not that the line was
+         earned. Rewording a banner fails the build until this list is updated —
+         that is the intended cost, and it is one line. What it cannot see is a
+         guard that prints its success banner while asserting nothing; that is
+         what each guard's own `--mutate` harness is for. */
+    const REQUIRED_GUARD_MARKERS = [
+      'Core guard', 'Accrual guard', 'Auto-eat authority guard', 'Perk channel guard',
+      'Artisan progress model guard', 'Goal counters guard', 'Artisan accrual guard',
+      'Live settlement Phase 0', 'Equip intent (Phase 2)', 'Skill-row upsert',
+      'Unlock purchase guard', 'Market v2 guard', 'Market intent guard',
+      'Cutover import guard', 'Client write sweep guard', 'Client write sweep batch 3',
+      'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
+      'Clan-deposit ownership guard', 'Activity-seam guard', 'Delta-transport guard',
+      'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',
+      'Secret guard',
+    ];
+    if (exitCode === 0) {
+      const said = TRANSCRIPT.join('\n');
+      const silent = REQUIRED_GUARD_MARKERS.filter((m) => !said.includes(m));
+      if (silent.length) {
+        console.log(`\n${silent.length} EXPECTED GUARD(S) NEVER REPORTED, yet the run was about to `
+          + 'say All green. A guard that does not run is indistinguishable from one that passed, '
+          + 'which is how a silent skip survives a review:');
+        for (const m of silent) console.log(`  ? ${m}`);
+        console.log('  If a banner was deliberately reworded, update REQUIRED_GUARD_MARKERS in '
+          + 'tests/run-smoke.mjs in the same commit.');
+        exitCode = 1;
+      }
     }
     if (exitCode === 0) console.log('\nAll green.\n');
   } catch (err) {

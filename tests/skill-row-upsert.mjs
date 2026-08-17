@@ -55,6 +55,7 @@
 // is an upsert and not "select then insert".
 // ════════════════════════════════════════════════════════════════════════
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -221,6 +222,50 @@ export async function guard() {
     `SKILL-7: a 12,000,001 XP grant returned ${JSON.stringify(r)} — expected xp_clamp. The `
     + 'per-call ceiling is the only bound on a single grant.');
 
+  /* ── SKILL-8 — §0's PREDECESSOR ANCHOR MUST DISCRIMINATE (Security S1) ────
+     THIS IS THE ONLY ASSERTION HERE THAT DOES NOT NEED A DATABASE, and it
+     guards the mistake that has now been made three times on this one chain:
+     anchoring a "has my predecessor been applied?" gate on a term the
+     predecessor merely MENTIONS rather than on the thing it CHANGED.
+
+     This file's §0 first anchored on `too_many_equip_ops`. Measured over the
+     two hr_apply bodies: fight-carry 1, equip-release-codes 2 — because
+     fight-carry's equip block is what RAISES the code. The gate would have
+     passed against a database that never received equip-release-codes. The
+     same class mis-certified equip-release-codes itself as applied to
+     production when it had not been.
+
+     So: every term §0 uses must be ABSENT from the predecessor-of-the-
+     predecessor and PRESENT in the predecessor. A positive and a negative
+     control, which is the only shape of this check that can fail honestly. */
+  const readMig = async (f) => (await readFile(
+    join(ROOT, 'supabase', 'migrations', f), 'utf8')).replace(/\r\n/g, '\n');
+  const applyBody = (sql) => {
+    const i = sql.indexOf('create or replace function public.hr_apply(');
+    return i < 0 ? '' : sql.slice(i, sql.indexOf('\nend $$;\n', i));
+  };
+  const ANCHOR = "'bad_equip', 'unknown_equip_slot', 'wrong_slot', 'requirement_not_met',";
+  const mine = await readMig('2026-08-18-skill-row-upsert.sql');
+  const s0 = mine.slice(0, mine.indexOf('-- ── 1. hr_apply'));
+  ok(s0.includes(ANCHOR.replace(/'/g, "''")),
+    'SKILL-8: §0 no longer checks the c_release_codes array literal — it is back to a term that '
+    + 'fight-carry also contains, so the predecessor gate cannot refuse an unpatched database.');
+  const fcBody = applyBody(await readMig('2026-08-17-fight-carry.sql'));
+  const erBody = applyBody(await readMig('2026-08-18-equip-release-codes.sql'));
+  ok(fcBody.length > 1000 && erBody.length > 1000,
+    'SKILL-8: could not extract one of the two hr_apply bodies — the control is not a control.');
+  ok(!fcBody.includes(ANCHOR),
+    `SKILL-8 (the NEGATIVE control): ${JSON.stringify(ANCHOR)} is present in fight-carry's hr_apply, `
+    + 'so it does NOT discriminate and §0 would pass against a database missing '
+    + 'equip-release-codes. Pick an anchor that is unique to the predecessor.');
+  ok(erBody.includes(ANCHOR),
+    `SKILL-8 (the POSITIVE control): ${JSON.stringify(ANCHOR)} is absent from equip-release-codes' `
+    + 'hr_apply, so §0 would refuse to install onto the very body this file was derived from.');
+  // And the term that FAILED review, named, so nobody reaches for it again.
+  ok(fcBody.includes('too_many_equip_ops'),
+    'SKILL-8: `too_many_equip_ops` is no longer in fight-carry — the historical note in §0 and the '
+    + 'reason this control exists have gone stale; re-measure before trusting either.');
+
   guard.report = [
     `SKILL: ${LATE_SKILL} row created by the grant and accumulated to ${await xpOf(LATE_SKILL)}; `
     + `${JUNK_SKILL} refused and minted nothing.`,
@@ -249,7 +294,20 @@ export async function guard() {
 
    tools/derive-skill-row-upsert.mjs --check would also catch these edits — a
    third, different guard, for a different failure (a hand-edited restatement).
-   Three independent nets over one change is the point, not redundancy. */
+   Three independent nets over one change is the point, not redundancy.
+
+   ⚠⚠ DO NOT RUN `--mutate` CONCURRENTLY WITH THE SMOKE SUITE, OR WITH ANOTHER
+     MUTATION HARNESS, OR TWICE AT ONCE. It edits a REAL production migration
+     in place and restores it afterwards. A suite running beside it reads the
+     MUTATED bytes — `tests/run-smoke.mjs` replays the whole chain — so it would
+     fail (or, far worse, pass) against a body nobody intended to ship, and the
+     two restores can interleave such that `mutation-safety.mjs`'s hash check
+     verifies a file the OTHER run is still holding open. That hash check is the
+     only thing standing between this harness and the 2026-08-16 incident where
+     a sibling left an item-duplication bug in the deployed engine after a
+     timeout; do not put it in a position where it can be right about the wrong
+     snapshot. Run mutation harnesses one at a time, serially, on an otherwise
+     idle tree. */
 const MIG = 'supabase/migrations/2026-08-18-skill-row-upsert.sql';
 const BLIND = [
   // §3(a)'s term list: swap this file's own change for a term that is present
@@ -284,6 +342,18 @@ const MUTANTS = [
       + '        end if;\n'
       + '        insert into public.player_skills (user_id, slot, skill_id, xp)',
     '        insert into public.player_skills (user_id, slot, skill_id, xp)'], ...BLIND],
+  },
+  {
+    /* ⚠ NO `...BLIND` ON THIS ONE, DELIBERATELY. §3 does not check §0, and
+       SKILL-8 is a source read rather than a database assertion — so blinding
+       §3 here would prove nothing about the mutant and would only make the
+       list look uniform. */
+    id: 'M4', file: MIG,
+    what: "§0's predecessor gate reverts to a term fight-carry also contains, so it would pass "
+      + 'against a database that never received equip-release-codes (Security S1)',
+    edits: [["  if position('''bad_equip'', ''unknown_equip_slot'', ''wrong_slot'', "
+      + "''requirement_not_met'','\n              in v_src) = 0 then",
+    "  if position('too_many_equip_ops' in v_src) = 0 then"]],
   },
   {
     id: 'M3', file: MIG,

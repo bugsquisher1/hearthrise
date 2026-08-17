@@ -100,10 +100,7 @@ begin
   foreach v_need in array array[
     'v_fight', 'c_max_fight_kills', 'bad_fight_hp', 'c_release_codes',
     'v_gems_in', 'v_prev_slot', 'intent_mismatch', 'tool_carry',
-    'hr_day_budget_check',
-    -- b366's link, i.e. equip-release-codes specifically rather than merely
-    -- "something with an equip block".
-    'too_many_equip_ops']
+    'hr_day_budget_check']
   loop
     if position(v_need in v_src) = 0 then
       raise exception 'the LIVE hr_apply does not contain "%" — it is not the body this file was '
@@ -111,6 +108,37 @@ begin
                       'do NOT apply this file over an older body.', v_need;
     end if;
   end loop;
+
+  -- ⚠⚠ THE PREDECESSOR CHECK, AND IT MUST BE THE ARRAY LITERAL (Security S1).
+  --   The first draft of this gate anchored on `too_many_equip_ops`, which is
+  --   VACUOUS AND LOOKS FINE — and it is the very defect
+  --   2026-08-18-equip-release-codes.sql §3(b) wrote a paragraph warning about,
+  --   reintroduced in the file that cites it. Measured over the two hr_apply
+  --   bodies: `too_many_equip_ops` 1 vs 2, `bad_equip` 2 vs 4, `wrong_slot`
+  --   1 vs 2, `requirement_not_met` 1 vs 3. EVERY equip code already appears in
+  --   fight-carry, because fight-carry's equip block is what RAISES them. So a
+  --   substring gate on any single code passes against a database that never
+  --   got equip-release-codes, and this file would have replaced that body,
+  --   silently deleting nothing (it is a superset) but reporting a
+  --   predecessor it had not verified — and, worse, certifying an apply order
+  --   nobody had checked.
+  --
+  --   What is UNIQUE to equip-release-codes is the four codes ON THE
+  --   c_release_codes ARRAY LITERAL, in that order: measured 0 occurrences in
+  --   fight-carry, 1 in equip-release-codes. That is the discriminator, so that
+  --   is the anchor.
+  --
+  --   (This is also how the equip-release-codes apply itself was mis-certified
+  --   as live on 2026-08-18 — a non-discriminating marker reported it applied
+  --   when it never had been. Same class, three times now. Anchor on the thing
+  --   that CHANGED, never on a term the change merely mentions.)
+  if position('''bad_equip'', ''unknown_equip_slot'', ''wrong_slot'', ''requirement_not_met'','
+              in v_src) = 0 then
+    raise exception 'the LIVE hr_apply does not carry the equip codes ON c_release_codes — '
+                    '2026-08-18-equip-release-codes.sql has NOT been applied, whatever a '
+                    'substring check may have reported. Apply it first; this file was derived '
+                    'from its body.';
+  end if;
   -- Idempotence: a second apply is a no-op in effect, and saying so is cheaper
   -- than a reviewer wondering.
   if position('on conflict (user_id, slot, skill_id)' in v_src) > 0 then
@@ -1372,9 +1400,13 @@ begin
     'when p_delta ? ''activity'' then ''{}''::jsonb',
     'v_fight ? ''monster'' and v_fight ? ''hp'' and v_fight ? ''kills''',
     'c_release_codes', 'any (c_release_codes)',
-    -- b366's whole link, codes AND the block that raises them.
-    'unknown_equip_slot', 'wrong_slot', 'requirement_not_met',
-    'c_max_equip_kinds', 'player_equipment', 'too_many_equip_ops',
+    -- b366's whole link. ⚠ The BLOCK that raises the codes is asserted with
+    -- bare terms (correct — the block is the only thing that mentions
+    -- c_max_equip_kinds), but the LINK ITSELF is asserted with the array
+    -- literal for the reason §0 spells out: every equip code appears in
+    -- fight-carry too, so a bare term here is vacuous.
+    'c_max_equip_kinds', 'player_equipment',
+    '''bad_equip'', ''unknown_equip_slot'', ''wrong_slot'', ''requirement_not_met'',',
     -- ...and this file's own change.
     'on conflict (user_id, slot, skill_id)']
   loop

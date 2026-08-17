@@ -152,12 +152,61 @@ export function incidentsQuery({ minN, days, limit } = {}) {
      limit ${l}`;
 }
 
+/* ── last_detail IS ATTACKER-ADJACENT AND PLAYER-IDENTIFYING (Security S2) ──
+   hr_record_rejection stores a per-code detail blob, and it is NOT a fixed
+   shape. `forbidden_impersonation` carries `claimed_user` — the raw UUID of the
+   account a caller tried to act as, i.e. a THIRD PARTY's id, printed into a
+   shared operator terminal and into any `--json` blob that gets pasted into a
+   ticket or a Discord channel. Nothing else in this tool prints a user id; the
+   aggregate deliberately counts characters instead. This closed the one hole in
+   that.
+
+   BOTH defences, because they fail safe in opposite directions:
+     · an ALLOWLIST of keys fails safe on a detail key that does not exist yet
+       (a future `email`, `ip`, `display_name` is dropped, not printed) but
+       cannot help if a listed key's VALUE turns out to carry an id;
+     · a UUID REDACTION fails safe on the value regardless of which key holds
+       it, including nested ones, but would happily print a future non-uuid
+       identifier.
+   Either alone is the kind of half-measure that reads as done. */
+export const DETAIL_KEYS = new Set([
+  'skill_id', 'item_id', 'crop_id', 'activity', 'activity_id', 'monster', 'equip_slot',
+  'slot', 'kind', 'key', 'code', 'role', 'n', 'have', 'need', 'qty', 'value', 'type',
+  'limit', 'cap', 'budget', 'used', 'delta', 'reason', 'stored', 'sent', 'listing',
+]);
+const UUIDISH = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+export function redactDetail(v, depth = 0) {
+  if (depth > 6) return '[deep]';
+  if (typeof v === 'string') return v.replace(UUIDISH, '[uuid redacted]');
+  if (Array.isArray(v)) return v.map((x) => redactDetail(x, depth + 1));
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const [k, val] of Object.entries(v)) {
+      if (!DETAIL_KEYS.has(k)) { out[k] = '[redacted]'; continue; }
+      out[k] = redactDetail(val, depth + 1);
+    }
+    return out;
+  }
+  return v;
+}
+
+/** The ONE seam both the human render and `--json` go through. A redaction
+ *  applied on only one of the two output paths is not a redaction. */
+export function sanitiseIncidents(rows) {
+  return (rows || []).map((r) => ({ ...r, last_detail: redactDetail(r.last_detail) }));
+}
+
 export function formatIncidents(rows, { minN, days } = {}) {
   const n = minN ?? INCIDENT_DEFAULTS.minN;
   const d = days ?? INCIDENT_DEFAULTS.days;
   if (!rows.length) {
     return [`no severity=incident rejections with ${n}+ occurrences in the last ${d} day(s).`];
   }
+  // Defensive: callers are expected to have gone through sanitiseIncidents, but
+  // this function is exported and a second caller that forgot would leak. It is
+  // idempotent, so doing it twice costs nothing.
+  rows = sanitiseIncidents(rows);
   const out = [
     `⚠ ${rows.length} SERVER-SIDE INCIDENT CODE(S) in the last ${d} day(s), `
     + `${n}+ occurrences — hr_rejections. The server noticed these before any player did:`,
@@ -187,7 +236,7 @@ const intId = (v) => {
 // so a list stays readable at a hundred rows. `show` has the full blob.
 async function incidents() {
   const opts = { minN: flag('min-n'), days: flag('days'), limit: flag('limit') };
-  const rows = await q(incidentsQuery(opts));
+  const rows = sanitiseIncidents(await q(incidentsQuery(opts)));
   if (has('json')) { console.log(JSON.stringify(rows, null, 2)); return rows; }
   for (const line of formatIncidents(rows, opts)) console.log(line);
   return rows;
@@ -218,7 +267,7 @@ async function list() {
   const incOpts = { minN: flag('min-n'), days: flag('days') };
   let incRows = [];
   if (!has('no-incidents')) {
-    try { incRows = await q(incidentsQuery(incOpts)); }
+    try { incRows = sanitiseIncidents(await q(incidentsQuery(incOpts))); }
     catch (e) {
       /* FAIL SOFT, LOUDLY. A missing hr_rejections (an old database, a partial
          replay) must not take the bug queue offline — but it must not be
@@ -335,7 +384,9 @@ async function stats() {
   // keeping is the omission this whole change is about.
   console.log('');
   try {
-    for (const line of formatIncidents(await q(incidentsQuery({})))) console.log(line);
+    for (const line of formatIncidents(sanitiseIncidents(await q(incidentsQuery({}))))) {
+      console.log(line);
+    }
   } catch (e) { console.log(`(could not read hr_rejections — ${e.message.slice(0, 120)})`); }
 }
 

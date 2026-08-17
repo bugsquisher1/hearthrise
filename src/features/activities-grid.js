@@ -5,9 +5,9 @@
 // Exports: setupActivitiesGrid()
 // Hooks: window.renderSkillsList (filter combat out), window.renderSkillDetail (tile grid)
 
-import { SKILLS_DEF } from '../data/skills.js?v=370';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=370';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=370';
+import { SKILLS_DEF } from '../data/skills.js?v=371';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=371';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=371';
 
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
 

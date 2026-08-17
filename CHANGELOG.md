@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 371 — 2026-08-18 (The all-night audit build)
+
+We played the game all night with a full team and fixed what we found. The big ones:
+
+- 🥩 **Auto-eat tells the truth.** Settings showed a working-looking threshold for a trait you may not own — while you died with food in your bag. It now shows the locked state, the price, and where to buy it; with the trait owned, eating actually fires at your threshold. (A save-data bug that permanently disabled auto-eat for some owners is also fixed.)
+- ⚔️ **Long fights survive.** The server was faithfully remembering your fight mid-battle — and the game was throwing that memory away and restarting the monster at full health on every background sync. Dragons now stay wounded. The Resume chip also genuinely resumes instead of secretly stopping your fight.
+- 🖼️ **The flicker hunt.** Icons no longer blink in late after screens paint, and your chosen portrait now updates every surface — header, home, character, combat — instantly and permanently. (One culprit: the game's hosting silently refused to serve any file starting with an underscore. The default portrait 404'd in production for its entire life.)
+- ☁️ **"Cloud save active" now means it.** The header can no longer claim saves are working while they fail; failed saves retry automatically; and a save status line in Settings tells you exactly when your last save landed.
+- 🖱️ **The Fight button works on laptops.** On 1366×768 and 1280×800 screens it sat below the fold with no way to scroll. Every primary button is now guarded by an automated reachability test at four real screen sizes.
+- 🎮 **Switching characters can't freeze the game anymore**, hero-slot purchases confirm before spending and can't dupe gems, the quest badge counts your actual quests, toasts stay on screen, house upgrade costs are visible, the premium shop matches the game's look, and "Drops this fight" shows only what the fight dropped — structurally, this time.
+- 🏆 **Leaderboards are now server-truth** (cheating via browser tools is dead), with boards that lack a server data source honestly hidden until they get one.
+
 ## v0.9.2-beta build 370 — 2026-08-17 (Honest drops, a workers' ledger, and a tidy equipment page)
 
 - ⚔️ **"Drops this fight" now shows only the fight.** Your workers' hauls no longer sneak into the combat ledger — the rail counts what the monster paid, nothing else.

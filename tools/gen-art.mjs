@@ -70,6 +70,10 @@ if (STYLE && STYLE_ID) {
   process.exit(2);
 }
 const NO_SNAP = argv.includes('--no-alpha-snap');
+// Recraft raster sizes; 1820x1024 is the API's ~16:9 for wide backdrops. The
+// canvas-web-UI aspect selector has no API twin, so a wide plate must set this.
+const SIZE = flag('size', '1024x1024');
+const OPAQUE = argv.includes('--opaque');
 
 // ── controls.colors — the lever that unblocked the programme (§0.10c) ────────
 // A Recraft custom style transfers the seed images' COLOUR DISTRIBUTION, not
@@ -175,7 +179,7 @@ async function generateOne(token, job) {
   const dest = path.join(OUT, job.file);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const body = {
-    prompt: job.prompt, model: MODEL, n: 1, size: '1024x1024', response_format: 'url',
+    prompt: job.prompt, model: MODEL, n: 1, size: SIZE, response_format: 'url',
   };
   // A Recraft custom Style is the only lever that acts on all 600 images at
   // once — prompt text pins subject and bans, not HAND. See
@@ -190,7 +194,9 @@ async function generateOne(token, job) {
   if (!url) throw new Error('no image url in response');
   let buf = Buffer.from(await (await fetch(url)).arrayBuffer());
   let cost = COST_GEN, rmbg = false;
-  if (pngColourType(buf) !== 6) {
+  // --opaque: backdrops/backgrounds are full opaque scenes; removeBackground
+  // isolates a subject and would blank the whole painting. Skip it entirely.
+  if (!OPAQUE && pngColourType(buf) !== 6) {
     const cut = await post(token, `${API}/images/removeBackground`, { image_url: url, response_format: 'url' });
     const cutUrl = cut?.image?.url;
     if (cutUrl) {

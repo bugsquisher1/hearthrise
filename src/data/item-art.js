@@ -50,11 +50,26 @@
 // NOT FIXED, AND FOUND BY LOOKING AT THE CONTROL RATHER THAN THE NEW WORK:
 // several files wired in b358/b361 depict the wrong object and nobody caught
 // it, because a shipped id is never re-reviewed. `oak_plank`, `duskwood_plank`
-// and `runewood_plank` are round SHIELDS; `bronze_bar` is a hammer on an anvil
-// and `copper_bar` is a sphere. They render that way in the Recipe Book right
-// now. They are NOT touched by this pass — unwiring them swaps wrong art for a
-// fallback glyph and needs its own verified pass — but they are the top of the
-// re-shoot worklist and they are the reason to distrust "already shipped".
+// and `runewood_plank` are round SHIELDS (runewood_plank is a rune-carved
+// disc); `bronze_bar` is a hammer on an anvil; `copper_bar` is a decorative
+// sphere/orb; `copper_ore` is a WAR HAMMER — this is the one Tyler flagged
+// directly ("the copper is still showing as a hammer"). They rendered that
+// way in the Recipe Book AND the inventory.
+//
+// ── ASSET DIRECTOR PASS (2026-08-17) — UNWIRED, NOT RE-SHOT YET ───────────
+// All six ids above are now REMOVED from SHIPPED (see REJECTED_WRONG_SUBJECT
+// below). Unwiring them was NOT a downgrade to a bare emoji: `legacy.js`'s
+// `LOCAL_ITEM_ICON` literal (the pre-Hearthfire b217 map) already carried
+// correct, on-brand art for all six via the `resources/` sprite sheet — a
+// real ore chunk (`Res_15_stone.png`), a real ingot (`Res_02_cooperbar.png`)
+// and a real sawn plank (`Res_04_wood.png`) — but `__applyHearthfireItemIcons()`
+// UNCONDITIONALLY OVERWROTE `LOCAL_ITEM_ICON[k]` for every batch id,
+// including these six wrong ones, clobbering the correct pre-existing art
+// with the wrong new art. With the six ids removed from SHIPPED, the applier
+// never touches these keys and the correct `resources/` art renders again.
+// No PNG moved; no new art needed. They stay on the re-shoot worklist for a
+// PAINTED Hearthfire replacement matching the rest of the set's style, but
+// that is now a cosmetic upgrade, not a correctness bug.
 //
 // ── THE SIZE SPEC: 128 px LONG EDGE. The discrepancy dies here. ────────────
 // `docs/design/item-art-prompts.md` said 128; the 13-image pilot shipped 256
@@ -138,16 +153,16 @@ export const SHIPPED = Object.freeze({
     'ancient_claw', 'ancient_fragment', 'ancient_rune', 'arcane_tome', 'ashcrown_greatsword',
     'ashlar', 'banded_signet', 'basalt', 'basalt_block', 'bat_wing', 'bear_claw', 'bear_pelt',
     'bestiary_cloak', 'big_bones', 'blood_rune', 'bone_chips', 'bone_earrings', 'bone_key',
-    'bones', 'bronze_bar', 'brute_plate', 'captain_medal', 'captain_recipe', 'captains_ribblade',
+    'bones', 'brute_plate', 'captain_medal', 'captain_recipe', 'captains_ribblade',
     'carters_strap', 'chaos_rune', 'chitinweave_cloak', 'choirbone', 'choirbone_gauntlets',
     'chronicle_ribbon', 'coal', 'coarse_whetstone', 'colossus_plate', 'colossus_seal',
-    'copper_bar', 'copper_ore', 'copper_ring', 'copper_studs', 'copper_whetstone',
+    'copper_ring', 'copper_studs', 'copper_whetstone',
     'cracked_spellstone', 'crown_of_the_fallen_king', 'cutpurse_gloves', 'dark_sigil',
     'dawn_bar', 'dawn_whetstone', 'dawnbound_amulet', 'dawnforged_signet', 'dawnlit_mantle',
     'dawnstone_ore', 'death_rune', 'death_steel', 'deep_rune_blank', 'demon_shard', 'dire_fang',
     'draconias_jaw', 'dragon_bones', 'dragon_gem', 'dragon_gem_earrings', 'dragon_marrow_recipe',
     'dragon_relic', 'dragon_scale', 'dragonfang_pike', 'dragonrend_greatblade',
-    'dragonsbane_key', 'dressed_block', 'dungeon_scrip', 'duskwood_log', 'duskwood_plank',
+    'dragonsbane_key', 'dressed_block', 'dungeon_scrip', 'duskwood_log',
     'earth_rune', 'elderscale_heart', 'ember_bar', 'emberfang_blade', 'emberstone_ore',
     'fang_studs', 'fangdart_recurve', 'farm_deed', 'field_cookbook', 'field_ledger',
     'field_ration', 'fine_rune_blank', 'fire_rune', 'forge_blueprint_t2', 'forge_blueprint_t3',
@@ -159,12 +174,12 @@ export const SHIPPED = Object.freeze({
     'kitchen_blueprint_t2', 'kitchen_blueprint_t3', 'lexarch_seal', 'library_blueprint_t2',
     'library_blueprint_t3', 'lich_soul', 'magic_essence', 'maple_log', 'maple_plank',
     'marrow_cookbook', 'mithril_bar', 'mithril_ore', 'mithril_whetstone', 'night_fang',
-    'nightstalker_pelt', 'normal_log', 'normal_plank', 'oak_log', 'oak_plank', 'obsidian_sigil',
+    'nightstalker_pelt', 'normal_log', 'normal_plank', 'oak_log', 'obsidian_sigil',
     'panthers_eye_pendant', 'pathfinder_studs', 'pitlord_irons', 'plague_ichor',
     'plaguewarden_greaves', 'quiet_coat', 'rat_tail', 'razor_claw', 'regent_helm',
     'riftmaw_husk', 'rubble', 'ruby', 'ruby_signet', 'rubyfire_studs', 'rune_bar', 'rune_blank',
     'rune_frag', 'rune_of_ember', 'rune_of_frost', 'rune_whetstone', 'runewood_log',
-    'runewood_plank', 'shadow_pelt', 'shadow_thread', 'shadowsilk_cape', 'silk_thread',
+    'shadow_pelt', 'shadow_thread', 'shadowsilk_cape', 'silk_thread',
     'slagheart_core', 'slagheart_platebody', 'slime_gel', 'small_fang', 'soul_recipe',
     'spellstone_diagram', 'spellstone_ring', 'spider_eye', 'spidereye_studs',
     'spidersilk_choker', 'steel_bar', 'steel_whetstone', 'sticky_core', 'surveyors_chain',
@@ -261,6 +276,10 @@ export const REJECTED_WRONG_SUBJECT = Object.freeze([
   'weapons/deathsteel_ingot', 'weapons/maple_rod', 'weapons/maple_staff',
   'weapons/masons_rule_t4', 'weapons/masons_rule_t7', 'weapons/oak_staff', 'weapons/rune_needle',
   'weapons/void_chitin_weave', 'weapons/willow_rod', 'weapons/yew_rod',
+  /* Asset Director, 2026-08-17 — b361 control sweep. See the comment near the
+     top of this file for what each file actually depicts. */
+  'items/copper_ore', 'items/copper_bar', 'items/bronze_bar', 'items/oak_plank',
+  'items/duskwood_plank', 'items/runewood_plank',
 ]);
 
 /**

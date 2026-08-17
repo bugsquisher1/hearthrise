@@ -866,7 +866,7 @@ export function noteEnvelopeDrift(loss) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=373';
+import * as itemLedger from './item-ledger.js?v=374';
 
 export function applyEnvelopeState(G, res, ownKey) {
   const st = (res && res.state) || {};

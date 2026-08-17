@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 374 — 2026-08-18 (Backlog + player reports: progression, polish, and a painted home)
+
+- 🏡 **The home banner is painted now** — the flat cartoon landscape is replaced with the same dawn vista as the login, so the game reads as one world instead of two.
+- ⛏️ **Gathering stone trains Mining, not Stonemason** — you were right; *shaping* the stone into blocks is the Stonemason part. And "Dress Rubble" is now plainly **Cut Stone Block** (Stone / Granite / Basalt Block — no more "dress").
+- 🏹 **Arrows craft in batches of 50, not 500** — a real recurring craft instead of one absurd pile.
+- 🎉 **Leveling a skill finally says so** — a small celebratory notice with the skill, new level, and what unlocked.
+- ❤️ **Your max HP updates live** — level Hitpoints while idle and your health cap rises immediately, no refresh.
+- 🔄 **Offline kills count everywhere** — your total kills and your quest progress now include the monsters you beat while away (thanks Paione). And weekly quests register them too.
+- 🖥️ **Switching between two open tabs is decisive** — "Bring it back here" now hands this tab control for good instead of ping-ponging.
+- 🔨 **Fixed the copper icon showing a hammer** (and copper bar, bronze bar, and three plank icons that were showing the wrong art).
+- 🌾 Gather tiles now caption what they yield, so the item picture doesn't read as the tree/rock itself (proper node art is coming).
+
 ## v0.9.2-beta build 373 — 2026-08-18 (New-player polish, from playing it fresh)
 
 - 💀 **Death finally explains itself.** When you fall in a fight, a sheet now tells you what killed you, reminds you that you kept everything you were carrying (Hearthrise has no death loss — items are safe), and gives you one useful tip based on what you had. And you always respawn at full health — a display bug was reviving new players at 2 HP straight into another death.

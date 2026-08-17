@@ -35,6 +35,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -289,6 +290,225 @@ function toolVocabularyGuard() {
   } else pass('the CLI writes only status/triage_note — resolved and triaged_at stay server-derived');
 }
 
+// ── THE SERVER'S HALF OF THE QUEUE — hr_rejections in `list` (b370) ────────
+// On 2026-08-17, 51 aggregated `unknown_skill` rejections at severity
+// `incident` sat in hr_rejections all night and were read by nobody, because
+// the triage loop only ever looked at bug_reports. A player-filed report needs
+// a player to notice, care and type; the server already knew. tools/
+// triage-bugs.mjs now reads both.
+//
+// ⚠ THE ASSERTION THAT MATTERS IS THE SHAPE OF THE THRESHOLD, and it is the
+//   one a reviewer would wave through. hr_rejections keys on (user, slot, day,
+//   code) with a counter, so that night's 51 was NOT one row of n=51 — it was
+//   several rows of single digits across players and two dates. A threshold
+//   applied per ROW (`where n >= 5`) looks correct, reads correctly in review,
+//   and would have shown NOTHING. So the fixture below reproduces the real
+//   distribution and R1 requires it to surface; MUTATIONS' `per-row-threshold`
+//   plants the plausible-looking version and requires RED.
+//
+// The queries are imported from the tool itself — the real bytes — which is
+// why that file grew a main guard: it used to dispatch its CLI at import time,
+// so this test could not have existed.
+let TOOL_BUST = 0;
+const rejectionsDdl = (() => {
+  const src = LF(readFileSync(MIG('2026-08-11-player-state.sql'), 'utf8'));
+  const i = src.indexOf('create table if not exists public.hr_rejections (');
+  if (i < 0) return null;
+  const j = src.indexOf('\n);', i);
+  return j < 0 ? null : src.slice(i, j + 3);
+})();
+
+async function rejectionQueueGuard() {
+  if (!rejectionsDdl) harness('could not lift the hr_rejections DDL out of player-state.sql');
+  /* Cache-busted so the tool mutants below load the MUTATED bytes. Safe here in
+     a way it is not in tests/live-settlement.mjs: triage-bugs.mjs imports only
+     node builtins, so there is no transitive module left resident to make a
+     planted defect "slip". */
+  const { incidentsQuery, formatIncidents, sanitiseIncidents } =
+    await import(`../tools/triage-bugs.mjs?bust=${TOOL_BUST}`);
+
+  const d = await PGlite.create();
+  await d.exec(rejectionsDdl);
+  const rows = [
+    // THE NIGHT ITSELF: 51 across three characters and two days, no single row
+    // anywhere near a per-row threshold of 10.
+    [UID_A, 0, '2026-08-17', 'unknown_skill', 'incident', 'accrue', 9],
+    [UID_A, 1, '2026-08-17', 'unknown_skill', 'incident', 'accrue', 8],
+    [UID_B, 0, '2026-08-17', 'unknown_skill', 'incident', 'accrue', 9],
+    [UID_A, 0, '2026-08-18', 'unknown_skill', 'incident', 'accrue', 8],
+    [UID_B, 0, '2026-08-18', 'unknown_skill', 'incident', 'equip',  9],
+    [UID_B, 1, '2026-08-18', 'unknown_skill', 'incident', 'accrue', 8],
+    // Ordinary contention, loud, and NOT an incident. Must never surface: an
+    // alert that fires for normal play is an alert nobody reads.
+    [UID_A, 0, '2026-08-18', 'version_conflict', 'normal', 'accrue', 4000],
+    // A real incident code below the threshold — one misclick, not an outage.
+    [UID_A, 0, '2026-08-18', 'wrong_slot', 'incident', 'equip', 2],
+  ];
+  for (const [u, s, day, code, sev, intent, n] of rows) {
+    await d.query(
+      `insert into public.hr_rejections (user_id, slot, day, code, severity, intent, n,
+                                         first_at, last_at, last_detail)
+       values ($1,$2,$3::date,$4,$5,$6,$7, now() - interval '2 days', now() - interval '1 hour',
+               jsonb_build_object('skill_id','stonemason'))`,
+      [u, s, day, code, sev, intent, n]);
+  }
+  // THE LEAK (Security S2): hr_apply records `forbidden_impersonation` with
+  // jsonb_build_object('claimed_user', p_user, 'role', v_role) — a THIRD
+  // PARTY's raw uuid — and last_detail is passed through to both output paths.
+  await d.query(
+    `insert into public.hr_rejections (user_id, slot, day, code, severity, intent, n,
+                                       first_at, last_at, last_detail)
+     values ($1, 0, '2026-08-18'::date, 'forbidden_impersonation', 'incident', 'apply', 40,
+             now() - interval '2 days', now() - interval '1 hour',
+             jsonb_build_object('claimed_user', $2::text, 'role', 'hr_engine',
+                                'nested', jsonb_build_object('who', $2::text)))`,
+    [UID_A, UID_B]);
+
+  /* ...and the case that reaches the OTHER defence. The allowlist drops
+     `claimed_user` before the uuid regex ever sees it, so on the fixture above
+     alone the regex is dead code that reads as protection — measured: the
+     `uuid-passthrough` mutant SLIPPED until this row existed. `seller_unavailable`
+     is a real incident code and its natural detail is a market listing id,
+     which IS a uuid sitting under an allowlisted key. That is the shape the
+     regex is actually for. */
+  await d.query(
+    `insert into public.hr_rejections (user_id, slot, day, code, severity, intent, n,
+                                       first_at, last_at, last_detail)
+     values ($1, 0, '2026-08-18'::date, 'seller_unavailable', 'incident', 'market', 30,
+             now() - interval '2 days', now() - interval '1 hour',
+             jsonb_build_object('listing', $2::text, 'item_id', 'oak_log'))`,
+    [UID_A, '11111111-2222-4333-8444-555555555555']);
+
+  // ...and one that is old enough to be out of the window entirely.
+  await d.query(
+    `insert into public.hr_rejections (user_id, slot, day, code, severity, intent, n,
+                                       first_at, last_at)
+     values ($1, 7, '2026-01-01'::date, 'gold_clamp', 'incident', 'accrue', 900,
+             now() - interval '200 days', now() - interval '120 days')`, [UID_A]);
+
+  const run = async (opts) => (await d.query(incidentsQuery(opts))).rows;
+
+  // R1 — the night surfaces at a threshold that no single row clears.
+  const r1 = await run({ minN: 10, days: 7 });
+  const skill = r1.find((r) => r.code === 'unknown_skill');
+  if (!skill) {
+    fail('R1: 51 unknown_skill rejections spread over 6 aggregate rows did NOT surface at --min-n 10 '
+      + '— the threshold is being applied per ROW, which is exactly how the 2026-08-17 incident '
+      + 'stayed invisible all night');
+  } else if (Number(skill.total) !== 51) {
+    fail(`R1: unknown_skill totalled ${skill.total}, expected 51 — the aggregate is not summing n`);
+  } else pass('R1: 51 rejections across 6 rows, 3 characters and 2 days surface as one 51× line');
+
+  // R2 — `normal` never surfaces, however loud.
+  if (r1.some((r) => r.code === 'version_conflict')) {
+    fail('R2: version_conflict (severity=normal, n=4000) surfaced as an incident — optimistic '
+      + 'concurrency is ordinary play, and an alert that fires for it is an alert nobody reads');
+  } else pass('R2: a 4000× severity=normal code does not surface');
+
+  // R3 — a real incident code under the threshold stays quiet.
+  if (r1.some((r) => r.code === 'wrong_slot')) {
+    fail('R3: wrong_slot (n=2) surfaced at --min-n 10 — the threshold does nothing');
+  } else pass('R3: an incident code below the threshold stays quiet');
+  // ...and appears once the threshold is lowered, which is what proves R3 was
+  // the threshold and not a filter that drops the row for some other reason.
+  if (!(await run({ minN: 2, days: 7 })).some((r) => r.code === 'wrong_slot')) {
+    fail('R3: wrong_slot does not surface even at --min-n 2 — it is being excluded for a reason '
+      + 'that has nothing to do with the threshold, and R3 above passed for the wrong reason');
+  } else pass('R3: ...and it surfaces at --min-n 2 — the threshold is what was filtering it');
+
+  // R4 — the time window is real.
+  if (r1.some((r) => r.code === 'gold_clamp')) {
+    fail('R4: a 120-day-old gold_clamp surfaced in a 7-day window');
+  } else pass('R4: a 120-day-old incident is outside the 7-day window');
+  if (!(await run({ minN: 10, days: 365 })).some((r) => r.code === 'gold_clamp')) {
+    fail('R4: gold_clamp does not surface even at --days 365 — the window is not what excluded it');
+  } else pass('R4: ...and it surfaces at --days 365');
+
+  // R5 — characters are counted by (user, slot), not by user.
+  if (Number(skill?.characters) !== 4) {
+    fail(`R5: unknown_skill reports ${skill?.characters} character(s), expected 4 — a player with `
+      + 'two characters must count twice, because the refusal is per character');
+  } else pass('R5: distinct characters are counted as (user_id, slot) pairs');
+
+  // R6 — the rendering an operator actually reads says the number out loud.
+  const text = formatIncidents(r1, { minN: 10, days: 7 }).join('\n');
+  if (!text.includes('unknown_skill') || !text.includes('51')) {
+    fail(`R6: the rendered incident block does not name the code and its count:\n${text}`);
+  } else pass('R6: the rendered block names the code, the count and the character count');
+  if (!formatIncidents([], {}).join('\n').includes('no severity=incident')) {
+    fail('R6: an empty result renders nothing — an all-clear must be printed, or a silent tool and '
+      + 'a healthy server look identical');
+  } else pass('R6: an empty result renders an explicit all-clear');
+
+  // ── R8 — NO PLAYER UUID REACHES EITHER OUTPUT PATH (Security S2) ────────
+  // Both paths, in one assertion each, because a redaction applied to only the
+  // human render while `--json` still carries the id is the version of this
+  // fix that passes a skim. The CONTROL first: the raw row must actually
+  // contain the uuid, or R8 is asserting the absence of something that was
+  // never there.
+  const rawImp = (await d.query(incidentsQuery({ minN: 10, days: 7 })))
+    .rows.find((r) => r.code === 'forbidden_impersonation');
+  if (!rawImp || !JSON.stringify(rawImp.last_detail).includes(UID_B)) {
+    fail('R8 CONTROL: the raw query row does not carry the impersonation uuid — the fixture is not '
+      + 'reproducing the leak, so R8 below would pass for the wrong reason');
+  } else pass('R8 CONTROL: the raw query row does carry a third party\'s uuid — the leak is real');
+
+  const rawAll = (await d.query(incidentsQuery({ minN: 10, days: 7 }))).rows;
+  const rawSeller = rawAll.find((r) => r.code === 'seller_unavailable');
+  if (!rawSeller || !JSON.stringify(rawSeller.last_detail).includes('11111111-2222')) {
+    fail('R8 CONTROL: the raw seller_unavailable row does not carry a uuid under an ALLOWLISTED '
+      + 'key — the uuid regex is untested and the `uuid-passthrough` mutant would slip');
+  } else pass('R8 CONTROL: a uuid sits under an allowlisted key (listing) — the regex has work to do');
+
+  const clean = sanitiseIncidents(rawAll);
+  const jsonBlob = JSON.stringify(clean);
+  if (new RegExp('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', 'i')
+    .test(jsonBlob)) {
+    fail(`R8: a uuid survives into the --json blob:\n${jsonBlob}`);
+  } else pass('R8: no uuid survives sanitiseIncidents — the --json path is clean');
+  if (jsonBlob.includes(UID_B) || jsonBlob.includes(UID_A)) {
+    fail('R8: a known player uuid appears verbatim in the --json blob');
+  } else pass('R8: neither fixture uuid appears verbatim in --json');
+
+  const impText = formatIncidents(clean, { minN: 10, days: 7 }).join('\n');
+  if (new RegExp('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', 'i')
+    .test(impText)) {
+    fail(`R8: a uuid survives into the rendered operator output:\n${impText}`);
+  } else pass('R8: no uuid survives into the rendered operator output');
+  // ...and the redaction must not be a blanket blackout: the code and the count
+  // are the entire point of the line, and a fix that hides them would be
+  // "secure" and useless.
+  if (!impText.includes('forbidden_impersonation') || !impText.includes('40')) {
+    fail(`R8: redaction removed the code or the count — the line is now useless:\n${impText}`);
+  } else pass('R8: the code, the count and the safe keys survive redaction');
+  // An UNLISTED key must be dropped even when its value looks harmless — the
+  // allowlist is what protects against a detail key that does not exist yet.
+  const future = sanitiseIncidents([{ last_detail: { email: 'a@b.c', skill_id: 'mining' } }]);
+  if (JSON.stringify(future).includes('a@b.c')) {
+    fail('R8: an unlisted detail key (email) passed through — the allowlist is not being applied, '
+      + 'so the NEXT identifying field hr_apply records will leak');
+  } else pass('R8: an unlisted detail key is dropped; a listed one survives');
+
+  // R7 — `list` actually calls it. A query nobody invokes is a query that
+  // proves nothing, and this is the exact failure the change exists to fix.
+  const listBody = triageTool.slice(triageTool.indexOf('async function list()'),
+    triageTool.indexOf('// ── one report, in full'));
+  if (!/incidentsQuery\(/.test(listBody) || !/formatIncidents\(/.test(listBody)) {
+    fail('R7: `list` does not call incidentsQuery/formatIncidents — the server half of the queue '
+      + 'is unreachable from the command the triage loop actually runs');
+  } else pass('R7: `list` reads hr_rejections and renders it');
+  /* And it must redact BEFORE the --json branch. This is a source read rather
+     than a behavioural one on purpose: formatIncidents re-sanitises
+     defensively, so a `list` that forgot would still LOOK clean in the human
+     render while `--json` leaked — the exact asymmetry R8 cannot see. */
+  if (!/sanitiseIncidents\(/.test(listBody)) {
+    fail('R7: `list` does not call sanitiseIncidents — its --json branch prints the raw rows, '
+      + "including forbidden_impersonation's claimed_user uuid");
+  } else pass('R7: `list` sanitises before either output branch');
+
+  await d.close();
+}
+
 // ── MUTATION: the migration's self-verify must be a real commit gate ───────
 const MUTATIONS = {
   'no-trigger': {
@@ -325,9 +545,88 @@ async function mutate() {
   return bad;
 }
 
+/* ── MUTATION: the incident read must be graded, not admired ───────────────
+   Three defects, each the plausible-looking version of a line in
+   incidentsQuery(). They edit the REAL tool file (restored and hash-verified
+   by tests/mutation-safety.mjs, which exists because a sibling harness once
+   left an item-duplication bug in the deployed engine after a timeout).
+
+   ⚠⚠ DO NOT RUN `--mutate` CONCURRENTLY WITH THE SMOKE SUITE OR WITH ANOTHER
+     MUTATION HARNESS. It edits tools/triage-bugs.mjs in place; anything reading
+     that file meanwhile sees the mutated bytes, and two interleaved restores
+     can leave mutation-safety.mjs hash-verifying a snapshot the other run is
+     still holding. Serially, on an otherwise idle tree. */
+const TOOL_MUTATIONS = {
+  'per-row-threshold': {
+    find: 'having sum(n) >=',
+    repl: 'having max(n) >=',
+    why: 'the threshold is applied per aggregate ROW, so the real 2026-08-17 distribution '
+      + '(single digits across players and days) stays invisible',
+  },
+  'severity-ignored': {
+    find: "where severity = 'incident'",
+    repl: 'where true',
+    why: 'ordinary version_conflict contention floods the incident view until nobody reads it',
+  },
+  'no-window': {
+    find: "\n       and last_at > now() - interval '${d} days'",
+    repl: '',
+    why: 'a months-dead incident is reported as current',
+  },
+  'detail-passthrough': {
+    find: '      if (!DETAIL_KEYS.has(k)) { out[k] = \'[redacted]\'; continue; }',
+    repl: '',
+    why: "the detail allowlist is dropped, so forbidden_impersonation's claimed_user uuid "
+      + 'reaches the operator terminal and the --json blob (Security S2)',
+  },
+  'uuid-passthrough': {
+    find: "  if (typeof v === 'string') return v.replace(UUIDISH, '[uuid redacted]');",
+    repl: "  if (typeof v === 'string') return v;",
+    why: 'a uuid inside an ALLOWLISTED key is printed verbatim',
+  },
+};
+
+async function toolMutate() {
+  process.stdout.write('\n── MUTATION: the hr_rejections incident read\n');
+  const { writeFileSync } = await import('node:fs');
+  const { snapshot, assertNoResidue, noteDirtyTree } =
+    await import('./mutation-safety.mjs');
+  const path = join(ROOT, 'tools', 'triage-bugs.mjs');
+  assertNoResidue(Object.values(TOOL_MUTATIONS)
+    .map((m) => ({ file: path, from: m.find, to: m.repl })));
+  noteDirtyTree(['tools/triage-bugs.mjs'], { cwd: ROOT });
+  const original = snapshot(path);
+  let bad = 0;
+  for (const [id, m] of Object.entries(TOOL_MUTATIONS)) {
+    const hits = original.split(m.find).length - 1;
+    if (hits !== 1) {
+      process.stderr.write(`  HARNESS  ${id}: anchor matched ${hits} times, must match 1\n`);
+      bad++; continue;
+    }
+    const before = problems.length;
+    try {
+      writeFileSync(path, original.replace(m.find, m.repl), 'utf8');
+      TOOL_BUST++;
+      await rejectionQueueGuard();
+    } catch (e) {
+      problems.push(`${id}: the mutated tool threw — ${e?.message || e}`);
+    } finally {
+      writeFileSync(path, original, 'utf8');
+    }
+    if (problems.length === before) {
+      process.stderr.write(`  RED     ${id}: SLIPPED — ${m.why}\n`); bad++;
+    } else {
+      process.stdout.write(`  ok      ${id}: caught (${problems.length - before}) — ${m.why}\n`);
+      problems.length = before; // the mutant's failures are not the build's
+    }
+  }
+  TOOL_BUST++;
+  return bad;
+}
+
 export async function bugTriageGuard() {
   problems = []; quiet = true; harnessErr = null;
-  try { clientOrderGuard(); toolVocabularyGuard(); await run(); return problems; }
+  try { clientOrderGuard(); toolVocabularyGuard(); await rejectionQueueGuard(); await run(); return problems; }
   catch (e) { return [harnessErr ? `bug-triage harness: ${harnessErr}` : `bug-triage guard failed to run — ${e?.message || e}`]; }
   finally { quiet = false; }
 }
@@ -339,13 +638,15 @@ if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith
     process.stdout.write('── src/bug-report.js delivery order\n');
     clientOrderGuard();
     toolVocabularyGuard();
+    process.stdout.write('\n── the server\'s half of the queue (hr_rejections in `list`)\n');
+    await rejectionQueueGuard();
     await run();
   } catch (e) {
     process.stderr.write(`${e.message}\n`);
     process.exit(2);
   }
   if (process.argv.includes('--mutate')) {
-    const bad = await mutate();
+    const bad = await mutate() + await toolMutate();
     if (bad) { process.stderr.write(`\n${bad} mutation(s) NOT caught\n`); code = 1; }
   }
   if (problems.length) { process.stderr.write(`\nbug-triage: ${problems.length} FAILURE(S)\n`); code = 1; }

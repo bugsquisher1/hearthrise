@@ -25,6 +25,7 @@ import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
 import { runAll as equipIntentGuards } from './equip-intent.mjs';
+import { guard as skillRowUpsertGuard } from './skill-row-upsert.mjs';
 import { itemsCatalogueGuard, itemsCatalogueMutationGuard } from './items-catalogue.mjs';
 import { cutoverImportGuard } from './cutover-import.mjs';
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
@@ -48,6 +49,16 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
+
+/* Everything this harness prints, kept so the run can assert at the end that
+   every guard it expected actually reported. See REQUIRED_GUARD_MARKERS. The
+   tap is install-once and passes through untouched — a harness that swallowed
+   or reordered its own output would be a worse problem than the one it guards. */
+const TRANSCRIPT = [];
+{
+  const real = console.log.bind(console);
+  console.log = (...args) => { TRANSCRIPT.push(args.join(' ')); real(...args); };
+}
 const argv = process.argv.slice(2);
 const argOf = (flag) => { const i = argv.indexOf(flag); return i >= 0 ? argv[i + 1] : null; };
 const HEADED = argv.includes('--headed');
@@ -1258,6 +1269,15 @@ async function unlockModelPreflight() {
     ['derive-equip-release.mjs', 'equip-release derivation',
       'the restated hr_apply in 2026-08-18-equip-release-codes.sql is no longer fight-carry’s '
       + 'body plus this file’s ONE declared patch'],
+    /* b370, the `unknown_skill` incident's permanent fix. The SAME rule one
+       more link down: 2026-08-18-skill-row-upsert.sql restates the WHOLE of
+       hr_apply (70 KB) to turn six lines of XP grant into a catalogue check
+       plus an upsert. Everything the three links above protect lives in that
+       body — including b366's five release codes, which a hand-edit would drop
+       while the diff still looked like it was about skills. */
+    ['derive-skill-row-upsert.mjs', 'skill-row-upsert derivation',
+      'the restated hr_apply in 2026-08-18-skill-row-upsert.sql is no longer equip-release-codes’ '
+      + 'body plus this file’s ONE declared patch'],
   ]) {
     const gen = join(ROOT, 'tools', tool);
     try { await stat(gen); } catch { continue; }
@@ -1555,6 +1575,35 @@ const run = async () => {
         + 'copy the player does not own is refused, a catalogue-staleness refusal releases the '
         + 'intent key and the ownership refusal does not, and the verb collects the window BEFORE '
         + 'it swaps the gear that prices it.');
+    }
+
+    /* ── The `unknown_skill` incident's permanent fix (b370) ────────────
+       hr_apply used to answer a legitimate XP grant with `unknown_skill`
+       whenever the character had no player_skills ROW for the skill — which is
+       every character older than the skill, because rows are seeded once at
+       creation and the catalogue grows afterwards. The refusal STORED itself
+       against the intent key so "Try again" replayed it, and hr_reject rolls
+       the protected block back WHOLE, so each one also discarded that window's
+       gold, items and every OTHER skill's XP. 51 aggregated rejections in one
+       night. A missing row is a row to CREATE. Production was backfilled by
+       hand, which removes the symptom and not the defect — the next skill added
+       to src/data/skills.js would do it again — so the guard grades the GRANT,
+       against a character whose row is deleted to reproduce the live state.
+       `node tests/skill-row-upsert.mjs --mutate` plants three real defects
+       (revert to the bare UPDATE; drop the catalogue check so a client string
+       mints a skill row; overwrite XP instead of adding) and requires all three
+       to read RED — each with the migration's own §3 deliberately blinded, so
+       the BEHAVIOUR is what fails rather than a static self-check. */
+    const skillRowProblems = await skillRowUpsertGuard();
+    if (skillRowProblems.length) {
+      console.log('\nSkill-row upsert (the unknown_skill incident) — FAILED:');
+      for (const p of skillRowProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nSkill-row upsert — a known-but-rowless skill is granted and its row created, a '
+        + 'genuinely unknown skill id still refuses unknown_skill and mints nothing, an existing '
+        + 'row still ACCUMULATES, and the per-call XP clamp still holds.');
+      for (const line of skillRowUpsertGuard.report || []) console.log(`  ${line}`);
     }
 
     const unlockProblems = await unlockBuyGuard();
@@ -2050,6 +2099,48 @@ const run = async () => {
       console.log('\nConsole errors:');
       for (const t of realErrors.slice(0, 15)) console.log(`  ! ${t}`);
       exitCode = 1;
+    }
+    /* ── "All green" MUST MEAN EVERY GUARD SPOKE (2026-08-17, review) ──────
+       A run was observed reporting All green while one server-tier guard had
+       silently not run at all. That is the worst possible failure for a test
+       harness: the absence of a verdict rendered as a passing verdict, and
+       nothing in the output distinguishes the two — the guard's paragraph is
+       simply not there, and nobody counts paragraphs.
+
+       So the manifest below is asserted against what was actually printed. It
+       is checked ONLY when the run is otherwise green, deliberately: a guard
+       that FAILS prints a different banner and would trip this too, producing a
+       confusing second error on top of a real one.
+
+       ⚠ THIS IS A MARKER CHECK, NOT A CALL-GRAPH CHECK, and the limitation is
+         real: it proves each guard EMITTED ITS LINE, not that the line was
+         earned. Rewording a banner fails the build until this list is updated —
+         that is the intended cost, and it is one line. What it cannot see is a
+         guard that prints its success banner while asserting nothing; that is
+         what each guard's own `--mutate` harness is for. */
+    const REQUIRED_GUARD_MARKERS = [
+      'Core guard', 'Accrual guard', 'Auto-eat authority guard', 'Perk channel guard',
+      'Artisan progress model guard', 'Goal counters guard', 'Artisan accrual guard',
+      'Live settlement Phase 0', 'Equip intent (Phase 2)', 'Skill-row upsert',
+      'Unlock purchase guard', 'Market v2 guard', 'Market intent guard',
+      'Cutover import guard', 'Client write sweep guard', 'Client write sweep batch 3',
+      'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
+      'Clan-deposit ownership guard', 'Activity-seam guard', 'Delta-transport guard',
+      'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',
+      'Secret guard',
+    ];
+    if (exitCode === 0) {
+      const said = TRANSCRIPT.join('\n');
+      const silent = REQUIRED_GUARD_MARKERS.filter((m) => !said.includes(m));
+      if (silent.length) {
+        console.log(`\n${silent.length} EXPECTED GUARD(S) NEVER REPORTED, yet the run was about to `
+          + 'say All green. A guard that does not run is indistinguishable from one that passed, '
+          + 'which is how a silent skip survives a review:');
+        for (const m of silent) console.log(`  ? ${m}`);
+        console.log('  If a banner was deliberately reworded, update REQUIRED_GUARD_MARKERS in '
+          + 'tests/run-smoke.mjs in the same commit.');
+        exitCode = 1;
+      }
     }
     if (exitCode === 0) console.log('\nAll green.\n');
   } catch (err) {

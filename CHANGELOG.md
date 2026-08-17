@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 367 — 2026-08-17 (Your gear lives on the server now)
+
+- 🛡️ **Equipping is a server action.** Every equip, unequip and loadout swap is now recorded and validated server-side — the permanent end of the weapon-duplication bugs. Swaps still feel instant; the server confirms in the background, and if it ever disagrees your gear snaps back with a message saying why.
+- 🎒 **Your inventory is now server-authoritative.** What the server says you have IS what you have. Existing characters are migrated automatically the first time they play — no action needed.
+- 🏰 Clan deposits now verify you actually own the items you're donating.
+
 ## v0.9.2-beta build 366 — 2026-08-17 (Manage your kit where you fight — and switch devices in peace)
 
 - 🎒 **The Fight screen grew a management rail.** Your full loadout (real item art, click any slot to swap), your food with count and heal value, and — before you commit — the foe's complete drop table with chances. Mid-fight the same panel shows what the fight has paid so far.

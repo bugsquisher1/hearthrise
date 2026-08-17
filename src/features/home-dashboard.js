@@ -825,7 +825,7 @@
 
     html += '<div class="hd-hearth">' + scene + '<div class="hd-hearth-in">';
     html += '<div class="hd-who"><div class="hd-ava">' +
-      '<img src="assets/icons-bundle/painted/npc/player.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div style="min-width:0">';
+      '<img src="' + esc(window._playerAvatar || 'assets/avatars/_placeholder.webp') + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div style="min-width:0">';
     html += '<div class="hd-eyebrow">' + esc((hsDef && hsDef.name) || "Wanderer's Camp") + '</div>';
     html += '<div class="hd-name">' + esc(playerName()) +
       '<button class="hd-rename" title="Rename" data-hd="rename">' + gly('uiEdit', 14, '', 'var(--ink-3)') + '</button></div>';

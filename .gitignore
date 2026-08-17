@@ -79,6 +79,13 @@ race-out.txt
 # The processed shipping copies live in assets/icons-bundle/hearthfire/.
 assets/art-pilot/
 
+# Prefab avatar SOURCES (b360). The Recraft originals are 1024², ~1.5–2.3 MB each
+# and must never bloat the deploy. Only the processed 256² .webp portraits and the
+# neutral placeholder ship from assets/avatars/ — ignore every raw .png/.jpg there.
+assets/avatars/*.png
+assets/avatars/*.jpg
+assets/avatars/*.jpeg
+
 # Mutation-harness journal (tests/mutation-safety.mjs). Written before a
 # harness mutates a production file, deleted after a hash-verified restore.
 # A committed one would mean a run died holding a mutation.

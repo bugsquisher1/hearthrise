@@ -1084,13 +1084,15 @@ img,svg{display:block;max-width:100%}
   background:rgba(255,255,255,.03);border:1px solid var(--line-soft);
   color:var(--ink-2);font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.5;
 }
-.inv-detail-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-top:10px}
+/* b387 — flex-wrap instead of a rigid 120px grid: a long label ("Sell All 2000 ·
+   80,000", "Enchant a weapon with this") in a 1fr grid track kept its nowrap text
+   but the track could not grow to fit it, so the text bled past the button edge.
+   Flex tracks size to content (flex:1 0 auto — grow to fill, never shrink below
+   the label), so every button is at least as wide as its text and wraps to a new
+   row when it won't fit. Price glyph+number pair still stays together (nowrap). */
+.inv-detail-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .inv-detail-actions .btn[disabled]{opacity:.5;cursor:default}
-/* b361 — the sell buttons carry a price, and the price is now a glyph+number
-   pair rather than a "180🪙" string. In a 120px grid track that pair wrapped
-   mid-label ("Sell All 12 ·" / "180"), which reads as two different facts.
-   Keep each button's label on one line and let the auto-fit track grow. */
-.inv-detail-actions .btn{white-space:nowrap}
+.inv-detail-actions .btn{white-space:nowrap;flex:1 0 auto;justify-content:center}
 .inv-detail-actions .btn .hr-inline{display:inline-flex;align-items:center;gap:3px;vertical-align:-2px}
 
 /* ── b372 · AN ITEM REQUIREMENT IS A LINK ──────────────────────────────────

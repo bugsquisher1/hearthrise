@@ -16,7 +16,7 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: ece0100799356d6069ef03bac3e33a572a17958305e84f1644a8b169093678f5
+//   catalogue digest: 47a5b70ed02535daaa17e682d2c82299617fddcdc5b47f2b82e82aa2f21a70b8
 //   128 offers · 224 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "ece0100799356d6069ef03bac3e33a572a17958305e84f1644a8b169093678f5";
+export const SHOPS_DIGEST = "47a5b70ed02535daaa17e682d2c82299617fddcdc5b47f2b82e82aa2f21a70b8";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -873,31 +873,31 @@ export const SHOP_OFFERS = [
   {
     id: "worker.2", table: "worker",
     name: "Hire worker #2",
-    cost: [{ kind: "currency", id: "gold", amount: 2500 }],
+    cost: [{ kind: "currency", id: "gold", amount: 3000 }],
     grant: [{ kind: "unlock", id: "worker", amount: 1 }],
   },
   {
     id: "worker.3", table: "worker",
     name: "Hire worker #3",
-    cost: [{ kind: "currency", id: "gold", amount: 10000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 15000 }],
     grant: [{ kind: "unlock", id: "worker", amount: 1 }],
   },
   {
     id: "worker.4", table: "worker",
     name: "Hire worker #4",
-    cost: [{ kind: "currency", id: "gold", amount: 30000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 75000 }],
     grant: [{ kind: "unlock", id: "worker", amount: 1 }],
   },
   {
     id: "worker.5", table: "worker",
     name: "Hire worker #5",
-    cost: [{ kind: "currency", id: "gold", amount: 80000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 250000 }],
     grant: [{ kind: "unlock", id: "worker", amount: 1 }],
   },
   {
     id: "worker.6", table: "worker",
     name: "Hire worker #6",
-    cost: [{ kind: "currency", id: "gold", amount: 200000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 750000 }],
     grant: [{ kind: "unlock", id: "worker", amount: 1 }],
     note: "and every hire after this one",
   },

@@ -25,9 +25,18 @@
 
   var NAMES = ['Aldric', 'Berta', 'Cedric', 'Dagny', 'Edwin', 'Freya', 'Gareth', 'Hilda',
                'Ivor', 'Jorunn', 'Kellan', 'Liesl', 'Magnus', 'Nella', 'Osric', 'Petra'];
-  var HIRE_COSTS = [500, 2500, 10000, 30000, 80000, 200000];
+  /* b389 WORKER REBALANCE (game-designer, Tyler: "workers are overpowered").
+     BEFORE: a castle crew of 6 at 52% eff = 3.12x a maxed ACTIVE player, 24/7 for
+     free = ~6.3M gold/day passive — strictly better than playing, and a gold faucet
+     that defeated the b226 anti-faucet (0.20 vendor) ceiling.
+     Lever A — cut+flatten efficiency: crew of 6 at Lv10 now = 6 x 0.172 = 1.03
+     active-equivalents (≈ ONE extra gatherer working while you're away).
+     Lever B — escalate hire cost so the full crew is a King-tier investment
+     (~1.09M total vs 323k), not free money. Workers stay a nice passive helper;
+     manual play is the fast path again. (Upkeep/food = Lever C, deferred to Systems.) */
+  var HIRE_COSTS = [500, 3000, 15000, 75000, 250000, 750000];
   var ACCRUE_CAP_MS = 24 * 3600000;   // workers rest after 24h without direction
-  var BASE_EFF = 0.25, EFF_PER_LVL = 0.03, MAX_LVL = 10;
+  var BASE_EFF = 0.10, EFF_PER_LVL = 0.008, MAX_LVL = 10;
 
   function G_() { return window.G || {}; }
 

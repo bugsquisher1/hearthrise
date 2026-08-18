@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=388' directly.
+// modularised, will import { G } from '../state/game.js?v=389' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=388';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=388';
+import { on, snapshot } from '../net/events.js?v=389';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=389';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=388';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=389';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2016,13 +2016,25 @@ const TESTS = [
       const before = (G.inventory.normal_log || 0);
       W.accrueAll(false);
       const gained = (G.inventory.normal_log || 0) - before;
-      // 1h at 25% eff on a 3s action ≈ 300 ticks × ~1.5 avg qty ≈ 450 logs
-      assert(gained > 200 && gained < 700, 'worker should bank ~450 logs for 1h, got ' + gained);
+      // b389 rebalance: Lv1 eff cut 25%→10%. 1h on a 3s action ≈ 300 ticks × ~1.5 qty × 0.10 ≈ 180 logs
+      assert(gained > 80 && gained < 350, 'worker should bank ~180 logs for 1h at the rebalanced 10% eff, got ' + gained);
       assert(JSON.stringify(G.skills) === xpBefore, 'workers must never grant player XP');
     } finally {
       G.homestead = saved.homestead; G.workers = saved.workers; G.gold = saved.gold;
       G.inventory = saved.inv; G.skills = saved.skills;
     }
+  }),
+  () => tryRun('b389: worker rebalance — a full castle crew ≤ ~1 active-equivalent (anti-faucet guard)', () => {
+    const W = window.HearthriseWorkers;
+    assert(W && typeof W.eff === 'function', 'workers module + eff present');
+    /* A max-level worker's efficiency × the 6-slot castle crew must stay ≈ ONE active
+       gatherer — never the pre-b389 3.12x free-24/7 faucet that defeated the b226 vendor
+       ceiling (~6.3M gold/day passive). A future BASE_EFF / EFF_PER_LVL bump that reopens
+       it fails here. */
+    const effMax = W.eff({ xp: 1e12 });   // level 10
+    const crew = 6 * effMax;               // castle = 6 slots
+    assert(effMax <= 0.20, 'a maxed worker must be ≤ 20% of an active gatherer, got ' + effMax);
+    assert(crew <= 1.1, 'a full 6-worker castle crew must be ≤ 1.1 active-equivalents, got ' + crew);
   }),
   () => tryRun('b201: tool ladder — best owned tool applies, recipes exist', () => {
     const T = window.HearthriseTools;
@@ -26092,7 +26104,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=388');
+    const KIT = await import('../data/start-kit.js?v=389');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -31733,7 +31745,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=388');
+    const S = await import('../data/shops.js?v=389');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33127,7 +33139,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=388');
+    const S = await import('../data/shops.js?v=389');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -34285,7 +34297,7 @@ const TESTS = [
       W.accrueAll(false);
 
       const L = W.ledger();
-      assert(L.total > 200, 'the crew ledger did not record the haul: ' + L.total);
+      assert(L.total > 80, 'the crew ledger did not record the haul: ' + L.total);  // b389: floor lowered for the 25%→10% eff rebalance
       assert(L.byItem.normal_log === L.total, 'the ledger lost the item breakdown: ' + JSON.stringify(L.byItem));
       assert(L.workers.length === 1 && L.workers[0].total === L.total,
         'the per-worker tally disagrees with the crew total');
@@ -36317,7 +36329,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=388')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=389')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -37755,7 +37767,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=388');
+    const A = await import('../net/accrue.js?v=389');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -37779,7 +37791,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=388');
+    const A = await import('../net/accrue.js?v=389');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

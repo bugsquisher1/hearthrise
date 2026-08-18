@@ -105,7 +105,7 @@
       <div class="crest">🔥</div>
       <h1>The War Table<small>Hearthrise · living priority board</small></h1>
     </div>
-    <div class="stamp">Build <b>b376</b> · live<br>Updated <b>2026-08-18</b></div>
+    <div class="stamp">Build <b>b379</b> · live<br>Updated <b>2026-08-17</b></div>
   </header>
 
   <div class="summary" id="summary"></div>
@@ -139,33 +139,32 @@
     decide:{k:'decide',ic:'⚖️',lbl:'Decision',c:'s-spec',bucket:'spec'},
   };
   const tracks = [
-    { t:'Launch readiness', sub:'Gate for inviting 10–20 new players.', items:[
-      ['Brand-new account signup + true first session','block','P0','THE launch-gating unknown. No one but Tyler has created an account and played from zero on this build. Coordinator can’t create accounts — needs Tyler or a test account.'],
-      ['Dedicated test account','block','P0','Unblocks the above + every future new-player test. Tyler action: throwaway email + signup, or signup while Coordinator observes.'],
-      ['Clean FTUE re-run on current build','backlog','P1','b372 run found bugs (slot-clone, silent death, identity bleed, rename freeze) — all fixed b373/b374, never re-verified clean. Needs the test account.'],
+    { t:'Pre-beta gate + launch readiness', sub:'LOCKED (Tyler 2026-08-17): full list below ships before the 20 keys go out; date slips. Wipe happens before new players.', items:[
+      ['Dedicated test account','block','P0','THE one thing only Tyler can do — Coordinator can’t create accounts. Unblocks the full-systems playthrough + every future new-player test.'],
+      ['Full-systems team playthrough + BALANCE audit','backlog','P0','Before keys: game-designer runs every system (UI/UX/art/systems) on the test account AND audits balance — the three combat multipliers, enchant power, crafting/gathering economy, progression pacing. Finds bugs + over/under-tuning before players do.'],
       ['Wire rooms + banner tiers','prog','P1','Generated & on disk; closes the last visible seam (grey placeholder rooms next to painted everything).'],
-      ['Backups / restore DRILL','backlog','P2','Pro has daily backups; a restore has never been tested. Hard cutover blocker once the server owns progression.'],
+      ['Backups / restore DRILL','backlog','P1','Hard blocker before arming the inventory flip — once the server is the sole copy of the bag, a DB failure must be recoverable. A restore has never been rehearsed.'],
     ]},
-    { t:'Server-authority program', sub:'The integrity foundation — post-launch. Forged client values must never cross to another player.', items:[
-      ['Record flip — server owns gold / skills / inventory','backlog','P1','Plumbed & tested, armed for equipment only. Permanent cure for the craft dupe AND the last self-forgeable economy. Needs Security review before arming inventory.'],
-      ['Inventory baseline adoption (craft-dupe real fix)','backlog','P1','Server must own the whole bag so craft settlement replays against the real inventory. Interim mitigation shipped b376 (no data loss; dupe remains).'],
-      ['Clan pass 2','block','P1','clan_contribute mints 10M/day (no debit), clan_feast_deposit free meter, slot-derivation fix, revoke dormant clans grants. Clan domain security-blocked until done.'],
-      ['Phase 3 ledger accumulator','backlog','P2','Before real player growth (per-write journalling at scale).'],
+    { t:'Server-authority — THE SINGLE ACTIVE TRACK', sub:'Sole priority (Tyler 2026-08-17): no parallel feature work until the server owns the bag. Forged client values must never cross to another player.', items:[
+      ['Inventory flip → arm “server owns the bag”','prog','P0','Step 1 (audit) DONE: the live settle loop already server-settles combat drops, gathering, non-cooking crafting. Un-modelled (would be deleted if armed): cooking, crops, dungeon loot, companion procs. Path SHORTENED — arm safely via a server-owned-item-id predicate that EXCLUDES the un-modelled set. STEP 2 building now (the predicate + guard, UNARMED). Then: security → restore drill → wipe → arm.'],
+      ['Gold + gems → SERVER_OF_RECORD','prog','P0','Security verdict GO-WITH-FIXES. F1–F10 confirmed closed. One P0 blocker (gate clan contribute) ALREADY closed by the b378 clan-block. Remaining: muster/raid grant check + a census guard + the restore drill. Arming = uncomment 2 lines in record.js.'],
+      ['Clan pass 2','block','P1','clan_contribute mints 10M/day (no debit), clan_feast_deposit free meter, slot-derivation fix, revoke dormant clans grants. Revoke of dormant grants is cheap + shippable now; clan_contribute_gold waits on gold ownership above.'],
+      ['Inventory-absolute is a REAL-LAUNCH arm, not a pre-beta one','doc','P1','Farming/dungeon server models are roadmap, NOT flip blockers — they’re excluded (kept safe) until modelled. The b376 merge mitigation is the correct beta posture (no data loss; dupe remains, wipe covers it).'],
       ['Leaderboards off server tables','ship','','Shipped b374 — last cross-player ranking forgery closed.'],
       ['Equip / market / clan-deposit authority','ship','','Shipped — forged values can’t cross into another player’s economy.'],
     ]},
-    { t:'Feature roadmap', sub:'The original ~15-point list — deliberately superseded mid-week by the integrity program; the parked systems resume once the base is proven.', items:[
+    { t:'Feature roadmap', sub:'Parked systems resume once the base is proven and the server owns the bag. Recent ships up top.', items:[
+      ['Sell fix — big stacks pay again','ship','','Shipped b377. Selling >1,000 of an item paid nothing (rolled back); now settled in ≤1,000 batches.'],
+      ['Clans gated as “Coming Soon” + forgeable paths disabled','ship','','Shipped b378. Roadmap card; contribute/feast hard-disabled behind one flag. Also closed the gold-flip security P0.'],
+      ['Elements / enchanting','ship','','Shipped LIVE b379 — bind ember/frost/poison, +15% vs element-weak, server-owned rune spend. See enchant v2 directions in Deferred specs.'],
       ['Monster rework (Tibia 11 classes)','ship','','Folded 111→108, painted portraits.'],
       ['Combat rework (War Table + Fight)','ship','','Shipped b365.'],
-      ['Items / itemization + Review Book','ship','','Review book shipped; item waves wired.'],
-      ['Hunt band fairness','ship','','Applied to prod.'],
-      ['Auto-eat in bounty shop','ship','','100-mark unlock; honesty fixed b373.'],
-      ['Muster → Kindling / Beacon events + donation pools + weekly blessing vote','spec','P2','Approved, NOT built (only name echoes in code). Weekly reset Sunday night; vote closes 1 day prior.'],
+      ['Items / itemization + Review Book · Hunt band · Auto-eat in bounty shop','ship','','All shipped (review book, item waves, hunt-band fairness, 100-mark auto-eat).'],
+      ['Quest-board rework','spec','P0','DESIGN DONE (verified by playing): consolidate 4 overlapping quest systems → one board (Journey/Daily/Weekly/Bounty), capacity-gated draws. Also unblocks server-side DAILY_COUNTERS. Ready to build; queued behind server-auth.'],
+      ['Muster → Kindling / Beacon events + donation pools + weekly blessing vote','spec','P2','Approved; blueprint pending. Weekly reset Sunday night; vote closes 1 day prior.'],
       ['Bestiary Charms (PROG-01) · Diaries (PROG-02) · PROG-03/08','spec','P2','Approved, not built.'],
-      ['Elements / enchanting','backlog','P2','Was gated on the monster rework (done) → now next-eligible. Steal from RS / Melvor.'],
-      ['Completion Log · Quest Board rework · supply-projection UI · world-boss blessing','backlog','P3','From the batch-2 build sequence; mostly unbuilt.'],
-      ['Practice / familiarity tiers','burner','','Back-burner. Spec in progression-depth.md Phase 2.'],
-      ['Buy-offers return','burner','','Back-burner.'],
+      ['Completion Log · supply-projection UI · world-boss blessing','backlog','P3','From the batch-2 build sequence; mostly unbuilt.'],
+      ['Practice / familiarity tiers · Buy-offers return','burner','','Back-burner.'],
     ]},
     { t:'Art pipeline', sub:'Painterly high-detail is the standard now.', items:[
       ['Combat / skills / bounty backgrounds (12)','ship','','Shipped b375 — painterly, per monster class.'],
@@ -179,16 +178,19 @@
       ['Ironman · Group Ironman · Hardcore Ironman · Hardcore (normal) · Hardcore Group Ironman','backlog','','Ironman = server trade restriction; Hardcore = server-attested death. Per-account server flag at creation. Strong retention lever.'],
     ]},
     { t:'Deferred design specs', sub:'Ready to build when slotted.', items:[
+      ['Enchant v2 — permanent per-weapon binding + expensive wipe rune','backlog','P2','Tyler direction: v1 enchant is ephemeral (clears on any weapon swap, 1 rune to re-apply). Make it PERMANENT per-weapon + an EXPENSIVE wipe rune to change — commitment/weight + a rune/gold economy sink. Wipe price is the tuning knob. Decide at the enchant balance pass; build post server-auth.'],
+      ['Enchant v2 — magic as the FLEXIBLE style (dual-element)','backlog','P2','Tyler direction: melee/ranged commit to one bound element; MAGIC can channel a *different* element per fight (cover two weaknesses) = versatility as its identity. Needs a new per-cast element subsystem (magic is just a style today), not a tune.'],
       ['Super-rare “fabled” drops (reveal + clan broadcast + shareable card)','spec','P2','~2-day Phase 1, plumbing 80% there. docs/design/super-rare-drops.md.'],
       ['Layered-additive homestead art','backlog','P3','The clan-castle-style build-up; richer than tier-swap.'],
     ]},
-    { t:'Decisions pending Tyler', sub:'Coordinator is acting on the defaults below until told otherwise.', items:[
-      ['Wipe vs. amnesty at cutover','decide','P1','Acting on amnesty. Recommend ONE wipe right before widening invite, gated on record-flip + currency authority + a restore drill.'],
-      ['Stand up the test account','decide','P0','Highest-leverage launch-prep enabler.'],
+    { t:'Decisions', sub:'Recent calls + what’s still on Tyler.', items:[
+      ['Wipe before beta','ship','','DECIDED (Tyler 2026-08-17): wiping before adding new players. Unblocks arming the inventory flip pre-beta; no back-compat/migration.'],
+      ['Stand up the test account','decide','P0','Still on Tyler — the one launch-prep enabler Coordinator can’t do.'],
+      ['Full plan before beta, date slips','ship','','DECIDED (Tyler 2026-08-17): finish the pre-beta list, then playthrough, then open keys.'],
       ['Room-interior style re-roll','decide','P3','After seeing rooms wired.'],
     ]},
     { t:'Known residuals / small bugs', sub:'', items:[
-      ['Craft material dupe','doc','P2','Accepted pre-wipe trade (dupe > data loss). Real fix = inventory authority.'],
+      ['Craft material dupe','doc','P2','Accepted pre-wipe trade (dupe > data loss). Real fix = inventory authority (the single active track).'],
       ['32px requirement chips below 44px tap target','backlog','P3','Art-director handoff.'],
       ['P3 polish backlog (various from audits)','backlog','P3','In .claude/coordination/DISCOVERIES.md.'],
     ]},

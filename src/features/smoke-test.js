@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=390' directly.
+// modularised, will import { G } from '../state/game.js?v=391' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=390';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=390';
+import { on, snapshot } from '../net/events.js?v=391';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=391';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=390';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=391';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -22617,6 +22617,85 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════
+     OFFLINE-CLARITY — the three away/offline comms fixes.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('OFFLINE-CLARITY 3: the away card attributes gains to the activity that earned them', () => {
+    const H = window.HearthriseHome;
+    assert(H && typeof H.__awayCardHtml === 'function', 'the away card seam must exist');
+    const base = {
+      hrs: 8, awayMs: 8 * 3600000, gainedXp: 0, gainedItems: 0, gainedGold: 0, gainedKills: 0,
+      crits: 0, burnt: 0, capped: false, blessed: false, buffsPaused: false, rateMult: 1,
+      featuredMs: 0, featuredDropMult: 1, died: false, combat: null, at: Date.now(),
+    };
+    // A combat night — kills come only from fighting, so it must say so.
+    const fight = H.__awayCardHtml(Object.assign({}, base, { gainedXp: 900, gainedKills: 42, crits: 6 }));
+    assert(/Earned while fighting/.test(fight), 'a combat night must attribute to fighting: ' + fight);
+    // A gather/craft night — gains but no kills.
+    const gather = H.__awayCardHtml(Object.assign({}, base, { gainedXp: 900, gainedItems: 120 }));
+    assert(/Earned while gathering or crafting/.test(gather),
+      'a non-combat paid night must attribute to gathering or crafting: ' + gather);
+    // The other direction: a quiet/idle night attributes NOTHING — there is
+    // nothing to attribute, and inventing an activity would be the same lie.
+    const quiet = H.__awayCardHtml(Object.assign({}, base, { idle: true }));
+    assert(!/Earned while/.test(quiet), 'a quiet night must not attribute any activity: ' + quiet);
+  }),
+
+  () => tryRun('OFFLINE-CLARITY 2: the Right-now banking row states the cap and whether the activity banks', () => {
+    const H = window.HearthriseHome;
+    assert(H && typeof H.__awayBankingRow === 'function', 'the banking-row seam must exist');
+    const cap = (typeof window.offlineCapHours === 'function') ? window.offlineCapHours() | 0 : 12;
+    // Combat always banks.
+    const inCombat = H.__awayBankingRow({ activeMonster: 'slime', activeSkill: null });
+    assert(/Banking offline/.test(inCombat) && new RegExp('up to ' + cap + 'h').test(inCombat),
+      'combat must read as banking, with the real cap: ' + inCombat);
+    // A gather skill banks (serverAccruedSkill true).
+    const woodcut = H.__awayBankingRow({ activeMonster: null, activeSkill: 'woodcutting' });
+    assert(/Banking offline/.test(woodcut), 'gathering must read as banking: ' + woodcut);
+    // Cooking does NOT bank — the copy must not claim it does (b388 truth).
+    const cooking = H.__awayBankingRow({ activeMonster: null, activeSkill: 'cooking' });
+    assert(!/Banking offline/.test(cooking) && /only earn.* while you are here/.test(cooking),
+      'cooking must NOT be shown as banking: ' + cooking);
+    // Idle: nothing banks, but the cap + what DOES bank is still surfaced proactively.
+    const idle = H.__awayBankingRow({ activeMonster: null, activeSkill: null });
+    assert(/Nothing is banking/.test(idle) && new RegExp('up to ' + cap + 'h').test(idle),
+      'an idle camp must proactively state the cap and what banks: ' + idle);
+  }),
+
+  () => tryRun('OFFLINE-CLARITY 1: a genuine idle absence is never silent — a display-only welcome-back is written', () => {
+    assert(typeof window.maybeIdleAwayReceipt === 'function', 'maybeIdleAwayReceipt must be published');
+    const A = window.HearthriseAccrual;
+    const G = window.G;
+    const prev = G.lastOfflineSummary;
+    const prevGold = G.gold, prevSkills = G.skills;
+    try {
+      const now = Date.now();
+      // A sub-sync span (tab-flip) writes NOTHING — narrating it would be the
+      // b361 "Away 0h" bug pointed the other way.
+      G.lastOfflineSummary = null;
+      const flip = window.maybeIdleAwayReceipt(now, now - 90 * 1000);
+      assert(flip === null && !G.lastOfflineSummary, 'a 90s span must not write a welcome-back');
+      // A real idle absence (8h) writes a display-only receipt: every total 0.
+      G.lastOfflineSummary = null;
+      const rec = window.maybeIdleAwayReceipt(now, now - 8 * 3600000);
+      assert(rec && G.lastOfflineSummary === rec, 'a real idle absence must write a summary');
+      assert(rec.idle === true, 'the idle receipt must be flagged idle');
+      assert(rec.gainedXp === 0 && rec.gainedItems === 0 && rec.gainedGold === 0 && rec.gainedKills === 0,
+        'the idle receipt must credit nothing — it is display-only');
+      // It classifies as an ABSENCE so the Home away card greets the player...
+      assert(A.classifyReceipt(rec) === 'away', 'the idle receipt must classify as away so the card shows');
+      // ...and the card renders its quiet branch, telling them what banks.
+      const html = window.HearthriseHome.__awayCardHtml(rec);
+      assert(/While you were away/.test(html), 'the idle receipt must render the welcome-back card');
+      assert(/Fighting, gathering and crafting bank/.test(html),
+        'the idle card must explain what banks offline: ' + html);
+      assert(!/Earned while/.test(html), 'an idle night attributes no activity');
+    } finally {
+      G.lastOfflineSummary = prev; G.gold = prevGold; G.skills = prevSkills;
+    }
+  }),
+
   () => tryRun('b326-2: the simulation reports the drop multiplier featured time actually paid', () => {
     const C = window.HearthriseCore;
     const S = C.combatSim;
@@ -26167,7 +26246,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=390');
+    const KIT = await import('../data/start-kit.js?v=391');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -31808,7 +31887,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=390');
+    const S = await import('../data/shops.js?v=391');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33202,7 +33281,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=390');
+    const S = await import('../data/shops.js?v=391');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -36392,7 +36471,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=390')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=391')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -37830,7 +37909,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=390');
+    const A = await import('../net/accrue.js?v=391');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -37854,7 +37933,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=390');
+    const A = await import('../net/accrue.js?v=391');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

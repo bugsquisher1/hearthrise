@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 391 — 2026-08-18 (Clearer offline / away progress)
+
+- 🌙 **You'll always get a "welcome back" now.** Come back after being away and the game tells you what happened while you were gone — even on a quiet night — instead of dropping you on a silent dashboard that left you wondering if anything worked.
+- ⏳ **See the offline cap before you hit it.** Home's "Right now" panel now shows how long your current activity banks offline (up to 12h) — and says plainly when something *doesn't* bank, so there are no surprises.
+- 🏷️ **Away rewards say where they came from** — "Earned while fighting" / "Earned while gathering or crafting" — so it's clear what your time away actually paid out. (Reminder: fighting, gathering and crafting bank while you're away; cooking and farming only progress while you're playing.)
+
 ## v0.9.2-beta build 390 — 2026-08-18 (Stable tab + full drop tables)
 
 - 🐴 **The Stable / Companions tab is back in the menu.** It had fallen off the navigation for some players — it's now a proper entry in the left rail (desktop) and the **More** menu (mobile), and opens the companions panel directly.

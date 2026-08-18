@@ -2003,6 +2003,29 @@ function wireServerAccrual(){
        `applyServerEnvelope`, shared with the activity intent — see the block
        above it for why there is one applier and not two. */
     onApplied:function(res){ applyServerEnvelope(res,{intent:false}); },
+    /* OFFLINE-CLARITY fix 1 — the server said "nothing to pay" (accrued:false).
+       If this cycle was a genuine return from an absence (pending span set at the
+       gate above), greet the player with the display-only idle receipt instead
+       of leaving them on a silent dashboard. Any OTHER outcome — accrued (the
+       real summary already landed), unreachable, rate-limited — clears the
+       pending span without a welcome-back, which is the safe direction. */
+    onOutcome:function(o){
+      try{
+        var abs=window._hrPendingAbsenceMs||0;
+        window._hrPendingAbsenceMs=0;
+        /* Only greet when the player was NOT running an away-paying activity.
+           A 'nothing' outcome WHILE fighting/gathering/crafting is a server
+           hiccup, not an idle night — fabricating "nothing banked" there would
+           be its own lie (B338-6). The idle receipt is for the genuinely idle /
+           non-banking (cooking, farming) return. */
+        if(o && o.outcome==='nothing' && abs>0 && !_awayActivityPays()){
+          var nw=Date.now();
+          if(maybeIdleAwayReceipt(nw,nw-abs)){
+            try{ if(window.HearthriseHome&&typeof window.HearthriseHome.render==='function') window.HearthriseHome.render(); }catch(e){}
+          }
+        }
+      }catch(e){}
+    },
   });
   /* ── PHASE 1: LIVE SETTLEMENT (docs/design/live-settlement.md §3) ─────────
      The 90 s settle loop and its triggers are armed HERE — the one place that
@@ -2027,10 +2050,73 @@ function noteLiveSettleEvent(kind){
 }
 window.noteLiveSettleEvent=noteLiveSettleEvent;
 window.serverAccrualActive=serverAccrualActive;
+/* OFFLINE-CLARITY fix 1 — the display-only "you were away, nothing banked"
+   receipt. It CREDITS NOTHING: every gained total is 0, so it can never mint
+   progress and is safe on the server-authoritative build. Its only job is to
+   make classifyReceipt() return 'away' (via a real awayMs) so the Home welcome-
+   back card's quiet branch renders and tells the player what banks offline.
+   Shared by both processOffline paths (client-authoritative early-return, and
+   the server 'nothing' outcome hook) so the two cannot tell different stories. */
+/* Is the CURRENTLY-running activity one that banks while away? Combat always
+   does; a skill does iff the accrual engine settles it (the SAME predicate the
+   server uses — cooking/farming are false). Used to suppress the idle welcome-
+   back when a real banking activity was running. */
+function _awayActivityPays(){
+  if(G.activeMonster) return true;
+  var sk=G.activeSkill;
+  if(!sk) return false;
+  try{
+    var SA=window.HearthriseSkillAuthority;
+    if(SA&&typeof SA.serverAccruedSkill==='function') return !!SA.serverAccruedSkill(sk);
+  }catch(e){}
+  return false;
+}
+function maybeIdleAwayReceipt(now,watermark){
+  if(typeof document!=='undefined' && document.hidden) return null;
+  now=(typeof now==='number'&&isFinite(now))?now:Date.now();
+  const A=window.HearthriseAccrual;
+  const SYNC=(A&&typeof A.SYNC_MAX_MS==='number')?A.SYNC_MAX_MS:600000;
+  const absMs=Math.max(0, now-(typeof watermark==='number'?watermark:now));
+  /* Below the sync ceiling this is a live settle / tab-flip, not an absence —
+     narrating it as one is the exact b361 "Away 0h" bug pointed the other way. */
+  if(absMs<SYNC) return null;
+  /* A real receipt already landed this cycle (the server credited an active
+     absence, or the client path simulated one) — do not overwrite it with an
+     empty one. */
+  const cur=G.lastOfflineSummary;
+  if(cur && cur.at && (now-cur.at)<30000 && !cur.idle) return null;
+  const cap=(typeof offlineCapHours==='function')?offlineCapHours():12;
+  const hrs=+(absMs/3600000).toFixed(1);
+  G.lastOfflineSummary={
+    hrs, awayMs:absMs, gainedItems:0, gainedXp:0, gainedGold:0, gainedKills:0,
+    burnt:0, combat:null, budgetHrs:cap, capped:absMs>=(cap*3600000-50000),
+    at:Date.now(), blessed:false, buffsPaused:false, buffPaidMs:0, buffsExpired:[],
+    crits:0, died:false, diedAfterMs:0, diedTo:null, featuredMs:0, featuredDropMult:1,
+    rateMult:1, idle:true,
+  };
+  try{ if(typeof notify==='function') notify('You were away '+fmtSince(absMs)+' — nothing was set to bank. Fighting, gathering or crafting earns while you are gone.','info'); }catch(e){}
+  return G.lastOfflineSummary;
+}
+window.maybeIdleAwayReceipt=maybeIdleAwayReceipt;
 function processOffline(){
   /* b337: THE AUTHORITY GATE. See the block above. Must stay first. */
   if(serverAccrualActive()){
     wireServerAccrual();
+    /* OFFLINE-CLARITY fix 1 — remember how long this return has been away, read
+       BEFORE the server settle, so a 'nothing to pay' outcome (idle absence) can
+       still greet the player. The watermark is level with lastSeen during live
+       play, so a tab-flip reads ~0 and never trips the welcome-back. Zeroed while
+       hidden — a background settle is not a return. */
+    try{
+      var _rn=Date.now();
+      /* READ the watermark, never CREATE it: ensureOfflineBudget would re-add a
+         server-owned field the load path just stripped (B340-3). A stripped /
+         absent watermark leaves the absence UNKNOWN, which is the honest 0. */
+      var _rb=G.offlineBudget;
+      var _rwm=(_rb&&typeof _rb.at==='number'&&isFinite(_rb.at))?_rb.at:null;
+      window._hrPendingAbsenceMs=(_rwm===null||(typeof document!=='undefined'&&document.hidden))
+        ? 0 : Math.max(0,_rn-_rwm);
+    }catch(e){ window._hrPendingAbsenceMs=0; }
     /* b338: ENSURE BEFORE ACCRUE. `player_state` starts empty for every player,
        and hr-accrue answers `no_character` until a row exists — so without this
        the b337 switch could never credit anybody. `ensureThenAccrue` asks the
@@ -2131,7 +2217,15 @@ function processOffline(){
     window._hrOfflineDiag=_diag;
     localStorage.setItem('hr:offlineDiag', JSON.stringify(_diag));
   }catch(e){}
-  if(hrs<=0) return;
+  /* OFFLINE-CLARITY fix 1 — NEVER RETURN TO SILENCE. A genuine absence that
+     credited nothing (nothing was running, or nothing that banks) used to leave
+     the returning player on a normal dashboard with no acknowledgement at all —
+     which reads as "did my time away do anything? is it broken?". Write a
+     DISPLAY-ONLY welcome-back receipt (grants nothing; every total is 0) so the
+     Home away card's quiet branch greets them and explains what banks. Gated to
+     a real absence (>= the sync ceiling, i.e. not a tab-flip) and to a live
+     return (not while hidden). */
+  if(hrs<=0){ try{ maybeIdleAwayReceipt(_now,_watermark); }catch(e){} return; }
   const cap=offlineCapHours();
   /* ── THE CREDITED WINDOW (Ruling 2) ──────────────────────────────────────
      `hrs` says HOW MUCH of the absence is paid; this says WHICH HOURS. One

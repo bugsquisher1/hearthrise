@@ -83,7 +83,7 @@
          is not a colour, so it is not a token, but its fallback surface above
          is. */
       R + '.hd-hearth::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;',
-      'background:url(assets/brand/hearthrise-splash.jpg?v=390) 50% 40%/cover no-repeat}',
+      'background:url(assets/brand/hearthrise-splash.jpg?v=391) 50% 40%/cover no-repeat}',
       /* Scrim, legibility-aware. The identity block sits bottom-left and the
          ledger bottom-right, so both flanks and the floor darken to
          --scene-scrim-2 while the centre-top stays open for the painting. Two
@@ -325,6 +325,19 @@
          reads a step brighter than a supporting caption. */
       R + '.hd-away-fight{margin-top:3px;font-size:calc(14.5px * var(--ui-scale, 1));',
       'color:var(--ink-2) !important;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.3}',
+      /* fix 3 — the attribution caption. Quiet ink; it names the activity the
+         gains came from without competing with the totals above it. */
+      R + '.hd-away-src{margin-top:3px;font-size:calc(14.5px * var(--ui-scale, 1));',
+      'color:var(--ink-3) !important;font-weight:600;line-height:1.3}',
+      /* fix 2 — the proactive banking row (Right now). Two tones, both tokens:
+         moss when the running activity banks offline, muted ink when it does not
+         (idle, cooking, farming). Never red — not banking is a heads-up, not a
+         failure. */
+      R + '.hd-bank{align-items:flex-start}',
+      R + '.hd-bank .mi{margin-top:1px}',
+      R + '.hd-bank.is-on b{color:var(--green) !important}',
+      R + '.hd-bank .hd-bank-txt{color:var(--ink-2) !important;line-height:1.35}',
+      R + '.hd-bank.is-off .hd-bank-txt{color:var(--ink-3) !important}',
       R + '.hd-away-notes{flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:4px}',
       R + '.hd-away-note{display:flex;align-items:flex-start;gap:7px;line-height:1.35;',
       'font-size:calc(14.5px * var(--ui-scale, 1))}',
@@ -698,6 +711,16 @@
       ? '<button class="hd-cta hd-away-cta" data-hd="trainskill">Train a skill</button>'
       : '';
 
+    /* OFFLINE-CLARITY fix 3 — ATTRIBUTE THE GAINS TO THE ACTIVITY THAT EARNED
+       THEM. Derived only from facts the receipt states, so it can never mislabel:
+       kills/crits come exclusively from combat, and the only other away-paying
+       activities are gathering and crafting (cooking/farming do not bank). A
+       quiet/idle night names nothing — there is nothing to attribute. */
+    var earnedWhile = (off.gainedKills || off.crits) ? 'fighting'
+      : (bits.length ? 'gathering or crafting' : null);
+    var srcHtml = earnedWhile
+      ? '<div class="hd-away-src">Earned while ' + esc(earnedWhile) + '.</div>' : '';
+
     return '<div class="hd-awayband"><div class="hd-h"><h3>While you were away</h3></div>' +
       '<div class="hd-away">' +
         '<div class="hd-away-sum">' +
@@ -707,10 +730,54 @@
               (bits.length ? ' — ' + esc(bits.join(' · '))
                 : (quiet ? ' — your camp was quiet.' : '')) + '</div>' +
             (combatBits.length ? '<div class="hd-away-fight">' + esc(combatBits.join(' · ')) + '</div>' : '') +
+            srcHtml +
           '</div>' +
         '</div>' +
         '<div class="hd-away-notes">' + noteHtml + ctaHtml + '</div>' +
       '</div></div>';
+  }
+
+  /* OFFLINE-CLARITY fix 2 — does the CURRENT activity bank while away, and what
+     is the cap? Returns a compact `.hd-mini` row for the "Right now" section.
+       • combat always banks;
+       • a skill banks iff the accrual engine settles it — HearthriseSkillAuthority
+         .serverAccruedSkill is the SAME predicate the server uses, so this cannot
+         claim a skill banks that the engine will not pay (cooking/farming are
+         false there, which is the truth home-dashboard must tell — see b388);
+       • idle banks nothing.
+     The cap is offlineCapHours() (12h F2P, more with Offline+/perks/property/clan),
+     so the number shown is the player's actual personal ceiling, not a constant. */
+  function awayCapHours() {
+    try { if (typeof window.offlineCapHours === 'function') return window.offlineCapHours() | 0; } catch (e) {}
+    return 12;
+  }
+  function activityBanks(G) {
+    if (G.activeMonster) return true;               // combat always banks
+    var sk = G.activeSkill;
+    if (!sk) return false;                          // idle
+    try {
+      var SA = window.HearthriseSkillAuthority;
+      if (SA && typeof SA.serverAccruedSkill === 'function') return !!SA.serverAccruedSkill(sk);
+    } catch (e) {}
+    // Fail toward the honest "we cannot promise it banks" when the predicate is
+    // unavailable, rather than over-claiming.
+    return false;
+  }
+  function awayBankingRow(G) {
+    var cap = awayCapHours();
+    var running = !!(G.activeMonster || G.activeSkill);
+    if (running && activityBanks(G)) {
+      return '<div class="hd-card hd-mini hd-bank is-on"><div class="mi">' +
+        gly('uiIdle', 20, '', 'var(--green)') + '</div>' +
+        '<div class="hd-bank-txt">Banking offline — <b>up to ' + cap + 'h</b> while you are away.</div></div>';
+    }
+    var why = running
+      ? 'This activity only earns while you are here.'
+      : 'Nothing is banking right now.';
+    return '<div class="hd-card hd-mini hd-bank is-off"><div class="mi">' +
+      gly('uiIdle', 20, '', 'var(--ink-3)') + '</div>' +
+      '<div class="hd-bank-txt">' + why +
+      ' Fighting, gathering or crafting banks up to ' + cap + 'h offline.</div></div>';
   }
 
   /* b227 — this used to be a private regex table that only ever saw a task's
@@ -1127,6 +1194,11 @@
       html += '<div class="hd-card hd-mini"><div class="mi">' + gly('uiIdle', 20, '', 'var(--ink-3)') + '</div>' +
         '<div>Idle — pick a skill or a monster to start earning.</div></div>';
     }
+    /* OFFLINE-CLARITY fix 2 — PROACTIVE CAP COMMUNICATION. State the offline cap
+       and whether what is running NOW will bank, BEFORE the player discovers the
+       cap by hitting it. Truthful: combat / gathering / crafting bank the whole
+       time you are away; cooking, farming and an idle camp do not. */
+    html += awayBankingRow(G);
     html += '</div>';
 
     // Renown — the long game. Status, so it lives in the status rail.
@@ -1334,6 +1406,6 @@
      seconds in" stayed unsaid for a whole build. A renderer that no test can
      quote is a renderer that will lie again. It takes a summary and returns
      HTML; it touches nothing. */
-  window.HearthriseHome = { render: render, __awayCardHtml: awayCardHtml };
+  window.HearthriseHome = { render: render, __awayCardHtml: awayCardHtml, __awayBankingRow: awayBankingRow };
   console.log('[home-dashboard] loaded');
 })();

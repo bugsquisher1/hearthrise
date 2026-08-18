@@ -30,6 +30,8 @@ _Last updated: 2026-08-18 (b382). Current build: **b382**, live._
 |---|---|---|---|
 | Sell fix (b377) · Clan gate (b378) · Elements/enchanting (b379) | ✅ | — | All shipped live. Enchant's full logged-in round-trip still to confirm on QA account. |
 | Server-auth safety machinery (b380 inventory · b381 gold · b382 baseline) | ✅ dormant | — | The flips' safety layers, shipped dormant. See §2 for arm runway. |
+| Beta bug batch — farming-66 / cooking-XP-reset (b388) · workers OP (b389) · Stable tab + monster drops (b390) | ✅ | — | b388: client-only skills (farming/cooking) no longer stomped downward on reconcile (skill-authority.js carve-out) — the real "Farming locked at 66 / cooked food vanished" root cause. b389: worker crew was 3.12× an active player 24/7 free — eff 25%→10%, steeper hire costs. b390: Stable tab re-added to nav + legacy block-32 dup deleted; monster cards show full drop table. Remaining from batch: offline-XP *clarity* (b391, in progress) + Mithril report (awaiting Tyler resend). |
+| Offline-clarity UX (b391) | 🔧 in progress | P1 | The communication half of the offline-confusion complaints (bug half fixed in b388). game-designer implementing: never-return-to-silence card, proactive cap messaging, unmissable return payoff. Worktree → integrate + visual gate. |
 | Quest-board rework | ⏸️ PAUSED | — | Design DONE, build PAUSED until scalable-state. Consolidates 4 quest systems → one board; unblocks DAILY_COUNTERS. Resume after §9. |
 | Kindling / Beacon events (Muster) | ⏸️ PAUSED | — | Approved design; build PAUSED until scalable-state. |
 

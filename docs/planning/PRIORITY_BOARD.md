@@ -105,6 +105,8 @@ _Backend-architect plan delivered 2026-08-17 (review-ready, in security review).
 |---|---|---|---|
 | Super-rare "fabled" drops (reveal + clan broadcast + shareable card) | 📋 | P2 | ~2-day Phase 1, plumbing 80% there. Behind integrity work. `docs/design/super-rare-drops.md`. |
 | Layered-additive homestead art | 🧊 | P3 | The clan-castle-style build-up; richer than tier-swap. |
+| Enchant v2 — permanent per-weapon binding + expensive wipe rune | 🧊 | P2 | Tyler direction (2026-08-17): v1 enchant is ephemeral (clears on any weapon swap, re-applied for 1 rune). Make it PERMANENT per-weapon (each weapon remembers its element, survives swaps) and require an EXPENSIVE "wipe" rune to change it — for commitment/weight + a rune/gold economy sink. Needs per-weapon-instance tracking (v1 deferred it). Wipe price is the key tuning knob (meaningful vs. punishing). Decide permanence + wipe cost in the enchant balance pass at the launch gate; build post server-authority. |
+| Enchant v2 — magic as the FLEXIBLE style (dual-element) | 🧊 | P2 | Tyler direction (2026-08-17): today magic enchants identically to melee (one element, +15% vs weak). Give the three styles distinct identities: melee/ranged commit to their one bound element; MAGIC can channel a *different* element per fight, covering two weaknesses = versatility as its identity. NOTE: the current build has no per-cast element selection (magic is just a combat style), so this is a NEW magic subsystem, not a tune. Decide alongside enchant permanence in the enchant/magic-identity design pass; post server-authority. |
 
 ---
 

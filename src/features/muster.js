@@ -1636,6 +1636,23 @@
   function renderMusterCard() {
     var host = document.getElementById('hr-muster-card');
     if (!host) return;
+    /* b385: the muster is a clan-branded social surface deferred with the rest of
+       the clan program — while CLAN_LAUNCHED is false it shows the SAME coming-soon
+       card as the clan panel and the weekly boss, never a Join / Rally / Claim
+       control. Client GATE only, behind the one flag; flip CLAN_LAUNCHED → the real
+       card below returns. */
+    var CL = window.HearthriseClans;
+    if (CL && typeof CL.clanLaunched === 'function' && !CL.clanLaunched()) {
+      host.innerHTML = '<div class="ev-eyebrow">The muster</div>' +
+        ((typeof CL.comingSoonHtml === 'function')
+          ? CL.comingSoonHtml('The Muster',
+              'A rolling call-to-arms where the whole realm rallies on a shared goal ' +
+              'in a timed window, then splits the spoils. It opens alongside clans, ' +
+              'once there are enough of you online for a muster to feel like a crowd. ' +
+              'Keep rising solo — you’ll answer the horn when it sounds.')
+          : '');
+      return;
+    }
     var s = pillState(), st = ensureState(), live = liveWindow(), slots = displaySlots();
     var head = live ? live.event : (nextWindow() ? nextWindow().event : EVENTS[0]);
     var cta = '';
@@ -1836,6 +1853,8 @@
     _forceSupport: function (v) { forcedSupport = (v == null) ? null : !!v; },
     // UI
     render: renderEvents, renderPill: tickPill, openModal: openModal,
+    // Test seams for the beta clan-gate assertion (b385).
+    _ensurePanel: ensurePanel, _renderMusterCard: renderMusterCard,
     // Server-contract seams — pure, no I/O. Exposed for the regression suite.
     _computeState: computeState, _fmtClock: fmtClock,
     _reduceJoin: reduceJoin, _reduceContribute: reduceContribute, _reduceClaim: reduceClaim,

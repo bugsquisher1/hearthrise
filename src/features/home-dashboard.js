@@ -83,7 +83,7 @@
          is not a colour, so it is not a token, but its fallback surface above
          is. */
       R + '.hd-hearth::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;',
-      'background:url(assets/brand/hearthrise-splash.jpg?v=387) 50% 40%/cover no-repeat}',
+      'background:url(assets/brand/hearthrise-splash.jpg?v=388) 50% 40%/cover no-repeat}',
       /* Scrim, legibility-aware. The identity block sits bottom-left and the
          ledger bottom-right, so both flanks and the floor darken to
          --scene-scrim-2 while the centre-top stays open for the painting. Two
@@ -614,8 +614,12 @@
     var quiet = !bits.length && !combatBits.length;
     if (quiet && !death) {
       notes.push({ tone: 'held', icon: 'uiSprout',
-        text: 'Nothing was running that pays while you are away. Gathering, cooking and '
-          + 'smithing bank the whole time you are gone — set one going before you close the tab.' });
+        /* b388 — do NOT promise cooking here: cooking is not server-paid yet
+           (declarationFor downgrades it to idle), so it earns NOTHING while away.
+           List only what actually banks offline: combat, gathering, and non-cooking
+           crafting/smithing. Restore cooking to this line only when it pays away. */
+        text: 'Nothing was running that pays while you are away. Fighting, gathering '
+          + 'and crafting bank the whole time you are gone — set one going before you close the tab.' });
     }
     /* "At the base rate" on a night that paid nothing is noise standing where
        an explanation should be. Every other case keeps it. */

@@ -575,16 +575,12 @@
        reachable through it. Copy reuses the real pitch so it reads as a designed
        feature. Card styling is tokens-only (see .clan-soon in clan-seat.css). */
     if (!CLAN_LAUNCHED) {
-      cl.innerHTML =
-        '<div class="clan-soon">' +
-          '<div class="clan-soon-badge">Coming in Open Beta 1</div>' +
-          '<h3>Clans &amp; Castles</h3>' +
-          '<p>Raise a shared castle with your circle: a clan treasury, six rooms, ' +
-          'shared Work Orders, clan chat, and a weekly boss no one downs alone. ' +
-          'We’re opening this once the realm is populated enough for holds to ' +
-          'feel alive. For now, focus on your own rise — your progress carries ' +
-          'straight into your clan when they land.</p>' +
-        '</div>';
+      cl.innerHTML = comingSoonHtml('Clans & Castles',
+        'Raise a shared castle with your circle: a clan treasury, six rooms, ' +
+        'shared Work Orders, clan chat, and a weekly boss no one downs alone. ' +
+        'We’re opening this once the realm is populated enough for holds to ' +
+        'feel alive. For now, focus on your own rise — your progress carries ' +
+        'straight into your clan when they land.');
       return;
     }
     /* b225 (#18): this screen has no card head above it, so every state has to
@@ -737,8 +733,25 @@
     });
   }
 
+  /* b385: the ONE coming-soon idiom for every deferred clan surface. The clan
+     panel (renderClanSection above), the weekly clan boss / Hunt raid, the
+     muster and the dungeon-strip clan-boss shortcut all short-circuit through
+     this while CLAN_LAUNCHED is false, so every clan entry reads as the SAME
+     designed "Coming in Open Beta 1" card and nothing value-crossing renders.
+     Tokens-only markup (.clan-soon in clan-seat.css). `title`/`body` are trusted
+     literals from callers, never user input. Flip CLAN_LAUNCHED → all callers
+     fall through to their real UI. */
+  function comingSoonHtml(title, body) {
+    return '<div class="clan-soon">' +
+        '<div class="clan-soon-badge">Coming in Open Beta 1</div>' +
+        '<h3>' + escapeHtml(title) + '</h3>' +
+        '<p>' + body + '</p>' +
+      '</div>';
+  }
+
   window.HearthriseClans = {
     clanLaunched: clanLaunched,
+    comingSoonHtml: comingSoonHtml,
     PERKS: PERKS,
     perksFor: perksFor,
     myPerks: myPerks,

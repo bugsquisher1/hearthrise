@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=387' directly.
+// modularised, will import { G } from '../state/game.js?v=388' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=387';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=387';
+import { on, snapshot } from '../net/events.js?v=388';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=388';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=387';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=388';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -3745,7 +3745,12 @@ const TESTS = [
       assert(st.claimed[R.weekKey()] === true, 'the current week must survive the prune');
 
       // Claim UI state: a downed pool offers the chest exactly until it is taken.
-      const panel = document.getElementById('panel-dungeons');
+      // b385: the rendered raid card is a clan surface — gated to coming-soon while
+      // CLAN_LAUNCHED is false, so this functional-UI assertion only holds once the
+      // flag flips. The pure claim/reduce contract above is unaffected and still runs.
+      const _CL = window.HearthriseClans;
+      const _launched = _CL && typeof _CL.clanLaunched === 'function' && _CL.clanLaunched();
+      const panel = _launched && document.getElementById('panel-dungeons');
       if (panel) {
         // b223: a downed solo pool is `max` set AND `hp` at zero — an
         // unmeasured pool (max null) is not downed, it has never been fought.
@@ -4197,12 +4202,24 @@ const TESTS = [
       const card = document.getElementById('hr-raid-card');
       assert(card && card.parentElement && card.parentElement.id === 'hr-events-raid',
         'the Hunt card must live in its own Events section');
-      assert(/Lone Hunt/.test(card.innerHTML), 'signed out, the card must offer the Lone Hunt');
-      assert(/Unmeasured/.test(card.innerHTML),
-        'an unstruck solo pool must say so, not invent a number it has not measured');
-      assert(!/NaN|undefined|\[object/.test(card.innerHTML), 'the card rendered a hole');
-      assert(card.getBoundingClientRect().height > 60,
-        'the Hunt card collapsed again — this is the b220 grid bug recurring');
+      // b385: the weekly clan boss is a gated clan surface while CLAN_LAUNCHED is
+      // false — the DOM card reads coming-soon, not the functional Lone Hunt. The
+      // functional-card assertions below only hold once the flag flips (the b385
+      // gate test pins the coming-soon state); the pure declare/ceiling contract
+      // that follows is independent of the render and always runs.
+      const _CL0 = window.HearthriseClans;
+      const _launched0 = _CL0 && typeof _CL0.clanLaunched === 'function' && _CL0.clanLaunched();
+      if (_launched0) {
+        assert(/Lone Hunt/.test(card.innerHTML), 'signed out, the card must offer the Lone Hunt');
+        assert(/Unmeasured/.test(card.innerHTML),
+          'an unstruck solo pool must say so, not invent a number it has not measured');
+        assert(!/NaN|undefined|\[object/.test(card.innerHTML), 'the card rendered a hole');
+        assert(card.getBoundingClientRect().height > 60,
+          'the Hunt card collapsed again — this is the b220 grid bug recurring');
+      } else {
+        assert(card.querySelector('.clan-soon'),
+          'the gated weekly clan boss must render the coming-soon card, not a functional Hunt');
+      }
       // The tier ceiling must be readable from castle state without importing
       // any of the castle's render code.
       window.HearthriseClans = { myClan: () => ({ castle_tier: 4, upgrades: { war_room: 6 }, myRole: 'officer' }) };
@@ -8145,6 +8162,15 @@ const TESTS = [
                        at: M.now(), joined: false, provisional: false });
       window.showTab('events');
 
+      // b385: the muster is a gated clan surface while CLAN_LAUNCHED is false —
+      // the rendered card reads coming-soon and shows no pledge/rally affordance
+      // (which is also, trivially, "no pledge button offered"). The pledge-copy
+      // assertions only hold once the flag flips; the pure pledge-reduce contract
+      // above is independent of the render and always runs. The b385 gate test
+      // pins the coming-soon state.
+      const _CLm = window.HearthriseClans;
+      const _launchedM = _CLm && typeof _CLm.clanLaunched === 'function' && _CLm.clanLaunched();
+
       // 1 — un-migrated: no buttons at all. Not a greyed one, not a "coming
       // soon", and above all not a promise recorded nowhere.
       M._forceSupport(false);
@@ -8154,16 +8180,21 @@ const TESTS = [
       assert(!card.querySelector('[data-mu="pledge"]'),
         'an un-migrated project still offered a pledge button');
 
-      // 2 — supported: the affordance is there and states the real numbers.
-      M._forceSupport(true);
-      M.render();
-      const text = document.getElementById('hr-muster-card').textContent || '';
-      assert(/half honors/i.test(text),
-        'the rally card never tells the player what answering in absence is worth');
-      assert(/\d/.test(text.split('half honors')[1] || ''),
-        'the card must state the actual reward, not a vague promise');
-      assert(/automatically/i.test(text),
-        'the card must state the auto-join rule — it is the reason to mark a rally');
+      if (_launchedM) {
+        // 2 — supported: the affordance is there and states the real numbers.
+        M._forceSupport(true);
+        M.render();
+        const text = document.getElementById('hr-muster-card').textContent || '';
+        assert(/half honors/i.test(text),
+          'the rally card never tells the player what answering in absence is worth');
+        assert(/\d/.test(text.split('half honors')[1] || ''),
+          'the card must state the actual reward, not a vague promise');
+        assert(/automatically/i.test(text),
+          'the card must state the auto-join rule — it is the reason to mark a rally');
+      } else {
+        assert(card.querySelector('.clan-soon'),
+          'the gated muster must render the coming-soon card, not a functional rally');
+      }
     } finally {
       M._forceSupport(null);
       if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
@@ -22895,6 +22926,55 @@ const TESTS = [
     }
   }),
 
+  /* ── BETA GATE (b385): the gate is no longer just the clan PANEL. Every
+     clan-branded surface — the weekly clan boss / Hunt raid, the muster, and the
+     dungeon-strip clan-boss shortcut — must present the SAME coming-soon card
+     while CLAN_LAUNCHED is false, and render NOTHING functional (no Strike /
+     Claim / Declare / Join / Rally). The b378 gate only covered the panel +
+     contribute()/feast, so these leaked past it and presented as broken
+     (unclaimable chest, un-resetting boss). All behind the one flag. */
+  () => tryRun('beta-gate b385: raid, muster and clan-boss shortcut all render the coming-soon card (no functional clan control)', () => {
+    const Cl = window.HearthriseClans;
+    assert(Cl && typeof Cl.clanLaunched === 'function', 'HearthriseClans.clanLaunched must be published');
+    assert(Cl.clanLaunched() === false, 'the beta clan gate must be CLOSED (CLAN_LAUNCHED === false)');
+    assert(typeof Cl.comingSoonHtml === 'function', 'HearthriseClans.comingSoonHtml (the shared idiom) must be published');
+
+    const Mu = window.HearthriseMuster;
+    const Ra = window.HearthriseRaids;
+    assert(Mu && typeof Mu._ensurePanel === 'function' && typeof Mu._renderMusterCard === 'function',
+      'muster test seams (_ensurePanel/_renderMusterCard) must be published');
+    assert(Ra && typeof Ra.render === 'function', 'HearthriseRaids.render must be published');
+
+    // Build the Events panel — the destination the dungeon-strip clan-boss
+    // shortcut ("Events" button) navigates to — and render its clan surfaces.
+    const panel = Mu._ensurePanel();
+    assert(panel, 'the Events panel must be creatable');
+
+    // (a) the weekly clan boss / Hunt raid → coming-soon, no functional control.
+    const rp = Ra.render(); if (rp && rp.catch) rp.catch(() => {});
+    const raidSlot = document.getElementById('hr-events-raid');
+    assert(raidSlot, 'the Events panel must host the weekly-clan-boss slot');
+    const raidCard = raidSlot.querySelector('.clan-soon');
+    assert(raidCard, 'the gated weekly clan boss must render the .clan-soon coming-soon card');
+    assert(/coming/i.test(raidCard.textContent), 'the raid card must read as a roadmap feature');
+    assert(!raidSlot.querySelector('[onclick*="HearthriseRaids"]'),
+      'no Strike/Claim/Declare control may be reachable on the gated weekly clan boss');
+    assert(!raidSlot.querySelector('.btn-primary'),
+      'no primary action may render on the gated weekly clan boss');
+
+    // (b) the muster card → coming-soon, no Join/Rally/Claim.
+    Mu._renderMusterCard();
+    const muHost = document.getElementById('hr-muster-card');
+    assert(muHost, 'the Events panel must host the muster card');
+    const muCard = muHost.querySelector('.clan-soon');
+    assert(muCard, 'the gated muster must render the .clan-soon coming-soon card');
+    assert(/coming/i.test(muCard.textContent), 'the muster card must read as a roadmap feature');
+    assert(!muHost.querySelector('[data-mu]'),
+      'no Join/Rally/Claim control may be reachable on the gated muster');
+    assert(!muHost.querySelector('.btn-primary'),
+      'no primary action may render on the gated muster');
+  }),
+
   () => tryRun('b330: the kick control sends clan_kick with a CLAMPED ban, and the default is 168h', () => {
     const Cl = window.HearthriseClans;
     assert(Cl && typeof Cl.kick === 'function', 'HearthriseClans.kick must be published');
@@ -26012,7 +26092,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=387');
+    const KIT = await import('../data/start-kit.js?v=388');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -31653,7 +31733,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=387');
+    const S = await import('../data/shops.js?v=388');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33047,7 +33127,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=387');
+    const S = await import('../data/shops.js?v=388');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -34812,6 +34892,90 @@ const TESTS = [
     assert(G.gold === 9, 'gold remains absolutely authoritative — its writer HAS moved');
   }),
 
+  /* B385-CLIENTSKILL — A CLIENT-ONLY SKILL IS NEVER DRAGGED DOWN BY THE ABSOLUTE
+     RECONCILE. Two player reports, ONE bug: "Farming stuck at level 66" and
+     "cooking XP resets on reload".
+
+     ROOT CAUSE. With equip authority armed (the prod state), the skills reconcile
+     is ABSOLUTE: `skills[k] = absolute ? xp : Math.max(have, xp)` — the server's
+     xp is ASSIGNED, including DOWNWARD, which is the anti-forgery property. But
+     FARMING (no gather node, not a declarable activity — XP granted client-side
+     in harvestPlot) and COOKING (the un-modeled artisan lane, downgraded to idle)
+     have NO server accrual path, so the server's xp for them is FROZEN at its
+     last value and every 90s settle + every reload re-asserts it downward.
+
+     THE FIX. `serverAccruedSkill(k)` (src/data/skill-authority.js), derived from
+     the SAME sources the engine reads (combat styles ∪ GATHER_SKILLS ∪ payable
+     artisan lanes), gates the downward assign: a client-only skill follows
+     Math.max and can only rise. A future server-accrued skill is not carved out;
+     a new client-only skill is protected automatically; an unknown skill is
+     protected fail-closed.
+
+     This test asserts BOTH halves in ONE armed run: client-only skills survive a
+     lower server value (assertions 1-2), the CONTROL server-accrued skill (attack)
+     still reconciles absolutely DOWNWARD so anti-forgery is intact (assertion 3),
+     and an OMITTED skill is still preserved (assertion 4).
+
+     MUTATION: delete `&& serverAccruedSkill(k)` in applyEnvelopeState → farming
+     and cooking get assigned downward and assertions 1-2 go RED. */
+  () => tryRun('B385-CLIENTSKILL: client-only skills (farming/cooking) are not reduced by the absolute envelope; server-accrued skills still are', () => {
+    const A = window.HearthriseAccrual;
+    const SA = window.HearthriseSkillAuthority;
+    assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
+    assert(A && typeof A.markEquipAuthorityLive === 'function', 'markEquipAuthorityLive must be published');
+    assert(SA && typeof SA.serverAccruedSkill === 'function', 'serverAccruedSkill must be published');
+
+    /* The derived partition is the source of truth, not two hardcoded strings.
+       Confirm the reported skills are client-only and the control IS accrued. */
+    assert(SA.serverAccruedSkill('farming') === false, 'farming must be client-only (no server accrual path)');
+    assert(SA.serverAccruedSkill('cooking') === false, 'cooking must be client-only (un-modeled artisan lane)');
+    assert(SA.serverAccruedSkill('attack') === true, 'attack must be server-accrued (combat)');
+    assert(SA.serverAccruedSkill('woodcutting') === true, 'woodcutting must be server-accrued (gather)');
+    assert(SA.serverAccruedSkill('smithing') === true, 'smithing must be server-accrued (payable artisan)');
+    /* Completeness: every SKILLS_DEF id lands accrued-or-client-only, no limbo. */
+    assert(SA.unclassifiedSkills().length === 0,
+      'every authored skill must classify — unclassified: ' + SA.unclassifiedSkills().join(', '));
+
+    const wasAbsolute = A.isEnvelopeAbsolute();
+    A.markEquipAuthorityLive(true);
+    try {
+      assert(A.isEnvelopeAbsolute() === true, 'the envelope must be ABSOLUTE with equip authority armed (test precondition)');
+
+      /* level-70-ish farming/cooking xp, and a level-1000 attack. The envelope
+         then NAMES all three at a LOWER value — the frozen-server-xp shape. */
+      const G = { skills: { farming: 900000, cooking: 900000, attack: 5000, stonemason: 4321 } };
+      A.applyEnvelopeState(G, {
+        state: {},
+        skills: {
+          farming: { xp: 500000 },   // lower — must NOT reduce (client-only)
+          cooking: { xp: 500000 },   // lower — must NOT reduce (client-only)
+          attack:  { xp: 3000 },     // lower — MUST reduce (server-accrued, anti-forgery)
+          // stonemason omitted
+        },
+        inventory: {},
+      });
+
+      // 1 + 2 — client-only skills are NOT pulled down.
+      assert(G.skills.farming === 900000,
+        'FARMING STUCK-AT-66 BUG: a client-only skill must not be reduced by the absolute envelope — got ' + G.skills.farming);
+      assert(G.skills.cooking === 900000,
+        'COOKING-RESETS BUG: a client-only skill must not be reduced by the absolute envelope — got ' + G.skills.cooking);
+      // 3 — CONTROL: the anti-forgery property is intact for a server-accrued skill.
+      assert(G.skills.attack === 3000,
+        'a SERVER-ACCRUED skill must still reconcile absolutely, including downward (anti-forgery) — got ' + G.skills.attack);
+      // 4 — the omitted-skill protection still holds under absolute.
+      assert(G.skills.stonemason === 4321,
+        'a skill the envelope omits must still survive even under absolute — got ' + G.skills.stonemason);
+
+      /* And a client-only skill still goes UP when the server is higher — the
+         carve-out is a FLOOR, not a freeze. */
+      A.applyEnvelopeState(G, { state: {}, skills: { farming: { xp: 950000 } }, inventory: {} });
+      assert(G.skills.farming === 950000, 'a client-only skill must still RISE to a higher server value — got ' + G.skills.farming);
+    } finally {
+      A.markEquipAuthorityLive(wasAbsolute ? true : false);
+    }
+  }),
+
   /* B372-SCRIP-1 — A PURCHASE REVERTS WHOLE, OR NOT AT ALL.
      The live P0 of 2026-08-18, reported by Xarnathos: "when you buy e.g. a
      blueprint, you will get the dungeon scrip back after a short amount of
@@ -36153,7 +36317,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=387')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=388')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -37591,7 +37755,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=387');
+    const A = await import('../net/accrue.js?v=388');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -37615,7 +37779,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=387');
+    const A = await import('../net/accrue.js?v=388');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

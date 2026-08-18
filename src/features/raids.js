@@ -1121,6 +1121,33 @@
     if (!slot) return;
     ensureStyle();
     ensureState();
+    /* b385: the weekly clan boss / Hunt is a clan surface, and its claim + weekly
+       reset depend on the deferred clan server program — so while CLAN_LAUNCHED is
+       false it must present the SAME coming-soon state as the clan panel, never a
+       functional Strike / Claim / Declare control. This is a client GATE only
+       (mirrors the b378 block in clans.js); the raid_claim/reset RPCs are untouched.
+       Flip CLAN_LAUNCHED → the full card below returns. */
+    var CL = window.HearthriseClans;
+    if (CL && typeof CL.clanLaunched === 'function' && !CL.clanLaunched()) {
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'hr-raid-card';
+        host.className = 'card';
+        host.style.cssText = 'margin-bottom:10px';
+      }
+      if (host.parentNode !== slot) {
+        if (slot.id === 'hr-events-raid') slot.appendChild(host);
+        else slot.insertBefore(host, slot.firstChild);
+      }
+      host.innerHTML = (typeof CL.comingSoonHtml === 'function')
+        ? CL.comingSoonHtml('The Weekly Clan Boss',
+            'Every week your whole clan hunts one boss no member could down alone — ' +
+            'strike together across the week, then split a shared chest by how hard you ' +
+            'fought. It opens with clans, once the realm is populated enough for a hold ' +
+            'to field a war party. Your combat rise carries straight in when it lands.')
+        : '';
+      return;
+    }
     if (!host) {
       host = document.createElement('div');
       host.id = 'hr-raid-card';

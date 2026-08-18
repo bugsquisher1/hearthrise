@@ -1060,14 +1060,23 @@ export function inventoryFlipReadiness() {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=387';
+import * as itemLedger from './item-ledger.js?v=388';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, rebuildItemAuthority } from '../data/item-authority.js?v=387';
+import { serverOwnedItem, rebuildItemAuthority } from '../data/item-authority.js?v=388';
+
+/* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
+   dragged DOWN by the absolute reconcile). Same shape and same reasoning as
+   serverOwnedItem above: a pure data-derived leaf, direct import, answering
+   "may the absolute envelope OWN this skill's xp?". A false id — farming,
+   cooking, or any skill with no server accrual path — follows Math.max below
+   (can only rise) instead of the absolute assign, so the server's FROZEN xp for
+   an un-modeled skill can never reduce the client's real progress. */
+import { serverAccruedSkill } from '../data/skill-authority.js?v=388';
 
 export function applyEnvelopeState(G, res, ownKey) {
   const st = (res && res.state) || {};
@@ -1185,13 +1194,28 @@ export function applyEnvelopeState(G, res, ownKey) {
     const xp = Number(res.skills[k] && res.skills[k].xp);
     if (Number.isFinite(xp)) {
       const have = Number(skills[k]) || 0;
-      /* PHASE 2: ASSIGNMENT. The server wins every contest, INCLUDING DOWNWARD
-         — that direction IS the anti-forgery property, and the max above was
-         the one thing standing between a devtools-edited xp figure and a round
-         trip that laundered it into permanence.
+      /* ── P0 CARVE-OUT: A CLIENT-ONLY SKILL IS NEVER ASSIGNED DOWNWARD ───────
+         The absolute assign is only safe for a skill the accrual engine actually
+         SETTLES. Farming (no gather node, no declarable activity) and cooking
+         (the un-modeled artisan lane) have NO server accrual path, so the
+         server's xp for them is FROZEN at its last value — and an absolute
+         assign then re-asserts that frozen value DOWNWARD on every 90s settle
+         and every reload (the "Farming stuck at 66" / "cooking XP resets" bugs).
+         `serverAccruedSkill(k)` is derived from the SAME sources the engine reads
+         (combat styles ∪ GATHER_SKILLS ∪ payable artisan lanes), so a future
+         server-accrued skill is not wrongly carved out and a new client-only
+         skill is protected automatically. Fail-closed: an UNKNOWN skill is not
+         server-accrued either, so it too follows Math.max — the never-reduce
+         direction. This generalises the OMITTED-skill protection below to a
+         NAMED-but-not-accrued skill. */
+      const skillAbsolute = absolute && serverAccruedSkill(k);
+      /* PHASE 2: ASSIGNMENT. For a SERVER-ACCRUED skill the server wins every
+         contest, INCLUDING DOWNWARD — that direction IS the anti-forgery
+         property, and the max was the one thing standing between a devtools-
+         edited xp figure and a round trip that laundered it into permanence.
          PHASE 1: MAX. Kept behind the switch, not deleted, because it is the
-         incident lever. */
-      skills[k] = absolute ? xp : Math.max(have, xp);
+         incident lever — and it is now ALSO the client-only-skill floor. */
+      skills[k] = skillAbsolute ? xp : Math.max(have, xp);
       written.skills[k] = skills[k];
     }
   }
@@ -2374,7 +2398,7 @@ if (typeof window !== 'undefined') {
     resetEnvelopeDrift, inventoryFlipReadiness,
     isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
-    serverOwnedItem,
+    serverOwnedItem, serverAccruedSkill, markEquipAuthorityLive,
     equippedCount, unaccountedEquipped, consumedKeysOf,
     /* Phase 1 — live settlement (docs/design/live-settlement.md §3). */
     SETTLE_INTERVAL_MS, ACCRUE_MIN_SPAN_MS, ACCRUE_RATE_PER_MIN,

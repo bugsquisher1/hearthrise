@@ -38,20 +38,33 @@ export const ROCKS=[
   {id:'copper_rock',name:'Copper Rock',icon:'🟤',req:1,xp:21,ms:3000,prod:'copper_ore',qty:[1,1]},
   {id:'iron_rock',name:'Iron Rock',icon:'⬜',req:15,xp:40,ms:4500,prod:'iron_ore',qty:[1,1]},
   {id:'coal_rock',name:'Coal Rock',icon:'⬛',req:30,xp:57,ms:5500,prod:'coal',qty:[1,1]},
-  {id:'gold_rock',name:'Gold Rock',icon:'🟡',req:45,xp:75,ms:7000,prod:'gold_ore',qty:[1,1]},
+  /* b390 (game-design / gathering-plateau ruling): xp 75 → 79. The mid-to-high
+     mining band had gone FLAT — Gold(45)→Rich Coal(52)→Mithril(60) moved only
+     ~10.7→10.8→11.5 xp/sec, so +15 levels bought ~+8% training speed and an
+     unlock "did nothing". The book xp/sec is now an even ~+9% geometric climb
+     from Coal(10.36) to Dawnstone(14.83), the fixed endpoints (early-game feel
+     and cross-skill 99-parity are anchored to those two). Only the sagging
+     middle moved; ms/qty are untouched so the ore faucet and away caps don't
+     shift, and time-to-99 stays within 3% of woodcutting. */
+  {id:'gold_rock',name:'Gold Rock',icon:'🟡',req:45,xp:79,ms:7000,prod:'gold_ore',qty:[1,1]},
   /* b245 (Tyler / pacing audit): the COAL CHOKEPOINT. coal_rock opens at Mining
      30 and yields 1 at a flat rate, while every bar past copper eats 1–5 coal and
      the top bars need 4–5 each — so late smithing was gated on level-30 coal
      throughput. This richer seam (Mining 52) yields 2–3 coal a swing, ~2.5× the
      supply, so a late smith isn't grinding low-tier coal. Its xp/sec sits between
-     Gold and Mithril so the "every rung strictly better" rule still holds. */
-  {id:'rich_coal_rock',name:'Rich Coal Seam',icon:'⬛',req:52,xp:90,ms:8300,prod:'coal',qty:[2,3]},
+     Gold and Mithril so the "every rung strictly better" rule still holds.
+     b390: xp 90 → 97 to keep it seated between the retuned Gold and Mithril. */
+  {id:'rich_coal_rock',name:'Rich Coal Seam',icon:'⬛',req:52,xp:97,ms:8300,prod:'coal',qty:[2,3]},
   /* b226: ms 9000 → 8000. At 9s Mithril was a SLOWER xp/sec than Gold Rock
      15 levels below it — unlocking the rung was a punishment. Every rung must
-     be strictly better than the one under it; the smoke suite now asserts it. */
-  {id:'mithril_rock',name:'Mithril Rock',icon:'🔵',req:60,xp:92,ms:8000,prod:'mithril_ore',qty:[1,1]},
-  /* b215: mining used to end at 60 — these feed the Emberforged/Dawnsteel tiers. */
-  {id:'emberstone_rock',name:'Emberstone Vein',icon:'🔶',req:75,xp:126,ms:10500,prod:'emberstone_ore',qty:[1,1]},
+     be strictly better than the one under it; the smoke suite now asserts it.
+     b390: xp 92 → 98 — Mithril was a near-lateral over Rich Coal (Tyler's
+     report: "+8 levels for +1 xp"). It is now a clear ~+8.5% step over Gold. */
+  {id:'mithril_rock',name:'Mithril Rock',icon:'🔵',req:60,xp:98,ms:8000,prod:'mithril_ore',qty:[1,1]},
+  /* b215: mining used to end at 60 — these feed the Emberforged/Dawnsteel tiers.
+     b390: Emberstone xp 126 → 140 so the 60→75 tier is a real upgrade, not a
+     +4% lateral; Dawnstone (top endpoint) is left at 178 to hold 99-parity. */
+  {id:'emberstone_rock',name:'Emberstone Vein',icon:'🔶',req:75,xp:140,ms:10500,prod:'emberstone_ore',qty:[1,1]},
   {id:'dawnstone_rock',name:'Dawnstone Vein',icon:'🌟',req:90,xp:178,ms:12000,prod:'dawnstone_ore',qty:[1,1]},
 ];
 
@@ -61,12 +74,19 @@ export const FISH_SPOTS=[
   {id:'herring_s',name:'Herring Run',icon:'🐟',req:10,xp:21,ms:4200,prod:'herring',qty:[1,1]},
   {id:'trout_s',name:'Trout Spot',icon:'🐟',req:20,xp:32,ms:5000,prod:'trout',qty:[1,1]},
   {id:'lobster_s',name:'Lobster Spot',icon:'🦞',req:40,xp:84,ms:8000,prod:'lobster',qty:[1,1]},
-  /* b215: swordfish fills the old 40→76 dead zone; moonfish carries it to 90. */
-  {id:'swordfish_s',name:'Swordfish Shoal',icon:'🐠',req:55,xp:116,ms:10000,prod:'swordfish',qty:[1,1]},
+  /* b215: swordfish fills the old 40→76 dead zone; moonfish carries it to 90.
+     b390 (gathering-plateau ruling): fishing had the same top-band plateau as
+     mining — Swordfish(55)→Frostfin(66)→Shark(76) sat flat at ~11.6/11.9/12.2
+     xp/sec (Frostfin→Shark was +2%). frostfin 137→150, shark 158→181 make the
+     climb even (~+11%/+11%/+7%), and moonfish 226→210 trims the +33% top spike
+     to a clean ~+8% so the whole ladder climbs. This keeps fishing's time-to-99
+     within 5% of woodcutting and aligns the three top tiers at ~15 xp/sec.
+     ms/qty untouched, so the cooking-fish faucet is unchanged. */
+  {id:'swordfish_s',name:'Swordfish Shoal',icon:'🐠',req:55,xp:117,ms:10000,prod:'swordfish',qty:[1,1]},
   /* b215: frostfin closes the 55→76 gap */
-  {id:'frostfin_s',name:'Frostfin Shallows',icon:'❄️',req:66,xp:137,ms:11500,prod:'frostfin',qty:[1,1]},
-  {id:'shark_s',name:'Shark Spot',icon:'🦈',req:76,xp:158,ms:13000,prod:'shark',qty:[1,1]},
-  {id:'moonfish_s',name:'Moonlit Pool',icon:'🌙',req:90,xp:226,ms:14000,prod:'moonfish',qty:[1,1]},
+  {id:'frostfin_s',name:'Frostfin Shallows',icon:'❄️',req:66,xp:150,ms:11500,prod:'frostfin',qty:[1,1]},
+  {id:'shark_s',name:'Shark Spot',icon:'🦈',req:76,xp:181,ms:13000,prod:'shark',qty:[1,1]},
+  {id:'moonfish_s',name:'Moonlit Pool',icon:'🌙',req:90,xp:210,ms:14000,prod:'moonfish',qty:[1,1]},
 ];
 
 /* b226 — FARMING IS EXEMPT FROM PACE.xp AND ITS CROP XP IS ×14.

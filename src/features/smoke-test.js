@@ -18289,6 +18289,30 @@ const TESTS = [
     });
   }),
 
+  () => tryRun('b390: a full-tier gathering unlock is a CLEAR upgrade, not a lateral move', () => {
+    // The b226 "strictly faster" test above passes a +1% step, which is exactly
+    // how the mid-high plateau hid: Coal(30)→Gold(45) was +3.4%/sec, Mithril(60)
+    // →Emberstone(75) +4.3%, and Fishing Frostfin(66)→Shark(76) +2% — +10-to-15
+    // levels of investment for a rate the player cannot feel, so the unlock read
+    // as "did nothing". RULE: any rung that costs a FULL tier (req gap >= 10) must
+    // beat the rung below it by >= 6% xp/sec. Off-tier supply nodes (e.g. the
+    // Rich Coal Seam, req 52, only 7 levels over Gold) are exempt — they still
+    // have to beat the prev (the test above), just not by a full-tier margin.
+    const MIN_FULL_TIER_GAIN = 1.06;
+    [['TREES', window.TREES], ['ROCKS', window.ROCKS], ['FISH_SPOTS', window.FISH_SPOTS]].forEach(([name, table]) => {
+      let prev = null;
+      table.forEach((rung) => {
+        const rate = Math.max(1, Math.floor(rung.xp * window.PACE.xp)) / (window.pacedActionMs(rung.ms) / 1000);
+        if (prev && (rung.req - prev.req) >= 10) {
+          assert(rate >= prev.rate * MIN_FULL_TIER_GAIN,
+            name + ': ' + rung.id + ' (req ' + rung.req + ', ' + rate.toFixed(2) + ' xp/s) is a full-tier unlock but only +' +
+            (((rate / prev.rate) - 1) * 100).toFixed(1) + '% over ' + prev.id + ' — a full tier must be >= +6% xp/s (a real upgrade, not a plateau)');
+        }
+        prev = { id: rung.id, req: rung.req, rate };
+      });
+    });
+  }),
+
   () => tryRun('b226: low-tier gathering no longer out-produces high-tier (qty flattened to [1,1])', () => {
     // [1,2] on the first three rungs made tier-1 gathering out-produce tier-7
     // 6:1 in raw item count, at exactly the levels where the items are worth

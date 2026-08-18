@@ -9,36 +9,40 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 🧊 backlog · ⛔ blocked · ⏸️ back-burner (deprioritized, not cancelled).
 **Priority:** P0 (now) · P1 (soon) · P2 (this cycle) · P3 (nice-to-have).
 
-_Last updated: 2026-08-17 (b377). Current build: **b377**, live._
+_Last updated: 2026-08-18 (b382). Current build: **b382**, live._
 
-> **LOCKED DECISION (Tyler, 2026-08-17): FULL LIST BEFORE BETA, DATE SLIPS.**
-> Tyler chose to build the whole pre-beta list — server-authority program,
-> elements/enchanting, block clan, quest-board rework, kindling/beacon events —
-> THEN stand up the test account for a full team playthrough, THEN open the 20
-> keys (date moved past "tomorrow"; remaining budget goes to building now and
-> bug-fixing once keys open). Coordinator flagged the bug-injection + budget risk;
-> Tyler accepted it with eyes open. The five items below in §1a are now the gate.
+> **LOCKED DIRECTION (Tyler, 2026-08-18): STRUCTURE-FIRST. PAUSE ALL NEW FEATURES
+> until the game is in a SCALABLE STATE. Beta pushed to NEXT WEEK (~2026-08-25).**
+> Supersedes the 2026-08-17 "full list before beta." Build for the end-state
+> ([[build-for-the-end-state]]: large-scale multiplayer semi-idle), clean code is a
+> must. Only server-authority + the structural/architecture work (§9) proceed;
+> bug-fixes allowed; NO new content/features until the exit criteria below hold.
+>
+> **SCALABLE-STATE EXIT CRITERIA (all must hold to resume features):**
+> 1. Server-authority record flips ARMED + security-signed (gold + inventory un-forgeable). §2.
+> 2. Render layer extracted from `legacy.js` → `src/render/*` far enough that UI changes are safe. §9.
+> 3. Core screens on CSS tokens (no hardcoded colors on shipped surfaces). §9.
+> 4. `hr-accrue` load-tested at target concurrency. §9.
 
-## 1a · THE PRE-BETA BUILD LIST (the locked gate)
-
-| Item | Status | Pri | Notes |
-|---|---|---|---|
-| Server-authority program (record flip: gold/skills/inventory + clan pass 2) | 🔧 | **P0** | backend-architect producing the review-ready plan; arming gated on security + reliability sign-off + restore drill. The data-loss-sensitive long pole. See §2. |
-| Block clan as "Coming Soon" | ✅ | — | SHIPPED b378. Roadmap card + `contribute()`/`feastDeposit()` hard-disabled behind `CLAN_LAUNCHED`. Visual gate passed (1440×900 + 922×423). ALSO closed security's P0 gold-flip blocker (Finding #1). One flag re-enables when clan pass-2 lands. |
-| Elements / enchanting | ✅ | — | SHIPPED LIVE **b379** (2026-08-17). Both migrations applied to prod (hr_runes seeded, enchant column + delta key, §0/§3 gates passed), hr-accrue redeployed (payload hash verified == repo), client pushed. Security GO. Full logged-in player round-trip still to be confirmed on first real play / QA account. |
-| Quest-board rework | 📋→build | **P0** | Design DONE (game-designer, 2026-08-17, verified by playing a fresh save): CONSOLIDATION not new mechanics — 4 overlapping quest systems (onboarding chain, daily tasks, daily/weekly goals, bounties) → ONE board, 3 shelves + bounty tab, one progress model, one Claim gesture, capacity-gated daily draws (fixes "Kill 60 at CL1"). New `src/data/quests.js`. Server side (`player_quest_progress` + `claim_reward` for kind:'quest') UNBLOCKS DAILY_COUNTERS. Ready to build; queued. Client consolidation degrades gracefully to today's payout if server slips (switch OFF), so not beta-blocking. |
-| Kindling / Beacon events (Muster) | 📋 | **P0** | Approved design exists; needs build-ready spec reconciling it with current code, then build. |
-
-## 1 · LAUNCH READINESS (after the build list, before opening keys)
+## 1a · WHAT SHIPPED (the 2026-08-17 push, now closed) + WHAT'S PAUSED
 
 | Item | Status | Pri | Notes |
 |---|---|---|---|
-| Dedicated test account | ⛔ | **P0** | Tyler action (Coordinator **cannot create accounts**). Unblocks the team playthrough + every future new-player test. |
-| Full-systems team playthrough | 🧊 | **P0** | After the build list lands: team runs every system (UI/UX/Art/Systems) on the test account, finds bugs. Then open 20 keys. |
-| Wire rooms + banner tiers | 🔧 | P1 | Generated & on disk; closes the last visible seam (grey placeholder rooms next to painted everything). |
-| Backups / restore DRILL | 🧊 | P1 | Pro plan has daily backups; a RESTORE has never been tested. HARD blocker for arming the server-authority record flip. |
+| Sell fix (b377) · Clan gate (b378) · Elements/enchanting (b379) | ✅ | — | All shipped live. Enchant's full logged-in round-trip still to confirm on QA account. |
+| Server-auth safety machinery (b380 inventory · b381 gold · b382 baseline) | ✅ dormant | — | The flips' safety layers, shipped dormant. See §2 for arm runway. |
+| Quest-board rework | ⏸️ PAUSED | — | Design DONE, build PAUSED until scalable-state. Consolidates 4 quest systems → one board; unblocks DAILY_COUNTERS. Resume after §9. |
+| Kindling / Beacon events (Muster) | ⏸️ PAUSED | — | Approved design; build PAUSED until scalable-state. |
 
-**Decision pending Tyler:** wipe vs. amnesty at cutover (acting on amnesty). See §7.
+## 1 · LAUNCH READINESS (beta → next week; after scalable-state)
+
+| Item | Status | Pri | Notes |
+|---|---|---|---|
+| Dedicated test account | ⛔ | **P0** | Tyler action (Coordinator **cannot create accounts**). Unblocks the team playthrough + enchant round-trip verify. |
+| Full-systems team playthrough + BALANCE audit | 🧊 | **P0** | After scalable-state: team runs every system on the test account, finds bugs + tunes balance. Then open keys. |
+| Wire rooms + banner tiers | 🔧 | P2 | Generated & on disk; visible-seam cleanup (fits the render/CSS track). |
+| Backups / restore DRILL | 🧊 | **P0** | HARD blocker for arming BOTH record flips. Needs a rehearsed run (runbook exists: docs/design/restore-runbook.md). |
+
+**Decision pending Tyler:** wipe timing (confirmed: wipe before new players). See §7.
 
 ---
 

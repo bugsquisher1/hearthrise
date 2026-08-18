@@ -17,10 +17,11 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=378';
+import { levelOf } from './xp.js?v=379';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
-} from './bane.js?v=378';
+} from './bane.js?v=379';
+import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=379';
 
 /* `neutral` is retired as a MONSTER weakness (DEC-NEUT-01) but survives here
    as a WEAPON type — an unarmed/typeless loadout still has to render. */
@@ -88,7 +89,20 @@ export const STYLE_SPEED_MAX = 2.00;
 
 // ── Derived equipment state ──────────────────────────────────────────────
 
-export function equipmentStats(equipment, items) {
+/**
+ * @param equipment { slot: itemId | null }
+ * @param items     the ITEMS catalogue
+ * @param enchant   OPTIONAL `{ weapon: '<element>' }` (client: G.enchant; the
+ *                  server passes its own authored enchant). Stamps `eq.element`
+ *                  — the element the weapon-slot enchant binds — EXACTLY
+ *                  parallel to `eq.bane`, and read the same way by both engines
+ *                  inside `weaknessInfo`. See src/core/elements.js for why this
+ *                  is a factor here and never a `getBonus` key. A missing/blank
+ *                  enchant, an invalid element, or a weapon slot that does not
+ *                  actually hold a weapon all leave `eq.element` null — the safe
+ *                  direction (no bonus, never a forged one).
+ */
+export function equipmentStats(equipment, items, enchant) {
   const s = {
     atkB: 0, strB: 0, defB: 0, critB: 0, xpB: 0, spdB: 0, weaponType: 'neutral',
     /* class → best bane multiplier, or null when no bane gear is worn. Derived
@@ -97,6 +111,8 @@ export function equipmentStats(equipment, items) {
        and the Edge accrual — take this object as their equipment input. See
        src/core/bane.js for why a `getBonus` key would have read as zero away. */
     bane: null,
+    /* the element bound to the weapon, or null. Its twin `bane` above. */
+    element: null,
   };
   if (!equipment) return s;
   Object.entries(equipment).forEach(([slot, id]) => {
@@ -107,6 +123,17 @@ export function equipmentStats(equipment, items) {
     if (slot === 'weapon' && it.weaponType) s.weaponType = it.weaponType;
   });
   s.bane = baneIndex(equipment, items);
+  /* ⚠ THE ENCHANT ONLY BINDS A REAL WEAPON. An enchant persists on the save
+     independently of gear (G.enchant survives an unequip), so without this
+     guard an empty or non-weapon weapon slot would still pay the element. Both
+     the client (on equip-swap) and the server clear the enchant when the weapon
+     changes, but this is the belt-and-braces that makes a stale enchant inert
+     rather than a free +15% on bare fists. */
+  if (enchant && isElement(enchant.weapon)) {
+    const wid = equipment.weapon;
+    const wit = wid && items ? items[wid] : null;
+    if (wit && wit.type === 'weapon') s.element = enchant.weapon;
+  }
   return s;
 }
 
@@ -205,7 +232,22 @@ export function weaknessInfo(monster, eq) {
 
   const baneClass = classOfMonster(monster);
   const baneMult = baneMultFor(baneClass, eq && eq.bane);
-  const damageMult = Math.min(weaponMult * baneMult, MAX_COMBINED_DAMAGE_MULT);
+
+  /* ELEMENT — the third damage factor, the twin of bane. A weapon-slot enchant
+     (`eq.element`, stamped by equipmentStats) pays a flat +15% against a
+     monster WEAK to that element and nothing otherwise (pure upside — v1 gives
+     resist/immune no distinct number). Read here, inside the ONE expression
+     both the live tick and the Edge accrual call, so an enchanted weapon pays
+     away nights identically to awake ones with no second code path. See
+     src/core/elements.js. */
+  const element = (eq && eq.element) || null;
+  const elementMult = elementMultFor(monster, element);
+  const elementMatched = elementMult > 1;
+
+  /* THE CEILING IS THE FORMULA'S. weapon × bane × element, clamped to
+     MAX_TOTAL_DAMAGE_MULT so a future fourth factor cannot quietly stack past
+     the stated ceiling — the same invariant bane.js states for its pair. */
+  const damageMult = Math.min(weaponMult * baneMult * elementMult, MAX_TOTAL_DAMAGE_MULT);
 
   const bonus = Number(monster && monster.dropBonus);
   return {
@@ -217,6 +259,12 @@ export function weaknessInfo(monster, eq) {
     /* Bane readout — 1 and null when no bane gear applies. */
     baneClass: baneMult > 1 ? baneClass : null,
     baneMult,
+    /* Element readout — the enchanted element, whether it MATCHED this monster,
+       and the factor. null/false/1 when no enchant applies, so the away card
+       and the monster panel can SAY why a night went the way it did. */
+    element,
+    elementMatched,
+    elementMult,
   };
 }
 

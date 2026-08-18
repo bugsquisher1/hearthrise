@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=378' directly.
+// modularised, will import { G } from '../state/game.js?v=379' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=378';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=378';
+import { on, snapshot } from '../net/events.js?v=379';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=379';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=378';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=379';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -25959,7 +25959,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=378');
+    const KIT = await import('../data/start-kit.js?v=379');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -31596,7 +31596,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=378');
+    const S = await import('../data/shops.js?v=379');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -32990,7 +32990,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=378');
+    const S = await import('../data/shops.js?v=379');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -34339,6 +34339,224 @@ const TESTS = [
       'an unarmed loadout must earn neither weakness nor bane');
   }),
 
+  /* ══ ELEMENTS v1 — elemental weapon enchants (bane.js's twin) ══════════════
+     Eight claims, each mutation-provable. Read through the ONE expression the
+     live tick and the Edge accrual both call (equipmentStats → weaknessInfo),
+     so away nights are guarded with awake ones. */
+  () => tryRun('ELEM-1: essences/runes exist as data, runeElement maps, and the bind recipes lane into Crafting > Runes', () => {
+    const ITEMS = window.ITEMS;
+    const EL = window.HearthriseCore && window.HearthriseCore.elements;
+    assert(EL && typeof EL.runeElement === 'function', 'core must expose the elements module');
+    ['ember', 'frost', 'poison'].forEach((e) => {
+      const ess = ITEMS[e + '_essence']; const rune = ITEMS[e + '_rune'];
+      assert(ess && ess.tag === 'reagent', e + '_essence must exist as a reagent');
+      assert(rune && rune.tag === 'rune' && rune.element === e, e + '_rune must carry element:"' + e + '"');
+      assert(!rune.bop && !ess.bop, 'essences and runes must be tradeable (no bop)');
+      /* runeElement reads the element off the rune, and null for a non-rune. */
+      assert(EL.runeElement(e + '_rune', ITEMS) === e, 'runeElement(' + e + '_rune) must be ' + e);
+      assert(EL.runeElement('bronze_sword', ITEMS) === null, 'runeElement of a non-rune must be null');
+    });
+    /* The three bind recipes exist and lane into the derived Runes tab. */
+    const R = window.HearthriseRecipes || window;
+    const recipes = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.crafting) || [];
+    ['ember', 'frost', 'poison'].forEach((e) => {
+      const rec = recipes.find((r) => r.output === e + '_rune');
+      assert(rec && rec.req === 25, 'bind_' + e + '_rune must exist at Crafting 25');
+      assert(rec.inputs && rec.inputs[e + '_essence'] === 4 && rec.inputs.magic_essence === 1,
+        'bind_' + e + '_rune inputs must be {' + e + '_essence:4, magic_essence:1}');
+      if (typeof R.recipeCategory === 'function') {
+        assert(R.recipeCategory('crafting', rec, window.ITEMS) === 'runes',
+          'bind_' + e + '_rune must lane into the Runes tab');
+      }
+    });
+    if (typeof R.categorizeRecipes === 'function') {
+      assert(R.categorizeRecipes('crafting').uncategorized.length === 0,
+        'the new rune recipes must not strand any crafting recipe uncategorized');
+    }
+  }),
+
+  () => tryRun('ELEM-2: a matched enchant pays x1.15 through weaknessInfo; immune/neutral pay x1.00 (mutation-proved by flipping elementWeak)', () => {
+    const C = window.HearthriseCore.combat;
+    const EL = window.HearthriseCore.elements;
+    const ITEMS = window.ITEMS; const MONSTERS = window.MONSTERS;
+    /* An ember-weak foe and an ember-immune foe. imp is a Demon (ember-immune);
+       plague_swarm/plant/mammal carry ember weakness — use one from the table. */
+    const emberWeak = Object.keys(MONSTERS).find((id) => MONSTERS[id].elementWeak === 'ember');
+    const emberImmune = Object.keys(MONSTERS).find((id) => (MONSTERS[id].elementImmune || []).indexOf('ember') >= 0);
+    assert(emberWeak && emberImmune, 'need an ember-weak and an ember-immune monster to test');
+    /* A weapon-slot enchant is stamped ONLY when the weapon slot holds a weapon. */
+    const eqOn = C.equipmentStats({ weapon: 'bronze_sword' }, ITEMS, { weapon: 'ember' });
+    assert(eqOn.element === 'ember', 'equipmentStats must stamp eq.element from the enchant on a real weapon');
+    const eqBare = C.equipmentStats({}, ITEMS, { weapon: 'ember' });
+    assert(eqBare.element === null, 'an enchant on an empty weapon slot must NOT stamp an element');
+
+    const infoWeak = C.weaknessInfo(MONSTERS[emberWeak], eqOn);
+    assert(Math.abs(infoWeak.elementMult - 1.15) < 1e-9 && infoWeak.elementMatched === true,
+      'ember enchant vs ember-weak must pay x1.15, got ' + infoWeak.elementMult);
+    const infoImmune = C.weaknessInfo(MONSTERS[emberImmune], eqOn);
+    assert(infoImmune.elementMult === 1 && infoImmune.elementMatched === false,
+      'ember enchant vs ember-immune must pay x1.00 (pure upside), got ' + infoImmune.elementMult);
+    /* MUTATION PROOF: elementMultFor keys on elementWeak. A monster with NO
+       enchant earns nothing regardless of its weakness. */
+    const infoNoEnchant = C.weaknessInfo(MONSTERS[emberWeak], C.equipmentStats({ weapon: 'bronze_sword' }, ITEMS));
+    assert(infoNoEnchant.elementMult === 1, 'no enchant must never pay an element bonus');
+    assert(EL.elementMultFor(MONSTERS[emberWeak], 'frost') === 1,
+      'the WRONG element must pay nothing even against an element-weak foe');
+  }),
+
+  () => tryRun('ELEM-3: weapon-weakness x bane x element clamps to MAX_TOTAL_DAMAGE_MULT (1.90)', () => {
+    const C = window.HearthriseCore.combat;
+    const EL = window.HearthriseCore.elements;
+    const B = window.HearthriseCore.bane;
+    const MONSTERS = window.MONSTERS;
+    assert(EL.MAX_TOTAL_DAMAGE_MULT === 1.90, 'the stated ceiling is 1.90');
+    const classOf = (m) => B.normalizeClass(m.class) || B.normalizeClass(m.family);
+    /* A hammer-weak Undead that is ALSO ember-weak, with a forged oversized bane
+       + an ember enchant: 1.20 (weapon) x 1.40 (bane, clamped) x 1.15 (element)
+       = 1.932, and the formula must clamp it to 1.90 — the ceiling is the
+       expression's, not any table's. */
+    const target = Object.keys(MONSTERS).find((id) =>
+      classOf(MONSTERS[id]) === 'undead' && MONSTERS[id].weaponWeak === 'hammer' && MONSTERS[id].elementWeak === 'ember');
+    assert(target, 'need a hammer-weak, ember-weak Undead to test the triple ceiling');
+    const forged = Object.assign({}, window.ITEMS);
+    forged.__qa_el__ = { n: 'QA', type: 'weapon', weaponType: 'hammer', bane: [{ class: 'undead', mult: 1e9 }] };
+    const eq = C.equipmentStats({ weapon: '__qa_el__' }, forged, { weapon: 'ember' });
+    const info = C.weaknessInfo(MONSTERS[target], eq);
+    assert(Math.abs(info.damageMult - 1.90) < 1e-9,
+      'weapon x bane x element must clamp to 1.90, got ' + info.damageMult);
+  }),
+
+  () => tryRunAsync('ELEM-4: the enchant intent sends only slot+rune names, applies its envelope, and reuses its key when unanswered', () => {
+    const E = window.HearthriseEnchant;
+    assert(E && typeof E.sendEnchant === 'function', 'the enchant transport must be published');
+    /* (a) THE BYTES ON THE WIRE — a slot number, an intent id, and {slot:'weapon',rune}. Nothing else. */
+    const req = E.buildEnchantRequest({ url: 'https://x.co', token: 't', apiKey: 'k', slot: 0, intentId: 'id', rune: 'ember_rune' });
+    const body = JSON.parse(req.init.body);
+    assert(body.verb === 'enchant' && body.enchant.slot === 'weapon' && body.enchant.rune === 'ember_rune',
+      'the wire body must carry verb enchant + {slot:weapon, rune}');
+    assert(!('element' in body.enchant) && !('mult' in body.enchant) && !('ok' in body.enchant),
+      'the client must NEVER send an element, a magnitude or a success bit');
+    /* (b) HAPPY PATH — a 200 envelope carrying state.enchant is applied. */
+    const realFetch = window.fetch;
+    E.resetEnchant();
+    E.configureEnchant({ url: 'https://x.co/functions/v1/hr-accrue', apiKey: 'k', authToken: 't' });
+    let applied = null;
+    E.setEnchantHooks({ onEnvelope: (res) => { applied = res && res.state && res.state.enchant; return true; } });
+    return (async () => {
+      try {
+        window.fetch = () => Promise.resolve(new Response(
+          JSON.stringify({ ok: true, verb: 'enchant', version: 2, state: { enchant: { weapon: 'ember' } }, inventory: {}, equipment: {}, skills: {} }),
+          { status: 200 }));
+        const v = await E.sendEnchant('ember_rune', {});
+        assert(v.outcome === 'enchanted', 'a 200 ok:true must classify as enchanted, got ' + v.outcome);
+        assert(applied && applied.weapon === 'ember', 'the envelope hook must receive the server-authored enchant');
+        /* (c) IDEMPOTENCY — an unreachable answer returns the SAME key so a retry
+           cannot debit the rune twice. */
+        window.fetch = () => Promise.reject(new Error('offline'));
+        const v2 = await E.sendEnchant('ember_rune', { key: v.key });
+        assert(v2.outcome === 'unreachable' && v2.key === v.key, 'an unanswered retry must reuse the key');
+      } finally {
+        window.fetch = realFetch; E.resetEnchant();
+      }
+    })();
+  }),
+
+  () => tryRun('ELEM-5: changing the weapon clears the enchant (client reflect of the cross-verb coupling)', () => {
+    const G = window.G; const snap = snapshotG();
+    try {
+      G.enchant = { weapon: 'ember' };
+      G.skills = Object.assign({}, G.skills, { attack: 4000000, strength: 4000000, defense: 4000000 });
+      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+      G.inventory = Object.assign({}, G.inventory, { iron_sword: 1 });
+      G.wieldGrandfather = Object.assign({}, G.wieldGrandfather, { iron_sword: true });
+      window.equipItem('iron_sword');   // a real weapon swap
+      assert(!G.enchant.weapon, 'equipping a different weapon must clear the enchant, still had ' + JSON.stringify(G.enchant));
+      /* Re-equipping the SAME weapon does not clear an enchant. */
+      G.enchant = { weapon: 'frost' };
+      window.clearEnchantOnWeaponChange('weapon', 'iron_sword', 'iron_sword');
+      assert(G.enchant.weapon === 'frost', 'a no-op re-equip must NOT clear the enchant');
+      /* A non-weapon slot change never touches it. */
+      window.clearEnchantOnWeaponChange('helmet', null, 'steel_helm');
+      assert(G.enchant.weapon === 'frost', 'a non-weapon slot change must never clear the enchant');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('ELEM-6: the enchant persists (in the snapshot, absent from NO_SYNC) and the applier authors it', () => {
+    const Ev = window.HearthriseEvents; const A = window.HearthriseAccrual;
+    const G = window.G; const snap = snapshotG();
+    try {
+      G.enchant = { weapon: 'poison' };
+      const s = Ev.snapshot(G);
+      assert(s.enchant && s.enchant.weapon === 'poison', 'the enchant MUST be in the cloud snapshot (it is progress)');
+      const rt = JSON.parse(JSON.stringify(s));
+      assert(rt.enchant.weapon === 'poison', 'the enchant must round-trip through JSON');
+      /* The server is the author: an envelope sets it, a bogus element clears it,
+         and an omitted enchant is left alone. */
+      A.applyEnvelopeState(G, { state: { enchant: { weapon: 'frost' } } });
+      assert(G.enchant.weapon === 'frost', 'the applier must author a valid server enchant');
+      A.applyEnvelopeState(G, { state: { enchant: { weapon: 'not_an_element' } } });
+      assert(!G.enchant.weapon, 'the applier must clear an invalid element');
+      G.enchant = { weapon: 'ember' };
+      A.applyEnvelopeState(G, { state: { gold: 5 } });
+      assert(G.enchant.weapon === 'ember', 'an envelope that omits enchant must leave it alone (absence is not a claim)');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('ELEM-7: essences and runes each have a faucet and a use, and mint no protected currency', () => {
+    const ITEMS = window.ITEMS; const MONSTERS = window.MONSTERS;
+    const recipes = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.crafting) || [];
+    ['ember', 'frost', 'poison'].forEach((e) => {
+      const ess = e + '_essence'; const rune = e + '_rune';
+      /* FAUCET: at least one monster drops the essence. */
+      const drops = Object.keys(MONSTERS).some((id) => (MONSTERS[id].drops || []).some((d) => d.id === ess));
+      assert(drops, ess + ' has no faucet — no monster drops it');
+      /* USE: the essence is consumed by its bind recipe. */
+      const used = recipes.some((r) => r.inputs && r.inputs[ess]);
+      assert(used, ess + ' has no use — no recipe consumes it');
+      /* FAUCET for the rune: its bind recipe. USE: the enchant intent consumes
+         it (it is the only thing tagged 'rune', which openEnchantPicker offers). */
+      assert(recipes.some((r) => r.output === rune), rune + ' has no faucet — no recipe makes it');
+      assert(ITEMS[rune].tag === 'rune', rune + ' must be tagged rune so the enchant picker offers it');
+    });
+    /* No essence/rune drop mints the IAP-only currencies. */
+    const bad = Object.keys(MONSTERS).filter((id) => (MONSTERS[id].drops || [])
+      .some((d) => (d.id === 'hearth_token' || d.id === 'muster_seal')));
+    assert(bad.length === 0, 'a monster mints a protected currency: ' + bad.join(', '));
+  }),
+
+  () => tryRun('ELEM-AWAY: a seeded fight with an enchanted weapon pays identically live vs away, and the enchant is engaged', () => {
+    const G = window.G; const C = window.HearthriseCore; const P = window.HearthrisePresence;
+    const snap = snapshotG(); const origBonus = window.getBonus;
+    try {
+      window.getBonus = () => 0; G.buffs = [];
+      /* goblin is Humanoid → element-weak to poison. A poison enchant must be
+         ENGAGED (proving the seam is live) and must pay identically both ways. */
+      const engaged = C.combat.weaknessInfo(window.MONSTERS.goblin,
+        C.combat.equipmentStats({ weapon: 'bronze_sword' }, window.ITEMS, { weapon: 'poison' }));
+      assert(engaged.elementMatched === true, 'the test rig must actually engage the enchant, or it proves nothing');
+      const run = (away) => {
+        G.enchant = { weapon: 'poison' };
+        G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+        G.skills = Object.assign({}, G.skills, { attack: 40000, strength: 40000, hitpoints: 15000, defense: 15000 });
+        G.activeMonster = 'goblin';
+        const m = window.MONSTERS.goblin; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+        G.playerMaxHp = 60; G.playerHp = 60; G.gold = 0; G.inventory = {};
+        G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 }); G.quests = [];
+        const before = Object.assign({}, G.skills);
+        C.reseed(0xC0FFEE);
+        const body = () => { const ctx = window.HearthriseCombatSim.ctx(); for (let i = 0; i < 240; i++) { if (!G.activeMonster) break; C.combatSim.simulateTick(G, ctx); } };
+        if (away) P._withOfflineReplay(body); else body();
+        const xp = {}; Object.keys(G.skills).forEach((k) => { const d = (G.skills[k] || 0) - (before[k] || 0); if (d) xp[k] = d; });
+        return { gold: G.gold, kills: G.stats.kills, xp, inv: Object.assign({}, G.inventory) };
+      };
+      const live = run(false); const away = run(true);
+      assert(live.kills > 0, 'the enchanted rig produced no kills — the parity assertion would be vacuous');
+      assert(JSON.stringify(live.xp) === JSON.stringify(away.xp), 'enchanted XP diverged live vs away');
+      assert(live.gold === away.gold && live.kills === away.kills, 'enchanted gold/kills diverged live vs away');
+      assert(JSON.stringify(live.inv) === JSON.stringify(away.inv), 'enchanted drops diverged live vs away');
+    } finally { window.getBonus = origBonus; C.randomSeed(); restoreG(snap); }
+  }),
+
   () => tryRun('MON-ART-1: every wired portrait points at a real monster in a shipped folder', () => {
     const mi = window._monsterIcon || {};
     const ids = Object.keys(mi);
@@ -35502,7 +35720,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=378')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=379')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -36940,7 +37158,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=378');
+    const A = await import('../net/accrue.js?v=379');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -36964,7 +37182,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=378');
+    const A = await import('../net/accrue.js?v=379');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

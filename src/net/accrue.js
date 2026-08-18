@@ -910,7 +910,7 @@ export function noteEnvelopeDrift(loss) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=378';
+import * as itemLedger from './item-ledger.js?v=379';
 
 export function applyEnvelopeState(G, res, ownKey) {
   const st = (res && res.state) || {};
@@ -919,6 +919,21 @@ export function applyEnvelopeState(G, res, ownKey) {
   written.absolute = absolute;
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
+
+  /* ELEMENTS v1 — THE WEAPON ENCHANT IS SERVER-AUTHORED. When the envelope
+     carries a `state.enchant` object, it is the truth: the server sets
+     `enchant.weapon` on a successful `enchant` verb and clears it whenever an
+     `equip` changes the weapon. Applied absolutely whenever present (element
+     name only — never a magnitude), and left ALONE when omitted (a server build
+     that predates the verb sends no `enchant`, and absence is not a claim, the
+     same rule skills follow above). Placed before both return paths so the
+     absolute-inventory branch does not skip it. */
+  if (st.enchant && typeof st.enchant === 'object' && !Array.isArray(st.enchant)) {
+    const el = st.enchant.weapon;
+    const ok = el === 'ember' || el === 'frost' || el === 'poison';
+    G.enchant = ok ? { weapon: el } : {};
+    written.enchant = G.enchant.weapon || null;
+  }
   if (Number.isFinite(Number(st.max_hp))) { G.playerMaxHp = Number(st.max_hp); written.maxHp = G.playerMaxHp; }
   /* ══════════════════════════════════════════════════════════════════════
      b373 — HP IS FIGHT-LOCAL, AND AN IDLE PLAYER CANNOT BE WOUNDED BY AN

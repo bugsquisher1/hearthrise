@@ -53,7 +53,7 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=378';
+import { applyClassProfiles } from './monster-classes.js?v=379';
 
 export const MONSTERS = {
 
@@ -195,10 +195,10 @@ export const MONSTERS = {
 
   venom_spider: { name: 'Venom Spider', icon: '🕷️', tier: 3, cls: 'vermin', family: 'Vermin',
     hp: 52, atk: 15, def: 6, xp: 82, gp: [14, 34],
-    drops: [{ id: 'venom_sac', ch: .55 }, { id: 'silk_thread', ch: .3 }, { id: 'spider_eye', ch: .035 }] },
+    drops: [{ id: 'venom_sac', ch: .55 }, { id: 'silk_thread', ch: .3 }, { id: 'spider_eye', ch: .035 }, { id: 'poison_essence', ch: .08 }] },
   centipede: { name: 'Centipede', icon: '🐛', tier: 3, cls: 'vermin', family: 'Vermin',
     hp: 60, atk: 17, def: 8, xp: 98, gp: [16, 40],
-    drops: [{ id: 'void_chitin', ch: .05 }, { id: 'venom_sac', ch: .4 }, { id: 'iron_ore', ch: .3 }, { id: 'coal', ch: .35 }] },
+    drops: [{ id: 'void_chitin', ch: .05 }, { id: 'venom_sac', ch: .4 }, { id: 'iron_ore', ch: .3 }, { id: 'coal', ch: .35 }, { id: 'frost_essence', ch: .07 }] },
   lynx: { name: 'Lynx', icon: '🐈', tier: 3, cls: 'mammal', family: 'Mammal',
     hp: 55, atk: 21, def: 5, xp: 108, gp: [18, 44],
     drops: [{ id: 'wolf_pelt', ch: .8 }, { id: 'razor_claw', ch: .12 }, { id: 'raw_wolf_meat', ch: .7 }, { id: 'bones', ch: 1 }] },
@@ -251,7 +251,7 @@ export const MONSTERS = {
     drops: [{ id: 'grave_dust', ch: .55 }, { id: 'venom_sac', ch: .3 }, { id: 'big_bones', ch: .4 }, { id: 'bone_chips', ch: .5 }] },
   fire_devil: { name: 'Fire Devil', icon: '😈', tier: 3, cls: 'demon', family: 'Demon',
     hp: 56, atk: 22, def: 6, xp: 125, gp: [21, 52],
-    drops: [{ id: 'demon_shard', ch: .3 }, { id: 'coal', ch: .6 }, { id: 'hell_ember', ch: .01 }] },
+    drops: [{ id: 'demon_shard', ch: .3 }, { id: 'coal', ch: .6 }, { id: 'hell_ember', ch: .01 }, { id: 'ember_essence', ch: .08 }] },
   wyrmling: { name: 'Wyrmling', icon: '🐉', tier: 3, cls: 'dragon', family: 'Dragon',
     /* breathes Frost, so it fears Ember. */
     elementWeak: 'ember', elementImmune: ['frost'],
@@ -282,10 +282,10 @@ export const MONSTERS = {
        nothing. Mammal's Ember weakness is untouched. */
     elementResist: ['frost'],
     hp: 132, atk: 35, def: 15, xp: 288, gp: [48, 106],
-    drops: [{ id: 'wolf_pelt', ch: 1 }, { id: 'dire_fang', ch: .45 }, { id: 'alpha_fang', ch: .03 }, { id: 'raw_wolf_meat', ch: .8 }] },
+    drops: [{ id: 'wolf_pelt', ch: 1 }, { id: 'dire_fang', ch: .45 }, { id: 'alpha_fang', ch: .03 }, { id: 'raw_wolf_meat', ch: .8 }, { id: 'frost_essence', ch: .09 }] },
   carnivorous_plant: { name: 'Carnivorous Plant', icon: '🪴', tier: 4, cls: 'plant', family: 'Plant',
     hp: 138, atk: 29, def: 18, xp: 258, gp: [45, 100],
-    drops: [{ id: 'maple_log', ch: .6 }, { id: 'moonbloom', ch: .3 }, { id: 'goldenroot', ch: .35 }, { id: 'emberfruit', ch: .12 }] },
+    drops: [{ id: 'maple_log', ch: .6 }, { id: 'moonbloom', ch: .3 }, { id: 'goldenroot', ch: .35 }, { id: 'emberfruit', ch: .12 }, { id: 'poison_essence', ch: .09 }] },
   goblin_warlord: { name: 'Goblin Warlord', icon: '👺', tier: 4, cls: 'humanoid', family: 'Humanoid',
     hp: 125, atk: 30, def: 18, xp: 250, gp: [45, 100],
     drops: [{ id: 'brute_plate', ch: .5 }, { id: 'warlord_badge', ch: .16 }, { id: 'steel_helm', ch: .015 }, { id: 'chief_blade_recipe', ch: .05 }] },
@@ -327,7 +327,7 @@ export const MONSTERS = {
   lesser_demon: { name: 'Horned Demon', icon: '😈', tier: 4, cls: 'demon', family: 'Demon',
     dropBonus: 1.15,
     hp: 150, atk: 40, def: 18, xp: 340, gp: [60, 140],
-    drops: [{ id: 'demon_shard', ch: .4 }, { id: 'rune_frag', ch: .3 }, { id: 'hell_ember', ch: .025 }] },
+    drops: [{ id: 'demon_shard', ch: .4 }, { id: 'rune_frag', ch: .3 }, { id: 'hell_ember', ch: .025 }, { id: 'ember_essence', ch: .09 }] },
   hellhound: { name: 'Hellhound', icon: '🔥', tier: 4, cls: 'demon', family: 'Demon',
     /* one override (weapon): it closes distance, so the melee player gets the
        easier fight for once. */
@@ -365,7 +365,7 @@ export const MONSTERS = {
     /* one override (element): dense enough that only cold thins it. */
     elementResist: ['ember', 'poison'],
     hp: 198, atk: 62, def: 24, xp: 560, gp: [112, 236],
-    drops: [{ id: 'plague_ichor', ch: .7 }, { id: 'swarm_heart', ch: .04 }, { id: 'venom_sac', ch: .6 }] },
+    drops: [{ id: 'plague_ichor', ch: .7 }, { id: 'swarm_heart', ch: .04 }, { id: 'venom_sac', ch: .6 }, { id: 'poison_essence', ch: .1 }] },
   panther: { name: 'Night Panther', icon: '🐈‍⬛', tier: 5, cls: 'mammal', family: 'Mammal',
     hp: 205, atk: 60, def: 25, xp: 520, gp: [100, 210],
     drops: [{ id: 'shadow_pelt', ch: .65 }, { id: 'razor_claw', ch: .3 }, { id: 'ruby', ch: .03 }, { id: 'raw_panther_meat', ch: .7 }] },
@@ -392,7 +392,7 @@ export const MONSTERS = {
        is the answer. The Ember arrow's first genuinely worth-it target. */
     elementWeak: 'ember', elementResist: ['frost'],
     hp: 248, atk: 59, def: 35, xp: 608, gp: [124, 256],
-    drops: [{ id: 'troll_hide', ch: .8 }, { id: 'big_bones', ch: 1 }, { id: 'mithril_ore', ch: .3 }, { id: 'frostfin', ch: .4 }] },
+    drops: [{ id: 'troll_hide', ch: .8 }, { id: 'big_bones', ch: 1 }, { id: 'mithril_ore', ch: .3 }, { id: 'frostfin', ch: .4 }, { id: 'frost_essence', ch: .1 }] },
   cyclops: { name: 'Cyclops', icon: '👁️', tier: 5, cls: 'humanoid', family: 'Humanoid',
     /* one override (weapon): one eye, no guard — Giant's blunt answer,
        arriving where Giant folded into Humanoid. */
@@ -417,7 +417,7 @@ export const MONSTERS = {
     drops: [{ id: 'wraith_veil', ch: .35 }, { id: 'grave_dust', ch: .8 }, { id: 'vamp_dust', ch: .2 }, { id: 'ancient_rune', ch: .06 }] },
   chained_demon: { name: 'Chained Demon', icon: '⛓️', tier: 5, cls: 'demon', family: 'Demon',
     hp: 240, atk: 61, def: 32, xp: 602, gp: [122, 254],
-    drops: [{ id: 'demon_shard', ch: .7 }, { id: 'hell_ember', ch: .06 }, { id: 'death_steel', ch: .15 }, { id: 'iron_fitting', ch: .5 }] },
+    drops: [{ id: 'demon_shard', ch: .7 }, { id: 'hell_ember', ch: .06 }, { id: 'death_steel', ch: .15 }, { id: 'iron_fitting', ch: .5 }, { id: 'ember_essence', ch: .1 }] },
   fury: { name: 'Fury', icon: '🦇', tier: 5, cls: 'demon', family: 'Demon',
     /* one override (weapon): blades glass over on the carapace. */
     weaponResist: ['sword'],

@@ -13,15 +13,15 @@
 // new-bar / gated-recipe chains were all dead. This module is now the
 // single source of truth.
 
-import { GEAR_RECIPES } from './gear-tiers.js?v=378';
-import { WAVE3_RECIPES } from './wave3-uniques.js?v=378';
-import { SLOT_RECIPES } from './slot-ladders.js?v=378';
+import { GEAR_RECIPES } from './gear-tiers.js?v=379';
+import { WAVE3_RECIPES } from './wave3-uniques.js?v=379';
+import { SLOT_RECIPES } from './slot-ladders.js?v=379';
 /* b356 — the review-book catalogue's faucets. APPENDED ONLY: this import and
    the two `LIB2_RECIPES.*` terms in ARTISAN_RECIPES below are the whole edit,
    so the parallel Runecrafting/Stonemason lanes merge without a conflict. */
-import { LIB2_RECIPES } from './library2-items.js?v=378';
-import { ITEMS, foodClassOf } from './items.js?v=378';
-import { STONECRAFT_RECIPES } from './stonecraft.js?v=378';
+import { LIB2_RECIPES } from './library2-items.js?v=379';
+import { ITEMS, foodClassOf } from './items.js?v=379';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=379';
 
 const BASE_RECIPES = {
   cooking: [
@@ -203,6 +203,16 @@ const BASE_RECIPES = {
     {id:'tailor_leather_boots',   name:'Tailor Leather Boots',    icon:'🥾', inputs:{wolf_pelt:2},                          output:'leather_boots',  xp:80,  req:8,  ms:2400},
     {id:'tailor_leather_gloves',  name:'Tailor Leather Gloves',   icon:'🧤', inputs:{wolf_pelt:1, silk_thread:1},           output:'leather_gloves', xp:120, req:12, ms:2800},
     {id:'tailor_traveler_cape',   name:'Tailor Traveler Cape',    icon:'🦸', inputs:{silk_thread:3, wolf_pelt:2},           output:'traveler_cape',  xp:140, req:15, ms:3000},
+    /* ── ELEMENTS v1 — RUNE BINDING (elements/enchanting) ─────────────────
+       Bind an element essence into a rune the player then enchants onto a
+       weapon. Crafting 25, xp:120, ms:3000. The `magic_essence:1` binder ties
+       the recipe to the same intermediate every staff/rod/ring uses, and the
+       four element essences are the faucet those drops feed. The output's
+       `tag:'rune'` lanes these into the derived "Runes" strip on the Crafting
+       screen (recipeCategory), so no new UI code is needed. */
+    {id:'bind_ember_rune',  name:'Bind Ember Rune',  icon:'🔴', inputs:{ember_essence:4,  magic_essence:1}, output:'ember_rune',  xp:120, req:25, ms:3000},
+    {id:'bind_frost_rune',  name:'Bind Frost Rune',  icon:'🔵', inputs:{frost_essence:4,  magic_essence:1}, output:'frost_rune',  xp:120, req:25, ms:3000},
+    {id:'bind_poison_rune', name:'Bind Poison Rune', icon:'🟣', inputs:{poison_essence:4, magic_essence:1}, output:'poison_rune', xp:120, req:25, ms:3000},
     // Jewelry
     {id:'jewel_copper_ring',      name:'Set Copper Ring',         icon:'💍', inputs:{copper_bar:1, magic_essence:1},        output:'copper_ring',     xp:180, req:20, ms:3000},
     {id:'jewel_hunter_necklace',  name:'String Hunter Necklace',  icon:'📿', inputs:{gold_bar:1, wolf_pelt:1},              output:'hunter_necklace', xp:240, req:25, ms:3500},
@@ -352,6 +362,10 @@ export const ARTISAN_CATEGORIES = {
        fell straight through to `uncategorized`, which b220 asserts is empty.
        Keyed on the EXISTING `tag:'crafting-mat'` field rather than a new one. */
     { key: 'materials',  label: 'Materials' },
+    /* ELEMENTS v1 — the enchanting-rune lane. Keyed on the output's
+       `tag:'rune'`, landed in the SAME commit as the three bind recipes so the
+       `uncategorized` regression test stays green. */
+    { key: 'runes',      label: 'Runes' },
     { key: 'castle',     label: 'Castle Stores' },
   ],
   cooking: [
@@ -417,6 +431,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (type === 'weapon') return 'weapons';      // bows + staves
     if (type === 'armor') return 'armour';        // leather + cloth
     if (out && out.tag === 'crafting-mat') return 'materials'; // b356 — woven/worked intermediates
+    if (out && out.tag === 'rune') return 'runes'; // ELEMENTS v1 — enchanting runes
     if (isCastleGood(out)) return 'castle';       // b222 — Timber Beam, Keystone
     return null;
   }

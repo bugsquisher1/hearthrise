@@ -564,6 +564,14 @@ function nat(v, fallback) {
  *                  re-derives the monster's HP ceiling from the catalogue and
  *                  REFUSES a proposal outside it rather than clamping — the
  *                  engine's proposal is checked, not trusted.
+ *   enchant      player_state.enchant — the server-owned weapon enchant,
+ *                `{ <equip_slot>: <element> }` from hr_state_of, or `{}` when
+ *                the column is absent. A READ-ONLY input to
+ *                `equipmentStats(equipment, items, enchant)`: it changes how the
+ *                fight resolves (the weapon's element vs the monster's weakness)
+ *                but NO delta key is derived from it, so unlike toolCarry/fight
+ *                an absent value is simply `{}` with no self-configuring switch.
+ *                Written only by the `enchant` intent, never a client value.
  *
  * @returns { accrued: false, reason } | { accrued: true, delta, summary, … }
  */
@@ -700,7 +708,14 @@ export function computeAccrual(input) {
 
   const items = inp.items || {};
   const equipment = inp.equipment || {};
-  const eq = equipmentStats(equipment, items);
+  /* ELEMENTS v1: `eq` is built from equipment PLUS the server-owned enchant
+     state, so `weakness(m)` below (weaknessInfo(m, eq)) sees the weapon's
+     element on the AWAY path exactly as the live tick does. ONE eq, one
+     weakness calc — there is no second element resolution. `equipmentStats`
+     takes the enchant as its third argument (src/core/combat.js); an older core
+     that ignores it degrades to the pre-ELEMENTS behaviour, and an absent enchant
+     is `{}`. Never a client value — `inp.enchant` is read from hr_state_of. */
+  const eq = equipmentStats(equipment, items, inp.enchant || {});
   const setBonus = armorSetBonus(equipment, items);
   const profile = deriveProfile(eq.weaponType);
   /* The player's chosen style is NOT server state yet (there is no column and

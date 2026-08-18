@@ -1,11 +1,11 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=378';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=378';
-import { SLOT_ITEMS } from './slot-ladders.js?v=378';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=378';
-import { LIB2_ITEMS } from './library2-items.js?v=378';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=378';
+import { GEAR_ITEMS } from './gear-tiers.js?v=379';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=379';
+import { SLOT_ITEMS } from './slot-ladders.js?v=379';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=379';
+import { LIB2_ITEMS } from './library2-items.js?v=379';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=379';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -72,6 +72,22 @@ export const ITEMS={
   troll_hide:{n:'Troll Hide',icon:'🟤',v:80},vamp_dust:{n:'Vampire Dust',icon:'💜',v:120},
   demon_shard:{n:'Demon Shard',icon:'🔴',v:200},dragon_scale:{n:'Dragon Scale',icon:'🐲',v:500},
   lich_soul:{n:'Lich Soul',icon:'☠️',v:800},magic_essence:{n:'Magic Essence',icon:'✨',v:50},
+  /* ── ELEMENTS v1 (elements/enchanting) ──────────────────────────────────
+     Three essences (a monster drop → a crafting reagent) and three runes
+     (bound to the weapon slot via the enchant intent → a flat +15% vs the
+     element the monster is weak to). The runes' `element` field is
+     LOAD-BEARING: src/core/elements.js runeElement() and the server both read
+     it to map a rune id to the element it binds — never a name parse. Both
+     tiers are `tradeable` (no `bop`) — the server owns the market allowlist,
+     but the client carries the intent so nothing here mints a protected
+     currency. See src/core/elements.js and docs/design/consumable-economy.md
+     §11. */
+  ember_essence:{n:'Ember Essence',icon:'🔥',v:40,tag:'reagent',tradeable:true},
+  frost_essence:{n:'Frost Essence',icon:'❄️',v:40,tag:'reagent',tradeable:true},
+  poison_essence:{n:'Poison Essence',icon:'🧪',v:40,tag:'reagent',tradeable:true},
+  ember_rune:{n:'Ember Rune',icon:'🔴',v:180,tag:'rune',element:'ember',tradeable:true},
+  frost_rune:{n:'Frost Rune',icon:'🔵',v:180,tag:'rune',element:'frost',tradeable:true},
+  poison_rune:{n:'Poison Rune',icon:'🟣',v:180,tag:'rune',element:'poison',tradeable:true},
   rune_frag:{n:'Rune Fragment',icon:'🔷',v:30},ancient_rune:{n:'Ancient Rune',icon:'🔮',v:300},
   dragon_gem:{n:'Dragon Gem',icon:'💎',v:2000},ruby:{n:'Ruby',icon:'❤️',v:400},
   sticky_core:{n:'Sticky Core',icon:'🟢',v:35},rat_tail:{n:'Rat Tail',icon:'🐀',v:6},small_fang:{n:'Small Fang',icon:'🦷',v:15},

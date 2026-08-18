@@ -650,6 +650,12 @@ export async function collectCurrentWindow(o) {
          nearly-dead boss?", and it is enforced in SQL rather than here.
        Mirrors index.ts field for field (A14). */
     fight: st.fight ?? null,
+    /* THE WEAPON ENCHANT (ELEMENTS v1). Read-only input to
+       `equipmentStats(equipment, items, enchant)`, so a collect and an accrue
+       over the same window price the element identically. `|| {}` is safe (no
+       delta key is derived from it, unlike toolCarry/fight). Mirrors index.ts
+       field for field (A14). */
+    enchant: env.enchant || {},
     /* THE PERMANENT PERK STACK (b349). A collect that priced a window at zero
        perks while an accrue over the same window priced it at the player's real
        Kitchen would pay DIFFERENT amounts for the identical time — which is the

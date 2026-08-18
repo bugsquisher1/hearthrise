@@ -121,7 +121,14 @@ export const VERBS = Object.freeze(
        same operation on the same (slot -> item) map, distinguished by whether
        the value is a string or `null` — which is hr_apply's own vocabulary, not
        a mode flag invented at the wire. */
-    'equip']);
+    'equip',
+    /* ELEMENTS/ENCHANTING v1 — a CLONE of `equip`, the second verb that must
+       collect before it acts. The wire carries a slot NAME and a rune item NAME
+       ({slot:'weapon', rune:'ember_rune'}); the server resolves the rune to an
+       ELEMENT (hr_runes), checks the weapon slot holds a weapon, debits the rune
+       and sets the server-owned enchant state. The client never sends an
+       element, a magnitude or a success bit. */
+    'enchant']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`
@@ -184,7 +191,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty', 'reward',
-    'listing', 'ask', 'equip'],
+    'listing', 'ask', 'equip', 'enchant'],
 );
 
 /** An equip-slot name. The SAME bounded shape as a catalogue id and
@@ -238,6 +245,39 @@ export function parseIntent(body) {
   out.listing = readListing(body);
   out.ask = readAsk(body);
   out.equip = readEquip(body);
+  out.enchant = readEnchant(body);
+  return out;
+}
+
+/**
+ * THE ENCHANT DECLARATION (ELEMENTS/ENCHANTING v1). `{ slot, rune }`.
+ *
+ * TWO strings, both bounded, and NOTHING ELSE — no element, no magnitude, no
+ * success bit. `slot` is an equip-slot name; `rune` is an item id. The server
+ * resolves the rune to its element from hr_runes and decides whether the slot
+ * may be enchanted; there is nothing else a client could truthfully contribute.
+ *
+ * FIELD-WISE null, like `readActivity` and unlike `readEquip`: an enchant has
+ * two independent facts and the intent layer must be able to answer
+ * `wrong_slot` (bad slot) and `unknown_item` (bad rune) apart. An unreadable
+ * field is null and the intent layer names which one, rather than collapsing the
+ * whole gesture into "malformed request".
+ *
+ * @returns a null-prototype `{ slot: string|null, rune: string|null }`, or null
+ *          when the `enchant` field was absent or not an object.
+ */
+export function readEnchant(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'enchant')) return null;
+  const e = body.enchant;
+  if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
+
+  const slotRaw = ownString(e, 'slot');
+  const runeRaw = ownString(e, 'rune');
+
+  const out = Object.create(null);
+  out.slot = (slotRaw !== null && EQUIP_SLOT_RE.test(slotRaw)) ? slotRaw : null;
+  out.rune = (runeRaw !== null && CATALOGUE_ID_RE.test(runeRaw)) ? runeRaw : null;
   return out;
 }
 

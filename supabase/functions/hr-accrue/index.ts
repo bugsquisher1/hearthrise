@@ -81,6 +81,7 @@ import { runClaimReward } from './claim-reward.js';
 import { runUnlockBuy } from './unlock-buy.js';
 import { runMarketList, runMarketCancel, runMarketBuy } from './market.js';
 import { runEquip } from './equip.js';
+import { runEnchant } from './enchant.js';
 import { withCors } from './cors.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
@@ -293,6 +294,22 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         slot,
         intentId: intent.intentId,
         equip: intent.equip,
+      });
+      return json(out.body, out.status);
+    }
+
+    /* ── THE ENCHANT VERB (ELEMENTS v1) — a clone of equip ──────────────────
+       A SLOT NAME and a RUNE NAME, and nothing else. No element (it is
+       `hr_runes[rune]`, server-side), no magnitude, no success bit. If an
+       `element`, `power`, `magnitude` or `success` ever appears in this
+       argument list, the enchant is forgeable from devtools. */
+    if (intent.verb === 'enchant') {
+      const out = await runEnchant({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        intentId: intent.intentId,
+        enchant: intent.enchant,
       });
       return json(out.body, out.status);
     }
@@ -588,6 +605,13 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          (docs/design/live-settlement.md §0).
          Mirrors set-activity.js field for field (A14). */
       fight: st.fight ?? null,
+      /* THE WEAPON ENCHANT (ELEMENTS v1). `{ <equip_slot>: <element> }` from
+         hr_state_of, or `{}` when the column is absent. Unlike tool_carry/fight
+         it is a READ-ONLY input to `equipmentStats(equipment, items, enchant)` —
+         no delta key is derived from it — so `|| {}` is safe and there is no
+         self-configuring-null concern. It is what makes an AWAY fight see the
+         element (accrual.js `weakness`). Mirrors set-activity.js (A14). */
+      enchant: env.enchant || {},
       /* THE PERMANENT PERK STACK. Server-owned unlock rows only — the room
          rung, the plot buildings, the property tier. `null` means the channel
          is absent or the character has bought nothing, and the engine reads

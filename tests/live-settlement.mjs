@@ -458,13 +458,18 @@ export async function derivationGuard() {
      have forced the next author to either weaken this test or hand-edit a
      57 KB body, and both roads end at the thing this test exists to prevent.
 
-     So the property is split into the two facts it was always standing in for:
+     So the property is split into the two facts it was always standing in for,
+     and BOTH are now membership checks against a derivation chain:
 
-       (1) NOTHING after fight-carry may replace hr_state_of. There is no
-           derivation chain for hr_state_of, so a later toucher would silently
-           delete the `fight` projection and the engine would start every span
-           at full monster HP again — the P3 confiscation, back, with every
-           self-check green.
+       (1) Anything after fight-carry that replaces hr_state_of must be ON the
+           hr_state_of derivation chain (HR_STATE_OF_CHAIN in run-sql-tests.mjs).
+           Until ELEMENTS v1 there was NO such chain, so this read "nothing may
+           replace hr_state_of" — a later toucher would have silently deleted the
+           `fight` projection and every span would start a fresh monster at full
+           HP (the P3 confiscation) with every self-check green. The chain now
+           exists and PART 1f-ii diffs each link, so the crude ban becomes the
+           same membership check as (2): a replacement is allowed iff it is
+           derived from its predecessor and proven so, byte for byte.
        (2) Anything after it that replaces hr_apply must be ON the hr_apply
            derivation chain. Membership is the whole check; PART 1f-ii proves
            the bytes.
@@ -475,23 +480,26 @@ export async function derivationGuard() {
   const idx = order.order.indexOf('2026-08-17-fight-carry.sql');
   ok(idx >= 0, 'SETTLE-SQL: fight-carry is not in the apply order at all');
   const after = order.order.slice(idx + 1);
+  const chainSrc = await readFile(join(ROOT, 'tests', 'run-sql-tests.mjs'), 'utf8');
+  /* THE ARRAY IS EXTRACTED BY INDEX, NOT MATCHED BY REGEX. A regex over a JS
+     array literal is a parser written in one line, and the failure mode of a
+     wrong one here is a FALSE RED that the next person fixes by deleting the
+     assertion. Two indexOf calls cannot be subtly wrong. */
+  const onChain = (marker, f) => {
+    const at = chainSrc.indexOf(marker);
+    return at >= 0 && chainSrc.slice(at, chainSrc.indexOf('];', at)).includes(`'${f}'`);
+  };
   for (const f of after) {
     const body = await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8');
-    ok(!/create\s+or\s+replace\s+function\s+public\.hr_state_of\s*\(/i.test(body),
-      `SETTLE-SQL: ${f} is applied AFTER fight-carry and replaces hr_state_of. There is no `
-      + 'derivation chain for hr_state_of, so that silently deletes the `fight` projection and '
-      + 'every accrual window starts a fresh monster at full HP again — the P3 confiscation, with '
-      + 'every self-check still passing.');
+    if (/create\s+or\s+replace\s+function\s+public\.hr_state_of\s*\(/i.test(body)) {
+      ok(onChain('const HR_STATE_OF_CHAIN = [', f),
+        `SETTLE-SQL: ${f} replaces hr_state_of after fight-carry but is NOT on HR_STATE_OF_CHAIN in `
+        + 'tests/run-sql-tests.mjs. Unchained, nothing diffs its body against the one it replaces, so '
+        + 'the `fight` projection could vanish and every accrual window would start a fresh monster at '
+        + 'full HP again — the P3 confiscation, with every self-check still passing.');
+    }
     if (/create\s+or\s+replace\s+function\s+public\.hr_apply\s*\(/i.test(body)) {
-      const chain = await readFile(join(ROOT, 'tests', 'run-sql-tests.mjs'), 'utf8');
-      /* THE ARRAY IS EXTRACTED BY INDEX, NOT MATCHED BY REGEX. A regex over a
-         JS array literal is a parser written in one line, and the failure mode
-         of a wrong one here is a FALSE RED that the next person fixes by
-         deleting the assertion. Two indexOf calls cannot be subtly wrong. */
-      const at = chain.indexOf('const HR_APPLY_CHAIN = [');
-      const listed = at >= 0
-        && chain.slice(at, chain.indexOf('];', at)).includes(`'${f}'`);
-      ok(listed,
+      ok(onChain('const HR_APPLY_CHAIN = [', f),
         `SETTLE-SQL: ${f} replaces hr_apply after fight-carry but is NOT on HR_APPLY_CHAIN in `
         + 'tests/run-sql-tests.mjs. Unchained, its body is a hand-retyped 57 KB restatement that '
         + 'nothing compares against the one it replaces — which is how b346’s ownership flag, '

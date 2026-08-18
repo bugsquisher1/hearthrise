@@ -222,12 +222,38 @@ const startKit = {
   bank_cap: START_CURRENCY.bankCap, farm_plots: START_CURRENCY.farmPlots,
 };
 
+// ── 2c. THE RUNE → ELEMENT CATALOGUE (ELEMENTS/ENCHANTING v1) ─────────────
+// hr_runes is what hr_apply's enchant block resolves a rune id to an ELEMENT
+// against, under the character lock — never the element the Edge Function
+// proposed. It is DERIVED here, from the SAME src/data/items.js the client
+// renders from, for exactly the reason every other catalogue is: a hand-typed
+// rune→element table in PL/pgSQL would be the data double-copy this repo has
+// already been burned by (src/main.js unifyObject header). A rune is any item
+// with `tag:'rune'`; its `element` is one of ember/frost/poison.
+//
+// ⚠ A RUNE WITH NO VALID ELEMENT FAILS GENERATION, rather than being silently
+//   dropped. A dropped rune would be an item the shop and bag show but that
+//   hr_apply answers `unknown_item` for — un-enchantable while looking present,
+//   which is the b341 UI-says-one-thing-engine-does-another failure class. An
+//   unauthored element that disables a control is worse than an absent control.
+const RUNE_ELEMENTS = ['ember', 'frost', 'poison'];
+const runes = itemIds
+  .filter((id) => (ITEMS[id] || {}).tag === 'rune')
+  .map((id) => {
+    const el = ITEMS[id].element;
+    if (!RUNE_ELEMENTS.includes(el)) {
+      die(`rune "${id}" has element ${JSON.stringify(el)} — every tag:'rune' item must carry `
+        + `element:'ember'|'frost'|'poison', or hr_apply cannot resolve it`);
+    }
+    return { rune_id: id, element: el };
+  });
+
 // ── 3. Hash — the DB-side half of the drift guard ────────────────────────
 // The same digest is asserted by tests/sql/server-authority.test.sql against
 // hr_catalogue_meta, so a database that was loaded from an older generation is
 // detectable without diffing 400 rows by hand.
 const canonical = JSON.stringify({ items, itemSlots, equipSlots, skills, crops, activities,
-  startKit, startSkillXp, startInventory, startEquipment });
+  startKit, startSkillXp, startInventory, startEquipment, runes });
 const DIGEST = createHash('sha256').update(canonical).digest('hex');
 
 // ── 4. Emit ──────────────────────────────────────────────────────────────
@@ -248,7 +274,8 @@ const sql = `-- ═════════════════════�
 --   catalogue digest: ${DIGEST}
 --   rows: ${items.length} items (${items.filter((r) => !r.tradeable).length} untradeable) ·
 --         ${itemSlots.length} item-slot pairs · ${equipSlots.length} equip slots ·
---         ${skills.length} skills · ${crops.length} crops · ${activities.length} activities
+--         ${skills.length} skills · ${crops.length} crops · ${activities.length} activities ·
+--         ${runes.length} runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
 --              → 2026-08-11-market-v2.sql
@@ -365,6 +392,16 @@ create table if not exists public.hr_start_equipment (
   item_id    text not null
 );
 
+-- ── THE RUNE CATALOGUE (ELEMENTS/ENCHANTING v1) ──────────────────────────
+-- rune_id → element, resolved by hr_apply's enchant block under the character
+-- lock. The CHECK pins the element vocabulary in the database itself, so a
+-- generation that somehow emitted a fourth element is refused at apply time
+-- rather than stored.
+create table if not exists public.hr_runes (
+  rune_id text primary key,
+  element text not null check (element in ('ember','frost','poison'))
+);
+
 create table if not exists public.hr_catalogue_meta (
   only_row     boolean primary key default true check (only_row),
   digest       text not null,
@@ -383,6 +420,7 @@ delete from public.hr_activities;
 delete from public.hr_start_skill_xp;
 delete from public.hr_start_inventory;
 delete from public.hr_start_equipment;
+delete from public.hr_runes;
 
 insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals, auto_eatable) values
 ${valuesBlock(items, (r) => `  (${q(r.item_id)},${q(r.name)},${b(r.tradeable)},${q(r.kind)},${n(r.value)},${q(r.req_skill)},${n(r.req_lv)},${n(r.heals)},${b(r.auto_eatable)})`)};
@@ -423,6 +461,9 @@ ${valuesBlock(startInventory, (r) => `  (${q(r.item_id)},${n(r.qty)})`)};
 insert into public.hr_start_equipment (equip_slot, item_id) values
 ${valuesBlock(startEquipment, (r) => `  (${q(r.equip_slot)},${q(r.item_id)})`)};
 
+${runes.length ? `insert into public.hr_runes (rune_id, element) values
+${valuesBlock(runes, (r) => `  (${q(r.rune_id)},${q(r.element)})`)};` : '-- (no tag:\'rune\' items authored yet — hr_runes seeded empty)'}
+
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
   values (true, ${q(DIGEST)}, now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
@@ -438,7 +479,7 @@ begin
   foreach t in array array['hr_items','hr_item_slots','hr_equip_slots','hr_skills',
                            'hr_crops','hr_activities','hr_catalogue_meta',
                            'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
-                           'hr_start_equipment'] loop
+                           'hr_start_equipment','hr_runes'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', t);
     execute format('grant select on public.%I to anon, authenticated, service_role', t);
@@ -509,7 +550,7 @@ begin
      and tablename in ('hr_items','hr_item_slots','hr_equip_slots','hr_skills',
                        'hr_crops','hr_activities','hr_catalogue_meta',
                        'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
-                       'hr_start_equipment')
+                       'hr_start_equipment','hr_runes')
      and cmd in ('INSERT','UPDATE','DELETE','ALL');
   if v_bad > 0 then raise exception '% write policies on catalogue tables', v_bad; end if;
 
@@ -519,7 +560,7 @@ begin
      and table_name in ('hr_items','hr_item_slots','hr_equip_slots','hr_skills',
                         'hr_crops','hr_activities','hr_catalogue_meta',
                         'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
-                        'hr_start_equipment')
+                        'hr_start_equipment','hr_runes')
      and grantee in ('anon','authenticated','service_role','PUBLIC')
      and privilege_type <> 'SELECT';
   if v_bad > 0 then raise exception '% client write grants on catalogue tables', v_bad; end if;
@@ -568,8 +609,16 @@ begin
     raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
   end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, digest ${DIGEST}',
-    (select count(*) from public.hr_items), (select count(*) from public.hr_activities);
+  -- RUNES. Count asserted like every other catalogue, so a re-apply that
+  -- created hr_runes before it was seeded cannot leave the enchant block
+  -- answering unknown_item for every real rune. Every row's element is pinned
+  -- by the table CHECK, so no separate vocabulary assertion is needed here.
+  select count(*) into v_n from public.hr_runes;
+  if v_n <> ${runes.length} then raise exception 'hr_runes has % rows, generator emitted ${runes.length}', v_n; end if;
+
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest ${DIGEST}',
+    (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
+    (select count(*) from public.hr_runes);
 end $$;
 `;
 

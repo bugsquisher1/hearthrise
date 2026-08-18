@@ -496,6 +496,20 @@ export const INTENT_REGISTRY = Object.freeze({
      map, and `MAX_EQUIP_OPS` is exactly the slot count for that reason); do not
      widen the gate. */
   equip: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
+  /* ── ELEMENTS/ENCHANTING v1 — A CLONE OF equip ───────────────────────────
+     `collectsFirst: TRUE`, for the IDENTICAL reason equip is: hr_apply stamps
+     `accrued_to = now()` on an `enchant` delta (it is added to §S5's stamping
+     condition alongside `equip`/`activity`), so an enchant that did not collect
+     first would discard every unpaid second since the last settle. The ORDER —
+     collect, then enchant — is what closes the "fight cheap all night, apply a
+     rune, settle the whole window at the enchanted element" class, exactly as
+     equip closes the naked→BiS one. `guardStampKeys` re-checks it against the
+     delta this verb builds (STAMP_KEYS carries 'enchant'), so a row flipped to
+     `false` produces `would_confiscate` rather than a silent confiscation.
+
+     `bucket: 'activity'`, shared with set_activity and equip — one surface (the
+     character's own loadout/pointer), one budget. */
+  enchant: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -543,7 +557,7 @@ export function collectsFirst(verb) { return intentSpec(verb).collectsFirst === 
    registry column that encodes the answer is otherwise a comment: a future
    claim-and-equip reward would flip the truth without flipping the row, and the
    symptom is a silently confiscated night, not an error. */
-export const STAMPING_DELTA_KEYS = Object.freeze(['equip', 'activity']);
+export const STAMPING_DELTA_KEYS = Object.freeze(['equip', 'activity', 'enchant']);
 
 /** Would applying this delta stamp `accrued_to = now()` and therefore discard
     any unpaid window? Own-property, so a poisoned `__proto__` cannot answer. */
@@ -678,6 +692,26 @@ export const INTENT_ERRORS = Object.freeze({
      name for a refusal the database already names is how a taxonomy stops
      meaning one thing per code. */
   BAD_EQUIP: 'bad_equip',
+
+  /* ── ELEMENTS/ENCHANTING v1 ──────────────────────────────────────────────
+     ONE shape code minted HERE, everything else is hr_apply's own vocabulary
+     returned verbatim — the same bargain equip strikes:
+
+       bad_enchant          400/409 — the {slot,rune} is unreadable, OR hr_apply
+                            refused the delta's shape under the lock. SHARED with
+                            hr_apply; `stage` says which layer said it.
+       wrong_slot           409 — the target slot is not the weapon slot, OR the
+                            weapon slot holds no weapon. ⚠ SHARED with equip's
+                            and market_cancel's `wrong_slot`; one code, and the
+                            three can never appear on one verb.
+       unknown_item         409 — the rune is not in hr_runes (not a rune).
+       insufficient_item    409 — the player owns no copy of the rune. THIS IS
+                            THE DEBIT/OWNERSHIP CHECK, exactly as for equip.
+
+     `unknown_item` / `wrong_slot` / `insufficient_item` are NOT minted here —
+     inventing a second name for a refusal the database already names is how a
+     taxonomy stops meaning one thing per code. */
+  BAD_ENCHANT: 'bad_enchant',
 });
 
 /* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────
@@ -751,6 +785,15 @@ export const STATELESS_REFUSALS = Object.freeze([
        on a stateless allowlist that can also arrive stateful is precisely how a
        client ends up reconciling to an envelope that was never sent. */
   INTENT_ERRORS.BAD_EQUIP,
+  /* ELEMENTS/ENCHANTING v1 — the enchant verb's ONE shape refusal, answered
+     from the parsed request and the in-process catalogues (hr_runes /
+     hr_item_slots) BEFORE the rate gate and before any database work. Nothing
+     was written and NO COLLECT RAN, so a malformed enchant costs the player
+     nothing at all rather than a confiscated window — exactly as `bad_equip`.
+     ⚠ `bad_enchant` HAS TWO PRODUCERS like `bad_equip`: hr_apply raises it too,
+       from under the row lock, and THAT one carries an envelope.
+       `refusalCarriesState` is consulted only on this layer's own refusals. */
+  INTENT_ERRORS.BAD_ENCHANT,
 ]);
 
 /** Must a refusal with this code carry the `hr_state_of` envelope? */
@@ -1062,7 +1105,7 @@ export function intentNameOf(verb, ...parts) {
    So it is a check, it runs on the delta the verb actually built, and it fails
    the CALL rather than the build: a delta that would confiscate is refused
    before it is ever presented to hr_apply. */
-export const STAMP_KEYS = Object.freeze(['activity', 'equip', 'accrued_to']);
+export const STAMP_KEYS = Object.freeze(['activity', 'equip', 'accrued_to', 'enchant']);
 
 /** Which stamping keys this delta carries. Own properties only — a delta is
     built here, but `{"__proto__": {...}}` survives JSON.parse as an own data

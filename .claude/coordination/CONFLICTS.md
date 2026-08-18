@@ -2,6 +2,32 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+### 2026-08-17 - CROSS-VERB COUPLING - `equip` (changes weapon) must clear `enchant.weapon` on BOTH sides (Systems -> Server agent)
+**ELEMENTS v1.** `G.enchant.weapon` is bound to the WEAPON, not the player: whenever the item in the
+weapon slot changes, the enchant is void. The client already reflects this — `clearEnchantOnWeaponChange`
+is called from every path that writes `G.equipment.weapon` (`equipItem`, `unequip`, `unequipSlotInv`),
+and `equipmentStats` belt-and-braces refuses to stamp `eq.element` unless the weapon slot actually holds
+a `type:'weapon'` item. **The SERVER must do the same:** the `equip` verb, when it changes the weapon
+slot's item, must clear its own `state.enchant.weapon`, and the envelope it returns must carry the
+cleared `enchant` so the client applier (`applyEnvelopeState`, which now authors `G.enchant` from
+`state.enchant`) reflects it. A same-item re-equip is a no-op and must NOT clear the enchant.
+If the server does not clear on weapon-change, a player keeps a +15% element on a weapon that no longer
+carries the rune until the next real enchant — a small but real over-credit. Client guard makes it
+inert locally; the durable fix is server-side. **Owner: the Edge `enchant`/`equip` agent.**
+
+### 2026-08-17 - HANDOFF - the vendored core changed; hr-accrue must repack + redeploy (Systems -> Server agent)
+`src/core/combat.js` (the `weaknessInfo` element factor + `equipmentStats` 3rd arg) and the new
+`src/core/elements.js` are vendored into `supabase/functions/hr-accrue`. The smoke preflight
+`deployedPayloadGuard` now reports a payload-digest drift (informational, non-fatal — the suite is
+still 0 failures). When the server builds the `enchant` verb it must: (1) call
+`equipmentStats(equipment, items, enchant)` with the player's authored enchant at its two accrual
+sites (`accrual.js` weakness + rolls) so away combat pays the element — the signature is
+backward-compatible (a missing 3rd arg stamps no element); (2) author `state.enchant.weapon` from
+`runeElement(rune, ITEMS)` (element name only, never a magnitude); (3) repack with
+`node tools/pack-edge.mjs hr-accrue --out <dir>` and redeploy. Contract for the client intent is in
+`src/net/enchant.js`'s header (verb body `{verb:'enchant',slot,intentId,enchant:{slot:'weapon',rune}}`;
+refusal codes `insufficient_item`/`wrong_slot`/`unknown_item`/`rate_limited`; collectsFirst).
+
 ### 2026-08-17 - SEMANTIC - The accrual envelope writes `playerHp`, which `events.js` declares NO_SYNC (Designer -> Systems)
 **This is a real disagreement between two modules about who owns HP, and it produced a shipped
 player-facing bug.** `src/net/events.js` has said since it was written that `playerHp` /

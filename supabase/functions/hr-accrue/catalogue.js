@@ -126,6 +126,37 @@ for (const id of Object.keys(ITEMS)) {
 export const ITEM_EQUIP_SLOTS = Object.freeze(itemSlotIdx);
 
 /* ════════════════════════════════════════════════════════════════════════
+   THE RUNE CATALOGUE (ELEMENTS/ENCHANTING v1) — the SAME derivation
+   tools/gen-catalogues.mjs makes for `hr_runes`, from the SAME src/data/items.js
+   import, so the enchant verb's early answer and the database's authoritative
+   one cannot disagree about which rune carries which element.
+
+   ⚠ EARLY ANSWER, NOT THE AUTHORITY. hr_apply's enchant block re-resolves the
+     rune against `hr_runes` under the row lock and it is the thing a compromised
+     Edge Function cannot lie to. What this buys is a NAMED `unknown_item` one
+     round trip earlier — and a refusal that costs NO idempotency key and NO
+     collect, because the enchant verb collects the window before it acts.
+
+   A rune is any item with `tag:'rune'` whose `element` is one of the three.
+   NULL-PROTOTYPE, and it is the `__proto__` hazard again: a rune id off the wire
+   is bounded by /^[a-z0-9_]{1,64}$/, which matches `constructor`. `catalogueGet`
+   is the reader everywhere.
+   ════════════════════════════════════════════════════════════════════════ */
+const RUNE_ELEMENTS = Object.freeze(['ember', 'frost', 'poison']);
+const runeIdx = Object.create(null);
+for (const id of Object.keys(ITEMS)) {
+  const it = ITEMS[id];
+  if (it && it.tag === 'rune' && RUNE_ELEMENTS.includes(it.element)) runeIdx[id] = it.element;
+}
+/** `{ [rune_id]: element }` — the `hr_runes` map, null-prototype. An item that
+    is not a rune (or a rune with no valid element) is ABSENT, which is what
+    makes "this is not a rune" answerable without a database read. */
+export const RUNE_ELEMENT = Object.freeze(runeIdx);
+/** The enchantable equip slots in v1. WEAPON only — a `frozen` allowlist so the
+    early answer and hr_apply's `k <> 'weapon'` gate agree on the one slot. */
+export const ENCHANT_SLOTS = Object.freeze({ __proto__: null, weapon: true });
+
+/* ════════════════════════════════════════════════════════════════════════
    THE ECONOMY CATALOGUE — prices, derived from src/data, never restated.
 
    ⚠ THE CLIENT NEVER SENDS A PRICE. It sends an OFFER ID (`equip.iron_sword`)

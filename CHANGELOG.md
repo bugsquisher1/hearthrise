@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 379 — 2026-08-18 (Elemental enchanting)
+
+- 🔥❄️☠️ **Enchant your weapon with an element.** Bind Ember, Frost, or Poison to your weapon and it hits **+15%** against foes weak to that element — a second lever on top of the weapon triangle, tuned per target. Check a monster's panel to see what it's weak to.
+- ⚒️ **New loop:** elemental **essences** drop from thematically-matched monsters → craft them into **runes** at Crafting 25 → spend a rune to enchant your equipped weapon. Keep a couple of enchanted weapons and swap to match the fight.
+- 🧩 Under the hood: enchanting is fully server-authoritative — you send "enchant my weapon with this rune," the server owns the rune spend and the element, and the bonus is computed by the same combat math online and away. Runes are tradeable.
+
 ## v0.9.2-beta build 378 — 2026-08-18 (Clans & Castles: coming after launch)
 
 - 🏰 **Clans are marked "coming after launch."** The Clan screen now shows a roadmap card — a shared castle, treasury, work orders, clan chat, and a weekly boss no one downs alone — opening once the realm is populated enough for holds to feel alive. Your solo progress carries straight into your clan when they land. (Clans are more fun with a crowd; we're opening them when there's one.)

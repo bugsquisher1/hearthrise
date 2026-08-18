@@ -6,10 +6,11 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 5b0a77e2e2bc10d70f8cda81edc50c6ef1a64108bbc25206d7ff030b3febb88a
---   rows: 512 items (16 untradeable) ·
+--   catalogue digest: 47af6d482937da45fdecaf3b14fc56b3faeb0060cf378e67829de091bdc75377
+--   rows: 518 items (16 untradeable) ·
 --         278 item-slot pairs · 15 equip slots ·
---         17 skills · 9 crops · 470 activities
+--         17 skills · 9 crops · 473 activities ·
+--         3 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
 --              → 2026-08-11-market-v2.sql
@@ -126,6 +127,16 @@ create table if not exists public.hr_start_equipment (
   item_id    text not null
 );
 
+-- ── THE RUNE CATALOGUE (ELEMENTS/ENCHANTING v1) ──────────────────────────
+-- rune_id → element, resolved by hr_apply's enchant block under the character
+-- lock. The CHECK pins the element vocabulary in the database itself, so a
+-- generation that somehow emitted a fourth element is refused at apply time
+-- rather than stored.
+create table if not exists public.hr_runes (
+  rune_id text primary key,
+  element text not null check (element in ('ember','frost','poison'))
+);
+
 create table if not exists public.hr_catalogue_meta (
   only_row     boolean primary key default true check (only_row),
   digest       text not null,
@@ -144,6 +155,7 @@ delete from public.hr_activities;
 delete from public.hr_start_skill_xp;
 delete from public.hr_start_inventory;
 delete from public.hr_start_equipment;
+delete from public.hr_runes;
 
 insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals, auto_eatable) values
   ('abyssal_greaves','Abyssal Greaves',true,'armor',198000,null,null,null,false),
@@ -324,11 +336,13 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('ember_bar','Emberforged Bar',true,null,1600,null,null,null,false),
   ('ember_belt','Emberforged Belt',true,'armor',10400,'defense',75,null,false),
   ('ember_boots','Emberforged Boots',true,'armor',10400,'defense',75,null,false),
+  ('ember_essence','Ember Essence',true,null,40,null,null,null,false),
   ('ember_gauntlets','Emberforged Gauntlets',true,'armor',9100,'defense',75,null,false),
   ('ember_helm','Emberforged Helm',true,'armor',15600,'defense',75,null,false),
   ('ember_pickaxe','Emberforged Pickaxe',true,'tool',22000,null,null,null,false),
   ('ember_platebody','Emberforged Platebody',true,'armor',39000,'defense',75,null,false),
   ('ember_platelegs','Emberforged Platelegs',true,'armor',28600,'defense',75,null,false),
+  ('ember_rune','Ember Rune',true,null,180,null,null,null,false),
   ('ember_sword','Emberforged Sword',true,'weapon',13000,'attack',75,null,false),
   ('ember_tart','Ember Tart',true,null,1300,null,null,30,false),
   ('ember_warhammer','Emberforged Warhammer',true,'weapon',14300,'attack',75,null,false),
@@ -348,7 +362,9 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('forge_blueprint_t2','Forge Blueprint II',true,null,500,null,null,null,false),
   ('forge_blueprint_t3','Forge Blueprint III',true,null,2000,null,null,null,false),
   ('fox_companion','Fox Companion',true,'companion',600,null,null,null,false),
+  ('frost_essence','Frost Essence',true,null,40,null,null,null,false),
   ('frost_locket','Frost Locket',true,'jewelry',2250,null,null,null,false),
+  ('frost_rune','Frost Rune',true,null,180,null,null,null,false),
   ('frostfin','Raw Frostfin',true,null,520,null,null,18,true),
   ('gemcutter_note','Gemcutter''s Note',true,null,0,null,null,null,false),
   ('goblin_ear','Goblin Ear',true,null,8,null,null,null,false),
@@ -450,6 +466,8 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('pitlord_irons','Pitlord Irons',true,'armor',10400,'defense',75,null,false),
   ('plague_ichor','Plague Ichor',true,null,180,null,null,null,false),
   ('plaguewarden_greaves','Plaguewarden Greaves',true,'armor',10800,'defense',54,null,false),
+  ('poison_essence','Poison Essence',true,null,40,null,null,null,false),
+  ('poison_rune','Poison Rune',true,null,180,null,null,null,false),
   ('potato','Potato',true,null,65,null,null,5,true),
   ('potato_seed','Potato Seed',true,null,20,null,null,null,false),
   ('pumpkin','Pumpkin',true,null,150,null,null,8,true),
@@ -992,7 +1010,10 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp) 
   ('artisan','bind_chaos_runes','runecrafting',60,null),
   ('artisan','bind_death_runes','runecrafting',75,null),
   ('artisan','bind_earth_runes','runecrafting',15,null),
+  ('artisan','bind_ember_rune','crafting',25,null),
   ('artisan','bind_fire_runes','runecrafting',45,null),
+  ('artisan','bind_frost_rune','crafting',25,null),
+  ('artisan','bind_poison_rune','crafting',25,null),
   ('artisan','bind_water_runes','runecrafting',30,null),
   ('artisan','bury_big','prayer',15,null),
   ('artisan','bury_bones','prayer',1,null),
@@ -1481,8 +1502,13 @@ insert into public.hr_start_inventory (item_id, qty) values
 insert into public.hr_start_equipment (equip_slot, item_id) values
   ('weapon','bronze_sword');
 
+insert into public.hr_runes (rune_id, element) values
+  ('ember_rune','ember'),
+  ('frost_rune','frost'),
+  ('poison_rune','poison');
+
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '5b0a77e2e2bc10d70f8cda81edc50c6ef1a64108bbc25206d7ff030b3febb88a', now())
+  values (true, '47af6d482937da45fdecaf3b14fc56b3faeb0060cf378e67829de091bdc75377', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1496,7 +1522,7 @@ begin
   foreach t in array array['hr_items','hr_item_slots','hr_equip_slots','hr_skills',
                            'hr_crops','hr_activities','hr_catalogue_meta',
                            'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
-                           'hr_start_equipment'] loop
+                           'hr_start_equipment','hr_runes'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', t);
     execute format('grant select on public.%I to anon, authenticated, service_role', t);
@@ -1510,13 +1536,13 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 512 then raise exception 'hr_items has % rows, generator emitted 512', v_n; end if;
+  if v_n <> 518 then raise exception 'hr_items has % rows, generator emitted 518', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 16 then
     raise exception 'untradeable count is %, generator emitted 16', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 470 then raise exception 'hr_activities has % rows, expected 470', v_n; end if;
+  if v_n <> 473 then raise exception 'hr_activities has % rows, expected 473', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -1567,7 +1593,7 @@ begin
      and tablename in ('hr_items','hr_item_slots','hr_equip_slots','hr_skills',
                        'hr_crops','hr_activities','hr_catalogue_meta',
                        'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
-                       'hr_start_equipment')
+                       'hr_start_equipment','hr_runes')
      and cmd in ('INSERT','UPDATE','DELETE','ALL');
   if v_bad > 0 then raise exception '% write policies on catalogue tables', v_bad; end if;
 
@@ -1577,7 +1603,7 @@ begin
      and table_name in ('hr_items','hr_item_slots','hr_equip_slots','hr_skills',
                         'hr_crops','hr_activities','hr_catalogue_meta',
                         'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
-                        'hr_start_equipment')
+                        'hr_start_equipment','hr_runes')
      and grantee in ('anon','authenticated','service_role','PUBLIC')
      and privilege_type <> 'SELECT';
   if v_bad > 0 then raise exception '% client write grants on catalogue tables', v_bad; end if;
@@ -1626,6 +1652,14 @@ begin
     raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
   end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, digest 5b0a77e2e2bc10d70f8cda81edc50c6ef1a64108bbc25206d7ff030b3febb88a',
-    (select count(*) from public.hr_items), (select count(*) from public.hr_activities);
+  -- RUNES. Count asserted like every other catalogue, so a re-apply that
+  -- created hr_runes before it was seeded cannot leave the enchant block
+  -- answering unknown_item for every real rune. Every row's element is pinned
+  -- by the table CHECK, so no separate vocabulary assertion is needed here.
+  select count(*) into v_n from public.hr_runes;
+  if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
+
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 47af6d482937da45fdecaf3b14fc56b3faeb0060cf378e67829de091bdc75377',
+    (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
+    (select count(*) from public.hr_runes);
 end $$;

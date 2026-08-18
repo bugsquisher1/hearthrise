@@ -622,6 +622,11 @@ let G={
   inventory:{turnip_seed:5,carrot_seed:3,shrimp:8},
   bank:{},
   equipment:{...Object.fromEntries(EQUIP_SLOTS.map(s=>[s,null])),weapon:'bronze_sword'},
+  /* ELEMENTS v1 — the weapon-slot enchant, SERVER-AUTHORED. Element name only,
+     never a magnitude ({weapon:'ember'|'frost'|'poison'} or {}). Persists by
+     default (NOT in NO_SYNC — it is progress), and is cleared when the weapon
+     in the weapon slot changes (both here and server-side). */
+  enchant:{},
   rooms:{},
   plotBuildings:[],
   houseTheme:'default',
@@ -1247,6 +1252,10 @@ function loadLocal(){
   migrateEquipmentSlots();
   ensureStarterCombatKit();
   G.entitlements=G.entitlements||{};
+  /* ELEMENTS v1 — backfill the enchant map on saves that predate it. Empty {}
+     = no enchant. It persists by default (absent from NO_SYNC), so nothing else
+     is needed for it to survive save/load. */
+  if(!G.enchant||typeof G.enchant!=='object'||Array.isArray(G.enchant))G.enchant={};
   G.ownedThemes=G.ownedThemes||['default'];
   G.ownedCosmetics=G.ownedCosmetics||[];
   G.settings=Object.assign({sfx:true,reduceFx:false,leftHand:false},G.settings||{});
@@ -2804,10 +2813,25 @@ function getMonsterCombatRolls(m,eq=getEquipmentStats()){
   return C.combat.monsterCombatRolls(m,{eq,skills:(G&&G.skills)||{},bonus:C.bonus});
 }
 function getEquipmentStats(){
-  return window.HearthriseCore.combat.equipmentStats(G.equipment, ITEMS);
+  /* ELEMENTS v1 — G.enchant is the 3rd arg so the weapon-slot element rides
+     into weaknessInfo's damageMult identically awake and away. See
+     src/core/elements.js. */
+  return window.HearthriseCore.combat.equipmentStats(G.equipment, ITEMS, G.enchant);
 }
 function getWeaknessInfo(m,eq=getEquipmentStats()){
   return window.HearthriseCore.combat.weaknessInfo(m,eq);
+}
+/* ELEMENTS v1 — CROSS-VERB COUPLING (flagged in CONFLICTS.md). Whenever the
+   item in the weapon slot CHANGES, the enchant it carried is void: it is bound
+   to a weapon, not to the player. This is the CLIENT reflect; the server clears
+   its own G.enchant when the equip verb changes the weapon (its state is the
+   authority — this only keeps the local prediction honest so a stale +15% badge
+   does not linger for a settle cadence). Called from every path that writes
+   G.equipment.weapon. Same-item re-equip is a no-op (the enchant survives). */
+function clearEnchantOnWeaponChange(slot,oldId,newId){
+  if(slot!=='weapon')return;
+  if(oldId===newId)return;
+  if(G.enchant&&G.enchant.weapon){ G.enchant={}; }
 }
 function getPreferredSlot(def){
   if(!def)return null;
@@ -5807,6 +5831,20 @@ function renderLoadout(){
       <div class="stat"><b>+${Math.round(s.spdB*100)}%</b><span>Spd</span></div>
       <div class="stat"><b>${WEAPON_TYPES[s.weaponType]}</b><span>Type</span></div>
     </div>
+    ${(function(){
+      /* ELEMENTS v1 — the weapon-slot enchant affordance + readout. Only shown
+         when a real weapon is worn (an enchant binds a weapon, not the player).
+         CSS TOKENS ONLY. */
+      const wid=G.equipment&&G.equipment.weapon;const wit=wid?ITEMS[wid]:null;
+      if(!wit||wit.type!=='weapon')return '';
+      const el=(G.enchant&&G.enchant.weapon)||null;
+      const badge=el
+        ? `<span class="enchant-badge" style="color:var(--accent);font-weight:700">✦ ${el}</span> <span class="muted tiny">+15% vs ${el}-weak foes</span>`
+        : `<span class="muted tiny">No enchant</span>`;
+      return `<div class="enchant-row" style="display:flex;align-items:center;gap:8px;margin-top:8px">`
+        +`<div style="flex:1">${badge}</div>`
+        +`<button class="btn" onclick="openEnchantPicker()">${el?'Re-enchant':'Enchant'}</button></div>`;
+    })()}
     <div class="muted tiny" style="margin-top:8px">Tap a slot to unequip. Manage gear from the Inventory tab.</div>`;
 }
 /* ══════════════════════════════════════════════════════════════════════════
@@ -6157,7 +6195,117 @@ window.equipOpsFromSnapshot=equipOpsFromSnapshot;
    above: a seam, not a test poking a closure. */
 window.restoreEquipSnapshot=restoreEquipSnapshot;
 
-function unequip(slot){const id=G.equipment[slot];if(!id)return;const _b=equipStateSnapshot();G.equipment[slot]=null;G.inventory[id]=(G.inventory[id]||0)+1;notify(`Unequipped ${ITEMS[id].n}`,'info');renderLoadout();renderInventory();routeEquipGesture(_b);}
+/* ══════════════════════════════════════════════════════════════════════════
+   ELEMENTS v1 — THE ENCHANT GESTURE (bind an element rune to the weapon slot)
+   ══════════════════════════════════════════════════════════════════════════
+   It has no flip of its own. The enchant only changes `G.enchant`, which is
+   NOT tradeable/rankable/contributable — a forged element cannot cross into
+   another player's economy — so its envelope is applied through the same
+   `applyServerEnvelope` path (which reconciles gold/xp/inventory the collect
+   may carry) with no absolute-inventory arming to negotiate. It borrows the
+   equip transport's endpoint + token so nothing new has to be configured. */
+function wireServerEnchant(){
+  const E=window.HearthriseEnchant,Q=window.HearthriseEquip;
+  if(!E)return null;                                  // module not loaded — enchant is unavailable, never silent below
+  /* Borrow whatever the equip transport was configured with (same hr-accrue
+     endpoint + auth). If equip is not configured, enchant is not either — both
+     go dark together, which is correct in an offline/dark build. */
+  const cfg=(Q&&typeof Q.getEquipConfig==='function')?Q.getEquipConfig():null;
+  if(cfg&&typeof E.configureEnchant==='function')E.configureEnchant(cfg);
+  const h=(typeof E.getEnchantHooks==='function')?E.getEnchantHooks():null;
+  if(!(h&&typeof h.onEnvelope==='function')&&typeof E.setEnchantHooks==='function'){
+    E.setEnchantHooks({onEnvelope:function(res){ return applyServerEnvelope(res,{intent:true}); }});
+  }
+  return E;
+}
+window.wireServerEnchant=wireServerEnchant;
+
+/* Route a chosen rune to the server. Optimistic: NOTHING local is authored —
+   the element is the server's to set, so the client waits for the envelope and
+   renders what it returns. A refusal is surfaced; an unreachable server leaves
+   the (unchanged) client state honest. */
+function routeEnchantGesture(runeId){
+  const E=wireServerEnchant();
+  if(!E||typeof E.sendEnchant!=='function'){
+    try{ if(typeof notify==='function')notify('Enchanting is unavailable right now.','kill'); }catch(e){}
+    return null;
+  }
+  try{
+    return E.sendEnchant(runeId,{}).then(v=>enchantVerdictOutcome(v,runeId,null))
+      .catch(e=>{ console.warn('[enchant] gesture threw:',(e&&e.message)||e); return null; });
+  }catch(e){ console.warn('[enchant] gesture threw:',(e&&e.message)||e); return null; }
+}
+window.routeEnchantGesture=routeEnchantGesture;
+
+function enchantVerdictOutcome(v,runeId,key){
+  const E=window.HearthriseEnchant;
+  const o=(v&&v.outcome)||'unreachable';
+  if(o==='enchanted'||o==='replayed'){
+    try{ if(typeof renderLoadout==='function')renderLoadout(); }catch(e){}
+    try{ if(typeof notify==='function'){
+      const el=(G&&G.enchant&&G.enchant.weapon)||null;
+      notify(el?`Weapon enchanted — +15% vs ${el}-weak foes.`:'Weapon enchanted.','info');
+    } }catch(e){}
+    return v;
+  }
+  /* NOT ANSWERED ⇒ ONE RETRY ON THE SAME KEY (rule 1), then stop. */
+  if(E&&typeof E.isAnswered==='function'&&!E.isAnswered(o)){
+    if(key)return v;
+    return E.sendEnchant(runeId,{key:v&&v.key}).then(v2=>enchantVerdictOutcome(v2,runeId,(v&&v.key)||'retried'));
+  }
+  if(o==='unconfigured'||o==='undeliverable')return v;   // nothing reached the network; local state stands
+  if(o==='malformed')return v;
+  const msg=(E&&typeof E.enchantRefusalMessage==='function')
+    ? E.enchantRefusalMessage(o==='rate-limited'?'rate_limited':(v&&v.error))
+    : 'The server refused that enchant.';
+  try{ if(typeof notify==='function')notify(msg,'kill'); }catch(e){}
+  return v;
+}
+window.enchantVerdictOutcome=enchantVerdictOutcome;
+
+/* Open a picker of the runes the player owns and fire the intent on choice.
+   CSS tokens only — reuses the existing modal shell. */
+function openEnchantPicker(){
+  if(typeof G==='undefined'||!G)return;
+  const wid=G.equipment&&G.equipment.weapon;
+  const wit=wid&&ITEMS[wid];
+  if(!wit||wit.type!=='weapon'){ try{ if(typeof notify==='function')notify('Equip a weapon first to enchant it.','kill'); }catch(e){} return; }
+  const owned=Object.keys(G.inventory||{}).filter(id=>ITEMS[id]&&ITEMS[id].tag==='rune'&&(G.inventory[id]||0)>0);
+  const cur=(G.enchant&&G.enchant.weapon)||null;
+  const rows=owned.length?owned.map(id=>{
+    const it=ITEMS[id];
+    return `<button class="btn enchant-rune-opt" style="display:flex;align-items:center;gap:8px;width:100%;margin:4px 0;justify-content:flex-start" onclick="chooseEnchantRune('${id}')">`
+      +`<span style="font-size:20px">${it.icon||'🔮'}</span>`
+      +`<span style="flex:1;text-align:left">${it.n} <span class="muted tiny">×${G.inventory[id]}</span></span>`
+      +`<span class="tiny" style="color:var(--accent)">+15% vs ${it.element}-weak</span></button>`;
+  }).join(''):`<div class="muted" style="padding:8px 0">You have no runes. Bind one at Crafting 25 (Runes lane).</div>`;
+  const ov=document.getElementById('enchant-overlay')||(function(){
+    const el=document.createElement('div');
+    el.id='enchant-overlay';
+    el.className='inv-detail';
+    el.addEventListener('click',e=>{ if(e.target===el)closeEnchantPicker(); });
+    document.body.appendChild(el);
+    return el;
+  })();
+  ov.innerHTML=`<div class="inv-detail-card" style="max-width:360px">`
+    +`<div class="inv-detail-head"><b>Enchant Weapon</b>`
+    +`<button class="btn ghost" onclick="closeEnchantPicker()" aria-label="Close">✕</button></div>`
+    +`<div class="muted tiny" style="margin:6px 0 8px">Bind an element rune to <b>${wit.n}</b>${cur?` — currently <b style="color:var(--accent)">${cur}</b>`:''}. `
+    +`A match pays +15% damage against foes weak to that element; a mismatch is harmless.</div>`
+    +rows
+    +`</div>`;
+  ov.classList.add('show');
+}
+window.openEnchantPicker=openEnchantPicker;
+function closeEnchantPicker(){ const ov=document.getElementById('enchant-overlay'); if(ov)ov.classList.remove('show'); }
+window.closeEnchantPicker=closeEnchantPicker;
+function chooseEnchantRune(runeId){
+  closeEnchantPicker();
+  routeEnchantGesture(runeId);
+}
+window.chooseEnchantRune=chooseEnchantRune;
+
+function unequip(slot){const id=G.equipment[slot];if(!id)return;const _b=equipStateSnapshot();G.equipment[slot]=null;G.inventory[id]=(G.inventory[id]||0)+1;clearEnchantOnWeaponChange(slot,id,null);notify(`Unequipped ${ITEMS[id].n}`,'info');renderLoadout();renderInventory();routeEquipGesture(_b);}
 /* b246 (Tyler) — REAL GEAR LEVEL REQUIREMENTS. The flyout showed "Requires
    Lv X" but equipItem equipped anything — a phantom gate. Now armour is gated
    on Defence and weapons on their combat style, at the tier's level (Bronze 1 →
@@ -6191,6 +6339,7 @@ function equipItem(id){
   const _b=equipStateSnapshot();
   const old=G.equipment[slot];if(old)G.inventory[old]=(G.inventory[old]||0)+1;
   G.equipment[slot]=id;removeItem(id,1);
+  clearEnchantOnWeaponChange(slot,old,id);
   G.wieldGrandfather=G.wieldGrandfather||{}; G.wieldGrandfather[id]=true;   // once worn, always re-wearable
   notify(`Equipped ${def.n}`,'info');
   renderInventory();renderLoadout();
@@ -8174,6 +8323,12 @@ function openInvDetail(id){
   if(it.doubleCook != null) stats.push(`<div><b>+${Math.round((it.doubleCook||0)*100)}%</b><span>double-cook</span></div>`);
   if(it.noBurn != null) stats.push(`<div><b>+${Math.round((it.noBurn||0)*100)}%</b><span>no-burn</span></div>`);
   if(it.weaponType) stats.push(`<div><b>${it.weaponType}</b><span>weapon type</span></div>`);
+  /* ELEMENTS v1 — if THIS is the equipped weapon and it carries an enchant,
+     show the bound element + what it pays. The enchant lives on the loadout
+     (G.enchant.weapon), not the item, so it only reads on the worn weapon. */
+  if(it.weaponType && G.equipment && G.equipment.weapon===id && G.enchant && G.enchant.weapon){
+    stats.push(`<div><b>✦ ${G.enchant.weapon}</b><span>+15% vs ${G.enchant.weapon}-weak</span></div>`);
+  }
   /* b348: was `if(it.reqSkill && it.reqLv)` — the RAW fields. The six classic
      hand-authored plate pieces (iron/steel helm + platebody, bronze belt) and
      the early weapons carry neither field; their gate comes from `tier` via
@@ -8902,6 +9057,7 @@ function unequipSlotInv(slot){
   else {
     const id = G.equipment[slot]; if(!id) return;
     G.equipment[slot] = null; addItem(id, 1);
+    clearEnchantOnWeaponChange(slot,id,null);
     notify(`Unequipped ${ITEMS[id]?.n||id}`,'info');
   }
   setTimeout(renderInvNew, 0);
@@ -9427,6 +9583,17 @@ function openMonsterDetail(monsterId){
   if(m.tier) tags.push(`<span style="background:rgba(229,189,108,.10);color:#f3d181;border:1px solid rgba(229,189,108,.32)">Tier ${m.tier}</span>`);
   if(m.family) tags.push(`<span style="background:rgba(255,255,255,.05);color:var(--ink-2);border:1px solid var(--line-soft)">${m.family}</span>`);
   if(m.weaponWeak) tags.push(`<span class="weak-tag">${_hrGly(styleIcon[m.weaponWeak], 13)} weak: ${weaponLabel}</span>`);
+  /* ELEMENTS v1 — the element axis. Print the weakness so a player knows which
+     rune to bind; and print immune/resist EXPLICITLY, because v1 gives those no
+     distinct combat number (all read 1.00), so without saying so a mismatched
+     enchant looks broken rather than simply inert. `hiddenElement` (Extra
+     Dimensional) suppresses the reveal until the bestiary threshold — the
+     RENDERER hides it, the data still carries it. */
+  if(!m.hiddenElement){
+    if(m.elementWeak) tags.push(`<span class="weak-tag" style="color:var(--accent)">✦ element weak: ${m.elementWeak}</span>`);
+    (m.elementImmune||[]).forEach(e=>tags.push(`<span class="resist-tag">immune: ${e}</span>`));
+    (m.elementResist||[]).forEach(e=>tags.push(`<span class="resist-tag">resists: ${e}</span>`));
+  }
   /* b356: the `neutral · +15% drops` tag became a `dropBonus` tag. The bonus
      is now a data field any monster may carry, not a consequence of having
      no weakness — see weaknessInfo in src/core/combat.js. */

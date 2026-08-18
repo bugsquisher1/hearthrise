@@ -5948,29 +5948,7 @@ function renderLoadout(){
       <div class="stat"><b>+${Math.round(s.spdB*100)}%</b><span>Spd</span></div>
       <div class="stat"><b>${WEAPON_TYPES[s.weaponType]}</b><span>Type</span></div>
     </div>
-    ${(function(){
-      /* ELEMENTS v1 — the weapon-slot enchant affordance + readout.
-         b385 (Tyler, live: "I don't see an enchant option… super confusing"):
-         DISCOVERABILITY fix. The old code early-returned the whole affordance
-         unless a weapon was worn, so a player without one saw nothing at all and
-         never learned the mechanic existed. Now it renders in all three states
-         and reads as an ACTION, not a muted status line. CSS TOKENS ONLY. */
-      const wid=G.equipment&&G.equipment.weapon;const wit=wid?ITEMS[wid]:null;
-      const wrap=(inner)=>`<div class="enchant-row" style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border:1px solid var(--line-soft);border-radius:10px">${inner}</div>`;
-      if(!wit||wit.type!=='weapon'){
-        // No weapon equipped — a disabled-look row, never nothing.
-        return wrap(`<div style="flex:1"><span style="color:var(--ink-2);font-weight:700">✦ Enchant</span> <span class="muted tiny">— equip a weapon first</span></div>`);
-      }
-      const el=(G.enchant&&G.enchant.weapon)||null;
-      if(el){
-        return wrap(
-          `<div style="flex:1"><span style="color:var(--accent);font-weight:700">✦ ${el} enchant</span><br><span class="muted tiny">+15% vs ${el}-weak</span></div>`
-          +`<button class="btn ghost" onclick="openEnchantPicker()">Change</button>`);
-      }
-      return wrap(
-        `<button class="btn btn-primary" style="flex:1;text-align:left" onclick="openEnchantPicker()">✦ Enchant weapon</button>`
-        +`<div class="muted tiny" style="flex:1">Bind an element rune · +15% vs weak foes</div>`);
-    })()}
+    ${enchantAffordanceHtml()}
     <div class="muted tiny" style="margin-top:8px">Tap a slot to unequip. Manage gear from the Inventory tab.</div>`;
 }
 /* ══════════════════════════════════════════════════════════════════════════
@@ -6389,6 +6367,35 @@ function enchantVerdictOutcome(v,runeId,key){
 }
 window.enchantVerdictOutcome=enchantVerdictOutcome;
 
+/* ELEMENTS v1 — the ONE enchant affordance, shared by every gear surface.
+   b392 (Tyler, live: "I don't see an enchant option… super confusing"):
+   the enchant entry point used to live only in the Combat-tab loadout panel,
+   while the Inventory paper-doll — the surface the loadout note literally tells
+   players to use to "manage gear" — had none. A player who followed that copy
+   to their weapon found no way to enchant it. This helper renders the entry
+   point as an ACTION (not a muted status line) in all three states, and is
+   mounted into the shared Tibia paper-doll so it appears EVERYWHERE gear does:
+   Combat, Inventory, Character. CSS TOKENS ONLY. Returns an HTML string. */
+function enchantAffordanceHtml(){
+  if(typeof G==='undefined'||!G) return '';
+  const wid=G.equipment&&G.equipment.weapon;const wit=wid?ITEMS[wid]:null;
+  const wrap=(inner)=>`<div class="enchant-row" style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border:1px solid var(--line-soft);border-radius:10px;max-width:100%;box-sizing:border-box">${inner}</div>`;
+  if(!wit||wit.type!=='weapon'){
+    // No weapon equipped — a disabled-look row, never nothing.
+    return wrap(`<div style="flex:1;min-width:0"><span style="color:var(--ink-2);font-weight:700">✦ Enchant</span> <span class="muted tiny">— equip a weapon first</span></div>`);
+  }
+  const el=(G.enchant&&G.enchant.weapon)||null;
+  if(el){
+    return wrap(
+      `<div style="flex:1;min-width:0"><span style="color:var(--accent);font-weight:700">✦ ${el} enchant</span><br><span class="muted tiny">+15% vs ${el}-weak foes</span></div>`
+      +`<button class="btn ghost" onclick="openEnchantPicker()">Change</button>`);
+  }
+  return wrap(
+    `<button class="btn btn-primary" style="flex:1;min-width:0;text-align:left" onclick="openEnchantPicker()">✦ Enchant weapon</button>`
+    +`<div class="muted tiny" style="flex:1;min-width:0">Bind an element rune · +15% vs weak foes</div>`);
+}
+window.enchantAffordanceHtml=enchantAffordanceHtml;
+
 /* Open a picker of the runes the player owns and fire the intent on choice.
    CSS tokens only — reuses the existing modal shell. */
 function openEnchantPicker(preselectId){
@@ -6406,14 +6413,24 @@ function openEnchantPicker(preselectId){
       +`<span style="flex:1;text-align:left">${it.n} <span class="muted tiny">×${G.inventory[id]}</span></span>`
       +`<span class="tiny" style="color:var(--accent)">+15% vs ${it.element}-weak</span></button>`;
   }).join(''):(function(){
-    /* Enriched empty state (b385): if the player is holding essences, name the
-       specific one + Crafting 25 so the next step is unambiguous. */
-    let msg=`<div class="muted" style="padding:8px 0">You have no runes. Bind one at Crafting 25 (Runes lane).</div>`;
+    /* NO-RUNE STATE — teach the whole path in plain language, never a dead
+       picker (b392, Tyler: "make sure it's very easy to understand"). A rune is
+       the thing you bind; you make one from ELEMENTAL ESSENCES that drop from
+       matched foes, at Crafting 25. Always show those three steps; if the player
+       is already holding essences, name the specific one so the next step is
+       unambiguous. CSS tokens only. */
     const ess=Object.keys(G.inventory||{}).filter(id=>ITEMS[id]&&ITEMS[id].tag==='reagent'&&/_essence$/.test(id)&&(G.inventory[id]||0)>0);
+    let msg=`<div style="padding:6px 0 2px"><b>You have no runes yet.</b> A rune is what you bind to your weapon. Here's how to get one:</div>`;
+    msg+=`<ol style="margin:6px 0 4px;padding-left:20px;line-height:1.5">`
+      +`<li class="tiny">Fight foes of an element (fire, frost, poison) — they drop matching <b>essences</b>. A monster's panel shows its weakness.</li>`
+      +`<li class="tiny">Reach <b>Crafting 25</b> to unlock the Runes lane.</li>`
+      +`<li class="tiny">Craft essences into a <b>rune</b>, then come back here to bind it.</li>`
+      +`</ol>`;
     if(ess.length){
       const e=ess[0];const it=ITEMS[e];const runeId=e.replace(/_essence$/,'_rune');const runeName=(ITEMS[runeId]&&ITEMS[runeId].n)||'rune';
-      msg+=`<div class="tiny" style="color:var(--accent);padding:2px 0 6px">You have ${G.inventory[e]} ${it.n} — bind them into ${runeName==='rune'?'a rune':('a'+(/^[AEIOU]/.test(runeName)?'n ':' ')+runeName)} at Crafting 25.</div>`;
+      msg+=`<div class="tiny" style="color:var(--accent);padding:4px 0 2px">✦ You already have ${G.inventory[e]} ${it.n} — craft ${runeName==='rune'?'a rune':('a'+(/^[AEIOU]/.test(runeName)?'n ':' ')+runeName)} at Crafting 25.</div>`;
     }
+    msg+=`<div class="muted tiny" style="padding:2px 0">Runes are tradeable — you can also buy one on the Market.</div>`;
     return msg;
   })();
   const ov=document.getElementById('enchant-overlay')||(function(){
@@ -14741,6 +14758,19 @@ function renderInvFancy(){
   if(host && typeof window.buildTibiaDoll === 'function'){
     var doll = window.buildTibiaDoll();
     if(doll){ host.innerHTML = ''; host.appendChild(doll); }
+    /* b392: the enchant entry point, mounted on the Inventory gear surface.
+       Before this, the Inventory tab — the very surface the Combat loadout note
+       tells players to use to "manage gear" — had NO way to enchant a weapon, so
+       "I don't see an enchant option" was literally true here. It now sits right
+       under the paper doll, beside the weapon a player is looking at. Rebuilt on
+       every renderInvFancy, so it tracks the equipped weapon + bound element. */
+    if(typeof enchantAffordanceHtml === 'function'){
+      var _ench = document.createElement('div');
+      _ench.className = 'invc-enchant-mount';
+      _ench.style.cssText = 'width:100%;max-width:100%;box-sizing:border-box';
+      _ench.innerHTML = enchantAffordanceHtml();
+      host.appendChild(_ench);
+    }
   }
 }
 

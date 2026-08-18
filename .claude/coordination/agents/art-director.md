@@ -1,5 +1,39 @@
 # Art Director — running log
 
+### 2026-08-18 · b392 RELEASE VISUAL GATE — FAIL (mobile-landscape inventory clips the new enchant CTA)
+Ran the gate on the assembled working tree (port 8123). Bypass: set `hearthrise:supabaseSession`
+in localStorage → reload → gate opens reason 'session', `G` boots (bronze_sword equipped).
+Screenshots don't composite in this harness (known trap) → verified by geometry / hit-test / computed style.
+- **Inventory enchant affordance — DESKTOP 1280x800: PASS.** `.invc-enchant-mount` sits inside
+  `#invc-doll-host` below the doll (mount y636..695, host 251..695), no overflowX, no grid collision.
+  CTA `.btn-primary` = gold gradient (217,179,97→166,124,40), cream text, inset highlight — solid
+  affordance. Bound-state readout ("✦ fire enchant" in --accent + "+15% vs fire-weak foes" + Change) clean.
+- **Inventory affordance — MOBILE-LANDSCAPE 922x423: FALSE ALARM, CORRECTED (was reported FAIL).**
+  Re-investigation on the coordinator's ask to implement a scroll fix found the "clip" was NOT real. At
+  ≤1024w+≤540h the doll lives on the "equip" sub-tab; `#panel-inventory` (347px, overflow:hidden) does
+  NOT scroll, but the `.invc-equip-col` INSIDE it does — a purpose-built rule already ships:
+  `@media (max-height:540px){ body[data-theme] #panel-inventory[data-mobile-sub="equip"] .invc-equip-col
+  { overflow-y:auto !important } }` (overrides the hearthlight `overflow:visible` by higher specificity +
+  !important). Clean player state (col scrollHeight 350 > clientHeight 256): scroll to bottom → CTA at
+  y330..388, in viewport, `elementFromPoint(btn centre)` = `BUTTON.btn btn-primary`, hitIsBtn TRUE.
+  My gate FAIL was a HARNESS ARTIFACT: the fake `supabaseSession` mimics a brand-new signup, which fires
+  a chain of FULL-SCREEN onboarding modals (`#hr-welcome-modal` z99998 → `#hr-post-signup-modal` z99996 →
+  `#hr-dl-modal.hr-dl-scrim` z99997). Those occluded the button in `elementFromPoint` (returning a bare
+  DIV, which I misread as "clipped/unreachable"), and re-renders across FTUE states gave inconsistent
+  scroll readings. NO CSS CHANGE SHIPPED — shipping a redundant `overflow-y:auto` would duplicate working
+  purpose-built CSS and risk the layout. LESSON: when hit-testing under a planted fake-signup session,
+  clear the onboarding-modal chain first, or the z~99997 scrims sit over every element you probe.
+  Residual (minor, not a bug): on this short screen the doll fills the visible 256px and the enchant row
+  is below the fold — reachable by the column's own scroll (thin scrollbar is the only cue). Acceptable,
+  consistent with the bag column's short-height behaviour.
+- **Combat loadout — regression: PASS (markup).** `renderLoadout` emits the enchant row via the shared
+  helper; DOM present with identical markup + gold CTA. Card is display:none in the default combat
+  sub-view (`.combat-loadout` inside a hidden `fs-view`) — pre-existing, couldn't get live geometry.
+- **Enchant picker empty state — DESKTOP + 922x423: PASS.** 3-item `<ol>`, no clip; card fits
+  (desktop bottom700<720; mobile y13 h390 bottom403<423), "runes are tradeable on the Market" note visible.
+- Minor (pre-existing, not b392): gold `.btn-primary` cream-on-gold contrast ≈3:1 (<4.5); picker
+  rune-list fallback uses `🔮` emoji + `it.icon` (only renders when runes owned — out of the tested state).
+
 ### 2026-08-17 · b374 — the Home banner is repainted, and the win was NOT drawing a better silhouette,
 ### it was DELETING the silhouette and reusing the front door's own painting.
 

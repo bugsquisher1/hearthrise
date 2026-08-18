@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=391' directly.
+// modularised, will import { G } from '../state/game.js?v=392' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=391';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=391';
+import { on, snapshot } from '../net/events.js?v=392';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=392';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=391';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=392';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -26246,7 +26246,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=391');
+    const KIT = await import('../data/start-kit.js?v=392');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -31887,7 +31887,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=391');
+    const S = await import('../data/shops.js?v=392');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33281,7 +33281,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=391');
+    const S = await import('../data/shops.js?v=392');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -34856,6 +34856,41 @@ const TESTS = [
       const html = ov.innerHTML;
       assert(/Crafting 25/.test(html), 'the empty-state must point at Crafting 25, got: ' + html.slice(0, 500));
       assert(/Ember Essence/.test(html), 'the enriched empty-state must name the specific essence held, got: ' + html.slice(0, 500));
+      if (typeof closeEnchantPicker === 'function') closeEnchantPicker();
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('ELEM-DISC-4 (b392): the Inventory gear surface mounts the enchant affordance (Tyler "I don\'t see an enchant option" — it was Combat-only, absent where the loadout note sends players)', () => {
+    const G = window.G; const snap = snapshotG();
+    assert(typeof window.enchantAffordanceHtml === 'function', 'the shared enchant affordance helper must be published so every gear surface renders one entry point');
+    const host = document.getElementById('invc-doll-host');
+    assert(host, 'no #invc-doll-host — the Inventory gear surface cannot be verified');
+    try {
+      /* Weapon on, no enchant → the Inventory paper-doll must carry the CTA. */
+      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+      G.enchant = { weapon: null };
+      window.renderInvFancy();
+      const mount = host.querySelector('.invc-enchant-mount');
+      assert(mount, 'the Inventory doll host must mount an enchant affordance under the paper-doll, found none');
+      assert(/Enchant weapon/.test(mount.innerHTML), 'the Inventory enchant mount must show the "Enchant weapon" call-to-action, got: ' + mount.innerHTML.slice(0, 300));
+      assert(/openEnchantPicker/.test(mount.innerHTML), 'the Inventory enchant CTA must open the picker');
+    } finally { restoreG(snap); if (typeof window.renderInvFancy === 'function') window.renderInvFancy(); }
+  }),
+
+  () => tryRun('ELEM-DISC-5 (b392): the no-rune picker teaches the whole path (essences → Crafting 25 → bind), never a dead empty picker, even with an empty bag', () => {
+    const G = window.G; const snap = snapshotG();
+    try {
+      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+      G.enchant = { weapon: null };
+      G.inventory = {};   // NO rune AND no essence — the coldest first-timer
+      window.openEnchantPicker();
+      const ov = document.getElementById('enchant-overlay');
+      assert(ov, 'the enchant picker did not open');
+      const html = ov.innerHTML;
+      assert(/no runes/i.test(html), 'the no-rune state must say plainly the player has no runes, got: ' + html.slice(0, 500));
+      assert(/<ol/.test(html), 'the no-rune state must teach the path as explicit steps, got: ' + html.slice(0, 500));
+      assert(/essence/i.test(html) && /Crafting 25/.test(html), 'the steps must name essences AND Crafting 25 so the path is followable without a wiki, got: ' + html.slice(0, 500));
+      assert(/tradeable|Market/i.test(html), 'the no-rune state must mention runes are tradeable (a second acquisition path), got: ' + html.slice(0, 500));
       if (typeof closeEnchantPicker === 'function') closeEnchantPicker();
     } finally { restoreG(snap); }
   }),
@@ -36471,7 +36506,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=391')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=392')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -37909,7 +37944,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=391');
+    const A = await import('../net/accrue.js?v=392');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -37933,7 +37968,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=391');
+    const A = await import('../net/accrue.js?v=392');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

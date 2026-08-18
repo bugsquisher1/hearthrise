@@ -860,11 +860,106 @@ export function isEquipAuthorityLive() { return equipAuthorityLive; }
    equipment stays absolute. Only the general inventory bag reverts to merge. */
 let inventoryAuthorityLive = false;
 
-/** Declare that the SERVER owns the full inventory bag on this client. Nothing
- *  calls this yet — it awaits an inventory-baseline signal (server settling
- *  live craft/drop chains completely). Until then the bag stays merge. */
+/* ── THE INVENTORY-BASELINE-COMPLETE SIGNAL (inventory-flip Step 3) ──────────
+   THE HAZARD THIS CLOSES (accrue.js:832-853, the security review's REAL
+   blocker). The absolute-inventory branch believes the envelope's inventory map
+   is a COMPLETE statement of the owned set — a named key is the quantity, an
+   OMITTED owned key is a real zero. That equivalence only holds if the server's
+   `player_inventory` baseline reflects EVERY settled owned mutation with no
+   pending, not-yet-settled craft chain. It does not always: the interval loop
+   settles the DECLARED pointer, and a chained craft (gather→smelt→forge) settles
+   at different boundaries, so a freshly-crafted OWNED signet whose input chain the
+   server has not finished settling is INVISIBLE to `hr_state_of`. Under an armed
+   absolute replace, that legitimately-earned stack is DELETED — irreversibly.
+
+   The client cannot itself tell "the server has not settled my legit craft yet"
+   from "the client forged an item" — only the SERVER knows what it settled. So
+   completeness is a SERVER-STATED fact carried on the envelope: `inventory_complete
+   === true` means "this baseline reproduces every owned mutation up to the settled
+   pointer; no chain is mid-flight". FAIL-CLOSED: anything other than literal true
+   (absent, false, truthy-non-true) reads as INCOMPLETE. No server build stamps it
+   yet, so it is false everywhere today — which keeps the flip dormant twice over.
+
+   ⏳ SERVER-SIDE SCOPE (condition #1, honestly): the accrual engine
+   (supabase/functions/hr-accrue/accrual.js + hr_state_of) must COMPUTE this flag —
+   set it true only when the settle loop has fully drained the declared pointer and
+   no artisan chain straddles a settle boundary — and stamp it on the envelope. That
+   is Edge/SQL work this client change cannot do; it is scoped in the report. Until
+   it lands, this client is READY to arm safely but the signal never asserts, so the
+   arm gate below refuses. */
+let baselineCompleteSeen = false;   // has ANY complete envelope ever been observed?
+let lastEnvelopeComplete = false;   // was the most recently observed envelope complete?
+let baselineCompleteCount = 0;      // how many complete envelopes observed this session
+
+/** Does THIS envelope carry the server's baseline-complete assertion? Fail-closed:
+ *  only a literal `inventory_complete === true` counts. The absolute-inventory
+ *  branch consults this PER ENVELOPE, so even an armed client leaves the bag on
+ *  merge for any envelope the server has not certified complete — an incomplete
+ *  baseline can therefore never delete a legit crafted stack, armed or not. */
+export function envelopeBaselineComplete(res) {
+  return !!(res && res.inventory_complete === true);
+}
+
+/** Record the completeness signal off an arriving envelope. Called by
+ *  applyEnvelope (the real path) and applyEnvelopeState, ARMED OR NOT — the
+ *  signal is observed in merge mode too, which is exactly the real sequence: the
+ *  server starts stamping complete envelopes, a merge-mode client observes them,
+ *  and only THEN may a human arm. Returns the current latch. */
+export function noteBaselineComplete(res) {
+  const complete = envelopeBaselineComplete(res);
+  lastEnvelopeComplete = complete;
+  if (complete) { baselineCompleteSeen = true; baselineCompleteCount++; }
+  return baselineCompleteSeen;
+}
+export function isBaselineCompleteSeen() { return baselineCompleteSeen; }
+
+/** TEST-ONLY. Clear the session's baseline-complete latch so a test can prove the
+ *  arm gate refuses when the signal has NOT been observed. Resetting can only ever
+ *  make arming HARDER (it never grants authority), so exposing it is safe. */
+export function __resetBaselineComplete() {
+  baselineCompleteSeen = false;
+  lastEnvelopeComplete = false;
+  baselineCompleteCount = 0;
+}
+
+/** Declare that the SERVER owns the full inventory bag on this client. THE MANUAL
+ *  ARM STEP — nothing auto-calls this; it is taken deliberately, once, after the
+ *  restore drill + wipe. Arming (v !== false) enforces two guards and THROWS if
+ *  either fails, because a silent-inert arm is exactly the failure mode this
+ *  program has been burned by:
+ *
+ *   (a) DUNGEONS MUST BE LOADED. `serverOwnedItem` classifies an id that is BOTH a
+ *       combat drop and dungeon loot (e.g. `magic_essence`) — an OVERLAP id — as
+ *       EXCLUDED only once window.DUNGEONS is present; before boot it is
+ *       classified OWNABLE, and an armed absolute envelope would DELETE a legit
+ *       dungeon copy. So arming asserts DUNGEONS is present and rebuilds the
+ *       partition against it (folding the loot tables into the excluded set).
+ *   (b) THE BASELINE-COMPLETE SIGNAL MUST HAVE BEEN OBSERVED. If armed while the
+ *       server does not stamp `inventory_complete`, an empty-{} envelope would be
+ *       indistinguishable from a complete-but-empty baseline and could WIPE the
+ *       bag. Requiring at least one observed complete envelope proves the server
+ *       IS stamping the signal before authority is handed over.
+ *
+ *  Disarming (false) is always allowed and never throws — the incident direction
+ *  must never be gated. */
 export function markInventoryAuthorityLive(v) {
-  inventoryAuthorityLive = v !== false;
+  const on = v !== false;
+  if (on) {
+    const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
+    if (!D || typeof D !== 'object') {
+      throw new Error('[accrue] refusing to arm inventory authority: window.DUNGEONS is not loaded. '
+        + 'Overlap ids (dungeon loot that is also a combat drop) classify OWNABLE before boot, so an '
+        + 'absolute envelope could delete a legit dungeon copy. Arm only after the game has booted.');
+    }
+    rebuildItemAuthority({ dungeons: D });   // fold loot tables into the excluded set
+    if (!baselineCompleteSeen) {
+      throw new Error('[accrue] refusing to arm inventory authority: no baseline-complete envelope has '
+        + 'been observed (server is not stamping inventory_complete). An incomplete baseline could not '
+        + 'be told from a truly-empty one, so an empty-{} envelope might wipe the bag. Arm only after '
+        + 'the server signal is live and observed.');
+    }
+  }
+  inventoryAuthorityLive = on;
   return inventoryAuthorityLive;
 }
 export function isInventoryAuthorityLive() { return inventoryAuthorityLive; }
@@ -898,9 +993,10 @@ export function isEnvelopeAbsolute() {
    the client and the server disagreeing, and it is the only thing that would
    notice the equip verb regressing. A counter, never a ledger row: journal
    rule 6, and the `game_events` receipt behind it. */
-export const envelopeDrift = { applied: 0, destructive: 0, lastAt: 0, lastLoss: null };
+export const envelopeDrift = { applied: 0, destructive: 0, lastAt: 0, lastLoss: null, since: 0 };
 
 export function noteEnvelopeDrift(loss) {
+  if (!envelopeDrift.since) envelopeDrift.since = nowMs();   // start of the current soak window
   envelopeDrift.applied++;
   if (loss && loss.destructive) {
     envelopeDrift.destructive++;
@@ -910,6 +1006,53 @@ export function noteEnvelopeDrift(loss) {
   return envelopeDrift;
 }
 
+/** Begin a fresh drift-soak measurement window. The eventual (manual) arm
+ *  decision requires `destructive === 0` across a SUSTAINED window; resetting
+ *  starts the clock on a clean measurement (e.g. right after a deploy that could
+ *  otherwise carry stale counts). Does not touch the authority flags. */
+export function resetEnvelopeDrift() {
+  envelopeDrift.applied = 0;
+  envelopeDrift.destructive = 0;
+  envelopeDrift.lastAt = 0;
+  envelopeDrift.lastLoss = null;
+  envelopeDrift.since = nowMs();
+  return envelopeDrift;
+}
+
+/* ── THE INVENTORY-FLIP READINESS READOUT (Step 3, condition #3) ─────────────
+   The arm decision must read REAL DATA, not a guess. describeReplacement already
+   counts destructive omissions FOR THE OWNED SET ONLY (an un-modeled id the
+   envelope omits is preserved by the carve-out and is never counted — see line
+   ~658), so `envelopeDrift.destructive` IS the destructive-owned-omission count
+   over the soak window. This accessor exposes it, plus the two arm preconditions,
+   as one queryable object so the eventual arm gate (and a status readout / bug
+   report) can require: DUNGEONS loaded, the server stamping complete envelopes,
+   and destructive === 0 for a sustained window BEFORE anyone calls
+   markInventoryAuthorityLive(true). Pure read — no side effects. */
+export function inventoryFlipReadiness() {
+  const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
+  const soakMs = envelopeDrift.since ? Math.max(0, nowMs() - envelopeDrift.since) : 0;
+  return {
+    armed: inventoryAuthorityLive,
+    absolute: isInventoryAbsolute(),
+    dungeonsLoaded: !!(D && typeof D === 'object'),
+    baselineCompleteSeen,
+    lastEnvelopeComplete,
+    completeEnvelopes: baselineCompleteCount,
+    destructiveOwnedOmissions: envelopeDrift.destructive,
+    envelopesApplied: envelopeDrift.applied,
+    lastDestructiveAt: envelopeDrift.lastAt,
+    lastLoss: envelopeDrift.lastLoss,
+    soakSince: envelopeDrift.since,
+    soakMs,
+    /* The arm PRECONDITIONS as a single boolean — true only when every guard the
+       arm gate enforces is satisfied AND the soak is clean. NOT an auto-arm: it
+       reports readiness; a human still throws the switch. `minSoakMs`/`minSamples`
+       are the caller's policy (default: any observed clean window). */
+    ready: !!(D && typeof D === 'object') && baselineCompleteSeen && envelopeDrift.destructive === 0,
+  };
+}
+
 /* ── THE CLIENT-TRADE LEDGER (2026-08-18) ───────────────────────────────────
    A DIRECT IMPORT, not a registration seam like `predictionSeam` below, and the
    difference is deliberate. That seam exists because gold.js imports THIS file
@@ -917,19 +1060,23 @@ export function noteEnvelopeDrift(loss) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=381';
+import * as itemLedger from './item-ledger.js?v=382';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem } from '../data/item-authority.js?v=381';
+import { serverOwnedItem, rebuildItemAuthority } from '../data/item-authority.js?v=382';
 
 export function applyEnvelopeState(G, res, ownKey) {
   const st = (res && res.state) || {};
   const written = { skills: {}, inventory: 0 };
   const absolute = isEnvelopeAbsolute();
+  /* Observe the baseline-complete signal off every arriving envelope, armed or
+     not — this is what lets a merge-mode client accumulate the proof that the
+     server IS stamping completeness before a human arms (see markInventoryAuthorityLive). */
+  noteBaselineComplete(res);
   written.absolute = absolute;
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
@@ -1195,8 +1342,18 @@ export function applyEnvelopeState(G, res, ownKey) {
      while inventory is not truly server-owned. */
   const invAbsolute = isInventoryAbsolute();
   written.inventoryAuthority = invAbsolute;
+  /* ⚠ THE PER-ENVELOPE COMPLETENESS GATE (Step 3, condition #1). Even an ARMED
+     client enters the absolute branch ONLY for an envelope the server has
+     certified `inventory_complete === true`. Any other envelope — one produced
+     mid-craft-chain, before the settle loop drained the pointer — falls through
+     to the merge below, which can only ever over-credit and NEVER deletes. This
+     is what stops an incomplete, out-of-order baseline from deleting a legit
+     freshly-crafted OWNED stack: absence of the flag routes to the safe branch,
+     armed or not. FAIL-CLOSED — see envelopeBaselineComplete. */
+  const baselineComplete = envelopeBaselineComplete(res);
+  written.baselineComplete = baselineComplete;
   const invNamed = res && res.inventory;
-  if (invAbsolute && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
+  if (invAbsolute && baselineComplete && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
     /* ══════════════════════════════════════════════════════════════════════
        THE SERVER-OWNED CARVE-OUT (server-authority inventory-flip, Step 2).
 
@@ -2214,7 +2371,9 @@ if (typeof window !== 'undefined') {
     stampAwayWatermarks, clampSlot, resolveActiveSlot, mayClientWrite,
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
+    resetEnvelopeDrift, inventoryFlipReadiness,
     isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
+    envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem,
     equippedCount, unaccountedEquipped, consumedKeysOf,
     /* Phase 1 — live settlement (docs/design/live-settlement.md §3). */

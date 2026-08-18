@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=381' directly.
+// modularised, will import { G } from '../state/game.js?v=382' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=381';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=381';
+import { on, snapshot } from '../net/events.js?v=382';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=382';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=381';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=382';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -25959,7 +25959,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=381');
+    const KIT = await import('../data/start-kit.js?v=382');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -31600,7 +31600,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=381');
+    const S = await import('../data/shops.js?v=382');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -32994,7 +32994,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=381');
+    const S = await import('../data/shops.js?v=382');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -35258,7 +35258,12 @@ const TESTS = [
     try {
       await armEquipFlipForTest(E);
       assert(A.isEnvelopeAbsolute() === true, 'the equip flip must be armed for the bag to be able to go absolute');
-      /* ARM THE BAG for the test only — this is the flag nothing calls in prod. */
+      /* ARM THE BAG for the test only — this is the flag nothing calls in prod.
+         The arm gate now requires the server's baseline-complete signal to have
+         been observed (guard b, so an empty-{} envelope can't mean "incomplete"
+         while armed); seed it, exactly as the real merge-mode client would after
+         the server starts stamping inventory_complete. */
+      A.noteBaselineComplete({ inventory_complete: true });
       A.markInventoryAuthorityLive(true);
       assert(A.isInventoryAbsolute() === true, 'the bag must be absolute once inventory authority is armed');
 
@@ -35282,7 +35287,7 @@ const TESTS = [
         inventory: { cooked_shrimp: 9, potato: 40, warboss_standard: 1, carrot: 12, ember_bar: 3 },
       };
       A.applyEnvelopeState(G, {
-        state: {}, skills: {}, equipment: {},
+        state: {}, skills: {}, equipment: {}, inventory_complete: true,
         inventory: { ember_bar: 5 },   // every un-modeled id OMITTED
       });
 
@@ -35306,6 +35311,7 @@ const TESTS = [
     const prev = E.getEquipConfig();
     try {
       await armEquipFlipForTest(E);
+      A.noteBaselineComplete({ inventory_complete: true });   // the arm gate's guard (b)
       A.markInventoryAuthorityLive(true);
       assert(A.isInventoryAbsolute() === true, 'the bag must be absolute for this test to mean anything');
 
@@ -35320,7 +35326,7 @@ const TESTS = [
         inventory: { ember_bar: 999, bones: 500, rune_bar: 2 },  // all forged high
       };
       A.applyEnvelopeState(G, {
-        state: {}, skills: {}, equipment: {},
+        state: {}, skills: {}, equipment: {}, inventory_complete: true,
         inventory: { ember_bar: 4 },   // bones + rune_bar OMITTED; ember_bar corrected DOWN
       });
       assert(G.inventory.ember_bar === 4, 'a server-owned id takes the server figure, even downward — got ' + G.inventory.ember_bar);
@@ -35388,6 +35394,177 @@ const TESTS = [
       'wheat is a crop AND a drop — it must be EXCLUDED so a harvested copy is never deleted');
     assert(IA.classifyItem('magic_essence') === 'excluded' && IA.serverOwnedItem('magic_essence') === false,
       'magic_essence is a drop AND dungeon loot — it must be EXCLUDED (never-delete on overlap)');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     INVENTORY-BASELINE — THE COMPLETENESS GATE + ARM-SITE GUARDS (Step 3).
+
+     These close the security review's remaining ARM conditions. The flip stays
+     UNARMED in prod (isInventoryAbsolute() false); the tests drive the machinery
+     directly. The property: an armed absolute envelope may DELETE an owned stack
+     ONLY when the server has certified the baseline COMPLETE (inventory_complete
+     === true). An incomplete/uncertified envelope is detectable and routes to the
+     safe merge branch — armed or not — so a freshly-crafted owned item the
+     server's out-of-order baseline cannot yet reproduce is never dropped. */
+  () => tryRunAsync('INVENTORY-BASELINE-1: an incomplete (uncertified) envelope NEVER deletes a just-crafted owned item, even armed', async () => {
+    const A = window.HearthriseAccrual;
+    const E = window.HearthriseEquip;
+    assert(A && typeof A.envelopeBaselineComplete === 'function', 'envelopeBaselineComplete must be published');
+    const prev = E.getEquipConfig();
+    try {
+      await armEquipFlipForTest(E);
+      A.noteBaselineComplete({ inventory_complete: true });   // let the arm gate pass
+      A.markInventoryAuthorityLive(true);
+      assert(A.isInventoryAbsolute() === true, 'the bag must be armed for this test to mean anything');
+
+      /* `ember_bar` is a SERVER-OWNED (payable smithing) id. The player just
+         crafted 5 at the keyboard; the server settled a DIFFERENT chain first, so
+         its baseline cannot yet produce them and it does NOT certify the envelope
+         complete (no inventory_complete flag). Under the completeness gate this
+         routes to MERGE, so the crafted stack SURVIVES rather than being deleted. */
+      assert(A.serverOwnedItem('ember_bar') === true, 'ember_bar must be a server-owned id for this test');
+      const incomplete = { state: {}, skills: {}, equipment: {}, inventory: { bones: 2 } };
+      assert(A.envelopeBaselineComplete(incomplete) === false, 'an envelope with no inventory_complete flag must read INCOMPLETE');
+      const G = { gold: 0, skills: {}, equipment: {}, inventory: { ember_bar: 5 } };
+      A.applyEnvelopeState(G, incomplete);   // ember_bar OMITTED, but baseline uncertified
+      assert(G.inventory.ember_bar === 5,
+        'a just-crafted OWNED item must SURVIVE an uncertified/incomplete envelope that omits it — got ' + G.inventory.ember_bar);
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      E.resetEquip();
+      if (prev) E.configureEquip(prev);
+    }
+    assert(A.isInventoryAbsolute() === false, 'the bag must return to merge (unarmed) after the test');
+  }),
+
+  () => tryRunAsync('INVENTORY-BASELINE-2: a COMPLETE baseline reproduces the just-crafted item, so an absolute envelope keeps it', async () => {
+    const A = window.HearthriseAccrual;
+    const E = window.HearthriseEquip;
+    const prev = E.getEquipConfig();
+    try {
+      await armEquipFlipForTest(E);
+      A.noteBaselineComplete({ inventory_complete: true });
+      A.markInventoryAuthorityLive(true);
+
+      /* When the server certifies the baseline complete, it NAMES every owned
+         stack it reproduces — including the just-crafted one. The absolute branch
+         runs and the item survives because it is present, not because it is
+         omitted. This is the positive half of condition #1. */
+      const G = { gold: 0, skills: {}, equipment: {}, inventory: { ember_bar: 5, bones: 9 } };
+      A.applyEnvelopeState(G, {
+        state: {}, skills: {}, equipment: {}, inventory_complete: true,
+        inventory: { ember_bar: 5 },   // complete baseline reproduces the crafted stack; bones spent → real zero
+      });
+      assert(G.inventory.ember_bar === 5,
+        'a complete baseline that NAMES the crafted stack keeps it under absolute — got ' + G.inventory.ember_bar);
+      assert(!('bones' in G.inventory),
+        'under a CERTIFIED-complete envelope an omitted owned id is a real zero (removed) — got ' + G.inventory.bones);
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      E.resetEquip();
+      if (prev) E.configureEquip(prev);
+    }
+  }),
+
+  () => tryRunAsync('INVENTORY-BASELINE-3: an empty-{} envelope while armed but UNCERTIFIED cannot wipe the bag', async () => {
+    const A = window.HearthriseAccrual;
+    const E = window.HearthriseEquip;
+    const prev = E.getEquipConfig();
+    try {
+      await armEquipFlipForTest(E);
+      A.noteBaselineComplete({ inventory_complete: true });
+      A.markInventoryAuthorityLive(true);
+
+      /* The most expensive mistake: an empty inventory object read as "you own
+         nothing". Without the server's completeness certification it must route
+         to merge and leave the bag intact. */
+      const G = { gold: 0, skills: {}, equipment: {}, inventory: { ember_bar: 5, cooked_shrimp: 3 } };
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory: {} });  // empty, uncertified
+      assert(G.inventory.ember_bar === 5, 'an empty UNCERTIFIED envelope must not delete an owned stack — got ' + G.inventory.ember_bar);
+      assert(G.inventory.cooked_shrimp === 3, 'an empty UNCERTIFIED envelope must not delete an un-modeled stack either — got ' + G.inventory.cooked_shrimp);
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      E.resetEquip();
+      if (prev) E.configureEquip(prev);
+    }
+  }),
+
+  () => tryRun('INVENTORY-BASELINE-4: the arm gate refuses on a missing DUNGEONS (a) OR an unobserved baseline signal (b)', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.isBaselineCompleteSeen === 'function', 'isBaselineCompleteSeen must be published');
+    assert(A && typeof A.__resetBaselineComplete === 'function', '__resetBaselineComplete must be published');
+    const savedDungeons = globalThis.DUNGEONS;
+    try {
+      /* GUARD (a): DUNGEONS absent. Overlap ids classify OWNABLE before boot, so
+         an absolute envelope could delete a legit dungeon copy — arming must throw. */
+      A.noteBaselineComplete({ inventory_complete: true });   // satisfy (b) so (a) is what fails
+      globalThis.DUNGEONS = undefined;
+      let threwA = false;
+      try { A.markInventoryAuthorityLive(true); } catch (e) { threwA = true; }
+      assert(threwA === true, 'arming with window.DUNGEONS absent must THROW (guard a)');
+      assert(A.isInventoryAuthorityLive() === false, 'a refused arm must leave the flag OFF');
+
+      /* GUARD (b): the baseline-complete signal has NOT been observed. An empty-{}
+         envelope would then be indistinguishable from a complete-but-empty
+         baseline, so arming must throw even with DUNGEONS present. */
+      globalThis.DUNGEONS = savedDungeons;
+      A.__resetBaselineComplete();
+      assert(A.isBaselineCompleteSeen() === false, 'the signal must read UNOBSERVED after reset');
+      let threwB = false;
+      try { A.markInventoryAuthorityLive(true); } catch (e) { threwB = true; }
+      assert(threwB === true, 'arming with no observed baseline-complete signal must THROW (guard b)');
+      assert(A.isInventoryAuthorityLive() === false, 'a refused arm must leave the flag OFF');
+
+      /* Both preconditions met → arming SUCCEEDS. */
+      A.noteBaselineComplete({ inventory_complete: true });
+      A.markInventoryAuthorityLive(true);
+      assert(A.isInventoryAuthorityLive() === true, 'with DUNGEONS loaded and the signal observed, arming must succeed');
+
+      /* Disarming must NEVER throw — the incident direction is always available. */
+      let disarmThrew = false;
+      try { A.markInventoryAuthorityLive(false); } catch (e) { disarmThrew = true; }
+      assert(disarmThrew === false, 'disarming must never throw');
+    } finally {
+      globalThis.DUNGEONS = savedDungeons;
+      A.markInventoryAuthorityLive(false);
+    }
+    assert(A.isInventoryAbsolute() === false, 'the bag must be merge (unarmed) after the test');
+  }),
+
+  () => tryRun('INVENTORY-BASELINE-5: the drift-soak readout exposes destructive OWNED omissions for the arm decision', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.inventoryFlipReadiness === 'function', 'inventoryFlipReadiness must be published');
+    assert(A && typeof A.resetEnvelopeDrift === 'function', 'resetEnvelopeDrift must be published');
+
+    A.resetEnvelopeDrift();
+    let r = A.inventoryFlipReadiness();
+    assert(r.destructiveOwnedOmissions === 0, 'a fresh soak window starts at zero destructive omissions — got ' + r.destructiveOwnedOmissions);
+    assert(typeof r.dungeonsLoaded === 'boolean' && typeof r.baselineCompleteSeen === 'boolean',
+      'the readout must expose the arm preconditions');
+
+    /* A non-destructive envelope (server ahead) must NOT bump the destructive
+       counter; a destructive OWNED omission MUST. describeReplacement only counts
+       the OWNED set, so an un-modeled loss is invisible here — as it should be. */
+    A.noteEnvelopeDrift(A.describeReplacement(
+      { gold: 0, skills: {}, inventory: { ember_bar: 2 } },
+      { state: {}, skills: {}, inventory: { ember_bar: 5 } }));   // server higher → not destructive
+    assert(A.inventoryFlipReadiness().destructiveOwnedOmissions === 0, 'a non-destructive envelope must not bump the counter');
+
+    A.noteEnvelopeDrift(A.describeReplacement(
+      { gold: 0, skills: {}, inventory: { ember_bar: 10 } },
+      { state: {}, skills: {}, inventory: { ember_bar: 2 } }));   // OWNED loss → destructive
+    r = A.inventoryFlipReadiness();
+    assert(r.destructiveOwnedOmissions === 1, 'a destructive OWNED omission must be counted for the soak — got ' + r.destructiveOwnedOmissions);
+    assert(r.envelopesApplied === 2, 'the readout tracks total envelopes applied over the window — got ' + r.envelopesApplied);
+
+    /* An un-modeled loss must NOT register as destructive (else the soak never
+       clears for anyone who cooked a meal). */
+    A.noteEnvelopeDrift(A.describeReplacement(
+      { gold: 0, skills: {}, inventory: { cooked_shrimp: 9 } },
+      { state: {}, skills: {}, inventory: {} }));
+    assert(A.inventoryFlipReadiness().destructiveOwnedOmissions === 1,
+      'an un-modeled omission must NOT count as a destructive owned omission');
+    A.resetEnvelopeDrift();   // leave the counter clean for any later observer
   }),
 
   () => tryRun('EQUIP-WIRE-1: the equip request carries NAMES only, and refuses a bad map WHOLE', () => {
@@ -35878,7 +36055,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=381')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=382')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -37316,7 +37493,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=381');
+    const A = await import('../net/accrue.js?v=382');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -37340,7 +37517,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=381');
+    const A = await import('../net/accrue.js?v=382');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

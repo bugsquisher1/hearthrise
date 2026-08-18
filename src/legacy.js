@@ -5855,18 +5855,27 @@ function renderLoadout(){
       <div class="stat"><b>${WEAPON_TYPES[s.weaponType]}</b><span>Type</span></div>
     </div>
     ${(function(){
-      /* ELEMENTS v1 — the weapon-slot enchant affordance + readout. Only shown
-         when a real weapon is worn (an enchant binds a weapon, not the player).
-         CSS TOKENS ONLY. */
+      /* ELEMENTS v1 — the weapon-slot enchant affordance + readout.
+         b385 (Tyler, live: "I don't see an enchant option… super confusing"):
+         DISCOVERABILITY fix. The old code early-returned the whole affordance
+         unless a weapon was worn, so a player without one saw nothing at all and
+         never learned the mechanic existed. Now it renders in all three states
+         and reads as an ACTION, not a muted status line. CSS TOKENS ONLY. */
       const wid=G.equipment&&G.equipment.weapon;const wit=wid?ITEMS[wid]:null;
-      if(!wit||wit.type!=='weapon')return '';
+      const wrap=(inner)=>`<div class="enchant-row" style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border:1px solid var(--line-soft);border-radius:10px">${inner}</div>`;
+      if(!wit||wit.type!=='weapon'){
+        // No weapon equipped — a disabled-look row, never nothing.
+        return wrap(`<div style="flex:1"><span style="color:var(--ink-2);font-weight:700">✦ Enchant</span> <span class="muted tiny">— equip a weapon first</span></div>`);
+      }
       const el=(G.enchant&&G.enchant.weapon)||null;
-      const badge=el
-        ? `<span class="enchant-badge" style="color:var(--accent);font-weight:700">✦ ${el}</span> <span class="muted tiny">+15% vs ${el}-weak foes</span>`
-        : `<span class="muted tiny">No enchant</span>`;
-      return `<div class="enchant-row" style="display:flex;align-items:center;gap:8px;margin-top:8px">`
-        +`<div style="flex:1">${badge}</div>`
-        +`<button class="btn" onclick="openEnchantPicker()">${el?'Re-enchant':'Enchant'}</button></div>`;
+      if(el){
+        return wrap(
+          `<div style="flex:1"><span style="color:var(--accent);font-weight:700">✦ ${el} enchant</span><br><span class="muted tiny">+15% vs ${el}-weak</span></div>`
+          +`<button class="btn ghost" onclick="openEnchantPicker()">Change</button>`);
+      }
+      return wrap(
+        `<button class="btn btn-primary" style="flex:1;text-align:left" onclick="openEnchantPicker()">✦ Enchant weapon</button>`
+        +`<div class="muted tiny" style="flex:1">Bind an element rune · +15% vs weak foes</div>`);
     })()}
     <div class="muted tiny" style="margin-top:8px">Tap a slot to unequip. Manage gear from the Inventory tab.</div>`;
 }
@@ -6288,7 +6297,7 @@ window.enchantVerdictOutcome=enchantVerdictOutcome;
 
 /* Open a picker of the runes the player owns and fire the intent on choice.
    CSS tokens only — reuses the existing modal shell. */
-function openEnchantPicker(){
+function openEnchantPicker(preselectId){
   if(typeof G==='undefined'||!G)return;
   const wid=G.equipment&&G.equipment.weapon;
   const wit=wid&&ITEMS[wid];
@@ -6297,11 +6306,22 @@ function openEnchantPicker(){
   const cur=(G.enchant&&G.enchant.weapon)||null;
   const rows=owned.length?owned.map(id=>{
     const it=ITEMS[id];
-    return `<button class="btn enchant-rune-opt" style="display:flex;align-items:center;gap:8px;width:100%;margin:4px 0;justify-content:flex-start" onclick="chooseEnchantRune('${id}')">`
+    const hot=(preselectId&&id===preselectId);
+    return `<button class="btn enchant-rune-opt" data-rune="${id}" style="display:flex;align-items:center;gap:8px;width:100%;margin:4px 0;justify-content:flex-start${hot?';border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)':''}" onclick="chooseEnchantRune('${id}')">`
       +`<span style="font-size:20px">${it.icon||'🔮'}</span>`
       +`<span style="flex:1;text-align:left">${it.n} <span class="muted tiny">×${G.inventory[id]}</span></span>`
       +`<span class="tiny" style="color:var(--accent)">+15% vs ${it.element}-weak</span></button>`;
-  }).join(''):`<div class="muted" style="padding:8px 0">You have no runes. Bind one at Crafting 25 (Runes lane).</div>`;
+  }).join(''):(function(){
+    /* Enriched empty state (b385): if the player is holding essences, name the
+       specific one + Crafting 25 so the next step is unambiguous. */
+    let msg=`<div class="muted" style="padding:8px 0">You have no runes. Bind one at Crafting 25 (Runes lane).</div>`;
+    const ess=Object.keys(G.inventory||{}).filter(id=>ITEMS[id]&&ITEMS[id].tag==='reagent'&&/_essence$/.test(id)&&(G.inventory[id]||0)>0);
+    if(ess.length){
+      const e=ess[0];const it=ITEMS[e];const runeId=e.replace(/_essence$/,'_rune');const runeName=(ITEMS[runeId]&&ITEMS[runeId].n)||'rune';
+      msg+=`<div class="tiny" style="color:var(--accent);padding:2px 0 6px">You have ${G.inventory[e]} ${it.n} — bind them into ${runeName==='rune'?'a rune':('a'+(/^[AEIOU]/.test(runeName)?'n ':' ')+runeName)} at Crafting 25.</div>`;
+    }
+    return msg;
+  })();
   const ov=document.getElementById('enchant-overlay')||(function(){
     const el=document.createElement('div');
     el.id='enchant-overlay';
@@ -6318,6 +6338,7 @@ function openEnchantPicker(){
     +rows
     +`</div>`;
   ov.classList.add('show');
+  if(preselectId){ try{ const hot=ov.querySelector(`.enchant-rune-opt[data-rune="${preselectId}"]`); if(hot&&hot.scrollIntoView)hot.scrollIntoView({block:'nearest'}); }catch(e){} }
 }
 window.openEnchantPicker=openEnchantPicker;
 function closeEnchantPicker(){ const ov=document.getElementById('enchant-overlay'); if(ov)ov.classList.remove('show'); }
@@ -8426,6 +8447,17 @@ function openInvDetail(id){
     if(typeof bankItem === 'function') acts.push(`<button class="btn" onclick="bankItem('${id}',${qty});closeInvDetail()">→ Bank</button>`);
   }
 
+  /* b385 — ELEMENTS discoverability. The reverse "Used in" index is RECIPE-based,
+     so it is blind to enchanting: a rune's real answer to "what is this for?" is
+     an explicit action, and an essence's answer is one line of copy. */
+  if(it.tag === 'rune'){
+    acts.push(`<button class="btn btn-primary" onclick="openEnchantPicker('${id}');closeInvDetail()">Enchant a weapon with this</button>`);
+  }
+  let enchantNote = '';
+  if(it.tag === 'reagent' && /_essence$/.test(id)){
+    enchantNote = `<div class="inv-detail-note muted">→ Bind into a rune at Crafting 25, then enchant your weapon (+15% vs weak foes).</div>`;
+  }
+
   /* b224: one sentence saying what this food is for, plus the honest status of
      auto-eat. b217's rule is that comprehension gets fixed in the UI, not in a
      tutorial — so the screen that offers the button also explains the button. */
@@ -8492,6 +8524,7 @@ function openInvDetail(id){
     <div class="inv-detail-stats">${stats.join('')}</div>
     ${infoBlock}
     ${foodNote}
+    ${enchantNote}
     <div class="inv-detail-actions">${acts.join('')}</div>
   </div>`;
   d.classList.add('show');
@@ -15413,6 +15446,12 @@ function patchSkillDetail(){
         ? window.HearthriseArtisanCat.recipesFor(id)
         : window.ARTISAN_RECIPES[id];
       cats = window.HearthriseArtisanCat ? window.HearthriseArtisanCat.strip(id) : '';
+      /* b385 — one muted line under the Runes lane so the enchant loop reads at
+         a glance (bind → enchant). Only when that lane is the selected one. */
+      if(id==='crafting' && window.HearthriseArtisanCat
+         && window.HearthriseArtisanCat.selected('crafting')==='runes'){
+        cats += '<div class="muted tiny" style="margin:2px 0 8px">Bind essences into runes, then enchant your weapon (Combat) for +15% vs element-weak foes.</div>';
+      }
       tiles = recipes.map(function(r){return tileForArtisan(r, id);}).join('');
       count = recipes.length;
     } else {

@@ -127,3 +127,18 @@ _Backend-architect plan delivered 2026-08-17 (review-ready, in security review).
 | Craft material dupe | documented | P2 | Accepted pre-wipe trade (dupe > data loss). Real fix = inventory authority (§2). |
 | 32px requirement chips below 44px tap target | 🧊 | P3 | Art-director handoff. |
 | P3 polish backlog (various from audits) | 🧊 | P3 | In `.claude/coordination/DISCOVERIES.md`. |
+
+---
+
+## 9 · CODE HEALTH / ARCHITECTURE (the clean-code track — Tyler: "clean code is a must")
+
+_Code-health audit 2026-08-18. Headline: **on a real trajectory to the large-scale-multiplayer end-state — the hard bet (server-authority) is won and proven live, the logic core (`src/core`) is clean/pure/dual-runtime. The liability is the RENDER layer.** Four-layer scorecard: Data 85% · Logic 80% · **Render 20%** · Platform 40% — "built the load-bearing half first."_
+
+| Item | Status | Pri | Notes |
+|---|---|---|---|
+| `legacy.js` render-layer split → `src/render/*` | 🧊 | **P1** | The monolith is **18.8k lines** (was mis-documented as ~9k), now mostly UI wiring (146 innerHTML, 199 getElementById). Extract UI-render helpers into a token-reading component layer FIRST, then tab/screen controllers; data/logic already out. Dedicated track (weeks), behind the smoke suite, one domain at a time. THE fix for recurring visual-gate breaks (b361 class). After server-authority. |
+| CSS → tokens, screen-by-screen (convert-as-you-go) | 🔧 | P1 | 1,756 hardcoded hex, 1,343 `!important` across 9 sheets (theme-cozy.css alone: 947 !important). Guard tests catch each conversion. Start with combat + inventory (densest, break most). Unblocks the render layer + themes/skins. |
+| Adopt `src/platform/storage.js` across 37 direct-localStorage files | 🧊 | P2 | Mechanical, one file at a time. Prereq for the Steam/mobile platform seam. |
+| Load-test `hr-accrue` at a few hundred concurrent intents | 🧊 | P2 | The one "fine at 5, unknown at 500" — verify pooler connlimit 20 + rate-bucket throughput before real launch. |
+| Correct doc drift as the split proceeds | 🔧 | P3 | CLAUDE.md line-count corrected 2026-08-18; keep SYSTEMS_MAP in sync when render extraction starts. |
+| Do NOT | — | — | Rewrite the monolith wholesale (rejected); widen bump script into supabase/tests (trap); reintroduce a 2nd away-combat path or a data double-copy (both guard-tested). |

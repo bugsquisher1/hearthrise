@@ -95,7 +95,7 @@ by adding data, not code.
 
 ## What lives where
 
-- `src/legacy.js` — the ~9k-line monolith. Phase 3.5 (split into ESM modules) is still pending — task #129 in the task list.
+- `src/legacy.js` — the monolith, now **~18.8k lines** (the old "~9k" was 2× stale; corrected 2026-08-18 by the code-health audit). It is now mostly UI wiring + presentation glue (146 `innerHTML`, 199 `getElementById`) — the data/logic have already strangler-figged out into `src/core/*` (pure, dual-runtime) and `src/data/*`. Phase 3.5 (the render-layer extraction) is the remaining split — task #129. **Extract order (audit ruling): UI-render helpers → `src/render/*` FIRST, then the tab/screen controllers, leaving data/logic (already out) last.**
 - `src/styles/legacy.css` + `audit-overrides.css` + `theme-cozy.css` — three sheets that fight each other on specificity. When adding mobile rules, expect to need theme-prefixed selectors (`html:not([data-theme]) ...`) to outrank existing desktop rules.
 - `src/features/smoke-test.js` — the test suite. Add tests here.
 - `src/net/auth.js`, `src/net/sync.js`, `src/net/supabase-bootstrap.js` — Supabase wiring. Default cloud config is hard-coded in supabase-bootstrap.js (anon key only — never paste service role).

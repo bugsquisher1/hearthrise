@@ -415,7 +415,7 @@
     /* BETA GATE: hard-disabled — this debits G.gold client-side against a
        server RPC that mints treasury with no debit (server-authority lock).
        No-op that moves no gold until clan pass-2 flips CLAN_LAUNCHED. */
-    if (!CLAN_LAUNCHED) { notify('Clans are coming after launch.', 'info'); return false; }
+    if (!CLAN_LAUNCHED) { notify('Clans are coming in Open Beta 1.', 'info'); return false; }
     amount = Math.floor(+amount || 0);
     var G = window.G || {};
     if (amount <= 0) return false;
@@ -577,7 +577,7 @@
     if (!CLAN_LAUNCHED) {
       cl.innerHTML =
         '<div class="clan-soon">' +
-          '<div class="clan-soon-badge">Coming after launch</div>' +
+          '<div class="clan-soon-badge">Coming in Open Beta 1</div>' +
           '<h3>Clans &amp; Castles</h3>' +
           '<p>Raise a shared castle with your circle: a clan treasury, six rooms, ' +
           'shared Work Orders, clan chat, and a weekly boss no one downs alone. ' +

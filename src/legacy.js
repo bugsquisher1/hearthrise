@@ -3488,8 +3488,9 @@ function _hrRenderLevelUpPop(name, skill, level, unlocks){
     +`<div class="lu-skill">${escapeHtml(name)}</div>${unlockHtml}</div>`;
   el.onclick=function(){ try{ el.remove(); }catch(e){} };
   host.appendChild(el);
-  setTimeout(function(){ try{ el.classList.add('leaving'); }catch(e){} }, 2200);
-  setTimeout(function(){ try{ el.remove(); }catch(e){} }, 2700);
+  /* b385 (Tyler, live play): linger ~1.5s longer so the celebration reads. */
+  setTimeout(function(){ try{ el.classList.add('leaving'); }catch(e){} }, 3700);
+  setTimeout(function(){ try{ el.remove(); }catch(e){} }, 4200);
   while(host.children.length>3) host.removeChild(host.firstChild);
 }
 
@@ -3500,9 +3501,13 @@ function hrLevelUpNotice(skill, level){
   const name=(SKILLS_DEF[skill] && SKILLS_DEF[skill].name) || skill;
   const unlocks=hrSkillUnlocksAt(skill, level);
   window._hrLastLevelUp={ skill:skill, level:level, unlocks:unlocks };
-  if(typeof notify==='function'){
-    notify(`${name} Level ${level}${unlocks.length ? ' — '+unlocks[0]+' unlocked!' : ''}`,'levelup');
-  }
+  /* b385 (Tyler, live play): the celebratory banner IS the level-up feedback —
+     drop the redundant bottom-right toast. The toast was kept only to feed the
+     Chronicle, so record straight to the Chronicle instead (permanent skill
+     milestones are derived from XP state by the Chronicle's reconcile(), so no
+     history is lost). */
+  const _luText=`${name} Level ${level}${unlocks.length ? ' — '+unlocks[0]+' unlocked!' : ''}`;
+  try{ if(window.HearthriseChronicle && typeof window.HearthriseChronicle.recordToast==='function') window.HearthriseChronicle.recordToast(_luText,'levelup'); }catch(e){}
   try{ _hrRenderLevelUpPop(name, skill, level, unlocks); }catch(e){}
 }
 window.hrLevelUpNotice=hrLevelUpNotice;

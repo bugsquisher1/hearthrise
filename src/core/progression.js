@@ -17,10 +17,10 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelFromXp } from './xp.js?v=384';
-import { pacedXp } from './pacing.js?v=384';
-import { spendRestedCharge } from './rested.js?v=384';
-import { advanceToolCarry } from './tools.js?v=384';
+import { levelFromXp } from './xp.js?v=385';
+import { pacedXp } from './pacing.js?v=385';
+import { spendRestedCharge } from './rested.js?v=385';
+import { advanceToolCarry } from './tools.js?v=385';
 
 /* b228 P1 (bonus-rebase.md §5.4): this list used to name four styles and
    silently skip RANGED and MAGIC, so two of the seven combat skills were paid

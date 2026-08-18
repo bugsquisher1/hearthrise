@@ -896,8 +896,17 @@
     if (s <= 0) return;
     var gold = Math.floor(chest.gold * s);
     var gems = Math.floor(chest.gems * s);
-    G.gold = (G.gold || 0) + gold;
-    G.gems = (G.gems || 0) + gems;
+    /* SECURITY (gold record-flip, Finding #2): the raid claim RPC
+       (2026-08-11-raid-claim-authority.sql) authorises the claim — band, scale,
+       signature, once-per-week — but writes NO gold to player_state; the chest
+       is credited here, client-side. On the gold record-flip this local grant
+       would be ERASED by the next absolute envelope, costing the player a
+       legitimately-earned raid reward. Gate it on the record seam (no-op until
+       gold is armed, so live behaviour is unchanged). Mats/XP stay client-owned. */
+    var _mayGold = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold');
+    var _mayGems = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems');
+    if (_mayGold) G.gold = (G.gold || 0) + gold;
+    if (_mayGems) G.gems = (G.gems || 0) + gems;
     var mats = [];
     Object.keys(chest.items || {}).forEach(function (id) {
       var q = Math.max(1, Math.floor(chest.items[id] * s));

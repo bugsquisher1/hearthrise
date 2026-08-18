@@ -972,8 +972,19 @@
   // must never be a way to inject XP the rest of the game cannot see.
   function payChest(c) {
     var G = window.G;
-    G.gold = (G.gold || 0) + (c.gold || 0);
-    G.gems = (G.gems || 0) + (c.gems || 0);
+    /* SECURITY (gold record-flip, Finding #2): world_event_claim PRICES the
+       chest server-side (v_gold/v_gems in 2026-08-08-muster.sql) and is the
+       double-claim arbiter, but it does NOT credit player_state.gold — the RPC
+       only RETURNS the amount and the credit happens here. So on the day gold
+       joins SERVER_OF_RECORD this local grant would be ERASED by the next
+       absolute envelope. Gate it on the record seam so a number the server will
+       overwrite is never minted; the gate is a no-op until gold is armed, so
+       today's behaviour is byte-identical. Items/seals/XP are NOT on the record
+       and stay client-authored. */
+    var _mayGold = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold');
+    var _mayGems = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems');
+    if (_mayGold) G.gold = (G.gold || 0) + (c.gold || 0);
+    if (_mayGems) G.gems = (G.gems || 0) + (c.gems || 0);
     (c.items || []).forEach(function (it) {
       if (it.qty > 0 && typeof window.addItem === 'function') window.addItem(it.id, it.qty);
     });

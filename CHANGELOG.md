@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 381 — 2026-08-18 (Under the hood: gold-flip safety gates)
+
+- 🔧 No gameplay change. Prepares the gold balance to become server-owned: every place that pays you gold locally (dailies, quests, bounties, muster, raids, procs) now routes through a gate that stays a **no-op today** and only engages once gold is handed to the server, so no earned reward can be silently erased at the hand-off. Plus a build-enforced guard so no new forgeable gold-transfer path can sneak in. All dormant — behaviour is identical to today.
+
 ## v0.9.2-beta build 380 — 2026-08-18 (Under the hood: server-authority groundwork)
 
 - 🔧 No gameplay change. Installs the "server owns your bag" safety layer that lets the server become the source of truth for your items without ever deleting something it hasn't accounted for. It ships **dormant** (behaviour is identical to today) and only takes effect once the full inventory hand-off is armed — part of the ongoing work to make the economy un-forgeable before more players join.

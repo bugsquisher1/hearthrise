@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=380';
-import { emit } from '../net/events.js?v=380';
+import { COMPANIONS } from '../data/companions.js?v=381';
+import { emit } from '../net/events.js?v=381';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may
@@ -283,8 +283,13 @@ function rollProc(triggerType, ctx) {
   if (!hit) return;
   const e = def.proc.effect;
   switch (e) {
-    case 'gold': G.gold = (G.gold || 0) + (def.proc.amount || 1); break;
-    case 'extraGold': G.gold = (G.gold || 0) + (def.proc.amount || 5); break;
+    /* SECURITY (gold record-flip, Finding #2): a companion gold proc is a live
+       client-authored grant (its away-replay twin is priced by combat-sim, but
+       the LIVE tick that fires here is not server-credited). On the gold flip an
+       ungated write would be erased by the next absolute envelope. Gate on the
+       record seam — a no-op until gold is armed, so seeded parity is unchanged. */
+    case 'gold': if (!window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold')) G.gold = (G.gold || 0) + (def.proc.amount || 1); break;
+    case 'extraGold': if (!window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold')) G.gold = (G.gold || 0) + (def.proc.amount || 5); break;
     case 'doubleDrop':
       if (ctx?.lastDrop?.id && G.inventory) {
         G.inventory[ctx.lastDrop.id] = (G.inventory[ctx.lastDrop.id] || 0) + (ctx.lastDrop.qty || 1);

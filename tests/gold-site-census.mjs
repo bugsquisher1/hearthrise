@@ -231,6 +231,38 @@ function enclosingFn(lines, i) {
   return '(module)';
 }
 
+/* ── L8's SOURCE PROBE ───────────────────────────────────────────────────────
+   A `flipGuard:{gated:'TOKEN'}` annotation is a CLAIM about the code; this turns
+   it into a CHECK. Given a scanned site (its file + line + enclosing fn name),
+   read the file, walk back from the write to the enclosing function's
+   declaration, and answer whether TOKEN appears anywhere in that body. Comments
+   are stripped first, so a gate named only in prose does not count — the gate
+   has to be real, executable code above the write. Returns null if the file or
+   the function boundary cannot be resolved, which L8 treats as "cannot verify"
+   and fails loudly rather than passing on an absence. */
+async function gateTokenInEnclosingFn(site, token) {
+  let text;
+  try { text = await readFile(at(site.file), 'utf8'); }
+  catch (e) { return null; }
+  const lines = stripComments(text.replace(/\r\n/g, '\n')).split('\n');
+  const siteIdx = site.line - 1;
+  if (siteIdx < 0 || siteIdx >= lines.length) return null;
+  let start = -1;
+  for (let j = siteIdx; j >= 0 && j > siteIdx - 200; j--) {
+    for (const re of FN_RES) {
+      const m = re.exec(lines[j]);
+      if (m && !NOT_A_FN.has(m[1])) { start = j; break; }
+    }
+    if (start >= 0) break;
+    /* A `}` in column zero closes a top-level function — the write is at module
+       scope and there is no enclosing body to gate. Stop here. */
+    if (j < siteIdx && /^\}/.test(lines[j])) { start = j + 1; break; }
+  }
+  if (start < 0) start = Math.max(0, siteIdx - 40);
+  const body = lines.slice(start, siteIdx + 1).join('\n');
+  return body.indexOf(token) !== -1;
+}
+
 /**
  * THE CENSUS. Pure over the filesystem.
  * @param {string[]} patternNames which patterns to use — the CONTROL blinds this.
@@ -415,6 +447,51 @@ export async function runAll(opts) {
       + 'constant is non-empty.');
   }
 
+  /* ── L8: THE UNGATED-TRANSFER GUARD (Security gold-flip Finding #3) ───────
+     Every `deferred` gold site whose kind is `transfer` or `grant` is a client
+     write with no live server verb. On the day gold joins SERVER_OF_RECORD such
+     a write is not merely stale — a `transfer` arms into a FREE CROSS-PLAYER
+     REFUND (the class Finding #1 belonged to) and a `grant` silently ERASES a
+     legitimately-earned reward. This makes that un-regressable: each such row
+     must resolve to a `flipGuard` that is EITHER a code gate present in the site
+     (verified against source, not taken on faith) OR a documented server-side
+     counterparty write. A row with neither fails the build. */
+  const flipGuardOf = ledgerMod.flipGuardOf;
+  if (typeof flipGuardOf !== 'function') {
+    fail('GOLD CENSUS: src/net/gold-sites.js does not export flipGuardOf, so L8 (the ungated-'
+      + 'transfer guard) cannot run — a deferred transfer could arm into a free cross-player refund '
+      + 'with nothing to say so.');
+  } else {
+    for (const [id, row] of Object.entries(LEDGER)) {
+      if (row.status !== 'deferred' || (row.kind !== 'transfer' && row.kind !== 'grant')) continue;
+      const g = flipGuardOf(row);
+      if (!g || !g.valid) {
+        fail(`GOLD CENSUS: deferred ${row.kind} site '${id}' has no valid \`flipGuard\` `
+          + `(${(g && g.reason) || 'missing'}). On the gold record-flip a ${row.kind} with no server `
+          + 'verb ' + (row.kind === 'transfer'
+            ? 'arms into a FREE CROSS-PLAYER REFUND — the local rollback restores the buyer while the '
+              + 'counterparty ledger stands server-side (Finding #1). '
+            : 'ERASES a reward the player earned when the next absolute envelope overwrites it. ')
+          + "Declare `flipGuard:{gated:'<switch>'}` (and gate the write) or "
+          + "`flipGuard:{serverCredits:'<rpc>'}` (and credit it server-side).");
+        continue;
+      }
+      if (g.mode !== 'gated') continue;   // serverCredits is documented, not code-scannable here
+      const site = byId.get(id);
+      if (!site) continue;                // L2 already fails a declared-but-missing site
+      const present = await gateTokenInEnclosingFn(site, g.token);
+      if (present === null) {
+        fail(`GOLD CENSUS: '${id}' claims flipGuard gate '${g.token}' but its source (${site.file}:`
+          + `${site.line}) could not be read to verify it. An unverifiable gate is treated as absent.`);
+      } else if (!present) {
+        fail(`GOLD CENSUS: '${id}' claims flipGuard gate '${g.token}', but that token does NOT appear `
+          + `in the enclosing function at ${site.file}:${site.line}. The annotation says the write is `
+          + 'gated; the code does not gate it. This is exactly the ungated value-crossing write the '
+          + 'flip turns into a free refund — the ledger must not vouch for a gate the code lacks.');
+      }
+    }
+  }
+
   return {
     problems,
     note: `${count} gold write sites in src/** (control: ${blind.count} when blinded); `
@@ -528,8 +605,26 @@ export const MUTATIONS = {
        no longer exists is a planted bug that was never planted. Re-pointed at a
        row that is still deferred rather than deleted, because the property is
        about the DEFERRED class and that class is not empty. */
-    find: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,\n  },",
-    repl: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred',\n  },",
+    find: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,\n    flipGuard: { gated: 'serverMarketActive' },\n  },",
+    repl: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred',\n    flipGuard: { gated: 'serverMarketActive' },\n  },",
+  },
+  /* ── L8: THE UNGATED-TRANSFER CLASS (Security gold-flip Finding #3) ────────
+     Two mutations, because there are two ways a value-crossing gold write arms
+     wrong: it can carry NO flip-guard at all, or claim a gate the code does not
+     have. Both are the planted-ungated-transfer the guard exists to catch. */
+  transfer_flip_guard_removed: {
+    why: 'a deferred transfer loses its flipGuard entirely. On flip that write is a client-authored '
+      + 'value-crossing refund the server never authorised — Finding #1, un-annotated.',
+    file: LEDGER_FILE,
+    find: "    flipGuard: { gated: 'clientMayWriteRecordField' },\n    blockedBy: 'same as muster payChest",
+    repl: "    blockedBy: 'same as muster payChest",
+  },
+  transfer_flip_guard_gate_absent_in_code: {
+    why: 'a deferred transfer CLAIMS a code gate whose token is nowhere in the site. The annotation '
+      + 'vouches for a gate the code lacks — the exact lie L8 must not take on faith.',
+    file: LEDGER_FILE,
+    find: "blockedBy: B.MARKET_V2_NO_COLLECT,\n    flipGuard: { gated: 'serverMarketActive' },",
+    repl: "blockedBy: B.MARKET_V2_NO_COLLECT,\n    flipGuard: { gated: 'serverMarketNOTactive' },",
   },
 };
 

@@ -310,8 +310,13 @@
     if (idx > rankIndexFor(effectiveRenown(G))) return null;    // not reached yet
     var rank = RANKS[idx];
     var rw = rank.reward || {};
-    if (rw.gold) G.gold = (G.gold || 0) + rw.gold;
-    if (rw.gems) G.gems = (G.gems || 0) + rw.gems;
+    /* SECURITY (gold record-flip, Finding #2): a Renown-rank reward is a purely
+       client-authored grant — Renown has no server column/RPC (RENOWN_MODEL
+       blocker), so nothing credits it server-side. On the gold flip it would be
+       erased by the next envelope. Gate on the record seam (no-op until gold is
+       armed). The item reward stays client-owned. */
+    if (rw.gold && (!window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold'))) G.gold = (G.gold || 0) + rw.gold;
+    if (rw.gems && (!window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems'))) G.gems = (G.gems || 0) + rw.gems;
     if (rw.item && typeof window.addItem === 'function') { try { window.addItem(rw.item, rw.itemQty || 1); } catch (e) {} }
     s.claimed.push(rankId);
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}

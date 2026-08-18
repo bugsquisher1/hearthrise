@@ -102,6 +102,54 @@ export function flipBehaviourOf(row) {
   return FLIP_BEHAVIOUR[row.kind] || '';
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   THE FLIP-GUARD — WHAT KEEPS A DEFERRED TRANSFER/GRANT FROM ARMING WRONG
+   ══════════════════════════════════════════════════════════════════════════
+   Security's gold-flip review (2026-08-17, GO-WITH-FIXES) named a class, not a
+   bug: a client site that GRANTS gold or moves it to another player, with no
+   server counterpart, is not merely wrong on flip day — for a `transfer` it
+   arms into a FREE CROSS-PLAYER REFUND (the local rollback restores the buyer's
+   gold while the counterparty ledger stands server-side), and for a `grant` it
+   quietly ERASES a reward the player legitimately earned. Finding #1 was one
+   instance (clan contribute); the durable fix is to make the WHOLE class
+   un-regressable, which is what `flipGuard` + the census guard's L8 do together.
+
+   Every `deferred` row whose kind is `transfer` or `grant` MUST carry ONE of:
+
+     `flipGuard: { gated: 'TOKEN' }`
+        The site does not author a balance the server will overwrite, because a
+        runtime switch skips the write. TOKEN is the literal the code uses:
+          · `serverMarketActive`          — the market v1/v2 switch (market.js)
+          · `CLAN_LAUNCHED`               — the clan beta gate (clans.js)
+          · `clientMayWriteRecordField`   — THE record seam. Returns false only
+             once the field is on SERVER_OF_RECORD *and* armed, so it is a no-op
+             today and becomes the gate the instant gold flips. This is the one
+             new sites should reach for.
+        The census guard does NOT take this on faith: it finds the site in the
+        SOURCE and fails the build unless TOKEN appears in the site's enclosing
+        function. A data annotation that the code does not back is a lie it
+        catches.
+
+     `flipGuard: { serverCredits: 'why' }`
+        The value IS written server-side by a named counterparty RPC, so the
+        local write is a prediction the envelope reconciles — not a second
+        record. Data-only (the SQL is not walked here); `why` must name the RPC.
+
+   `flipGuardOf` is the single reader. L8 asserts every deferred transfer/grant
+   resolves to a valid one, and `--selftest` plants both an un-annotated transfer
+   and a `gated` annotation whose token is absent from the code. */
+export function flipGuardOf(row) {
+  if (!row || row.status !== 'deferred') return null;
+  if (row.kind !== 'transfer' && row.kind !== 'grant') return null;
+  const g = row.flipGuard;
+  if (!g || typeof g !== 'object') return { valid: false, reason: 'no flipGuard' };
+  if (typeof g.gated === 'string' && g.gated) return { valid: true, mode: 'gated', token: g.gated };
+  if (typeof g.serverCredits === 'string' && g.serverCredits) {
+    return { valid: true, mode: 'serverCredits', why: g.serverCredits };
+  }
+  return { valid: false, reason: 'flipGuard names neither a gate token nor a server counterparty' };
+}
+
 /* ── THE NAMED BLOCKERS ─────────────────────────────────────────────────────
    Spelled once, so twenty rows blocked on one thing all say the same words and
    a reader can count them. */
@@ -344,38 +392,47 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   // ══ GRANTS ════════════════════════════════════════════════════════════════
   'src/features/collection-log.js#claimMilestone': {
     kind: 'grant', status: 'deferred', blockedBy: B.COLLECTION_MODEL,
+    flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'claim_reward {kind:"collection", key:"milestone"} — registry row exists, status blocked',
   },
   'src/features/companions.js#rollProc': {
     kind: 'grant', status: 'deferred', blockedBy: B.LIVE_ACTION_INTENTS,
+    flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'companion gold proc, inside killMonster',
   },
   'src/features/companions.js#rollProc@2': {
     kind: 'grant', status: 'deferred', blockedBy: B.LIVE_ACTION_INTENTS,
+    flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'companion extraGold proc, inside killMonster',
   },
   'src/features/renown.js#claimRank': {
     kind: 'grant', status: 'deferred', blockedBy: B.RENOWN_MODEL,
+    flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'claim_reward {kind:"flag", key:"renown_rank"} — registry row exists, status blocked',
   },
   'src/legacy.js#grant': {
     kind: 'grant', status: 'deferred', blockedBy: B.IAP_RECEIPT,
+    flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'the IAP entitlement grant',
   },
   'src/legacy.js#completeBounty': {
     kind: 'grant', status: 'deferred', blockedBy: B.MARKS_COLUMN,
+    flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'claim_reward {kind:"bounty", key:"turnin"} — registry row exists, status blocked',
   },
   'src/legacy.js#updateDaily': {
     kind: 'grant', status: 'deferred', blockedBy: B.DAILY_COUNTERS,
+    flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'the daily-task payout',
   },
   'src/legacy.js#completeQuest': {
     kind: 'grant', status: 'deferred', blockedBy: B.DAILY_COUNTERS,
+    flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'the quest payout',
   },
   'src/legacy.js#claimQuestReward': {
     kind: 'grant', status: 'deferred', blockedBy: B.DAILY_COUNTERS,
+    flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'claim_reward {kind:"daily", key:"goal"} and {kind:"quest", key:"weekly"} — both registry '
       + 'rows exist, both status blocked',
   },
@@ -406,9 +463,17 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   // ══ TRANSFERS — value crossing to another player ══════════════════════════
   'src/features/clans.js#contribute': {
     kind: 'transfer', status: 'deferred', blockedBy: B.CLAN_DEPOSIT_GOLD,
+    /* Finding #1's site. The whole contribute() path is behind CLAN_LAUNCHED, so
+       the value-crossing debit cannot execute — the b378 clan-block. */
+    flipGuard: { gated: 'CLAN_LAUNCHED' },
   },
   'src/features/muster.js#payChest': {
     kind: 'transfer', status: 'deferred',
+    /* world_event_claim PRICES the chest server-side but does NOT write
+       player_state.gold — it returns the amount and the credit happens in
+       payChest. So the local grant would be ERASED on flip, not reconciled;
+       gated on the record seam until the credit moves into the RPC. */
+    flipGuard: { gated: 'clientMayWriteRecordField' },
     blockedBy: 'nothing here — the VALUE is already decided by a SECURITY DEFINER RPC, so this is '
       + 'pure bookkeeping and belongs INSIDE that RPC (the 2026-08-15 ruling: rules => Edge, '
       + 'bookkeeping => database function). Clan/raid domain, separate owner. It must NOT be '
@@ -416,6 +481,11 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
   'src/features/raids.js#grantReward': {
     kind: 'transfer', status: 'deferred',
+    /* The raid claim RPC authorises the claim (band/scale/sig, once-per-week) but
+       writes no gold to player_state — the chest is credited client-side, so the
+       flip would erase it. Gated on the record seam until the credit moves into
+       the RPC. */
+    flipGuard: { gated: 'clientMayWriteRecordField' },
     blockedBy: 'same as muster payChest — server-priced already; belongs in the raid RPC.',
   },
   /* ── THE MARKET (b355). The first value that crosses to another player. ───
@@ -450,18 +520,23 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
   'src/market.js#collectSaleProceeds': {
     kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V2_NO_COLLECT,
+    flipGuard: { gated: 'serverMarketActive' },
   },
   'src/market.js#revertBuy': {
     kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V1_BACKEND,
+    flipGuard: { gated: 'serverMarketActive' },
   },
   'src/market.js#placeBuyOffer': {
     kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,
+    flipGuard: { gated: 'serverMarketActive' },
   },
   'src/market.js#cancelBuyOffer': {
     kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,
+    flipGuard: { gated: 'serverMarketActive' },
   },
   'src/market.js#autoMatchAgainstOffers': {
     kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,
+    flipGuard: { gated: 'serverMarketActive' },
   },
 
   // ══ NOT BALANCES AT ALL ═══════════════════════════════════════════════════
@@ -496,5 +571,7 @@ export function goldSiteCensus() {
 }
 
 if (typeof window !== 'undefined') {
-  window.HearthriseGoldSites = { GOLD_SITE_LEDGER, KINDS, STATUSES, isWiredSite, goldSiteCensus };
+  window.HearthriseGoldSites = {
+    GOLD_SITE_LEDGER, KINDS, STATUSES, isWiredSite, goldSiteCensus, flipBehaviourOf, flipGuardOf,
+  };
 }

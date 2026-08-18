@@ -2723,8 +2723,14 @@ const IAP=(()=>{
     notify(`✅ Purchased ${product.title}`,'levelup');
   }
   function grant(p){
-    if(p.gems)G.gems=(G.gems||0)+p.gems;
-    if(p.gold)G.gold=(G.gold||0)+p.gold;
+    /* SECURITY (gold record-flip, Finding #2): IAP entitlement gold/gems are
+       client-authored here (IAP_RECEIPT blocker — real money wants a store
+       receipt check that credits server-side). Web-beta refuses before this
+       runs, but gate the balance writes on the record seam anyway so the flip
+       cannot erase them; no-op until gold is armed. Tokens/entitlements/themes
+       are not on the record and stay as-is. */
+    if(p.gems&&clientMayWriteRecordField('gems'))G.gems=(G.gems||0)+p.gems;
+    if(p.gold&&clientMayWriteRecordField('gold'))G.gold=(G.gold||0)+p.gold;
     if(p.tokens){addItem('hearth_token',p.tokens);} /* b206: tradable premium bonds */
     if(p.ent)G.entitlements[p.ent]=true;
     if(p.unlocks)p.unlocks.forEach(id=>{if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);});
@@ -3734,7 +3740,12 @@ function completeBounty(){
   const b=G.bountyHunter.active;if(!b)return;
   if(b.type==='proof'&&b.proofItem)removeItem(b.proofItem,b.required);
   const r=b.rewards||{gold:0,marks:0,xp:0};
-  G.gold+=r.gold||0;G.bountyHunter.marks=(G.bountyHunter.marks||0)+(r.marks||0);G.bountyHunter.xp=(G.bountyHunter.xp||0)+(r.xp||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
+  /* SECURITY (gold record-flip, Finding #2): a bounty turn-in pays gold AND
+     Marks, neither credited server-side (MARKS_COLUMN blocker). On the gold flip
+     the gold half would be erased by the next envelope. Gate the gold write on
+     the record seam — a no-op until gold is armed, so the seeded away-replay is
+     byte-identical. Marks/XP have no server record and stay client-authored. */
+  if(clientMayWriteRecordField('gold'))G.gold+=r.gold||0;G.bountyHunter.marks=(G.bountyHunter.marks||0)+(r.marks||0);G.bountyHunter.xp=(G.bountyHunter.xp||0)+(r.xp||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
   const oldLevel=levelFromXp((G.bountyHunter.xp||0)-(r.xp||0)),newLevel=getBountyHunterLevel();
   /* b344 — THE SEEDED STREAM, not Math.random(). completeBounty runs inside
      handleBountyKill, which runs inside killMonster, which runs inside the AWAY
@@ -4218,7 +4229,11 @@ function updateDaily(type,amt=1){
   G.daily.tasks.forEach(t=>{
     if(t.type===type&&!t.done){
       t.progress=Math.min(t.goal,(t.progress||0)+amt);
-      if(t.progress>=t.goal){t.done=true;G.gold+=t.reward;notify(`✅ Daily: ${t.label} (+${t.reward}g)`,'loot');}
+      /* SECURITY (gold record-flip, Finding #2): daily-task gold is client-
+         authored (DAILY_COUNTERS blocker — nothing writes a server progress
+         row). Gate the write on the record seam so the gold flip cannot erase a
+         just-minted number; no-op until gold is armed. */
+      if(t.progress>=t.goal){t.done=true;if(clientMayWriteRecordField('gold'))G.gold+=t.reward;notify(`✅ Daily: ${t.label} (+${t.reward}g)`,'loot');}
     }
   });
 }
@@ -4295,7 +4310,10 @@ function updateQuest(type,amt=1,meta={}){
 function completeQuest(q){
   q.done=true;
   const r=q.reward||{};
-  if(r.gold)G.gold+=r.gold;
+  /* SECURITY (gold record-flip, Finding #2): quest gold is client-authored
+     (DAILY_COUNTERS blocker). Gate on the record seam so the flip cannot erase
+     it; no-op until gold is armed. Item/XP rewards stay client-owned. */
+  if(r.gold&&clientMayWriteRecordField('gold'))G.gold+=r.gold;
   if(r.item)addItem(r.item,r.qty||1,false);
   /* Combat XP is routed the way a KILL routes it — through the player's
      active style (src/core/styles.js killXpRoute) — so a bow user is paid
@@ -18539,8 +18557,11 @@ console.log('[Bundle Icons v1] applied:',
     if(isClaimed(goal, isWeekly)) return;
     var reward = rewardFor(goalId, isWeekly);
     if(reward){
-      if(reward.gold && typeof G.gold === 'number') G.gold += reward.gold;
-      if(reward.gems && typeof G.gems === 'number') G.gems += reward.gems;
+      /* SECURITY (gold record-flip, Finding #2): daily/weekly goal rewards are
+         client-authored (DAILY_COUNTERS blocker). Gate gold/gems on the record
+         seam so the flip cannot erase them; no-op until gold is armed. */
+      if(reward.gold && typeof G.gold === 'number' && clientMayWriteRecordField('gold')) G.gold += reward.gold;
+      if(reward.gems && typeof G.gems === 'number' && clientMayWriteRecordField('gems')) G.gems += reward.gems;
       if(reward.xp){
         Object.entries(reward.xp).forEach(function(kv){
           /* b226: a daily/weekly reward is an AUTHORED payout, not a rate —

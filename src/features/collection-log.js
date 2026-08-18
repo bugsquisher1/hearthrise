@@ -61,8 +61,13 @@
     if (!m) return null;
     var st = getStats(G); if (!m.test(st)) return null;
     var rw = m.reward || {};
-    if (rw.gold) G.gold = (G.gold || 0) + rw.gold;
-    if (rw.gems) G.gems = (G.gems || 0) + rw.gems;
+    /* SECURITY (gold record-flip, Finding #2): a collection-milestone reward is
+       a purely client-authored grant — no server verb credits it today (the
+       COLLECTION_MODEL blocker). On the gold flip it would be erased by the next
+       envelope. Gate on the record seam (no-op until gold is armed). Items stay
+       client-owned. */
+    if (rw.gold && (!window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold'))) G.gold = (G.gold || 0) + rw.gold;
+    if (rw.gems && (!window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems'))) G.gems = (G.gems || 0) + rw.gems;
     s.claimed.push(id);
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}
     try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}

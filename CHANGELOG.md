@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 390 — 2026-08-18 (Stable tab + full drop tables)
+
+- 🐴 **The Stable / Companions tab is back in the menu.** It had fallen off the navigation for some players — it's now a proper entry in the left rail (desktop) and the **More** menu (mobile), and opens the companions panel directly.
+- 🗡️ **Monster cards now show the FULL drop table**, not just the first two lines. Browse the Combat screen and you can see everything a foe can drop before you commit to the fight.
+
+## v0.9.2-beta build 389 — 2026-08-18 (Worker rebalance)
+
+- ⚒️ **Workers rebalanced.** A full castle crew was quietly out-earning an active player around the clock — that's now reined in. Each worker gathers less per tick, and hiring the later slots costs more, so your crew is a nice bonus while you're away rather than a reason not to play. Your first worker is still a cheap 500g helper.
+
 ## v0.9.2-beta build 381 — 2026-08-18 (Under the hood: gold-flip safety gates)
 
 - 🔧 No gameplay change. Prepares the gold balance to become server-owned: every place that pays you gold locally (dailies, quests, bounties, muster, raids, procs) now routes through a gate that stays a **no-op today** and only engages once gold is handed to the server, so no earned reward can be silently erased at the hand-off. Plus a build-enforced guard so no new forgeable gold-transfer path can sneak in. All dormant — behaviour is identical to today.

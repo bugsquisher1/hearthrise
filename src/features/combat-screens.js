@@ -41,8 +41,8 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=389';
-import { ITEMS } from '../data/items.js?v=389';
+import { MONSTERS } from '../data/monsters.js?v=390';
+import { ITEMS } from '../data/items.js?v=390';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -851,9 +851,19 @@ function renderGrid() {
     const locked = lv < req;
     const k = killsOf(id);
     const fighting = g && g.activeMonster === id;
-    const drops = (m.drops || []).slice().sort((a, b) => b.ch - a.ch).slice(0, 2)
-      .map((d) => `${esc((ITEMS[d.id] || {}).n || d.id)} ${d.ch >= 1 ? 'always' : (d.ch * 100 >= 1 ? Math.round(d.ch * 100) : (d.ch * 100).toFixed(1)) + '%'}`)
-      .join(' · ');
+    /* BUG 5 (Tyler) — "what do I win" must be answerable BEFORE committing to
+       the fight screen. The browse card used to teaser the top 2 drops only;
+       the full rarity-banded table now lives in the hover/focus overlay, the
+       same table (rarityBand + pctText) the fight-setup screen shows. Rows carry
+       data-drop so the id is present regardless of ITEMS name resolution. */
+    const dropList = (m.drops || []).slice().sort((a, b) => b.ch - a.ch);
+    const coinRow = m.gp
+      ? `<span class="wtc-drop-row is-coin"><em>Gold</em><b>${num(m.gp[0])}–${num(m.gp[1])}</b></span>`
+      : '';
+    const drops = coinRow + (dropList.length
+      ? dropList.map((d) => `<span class="wtc-drop-row ${rarityBand(d.ch)}" data-drop="${esc(d.id)}">` +
+          `<em>${esc((ITEMS[d.id] || {}).n || d.id)}</em><b>${pctText(d.ch)}</b></span>`).join('')
+      : '<span class="wtc-drop-row is-empty"><em>Coin only</em></span>');
     const badge = fighting ? '<span class="wtc-kills is-live">Fighting</span>'
       : locked ? `<span class="wtc-kills is-locked">Lv ${req}</span>`
       : k > 0 ? `<span class="wtc-kills">×${num(k)}</span>`
@@ -864,7 +874,7 @@ function renderGrid() {
       <span class="wtc-name">${esc(m.name)}</span>
       <span class="wtc-stats"><em>${esc(weaponLabel(m.weaponWeak))}</em><b>${num(m.hp)} HP</b></span>
       ${badge}
-      ${drops ? `<span class="wtc-drops">${drops}</span>` : ''}
+      ${drops ? `<span class="wtc-drops"><span class="wtc-drops-head">Drops</span>${drops}</span>` : ''}
     </button>`;
   }).join('');
   const sig = t + '|' + classFilter + '|' + lv + '|' + rows.length + '|' + (g && g.activeMonster) + '|' + rows.map(([id]) => killsOf(id)).join(',');

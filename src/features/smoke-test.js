@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=389' directly.
+// modularised, will import { G } from '../state/game.js?v=390' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=389';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=389';
+import { on, snapshot } from '../net/events.js?v=390';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=390';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=389';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=390';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -5065,6 +5065,69 @@ const TESTS = [
     const cards = document.querySelectorAll('#panel-stable .sc-card, #panel-stable [onclick*="equipCompanion"], #panel-stable [onclick*="unequipCompanion"]');
     for (const c of Array.from(cards).slice(0, 3)) {
       try { c.click(); } catch (e) { throw new Error('stable card click threw: ' + e.message); }
+    }
+  }),
+
+  // BUG 4 (Paione: "only way I found it was Character → Equipment → Companion →
+  // unequip → then Stable"). The Stable nav button + #panel-stable were injected
+  // at runtime by TWO competing owners (legacy.js block-32 + companions.js),
+  // both guarded on [data-tab="stable"] existence, so whichever ran first won
+  // and the legacy one bailed unless a literal 'Homestead' label was present —
+  // the button was effectively unreachable, and never existed on mobile at all.
+  // Collapsed to ONE owner (companions.js) with FIRST-CLASS STATIC nav entries
+  // in index.html: one in the desktop rail, one in the mobile More sheet.
+  () => tryRun('BUG4: Stable is a single-owner, first-class nav entry (desktop + mobile)', () => {
+    // Single owner in the desktop rail: exactly one, no runtime duplicate.
+    const railBtns = document.querySelectorAll('.sidebar [data-tab="stable"]');
+    assert(railBtns.length === 1, 'expected exactly ONE Stable button in the rail, found ' + railBtns.length + ' (duplicate injector regression)');
+    // Mobile reachability: a route in the More sheet (wired by muster wireMoreSheet).
+    const moreBtn = document.querySelector('#more-modal [data-tab="stable"]');
+    assert(moreBtn, 'Stable has no route in the mobile More sheet');
+    // The panel exists and showTab reveals it (viewport-independent path).
+    window.showTab('stable');
+    const panel = document.getElementById('panel-stable');
+    assert(panel, '#panel-stable missing from DOM');
+    assert(panel.classList.contains('active'), 'showTab("stable") did not activate #panel-stable');
+    // The mobile route resolves to the same panel: click it, panel stays active.
+    window.showTab('profile');
+    try { moreBtn.click(); } catch (e) { throw new Error('mobile More Stable button threw: ' + e.message); }
+    assert(document.getElementById('panel-stable').classList.contains('active'),
+      'mobile More → Stable did not open #panel-stable');
+  }),
+
+  // BUG 5 (Tyler): the War Table BROWSE card used to teaser only the top 2 drops
+  // (m.drops.slice(0,2)); the full rarity-banded table only appeared once you
+  // opened the fight-setup screen. "What do I win" must be answerable while
+  // scanning. The full table now renders in the card's hover/focus overlay.
+  () => tryRun('BUG5: War Table card carries the FULL drop table (not a 2-drop teaser)', () => {
+    const MON = window.MONSTERS || {};
+    let mid = null, m = null;
+    for (const [k, v] of Object.entries(MON)) {
+      if (Array.isArray(v.drops) && v.drops.length > 2) { mid = k; m = v; break; }
+    }
+    assert(mid, 'test needs a monster with >2 drops');
+    const CS = window.HearthriseCombatScreens;
+    assert(CS && typeof CS.render === 'function', 'combat screens render seam missing');
+    const g = window.G;
+    const savedTier = g.currentCombatTier;
+    g.currentCombatTier = m.tier || 1;
+    window.showTab('combat');
+    try {
+      CS.render();
+      // Defensively clear any class filter left by an earlier test.
+      const allChip = document.querySelector('#wt-classes [data-cls="all"]');
+      if (allChip) { try { allChip.click(); } catch (e) { /* ignore */ } CS.render(); }
+      void document.body.offsetHeight;
+      const card = document.querySelector('#wt-grid [data-monster="' + mid + '"]');
+      assert(card, 'war table card for ' + mid + ' did not render at tier ' + (m.tier || 1));
+      const shown = new Set(Array.from(card.querySelectorAll('.wtc-drop-row[data-drop]'))
+        .map((el) => el.getAttribute('data-drop')));
+      for (const d of m.drops) {
+        assert(shown.has(d.id), 'drop ' + d.id + ' missing from browse card — slice(0,2) teaser regression');
+      }
+      assert(shown.size >= 3, 'expected the full table (>2 rows), got ' + shown.size);
+    } finally {
+      g.currentCombatTier = savedTier;
     }
   }),
 
@@ -26104,7 +26167,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=389');
+    const KIT = await import('../data/start-kit.js?v=390');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -31745,7 +31808,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=389');
+    const S = await import('../data/shops.js?v=390');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33139,7 +33202,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=389');
+    const S = await import('../data/shops.js?v=390');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -36329,7 +36392,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=389')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=390')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -37767,7 +37830,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=389');
+    const A = await import('../net/accrue.js?v=390');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -37791,7 +37854,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=389');
+    const A = await import('../net/accrue.js?v=390');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

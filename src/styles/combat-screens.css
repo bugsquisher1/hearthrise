@@ -208,16 +208,42 @@
 /* The drop summary is a HOVER reveal on desktop and simply absent on touch —
  * the same two lines live in the preview state, which is where a phone reads
  * them. It is absolutely positioned so revealing it cannot reflow the grid. */
+/* BUG 5: the overlay now carries the FULL drop table (not a 2-drop teaser), so
+ * it is a scrollable column that fills the card on hover/focus — the same
+ * "what do I win" answer the fight-setup screen gives, one step earlier. Still
+ * absolutely positioned so revealing it never reflows the grid. */
 #panel-combat .wtc-drops {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  padding: 4px 6px;
-  background: var(--bg-3); border-top: 1px solid var(--line-soft);
+  position: absolute; left: 0; right: 0; bottom: 0; top: 0;
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 4px 6px; overflow-y: auto;
+  background: var(--bg-3);
   font-size: var(--t-micro, 11px); color: var(--ink-2);
-  opacity: 0; transform: translateY(100%); transition: transform .12s, opacity .12s;
+  opacity: 0; transform: translateY(6px); transition: transform .12s, opacity .12s;
   pointer-events: none;
 }
 #panel-combat .wt-card:hover:not(:disabled) .wtc-drops,
-#panel-combat .wt-card:focus-visible .wtc-drops { opacity: 1; transform: translateY(0); }
+#panel-combat .wt-card:focus-visible .wtc-drops { opacity: 1; transform: translateY(0); pointer-events: auto; }
+#panel-combat .wtc-drops-head {
+  font-family: var(--f-label, var(--f-ui)); font-weight: 800; letter-spacing: .04em;
+  color: var(--ink-3); text-transform: uppercase; font-size: var(--t-micro, 11px);
+  padding-bottom: 2px; margin-bottom: 2px; border-bottom: 1px solid var(--line-soft);
+  position: sticky; top: 0; background: var(--bg-3);
+}
+#panel-combat .wtc-drop-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+#panel-combat .wtc-drop-row em { font-style: normal; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#panel-combat .wtc-drop-row b { color: var(--ink-2); flex: 0 0 auto; }
+#panel-combat .wtc-drop-row.is-coin b { color: var(--gold-2); }
+#panel-combat .wtc-drop-row.is-empty em { color: var(--ink-3); font-style: italic; }
+/* Same rarity ladder as the loot modal's rows (.fsm-drop.r-*): the pct band is
+ * the tell that a drop is worth farming for. Tokens only. */
+#panel-combat .wtc-drop-row.r-common b { color: var(--ink-2); }
+#panel-combat .wtc-drop-row.r-uncommon b { color: var(--green); }
+#panel-combat .wtc-drop-row.r-rare b { color: var(--gold-2); }
+#panel-combat .wtc-drop-row.r-vrare b { color: var(--gem); }
+#panel-combat .wtc-drop-row.r-legendary b { color: var(--red); }
 
 /* COZY-LIGHT SURFACES. `--surf-sunken` resolves to `rgba(0,0,0,.3)` in every
  * theme, which is a recessed well under hearthlight's warm dark and a muddy

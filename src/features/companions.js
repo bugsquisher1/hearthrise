@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=392';
-import { emit } from '../net/events.js?v=392';
+import { COMPANIONS } from '../data/companions.js?v=393';
+import { emit } from '../net/events.js?v=393';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may

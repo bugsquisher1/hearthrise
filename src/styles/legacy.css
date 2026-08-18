@@ -1233,47 +1233,9 @@ img,svg{display:block;max-width:100%}
 .bh-stats .kpi b{display:block;font-size:calc(21.5px * var(--ui-scale, 1));font-weight:800;color:#f3d181;line-height:1}
 .bh-stats .kpi span{font-size:calc(14.5px * var(--ui-scale, 1));text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700}
 
-/* ─── Monster detail modal ─── */
-.mon-detail{position:fixed;inset:0;z-index:1500;background:rgba(0,0,0,.7);backdrop-filter:blur(3px);
-  display:flex;align-items:center;justify-content:center;padding:max(20px,var(--safe-b));
-  opacity:0;pointer-events:none;transition:opacity .15s}
-.mon-detail.show{opacity:1;pointer-events:all}
-.mon-detail-card{
-  width:min(540px,96vw);background:var(--bg-2);border:1px solid var(--line);
-  border-radius:var(--r-lg);padding:24px;
-  transform:translateY(20px);transition:transform .15s;
-  box-shadow:0 30px 80px rgba(0,0,0,.65);position:relative;
-}
-.mon-detail.show .mon-detail-card{transform:translateY(0)}
-.mon-detail-portrait{
-  /* b357: 24px was a pill-ish fillet that fought the near-square shape
-     language and clipped a 128px portrait's corners. Shared portrait mask. */
-  width:128px;height:128px;margin:0 auto 14px;border-radius:var(--r-portrait,6px);
-  background:radial-gradient(circle at 50% 35%,rgba(229,189,108,.22),rgba(0,0,0,.4));
-  border:2px solid rgba(229,189,108,.4);
-  display:flex;align-items:center;justify-content:center;font-size:calc(80px * var(--ui-scale, 1));
-  position:relative;
-}
-.mon-detail-name{font-family:var(--f-display);font-size:calc(26px * var(--ui-scale, 1));color:var(--gold-2);text-align:center;font-weight:700}
-.mon-detail-meta{font-size:calc(14.5px * var(--ui-scale, 1));text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);text-align:center;font-weight:700;margin-bottom:14px}
-.mon-detail-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
-.mon-detail-stats div{padding:7px;border-radius:var(--r-sm);background:rgba(255,255,255,.04);border:1px solid var(--line-soft);text-align:center}
-.mon-detail-stats div b{display:block;font-size:calc(19px * var(--ui-scale, 1));font-weight:800}
-.mon-detail-stats div span{font-size:calc(14.5px * var(--ui-scale, 1));text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700}
-.mon-detail-tags{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:14px}
-.mon-detail-tags span{font-size:calc(14.5px * var(--ui-scale, 1));padding:3px 9px;border-radius:99px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-.mon-detail-tags .weak-tag{background:rgba(63,185,80,.16);color:#a6e0aa;border:1px solid rgba(63,185,80,.32)}
-.mon-detail-tags .resist-tag{background:rgba(248,81,73,.16);color:#ffb4ad;border:1px solid rgba(248,81,73,.32)}
-.mon-detail-loot{margin-bottom:16px}
-.mon-detail-loot h4{font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin-bottom:6px}
-.mon-loot-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--r-sm);background:rgba(255,255,255,.03);margin-bottom:3px;font-size:calc(14.5px * var(--ui-scale, 1))}
-.mon-loot-row .mli{font-size:calc(21.5px * var(--ui-scale, 1));width:22px}
-.mon-loot-row .mln{flex:1;font-weight:600}
-.mon-loot-row .mlc{font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;color:var(--gold-2);min-width:50px;text-align:right}
-.mon-loot-row.rare .mlc{color:var(--purple);text-shadow:0 0 6px rgba(167,139,250,.3)}
-.mon-detail-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.mon-detail-actions .btn{font-size:calc(16px * var(--ui-scale, 1));font-weight:700}
-.mon-detail-close{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-size:calc(17px * var(--ui-scale, 1));cursor:pointer}
+/* ─── Monster detail modal (.mon-detail*) — REMOVED b393: the modal was dead
+   code (see legacy.js). Its .mon-loot-row/.mli/.mln/.mlc + .mon-detail-tags
+   weak/resist tag styles had no other consumer and went with it. ─── */
 
 /* ─── Combat life: shake / pulse / damage numbers ─── */
 @keyframes hit-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px) rotate(-1deg)}75%{transform:translateX(3px) rotate(1deg)}}

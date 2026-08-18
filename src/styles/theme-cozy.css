@@ -2668,10 +2668,7 @@ body[data-theme="cozy-light"] .welcome-overlay,
 body[data-theme="cozy-light"] .ach-overlay,
 
 
-body[data-theme="cozy-light"] .acq-overlay,
-
-
-body[data-theme="cozy-light"] .mon-detail {
+body[data-theme="cozy-light"] .acq-overlay {
   color: #3d2817;
 }
 body[data-theme="cozy-light"] .stats-modal *:not(button):not(input):not(select),
@@ -2682,9 +2679,7 @@ body[data-theme="cozy-light"] .welcome-overlay *:not(button):not(input):not(sele
 
 body[data-theme="cozy-light"] .ach-overlay *:not(button):not(input):not(select),
 
-body[data-theme="cozy-light"] .acq-overlay *:not(button):not(input):not(select),
-
-body[data-theme="cozy-light"] .mon-detail *:not(button):not(input):not(select) {
+body[data-theme="cozy-light"] .acq-overlay *:not(button):not(input):not(select) {
   color: #3d2817;
 }
 
@@ -2888,10 +2883,8 @@ body[data-theme="cozy-light"] #settings-body .ss-backup-list > div {
  * ============================================================ */
 /* All modal cards */
 body[data-theme="cozy-light"] .modal-card,
-body[data-theme="cozy-light"] .mon-detail-card,
 body[data-theme="cozy-light"] .notif,
 body[data-theme="cozy-light"] .acq-overlay > div,
-body[data-theme="cozy-light"] .mon-detail > div,
 body[data-theme="cozy-light"] .welcome-overlay > div,
 body[data-theme="cozy-light"] .stats-modal > div,
 body[data-theme="cozy-light"] .ach-overlay > div,
@@ -2907,8 +2900,7 @@ body[data-theme="cozy-light"] .stats-modal *,
 body[data-theme="cozy-light"] .lifetime-stats *,
 body[data-theme="cozy-light"] .welcome-overlay *,
 body[data-theme="cozy-light"] .ach-overlay *,
-body[data-theme="cozy-light"] .acq-overlay *,
-body[data-theme="cozy-light"] .mon-detail * {
+body[data-theme="cozy-light"] .acq-overlay * {
   color: #3d2817;
 }
 /* But NOT button text on wax-red / colored buttons */
@@ -2945,11 +2937,7 @@ body[data-theme="cozy-light"] .ach-overlay h4,
 body[data-theme="cozy-light"] .acq-overlay h1,
 body[data-theme="cozy-light"] .acq-overlay h2,
 body[data-theme="cozy-light"] .acq-overlay h3,
-body[data-theme="cozy-light"] .acq-overlay h4,
-body[data-theme="cozy-light"] .mon-detail h1,
-body[data-theme="cozy-light"] .mon-detail h2,
-body[data-theme="cozy-light"] .mon-detail h3,
-body[data-theme="cozy-light"] .mon-detail h4 {
+body[data-theme="cozy-light"] .acq-overlay h4 {
   color: #5c2d08 !important;
   font-family: var(--f-display) !important;
   letter-spacing: .04em;
@@ -2959,8 +2947,7 @@ body[data-theme="cozy-light"] .modal-card b,
 body[data-theme="cozy-light"] .stats-modal b,
 body[data-theme="cozy-light"] .lifetime-stats b,
 body[data-theme="cozy-light"] .welcome-overlay b,
-body[data-theme="cozy-light"] .ach-overlay b,
-body[data-theme="cozy-light"] .mon-detail b {
+body[data-theme="cozy-light"] .ach-overlay b {
   color: #5c2d08 !important;
   font-weight: 700;
 }
@@ -2994,8 +2981,7 @@ body[data-theme="cozy-light"] .stats-modal .stats-close {
 .stats-modal,
 .lifetime-stats,
 .ach-overlay,
-.acq-overlay,
-.mon-detail {
+.acq-overlay {
   background: rgba(40,25,12,.55) !important;
 }
 

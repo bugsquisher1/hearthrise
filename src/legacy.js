@@ -6422,7 +6422,7 @@ function openEnchantPicker(preselectId){
     const ess=Object.keys(G.inventory||{}).filter(id=>ITEMS[id]&&ITEMS[id].tag==='reagent'&&/_essence$/.test(id)&&(G.inventory[id]||0)>0);
     let msg=`<div style="padding:6px 0 2px"><b>You have no runes yet.</b> A rune is what you bind to your weapon. Here's how to get one:</div>`;
     msg+=`<ol style="margin:6px 0 4px;padding-left:20px;line-height:1.5">`
-      +`<li class="tiny">Fight foes of an element (fire, frost, poison) — they drop matching <b>essences</b>. A monster's panel shows its weakness.</li>`
+      +`<li class="tiny">Fight foes of an element (ember, frost, poison) — they drop matching <b>essences</b>. A monster's panel shows its weakness.</li>`
       +`<li class="tiny">Reach <b>Crafting 25</b> to unlock the Runes lane.</li>`
       +`<li class="tiny">Craft essences into a <b>rune</b>, then come back here to bind it.</li>`
       +`</ol>`;
@@ -9722,117 +9722,22 @@ console.log('Bounty tab + sidebar groups: loaded');
 // ===== block 5: script-5 =====
 "use strict";
 /* ════════════════════════════════════════════════════════════
-   MONSTER DETAIL MODAL
-   Click a monster row → centered detail card with full loot
-   table + Fight / Invite Party / Close. Auto-fight is gone.
+   MONSTER DETAIL MODAL — REMOVED (b393)
+   openMonsterDetail()/ensureMonsterDetailModal()/closeMonDetail() and the
+   #mon-detail-overlay + .mon-detail* CSS were deleted. They were unreachable:
+   monster row clicks route through the "MONSTER ROW DELEGATION" listener to the
+   War Table preview, and the old overlay had a fixed-height card with no scroll
+   (Fight button off-screen). Verified zero live callers before removal.
    ════════════════════════════════════════════════════════════ */
 
-(function ensureMonsterDetailModal(){
-  if(document.getElementById('mon-detail-overlay')) return;
-  const el = document.createElement('div');
-  el.id = 'mon-detail-overlay';
-  el.className = 'mon-detail';
-  el.addEventListener('click', e=>{ if(e.target===el) closeMonDetail(); });
-  document.body.appendChild(el);
-})();
+/* b341: `rewireMonsterRows()` and the second monster-row onclick walker also
+   lived here and were removed earlier; row clicks now go through the single
+   delegated listener in the combat-preview block (search "MONSTER ROW
+   DELEGATION"), which routes them to the War Table preview. The ESC-to-close
+   handler that targeted this overlay was removed with it (nothing else used
+   closeMonDetail). */
 
-function closeMonDetail(){
-  document.getElementById('mon-detail-overlay')?.classList.remove('show');
-}
-
-function openMonsterDetail(monsterId){
-  const m = MONSTERS[monsterId]; if(!m) return;
-  const el = document.getElementById('mon-detail-overlay');
-  /* b217: emoji -> glyph keys from the shipped icon set. */
-  const styleIcon = {melee:'uiSword',sword:'uiSword',hammer:'uiHammer',ranged:'uiBow',magic:'uiStaff',neutral:'uiShield'};
-  const weaponLabel = (typeof WEAPON_TYPES === 'object' && WEAPON_TYPES[m.weaponWeak]) ? WEAPON_TYPES[m.weaponWeak] : (m.weaponWeak || '—');
-  const tags = [];
-  if(m.tier) tags.push(`<span style="background:rgba(229,189,108,.10);color:#f3d181;border:1px solid rgba(229,189,108,.32)">Tier ${m.tier}</span>`);
-  if(m.family) tags.push(`<span style="background:rgba(255,255,255,.05);color:var(--ink-2);border:1px solid var(--line-soft)">${m.family}</span>`);
-  if(m.weaponWeak) tags.push(`<span class="weak-tag">${_hrGly(styleIcon[m.weaponWeak], 13)} weak: ${weaponLabel}</span>`);
-  /* ELEMENTS v1 — the element axis. Print the weakness so a player knows which
-     rune to bind; and print immune/resist EXPLICITLY, because v1 gives those no
-     distinct combat number (all read 1.00), so without saying so a mismatched
-     enchant looks broken rather than simply inert. `hiddenElement` (Extra
-     Dimensional) suppresses the reveal until the bestiary threshold — the
-     RENDERER hides it, the data still carries it. */
-  if(!m.hiddenElement){
-    if(m.elementWeak) tags.push(`<span class="weak-tag" style="color:var(--accent)">✦ element weak: ${m.elementWeak}</span>`);
-    (m.elementImmune||[]).forEach(e=>tags.push(`<span class="resist-tag">immune: ${e}</span>`));
-    (m.elementResist||[]).forEach(e=>tags.push(`<span class="resist-tag">resists: ${e}</span>`));
-  }
-  /* b356: the `neutral · +15% drops` tag became a `dropBonus` tag. The bonus
-     is now a data field any monster may carry, not a consequence of having
-     no weakness — see weaknessInfo in src/core/combat.js. */
-  if(m.dropBonus>1) tags.push(`<span class="weak-tag">${_hrGly('uiShield', 13)} +${Math.round((m.dropBonus-1)*100)}% drops</span>`);
-  if(m.resist) tags.push(`<span class="resist-tag">resists: ${m.resist}</span>`);
-
-  /* Loot table — sort by chance descending; mark rare highlights for ≤5% drops */
-  const drops = (m.drops||[]).slice().sort((a,b)=>b.ch-a.ch);
-  const lootHtml = drops.length ? drops.map(d=>{
-    const it = ITEMS[d.id] || {n:d.id, icon:'❓'};
-    const pct = (d.ch*100);
-    const rare = dropBand(d.ch)==='rare';
-    const pctStr = pct >= 1 ? pct.toFixed(0)+'%' : pct.toFixed(2)+'%';
-    return `<div class="mon-loot-row ${rare?'rare':''}">
-      <span class="mli">${it.icon||'❓'}</span>
-      <span class="mln">${it.n||d.id}${rare?' <span style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--purple)">RARE</span>':''}</span>
-      <span class="mlc">${pctStr}</span>
-    </div>`;
-  }).join('') : '<div class="muted tiny">No loot drops listed.</div>';
-
-  el.innerHTML = `<div class="mon-detail-card">
-    <div class="mon-detail-close" onclick="closeMonDetail()">✕</div>
-    <div class="mon-detail-portrait">${m.icon||'❓'}</div>
-    <div class="mon-detail-name">${m.name}</div>
-    <div class="mon-detail-meta">${m.family||'monster'} · tier ${m.tier||1}</div>
-    <div class="mon-detail-tags">${tags.join('')}</div>
-    <div class="mon-detail-stats">
-      <div><b>${m.hp}</b><span>HP</span></div>
-      <div><b>${m.atk||0}</b><span>Attack</span></div>
-      <div><b>${m.def||0}</b><span>Defense</span></div>
-      <div><b>${m.xp||0}</b><span>XP</span></div>
-    </div>
-    <div class="muted tiny" style="text-align:center;margin-bottom:12px">Reward: <b style="color:#f3d181">${(m.gp&&m.gp[0])||0}-${(m.gp&&m.gp[1])||0}🪙</b> per kill</div>
-    <div class="mon-detail-loot">
-      <h4>Loot Table (${drops.length} drops)</h4>
-      ${lootHtml}
-    </div>
-    <div class="mon-detail-actions">
-      <button class="btn btn-primary" onclick="closeMonDetail();startCombat('${monsterId}')">⚔️ Fight</button>
-      <button class="btn" disabled title="Phase B: invite a party member to fight together">👥 Party (Soon)</button>
-      <button class="btn btn-danger" onclick="closeMonDetail()">Close</button>
-    </div>
-  </div>`;
-  el.classList.add('show');
-}
-
-/* b341: `rewireMonsterRows()` lived here — the SECOND of two independent
-   walkers that stripped a monster row's inline onclick and re-pointed it, this
-   one at openMonsterDetail() above. It has been removed along with its
-   renderMonsterList wrapper and its 200ms boot timer.
-
-   Two reasons. First, it was already dead in practice: its wrapper closed over
-   the `window.renderMonsterList` that existed when legacy.js ran, and
-   src/features/combat-render.js replaces that global afterwards, so the wrapper
-   was orphaned and the boot timer fired at t=200ms against an empty
-   #monster-list. Second, when it was NOT dead — a reload straight onto the
-   Combat tab — it and the preview's walker both attached to the same row, and
-   one tap opened two different modals.
-
-   Row clicks now go through the single delegated listener in the combat-preview
-   block (search "MONSTER ROW DELEGATION"), which routes them to the preview.
-   openMonsterDetail() above is consequently unreferenced; it is the older and
-   thinner of the two surfaces (no forecast, no food line) and is left in place
-   rather than deleted because removing a modal is the Art Director's call —
-   flagged for that decision, not kept as a live path. */
-
-/* ESC closes detail */
-document.addEventListener('keydown', e=>{
-  if(e.key === 'Escape') closeMonDetail();
-});
-
-console.log('Monster detail modal: loaded');
+console.log('Monster detail modal: removed (b393)');
 
 // ===== block 6: script-6 =====
 "use strict";

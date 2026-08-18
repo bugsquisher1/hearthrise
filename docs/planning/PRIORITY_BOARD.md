@@ -79,6 +79,8 @@ _Backend-architect plan delivered 2026-08-17 (review-ready, in security review).
 | — | Completion Log · Quest Board rework · supply-projection UI · world-boss blessing | 🧊 | P3 | From the batch-2 build sequence; mostly unbuilt. |
 | 6 | Practice / familiarity tiers | ⏸️ | — | Back-burner. Spec in progression-depth.md Phase 2. |
 | 11 | Buy-offers return | ⏸️ | — | Back-burner. |
+| — | Workers gather Stonemason rocks | ⏸️ paused | P2 | Paione + Tyler (2026-08-18): workers already gather wood/ore/fish; stone is a raw material too, so not gathering it is a gap from when Stonemason shipped. Tyler: "yes we should make sure the worker can gather rocks." Small gap-fill — good EARLY pickup once the feature-pause lifts. Files: src/features/workers.js, src/data/stonecraft.js. |
+| — | Worker passive-XP trickle (design Q) | 🧊 discuss | P3 | Paione: workers give ~0.1% of normal XP. Tyler: "we need to discuss the exp portion." Nice retention hook BUT passive XP changes progression pacing — game-designer sizes how much / which skills / does it stack (100 workers × % balloons). Not a gut number. Discuss when the pause lifts. |
 
 ---
 

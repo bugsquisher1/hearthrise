@@ -26,6 +26,16 @@ _Changes that are READY and waiting to integrate into `main`. Integrate **one lo
 
 ## Queue
 
+**Render-layer strangler-fig — FIRST extraction (Systems Engineer, 2026-08-18) — READY. Worktree `agent-a09a919272ad21d55`, NOT bumped, NOT committed.**
+
+Pure refactor: the Lifetime Stats modal moved out of `src/legacy.js` into a new render module. Behavior + appearance IDENTICAL (verified). Establishes the pattern for the weeks-long render-extraction track.
+
+| Order | Agent | Change | Files | Gate status |
+|---|---|---|---|---|
+| — | Systems Engineer | **Extract Lifetime Stats modal → `src/render/lifetime-stats.js`** (first render extraction; `_fmtTime` + `openLifetimeStats` + trigger installer + ESC, ~155 lines out of legacy.js) | `src/render/lifetime-stats.js` (new), `src/legacy.js` (−155), `index.html` (+1 `<script>` after death-sheet.js), `src/features/smoke-test.js` (+1 test), `docs/design/render-extraction-pattern.md` (new playbook) | Smoke **916/916 ×2, 0 runtime errors**. Browser-verified: modal opens, tokens resolve under Hearthlight (card `rgb(36,29,22)`, gold title), ESC closes, trigger self-installs, console clean. CSS already tokenised — no colour conversion needed. **RELEASE VISUAL GATE owed by Coordinator/Art Director** (profile modal + combat + inventory, desktop 1440×900 + landscape 922×423, both themes). |
+
+**Integration note:** touches `index.html` (one added script tag) and `smoke-test.js` (one added array entry, independent of any other queued insertion). `bump-version.sh` will version the new `?v=` on the script tag at ship. No economy/save-path changes; b305 battery untouched and green.
+
 **b361 Hearthrise rebrand + avatars (brand session, 2026-08-16) — READY, push to be COORDINATED with the other active session (Tyler's instruction). Do NOT push unilaterally.**
 
 | Order | Agent | Change | Branch/Commit | Depends on | Gate status |

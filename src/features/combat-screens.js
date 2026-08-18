@@ -41,8 +41,8 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=382';
-import { ITEMS } from '../data/items.js?v=382';
+import { MONSTERS } from '../data/monsters.js?v=383';
+import { ITEMS } from '../data/items.js?v=383';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (

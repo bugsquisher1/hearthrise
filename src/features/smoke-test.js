@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=379' directly.
+// modularised, will import { G } from '../state/game.js?v=380' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=379';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=379';
+import { on, snapshot } from '../net/events.js?v=380';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=380';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=379';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=380';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -25959,7 +25959,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=379');
+    const KIT = await import('../data/start-kit.js?v=380');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -26603,8 +26603,12 @@ const TESTS = [
       inventory: { turnip_seed: 3 },
       away: { grantMs: 0, gold: 0, xp: {}, items: {} },
     };
+    /* `normal_log` (a woodcutting gather product) is a SERVER-OWNED id — the only
+       kind describeReplacement now counts as a potential loss, because an omitted
+       UN-modeled id is preserved by the carve-out and would be a false alarm.
+       See SERVER-OWNED-3. */
     const veteran = () => ({ gold: 900000, skills: { woodcutting: 5000000, hitpoints: 1154 },
-      inventory: { logs: 400, turnip_seed: 3 } });
+      inventory: { normal_log: 400, turnip_seed: 3 } });
     const wasAcked = A.isReplacementAcknowledged();
     try {
       A.acknowledgeReplacement(false);
@@ -26621,7 +26625,7 @@ const TESTS = [
       const G1 = veteran();
       assert(A.applyEnvelope(G1, envelope) === null,
         'applyEnvelope destroyed a real save without asking');
-      assert(G1.gold === 900000 && G1.skills.woodcutting === 5000000 && G1.inventory.logs === 400,
+      assert(G1.gold === 900000 && G1.skills.woodcutting === 5000000 && G1.inventory.normal_log === 400,
         'the target was mutated before the refusal: ' + JSON.stringify(G1));
       assert(document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
         'nothing was shown to the player — a refusal nobody is told about is a game that silently stops '
@@ -26646,7 +26650,7 @@ const TESTS = [
       const written = A.applyEnvelope(G2, envelope);
       assert(written && G2.gold === 500,
         'the acknowledged replacement did not apply — ' + JSON.stringify({ written, G2 }));
-      assert(G2.skills.woodcutting === 5000000 && G2.inventory.logs === 400,
+      assert(G2.skills.woodcutting === 5000000 && G2.inventory.normal_log === 400,
         'live-earned XP/items the envelope omits must SURVIVE it — ' + JSON.stringify({ skills: G2.skills, inv: G2.inventory }));
 
       /* CONTROL: a device with NOTHING to lose must never see the sheet. A gate
@@ -31596,7 +31600,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=379');
+    const S = await import('../data/shops.js?v=380');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -32990,7 +32994,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=379');
+    const S = await import('../data/shops.js?v=380');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -35232,6 +35236,160 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     SERVER-OWNED — THE INVENTORY-FLIP CARVE-OUT (server-authority Step 2).
+
+     These prove the machinery that makes ARMING the absolute-inventory flip SAFE
+     before it is ever armed. The runtime flag stays OFF (isInventoryAbsolute()
+     false in prod); the tests arm the BAG directly with markInventoryAuthorityLive
+     so the absolute branch actually runs, then restore it.
+
+     The property, in one line: the absolute replace OWNS only the ids the accrual
+     engine settles (src/data/item-authority.js `serverOwnedItem`) and LEAVES the
+     client's copy of everything else — so a cooked food, a crop, a dungeon reward
+     or a companion-proc bonus is never DELETED, while a forged copy of a
+     server-owned item IS scrubbed. */
+  () => tryRunAsync('SERVER-OWNED-1: an armed absolute envelope PRESERVES every un-modeled id it omits', async () => {
+    const A = window.HearthriseAccrual;
+    const E = window.HearthriseEquip;
+    assert(A && typeof A.markInventoryAuthorityLive === 'function', 'markInventoryAuthorityLive must be published');
+    assert(A && typeof A.serverOwnedItem === 'function', 'serverOwnedItem must be published');
+    const prev = E.getEquipConfig();
+    try {
+      await armEquipFlipForTest(E);
+      assert(A.isEnvelopeAbsolute() === true, 'the equip flip must be armed for the bag to be able to go absolute');
+      /* ARM THE BAG for the test only — this is the flag nothing calls in prod. */
+      A.markInventoryAuthorityLive(true);
+      assert(A.isInventoryAbsolute() === true, 'the bag must be absolute once inventory authority is armed');
+
+      /* Precondition: these four ids are exactly the four UN-MODELED categories
+         from the Step-1 audit, and each must read as NOT server-owned. */
+      const UNMODELED = {
+        cooked_shrimp: 'cooked food (ARTISAN_RECIPES.cooking output)',
+        potato:        'crop product (CROPS.potato.prod)',
+        warboss_standard: 'dungeon reward (BOSSES signature)',
+        carrot:        'companion-proc bonus (doubleYield mints a crop)',
+      };
+      for (const id of Object.keys(UNMODELED)) {
+        assert(A.serverOwnedItem(id) === false,
+          id + ' must NOT be server-owned — it is ' + UNMODELED[id] + ', written by a live un-modeled path');
+      }
+
+      /* The client holds all four; the server's envelope names NONE of them (it
+         has never heard of them) but DOES name a modeled bar it settles. */
+      const G = {
+        gold: 0, skills: {}, equipment: {},
+        inventory: { cooked_shrimp: 9, potato: 40, warboss_standard: 1, carrot: 12, ember_bar: 3 },
+      };
+      A.applyEnvelopeState(G, {
+        state: {}, skills: {}, equipment: {},
+        inventory: { ember_bar: 5 },   // every un-modeled id OMITTED
+      });
+
+      assert(G.inventory.cooked_shrimp === 9, 'a cooked food the envelope omits must SURVIVE — got ' + G.inventory.cooked_shrimp);
+      assert(G.inventory.potato === 40, 'a crop the envelope omits must SURVIVE — got ' + G.inventory.potato);
+      assert(G.inventory.warboss_standard === 1, 'a dungeon reward the envelope omits must SURVIVE — got ' + G.inventory.warboss_standard);
+      assert(G.inventory.carrot === 12, 'a companion-proc crop the envelope omits must SURVIVE — got ' + G.inventory.carrot);
+      /* And the modeled bar IS owned absolutely — the server RAISED it. */
+      assert(G.inventory.ember_bar === 5, 'a named server-owned stack is absolute — got ' + G.inventory.ember_bar);
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      E.resetEquip();
+      if (prev) E.configureEquip(prev);
+    }
+    assert(A.isInventoryAbsolute() === false, 'the bag must return to MERGE (unarmed) after the test');
+  }),
+
+  () => tryRunAsync('SERVER-OWNED-2: an armed absolute envelope OWNS a modeled id — a forged copy it omits is removed', async () => {
+    const A = window.HearthriseAccrual;
+    const E = window.HearthriseEquip;
+    const prev = E.getEquipConfig();
+    try {
+      await armEquipFlipForTest(E);
+      A.markInventoryAuthorityLive(true);
+      assert(A.isInventoryAbsolute() === true, 'the bag must be absolute for this test to mean anything');
+
+      /* `ember_bar` (smithing output) and `bones` (combat drop) are modeled →
+         server-owned. A client-forged extra the envelope omits must be SCRUBBED,
+         and a named LOWER figure must win DOWNWARD — the anti-forgery property. */
+      assert(A.serverOwnedItem('ember_bar') === true, 'ember_bar (payable artisan output) must be server-owned');
+      assert(A.serverOwnedItem('bones') === true, 'bones (combat drop) must be server-owned');
+
+      const G = {
+        gold: 0, skills: {}, equipment: {},
+        inventory: { ember_bar: 999, bones: 500, rune_bar: 2 },  // all forged high
+      };
+      A.applyEnvelopeState(G, {
+        state: {}, skills: {}, equipment: {},
+        inventory: { ember_bar: 4 },   // bones + rune_bar OMITTED; ember_bar corrected DOWN
+      });
+      assert(G.inventory.ember_bar === 4, 'a server-owned id takes the server figure, even downward — got ' + G.inventory.ember_bar);
+      assert(!('bones' in G.inventory), 'a server-owned id the envelope OMITS is a real zero (removed) — got ' + G.inventory.bones);
+      assert(!('rune_bar' in G.inventory), 'a forged server-owned id the envelope omits is scrubbed — got ' + G.inventory.rune_bar);
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      E.resetEquip();
+      if (prev) E.configureEquip(prev);
+    }
+  }),
+
+  () => tryRun('SERVER-OWNED-3: the drift detector does NOT count an excluded omission as destructive', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.describeReplacement === 'function', 'describeReplacement must be published');
+
+    /* The client holds un-modeled stacks the server omits. describeReplacement
+       must NOT read that as a loss — else the b366 first-contact consent modal
+       fires every settle for anyone who has cooked a meal. */
+    const excludedOnly = A.describeReplacement(
+      { gold: 5, skills: {}, inventory: { cooked_shrimp: 9, potato: 40, warboss_standard: 1 } },
+      { state: { gold: 5 }, skills: {}, inventory: {} },
+    );
+    assert(excludedOnly.destructive === false,
+      'omitting only un-modeled ids must not be destructive — got ' + JSON.stringify(excludedOnly));
+    assert(excludedOnly.items === 0, 'no un-modeled id may be counted as a lost item — got ' + excludedOnly.items);
+
+    /* A modeled id the server lowers/omits IS a real loss — the detector must
+       still see that, or it would be blind to the very drift it exists for. */
+    const modeledLoss = A.describeReplacement(
+      { gold: 5, skills: {}, inventory: { ember_bar: 10 } },
+      { state: { gold: 5 }, skills: {}, inventory: { ember_bar: 2 } },
+    );
+    assert(modeledLoss.destructive === true && modeledLoss.items === 8,
+      'a server-owned id the envelope lowers must still count as loss — got ' + JSON.stringify(modeledLoss));
+  }),
+
+  () => tryRun('SERVER-OWNED-4: every granted id is classified ownable-or-excluded (fail-closed on a new item/lane)', () => {
+    const IA = window.HearthriseItemAuthority;
+    assert(IA && typeof IA.serverOwnedItem === 'function', 'HearthriseItemAuthority must be published');
+    /* Rebuild so the runtime window.DUNGEONS loot tables are folded into the
+       excluded set (the module may have cached before the legacy IIFE loaded). */
+    IA.rebuildItemAuthority();
+
+    /* (d) COMPLETENESS — nothing the data grants is in limbo, and no artisan lane
+       is unruled. A non-empty return of either is a NEW grant source / lane that
+       must be consciously classified before the flip can be trusted. */
+    const limbo = IA.unclassifiedGrantIds();
+    assert(limbo.length === 0,
+      'every granted item-id must be ownable-or-excluded; unclassified: ' + JSON.stringify(limbo.slice(0, 12)));
+    const lanes = IA.unclassifiedArtisanLanes();
+    assert(lanes.length === 0,
+      'every artisan lane must be ruled payable-or-unmodeled in ARTISAN_SETTLEMENT; unruled: ' + JSON.stringify(lanes));
+
+    /* The predicate and the classifier are one truth. */
+    assert(IA.serverOwnedItem('ember_bar') === true && IA.classifyItem('ember_bar') === 'ownable',
+      'a payable artisan output must classify ownable');
+    assert(IA.serverOwnedItem('cooked_shrimp') === false && IA.classifyItem('cooked_shrimp') === 'excluded',
+      'a cooking output must classify excluded and never be owned');
+
+    /* OVERLAP SAFETY — an id granted by BOTH a modeled and an un-modeled path is
+       EXCLUDED (the never-delete direction). `wheat` is a crop AND a rat drop;
+       `magic_essence` is a monster drop AND dungeon loot. */
+    assert(IA.classifyItem('wheat') === 'excluded' && IA.serverOwnedItem('wheat') === false,
+      'wheat is a crop AND a drop — it must be EXCLUDED so a harvested copy is never deleted');
+    assert(IA.classifyItem('magic_essence') === 'excluded' && IA.serverOwnedItem('magic_essence') === false,
+      'magic_essence is a drop AND dungeon loot — it must be EXCLUDED (never-delete on overlap)');
+  }),
+
   () => tryRun('EQUIP-WIRE-1: the equip request carries NAMES only, and refuses a bad map WHOLE', () => {
     const E = window.HearthriseEquip;
     assert(E && typeof E.buildEquipRequest === 'function', 'HearthriseEquip must be published');
@@ -35720,7 +35878,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=379')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=380')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -37158,7 +37316,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=379');
+    const A = await import('../net/accrue.js?v=380');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -37182,7 +37340,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=379');
+    const A = await import('../net/accrue.js?v=380');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

@@ -655,6 +655,13 @@ export function describeReplacement(G, res) {
   const srvInv = (res.inventory && typeof res.inventory === 'object') ? res.inventory : {};
   const locInv = (G.inventory && typeof G.inventory === 'object') ? G.inventory : {};
   for (const k of Object.keys(locInv)) {
+    /* ONLY a SERVER-OWNED id can be LOST to the envelope. An un-modeled id the
+       envelope omits (a cooked food, a crop, a dungeon reward, a companion-proc
+       bonus) is PRESERVED by the absolute carve-out above, so counting it as a
+       loss would make the drift detector fire destructive on every settle for a
+       player who has cooked a meal — a false alarm that would put the b366
+       first-contact consent modal in front of them. See item-authority.js. */
+    if (!serverOwnedItem(k)) continue;
     const have = Number(locInv[k]) || 0;
     const get = Number(srvInv[k]) || 0;
     if (have > get) items += have - get;
@@ -910,7 +917,14 @@ export function noteEnvelopeDrift(loss) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=379';
+import * as itemLedger from './item-ledger.js?v=380';
+
+/* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
+   A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
+   import. It answers "may the absolute envelope OWN this id?"; a false id is one
+   a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
+   proc) and the absolute branch below leaves the client's copy of it intact. */
+import { serverOwnedItem } from '../data/item-authority.js?v=380';
 
 export function applyEnvelopeState(G, res, ownKey) {
   const st = (res && res.state) || {};
@@ -1183,15 +1197,44 @@ export function applyEnvelopeState(G, res, ownKey) {
   written.inventoryAuthority = invAbsolute;
   const invNamed = res && res.inventory;
   if (invAbsolute && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
+    /* ══════════════════════════════════════════════════════════════════════
+       THE SERVER-OWNED CARVE-OUT (server-authority inventory-flip, Step 2).
+
+       The absolute replace may OWN only the ids the accrual engine settles —
+       `serverOwnedItem(id)` (src/data/item-authority.js): combat drops, gather
+       products, payable (non-cooking) artisan outputs. For those, the envelope
+       is the truth: a named key sets the quantity and an OMITTED owned key is a
+       real zero (removed) — which is exactly what closes the forgery the flip
+       exists to close.
+
+       Every OTHER id is one a LIVE, un-modeled path writes with no server
+       counterpart — a cooked food, a crop harvest, a dungeon reward, a
+       companion-proc bonus. The envelope omitting it is NOT a claim that it is
+       zero, so the client's copy is KEPT, and a positively-named figure may only
+        RAISE it, never lower it (the never-delete rule). This mirrors the
+       itemLedger.reconcile carve-out precisely: the server owns its set, the
+       client keeps the rest.
+
+       ⚠ UNARMED IN PROD. `isInventoryAbsolute()` is false today (no inventory
+       baseline signal calls markInventoryAuthorityLive), so this branch is
+       dormant on the live path; the tests drive it directly. */
     const next = {};
-    for (const k of Object.keys(invNamed)) {
+    const keys = new Set(Object.keys(inv).concat(Object.keys(invNamed)));
+    for (const k of keys) {
       const q = Number(invNamed[k]);
-      /* An unreadable quantity is skipped rather than zeroed — the same
-         "act only on certainty" rule save-invariant #2 states, applied to one
-         stack. It reads as a deletion, which is the safe direction here
-         (the next settle restates it) and is not a mint in any direction. */
-      if (!Number.isFinite(q) || q <= 0) continue;
-      next[k] = Math.floor(q);
+      const named = Number.isFinite(q) && q > 0;
+      if (serverOwnedItem(k)) {
+        /* OWNED: absolute. A readable positive figure is assigned; an omitted,
+           zero or unreadable figure removes the stack (act only on certainty —
+           save-invariant #2 — and the next settle restates a real one). */
+        if (named) next[k] = Math.floor(q);
+        continue;
+      }
+      /* NOT OWNED (excluded / un-modeled): never delete, never lower. Keep the
+         larger of the client's copy and any positively-named server figure. */
+      const have = Number(inv[k]) || 0;
+      const best = Math.max(have > 0 ? Math.floor(have) : 0, named ? Math.floor(q) : 0);
+      if (best > 0) next[k] = best;
     }
     G.inventory = next;
     written.inventory = Object.keys(next).length;
@@ -2172,6 +2215,7 @@ if (typeof window !== 'undefined') {
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
+    serverOwnedItem,
     equippedCount, unaccountedEquipped, consumedKeysOf,
     /* Phase 1 — live settlement (docs/design/live-settlement.md §3). */
     SETTLE_INTERVAL_MS, ACCRUE_MIN_SPAN_MS, ACCRUE_RATE_PER_MIN,

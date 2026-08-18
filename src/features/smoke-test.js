@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=383' directly.
+// modularised, will import { G } from '../state/game.js?v=384' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=383';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=383';
+import { on, snapshot } from '../net/events.js?v=384';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=384';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=383';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=384';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -4678,6 +4678,33 @@ const TESTS = [
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     assert(!modal.classList.contains('show'), 'ESC did not close the lifetime-stats modal');
     window.G.stats = JSON.parse(snap);
+  }),
+
+  // 2nd render-layer extraction: the Active Effects panel (Profile card) moved
+  // out of legacy.js block 8 to src/render/active-effects.js. Pure refactor —
+  // the card must still self-install and renderActiveEffects must stay on window
+  // (buff/gold paths, admin.js, item-ux.js all call window.renderActiveEffects()).
+  () => tryRun('render: active effects panel (extracted surface)', () => {
+    assert(typeof window.renderActiveEffects === 'function',
+      'renderActiveEffects must stay on window (called after buff/bonus changes)');
+    const body = document.getElementById('aef-body');
+    assert(body, 'aef-body not created — Active Effects card did not self-install');
+    // With no food buffs and no house bonuses, the two always-on sections render
+    // their empty states. Force the legacy fallback path (no buff-queue feature)
+    // so the render is deterministic regardless of load order.
+    const savedRender = window.__renderBuffsSection;
+    const savedBuffs = window.G.buffs;
+    try {
+      window.__renderBuffsSection = undefined;
+      window.G.buffs = [];
+      window.renderActiveEffects();
+      const html = body.innerHTML;
+      assert(html.indexOf('Food Buffs') >= 0, 'Active Effects missing Food Buffs heading');
+      assert(html.indexOf('House Buffs') >= 0, 'Active Effects missing House Buffs heading');
+    } finally {
+      window.__renderBuffsSection = savedRender;
+      window.G.buffs = savedBuffs;
+    }
   }),
 
   // ── b126 regression suite: every bug we fixed in b119–b125 ──
@@ -25985,7 +26012,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=383');
+    const KIT = await import('../data/start-kit.js?v=384');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -31626,7 +31653,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=383');
+    const S = await import('../data/shops.js?v=384');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33020,7 +33047,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=383');
+    const S = await import('../data/shops.js?v=384');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -36081,7 +36108,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=383')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=384')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -37519,7 +37546,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=383');
+    const A = await import('../net/accrue.js?v=384');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -37543,7 +37570,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=383');
+    const A = await import('../net/accrue.js?v=384');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

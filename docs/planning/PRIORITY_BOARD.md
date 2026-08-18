@@ -140,7 +140,7 @@ _Code-health audit 2026-08-18. Headline: **on a real trajectory to the large-sca
 
 | Item | Status | Pri | Notes |
 |---|---|---|---|
-| `legacy.js` render-layer split → `src/render/*` | 🧊 | **P1** | The monolith is **18.8k lines** (was mis-documented as ~9k), now mostly UI wiring (146 innerHTML, 199 getElementById). Extract UI-render helpers into a token-reading component layer FIRST, then tab/screen controllers; data/logic already out. Dedicated track (weeks), behind the smoke suite, one domain at a time. THE fix for recurring visual-gate breaks (b361 class). After server-authority. |
+| `legacy.js` render-layer split → `src/render/*` | 🔧 **active** | **P1** | The monolith is **18.8k lines**, mostly UI wiring. Strangler-fig, one domain at a time, behind the smoke suite + visual gate. **Extraction #1 SHIPPED b383**: Lifetime Stats modal → `src/render/lifetime-stats.js` (−155 lines, pure refactor, visual-gate identical). Pattern established: `docs/design/render-extraction-pattern.md` (extraction log seeded). Continuing overnight. THE fix for recurring visual-gate breaks (b361 class). |
 | CSS → tokens, screen-by-screen (convert-as-you-go) | 🔧 | P1 | 1,756 hardcoded hex, 1,343 `!important` across 9 sheets (theme-cozy.css alone: 947 !important). Guard tests catch each conversion. Start with combat + inventory (densest, break most). Unblocks the render layer + themes/skins. |
 | Adopt `src/platform/storage.js` across 37 direct-localStorage files | 🧊 | P2 | Mechanical, one file at a time. Prereq for the Steam/mobile platform seam. |
 | Load-test `hr-accrue` at a few hundred concurrent intents | 🧊 | P2 | The one "fine at 5, unknown at 500" — verify pooler connlimit 20 + rate-bucket throughput before real launch. |

@@ -157,3 +157,36 @@ and any coupling discovered for the next one.
 |---|--------|--------|------------------------|-------|
 | 1 | Lifetime Stats modal | `src/render/lifetime-stats.js` | ~155 (`_fmtTime` + `openLifetimeStats` + `addStatsTrigger` + ESC) | Read-only; CSS already tokenised; re-exports `window.openLifetimeStats` for inline `onclick` callers (profile toolbar + trigger button). |
 | 2 | Active Effects panel (Profile card) | `src/render/active-effects.js` | ~165 (legacy.js block 8: `injectActiveEffectsCard` + `_formatBuffKindLabel` + `renderActiveEffects` + 1s live timer + `renderProfile` re-wrap + initial paint) | Read-only; writes nothing; whole block moved. No hardcoded colours in the JS (emoji glyphs pre-existing, `.eff-*` CSS untouched). Re-exports `window.renderActiveEffects` for callers (buff/gold paths in legacy.js, admin.js, item-ux.js). Reads `window.getBonus`/`pruneBuffs`/`BUFFS_DEF` at call time. **Coupling noted for #3:** the Companions/Stable panel (legacy.js block 32) is DUPLICATED by `src/features/companions.js` — do NOT pick it next without resolving the double-render first. |
+
+---
+
+## Extractions #3–8 (shipped 2026-08-19, overnight run) — LEAF SPINE EXHAUSTED
+
+| # | Domain | Module | Build | Notes |
+|---|--------|--------|-------|-------|
+| 3 | Achievements toast + modal | `src/render/achievements.js` | b395 | read-only; logic (`checkAchievements`) stayed in legacy.js |
+| 4 | Bestiary modal | `src/render/bestiary.js` | b397 | read-only |
+| 5 | Equipment Bonuses stats | `src/render/equipment-bonuses.js` | b398 | `renderEquipmentStatsHTML` (doll Stats pane) |
+| 6 | Level-up celebration toast | `src/render/levelup-celebration.js` | b400 | body-level fixed overlay |
+| 7 | Equipment paper-doll | `src/render/equipment-doll.js` | b401 | **164 lines**, byte-identical outerHTML proof; the controller on-ramp (not showTab-coupled) |
+| 8 | Objectives popout | `src/render/objectives-popout.js` | b404 | last clean leaf |
+
+**After #8 the readily-safe read-only leaf popouts are EXHAUSTED.** Remaining render work = tab/screen CONTROLLERS + the profile-toolbar builder + the `patch*Page` DOM patchers — all controller/showTab-coupled. HELD for a Tyler-in-the-loop session. Plans below.
+
+## NEXT PHASE — Controller extraction (Tyler-in-the-loop; scoped 2026-08-19)
+
+All controllers are PURE PAINT (no authoritative-state writes — the state mutation lives in the click handlers, which stay global in legacy.js). Risk is dispatch-wiring + layout, not economy.
+
+**Do FIRST — the showTab tap-registry (also fixes the Tier-2 test-determinism debt):** adopt the already-built-but-unused `src/utils/safe.js` `wrapShowTab` registry. `function showTab` (legacy.js:5493) is `configurable:false`, so it must be a single-owner + taps model (NOT accessors). Install the hook once, early (after the base decl exists, before any wrapper), then migrate the ~24 `window.showTab = function` reassignment sites to `wrapShowTab('label', fn)` taps IN THE SAME COMMIT (or a wrapper captures the un-hooked original and races). Sites: legacy.js 9285/9706/11188/11622/12119/12372/13011/14703/14893/15455/16424 + feature modules dungeons.js:573, nav-consolidation.js:229, observability.js:321, character-page.js:554, activities-grid.js:435, companions.js:654, combat-render.js:523, combat-screens.js:1455, identity.js:1547, home-dashboard.js:1392, ui-overlap.js:247, muster.js:1710, render/lifetime-stats.js:184. Add: a static guard (build fails if a raw `window.showTab = function` reappears outside safe.js) + a per-tab render-trigger smoke test (showTab('X') → assert panel X's host repainted — the key correctness check smoke normally can't do).
+
+**Then, controllers in order (one per commit, each with byte-identical innerHTML/outerHTML proof + both-theme visual gate + git-revert rollback):** buildTibiaDoll ✅(b401) → renderShop → renderFarm → inventory (renderInventory + the live renderInvNew together) → renderProfile (after its active-effects/lifetime-stats wrappers become taps) → renderCombat LAST (+ renderLoadout + renderMonsterList; the focus-guard early-return at ~5873 is a correctness invariant that moves WITH it). Seam recipe: move the pure paint to `src/render/<name>.js`, resolve deps via `window.*` at call time, re-publish under the EXACT name (so dispatch/refreshAll call sites don't change), leave handlers global, wrap in `safe.js wrapRender(name, fn, {fallbackHostId})`.
+
+## NEXT PHASE — CSS → design-tokens (Tyler-in-the-loop; scoped 2026-08-19)
+
+The token ARCHITECTURE is already mature (both themes define the full ~40-token set: legacy.css:19-84 Hearthlight, theme-cozy.css:31-104 cozy-light). The debt is un-converted component LITERALS. Two classes:
+- **Class A** — literal already = a token's cozy-light value → swap `literal → var(--token)`. Cozy unchanged, Hearthlight dark for free. ZERO-RISK. **Nearly exhausted** (only `#3d2817`×4 left).
+- **Class B** — foreign literal (teal remnants `#7dd3fc`/`#38bdf8`/`#218a82`, status reds `#e36161`×14/`#ef4444`, ad-hoc gradient stops) → MINT a token (cozy = the exact literal, Hearthlight = dark-tuned). Cozy byte-identical; **Hearthlight shifts = a design decision no test can judge** → this is why it's Tyler-in-the-loop. Dominant class.
+
+**Order (one WHOLE screen per reviewable unit — a half-converted screen looks broken in Hearthlight):** batch0 homestead-rooms/clan-seat shakedown (nearly done; proves the harness) → inventory (`.inv-item[data-cat]` legacy.css:861-871 = the 11-color `--cat-*` family) → combat (`#e36161`×14 → one token; bars legacy.css:240-242) → buttons (global) → board-and-shop.css → art-direction.css → audit-overrides.css → teal-purge sweep. ~9 batches, <20 new tokens.
+
+**Per-batch gate:** capture pre-conversion computed colors (both themes) on the live page → an `assertCozyResolves(selector, prop, exact-literal)` smoke test (ships same commit; fails loudly if a token's cozy value ever drifts) + paired-screenshot visual gate (cozy pixel-identical, Hearthlight darker/coherent) + Tyler per-screen coherence review. Keep `!important` where it was (don't combine tokenizing with an !important reduction). Do NOT run unattended.

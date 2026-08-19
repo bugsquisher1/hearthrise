@@ -9304,7 +9304,8 @@ window.onItemTap = function(id){
 
 /* Re-render on tab switch; also attach when bag/bank chip clicked */
 window.HearthriseShowTab.wrapShowTab('inv-new', function(tab){
-  if(tab === 'inventory') setTimeout(renderInvNew, 0);
+  // b407 flicker fix: paint synchronously in the activating task (was 0ms defer).
+  if(tab === 'inventory') renderInvNew();
 });
 
 /* Bag/Bank chip clicks: re-render via the new path */
@@ -11202,7 +11203,8 @@ function hook(){
     };
   });
   window.HearthriseShowTab.wrapShowTab('combat-style-selector', function(t){
-    if(t === 'combat') setTimeout(renderStyleSelector, 50);
+    // b407 flicker fix: paint synchronously in the activating task (was 50ms defer).
+    if(t === 'combat') renderStyleSelector();
   });
 }
 setTimeout(hook, 0);
@@ -11626,7 +11628,12 @@ window.renderCharacter = function(){
 
 /* Hook showTab to render character when navigated to */
 window.HearthriseShowTab.wrapShowTab('character-render', function(tab){
-  if(tab === 'character') setTimeout(window.renderCharacter, 0);
+  // b407 flicker fix: render synchronously in the same task that activates the
+  // panel, so the browser paints the character sheet fully-formed (no empty
+  // flash). The former `character-rebuild` tap (which re-rendered at 30ms) is
+  // now redundant and has been reduced to a no-op — this single sync call is
+  // the one paint.
+  if(tab === 'character') window.renderCharacter();
 });
 
 /* Auto-refresh character page when active */
@@ -12118,13 +12125,13 @@ function paintAll(){
 
 /* When showTab changes, render appropriate extras */
 window.HearthriseShowTab.wrapShowTab('panel-extras', function(tab){
-  setTimeout(function(){
-    if(tab==='character'){ window._renderCharacterExtras(); }
-    if(tab==='combat'){ window._renderCombatEmpty(); }
-    if(tab==='inventory'){ window._renderInvSummary(); }
-    if(tab==='profile'){ injectDailyGoals(); }
-    paintAll();
-  }, 50);
+  // b407 flicker fix: paint synchronously in the activating task (was 50ms defer),
+  // so the extras appear in the same frame as the panel rather than filling in late.
+  if(tab==='character'){ window._renderCharacterExtras(); }
+  if(tab==='combat'){ window._renderCombatEmpty(); }
+  if(tab==='inventory'){ window._renderInvSummary(); }
+  if(tab==='profile'){ injectDailyGoals(); }
+  paintAll();
 });
 
 function injectDailyGoals(){
@@ -12354,7 +12361,13 @@ function injectFriendsStub(){ /* no-op — see the b225 note above */ }
 /* b225 (#18): the Clan Activity section is state-dependent, so it is
    re-evaluated every time the clan screen opens. */
 window.HearthriseShowTab.wrapShowTab('clan-activity', function(tab){
-  if(tab === 'clan') setTimeout(syncClanActivity, 50);
+  // b407 flicker fix: syncClanActivity is a PURE synchronous DOM function (sets
+  // data-inclan and, only when the activity host is empty, writes an empty-state
+  // placeholder — it never blanks existing content and makes no network call),
+  // so it is safe to run in the activating task. Removes the 50ms defer that let
+  // the activity host flash empty. (Prior investigation flagged this as a network
+  // tap — verified against the code, it is not.)
+  if(tab === 'clan') syncClanActivity();
 });
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -12985,7 +12998,8 @@ function injectProfileButton(){
 }
 setTimeout(injectProfileButton, 800);
 window.HearthriseShowTab.wrapShowTab('profile-button', function(t){
-  if(t === 'profile') setTimeout(injectProfileButton, 50);
+  // b407 flicker fix: inject synchronously in the activating task (was 50ms defer).
+  if(t === 'profile') injectProfileButton();
 });
 
 console.log('Welcome v2 loaded');
@@ -14503,7 +14517,11 @@ window.renderInvFancy = function(){
 
 /* Show on tab change */
 window.HearthriseShowTab.wrapShowTab('inv-fancy', function(t){
-  if(t === 'inventory') setTimeout(renderInvFancy, 30);
+  // b407 flicker fix: paint synchronously in the activating task (was 30ms defer).
+  // Registration order guarantees this runs after `inv-new` and before
+  // `inv-dragdrop` in the same synchronous dispatch, so the grid exists for
+  // wireDragDrop below.
+  if(t === 'inventory') renderInvFancy();
 });
 
 setTimeout(function(){
@@ -14679,7 +14697,11 @@ setTimeout(wireDragDrop, 600);
 
 /* Also re-wire on any tab switch back to inventory */
 window.HearthriseShowTab.wrapShowTab('inv-dragdrop', function(t){
-  if(t === 'inventory') setTimeout(wireDragDrop, 150);
+  // b407 flicker fix: wire synchronously (was 150ms defer). This tap is
+  // registered AFTER 'inv-fancy', and taps run in registration order within one
+  // dispatch, so renderInvFancy() has already rebuilt the grid by the time this
+  // runs — the drag-drop targets exist. Verified: grid present at wire time.
+  if(t === 'inventory') wireDragDrop();
 });
 
 })(); // ← close outer IIFE for drag-drop block
@@ -16198,8 +16220,14 @@ window.renderCharacter = function(){
 };
 
 /* Hook showTab */
+/* b407 flicker fix: this used to re-render the character sheet at 30ms, a
+   redundant second paint on top of the `character-render` tap (registered
+   earlier, so it runs first). That tap now renders SYNCHRONOUSLY, so by the
+   time this tap runs the sheet is already fully drawn in the same task — the
+   deferred re-render only caused the empty-then-fill flash. Collapsed to a
+   no-op; the single sync renderCharacter() above is the one paint. */
 window.HearthriseShowTab.wrapShowTab('character-rebuild', function(name){
-  if(name === 'character') setTimeout(window.renderCharacter, 30);
+  /* intentionally empty — see note above */
 });
 
 console.log('[Character Rebuild v1] loaded');

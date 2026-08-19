@@ -538,6 +538,33 @@ const TESTS = [
       if (prev && typeof window.showTab === 'function') { try { window.showTab(prev); } catch (e) {} }
     }
   }),
+  () => tryRun('b407: render taps paint SYNCHRONOUSLY — no empty-then-fill flash', () => {
+    // Tyler saw real tab-switch flicker: panels flashed empty, then filled ~0-150ms
+    // later because the render taps deferred their work via setTimeout. b407 made
+    // those taps call their renderer directly, so the panel is fully painted in the
+    // SAME synchronous task that activates it — the browser paints once, formed.
+    // This locks the timers from creeping back: we assert the content exists
+    // IMMEDIATELY after showTab() returns, with NO tick yielded. If any tap
+    // regresses to setTimeout, the panel is empty at this exact point and this fails.
+    const prev = window.activeTab;
+    const nonEmpty = (id) => {
+      const el = document.getElementById(id);
+      return el && el.innerHTML && el.innerHTML.replace(/\s/g, '').length > 20;
+    };
+    try {
+      // Character is painted ONLY by taps (no synchronous base render), so it is
+      // the strongest witness: if the tap deferred, the panel is blank right here.
+      window.showTab('character');
+      assert(nonEmpty('panel-character'),
+        'panel-character was empty immediately after showTab — a render tap deferred (flicker regression)');
+      // Inventory: the fancy grid + drag-drop chain must all be present synchronously.
+      window.showTab('inventory');
+      assert(nonEmpty('panel-inventory'),
+        'panel-inventory was empty immediately after showTab — an inventory render tap deferred (flicker regression)');
+    } finally {
+      if (prev && typeof window.showTab === 'function') { try { window.showTab(prev); } catch (e) {} }
+    }
+  }),
   () => tryRun('b162: FTUE secondary button is readable (light face, not dark-on-dark)', () => {
     // Regression: the live tour's secondary .ftue-btn kept ftue.js's dark navy
     // background while `.ftue-card *` forced cocoa text on it -> ~1.1:1 contrast.

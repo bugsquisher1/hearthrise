@@ -1,5 +1,36 @@
 # Art Director — running log
 
+### 2026-08-19 · b407 flicker-fix RELEASE VISUAL GATE (branch fix/tab-flicker-sync-renders, 3d7b065) — PASS
+Screenshots don't composite in this harness (known trap) → verified the timing fix MECHANICALLY,
+which is more precise for a flash bug than a single-frame capture: after `window.showTab(tab)` returns,
+read the panel SYNCHRONOUSLY in the same task. If content is present in-task, it painted with no empty
+frame. Bypass: plant `hearthrise:supabaseSession` → reload → gate opens reason 'session' (G boots as
+"Adventurer"). NOTE: a viewport resize dropped the session once — re-plant + reload after resizing.
+All at desktop 1440×900 AND mobile-landscape 922×423:
+- **Character — PASS (biggest win).** Sheet paints synchronously (34KB html / full skills list, combat
+  Lv24, renown, quests, achievements, collections). Was the only screen with NO sync render before —
+  now `character-render` tap runs `renderCharacter()` inline; the redundant `character-rebuild` 30ms
+  re-render is collapsed to a no-op (one paint, no flash).
+- **Inventory — PASS + drag-drop CONFIRMED LIVE.** Grid builds synchronously; `wireDragDrop` runs in the
+  SAME dispatch (tap order inv-new→inv-fancy→inv-dragdrop holds): draggable bronze_sword tile carries
+  `data-drag-wired=1` immediately, and a dispatched dragstart fires the handler (applies `.dragging`,
+  puts `bronze_sword` in the DataTransfer). Works at both sizes. (Sim caveat: grid auto-refreshes and
+  detaches node refs across separate eval calls — must dispatch atomically in one task.)
+- **Combat — PASS.** `.combat-style-block` + buttons present synchronously on tab activation.
+- **Home/Profile — PASS.** Dashboard (hd-* / hearth plate) + profile button present synchronously.
+- **Clan — PASS.** Activity host never blank — shows the "Coming in Open Beta 1 · Clans & Castles"
+  placeholder immediately.
+- **No sync-render breakage.** Clean game-driven switch sequence throws ZERO console errors. (The
+  `error-boundary showTab threw: classList null` errors seen mid-session were MY OWN drag-sim probe
+  code referencing detached/null nodes — `<anonymous>` eval stacks — not the game; a fresh boot +
+  game-driven switches are clean. 401/400 are the fake Supabase session, expected.)
+- Pre-existing, OUT OF SCOPE (not caused by b407, present on main): (1) `_renderCharacterExtras` guards
+  on `.char-section`, a class the rebuilt character sheet no longer emits, so the "Combat Stats
+  Breakdown" extras grid is a silent no-op regardless of timing — the sheet itself is complete without
+  it; (2) 🔮 Runecrafting / 🧱 Stonemason render as EMOJI in the skills list (NON-NEGOTIABLE violation,
+  file to Asset Director as a separate item).
+No files changed — verification-only gate.
+
 ### 2026-08-18 · b392 RELEASE VISUAL GATE — FAIL (mobile-landscape inventory clips the new enchant CTA)
 Ran the gate on the assembled working tree (port 8123). Bypass: set `hearthrise:supabaseSession`
 in localStorage → reload → gate opens reason 'session', `G` boots (bronze_sword equipped).

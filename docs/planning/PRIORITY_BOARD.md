@@ -17,7 +17,8 @@ _Last updated: 2026-08-19 (b403). Current build: **b403**, live._
 > - **b394 gather-XP rebalance** (your Mithril report) — engine deployed via your paste + client synced, edge-guard green.
 > - **Render-layer extraction #3–7** (b395/b397/b398/b400/b401): Achievements, Bestiary, Equipment Bonuses, level-up toast, **equipment paper-doll (164 lines)** → `src/render/*`, all pure-refactor + byte-identical.
 > - **b399 test-determinism:** killed the b227 flake — **suite is now deterministic, 937/937**. The ratchet is trustworthy.
-> - **b402 dead-code retirement** (~55 lines, airtight-proven) · **b403** negative gear-bonus display fix.
+> - **b402 dead-code retirement** (~55 lines, airtight-proven) · **b403** negative gear-bonus display fix · **b404** objectives popout (final leaf).
+> - **Capstone QA PASS:** the assembled b404 build (all 17 builds stacked) verified sound — 8 render modules load+coexist, zero overflow at 1440×900 + 922×423, no collisions on the Profile screen where they converge, 224 rapid tab-switches 0 errors, 938/938. One PRE-EXISTING finding (not a regression, designer call): the Active Effects card is force-hidden on Home by the `#panel-profile:has(#hd-root) > .card` rule — retire the dormant card or resurface it.
 >
 > **⛔ NEEDS YOUR DECISION / IN-LOOP (not done autonomously — on purpose):**
 > 1. **Gold-arming: NO-GO** (§2). Verification proved arming breaks the economy (fail-closes every unstamped balance → 885/934). Real blocker = a **direction call**: build a stamped-envelope test harness (test-only, must be reviewed) OR a Security ruling on `balanceOf` fallback. Verified diff on branch `fix/gold-arm-staged`.

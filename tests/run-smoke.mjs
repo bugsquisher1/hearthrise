@@ -439,6 +439,65 @@ async function combatCreditGuard() {
   }
   return { problems, note: `1 declaration site (${writers[0] || 'none'}), away latched, core clean` };}
 
+// ── The showTab single-owner guard (b405) ───────────────────────────────────
+// window.showTab has ONE owner: the tap registry's patchedShowTab
+// (src/utils/showtab-registry.js), installed once over the base function. Every
+// feature that used to reach navigation reassigned window.showTab, each
+// capturing the previous owner and racing the others' install order — the exact
+// fragility that let b227/b334 flake and that froze a panel whenever a wrapper
+// dropped a trigger. This guard fails the build if a raw `window.showTab =`
+// reappears anywhere in src/** outside the registry and its safe.js delegate,
+// so the single-owner model cannot silently erode back into a monkey-patch pile.
+async function showTabOwnershipGuard() {
+  const problems = [];
+  const files = [];
+  async function walkSrc(dir) {
+    let entries = [];
+    try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) { await walkSrc(full); continue; }
+      if (extname(e.name).toLowerCase() === '.js') files.push(full);
+    }
+  }
+  await walkSrc(join(ROOT, 'src'));
+  if (files.length < 50) problems.push(`only ${files.length} src files scanned — the guard is checking nothing`);
+
+  // The only two files permitted to assign window.showTab: the registry (the
+  // owner) and safe.js (its legacy fallback path, only when the registry is
+  // absent, e.g. an isolated module test).
+  const ALLOWED = new Set(['src/utils/showtab-registry.js', 'src/utils/safe.js']);
+  // Any assignment to window.showTab: `window.showTab =` (with optional spaces),
+  // but NOT a comparison (`window.showTab ===`/`==`/`!=`).
+  const ASSIGN = /window\.showTab\s*=(?!=)/;
+  let registryPresent = false;
+  for (const f of files) {
+    const rel = f.slice(ROOT.length + 1).replace(/\\/g, '/');
+    if (rel === 'src/utils/showtab-registry.js') registryPresent = true;
+    const text = await readFile(f, 'utf8');
+    if (rel.includes('smoke-test')) continue;          // the suite may stub it in a test
+    if (ALLOWED.has(rel)) continue;
+    // strip line comments so a doc reference to the pattern doesn't trip it
+    for (const line of text.split('\n')) {
+      const code = line.replace(/\/\/.*$/, '');
+      if (ASSIGN.test(code)) {
+        problems.push(`${rel}: raw \`window.showTab =\` reassignment — use `
+          + `window.HearthriseShowTab.wrapShowTab('<label>', fn) instead (single-owner model)`);
+      }
+    }
+  }
+  if (!registryPresent) problems.push('src/utils/showtab-registry.js is missing — the single owner has no home');
+
+  // The base showTab must hand ownership to the registry right after it is declared.
+  const legacy = await readFile(join(ROOT, 'src', 'legacy.js'), 'utf8');
+  if (!/HearthriseShowTab\s*&&\s*window\.HearthriseShowTab\.install\(\)/.test(legacy)
+      && !/window\.HearthriseShowTab\.install\(\)/.test(legacy)) {
+    problems.push('src/legacy.js never calls window.HearthriseShowTab.install() — the registry '
+      + 'owner is never installed over the base showTab');
+  }
+  return { problems, note: `${files.length} src files scanned, single owner intact` };
+}
+
 // ── The avatar-asset guard (b371, live audit F2) ─────────────────────────────
 // `assets/avatars/_placeholder.webp` was the DEFAULT portrait — the one face a
 // player with no portrait sees, and the fallback every avatar surface resolves
@@ -2245,6 +2304,15 @@ const run = async () => {
       console.log(`Combat-drop attribution guard — ${creditProblems.note}.`);
     }
 
+    const showTabProblems = await showTabOwnershipGuard();
+    if (showTabProblems.problems.length) {
+      console.log('\nshowTab owner guard — FAILED:');
+      for (const p of showTabProblems.problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log(`showTab owner guard — ${showTabProblems.note}.`);
+    }
+
     const migProblems = await migrationGuard();
     if (migProblems.length) {
       console.log('\nMigration guard — FAILED:');
@@ -2442,7 +2510,7 @@ const run = async () => {
       'Clan-deposit ownership guard', 'Activity-seam guard', 'Delta-transport guard',
       'Reachability guard',
       'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',
-      'Icon boot-order guard', 'Avatar asset guard',
+      'Icon boot-order guard', 'Avatar asset guard', 'showTab owner guard',
       'Secret guard', 'Slot-switch guard', 'Native-dialog guard',
     ];
     if (exitCode === 0) {

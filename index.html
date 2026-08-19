@@ -882,6 +882,11 @@
   <!-- theme-picker boots first so cozy-light applies before paint and avoids FOUC -->
   <script src="src/theme-picker.js?v=405"></script>
   <script src="src/observability.js?v=405"></script>
+  <!-- showTab tap registry — single owner for window.showTab. Loads BEFORE
+       legacy.js (which declares the base function) and before every classic
+       feature module that registers a tap, so the owner is installed once and
+       there is no monkey-patch race. safe.js's wrapShowTab delegates here. -->
+  <script src="src/utils/showtab-registry.js?v=405"></script>
   <!-- platform Storage seam (architecture layer 4) — load before legacy.js so saveLocal/loadLocal route through it -->
   <script src="src/platform/storage.js?v=405"></script>
   <!-- b340: the ONE home for "does this server RPC exist yet?". Dependency-free

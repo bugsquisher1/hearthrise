@@ -566,15 +566,9 @@
 
   // Hook showTab to render the panel when entering this tab
   function wireShowTab(){
-    var orig = window.showTab;
-    if(typeof orig !== 'function') { setTimeout(wireShowTab, 100); return; }
-    if(window.__dungeonsTabHooked) return;
-    window.__dungeonsTabHooked = true;
-    window.showTab = function(name){
-      var r = orig.apply(this, arguments);
+    window.HearthriseShowTab.wrapShowTab('dungeons-render', function(name){
       if(name === 'dungeons' || name === 'events') setTimeout(renderDungeons, 0);
-      return r;
-    };
+    });
   }
 
   document.addEventListener('DOMContentLoaded', function(){

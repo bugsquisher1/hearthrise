@@ -1388,12 +1388,9 @@
     if (p && p.classList.contains('active')) render();
   }
   // wrap the global showTab (nav clicks) so switching to Profile draws us
-  var _st = window.showTab;
-  window.showTab = function (t) {
-    var r = (typeof _st === 'function') ? _st.apply(this, arguments) : undefined;
+  window.HearthriseShowTab.wrapShowTab('home-dashboard', function (t) {
     if (t === 'profile') setTimeout(render, 30);
-    return r;
-  };
+  });
   // keep fresh while visible (progress bars, live activity)
   setInterval(maybeRender, 1500);
   // initial

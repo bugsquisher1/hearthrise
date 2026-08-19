@@ -242,14 +242,9 @@ export function watchUiOverlaps(opts){
   watcherInstalled = true;
   _opts = opts || {};
   // Hook showTab so we re-check after navigation
-  var origShowTab = window.showTab;
-  if(typeof origShowTab === 'function'){
-    window.showTab = function(name){
-      var r = origShowTab.apply(this, arguments);
-      debouncedRun();
-      return r;
-    };
-  }
+  window.HearthriseShowTab.wrapShowTab('ui-overlap', function(name){
+    debouncedRun();
+  });
   window.addEventListener('resize', debouncedRun);
   // Initial pass after layout settles
   setTimeout(debouncedRun, 800);

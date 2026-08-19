@@ -1442,18 +1442,13 @@ export function setupCombatScreens() {
   }
   Swing.install();
 
-  /* Nav rule (COMBAT-UI-01). Wrapping showTab is the established pattern on
-     this panel; the wrapper is idempotent so a double boot cannot stack it. */
-  const orig = window.showTab;
-  if (typeof orig === 'function' && !orig.__hrCombatScreens) {
-    const wrapped = function (tab) {
-      const r = orig.apply(this, arguments);
-      if (tab === 'combat') { try { openFromNav(); } catch (e) { console.error('[combat-screens]', e); } }
-      return r;
-    };
-    wrapped.__hrCombatScreens = true;
-    window.showTab = wrapped;
-  }
+  /* Nav rule (COMBAT-UI-01). Registered as a registry post-tap — the stable
+     label makes it idempotent, so a double boot cannot stack it (the old
+     __hrCombatScreens guard did the same job). openFromNav's own try/catch is
+     kept, and the registry isolates a throwing tap regardless. */
+  window.HearthriseShowTab.wrapShowTab('combat-screens-nav', function (tab) {
+    if (tab === 'combat') { try { openFromNav(); } catch (e) { console.error('[combat-screens]', e); } }
+  });
 
   /* THE CAMERA FOLLOWS A FIGHT THAT STARTS — ONCE.
      Hooked on `renderCombat` rather than on `startCombat`, for two reasons.

@@ -1703,19 +1703,16 @@
   // 8 · BOOT
   // ════════════════════════════════════════════════════════════
   function wireShowTab() {
-    var orig = window.showTab;
-    if (typeof orig !== 'function') { setTimeout(wireShowTab, 120); return; }
-    if (window.__musterTabHooked) return;
-    window.__musterTabHooked = true;
-    window.showTab = function (name) {
-      // 'dungeons' is no longer a destination — it is a section of Events. Every
-      // legacy caller (the combat ribbon, the scavenger, deep links) still works.
-      if (name === 'dungeons') { ensurePanel(); name = 'events'; }
-      if (name === 'events') ensurePanel();
-      var r = orig.apply(this, arguments.length ? [name] : []);
-      if (name === 'events') setTimeout(renderPanel, 0);
-      return r;
-    };
+    // b405: the 'dungeons' → 'events' ROUTE REMAP used to live here, transforming
+    // showTab's argument BEFORE the base ran — the one wrapper in the whole chain
+    // that mutated its input, which a post-tap cannot do. It now lives in the base
+    // showTab alias table (legacy.js), the single home for route remaps, so every
+    // legacy caller (combat ribbon, scavenger, deep links) still lands on Events.
+    // This tap only ensures the panel exists and repaints it; it fires on both the
+    // 'dungeons' and 'events' entry names (the tap sees the ORIGINAL argument).
+    window.HearthriseShowTab.wrapShowTab('muster-events', function (name) {
+      if (name === 'events' || name === 'dungeons') { ensurePanel(); setTimeout(renderPanel, 0); }
+    });
   }
 
   // The mobile More sheet. `bindEvents()` only binds `.nav-btn,.bn-btn`, so the

@@ -179,10 +179,9 @@
     }
     place();
     /* Place again on showTab(profile) in case panel rebuilt */
-    var _prevST = window.showTab;
-    if (typeof _prevST === 'function') {
-      window.showTab = function (tab) { var r = _prevST.apply(this, arguments); if (tab === 'profile') setTimeout(place, 50); return r; };
-    }
+    window.HearthriseShowTab.wrapShowTab('lifetime-stats-place', function (tab) {
+      if (tab === 'profile') setTimeout(place, 50);
+    });
   })();
 
   /* ESC closes */

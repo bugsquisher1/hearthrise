@@ -518,19 +518,14 @@ export function setupCombatRender() {
 
   // Wire tier chips on first combat tab activation
   let chipsWired = false;
-  if (typeof window.showTab === 'function') {
-    const orig = window.showTab;
-    window.showTab = function (name) {
-      const r = orig.apply(this, arguments);
-      if (name === 'combat') {
-        setTimeout(() => {
-          if (!chipsWired) { setupTierChips(); chipsWired = true; }
-          syncTierChips();
-          renderMonsterList();
-        }, 30);
-      }
-      return r;
-    };
-  }
+  window.HearthriseShowTab.wrapShowTab('combat-tier-chips', function (name) {
+    if (name === 'combat') {
+      setTimeout(() => {
+        if (!chipsWired) { setupTierChips(); chipsWired = true; }
+        syncTierChips();
+        renderMonsterList();
+      }, 30);
+    }
+  });
   console.log('[Combat Render ESM] loaded');
 }

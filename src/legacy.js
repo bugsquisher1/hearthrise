@@ -12270,23 +12270,9 @@ function checkAchievements(){
     return r;
   };
 })();
-function showLevelupCelebration(skillId, level){
-  var el = document.createElement('div');
-  el.className = 'lvl-celebration';
-  var iconHtml;
-  if(window._skillIcon && window._skillIcon[skillId]){
-    iconHtml = '<img src="'+window._skillIcon[skillId]+'" alt="" />';
-  } else {
-    iconHtml = (typeof SKILLS_DEF !== 'undefined' && SKILLS_DEF[skillId]) ? SKILLS_DEF[skillId].icon : '⭐';
-  }
-  var skName = (typeof SKILLS_DEF !== 'undefined' && SKILLS_DEF[skillId]) ? SKILLS_DEF[skillId].name : skillId;
-  el.innerHTML = '<div class="lc-ring"></div><div class="lc-icon">'+iconHtml+'</div><div class="lc-text">Level '+level+'!</div><div class="lc-skill">'+skName+'</div>';
-  document.body.appendChild(el);
-  setTimeout(function(){ el.classList.add('show'); }, 10);
-  setTimeout(function(){ el.remove(); }, 2500);
-  /* re-check achievements after a level-up */
-  setTimeout(checkAchievements, 100);
-}
+/* showLevelupCelebration extracted to src/render/levelup-celebration.js (b385,
+   render-layer strangler-fig #6). It is a window global; the addXp wrapper above
+   calls it by bare name, which resolves to window.showLevelupCelebration. */
 
 /* =========================================================
    3. CATCHUP REWARDS (offline progress)

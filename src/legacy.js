@@ -1940,13 +1940,19 @@ function applyServerEnvelope(res,opts){
      nothing; a live settle/switch is gated out inside the helper. */
   try{ creditServerAwayKills(G.lastOfflineSummary); }catch(e){}
   /* b340: the RECORD fields ride the same envelope, but they are written by
-     record.js's applyRecord and by nothing else — one writer, three callers
-     (this, the hr_load boot read, and now the switch), rather than three
-     implementations that agree today. applyRecord is monotonic on `version`, so
-     whichever answers last cannot put back an older watermark.
+     record.js's applyRecord and by nothing else — one writer, FOUR callers
+     (this away/settle path, the hr_load boot read, the switch, and — b395 —
+     the gold-verb envelope path in src/net/gold.js applyGoldEnvelope, which
+     answers shop_buy/vendor_sell/claim_reward/market_buy and moves the same
+     G.gold/G.gems the record must follow), rather than four implementations
+     that agree today. applyRecord is monotonic on `version`, so whichever
+     answers last cannot put back an older watermark.
      b347: A SWITCH MOVES THE WATERMARK. `hr_apply` stamps `accrued_to = now()`
      on any delta carrying `activity`, so the record MUST follow a switch or the
-     client's idea of "paid up to" is stale by the length of the session. */
+     client's idea of "paid up to" is stale by the length of the session.
+     b395: A GOLD VERB THAT CARRIES ACTIVITY MOVES IT TOO — same reason, which is
+     why the fourth caller was the latent bug: it wrote the balance and left the
+     stamp. */
   try{ if(window.HearthriseRecord) window.HearthriseRecord.applyRecord(G,(written&&written.envelope)||res); }catch(e){}
   try{ saveLocal(); }catch(e){}
   try{ if(typeof refreshAll==='function') refreshAll(); }catch(e){}
@@ -2085,6 +2091,29 @@ function maybeIdleAwayReceipt(now,watermark){
      empty one. */
   const cur=G.lastOfflineSummary;
   if(cur && cur.at && (now-cur.at)<30000 && !cur.idle) return null;
+  /* ── b39x — FIRE ONCE PER RETURN (the "×13" idle-card re-fire) ────────────
+     This receipt reads the away watermark WITHOUT advancing it — deliberately,
+     because under server-accrual authority `offlineBudget.at` is a SERVER-owned
+     record field (b347: clientMayWriteRecordField('offlineBudget') is false),
+     and only a real accrual (an activity delta stamping `accrued_to`) may move
+     it. But an IDLE character never produces such a delta, so the watermark
+     stays frozen — and processOffline runs on EVERY visibility return / focus /
+     reload. Without a latch the same frozen-anchor absence re-narrates its
+     (ever-growing) "nothing was set to bank" card on every foreground, which the
+     notify layer collapses into "×N". Latch on the absence ANCHOR (the
+     watermark itself): greet once per anchor and fall silent until the watermark
+     actually moves. A genuinely new absence can only begin after a real accrual
+     has advanced `accrued_to` — which moves the anchor far past the greeted one
+     — so a legitimate later welcome-back is never suppressed; only the spam is.
+     `_`-prefixed → local-only scratch (events.js snapshot() skips it, so it
+     never reaches the cloud) and it PERSISTS in the local save, so the latch
+     survives a reload — the re-fire was observed across reloads too. Tolerance
+     covers the sub-second drift between the client path (exact watermark) and
+     the server 'nothing' path (nw - pendingAbsence, measured a round-trip
+     apart); a real new anchor differs by minutes, never <60s. */
+  const _anchor=(typeof watermark==='number'&&isFinite(watermark))?watermark:null;
+  if(_anchor!==null && typeof G._idleReceiptAnchor==='number'
+     && Math.abs(_anchor-G._idleReceiptAnchor)<60000) return null;
   const cap=(typeof offlineCapHours==='function')?offlineCapHours():12;
   const hrs=+(absMs/3600000).toFixed(1);
   G.lastOfflineSummary={
@@ -2094,6 +2123,9 @@ function maybeIdleAwayReceipt(now,watermark){
     crits:0, died:false, diedAfterMs:0, diedTo:null, featuredMs:0, featuredDropMult:1,
     rateMult:1, idle:true,
   };
+  /* Latch this absence anchor so a re-entrant processOffline (next visibility
+     return / reload) does not re-narrate the same frozen-watermark night. */
+  if(_anchor!==null) G._idleReceiptAnchor=_anchor;
   try{ if(typeof notify==='function') notify('You were away '+fmtSince(absMs)+' — nothing was set to bank. Fighting, gathering or crafting earns while you are gone.','info'); }catch(e){}
   return G.lastOfflineSummary;
 }

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=395' directly.
+// modularised, will import { G } from '../state/game.js?v=396' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=395';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=395';
+import { on, snapshot } from '../net/events.js?v=396';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=396';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=395';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=396';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -22753,6 +22753,54 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('OFFLINE-CLARITY 1b: the idle welcome-back fires ONCE per frozen-watermark return (no ×N re-fire)', () => {
+    // Regression for the live "×13" idle-card spam: an IDLE character under
+    // server-accrual authority has a FROZEN away watermark (nothing local
+    // advances it — the server only stamps accrued_to on a real activity delta),
+    // yet processOffline runs on every visibility return / reload and re-narrated
+    // the same (ever-growing) "nothing was set to bank" card each time. The fix
+    // latches on the absence anchor: greet once, stay silent until the watermark
+    // actually moves. Display-only throughout — this asserts NO minting.
+    assert(typeof window.maybeIdleAwayReceipt === 'function', 'maybeIdleAwayReceipt must be published');
+    const G = window.G;
+    const prev = G.lastOfflineSummary;
+    const prevAnchor = G._idleReceiptAnchor;
+    const prevGold = G.gold, prevSkills = G.skills;
+    try {
+      const now = Date.now();
+      const frozen = now - 8 * 3600000;   // the FROZEN watermark anchor (8h stale)
+      G.lastOfflineSummary = null; delete G._idleReceiptAnchor;
+
+      // First return greets the player and latches the anchor.
+      const first = window.maybeIdleAwayReceipt(now, frozen);
+      assert(first && first.idle === true, 'first return must write the idle welcome-back');
+      assert(typeof G._idleReceiptAnchor === 'number', 'the anchor must be latched after the first greeting');
+
+      // A re-entrant processOffline moments later (same frozen anchor, now larger
+      // because the watermark did NOT advance) must NOT re-fire.
+      G.lastOfflineSummary = null;
+      const second = window.maybeIdleAwayReceipt(now + 5000, frozen);
+      assert(second === null && !G.lastOfflineSummary, 'the same frozen-anchor return must NOT re-narrate the card');
+      // And a whole re-load later (bigger elapsed, same anchor) still silent.
+      const third = window.maybeIdleAwayReceipt(now + 90 * 60000, frozen);
+      assert(third === null, 'a later return on the SAME watermark must stay silent — no ×N spam');
+
+      // But once the watermark ACTUALLY moves (a real accrual advanced it), a
+      // genuinely new absence greets again — the latch suppresses spam, never a
+      // legitimate later welcome-back.
+      G.lastOfflineSummary = null;
+      const moved = window.maybeIdleAwayReceipt(now + 90 * 60000, now + 60 * 60000);
+      assert(moved && moved.idle === true, 'a moved watermark (real new absence) must greet again');
+
+      // Nothing minted anywhere: every idle receipt credits zero.
+      assert(moved.gainedGold === 0 && moved.gainedXp === 0 && moved.gainedItems === 0,
+        'the idle receipt must credit nothing — display only');
+    } finally {
+      G.lastOfflineSummary = prev; G.gold = prevGold; G.skills = prevSkills;
+      if (prevAnchor === undefined) delete G._idleReceiptAnchor; else G._idleReceiptAnchor = prevAnchor;
+    }
+  }),
+
   () => tryRun('b326-2: the simulation reports the drop multiplier featured time actually paid', () => {
     const C = window.HearthriseCore;
     const S = C.combatSim;
@@ -25665,6 +25713,101 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
+     B353-3c — THE GOLD-VERB ENVELOPE RE-STAMPS THE RECORD (the fourth caller).
+     ══════════════════════════════════════════════════════════════════════════
+     B353-3b simulates UNKNOWN with `delete G.gold` — the LOAD gap. It does NOT
+     touch the OTHER way a moved balance goes UNKNOWN: a SECOND WRITER moving
+     G.gold and leaving `_record.stamp.gold` stale, at which point recordValue's
+     b347 fingerprint check reports `source:'client-overwrote'` and balanceOf
+     fails closed. That is precisely what `applyGoldEnvelope` did before b395 —
+     it wrote the balance through `applyEnvelopeState` but did not re-stamp the
+     record, unlike the away/boot/switch path (applyServerEnvelope in legacy.js).
+
+     Gold and gems are not yet ARMED into SERVER_OF_RECORD, so this proves the
+     invariant on the field that IS armed today — `offlineBudget` / `accrued_to`,
+     the watermark. A gold verb that carries activity stamps `accrued_to = now()`
+     (record.js's b347 note: "a switch moves the watermark", and so does a verb),
+     so after a gold envelope carrying a NEWER `accrued_to`, `recordValue` must
+     report the NEWER watermark — which can only be true if `applyGoldEnvelope`
+     routed the envelope through `applyRecord`. The SAME re-stamp will follow
+     gold/gems the instant those entries are armed, because it is one call over
+     whatever SERVER_OF_RECORD holds — this is the prerequisite, not the arming.
+
+     MUTATION-PROVED RED by deleting the `applyRecord(G, env)` line at the tail of
+     `applyGoldEnvelope` (src/net/gold.js): the watermark stays at the OLD value
+     and the first assertion below goes red. */
+  () => tryRun('B353-3c: a gold-verb envelope re-stamps the record (the fourth applyRecord caller — b395)', () => {
+    const R = window.HearthriseRecord;
+    const Gd = window.HearthriseGold;
+    const B = window.HearthriseBalance;
+    assert(R && typeof R.applyRecord === 'function' && typeof R.recordValue === 'function',
+      'record.js did not load — the re-stamp invariant is the whole contract');
+    assert(Gd && typeof Gd.applyGoldEnvelope === 'function', 'gold.js applyGoldEnvelope must be published');
+    assert(B && typeof B.balanceOf === 'function' && typeof B.canAfford === 'function',
+      'balance.js did not load');
+
+    /* A PRIVATE G, exactly like B340-5 — never window.G, so nothing global is
+       mutated and the destructive-replacement gate sees no local progress to
+       lose (an absent gold/skills/inventory is "no loss", not "a loss of zero"). */
+    const g = {};
+    const T1 = Date.parse('2026-08-18T10:00:00Z');
+    const T2 = Date.parse('2026-08-18T10:30:00Z');   // the verb moved the watermark forward
+    /* Versions high enough to clear gold.js's module-global monotonic
+       `lastVersion` regardless of what ran earlier in the suite. resetGold() in
+       the finally puts it back to pristine (-1), as every gold test does. */
+    const vBase = Date.now();
+
+    try {
+      Gd.resetGold();
+
+      // 1) The record is armed at T1 the ONLY legitimate way — through applyRecord.
+      const arm = R.applyRecord(g, { ok: true, version: vBase, now: '2026-08-18T10:00:00Z',
+        state: { accrued_to: T1 } });
+      assert(arm && arm.written && arm.written.indexOf('offlineBudget') !== -1,
+        'the fixture did not arm the watermark: ' + JSON.stringify(arm));
+      const rv0 = R.recordValue(g, 'offlineBudget');
+      assert(rv0.known === true && rv0.value && rv0.value.at === T1,
+        'the armed watermark did not read back as T1: ' + JSON.stringify(rv0));
+
+      // 2) A shop_buy envelope lands, moving gold/gems AND carrying a newer accrued_to.
+      const body = {
+        ok: true, verb: 'shop_buy', version: vBase + 1, now: '2026-08-18T10:30:00Z',
+        state: { gold: 500, gems: 10, accrued_to: T2 },
+        skills: {}, inventory: {},
+        receipt: { kind: 'shop_buy', item: 'log', qty: 1 },
+      };
+      const written = Gd.applyGoldEnvelope(g, body, Gd.newIntentKey());
+      assert(written && written.gold === 500, 'the gold envelope did not apply the balance: ' + JSON.stringify(written));
+
+      // 3) THE FIX, PROVED. Without applyGoldEnvelope re-stamping the record, the
+      //    watermark stays at T1 (the stamp the arm wrote) and recordValue reads
+      //    it as such; b395 makes the gold verb the fourth applyRecord caller, so
+      //    the record now FOLLOWS the verb to T2.
+      const rv1 = R.recordValue(g, 'offlineBudget');
+      assert(rv1.known === true,
+        'the watermark went UNKNOWN after a gold verb — the record was left in an inconsistent state: '
+        + JSON.stringify(rv1));
+      assert(rv1.value && rv1.value.at === T2,
+        'the gold-verb envelope did NOT re-stamp the record: the watermark is still '
+        + JSON.stringify(rv1.value) + ' (expected at=' + T2 + '). applyGoldEnvelope wrote the balance but '
+        + 'not the record — exactly the two-writer drift that flips a moved gold/gems balance to '
+        + '`client-overwrote` and disables every Buy/Sell control the moment those fields are armed.');
+      assert(R.recordValue(g, 'offlineBudget').version === vBase + 1,
+        'the record version did not advance to the verb envelope — applyRecord did not run on this path');
+
+      // 4) The balance read side still answers on the post-purchase G (sanity: the
+      //    fix is a no-op for the currently-unmoved gold field, which reads local).
+      const bal = B.balanceOf(g, 'gold');
+      assert(bal.known === true && bal.value === 500,
+        'balanceOf lost the post-purchase gold: ' + JSON.stringify(bal));
+      assert(B.canAfford(g, 300, 'gold') === true && B.canAfford(g, 501, 'gold') === false,
+        'canAfford fail-closed on a known post-purchase balance — the exact symptom this prerequisite prevents');
+    } finally {
+      Gd.resetGold();
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
      B353-4 — NOT SIGNED IN IS NOT AN OUTAGE.
      ══════════════════════════════════════════════════════════════════════════
      Found by the flip, and it is the clearest example of a defect that a dark
@@ -26303,7 +26446,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=395');
+    const KIT = await import('../data/start-kit.js?v=396');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -31944,7 +32087,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=395');
+    const S = await import('../data/shops.js?v=396');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33338,7 +33481,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=395');
+    const S = await import('../data/shops.js?v=396');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -36569,7 +36712,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=395')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=396')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -38007,7 +38150,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=395');
+    const A = await import('../net/accrue.js?v=396');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -38031,7 +38174,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=395');
+    const A = await import('../net/accrue.js?v=396');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

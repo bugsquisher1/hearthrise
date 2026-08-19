@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 396 — 2026-08-18 (Welcome-back fix + economy groundwork)
+
+- 🌙 **The "while you were away" card no longer repeats.** If you tabbed away and back a few times it could stack up multiple welcome-back messages with climbing times — now you get it once per return, as intended.
+- 🔧 Under the hood: closed a gap in how your gold/gems balance re-confirms itself after a purchase or sale — invisible today, but a required step before the server fully owns your balance (so a forged balance can't survive even on your own device). Dormant until that's switched on.
+
 ## v0.9.2-beta build 395 — 2026-08-18 (Under the hood: monolith cleanup)
 
 - 🔧 No gameplay change. Continues carving the giant single file the game grew up in into small, focused modules — this build moves the Achievements toast + window out on their own. Invisible to you, but it's what keeps the game maintainable as it scales (and makes future UI/theme changes safer).

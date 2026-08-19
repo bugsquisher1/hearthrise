@@ -116,9 +116,9 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
-} from './accrue.js?v=395';
-import { SHOP_OFFERS } from '../data/shops.js?v=395';
-import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=395';
+} from './accrue.js?v=396';
+import { SHOP_OFFERS } from '../data/shops.js?v=396';
+import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=396';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';
@@ -645,6 +645,21 @@ export function applyGoldEnvelope(G, body, ownKey) {
     at: Date.now(),
     via: (body && body.verb) || 'gold',
   };
+  /* b395 — THE RECORD FOLLOWS THE GOLD VERB TOO (the "forgot the fourth caller"
+     gap). applyEnvelopeState above just wrote the balances ABSOLUTELY; the
+     RECORD fields (record.js's `_record.stamp`) ride the same envelope and are
+     written by applyRecord and by nothing else. The away/boot/switch paths in
+     legacy.js (applyServerEnvelope) already re-stamp — this path did not, so a
+     shop_buy / vendor_sell / claim_reward / market_buy envelope moved G.gold
+     while leaving `_record.stamp.gold` at the OLD fingerprint. Harmless while
+     gold/gems are UNMOVED (recordValue only guards a moved field), but the
+     moment they are armed into SERVER_OF_RECORD the stale stamp makes
+     recordValue report `source:'client-overwrote'` → balanceOf UNKNOWN →
+     canAfford fail-closes → every Buy/Sell/List control disables until the next
+     background sync re-stamps. Same shape applyRecord expects on the reference
+     path (`{ok:true, version, state, now}`), which `env` already is. Monotonic
+     on `version`, so a slower answer cannot rewind. */
+  try { if (typeof window !== 'undefined' && window.HearthriseRecord) window.HearthriseRecord.applyRecord(G, env); } catch (e) {}
   return written;
 }
 

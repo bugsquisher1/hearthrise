@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=397' directly.
+// modularised, will import { G } from '../state/game.js?v=398' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=397';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=397';
+import { on, snapshot } from '../net/events.js?v=398';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=398';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=397';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=398';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -4793,6 +4793,27 @@ const TESTS = [
       'discovered row must show the kill count');
     ov.classList.remove('show');
     window.G.bestiary = JSON.parse(snap);
+  }),
+
+  () => tryRun('render: equipment bonuses modal (extracted surface)', () => {
+    assert(typeof window.openEquipmentBonuses === 'function',
+      'openEquipmentBonuses must stay on window (standalone modal entry point)');
+    assert(typeof window.renderEquipmentStatsHTML === 'function',
+      'renderEquipmentStatsHTML must stay on window (buildTibiaDoll stats pane calls it)');
+    // The shared renderer returns markup for both the Stats pane and the modal.
+    const html = window.renderEquipmentStatsHTML();
+    assert(typeof html === 'string' && html.indexOf('eqb-grid') >= 0,
+      'renderEquipmentStatsHTML must return an .eqb-grid block');
+    // Open the standalone modal and assert it mounts + shows + carries the body.
+    window.openEquipmentBonuses();
+    const ov = document.getElementById('eqb-overlay');
+    assert(ov, 'eqb-overlay element not created');
+    assert(ov.classList.contains('show'), 'equipment-bonuses modal did not open (missing .show)');
+    assert(ov.querySelector('.eqb-card'), 'modal must render its .eqb-card shell');
+    assert(ov.querySelector('.eqb-grid'), 'modal must embed the .eqb-grid body from the shared renderer');
+    // ESC-equivalent: the Close handler removes .show.
+    ov.classList.remove('show');
+    assert(!ov.classList.contains('show'), 'modal must close');
   }),
 
   // ── b126 regression suite: every bug we fixed in b119–b125 ──
@@ -26472,7 +26493,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=397');
+    const KIT = await import('../data/start-kit.js?v=398');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -32113,7 +32134,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=397');
+    const S = await import('../data/shops.js?v=398');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33507,7 +33528,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=397');
+    const S = await import('../data/shops.js?v=398');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -36738,7 +36759,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=397')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=398')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -38176,7 +38197,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=397');
+    const A = await import('../net/accrue.js?v=398');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -38200,7 +38221,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=397');
+    const A = await import('../net/accrue.js?v=398');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

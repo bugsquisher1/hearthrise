@@ -13830,47 +13830,12 @@ window.getEquipmentTotals = function(){
   return { fields: FIELDS, totals: totals, worn: worn };
 };
 
-/* Shared renderer so the Stats tab and the pop-out modal can never disagree. */
-window.renderEquipmentStatsHTML = function(){
-  var t = window.getEquipmentTotals();
-  var pct = { critB:1, xpB:1, spdB:1 };
-  var rows = t.fields.filter(function(f){ return t.totals[f[0]]; }).map(function(f){
-    var v = t.totals[f[0]];
-    var shown = pct[f[0]] ? (Math.round(v*1000)/10) + '%' : '+' + v;
-    return '<div class="eqb-row"><span>'+f[1]+'</span><b>'+shown+'</b></div>';
-  }).join('') || '<div class="eqb-empty">Nothing equipped yet — gear up to see your bonuses here.</div>';
-  var wornList = t.worn.length
-    ? t.worn.map(function(w){
-        var lbl = (EQUIP_SLOT_META[w.slot] && EQUIP_SLOT_META[w.slot].label) || w.slot;
-        return '<div class="eqb-worn"><span>'+lbl+'</span><b>'+w.name+'</b></div>';
-      }).join('')
-    : '';
-  /* Wave 5c: surface the armour SET bonus so completing a set is a legible goal. */
-  var _set = (typeof getArmorSetBonus==='function') ? getArmorSetBonus() : null;
-  var setHtml = _set
-    ? '<div class="eqb-set">🛡️ Set bonus · <b>'+_set.pieces+'-piece '+((window.MATERIAL_TIER_NAME&&window.MATERIAL_TIER_NAME[_set.tier])||('Tier '+_set.tier))+'</b> — +'+Math.round(_set.critB*100)+'% crit</div>'
-    : '';
-  return '<div class="eqb-grid">'+rows+'</div>'+ setHtml +
-    (wornList ? '<div class="eqb-sub">Equipped</div><div class="eqb-wornlist">'+wornList+'</div>' : '');
-};
-
-window.openEquipmentBonuses = function(){
-  var body = window.renderEquipmentStatsHTML();
-  var ov = document.getElementById('eqb-overlay');
-  if(!ov){
-    ov = document.createElement('div');
-    ov.id = 'eqb-overlay'; ov.className = 'modal';
-    document.body.appendChild(ov);
-    ov.addEventListener('click', function(e){ if(e.target === ov) ov.classList.remove('show'); });
-  }
-  ov.innerHTML =
-    '<div class="modal-card eqb-card" onclick="event.stopPropagation()">'+
-      '<div class="eqb-head"><h3>Equipment bonuses</h3>'+
-        '<button class="eqb-close" onclick="document.getElementById(\'eqb-overlay\').classList.remove(\'show\')" aria-label="Close">×</button></div>'+
-      body+
-    '</div>';
-  ov.classList.add('show');
-};
+/* b398 render-layer extraction: window.renderEquipmentStatsHTML (the shared
+   Stats-tab/pop-out renderer) and window.openEquipmentBonuses (the standalone
+   modal) moved verbatim to src/render/equipment-bonuses.js. They install onto
+   window from that module; buildTibiaDoll's stats pane below calls them via
+   window.renderEquipmentStatsHTML(), unchanged. Pure refactor — see
+   docs/design/render-extraction-pattern.md. */
 
 window.buildTibiaDoll = function(){
   if(typeof EQUIP_SLOTS === 'undefined' || typeof EQUIP_SLOT_META === 'undefined') return null;

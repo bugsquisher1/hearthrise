@@ -12343,31 +12343,10 @@ window._applyCatchup = function(rewards){
     return orig.apply(this, arguments);
   };
 })();
-window.openBestiary = function(){
-  var ov = document.getElementById('best-overlay');
-  if(!ov){
-    ov = document.createElement('div'); ov.id = 'best-overlay'; ov.className = 'ach-overlay';
-    ov.innerHTML = '<div class="ach-modal" onclick="event.stopPropagation()"><h2>Bestiary</h2><div id="best-list" class="bestiary-list"></div><button class="btn" onclick="document.getElementById(\'best-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
-    ov.addEventListener('click', function(e){ if(e.target===ov) ov.classList.remove('show'); });
-    document.body.appendChild(ov);
-  }
-  G.bestiary = G.bestiary || {};
-  var list = document.getElementById('best-list');
-  if(typeof MONSTERS === 'undefined'){ list.innerHTML='<div class="muted">Monsters not loaded.</div>'; ov.classList.add('show'); return; }
-  list.innerHTML = Object.entries(MONSTERS).map(function(kv){
-    var id=kv[0], m=kv[1];
-    var entry = G.bestiary[id] || {kills:0};
-    var disc = entry.kills > 0;
-    var path = window._monsterIcon && window._monsterIcon[id];
-    var img = path ? '<img src="'+path+'" />' : '<span style="font-size:calc(19px * var(--ui-scale, 1))">'+m.icon+'</span>';
-    return '<div class="bestiary-row '+(disc?'discovered':'undiscovered')+'">'+
-      '<div class="br-icon">'+img+'</div>'+
-      '<div class="br-info"><b>'+(disc?m.name:'???')+'</b><small>Tier '+m.tier+(disc?' · '+m.hp+' HP':'')+'</small></div>'+
-      '<div class="br-kills">'+(disc?entry.kills+'×':'—')+'</div>'+
-    '</div>';
-  }).join('');
-  ov.classList.add('show');
-};
+/* window.openBestiary — the Bestiary MODAL RENDER moved to
+   src/render/bestiary.js (b397, 4th render-layer extraction). The kill-tracking
+   LOGIC above (the killMonster wrapper that writes G.bestiary) stays here on
+   purpose: render/logic seam, same as Achievements. */
 
 /* =========================================================
    5. FRIENDS LIST STUB (in Social panel)

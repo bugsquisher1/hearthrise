@@ -60,13 +60,13 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=396';
-import { rollDropTable } from './drops.js?v=396';
-import { hitXpRoute, killXpRoute } from './styles.js?v=396';
-import { applyGoldFind } from './pacing.js?v=396';
-import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, utcDaySegments } from './away.js?v=396';
-import { NO_BONUS } from './botd.js?v=396';
-import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=396';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=397';
+import { rollDropTable } from './drops.js?v=397';
+import { hitXpRoute, killXpRoute } from './styles.js?v=397';
+import { applyGoldFind } from './pacing.js?v=397';
+import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, utcDaySegments } from './away.js?v=397';
+import { NO_BONUS } from './botd.js?v=397';
+import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=397';
 
 export { AWAY_RATE_MULT };
 

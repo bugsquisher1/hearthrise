@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=396' directly.
+// modularised, will import { G } from '../state/game.js?v=397' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=396';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=396';
+import { on, snapshot } from '../net/events.js?v=397';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=397';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=396';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=397';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -4767,6 +4767,32 @@ const TESTS = [
       'modal must render one .ach-row per catalogue entry');
     ov.classList.remove('show');
     window.G.achievements = JSON.parse(snap);
+  }),
+
+  () => tryRun('render: bestiary modal (extracted surface)', () => {
+    assert(typeof window.openBestiary === 'function',
+      'openBestiary must stay on window (invoked by inline onclick handlers)');
+    assert(window.MONSTERS && typeof window.MONSTERS === 'object' &&
+      Object.keys(window.MONSTERS).length > 0,
+      'MONSTERS catalogue must be published for the modal to read');
+    const snap = JSON.stringify(window.G.bestiary || {});
+    // Seed one discovered monster so we exercise the discovered branch too.
+    const firstId = Object.keys(window.MONSTERS)[0];
+    window.G.bestiary = window.G.bestiary || {};
+    window.G.bestiary[firstId] = { kills: 7, firstKill: Date.now() };
+    window.openBestiary();
+    const ov = document.getElementById('best-overlay');
+    assert(ov, 'best-overlay element not created');
+    assert(ov.classList.contains('show'), 'bestiary modal did not open (missing .show)');
+    const list = document.getElementById('best-list');
+    assert(list && list.querySelectorAll('.bestiary-row').length === Object.keys(window.MONSTERS).length,
+      'modal must render one .bestiary-row per monster in the catalogue');
+    const discovered = list.querySelector('.bestiary-row.discovered');
+    assert(discovered, 'seeded (killed) monster must render as a .discovered row');
+    assert(discovered.querySelector('.br-kills').textContent.indexOf('7') >= 0,
+      'discovered row must show the kill count');
+    ov.classList.remove('show');
+    window.G.bestiary = JSON.parse(snap);
   }),
 
   // ── b126 regression suite: every bug we fixed in b119–b125 ──
@@ -26446,7 +26472,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=396');
+    const KIT = await import('../data/start-kit.js?v=397');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -32087,7 +32113,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=396');
+    const S = await import('../data/shops.js?v=397');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33481,7 +33507,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=396');
+    const S = await import('../data/shops.js?v=397');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -36712,7 +36738,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=396')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=397')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -38150,7 +38176,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=396');
+    const A = await import('../net/accrue.js?v=397');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -38174,7 +38200,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=396');
+    const A = await import('../net/accrue.js?v=397');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

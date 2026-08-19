@@ -41,7 +41,7 @@
     var pct = { critB: 1, xpB: 1, spdB: 1 };
     var rows = t.fields.filter(function (f) { return t.totals[f[0]]; }).map(function (f) {
       var v = t.totals[f[0]];
-      var shown = pct[f[0]] ? (Math.round(v * 1000) / 10) + '%' : '+' + v;
+      var shown = pct[f[0]] ? (Math.round(v * 1000) / 10) + '%' : (v >= 0 ? '+' : '') + v;
       return '<div class="eqb-row"><span>' + f[1] + '</span><b>' + shown + '</b></div>';
     }).join('') || '<div class="eqb-empty">Nothing equipped yet — gear up to see your bonuses here.</div>';
     var EQUIP_SLOT_META = window.EQUIP_SLOT_META || {};

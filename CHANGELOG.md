@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 403 — 2026-08-19 (Fix: negative gear bonuses)
+
+- 🔢 Gear with a **negative** stat bonus now displays it correctly (e.g. "-5" instead of the old garbled "+-5") on the equipment stats panel. Positive bonuses are unchanged.
+
 ## v0.9.2-beta build 402 — 2026-08-19 (Under the hood: dead-code cleanup)
 
 - 🔧 No gameplay change. Removed ~55 lines of confirmed-dead code (an unreachable old modal + a few abandoned helper functions), each proven unused before deletion. Less cruft = less to trip over when building new things.

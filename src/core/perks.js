@@ -46,7 +46,7 @@
 // later roll. That is what lets the away parity test compare byte for byte.
 // ============================================================
 
-import { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS } from '../data/perks.js?v=402';
+import { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS } from '../data/perks.js?v=403';
 
 export { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS };
 

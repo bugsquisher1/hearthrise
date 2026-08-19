@@ -12,7 +12,7 @@
 //
 // Exports: setupRecipeBook() → installs window.HearthriseRecipeBook.open().
 
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=402';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=403';
 
 const SKILL_ORDER = ['smithing', 'crafting', 'cooking', 'runecrafting', 'stonemason', 'prayer'];
 const SKILL_LABEL = {

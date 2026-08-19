@@ -649,14 +649,9 @@ export function setupCompanions() {
   }
 
   // Hook showTab for stable rendering
-  if (typeof window.showTab === 'function') {
-    const orig = window.showTab;
-    window.showTab = function (name) {
-      const r = orig.apply(this, arguments);
-      if (name === 'stable') setTimeout(renderStable, 30);
-      return r;
-    };
-  }
+  window.HearthriseShowTab.wrapShowTab('stable-render', function (name) {
+    if (name === 'stable') setTimeout(renderStable, 30);
+  });
 
   // Hook renderProfile for companion card
   if (typeof window.renderProfile === 'function') {

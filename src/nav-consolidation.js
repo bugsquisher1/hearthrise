@@ -221,17 +221,9 @@
      the click listener above only fires for real clicks — code paths that call
      showTab() directly never re-ran it. Hook showTab and keep a short retry so
      the shortcut appears regardless of how Combat is reached. */
-  (function hookShowTab() {
-    if (typeof window.showTab !== 'function') { setTimeout(hookShowTab, 120); return; }
-    if (window.__navConsolHooked) return;
-    window.__navConsolHooked = true;
-    const orig = window.showTab;
-    window.showTab = function () {
-      const r = orig.apply(this, arguments);
-      setTimeout(bootAll, 60);
-      return r;
-    };
-  })();
+  window.HearthriseShowTab.wrapShowTab('nav-consol-bootall', function () {
+    setTimeout(bootAll, 60);
+  });
   let tries = 0;
   const settle = setInterval(() => { bootAll(); if (++tries > 12) clearInterval(settle); }, 500);
 })();

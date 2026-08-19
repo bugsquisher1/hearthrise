@@ -93,6 +93,17 @@ function _ensureShowTabHook() {
  * @returns {() => void} unsubscribe
  */
 export function wrapShowTab(name, fn) {
+  // Delegate to the single-owner registry (src/utils/showtab-registry.js), a
+  // classic script loaded before legacy.js. That registry is THE owner of
+  // window.showTab; routing here keeps exactly one Map/one owner whether a
+  // caller reaches it from an ESM import (here) or a classic script
+  // (window.HearthriseShowTab). See that file's header for the load-order why.
+  if (typeof window !== 'undefined' && window.HearthriseShowTab
+      && typeof window.HearthriseShowTab.wrapShowTab === 'function') {
+    return window.HearthriseShowTab.wrapShowTab(name, fn);
+  }
+  // Fallback: registry not present (e.g. a test that loads this module in
+  // isolation). Preserve the original self-contained behaviour.
   _ensureShowTabHook();
   if (!_showTabInstalled) {
     // showTab not yet defined — retry once after a tick

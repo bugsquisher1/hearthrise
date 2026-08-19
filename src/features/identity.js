@@ -1540,15 +1540,11 @@
   // 8 · BOOT
   // ════════════════════════════════════════════════════════════
   function wireCharacterPage() {
-    var orig = window.showTab;
-    if (typeof orig !== 'function') { setTimeout(wireCharacterPage, 150); return; }
     if (!window.__identityTabHooked) {
       window.__identityTabHooked = true;
-      window.showTab = function (name) {
-        var r = orig.apply(this, arguments);
+      window.HearthriseShowTab.wrapShowTab('identity-decorate', function (name) {
         if (name === 'character') setTimeout(decorateCharacterPage, 60);
-        return r;
-      };
+      });
     }
     // renderCharacter() rebuilds the panel wholesale, so the affordance has to
     // be re-attached after it. That function is published by an ESM module

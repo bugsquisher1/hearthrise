@@ -5498,6 +5498,18 @@ function showTab(tab){
      because a screen moved. showTab('social') is deliberately NOT rewritten:
      Social still exists, still opens, and now carries a signpost to the hold. */
   if(tab==='castle'||tab==='clanseat'||tab==='clan-seat'||tab==='clans')tab='clan';
+  /* b405 (showTab tap-registry): 'dungeons' is no longer its own destination —
+     it is a SECTION of the Events screen (muster.js relocates #panel-dungeons
+     inside #panel-events). This alias used to live in muster.js's showTab
+     wrapper, which REMAPPED the argument BEFORE the base ran — the one site in
+     the whole chain that transformed its input rather than reacting to it, so
+     it could not become a post-tap. It belongs here in the alias table with the
+     other route remaps (castle→clan, shops→shop): the single home, so a route
+     that used to work never stops working just because a screen moved. Net
+     behaviour is identical — #panel-events is created at muster boot and
+     persists, so the base always finds it; muster's tap still repaints it and
+     dungeons.js's tap still renders the dungeon list on 'dungeons'/'events'. */
+  if(tab==='dungeons')tab='events';
   /* b230 (Tyler): Shops is ONE destination with three toggles — Local Shop,
      Market, Premium Shop. Every name any of the three has ever been called by
      in a deep link, a CTA or a chat message resolves here and pre-selects the
@@ -5548,6 +5560,14 @@ function showTab(tab){
     if(_shopsPane==='market' && typeof window.renderMarket==='function') window.renderMarket();
   }
 }
+/* b405 (showTab tap-registry): install the SINGLE owner over the base showTab
+   right after it is declared and BEFORE any legacy block or feature module
+   registers a tap — so patchedShowTab is the one owner and every tap is a
+   post-tap on it, never a monkey-patch that captures the previous owner. The
+   registry is a classic script (src/utils/showtab-registry.js) loaded before
+   legacy.js; `function showTab` is configurable:false but writable, so the
+   owner is installed by direct assignment inside install(). */
+if(window.HearthriseShowTab) window.HearthriseShowTab.install();
 /* b229: Skills folded into the Character screen's Skills sub-tab, so "is a
    training bar on screen" is no longer just activeTab==='skills'. Every hot
    path that used to gate on that (the skill/artisan progress intervals,
@@ -9271,11 +9291,9 @@ window.onItemTap = function(id){
 };
 
 /* Re-render on tab switch; also attach when bag/bank chip clicked */
-const _origShowTabInv = window.showTab;
-window.showTab = function(tab){
-  if(typeof _origShowTabInv === 'function') _origShowTabInv(tab);
+window.HearthriseShowTab.wrapShowTab('inv-new', function(tab){
   if(tab === 'inventory') setTimeout(renderInvNew, 0);
-};
+});
 
 /* Bag/Bank chip clicks: re-render via the new path */
 document.addEventListener('click', e=>{
@@ -9692,11 +9710,9 @@ function renderBountyTab(){
 }
 
 /* Patch showTab to also dispatch the new bounty panel */
-const _prevShowTabBounty = window.showTab;
-window.showTab = function(tab){
-  if(typeof _prevShowTabBounty === 'function') _prevShowTabBounty.apply(this, arguments);
+window.HearthriseShowTab.wrapShowTab('bounty-tab', function(tab){
   if(tab === 'bounty') renderBountyTab();
-};
+});
 
 /* Patch the combat tab to NO longer show the bounty board (it has its own home now).
    We do this by overriding renderBountyPanel to return empty when we're rendering
@@ -11173,14 +11189,9 @@ function hook(){
       return r;
     };
   });
-  var origST = window.showTab;
-  if(typeof origST === 'function'){
-    window.showTab = function(t){
-      var r = origST.apply(this, arguments);
-      if(t === 'combat') setTimeout(renderStyleSelector, 50);
-      return r;
-    };
-  }
+  window.HearthriseShowTab.wrapShowTab('combat-style-selector', function(t){
+    if(t === 'combat') setTimeout(renderStyleSelector, 50);
+  });
 }
 setTimeout(hook, 0);
 setTimeout(renderStyleSelector, 400);
@@ -11602,14 +11613,9 @@ window.renderCharacter = function(){
 };
 
 /* Hook showTab to render character when navigated to */
-(function(){
-  var origST = window.showTab;
-  window.showTab = function(tab){
-    var r = (typeof origST === 'function') ? origST.apply(this, arguments) : null;
-    if(tab === 'character') setTimeout(window.renderCharacter, 0);
-    return r;
-  };
-})();
+window.HearthriseShowTab.wrapShowTab('character-render', function(tab){
+  if(tab === 'character') setTimeout(window.renderCharacter, 0);
+});
 
 /* Auto-refresh character page when active */
 setInterval(function(){
@@ -12099,20 +12105,15 @@ function paintAll(){
 });
 
 /* When showTab changes, render appropriate extras */
-(function(){
-  var origST = window.showTab;
-  window.showTab = function(tab){
-    var r = (typeof origST==='function') ? origST.apply(this, arguments) : null;
-    setTimeout(function(){
-      if(tab==='character'){ window._renderCharacterExtras(); }
-      if(tab==='combat'){ window._renderCombatEmpty(); }
-      if(tab==='inventory'){ window._renderInvSummary(); }
-      if(tab==='profile'){ injectDailyGoals(); }
-      paintAll();
-    }, 50);
-    return r;
-  };
-})();
+window.HearthriseShowTab.wrapShowTab('panel-extras', function(tab){
+  setTimeout(function(){
+    if(tab==='character'){ window._renderCharacterExtras(); }
+    if(tab==='combat'){ window._renderCombatEmpty(); }
+    if(tab==='inventory'){ window._renderInvSummary(); }
+    if(tab==='profile'){ injectDailyGoals(); }
+    paintAll();
+  }, 50);
+});
 
 function injectDailyGoals(){
   var panel = document.getElementById('panel-profile');
@@ -12338,16 +12339,11 @@ function injectFriendsStub(){ /* no-op — see the b225 note above */ }
 /* =========================================================
    HOOKS + WELCOME-BACK CATCHUP INTEGRATION
    ========================================================= */
-(function(){
-  var origST = window.showTab;
-  window.showTab = function(tab){
-    var r = (typeof origST==='function') ? origST.apply(this, arguments) : null;
-    /* b225 (#18): the Clan Activity section is state-dependent, so it is
-       re-evaluated every time the clan screen opens. */
-    if(tab === 'clan') setTimeout(syncClanActivity, 50);
-    return r;
-  };
-})();
+/* b225 (#18): the Clan Activity section is state-dependent, so it is
+   re-evaluated every time the clan screen opens. */
+window.HearthriseShowTab.wrapShowTab('clan-activity', function(tab){
+  if(tab === 'clan') setTimeout(syncClanActivity, 50);
+});
 
 /* ════════════════════════════════════════════════════════════════════════
    THE CATCHUP INJECTOR LIVED HERE, AND IS DELIBERATELY NOT REPLACED. (b342)
@@ -12976,16 +12972,9 @@ function injectProfileButton(){
   if(row) row.appendChild(btn);
 }
 setTimeout(injectProfileButton, 800);
-(function(){
-  var origST = window.showTab;
-  if(typeof origST === 'function'){
-    window.showTab = function(t){
-      var r = origST.apply(this, arguments);
-      if(t === 'profile') setTimeout(injectProfileButton, 50);
-      return r;
-    };
-  }
-})();
+window.HearthriseShowTab.wrapShowTab('profile-button', function(t){
+  if(t === 'profile') setTimeout(injectProfileButton, 50);
+});
 
 console.log('Welcome v2 loaded');
 })();
@@ -14501,16 +14490,9 @@ window.renderInvFancy = function(){
 });
 
 /* Show on tab change */
-(function(){
-  var origST = window.showTab;
-  if(typeof origST === 'function'){
-    window.showTab = function(t){
-      var r = origST.apply(this, arguments);
-      if(t === 'inventory') setTimeout(renderInvFancy, 30);
-      return r;
-    };
-  }
-})();
+window.HearthriseShowTab.wrapShowTab('inv-fancy', function(t){
+  if(t === 'inventory') setTimeout(renderInvFancy, 30);
+});
 
 setTimeout(function(){
   var panel = document.getElementById('panel-inventory');
@@ -14684,16 +14666,9 @@ window._wireDragDrop = wireDragDrop;
 setTimeout(wireDragDrop, 600);
 
 /* Also re-wire on any tab switch back to inventory */
-(function(){
-  var origST = window.showTab;
-  if(typeof origST === 'function'){
-    window.showTab = function(t){
-      var r = origST.apply(this, arguments);
-      if(t === 'inventory') setTimeout(wireDragDrop, 150);
-      return r;
-    };
-  }
-})();
+window.HearthriseShowTab.wrapShowTab('inv-dragdrop', function(t){
+  if(t === 'inventory') setTimeout(wireDragDrop, 150);
+});
 
 })(); // ← close outer IIFE for drag-drop block
 
@@ -15247,10 +15222,7 @@ function patchSkillDetail(){
 
 /* Auto-open first non-combat skill when entering Activities tab */
 function autoOpenActivity(){
-  if(typeof showTab !== 'function') return;
-  var origShowTab = showTab;
-  window.showTab = function(name){
-    var r = origShowTab.apply(this, arguments);
+  window.HearthriseShowTab.wrapShowTab('auto-open-activity', function(name){
     if(name === 'skills'){
       /* Detect if a skill is already rendered by checking the DOM, not window.openSkill
          (the original `openSkill` is a let-binding and not exposed to window — reading it
@@ -15266,8 +15238,7 @@ function autoOpenActivity(){
         }
       }
     }
-    return r;
-  };
+  });
 }
 
 function applyAll(){
@@ -16215,15 +16186,9 @@ window.renderCharacter = function(){
 };
 
 /* Hook showTab */
-(function(){
-  if(typeof window.showTab !== 'function') return;
-  var orig = window.showTab;
-  window.showTab = function(name){
-    var r = orig.apply(this, arguments);
-    if(name === 'character') setTimeout(window.renderCharacter, 30);
-    return r;
-  };
-})();
+window.HearthriseShowTab.wrapShowTab('character-rebuild', function(name){
+  if(name === 'character') setTimeout(window.renderCharacter, 30);
+});
 
 console.log('[Character Rebuild v1] loaded');
 })();

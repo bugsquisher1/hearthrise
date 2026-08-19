@@ -465,6 +465,79 @@ const TESTS = [
   () => tryRun('tabs: showTab present', () => {
     assert(typeof window.showTab === 'function', 'showTab missing');
   }),
+  /* b405 — the showTab tap-registry. These three tests are the automated proof
+     that the 24-site migration to window.HearthriseShowTab.wrapShowTab dropped
+     NO navigation trigger (the failure mode smoke normally cannot see) and that
+     the single-owner + isolation contract holds. */
+  () => tryRun('tabs: showTab tap-registry installed + every tap registered', () => {
+    const R = window.HearthriseShowTab;
+    assert(R && typeof R.wrapShowTab === 'function', 'HearthriseShowTab registry missing');
+    // The registry's patchedShowTab is the owner of the TAP-DISPATCH layer. Two
+    // legitimate wrappers sit OVER it and call through: error-boundary.js (crash
+    // safety, b334 TARGETS includes showTab) and the four legacy paintAll/
+    // paintAllV3 overlay loops (`window[name]=…` over a list that includes
+    // 'showTab'). So window.showTab is NOT literally patchedShowTab — but the
+    // registry did install (wrapShowTab calls install()), which the presence of
+    // the taps below proves, and taps fire through the chain (see the isolation
+    // and per-tab tests). Completeness — not identity — is the contract here.
+    const names = R.tapNames();
+    // Every migrated site registers a tap under a stable label. If any is absent,
+    // that navigation trigger was dropped in the migration.
+    const EXPECTED = [
+      'inv-new', 'bounty-tab', 'combat-style-selector', 'character-render', 'panel-extras',
+      'clan-activity', 'profile-button', 'inv-fancy', 'inv-dragdrop', 'auto-open-activity',
+      'character-rebuild', 'dungeons-render', 'nav-consol-bootall', 'obs-tabchange',
+      'character-page', 'activities-autoopen', 'stable-render', 'combat-tier-chips',
+      'combat-screens-nav', 'identity-decorate', 'home-dashboard', 'ui-overlap',
+      'muster-events', 'lifetime-stats-place',
+    ];
+    const missing = EXPECTED.filter((n) => !names.includes(n));
+    assert(missing.length === 0, 'showTab taps never registered (trigger dropped in migration): ' + missing.join(', '));
+  }),
+  () => tryRun('tabs: a throwing tap does not break sibling taps', () => {
+    const R = window.HearthriseShowTab;
+    let siblingRan = false;
+    const offThrow = R.wrapShowTab('__test_throw', () => { throw new Error('boom'); });
+    const offOk = R.wrapShowTab('__test_ok', () => { siblingRan = true; });
+    // The registry reports a throwing tap via console.warn + captureException by
+    // design; silence that EXPECTED noise so this test does not dirty the console.
+    const realWarn = console.warn, realCap = window.captureException;
+    console.warn = () => {}; window.captureException = () => {};
+    try {
+      // Taps are INVOKED synchronously by patchedShowTab, so this is deterministic.
+      // 'home' is a real panel and cheap to paint.
+      window.showTab('home');
+      assert(siblingRan, 'a throwing tap prevented a later tap from running — isolation broken');
+    } finally { offThrow(); offOk(); console.warn = realWarn; window.captureException = realCap; }
+  }),
+  () => tryRunAsync('tabs: per-tab panels repaint (end-to-end, no trigger dropped)', async () => {
+    const prev = window.activeTab;
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const nonEmpty = (id) => {
+      const el = document.getElementById(id);
+      return el && el.innerHTML && el.innerHTML.replace(/\s/g, '').length > 20;
+    };
+    try {
+      // Tabs whose content the BASE showTab paints synchronously.
+      for (const t of ['profile', 'combat', 'inventory', 'farming', 'shop']) {
+        window.showTab(t);
+        const panel = document.getElementById('panel-' + t);
+        assert(panel && panel.classList.contains('active'), 'panel-' + t + ' did not become active on showTab');
+        assert(nonEmpty('panel-' + t), 'panel-' + t + ' did not repaint (empty after showTab)');
+      }
+      // Skills: base paints #skills-list synchronously.
+      window.showTab('skills');
+      assert(nonEmpty('skills-list'), '#skills-list did not repaint on showTab("skills")');
+      // Character is painted ONLY by taps (character-page / character-rebuild /
+      // identity), each via setTimeout. If those taps were dropped the panel
+      // stays empty — this is the strongest end-to-end proof of the migration.
+      window.showTab('character');
+      await wait(300);
+      assert(nonEmpty('panel-character'), 'panel-character did not repaint — a character tap was dropped');
+    } finally {
+      if (prev && typeof window.showTab === 'function') { try { window.showTab(prev); } catch (e) {} }
+    }
+  }),
   () => tryRun('b162: FTUE secondary button is readable (light face, not dark-on-dark)', () => {
     // Regression: the live tour's secondary .ftue-btn kept ftue.js's dark navy
     // background while `.ftue-card *` forced cocoa text on it -> ~1.1:1 contrast.
@@ -25284,7 +25357,15 @@ const TESTS = [
        rather than tolerant for all four: a new renderer losing its boundary is
        still caught, and renderProfile stops lying in both directions. The real
        fix is the standing `wrapShowTab` debt — stop hooking by reassignment. */
-    const KNOWN_UNWRAPPED = ['renderCharacter', 'renderSkillDetail', 'showTab'];
+    /* b405 — showTab REMOVED from this list. It was here because it was hooked by
+       reassignment ~23 times and a late reassignment (autoOpenActivity via
+       applyAll, etc.) stripped the error boundary off it after wrapAll() ran. The
+       showTab tap-registry (src/utils/showtab-registry.js) paid that debt: the
+       ~24 sites are now post-taps that never reassign window.showTab, so
+       error-boundary's wrap is the LAST thing to touch it and its __hrWrapped
+       sticks deterministically. This entry now PINS that fix — if showTab ever
+       loses its boundary again, the `unexpected` assertion above fails. */
+    const KNOWN_UNWRAPPED = ['renderCharacter', 'renderSkillDetail'];
     const RACY_UNWRAPPED  = ['renderProfile'];
     const lost = T.filter((n) => !(typeof window[n] === 'function' && window[n].__hrWrapped === true));
     const unexpected = lost.filter((n) => KNOWN_UNWRAPPED.indexOf(n) < 0 && RACY_UNWRAPPED.indexOf(n) < 0);

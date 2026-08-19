@@ -430,23 +430,18 @@ export function setupActivitiesGrid() {
   window.renderSkillsList = renderSkillsList;
 
   // Auto-open first non-combat skill on entering Activities tab
-  if (typeof window.showTab === 'function') {
-    const orig = window.showTab;
-    window.showTab = function (name) {
-      const r = orig.apply(this, arguments);
-      if (name === 'skills') {
-        const detailEl = document.getElementById('skill-detail');
-        const alreadyHasGrid = detailEl && detailEl.querySelector('.act-grid');
-        if (!alreadyHasGrid) {
-          const firstId = Object.keys(SKILLS_DEF).find((k) => SKILLS_DEF[k].cat === 'gather' || SKILLS_DEF[k].cat === 'artisan');
-          if (firstId && typeof window.openSkillDetail === 'function') {
-            setTimeout(() => window.openSkillDetail(firstId), 30);
-          }
+  window.HearthriseShowTab.wrapShowTab('activities-autoopen', function (name) {
+    if (name === 'skills') {
+      const detailEl = document.getElementById('skill-detail');
+      const alreadyHasGrid = detailEl && detailEl.querySelector('.act-grid');
+      if (!alreadyHasGrid) {
+        const firstId = Object.keys(SKILLS_DEF).find((k) => SKILLS_DEF[k].cat === 'gather' || SKILLS_DEF[k].cat === 'artisan');
+        if (firstId && typeof window.openSkillDetail === 'function') {
+          setTimeout(() => window.openSkillDetail(firstId), 30);
         }
       }
-      return r;
-    };
-  }
+    }
+  });
 
   // First paint
   if (typeof renderSkillsList === 'function') setTimeout(renderSkillsList, 100);

@@ -312,16 +312,16 @@
     console.log('[observability] HearthriseEvents → analytics bridge live');
   }
 
-  // showTab → tab_change event
+  // showTab → tab_change event.
+  // b405: was a PRE-hook (tracked before the base showTab ran); as a registry
+  // post-tap it now records tab_change AFTER the panel paints. This is analytics
+  // only — the event still fires once per navigation with the same tab name, so
+  // the recorded signal is identical; only the fire order relative to render
+  // moved, which nothing downstream depends on.
   function hookShowTab(){
-    if(typeof window.showTab !== 'function'){ setTimeout(hookShowTab, 200); return; }
-    if(window.__obsTabHooked) return;
-    window.__obsTabHooked = true;
-    var orig = window.showTab;
-    window.showTab = function(name){
+    window.HearthriseShowTab.wrapShowTab('obs-tabchange', function(name){
       track('tab_change', { tab: name });
-      return orig.apply(this, arguments);
-    };
+    });
   }
 
   // Track session_start now (after a tick so contexts are settled)

@@ -549,24 +549,19 @@ export function setupCharacterPage() {
   ensureCharStyle();
   ensureSkillsHelper();
   window.renderCharacter = renderCharacter;
-  if (typeof window.showTab === 'function') {
-    const orig = window.showTab;
-    window.showTab = function (name) {
-      // b232 (Tyler): the Character screen is now an OVERVIEW (grid + account),
-      // and the activities live back under Adventure on their own #panel-skills
-      // screen. So showTab('skills') NO LONGER aliases to Character — it lands on
-      // the real Skills/activity panel (base showTab handles it, activities-grid
-      // auto-opens the first skill). Every deep link (quest-nav, Home "cook",
-      // openSkillDetail, FTUE) funnels through showTab('skills') and keeps
-      // working, now arriving at the activity screen where training happens.
-      const r = orig.apply(this, arguments);
-      if (name === 'character') {
-        window._charPane = paneOf(window._charPane);
-        setTimeout(renderCharacter, 30);
-      }
-      return r;
-    };
-  }
+  // b232 (Tyler): the Character screen is now an OVERVIEW (grid + account), and
+  // the activities live back under Adventure on their own #panel-skills screen.
+  // So showTab('skills') NO LONGER aliases to Character — it lands on the real
+  // Skills/activity panel (base showTab handles it, activities-grid auto-opens
+  // the first skill). Every deep link (quest-nav, Home "cook", openSkillDetail,
+  // FTUE) funnels through showTab('skills') and keeps working, now arriving at
+  // the activity screen where training happens.
+  window.HearthriseShowTab.wrapShowTab('character-page', function (name) {
+    if (name === 'character') {
+      window._charPane = paneOf(window._charPane);
+      setTimeout(renderCharacter, 30);
+    }
+  });
   console.log('[Character Page ESM] overview screen loaded');
 }
 

@@ -116,13 +116,23 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
-} from './accrue.js?v=404';
-import { SHOP_OFFERS } from '../data/shops.js?v=404';
-import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=404';
+} from './accrue.js?v=405';
+import { SHOP_OFFERS } from '../data/shops.js?v=405';
+import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=405';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';
 export const CLAIM_REWARD_VERB = 'claim_reward';
+/* ── unlock_buy — GOLD OUT, A PERMANENT RUNG IN. ─────────────────────────────
+   The mirror of shop_buy on the buy side and its OPPOSITE on the wire: shop_buy
+   sends an offer AND a qty, unlock_buy sends an OFFER ID AND NOTHING ELSE. No
+   price, no rung, no count — hr_unlock_buy reads price/rung/prereqs off
+   public.hr_unlock_offers under the per-character lock and merges the rung as
+   GREATEST(existing, granted), so a re-buy cannot downgrade a ladder. The two
+   sellable namespaces are `property` and `room` (unlock-catalogue.js
+   SELLABLE_NAMESPACES); worker/plot/theme/trait/companion are refused by that
+   catalogue's design and are NOT wired here. */
+export const UNLOCK_BUY_VERB = 'unlock_buy';
 /* ── b355 — THE MARKET VERBS. THE FIRST VALUE THAT LEAVES THIS PLAYER AND
    ARRIVES ON ANOTHER'S ROW. ─────────────────────────────────────────────────
    They live in THIS module rather than in a `src/net/market.js` of their own,
@@ -146,7 +156,7 @@ export const MARKET_BUY_VERB = 'market_buy';
 export const MARKET_VERBS = Object.freeze(
   [MARKET_LIST_VERB, MARKET_CANCEL_VERB, MARKET_BUY_VERB]);
 export const GOLD_VERBS = Object.freeze([SHOP_BUY_VERB, VENDOR_SELL_VERB, CLAIM_REWARD_VERB,
-  ...MARKET_VERBS]);
+  UNLOCK_BUY_VERB, ...MARKET_VERBS]);
 
 /** Mirrors `MAX_QTY` in supabase/functions/hr-accrue/request.js. A count above
  *  it is refused by the server with `bad_qty`; refusing it HERE means the
@@ -667,6 +677,13 @@ export function applyGoldEnvelope(G, body, ownKey) {
    THE REQUEST, AS DATA — pure, so the suite asserts the LITERAL bytes.
    ══════════════════════════════════════════════════════════════════════════ */
 export const OFFER_ID_RE = /^[a-z0-9_]{1,32}\.[a-z0-9_]{1,64}$/;
+/* ⚠ A SEPARATE, WIDER pattern for unlock offers — DELIBERATELY not a widening of
+   OFFER_ID_RE. An unlock offer id has 2-3 dotted segments (`property.homestead`,
+   `room.cellar.1`), which the single-dot shop pattern above would refuse. This
+   MIRRORS the server's OFFER_ID_RE in supabase/functions/hr-accrue/request.js
+   (1-3 trailing segments); a mismatch would let the client refuse an id the
+   server accepts, or send one it rejects. Kept in lockstep by tests. */
+export const UNLOCK_OFFER_ID_RE = /^[a-z0-9_]{1,40}(?:\.[a-z0-9_]{1,40}){1,3}$/;
 export const ITEM_ID_RE = /^[a-z0-9_]{1,64}$/;
 export const REWARD_KEY_RE = /^[a-z0-9_]{1,32}$/;
 
@@ -681,6 +698,12 @@ export function buildGoldRequest(opts) {
      and there never will be: the field a future caller adds by accident is the
      field that turns a NAME into a VALUE. */
   if (o.verb === SHOP_BUY_VERB) { body.offer = String(o.offer); body.qty = Number(o.qty); }
+  /* ⚠ THE OFFER ID AND NOTHING ELSE. No qty (a rung is bought once), and above
+     all NO PRICE — the price the server charges lives only in
+     public.hr_unlock_offers. A qty or cost field added here would be a client
+     number authoring a permanent capability, which is the whole thing this verb
+     was written to make impossible. */
+  else if (o.verb === UNLOCK_BUY_VERB) { body.offer = String(o.offer); }
   else if (o.verb === VENDOR_SELL_VERB) { body.item = String(o.item); body.qty = Number(o.qty); }
   else if (o.verb === CLAIM_REWARD_VERB) {
     body.reward = { kind: String(o.rewardKind), key: String(o.rewardKey) };
@@ -901,6 +924,27 @@ export function buyShop(itemId, qty, goldCost, key) {
   return sendGoldIntent({ verb: SHOP_BUY_VERB, offer: r.offer, qty: r.count }, key);
 }
 
+/**
+ * BUY A PERMANENT UNLOCK RUNG. NO PRICE CROSSES — the client names an OFFER ID
+ * and the server reads price, rung and both prerequisites off
+ * public.hr_unlock_offers, under the per-character lock, merging the rung as
+ * GREATEST(existing, granted). A refused offer (unknown, unsupported, stale
+ * version, insufficient gold, unmet prereq) is answered server-side and the
+ * local debit prediction is retired or rolled back by the same settleVerdict
+ * seam every gold verb uses.
+ *
+ * The id shape is refused LOCALLY so a malformed gesture does not spend a real
+ * player's rate budget to be told `bad_offer` — the same discipline buyShop and
+ * the market gestures follow.
+ */
+export function buyUnlock(offerId, key) {
+  const id = String(offerId == null ? '' : offerId);
+  if (!UNLOCK_OFFER_ID_RE.test(id)) {
+    return Promise.resolve(inert('unsendable', UNLOCK_BUY_VERB, 'bad_offer', { offer: id }, key));
+  }
+  return sendGoldIntent({ verb: UNLOCK_BUY_VERB, offer: id }, key);
+}
+
 export function sellItem(itemId, qty, key) {
   const id = String(itemId == null ? '' : itemId);
   const n = Number(qty);
@@ -1034,7 +1078,8 @@ if (typeof window !== 'undefined') {
     envelopeOf, receiptOf, classifyGoldResponse, dropPrediction, isAnswered, applyGoldEnvelope,
     buildGoldRequest, newIntentKey, isIntentKey, resolvePurchase, shopOfferIndex,
     configureGold, getGoldConfig, setGoldHooks, getGoldState, resetGold,
-    buyShop, sellItem, claimReward, sendGoldIntent,
+    buyShop, buyUnlock, sellItem, claimReward, sendGoldIntent,
+    UNLOCK_BUY_VERB, UNLOCK_OFFER_ID_RE,
     LEDGER: GOLD_SITE_LEDGER,
   };
 }

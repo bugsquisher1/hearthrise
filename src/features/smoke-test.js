@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=404' directly.
+// modularised, will import { G } from '../state/game.js?v=405' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=404';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=404';
+import { on, snapshot } from '../net/events.js?v=405';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=405';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=404';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=405';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -861,7 +861,14 @@ const TESTS = [
      the panel opened; none asserted a number moved).
      ══════════════════════════════════════════════════════════════════════ */
 
-  () => tryRun('b227 regression: building a room repaints the House (the double-build report)', () => {
+  // CLIENT-AUTHORITATIVE: upgradeRoom is now WIRED to unlock_buy (b3xx). Under the
+  // shipping switch a build is a PREDICTION the server envelope reconciles, so the
+  // exact local charge is only deterministic with the switch off. The subject of
+  // this test — the House REPAINTING after a completed build — is switch-agnostic;
+  // the charge assertion needs the local-payment path. The server-authoritative
+  // path (offer-only wire, prediction lifecycle) is covered by the 'unlock_buy
+  // client transport' test above and by tests/unlock-buy.mjs.
+  () => tryRunClientAuthoritative('b227 regression: building a room repaints the House (the double-build report)', () => {
     // THE BUG. refreshAll() renders profile/inventory/skills/combat/shop and
     // has never rendered the House; nothing else repainted it after a mutation
     // either. So the row kept its old level, its old price and its "Build"
@@ -950,6 +957,64 @@ const TESTS = [
       window.G.homestead = { tier: 3 };
       assert(window.upgradeRoom('forge') === true, 'rung 4 must be buildable at Stonecross Manor');
       assert(window.G.rooms.forge === 4, 'the fitted rung should be owned');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRunAsync('unlock_buy client transport: offer id crosses, a price never does', async () => {
+    // THE SLICE. upgradeProperty + upgradeRoom now debit gold through the live
+    // `unlock_buy` verb instead of authoring the number themselves. The load-
+    // bearing client property is that the wire carries an OFFER ID and NOTHING
+    // ELSE — no price, no qty, no cost — so a forged client value cannot author
+    // a permanent capability's cost. hr_unlock_buy reads the price server-side.
+    const S = window.HearthriseGold;
+    if (!S || typeof S.buildGoldRequest !== 'function') return;
+
+    // 1. THE BYTES. The unlock_buy body is exactly {verb, slot, intentId, offer}.
+    const req = S.buildGoldRequest({ verb: 'unlock_buy', slot: 0, intentId: 'k', offer: 'property.homestead' });
+    const body = JSON.parse(req.init.body);
+    assert(body.verb === 'unlock_buy' && body.offer === 'property.homestead',
+      'the unlock_buy body must carry the verb and the offer id');
+    assert(!('qty' in body) && !('price' in body) && !('cost' in body) && !('gold' in body) && !('amount' in body),
+      'the unlock_buy wire must carry NO price/qty/cost — a client price authoring a rung is the '
+      + 'exact thing this verb exists to make impossible; got ' + JSON.stringify(body));
+
+    // 2. THE ID SHAPE. Room offers have TWO dots (`room.cellar.1`); the single-dot
+    //    shop pattern would wrongly refuse them, so unlock_buy has its own mirror
+    //    of the server's OFFER_ID_RE.
+    const RE = S.UNLOCK_OFFER_ID_RE;
+    assert(RE.test('property.homestead') && RE.test('room.cellar.1') && RE.test('room.forge.4'),
+      'the unlock offer regex must accept the real property + room offer ids');
+    assert(!RE.test('room') && !RE.test('room.') && !RE.test('a.b.c.d.e') && !RE.test('Room.Cellar.1'),
+      'the unlock offer regex must reject malformed / over-segmented / cased ids');
+
+    // 3. A MALFORMED OFFER IS REFUSED LOCALLY — sent:false, no rate slot burned,
+    //    regardless of the accrual switch.
+    const bad = S.buyUnlock('not a valid id!!', S.newIntentKey ? (S.newIntentKey() || 'k') : 'k');
+    assert(bad && typeof bad.then === 'function', 'buyUnlock must return a promise');
+    const r = await bad;
+    assert(r && r.sent === false && r.reason === 'bad_offer',
+      'a malformed offer id must refuse locally as bad_offer, not go to the server; got ' + JSON.stringify(r));
+  }),
+
+  () => tryRunClientAuthoritative('unlock_buy slice: upgradeProperty resolves property.<tierId> and debits once (client-authoritative)', () => {
+    // Client-authoritative (switch off), goldSettle is the plain local debit that
+    // shipped before, so this asserts the rewiring preserved the exact charge and
+    // did not double-debit. The offer id the site would send is
+    // `property.<nextTierId>`, and it must match a real sellable offer.
+    const H = window.HearthriseHomestead;
+    if (!H || typeof H.upgradeProperty !== 'function') return;
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 0 };                 // camp → next is homestead (400g)
+      window.G.gold = 500000;
+      window.G.inventory = Object.assign({}, window.G.inventory, { copper_ore: 500, normal_log: 500 });
+      const goldBefore = window.G.gold;
+      const ok = H.upgradeProperty();
+      assert(ok === true, 'the property upgrade from camp should succeed with funds in hand');
+      assert(window.G.homestead.tier === 1, 'the tier should advance to homestead');
+      assert(window.G.gold === goldBefore - 400,
+        'the homestead upgrade must debit exactly 400 gold once (offer property.homestead); got '
+        + (goldBefore - window.G.gold));
     } finally { restoreG(snap); }
   }),
 
@@ -26575,7 +26640,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=404');
+    const KIT = await import('../data/start-kit.js?v=405');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -32216,7 +32281,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=404');
+    const S = await import('../data/shops.js?v=405');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33610,7 +33675,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=404');
+    const S = await import('../data/shops.js?v=405');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -36841,7 +36906,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=404')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=405')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -38279,7 +38344,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=404');
+    const A = await import('../net/accrue.js?v=405');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -38303,7 +38368,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=404');
+    const A = await import('../net/accrue.js?v=405');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

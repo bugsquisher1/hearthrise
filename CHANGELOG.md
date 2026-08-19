@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 405 — 2026-08-19 (Under the hood: server-owned upgrades)
+
+- 🔧 No gameplay change. Property and room upgrades now charge their gold through the server instead of the client — the first step of moving all gold spending to server-authoritative (so a forged balance can't buy anything). Same buttons, same prices; just who owns the transaction.
+
 ## v0.9.2-beta build 404 — 2026-08-19 (Under the hood: monolith cleanup)
 
 - 🔧 No gameplay change. The objectives pop-out is now its own module — the last of the self-contained pieces cleanly carved out of the original mega-file this pass. Invisible to you.

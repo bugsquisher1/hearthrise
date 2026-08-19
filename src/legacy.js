@@ -7017,9 +7017,21 @@ function upgradeRoom(id){
   }
   const missing=describeMissingCost(nx.cost);
   if(missing){notify('Missing: '+missing,'kill');return false;}
-  for(const [k,v] of Object.entries(nx.cost)){if(k==='gold')G.gold-=v;else removeItem(k,v);}
+  /* ── b3xx — THE GOLD DEBIT IS THE SERVER'S NOW (unlock_buy). ────────────────
+     `room` is a SELLABLE unlock namespace; the offer id is `room.<id>.<rung>` and
+     the SHOP_OFFERS price for it equals this rung's own `cost` (the generated
+     catalogue is drift-guarded). The gold line goes through the record seam so it
+     is a PREDICTION under the accrual switch and flip-safe (not a second write the
+     absolute envelope double-counts). ⚠ THE ITEM COST + BLUEPRINT LINES STAY
+     CLIENT-SIDE FOR NOW — item authority is a separate program; hr_unlock_buy
+     consumes the item cost server-side, so this predicts the gold half only. */
+  const _roomOffer='room.'+id+'.'+(lv+1);
+  const _rk=goldIntentKey();
+  for(const [k,v] of Object.entries(nx.cost)){if(k==='gold')goldSettle(-v,'house.upgrade_room',_rk);else removeItem(k,v);}
   if(_bpId) removeItem(_bpId,1);
   G.rooms[id]=lv+1;G.stats.roomsBuilt=(G.stats.roomsBuilt||0)+1;
+  /* FIRE AND RECONCILE — never await. No-op with the switch off. */
+  if(_rk&&window.HearthriseGold&&window.HearthriseGold.buyUnlock){const _rp=window.HearthriseGold.buyUnlock(_roomOffer,_rk);if(_rp&&_rp.catch)_rp.catch(()=>{});}
   /* "upgraded" was the word for a first BUILD too, which is the one moment the
      player most wants told plainly that the room is now theirs. */
   notify(lv===0?`${r.name} built — it's yours.`:`${r.name} upgraded to ${nx.nm||('Lv '+(lv+1))}`,'levelup');

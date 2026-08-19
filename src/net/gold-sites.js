@@ -180,9 +180,16 @@ const B = Object.freeze({
     + 'not: there is no `collected` column (asserted, migration §11(d)) and no second credit path. '
     + 'A verb here would be a second way to be paid for one sale. It survives as the v1 path for a '
     + 'switch-off client and goes with the v1 backend.',
-  UNLOCK_BUY: '`unlock_buy` — the verb for "gold buys a RUNG, not an item". Unlocks are '
-    + '`player_progress` rows with kind=\'unlock\', deliberately absent from hr_apply\'s delta '
-    + 'allowlist so the additive merge structurally cannot reach a rung. In flight, other agent.',
+  UNLOCK_BUY: 'a SELLABLE namespace in unlock_buy. The verb is LIVE (hr-accrue routes it; '
+    + 'hr_unlock_buy + public.hr_unlock_offers exist) and `property`/`room` are wired through it '
+    + '(seam:homestead.upgrade, seam:house.upgrade_room). But these five namespaces are refused BY '
+    + 'DESIGN in unlock-catalogue.js SELLABLE_NAMESPACES, each for a server-authority reason: worker '
+    + '+ plot caps live in the property tier and are in no catalogue the server has ("a cap that is '
+    + 'not enforced is not a cap"); theme is gem-priced; companion carries reqSkill/reqLv the verb '
+    + 'does not implement; trait:auto_eat already has its own applied RPC (hr_set_auto_eat). Wiring '
+    + 'them is NOT "add catalogue rows" — it is net-new server invariants + a Designer/Security pass, '
+    + 'tracked as separate work items. (buyTheme also charges GOLD client-side while its offer is '
+    + 'gem-priced — a client value the server does not model; flagged for Security.)',
   CLAN_DEPOSIT_GOLD: '`clan_deposit_gold`. `clan_deposit` exists for ITEMS (2026-08-08-clan-seat.sql) '
     + 'and has the whole pattern — server catalogue, server clock, per-call and per-day clamps off '
     + 'an append-only ledger. Gold needs the same shape and does not have it. Blocked with market-v2 '
@@ -233,6 +240,23 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + '`resolvePurchase`, which refuses on a price mismatch rather than sending a purchase whose '
       + 'price the player has not seen. 29 of the 128 authored offers are server-sellable today '
       + '(20 equip + 9 seed); the other 99 grant unlocks or cost something other than gold.',
+  },
+  'seam:homestead.upgrade': {
+    kind: 'spend', status: 'wired', verb: 'unlock_buy',
+    site: 'src/features/homestead.js upgradeProperty() — the property-tier spine',
+    note: 'NO PRICE CROSSES. The wire is the offer id `property.<tierId>` only; hr_unlock_buy reads '
+      + 'the price, the one-rung ladder and the tier-(k-1) prerequisite off public.hr_unlock_offers '
+      + 'under the per-character lock and merges the rung as GREATEST(existing, granted). The local '
+      + 'gold debit is a PREDICTION keyed to that intent; the ITEM cost lines stay client-side until '
+      + 'item authority lands (its own program), and hr_unlock_buy consumes them server-side.',
+  },
+  'seam:house.upgrade_room': {
+    kind: 'spend', status: 'wired', verb: 'unlock_buy',
+    site: 'src/legacy.js upgradeRoom() — a housing rung on the room ladder',
+    note: 'Offer id `room.<id>.<rung>`; price/rung/property-tier gate/blueprint are all read and '
+      + 're-validated inside hr_unlock_buy, never sent. GREATEST merge means re-buying a rung cannot '
+      + 'downgrade the ladder. Gold is predicted; the item cost + dungeon blueprint stay client-side '
+      + 'for now (item authority is a separate program) and are consumed server-side by the verb.',
   },
   'seam:vendor.sell_one': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
@@ -443,15 +467,14 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
   'src/dungeons.js#runDungeon': { kind: 'spend', status: 'deferred', blockedBy: B.DUNGEON_ENTRY },
   'src/dungeons.js#startManualRun': { kind: 'spend', status: 'deferred', blockedBy: B.DUNGEON_ENTRY },
-  'src/features/homestead.js#upgradeProperty': {
-    kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,
-  },
+  /* upgradeProperty is now `seam:homestead.upgrade` (wired, unlock_buy) — it no
+     longer writes `.gold` raw, so the scanner reports it under the seam id. */
   'src/features/workers.js#hire': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
   'src/legacy.js#buyBankSpaceGold': {
     kind: 'spend', status: 'deferred', blockedBy: B.DERIVED_PRICE,
     site: 'DERIVED_PRICES id `bank.gold`',
   },
-  'src/legacy.js#upgradeRoom': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
+  /* upgradeRoom is now `seam:house.upgrade_room` (wired, unlock_buy). */
   'src/legacy.js#buildPlot': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
   'src/legacy.js#buyTheme': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
   'src/legacy.js#buyTrait': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },

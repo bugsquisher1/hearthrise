@@ -219,12 +219,30 @@
       }).join(', '), 'kill');
       return false;
     }
+    /* ── b3xx — THE GOLD DEBIT IS THE SERVER'S NOW (unlock_buy). ──────────────
+       The property spine is a SELLABLE unlock namespace (unlock-catalogue.js
+       SELLABLE_NAMESPACES). The offer id is `property.<tierId>` and the SHOP_OFFERS
+       price for it is byte-identical to this tier's `cost` (verified), so nothing
+       the player sees changes — only who owns the debit. The gold line goes
+       through the record seam (window.goldSettle) so with the accrual switch ON it
+       is a PREDICTION the server envelope reconciles, and on the eventual gold
+       record-flip it is NOT a second write the absolute envelope double-counts.
+       Switch OFF, goldSettle is the plain local debit that shipped before.
+       ⚠ THE ITEM COST LINES STAY CLIENT-SIDE FOR NOW — item authority is a
+         separate program (src/net/item-ledger.js). hr_unlock_buy also consumes
+         the item cost server-side, so this predicts the gold half only. */
+    var _offer = 'property.' + nxt.id;
+    var _k = (typeof window.goldIntentKey === 'function') ? window.goldIntentKey() : null;
     Object.keys(nxt.cost).forEach(function (k) {
-      if (k === 'gold') G.gold -= nxt.cost[k];
+      if (k === 'gold') window.goldSettle(-nxt.cost[k], 'homestead.upgrade', _k);
       else if (typeof window.removeItem === 'function') window.removeItem(k, nxt.cost[k]);
       else G.inventory[k] = (G.inventory[k] || 0) - nxt.cost[k];
     });
     G.homestead.tier++;
+    /* FIRE AND RECONCILE — never await. No-op with the switch off. */
+    if (_k && window.HearthriseGold && typeof window.HearthriseGold.buyUnlock === 'function') {
+      var _p = window.HearthriseGold.buyUnlock(_offer, _k); if (_p && _p.catch) _p.catch(function () {});
+    }
     if (window.notify) notify('🏗️ ' + nxt.name + ' built! ' + (nxt.desc || ''), 'levelup');
     if (typeof window.refreshAll === 'function') window.refreshAll();
     renderCard();

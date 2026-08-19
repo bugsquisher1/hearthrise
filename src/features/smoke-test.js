@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=403' directly.
+// modularised, will import { G } from '../state/game.js?v=404' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=403';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=403';
+import { on, snapshot } from '../net/events.js?v=404';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=404';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=403';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=404';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -4707,6 +4707,34 @@ const TESTS = [
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     assert(!modal.classList.contains('show'), 'ESC did not close the lifetime-stats modal');
     window.G.stats = JSON.parse(snap);
+  }),
+
+  // render-layer extraction: the Profile "Objectives" popout moved out of
+  // legacy.js to src/render/objectives-popout.js. Pure refactor —
+  // openObjectivesPopout must stay on window (buildProfileToolbar wires it via
+  // addEventListener with the bare global). Read-only: it mirrors the
+  // #dash-objectives card innerHTML into a modal and writes no game state.
+  () => tryRun('render: objectives popout (extracted surface)', () => {
+    assert(typeof window.openObjectivesPopout === 'function',
+      'openObjectivesPopout must stay on window (buildProfileToolbar addEventListener global)');
+    // Seed a source card with a known marker the popout should mirror.
+    let src = document.getElementById('dash-objectives');
+    const hadSrc = !!src;
+    if (!src) { src = document.createElement('div'); src.id = 'dash-objectives'; document.body.appendChild(src); }
+    const savedSrc = src.innerHTML;
+    src.innerHTML = '<div class="obj-marker">OBJECTIVE_SMOKE_MARKER</div>';
+    window.openObjectivesPopout();
+    const ov = document.getElementById('prof-pop-objectives');
+    assert(ov, 'prof-pop-objectives overlay not created');
+    assert(ov.classList.contains('show'), 'objectives popout did not open (missing .show)');
+    const body = document.getElementById('prof-pop-objectives-body');
+    assert(body && body.innerHTML.indexOf('OBJECTIVE_SMOKE_MARKER') >= 0,
+      'objectives popout did not mirror #dash-objectives content');
+    // Backdrop click (target === overlay) must close it.
+    ov.dispatchEvent(new MouseEvent('click'));
+    assert(!ov.classList.contains('show'), 'backdrop click did not close the objectives popout');
+    // Restore source card state.
+    if (hadSrc) src.innerHTML = savedSrc; else src.remove();
   }),
 
   // 2nd render-layer extraction: the Active Effects panel (Profile card) moved
@@ -26547,7 +26575,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=403');
+    const KIT = await import('../data/start-kit.js?v=404');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -32188,7 +32216,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=403');
+    const S = await import('../data/shops.js?v=404');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33582,7 +33610,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=403');
+    const S = await import('../data/shops.js?v=404');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -36813,7 +36841,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=403')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=404')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -38251,7 +38279,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=403');
+    const A = await import('../net/accrue.js?v=404');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -38275,7 +38303,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=403');
+    const A = await import('../net/accrue.js?v=404');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

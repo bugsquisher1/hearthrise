@@ -13854,25 +13854,14 @@ function buildProfileToolbar(){
   var featRow = panel.querySelector('.feat-buttons');
   if(featRow) featRow.style.display = 'none';
 }
-function openObjectivesPopout(){
-  var ov = document.getElementById('prof-pop-objectives');
-  if(!ov){
-    ov = document.createElement('div');
-    ov.id = 'prof-pop-objectives'; ov.className = 'prof-popout';
-    ov.innerHTML = '<div class="prof-popout-inner" onclick="event.stopPropagation()">'+
-      '<h3>📋 Objectives</h3>'+
-      '<div id="prof-pop-objectives-body"></div>'+
-      '<button class="prof-popout-close" onclick="document.getElementById(\'prof-pop-objectives\').classList.remove(\'show\')">Close</button>'+
-      '</div>';
-    ov.addEventListener('click', function(e){if(e.target===ov) ov.classList.remove('show');});
-    document.body.appendChild(ov);
-  }
-  /* Populate body with objectives content from the original dash-objectives card */
-  var body = document.getElementById('prof-pop-objectives-body');
-  var orig = document.getElementById('dash-objectives');
-  body.innerHTML = orig ? orig.innerHTML : '<div class="muted">No objectives loaded.</div>';
-  ov.classList.add('show');
-}
+/* b40x render-layer extraction: openObjectivesPopout — the Profile "Objectives"
+   popout overlay — moved VERBATIM to src/render/objectives-popout.js
+   (classic-script IIFE, loaded after legacy.js). Read-only: it mirrors the
+   #dash-objectives card innerHTML into a modal and writes no game state. Its sole
+   caller, buildProfileToolbar above, wires it via addEventListener with the bare
+   identifier, which resolves to window.openObjectivesPopout re-exported by the
+   module. Pure refactor, byte-identical DOM. See
+   docs/design/render-extraction-pattern.md. */
 
 /* Daily Goals → Daily Quests rename in DOM */
 function renameDailyGoals(){

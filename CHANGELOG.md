@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 404 — 2026-08-19 (Under the hood: monolith cleanup)
+
+- 🔧 No gameplay change. The objectives pop-out is now its own module — the last of the self-contained pieces cleanly carved out of the original mega-file this pass. Invisible to you.
+
 ## v0.9.2-beta build 403 — 2026-08-19 (Fix: negative gear bonuses)
 
 - 🔢 Gear with a **negative** stat bonus now displays it correctly (e.g. "-5" instead of the old garbled "+-5") on the equipment stats panel. Positive bonuses are unchanged.

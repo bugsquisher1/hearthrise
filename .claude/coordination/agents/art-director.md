@@ -1928,3 +1928,13 @@ Tyler on the b221 bounty board: "looks awesome." The scene-composition approach 
 
 ### 2026-08-08 · bootstrap
 Domain seeded from project memory (`art-direction-system`, `design-review-standard`, `art-direction`). No active task. b217 art pass is live.
+
+## b395 RELEASE VISUAL GATE — Achievements render-layer extraction (PASS)
+Verified assembled main working tree (not committed). Pure-refactor extraction of showAchToast + openAchievements into src/render/achievements.js.
+- Module loaded: window.openAchievements & window.showAchToast are functions; ACHIEVEMENTS catalogue = 30.
+- Modal × hearthlight: dark gradient bg rgb(42,34,25)->rgb(27,22,15), cream text rgb(236,225,204), gold border, 30 rows, unlocked-first sort ok, maxH 338 overflow:auto scrolls (scrollH 2300). PASS.
+- Modal × cozy-light: cream gradient rgb(255,248,226)->rgb(244,228,188), brown text rgb(61,40,23), gold border. PASS.
+- Toast × both themes: fixed right:20px top:130px, ach-slide 4s (entry frame starts off-right by design, rests on-screen). hearthlight text rgb(227,199,126); cozy-light text rgb(224,166,74). PASS.
+- Desktop 1440x900 + mobile-landscape 922x423 both verified; modal centered, no clip/overflow, no horiz body overflow.
+- Dense screens: combat + inventory render full-size, no emergent breakage. Only console errors are Supabase 401 (planted fake session) — unrelated.
+Verified via DOM geometry/computed colors (screenshots don't composite in this harness).

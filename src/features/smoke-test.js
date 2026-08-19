@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=394' directly.
+// modularised, will import { G } from '../state/game.js?v=395' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=394';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=394';
+import { on, snapshot } from '../net/events.js?v=395';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=395';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=394';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=395';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -4734,6 +4734,39 @@ const TESTS = [
       window.__renderBuffsSection = savedRender;
       window.G.buffs = savedBuffs;
     }
+  }),
+
+  // 3rd render-layer extraction: the Achievements presentation (unlock toast +
+  // full modal) moved out of legacy.js to src/render/achievements.js. Pure
+  // refactor — both fns must stay on window: showAchToast (checkAchievements
+  // calls it by bare global on unlock) and openAchievements (inline onclick in
+  // the achievements button row + profile toolbar). Read-only surface.
+  () => tryRun('render: achievements toast + modal (extracted surface)', () => {
+    assert(typeof window.showAchToast === 'function',
+      'showAchToast must stay on window (checkAchievements calls it on unlock)');
+    assert(typeof window.openAchievements === 'function',
+      'openAchievements must stay on window (invoked by inline onclick handlers)');
+    // Toast: paints from the def it is handed, appends to body, auto-removes.
+    const beforeToasts = document.querySelectorAll('.ach-toast').length;
+    window.showAchToast({ icon: '🏆', name: 'Smoke Test Trophy' });
+    const toasts = document.querySelectorAll('.ach-toast');
+    assert(toasts.length === beforeToasts + 1, 'showAchToast did not append a .ach-toast');
+    const toast = toasts[toasts.length - 1];
+    assert(toast.innerHTML.indexOf('Smoke Test Trophy') >= 0, 'toast did not render the achievement name');
+    toast.remove(); // don't leave it lingering for the 4.2s timer
+    // Modal: reads window.ACHIEVEMENTS + G.achievements and paints a sorted list.
+    assert(Array.isArray(window.ACHIEVEMENTS) && window.ACHIEVEMENTS.length > 0,
+      'ACHIEVEMENTS catalogue must be published for the modal to read');
+    const snap = JSON.stringify(window.G.achievements || {});
+    window.openAchievements();
+    const ov = document.getElementById('ach-overlay');
+    assert(ov, 'ach-overlay element not created');
+    assert(ov.classList.contains('show'), 'achievements modal did not open (missing .show)');
+    const list = document.getElementById('ach-list');
+    assert(list && list.querySelectorAll('.ach-row').length === window.ACHIEVEMENTS.length,
+      'modal must render one .ach-row per catalogue entry');
+    ov.classList.remove('show');
+    window.G.achievements = JSON.parse(snap);
   }),
 
   // ── b126 regression suite: every bug we fixed in b119–b125 ──
@@ -26270,7 +26303,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=394');
+    const KIT = await import('../data/start-kit.js?v=395');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -31911,7 +31944,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=394');
+    const S = await import('../data/shops.js?v=395');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33305,7 +33338,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=394');
+    const S = await import('../data/shops.js?v=395');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -36536,7 +36569,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=394')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=395')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -37974,7 +38007,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=394');
+    const A = await import('../net/accrue.js?v=395');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -37998,7 +38031,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=394');
+    const A = await import('../net/accrue.js?v=395');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

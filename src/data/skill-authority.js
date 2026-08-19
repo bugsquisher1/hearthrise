@@ -55,10 +55,10 @@
 // PURE ESM. No DOM required to import; loads and answers in Node.
 // ============================================================================
 
-import { SKILLS_DEF } from './skills.js?v=394';
-import { COMBAT_STYLES } from '../core/styles.js?v=394';
-import { GATHER_SKILLS } from '../core/pacing.js?v=394';
-import { ARTISAN_SETTLEMENT } from './item-authority.js?v=394';
+import { SKILLS_DEF } from './skills.js?v=395';
+import { COMBAT_STYLES } from '../core/styles.js?v=395';
+import { GATHER_SKILLS } from '../core/pacing.js?v=395';
+import { ARTISAN_SETTLEMENT } from './item-authority.js?v=395';
 
 /* Hitpoints is granted on EVERY landed hit (styles.js hitXpRoute), and the
    pre-styles fallback route trains Attack+Strength — neither shows up as an

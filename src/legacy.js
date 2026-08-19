@@ -8237,16 +8237,6 @@ const _CATEGORIES = [
   {id:'bones',   label:'Bones',    test:it=>it && (it.buryXp || /bones?$/.test(it.n||''))},
   {id:'mat',     label:'Materials',test:it=>it && !it.type && !it.heals && !it.seed && !it.buryXp},
 ];
-function _itemCategoryDisplay(it){
-  if(!it) return 'mat';
-  if(it.type === 'weapon') return 'weapon';
-  if(it.type === 'armor' || it.type === 'jewelry' || it.type === 'ammo' || it.type === 'companion') return 'gear';
-  if(it.heals) return 'food';
-  if(it.seed) return 'seed';
-  if(it.buryXp) return 'bone';
-  if(/(_bar|_ore|_log|_plank)$/.test(it.id||'') || /Bar|Ore|Log|Plank/.test(it.n||'')) return 'mat';
-  return 'mat';
-}
 function _filteredItems(srcDict){
   const cat = _CATEGORIES.find(c=>c.id === window._invFilter) || _CATEGORIES[0];
   const search = (window._invSearch||'').toLowerCase().trim();
@@ -11542,11 +11532,6 @@ window.renderCharacter = function(){
     return {xpHr: xpHr, itemHr: itemHr, prodName: prodName, secs: (ms/1000).toFixed(1), nodeName: node.name};
   }
 
-  function timeToNext(curXp, hourlyXp){
-    if(!hourlyXp || hourlyXp <= 0) return '—';
-    var lv = lvl({}) ? 1 : 1;
-  }
-
   function renderSkillCard(skId){
     if(typeof SKILLS_DEF === 'undefined' || !SKILLS_DEF[skId]) return '';
     var def = SKILLS_DEF[skId];
@@ -14551,13 +14536,6 @@ console.log('Inventory rebuild v4 loaded');
 "use strict";
 
 /* ─── Helpers ─── */
-function getPreferredSlotFromItem(def){
-  if(!def) return null;
-  if(typeof getPreferredSlot === 'function') return getPreferredSlot(def);
-  /* Fallback */
-  if(def.slot === 'ring') return G.equipment.ring1 ? 'ring2' : 'ring1';
-  return def.slot || (def.type === 'weapon' ? 'weapon' : null);
-}
 function isSlotCompatible(def, targetSlot){
   if(!def || !targetSlot) return false;
   if(def.slot === targetSlot) return true;
@@ -16866,12 +16844,6 @@ setTimeout(function(){ console.log('[Buff Queue v1] loaded — '+Object.keys(DEF
 // ===== block 38: bundle-icons-js =====
 (function(){
 "use strict";
-
-// Encode each path segment (preserve slashes, encode spaces / + / etc.)
-function encPath(p){
-  if(!p) return p;
-  return p.split('/').map(function(seg){return encodeURIComponent(seg);}).join('/');
-}
 
 var BUNDLE_SKILL_ICON = {
   "attack": "assets/raw-bundle/sword-rpg-icons/shadow/1.png",

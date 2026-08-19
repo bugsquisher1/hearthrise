@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 402 — 2026-08-19 (Under the hood: dead-code cleanup)
+
+- 🔧 No gameplay change. Removed ~55 lines of confirmed-dead code (an unreachable old modal + a few abandoned helper functions), each proven unused before deletion. Less cruft = less to trip over when building new things.
+
 ## v0.9.2-beta build 401 — 2026-08-19 (Under the hood: monolith cleanup)
 
 - 🔧 No gameplay change. The biggest cleanup slice yet — the equipment paper-doll (your gear/companion display on the Character and Combat screens) is now its own module, 164 lines out of the original mega-file. Verified pixel-identical. Invisible to you; makes the gear UI far easier to work on going forward.

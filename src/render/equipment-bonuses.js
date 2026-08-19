@@ -5,31 +5,33 @@
 // (structural track, 2026-08-18). See docs/design/render-extraction-pattern.md
 // for the playbook every extraction follows.
 //
-// WHAT THIS IS: the two READ-ONLY presentation surfaces of the equipment-bonus
+// WHAT THIS IS: the READ-ONLY presentation surface of the equipment-bonus
 // summary — renderEquipmentStatsHTML (builds the "summed bonuses of everything
-// you're wearing" markup: bonus grid + armour-set line + worn list) and
-// openEquipmentBonuses (the standalone modal that wraps that markup). Both read
+// you're wearing" markup: bonus grid + armour-set line + worn list). It reads
 // window.getEquipmentTotals() (the derived totals accessor), window.EQUIP_SLOT_META
 // (slot labels), window.getArmorSetBonus() (the set-bonus computation) and
-// window.MATERIAL_TIER_NAME (tier names) and paint. Neither computes or mutates
+// window.MATERIAL_TIER_NAME (tier names) and paints. It neither computes nor mutates
 // authoritative state — getEquipmentTotals / getArmorSetBonus are the LOGIC and
-// stay in legacy.js; only the RENDER moved. Blast radius is one dialog + the
-// character-doll stats pane; zero risk to the economy or save path.
+// stay in legacy.js; only the RENDER moved. Blast radius is the character-doll
+// stats pane; zero risk to the economy or save path.
+//
+// b402: the standalone openEquipmentBonuses modal was retired here as confirmed
+// dead code — the pop-out button that once opened it was removed long ago, leaving
+// the function orphaned (zero live callers by bare call, inline onclick, or dynamic
+// dispatch across src/**, index.html, tests/**). renderEquipmentStatsHTML remains
+// the single live surface, consumed by buildTibiaDoll's Stats pane. Its modal-only
+// CSS (.eqb-card/.eqb-head/.eqb-close in theme-cozy.css) was removed with it; the
+// shared .eqb-grid/.eqb-row/.eqb-set classes stay (the Stats pane renders them).
 //
 // PURE REFACTOR. Byte-for-byte the same DOM and behaviour that used to live at
-// legacy.js window.renderEquipmentStatsHTML / window.openEquipmentBonuses — moved
-// out, not redesigned. There are NO hardcoded theme colours in this JS: the only
-// inline styles are colourless (event.stopPropagation on the card), and the 🛡️
-// glyph is pre-existing content. All colour lives in the .eqb-* selectors in
-// src/styles/{audit-overrides,theme-cozy}.css, which are already fully tokenised
-// (var(--gold-2), var(--ink), var(--ink-3), ...) and are left unchanged.
+// legacy.js window.renderEquipmentStatsHTML. There are NO hardcoded theme colours
+// in this JS; the 🛡️ glyph is pre-existing content. All colour lives in the
+// .eqb-* selectors in src/styles/{audit-overrides,theme-cozy}.css.
 //
 // Globals are read via window.* (the established src/features/* convention),
 // resolved at call time so this script may load in any order after legacy.js.
-// BOTH functions are re-exported onto window: renderEquipmentStatsHTML because
-// legacy.js's buildTibiaDoll stats pane calls window.renderEquipmentStatsHTML()
-// (two call sites), and openEquipmentBonuses so the standalone modal entry point
-// stays reachable by bare global.
+// renderEquipmentStatsHTML is re-exported onto window because legacy.js's
+// buildTibiaDoll stats pane calls window.renderEquipmentStatsHTML() (two call sites).
 // ============================================================
 (function () {
   'use strict';
@@ -56,24 +58,6 @@
       : '';
     return '<div class="eqb-grid">' + rows + '</div>' + setHtml +
       (wornList ? '<div class="eqb-sub">Equipped</div><div class="eqb-wornlist">' + wornList + '</div>' : '');
-  };
-
-  window.openEquipmentBonuses = function () {
-    var body = window.renderEquipmentStatsHTML();
-    var ov = document.getElementById('eqb-overlay');
-    if (!ov) {
-      ov = document.createElement('div');
-      ov.id = 'eqb-overlay'; ov.className = 'modal';
-      document.body.appendChild(ov);
-      ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
-    }
-    ov.innerHTML =
-      '<div class="modal-card eqb-card" onclick="event.stopPropagation()">' +
-        '<div class="eqb-head"><h3>Equipment bonuses</h3>' +
-          '<button class="eqb-close" onclick="document.getElementById(\'eqb-overlay\').classList.remove(\'show\')" aria-label="Close">×</button></div>' +
-        body +
-      '</div>';
-    ov.classList.add('show');
   };
 
   console.log('Equipment bonuses panel: loaded');

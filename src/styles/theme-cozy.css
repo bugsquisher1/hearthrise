@@ -5079,14 +5079,8 @@ body[data-theme="hearthlight"] .td-comp-stable:hover { filter: brightness(1.1); 
 
 
 
-body[data-theme="hearthlight"] .eqb-card { max-width: 380px; width: 100%; padding: 18px; }
-body[data-theme="hearthlight"] .eqb-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-body[data-theme="hearthlight"] .eqb-head h3 { margin: 0; color: var(--gold-2) !important; font-family: var(--f-display); font-size:calc(18px * var(--ui-scale, 1)); }
-body[data-theme="hearthlight"] .eqb-close {
-  background: transparent !important; border: 0 !important; color: var(--ink-3) !important;
-  font-size:calc(23px * var(--ui-scale, 1)); line-height: 1; cursor: pointer; padding: 0 4px;
-}
-body[data-theme="hearthlight"] .eqb-close:hover { color: var(--ink) !important; }
+/* b402: .eqb-card/.eqb-head/.eqb-close removed with the retired openEquipmentBonuses
+   modal (dead code). The shared .eqb-grid/.eqb-row/... below stay — the Stats pane renders them. */
 body[data-theme="hearthlight"] .eqb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 body[data-theme="hearthlight"] .eqb-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;

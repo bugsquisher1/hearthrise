@@ -16,7 +16,7 @@
 //   BEFORE legacy.js. This file is that seam; safe.js's exported `wrapShowTab`
 //   delegates here so there is exactly ONE registry, one Map, one owner —
 //   whether a caller reaches it from a classic script (`window.HearthriseShowTab`)
-//   or an ESM import (`import { wrapShowTab } from '../utils/safe.js'`).
+//   or an ESM import of `wrapShowTab` from the versioned `../utils/safe.js` module.
 //
 // The base `function showTab` (legacy.js) is `configurable:false` but WRITABLE,
 // so the owner is installed by direct assignment (NOT Object.defineProperty /

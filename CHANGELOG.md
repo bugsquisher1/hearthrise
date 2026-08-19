@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 401 — 2026-08-19 (Under the hood: monolith cleanup)
+
+- 🔧 No gameplay change. The biggest cleanup slice yet — the equipment paper-doll (your gear/companion display on the Character and Combat screens) is now its own module, 164 lines out of the original mega-file. Verified pixel-identical. Invisible to you; makes the gear UI far easier to work on going forward.
+
 ## v0.9.2-beta build 400 — 2026-08-19 (Under the hood: monolith cleanup)
 
 - 🔧 No gameplay change. Another module out of the mega-file — the level-up celebration toast now lives on its own. Invisible to you; ongoing work to keep the game easy to maintain and extend.

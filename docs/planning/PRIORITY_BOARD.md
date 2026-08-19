@@ -9,7 +9,21 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 🧊 backlog · ⛔ blocked · ⏸️ back-burner (deprioritized, not cancelled).
 **Priority:** P0 (now) · P1 (soon) · P2 (this cycle) · P3 (nice-to-have).
 
-_Last updated: 2026-08-18 (b382). Current build: **b382**, live._
+_Last updated: 2026-08-19 (b403). Current build: **b403**, live._
+
+> **🌙 OVERNIGHT AUTONOMOUS RUN (2026-08-18 night → 2026-08-19), for Tyler on wake:**
+> Ran the team on the structure-first program while you slept. **16 builds shipped (b388–b403), all gated (deterministic smoke + visual gate), all live.**
+> - **Bug batch (b388–b393):** farming/cooking-XP root fix, worker rebalance, Stable tab + drop tables, offline-clarity UX, enchant discoverability + fire→ember wording.
+> - **b394 gather-XP rebalance** (your Mithril report) — engine deployed via your paste + client synced, edge-guard green.
+> - **Render-layer extraction #3–7** (b395/b397/b398/b400/b401): Achievements, Bestiary, Equipment Bonuses, level-up toast, **equipment paper-doll (164 lines)** → `src/render/*`, all pure-refactor + byte-identical.
+> - **b399 test-determinism:** killed the b227 flake — **suite is now deterministic, 937/937**. The ratchet is trustworthy.
+> - **b402 dead-code retirement** (~55 lines, airtight-proven) · **b403** negative gear-bonus display fix.
+>
+> **⛔ NEEDS YOUR DECISION / IN-LOOP (not done autonomously — on purpose):**
+> 1. **Gold-arming: NO-GO** (§2). Verification proved arming breaks the economy (fail-closes every unstamped balance → 885/934). Real blocker = a **direction call**: build a stamped-envelope test harness (test-only, must be reviewed) OR a Security ruling on `balanceOf` fallback. Verified diff on branch `fix/gold-arm-staged`.
+> 2. **Render controllers + showTab tap-registry (Tier-2):** the next render phase, b361-class core-nav-wiring — **execution-ready plan scoped** (registry-first, then buildTibiaDoll✓→shop→farm→inventory→profile→combat, one-per-commit). Held for your in-loop session.
+> 3. **CSS→tokens:** the big theme debt — scoping plan being prepared. Piecemeal Hearthlight changes need your eyeball on cumulative coherence.
+> 4. **Engine (hr-accrue) deploys:** still your one-command paste (harness blocks me). Nothing engine-side is pending right now.
 
 > **LOCKED DIRECTION (Tyler, 2026-08-18): STRUCTURE-FIRST. PAUSE ALL NEW FEATURES
 > until the game is in a SCALABLE STATE. Beta pushed to NEXT WEEK (~2026-08-25).**

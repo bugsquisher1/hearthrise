@@ -1389,7 +1389,9 @@
   }
   // wrap the global showTab (nav clicks) so switching to Profile draws us
   window.HearthriseShowTab.wrapShowTab('home-dashboard', function (t) {
-    if (t === 'profile') setTimeout(render, 30);
+    // b407 flicker fix: render synchronously in the activating task (was 30ms
+    // defer), so the Home/Profile dashboard paints fully-formed, not empty-then-fill.
+    if (t === 'profile') render();
   });
   // keep fresh while visible (progress bars, live activity)
   setInterval(maybeRender, 1500);

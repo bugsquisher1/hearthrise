@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=398' directly.
+// modularised, will import { G } from '../state/game.js?v=399' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=398';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=398';
+import { on, snapshot } from '../net/events.js?v=399';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=399';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=398';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=399';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -18639,6 +18639,15 @@ const TESTS = [
     const prevCat = JSON.parse(JSON.stringify(window._artisanCat || {}));
     const prevViewed = window.__viewedSkillId;
     try {
+      // 0 — the base openSkillDetail must publish __viewedSkillId SYNCHRONOUSLY.
+      // It used to be set only by a setTimeout(...,600) enhancer, so a fight
+      // between boot-timer scheduling and that parked timer made this flaky:
+      // if openSkillDetail ran before the deferred install, __viewedSkillId was
+      // never set. The field is now authoritative the instant the call returns —
+      // no timer, no enhancer required.
+      window.openSkillDetail('mining');
+      assert(window.__viewedSkillId === 'mining',
+        'openSkillDetail must set __viewedSkillId synchronously (got ' + window.__viewedSkillId + ')');
       // 1 — a gathering daily opens the SKILL's detail, not the grid.
       const fish = (window.DAILY_GOAL_POOL || []).find((g) => g.id === 'fish');
       QN.go(fish);
@@ -18684,7 +18693,23 @@ const TESTS = [
   () => tryRun('b227: the Quests modal row Go button navigates and closes', () => {
     const startTab = window.activeTab || 'profile';
     const prevViewed = window.__viewedSkillId;
+    // Test isolation: earlier player-action tests inflate G's lifetime counters,
+    // which can complete AND claim every one of today's three daily goals — a
+    // finished/claimed row shows Claim, not Go, so the modal would offer no Go
+    // button and this test would fail on cumulative state rather than on the Go
+    // path it exists to prove. Force today's dailies to a fresh, unclaimed,
+    // 0-progress baseline before opening the modal, then restore.
+    const dg = window.G && window.G.dailyGoals;
+    const prevStart = dg && dg.startValues ? JSON.parse(JSON.stringify(dg.startValues)) : null;
+    const prevClaimed = dg && dg.claimed ? JSON.parse(JSON.stringify(dg.claimed)) : null;
     try {
+      const today = window.getGoalsForToday() || [];
+      if (dg) {
+        dg.startValues = dg.startValues || {};
+        dg.claimed = dg.claimed || {};
+        // startValue >= current source ⇒ getProgress() clamps to 0 ⇒ unfinished.
+        today.forEach((g) => { dg.startValues[g.id] = Number.MAX_SAFE_INTEGER; delete dg.claimed[g.id]; });
+      }
       window.showTab('profile');
       window.openQuestsModal();
       const overlay = document.getElementById('quests-modal-overlay');
@@ -18719,6 +18744,7 @@ const TESTS = [
       }
     } finally {
       try { window.closeQuestsModal(); } catch (e) {}
+      if (dg) { dg.startValues = prevStart || {}; dg.claimed = prevClaimed || {}; }
       window.__viewedSkillId = prevViewed;
       try { window.showTab(startTab); } catch (e) {}
     }
@@ -26493,7 +26519,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=398');
+    const KIT = await import('../data/start-kit.js?v=399');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -32134,7 +32160,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=398');
+    const S = await import('../data/shops.js?v=399');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -33528,7 +33554,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=398');
+    const S = await import('../data/shops.js?v=399');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -36759,7 +36785,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=398')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=399')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -38197,7 +38223,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=398');
+    const A = await import('../net/accrue.js?v=399');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -38221,7 +38247,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=398');
+    const A = await import('../net/accrue.js?v=399');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

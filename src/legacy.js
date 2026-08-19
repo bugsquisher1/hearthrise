@@ -6549,7 +6549,7 @@ function renderSkillsList(){
     </div>`).join('');
 }
 let openSkill=null;
-function openSkillDetail(id){openSkill=id;showTab('skills');setTimeout(()=>renderSkillDetail(id),0);}
+function openSkillDetail(id){openSkill=id;try{window.__viewedSkillId=id;}catch(e){}showTab('skills');setTimeout(()=>renderSkillDetail(id),0);}
 function renderSkillDetail(id){
   if(!id)return;const s=SKILLS_DEF[id];if(!s)return;
   const xp=G.skills[id]||0,lv=getLevel(id),pct=xpPct(xp)*100,toNext=xpToNext(xp);

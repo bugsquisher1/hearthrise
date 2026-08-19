@@ -274,7 +274,10 @@ declare
   -- A day in which one character acquires 20 permanent unlocks is not play; it
   -- is an engine that has stopped being told no. Set far above honest play and
   -- far below "the whole ladder in an afternoon".
-  c_max_unlocks_per_day constant int := 20;
+  -- per-NAMESPACE now (bank ladder is 30/lifetime) — the count in §(b) is
+  -- scoped to the offer's own namespace, so a legitimate 30-rung bank climb in
+  -- one day cannot be starved by (or starve) purchases in another namespace.
+  c_max_unlocks_per_day constant int := 32;
 
   v_uid    uuid;
   v_role   text;
@@ -424,14 +427,25 @@ begin
     --     counter this function maintains — the clan_deposit pattern. A counter
     --     is a second source of truth that can be reset; the ledger is the
     --     record the audit reads anyway. Bounded by the user+slot+at index.
+    --     ⚠ NAMESPACE-SCOPED (b354.1). The ceiling is per NAMESPACE, not per
+    --     character-day: the bank ladder alone is 30 rungs and a player is
+    --     entitled to climb it in one sitting, so a global 20/day would refuse a
+    --     legitimate bank run. The count therefore joins the ledger's
+    --     meta->>'unlock' back to public.hr_unlocks and keeps only rows in the
+    --     SAME namespace as the offer being bought (v_cat.namespace). Cross-
+    --     namespace purchases no longer contend for one budget, and each
+    --     namespace still cannot exceed c_max_unlocks_per_day on its own.
     v_day := public.hr_utc_day_key(now());
-    select count(*) into v_today from public.player_ledger
-     where user_id = v_uid and slot = v_slot
-       and kind = 'shop' and intent like 'unlock\_buy:%'
-       and public.hr_utc_day_key(at) = v_day;
+    select count(*) into v_today from public.player_ledger pl
+      join public.hr_unlocks u on u.unlock_id = pl.meta->>'unlock'
+     where pl.user_id = v_uid and pl.slot = v_slot
+       and pl.kind = 'shop' and pl.intent like 'unlock\_buy:%'
+       and public.hr_utc_day_key(pl.at) = v_day
+       and u.namespace = v_cat.namespace;
     if v_today >= c_max_unlocks_per_day then
       perform public.hr_reject('unlock_daily_cap',
-        jsonb_build_object('used', v_today, 'limit', c_max_unlocks_per_day, 'day', v_day));
+        jsonb_build_object('used', v_today, 'limit', c_max_unlocks_per_day,
+                           'day', v_day, 'namespace', v_cat.namespace));
     end if;
 
     -- (c) THE MERGE, AND IT IS THE WHOLE POINT: GREATEST, NEVER +=.

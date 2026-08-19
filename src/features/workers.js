@@ -135,7 +135,17 @@
         : window.balShortfall(cost, 'gold'), 'kill');
       return null;
     }
-    G.gold -= cost;
+    /* ── b4xx — THE GOLD DEBIT IS THE SERVER'S NOW (unlock_buy, slice 2). ──────
+       Crew size is a SELLABLE unlock ladder (`worker_hire.<N>`). The offer id is
+       the NEXT rung — current crew + 1 — mirroring homestead.js's
+       `property.<nextTier>`; hr_unlock_buy reads price + the per-rung property-
+       tier gate off public.hr_unlock_offers and merges the rung GREATEST. NO
+       PRICE CROSSES. The gold line goes through the record seam (window.goldSettle)
+       so with the accrual switch ON it is a PREDICTION the envelope reconciles and
+       flip-safe; switch OFF it is the plain local debit that shipped before. */
+    var _offer = 'worker_hire.' + (G.workers.hired.length + 1);
+    var _k = (typeof window.goldIntentKey === 'function') ? window.goldIntentKey() : null;
+    window.goldSettle(-cost, 'workers.hire', _k);
     var used = G.workers.hired.map(function (w) { return w.name; });
     var pool = NAMES.filter(function (n) { return used.indexOf(n) < 0; });
     var w = {
@@ -144,6 +154,10 @@
       skill: null, targetId: null, xp: 0, lastCollect: Date.now()
     };
     G.workers.hired.push(w);
+    /* FIRE AND RECONCILE — never await. No-op with the accrual switch off. */
+    if (_k && window.HearthriseGold && typeof window.HearthriseGold.buyUnlock === 'function') {
+      var _p = window.HearthriseGold.buyUnlock(_offer, _k); if (_p && _p.catch) _p.catch(function () {});
+    }
     if (window.notify) notify('🤝 ' + w.name + ' joins your homestead!', 'levelup');
     render();
     return w;

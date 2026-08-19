@@ -3684,10 +3684,24 @@ function notifyBankFull(){
 }
 function buyBankSpaceGold(){
   if(typeof G==='undefined')return false;
+  G.bank=G.bank||{};
+  /* ── b4xx — BANK CAPACITY IS A SELLABLE unlock LADDER NOW (unlock_buy, slice 2).
+     30 rungs, geometric price. The offer id is `bank.<k>` where k = the rungs
+     already owned (goldBuys); its rung VALUE is k+1. hr_unlock_buy reads the
+     price off public.hr_unlock_offers and merges GREATEST — NO PRICE CROSSES. The
+     gold line goes through the record seam so it is a PREDICTION under the accrual
+     switch and flip-safe. The 30-rung ceiling is enforced server-side; the client
+     clamp is DEFENCE-IN-DEPTH so a maxed bag stops asking. */
+  var _k0=(G.bank.goldBuys||0);
+  if(_k0>=30){ if(typeof notify==='function')notify('Bank space is maxed via gold — the Hearth Store bag is next','info'); return false; }
   var cost=bankGoldCost();
   if(!balCanAfford(cost,'gold')){ if(typeof notify==='function')notify(balShortfall(cost,'gold'),'kill'); return false; }
-  G.gold-=cost;
-  G.bank=G.bank||{}; G.bank.goldBuys=(G.bank.goldBuys||0)+1;
+  var _boffer='bank.'+_k0;
+  var _bk=(typeof goldIntentKey==='function')?goldIntentKey():null;
+  goldSettle(-cost,'bank.buy_gold',_bk);
+  G.bank.goldBuys=(G.bank.goldBuys||0)+1;
+  /* FIRE AND RECONCILE — never await. No-op with the switch off. */
+  if(_bk&&window.HearthriseGold&&window.HearthriseGold.buyUnlock){var _bp=window.HearthriseGold.buyUnlock(_boffer,_bk);if(_bp&&_bp.catch)_bp.catch(function(){});}
   if(typeof notify==='function')notify('Bank expanded +'+BANK_SPACE.gold.slots+' slots','levelup');
   if(typeof saveLocal==='function')saveLocal();
   if(typeof updateTopbar==='function')updateTopbar();
@@ -7132,8 +7146,20 @@ function buildPlot(id){
   }
   const missingB=describeMissingCost(b.cost);
   if(missingB){notify('Missing: '+missingB,'kill');return;}
-  for(const [k,v] of Object.entries(b.cost)){if(k==='gold')G.gold-=v;else removeItem(k,v);}
+  /* ── b4xx — FARM LAND IS A SELLABLE unlock LADDER NOW (unlock_buy, slice 3). ──
+     `farm_plot` is namespace `plot`; the offer id is the NEXT rung `farm_land.<N>`
+     (current farm-plot count + 1), mirroring the property spine. hr_unlock_buy
+     reads price + the per-rung property-tier gate server-side and merges GREATEST
+     — NO PRICE CROSSES. The gold line goes through the record seam so it is a
+     PREDICTION under the accrual switch and flip-safe. The OTHER plot buildings
+     (scarecrow) have no ladder and keep their client-side debit until one exists. */
+  const _isFarm=(id==='farm_plot');
+  const _foffer=_isFarm?('farm_land.'+(have+1)):null;
+  const _fk=_isFarm?goldIntentKey():null;
+  for(const [k,v] of Object.entries(b.cost)){if(k==='gold'){if(_isFarm)goldSettle(-v,'farm.build_plot',_fk);else G.gold-=v;}else removeItem(k,v);}
   G.plotBuildings.push({id,uid:Date.now()});
+  /* FIRE AND RECONCILE — never await. No-op with the switch off. */
+  if(_isFarm&&_fk&&window.HearthriseGold&&window.HearthriseGold.buyUnlock){const _fp=window.HearthriseGold.buyUnlock(_foffer,_fk);if(_fp&&_fp.catch)_fp.catch(()=>{});}
   /* b227: same missing repaint as upgradeRoom — the Plot tab's "(1/2)" count
      and its Max state never moved after a build either. Same class, same fix. */
   notify(`Built ${b.name}`,'levelup');refreshAll();renderHouseSurfaces();
@@ -7141,15 +7167,20 @@ function buildPlot(id){
 function setTheme(id){if(!G.ownedThemes.includes(id))return;G.houseTheme=id;notify('Theme applied','info');renderHouse();}
 function buyTheme(id){
   const t=HOUSE_THEMES.find(x=>x.id===id);if(!t)return;
+  /* ── b4xx — THEMES ARE GEMS-ONLY (designer ruling, slice 6). ─────────────────
+     The old gold else-branch only ever fired for the FREE default theme
+     (currency!=='gem', price 0), so it was a client gold spend that could never
+     charge anything — dead weight the gold census had to carry and a hole a
+     future non-zero gold theme could silently fall into. Non-gem themes are now
+     equipped FREE (the default is a free equip), never bought with gold. No gold
+     wiring: a gold-priced theme is not a thing this game authors. */
   if(t.currency==='gem'){
     if(!balCanAfford(t.price,'gems')){notify(balKnown('gems')?'Need more 💎. Open the Store.':balShortfall(t.price,'gems'),'kill');return;}
-    G.gems-=t.price;G.ownedThemes.push(id);G.houseTheme=id;
-    notify(`${t.name} unlocked`,'levelup');saveLocal();updateTopbar();renderHouse();
-  } else {
-    if(!balCanAfford(t.price,'gold')){notify(balShortfall(t.price,'gold'),'kill');return;}
-    G.gold-=t.price;G.ownedThemes.push(id);G.houseTheme=id;
-    notify(`${t.name} unlocked`,'levelup');saveLocal();updateTopbar();renderHouse();
+    G.gems-=t.price;
   }
+  if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);
+  G.houseTheme=id;
+  notify(`${t.name} unlocked`,'levelup');saveLocal();updateTopbar();renderHouse();
 }
 
 /* ────────────────────────────────────────────────
@@ -8735,6 +8766,18 @@ function repurchase(idx){
   const b = G.buyback[idx]; if(!b) return;
   const it = ITEMS[b.id]; if(!it){ G.buyback.splice(idx,1); return; }
   const cost = b.unit * b.qty;
+  /* ── b4xx — GATED ON THE RECORD SEAM (designer ruling, slice 7). ─────────────
+     Buy-back re-purchases at the EXACT price the vendor paid, off a 15-entry
+     LOCAL list — a client-supplied PAST PRICE. While gold is UNARMED (today)
+     clientMayWriteRecordField('gold') is true and this is the plain debit that
+     shipped before. The instant gold joins SERVER_OF_RECORD and is armed it
+     returns false and this fails CLOSED: a client past-price crossing into an
+     armed balance is a mint, and buy-back has no server verb yet (BUYBACK_LEDGER).
+     The gate is a no-op today; it becomes the guard the moment gold flips. */
+  if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
+    if(typeof notify==='function')notify('Buy-back is unavailable right now — try the shop','kill');
+    return;
+  }
   if(!balCanAfford(cost,'gold')){ notify(balKnown('gold')?'Not enough gold to buy it back':balShortfall(cost,'gold'),'kill'); return; }
   G.gold -= cost;
   addItem(b.id, b.qty);

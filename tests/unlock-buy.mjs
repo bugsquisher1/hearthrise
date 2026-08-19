@@ -460,17 +460,32 @@ async function run(mutate) {
       'select offer_id, gold, value, unlock_id, req_property_tier, req_item, items '
       + 'from public.hr_unlock_offers where refusal is null order by offer_id')).rows;
     ok(rows.length > 0, 'U1: hr_unlock_offers has no sellable row — the verb would be inert');
-    const jsIds = Object.keys(cat.UNLOCK_OFFERS).sort();
+    /* b4xx (gold slices 2-3) — the Edge sells through TWO enumerated sources, not
+       one: unlock-catalogue.js (room/property) AND gold-ladder-catalogue.js
+       (worker_hire/farm_land/bank, an intentionally DISJOINT id space forwarded by
+       isGoldLadderOffer). Both are re-priced server-side and both are refusal=null
+       rows in hr_unlock_offers, so the SQL sellable set must equal their UNION — a
+       gold-ladder rung is exactly as buyable as a room rung, and folding it in here
+       is what keeps "the Edge and the table agree about what is buyable" true now
+       that the ladders are seeded. */
+    const { GOLD_LADDER_OFFERS } = await import(
+      pathToFileURL(join(ROOT, 'src', 'data', 'gold-ladders.js')).href);
+    const edgeById = Object.create(null);
+    for (const r of GOLD_LADDER_OFFERS) {
+      edgeById[r.offer_id] = { gold: r.gold, value: r.value, unlockId: r.unlock_id };
+    }
+    for (const id of Object.keys(cat.UNLOCK_OFFERS)) edgeById[id] = cat.UNLOCK_OFFERS[id];
+    const jsIds = Object.keys(edgeById).sort();
     const sqlIds = rows.map((r) => r.offer_id).sort();
     ok(JSON.stringify(jsIds) === JSON.stringify(sqlIds),
       `U1: the Edge catalogue sells [${jsIds.length}] offers and the SQL table sells [${sqlIds.length}]. `
-      + 'They are ONE derivation read twice; a divergence means the shape half and the price half '
-      + 'disagree about what is buyable.');
+      + 'They are ONE derivation read twice (room/property + the gold ladders); a divergence means the '
+      + 'shape half and the price half disagree about what is buyable.');
     for (const r of rows) {
-      const js = cat.UNLOCK_OFFERS[r.offer_id];
-      note(Number(r.gold) === js.gold && Number(r.value) === js.value && r.unlock_id === js.unlockId,
+      const js = edgeById[r.offer_id];
+      note(!!js && Number(r.gold) === js.gold && Number(r.value) === js.value && r.unlock_id === js.unlockId,
         `U1: ${r.offer_id} — SQL says ${r.gold}g rung ${r.value} of ${r.unlock_id}, the Edge module `
-        + `says ${js.gold}g rung ${js.value} of ${js.unlockId}`);
+        + `says ${js ? js.gold : '—'}g rung ${js ? js.value : '—'} of ${js ? js.unlockId : '—'}`);
     }
   } catch (e) { if (!(e instanceof Red)) throw e; }
 

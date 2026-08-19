@@ -579,7 +579,11 @@
       if(typeof window.removeItem === 'function') window.removeItem(d.cost.key, 1);
       else window.G.inventory[d.cost.key] = Math.max(0, (window.G.inventory[d.cost.key]||0) - 1);
     }
-    if(d.cost.gold) window.G.gold -= d.cost.gold;
+    /* b4xx — GATED ON THE RECORD SEAM (see dungeons.js runDungeon). Scavenger runs
+       cost a KEY, not gold, so this branch is unreachable; the gate makes sure a
+       future gold-priced data row cannot reintroduce a client gold spend once gold
+       is armed (fails closed, no-op while unarmed). */
+    if(d.cost.gold && (typeof window.clientMayWriteRecordField!=='function' || window.clientMayWriteRecordField('gold'))) window.G.gold -= d.cost.gold;
     if(d.cost.hearth_token){
       if(typeof window.removeItem === 'function') window.removeItem('hearth_token', d.cost.hearth_token);
       else window.G.inventory.hearth_token = Math.max(0, (window.G.inventory.hearth_token||0) - d.cost.hearth_token);

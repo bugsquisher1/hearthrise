@@ -26,7 +26,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { advanceToolCarry } from './tools.js?v=407';
+import { advanceToolCarry } from './tools.js?v=408';
 
 /* ── Burn (open-fire cooking) ─────────────────────────────────────────
    Values unchanged from b225 / b227. Documented at length in

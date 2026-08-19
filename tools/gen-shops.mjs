@@ -173,8 +173,11 @@ const BANK_SPACE = L('var BANK_SPACE = {');
 // The cosmetics table is an array literal INSIDE renderShop(), not a
 // top-level const — the only priced table in the game that is not even a
 // declaration. It is extracted the same way; the anchor uniqueness check is
-// what makes that safe.
-const COSMETICS = L('const cosmetics=[');
+// what makes that safe. renderShop() (and this literal with it) was extracted
+// out of legacy.js to src/render/shop.js in the render-layer strangler-fig
+// (task #129 Phase 3.5), so the slice now reads from that file.
+const shopRenderSrc = await read('src/render/shop.js');
+const COSMETICS = sliceLiteral(shopRenderSrc, 'const cosmetics=[', 'src/render/shop.js');
 const VENDOR_RAW_RATE = sliceNumber(legacy, 'const VENDOR_RAW_RATE', 'src/legacy.js');
 
 const dungeonsSrc = await read('src/dungeons.js');
@@ -336,9 +339,9 @@ const addTable = (meta, offers) => { tables.push({ ...meta, offers }); };
     grant: [line('unlock', `cosmetic:${c.id}`, 1)],
   }));
   addTable({
-    table: 'cosmetic', origin: 'src/legacy.js', anchor: 'const cosmetics=[',
+    table: 'cosmetic', origin: 'src/render/shop.js', anchor: 'const cosmetics=[',
     spends_at: 'legacy.js buyCosmetic(id, price)',
-    note: 'array literal inside renderShop(), not a top-level declaration',
+    note: 'array literal inside renderShop() (extracted to src/render/shop.js), not a top-level declaration',
   }, offers);
 }
 

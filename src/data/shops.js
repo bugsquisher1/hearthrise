@@ -27,7 +27,7 @@
 //   equip             20  src/legacy.js
 //   bounty             5  src/legacy.js
 //   trait              1  src/legacy.js
-//   cosmetic           4  src/legacy.js
+//   cosmetic           4  src/render/shop.js
 //   bank               1  src/legacy.js
 //   iap                9  src/legacy.js
 //   property           5  src/features/homestead.js
@@ -977,10 +977,10 @@ export const SHOP_TABLES = [
   },
   {
     "table": "cosmetic",
-    "origin": "src/legacy.js",
+    "origin": "src/render/shop.js",
     "anchor": "const cosmetics=[",
     "spends_at": "legacy.js buyCosmetic(id, price)",
-    "note": "array literal inside renderShop(), not a top-level declaration",
+    "note": "array literal inside renderShop() (extracted to src/render/shop.js), not a top-level declaration",
     "count": 4
   },
   {

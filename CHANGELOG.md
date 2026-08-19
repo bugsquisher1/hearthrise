@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 408 — 2026-08-19 (Under the hood: shop module extracted)
+
+- 🔧 No gameplay change. The Shop screen (Local Shop, Market, Premium) is now its own clean module carved out of the original mega-file — ~290 lines lighter. Same shop, same prices, same buttons; just easier to maintain and safer to change.
+
 ## v0.9.2-beta build 407 — 2026-08-19 (Fix: no more flicker on tab switches)
 
 - ✨ Screens now appear fully-formed the instant you switch tabs, instead of flashing empty for a split second and then filling in. Most noticeable on the Character screen. Same content, just painted in one go.

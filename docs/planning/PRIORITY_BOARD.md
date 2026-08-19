@@ -22,7 +22,7 @@ _Last updated: 2026-08-19 (b403). Current build: **b403**, live._
 > **⛔ NEEDS YOUR DECISION / IN-LOOP (not done autonomously — on purpose):**
 > 1. **Gold-arming: NO-GO** (§2). Verification proved arming breaks the economy (fail-closes every unstamped balance → 885/934). Real blocker = a **direction call**: build a stamped-envelope test harness (test-only, must be reviewed) OR a Security ruling on `balanceOf` fallback. Verified diff on branch `fix/gold-arm-staged`.
 > 2. **Render controllers + showTab tap-registry (Tier-2):** the next render phase, b361-class core-nav-wiring — **execution-ready plan scoped** (registry-first, then buildTibiaDoll✓→shop→farm→inventory→profile→combat, one-per-commit). Held for your in-loop session.
-> 3. **CSS→tokens:** the big theme debt — scoping plan being prepared. Piecemeal Hearthlight changes need your eyeball on cumulative coherence.
+> 3. **CSS→tokens:** the big theme debt — **execution-ready plan scoped.** Key finding: the token *architecture* is already mature; the debt is un-converted component *literals*, and the easy "Class A" (literal already = a token's cozy value) ones are nearly exhausted. Most remaining are "Class B" — foreign colors (teal remnants, status reds) whose conversion **mints a token + shifts Hearthlight = a design decision no test can judge.** So it's structurally in-loop: ~9 screen-batches (order: homestead/clan shakedown → inventory → combat → buttons → …), <20 new tokens, each with a cozy-identical guard test + your per-screen coherence review. Not unattended-safe.
 > 4. **Engine (hr-accrue) deploys:** still your one-command paste (harness blocks me). Nothing engine-side is pending right now.
 
 > **LOCKED DIRECTION (Tyler, 2026-08-18): STRUCTURE-FIRST. PAUSE ALL NEW FEATURES

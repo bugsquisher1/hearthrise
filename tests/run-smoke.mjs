@@ -1452,6 +1452,15 @@ async function unlockModelPreflight() {
     ['gen-unlock-offers.mjs', 'Unlock offer preflight',
       'a price, a prerequisite or the eligibility predicate moved and the generated offer '
       + 'catalogue no longer matches — hr_unlock_buy charges out of that table'],
+    /* slices 2 & 3. The gold-spend ladders (worker_hire/farm_land/bank) are
+       generated from src/data/gold-ladders.js and drift-guarded against the live
+       game data they mirror (workers.js HIRE_COSTS, homestead.js TIERS,
+       legacy.js BANK_SPACE + PLOT_BUILDINGS). A balance change to any of those
+       without a matching manifest edit — or a hand-edit of the migration —
+       fails here, because hr_unlock_buy charges out of that seeded table. */
+    ['gen-gold-ladders.mjs', 'Gold-ladder preflight',
+      'a gold-spend ladder price, its tier gate or the bank curve moved and the generated '
+      + 'migration no longer matches the game data — hr_unlock_buy charges out of that table'],
     ['derive-perks-of.mjs', 'hr_perks_of derivation',
       'the restated hr_perks_of is no longer perk-channel\'s body plus its declared patches'],
     /* b353. The same rule applied to THE DETECTOR, and the reason it is worth a

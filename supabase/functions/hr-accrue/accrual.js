@@ -2111,3 +2111,183 @@ export function levelsOf(skills) {
   for (const k in (skills || {})) out[k] = levelFromXp(Number(skills[k]) || 0);
   return out;
 }
+
+// ============================================================================
+// THE HIRED-WORKER ACCRUAL — the settlement slice that lets the inventory flip
+// arm. Read src/data/item-authority.js's "UNBACKED-OWNABLE-MINT LANDMINE" block
+// and docs/design/worker-settlement.md before touching this.
+//
+// ── WHY IT IS NOT A KIND_ACCRUER ────────────────────────────────────────────
+// Combat / gather / artisan are the ACTIVE POINTER: exactly one runs, priced
+// tick-by-tick over [accrued_to, now()]. Worker production is a PARALLEL,
+// CONTINUOUS activity — a hired crew gathers WHILE the player fights, or while
+// they are idle, or away — so it has its OWN watermark, `workers_accrued_to`,
+// and its own span. It runs ALONGSIDE the pointer accrual (index.ts), never
+// through KIND_ACCRUERS, and index.ts must run it EVEN WHEN the pointer accrual
+// refuses (idle / below-min / unsupported) — a pointer that owes nothing does
+// not mean a crew that owes nothing. That decoupling is the whole slice.
+//
+// ── DETERMINISTIC BY CONSTRUCTION — NO RNG, SO away == live ─────────────────
+// The yield is a pure arithmetic function of (crew, node catalogue, span). It
+// draws NO random number — `avgQty` is the band midpoint, exactly as
+// src/features/workers.js `accrueWorker` computes it — so a settle over a span
+// is byte-identical whether the player was away for it or online for it. There
+// is ONE worker settle path (this function); the client's setInterval loop
+// becomes display-only prediction reconciled to the server envelope, so there
+// is no second path to diverge, the same shape server-farming has.
+//
+// ── THE RATE TABLE IS src/features/workers.js, VERBATIM ─────────────────────
+// BASE_EFF 0.10 + 0.008·(lvl-1), MAX_LVL 10, level = min(10, 1+floor(sqrt(
+// xp/2000))), perTickMs = node.ms / eff, ticks = floor(span/perTickMs),
+// avgQty = (qty[0]+qty[1])/2, qty = floor(ticks·avgQty), workerXp = floor(
+// ticks·node.xp·0.5). This is an AUTHORITY move, not a balance change: the
+// numbers are the CURRENT (post-b389) live client numbers, so the flip does not
+// alter a single yield. (The change contract's `avgQty=floor(...)` is the one
+// place it and workers.js disagree; workers.js's un-floored midpoint is used so
+// the [1,2] nodes — e.g. maple_tree — keep their exact live yield. Flagged in
+// the report; either is deterministic and safe.)
+//
+// ── THE CAP AND THE FLOOR ───────────────────────────────────────────────────
+// Span is clamped to WORKER_ACCRUE_CAP_MS (24h), the same "workers rest without
+// direction" rule the client enforces. Below the pointer's ACCRUE_MIN_MS the
+// engine still settles workers (a crew ticks on its own clock, not the
+// pointer's) — the only floor is `ticks > 0` per worker.
+//
+// ── SIGNED-DELTA / CATALOGUE HYGIENE ────────────────────────────────────────
+// Every produced id is checked against the ITEMS catalogue (`catalogueHas`),
+// exactly as accrueGather does, because hr_apply refuses the WHOLE delta on one
+// unknown id and that would cost a crew its whole window. A worker can only ever
+// be ASSIGNED a gather node (hr_worker_assign validates skill ∈ {woodcutting,
+// mining, fishing} and the node id), so every produced id is a gather product —
+// which is exactly why the client mint of these ids is the flip's arm-blocker.
+//
+// ⚠ KNOWN RESIDUAL (under-pay, never over-pay). `workers_accrued_to` advances to
+//   now() and ticks are floored PER WORKER PER SETTLE, so the sub-tick remainder
+//   is discarded each call — unlike the client's per-worker `lastCollect`, which
+//   preserves it. With one shared watermark and heterogeneous per-worker
+//   perTickMs there is no scalar that preserves every remainder. The loss is
+//   bounded by < 1 tick per worker per settle and is strictly an UNDER-payment
+//   (the one safe direction — it can never mint or delete). If worker settles
+//   become frequent (a 60s accrue cadence), the accumulated loss is material and
+//   the fix is a per-worker fractional carry column (the tool_carry shape); it is
+//   scoped in the report, not built here, because the contract pins the single
+//   `workers_accrued_to` watermark. hr_state_of's completeness third arm gates on
+//   `now() - workers_accrued_to >= 60s`, which also bounds settle frequency.
+// ============================================================================
+export const WORKER_BASE_EFF = 0.10;
+export const WORKER_EFF_PER_LVL = 0.008;
+export const WORKER_MAX_LVL = 10;
+export const WORKER_ACCRUE_CAP_MS = 24 * 3600000;
+
+/** A worker's level from its lifetime xp — min 1, capped at WORKER_MAX_LVL.
+ *  Mirrors src/features/workers.js `level`. */
+export function workerLevel(xp) {
+  return Math.min(WORKER_MAX_LVL, 1 + Math.floor(Math.sqrt(nat(xp, 0) / 2000)));
+}
+/** Efficiency (fraction of the active rate) at a worker's level. Mirrors
+ *  src/features/workers.js `eff`. */
+export function workerEff(xp) {
+  return WORKER_BASE_EFF + WORKER_EFF_PER_LVL * (workerLevel(xp) - 1);
+}
+
+/**
+ * Settle a hired crew over [workers_accrued_to, now()].
+ *
+ * @param input  every field is SERVER-owned. Nothing here may originate in a
+ *               request body — the crew and its assignments are written only by
+ *               hr_worker_hire / hr_worker_assign, the node catalogue is
+ *               authored data, and the clock is `now()`.
+ *   nowMs               the SERVER clock
+ *   workersAccruedToMs  player_state.workers_accrued_to (null/absent → nowMs,
+ *                       i.e. a brand-new column settles nothing on the first pass
+ *                       — the self-configuring switch tool_carry/fight use)
+ *   crew                [{ uid, skill, target_id, xp }] from player_workers
+ *   nodes               the GATHER INDEX — GATHER_NODES, `{ id: {skill, node} }`,
+ *                       null-prototype (indexGatherNodes). The SAME index
+ *                       accrueGather reads, so a worker and a live gatherer price
+ *                       one node identically.
+ *   items               the ITEMS catalogue (unknown-id hygiene)
+ *
+ * @returns { accrued:false, reason } when nothing was produced (no crew, no
+ *          span, or every worker idle/sub-tick) — index.ts then advances no
+ *          worker watermark, so the window is deferred, never confiscated —
+ *          OR { accrued:true, items, workers, summary } where:
+ *            items    `{ id: +qty }`  (POSITIVE only — a crew never debits)
+ *            workers  `{ uid: { xp: +n } }`  per-worker, NEVER player xp
+ *            summary  aggregate scalars for the ledger meta (never per-tick)
+ */
+export function accrueWorkers(input) {
+  const inp = input || {};
+  const nowMs = nat(inp.nowMs, 0);
+  const fromMs = nat(inp.workersAccruedToMs, nowMs);
+  const crew = Array.isArray(inp.crew) ? inp.crew : [];
+  const nodes = inp.nodes || {};
+  const items = inp.items || {};
+
+  if (!crew.length) return { accrued: false, reason: 'no_crew' };
+  const spanMs = Math.min(Math.max(0, nowMs - fromMs), WORKER_ACCRUE_CAP_MS);
+  if (spanMs <= 0) return { accrued: false, reason: 'no_span' };
+
+  const itemDelta = Object.create(null);
+  const workerXp = Object.create(null);
+  let itemKinds = 0;           // recomputed after the loop from itemDelta
+  let totalQty = 0;
+  let workingCount = 0;
+
+  for (const w of crew) {
+    if (!w || typeof w.uid !== 'string' || !/^[a-z0-9_]{1,64}$/.test(w.uid)) continue;
+    // OWN-PROPERTY lookup on the null-prototype index (see accrueGather). An
+    // idle worker (no target) or an inconsistent assignment (skill ≠ the node's
+    // skill) produces NOTHING — never a mispriced haul against the wrong node.
+    if (!w.target_id || !catalogueHas(nodes, w.target_id)) continue;
+    const entry = nodes[w.target_id];
+    if (!entry || !entry.node || !w.skill || entry.skill !== w.skill) continue;
+    const node = entry.node;
+    const ms = nat(node.ms, 0);
+    if (!(ms > 0)) continue;
+    const eff = workerEff(w.xp);
+    const perTickMs = ms / eff;
+    const ticks = Math.floor(spanMs / perTickMs);
+    if (ticks <= 0) continue;
+    workingCount++;
+
+    // avgQty = the band MIDPOINT, un-floored (workers.js), so [1,2] nodes keep
+    // their exact live yield. No RNG — the deterministic contract.
+    const q0 = nat(node.qty && node.qty[0], 0);
+    const q1 = nat(node.qty && node.qty[1], 0);
+    const avgQty = (q0 + q1) / 2;
+    const qty = Math.max(0, Math.floor(ticks * avgQty));
+    const prod = node.prod;
+    if (qty > 0 && prod && catalogueHas(items, prod)) {
+      itemDelta[prod] = (itemDelta[prod] || 0) + qty;
+      totalQty += qty;
+    }
+    // WORKER XP — per-worker, never player xp, never a skill row (workers.js).
+    // Shape is `{ uid: { xp: +n } }` — the sub-delta hr_apply validates and
+    // credits into player_workers.xp, keyed by a uid it confirms is the caller's
+    // own crew member.
+    const xpGain = Math.floor(ticks * nat(node.xp, 0) * 0.5);
+    if (xpGain > 0) {
+      workerXp[w.uid] = { xp: ((workerXp[w.uid] && workerXp[w.uid].xp) || 0) + xpGain };
+    }
+  }
+
+  const items_ = {};
+  for (const id in itemDelta) { items_[id] = itemDelta[id]; itemKinds++; }
+
+  // Nothing produced (all idle, all sub-tick) → defer. The watermark does NOT
+  // advance in this case (index.ts omits workers_accrued_to), exactly as the
+  // pointer engine leaves accrued_to alone on a refusing reason.
+  if (itemKinds === 0 && Object.keys(workerXp).length === 0) {
+    return { accrued: false, reason: 'nothing_accrued' };
+  }
+
+  return {
+    accrued: true,
+    items: items_,
+    workers: workerXp,
+    summary: {
+      spanMs, itemKinds, qty: totalQty, workers: workingCount, capped: (nowMs - fromMs) > spanMs,
+    },
+  };
+}

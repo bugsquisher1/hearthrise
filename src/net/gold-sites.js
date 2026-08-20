@@ -300,10 +300,17 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'off public.hr_unlock_offers and merges the one-rung `companion:<id>` ladder GREATEST — NO '
       + 'PRICE and no skill level cross the wire. The gold debit is a PREDICTION keyed to the intent. '
       + '⚠ ARM-GATED (designer ruling b): the buy is guarded on clientMayWriteRecordField(\'gold\') '
-      + 'and fails CLOSED once gold is armed, because the pet EFFECT is still CLIENT-applied '
-      + '(hr_perks_of → blocked:no_server_pet_model) — buying an accrual-bonus pet whose bonus the '
-      + 'server does not yet honour would be "pay gold, get nothing". A future server pet-perk model '
-      + 'lifts the gate; the effect application itself is unchanged, only BUYING is gated.',
+      + 'and fails CLOSED once gold is armed, because the pet EFFECT was still CLIENT-applied — '
+      + 'buying an accrual-bonus pet whose bonus the server did not honour would be "pay gold, get '
+      + 'nothing". ── UN-GATE UNBLOCKED (2026-08-20, companion-model.sql): the server now OWNS the '
+      + 'equipped id (player_state.companion_equipped, written only by hr_companion_equip after an '
+      + 'ownership check) and PROJECTS the passive bonus (hr_perks_of → companion:{id,xp}; '
+      + 'sources.companions → derived), priced at accrual by src/core/companion-perk.js. Lifting this '
+      + 'gate is therefore correct — BUT it must land WITH the paired client wiring that makes '
+      + 'equipCompanion()/unequipCompanion() call hr_companion_equip, or the server sees no equipped '
+      + 'id and pays nothing (the same "pay gold, get nothing" hazard, one layer over). Systems '
+      + 'Engineer handoff: (1) wire the equip RPC, (2) drop the clientMayWriteRecordField(\'gold\') '
+      + 'return in _buyCompanion. Both gated on this migration + the Edge redeploy being live.',
   },
   'seam:vendor.sell_one': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',

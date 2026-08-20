@@ -255,6 +255,12 @@ const ALSO_LINTED = [
      toucher of hr_perks_of; PART 1f-ii pins that chain as its third link. Listed
      here so `sources` holds it for the derivation walk and the grant lints. */
   '2026-08-20-renown.sql',
+  /* The equipped-companion channel — the CURRENT last toucher of hr_perks_of
+     (HR_PERKS_OF_CHAIN link 4). It `create or replace`s hr_perks_of (a faithful
+     superset of renown's body + the companion field) AND creates a SECURITY
+     DEFINER RPC hr_companion_equip, so it is here for the derivation walk and
+     the grant lints. */
+  '2026-08-20-companion-model.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -362,6 +368,12 @@ const HR_PERKS_OF_CHAIN = [
   '2026-08-15-perk-channel.sql',
   '2026-08-16-artisan-progress-model.sql',
   '2026-08-20-renown.sql',
+  // FOURTH link: the equipped-companion channel. A faithful SUPERSET of renown's
+  // body — the whole artisan gate + the renown channel carried verbatim — that
+  // INSERTS the companion read + the `companion` returned field and changes ONLY
+  // the sources.companions census line (blocked → derived), its sole declared
+  // removal below.
+  '2026-08-20-companion-model.sql',
 ];
 
 // ── THE hr_assert_grant_hygiene DERIVATION CHAIN ─────────────────────────
@@ -529,6 +541,11 @@ const CLIENT_CALLABLE = new Map([
      how the next deliberate grant gets waved through by the check that still
      agrees with it. */
   ['hr_set_auto_eat', ['authenticated']],
+  /* The companion equip toggle — the player owns which companion is equipped.
+     Ownership-gated + version-bumping + collect-first-guarded (the hr_set_auto_eat
+     pattern), deliberately NOT granted to hr_engine (2026-08-20-companion-model.sql
+     §5 records the matching hr_client_rpc_baseline row; §6 re-runs the detector). */
+  ['hr_companion_equip', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {
@@ -955,6 +972,15 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     '2026-08-20-renown.sql': [
       "    'renownAllXp', 0,",
       "      'renown',     'blocked:no_server_renown_score',",
+    ],
+    /* hr_perks_of: 2026-08-20-companion-model.sql restates renown's body to add
+       the equipped-companion channel. It is a faithful SUPERSET — the artisan
+       gate, the renown channel and every other source line are carried verbatim
+       — and INSERTS the companion read + the `companion` returned field (both
+       additive). The ONLY line it removes is the companions census entry, whose
+       value changes from blocked to derived. */
+    '2026-08-20-companion-model.sql': [
+      "      'companions', 'blocked:no_server_pet_model')",
     ],
     '2026-08-15-intent-key-hygiene.sql': [
       // C3: the replay lookup and its comparison also read `slot`.

@@ -19,6 +19,7 @@ import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
 import { perkChannelGuard } from './perk-channel.mjs';
+import { companionPerkGuard } from './companion-perk.mjs';
 import { artisanProgressGuard } from './artisan-progress-model.mjs';
 import { goalCountersGuard } from './goal-counters.mjs';
 import { goalCatalogueDriftGuard } from './goal-catalogue-drift.mjs';
@@ -1736,6 +1737,21 @@ const run = async () => {
     } else {
       console.log('\nPerk channel guard — an unlock row reaches burnChance with the client\'s own '
         + 'magnitude; the degrade path is inert; a forged state cannot name a number.');
+    }
+    /* ── The companion perk-channel guard (2026-08-20-companion-model) ───────
+       The equipped companion's passive bonus is server-owned and byte-parity-
+       safe: a seeded fight with a companion equipped scores BYTE-IDENTICAL away
+       vs live (it draws no rng and pays on the permanent channel), the level
+       curve matches the client, and the degrade path is inert. This is the
+       AWAY-1 obligation for the companion layer. */
+    const companionProblems = await companionPerkGuard();
+    if (companionProblems.length) {
+      console.log('\nCompanion perk guard (away == live with a pet equipped) — FAILED:');
+      for (const p of companionProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nCompanion perk guard — a seeded fight with a companion equipped is byte-identical '
+        + 'away vs live; the passive bonus is server-owned and draw-free.');
     }
     /* ── The artisan progress model guard (b352) ────────────────────────
        The two shapes that block a server-paid artisan night, end to end on a

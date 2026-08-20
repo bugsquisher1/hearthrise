@@ -142,6 +142,61 @@ import { catalogueHas } from './intents.js';
    sub-threshold absence, and the server has no reason to inherit that. */
 export const ACCRUE_MIN_MS = 60000;
 
+/**
+ * ── THE INVENTORY-COMPLETENESS CONTRACT (inventory-flip Step B1) ────────────
+ *
+ * The dormant absolute-replace flip (src/net/accrue.js) may only fire on an
+ * envelope the SERVER certifies `inventory_complete === true`. That flag is
+ * emitted by hr_state_of (2026-08-24-inventory-complete.sql), NOT here — but it
+ * is a statement ABOUT this engine, so its truth condition is defined here, in
+ * ONE place, and hr_state_of reads that same fact rather than a parallel copy:
+ *
+ *   inventory_complete  ⟺  this engine has NO pending, un-drained window that
+ *                          could still grant an OWNABLE item.
+ *
+ * The engine's own "nothing to settle" boundary is exactly `grantMs <
+ * ACCRUE_MIN_MS` (see computeAccrual's SKIP.TOO_SOON return) or a non-payable
+ * pointer (SKIP.NO_ACTIVITY / SKIP.UNSUPPORTED). hr_state_of gates on precisely
+ * that — `now() - greatest(accrued_to, active_since) < ACCRUE_MIN_MS` for a
+ * payable pointer, true otherwise — reading the SAME watermark this engine
+ * advances (`accrued_to`) and the SAME constant below. There is no second
+ * completeness computation to disagree; the SQL literal `interval '60 seconds'`
+ * is pinned to this export by tests/inventory-complete-probe.mjs.
+ *
+ * ⚠ WHY THIS IS SUFFICIENT FOR THE CHAINED-CRAFT HAZARD (accrue.js:863). The
+ *   flip's real blocker is a freshly-crafted OWNED output whose input chain the
+ *   server has not finished settling — invisible to hr_state_of, DELETED by an
+ *   absolute replace. Under this engine that cannot arise while the flag is
+ *   true, for two structural reasons hr_state_of DEPENDS ON:
+ *     (1) ATOMIC SETTLE — accrueArtisan/accrueGather/the combat tail each emit
+ *         ONE signed item delta (inputs consumed + outputs produced) that
+ *         hr_apply applies in ONE transaction, so player_inventory never holds a
+ *         half-settled craft.
+ *     (2) COLLECT-BEFORE-SWITCH — set-activity stamps accrued_to = now() on every
+ *         pointer change, fully draining the old activity's window into
+ *         player_inventory before the next begins, so no chain spans two pointers
+ *         mid-flight.
+ *   The ONLY window in which player_inventory can lag the owned set is the
+ *   currently-active pointer's un-drained tail — which the flag gates on. If
+ *   either guarantee is ever weakened (genuine multi-pointer or partial
+ *   settlement, where a settle advances accrued_to while leaving inventory
+ *   inconsistent), the flag MUST gain an explicit engine-STAMPED completeness
+ *   column and this contract must be revisited. Stated so a future change to the
+ *   settle shape cannot silently invalidate the flip.
+ *
+ * @returns true when a pointer in state `{activeKind, accruedToMs, activeSinceMs}`
+ *   has NO pending grant window at `nowMs` — the exact predicate hr_state_of's
+ *   `inventory_complete` field mirrors. Exported for the parity/pin test; the
+ *   engine's runtime path does not call it (it reaches the same boundary through
+ *   the SKIP.TOO_SOON / SKIP.NO_ACTIVITY returns).
+ */
+export function inventoryBaselineComplete({ activeKind, activeId, accruedToMs, activeSinceMs, nowMs }) {
+  if (!PAYABLE_KINDS.includes(activeKind) || !activeId) return true;
+  if (!Number.isFinite(Number(activeSinceMs)) || Number(activeSinceMs) <= 0) return false;
+  const watermark = Math.max(nat(accruedToMs, 0), nat(activeSinceMs, 0));
+  return (nat(nowMs, 0) - watermark) < ACCRUE_MIN_MS;
+}
+
 /* An absolute fuse on the span, independent of hr_offline_cap_ms. If the cap
    function is ever wrong, mis-granted or replaced, this still bounds one
    accrual to a day of ticks. Two independent limits, because `capMs` is the

@@ -120,7 +120,7 @@ const activities = [];
 const pushNodes = (arr, skill) => {
   for (const n of arr) activities.push({
     kind: 'gather', activity_id: n.id, req_skill: skill, req_lv: Math.trunc(n.req ?? 1),
-    max_hp: null,
+    max_hp: null, is_boss: false,
   });
 };
 pushNodes(TREES, 'woodcutting');
@@ -129,7 +129,7 @@ pushNodes(FISH_SPOTS, 'fishing');
 for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) {
   for (const r of list) activities.push({
     kind: 'artisan', activity_id: r.id, req_skill: skill, req_lv: Math.trunc(r.req ?? 1),
-    max_hp: null,
+    max_hp: null, is_boss: false,
   });
 }
 for (const id of Object.keys(MONSTERS).sort()) {
@@ -143,7 +143,16 @@ for (const id of Object.keys(MONSTERS).sort()) {
     throw new Error(`monster '${id}' has hp ${JSON.stringify(MONSTERS[id].hp)} — every combat `
       + 'activity must carry a positive max_hp, because hr_apply clamps a carried fight against it');
   }
-  activities.push({ kind: 'combat', activity_id: id, req_skill: null, req_lv: null, max_hp: hp });
+  /* is_boss — the ONLY server source of "which monster is a boss", generated
+     from src/data/monsters.js so the renown `bossKill` term (5 renown per boss
+     felled, src/features/renown.js W.bossKill) can be derived from the Slice 1
+     `ev:kill_monster:<id>` population WITHOUT a hand-typed boss list in SQL.
+     A hand-typed list would be exactly the data double-copy this generator
+     exists to prevent, and it would be the CLAMP on a rankable surface, so
+     drift would silently mis-score renown. `hr_renown_of` joins the bestiary
+     rows against `hr_activities where is_boss`. */
+  activities.push({ kind: 'combat', activity_id: id, req_skill: null, req_lv: null,
+    max_hp: hp, is_boss: MONSTERS[id].boss === true });
 }
 activities.sort((a, b) => (a.kind + a.activity_id).localeCompare(b.kind + b.activity_id));
 
@@ -351,6 +360,13 @@ create table if not exists public.hr_activities (
 -- combat row on a null ceiling and quietly make hr_apply's fight clamp vacuous.
 alter table public.hr_activities
   add column if not exists max_hp int;
+-- is_boss — additive, same self-configuring shape as max_hp/auto_eatable: a
+-- database that created hr_activities before this column existed must not leave
+-- every combat row FALSE (which would silently zero the renown bossKill term
+-- for everyone). NOT NULL default false, and the self-check below asserts the
+-- combat boss COUNT so a re-apply against an older DB is caught.
+alter table public.hr_activities
+  add column if not exists is_boss boolean not null default false;
 do $$
 begin
   if not exists (select 1 from pg_constraint
@@ -437,8 +453,8 @@ ${valuesBlock(skills, (r) => `  (${q(r.skill_id)},${q(r.name)},${q(r.cat)})`)};
 insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv) values
 ${valuesBlock(crops, (r) => `  (${q(r.crop_id)},${q(r.seed_item)},${q(r.prod_item)},${n(r.base_hours)},${n(r.req_lv)})`)};
 
-insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp) values
-${valuesBlock(activities, (r) => `  (${q(r.kind)},${q(r.activity_id)},${q(r.req_skill)},${n(r.req_lv)},${n(r.max_hp)})`)};
+insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss) values
+${valuesBlock(activities, (r) => `  (${q(r.kind)},${q(r.activity_id)},${q(r.req_skill)},${n(r.req_lv)},${n(r.max_hp)},${b(r.is_boss)})`)};
 
 -- The starting kit. hr_start_kit is a ONE-ROW table (only_row), so it is an
 -- upsert rather than a delete+insert: hr_create_character() reads it, and a
@@ -515,6 +531,20 @@ begin
   -- that would let a carried fight name a tree.
   select count(*) into v_bad from public.hr_activities where kind <> 'combat' and max_hp is not null;
   if v_bad > 0 then raise exception '% non-combat activities carry a max_hp', v_bad; end if;
+
+  -- BOSS FLAG. Asserted the same way as max_hp/auto_eatable: a re-apply against
+  -- a database that created hr_activities before is_boss existed must not leave
+  -- every combat row FALSE, which would silently zero the renown bossKill term.
+  select count(*) into v_n from public.hr_activities where kind = 'combat' and is_boss;
+  if v_n <> ${activities.filter((r) => r.kind === 'combat' && r.is_boss).length} then
+    raise exception 'combat activities flagged is_boss: %, generator emitted ${activities.filter((r) => r.kind === 'combat' && r.is_boss).length} — '
+      'the renown bossKill term would be mis-scored', v_n;
+  end if;
+  -- ...and no non-combat row may be a boss (a gather node flagged boss would
+  -- mint renown from ev:kill_monster keys that never collide with it anyway,
+  -- but the invariant is asserted so the column stays meaningful).
+  select count(*) into v_bad from public.hr_activities where kind <> 'combat' and is_boss;
+  if v_bad > 0 then raise exception '% non-combat activities are flagged is_boss', v_bad; end if;
 
   -- AUTO-EATABLE. The count is asserted, so a re-apply against a database that
   -- created hr_items before the column existed cannot leave every row on the

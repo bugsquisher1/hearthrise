@@ -403,17 +403,23 @@ export function restedPayload(state) {
        carried in the contract and left unread, and this note is what stops
        the next reader concluding it was forgotten.
 
-   ── BLOCKED ─────────────────────────────────────────────────────────────
-   renownAllXp   BLOCKED ON: a server-side renown score.
-       `src/features/renown.js` scores renown from ~10 terms — total level,
-       combat level, kills, boss kills, quests completed, collection entries,
-       the daily streak, lifetime gold. Skill XP is server-owned; quests,
-       collection, streak and lifetime gold have NO server progress model
-       (the same gap `accrual.js` names for dailies and quests). Deriving
-       renown from the subset that exists would produce a DIFFERENT rank from
-       the client's, and a rank is a visible title — a divergence a player can
-       read off the screen. Worth +4% allXP at High King.
-       Unblocks with: the quest/daily/collection progress models.
+   ── DERIVED NOW, and wired (live-progress Slice 4, 2026-08-20) ───────────
+   renownAllXp   SERVER-DERIVED via `public.hr_renown_of` (see
+       supabase/migrations/2026-08-20-renown.sql). `hr_perks_of` computes the
+       renown SCORE from server rows only — totalLevel/combatLevel/skill99
+       (player_skills), the lifetime kill aggregate and per-boss kills
+       (player_progress ev:kill_any / ev:kill_monster:<id> ∩ hr_activities
+       is_boss), collection (Slice 2 ev:loot:%), streak (Slice 3
+       player_state.streak_days) and goldLog (player_state.gold) — and maps it
+       through the RANKS allXP thresholds to fill this channel. Worth up to +4%
+       allXP at High King, capped at PERMANENT_CAP.
+       ⚠ TWO terms — `questDone` and `bountyDone` — have NO server progress
+       model in any merged slice and are DEGRADED TO 0 server-side rather than
+       trusted from the client (renown is a rankable surface; a forged input is
+       a NO-GO). So the server renown UNDER-pays a player with quests/bounties,
+       which is the safe direction for a perk. The visible rank/title stays the
+       client's ratcheted score until the claim RPC makes rank server-owned.
+       Fully closes with the quest/daily/bounty progress models.
 
    castle        BLOCKED ON: nothing structural — it is scope, and it crosses
        an ownership boundary. Castle building levels and the castle tier are

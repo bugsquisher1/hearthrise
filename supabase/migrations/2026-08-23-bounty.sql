@@ -308,7 +308,13 @@ begin
   if p_type is distinct from 'cull' then
     return jsonb_build_object('ok', false, 'error', 'type_not_server_verifiable', 'type', p_type);
   end if;
-  if p_difficulty not in ('easy','normal','hard','elite') then
+  -- ⚠ 'elite' is REFUSED at the server (Security ruling 2026-08-23): elite is never
+  -- board-generated and is gated only by the client-owned Bounty-Hunter level, so every
+  -- 'elite' reaching the server is forged — and it scales tradeable gold up to 1.75×.
+  -- Durable fix (tracked): server-own the difficulty (server-derived board seed OR
+  -- server-owned BH level with difficulty<=unlocked). The easy/normal/hard residual
+  -- (<=1.53x) is a bounded, self-only, journalled residual accepted with that follow-up.
+  if p_difficulty not in ('easy','normal','hard') then
     return jsonb_build_object('ok', false, 'error', 'bad_difficulty', 'difficulty', p_difficulty);
   end if;
 
@@ -528,6 +534,10 @@ begin
     -- non-cull refused.
     v := public.hr_accept_bounty__ungated(v_slot, 'b1', v_t1, 'streak', 'normal', 40);
     if v->>'error' <> 'type_not_server_verifiable' then raise exception 'GATE(d): non-cull accepted: %', v; end if;
+    -- 'elite' difficulty refused server-side (Security ruling 2026-08-23): never board-generated,
+    -- gated only by client BH level, scales tradeable gold 1.75x → every elite is forged.
+    v := public.hr_accept_bounty__ungated(v_slot, 'b1', v_t1, 'cull', 'elite', 40);
+    if v->>'error' <> 'bad_difficulty' then raise exception 'GATE(d): elite difficulty accepted: %', v; end if;
     -- unknown monster refused.
     v := public.hr_accept_bounty__ungated(v_slot, 'b1', 'no_such_mon', 'cull', 'normal', 40);
     if v->>'error' <> 'unknown_monster' then raise exception 'GATE(d): unknown monster accepted: %', v; end if;

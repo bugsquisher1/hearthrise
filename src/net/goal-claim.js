@@ -106,6 +106,28 @@
     /* Renown RANK credit — supabase/migrations/2026-08-22-renown-claim.sql. The server
        ratchets a high-water off hr_renown_of, maps it to the rank via a server-owned
        catalogue, and credits gold+gems once-guarded per rank. Fire-and-forget. */
-    claimRank: function (rankId) { return call('hr_claim_rank', { p_rank_id: String(rankId || ''), p_slot: activeSlot() }); }
+    claimRank: function (rankId) { return call('hr_claim_rank', { p_rank_id: String(rankId || ''), p_slot: activeSlot() }); },
+    /* Bounty ACCEPT — supabase/migrations/2026-08-23-bounty.sql. The server derives
+       the tier from hr_bounty_monsters, owns the reward + required-count, and
+       SNAPSHOTS the target's current kill count as the baseline into active_bounty so
+       the turn-in requires NEW kills. Only the ids/type/difficulty cross the wire; the
+       reward never does. 'cull' only (proof/weapon/streak are refused server-side). */
+    acceptBounty: function (b) {
+      b = b || {};
+      return call('hr_accept_bounty', {
+        p_slot: activeSlot(),
+        p_bounty_id: String(b.id || ''),
+        p_target: String(b.target || ''),
+        p_type: String(b.type || ''),
+        p_difficulty: String(b.difficulty || 'normal'),
+        p_required: Math.max(0, Math.floor(Number(b.required) || 0))
+      });
+    },
+    /* Bounty TURN-IN — the once-guarded credit. The server reads the target's CURRENT
+       kill count, subtracts the accept-time baseline, and credits server-owned gold +
+       Bounty Marks only if (current - baseline) >= required; the active_bounty row IS
+       the once-guard (deleted under a row lock). Fire-and-forget: a replay returns
+       no_active_bounty with no second credit. */
+    claimBounty: function () { return call('hr_claim_bounty', { p_slot: activeSlot() }); }
   };
 })();

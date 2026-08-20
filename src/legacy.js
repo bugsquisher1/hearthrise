@@ -16155,22 +16155,25 @@ window._buyCompanion = function(id, price){
      and NO skill level cross the wire. The gold line goes through the record seam
      so it is a PREDICTION under the accrual switch and flip-safe.
 
-     ── GATED ON THE RECORD SEAM (designer ruling b, slice 4). ──────────────────
-     The companion's pet EFFECT is NOT modelled server-side yet — hr_perks_of
-     returns `blocked:no_server_pet_model` — so all four shop companions grant a
-     GOVERNED accrual bonus (sparrow→gatherSpeed, honeybee→cookSpeed,
-     raccoon→goldFind, owl→prayerSpeed) that only the CLIENT applies. Selling one
-     once gold is ARMED would be "pay gold, bonus silently doesn't apply". So while
-     gold is UNARMED (today) clientMayWriteRecordField('gold') is true and the buy
-     works normally; the instant gold joins SERVER_OF_RECORD and is armed this
-     returns false and the buy fails CLOSED, until a future server pet-perk model
-     lifts the gate. The EFFECT keeps applying client-side either way — it is the
-     only thing making the pet do anything until that model exists. This mirrors
-     buyback's arm-gate exactly. */
-  if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
-    if(typeof notify==='function') notify('Companions can\'t be bought right now — check back soon','kill');
-    return;
-  }
+     ── ARM-GATE LIFTED (b420, was designer ruling b / slice 4). ────────────────
+     The gate that used to defer the buy under arm is GONE. It existed because the
+     companion's pet EFFECT was CLIENT-applied, so buying a bonus pet once gold was
+     armed would be "pay gold, bonus silently doesn't apply". That reason is now
+     closed server-side: the equipped id is SERVER-OWNED (player_state.
+     companion_equipped, written only by hr_companion_equip after an ownership
+     check — see equipCompanion()'s transport in src/features/companions.js), and
+     hr_perks_of PROJECTS the equipped companion's PASSIVE bonus, priced at accrual
+     by src/core/companion-perk.js. So the passive bonus is honoured by the SERVER
+     whether or not gold is armed, and the purchase is safe to arm.
+
+     ⚠ WHAT IS STILL CLIENT-ONLY, AND WHY IT DOES NOT REOPEN THE HAZARD: the
+     companion PROCS (gold/extraGold, e.g. the raccoon's +5g/kill) remain a live
+     client-authored grant, and rollProc() in features/companions.js KEEPS its own
+     clientMayWriteRecordField('gold') defer — an armed proc no-ops there, not here.
+     Procs are a bonus on top of a bought pet, not the thing bought; a pet with its
+     passive honoured is not "pay gold, get nothing" just because one RNG proc is
+     deferred until the RNG-seam follow-up. So the PURCHASE arms now; the PROC stays
+     gated at its own site. */
   if(!balCanAfford(price,'gold')){ if(typeof notify==='function') notify(balShortfall(price,'gold'),'kill'); return; }
   if(G.companions && G.companions.ownedIds.indexOf(id) >= 0){ if(typeof notify==='function') notify('Already owned','info'); return; }
   var _ck=(typeof goldIntentKey==='function')?goldIntentKey():null;

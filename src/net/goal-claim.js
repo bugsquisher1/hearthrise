@@ -128,6 +128,26 @@
        Bounty Marks only if (current - baseline) >= required; the active_bounty row IS
        the once-guard (deleted under a row lock). Fire-and-forget: a replay returns
        no_active_bounty with no second credit. */
-    claimBounty: function () { return call('hr_claim_bounty', { p_slot: activeSlot() }); }
+    claimBounty: function () { return call('hr_claim_bounty', { p_slot: activeSlot() }); },
+    /* Companion EQUIP / UNEQUIP — supabase/migrations/2026-08-20-companion-model.sql.
+       hr_companion_equip(slot, companion, unequip) sets the SERVER-OWNED
+       player_state.companion_equipped AFTER an ownership check (a companion:<id>
+       unlock row or the starter fox), and hr_perks_of prices the equipped
+       companion's passive bonus at accrual. Only the id crosses the wire; the
+       server owns the ownership test, the bonus and the version bump.
+
+       Fire-and-forget, DISPLAY-PREDICTION shape like the claim transports: the
+       client sets G.companions.equipped optimistically for responsiveness and the
+       server reconciles on the next envelope. A refusal (not_owned / collect_first /
+       rate_limited) costs nothing the client authored — the equipped id is a
+       display preference, not a value that crosses to another player; the passive
+       bonus it unlocks is priced SERVER-SIDE off the server's own equipped id, so a
+       forged local equip pays nothing until the server accepts it. */
+    equipCompanion: function (id) {
+      return call('hr_companion_equip', { p_slot: activeSlot(), p_companion: String(id || ''), p_unequip: false });
+    },
+    unequipCompanion: function () {
+      return call('hr_companion_equip', { p_slot: activeSlot(), p_companion: null, p_unequip: true });
+    }
   };
 })();

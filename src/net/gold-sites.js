@@ -299,18 +299,18 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'hr_unlock_buy reads the price AND the skill prerequisite (honeybee cooking 25, owl prayer 50) '
       + 'off public.hr_unlock_offers and merges the one-rung `companion:<id>` ladder GREATEST — NO '
       + 'PRICE and no skill level cross the wire. The gold debit is a PREDICTION keyed to the intent. '
-      + '⚠ ARM-GATED (designer ruling b): the buy is guarded on clientMayWriteRecordField(\'gold\') '
-      + 'and fails CLOSED once gold is armed, because the pet EFFECT was still CLIENT-applied — '
-      + 'buying an accrual-bonus pet whose bonus the server did not honour would be "pay gold, get '
-      + 'nothing". ── UN-GATE UNBLOCKED (2026-08-20, companion-model.sql): the server now OWNS the '
+      + '── ARM-GATE LIFTED (b420). The buy is NO LONGER gated on clientMayWriteRecordField(\'gold\'); '
+      + 'it is buyable under arm, because the pet EFFECT is now SERVER-OWNED. The server owns the '
       + 'equipped id (player_state.companion_equipped, written only by hr_companion_equip after an '
       + 'ownership check) and PROJECTS the passive bonus (hr_perks_of → companion:{id,xp}; '
-      + 'sources.companions → derived), priced at accrual by src/core/companion-perk.js. Lifting this '
-      + 'gate is therefore correct — BUT it must land WITH the paired client wiring that makes '
-      + 'equipCompanion()/unequipCompanion() call hr_companion_equip, or the server sees no equipped '
-      + 'id and pays nothing (the same "pay gold, get nothing" hazard, one layer over). Systems '
-      + 'Engineer handoff: (1) wire the equip RPC, (2) drop the clientMayWriteRecordField(\'gold\') '
-      + 'return in _buyCompanion. Both gated on this migration + the Edge redeploy being live.',
+      + 'sources.companions → derived), priced at accrual by src/core/companion-perk.js. The paired '
+      + 'client wiring landed WITH the un-gate: equipCompanion()/unequipCompanion() in '
+      + 'src/features/companions.js fire HearthriseGoalClaim.equipCompanion()/.unequipCompanion() '
+      + '(hr_companion_equip), so the server learns the equipped id and pays the passive bonus. '
+      + '⚠ The companion PROCS (gold/extraGold) stay client-authored and KEEP their own '
+      + 'clientMayWriteRecordField(\'gold\') defer at rollProc (src/features/companions.js#rollProc, '
+      + 'the two grant rows below) — a proc is a bonus on top of the bought pet, not the pet, and it '
+      + 'no-ops under arm until the RNG-seam follow-up.',
   },
   'seam:vendor.sell_one': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
@@ -609,9 +609,9 @@ export const GOLD_SITE_LEDGER = Object.freeze({
      default is a free equip (slice 6). The old deferred gold row is retired. */
   'src/legacy.js#buyTrait': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
   /* _buyCompanion is now `seam:companion.buy` (wired, unlock_buy — slice 4); it no
-     longer writes `.gold` raw, so the scanner reports it under the seam id. The
-     buy is ARM-GATED (clientMayWriteRecordField) until a server pet-perk model
-     exists — see the seam row above. */
+     longer writes `.gold` raw, so the scanner reports it under the seam id. b420:
+     the arm-gate is LIFTED (the pet EFFECT is server-owned now) — see the seam row
+     above. The companion PROCS stay gated at rollProc, their own grant rows. */
   'src/legacy.js#repurchase': {
     kind: 'spend', status: 'deferred', blockedBy: B.BUYBACK_LEDGER,
   },

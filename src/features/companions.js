@@ -203,6 +203,20 @@ export function equipCompanion(id) {
   }
   window.G.companions.equipped = id;
   if (window.G.equipment) window.G.equipment.companion = id === 'fox' ? 'fox_companion' : id;
+  /* SERVER TRANSPORT (b420) — tell the server which companion is equipped so
+     hr_perks_of prices its passive bonus at accrual. The local write above is a
+     DISPLAY PREDICTION for responsiveness; the server owns the equipped id
+     (player_state.companion_equipped, written only by hr_companion_equip after an
+     ownership check) and reconciles on the next envelope. Fire-and-forget: a
+     refusal (not_owned / collect_first) costs nothing the client authored — the
+     bonus is server-priced off the SERVER's equipped id, never this local one. */
+  try {
+    var _gc = window.HearthriseGoalClaim;
+    if (_gc && typeof _gc.equipCompanion === 'function') {
+      var _p = _gc.equipCompanion(id);
+      if (_p && _p.catch) _p.catch(function () {});
+    }
+  } catch (e) {}
   emit('companionEquip', { id });
   if (typeof window.renderProfile === 'function') window.renderProfile();
   if (typeof window.renderInvFancy === 'function') window.renderInvFancy();
@@ -214,6 +228,16 @@ export function unequipCompanion() {
   ensureState();
   window.G.companions.equipped = null;
   if (window.G.equipment) window.G.equipment.companion = null;
+  /* SERVER TRANSPORT (b420) — clear the server-owned equipped id (unequip is
+     always allowed server-side). Same fire-and-forget display-prediction shape as
+     equipCompanion above. */
+  try {
+    var _gc = window.HearthriseGoalClaim;
+    if (_gc && typeof _gc.unequipCompanion === 'function') {
+      var _p = _gc.unequipCompanion();
+      if (_p && _p.catch) _p.catch(function () {});
+    }
+  } catch (e) {}
   emit('companionEquip', { id: null });
   if (typeof window.renderProfile === 'function') window.renderProfile();
   if (typeof window.renderInvFancy === 'function') window.renderInvFancy();

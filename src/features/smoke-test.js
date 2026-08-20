@@ -1328,18 +1328,22 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('slice 4: shop-companion buy is arm-gated — works UNARMED, fails CLOSED when gold is armed', () => {
+  () => tryRun('b420: shop-companion buy is NO LONGER arm-gated — buyable both UNARMED and when gold is armed', () => {
+    // The b410 clientMayWriteRecordField('gold') defer in _buyCompanion is LIFTED:
+    // the pet EFFECT is server-owned now (hr_companion_equip owns the equipped id,
+    // hr_perks_of prices the passive bonus), so buying under arm is no longer "pay
+    // gold, get nothing". This test proves the buy grants + debits in BOTH arm
+    // states — the inverse of the old fails-CLOSED assertion.
     if (typeof window._buyCompanion !== 'function' || !window.COMPANIONS || !window.COMPANIONS.sparrow) return;
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const S = window.HearthriseGold;
     // Stub buyUnlock so the (signed-out) transport does not immediately roll back
-    // the seam prediction — this test measures the GATE + the local debit, not the
-    // server round-trip. resetGold() clears the outstanding prediction after.
+    // the seam prediction — this test measures the un-gate + the local debit.
     const origBuy = S && S.buyUnlock;
     try {
       if (S && typeof S.buyUnlock === 'function') S.buyUnlock = function () { return Promise.resolve({ sent: false }); };
-      // UNARMED (today): clientMayWriteRecordField('gold') true → the buy works.
+      // UNARMED: the buy works.
       window.clientMayWriteRecordField = function () { return true; };
       window.G.companions = { ownedIds: [], xp: {}, equipped: null };
       window.G.gold = 100000;
@@ -1348,18 +1352,86 @@ const TESTS = [
       assert(window.G.companions.ownedIds.indexOf('sparrow') >= 0, 'unarmed buy must grant the companion');
       assert(window.G.gold === before - 5000, 'unarmed buy must debit the price once; got -' + (before - window.G.gold));
 
-      // ARMED: clientMayWriteRecordField('gold') false → refused, no grant, no debit.
+      // ARMED: gold on SERVER_OF_RECORD → the buy STILL works (no longer gated).
       window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
       window.G.companions = { ownedIds: [], xp: {}, equipped: null };
       window.G.gold = 100000;
       const g2 = window.G.gold;
       window._buyCompanion('honeybee', 8000);
-      assert(window.G.companions.ownedIds.indexOf('honeybee') < 0, 'armed buy must NOT grant the companion (pet effect is client-only)');
-      assert(window.G.gold === g2, 'armed buy must NOT debit gold; got -' + (g2 - window.G.gold));
+      assert(window.G.companions.ownedIds.indexOf('honeybee') >= 0, 'ARMED buy must grant the companion — the gate is lifted (pet effect is server-owned)');
+      assert(window.G.gold === g2 - 8000, 'ARMED buy must debit the price once; got -' + (g2 - window.G.gold));
     } finally {
       window.clientMayWriteRecordField = origMay;
       if (S && origBuy) S.buyUnlock = origBuy;
       try { S && S.resetGold(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('b420: equipping a companion fires hr_companion_equip with the companion id; unequip fires p_unequip', () => {
+    // The equip transport tells the server which companion is equipped so
+    // hr_perks_of can price its passive bonus. Stub HearthriseGoalClaim to capture
+    // the RPC the equip/unequip gestures send.
+    if (typeof window.equipCompanion !== 'function' || typeof window.unequipCompanion !== 'function') return;
+    const GC = window.HearthriseGoalClaim;
+    if (!GC || typeof GC.equipCompanion !== 'function' || typeof GC.unequipCompanion !== 'function') {
+      assert(false, 'HearthriseGoalClaim.equipCompanion/unequipCompanion transport must exist');
+    }
+    const snap = snapshotG();
+    const origEquip = GC.equipCompanion;
+    const origUnequip = GC.unequipCompanion;
+    const sent = [];
+    try {
+      GC.equipCompanion = function (id) { sent.push(['equip', id]); return Promise.resolve({ ok: true }); };
+      GC.unequipCompanion = function () { sent.push(['unequip']); return Promise.resolve({ ok: true }); };
+      window.G.companions = { ownedIds: ['fox', 'sparrow'], xp: { fox: 0, sparrow: 0 }, equipped: null };
+      window.equipCompanion('sparrow');
+      const eq = sent.find((a) => a[0] === 'equip');
+      assert(eq && eq[1] === 'sparrow', 'equipCompanion must fire the transport with the companion id; sent ' + JSON.stringify(sent));
+      window.unequipCompanion();
+      assert(sent.some((a) => a[0] === 'unequip'), 'unequipCompanion must fire the unequip transport; sent ' + JSON.stringify(sent));
+    } finally {
+      GC.equipCompanion = origEquip;
+      GC.unequipCompanion = origUnequip;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('b420: companion gold PROC stays arm-gated (the un-gate is purchase-only, not the proc)', () => {
+    // The PURCHASE un-gated, but rollProc's clientMayWriteRecordField('gold') defer
+    // for gold/extraGold procs is UNTOUCHED. Reuses the b342 MARK harness: a
+    // distinctive proc amount (no gather reward is near it) fired through the
+    // addItem/gather seam with chance=1. With gold UNARMED the proc pays exactly
+    // once; with gold ARMED it pays NOTHING — proving the proc gate survives.
+    if (!window.COMPANIONS || !window.COMPANIONS.fox || typeof window.addItem !== 'function') return;
+    const MARK = 1e7;
+    const G = window.G;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const savedFoxProc = JSON.parse(JSON.stringify(window.COMPANIONS.fox.proc));
+    const fireGatherProc = () => {
+      const g0 = G.gold;
+      G.activeMonster = null; G.activeArtisanRecipe = null; G.activeSkill = 'mining';
+      window.addItem('copper_ore', 1);
+      return Math.floor((G.gold - g0) / MARK);
+    };
+    try {
+      Object.assign(window.COMPANIONS.fox.proc,
+        { trigger: 'gather', chance: 1, effect: 'extraGold', amount: MARK, label: '__b420proc__' });
+      G.companions = { ownedIds: ['fox'], xp: { fox: 0 }, equipped: 'fox' };
+
+      // UNARMED: the proc pays once (control — proves the harness fires the proc).
+      window.clientMayWriteRecordField = function () { return true; };
+      G.gold = 0;
+      assert(fireGatherProc() === 1, 'control: an UNARMED gold proc must pay exactly once');
+
+      // ARMED: the rollProc gold-flip defer no-ops the whole proc — nothing minted.
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
+      G.gold = 0;
+      assert(fireGatherProc() === 0, 'an ARMED companion gold proc must mint NO gold — the proc gate must stay');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.COMPANIONS.fox.proc = savedFoxProc;
       restoreG(snap);
     }
   }),

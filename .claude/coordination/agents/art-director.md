@@ -1,5 +1,22 @@
 # Art Director — running log
 
+### 2026-08-19 · b409 ASSEMBLED-MAIN RELEASE VISUAL GATE (main 8939001) — PASS
+Post-merge gate on assembled main (shop-extraction b408 + gold slices 2-3). Booted static:8000,
+planted fake supabaseSession (gold 1M). Verified structurally (pane never composites — screenshots
+trap; used read_page/javascript_tool). Desktop 1440×900 AND landscape 922×423.
+- Worker hire (Homestead→Property): "Hire worker — 3,000g" wired (onclick fn), cost shown. PASS.
+- Farm plot build + Scarecrow: 8 plots, Plant/Water/Upgrade Plot wired; Scarecrow renders w/ scarecrow.png. PASS.
+- Bank buy: openBankModal renders escalating gold row (12,426,224 shown, "cost rises" note) + gem row; correct disable when unaffordable. PASS.
+- House theme picker: buyTheme confirmed gems-only (gold else-branch deleted, slice 6), free default equips. PASS.
+- Vendor buy-back row (shop): "VENDOR BUY-BACK / Buy Back…" wired. PASS.
+- Shop screen (b408): Local Shop / Market / Premium all render post-merge (panel-shop + panel-market hosts). PASS.
+- b361 dense glance: Combat + Inventory render, no broken imgs (wtc-img 0x0 was lazy-load-without-paint harness artifact — fetch 200, eager load gave naturalWidth 128), no emoji. PASS.
+- No horizontal overflow at 922×423 on any b409 surface (maxRight 900 ≤ 922). Nav present (#bottom-nav 64px left rail, 16 tabs).
+- Console: only 401/400 Supabase (fake session). Zero thrown/render errors.
+STANDING (NOT b409): House theme icons are literal emoji in HOUSE_THEMES (🏡🌲🏜️❄️🌋🧚) — emoji-as-art
+violation, pre-existing, unrelated to this merge. Logged for separate follow-up.
+VERDICT: b409 PASS — no emergent breakage between shop-extraction and gold-wiring.
+
 ### 2026-08-19 · gold-slices-2-3 RELEASE VISUAL GATE (branch fix/gold-slices-2-3, dcb1363) — PASS
 Branch pre-check: worker-hire / farm-plot-build / bank-buy gold spends rerouted through the
 server unlock seam (goldSettle + HearthriseGold.buyUnlock), buyTheme's dead gold else-branch

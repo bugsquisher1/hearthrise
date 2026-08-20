@@ -24,16 +24,18 @@
 // max ladder (rungs=[1], max_value=1). That reuses hr_unlock_buy's proven path:
 // GREATEST-merge makes a second purchase `already_owned` rather than a double
 // charge, the storage guard refuses any value off [1], and a replay pays once.
-// A `count` would double-increment on concurrent buys; independent unlock_ids
-// avoid forcing a purchase ORDER across unrelated pets.
 //
-// ── WHAT LIVES HERE vs. IN SQL ──────────────────────────────────────────────
-// Bookkeeping only: which companions are gold-buyable, their PRICE, and their
-// skill PREREQUISITE — all DERIVED from src/data/companions.js so drift is
-// structurally impossible, and tools/gen-companion-unlocks.mjs --check fails the
-// smoke suite if the committed migration no longer matches. NO bonus magnitude
-// is here — what a companion is WORTH stays in src/data/companions.js and is
-// read by the client; the server stores only whether the character owns it.
+// ── SELF-CONTAINED, DRIFT-GUARDED (the gold-ladders.js pattern) ──────────────
+// These offers are AUTHORED here as literals rather than derived from
+// companions.js at eval, because this file is BUILD-ONLY (read only by
+// tools/gen-companion-unlocks.mjs to emit the migration — never browser-loaded),
+// and a browser-versioned `?v=` import would break the Node generator while an
+// unversioned one trips the bump guard. Correctness is not lost: the generator
+// imports companions.js DIRECTLY and its `--check` drift guard fails the smoke
+// suite if these literals ever diverge from what companions.js says today (price,
+// skill requirement, or the shop-companion set). NO bonus magnitude lives here —
+// what a companion is WORTH stays in companions.js; the server stores only
+// whether the character owns it.
 //
 // ⚠ THE SERVER PET MODEL DID NOT EXIST BEFORE THIS SLICE. 2026-08-16-artisan-
 //   progress-model.sql's hr_perks_of records companions as
@@ -41,52 +43,67 @@
 //   + the purchase gate). Wiring hr_perks_of / the client to READ that ownership
 //   is a later, client-side slice and is deliberately out of scope here.
 //
-// PURE ESM. Imports only sibling pure-data; no I/O, no Deno, no globals.
+// PURE ESM. No imports, no I/O, no Deno, no globals — a self-contained manifest.
 // ============================================================================
 
-import { COMPANIONS } from './companions.js';
-
-/** Parse a companion `source` string. Returns null unless it is a `shop:` source.
- *  'shop:8000:cooking25' → { price:8000, skill:'cooking', lv:25 }
- *  'shop:5000'           → { price:5000, skill:null,      lv:null }
- *  The `(\w+?)(\d+)$` split mirrors src/legacy.js injectShopCompanions EXACTLY,
- *  so the server gate and the client's shop-row lock read one requirement. */
-function parseShopSource(source) {
-  const parts = String(source || '').split(':');
-  if (parts[0] !== 'shop') return null;
-  const price = Number.parseInt(parts[1], 10);
-  if (!Number.isInteger(price) || price < 0) return null;
-  let skill = null;
-  let lv = null;
-  if (parts[2]) {
-    const m = parts[2].match(/^(\w+?)(\d+)$/);
-    if (m) { skill = m[1]; lv = Number.parseInt(m[2], 10); }
-  }
-  return { price, skill, lv };
-}
-
 /** One companion unlock offer, exactly the columns hr_unlock_offers stores
- *  (including the two NEW ones). Derived from the shop-source companions, sorted
- *  by id so the emitted migration is stable. */
-export const COMPANION_OFFERS = Object.freeze(
-  Object.keys(COMPANIONS)
-    .map((id) => ({ id, def: COMPANIONS[id], shop: parseShopSource(COMPANIONS[id].source) }))
-    .filter((e) => e.shop !== null)
-    .sort((a, b) => a.id.localeCompare(b.id))
-    .map((e) => Object.freeze({
-      offer_id: `companion.${e.id}`,
-      table_name: 'companion',
-      name: `Companion: ${e.def.n}`,
-      unlock_id: `companion:${e.id}`,
-      value: 1,
-      gold: e.shop.price,
-      items: Object.freeze({}),
-      req_property_tier: 0,
-      req_item: null,
-      req_skill: e.shop.skill,          // null = ungated
-      req_skill_level: e.shop.lv,       // null = ungated
-    })),
-);
+ *  (including the two NEW ones req_skill/req_skill_level). Authored as literals,
+ *  sorted by offer_id so the emitted migration is stable. Drift-guarded against
+ *  src/data/companions.js by tools/gen-companion-unlocks.mjs --check. */
+export const COMPANION_OFFERS = Object.freeze([
+  Object.freeze({
+    offer_id: 'companion.honeybee',
+    table_name: 'companion',
+    name: 'Companion: Honeybee',
+    unlock_id: 'companion:honeybee',
+    value: 1,
+    gold: 8000,
+    items: Object.freeze({}),
+    req_property_tier: 0,
+    req_item: null,
+    req_skill: 'cooking',
+    req_skill_level: 25,
+  }),
+  Object.freeze({
+    offer_id: 'companion.owl',
+    table_name: 'companion',
+    name: 'Companion: Owl',
+    unlock_id: 'companion:owl',
+    value: 1,
+    gold: 50,
+    items: Object.freeze({}),
+    req_property_tier: 0,
+    req_item: null,
+    req_skill: 'prayer',
+    req_skill_level: 50,
+  }),
+  Object.freeze({
+    offer_id: 'companion.raccoon',
+    table_name: 'companion',
+    name: 'Companion: Raccoon',
+    unlock_id: 'companion:raccoon',
+    value: 1,
+    gold: 25000,
+    items: Object.freeze({}),
+    req_property_tier: 0,
+    req_item: null,
+    req_skill: null,
+    req_skill_level: null,
+  }),
+  Object.freeze({
+    offer_id: 'companion.sparrow',
+    table_name: 'companion',
+    name: 'Companion: Sparrow',
+    unlock_id: 'companion:sparrow',
+    value: 1,
+    gold: 5000,
+    items: Object.freeze({}),
+    req_property_tier: 0,
+    req_item: null,
+    req_skill: null,
+    req_skill_level: null,
+  }),
+]);
 
 /** The hr_unlocks catalogue rows these offers need: one single-rung max ladder
  *  per companion (merge='max', kind='unlock', rungs=[1]). */

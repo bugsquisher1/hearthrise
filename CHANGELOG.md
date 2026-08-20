@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 410 — 2026-08-19 (Under the hood: server-owned companion buying)
+
+- 🔧 No gameplay change you'll notice. Buying companions now charges their gold through the server, with skill requirements (Honeybee needs Cooking 25, Owl needs Prayer 50) checked server-side — the last of the gold *spends* to move server-side. Same buttons, same prices, same requirements.
+
 ## v0.9.2-beta build 409 — 2026-08-19 (Under the hood: server-owned worker/farm/bank spending)
 
 - 🔧 No gameplay change you'll notice. Hiring workers, building farm plots, and buying bank space now charge their gold through the server (like property/room upgrades already do) — another step in moving all gold spending server-side so a forged balance can't buy anything. Same buttons, same prices, same caps.

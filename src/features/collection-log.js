@@ -61,17 +61,25 @@
     if (!m) return null;
     var st = getStats(G); if (!m.test(st)) return null;
     var rw = m.reward || {};
-    /* ARM-SAFE (gold flip): a collection-milestone reward is a purely client-
-       authored grant — no server verb credits it (COLLECTION_MODEL blocker).
-       Under arm the gold/gems credit no-ops, so DEFER the whole claim — do NOT
-       mark it claimed — rather than burning the milestone for currency that
-       never lands. It stays claimable for when it is server-credited. No-op
-       until gold/gems are armed. */
+    /* SERVER-CREDITED (2026-08-22-collection-claim.sql). hr_claim_milestone
+       RE-DERIVES the DISTINCT monster/item count from the server's own
+       hr_bestiary_of / hr_collection_of projections, owns the gold+gems amount,
+       once-guards a player_progress kind='collection' claim row per milestone,
+       and journals it (kind='collection'). The b411 arm-safety DEFER is GONE —
+       the claim proceeds and the local gold/gems write is a GATED PREDICTION the
+       server envelope reconciles: pre-arm it credits locally (the server credit
+       is dark), under arm it no-ops and the server's player_state value arrives
+       on the next envelope. Fire-and-forget; the server once-guard is the
+       authority and a replay returns already_claimed with no second credit. */
+    try {
+      if (window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.claimMilestone === 'function') {
+        var _p = window.HearthriseGoalClaim.claimMilestone(id); if (_p && _p.catch) _p.catch(function () {});
+      }
+    } catch (e) {}
     var _mayGold = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold');
     var _mayGems = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems');
-    if ((rw.gold && !_mayGold) || (rw.gems && !_mayGems)) return null;   // deferred; stays claimable
-    if (rw.gold) G.gold = (G.gold || 0) + rw.gold;
-    if (rw.gems) G.gems = (G.gems || 0) + rw.gems;
+    if (rw.gold && _mayGold) G.gold = (G.gold || 0) + rw.gold;   // prediction; no-op under arm
+    if (rw.gems && _mayGems) G.gems = (G.gems || 0) + rw.gems;   // prediction; no-op under arm
     s.claimed.push(id);
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}
     try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}

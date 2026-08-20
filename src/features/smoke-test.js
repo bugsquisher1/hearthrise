@@ -1388,45 +1388,142 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('arm-safe (Tier-2 grant): a collection-milestone claim DEFERS under arm — no gold, latch not burned, works unarmed', () => {
-    // The buyback/companion arm-gate pattern, applied to a GRANT: under arm the
-    // whole reward action must DEFER (no credit, not marked claimed, no toast),
-    // not falsely complete — otherwise the milestone is burned for gold that the
-    // next absolute envelope erases. Representative of the STILL-deferred Tier-2
-    // grant sites (claimQuestReward — the goals board, completeBounty, renown).
-    // b414: updateDaily + completeQuest LEFT this shape — their gold is now
-    // server-credited (hr_claim_daily / hr_claim_quest), proven under arm by the
-    // 'server-credited (Tier-1 daily/quest)' test below.
+  () => tryRun('server-credited (Tier-1 collection): under arm a milestone claim PROCEEDS, fires hr_claim_milestone WITH the slot, and does not double-pay locally', () => {
+    // 2026-08-22: hr_claim_milestone RE-DERIVES the DISTINCT monster/item count
+    // from hr_bestiary_of / hr_collection_of and CREDITS the server-owned
+    // gold+gems into player_state, once-guarded. The b411 defer is GONE. So under
+    // arm the claim must PROCEED (mark claimed, fire the RPC with the active slot)
+    // and NOT double-pay gold locally — the local write is a gated prediction the
+    // envelope reconciles. Pre-arm it still pays locally (the control). Mirrors
+    // the muster/raid and daily/quest server-credited tests.
     const C = window.HearthriseCollection;
     if (!C || typeof C.claimMilestone !== 'function' || !window.MONSTERS) return;
     const monIds = Object.keys(window.MONSTERS).slice(0, 10);
     if (monIds.length < 10) return;
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
+    const origFetch = window.fetch;
+    const origSb = window.HearthriseSupabase;
+    const origAuth = window.HearthriseAuth;
+    const origRpc = window.HearthriseRpc;
+    const origProf = window.HearthriseProfile;
+    let claimBody = null, claimCalls = 0;
     try {
+      // A signed-in, server-backed environment with a mocked hr_claim_milestone.
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
+      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
+      window.HearthriseRpc = { mayCall: () => true };
+      window.HearthriseProfile = { activeSlot: () => 3 };   // the slot the server must credit
+      window.fetch = function (url, init) {
+        if (String(url).indexOf('hr_claim_milestone') !== -1) {
+          claimCalls++;
+          try { claimBody = JSON.parse(init && init.body); } catch (e) { claimBody = null; }
+          return Promise.resolve(new Response(
+            JSON.stringify({ ok: true, milestone: 'hunter10', gold: 2000, gems: 0, credited: true }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
       // Seed 10 discovered monsters so 'hunter10' (reward gold:2000) tests true.
       window.G.bestiary = {}; monIds.forEach((m) => { window.G.bestiary[m] = { kills: 1 }; });
 
-      // UNARMED (today): the milestone pays and is marked claimed.
+      // ── CONTROL (pre-arm): the claim pays LOCALLY as a display prediction.
       window.clientMayWriteRecordField = function () { return true; };
       window.G.collectionLog = { claimed: [] };
-      window.G.gold = 0;
+      window.G.gold = 0; claimCalls = 0; claimBody = null;
       const r1 = C.claimMilestone('hunter10');
-      assert(r1 && r1.gold === 2000, 'unarmed claim must return the reward');
-      assert(window.G.gold === 2000, 'unarmed claim must credit 2000 gold; got ' + window.G.gold);
-      assert(window.G.collectionLog.claimed.indexOf('hunter10') >= 0, 'unarmed claim must mark the milestone claimed');
+      assert(r1 && r1.gold === 2000, 'pre-arm claim must return the reward');
+      assert(window.G.gold === 2000, 'pre-arm claim renders the reward locally; got ' + window.G.gold);
+      assert(window.G.collectionLog.claimed.indexOf('hunter10') >= 0, 'pre-arm claim marks the milestone claimed');
+      assert(claimCalls === 1, 'pre-arm claim must fire hr_claim_milestone exactly once; saw ' + claimCalls);
+      assert(claimBody && claimBody.p_slot === 3, 'claim must pass the active slot; got ' + JSON.stringify(claimBody));
 
-      // ARMED: gold on SERVER_OF_RECORD → the claim DEFERS: no gold, NOT claimed, null.
-      window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
+      // ── ARMED: the claim PROCEEDS, fires the RPC WITH the slot, marks claimed,
+      //    and does NOT write gold locally (the server credited player_state).
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };
       window.G.collectionLog = { claimed: [] };
-      window.G.gold = 0;
+      window.G.gold = 0; claimCalls = 0; claimBody = null;
       const r2 = C.claimMilestone('hunter10');
-      assert(r2 === null, 'armed claim must DEFER (return null), not grant');
-      assert(window.G.gold === 0, 'armed claim must NOT credit gold; got ' + window.G.gold);
-      assert(window.G.collectionLog.claimed.indexOf('hunter10') < 0,
-        'armed claim must NOT burn the latch — the milestone stays claimable');
+      assert(r2 && r2.gold === 2000, 'armed claim must PROCEED and return the reward (the b411 defer is gone)');
+      assert(window.G.gold === 0, 'armed claim must NOT double-pay gold locally (server credits player_state); got ' + window.G.gold);
+      assert(window.G.collectionLog.claimed.indexOf('hunter10') >= 0, 'armed claim marks the milestone claimed (consumed server-side)');
+      assert(claimCalls === 1, 'armed claim must fire hr_claim_milestone; the defer is removed; saw ' + claimCalls);
+      assert(claimBody && claimBody.p_slot === 3, 'armed claim must pass the active slot for the server to credit; got ' + JSON.stringify(claimBody));
     } finally {
       window.clientMayWriteRecordField = origMay;
+      window.fetch = origFetch;
+      window.HearthriseSupabase = origSb;
+      window.HearthriseAuth = origAuth;
+      window.HearthriseRpc = origRpc;
+      window.HearthriseProfile = origProf;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('server-credited (Tier-1 renown): under arm a rank claim PROCEEDS, fires hr_claim_rank WITH the slot, and does not double-pay locally', () => {
+    // 2026-08-22: hr_claim_rank reads the SERVER-DERIVED renown score, ratchets a
+    // SERVER HIGH-WATER, and CREDITS the server-owned gold+gems, once-guarded. The
+    // b411 defer is GONE. Under arm the claim must PROCEED (mark claimed, fire the
+    // RPC with the active slot) and NOT double-pay gold locally.
+    const R = window.HearthriseRenown;
+    if (!R || typeof R.claimRank !== 'function' || typeof R.getClaimable !== 'function') return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origFetch = window.fetch;
+    const origSb = window.HearthriseSupabase;
+    const origAuth = window.HearthriseAuth;
+    const origRpc = window.HearthriseRpc;
+    const origProf = window.HearthriseProfile;
+    let claimBody = null, claimCalls = 0;
+    try {
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
+      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
+      window.HearthriseRpc = { mayCall: () => true };
+      window.HearthriseProfile = { activeSlot: () => 4 };
+      window.fetch = function (url, init) {
+        if (String(url).indexOf('hr_claim_rank') !== -1) {
+          claimCalls++;
+          try { claimBody = JSON.parse(init && init.body); } catch (e) { claimBody = null; }
+          return Promise.resolve(new Response(
+            JSON.stringify({ ok: true, rank: 'serf', gold: 250, gems: 0, credited: true }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      if (!window.G.stats) window.G.stats = {};
+      window.G.stats.kills = 60000;                  // → high renown, ranks reached
+
+      // ── CONTROL (pre-arm): pays locally as a display prediction.
+      window.clientMayWriteRecordField = function () { return true; };
+      window.G.renown = { claimed: [], seenRank: 0 };
+      window.G.gold = 0; claimCalls = 0; claimBody = null;
+      const claimables = R.getClaimable(window.G);
+      assert(claimables.length > 0, 'high renown should expose claimable ranks');
+      const id = claimables[0].id;
+      const before = window.G.gold || 0;
+      const g1 = R.claimRank(id, window.G);
+      assert(g1 && (window.G.gold || 0) > before, 'pre-arm rank claim must pay locally');
+      assert(claimCalls === 1, 'pre-arm claim must fire hr_claim_rank once; saw ' + claimCalls);
+      assert(claimBody && claimBody.p_slot === 4, 'claim must pass the active slot; got ' + JSON.stringify(claimBody));
+      assert(claimBody && claimBody.p_rank_id === id, 'claim must pass the rank id; got ' + JSON.stringify(claimBody));
+
+      // ── ARMED: PROCEEDS, fires the RPC, marks claimed, no local gold double-pay.
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };
+      window.G.renown = { claimed: [], seenRank: 0 };
+      window.G.gold = 0; claimCalls = 0; claimBody = null;
+      const g2 = R.claimRank(id, window.G);
+      assert(g2, 'armed rank claim must PROCEED (the b411 defer is gone)');
+      assert(window.G.gold === 0, 'armed claim must NOT double-pay gold locally; got ' + window.G.gold);
+      assert(window.G.renown.claimed.indexOf(id) >= 0, 'armed claim marks the rank claimed');
+      assert(claimCalls === 1, 'armed claim must fire hr_claim_rank; saw ' + claimCalls);
+      assert(claimBody && claimBody.p_slot === 4, 'armed claim must pass the active slot; got ' + JSON.stringify(claimBody));
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.fetch = origFetch;
+      window.HearthriseSupabase = origSb;
+      window.HearthriseAuth = origAuth;
+      window.HearthriseRpc = origRpc;
+      window.HearthriseProfile = origProf;
       restoreG(snap);
     }
   }),

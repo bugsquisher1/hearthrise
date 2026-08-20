@@ -98,6 +98,14 @@
     isSignedIn: isSignedIn,
     /** @returns Promise<jsonb> the RPC envelope: {ok, gold, ...} or {ok:false,error} */
     claimDaily: function (taskId) { return call('hr_claim_daily', { p_task_id: String(taskId || ''), p_slot: activeSlot() }); },
-    claimQuest: function (questId) { return call('hr_claim_quest', { p_quest_id: String(questId || ''), p_slot: activeSlot() }); }
+    claimQuest: function (questId) { return call('hr_claim_quest', { p_quest_id: String(questId || ''), p_slot: activeSlot() }); },
+    /* Collection-Log MILESTONE credit — supabase/migrations/2026-08-22-collection-claim.sql.
+       The server re-derives the DISTINCT count from hr_bestiary_of / hr_collection_of and
+       credits the server-owned gold+gems once-guarded per milestone. Fire-and-forget. */
+    claimMilestone: function (milestoneId) { return call('hr_claim_milestone', { p_milestone_id: String(milestoneId || ''), p_slot: activeSlot() }); },
+    /* Renown RANK credit — supabase/migrations/2026-08-22-renown-claim.sql. The server
+       ratchets a high-water off hr_renown_of, maps it to the rank via a server-owned
+       catalogue, and credits gold+gems once-guarded per rank. Fire-and-forget. */
+    claimRank: function (rankId) { return call('hr_claim_rank', { p_rank_id: String(rankId || ''), p_slot: activeSlot() }); }
   };
 })();

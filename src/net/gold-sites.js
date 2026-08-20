@@ -208,10 +208,10 @@ const B = Object.freeze({
   MARKS_COLUMN: '`player_state.marks`. A bounty turn-in pays gold AND Bounty Marks; Marks have no '
     + 'server column at all, so paying the gold half alone would silently drop the rest — worse '
     + 'than refusing. The turn-in is also kill-driven, so part of it belongs to accrual.',
-  COLLECTION_MODEL: 'a server collection model. Eligibility tests how many of 31 monsters and 426 '
-    + 'items the character has EVER seen; the server records neither.',
-  RENOWN_MODEL: 'server-side Renown. `effectiveRenown(G)` is computed entirely from the client save '
-    + 'and has no column, table or RPC.',
+  /* B.COLLECTION_MODEL and B.RENOWN_MODEL were RETIRED on 2026-08-22: the
+     collection-milestone and renown-rank payouts are now server-credited
+     (hr_claim_milestone / hr_claim_rank), so their sites carry a serverCredits
+     flipGuard rather than a blocker. See those rows below. */
   BULK_VENDOR: 'a BULK vendor verb. `vendor_sell` prices ONE item id per call and the shop rate '
     + 'bucket is 20/min, so a sweep of N stacks needs N intents and a 30-stack sweep is rate-'
     + 'limited halfway through — leaving the bag half-sold against a server that agrees. Needs '
@@ -460,9 +460,23 @@ export const GOLD_SITE_LEDGER = Object.freeze({
 
   // ══ GRANTS ════════════════════════════════════════════════════════════════
   'src/features/collection-log.js#claimMilestone': {
-    kind: 'grant', status: 'deferred', blockedBy: B.COLLECTION_MODEL,
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-    site: 'claim_reward {kind:"collection", key:"milestone"} — registry row exists, status blocked',
+    kind: 'grant', status: 'deferred',
+    /* SERVER-CREDITED (2026-08-22-collection-claim.sql). hr_claim_milestone
+       RE-DERIVES the DISTINCT monster/item count from the server's own
+       hr_bestiary_of / hr_collection_of projections (never a client `earned`
+       flag), owns the gold+gems amount, once-guards a player_progress
+       kind='collection' claim row per milestone, and journals it. claimMilestone
+       fires HearthriseGoalClaim.claimMilestone(id); the local gold/gems write is
+       a GATED prediction the envelope reconciles. */
+    flipGuard: { serverCredits: 'hr_claim_milestone (2026-08-22-collection-claim.sql) re-derives the '
+      + 'DISTINCT count from hr_bestiary_of / hr_collection_of, owns the fixed gold+gems amount, '
+      + 'once-guards a player_progress kind=collection claim row per milestone, journals '
+      + 'player_ledger kind=collection.' },
+    blockedBy: 'nothing for the VALUE — hr_claim_milestone credits gold+gems server-side (see '
+      + 'flipGuard). This stays deferred (not wired) only because the local write is a DIRECT display '
+      + 'write gated on clientMayWriteRecordField, not yet a HearthriseGold.settle prediction the '
+      + 'envelope reconciles by key — the same follow-up as muster/raid.',
+    site: 'the collection-milestone payout',
   },
   'src/features/companions.js#rollProc': {
     kind: 'grant', status: 'deferred', blockedBy: B.LIVE_ACTION_INTENTS,
@@ -475,9 +489,24 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     site: 'companion extraGold proc, inside killMonster',
   },
   'src/features/renown.js#claimRank': {
-    kind: 'grant', status: 'deferred', blockedBy: B.RENOWN_MODEL,
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-    site: 'claim_reward {kind:"flag", key:"renown_rank"} — registry row exists, status blocked',
+    kind: 'grant', status: 'deferred',
+    /* SERVER-CREDITED (2026-08-22-renown-claim.sql). hr_claim_rank reads the
+       SERVER-DERIVED renown score (hr_renown_of), ratchets a SERVER HIGH-WATER
+       (player_state.renown_high) so a transient low read cannot un-earn a
+       reached rank, maps the high-water to the rank via a server-owned
+       catalogue, owns the gold+gems amount, once-guards a player_progress
+       kind='flag' claim row per rank, and journals it. claimRank fires
+       HearthriseGoalClaim.claimRank(id); the local gold/gems write is a GATED
+       prediction the envelope reconciles. */
+    flipGuard: { serverCredits: 'hr_claim_rank (2026-08-22-renown-claim.sql) reads hr_renown_of, '
+      + 'ratchets player_state.renown_high, maps it to the rank via a server-owned catalogue, owns '
+      + 'the fixed gold+gems amount, once-guards a player_progress kind=flag renown_claim row per '
+      + 'rank, journals player_ledger kind=renown.' },
+    blockedBy: 'nothing for the VALUE — hr_claim_rank credits gold+gems server-side (see flipGuard). '
+      + 'This stays deferred (not wired) only because the local write is a DIRECT display write gated '
+      + 'on clientMayWriteRecordField, not yet a HearthriseGold.settle prediction the envelope '
+      + 'reconciles by key — the same follow-up as muster/raid.',
+    site: 'the renown rank-up payout',
   },
   'src/legacy.js#grant': {
     kind: 'grant', status: 'deferred', blockedBy: B.IAP_RECEIPT,

@@ -310,17 +310,26 @@
     if (idx > rankIndexFor(effectiveRenown(G))) return null;    // not reached yet
     var rank = RANKS[idx];
     var rw = rank.reward || {};
-    /* ARM-SAFE (gold flip): a Renown-rank reward is a purely client-authored
-       grant — Renown has no server column/RPC (RENOWN_MODEL blocker). Under arm
-       the gold/gems credit no-ops, so DEFER the whole claim — do NOT grant the
-       item and do NOT mark the rank claimed — rather than burning the rank for
-       currency that never lands. It stays claimable for when it is server-
-       credited. No-op until gold/gems are armed. */
+    /* SERVER-CREDITED (2026-08-22-renown-claim.sql). hr_claim_rank reads the
+       SERVER-DERIVED renown score (hr_renown_of), ratchets a SERVER HIGH-WATER
+       (player_state.renown_high) so a transient low read cannot un-earn a
+       reached rank, maps the high-water to the rank via a server-owned
+       catalogue, owns the gold+gems amount, once-guards a player_progress
+       kind='flag' claim row per rank, and journals it (kind='renown'). The b411
+       arm-safety DEFER is GONE — the claim proceeds and the local gold/gems
+       write is a GATED PREDICTION the server envelope reconciles. Fire-and-forget;
+       the server once-guard is the authority and a replay returns already_claimed
+       with no second credit. (No rank has an `item` reward today; the client
+       item grant stays client-side as a later arming slice if one is ever added.) */
+    try {
+      if (window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.claimRank === 'function') {
+        var _p = window.HearthriseGoalClaim.claimRank(rankId); if (_p && _p.catch) _p.catch(function () {});
+      }
+    } catch (e) {}
     var _mayGold = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold');
     var _mayGems = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems');
-    if ((rw.gold && !_mayGold) || (rw.gems && !_mayGems)) return null;   // deferred; stays claimable
-    if (rw.gold) G.gold = (G.gold || 0) + rw.gold;
-    if (rw.gems) G.gems = (G.gems || 0) + rw.gems;
+    if (rw.gold && _mayGold) G.gold = (G.gold || 0) + rw.gold;   // prediction; no-op under arm
+    if (rw.gems && _mayGems) G.gems = (G.gems || 0) + rw.gems;   // prediction; no-op under arm
     if (rw.item && typeof window.addItem === 'function') { try { window.addItem(rw.item, rw.itemQty || 1); } catch (e) {} }
     s.claimed.push(rankId);
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}

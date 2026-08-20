@@ -53,6 +53,8 @@ import {
   goalKey, utcDayKey, makeGoalCounter, goalProgressOps,
   BESTIARY_EVENT, BESTIARY_KEY_PREFIX, BESTIARY_ID_RE,
   bestiaryKey, makeBestiaryCounter, bestiaryProgressOps,
+  COLLECTION_KEY_PREFIX, COLLECTION_ID_RE,
+  lootKey, makeCollectionCounter, collectionProgressOps,
 } from '../src/core/goals.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
@@ -72,7 +74,8 @@ let computeAccrualFn = computeAccrual;
    itself, and the engine mutants must then load THAT copy, so both are
    rebound through one loader. */
 let goalsMod = { GOAL_EVENTS, UNCOUNTED_EVENTS, MAX_GOAL_ADD, utcDayKey, makeGoalCounter, goalProgressOps,
-  BESTIARY_EVENT, BESTIARY_KEY_PREFIX, BESTIARY_ID_RE, bestiaryKey, makeBestiaryCounter, bestiaryProgressOps };
+  BESTIARY_EVENT, BESTIARY_KEY_PREFIX, BESTIARY_ID_RE, bestiaryKey, makeBestiaryCounter, bestiaryProgressOps,
+  COLLECTION_KEY_PREFIX, COLLECTION_ID_RE, lootKey, makeCollectionCounter, collectionProgressOps };
 
 let problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -145,7 +148,9 @@ const opsOf = (delta) => (delta && Array.isArray(delta.progress)) ? delta.progre
    read a bestiary op as a stray goal op. */
 const goalOps = (delta) => opsOf(delta).filter((o) => {
   const k = String(o.key || '');
-  return k.startsWith(GOAL_KEY_PREFIX) && !k.startsWith(BESTIARY_KEY_PREFIX);
+  return k.startsWith(GOAL_KEY_PREFIX)
+    && !k.startsWith(BESTIARY_KEY_PREFIX)      // bestiary is a separate model (B*)
+    && !k.startsWith(COLLECTION_KEY_PREFIX);   // collection is a separate model (C*)
 });
 const findOp = (delta, kind, type) =>
   opsOf(delta).find((o) => o.kind === kind && o.key === `${GOAL_KEY_PREFIX}${type}`) || null;
@@ -742,6 +747,182 @@ async function run(patches) {
         'B3: hr_bestiary_of leaked a non-bestiary stat row (ev:kill_any / kills) into the bestiary');
     }
   }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // COLLECTION — per-item looted quantities (live-settlement Slice 2). Same
+  // real engine, same real hr_apply, plus the real hr_collection_of projection.
+  // ══════════════════════════════════════════════════════════════════════
+  const collOps = (delta) =>
+    opsOf(delta).filter((o) => String(o.key || '').startsWith(G.COLLECTION_KEY_PREFIX));
+
+  // ── C1 · THE VOCABULARY IS BOUND TO THE ITEM CATALOGUE, BOTH SIDES ─────
+  {
+    const ids = Object.keys(ITEMS);
+    ok(ids.length >= 100,
+      `C1 CONTROL: only ${ids.length} items in the catalogue — the sweep is too small`);
+    for (const id of ids) {
+      const key = G.lootKey(id);
+      ok(key.startsWith(G.COLLECTION_KEY_PREFIX) && key.slice(G.COLLECTION_KEY_PREFIX.length) === id,
+        `C1: lootKey(${JSON.stringify(id)}) = ${JSON.stringify(key)} does not round-trip — the read `
+        + '(substring) and the write (lootKey) would disagree');
+      ok(G.COLLECTION_ID_RE.test(id),
+        `C1: item id ${JSON.stringify(id)} fails COLLECTION_ID_RE — its counter would be dropped with `
+        + 'a receipt instead of filed. Rename the item or widen the fuse (and re-check ≤64).');
+      ok(key.length <= 64,
+        `C1: lootKey(${JSON.stringify(id)}) is ${key.length} chars, over hr_apply's 64-char ceiling`);
+    }
+    ok(G.COLLECTION_KEY_PREFIX === 'ev:loot:' && G.COLLECTION_KEY_PREFIX.length === 8,
+      `C1: COLLECTION_KEY_PREFIX is ${JSON.stringify(G.COLLECTION_KEY_PREFIX)} (len `
+      + `${G.COLLECTION_KEY_PREFIX.length}); the SQL projection strips 8 chars, so a different length `
+      + 'means the read returns the wrong item id');
+    const collMig = await readFile(
+      join(ROOT, 'supabase', 'migrations', '2026-08-21-collection.sql'), 'utf8').catch(() => '');
+    ok(collMig.includes("like 'ev:loot:%'") && collMig.includes('substring(pp.key from 9)'),
+      'C1: 2026-08-21-collection.sql no longer reads by the ev:loot: prefix / substring(9). The '
+      + 'projection and the JS key vocabulary have drifted — a key without an item.');
+  }
+
+  // ── COLLECTION-1 · A COMBAT NIGHT RECORDS EVERY LOOTED ID, count=qty, AND
+  //    ROUND-TRIPS THROUGH hr_apply + hr_collection_of. Rides the AWAY-1 fight
+  //    (combatNight is the same seeded span the away/live parity is built on).
+  {
+    const coll = collOps(combat.delta);
+    const items = combat.delta.items || {};
+    ok(coll.length > 0,
+      'COLLECTION-1: the combat night looted nothing — the fixture cannot prove the counter');
+    for (const op of coll) {
+      ok(op.kind === 'stat' && op.period === '' && op.state === 'active',
+        `COLLECTION-1: the collection op shape is ${JSON.stringify(op)} — must be kind='stat', `
+        + "period='', state='active'");
+      const id = op.key.slice(G.COLLECTION_KEY_PREFIX.length);
+      ok(op.add === Number(items[id]),
+        `COLLECTION-1: ev:loot:${id} advanced by ${op.add} but the item delta gained ${items[id]} — `
+        + 'a looted count that is not the quantity gained is one the player can prove wrong');
+    }
+    // Every positive looted item is recorded exactly once (no auto-eat in this
+    // fixture, so items are all gains).
+    const posItems = Object.keys(items).filter((k) => Number(items[k]) > 0 && G.COLLECTION_ID_RE.test(k));
+    ok(coll.length === posItems.length,
+      `COLLECTION-1: ${coll.length} collection ops for ${posItems.length} looted item ids — every `
+      + 'looted id must be recorded once, and nothing else');
+
+    // hr_apply accepts the ops verbatim; hr_collection_of reads them back by prefix.
+    const fresh = await boot(patches);
+    const c2 = combatNight();
+    if (c2.accrued) {
+      const r = await apply(fresh, c2.delta);
+      ok(r?.ok === true, `COLLECTION-1: hr_apply refused the combat delta carrying loot ops — ${JSON.stringify(r)}`);
+      const proj = await fresh.query('select item_id, qty from public.hr_collection_of($1::uuid, 0)', [USER]);
+      const got = new Map(proj.rows.map((x) => [x.item_id, Number(x.qty)]));
+      for (const k of Object.keys(c2.delta.items || {})) {
+        if (Number(c2.delta.items[k]) > 0 && G.COLLECTION_ID_RE.test(k)) {
+          ok(got.get(k) === Number(c2.delta.items[k]),
+            `COLLECTION-1: hr_collection_of[${k}] = ${got.get(k)}, expected ${c2.delta.items[k]}`);
+        }
+      }
+      ok(![...got.keys()].some((k) => k.includes(':')),
+        'COLLECTION-1: hr_collection_of leaked a prefixed (non-item) key — the strip is wrong');
+    }
+  }
+
+  // ── COLLECTION-2 · A 20-DISTINCT-DROP SPAN STAYS UNDER c_max_progress_ops.
+  //    Real drop tables are smaller; this is the pathological bound the header
+  //    states, proven against the cap (exceeding it HALVES the span, not 409s).
+  {
+    const c = G.makeCollectionCounter();
+    const twenty = Object.keys(ITEMS).slice(0, 20);
+    ok(twenty.length === 20, 'COLLECTION-2 CONTROL: fewer than 20 items to draw from');
+    for (const id of twenty) c.record(id, 3);
+    const ops = G.collectionProgressOps(c);
+    ok(ops.length === 20,
+      `COLLECTION-2: a 20-distinct span produced ${ops.length} ops, expected 20 (one per item)`);
+    // The rest of a real combat delta's progress array, MEASURED, plus these 20
+    // must stay under 64 (hr_apply's c_max_progress_ops).
+    const otherOps = opsOf(combat.delta)
+      .filter((o) => !String(o.key || '').startsWith(G.COLLECTION_KEY_PREFIX)).length;
+    ok(otherOps + 20 < 64,
+      `COLLECTION-2: ${otherOps} non-collection ops + 20 collection ops = ${otherOps + 20}, which is `
+      + '≥ 64 (c_max_progress_ops) — a heavy drop span would halve the span and pay half the night');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // STREAK — the daily settle streak (live-settlement Slice 3). Driven through
+  // the REAL hr_apply, read off player_state.
+  // ══════════════════════════════════════════════════════════════════════
+  // ── STREAK-1 · consecutive-day settles increment; a skipped day resets; two
+  //    settles the same day are idempotent. The streak is computed from now()
+  //    inside hr_apply — never a client value.
+  {
+    const fresh = await boot(patches);
+    const settle = () => apply(fresh, { accrued_to: 'now', journal: { kind: 'accrue', intent: 'accrue' } });
+    const readStreak = async () => {
+      const r = await fresh.query(
+        'select streak_days, streak_day_key from public.player_state where user_id=$1 and slot=0', [USER]);
+      return r.rows[0];
+    };
+    const backdate = (expr) => fresh.query(
+      `update public.player_state set streak_day_key = public.hr_utc_day_key(now() - interval '${expr}')
+        where user_id=$1 and slot=0`, [USER]);
+
+    const r1 = await settle();
+    ok(r1?.ok === true, `STREAK-1: the first settle was refused — ${JSON.stringify(r1)}`);
+    let s = await readStreak();
+    ok(Number(s.streak_days) === 1, `STREAK-1: first settle set streak_days=${s.streak_days}, expected 1`);
+    const dk = await fresh.query('select public.hr_utc_day_key(now()) as k');
+    ok(s.streak_day_key === dk.rows[0].k,
+      `STREAK-1: streak_day_key=${s.streak_day_key} is not today's key ${dk.rows[0].k}`);
+
+    // same UTC day — idempotent, no change
+    await settle();
+    s = await readStreak();
+    ok(Number(s.streak_days) === 1,
+      `STREAK-1: a second same-day settle changed streak_days to ${s.streak_days}, expected idempotent 1`);
+
+    // consecutive day — increment
+    await backdate('1 day');
+    await settle();
+    s = await readStreak();
+    ok(Number(s.streak_days) === 2,
+      `STREAK-1: a consecutive-day settle set streak_days=${s.streak_days}, expected 2`);
+
+    // gap > 1 day — reset to 1
+    await backdate('3 days');
+    await settle();
+    s = await readStreak();
+    ok(Number(s.streak_days) === 1,
+      `STREAK-1: a skipped-day settle set streak_days=${s.streak_days}, expected reset to 1`);
+
+    // a NON-accrual delta (no accrued_to) must NOT bump the streak — the gate.
+    const before = Number((await readStreak()).streak_days);
+    await apply(fresh, { hp: 1, journal: { kind: 'admin', intent: 'noop' } });
+    const after = Number((await readStreak()).streak_days);
+    ok(after === before,
+      `STREAK-1: a non-accrual delta moved the streak ${before}→${after} — it must gate on accrued_to`);
+  }
+
+  // ── STATE-EXCL · hr_state_of EXCLUDES the bestiary + collection populations
+  //    from its generic envelope (they have dedicated projections) while still
+  //    returning ordinary progress AND the streak.
+  {
+    const fresh = await boot(patches);
+    const c2 = combatNight();
+    if (c2.accrued) {
+      await apply(fresh, c2.delta);   // writes ev:kill_monster:* and ev:loot:* rows
+      await apply(fresh, { accrued_to: 'now', journal: { kind: 'accrue', intent: 'accrue' } }); // a settle → streak
+      const r = await fresh.query('select public.hr_state_of($1::uuid, 0) as e', [USER]);
+      const env = r.rows[0].e;
+      ok(env?.ok === true, `STATE-EXCL: hr_state_of refused — ${JSON.stringify(env)}`);
+      const prog = Array.isArray(env?.progress) ? env.progress : [];
+      ok(!prog.some((p) => String(p.key || '').startsWith('ev:kill_monster:')),
+        'STATE-EXCL: hr_state_of leaked a bestiary row — it must be served by hr_bestiary_of only');
+      ok(!prog.some((p) => String(p.key || '').startsWith('ev:loot:')),
+        'STATE-EXCL: hr_state_of leaked a collection row — it must be served by hr_collection_of only');
+      ok(prog.some((p) => p.key === goalKey('kill_any') || p.key === 'kills'),
+        'STATE-EXCL: hr_state_of dropped ordinary progress too — the exclusion is too broad');
+      ok(Number(env?.state?.streak_days) >= 1,
+        `STATE-EXCL: hr_state_of did not project streak_days (${env?.state?.streak_days})`);
+    }
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -788,6 +969,12 @@ const MUTATIONS = [
   { name: "M10 goals: a counter op claims state='claimed'",
     file: 'goals', from: "               add: clamp(type, daily[type], 'daily'), state: 'active' });",
     to: "               add: clamp(type, daily[type], 'daily'), state: 'claimed' });" },
+  { name: 'M12 combat: the COLLECTION listener is removed (loot vanishes from the log)',
+    file: 'accrual', from: "      collection.record(id, n);          // Slice 2: the per-item loot counter\n",
+    to: "" },
+  { name: 'M13 combat: the collection ops never reach the delta',
+    file: 'accrual', from: "  for (const op of collectionProgressOps(collection, events)) progress.push(op);\n",
+    to: "" },
 ];
 
 const ENGINE_PATH = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js');

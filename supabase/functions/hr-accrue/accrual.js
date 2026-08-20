@@ -117,7 +117,14 @@ import { makeBonus, EMPTY_PERKS } from '../../../src/core/perks.js';
    day key, the clamp and the vocabulary live in ONE module that both this
    engine and the guard read; see its header for why `kind='daily'`/`kind='stat'`
    and why the daily period is the day the player RETURNS. */
-import { makeGoalCounter, goalProgressOps } from '../../../src/core/goals.js';
+import {
+  makeGoalCounter, goalProgressOps,
+  /* Slice 1 (bestiary, per-monster kills) + Slice 2 (collection, per-item
+     loot): siblings of the goal counter, fed from the SAME kill/loot seams the
+     goal model reads. See their headers in src/core/goals.js. */
+  makeBestiaryCounter, bestiaryProgressOps,
+  makeCollectionCounter, collectionProgressOps,
+} from '../../../src/core/goals.js';
 /* The ONE catalogue-lookup guard in this payload. See its definition for why a
    truthiness test on a `[a-z0-9_]` id is not one. ./intents.js imports nothing,
    so this cannot cycle. */
@@ -849,6 +856,13 @@ export function computeAccrual(input) {
      below — the two seams resolveKill has always called and this engine has
      always ignored. */
   const goals = makeGoalCounter();
+  /* THE BESTIARY (Slice 1) + COLLECTION (Slice 2) counters. Siblings of the
+     goal counter fed from the SAME seams: the bestiary reads `updateQuest(
+     'kill_monster', {target})` (per-monster kills), the collection reads the
+     `addItem` LOOT seam below (per-item drops). Both fold their ops into THIS
+     combat delta — server-derived, never client input. */
+  const bestiary = makeBestiaryCounter();
+  const collection = makeCollectionCounter();
   const autoEatOn = inp.autoEatEnabled === true;
   const eatCfg = {
     enabled: autoEatOn,
@@ -885,6 +899,7 @@ export function computeAccrual(input) {
       if (!id || n <= 0) return;
       itemDelta[id] = (itemDelta[id] || 0) + n;
       bag[id] = (bag[id] || 0) + n;      // edible from the moment it drops
+      collection.record(id, n);          // Slice 2: the per-item loot counter
     },
     onDrop(ev) { if (ev && ev.rare) events.push({ type: 'rare_drop', item: ev.id }); },
 
@@ -957,7 +972,13 @@ export function computeAccrual(input) {
        tests/goal-counters.mjs asserts that, so it is a stated equivalence
        rather than an assumption. */
     updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },
-    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },
+    /* `meta` is now READ — the bestiary (Slice 1) consumes the TARGET-SCOPED
+       `kill_monster` emit resolveKill produces alongside `kill_any`, filing it
+       per `meta.target`. The goal model still ignores `meta` (no authored quest
+       declares a target), so the two models PARTITION the event: one aggregate
+       count under `ev:kill_any`, one per-monster count under
+       `ev:kill_monster:<id>`, never double-counted. See src/core/goals.js. */
+    updateQuest(type, amt, meta) { goals.quest(type, amt == null ? 1 : amt); bestiary.record(type, amt == null ? 1 : amt, meta); },
 
     /* Still deliberately ABSENT, and each absence is a decision, not an
        oversight:
@@ -1123,6 +1144,15 @@ export function computeAccrual(input) {
        the goal-event counter. They will agree on a combat night, and G3
        asserts that they do — the redundancy IS the drift guard. */
   for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);
+  /* THE BESTIARY OPS (Slice 1) — per-monster kill counts. A combat span fights
+     a SINGLE activeId, so `bestiary` holds exactly one key and this pushes
+     exactly one op; it cannot approach c_max_progress_ops. Folded into the same
+     delta as the goal ops, server-derived, re-clamped by hr_apply. */
+  for (const op of bestiaryProgressOps(bestiary, events)) progress.push(op);
+  /* THE COLLECTION OPS (Slice 2) — per-item loot counts, one op per distinct
+     item dropped this span. Bounded by the monster's drop table (well under the
+     op cap; COLLECTION-2 asserts a 20-distinct span stays under it). */
+  for (const op of collectionProgressOps(collection, events)) progress.push(op);
 
   const delta = {
     // A watermark the SERVER computed and hr_apply then clamps into

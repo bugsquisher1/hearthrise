@@ -479,3 +479,125 @@ export function bestiaryProgressOps(counter, events) {
   }
   return ops;
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// THE COLLECTION / DISCOVERY LOG — PER-ITEM LOOTED QUANTITIES
+// (live-settlement Slice 2).
+//
+// ── WHY IT IS A SIBLING OF THE BESTIARY, NOT A KEY INSIDE IT ─────────────
+// The bestiary reads the `updateQuest('kill_monster', {target})` seam — a
+// KILL. The collection log reads the LOOT seam: `fx.addItem(id, qty)`, the one
+// call every drop resolveKill rolls flows through (combat-sim.js resolveDrop →
+// fx.addItem). It files per ITEM id, summing the quantity gained in the span,
+// so an away drop and a live drop move the same row through one call site —
+// the bestiary's rule, applied to loot instead of kills.
+//
+// ⚠ COMBAT-ONLY, DELIBERATELY, AND IT MIRRORS THE BESTIARY'S SCOPE. Slice 1
+//   counts kills, which only combat produces; Slice 2 counts DROPS, which is
+//   the combat `fx.addItem`. The gather and artisan `addItem` seams (a chopped
+//   log, a crafted axe) are a different notion of "obtained" and are a clean
+//   follow-up — extending there is a data-shaped change plus an anchor update,
+//   not a new model. Keeping the scope to combat drops keeps this a faithful
+//   mirror of the bestiary and leaves the gather/artisan mutation anchors
+//   untouched.
+//
+// ── kind IS THE WRITE CAPABILITY (the artisan rule, a third time) ────────
+//   kind='stat'  · additive · permanent (period_key='') · in hr_apply's
+//                  allowlist. A lifetime per-item looted count is a stat: the
+//                  beta wipes at cutover, so the lifetime count IS the number,
+//                  with no baseline to migrate. NO MIGRATION is required to
+//                  WRITE these rows — 'stat' is already legal.
+//
+// ── THE KEY NAMESPACE, AND WHY IT IS DISTINCT ───────────────────────────
+// `ev:loot:<item_id>` extends the `ev:` convention with the ITEM id. It cannot
+// collide with a goal key (`ev:kill_any`), a bestiary key (`ev:kill_monster:`)
+// or the lifetime stats (`rare_drops`, `gathered`, …): the `loot:` segment is
+// unique, and it is the exact string a reader can `like 'ev:loot:%'` on to pull
+// the collection population out on its OWN read (hr_collection_of) rather than
+// through hr_state_of's shared 1000-row envelope.
+//
+// ── THE VOCABULARY IS BOUND TO THE ITEM CATALOGUE, BOTH DIRECTIONS ───────
+// There is no hand-maintained key list: the key is DERIVED from the item id the
+// sim reports, and the sim only ever reports an id an authored drop table
+// names. So the vocabulary is a subset of {ITEMS}. tests/goal-counters.mjs
+// asserts every ITEMS id forms a legal, round-tripping key (charset + ≤64), and
+// that the SQL projection's prefix equals COLLECTION_KEY_PREFIX — a key without
+// an item, or an item whose id cannot form a key, cannot ship.
+//
+// ── OP COUNT, AGAINST hr_apply's c_max_progress_ops (64) ────────────────
+// A combat span drops a BOUNDED number of distinct items — one monster's drop
+// table, plus rare bands — realistically well under 20; the rest of the combat
+// delta's progress array is ~8 ops (4 stat + ~2 goal + 1 bestiary + ≤1 recipe
+// unlock), so a heavy 20-distinct-drop span sits at ~28, under the cap.
+// tests/goal-counters.mjs COLLECTION-2 asserts a synthetic 20-distinct span
+// stays under c_max_progress_ops, because exceeding it does NOT 409 the night —
+// `progress_clamp` is on index.ts's DEGRADABLE list and would HALVE THE SPAN,
+// paying half the gold and half the XP to protect a collection counter. That is
+// the wrong loss, so the bound is asserted rather than assumed.
+// ════════════════════════════════════════════════════════════════════════
+
+/* The key namespace. The `loot:` segment is the whole point — see the header. */
+export const COLLECTION_KEY_PREFIX = 'ev:loot:';
+
+/* An id charset/length that keeps `COLLECTION_KEY_PREFIX + id` ≤ 64 (hr_apply's
+   key ceiling): 8 + 56 = 64. Item ids are `[a-z0-9_]`, ≤24 today; this is the
+   fuse if one is ever authored longer, and it fails CLOSED (the op is dropped
+   with a receipt, never filed as an unreadable key). */
+export const COLLECTION_ID_RE = /^[a-z0-9_]{1,56}$/;
+
+/** The player_progress key for an item id. One expression, one reader. */
+export function lootKey(id) { return COLLECTION_KEY_PREFIX + id; }
+
+/**
+ * THE COLLECTION COUNTER. A sibling of makeBestiaryCounter, fed from the
+ * combat `fx.addItem` LOOT seam — so it cannot drift from the items the fight
+ * actually credited, because both read one call site.
+ *
+ * `record` sums the quantity gained per item id. An empty/hostile id or a
+ * non-positive quantity is dropped, never minted.
+ */
+export function makeCollectionCounter() {
+  const bag = Object.create(null);
+  return {
+    /* @param id   the item id fx.addItem was called with
+       @param amt  the quantity gained (summed across every drop in the span) */
+    record(id, amt) {
+      if (typeof id !== 'string' || !id) return;
+      const n = Math.floor(Number(amt) || 0);
+      if (n <= 0) return;
+      bag[id] = (bag[id] || 0) + n;
+    },
+    counts() { return { ...bag }; },
+  };
+}
+
+/**
+ * Turn the collection counter into `progress` ops for an hr_apply delta.
+ *
+ * Every op is kind='stat', period='' (permanent, like the bestiary), state=
+ * 'active', add clamped into [1, MAX_GOAL_ADD] against the SAME hr_apply
+ * ceiling. An id that cannot form a legal key is dropped with a receipt —
+ * fail-closed, never an unreadable row. One op per distinct item id.
+ *
+ * @param counter  a makeCollectionCounter()
+ * @param events   OPTIONAL sink; push({type,…}) receipts for clamp/drop.
+ */
+export function collectionProgressOps(counter, events) {
+  const ops = [];
+  if (!counter) return ops;
+  const bag = counter.counts();
+  const sink = Array.isArray(events) ? events : null;
+  for (const id of Object.keys(bag).sort()) {
+    if (!COLLECTION_ID_RE.test(id)) {
+      if (sink) sink.push({ type: 'collection_bad_id', id, add: bag[id] });
+      continue;
+    }
+    let n = bag[id];
+    if (n > MAX_GOAL_ADD) {
+      if (sink) sink.push({ type: 'collection_clamped', id, add: n, to: MAX_GOAL_ADD });
+      n = MAX_GOAL_ADD;
+    }
+    ops.push({ kind: 'stat', key: lootKey(id), period: '', add: n, state: 'active' });
+  }
+  return ops;
+}

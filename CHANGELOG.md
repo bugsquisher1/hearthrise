@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 412 — 2026-08-20 (Under the hood: server-paid raid & rally chests)
+
+- 🔧 No gameplay change you'll notice. Weekly Hunt chests and daily Rally chests now pay out their gold and gems through the server (credited the instant you claim, in the same step that marks the claim), instead of the client adding it — so the reward and the claim can never disagree. Same chests, same amounts.
+
 ## v0.9.2-beta build 411 — 2026-08-19 (Under the hood: reward-safety groundwork)
 
 - 🔧 No gameplay change. Groundwork so that when gold spending fully flips to server-authoritative, no earned reward is ever silently lost — reward payouts now defer safely rather than pay zero if the server isn't ready. Invisible to you today.

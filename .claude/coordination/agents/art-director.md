@@ -1,5 +1,30 @@
 # Art Director — running log
 
+### 2026-08-19 · gold-slices-2-3 RELEASE VISUAL GATE (branch fix/gold-slices-2-3, dcb1363) — PASS
+Branch pre-check: worker-hire / farm-plot-build / bank-buy gold spends rerouted through the
+server unlock seam (goldSettle + HearthriseGold.buyUnlock), buyTheme's dead gold else-branch
+deleted, buyback gated on clientMayWriteRecordField('gold'). Behaviour-preserving while gold is
+unarmed. Screenshots don't composite (known trap) → verified structurally via read_page/js in a
+planted-session boot at 1440×900 AND 922×423. mayWriteGold=true (gold NOT armed), gold-intent
+switch ON so hire/plot/bank debits register as PREDICTIONS that roll back when the fake-session
+intent can't round-trip — expected, not a break.
+- **Worker hire — PASS.** #hh-workers-host renders "Hire worker — Ng" (onclick HearthriseWorkers.hire())
+  once workerSlots>0 (property tier ≥ homestead). hire() runs clean, worker added, no throw.
+- **Farm plot build — PASS.** House→Plot: buildPlot('farm_plot') button + "100 Gold · 5 Normal Log"
+  cost render; Scarecrow (the other plot building, raw-debit path) renders too. Both build without
+  error (farm plot 5 logs consumed; scarecrow builds).
+- **Bank buy — PASS.** openBankModal() gold row renders "Buy" (buyBankSpaceGold()) with escalating
+  price (3000→3960 after a buy); 30-rung client clamp returns false and stops incrementing. No throw.
+- **House theme picker — PASS.** All 6 theme cards render; unowned are gem-priced Buy(buyTheme). Gem
+  purchase charges gems (100000→99500, forest owned+equipped); default equips clean via setTheme.
+  The buyTheme gold-branch deletion did NOT break the picker (all non-default themes are gem-currency;
+  the old gold branch was genuinely dead).
+- **Vendor buy-back — PASS.** Shop "Vendor buy-back" row + "Buy Back…" (openBuyback()) render when
+  G.buyback non-empty; repurchase(0) works while unarmed (item re-added, entry cleared).
+- **Combat + Inventory glance (b361) — PASS.** Style block + 84 buttons; inventory panel 77KB content.
+- **0 JS/runtime errors** across both viewports; only 401/400 from the fake Supabase session (expected).
+No files changed — verification-only gate. Assembled-main visual pass still owed post-deploy.
+
 ### 2026-08-19 · b407 flicker-fix RELEASE VISUAL GATE (branch fix/tab-flicker-sync-renders, 3d7b065) — PASS
 Screenshots don't composite in this harness (known trap) → verified the timing fix MECHANICALLY,
 which is more precise for a flash bug than a single-frame capture: after `window.showTab(tab)` returns,

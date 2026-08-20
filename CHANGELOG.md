@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 409 — 2026-08-19 (Under the hood: server-owned worker/farm/bank spending)
+
+- 🔧 No gameplay change you'll notice. Hiring workers, building farm plots, and buying bank space now charge their gold through the server (like property/room upgrades already do) — another step in moving all gold spending server-side so a forged balance can't buy anything. Same buttons, same prices, same caps.
+
 ## v0.9.2-beta build 408 — 2026-08-19 (Under the hood: shop module extracted)
 
 - 🔧 No gameplay change. The Shop screen (Local Shop, Market, Premium) is now its own clean module carved out of the original mega-file — ~290 lines lighter. Same shop, same prices, same buttons; just easier to maintain and safer to change.

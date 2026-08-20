@@ -7545,7 +7545,7 @@ const TESTS = [
     // b163: API is setTheme(), not set() — the old test called T.set() which
     // never existed, so this test had been throwing "T.set is not a function".
     assert(typeof T.setTheme === 'function', 'HearthriseTheme.setTheme missing');
-    const prev = (T.getTheme && T.getTheme()) || 'cozy-light';
+    const prev = (T.getTheme && T.getTheme()) || 'hearthlight';
     try {
       T.setTheme('hearthlight');
       assert(document.body.getAttribute('data-theme') === 'hearthlight', 'setting hearthlight did not apply data-theme');

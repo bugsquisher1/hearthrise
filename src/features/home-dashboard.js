@@ -222,7 +222,6 @@
       /* Gauge, not a hairline. Recessed channel + lit fill. */
       R + '.hd-bar{height:7px;border-radius:1px;background:rgba(0,0,0,.42) !important;overflow:hidden;',
       'box-shadow:inset 0 1px 2px rgba(0,0,0,.7),inset 0 -1px 0 rgba(255,232,190,.05)}',
-      'html:not([data-theme]) ' + R + '.hd-bar,body[data-theme="cozy-light"] ' + R + '.hd-bar{background:rgba(90,60,20,.14) !important}',
       R + '.hd-bar i{display:block;height:100%;border-radius:0;',
       'background:linear-gradient(180deg,color-mix(in srgb,var(--accent,var(--green)) 82%,#fff2cf),var(--accent,var(--green))) !important;',
       'box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}',

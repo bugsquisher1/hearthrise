@@ -2277,8 +2277,8 @@ body[data-theme] .brand-word {
 /* Cozy-light (retired secondary theme): the gilt reads on parchment as-is;
    only the contact shadow has to change side — a black drop on cream is a
    smudge, a pale one is an emboss. */
-body[data-theme="cozy-light"] .brand-emblem { filter: drop-shadow(0 1px 1px rgba(90, 60, 20, .25)); }
-body[data-theme="cozy-light"] .brand-word   { filter: drop-shadow(0 1px 0 rgba(255, 250, 235, .55)); }
+
+
 
 /* Icon-rail sidebar (<=1180px, --nav-w:64px): the crest alone, centred.
    It is the half of the lockup that survives being 36px wide. */

@@ -395,11 +395,9 @@
       +   ' and follow your account to any device.</div>';
 
     // Theme picker — driven by HearthriseTheme (theme-picker.js).
-    var current = (window.HearthriseTheme && window.HearthriseTheme.getTheme && window.HearthriseTheme.getTheme()) || 'cozy-light';
+    var current = (window.HearthriseTheme && window.HearthriseTheme.getTheme && window.HearthriseTheme.getTheme()) || 'hearthlight';
     var themes = (window.HearthriseTheme && window.HearthriseTheme.list && window.HearthriseTheme.list()) || [
-      { id:'cozy-light', label:'Cozy Day', desc:'' },
-      { id:'cozy-dark',  label:'Cozy Night', desc:'' },
-      { id:'classic',    label:'Classic', desc:'' },
+      { id:'hearthlight', label:'Hearthlight', desc:'Candle-lit hall — deep warm dark + gilt' },
     ];
     var themeCards = themes.map(function(t){
       var active = (t.id === current);

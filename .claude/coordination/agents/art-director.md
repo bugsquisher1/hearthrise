@@ -1,5 +1,26 @@
 # Art Director — running log
 
+## 2026-08-20 · RETIRE COZY-LIGHT (branch debt/retire-cozy-light — NOT pushed)
+Removed the retired cozy-light theme to unblock the hardcoded-colour→token cleanup. Kept cozy-dark + classic (also dormant, but out of scope).
+
+**Blast radius / what changed:**
+- `src/styles/theme-cozy.css` — base block `:root, body[data-theme="cozy-light"]` collapsed to `:root` (all 34 tokens kept as inert base; the colour ramp is shadowed on :root by the Hearthlight base block later in the sheet, fonts by art-direction.css; only `--field-sunk` is a live unique def). Every `body[data-theme="cozy-light"] …` scoped rule deleted (they never matched at runtime — body always carries data-theme="hearthlight" — so each deletion is a provable no-op). ~65KB removed.
+- `src/styles/combat-screens.css`, `board-and-shop.css`, `art-direction.css` — same: dead cozy-light scoped rules dropped.
+- `src/features/home-dashboard.js` — deleted the `html:not([data-theme]) …/body[data-theme="cozy-light"] .hd-bar` twin (base `.hd-bar` already carries the dark gauge).
+- `src/theme-picker.js` — applyTheme now normalises any legacy/unknown id (incl. cozy-light) to hearthlight and ALWAYS sets a data-theme attr (never removeAttribute → never resurrects the dead no-attr default). Header comment updated.
+- `src/settings-page.js` — dead fallback theme lists changed cozy-light→hearthlight.
+- `src/features/smoke-test.js` — one cozy-light fallback literal → hearthlight (guards otherwise unchanged; they still pass).
+
+**Removal mechanics:** a comment/brace-aware CSS tokenizer (scratchpad) split each selector list on top-level commas, dropped cozy-light + html:not([data-theme]) selectors, kept the rest, dropped rules that emptied. Brace balance identical to baseline on every sheet; hearthlight selector count 288==288, cozy-dark 8==8, classic 14==14 (nothing else touched). One hearthlight `.card` rule body confirmed byte-identical to HEAD.
+
+**Saved-preference migration (the live-safety item) — VERIFIED:** set localStorage hearthrise:theme='cozy-light' + hb_theme='cozy', reloaded → body[data-theme]='hearthlight', getTheme()='hearthlight', --bg-0=#0a0806 (dark), never themeless. readSaved() already ignored stored ids; documented it as the explicit migration.
+
+**Visual gate (structural — screenshots don't composite in this harness):** own worktree served on :8231. hearthlight live: --bg-0 #0a0806, --ink #ece1cc, --f-ui Alegreya Sans, --field-sunk rgba(0,0,0,.30); sidebar dark gradient, btn-primary gilt gradient, cards intentionally transparent (b217). Zero console errors. Smoke 956/956, 0 fail, 0 runtime errors (the Edge-payload "FAIL" line is pre-existing hr-accrue deploy-drift, server-auth's, not counted in the tally).
+
+**Entanglement w/ server-auth:** NONE. src/legacy.js untouched (0 cozy-light refs there); the legacy `if(key==='theme')` handler lives in settings-page.js, not near updateDaily/completeQuest/completeBounty/farm. Safe to merge independently.
+
+**Unblocks (for the token pass):** every component literal that existed only inside a `body[data-theme="cozy-light"] …` rule is now gone, so the paired hearthlight component rules can be tokenised without a cozy twin to keep in sync. Also: the ~30 shadowed parchment literals still sitting in the `:root` base block can now be trimmed freely (each is re-declared by the Hearthlight :root block).
+
 ### 2026-08-19 · b409 ASSEMBLED-MAIN RELEASE VISUAL GATE (main 8939001) — PASS
 Post-merge gate on assembled main (shop-extraction b408 + gold slices 2-3). Booted static:8000,
 planted fake supabaseSession (gold 1M). Verified structurally (pane never composites — screenshots

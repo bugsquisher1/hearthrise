@@ -5,13 +5,12 @@
 // src/legacy.js (which is hidden via .lane1-toggle{display:none}
 // in theme-cozy.css).
 //
-// Three themes:
-//   • cozy-light  (default)
-//   • cozy-dark
-//   • classic     (RuneScape direction, beta toggle)
+// One live theme:
+//   • hearthlight (candle-lit dark) — the only selectable look.
+//   cozy-light / cozy-dark / classic are retired; readSaved() maps any stale
+//   stored id back to hearthlight (see the migration note there).
 //
-// Persists to localStorage('hearthrise:theme'). Migrates legacy
-// 'hb_theme' values: 'cozy' → 'cozy-light', 'dark' → 'cozy-dark'.
+// Persists to localStorage('hearthrise:theme').
 //
 // Public API:
 //   window.HearthriseTheme.setTheme('cozy-light' | 'cozy-dark' | 'classic')
@@ -40,17 +39,21 @@
   ];
 
   function readSaved() {
-    // Single theme for now — always Hearthlight, regardless of any old saved
-    // choice (existing testers move to the one look too).
+    // Single theme — always Hearthlight, regardless of any old saved choice.
+    // This is ALSO the cozy-light retirement migration (b414): a player whose
+    // localStorage still holds 'cozy-light' (or 'cozy-dark'/'classic') is
+    // silently and safely moved to Hearthlight here — nothing downstream ever
+    // sees the stale value, so no one is left themeless or on a deleted theme.
     return 'hearthlight';
   }
 
   function applyTheme(id) {
-    if (id === 'cozy-light') {
-      document.body.removeAttribute('data-theme');
-    } else {
-      document.body.setAttribute('data-theme', id);
-    }
+    // cozy-light (the old no-attribute default) is retired; every live theme is
+    // attribute-scoped now. Normalise any legacy/unknown id to Hearthlight so
+    // the body is never left without a data-theme (which would resurrect the
+    // dead cozy-light default cascade).
+    if (!id || id === 'cozy-light') id = 'hearthlight';
+    document.body.setAttribute('data-theme', id);
   }
 
   function setTheme(id) {

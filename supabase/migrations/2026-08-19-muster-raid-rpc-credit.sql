@@ -475,6 +475,17 @@ declare
   v_slot  constant int := 0;
   v_g0    bigint; v_g1 bigint; v_g2 bigint; v_led int;
   v_gh    jsonb;
+  -- clan-probe locals (§8 CLAN subtransaction)
+  v_cuid  constant uuid := '000000ac-0000-0000-0000-0000000000ac';
+  v_clan    uuid;
+  v_boss    text;
+  v_maxhp   bigint := 6000;   -- share = max_hp/1 member = 6000
+  v_dmg     bigint := 12000;  -- ratio 2.0 → champion band (>=1.5)
+  v_tg      bigint; v_tgm int;
+  v_expscale numeric; v_expgold bigint; v_expgems int;
+  v_cg0 bigint; v_cg1 bigint; v_cg2 bigint;
+  v_cgm0 bigint; v_cgm1 bigint;
+  v_cled int; v_cled2 int;
 begin
   -- (a) the new arities exist; the old ones are gone.
   if to_regprocedure('public.raid_claim(text,uuid,text,integer)') is null
@@ -544,17 +555,110 @@ begin
       raise exception 'GATE(c): expected exactly one raid ledger row, found %', v_led;
     end if;
 
-    raise exception using errcode = 'HR819', message = 'muster-raid-rpc-credit §8 complete — rolling back';
+    raise exception using errcode = 'HR819', message = 'muster-raid-rpc-credit §8 solo complete — rolling back';
   exception when sqlstate 'HR819' then
     null;   -- the subtransaction is discarded; every probe row above it is gone
   end;
+
+  -- (f) EXECUTED clan-raid credit: prove the CLAN branch by execution, not by
+  --     inference. Seed a DOWNED tier-1 raid the clan gates accept, claim, and
+  --     assert Δgold/Δgems == the tier catalogue × the server-computed scale
+  --     (recomputed here independently the way the RPC does), that the consume
+  --     row exists (consume-before-credit), exactly one 'raid' ledger row, and a
+  --     replay is refused with NO second credit and NO second ledger row.
+  --     Whole probe in a discarded subtxn (HR819) → zero residue on prod.
+  begin
+    perform set_config('request.jwt.claim.sub', v_cuid::text, true);
+    insert into auth.users (id) values (v_cuid) on conflict (id) do nothing;
+    insert into public.player_state (user_id, slot, gold, gems, version)
+      values (v_cuid, 0, 1000, 0, 1)
+      on conflict (user_id, slot) do update set gold = 1000, gems = 0;
+
+    -- clan + membership joined BEFORE both declare and kill (passes joined_after gates)
+    -- clans.name is CHECK(length between 3 and 24); keep the probe name short.
+    insert into public.clans (name, created_by)
+      values ('_hr819_probe', v_cuid)
+      returning id into v_clan;
+    insert into public.clan_members (clan_id, user_id, role, joined_at)
+      values (v_clan, v_cuid, 'member', now() - interval '2 days');
+
+    select boss_id into v_boss from public.hr_hunt_bosses order by tier_min limit 1;
+    -- DOWNED tier-1 raid: downed_at set, declared_at after the member joined.
+    insert into public.clan_raids
+      (clan_id, week_key, boss_id, hp_remaining, max_hp, downed_at, tier, declared_at, members_at_declare)
+    values
+      (v_clan, public.hr_utc_week_key(), v_boss, 0, v_maxhp,
+       now() - interval '1 hour', 1, now() - interval '1 day', 1);
+    -- contribution: damage>0 and >=2 strikes so the clan gates pass.
+    insert into public.raid_contributions
+      (clan_id, week_key, user_id, damage, strikes, first_strike_at)
+    values
+      (v_clan, public.hr_utc_week_key(), v_cuid, v_dmg, 3, now() - interval '2 days');
+
+    -- INDEPENDENT expected: base tier catalogue × server-computed scale, using
+    -- the SAME helpers the RPC uses (share→band→band_mul), factor=1 (not partial).
+    select chest_gold, chest_gems into v_tg, v_tgm from public.hr_hunt_tiers where tier = 1;
+    v_expscale := round(
+      public.hr_hunt_band_mul(public.hr_hunt_band(v_dmg, public.hr_hunt_share(v_maxhp, 1), false)) * 1, 4);
+    v_expgold := floor(v_tg  * v_expscale)::bigint;
+    v_expgems := floor(v_tgm * v_expscale)::int;
+
+    select gold, gems into v_cg0, v_cgm0 from public.player_state where user_id = v_cuid and slot = 0;
+    v := public.raid_claim__ungated('clan', v_clan, public.hr_utc_week_key(), 0);
+    if coalesce(v->>'ok','') <> 'true' or coalesce((v->>'credited')::boolean, false) is not true then
+      raise exception 'GATE(f): first clan claim did not credit: %', v;
+    end if;
+
+    -- consume-happens-before-credit: the raid_claims consume row is present.
+    if not exists (select 1 from public.raid_claims
+                    where user_id = v_cuid and scope = 'clan' and clan_id = v_clan) then
+      raise exception 'GATE(f): clan credit happened with NO consume row — consume-before-credit violated';
+    end if;
+
+    select gold, gems into v_cg1, v_cgm1 from public.player_state where user_id = v_cuid and slot = 0;
+    if v_cg1 - v_cg0 <> v_expgold then
+      raise exception 'GATE(f): clan gold credit was %, expected % (scale %)', v_cg1 - v_cg0, v_expgold, v_expscale;
+    end if;
+    if v_cgm1 - v_cgm0 <> v_expgems then
+      raise exception 'GATE(f): clan gems credit was %, expected % (scale %)', v_cgm1 - v_cgm0, v_expgems, v_expscale;
+    end if;
+    if (v->>'gold')::bigint <> v_expgold or (v->>'gems')::int <> v_expgems then
+      raise exception 'GATE(f): RPC-returned gold/gems disagree with independent expected: % vs %/%', v, v_expgold, v_expgems;
+    end if;
+    select count(*) into v_cled from public.player_ledger where user_id = v_cuid and kind = 'raid';
+    if v_cled <> 1 then
+      raise exception 'GATE(f): expected exactly one raid ledger row, found %', v_cled;
+    end if;
+
+    -- REPLAY under the same (user, week): refused, no second credit, no second ledger row.
+    v := public.raid_claim__ungated('clan', v_clan, public.hr_utc_week_key(), 0);
+    if v->>'ok' <> 'false' or v->>'error' <> 'already_claimed' then
+      raise exception 'GATE(f): clan replay was not refused: %', v;
+    end if;
+    select gold into v_cg2 from public.player_state where user_id = v_cuid and slot = 0;
+    if v_cg2 <> v_cg1 then
+      raise exception 'GATE(f): clan replay RE-CREDITED gold (% -> %)', v_cg1, v_cg2;
+    end if;
+    select count(*) into v_cled2 from public.player_ledger where user_id = v_cuid and kind = 'raid';
+    if v_cled2 <> 1 then
+      raise exception 'GATE(f): clan replay wrote a second ledger row (now %)', v_cled2;
+    end if;
+
+    raise exception using errcode = 'HR819', message = 'muster-raid-rpc-credit §8 clan complete — rolling back';
+  exception when sqlstate 'HR819' then
+    null;   -- clan subtransaction discarded; probe clan/raid/contrib/credit all gone
+  end;
+
   perform set_config('request.jwt.claim.sub', '', true);
 
-  -- rollback asserted, not assumed.
-  if exists (select 1 from public.player_state  where user_id = v_uid)
-     or exists (select 1 from public.player_ledger where user_id = v_uid)
-     or exists (select 1 from public.raid_claims   where user_id = v_uid)
-     or exists (select 1 from auth.users where id = v_uid) then
+  -- rollback asserted, not assumed — for BOTH the solo and clan probes.
+  if exists (select 1 from public.player_state  where user_id in (v_uid, v_cuid))
+     or exists (select 1 from public.player_ledger where user_id in (v_uid, v_cuid))
+     or exists (select 1 from public.raid_claims   where user_id in (v_uid, v_cuid))
+     or exists (select 1 from public.raid_contributions where user_id = v_cuid)
+     or exists (select 1 from public.clan_members where user_id = v_cuid)
+     or exists (select 1 from public.clans where created_by = v_cuid)
+     or exists (select 1 from auth.users where id in (v_uid, v_cuid)) then
     raise exception 'GATE: §8 LEAKED a probe row';
   end if;
 
@@ -572,5 +676,5 @@ begin
     end if;
   end if;
 
-  raise notice 'muster-raid-rpc-credit: arities, grants, credit-once, replay-safe, bad-slot, grant-hygiene all green';
+  raise notice 'muster-raid-rpc-credit: arities, grants, SOLO credit-once, CLAN credit-once (executed), replay-safe, bad-slot, grant-hygiene all green';
 end $$;

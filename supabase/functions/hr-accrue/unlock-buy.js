@@ -50,6 +50,7 @@
 
 import { INTENT_ERRORS, catalogueGet, collectsFirst } from './intents.js';
 import { UNLOCK_OFFERS, UNLOCK_REFUSALS } from './unlock-catalogue.js';
+import { isGoldLadderOffer } from './gold-ladder-catalogue.js';
 import { gateAndRead, refusalBody, shapeRefusal } from './spend.js';
 
 /** The verb's own name — returned in every body so one client dispatcher can
@@ -87,6 +88,14 @@ export function resolveUnlockOffer(offerId) {
   if (typeof offerId !== 'string' || offerId === '') {
     return { ok: false, status: 400, error: INTENT_ERRORS.BAD_OFFER };
   }
+
+  /* GOLD-LADDER OFFERS (worker_hire / farm_land / bank) FIRST, and by NAME only.
+     The Edge holds no price, rung or gate for these — hr_unlock_buy reads all of
+     it from public.hr_unlock_offers under the lock. The id space is disjoint
+     from the shop maps below, so order is a clarity choice, not a correctness
+     one. `{ id }` is the whole surface the commit statement binds. */
+  if (isGoldLadderOffer(offerId)) return { ok: true, offer: { id: offerId } };
+
   const offer = catalogueGet(UNLOCK_OFFERS, offerId);
   if (offer) return { ok: true, offer };
 

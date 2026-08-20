@@ -301,6 +301,15 @@ const snapshotG = () => {
        and the failure mode is silently gifting a player capacity they never
        bought (or, on the other branch, taking capacity they did). */
     bank: G.bank,
+    /* b4xx (gold slices 2-3): the WORKERS crew and the HOUSE theme/buyback state.
+       The slice-2/3 tests drive hire() (which pushes a worker + debits gold),
+       buyTheme() (equips a theme) and repurchase() (spends the buy-back list), so
+       without these four fields a suite run would gift the player a worker, an
+       equipped theme, or an emptied/edited buy-back list they never chose. */
+    workers: G.workers,
+    ownedThemes: G.ownedThemes,
+    houseTheme: G.houseTheme,
+    buyback: G.buyback,
   }));
 };
 
@@ -1116,6 +1125,178 @@ const TESTS = [
         'the homestead upgrade must debit exactly 400 gold once (offer property.homestead); got '
         + (goldBefore - window.G.gold));
     } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('unlock_buy slices 2-3: worker/farm/bank offer ids cross, a price never does', () => {
+    // THE BYTES. hire()/buildPlot('farm_plot')/buyBankSpaceGold() now debit gold
+    // through the live `unlock_buy` verb. The load-bearing property is the same as
+    // slice 1's: the wire carries an OFFER ID and NOTHING ELSE — no price, no qty
+    // — so a forged client value cannot author a permanent capability's cost.
+    const S = window.HearthriseGold;
+    if (!S || typeof S.buildGoldRequest !== 'function') return;
+    ['worker_hire.1', 'worker_hire.6', 'farm_land.1', 'farm_land.12', 'bank.0', 'bank.29'].forEach((offer) => {
+      const body = JSON.parse(S.buildGoldRequest({ verb: 'unlock_buy', slot: 0, intentId: 'k', offer }).init.body);
+      assert(body.verb === 'unlock_buy' && body.offer === offer,
+        'the unlock_buy body must carry the verb and the offer id ' + offer);
+      assert(!('qty' in body) && !('price' in body) && !('cost' in body) && !('gold' in body) && !('amount' in body),
+        'the ' + offer + ' wire must carry NO price/qty/cost — a client price authoring a rung is the '
+        + 'exact thing this verb exists to make impossible; got ' + JSON.stringify(body));
+      assert(S.UNLOCK_OFFER_ID_RE.test(offer), offer + ' must match the unlock offer id shape');
+    });
+  }),
+
+  () => tryRunClientAuthoritative('unlock_buy slices 2-3: hire/buildPlot/bank debit EXACTLY ONCE (client-authoritative)', () => {
+    // Switch OFF, goldSettle is the plain local debit that shipped before, so this
+    // asserts the rewiring preserved the exact charge and did not double-debit —
+    // the same shape as slice 1's upgradeProperty test.
+    const snap = snapshotG();
+    try {
+      if (window.HearthriseWorkers && typeof window.HearthriseWorkers.hire === 'function' && window.HearthriseHomestead) {
+        window.G.homestead = { tier: 1 };            // 1 worker slot
+        window.G.workers = { hired: [] };
+        window.G.gold = 100000;
+        const before = window.G.gold;
+        window.HearthriseWorkers.hire();
+        assert(window.G.workers.hired.length === 1, 'the first worker should be hired');
+        assert(window.G.gold === before - 500, 'hire must debit exactly 500 gold once; got ' + (before - window.G.gold));
+      }
+      if (typeof window.buildPlot === 'function' && window.HearthriseHomestead) {
+        window.G.homestead = { tier: 1 };
+        window.G.plotBuildings = [];
+        window.G.gold = 100000;
+        window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 100 });
+        const before = window.G.gold;
+        window.buildPlot('farm_plot');
+        assert(window.G.plotBuildings.filter((x) => x.id === 'farm_plot').length === 1, 'a farm plot should be built');
+        assert(window.G.gold === before - 100, 'buildPlot must debit exactly 100 gold once; got ' + (before - window.G.gold));
+      }
+      if (typeof window.buyBankSpaceGold === 'function' && typeof window.bankGoldCost === 'function') {
+        window.G.bank = { goldBuys: 0 };
+        window.G.gold = 1000000;
+        const cost = window.bankGoldCost();
+        const before = window.G.gold;
+        window.buyBankSpaceGold();
+        assert(window.G.bank.goldBuys === 1, 'a bank rung should be bought');
+        assert(window.G.gold === before - cost, 'buyBankSpaceGold must debit exactly bankGoldCost once; got ' + (before - window.G.gold));
+      }
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('unlock_buy slices 2-3: each site sends offer.<next rung> and NOTHING else on the wire', () => {
+    // With the accrual switch ON (the pristine default), each wired site fires
+    // HearthriseGold.buyUnlock(offer, key). Stubbing it captures the exact offer id
+    // the SITE computed from server-mirrored local state — the NEXT rung — and lets
+    // us prove it is an offer-id-only gesture (buyUnlock takes no price argument at
+    // all). resetGold() clears the predictions the stub leaves outstanding.
+    const S = window.HearthriseGold;
+    if (!S || typeof S.buyUnlock !== 'function' || !S.isGoldIntentEnabled || !S.isGoldIntentEnabled()) return;
+    const snap = snapshotG();
+    const origBuy = S.buyUnlock;
+    const sent = [];
+    try {
+      S.buyUnlock = function () { sent.push(Array.prototype.slice.call(arguments)); return Promise.resolve({ sent: false }); };
+
+      if (window.HearthriseWorkers && typeof window.HearthriseWorkers.hire === 'function' && window.HearthriseHomestead) {
+        window.G.homestead = { tier: 1 }; window.G.workers = { hired: [] }; window.G.gold = 100000;
+        sent.length = 0;
+        window.HearthriseWorkers.hire();
+        const call = sent.find((a) => a[0] === 'worker_hire.1');
+        assert(call, 'hire must send offer worker_hire.1; sent ' + JSON.stringify(sent));
+        assert(call.length === 2 && S.isIntentKey(call[1]), 'buyUnlock takes ONLY (offer, key) — no price arg; got ' + JSON.stringify(call));
+      }
+      if (typeof window.buildPlot === 'function' && window.HearthriseHomestead) {
+        window.G.homestead = { tier: 1 }; window.G.plotBuildings = []; window.G.gold = 100000;
+        window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 100 });
+        sent.length = 0;
+        window.buildPlot('farm_plot');
+        assert(sent.some((a) => a[0] === 'farm_land.1'), 'buildPlot must send offer farm_land.1; sent ' + JSON.stringify(sent));
+      }
+      if (typeof window.buyBankSpaceGold === 'function') {
+        window.G.bank = { goldBuys: 0 }; window.G.gold = 1000000;
+        sent.length = 0;
+        window.buyBankSpaceGold();
+        assert(sent.some((a) => a[0] === 'bank.0'), 'buyBankSpaceGold must send offer bank.0; sent ' + JSON.stringify(sent));
+      }
+    } finally {
+      S.buyUnlock = origBuy;
+      try { S.resetGold(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('unlock_buy slice 2: the bank gold ladder clamps at 30 rungs client-side (defence-in-depth)', () => {
+    // The SERVER ceiling is the 30-rung bank ladder and the per-namespace daily
+    // clamp is 32 (c_max_unlocks_per_day in 2026-08-16-unlock-buy.sql), so a full
+    // 30-rung climb in one day is legal — that is WHY the clamp moved to 32 and
+    // became per-namespace. The client also clamps at goldBuys<=30 so a maxed bag
+    // stops asking. ⚠ THE SERVER 30-rung ceiling + the per-namespace 32/day clamp
+    // are enforced in SQL and must be verified on a LIVE migration apply — the JS
+    // smoke harness cannot reach the RPC.
+    if (typeof window.buyBankSpaceGold !== 'function') return;
+    const snap = snapshotG();
+    try {
+      window.G.bank = { goldBuys: 30 };
+      window.G.gold = 1e12;
+      const before = window.G.gold;
+      const r = window.buyBankSpaceGold();
+      assert(r === false, 'a 31st gold bank buy must be refused client-side');
+      assert(window.G.gold === before, 'a refused bank buy must spend no gold; got -' + (before - window.G.gold));
+      assert(window.G.bank.goldBuys === 30, 'goldBuys must not advance past 30');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('slice 6: buyTheme has no gold branch — the default equips free, gem themes never touch gold', () => {
+    if (typeof window.buyTheme !== 'function') return;
+    const snap = snapshotG();
+    try {
+      // The free default (currency !== 'gem', price 0) is a FREE EQUIP, not a gold buy.
+      window.G.gold = 12345; window.G.gems = 0;
+      window.G.ownedThemes = ['default'];
+      const goldBefore = window.G.gold;
+      window.buyTheme('default');
+      assert(window.G.gold === goldBefore, 'equipping the free default theme must spend no gold; got -' + (goldBefore - window.G.gold));
+      assert(window.G.houseTheme === 'default', 'the default theme should be equipped');
+      // A gem theme with no gems is refused and — the whole point of slice 6 — never touches gold.
+      window.G.gems = 0;
+      const g0 = window.G.gold;
+      window.buyTheme('forest');
+      assert(window.G.gold === g0, 'a gem theme must never debit gold; got -' + (g0 - window.G.gold));
+      assert(window.G.houseTheme !== 'forest', 'a gem theme must not equip without gems');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('slice 7: buyback is gated on the record seam — works UNARMED, fails CLOSED when gold is armed', () => {
+    if (typeof window.repurchase !== 'function' || !window.ITEMS || !window.ITEMS.copper_ore) return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    /* buyback may be undefined at snapshot, and JSON.stringify DROPS an undefined
+       key so restoreG cannot clear it — a leftover entry would then draw an extra
+       Vendor-buy-back row in the seed shop and fail b221. Restore it by hand. */
+    const origBuyback = window.G.buyback;
+    try {
+      // UNARMED (today): clientMayWriteRecordField('gold') is true → the buy-back works.
+      window.clientMayWriteRecordField = function () { return true; };
+      window.G.buyback = [{ id: 'copper_ore', qty: 2, unit: 3, at: Date.now() }];
+      window.G.gold = 1000;
+      window.G.inventory = Object.assign({}, window.G.inventory);
+      const before = window.G.gold;
+      window.repurchase(0);
+      assert(window.G.gold === before - 6, 'unarmed buy-back must debit 2×3 gold; got -' + (before - window.G.gold));
+      assert(window.G.buyback.length === 0, 'a completed buy-back removes the entry');
+
+      // ARMED: clientMayWriteRecordField('gold') is false → refused, no debit, entry kept.
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
+      window.G.buyback = [{ id: 'copper_ore', qty: 2, unit: 3, at: Date.now() }];
+      window.G.gold = 1000;
+      const g2 = window.G.gold;
+      window.repurchase(0);
+      assert(window.G.gold === g2, 'armed buy-back must NOT debit gold (a client past-price is a mint); got -' + (g2 - window.G.gold));
+      assert(window.G.buyback.length === 1, 'a refused buy-back keeps the entry');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.G.buyback = origBuyback;
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('b227: the save migration clamps room levels to the live ladder', () => {
@@ -2479,7 +2660,13 @@ const TESTS = [
   }),
   // b269 (Tyler): purchasable bank space. Cap counts distinct stacks; gold path
   // escalates; gem path is the better-value premium deal; can't overspend.
-  () => tryRun('b269: buying bank space raises the cap; gold escalates; gems are the better deal', () => {
+  /* b4xx: CLIENT-AUTHORITATIVE now — buyBankSpaceGold() is wired to unlock_buy
+     (seam:bank.buy_gold). With the accrual switch ON but no server configured in
+     the harness, the fired intent answers `unconfigured` and rolls the local debit
+     back, so the exact-deduction assertions below must run with the switch OFF —
+     the shipping-today path, and the same discipline slice 1 applied to its debit
+     tests. The gem path and the cap arithmetic are switch-independent. */
+  () => tryRunClientAuthoritative('b269: buying bank space raises the cap; gold escalates; gems are the better deal', () => {
     const G = window.G;
     assert(typeof window.buyBankSpaceGold === 'function', 'buyBankSpaceGold missing');
     assert(typeof window.buyBankSpaceGem === 'function', 'buyBankSpaceGem missing');

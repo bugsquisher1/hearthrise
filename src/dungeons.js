@@ -359,7 +359,11 @@
       if(typeof window.removeItem === 'function') window.removeItem(d.cost.key, 1);
       else window.G.inventory[d.cost.key] = Math.max(0, (window.G.inventory[d.cost.key]||0) - 1);
     }
-    if(d.cost.gold) window.G.gold -= d.cost.gold;
+    /* b4xx — GATED ON THE RECORD SEAM. Every authored dungeon costs a KEY, not
+       gold, so this branch is unreachable today; the gate makes sure a future
+       data row that DID price a dungeon in gold cannot silently reintroduce a
+       client gold spend once gold is armed (fails closed, no-op while unarmed). */
+    if(d.cost.gold && (typeof window.clientMayWriteRecordField!=='function' || window.clientMayWriteRecordField('gold'))) window.G.gold -= d.cost.gold;
     if(d.cost.hearth_token){
       if(typeof window.removeItem === 'function') window.removeItem('hearth_token', d.cost.hearth_token);
       else window.G.inventory.hearth_token = Math.max(0, (window.G.inventory.hearth_token||0) - d.cost.hearth_token);
@@ -904,7 +908,9 @@
       return;
     }
     // Pay cost
-    if(d.cost.gold) window.G.gold -= d.cost.gold;
+    /* b4xx — GATED ON THE RECORD SEAM (see runDungeon). Dungeon entries cost keys,
+       not gold, so this is unreachable; the gate fails closed once gold is armed. */
+    if(d.cost.gold && (typeof window.clientMayWriteRecordField!=='function' || window.clientMayWriteRecordField('gold'))) window.G.gold -= d.cost.gold;
     /* b214 (exploit fix): consume the entry KEY, exactly as runDungeon() does.
        This was missing — manual phase-runs charged gold/tokens but never spent
        the key, so a single farmed key ran the dungeon forever (cooldown aside),

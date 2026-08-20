@@ -258,6 +258,32 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'downgrade the ladder. Gold is predicted; the item cost + dungeon blueprint stay client-side '
       + 'for now (item authority is a separate program) and are consumed server-side by the verb.',
   },
+  'seam:workers.hire': {
+    kind: 'spend', status: 'wired', verb: 'unlock_buy',
+    site: 'src/features/workers.js hire() — the hired-crew ladder (slice 2)',
+    note: 'NO PRICE CROSSES. The wire is the offer id `worker_hire.<N>` (N = current crew + 1) only; '
+      + 'hr_unlock_buy reads the ESCALATING per-rung price and the property-tier gate off '
+      + 'public.hr_unlock_offers and merges the rung GREATEST, so a re-buy cannot downgrade the crew '
+      + 'and the crew cap tracks the SERVER property tier. The local gold debit is a PREDICTION keyed '
+      + 'to that intent; switch OFF it is the plain debit that shipped before.',
+  },
+  'seam:farm.build_plot': {
+    kind: 'spend', status: 'wired', verb: 'unlock_buy',
+    site: 'src/legacy.js buildPlot(\'farm_plot\') — the farm-land ladder (slice 3)',
+    note: 'Offer id `farm_land.<N>` (N = current farm-plot count + 1), 12 flat-priced rungs gated on '
+      + 'the property tier. Price + gate read and re-validated server-side, GREATEST merge. Gold is '
+      + 'predicted; the item cost (normal_log) stays client-side until item authority lands and is '
+      + 'consumed server-side by the verb. The OTHER plot buildings (scarecrow) have no ladder — '
+      + 'their raw debit is the still-deferred src/legacy.js#buildPlot row below.',
+  },
+  'seam:bank.buy_gold': {
+    kind: 'spend', status: 'wired', verb: 'unlock_buy',
+    site: 'src/legacy.js buyBankSpaceGold() — the bag-capacity ladder, gold rungs (slice 2)',
+    note: 'Offer id `bank.<k>` (k = rungs already owned; the rung VALUE is k+1), 30 geometric-priced '
+      + 'rungs, no tier gate. Price + the 30-rung ceiling are read and re-validated inside '
+      + 'hr_unlock_buy, never sent; GREATEST merge makes a re-buy idempotent. The client also clamps '
+      + 'at goldBuys<=30 as defence-in-depth. Gold is predicted; switch OFF it is the plain debit.',
+  },
   'seam:vendor.sell_one': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
     site: 'src/legacy.js invSellOne() — the bag\'s Sell 1',
@@ -469,14 +495,17 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   'src/dungeons.js#startManualRun': { kind: 'spend', status: 'deferred', blockedBy: B.DUNGEON_ENTRY },
   /* upgradeProperty is now `seam:homestead.upgrade` (wired, unlock_buy) — it no
      longer writes `.gold` raw, so the scanner reports it under the seam id. */
-  'src/features/workers.js#hire': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
-  'src/legacy.js#buyBankSpaceGold': {
-    kind: 'spend', status: 'deferred', blockedBy: B.DERIVED_PRICE,
-    site: 'DERIVED_PRICES id `bank.gold`',
-  },
+  /* hire() is now `seam:workers.hire` (wired, unlock_buy — slice 2). */
+  /* buyBankSpaceGold() is now `seam:bank.buy_gold` (wired, unlock_buy — slice 2);
+     the DERIVED_PRICE blocker is retired for it (the price is a server-owned
+     ladder rung now, not a client-derived escalator). */
   /* upgradeRoom is now `seam:house.upgrade_room` (wired, unlock_buy). */
-  'src/legacy.js#buildPlot': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
-  'src/legacy.js#buyTheme': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
+  'src/legacy.js#buildPlot': {
+    kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,
+    site: 'the NON-farm plot buildings (scarecrow) — farm_plot itself is now seam:farm.build_plot',
+  },
+  /* buyTheme no longer writes gold at all — themes are gems-only and the free
+     default is a free equip (slice 6). The old deferred gold row is retired. */
   'src/legacy.js#buyTrait': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
   'src/legacy.js#_buyCompanion': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
   'src/legacy.js#repurchase': {

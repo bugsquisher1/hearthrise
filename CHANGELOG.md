@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 422 — 2026-08-20 (Muster chests fixed + inventory groundwork)
+
+- 🐛 **Fixed: muster/rally chests were failing to pay out.** A server bug caused every rally-chest claim to roll back silently — the reward wasn't lost (you can claim it now), but it wouldn't pay until this fix. Chests now grant their materials server-side, so the items are real and safe.
+- 🔧 Under the hood: laid the server-side groundwork for making your inventory tamper-proof (the next and final piece of the anti-cheat foundation). No gameplay change yet.
+
 ## v0.9.2-beta build 421 — 2026-08-20 (Gold & gems are now server-authoritative)
 
 - 🔒 Your gold and gems are now owned and verified by the server. The last two currencies have moved off the client — a tampered balance can no longer buy anything or show up on a leaderboard. This completes the server-authority program: every currency, skill, drop, and reward is now computed and held server-side.

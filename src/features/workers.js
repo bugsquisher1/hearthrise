@@ -146,6 +146,25 @@
     var _offer = 'worker_hire.' + (G.workers.hired.length + 1);
     var _k = (typeof window.goldIntentKey === 'function') ? window.goldIntentKey() : null;
     window.goldSettle(-cost, 'workers.hire', _k);
+    /* THE RUNG PURCHASE — real gold debit + paid-cap raise, server-side. Fired
+       for BOTH paths (unchanged from the pre-slice wiring): the server-backed
+       hire below reads this same purchase's promise so it can AWAIT the rung
+       before materialising, and the legacy path just lets it settle. */
+    var _buy = null;
+    if (_k && window.HearthriseGold && typeof window.HearthriseGold.buyUnlock === 'function') {
+      _buy = window.HearthriseGold.buyUnlock(_offer, _k); if (_buy && _buy.catch) _buy.catch(function () {});
+    }
+
+    /* ── SERVER-BACKED HIRE (worker-settlement slice) ─────────────────────────
+       With the crew server-owned, the AUTHORITATIVE crew row is created by
+       hr_worker_hire (materialised up to the paid cap) and rendered from the
+       envelope by reconcileWorkers(). The optimistic worker pushed below is a
+       DISPLAY PREDICTION only — reconcileWorkers REPLACES G.workers.hired
+       wholesale from the server on the next envelope, so it is never a
+       client-authored crew the server reads. */
+    if (serverBacked()) return hireServer(G, _buy);
+
+    // ── LEGACY LOCAL PATH (flag off): the client mints the crew verbatim ──────
     var used = G.workers.hired.map(function (w) { return w.name; });
     var pool = NAMES.filter(function (n) { return used.indexOf(n) < 0; });
     var w = {
@@ -154,19 +173,83 @@
       skill: null, targetId: null, xp: 0, lastCollect: Date.now()
     };
     G.workers.hired.push(w);
-    /* FIRE AND RECONCILE — never await. No-op with the accrual switch off. */
-    if (_k && window.HearthriseGold && typeof window.HearthriseGold.buyUnlock === 'function') {
-      var _p = window.HearthriseGold.buyUnlock(_offer, _k); if (_p && _p.catch) _p.catch(function () {});
-    }
     if (window.notify) notify('🤝 ' + w.name + ' joins your homestead!', 'levelup');
     render();
     return w;
+  }
+
+  function makeOptimisticWorker(G) {
+    var used = G.workers.hired.map(function (w) { return w.name; });
+    var pool = NAMES.filter(function (n) { return used.indexOf(n) < 0; });
+    return {
+      uid: 'wpending' + Date.now() + Math.floor(Math.random() * 999),
+      name: pool.length ? pool[Math.floor(Math.random() * pool.length)] : ('Worker ' + (G.workers.hired.length + 1)),
+      skill: null, targetId: null, xp: 0, lastCollect: Date.now(), _pending: true
+    };
+  }
+
+  function dropWorker(G, w) {
+    var i = G.workers.hired.indexOf(w);
+    if (i >= 0) G.workers.hired.splice(i, 1);
+  }
+
+  /* Show an optimistic worker at once (matching the pre-slice instant feedback),
+     then materialise the AUTHORITATIVE crew row on the server. The rung purchase
+     is AWAITED before hr_worker_hire because that RPC reads the paid cap
+     (hr_unlock_levels) and would answer crew_cap_reached against a rung that has
+     not committed yet. The server's uid is stamped onto the prediction so the
+     next envelope's reconcileWorkers() matches it and preserves the display
+     ledger; a refusal drops the prediction. Returns the optimistic worker. */
+  function hireServer(G, buy) {
+    var temp = makeOptimisticWorker(G);
+    G.workers.hired.push(temp);
+    if (window.notify) notify('🤝 ' + temp.name + ' joins your homestead!', 'levelup');
+    render();
+
+    var Net = window.HearthriseWorkersNet;
+    if (Net && Net.isSignedIn()) {
+      Promise.resolve(buy || { outcome: 'applied' }).then(function (r) {
+        var ok = !buy || (r && (r.outcome === 'applied' || r.outcome === 'replayed'));
+        if (!ok) {
+          /* The gold seam retires/rolls back the prediction on a refusal; drop
+             the optimistic worker so the display does not overstate the crew. */
+          dropWorker(G, temp);
+          if (window.notify) notify('Could not complete the hire — ' + ((r && r.reason) || 'try again'), 'kill');
+          render();
+          return null;
+        }
+        return Net.hire().then(function (res) {
+          if (res && res.ok) {
+            temp.uid = res.uid; temp.name = res.name; temp._pending = false;
+            render();
+          } else {
+            dropWorker(G, temp);
+            notifyHireError(res);
+            render();
+          }
+        });
+      }).catch(function () {});
+    }
+    return temp;
+  }
+
+  function notifyHireError(res) {
+    if (!window.notify) return;
+    var e = res && res.error;
+    if (e === 'crew_cap_reached') notify('Buy the next worker slot before hiring again', 'kill');
+    else if (e === 'rate_limited') notify('Slow down — try again in a moment', 'kill');
+    else if (e === 'not_signed_in') notify('Connect to the server to hire workers', 'kill');
+    else notify('Could not hire a worker' + (e ? ' (' + e + ')' : ''), 'kill');
   }
 
   function assign(uid, skill, targetId) {
     ensureState();
     var w = G_().workers.hired.find(function (x) { return x.uid === uid; });
     if (!w) return false;
+    /* SERVER-BACKED: the server owns the assignment (own-worker + node + your
+       level gate) and settles the crew. The client sends the intent and renders
+       a display prediction the envelope reconciles. */
+    if (serverBacked()) return assignServer(w, uid, skill, targetId);
     accrueWorker(w);                             // bank the old task before switching
     if (!skill || !targetId) { w.skill = null; w.targetId = null; render(); return true; }
     var act = actFor(skill, targetId);
@@ -177,6 +260,59 @@
     if (window.notify) notify(w.name + ' assigned to ' + act.name, 'info');
     render();
     return true;
+  }
+
+  /* Send the assign intent, render an optimistic prediction, reconcile to the
+     server's answer. A refusal reverts the prediction and explains why; the next
+     envelope's reconcileWorkers() is the final authority either way. */
+  function assignServer(w, uid, skill, targetId) {
+    var Net = window.HearthriseWorkersNet;
+    if (!Net || !Net.isSignedIn()) {
+      if (window.notify) notify('Connect to the server to assign workers', 'kill');
+      return false;
+    }
+    /* Local pre-check for instant feedback only — the SERVER re-checks YOUR level
+       against its own xp, so this just avoids a doomed round trip. */
+    if (skill && targetId) {
+      var act = actFor(skill, targetId);
+      if (!act) return false;
+      var plv = (typeof window.getLevel === 'function') ? window.getLevel(skill) : 1;
+      if (plv < act.req) {
+        if (window.notify) notify('You must reach ' + skill + ' Lv ' + act.req + ' before a worker can learn it', 'kill');
+        return false;
+      }
+    }
+    var prevSkill = w.skill, prevTarget = w.targetId;
+    if (!skill || !targetId) { w.skill = null; w.targetId = null; }
+    else { w.skill = skill; w.targetId = targetId; w.lastCollect = Date.now(); }
+    render();
+    Net.assign(uid, skill || null, targetId || null).then(function (res) {
+      if (res && res.ok) {
+        w.skill = res.skill || null;
+        w.targetId = (res.target_id != null ? res.target_id : null);
+        if (window.notify && res.skill) {
+          var a = actFor(res.skill, res.target_id);
+          notify(w.name + ' assigned to ' + (a ? a.name : res.target_id), 'info');
+        }
+      } else {
+        w.skill = prevSkill; w.targetId = prevTarget;
+        notifyAssignError(res);
+      }
+      render();
+    }).catch(function () { w.skill = prevSkill; w.targetId = prevTarget; render(); });
+    return true;
+  }
+
+  function notifyAssignError(res) {
+    if (!window.notify) return;
+    var e = res && res.error;
+    if (e === 'level_too_low') notify('Your own skill is too low for that task' + (res && res.req_lv ? ' (needs Lv ' + res.req_lv + ')' : ''), 'kill');
+    else if (e === 'wrong_skill') notify('That worker cannot do that task', 'kill');
+    else if (e === 'unknown_node') notify('That gathering spot is not available', 'kill');
+    else if (e === 'bad_skill') notify('That is not a gathering skill', 'kill');
+    else if (e === 'unknown_worker') notify('That worker is no longer on your crew', 'kill');
+    else if (e === 'rate_limited') notify('Slow down — try again in a moment', 'kill');
+    else notify('Could not assign the worker' + (e ? ' (' + e + ')' : ''), 'kill');
   }
 
   /* ── SERVER-BACKED PRODUCTION (worker-settlement slice) ────────────────────
@@ -362,7 +498,11 @@
     try {
       ensureState();
       accrueAll(true);                          // banks offline production + announces it
-      setInterval(function () { accrueAll(false); }, 60000);
+      /* Server-backed: accrueAll is a no-op for authority, but the crew's xp /
+         level / assignment are refreshed into G.workers by reconcileWorkers() as
+         envelopes arrive, so repaint on the same cadence to keep an open House
+         card live. Flag off: this just repaints after the local bank, harmless. */
+      setInterval(function () { accrueAll(false); render(); }, 60000);
     } catch (e) {}
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

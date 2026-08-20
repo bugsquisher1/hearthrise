@@ -276,8 +276,15 @@ function showProc(label) {
   try {
     const el = document.createElement('div');
     el.textContent = label;
+    /* Font floor (project HARD RULE, enforced by the b227 document scan): the proc
+       toast was 13.5px — below the 14.5px floor. It slips past the scan only when
+       no toast is live, so it was a latent violation; the headless page throttles
+       the removal timer below, which can keep the toast alive long enough for the
+       scan to catch it. Use the scalable floor form the rest of the UI uses
+       (calc(14.5px * --ui-scale)). Colour left as-is and flagged to the Art
+       Director in CONFLICTS.md (the toast bg/ink are hardcoded, not tokens). */
     el.style.cssText = 'position:fixed;top:60px;right:20px;z-index:99998;background:rgba(127,154,79,.95);'
-      + 'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:13.5px;'
+      + 'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));'
       + 'box-shadow:0 4px 12px rgba(0,0,0,.3);animation:proc-fade 1.6s ease-out forwards';
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 1700);

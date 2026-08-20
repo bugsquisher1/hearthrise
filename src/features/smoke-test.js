@@ -2941,11 +2941,19 @@ const TESTS = [
     const W = window.HearthriseWorkers, H = window.HearthriseHomestead;
     assert(W && H, 'workers + homestead modules present');
     const G = window.G;
+    const IA = window.HearthriseItemAuthority;
     const saved = {
       homestead: G.homestead, workers: G.workers, gold: G.gold,
       inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: G.skills
     };
+    /* The LEGACY client-mint path (flag OFF). With WORKER_PRODUCTION_SERVER_BACKED
+       ON the crew is server-owned — hire/assign send intents and accrueWorker is a
+       no-op, which is covered by the "worker-settlement" E2E above. This test
+       guards the one-line REVERT path stays intact: with the flag off the client
+       still hires, assigns and banks resources exactly as it shipped. */
+    const flagBefore = IA && IA.WORKER_PRODUCTION_SERVER_BACKED;
     try {
+      if (IA) IA.WORKER_PRODUCTION_SERVER_BACKED = false;
       G.homestead = { tier: 1 };                       // 1 worker slot
       G.workers = { hired: [] }; G.gold = 10000;
       stampBalanceLikeLoad(G);   // armed: W.hire() reads gold via canAfford
@@ -2963,6 +2971,7 @@ const TESTS = [
       assert(gained > 80 && gained < 350, 'worker should bank ~180 logs for 1h at the rebalanced 10% eff, got ' + gained);
       assert(JSON.stringify(G.skills) === xpBefore, 'workers must never grant player XP');
     } finally {
+      if (IA) IA.WORKER_PRODUCTION_SERVER_BACKED = flagBefore;
       G.homestead = saved.homestead; G.workers = saved.workers; G.gold = saved.gold;
       G.inventory = saved.inv; G.skills = saved.skills;
     }
@@ -2979,6 +2988,102 @@ const TESTS = [
     assert(effMax <= 0.20, 'a maxed worker must be ≤ 20% of an active gatherer, got ' + effMax);
     assert(crew <= 1.1, 'a full 6-worker castle crew must be ≤ 1.1 active-equivalents, got ' + crew);
   }),
+  /* worker-settlement slice — THE CLIENT WIRING. With the crew server-owned
+     (WORKER_PRODUCTION_SERVER_BACKED), hire() and assign() must send INTENTS to
+     hr_worker_hire / hr_worker_assign and render the SERVER's crew, never author
+     one locally. This drives the whole gesture with stubbed transports and proves:
+       • hire buys the next paid rung, then calls hr_worker_hire, and the
+         optimistic worker takes the server's uid;
+       • assign fires hr_worker_assign with (uid, skill, node);
+       • reconcileWorkers renders the server crew (target_id -> targetId),
+         preserves the client display ledger by uid, and treats an omitted
+         `workers` array as "unknown" but an empty array as "the crew is empty".
+     MUTATION: drop the `if (serverBacked()) return hireServer(...)` line in
+     workers.js -> hr_worker_hire is never called -> RED. */
+  () => tryRunAsync('worker-settlement: hire + assign go through the server RPCs; the crew reconciles from the envelope', async () => {
+    const W = window.HearthriseWorkers, A = window.HearthriseAccrual, IA = window.HearthriseItemAuthority;
+    assert(W && A && IA, 'workers + accrual + item-authority modules present');
+    assert(typeof A.reconcileWorkers === 'function', 'accrue must publish reconcileWorkers');
+
+    const G = window.G;
+    const saved = { workers: G.workers, homestead: G.homestead, skills: G.skills, gold: G.gold };
+    const flagBefore = IA.WORKER_PRODUCTION_SERVER_BACKED;
+    const netBefore = window.HearthriseWorkersNet;
+    const goldBefore = window.HearthriseGold;
+    /* Silence hire/assign toasts so this test does not leave a transient
+       notification in the DOM for a later whole-document scan (b227) to catch. */
+    const notifyBefore = window.notify;
+    window.notify = function () {};
+    const buyCalls = [], hireCalls = [], assignCalls = [];
+    const SRV_UID = 'wSRV1';
+    // gold stub: buyUnlock always "lands" so the hire proceeds to materialise.
+    window.HearthriseGold = Object.assign({}, goldBefore, {
+      buyUnlock: function (offer) { buyCalls.push(offer); return Promise.resolve({ outcome: 'applied' }); }
+    });
+    // net stub: records intents, answers server-shaped envelopes.
+    window.HearthriseWorkersNet = {
+      isSignedIn: function () { return true; },
+      hire: function () { hireCalls.push(1); return Promise.resolve({ ok: true, uid: SRV_UID, name: 'Aldric', crew: 1 }); },
+      assign: function (uid, skill, target) { assignCalls.push([uid, skill, target]); return Promise.resolve({ ok: true, uid: uid, skill: skill, target_id: target }); }
+    };
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+    try {
+      IA.WORKER_PRODUCTION_SERVER_BACKED = true;   // force the server path regardless of ambient arm
+      G.workers = { hired: [] };
+      G.homestead = { tier: 5 };                    // castle (TIERS[5]): 6 worker slots
+      G.gold = 1e9; stampBalanceLikeLoad(G);
+      G.skills = Object.assign({}, G.skills, { woodcutting: 100000 });
+
+      // 1) HIRE — an optimistic worker appears at once; the server materialises it.
+      const temp = W.hire();
+      assert(temp && temp.uid, 'hire returns an optimistic worker for instant feedback');
+      assert(G.workers.hired.length === 1, 'the optimistic worker is shown immediately');
+      assert(buyCalls.length === 0 || buyCalls[buyCalls.length - 1] === 'worker_hire.1',
+        'hire buys the next paid rung worker_hire.1; got ' + JSON.stringify(buyCalls));
+      await tick(); await tick(); await tick();   // let buy -> materialise settle
+      assert(hireCalls.length === 1, 'hire must call hr_worker_hire after the rung commits');
+      assert(G.workers.hired.length === 1 && G.workers.hired[0].uid === SRV_UID,
+        'the optimistic worker takes the server uid; got ' + JSON.stringify(G.workers.hired.map((w) => w.uid)));
+      assert(G.workers.hired[0]._pending === false, 'the worker is no longer pending once materialised');
+
+      // 2) ASSIGN — the intent goes to hr_worker_assign; the prediction reconciles.
+      const ok = W.assign(SRV_UID, 'woodcutting', 'normal_tree');
+      assert(ok === true, 'assign returns true (intent accepted)');
+      assert(G.workers.hired[0].skill === 'woodcutting' && G.workers.hired[0].targetId === 'normal_tree',
+        'the assignment shows optimistically');
+      await tick(); await tick();
+      assert(assignCalls.length === 1, 'assign must call hr_worker_assign');
+      assert(assignCalls[0][0] === SRV_UID && assignCalls[0][1] === 'woodcutting' && assignCalls[0][2] === 'normal_tree',
+        'the assign intent carries uid + skill + node; got ' + JSON.stringify(assignCalls[0]));
+
+      // 3) RECONCILE — the envelope is the truth (target_id -> targetId), display
+      //    ledger preserved by uid.
+      G.workers.hired[0].collected = { normal_log: 42 }; G.workers.hired[0].collectedTotal = 42;
+      const n = A.reconcileWorkers(G, { workers: [
+        { uid: SRV_UID, name: 'Aldric', skill: 'woodcutting', target_id: 'normal_tree', xp: 5000, acc_ms: 0 }
+      ] });
+      assert(n === 1, 'reconcileWorkers returns the server crew size');
+      const rw = G.workers.hired[0];
+      assert(rw.uid === SRV_UID && rw.skill === 'woodcutting' && rw.targetId === 'normal_tree' && rw.xp === 5000,
+        'the crew renders the server state (target_id mapped to targetId); got ' + JSON.stringify(rw));
+      assert(rw.collectedTotal === 42, 'reconcile preserves the client-only display ledger by uid');
+
+      // 4) ABSENCE IS NOT A CLAIM — a workers-less envelope leaves the crew alone;
+      //    an EMPTY array IS a claim (the crew is genuinely empty).
+      assert(A.reconcileWorkers(G, { state: {} }) === null && G.workers.hired.length === 1,
+        'a workers-less envelope must not wipe the crew');
+      assert(A.reconcileWorkers(G, { workers: [] }) === 0 && G.workers.hired.length === 0,
+        'an empty workers array clears the roster');
+    } finally {
+      IA.WORKER_PRODUCTION_SERVER_BACKED = flagBefore;
+      window.HearthriseWorkersNet = netBefore;
+      window.HearthriseGold = goldBefore;
+      window.notify = notifyBefore;
+      G.workers = saved.workers; G.homestead = saved.homestead; G.skills = saved.skills; G.gold = saved.gold;
+      try { stampBalanceLikeLoad(G); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b201: tool ladder — best owned tool applies, recipes exist', () => {
     const T = window.HearthriseTools;
     assert(T, 'HearthriseTools present');
@@ -35850,11 +35955,17 @@ const TESTS = [
     const W = window.HearthriseWorkers, H = window.HearthriseHomestead;
     assert(W && H && typeof W.ledger === 'function', 'the worker ledger seam is not published');
     const G = window.G;
+    const IA = window.HearthriseItemAuthority;
     const saved = {
       homestead: G.homestead, workers: G.workers, gold: G.gold,
       inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: G.skills,
     };
+    /* The client-side lifetime ledger is a display tally fed by accrueWorker, which
+       is a no-op once the crew is server-owned. This guards the flag-OFF (revert)
+       path where the client still banks + tallies locally. */
+    const flagBefore = IA && IA.WORKER_PRODUCTION_SERVER_BACKED;
     try {
+      if (IA) IA.WORKER_PRODUCTION_SERVER_BACKED = false;
       G.homestead = { tier: 1 };
       G.workers = { hired: [] }; G.gold = 10000;
       stampBalanceLikeLoad(G);   // armed: W.hire() reads gold via canAfford
@@ -35893,6 +36004,7 @@ const TESTS = [
           'the summary line does not show the lifetime total: ' + txt);
       } finally { host.remove(); }
     } finally {
+      if (IA) IA.WORKER_PRODUCTION_SERVER_BACKED = flagBefore;
       G.homestead = saved.homestead; G.workers = saved.workers; G.gold = saved.gold;
       G.inventory = saved.inv; G.skills = saved.skills;
     }

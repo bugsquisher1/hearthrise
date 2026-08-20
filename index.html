@@ -905,6 +905,11 @@
        global) like server-rpc.js above; legacy.js calls HearthriseGoalClaim to
        fire hr_claim_daily / hr_claim_quest, the server-authoritative payout. -->
   <script src="src/net/goal-claim.js?v=422"></script>
+  <!-- worker-settlement slice: the hired-crew hire/assign transport. Classic IIFE
+       (window global) like goal-claim.js above; src/features/workers.js calls
+       HearthriseWorkersNet to fire hr_worker_hire / hr_worker_assign once the
+       crew is server-owned. Must load before features/workers.js. -->
+  <script src="src/net/workers.js?v=422"></script>
   <!-- b225: THE ACCOUNT WALL. Loads directly after the storage seam (which it
        reads the cached session through) and before every game script, because
        its verdict is what decides whether legacy.js boots at all. Client-side

@@ -1092,6 +1092,46 @@ import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers } from '../data/
    an un-modeled skill can never reduce the client's real progress. */
 import { serverAccruedSkill } from '../data/skill-authority.js?v=422';
 
+/* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
+   `hr_state_of` projects the server-owned crew (player_workers — no client write
+   policy) at `res.workers`: an array of {uid,name,skill,target_id,xp,acc_ms}. The
+   client renders G.workers.hired, whose shape uses `targetId` and carries a
+   DISPLAY-ONLY ledger (collected/collectedTotal/collectedSince/lastCollect) that
+   is not server-owned. So the reconcile is ABSOLUTE for the server-owned fields
+   (the crew roster, each worker's skill/target/xp) and PRESERVES the local
+   display ledger by matching on uid.
+
+   Fail-closed on absence: an envelope with no readable `workers` array (a server
+   build predating this slice, or a partial we cannot trust) leaves G.workers
+   untouched — absence is not a claim that the crew is empty, exactly as the
+   skills/inventory reconciles above treat an omitted key. An EMPTY array IS a
+   claim (the crew is genuinely empty) and clears the roster. Pure: takes G and
+   res, returns the reconciled crew size, so the suite can drive it without a live
+   window. */
+export function reconcileWorkers(G, res) {
+  if (!G || !res || !Array.isArray(res.workers)) return null;
+  const prev = (G.workers && Array.isArray(G.workers.hired)) ? G.workers.hired : [];
+  const byUid = Object.create(null);
+  for (const w of prev) if (w && w.uid) byUid[w.uid] = w;
+  const hired = res.workers.map((sw) => {
+    const old = byUid[sw.uid] || {};
+    /* Spread the local record FIRST (keeps the display ledger), then overwrite
+       every SERVER-OWNED field so the server always wins the roster contest. */
+    const merged = Object.assign({}, old, {
+      uid: sw.uid,
+      name: sw.name,
+      skill: sw.skill || null,
+      targetId: (sw.target_id != null ? sw.target_id : null),
+      xp: Number(sw.xp) || 0,
+      acc_ms: Number(sw.acc_ms) || 0
+    });
+    if (!merged.lastCollect) merged.lastCollect = Date.now();
+    return merged;
+  });
+  G.workers = { hired };
+  return hired.length;
+}
+
 export function applyEnvelopeState(G, res, ownKey) {
   const st = (res && res.state) || {};
   const written = { skills: {}, inventory: 0 };
@@ -1299,6 +1339,11 @@ export function applyEnvelopeState(G, res, ownKey) {
       }
     }
   } catch (e) {}
+
+  /* THE HIRED CREW IS THE SERVER'S (worker-settlement slice). Reconciled here,
+     before the inventory branch splits, so it rides EVERY envelope (away,
+     activity-switch, gold) regardless of which return path the bag takes. */
+  written.workers = reconcileWorkers(G, res);
 
   const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
   /* ══════════════════════════════════════════════════════════════════════
@@ -2424,7 +2469,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileWorkers, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, classifyReceipt, receiptNotice, receiptSentence,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,

@@ -86,6 +86,28 @@ export function gatherProductIds() {
   return s;
 }
 
+/* ── HIRED-WORKER PRODUCTION — THE UNBACKED-OWNABLE-MINT LANDMINE ────────────
+   src/features/workers.js `accrueWorker` mints gather products CLIENT-SIDE via
+   `window.addItem(act.prod, qty)` — online AND offline — with NO server model.
+   A worker can only be ASSIGNED a woodcutting / mining / fishing node
+   (workers.js `assign` -> `actFor` reads TREES / ROCKS / FISH_SPOTS), so the set
+   of ids a worker can ever mint is EXACTLY the gather-product set — every one of
+   which is classified OWNABLE below (a gather `prod` is `modeled`). So on the
+   inventory absolute-replace flip, a worker haul the server never settled is
+   DELETED. It CANNOT be excluded (that would gut the flip for core materials
+   like normal_log / copper_ore / trout, which legit gathering also grants).
+   The only correct fix is to make worker production SERVER-OWNED — settled by
+   the accrual pass into player_inventory — after which the client stops calling
+   addItem for it and this lane leaves the unbacked set. Until that ships,
+   WORKER_PRODUCTION_SERVER_BACKED stays false and this is an ARM-BLOCKER. */
+export const WORKER_PRODUCTION_SERVER_BACKED = false;
+
+/** Every id a hired worker can mint client-side = every gather product (a worker
+ *  is only ever assigned a gather node). Kept as its own function, not an alias,
+ *  so the "workers mint gather products" fact is stated where the flip reads it
+ *  rather than inferred. */
+export function workerProductIds() { return gatherProductIds(); }
+
 /** Every id produced by a crop `prod` (the un-modeled farm-harvest path). */
 export function cropProductIds() {
   const s = new Set();
@@ -268,8 +290,69 @@ export function unclassifiedArtisanLanes() {
   return out;
 }
 
+/* ── THE ARM-GATE COMPLETENESS BACKSTOP (security review Finding #2) ─────────
+   The inventory absolute-replace flip is only safe when EVERY id it will treat
+   as ownable is actually SETTLED by the server. `serverOwnedItem` says which ids
+   are ownable; it does NOT say which ownable ids are still being minted by an
+   un-server-backed CLIENT path. That second fact is the flip's real
+   precondition, and it needs a place that fails LOUD when a new un-backed mint
+   of an ownable id is introduced — otherwise the next `window.addItem` of a
+   gather/craft/drop id with no server write silently re-opens the landmine this
+   whole program closed, and the flip deletes it.
+
+   This is a REGISTRY of known client mint lanes that (a) grant OWNABLE ids and
+   (b) are not yet settled by the server. Each entry names the source, the id
+   set, and the flag whose flip empties it. `pendingUnbackedOwnableMints()` is
+   the arm precondition: the flip MUST NOT arm while it is non-empty. Today it
+   holds exactly one lane — hired-worker production — and that is the landmine
+   the worker server-authority slice exists to defuse. */
+export function unbackedOwnableMintLanes() {
+  const lanes = [];
+  if (!WORKER_PRODUCTION_SERVER_BACKED) {
+    lanes.push({
+      source: 'src/features/workers.js accrueWorker -> window.addItem(act.prod)',
+      ids: workerProductIds(),
+      backedBy: 'WORKER_PRODUCTION_SERVER_BACKED (server accrual settles worker output into player_inventory)',
+    });
+  }
+  return lanes;
+}
+
+/** The OWNABLE ids currently minted by a client path with no server settlement —
+ *  the flip's arm-blockers. Intersected with the real ownable set so a lane that
+ *  only grants excluded/overlap ids (safe under the flip) contributes nothing.
+ *  Empty ⇒ no un-backed ownable mint remains ⇒ the flip may arm. */
+export function pendingUnbackedOwnableMints() {
+  const a = itemAuthority();
+  const out = new Set();
+  for (const lane of unbackedOwnableMintLanes()) {
+    for (const id of lane.ids) if (a.ownable.has(id)) out.add(id);
+  }
+  return out;
+}
+
+/** Human-readable reasons the inventory flip must not arm yet. Empty ⇒ clear.
+ *  Consumed by the arm gate (once wired) and by the smoke backstop. */
+export function flipArmBlockers() {
+  const blockers = [];
+  const pend = pendingUnbackedOwnableMints();
+  if (pend.size > 0) {
+    for (const lane of unbackedOwnableMintLanes()) {
+      const owned = [...lane.ids].filter((id) => itemAuthority().ownable.has(id));
+      if (owned.length) {
+        blockers.push('un-backed OWNABLE mint: ' + lane.source
+          + ' grants ' + owned.length + ' ownable id(s) with no server write (backed by '
+          + lane.backedBy + ')');
+      }
+    }
+  }
+  return blockers;
+}
+
 if (typeof window !== 'undefined') {
   window.HearthriseItemAuthority = {
+    WORKER_PRODUCTION_SERVER_BACKED, workerProductIds,
+    unbackedOwnableMintLanes, pendingUnbackedOwnableMints, flipArmBlockers,
     COOKING_SKILL, ARTISAN_SETTLEMENT,
     gatherProductIds, cropProductIds, combatDropIds, artisanOutputIds,
     cookingOutputIds, payableArtisanOutputIds, bossRewardIds, dungeonRewardIds,

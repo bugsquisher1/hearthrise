@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 414 — 2026-08-20 (Under the hood: server-tracked progress + rewards)
+
+- 🔧 No gameplay change yet. Big server-side milestone: the game now keeps its own record of your collection (items looted), login streak, and Renown — alongside the bestiary from last build — and daily-task/quest gold rewards are now verified and paid by the server. Groundwork so all of it becomes tamper-proof; invisible to you today.
+
 ## v0.9.2-beta build 413 — 2026-08-20 (Under the hood: server-tracked monster kills)
 
 - 🔧 No gameplay change yet. The server now keeps its own per-monster kill record (a bestiary) as you play — groundwork so collection and renown rewards can eventually be paid server-side. Invisible to you today; it's the first of a few tracking pieces.

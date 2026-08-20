@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 415 — 2026-08-20 (Under the hood: server-paid collection & renown rewards)
+
+- 🔧 No gameplay change you'll notice. Collection-log milestone rewards and Renown rank rewards are now verified and paid by the server (with a tamper-proof high-water so a rank you've reached always stays claimable). Same rewards, same amounts — just server-owned now.
+
 ## v0.9.2-beta build 414 — 2026-08-20 (Under the hood: server-tracked progress + rewards)
 
 - 🔧 No gameplay change yet. Big server-side milestone: the game now keeps its own record of your collection (items looted), login streak, and Renown — alongside the bestiary from last build — and daily-task/quest gold rewards are now verified and paid by the server. Groundwork so all of it becomes tamper-proof; invisible to you today.

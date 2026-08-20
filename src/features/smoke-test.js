@@ -1747,6 +1747,93 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('server-credited (muster chest ITEMS): reduceClaim passes the server item list through; items are NOT re-derived client-side', () => {
+    // 2026-08-20: world_event_claim now computes the themed chest server-side
+    // (hr_rally_chest) and WRITES the materials into player_inventory. Its
+    // response carries `items` (and the reduced goldOut). The reducer must carry
+    // that list through — the payout path renders it instead of re-deriving a
+    // chest from the full band gold (which would double-convert / under-pay).
+    const M = window.HearthriseMuster;
+    if (!M || typeof M._reduceClaim !== 'function') return;
+    // New RPC shape: reduced goldOut + a server item list + xp.
+    const withItems = M._reduceClaim(200, {
+      ok: true, band: 'answered', held: false, gold: 750, gems: 2, seals: 0,
+      items: [{ id: 'iron_ore', qty: 12, value: 300 }, { id: 'coal', qty: 3, value: 120 }],
+      xp: [{ skill: 'mining', amount: 300 }], credited: true, chest: true
+    });
+    assert(withItems.action === 'accept', 'a credited chest is accepted');
+    assert(Array.isArray(withItems.items) && withItems.items.length === 2,
+      'the server item list is carried through the reducer; got ' + JSON.stringify(withItems.items));
+    assert(withItems.items[0].id === 'iron_ore' && withItems.items[0].qty === 12,
+      'item id + qty survive sanitisation');
+    assert(withItems.gold === 750, 'the reduced goldOut is used, not the full band');
+    // A forged qty is clamped, never trusted blindly (defence-in-depth even though
+    // the list originates server-side).
+    const forged = M._reduceClaim(200, {
+      ok: true, band: 'answered', held: false, gold: 100,
+      items: [{ id: 'iron_bar', qty: 1e15 }, { id: '', qty: 5 }, { id: 'coal', qty: -3 }]
+    });
+    assert(forged.items.length === 1 && forged.items[0].id === 'iron_bar',
+      'empty ids and non-positive qtys are dropped; got ' + JSON.stringify(forged.items));
+    assert(forged.items[0].qty <= 1e6, 'an absurd qty is clamped; got ' + forged.items[0].qty);
+    // Legacy RPC (no items) → the reducer returns items:null so the payout path
+    // falls back to computing the chest client-side (the un-migrated server case).
+    const legacy = M._reduceClaim(200, { ok: true, band: 'answered', held: false, gold: 1500, gems: 2, seals: 0 });
+    assert(legacy.items === null, 'an item-less (legacy) response yields items:null → client recompute path');
+  }),
+
+  () => tryRunAsync('server-credited (muster chest ITEMS): payChest does NOT locally re-mint server-credited items once inventory is armed; survives an absolute replace', async () => {
+    // The materials now live in player_inventory. Pre-arm the server write is
+    // dark, so the client credits locally for display; post-arm the absolute
+    // envelope carries the rows, so the client must NOT addItem them (double).
+    // This mirrors the gold gate. Seals + XP stay client-authored on every path.
+    const M = window.HearthriseMuster;
+    if (!M || typeof M._payChest !== 'function') return;
+    const origAdd = window.addItem;
+    const origXp = window.addXp;
+    const origMay = window.clientMayWriteRecordField;
+    const added = {};
+    let xpCalls = 0;
+    try {
+      window.addItem = function (id, qty) { added[id] = (added[id] || 0) + qty; };
+      window.addXp = function () { xpCalls++; };
+      const chest = { eventId: 'deep_seam', gold: 0, gems: 0, seals: 1,
+        items: [{ id: 'iron_ore', qty: 12 }, { id: 'coal', qty: 3 }],
+        xp: [{ skill: 'mining', amount: 300 }] };
+
+      // ── PRE-ARM: inventory record not yet armed → local credit for display.
+      window.clientMayWriteRecordField = function () { return true; };
+      M._payChest(chest, { serverItems: true });
+      assert(added.iron_ore === 12 && added.coal === 3,
+        'pre-arm server-item chest credits locally for display; got ' + JSON.stringify(added));
+      assert(added.muster_seal === 1, 'the Muster Seal is always client-credited (not server-owned)');
+
+      // ── ARMED: inventory on SERVER_OF_RECORD → the client must NOT re-mint the
+      //    materials (the player_inventory rows arrive via the absolute envelope).
+      const added2 = {};
+      window.addItem = function (id, qty) { added2[id] = (added2[id] || 0) + qty; };
+      window.clientMayWriteRecordField = function (f) { return f !== 'inventory'; };
+      M._payChest(chest, { serverItems: true });
+      assert(!('iron_ore' in added2) && !('coal' in added2),
+        'armed: server-credited materials are NOT locally re-minted; got ' + JSON.stringify(added2));
+      assert(added2.muster_seal === 1,
+        'armed: the Seal is still client-credited (muster_seal is excluded from item-authority, survives the flip untouched)');
+
+      // ── LEGACY path (serverItems false) still mints locally under arm — nothing
+      //    wrote those items server-side, so the client remains their only writer.
+      const added3 = {};
+      window.addItem = function (id, qty) { added3[id] = (added3[id] || 0) + qty; };
+      M._payChest({ eventId: 'deep_seam', gold: 0, gems: 0, seals: 0,
+        items: [{ id: 'iron_ore', qty: 5 }], xp: [] });
+      assert(added3.iron_ore === 5,
+        'legacy/solo chest (no server write) still credits items locally even when armed; got ' + JSON.stringify(added3));
+    } finally {
+      window.addItem = origAdd;
+      window.addXp = origXp;
+      window.clientMayWriteRecordField = origMay;
+    }
+  }),
+
   () => tryRun('server-credited (Tier-1 daily/quest): under arm a daily task + a gold quest PROCEED, fire the claim RPC with the id, and do not double-pay locally', () => {
     // b414: updateDaily + completeQuest gold is now server-credited
     // (hr_claim_daily / hr_claim_quest verify the ev:<type> counter and credit

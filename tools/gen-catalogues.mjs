@@ -101,6 +101,17 @@ const crops = Object.keys(CROPS).sort().map((id) => ({
   prod_item: CROPS[id].prod ?? null,
   base_hours: Number(CROPS[id].hours ?? 0),
   req_lv: Math.trunc(CROPS[id].req ?? 1),
+  // Server-farming (2026-08-20): the HARVEST is server-authored, so the yield
+  // band, the per-unit XP and the regrow flag must be catalogue truth, not a
+  // client number. yield is `[min,max]` in CROPS; a malformed entry collapses
+  // to a fixed 1 rather than minting an unbounded band.
+  yield_min: Math.max(1, Math.trunc((Array.isArray(CROPS[id].yield) ? CROPS[id].yield[0] : 1) || 1)),
+  yield_max: Math.max(
+    Math.max(1, Math.trunc((Array.isArray(CROPS[id].yield) ? CROPS[id].yield[0] : 1) || 1)),
+    Math.trunc((Array.isArray(CROPS[id].yield) ? CROPS[id].yield[1] : 1) || 1),
+  ),
+  xp: Math.max(0, Math.trunc(CROPS[id].xp ?? 0)),
+  regrows: CROPS[id].regrows === true,
 }));
 
 // Activities: every id `player_state.active_id` may legally hold, with the
@@ -342,8 +353,19 @@ create table if not exists public.hr_crops (
   seed_item  text,
   prod_item  text,
   base_hours numeric not null,
-  req_lv     int     not null
+  req_lv     int     not null,
+  yield_min  int     not null default 1,
+  yield_max  int     not null default 1,
+  xp         int     not null default 0,
+  regrows    boolean not null default false
 );
+-- Existing databases (created by a pre-2026-08-20 generator) get the columns
+-- from 2026-08-20-server-farming.sql; the ALTERs there and these column defs
+-- must agree. A fresh replay lands the full shape here.
+alter table public.hr_crops add column if not exists yield_min int     not null default 1;
+alter table public.hr_crops add column if not exists yield_max int     not null default 1;
+alter table public.hr_crops add column if not exists xp        int     not null default 0;
+alter table public.hr_crops add column if not exists regrows   boolean not null default false;
 
 create table if not exists public.hr_activities (
   kind        text not null check (kind in ('gather','artisan','combat')),
@@ -450,8 +472,8 @@ ${valuesBlock(equipSlots, (r) => `  (${q(r.equip_slot)},${n(r.ord)})`)};
 insert into public.hr_skills (skill_id, name, cat) values
 ${valuesBlock(skills, (r) => `  (${q(r.skill_id)},${q(r.name)},${q(r.cat)})`)};
 
-insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv) values
-${valuesBlock(crops, (r) => `  (${q(r.crop_id)},${q(r.seed_item)},${q(r.prod_item)},${n(r.base_hours)},${n(r.req_lv)})`)};
+insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv, yield_min, yield_max, xp, regrows) values
+${valuesBlock(crops, (r) => `  (${q(r.crop_id)},${q(r.seed_item)},${q(r.prod_item)},${n(r.base_hours)},${n(r.req_lv)},${n(r.yield_min)},${n(r.yield_max)},${n(r.xp)},${b(r.regrows)})`)};
 
 insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss) values
 ${valuesBlock(activities, (r) => `  (${q(r.kind)},${q(r.activity_id)},${q(r.req_skill)},${n(r.req_lv)},${n(r.max_hp)},${b(r.is_boss)})`)};

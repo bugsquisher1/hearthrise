@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 6a45a67a03246c3567875222fe39495d12baf7af4a6c70886d2d8753a218dc02
+--   catalogue digest: 05ba101a9848ed56357f7076e9f81b14c5bbd6df80a6faba13185e90967a5937
 --   rows: 518 items (16 untradeable) ·
 --         278 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 473 activities ·
@@ -68,8 +68,19 @@ create table if not exists public.hr_crops (
   seed_item  text,
   prod_item  text,
   base_hours numeric not null,
-  req_lv     int     not null
+  req_lv     int     not null,
+  yield_min  int     not null default 1,
+  yield_max  int     not null default 1,
+  xp         int     not null default 0,
+  regrows    boolean not null default false
 );
+-- Existing databases (created by a pre-2026-08-20 generator) get the columns
+-- from 2026-08-20-server-farming.sql; the ALTERs there and these column defs
+-- must agree. A fresh replay lands the full shape here.
+alter table public.hr_crops add column if not exists yield_min int     not null default 1;
+alter table public.hr_crops add column if not exists yield_max int     not null default 1;
+alter table public.hr_crops add column if not exists xp        int     not null default 0;
+alter table public.hr_crops add column if not exists regrows   boolean not null default false;
 
 create table if not exists public.hr_activities (
   kind        text not null check (kind in ('gather','artisan','combat')),
@@ -1000,16 +1011,16 @@ insert into public.hr_skills (skill_id, name, cat) values
   ('strength','Strength','combat'),
   ('woodcutting','Woodcutting','gather');
 
-insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv) values
-  ('carrot','carrot_seed','carrot',6,10),
-  ('emberfruit','emberfruit_seed','emberfruit',18,75),
-  ('goldenroot','goldenroot_seed','goldenroot',16,62),
-  ('moonbloom','moonbloom_seed','moonbloom',22,88),
-  ('potato','potato_seed','potato',10,30),
-  ('pumpkin','pumpkin_seed','pumpkin',14,50),
-  ('tomato','tomato_seed','tomato',8,40),
-  ('turnip','turnip_seed','turnip',4,1),
-  ('wheat','wheat_seed','wheat',8,20);
+insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv, yield_min, yield_max, xp, regrows) values
+  ('carrot','carrot_seed','carrot',6,10,2,4,168,false),
+  ('emberfruit','emberfruit_seed','emberfruit',18,75,1,2,1680,true),
+  ('goldenroot','goldenroot_seed','goldenroot',16,62,1,3,1190,false),
+  ('moonbloom','moonbloom_seed','moonbloom',22,88,1,2,2380,false),
+  ('potato','potato_seed','potato',10,30,2,4,350,false),
+  ('pumpkin','pumpkin_seed','pumpkin',14,50,1,2,840,false),
+  ('tomato','tomato_seed','tomato',8,40,2,3,490,true),
+  ('turnip','turnip_seed','turnip',4,1,2,4,112,false),
+  ('wheat','wheat_seed','wheat',8,20,3,5,252,false);
 
 insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss) values
   ('artisan','bind_air_runes','runecrafting',1,null,false),
@@ -1515,7 +1526,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '6a45a67a03246c3567875222fe39495d12baf7af4a6c70886d2d8753a218dc02', now())
+  values (true, '05ba101a9848ed56357f7076e9f81b14c5bbd6df80a6faba13185e90967a5937', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1680,7 +1691,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 6a45a67a03246c3567875222fe39495d12baf7af4a6c70886d2d8753a218dc02',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 05ba101a9848ed56357f7076e9f81b14c5bbd6df80a6faba13185e90967a5937',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

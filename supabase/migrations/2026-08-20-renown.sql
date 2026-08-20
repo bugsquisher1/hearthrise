@@ -187,9 +187,16 @@ revoke execute on function public.hr_renown_of(uuid, int)
 grant execute on function public.hr_renown_of(uuid, int) to hr_engine;
 
 -- ── 2. WIRE THE PERK CHANNEL — hr_perks_of feeds renownAllXp from the score ─
--- Identical to the b349 body EXCEPT the renown channel: `renownAllXp` is now
--- the cumulative allXP for the ranks the server-derived score has reached, and
--- `sources.renown` reports `derived:hr_renown_of` instead of `blocked:…`.
+-- ⚠ THIS BODY IS A FAITHFUL SUPERSET of the CURRENT last toucher of hr_perks_of,
+--   2026-08-16-artisan-progress-model.sql §5 — NOT of the older
+--   2026-08-15-perk-channel.sql body. The artisan model added the `unlockedRecipes`
+--   projection (the crafting-recipe gate: v_recipes + its select + the 'recipes'
+--   source line). An earlier draft of this file derived from perk-channel and
+--   SILENTLY DROPPED that projection, locking every earned recipe server-side.
+--   So this restatement carries artisan's body VERBATIM and changes exactly TWO
+--   lines — the renownAllXp value and the sources.renown census entry — both
+--   declared as removals in HR_PERKS_OF_CHAIN (tests/run-sql-tests.mjs PART 1f-ii).
+--   Everything else, including the whole artisan gate, is preserved line for line.
 --
 -- ⚠ The four thresholds/steps below are the allXP-granting ranks of
 --   src/features/renown.js RANKS (squire 900, baron 4500, duke 32000,
@@ -207,6 +214,7 @@ declare
   v_rooms jsonb;
   v_plots jsonb;
   v_tier  int;
+  v_recipes jsonb;
   v_renown bigint;
   v_renown_allxp float8;
 begin
@@ -214,6 +222,10 @@ begin
     return jsonb_build_object('ok', false, 'error', 'bad_args');
   end if;
 
+  -- A character that does not exist gets a refusal, not an empty stack. The
+  -- two are different facts and the engine treats them differently: `ok:false`
+  -- means "do not price a perk stack for this row at all", while an empty
+  -- stack means "priced, and this player has bought nothing".
   if not exists (
     select 1 from public.player_state ps
      where ps.user_id = p_user and ps.slot = p_slot
@@ -230,6 +242,30 @@ begin
     into v_rooms, v_plots, v_tier
     from public.hr_unlock_levels(p_user, p_slot) u;
 
+  -- ── THE ARTISAN GATE ──────────────────────────────────────────────────
+  -- Recipe scrolls are kind='flag' rows (see hr_unlocks) rather than levels,
+  -- because the ACCRUAL ENGINE has to be able to grant one it rolled itself and
+  -- 'flag' is in hr_apply's progress allowlist while 'unlock' is deliberately
+  -- not. The JOIN to the catalogue is what makes a mis-filed row invisible as
+  -- well as refused: hr_unlock_guard rejects a recipe row stored under the wrong
+  -- kind, and this read would not see it either.
+  --
+  -- The wire shape is the CLIENT'S OWN — { "<scroll_id>": true } — so
+  -- src/core/artisan.js gateOk consumes the server's answer and G.unlockedRecipes
+  -- with the same expression. An absent row is an absent key is a LOCKED recipe:
+  -- the fail-closed default is the shape's default, not a branch somebody wrote.
+  select coalesce(jsonb_object_agg(substring(pp.key from 8), true), '{}'::jsonb)
+    into v_recipes
+    from public.player_progress pp
+    join public.hr_unlocks u
+      on u.unlock_id = pp.key
+     and u.namespace = 'recipe'
+     and u.progress_kind = pp.kind
+   where pp.user_id = p_user
+     and pp.slot    = p_slot
+     and pp.period_key = ''
+     and pp.value  > 0;
+
   -- THE RENOWN CHANNEL — server-derived, never from the client.
   v_renown := public.hr_renown_of(p_user, p_slot);
   v_renown_allxp :=
@@ -242,14 +278,30 @@ begin
     'ok', true,
     'rooms', coalesce(v_rooms, '{}'::jsonb),
     'plots', coalesce(v_plots, '{}'::jsonb),
+    -- The property TIER, not the property id: 'property:castle' grants 5 and
+    -- the capstone fires at >= CASTLE_TIER. `max` because a player who bought
+    -- the Manor and then the Castle holds both rows.
     'propertyTier', coalesce(v_tier, 0),
+    -- ⚠ THE JS FIELD NAME, camelCase, deliberately: this envelope is consumed
+    --   by the accrual engine untranslated, and a mapping layer is where a field
+    --   gets silently dropped and reads as "the player has unlocked nothing".
+    'unlockedRecipes', coalesce(v_recipes, '{}'::jsonb),
+    -- Named zeroes, not omissions. An absent key and a key that is honestly
+    -- zero are indistinguishable to the reader, and one of them is a bug.
     'renownAllXp', v_renown_allxp,
     'clanPerks', '{}'::jsonb,
     'castle', null,
+    -- ⚠ THE HONESTY FIELD. Which channels this answer actually covers. The
+    --   Edge Function forwards it into the away card (`away.perkChannel`), so
+    --   "the night was priced at zero perks because nothing is unlocked" can
+    --   be told apart from "because the channel is not wired" — from the
+    --   outside, without reading the source. Every historical away bug in this
+    --   codebase was a reward that silently vanished.
     'sources', jsonb_build_object(
       'rooms',      'hr_unlock_levels',
       'plots',      'hr_unlock_levels',
       'property',   'hr_unlock_levels',
+      'recipes',    'player_progress:flag:recipe:*',
       'renown',     'derived:hr_renown_of',
       'clan',       'derivable:contributes_zero',
       'castle',     'blocked:perk_table_client_side',

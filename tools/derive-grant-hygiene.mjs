@@ -102,6 +102,21 @@ export const LINKS = [
     target: '2026-08-17-market-v2.sql',
     patchIds: ['market_v2', 'drop_market_expire'],
   },
+  /* Link 6 — the live-progress read projections. Its base is market-v2's
+     NOW-LIVE body (the fifth link), so it cannot silently revert market-v2's
+     three engine grants or check (4)'s has_table_privilege rewrite. It records
+     THREE engine grants at once (an INSERTION at the head of c_engine_allow) —
+     the three dedicated READ projections hr_bestiary_of / hr_collection_of /
+     hr_renown_of, all `stable sql`, one character, granted to hr_engine by
+     2026-08-20-bestiary.sql / 2026-08-21-collection.sql / 2026-08-20-renown.sql
+     but never recorded here, which is why the nightly detector's check (7) now
+     RAISES engine_execute_outside_allowlist on all three. Insertion only, so its
+     declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. */
+  {
+    base: '2026-08-17-market-v2.sql',
+    target: '2026-08-20-live-progress-engine-allow.sql',
+    patchIds: ['live_progress_projections'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -385,6 +400,33 @@ export const PATCHES = [
     'hr_market_list(uuid,integer,bigint,uuid,text,bigint,bigint)',
     'hr_market_cancel(uuid,integer,bigint,uuid,uuid)',
     'hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint)',
+`,
+    where: 'after',
+  },
+  {
+    id: 'live_progress_projections',
+    name: 'the c_engine_allow array head (link 6)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-08-20 — THE THREE LIVE-PROGRESS READ PROJECTIONS ─────
+    -- At the HEAD again, an INSERTION, for the same reason as links 1, 2 and 5:
+    -- it removes nothing, so PART 1f-ii grades this link with an EMPTY
+    -- declared-removals list. Position carries no meaning — check (7) tests
+    -- membership with \`<> all (...)\`.
+    --
+    -- All three are READ-ONLY (\`stable sql\`) dedicated projections for ONE
+    -- character, added by 2026-08-20-bestiary.sql / 2026-08-21-collection.sql /
+    -- 2026-08-20-renown.sql. hr_state_of stopped serving the ev:kill_monster:%
+    -- and ev:loot:% populations (2026-08-21-streak-state.sql) because together
+    -- they approach its 1000-row envelope cap, so the engine reads them through
+    -- these instead. SELF-VALIDATING and NO NEW TARGET, the same claim
+    -- hr_state_of / hr_perks_of make: each takes (p_user, p_slot) — the exact
+    -- pair the engine already passes to hr_apply and hr_state_of — reads a
+    -- STRICT SUBSET of what hr_state_of's envelope used to carry, writes nothing,
+    -- calls nothing that writes, and exposes no target the holder of hr_apply
+    -- could not already reach.
+    'hr_bestiary_of(uuid,integer)',
+    'hr_collection_of(uuid,integer)',
+    'hr_renown_of(uuid,integer)',
 `,
     where: 'after',
   },

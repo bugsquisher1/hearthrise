@@ -113,6 +113,9 @@ import { levelFromXp } from '../../../src/core/xp.js';
 /* THE PERMANENT PERK CHANNEL — the same module src/legacy.js getBonus is layer
    0 of. `makeBonus(perkState)` replaces `zeroBonus` at every site below. */
 import { makeBonus, EMPTY_PERKS } from '../../../src/core/perks.js';
+/* LAYER 1 — the equipped companion's passive bonus, summed on top of the fused
+   layer 0 by bonusFor below. Pure, draw-free, permanent-scope. */
+import { companionBonus } from '../../../src/core/companion-perk.js';
 /* THE DAILY/QUEST COUNTER CONTRACT (Designer Ruling 3.1). The key shapes, the
    day key, the clamp and the vocabulary live in ONE module that both this
    engine and the guard read; see its header for why `kind='daily'`/`kind='stat'`
@@ -419,9 +422,25 @@ export const KIND_ACCRUERS = (() => {
 export function zeroBonus() { return 0; }
 
 /* The engine's bonus function for a given perk state. `null`/absent state →
-   EMPTY_PERKS → 0 for every key. */
+   EMPTY_PERKS → 0 for every key.
+
+   ⚠ TWO LAYERS, SUMMED — mirroring the client's getBonus chain exactly.
+   `makeBonus` is LAYER 0 (rooms/plots/property/renown), clamped by the
+   PERMANENT_CAP fuse because on the server that IS the whole layer-0 chain.
+   `companionBonus` is LAYER 1 — the equipped companion, added ON TOP of the
+   fused number precisely as src/features/companions.js wraps window.getBonus
+   with `v += cb[key]` AFTER the base returned. Folding the companion into
+   layer 0 would clamp (rooms + companion) together and disagree with the
+   client near the cap; keeping it a separate additive layer keeps the two
+   byte-identical. companionBonus draws NO rng and pays on AWAY_SCOPE.permanent
+   (true), so away and live share every seeded draw and AWAY-1 stays byte-for-
+   byte — a companion changes the totals, but away==live for the same setup.
+   EMPTY_PERKS carries no `companion`, so companionBonus returns 0 for every
+   key and this degrades to the pre-companion behaviour exactly. */
 export function bonusFor(perkState) {
-  return makeBonus(perkState || EMPTY_PERKS);
+  const base = makeBonus(perkState || EMPTY_PERKS);
+  const comp = companionBonus(perkState || EMPTY_PERKS);
+  return (key) => base(key) + comp(key);
 }
 
 /**

@@ -1461,6 +1461,15 @@ async function unlockModelPreflight() {
     ['gen-gold-ladders.mjs', 'Gold-ladder preflight',
       'a gold-spend ladder price, its tier gate or the bank curve moved and the generated '
       + 'migration no longer matches the game data — hr_unlock_buy charges out of that table'],
+    /* slice 4. The companion unlocks (companion.*) are generated from
+       src/data/companion-unlocks.js, drift-guarded against src/data/companions.js
+       (price + skill req per shop companion), AND the migration's hr_unlock_buy is
+       DERIVED from 2026-08-16-unlock-buy.sql plus one skill gate. A companion
+       price/skill edit, a new shop companion, OR a hand-edit of the restated body
+       fails here — hr_unlock_buy both charges out of that table and runs that body. */
+    ['gen-companion-unlocks.mjs', 'Companion-unlock preflight',
+      'a companion price or skill requirement moved, a shop companion was added, or the derived '
+      + 'hr_unlock_buy is no longer unlock-buy.sql’s body plus the one declared skill gate'],
     ['derive-perks-of.mjs', 'hr_perks_of derivation',
       'the restated hr_perks_of is no longer perk-channel\'s body plus its declared patches'],
     /* b353. The same rule applied to THE DETECTOR, and the reason it is worth a

@@ -105,6 +105,16 @@ begin
     where user_id = v_uid and intent_id = p_idem;
   if v_cached is not null then return v_cached; end if;
 
+  -- A9 RATE GATE. A client-callable SECURITY DEFINER money RPC with no gate is a
+  -- free denial-of-service against the whole project. The bucket lives in
+  -- hr_rpc_gate's `case` (2026-08-23-bounty.sql, its current last toucher —
+  -- writes → 60/min); an unknown bucket fails CLOSED, so this and the case-arm
+  -- ship together. Placed after the idempotency short-circuit so a legitimate
+  -- retry of an already-applied intent is never rate-limited into a false 429.
+  if not public.hr_rpc_gate('farm_plant') then
+    return jsonb_build_object('ok', false, 'error', 'rate_limited');
+  end if;
+
   if p_plot_idx is null or p_plot_idx < 0 or p_plot_idx >= c_max_plots then
     return jsonb_build_object('ok', false, 'error', 'bad_plot');
   end if;
@@ -138,8 +148,17 @@ begin
   if coalesce(v_have, 0) < 1 then
     return jsonb_build_object('ok', false, 'error', 'insufficient_seed', 'seed', v_crop.seed_item);
   end if;
+  -- Debit exactly one seed. When it was the LAST one, DELETE the row rather than
+  -- writing qty=0: player_inventory enforces `check (qty > 0)` ("a zero row is
+  -- deleted, never stored"), so a naive `set qty = qty - 1` VIOLATES the
+  -- constraint and aborts the whole plant — and planting your last seed of a
+  -- crop is the common case. (Found by §7's functional self-check, F5.)
   update public.player_inventory set qty = qty - 1
-    where user_id = v_uid and slot = p_slot and item_id = v_crop.seed_item;
+    where user_id = v_uid and slot = p_slot and item_id = v_crop.seed_item and qty > 1;
+  if not found then
+    delete from public.player_inventory
+      where user_id = v_uid and slot = p_slot and item_id = v_crop.seed_item;
+  end if;
 
   insert into public.player_farm as f (user_id, slot, plot_idx, crop_id, planted_at, watered_at)
     values (v_uid, p_slot, p_plot_idx, p_crop, now(), null)
@@ -161,8 +180,8 @@ begin
     on conflict (user_id, intent_id) do nothing;
   return v_cached;
 end $$;
-revoke all on function public.hr_farm_plant(int, int, text, uuid) from public;
-revoke all on function public.hr_farm_plant(int, int, text, uuid) from anon;
+revoke execute on function public.hr_farm_plant(int, int, text, uuid) from public;
+revoke execute on function public.hr_farm_plant(int, int, text, uuid) from anon;
 grant execute on function public.hr_farm_plant(int, int, text, uuid) to authenticated;
 
 -- ── 4. hr_farm_harvest — server checks readiness, rolls yield, credits ─
@@ -188,6 +207,12 @@ begin
   select result into v_cached from public.player_intents
     where user_id = v_uid and intent_id = p_idem;
   if v_cached is not null then return v_cached; end if;
+
+  -- A9 RATE GATE (see hr_farm_plant's note). Writes → 60/min; unknown bucket
+  -- fails closed, so the bucket is added to hr_rpc_gate's case in the same change.
+  if not public.hr_rpc_gate('farm_harvest') then
+    return jsonb_build_object('ok', false, 'error', 'rate_limited');
+  end if;
 
   select * into v_state from public.player_state
     where user_id = v_uid and slot = p_slot for update;
@@ -258,8 +283,8 @@ begin
     on conflict (user_id, intent_id) do nothing;
   return v_cached;
 end $$;
-revoke all on function public.hr_farm_harvest(int, int, uuid) from public;
-revoke all on function public.hr_farm_harvest(int, int, uuid) from anon;
+revoke execute on function public.hr_farm_harvest(int, int, uuid) from public;
+revoke execute on function public.hr_farm_harvest(int, int, uuid) from anon;
 grant execute on function public.hr_farm_harvest(int, int, uuid) to authenticated;
 
 -- ── 5. SELF-VERIFYING ASSERTIONS — load-bearing properties ────
@@ -285,4 +310,201 @@ begin
   -- (c) The catalogue carries a usable yield band for every crop (no vacuous 0).
   select count(*) into v_bad from public.hr_crops where yield_max < yield_min or yield_min < 1;
   if v_bad > 0 then raise exception '% crop(s) have an invalid yield band', v_bad; end if;
+end $$;
+
+-- ── 6. CLIENT-RPC BASELINE — record the two grants (F2) ───────────────────
+-- Both RPCs are granted to `authenticated`. hr_assert_grant_hygiene check (2)
+-- treats any client-granted RPC absent from hr_client_rpc_baseline as
+-- `unapproved_client_rpcs` and RAISES — so without this the nightly pg_cron
+-- `hr-grant-hygiene` job fails and every later migration's own strict
+-- hygiene gate aborts on apply. The row is a standing statement that the client
+-- MAY call it; deliberately NOT granted to hr_engine (§6b re-asserts that).
+do $$
+declare v_n int := 0;
+begin
+  if to_regclass('public.hr_client_rpc_baseline') is null then
+    raise exception 'hr_client_rpc_baseline absent — apply 2026-08-11-grant-hygiene.sql first';
+  end if;
+  if to_regproc('public.hr_farm_plant') is null or to_regproc('public.hr_farm_harvest') is null then
+    raise exception 'farm RPCs absent — §3/§4 did not install';
+  end if;
+
+  insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note)
+  select p.proname, pg_get_function_identity_arguments(p.oid), 'authenticated',
+         'server-farming slice 1: the player owns their own plots. Version-bumping, '
+         'seed-debit / yield-credit / farming-XP server-derived, day-budget clamped, '
+         'rate-gated (farm_plant / farm_harvest). Deliberately NOT granted to hr_engine. 2026-08-20'
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public'
+     and p.proname in ('hr_farm_plant','hr_farm_harvest')
+     and p.pronargs > 0
+     and not exists (
+       select 1 from public.hr_client_rpc_baseline b
+        where b.proname = p.proname
+          and b.identity_args = pg_get_function_identity_arguments(p.oid)
+          and b.grantee = 'authenticated');
+  get diagnostics v_n = row_count;
+  raise notice 'hr_client_rpc_baseline: % row(s) recorded for the farm RPCs', v_n;
+end $$;
+
+-- ── 6b. HYGIENE COMMIT GATE — the DETECTOR itself, strict form (F2) ───────
+-- The same call the nightly pg_cron job makes. Runs AFTER §6 so the two new
+-- grants are already recorded; a regression (a farm RPC left ungated, or the
+-- engine granted the write) aborts the apply here.
+do $$
+declare v_report jsonb;
+begin
+  if to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is null then
+    raise notice 'hr_assert_grant_hygiene absent — skipping strict gate';
+    return;
+  end if;
+  v_report := public.hr_assert_grant_hygiene(true);
+  if jsonb_array_length(coalesce(v_report->'unapproved_client_rpcs', '[]'::jsonb)) <> 0 then
+    raise exception 'grant hygiene still reports unapproved client RPCs: %',
+      v_report->'unapproved_client_rpcs';
+  end if;
+  if jsonb_array_length(coalesce(v_report->'ungated_client_rpcs', '[]'::jsonb)) <> 0 then
+    raise exception 'grant hygiene reports ungated client RPCs: %',
+      v_report->'ungated_client_rpcs';
+  end if;
+  if has_function_privilege('hr_engine', 'public.hr_farm_plant(int,int,text,uuid)', 'execute')
+     or has_function_privilege('hr_engine', 'public.hr_farm_harvest(int,int,uuid)', 'execute') then
+    raise exception 'hr_engine can execute a farm RPC — the engine must never plant/harvest for a player';
+  end if;
+  raise notice 'FARM BASELINE OK — hygiene clean in strict form, engine still refused.';
+end $$;
+
+-- ── 7. FUNCTIONAL SELF-CHECK — the happy path is PROVEN, not asserted (F5) ─
+-- §5 proves the grants/policy/yield-band shape; this EXECUTES the RPCs end to
+-- end so the load-bearing behaviour is real: hr_seed reachability from the
+-- definer, readiness math against the server clock, the seeded yield roll, the
+-- seed debit / produce+XP credit, day-budget integration, and idempotent
+-- replay. It doubles as the regression guard the suite otherwise lacks. The
+-- row-writing probes live in an HR819-discarded subtransaction (player_ledger's
+-- retention trigger refuses to DELETE a fresh row, so the subtxn rollback is the
+-- only clean teardown — the goal-reward / muster-raid §8 pattern).
+do $$
+declare
+  v      jsonb;
+  v_uid  constant uuid := '000000fa-0000-0000-0000-0000000000fa';
+  v_slot constant int  := 0;
+  v_plot constant int  := 3;
+  v_idem_plant   constant uuid := '000000fa-0000-0000-0000-000000000001';
+  v_idem_harvest constant uuid := '000000fa-0000-0000-0000-000000000002';
+  v_idem_empty   constant uuid := '000000fa-0000-0000-0000-000000000003';
+  v_qty  bigint; v_xp bigint;
+  v_seed_left bigint; v_prod bigint; v_skill_xp bigint;
+  v_led  int;
+begin
+  begin
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);
+    insert into auth.users (id) values (v_uid) on conflict (id) do nothing;
+    insert into public.player_state (user_id, slot, gold, gems, version)
+      values (v_uid, v_slot, 1000, 0, 1)
+      on conflict (user_id, slot) do update set gold = 1000, gems = 0;
+    -- one turnip seed (turnip: req_lv 1, base_hours 4, yield 2..4, xp 112, no regrow)
+    insert into public.player_inventory (user_id, slot, item_id, qty)
+      values (v_uid, v_slot, 'turnip_seed', 1)
+      on conflict (user_id, slot, item_id) do update set qty = 1;
+
+    -- PLANT — succeeds, debits the seed.
+    v := public.hr_farm_plant(v_slot, v_plot, 'turnip', v_idem_plant);
+    if coalesce(v->>'ok','') <> 'true' then
+      raise exception 'GATE(a): plant did not succeed: %', v;
+    end if;
+    select coalesce(qty,0) into v_seed_left from public.player_inventory
+      where user_id = v_uid and slot = v_slot and item_id = 'turnip_seed';
+    if v_seed_left <> 0 then
+      raise exception 'GATE(a): seed not debited (left %)', v_seed_left;
+    end if;
+    if not exists (select 1 from public.player_farm
+                    where user_id = v_uid and slot = v_slot and plot_idx = v_plot and crop_id = 'turnip') then
+      raise exception 'GATE(a): plot row not written';
+    end if;
+
+    -- HARVEST EARLY — refused, plot still growing (planted_at = now()).
+    v := public.hr_farm_harvest(v_slot, v_plot, v_idem_harvest);
+    if v->>'ok' <> 'false' or v->>'error' <> 'not_ready' then
+      raise exception 'GATE(b): an unripe plot was harvested: %', v;
+    end if;
+
+    -- ADVANCE the server plant time past the growth window (5h > 4h).
+    update public.player_farm set planted_at = now() - interval '5 hours'
+      where user_id = v_uid and slot = v_slot and plot_idx = v_plot;
+
+    -- HARVEST — credits produce + farming XP, empties the (non-regrow) plot.
+    v := public.hr_farm_harvest(v_slot, v_plot, v_idem_harvest);
+    if coalesce(v->>'ok','') <> 'true' then
+      raise exception 'GATE(c): ripe harvest did not credit: %', v;
+    end if;
+    v_qty := (v->>'qty')::bigint;
+    v_xp  := (v->>'xp')::bigint;
+    if v_qty < 2 or v_qty > 4 then
+      raise exception 'GATE(c): yield % outside the turnip band [2,4]', v_qty;
+    end if;
+    if v_xp <> 112 * v_qty then
+      raise exception 'GATE(c): xp % <> 112 * qty %', v_xp, v_qty;
+    end if;
+    select coalesce(qty,0) into v_prod from public.player_inventory
+      where user_id = v_uid and slot = v_slot and item_id = 'turnip';
+    if v_prod <> v_qty then
+      raise exception 'GATE(c): produce credited % but reported qty %', v_prod, v_qty;
+    end if;
+    select coalesce(xp,0) into v_skill_xp from public.player_skills
+      where user_id = v_uid and slot = v_slot and skill_id = 'farming';
+    if v_skill_xp <> v_xp then
+      raise exception 'GATE(c): farming xp credited % but reported %', v_skill_xp, v_xp;
+    end if;
+    if exists (select 1 from public.player_farm
+                where user_id = v_uid and slot = v_slot and plot_idx = v_plot) then
+      raise exception 'GATE(c): non-regrow plot was not emptied';
+    end if;
+
+    -- REPLAY the same intent — identical result, NO double credit.
+    v := public.hr_farm_harvest(v_slot, v_plot, v_idem_harvest);
+    if v->>'ok' <> 'true' or (v->>'qty')::bigint <> v_qty then
+      raise exception 'GATE(d): replay result diverged: %', v;
+    end if;
+    select coalesce(qty,0) into v_prod from public.player_inventory
+      where user_id = v_uid and slot = v_slot and item_id = 'turnip';
+    if v_prod <> v_qty then
+      raise exception 'GATE(d): replay RE-CREDITED produce (% <> %)', v_prod, v_qty;
+    end if;
+    select coalesce(xp,0) into v_skill_xp from public.player_skills
+      where user_id = v_uid and slot = v_slot and skill_id = 'farming';
+    if v_skill_xp <> v_xp then
+      raise exception 'GATE(d): replay RE-CREDITED xp (% <> %)', v_skill_xp, v_xp;
+    end if;
+
+    -- A FRESH intent on the now-empty plot — refused (nothing planted).
+    v := public.hr_farm_harvest(v_slot, v_plot, v_idem_empty);
+    if v->>'ok' <> 'false' or v->>'error' <> 'empty_plot' then
+      raise exception 'GATE(e): harvesting an empty plot was not refused: %', v;
+    end if;
+
+    -- exactly two farm ledger rows (one plant debit, one harvest credit).
+    select count(*) into v_led from public.player_ledger
+      where user_id = v_uid and kind = 'farm';
+    if v_led <> 2 then
+      raise exception 'GATE(f): expected 2 farm ledger rows, found %', v_led;
+    end if;
+
+    raise exception using errcode = 'HR819', message = 'server-farming §7 complete — rolling back';
+  exception when sqlstate 'HR819' then
+    null;   -- subtransaction discarded; every probe row above is gone
+  end;
+
+  perform set_config('request.jwt.claim.sub', '', true);
+
+  if exists (select 1 from public.player_state     where user_id = v_uid)
+     or exists (select 1 from public.player_farm      where user_id = v_uid)
+     or exists (select 1 from public.player_inventory where user_id = v_uid)
+     or exists (select 1 from public.player_skills    where user_id = v_uid)
+     or exists (select 1 from public.player_ledger    where user_id = v_uid)
+     or exists (select 1 from public.player_intents   where user_id = v_uid)
+     or exists (select 1 from auth.users where id = v_uid) then
+    raise exception 'GATE: §7 LEAKED a probe row';
+  end if;
+
+  raise notice 'server-farming: plant/harvest credit-once, readiness+yield band, replay-safe, empty-plot refused, ledger paired — all green';
 end $$;

@@ -240,7 +240,14 @@ begin
          'clan_work_complete', 'clan_work_labour', 'clan_work_supply',
          'raid_claim', 'raid_strike',
          'world_event_absence_claim', 'world_event_claim', 'world_event_contribute',
-         'world_event_join', 'world_event_pledge', 'world_event_pledge_settle'
+         'world_event_join', 'world_event_pledge', 'world_event_pledge_settle',
+         -- server-farming (2026-08-20-server-farming.sql): plant/harvest are
+         -- ordinary player writes. Added HERE, the CURRENT last toucher of
+         -- hr_rpc_gate, because server-farming applies AFTER this file and an
+         -- unknown bucket fails closed — added to any earlier restatement (e.g.
+         -- the §2b definition in 2026-08-11-authenticated-surface-lockdown.sql)
+         -- it would be overwritten by this body before farming's RPCs ever run.
+         'farm_plant', 'farm_harvest'
       then v_limit := 60;
     when 'bug_report_submit', 'claim_beta_invite', 'claim_display_name',
          'clan_board_roll', 'clan_feast_call', 'clan_hunt_declare', 'clan_tier_up',

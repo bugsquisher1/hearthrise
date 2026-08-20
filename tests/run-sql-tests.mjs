@@ -261,6 +261,15 @@ const ALSO_LINTED = [
      DEFINER RPC hr_companion_equip, so it is here for the derivation walk and
      the grant lints. */
   '2026-08-20-companion-model.sql',
+  /* SERVER-FARMING slice 1 — the hr_farm_plant / hr_farm_harvest RPC pair. Both
+     are client-callable (authenticated) SECURITY DEFINER money RPCs, so PART
+     1b-ii (A9) must see them and confirm each references a rate gate. It was
+     SILENTLY SKIPPED before this line, which is why the missing gate (F1) was
+     not caught at build time. It touches none of the graded bodies (hr_apply /
+     hr_state_of / hr_perks_of / hr_rate_gate / hr_assert_grant_hygiene), so it
+     is on no derivation chain — the farm rate buckets live in hr_rpc_gate's
+     last toucher (2026-08-23-bounty.sql), not here. */
+  '2026-08-20-server-farming.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -546,6 +555,15 @@ const CLIENT_CALLABLE = new Map([
      pattern), deliberately NOT granted to hr_engine (2026-08-20-companion-model.sql
      §5 records the matching hr_client_rpc_baseline row; §6 re-runs the detector). */
   ['hr_companion_equip', ['authenticated']],
+  /* 2026-08-20-server-farming.sql — the plant/harvest intent pair. Both are
+     player actions (the player owns their own plots), version-bumping,
+     seed-debit / yield-credit / farming-XP all server-derived, day-budget
+     clamped, and rate-gated (farm_plant / farm_harvest buckets). Deliberately
+     NOT granted to hr_engine — the accrual engine never plants or harvests for
+     anyone. The migration's §6 records both in hr_client_rpc_baseline and §6b
+     re-runs hr_assert_grant_hygiene(true) strict. */
+  ['hr_farm_plant',   ['authenticated']],
+  ['hr_farm_harvest', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {

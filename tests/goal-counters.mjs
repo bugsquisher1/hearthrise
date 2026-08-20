@@ -51,6 +51,8 @@ import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import {
   GOAL_EVENTS, UNCOUNTED_EVENTS, GOAL_KEY_PREFIX, MAX_GOAL_ADD,
   goalKey, utcDayKey, makeGoalCounter, goalProgressOps,
+  BESTIARY_EVENT, BESTIARY_KEY_PREFIX, BESTIARY_ID_RE,
+  bestiaryKey, makeBestiaryCounter, bestiaryProgressOps,
 } from '../src/core/goals.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
@@ -69,7 +71,8 @@ let computeAccrualFn = computeAccrual;
 /* src/core/goals.js, likewise — M7-M9 plant defects in the contract module
    itself, and the engine mutants must then load THAT copy, so both are
    rebound through one loader. */
-let goalsMod = { GOAL_EVENTS, UNCOUNTED_EVENTS, MAX_GOAL_ADD, utcDayKey, makeGoalCounter, goalProgressOps };
+let goalsMod = { GOAL_EVENTS, UNCOUNTED_EVENTS, MAX_GOAL_ADD, utcDayKey, makeGoalCounter, goalProgressOps,
+  BESTIARY_EVENT, BESTIARY_KEY_PREFIX, BESTIARY_ID_RE, bestiaryKey, makeBestiaryCounter, bestiaryProgressOps };
 
 let problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -136,7 +139,14 @@ async function progressRows(db) {
 }
 
 const opsOf = (delta) => (delta && Array.isArray(delta.progress)) ? delta.progress : [];
-const goalOps = (delta) => opsOf(delta).filter((o) => String(o.key || '').startsWith(GOAL_KEY_PREFIX));
+/* GOAL ops only — the `ev:<type>` aggregate counters. The bestiary shares the
+   `ev:` root (`ev:kill_monster:<id>`) but is a separate model with its own
+   checks (B2/B3), so it is excluded here or G5's "touches nothing else" would
+   read a bestiary op as a stray goal op. */
+const goalOps = (delta) => opsOf(delta).filter((o) => {
+  const k = String(o.key || '');
+  return k.startsWith(GOAL_KEY_PREFIX) && !k.startsWith(BESTIARY_KEY_PREFIX);
+});
 const findOp = (delta, kind, type) =>
   opsOf(delta).find((o) => o.kind === kind && o.key === `${GOAL_KEY_PREFIX}${type}`) || null;
 
@@ -614,6 +624,124 @@ async function run(patches) {
     ok(Number(rows.get(`daily|${goalKey('gather')}|${G.utcDayKey(NOW_MS)}`)?.value) === gather.summary.gathered,
       'G11: the gather daily counter did not land at the yield');
   }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // BESTIARY — per-monster kill counts (live-settlement Slice 1). Same real
+  // engine, same real hr_apply, plus the real hr_bestiary_of projection.
+  // ══════════════════════════════════════════════════════════════════════
+  const bestOps = (delta) =>
+    opsOf(delta).filter((o) => String(o.key || '').startsWith(G.BESTIARY_KEY_PREFIX));
+
+  // ── B1 · THE VOCABULARY IS BOUND TO THE MONSTER CATALOGUE, BOTH SIDES ──
+  // Mirrors G2. There is no hand-kept key list — the key is DERIVED from the
+  // monster id — so "both directions" is: the models PARTITION the event, and
+  // every monster id forms a legal, round-tripping key.
+  {
+    // (a) The two models partition `kill_monster`: the bestiary owns it, the
+    //     goal model drops it. Without this a kill is counted twice under two
+    //     key shapes, or not at all.
+    ok(G.BESTIARY_EVENT === 'kill_monster',
+      `B1: BESTIARY_EVENT is ${JSON.stringify(G.BESTIARY_EVENT)}, expected 'kill_monster' — the `
+      + 'target-scoped emit resolveKill produces');
+    ok(G.UNCOUNTED_EVENTS.includes(G.BESTIARY_EVENT),
+      `B1(a): '${G.BESTIARY_EVENT}' is not in UNCOUNTED_EVENTS — the goal model would then COUNT it `
+      + 'as an aggregate AND the bestiary would count it per-target, double-counting every kill.');
+    ok(!G.GOAL_EVENTS.includes(G.BESTIARY_EVENT),
+      `B1(a): '${G.BESTIARY_EVENT}' is in GOAL_EVENTS — it must belong to exactly one model`);
+
+    // (b) Every monster id forms a legal key that round-trips through the
+    //     prefix. A monster whose id cannot form a ≤64-char key fails HERE, by
+    //     name, rather than filing a row nothing can read.
+    const ids = Object.keys(MONSTERS);
+    ok(ids.length >= 50,
+      `B1 CONTROL: only ${ids.length} monsters in the catalogue — the sweep is too small to prove `
+      + 'the binding');
+    let maxKeyLen = 0;
+    for (const id of ids) {
+      const key = G.bestiaryKey(id);
+      maxKeyLen = Math.max(maxKeyLen, key.length);
+      ok(key.startsWith(G.BESTIARY_KEY_PREFIX) && key.slice(G.BESTIARY_KEY_PREFIX.length) === id,
+        `B1(b): bestiaryKey(${JSON.stringify(id)}) = ${JSON.stringify(key)} does not round-trip `
+        + 'through the prefix — the read (substring) and the write (bestiaryKey) would disagree');
+      ok(G.BESTIARY_ID_RE.test(id),
+        `B1(b): monster id ${JSON.stringify(id)} fails BESTIARY_ID_RE — its counter would be dropped `
+        + 'with a receipt instead of filed. Rename the monster or widen the fuse (and re-check ≤64).');
+      ok(key.length <= 64,
+        `B1(b): bestiaryKey(${JSON.stringify(id)}) is ${key.length} chars, over hr_apply's 64-char `
+        + 'key ceiling — the op would 409 the accrual');
+    }
+
+    // (c) The SQL projection reads the SAME prefix this file writes. The
+    //     projection strips 16 chars (`substring(key from 17)`); assert the JS
+    //     prefix is exactly 16 so a key without a monster, or a monster without
+    //     a key, cannot arise from a prefix-length mismatch.
+    ok(G.BESTIARY_KEY_PREFIX === 'ev:kill_monster:' && G.BESTIARY_KEY_PREFIX.length === 16,
+      `B1(c): BESTIARY_KEY_PREFIX is ${JSON.stringify(G.BESTIARY_KEY_PREFIX)} (len `
+      + `${G.BESTIARY_KEY_PREFIX.length}); the SQL projection strips 16 chars, so a different length `
+      + 'means the read returns the wrong monster id');
+    const bestMig = await readFile(
+      join(ROOT, 'supabase', 'migrations', '2026-08-20-bestiary.sql'), 'utf8').catch(() => '');
+    ok(bestMig.includes("like 'ev:kill_monster:%'") && bestMig.includes('substring(pp.key from 17)'),
+      'B1(c): 2026-08-20-bestiary.sql no longer reads by the ev:kill_monster: prefix / substring(17). '
+      + 'The projection and the JS key vocabulary have drifted — a key without a monster.');
+  }
+
+  // ── B2 · A COMBAT NIGHT PRODUCES ONE PER-MONSTER OP, EQUAL TO THE KILLS ─
+  {
+    const best = bestOps(combat.delta);
+    ok(best.length === 1,
+      `B2: the combat night proposed ${best.length} bestiary ops, expected exactly 1 — it fights a `
+      + 'SINGLE activeId, so one key and one op (and the op count can never approach c_max_progress_ops)');
+    const op = best[0];
+    ok(!!op && op.key === G.bestiaryKey(MONSTER),
+      `B2: the bestiary op is keyed ${JSON.stringify(op?.key)}, expected `
+      + `${JSON.stringify(G.bestiaryKey(MONSTER))} (the monster the night fought)`);
+    ok(!!op && op.kind === 'stat' && op.period === '' && op.state === 'active',
+      `B2: the bestiary op shape is ${JSON.stringify(op)} — must be kind='stat', period='', `
+      + "state='active' (a permanent, additive, lifecycle-free counter)");
+    ok(!!op && op.add === combat.summary.kills,
+      `B2: the bestiary op advanced by ${op?.add} for ${combat.summary.kills} kills — a per-monster `
+      + 'count that is not the kill count is one the player can prove wrong');
+    // THE DRIFT GUARD — three independent paths, one span, must agree. The
+    // per-monster op, the goal-event lifetime counter (ev:kill_any) and the
+    // Hero-screen counter (kills) are written by three different lines from the
+    // same fx; if any disagrees, one is wrong.
+    const life = findOp(combat.delta, 'stat', 'kill_any');
+    const kStat = opsOf(combat.delta).find((o) => o.kind === 'stat' && o.key === 'kills');
+    ok(op && life && kStat && op.add === life.add && life.add === kStat.add,
+      `B2: bestiary(${op?.add}) = stat:ev:kill_any(${life?.add}) = stat:kills(${kStat?.add}) — because `
+      + 'the night fought one monster, all three count the same kills and must agree');
+  }
+
+  // ── B3 · THE CONTROL, THE ROUND TRIP, AND THE GATHER NIGHT TOUCHES NONE ─
+  {
+    // A gather night emits no kill_monster, so no bestiary op — the G5 control
+    // for this model.
+    ok(bestOps(gather.delta).length === 0,
+      'B3: the GATHER night proposed a bestiary op — only combat kills feed the bestiary');
+
+    // hr_apply accepts the op verbatim, and hr_bestiary_of reads it back by
+    // prefix — the projection this slice ships, exercised end to end.
+    const fresh = await boot(patches);
+    const c2 = combatNight();
+    if (c2.accrued) {
+      const r = await apply(fresh, c2.delta);
+      ok(r?.ok === true, `B3: hr_apply refused the combat delta carrying the bestiary op — ${JSON.stringify(r)}`);
+      // Direct row check.
+      const rows = await progressRows(fresh);
+      const row = rows.get(`stat|${G.bestiaryKey(MONSTER)}|`);
+      ok(!!row && Number(row.value) === c2.summary.kills,
+        `B3: the bestiary row for ${MONSTER} landed at ${row?.value}, expected ${c2.summary.kills}`);
+      // The dedicated projection.
+      const proj = await fresh.query('select monster_id, kills from public.hr_bestiary_of($1::uuid, 0)', [USER]);
+      const got = new Map(proj.rows.map((x) => [x.monster_id, Number(x.kills)]));
+      ok(got.get(MONSTER) === c2.summary.kills,
+        `B3: hr_bestiary_of returned ${MONSTER} = ${got.get(MONSTER)}, expected ${c2.summary.kills} — `
+        + 'the projection strips the prefix and reads exactly the bestiary population');
+      ok(!got.has('kill_any') && ![...got.keys()].some((k) => k.startsWith('ev:')),
+        'B3: hr_bestiary_of leaked a non-bestiary stat row (ev:kill_any / kills) into the bestiary');
+    }
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -625,14 +753,17 @@ async function run(patches) {
    for "the mutation never happened". */
 const MUTATIONS = [
   { name: 'M1 combat: the updateDaily handler is removed (today\'s shipped behaviour)',
-    file: 'accrual', from: "updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },\n\n    /* Still deliberately ABSENT, and each absence",
-    to: "updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },\n\n    /* Still deliberately ABSENT, and each absence" },
+    file: 'accrual', from: "    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    /* `meta` is now READ",
+    to: "    /* `meta` is now READ" },
   { name: 'M2 combat: the updateQuest handler is removed',
-    file: 'accrual', from: "updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },\n\n    /* Still deliberately ABSENT, and each absence",
+    file: 'accrual', from: "    updateQuest(type, amt, meta) { goals.quest(type, amt == null ? 1 : amt); bestiary.record(type, amt == null ? 1 : amt, meta); },\n\n    /* Still deliberately ABSENT, and each absence",
     to: "\n\n    /* Still deliberately ABSENT, and each absence" },
+  { name: 'M11 combat: the BESTIARY listener is removed (goals stay correct, per-monster vanishes)',
+    file: 'accrual', from: "goals.quest(type, amt == null ? 1 : amt); bestiary.record(type, amt == null ? 1 : amt, meta); },",
+    to: "goals.quest(type, amt == null ? 1 : amt); }," },
   { name: 'M3 combat: the goal ops never reach the delta',
-    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n\n  const delta = {\n    // A watermark",
-    to: "\n  const delta = {\n    // A watermark" },
+    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE BESTIARY OPS",
+    to: "\n  /* THE BESTIARY OPS" },
   { name: 'M4 gather: the goal ops never reach the delta',
     file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n\n  const delta = {\n    accrued_to:",
     to: "\n  const delta = {\n    accrued_to:" },
@@ -640,8 +771,8 @@ const MUTATIONS = [
     file: 'accrual', from: "    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },\n    /* Still deliberately ABSENT:",
     to: "    updateDaily(type) { goals.daily(type, 1); },\n    updateQuest(type) { goals.quest(type, 1); },\n    /* Still deliberately ABSENT:" },
   { name: 'M6 combat: the daily is anchored to the credited window, not the return',
-    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n\n  const delta = {\n    // A watermark",
-    to: "  for (const op of goalProgressOps(goals, credit.fromMs, events)) progress.push(op);\n\n  const delta = {\n    // A watermark" },
+    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE BESTIARY OPS",
+    to: "  for (const op of goalProgressOps(goals, credit.fromMs, events)) progress.push(op);\n  /* THE BESTIARY OPS" },
   { name: 'M7 goals: the day key is zero-padded (the FM defect)',
     file: 'goals', from: "return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;",
     to: "return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;" },

@@ -355,3 +355,127 @@ export function goalProgressOps(counter, nowMs, events) {
   }
   return ops;
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// THE BESTIARY — PER-MONSTER KILL COUNTS (live-settlement Slice 1).
+//
+// ── WHY IT IS A SIBLING OF THE GOAL COUNTER, NOT A KEY INSIDE IT ─────────
+// `resolveKill` emits TWO shapes on every kill: `updateQuest('kill_any', 1,
+// {target})` — an aggregate the goal model counts — and `updateQuest(
+// 'kill_monster', 1, {target})` — a TARGET-SCOPED event the goal model
+// deliberately DROPS (it is the sole member of UNCOUNTED_EVENTS, "no authored
+// consumer today"). The bestiary IS that consumer. It reads the exact seam the
+// sim already emits and files it per `meta.target`, so an away kill and a live
+// kill move the same row through one call site — the goal counter's rule,
+// applied to a second dimension of the same event.
+//
+// ── kind IS THE WRITE CAPABILITY (the artisan rule, again) ──────────────
+//   kind='stat'  · additive · permanent (period_key='') · in hr_apply's
+//                  allowlist. A lifetime per-monster count is exactly a stat:
+//                  the beta wipes at cutover, so the lifetime count IS the
+//                  bestiary's number, with no baseline to migrate. NO MIGRATION
+//                  is required to WRITE these rows — 'stat' is already legal.
+//
+// ── THE KEY NAMESPACE, AND WHY IT IS DISTINCT FROM 'ev:kill_any' ────────
+// `ev:kill_monster:<id>` extends the `ev:` convention with the TARGET the
+// goal key drops. The trailing `:` after `kill_monster` is load-bearing: it
+// keeps a bestiary key (`ev:kill_monster:slime`) from ever colliding with a
+// goal key (`ev:kill_any`) OR the never-minted aggregate `ev:kill_monster`,
+// and it is the exact string a reader can `like 'ev:kill_monster:%'` on to
+// pull the bestiary population out on its OWN read (hr_bestiary_of) rather than
+// consuming hr_state_of's shared 1000-row envelope. The goal model's
+// UNCOUNTED_EVENTS note anticipated this key shape by name.
+//
+// ── THE VOCABULARY IS BOUND TO THE MONSTER CATALOGUE, BOTH DIRECTIONS ────
+// There is no hand-maintained key list to drift: the key is DERIVED from the
+// monster id the sim reports, and the sim only ever reports an `activeId`
+// computeAccrual already validated against MONSTERS (catalogueHas). So the
+// vocabulary is exactly {MONSTERS}. tests/goal-counters.mjs asserts:
+//   (a) BESTIARY_EVENT is in UNCOUNTED_EVENTS and NOT in GOAL_EVENTS — the two
+//       models partition the event, so a kill is counted once as an aggregate
+//       and once per-target, never twice under one key;
+//   (b) every MONSTERS id forms a legal key (charset + ≤64 chars) and round
+//       trips through the prefix — a monster whose id cannot form a key fails
+//       the build BY NAME rather than filing a row nothing can read;
+//   (c) the SQL projection's prefix equals BESTIARY_KEY_PREFIX — a key without
+//       a monster, or a monster without a key, cannot ship.
+// ════════════════════════════════════════════════════════════════════════
+
+/* The one event this model owns. It is `resolveKill`'s target-scoped emit and
+   the sole member of UNCOUNTED_EVENTS — a partition the guard asserts. */
+export const BESTIARY_EVENT = 'kill_monster';
+
+/* The key namespace. The trailing `:` is the whole point — see the header. */
+export const BESTIARY_KEY_PREFIX = 'ev:kill_monster:';
+
+/* An id charset/length that keeps `BESTIARY_KEY_PREFIX + id` ≤ 64 (hr_apply's
+   key ceiling): 16 + 48 = 64. Monster ids are `[a-z0-9_]`, ≤17 today; this is
+   the fuse if one is ever authored longer, and it fails CLOSED (the op is
+   dropped with a receipt, never filed as an unreadable key). */
+export const BESTIARY_ID_RE = /^[a-z0-9_]{1,48}$/;
+
+/** The player_progress key for a monster id. One expression, one reader. */
+export function bestiaryKey(id) { return BESTIARY_KEY_PREFIX + id; }
+
+/**
+ * THE BESTIARY COUNTER. A sibling of makeGoalCounter, fed from the SAME
+ * `fx.updateQuest` seam — so it cannot drift from the kills the goal model
+ * and the Hero screen count, because all three read one call site.
+ *
+ * `record` filters to BESTIARY_EVENT and files by `meta.target`. Every other
+ * type (the `kill_any` aggregate, a gather event) is a no-op by construction —
+ * the same shape that made the goal model's missing handler a silent skip
+ * rather than a crash. An empty/hostile target is dropped, never minted.
+ */
+export function makeBestiaryCounter() {
+  const bag = Object.create(null);
+  return {
+    /* @param type  the updateQuest type — only BESTIARY_EVENT is consumed
+       @param amt   kills (always 1 from resolveKill, but summed defensively)
+       @param meta  the sim's `{ target: <monster_id> }` */
+    record(type, amt, meta) {
+      if (type !== BESTIARY_EVENT) return;
+      const id = (meta && typeof meta.target === 'string') ? meta.target : null;
+      const n = Math.floor(Number(amt) || 0);
+      if (!id || n <= 0) return;
+      bag[id] = (bag[id] || 0) + n;
+    },
+    counts() { return { ...bag }; },
+  };
+}
+
+/**
+ * Turn the bestiary counter into `progress` ops for an hr_apply delta.
+ *
+ * Every op is kind='stat', period='' (permanent, like ev:kill_any's lifetime
+ * counter), state='active', add clamped into [1, MAX_GOAL_ADD] against the
+ * SAME hr_apply ceiling the goal ops respect. An id that cannot form a legal
+ * key is dropped with a receipt — fail-closed, never an unreadable row.
+ *
+ * ⚠ OP COUNT: a combat accrual fights a SINGLE `activeId` for the whole span,
+ *   so `bag` holds exactly one key and this emits exactly one op — it cannot
+ *   approach hr_apply's c_max_progress_ops (64). Asserted, not assumed, in
+ *   tests/goal-counters.mjs.
+ *
+ * @param counter  a makeBestiaryCounter()
+ * @param events   OPTIONAL sink; push({type,…}) receipts for clamp/drop.
+ */
+export function bestiaryProgressOps(counter, events) {
+  const ops = [];
+  if (!counter) return ops;
+  const bag = counter.counts();
+  const sink = Array.isArray(events) ? events : null;
+  for (const id of Object.keys(bag).sort()) {
+    if (!BESTIARY_ID_RE.test(id)) {
+      if (sink) sink.push({ type: 'bestiary_bad_id', id, add: bag[id] });
+      continue;
+    }
+    let n = bag[id];
+    if (n > MAX_GOAL_ADD) {
+      if (sink) sink.push({ type: 'bestiary_clamped', id, add: n, to: MAX_GOAL_ADD });
+      n = MAX_GOAL_ADD;
+    }
+    ops.push({ kind: 'stat', key: bestiaryKey(id), period: '', add: n, state: 'active' });
+  }
+  return ops;
+}

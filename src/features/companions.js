@@ -282,14 +282,17 @@ function rollProc(triggerType, ctx) {
   const hit = (C && C.rng) ? C.rng.chance(def.proc.chance) : (Math.random() < def.proc.chance);
   if (!hit) return;
   const e = def.proc.effect;
+  /* ARM-SAFE (gold flip): a companion gold proc is a live client-authored grant
+     (its away-replay twin is priced by combat-sim, but the LIVE tick here is not
+     server-credited). Under arm the gold credit no-ops, so DEFER the whole proc —
+     do NOT show a "+Xg" proc animation or record a contribution the pet did not
+     make. A proc latches nothing, so deferring is simply firing nothing this
+     draw. No-op until gold is armed, so seeded parity is unchanged. */
+  if ((e === 'gold' || e === 'extraGold')
+      && window.clientMayWriteRecordField && !window.clientMayWriteRecordField('gold')) return;
   switch (e) {
-    /* SECURITY (gold record-flip, Finding #2): a companion gold proc is a live
-       client-authored grant (its away-replay twin is priced by combat-sim, but
-       the LIVE tick that fires here is not server-credited). On the gold flip an
-       ungated write would be erased by the next absolute envelope. Gate on the
-       record seam — a no-op until gold is armed, so seeded parity is unchanged. */
-    case 'gold': if (!window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold')) G.gold = (G.gold || 0) + (def.proc.amount || 1); break;
-    case 'extraGold': if (!window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold')) G.gold = (G.gold || 0) + (def.proc.amount || 5); break;
+    case 'gold': G.gold = (G.gold || 0) + (def.proc.amount || 1); break;
+    case 'extraGold': G.gold = (G.gold || 0) + (def.proc.amount || 5); break;
     case 'doubleDrop':
       if (ctx?.lastDrop?.id && G.inventory) {
         G.inventory[ctx.lastDrop.id] = (G.inventory[ctx.lastDrop.id] || 0) + (ctx.lastDrop.qty || 1);

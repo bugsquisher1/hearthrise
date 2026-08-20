@@ -310,13 +310,17 @@
     if (idx > rankIndexFor(effectiveRenown(G))) return null;    // not reached yet
     var rank = RANKS[idx];
     var rw = rank.reward || {};
-    /* SECURITY (gold record-flip, Finding #2): a Renown-rank reward is a purely
-       client-authored grant — Renown has no server column/RPC (RENOWN_MODEL
-       blocker), so nothing credits it server-side. On the gold flip it would be
-       erased by the next envelope. Gate on the record seam (no-op until gold is
-       armed). The item reward stays client-owned. */
-    if (rw.gold && (!window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold'))) G.gold = (G.gold || 0) + rw.gold;
-    if (rw.gems && (!window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems'))) G.gems = (G.gems || 0) + rw.gems;
+    /* ARM-SAFE (gold flip): a Renown-rank reward is a purely client-authored
+       grant — Renown has no server column/RPC (RENOWN_MODEL blocker). Under arm
+       the gold/gems credit no-ops, so DEFER the whole claim — do NOT grant the
+       item and do NOT mark the rank claimed — rather than burning the rank for
+       currency that never lands. It stays claimable for when it is server-
+       credited. No-op until gold/gems are armed. */
+    var _mayGold = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold');
+    var _mayGems = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems');
+    if ((rw.gold && !_mayGold) || (rw.gems && !_mayGems)) return null;   // deferred; stays claimable
+    if (rw.gold) G.gold = (G.gold || 0) + rw.gold;
+    if (rw.gems) G.gems = (G.gems || 0) + rw.gems;
     if (rw.item && typeof window.addItem === 'function') { try { window.addItem(rw.item, rw.itemQty || 1); } catch (e) {} }
     s.claimed.push(rankId);
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}

@@ -1,5 +1,13 @@
 # Art Director — running log
 
+## 2026-08-20 · RELEASE VISUAL GATE — b416 cozy-light retirement (assembled main e5983267) → PASS
+Verified on assembled main (port 8123). Risk: bulk CSS removal deleting a live Hearthlight rule. Verdict: no live rule lost.
+- Live tokens: all 166 `:root` Hearthlight tokens resolve with correct values (--bg-0 #0a0806, --gold #c9a24a, --bg-card/--sidebar-bg/--topbar-bg gradients, all --sc-*/--bb-* scene tokens, fonts Alegreya/Cinzel). Base :root block intact.
+- Diff audit (612bd44→e5983267, all 5 sheets + JS): EVERY removed selector is `cozy-light`- or `html:not([data-theme])`-scoped. 0 removed selectors match Hearthlight; 0 valueless `body[data-theme]` rules removed. Removed @media blocks were cozy-light-only. Surviving base rules (#panel-market/#panel-dungeons *, .icon-fallback, combat-arena) present.
+- Rendered surface reachable (account gate, online-only blocks app): wall renders Hearthlight tokens correctly — bg-card gradient card, gold borders, cream ink, Alegreya Sans SC gilt CTA. 0 console errors.
+- Theme picker: single-theme (Hearthlight only) — pre-existing design (readSaved always hearthlight since b414), NOT changed by b416. cozy-dark/classic/cozy-light all normalise to hearthlight. cozy-light correctly absent. NOTE: task expected 3 themes; actual game is single-theme — flagged as expectation mismatch, not a regression.
+- LIMITATION: authenticated dense screens (Home/Combat/Inventory/Shop/Character) not rendered live — account gate + no-create-account. Diff+token audit is the definitive "did a rule go missing" check and answers the stated risk conclusively.
+
 ## 2026-08-20 · RETIRE COZY-LIGHT (branch debt/retire-cozy-light — NOT pushed)
 Removed the retired cozy-light theme to unblock the hardcoded-colour→token cleanup. Kept cozy-dark + classic (also dormant, but out of scope).
 

@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 416 — 2026-08-20 (Under the hood: retired an unused theme)
+
+- 🔧 No visible change. Removed the old "cozy light" theme, which hadn't actually rendered in a long time (the game has been on Hearthlight) — ~1,900 lines of dead styling gone. Cleaner and easier to restyle going forward. If you somehow still had it selected, you're moved to Hearthlight automatically.
+
 ## v0.9.2-beta build 415 — 2026-08-20 (Under the hood: server-paid collection & renown rewards)
 
 - 🔧 No gameplay change you'll notice. Collection-log milestone rewards and Renown rank rewards are now verified and paid by the server (with a tamper-proof high-water so a rank you've reached always stays claimable). Same rewards, same amounts — just server-owned now.

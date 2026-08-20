@@ -677,6 +677,20 @@
   }
   function noteRpc(name, present) { rpcKnown[name] = { known: present, at: Date.now() }; }
 
+  /* The active character slot, for the server to credit against (player_state is
+     keyed by (user_id, slot)). Derived server-authoritatively from the profile,
+     clamped to [0,5]; never a value that could cross to another player. */
+  function activeSlot() {
+    try {
+      var P = window.HearthriseProfile;
+      if (P && typeof P.activeSlot === 'function') {
+        var s = P.activeSlot();
+        if (typeof s === 'number' && s >= 0 && s <= 5) return s | 0;
+      }
+    } catch (e) {}
+    return 0;
+  }
+
   async function rpc(name, body) {
     var res = await fetch(cfg().url + '/rest/v1/rpc/' + name, {
       method: 'POST', headers: headers(true), body: JSON.stringify(body)
@@ -931,25 +945,20 @@
   }
 
   async function serverClaim(scope, clanId, wk, attempt) {
-    /* ARM-SAFE (gold flip): the raid chest's gold/gems are credited CLIENT-side
-       (grantReward), while raid_claim AUTHORISES + CONSUMES the once-per-week
-       claim but writes no gold to player_state. If the claim proceeds while gold
-       is armed, the week is spent and grantReward pays ZERO — unrecoverable. This
-       is the ONE choke every consuming path (clan/solo/grace) routes through, so
-       deferring here defers the whole claim: the RPC is never called (the server
-       never consumes) and no legacy/offline chest is granted. The week stays
-       claimable for when the reward is credited IN-RPC server-side. No-op until
-       gold is armed, so today's behaviour is unchanged.
-       ⚠ KNOWN REGRESSION once armed: raid rewards are unclaimable until the
-       in-RPC credit ships (see the review-only migration in this change). */
-    if (window.clientMayWriteRecordField && !window.clientMayWriteRecordField('gold')) {
-      return { action: 'deferred', message: 'Raid rewards are briefly unavailable — try again shortly.' };
-    }
+    /* SERVER-CREDITED (2026-08-19): raid_claim now credits the chest gold/gems
+       INTO player_state, atomically with consuming the once-per-week claim (the
+       migration in this change). The b411 arm-safety DEFER is therefore GONE —
+       the claim + payout are one server transaction, so there is no window where
+       the week is spent for zero. The client's grantReward gold/gems write is a
+       DISPLAY prediction gated on clientMayWriteRecordField: pre-arm it credits
+       locally (server credit is dark), post-arm it no-ops and the server's
+       player_state value arrives on the next envelope. p_slot names which
+       character the server credits — the active slot, never a cross-player value. */
     if (!cfg() || !session()) return { action: 'unsupported' };
     if (rpcMissing('raid_claim')) return { action: 'unsupported' };
     var r;
     try {
-      r = await rpc('raid_claim', { p_scope: scope, p_clan_id: clanId || null, p_week: wk });
+      r = await rpc('raid_claim', { p_scope: scope, p_clan_id: clanId || null, p_week: wk, p_slot: activeSlot() });
     } catch (e) {
       return { action: 'fail', message: claimErrorText('network') };
     }

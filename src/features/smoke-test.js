@@ -1429,49 +1429,72 @@ const TESTS = [
     }
   }),
 
-  () => tryRunAsync('arm-safe (Tier-1 muster): the rally claim DEFERS under arm — no RPC consume, no pay, works unarmed', async () => {
-    // world_event_claim CONSUMES the once-per-day claim server-side but credits
-    // gold CLIENT-side (payChest), so proceeding while gold is armed spends the
-    // claim for ZERO — unrecoverable. The claim ENTRY must defer BEFORE the RPC:
-    // no fetch, no local grant, claim left available. Raids' serverClaim() uses
-    // the identical gate (the one choke clan/solo/grace route through).
+  () => tryRunAsync('server-credited (Tier-1 muster): under arm the rally claim PROCEEDS, calls world_event_claim WITH the slot, and does not double-pay locally', async () => {
+    // 2026-08-19: world_event_claim now CREDITS the chest into player_state,
+    // atomically with consuming the once-per-day claim (the in-RPC credit). The
+    // b411 entry-defer is GONE. So under arm the claim must PROCEED to the RPC
+    // (passing the active slot the server credits against) and NOT double-pay
+    // gold locally — payChest's local write is a display prediction the envelope
+    // reconciles, gated off under arm. Pre-arm it still pays locally (the control).
     const M = window.HearthriseMuster;
     if (!M || typeof M.claim !== 'function') return;
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    {
-      let fetches = 0;
-      try {
-        window.fetch = function () { fetches++; return Promise.reject(new Error('no network in test')); };
-        // A chest is ready and we are NOT on the server path, so unarmed claim
-        // pays the solo chest locally — the control that proves the gate matters.
-        window.G.muster = { dayKey: null, eventKey: 'ev', slot: null, startMs: 0, endMs: 0,
-                            points: 500, pending: 0, rallied: false, claimed: false, server: false };
-        window.G.gold = 0;
+    const origSb = window.HearthriseSupabase;
+    const origAuth = window.HearthriseAuth;
+    const origRpc = window.HearthriseRpc;
+    const origProf = window.HearthriseProfile;
+    let claimBody = null, claimCalls = 0;
+    try {
+      // A signed-in, server-backed environment with a mocked world_event_claim.
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
+      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
+      window.HearthriseRpc = { mayCall: () => true };
+      window.HearthriseProfile = { activeSlot: () => 2 };   // the slot the server must credit
+      window.fetch = function (url, init) {
+        if (String(url).indexOf('world_event_claim') !== -1) {
+          claimCalls++;
+          try { claimBody = JSON.parse(init && init.body); } catch (e) { claimBody = null; }
+          return Promise.resolve(new Response(
+            JSON.stringify({ ok: true, gold: 1500, gems: 2, seals: 0, band: 'answered', held: false }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
 
-        // UNARMED (today): the solo chest is granted and the claim is consumed.
-        window.clientMayWriteRecordField = function () { return true; };
-        await M.claim();
-        assert(window.G.gold > 0, 'unarmed rally claim must pay the solo chest; got ' + window.G.gold);
-        assert(window.G.muster.claimed === true, 'unarmed rally claim must consume the claim');
+      // ── CONTROL (pre-arm): the RPC path pays the chest LOCALLY as a display
+      //    prediction, exactly today's behaviour.
+      window.clientMayWriteRecordField = function () { return true; };
+      window.G.muster = { dayKey: null, eventKey: 'ev', slot: null, startMs: 0, endMs: 0,
+                          points: 500, pending: 0, rallied: false, claimed: false, server: true };
+      window.G.gold = 0; claimCalls = 0; claimBody = null;
+      const okUnarmed = await M.claim();
+      assert(okUnarmed === true, 'pre-arm server claim must succeed');
+      assert(claimCalls === 1, 'pre-arm claim must call world_event_claim exactly once; saw ' + claimCalls);
+      assert(window.G.gold === 1500, 'pre-arm claim renders the server amount locally; got ' + window.G.gold);
+      assert(window.G.muster.claimed === true, 'pre-arm claim marks the day claimed');
 
-        // ARMED: defer — no consume, no pay, no fetch.
-        window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
-        window.G.muster = { dayKey: null, eventKey: 'ev', slot: null, startMs: 0, endMs: 0,
-                            points: 500, pending: 0, rallied: false, claimed: false, server: true };
-        window.G.gold = 0;
-        fetches = 0;
-        const ok = await M.claim();
-        assert(ok === false, 'armed rally claim must return false (deferred)');
-        assert(window.G.gold === 0, 'armed rally claim must NOT pay gold; got ' + window.G.gold);
-        assert(window.G.muster.claimed === false, 'armed rally claim must NOT consume the claim — it stays available');
-        assert(fetches === 0, 'armed rally claim must NOT call the RPC (no server consume); saw ' + fetches + ' fetch(es)');
-      } finally {
-        window.clientMayWriteRecordField = origMay;
-        window.fetch = origFetch;
-        restoreG(snap);
-      }
+      // ── ARMED: the claim PROCEEDS (no defer), calls the RPC WITH the slot, and
+      //    does NOT write gold locally — the server credited player_state.
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };
+      window.G.muster = { dayKey: null, eventKey: 'ev', slot: null, startMs: 0, endMs: 0,
+                          points: 500, pending: 0, rallied: false, claimed: false, server: true };
+      window.G.gold = 0; claimCalls = 0; claimBody = null;
+      const okArmed = await M.claim();
+      assert(okArmed === true, 'armed claim must PROCEED and succeed (the b411 defer is gone)');
+      assert(claimCalls === 1, 'armed claim must call world_event_claim; the defer is removed; saw ' + claimCalls);
+      assert(claimBody && claimBody.p_slot === 2, 'armed claim must pass the active slot for the server to credit; got ' + JSON.stringify(claimBody));
+      assert(window.G.gold === 0, 'armed claim must NOT double-pay gold locally (server credits player_state); got ' + window.G.gold);
+      assert(window.G.muster.claimed === true, 'armed claim consumes the once-per-day claim server-side');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.fetch = origFetch;
+      window.HearthriseSupabase = origSb;
+      window.HearthriseAuth = origAuth;
+      window.HearthriseRpc = origRpc;
+      window.HearthriseProfile = origProf;
+      restoreG(snap);
     }
   }),
 

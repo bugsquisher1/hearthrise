@@ -616,8 +616,13 @@ export const MUTATIONS = {
     why: 'a deferred transfer loses its flipGuard entirely. On flip that write is a client-authored '
       + 'value-crossing refund the server never authorised — Finding #1, un-annotated.',
     file: LEDGER_FILE,
-    find: "    flipGuard: { gated: 'clientMayWriteRecordField' },\n    blockedBy: 'same as muster payChest",
-    repl: "    blockedBy: 'same as muster payChest",
+    /* b411→2026-08-19: re-anchored. The old anchor was raids.js#grantReward,
+       whose gated:clientMayWriteRecordField flipGuard became serverCredits when
+       raid_claim started crediting the chest in-RPC. Re-pointed at clan contribute,
+       which is still a deferred, gated transfer — the property is about the
+       DEFERRED-TRANSFER class, and that class is not empty. */
+    find: "    flipGuard: { gated: 'CLAN_LAUNCHED' },\n  },",
+    repl: "  },",
   },
   transfer_flip_guard_gate_absent_in_code: {
     why: 'a deferred transfer CLAIMS a code gate whose token is nowhere in the site. The annotation '

@@ -588,6 +588,20 @@
    *   • it is NOT an isMissingRpc() shape, so a refusal can never poison the
    *     feature probe into believing the RPC does not exist for ten minutes.
    */
+  /* The active character slot, for the server to credit against (player_state is
+     keyed by (user_id, slot)). Derived server-authoritatively from the profile,
+     clamped to [0,5]; never a value that could cross to another player. */
+  function activeSlot() {
+    try {
+      var P = window.HearthriseProfile;
+      if (P && typeof P.activeSlot === 'function') {
+        var s = P.activeSlot();
+        if (typeof s === 'number' && s >= 0 && s <= 5) return s | 0;
+      }
+    } catch (e) {}
+    return 0;
+  }
+
   async function rpc(name, body) {
     var R = window.HearthriseRpc;
     if (R && typeof R.mayCall === 'function' && !R.mayCall(name, isSignedIn())) {
@@ -936,24 +950,19 @@
                        : (st.eventKey ? CLAIM_ERRORS.still_live : CLAIM_ERRORS.not_joined), 'info');
       return false;
     }
-    /* ARM-SAFE (gold flip): the rally chest's gold/gems are credited CLIENT-side
-       (payChest), while world_event_claim PRICES the chest and CONSUMES the daily
-       claim but writes no gold to player_state. If we let the claim proceed while
-       gold is armed, the server consumes the once-per-day claim and payChest pays
-       ZERO — unrecoverable. DEFER the whole claim: never call the RPC (so the
-       server never consumes) and never pay the solo chest. The claim stays
-       available for when the reward is credited IN-RPC server-side. No-op until
-       gold is armed, so today's behaviour is unchanged.
-       ⚠ KNOWN REGRESSION once armed: rally rewards are unclaimable until the
-       in-RPC credit ships (see the review-only migration in this change). */
-    if (window.clientMayWriteRecordField && !window.clientMayWriteRecordField('gold')) {
-      toast('Rally rewards are briefly unavailable — check back shortly.', 'info');
-      return false;
-    }
+    /* SERVER-CREDITED (2026-08-19): world_event_claim now credits the chest
+       gold/gems INTO player_state, atomically with consuming the once-per-day
+       claim (the migration in this change). The b411 arm-safety DEFER is GONE —
+       claim + payout are one server transaction, so the day can never be spent
+       for a zero payout. payChest's local gold/gems write is a DISPLAY prediction
+       gated on clientMayWriteRecordField: pre-arm it credits locally (the server
+       credit is dark), post-arm it no-ops and the server's player_state value
+       arrives on the next envelope. p_slot names the character to credit — the
+       active slot, never a cross-player value. */
     if (st.server && isSignedIn() && !rpcMissing('world_event_claim')) {
       await flush();
       var r;
-      try { r = await rpc('world_event_claim', { p_day_key: st.dayKey }); }
+      try { r = await rpc('world_event_claim', { p_day_key: st.dayKey, p_slot: activeSlot() }); }
       catch (e) { toast(claimErrorText('network'), 'kill'); return false; }
       var d = reduceClaim(r.status, r.json);
       noteRpc('world_event_claim', d.action !== 'unsupported');

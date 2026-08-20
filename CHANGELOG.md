@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 411 — 2026-08-19 (Under the hood: reward-safety groundwork)
+
+- 🔧 No gameplay change. Groundwork so that when gold spending fully flips to server-authoritative, no earned reward is ever silently lost — reward payouts now defer safely rather than pay zero if the server isn't ready. Invisible to you today.
+
 ## v0.9.2-beta build 410 — 2026-08-19 (Under the hood: server-owned companion buying)
 
 - 🔧 No gameplay change you'll notice. Buying companions now charges their gold through the server, with skill requirements (Honeybee needs Cooking 25, Owl needs Prayer 50) checked server-side — the last of the gold *spends* to move server-side. Same buttons, same prices, same requirements.

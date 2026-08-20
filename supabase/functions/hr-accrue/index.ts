@@ -70,7 +70,7 @@
 // ============================================================================
 
 import postgres from 'npm:postgres@3.4.5';
-import { computeAccrual, levelsOf, degradeStep } from './accrual.js';
+import { computeAccrual, levelsOf, degradeStep, accrueWorkers } from './accrual.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
 import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
@@ -634,7 +634,77 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
 
     let out = runAccrual({ capMs, actionBudget: null });
 
+    /* ── THE PARALLEL WORKER SETTLE (worker-settlement slice) ───────────────
+       Hired-crew production is a CONTINUOUS activity that runs ALONGSIDE the
+       pointer, on its OWN watermark `workers_accrued_to`. It is settled here —
+       NOT through KIND_ACCRUERS — and it is settled EVEN WHEN the pointer
+       accrual refused (idle / below-min / unsupported), because a pointer that
+       owes nothing does not mean a crew that owes nothing. That is the whole bug
+       the design closes: the early `!out.accrued` return below MUST NOT skip a
+       pending worker window. `accrueWorkers` is pure and draws no rng, so its
+       output is server-owned and deterministic. The crew + watermark are read
+       from the SAME hr_state_of transaction as everything else, never a body. */
+    const wout = accrueWorkers({
+      nowMs,
+      workersAccruedToMs: st.workers_accrued_to ? new Date(st.workers_accrued_to).getTime() : null,
+      crew: Array.isArray(env.workers) ? env.workers : [],
+      nodes: GATHER_NODES,
+      items: ITEMS,
+    });
+
+    /* Merge the worker delta into ANY delta bound for hr_apply: worker items
+       fold into the signed `items` map (so hr_apply's qty_in counts them against
+       the day budget), `workers` is the per-worker xp sub-delta, and
+       `workers_accrued_to:'now'` advances the crew watermark. Applied to a COPY
+       at every apply site — including each degrade rung — because the worker
+       figures are small, constant across attempts, and must ride the ONE
+       hr_apply call the pointer makes. */
+    const mergeWorkers = (delta: Record<string, any>): Record<string, any> => {
+      if (!wout.accrued) return delta;
+      const d: Record<string, any> = { ...delta };
+      const items: Record<string, number> = { ...(d.items || {}) };
+      for (const id of Object.keys(wout.items)) {
+        items[id] = (Number(items[id]) || 0) + Number(wout.items[id]);
+      }
+      d.items = items;
+      d.workers = wout.workers;
+      d.workers_accrued_to = 'now';
+      return d;
+    };
+
     if (!out.accrued) {
+      // The pointer owes nothing. If the CREW owes something, settle it alone in
+      // one hr_apply call under a `worker` journal — the watermark that advances
+      // is workers_accrued_to, NOT accrued_to (so the daily streak does not bump
+      // on a worker-only settle). No degrade ladder: a crew haul is tiny and
+      // cannot trip a per-call clamp.
+      if (wout.accrued) {
+        // Named `delta` (not `workerDelta`) so the `::text::jsonb` transport is
+        // the SAME shape tests/delta-transport.mjs grades on every apply site —
+        // a bare ::jsonb here would double-serialise and answer bad_delta.
+        const delta = mergeWorkers({
+          journal: { kind: 'worker', intent: 'accrue',
+            meta: { ms: wout.summary.spanMs, qty: wout.summary.qty,
+              workers: wout.summary.workers, capped: wout.summary.capped } },
+        });
+        const wIntentId = await intentIdFor({
+          user, slot, watermark: 'workers:' + String(st.workers_accrued_to ?? ''),
+          version: env.version, salt, attempt: 0,
+        });
+        const wres = await sql.begin(async (tx) => {
+          await tx`set local role hr_engine`;
+          const [r] = await tx`
+            select public.hr_apply(${user}::uuid, ${slot}::int, ${env.version}::bigint,
+                                   ${wIntentId}::uuid, ${JSON.stringify(delta)}::text::jsonb) as res`;
+          return r as Row;
+        });
+        const wr = wres?.res as Record<string, any>;
+        if (wr && wr.ok === true && wr.replayed !== true) {
+          return json({ ok: true, accrued: true, ...wr, workers: wout.summary });
+        }
+        // A refused / replayed worker-only settle falls through to the plain
+        // not-accrued response: nothing was minted, the watermark did not move.
+      }
       // Nothing to pay. NOTHING IS WRITTEN — in particular the watermark is not
       // advanced, so a sub-threshold call cannot confiscate the time it
       // declined to pay for. The rate budget HAS been spent (see the gate
@@ -681,7 +751,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return applied?.res as Record<string, any>;
     };
 
-    let res = await apply(out.delta, 0);
+    let res = await apply(mergeWorkers(out.delta), 0);
     let degraded: Record<string, unknown> | null = null;
 
     /* THE DEGRADE LADDER (S8). Only ever entered on a clamp — never on a
@@ -710,7 +780,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          instead of grinding down to the forfeit. */
       if (Number(next.summary?.ticks) >= Number(out.summary?.ticks)) break;
       out = next;
-      res = await apply(out.delta, attempt);
+      res = await apply(mergeWorkers(out.delta), attempt);
     }
 
     if (res && res.ok !== true && degraded && DEGRADABLE.has(String(res.error))) {

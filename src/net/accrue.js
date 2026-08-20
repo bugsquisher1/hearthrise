@@ -945,6 +945,20 @@ export function __resetBaselineComplete() {
 export function markInventoryAuthorityLive(v) {
   const on = v !== false;
   if (on) {
+    /* (c) NO UN-BACKED OWNABLE MINT MAY REMAIN (worker-settlement slice). The
+       absolute replace treats every OWNABLE id as a complete server statement,
+       so any OWNABLE id a CLIENT path still mints without a server write would be
+       DELETED on the flip. `flipArmBlockers()` is the registry of such lanes
+       (src/data/item-authority.js); it MUST be empty before authority moves. It
+       held exactly one entry — hired-worker production — until this slice made it
+       server-settled and flipped WORKER_PRODUCTION_SERVER_BACKED. Arming while it
+       is non-empty is the landmine the whole program exists to avoid. */
+    const blockers = flipArmBlockers();
+    if (blockers.length) {
+      throw new Error('[accrue] refusing to arm inventory authority: '
+        + blockers.length + ' un-backed OWNABLE mint lane(s) remain — an absolute envelope would '
+        + 'DELETE items a client path still mints without a server write. ' + blockers.join(' | '));
+    }
     const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
     if (!D || typeof D !== 'object') {
       throw new Error('[accrue] refusing to arm inventory authority: window.DUNGEONS is not loaded. '
@@ -1067,7 +1081,7 @@ import * as itemLedger from './item-ledger.js?v=422';
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, rebuildItemAuthority } from '../data/item-authority.js?v=422';
+import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers } from '../data/item-authority.js?v=422';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as

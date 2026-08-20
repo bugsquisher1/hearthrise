@@ -98,9 +98,19 @@ export function gatherProductIds() {
    like normal_log / copper_ore / trout, which legit gathering also grants).
    The only correct fix is to make worker production SERVER-OWNED — settled by
    the accrual pass into player_inventory — after which the client stops calling
-   addItem for it and this lane leaves the unbacked set. Until that ships,
-   WORKER_PRODUCTION_SERVER_BACKED stays false and this is an ARM-BLOCKER. */
-export const WORKER_PRODUCTION_SERVER_BACKED = false;
+   addItem for it and this lane leaves the unbacked set.
+
+   ── SHIPPED (worker-settlement slice, 2026-08-25) ──────────────────────────
+   Worker production is now server-settled: supabase/functions/hr-accrue
+   `accrueWorkers` prices [workers_accrued_to, now()] with NO rng and emits a
+   signed item delta + per-worker xp that hr_apply applies into player_inventory /
+   player_workers (2026-08-25-workers.sql). The client's accrueWorker no longer
+   mints (src/features/workers.js gates on this flag). So this flag flips TRUE in
+   the SAME commit that removes the client mint — `unbackedOwnableMintLanes`
+   empties, `flipArmBlockers` clears this blocker, and SERVER-OWNED-5 crosses to
+   its backed branch. Flipping it without removing the mint would re-open the
+   landmine; the SERVER-OWNED-5 backstop fails exactly then. */
+export const WORKER_PRODUCTION_SERVER_BACKED = true;
 
 /** Every id a hired worker can mint client-side = every gather product (a worker
  *  is only ever assigned a gather node). Kept as its own function, not an alias,

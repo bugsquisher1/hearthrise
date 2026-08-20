@@ -179,10 +179,29 @@
     return true;
   }
 
+  /* ── SERVER-BACKED PRODUCTION (worker-settlement slice) ────────────────────
+     When WORKER_PRODUCTION_SERVER_BACKED is true, hired-crew output is settled
+     SERVER-SIDE (supabase/functions/hr-accrue accrueWorkers -> hr_apply into
+     player_inventory + player_workers.xp). The client MUST NOT mint the items or
+     advance the worker xp itself any more — that client `addItem` was the last
+     un-backed OWNABLE mint blocking the inventory absolute-replace flip
+     (src/data/item-authority.js). With the flag on, this function is a NO-OP for
+     authority; the crew's real state (output, xp, level) comes from the server
+     envelope. Local prediction/rendering is display-only and reconciled to the
+     envelope. The flag OFF keeps the pre-flip local behaviour verbatim, so a
+     revert is a one-line flip. */
+  function serverBacked() {
+    return !!(window.HearthriseItemAuthority
+      && window.HearthriseItemAuthority.WORKER_PRODUCTION_SERVER_BACKED);
+  }
+
   // Bank one worker's production since lastCollect. Returns {id, qty} or null.
   function accrueWorker(w) {
-    var act = w.skill && actFor(w.skill, w.targetId);
     var now = Date.now();
+    // SERVER-BACKED: never mint client-side. The server settles the crew on every
+    // accrue pass; the client only renders what the envelope returns.
+    if (serverBacked()) { w.lastCollect = now; return null; }
+    var act = w.skill && actFor(w.skill, w.targetId);
     if (!act) { w.lastCollect = now; return null; }
     var elapsed = Math.min(Math.max(0, now - (w.lastCollect || now)), ACCRUE_CAP_MS);
     var perTickMs = act.ms / eff(w);

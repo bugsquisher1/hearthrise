@@ -187,11 +187,23 @@ export const SERVER_OF_RECORD = Object.freeze([
       return Number.isFinite(at) ? 'at=' + at : 'absent';
     },
   }),
-  /* ── b353 — GOLD AND GEMS WERE HELD BACK, AND THIS IS THE MEASUREMENT ────
-     ⚠ THE ENTRIES BELOW ARE WRITTEN AND DELIBERATELY NOT ARMED. They are kept
-       here, commented, because the reason they are not armed is a FACT that was
-       cheap to discover and expensive to rediscover, and because the next agent
-       to read the flip list will otherwise re-derive it from scratch.
+  /* ── GOLD AND GEMS, ARMED. The record follows the writer, and every writer has
+     moved (the b353 rationale kept verbatim below states why). decodeBalance /
+     fingerprintBalance are function declarations LIVE below this array — hoisted,
+     so they resolve at this reference site. The client READ side goes through
+     src/net/balance.js (b356): a moved-but-UNKNOWN balance renders a pending
+     glyph and fail-closes affordability rather than throwing, so the strip no
+     longer crashes the boot. The gold-verb re-stamp (b395/b396: applyGoldEnvelope
+     → applyRecord) keeps the economy UI from fail-closing after a purchase. */
+  Object.freeze({ field: 'gold', from: 'gold', since: 'b3xx',
+    decode: decodeBalance, fingerprint: fingerprintBalance }),
+  Object.freeze({ field: 'gems', from: 'gems', since: 'b3xx',
+    decode: decodeBalance, fingerprint: fingerprintBalance }),
+  /* ── b353 — WHY GOLD AND GEMS WERE HELD BACK, AND THIS IS THE MEASUREMENT ────
+     ⚠ THE HISTORY BELOW is kept because the reason they were not armed earlier is
+       a FACT that was cheap to discover and expensive to rediscover, and because
+       the next agent to read the flip list will otherwise re-derive it from
+       scratch. The two entries are now ARMED above; the prose is history.
 
      The b353 flip commit was scoped as "add gold (and gems) to SERVER_OF_RECORD
      — the record follows the writer, and the writer has moved". Every
@@ -243,12 +255,9 @@ export const SERVER_OF_RECORD = Object.freeze([
      survive being UNKNOWN through a real render. `B353-3b` beside it runs the
      same sweep over the CANDIDATES — gold and gems — so the flip is proven in
      CI before it is proven in production, and it additionally asserts the
-     pending state is honest (no "0", a real glyph, a labelled element).
-
-  Object.freeze({ field: 'gold', from: 'gold', since: 'b3xx',
-    decode: decodeBalance, fingerprint: fingerprintBalance }),
-  Object.freeze({ field: 'gems', from: 'gems', since: 'b3xx',
-    decode: decodeBalance, fingerprint: fingerprintBalance }),
+     pending state is honest (no "0", a real glyph, a labelled element). The two
+     entries that once sat here, commented, are now ARMED at the top of this
+     array; this block is the surviving rationale, not the definition.
 
      The decoders are LIVE below (not commented) and unit-tested, because they
      are the half of this that was reviewed and is correct — a balance off the

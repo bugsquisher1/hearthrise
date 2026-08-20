@@ -109,6 +109,9 @@ async function pagehideRaceGuard(browser, url, opts = {}) {
       const P = window.HearthriseProfile;
       P.init();
       window.G.gems = 5000;
+      // gold-arm: stamp the armed balance via the REAL applyRecord path so
+      // unlockSlot's affordability read is KNOWN (as it is post-hr_load in prod).
+      if (window.HearthriseRecord) { try { window.HearthriseRecord.applyRecord(window.G, { ok: true, version: Date.now(), now: new Date().toISOString(), state: { gold: window.G.gold, gems: window.G.gems } }); } catch (e) {} }
       const r = P.unlockSlot(1);
       /* The switch refuses to swap unless the outgoing character's cloud flush
          answers, and this harness is signed out. Answering it is not what is
@@ -234,6 +237,8 @@ export async function slotSwitchGuard(browser, url, opts = {}) {
       const P = window.HearthriseProfile;
       P.init();
       window.G.gems = 5000;
+      // gold-arm: stamp the armed balance via the REAL applyRecord path (see above).
+      if (window.HearthriseRecord) { try { window.HearthriseRecord.applyRecord(window.G, { ok: true, version: Date.now(), now: new Date().toISOString(), state: { gold: window.G.gold, gems: window.G.gems } }); } catch (e) {} }
       const r = P.unlockSlot(1);                      // direct: the buy dialog is tested separately
       return { ok: !!(r && r.ok), active: P.activeSlot(), rows: P.slotRows().length };
     });

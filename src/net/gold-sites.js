@@ -539,8 +539,14 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     kind: 'transfer', status: 'deferred',
     /* world_event_claim PRICES the chest server-side but does NOT write
        player_state.gold — it returns the amount and the credit happens in
-       payChest. So the local grant would be ERASED on flip, not reconciled;
-       gated on the record seam until the credit moves into the RPC. */
+       payChest. So the local grant would be ERASED on flip, not reconciled.
+       Two-layer arm safety: payChest's gold write is gated on the record seam
+       (this flipGuard), AND the CLAIM ENTRY (muster.js claim()) defers the whole
+       claim under arm so world_event_claim never CONSUMES a once-per-day claim it
+       cannot pay — otherwise the claim is spent for zero, unrecoverable. The real
+       fix is crediting v_gold/v_gems INSIDE world_event_claim; a review-only
+       migration proposes it (needs a slot param + client wiring + a ledger row +
+       deploy). */
     flipGuard: { gated: 'clientMayWriteRecordField' },
     blockedBy: 'nothing here — the VALUE is already decided by a SECURITY DEFINER RPC, so this is '
       + 'pure bookkeeping and belongs INSIDE that RPC (the 2026-08-15 ruling: rules => Edge, '
@@ -551,8 +557,13 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     kind: 'transfer', status: 'deferred',
     /* The raid claim RPC authorises the claim (band/scale/sig, once-per-week) but
        writes no gold to player_state — the chest is credited client-side, so the
-       flip would erase it. Gated on the record seam until the credit moves into
-       the RPC. */
+       flip would erase it. Two-layer arm safety: grantReward's gold write is
+       gated on the record seam (this flipGuard), AND the CLAIM ENTRY (raids.js
+       serverClaim() — the one choke clan/solo/grace all route through) defers the
+       whole claim under arm so raid_claim never CONSUMES a week it cannot pay —
+       otherwise the week is spent for zero, unrecoverable. The real fix is
+       crediting the chest INSIDE raid_claim; a review-only migration proposes it
+       (needs a slot param + client wiring + a ledger row + deploy). */
     flipGuard: { gated: 'clientMayWriteRecordField' },
     blockedBy: 'same as muster payChest — server-priced already; belongs in the raid RPC.',
   },

@@ -931,6 +931,20 @@
   }
 
   async function serverClaim(scope, clanId, wk, attempt) {
+    /* ARM-SAFE (gold flip): the raid chest's gold/gems are credited CLIENT-side
+       (grantReward), while raid_claim AUTHORISES + CONSUMES the once-per-week
+       claim but writes no gold to player_state. If the claim proceeds while gold
+       is armed, the week is spent and grantReward pays ZERO — unrecoverable. This
+       is the ONE choke every consuming path (clan/solo/grace) routes through, so
+       deferring here defers the whole claim: the RPC is never called (the server
+       never consumes) and no legacy/offline chest is granted. The week stays
+       claimable for when the reward is credited IN-RPC server-side. No-op until
+       gold is armed, so today's behaviour is unchanged.
+       ⚠ KNOWN REGRESSION once armed: raid rewards are unclaimable until the
+       in-RPC credit ships (see the review-only migration in this change). */
+    if (window.clientMayWriteRecordField && !window.clientMayWriteRecordField('gold')) {
+      return { action: 'deferred', message: 'Raid rewards are briefly unavailable — try again shortly.' };
+    }
     if (!cfg() || !session()) return { action: 'unsupported' };
     if (rpcMissing('raid_claim')) return { action: 'unsupported' };
     var r;

@@ -1388,6 +1388,93 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('arm-safe (Tier-2 grant): a collection-milestone claim DEFERS under arm — no gold, latch not burned, works unarmed', () => {
+    // The buyback/companion arm-gate pattern, applied to a GRANT: under arm the
+    // whole reward action must DEFER (no credit, not marked claimed, no toast),
+    // not falsely complete — otherwise the milestone is burned for gold that the
+    // next absolute envelope erases. Representative of every Tier-2 grant site
+    // (updateDaily/completeQuest/claimQuestReward/completeBounty/renown), which
+    // all share this defer shape.
+    const C = window.HearthriseCollection;
+    if (!C || typeof C.claimMilestone !== 'function' || !window.MONSTERS) return;
+    const monIds = Object.keys(window.MONSTERS).slice(0, 10);
+    if (monIds.length < 10) return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    try {
+      // Seed 10 discovered monsters so 'hunter10' (reward gold:2000) tests true.
+      window.G.bestiary = {}; monIds.forEach((m) => { window.G.bestiary[m] = { kills: 1 }; });
+
+      // UNARMED (today): the milestone pays and is marked claimed.
+      window.clientMayWriteRecordField = function () { return true; };
+      window.G.collectionLog = { claimed: [] };
+      window.G.gold = 0;
+      const r1 = C.claimMilestone('hunter10');
+      assert(r1 && r1.gold === 2000, 'unarmed claim must return the reward');
+      assert(window.G.gold === 2000, 'unarmed claim must credit 2000 gold; got ' + window.G.gold);
+      assert(window.G.collectionLog.claimed.indexOf('hunter10') >= 0, 'unarmed claim must mark the milestone claimed');
+
+      // ARMED: gold on SERVER_OF_RECORD → the claim DEFERS: no gold, NOT claimed, null.
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
+      window.G.collectionLog = { claimed: [] };
+      window.G.gold = 0;
+      const r2 = C.claimMilestone('hunter10');
+      assert(r2 === null, 'armed claim must DEFER (return null), not grant');
+      assert(window.G.gold === 0, 'armed claim must NOT credit gold; got ' + window.G.gold);
+      assert(window.G.collectionLog.claimed.indexOf('hunter10') < 0,
+        'armed claim must NOT burn the latch — the milestone stays claimable');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('arm-safe (Tier-1 muster): the rally claim DEFERS under arm — no RPC consume, no pay, works unarmed', async () => {
+    // world_event_claim CONSUMES the once-per-day claim server-side but credits
+    // gold CLIENT-side (payChest), so proceeding while gold is armed spends the
+    // claim for ZERO — unrecoverable. The claim ENTRY must defer BEFORE the RPC:
+    // no fetch, no local grant, claim left available. Raids' serverClaim() uses
+    // the identical gate (the one choke clan/solo/grace route through).
+    const M = window.HearthriseMuster;
+    if (!M || typeof M.claim !== 'function') return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origFetch = window.fetch;
+    {
+      let fetches = 0;
+      try {
+        window.fetch = function () { fetches++; return Promise.reject(new Error('no network in test')); };
+        // A chest is ready and we are NOT on the server path, so unarmed claim
+        // pays the solo chest locally — the control that proves the gate matters.
+        window.G.muster = { dayKey: null, eventKey: 'ev', slot: null, startMs: 0, endMs: 0,
+                            points: 500, pending: 0, rallied: false, claimed: false, server: false };
+        window.G.gold = 0;
+
+        // UNARMED (today): the solo chest is granted and the claim is consumed.
+        window.clientMayWriteRecordField = function () { return true; };
+        await M.claim();
+        assert(window.G.gold > 0, 'unarmed rally claim must pay the solo chest; got ' + window.G.gold);
+        assert(window.G.muster.claimed === true, 'unarmed rally claim must consume the claim');
+
+        // ARMED: defer — no consume, no pay, no fetch.
+        window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
+        window.G.muster = { dayKey: null, eventKey: 'ev', slot: null, startMs: 0, endMs: 0,
+                            points: 500, pending: 0, rallied: false, claimed: false, server: true };
+        window.G.gold = 0;
+        fetches = 0;
+        const ok = await M.claim();
+        assert(ok === false, 'armed rally claim must return false (deferred)');
+        assert(window.G.gold === 0, 'armed rally claim must NOT pay gold; got ' + window.G.gold);
+        assert(window.G.muster.claimed === false, 'armed rally claim must NOT consume the claim — it stays available');
+        assert(fetches === 0, 'armed rally claim must NOT call the RPC (no server consume); saw ' + fetches + ' fetch(es)');
+      } finally {
+        window.clientMayWriteRecordField = origMay;
+        window.fetch = origFetch;
+        restoreG(snap);
+      }
+    }
+  }),
+
   () => tryRun('b227: the save migration clamps room levels to the live ladder', () => {
     // Insurance, not a repair — no live writer can produce an out-of-range
     // level (upgradeRoom advances by one only when levels[lv] exists, and the

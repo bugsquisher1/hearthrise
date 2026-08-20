@@ -936,6 +936,20 @@
                        : (st.eventKey ? CLAIM_ERRORS.still_live : CLAIM_ERRORS.not_joined), 'info');
       return false;
     }
+    /* ARM-SAFE (gold flip): the rally chest's gold/gems are credited CLIENT-side
+       (payChest), while world_event_claim PRICES the chest and CONSUMES the daily
+       claim but writes no gold to player_state. If we let the claim proceed while
+       gold is armed, the server consumes the once-per-day claim and payChest pays
+       ZERO — unrecoverable. DEFER the whole claim: never call the RPC (so the
+       server never consumes) and never pay the solo chest. The claim stays
+       available for when the reward is credited IN-RPC server-side. No-op until
+       gold is armed, so today's behaviour is unchanged.
+       ⚠ KNOWN REGRESSION once armed: rally rewards are unclaimable until the
+       in-RPC credit ships (see the review-only migration in this change). */
+    if (window.clientMayWriteRecordField && !window.clientMayWriteRecordField('gold')) {
+      toast('Rally rewards are briefly unavailable — check back shortly.', 'info');
+      return false;
+    }
     if (st.server && isSignedIn() && !rpcMissing('world_event_claim')) {
       await flush();
       var r;

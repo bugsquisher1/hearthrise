@@ -3883,13 +3883,15 @@ function handleBountyKill(monsterId,m){
 }
 function completeBounty(){
   const b=G.bountyHunter.active;if(!b)return;
-  if(b.type==='proof'&&b.proofItem)removeItem(b.proofItem,b.required);
   const r=b.rewards||{gold:0,marks:0,xp:0};
-  /* SECURITY (gold record-flip, Finding #2): a bounty turn-in pays gold AND
-     Marks, neither credited server-side (MARKS_COLUMN blocker). On the gold flip
-     the gold half would be erased by the next envelope. Gate the gold write on
-     the record seam — a no-op until gold is armed, so the seeded away-replay is
-     byte-identical. Marks/XP have no server record and stay client-authored. */
+  /* ARM-SAFE (gold flip): a bounty turn-in pays gold AND Marks, and NEITHER is
+     credited server-side (MARKS_COLUMN blocker). Under arm the gold credit
+     no-ops, so DEFER the whole turn-in — do NOT consume the proof item, clear
+     the active bounty, or pay Marks/XP — rather than burning the bounty for a
+     reward that never lands. It stays claimable for when it is server-credited.
+     No-op until gold is armed, so the seeded away-replay is byte-identical. */
+  if((r.gold||0)>0&&!clientMayWriteRecordField('gold'))return;
+  if(b.type==='proof'&&b.proofItem)removeItem(b.proofItem,b.required);
   if(clientMayWriteRecordField('gold'))G.gold+=r.gold||0;G.bountyHunter.marks=(G.bountyHunter.marks||0)+(r.marks||0);G.bountyHunter.xp=(G.bountyHunter.xp||0)+(r.xp||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
   const oldLevel=levelFromXp((G.bountyHunter.xp||0)-(r.xp||0)),newLevel=getBountyHunterLevel();
   /* b344 — THE SEEDED STREAM, not Math.random(). completeBounty runs inside
@@ -4374,11 +4376,16 @@ function updateDaily(type,amt=1){
   G.daily.tasks.forEach(t=>{
     if(t.type===type&&!t.done){
       t.progress=Math.min(t.goal,(t.progress||0)+amt);
-      /* SECURITY (gold record-flip, Finding #2): daily-task gold is client-
-         authored (DAILY_COUNTERS blocker — nothing writes a server progress
-         row). Gate the write on the record seam so the gold flip cannot erase a
-         just-minted number; no-op until gold is armed. */
-      if(t.progress>=t.goal){t.done=true;if(clientMayWriteRecordField('gold'))G.gold+=t.reward;notify(`✅ Daily: ${t.label} (+${t.reward}g)`,'loot');}
+      /* ARM-SAFE (gold flip): daily-task gold is client-authored (DAILY_COUNTERS
+         blocker — nothing writes a server progress row). Under arm the gold
+         credit no-ops, so DEFER the WHOLE completion — do NOT mark the task done
+         and do NOT toast "+Xg" for a reward that never landed. The task stays
+         claimable for when it is server-credited. No-op until gold is armed, so
+         today's behaviour is byte-identical. */
+      if(t.progress>=t.goal){
+        if(!clientMayWriteRecordField('gold'))return;   // defer this task; leave it uncompleted
+        t.done=true;G.gold+=t.reward;notify(`✅ Daily: ${t.label} (+${t.reward}g)`,'loot');
+      }
     }
   });
 }
@@ -4453,12 +4460,15 @@ function updateQuest(type,amt=1,meta={}){
    (pacing-overhaul.md §4.5): fixed numbers the designer wrote, not rates the
    pacing dial scales. */
 function completeQuest(q){
-  q.done=true;
   const r=q.reward||{};
-  /* SECURITY (gold record-flip, Finding #2): quest gold is client-authored
-     (DAILY_COUNTERS blocker). Gate on the record seam so the flip cannot erase
-     it; no-op until gold is armed. Item/XP rewards stay client-owned. */
-  if(r.gold&&clientMayWriteRecordField('gold'))G.gold+=r.gold;
+  /* ARM-SAFE (gold flip): quest gold is client-authored (DAILY_COUNTERS
+     blocker). Under arm the gold credit no-ops, so DEFER the whole completion —
+     do NOT mark the quest done and do NOT grant its item/XP — rather than
+     burning the quest for a gold reward that never landed. It stays completable
+     for when the payout is server-credited. No-op until gold is armed. */
+  if((r.gold||0)>0&&!clientMayWriteRecordField('gold'))return;
+  q.done=true;
+  if(r.gold)G.gold+=r.gold;
   if(r.item)addItem(r.item,r.qty||1,false);
   /* Combat XP is routed the way a KILL routes it — through the player's
      active style (src/core/styles.js killXpRoute) — so a bow user is paid
@@ -7156,6 +7166,14 @@ function buildPlot(id){
   const _isFarm=(id==='farm_plot');
   const _foffer=_isFarm?('farm_land.'+(have+1)):null;
   const _fk=_isFarm?goldIntentKey():null;
+  /* ARM-SAFE (gold flip): the NON-farm plot buildings (scarecrow) have no server
+     unlock ladder, so their gold debit is client-authored. Under arm the raw
+     debit would be REFUNDED by the next envelope while the building stayed built
+     — a mint. Fail CLOSED like buy-back (farm_plot goes through the wired seam
+     and is unaffected). No-op until gold is armed. */
+  if(!_isFarm && b.cost && b.cost.gold && typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
+    notify('That build is unavailable right now','kill');return;
+  }
   for(const [k,v] of Object.entries(b.cost)){if(k==='gold'){if(_isFarm)goldSettle(-v,'farm.build_plot',_fk);else G.gold-=v;}else removeItem(k,v);}
   G.plotBuildings.push({id,uid:Date.now()});
   /* FIRE AND RECONCILE — never await. No-op with the switch off. */
@@ -7410,6 +7428,14 @@ function buyTrait(id){
     if((bh.marks||0)<t.cost){notify('Not enough Bounty Marks — hunt bounties to earn them','kill');return;}
     bh.marks-=t.cost;
   } else {
+    /* ARM-SAFE (gold flip): a trait unlock has no server verb and the server
+       ignores its perk. Under arm the raw debit would be REFUNDED by the next
+       envelope while the trait stayed granted — a mint in the player's favour.
+       Fail CLOSED like buy-back: refuse the purchase until it is server-owned.
+       No-op until gold is armed (today's behaviour unchanged). */
+    if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
+      notify('That upgrade is unavailable right now','kill');return;
+    }
     if(!balCanAfford(t.cost,'gold')){notify(balShortfall(t.cost,'gold'),'kill');return;}
     G.gold-=t.cost;
   }
@@ -17699,12 +17725,15 @@ console.log('[Bundle Icons v1] applied:',
     if(!isComplete(goal, isWeekly)) return;
     if(isClaimed(goal, isWeekly)) return;
     var reward = rewardFor(goalId, isWeekly);
+    /* ARM-SAFE (gold flip): daily/weekly goal rewards are client-authored
+       (DAILY_COUNTERS blocker). Under arm the gold/gems credit no-ops, so DEFER
+       the whole claim — do NOT grant items/xp, mark it claimed, or toast — rather
+       than burning the claim for currency that never lands. It stays claimable
+       for when it is server-credited. No-op until gold/gems are armed. */
+    if(reward && ((reward.gold && !clientMayWriteRecordField('gold')) || (reward.gems && !clientMayWriteRecordField('gems')))) return;
     if(reward){
-      /* SECURITY (gold record-flip, Finding #2): daily/weekly goal rewards are
-         client-authored (DAILY_COUNTERS blocker). Gate gold/gems on the record
-         seam so the flip cannot erase them; no-op until gold is armed. */
-      if(reward.gold && typeof G.gold === 'number' && clientMayWriteRecordField('gold')) G.gold += reward.gold;
-      if(reward.gems && typeof G.gems === 'number' && clientMayWriteRecordField('gems')) G.gems += reward.gems;
+      if(reward.gold && typeof G.gold === 'number') G.gold += reward.gold;
+      if(reward.gems && typeof G.gems === 'number') G.gems += reward.gems;
       if(reward.xp){
         Object.entries(reward.xp).forEach(function(kv){
           /* b226: a daily/weekly reward is an AUTHORED payout, not a rate —

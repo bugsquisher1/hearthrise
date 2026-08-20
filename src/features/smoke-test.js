@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=422' directly.
+// modularised, will import { G } from '../state/game.js?v=423' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=422';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=422';
+import { on, snapshot } from '../net/events.js?v=423';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=423';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=422';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=423';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -27759,7 +27759,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=422');
+    const KIT = await import('../data/start-kit.js?v=423');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -33414,7 +33414,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=422');
+    const S = await import('../data/shops.js?v=423');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -34809,7 +34809,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=422');
+    const S = await import('../data/shops.js?v=423');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -37252,6 +37252,18 @@ const TESTS = [
     const E = window.HearthriseEquip;
     assert(A && typeof A.markInventoryAuthorityLive === 'function', 'markInventoryAuthorityLive must be published');
     assert(A && typeof A.serverOwnedItem === 'function', 'serverOwnedItem must be published');
+    const IA = window.HearthriseItemAuthority;
+    /* DORMANT-WORKER GUARD: while hired-worker production is un-backed (shipped
+       dormant until the wipe), the arm gate refuses before the bag can go absolute,
+       so the armed-envelope scenario below is unreachable. Assert the refusal; the
+       full armed path runs once workers are backed (post-wipe, flag=true). */
+    if (IA && IA.flipArmBlockers && IA.flipArmBlockers().length) {
+      let refused = false;
+      try { A.markInventoryAuthorityLive(true); } catch (e) { refused = true; }
+      assert(refused === true, 'arming must refuse while an un-backed OWNABLE mint lane remains');
+      assert(A.isInventoryAbsolute() === false, 'a refused arm leaves the bag on merge');
+      return;
+    }
     const prev = E.getEquipConfig();
     try {
       await armEquipFlipForTest(E);
@@ -37306,6 +37318,16 @@ const TESTS = [
   () => tryRunAsync('SERVER-OWNED-2: an armed absolute envelope OWNS a modeled id — a forged copy it omits is removed', async () => {
     const A = window.HearthriseAccrual;
     const E = window.HearthriseEquip;
+    const IA = window.HearthriseItemAuthority;
+    /* DORMANT-WORKER GUARD (see SERVER-OWNED-1): arm refuses while workers are an
+       un-backed OWNABLE mint lane; the armed path runs once backed (post-wipe). */
+    if (IA && IA.flipArmBlockers && IA.flipArmBlockers().length) {
+      let refused = false;
+      try { A.markInventoryAuthorityLive(true); } catch (e) { refused = true; }
+      assert(refused === true, 'arming must refuse while an un-backed OWNABLE mint lane remains');
+      assert(A.isInventoryAbsolute() === false, 'a refused arm leaves the bag on merge');
+      return;
+    }
     const prev = E.getEquipConfig();
     try {
       await armEquipFlipForTest(E);
@@ -37475,6 +37497,16 @@ const TESTS = [
     const A = window.HearthriseAccrual;
     const E = window.HearthriseEquip;
     assert(A && typeof A.envelopeBaselineComplete === 'function', 'envelopeBaselineComplete must be published');
+    const IA = window.HearthriseItemAuthority;
+    /* DORMANT-WORKER GUARD (see SERVER-OWNED-1): arm refuses while workers are an
+       un-backed OWNABLE mint lane; the armed path runs once backed (post-wipe). */
+    if (IA && IA.flipArmBlockers && IA.flipArmBlockers().length) {
+      let refused = false;
+      try { A.markInventoryAuthorityLive(true); } catch (e) { refused = true; }
+      assert(refused === true, 'arming must refuse while an un-backed OWNABLE mint lane remains');
+      assert(A.isInventoryAbsolute() === false, 'a refused arm leaves the bag on merge');
+      return;
+    }
     const prev = E.getEquipConfig();
     try {
       await armEquipFlipForTest(E);
@@ -37505,6 +37537,16 @@ const TESTS = [
   () => tryRunAsync('INVENTORY-BASELINE-2: a COMPLETE baseline reproduces the just-crafted item, so an absolute envelope keeps it', async () => {
     const A = window.HearthriseAccrual;
     const E = window.HearthriseEquip;
+    const IA = window.HearthriseItemAuthority;
+    /* DORMANT-WORKER GUARD (see SERVER-OWNED-1): arm refuses while workers are an
+       un-backed OWNABLE mint lane; the armed path runs once backed (post-wipe). */
+    if (IA && IA.flipArmBlockers && IA.flipArmBlockers().length) {
+      let refused = false;
+      try { A.markInventoryAuthorityLive(true); } catch (e) { refused = true; }
+      assert(refused === true, 'arming must refuse while an un-backed OWNABLE mint lane remains');
+      assert(A.isInventoryAbsolute() === false, 'a refused arm leaves the bag on merge');
+      return;
+    }
     const prev = E.getEquipConfig();
     try {
       await armEquipFlipForTest(E);
@@ -37534,6 +37576,20 @@ const TESTS = [
   () => tryRunAsync('INVENTORY-BASELINE-3: an empty-{} envelope while armed but UNCERTIFIED cannot wipe the bag', async () => {
     const A = window.HearthriseAccrual;
     const E = window.HearthriseEquip;
+    const IA = window.HearthriseItemAuthority;
+    /* While an OWNABLE mint lane is still un-backed (hired-worker production is
+       shipped DORMANT until the wipe — WORKER_PRODUCTION_SERVER_BACKED=false), the
+       arm gate correctly REFUSES before any downstream guard. The armed empty-{}
+       scenario is unreachable until the wipe backs workers, so assert the refusal
+       here; the armed path below runs once backed (post-wipe, flag=true). Same
+       dual-branch honesty as SERVER-OWNED-5. */
+    if (IA && IA.flipArmBlockers && IA.flipArmBlockers().length) {
+      let refused = false;
+      try { A.markInventoryAuthorityLive(true); } catch (e) { refused = true; }
+      assert(refused === true, 'arming must refuse while an un-backed OWNABLE mint lane remains');
+      assert(A.isInventoryAbsolute() === false, 'a refused arm leaves the bag on merge');
+      return;
+    }
     const prev = E.getEquipConfig();
     try {
       await armEquipFlipForTest(E);
@@ -37556,8 +37612,22 @@ const TESTS = [
 
   () => tryRun('INVENTORY-BASELINE-4: the arm gate refuses on a missing DUNGEONS (a) OR an unobserved baseline signal (b)', () => {
     const A = window.HearthriseAccrual;
+    const IA = window.HearthriseItemAuthority;
     assert(A && typeof A.isBaselineCompleteSeen === 'function', 'isBaselineCompleteSeen must be published');
     assert(A && typeof A.__resetBaselineComplete === 'function', '__resetBaselineComplete must be published');
+    /* The un-backed-OWNABLE-mint blocker (worker production, dormant until the wipe)
+       is checked FIRST in the arm gate, before the DUNGEONS (a) / baseline-signal (b)
+       guards. So while it is present the arm always refuses on it and (a)/(b)/success
+       are unreachable — assert the refusal and defer the guard-reason checks to the
+       backed (post-wipe) state. Mirrors SERVER-OWNED-5's dual branch. */
+    if (IA && IA.flipArmBlockers && IA.flipArmBlockers().length) {
+      A.noteBaselineComplete({ inventory_complete: true });
+      let refused = false;
+      try { A.markInventoryAuthorityLive(true); } catch (e) { refused = true; }
+      assert(refused === true, 'arming must refuse while an un-backed OWNABLE mint lane remains (checked before a/b)');
+      assert(A.isInventoryAuthorityLive() === false, 'a refused arm leaves the flag OFF');
+      return;
+    }
     const savedDungeons = globalThis.DUNGEONS;
     try {
       /* GUARD (a): DUNGEONS absent. Overlap ids classify OWNABLE before boot, so
@@ -38120,7 +38190,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=422')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=423')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -39558,7 +39628,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=422');
+    const A = await import('../net/accrue.js?v=423');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -39582,7 +39652,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=422');
+    const A = await import('../net/accrue.js?v=423');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

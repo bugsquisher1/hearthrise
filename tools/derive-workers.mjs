@@ -392,7 +392,8 @@ begin
   end if;
   alter table public.player_ledger add constraint player_ledger_kind_check
     check (kind in ('accrue','craft','gather','combat','farm','trade','shop',
-                    'quest','equip','admin','iap','clan','raid','enchant','worker'));
+                    'quest','equip','admin','iap','clan','raid','enchant',
+                    'daily','collection','renown','bounty','rally','worker'));
 end $$;
 
 -- ── 1d. hr_state_of — GENERATED. Do not hand-edit; see the header. ───────

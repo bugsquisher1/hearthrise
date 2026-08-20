@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 423 — 2026-08-20 (Inventory groundwork: workers)
+
+- 🔧 No gameplay change. Built the server-side model for hired-worker production — the last piece needed before your inventory itself becomes tamper-proof. It's shipped dormant and switches on with the upcoming character wipe, so no current workers are affected.
+
 ## v0.9.2-beta build 422 — 2026-08-20 (Muster chests fixed + inventory groundwork)
 
 - 🐛 **Fixed: muster/rally chests were failing to pay out.** A server bug caused every rally-chest claim to roll back silently — the reward wasn't lost (you can claim it now), but it wouldn't pay until this fix. Chests now grant their materials server-side, so the items are real and safe.

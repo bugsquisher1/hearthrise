@@ -53,10 +53,10 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=422';
-import { ARTISAN_RECIPES } from './recipes.js?v=422';
-import { MONSTERS } from './monsters.js?v=422';
-import { BOSSES } from './bosses.js?v=422';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=423';
+import { ARTISAN_RECIPES } from './recipes.js?v=423';
+import { MONSTERS } from './monsters.js?v=423';
+import { BOSSES } from './bosses.js?v=423';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -109,8 +109,16 @@ export function gatherProductIds() {
    the SAME commit that removes the client mint — `unbackedOwnableMintLanes`
    empties, `flipArmBlockers` clears this blocker, and SERVER-OWNED-5 crosses to
    its backed branch. Flipping it without removing the mint would re-open the
-   landmine; the SERVER-OWNED-5 backstop fails exactly then. */
-export const WORKER_PRODUCTION_SERVER_BACKED = true;
+   landmine; the SERVER-OWNED-5 backstop fails exactly then.
+
+   ⚠ SHIPPED DORMANT (false) 2026-08-20: the server machinery (migration + engine +
+   RPCs + client wiring) is all live, but the flag stays FALSE so the client keeps
+   minting worker output locally. Activating (true) makes the client reconcile the
+   crew from the server, and existing players' crews live ONLY client-side today —
+   so a live flip-to-true would ERASE their current workers. Activation therefore
+   rides the WIPE (post-wipe every crew is empty → no migration, no lost workers),
+   in the same step that arms the inventory flip. Do NOT set true before the wipe. */
+export const WORKER_PRODUCTION_SERVER_BACKED = false;
 
 /** Every id a hired worker can mint client-side = every gather product (a worker
  *  is only ever assigned a gather node). Kept as its own function, not an alias,

@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 421 — 2026-08-20 (Gold & gems are now server-authoritative)
+
+- 🔒 Your gold and gems are now owned and verified by the server. The last two currencies have moved off the client — a tampered balance can no longer buy anything or show up on a leaderboard. This completes the server-authority program: every currency, skill, drop, and reward is now computed and held server-side.
+- ⏳ You may briefly see a "—" where your balance is while the game connects on load; it fills in the moment the server answers. That's the honest "not loaded yet" state, not a lost balance.
+
 ## v0.9.2-beta build 420 — 2026-08-20 (Under the hood: companion bonuses fully server-owned)
 
 - 🔧 No gameplay change. Equipping a companion now tells the server which pet is active, and your companion's passive bonus is priced server-side — the last piece needed before gold moves fully server-authoritative. (Companion combat-kill procs are the one bit still client-side, tracked as a follow-up.)

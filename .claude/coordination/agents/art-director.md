@@ -1,5 +1,33 @@
 # Art Director — running log
 
+## 2026-08-20 · RELEASE VISUAL GATE — GOLD/GEMS SERVER-OF-RECORD FLIP (assembled main, b420 + flip, NOT pushed) → PASS
+Gate on the armed build (port 8123 serves main = the assembled release). gold+gems confirmed live on
+SERVER_OF_RECORD (`serverOfRecordFields()` → offlineBudget,gold,gems). Screenshots do NOT composite in
+this harness (pane-not-displayed timeout, ~6th time logged) → verified by exact DOM text + computed
+style + geometry, which reads rendered text/layout more precisely than a single frame.
+- **FAIL-CLOSED BOOT WINDOW (before hr_load stamps) — PASS, desktop 1440×900 AND mobile 922×423.**
+  gold & gems are stripped (`hasOwnProperty('gold')`=false, raw undefined). Topbar renders em-dash `—`
+  on BOTH, class `bal-pending`, opacity .55, muted gold-grey rgb(157,139,112), 15px wide, min-width
+  13.3px so layout never shifts, aligned in the topbar row. NO NaN / undefined / "0" / crash anywhere.
+  `balanceOf` → {known:false, source:record}, `affordability`='unknown', `canAfford`=false (fail-closed),
+  shortfall copy honest ("Balance not loaded yet — reconnecting…"). Even with G not yet published the
+  topbar still shows a clean em-dash rather than throwing.
+- **Buy/Sell disabled in the unknown state — PASS.** Shop: 10 Buy buttons all `disabled`. Bank modal:
+  both Buy (gold + gems) `disabled`, prices still render (3,000g / 45 gems), "cost rises" note intact.
+  Market/inventory/combat/character: 0 NaN/undefined; topbar pending glyph persists on every surface.
+- **Combat + Inventory dense glance (the b361 site) at 922×423 — PASS.** Fully built (combat 24KB/18
+  imgs/50 btns, inv 50KB/23 btns), 0 broken images, 0 NaN/undefined text nodes, no leaked toLocaleString/
+  [object], no horizontal overflow.
+- **STAMPED state — PASS (simulated).** Applied a real hr_load-shaped envelope through `applyRecord`
+  (the actual applier, not a shortcut): gold 1,234,567 / gems 250 written source='server', topbar flips
+  from `—` to formatted numbers, `bal-pending` cleared, affordability→'yes', Shop Buy re-enables 9/12
+  (3 legitimately unaffordable). LIMITATION: reached via applyRecord, not an end-to-end server
+  round-trip — no test account exists and account creation is blocked, so the genuine hr_load network
+  path is unobserved. The applier and decode path ARE the real code hr_load calls.
+- Console: only 401/400 (planted fake session rejected — expected). ZERO thrown JS / render errors.
+- VERDICT: **PASS — the armed build is visually shippable.** The flip's new boot behavior (em-dash,
+  disabled spends) is clean and honest at both viewports; no crash, no NaN, no layout break.
+
 ## 2026-08-20 · RELEASE VISUAL GATE — b416 cozy-light retirement (assembled main e5983267) → PASS
 Verified on assembled main (port 8123). Risk: bulk CSS removal deleting a live Hearthlight rule. Verdict: no live rule lost.
 - Live tokens: all 166 `:root` Hearthlight tokens resolve with correct values (--bg-0 #0a0806, --gold #c9a24a, --bg-card/--sidebar-bg/--topbar-bg gradients, all --sc-*/--bb-* scene tokens, fonts Alegreya/Cinzel). Base :root block intact.

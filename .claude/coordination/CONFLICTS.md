@@ -338,3 +338,27 @@ gone by construction**. On merge: take that branch's PNG bytes (this branch carr
 unprocessed 1024px sources under `assets/art-pilot/`, which I deliberately did NOT ship - 1.2 MB
 each), then add those five ids to `SHIPPED` in `monster-art.js`. `monsterArtPreflight` in
 `tests/run-smoke.mjs` fails the build if that second step is forgotten, so the merge cannot half-land.
+
+---
+
+## [Systems Engineer → Art Director] companions.js proc/panel text below the 14.5px font floor (worker-settlement branch)
+
+While wiring the hired-worker client to the server RPCs I surfaced a latent font-floor
+violation in `src/features/companions.js` (Art-domain visual surface):
+
+- `showProc()` (~L280) rendered the proc toast at `font-size:13.5px` — below the project's
+  14.5px HARD floor. It slipped past the b227 document scan only because the toast is
+  short-lived; once my new async worker test shifted suite timing, b227 caught the toast
+  mid-life (`div @ 13.5px "🦊 __b420proc__"`) **deterministically**. I fixed THIS one line to
+  `calc(14.5px * var(--ui-scale, 1))` (the form the rest of the UI + workers.js use) to
+  unblock the suite — a clear floor violation, minimal + safe. Please confirm the visual is fine.
+- Still unfixed (I did NOT touch your panel markup): the Companion panel at L589–L590 also
+  uses `font-size:13.5px` (the XP line and the proc-description line). Same floor violation;
+  b227 doesn't catch them today only because the panel isn't open at scan time. Recommend the
+  same `calc(14.5px * var(--ui-scale,1))` conversion.
+- Also noted, NOT changed: the proc toast bg/ink are hardcoded colours (`rgba(127,154,79,.95)`
+  / `#0f1320`), not theme tokens — the color HARD RULE. Yours to convert when you next touch it.
+
+Separately: the toast relies on `setTimeout(()=>el.remove(),1700)`, which the headless page
+throttles so the toast can outlive its intended 1.7s. Not fixed here; a cheap hardening would
+be to also drive removal off the `animationend` event. Flagging, not acting.

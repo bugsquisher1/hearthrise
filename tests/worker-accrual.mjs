@@ -79,8 +79,8 @@ console.log('W2 — away == live: server yield == client accrueWorker over the s
     if (r.xp > 0) expXp[w.uid] = r.xp;
   }
   eq(A.items, expItems, 'server item delta == client per-worker yields summed');
-  eq(A.workers, Object.fromEntries(Object.entries(expXp).map(([k, v]) => [k, { xp: v }])),
-     'server worker xp == client per-worker xp, keyed by uid');
+  const gotXp = Object.fromEntries(Object.entries(A.workers).filter(([, o]) => 'xp' in o).map(([k, o]) => [k, o.xp]));
+  eq(gotXp, expXp, 'server worker xp (ignoring carry) == client per-worker xp, keyed by uid');
   // away==live by construction: there is no `away` flag; the same span always
   // returns the same bytes whether "collected on return" or "ticked online".
   const oneShot = accrueWorkers({ nowMs: now, workersAccruedToMs: from, crew, nodes: GATHER_NODES, items: ITEMS });
@@ -115,8 +115,91 @@ console.log('W5 — the 24h cap bounds one settle; all item deltas are positive'
 
 console.log('W6 — worker xp is per-uid; player skills untouched');
 {
-  ok(Object.keys(A.workers).every((k) => k.startsWith('w')), 'worker xp keyed by worker uid');
-  ok(!('woodcutting' in A.workers) && !('mining' in A.workers), 'no skill id appears in the worker xp map');
+  ok(Object.keys(A.workers).every((k) => k.startsWith('w')), 'worker settle keyed by worker uid');
+  ok(!('woodcutting' in A.workers) && !('mining' in A.workers), 'no skill id appears in the worker map');
+  for (const uid in A.workers) ok('acc_ms' in A.workers[uid], `worker ${uid} carries an acc_ms`);
+}
+
+// ── The settle-loop harness: feed the returned per-worker carry back into the
+//    crew, and DON'T advance the watermark when a settle refuses (produced
+//    nothing) — exactly what index.ts does. Returns the summed item delta + xp.
+function runLoop(crew0, fromMs, toMs, stepMs) {
+  const crew = crew0.map((w) => ({ ...w }));
+  let wm = fromMs;                       // simulated workers_accrued_to
+  const items = {}; const xp = {};
+  const settle = (t) => {
+    const r = accrueWorkers({ nowMs: t, workersAccruedToMs: wm, crew, nodes: GATHER_NODES, items: ITEMS });
+    if (!r.accrued) return;              // refuse: watermark + carries unchanged
+    wm = t;                              // producing settle advances the watermark
+    for (const id in r.items) items[id] = (items[id] || 0) + r.items[id];
+    for (const uid in r.workers) {
+      const o = r.workers[uid];
+      const w = crew.find((x) => x.uid === uid);
+      if (w) w.acc_ms = o.acc_ms;        // persist the carry (hr_apply does this)
+      if (o.xp) xp[uid] = (xp[uid] || 0) + o.xp;
+    }
+  };
+  for (let t = fromMs + stepMs; t < toMs; t += stepMs) settle(t);
+  settle(toMs);                          // final drain (a collect always ends at now())
+  return { items, xp };
+}
+
+console.log('W7 — a SLOW worker (perTick > settle cadence) eventually produces, never silently zero');
+{
+  // normal_tree ms=3000, lv1 eff 0.10 → perTick = 30000ms = 30s. Settle every 10s.
+  const slow = [{ uid: 'wslow', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0 }];
+  const from = 0, to = 6 * 3600000;      // 6h
+  const loop = runLoop(slow, from, to, 10000);   // 10s settles — well under the 30s perTick
+  const perTick = 30000, avgQty = 1;
+  const expTicks = Math.floor((to - from) / perTick);
+  ok(loop.items.normal_log === expTicks * avgQty,
+     `slow worker produced ${loop.items.normal_log}, expected ${expTicks * avgQty} — carry bridges sub-cadence perTicks`);
+  ok(loop.items.normal_log > 0, 'a slow worker is NOT silently zero (the shared-watermark break is fixed)');
+}
+
+console.log('W8 — away == live byte-identical WITH carry (one big settle == many small)');
+{
+  // MAXED worker → eff constant (E=172) → exact across settle granularities.
+  const maxed = [{ uid: 'wmax', skill: 'mining', target_id: 'coal_rock', xp: 200000, acc_ms: 0 }];
+  const from = 0, to = 24 * 3600000;
+  const oneShot = accrueWorkers({ nowMs: to, workersAccruedToMs: from, crew: maxed, nodes: GATHER_NODES, items: ITEMS });
+  const many = runLoop(maxed, from, to, 7000);       // 7s settles (deliberately not a divisor of perTick)
+  const manyOdd = runLoop(maxed, from, to, 91000);   // 91s settles — a different granularity
+  // ITEMS are the load-bearing property (they enter player_inventory and are the
+  // thing the flip could delete) — they must be BYTE-IDENTICAL across granularity.
+  eq(many.items, oneShot.items, 'many 7s settles sum to the one-shot 24h item total, byte-identical');
+  eq(manyOdd.items, oneShot.items, 'many 91s settles ALSO sum to the one-shot total, byte-identical');
+  // WORKER XP uses per-settle floor(ticks·node.xp·0.5) — exactly the shipped
+  // client's per-CALL behaviour (workers.js accrueWorker). So many small settles
+  // lose at most 0.5 xp each vs one big settle: a BOUNDED, UNDER-PAY-ONLY gap on a
+  // private efficiency multiplier, never an over-pay and never an item. Assert the
+  // direction and the bound rather than pretend it is byte-identical.
+  const oneX = oneShot.workers.wmax.xp, manyX = many.xp.wmax;
+  ok(manyX <= oneX, `many-settle worker xp (${manyX}) never exceeds one-shot (${oneX}) — under-pay only`);
+  ok(oneX - manyX < to / (5500 * 1000 / 172), `worker-xp gap ${oneX - manyX} is bounded by the settle count (< 0.5/settle)`);
+}
+
+console.log('W9 — a pure sub-tick settle REFUSES (watermark not advanced, no write)');
+{
+  const slow = [{ uid: 'w', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0 }];
+  // 20s span, 30s perTick, no prior carry → 0 ticks → refuse.
+  const r = accrueWorkers({ nowMs: 20000, workersAccruedToMs: 0, crew: slow, nodes: GATHER_NODES, items: ITEMS });
+  ok(r.accrued === false && r.reason === 'nothing_accrued', 'sub-tick settle refuses (defers, no watermark move)');
+}
+
+console.log('W10 — carry stays in range; a mixed fast+slow crew loses nothing');
+{
+  const mixed = [
+    { uid: 'wfast', skill: 'mining', target_id: 'coal_rock', xp: 200000, acc_ms: 0 },   // fast (maxed)
+    { uid: 'wslow', skill: 'woodcutting', target_id: 'duskwood_tree', xp: 0, acc_ms: 0 }, // slow (ms=13000, lv1)
+  ];
+  const from = 0, to = 24 * 3600000;
+  const oneShot = accrueWorkers({ nowMs: to, workersAccruedToMs: from, crew: mixed, nodes: GATHER_NODES, items: ITEMS });
+  const many = runLoop(mixed, from, to, 5000);   // 5s settles — fast worker forces frequent advances
+  // The slow worker's product (duskwood_log) must be fully preserved despite the
+  // fast worker forcing the shared watermark forward every few seconds.
+  eq(many.items, oneShot.items,
+     'a fast worker forcing frequent watermark advances does NOT rob the slow worker (carry preserved)');
 }
 
 if (failures) { console.error(`\nworker-accrual: ${failures} FAILED`); process.exit(1); }

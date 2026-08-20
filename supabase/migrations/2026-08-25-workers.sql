@@ -22,10 +22,28 @@
 --   §1c  player_ledger_kind_check gains 'worker' (the muster-'rally' pattern).
 --   §1d  hr_state_of — projects workers_accrued_to + the crew, and ANDs the
 --        completeness THIRD ARM (crew non-empty + open window => incomplete).
---   §1e  hr_apply — the `workers` xp sub-delta + `workers_accrued_to` key +
---        the `worker` ledger kind.
+--   §1e  hr_apply — the `workers` sub-delta ({uid:{xp?:int, acc_ms?:number}}:
+--        per-worker xp DELTA + the fractional-carry ABSOLUTE) + the
+--        `workers_accrued_to` key + the `worker` ledger kind.
 --   §2   hr_worker_assign — the ASSIGN intent (gating only, no value crosses).
---   §3   hr_worker_hire    — the HIRE intent (server gold debit + crew row).
+--   §3   hr_worker_hire    — the HIRE intent. NO gold and NO new price catalogue:
+--        the crew cap is the PAID `worker_hire` unlock level (hr_unlock_levels,
+--        priced by the generated gold-ladder + sold by hr_unlock_buy), so this
+--        only materialises a worker up to what was already bought.
+--
+-- ── avgQty PARITY DECISION (change contract flag #2, CONFIRMED) ──────────────
+-- accrueWorkers uses the UN-FLOORED band midpoint (qty[0]+qty[1])/2, verbatim from
+-- src/features/workers.js, so [1,2] nodes (e.g. maple_tree) keep their EXACT
+-- current live yield. This is an authority move, not a rebalance — deliberate.
+--
+-- ── PER-WORKER CARRY + THE COMPLETENESS THIRD ARM ───────────────────────────
+-- player_workers.acc_ms carries each worker's sub-tick remainder so a slow worker
+-- never loses time when a faster crewmate forces the shared watermark. A pending
+-- carry is < ONE tick and is therefore NOT a pending ownable ITEM: it cannot
+-- become inventory without additional elapsed time, which the third arm's
+-- `now() - workers_accrued_to >= 60s` window already gates. So the carry needs
+-- NO change to the completeness flag — every WHOLE item a crew has produced is in
+-- player_inventory whenever the flag reads complete.
 --
 -- ── WHY workers ARE A PARALLEL ACTIVITY, NOT AN ACCRUAL-SIM KIND ────────────
 -- Combat/gather/artisan are the ACTIVE POINTER: one runs, priced tick-by-tick
@@ -93,9 +111,16 @@ create table if not exists public.player_workers (
   skill     text,                      -- null = idle; else woodcutting|mining|fishing
   target_id text,                      -- the assigned gather node id, or null
   xp        bigint not null default 0,
+  -- THE PER-WORKER FRACTIONAL CARRY (leftover ms of a partial tick). Written ONLY
+  -- by hr_apply (the workers sub-delta, an ABSOLUTE like tool_carry), so a
+  -- worker whose perTickMs exceeds the settle cadence never loses its remainder
+  -- when a faster crewmate forces the shared workers_accrued_to watermark.
+  acc_ms    double precision not null default 0,
   hired_at  timestamptz not null default now(),
   primary key (user_id, slot, uid)
 );
+-- Additive for a database created by an earlier revision of this file.
+alter table public.player_workers add column if not exists acc_ms double precision not null default 0;
 create index if not exists player_workers_char_idx on public.player_workers (user_id, slot);
 
 -- RLS: own-read only, and NO client write policy. The RPCs below (security
@@ -186,7 +211,8 @@ begin
     -- settles each assigned worker; the client renders it and computes no yield.
     'workers', coalesce((
       select jsonb_agg(jsonb_build_object('uid', uid, 'name', name,
-                                          'skill', skill, 'target_id', target_id, 'xp', xp)
+                                          'skill', skill, 'target_id', target_id,
+                                          'xp', xp, 'acc_ms', acc_ms)
                        order by uid)
         from public.player_workers where user_id = p_user and slot = v_st.slot), '[]'::jsonb),
     'farm', coalesce((
@@ -346,6 +372,11 @@ declare
   -- A crew is at most a handful of workers; this is a blast radius on the
   -- worker xp sub-delta, not a balance number.
   c_max_worker_ops constant int := 16;
+  -- The per-worker fractional carry (leftover ms of a partial tick) is < the
+  -- largest perTickMs = max(node.ms)/min(eff) = 13000/0.10 = 130,000 ms. This is
+  -- the blast radius; acc_ms is REFUSED (never clamped) outside [0, this).
+  -- Mirrors WORKER_MAX_ACC_MS in supabase/functions/hr-accrue/accrual.js.
+  c_max_worker_acc constant double precision := 900000;
   -- ⚠ THE INTENT KEYS A REJECTION MUST RELEASE (Security F3, 2026-08-16).
   --   Step (5) releases a claimed key on `version_conflict` because the accrual
   --   engine DERIVES its key from (user, slot, watermark, version, salt) and a
@@ -1262,7 +1293,10 @@ begin
                         where user_id = v_uid and slot = v_slot and uid = k) then
           perform public.hr_reject('unknown_worker', jsonb_build_object('uid', k));
         end if;
-        if jsonb_typeof(v_eq) <> 'object' or not (v_eq ? 'xp') then
+        -- Each entry is { xp?:int, acc_ms?:number }: an xp DELTA (optional) and
+        -- the per-worker fractional carry (an ABSOLUTE, like tool_carry). At least
+        -- one must be present or the entry is meaningless.
+        if jsonb_typeof(v_eq) <> 'object' or not (v_eq ? 'xp' or v_eq ? 'acc_ms') then
           perform public.hr_reject('bad_workers', jsonb_build_object('uid', k));
         end if;
         v_n := coalesce((v_eq->>'xp')::bigint, 0);
@@ -1270,10 +1304,25 @@ begin
         if v_n < 0 or v_n > c_max_xp_delta then
           perform public.hr_reject('xp_clamp', jsonb_build_object('uid', k));
         end if;
-        if v_n > 0 then
-          update public.player_workers set xp = xp + v_n
-           where user_id = v_uid and slot = v_slot and uid = k;
+        -- THE CARRY IS RANGE-REFUSED, NEVER CLAMPED. A legit carry is < one
+        -- perTickMs (< 130 s); anything at/above c_max_worker_acc is corruption,
+        -- and silently repairing an impossible value is how a compromised engine's
+        -- bug becomes the server's opinion (the bad_tool_carry / bad_fight posture).
+        if v_eq ? 'acc_ms' then
+          if jsonb_typeof(v_eq->'acc_ms') <> 'number'
+             or (v_eq->>'acc_ms')::double precision < 0
+             or (v_eq->>'acc_ms')::double precision >= c_max_worker_acc then
+            perform public.hr_reject('bad_worker_carry',
+              jsonb_build_object('uid', k, 'acc_ms', v_eq->'acc_ms'));
+          end if;
         end if;
+        -- xp is a DELTA (added); acc_ms is an ABSOLUTE (set). Absent acc_ms leaves
+        -- the stored carry untouched.
+        update public.player_workers
+           set xp = xp + v_n,
+               acc_ms = case when v_eq ? 'acc_ms'
+                             then (v_eq->>'acc_ms')::double precision else acc_ms end
+         where user_id = v_uid and slot = v_slot and uid = k;
       end loop;
     end if;
 
@@ -1728,35 +1777,28 @@ end $$;
 revoke execute on function public.hr_worker_assign(int, text, text, text, uuid) from public, anon;
 grant execute on function public.hr_worker_assign(int, text, text, text, uuid) to authenticated;
 
--- ── 3. hr_worker_hire — the HIRE intent. The gold debit is SERVER-SIDE. ──
--- The client sends {slot, idem}. The next rung's cost + the crew cap are
--- server-derived from hr_worker_hire_costs (a generated catalogue, §3-pre) so no
--- price and no crew size crosses. The name is chosen server-side. This folds the
--- gold debit (was the separate hr_unlock_buy path) so a hostile client cannot
--- mint a free crew: the hire is gated by gold it must actually own.
-create table if not exists public.hr_worker_hire_costs (
-  rung int primary key,          -- crew size AFTER this hire (1..cap)
-  cost bigint not null
-);
--- The b389 hire ladder. NOTE: this is economy tuning (game data). It mirrors
--- src/features/workers.js HIRE_COSTS and MUST be kept in sync by a generator
--- follow-up (flagged for the security/designer review); seeded here so the RPC
--- is self-contained. Idempotent upsert.
-insert into public.hr_worker_hire_costs (rung, cost) values
-  (1, 500), (2, 3000), (3, 15000), (4, 75000), (5, 250000), (6, 750000)
-  on conflict (rung) do update set cost = excluded.cost;
-
+-- ── 3. hr_worker_hire — the HIRE intent. NO NEW CATALOGUE, NO GOLD HERE. ──
+-- The hire cost + tier gate + gold debit are ALREADY server-authoritative: the
+-- generated gold-ladder (src/data/gold-ladders.js WORKER_HIRE_COSTS, drift-guarded
+-- against src/features/workers.js HIRE_COSTS) emits the priced worker_hire.N
+-- offers into public.hr_unlock_offers, sold by public.hr_unlock_buy (which debits
+-- the gold under its own lock). Duplicating that price into a second SQL table
+-- would be exactly the "never copy game data into SQL" failure. So the crew-size
+-- cap is READ from what the player has already PAID FOR — the worker_hire
+-- unlock LEVEL (public.hr_unlock_levels) — and this RPC only MATERIALISES a
+-- worker up to that paid cap. A hostile client cannot mint a free crew: without a
+-- purchased worker_hire rung the level is 0 and hire refuses. NO price, NO gold
+-- and NO crew size crosses this boundary.
 create or replace function public.hr_worker_hire(p_slot int, p_idem uuid)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
-  c_max_crew constant int := 6;
+  c_max_crew constant int := 6;         -- an absolute fuse; the paid cap is finer
   v_uid    uuid := auth.uid();
   v_state  public.player_state%rowtype;
-  v_n      int;
-  v_cost   bigint;
+  v_n      int;                          -- current crew size
+  v_cap    int;                          -- paid crew cap (worker_hire unlock level)
   v_uidw   text;
   v_name   text;
-  v_bud    jsonb;
   v_cached jsonb;
   c_names  constant text[] := array['Aldric','Berta','Cedric','Dagny','Edwin','Freya',
     'Gareth','Hilda','Ivor','Jorunn','Kellan','Liesl','Magnus','Nella','Osric','Petra'];
@@ -1774,15 +1816,14 @@ begin
   if v_state.user_id is null then return jsonb_build_object('ok', false, 'error', 'no_character'); end if;
 
   select count(*) into v_n from public.player_workers where user_id = v_uid and slot = p_slot;
-  if v_n >= c_max_crew then
-    return jsonb_build_object('ok', false, 'error', 'crew_full', 'cap', c_max_crew);
-  end if;
-  select cost into v_cost from public.hr_worker_hire_costs where rung = v_n + 1;
-  if v_cost is null then
-    return jsonb_build_object('ok', false, 'error', 'no_such_rung', 'rung', v_n + 1);
-  end if;
-  if v_state.gold < v_cost then
-    return jsonb_build_object('ok', false, 'error', 'insufficient_gold', 'have', v_state.gold, 'need', v_cost);
+  -- THE PAID CAP. hr_unlock_levels projects every unlock the player owns as a
+  -- MAX-merged level; worker_hire = the highest rung bought via hr_unlock_buy.
+  -- Absent row => level 0 => no crew until a rung is purchased.
+  select coalesce(max(level), 0) into v_cap from public.hr_unlock_levels(v_uid, p_slot)
+    where unlock_id = 'worker_hire';
+  if v_n >= least(v_cap, c_max_crew) then
+    return jsonb_build_object('ok', false, 'error', 'crew_cap_reached',
+      'crew', v_n, 'paid_cap', v_cap);
   end if;
 
   -- A server-chosen name not already in the crew; fall back to a numbered one.
@@ -1792,18 +1833,18 @@ begin
   if v_name is null then v_name := 'Worker ' || (v_n + 1)::text; end if;
   v_uidw := 'w' || replace(gen_random_uuid()::text, '-', '');
 
-  update public.player_state set gold = gold - v_cost, version = version + 1, updated_at = now()
+  insert into public.player_workers (user_id, slot, uid, name, skill, target_id, xp, acc_ms)
+    values (v_uid, p_slot, v_uidw, v_name, null, null, 0, 0);
+  update public.player_state set version = version + 1, updated_at = now()
     where user_id = v_uid and slot = p_slot;
-  insert into public.player_workers (user_id, slot, uid, name, skill, target_id, xp)
-    values (v_uid, p_slot, v_uidw, v_name, null, null, 0);
 
-  -- Journal the gold spend (kind='worker'). qty_in/xp_in null: no inflow.
-  insert into public.player_ledger (user_id, slot, kind, intent, gold, meta)
-    values (v_uid, p_slot, 'worker', 'worker_hire', -v_cost,
-            jsonb_build_object('uid', v_uidw, 'name', v_name, 'rung', v_n + 1));
+  -- Journal the materialisation (kind='worker'). No gold moved here (hr_unlock_buy
+  -- already debited it), so no *_in inflow.
+  insert into public.player_ledger (user_id, slot, kind, intent, meta)
+    values (v_uid, p_slot, 'worker', 'worker_hire',
+            jsonb_build_object('uid', v_uidw, 'name', v_name, 'crew', v_n + 1, 'paid_cap', v_cap));
 
-  v_cached := jsonb_build_object('ok', true, 'uid', v_uidw, 'name', v_name,
-    'cost', v_cost, 'crew', v_n + 1);
+  v_cached := jsonb_build_object('ok', true, 'uid', v_uidw, 'name', v_name, 'crew', v_n + 1);
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, p_slot, 'worker_hire', v_cached, now())
     on conflict (user_id, intent_id) do nothing;
@@ -1916,7 +1957,8 @@ begin
     'c_max_xp_delta', 'v_new_streak', 'streak_days    = case when p_delta ? ''accrued_to''',
     -- this file's change:
     'p_delta ? ''workers''', 'public.player_workers', 'unknown_worker',
-    'c_max_worker_ops', 'workers_accrued_to = case when p_delta ? ''workers_accrued_to''',
+    'c_max_worker_ops', 'c_max_worker_acc', 'bad_worker_carry',
+    'workers_accrued_to = case when p_delta ? ''workers_accrued_to''',
     '''worker''];']
   loop
     if position(v_bad in v_apply) = 0 then
@@ -1926,8 +1968,24 @@ begin
 
   -- (b) WORKER XP IS PER-WORKER, NEVER A player_skills WRITE FROM THE WORKERS
   --     BLOCK. The block writes player_workers.xp and nothing else.
-  if position('update public.player_workers set xp = xp + v_n' in v_apply) = 0 then
-    raise exception 'the worker block does not credit player_workers.xp — worker xp must be per-worker';
+  if position('set xp = xp + v_n' in v_apply) = 0
+     or position('acc_ms = case when v_eq ? ''acc_ms''' in v_apply) = 0 then
+    raise exception 'the worker block does not credit player_workers.xp / persist acc_ms';
+  end if;
+  -- The acc_ms carry column exists (the shared-watermark fix).
+  if not exists (select 1 from information_schema.columns
+                  where table_schema='public' and table_name='player_workers'
+                    and column_name='acc_ms' and data_type='double precision') then
+    raise exception 'player_workers.acc_ms (double precision) missing — the per-worker carry';
+  end if;
+  -- hr_worker_hire reads the PAID cap from hr_unlock_levels (no duplicated price).
+  if position('hr_unlock_levels(v_uid, p_slot)' in
+       (select prosrc from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname='public' and p.proname='hr_worker_hire')) = 0 then
+    raise exception 'hr_worker_hire does not gate on hr_unlock_levels — it must not duplicate the hire-cost catalogue';
+  end if;
+  if to_regclass('public.hr_worker_hire_costs') is not null then
+    raise exception 'hr_worker_hire_costs table exists — the hire price must come from the generated gold-ladder, not a second SQL table';
   end if;
 
   -- (c) hr_state_of PROJECTS the crew + watermark and carries the THIRD ARM.
@@ -2032,7 +2090,7 @@ begin
     v_idem := gen_random_uuid();
     v := public.hr_apply(v_uid, v_slot, v_ver, v_idem, jsonb_build_object(
       'items', jsonb_build_object('normal_log', 1440),
-      'workers', jsonb_build_object('wtest1', jsonb_build_object('xp', 10800)),
+      'workers', jsonb_build_object('wtest1', jsonb_build_object('xp', 10800, 'acc_ms', 1234.5)),
       'workers_accrued_to', 'now',
       'journal', jsonb_build_object('kind', 'worker', 'intent', 'accrue')));
     if coalesce(v->>'ok','') <> 'true' then
@@ -2043,6 +2101,11 @@ begin
     if coalesce(v_qty,0) <> 1440 then raise exception 'GATE(b): worker output not credited (%)' , v_qty; end if;
     select xp into v_wxp from public.player_workers where user_id = v_uid and slot = v_slot and uid = 'wtest1';
     if v_wxp <> 10800 then raise exception 'GATE(b): worker xp not credited (%)' , v_wxp; end if;
+    -- The fractional CARRY is persisted (absolute set) by the same sub-delta.
+    if (select acc_ms from public.player_workers where user_id = v_uid and slot = v_slot and uid = 'wtest1')
+         <> 1234.5 then
+      raise exception 'GATE(b): worker acc_ms carry not persisted';
+    end if;
 
     -- inventory_complete must be TRUE now (watermark = now(), window drained).
     v_st := public.hr_state_of(v_uid, v_slot);

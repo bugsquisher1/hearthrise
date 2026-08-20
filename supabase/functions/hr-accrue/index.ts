@@ -679,7 +679,10 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       // on a worker-only settle). No degrade ladder: a crew haul is tiny and
       // cannot trip a per-call clamp.
       if (wout.accrued) {
-        const workerDelta = mergeWorkers({
+        // Named `delta` (not `workerDelta`) so the `::text::jsonb` transport is
+        // the SAME shape tests/delta-transport.mjs grades on every apply site —
+        // a bare ::jsonb here would double-serialise and answer bad_delta.
+        const delta = mergeWorkers({
           journal: { kind: 'worker', intent: 'accrue',
             meta: { ms: wout.summary.spanMs, qty: wout.summary.qty,
               workers: wout.summary.workers, capped: wout.summary.capped } },
@@ -692,7 +695,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
           await tx`set local role hr_engine`;
           const [r] = await tx`
             select public.hr_apply(${user}::uuid, ${slot}::int, ${env.version}::bigint,
-                                   ${wIntentId}::uuid, ${JSON.stringify(workerDelta)}::text::jsonb) as res`;
+                                   ${wIntentId}::uuid, ${JSON.stringify(delta)}::text::jsonb) as res`;
           return r as Row;
         });
         const wr = wres?.res as Record<string, any>;

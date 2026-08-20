@@ -2161,23 +2161,43 @@ export function levelsOf(skills) {
 // mining, fishing} and the node id), so every produced id is a gather product —
 // which is exactly why the client mint of these ids is the flip's arm-blocker.
 //
-// ⚠ KNOWN RESIDUAL (under-pay, never over-pay). `workers_accrued_to` advances to
-//   now() and ticks are floored PER WORKER PER SETTLE, so the sub-tick remainder
-//   is discarded each call — unlike the client's per-worker `lastCollect`, which
-//   preserves it. With one shared watermark and heterogeneous per-worker
-//   perTickMs there is no scalar that preserves every remainder. The loss is
-//   bounded by < 1 tick per worker per settle and is strictly an UNDER-payment
-//   (the one safe direction — it can never mint or delete). If worker settles
-//   become frequent (a 60s accrue cadence), the accumulated loss is material and
-//   the fix is a per-worker fractional carry column (the tool_carry shape); it is
-//   scoped in the report, not built here, because the contract pins the single
-//   `workers_accrued_to` watermark. hr_state_of's completeness third arm gates on
-//   `now() - workers_accrued_to >= 60s`, which also bounds settle frequency.
+// ── PER-WORKER FRACTIONAL CARRY — THE SHARED-WATERMARK FIX ───────────────────
+// A single `workers_accrued_to` for a heterogeneous crew breaks a SLOW worker:
+// once ANY worker produces (forcing the shared watermark to now()), a worker
+// whose perTickMs exceeds the settle cadence has its accumulated-but-un-settled
+// time discarded, and — settled frequently enough — produces NOTHING, ever. The
+// tool_carry fix applies: each worker carries its leftover time (`acc_ms`) across
+// settles, so no fraction of a tick is lost.
+//
+// TWO RULES MAKE IT EXACT AND SAFE:
+//   1. A settle that produces NOTHING (all workers sub-tick) does NOT advance the
+//      watermark and writes nothing — the un-advanced watermark preserves every
+//      worker's time for free, so `acc_ms` is only ever needed to bridge the
+//      settles a FASTER worker forces. This is why a pure-slow crew never loses
+//      time even without the carry, and why the carry is the answer only for the
+//      MIXED-speed case.
+//   2. When a settle DOES produce, EVERY assigned worker's new `acc_ms` is
+//      persisted against the advanced watermark, so the slow worker's remainder
+//      rides forward instead of being discarded.
+//
+// EXACTNESS — away == live byte-identical. `eff` is EXACTLY rational with
+// denominator 1000: eff = (100 + 8·(lvl-1)) / 1000. So perTickMs = ms·1000/E with
+// E = 100+8·(lvl-1) an integer, and the whole-ticks / leftover split is exact
+// integer arithmetic (no float remainder to drift). For a worker at a FIXED level
+// (E constant) one 24h settle and N small settles produce byte-identical totals —
+// proven in tests/worker-accrual.mjs. (For a worker CROSSING a level boundary the
+// two genuinely differ, exactly as the pre-flip client's online vs offline did,
+// because eff changes mid-span; that is a property of the rate curve, not a bug.)
 // ============================================================================
 export const WORKER_BASE_EFF = 0.10;
 export const WORKER_EFF_PER_LVL = 0.008;
 export const WORKER_MAX_LVL = 10;
 export const WORKER_ACCRUE_CAP_MS = 24 * 3600000;
+// A blast radius on the stored carry. A legit carry is < perTickMs, and the
+// largest perTickMs is max(node.ms)/min(eff) = 13000/0.10 = 130,000 ms, so any
+// value near this ceiling is corruption; hr_apply refuses `acc_ms` outside
+// [0, WORKER_MAX_ACC_MS). Set generously above 130 s, far below a mint.
+export const WORKER_MAX_ACC_MS = 900000;   // 15 min
 
 /** A worker's level from its lifetime xp — min 1, capped at WORKER_MAX_LVL.
  *  Mirrors src/features/workers.js `level`. */
@@ -2185,9 +2205,14 @@ export function workerLevel(xp) {
   return Math.min(WORKER_MAX_LVL, 1 + Math.floor(Math.sqrt(nat(xp, 0) / 2000)));
 }
 /** Efficiency (fraction of the active rate) at a worker's level. Mirrors
- *  src/features/workers.js `eff`. */
+ *  src/features/workers.js `eff`. Exactly (100 + 8·(lvl-1))/1000. */
 export function workerEff(xp) {
   return WORKER_BASE_EFF + WORKER_EFF_PER_LVL * (workerLevel(xp) - 1);
+}
+/** E = eff·1000 (integer 100..172) — the exact-arithmetic denominator that makes
+ *  the whole-tick / carry split byte-identical across settle granularities. */
+function workerEffE(xp) {
+  return 100 + 8 * (workerLevel(xp) - 1);
 }
 
 /**
@@ -2225,69 +2250,91 @@ export function accrueWorkers(input) {
   const items = inp.items || {};
 
   if (!crew.length) return { accrued: false, reason: 'no_crew' };
-  const spanMs = Math.min(Math.max(0, nowMs - fromMs), WORKER_ACCRUE_CAP_MS);
-  if (spanMs <= 0) return { accrued: false, reason: 'no_span' };
+  const baseMs = Math.min(Math.max(0, nowMs - fromMs), WORKER_ACCRUE_CAP_MS);
+  if (baseMs <= 0) return { accrued: false, reason: 'no_span' };
 
   const itemDelta = Object.create(null);
-  const workerXp = Object.create(null);
-  let itemKinds = 0;           // recomputed after the loop from itemDelta
+  // Per-worker OUTPUT of this settle. Every ASSIGNED worker gets an entry (its
+  // new carry `acc_ms`); `xp` is present only when it earned some. The entry is
+  // only ACTED ON (written) if the settle as a whole produced — see `produced`.
+  const workerOut = Object.create(null);
+  let itemKinds = 0;
   let totalQty = 0;
   let workingCount = 0;
+  let produced = false;
 
   for (const w of crew) {
     if (!w || typeof w.uid !== 'string' || !/^[a-z0-9_]{1,64}$/.test(w.uid)) continue;
     // OWN-PROPERTY lookup on the null-prototype index (see accrueGather). An
     // idle worker (no target) or an inconsistent assignment (skill ≠ the node's
-    // skill) produces NOTHING — never a mispriced haul against the wrong node.
+    // skill) produces NOTHING and carries NOTHING — never a mispriced haul.
     if (!w.target_id || !catalogueHas(nodes, w.target_id)) continue;
     const entry = nodes[w.target_id];
     if (!entry || !entry.node || !w.skill || entry.skill !== w.skill) continue;
     const node = entry.node;
     const ms = nat(node.ms, 0);
     if (!(ms > 0)) continue;
-    const eff = workerEff(w.xp);
-    const perTickMs = ms / eff;
-    const ticks = Math.floor(spanMs / perTickMs);
-    if (ticks <= 0) continue;
-    workingCount++;
 
-    // avgQty = the band MIDPOINT, un-floored (workers.js), so [1,2] nodes keep
-    // their exact live yield. No RNG — the deterministic contract.
-    const q0 = nat(node.qty && node.qty[0], 0);
-    const q1 = nat(node.qty && node.qty[1], 0);
-    const avgQty = (q0 + q1) / 2;
-    const qty = Math.max(0, Math.floor(ticks * avgQty));
-    const prod = node.prod;
-    if (qty > 0 && prod && catalogueHas(items, prod)) {
-      itemDelta[prod] = (itemDelta[prod] || 0) + qty;
-      totalQty += qty;
+    // EXACT-ARITHMETIC TICK SPLIT. eff = E/1000 with E an integer, so perTickMs =
+    // ms·1000/E and the whole-tick / leftover split is done in INTEGER units of
+    // (ms·E) — no float remainder to drift, so N small settles and one big settle
+    // land on the SAME tick boundaries for a constant-eff worker (W8). The carry
+    // is stored as milliseconds (leftoverScaled/E) as a float8; re-reading it and
+    // multiplying by E recovers the exact integer remainder, because the value is
+    // an integer/E and float8 round-trips it well inside 0.5. The carry read from
+    // the row is clamped defensively (hr_apply already refuses an out-of-range write).
+    const E = workerEffE(w.xp);
+    const accMs = Math.min(Math.max(0, Number(w.acc_ms) || 0), WORKER_MAX_ACC_MS);
+    const divScaled = ms * 1000;                       // perTick in (ms·E) units
+    const carryScaled = Math.round(accMs * E);         // exact remainder, (ms·E) units
+    const nScaled = baseMs * E + carryScaled;          // total available, (ms·E) units
+    const ticks = Math.floor(nScaled / divScaled);
+    const remScaled = nScaled - ticks * divScaled;     // leftover, (ms·E) units, < divScaled
+    const newAccMs = remScaled / E;                    // back to ms (the stored carry)
+    const out = { acc_ms: newAccMs > 0 ? newAccMs : 0 };
+
+    if (ticks > 0) {
+      workingCount++;
+      // avgQty = the band MIDPOINT, un-floored (workers.js), so [1,2] nodes keep
+      // their exact live yield — a deliberate parity decision, not a rebalance.
+      const q0 = nat(node.qty && node.qty[0], 0);
+      const q1 = nat(node.qty && node.qty[1], 0);
+      const avgQty = (q0 + q1) / 2;
+      const qty = Math.max(0, Math.floor(ticks * avgQty));
+      const prod = node.prod;
+      if (qty > 0 && prod && catalogueHas(items, prod)) {
+        itemDelta[prod] = (itemDelta[prod] || 0) + qty;
+        totalQty += qty;
+        produced = true;
+      }
+      // WORKER XP — per-worker, never player xp, never a skill row (workers.js).
+      const xpGain = Math.floor(ticks * nat(node.xp, 0) * 0.5);
+      if (xpGain > 0) { out.xp = xpGain; produced = true; }
     }
-    // WORKER XP — per-worker, never player xp, never a skill row (workers.js).
-    // Shape is `{ uid: { xp: +n } }` — the sub-delta hr_apply validates and
-    // credits into player_workers.xp, keyed by a uid it confirms is the caller's
-    // own crew member.
-    const xpGain = Math.floor(ticks * nat(node.xp, 0) * 0.5);
-    if (xpGain > 0) {
-      workerXp[w.uid] = { xp: ((workerXp[w.uid] && workerXp[w.uid].xp) || 0) + xpGain };
-    }
+    workerOut[w.uid] = out;
   }
+
+  for (const id in itemDelta) itemKinds++;
+
+  // NO PRODUCTION (every assigned worker still sub-tick) → DEFER. The watermark
+  // is NOT advanced and NOTHING is written, so every worker's time is preserved
+  // for free by the un-advanced watermark — the carry is only ever needed to
+  // bridge the settles a FASTER worker forces (see the header). index.ts omits
+  // the whole delta on this branch.
+  if (!produced) return { accrued: false, reason: 'nothing_accrued' };
 
   const items_ = {};
-  for (const id in itemDelta) { items_[id] = itemDelta[id]; itemKinds++; }
-
-  // Nothing produced (all idle, all sub-tick) → defer. The watermark does NOT
-  // advance in this case (index.ts omits workers_accrued_to), exactly as the
-  // pointer engine leaves accrued_to alone on a refusing reason.
-  if (itemKinds === 0 && Object.keys(workerXp).length === 0) {
-    return { accrued: false, reason: 'nothing_accrued' };
-  }
+  for (const id in itemDelta) items_[id] = itemDelta[id];
 
   return {
     accrued: true,
     items: items_,
-    workers: workerXp,
+    // Every ASSIGNED worker's new carry (and xp where earned) is persisted, so
+    // the slow worker's remainder rides forward past this producing settle.
+    workers: workerOut,
     summary: {
-      spanMs, itemKinds, qty: totalQty, workers: workingCount, capped: (nowMs - fromMs) > spanMs,
+      spanMs: baseMs, itemKinds, qty: totalQty, workers: workingCount,
+      capped: (nowMs - fromMs) > baseMs,
     },
   };
 }

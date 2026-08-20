@@ -98,6 +98,8 @@ _Backend-architect plan delivered 2026-08-17 (review-ready, in security review).
 | — | Completion Log · Quest Board rework · supply-projection UI · world-boss blessing | 🧊 | P3 | From the batch-2 build sequence; mostly unbuilt. |
 | 6 | Practice / familiarity tiers | ⏸️ | — | Back-burner. Spec in progression-depth.md Phase 2. |
 | 11 | Buy-offers return | ⏸️ | — | Back-burner. |
+| — | **Bulk / quantity buy from shop** | 🧊 | P2 | Paione (2026-08-20): "could we buy stuff in quantity? 300 seeds, 50k iron arrows." Add a quantity param to the buy flow. CHEAPER to do correctly now that every buy goes through a server verb — add the qty arg server-side rather than bolting on a client loop. Slot after the arm. |
+| — | **Marks/bounty-shop chest contents + pricing** | 🧊 design | P2 | Fingerguns (2026-08-20): wants ideas for what mark-purchasable chests contain (ammo/materials/gold/deeds) + per-item cost, once everything else is unlocked. Bounty shop is intentionally CHEAP for beta (wipes between releases). Delegated to game-designer for a proposal. Paione hit everything at bounty lvl 20 — shop needs more depth/sinks past the current ceiling. |
 | — | Workers gather Stonemason rocks | ⏸️ paused | P2 | Paione + Tyler (2026-08-18): workers already gather wood/ore/fish; stone is a raw material too, so not gathering it is a gap from when Stonemason shipped. Tyler: "yes we should make sure the worker can gather rocks." Small gap-fill — good EARLY pickup once the feature-pause lifts. Files: src/features/workers.js, src/data/stonecraft.js. |
 | — | Worker passive-XP trickle (design Q) | 🧊 discuss | P3 | Paione: workers give ~0.1% of normal XP. Tyler: "we need to discuss the exp portion." Nice retention hook BUT passive XP changes progression pacing — game-designer sizes how much / which skills / does it stack (100 workers × % balloons). Not a gut number. Discuss when the pause lifts. |
 
@@ -152,6 +154,8 @@ _Backend-architect plan delivered 2026-08-17 (review-ready, in security review).
 | Craft material dupe | documented | P2 | Accepted pre-wipe trade (dupe > data loss). Real fix = inventory authority (§2). |
 | 32px requirement chips below 44px tap target | 🧊 | P3 | Art-director handoff. |
 | P3 polish backlog (various from audits) | 🧊 | P3 | In `.claude/coordination/DISCOVERIES.md`. |
+| **Crafted arrows/ammo not consumed in combat** | 🧊 **BUG** | P2 | Paione (2026-08-20): arrows craft fine but aren't spent when used in combat. Server-authority territory (combat + ammo consumption are server-owned) — fix in the combat domain, not a client patch. |
+| Shields exist but unobtainable | 🧊 | P2 | Paione (2026-08-20): shield items are defined but have no drop/craft/shop source. Fingerguns confirmed: "created; but no way to obtain at the moment." Pure data-row fix (add a source) — content pass. |
 
 ---
 

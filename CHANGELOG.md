@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 420 — 2026-08-20 (Under the hood: companion bonuses fully server-owned)
+
+- 🔧 No gameplay change. Equipping a companion now tells the server which pet is active, and your companion's passive bonus is priced server-side — the last piece needed before gold moves fully server-authoritative. (Companion combat-kill procs are the one bit still client-side, tracked as a follow-up.)
+
 ## v0.9.2-beta build 419 — 2026-08-20 (Under the hood: server-owned farming)
 
 - 🔧 No gameplay change yet. Planting and harvesting are now owned by the server — crop growth is timed by the server clock and harvest yields are rolled and credited server-side, so a harvest can't be forged. The last major system to move server-side. (Watering bonus + pet farm-yield perk still to come.)

@@ -901,6 +901,10 @@
        native call site under src/. -->
   <script src="src/utils/dialog.js?v=413"></script>
   <script src="src/net/server-rpc.js?v=413"></script>
+  <!-- b414: the daily-task / quest gold-claim transport. Classic IIFE (window
+       global) like server-rpc.js above; legacy.js calls HearthriseGoalClaim to
+       fire hr_claim_daily / hr_claim_quest, the server-authoritative payout. -->
+  <script src="src/net/goal-claim.js?v=413"></script>
   <!-- b225: THE ACCOUNT WALL. Loads directly after the storage seam (which it
        reads the cached session through) and before every game script, because
        its verdict is what decides whether legacy.js boots at all. Client-side

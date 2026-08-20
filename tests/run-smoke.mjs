@@ -21,6 +21,7 @@ import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
 import { perkChannelGuard } from './perk-channel.mjs';
 import { artisanProgressGuard } from './artisan-progress-model.mjs';
 import { goalCountersGuard } from './goal-counters.mjs';
+import { goalCatalogueDriftGuard } from './goal-catalogue-drift.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
@@ -1773,6 +1774,24 @@ const run = async () => {
     } else {
       console.log('\nGoal counters guard — an away combat night moves \'slay N\' by exactly the kill '
         + 'count, a gather night by the yield, and neither touches the other\'s counter.');
+    }
+
+    /* ── The goal catalogue drift guard (b414) ──────────────────────────
+       The DAILY-TASK + QUEST gold payouts are now server-credited
+       (hr_claim_daily / hr_claim_quest). This binds the reward catalogue across
+       its three homes — src/data/goal-catalogue.js, legacy.js
+       QUEST_DEFS/DAILY_TASK_POOL, and the migration SQL — so a player can never
+       be shown one gold number and credited another, the server selection can
+       never offer a different set than the client, and no gold-bearing goal can
+       silently lose its payout under arm. */
+    const catProblems = await goalCatalogueDriftGuard();
+    if (catProblems.length) {
+      console.log('\nGoal catalogue drift guard — FAILED:');
+      for (const p of catProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nGoal catalogue drift guard — catalogue, legacy.js authored rows, and the credit '
+        + 'RPC SQL all agree on every daily/quest goal + reward + the selection pool order.');
     }
 
     /* ── The artisan accrual guard (b356) ───────────────────────────────

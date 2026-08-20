@@ -1392,9 +1392,11 @@ const TESTS = [
     // The buyback/companion arm-gate pattern, applied to a GRANT: under arm the
     // whole reward action must DEFER (no credit, not marked claimed, no toast),
     // not falsely complete — otherwise the milestone is burned for gold that the
-    // next absolute envelope erases. Representative of every Tier-2 grant site
-    // (updateDaily/completeQuest/claimQuestReward/completeBounty/renown), which
-    // all share this defer shape.
+    // next absolute envelope erases. Representative of the STILL-deferred Tier-2
+    // grant sites (claimQuestReward — the goals board, completeBounty, renown).
+    // b414: updateDaily + completeQuest LEFT this shape — their gold is now
+    // server-credited (hr_claim_daily / hr_claim_quest), proven under arm by the
+    // 'server-credited (Tier-1 daily/quest)' test below.
     const C = window.HearthriseCollection;
     if (!C || typeof C.claimMilestone !== 'function' || !window.MONSTERS) return;
     const monIds = Object.keys(window.MONSTERS).slice(0, 10);
@@ -1494,6 +1496,59 @@ const TESTS = [
       window.HearthriseAuth = origAuth;
       window.HearthriseRpc = origRpc;
       window.HearthriseProfile = origProf;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('server-credited (Tier-1 daily/quest): under arm a daily task + a gold quest PROCEED, fire the claim RPC with the id, and do not double-pay locally', () => {
+    // b414: updateDaily + completeQuest gold is now server-credited
+    // (hr_claim_daily / hr_claim_quest verify the ev:<type> counter and credit
+    // player_state). Under arm the completion must PROCEED (mark done, fire the
+    // claim, grant non-gold parts) and NOT write gold locally — the local write
+    // is a gated prediction the envelope reconciles. Unarmed is the control.
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origClaim = window.HearthriseGoalClaim;
+    const calls = [];
+    try {
+      window.HearthriseGoalClaim = {
+        claimDaily: (id) => { calls.push(['daily', id]); return Promise.resolve({ ok: true, gold: 500, credited: true }); },
+        claimQuest: (id) => { calls.push(['quest', id]); return Promise.resolve({ ok: true, gold: 150, credited: true }); },
+      };
+      window.ensureRetentionState();
+
+      // ── DAILY under arm: proceeds, fires claimDaily, no local gold ──
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
+      window.G.gold = 0;
+      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [
+        { id: 'daily_kill', type: 'kill_any', label: 'Kill 25', goal: 25, progress: 24, reward: 500, done: false },
+      ] };
+      window.updateDaily('kill_any', 1);
+      const dt = window.G.daily.tasks[0];
+      assert(dt.done === true, 'armed daily completion must mark the task done (defer is gone)');
+      assert(calls.some((c) => c[0] === 'daily' && c[1] === 'daily_kill'), 'armed daily must fire claimDaily(id)');
+      assert(window.G.gold === 0, 'armed daily must NOT credit gold locally (server credits it); got ' + window.G.gold);
+
+      // ── QUEST under arm: proceeds, fires claimQuest, no local gold, item granted ──
+      window.G.gold = 0;
+      const q = { id: 'gatherer', type: 'gather', label: 'Gather 15', goal: 15, progress: 15, reward: { gold: 150 }, done: false };
+      window.completeQuest(q);
+      assert(q.done === true, 'armed quest completion must mark done');
+      assert(calls.some((c) => c[0] === 'quest' && c[1] === 'gatherer'), 'armed quest must fire claimQuest(id)');
+      assert(window.G.gold === 0, 'armed quest must NOT credit gold locally; got ' + window.G.gold);
+
+      // ── UNARMED control: daily credits gold locally (prediction), still fires the claim ──
+      calls.length = 0;
+      window.clientMayWriteRecordField = function () { return true; };
+      window.G.gold = 0;
+      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [
+        { id: 'daily_kill', type: 'kill_any', label: 'Kill 25', goal: 25, progress: 24, reward: 500, done: false },
+      ] };
+      window.updateDaily('kill_any', 1);
+      assert(window.G.gold === 500, 'unarmed daily must credit the reward locally as the prediction; got ' + window.G.gold);
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.HearthriseGoalClaim = origClaim;
       restoreG(snap);
     }
   }),
@@ -2740,7 +2795,10 @@ const TESTS = [
       G.inventory = Object.assign({}, G.inventory, { shrimp: 10 });
       G.quests = [{ id: 'first_cook', type: 'cooked', label: 'Cook 5 dishes', goal: 5, progress: 0, reward: { gold: 1 }, done: false }];
       G.daily = G.daily || {};
-      G.daily.lastReset = new Date().toDateString();
+      // b414: generateDailyTasks resets on the UTC day key now (server-authoritative
+      // selection), not toDateString() — pin lastReset to the same key so this
+      // hand-set task is not regenerated out from under the assertion.
+      G.daily.lastReset = window.hrGoalDayKey();
       G.daily.tasks = [{ id: 'daily_cook', type: 'cooked', label: 'Cook 12 items', goal: 12, progress: 0, reward: 400, done: false }];
       for (let i = 0; i < 3; i++) window.doArtisanAction('cooking', 'cook_shrimp');
       assert(G.quests[0].progress === 3, 'cooking must progress the onboarding cook quest, got ' + G.quests[0].progress);

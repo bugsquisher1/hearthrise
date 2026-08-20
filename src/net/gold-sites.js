@@ -205,9 +205,11 @@ const B = Object.freeze({
     + 'types. The weekly delta-baseline cannot be reconstructed from ev daily rows either. Needs a '
     + 'server per-skill/derived counter model + period baseline, or re-authoring the board onto the '
     + 'six ev types. See src/data/goal-catalogue.js BLOCKED_GOAL_BOARD.',
-  MARKS_COLUMN: '`player_state.marks`. A bounty turn-in pays gold AND Bounty Marks; Marks have no '
-    + 'server column at all, so paying the gold half alone would silently drop the rest — worse '
-    + 'than refusing. The turn-in is also kill-driven, so part of it belongs to accrual.',
+  /* B.MARKS_COLUMN was RETIRED on 2026-08-23: player_state.marks now exists and the
+     CULL bounty turn-in is server-credited (hr_claim_bounty, 2026-08-23-bounty.sql),
+     so completeBounty carries a serverCredits flipGuard rather than this blocker. See
+     that row. The kill-driven AWAY accrual of bounties remains an accrual-engine
+     follow-up, tracked at the completeBounty row, not here. */
   /* B.COLLECTION_MODEL and B.RENOWN_MODEL were RETIRED on 2026-08-22: the
      collection-milestone and renown-rank payouts are now server-credited
      (hr_claim_milestone / hr_claim_rank), so their sites carry a serverCredits
@@ -514,9 +516,26 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     site: 'the IAP entitlement grant',
   },
   'src/legacy.js#completeBounty': {
-    kind: 'grant', status: 'deferred', blockedBy: B.MARKS_COLUMN,
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-    site: 'claim_reward {kind:"bounty", key:"turnin"} — registry row exists, status blocked',
+    kind: 'grant', status: 'deferred',
+    /* SERVER-CREDITED for CULL bounties (2026-08-23-bounty.sql). hr_accept_bounty
+       snapshots the target's kill count as a baseline and owns the tier+reward;
+       hr_claim_bounty verifies (kills-since-accept >= required) from the server's own
+       ev:kill_monster:<id> counter and credits server-owned gold + the new
+       player_state.marks (Bounty Marks) once-guarded by the active_bounty row,
+       journalled kind='bounty'. completeBounty fires HearthriseGoalClaim.claimBounty()
+       for cull; the local gold/marks write is a GATED display prediction. proof/weapon/
+       streak keep the clientMayWriteRecordField defer (NOT server-verifiable). */
+    flipGuard: { serverCredits: 'hr_claim_bounty (2026-08-23-bounty.sql) verifies kills-since-accept '
+      + 'from ev:kill_monster:<id> against the hr_accept_bounty baseline, owns tier+reward, credits '
+      + 'server-owned gold + player_state.marks once-guarded by active_bounty, journals '
+      + 'player_ledger kind=bounty. CULL only; proof/weapon/streak stay clientMayWriteRecordField-gated.' },
+    blockedBy: 'nothing for CULL — hr_claim_bounty credits gold+marks server-side. This stays deferred '
+      + '(not wired) because (a) the local gold/marks write is a DIRECT display write gated on '
+      + 'clientMayWriteRecordField, not yet a HearthriseGold.settle prediction reconciled by key '
+      + '(same follow-up as muster/raid), (b) MARKS have no record-field arm yet, so client marks are '
+      + 'display-only until a marks envelope key lands, and (c) proof/weapon/streak are not server-'
+      + 'verifiable (loot-consume ruling / weapon-at-kill / death-streak are unmodelled).',
+    site: 'the bounty turn-in payout (cull server-credited; other types client-deferred)',
   },
   'src/legacy.js#updateDaily': {
     kind: 'grant', status: 'deferred',

@@ -23,6 +23,7 @@ import { artisanProgressGuard } from './artisan-progress-model.mjs';
 import { goalCountersGuard } from './goal-counters.mjs';
 import { goalCatalogueDriftGuard } from './goal-catalogue-drift.mjs';
 import { collectionRenownClaimDriftGuard } from './collection-renown-claim-drift.mjs';
+import { bountyDriftGuard } from './bounty-drift.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
@@ -1330,6 +1331,19 @@ async function catalogueDriftPreflight() {
   return 1;
 }
 
+// The bounty monster→tier catalogue is generated from src/data/monsters.js. A
+// stale one credits a bounty at the wrong tier's reward, so --check gates it.
+async function bountyMonsterPreflight() {
+  const gen = join(ROOT, 'tools', 'gen-bounty-monsters.mjs');
+  try { await stat(gen); } catch { return 0; }
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
+  const out = ((r.stdout || '') + (r.stderr || '')).trim();
+  if (r.status === 0) { console.log(`Bounty catalogue preflight: ${out || 'in sync'}`); return 0; }
+  console.error(`\nBounty catalogue preflight FAILED — src/data/monsters.js no longer matches the generated SQL.\n${out}\n`);
+  return 1;
+}
+
 // PREFLIGHT — SECURITY CONDITION S5: src/data/items.js ⊆ hr_items.
 //
 // The check above regenerates the SQL and compares it to the file, so both
@@ -1618,6 +1632,7 @@ const run = async () => {
   if (await artPalettePreflight()) process.exit(1);
   if (await backgroundWavePreflight()) process.exit(1);
   if (await catalogueDriftPreflight()) process.exit(1);
+  if (await bountyMonsterPreflight()) process.exit(1);
   if (await itemsCataloguePreflight()) process.exit(1);
   if (await recipeYieldPreflight()) process.exit(1);
   if (await itemLedgerPreflight()) process.exit(1);
@@ -1811,6 +1826,22 @@ const run = async () => {
     } else {
       console.log('\nCollection/renown claim drift guard — milestone + rank catalogues, client rows, '
         + 'and the credit RPC SQL all agree on every threshold + gold + gems.');
+    }
+
+    /* ── The bounty economy drift guard (server-owned bounty turn-in) ─────
+       The kill-driven bounty (type 'cull') turn-in now credits server-owned
+       gold + Bounty Marks (hr_accept_bounty / hr_claim_bounty). This binds the
+       reward, required-kill range and tier-unlock ladder in src/core/bounty.js
+       to the CASE constants the migration credits from, so a player can never be
+       shown one bounty reward and paid another. The monster→tier catalogue is
+       bound separately by the generator's --check below. */
+    const bntProblems = await bountyDriftGuard();
+    if (bntProblems.length) {
+      console.log('\nBounty drift guard — FAILED:');
+      for (const p of bntProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nBounty drift guard — bounty.js reward/range/tier tables and the credit RPC SQL agree.');
     }
 
     /* ── The artisan accrual guard (b356) ───────────────────────────────

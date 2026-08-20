@@ -3841,6 +3841,14 @@ function acceptBounty(index){
     G.bountyHunter.active.progress=0;
   }
   G.bountyHunter.board.splice(index,1);
+  /* SERVER BASELINE (2026-08-23-bounty.sql): a CULL turn-in is server-credited, and
+     the server must snapshot the target's kill count at ACCEPT so the claim requires
+     NEW kills. Fire the accept intent for cull bounties in LIVE play only — never
+     inside the away replay (a synchronous night must not fire network calls; away
+     bounties stay client-side, a documented follow-up for the accrual engine). */
+  if(G.bountyHunter.active.type==='cull' && (typeof inOfflineReplay!=='function' || !inOfflineReplay())){
+    try{ if(window.HearthriseGoalClaim && HearthriseGoalClaim.acceptBounty){ const _p=HearthriseGoalClaim.acceptBounty(G.bountyHunter.active); if(_p&&_p.catch)_p.catch(()=>{}); } }catch(e){}
+  }
   notify(`Accepted bounty: ${MONSTERS[b.target]?.name}`,'info');
   renderCombat();repaintBounty();saveLocal();
 }
@@ -3884,13 +3892,20 @@ function handleBountyKill(monsterId,m){
 function completeBounty(){
   const b=G.bountyHunter.active;if(!b)return;
   const r=b.rewards||{gold:0,marks:0,xp:0};
-  /* ARM-SAFE (gold flip): a bounty turn-in pays gold AND Marks, and NEITHER is
-     credited server-side (MARKS_COLUMN blocker). Under arm the gold credit
-     no-ops, so DEFER the whole turn-in — do NOT consume the proof item, clear
-     the active bounty, or pay Marks/XP — rather than burning the bounty for a
-     reward that never lands. It stays claimable for when it is server-credited.
-     No-op until gold is armed, so the seeded away-replay is byte-identical. */
-  if((r.gold||0)>0&&!clientMayWriteRecordField('gold'))return;
+  const _isCull=b.type==='cull';
+  /* SERVER TURN-IN (2026-08-23-bounty.sql). A CULL bounty is now server-credited:
+     hr_claim_bounty verifies (kills-since-accept >= required) and credits server-
+     owned gold + Bounty Marks. The local gold/marks/xp writes below become a DISPLAY
+     prediction (gold gated on clientMayWriteRecordField; the server envelope is the
+     truth). Fire in LIVE play only — the away replay stays client-side (accrual-
+     engine follow-up), and the seeded night is byte-identical there. */
+  if(_isCull && (typeof inOfflineReplay!=='function' || !inOfflineReplay())){
+    try{ if(window.HearthriseGoalClaim && HearthriseGoalClaim.claimBounty){ const _p=HearthriseGoalClaim.claimBounty(); if(_p&&_p.catch)_p.catch(()=>{}); } }catch(e){}
+  }
+  /* NON-CULL (proof/weapon/streak) have NO server turn-in path (not server-
+     verifiable). Under the gold arm their gold credit no-ops, so keep the b411
+     defer for THEM only — do not burn the bounty for a reward that never lands. */
+  if(!_isCull && (r.gold||0)>0 && !clientMayWriteRecordField('gold'))return;
   if(b.type==='proof'&&b.proofItem)removeItem(b.proofItem,b.required);
   if(clientMayWriteRecordField('gold'))G.gold+=r.gold||0;G.bountyHunter.marks=(G.bountyHunter.marks||0)+(r.marks||0);G.bountyHunter.xp=(G.bountyHunter.xp||0)+(r.xp||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
   const oldLevel=levelFromXp((G.bountyHunter.xp||0)-(r.xp||0)),newLevel=getBountyHunterLevel();

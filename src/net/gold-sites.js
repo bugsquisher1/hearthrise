@@ -537,35 +537,39 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
   'src/features/muster.js#payChest': {
     kind: 'transfer', status: 'deferred',
-    /* world_event_claim PRICES the chest server-side but does NOT write
-       player_state.gold — it returns the amount and the credit happens in
-       payChest. So the local grant would be ERASED on flip, not reconciled.
-       Two-layer arm safety: payChest's gold write is gated on the record seam
-       (this flipGuard), AND the CLAIM ENTRY (muster.js claim()) defers the whole
-       claim under arm so world_event_claim never CONSUMES a once-per-day claim it
-       cannot pay — otherwise the claim is spent for zero, unrecoverable. The real
-       fix is crediting v_gold/v_gems INSIDE world_event_claim; a review-only
-       migration proposes it (needs a slot param + client wiring + a ledger row +
-       deploy). */
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-    blockedBy: 'nothing here — the VALUE is already decided by a SECURITY DEFINER RPC, so this is '
-      + 'pure bookkeeping and belongs INSIDE that RPC (the 2026-08-15 ruling: rules => Edge, '
-      + 'bookkeeping => database function). Clan/raid domain, separate owner. It must NOT be '
-      + 're-priced by a verb that would second-guess a number the database already fixed.',
+    /* SERVER-CREDITED (2026-08-19-muster-raid-rpc-credit.sql). world_event_claim
+       now credits v_gold/v_gems INTO player_state, atomically with consuming the
+       once-per-day claim, and journals one player_ledger row. muster.js passes
+       p_slot; the b411 entry-point defer is removed. payChest's local gold/gems
+       write is now a DISPLAY prediction the server envelope reconciles (pre-arm it
+       still credits locally; post-arm it no-ops via clientMayWriteRecordField and
+       the server value arrives on the next envelope) — not a second record. */
+    flipGuard: { serverCredits: 'world_event_claim (2026-08-19-muster-raid-rpc-credit.sql) '
+      + 'credits gold+gems into player_state after the claim-consuming conditional update, '
+      + 'once-per-day guard covers the credit, journalled to player_ledger kind=rally' },
+    blockedBy: 'nothing for the VALUE — world_event_claim credits it server-side (see flipGuard). '
+      + 'What keeps this row deferred rather than wired is that payChest\'s local gold/gems write is '
+      + 'a DIRECT display write gated on clientMayWriteRecordField, not yet a HearthriseGold.settle '
+      + 'prediction the envelope reconciles by key. Folding it onto the settle seam (or dropping the '
+      + 'local write and rendering the returned amount) is the follow-up that makes it wired.',
   },
   'src/features/raids.js#grantReward': {
     kind: 'transfer', status: 'deferred',
-    /* The raid claim RPC authorises the claim (band/scale/sig, once-per-week) but
-       writes no gold to player_state — the chest is credited client-side, so the
-       flip would erase it. Two-layer arm safety: grantReward's gold write is
-       gated on the record seam (this flipGuard), AND the CLAIM ENTRY (raids.js
-       serverClaim() — the one choke clan/solo/grace all route through) defers the
-       whole claim under arm so raid_claim never CONSUMES a week it cannot pay —
-       otherwise the week is spent for zero, unrecoverable. The real fix is
-       crediting the chest INSIDE raid_claim; a review-only migration proposes it
-       (needs a slot param + client wiring + a ledger row + deploy). */
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-    blockedBy: 'same as muster payChest — server-priced already; belongs in the raid RPC.',
+    /* SERVER-CREDITED (2026-08-19-muster-raid-rpc-credit.sql). raid_claim now
+       credits the chest gold/gems INTO player_state, atomically with consuming the
+       once-per-week claim (clan: hr_hunt_tiers.chest_gold/gems × server v_scale;
+       solo: the flat 2,800/5 × 0.4 constant pinned server-side), and journals one
+       player_ledger row (kind=raid). raids.js passes p_slot through the single
+       serverClaim() choke; the b411 entry-point defer is removed. grantReward's
+       local gold/gems write is now a DISPLAY prediction reconciled by the server
+       envelope, not a second record. */
+    flipGuard: { serverCredits: 'raid_claim (2026-08-19-muster-raid-rpc-credit.sql) credits '
+      + 'gold+gems into player_state after the raid_claims on-conflict-do-nothing guard, '
+      + 'once-per-week PK covers the credit, journalled to player_ledger kind=raid' },
+    blockedBy: 'nothing for the VALUE — raid_claim credits it server-side (see flipGuard). This row '
+      + 'stays deferred (not wired) only because grantReward\'s local gold/gems write is a DIRECT '
+      + 'display write gated on clientMayWriteRecordField, not yet a HearthriseGold.settle prediction '
+      + 'the envelope reconciles by key. Same follow-up as muster payChest.',
   },
   /* ── THE MARKET (b355). The first value that crosses to another player. ───
      `seam:market.buy` and `seam:market.buy_aggregated` are one gesture each and

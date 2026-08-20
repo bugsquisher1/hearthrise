@@ -73,6 +73,56 @@ const tryRunAsync = (name, fn) => Promise.resolve()
   .then(() => pass(name), (e) => fail(name, e && (e.message || e)));
 const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
 
+/* ── stampBalanceLikeLoad — THE MISSING HALF OF THE HARNESS (gold-arm) ────────
+   THE PROBLEM THIS SOLVES, STATED EXACTLY. When gold/gems are ARMED into
+   SERVER_OF_RECORD, `balanceOf` no longer trusts the presence of a number in G —
+   it trusts `G._record`, the provenance stamp that ONLY `applyRecord` writes (the
+   b347 fingerprint rule). In production `hr_load` stamps that record before the
+   first render, so `G.gold` reads KNOWN. The smoke harness never runs a real
+   `hr_load`, so a test that does `G.gold = N` leaves the balance UNKNOWN and
+   every affordability-gated action fail-closes — ~48 economy/UI tests go red not
+   because the code regressed but because the test never simulated the load.
+
+   This is that simulation, and it is FAITHFUL by construction: it goes through
+   the REAL `window.HearthriseRecord.applyRecord` with a properly-shaped server
+   envelope carrying `state.gold`/`state.gems` = the current `G.gold`/`G.gems` —
+   exactly the bytes `hr_load`/`applyServerEnvelope` (legacy.js:1956) route
+   through applyRecord. It POKES NO `_record` internals: a green suite therefore
+   proves the armed READ path (decodeRecord → applyRecord → recordValue →
+   balanceOf) actually works, rather than faking the stamp.
+
+   ⚠ IT IS OPT-IN, PER TEST, and deliberately not a tryRun-level auto-stamp. A
+     blanket stamp would hide a real regression in which production forgot to
+     re-stamp after a server write — the exact `client-overwrote` fault b347/b356
+     exist to catch. A test calls this only when it legitimately HAS a loaded
+     balance (it set one and expects a purchase to work, or it simulated a load).
+     A test that verifies fail-closed/UNKNOWN on a genuinely-unstamped balance
+     must NOT call it.
+
+   It mirrors hr_load by supplying EVERY armed field it can (gold, gems, and the
+   `accrued_to` watermark from G.offlineBudget.at when present) so applyRecord's
+   wholesale `_record` replacement never silently drops a field the test still
+   relies on. Monotonic-version-safe: it clears any prior stamp. */
+function stampBalanceLikeLoad(G, opts) {
+  const o = opts || {};
+  const R = (typeof window !== 'undefined') && window.HearthriseRecord;
+  if (!R || !G || typeof G !== 'object') return null;
+  const armed = R.serverOfRecordFields();
+  const state = {};
+  if (armed.indexOf('gold') !== -1 && typeof G.gold !== 'undefined') state.gold = G.gold;
+  if (armed.indexOf('gems') !== -1 && typeof G.gems !== 'undefined') state.gems = G.gems;
+  /* Preserve the watermark: applyRecord REPLACES G._record wholesale, so if a
+     prior stamp had offlineBudget KNOWN and we omit accrued_to, it would drop off
+     the `known` list. Re-supply it from the value the client already holds. */
+  if (armed.indexOf('offlineBudget') !== -1) {
+    const at = G.offlineBudget && Number(G.offlineBudget.at);
+    if (Number.isFinite(at) && at > 0) state.accrued_to = at;
+  }
+  const prev = (G._record && Number(G._record.version)) || 0;
+  const version = Number.isFinite(o.version) ? o.version : Math.max(prev + 1, Date.now());
+  return R.applyRecord(G, { ok: true, version, now: new Date(version).toISOString(), state });
+}
+
 /* ── b369 — HOW THE SUITE ARMS THE ENVELOPE FLIP, AND THE ONLY WAY IT MAY ────
    From b369 the absolute envelope arms on ONE fact: the server acknowledged an
    equip round trip in this session (src/net/equip.js, the arming block). There
@@ -144,6 +194,12 @@ const unpinClientAuthoritative = (A) => {
      page a player is sitting in; leaving them client-authoritative because a
      test needed that position would be the flip silently un-flipping itself. */
   try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+  /* gold-arm: a client-authoritative test that moved gold/gems (or restored them
+     in its finally) leaves the boot stamp STALE for the ambient live G, which
+     would fail-close the next reader test's balance. Re-establish the stamp the
+     way hr_load does — scoped to this runner (the mutator category), never a
+     blanket per-test wrapper. */
+  try { stampBalanceLikeLoad(window.G); } catch (e) {}
 };
 const tryRunClientAuthoritative = (name, fn) => {
   const A = pinClientAuthoritative();
@@ -977,6 +1033,9 @@ const TESTS = [
   // the charge assertion needs the local-payment path. The server-authoritative
   // path (offer-only wire, prediction lifecycle) is covered by the 'unlock_buy
   // client transport' test above and by tests/unlock-buy.mjs.
+  // gold-arm: gold is ARMED, so the affordability READ still needs the balance
+  // stamped after it is set (stampBalanceLikeLoad below) even in the switch-OFF
+  // position — canAfford fail-closes on an unstamped balance.
   () => tryRunClientAuthoritative('b227 regression: building a room repaints the House (the double-build report)', () => {
     // THE BUG. refreshAll() renders profile/inventory/skills/combat/shop and
     // has never rendered the House; nothing else repainted it after a mutation
@@ -990,6 +1049,7 @@ const TESTS = [
       window.G.homestead = { tier: 2 };                 // farmstead: the Forge is legal
       window.G.rooms = {};
       window.G.gold = 500000;
+      stampBalanceLikeLoad(window.G);   // armed: canPayCost reads gold via the balance accessor
       window.G.inventory = Object.assign({}, window.G.inventory, { copper_ore: 500, iron_ore: 500 });
       window.showTab('house');
       if (typeof window.setHouseTab === 'function') window.setHouseTab('rooms');
@@ -1044,7 +1104,7 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('b227 regression: the property gate is enforced on EVERY rung, not just the first', () => {
+  () => tryRunClientAuthoritative('b227 regression: the property gate is enforced on EVERY rung, not just the first', () => {
     // The old gate ran only at `lv === 0`. Harmless while a room's three rungs
     // shared one gate; a hole the moment L4 needs a Manor. A tier-2 player who
     // owns a Forge could otherwise buy the tier-3 and tier-4 rungs outright.
@@ -1054,6 +1114,7 @@ const TESTS = [
       window.G.homestead = { tier: 2 };                 // farmstead — below the L4 gate of 3
       window.G.rooms = { forge: 3 };                    // owns every ungated rung
       window.G.gold = 9000000;
+      stampBalanceLikeLoad(window.G);
       const inv = {};
       Object.keys(window.ROOMS.forge.levels[3].cost).forEach((k) => { if (k !== 'gold') inv[k] = 9999; });
       window.G.inventory = Object.assign({}, window.G.inventory, inv);
@@ -1116,6 +1177,7 @@ const TESTS = [
     try {
       window.G.homestead = { tier: 0 };                 // camp → next is homestead (400g)
       window.G.gold = 500000;
+      stampBalanceLikeLoad(window.G);   // armed: upgradeProperty's affordability read is registry-first
       window.G.inventory = Object.assign({}, window.G.inventory, { copper_ore: 500, normal_log: 500 });
       const goldBefore = window.G.gold;
       const ok = H.upgradeProperty();
@@ -1155,6 +1217,7 @@ const TESTS = [
         window.G.homestead = { tier: 1 };            // 1 worker slot
         window.G.workers = { hired: [] };
         window.G.gold = 100000;
+        stampBalanceLikeLoad(window.G);   // armed: hire()'s affordability read is registry-first
         const before = window.G.gold;
         window.HearthriseWorkers.hire();
         assert(window.G.workers.hired.length === 1, 'the first worker should be hired');
@@ -1164,6 +1227,7 @@ const TESTS = [
         window.G.homestead = { tier: 1 };
         window.G.plotBuildings = [];
         window.G.gold = 100000;
+        stampBalanceLikeLoad(window.G);   // armed: buildPlot's affordability read is registry-first
         window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 100 });
         const before = window.G.gold;
         window.buildPlot('farm_plot');
@@ -1173,6 +1237,7 @@ const TESTS = [
       if (typeof window.buyBankSpaceGold === 'function' && typeof window.bankGoldCost === 'function') {
         window.G.bank = { goldBuys: 0 };
         window.G.gold = 1000000;
+        stampBalanceLikeLoad(window.G);   // armed: buyBankSpaceGold's affordability read is registry-first
         const cost = window.bankGoldCost();
         const before = window.G.gold;
         window.buyBankSpaceGold();
@@ -1198,6 +1263,7 @@ const TESTS = [
 
       if (window.HearthriseWorkers && typeof window.HearthriseWorkers.hire === 'function' && window.HearthriseHomestead) {
         window.G.homestead = { tier: 1 }; window.G.workers = { hired: [] }; window.G.gold = 100000;
+        stampBalanceLikeLoad(window.G);   // armed: hire() gates on the affordability read before firing buyUnlock
         sent.length = 0;
         window.HearthriseWorkers.hire();
         const call = sent.find((a) => a[0] === 'worker_hire.1');
@@ -1206,6 +1272,7 @@ const TESTS = [
       }
       if (typeof window.buildPlot === 'function' && window.HearthriseHomestead) {
         window.G.homestead = { tier: 1 }; window.G.plotBuildings = []; window.G.gold = 100000;
+        stampBalanceLikeLoad(window.G);   // armed: buildPlot gates on the affordability read before firing buyUnlock
         window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 100 });
         sent.length = 0;
         window.buildPlot('farm_plot');
@@ -1213,6 +1280,7 @@ const TESTS = [
       }
       if (typeof window.buyBankSpaceGold === 'function') {
         window.G.bank = { goldBuys: 0 }; window.G.gold = 1000000;
+        stampBalanceLikeLoad(window.G);   // armed: buyBankSpaceGold gates on the affordability read before firing buyUnlock
         sent.length = 0;
         window.buyBankSpaceGold();
         assert(sent.some((a) => a[0] === 'bank.0'), 'buyBankSpaceGold must send offer bank.0; sent ' + JSON.stringify(sent));
@@ -1278,6 +1346,11 @@ const TESTS = [
       window.clientMayWriteRecordField = function () { return true; };
       window.G.buyback = [{ id: 'copper_ore', qty: 2, unit: 3, at: Date.now() }];
       window.G.gold = 1000;
+      /* armed: gold is registry-first, so the affordability read is UNKNOWN until
+         stamped the way hr_load does — even though the WRITE gate is stubbed open.
+         The ARMED half below is deliberately left UNSTAMPED so the genuine
+         fail-closed refusal is measured. */
+      stampBalanceLikeLoad(window.G);
       window.G.inventory = Object.assign({}, window.G.inventory);
       const before = window.G.gold;
       window.repurchase(0);
@@ -1315,6 +1388,7 @@ const TESTS = [
       S.buyUnlock = function () { sent.push(Array.prototype.slice.call(arguments)); return Promise.resolve({ sent: false }); };
       window.G.companions = { ownedIds: [], xp: {}, equipped: null };
       window.G.gold = 100000;
+      stampBalanceLikeLoad(window.G);   // armed: _buyCompanion gates on the affordability read before firing buyUnlock
       window._buyCompanion('sparrow', 5000);
       const call = sent.find((a) => a[0] === 'companion.sparrow');
       assert(call, '_buyCompanion must send offer companion.sparrow; sent ' + JSON.stringify(sent));
@@ -1347,6 +1421,10 @@ const TESTS = [
       window.clientMayWriteRecordField = function () { return true; };
       window.G.companions = { ownedIds: [], xp: {}, equipped: null };
       window.G.gold = 100000;
+      /* armed: the affordability read is registry-first — stamp it the way hr_load
+         does so the (write-gate-open) unarmed path can debit. The ARMED half below
+         is left UNSTAMPED so the genuine fail-closed refusal is measured. */
+      stampBalanceLikeLoad(window.G);
       const before = window.G.gold;
       window._buyCompanion('sparrow', 5000);
       assert(window.G.companions.ownedIds.indexOf('sparrow') >= 0, 'unarmed buy must grant the companion');
@@ -2369,6 +2447,7 @@ const TESTS = [
       window.G.homestead = { tier: 3 };
       window.G.rooms = { kitchen: 1 };
       window.G.gold = 999999;
+      stampBalanceLikeLoad(window.G);   // armed: `affordable` reads gold via canAfford
       window.G.inventory = { normal_log: 999, oak_log: 999 };
 
       // ── the descriptor carries it, on the rung AND on `next`
@@ -2425,6 +2504,7 @@ const TESTS = [
       window.G.homestead = { tier: 3 };
       window.G.rooms = { kitchen: 1 };
       window.G.gold = 999999;
+      stampBalanceLikeLoad(window.G);   // armed: modalDescriptor reads gold via canAfford
       window.G.inventory = { normal_log: 999 };
 
       const m = H.modalDescriptor('kitchen');
@@ -2455,6 +2535,7 @@ const TESTS = [
       /* Two blockers at once must name BOTH — fixing the one you were told
          about only to find the button still dead is the same bug again. */
       window.G.gold = 0;
+      stampBalanceLikeLoad(window.G);   // armed: the shortfall line must read a KNOWN 0, not UNKNOWN
       const both = H.modalDescriptor('kitchen');
       const b2 = both.sections.find((s) => s.kind === 'actions').buttons.find((b) => /^Upgrade/.test(b.label));
       assert(/Kitchen Blueprint II/.test(b2.why) && /Missing/.test(b2.why),
@@ -2715,6 +2796,7 @@ const TESTS = [
       window.G.homestead = { tier: 3 };
       window.G.rooms = { workshop: 0, forge: 2 };
       window.G.gold = 1000;
+      stampBalanceLikeLoad(window.G);   // armed: _costPart('gold', …) reads via canAfford
       window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 2, normal_plank: 2 });
 
       // (1) the shared helper itself — with art present, which is the bug case.
@@ -2764,7 +2846,11 @@ const TESTS = [
     } finally { restoreG(snap); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
   }),
 
-  () => tryRun('b201: workers — hire, assign, lazy accrual produces resources (never player XP)', () => {
+  /* gold-arm: W.hire() is a deferred SPEND gated by clientMayWriteRecordField
+     (gold-sites.js workers#hire) — the debit is a client write the armed switch
+     suppresses, so this covers the switch-OFF position; the stamp makes the
+     affordability READ known. */
+  () => tryRunClientAuthoritative('b201: workers — hire, assign, lazy accrual produces resources (never player XP)', () => {
     const W = window.HearthriseWorkers, H = window.HearthriseHomestead;
     assert(W && H, 'workers + homestead modules present');
     const G = window.G;
@@ -2775,6 +2861,7 @@ const TESTS = [
     try {
       G.homestead = { tier: 1 };                       // 1 worker slot
       G.workers = { hired: [] }; G.gold = 10000;
+      stampBalanceLikeLoad(G);   // armed: W.hire() reads gold via canAfford
       G.skills = Object.assign({}, G.skills, { woodcutting: 100000 }); // high enough for any tree
       const w = W.hire();
       assert(w, 'hire should succeed with gold + a free slot');
@@ -3091,7 +3178,9 @@ const TESTS = [
      the harness, the fired intent answers `unconfigured` and rolls the local debit
      back, so the exact-deduction assertions below must run with the switch OFF —
      the shipping-today path, and the same discipline slice 1 applied to its debit
-     tests. The gem path and the cap arithmetic are switch-independent. */
+     tests. The gem path and the cap arithmetic are switch-independent.
+     gold-arm: gold/gems are ARMED, so the debit lands and the affordability check
+     reads a KNOWN balance only after the stamp — stampBalanceLikeLoad below. */
   () => tryRunClientAuthoritative('b269: buying bank space raises the cap; gold escalates; gems are the better deal', () => {
     const G = window.G;
     assert(typeof window.buyBankSpaceGold === 'function', 'buyBankSpaceGold missing');
@@ -3106,6 +3195,7 @@ const TESTS = [
 
       // GOLD path: raises cap by the gold slot count, spends the escalating cost.
       G.gold = 10_000_000; G.gems = 10_000;
+      stampBalanceLikeLoad(G);   // armed: buyBankSpace* read via canAfford
       const c0 = window.bankGoldCost();
       assert(window.buyBankSpaceGold() === true, 'gold buy should succeed when affordable');
       assert(window.bankCap() === cap0 + BS.gold.slots, 'gold buy must add gold.slots to the cap');
@@ -3120,10 +3210,11 @@ const TESTS = [
       assert(G.gems === gemsBefore - BS.gem.cost, 'gem buy must deduct exactly the gem cost');
       assert(BS.gem.slots > BS.gold.slots, 'the gem path must grant more slots per buy than gold');
 
-      // Can't overspend either currency.
-      G.gold = 0;
+      // Can't overspend either currency. Re-stamp so the refusal is measured on a
+      // genuinely-KNOWN zero balance (the "you are broke" path), not on UNKNOWN.
+      G.gold = 0; stampBalanceLikeLoad(G);
       assert(window.buyBankSpaceGold() === false && G.gold === 0, 'must refuse gold buy with no gold');
-      G.gems = 0;
+      G.gems = 0; stampBalanceLikeLoad(G);
       assert(window.buyBankSpaceGem() === false && G.gems === 0, 'must refuse gem buy with no gems');
     } finally {
       G.gold = saved.gold; G.gems = saved.gems; G.bank = saved.bank;
@@ -3693,7 +3784,9 @@ const TESTS = [
       'preview hit-chance must equal the engine accuracy');
   }),
 
-  () => tryRun('WAVE2: upgradeRoom requires AND consumes the housing blueprint (P0)', () => {
+  // gold-arm: upgradeRoom's gold debit is gated by clientMayWriteRecordField
+  // (switch-OFF position); the stamp makes the affordability read known.
+  () => tryRunClientAuthoritative('WAVE2: upgradeRoom requires AND consumes the housing blueprint (P0)', () => {
     // The most common dungeon reward was inert — upgradeRoom never touched it.
     const G = window.G;
     if (typeof window.upgradeRoom !== 'function' || !window.ROOMS || !window.ROOMS.kitchen || !window.ITEMS) return;
@@ -3705,6 +3798,7 @@ const TESTS = [
       G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });   // built; upgrading to tier 2
       const inv = {}; Object.keys(window.ITEMS).forEach(id => inv[id] = 100000); delete inv[bp]; // everything EXCEPT the blueprint
       G.inventory = inv; G.gold = 1e9;
+      stampBalanceLikeLoad(G);   // armed: upgradeRoom reads gold via canAfford
       const before = G.rooms.kitchen;
       const noBp = window.upgradeRoom('kitchen');
       assert(noBp === false && G.rooms.kitchen === before, 'kitchen tier 2 must be blocked without the blueprint');
@@ -3927,6 +4021,7 @@ const TESTS = [
       // Earned 10,000 today, then spent nearly all of it: balance is flat, income is not.
       G.dailyGoldStart = { day: day, gold: 5000, earned: 10000 };
       G.gold = 5200;
+      stampBalanceLikeLoad(G);   // gold is armed: a directly-set balance reads UNKNOWN until stamped
       assert(window._dailyGoldDelta() === 10000,
         'income must be 10000 even though the balance barely moved, got ' + window._dailyGoldDelta());
       // and the goal reader must agree (three copies of this maths existed)
@@ -3935,6 +4030,7 @@ const TESTS = [
       }
       // a save with no counter yet falls back to the old maths rather than breaking
       G.dailyGoldStart = { day: day, gold: 1000 }; G.gold = 1600;
+      stampBalanceLikeLoad(G);
       assert(window._dailyGoldDelta() === 600, 'legacy saves must still report something sane');
     } finally { G.dailyGoldStart = saved.dgs; G.gold = saved.gold; }
   }),
@@ -5084,7 +5180,9 @@ const TESTS = [
       G.foodSlot = savedFS; G.autoEatPct = savedPct;
     }
   }),
-  () => tryRun('b167: Collection Log tracks completion + claims milestones', () => {
+  // gold-arm: claimMilestone credits gold via clientMayWriteRecordField (a
+  // deferred GRANT, blocked on the server collection model) — switch-OFF position.
+  () => tryRunClientAuthoritative('b167: Collection Log tracks completion + claims milestones', () => {
     const C = window.HearthriseCollection;
     assert(C && typeof C.getStats === 'function' && typeof C.claimMilestone === 'function', 'HearthriseCollection missing');
     const G = window.G;
@@ -5224,7 +5322,9 @@ const TESTS = [
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
     }
   }),
-  () => tryRun('b164: Renown ladder scores, ranks up, claims, and perks apply', () => {
+  // gold-arm: claimRank credits gold via clientMayWriteRecordField (deferred
+  // GRANT, blocked on server-side Renown) — switch-OFF position.
+  () => tryRunClientAuthoritative('b164: Renown ladder scores, ranks up, claims, and perks apply', () => {
     const R = window.HearthriseRenown;
     assert(R && typeof R.compute === 'function' && typeof R.getState === 'function', 'HearthriseRenown missing');
     // ladder thresholds strictly increase
@@ -6314,7 +6414,9 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('action: upgrade a house room (state-level)', () => {
+  // gold-arm: upgradeRoom's debit is gated by clientMayWriteRecordField
+  // (switch-OFF position); the stamp makes the affordability read known.
+  () => tryRunClientAuthoritative('action: upgrade a house room (state-level)', () => {
     const snap = snapshotG();
     try {
       if (typeof window.upgradeRoom !== 'function') return;
@@ -6324,6 +6426,7 @@ const TESTS = [
       window.G.homestead = { tier: 5 };
       // Give plenty of gold + the materials kitchen lv1 needs.
       window.G.gold = (window.G.gold || 0) + 100000;
+      stampBalanceLikeLoad(window.G);   // armed: upgradeRoom reads gold via canAfford
       window.G.inventory = window.G.inventory || {};
       // Pre-pay every possible mat cost in absurd quantity.
       const mats = ['normal_log','oak_log','willow_log','copper_bar','iron_bar','stone','normal_plank','oak_plank'];
@@ -6402,20 +6505,21 @@ const TESTS = [
   () => tryRun('action: save + reload localStorage round-trip', () => {
     const snap = snapshotG();
     try {
-      // b127: use a real persisted field (gold) instead of a synthetic
-      // marker. The save serializer whitelists known fields, so
-      // `__testMarker` was being stripped on save. Bumping gold by a
-      // distinctive amount, saving, mutating in memory, then reloading
-      // proves the round-trip works.
+      // gold-arm: gold USED to be this test's round-trip proxy, but gold is now a
+      // SERVER_OF_RECORD field — stripServerOfRecord DELETES it on the way in and
+      // hr_load re-supplies it, so a save→reload deliberately does NOT round-trip
+      // gold through the blob (that is the whole point of the record move). Prove
+      // the round-trip on a genuinely-persisted, non-record field instead.
       if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') return;
       const tag = 12345;  // distinctive offset so we can detect it
-      const goldBefore = window.G.gold || 0;
-      window.G.gold = goldBefore + tag;
+      window.G.stats = window.G.stats || {};
+      const killsBefore = window.G.stats.kills || 0;
+      window.G.stats.kills = killsBefore + tag;
       window.saveLocal();
-      window.G.gold = -1;            // mutate in memory only
+      window.G.stats.kills = -1;            // mutate in memory only
       window.loadLocal();
-      assert(window.G.gold === goldBefore + tag,
-        `save/load round-trip lost gold change: expected ${goldBefore + tag}, got ${window.G.gold}`);
+      assert((window.G.stats && window.G.stats.kills) === killsBefore + tag,
+        `save/load round-trip lost a persisted field: expected ${killsBefore + tag}, got ${window.G.stats && window.G.stats.kills}`);
     } finally {
       // Restore + persist cleanup so we don't leave the player +12345g
       restoreG(snap);
@@ -7230,19 +7334,24 @@ const TESTS = [
       // Force a fresh snapshot for today
       window.G.daily = window.G.daily || {};
       window.G.daily.snapshot = null;
-      // Set a clean baseline
+      // Set a clean baseline. gold is ARMED, so a directly-set balance is only
+      // KNOWN once stamped the way hr_load does — getTodayDelta reads it through
+      // balanceNum and would otherwise see UNKNOWN (null → 0).
       window.G.gold = 1000;
+      stampBalanceLikeLoad(window.G);
       window.G.stats = window.G.stats || {};
       window.G.stats.kills = 5;
       window.HearthriseLaunchpad.ensureDailySnapshot();
       // Now mutate
       window.G.gold = 1250;
+      stampBalanceLikeLoad(window.G);
       window.G.stats.kills = 7;
       const d = window.HearthriseLaunchpad.getTodayDelta();
       assert(d.goldEarned === 250, 'goldEarned should be 250, got ' + d.goldEarned);
       assert(d.kills === 2, 'kills should be 2, got ' + d.kills);
       // Negative deltas (e.g. spent gold) clamp to 0 — fairness for the player
       window.G.gold = 500;
+      stampBalanceLikeLoad(window.G);
       const d2 = window.HearthriseLaunchpad.getTodayDelta();
       assert(d2.goldEarned === 0, 'spent-gold case should clamp to 0, got ' + d2.goldEarned);
     } finally {
@@ -9042,7 +9151,9 @@ const TESTS = [
 
   // #2: the economy. 50% of the BASE band and nothing else — never a Seal,
   // never the community share, never twice, and never before the day is over.
-  () => tryRun('b228: answering in absence pays exactly half the base band, once, and only after the day closes', () => {
+  // gold-arm: the half-honors payout credits gold client-side via a
+  // clientMayWriteRecordField-gated grant — switch-OFF position.
+  () => tryRunClientAuthoritative('b228: answering in absence pays exactly half the base band, once, and only after the day closes', () => {
     const M = window.HearthriseMuster, G = window.G;
     assert(M.ABSENT_SHARE === 0.5, 'the consolation share drifted: ' + M.ABSENT_SHARE);
     assert(M.ABSENT_BAND.gold === Math.round(M.SOLO_BAND.gold * 0.5) && M.ABSENT_BAND.gold === 750,
@@ -12608,7 +12719,9 @@ const TESTS = [
   // that the panel OPENS, CLOSES or LAYS OUT — never that a number MOVES. That
   // is the hole. These tests move real counters and read the rendered text back.
   // ══════════════════════════════════════════════════════════════════════════
-  () => tryRun('b224: a player action moves the RENDERED quest number (strip, modal, claim)', () => {
+  // gold-arm: claimQuestReward credits gold via clientMayWriteRecordField
+  // (deferred GRANT, blocked on server daily/quest counters) — switch-OFF position.
+  () => tryRunClientAuthoritative('b224: a player action moves the RENDERED quest number (strip, modal, claim)', () => {
     assert(typeof window.readSource === 'function',
       'window.readSource is not exported — the Quests strip/modal cannot compute any progress');
     assert(typeof window.getGoalsForToday === 'function', 'getGoalsForToday missing');
@@ -12680,9 +12793,11 @@ const TESTS = [
         'a missing path must read 0, not undefined — the renderer subtracts it');
       G.dailyGoldStart = { day: 0, gold: 1000 };
       G.gold = 1750;
+      stampBalanceLikeLoad(G);   // armed: _dailyGoldDelta reads gold via balanceNum
       assert(window.readSource('_dailyGoldDelta') === 750,
         'the gold-delta daily source is not derived, got ' + window.readSource('_dailyGoldDelta'));
       G.gold = 500;
+      stampBalanceLikeLoad(G);
       assert(window.readSource('_dailyGoldDelta') === 0, 'a negative gold delta must clamp to 0');
 
       // Every source the live pools name has to be readable as a number, or that
@@ -18641,6 +18756,9 @@ const TESTS = [
       assert(G.buyback.length === 1 && G.buyback[0].id === id, 'the sale must be recorded for buy-back');
       // BUY BACK — repurchase restores the item at exactly the price you were paid.
       const goldAfterSell = G.gold;
+      // armed: repurchase() reads gold via canAfford; the sell just moved it, so
+      // stamp the post-sell balance the way an envelope would before the buy-back.
+      stampBalanceLikeLoad(G);
       const cost = G.buyback[0].unit * G.buyback[0].qty;
       window.repurchase(0);
       assert(G.inventory[id] === 100, 'buy-back must restore the item');
@@ -20741,7 +20859,10 @@ const TESTS = [
      kill or gather reward can approach, so the gold delta IS the number of
      applications; the toast count is the same fact as the player sees it; and
      the pet-XP delta is a third witness that involves no RNG at all. */
-  () => tryRun('b342 P0: a companion proc applies EXACTLY ONCE per trigger', () => {
+  // gold-arm: the companion extraGold proc credits gold via
+  // clientMayWriteRecordField (deferred GRANT, live-action intents) — switch-OFF
+  // position. The test reads gold raw (G.gold - gold0), so no stamp is needed.
+  () => tryRunClientAuthoritative('b342 P0: a companion proc applies EXACTLY ONCE per trigger', () => {
     if (!window.COMPANIONS || !window.COMPANIONS.raccoon || !window.COMPANIONS.fox
         || typeof window.killMonster !== 'function' || typeof window.addItem !== 'function') {
       assert(true, 'no companion proc surface'); return;
@@ -21390,6 +21511,7 @@ const TESTS = [
     const chip = document.getElementById('top-gems');
     try {
       G.gems = next.cost + 1000;
+      stampBalanceLikeLoad(G);   // armed: the starting balance is KNOWN the way hr_load leaves it before render
       window.updateTopbar();
       const before = chip ? chip.textContent : '';
       const hadDigits = /\d/.test(before);
@@ -21397,11 +21519,22 @@ const TESTS = [
       assert(r && r.ok, 'unlockSlot must succeed when the player can afford it: ' + (r && r.reason));
       assert(G.gems === 1000, 'the gems were not actually spent');
       if (chip && hadDigits) {
+        /* gold-arm: gems is a SERVER_OF_RECORD field and unlockSlot is an UNWIRED
+           gem sink (raw debit, no server verb → no reconciling envelope), so after
+           the spend the balance is UNKNOWN until the next hr_load and the chip
+           renders the honest PENDING state. The b371 regression this guards —
+           the chip left showing the STALE pre-purchase number — is still caught:
+           the chip must REPAINT (pending ≠ the old number). What arming changes is
+           that the post-spend chip is pending, not the live figure; asserting the
+           live figure here would require faking a reconcile the server never sends. */
         assert(chip.textContent !== before,
           'the header gem chip still shows the pre-purchase balance — the spend never repainted the topbar, so '
           + 'the player sees a stale number until they reload (b371 P2)');
-        assert(chip.textContent.replace(/[^0-9]/g, '') === String(G.gems),
-          'the gem chip must show the live balance after a spend, not a formatted stale one');
+        const B = window.HearthriseBalance;
+        const pending = !!(chip.classList && B && chip.classList.contains(B.PENDING_CLASS));
+        assert(pending || chip.textContent.replace(/[^0-9]/g, '') === String(G.gems),
+          'after an armed gem spend the chip must show either the live balance (reconciled) or the honest '
+          + 'PENDING state — never a stale formatted number');
       }
       const raw = localStorage.getItem('hearthbound-save-v2');
       if (raw) {
@@ -21438,6 +21571,7 @@ const TESTS = [
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     try {
       G.gems = next.cost + 1000;
+      stampBalanceLikeLoad(G);   // armed: unlockSlot reads gems via canAfford
       // The cloud snapshot as it stood BEFORE the purchase.
       const older = { gems: G.gems, heroSlotsUnlocked: HP.unlockedCount() };
       const r = HP.unlockSlot(next.slotId);
@@ -21486,6 +21620,7 @@ const TESTS = [
     const realSave = window.saveLocal;
     try {
       G.gems = next.cost + 1000;
+      stampBalanceLikeLoad(G);   // armed: unlockSlot's affordability read must be KNOWN so it reaches the save step
       // Production was failing saves when the dupe was reported. This is that.
       window.saveLocal = function () { throw new Error('quota exceeded'); };
       const r = HP.unlockSlot(next.slotId);
@@ -21646,13 +21781,30 @@ const TESTS = [
         + 'and every set-aside in this codebase is recoverable (b318 policy)');
 
       // (3) AND AN UNSTAMPED (pre-b372) SAVE IS NOT ACCUSED — that would park the live beta on upgrade.
-      const legacyBlob = { ...stamped, gold: 4242 };
+      /* gold-arm: gold is now a SERVER_OF_RECORD field, stripped on the way in and
+         re-supplied by hr_load, so it can no longer be the "was this save adopted"
+         proxy (G.gold is UNKNOWN straight after any load until an envelope lands).
+         The thing actually under test is that an unstamped save is ADOPTED rather
+         than parked — assert THAT directly: the blob stays live and no mis-slotted
+         backup was cut. A surviving NON-record marker confirms the bytes landed. */
+      const backupsBefore = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf('hearthrise:save-backup:mis-slotted-') === 0) backupsBefore.push(k);
+      }
+      const legacyBlob = { ...stamped, gold: 4242, lastSeen: 424242 };
       delete legacyBlob._saveSlot;
       localStorage.setItem(SAVE_KEY, JSON.stringify(legacyBlob));
       window.loadLocal();
-      assert(G.gold === 4242,
+      assert(localStorage.getItem(SAVE_KEY) !== null && G.lastSeen === 424242,
         'an UNSTAMPED save was refused — every save written before b372 has no stamp, so this would park '
         + 'every existing player on upgrade');
+      let newBackups = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf('hearthrise:save-backup:mis-slotted-') === 0 && backupsBefore.indexOf(k) === -1) newBackups++;
+      }
+      assert(newBackups === 0, 'an unstamped save was parked as mis-slotted — it must be adopted, not accused');
     } finally {
       if (realProcessOffline) window.processOffline = realProcessOffline;
       if (realResume) window.resumeActiveActivity = realResume;
@@ -26498,6 +26650,11 @@ const TESTS = [
        whatever runs next. */
     let controlThrew = false;
     const origToLocale = Number.prototype.toLocaleString;
+    /* gold/gems are ARMED, so a render only reaches `toLocaleString` when the
+       balance is KNOWN — otherwise it renders the pending em dash and the control
+       could not throw for the wrong reason (no number formatted). Stamp the live
+       G the way hr_load does, so the control measures a real formatted balance. */
+    stampBalanceLikeLoad(G);
     try {
       // eslint-disable-next-line no-extend-native
       Number.prototype.toLocaleString = function () { throw new Error('B353-3 control'); };
@@ -26552,8 +26709,14 @@ const TESTS = [
       'the balance accessor is missing one of its four forms (read / display / decide / paint)');
 
     /* THE CONTRACT ITSELF, unit-first, so a failure below can be read as
-       "the accessor is wrong" vs "a screen is wrong" rather than as one blur. */
-    const probe = { gold: 1234, gems: 7 };
+       "the accessor is wrong" vs "a screen is wrong" rather than as one blur.
+       gold/gems are ARMED, so a "known" balance is one the SERVER stamped — the
+       harness simulates that stamp through the real applyRecord path (exactly
+       what hr_load does), rather than trusting a bare number in the object. This
+       proves the armed READ path; the UNKNOWN fixtures below stay UNSTAMPED so
+       the fail-closed contract is still measured on a genuinely-unloaded balance. */
+    const mkKnown = (o) => { stampBalanceLikeLoad(o); return o; };
+    const probe = mkKnown({ gold: 1234, gems: 7 });
     assert(B.balanceNum(probe, 'gold') === 1234, 'a known balance does not read back');
     assert(B.fmtBalance(probe, 'gold') === (1234).toLocaleString(), 'a known balance does not format');
     assert(B.canAfford(probe, 1234, 'gold') === true && B.canAfford(probe, 1235, 'gold') === false,
@@ -26578,8 +26741,8 @@ const TESTS = [
        a 21.5px `<b>` and in the wrong colour in cozy-light. The promise of the
        whole sweep is that a KNOWN balance renders exactly as it did before, and
        the only structural way to keep it is to emit no element. */
-    assert(B.balanceMarkup({ gold: 1234 }, 'gold') === (1234).toLocaleString(),
-      'balanceMarkup wrapped a KNOWN balance in an element ("' + B.balanceMarkup({ gold: 1234 }, 'gold')
+    assert(B.balanceMarkup(mkKnown({ gold: 1234 }), 'gold') === (1234).toLocaleString(),
+      'balanceMarkup wrapped a KNOWN balance in an element ("' + B.balanceMarkup(mkKnown({ gold: 1234 }), 'gold')
       + '"). A span inside a numeral is restyled by this codebase\'s span-targeting readability blankets, '
       + 'so the figure changes size and colour on the screens that have one — the sweep is supposed to be '
       + 'invisible when the balance is known.');
@@ -26587,7 +26750,7 @@ const TESTS = [
       'balanceMarkup did not produce a pending ELEMENT for an UNKNOWN balance — a bare dash carries no '
       + 'class, no label and none of the pending treatment');
 
-    assert(B.shortfallMessage({}, 5, 'gold') !== B.shortfallMessage({ gold: 0 }, 5, 'gold'),
+    assert(B.shortfallMessage({}, 5, 'gold') !== B.shortfallMessage(mkKnown({ gold: 0 }), 5, 'gold'),
       'the refusal copy is identical for "you are short" and "we do not know yet" — telling a player they '
       + 'have not got enough gold when the client has simply not been told the balance is a bug report they '
       + 'would be right to file');
@@ -28922,21 +29085,29 @@ const TESTS = [
 
   () => tryRun('B340-2: the strip removes the moved field, touches nothing else, and never mutates its input', () => {
     const R = window.HearthriseRecord;
-    const blob = { gold: 500, offlineBudget: { at: 1 }, skills: { attack: 10 }, lastSeen: 99 };
+    /* gold/gems ARE moved now, so `restedAt` is the genuinely-unmoved exemplar
+       that proves "touches nothing else". The strip must take EVERY moved field
+       (offlineBudget + gold + gems), so the expected set is derived from the
+       registry rather than hard-coded to one name. */
+    const blob = { restedAt: 500, offlineBudget: { at: 1 }, gold: 42, gems: 3,
+      skills: { attack: 10 }, lastSeen: 99 };
     const out = R.stripServerOfRecord(blob);
-    assert(!('offlineBudget' in out.blob), 'the moved field survived the strip');
-    assert(out.stripped.length === 1 && out.stripped[0] === 'offlineBudget',
-      'the strip did not report what it took: ' + JSON.stringify(out.stripped));
-    assert(out.blob.gold === 500 && out.blob.lastSeen === 99 && out.blob.skills.attack === 10,
+    const moved = R.serverOfRecordFields();
+    for (const f of moved) assert(!(f in out.blob), 'the moved field `' + f + '` survived the strip');
+    assert(out.stripped.slice().sort().join(',') === moved.slice().sort().join(','),
+      'the strip did not report exactly the moved set: ' + JSON.stringify(out.stripped)
+      + ' vs ' + JSON.stringify(moved));
+    assert(out.blob.restedAt === 500 && out.blob.lastSeen === 99 && out.blob.skills.attack === 10,
       'the strip took something it does not own: ' + JSON.stringify(out.blob));
-    assert(blob.offlineBudget && blob.offlineBudget.at === 1,
+    assert(blob.offlineBudget && blob.offlineBudget.at === 1 && blob.gold === 42,
       'the strip MUTATED its argument — the caller may still be holding the parsed snapshot for logging, '
       + 'and a strip that reaches back into it makes that log lie about what arrived');
 
     // forgetServerOfRecord works on a LIVE object (G is one reference, b127).
-    const g = { gold: 1, offlineBudget: { at: 2 } };
+    const g = { restedAt: 1, offlineBudget: { at: 2 }, gold: 9 };
     const forgot = R.forgetServerOfRecord(g);
-    assert(!('offlineBudget' in g) && g.gold === 1 && forgot[0] === 'offlineBudget',
+    assert(!('offlineBudget' in g) && !('gold' in g) && g.restedAt === 1
+      && forgot.indexOf('offlineBudget') !== -1,
       'forgetServerOfRecord did not clear the live object: ' + JSON.stringify(g));
   }),
 
@@ -28998,7 +29169,8 @@ const TESTS = [
       + 're-derive it, which proves nothing about auth.js (B339-3b, same lesson)');
     const wasOn = A.isServerAccrualEnabled();
     try {
-      const snap = { gold: 7, offlineBudget: { at: 5 } };
+      // `restedAt` is the genuinely-unmoved field (gold/gems are moved now).
+      const snap = { restedAt: 7, offlineBudget: { at: 5 } };
 
       // Switch OFF: byte-for-byte b339 behaviour. The b305 restore paths are untouched.
       A.setServerAccrualEnabled(false);
@@ -29008,7 +29180,7 @@ const TESTS = [
       // Switch ON: the field never reaches G from the cloud either.
       A.setServerAccrualEnabled(true);
       const on = Auth.stripRecordFieldsForOverlay(snap, window);
-      assert(!('offlineBudget' in on) && on.gold === 7,
+      assert(!('offlineBudget' in on) && on.restedAt === 7,
         'the cloud overlay still carries the server-owned field — the local seam was closed and the cloud '
         + 'one left open, which is a hole, not a slice: ' + JSON.stringify(on));
 
@@ -29112,10 +29284,11 @@ const TESTS = [
         [200, { ok: false, error: 'rate_limited' }, 'rate-limited'],
         [200, { ok: false, error: 'not_signed_in' }, 'not-signed-in'],
         [200, { ok: false, error: 'brand_new_code' }, 'refused'],
-        /* A PRE-apply-engine hr_load: an envelope with no `accrued_to`. This is
-           the branch that keeps b340 independent of whether
-           2026-08-11-apply-engine.sql has been applied. */
-        [200, { ok: true, version: 2, state: { gold: 0 } }, 'malformed'],
+        /* A PRE-apply-engine hr_load: an envelope carrying NO decodable record
+           field (gold/gems/accrued_to are now all record fields, so the state
+           holds only a non-record key). This is the branch that keeps b340
+           independent of whether 2026-08-11-apply-engine.sql has been applied. */
+        [200, { ok: true, version: 2, state: { slot: 3 } }, 'malformed'],
         [200, null, 'malformed'],
         [401, null, 'not-signed-in'],
         [404, null, 'not-deployed'],
@@ -29336,9 +29509,11 @@ const TESTS = [
          time, which is what makes a returning player's catch-up measure from
          when the ACCOUNT was last active rather than when this device saved. */
       A.setServerAccrualEnabled(false);
-      const off = { offlineBudget: { at: 1 }, gold: 3 };
-      const rOff = Auth.applyCloudOverlay(off, { gold: 7, offlineBudget: { at: 5 } }, cloudAt, window);
-      assert(off.gold === 7 && off.lastSeen === cloudAt && off.offlineBudget.at === cloudAt
+      // `restedAt` is the genuinely-unmoved field (gold/gems are moved now, so
+      // the overlay strips them under the switch and they cannot be the control).
+      const off = { offlineBudget: { at: 1 }, restedAt: 3 };
+      const rOff = Auth.applyCloudOverlay(off, { restedAt: 7, offlineBudget: { at: 5 } }, cloudAt, window);
+      assert(off.restedAt === 7 && off.lastSeen === cloudAt && off.offlineBudget.at === cloudAt
         && rOff.restampedWatermark === true,
         'with the switch OFF the cloud overlay changed shape — every b305 restore path reads this: '
         + JSON.stringify({ g: off, r: rOff }));
@@ -29355,8 +29530,8 @@ const TESTS = [
         state: { accrued_to: '2026-08-15T06:00:00Z' } });
       assert(on.offlineBudget.at === serverAt, 'the fixture never got a server watermark');
 
-      const rOn = Auth.applyCloudOverlay(on, { gold: 7, offlineBudget: { at: 5 } }, cloudAt, window);
-      assert(on.gold === 7 && on.lastSeen === cloudAt,
+      const rOn = Auth.applyCloudOverlay(on, { restedAt: 7, offlineBudget: { at: 5 } }, cloudAt, window);
+      assert(on.restedAt === 7 && on.lastSeen === cloudAt,
         'the overlay stopped applying the fields the client DOES own: ' + JSON.stringify(on));
       assert(on.offlineBudget.at === serverAt && rOn.restampedWatermark === false,
         'the cloud overlay re-stamped the server\'s watermark to the snapshot\'s own save time ('
@@ -29424,7 +29599,7 @@ const TESTS = [
 
     /* The guard direction: a field that is NOT on the registry is not this
        module's business and must never be reported as anything but 'not-moved'. */
-    assert(R.recordValue(g, 'gold').source === 'not-moved', 'an unmoved field was claimed');
+    assert(R.recordValue(g, 'restedAt').source === 'not-moved', 'an unmoved field was claimed');
   }),
 
   () => tryRun('B347-R4: the write guard is ONE implementation, and it fails CLOSED', () => {
@@ -29440,7 +29615,7 @@ const TESTS = [
       A.setServerAccrualEnabled(true);
       assert(A.mayClientWrite('offlineBudget', window) === false,
         'with the switch ON a client site is still allowed to write the record');
-      assert(A.mayClientWrite('gold', window) === true,
+      assert(A.mayClientWrite('restedAt', window) === true,
         'a field that has NOT moved was refused — the registry is the list, not the switch');
 
       /* FAIL CLOSED, and it is why the switch is read from accrue.js and the
@@ -30904,7 +31079,7 @@ const TESTS = [
         'the item→offer index does not resolve iron_sword (' + JSON.stringify(idx.iron_sword) + '). It is '
         + 'derived from src/data/shops.js so a new shop row is sellable the moment the generator runs — a '
         + 'broken index means every purchase answers `no_offer` and silently stops reaching the server');
-      G.gold = 100000; G.inventory = {}; sent = [];
+      G.gold = 100000; G.inventory = {}; sent = []; stampBalanceLikeLoad(G);
       window.buyShopItem('iron_sword', 1, idx.iron_sword.gold);
       await drain();
       assert(sent.length === 1 && sent[0].verb === 'shop_buy',
@@ -30925,7 +31100,7 @@ const TESTS = [
          server would charge its own number anyway, so this cannot cost money —
          it costs CONFIDENCE, and a button that says 500 while the balance drops
          by 2,000 is indistinguishable from theft. */
-      G.gold = 100000; sent = [];
+      G.gold = 100000; sent = []; stampBalanceLikeLoad(G);
       window.buyShopItem('iron_sword', 1, 7);
       await drain();
       assert(sent.length === 0,
@@ -31044,7 +31219,7 @@ const TESTS = [
 
       // ── B355-1: THE WIRE. A listing and a count, and NOTHING that is a price.
       seedListing(10, 5);
-      G.gold = 1000; G.inventory = {}; sent = [];
+      G.gold = 1000; G.inventory = {}; sent = []; stampBalanceLikeLoad(G);
       /* The server charges a number the client never guessed, so an additive
          client would land on 1000 - 40 + (something) and only the ABSOLUTE rule
          produces exactly this. */
@@ -31089,7 +31264,7 @@ const TESTS = [
          units first. Nothing was written server-side, so the local debit is the
          only thing that moved and it comes back — not more, not less. */
       seedListing(25, 8);
-      G.gold = 5000; G.inventory = {}; sent = [];
+      G.gold = 5000; G.inventory = {}; sent = []; stampBalanceLikeLoad(G);
       window.fetch = function (u, init) {
         const s = String(u);
         if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
@@ -31116,7 +31291,7 @@ const TESTS = [
         itemId: 'normal_log', qty: 3, askEach: 7, postedAt: Date.now(),
       }]));
       const localId = JSON.parse(localStorage.getItem('hearthrise:market:listings'))[0].id;
-      G.gold = 900; G.inventory = {}; sent = [];
+      G.gold = 900; G.inventory = {}; sent = []; stampBalanceLikeLoad(G);
       M.buyListing(localId, 3);
       await drain();
       assert(sent.length === 0,
@@ -31158,6 +31333,7 @@ const TESTS = [
          next envelope. Inert = the gesture is refused and gold is UNCHANGED. */
       A.setServerAccrualEnabled(true);
       G.gold = 100000;
+      stampBalanceLikeLoad(G);   // armed: prove inertness comes from the SEAM flag, not a fail-closed read
       G.inventory = { normal_log: 0 };
       localStorage.setItem('hearthrise:market:offers', JSON.stringify([]));
 
@@ -31186,6 +31362,7 @@ const TESTS = [
          the gating is a flag, not a deletion (the row stays `deferred`). */
       A.setServerAccrualEnabled(false);
       G.gold = 100000;
+      stampBalanceLikeLoad(G);   // armed: placeBuyOffer reads gold via canAfford before escrowing
       localStorage.setItem('hearthrise:market:offers', JSON.stringify([]));
       const off = M.placeBuyOffer('normal_log', 5, 100);
       assert(off && off.ok === true, 'placeBuyOffer refused with the switch OFF: ' + JSON.stringify(off)
@@ -34002,6 +34179,7 @@ const TESTS = [
          at cap 160, 88 at cap 200 — the purchase was invisible until the player
          outgrew it. */
       G.gems = 10_000;
+      stampBalanceLikeLoad(G);   // armed: buyBankSpaceGem reads gems via canAfford
       assert(window.buyBankSpaceGem() === true, 'the gem purchase must succeed');
       const after = await paint();
       assert(after.total - before.total === window.BANK_SPACE.gem.slots,
@@ -34513,7 +34691,9 @@ const TESTS = [
      tall desktop viewport while the phone stayed broken, which is exactly the
      bug it is meant to catch.
      ══════════════════════════════════════════════════════════════════════ */
-  () => tryRun('b354: the Build button renders above the scrollable details (homestead room + castle wing)', () => {
+  // gold-arm: the room Build click deducts gold via a clientMayWriteRecordField-
+  // gated path (switch-OFF position); the stamps make the affordability reads known.
+  () => tryRunClientAuthoritative('b354: the Build button renders above the scrollable details (homestead room + castle wing)', () => {
     const RM = window.HearthriseRoomModal, H = window.HearthriseHomestead;
     if (!RM || !H || typeof H.openRoom !== 'function') { assert(true, 'seam absent'); return; }
 
@@ -34557,6 +34737,7 @@ const TESTS = [
       window.G.homestead = { tier: 3 };
       window.G.rooms = {};
       window.G.gold = 500000;
+      stampBalanceLikeLoad(window.G);   // armed: the Build bar's affordability reads gold
       window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 999, normal_plank: 999 });
       H.openRoom('kitchen');
       let seen = above('homestead kitchen');
@@ -34570,7 +34751,7 @@ const TESTS = [
       assert((window.G.rooms || {}).kitchen === 1, 'clicking Build in the bar did not build the room');
 
       // Unaffordable: still pinned, still priced, and it NAMES what is short.
-      window.G.gold = 0; window.G.inventory = {};
+      window.G.gold = 0; stampBalanceLikeLoad(window.G); window.G.inventory = {};
       RM.refresh();
       seen = above('homestead kitchen, unaffordable');
       assert(seen.btn.disabled, 'an unaffordable rung must be disabled');
@@ -35570,7 +35751,9 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('WORKER-LEDGER-1: worker hauls are tallied per worker and surfaced on the crew list', () => {
+  // gold-arm: W.hire()'s debit is gated by clientMayWriteRecordField (switch-OFF
+  // position); the stamp makes the affordability read known.
+  () => tryRunClientAuthoritative('WORKER-LEDGER-1: worker hauls are tallied per worker and surfaced on the crew list', () => {
     /* The other half of the same ruling: the data leaves the fight rail, so it
        needs a home. It is a per-worker lifetime tally on the worker record —
        which rides G.workers into the save by default — plus one derived
@@ -35587,6 +35770,7 @@ const TESTS = [
     try {
       G.homestead = { tier: 1 };
       G.workers = { hired: [] }; G.gold = 10000;
+      stampBalanceLikeLoad(G);   // armed: W.hire() reads gold via canAfford
       G.skills = Object.assign({}, G.skills, { woodcutting: 100000 });
       const w = W.hire();
       assert(w, 'hire should succeed');
@@ -39280,6 +39464,17 @@ export async function runSmokeTest(opts = {}) {
   const _A = window.HearthriseAccrual;
   const _loopWasRunning = !!(_A && typeof _A.getSettleState === 'function' && _A.getSettleState().running);
   try { if (_loopWasRunning) _A.stopSettleLoop(); } catch (e) {}
+  /* ── THE ONE hr_load THE HARNESS PERFORMS (gold-arm) ─────────────────────
+     With gold/gems ARMED, `balanceOf` reads a number only when `G._record`
+     vouches for it — the provenance stamp that in production `hr_load` writes
+     before the first render. The suite has no live hr_load, so without this the
+     live G's gold/gems read UNKNOWN and every ambient balance render/read is
+     fail-closed. This is the SINGLE load event, mirroring boot — NOT a per-test
+     or per-mutation auto-stamp (which would mask a forgotten re-stamp). Every
+     dedicated fail-closed guard (B353-3/3b, B340-*, B347-*, B353-3c) re-creates
+     the UNKNOWN state inside its own body, on a live-G delete or a private G, so
+     this stamp cannot hide the regression they exist to catch. */
+  try { stampBalanceLikeLoad(window.G); } catch (e) {}
   const results = [];
   try {
     for (const t of TESTS) {

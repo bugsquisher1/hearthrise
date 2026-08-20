@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 417 — 2026-08-20 (Under the hood: server-owned bounty turn-ins)
+
+- 🔧 No gameplay change you'll notice. Kill-bounty turn-ins (and their Bounty Marks + gold) are now verified and paid by the server — with a kill baseline so a bounty only counts kills made *after* you accept it. Same bounties, same rewards.
+
 ## v0.9.2-beta build 416 — 2026-08-20 (Under the hood: retired an unused theme)
 
 - 🔧 No visible change. Removed the old "cozy light" theme, which hadn't actually rendered in a long time (the game has been on Hearthlight) — ~1,900 lines of dead styling gone. Cleaner and easier to restyle going forward. If you somehow still had it selected, you're moved to Hearthlight automatically.

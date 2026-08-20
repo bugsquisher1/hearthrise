@@ -137,6 +137,7 @@
     "2026-08-18-clan-deposit-ownership.sql",
     "2026-08-18-leaderboard-server-source.sql",
     "2026-08-19-muster-raid-rpc-credit.sql",
+    "2026-08-20-muster-chest-items.sql",
     "2026-08-20-bestiary.sql",
     "2026-08-21-collection.sql",
     "2026-08-20-goal-reward-rpc-credit.sql",

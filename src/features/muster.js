@@ -706,8 +706,45 @@
       // A Muster Seal is only ever awarded when the realm held the line.
       gold:  Math.max(0, Math.min(7500, +out.gold || 0)),
       gems:  Math.max(0, Math.min(10,   +out.gems || 0)),
-      seals: out.held ? Math.max(0, Math.min(1, +out.seals || 0)) : 0
+      seals: out.held ? Math.max(0, Math.min(1, +out.seals || 0)) : 0,
+      /* SERVER-AUTHORITATIVE THEMED CHEST (2026-08-20). When the RPC returns an
+         `items` array it has ALREADY computed the themed chest server-side
+         (hr_rally_chest) and WRITTEN the materials into player_inventory — `gold`
+         above is then the REDUCED goldOut, not the full band. The client renders
+         these instead of re-deriving its own chest (which would double-reduce).
+         When `items` is absent (an un-migrated server, or the solo fall-through)
+         the client keeps computing the chest from the full band gold — the
+         legacy path. Item ids/qtys are sanitised but ORIGINATE server-side; the
+         client never sends them. */
+      items: sanitizeServerChest(out.items),
+      xp:    sanitizeServerXp(out.xp)
     };
+  }
+
+  // Defensive coercion of the server's own chest list. These come from OUR
+  // trusted RPC, but reduce-layer discipline is to never hand an unshaped value
+  // to the payout path: coerce id→string, qty→clamped int, drop the rest.
+  function sanitizeServerChest(arr) {
+    if (!Array.isArray(arr)) return null;
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+      var it = arr[i];
+      if (!it || typeof it.id !== 'string' || !it.id) continue;
+      var qty = Math.max(0, Math.min(1e6, Math.floor(+it.qty || 0)));
+      if (qty > 0) out.push({ id: it.id, qty: qty, value: Math.max(0, Math.floor(+it.value || 0)) });
+    }
+    return out;
+  }
+  function sanitizeServerXp(arr) {
+    if (!Array.isArray(arr)) return null;
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+      var x = arr[i];
+      if (!x || typeof x.skill !== 'string' || !x.skill) continue;
+      var amt = Math.max(0, Math.min(1e7, Math.floor(+x.amount || 0)));
+      if (amt > 0) out.push({ skill: x.skill, amount: amt });
+    }
+    return out;
   }
 
   function reducePledge(status, out) {
@@ -982,8 +1019,21 @@
     var st = ensureState();
     st.claimed = true;
     var ev = eventForKey(st.eventKey);
-    var chest = themedChest(ev ? ev.id : null, d.gold, d.gems, d.seals);
-    payChest(chest);
+    var chest, serverItems = false;
+    if (d && Array.isArray(d.items)) {
+      /* SERVER-AUTHORITATIVE (2026-08-20): the RPC already computed the themed
+         chest AND wrote its materials into player_inventory. d.gold is the
+         reduced goldOut. Render the server's list; do NOT re-derive it (that
+         would convert goldOut a second time and under-pay). */
+      chest = { eventId: ev ? ev.id : null, gold: d.gold, gems: d.gems,
+                seals: d.seals, items: d.items, xp: d.xp || [] };
+      serverItems = true;
+    } else {
+      /* LEGACY / SOLO: no server chest in the response — compute it client-side
+         from the full band gold, exactly as before. */
+      chest = themedChest(ev ? ev.id : null, d.gold, d.gems, d.seals);
+    }
+    payChest(chest, { serverItems: serverItems });
     toast('Rally chest: ' + chestSummary(chest) + (d.held ? ' — the realm held.' : ''), 'levelup');
     persist();
     if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch (e) {}
@@ -993,7 +1043,8 @@
   // The ONE payout path, shared by the live chest and half honors. XP goes
   // through addXp so PACE, the fuse and the day's blessing all apply — a rally
   // must never be a way to inject XP the rest of the game cannot see.
-  function payChest(c) {
+  function payChest(c, opts) {
+    opts = opts || {};
     var G = window.G;
     /* SECURITY (gold record-flip, Finding #2): world_event_claim PRICES the
        chest server-side (v_gold/v_gems in 2026-08-08-muster.sql) and is the
@@ -1008,8 +1059,20 @@
     var _mayGems = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems');
     if (_mayGold) G.gold = (G.gold || 0) + (c.gold || 0);
     if (_mayGems) G.gems = (G.gems || 0) + (c.gems || 0);
+    /* ITEMS (2026-08-20). When opts.serverItems is set the RPC has already
+       written these materials into player_inventory (the record). Gate the local
+       addItem on the inventory record seam exactly as gold is gated: pre-arm the
+       server write is dark, so credit locally for display; post-arm the absolute
+       envelope carries the rows, so skip to avoid a double. The LEGACY/SOLO path
+       (serverItems false) still addItems unconditionally — nothing wrote them
+       server-side. Seals + XP are NOT server-owned (muster_seal is excluded from
+       item-authority; XP flows through addXp so PACE/fuse/blessing apply) and
+       stay client-authored on every path. */
+    var _mayInv = !opts.serverItems
+      || !window.clientMayWriteRecordField
+      || window.clientMayWriteRecordField('inventory');
     (c.items || []).forEach(function (it) {
-      if (it.qty > 0 && typeof window.addItem === 'function') window.addItem(it.id, it.qty);
+      if (it.qty > 0 && _mayInv && typeof window.addItem === 'function') window.addItem(it.id, it.qty);
     });
     if (c.seals > 0 && typeof window.addItem === 'function') window.addItem('muster_seal', c.seals);
     (c.xp || []).forEach(function (x) {
@@ -1878,6 +1941,7 @@
     // Server-contract seams — pure, no I/O. Exposed for the regression suite.
     _computeState: computeState, _fmtClock: fmtClock,
     _reduceJoin: reduceJoin, _reduceContribute: reduceContribute, _reduceClaim: reduceClaim,
+    _payChest: payChest,
     _reducePledge: reducePledge, _reduceAbsence: reduceAbsence,
     _canPledge: canPledge, _pledgeOutcome: pledgeOutcome, _pledgeContext: pledgeContext,
     _writePledge: writePledge, _grantAbsent: grantAbsent, _adopt: adopt,

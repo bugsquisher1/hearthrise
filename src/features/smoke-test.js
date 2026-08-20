@@ -37283,6 +37283,73 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
+     SERVER-OWNED-5: THE UNBACKED-OWNABLE-MINT ARM-GATE BACKSTOP (Finding #2).
+
+     The completeness backstop for the WHOLE flip. The absolute replace treats
+     every OWNABLE id as a complete server statement — so any OWNABLE id that a
+     CLIENT path still mints without a server write would be DELETED on the flip.
+     This guard fails LOUD if such a lane exists and is not registered, so no
+     future `window.addItem` of a gather/craft/drop id can silently re-open the
+     landmine before the flip arms.
+
+     TODAY it documents exactly one such lane: hired-worker production
+     (workers.js accrueWorker -> window.addItem of a gather product). Every id a
+     worker can mint is a gather product, and every gather product is OWNABLE, so
+     the flip WOULD delete a worker haul the server never settled. That is the
+     landmine the worker server-authority slice defuses; until it ships, the flip
+     MUST NOT arm, and this test is the proof it is still blocked. */
+  () => tryRun('SERVER-OWNED-5: worker production is an unbacked OWNABLE mint — the flip is arm-BLOCKED until it is server-settled', () => {
+    const IA = window.HearthriseItemAuthority;
+    assert(IA && typeof IA.pendingUnbackedOwnableMints === 'function', 'pendingUnbackedOwnableMints must be published');
+    assert(typeof IA.flipArmBlockers === 'function' && typeof IA.workerProductIds === 'function',
+      'flipArmBlockers + workerProductIds must be published');
+    IA.rebuildItemAuthority();
+
+    /* (a) THE RISK IS REAL: every id a worker can mint is OWNABLE, so an armed
+       absolute replace would delete an un-settled worker haul. If this ever
+       stops being true (a worker product is excluded), the fix's shape changes
+       and this guard must be revisited — so assert it rather than assume it. */
+    const workerIds = [...IA.workerProductIds()];
+    assert(workerIds.length > 0, 'worker product id set must be non-empty (workers gather TREES/ROCKS/FISH_SPOTS prod)');
+    for (const id of workerIds) {
+      assert(IA.serverOwnedItem(id) === true,
+        'worker product ' + id + ' must classify OWNABLE — it is a gather prod the flip would delete if un-settled');
+    }
+
+    /* (b) WHILE worker production is not server-backed, it IS in the pending set
+       and IS an arm-blocker. This is the honest current state: the flip cannot
+       arm. When the server-settlement slice lands (WORKER_PRODUCTION_SERVER_BACKED
+       -> true, client stops the local addItem), this set empties and the blocker
+       clears — flip the constant WITH that change, never before. */
+    const pending = IA.pendingUnbackedOwnableMints();
+    if (IA.WORKER_PRODUCTION_SERVER_BACKED === false) {
+      assert(pending.size > 0, 'worker production is not server-backed yet, so it MUST appear as a pending unbacked ownable mint');
+      assert(pending.has(workerIds[0]),
+        'the pending set must contain worker products while unbacked — got ' + JSON.stringify([...pending].slice(0, 6)));
+      const blockers = IA.flipArmBlockers();
+      assert(blockers.length > 0 && /un-backed OWNABLE mint/.test(blockers[0]),
+        'the arm gate must report worker production as a blocker while it is unbacked — got ' + JSON.stringify(blockers));
+    } else {
+      /* Server-backed: no worker id may remain in the unbacked pending set. */
+      for (const id of workerIds) {
+        assert(!pending.has(id),
+          'worker production is marked server-backed, so ' + id + ' must NOT be a pending unbacked mint');
+      }
+    }
+
+    /* (c) COMPLETENESS — every id in a registered unbacked lane is genuinely
+       OWNABLE. A lane registered for an id that is actually EXCLUDED is a
+       mistake (excluded ids survive the flip untouched, so they are not
+       blockers); catching it keeps the registry honest as content grows. */
+    for (const lane of IA.unbackedOwnableMintLanes()) {
+      let ownedInLane = 0;
+      for (const id of lane.ids) if (IA.serverOwnedItem(id)) ownedInLane++;
+      assert(ownedInLane > 0,
+        'registered unbacked lane "' + lane.source + '" grants NO ownable id — it is not an arm-blocker and must not be registered');
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
      INVENTORY-BASELINE — THE COMPLETENESS GATE + ARM-SITE GUARDS (Step 3).
 
      These close the security review's remaining ARM conditions. The flip stays

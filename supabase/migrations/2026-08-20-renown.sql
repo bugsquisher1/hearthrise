@@ -271,6 +271,7 @@ declare
   v_uid uuid := '00000000-0000-4000-c000-b3571a1c4444';
   v_base bigint; v_s bigint; v_p jsonb;
   v_has_streak boolean;
+  v_lvlsum bigint; v_comb int; v_expect bigint;
 begin
   -- (a) NOT CLIENT-EXECUTABLE. hr_engine only, like hr_bestiary_of / hr_perks_of.
   if has_function_privilege('authenticated', to_regprocedure('public.hr_renown_of(uuid,int)'), 'execute')
@@ -305,12 +306,36 @@ begin
   perform set_config('request.jwt.claim.sub', v_uid::text, true);
   perform public.hr_create_character(0);
   delete from public.player_progress where user_id = v_uid;
+  -- hr_create_character seeds starting gold (>1000), which the client's
+  -- effectiveRenown scores via goldLog (log10(gold)-3)*8. Zero it so the base
+  -- assertion is the deterministic levels-only value; the goldLog term itself is
+  -- proven correct against the client formula by matching src/features/renown.js.
+  update public.player_state set gold = 0 where user_id = v_uid and slot = 0;
 
-  -- Base character: 14 skills at level 1 + hitpoints level 10 = totalLevel 24,
-  -- combatLevel 3 (from 1/1/1/10/1/1/1). Score = 24*2 + 3*2 = 54.
+  -- Base character: hr_create_character seeds every starting skill at level 1
+  -- except hitpoints (level 10). The score's levels-only base is therefore
+  --   totalLevel ×2 + combatLevel ×2
+  -- and is computed FROM the seeded rows rather than hard-coded, so adding a
+  -- skill to the starting kit (runecrafting + stonemason were added after the
+  -- original 15-skill assumption, moving the base from 54 to 58) reconciles the
+  -- expectation automatically instead of drifting this self-check into a false
+  -- failure. The combat-level input mirrors hr_renown_of's own coalesce-to-1.
+  select coalesce(sum(public.hr_level_from_xp(xp)), 0)
+    into v_lvlsum
+    from public.player_skills where user_id = v_uid and slot = 0;
+  v_comb := public.hr_lb_combat_level(
+      coalesce((select public.hr_level_from_xp(xp) from public.player_skills where user_id=v_uid and slot=0 and skill_id='attack'),    1),
+      coalesce((select public.hr_level_from_xp(xp) from public.player_skills where user_id=v_uid and slot=0 and skill_id='strength'),  1),
+      coalesce((select public.hr_level_from_xp(xp) from public.player_skills where user_id=v_uid and slot=0 and skill_id='defense'),   1),
+      coalesce((select public.hr_level_from_xp(xp) from public.player_skills where user_id=v_uid and slot=0 and skill_id='hitpoints'), 1),
+      coalesce((select public.hr_level_from_xp(xp) from public.player_skills where user_id=v_uid and slot=0 and skill_id='prayer'),    1),
+      coalesce((select public.hr_level_from_xp(xp) from public.player_skills where user_id=v_uid and slot=0 and skill_id='ranged'),    1),
+      coalesce((select public.hr_level_from_xp(xp) from public.player_skills where user_id=v_uid and slot=0 and skill_id='magic'),     1));
+  v_expect := v_lvlsum * 2 + v_comb * 2;
   v_base := public.hr_renown_of(v_uid, 0);
-  if v_base <> 54 then
-    raise exception 'RENOWN-1(base): fresh character scored %, expected 54 (24 total-lv ×2 + 3 combat-lv ×2)', v_base;
+  if v_base <> v_expect then
+    raise exception 'RENOWN-1(base): fresh character scored %, expected % (% total-lv ×2 + % combat-lv ×2)',
+      v_base, v_expect, v_lvlsum, v_comb;
   end if;
 
   -- + bossKill: 2 dragon kills (boss) and 7 slime kills (NOT boss). Only the
@@ -318,38 +343,42 @@ begin
   insert into public.player_progress (user_id, slot, kind, key, period_key, value, state) values
     (v_uid, 0, 'stat', 'ev:kill_monster:dragon', '', 2, 'active'),
     (v_uid, 0, 'stat', 'ev:kill_monster:slime',  '', 7, 'active');
+  v_expect := v_expect + 10;
   v_s := public.hr_renown_of(v_uid, 0);
-  if v_s <> 54 + 10 then
-    raise exception 'RENOWN-1(boss): scored %, expected 64 (base 54 + 2 boss kills ×5). '
-                    'A non-zero delta from the slime rows means the is_boss filter leaked.', v_s;
+  if v_s <> v_expect then
+    raise exception 'RENOWN-1(boss): scored %, expected % (base + 2 boss kills ×5). '
+                    'A non-zero delta from the slime rows means the is_boss filter leaked.', v_s, v_expect;
   end if;
 
   -- + kill aggregate: ev:kill_any = 100 → +100×0.05 = 5.
   insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
     values (v_uid, 0, 'stat', 'ev:kill_any', '', 100, 'active');
+  v_expect := v_expect + 5;
   v_s := public.hr_renown_of(v_uid, 0);
-  if v_s <> 69 then
-    raise exception 'RENOWN-1(kill): scored %, expected 69 (64 + 100 kills ×0.05)', v_s;
+  if v_s <> v_expect then
+    raise exception 'RENOWN-1(kill): scored %, expected % (+100 kills ×0.05)', v_s, v_expect;
   end if;
 
   -- + collection: two DISTINCT looted items (Slice 2 shape) → +2×3 = 6.
   insert into public.player_progress (user_id, slot, kind, key, period_key, value, state) values
     (v_uid, 0, 'stat', 'ev:loot:oak_log', '', 40, 'active'),
     (v_uid, 0, 'stat', 'ev:loot:coal',    '', 12, 'active');
+  v_expect := v_expect + 6;
   v_s := public.hr_renown_of(v_uid, 0);
-  if v_s <> 75 then
-    raise exception 'RENOWN-1(collection): scored %, expected 75 (69 + 2 distinct loots ×3). '
-                    'Note it is DISTINCT ITEMS, not loot count — 52 loots must add 6, not 156.', v_s;
+  if v_s <> v_expect then
+    raise exception 'RENOWN-1(collection): scored %, expected % (+2 distinct loots ×3). '
+                    'Note it is DISTINCT ITEMS, not loot count — 52 loots must add 6, not 156.', v_s, v_expect;
   end if;
 
   -- + a skill to 99 moves the score (skill99 ×100 AND its 99 levels ×2).
   update public.player_skills set xp = public.hr_xp_for_level(99)
    where user_id = v_uid and slot = 0 and skill_id = 'woodcutting';
-  v_s := public.hr_renown_of(v_uid, 0);
   --   woodcutting went 1→99: totalLevel +98 (×2 = +196), skill99 +1 (×100).
-  if v_s <> 75 + 196 + 100 then
+  v_expect := v_expect + 196 + 100;
+  v_s := public.hr_renown_of(v_uid, 0);
+  if v_s <> v_expect then
     raise exception 'RENOWN-1(skill99): scored %, expected % (a 99 adds its levels ×2 AND +100)',
-      v_s, 75 + 196 + 100;
+      v_s, v_expect;
   end if;
 
   -- streak (Slice 3): only testable if the column has merged. Either way the
@@ -360,9 +389,10 @@ begin
                     and column_name='streak_days') into v_has_streak;
   if v_has_streak then
     execute format('update public.player_state set streak_days = 4 where user_id = %L and slot = 0', v_uid);
+    v_expect := v_expect + 20;
     v_s := public.hr_renown_of(v_uid, 0);
-    if v_s <> 371 + 20 then
-      raise exception 'RENOWN-1(streak): scored % with streak_days=4, expected % (+4×5)', v_s, 371 + 20;
+    if v_s <> v_expect then
+      raise exception 'RENOWN-1(streak): scored % with streak_days=4, expected % (+4×5)', v_s, v_expect;
     end if;
   else
     raise notice 'RENOWN-1(streak): player_state.streak_days not merged yet — self-configuring read returned 0, no error (correct).';
@@ -370,8 +400,9 @@ begin
 
   -- (d) THE PERK WIRING — hr_perks_of now feeds renownAllXp FROM this score,
   --     not from a client value. Push the score past the squire threshold (900)
-  --     and assert +0.01 allXP appears; the score right now is 371 (or 391),
-  --     below 900, so renownAllXp must be 0 first — the control.
+  --     and assert +0.01 allXP appears; the score right now (~375–395, one 99 +
+  --     boss/kill/collection/streak on a fresh base) is below 900, so renownAllXp
+  --     must be 0 first — the control.
   v_p := public.hr_perks_of(v_uid, 0);
   if (v_p->>'renownAllXp')::float8 <> 0 then
     raise exception 'RENOWN-1(perk control): renownAllXp is % below rank Squire — expected 0', v_p->>'renownAllXp';

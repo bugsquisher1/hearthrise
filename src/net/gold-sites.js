@@ -182,14 +182,13 @@ const B = Object.freeze({
     + 'switch-off client and goes with the v1 backend.',
   UNLOCK_BUY: 'a SELLABLE namespace in unlock_buy. The verb is LIVE (hr-accrue routes it; '
     + 'hr_unlock_buy + public.hr_unlock_offers exist) and `property`/`room` are wired through it '
-    + '(seam:homestead.upgrade, seam:house.upgrade_room). But these five namespaces are refused BY '
-    + 'DESIGN in unlock-catalogue.js SELLABLE_NAMESPACES, each for a server-authority reason: worker '
-    + '+ plot caps live in the property tier and are in no catalogue the server has ("a cap that is '
-    + 'not enforced is not a cap"); theme is gem-priced; companion carries reqSkill/reqLv the verb '
-    + 'does not implement; trait:auto_eat already has its own applied RPC (hr_set_auto_eat). Wiring '
-    + 'them is NOT "add catalogue rows" — it is net-new server invariants + a Designer/Security pass, '
-    + 'tracked as separate work items. (buyTheme also charges GOLD client-side while its offer is '
-    + 'gem-priced — a client value the server does not model; flagged for Security.)',
+    + '(seam:homestead.upgrade, seam:house.upgrade_room), as are worker/plot/bank (slices 2-3) and '
+    + 'companion (slice 4 — the req_skill/req_skill_level gate is now implemented, so the shop '
+    + 'companions sell through seam:companion.buy). The namespaces still parked here are refused BY '
+    + 'DESIGN, each for a server-authority reason: theme is gem-priced; trait:auto_eat already has '
+    + 'its own applied RPC (hr_set_auto_eat); the non-farm plot buildings (scarecrow) have no ladder. '
+    + 'Wiring them is NOT "add catalogue rows" — it is net-new server invariants + a Designer/Security '
+    + 'pass, tracked as separate work items.',
   CLAN_DEPOSIT_GOLD: '`clan_deposit_gold`. `clan_deposit` exists for ITEMS (2026-08-08-clan-seat.sql) '
     + 'and has the whole pattern — server catalogue, server clock, per-call and per-day clamps off '
     + 'an append-only ledger. Gold needs the same shape and does not have it. Blocked with market-v2 '
@@ -283,6 +282,20 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'rungs, no tier gate. Price + the 30-rung ceiling are read and re-validated inside '
       + 'hr_unlock_buy, never sent; GREATEST merge makes a re-buy idempotent. The client also clamps '
       + 'at goldBuys<=30 as defence-in-depth. Gold is predicted; switch OFF it is the plain debit.',
+  },
+  'seam:companion.buy': {
+    kind: 'spend', status: 'wired', verb: 'unlock_buy',
+    site: 'src/legacy.js _buyCompanion() — the four shop companions (slice 4)',
+    note: 'Offer id `companion.<id>` (sparrow/honeybee/raccoon/owl — the ONLY four companions with a '
+      + '`shop:` source; drop/quest/skill/boss/starter/hatch companions never reach this path). '
+      + 'hr_unlock_buy reads the price AND the skill prerequisite (honeybee cooking 25, owl prayer 50) '
+      + 'off public.hr_unlock_offers and merges the one-rung `companion:<id>` ladder GREATEST — NO '
+      + 'PRICE and no skill level cross the wire. The gold debit is a PREDICTION keyed to the intent. '
+      + '⚠ ARM-GATED (designer ruling b): the buy is guarded on clientMayWriteRecordField(\'gold\') '
+      + 'and fails CLOSED once gold is armed, because the pet EFFECT is still CLIENT-applied '
+      + '(hr_perks_of → blocked:no_server_pet_model) — buying an accrual-bonus pet whose bonus the '
+      + 'server does not yet honour would be "pay gold, get nothing". A future server pet-perk model '
+      + 'lifts the gate; the effect application itself is unchanged, only BUYING is gated.',
   },
   'seam:vendor.sell_one': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
@@ -507,7 +520,10 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   /* buyTheme no longer writes gold at all — themes are gems-only and the free
      default is a free equip (slice 6). The old deferred gold row is retired. */
   'src/legacy.js#buyTrait': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
-  'src/legacy.js#_buyCompanion': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
+  /* _buyCompanion is now `seam:companion.buy` (wired, unlock_buy — slice 4); it no
+     longer writes `.gold` raw, so the scanner reports it under the seam id. The
+     buy is ARM-GATED (clientMayWriteRecordField) until a server pet-perk model
+     exists — see the seam row above. */
   'src/legacy.js#repurchase': {
     kind: 'spend', status: 'deferred', blockedBy: B.BUYBACK_LEDGER,
   },

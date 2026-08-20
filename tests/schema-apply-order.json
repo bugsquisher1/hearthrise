@@ -118,6 +118,7 @@
     "2026-08-16-unlock-offers.generated.sql",
     "2026-08-16-unlock-buy.sql",
     "2026-08-19-gold-spend-slices-2-3.sql",
+    "2026-08-19-companion-unlocks.sql",
     "2026-08-16-client-write-grant-sweep.sql",
     "2026-08-16-client-write-grant-sweep-2.sql",
     "2026-08-16-client-write-grant-sweep-3.sql",

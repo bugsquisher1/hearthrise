@@ -16070,10 +16070,39 @@ function parseSource(src){
 })();
 
 window._buyCompanion = function(id, price){
+  /* ── b4xx — SHOP COMPANIONS ARE SERVER-OWNED unlocks NOW (unlock_buy, slice 4). ──
+     _buyCompanion is the SHOP path ONLY — injectShopCompanions wires this button
+     for the four `shop:` companions (sparrow/honeybee/raccoon/owl); drop/quest/
+     skill/boss/starter/hatch companions reach unlockCompanion by other paths and
+     never touch this function. The offer id is `companion.<id>`; hr_unlock_buy
+     reads the PRICE and the skill prerequisite (honeybee cooking 25, owl prayer 50)
+     off public.hr_unlock_offers and merges the one-rung ladder GREATEST — NO PRICE
+     and NO skill level cross the wire. The gold line goes through the record seam
+     so it is a PREDICTION under the accrual switch and flip-safe.
+
+     ── GATED ON THE RECORD SEAM (designer ruling b, slice 4). ──────────────────
+     The companion's pet EFFECT is NOT modelled server-side yet — hr_perks_of
+     returns `blocked:no_server_pet_model` — so all four shop companions grant a
+     GOVERNED accrual bonus (sparrow→gatherSpeed, honeybee→cookSpeed,
+     raccoon→goldFind, owl→prayerSpeed) that only the CLIENT applies. Selling one
+     once gold is ARMED would be "pay gold, bonus silently doesn't apply". So while
+     gold is UNARMED (today) clientMayWriteRecordField('gold') is true and the buy
+     works normally; the instant gold joins SERVER_OF_RECORD and is armed this
+     returns false and the buy fails CLOSED, until a future server pet-perk model
+     lifts the gate. The EFFECT keeps applying client-side either way — it is the
+     only thing making the pet do anything until that model exists. This mirrors
+     buyback's arm-gate exactly. */
+  if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
+    if(typeof notify==='function') notify('Companions can\'t be bought right now — check back soon','kill');
+    return;
+  }
   if(!balCanAfford(price,'gold')){ if(typeof notify==='function') notify(balShortfall(price,'gold'),'kill'); return; }
   if(G.companions && G.companions.ownedIds.indexOf(id) >= 0){ if(typeof notify==='function') notify('Already owned','info'); return; }
-  G.gold -= price;
+  var _ck=(typeof goldIntentKey==='function')?goldIntentKey():null;
+  goldSettle(-price,'companion.buy',_ck);
   if(typeof window.unlockCompanion === 'function') window.unlockCompanion(id);
+  /* FIRE AND RECONCILE — never await. No-op with the switch off. */
+  if(_ck&&window.HearthriseGold&&window.HearthriseGold.buyUnlock){var _cp=window.HearthriseGold.buyUnlock('companion.'+id,_ck);if(_cp&&_cp.catch)_cp.catch(function(){});}
   if(typeof updateTopbar === 'function') updateTopbar();
   if(typeof renderShop === 'function') renderShop();
 };

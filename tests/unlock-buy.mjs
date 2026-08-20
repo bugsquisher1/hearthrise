@@ -470,8 +470,14 @@ async function run(mutate) {
        that the ladders are seeded. */
     const { GOLD_LADDER_OFFERS } = await import(
       pathToFileURL(join(ROOT, 'src', 'data', 'gold-ladders.js')).href);
+    /* slice 4 — a THIRD disjoint forwarded source: companion-catalogue.js
+       (companion.*), forwarded by isCompanionOffer. Same rule: a companion
+       unlock is exactly as buyable as a gold-ladder rung, so it belongs in the
+       union the SQL sellable set is measured against. */
+    const { COMPANION_OFFERS } = await import(
+      pathToFileURL(join(ROOT, 'src', 'data', 'companion-unlocks.js')).href);
     const edgeById = Object.create(null);
-    for (const r of GOLD_LADDER_OFFERS) {
+    for (const r of [...GOLD_LADDER_OFFERS, ...COMPANION_OFFERS]) {
       edgeById[r.offer_id] = { gold: r.gold, value: r.value, unlockId: r.unlock_id };
     }
     for (const id of Object.keys(cat.UNLOCK_OFFERS)) edgeById[id] = cat.UNLOCK_OFFERS[id];
@@ -591,6 +597,17 @@ async function run(mutate) {
     ok(perks.makeBonus(envPerks)('noBurn') > 0,
       'U3: a Kitchen 1 read out of the SERVER envelope produces noBurn 0 — a cooked night would '
       + "destroy input the player's Hearthstone says it keeps");
+    /* slice 4 — THE KNOWN GAP, ASSERTED SO NOBODY ASSUMES OTHERWISE. The
+       companion OWNERSHIP half is server-authoritative now (seam:companion.buy →
+       hr_unlock_buy writes a companion:<id> unlock row), but the pet EFFECT is
+       NOT: hr_perks_of still declares `companions: 'blocked:no_server_pet_model'`,
+       so the accrual bonus a shop companion grants is applied ONLY client-side.
+       This is exactly why the client arm-gates the buy under armed gold. When a
+       server pet-perk model lands, THIS line flips and the client gate lifts. */
+    ok(envPerks.sources && envPerks.sources.companions === 'blocked:no_server_pet_model',
+      'U3: hr_perks_of.sources must still report companions blocked:no_server_pet_model — the pet '
+      + `EFFECT has no server model yet; got ${JSON.stringify(envPerks.sources && envPerks.sources.companions)}. `
+      + 'If this changed, the client arm-gate on seam:companion.buy can be lifted.');
   } catch (e) { if (!(e instanceof Red)) throw e; }
 
   // ── U4 · A DOUBLE BUY IS REFUSED BY NAME, WITH GOLD MEASURED ───────────

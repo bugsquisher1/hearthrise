@@ -1299,6 +1299,95 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('slice 4: buying a shop companion sends offer companion.<id> (offer-id only) and debits via the seam', () => {
+    // With the accrual switch ON (pristine default), _buyCompanion fires
+    // HearthriseGold.buyUnlock(offer, key). Stub it to capture the exact offer id
+    // the site sends and prove it is offer-id-only — no price crosses the wire.
+    const S = window.HearthriseGold;
+    if (typeof window._buyCompanion !== 'function' || !S || typeof S.buyUnlock !== 'function'
+      || !S.isGoldIntentEnabled || !S.isGoldIntentEnabled() || !window.COMPANIONS) return;
+    const snap = snapshotG();
+    const origBuy = S.buyUnlock;
+    const origMay = window.clientMayWriteRecordField;
+    const sent = [];
+    try {
+      window.clientMayWriteRecordField = function () { return true; }; // UNARMED (today)
+      S.buyUnlock = function () { sent.push(Array.prototype.slice.call(arguments)); return Promise.resolve({ sent: false }); };
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      window.G.gold = 100000;
+      window._buyCompanion('sparrow', 5000);
+      const call = sent.find((a) => a[0] === 'companion.sparrow');
+      assert(call, '_buyCompanion must send offer companion.sparrow; sent ' + JSON.stringify(sent));
+      assert(call.length === 2 && S.isIntentKey(call[1]), 'buyUnlock takes ONLY (offer, key) — no price arg; got ' + JSON.stringify(call));
+      assert(window.G.companions.ownedIds.indexOf('sparrow') >= 0, 'the companion must be granted locally as a prediction');
+    } finally {
+      S.buyUnlock = origBuy;
+      window.clientMayWriteRecordField = origMay;
+      try { S.resetGold(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('slice 4: shop-companion buy is arm-gated — works UNARMED, fails CLOSED when gold is armed', () => {
+    if (typeof window._buyCompanion !== 'function' || !window.COMPANIONS || !window.COMPANIONS.sparrow) return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const S = window.HearthriseGold;
+    // Stub buyUnlock so the (signed-out) transport does not immediately roll back
+    // the seam prediction — this test measures the GATE + the local debit, not the
+    // server round-trip. resetGold() clears the outstanding prediction after.
+    const origBuy = S && S.buyUnlock;
+    try {
+      if (S && typeof S.buyUnlock === 'function') S.buyUnlock = function () { return Promise.resolve({ sent: false }); };
+      // UNARMED (today): clientMayWriteRecordField('gold') true → the buy works.
+      window.clientMayWriteRecordField = function () { return true; };
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      window.G.gold = 100000;
+      const before = window.G.gold;
+      window._buyCompanion('sparrow', 5000);
+      assert(window.G.companions.ownedIds.indexOf('sparrow') >= 0, 'unarmed buy must grant the companion');
+      assert(window.G.gold === before - 5000, 'unarmed buy must debit the price once; got -' + (before - window.G.gold));
+
+      // ARMED: clientMayWriteRecordField('gold') false → refused, no grant, no debit.
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      window.G.gold = 100000;
+      const g2 = window.G.gold;
+      window._buyCompanion('honeybee', 8000);
+      assert(window.G.companions.ownedIds.indexOf('honeybee') < 0, 'armed buy must NOT grant the companion (pet effect is client-only)');
+      assert(window.G.gold === g2, 'armed buy must NOT debit gold; got -' + (g2 - window.G.gold));
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      if (S && origBuy) S.buyUnlock = origBuy;
+      try { S && S.resetGold(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('slice 4: non-shop companion acquisition is UNAFFECTED by the gold arm-gate', () => {
+    // unlockCompanion is the acquisition path for drop/quest/skill/boss/hatch
+    // companions. It moves NO gold, so arming gold must not touch it — a player
+    // who earns a companion from a drop still gets it while gold is armed.
+    if (typeof window.unlockCompanion !== 'function' || !window.COMPANIONS) return;
+    // Pick a companion that is NOT a shop companion (no `shop:` source).
+    const nonShop = Object.keys(window.COMPANIONS).find((k) => !String(window.COMPANIONS[k].source || '').startsWith('shop'));
+    if (!nonShop) return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    try {
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold'; }; // gold ARMED
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      const g0 = window.G.gold;
+      const r = window.unlockCompanion(nonShop);
+      assert(r === true, 'unlockCompanion must grant a non-shop companion even with gold armed');
+      assert(window.G.companions.ownedIds.indexOf(nonShop) >= 0, 'the non-shop companion must be owned');
+      assert(window.G.gold === g0, 'unlockCompanion must move no gold');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('b227: the save migration clamps room levels to the live ladder', () => {
     // Insurance, not a repair — no live writer can produce an out-of-range
     // level (upgradeRoom advances by one only when levels[lv] exists, and the

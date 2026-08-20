@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 418 — 2026-08-20 (Under the hood: server-owned companion bonuses)
+
+- 🔧 No gameplay change yet. Your equipped companion and its passive bonus (gathering speed, gold find, etc.) are now owned and applied by the server, so a companion's boost can't be forged. Which pet you have equipped is now server-verified. (Companion procs and pet leveling on the server are still to come.)
+
 ## v0.9.2-beta build 417 — 2026-08-20 (Under the hood: server-owned bounty turn-ins)
 
 - 🔧 No gameplay change you'll notice. Kill-bounty turn-ins (and their Bounty Marks + gold) are now verified and paid by the server — with a kill baseline so a bounty only counts kills made *after* you accept it. Same bounties, same rewards.

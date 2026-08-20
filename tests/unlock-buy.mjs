@@ -597,17 +597,22 @@ async function run(mutate) {
     ok(perks.makeBonus(envPerks)('noBurn') > 0,
       'U3: a Kitchen 1 read out of the SERVER envelope produces noBurn 0 — a cooked night would '
       + "destroy input the player's Hearthstone says it keeps");
-    /* slice 4 — THE KNOWN GAP, ASSERTED SO NOBODY ASSUMES OTHERWISE. The
-       companion OWNERSHIP half is server-authoritative now (seam:companion.buy →
-       hr_unlock_buy writes a companion:<id> unlock row), but the pet EFFECT is
-       NOT: hr_perks_of still declares `companions: 'blocked:no_server_pet_model'`,
-       so the accrual bonus a shop companion grants is applied ONLY client-side.
-       This is exactly why the client arm-gates the buy under armed gold. When a
-       server pet-perk model lands, THIS line flips and the client gate lifts. */
-    ok(envPerks.sources && envPerks.sources.companions === 'blocked:no_server_pet_model',
-      'U3: hr_perks_of.sources must still report companions blocked:no_server_pet_model — the pet '
-      + `EFFECT has no server model yet; got ${JSON.stringify(envPerks.sources && envPerks.sources.companions)}. `
-      + 'If this changed, the client arm-gate on seam:companion.buy can be lifted.');
+    /* slice 4 → companion pet-model (b418). The OWNERSHIP half is server-owned
+       (seam:companion.buy → hr_unlock_buy writes a companion:<id> unlock row), and
+       the pet-perk PASSIVE-BONUS EFFECT is NOW server-owned too: hr_perks_of prices
+       the equipped companion's governed bonus from player_state.companion_equipped,
+       so sources.companions is `derived:player_state.companion_equipped`. STILL
+       DEFERRED (safe under-pays, not blockers): companion XP→level accrual (pays
+       base until a server writer lands), combat-stat pets, and RNG procs (would
+       change resolveKill draw order → break AWAY-1). ⚠ THE CLIENT ARM-GATE ON
+       seam:companion.buy IS STILL IN PLACE — un-gating needs the paired client
+       equip-wiring (call hr_companion_equip on equip) so the server learns the
+       equipped pet; without it a bought companion equips to nothing. That un-gate
+       is its own slice + security review; do NOT lift the gate on this assertion. */
+    ok(envPerks.sources && envPerks.sources.companions === 'derived:player_state.companion_equipped',
+      'U3: hr_perks_of.sources should report companions derived:player_state.companion_equipped — the '
+      + `pet-model passive-bonus half landed (b418); got ${JSON.stringify(envPerks.sources && envPerks.sources.companions)}. `
+      + 'The client arm-gate on seam:companion.buy stays until the equip-wiring slice.');
   } catch (e) { if (!(e instanceof Red)) throw e; }
 
   // ── U4 · A DOUBLE BUY IS REFUSED BY NAME, WITH GOLD MEASURED ───────────

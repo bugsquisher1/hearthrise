@@ -196,9 +196,15 @@ const B = Object.freeze({
   LIVE_ACTION_INTENTS: 'live-action intents. This fires inside the loop the server already '
     + 'simulates (`computeAccrual`), so it does not want a verb — it wants the accrual engine to '
     + 'pay it, and this client site is DELETED when live actions move server-side.',
-  DAILY_COUNTERS: 'server-side daily/quest progress counters (Designer ruling 3.1: CUTOVER-'
-    + 'BLOCKING). The goals read `stats.*` out of the client save; nothing writes a '
-    + '`player_progress` row for any of them, so `claim_reward` answers `reward_unavailable`.',
+  DAILY_COUNTERS: 'a server model for the GOALS BOARD (DAILY_GOAL_POOL / WEEKLY_GOAL_POOL, '
+    + 'claimQuestReward). b414 moved the DAILY-TASK (updateDaily) and QUEST (completeQuest) payouts '
+    + 'onto hr_claim_daily / hr_claim_quest, which verify the src/core/goals.js ev:<type> counters. '
+    + 'This board is a DIFFERENT tracking model the ev counters cannot verify: progress = '
+    + 'readSource(stats.*) - a per-period baseline, and most sources (stats.chopped/.mined/.fished/'
+    + '.planted/.levelups, _dailyGoldDelta) are NOT ev types — the ev model emits only six AGGREGATE '
+    + 'types. The weekly delta-baseline cannot be reconstructed from ev daily rows either. Needs a '
+    + 'server per-skill/derived counter model + period baseline, or re-authoring the board onto the '
+    + 'six ev types. See src/data/goal-catalogue.js BLOCKED_GOAL_BOARD.',
   MARKS_COLUMN: '`player_state.marks`. A bounty turn-in pays gold AND Bounty Marks; Marks have no '
     + 'server column at all, so paying the gold half alone would silently drop the rest — worse '
     + 'than refusing. The turn-in is also kill-driven, so part of it belongs to accrual.',
@@ -484,13 +490,40 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     site: 'claim_reward {kind:"bounty", key:"turnin"} — registry row exists, status blocked',
   },
   'src/legacy.js#updateDaily': {
-    kind: 'grant', status: 'deferred', blockedBy: B.DAILY_COUNTERS,
-    flipGuard: { gated: 'clientMayWriteRecordField' },
+    kind: 'grant', status: 'deferred',
+    /* SERVER-CREDITED (2026-08-20-goal-reward-rpc-credit.sql). hr_claim_daily
+       VERIFIES the fixed daily task from the server's own kind='daily'
+       ev:<type> counter for TODAY's UTC day, derives the offered SET server-side
+       (hr_daily_task_set, keyed on the UTC day key — the client seeds the same
+       string now), credits the server-owned gold into player_state once-guarded
+       per (day, task) and journals it (kind='daily'). updateDaily fires
+       HearthriseGoalClaim.claimDaily(t.id); the local G.gold write is a GATED
+       prediction the envelope reconciles. daily_harvest is EXCLUDED — dynamic
+       goal (farmPlotCap), keeps the clientMayWriteRecordField defer. */
+    flipGuard: { serverCredits: 'hr_claim_daily (2026-08-20-goal-reward-rpc-credit.sql) verifies the '
+      + 'kind=daily ev:<type> counter for the UTC day, owns the fixed gold amount, once-guards a '
+      + 'player_progress kind=daily claim row per (day, task), journals player_ledger kind=daily. '
+      + 'daily_harvest is server-BLOCKED (dynamic goal) and still gated on clientMayWriteRecordField.' },
+    blockedBy: 'nothing for the 7 FIXED tasks — hr_claim_daily credits them. daily_harvest is BLOCKED '
+      + '(dynamic goal, no server farm-plot-cap model) and a King\'s Renown 4th slot is refused '
+      + 'not_offered (no server Renown model). See src/data/goal-catalogue.js BLOCKED_DAILY.',
     site: 'the daily-task payout',
   },
   'src/legacy.js#completeQuest': {
-    kind: 'grant', status: 'deferred', blockedBy: B.DAILY_COUNTERS,
-    flipGuard: { gated: 'clientMayWriteRecordField' },
+    kind: 'grant', status: 'deferred',
+    /* SERVER-CREDITED (2026-08-20-goal-reward-rpc-credit.sql). hr_claim_quest
+       VERIFIES quest completion from the server's own kind='stat' ev:<type>
+       lifetime counter (a mirrored quest reads ev:kill_any = stats.kills),
+       credits the server-owned gold once-guarded per quest id and journals it
+       (kind='quest'). completeQuest fires HearthriseGoalClaim.claimQuest(q.id);
+       the local gold write is a GATED prediction. Item + combat-XP stay client-
+       applied (later arming slices); hundred_kills has no gold and never claims. */
+    flipGuard: { serverCredits: 'hr_claim_quest (2026-08-20-goal-reward-rpc-credit.sql) verifies the '
+      + 'kind=stat ev:<type> lifetime counter, owns the fixed gold amount, once-guards a '
+      + 'player_progress kind=quest claim row per quest id, journals player_ledger kind=quest.' },
+    blockedBy: 'nothing for the VALUE (gold) — hr_claim_quest credits it. The quest\'s item + combat-XP '
+      + 'rewards stay client-applied until the inventory/XP arming slices; that is a display grant, not '
+      + 'a value that crosses to another player.',
     site: 'the quest payout',
   },
   'src/legacy.js#claimQuestReward': {

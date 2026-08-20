@@ -4344,9 +4344,22 @@ function dailyTaskIndexes(dateStr){
   return indexes;
 }
 window.dailyTaskIndexes=dailyTaskIndexes;
+/* THE DAILY DAY KEY — the UTC day key the SERVER seeds its selection from
+   (public.hr_utc_day_key / src/core/goals.js utcDayKey: no zero padding, e.g.
+   `2026-8-20`). b414: the daily task SET is now server-authoritative
+   (hr_daily_task_set + hr_claim_daily), so the client MUST seed the SAME string
+   the server does — it used to seed from `new Date().toDateString()` (a LOCAL
+   date), which desynced the offered set from the server across time zones and
+   let the audit flag client-owned selection. tests/goal-catalogue-drift.mjs
+   binds this to src/core/goals.js utcDayKey and to the SQL over a date sweep. */
+function hrGoalDayKey(nowMs){
+  const d=new Date(typeof nowMs==='number'?nowMs:Date.now());
+  return `${d.getUTCFullYear()}-${d.getUTCMonth()+1}-${d.getUTCDate()}`;
+}
+window.hrGoalDayKey=hrGoalDayKey;
 function generateDailyTasks(notice=true){
   ensureRetentionState();
-  const today=new Date().toDateString();
+  const today=hrGoalDayKey();
   if(G.daily.lastReset===today&&G.daily.tasks.length)return;
   G.daily.lastReset=today;
   // Deterministic shuffle of pool by date seed
@@ -4376,15 +4389,25 @@ function updateDaily(type,amt=1){
   G.daily.tasks.forEach(t=>{
     if(t.type===type&&!t.done){
       t.progress=Math.min(t.goal,(t.progress||0)+amt);
-      /* ARM-SAFE (gold flip): daily-task gold is client-authored (DAILY_COUNTERS
-         blocker — nothing writes a server progress row). Under arm the gold
-         credit no-ops, so DEFER the WHOLE completion — do NOT mark the task done
-         and do NOT toast "+Xg" for a reward that never landed. The task stays
-         claimable for when it is server-credited. No-op until gold is armed, so
-         today's behaviour is byte-identical. */
       if(t.progress>=t.goal){
-        if(!clientMayWriteRecordField('gold'))return;   // defer this task; leave it uncompleted
-        t.done=true;G.gold+=t.reward;notify(`✅ Daily: ${t.label} (+${t.reward}g)`,'loot');
+        /* b414: daily-task gold is now SERVER-CREDITED. hr_claim_daily
+           (2026-08-20-goal-reward-rpc-credit.sql) VERIFIES completion from the
+           server's own kind='daily' ev:<type> counter for today's UTC day, owns
+           the fixed gold amount, once-guards per (day, task) and journals it.
+           The local G.gold write is a GATED PREDICTION — pre-arm it credits
+           locally; under arm it no-ops and the server credit arrives on the next
+           envelope (identical to muster/raid chest crediting).
+           daily_harvest is the ONE exception: its goal/reward are dynamic
+           (farmPlotCap) with no server model yet, so it KEEPS the b411 defer —
+           it stays uncompleted under arm rather than paying nothing. */
+        const serverPays=(t.id!=='daily_harvest');
+        if(!serverPays && !clientMayWriteRecordField('gold'))return;   // harvest: defer under arm
+        t.done=true;
+        if(serverPays && window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.claimDaily==='function'){
+          const _p=window.HearthriseGoalClaim.claimDaily(t.id); if(_p&&_p.catch)_p.catch(()=>{});
+        }
+        if(clientMayWriteRecordField('gold'))G.gold+=t.reward;   // prediction; no-op under arm
+        notify(`✅ Daily: ${t.label} (+${t.reward}g)`,'loot');
       }
     }
   });
@@ -4461,14 +4484,25 @@ function updateQuest(type,amt=1,meta={}){
    pacing dial scales. */
 function completeQuest(q){
   const r=q.reward||{};
-  /* ARM-SAFE (gold flip): quest gold is client-authored (DAILY_COUNTERS
-     blocker). Under arm the gold credit no-ops, so DEFER the whole completion —
-     do NOT mark the quest done and do NOT grant its item/XP — rather than
-     burning the quest for a gold reward that never landed. It stays completable
-     for when the payout is server-credited. No-op until gold is armed. */
-  if((r.gold||0)>0&&!clientMayWriteRecordField('gold'))return;
+  const goldReward=r.gold||0;
+  /* b414: quest gold is now SERVER-CREDITED. hr_claim_quest
+     (2026-08-20-goal-reward-rpc-credit.sql) VERIFIES completion from the
+     server's own kind='stat' ev:<type> lifetime counter (a mirrored quest like
+     hundred_kills reads ev:kill_any, which equals stats.kills), owns the fixed
+     gold amount, once-guards per quest id and journals it. The b411 whole-
+     completion defer is LIFTED: the quest completes (done + item + XP) even
+     under arm, and the gold arrives from the server. The local G.gold write is a
+     GATED PREDICTION — pre-arm it credits locally; under arm it no-ops and the
+     envelope reconciles. Item + combat-XP stay client-applied (later arming
+     slices). hundred_kills carries combatXp only (no gold), so it never fires a
+     claim and is unchanged. Every gold-bearing QUEST_DEFS row is present in the
+     server catalogue — tests/goal-catalogue-drift.mjs fails the build otherwise,
+     so a gold quest can never silently lose its payout under arm. */
   q.done=true;
-  if(r.gold)G.gold+=r.gold;
+  if(goldReward>0 && window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.claimQuest==='function'){
+    const _p=window.HearthriseGoalClaim.claimQuest(q.id); if(_p&&_p.catch)_p.catch(()=>{});
+  }
+  if(goldReward>0 && clientMayWriteRecordField('gold'))G.gold+=goldReward;   // prediction; no-op under arm
   if(r.item)addItem(r.item,r.qty||1,false);
   /* Combat XP is routed the way a KILL routes it — through the player's
      active style (src/core/styles.js killXpRoute) — so a bow user is paid

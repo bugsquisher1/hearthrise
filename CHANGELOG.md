@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 431 — 2026-08-21 (Under the hood: inventory-flip soak telemetry)
+
+- 🔧 No gameplay change. Added a small, aggregate telemetry signal so we can safely verify the upcoming inventory-server-authority change across real sessions before it goes live. Observational only.
+
 ## v0.9.2-beta build 430 — 2026-08-21 (Under the hood: skills → server-owned, dormant)
 
 - 🔧 No gameplay change. Built the machinery for your skill XP to be owned by the server (the same way gold/gems already are), shipped dormant. Turns on with the wipe; when it does, your levels can never drift between devices.

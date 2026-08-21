@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 427 — 2026-08-20 (Fix: idle new-device login now paints gold immediately)
+
+- 🐛 Follow-up to the last fix: the top bar now repaints your gold/gems the instant the server responds on load, so an idle new-device login no longer shows a dash until you do something. (b426 fixed the data; this fixes the on-load repaint.)
+
 ## v0.9.2-beta build 426 — 2026-08-20 (Fix: gold showing "—" after a new-device login)
 
 - 🐛 Fixed a display bug where your gold/gems could show a dash ("—") and Buy/Sell stayed disabled after logging in on a new device — until you did an activity. Your balance was always correct behind the scenes (nothing was lost); the top bar just wasn't reading it. It now resolves immediately on load.

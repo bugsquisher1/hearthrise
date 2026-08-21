@@ -3001,7 +3001,27 @@ function getPreferredSlot(def){
   if(def.slot==='feet')return 'boots';
   return def.slot||(def.type==='weapon'?'weapon':'body');
 }
-function getLevel(sk){return window.HearthriseCore.xp.levelOf(G.skills,sk);}
+/* b429 — the ONE skill-xp read accessor (src/net/skill-record.js), dormant today.
+   While SKILLS_RECORD_ARM_ENABLED is off it returns the raw local value byte-for-
+   byte, so this helper is a faithful NO-OP until the flip. Guarded so a boot where
+   the module has not attached yet degrades to the classic read rather than throwing. */
+function skillXp(sk){
+  var SR=window.HearthriseSkillRecord;
+  if(SR&&typeof SR.skillXpOr==='function') return SR.skillXpOr(G,sk,0);
+  return (G.skills&&G.skills[sk])||0;
+}
+function getLevel(sk){
+  var SR=window.HearthriseSkillRecord;
+  if(SR&&typeof SR.skillLevelOf==='function'){
+    /* dormant → the raw local level (identical to levelOf). armed + UNKNOWN →
+       skillLevelOf returns null; fail-closed to level 1 (the floor), so a gate
+       never opens on an un-arrived skill and no caller does arithmetic on null. */
+    var lv=SR.skillLevelOf(G,sk,levelFromXp);
+    if(typeof lv==='number'&&Number.isFinite(lv)) return lv;
+    return 1;
+  }
+  return window.HearthriseCore.xp.levelOf(G.skills,sk);
+}
 function getTotalLevel(){return window.HearthriseCore.xp.totalLevel(G.skills);}
 function getCombatLevel(){return window.HearthriseCore.xp.combatLevel(G.skills);}
 /* PHASE 0 — the randomness SEAM. `rand` used to be Math.random() inline; it is
@@ -5830,7 +5850,7 @@ function renderProfile(){
       </div>
       <button class="btn btn-block btn-danger" onclick="stopCombat()">Stop Combat</button>`;
   } else if(G.activeSkill){
-    const sd=SKILLS_DEF[G.activeSkill];const lv=getLevel(G.activeSkill);const pct=xpPct(G.skills[G.activeSkill]||0)*100;
+    const sd=SKILLS_DEF[G.activeSkill];const lv=getLevel(G.activeSkill);const pct=xpPct(skillXp(G.activeSkill))*100;
     activityHtml=`
       <div class="activity-card">
         <div class="ac-icon">${sd.icon}</div>
@@ -5941,7 +5961,7 @@ function renderProfile(){
   document.getElementById('dash-skills-body').innerHTML=`
     <div class="skill-board">
       ${Object.entries(SKILLS_DEF).map(([id,s])=>{
-        const xp=G.skills[id]||0,lv=getLevel(id),pct=Math.floor(xpPct(xp)*100);
+        const xp=skillXp(id),lv=getLevel(id),pct=Math.floor(xpPct(xp)*100);
         return `<button class="skill-tile ${G.activeSkill===id?'active':''}" onclick="showTab('skills');openSkillDetail('${id}')"><span class="sicon">${s.icon}</span><span class="slv">Lv ${lv}</span><div class="bar xp"><i style="width:${pct}%"></i></div><span class="snm">${s.name}</span></button>`;
       }).join('')}
     </div>`;
@@ -6685,7 +6705,7 @@ function renderSkillsList(){
     <div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin:8px 0 5px;font-weight:700">${label}</div>
     <div class="skill-board">
       ${Object.entries(SKILLS_DEF).filter(([,s])=>s.cat===cat).map(([id,s])=>{
-        const xp=G.skills[id]||0,lv=getLevel(id),pct=Math.floor(xpPct(xp)*100);
+        const xp=skillXp(id),lv=getLevel(id),pct=Math.floor(xpPct(xp)*100);
         return `<button class="skill-tile ${G.activeSkill===id?'active':''}" onclick="openSkillDetail('${id}')"><span class="sicon">${s.icon}</span><span class="slv">Lv ${lv}</span><div class="bar xp"><i style="width:${pct}%"></i></div><span class="snm">${s.name}</span></button>`;
       }).join('')}
     </div>`).join('');
@@ -6694,7 +6714,7 @@ let openSkill=null;
 function openSkillDetail(id){openSkill=id;try{window.__viewedSkillId=id;}catch(e){}showTab('skills');setTimeout(()=>renderSkillDetail(id),0);}
 function renderSkillDetail(id){
   if(!id)return;const s=SKILLS_DEF[id];if(!s)return;
-  const xp=G.skills[id]||0,lv=getLevel(id),pct=xpPct(xp)*100,toNext=xpToNext(xp);
+  const xp=skillXp(id),lv=getLevel(id),pct=xpPct(xp)*100,toNext=xpToNext(xp);
   document.getElementById('skill-detail-title').textContent=s.name; /* b213: no emoji in titles */
   let acts='',calc=null;
   if(id==='woodcutting'){acts=renderActivities(TREES,id);calc=TREES.find(a=>a.id===G.skillTargetId)||TREES.find(a=>getLevel(id)>=a.req)||TREES[0];}
@@ -9922,7 +9942,7 @@ function refreshActivityBar(){
       if(_st && _st.xp){
         const _sk = Object.keys(_st.xp).sort((a,b)=>_st.xp[b]-_st.xp[a])[0];
         if(_sk){
-          const _xp = (G.skills && G.skills[_sk]) || 0;
+          const _xp = skillXp(_sk);
           const _lv = levelFromXp(_xp), _to = xpToNext(_xp);
           const _lbl = _sk.slice(0,3).toUpperCase();
           xpChip = _lv>=99
@@ -11438,7 +11458,7 @@ window.renderCharacter = function(){
   function renderSkillCard(skId){
     if(typeof SKILLS_DEF === 'undefined' || !SKILLS_DEF[skId]) return '';
     var def = SKILLS_DEF[skId];
-    var xp = G.skills[skId] || 0;
+    var xp = skillXp(skId);
     var lv = lvl(skId);
     var xpForNext = (typeof XP_TABLE !== 'undefined' && lv < 99) ? XP_TABLE[lv] : 0;
     var xpForCur = (typeof XP_TABLE !== 'undefined' && lv > 0) ? XP_TABLE[lv-1] : 0;
@@ -14633,7 +14653,7 @@ function patchSkillsList(){
       var skills = Object.entries(SKILLS_DEF).filter(function(kv){return kv[1].cat===cat;});
       var rows = skills.map(function(kv){
         var id = kv[0], s = kv[1];
-        var xp = G.skills[id]||0, lv = getLevel(id), pct = Math.floor(xpPct(xp)*100);
+        var xp = skillXp(id), lv = getLevel(id), pct = Math.floor(xpPct(xp)*100);
         var active = G.activeSkill===id ? 'active' : '';
         /* b217: fell through to the skill's emoji when no PNG is mapped —
            and no PNG is mapped for any skill, so this was the live path. The
@@ -14972,7 +14992,7 @@ window.setArtisanCategory = function(skillId, key){
 
 function buildHead(skillId){
   var s = SKILLS_DEF[skillId];
-  var xp = G.skills[skillId]||0, lv = getLevel(skillId), pct = xpPct(xp)*100, toNext = xpToNext(xp);
+  var xp = skillXp(skillId), lv = getLevel(skillId), pct = xpPct(xp)*100, toNext = xpToNext(xp);
   /* b213 (phase 2): gilt medallion in the detail header, same as the grid */
   var _med = window.HearthriseIconSet && window.HearthriseIconSet.medallion
     && window.HearthriseIconSet.medallion(skillId, 36);
@@ -15005,7 +15025,7 @@ function lightUpdate(skillId){
     var fill = activeTile.querySelector('.at-prog-fill');
     if(fill) fill.style.width = pctStr;
   }
-  var xp = G.skills[skillId]||0, lv = getLevel(skillId), pct = xpPct(xp)*100, toNext = xpToNext(xp);
+  var xp = skillXp(skillId), lv = getLevel(skillId), pct = xpPct(xp)*100, toNext = xpToNext(xp);
   var ahLvl = detail.querySelector('.ah-lvl'); if(ahLvl) ahLvl.innerHTML = '<em>Level</em>'+lv;
   var ahXp = detail.querySelector('.ah-xp'); if(ahXp) ahXp.innerHTML = xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX')+blessingNote();
   var ahBar = detail.querySelector('.ah-bar i'); if(ahBar) ahBar.style.width = pct.toFixed(1)+'%';

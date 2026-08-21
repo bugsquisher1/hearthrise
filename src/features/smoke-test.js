@@ -27313,6 +27313,55 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
+     B429-6 — THE CLIENT READ-SITE SWEEP. legacy.js's skill-xp/level reads now go
+     through the accessor (getLevel → skillLevelOf, the display xp reads → skillXp
+     → skillXpOr). This is the analogue of the gold `balanceOf` sweep done BEFORE
+     gold armed: while dormant the accessor returns the raw local value, so a
+     faithful sweep must change NOTHING today. This asserts exactly that — the
+     swept seams are byte-for-byte the classic reads — plus the one behaviour the
+     sweep ADDS for the armed future: getLevel fail-closes to the floor level on
+     UNKNOWN rather than returning null/NaN or opening a gate.
+     MUTATION: revert the getLevel edit → armed-UNKNOWN returns null → the last
+     assertion goes red; break skillXp → the dormant-identity loop goes red. */
+  () => tryRun('B429-6: the legacy read-site sweep is behavior-identical while DORMANT; getLevel fail-closes when ARMED+UNKNOWN', () => {
+    const R = window.HearthriseRecord;
+    assert(R && R.SKILLS_RECORD_ARM_ENABLED === false && R.isSkillsRecordArmed() === false,
+      'the dormant-identity half of this test is only meaningful while dormant');
+    assert(typeof window.getLevel === 'function' && typeof window.skillXp === 'function',
+      'legacy.js did not expose the swept getLevel/skillXp seam');
+    const G = window.G;
+    const core = window.HearthriseCore.xp;
+    // Cover the live skills plus a few well-known ids and one that is absent.
+    const ids = Object.keys((G && G.skills) || {}).concat(['mining', 'hitpoints', 'attack', 'cooking', '__nope__']);
+    for (const id of ids) {
+      const raw = (G.skills && G.skills[id]) || 0;
+      assert(window.skillXp(id) === raw,
+        'dormant skillXp diverged from the raw local read for "' + id + '": ' + window.skillXp(id) + ' vs ' + raw);
+      assert(window.getLevel(id) === core.levelOf(G.skills, id),
+        'dormant getLevel diverged from levelOf for "' + id + '": ' + window.getLevel(id) + ' vs ' + core.levelOf(G.skills, id));
+    }
+    // ARMED + UNKNOWN: getLevel must fail-close to the floor level (1) — never
+    // null, never NaN — so a gate cannot open on an un-arrived skill and no
+    // caller does arithmetic on null.
+    const A = window.HearthriseAccrual;
+    const wasA = A.isServerAccrualEnabled();
+    const savedSkills = G.skills, savedRec = G._record;
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);
+      R.__setSkillsRecordArm(true);
+      delete G._record;                 // no record → UNKNOWN
+      G.skills = { mining: 999999 };     // a forged local value that must be ignored armed
+      const lv = window.getLevel('mining');
+      assert(lv === 1, 'armed+UNKNOWN getLevel did not fail-close to level 1 (the floor): ' + lv);
+      assert(typeof lv === 'number' && Number.isFinite(lv), 'armed getLevel returned a non-number: ' + lv);
+    } finally {
+      R.__setSkillsRecordArm(null);
+      if (!wasA) A.setServerAccrualEnabled(false);
+      G.skills = savedSkills; G._record = savedRec;
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
      B353-4 — NOT SIGNED IN IS NOT AN OUTAGE.
      ══════════════════════════════════════════════════════════════════════════
      Found by the flip, and it is the clearest example of a defect that a dark

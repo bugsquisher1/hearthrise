@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=425';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=426';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -452,11 +452,44 @@ export function applyRecord(G, res) {
   /* MONOTONIC. hr_load and hr-accrue race by design (one is a read, the other
      pays), both answer truthfully, and the slower answer is the OLDER one. */
   const prev = G._record && Number(G._record.version);
-  if (Number.isFinite(prev) && dec.version < prev) {
-    return { written: [], skipped: 'stale', version: dec.version, have: prev };
+  const stale = Number.isFinite(prev) && dec.version < prev;
+
+  /* ── A GAP HAS NOTHING TO REWIND (b422) ──────────────────────────────────────
+     The strict-version guard exists so a slow, OLDER envelope cannot put back a
+     watermark a newer one already advanced — i.e. it protects a field the record
+     already KNOWS. It does NOT protect a field that is currently UNKNOWN, and
+     rejecting the whole envelope for a field it does not yet hold was a real,
+     player-visible bug:
+
+       On a cold / new-device (cloud-restore) boot the balances are stripped out
+       of G and `forgetServerOfRecord` clears `known` while KEEPING the persisted
+       `_record.version`; and the away-accrue that races `hr_load` bumps
+       `player_state.version` while its lean envelope leaves gold/gems in
+       `missing`. Either one leaves `_record.version` >= the version `hr_load`
+       returns — so the boot read that DID carry gold was rejected `stale` in
+       full, gold stayed UNKNOWN, the top bar showed an em dash and every
+       Buy/Sell fail-closed until the first activity settle finally arrived at a
+       strictly-newer version carrying full state (~90s later, or never for an
+       idle player).
+
+     So a stale envelope still FILLS the gaps — the fields the record cannot
+     currently vouch for — and ONLY the gaps. A known field (and therefore the
+     monotonic watermark, which is a known field once stamped) is never rewound;
+     the version is never lowered. `recordValue().known` is the test, so "gap"
+     here means exactly what a reader would see as UNKNOWN — a stamped-but-
+     client-overwritten field is NOT refilled from an older read. Fail-closed is
+     preserved: the fill is still from a real server envelope (`dec.fields`),
+     never from raw G. */
+  let candidates = Object.keys(dec.fields);
+  if (stale) {
+    candidates = candidates.filter((f) => !recordValue(G, f).known);
+    if (!candidates.length) {
+      return { written: [], skipped: 'stale', version: dec.version, have: prev };
+    }
   }
+
   const written = [];
-  for (const f of Object.keys(dec.fields)) { G[f] = dec.fields[f]; written.push(f); }
+  for (const f of candidates) { G[f] = dec.fields[f]; written.push(f); }
   /* FOUND BY B340-6. An envelope that supplies NO record must change NOTHING —
      not even the provenance stamp. Stamping it is an assertion that an
      authoritative read happened, and doing that on an answer which carried no
@@ -471,21 +504,28 @@ export function applyRecord(G, res) {
      at the only moment this module can honestly claim to have seen the server's
      number. `recordValue` compares against it; without it the accessor reports
      whatever is in G under the server's name, which is how a client write comes
-     back labelled `source:'server'`. */
-  const stamp = {};
+     back labelled `source:'server'`.
+     A STALE gap-fill MERGES onto the record a newer envelope already wrote — it
+     must never drop that envelope's known fields nor rewind its version — while a
+     fresh envelope REPLACES the record wholesale, exactly as before. */
+  const base = stale && G._record && typeof G._record === 'object' ? G._record : null;
+  const stamp = base && base.stamp && typeof base.stamp === 'object' ? { ...base.stamp } : {};
+  const known = base && Array.isArray(base.known) ? base.known.slice() : [];
   for (const f of written) {
     const e = recordEntry(f);
     stamp[f] = e && typeof e.fingerprint === 'function' ? e.fingerprint(G[f]) : null;
+    if (known.indexOf(f) === -1) known.push(f);
   }
+  const version = stale && Number.isFinite(prev) ? prev : dec.version;
   G._record = {
-    version: dec.version,
+    version,
     at: Date.now(),
-    serverNow: res.now || null,
-    known: written.slice(),
+    serverNow: (base && base.serverNow) || res.now || null,
+    known,
     missing: dec.missing.slice(),
     stamp,
   };
-  return { written, missing: dec.missing, version: dec.version };
+  return { written, missing: dec.missing, version, filledStale: stale };
 }
 
 /* ── THE ONLY READ ACCESSOR ─────────────────────────────────────────────────

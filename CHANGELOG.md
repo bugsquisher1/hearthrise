@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 426 — 2026-08-20 (Fix: gold showing "—" after a new-device login)
+
+- 🐛 Fixed a display bug where your gold/gems could show a dash ("—") and Buy/Sell stayed disabled after logging in on a new device — until you did an activity. Your balance was always correct behind the scenes (nothing was lost); the top bar just wasn't reading it. It now resolves immediately on load.
+
 ## v0.9.2-beta build 425 — 2026-08-20 (Inventory server-authority deferred to the wipe)
 
 - 🔧 Correction to the last update: turning inventory server-authoritative is being **deferred to Saturday's wipe**, where it's safe to do cleanly. Your items are **intact** — nothing was reset. (Testing caught that flipping it before the wipe would have wrongly cleared legitimately-earned items, so we're doing it the right way, after the fresh start.)

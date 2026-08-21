@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=425' directly.
+// modularised, will import { G } from '../state/game.js?v=426' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=425';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=425';
+import { on, snapshot } from '../net/events.js?v=426';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=426';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=425';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=426';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -27759,7 +27759,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=425');
+    const KIT = await import('../data/start-kit.js?v=426');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -29437,6 +29437,51 @@ const TESTS = [
     assert(JSON.stringify(R.recordValue(g, 'offlineBudget')) === known0,
       'an envelope carrying no record changed the provenance of one that does — a version bump with no '
       + 'record must be indistinguishable from never having asked: ' + JSON.stringify(R.recordValue(g, 'offlineBudget')));
+  }),
+
+  () => tryRun('B422: a stale boot read still FILLS an UNKNOWN balance (em-dash-gold after a cloud restore) without rewinding the watermark', () => {
+    const R = window.HearthriseRecord;
+    const B = window.HearthriseBalance;
+    assert(R && typeof R.applyRecord === 'function' && typeof R.recordValue === 'function'
+      && B && typeof B.balanceOf === 'function', 'record.js / balance.js did not load');
+    // gold must be armed for this to mean anything (it is — see B353-3c).
+    assert(R.isServerOfRecord('gold'), 'gold is not on SERVER_OF_RECORD — this guard is moot');
+
+    /* THE STATE A CLOUD-RESTORE / NEW-DEVICE BOOT LANDS IN, reproduced through the
+       REAL applyRecord path (no _record poking):
+         1. an away-accrue lands FIRST at a higher version, but its lean envelope
+            carries only the watermark — gold/gems are in `missing`. So the record
+            is stamped at v7 with offlineBudget KNOWN and gold UNKNOWN.
+         2. the boot hr_load — which DID carry gold — arrives SECOND and OLDER
+            (it read the pre-accrue row, or the persisted _record.version is high).
+       Before b422 step 2 was rejected `stale` wholesale, so gold stayed UNKNOWN:
+       em-dash top bar, Buy/Sell fail-closed, until the next higher-version settle. */
+    const g = {};
+    const accrue = R.applyRecord(g, { ok: true, version: 7, now: '2026-08-18T10:00:00Z',
+      state: { accrued_to: '2026-08-18T10:00:00Z' } });               // lean: watermark only
+    assert(accrue.written.indexOf('offlineBudget') !== -1, 'setup: the watermark did not stamp');
+    assert(B.balanceOf(g, 'gold').known === false, 'setup: gold should be UNKNOWN before the boot read');
+    const wmBefore = g.offlineBudget.at;
+
+    const boot = R.applyRecord(g, { ok: true, version: 5, now: '2026-08-18T09:00:00Z',
+      state: { gold: 72181, gems: 15, accrued_to: '2026-08-18T08:00:00Z' } });  // OLDER, but carries gold
+
+    // THE FIX: gold/gems are filled from the older read because they were UNKNOWN.
+    const rvGold = B.balanceOf(g, 'gold');
+    assert(rvGold.known === true && rvGold.value === 72181,
+      'the stale boot read did not fill UNKNOWN gold — em-dash-gold survives a cloud restore: ' + JSON.stringify(rvGold));
+    assert(B.balanceOf(g, 'gems').known === true && B.balanceOf(g, 'gems').value === 15,
+      'gems was not filled alongside gold');
+    assert(boot.filledStale === true && boot.written.indexOf('gold') !== -1,
+      'applyRecord did not report a stale gap-fill: ' + JSON.stringify(boot));
+
+    // ...and the watermark (a KNOWN field) was NOT rewound to the older read, and
+    // the record version was not lowered — the monotonic invariant B340-5 protects.
+    assert(g.offlineBudget.at === wmBefore,
+      'the older read rewound the watermark — the span between the two would be paid twice: '
+      + new Date(g.offlineBudget.at).toISOString());
+    assert(R.recordValue(g, 'offlineBudget').known === true && g._record.version === 7,
+      'the stale gap-fill lowered the record version or dropped the known watermark: v=' + g._record.version);
   }),
 
   () => tryRunAsync('B340-6: the boot read puts the CONTRACT hr_load request on the wire, and a failure leaves the field UNKNOWN', async () => {
@@ -33414,7 +33459,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=425');
+    const S = await import('../data/shops.js?v=426');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -34809,7 +34854,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=425');
+    const S = await import('../data/shops.js?v=426');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -38316,7 +38361,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=425')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=426')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -39754,7 +39799,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=425');
+    const A = await import('../net/accrue.js?v=426');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -39778,7 +39823,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=425');
+    const A = await import('../net/accrue.js?v=426');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

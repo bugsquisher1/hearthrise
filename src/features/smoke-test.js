@@ -27162,6 +27162,157 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
+     B429 — SKILL XP IS SERVER-OF-RECORD (shipped DORMANT).
+     ══════════════════════════════════════════════════════════════════════════
+     The gold template applied to a MAP. These prove the whole slice through the
+     REAL record.js + skill-record.js, POKING NO `_record` internals — a green
+     run therefore proves the armed READ path (pick → decodeSkills → applyRecord
+     → recordValue → skillXpOf) end to end, and the DORMANT default (no-op today).
+     Every arm is via the __setSkillsRecordArm test seam and reverted in finally,
+     so the suite leaves the flag pristine. */
+  () => tryRun('B429-1: DORMANT by default — skills is not on the active registry and reads fall through to G.skills', () => {
+    const R = window.HearthriseRecord;
+    const S = window.HearthriseSkillRecord;
+    assert(R && typeof R.isServerOfRecord === 'function' && typeof R.isSkillsRecordArmed === 'function',
+      'record.js did not load with the skills arm seam');
+    assert(S && typeof S.skillXpOf === 'function', 'skill-record.js did not load — the read side is the contract');
+    // The shipped default MUST be dormant. This is the "do not arm" guarantee in CI.
+    assert(R.SKILLS_RECORD_ARM_ENABLED === false, 'SKILLS_RECORD_ARM_ENABLED shipped TRUE — skills would be LIVE, not dormant');
+    assert(R.isSkillsRecordArmed() === false, 'skills reports armed with the flag off');
+    assert(R.isServerOfRecord('skills') === false, 'skills is on the ACTIVE registry while dormant — the strip would fire');
+    assert(R.serverOfRecordFields().indexOf('skills') === -1, 'serverOfRecordFields lists a dormant field');
+    // A dormant read is byte-for-byte the raw local read.
+    const g = { skills: { mining: 4000, hitpoints: 1154 } };
+    const b = S.skillXpOf(g, 'mining');
+    assert(b.known === true && b.value === 4000 && b.source === 'local', 'dormant skillXpOf did not answer the local value: ' + JSON.stringify(b));
+    assert(S.skillXpOf(g, 'fishing').value === 0 && S.skillXpOf(g, 'fishing').known === true, 'an unlisted skill on a present local map is 0, known');
+    // Dormant strip leaves G.skills alone.
+    const strip = R.stripServerOfRecord({ skills: { mining: 4000 }, gold: 5 });
+    assert(strip.stripped.indexOf('skills') === -1, 'dormant strip removed skills from the blob — that is arming by accident');
+  }),
+
+  () => tryRun('B429-2: decodeSkills / fingerprintSkills — the map off the wire, fail-closed', () => {
+    const R = window.HearthriseRecord;
+    assert(typeof R.decodeSkills === 'function' && typeof R.fingerprintSkills === 'function', 'skills decode/fingerprint not published');
+    // The wire shape hr_state_of sends: {id:{xp,level}} → G shape {id: xp}.
+    const dec = R.decodeSkills({ mining: { xp: 4000, level: 40 }, hitpoints: { xp: 1154, level: 10 } });
+    assert(dec && dec.mining === 4000 && dec.hitpoints === 1154, 'decodeSkills did not flatten the wire map: ' + JSON.stringify(dec));
+    assert(typeof dec.mining === 'number', 'decodeSkills stored a structured cell instead of the flat xp number (a derived level would ride along)');
+    // The flattened form (hr-accrue index.ts) also decodes.
+    const dec2 = R.decodeSkills({ mining: 4000 });
+    assert(dec2 && dec2.mining === 4000, 'decodeSkills did not accept the flattened {id:xp} form');
+    // FAIL-CLOSED: one bad cell condemns the whole map; empty is not a character.
+    assert(R.decodeSkills({ mining: { xp: -1 } }) === null, 'a negative xp cell did not condemn the map');
+    assert(R.decodeSkills({ mining: { xp: 'NaN' } }) === null, 'a non-finite xp cell did not condemn the map');
+    assert(R.decodeSkills({}) === null, 'an empty map decoded to a value instead of UNKNOWN');
+    assert(R.decodeSkills(null) === null && R.decodeSkills([]) === null, 'a non-object decoded to a value');
+    // Fingerprint is deterministic over sorted keys and never empty/NaN.
+    const fa = R.fingerprintSkills({ mining: 4000, hitpoints: 1154 });
+    const fb = R.fingerprintSkills({ hitpoints: 1154, mining: 4000 });
+    assert(fa === fb, 'fingerprintSkills depends on key order: ' + fa + ' vs ' + fb);
+    assert(fa !== 'absent' && R.fingerprintSkills({ mining: 4001 }) !== fa, 'fingerprintSkills does not distinguish a changed xp');
+    assert(R.fingerprintSkills({}) === 'absent' && R.fingerprintSkills(null) === 'absent', 'an empty/absent map did not fingerprint as absent');
+  }),
+
+  () => tryRun('B429-3: ARMED — a server envelope resolves skills KNOWN; the blob is STRIPPED; unstamped is fail-closed', () => {
+    const R = window.HearthriseRecord;
+    const S = window.HearthriseSkillRecord;
+    const A = window.HearthriseAccrual;
+    const wasA = A.isServerAccrualEnabled();
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);   // skills only arms when the master switch is on too
+      R.__setSkillsRecordArm(true);
+      assert(R.isServerOfRecord('skills') === true, 'arming did not put skills on the active registry (is the master switch off in this run?)');
+      // The blob strip now removes skills.
+      const strip = R.stripServerOfRecord({ skills: { mining: 4000 }, level: 7, foo: 1 });
+      assert(strip.stripped.indexOf('skills') !== -1, 'armed strip did NOT remove skills from the blob — it is still client-authored');
+      assert(!('skills' in strip.blob), 'skills survived the strip');
+      assert('foo' in strip.blob && strip.blob.level === 7, 'the strip removed a key it does not own (gold IS a record field, so it is not tested here)');
+
+      // A fresh G with NO record → UNKNOWN, fail-closed. Never a local fallback.
+      const g = { skills: { mining: 999999 } };   // a forged local value that must NOT be trusted once armed
+      const before = S.skillXpOf(g, 'mining');
+      assert(before.known === false && before.value === null && before.source === 'record',
+        'an unstamped armed skill was not UNKNOWN — the forged local value crossed: ' + JSON.stringify(before));
+
+      // A real server envelope arrives (skills at TOP LEVEL, the hr_load shape).
+      const applied = R.applyRecord(g, {
+        ok: true, version: Date.now(), now: '2026-08-21T10:00:00Z',
+        state: { gold: 100 }, skills: { mining: { xp: 4000, level: 40 }, hitpoints: { xp: 1154, level: 10 } },
+      });
+      assert(applied && applied.written && applied.written.indexOf('skills') !== -1,
+        'applyRecord did not write skills from the envelope: ' + JSON.stringify(applied));
+      const after = S.skillXpOf(g, 'mining');
+      assert(after.known === true && after.value === 4000 && after.source === 'server',
+        'skillXpOf did not resolve the server value: ' + JSON.stringify(after));
+      // The forged 999999 is gone — the record replaced the map wholesale.
+      assert(g.skills.mining === 4000, 'the server envelope did not overwrite the forged local xp: ' + g.skills.mining);
+      // An unlisted skill under a KNOWN map is 0, KNOWN (server authoritative).
+      assert(S.skillXpOf(g, 'cooking').known === true && S.skillXpOf(g, 'cooking').value === 0,
+        'an unlisted skill under a known server map was not 0/known');
+    } finally {
+      R.__setSkillsRecordArm(null);
+      if (!wasA) A.setServerAccrualEnabled(false);
+    }
+  }),
+
+  () => tryRun('B429-4: ARMED — monotonic; a stale envelope cannot rewind a known skills map', () => {
+    const R = window.HearthriseRecord;
+    const S = window.HearthriseSkillRecord;
+    const A = window.HearthriseAccrual;
+    const wasA = A.isServerAccrualEnabled();
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);
+      R.__setSkillsRecordArm(true);
+      const g = {};
+      const vNew = Date.now();
+      R.applyRecord(g, { ok: true, version: vNew, now: '2026-08-21T11:00:00Z',
+        state: { gold: 1 }, skills: { mining: { xp: 5000, level: 44 } } });
+      assert(S.skillXpNum(g, 'mining') === 5000, 'the fresh map did not apply');
+      // A STALE (older-version) envelope carrying LOWER xp must not rewind a KNOWN field.
+      const res = R.applyRecord(g, { ok: true, version: vNew - 1000, now: '2026-08-21T10:00:00Z',
+        state: { gold: 1 }, skills: { mining: { xp: 10, level: 1 } } });
+      assert(res.skipped === 'stale', 'a stale envelope on a fully-known record was not skipped: ' + JSON.stringify(res));
+      assert(S.skillXpNum(g, 'mining') === 5000, 'a stale envelope rewound the skills map from 5000 to ' + S.skillXpNum(g, 'mining'));
+    } finally {
+      R.__setSkillsRecordArm(null);
+      if (!wasA) A.setServerAccrualEnabled(false);
+    }
+  }),
+
+  () => tryRun('B429-5: ARMED — the device-handoff divergence for skills collapses to zero (the reconcile-modal cause)', () => {
+    const R = window.HearthriseRecord;
+    const S = window.HearthriseSkillRecord;
+    const A = window.HearthriseAccrual;
+    const wasA = A.isServerAccrualEnabled();
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);
+      R.__setSkillsRecordArm(true);
+      /* Two devices. Device A last uploaded a snapshot whose skills say mining=8000.
+         Device B's local blob is AHEAD/BEHIND with mining=3000 (the client-authored
+         divergence that surfaced the handoff reconcile modal). Under the record,
+         BOTH are stripped and neither is authority — the SERVER map is the only
+         source, so the two devices cannot disagree. */
+      const deviceA = R.stripServerOfRecord({ skills: { mining: 8000 }, gold: 1 }).blob;
+      const deviceB = R.stripServerOfRecord({ skills: { mining: 3000 }, gold: 1 }).blob;
+      assert(!('skills' in deviceA) && !('skills' in deviceB), 'a device blob kept its client-authored skills after the strip');
+      // Both devices load the SAME server envelope → identical, divergence == 0.
+      const gA = Object.assign({}, deviceA);
+      const gB = Object.assign({}, deviceB);
+      const env = { ok: true, version: Date.now(), now: '2026-08-21T12:00:00Z',
+        state: { gold: 1 }, skills: { mining: { xp: 6000, level: 47 } } };
+      R.applyRecord(gA, env);
+      R.applyRecord(gB, env);
+      const a = S.skillXpNum(gA, 'mining'), b = S.skillXpNum(gB, 'mining');
+      assert(a === 6000 && b === 6000, 'the devices did not converge on the server value: A=' + a + ' B=' + b);
+      assert(a - b === 0, 'the device-handoff skills divergence did not collapse to zero: ' + (a - b));
+    } finally {
+      R.__setSkillsRecordArm(null);
+      if (!wasA) A.setServerAccrualEnabled(false);
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
      B353-4 — NOT SIGNED IN IS NOT AN OUTAGE.
      ══════════════════════════════════════════════════════════════════════════
      Found by the flip, and it is the clearest example of a defect that a dark

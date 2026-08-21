@@ -199,6 +199,35 @@ export const SERVER_OF_RECORD = Object.freeze([
     decode: decodeBalance, fingerprint: fingerprintBalance }),
   Object.freeze({ field: 'gems', from: 'gems', since: 'b3xx',
     decode: decodeBalance, fingerprint: fingerprintBalance }),
+  /* ── SKILLS XP, SHIPPED DORMANT (b429) — THE MAP THAT IS ONE RECORD ──────────
+     The design question this entry answers: gold is a scalar, skills are a MAP
+     ({id: xp} in G, {id:{xp,level}} on the wire). The faithful extension of a
+     per-FIELD registry is ONE entry whose value IS the whole map — not fifteen
+     entries, one per skill. One entry means one strip (`G.skills` deleted from
+     the blob), one fingerprint over the whole map, one monotonic version shared
+     with every other field, and it matches hr_state_of exactly, which returns
+     `skills` as one object. Fifteen entries would multiply the strip, split the
+     provenance across fifteen `known` claims that could disagree, and invent a
+     shape the server never sends.
+
+     TWO NEW, MINIMAL FRAMEWORK EXTENSIONS THIS ENTRY INTRODUCES, both data:
+       • `pick(res)` — skills ride at the TOP LEVEL of the envelope (`res.skills`),
+         a SIBLING of `state`, not `res.state.skills` (see hr_state_of in
+         2026-08-11-apply-engine.sql §2, and the header envelope shape above).
+         `pick` names where the raw wire value lives; absent it, decodeRecord
+         reads `res.state[from]` exactly as before, so gold/gems are untouched.
+       • `armed()` — the DORMANT gate. Unlike gold/gems (armed with the master
+         switch), skills carries its own enable that DEFAULTS OFF, mirroring the
+         inventory-flip's INVENTORY_ARM_ENABLED. While `isSkillsRecordArmed()` is
+         false the entry is invisible to serverOfRecordFields / isServerOfRecord /
+         decodeRecord / the strip — so shipping it changes nothing byte-for-byte
+         until a rollout commit flips SKILLS_RECORD_ARM_ENABLED. That is what
+         "ship dormant, do not arm" means mechanically, and it is why this entry
+         can land on `main` beside the always-on ones without going live. */
+  Object.freeze({ field: 'skills', from: 'skills', since: 'b429',
+    pick: (res) => (res && typeof res === 'object') ? res.skills : undefined,
+    armed: () => isSkillsRecordArmed(),
+    decode: decodeSkills, fingerprint: fingerprintSkills }),
   /* ── b353 — WHY GOLD AND GEMS WERE HELD BACK, AND THIS IS THE MEASUREMENT ────
      ⚠ THE HISTORY BELOW is kept because the reason they were not armed earlier is
        a FACT that was cheap to discover and expensive to rediscover, and because
@@ -330,7 +359,87 @@ export function fingerprintBalance(v) {
   return Number.isFinite(n) ? 'n=' + Math.floor(n) : 'absent';
 }
 
-export function serverOfRecordFields() { return SERVER_OF_RECORD.map((e) => e.field); }
+/* ── THE SKILLS MAP OFF THE WIRE (b429) ──────────────────────────────────────
+   Save-invariant #2's rule applied to a MAP: act only on CERTAINTY, and let a
+   SINGLE bad cell condemn the whole map rather than silently substituting a zero
+   for it. The wire shape from hr_state_of is `{skill_id:{xp,level}}`; a flattened
+   `{skill_id: xp}` (the form hr-accrue's index.ts builds for its own response) is
+   accepted too, so one decoder covers both envelope producers. The client's
+   representation is `{skill_id: xp}` — the LEVEL is derived, never stored, so it
+   is dropped here (a stored level is a second copy of a computed fact and the
+   two would drift). Fail-closed: a non-object, an empty map (a real character
+   always has seeded skills, so empty means "the read did not populate"), or any
+   cell whose xp is not a finite non-negative integer returns null → UNKNOWN. */
+export function decodeSkills(v) {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) return null;
+  const out = {};
+  let count = 0;
+  for (const k in v) {
+    if (!Object.prototype.hasOwnProperty.call(v, k)) continue;
+    const cell = v[k];
+    const xp = (cell !== null && typeof cell === 'object') ? Number(cell.xp) : Number(cell);
+    if (!Number.isFinite(xp) || xp < 0) return null;   // one bad cell condemns the map
+    out[k] = Math.floor(xp);
+    count++;
+  }
+  if (count === 0) return null;                         // empty is not a character
+  return out;
+}
+
+/* Deterministic over SORTED keys, so the same map always fingerprints the same
+   string regardless of key insertion order (jsonb_object_agg gives no ordering
+   guarantee). Never NaN and never empty, so `want === have` in recordValue is a
+   real comparison — the same rule decodeBalance's fingerprint follows. */
+export function fingerprintSkills(v) {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) return 'absent';
+  const keys = Object.keys(v).sort();
+  if (!keys.length) return 'absent';
+  let s = 's:';
+  for (const k of keys) {
+    const n = Number(v[k]);
+    if (!Number.isFinite(n)) return 'absent';
+    s += k + '=' + Math.floor(n) + ';';
+  }
+  return s;
+}
+
+/* ── THE SKILLS DORMANT ARM (b429) ───────────────────────────────────────────
+   Skills does not ride the master accrual switch the way gold/gems do; it has
+   its OWN enable that defaults OFF, so the entry ships on `main` fully inert.
+   Mirrors src/data/item-authority.js INVENTORY_ARM_ENABLED: one greppable const,
+   a test override seam, and a runtime predicate that ALSO requires the master
+   switch — so `armed` cannot be true while the record system as a whole is off
+   (which would leave `G.skills` un-stripped yet read record-first = a mismatch).
+
+   ⚠ FLIPPING THIS TO true IS THE ARM. Do not do it until: the client read sites
+   route skill xp/level through src/net/skill-record.js (skillXpOf), Security has
+   reviewed, and it is POST-WIPE (a sparse server skills baseline vs a rich client
+   one would strand xp — the same class of loss the inventory flip hit pre-wipe).
+   See the writeup / docs for the exact arm procedure. */
+export const SKILLS_RECORD_ARM_ENABLED = false;   // DORMANT — post-wipe rollout only
+let skillsArmOverride = null;
+export function isSkillsRecordArmed() {
+  const on = skillsArmOverride !== null ? skillsArmOverride : SKILLS_RECORD_ARM_ENABLED;
+  return !!on && isRecordActive();
+}
+/** Test seam, same spirit as __clearAccrualOverride: force the arm on/off, or
+ *  pass null to fall back to the const. Returns the resulting armed state. */
+export function __setSkillsRecordArm(v) {
+  skillsArmOverride = (v === null || v === undefined) ? null : !!v;
+  return isSkillsRecordArmed();
+}
+
+/* ── THE ARM FILTER ──────────────────────────────────────────────────────────
+   An entry with no `armed` is always active (gold/gems/offlineBudget — governed
+   only by the master switch). An entry WITH `armed` is active only when it
+   returns true. Every downstream consumer — the field list, the strip, the
+   decode loop, isServerOfRecord — reads through this, so a dormant field is
+   uniformly invisible and cannot half-exist (stripped but not read, or read but
+   not stripped). */
+function entryIsActive(e) { return typeof e.armed !== 'function' || !!e.armed(); }
+function activeEntries() { return SERVER_OF_RECORD.filter(entryIsActive); }
+
+export function serverOfRecordFields() { return activeEntries().map((e) => e.field); }
 export function isServerOfRecord(field) { return serverOfRecordFields().indexOf(field) !== -1; }
 export function recordEntry(field) {
   for (const e of SERVER_OF_RECORD) if (e.field === field) return e;
@@ -428,8 +537,12 @@ export function decodeRecord(res) {
   const version = Number(res.version);
   if (!Number.isFinite(version)) { out.reason = 'no_version'; return out; }
   out.version = version;
-  for (const entry of SERVER_OF_RECORD) {
-    const raw = Object.prototype.hasOwnProperty.call(st, entry.from) ? st[entry.from] : undefined;
+  for (const entry of activeEntries()) {
+    /* `pick` names a value at the envelope TOP LEVEL (skills rides beside `state`,
+       not inside it); absent it, read `res.state[from]` exactly as before. */
+    const raw = typeof entry.pick === 'function'
+      ? entry.pick(res)
+      : (Object.prototype.hasOwnProperty.call(st, entry.from) ? st[entry.from] : undefined);
     const decoded = entry.decode(raw);
     if (decoded === null) { out.missing.push(entry.field); continue; }
     out.fields[entry.field] = decoded;
@@ -774,6 +887,8 @@ if (typeof window !== 'undefined') {
     SERVER_OF_RECORD, RECORD_OUTCOMES, REGISTRY_FIELDS,
     isRecordActive, serverOfRecordFields, isServerOfRecord, recordEntry, clientMayWrite,
     decodeBalance, fingerprintBalance,
+    decodeSkills, fingerprintSkills,
+    SKILLS_RECORD_ARM_ENABLED, isSkillsRecordArmed, __setSkillsRecordArm,
     stripServerOfRecord, forgetServerOfRecord,
     decodeRecord, applyRecord, recordValue,
     configureRecord, getRecordConfig, recordEndpoint,

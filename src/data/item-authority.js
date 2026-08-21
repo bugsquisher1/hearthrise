@@ -53,10 +53,10 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=424';
-import { ARTISAN_RECIPES } from './recipes.js?v=424';
-import { MONSTERS } from './monsters.js?v=424';
-import { BOSSES } from './bosses.js?v=424';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=425';
+import { ARTISAN_RECIPES } from './recipes.js?v=425';
+import { MONSTERS } from './monsters.js?v=425';
+import { BOSSES } from './bosses.js?v=425';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -117,17 +117,22 @@ export function gatherProductIds() {
    server; existing players' client-side crews reconcile to the (empty) server crew
    on next load = expected/accepted. Post-wipe every crew is empty, so no further
    transition. Coupled with INVENTORY_ARM_ENABLED below (both set true together). */
-export const WORKER_PRODUCTION_SERVER_BACKED = true;   // ARMED 2026-08-20 (b424) — see rollout note below
+export const WORKER_PRODUCTION_SERVER_BACKED = false;   // REVERTED to dormant b425 — see note below
 
 /* THE INVENTORY-FLIP LIVE-ARM ENABLE (rollout gate, 2026-08-20).
-   ⚠ ARMED LIVE b424 (2026-08-20), PRE-WIPE, by Tyler's explicit call ("just doing
-   it now so we can make sure it works"), item loss accepted (players warned; the
-   Saturday wipe is the backstop). Both flags set true together in this commit +
-   the client worker mint gated off by WORKER_PRODUCTION_SERVER_BACKED. Security
-   GO-WITH-CONDITIONS; the drift-soak condition was consciously skipped (not
-   centrally measurable) — safety rests on the design-verified completeness signal
-   + the wipe. Existing players' client-side worker crews reconcile to the (empty)
-   server crew on next load = expected, accepted.
+   ⚠⚠ b424 ARMED PRE-WIPE, then b425 REVERTED (2026-08-20) after a LIVE TEST found it
+   CATASTROPHIC. THE HARD LESSON: `inventory_complete=true` means "the server's settle
+   loop is caught up", NOT "the server bag equals the client bag". Every player built
+   their inventory CLIENT-SIDE before the flip, so the server baseline is SPARSE — a
+   live check on Tyler's own character: client 36 stacks / 91,168 items vs server 19
+   stacks / 37,157 items, with 12 OWNABLE stacks (coal 3974, iron_ore 4000, oak_log
+   3960, all three essences 4000 each, water_rune 1247, …) OMITTED by the "complete"
+   envelope. An absolute replace would DELETE ~40k+ items of real progress per player.
+   The drift readout (inventoryFlipReadiness().destructiveOwnedOmissions / lastLoss)
+   flagged exactly this — the "soak" I'd called unmeasurable IS measurable client-side,
+   and it screamed. The flip is ONLY safe POST-WIPE (empty server baseline == empty
+   client bag, every subsequent item server-settled from scratch). Both flags stay
+   FALSE until AFTER the wipe. Do NOT arm pre-wipe again.
    THE ONE FLAG THAT TURNS THE INVENTORY FLIP ON FOR EVERY PLAYER. All the arm
    machinery is built and dormant: markInventoryAuthorityLive throws unless every
    guard is met, and isInventoryAbsolute stays false because nothing in prod calls
@@ -151,7 +156,7 @@ export const WORKER_PRODUCTION_SERVER_BACKED = true;   // ARMED 2026-08-20 (b424
    removing the client mint (src/features/workers.js) re-opens the landmine; both
    moves belong in the ONE post-wipe rollout commit, gated on a security pass and
    a coordinator-run drift-soak. Do NOT set either true before the wipe. */
-export const INVENTORY_ARM_ENABLED = true;   // ARMED 2026-08-20 (b424) — coupled with WORKER_PRODUCTION_SERVER_BACKED above
+export const INVENTORY_ARM_ENABLED = false;   // REVERTED to dormant b425 — pre-wipe arm was catastrophic (see note above); post-wipe only
 
 /** Every id a hired worker can mint client-side = every gather product (a worker
  *  is only ever assigned a gather node). Kept as its own function, not an alias,

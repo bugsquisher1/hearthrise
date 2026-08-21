@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 424 — 2026-08-20 (Inventory is now server-authoritative)
+
+- 🔒 **Your inventory is now owned and verified by the server** — the final piece of the anti-cheat foundation. Item counts can no longer be tampered with from the browser. This completes the server-authority program: gold, gems, XP, skills, drops, and now every item are all server-held.
+- ⚠️ **One-time reset:** because inventory was previously client-side, your bag has snapped to what the server has on record — some items may have changed or disappeared. This is expected and one-time.
+- 🧹 **Heads up: a full character wipe is coming Saturday** — everyone starts fresh on the secure foundation. Thanks for testing through this transition. 🔥
+
 ## v0.9.2-beta build 423 — 2026-08-20 (Inventory groundwork: workers)
 
 - 🔧 No gameplay change. Built the server-side model for hired-worker production — the last piece needed before your inventory itself becomes tamper-proof. It's shipped dormant and switches on with the upcoming character wipe, so no current workers are affected.

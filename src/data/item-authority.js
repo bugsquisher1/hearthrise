@@ -53,10 +53,10 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=423';
-import { ARTISAN_RECIPES } from './recipes.js?v=423';
-import { MONSTERS } from './monsters.js?v=423';
-import { BOSSES } from './bosses.js?v=423';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=424';
+import { ARTISAN_RECIPES } from './recipes.js?v=424';
+import { MONSTERS } from './monsters.js?v=424';
+import { BOSSES } from './bosses.js?v=424';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -111,16 +111,23 @@ export function gatherProductIds() {
    its backed branch. Flipping it without removing the mint would re-open the
    landmine; the SERVER-OWNED-5 backstop fails exactly then.
 
-   ⚠ SHIPPED DORMANT (false) 2026-08-20: the server machinery (migration + engine +
-   RPCs + client wiring) is all live, but the flag stays FALSE so the client keeps
-   minting worker output locally. Activating (true) makes the client reconcile the
-   crew from the server, and existing players' crews live ONLY client-side today —
-   so a live flip-to-true would ERASE their current workers. Activation therefore
-   rides the WIPE (post-wipe every crew is empty → no migration, no lost workers),
-   in the same step that arms the inventory flip. Do NOT set true before the wipe. */
-export const WORKER_PRODUCTION_SERVER_BACKED = false;
+   ⚠ HISTORY: shipped DORMANT (false) b423, then ARMED true b424 (2026-08-20) —
+   PRE-WIPE by Tyler's explicit call, item loss accepted (players warned; Saturday
+   wipe is the backstop). Activating makes the client reconcile the crew from the
+   server; existing players' client-side crews reconcile to the (empty) server crew
+   on next load = expected/accepted. Post-wipe every crew is empty, so no further
+   transition. Coupled with INVENTORY_ARM_ENABLED below (both set true together). */
+export const WORKER_PRODUCTION_SERVER_BACKED = true;   // ARMED 2026-08-20 (b424) — see rollout note below
 
 /* THE INVENTORY-FLIP LIVE-ARM ENABLE (rollout gate, 2026-08-20).
+   ⚠ ARMED LIVE b424 (2026-08-20), PRE-WIPE, by Tyler's explicit call ("just doing
+   it now so we can make sure it works"), item loss accepted (players warned; the
+   Saturday wipe is the backstop). Both flags set true together in this commit +
+   the client worker mint gated off by WORKER_PRODUCTION_SERVER_BACKED. Security
+   GO-WITH-CONDITIONS; the drift-soak condition was consciously skipped (not
+   centrally measurable) — safety rests on the design-verified completeness signal
+   + the wipe. Existing players' client-side worker crews reconcile to the (empty)
+   server crew on next load = expected, accepted.
    THE ONE FLAG THAT TURNS THE INVENTORY FLIP ON FOR EVERY PLAYER. All the arm
    machinery is built and dormant: markInventoryAuthorityLive throws unless every
    guard is met, and isInventoryAbsolute stays false because nothing in prod calls
@@ -144,7 +151,7 @@ export const WORKER_PRODUCTION_SERVER_BACKED = false;
    removing the client mint (src/features/workers.js) re-opens the landmine; both
    moves belong in the ONE post-wipe rollout commit, gated on a security pass and
    a coordinator-run drift-soak. Do NOT set either true before the wipe. */
-export const INVENTORY_ARM_ENABLED = false;
+export const INVENTORY_ARM_ENABLED = true;   // ARMED 2026-08-20 (b424) — coupled with WORKER_PRODUCTION_SERVER_BACKED above
 
 /** Every id a hired worker can mint client-side = every gather product (a worker
  *  is only ever assigned a gather node). Kept as its own function, not an alias,

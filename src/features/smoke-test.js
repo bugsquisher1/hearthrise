@@ -37999,6 +37999,58 @@ const TESTS = [
     A.resetEnvelopeDrift();   // leave the counter clean for any later observer
   }),
 
+  () => tryRun('INVENTORY-BASELINE-6: the drift telemetry reporter emits a bounded aggregate summary and does NOT spam', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.flipDriftSummary === 'function', 'flipDriftSummary must be published');
+    assert(typeof A.reportFlipDrift === 'function', 'reportFlipDrift must be published');
+    assert(typeof A.__resetFlipDriftReport === 'function', '__resetFlipDriftReport must be published');
+
+    A.resetEnvelopeDrift();
+    A.__resetFlipDriftReport();
+
+    /* SHAPE: a small FLAT object of scalars — no arrays, no per-envelope detail.
+       This is what makes it safe to emit as ONE analytics row (journal rule 6). */
+    const s = A.flipDriftSummary();
+    const expectedKeys = ['destructiveOwnedOmissions', 'envelopesApplied', 'completeEnvelopes',
+      'lastLossMag', 'soakMinutes', 'ready', 'armed', 'dungeonsLoaded', 'baselineCompleteSeen'];
+    for (const k of expectedKeys) assert(k in s, 'summary must expose ' + k);
+    for (const k of Object.keys(s)) {
+      const t = typeof s[k];
+      assert(t === 'number' || t === 'boolean', 'every summary field must be a scalar — ' + k + ' is ' + t);
+    }
+    assert(!Array.isArray(s.skills) && s.lastLoss === undefined, 'summary must not carry the raw loss object or arrays');
+
+    /* EMIT via an injected sink so we do not depend on the analytics buffer. */
+    const emitted = [];
+    const sink = (name, props) => emitted.push({ name, props });
+
+    const first = A.reportFlipDrift(sink);
+    assert(first !== null, 'first report must emit');
+    assert(emitted.length === 1, 'exactly one event on first report — got ' + emitted.length);
+    assert(emitted[0].name === 'inv_flip_drift', 'event name must be inv_flip_drift — got ' + emitted[0].name);
+    assert(emitted[0].props && emitted[0].props.destructiveOwnedOmissions === 0, 'clean soak reports zero omissions');
+
+    /* NO SPAM: an UNCHANGED drift picture must be suppressed — the steady state
+       stays one row per session, not one per cadence tick. */
+    const dup = A.reportFlipDrift(sink);
+    assert(dup === null, 'an unchanged summary must be suppressed (dedupe)');
+    assert(emitted.length === 1, 'no second event when nothing changed — got ' + emitted.length);
+
+    /* A CHANGED picture (a destructive owned omission appears) re-emits, and the
+       magnitude is a bounded scalar. */
+    A.noteEnvelopeDrift(A.describeReplacement(
+      { gold: 0, skills: {}, inventory: { ember_bar: 10 } },
+      { state: {}, skills: {}, inventory: { ember_bar: 2 } }));
+    const chg = A.reportFlipDrift(sink);
+    assert(chg !== null && emitted.length === 2, 'a changed drift picture must emit a new event');
+    assert(emitted[1].props.destructiveOwnedOmissions === 1, 'the new event carries the bumped omission count');
+    assert(typeof emitted[1].props.lastLossMag === 'number' && emitted[1].props.lastLossMag >= 8,
+      'lastLossMag is a bounded scalar reflecting the omission — got ' + emitted[1].props.lastLossMag);
+
+    A.resetEnvelopeDrift();
+    A.__resetFlipDriftReport();
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════════
      AUTO-ARM — THE BOOT LIVE-ARM WIRING (inventory-flip LIVE-ARM step, 2026-08-20).
 

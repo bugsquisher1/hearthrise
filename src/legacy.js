@@ -1273,7 +1273,16 @@ function loadLocal(){
   if(clientMayWriteRecordField('gems')) G.gems=G.gems||0;
   G.bank=Object.assign({goldBuys:0,gemBuys:0,grandfather:0},G.bank||{});
   generateDailyTasks(false);
-  G.playerMaxHp=levelFromXp(G.skills.hitpoints||0);
+  /* b429: read hitpoints xp through the skill-record accessor (dormant → the raw
+     local read, byte-for-byte; armed → the SERVER map, and 0 until the envelope
+     lands, which maxHp is reconciled from anyway). Guarded so a boot where the
+     module has not attached degrades to the classic read rather than throwing,
+     and so a stripped-away G.skills (armed) cannot crash the boot the way the
+     b353 gold `toLocaleString` cold-load did. */
+  var _hpXp=(window.HearthriseSkillRecord&&typeof window.HearthriseSkillRecord.skillXpOr==='function')
+    ? window.HearthriseSkillRecord.skillXpOr(G,'hitpoints',0)
+    : ((G.skills&&G.skills.hitpoints)||0);
+  G.playerMaxHp=levelFromXp(_hpXp);
   G.playerHp=Math.min(G.playerHp||G.playerMaxHp,G.playerMaxHp);
   processOffline();
   // Resume the live combat tick if we still have an active monster

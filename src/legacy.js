@@ -2166,31 +2166,31 @@ function processOffline(){
          `no_character`, and asking before creating just burns a rate budget for
          a refusal) and does NOT gate accrual: a failed load leaves the field
          UNKNOWN, which is the honest state, and never a local number. */
-      /* b427 — REPAINT WHEN THE BOOT READ LANDS. record.js is DOM-free by design,
-         so a successful hr_load STAMPS the balance (gold/gems via applyRecord) but
-         paints nothing. On a live session the next combat/activity tick calls
-         updateTopbar() and the number appears within a frame; on an IDLE cloud-
-         restore / new-device boot there is NO tick, so the top bar and shop sat on
-         the pending em dash and every Buy/Sell fail-closed indefinitely even though
-         the balance was known. This is the render half of the b422 fix: the record
-         is correct, but nothing told the economy UI to re-read it. Repaint the
-         balance surfaces the instant the read writes a field — idempotent, and only
-         when something was actually written (a failed/empty load repaints nothing). */
-      var _afterRecordLoad=function(v){
-        try{
-          if(v&&v.applied&&v.applied.written&&v.applied.written.length){
-            if(typeof updateTopbar==='function') updateTopbar();
-            if(typeof activeTab!=='undefined'&&activeTab==='shop'&&typeof renderShop==='function') renderShop();
-          }
-        }catch(e){}
-      };
+      /* b427/b428 — REPAINT WHENEVER THE RECORD LANDS. record.js is DOM-free by
+         design, so a successful hr_load STAMPS the balance (gold/gems via
+         applyRecord) but paints nothing. On a live session the next combat/activity
+         tick calls updateTopbar() and the number appears within a frame; on an IDLE
+         cloud-restore / new-device boot there is NO tick, so the top bar and shop
+         sat on the pending em dash and every Buy/Sell fail-closed indefinitely even
+         though the balance was known.
+         Registered through onRecordApplied (not chained onto a single
+         beginRecordLoad promise) precisely because the load that actually succeeds
+         on a fresh new-device tab is the CONFIG-RETRY one fired from configureRecord
+         (b428) — a promise this boot code never holds. The hook fires for both the
+         initial read and that retry, only when a field was written. Idempotent. */
+      if(R&&typeof R.onRecordApplied==='function'){
+        try{ R.onRecordApplied(function(){
+          try{ if(typeof updateTopbar==='function') updateTopbar(); }catch(e){}
+          try{ if(typeof activeTab!=='undefined'&&activeTab==='shop'&&typeof renderShop==='function') renderShop(); }catch(e){}
+        }); }catch(e){}
+      }
       if(C&&typeof C.ensureThenAccrue==='function'){
         var p=C.ensureThenAccrue();
-        if(R&&p&&typeof p.then==='function') p.then(function(){ var rp=R.beginRecordLoad(); if(rp&&typeof rp.then==='function') rp.then(_afterRecordLoad); });
+        if(R&&p&&typeof p.then==='function') p.then(function(){ R.beginRecordLoad(); });
       }
       else{
         window.HearthriseAccrual.beginServerAccrual();
-        if(R){ var rp2=R.beginRecordLoad(); if(rp2&&typeof rp2.then==='function') rp2.then(_afterRecordLoad); }
+        if(R) R.beginRecordLoad();
       }
     }catch(e){}
     return;

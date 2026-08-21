@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=428';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=429';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -582,6 +582,23 @@ export function recordValue(G, field) {
 let config = null;
 let inFlight = null;
 let last = null;
+/* ── b428: THE BOOT LOAD OUTRUNS ITS OWN CONFIG ──────────────────────────────
+   On a fresh new-device tab, legacy.js's processOffline() fires beginRecordLoad()
+   during loadLocal — but auth.js only calls configureRecord() once the session is
+   established, which is LATER. So the very first boot read returned
+   `unconfigured/no_endpoint` and was abandoned: the record stayed empty, gold/gems
+   never stamped, and the top bar showed an em dash PERMANENTLY for that session
+   (measured live on b428). `wantedBootLoad` records that a boot read wanted to run
+   but had no endpoint yet; configureRecord replays it the instant the endpoint
+   arrives. `appliedCb` lets the DOM-free record module tell the UI to repaint when
+   THAT retried load lands, without importing a renderer. */
+let wantedBootLoad = false;
+let appliedCb = null;
+
+/** Register a repaint hook fired after ANY load applies a field (initial or the
+ *  post-config retry). DOM-free by contract: record.js calls it, legacy.js owns
+ *  what it does. Idempotent — one registration replaces the last. */
+export function onRecordApplied(cb) { appliedCb = (typeof cb === 'function') ? cb : null; return appliedCb; }
 
 export function configureRecord(cfg) {
   if (!cfg || !cfg.url) { config = null; return null; }
@@ -591,6 +608,16 @@ export function configureRecord(cfg) {
     authToken: cfg.authToken || null,
     slot: Number.isInteger(cfg.slot) ? cfg.slot : null,
   };
+  /* THE RETRY, AND IT IS THE WHOLE FIX FOR THE NEW-DEVICE EM DASH. A boot read
+     that fired before this call was abandoned with the endpoint missing; now that
+     the endpoint exists, run it. Fire-and-forget for the same reason beginRecordLoad
+     is — the game must not block a frame — and it repaints through appliedCb when it
+     lands. Guarded so a configure that is not answering a pending boot load costs
+     nothing. */
+  if (wantedBootLoad) {
+    wantedBootLoad = false;
+    try { beginRecordLoad(); } catch (e) {}
+  }
   return getRecordConfig();
 }
 
@@ -671,7 +698,7 @@ export function getRecordState() {
   return { active: isRecordActive(), configured: !!config, pending: !!inFlight, last };
 }
 
-export function resetRecord() { inFlight = null; last = null; }
+export function resetRecord() { inFlight = null; last = null; wantedBootLoad = false; }
 
 /**
  * ASK THE SERVER FOR THE RECORD. Returns a verdict; on `loaded` it has already
@@ -686,9 +713,13 @@ export function resetRecord() { inFlight = null; last = null; }
 export async function requestRecord(opts) {
   const o = opts || {};
   if (inFlight) return inFlight;
-  if (!config) return (last = { outcome: 'unconfigured', reason: 'no_endpoint', applied: false });
+  /* LATCH, DON'T ABANDON (b428). A boot read that arrives before configureRecord
+     wanted to run and could not; record that so configureRecord replays it the
+     instant the endpoint (and, on the next line, the token) exists. Fail-closed is
+     untouched — the field stays UNKNOWN until a real envelope lands. */
+  if (!config) { wantedBootLoad = true; return (last = { outcome: 'unconfigured', reason: 'no_endpoint', applied: false }); }
   const token = tokenOf();
-  if (!token) return (last = { outcome: 'unconfigured', reason: 'no_token', applied: false });
+  if (!token) { wantedBootLoad = true; return (last = { outcome: 'unconfigured', reason: 'no_token', applied: false }); }
 
   const slot = resolveActiveSlot(Number.isInteger(o.slot) ? o.slot : config.slot);
   const { url, init } = buildLoadRequest({ url: config.url, apiKey: config.apiKey, token, slot });
@@ -718,8 +749,14 @@ function settle(verdict) {
       + (verdict.reason ? ': ' + verdict.reason : '') + ') — '
       + serverOfRecordFields().join(', ') + ' stay UNKNOWN, and this device will not guess.');
   }
+  const didApply = !!(applied && applied.written && applied.written.length);
   last = { outcome: verdict.outcome, reason: verdict.reason || null, at: Date.now(),
-    applied: !!(applied && applied.written && applied.written.length) };
+    applied: didApply };
+  /* REPAINT ON EVERY LAND (b427/b428). record.js is DOM-free, so the UI is told to
+     re-read the balance here — for the initial boot read AND for the post-config
+     retry, which is the one the new-device em dash was waiting on. Only when a
+     field was actually written; a failed/empty load paints nothing. */
+  if (didApply && appliedCb) { try { appliedCb(applied); } catch (e) {} }
   return { ...verdict, applied };
 }
 
@@ -742,5 +779,6 @@ if (typeof window !== 'undefined') {
     configureRecord, getRecordConfig, recordEndpoint,
     buildLoadRequest, classifyLoadResponse,
     requestRecord, beginRecordLoad, getRecordState, resetRecord,
+    onRecordApplied,
   };
 }

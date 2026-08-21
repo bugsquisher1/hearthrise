@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=428' directly.
+// modularised, will import { G } from '../state/game.js?v=429' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=428';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=428';
+import { on, snapshot } from '../net/events.js?v=429';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=429';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=428';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=429';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -27800,7 +27800,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=428');
+    const KIT = await import('../data/start-kit.js?v=429');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -29529,6 +29529,60 @@ const TESTS = [
       + new Date(g.offlineBudget.at).toISOString());
     assert(R.recordValue(g, 'offlineBudget').known === true && g._record.version === 7,
       'the stale gap-fill lowered the record version or dropped the known watermark: v=' + g._record.version);
+  }),
+
+  () => tryRunAsync('B428: a boot read that outruns its config is REPLAYED when the endpoint arrives (the new-device em dash)', async () => {
+    const R = window.HearthriseRecord;
+    const B = window.HearthriseBalance;
+    assert(R && typeof R.beginRecordLoad === 'function' && typeof R.configureRecord === 'function'
+      && typeof R.onRecordApplied === 'function' && B, 'record.js/balance.js did not load');
+    assert(R.isServerOfRecord('gold'), 'gold is not armed — this guard is moot');
+
+    const realFetch = window.fetch;
+    const realG = window.G;
+    let painted = 0;
+    try {
+      // A fresh new-device boot: NO endpoint yet (auth.js has not wired it).
+      R.resetRecord();
+      R.configureRecord(null);
+      window.G = {};                                   // the record applies onto window.G
+      R.onRecordApplied(() => { painted++; });
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, version: 12, now: '2026-08-18T10:00:00Z',
+          state: { slot: 0, gold: 72131, gems: 15, accrued_to: '2026-08-18T10:00:00Z' },
+        }), { status: 200 }));
+      };
+
+      // 1) The boot read fires BEFORE config → unconfigured, and is NOT abandoned
+      //    silently: the field stays UNKNOWN (fail-closed) and nothing repaints.
+      const early = await R.beginRecordLoad();
+      assert(early.outcome === 'unconfigured' && early.reason === 'no_endpoint',
+        'an unconfigured boot read did not report no_endpoint: ' + JSON.stringify(early));
+      assert(B.balanceOf(window.G, 'gold').known === false, 'gold must be UNKNOWN before the endpoint exists');
+      assert(painted === 0, 'a failed load must not repaint');
+
+      // 2) configureRecord arrives (auth wired the session). It REPLAYS the boot
+      //    read; awaiting the same in-flight promise settles the retry.
+      R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
+      const retry = await R.beginRecordLoad();          // dedups onto the in-flight replay
+      assert(retry.outcome === 'loaded',
+        'the boot read was not replayed when the endpoint arrived — the new-device em dash: ' + JSON.stringify(retry));
+
+      // 3) The balance now resolves KNOWN, and the repaint hook fired for the retry.
+      const bg = B.balanceOf(window.G, 'gold');
+      assert(bg.known === true && bg.value === 72131,
+        'gold did not resolve after the replayed load: ' + JSON.stringify(bg));
+      assert(R.recordValue(window.G, 'gold').known === true, 'recordValue still not served after replay');
+      assert(painted >= 1, 'the repaint hook did not fire for the replayed load — the top bar would stay em-dash');
+    } finally {
+      window.fetch = realFetch;
+      window.G = realG;
+      R.onRecordApplied(null);
+      R.resetRecord();
+      R.configureRecord(null);
+    }
   }),
 
   () => tryRunAsync('B340-6: the boot read puts the CONTRACT hr_load request on the wire, and a failure leaves the field UNKNOWN', async () => {
@@ -33506,7 +33560,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=428');
+    const S = await import('../data/shops.js?v=429');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -34901,7 +34955,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=428');
+    const S = await import('../data/shops.js?v=429');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -38408,7 +38462,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=428')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=429')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -39846,7 +39900,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=428');
+    const A = await import('../net/accrue.js?v=429');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -39870,7 +39924,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=428');
+    const A = await import('../net/accrue.js?v=429');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

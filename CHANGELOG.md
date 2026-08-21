@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 428 — 2026-08-21 (Perennial crops now deplete)
+
+- 🍅 **Tomatoes and Emberfruit are perennials** — one seed now gives **5 harvests** (regrows 4×), then the plant withers and frees the plot. Previously they regrew forever, which read like a bug. Plots now show "regrows left" so it's clear, and the seed picker labels them "perennial".
+
 ## v0.9.2-beta build 427 — 2026-08-20 (Fix: idle new-device login now paints gold immediately)
 
 - 🐛 Follow-up to the last fix: the top bar now repaints your gold/gems the instant the server responds on load, so an idle new-device login no longer shows a dash until you do something. (b426 fixed the data; this fixes the on-load repaint.)

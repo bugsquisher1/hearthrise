@@ -5357,7 +5357,15 @@ function farmPlotSub(p){
   if(!p||p.state==='ready'||plotIsReady(p))return '';
   const ms=plotReadyInMs(p);
   if(ms<=0)return 'Ready';
-  return 'Ready in '+fmtSpan(ms);
+  return 'Ready in '+fmtSpan(ms)+farmPerennialSub(p);
+}
+/* b420: a perennial (tomato/emberfruit) is finite — surface how many regrows
+   remain so the plant visibly DEPLETES instead of reading as an infinite bug. */
+function farmPerennialSub(p){
+  const crop=p&&CROPS[p.cropId];
+  if(!crop||!crop.regrows||!crop.regrowLimit)return '';
+  const left=Math.max(0,crop.regrowLimit-(p.regrowCount||0));
+  return left>0?` · ${left} regrow${left===1?'':'s'} left`:' · final harvest';
 }
 /* b213 QA: the property tier's plot count is REAL now. The farm used to
    render 8 plantable plots no matter what, which made the homestead ladder's
@@ -5472,8 +5480,22 @@ function harvestPlot(i){
   addXp('farming',crop.xp*qty);
   notify(`🌾 +${qty} ${crop.name}`,'loot');
   /* b220: a regrow restarts dry — and now that dry crops actually finish,
-     that is a fresh cycle rather than the permanent stall it used to be. */
-  if(crop.regrows)G.farmPlots[i]={...p,plantedAt:Date.now(),state:'growing',waterings:[]};   // b222: no `watered` mirror
+     that is a fresh cycle rather than the permanent stall it used to be.
+     b420 (design ruling): a perennial is FINITE. One seed buys `regrowLimit`
+     regrows (regrowLimit+1 total harvests); after the final harvest the plant
+     withers and the plot clears — so a tomato/emberfruit DEPLETES like a player
+     expects, instead of yielding free food forever and locking the plot. The
+     count lives on the plot (`regrowCount`), defaulting 0 for legacy plots. */
+  if(crop.regrows){
+    const done=(p.regrowCount||0)+1;
+    const limit=crop.regrowLimit||0;   // 0/undefined ⇒ legacy infinite perennial
+    if(limit>0 && done>limit){
+      G.farmPlots[i]=null;
+      notify(`🥀 ${crop.name} plant withered after its last harvest`,'kill');
+    }else{
+      G.farmPlots[i]={...p,plantedAt:Date.now(),state:'growing',waterings:[],regrowCount:done};   // b222: no `watered` mirror
+    }
+  }
   else G.farmPlots[i]=null;
   // b136: auto-replant hook. Only fires when the plot is now empty
   // (regrow path skips it because the plot is already replanted).
@@ -6845,7 +6867,8 @@ function renderFarm(){
     if(lvOk && plotOk) badge = '';
     else if(!lvOk) badge = `<span class="mr-lock">${lockGlyph()}Level ${c.req}</span>`;
     else badge = `<span class="mr-lock" style="cursor:pointer" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Upgrade Farm Plot in House → Plot">${lockGlyph()}Bigger plot</span>`;
-    return `<div class="shop-row"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>Lv ${c.req} · ${c.hours}h grow · ${c.yield[0]}-${c.yield[1]} yield</span></div>${badge}</div>`;
+    const peren = c.regrows ? ` · <b>perennial</b> (regrows ×${c.regrowLimit||'∞'})` : '';
+    return `<div class="shop-row"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>Lv ${c.req} · ${c.hours}h grow · ${c.yield[0]}-${c.yield[1]} yield${peren}</span></div>${badge}</div>`;
   }).join('');
 }
 
@@ -6937,7 +6960,7 @@ function openSeedPicker(i){
   const lockedByPlot = allOwned.filter(([id])=>!canPlant(id));
   if(!plantable.length && !lockedByPlot.length){notify('No usable seeds. Visit the shop.','kill');return;}
   const m=document.getElementById('settings-modal');
-  const plantBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield</span></div><span class="price">x${G.inventory[c.seed]||0}</span></button>`;
+  const plantBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield${c.regrows?` · perennial (regrows ×${c.regrowLimit||'∞'})`:''}</span></div><span class="price">x${G.inventory[c.seed]||0}</span></button>`;
   const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>Upgrade Farm Plot in House → Plot</span></div><span class="muted tiny">x${G.inventory[c.seed]||0}</span></button>`;
   let html = `<h3 style="margin-bottom:10px">Pick a seed</h3>`;
   if(plantable.length) html += plantable.map(plantBtn).join('');

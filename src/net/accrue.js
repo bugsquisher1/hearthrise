@@ -1136,6 +1136,90 @@ export function inventoryFlipReadiness() {
   };
 }
 
+/* ── THE DRIFT TELEMETRY REPORTER (inventory-flip soak, CENTRALLY aggregatable) ──
+   inventoryFlipReadiness() is computed live in every client but reported NOWHERE,
+   so "what fraction of live sessions would see a destructive omission if inventory
+   armed" was answerable only by eyeballing one device — which is exactly why the
+   inventory arm's soak condition was unverifiable across the playerbase.
+
+   This closes the gap through the EXISTING observability channel
+   (window.trackEvent → the analytics buffer in src/observability.js →
+   game_events), emitting ONE small AGGREGATE summary per session on a low cadence
+   — NEVER a row per envelope (journal rule 6, and the game_events 1.6M-row
+   lesson). The summary is a bounded snapshot of the soak counters, so server-side
+   aggregation answers the arm-safety question by counting sessions whose
+   `destructiveOwnedOmissions > 0`. Client-only; reads state, ARMS NOTHING. */
+
+/** The small bounded drift summary — one flat object of counters, no arrays,
+ *  no per-envelope detail. Safe to emit as a single analytics event. */
+export function flipDriftSummary() {
+  const r = inventoryFlipReadiness();
+  const L = r.lastLoss || null;
+  /* Worst-observed omission magnitude collapsed to ONE number (gold + xp + item
+     units) — a scalar the server can bucket, never the full loss object. */
+  const lastLossMag = L
+    ? (Math.max(0, Number(L.gold) || 0) + Math.max(0, Number(L.skillXp) || 0) + Math.max(0, Number(L.items) || 0))
+    : 0;
+  return {
+    destructiveOwnedOmissions: r.destructiveOwnedOmissions | 0,
+    envelopesApplied: r.envelopesApplied | 0,
+    completeEnvelopes: r.completeEnvelopes | 0,
+    lastLossMag,
+    soakMinutes: Math.round((r.soakMs || 0) / 60000),
+    ready: !!r.ready,
+    armed: !!r.armed,
+    dungeonsLoaded: !!r.dungeonsLoaded,
+    baselineCompleteSeen: !!r.baselineCompleteSeen,
+  };
+}
+
+const FLIP_DRIFT_EVENT = 'inv_flip_drift';
+const FLIP_DRIFT_CADENCE_MS = 5 * 60 * 1000;   // low cadence — a soak signal, not a stream
+let _lastFlipDriftKey = null;
+let _flipDriftTimer = null;
+
+/* Dedupe on the drift PICTURE, excluding the monotonic soak clock: an unchanged
+   readout must not re-emit just because five minutes elapsed. This is what keeps
+   the steady state (the overwhelming common case — zero drift) to a SINGLE row
+   per session instead of one per cadence tick. */
+function _flipDriftDedupeKey(s) {
+  return [s.destructiveOwnedOmissions, s.envelopesApplied, s.completeEnvelopes,
+    s.lastLossMag, s.ready, s.armed, s.dungeonsLoaded, s.baselineCompleteSeen].join('|');
+}
+
+/** Read the drift summary and emit it through the observability channel IF it
+ *  changed since the last emit. Returns the emitted summary, or null when
+ *  suppressed as a duplicate. `emit` is injectable for tests; defaults to
+ *  window.trackEvent (the existing analytics funnel). */
+export function reportFlipDrift(emit) {
+  const s = flipDriftSummary();
+  const key = _flipDriftDedupeKey(s);
+  if (key === _lastFlipDriftKey) return null;   // no change → no spam
+  _lastFlipDriftKey = key;
+  const sink = (typeof emit === 'function') ? emit
+    : (typeof window !== 'undefined' && typeof window.trackEvent === 'function') ? window.trackEvent
+      : null;
+  if (sink) { try { sink(FLIP_DRIFT_EVENT, s); } catch (e) { /* telemetry never breaks the client */ } }
+  return s;
+}
+
+/** Test seam — forget the last-emitted picture so a fresh assertion starts clean. */
+export function __resetFlipDriftReport() { _lastFlipDriftKey = null; }
+
+/** Start the low-cadence reporter (idempotent — the once-guard makes a second
+ *  call a no-op). A final summary is flushed on pagehide for session-end
+ *  coverage. Never runs off-window (Node/tests drive reportFlipDrift directly). */
+export function startFlipDriftReporter(intervalMs) {
+  if (typeof window === 'undefined') return null;
+  if (_flipDriftTimer != null) return _flipDriftTimer;   // once per page
+  const ms = Number(intervalMs) > 0 ? Number(intervalMs) : FLIP_DRIFT_CADENCE_MS;
+  _flipDriftTimer = setInterval(function () { try { reportFlipDrift(); } catch (e) {} }, ms);
+  try {
+    window.addEventListener('pagehide', function () { try { reportFlipDrift(); } catch (e) {} });
+  } catch (e) {}
+  return _flipDriftTimer;
+}
+
 /* ── THE CLIENT-TRADE LEDGER (2026-08-18) ───────────────────────────────────
    A DIRECT IMPORT, not a registration seam like `predictionSeam` below, and the
    difference is deliberate. That seam exists because gold.js imports THIS file
@@ -2529,6 +2613,7 @@ if (typeof window !== 'undefined') {
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     resetEnvelopeDrift, inventoryFlipReadiness,
+    flipDriftSummary, reportFlipDrift, startFlipDriftReporter, __resetFlipDriftReport,
     isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
     maybeAutoArm, isInventoryArmEnabled, __setInventoryArmEnabledForTest, __resetAutoArm,
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
@@ -2549,4 +2634,9 @@ if (typeof window !== 'undefined') {
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,
   };
+  /* Boot the low-cadence inventory-flip drift reporter. Idempotent, window-only,
+     purely observational — reads the soak counters and emits a periodic aggregate
+     summary through the analytics funnel so the arm-safety soak is measurable
+     across the playerbase. Arms nothing. */
+  try { startFlipDriftReporter(); } catch (e) {}
 }

@@ -122,8 +122,12 @@
     var rooms = G.rooms || {};
     var hasAnyRoom = Object.keys(rooms).some(function (r) { return (rooms[r] || 0) > 0; });
     var plotCount = (G.plotBuildings || []).filter(function (b) { return b.id === 'farm_plot'; }).length;
-    var skills = G.skills || {};
-    var artisanXp = ['cooking', 'smithing', 'crafting', 'prayer'].some(function (s) { return (skills[s] || 0) > 0; });
+    /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today. */
+    var SR = window.HearthriseSkillRecord;
+    var srXp = function (id) {
+      return (SR && typeof SR.skillXpOr === 'function') ? SR.skillXpOr(G, id, 0) : ((G.skills && G.skills[id]) || 0);
+    };
+    var artisanXp = ['cooking', 'smithing', 'crafting', 'prayer'].some(function (s) { return srXp(s) > 0; });
     var existing = hasAnyRoom || plotCount > 0 || artisanXp || ((G.stats && G.stats.kills) || 0) > 20;
 
     if (existing) {
@@ -131,7 +135,7 @@
       // tier must cover every room they built + every artisan skill they trained
       Object.keys(rooms).forEach(function (r) { if ((rooms[r] || 0) > 0) tier = Math.max(tier, roomMinTier(r)); });
       Object.keys(WORKBENCH).forEach(function (skill) {
-        if ((skills[skill] || 0) > 0) tier = Math.max(tier, roomMinTier(WORKBENCH[skill]));
+        if (srXp(skill) > 0) tier = Math.max(tier, roomMinTier(WORKBENCH[skill]));
       });
       // tier must cover their existing plots
       for (var t = 0; t < TIERS.length; t++) { if (TIERS[t].plots >= plotCount) { tier = Math.max(tier, 0) ; break; } }
@@ -141,7 +145,7 @@
       G.rooms = G.rooms || {};
       Object.keys(WORKBENCH).forEach(function (skill) {
         var room = WORKBENCH[skill];
-        if ((skills[skill] || 0) > 0 && !(G.rooms[room] > 0)) G.rooms[room] = 1;
+        if (srXp(skill) > 0 && !(G.rooms[room] > 0)) G.rooms[room] = 1;
       });
     }
     G.homestead = { tier: tier };

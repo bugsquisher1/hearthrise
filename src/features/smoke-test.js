@@ -27313,6 +27313,76 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
+     B431-1 — THE features/* READ-SITE SWEEP (the second stage of the client
+     skill-xp read surface; b429 did legacy.js). activities-grid / character-page /
+     profile-launchpad / renown / chronicle / auto-actions / combat-screens /
+     homestead / lifetime-stats now read a skill's xp through the accessor
+     (window.HearthriseSkillRecord.skillXpOr) rather than off G.skills directly.
+     Like the gold balanceOf sweep before gold armed, a faithful sweep must change
+     NOTHING while dormant — so (A) asserts the accessor those sites all call is
+     byte-for-byte the classic raw read, and (B) that renown (a swept SCORE read)
+     still tracks the local map dormant. (C) is the property the sweep ADDS for the
+     armed future: a forged local xp cannot cross into the renown score — armed +
+     UNKNOWN floors every skill to level 1, identical to genuinely-zero skills.
+     MUTATION: revert renown.js:163 back to G.skills[sk] → (C) reads the forged
+     999999 as level 99 and the equality goes red; break skillXpOr's dormant
+     passthrough → (A) goes red. */
+  () => tryRun('B431-1: the features/* skill-xp read sweep is behavior-identical while DORMANT; renown fail-closes when ARMED+UNKNOWN', () => {
+    const R = window.HearthriseRecord;
+    const S = window.HearthriseSkillRecord;
+    const A = window.HearthriseAccrual;
+    const RN = window.HearthriseRenown;
+    assert(R && R.SKILLS_RECORD_ARM_ENABLED === false && R.isSkillsRecordArmed() === false,
+      'the dormant-identity half of this test is only meaningful while dormant');
+    assert(S && typeof S.skillXpOr === 'function', 'the skill-record accessor is not attached');
+    const G = window.G;
+    // (A) DORMANT IDENTITY — every swept features/* site is literally this call,
+    // so the accessor equalling the classic raw read proves the sweep is a no-op.
+    const ids = Object.keys((G && G.skills) || {}).concat(['mining', 'hitpoints', 'attack', 'cooking', '__nope__']);
+    for (const id of ids) {
+      const raw = (G.skills && G.skills[id]) || 0;
+      assert(S.skillXpOr(G, id, 0) === raw,
+        'dormant skillXpOr diverged from the raw read for "' + id + '": ' + S.skillXpOr(G, id, 0) + ' vs ' + raw);
+    }
+    // (B) DORMANT FUNCTIONAL — renown.compute (renown.js:163 swept) tracks the
+    // LOCAL map while dormant: adding a trained skill raises the score, exactly as
+    // the classic read did.
+    if (RN && typeof RN.compute === 'function') {
+      const savedSkills = G.skills;
+      try {
+        G.skills = { attack: 5000, mining: 3000 };
+        const base = RN.compute(G);
+        G.skills = { attack: 5000, mining: 3000, strength: 8000 };
+        const more = RN.compute(G);
+        assert(more > base, 'dormant renown did not track the local skills map (more=' + more + ' base=' + base + ')');
+      } finally { G.skills = savedSkills; }
+    }
+    // (C) ARMED + UNKNOWN — a forged local xp must not cross into the renown score.
+    // With no record the accessor reads UNKNOWN → skillXpOr floors to 0 → level 1,
+    // so a map of two skills at 999999 scores IDENTICALLY to two genuinely-zero
+    // skills. If the sweep were reverted, the forged xp would read as level 99.
+    if (RN && typeof RN.compute === 'function') {
+      const wasA = A.isServerAccrualEnabled();
+      try {
+        const gForged = { skills: { attack: 999999, mining: 999999 } };
+        // control: the SAME shape but skills genuinely at 0 (level 1), read dormant.
+        R.__setSkillsRecordArm(null);
+        if (A.isServerAccrualEnabled()) A.setServerAccrualEnabled(false);
+        const control = RN.compute({ skills: { attack: 0, mining: 0 } });
+        // armed + UNKNOWN over the forged map.
+        A.setServerAccrualEnabled(true);
+        R.__setSkillsRecordArm(true);
+        const armed = RN.compute(gForged);
+        assert(armed === control,
+          'armed+UNKNOWN renown was not identical to level-1 skills — forged local xp leaked into the score: armed=' + armed + ' control=' + control);
+      } finally {
+        R.__setSkillsRecordArm(null);
+        A.setServerAccrualEnabled(wasA);
+      }
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
      B353-4 — NOT SIGNED IN IS NOT AN OUTAGE.
      ══════════════════════════════════════════════════════════════════════════
      Found by the flip, and it is the clearest example of a defect that a dark

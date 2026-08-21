@@ -121,7 +121,15 @@ const Ledger = (() => {
   function combatXp() {
     const g = G(); if (!g || !g.skills) return 0;
     let t = 0;
+    /* b431 — the per-skill xp read routes through the server-of-record accessor
+       (src/net/skill-record.js), DORMANT no-op today: skillXpOr returns the raw
+       local number byte-for-byte until armed, then the server's value (0/floored
+       when the map has not arrived — a session tally shows "measuring", never a
+       forged local number). The object-shape branch is folded in: skillXpOr
+       Number()s whatever it reads, and G.skills values are raw numbers today. */
+    const SR = window.HearthriseSkillRecord;
     COMBAT_XP_SKILLS.forEach((k) => {
+      if (SR && typeof SR.skillXpOr === 'function') { t += SR.skillXpOr(g, k, 0); return; }
       const s = g.skills[k];
       if (typeof s === 'number') t += s;
       else if (s && typeof s.xp === 'number') t += s.xp;

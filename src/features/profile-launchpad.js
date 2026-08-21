@@ -50,11 +50,20 @@
 
   function todayKey(){ return new Date().toDateString(); }
 
+  /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
+     the ESM analogue of the b429 legacy skillXp() sweep. See activities-grid.js. */
+  function srXpOf(id){
+    var SR = window.HearthriseSkillRecord;
+    return (SR && typeof SR.skillXpOr === 'function')
+      ? SR.skillXpOr(window.G, id, 0)
+      : ((window.G && window.G.skills && (window.G.skills[id] | 0)) || 0);
+  }
+
   function totalXp(){
     if(!window.G || !window.G.skills) return 0;
     var sum = 0;
     var keys = Object.keys(window.G.skills);
-    for(var i = 0; i < keys.length; i++) sum += (window.G.skills[keys[i]] | 0);
+    for(var i = 0; i < keys.length; i++) sum += (srXpOf(keys[i]) | 0);
     return sum;
   }
 
@@ -209,7 +218,7 @@
            therefore opened the Bounty Hunter skill no matter which skill the
            milestone was actually about. Bind per iteration. */
         let sid = skillIds[i];
-        var xp = window.G.skills[sid] | 0;
+        var xp = srXpOf(sid) | 0;
         var lv = window.levelFromXp(xp);
         if(lv >= 99) continue; // maxed — no milestone
         var nextXp = window.xpForLevel(lv + 1);

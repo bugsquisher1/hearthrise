@@ -201,7 +201,12 @@
     if (typeof window.getLevel === 'function') { try { return window.getLevel(id) | 0; } catch (e) {} }
     var G = G_();
     if (G && G.skills && typeof window.levelFromXp === 'function') {
-      try { return window.levelFromXp(G.skills[id] || 0) | 0; } catch (e) {}
+      /* b431 — the fallback xp read routes through the server-of-record accessor
+         (DORMANT no-op today). getLevel above is the primary path (itself swept in
+         b429); this only runs pre-boot before it attaches. */
+      var SR = window.HearthriseSkillRecord;
+      var xp = (SR && typeof SR.skillXpOr === 'function') ? SR.skillXpOr(G, id, 0) : (G.skills[id] || 0);
+      try { return window.levelFromXp(xp) | 0; } catch (e) {}
     }
     return 1;
   }

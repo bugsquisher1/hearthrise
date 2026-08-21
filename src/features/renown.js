@@ -146,6 +146,15 @@
     return 1;
   }
 
+  /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
+     the ESM analogue of the b429 legacy skillXp() sweep. See activities-grid.js. */
+  function srXpOf(G, id) {
+    var SR = window.HearthriseSkillRecord;
+    return (SR && typeof SR.skillXpOr === 'function')
+      ? SR.skillXpOr(G, id, 0)
+      : ((G && G.skills && G.skills[id]) || 0);
+  }
+
   // ── computeRenown(G) → integer score ────────────────────────
   // Defensive: any missing field contributes 0. NOTE: quest/collection/boss
   // field shapes are confirmed against the live G by the smoke test; if a
@@ -160,7 +169,7 @@
     if (G.skills && typeof G.skills === 'object') {
       for (var sk in G.skills) {
         if (!Object.prototype.hasOwnProperty.call(G.skills, sk)) continue;
-        var lv = lvlFromXp(G.skills[sk] || 0);
+        var lv = lvlFromXp(srXpOf(G, sk));
         totalLevel += lv;
         if (lv >= 99) maxed++;
       }

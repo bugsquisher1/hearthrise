@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 430 — 2026-08-21 (Under the hood: skills → server-owned, dormant)
+
+- 🔧 No gameplay change. Built the machinery for your skill XP to be owned by the server (the same way gold/gems already are), shipped dormant. Turns on with the wipe; when it does, your levels can never drift between devices.
+
 ## v0.9.2-beta build 429 — 2026-08-21 (Fix: new-device login gold em-dash, for real this time)
 
 - 🐛 Fixed the actual cause of gold/gems showing "—" after a fresh login on a new device: the balance load was firing before the connection was ready and never retried. It now retries the moment the connection is up and repaints immediately — no more stuck dash, no need to do an activity first.

@@ -974,9 +974,78 @@ export function markInventoryAuthorityLive(v) {
     }
   }
   inventoryAuthorityLive = on;
+  /* A DELIBERATE DISARM LATCHES FOR THE SESSION. Once anything disarms (an
+     operator kill-switch, an incident response), the boot auto-arm must NOT
+     silently re-arm on the next envelope — a disarm is a decision, not a
+     transient. maybeAutoArm honours this latch; only a manual re-arm (a direct
+     markInventoryAuthorityLive(true)) or __resetAutoArm (tests) clears it. */
+  if (!on) autoArmDisarmed = true;
   return inventoryAuthorityLive;
 }
 export function isInventoryAuthorityLive() { return inventoryAuthorityLive; }
+
+/* ── THE BOOT AUTO-ARM (inventory-flip LIVE-ARM wiring, 2026-08-20) ──────────
+   THE ONLY THING IN PROD THAT EVER CALLS markInventoryAuthorityLive(true). It is
+   called from applyEnvelopeState on EVERY envelope (right after the baseline
+   signal is noted) and is a SILENT NO-OP until every guard is met AND the build-
+   level enable flag INVENTORY_ARM_ENABLED (src/data/item-authority.js) is true.
+   Default: that flag is false, so this never arms — the flip stays dormant.
+
+   Turning it live is a COUPLED TWO-FLAG rollout done in one commit:
+     WORKER_PRODUCTION_SERVER_BACKED = true  AND  INVENTORY_ARM_ENABLED = true
+   (see the flag's header). The workers-backed half is enforced here anyway:
+   flipArmBlockers() is non-empty while workers are un-backed, so even with the
+   enable flag alone this refuses.
+
+   PROPERTIES THE SECURITY REVIEW MUST BE ABLE TO TRUST:
+     · IMPOSSIBLE TO ARM ACCIDENTALLY — five independent conditions must ALL hold
+       (enable flag, baseline signal observed, DUNGEONS loaded, no un-backed mint
+       lane, not already armed, not disarmed this session). Any one false ⇒ no-op.
+     · NEVER THROWS INTO THE ENVELOPE PATH — the whole body is wrapped; a refusal
+       or an arm-gate throw is caught, logged, and retried on the NEXT envelope.
+       A boot envelope can never crash the accrual apply because of this.
+     · IDEMPOTENT — once armed it returns immediately (guard 1); it can arm at
+       most once per session, and never re-arms after a deliberate disarm. */
+let autoArmDisarmed = false;
+let inventoryArmEnabled = INVENTORY_ARM_ENABLED === true;
+
+/** TEST-ONLY. Overlay the build-level enable flag so the suite can prove both the
+ *  OFF (never-arms) and the ON (arms-once) behaviour without editing the const.
+ *  In prod the const is the sole gate — nothing calls this. Returns the effective
+ *  value. Clearing (undefined) restores the build-flag value. */
+export function __setInventoryArmEnabledForTest(v) {
+  inventoryArmEnabled = (v === undefined) ? (INVENTORY_ARM_ENABLED === true) : (v === true);
+  return inventoryArmEnabled;
+}
+/** TEST-ONLY. Clear the session disarm latch (and re-read the enable flag) so an
+ *  auto-arm test starts from a pristine, un-disarmed state. Never grants
+ *  authority by itself, so exposing it is safe. */
+export function __resetAutoArm() {
+  autoArmDisarmed = false;
+  inventoryArmEnabled = INVENTORY_ARM_ENABLED === true;
+  return { autoArmDisarmed, inventoryArmEnabled };
+}
+export function isInventoryArmEnabled() { return inventoryArmEnabled; }
+
+export function maybeAutoArm() {
+  try {
+    if (inventoryAuthorityLive) return false;   // (1) already armed — idempotent
+    if (autoArmDisarmed) return false;          // (2) deliberately disarmed this session
+    if (!inventoryArmEnabled) return false;     // (3) BUILD GATE — false in prod today
+    if (!baselineCompleteSeen) return false;    // (4) server not yet observed stamping complete
+    const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
+    if (!D || typeof D !== 'object') return false;   // (5) DUNGEONS not loaded (overlap-id safety)
+    if (flipArmBlockers().length) return false;      // (6) an un-backed OWNABLE mint lane remains
+    /* Every precondition holds — throw the switch. markInventoryAuthorityLive
+       re-checks the same guards and only throws if one regressed between here and
+       there (a race), which the catch swallows and the next envelope retries. */
+    markInventoryAuthorityLive(true);
+    return isInventoryAuthorityLive();
+  } catch (e) {
+    try { console.warn('[accrue] inventory auto-arm deferred (guards not yet met):', e && e.message); } catch (_) {}
+    return false;
+  }
+}
 
 /** Is the general inventory BAG absolute on this device?
  *  Two independent conditions, BOTH fail-closed toward merge (the direction
@@ -1081,7 +1150,7 @@ import * as itemLedger from './item-ledger.js?v=423';
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers } from '../data/item-authority.js?v=423';
+import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=423';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1140,6 +1209,11 @@ export function applyEnvelopeState(G, res, ownKey) {
      not — this is what lets a merge-mode client accumulate the proof that the
      server IS stamping completeness before a human arms (see markInventoryAuthorityLive). */
   noteBaselineComplete(res);
+  /* THE BOOT AUTO-ARM (LIVE-ARM wiring). Build-gated and fully guarded; a silent
+     no-op in prod (INVENTORY_ARM_ENABLED false) and until every arm precondition
+     is met. Wrapped so it can NEVER throw into the envelope apply — a refusal is a
+     no-op that retries on the next envelope. See maybeAutoArm. */
+  maybeAutoArm();
   written.absolute = absolute;
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
@@ -2456,6 +2530,7 @@ if (typeof window !== 'undefined') {
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     resetEnvelopeDrift, inventoryFlipReadiness,
     isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
+    maybeAutoArm, isInventoryArmEnabled, __setInventoryArmEnabledForTest, __resetAutoArm,
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem, serverAccruedSkill, markEquipAuthorityLive,
     equippedCount, unaccountedEquipped, consumedKeysOf,

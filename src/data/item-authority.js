@@ -120,6 +120,32 @@ export function gatherProductIds() {
    in the same step that arms the inventory flip. Do NOT set true before the wipe. */
 export const WORKER_PRODUCTION_SERVER_BACKED = false;
 
+/* THE INVENTORY-FLIP LIVE-ARM ENABLE (rollout gate, 2026-08-20).
+   THE ONE FLAG THAT TURNS THE INVENTORY FLIP ON FOR EVERY PLAYER. All the arm
+   machinery is built and dormant: markInventoryAuthorityLive throws unless every
+   guard is met, and isInventoryAbsolute stays false because nothing in prod calls
+   the arm. maybeAutoArm() in src/net/accrue.js is the deliberate, guarded auto-
+   arm at boot, but it refuses unless THIS flag is true. Default FALSE: the auto-
+   arm is a silent no-op until a rollout commit flips it, so the flip cannot arm
+   by accident.
+
+   THIS IS A COUPLED TWO-FLAG ROLLOUT, FLIP BOTH IN THE SAME COMMIT.
+   Arming requires workers server-backed (an un-backed OWNABLE mint would be
+   DELETED on the flip, see flipArmBlockers/unbackedOwnableMintLanes). So the
+   rollout that turns the inventory flip live sets BOTH, together, post-wipe:
+
+       WORKER_PRODUCTION_SERVER_BACKED = true   (this file, above)
+       INVENTORY_ARM_ENABLED           = true   (this file, here)
+
+   They are coupled by construction: even if INVENTORY_ARM_ENABLED were flipped
+   alone, flipArmBlockers() is non-empty while workers are un-backed, so
+   maybeAutoArm refuses and the arm gate throws, the flip physically cannot arm
+   until workers are backed too. Flipping WORKER_PRODUCTION_SERVER_BACKED without
+   removing the client mint (src/features/workers.js) re-opens the landmine; both
+   moves belong in the ONE post-wipe rollout commit, gated on a security pass and
+   a coordinator-run drift-soak. Do NOT set either true before the wipe. */
+export const INVENTORY_ARM_ENABLED = false;
+
 /** Every id a hired worker can mint client-side = every gather product (a worker
  *  is only ever assigned a gather node). Kept as its own function, not an alias,
  *  so the "workers mint gather products" fact is stated where the flip reads it
@@ -369,7 +395,7 @@ export function flipArmBlockers() {
 
 if (typeof window !== 'undefined') {
   window.HearthriseItemAuthority = {
-    WORKER_PRODUCTION_SERVER_BACKED, workerProductIds,
+    WORKER_PRODUCTION_SERVER_BACKED, INVENTORY_ARM_ENABLED, workerProductIds,
     unbackedOwnableMintLanes, pendingUnbackedOwnableMints, flipArmBlockers,
     COOKING_SKILL, ARTISAN_SETTLEMENT,
     gatherProductIds, cropProductIds, combatDropIds, artisanOutputIds,

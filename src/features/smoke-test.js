@@ -37702,6 +37702,132 @@ const TESTS = [
     A.resetEnvelopeDrift();   // leave the counter clean for any later observer
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     AUTO-ARM — THE BOOT LIVE-ARM WIRING (inventory-flip LIVE-ARM step, 2026-08-20).
+
+     maybeAutoArm() is the only thing in prod that ever calls
+     markInventoryAuthorityLive(true). It runs on every envelope and must be a
+     silent no-op until the build-level enable flag (INVENTORY_ARM_ENABLED) is
+     flipped AND every arm precondition holds. These tests pin the two properties
+     the flip going live depends on: it CANNOT arm while disabled, and when enabled
+     with guards met it arms EXACTLY ONCE, never re-arming — and it never throws
+     into the envelope apply regardless of state. `__setInventoryArmEnabledForTest`
+     overlays the build flag so both positions are exercised without editing the
+     const; the const stays the sole gate in prod. */
+  () => tryRunAsync('AUTO-ARM-1: with INVENTORY_ARM_ENABLED false, an observed complete envelope NEVER auto-arms', async () => {
+    const A = window.HearthriseAccrual;
+    const IA = window.HearthriseItemAuthority;
+    assert(A && typeof A.maybeAutoArm === 'function', 'maybeAutoArm must be published');
+    assert(typeof A.__resetAutoArm === 'function' && typeof A.__setInventoryArmEnabledForTest === 'function',
+      'the auto-arm test seams must be published');
+    try {
+      A.markInventoryAuthorityLive(false);
+      A.__resetAutoArm();                        // pristine, not disarmed
+      A.__setInventoryArmEnabledForTest(false);  // BUILD GATE CLOSED — the prod default
+      IA.rebuildItemAuthority();
+      A.noteBaselineComplete({ inventory_complete: true });   // guard (b) satisfied
+
+      /* Drive a full COMPLETE envelope through the real apply path — the actual
+         call site of maybeAutoArm. It must stay dormant. */
+      const G = { gold: 0, skills: {}, equipment: {}, inventory: { ember_bar: 3 } };
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory_complete: true, inventory: { ember_bar: 3 } });
+      assert(A.isInventoryAuthorityLive() === false, 'the flip must NOT arm while the enable flag is false');
+      assert(A.isInventoryAbsolute() === false, 'the bag must stay on merge while disabled');
+
+      /* A direct call is equally inert. */
+      assert(A.maybeAutoArm() === false, 'maybeAutoArm must be a no-op while disabled');
+      assert(A.isInventoryAuthorityLive() === false, 'still unarmed after a direct maybeAutoArm');
+    } finally {
+      A.__setInventoryArmEnabledForTest(undefined);   // restore the build-flag value
+      A.markInventoryAuthorityLive(false);
+      A.__resetAutoArm();
+    }
+  }),
+
+  () => tryRunAsync('AUTO-ARM-2: enabled + guards met, the boot auto-arm arms EXACTLY ONCE and never re-arms', async () => {
+    const A = window.HearthriseAccrual;
+    const IA = window.HearthriseItemAuthority;
+    IA.rebuildItemAuthority();
+    try {
+      A.markInventoryAuthorityLive(false);       // start unarmed…
+      A.__resetAutoArm();                        // …and clear the disarm latch that set
+      A.__setInventoryArmEnabledForTest(true);   // BUILD GATE OPEN — simulates the rollout commit
+      A.noteBaselineComplete({ inventory_complete: true });   // guard (b)
+
+      /* DORMANT-WORKER BRANCH (today's reality — see SERVER-OWNED-5): while worker
+         production is an un-backed OWNABLE mint, flipArmBlockers() is non-empty, so
+         the auto-arm MUST refuse — silently, never throwing. The backed (post-wipe)
+         branch below is what arms; mirrors the dual-branch honesty of the sibling
+         SERVER-OWNED / INVENTORY-BASELINE tests. */
+      if (IA.flipArmBlockers().length) {
+        assert(A.maybeAutoArm() === false, 'auto-arm must refuse while an un-backed OWNABLE mint lane remains');
+        assert(A.isInventoryAuthorityLive() === false, 'a refused auto-arm leaves the flag OFF');
+        /* And a full envelope through the live path must not arm or throw either. */
+        const G = { gold: 0, skills: {}, equipment: {}, inventory: {} };
+        A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory_complete: true, inventory: {} });
+        assert(A.isInventoryAuthorityLive() === false, 'the envelope path must not arm while blocked');
+        return;
+      }
+
+      /* WORKERS-BACKED BRANCH (post-wipe): every guard holds → arms exactly once. */
+      assert(A.maybeAutoArm() === true, 'guards met → the auto-arm must arm');
+      assert(A.isInventoryAuthorityLive() === true, 'the flag must read armed');
+      assert(A.maybeAutoArm() === false, 'a second call must be a no-op — idempotent, arms at most once');
+      assert(A.isInventoryAuthorityLive() === true, 'still armed after the idempotent second call');
+
+      /* A subsequent envelope must not re-arm and must not throw. */
+      const G = { gold: 0, skills: {}, equipment: {}, inventory: { ember_bar: 2 } };
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory_complete: true, inventory: { ember_bar: 2 } });
+      assert(A.isInventoryAuthorityLive() === true, 'armed once, not re-armed on the next envelope');
+
+      /* A DELIBERATE DISARM LATCHES — the auto-arm must not silently re-arm after it. */
+      A.markInventoryAuthorityLive(false);
+      assert(A.maybeAutoArm() === false, 'after a deliberate disarm, auto-arm must NOT re-arm this session');
+      assert(A.isInventoryAuthorityLive() === false, 'stays disarmed for the session');
+    } finally {
+      A.__setInventoryArmEnabledForTest(undefined);
+      A.markInventoryAuthorityLive(false);
+      A.__resetAutoArm();
+    }
+  }),
+
+  () => tryRun('AUTO-ARM-3: enabled but a guard unmet (no baseline signal / no DUNGEONS) never arms and never throws', () => {
+    const A = window.HearthriseAccrual;
+    const IA = window.HearthriseItemAuthority;
+    IA.rebuildItemAuthority();
+    const savedDungeons = globalThis.DUNGEONS;
+    try {
+      A.markInventoryAuthorityLive(false);
+      A.__resetAutoArm();
+      A.__setInventoryArmEnabledForTest(true);   // enabled, so the GUARDS are what must hold the line
+
+      /* GUARD (b) unmet: no baseline-complete signal observed. */
+      A.__resetBaselineComplete();
+      let threw = false, armed = null;
+      try { armed = A.maybeAutoArm(); } catch (e) { threw = true; }
+      assert(threw === false, 'maybeAutoArm must never throw with an unobserved baseline signal');
+      assert(armed === false && A.isInventoryAuthorityLive() === false, 'no baseline signal → no arm');
+
+      /* GUARD (a) unmet: DUNGEONS absent (overlap-id safety). */
+      A.noteBaselineComplete({ inventory_complete: true });
+      globalThis.DUNGEONS = undefined;
+      try { armed = A.maybeAutoArm(); } catch (e) { threw = true; }
+      assert(threw === false, 'maybeAutoArm must never throw with DUNGEONS absent');
+      assert(armed === false && A.isInventoryAuthorityLive() === false, 'no DUNGEONS → no arm');
+
+      /* And an envelope arriving in that guard-unmet state must not arm or throw. */
+      const G = { gold: 0, skills: {}, equipment: {}, inventory: {} };
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory: {} });
+      assert(A.isInventoryAuthorityLive() === false, 'an envelope in a guard-unmet state must not arm');
+    } finally {
+      globalThis.DUNGEONS = savedDungeons;
+      A.__setInventoryArmEnabledForTest(undefined);
+      A.markInventoryAuthorityLive(false);
+      A.__resetAutoArm();
+      A.noteBaselineComplete({ inventory_complete: true });   // leave the signal observed for later tests
+    }
+  }),
+
   () => tryRun('EQUIP-WIRE-1: the equip request carries NAMES only, and refuses a bad map WHOLE', () => {
     const E = window.HearthriseEquip;
     assert(E && typeof E.buildEquipRequest === 'function', 'HearthriseEquip must be published');

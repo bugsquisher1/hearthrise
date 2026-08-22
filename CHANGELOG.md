@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 439 — 2026-08-22 (Under the hood: server home for the rest of your character, dormant)
+
+- 🔧 No gameplay change. Added a server-side home for the remaining self-only parts of your character (bounty board, cosmetics, settings, achievement log, prefs) so nothing lives only on your device anymore. Shipped dormant — this is the last piece before your whole character loads from the server and the "local vs server" device prompt goes away for good.
+
 ## v0.9.2-beta build 438 — 2026-08-22 (Under the hood: bank items → server-owned, dormant)
 
 - 🔧 No gameplay change. Your bank's item store now has a server-owned home (a dedicated server table), with deposits and withdrawals moving items server-side. Shipped dormant; it arms together with the inventory switch at the wipe. Also hardened the migration test suite so every server RPC is grant-checked.

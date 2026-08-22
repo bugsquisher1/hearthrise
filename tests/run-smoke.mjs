@@ -2002,6 +2002,26 @@ const run = async () => {
       console.log('\nBank item-store guard — dormant leaves G.bank untouched; absolute owns server truth, keeps excluded, preserves space counters.');
     }
 
+    /* ── The client_state home guard (non-authority residue, b439) ──────────
+       Proves the CLIENT half of 2026-08-28-client-state.sql: DORMANT,
+       clientField(G,f) reads the save blob byte-for-byte (no regression); ARMED
+       (flag + master switch, post-wipe only) it sources the residue from the
+       server envelope's client_state and yields a fallback for a server-absent
+       key (self-only — no fail-closed UNKNOWN); putClientState builds the correct
+       hr_put_client_state call and refuses a bad/unconfigured request non-fatally.
+       The server half — shallow merge, idempotent replay, bad/oversized patch
+       refused, hr_state_of projects it, no client write policy — is proven by the
+       migration's own §6 self-check on apply. */
+    const { clientStateGuard } = await import('./client-state.mjs');
+    const clientStateProblems = await clientStateGuard();
+    if (clientStateProblems.length) {
+      console.log('\nClient-state home guard — FAILED:');
+      for (const p of clientStateProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nClient-state home guard — dormant no-regression (blob) + armed server-read + putClientState builds the RPC.');
+    }
+
     /* ── The artisan accrual guard (b356) ───────────────────────────────
        `artisan` is 290 of the 344 `hr_activities` rows and every one of them
        paid NOTHING until this landed — declared idle rather than confiscated,

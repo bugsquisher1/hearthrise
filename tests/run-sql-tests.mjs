@@ -305,6 +305,12 @@ const ALSO_LINTED = [
      hr_state_of programmatically (pg_get_functiondef → bank map projection), so
      NOT an HR_STATE_OF_CHAIN member. Listed here for the grant lints. */
   '2026-08-27-bank-store.sql',
+  /* CLIENT_STATE home for the non-authority residue (b439). Creates
+     hr_put_client_state (client SECURITY DEFINER RPC) + patches hr_rpc_gate
+     (adds client_state_put) and hr_state_of (projects client_state) BOTH
+     PROGRAMMATICALLY (pg_get_functiondef), so NOT an HR_STATE_OF_CHAIN / rate-
+     gate-chain member. Listed here so the grant lints see the new RPC's grants. */
+  '2026-08-28-client-state.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -647,6 +653,11 @@ const CLIENT_CALLABLE = new Map([
      server-side move clamped to holdings, idempotent, journalled kind='bank',
      rate-gated (bank_move bucket). NOT granted to hr_engine. */
   ['hr_bank_move',     ['authenticated']],
+  /* 2026-08-28-client-state.sql — the verbatim self-only client_state MERGE.
+     Shallow jsonb merge under the per-character lock, idempotent, size-bounded
+     (256KiB), rate-gated (client_state_put bucket). NOT authority (a forged value
+     is self-only), NOT journalled to player_ledger, NOT granted to hr_engine. */
+  ['hr_put_client_state', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {

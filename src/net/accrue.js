@@ -1227,14 +1227,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=439';
+import * as itemLedger from './item-ledger.js?v=441';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=439';
+import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=441';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1243,7 +1243,7 @@ import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_E
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=439';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=441';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -1861,8 +1861,23 @@ export function applyEnvelope(G, res) {
      load strip deletes them, at which point `describeReplacement` is
      permanently non-destructive and this branch is unreachable. That is a
      record.js change, not this one, and it is named in the report. */
+  /* ── THE CAPSTONE RETIRES THIS SHEET (blob-retire, DORMANT) ─────────────────
+     The ⏳ comment above ("THE SHEET RETIRES FULLY when the client stops holding
+     a rival copy at all") names exactly this: once the save blob is retired there
+     is NO local authored character to be "replaced", so applying the server
+     envelope IS the load, not an overwrite of a rival, and this modal is never the
+     right thing to show. Gated on the one capstone flag, read off the window global
+     at CALL time (cycle-avoidance, same as isReconcilePending above). While dormant
+     it is false and the sheet behaves byte-for-byte as today. Deleting the sheet +
+     its plumbing is a POST-ARM cleanup once proven live post-wipe. */
+  let __blobRetired = false;
+  try {
+    __blobRetired = typeof window !== 'undefined' && window.HearthriseCapstone
+      && typeof window.HearthriseCapstone.isBlobRetired === 'function'
+      && window.HearthriseCapstone.isBlobRetired();
+  } catch (e) { __blobRetired = false; }
   const firstContact = envelopeDrift.applied <= 1;
-  if (loss.destructive && !isReplacementAcknowledged()
+  if (!__blobRetired && loss.destructive && !isReplacementAcknowledged()
       && (!isEnvelopeAbsolute() || firstContact)) {
     console.warn('[accrue] REFUSING to overwrite local progress with the server character '
       + 'until the player confirms — would lose ' + loss.gold + ' gold, ' + loss.skillXp

@@ -103,7 +103,11 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=439';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=441';
+/* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
+   the authority record (applyRecord) and the self-only residue bag
+   (applyClientState). No cycle: client-state.js does not import record.js. */
+import { applyClientState } from './client-state.js?v=441';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -1223,6 +1227,26 @@ function settle(verdict) {
   if (verdict.outcome === 'loaded') {
     const G = (typeof window !== 'undefined') ? window.G : null;
     applied = applyRecord(G, verdict.body);
+    /* ── FEED THE RESIDUE STORE FROM THE SAME ENVELOPE (blob-retire capstone) ───
+       The hr_load envelope carries the whole character; under the capstone the
+       AUTHORITY fields go through applyRecord (above) and the SELF-ONLY residue
+       goes through client_state. Feeding it here means ONE load populates both
+       halves from ONE envelope. applyClientState is documented "always safe to
+       call" and only CONSULTED while armed — so this is observationally inert
+       while dormant (it populates a module bag that clientField ignores until the
+       capstone flag is on). Fed unconditionally so the bag is ready the instant
+       the flag flips, never gated on a flag that could leave it empty under arm.
+       Passing G HYDRATES the residue straight into it (client-state.js
+       hydrateInto), so every existing G.<residue> read is server-truth with NO
+       per-site routing. Passing the SAME G applyRecord just wrote means
+       bountyHunter.marks (authority — set by applyRecord/the marks path) is
+       present for hydrateInto to preserve while it merges the residue.
+       ✅ hr_state_of already projects a top-level `client_state` key
+       (2026-08-28-client-state.sql §2, verified live) — no server migration is
+       needed for this load path. A malformed/absent client_state no-ops and the
+       bag stays null, which canProceedArmed treats as "not loaded yet"
+       (fail-closed). */
+    try { applyClientState(verdict.body, G); } catch (e) {}
   } else {
     console.warn('[record] the server did not supply the record (' + verdict.outcome
       + (verdict.reason ? ': ' + verdict.reason : '') + ') — '

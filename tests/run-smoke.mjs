@@ -2022,6 +2022,15 @@ const run = async () => {
       console.log('\nClient-state home guard — dormant no-regression (blob) + armed server-read + putClientState builds the RPC.');
     }
 
+    /* ⚠ The blob-retire capstone guard runs LATE (search "blob-retire capstone
+       guard — runs after the pglite guards"), NOT here. Importing its module
+       chain (capstone.js + events.js) poisons pglite's ability to re-instantiate
+       in the same process, so if it ran before the SQL-replay guards below every
+       one of them would fail with a pglite "pathname" crash. pglite is a
+       test-only dependency and the capstone runs only in the browser, so running
+       the guard after the last bootReplay is a clean fix — position does not
+       change what it verifies. */
+
     /* ── The artisan accrual guard (b356) ───────────────────────────────
        `artisan` is 290 of the 344 `hr_activities` rows and every one of them
        paid NOTHING until this landed — declared idle rather than confiscated,
@@ -2709,6 +2718,27 @@ const run = async () => {
     } else {
       console.log('Reachability guard — every declared primary CTA is on screen and hit-testable '
         + 'at 1366x768, 1280x800, 1440x900 and 922x423.');
+    }
+
+    /* ── The blob-retire capstone guard — runs after the pglite guards ───────
+       The finish line: src/net/capstone.js retires the client save blob behind
+       ONE flag (BLOB_RETIRED, DORMANT). Proven dormant (byte-for-byte: flag off,
+       clientField reads G, snapshot() carries residue, canProceedArmed no-ops) and
+       armed (clientField reads the server bag, the residue patch excludes authority
+       fields, and — the anti-data-loss property — an absent/garbage/pre-envelope
+       server answer leaves canProceedArmed FALSE so the client never authors or
+       falls back to a local save). The load/save/reconcile SEAMS are gated in
+       sync.js / auth.js / accrue.js; this proves the pure core they gate on.
+       ⚠ MUST run after every bootReplay-based guard — importing its chain
+       poisons pglite re-instantiation (see the note where this used to sit). */
+    const { blobRetireGuard } = await import('./blob-retire.mjs');
+    const blobRetireProblems = await blobRetireGuard();
+    if (blobRetireProblems.length) {
+      console.log('\nBlob-retire capstone guard — FAILED:');
+      for (const p of blobRetireProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nBlob-retire capstone guard — dormant no-regression + armed server-load fail-closed (no local fallback).');
     }
 
     await page.goto(url, { waitUntil: 'load', timeout: 60_000 });

@@ -6,7 +6,7 @@
 // become live, and cloud-sync auto-upgrades from offline to live.
 
 import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots,
-         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=439';
+         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=441';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -620,6 +620,30 @@ let reconcileAttempts = 0;
 const RECONCILE_MAX_DELAY = 300000;
 
 async function pullAndMaybeRestore() {
+  /* ── THE CAPSTONE BYPASSES THE ENTIRE BLOB RECONCILE (blob-retire, DORMANT) ──
+     Under the capstone the SERVER is the sole source of the character: authority
+     arrives via record.js (applyRecord) and the residue via client_state
+     (applyClientState). There is NO rival local authored save to reconcile, so
+     the pull → decideRestore → overlay → reload dance — and the device-handoff
+     "replace your local progress" prompt it drives — must not run. Release the
+     upload hold (the save path under arm ships residue via putClientState, which
+     the hold does not gate) and return before any local-vs-cloud comparison.
+     Read the flag off the window global at CALL time (auth.js does not import the
+     capstone; zero cycle risk). While dormant this is false and the full b314/b318
+     reconcile below runs byte-for-byte as today — the b305 battery exercises that
+     path and stays green. Deleting decideRestore / this function is a POST-ARM
+     cleanup once proven live post-wipe; it is only GATED here, never removed. */
+  let __blobRetired = false;
+  try {
+    __blobRetired = typeof window !== 'undefined' && window.HearthriseCapstone
+      && typeof window.HearthriseCapstone.isBlobRetired === 'function'
+      && window.HearthriseCapstone.isBlobRetired();
+  } catch (e) { __blobRetired = false; }
+  if (__blobRetired) {
+    console.log('[Auth] capstone armed — server is the sole source; skipping the blob reconcile (no local save to compare, no handoff prompt).');
+    try { releaseSnapshots(); } catch (e) {}
+    return;
+  }
   // b314: hold snapshot uploads until we have pulled the cloud and reconciled.
   // A fresh/empty local must never race an upload out ahead of this decision.
   try { holdSnapshots(); } catch (e) {}

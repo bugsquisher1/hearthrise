@@ -311,6 +311,11 @@ const ALSO_LINTED = [
      PROGRAMMATICALLY (pg_get_functiondef), so NOT an HR_STATE_OF_CHAIN / rate-
      gate-chain member. Listed here so the grant lints see the new RPC's grants. */
   '2026-08-28-client-state.sql',
+  /* CLIENT_STATE deny-list (security hardening of the above). create-or-replaces
+     hr_put_client_state__ungated to reject authority keys (gold/skills/inventory/
+     …) in the patch. Listed here so the grant lints confirm the create-or-replace
+     preserves the ACL (authenticated-only wrapper, __ungated shut out). */
+  '2026-08-22-client-state-denylist.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────

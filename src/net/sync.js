@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=439';
+//   import { setupSync } from './net/sync.js?v=441';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,15 +16,23 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=439';
+import { on, snapshot } from './events.js?v=441';
 /* b342 — WHICH CHARACTER'S SAVE IS THIS? The same resolver src/net/{accrue,
    character,record}.js use, imported rather than re-derived: multi-character.js
    owns the answer and a second reader of that record is a second thing to
    drift. accrue.js has no imports of its own, so this adds no cycle. */
-import { resolveActiveSlot } from './accrue.js?v=439';
+import { resolveActiveSlot } from './accrue.js?v=441';
 /* Read-only, for the cloud-save self-test's report. A balance the client has
    not been told is a different fact from a balance of zero. */
-import { balanceState } from './balance.js?v=439';
+import { balanceState } from './balance.js?v=441';
+/* ── THE CAPSTONE SAVE PATH (blob-retire, DORMANT) ───────────────────────────
+   Under the capstone the authoritative snapshot() blob is NOT uploaded — the
+   authority fields flow through their own server writes (record / RPCs / accrual)
+   and only the self-only residue is persisted, via putClientState. isBlobRetired
+   is the one flag; buildResiduePatch is the census→patch. No cycle: neither
+   capstone.js nor client-state.js imports sync.js. */
+import { isBlobRetired, buildResiduePatch } from './capstone.js?v=441';
+import { putClientState } from './client-state.js?v=441';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -996,6 +1004,29 @@ async function snapshotIfDue(force, keepalive) {
     if (!decideUploadAllowed(claimView, getInstanceId(), Date.now())) return false;
   }
   lastSnapshotAt = now;
+  /* ── CAPSTONE: SHIP RESIDUE, NOT THE BLOB (blob-retire, DORMANT) ─────────────
+     Armed, we do NOT upsert the authoritative snapshot() blob — under the capstone
+     that blob is retired, and re-uploading it would put a client-authored copy of
+     server-owned fields back on the wire (the two-sources bug record.js exists to
+     prevent). Instead ship ONLY the self-only residue via hr_put_client_state; the
+     authority fields are already persisted by their own server writes. The throttle
+     / auth / claim gates above still apply (residue rides the same cadence). A
+     failed put is NON-FATAL (residue is self-only) — it just retries next cadence,
+     exactly as putClientState documents. While DORMANT this branch is never taken
+     and the blob upsert below runs byte-for-byte as today. */
+  if (isBlobRetired()) {
+    const patch = buildResiduePatch(window.G);
+    if (!patch || !Object.keys(patch).length) return false;
+    const base = String(config.snapshotEndpoint || '').replace(/\/rest\/v1\/.*$/, '');
+    const anonKey = typeof config.apiKey === 'function' ? config.apiKey() : config.apiKey;
+    const jwt = typeof config.authToken === 'function' ? config.authToken() : config.authToken;
+    if (!base || !anonKey || !jwt) return false;   // not configured → wait, never author locally
+    const put = await putClientState(patch, { url: base, anonKey, jwt, pinnedSlot: config.slot });
+    const okc = !!(put && put.ok);
+    noteSaveOutcome(okc, okc ? null : (put && put.error) || 'client_state_put_failed', now);
+    if (okc && window.G) { window.G.cloudSyncedAt = now; lastCloudSaveAt = now; }
+    return okc;
+  }
   const snap = snapshot(window.G);
   if (!snap) return false;
   // Stamp the derived, server-sortable fields (totalLevel, combatLevel, renown,

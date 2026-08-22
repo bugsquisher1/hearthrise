@@ -427,6 +427,28 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'the site that will write gold on the day gold joins that list. Declared now so the flip '
       + 'is a one-line change to a site the census already knows about.',
   },
+  'src/net/client-state.js#hydrateInto': {
+    kind: 'seam', status: 'none',
+    why: 'F6 — `G[f] = bagBH`, the non-object bountyHunter fallback of the blob-retire capstone '
+      + 'residue hydrate. `f` here is the fixed allowlist key `bountyHunter`, never gold/authority. '
+      + 'The whole hydrate iterates the RESIDUE_FIELDS ALLOWLIST (client-state.js), NEVER the bag\'s '
+      + 'own key set — so a forged AUTHORITY key like `gold`/`skills` in the client-writable '
+      + 'client_state bag is IGNORED and can never reach G.gold. Enforced twice: the allowlist here '
+      + 'AND a server deny-list in hr_put_client_state (2026-08-22-client-state-denylist.sql) that '
+      + 'refuses to STORE an authority key at all.',
+  },
+  'src/net/client-state.js#hydrateInto@2': {
+    kind: 'seam', status: 'none',
+    why: 'The bountyHunter merge branch — `G[f] = merged`, where `merged` is the bag\'s bountyHunter '
+      + 'with `.marks` DELETED (marks is authority, owned by the record) and G\'s record-set marks '
+      + 'preserved. `f` is the allowlist key `bountyHunter`; still allowlist-bounded, cannot write gold.',
+  },
+  'src/net/client-state.js#hydrateInto@3': {
+    kind: 'seam', status: 'none',
+    why: 'The general residue branch — `G[f] = cs[f]` for `f` drawn from the RESIDUE_FIELDS allowlist '
+      + '(stats/chronicle/settings/…), never an arbitrary bag key. A forged authority key is not on '
+      + 'the allowlist and is never assigned. Same boundary as the two above.',
+  },
   'src/net/accrue.js#applyEnvelopeState': {
     kind: 'server', status: 'none',
     why: 'The server\'s own number, written ABSOLUTELY. This is the site every other one is trying '

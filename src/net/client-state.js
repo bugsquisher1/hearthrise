@@ -48,7 +48,7 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=439';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=441';
 
 /* ── THE DORMANT ARM ─────────────────────────────────────────────────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):
@@ -58,8 +58,24 @@ import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=439';
    would read residue server-first while the blob still authored it). */
 export const CLIENT_STATE_SERVER_BACKED = false;   // DORMANT — post-wipe capstone only
 let armOverride = null;
+/* THE CAPSTONE COUPLING. The blob-retire capstone (src/net/capstone.js) is the
+   SINGLE switch for the whole finish line, and residue reads must follow it — so
+   when the capstone is armed, this store is server-backed too, without a second
+   flag to flip. Read off the window global at CALL time (not a static import) to
+   keep this low-level module free of an import cycle with capstone.js, which
+   imports THIS module for isClientStateFromServer. In a Node test with no window,
+   this is inert and the armed path is driven via __setClientStateArm instead. */
+function capstoneArmed() {
+  try {
+    if (typeof window !== 'undefined' && window.HearthriseCapstone
+        && typeof window.HearthriseCapstone.isBlobRetired === 'function') {
+      return !!window.HearthriseCapstone.isBlobRetired();
+    }
+  } catch (e) {}
+  return false;
+}
 export function isClientStateServerBacked() {
-  const on = armOverride !== null ? armOverride : CLIENT_STATE_SERVER_BACKED;
+  const on = armOverride !== null ? armOverride : (CLIENT_STATE_SERVER_BACKED || capstoneArmed());
   return !!on && isServerAccrualEnabled();
 }
 /** Test seam, same spirit as record.js's __setSkillsRecordArm. */
@@ -67,6 +83,40 @@ export function __setClientStateArm(v) {
   armOverride = (v === null || v === undefined) ? null : !!v;
   return isClientStateServerBacked();
 }
+
+/* ── THE RESIDUE ALLOWLIST — THE HYDRATE SECURITY BOUNDARY ────────────────────
+   This list lives HERE, in the low-level store, because hydrateInto() below is
+   the security-critical writer and MUST NOT trust the bag's key set. `cs` is
+   `res.client_state` = the raw `player_state.client_state` jsonb, which
+   hr_put_client_state merges VERBATIM — a malicious client can call it on its
+   OWN row (RLS permits) with a forged AUTHORITY key (`gold`, `skills`,
+   `inventory`, …). If hydrateInto splatted every bag key into G, that forged
+   value would poison G.gold / G.skills — a latent authority-forge vector (the
+   gold census forbids exactly this). So hydrateInto iterates THIS allowlist and
+   writes ONLY these self-only fields; an authority key in the bag is IGNORED.
+
+   capstone.js imports RESIDUE_FIELDS from here (it already depends on this
+   module), so there is one list and no cycle. The server enforces the same
+   boundary independently (hr_put_client_state deny-list) — defense in depth. */
+export const RESIDUE_FIELDS = Object.freeze([
+  'bountyHunter',   // minus marks (authority); hydrateInto preserves G.bountyHunter.marks
+  'stats',          // kills/gathered/harvested/rareDrops/playMs counters
+  'chronicle',      // the permanent achievement log
+  'activeStyle',    // active loadout pointer (a pref)
+  'foodSlot',       // equipped-food pointer (the food itself is server inventory)
+  'settings',
+  'ownedThemes',
+  'ownedCosmetics',
+  'houseTheme',
+  'plotBuildings',
+  'daily',
+  'collection',
+  'quests',
+  'entitlements',
+  'playerName',     // the player's OWN copy; cross-player name is server-derived
+  'lastSeen',       // the client's own last-active stamp (NOT the authority watermark)
+]);
+const RESIDUE_SET = new Set(RESIDUE_FIELDS);
 
 /* ── THE SERVER-SUPPLIED VERBATIM BAG ────────────────────────────────────────
    Populated from an envelope's top-level `client_state`. Module-scoped rather
@@ -79,13 +129,61 @@ let serverBag = null;   // null = never received; an object once an envelope arr
 /** Feed a server envelope (the hr_load / hr-accrue shape) into the store. Only
  *  consulted while ARMED, but always safe to call. A malformed / absent
  *  client_state leaves the previous bag untouched (an absent key is not a
- *  reason to forget what the last good envelope supplied). */
-export function applyClientState(res) {
+ *  reason to forget what the last good envelope supplied).
+ *
+ *  ── HYDRATE-INTO-G (the capstone model) ──────────────────────────────────────
+ *  When `G` is supplied, every residue field is written STRAIGHT INTO G from the
+ *  bag, so G becomes server truth and every existing `G.<residue>` read site is
+ *  already correct with ZERO per-site routing — this is what retires the
+ *  1,001-site read sweep. Residue is NON-AUTHORITY (self-only), so there is no
+ *  forgery concern and no fail-closed per-site accessor is needed: a hydrated G
+ *  is exactly as trustworthy as the server bag it came from.
+ *
+ *  ⚠ THE ONE NESTED-OWNERSHIP CASE — bountyHunter.marks. `bountyHunter` is
+ *  residue EXCEPT `bountyHunter.marks`, which is AUTHORITY (server-owned via the
+ *  record, read through marksOf). So bountyHunter is NOT hydrated wholesale — that
+ *  would clobber the record's marks. Its residue fields are merged in while
+ *  G.bountyHunter.marks is PRESERVED. buildResiduePatch (capstone.js) also
+ *  EXCLUDES marks from what it pushes, so the bag never carries marks in the first
+ *  place; preserving here is belt-and-suspenders for a legacy bag that might. This
+ *  couples the capstone to the marks arm at exactly this field — documented in
+ *  both places. bountyHunter is the ONLY residue field with a nested field owned
+ *  elsewhere (audited: stats/chronicle/collection/daily/quests/settings/… are
+ *  wholly self-only). */
+export function applyClientState(res, G) {
   if (!res || typeof res !== 'object' || res.ok !== true) return false;
   const cs = res.client_state;
   if (cs === null || typeof cs !== 'object' || Array.isArray(cs)) return false;
   serverBag = cs;
+  /* HYDRATE ONLY WHEN ARMED. Populating serverBag is inert while dormant (nothing
+     reads it), but WRITING into G is observable — so the hydrate is gated on the
+     arm, keeping the dormant load path byte-for-byte unchanged even though
+     record.js calls this on every load. */
+  if (G && typeof G === 'object' && isClientStateServerBacked()) hydrateInto(G, cs);
   return true;
+}
+
+/** Write the residue bag into G — ALLOWLISTED. Iterates RESIDUE_FIELDS, never the
+ *  bag's own key set, so a forged AUTHORITY key in `cs` (gold/skills/inventory/…)
+ *  is IGNORED and can never reach G. This is the security boundary: the bag is the
+ *  raw, client-writable player_state.client_state, so it is untrusted input. The
+ *  bountyHunter/marks carve-out preserves the record-owned marks. */
+function hydrateInto(G, cs) {
+  for (const f of RESIDUE_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(cs, f)) continue;   // bag didn't supply it
+    if (f === 'bountyHunter') {
+      const bagBH = cs[f];
+      if (bagBH === null || typeof bagBH !== 'object' || Array.isArray(bagBH)) { G[f] = bagBH; continue; }
+      const preservedMarks = (G.bountyHunter && typeof G.bountyHunter === 'object')
+        ? G.bountyHunter.marks : undefined;
+      const merged = { ...bagBH };
+      delete merged.marks;                  // AUTHORITY — a forged marks in the bag is dropped
+      if (typeof preservedMarks !== 'undefined') merged.marks = preservedMarks;  // record's marks stays
+      G[f] = merged;
+      continue;
+    }
+    G[f] = cs[f];
+  }
 }
 
 /** Test / boot seam: forget the server bag (a fresh character, a sign-out). */

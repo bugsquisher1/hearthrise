@@ -935,7 +935,12 @@ function remapItemIds(G){
     for(const id in G.inventory){ const nid=_aliasId(id); if(ok(nid)) next[nid]=(next[nid]||0)+(G.inventory[id]||0); }
     G.inventory=next;
   }
-  if(G.equipment && typeof G.equipment==='object'){
+  /* WRITER — mutates worn ids in place. Under arm the server owns the worn set
+     (equip.js verb writes player_equipment; the record framework strips G.equipment
+     from the blob), so a client id-remap must not author it. Gated behind
+     clientMayWriteRecordField — a no-op while dormant (returns true), fail-closed
+     under arm (returns false → skip; the server's ids are already canonical). */
+  if(clientMayWriteRecordField('equipment') && G.equipment && typeof G.equipment==='object'){
     for(const slot in G.equipment){ const id=G.equipment[slot]; if(id){ const nid=_aliasId(id); G.equipment[slot]=ok(nid)?nid:null; } }
   }
   if(G.collection && typeof G.collection==='object'){
@@ -1251,7 +1256,7 @@ function loadLocal(){
   /* b246: grandfather gear already worn when wield-reqs went live — never strip
      anyone of what they're wearing, and let them re-wear it freely. */
   G.wieldGrandfather = G.wieldGrandfather || {};
-  if(G.equipment) for(const _s in G.equipment){ const _eid=G.equipment[_s]; if(_eid) G.wieldGrandfather[_eid]=true; }
+  { const _em=equipmentMapG(); for(const _s in _em){ const _eid=_em[_s]; if(_eid) G.wieldGrandfather[_eid]=true; } }
   ensureRetentionState();
   ensureBountyState();
   migrateEquipmentSlots();
@@ -1556,6 +1561,28 @@ function roomRungG(id){
 }
 function roomOwnedG(id){ return roomRungG(id)>0; }
 window.roomsMapG=roomsMapG;window.roomRungG=roomRungG;window.roomOwnedG=roomOwnedG;
+/* b446 — THE ONE READ ACCESSOR FOR THE WORN SET. Every raw `G.equipment` READ
+   goes through equipmentMapG()/equippedItemG(slot) so that, once
+   EQUIPMENT_RECORD_ARM_ENABLED flips, the worn set is read from the server
+   record (src/net/equipment-record.js) and an un-arrived set fail-closes to a
+   SAFE EMPTY MAP — NEVER undefined (which would crash the iterating/indexing
+   callers at boot/combat, the gold-toLocaleString / rooms-Object.values class of
+   lockout) and NEVER a forged local item. DORMANT today: HearthriseEquipRead
+   reads `G.equipment` byte-for-byte, so a wired site is unchanged. If the module
+   failed to load, fall back to the raw read coalesced to an empty object — same
+   safety, today's values. */
+function equipmentMapG(){
+  const E=window.HearthriseEquipRead;
+  if(E&&typeof E.equipmentMap==='function') return E.equipmentMap(G);
+  return (G&&G.equipment&&typeof G.equipment==='object'&&!Array.isArray(G.equipment))?G.equipment:{};
+}
+function equippedItemG(slot){
+  const E=window.HearthriseEquipRead;
+  if(E&&typeof E.equippedItem==='function') return E.equippedItem(G,slot);
+  const v=(G&&G.equipment)?G.equipment[slot]:null;
+  return (typeof v==='string'&&v)?v:null;
+}
+window.equipmentMapG=equipmentMapG;window.equippedItemG=equippedItemG;
 /* ══════════════════════════════════════════════════════════════════════
    b347 — THE ACTIVITY INTENT SEAM. Contract:
    supabase/functions/hr-accrue/intents.js §"THE CLIENT SEAM".
@@ -2965,7 +2992,11 @@ function migrateEquipmentSlots(){
 }
 function ensureStarterCombatKit(){
   const fresh=(G.stats?.kills||0)===0;
-  if(fresh&&!G.equipment?.weapon&&!G.inventory?.bronze_sword)G.equipment.weapon='bronze_sword';
+  /* WRITER — grants a starting weapon into the worn set. Under arm the server
+     seeds the starting kit (player_equipment) and owns the worn set, so the client
+     must not forge a weapon. Gated behind clientMayWriteRecordField — a no-op while
+     dormant, fail-closed under arm (the server's kit is authoritative). */
+  if(fresh&&clientMayWriteRecordField('equipment')&&!G.equipment?.weapon&&!G.inventory?.bronze_sword)G.equipment.weapon='bronze_sword';
   if(fresh)G.inventory.shrimp=Math.max(G.inventory.shrimp||0,8);
 }
 /* ── PHASE 0 (server authority) — the combat maths moved to src/core/combat.js.
@@ -2989,8 +3020,8 @@ function getPlayerCombatRolls(m,eq=getEquipmentStats()){
    dominant tier at 5+ pieces (a near-full/full same-tier set) grants tier×1% crit
    (Dawnsteel full set = +7%). Derived from item.tier — no per-item authoring. */
 function getArmorSetBonus(){
-  if(typeof G==='undefined' || !G || !G.equipment) return null;
-  return window.HearthriseCore.combat.armorSetBonus(G.equipment, ITEMS);
+  if(typeof G==='undefined' || !G) return null;
+  return window.HearthriseCore.combat.armorSetBonus(equipmentMapG(), ITEMS);
 }
 window.getArmorSetBonus=getArmorSetBonus;
 function getMonsterCombatRolls(m,eq=getEquipmentStats()){
@@ -3001,7 +3032,7 @@ function getEquipmentStats(){
   /* ELEMENTS v1 — G.enchant is the 3rd arg so the weapon-slot element rides
      into weaknessInfo's damageMult identically awake and away. See
      src/core/elements.js. */
-  return window.HearthriseCore.combat.equipmentStats(G.equipment, ITEMS, G.enchant);
+  return window.HearthriseCore.combat.equipmentStats(equipmentMapG(), ITEMS, G.enchant);
 }
 function getWeaknessInfo(m,eq=getEquipmentStats()){
   return window.HearthriseCore.combat.weaknessInfo(m,eq);
@@ -3020,7 +3051,7 @@ function clearEnchantOnWeaponChange(slot,oldId,newId){
 }
 function getPreferredSlot(def){
   if(!def)return null;
-  if(def.slot==='ring'){if(!G.equipment.ring1)return 'ring1';if(!G.equipment.ring2)return 'ring2';return 'ring1';}
+  if(def.slot==='ring'){if(!equippedItemG('ring1'))return 'ring1';if(!equippedItemG('ring2'))return 'ring2';return 'ring1';}
   if(def.slot==='head')return 'helmet';
   if(def.slot==='legs')return 'pants';
   if(def.slot==='hands')return 'gloves';
@@ -3886,7 +3917,7 @@ function getUnlockedBountyTypes(){
   return window.HearthriseCore.bounty.unlockedTypes(getBountyHunterLevel());
 }
 function getPlayerWeaponTypes(){
-  return window.HearthriseCore.bounty.ownedWeaponTypes(G.inventory, G.equipment, ITEMS);
+  return window.HearthriseCore.bounty.ownedWeaponTypes(G.inventory, equipmentMapG(), ITEMS);
 }
 function generateBountyBoard(){
   const CK=window.HearthriseCore;
@@ -6283,7 +6314,7 @@ function renderLoadout(){
   el.innerHTML=`
     <div class="loadout-grid">
       ${EQUIP_SLOTS.slice(0,12).map(slot=>{
-        const id=G.equipment[slot];const def=id?ITEMS[id]:null;const meta=EQUIP_SLOT_META[slot];
+        const id=equippedItemG(slot);const def=id?ITEMS[id]:null;const meta=EQUIP_SLOT_META[slot];
         return `<button class="loadout-slot ${def?'':'empty'}" onclick="${def?`unequip('${slot}')`:''}" title="${def?def.n+' (click to unequip)':meta.label}">${def?def.icon:meta.icon}<small>${def?def.n.split(' ')[0]:meta.label}</small></button>`;
       }).join('')}
     </div>
@@ -6730,7 +6761,7 @@ window.enchantVerdictOutcome=enchantVerdictOutcome;
    Combat, Inventory, Character. CSS TOKENS ONLY. Returns an HTML string. */
 function enchantAffordanceHtml(){
   if(typeof G==='undefined'||!G) return '';
-  const wid=G.equipment&&G.equipment.weapon;const wit=wid?ITEMS[wid]:null;
+  const wid=equippedItemG('weapon');const wit=wid?ITEMS[wid]:null;
   const wrap=(inner)=>`<div class="enchant-row" style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border:1px solid var(--line-soft);border-radius:10px;max-width:100%;box-sizing:border-box">${inner}</div>`;
   if(!wit||wit.type!=='weapon'){
     // No weapon equipped — a disabled-look row, never nothing.
@@ -6752,7 +6783,7 @@ window.enchantAffordanceHtml=enchantAffordanceHtml;
    CSS tokens only — reuses the existing modal shell. */
 function openEnchantPicker(preselectId){
   if(typeof G==='undefined'||!G)return;
-  const wid=G.equipment&&G.equipment.weapon;
+  const wid=equippedItemG('weapon');
   const wit=wid&&ITEMS[wid];
   if(!wit||wit.type!=='weapon'){ try{ if(typeof notify==='function')notify('Equip a weapon first to enchant it.','kill'); }catch(e){} return; }
   const owned=Object.keys(G.inventory||{}).filter(id=>ITEMS[id]&&ITEMS[id].tag==='rune'&&(G.inventory[id]||0)>0);
@@ -6927,7 +6958,7 @@ function renderInventory(){
   migrateEquipmentSlots();
   document.getElementById('equip-panel').innerHTML=`
     <div class="loadout-grid">
-      ${EQUIP_SLOTS.map(slot=>{const id=G.equipment[slot];const def=id?ITEMS[id]:null;const meta=EQUIP_SLOT_META[slot];return `<button class="loadout-slot ${def?'':'empty'}" onclick="${def?`unequip('${slot}')`:''}" title="${def?def.n:meta.label}">${def?def.icon:meta.icon}<small>${def?def.n.split(' ')[0]:meta.label}</small></button>`;}).join('')}
+      ${EQUIP_SLOTS.map(slot=>{const id=equippedItemG(slot);const def=id?ITEMS[id]:null;const meta=EQUIP_SLOT_META[slot];return `<button class="loadout-slot ${def?'':'empty'}" onclick="${def?`unequip('${slot}')`:''}" title="${def?def.n:meta.label}">${def?def.icon:meta.icon}<small>${def?def.n.split(' ')[0]:meta.label}</small></button>`;}).join('')}
     </div>
     <div class="muted tiny" style="margin-top:10px">Tap an empty slot to see what fits, or tap an equipped item to unequip it.</div>`;
 
@@ -8221,8 +8252,8 @@ function _eqStatsTotals(){
     s.str = r.strB || r.strengthBonus || 0;
     s.def = r.defB || r.defenseBonus || 0;
     s.hp  = r.hpB  || r.hitpointsBonus || 0;
-  } else if(G.equipment){
-    Object.values(G.equipment).forEach(id=>{
+  } else {
+    Object.values(equipmentMapG()).forEach(id=>{
       const it = ITEMS[id]; if(!it) return;
       s.atk += it.atkB||0; s.str += it.strB||0; s.def += it.defB||0; s.hp += it.hpB||0;
     });
@@ -8233,7 +8264,7 @@ function _eqStatsTotals(){
 /* ───── Loadout actions ───── */
 function saveLoadout(idx){
   const l = G.loadouts[idx]; if(!l) return;
-  l.equipment = {...G.equipment};
+  l.equipment = {...equipmentMapG()};
   l.tools = {...(G.tools||{})};
   l.foodSlot = G.foodSlot || null;
   l.set = true;
@@ -8250,7 +8281,7 @@ function applyLoadout(idx){
   const _b = equipStateSnapshot();
   /* Equipment: items currently equipped that aren't in the preset go to bag */
   const newEq = {};
-  Object.keys(G.equipment).forEach(slot=>{
+  Object.keys(G.equipment||{}).forEach(slot=>{
     const cur = G.equipment[slot];
     const target = l.equipment[slot] || null;
     /* if current slot has an item, return it to bag */
@@ -8595,7 +8626,7 @@ function openInvDetail(id){
   /* ELEMENTS v1 — if THIS is the equipped weapon and it carries an enchant,
      show the bound element + what it pays. The enchant lives on the loadout
      (G.enchant.weapon), not the item, so it only reads on the worn weapon. */
-  if(it.weaponType && G.equipment && G.equipment.weapon===id && G.enchant && G.enchant.weapon){
+  if(it.weaponType && equippedItemG('weapon')===id && G.enchant && G.enchant.weapon){
     stats.push(`<div><b>✦ ${G.enchant.weapon}</b><span>+15% vs ${G.enchant.weapon}-weak</span></div>`);
   }
   /* b348: was `if(it.reqSkill && it.reqLv)` — the RAW fields. The six classic
@@ -9176,7 +9207,7 @@ function renderInvNew(){
   const slotIcon = slot => (typeof EQUIP_SLOT_META !== 'undefined' && EQUIP_SLOT_META[slot]) ? EQUIP_SLOT_META[slot].icon : '▫️';
   const slotLabel = slot => (typeof EQUIP_SLOT_META !== 'undefined' && EQUIP_SLOT_META[slot]) ? EQUIP_SLOT_META[slot].label : slot;
   const slotBtn = (slot)=>{
-    const id = G.equipment ? G.equipment[slot] : null;
+    const id = equippedItemG(slot);
     const it = id ? ITEMS[id] : null;
     const tier = it ? _itemTier(id) : 0;
     const svg = window._slotSVG && window._slotSVG[slot];
@@ -9556,7 +9587,7 @@ window._itemSVG = {
       /* For unequipSlotInv we got the slot, we need the item in that slot */
       if(onclick.includes('unequipSlotInv')){
         const slot = id;
-        id = G.equipment ? G.equipment[slot] : null;
+        id = equippedItemG(slot);
       }
       const svg = id && window._itemSVG && window._itemSVG[id];
       if(!svg) return;
@@ -11044,8 +11075,8 @@ function migrate(){
 [0, 100, 500, 1500].forEach(t => setTimeout(migrate, t));
 
 window.getWeaponType = function(){
-  if(typeof G==='undefined' || !G || !G.equipment) return 'sword';
-  var id = G.equipment.weapon;
+  if(typeof G==='undefined' || !G) return 'sword';
+  var id = equippedItemG('weapon');
   if(typeof ITEMS==='undefined' || !ITEMS[id]) return 'sword';
   return ITEMS[id].weaponType || 'sword';
 };
@@ -12036,7 +12067,7 @@ window._renderCharacterExtras = function(){
   var slots = (typeof EQUIP_SLOTS !== 'undefined') ? EQUIP_SLOTS : [];
   var meta = (typeof EQUIP_SLOT_META !== 'undefined') ? EQUIP_SLOT_META : {};
   var stripCells = slots.map(function(s){
-    var id = G.equipment ? G.equipment[s] : null;
+    var id = equippedItemG(s);
     var def = id && (typeof ITEMS!=='undefined') ? ITEMS[id] : null;
     var path = id && window._itemPath && window._itemPath[id];
     if(def && path){
@@ -13786,7 +13817,7 @@ function buildLoadoutDoll(){
   var slots = (typeof EQUIP_SLOTS !== 'undefined') ? EQUIP_SLOTS : [];
   var meta = (typeof EQUIP_SLOT_META !== 'undefined') ? EQUIP_SLOT_META : {};
   slots.forEach(function(s){
-    var id = G.equipment ? G.equipment[s] : null;
+    var id = equippedItemG(s);
     var def = id && (typeof ITEMS!=='undefined') ? ITEMS[id] : null;
     var path = id && window._itemPath && window._itemPath[id];
     var slotEl = document.createElement('div');
@@ -13889,8 +13920,9 @@ window.getEquipmentTotals = function(){
   ];
   var totals = {}, worn = [];
   FIELDS.forEach(function(f){ totals[f[0]] = 0; });
-  Object.keys(G.equipment || {}).forEach(function(slot){
-    var id = G.equipment[slot]; if(!id) return;
+  var _eqm = equipmentMapG();
+  Object.keys(_eqm).forEach(function(slot){
+    var id = _eqm[slot]; if(!id) return;
     var def = (typeof ITEMS !== 'undefined') && ITEMS[id];
     if(!def) return;
     worn.push({slot: slot, id: id, name: def.n || id});
@@ -14272,7 +14304,7 @@ function renderInvFancy(){
 
   /* Equipment bonuses summary */
   var bonus = {atk:0, str:0, def:0, rangeAtk:0, rangeStr:0, magicAtk:0, magicStr:0, crit:0};
-  Object.values(G.equipment||{}).forEach(function(id){
+  Object.values(equipmentMapG()).forEach(function(id){
     var it = ITEMS[id]; if(!it) return;
     bonus.atk += it.atkB||0; bonus.str += it.strB||0; bonus.def += it.defB||0;
     bonus.rangeAtk += it.rangeAtkB||0; bonus.rangeStr += it.rangeStrB||0;
@@ -14492,7 +14524,7 @@ function renderInvFancy(){
         '<div class="invc-stat-card">'+
           '<h4><span class="h4-icon">'+_hrGly('uiSpark')+'</span>Bonuses</h4>'+
           '<div class="invc-misc-row"><span>Crit Chance</span><b>+'+((bonus.crit||0)*100).toFixed(1)+'%</b></div>'+
-          (function(){ var xpB=0,spdB=0; Object.values(G.equipment||{}).forEach(function(id){var it=ITEMS[id];if(!it)return;xpB+=it.xpB||0;spdB+=it.spdB||0;}); return '<div class="invc-misc-row"><span>XP Bonus (gear)</span><b>+'+(xpB*100).toFixed(0)+'%</b></div><div class="invc-misc-row"><span>Speed Bonus (gear)</span><b>+'+(spdB*100).toFixed(0)+'%</b></div>'; })()+
+          (function(){ var xpB=0,spdB=0; Object.values(equipmentMapG()).forEach(function(id){var it=ITEMS[id];if(!it)return;xpB+=it.xpB||0;spdB+=it.spdB||0;}); return '<div class="invc-misc-row"><span>XP Bonus (gear)</span><b>+'+(xpB*100).toFixed(0)+'%</b></div><div class="invc-misc-row"><span>Speed Bonus (gear)</span><b>+'+(spdB*100).toFixed(0)+'%</b></div>'; })()+
           '<div class="invc-misc-row"><span>Damage Reduction</span><b>'+Math.floor(bonus.def*0.5)+'</b></div>'+
         '</div>'+
         (function(){ var style = (typeof window.getActiveCombatStyle==="function") ? window.getActiveCombatStyle() : null; var wt = (typeof window.getWeaponType==="function") ? window.getWeaponType() : "sword"; if(!style) return ""; /* b348: the same derived route the picker prints — one sentence, one source. */
@@ -14724,7 +14756,7 @@ function makeSlotDroppable(slot){
   });
 
   /* Also make the slot itself a drag SOURCE if it has an item — drag to bag = unequip */
-  var equippedId = G.equipment ? G.equipment[slotKey] : null;
+  var equippedId = equippedItemG(slotKey);
   if(equippedId){
     slot.setAttribute('draggable','true');
     slot.addEventListener('dragstart', function(e){
@@ -15574,7 +15606,7 @@ var TESTS = [
 
   // 8. Equipment integrity
   function(){return tryRun('equip: all equipped items exist in ITEMS', function(){
-    Object.entries(G.equipment||{}).forEach(function(kv){
+    Object.entries(equipmentMapG()).forEach(function(kv){
       if(kv[1]) assert(ITEMS[kv[1]], 'equipped item '+kv[1]+' missing from ITEMS');
     });
   });},
@@ -15814,11 +15846,11 @@ function ensureCompanionState(){
     G.companions = {
       ownedIds: ['fox'],          // start with fox
       xp: { fox: 0 },
-      equipped: G.equipment && G.equipment.companion === 'fox_companion' ? 'fox' : null
+      equipped: equippedItemG('companion') === 'fox_companion' ? 'fox' : null
     };
   }
   // Migrate any existing fox_companion equip state
-  if(G.equipment && G.equipment.companion === 'fox_companion' && !G.companions.equipped){
+  if(equippedItemG('companion') === 'fox_companion' && !G.companions.equipped){
     G.companions.equipped = 'fox';
   }
 }
@@ -16070,8 +16102,8 @@ function getActiveAvatar(){
 function getEquipmentBonusFor(style){
   /* Compute style-specific bonus from equipment */
   var s = {str:0, atk:0, def:0, crit:0};
-  if(typeof G==='undefined' || !G.equipment) return s;
-  Object.values(G.equipment).forEach(function(id){
+  if(typeof G==='undefined' || !G) return s;
+  Object.values(equipmentMapG()).forEach(function(id){
     var it = ITEMS[id]; if(!it) return;
     if(style === 'melee'){
       s.str += it.strB||0; s.atk += it.atkB||0;
@@ -16269,8 +16301,8 @@ function buildRatesCard(){
 function buildEquipSummaryCard(){
   /* Show count of equipped slots and total bonus */
   var equipped = 0, totalBonus = {str:0, atk:0, def:0};
-  if(G.equipment){
-    Object.values(G.equipment).forEach(function(id){
+  {
+    Object.values(equipmentMapG()).forEach(function(id){
       if(!id) return;
       equipped++;
       var it = ITEMS[id]; if(!it) return;

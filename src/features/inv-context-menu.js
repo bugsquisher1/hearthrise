@@ -72,7 +72,7 @@
     // Paper-doll equipped slot
     var slotName = tile.getAttribute('data-slot');
     if(slotName){
-      var equipped = (window.G && window.G.equipment) ? window.G.equipment[slotName] : null;
+      var equipped = window.HearthriseEquipRead ? window.HearthriseEquipRead.equippedItem(window.G, slotName) : ((window.G && window.G.equipment) ? window.G.equipment[slotName] : null);
       if(equipped) return { itemId: equipped, slot: slotName, source: 'equipped' };
       return { itemId: null, slot: slotName, source: 'empty-slot' };
     }

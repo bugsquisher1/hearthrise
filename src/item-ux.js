@@ -69,7 +69,7 @@
     var item = window.ITEMS && window.ITEMS[itemId];
     if(!item || !item.slot) return null;
     var slot = item.slot;
-    var equippedId = window.G && window.G.equipment && window.G.equipment[slot];
+    var equippedId = window.HearthriseEquipRead ? window.HearthriseEquipRead.equippedItem(window.G, slot) : (window.G && window.G.equipment && window.G.equipment[slot]);
     var equipped = equippedId && window.ITEMS && window.ITEMS[equippedId];
 
     function statsOf(it){

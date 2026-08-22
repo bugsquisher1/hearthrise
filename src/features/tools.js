@@ -28,7 +28,8 @@
     var C = core();
     if (!C) return null;
     var G = window.G || {};
-    return C.bestTool(skill, G.inventory, G.equipment, window.ITEMS || {});
+    var eq = window.HearthriseEquipRead ? window.HearthriseEquipRead.equipmentMap(G) : G.equipment;
+    return C.bestTool(skill, G.inventory, eq, window.ITEMS || {});
   }
 
   function bestToolSpeed(skill) {

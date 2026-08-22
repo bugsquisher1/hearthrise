@@ -2002,6 +2002,25 @@ const run = async () => {
       console.log('\nRooms record guard — dormant no-regression + armed server-read/fail-closed-empty/no-forged-room/never-throws.');
     }
 
+    /* ── The Equipment record guard (worn-set read side, b446) ──────────────
+       Proves the CLIENT half of the b433 equipment record: src/net/record.js +
+       src/net/equipment-record.js read the worn set from the server record under
+       arm and fail-close to a SAFE EMPTY MAP — Object.values/keys/entries/for-in
+       and equippedItem NEVER throw across UNKNOWN / known-empty / absent-envelope,
+       and a forged/overwritten G.equipment never crosses (the b347 fingerprint
+       catches it). DORMANT leaves G.equipment byte-for-byte. This is the last
+       arm-blocker that stops an UNKNOWN equipment state from crashing boot/combat
+       or granting unconfirmed gear. */
+    const { equipmentRecordGuard } = await import('./equipment-record.mjs');
+    const equipmentProblems = await equipmentRecordGuard();
+    if (equipmentProblems.length) {
+      console.log('\nEquipment record guard — FAILED:');
+      for (const p of equipmentProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nEquipment record guard — dormant no-regression + armed server-read/fail-closed-empty/no-forged-item/never-throws.');
+    }
+
     /* ── The Bank item-store guard (bank-store slice, b438) ─────────────────
        Proves the CLIENT half of 2026-08-27-bank-store.sql: reconcileBank folds
        the server-owned bank (res.bank) through the SAME serverOwnedItem carve-out

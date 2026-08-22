@@ -41,7 +41,7 @@
 // window for legacy.js — but the ESM exports exist for the Node guard.
 // ============================================================================
 
-import { isFarmServerArmed } from '../data/item-authority.js?v=445';
+import { isFarmServerArmed } from '../data/item-authority.js?v=446';
 
 export { isFarmServerArmed };
 

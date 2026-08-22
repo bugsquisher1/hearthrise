@@ -90,7 +90,7 @@
         companionPane.appendChild(cslot);
         return;
       }
-      var id = G.equipment ? G.equipment[s] : null;
+      var id = window.HearthriseEquipRead ? window.HearthriseEquipRead.equippedItem(G, s) : (G.equipment ? G.equipment[s] : null);
       var def = id && (typeof ITEMS!=='undefined') ? ITEMS[id] : null;
       var path = id && window._itemPath && window._itemPath[id];
       var slot = document.createElement('div');

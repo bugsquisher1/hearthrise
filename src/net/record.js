@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=435';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=436';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -295,6 +295,29 @@ export const SERVER_OF_RECORD = Object.freeze([
     pick: pickRooms,
     armed: () => isRoomsRecordArmed(),
     decode: decodeRooms, fingerprint: fingerprintRooms }),
+  /* ── BOUNTY MARKS, SHIPPED DORMANT — THE SCALAR THAT MOVES HOME ──────────────
+     Marks are a scalar currency exactly like gold/gems, so this entry is modelled
+     the SAME way: from:'marks' reads the flat `state.marks` that hr_state_of now
+     projects (2026-08-26-marks-record.sql), decoded/fingerprinted by the shared
+     balance helpers. The EARNING side already moved (hr_claim_bounty credits
+     player_state.marks); the reroll/abandon SPEND moved to hr_bounty_spend; this
+     entry closes the READ half — under arm, the marks balance is the server's, not
+     the save blob's.
+
+     ⚠ STORAGE-LOCATION NOTE, AND WHY THE READER ABSTRACTS IT. Today marks live at
+     `G.bountyHunter.marks` (a NESTED field), while a record field is a TOP-LEVEL G
+     key. So the arm intent is: marks become the top-level scalar `G.marks`
+     (server-owned), read everywhere through src/net/marks-record.js `marksOf(G)`,
+     which returns the server value under arm and falls back to `G.bountyHunter.marks`
+     while dormant. Flipping MARKS_RECORD_ARM_ENABLED therefore additionally requires
+     (all tracked as arm-blockers): (1) every marks READ site routed through marksOf;
+     (2) the shop-trait + bounty-upgrade marks SPENDS moved server-side (only reroll/
+     abandon moved here); (3) `bountyHunter.marks` dropped from the default G shape /
+     stripped, since the framework strip only removes the top-level `marks` key. Until
+     then the entry is invisible (armed()=false) and nothing changes byte-for-byte. */
+  Object.freeze({ field: 'marks', from: 'marks', since: 'b4xx',
+    armed: () => isMarksRecordArmed(),
+    decode: decodeBalance, fingerprint: fingerprintBalance }),
   /* ── b353 — WHY GOLD AND GEMS WERE HELD BACK, AND THIS IS THE MEASUREMENT ────
      ⚠ THE HISTORY BELOW is kept because the reason they were not armed earlier is
        a FACT that was cheap to discover and expensive to rediscover, and because
@@ -494,6 +517,31 @@ export function isSkillsRecordArmed() {
 export function __setSkillsRecordArm(v) {
   skillsArmOverride = (v === null || v === undefined) ? null : !!v;
   return isSkillsRecordArmed();
+}
+
+/* ── THE MARKS DORMANT ARM ───────────────────────────────────────────────────
+   Same shape as SKILLS_RECORD_ARM_ENABLED: a greppable const defaulting OFF, a
+   test override seam, and a runtime predicate that ALSO requires the master
+   switch (so `armed` cannot be true while the record system is off, which would
+   leave marks un-stripped yet read record-first = a mismatch).
+
+   ⚠ FLIPPING THIS TO true IS THE ARM. Do not, until the three arm-blockers listed
+   on the `marks` registry entry are done (route every marks read through
+   src/net/marks-record.js marksOf; move the shop-trait + upgrade marks spends
+   server-side; migrate storage to top-level G.marks + strip bountyHunter.marks),
+   Security has reviewed, and it is POST-WIPE (player_state.marks is SPARSE pre-wipe
+   — players earned marks into the blob, not all mirrored server-side — so a pre-wipe
+   arm would strand marks, the inventory-flip lesson). */
+export const MARKS_RECORD_ARM_ENABLED = false;   // DORMANT — post-wipe rollout only
+let marksArmOverride = null;
+export function isMarksRecordArmed() {
+  const on = marksArmOverride !== null ? marksArmOverride : MARKS_RECORD_ARM_ENABLED;
+  return !!on && isRecordActive();
+}
+/** Test seam, same spirit as __setSkillsRecordArm. */
+export function __setMarksRecordArm(v) {
+  marksArmOverride = (v === null || v === undefined) ? null : !!v;
+  return isMarksRecordArmed();
 }
 
 /* ── THE EQUIPMENT SET OFF THE WIRE (b433) ───────────────────────────────────
@@ -1128,6 +1176,7 @@ if (typeof window !== 'undefined') {
     EQUIPMENT_RECORD_ARM_ENABLED, isEquipmentRecordArmed, __setEquipmentRecordArm,
     pickRooms, decodeRooms, fingerprintRooms,
     ROOMS_RECORD_ARM_ENABLED, isRoomsRecordArmed, __setRoomsRecordArm,
+    MARKS_RECORD_ARM_ENABLED, isMarksRecordArmed, __setMarksRecordArm,
     stripServerOfRecord, forgetServerOfRecord,
     decodeRecord, applyRecord, recordValue,
     configureRecord, getRecordConfig, recordEndpoint,

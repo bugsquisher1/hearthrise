@@ -3903,14 +3903,40 @@ function abandonBounty(){
   if(!G.bountyHunter?.active)return;
   const b=G.bountyHunter.active;
   const lv=getBountyHunterLevel();
-  if(lv>=10){const fee=Math.min(10,Math.floor((b.rewards?.marks||0)*.25));G.bountyHunter.marks=Math.max(0,(G.bountyHunter.marks||0)-fee);if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');}
+  if(lv>=10){
+    const fee=Math.min(10,Math.floor((b.rewards?.marks||0)*.25));
+    if(clientMayWriteRecordField('marks')){
+      /* DORMANT: client owns marks — debit locally exactly as before. */
+      G.bountyHunter.marks=Math.max(0,(G.bountyHunter.marks||0)-fee);if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');
+    } else {
+      /* ARMED: server owns marks. The real debit is hr_bounty_spend (which re-derives
+         the fee from the server's active_bounty); the next envelope reconciles. */
+      try{if(window.HearthriseGoalClaim&&HearthriseGoalClaim.bountyAbandon){const _p=HearthriseGoalClaim.bountyAbandon(lv,b.rewards?.marks||0);if(_p&&_p.catch)_p.catch(()=>{});}}catch(e){}
+      if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');
+    }
+  }
   else notify('Bounty abandoned','info');
   G.bountyHunter.active=null;renderCombat();repaintBounty();saveLocal();
 }
 function rerollBountyBoard(){
   ensureBountyState();
   if(G.bountyHunter.freeRerolls>0){G.bountyHunter.freeRerolls--;}
-  else{const cost=5+(G.bountyHunter.rerollsToday||0)*5;if((G.bountyHunter.marks||0)<cost){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}G.bountyHunter.marks-=cost;G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;}
+  else{
+    const cost=5+(G.bountyHunter.rerollsToday||0)*5;
+    if(clientMayWriteRecordField('marks')){
+      /* DORMANT: client owns marks — spend locally exactly as before. */
+      if((G.bountyHunter.marks||0)<cost){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
+      G.bountyHunter.marks-=cost;G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
+    } else {
+      /* ARMED: server owns marks. Affordability fail-closes on UNKNOWN via marksOf;
+         the real debit is hr_bounty_spend (server re-derives the cost). The local
+         write is display-only, reconciled by the next envelope. */
+      const MR=window.HearthriseMarks;
+      if(MR&&!MR.canAffordMarks(G,cost)){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
+      try{if(window.HearthriseGoalClaim&&HearthriseGoalClaim.bountyReroll){const _p=HearthriseGoalClaim.bountyReroll();if(_p&&_p.catch)_p.catch(()=>{});}}catch(e){}
+      G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
+    }
+  }
   G.bountyHunter.board=generateBountyBoard();notify('Bounty board refreshed','info');renderCombat();repaintBounty();saveLocal();
 }
 function handleBountyKill(monsterId,m){
@@ -3954,7 +3980,7 @@ function completeBounty(){
      defer for THEM only — do not burn the bounty for a reward that never lands. */
   if(!_isCull && (r.gold||0)>0 && !clientMayWriteRecordField('gold'))return;
   if(b.type==='proof'&&b.proofItem)removeItem(b.proofItem,b.required);
-  if(clientMayWriteRecordField('gold'))G.gold+=r.gold||0;G.bountyHunter.marks=(G.bountyHunter.marks||0)+(r.marks||0);G.bountyHunter.xp=(G.bountyHunter.xp||0)+(r.xp||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
+  if(clientMayWriteRecordField('gold'))G.gold+=r.gold||0;if(clientMayWriteRecordField('marks'))G.bountyHunter.marks=(G.bountyHunter.marks||0)+(r.marks||0);G.bountyHunter.xp=(G.bountyHunter.xp||0)+(r.xp||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
   const oldLevel=levelFromXp((G.bountyHunter.xp||0)-(r.xp||0)),newLevel=getBountyHunterLevel();
   /* b344 — THE SEEDED STREAM, not Math.random(). completeBounty runs inside
      handleBountyKill, which runs inside killMonster, which runs inside the AWAY
@@ -3976,7 +4002,7 @@ function completeBounty(){
   const bonusRoll=(_CK&&_CK.rng)?_CK.rng.chance(0.10):(Math.random()<0.10);
   /* b221: these three toasts/log lines shipped a literal 🎯 — emoji as art,
      on a screen whose whole point this pass was to stop looking generated. */
-  if(bonusRoll){const bonus=Math.max(1,Math.round((r.marks||0)*0.5));G.bountyHunter.marks+=bonus;notify(`Bonus turn-in! +${bonus} Marks`,'levelup');}
+  if(bonusRoll){const bonus=Math.max(1,Math.round((r.marks||0)*0.5));if(clientMayWriteRecordField('marks'))G.bountyHunter.marks=(G.bountyHunter.marks||0)+bonus;notify(`Bonus turn-in! +${bonus} Marks`,'levelup');}
   G.combatLog.push(`Bounty complete! +${r.marks} Marks, +${r.gold} gold`);
   notify(`Bounty complete: +${r.marks} Marks`,'levelup');
   if(newLevel>oldLevel)notify(`Bounty Hunter ${newLevel}!`,'levelup');
@@ -7544,7 +7570,18 @@ function buyTrait(id){
   if(hasTrait(id)){notify('Already unlocked','info');return;}
   if(t.currency==='marks'){
     const bh=G.bountyHunter||{};
-    if((bh.marks||0)<t.cost){notify('Not enough Bounty Marks — hunt bounties to earn them','kill');return;}
+    const MR=window.HearthriseMarks;
+    /* ARM-BLOCKER (marks flip): a marks-priced trait has NO server spend verb yet
+       (only reroll/abandon moved to hr_bounty_spend). Under arm the raw `bh.marks-=`
+       would be a client-authored debit on a server-owned balance, then reconciled
+       away by the next envelope while the trait stayed granted — a self-mint. Fail
+       CLOSED until the shop spend is server-owned. No-op while dormant (today's
+       behaviour unchanged). Affordability reads through marksOf so it fail-closes on
+       an UNKNOWN balance too. */
+    if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('marks')){
+      notify('That upgrade is unavailable right now','kill');return;
+    }
+    if(MR?(!MR.canAffordMarks(G,t.cost)):((bh.marks||0)<t.cost)){notify('Not enough Bounty Marks — hunt bounties to earn them','kill');return;}
     bh.marks-=t.cost;
   } else {
     /* ARM-SAFE (gold flip): a trait unlock has no server verb and the server
@@ -9538,7 +9575,15 @@ function spendMarks(itemId){
     renderBountyTab();
     return;
   }
-  const have = G.bountyHunter?.marks || 0;
+  /* ARM-BLOCKER (marks flip): a BOUNTY_SHOP upgrade has no server spend verb yet
+     (only reroll/abandon moved). Under arm the raw debit is a client-authored spend
+     on a server-owned balance. Fail CLOSED until it is server-owned; no-op while
+     dormant. */
+  if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('marks')){
+    notify('That upgrade is unavailable right now','kill');return;
+  }
+  const MR=window.HearthriseMarks;
+  const have = MR ? (MR.marksOr(G,0)) : (G.bountyHunter?.marks || 0);
   if(have < def.cost){ notify(`Need ${def.cost - have} more Marks`, 'kill'); return; }
   G.bountyHunter.marks -= def.cost;
   G.bountyHunter.upgrades = G.bountyHunter.upgrades || {};
@@ -9563,7 +9608,10 @@ window.renderBountyTab = renderBountyTab; /* b228: cross-IIFE export — repaint
 function renderBountyTab(){
   ensureBountyState && ensureBountyState();
   const lv = (typeof getBountyHunterLevel === 'function') ? getBountyHunterLevel() : 1;
-  const marks = G.bountyHunter?.marks || 0;
+  /* Marks display through the record accessor: server truth under arm, the local
+     balance while dormant, and a pending em dash rather than a forged number when
+     the balance is UNKNOWN. */
+  const marks = window.HearthriseMarks ? window.HearthriseMarks.fmtMarks(G) : (G.bountyHunter?.marks || 0);
   const completed = G.bountyHunter?.completed || 0;
   const sub = document.getElementById('bounty-sub');
   if(sub) sub.textContent = `Lv ${lv} · ${marks} Marks · ${completed} completed`;
@@ -9609,7 +9657,7 @@ function renderBountyTab(){
       const owned = it.trait
         ? (typeof hasTrait === 'function' && hasTrait(it.trait))
         : (G.bountyHunter?.upgrades?.[it.flag] && !it.repeatable);
-      const can = (G.bountyHunter?.marks || 0) >= cost;
+      const can = window.HearthriseMarks ? window.HearthriseMarks.canAffordMarks(G, cost) : ((G.bountyHunter?.marks || 0) >= cost);
       return `<div class="bounty-shop-row" data-offer="${it.id}">
         <span class="si">${(window.HR && window.HR.icon) ? (window.HR.icon(it.glyph, 22, 'currentColor') || '') : ''}</span>
         <div class="info"><b>${it.name}</b><span>${it.desc}</span></div>

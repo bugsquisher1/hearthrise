@@ -58,6 +58,16 @@
     return 0;
   }
 
+  /* A client-generated idempotency key (uuid). A retry of the SAME gesture carries
+     the same key so the server re-debits nothing; a new gesture gets a fresh one. */
+  function newIdem() {
+    try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = (Math.random() * 16) | 0, v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
   // One negative probe per RPC name; expires in ten minutes.
   var probe = {};
   function missing(n) { var p = probe[n]; return !!(p && p.known === false && (Date.now() - p.at) < 600000); }
@@ -129,6 +139,29 @@
        the once-guard (deleted under a row lock). Fire-and-forget: a replay returns
        no_active_bounty with no second credit. */
     claimBounty: function () { return call('hr_claim_bounty', { p_slot: activeSlot() }); },
+    /* Bounty MARKS spend — supabase/migrations/2026-08-26-marks-record.sql. ONE
+       server-authoritative debit for reroll + abandon. The server derives the
+       reroll cost (5 + paid-rerolls-today*5, counted from the ledger) and the
+       abandon fee (min(10, floor(reward_marks*0.25)) for BH level >= 10, reward
+       taken from the server's own active_bounty when present); the client value it
+       accepts is only context, never a balance. p_idem makes a retry a no-op.
+       Fire-and-forget, DISPLAY-PREDICTION shape: the server owns player_state.marks
+       and the next envelope reconciles it. Only fired for a PAID reroll (free
+       rerolls never reach the server) or an abandon with a fee. */
+    bountyReroll: function () {
+      return call('hr_bounty_spend', {
+        p_slot: activeSlot(), p_reason: 'reroll', p_bounty_level: 0,
+        p_reward_marks: 0, p_idem: newIdem()
+      });
+    },
+    bountyAbandon: function (bountyLevel, rewardMarks) {
+      return call('hr_bounty_spend', {
+        p_slot: activeSlot(), p_reason: 'abandon',
+        p_bounty_level: Math.max(0, Math.floor(Number(bountyLevel) || 0)),
+        p_reward_marks: Math.max(0, Math.floor(Number(rewardMarks) || 0)),
+        p_idem: newIdem()
+      });
+    },
     /* Companion EQUIP / UNEQUIP — supabase/migrations/2026-08-20-companion-model.sql.
        hr_companion_equip(slot, companion, unequip) sets the SERVER-OWNED
        player_state.companion_equipped AFTER an ownership check (a companion:<id>

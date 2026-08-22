@@ -29,47 +29,47 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=441';
-import * as xp from './core/xp.js?v=441';
-import * as combat from './core/combat.js?v=441';
-import * as bane from './core/bane.js?v=441';
-import * as elements from './core/elements.js?v=441';
-import * as drops from './core/drops.js?v=441';
-import * as pacing from './core/pacing.js?v=441';
-import * as rested from './core/rested.js?v=441';
-import * as tools from './core/tools.js?v=441';
-import * as farm from './core/farm.js?v=441';
-import * as progression from './core/progression.js?v=441';
-import * as styles from './core/styles.js?v=441';
-import * as artisan from './core/artisan.js?v=441';
-import * as bounty from './core/bounty.js?v=441';
-import * as away from './core/away.js?v=441';
-import * as botd from './core/botd.js?v=441';
-import * as buffs from './core/buffs.js?v=441';
-import * as combatSim from './core/combat-sim.js?v=441';
+import * as rngMod from './core/rng.js?v=442';
+import * as xp from './core/xp.js?v=442';
+import * as combat from './core/combat.js?v=442';
+import * as bane from './core/bane.js?v=442';
+import * as elements from './core/elements.js?v=442';
+import * as drops from './core/drops.js?v=442';
+import * as pacing from './core/pacing.js?v=442';
+import * as rested from './core/rested.js?v=442';
+import * as tools from './core/tools.js?v=442';
+import * as farm from './core/farm.js?v=442';
+import * as progression from './core/progression.js?v=442';
+import * as styles from './core/styles.js?v=442';
+import * as artisan from './core/artisan.js?v=442';
+import * as bounty from './core/bounty.js?v=442';
+import * as away from './core/away.js?v=442';
+import * as botd from './core/botd.js?v=442';
+import * as buffs from './core/buffs.js?v=442';
+import * as combatSim from './core/combat-sim.js?v=442';
 /* The gather half of the same unification. `skillSim.sliceSpan` IS
    `replayAwaySpan` (legacy.js:1153), lifted; `simulateSkillSpan` is the loop
    the away gather branch and the accrual Edge Function both run. Published
    here because a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as skillSim from './core/skill-sim.js?v=441';
+import * as skillSim from './core/skill-sim.js?v=442';
 /* The ARTISAN half. `simulateArtisanSpan` is what legacy.js's artisan away
    branch (`replayAwaySpan` over `window.doArtisanAction`) becomes — 290 of the
    344 catalogue rows, and the last simulation in the game with no DOM-free
    form. It runs on `skillSim.sliceSpan`, so there is still exactly one
    buff-expiry timeline. */
-import * as artisanSim from './core/artisan-sim.js?v=441';
+import * as artisanSim from './core/artisan-sim.js?v=442';
 /* b357 — the consumption seam (R1: one field, one carry, one guard). Published
    because BOTH the pre-flight supply projection and the away card are client
    surfaces, and §4.5 requires them to call the same `hoursOfSupply`/`dryAtMs`
    the server's accrual will — "if the projection computes its own copy, the two
    will disagree, and the player will be told a number the night does not
    honour." Nothing in the fight calls it yet; see src/core/ammo.js's header. */
-import * as ammo from './core/ammo.js?v=441';
+import * as ammo from './core/ammo.js?v=442';
 /* The auto-eat DECISION, shared with the server accrual engine. Published so
    src/features/auto-actions.js — a classic script, which cannot import — can
    delegate to the same predicate Deno runs. */
-import * as autoEat from './core/auto-eat.js?v=441';
+import * as autoEat from './core/auto-eat.js?v=442';
 /* The PERMANENT PERK CHANNEL, shared with the server accrual engine. Layer 0
    of the getBonus chain — room rungs, plot buildings and the property
    capstone — is this module now, on both sides, so the client's `noBurn` and
@@ -78,7 +78,7 @@ import * as autoEat from './core/auto-eat.js?v=441';
    `hr_perks_of` returns. Published rather than inlined for the reason every
    other core module is: a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as perks from './core/perks.js?v=441';
+import * as perks from './core/perks.js?v=442';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -211,7 +211,10 @@ function restedRoads() {
   const roads = { library: 0, clan: 0 };
   try {
     const g = G();
-    const lv = (g && g.rooms && g.rooms.library) | 0;
+    /* b431 — library rung through the rooms record accessor (DORMANT no-op
+       today; under arm reads the server map, fail-closes to 0 on UNKNOWN). */
+    const RR = (typeof window !== 'undefined') ? window.HearthriseRooms : null;
+    const lv = (RR && typeof RR.roomRung === 'function') ? RR.roomRung(g, 'library') : ((g && g.rooms && g.rooms.library) | 0);
     const rung = (lv > 0 && window.ROOMS && window.ROOMS.library) ? window.ROOMS.library.levels[lv - 1] : null;
     if (rung && rung.rested > 0) roads.library = rung.rested;
   } catch (e) {}
@@ -227,7 +230,10 @@ function restedRoads() {
 function restedLibraryCap() {
   try {
     const g = G();
-    const lv = (g && g.rooms && g.rooms.library) | 0;
+    /* b431 — library rung through the rooms record accessor (DORMANT no-op
+       today; under arm reads the server map, fail-closes to 0 on UNKNOWN). */
+    const RR = (typeof window !== 'undefined') ? window.HearthriseRooms : null;
+    const lv = (RR && typeof RR.roomRung === 'function') ? RR.roomRung(g, 'library') : ((g && g.rooms && g.rooms.library) | 0);
     const rung = (lv > 0 && window.ROOMS && window.ROOMS.library) ? window.ROOMS.library.levels[lv - 1] : null;
     if (rung && rung.restedCap > 0) return rung.restedCap;
   } catch (e) {}

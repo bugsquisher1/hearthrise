@@ -1983,6 +1983,25 @@ const run = async () => {
       console.log('\nRested record guard — dormant no-regression + armed server-read/fail-closed/coupled/watermark-safe.');
     }
 
+    /* ── The Rooms record guard (server-of-record slice, b431) ──────────────
+       Proves the CLIENT half of the rooms record: arm OFF is a no-op (roomsMap
+       reads G.rooms byte-for-byte); arm ON reads the server's room map (shaped
+       from the `progress` array by pickRooms), FAIL-CLOSES to a SAFE EMPTY MAP
+       before an envelope — never undefined (so Object.values never throws at
+       boot), never a forged local rung — treats an absent progress array as
+       UNKNOWN and a present-but-roomless one as KNOWN-empty, and never vouches
+       for a client-overwritten map. This is the arm-blocker that stops an
+       UNKNOWN rooms state from crashing boot or granting an unconfirmed room. */
+    const { roomsRecordGuard } = await import('./rooms-record.mjs');
+    const roomsProblems = await roomsRecordGuard();
+    if (roomsProblems.length) {
+      console.log('\nRooms record guard — FAILED:');
+      for (const p of roomsProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nRooms record guard — dormant no-regression + armed server-read/fail-closed-empty/no-forged-room/never-throws.');
+    }
+
     /* ── The Bank item-store guard (bank-store slice, b438) ─────────────────
        Proves the CLIENT half of 2026-08-27-bank-store.sql: reconcileBank folds
        the server-owned bank (res.bank) through the SAME serverOwnedItem carve-out

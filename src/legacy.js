@@ -1530,6 +1530,27 @@ function clientMayWriteRecordField(field){
   try{ return A.mayClientWrite(field, window)!==false; }catch(e){ return false; }
 }
 window.clientMayWriteRecordField=clientMayWriteRecordField;
+/* ── b431 — THE ROOMS READ SEAM (legacy wrapper) ──────────────────────────────
+   Every `G.rooms` read in this classic script goes through these so that, once
+   ROOMS_RECORD_ARM_ENABLED flips, a room rung is read from the server record
+   (src/net/rooms-record.js) and an un-arrived map fail-closes to a SAFE EMPTY
+   map — NEVER undefined (which would crash the iterating callers at boot, the
+   gold-toLocaleString class of lockout) and never a forged local rung. DORMANT
+   today: HearthriseRooms reads `G.rooms` byte-for-byte, so a wired site is
+   unchanged. If the module failed to load, fall back to the raw read coalesced
+   to an empty object — same safety, today's values. */
+function roomsMapG(){
+  const R=window.HearthriseRooms;
+  if(R&&typeof R.roomsMap==='function') return R.roomsMap(G);
+  return (G&&G.rooms&&typeof G.rooms==='object')?G.rooms:{};
+}
+function roomRungG(id){
+  const R=window.HearthriseRooms;
+  if(R&&typeof R.roomRung==='function') return R.roomRung(G,id);
+  return (G&&G.rooms&&G.rooms[id])||0;
+}
+function roomOwnedG(id){ return roomRungG(id)>0; }
+window.roomsMapG=roomsMapG;window.roomRungG=roomRungG;window.roomOwnedG=roomOwnedG;
 /* ══════════════════════════════════════════════════════════════════════
    b347 — THE ACTIVITY INTENT SEAM. Contract:
    supabase/functions/hr-accrue/intents.js §"THE CLIENT SEAM".
@@ -3117,7 +3138,7 @@ function clientPerkState(){
   if(window.HearthriseHomestead && typeof window.HearthriseHomestead.getTier==='function'){
     try{ propertyTier=window.HearthriseHomestead.getTier()||0; }catch(e){}
   }
-  return { rooms: G.rooms||{}, plots, propertyTier, renownAllXp, clanPerks:{}, castle:null };
+  return { rooms: roomsMapG(), plots, propertyTier, renownAllXp, clanPerks:{}, castle:null };
 }
 window.clientPerkState = clientPerkState;
 
@@ -6015,7 +6036,7 @@ function renderProfile(){
     const lab=ready?'Ready':`${plotPct(p)}%`;
     return `<div class="farm-tile ${ready?'ready':''} ${!ready&&plotWindowMs(p)>0?'watered':''}"><span>${crop.icon}</span><small>${lab}</small></div>`;
   }).join('');
-  const roomLevels=Object.values(G.rooms).reduce((a,b)=>a+(b||0),0);
+  const roomLevels=Object.values(roomsMapG()).reduce((a,b)=>a+(b||0),0);
   document.getElementById('dash-homestead-body').innerHTML=`
     <div class="hmstead-grid">
       <div class="hmstead-col">
@@ -7072,7 +7093,7 @@ function renderHouse(){
       window.HearthriseHomestead.renderRoomGrid(el);
     } else {
       el.innerHTML=Object.entries(ROOMS).map(([id,r])=>{
-        const lv=G.rooms[id]||0;
+        const lv=roomRungG(id);
         const next=r.levels[lv];
         const canAfford=next?canPayCost(next.cost):false;
         return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, r.icon, '_roomIcon')}</span><div class="info"><b>${r.name} ${lv?'· Lv '+lv:''}</b><span>${next?next.bonus+' &nbsp;'+Object.entries(next.cost).map(([k,v])=>`${_costPart(k, v)}`).join('&nbsp; '):'MAX'}</span></div>${next?`<button class="btn btn-sm ${canAfford?'btn-primary':''}" ${canAfford?'':'disabled'} onclick="upgradeRoom('${id}')">${lv?'Upgrade':'Build'}</button>`:'<span class="tag">MAX</span>'}</div>`;
@@ -7190,7 +7211,7 @@ function describeMissingCost(cost){
 function upgradeRoom(id){
   const r=ROOMS[id];
   if(!r){console.error('[house] upgradeRoom: unknown room '+id);return false;}
-  const lv=G.rooms[id]||0;
+  const lv=roomRungG(id);
   if(lv>=r.levels.length){
     notify(`${r.name} is already at its highest level.`,'info');
     renderHouseSurfaces();
@@ -7230,7 +7251,13 @@ function upgradeRoom(id){
   const _rk=goldIntentKey();
   for(const [k,v] of Object.entries(nx.cost)){if(k==='gold')goldSettle(-v,'house.upgrade_room',_rk);else removeItem(k,v);}
   if(_bpId) removeItem(_bpId,1);
-  G.rooms[id]=lv+1;G.stats.roomsBuilt=(G.stats.roomsBuilt||0)+1;
+  /* b431 — THE LOCAL RUNG WRITE IS A PREDICTION, GATED. The purchase is already
+     server-owned (hr_unlock_buy, fired below); under the rooms record arm the
+     server envelope is the only writer of the rung, so this local mutation is
+     skipped (and G.rooms may be stripped/undefined — writing it would throw).
+     Pre-arm it authors the rung locally exactly as before. */
+  if(clientMayWriteRecordField('rooms')){G.rooms=G.rooms||{};G.rooms[id]=lv+1;}
+  G.stats.roomsBuilt=(G.stats.roomsBuilt||0)+1;
   /* FIRE AND RECONCILE — never await. No-op with the switch off. */
   if(_rk&&window.HearthriseGold&&window.HearthriseGold.buyUnlock){const _rp=window.HearthriseGold.buyUnlock(_roomOffer,_rk);if(_rp&&_rp.catch)_rp.catch(()=>{});}
   /* "upgraded" was the word for a first BUILD too, which is the one moment the
@@ -13157,7 +13184,7 @@ window.burnRiskLine = function(recipe, skillId){
   if(!CF || typeof window.cookBurnChance !== 'function') return '';
   var pct = Math.round(window.cookBurnChance(recipe) * 100);
   if(!(pct > 0)) return '';
-  var hasKitchen = ((G.rooms||{}).kitchen||0) > 0;
+  var hasKitchen = roomOwnedG('kitchen');
   return '<div class="at-meta" style="color:var(--red)" title="'
     + CF.burnAdvice(pct, hasKitchen).replace(/"/g,'&quot;')
     + '">Burn risk: '+pct+'%</div>';
@@ -13171,7 +13198,7 @@ window.burnRiskText = function(recipe, skillId){
   if(!CF || typeof window.cookBurnChance !== 'function') return '';
   var pct = Math.round(window.cookBurnChance(recipe) * 100);
   if(!(pct > 0)) return '';
-  return CF.burnAdvice(pct, ((G.rooms||{}).kitchen||0) > 0);
+  return CF.burnAdvice(pct, roomOwnedG('kitchen'));
 };
 
 /* Override doArtisanAction to use the new schema.

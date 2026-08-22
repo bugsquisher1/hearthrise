@@ -119,7 +119,12 @@
 
     // ---- grandfather existing saves ----
     var tier = 0;
-    var rooms = G.rooms || {};
+    /* b431 — rooms READ accessor (src/net/rooms-record.js), DORMANT no-op today.
+       Under the rooms arm this reads the server-confirmed map and fail-closes to
+       an empty map, so a boot-time UNKNOWN grandfathers as a fresh tier rather
+       than throwing. (Post-wipe there are no legacy saves to grandfather.) */
+    var RR = window.HearthriseRooms;
+    var rooms = (RR && typeof RR.roomsMap === 'function') ? RR.roomsMap(G) : (G.rooms || {});
     var hasAnyRoom = Object.keys(rooms).some(function (r) { return (rooms[r] || 0) > 0; });
     var plotCount = (G.plotBuildings || []).filter(function (b) { return b.id === 'farm_plot'; }).length;
     /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today. */
@@ -141,12 +146,18 @@
       for (var t = 0; t < TIERS.length; t++) { if (TIERS[t].plots >= plotCount) { tier = Math.max(tier, 0) ; break; } }
       for (var t2 = TIERS.length - 1; t2 >= 0; t2--) { if (plotCount > (TIERS[t2 - 1] ? TIERS[t2 - 1].plots : 0)) { tier = Math.max(tier, t2); break; } }
       tier = Math.min(tier, TIERS.length - 1);
-      // auto-grant lv-1 workbenches for artisan skills they already trained
-      G.rooms = G.rooms || {};
-      Object.keys(WORKBENCH).forEach(function (skill) {
-        var room = WORKBENCH[skill];
-        if (srXp(skill) > 0 && !(G.rooms[room] > 0)) G.rooms[room] = 1;
-      });
+      // auto-grant lv-1 workbenches for artisan skills they already trained.
+      // b431 — GATED: under the rooms arm the server owns the rung (a local grant
+      // would forge a room the server never confirmed, and G.rooms is stripped),
+      // so this client write is skipped. Pre-arm it grandfathers exactly as before.
+      var mayWriteRooms = (typeof window.clientMayWriteRecordField !== 'function') || window.clientMayWriteRecordField('rooms');
+      if (mayWriteRooms) {
+        G.rooms = G.rooms || {};
+        Object.keys(WORKBENCH).forEach(function (skill) {
+          var room = WORKBENCH[skill];
+          if (srXp(skill) > 0 && !(G.rooms[room] > 0)) G.rooms[room] = 1;
+        });
+      }
     }
     G.homestead = { tier: tier };
   }
@@ -174,7 +185,7 @@
     var room = WORKBENCH[skill];
     if (!room) return { ok: true };
     ensureState();
-    var built = ((G_().rooms || {})[room] || 0) > 0;
+    var built = roomLevel(room) > 0;
     if (built) return { ok: true };
     var roomName = (window.ROOMS && window.ROOMS[room] && window.ROOMS[room].name) || room;
     return { ok: false, room: room, reason: 'Build the ' + roomName + ' at your homestead first' };
@@ -424,7 +435,13 @@
 
   function ROOMS_() { return window.ROOMS || {}; }
   function roomDef(id) { return ROOMS_()[id] || null; }
-  function roomLevel(id) { return Math.max(0, (G_().rooms || {})[id] || 0); }
+  /* b431 — the ONE room-rung read for this module, through the record accessor
+     (DORMANT no-op today; under arm reads the server map, fail-closes to 0). */
+  function roomLevel(id) {
+    var RR = window.HearthriseRooms;
+    if (RR && typeof RR.roomRung === 'function') return RR.roomRung(window.G, id);
+    return Math.max(0, (G_().rooms || {})[id] || 0);
+  }
   function roomCap(id) { var r = roomDef(id); return r ? r.levels.length : 0; }
 
   /* The gate, always asked of the one authority. If legacy.js has not defined

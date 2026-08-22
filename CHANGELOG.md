@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 442 — 2026-08-22 (Under the hood: rooms read-accessor, dormant)
+
+- 🔧 No gameplay change. Added the safe server-read path for your house/rooms so that when room ownership moves to the server (at the wipe), the game reads confirmed rooms and can never crash on an unconfirmed state. Shipped dormant.
+
 ## v0.9.2-beta build 441 — 2026-08-22 (Under the hood: whole-character server load, dormant)
 
 - 🔧 No gameplay change. Built the final piece of server ownership: when it turns on (at the wipe), your whole character loads from the server, the game stops keeping a separate local copy, and the "local vs server / replace your progress" device prompt goes away entirely. Shipped dormant behind one flag — nothing changes until the wipe.

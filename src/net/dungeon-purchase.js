@@ -14,7 +14,7 @@
 // bridge: absent means "no correction", never "half a correction".
 // ============================================================================
 
-import * as itemLedger from './item-ledger.js?v=442';
+import * as itemLedger from './item-ledger.js?v=443';
 
 /**
  * Remember a client-authored trade so the next settle envelope cannot revert

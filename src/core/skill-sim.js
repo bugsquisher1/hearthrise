@@ -68,12 +68,12 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { resolveGatherAction } from './progression.js?v=442';
-import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=442';
-import { actionIntervalMs, MIN_ACTION_MS, GATHER_SKILLS } from './pacing.js?v=442';
-import { CHANNEL, channelApplies, rateMult } from './away.js?v=442';
-import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=442';
-import { levelOf } from './xp.js?v=442';
+import { resolveGatherAction } from './progression.js?v=443';
+import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=443';
+import { actionIntervalMs, MIN_ACTION_MS, GATHER_SKILLS } from './pacing.js?v=443';
+import { CHANNEL, channelApplies, rateMult } from './away.js?v=443';
+import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=443';
+import { levelOf } from './xp.js?v=443';
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 function call(fx, name, ...args) {

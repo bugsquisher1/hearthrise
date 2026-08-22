@@ -48,7 +48,7 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=442';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=443';
 
 /* ── THE DORMANT ARM ─────────────────────────────────────────────────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):
@@ -99,7 +99,7 @@ export function __setClientStateArm(v) {
    module), so there is one list and no cycle. The server enforces the same
    boundary independently (hr_put_client_state deny-list) — defense in depth. */
 export const RESIDUE_FIELDS = Object.freeze([
-  'bountyHunter',   // minus marks (authority); hydrateInto preserves G.bountyHunter.marks
+  'bountyHunter',   // WHOLLY residue now (marks migrated to top-level G.marks); hydrateInto drops any stray nested marks
   'stats',          // kills/gathered/harvested/rareDrops/playMs counters
   'chronicle',      // the permanent achievement log
   'activeStyle',    // active loadout pointer (a pref)
@@ -139,17 +139,13 @@ let serverBag = null;   // null = never received; an object once an envelope arr
  *  forgery concern and no fail-closed per-site accessor is needed: a hydrated G
  *  is exactly as trustworthy as the server bag it came from.
  *
- *  ⚠ THE ONE NESTED-OWNERSHIP CASE — bountyHunter.marks. `bountyHunter` is
- *  residue EXCEPT `bountyHunter.marks`, which is AUTHORITY (server-owned via the
- *  record, read through marksOf). So bountyHunter is NOT hydrated wholesale — that
- *  would clobber the record's marks. Its residue fields are merged in while
- *  G.bountyHunter.marks is PRESERVED. buildResiduePatch (capstone.js) also
- *  EXCLUDES marks from what it pushes, so the bag never carries marks in the first
- *  place; preserving here is belt-and-suspenders for a legacy bag that might. This
- *  couples the capstone to the marks arm at exactly this field — documented in
- *  both places. bountyHunter is the ONLY residue field with a nested field owned
- *  elsewhere (audited: stats/chronicle/collection/daily/quests/settings/… are
- *  wholly self-only). */
+ *  ⚠ bountyHunter USED TO HOLD A NESTED AUTHORITY FIELD (bountyHunter.marks). Marks
+ *  have MIGRATED to the top-level scalar `G.marks` — a plain record field like gold
+ *  — so bountyHunter is now WHOLLY residue. hydrateInto still DROPS any `marks` key
+ *  defensively (a forged bag key or a stray legacy nested marks must never shadow the
+ *  top-level record authority), and buildResiduePatch (capstone.js) likewise excludes
+ *  it on the way out. No residue field carries a nested field owned elsewhere anymore
+ *  (audited: stats/chronicle/collection/daily/quests/settings/… are wholly self-only). */
 export function applyClientState(res, G) {
   if (!res || typeof res !== 'object' || res.ok !== true) return false;
   const cs = res.client_state;
@@ -172,13 +168,15 @@ function hydrateInto(G, cs) {
   for (const f of RESIDUE_FIELDS) {
     if (!Object.prototype.hasOwnProperty.call(cs, f)) continue;   // bag didn't supply it
     if (f === 'bountyHunter') {
+      /* Marks MIGRATED to the top-level scalar `G.marks` (a record field like gold),
+         so bountyHunter is now WHOLLY residue — there is no nested authority to
+         preserve. We still DROP any `marks` key defensively: a forged marks in the
+         bag, or a stray nested marks from a legacy blob, must never land inside
+         G.bountyHunter and shadow the record's top-level authority. */
       const bagBH = cs[f];
       if (bagBH === null || typeof bagBH !== 'object' || Array.isArray(bagBH)) { G[f] = bagBH; continue; }
-      const preservedMarks = (G.bountyHunter && typeof G.bountyHunter === 'object')
-        ? G.bountyHunter.marks : undefined;
       const merged = { ...bagBH };
-      delete merged.marks;                  // AUTHORITY — a forged marks in the bag is dropped
-      if (typeof preservedMarks !== 'undefined') merged.marks = preservedMarks;  // record's marks stays
+      delete merged.marks;                  // never a nested marks — top-level G.marks is authority
       G[f] = merged;
       continue;
     }

@@ -646,7 +646,12 @@ let G={
      a presence-gated counter (see tickPlayMs). Fresh saves start at 0; existing
      saves backfill nothing (an honest zero, never a faked figure). */
   stats:{kills:0,gathered:0,harvested:0,rareDrops:0,playMs:0},
-  bountyHunter:{marks:0,xp:0,completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}},
+  /* Bounty Marks are a TOP-LEVEL scalar currency (like gold/gems) — the record
+     framework strip keys on a top-level field, so this is the single client home.
+     They used to live nested at bountyHunter.marks; ensureBountyState() migrates a
+     legacy nested value up on load. */
+  marks:0,
+  bountyHunter:{xp:0,completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}},
   lastOfflineSummary:null,
   lastSeen:Date.now(),
   /* b226: nothing ever stamped a creation date, which is why the Founder's
@@ -3833,10 +3838,26 @@ function hasItem(id,qty=1){return(G.inventory[id]||0)>=qty;}
 
 /* ─── Bounty Hunter ─── */
 function ensureBountyState(){
-  const base={marks:0,xp:0,completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}};
+  const base={xp:0,completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}};
   G.bountyHunter=Object.assign(base,G.bountyHunter||{});
   G.bountyHunter.upgrades=G.bountyHunter.upgrades||{};
   G.bountyHunter.warrants=G.bountyHunter.warrants||{};
+  /* MARKS STORAGE MIGRATION (nested→top-level). Marks are a record field keyed at
+     the TOP LEVEL (G.marks), like gold — the framework strip only removes a top-
+     level key, so the client home must be top-level too or a stale nested copy
+     coexists with the server record under arm (the two-sources bug). Back-compat:
+     a save that only carries the legacy nested G.bountyHunter.marks maps it up ONCE.
+     GATED on the arm: while dormant the client owns G.marks and seeds it; under arm
+     the record owns marks and the client must NOT author it (leave it to be stripped
+     and supplied by applyRecord). The nested mirror is ALWAYS dropped so there is
+     exactly ONE client home in every arm state. */
+  if(clientMayWriteRecordField('marks')){
+    if(typeof G.marks!=='number'||!isFinite(G.marks)||G.marks<0){
+      const _legacy=(G.bountyHunter&&typeof G.bountyHunter.marks==='number')?G.bountyHunter.marks:0;
+      G.marks=Math.max(0,Math.floor(_legacy)||0);
+    }
+  }
+  if(G.bountyHunter&&Object.prototype.hasOwnProperty.call(G.bountyHunter,'marks'))delete G.bountyHunter.marks;
   if(!Array.isArray(G.bountyHunter.board))G.bountyHunter.board=[];
   if(!G.bountyHunter.board.length)G.bountyHunter.board=generateBountyBoard();
 }
@@ -3940,7 +3961,7 @@ function abandonBounty(){
     const fee=Math.min(10,Math.floor((b.rewards?.marks||0)*.25));
     if(clientMayWriteRecordField('marks')){
       /* DORMANT: client owns marks — debit locally exactly as before. */
-      G.bountyHunter.marks=Math.max(0,(G.bountyHunter.marks||0)-fee);if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');
+      G.marks=Math.max(0,(G.marks||0)-fee);if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');
     } else {
       /* ARMED: server owns marks. The real debit is hr_bounty_spend (which re-derives
          the fee from the server's active_bounty); the next envelope reconciles. */
@@ -3958,8 +3979,8 @@ function rerollBountyBoard(){
     const cost=5+(G.bountyHunter.rerollsToday||0)*5;
     if(clientMayWriteRecordField('marks')){
       /* DORMANT: client owns marks — spend locally exactly as before. */
-      if((G.bountyHunter.marks||0)<cost){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
-      G.bountyHunter.marks-=cost;G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
+      if((G.marks||0)<cost){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
+      G.marks-=cost;G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
     } else {
       /* ARMED: server owns marks. Affordability fail-closes on UNKNOWN via marksOf;
          the real debit is hr_bounty_spend (server re-derives the cost). The local
@@ -4013,7 +4034,7 @@ function completeBounty(){
      defer for THEM only — do not burn the bounty for a reward that never lands. */
   if(!_isCull && (r.gold||0)>0 && !clientMayWriteRecordField('gold'))return;
   if(b.type==='proof'&&b.proofItem)removeItem(b.proofItem,b.required);
-  if(clientMayWriteRecordField('gold'))G.gold+=r.gold||0;if(clientMayWriteRecordField('marks'))G.bountyHunter.marks=(G.bountyHunter.marks||0)+(r.marks||0);G.bountyHunter.xp=(G.bountyHunter.xp||0)+(r.xp||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
+  if(clientMayWriteRecordField('gold'))G.gold+=r.gold||0;if(clientMayWriteRecordField('marks'))G.marks=(G.marks||0)+(r.marks||0);G.bountyHunter.xp=(G.bountyHunter.xp||0)+(r.xp||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
   const oldLevel=levelFromXp((G.bountyHunter.xp||0)-(r.xp||0)),newLevel=getBountyHunterLevel();
   /* b344 — THE SEEDED STREAM, not Math.random(). completeBounty runs inside
      handleBountyKill, which runs inside killMonster, which runs inside the AWAY
@@ -4035,7 +4056,7 @@ function completeBounty(){
   const bonusRoll=(_CK&&_CK.rng)?_CK.rng.chance(0.10):(Math.random()<0.10);
   /* b221: these three toasts/log lines shipped a literal 🎯 — emoji as art,
      on a screen whose whole point this pass was to stop looking generated. */
-  if(bonusRoll){const bonus=Math.max(1,Math.round((r.marks||0)*0.5));if(clientMayWriteRecordField('marks'))G.bountyHunter.marks=(G.bountyHunter.marks||0)+bonus;notify(`Bonus turn-in! +${bonus} Marks`,'levelup');}
+  if(bonusRoll){const bonus=Math.max(1,Math.round((r.marks||0)*0.5));if(clientMayWriteRecordField('marks'))G.marks=(G.marks||0)+bonus;notify(`Bonus turn-in! +${bonus} Marks`,'levelup');}
   G.combatLog.push(`Bounty complete! +${r.marks} Marks, +${r.gold} gold`);
   notify(`Bounty complete: +${r.marks} Marks`,'levelup');
   if(newLevel>oldLevel)notify(`Bounty Hunter ${newLevel}!`,'levelup');
@@ -7608,10 +7629,9 @@ function buyTrait(id){
   const t=TRAITS[id];if(!t)return;
   if(hasTrait(id)){notify('Already unlocked','info');return;}
   if(t.currency==='marks'){
-    const bh=G.bountyHunter||{};
     const MR=window.HearthriseMarks;
     /* ARM-BLOCKER (marks flip): a marks-priced trait has NO server spend verb yet
-       (only reroll/abandon moved to hr_bounty_spend). Under arm the raw `bh.marks-=`
+       (only reroll/abandon moved to hr_bounty_spend). Under arm the raw `G.marks-=`
        would be a client-authored debit on a server-owned balance, then reconciled
        away by the next envelope while the trait stayed granted — a self-mint. Fail
        CLOSED until the shop spend is server-owned. No-op while dormant (today's
@@ -7620,8 +7640,8 @@ function buyTrait(id){
     if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('marks')){
       notify('That upgrade is unavailable right now','kill');return;
     }
-    if(MR?(!MR.canAffordMarks(G,t.cost)):((bh.marks||0)<t.cost)){notify('Not enough Bounty Marks — hunt bounties to earn them','kill');return;}
-    bh.marks-=t.cost;
+    if(MR?(!MR.canAffordMarks(G,t.cost)):((G.marks||0)<t.cost)){notify('Not enough Bounty Marks — hunt bounties to earn them','kill');return;}
+    G.marks=(G.marks||0)-t.cost;
   } else {
     /* ARM-SAFE (gold flip): a trait unlock has no server verb and the server
        ignores its perk. Under arm the raw debit would be REFUNDED by the next
@@ -8034,7 +8054,7 @@ function boot(){
      late needs to force a repaint, or whether it beat first paint and has
      nothing to correct. See the long block at `__hrIconsReady`. */
   window.__hrBooted = true;
-  window.testerBoost=()=>{G.gold+=5000;G.gems+=200;ensureBountyState();G.bountyHunter.marks+=50;['turnip_seed','carrot_seed','wheat_seed','potato_seed'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+10);['normal_log','copper_ore','iron_ore','shrimp','bones'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+25);['woodcutting','mining','fishing','farming','attack','strength','defense'].forEach(sk=>G.skills[sk]=(G.skills[sk]||0)+650);G.skills.hitpoints=Math.max(G.skills.hitpoints||0,1584);G.playerMaxHp=levelFromXp(G.skills.hitpoints);G.playerHp=G.playerMaxHp;notify('Tester boost applied','loot');refreshAll();};
+  window.testerBoost=()=>{G.gold+=5000;G.gems+=200;ensureBountyState();G.marks=(G.marks||0)+50;['turnip_seed','carrot_seed','wheat_seed','potato_seed'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+10);['normal_log','copper_ore','iron_ore','shrimp','bones'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+25);['woodcutting','mining','fishing','farming','attack','strength','defense'].forEach(sk=>G.skills[sk]=(G.skills[sk]||0)+650);G.skills.hitpoints=Math.max(G.skills.hitpoints||0,1584);G.playerMaxHp=levelFromXp(G.skills.hitpoints);G.playerHp=G.playerMaxHp;notify('Tester boost applied','loot');refreshAll();};
 }
 /* b224 ACCOUNT WALL — the engine does not start behind the gate.
    Everything that makes the game PROGRESS is started from boot(): loadLocal()
@@ -9529,7 +9549,7 @@ window._itemSVG = {
 /* ════════════════════════════════════════════════════════════
    BOUNTY HUNTER as its own panel + nav tab
    Moves the bounty board out of the combat tab into a dedicated panel.
-   Bounty Shop spends G.bountyHunter.marks for utility unlocks.
+   Bounty Shop spends G.marks (top-level record field) for utility unlocks.
    ════════════════════════════════════════════════════════════ */
 
 (function injectBountyPanel(){
@@ -9622,9 +9642,9 @@ function spendMarks(itemId){
     notify('That upgrade is unavailable right now','kill');return;
   }
   const MR=window.HearthriseMarks;
-  const have = MR ? (MR.marksOr(G,0)) : (G.bountyHunter?.marks || 0);
+  const have = MR ? (MR.marksOr(G,0)) : (G.marks || 0);
   if(have < def.cost){ notify(`Need ${def.cost - have} more Marks`, 'kill'); return; }
-  G.bountyHunter.marks -= def.cost;
+  G.marks = (G.marks||0) - def.cost;
   G.bountyHunter.upgrades = G.bountyHunter.upgrades || {};
   if(def.id === 'reroll_token'){
     /* Just refresh the board */
@@ -9650,7 +9670,7 @@ function renderBountyTab(){
   /* Marks display through the record accessor: server truth under arm, the local
      balance while dormant, and a pending em dash rather than a forged number when
      the balance is UNKNOWN. */
-  const marks = window.HearthriseMarks ? window.HearthriseMarks.fmtMarks(G) : (G.bountyHunter?.marks || 0);
+  const marks = window.HearthriseMarks ? window.HearthriseMarks.fmtMarks(G) : (G.marks || 0);
   const completed = G.bountyHunter?.completed || 0;
   const sub = document.getElementById('bounty-sub');
   if(sub) sub.textContent = `Lv ${lv} · ${marks} Marks · ${completed} completed`;
@@ -9696,7 +9716,7 @@ function renderBountyTab(){
       const owned = it.trait
         ? (typeof hasTrait === 'function' && hasTrait(it.trait))
         : (G.bountyHunter?.upgrades?.[it.flag] && !it.repeatable);
-      const can = window.HearthriseMarks ? window.HearthriseMarks.canAffordMarks(G, cost) : ((G.bountyHunter?.marks || 0) >= cost);
+      const can = window.HearthriseMarks ? window.HearthriseMarks.canAffordMarks(G, cost) : ((G.marks || 0) >= cost);
       return `<div class="bounty-shop-row" data-offer="${it.id}">
         <span class="si">${(window.HR && window.HR.icon) ? (window.HR.icon(it.glyph, 22, 'currentColor') || '') : ''}</span>
         <div class="info"><b>${it.name}</b><span>${it.desc}</span></div>

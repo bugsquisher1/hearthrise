@@ -8,14 +8,17 @@
 // server's player_state.marks and NEVER from the client-authored save blob — and
 // an un-arrived balance reads as UNKNOWN, never as a forgeable local number.
 //
-// ── THE STORAGE-LOCATION TWIST, RESTATED WHERE IT IS CONSUMED ────────────────
-// Unlike gold (`G.gold`, top-level), marks live TODAY at `G.bountyHunter.marks`
-// (nested). The record framework keys on a TOP-LEVEL field, so the arm intent is
-// that marks become the top-level scalar `G.marks` (server-owned). This accessor
-// is what makes routing read sites through it safe BEFORE that move:
-//   • DORMANT  → marks is not on the active registry → read `G.bountyHunter.marks`
-//                (coalescing absent to 0, exactly like today's `(bh.marks||0)`), so
-//                a wired site is byte-for-byte unchanged.
+// ── THE STORAGE LOCATION, NOW MIGRATED (b44x) ───────────────────────────────
+// Marks used to live NESTED at `G.bountyHunter.marks`; they now live at the
+// TOP-LEVEL scalar `G.marks`, exactly like gold. That migration is what makes the
+// record framework's strip correct: the strip removes a TOP-LEVEL key, so the
+// client home had to be top-level too — otherwise a stale nested copy would
+// coexist with the server record under arm (the two-sources bug). A legacy save
+// with only the old nested value is normalized up to `G.marks` in
+// ensureBountyState() on load, so there is exactly ONE client home.
+//   • DORMANT  → marks is not on the active registry → read `G.marks`
+//                (coalescing absent to 0), so a wired site is byte-for-byte
+//                unchanged.
 //   • ARMED    → marks is on the registry → recordValue(G,'marks') is the ONLY
 //                authority (including record.js's b347 fingerprint check), and an
 //                un-arrived / overwritten balance is UNKNOWN, fail-closed.
@@ -28,7 +31,7 @@
 // It never WRITES marks. Not a default, not a repair. DOM-free. Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue } from './record.js?v=442';
+import { isServerOfRecord, recordValue } from './record.js?v=443';
 
 /** The one read. Everything else is a shape of this answer.
  *  @returns {{known, value, reason, source}} value is null when !known. */
@@ -49,11 +52,15 @@ export function marksOf(G) {
     }
     return { known: true, value: Math.floor(n), reason: 'ok', source: 'server' };
   }
-  /* NOT MOVED (dormant) — the client owns `G.bountyHunter.marks`, read as before.
-     Absent coalesces to 0 (a KNOWN zero), matching the live `(bh.marks||0)` reads
-     so a wired site behaves identically today. */
-  const bh = G.bountyHunter;
-  const raw = (bh && typeof bh === 'object') ? bh.marks : undefined;
+  /* NOT MOVED (dormant) — the client owns the TOP-LEVEL scalar `G.marks`. The
+     storage migrated nested→top-level (b44x) so the client home matches the record
+     field the framework strip keys on: while dormant this reads `G.marks`, and under
+     arm the branch above reads the server record instead. Absent coalesces to 0 (a
+     KNOWN zero), matching the live reads so a wired site behaves identically today.
+     A legacy save carrying only the old nested `G.bountyHunter.marks` is normalized
+     up to `G.marks` in ensureBountyState() on load, so the nested value is never the
+     authority here. */
+  const raw = G.marks;
   const n = Number(raw) || 0;
   if (!Number.isFinite(n) || n < 0) {
     return { known: false, value: null, reason: 'not-finite', source: 'local' };

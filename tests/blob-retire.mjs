@@ -113,12 +113,14 @@ export async function blobRetireGuard() {
     // ── HYDRATE-INTO-G: a real envelope writes residue STRAIGHT INTO G, so every
     //    existing G.<residue> read is server-truth with NO per-site routing. ──
     {
-      // stale local values that MUST be overwritten by the server bag; marks
-      // (authority) is present on G.bountyHunter from the record path and MUST
-      // survive hydration; the bag carries bountyHunter WITHOUT marks.
+      // stale local values that MUST be overwritten by the server bag. Marks are
+      // now AUTHORITY at the TOP LEVEL (G.marks, from the record path) — NOT nested
+      // in bountyHunter — so hydration must leave G.marks untouched and must DROP any
+      // nested marks the residue bag carries (the b443 storage migration).
       const G = {
+        marks: 77,                                // authority = TOP-LEVEL (record path)
         stats: { kills: 1 }, foodSlot: 'apple',
-        bountyHunter: { marks: 77, streak: 2 },   // marks = authority (record)
+        bountyHunter: { streak: 2 },              // residue only — no nested marks
       };
       CS.__resetClientState();
       const okFed = CS.applyClientState({
@@ -135,13 +137,13 @@ export async function blobRetireGuard() {
       if (G.stats.kills !== 999) fail('ARMED: G.stats must be hydrated from the server bag');
       if (G.foodSlot !== 'steak') fail('ARMED: G.foodSlot must be hydrated from the server bag');
       if (G.bountyHunter.streak !== 9) fail('ARMED: bountyHunter residue must hydrate');
-      if (G.bountyHunter.marks !== 77) fail('ARMED: bountyHunter.marks (AUTHORITY) must be PRESERVED across hydration');
+      if (G.marks !== 77) fail('ARMED: top-level marks (AUTHORITY) must NOT be clobbered by residue hydration');
       // ── THE ALLOWLIST HOLDS: a forged authority key in the bag never reaches G ──
       if ('gold' in G) fail('SECURITY: forged bag `gold` must NOT hydrate into G');
       if ('gems' in G) fail('SECURITY: forged bag `gems` must NOT hydrate into G');
       if ('skills' in G) fail('SECURITY: forged bag `skills` must NOT hydrate into G');
       if ('inventory' in G) fail('SECURITY: forged bag `inventory` must NOT hydrate into G');
-      if (G.bountyHunter.marks === 999999) fail('SECURITY: forged nested bountyHunter.marks must NOT survive hydration');
+      if (typeof G.bountyHunter.marks !== 'undefined') fail('SECURITY: a nested bountyHunter.marks in the bag must be DROPPED by hydration, never carried into G');
       // and the fail-closed gate is satisfied once record + bag are present.
       G._record = { version: 5 };
       if (C.canProceedArmed(G, {}) !== true)

@@ -47,16 +47,30 @@ export async function marksRecordGuard() {
     if (R.isServerOfRecord('marks')) fail('ARM OFF: `marks` is on the active registry but the flag is off');
     if (R.MARKS_RECORD_ARM_ENABLED !== false) fail('MARKS_RECORD_ARM_ENABLED must ship false (DORMANT)');
     {
-      const G = { bountyHunter: { marks: 42 } };
+      // STORAGE MIGRATED: the dormant client home is the TOP-LEVEL scalar G.marks.
+      const G = { marks: 42 };
       const b = M.marksOf(G);
       if (!b.known || b.value !== 42 || b.source !== 'local')
-        fail('ARM OFF: marksOf must read G.bountyHunter.marks (got ' + JSON.stringify(b) + ')');
+        fail('ARM OFF: marksOf must read the top-level G.marks (got ' + JSON.stringify(b) + ')');
       if (M.marksOr(G, 0) !== 42) fail('ARM OFF: marksOr wrong');
       if (!M.canAffordMarks(G, 42) || M.canAffordMarks(G, 43))
         fail('ARM OFF: affordability wrong');
-      // absent coalesces to a KNOWN zero, exactly like the live `(bh.marks||0)`.
-      const b0 = M.marksOf({ bountyHunter: {} });
+      // absent coalesces to a KNOWN zero, exactly like the live `(marks||0)`.
+      const b0 = M.marksOf({});
       if (!b0.known || b0.value !== 0) fail('ARM OFF: absent marks must be a KNOWN 0');
+      // A stale NESTED bountyHunter.marks must NOT shadow the top-level home.
+      const bStale = M.marksOf({ marks: 5, bountyHunter: { marks: 999 } });
+      if (!bStale.known || bStale.value !== 5)
+        fail('ARM OFF: a stale nested bountyHunter.marks shadowed the top-level home (got ' + JSON.stringify(bStale) + ')');
+      // A legacy save carrying ONLY the nested value reads 0 through marksOf — the
+      // accessor never silently reads the nested field; ensureBountyState() (proven
+      // in-browser) normalizes it up. This is what guarantees ONE authority home.
+      const bLegacy = M.marksOf({ bountyHunter: { marks: 77 } });
+      if (!bLegacy.known || bLegacy.value !== 0)
+        fail('ARM OFF: marksOf must NOT read a nested-only legacy value (got ' + JSON.stringify(bLegacy) + ')');
+      // Dormant: the client still owns marks, so every spend gate is OPEN.
+      if (R.clientMayWrite('marks') !== true)
+        fail('ARM OFF: clientMayWrite("marks") must be true while dormant (local spends still happen)');
     }
 
     // ── ARM ON: server is the only authority ───────────────────────────────
@@ -66,9 +80,10 @@ export async function marksRecordGuard() {
     if (!armed) { fail('ARM ON: could not arm (master switch not honoured?) — rest skipped'); reset(); A.setServerAccrualEnabled(false); return problems; }
     if (!R.isServerOfRecord('marks')) fail('ARM ON: `marks` not on the active registry');
 
-    // Before any envelope: UNKNOWN, and fail-closed.
+    // Before any envelope: UNKNOWN, and fail-closed. A forged value at EITHER the
+    // new top-level home or the old nested field must never be read under arm.
     {
-      const G = { bountyHunter: { marks: 999 } };   // a forged local value must NOT be read
+      const G = { marks: 999, bountyHunter: { marks: 999 } };
       const b = M.marksOf(G);
       if (b.known) fail('ARM ON: marks known before any envelope — a local value leaked (' + JSON.stringify(b) + ')');
       if (M.marksNum(G) !== null) fail('ARM ON: marksNum must be null when UNKNOWN');
@@ -92,6 +107,13 @@ export async function marksRecordGuard() {
       G.marks = 1e9;
       const b2 = M.marksOf(G);
       if (b2.known) fail('ARM ON: a client-overwritten marks value was vouched for as server truth');
+      // a stale NESTED bountyHunter.marks must ALSO never shadow the server record.
+      const G3 = {};
+      R.applyRecord(G3, { ok: true, version: 7, now: Date.now(), state: { marks: 100 } });
+      G3.bountyHunter = { marks: 1e9 };
+      const b3 = M.marksOf(G3);
+      if (!b3.known || b3.value !== 100 || b3.source !== 'server')
+        fail('ARM ON: a stale nested bountyHunter.marks shadowed the server value (got ' + JSON.stringify(b3) + ')');
     }
 
     // An envelope WITHOUT marks leaves it UNKNOWN (fail-closed), never 0.
@@ -101,6 +123,14 @@ export async function marksRecordGuard() {
       const b = M.marksOf(G);
       if (b.known) fail('ARM ON: a marks-less envelope must leave marks UNKNOWN, not 0');
     }
+
+    // THE SPEND GATE. Every client marks spend (reroll/abandon local-debit branch,
+    // buyTrait, spendMarks) is behind clientMayWrite('marks'). Under arm it MUST be
+    // false so no site raw-debits a server-owned balance; dormant it MUST be true so
+    // today's local spends still happen. This is the framework contract the in-browser
+    // smoke exercises through the actual spend functions.
+    if (R.clientMayWrite('marks') !== false)
+      fail('ARM ON: clientMayWrite("marks") must be false so client spends fail-closed');
   } finally {
     reset();
     try { A.setServerAccrualEnabled(false); } catch (e) {}

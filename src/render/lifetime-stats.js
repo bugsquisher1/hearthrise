@@ -136,7 +136,7 @@
         '<h4>Bounty Hunter</h4>' +
         '<div class="stats-list">' +
           row('Bounties completed', (bh.completed || 0).toLocaleString()) +
-          row('Marks earned', (bh.marks || 0).toLocaleString()) +
+          row('Marks earned', (window.HearthriseMarks ? window.HearthriseMarks.fmtMarks(G) : (G.marks || 0).toLocaleString())) +
           row('BH Level', (typeof getBountyHunterLevel === 'function' ? getBountyHunterLevel() : 1)) +
           row('Free rerolls left today', bh.freeRerolls || 0) +
         '</div>' +

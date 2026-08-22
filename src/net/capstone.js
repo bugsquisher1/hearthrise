@@ -41,9 +41,10 @@
 // server bag is written STRAIGHT INTO G (client-state.js hydrateInto), so every
 // existing `G.<residue>` read is already server-truth with ZERO per-site
 // changes — the ~1,001-site read sweep disappears. clientField remains a thin
-// optional helper; it is not required at call sites. The ONE nested-ownership
-// carve-out is bountyHunter.marks (authority) — hydrateInto preserves it and
-// buildResiduePatch excludes it (see those functions).
+// optional helper; it is not required at call sites. There is no longer any
+// nested-ownership carve-out: marks migrated to the top-level record field
+// `G.marks`, so bountyHunter is wholly residue and hydrateInto/buildResiduePatch
+// merely DROP any stray nested `marks` defensively (see those functions).
 //
 // ── THE MASTER-SWITCH COUPLING ──────────────────────────────────────────────
 // isBlobRetired() ALSO requires isServerAccrualEnabled(), the same master switch
@@ -80,8 +81,8 @@
 // DOM-free. Node-importable. `fetch`/`window` resolve at call time.
 // ============================================================================
 
-import { isServerAccrualEnabled } from './accrue.js?v=442';
-import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=442';
+import { isServerAccrualEnabled } from './accrue.js?v=443';
+import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=443';
 
 /* ── THE ARM ─────────────────────────────────────────────────────────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):
@@ -105,11 +106,12 @@ export function __setBlobRetired(v) {
    boundary that must not trust an arbitrary bag key. Re-exported for callers /
    the guard. See client-state.js for the full rationale.
 
-   AUDIT — NESTED FIELDS PARTIALLY OWNED ELSEWHERE: `bountyHunter` is the ONLY
-   one. It is residue EXCEPT `bountyHunter.marks`, which is AUTHORITY (a record
-   field, read through marksOf). buildResiduePatch excludes marks on the way OUT
-   and hydrateInto preserves it on the way IN — the capstone↔marks coupling, at
-   one field. Everything else on the list is wholly self-only.
+   AUDIT — NESTED FIELDS PARTIALLY OWNED ELSEWHERE: NONE remain. `bountyHunter`
+   used to hold the nested authority `bountyHunter.marks`; marks migrated to the
+   top-level record field `G.marks` (like gold), so bountyHunter is now wholly
+   residue. buildResiduePatch still DROPS any `marks` key on the way OUT and
+   hydrateInto on the way IN — purely defensive, so a forged/legacy nested marks can
+   never shadow the top-level record. Everything on the list is wholly self-only.
 
    PLAYERNAME: the cross-player AUTHORITATIVE display name is derived server-side
    from `display_names`; the hr_load/hr_state_of envelope does NOT carry it. So the

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=442' directly.
+// modularised, will import { G } from '../state/game.js?v=443' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=442';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=442';
+import { on, snapshot } from '../net/events.js?v=443';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=443';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=442';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=443';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -3340,27 +3340,57 @@ const TESTS = [
     const G = window.G;
     assert(typeof window.buyTrait === 'function', 'window.buyTrait missing');
     const saved = {
-      gold: G.gold, marks: (G.bountyHunter || {}).marks,
+      gold: G.gold, marks: G.marks,
       traits: JSON.parse(JSON.stringify(G.traits || {})),
       auto: JSON.parse(JSON.stringify(G.autoActions || {}))
     };
     try {
       G.traits = {};
       G.bountyHunter = G.bountyHunter || {};
-      G.bountyHunter.marks = 40;
+      // Marks live TOP-LEVEL now (G.marks), the record-field home.
+      G.marks = 40;
       G.gold = 999999;
       window.buyTrait('auto_eat');
-      assert(!(G.traits && G.traits.auto_eat) && G.bountyHunter.marks === 40,
+      assert(!(G.traits && G.traits.auto_eat) && G.marks === 40,
         'buyTrait must refuse on short marks (no unlock, no marks spent) — gold is irrelevant');
       assert(G.gold === 999999, 'buyTrait must NEVER touch gold for a marks trait');
-      G.bountyHunter.marks = 150;
+      G.marks = 150;
       window.buyTrait('auto_eat');
       assert(G.traits.auto_eat === true, 'buyTrait must unlock when marks afford it');
-      assert(G.bountyHunter.marks === 50, 'buyTrait must deduct the 100-mark cost, got ' + G.bountyHunter.marks);
+      assert(G.marks === 50, 'buyTrait must deduct the 100-mark cost, got ' + G.marks);
       assert(G.gold === 999999, 'gold untouched after a successful marks purchase');
     } finally {
       G.gold = saved.gold; G.traits = saved.traits; G.autoActions = saved.auto;
-      if (G.bountyHunter) G.bountyHunter.marks = saved.marks;
+      G.marks = saved.marks;
+    }
+  }),
+  /* b44x: MARKS STORAGE MIGRATION (nested→top-level). Marks are a record field
+     keyed at the TOP LEVEL (G.marks); the framework strip only removes a top-level
+     key, so the client home must be top-level or a stale nested copy coexists with
+     the server record under arm (the two-sources bug). ensureBountyState() migrates
+     a legacy nested value up ONCE and drops the nested mirror, so there is exactly
+     ONE client home. This guards that back-compat + single-source contract. */
+  () => tryRun('b44x: marks migrate nested→top-level G.marks (single home)', () => {
+    const G = window.G;
+    const saved = { marks: G.marks, bh: JSON.parse(JSON.stringify(G.bountyHunter || {})) };
+    try {
+      // A legacy save shape: only the NESTED value, no top-level home yet.
+      G.bountyHunter = Object.assign({}, G.bountyHunter, { marks: 63 });
+      delete G.marks;
+      window.ensureBountyState();
+      assert(G.marks === 63, 'ensureBountyState must migrate the legacy nested marks up to G.marks, got ' + G.marks);
+      assert(!('marks' in G.bountyHunter), 'the nested bountyHunter.marks mirror must be dropped — one home only');
+      // marksOf reads the migrated top-level value.
+      const MR = window.HearthriseMarks;
+      assert(MR && MR.marksOr(G, -1) === 63, 'marksOf must read the migrated top-level value');
+      // A save that ALREADY has a top-level value is not clobbered by a stray nested one.
+      G.marks = 10;
+      G.bountyHunter.marks = 999;
+      window.ensureBountyState();
+      assert(G.marks === 10, 'an existing top-level G.marks must not be overwritten by a nested value, got ' + G.marks);
+      assert(!('marks' in G.bountyHunter), 'a stray nested marks must still be dropped');
+    } finally {
+      G.marks = saved.marks; G.bountyHunter = saved.bh;
     }
   }),
   // b269 (Tyler): purchasable bank space. Cap counts distinct stacks; gold path
@@ -17025,7 +17055,7 @@ const TESTS = [
          them and the 10% bonus is drawn dozens of times. */
       const fixture = () => {
         G.skills = Object.assign({}, G.skills, { attack: 500000, strength: 500000, defense: 500000, hitpoints: 500000 });
-        G.equipment = {}; G.buffs = []; G.inventory = {}; G.gold = 0;
+        G.equipment = {}; G.buffs = []; G.inventory = {}; G.gold = 0; G.marks = 0;
         G.playerMaxHp = 1e6; G.playerHp = 1e6;
         /* IDENTICAL STARTING STATE, quests and kill counter included — the same
            contract AWAY-1's rig learned in b341. Left un-reset, the first run
@@ -17058,7 +17088,7 @@ const TESTS = [
         Math.random = () => mathRandomValue;
         try { P._withOfflineReplay(() => { window.simulateAwayCombat(0.5, 1767225600000, false); }); }
         finally { Math.random = realRandom; }
-        return { marks: G.bountyHunter.marks, completed: G.bountyHunter.completed, gold: G.gold };
+        return { marks: G.marks, completed: G.bountyHunter.completed, gold: G.gold };
       };
 
       /* WARM-UP, then measure. MEASURED on a fresh page: five identical
@@ -17095,9 +17125,9 @@ const TESTS = [
         fixture();
         const base = G.bountyHunter.active.rewards.marks;
         C.setRng(rng);
-        const before = G.bountyHunter.marks || 0;
+        const before = G.marks || 0;
         window.completeBounty();
-        return { paid: (G.bountyHunter.marks || 0) - before, base };
+        return { paid: (G.marks || 0) - before, base };
       };
       const always = turnIn(rngFrom(() => 0));           // 0 < 0.10 -> bonus every time
       const never = turnIn(rngFrom(() => 0.999));        // never
@@ -17658,7 +17688,7 @@ const TESTS = [
                   proofItem:proof, required:3, rewards:{gold:0,marks:5,xp:0} };
       G.bountyHunter.active = null;
       G.bountyHunter.board = [b];
-      const marksBefore = G.bountyHunter.marks||0;
+      const marksBefore = G.marks||0;
       window.acceptBounty(0);
       const a = G.bountyHunter.active;
       assert(a && a.type==='proof', 'proof bounty must be accepted');
@@ -17666,7 +17696,7 @@ const TESTS = [
       // A kill fires the hook — but with no NEW proof items, it must NOT complete.
       window.handleBountyKill(monId, window.MONSTERS[monId]);
       assert(G.bountyHunter.active, 'bounty must still be active after a kill that yielded no new proof items');
-      assert((G.bountyHunter.marks||0) === marksBefore, 'no marks may be paid before real progress, got +' + ((G.bountyHunter.marks||0)-marksBefore));
+      assert((G.marks||0) === marksBefore, 'no marks may be paid before real progress, got +' + ((G.marks||0)-marksBefore));
       assert(window.bountyProofHave(a) === 0, 'progress must read 0 right after accept, got ' + window.bountyProofHave(a));
       // Collect the required NEW items → it completes.
       G.inventory[proof] = 999 + 3;
@@ -17684,7 +17714,7 @@ const TESTS = [
       _C.setRng(_C.rngMod.rngFrom(() => 0.99));   // 0.99 > 0.10 → no bonus, deterministically
       try { window.handleBountyKill(monId, window.MONSTERS[monId]); } finally { _C.setRng(null); }
       assert(!G.bountyHunter.active, 'bounty must complete once the required NEW proof items are collected');
-      assert((G.bountyHunter.marks||0) === marksBefore + 5, 'marks must pay out on real completion');
+      assert((G.marks||0) === marksBefore + 5, 'marks must pay out on real completion');
     } finally { restoreG(snap); }
   }),
 
@@ -28351,7 +28381,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=442');
+    const KIT = await import('../data/start-kit.js?v=443');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -34111,7 +34141,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=442');
+    const S = await import('../data/shops.js?v=443');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -35506,7 +35536,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=442');
+    const S = await import('../data/shops.js?v=443');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -35522,7 +35552,7 @@ const TESTS = [
     try {
       window.G.traits = {};
       window.ensureBountyState && window.ensureBountyState();
-      window.G.bountyHunter.marks = 40;
+      window.G.marks = 40;   // top-level record-field home
       window.showTab('bounty');
       window.renderBountyTab();
 
@@ -35536,16 +35566,16 @@ const TESTS = [
 
       // Too poor: nothing is taken and nothing is granted.
       window.spendMarks(row.id);
-      assert(window.G.bountyHunter.marks === 40,
-        'a refused purchase took marks anyway (' + window.G.bountyHunter.marks + ')');
+      assert(window.G.marks === 40,
+        'a refused purchase took marks anyway (' + window.G.marks + ')');
       assert(!window.hasTrait('auto_eat'), 'a refused purchase granted the trait');
 
       // Affordable: charged EXACTLY once, and by the trait's own price.
-      window.G.bountyHunter.marks = 137;
+      window.G.marks = 137;
       window.spendMarks(row.id);
       assert(window.hasTrait('auto_eat'), 'buying auto-eat in the Bounty Shop did not unlock it');
-      assert(window.G.bountyHunter.marks === 37,
-        'the purchase debited ' + (137 - window.G.bountyHunter.marks) + ' marks, not 100 — the shop '
+      assert(window.G.marks === 37,
+        'the purchase debited ' + (137 - window.G.marks) + ' marks, not 100 — the shop '
         + 'row is charging on top of buyTrait()');
       assert(!(window.G.bountyHunter.upgrades || {}).auto_eat
         && !(window.G.bountyHunter.upgrades || {}).autoEat,
@@ -35561,7 +35591,7 @@ const TESTS = [
 
       // Buying it twice must not cost a second 100.
       window.spendMarks(row.id);
-      assert(window.G.bountyHunter.marks === 37, 'a second purchase of an owned trait charged again');
+      assert(window.G.marks === 37, 'a second purchase of an owned trait charged again');
     } finally { restoreG(snap); }
   }),
 
@@ -39065,7 +39095,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=442')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=443')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -40503,7 +40533,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=442');
+    const A = await import('../net/accrue.js?v=443');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -40527,7 +40557,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=442');
+    const A = await import('../net/accrue.js?v=443');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

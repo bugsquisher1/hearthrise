@@ -103,11 +103,11 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=442';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=443';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=442';
+import { applyClientState } from './client-state.js?v=443';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -308,17 +308,26 @@ export const SERVER_OF_RECORD = Object.freeze([
      entry closes the READ half — under arm, the marks balance is the server's, not
      the save blob's.
 
-     ⚠ STORAGE-LOCATION NOTE, AND WHY THE READER ABSTRACTS IT. Today marks live at
+     ⚠ STORAGE-LOCATION NOTE — MIGRATED (b44x). Marks USED to live at
      `G.bountyHunter.marks` (a NESTED field), while a record field is a TOP-LEVEL G
-     key. So the arm intent is: marks become the top-level scalar `G.marks`
-     (server-owned), read everywhere through src/net/marks-record.js `marksOf(G)`,
-     which returns the server value under arm and falls back to `G.bountyHunter.marks`
-     while dormant. Flipping MARKS_RECORD_ARM_ENABLED therefore additionally requires
-     (all tracked as arm-blockers): (1) every marks READ site routed through marksOf;
-     (2) the shop-trait + bounty-upgrade marks SPENDS moved server-side (only reroll/
-     abandon moved here); (3) `bountyHunter.marks` dropped from the default G shape /
-     stripped, since the framework strip only removes the top-level `marks` key. Until
-     then the entry is invisible (armed()=false) and nothing changes byte-for-byte. */
+     key. Marks are now the top-level scalar `G.marks` (default G literal +
+     ensureBountyState migrate a legacy nested value up on load, gated on the arm),
+     read everywhere through src/net/marks-record.js `marksOf(G)` — the server value
+     under arm, `G.marks` while dormant. The three arm-blockers this entry once named
+     are now CLOSED for a safe arm:
+       (1) ✅ every marks READ site (topbar/bounty panel/shop/lifetime-stats/
+           affordability) routes through marksOf/canAffordMarks/fmtMarks — see the
+           marks-record test's read sweep;
+       (2) reroll/abandon SPENDS moved to hr_bounty_spend (goal-claim.js); the
+           shop-trait (buyTrait) + bounty-shop-upgrade (spendMarks) spends have NO
+           server verb yet and are GATED behind clientMayWriteRecordField('marks'),
+           so under arm they FAIL-CLOSED (refuse) rather than raw-debit — a documented
+           post-arm UX follow-up (build hr_bounty_spend siblings, or a generic marks
+           spend RPC, to re-enable them server-side), NOT a self-mint;
+       (3) ✅ storage migrated to top-level `G.marks`; the framework strip removes it
+           cleanly and the nested mirror is dropped, so there is exactly ONE client
+           home. Still DORMANT (armed()=false) + POST-WIPE only; nothing changes
+           byte-for-byte until MARKS_RECORD_ARM_ENABLED flips. */
   Object.freeze({ field: 'marks', from: 'marks', since: 'b4xx',
     armed: () => isMarksRecordArmed(),
     decode: decodeBalance, fingerprint: fingerprintBalance }),
@@ -585,11 +594,13 @@ export function __setSkillsRecordArm(v) {
    switch (so `armed` cannot be true while the record system is off, which would
    leave marks un-stripped yet read record-first = a mismatch).
 
-   ⚠ FLIPPING THIS TO true IS THE ARM. Do not, until the three arm-blockers listed
-   on the `marks` registry entry are done (route every marks read through
-   src/net/marks-record.js marksOf; move the shop-trait + upgrade marks spends
-   server-side; migrate storage to top-level G.marks + strip bountyHunter.marks),
-   Security has reviewed, and it is POST-WIPE (player_state.marks is SPARSE pre-wipe
+   ⚠ FLIPPING THIS TO true IS THE ARM. The three storage/read/spend arm-blockers on
+   the `marks` registry entry are now CLOSED (reads routed through marksOf; storage
+   migrated to top-level G.marks; reroll/abandon spends moved server-side and the two
+   remaining shop spends fail-closed under arm). Do not flip until Security has
+   reviewed, the two fail-closed shop spends have a server verb (or their temporary
+   unavailability under arm is accepted), and it is POST-WIPE (player_state.marks is
+   SPARSE pre-wipe
    — players earned marks into the blob, not all mirrored server-side — so a pre-wipe
    arm would strand marks, the inventory-flip lesson). */
 export const MARKS_RECORD_ARM_ENABLED = false;   // DORMANT — post-wipe rollout only

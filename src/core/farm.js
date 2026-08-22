@@ -44,6 +44,20 @@ export const BOUNTY_DEED_CHANCE = 0.005; // 0.5% per bounty turn-in
 export const KILL_DEED_CHANCE = 0.001;   // 0.1% per Tier 2+ kill
 export const MIN_DEED_TIER = 2;          // Tier-1 mobs stay deed-free
 
+/* b420/b428 — FINITE-PERENNIAL regrow limits. A `regrows:true` crop is NOT
+   infinite: one seed buys REGROW_LIMITS[id] regrows (that many + 1 total
+   harvests), then the plant withers and the plot clears. This is the ONE
+   source of truth for the limit, read by the client overlay (main.js
+   applyPerennialLimits → CROPS[id].regrowLimit) AND generated into the
+   hr_crops.regrow_limit catalogue column by tools/gen-farm-catalogues.mjs so
+   the server-authoritative harvest RPC enforces the identical wither. Lives in
+   farm.js (a farm constant, NOT vendored into hr-accrue) rather than
+   gathering.js so folding it in does not force an edge redeploy. A non-regrow
+   crop is absent from this map; the server treats absence as the legacy
+   infinite sentinel (0), which the generator's self-check forbids on any
+   regrowing crop. */
+export const REGROW_LIMITS = Object.freeze({ tomato: 4, emberfruit: 4 });
+
 export const WATER_WINDOW_H = 2;         // hours a single watering stays active
 export const WATER_RATE = 2.0;           // growth-hours per real hour while watered
 export const WATER_WINDOW_MS = WATER_WINDOW_H * 3600000;

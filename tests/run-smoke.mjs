@@ -1365,6 +1365,22 @@ async function bountyMonsterPreflight() {
   return 1;
 }
 
+// The farm-gate catalogues (hr_crops.regrow_limit, hr_crop_plot_tier,
+// hr_plot_tier, hr_farm_yield_perk) are generated from src/core/farm.js +
+// src/data/gathering.js + perks + companions. A stale one lets the server gate
+// a plant on the wrong plot tier, price a deed upgrade wrong, pay the wrong
+// farmYield perk, or (worst) revert the finite-perennial cap — so --check gates it.
+async function farmCataloguePreflight() {
+  const gen = join(ROOT, 'tools', 'gen-farm-catalogues.mjs');
+  try { await stat(gen); } catch { return 0; }
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
+  const out = ((r.stdout || '') + (r.stderr || '')).trim();
+  if (r.status === 0) { console.log(`Farm catalogue preflight: ${out || 'in sync'}`); return 0; }
+  console.error(`\nFarm catalogue preflight FAILED — src/core/farm.js / gathering.js no longer matches the generated SQL.\n${out}\n`);
+  return 1;
+}
+
 // PREFLIGHT — SECURITY CONDITION S5: src/data/items.js ⊆ hr_items.
 //
 // The check above regenerates the SQL and compares it to the file, so both
@@ -1665,6 +1681,7 @@ const run = async () => {
   if (await backgroundWavePreflight()) process.exit(1);
   if (await catalogueDriftPreflight()) process.exit(1);
   if (await bountyMonsterPreflight()) process.exit(1);
+  if (await farmCataloguePreflight()) process.exit(1);
   if (await itemsCataloguePreflight()) process.exit(1);
   if (await recipeYieldPreflight()) process.exit(1);
   if (await itemLedgerPreflight()) process.exit(1);

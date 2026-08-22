@@ -53,10 +53,10 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=434';
-import { ARTISAN_RECIPES } from './recipes.js?v=434';
-import { MONSTERS } from './monsters.js?v=434';
-import { BOSSES } from './bosses.js?v=434';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=435';
+import { ARTISAN_RECIPES } from './recipes.js?v=435';
+import { MONSTERS } from './monsters.js?v=435';
+import { BOSSES } from './bosses.js?v=435';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -180,6 +180,36 @@ export const WORKER_PRODUCTION_SERVER_BACKED = false;   // REVERTED to dormant b
    moves belong in the ONE post-wipe rollout commit, gated on a security pass and
    a coordinator-run drift-soak. Do NOT set either true before the wipe. */
 export const INVENTORY_ARM_ENABLED = false;   // REVERTED to dormant b425 — pre-wipe arm was catastrophic (see note above); post-wipe only
+
+/* ── THE FARM SERVER-AUTHORITY ARM (2026-08-22, DORMANT) ─────────────────────
+   When true, the client stops AUTHORING farm outcomes (plantCrop / waterPlot /
+   harvestPlot / plot-tier upgrade) and instead sends INTENTS to the server RPCs
+   (hr_farm_plant / hr_farm_water / hr_farm_harvest / hr_farm_upgrade_plot,
+   installed by 2026-08-22-server-farming-complete.sql) and renders the plot
+   state the server returns. While FALSE the legacy.js farm writers behave
+   byte-for-byte as today — this ships fully inert.
+
+   ⚠ FLIPPING THIS TO true IS THE ARM. Do NOT until: (1) the legacy.js farm
+   gestures route through src/net/farm-sync.js and reconcile from the RPC
+   response rather than mutating G.farmPlots locally; (2) Security has reviewed;
+   (3) it is POST-WIPE — the server player_farm baseline is SPARSE vs the rich
+   client blob, so arming pre-wipe would strand growing crops (the inventory-flip
+   lesson). Because farming is a standalone RPC pair (not an accrual kind), this
+   arm is INDEPENDENT of the master accrual switch and of INVENTORY_ARM_ENABLED:
+   crop produce is EXCLUDED from the ownable-inventory set (cropProductIds is a
+   documented exclusion), so the harvest RPC — not the inventory flip — is what
+   makes farm produce server-owned. */
+export const FARM_SERVER_ARM_ENABLED = false;   // DORMANT — post-wipe rollout only
+let farmArmOverride = null;
+export function isFarmServerArmed() {
+  return farmArmOverride !== null ? !!farmArmOverride : FARM_SERVER_ARM_ENABLED;
+}
+/** Test seam, same spirit as the record.js __set*RecordArm helpers: force the
+ *  arm on/off, or pass null to fall back to the const. Returns the armed state. */
+export function __setFarmServerArm(v) {
+  farmArmOverride = (v === null || v === undefined) ? null : !!v;
+  return isFarmServerArmed();
+}
 
 /** Every id a hired worker can mint client-side = every gather product (a worker
  *  is only ever assigned a gather node). Kept as its own function, not an alias,

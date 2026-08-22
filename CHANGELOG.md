@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 435 — 2026-08-22 (Under the hood: farming → server-owned, dormant)
+
+- 🔧 No gameplay change. Built the complete server-authoritative farm model — planting, watering, growth, harvest, plot-tier upgrades, and the farm-yield bonus all owned and computed by the server, with finite perennials (tomato/emberfruit regrow a fixed number of times, then the plant clears). Shipped dormant; the client still runs farming exactly as today until it arms at the wipe.
+
 ## v0.9.2-beta build 434 — 2026-08-22 (Under the hood: companion XP → server-owned, dormant)
 
 - 🔧 No gameplay change. Built the machinery for your companion XP to be earned and owned by the server the same way gold/gems/skills are, shipped dormant. The passive companion bonus already reads server truth; this adds the matching write half. Turns on with the wipe.

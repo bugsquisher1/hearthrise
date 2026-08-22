@@ -228,6 +228,38 @@ export const SERVER_OF_RECORD = Object.freeze([
     pick: (res) => (res && typeof res === 'object') ? res.skills : undefined,
     armed: () => isSkillsRecordArmed(),
     decode: decodeSkills, fingerprint: fingerprintSkills }),
+  /* ── EQUIPMENT, SHIPPED DORMANT (b433) — THE FIELD WHOSE WRITER ALREADY MOVED ──
+     Unlike skills/inventory, the equipment writer is ALREADY server-authoritative:
+     the equip verb (src/net/equip.js → hr_apply §equip) debits the bag under a
+     lock, checks the requirement off ITEMS[id] server-side, and writes
+     `player_equipment`. hr_state_of ALREADY projects that table as a TOP-LEVEL
+     `equipment` sibling of `state` — the same envelope shape skills rides — so this
+     entry needs NO migration: the projection exists, the writer has moved, and the
+     only thing left client-authored is the LOAD copy in the save blob (the boot
+     `Object.assign(G, blob)` that the strip closes).
+
+     ONE entry, ONE strip (`G.equipment` deleted from the blob), ONE fingerprint
+     over the whole worn set, ONE monotonic version shared with every other field —
+     the same design ruling skills' map entry made, for the same reason.
+
+     ⚠ EMPTY IS A KNOWN STATE HERE, NOT UNKNOWN — the one way this decoder differs
+        from decodeSkills. A real character ALWAYS has seeded skills, so `{}` from
+        the wire means "the read did not populate" → fail-closed. But a character
+        can legitimately wear NOTHING (unequip all), and hr_state_of coalesces that
+        to `{}`, so `{}` is an authoritative EMPTY set, not an absence. Absence is
+        `undefined` (no equipment key on the envelope at all) → decodeEquipment
+        (undefined) → null → UNKNOWN. That distinction is the whole reason empty
+        decodes to `{}` and undefined decodes to null.
+
+     DORMANT via EQUIPMENT_RECORD_ARM_ENABLED (defaults OFF, also requires the
+     master switch), exactly like skills — invisible to the field list / strip /
+     decode loop until a post-wipe rollout flips it AND the client equipment read
+     sites are routed through an accessor (the skill-record.js analogue). Shipping
+     it changes nothing byte-for-byte. */
+  Object.freeze({ field: 'equipment', from: 'equipment', since: 'b433',
+    pick: (res) => (res && typeof res === 'object') ? res.equipment : undefined,
+    armed: () => isEquipmentRecordArmed(),
+    decode: decodeEquipment, fingerprint: fingerprintEquipment }),
   /* ── b353 — WHY GOLD AND GEMS WERE HELD BACK, AND THIS IS THE MEASUREMENT ────
      ⚠ THE HISTORY BELOW is kept because the reason they were not armed earlier is
        a FACT that was cheap to discover and expensive to rediscover, and because
@@ -427,6 +459,83 @@ export function isSkillsRecordArmed() {
 export function __setSkillsRecordArm(v) {
   skillsArmOverride = (v === null || v === undefined) ? null : !!v;
   return isSkillsRecordArmed();
+}
+
+/* ── THE EQUIPMENT SET OFF THE WIRE (b433) ───────────────────────────────────
+   Save-invariant #2's rule applied to the worn set: act only on CERTAINTY, and
+   let a single bad cell condemn the whole set rather than half-trusting it. The
+   wire shape from hr_state_of is `{equip_slot: item_id}` (only occupied slots;
+   see the `jsonb_object_agg(equip_slot, item_id)` projection). The client's
+   representation is the SAME `{slot: itemId|null}` map, so no reshaping is needed
+   — a slot the server omits is simply not worn, which the client already reads as
+   falsy. A `null` value is accepted (an explicit empty slot), a string item id is
+   accepted when it matches the id grammar, and anything else condemns the map.
+
+   ⚠ EMPTY DECODES TO `{}`, NOT null — the deliberate divergence from decodeSkills.
+   The wire's `{}` is an authoritative "nothing equipped", a real and common state
+   (a fresh strip, a naked character), NOT the "read did not populate" signal that
+   an empty skills map is. UNKNOWN is reserved for the value being ABSENT from the
+   envelope (undefined/null at the top), which `pick` yields when the key is
+   missing. So a genuinely-unequipped character resolves KNOWN-empty, and only a
+   malformed/absent envelope resolves UNKNOWN. */
+const EQUIP_SLOT_RE = /^[a-z0-9_]{1,32}$/;
+const EQUIP_ITEM_RE = /^[a-z0-9_]{1,64}$/;
+export function decodeEquipment(v) {
+  if (v === null || typeof v === 'undefined') return null;   // ABSENT → UNKNOWN
+  if (typeof v !== 'object' || Array.isArray(v)) return null;
+  const out = {};
+  for (const k in v) {
+    if (!Object.prototype.hasOwnProperty.call(v, k)) continue;
+    if (!EQUIP_SLOT_RE.test(k)) return null;                 // a bad slot name condemns the set
+    const item = v[k];
+    if (item === null) { out[k] = null; continue; }          // explicit empty slot
+    if (typeof item !== 'string' || !EQUIP_ITEM_RE.test(item)) return null;
+    out[k] = item;
+  }
+  return out;                                                // `{}` is KNOWN-empty, not UNKNOWN
+}
+
+/* Deterministic over SORTED keys, so the same worn set always fingerprints the
+   same string regardless of key order (jsonb_object_agg gives no ordering
+   guarantee). NEVER empty — an unequipped set fingerprints as `eq:` (a real,
+   distinct token) so `want === have` in recordValue is a genuine comparison and a
+   known-empty set never collides with an absent/unknown one. `null` and a
+   non-object fingerprint as `absent`, matching the UNKNOWN they decode to. */
+export function fingerprintEquipment(v) {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) return 'absent';
+  const keys = Object.keys(v).sort();
+  let s = 'eq:';
+  for (const k of keys) {
+    const item = v[k];
+    s += k + '=' + (item === null || typeof item === 'undefined' ? '-' : String(item)) + ';';
+  }
+  return s;
+}
+
+/* ── THE EQUIPMENT DORMANT ARM (b433) ────────────────────────────────────────
+   Same shape as the skills arm above (which mirrors item-authority's
+   INVENTORY_ARM_ENABLED): one greppable const defaulting OFF, a test seam, and a
+   runtime predicate that ALSO requires the master switch — so `armed` can never be
+   true while the record system is off (which would leave `G.equipment` un-stripped
+   yet read record-first = a mismatch).
+
+   ⚠ FLIPPING THIS TO true IS THE ARM. Do not, until: the client equipment READ
+   sites (paperdoll, combat stat rollup, tooltips) route through an accessor that
+   fail-closes on UNKNOWN — the skill-record.js analogue — Security has reviewed,
+   and it is POST-WIPE. The equip WRITE already moved (equip.js), so unlike skills
+   the writer side is done; the remaining arm work is purely the client read
+   surface. */
+export const EQUIPMENT_RECORD_ARM_ENABLED = false;   // DORMANT — post-wipe rollout only
+let equipmentArmOverride = null;
+export function isEquipmentRecordArmed() {
+  const on = equipmentArmOverride !== null ? equipmentArmOverride : EQUIPMENT_RECORD_ARM_ENABLED;
+  return !!on && isRecordActive();
+}
+/** Test seam, same spirit as __setSkillsRecordArm: force the arm on/off, or pass
+ *  null to fall back to the const. Returns the resulting armed state. */
+export function __setEquipmentRecordArm(v) {
+  equipmentArmOverride = (v === null || v === undefined) ? null : !!v;
+  return isEquipmentRecordArmed();
 }
 
 /* ── THE ARM FILTER ──────────────────────────────────────────────────────────
@@ -889,6 +998,8 @@ if (typeof window !== 'undefined') {
     decodeBalance, fingerprintBalance,
     decodeSkills, fingerprintSkills,
     SKILLS_RECORD_ARM_ENABLED, isSkillsRecordArmed, __setSkillsRecordArm,
+    decodeEquipment, fingerprintEquipment,
+    EQUIPMENT_RECORD_ARM_ENABLED, isEquipmentRecordArmed, __setEquipmentRecordArm,
     stripServerOfRecord, forgetServerOfRecord,
     decodeRecord, applyRecord, recordValue,
     configureRecord, getRecordConfig, recordEndpoint,

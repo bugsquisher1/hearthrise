@@ -27313,6 +27313,148 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
+     B433 — EQUIPMENT IS SERVER-OF-RECORD (shipped DORMANT).
+     ══════════════════════════════════════════════════════════════════════════
+     The skills template applied to the WORN SET. The equip WRITE already moved
+     (equip.js → hr_apply), and hr_state_of already projects `equipment` at the
+     envelope top level, so this slice is the LOAD copy only. These prove the whole
+     path through the REAL record.js — pick → decodeEquipment → applyRecord →
+     recordValue — poking NO `_record` internals, and the DORMANT default (no-op
+     today). Every arm is via the __setEquipmentRecordArm seam, reverted in finally,
+     so the suite leaves the flag pristine. */
+  () => tryRun('B433-1: DORMANT by default — equipment is not on the active registry and the strip does not fire', () => {
+    const R = window.HearthriseRecord;
+    assert(R && typeof R.isEquipmentRecordArmed === 'function', 'record.js did not load with the equipment arm seam');
+    // The shipped default MUST be dormant. This is the "do not arm" guarantee in CI.
+    assert(R.EQUIPMENT_RECORD_ARM_ENABLED === false, 'EQUIPMENT_RECORD_ARM_ENABLED shipped TRUE — equipment would be LIVE, not dormant');
+    assert(R.isEquipmentRecordArmed() === false, 'equipment reports armed with the flag off');
+    assert(R.isServerOfRecord('equipment') === false, 'equipment is on the ACTIVE registry while dormant — the strip would fire');
+    assert(R.serverOfRecordFields().indexOf('equipment') === -1, 'serverOfRecordFields lists a dormant field');
+    // A dormant strip leaves G.equipment in the blob (still client-owned until armed).
+    const strip = R.stripServerOfRecord({ equipment: { weapon: 'bronze_sword' }, foo: 1 });
+    assert(strip.stripped.indexOf('equipment') === -1, 'dormant strip removed equipment from the blob — that is arming by accident');
+    assert('equipment' in strip.blob, 'dormant strip dropped equipment');
+  }),
+
+  () => tryRun('B433-2: decodeEquipment / fingerprintEquipment — the worn set off the wire, fail-closed', () => {
+    const R = window.HearthriseRecord;
+    assert(typeof R.decodeEquipment === 'function' && typeof R.fingerprintEquipment === 'function', 'equipment decode/fingerprint not published');
+    // The wire shape hr_state_of sends: {equip_slot: item_id}, same shape the client holds.
+    const dec = R.decodeEquipment({ weapon: 'iron_sword', shield: 'oak_shield' });
+    assert(dec && dec.weapon === 'iron_sword' && dec.shield === 'oak_shield', 'decodeEquipment did not pass the worn set: ' + JSON.stringify(dec));
+    // An explicit empty slot (null) is a valid, KNOWN state.
+    const dn = R.decodeEquipment({ weapon: 'iron_sword', shield: null });
+    assert(dn && dn.weapon === 'iron_sword' && dn.shield === null, 'decodeEquipment rejected an explicit null slot: ' + JSON.stringify(dn));
+    // ⚠ THE DIVERGENCE FROM SKILLS: {} is KNOWN-empty (naked character), NOT UNKNOWN.
+    const empty = R.decodeEquipment({});
+    assert(empty !== null && typeof empty === 'object' && Object.keys(empty).length === 0,
+      'an empty worn set decoded to UNKNOWN instead of a KNOWN-empty set: ' + JSON.stringify(empty));
+    // ABSENT (undefined/null at the top) IS UNKNOWN — the only UNKNOWN case.
+    assert(R.decodeEquipment(undefined) === null && R.decodeEquipment(null) === null, 'an absent equipment key did not decode to UNKNOWN');
+    // FAIL-CLOSED: a bad slot name or a bad item id condemns the whole set.
+    assert(R.decodeEquipment({ 'BAD SLOT': 'iron_sword' }) === null, 'a malformed slot name did not condemn the set');
+    assert(R.decodeEquipment({ weapon: 'Iron Sword!' }) === null, 'a malformed item id did not condemn the set');
+    assert(R.decodeEquipment({ weapon: 5 }) === null, 'a non-string item did not condemn the set');
+    assert(R.decodeEquipment([]) === null, 'an array decoded to a value');
+    // Fingerprint: deterministic over sorted keys, never empty, distinguishes changes.
+    const fa = R.fingerprintEquipment({ weapon: 'iron_sword', shield: 'oak_shield' });
+    const fb = R.fingerprintEquipment({ shield: 'oak_shield', weapon: 'iron_sword' });
+    assert(fa === fb, 'fingerprintEquipment depends on key order: ' + fa + ' vs ' + fb);
+    assert(fa !== 'absent' && R.fingerprintEquipment({ weapon: 'steel_sword', shield: 'oak_shield' }) !== fa,
+      'fingerprintEquipment does not distinguish a changed slot');
+    // KNOWN-empty fingerprints as a real token, distinct from UNKNOWN's 'absent'.
+    assert(R.fingerprintEquipment({}) !== 'absent' && R.fingerprintEquipment({}) !== R.fingerprintEquipment(null),
+      'a known-empty set collided with the absent fingerprint');
+  }),
+
+  () => tryRun('B433-3: ARMED — a server envelope resolves equipment KNOWN; the blob is STRIPPED; a forged local set is ignored', () => {
+    const R = window.HearthriseRecord;
+    const A = window.HearthriseAccrual;
+    const wasA = A.isServerAccrualEnabled();
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);   // equipment only arms when the master switch is on too
+      R.__setEquipmentRecordArm(true);
+      assert(R.isServerOfRecord('equipment') === true, 'arming did not put equipment on the active registry (is the master switch off in this run?)');
+      // The blob strip now removes equipment.
+      const strip = R.stripServerOfRecord({ equipment: { weapon: 'dragon_sword' }, foo: 1 });
+      assert(strip.stripped.indexOf('equipment') !== -1, 'armed strip did NOT remove equipment — it is still client-authored');
+      assert(!('equipment' in strip.blob), 'equipment survived the strip');
+      assert('foo' in strip.blob, 'the strip removed a key it does not own');
+
+      // A fresh G whose local set is FORGED (a dragon sword the player never earned)
+      // → UNKNOWN before any envelope, fail-closed via recordValue. Never trusted.
+      const g = { equipment: { weapon: 'dragon_sword' } };
+      const before = R.recordValue(g, 'equipment');
+      assert(before.known === false, 'an unstamped armed equipment set was reported KNOWN — the forged set crossed: ' + JSON.stringify(before));
+
+      // A real server envelope arrives (equipment at TOP LEVEL, the hr_load shape).
+      const applied = R.applyRecord(g, {
+        ok: true, version: Date.now(), now: '2026-08-22T10:00:00Z',
+        state: { gold: 100 }, equipment: { weapon: 'bronze_sword', shield: null },
+      });
+      assert(applied && applied.written && applied.written.indexOf('equipment') !== -1,
+        'applyRecord did not write equipment from the envelope: ' + JSON.stringify(applied));
+      const after = R.recordValue(g, 'equipment');
+      assert(after.known === true && after.source === 'server', 'recordValue did not resolve the server equipment set: ' + JSON.stringify(after));
+      assert(g.equipment.weapon === 'bronze_sword', 'the server envelope did not overwrite the forged local weapon: ' + JSON.stringify(g.equipment));
+    } finally {
+      R.__setEquipmentRecordArm(null);
+      if (!wasA) A.setServerAccrualEnabled(false);
+    }
+  }),
+
+  () => tryRun('B433-4: ARMED — KNOWN-empty (naked) is authoritative; a client re-equip after the strip is caught by the fingerprint', () => {
+    const R = window.HearthriseRecord;
+    const A = window.HearthriseAccrual;
+    const wasA = A.isServerAccrualEnabled();
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);
+      R.__setEquipmentRecordArm(true);
+      // The server says the character is wearing NOTHING (unequipped all). That is
+      // an authoritative KNOWN-empty set, not UNKNOWN.
+      const g = {};
+      R.applyRecord(g, { ok: true, version: Date.now(), now: '2026-08-22T11:00:00Z',
+        state: { gold: 1 }, equipment: {} });
+      const rv = R.recordValue(g, 'equipment');
+      assert(rv.known === true && rv.source === 'server', 'a server-empty equipment set was not KNOWN: ' + JSON.stringify(rv));
+      assert(g.equipment && Object.keys(g.equipment).length === 0, 'the empty set did not apply as {}: ' + JSON.stringify(g.equipment));
+      // A SECOND writer (a client re-equip) mutates G behind the record's back.
+      // recordValue must catch it via the fingerprint and fail-closed to UNKNOWN.
+      g.equipment.weapon = 'dragon_sword';
+      const tampered = R.recordValue(g, 'equipment');
+      assert(tampered.known === false && tampered.source === 'client-overwrote',
+        'a client write to a known equipment set was not caught by the fingerprint: ' + JSON.stringify(tampered));
+    } finally {
+      R.__setEquipmentRecordArm(null);
+      if (!wasA) A.setServerAccrualEnabled(false);
+    }
+  }),
+
+  () => tryRun('B433-5: ARMED — monotonic; a stale envelope cannot rewind a known equipment set but fills a gap', () => {
+    const R = window.HearthriseRecord;
+    const A = window.HearthriseAccrual;
+    const wasA = A.isServerAccrualEnabled();
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);
+      R.__setEquipmentRecordArm(true);
+      const g = {};
+      const vNew = Date.now();
+      R.applyRecord(g, { ok: true, version: vNew, now: '2026-08-22T12:00:00Z',
+        state: { gold: 1 }, equipment: { weapon: 'steel_sword' } });
+      assert(g.equipment.weapon === 'steel_sword', 'the fresh equipment set did not apply');
+      // A STALE (older-version) envelope carrying a DIFFERENT set must not rewind
+      // the KNOWN set.
+      const res = R.applyRecord(g, { ok: true, version: vNew - 1000, now: '2026-08-22T11:00:00Z',
+        state: { gold: 1 }, equipment: { weapon: 'bronze_sword' } });
+      assert(res.skipped === 'stale', 'a stale envelope on a fully-known record was not skipped: ' + JSON.stringify(res));
+      assert(g.equipment.weapon === 'steel_sword', 'a stale envelope rewound the equipment set to ' + JSON.stringify(g.equipment));
+    } finally {
+      R.__setEquipmentRecordArm(null);
+      if (!wasA) A.setServerAccrualEnabled(false);
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
      B429-6 — THE CLIENT READ-SITE SWEEP. legacy.js's skill-xp/level reads now go
      through the accessor (getLevel → skillLevelOf, the display xp reads → skillXp
      → skillXpOr). This is the analogue of the gold `balanceOf` sweep done BEFORE

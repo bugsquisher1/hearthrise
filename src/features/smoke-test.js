@@ -27572,6 +27572,147 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
+     B431 — ROOMS / HOUSE UPGRADES ARE SERVER-OF-RECORD (shipped DORMANT), AND
+     THE COOKING SETTLEMENT ARM THAT COUPLES TO IT.
+     ══════════════════════════════════════════════════════════════════════════
+     Same discipline as B429: exercise the REAL record.js seam through the public
+     API, poke no `_record` internals, arm only via the test seam and revert in
+     finally so the suite leaves every flag pristine. The DORMANT default is the
+     "do not arm" guarantee in CI. */
+  () => tryRun('B431-1: rooms is DORMANT by default — not on the active registry, not stripped', () => {
+    const R = window.HearthriseRecord;
+    assert(R && typeof R.isRoomsRecordArmed === 'function', 'record.js did not load with the rooms arm seam');
+    assert(R.ROOMS_RECORD_ARM_ENABLED === false, 'ROOMS_RECORD_ARM_ENABLED shipped TRUE — rooms would be LIVE, not dormant');
+    assert(R.isRoomsRecordArmed() === false, 'rooms reports armed with the flag off');
+    assert(R.isServerOfRecord('rooms') === false, 'rooms is on the ACTIVE registry while dormant — the strip would fire');
+    assert(R.serverOfRecordFields().indexOf('rooms') === -1, 'serverOfRecordFields lists a dormant field');
+    // Dormant strip leaves G.rooms alone → no accidental client-authored loss.
+    const strip = R.stripServerOfRecord({ rooms: { kitchen: 3 }, gold: 5 });
+    assert(strip.stripped.indexOf('rooms') === -1, 'dormant strip removed rooms from the blob — that is arming by accident');
+    assert(strip.blob.rooms && strip.blob.rooms.kitchen === 3, 'dormant strip did not preserve G.rooms');
+  }),
+
+  () => tryRun('B431-2: pickRooms shapes the progress array; decodeRooms/fingerprintRooms fail-closed on ABSENCE, keep EMPTY', () => {
+    const R = window.HearthriseRecord;
+    assert(typeof R.pickRooms === 'function' && typeof R.decodeRooms === 'function' && typeof R.fingerprintRooms === 'function',
+      'rooms pick/decode/fingerprint not published');
+    // The envelope shape: room rungs ride as permanent unlock rows in `progress`.
+    const env = { ok: true, progress: [
+      { kind: 'unlock', key: 'room:kitchen', value: 3, period: '' },
+      { kind: 'unlock', key: 'room:forge', value: 1, period: '' },
+      { kind: 'unlock', key: 'property:manor', value: 2, period: '' },   // a non-room unlock — ignored
+      { kind: 'stat', key: 'ev:kill_monster:goblin', value: 40, period: '' },  // a counter — ignored
+    ] };
+    const picked = R.pickRooms(env);
+    assert(picked && picked.kitchen === 3 && picked.forge === 1, 'pickRooms did not shape the room rows: ' + JSON.stringify(picked));
+    assert(!('manor' in picked) && !('property' in picked), 'pickRooms leaked a non-room unlock');
+    const dec = R.decodeRooms(picked);
+    assert(dec && dec.kitchen === 3 && dec.forge === 1, 'decodeRooms rejected a valid room map: ' + JSON.stringify(dec));
+    // EMPTY is a valid "owns no rooms yet" (a fresh character) — NOT unknown.
+    assert(R.pickRooms({ ok: true, progress: [] }) && Object.keys(R.pickRooms({ ok: true, progress: [] })).length === 0,
+      'pickRooms on an empty progress array is not {}');
+    const decEmpty = R.decodeRooms({});
+    assert(decEmpty && typeof decEmpty === 'object' && Object.keys(decEmpty).length === 0, 'decodeRooms({}) is not a known-empty map');
+    // ABSENCE (no progress array) is the UNKNOWN signal — fail-closed.
+    assert(R.pickRooms({ ok: true }) === undefined, 'pickRooms without a progress array did not signal UNKNOWN');
+    assert(R.decodeRooms(undefined) === null && R.decodeRooms(null) === null && R.decodeRooms([]) === null,
+      'decodeRooms did not fail-closed on a non-object');
+    // One bad cell condemns the whole map (save-invariant #2).
+    assert(R.decodeRooms({ kitchen: -1 }) === null, 'a negative rung did not condemn the map');
+    assert(R.decodeRooms({ kitchen: 'NaN' }) === null, 'a non-finite rung did not condemn the map');
+    // Fingerprint: deterministic over sorted keys, empty is a stable non-absent string.
+    const fa = R.fingerprintRooms({ kitchen: 3, forge: 1 });
+    const fb = R.fingerprintRooms({ forge: 1, kitchen: 3 });
+    assert(fa === fb, 'fingerprintRooms depends on key order: ' + fa + ' vs ' + fb);
+    assert(fa !== 'absent' && R.fingerprintRooms({ kitchen: 4, forge: 1 }) !== fa, 'fingerprintRooms does not distinguish a changed rung');
+    assert(R.fingerprintRooms({}) !== 'absent', 'the owns-no-rooms state must fingerprint to a real value, not absent');
+    assert(R.fingerprintRooms(null) === 'absent', 'a non-object did not fingerprint absent');
+  }),
+
+  () => tryRun('B431-3: ARMED — the blob is STRIPPED and a server envelope resolves rooms KNOWN; UNKNOWN is fail-closed', () => {
+    const R = window.HearthriseRecord;
+    const A = window.HearthriseAccrual;
+    const wasA = A.isServerAccrualEnabled();
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);   // rooms only arms when the master switch is on too
+      R.__setRoomsRecordArm(true);
+      assert(R.isServerOfRecord('rooms') === true, 'arming did not put rooms on the active registry (is the master switch off in this run?)');
+      const strip = R.stripServerOfRecord({ rooms: { kitchen: 3 }, level: 7 });
+      assert(strip.stripped.indexOf('rooms') !== -1, 'armed strip did NOT remove rooms from the blob — still client-authored');
+      assert(!('rooms' in strip.blob) && strip.blob.level === 7, 'armed strip removed the wrong keys');
+
+      // A fresh G with a FORGED local rooms and no record → applyRecord supplies the only value.
+      const g = { rooms: { kitchen: 9 } };   // forged; must not be trusted once armed
+      const env = { ok: true, version: 5, now: Date.now(), state: {}, progress: [
+        { kind: 'unlock', key: 'room:kitchen', value: 3, period: '' },
+      ] };
+      const applied = R.applyRecord(g, env);
+      assert(applied.written.indexOf('rooms') !== -1, 'applyRecord did not write rooms from the envelope');
+      assert(g.rooms.kitchen === 3, 'applyRecord did not overwrite the forged local rung with the server rung');
+      const rv = R.recordValue(g, 'rooms');
+      assert(rv.known === true && rv.source === 'server', 'a server-supplied rooms map did not read back KNOWN/server: ' + JSON.stringify(rv));
+
+      // A client write AFTER the stamp is caught (client-overwrote → UNKNOWN, fail-closed).
+      g.rooms = { kitchen: 99 };
+      const rv2 = R.recordValue(g, 'rooms');
+      assert(rv2.known === false && rv2.source === 'client-overwrote', 'a client overwrite of a stamped rooms map was vouched for as server truth');
+    } finally {
+      R.__setRoomsRecordArm(null);
+      A.setServerAccrualEnabled(wasA);
+    }
+  }),
+
+  () => tryRun('B431-4: cooking bench is DORMANT-unpayable, and the arm makes it payable (coupled flag, reverted)', () => {
+    const C = window.HearthriseCore;
+    const AS = C.artisanSim;
+    const IA = window.HearthriseItemAuthority;
+    assert(AS && typeof AS.benchPayable === 'function' && typeof AS.isCookingSettlementArmed === 'function',
+      'artisan-sim did not publish the cooking arm seam');
+    // DORMANT default — the "do not arm" guarantee.
+    assert(AS.COOKING_SETTLEMENT_ARM_ENABLED === false, 'artisan-sim COOKING_SETTLEMENT_ARM_ENABLED shipped TRUE');
+    assert(IA.COOKING_SETTLEMENT_ARM_ENABLED === false, 'item-authority COOKING_SETTLEMENT_ARM_ENABLED shipped TRUE');
+    assert(AS.isCookingSettlementArmed() === false, 'cooking reports armed with the flag off');
+    // Dormant: cooking is NOT payable, blocked by noBurn; ARTISAN_SETTLEMENT keeps it unmodeled.
+    assert(AS.benchPayable('cooking') === false, 'cooking is payable while DORMANT — the noBurn source is not server-owned yet');
+    assert(AS.benchBlockedBy('cooking') === 'noBurn', 'cooking is not reporting noBurn as its blocker: ' + AS.benchBlockedBy('cooking'));
+    assert(IA.ARTISAN_SETTLEMENT.cooking === 'unmodeled', 'ARTISAN_SETTLEMENT.cooking is not unmodeled while dormant');
+    // The other benches are unaffected either way.
+    assert(AS.benchPayable('smithing') === true && AS.benchPayable('runecrafting') === true, 'a non-cooking bench lost payability');
+    // ARM the artisan half (via the test seam) → cooking becomes payable, noBurn owned.
+    try {
+      AS.__setCookingSettlementArm(true);
+      assert(AS.isCookingSettlementArmed() === true, 'the arm seam did not arm');
+      assert(AS.serverOwnedBonusKeys().indexOf('noBurn') !== -1, 'armed serverOwnedBonusKeys does not contain noBurn');
+      assert(AS.benchPayable('cooking') === true, 'cooking did not become payable when armed');
+      assert(AS.benchBlockedBy('cooking') === null, 'cooking still reports a blocker when armed');
+    } finally {
+      AS.__setCookingSettlementArm(null);
+    }
+    assert(AS.benchPayable('cooking') === false, 'the cooking arm did not revert — the suite must leave it dormant');
+  }),
+
+  () => tryRun('B431-5: the three coupled arm flags agree, and cooking outputs stay INVENTORY-excluded even armed', () => {
+    const AS = window.HearthriseCore.artisanSim;
+    const IA = window.HearthriseItemAuthority;
+    const R = window.HearthriseRecord;
+    // COUPLING DRIFT GUARD: the artisan-sim and item-authority twins must ship identical.
+    assert(AS.COOKING_SETTLEMENT_ARM_ENABLED === IA.COOKING_SETTLEMENT_ARM_ENABLED,
+      'the cooking-arm twin consts disagree (artisan-sim ' + AS.COOKING_SETTLEMENT_ARM_ENABLED
+      + ' vs item-authority ' + IA.COOKING_SETTLEMENT_ARM_ENABLED + ') — they MUST flip together');
+    // The rooms record arm is the third leg of the same rollout; all three dormant today.
+    assert(R.ROOMS_RECORD_ARM_ENABLED === false && AS.COOKING_SETTLEMENT_ARM_ENABLED === false,
+      'the rooms/cooking rollout flags are not all dormant — this ships DORMANT');
+    // The output-ownership safety: cooking dishes are ALWAYS excluded from the inventory
+    // ownable set, so even a (future) armed cooking cannot make the absolute-replace flip
+    // DELETE a live-cooked dish. Excluded wins on overlap — proven here on the real partition.
+    const dishes = [...IA.cookingOutputIds()];
+    assert(dishes.length > 0, 'no cooking outputs found — the exclusion proof is vacuous');
+    for (const id of dishes) {
+      assert(!IA.serverOwnedItem(id), 'a cooking output (' + id + ') is in the inventory ownable set — the absolute flip could delete it');
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
      B353-4 — NOT SIGNED IN IS NOT AN OUTAGE.
      ══════════════════════════════════════════════════════════════════════════
      Found by the flip, and it is the clearest example of a defect that a dark

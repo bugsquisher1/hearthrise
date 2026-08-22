@@ -66,13 +66,36 @@ import { BOSSES } from './bosses.js?v=432';
    fails the guard on a lane this table has never heard of, forcing a human to
    rule payable-or-unmodeled before the flip can trust it. */
 export const COOKING_SKILL = 'cooking';
+
+/* ── THE COOKING SETTLEMENT ARM (b431), SHIPPED DORMANT ──────────────────────
+   Cooking is the last un-modeled artisan lane. It is settle-able the moment its
+   only destructive bonus key — `noBurn`, off the Kitchen room rung — is
+   server-owned, which is the day src/net/record.js ROOMS_RECORD_ARM_ENABLED
+   flips. This const is the data-layer half of that flip: it moves cooking's
+   classification 'unmodeled'→'payable', which enrols cooking into
+   payableArtisanSkills() (skill-authority.js — the SETTLEMENT: the server cooks
+   the recipe). It is COUPLED to record.js ROOMS_RECORD_ARM_ENABLED and to
+   artisan-sim.js COOKING_SETTLEMENT_ARM_ENABLED (which owns the benchPayable
+   half); the three flip together in one post-wipe rollout commit, and a drift
+   guard (smoke ROOMS-COOKING-ARM) asserts this equals artisan-sim's twin.
+
+   ⚠ OUTPUT-OWNERSHIP IS DELIBERATELY LEFT EXCLUDED, EVEN WHEN THIS IS TRUE.
+   Cooking OUTPUTS are ITEMS, so absolute inventory ownership of them couples to
+   the SEPARATE inventory flip (INVENTORY_ARM_ENABLED). buildItemAuthority()
+   ALWAYS adds cookingOutputIds() to `excluded`, and EXCLUDED WINS on overlap —
+   so flipping cooking to 'payable' makes payableArtisanOutputIds() include the
+   dishes (harmless) but they STAY excluded from the ownable set, i.e. the
+   inventory absolute-replace can never DELETE a live-cooked dish. Owning cooking
+   outputs is a post-inventory-arm follow-up (remove the unconditional exclusion);
+   the SETTLEMENT here is independent of it and safe to arm first. */
+export const COOKING_SETTLEMENT_ARM_ENABLED = false;   // DORMANT — post-wipe, coupled with rooms record arm
 export const ARTISAN_SETTLEMENT = Object.freeze({
   smithing:     'payable',
   crafting:     'payable',
   runecrafting: 'payable',
   stonemason:   'payable',
   prayer:       'payable',   // buries bones for XP; outputs are null → contributes no id
-  cooking:      'unmodeled',
+  cooking:      COOKING_SETTLEMENT_ARM_ENABLED ? 'payable' : 'unmodeled',
 });
 
 function addAll(dst, src) { for (const x of src) if (x) dst.add(x); return dst; }
@@ -409,7 +432,7 @@ if (typeof window !== 'undefined') {
   window.HearthriseItemAuthority = {
     WORKER_PRODUCTION_SERVER_BACKED, INVENTORY_ARM_ENABLED, workerProductIds,
     unbackedOwnableMintLanes, pendingUnbackedOwnableMints, flipArmBlockers,
-    COOKING_SKILL, ARTISAN_SETTLEMENT,
+    COOKING_SKILL, ARTISAN_SETTLEMENT, COOKING_SETTLEMENT_ARM_ENABLED,
     gatherProductIds, cropProductIds, combatDropIds, artisanOutputIds,
     cookingOutputIds, payableArtisanOutputIds, bossRewardIds, dungeonRewardIds,
     buildItemAuthority, itemAuthority, rebuildItemAuthority,

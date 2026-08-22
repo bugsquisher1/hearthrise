@@ -528,6 +528,38 @@ export function simulateArtisanSpan(state, ctx) {
    returns exactly one hit, in a comment. */
 export const SERVER_OWNED_BONUS_KEYS = Object.freeze([]);
 
+/* ── THE COOKING SETTLEMENT ARM (b431), SHIPPED DORMANT ──────────────────────
+   The one line the header above promised: `noBurn` becomes a server-owned bonus
+   key exactly when the Kitchen ROOM rung it comes off is server-owned — which is
+   the day src/net/record.js ROOMS_RECORD_ARM_ENABLED flips. This flag is that
+   day's switch on the artisan side, and it is COUPLED to the rooms record arm and
+   to item-authority.js COOKING_SETTLEMENT_ARM_ENABLED (which flips
+   ARTISAN_SETTLEMENT.cooking 'unmodeled'→'payable'); the three move together in
+   one post-wipe rollout commit. A drift guard (smoke ROOMS-COOKING-ARM) asserts
+   this const equals item-authority's twin.
+
+   Default OFF, with a runtime override seam for tests. While off,
+   `serverOwnedBonusKeys()` is empty and `benchPayable('cooking')` stays false —
+   the accrual engine keeps refusing cooking, exactly as today, and nothing
+   changes byte-for-byte. `SERVER_OWNED_BONUS_KEYS` stays the frozen empty const
+   it always was (external readers — tests/artisan-accrual.mjs — see the dormant
+   baseline); benchPayable/benchBlockedBy read the runtime set instead. */
+export const COOKING_SETTLEMENT_ARM_ENABLED = false;   // DORMANT — post-wipe, coupled with rooms record arm
+let cookingArmOverride = null;
+export function isCookingSettlementArmed() {
+  return cookingArmOverride !== null ? cookingArmOverride : COOKING_SETTLEMENT_ARM_ENABLED;
+}
+/** Test seam, same spirit as record.js __setSkillsRecordArm. Returns the armed state. */
+export function __setCookingSettlementArm(v) {
+  cookingArmOverride = (v === null || v === undefined) ? null : !!v;
+  return isCookingSettlementArmed();
+}
+/** The bonus keys the server owns end-to-end RIGHT NOW: `noBurn` once the cooking
+    settlement is armed, else nothing. The one fact benchPayable reads. */
+export function serverOwnedBonusKeys() {
+  return isCookingSettlementArmed() ? ['noBurn'] : SERVER_OWNED_BONUS_KEYS.slice();
+}
+
 /* Per bench, the bonus keys that can make the server's answer WORSE than the
    client's rather than merely smaller. One entry, and it is the whole table:
    `noBurn` turns a Cooked Shark into `burnt_food`. `craftSave`, `yield_*` and
@@ -553,7 +585,8 @@ export const BENCH_DESTRUCTIVE_KEYS = Object.freeze({
 export function benchPayable(skill) {
   const keys = BENCH_DESTRUCTIVE_KEYS[skill];
   if (!Array.isArray(keys) || keys.length === 0) return true;
-  for (const k of keys) if (SERVER_OWNED_BONUS_KEYS.indexOf(k) === -1) return false;
+  const owned = serverOwnedBonusKeys();
+  for (const k of keys) if (owned.indexOf(k) === -1) return false;
   return true;
 }
 
@@ -563,7 +596,8 @@ export function benchPayable(skill) {
 export function benchBlockedBy(skill) {
   const keys = BENCH_DESTRUCTIVE_KEYS[skill];
   if (!Array.isArray(keys)) return null;
-  for (const k of keys) if (SERVER_OWNED_BONUS_KEYS.indexOf(k) === -1) return k;
+  const owned = serverOwnedBonusKeys();
+  for (const k of keys) if (owned.indexOf(k) === -1) return k;
   return null;
 }
 

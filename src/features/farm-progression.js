@@ -76,6 +76,12 @@
     return window.G.inventory.farm_deed | 0;
   }
 
+  function farmSyncArmed(){
+    return !!(window.HearthriseFarmSync
+      && typeof window.HearthriseFarmSync.isFarmServerArmed === 'function'
+      && window.HearthriseFarmSync.isFarmServerArmed());
+  }
+
   function upgradePlot(){
     var lv = getPlotLevel();
     if(lv >= core().MAX_PLOT_LEVEL){
@@ -87,6 +93,29 @@
     if(have < need){
       if(typeof window.notify === 'function') window.notify('Need ' + need + " Farmer's Deed" + (need===1?'':'s') + ' (have ' + have + ')', 'kill');
       return false;
+    }
+    // Server-authority routing (DORMANT): the server owns the deed spend + the
+    // plot_level column. Send the intent and reconcile G.plotLevels + the deed
+    // debit from the RESPONSE (server's own numbers, once) — no local mutation.
+    if(farmSyncArmed()){
+      var FS = window.HearthriseFarmSync;
+      var deps = {
+        addItem: function(id,q){ if(typeof window.addItem==='function') window.addItem(id,q); },
+        removeItem: function(id,q){ if(typeof window.removeItem==='function') window.removeItem(id,q); },
+        addXp: function(sk,x){ if(typeof window.addXp==='function') window.addXp(sk,x); },
+      };
+      FS.farmUpgradePlot().then(function(res){
+        if(res && res.ok){ try{ FS.reconcileFarmResult(window.G,'upgrade',res,deps); }catch(e){}
+          if(typeof window.notify === 'function') window.notify('🌾 Farm Plot upgraded to Lv ' + res.plot_level + '!', 'levelup');
+        } else if(res && res.error && res.error!=='transport'){
+          if(typeof window.notify === 'function') window.notify('Could not upgrade plot — try again', 'kill');
+        }
+        try { if(typeof window.renderHouse === 'function') window.renderHouse(); } catch(e){}
+        try { if(typeof window.renderFarm === 'function') window.renderFarm(); } catch(e){}
+        try { if(typeof window.renderInventory === 'function') window.renderInventory(); } catch(e){}
+        try { if(typeof window.updateTopbar === 'function') window.updateTopbar(); } catch(e){}
+      });
+      return true;
     }
     // Spend + level up. Use removeItem if available so the inventory
     // render stays in sync, otherwise fall back to direct mutation.

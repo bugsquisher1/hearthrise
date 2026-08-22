@@ -41,7 +41,7 @@
 // fight without moving a single later roll.
 // ============================================================
 
-import { isAutoEatable } from '../data/items.js?v=443';
+import { isAutoEatable } from '../data/items.js?v=444';
 
 export { isAutoEatable };
 

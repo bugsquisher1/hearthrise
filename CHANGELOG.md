@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 444 — 2026-08-22 (Under the hood: farm server-routing, dormant)
+
+- 🔧 No gameplay change. Wired the client so that when farming moves to the server (at the wipe), planting/watering/harvesting call the server and render its authoritative result, with produce credited exactly once. Shipped dormant.
+
 ## v0.9.2-beta build 443 — 2026-08-22 (Under the hood: bounty Marks single-home, dormant)
 
 - 🔧 No gameplay change. Consolidated your bounty Marks to a single balance so that when Marks move to the server (at the wipe), there's exactly one source of truth and no stale copy. Shipped dormant.

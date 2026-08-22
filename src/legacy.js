@@ -5486,6 +5486,63 @@ function farmPlotCap(){
   return (window.HearthriseHomestead && typeof window.HearthriseHomestead.maxPlots==='function')
     ? window.HearthriseHomestead.maxPlots() : 8;
 }
+/* ── SERVER-AUTHORITY FARM ROUTING (b435 RPCs, DORMANT) ──────────────────────
+   While isFarmServerArmed() is false (the shipped default) farmSyncArmed()
+   returns false and every gesture below falls through to the byte-for-byte
+   client path. Under arm the gesture sends an INTENT to the hr_farm_* RPC and
+   reconciles G.farmPlots / G.plotLevels from the RESPONSE (src/net/farm-sync.js),
+   rather than authoring the outcome locally. Crop PRODUCE, XP, the seed debit
+   and the deed spend are SERVER-owned — reconcileFarmResult applies the server's
+   own numbers ONCE, and the local yield roll / addXp / seed removal are SKIPPED,
+   so there is no double credit. */
+function farmSyncArmed(){
+  return !!(window.HearthriseFarmSync
+    && typeof window.HearthriseFarmSync.isFarmServerArmed==='function'
+    && window.HearthriseFarmSync.isFarmServerArmed());
+}
+/* The reconcile deps: the server already credited its own row, so these keep the
+   CLIENT CACHE in step with it (applied once from the response, never a second
+   locally-computed amount). */
+const FARM_SYNC_DEPS={
+  addItem:function(id,q){ if(typeof addItem==='function') addItem(id,q); },
+  removeItem:function(id,q){ if(typeof removeItem==='function') removeItem(id,q); },
+  addXp:function(sk,x){ if(typeof addXp==='function') addXp(sk,x); },
+};
+function farmSyncReconcile(kind,res){
+  try{ window.HearthriseFarmSync.reconcileFarmResult(G,kind,res,FARM_SYNC_DEPS); }catch(e){}
+}
+/* Optimistic prediction is PLOT-STATE ONLY (responsiveness); inventory/XP are
+   never predicted — they arrive with the server's number in the response, so a
+   refused gesture cannot leave a phantom crop in the bag. A refusal reverts the
+   optimistic plot to what it was. */
+function farmSyncPlant(plotIdx,cropId){
+  const prev=G.farmPlots[plotIdx];
+  G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],state:'growing'};
+  renderFarm();
+  window.HearthriseFarmSync.farmPlant(plotIdx,cropId).then(function(res){
+    if(res&&res.ok){ farmSyncReconcile('plant',res); }
+    else { G.farmPlots[plotIdx]=prev||null; if(res&&res.error&&res.error!=='transport') notify('Could not plant — try again','kill'); }
+    renderFarm();updateTopbar();
+  });
+}
+function farmSyncWater(plotIdx){
+  window.HearthriseFarmSync.farmWater(plotIdx).then(function(res){
+    if(res&&res.ok){ farmSyncReconcile('water',res); }
+    renderFarm();
+  });
+}
+function farmSyncHarvest(plotIdx){
+  window.HearthriseFarmSync.farmHarvest(plotIdx).then(function(res){
+    if(res&&res.ok){
+      farmSyncReconcile('harvest',res);
+      if(res.produce&&res.qty>0){ const crop=CROPS[res.crop]; notify(`🌾 +${res.qty} ${crop?crop.name:res.crop}`,'loot'); }
+      if(!G.farmPlots[plotIdx] && window.HearthriseAuto && typeof window.HearthriseAuto.maybeReplant==='function'){
+        window.HearthriseAuto.maybeReplant(plotIdx);
+      }
+    }
+    renderFarm();updateTopbar();
+  });
+}
 function plantCrop(plotIdx,cropId){
   const crop=CROPS[cropId];if(!crop)return;
   if(plotIdx>=farmPlotCap() && !G.farmPlots[plotIdx]){
@@ -5510,6 +5567,9 @@ function plantCrop(plotIdx,cropId){
     notify('🔒 Crop locked — upgrade Farm Plot in House → Plot','kill');
     return;
   }
+  // Server-authority routing (DORMANT): the server owns the seed debit + plant
+  // XP + plot timestamps; the client sends the intent and renders the response.
+  if(farmSyncArmed()){ farmSyncPlant(plotIdx,cropId); return; }
   removeItem(seedId,1);
   /* b220: a new plot is DRY and that is now correct — it grows at the base
      rate and matures on its own. That is what makes auto-replant work
@@ -5542,6 +5602,9 @@ function waterPlot(i){
     if(p.state!=='ready')G.farmPlots[i]={...p,state:'ready'};
     harvestPlot(i);return;
   }
+  // Server-authority routing (DORMANT): the server owns the watering window +
+  // water XP; the client sends the intent and renders the response.
+  if(farmSyncArmed()){ farmSyncWater(i); return; }
   if(!applyWatering(i)){
     notify(`Still watered — thirsty again in ${fmtClock(plotWindowMs(p))}`,'kill');
     return;
@@ -5580,6 +5643,11 @@ function rollFlatBonus(v,_rand01){
 window.rollFlatBonus=rollFlatBonus;
 function harvestPlot(i){
   const p=G.farmPlots[i];if(!p||p.state!=='ready')return;
+  // Server-authority routing (DORMANT): the server owns the seeded yield roll,
+  // the farmYield perk, the finite-perennial wither and the harvest goal
+  // counters. The client sends the intent and renders the returned plot state +
+  // the server-credited produce/XP ONCE — no local roll, no double credit.
+  if(farmSyncArmed()){ farmSyncHarvest(i); return; }
   const crop=CROPS[p.cropId];
   const yieldBonus=rollFlatBonus(getBonus('farmYield'));
   const qty=rand(crop.yield[0],crop.yield[1])+yieldBonus;

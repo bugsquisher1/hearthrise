@@ -2041,6 +2041,26 @@ const run = async () => {
       console.log('\nClient-state home guard — dormant no-regression (blob) + armed server-read + putClientState builds the RPC.');
     }
 
+    /* ── The farm-sync transport guard (b435 farm RPCs, DORMANT) ─────────────
+       Proves the CLIENT half the security review found missing on main: the
+       four farm gestures (plant/water/harvest/upgrade) route through
+       src/net/farm-sync.js under isFarmServerArmed(). DORMANT the arm is false
+       (no regression — legacy farming runs client-side). ARMED, the transport
+       builds the right hr_farm_* RPC calls (only ids/slot/plot/idem cross the
+       wire), reconcileFarmResult renders the RESPONSE into G, and harvest applies
+       the server's produce/XP ONCE (no local roll → no double credit). Every
+       failure is non-fatal. The server half is proven by
+       2026-08-22-server-farming-complete.sql's own §10 self-check on apply. */
+    const { farmSyncGuard } = await import('./farm-sync.mjs');
+    const farmSyncProblems = await farmSyncGuard();
+    if (farmSyncProblems.length) {
+      console.log('\nFarm-sync transport guard — FAILED:');
+      for (const p of farmSyncProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nFarm-sync transport guard — dormant no-regression + armed RPC shape + reconcile-from-response (produce once, no double credit) + fail-safe.');
+    }
+
     /* ⚠ The blob-retire capstone guard runs LATE (search "blob-retire capstone
        guard — runs after the pglite guards"), NOT here. Importing its module
        chain (capstone.js + events.js) poisons pglite's ability to re-instantiate

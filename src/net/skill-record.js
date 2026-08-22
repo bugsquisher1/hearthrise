@@ -39,7 +39,7 @@
 // It never WRITES a skill. Not a default, not a repair. DOM-free. Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue } from './record.js?v=436';
+import { isServerOfRecord, recordValue } from './record.js?v=437';
 
 /** The one read. Everything else is a shape of this answer.
  *  @returns {{id, known, value, reason, source}} value is null when !known. */

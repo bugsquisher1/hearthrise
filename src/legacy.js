@@ -3252,6 +3252,12 @@ function ensureRestedState(now){
 }
 function accrueRestedXp(now){
   const C=window.HearthriseCore;
+  /* b437: when restedXp is server-of-record AND armed, the accrual engine banks
+     charges and applyRecord is the only writer — the client must not advance the
+     watermark or a second writer strands the server's copy (the b347 rule the
+     ordering table is built on). DORMANT today (arm false) → the field is not on
+     the active registry → this returns true → byte-for-byte unchanged. */
+  if(!clientMayWriteRecordField('restedXp')) return 0;
   now = (typeof now === 'number' && isFinite(now)) ? now : Date.now();
   return C.rested.accrueRestedXp(G, now, C.restedLibraryCap());
 }
@@ -3259,6 +3265,12 @@ function accrueRestedXp(now){
    A charge is never burned when it would be worth nothing, which is what keeps
    the seam genuinely inert for a player with neither road built. */
 function spendRestedCharge(){
+  /* b437: gated for the same reason as accrual — under arm the bank is
+     server-owned, so a local decrement is a second writer. The SPEND path is a
+     named arm-blocker (it must move server-side before the flip); gating it here
+     keeps the client from mutating restedXp the instant the record arms. Inert
+     while dormant, and inert regardless today because rested potency is 0. */
+  if(!clientMayWriteRecordField('restedXp')) return 0;
   return window.HearthriseCore.rested.spendRestedCharge(G, restedQuantum());
 }
 window.accrueRestedXp = accrueRestedXp;

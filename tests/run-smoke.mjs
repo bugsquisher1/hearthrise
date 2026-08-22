@@ -1965,6 +1965,24 @@ const run = async () => {
       console.log('\nBounty-Marks record guard — dormant no-regression + armed server-read/fail-closed/over-spend-refused.');
     }
 
+    /* ── The Rested record guard (server-of-record slice, b437) ─────────────
+       Proves the CLIENT half of 2026-08-22-rested-record.sql: arm OFF is a no-op
+       (restedOf reads G.restedXp/G.restedAt); arm ON reads the server's record,
+       FAIL-CLOSES to UNKNOWN before an envelope, COUPLES the count + watermark
+       (both known or neither), never vouches for a forged local value, and treats
+       a zero-epoch watermark as UNKNOWN rather than banking at 1970. The server
+       half — whole-quanta accrual, exact watermark advance, idempotent replay,
+       cap + monotone clamps — is proven by the migration's own §4 self-check. */
+    const { restedRecordGuard } = await import('./rested-record.mjs');
+    const restedProblems = await restedRecordGuard();
+    if (restedProblems.length) {
+      console.log('\nRested record guard — FAILED:');
+      for (const p of restedProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nRested record guard — dormant no-regression + armed server-read/fail-closed/coupled/watermark-safe.');
+    }
+
     /* ── The artisan accrual guard (b356) ───────────────────────────────
        `artisan` is 290 of the 344 `hr_activities` rows and every one of them
        paid NOTHING until this landed — declared idle rather than confiscated,

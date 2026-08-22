@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 437 — 2026-08-22 (Under the hood: rested XP → server-owned, dormant)
+
+- 🔧 No gameplay change. Moved the rested-XP accumulator (an inert, not-yet-active feature) to server ownership so its data lives on the server like everything else. Away progression is unaffected — offline time still earns exactly what active play would, minus world buffs.
+
 ## v0.9.2-beta build 436 — 2026-08-22 (Under the hood: bounty Marks → server-owned, dormant)
 
 - 🔧 No gameplay change. Bounty Marks now have a server-owned balance and server-checked spending (board rerolls and abandon fees), matching how gold and gems already work. Shipped dormant; Marks behave exactly as today until it arms at the wipe.

@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=436';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=437';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -318,6 +318,40 @@ export const SERVER_OF_RECORD = Object.freeze([
   Object.freeze({ field: 'marks', from: 'marks', since: 'b4xx',
     armed: () => isMarksRecordArmed(),
     decode: decodeBalance, fingerprint: fingerprintBalance }),
+  /* ── RESTED XP, SHIPPED DORMANT — THE COUPLED SCALAR + WATERMARK ─────────────
+     Rested XP is a bank of CHARGES (`G.restedXp`, a small integer) governed by a
+     WATERMARK (`G.restedAt`, the instant already paid up to). Unlike a skill map
+     these are TWO top-level G keys, and the framework strips/writes per top-level
+     field — so this is TWO registry entries, not one. They share ONE arm flag
+     (isRestedRecordArmed) so arm state cannot split, and the READ side
+     (src/net/rested-record.js `restedOf`) couples them: BOTH must be known or the
+     bank is UNKNOWN, mirroring the events.js "both fields or neither" rule.
+
+     WHERE THE WIRE VALUE COMES FROM: hr_state_of projects flat `state.rested_xp`
+     and `state.rested_at` (2026-08-22-rested-record.sql). The WRITER is the
+     accrual engine — accrual.js `accrueRested` banks whole charges over the away
+     span on `rested_at`, watermark-idempotent and DRAW-FREE (no rng), so away ==
+     live stays byte-identical; hr_apply applies the two ABSOLUTE keys under the
+     per-character lock, clamping the watermark monotone and the bank to [0,120].
+
+     ⚠ restedAt is a WATERMARK, decoded EXACTLY like offlineBudget's: a NaN, a
+       negative, or a zero epoch is not a watermark and answering "1970" would
+       mint a full capped bank — so those decode to null → UNKNOWN, never 0.
+
+     DORMANT via RESTED_RECORD_ARM_ENABLED (defaults OFF, ALSO requires the master
+     switch). While off, both entries are invisible to the field list / strip /
+     decode loop, so `G.restedXp`/`G.restedAt` are neither stripped nor read
+     record-first — byte-for-byte unchanged. Arming additionally requires: (1)
+     every rested READ routed through restedOf; (2) the SPEND path (spendRestedCharge,
+     consumed by grantXp) moved server-side — only accrual moved here; (3) POST-WIPE.
+     Rested potency is 0 today (getBonus('restedXp')===0) so the bank pays nothing
+     regardless, which is why this can ship ahead of the spend path. */
+  Object.freeze({ field: 'restedXp', from: 'rested_xp', since: 'b437',
+    armed: () => isRestedRecordArmed(),
+    decode: decodeBalance, fingerprint: fingerprintBalance }),
+  Object.freeze({ field: 'restedAt', from: 'rested_at', since: 'b437',
+    armed: () => isRestedRecordArmed(),
+    decode: decodeRestedAt, fingerprint: fingerprintRestedAt }),
   /* ── b353 — WHY GOLD AND GEMS WERE HELD BACK, AND THIS IS THE MEASUREMENT ────
      ⚠ THE HISTORY BELOW is kept because the reason they were not armed earlier is
        a FACT that was cheap to discover and expensive to rediscover, and because
@@ -449,6 +483,28 @@ export function fingerprintBalance(v) {
   return Number.isFinite(n) ? 'n=' + Math.floor(n) : 'absent';
 }
 
+/* ── THE RESTED WATERMARK OFF THE WIRE (b437) ────────────────────────────────
+   `rested_at` is the instant the server has already banked charges up to, the
+   twin of offlineBudget's `accrued_to`, and it is decoded with the SAME rule:
+   act only on CERTAINTY. hr_state_of projects it as a timestamptz, so it arrives
+   as an ISO string (or a number in a test); Date.parse yields the ms. A NaN, a
+   negative or a zero epoch is not a watermark — answering "1970" would grant a
+   whole capped bank on the next spend — so those are null → UNKNOWN, never 0.
+   The client's representation is a NUMBER (ms), exactly as `G.restedAt` is. */
+export function decodeRestedAt(v) {
+  if (v === null || typeof v === 'undefined') return null;
+  const ms = typeof v === 'number' ? v : Date.parse(String(v));
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  return Math.floor(ms);
+}
+
+/* Never NaN and never empty, so `want === have` in recordValue is a real
+   comparison — the same rule offlineBudget's watermark fingerprint follows. */
+export function fingerprintRestedAt(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? 'at=' + Math.floor(n) : 'absent';
+}
+
 /* ── THE SKILLS MAP OFF THE WIRE (b429) ──────────────────────────────────────
    Save-invariant #2's rule applied to a MAP: act only on CERTAINTY, and let a
    SINGLE bad cell condemn the whole map rather than silently substituting a zero
@@ -542,6 +598,33 @@ export function isMarksRecordArmed() {
 export function __setMarksRecordArm(v) {
   marksArmOverride = (v === null || v === undefined) ? null : !!v;
   return isMarksRecordArmed();
+}
+
+/* ── THE RESTED DORMANT ARM (b437) ───────────────────────────────────────────
+   Same shape as SKILLS_RECORD_ARM_ENABLED: a greppable const defaulting OFF, a
+   test override seam, and a runtime predicate that ALSO requires the master
+   switch (so `armed` cannot be true while the record system is off, which would
+   leave restedXp/restedAt un-stripped yet read record-first = a mismatch). ONE
+   flag governs BOTH the restedXp and restedAt entries, so their arm state can
+   never split.
+
+   ⚠ FLIPPING THIS TO true IS THE ARM. Do not, until: (1) every rested READ is
+   routed through src/net/rested-record.js `restedOf`; (2) the SPEND path
+   (spendRestedCharge → grantXp's restedQuantum) is moved server-side — only the
+   ACCRUAL (banking) side moved with this record; (3) Security has reviewed; and
+   (4) it is POST-WIPE (player_state.rested_at is fresh-defaulted `now()` per row,
+   so a pre-wipe arm on a live character would reset a rich local bank to the
+   server's freshly-initialised one — the inventory-flip lesson). */
+export const RESTED_RECORD_ARM_ENABLED = false;   // DORMANT — post-wipe rollout only
+let restedArmOverride = null;
+export function isRestedRecordArmed() {
+  const on = restedArmOverride !== null ? restedArmOverride : RESTED_RECORD_ARM_ENABLED;
+  return !!on && isRecordActive();
+}
+/** Test seam, same spirit as __setSkillsRecordArm. */
+export function __setRestedRecordArm(v) {
+  restedArmOverride = (v === null || v === undefined) ? null : !!v;
+  return isRestedRecordArmed();
 }
 
 /* ── THE EQUIPMENT SET OFF THE WIRE (b433) ───────────────────────────────────
@@ -1177,6 +1260,8 @@ if (typeof window !== 'undefined') {
     pickRooms, decodeRooms, fingerprintRooms,
     ROOMS_RECORD_ARM_ENABLED, isRoomsRecordArmed, __setRoomsRecordArm,
     MARKS_RECORD_ARM_ENABLED, isMarksRecordArmed, __setMarksRecordArm,
+    decodeRestedAt, fingerprintRestedAt,
+    RESTED_RECORD_ARM_ENABLED, isRestedRecordArmed, __setRestedRecordArm,
     stripServerOfRecord, forgetServerOfRecord,
     decodeRecord, applyRecord, recordValue,
     configureRecord, getRecordConfig, recordEndpoint,

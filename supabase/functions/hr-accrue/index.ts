@@ -70,7 +70,7 @@
 // ============================================================================
 
 import postgres from 'npm:postgres@3.4.5';
-import { computeAccrual, levelsOf, degradeStep, accrueWorkers } from './accrual.js';
+import { computeAccrual, levelsOf, degradeStep, accrueWorkers, accrueRested } from './accrual.js';
 /* THE DORMANT COMPANION-XP ARM SWITCH. Threaded into computeAccrual's input as
    `companionXpBacked` (A14-mirrored in set-activity.js). False → the engine
    emits no companion_xp op; the client keeps awarding. One line to arm. */
@@ -680,23 +680,70 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return d;
     };
 
+    /* ── THE PARALLEL RESTED SETTLE (b437) ──────────────────────────────────
+       Rested XP banks on WALL-CLOCK, independent of the pointer — you rest
+       whether or not an activity is running — so it is settled here alongside the
+       crew, on its OWN watermark `rested_at`, and EVEN WHEN the pointer accrual
+       refused. `accrueRested` is pure, draws no rng, and is watermark-idempotent.
+       The bank cap is left at the server default (a Great Library owner's raised
+       120 bank is a named arm-blocker — under-pays the SIZE only, never the rate).
+       `restedAtMs === null` (the column is absent) omits the keys entirely — the
+       same self-configuring switch tool_carry/fight use. */
+    const rout = accrueRested({
+      nowMs,
+      restedAtMs: st.rested_at ? new Date(st.rested_at).getTime() : null,
+      restedXp: Number(st.rested_xp) || 0,
+      libraryCap: null,
+    });
+
+    /* Fold the NEW ABSOLUTE bank values into any delta bound for hr_apply.
+       `rested_at` is an ISO STRING (hr_apply casts `::timestamptz`); it is the
+       exact advanced watermark (old + granted*CHARGE_MS), NOT `now()`, so the
+       bank cannot be double-paid on the next call. Applied to a COPY at every
+       apply site — including each degrade rung and the parallel settles — because
+       the figures are small, constant across attempts, and must ride the ONE
+       hr_apply call the pointer makes. */
+    const mergeRested = (delta: Record<string, any>): Record<string, any> => {
+      if (!rout.accrued) return delta;
+      return {
+        ...delta,
+        rested_xp: Number(rout.restedXp),
+        rested_at: new Date(Number(rout.restedAt)).toISOString(),
+      };
+    };
+    /* The two parallel settles compose: crew items + rested bank both ride the
+       pointer's hr_apply (or the standalone settle below). */
+    const mergeAux = (delta: Record<string, any>): Record<string, any> =>
+      mergeRested(mergeWorkers(delta));
+
     if (!out.accrued) {
-      // The pointer owes nothing. If the CREW owes something, settle it alone in
-      // one hr_apply call under a `worker` journal — the watermark that advances
-      // is workers_accrued_to, NOT accrued_to (so the daily streak does not bump
-      // on a worker-only settle). No degrade ladder: a crew haul is tiny and
-      // cannot trip a per-call clamp.
-      if (wout.accrued) {
+      // The pointer owes nothing. If the CREW and/or the RESTED bank owe
+      // something, settle whichever do in ONE hr_apply call — the watermarks that
+      // advance are workers_accrued_to and/or rested_at, NEVER accrued_to (so the
+      // daily streak does not bump on a pointer-idle settle). No degrade ladder:
+      // a crew haul + a handful of rested charges are tiny and cannot trip a
+      // per-call clamp.
+      if (wout.accrued || rout.accrued) {
+        // The journal names the dominant reason; when only rested banked it is a
+        // plain `accrue` row (kind is allowlisted), intent `accrue:rested`.
+        const journal = wout.accrued
+          ? { kind: 'worker', intent: 'accrue',
+              meta: { ms: wout.summary.spanMs, qty: wout.summary.qty,
+                workers: wout.summary.workers, capped: wout.summary.capped,
+                ...(rout.accrued ? { rested: rout.granted } : {}) } }
+          : { kind: 'accrue', intent: 'accrue:rested', meta: { rested: rout.granted } };
         // Named `delta` (not `workerDelta`) so the `::text::jsonb` transport is
         // the SAME shape tests/delta-transport.mjs grades on every apply site —
         // a bare ::jsonb here would double-serialise and answer bad_delta.
-        const delta = mergeWorkers({
-          journal: { kind: 'worker', intent: 'accrue',
-            meta: { ms: wout.summary.spanMs, qty: wout.summary.qty,
-              workers: wout.summary.workers, capped: wout.summary.capped } },
-        });
+        const delta = mergeAux({ journal });
+        // Key idempotency on whichever watermark drove the settle. Either way a
+        // replay dedups on this intent id; and even a fresh call cannot double-pay
+        // because accrueRested/accrueWorkers recompute from the ADVANCED watermark.
+        const auxWatermark = wout.accrued
+          ? ('workers:' + String(st.workers_accrued_to ?? ''))
+          : ('rested:' + String(st.rested_at ?? ''));
         const wIntentId = await intentIdFor({
-          user, slot, watermark: 'workers:' + String(st.workers_accrued_to ?? ''),
+          user, slot, watermark: auxWatermark,
           version: env.version, salt, attempt: 0,
         });
         const wres = await sql.begin(async (tx) => {
@@ -708,10 +755,12 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         });
         const wr = wres?.res as Record<string, any>;
         if (wr && wr.ok === true && wr.replayed !== true) {
-          return json({ ok: true, accrued: true, ...wr, workers: wout.summary });
+          return json({ ok: true, accrued: true, ...wr,
+            ...(wout.accrued ? { workers: wout.summary } : {}),
+            ...(rout.accrued ? { rested: { granted: rout.granted } } : {}) });
         }
-        // A refused / replayed worker-only settle falls through to the plain
-        // not-accrued response: nothing was minted, the watermark did not move.
+        // A refused / replayed aux settle falls through to the plain not-accrued
+        // response: nothing was minted, no watermark moved.
       }
       // Nothing to pay. NOTHING IS WRITTEN — in particular the watermark is not
       // advanced, so a sub-threshold call cannot confiscate the time it
@@ -759,7 +808,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return applied?.res as Record<string, any>;
     };
 
-    let res = await apply(mergeWorkers(out.delta), 0);
+    let res = await apply(mergeAux(out.delta), 0);
     let degraded: Record<string, unknown> | null = null;
 
     /* THE DEGRADE LADDER (S8). Only ever entered on a clamp — never on a
@@ -788,7 +837,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          instead of grinding down to the forfeit. */
       if (Number(next.summary?.ticks) >= Number(out.summary?.ticks)) break;
       out = next;
-      res = await apply(mergeWorkers(out.delta), attempt);
+      res = await apply(mergeAux(out.delta), attempt);
     }
 
     if (res && res.ok !== true && degraded && DEGRADABLE.has(String(res.error))) {

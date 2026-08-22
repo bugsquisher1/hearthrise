@@ -11,6 +11,19 @@ import { ARTISAN_RECIPES } from '../data/recipes.js?v=431';
 
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
 
+/* b431 — the skill-xp READ accessor (src/net/skill-record.js), the ESM analogue
+   of the b429 legacy skillXp() sweep. DORMANT today: while SKILLS_RECORD_ARM_ENABLED
+   is off, skillXpOr returns the raw local value byte-for-byte, so every call here is
+   a faithful no-op. Once armed, the xp comes from the server record and an un-arrived
+   map reads as 0 (the level-1 floor via xpPct/getLevel) rather than a forged local
+   number. Guarded so a pre-attach boot degrades to the classic read instead of NaN. */
+function srXpOf(G, id) {
+  const SR = window.HearthriseSkillRecord;
+  return (SR && typeof SR.skillXpOr === 'function')
+    ? SR.skillXpOr(G, id, 0)
+    : ((G && G.skills && G.skills[id]) || 0);
+}
+
 /* ── b226 (pacing retune) ──────────────────────────────────────────────
    These tiles are the game's price tags. `action.xp` / `recipe.xp` are BOOK
    values; what the player receives is the book value through PACE.xp, and
@@ -83,7 +96,7 @@ function actIconHtml(prod, fallbackEmoji) {
 function buildHead(skillId) {
   const s = SKILLS_DEF[skillId];
   if (!s) return '';
-  const xp = window.G.skills[skillId] || 0;
+  const xp = srXpOf(window.G, skillId);
   const lv = window.getLevel(skillId);
   const pct = window.xpPct(xp) * 100;
   const toNext = window.xpToNext(xp);
@@ -250,7 +263,7 @@ function lightUpdate(skillId) {
     const fill = activeTile.querySelector('.at-prog-fill');
     if (fill) fill.style.width = pctStr;
   }
-  const xp = window.G.skills[skillId] || 0;
+  const xp = srXpOf(window.G, skillId);
   const lv = window.getLevel(skillId);
   const pct = window.xpPct(xp) * 100;
   const toNext = window.xpToNext(xp);
@@ -372,7 +385,7 @@ function renderSkillsList() {
   const html = Object.entries(cats).map(([cat, label]) => {
     const skills = Object.entries(SKILLS_DEF).filter(([, s]) => s.cat === cat);
     const rows = skills.map(([id, s]) => {
-      const xp = window.G.skills[id] || 0;
+      const xp = srXpOf(window.G, id);
       const lv = window.getLevel(id);
       const pct = Math.floor(window.xpPct(xp) * 100);
       const active = window.G.activeSkill === id ? 'active' : '';

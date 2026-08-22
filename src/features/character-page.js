@@ -27,14 +27,22 @@ import { ARTISAN_RECIPES } from '../data/recipes.js?v=431';
    the surfaces that must render a pending balance rather than a number. */
 import { balanceMarkup } from '../net/balance.js?v=431';
 
+/* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
+   the ESM analogue of the b429 legacy skillXp() sweep. See activities-grid.js. */
+function srXpOf(G, id) {
+  const SR = window.HearthriseSkillRecord;
+  return (SR && typeof SR.skillXpOr === 'function')
+    ? SR.skillXpOr(G, id, 0)
+    : ((G && G.skills && G.skills[id]) || 0);
+}
+
 function deriveClass() {
   const G = window.G;
   if (!G?.skills) return { name: 'Adventurer', tagline: 'Path: Wanderer' };
-  const entries = Object.entries(G.skills);
-  if (entries.length === 0) return { name: 'Adventurer', tagline: 'Path: Wanderer' };
-  const top = entries.reduce((a, b) => ((b[1] || 0) > (a[1] || 0) ? b : a));
-  const topId = top[0];
-  const topXp = top[1];
+  const ids = Object.keys(G.skills);
+  if (ids.length === 0) return { name: 'Adventurer', tagline: 'Path: Wanderer' };
+  const topId = ids.reduce((a, b) => (srXpOf(G, b) > srXpOf(G, a) ? b : a));
+  const topXp = srXpOf(G, topId);
   const classMap = {
     attack: 'Warrior', strength: 'Berserker', defense: 'Guardian', hitpoints: 'Brawler',
     prayer: 'Devotee', magic: 'Mage', ranged: 'Ranger', bountyHunter: 'Bounty Hunter',
@@ -238,7 +246,7 @@ function buildAccountStatGrid() {
   const G = window.G || {};
   const clv = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
   const tlv = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
-  const totalXp = Object.values(G.skills || {}).reduce((a, b) => a + (b || 0), 0);
+  const totalXp = Object.keys(G.skills || {}).reduce((a, id) => a + srXpOf(G, id), 0);
   const quests = Array.isArray(G.quests) ? G.quests : [];
   const qDone = quests.filter((q) => q && q.done).length;
   const ach = Array.isArray(window.ACHIEVEMENTS) ? window.ACHIEVEMENTS : [];
@@ -373,7 +381,7 @@ function skillTile(id) {
   const s = defs[id];
   if (!s) return '';
   const G = window.G || {};
-  const xp = (G.skills && G.skills[id]) || 0;
+  const xp = srXpOf(G, id);
   const lv = typeof window.getLevel === 'function' ? window.getLevel(id) : 1;
   const pct = (typeof window.xpPct === 'function') ? Math.min(100, Math.max(0, window.xpPct(xp) * 100)) : 0;
   const active = (G.activeSkill === id) ? ' active' : '';

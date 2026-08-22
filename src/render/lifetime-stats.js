@@ -59,9 +59,18 @@
     var playTime = Date.now() - (s.firstSeen || Date.now());
     var cl = (typeof getCombatLevel === 'function') ? getCombatLevel() : 0;
     var tl = (typeof getTotalLevel === 'function') ? getTotalLevel() : 0;
-    /* Total XP across skills */
+    /* Total XP across skills. b431 — each skill's xp routes through the
+       server-of-record accessor (src/net/skill-record.js), DORMANT no-op today:
+       skillXpOr returns the raw local number byte-for-byte until armed. */
     var totalXp = 0;
-    if (G.skills) Object.values(G.skills).forEach(function (v) { if (typeof v === 'number') totalXp += v; });
+    if (G.skills) {
+      var SR = window.HearthriseSkillRecord;
+      Object.keys(G.skills).forEach(function (k) {
+        totalXp += (SR && typeof SR.skillXpOr === 'function')
+          ? SR.skillXpOr(G, k, 0)
+          : (typeof G.skills[k] === 'number' ? G.skills[k] : 0);
+      });
+    }
 
     var tile = function (b, sp) { return '<div class="stat-tile"><b>' + b + '</b><span>' + sp + '</span></div>'; };
     var row = function (lbl, val) { return '<div class="stats-row"><span class="lbl">' + lbl + '</span><span class="val">' + val + '</span></div>'; };

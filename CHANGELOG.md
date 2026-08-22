@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 434 — 2026-08-22 (Under the hood: companion XP → server-owned, dormant)
+
+- 🔧 No gameplay change. Built the machinery for your companion XP to be earned and owned by the server the same way gold/gems/skills are, shipped dormant. The passive companion bonus already reads server truth; this adds the matching write half. Turns on with the wipe.
+
+## v0.9.2-beta build 433 — 2026-08-22 (Under the hood: equipment, rooms & cooking → server-owned, dormant)
+
+- 🔧 No gameplay change. Extended server ownership to your equipped gear, your unlocked rooms, and cooking output — all shipped dormant, all arm at the wipe.
+
+## v0.9.2-beta build 432 — 2026-08-21 (Under the hood: skills → server-owned, integrated)
+
+- 🔧 No gameplay change. Integrated the dormant server-owned skill-XP machinery into the live build (built in b430). Still off until the wipe.
+
 ## v0.9.2-beta build 431 — 2026-08-21 (Under the hood: inventory-flip soak telemetry)
 
 - 🔧 No gameplay change. Added a small, aggregate telemetry signal so we can safely verify the upcoming inventory-server-authority change across real sessions before it goes live. Observational only.

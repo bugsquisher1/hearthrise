@@ -3300,7 +3300,17 @@ function spendRestedCharge(){
   return window.HearthriseCore.rested.spendRestedCharge(G, restedQuantum());
 }
 window.accrueRestedXp = accrueRestedXp;
-window.restedXpCharges = function(){ return (typeof G !== 'undefined' && G.restedXp) || 0; };
+window.restedXpCharges = function(){
+  /* Route through the record accessor so that UNDER ARM this reads the server's
+     rested bank (or a safe 0 while UNKNOWN), not the stripped-blank G.restedXp.
+     Dormant, restedChargesOr resolves to (G.restedXp||0) — byte-identical to the
+     old read. Falls back to the raw read only if the module has not loaded yet. */
+  try {
+    if (typeof window !== 'undefined' && window.HearthriseRested && typeof G !== 'undefined')
+      return window.HearthriseRested.restedChargesOr(G, 0);
+  } catch (e) {}
+  return (typeof G !== 'undefined' && G.restedXp) || 0;
+};
 window.restedQuantum = restedQuantum;
 window.restedCap = restedCap;
 

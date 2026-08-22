@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 438 — 2026-08-22 (Under the hood: bank items → server-owned, dormant)
+
+- 🔧 No gameplay change. Your bank's item store now has a server-owned home (a dedicated server table), with deposits and withdrawals moving items server-side. Shipped dormant; it arms together with the inventory switch at the wipe. Also hardened the migration test suite so every server RPC is grant-checked.
+
 ## v0.9.2-beta build 437 — 2026-08-22 (Under the hood: rested XP → server-owned, dormant)
 
 - 🔧 No gameplay change. Moved the rested-XP accumulator (an inert, not-yet-active feature) to server ownership so its data lives on the server like everything else. Away progression is unaffected — offline time still earns exactly what active play would, minus world buffs.

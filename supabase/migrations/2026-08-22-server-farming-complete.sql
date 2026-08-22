@@ -629,6 +629,10 @@ begin
   end if;
   return false;
 end $function$;
+-- Re-state the lockdown on every restatement (repo convention; the lint enforces
+-- it). hr_rpc_gate is called ONLY by SECURITY DEFINER RPCs — no role needs execute.
+revoke execute on function public.hr_rpc_gate(text) from public;
+revoke execute on function public.hr_rpc_gate(text) from anon, authenticated, service_role;
 
 -- ── 8. SELF-VERIFYING ASSERTIONS — load-bearing properties ────
 do $$

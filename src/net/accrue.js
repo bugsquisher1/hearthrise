@@ -1227,14 +1227,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=437';
+import * as itemLedger from './item-ledger.js?v=438';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=437';
+import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=438';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1243,7 +1243,7 @@ import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_E
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=437';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=438';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -1283,6 +1283,69 @@ export function reconcileWorkers(G, res) {
   });
   G.workers = { hired };
   return hired.length;
+}
+
+/* ── THE BANK ITEM STORE, RECONCILED FROM THE ENVELOPE (bank-store, b438) ────
+   `hr_state_of` projects the server-owned bank (public.player_bank — no client
+   write policy) at `res.bank`: a flat {item_id: qty} map, exactly the shape of
+   `res.inventory`. G.bank is the client's copy of that store — but note it ALSO
+   carries three NON-ITEM bank-SPACE counters (goldBuys/gemBuys/grandfather; see
+   src/legacy.js ~615/1274, which Object.assigns them into the same object). Those
+   are purchase state, NOT items, and are ALWAYS preserved here.
+
+   The fold MIRRORS the bag (applyEnvelopeState's inventory branch) EXACTLY, and
+   is gated on the SAME two conditions, both fail-closed toward "leave G.bank
+   alone" — the direction that can never delete a banked item:
+     • the general inventory bag must be absolute on this device
+       (isInventoryAbsolute() — false in prod today; the inventory arm), AND
+     • the envelope must be server-certified complete (baselineComplete).
+   Absent either, G.bank is left UNTOUCHED — byte-for-byte today's behaviour,
+   which is why this ships fully inert (the inventory flip is dormant, post-wipe).
+
+   Under absolute+complete, the serverOwnedItem carve-out applies per key just as
+   the bag's does: an OWNED id is the server's truth (named sets the qty, OMITTED
+   removes the stack); a NON-owned id (crop, cooked food, dungeon reward — a bank
+   can hold any of these) is never deleted and never lowered. This is what makes
+   arming the flip SAFE for the bank: it can only ever remove a forged OWNED stack,
+   never a legitimately-banked excluded item.
+
+   Fail-closed on absence: no readable `res.bank` object → leave G.bank alone
+   (absence is not a claim the bank is empty). Pure: takes G + res, returns a small
+   receipt, so the suite drives it without a live window. */
+export const BANK_NON_ITEM_KEYS = Object.freeze(['goldBuys', 'gemBuys', 'grandfather']);
+
+export function reconcileBank(G, res, invAbsolute, baselineComplete) {
+  if (!G || typeof G !== 'object') return null;
+  const named = res && res.bank;
+  if (!named || typeof named !== 'object' || Array.isArray(named)) return { mode: 'absent' };
+  /* DORMANT / MERGE: the bank is not part of the accrual settle, and the only
+     writer of server bank state is hr_bank_move (which the client reconciles from
+     that RPC's own response). So outside the absolute arm there is nothing to
+     fold in — leave G.bank exactly as the client holds it. */
+  if (!invAbsolute || !baselineComplete) return { mode: 'dormant' };
+
+  const cur = (G.bank && typeof G.bank === 'object') ? { ...G.bank } : {};
+  const next = {};
+  /* Always carry the non-item bank-SPACE counters through untouched. */
+  for (const sk of BANK_NON_ITEM_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(cur, sk)) next[sk] = cur[sk];
+  }
+  const keys = new Set(Object.keys(cur).concat(Object.keys(named)));
+  for (const k of keys) {
+    if (BANK_NON_ITEM_KEYS.indexOf(k) !== -1) continue;   // already preserved
+    const q = Number(named[k]);
+    const isNamed = Number.isFinite(q) && q > 0;
+    if (serverOwnedItem(k)) {
+      if (isNamed) next[k] = Math.floor(q);   // OWNED: absolute; omitted → removed
+      continue;
+    }
+    /* NOT OWNED (excluded / un-modeled): never delete, never lower. */
+    const have = Number(cur[k]) || 0;
+    const best = Math.max(have > 0 ? Math.floor(have) : 0, isNamed ? Math.floor(q) : 0);
+    if (best > 0) next[k] = best;
+  }
+  G.bank = next;
+  return { mode: 'absolute', keys: Object.keys(next).length };
 }
 
 export function applyEnvelopeState(G, res, ownKey) {
@@ -1593,6 +1656,12 @@ export function applyEnvelopeState(G, res, ownKey) {
      armed or not. FAIL-CLOSED — see envelopeBaselineComplete. */
   const baselineComplete = envelopeBaselineComplete(res);
   written.baselineComplete = baselineComplete;
+  /* THE BANK ITEM STORE (bank-store, b438). Reconciled here — after the two arm
+     gates are known and BEFORE the bag branch splits — so it rides EVERY envelope
+     regardless of which return path the bag takes, and folds through the SAME
+     absolute/carve-out machinery as the bag. Fully inert while dormant (invAbsolute
+     is false in prod): reconcileBank leaves G.bank untouched. */
+  written.bank = reconcileBank(G, res, invAbsolute, baselineComplete);
   const invNamed = res && res.inventory;
   if (invAbsolute && baselineComplete && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
     /* ══════════════════════════════════════════════════════════════════════

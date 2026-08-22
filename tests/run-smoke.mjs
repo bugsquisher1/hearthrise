@@ -1983,6 +1983,25 @@ const run = async () => {
       console.log('\nRested record guard — dormant no-regression + armed server-read/fail-closed/coupled/watermark-safe.');
     }
 
+    /* ── The Bank item-store guard (bank-store slice, b438) ─────────────────
+       Proves the CLIENT half of 2026-08-27-bank-store.sql: reconcileBank folds
+       the server-owned bank (res.bank) through the SAME serverOwnedItem carve-out
+       as the bag, so arming the inventory flip cannot strand/delete a banked item.
+       DORMANT (unarmed / incomplete envelope) leaves G.bank UNTOUCHED; ABSOLUTE
+       owns the server truth for OWNED ids (omitted = removed), never deletes/lowers
+       EXCLUDED ids, and preserves the bank-SPACE counters. The server half — atomic
+       deposit/withdraw, clamp, no-dupe, no-negative, idempotent replay — is proven
+       by the migration's own §6 self-check on apply. */
+    const { bankStoreGuard } = await import('./bank-store.mjs');
+    const bankProblems = await bankStoreGuard();
+    if (bankProblems.length) {
+      console.log('\nBank item-store guard — FAILED:');
+      for (const p of bankProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nBank item-store guard — dormant leaves G.bank untouched; absolute owns server truth, keeps excluded, preserves space counters.');
+    }
+
     /* ── The artisan accrual guard (b356) ───────────────────────────────
        `artisan` is 290 of the 344 `hr_activities` rows and every one of them
        paid NOTHING until this landed — declared idle rather than confiscated,

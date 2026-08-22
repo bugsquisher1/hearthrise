@@ -228,6 +228,41 @@ export const SERVER_OF_RECORD = Object.freeze([
     pick: (res) => (res && typeof res === 'object') ? res.skills : undefined,
     armed: () => isSkillsRecordArmed(),
     decode: decodeSkills, fingerprint: fingerprintSkills }),
+  /* ── ROOMS / HOUSE UPGRADES, SHIPPED DORMANT (b431) — THE RECORD THAT NEEDS
+     NO NEW PROJECTION ──────────────────────────────────────────────────────────
+     `G.rooms` is `{ <roomId>: <rung> }` — the same map-is-one-record shape skills
+     use, so it is ONE entry whose value IS the whole map: one strip
+     (`G.rooms` deleted from the blob), one fingerprint, one monotonic version.
+
+     WHERE THE WIRE VALUE COMES FROM, and why there is NO server migration in this
+     commit: a room rung is ALREADY server-owned. `upgradeRoom()` routes the
+     purchase through `hr_unlock_buy` (namespace `room`), which writes a
+     `player_progress` row `kind='unlock' key='room:<id>' value=<rung>` under the
+     per-character lock — and `hr_state_of` already returns every PERMANENT
+     progress row (`period_key=''`, unfiltered, ordered so unlock rows never fall
+     off the 1000-row cap) in the top-level `progress` array, which `...res`
+     spreads onto BOTH the hr_load envelope and the hr-accrue envelope. So the
+     authority and the transport already exist; the only thing missing was the
+     client READ, which is this entry. `pickRooms` SHAPES the room rows out of
+     that array — a `room:<id>` unlock becomes `{<id>: rung}` — so no new
+     `hr_state_of` link (the repo's highest-risk create-or-replace, a generated
+     chain) is spent on a record that is already in the envelope.
+
+     UNLIKE SKILLS, AN EMPTY MAP IS A VALID KNOWN STATE. A fresh character owns no
+     rooms, so `{}` off the wire means "you own nothing yet", not "the read did not
+     populate". The UNKNOWN signal is instead the ABSENCE of a `progress` array
+     (pickRooms returns undefined → decodeRooms returns null → the field stays
+     UNKNOWN, fail-closed), which is what a malformed / pre-envelope answer is.
+
+     DORMANT: its own `ROOMS_RECORD_ARM_ENABLED`, defaulting OFF and ALSO requiring
+     the master accrual switch, exactly like skills. While off the entry is
+     invisible to serverOfRecordFields / the strip / decodeRecord, so `G.rooms`
+     is neither stripped nor read record-first — shipping it changes nothing
+     byte-for-byte until a post-wipe rollout flips the const. */
+  Object.freeze({ field: 'rooms', from: 'rooms', since: 'b431',
+    pick: pickRooms,
+    armed: () => isRoomsRecordArmed(),
+    decode: decodeRooms, fingerprint: fingerprintRooms }),
   /* ── b353 — WHY GOLD AND GEMS WERE HELD BACK, AND THIS IS THE MEASUREMENT ────
      ⚠ THE HISTORY BELOW is kept because the reason they were not armed earlier is
        a FACT that was cheap to discover and expensive to rediscover, and because
@@ -427,6 +462,97 @@ export function isSkillsRecordArmed() {
 export function __setSkillsRecordArm(v) {
   skillsArmOverride = (v === null || v === undefined) ? null : !!v;
   return isSkillsRecordArmed();
+}
+
+/* ── THE ROOM MAP OFF THE WIRE (b431) ────────────────────────────────────────
+   Room rungs are not a dedicated envelope key — they ride inside the top-level
+   `progress` array as permanent `kind='unlock' key='room:<id>'` rows (see the
+   registry entry above for why no `hr_state_of` projection is spent). `pickRooms`
+   is the SHAPE step: it turns that array into the `{<id>: rung}` map `G.rooms`
+   holds. It is a `pick` (envelope top level) rather than reading `res.state`,
+   the same seam skills use.
+
+   FAIL-CLOSED on ABSENCE, not on empty. A missing / non-array `progress` is what
+   a malformed or pre-envelope answer looks like → return undefined so decodeRooms
+   answers null → the field stays UNKNOWN. A PRESENT progress array with no
+   `room:*` rows is a real "owns no rooms yet" and yields `{}`, a known value. */
+export function pickRooms(res) {
+  if (!res || typeof res !== 'object') return undefined;
+  const prog = res.progress;
+  if (!Array.isArray(prog)) return undefined;   // no progress array → UNKNOWN, fail-closed
+  const out = {};
+  for (const row of prog) {
+    if (!row || typeof row !== 'object') continue;
+    if (row.kind !== 'unlock') continue;
+    const key = typeof row.key === 'string' ? row.key : '';
+    if (key.indexOf('room:') !== 0) continue;
+    const id = key.slice(5);
+    if (!id) continue;
+    out[id] = row.value;   // decodeRooms validates every cell; a bad one condemns the map
+  }
+  return out;
+}
+
+/* Save-invariant #2's rule applied to the room map: act only on CERTAINTY, and
+   let a SINGLE bad cell condemn the whole map rather than silently dropping a
+   rung. The client representation is `{<id>: <rung>}`, an integer ≥ 0. UNLIKE
+   decodeSkills, an EMPTY object is ACCEPTED (a fresh character owns no rooms);
+   the UNKNOWN case is a non-object (which pickRooms only produces from an absent
+   progress array). */
+export function decodeRooms(v) {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) return null;
+  const out = {};
+  for (const k in v) {
+    if (!Object.prototype.hasOwnProperty.call(v, k)) continue;
+    const n = Number(v[k]);
+    if (!Number.isFinite(n) || n < 0) return null;   // one bad cell condemns the map
+    out[k] = Math.floor(n);
+  }
+  return out;                                         // {} is a valid "owns no rooms yet"
+}
+
+/* Deterministic over SORTED keys (the progress array has no ordering guarantee),
+   never NaN, and — because empty is a real value here — an empty map fingerprints
+   to a stable non-'absent' string so `want === have` in recordValue is a real
+   comparison for the "owns no rooms" state too. */
+export function fingerprintRooms(v) {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) return 'absent';
+  const keys = Object.keys(v).sort();
+  let s = 'rm:';
+  for (const k of keys) {
+    const n = Number(v[k]);
+    if (!Number.isFinite(n)) return 'absent';
+    s += k + '=' + Math.floor(n) + ';';
+  }
+  return s;
+}
+
+/* ── THE ROOMS DORMANT ARM (b431) ────────────────────────────────────────────
+   Same shape as SKILLS_RECORD_ARM_ENABLED: a greppable const defaulting OFF, a
+   test override seam, and a runtime predicate that ALSO requires the master
+   switch (so `armed` cannot be true while the record system is off, which would
+   leave `G.rooms` un-stripped yet read record-first = a mismatch).
+
+   ⚠ FLIPPING THIS TO true IS THE ARM, AND IT IS COUPLED TO COOKING. Do not do it
+   until: (1) the client room-READ sites route through the record accessor rather
+   than reading `G.rooms` raw — `Object.values(G.rooms)` (legacy.js totalLevel /
+   room count) and `(G.rooms||{}).kitchen` throw / mis-read when `rooms` is
+   UNKNOWN, the same class of crash gold hit before src/net/balance.js; (2)
+   Security has reviewed; (3) it is POST-WIPE (a sparse server room baseline vs a
+   rich client one would strand rungs, the inventory-flip lesson). Arming rooms is
+   what makes `noBurn` server-owned end to end, so it is flipped IN THE SAME
+   ROLLOUT as artisan-sim.js COOKING_SETTLEMENT_ARM_ENABLED and item-authority.js's
+   twin — see those files. */
+export const ROOMS_RECORD_ARM_ENABLED = false;   // DORMANT — post-wipe, coupled with cooking
+let roomsArmOverride = null;
+export function isRoomsRecordArmed() {
+  const on = roomsArmOverride !== null ? roomsArmOverride : ROOMS_RECORD_ARM_ENABLED;
+  return !!on && isRecordActive();
+}
+/** Test seam, same spirit as __setSkillsRecordArm. */
+export function __setRoomsRecordArm(v) {
+  roomsArmOverride = (v === null || v === undefined) ? null : !!v;
+  return isRoomsRecordArmed();
 }
 
 /* ── THE ARM FILTER ──────────────────────────────────────────────────────────
@@ -889,6 +1015,8 @@ if (typeof window !== 'undefined') {
     decodeBalance, fingerprintBalance,
     decodeSkills, fingerprintSkills,
     SKILLS_RECORD_ARM_ENABLED, isSkillsRecordArmed, __setSkillsRecordArm,
+    pickRooms, decodeRooms, fingerprintRooms,
+    ROOMS_RECORD_ARM_ENABLED, isRoomsRecordArmed, __setRoomsRecordArm,
     stripServerOfRecord, forgetServerOfRecord,
     decodeRecord, applyRecord, recordValue,
     configureRecord, getRecordConfig, recordEndpoint,

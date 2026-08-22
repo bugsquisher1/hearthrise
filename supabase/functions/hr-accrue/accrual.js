@@ -116,6 +116,12 @@ import { makeBonus, EMPTY_PERKS } from '../../../src/core/perks.js';
 /* LAYER 1 — the equipped companion's passive bonus, summed on top of the fused
    layer 0 by bonusFor below. Pure, draw-free, permanent-scope. */
 import { companionBonus } from '../../../src/core/companion-perk.js';
+/* THE COMPANION XP WRITER (dormant). companionSpanXp turns the equipped
+   companion + a role-matched action count into an INTEGER stat grant; it draws
+   no rng, so away == live stays byte-identical. Gated by inp.companionXpBacked,
+   which index.ts / set-activity.js thread from COMPANION_XP_SERVER_BACKED — so
+   the emission is inert until the one arm switch flips. */
+import { companionSpanXp } from '../../../src/core/companion-xp.js';
 /* THE DAILY/QUEST COUNTER CONTRACT (Designer Ruling 3.1). The key shapes, the
    day key, the clamp and the vocabulary live in ONE module that both this
    engine and the guard read; see its header for why `kind='daily'`/`kind='stat'`
@@ -498,6 +504,40 @@ export function bonusFor(perkState) {
   return (key) => base(key) + comp(key);
 }
 
+/* ── THE COMPANION XP OP (dormant writer) ──────────────────────────────────
+   Emit a `stat companion_xp:<id>` progress op crediting the equipped companion
+   for the role-matched actions of this span. The equipped id + current xp are
+   READ from the same server-owned perk state hr_perks_of returned
+   (`inp.perks.companion = { id, xp }`), never a client value; the count is the
+   engine's own summary. hr_apply already allowlists `kind='stat'` (bestiary /
+   collection / goal counters use it) and the 'companion_xp:' key is what
+   hr_perks_of reads, so no schema or grant-hygiene change is needed.
+
+   ⚠ GATED, AND DORMANT BY DEFAULT. `inp.companionXpBacked` is threaded from
+     COMPANION_XP_SERVER_BACKED (src/core/companion-xp.js) by index.ts and
+     set-activity.js. False → this returns [] → no op → hr_perks_of reads xp 0 →
+     level 1 → the base magnitude (today's behaviour, no regression). The op is
+     the ONE thing the arm switch turns on.
+
+   ⚠ DRAW-FREE. companionSpanXp is pure arithmetic over the finished summary, so
+     appending this op moves no seeded roll — away and a live settle over the
+     same span emit the identical op, and AWAY-1 stays byte-identical.
+
+   @returns [] or a single-element progress-op array. */
+function companionXpOps(inp, activityType, actionCount) {
+  if (!inp || inp.companionXpBacked !== true) return [];
+  const comp = inp.perks && inp.perks.companion;
+  if (!comp || typeof comp !== 'object' || typeof comp.id !== 'string') return [];
+  const add = companionSpanXp({
+    companionId: comp.id,
+    currentXp: comp.xp,
+    activityType,
+    actionCount,
+  });
+  if (!(add > 0)) return [];
+  return [{ kind: 'stat', key: 'companion_xp:' + comp.id, period: '', add, state: 'active' }];
+}
+
 /**
  * The swing interval, DERIVED — never accepted.
  *
@@ -653,6 +693,15 @@ function nat(v, fallback) {
  *                but NO delta key is derived from it, so unlike toolCarry/fight
  *                an absent value is simply `{}` with no self-configuring switch.
  *                Written only by the `enchant` intent, never a client value.
+ *   companionXpBacked  the DORMANT arm switch for the companion XP writer,
+ *                threaded from COMPANION_XP_SERVER_BACKED (src/core/companion-xp.js)
+ *                by index.ts AND set-activity.js (A14-mirrored). `true` → each
+ *                accruer emits a `stat companion_xp:<equipped id>` op crediting
+ *                the equipped companion for its role-matched actions; absent/false
+ *                → NO op, so hr_perks_of reads xp 0 → level 1 → the base magnitude
+ *                (today's behaviour, no regression). NOT a fact about the player
+ *                — a deploy-time constant — and it can only ADD a bounded, capped,
+ *                deterministic grant, never mint across players.
  *
  * @returns { accrued: false, reason } | { accrued: true, delta, summary, … }
  */
@@ -1227,6 +1276,9 @@ export function computeAccrual(input) {
      item dropped this span. Bounded by the monster's drop table (well under the
      op cap; COLLECTION-2 asserts a 20-distinct span stays under it). */
   for (const op of collectionProgressOps(collection, events)) progress.push(op);
+  /* THE COMPANION XP OP (dormant) — the equipped pet earns per KILL on the
+     combat path, the same basis wireKillHook fires on live. Draw-free, gated. */
+  for (const op of companionXpOps(inp, 'combat-kill', summary.kills)) progress.push(op);
 
   const delta = {
     // A watermark the SERVER computed and hr_apply then clamps into
@@ -1307,6 +1359,7 @@ export function computeAccrual(input) {
     watermark: delta.accrued_to,
     events,
     levelUps,
+    companionActions: summary.kills,   // the companion-award basis (per kill), for the parity test
     summary: {
       ...summary,
       // The Art Director's b326 field. Computed server-side, by the simulation,
@@ -1485,6 +1538,11 @@ function accrueGather(inp, span) {
   const itemDelta = Object.create(null);
   const events = [];
   const levelUps = [];
+  /* COMPANION XP BASIS (dormant writer). The count of yield addItem calls — the
+     exact seam wireAddItemForGather fires awardXpForRole('gather') on live. Not
+     the summed qty: a double-yield is ONE addItem call and one companion award,
+     the same on both sides. */
+  let companionActions = 0;
   /* THE GOAL COUNTER (b353). Same module, same shapes, same clamp as the
      combat path — one contract, not a gather-flavoured copy of one. */
   const goals = makeGoalCounter();
@@ -1505,6 +1563,7 @@ function accrueGather(inp, span) {
     addItem(id, qty) {
       const n = Math.floor(Number(qty) || 0);
       if (!id || n <= 0) return;
+      companionActions++;                // one gather award per addItem call (client parity)
       itemDelta[id] = (itemDelta[id] || 0) + n;
       bag[id] = (bag[id] || 0) + n;
     },
@@ -1623,6 +1682,9 @@ function accrueGather(inp, span) {
      combat builder states: one is the lifetime yield, one is the goal event,
      and their agreement is asserted by G3. */
   for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);
+  /* THE COMPANION XP OP (dormant) — the equipped pet earns per gather-yield
+     action, the count wireAddItemForGather awards on live. Draw-free, gated. */
+  for (const op of companionXpOps(inp, 'gather', companionActions)) progress.push(op);
 
   const delta = {
     accrued_to: new Date(nowMs).toISOString(),
@@ -1663,6 +1725,7 @@ function accrueGather(inp, span) {
     watermark: delta.accrued_to,
     events,
     levelUps,
+    companionActions,               // the companion-award basis, for the parity test
     summary: {
       ...summary,
       ...windowEnvelope(credit, summary.stoppedBy ? summary.paidMs : null),
@@ -1777,6 +1840,12 @@ function accrueArtisan(inp, span) {
   const itemDelta = Object.create(null);
   const events = [];
   const levelUps = [];
+  /* COMPANION XP BASIS (dormant writer). The count of produce addItem calls —
+     the exact seam wireAddItemForGather fires awardXpForRole('artisan') on for
+     an active recipe. A burnt_food output goes through addItem too, so a burn
+     counts on both sides; an input CONSUMED goes through removeItem, so it does
+     not. */
+  let companionActions = 0;
   /* THE GOAL COUNTER (b353). Same module, same shapes, same clamp as the other
      two paths — one contract, not an artisan-flavoured copy of one. */
   const goals = makeGoalCounter();
@@ -1798,6 +1867,7 @@ function accrueArtisan(inp, span) {
     addItem(id, qty) {
       const n = Math.floor(Number(qty) || 0);
       if (!id || n <= 0) return;
+      companionActions++;                // one artisan award per produce addItem (client parity)
       itemDelta[id] = (itemDelta[id] || 0) + n;
       bag[id] = (bag[id] || 0) + n;
     },
@@ -2003,6 +2073,10 @@ function accrueArtisan(inp, span) {
      paths. `events` is passed so a clamp or an unknown type leaves a receipt
      instead of vanishing. */
   for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);
+  /* THE COMPANION XP OP (dormant) — the equipped pet earns per produce action,
+     the count wireAddItemForGather awards on live for an active recipe.
+     Draw-free, gated. */
+  for (const op of companionXpOps(inp, 'artisan', companionActions)) progress.push(op);
 
   const delta = {
     accrued_to: new Date(nowMs).toISOString(),
@@ -2066,6 +2140,7 @@ function accrueArtisan(inp, span) {
     watermark: delta.accrued_to,
     events,
     levelUps,
+    companionActions,               // the companion-award basis, for the parity test
     summary: {
       ...summary,
       ...windowEnvelope(credit, summary.stoppedBy ? summary.paidMs : null),

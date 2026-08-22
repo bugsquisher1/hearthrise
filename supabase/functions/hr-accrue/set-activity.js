@@ -41,6 +41,9 @@
 // ============================================================================
 
 import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS } from './accrual.js';
+/* THE DORMANT COMPANION-XP ARM SWITCH — mirrored from index.ts (A14): a collect
+   must price companion XP identically to an accrue over the same window. */
+import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
 import {
   collectGate, classifySkip, intentNameFor, intentIdFor, INTENT_ERRORS,
   rateBucketFor, requiresKey, collectsFirst, catalogueHas, mayForceCloseWindow,
@@ -656,6 +659,10 @@ export async function collectCurrentWindow(o) {
        delta key is derived from it, unlike toolCarry/fight). Mirrors index.ts
        field for field (A14). */
     enchant: env.enchant || {},
+    /* THE COMPANION-XP ARM SWITCH (dormant) — the SAME defect class A14 exists
+       for: a collect and an accrue over the same window must credit the pet the
+       same, so the constant is threaded here too. Mirrors index.ts (A14). */
+    companionXpBacked: COMPANION_XP_SERVER_BACKED,
     /* THE PERMANENT PERK STACK (b349). A collect that priced a window at zero
        perks while an accrue over the same window priced it at the player's real
        Kitchen would pay DIFFERENT amounts for the identical time — which is the

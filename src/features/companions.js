@@ -15,6 +15,14 @@
 
 import { COMPANIONS } from '../data/companions.js?v=432';
 import { emit } from '../net/events.js?v=432';
+/* THE SERVER-OF-RECORD ARM SWITCH for companion XP. While false (DORMANT) the
+   client awards companion XP locally exactly as before. When flipped true, the
+   accrual engine becomes the sole writer (a `stat companion_xp:<id>` op priced
+   at settle/away) and the local award below MUST stop, or the two double-count:
+   the server accrues the same role-matched actions this client seam does. The
+   passive bonus already reads server companion XP through hr_perks_of, so under
+   arm the level shown reconciles to server truth. */
+import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=432';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may
@@ -162,6 +170,13 @@ export function getCompanionBonus() {
 // ── Mutations ──
 
 export function awardCompanionXp(amount) {
+  /* ⚠ SERVER-OF-RECORD GATE (dormant). When companion XP is server-backed the
+     accrual engine writes it (per role-matched action, at settle/away) and this
+     local award would DOUBLE-COUNT — so it no-ops entirely. The equipped pet's
+     level then comes from the server (hr_perks_of companion xp), reconciled on
+     the next envelope, never authored here. While dormant this is inert and the
+     client remains the writer, so there is no regression. */
+  if (COMPANION_XP_SERVER_BACKED) return;
   ensureState();
   const eq = window.G?.companions?.equipped;
   if (!eq) return;

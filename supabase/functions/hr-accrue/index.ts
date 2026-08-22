@@ -71,6 +71,10 @@
 
 import postgres from 'npm:postgres@3.4.5';
 import { computeAccrual, levelsOf, degradeStep, accrueWorkers } from './accrual.js';
+/* THE DORMANT COMPANION-XP ARM SWITCH. Threaded into computeAccrual's input as
+   `companionXpBacked` (A14-mirrored in set-activity.js). False → the engine
+   emits no companion_xp op; the client keeps awarding. One line to arm. */
+import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
 import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
@@ -612,6 +616,10 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          self-configuring-null concern. It is what makes an AWAY fight see the
          element (accrual.js `weakness`). Mirrors set-activity.js (A14). */
       enchant: env.enchant || {},
+      /* THE COMPANION-XP ARM SWITCH (dormant). A deploy-time constant, NOT a
+         request value. False today → the engine writes no companion_xp op.
+         Mirrors set-activity.js field for field (A14). */
+      companionXpBacked: COMPANION_XP_SERVER_BACKED,
       /* THE PERMANENT PERK STACK. Server-owned unlock rows only — the room
          rung, the plot buildings, the property tier. `null` means the channel
          is absent or the character has bought nothing, and the engine reads

@@ -20,6 +20,7 @@ import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
 import { perkChannelGuard } from './perk-channel.mjs';
 import { companionPerkGuard } from './companion-perk.mjs';
+import { companionXpGuard } from './companion-xp.mjs';
 import { artisanProgressGuard } from './artisan-progress-model.mjs';
 import { goalCountersGuard } from './goal-counters.mjs';
 import { inventoryCompleteGuard } from './inventory-complete-probe.mjs';
@@ -1782,6 +1783,21 @@ const run = async () => {
     } else {
       console.log('\nCompanion perk guard — a seeded fight with a companion equipped is byte-identical '
         + 'away vs live; the passive bonus is server-owned and draw-free.');
+    }
+    /* ── The companion XP writer guard (dormant server-of-record) ────────────
+       The WRITE half of the companion channel: the accrual engine credits the
+       equipped pet a `stat companion_xp:<id>` op for its role-matched actions
+       (per kill / per gather-yield / per produce — the awardXpForRole basis),
+       draw-free so away == live, clamped to the L30 cap, and INERT while the arm
+       switch is dormant. The projection (hr_perks_of) already reads that row. */
+    const companionXpProblems = companionXpGuard();
+    if (companionXpProblems.length) {
+      console.log('\nCompanion XP writer guard — FAILED:');
+      for (const p of companionXpProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nCompanion XP writer guard — the engine credits the equipped pet per role-matched '
+        + 'action (client parity), byte-identical away vs live, capped; dormant emits nothing.');
     }
     /* ── The artisan progress model guard (b352) ────────────────────────
        The two shapes that block a server-paid artisan night, end to end on a

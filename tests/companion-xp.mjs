@@ -183,14 +183,12 @@ export function companionXpGuard() {
       equipment: {}, perks: { ok: true, companion: { id: 'sparrow', xp: 0 } },
       companionXpBacked: true,
     });
-    const gOff = { ...gOn };
     const gOffRun = computeAccrual({
       ...BASE, activeKind: 'gather', activeId: gatherNode,
       skills: { woodcutting: MAXED, mining: MAXED, fishing: MAXED, farming: MAXED },
       equipment: {}, perks: { ok: true, companion: { id: 'sparrow', xp: 0 } },
       companionXpBacked: false,
     });
-    void gOff;
     const gop = compOp(gOn);
     ok(gop && gop.key === 'companion_xp:sparrow' && gop.add === gOn.companionActions && gop.add > 0,
       `companion-xp: gather op add=${gop && gop.add} but companionActions=${gOn.companionActions} (sparrow is 1/action)`);

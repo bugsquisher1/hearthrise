@@ -48,7 +48,7 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=455';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=456';
 
 /* ── THE DORMANT ARM ─────────────────────────────────────────────────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):
@@ -128,6 +128,9 @@ const RESIDUE_SET = new Set(RESIDUE_FIELDS);
    monotonic-ish guard is unnecessary: this is a verbatim store, not a watermark,
    and a stale envelope simply re-supplies the same bag. */
 let serverBag = null;   // null = never received; an object once an envelope arrives.
+/* b455 — has the bag been WRITTEN INTO G this session? The bag itself is
+   refreshed by every envelope; the hydrate happens once. See applyClientState. */
+let hydratedOnce = false;
 
 /** Feed a server envelope (the hr_load / hr-accrue shape) into the store. Only
  *  consulted while ARMED, but always safe to call. A malformed / absent
@@ -158,9 +161,38 @@ export function applyClientState(res, G) {
      reads it), but WRITING into G is observable — so the hydrate is gated on the
      arm, keeping the dormant load path byte-for-byte unchanged even though
      record.js calls this on every load. */
-  if (G && typeof G === 'object' && isClientStateServerBacked()) hydrateInto(G, cs);
+  if (!G || typeof G !== 'object' || !isClientStateServerBacked()) return true;
+  /* ── b455 — HYDRATE **ONCE**. A LOAD IS NOT A RECONCILE. ────────────────────
+     MEASURED LIVE, in a 12-second window mid-fight:
+         start {kills:3756, …}   ← the kill landed instantly
+         +12s  {kills:3755, …}   ← this function put the old number back
+     The residue bag is SELF-ONLY and the CLIENT is its only writer; the server
+     merely stores it and returns whatever was last uploaded, which is by
+     definition BEHIND the live session (the residue rides the save cadence).
+     record.js calls this on every `hr_load`, and processOffline re-runs one on
+     every visibility return / focus — so re-hydrating meant a stale, uploaded
+     copy of the player's own counters overwriting the ones they were watching
+     move. Kills, quest progress, the collection log and the chronicle all
+     rubber-banded backwards.
+
+     There is nothing to reconcile here and no authority to defer to: hydrating
+     is a LOAD, it happens once per session, and after that the live G is the
+     freshest copy in existence. Later envelopes still refresh `serverBag` above
+     (so `clientField` and `isClientStateFromServer` stay current) — only the
+     WRITE into G is once.
+
+     ⚠ The latch is cleared by `__resetClientState`, which is the sign-out /
+       fresh-character seam. A slot switch reloads the page, so a new character
+       always gets its own hydrate. */
+  if (hydratedOnce) return true;
+  hydratedOnce = true;
+  hydrateInto(G, cs);
   return true;
 }
+
+/** Has the residue been written into G this session? Exported so a diagnostic
+ *  (and the guard) can tell "the bag arrived" from "the bag was applied". */
+export function isClientStateHydrated() { return hydratedOnce; }
 
 /** Write the residue bag into G — ALLOWLISTED. Iterates RESIDUE_FIELDS, never the
  *  bag's own key set, so a forged AUTHORITY key in `cs` (gold/skills/inventory/…)
@@ -188,7 +220,7 @@ function hydrateInto(G, cs) {
 }
 
 /** Test / boot seam: forget the server bag (a fresh character, a sign-out). */
-export function __resetClientState() { serverBag = null; }
+export function __resetClientState() { serverBag = null; hydratedOnce = false; }
 
 /* ── THE READ ────────────────────────────────────────────────────────────────
    The ONE accessor every residue read should route through. DORMANT → the blob
@@ -259,6 +291,6 @@ export async function putClientState(patch, opts) {
 if (typeof window !== 'undefined') {
   window.HearthriseClientState = {
     clientField, isClientStateServerBacked, isClientStateFromServer,
-    applyClientState, putClientState,
+    applyClientState, putClientState, isClientStateHydrated,
   };
 }

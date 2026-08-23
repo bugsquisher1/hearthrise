@@ -303,9 +303,11 @@
        When armed + UNKNOWN, skillXpOr returns 0 → levelFromXp → 1 (< targetLevel),
        so the auto-stop stays its hand rather than firing on an un-arrived skill. */
     var SR = window.HearthriseSkillRecord;
-    var xp = (SR && typeof SR.skillXpOr === 'function')
-      ? SR.skillXpOr(window.G, g.skillId, 0)
-      : ((window.G.skills && window.G.skills[g.skillId]) || 0);
+    var xp = (SR && typeof SR.skillXpForDisplayOr === 'function')
+      ? SR.skillXpForDisplayOr(window.G, g.skillId, 0)
+      : ((SR && typeof SR.skillXpOr === 'function')
+        ? SR.skillXpOr(window.G, g.skillId, 0)
+        : ((window.G.skills && window.G.skills[g.skillId]) || 0));
     var lv = (typeof window.levelFromXp === 'function') ? window.levelFromXp(xp) : 1;
     if(lv < g.targetLevel) return false;
     // Goal met. Stop + notify + self-disable.

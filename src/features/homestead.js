@@ -130,6 +130,7 @@
     /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today. */
     var SR = window.HearthriseSkillRecord;
     var srXp = function (id) {
+      if (SR && typeof SR.skillXpForDisplayOr === 'function') return SR.skillXpForDisplayOr(G, id, 0);
       return (SR && typeof SR.skillXpOr === 'function') ? SR.skillXpOr(G, id, 0) : ((G.skills && G.skills[id]) || 0);
     };
     var artisanXp = ['cooking', 'smithing', 'crafting', 'prayer'].some(function (s) { return srXp(s) > 0; });

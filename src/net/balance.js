@@ -68,7 +68,8 @@
 // cannot). Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue } from './record.js?v=455';
+import { isServerOfRecord, recordValue, recordLastKnown, clientMayWrite } from './record.js?v=456';
+import { predictedBalance } from './predict.js?v=456';
 
 /** The fields this module knows are balances. Not a gate — every accessor
  *  works on any field name — but the set the guards sweep and the set a caller
@@ -154,6 +155,87 @@ export function balanceOr(G, field, fallback) {
   return b.known ? b.value : (fallback === undefined ? 0 : fallback);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   THE DISPLAY READ (b455) — SERVER TRUTH **PLUS** THE PREDICTION
+   ══════════════════════════════════════════════════════════════════════════
+
+   `balanceOf` above is the AUTHORITY read and is untouched: it answers what the
+   SERVER said or UNKNOWN, it never adds a client number, and `affordability` /
+   `canAfford` still fail-closed on it. Nothing that spends may use what follows.
+
+   This is what a RENDERER asks, and it differs in exactly the two ways
+   skill-record.js's display side does, for the same measured reasons:
+
+   1. IT ADDS THE PREDICTION, so a looted coin moves the topbar on the kill
+      rather than at the server's next settle (up to 90s away — the accrual
+      engine floors a window at ACCRUE_MIN_MS).
+   2. IT WALKS A LADDER instead of collapsing to UNKNOWN the moment the b347
+      fingerprint stops matching:
+        (a) record KNOWN   → the server's number.
+        (b) field PRESENT  → the local number. Under the arm that is a gold.js
+                             PREDICTION (settleCurrency's optimistic local write),
+                             which is a real, self-retiring value — em-dashing it
+                             for the width of a round trip taught the player their
+                             balance had vanished.
+        (c) present but unreadable → the last figure the server actually stated.
+        (d) ABSENT         → UNKNOWN. The strip state, and the honest answer to
+                             it. Keeping this rung is what keeps the B353-3
+                             `delete G.gold` sweep meaningful.
+
+   The prediction is added on EVERY rung, including (a): that is the whole point.
+   `balanceForDisplay` is the only function in this file that consults it. */
+
+export function balanceForDisplay(G, field) {
+  const f = String(field == null ? '' : field);
+  if (!G || typeof G !== 'object') {
+    return { field: f, known: false, value: null, predicted: 0, rung: 'no-state', source: 'none' };
+  }
+  /* ⚠ THE PREDICTION IS ADDED ONLY WHILE THE CLIENT MAY **NOT** WRITE THE FIELD,
+     and that predicate — not "is it moved" — is the exact one. A prediction only
+     ever EXISTS because a write was refused; if the write gate is open the client
+     has already put the gain into `G[f]` itself, and adding a prediction on top
+     would double-count every coin. Tying the read to the same predicate the write
+     site branches on is what makes "dormant is byte-for-byte unchanged" true
+     rather than merely intended, and it also makes a stale prediction left behind
+     by a mid-session kill-switch flip inert instead of wrong. */
+  const moved = isServerOfRecord(f);
+  const pred = clientMayWrite(f) ? 0 : predictedBalance(G, f);
+  let base = null;
+  let rung = null;
+  if (moved) {
+    const rv = recordValue(G, f);
+    if (rv.known) { base = finiteOrNull(rv.value); if (base !== null) rung = 'server'; }
+  }
+  if (base === null && Object.prototype.hasOwnProperty.call(G, f)) {
+    base = finiteOrNull(G[f]);
+    if (base !== null) rung = moved ? 'local' : 'client-owned';
+    if (base === null) {
+      base = finiteOrNull(recordLastKnown(G, f));
+      if (base !== null) rung = 'last-known';
+    }
+  }
+  if (base === null) {
+    return { field: f, known: false, value: null, predicted: pred, rung: 'unknown', source: 'record' };
+  }
+  /* Clamped at 0 — a prediction may be negative (a spend) and a balance may not. */
+  return { field: f, known: true, value: Math.max(0, Math.floor(base + pred)),
+    predicted: pred, rung, source: rung };
+}
+
+function finiteOrNull(v) {
+  if (v === null || typeof v === 'undefined') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+}
+
+/** The DISPLAY number, or `null` for UNKNOWN. For a renderer that needs the
+ *  figure rather than the string (a progress ring, a bar width). NEVER for a
+ *  spend — that is `canAfford`. */
+export function balanceNumForDisplay(G, field) {
+  const b = balanceForDisplay(G, field);
+  return b.known ? b.value : null;
+}
+
 /* ── THE DISPLAY FORM ──────────────────────────────────────────────────────── */
 
 /**
@@ -172,7 +254,11 @@ export function balanceOr(G, field, fallback) {
  */
 export function fmtBalance(G, field, opts) {
   const o = opts || {};
-  const b = balanceOf(G, field);
+  /* b455: the DISPLAY read — server truth + prediction, with the fallback ladder.
+     Every rendering path in the game funnels through this function, so putting the
+     display contract here rather than at ~40 call sites is what makes "a looted
+     coin moves the topbar immediately" true everywhere at once. */
+  const b = balanceForDisplay(G, field);
   if (!b.known) return o.unknown === undefined ? UNKNOWN_TEXT : String(o.unknown);
   if (typeof o.format === 'function') return String(o.format(b.value));
   return o.compact ? compactNumber(b.value) : b.value.toLocaleString();
@@ -223,7 +309,7 @@ function esc(s) {
  */
 export function balanceMarkup(G, field, opts) {
   const o = opts || {};
-  const b = balanceOf(G, field);
+  const b = balanceForDisplay(G, field);   // b455 — display read (see fmtBalance)
   const cls = o.className ? ' ' + esc(o.className) : '';
   if (!b.known) {
     return '<span class="' + PENDING_CLASS + cls + '" role="status" aria-label="'
@@ -243,7 +329,7 @@ export function balanceMarkup(G, field, opts) {
  */
 export function paintBalance(el, G, field, opts) {
   if (!el || typeof el !== 'object') return el;
-  const b = balanceOf(G, field);
+  const b = balanceForDisplay(G, field);   // b455 — display read (see fmtBalance)
   el.textContent = fmtBalance(G, field, opts);
   if (el.classList && typeof el.classList.toggle === 'function') {
     el.classList.toggle(PENDING_CLASS, !b.known);
@@ -308,6 +394,7 @@ if (typeof window !== 'undefined') {
   window.HearthriseBalance = {
     BALANCE_FIELDS, UNKNOWN_TEXT, UNKNOWN_LABEL, UNKNOWN_HINT, PENDING_CLASS,
     balanceOf, isBalanceKnown, balanceNum, balanceOr,
+    balanceForDisplay, balanceNumForDisplay,
     fmtBalance, compactNumber, balanceMarkup, paintBalance,
     affordability, canAfford, shortfallMessage, balanceState,
   };

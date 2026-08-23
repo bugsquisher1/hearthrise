@@ -41,8 +41,8 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=455';
-import { ITEMS } from '../data/items.js?v=455';
+import { MONSTERS } from '../data/monsters.js?v=456';
+import { ITEMS } from '../data/items.js?v=456';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -129,6 +129,7 @@ const Ledger = (() => {
        Number()s whatever it reads, and G.skills values are raw numbers today. */
     const SR = window.HearthriseSkillRecord;
     COMBAT_XP_SKILLS.forEach((k) => {
+      if (SR && typeof SR.skillXpForDisplayOr === 'function') { t += SR.skillXpForDisplayOr(g, k, 0); return; }
       if (SR && typeof SR.skillXpOr === 'function') { t += SR.skillXpOr(g, k, 0); return; }
       const s = g.skills[k];
       if (typeof s === 'number') t += s;

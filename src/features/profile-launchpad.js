@@ -54,6 +54,7 @@
      the ESM analogue of the b429 legacy skillXp() sweep. See activities-grid.js. */
   function srXpOf(id){
     var SR = window.HearthriseSkillRecord;
+    if (SR && typeof SR.skillXpForDisplayOr === 'function') return SR.skillXpForDisplayOr(window.G, id, 0);
     return (SR && typeof SR.skillXpOr === 'function')
       ? SR.skillXpOr(window.G, id, 0)
       : ((window.G && window.G.skills && (window.G.skills[id] | 0)) || 0);

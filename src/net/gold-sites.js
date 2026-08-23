@@ -350,6 +350,38 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'survives a second device.',
   },
 
+  // ══ THE DISPLAY-PREDICTION LAYER (b455) ═══════════════════════════════════
+  /* These three are the ONLY rows in this ledger that describe gold moving the
+     OTHER way — out of the record and into a display scratch — and the census
+     found all three, which is the guard doing exactly its job. */
+  'src/legacy.js#onLoot': {
+    kind: 'seam', status: 'none',
+    why: 'b455 — THE KILL\'S GOLD, MOVED OFF THE RECORD AND ONTO THE DISPLAY. '
+      + '`resolveKill` in src/core/combat-sim.js writes `state.gold += gp` directly — correct on '
+      + 'the SERVER, where that line IS the credit, and on an ARMED client it trips record.js\'s '
+      + 'b347 fingerprint so the whole economy UI em-dashes until the next settle. This is the '
+      + 'EXACT INVERSE of that write (`G.gold -= gp`, unclamped, on the very next statement the '
+      + 'engine executes) followed by a display prediction. It ADDS no value and REMOVES none: the '
+      + 'net movement of G.gold across a kill is zero and the server\'s number is untouched. '
+      + 'Gated on clientMayWriteRecordField(\'gold\') — with the record dormant it does not run at '
+      + 'all and the kill\'s gold is the plain local credit it has always been.',
+  },
+  'src/net/predict.js#predictionBag': {
+    kind: 'false-positive', status: 'none',
+    why: 'NOT A GOLD WRITE. `G[PRED_KEY] = bag` — the `computed` pattern (F6-3) matches every '
+      + 'computed member write on G, deliberately and by design, so this is the case its own '
+      + 'comment anticipated ("the day somebody needs one it gets a ledger row and a reason"). '
+      + 'PRED_KEY is the literal string \'_pred\': a `_`-prefixed scratch bag that snapshot() '
+      + 'excludes and the capstone residue allowlist does not name. It holds display DELTAS and '
+      + 'is never read by balanceOf, canAfford, or anything that spends.',
+  },
+  'src/net/predict.js#resetPredictions': {
+    kind: 'false-positive', status: 'none',
+    why: 'NOT A GOLD WRITE — the same `G[PRED_KEY] = …` computed member as predictionBag above, '
+      + 'here dropping the whole scratch bag when authority changes hands (a slot switch, a '
+      + 'sign-out, forgetServerOfRecord). It can only ever REMOVE optimism.',
+  },
+
   // ══ THE PAYMENT PATH ITSELF ═══════════════════════════════════════════════
   'src/net/gold.js#settleCurrency': {
     kind: 'seam', status: 'none',

@@ -1310,9 +1310,16 @@ function loadLocal(){
      module has not attached degrades to the classic read rather than throwing,
      and so a stripped-away G.skills (armed) cannot crash the boot the way the
      b353 gold `toLocaleString` cold-load did. */
-  var _hpXp=(window.HearthriseSkillRecord&&typeof window.HearthriseSkillRecord.skillXpOr==='function')
-    ? window.HearthriseSkillRecord.skillXpOr(G,'hitpoints',0)
-    : ((G.skills&&G.skills.hitpoints)||0);
+  /* b455: the DISPLAY read, so a hitpoints level the player has just been shown
+     is the one their max HP reflects. This is a boot-time seed and addXp keeps it
+     in step afterwards (its levelup branch writes G.playerMaxHp); maxHp is not a
+     record field, and the server recomputes its own from its own skills map. */
+  var _SRhp=window.HearthriseSkillRecord;
+  var _hpXp=(_SRhp&&typeof _SRhp.skillXpForDisplayOr==='function')
+    ? _SRhp.skillXpForDisplayOr(G,'hitpoints',0)
+    : ((_SRhp&&typeof _SRhp.skillXpOr==='function')
+      ? _SRhp.skillXpOr(G,'hitpoints',0)
+      : ((G.skills&&G.skills.hitpoints)||0));
   G.playerMaxHp=levelFromXp(_hpXp);
   G.playerHp=Math.min(G.playerHp||G.playerMaxHp,G.playerMaxHp);
   processOffline();
@@ -3047,7 +3054,13 @@ function getArmorSetBonus(){
 window.getArmorSetBonus=getArmorSetBonus;
 function getMonsterCombatRolls(m,eq=getEquipmentStats()){
   const C=window.HearthriseCore;
-  return C.combat.monsterCombatRolls(m,{eq,skills:(G&&G.skills)||{},bonus:C.bonus});
+  /* b455 — the DISPLAY skills map (server truth + prediction). The client's
+     combat roll is a prediction of the server's, so it must be computed against
+     the same numbers the player is being shown: reading the un-predicted server
+     map would leave a freshly-levelled Attack doing its old damage for up to the
+     90s settle. The server recomputes everything from its own record regardless,
+     so nothing here authors an outcome. Dormant this is `G.skills`, unchanged. */
+  return C.combat.monsterCombatRolls(m,{eq,skills:hrDisplaySkills(),bonus:C.bonus});
 }
 function getEquipmentStats(){
   /* ELEMENTS v1 — G.enchant is the 3rd arg so the weapon-slot element rides
@@ -3079,29 +3092,99 @@ function getPreferredSlot(def){
   if(def.slot==='feet')return 'boots';
   return def.slot||(def.type==='weapon'?'weapon':'body');
 }
-/* b429 — the ONE skill-xp read accessor (src/net/skill-record.js), dormant today.
-   While SKILLS_RECORD_ARM_ENABLED is off it returns the raw local value byte-for-
-   byte, so this helper is a faithful NO-OP until the flip. Guarded so a boot where
-   the module has not attached yet degrades to the classic read rather than throwing. */
+/* ── b455 — THE PREDICTION HELPERS (src/net/predict.js), reached through window
+   because legacy.js is a classic script and cannot import. Both are total: with
+   the module absent they degrade to "no prediction", which is exactly the dormant
+   behaviour. */
+function hrPredictXp(sk,gain){
+  var P=window.HearthrisePredict;
+  if(!P||typeof P.predictXp!=='function') return 0;
+  try{ return P.predictXp(G,sk,gain); }catch(e){ return 0; }
+}
+function hrPredictBalance(field,delta){
+  var P=window.HearthrisePredict;
+  if(!P||typeof P.predictBalance!=='function') return 0;
+  try{ return P.predictBalance(G,field,delta); }catch(e){ return 0; }
+}
+/** The DISPLAY answer for one skill: {known,value}. Server truth + prediction,
+ *  with skill-record.js's fallback ladder. */
+function hrSkillXpDisplay(sk){
+  var SR=window.HearthriseSkillRecord;
+  if(SR&&typeof SR.skillXpForDisplay==='function'){
+    try{ return SR.skillXpForDisplay(G,sk); }catch(e){}
+  }
+  var raw=(G.skills&&G.skills[sk])||0;
+  return { id:sk, known:true, value:raw, predicted:0, rung:'local' };
+}
+window.hrPredictXp=hrPredictXp;
+window.hrPredictBalance=hrPredictBalance;
+window.hrSkillXpDisplay=hrSkillXpDisplay;
+
+/* b429 — the ONE skill-xp read accessor (src/net/skill-record.js).
+   b455 — and it is now the DISPLAY read: server truth + the prediction scratch,
+   with the fallback ladder. While the record is dormant it returns the raw local
+   value byte-for-byte (nothing predicts while the write gate is open), so this
+   helper stays a faithful no-op until the flip. Guarded so a boot where the module
+   has not attached yet degrades to the classic read rather than throwing. */
 function skillXp(sk){
   var SR=window.HearthriseSkillRecord;
+  if(SR&&typeof SR.skillXpForDisplayOr==='function') return SR.skillXpForDisplayOr(G,sk,0);
   if(SR&&typeof SR.skillXpOr==='function') return SR.skillXpOr(G,sk,0);
   return (G.skills&&G.skills[sk])||0;
 }
 function getLevel(sk){
   var SR=window.HearthriseSkillRecord;
-  if(SR&&typeof SR.skillLevelOf==='function'){
-    /* dormant → the raw local level (identical to levelOf). armed + UNKNOWN →
-       skillLevelOf returns null; fail-closed to level 1 (the floor), so a gate
-       never opens on an un-arrived skill and no caller does arithmetic on null. */
-    var lv=SR.skillLevelOf(G,sk,levelFromXp);
+  if(SR&&typeof SR.skillLevelForDisplay==='function'){
+    /* b455 — THE DISPLAY LEVEL, AND THE CURE FOR THE LEVEL-1 BOUNCE.
+       This used to call the AUTHORITY accessor (skillLevelOf) and floor an
+       UNKNOWN to 1. Under the arm that made one un-gated `G.skills` write show a
+       level-60 character as level 1 until the next settle — reported live as
+       "my woodcutting exp is bouncing from lvl 5 to lvl 1 over and over again".
+       skillLevelForDisplay answers the server's xp plus the prediction, and falls
+       back to the local/last-known number rather than to UNKNOWN, so the bounce
+       is not reachable. It still returns null when NOTHING has ever arrived (a
+       cold boot before the first envelope) — that genuinely is unknown, and the
+       floor of 1 below is the fail-closed answer to it, unchanged. */
+    var lv=SR.skillLevelForDisplay(G,sk,levelFromXp);
     if(typeof lv==='number'&&Number.isFinite(lv)) return lv;
+    return 1;
+  }
+  if(SR&&typeof SR.skillLevelOf==='function'){
+    var lv2=SR.skillLevelOf(G,sk,levelFromXp);
+    if(typeof lv2==='number'&&Number.isFinite(lv2)) return lv2;
     return 1;
   }
   return window.HearthriseCore.xp.levelOf(G.skills,sk);
 }
-function getTotalLevel(){return window.HearthriseCore.xp.totalLevel(G.skills);}
-function getCombatLevel(){return window.HearthriseCore.xp.combatLevel(G.skills);}
+/* b455 — the ROLLUPS read the display map too. They used to read `G.skills` raw,
+   which under the arm is the server's map with NO prediction folded in: total
+   level and combat level would sit still for 90 seconds while every individual
+   skill tile moved. `skillsForDisplay` is the same ladder, applied to the whole
+   map at once. */
+function hrDisplaySkills(){
+  var SR=window.HearthriseSkillRecord;
+  if(SR&&typeof SR.skillsForDisplay==='function'){
+    try{ return SR.skillsForDisplay(G); }catch(e){}
+  }
+  return G.skills||{};
+}
+window.hrDisplaySkills=hrDisplaySkills;
+/* ⚠ ONE CONSUMER OF THESE TWO IS NOT A RENDERER, AND IT IS WORTH NAMING.
+   `derivedSnapshotFields` (src/net/sync.js) stamps `totalLevel`/`combatLevel`
+   onto the cloud snapshot for the LEADERBOARD — a value that crosses to other
+   players, which prediction may never touch. It is safe TODAY by construction
+   rather than by accident, and the construction is worth writing down because it
+   is two facts in two files:
+     · a prediction only EXISTS while the write gate is closed, i.e. under the
+       record arm (see the `clientMayWrite` gate in skill-record.js's display
+       read — with the switch off, nothing is added and these are raw);
+     · under the arm the save blob is RETIRED and never uploaded (capstone.js),
+       so derivedSnapshotFields does not run at all.
+   The two states are disjoint. If anyone ever disarms blob-retire while leaving
+   the record armed, that disjointness breaks and this pair must be given an
+   authority-only sibling before it does. */
+function getTotalLevel(){return window.HearthriseCore.xp.totalLevel(hrDisplaySkills());}
+function getCombatLevel(){return window.HearthriseCore.xp.combatLevel(hrDisplaySkills());}
 /* PHASE 0 — the randomness SEAM. `rand` used to be Math.random() inline; it is
    now a draw from the session generator in src/core/rng.js. Client behaviour is
    identical (the stream is seeded from Math.random() at boot, so it is uniform
@@ -3701,9 +3784,61 @@ window.HearthrisePresence = {
    calling notify(). What is left here is exactly the leaf: the side effects
    the client owes the player. The server will call the same `grantXp` and put
    the same event in the intent envelope (design §2, §4.3). */
+/* ── b455 — THE DISPLAY-PREDICTION SEAM FOR XP ────────────────────────────────
+   Under the b454 arm `skills` is SERVER-OF-RECORD, so a client write to G.skills
+   is not merely disallowed — it TRIPS record.js's b347 fingerprint, which made
+   `recordValue('skills')` answer UNKNOWN, which made getLevel() floor to 1. That
+   is the live "woodcutting bouncing from lvl 5 to lvl 1 over and over again":
+   every gather tick knocked the record out and every settle put it back.
+
+   So under the arm the grant is computed against a SHADOW state — the display xp
+   (server + everything already predicted) — and the gain is recorded as a
+   PREDICTION instead of being written to G.skills. G.skills therefore stays
+   byte-identical to what applyRecord stamped, the fingerprint keeps matching, and
+   the player still sees the bar move on the tick rather than at the ~90s settle
+   (the server floors an accrual window at ACCRUE_MIN_MS).
+
+   ⚠ THE SHADOW STARTS AT THE **DISPLAY** XP, not at the server's. That is what
+     makes a level-up fire ONCE, at the real boundary: grantXp compares the level
+     before and after against the number the player is actually looking at. Seeding
+     it from the server's un-predicted value would re-fire the same level-up on
+     every tick until the settle caught up.
+
+   ⚠ AND THE SHADOW BANKS NO RESTED CHARGE (`restedXp: 0`). `restedXp` is a moved
+     field too and the client may not spend it; `restedQuantum()` already returns 0
+     under the arm for exactly that reason, so this is belt to that brace and the
+     predicted gain equals the unpredicted one today (rested potency is 0).
+
+   DORMANT (switch off / field un-armed) `clientMayWriteRecordField('skills')` is
+   true and this is byte-for-byte the pre-b455 line. */
 function addXp(sk,amt,opts){
   const C=window.HearthriseCore;
-  const res=C.progression.grantXp(G, sk, amt, C.xpGrantCtx(opts));
+  const _ctx=C.xpGrantCtx(opts);
+  let res;
+  if(clientMayWriteRecordField('skills')){
+    res=C.progression.grantXp(G, sk, amt, _ctx);
+  }else{
+    const _disp=hrSkillXpDisplay(sk);
+    const _shadow={ skills:{}, restedXp:(Number(G.restedXp)||0) };
+    _shadow.skills[sk]=(_disp.known?_disp.value:0);
+    res=C.progression.grantXp(_shadow, sk, amt, _ctx);
+    hrPredictXp(sk, res.gain);
+    /* ── THE RESTED BURN MIRRORS BACK, AND ONLY WHEN ONE HAPPENED ─────────────
+       `grantXp` spends a rested charge out of the state it is handed, so the
+       shadow absorbs it. A charge can only ever burn when the QUANTUM is
+       non-zero, and `restedQuantum()` already returns 0 unless
+       `clientMayWriteRecordField('restedXp')` — so this write is governed by the
+       same predicate one level up and is unreachable while the field is armed.
+       Mirroring it keeps the bank honest on every path that genuinely owns it
+       (dormant, and the published `window.restedQuantum` seam the Tavern/Library
+       integrations substitute) instead of silently making charges immortal. */
+    if(res.rested>0) G.restedXp=_shadow.restedXp;
+    /* NO CELEBRATION OFF AN UNKNOWN BASE. Before the first envelope the display
+       has no number to level FROM, so a grant against a 0 shadow would announce
+       "Level 2" for a level-60 character. The xp is still predicted (the settle
+       will state the truth); only the event is dropped. */
+    if(!_disp.known) res={ ...res, events: [] };
+  }
   /* b269: attribute the equipped pet's real marginal allXP share of this grant
      to the session-impact panel. Honest by construction — pet-session asks the
      power budget what the pet actually bought after the clamp, so a clamped-away
@@ -4946,6 +5081,39 @@ const COMBAT_FX={
     G.combatLog.push(dmg>0?`🩸 ${m.name} hits you for ${dmg}`:`🛡️ ${m.name} misses!`);
   },
   onLoot:function(gp,m,ctx){
+    /* ── b455 — THE KILL'S GOLD IS A PREDICTION, NOT A RECORD WRITE ────────────
+       `resolveKill` in src/core/combat-sim.js does `state.gold = (state.gold||0)
+       + gp` — a DIRECT write to the live `G`, because on the server that same
+       line IS the authoritative credit. On an ARMED client it is the b347 defect
+       in miniature: it moves a stamped field, so `recordValue('gold')` reports
+       `client-overwrote` and every balance render collapses to an em dash and
+       every Buy/Sell control fail-closes, until the next settle re-stamps.
+
+       We cannot gate the write itself without editing src/core (which is packed
+       verbatim into the Edge function and would demand a redeploy for a purely
+       client-side concern — see the note above COMBAT_FX.addItem). So it is
+       UNDONE here, at the very next statement the engine executes after it, and
+       re-recorded as a display prediction. The net effect on what the player sees
+       is identical and instant; the net effect on the record is nil.
+
+       ⚠ RUN FOR THE AWAY PATH TOO, deliberately. Both loops must treat gold the
+         same way or the AWAY-1 seeded-parity property ("a seeded fight is
+         byte-identical live or away") would be false of `G.gold`. Away under the
+         arm is server-computed anyway; the local replay is a display.
+
+       DORMANT: `clientMayWriteRecordField('gold')` is true, none of this runs,
+       and the line below is byte-for-byte the pre-b455 body. */
+    /* ⚠ THE EXACT INVERSE, DELIBERATELY UNCLAMPED. `resolveKill` has just done
+       `state.gold = (state.gold||0) + gp` on this very object, so subtracting the
+       same `gp` restores the byte the record was stamped with — and only an exact
+       inverse does. A `Math.max(0, …)` here would silently absorb the difference
+       whenever the prior balance was below `gp`, leaving G.gold ABOVE the server's
+       number with no way to tell: the fingerprint would stay tripped forever and
+       the topbar would quietly become a client-authored figure. */
+    if(gp&&!clientMayWriteRecordField('gold')){
+      G.gold=(Number(G.gold)||0)-gp;
+      hrPredictBalance('gold',gp);
+    }
     if(ctx.away||!gp||!Array.isArray(G.combatLog))return;
     G.combatLog.push(`💰 Looted ${gp} gold!`);
   },

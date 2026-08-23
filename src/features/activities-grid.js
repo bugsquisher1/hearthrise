@@ -5,9 +5,9 @@
 // Exports: setupActivitiesGrid()
 // Hooks: window.renderSkillsList (filter combat out), window.renderSkillDetail (tile grid)
 
-import { SKILLS_DEF } from '../data/skills.js?v=455';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=455';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=455';
+import { SKILLS_DEF } from '../data/skills.js?v=456';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=456';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=456';
 
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
 
@@ -17,8 +17,18 @@ const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
    a faithful no-op. Once armed, the xp comes from the server record and an un-arrived
    map reads as 0 (the level-1 floor via xpPct/getLevel) rather than a forged local
    number. Guarded so a pre-attach boot degrades to the classic read instead of NaN. */
+/* b455 — AND IT IS THE **DISPLAY** READ NOW (skillXpForDisplayOr): server truth
+   PLUS the prediction scratch (src/net/predict.js), with skill-record.js's
+   fallback ladder. Under the arm the client no longer writes G.skills — the gain
+   is a prediction — so an authority-only read here would leave every XP bar in the
+   game sitting still for the whole ~90s settle window while the player chopped.
+   It is a DISPLAY read and nothing more: the authority accessors are untouched and
+   renown.js (a SCORE that crosses to other players) deliberately still uses them.
+   Falls back to the authority accessor and then to the raw read, so a pre-attach
+   boot still renders. Every sibling helper in features/* is this same swap. */
 function srXpOf(G, id) {
   const SR = window.HearthriseSkillRecord;
+  if (SR && typeof SR.skillXpForDisplayOr === 'function') return SR.skillXpForDisplayOr(G, id, 0);
   return (SR && typeof SR.skillXpOr === 'function')
     ? SR.skillXpOr(G, id, 0)
     : ((G && G.skills && G.skills[id]) || 0);

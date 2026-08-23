@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=455' directly.
+// modularised, will import { G } from '../state/game.js?v=456' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=455';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=455';
+import { on, snapshot } from '../net/events.js?v=456';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=456';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=455';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=456';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -263,6 +263,56 @@ function withFightScreen(fn) {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   b455 — MEASURING A GRANT THE WAY THE ENGINE ACTUALLY PAYS IT
+
+   Under the record arm the client no longer writes `G.skills`: the field belongs
+   to the server, and a grant is a DISPLAY PREDICTION (src/net/predict.js) added
+   on top of it. So the classic measurement —
+
+       G.skills.woodcutting = 0; addXp('woodcutting', n); return G.skills.woodcutting;
+
+   — reads 0 armed, and every pacing/bonus/away test built on it silently stops
+   proving anything. These two helpers are the same reads the GAME uses
+   (`window.skillXp` is the display accessor, byte-identical to the raw read while
+   dormant), so a test written with them is correct in both states and does not
+   have to know which one it is in.
+
+   ⚠ `xpZero` CLEARS THE PREDICTION as well as the field. Zeroing only G.skills
+     would leave an earlier test's outstanding prediction on the display and the
+     next measurement would read a grant it did not make.
+   ══════════════════════════════════════════════════════════════════════════ */
+const xpOf = (sk) => (typeof window.skillXp === 'function'
+  ? window.skillXp(sk)
+  : ((window.G && window.G.skills && window.G.skills[sk]) || 0));
+/** The whole DISPLAY skills map, for the before/after diffs that measure a total
+ *  gain across every skill at once (an away kill pays four of them). */
+const xpMap = () => (typeof window.hrDisplaySkills === 'function'
+  ? window.hrDisplaySkills()
+  : Object.assign({}, (window.G && window.G.skills) || {}));
+const predZero = () => {
+  try {
+    const P = window.HearthrisePredict;
+    if (P && typeof P.resetPredictions === 'function') P.resetPredictions(window.G);
+  } catch (e) {}
+};
+const xpZero = (sk) => {
+  const G = window.G;
+  if (G && G.skills) G.skills[sk] = 0;
+  predZero();
+  return xpOf(sk);
+};
+/** The GOLD twin, for the same reason: a kill's loot is a prediction under the
+ *  arm, so `G.gold` alone no longer measures what the engine paid. */
+const goldOf = () => {
+  const B = window.HearthriseBalance;
+  if (B && typeof B.balanceNumForDisplay === 'function') {
+    const n = B.balanceNumForDisplay(window.G, 'gold');
+    if (typeof n === 'number') return n;
+  }
+  return (window.G && Number(window.G.gold)) || 0;
+};
+
 const snapshotG = () => {
   const G = window.G;
   if (!G) return null;
@@ -397,6 +447,14 @@ const setAway = (hours, nowMs) => {
 const restoreG = (snap) => {
   if (!snap || !window.G) return;
   for (const k of Object.keys(snap)) window.G[k] = snap[k];
+  /* b455 — AND THE DISPLAY PREDICTIONS GO WITH IT. Restoring G.skills/G.gold
+     while leaving an outstanding prediction standing would carry one test's
+     grant into the next test's measurement, which is the hardest kind of suite
+     flake to find (it only appears in a particular ORDER). */
+  try {
+    const P = window.HearthrisePredict;
+    if (P && typeof P.resetPredictions === 'function') P.resetPredictions(window.G);
+  } catch (e) {}
   if (typeof window.stopSkill === 'function' && window.G.activeSkill) try { window.stopSkill(); } catch {}
   if (typeof window.stopCombat === 'function' && window.G.activeMonster) try { window.stopCombat(); } catch {}
 };
@@ -1580,7 +1638,7 @@ const TESTS = [
       // ── CONTROL (pre-arm): the claim pays LOCALLY as a display prediction.
       window.clientMayWriteRecordField = function () { return true; };
       window.G.collectionLog = { claimed: [] };
-      window.G.gold = 0; claimCalls = 0; claimBody = null;
+      predZero(); window.G.gold = 0; claimCalls = 0; claimBody = null;
       const r1 = C.claimMilestone('hunter10');
       assert(r1 && r1.gold === 2000, 'pre-arm claim must return the reward');
       assert(window.G.gold === 2000, 'pre-arm claim renders the reward locally; got ' + window.G.gold);
@@ -1592,7 +1650,7 @@ const TESTS = [
       //    and does NOT write gold locally (the server credited player_state).
       window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };
       window.G.collectionLog = { claimed: [] };
-      window.G.gold = 0; claimCalls = 0; claimBody = null;
+      predZero(); window.G.gold = 0; claimCalls = 0; claimBody = null;
       const r2 = C.claimMilestone('hunter10');
       assert(r2 && r2.gold === 2000, 'armed claim must PROCEED and return the reward (the b411 defer is gone)');
       assert(window.G.gold === 0, 'armed claim must NOT double-pay gold locally (server credits player_state); got ' + window.G.gold);
@@ -1646,7 +1704,7 @@ const TESTS = [
       // ── CONTROL (pre-arm): pays locally as a display prediction.
       window.clientMayWriteRecordField = function () { return true; };
       window.G.renown = { claimed: [], seenRank: 0 };
-      window.G.gold = 0; claimCalls = 0; claimBody = null;
+      predZero(); window.G.gold = 0; claimCalls = 0; claimBody = null;
       const claimables = R.getClaimable(window.G);
       assert(claimables.length > 0, 'high renown should expose claimable ranks');
       const id = claimables[0].id;
@@ -1660,7 +1718,7 @@ const TESTS = [
       // ── ARMED: PROCEEDS, fires the RPC, marks claimed, no local gold double-pay.
       window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };
       window.G.renown = { claimed: [], seenRank: 0 };
-      window.G.gold = 0; claimCalls = 0; claimBody = null;
+      predZero(); window.G.gold = 0; claimCalls = 0; claimBody = null;
       const g2 = R.claimRank(id, window.G);
       assert(g2, 'armed rank claim must PROCEED (the b411 defer is gone)');
       assert(window.G.gold === 0, 'armed claim must NOT double-pay gold locally; got ' + window.G.gold);
@@ -1717,7 +1775,7 @@ const TESTS = [
       window.clientMayWriteRecordField = function () { return true; };
       window.G.muster = { dayKey: null, eventKey: 'ev', slot: null, startMs: 0, endMs: 0,
                           points: 500, pending: 0, rallied: false, claimed: false, server: true };
-      window.G.gold = 0; claimCalls = 0; claimBody = null;
+      predZero(); window.G.gold = 0; claimCalls = 0; claimBody = null;
       const okUnarmed = await M.claim();
       assert(okUnarmed === true, 'pre-arm server claim must succeed');
       assert(claimCalls === 1, 'pre-arm claim must call world_event_claim exactly once; saw ' + claimCalls);
@@ -1729,7 +1787,7 @@ const TESTS = [
       window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };
       window.G.muster = { dayKey: null, eventKey: 'ev', slot: null, startMs: 0, endMs: 0,
                           points: 500, pending: 0, rallied: false, claimed: false, server: true };
-      window.G.gold = 0; claimCalls = 0; claimBody = null;
+      predZero(); window.G.gold = 0; claimCalls = 0; claimBody = null;
       const okArmed = await M.claim();
       assert(okArmed === true, 'armed claim must PROCEED and succeed (the b411 defer is gone)');
       assert(claimCalls === 1, 'armed claim must call world_event_claim; the defer is removed; saw ' + claimCalls);
@@ -1853,7 +1911,7 @@ const TESTS = [
 
       // ── DAILY under arm: proceeds, fires claimDaily, no local gold ──
       window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
-      window.G.gold = 0;
+      predZero(); window.G.gold = 0;
       window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [
         { id: 'daily_kill', type: 'kill_any', label: 'Kill 25', goal: 25, progress: 24, reward: 500, done: false },
       ] };
@@ -1864,7 +1922,7 @@ const TESTS = [
       assert(window.G.gold === 0, 'armed daily must NOT credit gold locally (server credits it); got ' + window.G.gold);
 
       // ── QUEST under arm: proceeds, fires claimQuest, no local gold, item granted ──
-      window.G.gold = 0;
+      predZero(); window.G.gold = 0;
       const q = { id: 'gatherer', type: 'gather', label: 'Gather 15', goal: 15, progress: 15, reward: { gold: 150 }, done: false };
       window.completeQuest(q);
       assert(q.done === true, 'armed quest completion must mark done');
@@ -1874,7 +1932,7 @@ const TESTS = [
       // ── UNARMED control: daily credits gold locally (prediction), still fires the claim ──
       calls.length = 0;
       window.clientMayWriteRecordField = function () { return true; };
-      window.G.gold = 0;
+      predZero(); window.G.gold = 0;
       window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [
         { id: 'daily_kill', type: 'kill_any', label: 'Kill 25', goal: 25, progress: 24, reward: 500, done: false },
       ] };
@@ -2423,7 +2481,7 @@ const TESTS = [
     try {
       window.G.homestead = { tier: 2 };                  // farmstead
       window.G.rooms = { forge: 2 };
-      window.G.gold = 0;
+      predZero(); window.G.gold = 0;
       window.G.inventory = {};
 
       const owned = H.roomDescriptor('forge');
@@ -2495,7 +2553,7 @@ const TESTS = [
         'a maxed room must offer no upgrade button');
 
       // A disabled action always carries a reason (spec §5 rule 5).
-      window.G.gold = 0; window.G.inventory = {};
+      predZero(); window.G.gold = 0; window.G.inventory = {};
       const poor = H.modalDescriptor('forge');
       const acts = poor.sections.find((s) => s.kind === 'actions');
       const up = acts.buttons.find((b) => /^Upgrade|^Build/.test(b.label));
@@ -2621,7 +2679,7 @@ const TESTS = [
 
       /* Two blockers at once must name BOTH — fixing the one you were told
          about only to find the button still dead is the same bug again. */
-      window.G.gold = 0;
+      predZero(); window.G.gold = 0;
       stampBalanceLikeLoad(window.G);   // armed: the shortfall line must read a KNOWN 0, not UNKNOWN
       const both = H.modalDescriptor('kitchen');
       const b2 = both.sections.find((s) => s.kind === 'actions').buttons.find((b) => /^Upgrade/.test(b.label));
@@ -11302,12 +11360,12 @@ const TESTS = [
       // …then the real kill path. A Slime pays 1-3 gold; at +10000% one kill
       // must pay at least 101, which is arithmetically impossible unwired.
       window.getBonus = (k) => (k === 'goldFind' ? 100 : origBonus(k));
-      window.G.gold = 0;
+      predZero(); window.G.gold = 0;
       window.G.activeMonster = 'slime';
       window.G.monsterHp = 0;
       window.killMonster(window.MONSTERS.slime);
-      assert(window.G.gold >= 101,
-        'killMonster ignored goldFind — one Slime paid ' + window.G.gold + ', expected >= 101');
+      assert(goldOf() >= 101,   // b455: display read — under the arm a kill's loot is a prediction
+        'killMonster ignored goldFind — one Slime paid ' + goldOf() + ', expected >= 101');
       assert(window.G.gold <= 303, 'gold overshot the multiplied range: ' + window.G.gold);
       /* Away combat used to be a SEPARATE kill path, so this guard used to
          check that the second one also called applyGoldFind. There is no
@@ -11412,7 +11470,7 @@ const TESTS = [
     try {
       // Level 99 woodcutting so no level-up fires mid-measurement.
       window.G.skills.woodcutting = 12000000;
-      const xpNow = () => window.G.skills.woodcutting;
+      const xpNow = () => xpOf('woodcutting');   // b455: display read (server + prediction)
 
       // Inert: charges banked, but neither road is built, so nothing is spent.
       window.restedQuantum = () => 0;
@@ -12093,7 +12151,7 @@ const TESTS = [
                     upgrades: {}, stores: {}, orders: [] }, 'test-hold');
       assert(window.getBonus('restedXp') === 0, 'restedXp must not be a getBonus key any more');
       assert(UI.restedQuantum() === 0, 'no Tavern must mean no quantum');
-      G.restedXp = 3; G.skills.crafting = 0;
+      G.restedXp = 3; xpZero('crafting');
       window.addXp('crafting', 100);
       assert(G.restedXp === 3, 'a charge must never burn while it is worth nothing');
 
@@ -12107,14 +12165,14 @@ const TESTS = [
       /* The baseline is measured UNDER THE SAME SEAT — the Great Hall's allXP
          differs between tier 2 and tier 5, so an earlier baseline would drift
          the comparison by a point of XP and hide the real question. */
-      G.restedXp = 0; G.skills.crafting = 0;
+      G.restedXp = 0; xpZero('crafting');
       window.addXp('crafting', 100);
-      const plain = G.skills.crafting;
-      G.restedXp = 3; G.skills.crafting = 0;
+      const plain = xpOf('crafting');
+      G.restedXp = 3; xpZero('crafting');
       window.addXp('crafting', 100);
       assert(G.restedXp === 2, 'exactly one charge is spent per XP grant, got bank ' + G.restedXp);
-      assert(G.skills.crafting === plain + 1600,
-        'a rested grant must add exactly the quantum, got ' + (G.skills.crafting - plain));
+      assert(xpOf('crafting') === plain + 1600,
+        'a rested grant must add exactly the quantum, got ' + (xpOf('crafting') - plain));
 
       // A strained hold pours a weaker rest; a dormant one pours none.
       UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'strained',
@@ -14369,7 +14427,7 @@ const TESTS = [
     // grant to a literal: the perk stack (renown allXP, rooms, presence) is a
     // legitimate multiplier on top, and a test that assumed it away would
     // fail the first time a rank was earned mid-suite.
-    const grant = (n) => { G.skills.woodcutting = 0; window.addXp('woodcutting', n); return G.skills.woodcutting; };
+    const grant = (n) => { xpZero('woodcutting'); window.addXp('woodcutting', n); return xpOf('woodcutting'); };
     try {
       G.restedXp = 0;
       G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
@@ -14435,8 +14493,8 @@ const TESTS = [
       G.skills = Object.assign({}, G.skills, { farming: 0, mining: 0 });
       window.addXp('farming', 100000);
       window.addXp('mining', 100000);
-      assert(G.skills.farming > G.skills.mining * 50,
-        'farming must ignore PACE.xp entirely (farming ' + G.skills.farming + ' vs mining ' + G.skills.mining + ')');
+      assert(xpOf('farming') > xpOf('mining') * 50,
+        'farming must ignore PACE.xp entirely (farming ' + xpOf('farming') + ' vs mining ' + xpOf('mining') + ')');
       assert(window.pacedXp('farming', 500) === 500, 'pacedXp must pass farming through untouched');
       assert(window.pacedXp('mining', 500) === 5, 'but every other skill goes through the dial');
       // Growth is wall-clock, so the ×14 has to live in the crop data.
@@ -14733,10 +14791,10 @@ const TESTS = [
          (wrapped) addXp — the property a pure-core test cannot make. */
       G.skills = Object.assign({}, G.skills, { strength: 0, attack: 0 });
       G.activeMonster = 'goblin';
-      const before = G.skills.strength || 0;
-      const beforeAtk = G.skills.attack || 0;
+      const before = xpOf('strength');
+      const beforeAtk = xpOf('attack');
       window.killMonster(window.MONSTERS.goblin);
-      assert((G.skills.strength || 0) > before, 'an Aggressive kill paid no Strength XP');
+      assert(xpOf('strength') > before, 'an Aggressive kill paid no Strength XP');
       assert((G.skills.attack || 0) === beforeAtk, 'an Aggressive kill must not pay Attack XP');
     } finally {
       restoreG(snap);
@@ -14809,7 +14867,7 @@ const TESTS = [
       // would make the test's meaning drift with the wall clock.
       E._force({ daily: E.QUIET, weekly: E.QUIET });
 
-      const grant = () => { G.skills.woodcutting = 0; window.addXp('woodcutting', 10000); return G.skills.woodcutting; };
+      const grant = () => { xpZero('woodcutting'); window.addXp('woodcutting', 10000); return xpOf('woodcutting'); };
       G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
 
       NS.setMode('offline');
@@ -14905,7 +14963,7 @@ const TESTS = [
         weekly: E.QUIET,
       });
       G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
-      const grant = () => { G.skills.woodcutting = 0; window.addXp('woodcutting', 10000); return G.skills.woodcutting; };
+      const grant = () => { xpZero('woodcutting'); window.addXp('woodcutting', 10000); return xpOf('woodcutting'); };
       const visible = grant();
       const visibleMs = window.activityIntervalMs();
 
@@ -16172,12 +16230,12 @@ const TESTS = [
       G.activeMonster = null; G.activeArtisanRecipe = null;
       G.activeSkill = 'woodcutting'; G.skillTargetId = tree.id;
       G.inventory = Object.assign({}, G.inventory);
-      const beforeXp = G.skills.woodcutting;
+      const beforeXp = xpOf('woodcutting');
       const now = Date.now();
       G.lastSeen = now - 3600000;                                           // away 1 hour
       G.offlineBudget = { dayKey:0, usedMs:0, at: now - 3600000 };
       window.processOffline();
-      assert(G.skills.woodcutting > beforeXp, 'offline woodcutting gained no XP (' + (G.skills.woodcutting - beforeXp) + ')');
+      assert(xpOf('woodcutting') > beforeXp, 'offline woodcutting gained no XP (' + (xpOf('woodcutting') - beforeXp) + ')');
     } finally {
       if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try{ delete document.hidden; }catch(e){} }
       Object.assign(G, save);
@@ -16203,12 +16261,12 @@ const TESTS = [
       // Stock the recipe's inputs generously (shape: {input:'shrimp'} → qty 1 each).
       G.inventory = Object.assign({}, G.inventory);
       if(rec.input) G.inventory[rec.input] = (G.inventory[rec.input] || 0) + 100000;
-      const beforeXp = G.skills.cooking;
+      const beforeXp = xpOf('cooking');
       const now = Date.now();
       G.lastSeen = now - 3600000;
       G.offlineBudget = { dayKey:0, usedMs:0, at: now - 3600000 };
       window.processOffline();
-      assert(G.skills.cooking > beforeXp, 'offline cooking gained no XP (' + (G.skills.cooking - beforeXp) + ')');
+      assert(xpOf('cooking') > beforeXp, 'offline cooking gained no XP (' + (xpOf('cooking') - beforeXp) + ')');
     } finally {
       if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try{ delete document.hidden; }catch(e){} }
       Object.assign(G, save);
@@ -16902,12 +16960,12 @@ const TESTS = [
       const G = window.G;
       G.inventory = Object.assign({}, G.inventory, { bones: 20 });
       G.skills = Object.assign({}, G.skills, { prayer: 0 });
-      const p0 = G.skills.prayer || 0;
+      const p0 = xpOf('prayer');
       // Plain bury (no qty) buries the WHOLE stack.
       const n = window.buryBones('bones');
       assert(n === 20, 'a plain Bury must bury the whole stack, buried ' + n);
       assert((G.inventory.bones || 0) === 0, 'the stack must be emptied, left ' + G.inventory.bones);
-      assert((G.skills.prayer || 0) > p0, 'prayer XP must be awarded for the buried bones');
+      assert(xpOf('prayer') > p0, 'prayer XP must be awarded for the buried bones');
       // An explicit quantity buries exactly that many (the slider path).
       G.inventory.bones = 10;
       const n2 = window.buryBones('bones', 3);
@@ -19363,11 +19421,11 @@ const TESTS = [
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.restedXp = 0;
       G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
       const xpAt = (key, v) => withKey(key, v, () => {
-        G.skills.woodcutting = 0; window.addXp('woodcutting', 10000); return G.skills.woodcutting;
+        xpZero('woodcutting'); window.addXp('woodcutting', 10000); return xpOf('woodcutting');
       });
       assert(xpAt('allXP', 0.15) > xpAt('allXP', 0), 'allXP must raise an XP grant');
       const cbAt = (v) => withKey('combatXP', v, () => {
-        G.skills.attack = 0; window.addXp('attack', 10000); return G.skills.attack;
+        xpZero('attack'); window.addXp('attack', 10000); return xpOf('attack');
       });
       assert(cbAt(0.20) > cbAt(0), 'combatXP must raise a combat XP grant');
 
@@ -19791,7 +19849,7 @@ const TESTS = [
       G.activeSkill = 'woodcutting'; G.skillTargetId = tree.id;
       const r = window.actionRate('woodcutting', tree);
       window.doSkillAction(true);
-      const granted = G.skills.woodcutting;
+      const granted = xpOf('woodcutting');
       assert(granted === r.xpPerAction,
         'the quoted per-action XP (' + r.xpPerAction + ') must be what a real action grants (' + granted + ')');
       assert(Math.abs(r.xpPerHour - Math.floor(3600000 / r.ms * r.xpPerAction)) <= 1,
@@ -21043,9 +21101,10 @@ const TESTS = [
       window.getBonus = (k) => (k === 'combatXP' ? 1 : 0);   // +100%, so the delta is unmissable
       const measure = (sk) => {
         window.G.skills[sk] = 12000000;                      // 99, so no level-up fires
-        const before = window.G.skills[sk];
+        predZero();                                          // b455: drop any standing prediction
+        const before = xpOf(sk);
         window.addXp(sk, 1000, { authored: true });
-        return window.G.skills[sk] - before;
+        return xpOf(sk) - before;
       };
       const sword = measure('attack');
       ['ranged', 'magic'].forEach((sk) => {
@@ -22197,7 +22256,7 @@ const TESTS = [
            Resetting makes it a STRONGER assertion — the quest payout must land
            identically through both paths. */
         G.quests = [];
-        const xpBefore = Object.assign({}, G.skills);
+        const xpBefore = xpMap();
         C.reseed(0xC0FFEE);
         const body = () => {
           const ctx = window.HearthriseCombatSim.ctx();
@@ -22249,9 +22308,10 @@ const TESTS = [
       G.monsterHp = 1; G.monsterMaxHp = m.hp;
       G.playerMaxHp = 60; G.playerHp = 60;
       G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, hitpoints: 0, defense: 0 });
-      const before = Object.assign({}, G.skills);
+      const before = xpMap();
       P._withOfflineReplay(() => { window.killMonster(m); });
-      const gained = Object.keys(G.skills).reduce((s, k) => s + Math.max(0, (G.skills[k] || 0) - (before[k] || 0)), 0);
+      const after = xpMap();
+      const gained = Object.keys(after).reduce((s, k) => s + Math.max(0, (after[k] || 0) - (before[k] || 0)), 0);
       /* PACE.xp scales the grant, so the assertion is derived from the dial
          rather than pinned to a number that will rot at the next re-anchor. */
       const expectFloor = Math.max(1, Math.floor(C.pacing.pacedXp('attack', m.xp)));
@@ -22375,11 +22435,12 @@ const TESTS = [
         G.monsterHp = 1; G.monsterMaxHp = m.hp;
         G.playerHp = 500; G.playerMaxHp = 500;
         G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, hitpoints: 0, defense: 0, magic: 0, ranged: 0 });
-        const before = Object.assign({}, G.skills);
+        const before = xpMap();
         C.reseed(1234);
         const body = () => window.killMonster(m);
         if (away) P._withOfflineReplay(body); else body();
-        return Object.keys(G.skills).reduce((s, k) => s + Math.max(0, (G.skills[k] || 0) - (before[k] || 0)), 0);
+        const after = xpMap();
+        return Object.keys(after).reduce((s, k) => s + Math.max(0, (after[k] || 0) - (before[k] || 0)), 0);
       };
       const awayXp = xpOf(true);
       const liveXp = xpOf(false);
@@ -27532,6 +27593,182 @@ const TESTS = [
       G.skills = savedSkills; G._record = savedRec;
     }
   }),
+  /* ══════════════════════════════════════════════════════════════════════════
+     B455-1 — THE INSTANT-DISPLAY SEAM, THROUGH THE REAL ENGINE.
+
+     tests/predict-display.mjs proves the MODULES (predict/record/skill-record/
+     balance). This proves the WIRING those modules are useless without: that
+     legacy.js's `addXp` — the single choke point every fx.addXp in src/core
+     routes through — actually takes the prediction branch under the arm, and
+     that `getLevel`/`skillXp` actually read the display side.
+
+     THE TWO LIVE REPORTS THIS ENCODES:
+       · "it all needs to be instant, drops, kills, exp, everything."
+       · "my woodcutting exp is bouncing from lvl 5 to lvl 1 over and over."
+
+     MUTATION: revert addXp's `clientMayWriteRecordField('skills')` branch → the
+     record-unchanged assertion goes red (G.skills moved) AND the fingerprint
+     assertion goes red. Revert getLevel to skillLevelOf → the bounce assertion
+     goes red (level 1). Drop clearPredictionsFor from applyRecord → the
+     no-double-count assertion goes red. */
+  () => tryRun('B455-1: ARMED, a grant is INSTANT on the display and leaves the record byte-unchanged', () => {
+    const R = window.HearthriseRecord, A = window.HearthriseAccrual, P = window.HearthrisePredict;
+    if (!R || !A || !P) return;   // modules not attached (a stripped harness) — nothing to prove
+    const G = window.G;
+    const wasA = A.isServerAccrualEnabled();
+    const savedSkills = G.skills, savedRec = G._record, savedPred = G._pred, savedHp = G.playerMaxHp;
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);
+      R.__setSkillsRecordArm(true);
+      assert(window.clientMayWriteRecordField('skills') === false,
+        'ARMED SETUP: the skills write gate is open, so addXp would never take the prediction branch '
+        + 'and everything below would pass vacuously.');
+      P.resetPredictions(G);
+      delete G._record;
+      /* A real envelope, applied by the real applyRecord — so the fingerprint
+         under test is the one the live path stamps, not one this test invented. */
+      const now = new Date().toISOString();
+      const env = { ok: true, version: 900001, now,
+        state: { accrued_to: now, gold: 5000, gems: 0, marks: 0, rested_xp: 0, rested_at: now },
+        skills: { woodcutting: 50000, hitpoints: 50000 }, equipment: {}, progress: [] };
+      R.applyRecord(G, env);
+      assert(R.recordValue(G, 'skills').known === true, 'SETUP: the record did not stamp skills');
+
+      const stamped = JSON.stringify(G.skills);
+      const lvBefore = window.getLevel('woodcutting');
+      const xpBefore = window.skillXp('woodcutting');
+
+      window.addXp('woodcutting', 40, { authored: true });
+
+      /* THE GAIN IS NOT ASSERTED AGAINST A LITERAL. The perk stack (renown allXP,
+         rooms, a companion) is a legitimate multiplier on top of an authored
+         grant, so a test that expected exactly 40 would fail the first time a
+         rank was earned mid-suite — the same reasoning the b226 pacing tests
+         already state. What is asserted is the RELATIONSHIP: whatever the engine
+         paid, all of it landed in the prediction and none of it in the record. */
+      const gain = P.predictedXp(G, 'woodcutting');
+      assert(JSON.stringify(G.skills) === stamped,
+        'ARMED: addXp WROTE G.skills. Under the arm that trips the b347 fingerprint and every skill '
+        + 'collapses to level 1 until the next settle — the live bounce. Got ' + JSON.stringify(G.skills));
+      assert(R.recordValue(G, 'skills').known === true,
+        'ARMED: the record stopped vouching for skills after a grant — something moved a stamped field.');
+      assert(gain > 0,
+        'ARMED: the grant was not recorded as a prediction at all — the player would see nothing '
+        + 'happen until the next settle.');
+      assert(window.skillXp('woodcutting') === xpBefore + gain,
+        'INSTANT: the displayed xp did not move by the predicted gain (' + window.skillXp('woodcutting')
+        + ' vs ' + (xpBefore + gain) + '). This IS "nothing happens for 90 seconds".');
+      assert(window.getLevel('woodcutting') >= lvBefore,
+        'INSTANT: the displayed level went BACKWARDS after a grant.');
+
+      /* THE SETTLE. The server restates the truth INCLUDING that grant, with a
+         watermark that covers it (`accrued_to === now`), so the prediction must
+         retire — and the display must not double-count it. */
+      const env2 = { ok: true, version: 900002, now,
+        state: { accrued_to: now, gold: 5000, gems: 0, marks: 0, rested_xp: 0, rested_at: now },
+        skills: { woodcutting: 50000 + gain, hitpoints: 50000 }, equipment: {}, progress: [] };
+      R.applyRecord(G, env2);
+      assert(P.predictedXp(G, 'woodcutting') === 0,
+        'RECONCILE: a prediction the envelope\'s watermark COVERS survived it — the next render '
+        + 'double-counts the grant, and every settle after that adds another copy.');
+      assert(window.skillXp('woodcutting') === 50000 + gain,
+        'RECONCILE: the display DOUBLE-COUNTED the settled grant (' + window.skillXp('woodcutting')
+        + ' vs ' + (50000 + gain) + ').');
+
+      /* ── THE ANTI-REWIND, THROUGH THE ENGINE ────────────────────────────────
+         A grant made AFTER the window an envelope settles must SURVIVE it. This
+         is the live "gold 501 → 500, atkXp 5 → 1" rewind, reproduced at the seam
+         it happened at: the server settles a lagging window and must not be
+         allowed to delete what the player has already watched land. */
+      const shown = window.skillXp('woodcutting');
+      window.addXp('woodcutting', 40, { authored: true });
+      const shownAfterGrant = window.skillXp('woodcutting');
+      assert(shownAfterGrant > shown, 'ANTI-REWIND SETUP: the second grant did not show');
+      /* An envelope that has settled only up to 60 seconds ago — i.e. before that
+         grant existed — and therefore restates the OLD number. */
+      const lagged = { ok: true, version: 900003, now,
+        state: { accrued_to: new Date(Date.parse(now) - 60000).toISOString(),
+          gold: 5000, gems: 0, marks: 0, rested_xp: 0, rested_at: now },
+        skills: { woodcutting: 50000 + gain, hitpoints: 50000 }, equipment: {}, progress: [] };
+      R.applyRecord(G, lagged);
+      assert(window.skillXp('woodcutting') === shownAfterGrant,
+        'ANTI-REWIND: a settle whose watermark PREDATES the grant rewound the display ('
+        + shownAfterGrant + ' → ' + window.skillXp('woodcutting') + '). The envelope says nothing '
+        + 'about that grant; deleting it is taking back progress the player watched happen.');
+    } finally {
+      R.__setSkillsRecordArm(null);
+      if (!wasA) A.setServerAccrualEnabled(false);
+      try { P.resetPredictions(G); } catch (e) {}
+      G.skills = savedSkills; G._record = savedRec; G.playerMaxHp = savedHp;
+      if (savedPred === undefined) { try { delete G._pred; } catch (e) {} } else { G._pred = savedPred; }
+    }
+  }),
+
+  /* B455-2 — THE BOUNCE IS UNREACHABLE, AND THE KILL'S GOLD IS A PREDICTION.
+     Half one reproduces the live defect at the seam it happened at (a direct
+     G.skills write while armed) and asserts the DISPLAY survives it. Half two
+     covers the one XP-adjacent write that does NOT go through addXp: core's
+     `resolveKill` writes `state.gold` directly, so COMBAT_FX.onLoot has to undo
+     it into the prediction or every kill em-dashes the whole economy UI. */
+  () => tryRun('B455-2: a stray stamped-field write cannot bounce the display to level 1, and a kill\'s gold is a prediction', () => {
+    const R = window.HearthriseRecord, A = window.HearthriseAccrual, P = window.HearthrisePredict;
+    const B = window.HearthriseBalance, CS = window.HearthriseCombatSim;
+    if (!R || !A || !P || !B) return;
+    const G = window.G;
+    const wasA = A.isServerAccrualEnabled();
+    const savedSkills = G.skills, savedRec = G._record, savedPred = G._pred, savedGold = G.gold;
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);
+      R.__setSkillsRecordArm(true);
+      P.resetPredictions(G);
+      delete G._record;
+      const now = new Date().toISOString();
+      R.applyRecord(G, { ok: true, version: 900010, now,
+        state: { accrued_to: now, gold: 5000, gems: 0, marks: 0, rested_xp: 0, rested_at: now },
+        skills: { woodcutting: 50000 }, equipment: {}, progress: [] });
+
+      /* (1) THE BOUNCE. A writer this sweep did not find. */
+      G.skills.woodcutting += 1000;
+      assert(R.recordValue(G, 'skills').known === false,
+        'the b347 fingerprint did not notice a direct G.skills write — the authority model rests on it');
+      const lv = window.getLevel('woodcutting');
+      assert(lv !== 1,
+        'BOUNCE: getLevel collapsed to 1 after a stray G.skills write. That is exactly '
+        + '"my woodcutting exp is bouncing from lvl 5 to lvl 1 over and over again".');
+      assert(lv === window.HearthriseCore.xp.levelFromXp(51000),
+        'BOUNCE: the display did not fall back to the local optimistic value (got level ' + lv + ')');
+
+      /* (2) THE KILL'S GOLD. Drive the REAL fx the combat sim calls. */
+      if (CS && CS.fx && typeof CS.fx.onLoot === 'function') {
+        R.applyRecord(G, { ok: true, version: 900011, now,
+          state: { accrued_to: now, gold: 5000, gems: 0, marks: 0, rested_xp: 0, rested_at: now },
+          skills: { woodcutting: 50000 }, equipment: {}, progress: [] });
+        P.resetPredictions(G);
+        const goldStamped = G.gold;
+        /* Exactly what src/core/combat-sim.js resolveKill does, in order. */
+        G.gold = (G.gold || 0) + 17;
+        CS.fx.onLoot(17, { name: 'Test Slime' }, { away: false });
+        assert(G.gold === goldStamped,
+          'KILL GOLD: G.gold moved. Under the arm that trips the fingerprint and the topbar em-dashes '
+          + 'while every Buy/Sell control fail-closes. Got ' + G.gold + ' vs ' + goldStamped);
+        assert(R.recordValue(G, 'gold').known === true,
+          'KILL GOLD: the record stopped vouching for gold after a kill.');
+        assert(P.predictedBalance(G, 'gold') === 17,
+          'KILL GOLD: the loot was not recorded as a prediction.');
+        assert(B.fmtBalance(G, 'gold') === (goldStamped + 17).toLocaleString(),
+          'KILL GOLD: the displayed balance did not move on the kill (got ' + B.fmtBalance(G, 'gold') + ').');
+        assert(B.balanceOf(G, 'gold').value === goldStamped,
+          'KILL GOLD: the AUTHORITY balance followed the prediction — a prediction may never be spendable.');
+      }
+    } finally {
+      R.__setSkillsRecordArm(null);
+      if (!wasA) A.setServerAccrualEnabled(false);
+      try { P.resetPredictions(G); } catch (e) {}
+      G.skills = savedSkills; G._record = savedRec; G.gold = savedGold;
+      if (savedPred === undefined) { try { delete G._pred; } catch (e) {} } else { G._pred = savedPred; }
+    }
+  }),
+
   /* B431-1 — THE features/* READ-SITE SWEEP (the second stage of the client
      skill-xp read surface; b429 did legacy.js). activities-grid / character-page /
      profile-launchpad / renown / chronicle / auto-actions / combat-screens /
@@ -27835,7 +28072,7 @@ const TESTS = [
       G.activeMonster = null; G.activeArtisanRecipe = null;
       G.activeSkill = 'woodcutting'; G.skillTargetId = tree.id;
       G.inventory = Object.assign({}, G.inventory);
-      const beforeXp = G.skills.woodcutting;
+      const beforeXp = xpOf('woodcutting');
       const now = Date.now();
       G.lastSeen = now - 3600000;
       G.offlineBudget = { at: now - 3600000 };
@@ -28381,7 +28618,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=455');
+    const KIT = await import('../data/start-kit.js?v=456');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -33401,13 +33638,13 @@ const TESTS = [
         const style = window.getActiveCombatStyle();
         const route = window.HearthriseCore.styles.killXpRoute(style, def.reward.combatXp, 1);
         assert(route.length > 0, 'the style must route the reward somewhere');
-        const before = {}; route.forEach((r) => { before[r.skill] = G.skills[r.skill] || 0; });
+        const before = {}; route.forEach((r) => { before[r.skill] = xpOf(r.skill); });
         G.stats.kills = 100;
         window.updateQuest('kill_any', 1);
         const done = G.quests.find((x) => x.id === ID);
         assert(done.done === true, 'the quest did not complete at 100 kills');
         route.forEach((r) => {
-          const gained = (G.skills[r.skill] || 0) - before[r.skill];
+          const gained = xpOf(r.skill) - before[r.skill];
           /* AUTHORED means PACE.xp does not scale it: 1,500 pays 1,500, not
              1,500 x 0.39. pacing-overhaul.md §4.5 lists quest payouts as
              authored, explicitly not rates. */
@@ -33416,11 +33653,11 @@ const TESTS = [
             + Math.max(1, Math.floor(r.amount)) + ' — PACE.xp must not scale a quest payout');
         });
         /* ONCE. Another 500 kills pays nothing more. */
-        const after = {}; route.forEach((r) => { after[r.skill] = G.skills[r.skill] || 0; });
+        const after = {}; route.forEach((r) => { after[r.skill] = xpOf(r.skill); });
         G.stats.kills += 500;
         window.updateQuest('kill_any', 1);
         route.forEach((r) => {
-          assert((G.skills[r.skill] || 0) === after[r.skill], 'the milestone paid twice on ' + r.skill);
+          assert(xpOf(r.skill) === after[r.skill], 'the milestone paid twice on ' + r.skill);
         });
 
         /* (4) THE RENAME IS A MIGRATION, NOT A NEW QUEST. Every live beta save
@@ -33430,7 +33667,7 @@ const TESTS = [
            MUTATION PROVEN: empty `QUEST_ID_RENAMES` and the first assertion
            fails on a duplicated row; drop the `done`/`progress` carry-over in
            `migrateQuestIds` and the pay-again assertion fails. */
-        const paid = {}; route.forEach((r) => { paid[r.skill] = G.skills[r.skill] || 0; });
+        const paid = {}; route.forEach((r) => { paid[r.skill] = xpOf(r.skill); });
         G.quests = [
           { id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true },
           { id: 'field_licence', type: 'kill_any', mirror: 'stats.kills', label: 'Field Licence — defeat 100 monsters',
@@ -33445,9 +33682,9 @@ const TESTS = [
           + 'the player keeps reading the retired label');
         assert(rows[0].done === true, 'a completed milestone came back unfinished through the rename');
         route.forEach((r) => {
-          assert((G.skills[r.skill] || 0) === paid[r.skill],
+          assert(xpOf(r.skill) === paid[r.skill],
             'the rename re-granted the milestone on ' + r.skill + ': +'
-            + ((G.skills[r.skill] || 0) - paid[r.skill]) + ' XP');
+            + (xpOf(r.skill) - paid[r.skill]) + ' XP');
         });
 
         /* An IN-FLIGHT row keeps its place too, and is still payable. */
@@ -34141,7 +34378,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=455');
+    const S = await import('../data/shops.js?v=456');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -34823,9 +35060,10 @@ const TESTS = [
          BANK, not a rate, so it is emptied for the measurement. */
       G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
       const restedSave = G.restedXp; G.restedXp = 0;
-      const beforeXp = G.skills.woodcutting || 0;
+      predZero();                                   // b455: no standing prediction may inflate the measurement
+      const beforeXp = xpOf('woodcutting');
       window.addXp('woodcutting', tree.xp);
-      const paid = (G.skills.woodcutting || 0) - beforeXp;
+      const paid = xpOf('woodcutting') - beforeXp;
       G.restedXp = restedSave;
       assert(paid === rate.xpPerAction,
         'the HEADER\'s calculator disagrees with the engine (' + rate.xpPerAction + ' vs ' + paid + ') — '
@@ -34898,10 +35136,11 @@ const TESTS = [
       assert(cook, 'cook_shrimp must exist');
       const cRate = window.actionRate('cooking', cook);
       G.skills = Object.assign({}, G.skills, { cooking: 0 });
-      const cBefore = G.skills.cooking || 0;
+      predZero();                                   // b455: no standing prediction may inflate the measurement
+      const cBefore = xpOf('cooking');
       const cRested = G.restedXp; G.restedXp = 0;
       window.addXp('cooking', cook.xp);
-      const cPaid = (G.skills.cooking || 0) - cBefore;
+      const cPaid = xpOf('cooking') - cBefore;
       G.restedXp = cRested;
       assert(cPaid === cRate.xpPerAction,
         'actionRate disagrees with the engine for cooking: ' + cRate.xpPerAction + ' vs ' + cPaid);
@@ -35536,7 +35775,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=455');
+    const S = await import('../data/shops.js?v=456');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -35670,7 +35909,7 @@ const TESTS = [
       assert((window.G.rooms || {}).kitchen === 1, 'clicking Build in the bar did not build the room');
 
       // Unaffordable: still pinned, still priced, and it NAMES what is short.
-      window.G.gold = 0; stampBalanceLikeLoad(window.G); window.G.inventory = {};
+      predZero(); window.G.gold = 0; stampBalanceLikeLoad(window.G); window.G.inventory = {};
       RM.refresh();
       seen = above('homestead kitchen, unaffordable');
       assert(seen.btn.disabled, 'an unaffordable rung must be disabled');
@@ -37187,11 +37426,13 @@ const TESTS = [
         const m = window.MONSTERS.goblin; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
         G.playerMaxHp = 60; G.playerHp = 60; G.gold = 0; G.inventory = {};
         G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 }); G.quests = [];
-        const before = Object.assign({}, G.skills);
+        predZero();
+        const before = xpMap();
         C.reseed(0xC0FFEE);
         const body = () => { const ctx = window.HearthriseCombatSim.ctx(); for (let i = 0; i < 240; i++) { if (!G.activeMonster) break; C.combatSim.simulateTick(G, ctx); } };
         if (away) P._withOfflineReplay(body); else body();
-        const xp = {}; Object.keys(G.skills).forEach((k) => { const d = (G.skills[k] || 0) - (before[k] || 0); if (d) xp[k] = d; });
+        const nowMap = xpMap();
+        const xp = {}; Object.keys(nowMap).forEach((k) => { const d = (nowMap[k] || 0) - (before[k] || 0); if (d) xp[k] = d; });
         return { gold: G.gold, kills: G.stats.kills, xp, inv: Object.assign({}, G.inventory) };
       };
       const live = run(false); const away = run(true);
@@ -39105,7 +39346,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=455')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=456')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -40543,7 +40784,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=455');
+    const A = await import('../net/accrue.js?v=456');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -40567,7 +40808,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=455');
+    const A = await import('../net/accrue.js?v=456');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

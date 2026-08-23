@@ -103,16 +103,16 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm } from './accrue.js?v=455';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm } from './accrue.js?v=456';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=455';
+import { applyClientState } from './client-state.js?v=456';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { clearPredictionsFor, resetPredictions } from './predict.js?v=455';
+import { coverageBoundary, retirePredictions, resetPredictions } from './predict.js?v=456';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -1051,15 +1051,37 @@ export function applyRecord(G, res) {
     stamp,
     last: lastBase,
   };
-  /* ── RETIRE THE PREDICTIONS THIS ENVELOPE ALREADY CONTAINS (b455) ──────────
-     The same rule gold.js's reconcilePredictions follows, applied at the record
-     seam: a field the server has just restated ABSOLUTELY includes every action
-     the client predicted for it, so carrying the prediction on top would
-     double-count. ONLY the fields actually WRITTEN — a lean envelope that
-     supplied no `skills` must not clear xp a live tick has predicted since, or
-     the display would drop progress the server has not yet stated. */
+  /* ── RETIRE THE PREDICTIONS THIS ENVELOPE HAS ALREADY INCORPORATED (b455) ──
+     The same rule gold.js's `reconcilePredictions` follows — retire what the
+     server's number provably contains, CARRY what it cannot describe — applied at
+     the record seam, where the "what it contains" question is answered by a
+     watermark rather than by an intent key.
+
+     ⚠ THIS IS NOT "the envelope landed, so drop everything". That version was
+       measured live and it REWINDS the player:
+           start {kills:3756, gold:501, atkXp:5}   ← the kill landed instantly
+           +12s  {kills:3755, gold:500, atkXp:1}   ← the settle took it away
+       The server settles a LAGGING window; its envelope is authoritative up to
+       `state.accrued_to` and says nothing at all about the seconds since. A
+       prediction made after that instant is not contradicted by this envelope —
+       it is simply not in it yet — and dropping it deletes progress the player
+       has already watched happen.
+
+     `coverageBoundary` turns the envelope's watermark into an instant in THIS
+     client's clock without ever comparing the two clocks (see its header), and
+     `retirePredictions` drops exactly the entries at or before it. What survives
+     stays on the display, on top of the new server value, so the sum is
+     unchanged across the settle and the number never moves backwards.
+
+     ONLY the fields actually WRITTEN — a lean envelope that supplied no `skills`
+     has stated nothing about xp and must retire none of it. */
   let retired = null;
-  try { retired = clearPredictionsFor(G, written); } catch (e) {}
+  try {
+    const nowMs = Date.now();
+    const cover = coverageBoundary(res, nowMs);
+    retired = retirePredictions(G, written, cover.at, nowMs);
+    if (retired) retired.coverage = cover;
+  } catch (e) {}
   return { written, missing: dec.missing, version, filledStale: stale, retired };
 }
 

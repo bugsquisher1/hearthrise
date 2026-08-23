@@ -8,28 +8,33 @@
 // applyRecord wrote, and `recordValue` answers `known:false` the moment anything
 // else moves the field.
 //
-// That is correct, and under the arm it produced a live, founder-reported defect:
+// That is correct, and under the arm it produced two live, founder-reported
+// defects that are the same defect seen from two sides:
 //
-//     "my woodcutting exp is bouncing from lvl 5 to lvl 1 over and over again"
+//   1. THE COLLAPSE — "my woodcutting exp is bouncing from lvl 5 to lvl 1 over
+//      and over again". A gather tick wrote G.skills, the fingerprint tripped,
+//      `recordValue` said UNKNOWN, and legacy `getLevel()` floored to 1 until the
+//      next settle put it back.
 //
-// The cycle, measured (tests/predict-display.mjs reproduces it):
-//     envelope lands  → applyRecord stamps G.skills   → display Lv 5
-//     a gather tick   → grantXp writes G.skills[wc]   → fingerprint MISMATCH
-//                     → recordValue known:false       → skillLevelOf → null
-//                     → legacy getLevel() floors to 1 → display Lv 1
-//     next settle     → re-stamp                      → Lv 5 … repeat
+//   2. THE REWIND — measured in a live 12-second window mid-fight:
+//          start {kills:3756, gold:501, atkXp:5}   ← the kill landed instantly
+//          +12s  {kills:3755, gold:500, atkXp:1}   ← the settle took it away
+//      The server settles a LAGGING window. Its envelope is authoritative about
+//      everything up to `accrued_to` and says NOTHING about the seconds since —
+//      so applying it and clearing the client's optimism wholesale rewinds
+//      progress the player has already watched happen.
 //
 // The naive cures are both wrong:
 //   · DISARM — hands the record back to the client. Not an option.
-//   · LET THE CLIENT WRITE G.skills AND RE-STAMP — that is the client authoring
-//     the record wearing the server's fingerprint, i.e. exactly the b347 defect.
+//   · LET THE CLIENT WRITE AND RE-STAMP — that is the client authoring the
+//     record wearing the server's fingerprint, i.e. exactly the b347 defect.
 //
 // ── THE MODEL ───────────────────────────────────────────────────────────────
 // A record-stamped field holds the SERVER'S NUMBER AND NOTHING ELSE, at every
 // instant. Client optimism lives HERE instead, in a `_`-prefixed scratch bag
 // that never syncs and is never authority:
 //
-//     G._pred = { xp: { woodcutting: 40 }, gold: 12, gems: 0, at, seq }
+//     G._pred = { xp: { woodcutting: {total, q} }, gold: {total, q}, … }
 //
 //   WRITE  a gated site that used to mutate a stamped field calls predictXp /
 //          predictBalance instead. G.skills / G.gold do not move, so the
@@ -38,37 +43,63 @@
 //          balance.js balanceForDisplay) answer `server truth + prediction`.
 //          The AUTHORITY accessors (skillXpOf, balanceOf, canAfford) are
 //          untouched and still answer pure server truth.
-//   CLEAR  every envelope that stamps a field clears that field's prediction —
-//          the server's new number already contains those actions. Same
-//          reconcile shape as gold.js's `reconcilePredictions`, and wired at the
-//          same seam (record.js applyRecord).
+//   RETIRE ⚠ ONLY WHAT THE SERVER'S NUMBER HAS ACTUALLY INCORPORATED.
 //
-// ── WHY WHOLESALE CLEAR RATHER THAN gold.js's PER-CALL LEDGER ───────────────
-// gold.js models a prediction per INTENT KEY because a gold verb can be refused,
-// replayed, or answered out of order — a prediction there has a lifecycle and an
-// orphan is a permanent additive offset (its F1 finding).
+// ── THE COVERAGE RULE, AND WHY IT IS NOT A CLOCK COMPARISON ─────────────────
+// This is the whole of the rewind fix and it is the one thing in this file that
+// must not be simplified.
 //
-// An XP tick has none of that. There is no call to refuse: the client does not
-// send "I chopped a log", it declares an ACTIVITY and the server settles the
-// whole window on its own clock. So a prediction here is only ever "what I have
-// shown the player since the last settle", and the settle is an absolute
-// statement that already includes it. Wholesale clear is therefore both correct
-// and the only shape that cannot orphan.
+// Every prediction carries the instant it was MADE. Every envelope states the
+// instant the server has settled UP TO (`state.accrued_to`) and the instant it
+// was BUILT (`now`). A prediction is RETIRED only if the envelope's number
+// already contains it — i.e. only if it was made at or before the coverage
+// boundary. Anything newer SURVIVES and is still displayed on top.
 //
-// THE RESIDUAL, STATED: a tick that lands in the microseconds between the
-// server computing an envelope and the client applying it is cleared without
-// having been paid, so the display dips by one tick's worth and the next tick
-// re-predicts it. Bounded by one tick, self-correcting, display-only, and it
-// cannot cost the player anything real — the server's number is unaffected.
+// The boundary is computed from a DURATION, never from a comparison of the two
+// machines' clocks:
 //
-// ── AND THE BELT TO THAT BRACE ──────────────────────────────────────────────
+//     lag            = serverNow - accruedTo     (server-side subtraction)
+//     coveredUntil   = envelopeArrivedAt - lag   (client-side subtraction)
+//
+// Both operands of each subtraction come from the SAME clock, so the result is
+// immune to skew between them. A naive `prediction.at <= Date.parse(accrued_to)`
+// would be a cross-clock comparison, and a device five minutes fast would retire
+// everything (permanent rewind) while a slow one would retire nothing
+// (permanent inflation). This program has paid for that class of bug before.
+//
+// THE PROPERTY THAT FALLS OUT, and it is what the player feels:
+//
+//     display_before = S₀ + Σ(all predictions)
+//     display_after  = S₁ + Σ(surviving)   where S₁ = S₀ + Σ(covered)
+//                    = S₀ + Σ(covered) + Σ(uncovered)
+//                    = display_before
+//
+// The settle is INVISIBLE. Not "a small snap" — continuous, exactly, as long as
+// the client and the server compute the same rates (AWAY-1 parity asserts they
+// do). Only genuinely rng-divergent things (a drop that rolled differently) can
+// move the number, and those are bounded by one window.
+//
+// ── THE BOUNDS (nothing here may grow without limit) ────────────────────────
+//   · MAX_PREDICTION_AGE_MS  a prediction older than this is retired by the next
+//     envelope whatever the coverage says. This is the belt to the coverage
+//     rule's brace: an envelope with an unreadable watermark cannot be allowed to
+//     leave optimism standing forever, or a broken server field becomes a
+//     permanently inflated display.
+//   · COALESCE_MS  consecutive predictions for the same key inside this window
+//     fold into one entry, so a 600 ms combat swing does not build a 150-entry
+//     queue per settle window.
+//   · MAX_ENTRIES / MAX_PREDICTED_SKILLS  hard caps, dropped from the OLDEST end
+//     (which is also the end the coverage rule would have retired first).
+//   · Every bucket keeps a RUNNING TOTAL, so a display read is O(1). `getLevel`
+//     is on the combat render path; a read that summed a queue would be a
+//     per-frame cost that grows with session length.
+//
+// ── AND THE BELT TO ALL OF IT ───────────────────────────────────────────────
 // The display accessors do NOT depend on every writer having been found. If some
 // site this sweep missed still writes a stamped field, `recordValue` reports
 // `client-overwrote` and the display path falls back to the LOCAL optimistic
 // number (and then to the last value the server actually stated) rather than to
 // UNKNOWN. So a missed writer costs display FRESHNESS, never a bounce to level 1.
-// That fallback is what makes the defect above structurally impossible rather
-// than merely fixed.
 //
 // PURE. No DOM, no timers, no imports. Node-importable. Never authority.
 // ============================================================================
@@ -82,28 +113,42 @@ export const PRED_KEY = '_pred';
 /** Scalar record fields this module may predict. Both have an ABSOLUTE
  *  counterpart in every envelope, which is what makes a prediction retirable.
  *  A field with no absolute statement must not be predicted — there would be
- *  nothing to clear it. */
+ *  nothing to retire it. */
 export const PREDICTED_BALANCE_FIELDS = Object.freeze(['gold', 'gems']);
 
-/** Bounded on purpose (the gold.js MAX_PENDING lesson): a bag that can grow
- *  without limit is a leak with a renderer attached. SKILLS_DEF holds ~15 ids
- *  and the game grows by adding data, so 128 is far past any real content scale
- *  and only reachable by a bug feeding garbage ids. The oldest key is dropped
- *  LOUDLY rather than silently, because a silent drop here is a display that
- *  stops moving for one skill and nothing says why. */
-export const MAX_PREDICTED_SKILLS = 128;
+/** Consecutive predictions for one key inside this window fold into one entry.
+ *  A combat swing is ~600 ms and a settle window is ~90 s, so without this a
+ *  single fight would build ~150 entries per skill. One second of granularity is
+ *  far finer than the coverage boundary's own precision. */
+export const COALESCE_MS = 1000;
 
-/** Which prediction bucket does a RECORD field name clear?
+/** The absolute age bound. A prediction older than this is retired by the next
+ *  envelope REGARDLESS of what its watermark says — the belt to the coverage
+ *  brace. Generous (fifteen minutes is ten settle windows) so it never fires in
+ *  normal play, and finite so a server that stops stating `accrued_to` degrades
+ *  to a stale display rather than to an unboundedly inflated one. */
+export const MAX_PREDICTION_AGE_MS = 15 * 60 * 1000;
+
+/** Hard caps. Reached only by a bug feeding garbage, and the drop is from the
+ *  OLDEST end — the same end the coverage rule retires first, so the cost is the
+ *  same "display accuracy for a moment" the retire path already has. */
+export const MAX_PREDICTED_SKILLS = 128;
+export const MAX_ENTRIES = 256;
+
+/** Which prediction bucket does a RECORD field name retire?
  *  Data, not a switch statement, so arming a new field is a row. A record field
- *  absent from this map has no prediction bucket and clears nothing. */
+ *  absent from this map has no prediction bucket and retires nothing. */
 export const CLEARS = Object.freeze({
   skills: 'xp',
   gold: 'gold',
   gems: 'gems',
 });
 
+function newBucket() { return { total: 0, q: [] }; }
+function isBucket(b) { return !!(b && typeof b === 'object' && Array.isArray(b.q)); }
+
 function freshBag() {
-  return { xp: {}, gold: 0, gems: 0, at: 0, seq: 0 };
+  return { xp: {}, gold: newBucket(), gems: newBucket(), at: 0, seq: 0, overflowed: false };
 }
 
 /** The bag, created on demand. Returns null for a non-object G (a boot before
@@ -113,11 +158,10 @@ export function predictionBag(G, create) {
   if (!G || typeof G !== 'object') return null;
   const have = G[PRED_KEY];
   if (have && typeof have === 'object' && !Array.isArray(have)) {
-    /* Defensive re-shape: a bag that survived a reload with a missing/garbage
-       `xp` map would throw on the first write. Cheap, and it runs once. */
+    /* Defensive re-shape. Cheap, runs once, and it means a bag that somehow
+       survived from an older shape cannot throw on the first write. */
     if (!have.xp || typeof have.xp !== 'object' || Array.isArray(have.xp)) have.xp = {};
-    if (!Number.isFinite(Number(have.gold))) have.gold = 0;
-    if (!Number.isFinite(Number(have.gems))) have.gems = 0;
+    for (const f of PREDICTED_BALANCE_FIELDS) if (!isBucket(have[f])) have[f] = newBucket();
     return have;
   }
   if (!create) return null;
@@ -142,6 +186,32 @@ function deltaOf(v, what) {
   return n;
 }
 
+/** Append (or coalesce into) one bucket. The queue stays ASCENDING in `at`,
+ *  which is what lets the retire pass stop at the first uncovered entry. */
+function push(bucket, delta, at0) {
+  const tail = bucket.q.length ? bucket.q[bucket.q.length - 1] : null;
+  /* ⚠ THE QUEUE IS ASCENDING IN `at`, AND THAT IS AN INVARIANT, NOT AN OBSERVATION.
+     `retireBucket` scans from the head and STOPS at the first uncovered entry —
+     which is only correct if nothing behind it is older. Real callers always pass
+     `Date.now()` so it holds naturally; a backwards clock step (NTP, a laptop
+     waking) would otherwise silently strand an entry behind the scan forever.
+     Clamped rather than rejected: the entry is real progress and must be shown. */
+  const at = (tail && at0 < tail.at) ? tail.at : at0;
+  if (tail && (at - tail.at) < COALESCE_MS) { tail.d += delta; }
+  else {
+    bucket.q.push({ at, d: delta });
+    if (bucket.q.length > MAX_ENTRIES) {
+      /* Drop the OLDEST — the entry the next coverage boundary would have
+         retired first — and fold its value away with it, so `total` and `q`
+         cannot disagree. */
+      const gone = bucket.q.shift();
+      bucket.total -= gone.d;
+    }
+  }
+  bucket.total += delta;
+  return bucket.total;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    SKILL XP
    ══════════════════════════════════════════════════════════════════════════ */
@@ -150,50 +220,64 @@ function deltaOf(v, what) {
  * PREDICT an xp gain the client has just shown the player but has NOT written
  * to the record. Additive; call once per grant.
  *
+ * @param at optional client timestamp (ms). Defaults to now. Exposed so a test
+ *           can drive the coverage rule without sleeping.
  * @returns the running predicted delta for that skill (never NaN).
  */
-export function predictXp(G, skillId, delta) {
+export function predictXp(G, skillId, delta, at) {
   const id = String(skillId == null ? '' : skillId);
   if (!id) return 0;
   const d = deltaOf(delta, 'xp delta');
   if (!d) return predictedXp(G, id);
   const bag = predictionBag(G, true);
   if (!bag) return 0;
-  if (!Object.prototype.hasOwnProperty.call(bag.xp, id)
-      && Object.keys(bag.xp).length >= MAX_PREDICTED_SKILLS) {
-    const oldest = Object.keys(bag.xp)[0];
-    try {
-      console.warn('[predict] xp prediction bag full (' + MAX_PREDICTED_SKILLS + ') — dropping "'
-        + oldest + '". The next envelope is absolute, so this costs display accuracy for a '
-        + 'moment and nothing else. A bag this size means something is feeding garbage skill ids.');
-    } catch (e) {}
-    delete bag.xp[oldest];
+  const t = Number.isFinite(Number(at)) ? Number(at) : Date.now();
+  if (!isBucket(bag.xp[id])) {
+    if (Object.keys(bag.xp).length >= MAX_PREDICTED_SKILLS) {
+      const oldest = Object.keys(bag.xp)[0];
+      /* ONCE PER BAG. The condition that reaches this line (garbage ids) reaches
+         it on EVERY subsequent grant, so an unthrottled warn is a console flood
+         that buries the one line a reader needed. */
+      if (!bag.overflowed) {
+        bag.overflowed = true;
+        try {
+          console.warn('[predict] xp prediction bag full (' + MAX_PREDICTED_SKILLS + ') — dropping "'
+            + oldest + '" and any further overflow, silently, this session. The next envelope is '
+            + 'absolute, so this costs display accuracy for a moment and nothing else. A bag this '
+            + 'size means something is feeding garbage skill ids.');
+        } catch (e) {}
+      }
+      delete bag.xp[oldest];
+    }
+    bag.xp[id] = newBucket();
   }
-  bag.xp[id] = (Number(bag.xp[id]) || 0) + d;
-  bag.at = Date.now();
+  const total = push(bag.xp[id], d, t);
+  bag.at = t;
   bag.seq++;
-  return bag.xp[id];
+  return total;
 }
 
-/** The predicted delta for one skill. 0 when there is none — a prediction is a
- *  DELTA, so 0 is the honest identity here, unlike a balance where 0 is a claim. */
+/** The predicted delta for one skill. O(1). 0 when there is none — a prediction
+ *  is a DELTA, so 0 is the honest identity here, unlike a balance where 0 is a
+ *  claim. */
 export function predictedXp(G, skillId) {
   const bag = predictionBag(G, false);
   if (!bag) return 0;
-  const n = Number(bag.xp[String(skillId == null ? '' : skillId)]);
-  return Number.isFinite(n) ? n : 0;
+  const b = bag.xp[String(skillId == null ? '' : skillId)];
+  if (!isBucket(b)) return 0;
+  return Number.isFinite(b.total) ? b.total : 0;
 }
 
-/** The whole predicted map — for a diagnostic, and for the total-level rollups
- *  that have to add prediction across every skill at once. */
+/** The whole predicted map — for the rollups (total level, combat level) that
+ *  need every skill at once, and for the diagnostic. */
 export function predictedXpMap(G) {
   const bag = predictionBag(G, false);
   if (!bag) return {};
   const out = {};
   for (const k in bag.xp) {
     if (!Object.prototype.hasOwnProperty.call(bag.xp, k)) continue;
-    const n = Number(bag.xp[k]);
-    if (Number.isFinite(n) && n !== 0) out[k] = n;
+    const b = bag.xp[k];
+    if (isBucket(b) && Number.isFinite(b.total) && b.total !== 0) out[k] = b.total;
   }
   return out;
 }
@@ -203,61 +287,138 @@ export function predictedXpMap(G) {
    ══════════════════════════════════════════════════════════════════════════ */
 
 /** PREDICT a balance movement. Signed — a spend is negative. */
-export function predictBalance(G, field, delta) {
+export function predictBalance(G, field, delta, at) {
   const f = String(field == null ? '' : field);
   if (PREDICTED_BALANCE_FIELDS.indexOf(f) === -1) return 0;
   const d = deltaOf(delta, f + ' delta');
   if (!d) return predictedBalance(G, f);
   const bag = predictionBag(G, true);
   if (!bag) return 0;
-  bag[f] = (Number(bag[f]) || 0) + d;
-  bag.at = Date.now();
+  const t = Number.isFinite(Number(at)) ? Number(at) : Date.now();
+  const total = push(bag[f], d, t);
+  bag.at = t;
   bag.seq++;
-  return bag[f];
+  return total;
 }
 
 export function predictedBalance(G, field) {
   const f = String(field == null ? '' : field);
   if (PREDICTED_BALANCE_FIELDS.indexOf(f) === -1) return 0;
   const bag = predictionBag(G, false);
-  if (!bag) return 0;
-  const n = Number(bag[f]);
-  return Number.isFinite(n) ? n : 0;
+  if (!bag || !isBucket(bag[f])) return 0;
+  return Number.isFinite(bag[f].total) ? bag[f].total : 0;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   THE RECONCILE — the only thing that removes a prediction
+   THE COVERAGE BOUNDARY
    ══════════════════════════════════════════════════════════════════════════ */
 
 /**
- * CLEAR the predictions belonging to the record fields an envelope just stamped.
+ * WHERE DOES THIS ENVELOPE'S KNOWLEDGE STOP, IN THIS CLIENT'S CLOCK?
  *
- * @param fields  the record field names applyRecord actually WROTE. Only those:
- *                an envelope that supplied no `skills` (a lean accrue answer)
- *                must not clear the xp a live tick has predicted since, or the
- *                display would drop progress the server has not yet stated.
- * @returns {{cleared:[], xp:number, gold:number, gems:number}} what was dropped,
- *          for the diagnostic — never for arithmetic.
+ * PURE, and deliberately separate from the retire pass so the arithmetic that
+ * decides whether a player's progress survives can be unit-tested on its own.
+ *
+ * @param res      the server envelope ({now, state:{accrued_to}})
+ * @param arriveMs the client instant it was applied (defaults to now)
+ * @returns {{at:number, lagMs:number, source:string}}
+ *
+ * ⚠ IT NEVER COMPARES THE TWO CLOCKS. `lag` is a server-minus-server duration;
+ *   the boundary is a client-minus-duration instant. See the header.
+ *
+ * ⚠ AND IT FAILS TOWARD *KEEPING* THE PLAYER'S PROGRESS. If the envelope does
+ *   not state a readable watermark we do not know what it covers, and the two
+ *   ways to be wrong are not symmetric: retiring too much REWINDS visible
+ *   progress (the reported defect, and it looks like theft), while retiring too
+ *   little leaves the display briefly optimistic and self-corrects at the next
+ *   good envelope. So an unreadable watermark retires only what is older than
+ *   MAX_PREDICTION_AGE_MS, which is bounded and cannot be permanent.
  */
-export function clearPredictionsFor(G, fields) {
-  const out = { cleared: [], xp: 0, gold: 0, gems: 0 };
+export function coverageBoundary(res, arriveMs) {
+  const arrive = Number.isFinite(Number(arriveMs)) ? Number(arriveMs) : Date.now();
+  const st = (res && typeof res === 'object' && res.state && typeof res.state === 'object')
+    ? res.state : null;
+  const serverNow = parseInstant(res && res.now);
+  const accruedTo = parseInstant(st && st.accrued_to);
+  if (serverNow === null || accruedTo === null) {
+    return { at: arrive - MAX_PREDICTION_AGE_MS, lagMs: null, source: 'age-bound' };
+  }
+  /* Clamped at 0: an `accrued_to` in the server's own future is not a lag, and a
+     negative one would push the boundary past NOW and retire predictions the
+     envelope provably cannot describe. */
+  const lagMs = Math.max(0, serverNow - accruedTo);
+  return { at: arrive - lagMs, lagMs, source: 'watermark' };
+}
+
+function parseInstant(v) {
+  if (v === null || typeof v === 'undefined') return null;
+  const ms = typeof v === 'number' ? v : Date.parse(String(v));
+  return (Number.isFinite(ms) && ms > 0) ? ms : null;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE RETIRE — the only thing that removes a prediction
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function retireBucket(bucket, coveredUntil, ageFloor) {
+  let removed = 0;
+  while (bucket.q.length) {
+    const head = bucket.q[0];
+    if (head.at > coveredUntil && head.at > ageFloor) break;   // ascending — the rest is newer
+    bucket.q.shift();
+    bucket.total -= head.d;
+    removed += head.d;
+  }
+  /* Float hygiene: a queue drained to empty must have a total of exactly 0, not
+     an accumulated 1e-13 that renders as a stray xp point forever. */
+  if (!bucket.q.length) bucket.total = 0;
+  return removed;
+}
+
+/**
+ * RETIRE the predictions this envelope has ALREADY INCORPORATED, and only those.
+ *
+ * @param fields       the record field names applyRecord actually WROTE. Only
+ *                     those: an envelope that supplied no `skills` (a lean accrue
+ *                     answer) must not retire xp — it has stated nothing about it.
+ * @param coveredUntil the boundary from `coverageBoundary`, in CLIENT ms.
+ * @param nowMs        the client instant (for the absolute age bound).
+ * @returns a report — for the diagnostic, never for arithmetic.
+ */
+export function retirePredictions(G, fields, coveredUntil, nowMs) {
+  const out = { retired: [], xp: 0, gold: 0, gems: 0, kept: 0 };
   const bag = predictionBag(G, false);
   if (!bag || !Array.isArray(fields)) return out;
+  const now = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
+  const boundary = Number.isFinite(Number(coveredUntil)) ? Number(coveredUntil) : now;
+  const ageFloor = now - MAX_PREDICTION_AGE_MS;
   for (const f of fields) {
     const bucket = CLEARS[f];
     if (!bucket) continue;
     if (bucket === 'xp') {
       let n = 0;
       for (const k in bag.xp) {
-        if (Object.prototype.hasOwnProperty.call(bag.xp, k)) n += Number(bag.xp[k]) || 0;
+        if (!Object.prototype.hasOwnProperty.call(bag.xp, k)) continue;
+        if (!isBucket(bag.xp[k])) { delete bag.xp[k]; continue; }
+        n += retireBucket(bag.xp[k], boundary, ageFloor);
+        if (!bag.xp[k].q.length) delete bag.xp[k];   // an empty bucket is a leak with a name
       }
-      if (Object.keys(bag.xp).length) { bag.xp = {}; out.xp = n; out.cleared.push(f); }
-    } else {
-      if (bag[bucket]) { out[bucket] = Number(bag[bucket]) || 0; bag[bucket] = 0; out.cleared.push(f); }
+      if (n) { out.xp = n; out.retired.push(f); }
+    } else if (isBucket(bag[bucket])) {
+      const n = retireBucket(bag[bucket], boundary, ageFloor);
+      if (n) { out[bucket] = n; out.retired.push(f); }
     }
   }
-  if (out.cleared.length) bag.at = Date.now();
+  out.kept = outstandingCount(bag);
+  if (out.retired.length) bag.at = now;
   return out;
+}
+
+function outstandingCount(bag) {
+  let n = 0;
+  for (const k in bag.xp) if (isBucket(bag.xp[k])) n += bag.xp[k].q.length;
+  for (const f of PREDICTED_BALANCE_FIELDS) if (isBucket(bag[f])) n += bag[f].q.length;
+  return n;
 }
 
 /** Drop EVERYTHING. One caller class: authority changing hands — a slot switch,
@@ -269,15 +430,13 @@ export function resetPredictions(G) {
   return G[PRED_KEY];
 }
 
-/** Is anything predicted at all? Cheap — used by the display path to take the
+/** Is anything predicted at all? O(#skills). Used by the display path to take the
  *  byte-for-byte-unchanged branch when there is nothing to add. */
 export function hasPredictions(G) {
   const bag = predictionBag(G, false);
   if (!bag) return false;
-  if (bag.gold || bag.gems) return true;
-  for (const k in bag.xp) {
-    if (Object.prototype.hasOwnProperty.call(bag.xp, k) && Number(bag.xp[k])) return true;
-  }
+  for (const f of PREDICTED_BALANCE_FIELDS) if (isBucket(bag[f]) && bag[f].total) return true;
+  for (const k in bag.xp) if (isBucket(bag.xp[k]) && bag.xp[k].total) return true;
   return false;
 }
 
@@ -288,8 +447,9 @@ export function predictionState(G) {
   return {
     active: hasPredictions(G),
     xp: predictedXpMap(G),
-    gold: Number(bag.gold) || 0,
-    gems: Number(bag.gems) || 0,
+    gold: predictedBalance(G, 'gold'),
+    gems: predictedBalance(G, 'gems'),
+    outstanding: outstandingCount(bag),
     at: bag.at || 0,
     seq: bag.seq || 0,
   };
@@ -297,9 +457,10 @@ export function predictionState(G) {
 
 if (typeof window !== 'undefined') {
   window.HearthrisePredict = {
-    PRED_KEY, PREDICTED_BALANCE_FIELDS, MAX_PREDICTED_SKILLS, CLEARS,
+    PRED_KEY, PREDICTED_BALANCE_FIELDS, MAX_PREDICTED_SKILLS, MAX_ENTRIES,
+    MAX_PREDICTION_AGE_MS, COALESCE_MS, CLEARS,
     predictionBag, predictXp, predictedXp, predictedXpMap,
     predictBalance, predictedBalance,
-    clearPredictionsFor, resetPredictions, hasPredictions, predictionState,
+    coverageBoundary, retirePredictions, resetPredictions, hasPredictions, predictionState,
   };
 }

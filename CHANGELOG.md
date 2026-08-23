@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 456 — 2026-08-23 (Everything is instant again)
+
+- ⚡ Every gain now shows the moment it happens — kills, drops, XP, gold — while the server stays the single source of truth underneath. Fixed the level "bouncing to 1" bug and the progress "rewinding" every minute or so: your displayed progress now only ever moves forward and converges exactly to the server's numbers.
+- 🐛 Fixed live counters (kills, quest progress) being overwritten by a stale copy whenever the game regained focus.
+
 ## v0.9.2-beta build 455 — 2026-08-23 (Cutover fix: local save fully retired)
 
 - 🐛 Fixed stale pre-wipe data resurrecting on devices that played before the cutover: under server authority the game no longer writes or reads the old local save at all — your character loads purely from the server every boot. Fresh devices were never affected.

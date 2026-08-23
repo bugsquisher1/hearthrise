@@ -39,8 +39,8 @@
 // It never WRITES a skill. Not a default, not a repair. DOM-free. Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue, recordLastKnown } from './record.js?v=455';
-import { predictedXp, predictedXpMap } from './predict.js?v=455';
+import { isServerOfRecord, recordValue, recordLastKnown, clientMayWrite } from './record.js?v=456';
+import { predictedXp, predictedXpMap } from './predict.js?v=456';
 
 /** The one read. Everything else is a shape of this answer.
  *  @returns {{id, known, value, reason, source}} value is null when !known. */
@@ -166,7 +166,11 @@ export function skillXpForDisplay(G, id) {
   if (!G || typeof G !== 'object') {
     return { id: key, known: false, value: null, predicted: 0, rung: 'no-state', source: 'none' };
   }
-  const pred = predictedXp(G, key);
+  /* ⚠ ADDED ONLY WHILE THE CLIENT MAY **NOT** WRITE `skills` — the same predicate
+     the write site (legacy.js addXp) branches on. A prediction only exists because
+     a write was refused; with the gate open the gain is already in G.skills and
+     adding it again would double-count. See balance.js's twin of this comment. */
+  const pred = clientMayWrite('skills') ? 0 : predictedXp(G, key);
   if (!isServerOfRecord('skills')) {
     /* DORMANT — the client owns G.skills, so it is BOTH the truth and where any
        gain already landed. Adding a prediction here would double-count; there is
@@ -182,18 +186,25 @@ export function skillXpForDisplay(G, id) {
     if (base === null && !Object.prototype.hasOwnProperty.call(rv.value, key)) base = 0;
     rung = 'server';
   }
-  if (base === null && rv.source === 'client-overwrote') {
+  /* ⚠ THE PRESENCE GATE, AND IT IS LOAD-BEARING. Rungs (b) and (c) are only
+     reachable when `G.skills` is actually THERE. An ABSENT field is the strip
+     state — the record framework deleted it on load and nothing has arrived yet
+     — and the honest answer to that is UNKNOWN, not a resurrected number. This
+     is also what keeps the B353-3 sweep meaningful: deleting a moved field from
+     a live G must still render the pending state, or the guard proves nothing. */
+  const present = Object.prototype.hasOwnProperty.call(G, 'skills');
+  if (base === null && present) {
     const map = (G.skills && typeof G.skills === 'object' && !Array.isArray(G.skills)) ? G.skills : null;
     if (map) {
       base = Object.prototype.hasOwnProperty.call(map, key) ? numOrNull(map[key]) : 0;
-      if (base !== null) rung = 'client-overwrote';
+      if (base !== null) rung = 'local';
     }
-  }
-  if (base === null) {
-    const last = recordLastKnown(G, 'skills');
-    if (last && typeof last === 'object') {
-      base = Object.prototype.hasOwnProperty.call(last, key) ? numOrNull(last[key]) : 0;
-      if (base !== null) rung = 'last-known';
+    if (base === null) {
+      const last = recordLastKnown(G, 'skills');
+      if (last && typeof last === 'object') {
+        base = Object.prototype.hasOwnProperty.call(last, key) ? numOrNull(last[key]) : 0;
+        if (base !== null) rung = 'last-known';
+      }
     }
   }
   if (base === null) {
@@ -230,27 +241,51 @@ export function skillLevelForDisplay(G, id, levelFn) {
   return Number.isFinite(lv) ? lv : null;
 }
 
-/** The DISPLAY skills map — server truth (or the ladder's fallback) plus every
- *  prediction. For the rollups (`totalLevel`, `combatLevel`) that need the whole
- *  map at once rather than one id. Always an object, never null. */
+/**
+ * The DISPLAY skills map — the same ladder as `skillXpForDisplay`, resolved ONCE
+ * for the whole map. For the rollups (`totalLevel`, `combatLevel`) and for the
+ * combat roll, which need every skill at once. Always an object, never null.
+ *
+ * ⚠ IT RESOLVES THE LADDER ONCE, NOT ONCE PER KEY, and that is a performance
+ *   decision with a reason rather than a micro-optimisation. `recordValue`
+ *   fingerprints the ENTIRE map on every call (record.js b347), so a per-key loop
+ *   over `skillXpForDisplay` would be O(n²) string building — and `getCombatLevel`
+ *   is on the combat render path, i.e. several times a second.
+ */
 export function skillsForDisplay(G) {
   const out = {};
   if (!G || typeof G !== 'object') return out;
-  const seen = {};
-  const push = (src) => {
-    if (!src || typeof src !== 'object' || Array.isArray(src)) return;
-    for (const k in src) if (Object.prototype.hasOwnProperty.call(src, k)) seen[k] = true;
-  };
-  if (isServerOfRecord('skills')) {
+  const moved = isServerOfRecord('skills');
+  const pred = (moved && !clientMayWrite('skills')) ? predictedXpMap(G) : {};
+  const local = (G.skills && typeof G.skills === 'object' && !Array.isArray(G.skills)) ? G.skills : null;
+
+  /* THE BASE, chosen once, by the same ladder skillXpForDisplay walks. */
+  let base = null;
+  if (moved) {
     const rv = recordValue(G, 'skills');
-    push(rv.known ? rv.value : null);
-    push(recordLastKnown(G, 'skills'));
+    if (rv.known && rv.value && typeof rv.value === 'object') base = rv.value;
+    /* PRESENT-BUT-UNVOUCHED → the local optimistic map; ABSENT → last-known, then
+       nothing. `hasOwnProperty` rather than truthiness: an absent `skills` is the
+       strip state and must not resurrect a number. */
+    if (!base && Object.prototype.hasOwnProperty.call(G, 'skills')) base = local;
+    if (!base) {
+      const last = recordLastKnown(G, 'skills');
+      if (last && typeof last === 'object') base = last;
+    }
+  } else {
+    base = local;
   }
-  push(G.skills);
-  push(predictedXpMap(G));
-  for (const k in seen) {
-    const b = skillXpForDisplay(G, k);
-    if (b.known) out[k] = b.value;
+  if (base) {
+    for (const k in base) {
+      if (!Object.prototype.hasOwnProperty.call(base, k)) continue;
+      const n = numOrNull(base[k]);
+      if (n !== null) out[k] = n;
+    }
+  }
+  for (const k in pred) {
+    if (!Object.prototype.hasOwnProperty.call(pred, k)) continue;
+    const n = Number(pred[k]);
+    if (Number.isFinite(n)) out[k] = Math.max(0, Math.floor((out[k] || 0) + n));
   }
   return out;
 }
@@ -280,5 +315,6 @@ export function skillState(G, ids) {
 if (typeof window !== 'undefined') {
   window.HearthriseSkillRecord = {
     skillXpOf, isSkillXpKnown, skillXpNum, skillXpOr, skillLevelOf, skillState,
+    skillXpForDisplay, skillXpForDisplayOr, skillLevelForDisplay, skillsForDisplay,
   };
 }

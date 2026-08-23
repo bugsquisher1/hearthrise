@@ -2535,6 +2535,28 @@ const run = async () => {
         + 'now names and fails on a MAINTAIN grant permanently.');
     }
 
+    /* ── Display-prediction guard (b455) ──────────────────────────────────
+       The seam that makes an ARMED client feel instant without letting it
+       author a record. It guards two properties of one mechanism, both bought
+       with live incidents: a gather tick / kill / craft must move the number
+       ON THE ACTION (not at the server's ~90s settle floor), and the b347
+       fingerprint must stay intact so the display can never bounce a level-60
+       skill to level 1. Plus the two ways a prediction layer goes wrong —
+       double-counting at the settle, and a prediction leaking into an
+       authority read. DORMANT is asserted byte-for-byte. */
+    const predictProblems = (await import('./predict-display.mjs')).predictDisplayGuard
+      ? await (await import('./predict-display.mjs')).predictDisplayGuard() : { problems: [], notes: [] };
+    if (predictProblems.problems.length) {
+      console.log('\nDisplay-prediction guard (instant + authoritative) — FAILED:');
+      for (const p of predictProblems.problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nDisplay-prediction guard — a tick moves the display instantly with the record '
+        + 'byte-unchanged, the settle retires exactly what it restated, authority is blind to every '
+        + 'prediction, and the lvl-1 bounce is unreachable.');
+      for (const n of predictProblems.notes) console.log(`    · ${n}`);
+    }
+
     /* ── Bug-report triage pipe ────────────────────────────────────────
        The intake pipe is only half a loop if nothing can record what was DONE
        about a report, so 2026-08-17-bug-triage.sql adds status/triage_note/
@@ -2967,6 +2989,7 @@ const run = async () => {
       'Unlock purchase guard', 'Market v2 guard', 'Market intent guard',
       'Cutover import guard', 'Client write sweep guard', 'Client write sweep batch 3',
       'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
+      'Display-prediction guard',
       'Clan-deposit ownership guard', 'Activity-seam guard', 'Delta-transport guard',
       'Reachability guard',
       'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',

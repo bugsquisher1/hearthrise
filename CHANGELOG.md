@@ -4,6 +4,17 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 462 — 2026-08-23 (Open beta + the reload bugs)
+
+- 🚪 **Hearthrise is now an open beta** — make an account and play, no invite code needed (codes still work if you have one).
+- 🍖 **Auto-Eat can be bought again** — it was refusing every purchase since the cutover. 15 Bounty Marks for tier I, 100 for tier II, bought from the server.
+- 🎁 Fixed the daily login reward popping up on every refresh (and saying it paid when it hadn't). It now remembers it showed you today — across reloads and devices.
+- ⚔️ Fixed the swing timer: damage now lands when the bar fills, even after you swap weapons or reload mid-fight.
+- 💧 Fixed "Water all" — it was watering locally and the server dried the plots again a moment later.
+- 🧭 The equipment doll is a proper paper-doll now (helmet top, weapon·body·offhand in the middle, rings at the feet) — the same layout on the Character, Inventory and Fight screens.
+- 💾 Fixed a whole class of "it forgot my choice when I reloaded": combat style, saved loadouts, locked items, auto-replant settings, achievements, dungeon cooldowns, renown, learned recipes, active potions and the resume card all persist again.
+- 🔒 Security pass before going public: the sign-in library is now served from our own site with integrity checks (it was loaded from a third-party CDN), plus a content-security policy, tighter server permissions and bounds on event logging. Pasted invite codes with a trailing space/newline are now accepted.
+
 ## v0.9.2-beta build 461 — 2026-08-23 (Beta-morning fixes: claims, hiring, saves)
 
 - 🎯 **Quest claiming works again.** Daily and weekly quest rewards in the Quests panel are now paid by the server (gold, gems, XP and items together), and the panel shows the server's own count — a Claim button only appears when it will actually pay. If something can't be claimed yet, you're told why instead of nothing happening.

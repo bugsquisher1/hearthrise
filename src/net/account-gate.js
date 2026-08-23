@@ -267,6 +267,21 @@
       '.hr-gate-mode[aria-selected="true"]{color:var(--gold-2,#e3c77e);border-bottom-color:var(--gold-2,#e3c77e)}',
 
       '.hr-gate-lead{font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.55;color:var(--ink-2,#c4b79e);margin:0 0 16px}',
+      '.hr-gate-lead a{color:var(--gold-2,#e3c77e);text-decoration:underline;text-underline-offset:2px}',
+
+      /* b46x — OPEN BETA. The invite code stopped being the thing that decides
+         whether an account may exist, so it stopped being a field and became a
+         disclosure: one quiet line under the password, for the minority who
+         still hold a code. Styled as a secondary link and nothing more — an
+         optional control that looks like a required one is how a form teaches
+         people they cannot sign up. */
+      '.hr-gate-aside{margin:2px 0 4px;font-size:calc(14.5px * var(--ui-scale, 1));',
+      '  line-height:1.5;color:var(--ink-3,#9d8b70)}',
+      '.hr-gate-link{appearance:none;background:none;border:0;padding:2px 1px;cursor:pointer;',
+      '  font:inherit;font-size:inherit;color:var(--ink-3,#9d8b70);text-decoration:underline;',
+      '  text-underline-offset:2px;border-radius:var(--r,3px)}',
+      '.hr-gate-link:hover{color:var(--gold-2,#e3c77e)}',
+      '.hr-gate-link:focus-visible{outline:2px solid var(--gold,#c9a24a);outline-offset:2px}',
 
       '.hr-gate-field{display:block;margin-bottom:12px}',
       '.hr-gate-field span{display:block;font-family:var(--f-label,inherit);font-size:calc(14.5px * var(--ui-scale, 1));',
@@ -416,11 +431,28 @@
       i.__row = l;                 // so paintMode can hide the whole row, label included
       return i;
     }
-    // The invite code comes FIRST because it is the thing that decides whether
-    // an account may exist at all — asking for it after the credentials reads as
-    // an afterthought, and it is the field most likely to be pasted from Discord.
-    // Sign-in never shows it: it gates creation, not entry.
+    var email = field('Email', 'email', 'email', 'email');
+    var pass  = field('Password', 'password', 'password', 'current-password');
+
+    /* ── THE INVITE CODE, AFTER THE OPEN-BETA SWITCH ──────────────────────
+       It used to come FIRST, because it decided whether an account could exist
+       at all. It no longer decides anything: the beta is OPEN, and a signup
+       with no code is the normal case. So it is last, OPTIONAL, and collapsed.
+
+       Collapsed rather than merely un-required, and that is the whole point of
+       the change. A visible field labelled "Invite code" reads as a gate no
+       matter what the label says next to it — the b457 form taught every
+       visitor without a code that the door was shut, and most of them left
+       rather than trying it. One quiet line below the password says the
+       opposite: there is nothing to hold you up, and if you happen to have a
+       code we will still honour it.
+
+       It is NOT deleted. Codes already handed out must keep working, the
+       server still consumes one when it is given, and this is the field that
+       presents it. */
     var invite = reauth ? null : field('Invite code', 'text', 'invite', 'off');
+    var inviteAside = null, inviteReveal = null;
+    var inviteShown = false;
     if (invite) {
       /* ⚠ NEVER use a real code format as the example — the b457 placeholder
          'FRIEND-001' WAS a live unused invite (QA-caught within minutes of
@@ -430,9 +462,34 @@
       invite.autocapitalize = 'characters';
       invite.style.textTransform = 'uppercase';
       invite.style.letterSpacing = '1px';
+      invite.id = 'hr-gate-invite-' + Math.random().toString(36).slice(2, 8);
+
+      inviteAside = el('div', 'hr-gate-aside');
+      inviteReveal = el('button', 'hr-gate-link', 'Have an invite code?');
+      inviteReveal.type = 'button';
+      // A real disclosure, not a div that happens to toggle: the control names
+      // the region it opens, so a screen reader is told what appeared.
+      inviteReveal.setAttribute('aria-expanded', 'false');
+      inviteReveal.setAttribute('aria-controls', invite.id);
+      inviteAside.appendChild(inviteReveal);
+      form.appendChild(inviteAside);
+      inviteReveal.addEventListener('click', function () {
+        setInviteShown(true);
+        try { invite.focus(); } catch (e) {}
+      });
     }
-    var email = field('Email', 'email', 'email', 'email');
-    var pass  = field('Password', 'password', 'password', 'current-password');
+
+    /* The field and its disclosure are two views of ONE state, painted in one
+       place — and both are subordinate to the mode, because on Sign in neither
+       belongs on the screen at all. */
+    function setInviteShown(on) {
+      inviteShown = !!on;
+      if (!invite) return;
+      var creating = mode === 'signup';
+      invite.__row.style.display = (creating && inviteShown) ? '' : 'none';
+      inviteAside.style.display = (creating && !inviteShown) ? '' : 'none';
+      inviteReveal.setAttribute('aria-expanded', inviteShown ? 'true' : 'false');
+    }
 
     var go = el('button', 'hr-gate-go');
     go.type = 'submit';
@@ -458,14 +515,23 @@
       bSignIn.setAttribute('aria-selected', creating ? 'false' : 'true');
       pass.autocomplete = creating ? 'new-password' : 'current-password';
       go.textContent = creating ? 'Create account' : 'Sign in';
-      if (invite) invite.__row.style.display = creating ? '' : 'none';
+      setInviteShown(inviteShown);
+      while (lead.firstChild) lead.removeChild(lead.firstChild);
       if (reauth) {
         lead.textContent = 'Your session ended. Sign in again to keep your progress syncing to the realm — ' +
           'nothing you have earned is lost either way.';
+      } else if (creating) {
+        /* THE OPEN-BETA LINE. It is built from nodes rather than assigned as a
+           string because the last word is a LINK — "tell us in Discord" that
+           you cannot click is an instruction with no door behind it, and this
+           screen runs before anything else in the game has loaded, so it is
+           the only door there is. */
+        lead.appendChild(document.createTextNode(
+          'Hearthrise is in open beta — make an account and play. It’s rough in places; tell us in '));
+        lead.appendChild(discordLink('Discord'));
+        lead.appendChild(document.createTextNode('.'));
       } else {
-        lead.textContent = creating
-          ? 'Hearthrise is in closed beta — creating an account needs the invite code you were sent.'
-          : 'Welcome back. Sign in to pick up where the realm left you.';
+        lead.textContent = 'Welcome back. Sign in to pick up where the realm left you.';
       }
     }
     bCreate.addEventListener('click', function () { mode = 'signup'; paintMode(); note.textContent = ''; email.focus(); });
@@ -489,17 +555,15 @@
       // so a player who cannot sign in must still have a way to reach us.
       var help = el('div', 'hr-gate-help');
       help.appendChild(document.createTextNode('Trouble signing in? '));
-      var dc = el('a', null, 'Join the Discord');
-      dc.href = 'https://discord.gg/eJrUSUJM3M';
-      dc.target = '_blank';
-      dc.rel = 'noopener';
-      help.appendChild(dc);
+      help.appendChild(discordLink('Join the Discord'));
       foot.parentNode.appendChild(help);
     }
 
     return {
       root: root, form: form, email: email, pass: pass, go: go, note: note,
       later: later, foot: foot, invite: invite,
+      inviteReveal: inviteReveal, inviteAside: inviteAside,
+      inviteShown: function () { return inviteShown; },
       getMode: function () { return mode; },
       say: function (text, tone) { note.textContent = text || ''; note.setAttribute('data-tone', tone || 'muted'); },
       busy: function (on) {
@@ -507,6 +571,16 @@
         if (invite) invite.disabled = !!on;
       }
     };
+  }
+
+  var DISCORD_INVITE = 'https://discord.gg/eJrUSUJM3M';
+  /** The one place this URL is written on the front door. */
+  function discordLink(text) {
+    var a = el('a', null, text);
+    a.href = DISCORD_INVITE;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    return a;
   }
 
   // ════════════════════════════════════════════════════════════
@@ -558,8 +632,16 @@
     email:       'Enter your email address.',
     password:    'Enter your password.',
     short:       'Passwords must be at least 6 characters.',
-    invite:      'Enter the invite code you were sent. Hearthrise is in closed beta.',
-    inviteBad:   'That invite code cannot be used. Check it for typos, or ask in the Discord.'
+    inviteBad:   'That invite code cannot be used. Check it for typos, or ask in the Discord.',
+    /* THE OPEN-BETA TRANSITION SENTENCE, and it is not decoration. The client
+       goes codeless-optional the moment this build deploys; the server's signup
+       gate comes off in a separate change. For the minutes between them, a
+       codeless signup is REFUSED by a trigger that has no vocabulary for saying
+       so — GoTrue returns a 500 and supabase-js says "Database error saving new
+       user". Telling that player "that invite code cannot be used" when they
+       never typed one would be the worst kind of wrong: it blames them for the
+       thing we are in the middle of removing. */
+    notOpenYet:  'Sign-ups are still switching over to open beta. Try again in a minute — or add an invite code if you have one.'
   };
 
   // ════════════════════════════════════════════════════════════
@@ -623,13 +705,21 @@
    *     brittle; it is a fallback behind a path that should not normally be
    *     reached (the hook refuses first), and the honest alternative — showing
    *     the raw text — is worse.
+   *
+   * `hadCode` is what makes the translation honest after the open-beta switch.
+   * The SAME opaque 500 now has two completely different causes — a bad code
+   * that was presented, or a codeless signup meeting a server gate that has not
+   * come off yet — and the client is the only party that knows which. Blaming a
+   * code the player never typed is a lie the server cannot correct.
    */
-  function humaniseAuthError(err, creating) {
+  function humaniseAuthError(err, creating, hadCode) {
     var msg = (err && err.message) ? String(err.message) : '';
     if (!msg) return 'That did not work — try again.';
     if (!creating) return msg;
     if (/database error|unexpected_failure|saving new user/i.test(msg)) {
-      return ERR.inviteBad + ' If it is definitely right, tell us in the Discord.';
+      return hadCode
+        ? ERR.inviteBad + ' If it is definitely right, tell us in the Discord.'
+        : ERR.notOpenYet;
     }
     return msg;
   }
@@ -648,37 +738,56 @@
       // copy is so the player sees the canonical form; the server one is because
       // the client's is not evidence of anything.
       var code = (creating && ui.invite) ? ui.invite.value.trim().toUpperCase() : '';
-      if (creating && ui.invite && !code) { ui.say(ERR.invite, 'bad'); ui.invite.focus(); return; }
       if (!addr) { ui.say(ERR.email, 'bad'); ui.email.focus(); return; }
       if (!pw) { ui.say(ERR.password, 'bad'); ui.pass.focus(); return; }
       if (creating && pw.length < 6) { ui.say(ERR.short, 'bad'); ui.pass.focus(); return; }
 
       working = true;
       ui.busy(true);
-      ui.say(creating ? 'Checking your invite code…' : 'Signing in…', 'muted');
+      ui.say(!creating ? 'Signing in…' : (code ? 'Checking your invite code…' : 'Creating your account…'), 'muted');
 
       whenAuthReady().then(function (ok) {
         if (!ok) throw new Error(ERR.unavailable);
         var a = auth();
         if (!creating) return a.signIn(addr, pw);
-        return validateInvite(code).then(function (res) {
-          if (!res.ok) {
-            var e = new Error(res.reason || ERR.inviteBad);
-            e.__invite = true;                      // already a player-facing sentence
-            throw e;
-          }
+        /* The pre-check runs only when a code was actually presented. Calling it
+           with '' after the open-beta switch would be worse than pointless: the
+           RPC would refuse the empty string, and the normal signup — the one
+           that is now the whole product — would die on a check for a thing it
+           deliberately does not have. No code, nothing to check. */
+        var checked = code
+          ? validateInvite(code).then(function (res) {
+              if (!res.ok) {
+                var e = new Error(res.reason || ERR.inviteBad);
+                e.__invite = true;                  // already a player-facing sentence
+                throw e;
+              }
+            })
+          : Promise.resolve();
+        return checked.then(function () {
           ui.say('Creating your account…', 'muted');
-          // The code travels as user metadata, which is where the server trigger
-          // reads it from. It is a credential being PRESENTED, not a value being
-          // asserted — the server decides whether it is real, and consumes it.
-          return a.signUp(addr, pw, { invite_code: code });
+          /* THE SIGNUP PAYLOAD, and the shape matters to the server.
+             With a code:    signUp(email, pw, {invite_code: 'ABC-123'})
+                             → GoTrue POST /auth/v1/signup {email, password,
+                               data:{invite_code:'ABC-123'}} → the trigger reads
+                               raw_user_meta_data->>'invite_code' and consumes it.
+             Without a code: signUp(email, pw, null)
+                             → auth.js takes its no-metadata branch, so the body
+                               is {email, password} with NO `data` key at all and
+                               raw_user_meta_data->>'invite_code' is SQL NULL.
+             `null` rather than `{}` or `{invite_code:''}` on purpose: absent and
+             empty-string are different values to the gate, and "the player gave
+             us nothing" should reach the server as nothing. */
+          return a.signUp(addr, pw, code ? { invite_code: code } : null);
         });
       }).then(function (data) {
         // Sign-up with email confirmation on returns no session. Say so
         // plainly rather than pretending the player is in.
         if (creating && data && !data.session) {
           working = false; ui.busy(false);
-          ui.say('Account created — your invite code is now used. Confirm the link in your email, then sign in.', 'ok');
+          ui.say(code
+            ? 'Account created — your invite code is now used. Confirm the link in your email, then sign in.'
+            : 'Account created. Confirm the link in your email, then sign in.', 'ok');
           return;
         }
         ui.say('Entering the realm…', 'ok');
@@ -690,7 +799,7 @@
           if (ui.invite) { try { ui.invite.focus(); ui.invite.select(); } catch (e) {} }
           return;
         }
-        ui.say(humaniseAuthError(err, creating), 'bad');
+        ui.say(humaniseAuthError(err, creating, !!code), 'bad');
       });
     });
   }
@@ -921,6 +1030,14 @@
     PLAYER_HOSTS: PLAYER_HOSTS.slice(),
     // test seams
     _buildGate: buildGate,
+    /* b46x: the wall's markup was already testable; its BEHAVIOUR was not.
+       `wire()` is where the invite code becomes (or does not become) part of a
+       signup payload, and a test that could only read the DOM would pass
+       against a client that still sent `{invite_code:''}` to a server that
+       treats '' and NULL differently. Exported so the guard drives the real
+       submit handler with a stubbed HearthriseAuth and reads what LEFT. */
+    _wire: wire,
+    _humaniseAuthError: humaniseAuthError,
     _readCachedSession: readCachedSession,
     _whenSessionPersisted: whenSessionPersisted,
     // b349: how many jobs are still holding for a session, WHICH ones, and the

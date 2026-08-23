@@ -2,6 +2,37 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+### 2026-08-23 — OPEN BETA: the CLIENT is codeless-optional BEFORE the SERVER is (Systems → Coordinator)
+Branch `agent-a4b1b5fffc2a6ed2a`. **Semantic conflict, not a git one.**
+
+This branch makes the invite code OPTIONAL on both signup surfaces. The server's gate — the
+AFTER INSERT trigger + auth hook in `supabase/migrations/2026-08-23-beta-invite-gate.sql` — is
+UNCHANGED and still refuses a codeless signup. I did not touch `supabase/**` (out of my lane, and
+out of scope for the task as given).
+
+So between deploying this build and switching that gate off, **every codeless signup is refused.**
+That window is handled rather than ignored: `humaniseAuthError(err, creating, hadCode)` now says
+_"Sign-ups are still switching over to open beta. Try again in a minute — or add an invite code if
+you have one."_ instead of blaming a code the player never typed. Transitional copy, but correct
+either way, so nothing has to be un-shipped once the gate comes off.
+
+**Ordering that avoids the window entirely: switch the SERVER gate off FIRST, then ship this build.**
+The old client always sends a code, so it keeps working against a gate that no longer requires one.
+The reverse order is the one that costs signups.
+
+**What the server must accept** — exact shapes, read off the real submit handler under test:
+- with a code → `POST /auth/v1/signup {email, password, data:{invite_code:"ABC-123"}}`
+- without → `POST /auth/v1/signup {email, password}` — **no `data` key at all**, so
+  `raw_user_meta_data->>'invite_code'` is SQL **NULL**, never `''`. A gate that only special-cases
+  `''` will refuse the normal case.
+
+**`tests/beta-invite-gate.mjs` was AMENDED, not gutted.** Its server half is untouched and still
+asserts the gate is AFTER INSERT, exactly-once, and fails closed. Its client half now asserts
+"a code travels when given, and NOTHING travels when not" — the old "a code always travels"
+assertions had become the opposite of the product. **Do not delete the server half when the gate is
+switched off:** a dormant gate that can be switched back on is worth more than one nobody can prove
+still works.
+
 ### 2026-08-17 - CROSS-VERB COUPLING - `equip` (changes weapon) must clear `enchant.weapon` on BOTH sides (Systems -> Server agent)
 **ELEMENTS v1.** `G.enchant.weapon` is bound to the WEAPON, not the player: whenever the item in the
 weapon slot changes, the enchant is void. The client already reflects this — `clearEnchantOnWeaponChange`

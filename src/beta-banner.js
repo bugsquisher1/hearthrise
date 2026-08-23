@@ -100,7 +100,12 @@
        glyph carry it instead. */
     card.innerHTML =
       '<h2 style="margin:0 0 10px;font-size:var(--t-h2,22px);font-family:var(--f-display,inherit);color:var(--gold-2,#f3d181)">Welcome to Hearthrise</h2>'+
-      '<p style="margin:0 0 12px;font-size:var(--t-small,14px)"><b>This is a beta build.</b> Things will break, balance will change, and your save may need to be reset between major updates. Thanks for playing early — your feedback shapes the game.</p>'+
+      /* b46x — OPEN BETA. This card is shown to a player who has ALREADY made
+         an account (it boots behind the gate), so it carries the half of the
+         open-beta line that still applies to them: it is rough, tell us. The
+         "make an account and play" half belongs on the account wall, where
+         there is an account to make. */
+      '<p style="margin:0 0 12px;font-size:var(--t-small,14px)"><b>Hearthrise is in open beta.</b> It\'s rough in places — things will break, balance will change, and your save may need to be reset between major updates. Tell us in Discord; your feedback shapes the game.</p>'+
       '<ul style="margin:0 0 14px;padding-left:18px;font-size:var(--t-small,14px)">'+
       '  <li>Found a bug? Use the <b>Report</b> button in the bottom-right corner — it goes straight to the dev Discord.</li>'+
       '  <li>Have ideas, want to chat, or just say hi? Join the Discord below.</li>'+

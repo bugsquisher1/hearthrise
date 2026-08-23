@@ -1,5 +1,6 @@
 // ════════════════════════════════════════════════════════════════════════════
-// tests/beta-invite-gate.mjs — the closed-beta invite gate cannot be bypassed
+// tests/beta-invite-gate.mjs — the invite gate is real, and the client presents
+//                              a code correctly whether or not it has one
 //
 // WHY THIS EXISTS. On 2026-08-23 production held 8 accounts and 3 consumed
 // invites. The gate was three client-side courtesies with no server behind
@@ -7,12 +8,20 @@
 // field at all. Nothing in the 540-test smoke suite could see that, because
 // nothing in the suite asserted a NEGATIVE about signup.
 //
+// ⚠ THE BETA WENT OPEN (product decision, Tyler). A code is no longer required.
+// That changes what the CLIENT half of this file asserts — see the amendment
+// note in staticChecks() — and changes NOTHING about the server half. The gate
+// machinery stays asserted while it exists, because a gate that is switched off
+// but still installed is one migration away from being switched back on, and
+// the day that happens is the worst possible day to discover it rotted.
+//
 // This file asserts the negatives. Two halves:
 //
 //   STATIC (default, no network, wired as a run-smoke preflight)
 //     the migration is registered, the trigger is AFTER INSERT, the consume
 //     carries its exactly-once predicate, the fail-open that shipped once is
-//     still closed, and both client signup paths present the code.
+//     still closed, and both client signup paths present a code CORRECTLY —
+//     as metadata when given, and as nothing at all when not.
 //
 //   LIVE (`--live`, needs a Supabase access token)
 //     the trigger is really attached, the auth hook is really registered, the
@@ -105,27 +114,54 @@ async function staticChecks() {
   check(/grant\s+execute\s+on\s+function\s+public\.hr_signup_gate\(jsonb\)\s+to\s+supabase_auth_admin/i.test(sql),
     'hr_signup_gate is granted to supabase_auth_admin (and, per the lints, to no client role)');
 
-  head('the front door presents the code and never reads the code table');
+  head('the front door still PRESENTS a code, and never reads the code table');
+  /* ⚠ AMENDED FOR OPEN BETA (product decision, Tyler). A code is no longer
+     REQUIRED to sign up, so the assertions that used to say "every client path
+     always sends one" would now be asserting the opposite of the product. What
+     they became is the pair that still matters, and it is a narrower pair on
+     purpose:
+       · a code that IS given must still travel, be pre-checked, and be consumed
+         — every code already handed out has to keep working;
+       · a code that is NOT given must travel as NOTHING, not as ''. `null` and
+         `''` are different values to hr_beta_gate_on_auth_user(), and a blank
+         string arriving where the gate expects an absence is a bug that would
+         only ever show up in production.
+     The SERVER-side half of this file is untouched and still asserts the gate
+     is real, exactly-once, and fails closed. Do not delete it when the gate is
+     switched off: a dormant gate that can be switched back on is worth more
+     than one nobody can prove still works. */
   const gate = await read('src/net/account-gate.js');
   const gateBare = bareJs(gate);
-  check(/field\(\s*'Invite code'/.test(gateBare), 'account-gate.js renders an invite-code field');
-  check(/signUp\(\s*addr\s*,\s*pw\s*,\s*\{\s*invite_code:\s*code\s*\}\s*\)/.test(gateBare),
-    'account-gate.js passes invite_code to signUp as user metadata');
+  check(/field\(\s*'Invite code'/.test(gateBare), 'account-gate.js still renders an invite-code field');
+  check(/signUp\(\s*addr,\s*pw,\s*code\s*\?\s*\{\s*invite_code:\s*code\s*\}\s*:\s*null\s*\)/.test(gateBare),
+    'account-gate.js passes invite_code as metadata WHEN a code was given, and null when it was not');
   check(/\/rest\/v1\/rpc\/beta_invite_check/.test(gateBare),
-    'account-gate.js pre-checks through the beta_invite_check RPC');
+    'account-gate.js pre-checks a presented code through the beta_invite_check RPC');
+  check(/var\s+checked\s*=\s*code\s*\n?\s*\?\s*validateInvite\(code\)/.test(gateBare),
+    'the pre-check is conditional on a code existing — checking \'\' would refuse every open-beta signup');
   // b329/A11's control: this substring is what the original exploit looked like.
   check(!/\/rest\/v1\/beta_invites/.test(gateBare),
     'account-gate.js NEVER reads the beta_invites table (that read returned every code)');
   check(/window\.HearthriseInvite\s*=/.test(gateBare),
     'account-gate.js publishes HearthriseInvite so there is one implementation, not two');
 
-  head('the settings signup path presents the code too');
+  head('the settings signup path behaves the same way');
   const settings = await read('src/settings-page.js');
   const settingsBare = bareJs(settings);
-  check(/invite_code:\s*invite/.test(settingsBare),
-    'settings-page.js passes invite_code to signUp');
+  check(/if\(invite\)\s*meta\.invite_code\s*=\s*invite;/.test(settingsBare),
+    'settings-page.js ADDS invite_code to the signup metadata only when a code was typed');
+  check(!/invite_code:\s*invite\b/.test(settingsBare),
+    'settings-page.js no longer hard-codes invite_code into the metadata literal (that sent \'\' for a codeless signup)');
   check(!/rpc\/beta_invite_check/.test(settingsBare),
     'settings-page.js no longer carries its own copy of the invite check');
+
+  head('neither signup surface still REQUIRES a code (the beta is open)');
+  check(!/ERR\.invite\b/.test(gateBare),
+    'account-gate.js no longer refuses a signup for having no code');
+  check(!/name="invite"[^>]*\brequired\b/.test(settingsBare),
+    'the settings invite input is no longer `required`');
+  check(/Have an invite code\?/.test(gateBare) && /Have an invite code\?/.test(settingsBare),
+    'both surfaces collapse the code behind the same disclosure');
 
   head('nothing in the shipped client can burn an invite code');
   for (const f of ['src/settings-page.js', 'src/net/account-gate.js', 'src/net/auth.js', 'src/legacy.js']) {

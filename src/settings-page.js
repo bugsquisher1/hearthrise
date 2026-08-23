@@ -232,8 +232,14 @@
     var overlay = document.createElement('div');
     overlay.className = 'hr-auth-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+    /* OPEN BETA. The code is no longer required and no longer leads the form —
+       it is collapsed behind a link, exactly as on the account wall
+       (src/net/account-gate.js), so the two signup surfaces teach a visitor the
+       same thing. Kept, not deleted: codes already handed out still work, and
+       the server still consumes one when it is given. */
     var inviteRow = isSignUp
-      ? '<input type="text" name="invite" placeholder="Beta invite code" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1));text-transform:uppercase;letter-spacing:1px" />'
+      ? '<button type="button" data-act="show-invite" style="align-self:flex-start;padding:2px 1px;background:transparent;border:0;color:var(--ink-3,#9aa3b0);text-decoration:underline;cursor:pointer;font:inherit;font-size:calc(14.5px * var(--ui-scale, 1))">Have an invite code?</button>'
+      +   '<input type="text" name="invite" data-invite placeholder="Invite code (optional)" style="display:none;padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1));text-transform:uppercase;letter-spacing:1px" />'
       : '';
     var nameRow = isSignUp
       ? '<input type="text" name="displayName" placeholder="Your name (in-game + leaderboards)" required maxlength="20" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
@@ -242,12 +248,12 @@
       + '<form style="background:#1a1f2e;border:2px solid #f3d181;border-radius:8px;padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:10px;color:#dfe9ee;font-family:system-ui,sans-serif">'
       +   '<h3 style="margin:0;color:#f3d181">' + (isSignUp ? 'Create your Hearthrise account' : 'Sign in to Hearthrise') + '</h3>'
       +   '<p style="margin:0;font-size:calc(14.5px * var(--ui-scale, 1));color:#9aa3b0">' + (isSignUp
-              ? 'Closed beta — you\'ll need an invite code from Tyler. Your local progress will move to the cloud automatically.'
+              ? 'Hearthrise is in open beta — make an account and play. It\'s rough in places; tell us in Discord. Your local progress will move to the cloud automatically.'
               : 'Sync your save, join clans, climb leaderboards.') + '</p>'
-      +   inviteRow
       +   nameRow
       +   '<input type="email" name="email" placeholder="Email" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
       +   '<input type="password" name="password" placeholder="Password (8+ characters)" required minlength="8" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
+      +   inviteRow
       +   '<div style="display:flex;gap:8px;margin-top:4px">'
       +     '<button type="submit" data-act="primary" style="flex:1;padding:9px;background:#f3d181;color:#0f1320;border:none;border-radius:4px;font-weight:700;cursor:pointer">'
       +       (isSignUp ? 'Create account' : 'Sign in')
@@ -268,6 +274,16 @@
       close();
       showInlineAuthModal(isSignUp ? 'signin' : 'signup');
     });
+    var showInvite = overlay.querySelector('[data-act="show-invite"]');
+    if(showInvite){
+      showInvite.addEventListener('click', function(){
+        var f = form.querySelector('[data-invite]');
+        if(!f) return;
+        f.style.display = '';
+        showInvite.style.display = 'none';
+        try { f.focus(); } catch(e){}
+      });
+    }
     form.addEventListener('submit', async function(e){
       e.preventDefault();
       var email = (form.email.value || '').trim();
@@ -276,7 +292,7 @@
       var displayName = isSignUp ? ((form.displayName && form.displayName.value || '').trim()) : null;
       if(!email || !password){ status.textContent = 'Email and password required.'; return; }
       if(isSignUp){
-        if(!invite){ status.textContent = 'Beta invite code required.'; return; }
+        // OPEN BETA: no invite code required. One is honoured if given.
         if(!displayName){ status.textContent = 'Pick a name.'; return; }
         if(displayName.length < 2){ status.textContent = 'Name too short.'; return; }
       }
@@ -284,20 +300,30 @@
       status.textContent = isSignUp ? 'Creating account…' : 'Signing in…';
       try {
         if(isSignUp){
-          // Pre-validate invite code so we don't create an account that can't claim one
-          var validated = await validateInvite(invite);
-          if(!validated.ok){
-            status.style.color = '#e88a8a';
-            status.textContent = validated.reason || 'Invalid invite code.';
-            return;
+          // Pre-validate ONLY a code the player actually typed. Handing '' to
+          // the check would refuse the ordinary open-beta signup on a test for
+          // a thing it deliberately does not carry.
+          if(invite){
+            var validated = await validateInvite(invite);
+            if(!validated.ok){
+              status.style.color = '#e88a8a';
+              status.textContent = validated.reason || 'Invalid invite code.';
+              return;
+            }
           }
           // Pass display_name as user metadata — picked up by the
           // handle_new_user trigger to set profiles.display_name on
           // first row creation. `invite_code` rides the same channel and is
           // read by the auth.users gate trigger (2026-08-23-beta-invite-gate.sql),
-          // which consumes it in the same transaction as the account. Omitting
-          // it now means the signup is REFUSED with a 403, not silently allowed.
-          await auth.signUp(email, password, { display_name: displayName, invite_code: invite });
+          // which consumes it in the same transaction as the account.
+          //
+          // OPEN BETA: the key is ADDED, never sent empty. `data.invite_code`
+          // absent and `data.invite_code = ''` are different values to the gate,
+          // and "no code" must reach the server as SQL NULL, not as a blank
+          // string it has to guess the meaning of.
+          var meta = { display_name: displayName };
+          if(invite) meta.invite_code = invite;
+          await auth.signUp(email, password, meta);
           // Stash the display name for post-signin pickup. The invite is no
           // longer stashed: it was consumed at account creation, and the
           // post-hoc claim_beta_invite RPC it used to feed has been revoked from

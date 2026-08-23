@@ -105,7 +105,7 @@
       <div class="crest">🔥</div>
       <h1>The War Table<small>Hearthrise · living priority board</small></h1>
     </div>
-    <div class="stamp">Build <b>b421</b> · live · 🔒 server-authority COMPLETE<br>Updated <b>2026-08-20</b></div>
+    <div class="stamp">Build <b>b460</b> · live · 🔒 server-authority COMPLETE<br>Updated <b>2026-08-23</b> · §10 Huntera adoptions</div>
   </header>
 
   <div class="summary" id="summary"></div>
@@ -194,6 +194,22 @@
       ['Stand up the test account','decide','P0','Still on Tyler — the one launch-prep enabler Coordinator can’t do.'],
       ['Full plan before beta, date slips','ship','','DECIDED (Tyler 2026-08-17): finish the pre-beta list, then playthrough, then open keys.'],
       ['Room-interior style re-roll','decide','P3','After seeing rooms wired.'],
+    ]},
+    { t:'Huntera-derived adoptions (option B)', sub:'Discovery 2026-08-23: Huntera (huntera.com.br) is a browser Tibia clone — Angular+Phaser tile world, authoritative WS server, automation-first combat, escrowed market, PIX/Solana store + RMT. Tyler: do NOT clone it; adopt its best ideas. Designer ruled, engineer costed — same order. ALL gated behind the scalable-state exit criteria; items 1–4 are inventory-flip-independent. REJECTED outright: stamina/paid refills/VIP, coin transfer by name, face-to-face trade, any RMT/crypto, death “blessings”, tile-world combat, instanced party hunts (technical veto — hr_apply is single-character; shared tick = a second engine), projected profit, setting sprawl.', items:[
+      ['Sell-lock + loot filter','spec','P2','① data+UI, S (1–2 d). Flag an item never-auto-sell / never-vendor; loot-class filter. Cheapest real win; no new verb.'],
+      ['Session Tally + Watch Report (hunt-analyzer)','spec','P2','② S–M (2–4 d) — FIRST post-pause pickup. XP/h, gold/h, drops/h, supplies/h, net, per-monster kills, session bests on the Fight screen; away side writes the same shape into the welcome-back card. Data exists: player_ledger (own-read RLS) + windowEnvelope() (use paidMs) + hr_bestiary_of deltas. Copy the market-history.js read-only-cache precedent; extends the existing Ledger. Reports settled server credit only — never a projection. No migration/repack/security review.'],
+      ['Bestiary Charms (PROG-01)','spec','P2','① probably no new verb. Already approved; Huntera’s bestiary-completion bonus = this. Server bestiary counters exist.'],
+      ['Standing Orders — B1 “Withdraw when”','spec','P2','③+⑤ M (3–5 d), do ALONE so AWAY-1 parity has one variable. War Table card: Provisions (= auto-eat) · Withdraw when HP danger / food out / bag full / after N hours · Steward. Rules = player_state columns via one narrow SECURITY DEFINER RPC (hr_set_battle_rules, copy hr_set_auto_eat exactly), read identically by live tick + computeAccrual, evaluated in simulateSpan. Rules are a TABLE like AWAY_SCOPE — unknown rule = inert, never “stop”. Withdraw ends the span early = self-nerf, mints nothing. Biggest away-quality lever we lack.'],
+      ['Loadout presets (“Marching Orders”)','backlog','P3','② S. Gear + food + orders saved as one named preset. QoL, no new sim.'],
+      ['Standing Orders — Steward auto-sell on return','spec','P3','③ M. Auto-sell chosen loot classes on return via the server-priced NPC vendor verb only (vendor-sell.js) — never locked items, never above vendor, never a client credit.'],
+      ['Quarry (prey-style focus pick)','spec','P3','③+⑤ M (4–6 d), DESIGN-DECONFLICT FIRST. A layer, not a duplicate: bounties = contracts for Marks; Quarry = one bestiary-studied monster, chosen free once/day, +drop/+XP vs that species only. Applies inside simulateSpan per UTC segment like botd; sibling columns on active_bounty; reroll = marks via hr_bounty_spend. Designer must deconflict bounty / BotD / Quarry before build; if it ever grants Marks or a 2nd reroll currency, kill it.'],
+      ['Depot → Bank client UI','spec','P2','② S (1–2 d), post-wipe. Server half BUILT + dormant: player_bank, hr_bank_move (locked, idempotent, rate-gated, journalled), hr_state_of projects res.bank. Also fixes the dead Cellar “+500 storage” perk. Flip couples to INVENTORY_ARM_ENABLED.'],
+      ['Standing Orders — B2 targeting priority + ammo/rune selection','backlog','P3','③+⑤ M. Changes fight outcomes/drops → separate parity run. Blocked on E1 ammo consumption (ammo.js NOT YET WIRED), already post-beta.'],
+      ['Enchant v2 + Tempers (imbuements MERGED)','spec','P2','④ M–L (6–10 d). One enchanting system, two axes: permanent element binding (Deferred specs) + Tempers = charge-limited slots fed by monster materials (home for ~25 vendor-trash tier-3–6 drops). Not a separate shrine. player_inventory PK has no instance dimension and adding one rewrites hr_apply (forbidden) → sibling player_item_instances table, the bank-store.sql precedent. Timestamp-expiry tempers are cheaper than the wipe-rune economy.'],
+      ['Buy-offer order book (escrowed, two-sided, partial fills)','spec','P2','③④ XL (12–20 d) — LAST, not pre-launch. Highest-value economy item (“nobody online to sell to me”). Buy-offers were deliberately demolished (2026-08-17 lockdown: no server model/RPC/escrow). Genuine server rebuild: gold-escrow ledger, matcher under the market lock discipline, partial fills, cancel refunds, history. Hardest concurrency item on the board. Prereqs: Phase 3 ledger accumulator + hr-accrue load test.'],
+      ['Guild log / directory / ranks','backlog','P3','②/③ S–M. Cheap retention; gated behind the clan-contribute mint fix.'],
+      ['Friends list','backlog','P3','④ S–M. Mutual-consent table; display_names is the name authority.'],
+      ['Arena → PvE ladder · Discord/push alerts on the platform seam','backlog','P3','Later. Telegram-style per-user webhook secrets declined — new abuse surface for what Discord serves.'],
     ]},
     { t:'Known residuals / small bugs', sub:'', items:[
       ['Craft material dupe','doc','P2','Accepted pre-wipe trade (dupe > data loss). Real fix = inventory authority (the single active track).'],

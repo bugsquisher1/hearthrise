@@ -203,16 +203,19 @@ const BASE_RECIPES = {
     {id:'tailor_leather_boots',   name:'Tailor Leather Boots',    icon:'🥾', inputs:{wolf_pelt:2},                          output:'leather_boots',  xp:80,  req:8,  ms:2400},
     {id:'tailor_leather_gloves',  name:'Tailor Leather Gloves',   icon:'🧤', inputs:{wolf_pelt:1, silk_thread:1},           output:'leather_gloves', xp:120, req:12, ms:2800},
     {id:'tailor_traveler_cape',   name:'Tailor Traveler Cape',    icon:'🦸', inputs:{silk_thread:3, wolf_pelt:2},           output:'traveler_cape',  xp:140, req:15, ms:3000},
-    /* ── ELEMENTS v1 — RUNE BINDING (elements/enchanting) ─────────────────
-       Bind an element essence into a rune the player then enchants onto a
-       weapon. Crafting 25, xp:120, ms:3000. The `magic_essence:1` binder ties
-       the recipe to the same intermediate every staff/rod/ring uses, and the
-       four element essences are the faucet those drops feed. The output's
-       `tag:'rune'` lanes these into the derived "Runes" strip on the Crafting
-       screen (recipeCategory), so no new UI code is needed. */
-    {id:'bind_ember_rune',  name:'Bind Ember Rune',  icon:'🔴', inputs:{ember_essence:4,  magic_essence:1}, output:'ember_rune',  xp:120, req:25, ms:3000},
-    {id:'bind_frost_rune',  name:'Bind Frost Rune',  icon:'🔵', inputs:{frost_essence:4,  magic_essence:1}, output:'frost_rune',  xp:120, req:25, ms:3000},
-    {id:'bind_poison_rune', name:'Bind Poison Rune', icon:'🟣', inputs:{poison_essence:4, magic_essence:1}, output:'poison_rune', xp:120, req:25, ms:3000},
+    /* ── ELEMENTS v1 — RUNE BINDING: MOVED TO RUNECRAFTING (b432) ─────────
+       The three `bind_*_rune` rows lived here, at Crafting 25, in a Crafting
+       lane labelled "Runes" — while a skill named Runecrafting made a
+       different set of runes entirely. That is the incoherence Tyler named,
+       and the ruling is recorded in full at the top of src/data/stonecraft.js:
+       RUNECRAFTING OWNS EVERY RUNE IN THE GAME. The rows are now in
+       `STONECRAFT_RECIPES.runecrafting` with their essence inputs unchanged
+       (plus a Blank Rune, so the whole bench has one grammar) and the same
+       level 25 gate, so no live player's supply chain moved.
+
+       ⚠ Do not re-add a rune recipe here. The `out.tag === 'rune'` branch in
+         `recipeCategory('crafting')` went with them, and the `uncategorized`
+         regression test will catch a re-add on the next run. */
     // Jewelry
     {id:'jewel_copper_ring',      name:'Set Copper Ring',         icon:'💍', inputs:{copper_bar:1, magic_essence:1},        output:'copper_ring',     xp:180, req:20, ms:3000},
     {id:'jewel_hunter_necklace',  name:'String Hunter Necklace',  icon:'📿', inputs:{gold_bar:1, wolf_pelt:1},              output:'hunter_necklace', xp:240, req:25, ms:3500},
@@ -362,10 +365,9 @@ export const ARTISAN_CATEGORIES = {
        fell straight through to `uncategorized`, which b220 asserts is empty.
        Keyed on the EXISTING `tag:'crafting-mat'` field rather than a new one. */
     { key: 'materials',  label: 'Materials' },
-    /* ELEMENTS v1 — the enchanting-rune lane. Keyed on the output's
-       `tag:'rune'`, landed in the SAME commit as the three bind recipes so the
-       `uncategorized` regression test stays green. */
-    { key: 'runes',      label: 'Runes' },
+    /* b432: the "Runes" lane left with the three bind recipes it was built
+       for — Runecrafting owns them now (stonecraft.js header). A declared lane
+       with nothing in it is a dead tab, so it goes in the same change. */
     { key: 'castle',     label: 'Castle Stores' },
   ],
   cooking: [
@@ -373,12 +375,22 @@ export const ARTISAN_CATEGORIES = {
     { key: 'feasts',     label: 'Feasts & Draughts' },
     { key: 'castle',     label: 'Castle Stores' },
   ],
-  /* Runecrafting's two lanes are thin enough to read as one column today, but
-     the tabs are authored NOW because phase two adds the three enchanting
-     runes and the (deferred) staff ladder — and because a skill with no
-     category strip renders differently from its four siblings. */
+  /* b432 — RUNECRAFTING'S TWO LANES, AND THEY ARE THE SKILL'S WHOLE PITCH.
+     The single `runes` lane rendered as no strip at all (one category is not a
+     choice), so the screen was eleven near-identical tiles and no statement of
+     what any of them was for. There are genuinely TWO kinds of rune and they
+     do different jobs, so the strip now says so in the player's own words:
+
+       • STAFF RUNES  — `type:'ammo'`. Socketed in the ammo slot for Magic
+         strength. The air→blood ladder.
+       • WEAPON ENCHANTS — `tag:'rune'`. SPENT to brand a weapon with an
+         element, worth +15% against a monster weak to it (core/elements.js).
+
+     Two labels, one derivation each, no hand-tagging — and the answer to "why
+     would I choose this one" is finally on the screen. */
   runecrafting: [
-    { key: 'runes', label: 'Runes' },
+    { key: 'staff',   label: 'Staff Runes' },
+    { key: 'enchant', label: 'Weapon Enchants' },
   ],
   /* Stonemason has FOUR lanes, which is the reason it needs a strip at all:
      a mason who wants "the next whetstone" must not scroll past quarry rungs,
@@ -431,13 +443,20 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (type === 'weapon') return 'weapons';      // bows + staves
     if (type === 'armor') return 'armour';        // leather + cloth
     if (out && out.tag === 'crafting-mat') return 'materials'; // b356 — woven/worked intermediates
-    if (out && out.tag === 'rune') return 'runes'; // ELEMENTS v1 — enchanting runes
     if (isCastleGood(out)) return 'castle';       // b222 — Timber Beam, Keystone
     return null;
   }
 
   if (skillId === 'runecrafting') {
-    if (type === 'ammo') return 'runes';
+    /* b432 — the enchant lane is claimed FIRST and on the more specific field.
+       `tag:'rune'` is what core/elements.js `runeElement()` reads to map a rune
+       to its element, so it is the field that actually distinguishes an
+       enchanting rune from a socketed one. Ordering matters if a future rune
+       is ever both (§11.2 wants exactly that): a dual-use rune belongs in the
+       lane that describes the SCARCE use — you can always socket it, but you
+       can only enchant with it once. */
+    if (out && out.tag === 'rune') return 'enchant';
+    if (type === 'ammo') return 'staff';
     return null;
   }
 

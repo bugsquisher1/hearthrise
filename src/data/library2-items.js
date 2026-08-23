@@ -399,16 +399,44 @@ const SUPPLY_CHAINS = Object.fromEntries([
 
   /* ITEM-PLAN-06 · phase two, 9 items and not 42 (§11.3). Elemental variants
      exist at ONE high tier band only. `element` is authored now so the element
-     axis, when it ships, is a read and not a re-tag. */
-  ['rune_of_ember',  { n: 'Rune of Ember',  icon: '🔥', v: 9, type: 'ammo', slot: 'ammo', tier: 5, rarity: 'legendary', reqSkill: 'magic', reqLv: 65, magicStrB: 11, ammoPerShot: 1, element: 'ember',  pendingSkill: 'runecrafting', pendingSystem: 'elements' }],
-  ['rune_of_frost',  { n: 'Rune of Frost',  icon: '❄️', v: 6, type: 'ammo', slot: 'ammo', tier: 4, rarity: 'epic',      reqSkill: 'magic', reqLv: 45, magicStrB: 8,  ammoPerShot: 1, element: 'frost',  pendingSkill: 'runecrafting', pendingSystem: 'elements' }],
-  ['rune_of_poison', { n: 'Rune of Poison', icon: '🟣', v: 12, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'magic', reqLv: 85, magicStrB: 14, ammoPerShot: 1, element: 'poison', pendingSkill: 'runecrafting', pendingSystem: 'elements' }],
-  ['arrows_of_ember',  { n: 'Ember Arrows',  icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'ember',  pendingSkill: 'fletching' }],
-  ['arrows_of_frost',  { n: 'Frost Arrows',  icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'frost',  pendingSkill: 'fletching' }],
-  ['arrows_of_poison', { n: 'Poison Arrows', icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'poison', pendingSkill: 'fletching' }],
-  ['whetstone_of_ember',  { n: 'Ember Whetstone',  icon: '🔥', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'ember',  pendingSkill: 'stonemason', pendingSystem: 'elements' }],
-  ['whetstone_of_frost',  { n: 'Frost Whetstone',  icon: '❄️', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'frost',  pendingSkill: 'stonemason', pendingSystem: 'elements' }],
-  ['whetstone_of_poison', { n: 'Poison Whetstone', icon: '🟣', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'poison', pendingSkill: 'stonemason', pendingSystem: 'elements' }],
+     axis, when it ships, is a read and not a re-tag.
+
+     ══ b432 — THE THREE `rune_of_*` ROWS ARE RETIRED (Designer ruling) ══════
+     `rune_of_ember` / `rune_of_frost` / `rune_of_poison` were authored here on
+     2026-08-16 against §11.2, and Elements v1 then shipped `ember_rune` /
+     `frost_rune` / `poison_rune` in items.js against the SAME three elements.
+     Two authorings of one idea is exactly the drift this file's header warns
+     about, and it is the fourth limb of Tyler's "runecrafting doesn't make
+     sense": a player could meet an Ember Rune, a Fire Rune and a Rune of Ember
+     and be expected to hold three ideas where the game has one.
+
+     The LIVE ids win, and not on taste: `ember_rune` is seeded in the server
+     catalogue, is the id the enchant verb debits, and is named in
+     tests/enchant-intent.mjs. Renaming a live economy id to match a dormant
+     row would be churn a player cannot see. So the dormant rows go, and the
+     PAINTED ART GOES WITH THEM — `rune_of_ember.png` / `rune_of_frost.png` are
+     renamed to `ember_rune.png` / `frost_rune.png` in the same commit
+     (item-art.js SHIPPED), which is a strict upgrade: two live, player-facing
+     items that were rendering an emoji now render the painting that was made
+     for them, and nothing on disk is thrown away.
+
+     §11.2's dual use (an enchanting rune that is ALSO castable at its own
+     tier) is NOT lost — it becomes ammo fields on those three live ids when
+     the elemental-variant work lands, which is one edit to three rows instead
+     of a six-item merge. See PENDING_SYSTEMS.elemental_variants.
+
+     The six arrow/whetstone variants below STAY dormant, but their blocker is
+     re-pointed: `elements` is LIVE (elementMultFor is inside weaknessInfo and
+     has been since Elements v1), so an exemption resting on it was asserting
+     nothing. Their real blocker is that the §11.2 transfer recipes were never
+     authored — `elemental_variants`. An exemption that expires against the
+     wrong event is worse than none; item-effects.js says which event. */
+  ['arrows_of_ember',  { n: 'Ember Arrows',  icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'ember',  pendingSkill: 'fletching', pendingSystem: 'elemental_variants' }],
+  ['arrows_of_frost',  { n: 'Frost Arrows',  icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'frost',  pendingSkill: 'fletching', pendingSystem: 'elemental_variants' }],
+  ['arrows_of_poison', { n: 'Poison Arrows', icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'poison', pendingSkill: 'fletching', pendingSystem: 'elemental_variants' }],
+  ['whetstone_of_ember',  { n: 'Ember Whetstone',  icon: '🔥', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'ember',  pendingSkill: 'stonemason', pendingSystem: 'elemental_variants' }],
+  ['whetstone_of_frost',  { n: 'Frost Whetstone',  icon: '❄️', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'frost',  pendingSkill: 'stonemason', pendingSystem: 'elemental_variants' }],
+  ['whetstone_of_poison', { n: 'Poison Whetstone', icon: '🟣', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'poison', pendingSkill: 'stonemason', pendingSystem: 'elemental_variants' }],
 
   /* ITEM-NEW-41/42 · the two artisan TOOL ladders. Artisan skills get 3 rungs
      where gathering gets 7 (the live shape: bronze/steel/rune hammer at
@@ -560,16 +588,31 @@ export const LIB2_DESC = {
   ashlar: 'Squared facing stone, laid so precisely that no mortar shows',
   vaultstone: 'The stone a vault closes on, cut once and never cut again',
 
-  air_rune: 'A blank marked with the first and simplest sign, and it still moves the air',
-  earth_rune: 'A stone rune heavy in the palm out of all proportion to its size',
-  water_rune: 'A rune that beads with moisture in a dry room',
-  fire_rune: 'A rune warm enough to find in a dark pack',
-  chaos_rune: 'A rune whose mark will not stay quite the same shape between glances',
-  death_rune: 'A cold rune cut on a blank taken from beneath a barrow',
-  blood_rune: 'A deep-cut rune that darkens in the groove and never quite dries',
-  rune_of_ember: 'A rune bound to ember, and it will burn whether you cast it or spend it',
-  rune_of_frost: 'A rune bound to frost, aching cold through a glove',
-  rune_of_poison: 'A rune bound to poison, cut on stone nothing will grow on',
+  /* ── STAFF RUNES: SAY THE MECHANIC, THEN THE FLAVOUR (b432) ──────────────
+     These were pure atmosphere, on the one screen where a player is looking at
+     eleven near-identical tiles and asking "what does a rune actually DO?".
+     Each line now opens with the answer — it goes in the ammo slot and raises
+     Magic strength — and earns its keep as flavour afterwards.
+
+     ⚠ AND NONE OF THEM PROMISES A BURN. `ammoPerShot` is authored on every rung
+       above tier 1, but nothing spends it yet: `simulateTick` does not call
+       `spendForSwings` (design item E1, deliberately a separate commit because
+       combat-sim.js is SHA-pinned into the Edge function). src/core/ammo.js
+       states the rule this copy obeys — "until E1 lands, ammo is still not
+       spent in the fight, and no player-facing copy anywhere may promise that
+       it is." So no line here says "spent", "runs out" or "supply". When E1
+       lands, these seven lines are the one place the wording changes. */
+  air_rune: 'Socketed in a staff for a first thread of Magic strength — barely a whisper, and a student\'s whole arsenal',
+  earth_rune: 'Socketed for Magic strength; a stone rune heavy in the palm out of all proportion to its size',
+  water_rune: 'Socketed for Magic strength; a rune that beads with moisture in a dry room',
+  fire_rune: 'Socketed for Magic strength; a rune warm enough to find in a dark pack',
+  chaos_rune: 'Socketed for Magic strength; its mark will not stay quite the same shape between glances',
+  death_rune: 'Socketed for Magic strength; cold, and cut on a blank taken from beneath a barrow',
+  blood_rune: 'The deepest binding a staff will take — deep-cut, dark in the groove, and never quite dry',
+  /* b432: the three `rune_of_*` lines retired with their items. The surviving
+     wording moved to the LIVE ids in item-descriptions.js (ember_rune /
+     frost_rune / poison_rune) rather than being thrown away — "aching cold
+     through a glove" was good and the duplicate item was not. */
 
   coarse_whetstone: 'A rough field stone that puts an edge on anything and a good edge on nothing',
   copper_whetstone: 'A copper-bound stone, the first one worth keeping in the pack',

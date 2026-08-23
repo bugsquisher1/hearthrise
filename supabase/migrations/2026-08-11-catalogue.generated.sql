@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 05ba101a9848ed56357f7076e9f81b14c5bbd6df80a6faba13185e90967a5937
---   rows: 518 items (16 untradeable) ·
---         278 item-slot pairs · 15 equip slots ·
+--   catalogue digest: 17e0630ab2465c15dcedecc5c13761d35ee406e1776403b5e3fe7802e0881fb3
+--   rows: 515 items (16 untradeable) ·
+--         275 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 473 activities ·
 --         3 runes
 --
@@ -519,9 +519,6 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_helm','Rune Helm',true,'armor',5400,'defense',60,null,false),
   ('rune_knife','Rune Knife',true,'tool',9200,null,null,null,false),
   ('rune_needle','Rune Needle',true,'tool',9200,null,null,null,false),
-  ('rune_of_ember','Rune of Ember',true,'ammo',9,'magic',65,null,false),
-  ('rune_of_frost','Rune of Frost',true,'ammo',6,'magic',45,null,false),
-  ('rune_of_poison','Rune of Poison',true,'ammo',12,'magic',85,null,false),
   ('rune_pickaxe','Rune Pickaxe',true,'tool',9000,null,null,null,false),
   ('rune_platebody','Rune Platebody',true,'armor',13500,'defense',60,null,false),
   ('rune_platelegs','Rune Platelegs',true,'armor',9900,'defense',60,null,false),
@@ -866,9 +863,6 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('rune_boots','boots'),
   ('rune_gauntlets','gloves'),
   ('rune_helm','helmet'),
-  ('rune_of_ember','ammo'),
-  ('rune_of_frost','ammo'),
-  ('rune_of_poison','ammo'),
   ('rune_platebody','body'),
   ('rune_platelegs','pants'),
   ('rune_sword','weapon'),
@@ -1028,10 +1022,10 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','bind_chaos_runes','runecrafting',60,null,false),
   ('artisan','bind_death_runes','runecrafting',75,null,false),
   ('artisan','bind_earth_runes','runecrafting',15,null,false),
-  ('artisan','bind_ember_rune','crafting',25,null,false),
+  ('artisan','bind_ember_rune','runecrafting',25,null,false),
   ('artisan','bind_fire_runes','runecrafting',45,null,false),
-  ('artisan','bind_frost_rune','crafting',25,null,false),
-  ('artisan','bind_poison_rune','crafting',25,null,false),
+  ('artisan','bind_frost_rune','runecrafting',25,null,false),
+  ('artisan','bind_poison_rune','runecrafting',25,null,false),
   ('artisan','bind_water_runes','runecrafting',30,null,false),
   ('artisan','bury_big','prayer',15,null,false),
   ('artisan','bury_bones','prayer',1,null,false),
@@ -1188,7 +1182,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','cut_ashlar','stonemason',45,null,false),
   ('artisan','cut_deep_blanks','stonemason',74,null,false),
   ('artisan','cut_fine_blanks','stonemason',38,null,false),
-  ('artisan','cut_rune_blanks','stonemason',8,null,false),
+  ('artisan','cut_rune_blanks','stonemason',4,null,false),
   ('artisan','deepbind_blood','runecrafting',93,null,false),
   ('artisan','deepbind_chaos','runecrafting',69,null,false),
   ('artisan','deepbind_earth','runecrafting',24,null,false),
@@ -1526,7 +1520,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '05ba101a9848ed56357f7076e9f81b14c5bbd6df80a6faba13185e90967a5937', now())
+  values (true, '17e0630ab2465c15dcedecc5c13761d35ee406e1776403b5e3fe7802e0881fb3', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1554,7 +1548,7 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 518 then raise exception 'hr_items has % rows, generator emitted 518', v_n; end if;
+  if v_n <> 515 then raise exception 'hr_items has % rows, generator emitted 515', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 16 then
     raise exception 'untradeable count is %, generator emitted 16', v_n;
@@ -1691,7 +1685,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 05ba101a9848ed56357f7076e9f81b14c5bbd6df80a6faba13185e90967a5937',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 17e0630ab2465c15dcedecc5c13761d35ee406e1776403b5e3fe7802e0881fb3',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

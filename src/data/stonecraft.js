@@ -11,6 +11,44 @@
 // and `resolveArtisanAction(recipe, {skillId})`. A fourth gathering table is
 // CODE. A fourth artisan lane is DATA — which is this file.
 //
+// ══════════════════════════════════════════════════════════════════════════
+// b432 · THE RUNECRAFTING COHERENCE RULING (Designer, delegated authority)
+//
+// Tyler, verbatim: "it doesn't look like you ever fixed runecrafting to make
+// more sense." Four things were wrong at once, and none of them was a bug in
+// any one file — they were four correct decisions that never met each other:
+//
+//   1. RUNECRAFTING DID NOT MAKE THE RUNES THE GAME USES. Elements v1 shipped
+//      `ember_rune` / `frost_rune` / `poison_rune` — the ones you spend to
+//      brand a weapon, worth +15% against a monster weak to that element — as
+//      CRAFTING recipes at level 25, in a Crafting lane literally labelled
+//      "Runes". Fixed: all three now live in `runecrafting` below, at 25.
+//
+//   2. THE SKILL COULD NOT BE STARTED. Every rung wanted a Blank Rune and the
+//      only blank in the game came from Stonemason 8, so a player who picked
+//      Runecrafting first met eleven actions and could do none of them. Fixed
+//      twice over: `cut_rune_blanks` drops to Stonemason 4, and the Local Shop
+//      counter stocks Blank Runes (×50 for 400 g — above their 5 g book value,
+//      so there is no vendor arbitrage and the mason lane stays the cheap
+//      route). Runecrafting is now playable at level 1 with NOTHING else
+//      trained.
+//
+//   3. ONE RUNE IDEA, NOT THREE. The catalogue carried `air_rune`-`blood_rune`
+//      (staff runes), `ember_rune`-`poison_rune` (enchanting runes) AND a
+//      dormant `rune_of_ember` / `rune_of_frost` / `rune_of_poison` trio that
+//      was the SECOND authoring of the same three elements. The trio is
+//      retired (library2-items.js) and its painted art moves to the live ids.
+//
+//   4. THE SCREEN NOW SAYS WHAT THE TWO LANES ARE FOR. `ARTISAN_CATEGORIES`
+//      gives Runecrafting "Staff Runes" and "Weapon Enchants", so the answer
+//      to *what do I make, from what, and why* is on the screen rather than in
+//      this comment.
+//
+// WHAT IS EXPLICITLY NOT IN THIS RULING: E1, the per-swing ammo spend. Nothing
+// consumes `ammoPerShot` yet, and the item copy below is written to that fact
+// rather than around it.
+// ══════════════════════════════════════════════════════════════════════════
+//
 // R8: STONEMASON NEEDS NO WORKBENCH, and it already has none: homestead.js's
 // `hasWorkbench()` reads "skills without a workbench room pass". So the ruling
 // is satisfied structurally, with zero edits, and the b213/b227 cost-deadlock
@@ -289,6 +327,48 @@ export const STONECRAFT_RECIPES = {
     { id: 'bind_death_runes',   name: 'Bind Death Runes',     icon: '💀', inputs: { deep_rune_blank: 6 },         output: 'death_rune', outputQty: 56, xp: 1500, req: 75, ms: 4200 },
     { id: 'bind_blood_runes',   name: 'Bind Blood Runes',     icon: '🩸', inputs: { deep_rune_blank: 6 },         output: 'blood_rune', outputQty: 58, xp: 2200,req: 88, ms: 4400 },
     { id: 'deepbind_blood',     name: 'Deepbind Blood Runes', icon: '🩸', inputs: { deep_rune_blank: 7 },         output: 'blood_rune', outputQty: 68, xp: 2900,req: 93, ms: 4600 },
+
+    /* ══ THE ENCHANTING RUNES — ADOPTED FROM CRAFTING (b432, Designer) ══════
+       Tyler: "it doesn't look like you ever fixed runecrafting to make more
+       sense." He is right, and this is the centre of it. Elements v1 shipped
+       the three runes the game ACTUALLY uses — you spend one to brand a weapon
+       with an element, and `elementMultFor()` pays +15% against a monster weak
+       to it — and it shipped them as CRAFTING recipes at level 25, in a lane
+       Crafting called "Runes", while the skill named Runecrafting made a
+       different set of runes entirely. A player opening Runecrafting therefore
+       found a skill that does not make runes, and a player who wanted a rune
+       found it under a skill that is not called Runecrafting.
+
+       RULING: RUNECRAFTING OWNS EVERY RUNE IN THE GAME. The three binds move
+       here with their essence inputs UNCHANGED, so nobody's supply chain moves
+       and the enchant flow keeps working end to end.
+
+       WHAT DID CHANGE, AND WHY IT IS WORTH THE FOUR EXTRA STONES: every rune
+       in this skill is now bound onto a BLANK RUNE. That gives the whole bench
+       one grammar a player can state in a sentence — *a blank, plus something
+       to write on it, makes a rune* — instead of two unrelated recipe shapes
+       filed under one name. It also means the on-ramp (Blank Runes, stocked by
+       the Local Shop) feeds the ENTIRE skill rather than half of it.
+
+       ALL THREE SIT AT 25, AND THAT IS DELIBERATE. Their three essences drop
+       from perfectly parallel sources — tier 3/4/5 monsters at 0.08/0.09/0.10
+       apiece (Fire Devil · Horned Demon · Chained Demon; Centipede · Winter
+       Wolf · Frost Giant; Venom Spider · Carnivorous Plant · Carrion Swarm) —
+       so a level ladder between them would be a fiction, and a fiction that
+       tells the player ember is "better" than frost when the whole point of
+       the element axis is that the right one depends on what you are fighting.
+       Three rungs at one level is a CHOICE, not a ladder. The gate itself is
+       unchanged in spirit: it was Crafting 25 and it is Runecrafting 25, so no
+       live player is pushed further from a feature they already had.
+
+       XP sits between `deepbind_earth` (req 24) and `bind_water` (req 30) on
+       this skill's own curve — 150/3200ms = 0.047 book-xp/ms against their
+       0.029 and 0.051 — so adopting them neither creates a trap rung nor an
+       XP exploit. It cannot be one anyway: four essences per craft against a
+       ~0.09 drop rate is roughly 45 kills for ONE rune. */
+    { id: 'bind_ember_rune',  name: 'Bind Ember Rune',  icon: '🔴', inputs: { rune_blank: 4, ember_essence: 4,  magic_essence: 1 }, output: 'ember_rune',  outputQty: 1, xp: 150, req: 25, ms: 3200 },
+    { id: 'bind_frost_rune',  name: 'Bind Frost Rune',  icon: '🔵', inputs: { rune_blank: 4, frost_essence: 4,  magic_essence: 1 }, output: 'frost_rune',  outputQty: 1, xp: 150, req: 25, ms: 3200 },
+    { id: 'bind_poison_rune', name: 'Bind Poison Rune', icon: '🟣', inputs: { rune_blank: 4, poison_essence: 4, magic_essence: 1 }, output: 'poison_rune', outputQty: 1, xp: 150, req: 25, ms: 3200 },
   ],
 
   stonemason: [
@@ -330,7 +410,17 @@ export const STONECRAFT_RECIPES = {
        bind their essence, cast at mages. Sized at 1 essence per 20 blanks so a
        full capped night of tier-6 casting costs ~115 essence, against a drop
        rate of 0.40-0.80 per wizard kill over thousands of kills. */
-    { id: 'cut_rune_blanks',   name: 'Cut Blank Runes',      icon: '⬜', inputs: { dressed_block: 2 },                       output: 'rune_blank',      outputQty: 12, xp: 36,  req: 8,  ms: 2800 },
+    /* b432 — `cut_rune_blanks` DROPS FROM req 8 TO req 4. It was the wall in
+       Tyler's complaint: Runecrafting's every rung wanted a Blank Rune, and the
+       only source of one was level EIGHT of a different skill, so a player who
+       picked Runecrafting first opened a bench of eleven actions and could
+       perform none of them, forever. Four is the smallest number that keeps the
+       opening ladder in order (dress at 1, blanks at 4, whetstones at 6) and it
+       is about two minutes of dressing rather than a session. The GOLD route —
+       Blank Runes on the Local Shop counter — closes the same hole for a player
+       who never wants to be a mason at all; this closes it for the one who
+       simply has not got there yet. */
+    { id: 'cut_rune_blanks',   name: 'Cut Blank Runes',      icon: '⬜', inputs: { dressed_block: 2 },                       output: 'rune_blank',      outputQty: 12, xp: 36,  req: 4,  ms: 2800 },
     { id: 'split_rune_blanks', name: 'Split Blank Runes',    icon: '⬜', inputs: { dressed_block: 3 },                       output: 'rune_blank',      outputQty: 20, xp: 92,  req: 22, ms: 3000 },
     { id: 'cut_fine_blanks',   name: 'Cut Fine Blank Runes', icon: '🔲', inputs: { granite_block: 2, dressed_block: 2 },     output: 'fine_rune_blank', outputQty: 14, xp: 400, req: 38, ms: 3400 },
     { id: 'cut_deep_blanks',   name: 'Cut Deep Blank Runes', icon: '🔳', inputs: { basalt_block: 3, magic_essence: 1 },      output: 'deep_rune_blank', outputQty: 20, xp: 1500, req: 74, ms: 4000 },
@@ -356,35 +446,19 @@ export const STONECRAFT_RECIPES = {
   ],
 };
 
-/* Flavour. Medieval voice, original IP, no emoji-as-art. */
-export const STONECRAFT_DESC = {
-  rubble: 'Broken stone hauled out of the cut face — worthless to look at, and the first thing every wall was',
-  granite: 'Hard grey stone with a bite that dulls picks, and the reason a manor outlasts its builder',
-  basalt: 'Black stone from the old flows, so dense it rings under the hammer instead of chipping',
+/* ══════════════════════════════════════════════════════════════════════════
+   FLAVOUR LIVES IN library2-items.js — `STONECRAFT_DESC` IS RETIRED (b432).
 
-  dressed_block: 'A stone block squared on six faces and true on all of them, which is most of what masonry is',
-  granite_block: 'Granite squared and dressed — heavy enough that two men set one, and it never moves again',
-  basalt_block: 'Basalt cut true, dark as a well and cold to the hand in high summer',
+   It was 24 hand-written lines with NO IMPORTER. `src/data/item-descriptions.js`
+   composes ITEM_DESC from WAVE3_DESC + SLOT_DESC + LIB2_DESC and never from
+   this file, and LIB2_DESC happened to carry a line for all 24 of the same ids
+   — so every word here was shadowed from the day it was written, and a
+   designer editing it (as this desk did, first pass) changes nothing a player
+   can read. Verified by measurement rather than by reading the imports:
+   `itemDesc('air_rune')` in the live page returned the LIB2_DESC line.
 
-  rune_blank: 'A blank disc of dressed stone, smooth and silent, waiting for something to be written on it',
-  fine_rune_blank: 'Granite ground to a wafer and polished until it takes a mark cleanly at the first stroke',
-  deep_rune_blank: 'Basalt cut thin and steeped in essence, humming faintly before anyone has bound a thing to it',
-
-  air_rune: 'A first binding, barely a whisper in the socket — a student\'s rune, and it never runs out',
-  earth_rune: 'Weight bound into stone, so the cast lands like something dropped rather than something thrown',
-  water_rune: 'A cold rune that beads with damp in the hand and does not dry however long you hold it',
-  fire_rune: 'Warm through the glove, and warmer at the moment it goes, which is how you know it took',
-  chaos_rune: 'The mark on this one will not sit still long enough to be read twice the same way',
-  death_rune: 'Quiet in the socket in the way a room is quiet when something has just stopped',
-  blood_rune: 'Bound in a mason\'s own red, and it costs more to make than the spell it carries is worth to anyone else',
-
-  coarse_whetstone: 'A rough block of dressed stone — it will put an edge on anything, badly, forever',
-  copper_whetstone: 'Stone bound with a copper band so it wears flat instead of hollow',
-  iron_whetstone: 'A soldier\'s stone, iron-set, the kind carried in a belt pouch until it is thin as a coin',
-  steel_whetstone: 'Granite and steel, ground to a hone that takes a blade back to new in a dozen passes',
-  mithril_whetstone: 'Mithril dust in a granite bed — the edge it leaves whistles before it lands',
-  rune_whetstone: 'Basalt banded in rune steel, and swords sharpened on it keep the edge for a season',
-  dawn_whetstone: 'Dawnsteel worked into black stone, worth more than most of the swords it will ever touch',
-
-  ashlar: 'Facing stone cut square and set without mortar — the difference between a house and a manor',
-};
+   Same class of defect as the duplicate `rune_of_*` items this change retires,
+   and it is left as a comment rather than silently deleted because the next
+   person to want Stonemason flavour will look HERE first. The live copy — and
+   the mechanic-first rewrite of the seven staff runes — is in LIB2_DESC.
+   ══════════════════════════════════════════════════════════════════════════ */

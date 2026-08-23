@@ -3083,7 +3083,12 @@ const TESTS = [
       'a crafted item must name the material it is made from, got: ' + plank);
     // The shop counters — the whole class the index used to be blind to.
     const seed = window.itemSourceLine('wheat_seed');
-    assert(/Seed shop/.test(seed), 'a seed must name the counter that sells it, got: ' + seed);
+    /* b432: "the Seed shop" → "the Local Shop". The counter is labelled
+       "Supplies" now and stocks Blank Runes beside the seeds, so the old
+       sentence sent a player looking for a second shop that does not exist.
+       The PROPERTY under test is unchanged — a shop item must name its counter
+       and its price — only the counter's name moved. */
+    assert(/Local Shop/.test(seed), 'a seed must name the counter that sells it, got: ' + seed);
     assert(/\d/.test(seed), 'and its price, got: ' + seed);
     // Farming names the crop, so "which seed do I buy" is answerable.
     const pump = window.itemSourceLine('pumpkin');
@@ -18908,12 +18913,38 @@ const TESTS = [
         }
       });
     });
-    /* The three ladders must actually be the same LENGTH, or "same curve" is
-       true of a ladder that simply stops early. */
-    const lens = skills.map((s) => byLadder[s].length);
-    assert(lens.every((n) => n === lens[0]),
-      'the three ammo ladders have different rung counts (' + skills.map((s, i) => s + ':' + lens[i]).join(', ')
-      + ') — a shorter ladder is a style with no top end, whatever curve it carries');
+    /* The three ladders must reach the same TOP END, or "same curve" is true of
+       a ladder that simply stops early.
+
+       ── b432: THIS WAS A ROW COUNT AND IS NOW A TIER SET, AND THE CHANGE IS A
+          CORRECTION RATHER THAN A RELAXATION. ────────────────────────────────
+       The property this guard NAMES in its own failure message is "a shorter
+       ladder is a style with no top end". Row count stood in for that, and the
+       proxy held exactly as long as the three ladders were shaped identically —
+       7 tiers plus 3 elemental siblings at tier 6, three times over.
+
+       It stopped standing for anything the moment magic's three elemental
+       siblings were retired (b432). `rune_of_ember` / `rune_of_frost` /
+       `rune_of_poison` were a SECOND authoring of `ember_rune` / `frost_rune` /
+       `poison_rune`, which Elements v1 had already shipped as live craftables —
+       and Elements v1 also settled the element question differently from the
+       design doc that specified those siblings: an enchant is stamped on the
+       WEAPON slot and is style-agnostic (`equipmentStats(eq, ITEMS, {weapon:
+       'ember'})`), so every style now gets its element the same way, and none
+       of them needs an elemental AMMO item to participate. Under row count,
+       deleting a duplicate that no player could ever obtain "shortened magic's
+       ladder" — which is not a thing that happened.
+
+       Tier coverage says the real thing and is STRICTLY STRONGER on the axis
+       that matters: it fails a ladder missing tier 4 even if that ladder has
+       ten rows, which the row count could never see. */
+    const tiersOf = (s) => Array.from(new Set(byLadder[s].map(([, it]) => it.tier))).sort((a, b) => a - b);
+    const sets = skills.map((s) => tiersOf(s).join(','));
+    assert(sets.every((t) => t === sets[0]),
+      'the three ammo ladders cover different tiers (' + skills.map((s, i) => s + ':[' + sets[i] + ']').join(', ')
+      + ') — a ladder that stops early is a style with no top end, whatever curve it carries');
+    assert(sets[0] === '1,2,3,4,5,6,7',
+      'every ammo ladder must cover tiers 1-7 with no gaps, got [' + sets[0] + ']');
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -19023,6 +19054,214 @@ const TESTS = [
       assert(rune.magicStrB > 0, 'a bound rune must pay the magic damage stat');
       assert(window.EQUIP_SLOTS.indexOf('ammo') >= 0, 'the ammo slot must exist on the doll');
     } finally { window.notify = realNotify; restoreG(snap); }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     b432 E2E — THE PURE RUNECRAFTER. The wall Tyler's complaint was standing
+     against, played rather than described.
+
+     Every one of Runecrafting's eleven rungs wanted a Blank Rune, and the only
+     blank in the game came out of Stonemason 8. So a player who opened
+     Runecrafting first — level 1, nothing else trained, an empty bag — met a
+     bench of eleven actions and could perform NONE of them, with no on-screen
+     hint that the answer was a different skill. The b357 E2E above could not
+     see this: it quarries and dresses and cuts blanks first, so by the time it
+     reaches the bind it has already trained the skill that was the wall.
+
+     THIS ONE TRAINS NOTHING ELSE, EVER. Its whole value is the assertions that
+     other skills are still at zero at the end. That is why they are not
+     decoration at the bottom — they ARE the test.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRunClientAuthoritative('b432 E2E: a pure Runecrafter — level 1, no other skill trained — buys blanks at the Local Shop, binds runes, and enchants a weapon with one', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    const realNotify = window.notify;
+    try {
+      window.notify = function () {};
+      const recipes = C.artisanRecipes();
+      const have = (id) => (G.inventory && G.inventory[id]) || 0;
+      const work = (recipeId, actions) => {
+        const entry = C.artisanRecipe(recipeId);
+        assert(entry, 'recipe does not resolve: ' + recipeId);
+        G.activeMonster = null;
+        G.activeSkill = entry.skill;
+        G.skillTargetId = recipeId;
+        G.buffs = []; G.toolCarry = {};
+        const stepMs = C.artisanSim.artisanIntervalMs(G, entry.skill, entry.recipe,
+          { items: window.ITEMS, bonus: window.getBonus });
+        return C.artisanSim.simulateArtisanSpan(G, {
+          away: true, fromMs: 0, toMs: actions * stepMs,
+          rng: C.rng, items: window.ITEMS, recipes, bonus: window.getBonus,
+          fx: {
+            addItem: (id, q) => window.addItem(id, q),
+            removeItem: (id, q) => window.removeItem(id, q),
+            addXp: (sk, amt) => window.addXp(sk, amt),
+            updateDaily: () => {}, updateQuest: () => {},
+          },
+        });
+      };
+
+      /* A brand-new account that has decided to be a runecrafter and nothing
+         else. Day-one gold: 500 at creation + the 500 the day-1 login pays. */
+      G.inventory = {};
+      G.equipment = Object.assign({}, G.equipment, { ammo: null, weapon: null });
+      G.unlockedRecipes = {};
+      G.skills = Object.assign({}, G.skills, {
+        runecrafting: 0, stonemason: 0, mining: 0, crafting: 0,
+        smithing: 0, woodcutting: 0, fishing: 0,
+      });
+      G.gold = 1000;
+      stampBalanceLikeLoad(G);
+      C.reseed(0xB1A17C);
+
+      /* ── 1. THE COUNTER STOCKS THE THING THE SKILL IS MADE OF ────────────
+         And it is priced so it CANNOT be farmed. `rune_blank` is not `raw`, so
+         the vendor buys it back at its full book value — a shop price at or
+         under book would be a literal infinite-gold loop, which is the one way
+         a convenience on-ramp could wreck the economy. */
+      const offer = (window.SEED_SHOP || []).find((s) => s.id === 'rune_blank');
+      assert(offer, 'the Local Shop must stock Blank Runes — otherwise Runecrafting cannot be '
+        + 'started at all by a player who trains no other skill');
+      const book = window.ITEMS.rune_blank.v;
+      const unit = offer.cost / offer.qty;
+      assert(!window.ITEMS.rune_blank.raw,
+        'rune_blank is not flagged raw, so it vendors at FULL book value — this test\'s price '
+        + 'inequality depends on that and must be re-derived if the flag ever changes');
+      assert(unit > book,
+        'Blank Runes sell at ' + unit + ' g but vendor back at ' + book + ' g — buy-low-sell-high '
+        + 'is an infinite gold printer, and the shop price must always sit ABOVE book value');
+
+      /* ── 2. BUY. The real button, not a hand-poked inventory. ─────────── */
+      window.buyShopItem('rune_blank', offer.qty, offer.cost);
+      assert(have('rune_blank') === offer.qty,
+        'buying the Blank Rune bundle put ' + have('rune_blank') + ' in the bag, expected ' + offer.qty);
+
+      /* ── 3. A LEVEL-1 RUNG EXISTS AND IS PERFORMABLE FROM THAT PURCHASE
+         ALONE. Derived, not hard-coded to `bind_air_runes`: the contract is
+         "the skill opens at 1", not "this particular recipe does". */
+      const openers = (window.ARTISAN_RECIPES.runecrafting || []).filter((r) => (r.req || 1) <= 1);
+      assert(openers.length > 0,
+        'Runecrafting has no rung at level 1 — a skill whose first action is gated is a skill '
+        + 'a new player cannot start');
+      const rung = openers[0];
+      const inputs = rung.inputs || (rung.input ? { [rung.input]: 1 } : {});
+      Object.keys(inputs).forEach((id) => {
+        assert(id === 'rune_blank',
+          'the level-1 Runecrafting rung wants "' + id + '", which this player has no way to get — '
+          + 'the opening rung must be satisfiable from the shop counter alone');
+      });
+
+      /* THE BUNDLE IS SMALL AND REPEATABLE ON PURPOSE (see the SEED_SHOP note
+         in legacy.js): one bind eats 6 blanks for 3 effective XP, so no gold
+         price reaches level 2 and the counter is a START, not a training
+         method. What it MUST clear is two bars — it covers whole actions, and
+         a day-one purse (500 start + 500 login) buys it several times over, so
+         "I am stuck" is never the answer. */
+      const runs = Math.floor(offer.qty / inputs.rune_blank);
+      assert(runs >= 3,
+        'one Blank Rune bundle covers only ' + runs + ' bind(s) — the on-ramp must be a first '
+        + 'session, not a single click');
+      assert(offer.cost * 3 <= 1000,
+        'the bundle costs ' + offer.cost + ' g, so a day-one purse (500 + 500 login) cannot buy '
+        + 'it three times — a top-up counter a new player can afford exactly once is a wall '
+        + 'wearing a price tag');
+      const r = work(rung.id, runs);
+      assert(r.skill === 'runecrafting', 'the opening rung paid the ' + r.skill + ' bench');
+      assert(r.ticks === runs && r.stoppedBy === null,
+        'the opening rung stopped after ' + r.ticks + '/' + runs + ' actions (' + r.stoppedBy + ')');
+      assert(have(rung.output) > 0, 'the opening rung produced no ' + rung.output);
+      assert((G.skills.runecrafting || 0) > 0, 'the opening rung paid no Runecrafting XP');
+
+      /* ── 4. THE POINT OF THE WHOLE TEST. Nothing else was trained. ─────── */
+      ['stonemason', 'mining', 'crafting', 'smithing', 'woodcutting', 'fishing'].forEach((sk) => {
+        assert((G.skills[sk] || 0) === 0,
+          'a pure Runecrafter ended up with ' + sk + ' XP — the skill must be startable with '
+          + 'NOTHING else trained, which was exactly the wall this change removes');
+      });
+
+      /* ── 5. AND THE RUNES THE ENCHANT SYSTEM USES ARE MADE HERE TOO, END TO
+         END: bind one, and the weapon it brands actually earns the element
+         multiplier the fight reads. This is the join the whole ruling is about
+         — before it, the rune the enchanter wanted came out of CRAFTING. */
+      const bind = (window.ARTISAN_RECIPES.runecrafting || []).find((x) => x.output === 'ember_rune');
+      assert(bind, 'Runecrafting must make ember_rune');
+      G.skills = Object.assign({}, G.skills, { runecrafting: window.xpForLevel(bind.req + 1) });
+      Object.entries(bind.inputs).forEach(([id, n]) => { window.addItem(id, n * 2); });
+      const e = work(bind.id, 1);
+      assert(e.ticks === 1 && e.stoppedBy === null, 'the ember bind stopped: ' + e.stoppedBy);
+      assert(have('ember_rune') >= 1, 'binding produced no ember_rune');
+
+      const EL = C.elements;
+      assert(EL.runeElement('ember_rune', window.ITEMS) === 'ember',
+        'the rune Runecrafting just made does not resolve to an element — the enchant verb reads '
+        + 'exactly this field server-side, so a rune that fails here cannot be spent at all');
+      const eq = C.combat.equipmentStats({ weapon: 'bronze_sword' }, window.ITEMS, { weapon: 'ember' });
+      assert(eq.element === 'ember', 'enchanting a real weapon must stamp the element');
+      const weak = Object.keys(window.MONSTERS).find((id) => window.MONSTERS[id].elementWeak === 'ember');
+      assert(weak, 'no ember-weak monster to prove the enchant pays');
+      assert(Math.abs(C.combat.weaknessInfo(window.MONSTERS[weak], eq).elementMult - 1.15) < 1e-9,
+        'a rune bound at the Runecrafting bench must still pay x1.15 against an ember-weak foe — '
+        + 'the move must not have broken the reward at the end of the chain');
+    } finally { window.notify = realNotify; restoreG(snap); }
+  }),
+
+  /* ── b432 REGRESSION: "HOW DO I GET THIS?" MUST NEVER ANSWER "IT MAY HAVE
+     BEEN REMOVED" FOR SOMETHING YOU CAN SIMPLY MAKE. ───────────────────────
+     `showAcquisitionTip` knew about shops, crops, gathering nodes and mob
+     drops and nothing at all about the ~150 artisan recipes, so every bar,
+     plank, blank and rune in the game answered "No known sources · This item
+     may be quest-locked or removed". Not merely unhelpful — FALSE, and it
+     tells a player who could act right now to stop looking. Found by playing
+     the Runecrafting fix from an empty bag: the one item the whole skill runs
+     on said it might have been removed.
+
+     The fixture is deliberately a SPREAD of craftables from four different
+     benches, not just the rune: a guard that only watched rune_blank would go
+     green on a fix that special-cased it. */
+  () => tryRun('b432: "How do I get this?" names the bench for a craftable, and never claims a live item was removed', () => {
+    const ask = (id) => {
+      window.showAcquisitionTip(id);
+      const ov = document.getElementById('acq-overlay');
+      assert(ov, 'the acquisition overlay did not open for ' + id);
+      const txt = ov.innerText || '';
+      window.hideAcquisitionTip();
+      return txt;
+    };
+    /* Craft-only items across four benches — none has a drop, node or shop row
+       to fall back on, so each one is a real test of the recipe path. */
+    const CASES = [
+      ['dressed_block', 'Stonemason'],
+      ['rune_blank', 'Stonemason'],
+      ['normal_plank', 'Crafting'],
+      ['ember_rune', 'Runecrafting'],
+    ];
+    CASES.forEach(([id, skill]) => {
+      const txt = ask(id);
+      assert(!/No known sources/.test(txt),
+        'the game told a player that ' + id + ' "may be quest-locked or removed" — it is craftable at '
+        + 'the ' + skill + ' bench, and a false dead end is worse than a missing hint');
+      assert(txt.indexOf(skill) >= 0,
+        'the acquisition tip for ' + id + ' does not name the ' + skill + ' bench: ' + txt.replace(/\s+/g, ' '));
+    });
+    /* THE LOWEST GATE, NOT THE LAST ROW. rune_blank has two Stonemason
+       recipes; quoting `split_rune_blanks` (Lv 22) instead of
+       `cut_rune_blanks` (Lv 4) reads as "come back much later" to a player who
+       could act now. Same ruling as item-index.js's source line. */
+    const blankReqs = (window.ARTISAN_RECIPES.stonemason || [])
+      .filter((r) => r.output === 'rune_blank').map((r) => r.req || 1);
+    assert(blankReqs.length >= 2, 'the fixture needs an item with TWO recipes to measure anything');
+    const lowest = Math.min.apply(null, blankReqs);
+    const highest = Math.max.apply(null, blankReqs);
+    const blankTxt = ask('rune_blank');
+    assert(new RegExp('Lv ' + lowest + ' required').test(blankTxt),
+      'the tip must quote the EASIEST recipe (Lv ' + lowest + '), got: ' + blankTxt.replace(/\s+/g, ' '));
+    assert(!new RegExp('Lv ' + highest + ' required').test(blankTxt),
+      'the tip quoted the hardest rung (Lv ' + highest + ') — the answer to "how do I get this" must be '
+      + 'the gate the player can reach first');
+    /* The same rule, on the other surface that answers this question. */
+    assert(/Stonemason Lv 4/.test(window.itemSourceLine('rune_blank')),
+      'the item flyout source line must also name the easiest recipe, got: ' + window.itemSourceLine('rune_blank'));
   }),
 
   () => tryRunClientAuthoritative('b357 E2E: a Stonemason turns quarried stone into whetstones and an Ashlar the castle actually wants', () => {
@@ -38503,7 +38742,22 @@ const TESTS = [
      Eight claims, each mutation-provable. Read through the ONE expression the
      live tick and the Edge accrual both call (equipmentStats → weaknessInfo),
      so away nights are guarded with awake ones. */
-  () => tryRun('ELEM-1: essences/runes exist as data, runeElement maps, and the bind recipes lane into Crafting > Runes', () => {
+  /* ── b432 REGRESSION: RUNECRAFTING OWNS EVERY RUNE IN THE GAME ────────────
+     Tyler: "it doesn't look like you ever fixed runecrafting to make more
+     sense." The centre of that was this: Elements v1 shipped the three runes
+     the game ACTUALLY uses as CRAFTING recipes at level 25, in a Crafting lane
+     labelled "Runes", while the skill named Runecrafting made a different set
+     of runes entirely — so the word "rune" pointed at two skills and a player
+     could not tell which one to open.
+
+     This test used to encode that arrangement ("bind_ember_rune must exist at
+     Crafting 25"), which is why it went red on the fix — it was the contract,
+     and the contract was wrong. It now asserts the ruling, and the ownership
+     half is written as a SEARCH ACROSS EVERY SKILL rather than a lookup in one:
+     asserting the recipe is in Runecrafting would still pass if a copy were
+     also left in Crafting, and a duplicate recipe is precisely the failure this
+     whole change exists to remove. */
+  () => tryRun('ELEM-1/b432: Runecrafting owns every rune — the three binds live there at 25, nowhere else, and lane into Weapon Enchants', () => {
     const ITEMS = window.ITEMS;
     const EL = window.HearthriseCore && window.HearthriseCore.elements;
     assert(EL && typeof EL.runeElement === 'function', 'core must expose the elements module');
@@ -38516,23 +38770,46 @@ const TESTS = [
       assert(EL.runeElement(e + '_rune', ITEMS) === e, 'runeElement(' + e + '_rune) must be ' + e);
       assert(EL.runeElement('bronze_sword', ITEMS) === null, 'runeElement of a non-rune must be null');
     });
-    /* The three bind recipes exist and lane into the derived Runes tab. */
     const R = window.HearthriseRecipes || window;
-    const recipes = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.crafting) || [];
+    const ALL = window.ARTISAN_RECIPES || {};
     ['ember', 'frost', 'poison'].forEach((e) => {
-      const rec = recipes.find((r) => r.output === e + '_rune');
-      assert(rec && rec.req === 25, 'bind_' + e + '_rune must exist at Crafting 25');
+      /* WHICH SKILLS MAKE THIS RUNE? Exactly one, and it is Runecrafting. */
+      const makers = Object.keys(ALL).filter((s) => (ALL[s] || []).some((r) => r.output === e + '_rune'));
+      assert(makers.length === 1 && makers[0] === 'runecrafting',
+        e + '_rune must be made by RUNECRAFTING and by nothing else — made by: '
+        + (makers.join(', ') || '(nothing)'));
+      const rec = ALL.runecrafting.find((r) => r.output === e + '_rune');
+      assert(rec && rec.req === 25, 'bind_' + e + '_rune must sit at Runecrafting 25 (the Crafting 25 gate, moved not raised)');
+      /* The essence inputs are UNCHANGED by the move — nobody's supply chain
+         shifted — and the blank is the new common grammar of the bench. */
       assert(rec.inputs && rec.inputs[e + '_essence'] === 4 && rec.inputs.magic_essence === 1,
-        'bind_' + e + '_rune inputs must be {' + e + '_essence:4, magic_essence:1}');
+        'bind_' + e + '_rune must keep its {' + e + '_essence:4, magic_essence:1} cost across the move');
+      assert(rec.inputs.rune_blank > 0,
+        'bind_' + e + '_rune must be bound onto a rune_blank — every rune on this bench starts as a blank');
       if (typeof R.recipeCategory === 'function') {
-        assert(R.recipeCategory('crafting', rec, window.ITEMS) === 'runes',
-          'bind_' + e + '_rune must lane into the Runes tab');
+        assert(R.recipeCategory('runecrafting', rec, ITEMS) === 'enchant',
+          'bind_' + e + '_rune must lane into Weapon Enchants, got ' + R.recipeCategory('runecrafting', rec, ITEMS));
       }
     });
+    /* THE TWO LANES BOTH FILL, and nothing is stranded in either skill. An
+       empty declared lane is a dead tab; an uncategorized recipe is invisible. */
     if (typeof R.categorizeRecipes === 'function') {
+      const rc = R.categorizeRecipes('runecrafting');
+      assert(rc.uncategorized.length === 0,
+        'a Runecrafting recipe landed in no lane: ' + rc.uncategorized.map((r) => r.id).join(', '));
+      const laneOf = (k) => (rc.groups.find((g) => g.key === k) || { recipes: [] }).recipes;
+      assert(laneOf('enchant').length === 3, 'Weapon Enchants must hold exactly the three element runes, got ' + laneOf('enchant').length);
+      assert(laneOf('staff').length >= 11, 'Staff Runes must still hold the whole air→blood ladder, got ' + laneOf('staff').length);
+      /* BOTH lanes must actually RENDER — `groups` drops an empty key, so two
+         groups is the proof that the strip is a real choice and not a label. */
+      assert(rc.groups.length === 2,
+        'the Runecrafting strip must show both lanes, got: ' + rc.groups.map((g) => g.label).join(' | '));
       assert(R.categorizeRecipes('crafting').uncategorized.length === 0,
-        'the new rune recipes must not strand any crafting recipe uncategorized');
+        'moving the runes out must not strand a crafting recipe uncategorized');
     }
+    /* And Crafting no longer declares the lane it no longer fills. */
+    assert(!(window.ARTISAN_CATEGORIES.crafting || []).some((d) => d.key === 'runes'),
+      'crafting still declares a Runes tab it can never fill — an empty tab is a dead end');
   }),
 
   () => tryRun('ELEM-2: a matched enchant pays x1.15 through weaknessInfo; immune/neutral pay x1.00 (mutation-proved by flipping elementWeak)', () => {
@@ -38664,7 +38941,10 @@ const TESTS = [
 
   () => tryRun('ELEM-7: essences and runes each have a faucet and a use, and mint no protected currency', () => {
     const ITEMS = window.ITEMS; const MONSTERS = window.MONSTERS;
-    const recipes = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.crafting) || [];
+    /* b432: scans EVERY artisan lane, not just Crafting. The faucet/use
+       question is about the item web, and pinning it to one skill made the
+       guard go red on a recipe MOVE — which is a relocation, not a hole. */
+    const recipes = Object.values(window.ARTISAN_RECIPES || {}).reduce((a, l) => a.concat(l || []), []);
     ['ember', 'frost', 'poison'].forEach((e) => {
       const ess = e + '_essence'; const rune = e + '_rune';
       /* FAUCET: at least one monster drops the essence. */

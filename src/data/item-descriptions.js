@@ -109,6 +109,19 @@ export const ITEM_DESC = {
   'ember_sword': 'Emberforged blade of heat-tempered steel that bites through heavy plate',
   'ember_tart': 'A smouldering tart of emberfruit, sweet fire that fuels your combat training',
   'ember_warhammer': 'Emberforged warhammer whose heat-hardened head shatters plate',
+  /* ── THE THREE ENCHANTING RUNES AND THEIR ESSENCES (b432) ────────────────
+     Six live, craftable, tradeable items that had NO flavour line at all, on
+     the one screen where "why would I make this?" most needed answering. Each
+     rune line states the mechanic first — it is spent on your weapon and it
+     bites harder on a monster weak to that element (core/elements.js, +15%
+     clamped) — because a player reading the Runecrafting bench is deciding
+     between this and a staff rune, and flavour alone cannot settle that. */
+  'ember_essence': 'A mote of caught fire, hot through the pouch, waiting for a stone to hold it',
+  'ember_rune': 'Spent to brand a weapon with ember — the brand bites harder on anything that fears fire',
+  'frost_essence': 'A bead of held cold that frosts the air around it and will not thaw',
+  'frost_rune': 'Spent to brand a weapon with frost, aching cold through a glove — and colder on anything that fears it',
+  'poison_essence': 'Distilled venom sealed in wax, because nothing else will hold it for long',
+  'poison_rune': 'Spent to brand a weapon with poison, cut on stone nothing will grow on — and worse for anything already frail',
   'emberfruit': 'A hot-hued fruit that grows near volcanic loam, smoulders with warmth and worth',
   'emberfruit_seed': 'Emberfruit seed whose fiery yield feeds the richer recipes',
   'emberstone_ore': 'Glowing emberstone ore, late-game rock that forges into Emberforged bars',

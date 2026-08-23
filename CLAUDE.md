@@ -15,6 +15,15 @@ This file is auto-loaded into every Claude session in this workspace. The rules 
 
 ---
 
+## Session criteria (locked 2026-08-23 — after the beta-morning failures; Tyler: "how do we get back organized and doing this correctly?")
+
+These supersede anything above or below where they conflict.
+
+1. **THE PLAY GATE.** No release touching a player-facing loop ships until it has been PLAYED on the live server as a real signed-in account, the way a player plays: reload → claim → fight → gather → buy → hire → water → reload again. Tests + screenshots are necessary, not sufficient. Every beta-morning bug (dead quest claims, daily-reward re-popup, water-all, swing timer, unbuyable Auto-Eat) was "a flag/payout that used to live in the save blob, forgotten on reload" — only reload-and-redo finds that class. The Coordinator needs a logged-in tab it can drive (Tyler's QA account in the connected Chrome); without it the gate cannot be run and the release waits.
+2. **ONE TRACK, ONE TREE.** Agents work ONLY in worktrees (`isolation:"worktree"`). The Coordinator is the only writer on `main`. One integration at a time; the suite runs on a quiet machine (parallel suites blow the in-page budget and look like flakes). No new design/feature tracks while a player-visible bug is open — bugs first, in the order a player meets them.
+3. **KILL THE CLASS, NOT THE BUG.** The cutover inverted persistence: the blob was a DENYLIST (everything persisted unless excluded); the residue + records are an ALLOWLIST (only listed fields survive a reload). When a "forgotten on reload" bug appears, run the sweep (every `G.<field>` the game writes vs. record ∪ residue ∪ NO_SYNC) and fix the whole list in one build — never one field per player report.
+4. **STATUS IS A TABLE.** Every report to Tyler leads with a table: bug → status (fixed-live / fixed-staged / open) → what's needed. No walls of text; no "I'll…" without a tool call behind it.
+
 ## Testing discipline
 
 **Every bug fix and every new feature ships with a test in the same commit.** Full reasoning + mechanics are in [`TESTING.md`](./TESTING.md). The short version:

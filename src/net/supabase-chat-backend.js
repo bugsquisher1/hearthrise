@@ -69,8 +69,14 @@ class SupabaseChatBackend {
     // Fallback: auth.js hasn't finished setupAuth yet. Create our own.
     const cfg = getCfg();
     if (!cfg) throw new Error('Supabase not configured');
-    const mod = await import('https://cdn.skypack.dev/@supabase/supabase-js');
-    this._supabase = mod.createClient(cfg.url, cfg.anonKey, {
+    // SELF-HOSTED SDK. This was `import('https://cdn.skypack.dev/@supabase/
+    // supabase-js')` — an unpinned third-party CDN handed a live session token.
+    // See the comment block in src/net/auth.js setupAuth(). No CDN fallback.
+    const sdk = (typeof window !== 'undefined') ? window.supabase : null;
+    if (!sdk || typeof sdk.createClient !== 'function') {
+      throw new Error('vendored supabase-js bundle not loaded');
+    }
+    this._supabase = sdk.createClient(cfg.url, cfg.anonKey, {
       auth: { persistSession: false },     // auth.js owns session storage
     });
     const session = getSession();

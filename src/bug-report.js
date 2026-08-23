@@ -350,11 +350,47 @@ function captureScreenshot(timeoutMs = CAPTURE_TIMEOUT_MS, opts) {
   return withTimeout(captureScreenshotRaw(), timeoutMs, null);
 }
 
+// ── VENDORED, LAZY, SAME-ORIGIN. NO CDN. ───────────────────────────────────
+// Both screenshot engines used to arrive as `import('https://cdn.skypack.dev/
+// …')` — unpinned third-party script, injected into the live page of anybody
+// who opens the bug reporter, with full DOM and session access. That is the
+// same supply-chain hole src/net/auth.js had (see its setupAuth comment), just
+// on a colder path. The bundles now live in src/vendor/, byte-for-byte from the
+// npm tarballs whose registry sha512 was verified at vendoring time.
+//
+// Still LAZY — a <script> injected on demand, not a tag in index.html — because
+// html2canvas is 194 KB and almost nobody files a bug. The cost of the fix is
+// therefore zero on the normal path. There is deliberately NO CDN fallback: a
+// fallback that fires when the local file is unreachable hands the whole fix
+// back to anyone who can make it unreachable.
+const VENDOR_SCRIPTS = {
+  htmlToImage: 'src/vendor/html-to-image-1.11.13.umd.js?v=461',
+  html2canvas: 'src/vendor/html2canvas-1.4.1.min.js?v=461',
+};
+const _vendorLoads = {};
+function loadVendor(globalName) {
+  if (window[globalName]) return Promise.resolve(window[globalName]);
+  if (_vendorLoads[globalName]) return _vendorLoads[globalName];
+  const src = VENDOR_SCRIPTS[globalName];
+  if (!src) return Promise.reject(new Error('unknown vendor bundle ' + globalName));
+  _vendorLoads[globalName] = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload = () => window[globalName]
+      ? resolve(window[globalName])
+      : reject(new Error(globalName + ' loaded but the global is missing'));
+    s.onerror = () => { _vendorLoads[globalName] = null; reject(new Error(globalName + ' failed to load')); };
+    document.head.appendChild(s);
+  });
+  return _vendorLoads[globalName];
+}
+
 async function captureScreenshotRaw() {
   // Primary: foreignObject renderer — supports all modern CSS.
   try {
-    const mod = await withTimeout(import('https://cdn.skypack.dev/html-to-image'), 4000, null);
-    if (!mod) throw new Error('html-to-image import timed out');
+    const mod = await withTimeout(loadVendor('htmlToImage'), 4000, null);
+    if (!mod) throw new Error('html-to-image load timed out');
     // pixelRatio 0.5 halves resolution (~25% file size) — plenty for a bug shot,
     // and mobile reports benefit most from the smaller payload. skipFonts avoids
     // fetching/inlining Google Fonts (slow, occasionally CORS-blocked); the
@@ -375,8 +411,8 @@ async function captureScreenshotRaw() {
   // if the foreignObject path ever fails; it cannot handle pseudo-element
   // color-mix (see above), so it is second, not first.
   try {
-    const mod = await withTimeout(import('https://cdn.skypack.dev/html2canvas'), 4000, null);
-    if (!mod) throw new Error('html2canvas import timed out');
+    const mod = await withTimeout(loadVendor('html2canvas'), 4000, null);
+    if (!mod) throw new Error('html2canvas load timed out');
     const h2c = mod.default || mod;
     const canvas = await h2c(document.body, {
       scale: 0.5,

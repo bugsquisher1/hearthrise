@@ -133,17 +133,37 @@ export async function setupAuth(config) {
     console.log('[Auth] no config — staying in offline mode');
     return;
   }
-  // Dynamic import so this module loads even when supabase-js isn't available
+  // ── THE SDK IS SELF-HOSTED. THERE IS NO CDN FALLBACK, DELIBERATELY. ───────
+  // This used to be `await import('https://cdn.skypack.dev/@supabase/
+  // supabase-js')`. That is the module the player's email and password are
+  // handed to and the module that holds the session token, and it was fetched
+  // UNPINNED from a third party with no integrity check — a dynamic import()
+  // cannot carry one. Measured 2026-08-23: two requests to that URL seconds
+  // apart resolved to two different library versions, and it fanned out to five
+  // more skypack fetches. A compromise there is a compromise of every account.
+  // It is now `src/vendor/supabase-js-<ver>.umd.js`, served from our own origin
+  // and loaded by a classic <script> in index.html (classic scripts run before
+  // deferred modules, so the global is up by the time setupAuth runs).
+  //
+  // NO FALLBACK to the CDN on failure: a fallback that fires when the local copy
+  // is unreachable hands the attacker the whole fix by making the local copy
+  // unreachable. If our own origin cannot serve this file, nothing else on the
+  // page loaded either.
+  const sdk = (typeof window !== 'undefined') ? window.supabase : null;
+  if (!sdk || typeof sdk.createClient !== 'function') {
+    console.error('[Auth] the vendored supabase-js bundle did not load — staying offline. '
+      + 'Check the <script src="src/vendor/supabase-js-*.umd.js"> tag in index.html.');
+    return;
+  }
   try {
-    const mod = await import('https://cdn.skypack.dev/@supabase/supabase-js');
     // Explicit auth options so we don't rely on library defaults: keep the
     // access token auto-refreshing in the background (tokens expire ~1h) and
     // persisted, so long play sessions don't silently stop syncing (b149).
-    supabase = mod.createClient(config.url, config.anonKey, {
+    supabase = sdk.createClient(config.url, config.anonKey, {
       auth: { autoRefreshToken: true, persistSession: true },
     });
   } catch (e) {
-    console.warn('[Auth] failed to load supabase-js:', e.message);
+    console.warn('[Auth] failed to construct the supabase client:', e.message);
     return;
   }
 

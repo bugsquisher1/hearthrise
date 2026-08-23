@@ -4990,6 +4990,7 @@ function retimeCombat(){
   combatInterval=setInterval(combatTick,ms);
 }
 window.retimeCombat=retimeCombat;
+window.__combatIntervalMs=function(){ return _combatIntervalMs; };   // test seam (COMBAT-RETIME-1)
 function startCombat(mId){
   if(G.activeMonster===mId){stopCombat();return;}
   /* b347 SEAM 1. The inner stopCombat is QUIET: one gesture is one declaration
@@ -5305,6 +5306,15 @@ window.HearthriseCombatSim={ ctx:combatSimCtx, withAwaySegment:withAwaySegment, 
 function combatTick(){
   if(!G.activeMonster)return;
   window._hrCombatBeat=Date.now();   // b260 heartbeat — lets the resume watchdog detect a STALLED (suspended-but-not-cleared) loop, not just a null one
+  /* b462 — THE INTERVAL FOLLOWS THE SWING SPEED, EVERY SWING. retimeCombat()
+     was only called on a style switch (b329); a weapon swap, an enchant, or —
+     under the arm — the EQUIPMENT RECORD hydrating after a fight resumed all
+     change combatTickMs() while this interval kept the value it was armed with.
+     The swing BAR reads the live speed, so the hit landed off-beat ("damage is
+     being taken from the rat before my swing timer completes" — Tyler, beta
+     morning). Same self-heal the skill loop has had since b227 (retimeActivity
+     in doSkillAction): compare and re-arm at most once per swing. */
+  if(typeof retimeCombat==='function') retimeCombat();
   const r=window.HearthriseCore.combatSim.simulateTick(G,combatSimCtx());
   /* A kill repaints through killMonster; a death repaints through stopCombat;
      a stop has nothing to show. Only an ordinary exchange falls through. */
@@ -5926,6 +5936,19 @@ function waterPlot(i){
 window.waterAllPlots=function waterAllPlots(){
   if(!G.farmPlots)return 0;
   let n=0;
+  /* b462 — "Water all" went around the server. waterPlot() routes a single tile
+     through hr_farm_water under the farm arm, but this header action still
+     called applyWatering() locally for every plot, so the next envelope (server
+     truth: never watered) dried them all again — Tyler, beta morning: "i water
+     plants, they go back to being dry". Same eligibility test, server verb. */
+  if(farmSyncArmed()){
+    for(let i=0;i<G.farmPlots.length;i++){
+      const p=G.farmPlots[i];
+      if(p&&plotIsWaterable(p)){ farmSyncWater(i); n++; }
+    }
+    notify(n?`Watering ${n} plot${n===1?'':'s'}…`:'Nothing to water right now',n?'loot':'kill');
+    return n;
+  }
   for(let i=0;i<G.farmPlots.length;i++){ if(applyWatering(i))n++; }
   notify(n?`Watered ${n} plot${n===1?'':'s'}`:'Nothing to water right now',n?'loot':'kill');
   renderFarm();

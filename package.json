@@ -33,6 +33,8 @@
     "test:conservation": "node tests/conservation-fuzz.mjs --ops=400",
     "test:conservation:selftest": "node tests/conservation-fuzz.mjs --selftest --ops=400",
     "test:conservation:soak": "node tests/conservation-fuzz.mjs --ops=5000 --users=6 --slots=2",
+    "test:open-beta": "node tests/open-beta.mjs",
+    "test:open-beta:selftest": "node tests/open-beta.mjs --selftest",
     "test:bug-triage": "node tests/bug-triage.mjs",
     "test:bug-triage:mutate": "node tests/bug-triage.mjs --mutate"
   },

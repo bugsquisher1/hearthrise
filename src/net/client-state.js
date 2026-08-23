@@ -121,6 +121,38 @@ export const RESIDUE_FIELDS = Object.freeze([
   'heroSlotsUnlocked', // b459: hero-slot ENTITLEMENT (the gems payment is the record side; this is
                     // which slots the account owns). Was stranded under arm — a purchased slot
                     // would vanish on reload; caught while fixing SLOT-BUY-1.
+  /* b462 — THE "SHOWN TODAY" MARKERS. These four were self-only flags that
+     lived in the save blob; with the blob retired every reload forgot them, so
+     the daily-reward sheet re-opened on every refresh (Tyler, beta morning:
+     "every refresh i get a new daily reward"). The SERVER once-guards the pay
+     (claim_reward refuses the second claim — those were the not_claimable
+     blips) so no gold moved twice, but the player was shown a reward that did
+     not land, every time. None of these is an authority field: the server
+     derives the real streak from its own claim rows and the quest modal reads
+     hr_goal_state under arm; these are "what have I already been shown". */
+  'dailyReward',    // { lastClaimDay } — the daily login sheet's shown-today cache
+  'streak',         // { count, lastDay } — the streak the sheet DISPLAYS (server derives the paid one)
+  'dailyGoals',     // quest-modal day picks + local claimed/startValues (server state is the truth under arm)
+  'weeklyGoals',    // same, weekly
+  /* b462 — THE SWEEP (CLAUDE.md session criterion 3: kill the class). Every
+     `G.<field>` the game writes, minus record ∪ residue ∪ NO_SYNC, classified.
+     These twelve are self-only prefs/markers the blob used to carry and nothing
+     else persists — each one was a "forgotten on reload" bug waiting for a
+     player to report it. None is an authority field (the server's deny-list
+     and this allowlist both agree); each is the client's own memory of a
+     choice it already made or a sheet it already showed. */
+  'combatStyle',    // the style picked per weapon family (reset to default every reload)
+  'loadouts',       // saved gear loadouts (the SET is client-authored; equipping still goes through hr_equip)
+  'lockedItems',    // items locked against selling
+  'autoActions',    // auto-eat food pick / auto-replant prefs (the auto-eat TRIGGER itself is server: hr_set_auto_eat)
+  'lastWelcome',    // welcome/changelog modal "shown for this build" stamp
+  'achievements',   // {id:{progress,unlocked}} — re-deriving from stats re-toasts every unlock on reload
+  'dungeons',       // { lastRun:{id:ms} } — dungeon cooldowns (the b288 exploit: reload = free runs)
+  'renown',         // { claimed:[], seenRank } — claimed ranks are server once-guarded; this is the shown state
+  'unlockedRecipes',// gated recipe unlocks the client has learned (server rows exist; this is the read cache)
+  'tools',          // tool slots in the loadout kit
+  'buffs',          // active consumable buffs (remainingMs) — short-lived, but a potion must survive a reload
+  'lastActivity',   // the launchpad's "resume what you were doing" card
 ]);
 const RESIDUE_SET = new Set(RESIDUE_FIELDS);
 

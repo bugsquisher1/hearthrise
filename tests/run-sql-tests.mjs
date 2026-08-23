@@ -371,6 +371,18 @@ const ALSO_LINTED = [
      2026-08-28-client-state.sql idiom), so it carries no literal
      create-or-replace header for either and is on NO derivation chain. */
   '2026-08-23-modal-goal-claims.sql',
+  /* OPEN BETA (2026-08-23) — the invite gate becomes a switch. It `create or
+     replace`s THREE b457 SECURITY DEFINER bodies (hr_beta_gate_reason,
+     hr_signup_gate, hr_beta_gate_on_auth_user) and creates three more
+     (hr_beta_gate_is_open, hr_beta_signup_message, hr_settings_touch). Exactly
+     the case this list exists for, twice over: a NEW function in `public` is
+     born PUBLIC=EXECUTE unless the file revokes, and a `create or replace`
+     PRESERVES whatever ACL was there — so a restatement that forgot its
+     revoke/grant block would silently keep or widen it, and these lints are the
+     only static defence against both. Its new per-IP account brake is also a
+     `if not public.hr_rate_ok(…)` block, which PART 1c-iii/S6 must see. On no
+     derivation chain — it touches none of the graded bodies. */
+  '2026-08-23-open-beta.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────

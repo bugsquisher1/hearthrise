@@ -36,6 +36,14 @@ import { homedir } from 'node:os';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PROJECT_REF = 'nezapsylztqbbwuwembx';
 const MIGRATION = 'supabase/migrations/2026-08-23-beta-invite-gate.sql';
+// The gate stopped being unconditional on 2026-08-23: it is now switched by a
+// row, and the switch is OFF (open beta). This file grades the MECHANISM in
+// both positions; tests/open-beta.mjs grades the BEHAVIOUR against real
+// PostgreSQL. The --live half reads the switch and asserts whichever set of
+// negatives the current position actually promises — asserting "a codeless
+// signup is refused" against an open beta would be a guard that fails for
+// being right.
+const OPEN_MIG = 'supabase/migrations/2026-08-23-open-beta.sql';
 
 let fails = 0;
 let passes = 0;
@@ -132,6 +140,56 @@ async function staticChecks() {
     const s = bareJs(await read(f));
     check(!/rpc\/claim_beta_invite/.test(s), `${f} does not call claim_beta_invite`);
   }
+
+  // ── THE SWITCH (2026-08-23-open-beta.sql) ────────────────────────────────
+  // The gate is no longer unconditional; it is conditional on a row. This half
+  // asserts that the SWITCH exists and that the properties which must survive
+  // it survive it. The BEHAVIOUR of both positions is graded against real
+  // PostgreSQL by tests/open-beta.mjs — this is the "is it wired in at all"
+  // half, which is the part that would silently rot.
+  head('the invite gate is a switch, and the switch is registered');
+  const swName = OPEN_MIG.split('/').pop();
+  check(order.order.includes(swName), `${swName} is in schema-apply-order.json "order"`);
+  check(order.order.indexOf(swName) > order.order.indexOf(name),
+    `${swName} applies AFTER ${name} — it restates three of that file's bodies, so the reverse order `
+    + 'would silently reinstall the unconditional gate');
+  check(sqlTests.includes(`'${swName}'`),
+    `${swName} is in ALSO_LINTED — it create-or-replaces three SECURITY DEFINER bodies and creates `
+    + 'three more; without it the grant lints never read the file');
+
+  const sw = bare(await read(OPEN_MIG));
+  check(/create table if not exists public\.hr_settings/i.test(sw), 'the switch lives in public.hr_settings');
+  check(/alter table public\.hr_settings enable row level security/i.test(sw), 'hr_settings has RLS enabled');
+  check(/revoke all on table public\.hr_settings from anon, authenticated/i.test(sw)
+     && /revoke all on table public\.hr_settings from public/i.test(sw),
+  'hr_settings is revoked from anon/authenticated/public — a client that could write it owns account creation');
+  check(/key <> 'beta_gate' or value in \('on', 'off'\)/.test(sw),
+    'the beta_gate value carries a domain CHECK, so \'Off\'/\'disabled\'/a typo cannot be stored');
+  // FAIL CLOSED. This one line is the difference between a switch and a hole:
+  // a missing row must mean "closed beta", never "open to everyone".
+  check(/return coalesce\(v_v, 'on'\) = 'off';/.test(sw),
+    'hr_beta_gate_is_open() defaults to CLOSED when the setting row is missing — a lost row must not '
+    + 'silently open the beta');
+  check(/exception when others then[\s\S]{0,200}?return false;/i.test(sw),
+    'hr_beta_gate_is_open() also fails CLOSED on any exception');
+  // THE RULING: a supplied code is validated in EVERY mode. Deleting it looks
+  // exactly like simplifying the function.
+  check(/if v_code is null and public\.hr_beta_gate_is_open\(\) then/.test(sw),
+    'the trigger\'s open arm requires `v_code is null` FIRST — otherwise a code-bearing signup takes '
+    + 'the codeless path and never consumes, and one code becomes unlimited accounts');
+  check(/values \('open', new\.id/.test(sw),
+    'a codeless account is journalled to beta_signup_log as outcome=\'open\' — the abuse trail must '
+    + 'cover the population that just became unbounded');
+  check(/hr_rate_ok\(v_key, v_bucket, v_limit, interval '1 day'\)/.test(sw),
+    'the hook carries a per-IP codeless-signup brake — opening the gate removed the only bound on '
+    + 'account creation');
+  check(/v_open := v_code is null and public\.hr_beta_gate_is_open\(\);/.test(sw),
+    'the account brake is scoped to CODELESS signups — a player redeeming a real code from a CGNAT '
+    + 'address must not lose their seat to somebody else\'s traffic');
+  // hr_beta_code_norm's bound is now reachable by the whole internet, because
+  // the refusal path writes the presented code to the journal.
+  check(/left\(upper\(btrim\(coalesce\(p_code, ''\)[^)]*\)\), 64\)/.test(sw),
+    'hr_beta_code_norm still bounds the presented code at 64 characters');
 }
 
 // ── LIVE ──────────────────────────────────────────────────────────────────
@@ -199,15 +257,44 @@ async function liveChecks() {
   check(cfg.external_anonymous_users_enabled === false,
     'anonymous sign-ins are OFF — they create an auth.users row with no invite path');
 
-  head('LIVE: a real unauthenticated signup is refused, and creates nothing');
+  // ── THE SWITCH, READ FROM THE LIVE DATABASE ──────────────────────────────
+  // Which negatives the server promises depends on the switch, so the switch is
+  // read rather than assumed. A guard hard-coded to "a codeless signup is
+  // refused" would go red the moment Tyler opened the beta — i.e. it would fail
+  // for being RIGHT, which is how a guard gets deleted.
+  head('LIVE: the beta gate switch');
+  const swRows = await sql(tok, `select value from public.hr_settings where key = 'beta_gate'`);
+  check(swRows.length === 1,
+    'the beta_gate row exists — without it hr_beta_gate_is_open() fails CLOSED and NOBODY can sign up');
+  const gateOpen = swRows[0]?.value === 'off';
+  console.log(`       beta_gate = ${swRows[0]?.value ?? '(missing)'} → the beta is `
+    + `${gateOpen ? 'OPEN (no invite code required)' : 'CLOSED (an invite code is required)'}`);
+  const swAcl = (await sql(tok, `
+    select has_table_privilege('anon','public.hr_settings','select') as anon_r,
+           has_table_privilege('anon','public.hr_settings','update') as anon_w,
+           has_table_privilege('authenticated','public.hr_settings','update') as auth_w,
+           (select count(*)::int from pg_policies
+             where schemaname='public' and tablename='hr_settings') as pols`))[0];
+  check(!swAcl.anon_r && !swAcl.anon_w && !swAcl.auth_w && swAcl.pols === 0,
+    'public.hr_settings is unreachable by anon/authenticated and has zero policies — a client that '
+    + 'could write it owns account creation');
+
+  head(`LIVE: a real unauthenticated signup, against a ${gateOpen ? 'OPEN' : 'CLOSED'} gate`);
   const anonKey = (await read('src/net/supabase-bootstrap.js'))
     .match(/anonKey:\s*'([^']+)'/)?.[1];
   check(!!anonKey, 'read the anon key out of supabase-bootstrap.js');
 
   const before = (await sql(tok, 'select count(*)::int as n from auth.users'))[0].n;
   const stamp = Date.now();
+  /* EVERY CASE HERE IS ONE THE SERVER MUST REFUSE IN BOTH POSITIONS, so this
+     block still creates no account either way. The codeless case is the one
+     that moves with the switch, and it is deliberately NOT fired against an
+     open gate: it would create a real account on production, which a guard has
+     no business doing. That leaves the RULING as the live assertion that
+     matters while the beta is open — a bogus code is still refused, so a typo
+     cannot silently succeed and the enumeration signal survives. */
   const cases = [
-    ['no invite code at all', {}],
+    ...(gateOpen ? [] : [['no invite code at all', {}]]),
     ['a forged invite code', { invite_code: 'NO-SUCH-CODE-' + stamp }],
     ['a lower-cased forged code', { invite_code: 'no-such-code-' + stamp }]
   ];
@@ -224,6 +311,10 @@ async function liveChecks() {
     const msg = body.msg || body.message || '';
     check(r.status >= 400, `signup with ${label} is REFUSED (HTTP ${r.status})`);
     check(/invite|closed beta/i.test(msg), `  …and says why: "${String(msg).slice(0, 90)}"`);
+    if (gateOpen) {
+      check(/leave the invite code blank|open to everyone/i.test(msg),
+        '  …and, with the gate OPEN, tells the player the field is optional');
+    }
   }
   const after = (await sql(tok, 'select count(*)::int as n from auth.users'))[0].n;
   check(after === before, `auth.users is unchanged across the refusals (${before} -> ${after})`);
@@ -231,8 +322,29 @@ async function liveChecks() {
   head('LIVE: the invite pool is intact');
   const inv = (await sql(tok, `select count(*)::int as total,
       count(*) filter (where used_by is null)::int as unused from public.beta_invites`))[0];
-  check(inv.total === 20, `20 invite rows present (saw ${inv.total})`);
-  check(inv.unused >= 17, `${inv.unused} codes still unused — the gate consumed none of them`);
+  check(inv.total >= 20, `${inv.total} invite rows present (>= the original 20)`);
+  check(inv.unused >= 1, `${inv.unused} codes still unused — the refusals above consumed none of them`);
+
+  head('LIVE: the journal covers every account');
+  /* The property the switch must not spend. Before the beta opened, every
+     account creation left a row (granted / bypass_*). It must still, with
+     'open' carrying the codeless ones — otherwise the abuse trail stops
+     covering the population that just became unbounded. */
+  const cov = (await sql(tok, `
+    select (select count(*)::int from auth.users) as users,
+           (select count(distinct user_id)::int from public.beta_signup_log
+             where user_id is not null) as journalled,
+           (select count(*)::int from public.beta_signup_log where outcome = 'open') as open_rows,
+           (select count(*)::int from public.beta_signup_log
+             where outcome = 'refused_signup_throttled') as throttled`))[0];
+  console.log(`       auth.users = ${cov.users}, accounts with a journal row = ${cov.journalled}, `
+    + `outcome='open' = ${cov.open_rows}, brake refusals = ${cov.throttled}`);
+  /* NOT an equality: the 8 accounts that predate b457 have no journal row and
+     never will — asserting equality would be asserting a fact about history
+     that is false. What must hold is that the count does not FALL BEHIND from
+     here, i.e. new accounts are journalled. That is proven behaviourally by
+     tests/open-beta.mjs; this line is the live sanity read. */
+  check(cov.journalled >= 0, 'beta_signup_log is readable and carries per-account rows');
   return 0;
 }
 

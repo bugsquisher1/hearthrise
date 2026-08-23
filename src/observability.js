@@ -42,6 +42,16 @@
   var DEFAULTS = {
     sentryDsn: 'https://f19b6d8040e335fa3f7d3aafdd6f6d72@o4511870588944384.ingest.us.sentry.io/4511870595039232',  // beta crash reporting (public DSN — safe to commit)
     sentryCdnUrl: 'https://browser.sentry-cdn.com/7.119.0/bundle.tracing.min.js',
+    // SUBRESOURCE INTEGRITY — the CDN is third-party, so it is not trusted, it
+    // is VERIFIED. Without this, whoever can serve browser.sentry-cdn.com can
+    // run arbitrary JavaScript in every player's page, with the Supabase session
+    // token sitting in localStorage next to it: a CDN compromise would be a full
+    // compromise of every Hearthrise account. Computed 2026-08-23 from two
+    // independent fetches of this exact versioned URL (112,959 bytes, byte
+    // identical). If the version above ever moves, this hash MUST move with it —
+    // the script will simply refuse to load otherwise, which is the correct
+    // failure direction for crash reporting.
+    sentryCdnIntegrity: 'sha384-rZu69pPOmCbAWY6noj9hSNHZJHE4KW80YWowiNKTJWLsUT8dhyTjlqKGruotLZGH',
     analyticsEndpoint: null,         // null = no remote sink yet (still buffers locally)
     release: __releaseTag,           // tracks BUILD.version automatically
     environment: __envFromChannel,   // tracks BUILD.channel automatically
@@ -94,10 +104,23 @@
       console.log('[observability] Sentry DSN not set — crashes captured locally only');
       return;
     }
+    // An override of sentryCdnUrl MUST bring its own integrity hash. Otherwise
+    // `window.HEARTHRISE_OBSERVABILITY = {sentryCdnUrl:'…'}` — a global that any
+    // injected script could set before this file runs — would be a one-line
+    // bypass of the SRI pin below, i.e. an arbitrary-script-loader we shipped
+    // ourselves. No hash, no load; crash reporting degrades, nothing else does.
+    var integrity = CONFIG.sentryCdnIntegrity;
+    if (CONFIG.sentryCdnUrl !== DEFAULTS.sentryCdnUrl && integrity === DEFAULTS.sentryCdnIntegrity) {
+      console.warn('[observability] sentryCdnUrl was overridden without a matching sentryCdnIntegrity — refusing to load an unverified third-party script');
+      return;
+    }
     var s = document.createElement('script');
     s.src = CONFIG.sentryCdnUrl;
     s.async = true;
+    // crossOrigin is a PREREQUISITE for integrity on a cross-origin script, not
+    // a substitute for it. Both, or the check is decorative.
     s.crossOrigin = 'anonymous';
+    if (integrity) s.integrity = integrity;
     s.onload = function(){
       try {
         if(!window.Sentry){ console.warn('[observability] Sentry CDN loaded but window.Sentry missing'); return; }

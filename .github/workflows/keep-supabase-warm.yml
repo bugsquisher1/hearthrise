@@ -21,6 +21,11 @@ on:
     - cron: '0 11 * * *'
   workflow_dispatch: {}  # also runnable manually from the Actions UI
 
+# Least privilege: this job curls one URL. It needs no repository access at all,
+# and on a PUBLIC repo whose main branch IS the deployed site, a write-capable
+# token in a scheduled job is a standing liability for no benefit.
+permissions: {}
+
 jobs:
   ping:
     runs-on: ubuntu-latest

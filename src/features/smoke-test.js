@@ -22657,6 +22657,46 @@ const TESTS = [
     }
   }),
 
+  () => tryRunAsync('DAILY-SHEET-1 (b462): the daily-reward "shown today" marker rides the residue, and a server refusal never toasts a payout', async () => {
+    /* Beta morning: "every refresh i get a new daily reward". G.dailyReward.lastClaimDay
+       lived only in the retired blob, so every reload forgot it and re-opened the
+       sheet; the server refused the second pay (not_claimable) but the client still
+       toasted "Daily reward: 500 gold". Two halves: (1) the four shown-today markers
+       are RESIDUE fields (persisted in client_state under arm); (2) a `refused`
+       verdict re-marks the day and says so, instead of claiming a payout. */
+    const RF = window.HearthriseCapstone && window.HearthriseCapstone.RESIDUE_FIELDS;
+    assert(Array.isArray(RF), 'RESIDUE_FIELDS must be exported');
+    ['dailyReward', 'streak', 'dailyGoals', 'weeklyGoals'].forEach((f) =>
+      assert(RF.includes(f), 'THE BUG: ' + f + ' must be a residue field or every reload forgets it'));
+    const G = window.G;
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origNotify = window.notify, origMay = window.clientMayWriteRecordField;
+    const toasts = [];
+    try {
+      window.clientMayWriteRecordField = (f) => f !== 'gold';
+      window.notify = (m) => { toasts.push(String(m)); };
+      G.dailyReward = { lastClaimDay: 0 };
+      const patch = window.HearthriseCapstone.buildResiduePatch(G);
+      assert(patch && patch.dailyReward && patch.dailyReward.lastClaimDay === 0,
+        'buildResiduePatch must carry dailyReward so the marker reaches client_state');
+      // server says: already claimed today (another device / a reload race)
+      window.HearthriseGold = Object.assign({}, origGold, {
+        claimReward: () => Promise.resolve({ outcome: 'refused', reason: 'not_claimable' }),
+      });
+      const D = window.HearthriseDaily;
+      assert(D && D.isClaimable(G) === true, 'fixture: the day must read claimable before the claim');
+      const rw = D.claim(G);
+      assert(rw, 'claim() still returns the authored reward as the PREDICTION receipt');
+      await new Promise((r) => setTimeout(r, 0));
+      assert(D.isClaimable(G) === false, 'after a refusal the day must read claimed (no second sheet)');
+      assert(toasts.some((t) => /already claimed/i.test(t)), 'a refusal must be surfaced honestly');
+      assert(!toasts.some((t) => /^Daily reward:/.test(t)), 'a refusal must NOT toast a payout');
+    } finally {
+      window.HearthriseGold = origGold; window.notify = origNotify; window.clientMayWriteRecordField = origMay;
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('b371: the slot purchase repaints the gem chip and persists the spend immediately', () => withLocalBlob(() => {
     /* ⚠ b456 — DRIVEN WITH THE BLOB LIVE, AND THE REASON IS A REAL SHIPPED BUG,
        NOT A HARNESS GAP. `unlockSlot` proves durability by calling saveLocal()
@@ -27368,6 +27408,38 @@ const TESTS = [
       try { window.stopCombat(); } catch (e) {}
       restoreG(snap);
       try { window.renderStyleSelector(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('COMBAT-RETIME-1 (b462): the running swing interval follows combatTickMs() on every tick, not only on a style switch', () => {
+    /* Beta morning (Tyler): "damage is being taken from the rat before my swing
+       timer completes." The swing BAR reads combatTickMs() live; the INTERVAL was
+       armed once and re-armed only by the style picker — so a weapon swap, or the
+       equipment record hydrating after a resumed fight, left the two clocks apart.
+       combatTick() now re-arms itself when the number moved (the skill loop's
+       retimeActivity discipline). The invariant: after any tick, the armed
+       interval equals the live swing speed. */
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      assert(typeof window.__combatIntervalMs === 'function', '__combatIntervalMs seam missing');
+      G.equipment = G.equipment || {};
+      G.equipment.weapon = null;
+      stampRecordLikeLoad(G);
+      window.startCombat('rat');
+      const armed0 = window.__combatIntervalMs();
+      assert(armed0 === window.combatTickMs(), 'fixture: the interval is armed to the live speed at start');
+      // The speed changes UNDER the running fight (a swap; under arm, a record arriving).
+      G.equipment.weapon = 'shortbow';
+      stampRecordLikeLoad(G);
+      const live = window.combatTickMs();
+      assert(live !== armed0, 'fixture: equipping a bow must change the swing speed (' + armed0 + ' vs ' + live + ')');
+      window.combatTick();
+      assert(window.__combatIntervalMs() === live,
+        'THE BUG: after a tick the armed interval (' + window.__combatIntervalMs() + 'ms) must equal the live swing speed (' + live + 'ms)');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
     }
   }),
 
@@ -42544,6 +42616,154 @@ const TESTS = [
     assert(opened, 'the rename pencil did not open the account-name modal');
     /* And it must not have written the per-character field behind our back. */
     assert(!window.G || window.G.playerName !== null, 'rename wrote a bare value onto G.playerName');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE SUPPLY-CHAIN GUARDS (2026-08-23, open-beta security audit)
+
+     THE FINDING these exist to keep closed: src/net/auth.js did
+
+         await import('https://cdn.skypack.dev/@supabase/supabase-js')
+
+     — the module that receives the player's EMAIL AND PASSWORD and holds the
+     session token, fetched UNPINNED from a third party, with no integrity
+     check (a dynamic import() cannot carry one) and fanning out to five more
+     fetches from the same origin. Measured that day, two requests to that URL
+     seconds apart resolved to two DIFFERENT library versions (x-import-url
+     2.103.0; the pin redirect 2.101.1). Whoever controls that origin controlled
+     every Hearthrise account, and nothing in the repo would have noticed.
+
+     It was in the bundle for months and the suite was GREEN throughout — in
+     fact tests/run-smoke.mjs stubs cdn.skypack.dev, so CI never even fetched
+     the real thing. That is the specific blindness these three tests remove.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  () => tryRunAsync('SEC-CDN-1: no credential-handling module loads from a third-party CDN', async () => {
+    /* Guard the SHIPPED BYTES, not the intent. Read every file that touches
+       auth, chat transport or the bug reporter and refuse a remote import.
+       Comments are stripped first: this repo documents the hole it closed at
+       length, and a guard that cannot tell an explanation from a call site
+       teaches the next author to delete the explanation. */
+    const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
+    for (const f of FILES) {
+      const raw = await (await fetch(f + '?v=461')).text();
+      assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
+      const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+      /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
+         src assigned a remote URL. Not "skypack" by name — naming one vendor
+         is how the next one gets in. */
+      const remoteImport = src.match(/\bimport\s*\(\s*['"`]https?:\/\/[^'"`]+/);
+      assert(!remoteImport, f + ' imports executable code from a remote origin ('
+        + (remoteImport ? remoteImport[0].slice(0, 90) : '') + '). A dynamic import() cannot carry an '
+        + 'integrity hash, so there is no way to verify what arrives — vendor it under src/vendor/ instead.');
+      const remoteScriptSrc = src.match(/\.src\s*=\s*['"`]https?:\/\/[^'"`]+/);
+      assert(!remoteScriptSrc, f + ' assigns a remote URL to a script src ('
+        + (remoteScriptSrc ? remoteScriptSrc[0].slice(0, 90) : '') + ') — same hole, longer spelling.');
+    }
+  }),
+
+  () => tryRunAsync('SEC-CDN-2: the vendored Supabase SDK is present, pinned and actually in use', async () => {
+    /* Half of SEC-CDN-1's property is "the CDN is gone". The other half is
+       "and the thing that replaced it works" — without this, deleting the
+       import and shipping a dead auth path passes the guard above. */
+    assert(window.supabase && typeof window.supabase.createClient === 'function',
+      'window.supabase.createClient is missing — the vendored bundle in index.html did not load, so '
+      + 'setupAuth() silently returns and NOBODY CAN SIGN IN. Check the '
+      + '<script src="src/vendor/supabase-js-*.umd.js"> tag.');
+
+    /* The bundle is served from OUR origin, not merely referenced. */
+    const tag = Array.from(document.querySelectorAll('script[src]'))
+      .find((s) => /src\/vendor\/supabase-js-[\d.]+\.umd\.js/.test(s.getAttribute('src') || ''));
+    assert(tag, 'no local <script> tag for the vendored supabase-js bundle in index.html');
+    assert(!/^https?:/i.test(tag.getAttribute('src')),
+      'the vendored bundle tag points at an absolute URL (' + tag.getAttribute('src') + ') — that is a CDN again');
+    /* PINNED: the filename carries the version, so a silent upgrade is a diff. */
+    assert(/supabase-js-\d+\.\d+\.\d+\.umd\.js/.test(tag.getAttribute('src')),
+      'the vendored bundle filename does not carry an exact version — an unpinned dependency is the whole finding');
+
+    /* And it is SELF-CONTAINED: if the vendored file itself reaches out to a
+       CDN at load time, self-hosting bought nothing. */
+    const bundle = await (await fetch(tag.getAttribute('src'))).text();
+    assert(bundle.length > 100000, 'the vendored bundle is suspiciously small (' + bundle.length + ' bytes)');
+    assert(!/\bimport\s*\(\s*['"`]https?:/.test(bundle) && !/\bfrom\s*['"`]https?:/.test(bundle),
+      'the vendored supabase-js bundle itself loads code from a remote origin — it is a CDN shim, not a bundle');
+  }),
+
+  () => tryRunAsync('SEC-SRI-1: the one remaining third-party script carries an integrity hash', async () => {
+    /* Sentry is still loaded from browser.sentry-cdn.com — a deliberate,
+       version-pinned exception, because it is a <script> tag and CAN carry SRI.
+       "Can" is not "does": crossOrigin='anonymous' was already set and is a
+       PREREQUISITE for integrity, not a substitute, so the code looked careful
+       while verifying nothing. A compromise there is arbitrary JS in every
+       player's page beside their session token. */
+    const raw = await (await fetch('src/observability.js?v=461')).text();
+    assert(raw.length > 1000, 'could not read src/observability.js to guard it');
+    const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+
+    const cdnUrls = src.match(/['"`]https?:\/\/[^'"`\s]+\.js['"`]/g) || [];
+    for (const u of cdnUrls) {
+      assert(/\/\d+\.\d+\.\d+\//.test(u), 'the third-party script URL ' + u + ' is not version-pinned — '
+        + 'an unpinned URL cannot have a stable integrity hash, so SRI is impossible by construction');
+    }
+    assert(/sentryCdnIntegrity\s*:\s*['"`]sha(256|384|512)-[A-Za-z0-9+/=]{40,}/.test(src),
+      'no pinned SRI hash for the Sentry bundle in src/observability.js');
+    assert(/\.integrity\s*=/.test(src),
+      'the SRI hash is declared but never assigned to the script element — a hash nothing reads is decoration');
+    assert(/\.crossOrigin\s*=\s*['"`]anonymous/.test(src),
+      'crossOrigin is missing — SRI on a cross-origin script is IGNORED without it, so the check would be silently off');
+  }),
+
+  () => tryRun('SEC-CSP-1: the Content-Security-Policy meta is present and load-bearing', () => {
+    /* GitHub Pages cannot set headers, so the policy is a <meta>. Two things
+       are asserted: that it exists, and that the directives which actually do
+       work in a meta policy are present. `script-src` here still needs
+       'unsafe-inline' (hundreds of innerHTML-rendered onclick handlers), so
+       the honest value is connect-src + base-uri + object-src + form-action —
+       and those are what this test refuses to lose. */
+    const meta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+    assert(meta, 'no CSP meta tag — an injected script can exfiltrate the session token to any origin');
+    const csp = (meta.getAttribute('content') || '').replace(/\s+/g, ' ').trim();
+
+    /* connect-src is the payoff-step block: XSS that cannot phone home is a
+       defaced page, not a stolen account. It must NOT contain a bare wildcard. */
+    const connect = (csp.match(/connect-src ([^;]+)/) || [])[1] || '';
+    assert(connect, 'CSP has no connect-src — exfiltration to any origin is permitted');
+    assert(!/(^|\s)\*(\s|$)/.test(connect), 'connect-src contains a bare * — that is not a policy: ' + connect);
+    assert(/supabase\.co/.test(connect), 'connect-src does not allow Supabase — the game cannot reach its own server');
+    /* The project is named EXACTLY, not as https://*.supabase.co — anybody can
+       create a free Supabase project, so a wildcard there is an exfiltration
+       destination an attacker can provision in ninety seconds. The cost of
+       naming it exactly is that a project change silently breaks every network
+       call, so the policy is pinned to the URL the client actually uses rather
+       than to a second copy of it. */
+    assert(!/\*\.supabase\.co/.test(connect),
+      'connect-src uses a supabase.co WILDCARD — anyone can create a free Supabase project, so that is an '
+      + 'attacker-provisionable exfiltration destination. Name the project ref exactly.');
+    const live = (window.HearthriseSupabase && window.HearthriseSupabase.getConfig
+      && window.HearthriseSupabase.getConfig()) || null;
+    if (live && live.url) {
+      const host = new URL(live.url).host;
+      assert(connect.indexOf(host) !== -1,
+        'the CSP allows ' + connect.match(/[\w.-]*supabase\.co/) + ' but the client actually talks to ' + host
+        + ' — every request would be blocked. Update the connect-src in index.html.');
+      assert(connect.indexOf('wss://' + host) !== -1,
+        'the CSP has no wss:// entry for ' + host + ' — Supabase Realtime (chat, clan presence) is blocked');
+    }
+
+    assert(/object-src 'none'/.test(csp), "CSP is missing object-src 'none' (the <object>/<embed> vector)");
+    assert(/base-uri 'self'/.test(csp), "CSP is missing base-uri 'self' — an injected <base href> silently "
+      + 're-points every relative script URL on the page');
+    assert(/form-action 'self'/.test(csp), "CSP is missing form-action 'self'");
+    assert(!/unsafe-eval/.test(csp), "CSP permits 'unsafe-eval'");
+
+    /* The meta must sit ABOVE everything it governs: a policy declared after a
+       <script> or <link> does not apply to it. Cheap to get wrong, invisible
+       when wrong. */
+    const firstGoverned = document.head.querySelector('link[rel="stylesheet"], script[src]');
+    if (firstGoverned) {
+      assert(meta.compareDocumentPosition(firstGoverned) & Node.DOCUMENT_POSITION_FOLLOWING,
+        'the CSP meta appears AFTER a governed <script>/<link> — everything above it is unprotected');
+    }
   }),
 
 ];

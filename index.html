@@ -81,6 +81,48 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="Hearthrise">
 <meta name="description" content="Hearthrise — idle homestead RPG. Mobile + Steam + online.">
+<!-- ══ CONTENT SECURITY POLICY (2026-08-23, open-beta hardening) ═════════════
+     GitHub Pages cannot set response headers, so this is a <meta> policy. It is
+     parsed at this point in the document, which is why it sits ABOVE every
+     <link> and <script>: a policy declared after the thing it governs is
+     ignored for that thing.
+
+     WHAT IT HONESTLY BUYS, and what it does not.
+       · It does NOT stop injected inline script. `script-src` must keep
+         'unsafe-inline' because this codebase renders hundreds of inline
+         `onclick=` handlers through innerHTML; removing them is the render-layer
+         extraction (task #129), not a security patch. Anyone who says otherwise
+         has not counted them.
+       · What it DOES buy, and these are the ones that matter for a PUBLIC beta:
+         `connect-src` means an injected script cannot POST the player's session
+         token to an attacker's server — the payoff step of almost every stored
+         XSS; `object-src 'none'` kills the <embed>/<object> plugin vector;
+         `base-uri 'self'` kills <base href> hijacking, which silently
+         re-points every relative script/style URL on the page; `form-action
+         'self'` stops a credential form being retargeted.
+       · `frame-ancestors` is IGNORED in a meta policy — clickjacking cannot be
+         closed from here. It needs a real header (Cloudflare in front of Pages,
+         or a Worker). Named in the operator checklist rather than pretended at.
+
+     Every host below is one this game actually talks to; there is no wildcard
+     and no 'unsafe-eval'. Adding a host here is a security decision — the smoke
+     suite boots the real page and fails on a CSP violation, so a new endpoint
+     announces itself instead of silently half-working. -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://browser.sentry-cdn.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' data: https://fonts.gstatic.com;
+  img-src 'self' data: blob: https:;
+  media-src 'self' data: blob:;
+  connect-src 'self' data: blob: https://nezapsylztqbbwuwembx.supabase.co wss://nezapsylztqbbwuwembx.supabase.co https://*.ingest.us.sentry.io https://*.ingest.sentry.io https://fonts.googleapis.com https://fonts.gstatic.com;
+  worker-src 'self' blob:;
+  child-src 'self' blob:;
+  manifest-src 'self' blob: data:;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
 <title>Hearthrise</title>
 <!-- b361: the icon is the heraldic crest, chroma-keyed off its export matte and
      cropped to content (tools/brand-process.mjs). One 512² PNG rather than the
@@ -877,6 +919,23 @@
        Bumped: 1714710000 -->
   <!-- observability.js MUST load first so window.captureException + window.onerror
        handlers are wired up before any other script can throw. -->
+  <!-- ══ SUPPLY CHAIN: the Supabase client is SELF-HOSTED, on purpose ══════════
+       Until 2026-08-23 src/net/auth.js did `import('https://cdn.skypack.dev/
+       @supabase/supabase-js')` — an UNPINNED third-party CDN, on the path that
+       receives the player's email and password and holds the session token.
+       Measured that day, two requests seconds apart resolved to two DIFFERENT
+       library versions (x-import-url said 2.103.0; the pin redirect said
+       2.101.1), and the module fanned out to five more skypack fetches. A
+       dynamic `import()` cannot carry an `integrity` attribute, so there was no
+       way to verify what arrived. Whoever controls that origin controlled every
+       Hearthrise account.
+       This is the exact npm tarball for 2.103.0 (registry sha512 verified),
+       dist/umd/supabase.js, byte-for-byte, self-contained (no imports, no
+       require, no remote fetches at load). It defines window.supabase.
+       DO NOT re-introduce a CDN import for a credential-handling library. The
+       repo-wide guard in tests/run-smoke.mjs (thirdPartyCdnGuard) and smoke test
+       SEC-CDN-1 both fail the build on one. -->
+  <script src="src/vendor/supabase-js-2.103.0.umd.js?v=461"></script>
   <!-- build-info loads as a module (exports BUILD constant) -->
   <script type="module" src="src/build-info.js?v=461"></script>
   <!-- theme-picker boots first so cozy-light applies before paint and avoids FOUC -->

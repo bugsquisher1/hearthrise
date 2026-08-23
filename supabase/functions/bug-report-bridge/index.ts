@@ -149,6 +149,37 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (!/^Bearer\s+[\w-]+\.[\w-]+\.[\w-]+$/.test(authHeader)) {
     return json({ ok: false, status: 'unauthenticated' }, 401, origin);
   }
+  // ── CHEAP REJECT. THIS IS NOT AUTHENTICATION. SAY IT OUT LOUD. ────────────
+  // The signature is NOT checked here and cannot be: verifying it needs the
+  // project JWKS, which is hr-accrue's jwt.js, and a second copy of a
+  // security-critical module is a drift generator. The AUTHORITY remains
+  // PostgREST — bug_report_submit runs as the caller and reads auth.uid(), so a
+  // forged token still stores nothing and still relays nothing.
+  //
+  // What this DOES buy, and why it is worth six lines: on 2026-08-23 the
+  // deployed function was measured with `verify_jwt = false` at the gateway
+  // (probe + control in tests/edge-jwt-gate.mjs) despite supabase/config.toml
+  // pinning it true. In that state every unauthenticated request on the
+  // internet got a 3 MB body read, a JSON parse, a base64 image decode and an
+  // outbound PostgREST round trip, free, at line rate. This moves the refusal
+  // to BEFORE the body is read, so the unauthenticated cost is a header parse.
+  //
+  // THE REAL FIX IS THE GATEWAY FLAG. This is the cost brake that holds while
+  // somebody is asleep, not a replacement for it, and edge-jwt-gate.mjs stays
+  // red until the flag is right.
+  try {
+    const seg = authHeader.slice(7).split('.')[1];
+    const pad = seg.replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(atob(pad + '='.repeat((4 - pad.length % 4) % 4)));
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const now = Math.floor(Date.now() / 1000);
+    if (claims.role !== 'authenticated' || !uuid.test(String(claims.sub || ''))
+        || !(Number(claims.exp) > now)) {
+      return json({ ok: false, status: 'unauthenticated' }, 401, origin);
+    }
+  } catch {
+    return json({ ok: false, status: 'unauthenticated' }, 401, origin);
+  }
 
   const declared = Number(req.headers.get('content-length') || '0');
   if (declared > MAX_BODY_BYTES) {

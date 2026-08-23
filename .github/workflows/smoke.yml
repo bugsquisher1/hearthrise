@@ -18,6 +18,21 @@ on:
   pull_request:
   workflow_dispatch:
 
+# ── LEAST PRIVILEGE FOR THE WORKFLOW TOKEN (2026-08-23, open-beta hardening) ──
+# The repository is PUBLIC and hearthrise.net is served from main, so the
+# GITHUB_TOKEN handed to a job that runs on `push: main` is, if the repository
+# default is "read and write", a token that can PUSH TO THE DEPLOYED SITE.
+# Three steps of this job run third-party code with that token in the
+# environment: `actions/checkout`, `actions/setup-node`, and — the big one —
+# `npm install`, which executes lifecycle scripts from Playwright, PGlite and
+# their whole transitive tree. One compromised package, and the site is theirs.
+#
+# `permissions:` here overrides the repository default, so this holds even if
+# somebody flips that setting later. Nothing in this workflow writes anything:
+# it checks out, installs, and runs tests. `contents: read` is the whole need.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -25,6 +40,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -144,6 +163,21 @@ jobs:
       # an RPC the client can no longer see is a player-facing outage.
       - name: RPC resolution vs baseline
         run: node tests/rpc-resolution.mjs
+
+      # IS verify_jwt ACTUALLY ON, ON THE DEPLOYED FUNCTIONS?
+      # supabase/config.toml pins it true for both functions and
+      # bug-report-bridge's own header states it as its contract. On
+      # 2026-08-23 the deployed bug-report-bridge answered its own 400 to a
+      # caller holding `Bearer aaa.bbb.ccc`, while hr-accrue — same header,
+      # same project — was refused by the gateway. A file is not a deployment,
+      # and the existing guard (accrual-engine.mjs) only ever read the file.
+      #
+      # Read-only against production and needs no secret, exactly like the RPC
+      # probe above: one POST per function with a garbage token, plus a control
+      # (the public leaderboard) that MUST succeed, so an unreachable project
+      # is reported as INCONCLUSIVE rather than as a green tick.
+      - name: Edge Functions verify JWT at the gateway
+        run: node tests/edge-jwt-gate.mjs --strict
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts

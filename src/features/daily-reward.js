@@ -111,6 +111,7 @@
        progression value. The state is left untouched too, so the day is still
        claimable once the wiring is fixed. */
     if (!rw) return null;
+    rw = Object.assign({}, rw);   // a receipt of our own — never mark the catalogue row
     /* ══════════════════════════════════════════════════════════════════════
        THE DOUBLE-PAY SURFACE — the one Security named before it was written.
        ══════════════════════════════════════════════════════════════════════
@@ -153,7 +154,22 @@
     s.lastClaimDay = todayKey();
     if (key && window.HearthriseGold) {
       var p = window.HearthriseGold.claimReward('daily', 'login', key);
-      if (p && p.catch) p.catch(function () {});
+      /* b462 — the verdict is READ, not dropped. A `refused` (not_claimable:
+         already claimed today on this or another device) must not leave a
+         "Daily reward: 500 gold" toast standing on a payout that never landed —
+         that was the visible half of the every-refresh bug. The gold seam has
+         already rolled the prediction back; this is the honest sentence. */
+      if (p && p.then) p.then(function (v) {
+        var o = v && v.outcome;
+        if (o === 'refused') {
+          s.lastClaimDay = todayKey();
+          if (typeof window.notify === 'function') window.notify('Today’s daily reward was already claimed — come back tomorrow.', 'info');
+        } else if ((o === 'applied' || o === 'replayed') && typeof window.notify === 'function') {
+          window.notify('Daily reward: ' + rewardPlain(rw), 'levelup');
+        }
+        try { if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render(); } catch (e) {}
+      }, function () {});
+      rw._toastDeferred = true;   // the verdict toasts; the click handler must not
     }
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}
     try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
@@ -333,7 +349,7 @@
         var rw = claim(G);
         /* 'levelup' is the gold toast treatment; 'gold' was never a real
            toast type, so this toast had no tone at all. */
-        if (rw && typeof window.notify === 'function') window.notify('Daily reward: ' + rewardPlain(rw), 'levelup');
+        if (rw && !rw._toastDeferred && typeof window.notify === 'function') window.notify('Daily reward: ' + rewardPlain(rw), 'levelup');
         close();
         try { if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render(); } catch (er) {}
         return;
@@ -371,8 +387,21 @@
   function anotherModalUp() {
     return !!document.querySelector(BLOCKING_OVERLAYS);
   }
+  /* b462 — under the arm the "shown today" marker arrives with the residue
+     (client_state), hydrated once per session at hr_load. Deciding before it
+     lands re-opens the sheet on every reload. Wait for hydration (bounded —
+     ~20s — so an offline/pre-arm boot still gets its sheet), never for G alone. */
+  function residuePending() {
+    try {
+      var CS = window.HearthriseClientState;
+      var armed = typeof window.clientMayWriteRecordField === 'function'
+        && !window.clientMayWriteRecordField('gold');
+      return !!(armed && CS && typeof CS.isClientStateHydrated === 'function' && !CS.isClientStateHydrated());
+    } catch (e) { return false; }
+  }
   function autoBoot(tries) {
     if (!window.G) { setTimeout(function () { autoBoot(tries); }, 500); return; }
+    if (residuePending() && tries < 40) { setTimeout(function () { autoBoot(tries + 1); }, 500); return; }
     ensureState(window.G);
     if (!isClaimable(window.G)) return;              // already claimed today
     // Never stack onto another front-door overlay — keep waiting until it

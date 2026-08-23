@@ -1531,7 +1531,7 @@ export function setupSync(opts = {}) {
         const w = window, Gg = w.G || {};
         const SR = w.HearthriseSkillRecord;
         const probe = {
-          build: (w.BUILD && w.BUILD.cache) || null,
+          build: (w.HearthriseBuild && w.HearthriseBuild.cache) || (w.BUILD && w.BUILD.cache) || null,
           armed: !!(w.HearthriseAccrual && w.HearthriseAccrual.isServerAccrualEnabled
             && w.HearthriseAccrual.isServerAccrualEnabled()),
           skillsKnown: (SR && typeof SR.isSkillXpKnown === 'function')

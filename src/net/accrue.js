@@ -1420,6 +1420,48 @@ export function reconcileCompanions(G, res) {
   return { mode: 'server', owned: owned.size, equipped };
 }
 
+/* ── THE OWNED PERMANENT TRAITS, HYDRATED FROM THE ENVELOPE ───────────────────
+   hr_trait_buy (supabase/migrations/2026-08-23-trait-buy.sql) is the server-side
+   writer of a trait: it debits the server-owned Bounty-Marks balance and writes
+   a player_progress kind='flag' key='trait:<id>' row — the same row
+   hr_auto_eat_tier reads to decide the auto-eat ceiling. hr_state_of projects
+   that set as a flat top-level `traits` array, and THIS is what puts it into
+   G.traits so a purchase survives a device change without the save blob.
+
+   ⚠ UNION, NEVER REPLACE — and that is the whole design of this function.
+   G.traits is still a blob field today, and there are live players who bought
+   Auto-Eat BEFORE this verb existed: they hold `G.traits.auto_eat === true`
+   locally and NO server row. An absolute assignment would REVOKE a paid trait
+   from every one of them on their next envelope, which is the one irreversible
+   mistake available here. A union can only ever ADD, so:
+     · a server-owned trait appears on every device (the feature);
+     · a locally-owned, server-unknown trait is left exactly alone (the safety);
+     · an entitlement is monotone, which is what hr_set_auto_eat's tier argument
+       already assumes ("an entitlement is never revoked").
+   The beta wipe removes the pre-migration population, at which point the server
+   set IS the set — but the union stays, because "never take a purchase away" is
+   not a transitional rule.
+
+   FAIL-CLOSED on absence: no readable `res.traits` ARRAY → leave G.traits
+   untouched. A server build predating the projection, or a partial we cannot
+   trust, must not be read as "you own nothing" — and because this is a union
+   that is already true, absence simply changes nothing.
+
+   NOT arm-gated: a union has no dormant/armed difference to gate. Pure — takes
+   G + res, returns a small receipt, so the suite drives it without a window. */
+export function reconcileTraits(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const t = res && res.traits;
+  if (!Array.isArray(t)) return { mode: 'absent' };
+  if (!G.traits || typeof G.traits !== 'object') G.traits = {};
+  let added = 0;
+  for (const id of t) {
+    if (typeof id !== 'string' || !id) continue;
+    if (G.traits[id] !== true) { G.traits[id] = true; added++; }
+  }
+  return { mode: 'server', owned: t.length, added };
+}
+
 /* ── THE FARM PLOTS, RECONSTRUCTED FROM THE ENVELOPE (blob-retire capstone) ────
    THE CRITICAL BLOCKER THIS CLOSES. Under the capstone arm the client stops
    loading the save blob, and NOTHING would rebuild G.farmPlots / G.plotLevels —
@@ -1740,6 +1782,11 @@ export function applyEnvelopeState(G, res, ownKey) {
      boot hr_load path reconstructs through record.js's settle() (the always-full
      envelope), which calls this same function. */
   written.companions = reconcileCompanions(G, res);
+
+  /* THE OWNED TRAIT SET IS THE SERVER'S (hr_trait_buy). Reconciled here so it
+     rides EVERY envelope, and as a UNION so a trait bought before the server
+     verb existed is never revoked — see reconcileTraits' header. */
+  written.traits = reconcileTraits(G, res);
 
   /* THE FARM IS THE SERVER'S UNDER ARM (blob-retire capstone). Reconciled here,
      alongside the crew and companions, so it rides EVERY envelope (away,
@@ -2898,7 +2945,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileWorkers, reconcileCompanions, reconcileFarm, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, classifyReceipt, receiptNotice, receiptSentence,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,

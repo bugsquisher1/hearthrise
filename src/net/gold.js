@@ -945,6 +945,173 @@ export function buyUnlock(offerId, key) {
   return sendGoldIntent({ verb: UNLOCK_BUY_VERB, offer: id }, key);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   BUY A PERMANENT TRAIT (b46x) — hr_trait_buy, a DIRECT RPC.
+   ══════════════════════════════════════════════════════════════════════════
+   THE DEFECT IT CLOSES. Under the live marks arm, legacy.js `buyTrait()` fails
+   closed on its first line — a raw `G.marks -= cost` on a server-owned balance
+   would be a client-authored debit the next envelope reconciles away while the
+   trait stayed granted. Correct, and it meant AUTO-EAT (the purchase the death
+   sheet teaches on a player's FIRST death) could not be bought at all. The
+   server half is supabase/migrations/2026-08-23-trait-buy.sql.
+
+   ⚠ WHY THIS IS NOT A GOLD VERB, AND SO NOT A PREDICTION.
+     The five verbs above ride the hr-accrue Edge Function, return an ENVELOPE,
+     and write `G.gold` ABSOLUTELY — which is why each needs an entry in the
+     prediction ledger. This one is a plain PostgREST RPC and it writes NO
+     balance at all: the client never touches G.marks / G.gold for a trait, so
+     there is nothing to predict, nothing to retire and nothing that can be
+     orphaned into the permanent additive offset the F1 finding is about. The
+     new balance comes back in the answer for RENDERING only and is reconciled
+     by the next envelope (the hr_bounty_spend discipline exactly). If you are
+     here to add `settle(G, -cost, …)` — don't. That reopens F1 for a value the
+     server already owns.
+
+   ⚠ NO PRICE, NO CURRENCY, NO QUANTITY CROSSES. The body is a TRAIT ID and a
+     SLOT. Price, currency and prerequisite live in public.hr_traits and are
+     read under the per-character lock. A `p_cost` field added here would be a
+     client number authoring a permanent capability, which is exactly what the
+     server verb was written to make impossible (tests/trait-buy.mjs bindGuard
+     fails the build if one appears).
+
+   The transport is spelled out here rather than borrowed from
+   src/net/goal-claim.js because that module is a classic script on `window` and
+   this one is ESM that Node imports directly — a seam that only exists in a
+   browser is a seam the Node guards cannot see. `fetch` resolves at CALL time,
+   so a test's override IS the transport. */
+export const TRAIT_BUY_RPC = 'hr_trait_buy';
+export const TRAIT_ID_RE = /^[a-z0-9_]{1,64}$/;
+
+/** The request, as data — pure, so the suite asserts the LITERAL bytes. */
+export function buildTraitBuyRequest(opts) {
+  const o = opts || {};
+  const headers = { 'Content-Type': 'application/json' };
+  if (o.token) headers['Authorization'] = 'Bearer ' + o.token;
+  if (o.apiKey) headers['apikey'] = o.apiKey;
+  const slot = Number.isInteger(o.slot) && o.slot >= 0 && o.slot <= MAX_SLOT ? o.slot : 0;
+  /* CONSTRUCTED, field by field. There is no `...o` here for the same reason
+     buildGoldRequest has none: the field a future caller adds by accident is
+     the field that turns a NAME into a VALUE. */
+  const body = {
+    p_trait_id: String(o.trait == null ? '' : o.trait),
+    p_slot: slot,
+    p_idem: String(o.intentId == null ? '' : o.intentId),
+  };
+  return {
+    url: String(o.url || '').replace(/\/+$/, '') + '/rest/v1/rpc/' + TRAIT_BUY_RPC,
+    init: { method: 'POST', headers, body: JSON.stringify(body) },
+  };
+}
+
+/**
+ * WHAT DID THE SERVER SAY? Pure.
+ *
+ * ⚠ A REFUSAL ARRIVES AS HTTP 200. PostgREST returns 200 for a function that
+ *   RETURNS a value, whatever that value says — so the outcome is decided by
+ *   `body.ok`, never by the status alone. Classifying on status would read
+ *   `{ok:false,error:'insufficient_marks'}` as a successful purchase and grant
+ *   the trait for free, which is the worst mistake available in this file.
+ */
+export function classifyTraitResponse(status, body) {
+  const b = (body && typeof body === 'object' && !Array.isArray(body)) ? body : null;
+  /* A missing function is 404/PGRST202 — the shape a deploy that never applied
+     the migration produces. Named, so the caller can say "not available yet"
+     rather than "you cannot afford it". */
+  if (status === 404 || (b && (b.code === 'PGRST202'
+      || /could not find the function/i.test(String(b.message || ''))))) {
+    return { outcome: 'unavailable', reason: 'rpc_missing', body: b };
+  }
+  if (status === 401 || status === 403) return { outcome: 'not-signed-in', reason: 'not_signed_in', body: b };
+  if (status === 429) return { outcome: 'rate-limited', reason: 'rate_limited', body: b };
+  if (status >= 500) return { outcome: 'unavailable', reason: (b && b.error) || 'server_error', body: b };
+  if (status !== 200) return { outcome: 'malformed', reason: 'http_' + status, body: b };
+  if (!b) return { outcome: 'malformed', reason: 'not_json', body: null };
+  if (b.ok === true) return { outcome: b.replayed === true ? 'replayed' : 'applied', body: b };
+  const err = String(b.error || 'refused');
+  if (err === 'rate_limited') return { outcome: 'rate-limited', reason: err, body: b };
+  if (err === 'not_signed_in') return { outcome: 'not-signed-in', reason: err, body: b };
+  return { outcome: 'refused', reason: err, body: b };
+}
+
+/** Was this outcome a real, applied purchase? The ONE predicate the caller
+ *  should branch ownership on — `replayed` counts, because a replay means the
+ *  original call landed and the trait IS owned. */
+export function isTraitOwnedOutcome(outcome) {
+  return outcome === 'applied' || outcome === 'replayed';
+}
+
+/**
+ * SEND ONE TRAIT PURCHASE.
+ *
+ * @param traitId the catalogue id (`auto_eat`), refused locally on shape so a
+ *                malformed gesture does not spend a real player's rate budget
+ *                to be told `unknown_trait` — the buyShop/buyUnlock discipline.
+ * @param key     the idempotency key. A retry of the SAME gesture carries the
+ *                same key and the server re-debits nothing; a NEW gesture gets a
+ *                fresh one. Only SUCCESSES are cached server-side, so a refusal
+ *                ("5 Marks short") is buyable again the moment the Marks arrive.
+ *
+ * ONE ATTEMPT, NO AUTOMATIC RETRY — the rule sendGoldIntent states: an
+ * unanswered value transfer is the one case where a client must not decide
+ * anything on its own.
+ *
+ * @returns {Promise<{outcome,reason,trait,key,owned,marks,gold,name,body}>}
+ */
+export async function buyTrait(traitId, key) {
+  const id = String(traitId == null ? '' : traitId);
+  const done = (v) => {
+    last = { outcome: v.outcome, verb: TRAIT_BUY_RPC, reason: v.reason || null,
+      status: v.status || 0, at: Date.now(), key: key || null, trait: id };
+    fire('onOutcome', last);
+    const b = v.body || null;
+    return { outcome: v.outcome, reason: v.reason || null, trait: id, key: key || null,
+      owned: (b && Array.isArray(b.owned)) ? b.owned : null,
+      marks: (b && Number.isFinite(Number(b.marks))) ? Number(b.marks) : null,
+      gold: (b && Number.isFinite(Number(b.gold))) ? Number(b.gold) : null,
+      name: (b && typeof b.name === 'string') ? b.name : null,
+      status: v.status || 0, body: b };
+  };
+
+  /* SHAPE FIRST, CONFIG SECOND — and that order is deliberate, not tidiness.
+     A gesture the client itself cannot spell is `unsendable` on ANY device;
+     answering `unconfigured` for it would make the caller's diagnosis depend on
+     whether the player happened to be signed in, which is how a real defect
+     gets reported as "it works on my machine". buyUnlock refuses shape before
+     sendGoldIntent looks at the transport for the same reason. */
+  if (!TRAIT_ID_RE.test(id)) return done({ outcome: 'unsendable', reason: 'bad_trait' });
+  if (!isIntentKey(key)) return done({ outcome: 'unsendable', reason: 'no_intent_key' });
+  if (!config) return done({ outcome: 'unconfigured', reason: 'no_endpoint' });
+  const token = tokenOf();
+  if (!token) return done({ outcome: 'unconfigured', reason: 'no_token' });
+
+  const { url, init } = buildTraitBuyRequest({
+    trait: id, url: config.url, apiKey: config.apiKey, token,
+    slot: resolveActiveSlot(config.slot), intentId: key,
+  });
+
+  let ac = null; let timer = null;
+  try { ac = (typeof AbortController !== 'undefined') ? new AbortController() : null; } catch (e) { ac = null; }
+  const opts = ac ? { ...init, signal: ac.signal } : init;
+  if (ac) timer = setTimeout(() => { try { ac.abort(); } catch (e) {} }, GOLD_TIMEOUT_MS);
+
+  let res = null;
+  try {
+    res = await fetch(url, opts);
+  } catch (e) {
+    const aborted = !!(ac && ac.signal && ac.signal.aborted);
+    if (timer) clearTimeout(timer);
+    /* NEVER ANSWERED. Nothing local moved, so there is nothing to reverse — the
+       purchase either landed or it did not, and the next envelope (or a retry
+       with the SAME key) settles it. */
+    return done({ outcome: aborted ? 'timeout' : 'unreachable',
+      reason: String((e && e.message) || e) });
+  }
+  if (timer) clearTimeout(timer);
+  let body = null;
+  try { body = await res.json(); } catch (e) { body = null; }
+  return done({ ...classifyTraitResponse(res.status, body), status: res.status });
+}
+
 export function sellItem(itemId, qty, key) {
   const id = String(itemId == null ? '' : itemId);
   const n = Number(qty);
@@ -1080,6 +1247,10 @@ if (typeof window !== 'undefined') {
     configureGold, getGoldConfig, setGoldHooks, getGoldState, resetGold,
     buyShop, buyUnlock, sellItem, claimReward, sendGoldIntent,
     UNLOCK_BUY_VERB, UNLOCK_OFFER_ID_RE,
+    /* The permanent-trait purchase (hr_trait_buy). NOT a gold verb and NOT a
+       prediction — see its header. legacy.js buyTrait() is the only caller. */
+    buyTrait, buildTraitBuyRequest, classifyTraitResponse, isTraitOwnedOutcome,
+    TRAIT_BUY_RPC, TRAIT_ID_RE,
     LEDGER: GOLD_SITE_LEDGER,
   };
 }

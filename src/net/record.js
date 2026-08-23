@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm } from './accrue.js?v=461';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits } from './accrue.js?v=461';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1370,6 +1370,17 @@ function settle(verdict) {
        while dormant, so the dormant load path is byte-for-byte unchanged. Guarded —
        a throw here must never break the record load. */
     try { reconcileFarm(G, verdict.body); } catch (e) {}
+    /* ── HYDRATE THE OWNED TRAIT SET FROM THE SAME ENVELOPE (b46x) ───────────────
+       hr_trait_buy is now the server-side writer of a permanent trait, and
+       hr_state_of projects the owned ids as a flat `traits` array. The boot
+       hr_load envelope is the ALWAYS-FULL statement of the character (an idle
+       settle returns nothing, so applyEnvelopeState may never run on an idle
+       boot), so ownership is hydrated HERE as well — which is what makes a trait
+       bought on one device appear on another. A UNION, never a replace: a trait
+       bought before the server verb existed has no server row and must never be
+       revoked (see reconcileTraits' header). Guarded — a throw here must never
+       break the record load. */
+    try { reconcileTraits(G, verdict.body); } catch (e) {}
     /* ── BOOT-RESUME (b456 QA finding): the boot hr_load envelope carries
        state.active_kind/active_id, but reconcileActivityPointer was only wired
        to the activity-SWITCH hook — so a reload booted to "Idle" while the

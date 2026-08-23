@@ -47,6 +47,7 @@ import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
    ownership interlock that stops a regen wiping another migration's offers.
    Both replay the real migration chain into PGlite and drive real RPCs. */
 import { modalGoalClaimGuard } from './modal-goal-claim.mjs';
+import { traitBuyGuard } from './trait-buy.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
@@ -2715,6 +2716,30 @@ const run = async () => {
       console.log('\nQuest-modal goal claim guard — completion read from the server\'s own counters, '
         + 'credited once, idempotent on replay, weekly derived from the ISO week, whole reward '
         + '(gold + gems + XP + items) server-applied.');
+    }
+
+    /* ── The permanent-TRAIT purchase guard (b46x) ───────────────────────
+       Under the live marks arm legacy.js buyTrait() failed closed with no
+       server verb behind it, so AUTO-EAT — the purchase the death sheet
+       teaches on a player's FIRST death — could not be bought at all. The
+       guard drives a real player through the real rate-gated hr_trait_buy on
+       a fully replayed PGlite chain: unknown trait, prerequisite, short
+       marks (and that the refusal is NOT cached under its key), the debit,
+       the ownership row hr_auto_eat_tier reads, auto-eat switched on through
+       its single writer at the tier-clamped threshold, the idempotent replay,
+       already_owned, one ledger row per purchase and the envelope projection.
+       It also BINDS legacy.js TRAITS to public.hr_traits in both directions,
+       so a price that differs by one Mark fails the build by name.
+       `--selftest` plants ten real defects; every one must read RED. */
+    const traitBuyProblems = await traitBuyGuard();
+    if (traitBuyProblems.length) {
+      console.log('\nPermanent-trait purchase — FAILED:');
+      for (const p of traitBuyProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nTrait-buy guard — server-priced, prerequisite-gated, debited exactly once, '
+        + 'idempotent on replay, already_owned refused, refusals not cached, auto-eat enabled '
+        + 'through its single writer, ownership projected on the envelope.');
     }
 
     /* ── The catalogue-refill ownership interlock (b461) ─────────────────

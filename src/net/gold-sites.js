@@ -661,7 +661,22 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
   /* buyTheme no longer writes gold at all — themes are gems-only and the free
      default is a free equip (slice 6). The old deferred gold row is retired. */
-  'src/legacy.js#buyTrait': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },
+  /* b46x — THE MARKS HALF IS NOW SERVER-OWNED. hr_trait_buy
+     (supabase/migrations/2026-08-23-trait-buy.sql) debits the server-owned
+     balance from its own catalogue and writes the kind='flag' trait:<id>
+     ownership row; legacy.js buyTrait() routes there whenever
+     clientMayWriteRecordField(<currency>) is false, and the local debit below
+     runs ONLY pre-arm. The row stays `deferred` because the GOLD arm has no
+     content yet — every authored trait is priced in Marks — so this site's
+     `.gold` write is unreachable today and untested by a real purchase. It is
+     gated either way, which is what the flipGuard states. */
+  'src/legacy.js#buyTrait': {
+    kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,
+    site: 'src/legacy.js buyTrait() — the local debit is the PRE-ARM path only; under arm the '
+      + 'purchase is hr_trait_buy (marks and gold alike), which takes the price from '
+      + 'public.hr_traits and never from this client.',
+    flipGuard: { gated: 'clientMayWriteRecordField' },
+  },
   /* _buyCompanion is now `seam:companion.buy` (wired, unlock_buy — slice 4); it no
      longer writes `.gold` raw, so the scanner reports it under the seam id. b420:
      the arm-gate is LIFTED (the pet EFFECT is server-owned now) — see the seam row

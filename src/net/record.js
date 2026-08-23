@@ -103,11 +103,11 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm } from './accrue.js?v=453';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm } from './accrue.js?v=454';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=453';
+import { applyClientState } from './client-state.js?v=454';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -575,7 +575,7 @@ export function fingerprintSkills(v) {
    reviewed, and it is POST-WIPE (a sparse server skills baseline vs a rich client
    one would strand xp — the same class of loss the inventory flip hit pre-wipe).
    See the writeup / docs for the exact arm procedure. */
-export const SKILLS_RECORD_ARM_ENABLED = false;   // DORMANT — post-wipe rollout only
+export const SKILLS_RECORD_ARM_ENABLED = true;   // DORMANT — post-wipe rollout only
 let skillsArmOverride = null;
 export function isSkillsRecordArmed() {
   const on = skillsArmOverride !== null ? skillsArmOverride : SKILLS_RECORD_ARM_ENABLED;
@@ -603,7 +603,7 @@ export function __setSkillsRecordArm(v) {
    SPARSE pre-wipe
    — players earned marks into the blob, not all mirrored server-side — so a pre-wipe
    arm would strand marks, the inventory-flip lesson). */
-export const MARKS_RECORD_ARM_ENABLED = false;   // DORMANT — post-wipe rollout only
+export const MARKS_RECORD_ARM_ENABLED = true;   // DORMANT — post-wipe rollout only
 let marksArmOverride = null;
 export function isMarksRecordArmed() {
   const on = marksArmOverride !== null ? marksArmOverride : MARKS_RECORD_ARM_ENABLED;
@@ -630,7 +630,7 @@ export function __setMarksRecordArm(v) {
    (4) it is POST-WIPE (player_state.rested_at is fresh-defaulted `now()` per row,
    so a pre-wipe arm on a live character would reset a rich local bank to the
    server's freshly-initialised one — the inventory-flip lesson). */
-export const RESTED_RECORD_ARM_ENABLED = false;   // DORMANT — post-wipe rollout only
+export const RESTED_RECORD_ARM_ENABLED = true;   // DORMANT — post-wipe rollout only
 let restedArmOverride = null;
 export function isRestedRecordArmed() {
   const on = restedArmOverride !== null ? restedArmOverride : RESTED_RECORD_ARM_ENABLED;
@@ -769,7 +769,7 @@ export function fingerprintRooms(v) {
    and it is POST-WIPE. The equip WRITE already moved (equip.js), so unlike skills
    the writer side is done; the remaining arm work is purely the client read
    surface. */
-export const EQUIPMENT_RECORD_ARM_ENABLED = false;   // DORMANT — post-wipe rollout only
+export const EQUIPMENT_RECORD_ARM_ENABLED = true;   // DORMANT — post-wipe rollout only
 let equipmentArmOverride = null;
 export function isEquipmentRecordArmed() {
   const on = equipmentArmOverride !== null ? equipmentArmOverride : EQUIPMENT_RECORD_ARM_ENABLED;
@@ -798,7 +798,7 @@ export function __setEquipmentRecordArm(v) {
    what makes `noBurn` server-owned end to end, so it is flipped IN THE SAME
    ROLLOUT as artisan-sim.js COOKING_SETTLEMENT_ARM_ENABLED and item-authority.js's
    twin — see those files. */
-export const ROOMS_RECORD_ARM_ENABLED = false;   // DORMANT — post-wipe, coupled with cooking
+export const ROOMS_RECORD_ARM_ENABLED = true;   // DORMANT — post-wipe, coupled with cooking
 let roomsArmOverride = null;
 export function isRoomsRecordArmed() {
   const on = roomsArmOverride !== null ? roomsArmOverride : ROOMS_RECORD_ARM_ENABLED;

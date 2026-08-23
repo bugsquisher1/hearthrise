@@ -81,14 +81,14 @@
 // DOM-free. Node-importable. `fetch`/`window` resolve at call time.
 // ============================================================================
 
-import { isServerAccrualEnabled } from './accrue.js?v=453';
-import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=453';
+import { isServerAccrualEnabled } from './accrue.js?v=454';
+import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=454';
 
 /* ── THE ARM ─────────────────────────────────────────────────────────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):
    a greppable const defaulting OFF, a test override seam, and a runtime
    predicate that ALSO requires the master accrual switch. */
-export const BLOB_RETIRED = false;   // DORMANT — post-wipe capstone arm only
+export const BLOB_RETIRED = true;   // DORMANT — post-wipe capstone arm only
 let armOverride = null;
 export function isBlobRetired() {
   const on = armOverride !== null ? armOverride : BLOB_RETIRED;

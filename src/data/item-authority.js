@@ -53,10 +53,10 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=453';
-import { ARTISAN_RECIPES } from './recipes.js?v=453';
-import { MONSTERS } from './monsters.js?v=453';
-import { BOSSES } from './bosses.js?v=453';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=454';
+import { ARTISAN_RECIPES } from './recipes.js?v=454';
+import { MONSTERS } from './monsters.js?v=454';
+import { BOSSES } from './bosses.js?v=454';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -88,7 +88,7 @@ export const COOKING_SKILL = 'cooking';
    inventory absolute-replace can never DELETE a live-cooked dish. Owning cooking
    outputs is a post-inventory-arm follow-up (remove the unconditional exclusion);
    the SETTLEMENT here is independent of it and safe to arm first. */
-export const COOKING_SETTLEMENT_ARM_ENABLED = false;   // DORMANT — post-wipe, coupled with rooms record arm
+export const COOKING_SETTLEMENT_ARM_ENABLED = true;   // DORMANT — post-wipe, coupled with rooms record arm
 export const ARTISAN_SETTLEMENT = Object.freeze({
   smithing:     'payable',
   crafting:     'payable',
@@ -140,7 +140,7 @@ export function gatherProductIds() {
    server; existing players' client-side crews reconcile to the (empty) server crew
    on next load = expected/accepted. Post-wipe every crew is empty, so no further
    transition. Coupled with INVENTORY_ARM_ENABLED below (both set true together). */
-export const WORKER_PRODUCTION_SERVER_BACKED = false;   // REVERTED to dormant b425 — see note below
+export const WORKER_PRODUCTION_SERVER_BACKED = true;   // REVERTED to dormant b425 — see note below
 
 /* ── RAID CHEST MATERIALS — UNBACKED OWNABLE MINT (2026-08-22) ───────────────
    src/features/raids.js `grantReward` mints the raid chest MATERIALS
@@ -234,7 +234,7 @@ export const MUSTER_ABSENCE_ITEMS_SERVER_BACKED = true;   // LIVE — 2026-08-22
    removing the client mint (src/features/workers.js) re-opens the landmine; both
    moves belong in the ONE post-wipe rollout commit, gated on a security pass and
    a coordinator-run drift-soak. Do NOT set either true before the wipe. */
-export const INVENTORY_ARM_ENABLED = false;   // REVERTED to dormant b425 — pre-wipe arm was catastrophic (see note above); post-wipe only
+export const INVENTORY_ARM_ENABLED = true;   // REVERTED to dormant b425 — pre-wipe arm was catastrophic (see note above); post-wipe only
 
 /* ── THE FARM SERVER-AUTHORITY ARM (2026-08-22, DORMANT) ─────────────────────
    When true, the client stops AUTHORING farm outcomes (plantCrop / waterPlot /
@@ -254,7 +254,7 @@ export const INVENTORY_ARM_ENABLED = false;   // REVERTED to dormant b425 — pr
    crop produce is EXCLUDED from the ownable-inventory set (cropProductIds is a
    documented exclusion), so the harvest RPC — not the inventory flip — is what
    makes farm produce server-owned. */
-export const FARM_SERVER_ARM_ENABLED = false;   // DORMANT — post-wipe rollout only
+export const FARM_SERVER_ARM_ENABLED = true;   // DORMANT — post-wipe rollout only
 let farmArmOverride = null;
 export function isFarmServerArmed() {
   return farmArmOverride !== null ? !!farmArmOverride : FARM_SERVER_ARM_ENABLED;

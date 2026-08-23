@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 453 — 2026-08-22 (Under the hood: non-shop companions server-owned, dormant)
+
+- 🔧 No gameplay change. Companions earned outside the shop (drops, quests, the dragon-egg hatch, pets) now register on the server, so they can't be lost when your character moves to the server. Shipped dormant.
+
 ## v0.9.2-beta build 452 — 2026-08-22 (Under the hood: arm-safety gate, dormant)
 
 - 🔧 No gameplay change. Added a runtime safety gate so the server switchover physically refuses to happen unless every part of your character is confirmed loaded from the server — a partial switch waits safely instead of ever crashing. Shipped dormant.

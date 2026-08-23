@@ -181,6 +181,34 @@
     },
     unequipCompanion: function () {
       return call('hr_companion_equip', { p_slot: activeSlot(), p_companion: null, p_unequip: true });
+    },
+    /* NON-SHOP companion GRANT — supabase/migrations/2026-08-22-companion-grant.sql.
+       hr_companion_grant(slot, companion, source, idem) writes a server-owned
+       companion:<id> unlock row when a legitimate NON-shop acquisition happens
+       (drop / quest / hatch / skill / boss), so that under the blob-retire capstone
+       arm accrue.js reconcileCompanions (which rebuilds G.companions from the
+       server owned-set) does NOT drop a companion obtained without a server row.
+
+       The server GATES on its own allowlist (hr_companion_grants): a SHOP companion
+       (bought with gold via hr_unlock_buy) and an unknown/forged id are refused
+       'not_grantable', so a forged grant mints no server-owned perk. Where the
+       acquisition has a server-verifiable cost (the dragon_egg hatch) the RPC
+       consumes it server-side. Only the id/source cross the wire; the ownership
+       decision, the version bump and any consume are the server's.
+
+       Fire-and-reconcile, DISPLAY-PREDICTION shape like the equip/claim transports:
+       the client already wrote G.companions.ownedIds locally for responsiveness and
+       the server owned-set reconciles on the next envelope. A refusal costs nothing
+       the client authored. p_idem makes a retry of the same acquisition a no-op
+       (the grant is owned-once regardless). Fired ONLY under the capstone arm (see
+       src/features/companions.js maybeServerGrant) so dormant behaviour is unchanged. */
+    grantCompanion: function (id, source) {
+      return call('hr_companion_grant', {
+        p_slot: activeSlot(),
+        p_companion: String(id || ''),
+        p_source: String(source || ''),
+        p_idem: newIdem()
+      });
     }
   };
 })();

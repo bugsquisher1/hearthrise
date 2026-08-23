@@ -163,6 +163,52 @@ export async function companionsRecordGuard() {
       if (globalThis.window.G.companions.xp.raccoon <= 100)
         fail('XP-GATE: DORMANT awardCompanionXp must still award (regression)');
     }
+
+    // ── 6. SERVER-GRANT TRANSPORT: a NON-SHOP unlock writes the server row ────
+    // Under the capstone arm, unlockCompanion for a non-shop companion must ALSO
+    // fire hr_companion_grant (via HearthriseGoalClaim.grantCompanion) so the
+    // server owned-set — the thing reconcileCompanions rebuilds from — carries the
+    // acquisition and it SURVIVES the next reload. Dormant: no call (byte-unchanged).
+    // Shop + starter: skipped (shop gets its row from hr_unlock_buy; fox is grammar).
+    if (typeof C.unlockCompanion === 'function') {
+      const calls = [];
+      globalThis.window.HearthriseGoalClaim = {
+        grantCompanion: (id, source) => { calls.push({ id, source }); return { catch() {} }; },
+      };
+
+      // (a) DORMANT: a non-shop unlock fires NO server grant (byte-unchanged).
+      setArm(false);
+      calls.length = 0;
+      globalThis.window.G = { companions: { ownedIds: ['fox'], xp: { fox: 0 }, equipped: 'fox' } };
+      C.unlockCompanion('wolf_pup');                     // drop:small_wolf — non-shop
+      if (calls.length !== 0) fail('GRANT: DORMANT must NOT fire a server grant (got ' + JSON.stringify(calls) + ')');
+      if (globalThis.window.G.companions.ownedIds.indexOf('wolf_pup') === -1)
+        fail('GRANT: DORMANT unlockCompanion must still write the local ownedIds (byte-unchanged)');
+
+      // (b) ARMED: a non-shop unlock fires exactly one grant, carrying id + source.
+      setArm(true);
+      calls.length = 0;
+      globalThis.window.G = { companions: { ownedIds: [], xp: {}, equipped: null } };
+      C.unlockCompanion('wolf_pup');
+      if (calls.length !== 1 || calls[0].id !== 'wolf_pup')
+        fail('GRANT: ARMED non-shop unlock must fire grantCompanion(wolf_pup, …) exactly once (got ' + JSON.stringify(calls) + ')');
+      if (!/^drop:/.test(String(calls[0].source || '')))
+        fail('GRANT: ARMED grant must carry the authored source (got ' + JSON.stringify(calls[0]) + ')');
+
+      // (c) ARMED: a SHOP companion is skipped (it gets its row from hr_unlock_buy).
+      calls.length = 0;
+      globalThis.window.G = { companions: { ownedIds: [], xp: {}, equipped: null } };
+      C.unlockCompanion('raccoon');                      // shop:25000
+      if (calls.length !== 0) fail('GRANT: ARMED shop companion must NOT fire the grant (got ' + JSON.stringify(calls) + ')');
+
+      // (d) ARMED: the starter fox is skipped (owned by grammar, no row).
+      calls.length = 0;
+      globalThis.window.G = { companions: { ownedIds: [], xp: {}, equipped: null } };
+      C.unlockCompanion('fox');
+      if (calls.length !== 0) fail('GRANT: ARMED starter fox must NOT fire the grant (got ' + JSON.stringify(calls) + ')');
+
+      delete globalThis.window.HearthriseGoalClaim;
+    }
   } finally {
     if (savedWindow === undefined) delete globalThis.window; else globalThis.window = savedWindow;
   }

@@ -1539,6 +1539,15 @@ async function unlockModelPreflight() {
     ['gen-companion-unlocks.mjs', 'Companion-unlock preflight',
       'a companion price or skill requirement moved, a shop companion was added, or the derived '
       + 'hr_unlock_buy is no longer unlock-buy.sql’s body plus the one declared skill gate'],
+    /* NON-SHOP companion grants. hr_companion_grant gates out of hr_companion_grants,
+       the allowlist generated DIRECTLY from src/data/companions.js. A non-shop
+       companion added/removed, a source kind or the dragon_egg hatch item changed
+       without regenerating — or a hand-edit of the migration — fails here, because the
+       RPC refuses anything not in that catalogue and the companion:<id> hr_unlocks
+       ladders must match the grantable set. */
+    ['gen-companion-grants.mjs', 'Companion-grant preflight',
+      'a non-shop companion was added/removed, a source kind or the dragon_egg hatch item moved, '
+      + 'or the generated companion-grant migration was hand-edited'],
     ['derive-perks-of.mjs', 'hr_perks_of derivation',
       'the restated hr_perks_of is no longer perk-channel\'s body plus its declared patches'],
     /* b353. The same rule applied to THE DETECTOR, and the reason it is worth a

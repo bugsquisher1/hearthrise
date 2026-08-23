@@ -1,0 +1,591 @@
+#!/usr/bin/env node
+// ════════════════════════════════════════════════════════════════════════
+// tools/gen-companion-grants.mjs — NON-SHOP COMPANION GRANTS (server-of-record).
+//
+// Generated DIRECTLY from src/data/companions.js (the single source of game
+// content — companions.js IS the drift guard: this tool reads it, so a data
+// edit is reflected on the next generation and `--check` fails the smoke suite
+// if the committed migration no longer matches).
+//
+//   node tools/gen-companion-grants.mjs           → (re)write the migration
+//   node tools/gen-companion-grants.mjs --check    → exit 1 if committed differs
+//   node tools/gen-companion-grants.mjs --report   → print the derived catalogue
+//
+// ── WHAT IT EMITS ───────────────────────────────────────────────────────
+// supabase/migrations/2026-08-22-companion-grant.sql:
+//   §1  hr_unlocks rows for every NON-SHOP companion (single-rung [1] `max`
+//       ladders, namespace='companion') — WITHOUT these the storage guard
+//       hr_unlock_guard refuses a `companion:<id>` unlock row as unknown_unlock,
+//       so the equip gate + hr_state_of `owned` projection could never see them.
+//   §2  public.hr_companion_grants — the server ALLOWLIST catalogue (which
+//       companions may be acquired OUTSIDE the gold shop, + any server-verifiable
+//       req_item). This is the security gate: a SHOP companion (sold by
+//       hr_unlock_buy) and an unknown/forged id are both ABSENT here and refused.
+//   §3  public.hr_companion_grant(int,text,text,uuid) — the client-callable
+//       SECURITY DEFINER RPC that writes ONE `companion:<id>` unlock row for the
+//       CALLER (auth.uid()) after the allowlist gate, best-effort-consuming a
+//       req_item, idempotent (owned-once), journalled, rate-gated.
+//   §4  grants (revoke public/anon/service_role/hr_engine; grant authenticated),
+//       hr_client_rpc_baseline row + strict hygiene gate.
+//   §5  structural assertions.
+//   §6  a behavioural probe driving the REAL RPC (rolled back).
+//
+// ── THE SECURITY INVARIANT, STATED ──────────────────────────────────────
+// A companion perk is server-owned value, so a forged
+// hr_companion_grant('raccoon') (a SHOP companion) or hr_companion_grant('op')
+// (an unknown id) MUST be refused. The gate is the server catalogue
+// hr_companion_grants: only NON-SHOP, non-starter companions are listed, so a
+// shop companion cannot be minted for free through this door (it costs gold via
+// hr_unlock_buy) and an unknown id has no row. Where an acquisition has a
+// server-verifiable cost (the dragon_egg hatch → whelp) the RPC best-effort
+// consumes it server-side; the remaining non-shop grants are self-only-cosmetic
+// (their perks are not server-projected / not tradeable today) and rely on the
+// allowlist — exactly the model the task scopes.
+//
+// PURE ESM, Node only. Writes one file.
+// ════════════════════════════════════════════════════════════════════════
+
+import { readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { COMPANIONS } from '../src/data/companions.js';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const MIG = join(ROOT, 'supabase', 'migrations');
+const OUT = join(MIG, '2026-08-22-companion-grant.sql');
+
+const argv = process.argv.slice(2);
+const CHECK = argv.includes('--check');
+const REPORT = argv.includes('--report');
+
+const die = (m) => { console.error(`gen-companion-grants: ${m}`); process.exit(1); };
+
+// ── DERIVE THE NON-SHOP GRANTABLE CATALOGUE FROM companions.js ──────────────
+// A companion is grantable OUTSIDE the gold shop iff its source kind is not
+// 'shop' and not 'starter' (the starter fox is owned by grammar — hr_companion_
+// equip c_starter — and is never "acquired"). req_item is captured only for the
+// 'hatch' kind (the item consumed), which today is exactly whelp ← dragon_egg.
+const GRANTS = Object.keys(COMPANIONS)
+  .map((id) => {
+    const src = String(COMPANIONS[id].source || '');
+    const parts = src.split(':');
+    return { id, kind: parts[0] || '', arg1: parts[1] || null, source: src };
+  })
+  .filter((c) => c.kind && c.kind !== 'shop' && c.kind !== 'starter')
+  .map((c) => ({
+    id: c.id,
+    source_kind: c.kind,
+    req_item: c.kind === 'hatch' ? c.arg1 : null,
+  }))
+  .sort((a, b) => a.id.localeCompare(b.id));
+
+if (GRANTS.length === 0) die('no non-shop companions found in companions.js — the derivation is broken');
+
+// Sanity: every grant id must be a real companion, and NONE may be a shop id.
+for (const g of GRANTS) {
+  if (!COMPANIONS[g.id]) die(`derived grant ${g.id} is not in COMPANIONS`);
+  if (/^shop:/.test(String(COMPANIONS[g.id].source || ''))) die(`shop companion ${g.id} leaked into the grant set`);
+}
+// A probe pair by PROPERTY, not by name, so a data edit cannot leave the probe testing nothing.
+const DROP = GRANTS.find((g) => g.source_kind === 'drop' || g.source_kind === 'boss' || g.source_kind === 'skill' || g.source_kind === 'quest');
+const HATCH = GRANTS.find((g) => g.req_item !== null);
+const SHOP_ID = Object.keys(COMPANIONS).find((id) => /^shop:/.test(String(COMPANIONS[id].source || '')));
+if (!DROP) die('the probe needs at least one non-item non-shop companion; the data no longer provides one');
+if (!SHOP_ID) die('the probe needs at least one shop companion to prove it is refused; none found');
+
+// ── EMIT HELPERS ──────────────────────────────────────────────────────────
+const q = (s) => (s === null || s === undefined ? 'null' : `'${String(s).replace(/'/g, "''")}'`);
+
+const DIGEST = createHash('sha256').update(JSON.stringify(GRANTS)).digest('hex');
+
+const unlockLines = GRANTS.map((g) =>
+  `  ('companion:${g.id}', 'companion', 'max', 'unlock', 1, array[1]::int[])`).join(',\n');
+const grantLines = GRANTS.map((g) =>
+  `  (${q(g.id)}, ${q(g.source_kind)}, ${q(g.req_item)})`).join(',\n');
+const unlockIds = GRANTS.map((g) => `'companion:${g.id}'`).join(', ');
+const grantIds = GRANTS.map((g) => q(g.id)).join(', ');
+const nGrant = GRANTS.length;
+const nHatch = GRANTS.filter((g) => g.req_item !== null).length;
+
+function build() {
+  return `-- ════════════════════════════════════════════════════════════════════════
+-- Hearthrise — NON-SHOP COMPANION GRANTS  (GENERATED — DO NOT EDIT)
+--   ${nGrant} non-shop-acquirable companions (${nHatch} with a req_item)  ·  digest ${DIGEST}
+--
+--   Generated by tools/gen-companion-grants.mjs DIRECTLY from src/data/companions.js
+--   (companions.js is the drift guard — a data edit regenerates this file and
+--   \`node tools/gen-companion-grants.mjs --check\` fails the smoke suite on drift).
+--
+-- ── THE GAP THIS CLOSES ─────────────────────────────────────────────────
+-- SHOP companions get a server \`companion:<id>\` unlock row from hr_unlock_buy
+-- (b410). NON-SHOP acquisitions (drop / quest / hatch / skill / boss) wrote only
+-- the CLIENT G.companions.ownedIds — no server row. Under the blob-retire capstone
+-- arm, accrue.js reconcileCompanions rebuilds G.companions from the server owned-set
+-- (companion:<id> unlock rows), so a companion obtained by drop/quest/hatch/pet
+-- with NO server row is DROPPED on the next reload — a real player loss. This file
+-- server-authors the non-shop unlock so acquiring one persists.
+--
+-- ── WHAT SHIPS ──────────────────────────────────────────────────────────
+--   §1  hr_unlocks rows for every non-shop companion (single-rung [1] max ladder,
+--       namespace='companion'). WITHOUT these the storage guard hr_unlock_guard
+--       refuses a companion:<id> unlock row as 'unknown_unlock' — so the equip
+--       gate and the hr_state_of \`owned\` projection could never see them.
+--   §2  public.hr_companion_grants — the ALLOWLIST catalogue (companion_id,
+--       source_kind, req_item). Read-only, no client write policy.
+--   §3  public.hr_companion_grant(int,text,text,uuid) — the client-callable
+--       SECURITY DEFINER RPC. Writes one companion:<id> unlock row for auth.uid()
+--       AFTER the allowlist gate; best-effort-consumes a req_item; owned-once
+--       (ON CONFLICT DO NOTHING); rate-gated; journalled.
+--
+-- ── THE SECURITY INVARIANT ──────────────────────────────────────────────
+-- A companion perk is server-owned value, so a forged grant of a SHOP companion
+-- or an unknown id MUST be refused. The gate is hr_companion_grants: it lists ONLY
+-- non-shop, non-starter companions, so hr_companion_grant('raccoon') (a shop pet,
+-- costs gold via hr_unlock_buy) and hr_companion_grant('op') (no row) are BOTH
+-- refused 'not_grantable'. Where the acquisition has a server-verifiable cost (the
+-- dragon_egg hatch) the RPC consumes it server-side when the item is server-held;
+-- the remaining non-shop grants are self-only-cosmetic (their perks are not
+-- server-projected / not tradeable today) and rely on the allowlist.
+--
+-- ⚠ THE dragon_egg RESIDUAL (documented, fail-OPEN by design — see §3). The egg
+--   has no hr_items row today (companionSourceLabel: "there is no dragon_egg row
+--   in ITEMS at all"), so under a partial arm where inventory is not yet server-
+--   owned the server does not hold the egg. The consume is therefore BEST-EFFORT:
+--   consumed when present, else the grant still lands (whelp's perk is combat-stat
+--   only — NOT server-projected per 2026-08-20-companion-model.sql — and not
+--   tradeable, so it mints NO shared value). WHEN combat-stat companion perks
+--   become server-projected, tighten this to fail-closed AND make dragon_egg a
+--   server-owned item; \`egg_consumed\` is journalled so the two states are
+--   distinguishable in the ledger.
+--
+-- ── AUTHORITY ───────────────────────────────────────────────────────────
+-- Ownership is written ONLY by hr_unlock_buy (shop) and this RPC (non-shop),
+-- equipped only by hr_companion_equip, XP only by the accrual engine. This adds
+-- ONE writer for a row model those RPCs already own. A forged client value cannot
+-- cross to another player — the write is keyed on the caller's own auth.uid().
+--
+-- ── EDGE REDEPLOY ───────────────────────────────────────────────────────
+-- NONE. New RPC + catalogue only; no accrual.js / core / data change, so
+-- pack-edge hr-accrue --check is unaffected.
+--
+-- REVERSIBILITY: additive. \`drop function public.hr_companion_grant(int,text,text,uuid)\`,
+--   \`drop table public.hr_companion_grants\`, and (optionally)
+--   \`delete from public.hr_unlocks where unlock_id in (${nGrant} ids)\` — but the
+--   hr_unlocks rows are harmless if left (they only enable the owned projection).
+--
+-- APPLY AFTER: 2026-08-11-player-state.sql (player_state/progress/inventory/ledger),
+--   2026-08-16-artisan-progress-model.sql (hr_unlock_guard), 2026-08-16-unlock-buy.sql
+--   (hr_unlocks catalogue shape), 2026-08-20-companion-model.sql (the companion:<id>
+--   row model + hr_companion_equip's ownership gate), 2026-08-11-grant-hygiene.sql
+--   (hr_client_rpc_baseline + the detector), and the hr_rate_ok chain.
+--
+-- SAFE TO RE-RUN.
+-- ════════════════════════════════════════════════════════════════════════
+
+-- ── 0. PRECONDITIONS — FAIL CLOSED ───────────────────────────────────────
+do $$
+begin
+  if to_regclass('public.player_state') is null
+     or to_regclass('public.player_progress') is null
+     or to_regclass('public.player_inventory') is null
+     or to_regclass('public.player_ledger') is null then
+    raise exception 'the player-state tables are absent — apply 2026-08-11-player-state.sql first';
+  end if;
+  if to_regclass('public.hr_unlocks') is null then
+    raise exception 'hr_unlocks is absent — apply the 2026-08-16 unlock migrations first';
+  end if;
+  if not exists (select 1 from pg_trigger where tgrelid = 'public.player_progress'::regclass
+                  and tgname = 'player_progress_unlock_guard' and not tgisinternal) then
+    raise exception 'player_progress_unlock_guard is absent — apply 2026-08-16-artisan-progress-model.sql '
+                    'first. It is the storage guard that REQUIRES the companion:<id> hr_unlocks rows §1 adds.';
+  end if;
+  if not exists (select 1 from information_schema.columns where table_schema='public'
+                  and table_name='player_state' and column_name='companion_equipped') then
+    raise exception 'player_state.companion_equipped is absent — apply 2026-08-20-companion-model.sql first. '
+                    'This file grants ownership rows that hr_companion_equip''s gate reads.';
+  end if;
+  if to_regproc('public.hr_rate_ok') is null or to_regproc('public.hr_record_rejection') is null then
+    raise exception 'the rate-gate helpers are absent — apply 2026-08-11-accrue-gate.sql / apply-engine first';
+  end if;
+  if to_regclass('public.hr_client_rpc_baseline') is null then
+    raise exception 'hr_client_rpc_baseline is absent — apply 2026-08-11-grant-hygiene.sql first';
+  end if;
+end $$;
+
+-- ── 1. hr_unlocks ROWS — one single-rung [1] max ladder per non-shop companion.
+--       Namespace 'companion', same shape as the shop companions (b410), so the
+--       storage guard, the equip gate and the owned projection all recognise them.
+--       UPSERT: safe to re-run; a shop companion's row (if it collides) keeps its
+--       identical shape.
+insert into public.hr_unlocks (unlock_id, namespace, merge, progress_kind, max_value, rungs)
+values
+${unlockLines}
+on conflict (unlock_id) do update
+  set namespace = excluded.namespace, merge = excluded.merge,
+      progress_kind = excluded.progress_kind, max_value = excluded.max_value, rungs = excluded.rungs;
+
+-- ── 2. THE ALLOWLIST CATALOGUE — the security gate ───────────────────────
+create table if not exists public.hr_companion_grants (
+  companion_id text primary key,
+  source_kind  text not null,
+  req_item     text
+);
+-- Read-only to clients (SELECT only); NO client write policy — only this file and
+-- a future generation write it. It is server-owned reference data.
+alter table public.hr_companion_grants enable row level security;
+do $$
+begin
+  if not exists (select 1 from pg_policies where schemaname='public'
+                  and tablename='hr_companion_grants' and policyname='hr_companion_grants_read') then
+    create policy hr_companion_grants_read on public.hr_companion_grants for select using (true);
+  end if;
+end $$;
+-- REVOKE ALL (incl. service_role — Supabase default-grants writes to it), then
+-- SELECT only. Server-owned reference data: no role writes it but this file.
+revoke all on table public.hr_companion_grants from public, anon, authenticated, service_role;
+grant select on table public.hr_companion_grants to anon, authenticated, service_role;
+
+-- Scoped delete+insert (the exact derived set), so re-applying re-syncs the table.
+delete from public.hr_companion_grants where companion_id in (${grantIds});
+insert into public.hr_companion_grants (companion_id, source_kind, req_item)
+values
+${grantLines};
+
+-- ── 3. hr_companion_grant — WRITE A NON-SHOP OWNERSHIP ROW ────────────────
+-- Client-callable (authenticated), the hr_companion_equip pattern: SECURITY
+-- DEFINER, rate-gated, per-character advisory lock, self-only (auth.uid()). The
+-- ALLOWLIST GATE is the security property — you cannot grant yourself a shop pet
+-- or an unknown id. Idempotent by ownership (owned-once): a replay is 'already_owned'.
+create or replace function public.hr_companion_grant(
+  p_slot int default 0,
+  p_companion text default null,
+  p_source text default null,
+  p_idem uuid default null)
+returns jsonb language plpgsql volatile security definer set search_path = public as $$
+declare
+  v_uid  uuid := auth.uid();
+  v_st   public.player_state%rowtype;
+  v_cat  public.hr_companion_grants%rowtype;
+  v_key  text;
+  v_prev bigint;
+  v_have bigint;
+  v_egg  boolean := null;
+  -- Acquisitions are rare (a bounded lifetime of ${nGrant} non-shop pets); 60/hour
+  -- is generous and cheap, and a rejected call still consumes budget (A9).
+  c_rate constant int := 60;
+begin
+  if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
+
+  -- ── RATE GATE (A9) — hr_companion_equip's exact shape, SAMPLED writes ─────
+  if not public.hr_rate_ok(v_uid, 'companion_grant', c_rate, interval '1 hour') then
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'companion_grant') - c_rate) > 0 then
+      perform public.hr_record_rejection(v_uid, coalesce(p_slot, 0), 'companion_grant', 'rate_limited',
+        jsonb_build_object('limit', c_rate, 'per', '1 hour'),
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'companion_grant') - c_rate));
+    end if;
+    return jsonb_build_object('ok', false, 'error', 'rate_limited');
+  end if;
+
+  if p_slot is null or p_slot < 0 or p_slot > 5 then
+    return jsonb_build_object('ok', false, 'error', 'bad_slot');
+  end if;
+  if p_companion is null or p_companion = '' then
+    return jsonb_build_object('ok', false, 'error', 'unknown_companion');
+  end if;
+
+  -- ── THE ALLOWLIST GATE — the mint refusal, BEFORE any lock. A shop companion
+  --    (sold for gold by hr_unlock_buy) and an unknown/forged id are both ABSENT
+  --    here and refused by name. A perk a client could mint for itself for free
+  --    dies here.
+  select * into v_cat from public.hr_companion_grants where companion_id = p_companion;
+  if not found then
+    perform public.hr_record_rejection(v_uid, coalesce(p_slot, 0), 'companion_grant', 'not_grantable',
+      jsonb_build_object('companion', p_companion, 'source', p_source));
+    return jsonb_build_object('ok', false, 'error', 'not_grantable',
+      'detail', jsonb_build_object('companion', p_companion));
+  end if;
+
+  -- Serialise this character — the SAME advisory key hr_apply / hr_companion_equip take.
+  perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || p_slot::text, 0));
+
+  select * into v_st from public.player_state where user_id = v_uid and slot = p_slot for update;
+  if not found then return jsonb_build_object('ok', false, 'error', 'no_character'); end if;
+
+  v_key := 'companion:' || p_companion;
+
+  -- ── OWNED-ONCE IDEMPOTENCY. A companion is a boolean; owning it already is a
+  --    success that consumes NO req_item, writes NO journal row and does NOT bump
+  --    the version — a replay is harmless. (The ON CONFLICT below is the second,
+  --    independent guard against a concurrent double-grant.)
+  select value into v_prev from public.player_progress
+   where user_id = v_uid and slot = p_slot and kind = 'unlock' and key = v_key and period_key = '';
+  if coalesce(v_prev, 0) > 0 then
+    return jsonb_build_object('ok', true, 'companion', p_companion, 'already_owned', true);
+  end if;
+
+  -- ── THE SERVER-VERIFIABLE PRECONDITION (dragon_egg hatch → whelp). BEST-EFFORT
+  --    (see the header residual): consume exactly one when the server holds it;
+  --    otherwise the grant still lands (self-only-cosmetic, no shared value). The
+  --    outcome is journalled as egg_consumed so the two states are auditable.
+  if v_cat.req_item is not null then
+    select qty into v_have from public.player_inventory
+     where user_id = v_uid and slot = p_slot and item_id = v_cat.req_item for update;
+    if coalesce(v_have, 0) >= 1 then
+      if v_have = 1 then
+        delete from public.player_inventory
+         where user_id = v_uid and slot = p_slot and item_id = v_cat.req_item;
+      else
+        update public.player_inventory set qty = v_have - 1
+         where user_id = v_uid and slot = p_slot and item_id = v_cat.req_item;
+      end if;
+      v_egg := true;
+    else
+      v_egg := false;
+    end if;
+  end if;
+
+  -- ── THE GRANT. A single-rung [1] unlock row. ON CONFLICT DO NOTHING makes a
+  --    concurrent double-grant a no-op; hr_unlock_guard independently refuses any
+  --    value off the companion:<id> ladder.
+  insert into public.player_progress (user_id, slot, kind, key, period_key, value)
+    values (v_uid, p_slot, 'unlock', v_key, '', 1)
+  on conflict (user_id, slot, kind, key, period_key) do nothing;
+
+  -- Version bump so an in-flight client re-reads the owned set (reconcileCompanions
+  -- reads it from the envelope). accrued_to is UNTOUCHED — a grant does not reprice
+  -- an in-flight accrual (the passive bonus is priced off the EQUIPPED id, which a
+  -- grant does not change), so no collect-first guard and no confiscation.
+  update public.player_state
+     set version = version + 1, updated_at = now()
+   where user_id = v_uid and slot = p_slot;
+
+  -- ── THE JOURNAL. ONE row per acquisition (a rare event, bounded lifetime —
+  --    journal rule 6 is about per-tick logging, which this is not).
+  insert into public.player_ledger (user_id, slot, kind, intent, meta)
+    values (v_uid, p_slot, 'admin', 'companion_grant',
+            jsonb_build_object('companion', p_companion, 'source', p_source,
+                               'catalogue_source', v_cat.source_kind,
+                               'req_item', v_cat.req_item, 'egg_consumed', v_egg,
+                               'idem', p_idem));
+
+  return jsonb_build_object('ok', true, 'companion', p_companion, 'egg_consumed', v_egg);
+end $$;
+
+-- ── 4. GRANTS — REVOKE BEFORE GRANT. authenticated only; NOT hr_engine (the
+--       engine must never grant a companion for somebody — its capability is
+--       "propose a delta the RPC re-validates"), NOT anon/service_role.
+revoke execute on function public.hr_companion_grant(int, text, text, uuid)
+  from public, anon, service_role, hr_engine;
+grant execute on function public.hr_companion_grant(int, text, text, uuid) to authenticated;
+
+-- Record in the client-RPC baseline (the auto-eat / equip rule): the client
+-- genuinely owns this surface (a legitimate acquisition happens client-side), so
+-- the row is a standing statement that the client MAY call it. Deliberately NOT
+-- hr_engine, asserted in §5.
+do $$
+declare v_n int := 0;
+begin
+  insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note)
+  select p.proname, pg_get_function_identity_arguments(p.oid), 'authenticated',
+         'non-shop companion grant: writes a companion:<id> ownership row for a legitimate '
+         'drop/quest/hatch/skill/boss acquisition. Allowlist-gated (hr_companion_grants), '
+         'owned-once, rate-gated, journalled. Deliberately NOT granted to hr_engine. 2026-08-22'
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'hr_companion_grant'
+     and not exists (
+       select 1 from public.hr_client_rpc_baseline b
+        where b.proname = p.proname
+          and b.identity_args = pg_get_function_identity_arguments(p.oid)
+          and b.grantee = 'authenticated');
+  get diagnostics v_n = row_count;
+  raise notice 'hr_client_rpc_baseline: % row(s) recorded for hr_companion_grant', v_n;
+end $$;
+
+-- ── 5. STRUCTURAL ASSERTIONS ─────────────────────────────────────────────
+do $$
+declare v_n int; v_bad text; v_p oid;
+begin
+  -- (a) The allowlist holds exactly the derived set and NO shop companion.
+  select count(*) into v_n from public.hr_companion_grants;
+  if v_n <> ${nGrant} then
+    raise exception 'expected ${nGrant} rows in hr_companion_grants, found %', v_n;
+  end if;
+  select string_agg(g.companion_id, ', ') into v_bad
+    from public.hr_companion_grants g
+    join public.hr_unlock_offers o on o.unlock_id = 'companion:' || g.companion_id and o.refusal is null;
+  if v_bad is not null then
+    raise exception 'a SHOP companion leaked into hr_companion_grants (has a sellable offer): %', v_bad;
+  end if;
+
+  -- (b) Every grantable companion has its single-rung hr_unlocks ladder, or the
+  --     storage guard would refuse the ownership row this RPC writes.
+  select string_agg(g.companion_id, ', ') into v_bad
+    from public.hr_companion_grants g
+    left join public.hr_unlocks u on u.unlock_id = 'companion:' || g.companion_id
+   where u.unlock_id is null or u.namespace <> 'companion' or u.merge <> 'max'
+      or u.progress_kind <> 'unlock' or not (1 = any (coalesce(u.rungs, array[]::int[])));
+  if v_bad is not null then
+    raise exception 'grantable companions missing a valid companion:<id> ladder: %', v_bad;
+  end if;
+
+  -- (c) hr_companion_grant is CLIENT-callable but NOT engine/anon/service_role,
+  --     and SECURITY DEFINER.
+  v_p := to_regprocedure('public.hr_companion_grant(int,text,text,uuid)');
+  if v_p is null then raise exception 'hr_companion_grant did not install'; end if;
+  if not has_function_privilege('authenticated', v_p, 'execute') then
+    raise exception 'hr_companion_grant is not executable by authenticated — the client cannot grant';
+  end if;
+  foreach v_bad in array array['public','anon','service_role','hr_engine'] loop
+    if has_function_privilege(v_bad, v_p, 'execute') then
+      raise exception 'hr_companion_grant is executable by % — it must be authenticated-only', v_bad;
+    end if;
+  end loop;
+  if (select prosecdef from pg_proc where oid = v_p) is not true then
+    raise exception 'hr_companion_grant is not SECURITY DEFINER';
+  end if;
+
+  -- (d) NO client write surface on the allowlist table (SELECT only).
+  select count(*) into v_n from information_schema.role_table_grants
+   where table_schema = 'public' and table_name = 'hr_companion_grants'
+     and grantee in ('anon','authenticated','service_role','PUBLIC')
+     and privilege_type <> 'SELECT';
+  if v_n > 0 then raise exception '% client write grants on hr_companion_grants', v_n; end if;
+  select string_agg(policyname || ':' || cmd, ', ') into v_bad from pg_policies
+   where schemaname='public' and tablename='hr_companion_grants' and cmd <> 'SELECT';
+  if v_bad is not null then
+    raise exception 'hr_companion_grants grew a non-SELECT policy (%) — a client could edit the allowlist', v_bad;
+  end if;
+
+  raise notice 'companion-grant §5 PASSED: ${nGrant} allowlist rows (no shop leak), each with its '
+               'companion:<id> ladder; hr_companion_grant authenticated-only + SECURITY DEFINER; '
+               'no client write surface on the allowlist.';
+end $$;
+
+-- ── 6. BEHAVIOUR — driven through the REAL RPC, rolled back (HRG27) ───────
+do $$
+declare
+  v_uid uuid := '00000000-0000-4000-8000-0000000c6a17'::uuid;
+  v_r   jsonb; v_env jsonb; v_ver bigint;
+begin
+  if to_regprocedure('public.hr_create_character(int)') is null then
+    raise exception 'companion-grant §6 CANNOT RUN: hr_create_character missing — apply '
+                    '2026-08-14-character-bootstrap.sql first. A skipped check is not a passed one.';
+  end if;
+
+  begin  -- ── subtransaction, rolled back ────────────────────────────────────
+    insert into auth.users (id) values (v_uid);
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);
+    perform public.hr_create_character(0);
+
+    -- (a) FORGED/UNKNOWN id is refused by name, writes nothing.
+    v_r := public.hr_companion_grant(0, 'any_op_companion', 'drop:x', gen_random_uuid());
+    if v_r->>'error' is distinct from 'not_grantable' then
+      raise exception 'companion-grant §6(a): unknown id answered % (expected not_grantable)', v_r;
+    end if;
+
+    -- (b) A SHOP companion is refused — it costs gold via hr_unlock_buy, never free here.
+    v_r := public.hr_companion_grant(0, ${q(SHOP_ID)}, 'shop', gen_random_uuid());
+    if v_r->>'error' is distinct from 'not_grantable' then
+      raise exception 'companion-grant §6(b): shop companion ${SHOP_ID} answered % (expected not_grantable — '
+                      'a free shop pet is exactly the mint this gate refuses)', v_r;
+    end if;
+
+    -- (c) A LEGIT non-shop companion (${DROP.id}) is granted: the ownership row lands,
+    --     the version bumps, and hr_state_of projects it in \`owned\`.
+    select version into v_ver from public.player_state where user_id=v_uid and slot=0;
+    v_r := public.hr_companion_grant(0, ${q(DROP.id)}, ${q(DROP.source)}, gen_random_uuid());
+    if coalesce(v_r->>'ok','false') <> 'true' then
+      raise exception 'companion-grant §6(c) CONTROL FAILED: ${DROP.id} refused (%)', v_r;
+    end if;
+    if not exists (select 1 from public.player_progress where user_id=v_uid and slot=0
+                    and kind='unlock' and key='companion:${DROP.id}' and value=1) then
+      raise exception 'companion-grant §6(c): ${DROP.id} ownership row not written';
+    end if;
+    if (select version from public.player_state where user_id=v_uid and slot=0) <> v_ver + 1 then
+      raise exception 'companion-grant §6(c): the grant did not bump the version';
+    end if;
+    v_env := public.hr_state_of(v_uid, 0);
+    if not (v_env->'companions'->'owned' @> ('["${DROP.id}"]')::jsonb) then
+      raise exception 'companion-grant §6(c): hr_state_of does not project ${DROP.id} in owned: %',
+        v_env->'companions'->'owned';
+    end if;
+    -- …and it can now be EQUIPPED (the ownership gate reads the same row).
+    v_r := public.hr_companion_equip(0, '${DROP.id}', false);
+    if coalesce(v_r->>'ok','false') <> 'true' then
+      raise exception 'companion-grant §6(c): a granted companion could not be equipped (%)', v_r;
+    end if;
+
+    -- (d) REPLAY is 'already_owned', writes no second row and no second version bump.
+    select version into v_ver from public.player_state where user_id=v_uid and slot=0;
+    v_r := public.hr_companion_grant(0, ${q(DROP.id)}, ${q(DROP.source)}, gen_random_uuid());
+    if coalesce(v_r->>'already_owned','false') <> 'true' then
+      raise exception 'companion-grant §6(d): replay not reported already_owned (%)', v_r;
+    end if;
+    if (select version from public.player_state where user_id=v_uid and slot=0) <> v_ver then
+      raise exception 'companion-grant §6(d): a replay bumped the version';
+    end if;
+${HATCH ? `
+    -- (e) THE HATCH (${HATCH.id} ← ${HATCH.req_item}). With the egg server-held it is
+    --     CONSUMED; the grant lands either way (best-effort — see the header).
+    insert into public.player_inventory (user_id, slot, item_id, qty)
+      values (v_uid, 0, ${q(HATCH.req_item)}, 2)
+      on conflict (user_id, slot, item_id) do update set qty = excluded.qty;
+    v_r := public.hr_companion_grant(0, ${q(HATCH.id)}, ${q(HATCH.source)}, gen_random_uuid());
+    if coalesce(v_r->>'ok','false') <> 'true' then
+      raise exception 'companion-grant §6(e) CONTROL FAILED: ${HATCH.id} refused (%)', v_r;
+    end if;
+    if coalesce(v_r->>'egg_consumed','false') <> 'true' then
+      raise exception 'companion-grant §6(e): the egg was not consumed though it was held (%)', v_r;
+    end if;
+    if (select qty from public.player_inventory where user_id=v_uid and slot=0 and item_id=${q(HATCH.req_item)}) <> 1 then
+      raise exception 'companion-grant §6(e): the egg qty was not decremented by exactly one';
+    end if;
+` : ''}
+    raise exception using errcode = 'HRG27', message = 'companion-grant §6 complete — rolling back';
+  exception when sqlstate 'HRG27' then
+    null;
+  end;
+
+  if exists (select 1 from public.player_state where user_id = v_uid)
+     or exists (select 1 from auth.users where id = v_uid) then
+    raise exception 'companion-grant §6 LEAKED a probe row';
+  end if;
+
+  raise notice 'COMPANION-GRANT OK — unknown + shop ids refused not_grantable; a legit non-shop pet '
+               'grants (row + version bump + owned projection + equippable); a replay is already_owned '
+               'with no second write; the hatch consumes its egg when held. Zero residue.';
+end $$;
+
+do $$
+begin
+  raise notice 'companion-grant INSTALLED — ${nGrant} non-shop companions grantable through '
+               'hr_companion_grant, allowlist-gated, owned-once, ${nHatch} with a server-verified req_item.';
+end $$;
+`;
+}
+
+// ── OUTPUT MODE ──────────────────────────────────────────────────────────
+const file = build();
+if (REPORT) {
+  console.log(`gen-companion-grants: ${nGrant} non-shop companions (${nHatch} req_item), digest ${DIGEST.slice(0, 12)}…`);
+  for (const g of GRANTS) {
+    console.log(`  ${g.id.padEnd(16)} ${g.source_kind.padEnd(8)}${g.req_item ? ' req ' + g.req_item : ''}`);
+  }
+} else if (CHECK) {
+  const existing = await readFile(OUT, 'utf8').catch(() => null);
+  if (existing === null) die(`${OUT} is missing. Run: node tools/gen-companion-grants.mjs`);
+  const norm = (s) => s.replace(/\r\n/g, '\n');
+  if (norm(existing) !== norm(file)) {
+    console.error('companion-grant drift: companions.js moved (a non-shop companion added/removed, a source');
+    console.error('  kind or hatch item changed) or the migration was hand-edited, and the committed file no');
+    console.error('  longer matches. hr_companion_grant gates out of that catalogue. Run: node tools/gen-companion-grants.mjs');
+    process.exit(1);
+  }
+  console.log(`companion grants in sync (${nGrant} companions, digest ${DIGEST.slice(0, 12)}…)`);
+} else {
+  await writeFile(OUT, file, 'utf8');
+  console.log(`wrote ${OUT}`);
+  console.log(`  ${nGrant} non-shop companions · ${nHatch} with req_item · digest ${DIGEST}`);
+}

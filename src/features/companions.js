@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=452';
-import { emit } from '../net/events.js?v=452';
+import { COMPANIONS } from '../data/companions.js?v=453';
+import { emit } from '../net/events.js?v=453';
 /* THE SERVER-OF-RECORD ARM SWITCH for companion XP. While false (DORMANT) the
    client awards companion XP locally exactly as before. When flipped true, the
    accrual engine becomes the sole writer (a `stat companion_xp:<id>` op priced
@@ -22,7 +22,7 @@ import { emit } from '../net/events.js?v=452';
    the server accrues the same role-matched actions this client seam does. The
    passive bonus already reads server companion XP through hr_perks_of, so under
    arm the level shown reconciles to server truth. */
-import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=452';
+import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=453';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may
@@ -237,7 +237,41 @@ export function unlockCompanion(id) {
     window.notify(`Companion unlocked: ${COMPANIONS[id].n} ${COMPANIONS[id].icon}`, 'loot');
   }
   emit('companionUnlock', { id });
+  maybeServerGrant(id);
   return true;
+}
+
+/* ── SERVER TRANSPORT (companion-grant) — persist a NON-SHOP acquisition ──────
+   Every non-shop companion reaches G.companions.ownedIds through unlockCompanion
+   (drops + hatch here, the bunny quest here, and pets.js skill/boss pets all call
+   window.unlockCompanion). Under the blob-retire capstone arm the client stops
+   loading the save blob and reconcileCompanions (accrue.js) rebuilds G.companions
+   from the SERVER owned-set (companion:<id> unlock rows), so a companion acquired
+   with no server row is DROPPED on the next reload — a real player loss. This
+   fire-and-reconcile call writes that server row (hr_companion_grant), so the
+   acquisition survives.
+
+   ⚠ DORMANT = BYTE-UNCHANGED. Gated on the capstone arm (blobRetired(), the same
+   signal reconcileCompanions uses), so while dormant NO network call is made and
+   the local ownedIds write above is exactly today's behaviour. Under arm the
+   server row is what reconcileCompanions reads back.
+
+   SHOP companions are skipped — they already get their server row from
+   hr_unlock_buy (legacy.js buy → HearthriseGold.buyUnlock), and hr_companion_grant
+   would refuse them 'not_grantable' anyway. The starter fox is owned by grammar
+   (no row). Fire-and-forget: a refusal costs nothing the client authored. */
+function maybeServerGrant(id) {
+  try {
+    if (!blobRetired()) return;                       // DORMANT: no call, byte-unchanged
+    const def = COMPANIONS[id];
+    const kind = String((def && def.source) || '').split(':')[0];
+    if (!kind || kind === 'shop' || kind === 'starter') return;
+    const gc = window.HearthriseGoalClaim;
+    if (gc && typeof gc.grantCompanion === 'function') {
+      const p = gc.grantCompanion(id, (def && def.source) || '');
+      if (p && p.catch) p.catch(function () {});
+    }
+  } catch (e) {}
 }
 
 export function equipCompanion(id) {

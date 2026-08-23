@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 463 — 2026-08-23 (Two live fixes)
+
+- 🤝 Fixed "Could not complete the hire — already owned": if you'd already paid for a worker slot, hiring now completes instead of refusing.
+- 🕰️ Fixed the "Welcome back — Time away 17h" popup appearing when you never left (a frozen last-seen stamp).
+
 ## v0.9.2-beta build 462 — 2026-08-23 (Open beta + the reload bugs)
 
 - 🚪 **Hearthrise is now an open beta** — make an account and play, no invite code needed (codes still work if you have one).

@@ -756,6 +756,13 @@ function saveLocal(){
      dead state on each boot (the "items are still here" loop). Under arm the
      local blob is simply never written; boot loads pure server (record +
      residue + reconciles). Dormant: byte-for-byte as before. */
+  /* b463 — lastSeen MUST KEEP BEATING UNDER THE ARM. The stamp lived further
+     down this function, so retiring the blob (the early return below) froze it
+     at whatever the residue last carried — and the welcome-back modal then
+     opened every session with "Time away 17h 46m" for a player who never left
+     (Tyler, live). Same visibility rule the offline-budget watermark follows:
+     never advance while hidden, so a background tab still reads as an absence. */
+  try{ if(!document.hidden) G.lastSeen=Date.now(); }catch(e){}
   try{ if(window.HearthriseCapstone && window.HearthriseCapstone.isBlobRetired()) return; }catch(e){}
   /* b224 ACCOUNT WALL — the single most dangerous line in this change.
      While the gate is closed boot() has NOT run, so loadLocal() has NOT run,

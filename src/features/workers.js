@@ -209,7 +209,16 @@
     var Net = window.HearthriseWorkersNet;
     if (Net && Net.isSignedIn()) {
       Promise.resolve(buy || { outcome: 'applied' }).then(function (r) {
-        var ok = !buy || (r && (r.outcome === 'applied' || r.outcome === 'replayed'));
+        /* b463 — `already_owned` IS A RECEIPT, NOT A REFUSAL. Three live players
+           paid the worker_hire.1 rung and got no crew (the offers-wipe window),
+           and every retry then died here with "Could not complete the hire —
+           already owned" (Tyler, live). An owned rung means the cap is PAID —
+           the gold seam already rolled this attempt's prediction back (nothing
+           is charged twice; the server refused the debit), so the only correct
+           move is to proceed to hr_worker_hire, which materialises the crew up
+           to the paid cap. */
+        var owned = !!(r && r.outcome === 'refused' && r.reason === 'already_owned');
+        var ok = !buy || owned || (r && (r.outcome === 'applied' || r.outcome === 'replayed'));
         if (!ok) {
           /* The gold seam retires/rolls back the prediction on a refusal; drop
              the optimistic worker so the display does not overstate the crew. */

@@ -14026,6 +14026,222 @@ const TESTS = [
     }
   }),
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     b46x — THE OPEN BETA, ASSERTED AT THE FRONT DOOR
+
+     The product went from "you need a code" to "make an account and play", and
+     that is a change to the ONE screen every player meets before anything else
+     exists. Four things have to be true at once, and only one of them is
+     visible in the markup:
+
+       O1  the code is not on the screen, and one line reveals it
+       O2  a codeless signup REACHES signUp — and reaches it carrying NOTHING
+           where the code would be. `null`, not `{}`, not `{invite_code:''}`:
+           the server gate distinguishes absent from blank, and a blank string
+           is the shape that would pass every DOM assertion and still be wrong.
+       O3  a code that IS given still travels, and is still pre-checked
+       O4  the refusal copy is honest during the switch-over window, when the
+           client is codeless-optional and the server gate is still armed
+
+     O2/O3 drive the REAL submit handler through the exported `_wire` seam with
+     `HearthriseAuth` stubbed, and read what left. A test that only inspected
+     the DOM would pass against every one of the wrong payloads above.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  // O1 — the code is collapsed, and the disclosure actually discloses.
+  () => tryRun('b46x OPEN-1: the wall asks for no invite code, and one link reveals it', () => {
+    const gate = window.HearthriseGate;
+    const ui = gate._buildGate({});
+    try {
+      assert(ui.invite, 'the invite field must still EXIST — codes already handed out have to keep working');
+      assert(ui.getMode() === 'signup', 'the front door must open on Create account');
+      assert(ui.invite.__row.style.display === 'none',
+        'the invite field must be HIDDEN by default: a visible one reads as a closed door however it is labelled');
+      assert(ui.invite.required !== true, 'the invite field must not be required');
+      assert(ui.inviteReveal && ui.inviteAside, 'the disclosure that reveals the code is missing');
+      assert(/have an invite code/i.test(ui.inviteReveal.textContent),
+        'the disclosure must say what it opens, got: ' + ui.inviteReveal.textContent);
+      assert(ui.inviteAside.style.display !== 'none', 'the disclosure itself must be visible in signup mode');
+      // A real disclosure, not a div that toggles.
+      assert(ui.inviteReveal.getAttribute('aria-expanded') === 'false',
+        'the disclosure must report its collapsed state to assistive tech');
+      assert(ui.inviteReveal.getAttribute('aria-controls') === ui.invite.id,
+        'the disclosure must name the region it opens');
+      assert(ui.inviteReveal.type === 'button',
+        'a submit-typed disclosure would fire the signup instead of revealing the field');
+
+      ui.inviteReveal.click();
+      assert(ui.invite.__row.style.display !== 'none', 'the link did not reveal the field');
+      assert(ui.inviteAside.style.display === 'none', 'the link must step aside once the field is showing');
+      assert(ui.inviteReveal.getAttribute('aria-expanded') === 'true', 'aria-expanded did not follow the reveal');
+      assert(ui.inviteShown() === true, 'the published state disagrees with the DOM');
+
+      // Sign in has no business showing either half.
+      [...ui.root.querySelectorAll('.hr-gate-mode')].filter((b) => /sign in/i.test(b.textContent))[0].click();
+      assert(ui.invite.__row.style.display === 'none', 'the invite field must not follow the player to Sign in');
+      assert(ui.inviteAside.style.display === 'none', 'the disclosure must not follow the player to Sign in');
+    } finally {
+      if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);
+    }
+  }),
+
+  // O1b — the copy. "open beta" is the promise; the Discord link is the door.
+  () => tryRun('b46x OPEN-2: the wall says open beta, invites the player in, and links Discord', () => {
+    const gate = window.HearthriseGate;
+    const ui = gate._buildGate({});
+    try {
+      const text = ui.root.textContent;
+      assert(/open beta/i.test(text), 'the wall must say the beta is OPEN: ' + text.slice(0, 220));
+      assert(!/closed beta/i.test(text), 'the wall still calls the beta closed');
+      assert(/make an account and play/i.test(text),
+        'the wall must tell the player what to do, not just what state the beta is in');
+      assert(/rough in places/i.test(text), 'the wall must be honest that it is rough');
+      const dc = [...ui.root.querySelectorAll('a[href*="discord.gg"]')];
+      assert(dc.length >= 1, 'the open-beta line points at Discord and there must be a link to click');
+      dc.forEach((a) => {
+        assert(a.href.indexOf('discord.gg/eJrUSUJM3M') !== -1, 'wrong Discord invite: ' + a.href);
+        assert(a.rel === 'noopener', 'a target=_blank link without rel=noopener is a tabnabbing hole');
+      });
+      // The b224 rule survives the copy change: still no account-less escape.
+      const words = text.toLowerCase();
+      ['continue offline', 'play offline', 'without an account'].forEach((s) => {
+        assert(words.indexOf(s) === -1, 'the open-beta copy re-opened an account-less escape: ' + s);
+      });
+    } finally {
+      if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);
+    }
+  }),
+
+  /* O2 + O3 — WHAT LEAVES THE CLIENT.
+     Both cases through one driver, because the interesting assertion is the
+     DIFFERENCE between them: the same form, the same submit, and a third
+     argument that is `null` in one case and an object in the other. */
+  () => tryRunAsync('b46x OPEN-3: a codeless signup submits and carries NO invite_code; a code still travels', async () => {
+    const gate = window.HearthriseGate;
+    assert(typeof gate._wire === 'function',
+      'HearthriseGate._wire is gone — the signup payload is only assertable by driving the real handler');
+
+    const prevAuth = window.HearthriseAuth;
+    const prevFetch = window.fetch;
+    const prevSupa = window.HearthriseSupabase;
+    const calls = [];
+    const checked = [];
+
+    window.HearthriseAuth = {
+      signIn: () => Promise.reject(new Error('signIn must not be called by a create-account submit')),
+      signUp: (email, password, metadata) => {
+        calls.push({ email, password, metadata });
+        // No session back = "confirm your email", which is the real production
+        // shape with email confirmation on, and it avoids opts.onSuccess.
+        return Promise.resolve({ user: { id: 'u-test' }, session: null });
+      },
+      isSignedIn: () => false,
+      getSession: () => null,
+      getClient: () => null
+    };
+    /* THE NETWORK is stubbed, not the pre-check. account-gate.js calls its OWN
+       validateInvite(), not window.HearthriseInvite.validate — swapping the
+       published seam would leave the real code path making a real request to
+       production and would tell us nothing. Stubbing fetch drives the shipped
+       function and lets the test SEE whether it was called at all, which is the
+       whole question for the codeless case. Everything else passes through. */
+    if (!(prevSupa && typeof prevSupa.getConfig === 'function' && prevSupa.getConfig())) {
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://stub.invalid', anonKey: 'stub-anon' }) };
+    }
+    window.fetch = function (url, opts) {
+      const u = String(url || '');
+      if (u.indexOf('/rest/v1/rpc/beta_invite_check') !== -1) {
+        let body = {};
+        try { body = JSON.parse((opts && opts.body) || '{}'); } catch (e) {}
+        checked.push(body.p_code);
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
+      }
+      return prevFetch.apply(window, arguments);
+    };
+
+    async function submit(fill) {
+      const ui = gate._buildGate({});
+      gate._wire(ui, {});
+      // Deliberately DETACHED: a live #hr-account-gate in the suite's document
+      // is a wall over a running game, and nothing here needs layout.
+      fill(ui);
+      ui.form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: false }));
+      for (let i = 0; i < 80 && !/account created|did not work|switching over|cannot be used/i.test(ui.note.textContent); i++) {
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      return ui;
+    }
+
+    try {
+      // ── the normal open-beta signup: no code anywhere near it ──
+      const a = await submit((ui) => { ui.email.value = 'open@example.com'; ui.pass.value = 'hunter2!'; });
+      assert(calls.length === 1,
+        'a codeless signup did not reach signUp — the client is still gating on a code it no longer asks for. note=' + a.note.textContent);
+      assert(calls[0].email === 'open@example.com', 'wrong email reached signUp: ' + calls[0].email);
+      /* THE ASSERTION THIS WHOLE TEST EXISTS FOR. `{}` and `{invite_code:''}`
+         both satisfy "no code was typed" from the DOM's point of view and both
+         reach the server as something other than NULL. Only `null` makes
+         auth.js take its no-metadata branch, so the GoTrue body carries no
+         `data` key at all. */
+      assert(calls[0].metadata === null,
+        'a codeless signup must pass `null` as metadata, not ' + JSON.stringify(calls[0].metadata)
+        + ' — the gate distinguishes an absent invite_code from a blank one');
+      assert(checked.length === 0,
+        'the invite pre-check ran for a signup with no code — that call refuses the empty string and would '
+        + 'kill every ordinary open-beta signup');
+      assert(/account created/i.test(a.note.textContent),
+        'the player was not told the account exists: ' + a.note.textContent);
+      assert(!/invite code is now used/i.test(a.note.textContent),
+        'the success copy credits an invite code the player never gave');
+
+      // ── the minority path: a code IS presented, and must still work ──
+      const b = await submit((ui) => {
+        ui.email.value = 'coded@example.com';
+        ui.pass.value = 'hunter2!';
+        ui.inviteReveal.click();
+        ui.invite.value = 'friend-777';
+      });
+      assert(calls.length === 2, 'the coded signup did not reach signUp: ' + b.note.textContent);
+      assert(calls[1].metadata && calls[1].metadata.invite_code === 'FRIEND-777',
+        'a presented code must travel as metadata, upper-cased: ' + JSON.stringify(calls[1].metadata));
+      assert(checked.length === 1 && checked[0] === 'FRIEND-777',
+        'a presented code must still be pre-checked before an account is created: ' + JSON.stringify(checked));
+      assert(/invite code is now used/i.test(b.note.textContent),
+        'a player who spent a code should be told it was spent: ' + b.note.textContent);
+    } finally {
+      window.HearthriseAuth = prevAuth;
+      window.fetch = prevFetch;
+      window.HearthriseSupabase = prevSupa;
+    }
+  }),
+
+  /* O4 — THE SWITCH-OVER WINDOW. The client goes codeless-optional on deploy;
+     the server gate comes off in a separate change. In between, a codeless
+     signup is refused by a trigger whose only vocabulary is HTTP 500 /
+     "Database error saving new user". Telling that player their invite code is
+     bad — when they never typed one — blames them for our rollout. */
+  () => tryRun('b46x OPEN-4: a server still refusing codeless signups is explained honestly, not blamed on a code', () => {
+    const gate = window.HearthriseGate;
+    const H = gate._humaniseAuthError;
+    assert(typeof H === 'function', 'the auth-error translation is no longer assertable');
+    const dbErr = new Error('Database error saving new user');
+
+    const codeless = H(dbErr, true, false);
+    assert(!/invite code/i.test(codeless) || /if you have one/i.test(codeless),
+      'a player who gave no code must not be told their code is bad: ' + codeless);
+    assert(/open beta/i.test(codeless) && /try again/i.test(codeless),
+      'the switch-over message must name the cause and offer the retry: ' + codeless);
+
+    const coded = H(dbErr, true, true);
+    assert(/invite code cannot be used/i.test(coded),
+      'a player who DID give a code must still be told the code was refused: ' + coded);
+
+    // Unchanged for everything else: a sign-in error is the server's sentence.
+    assert(H(new Error('Invalid login credentials'), false, false) === 'Invalid login credentials',
+      'sign-in errors must pass through untranslated');
+    assert(H(null, true, false) === 'That did not work — try again.', 'a messageless throw still needs a sentence');
+  }),
+
   // #7 THE SAVE-DESTROYER GUARD. Behind the wall legacy boot() never ran, so
   // `G` is the factory default — one autosave in that state would write a new
   // character straight over a beta player's save. saveLocal() must be inert.

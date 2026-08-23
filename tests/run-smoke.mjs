@@ -1568,14 +1568,19 @@ async function raidBossRewardPreflight() {
   return 1;
 }
 
-// PREFLIGHT — the closed beta stays closed. On 2026-08-23 production held 8
-// accounts against 3 consumed invites: the gate was three client-side
-// courtesies and account-gate.js — the actual front door — had no invite field
-// at all. Nothing in this suite could see it, because nothing asserted a
-// NEGATIVE about signup. tests/beta-invite-gate.mjs does; its static half needs
-// no network and runs here. Its --live half (real POST to /auth/v1/signup,
-// trigger + auth-hook registration) needs a token CI does not have and is run
-// by hand after any change to auth config, auth.users or beta_invites.
+// PREFLIGHT — the invite gate is real and the client presents a code correctly.
+// On 2026-08-23 production held 8 accounts against 3 consumed invites: the gate
+// was three client-side courtesies and account-gate.js — the actual front door
+// — had no invite field at all. Nothing in this suite could see it, because
+// nothing asserted a NEGATIVE about signup. tests/beta-invite-gate.mjs does;
+// its static half needs no network and runs here. Its --live half (real POST to
+// /auth/v1/signup, trigger + auth-hook registration) needs a token CI does not
+// have and is run by hand after any change to auth config, auth.users or
+// beta_invites.
+//
+// b46x: the beta went OPEN, so the client half now asserts "a code travels when
+// given, and NOTHING travels when not" rather than "a code always travels". The
+// server half is unchanged.
 async function betaInviteGatePreflight() {
   const guard = join(ROOT, 'tests', 'beta-invite-gate.mjs');
   try { await stat(guard); } catch { return 0; }
@@ -1586,7 +1591,7 @@ async function betaInviteGatePreflight() {
     console.log(`Beta invite gate preflight: ${out.split('\n').pop()}`);
     return 0;
   }
-  console.error(`\nBeta invite gate preflight FAILED — the closed beta may be open.\n${out}\n`);
+  console.error(`\nBeta invite gate preflight FAILED — the invite gate or the client's presentation of a code has drifted.\n${out}\n`);
   return 1;
 }
 

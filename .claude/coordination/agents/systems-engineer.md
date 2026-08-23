@@ -2147,3 +2147,41 @@ are never accused, so no existing player is parked on upgrade.
 - The only way to observe the transition window from outside is a seam: `location.reload()` cannot be
   stubbed. Hence `switchSlotAsync(id, { duringTransition })`, and a browser-level guard that drives a
   REAL reload and reads what actually survived.
+
+---
+
+## 2026-08-23 — OPEN BETA at the front door (branch `agent-a4b1b5fffc2a6ed2a`, commit `653b0bf7`)
+
+The invite code stops gating account creation. `src/net/account-gate.js` + `src/settings-page.js`
+now put the code BELOW the credentials, optional, collapsed behind a `Have an invite code?`
+disclosure; `src/beta-banner.js` copy switched. Suite **1003/1003** (999 + 4 new guards).
+
+### HANDOFF (also in CONFLICTS.md)
+The SERVER gate (`2026-08-23-beta-invite-gate.sql`) is untouched — `supabase/**` was out of lane.
+Until it comes off, a codeless signup is refused. **Switch the server gate off FIRST, then ship
+this build**; the old client always sends a code, so it survives a relaxed gate, while the reverse
+order costs signups. The transitional copy exists either way.
+
+### LEARNINGS
+- **`null` vs `{}` vs `{invite_code:''}` is the whole change.** `auth.js signUp()` takes a
+  no-metadata branch on a falsy third argument, so ONLY `null` produces a GoTrue body with no `data`
+  key and therefore `raw_user_meta_data->>'invite_code'` = SQL NULL. `{invite_code:''}` satisfies
+  every DOM assertion a test could write and still reaches the gate as a blank string. Proven by
+  mutation: re-planting the old literal escapes the markup checks and is caught only by reading what
+  left the client.
+- **Removing a required field is not the same as making it optional.** A visible field labelled
+  "Invite code" reads as a closed door regardless of the word "optional" beside it — which is why
+  this is a disclosure and not an un-`required` input.
+- **Making a pre-check conditional matters as much as making the field optional.** Left
+  unconditional, `validateInvite('')` POSTs `p_code:''`, the RPC refuses it, and the NORMAL signup
+  dies on a check for a thing it deliberately does not carry. Mutation M3 reproduces exactly that.
+- **One opaque server error can have two causes, and only the client knows which.** GoTrue answers a
+  refusing trigger with "Database error saving new user" whether or not a code was presented, so
+  `humaniseAuthError` now takes `hadCode`. Translating without it blames the player for our rollout.
+- **A guard whose premise the product retires should be AMENDED, not deleted.**
+  `tests/beta-invite-gate.mjs` kept its whole server half (gate is AFTER INSERT, exactly-once, fails
+  closed) and only re-pointed its client half. A gate that is switched off but still installed is one
+  migration from being switched back on.
+- Debt paid: the front door's Discord URL was written twice; it is now `DISCORD_INVITE` +
+  `discordLink()`. Debt added: none. New seams `_wire` / `_humaniseAuthError` exist because the
+  wall's markup was testable and its BEHAVIOUR was not.

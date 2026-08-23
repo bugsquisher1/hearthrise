@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 457 — 2026-08-23 (Closed beta is now actually closed)
+
+- 🔒 Creating an account now genuinely requires a beta invite code — enforced by the server, one account per code. (Previously the code check could be skipped.) Existing accounts, sign-in, and password reset are unaffected.
+- 🐛 Reloading the game now resumes the activity you were doing instead of booting to "Idle".
+
 ## v0.9.2-beta build 456 — 2026-08-23 (Everything is instant again)
 
 - ⚡ Every gain now shows the moment it happens — kills, drops, XP, gold — while the server stays the single source of truth underneath. Fixed the level "bouncing to 1" bug and the progress "rewinding" every minute or so: your displayed progress now only ever moves forward and converges exactly to the server's numbers.

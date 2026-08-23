@@ -189,36 +189,36 @@
 
   function pct(n){ return Math.round(n * 100) + '%'; }
 
-  // ── Invite code validation (A11) ────────────────────────────────────────
-  // NEVER read `beta_invites` directly. Its SELECT policy was world-readable to
-  // the anon key, so `GET /rest/v1/beta_invites?select=*` handed any visitor
-  // every code in the closed beta. `beta_invite_check()` is SECURITY DEFINER,
-  // rate-gated, and answers only about the ONE code it was given — it never
-  // returns the code list, the note, or who used a code. Module-scope (not a
-  // closure inside the modal) so the smoke test can assert the request shape.
-  async function validateInvite(code){
-    var cfg = window.HearthriseSupabase && window.HearthriseSupabase.getConfig && window.HearthriseSupabase.getConfig();
-    if(!cfg) return { ok: false, reason: 'Cloud not configured.' };
-    try {
-      var res = await fetch(cfg.url + '/rest/v1/rpc/beta_invite_check', {
-        method: 'POST',
-        headers: {
-          'apikey': cfg.anonKey,
-          'Authorization': 'Bearer ' + cfg.anonKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ p_code: code }),
-      });
-      if(!res.ok) return { ok: false, reason: 'Could not check code.' };
-      var out = await res.json();
-      if(!out || typeof out !== 'object') return { ok: false, reason: 'Could not check code.' };
-      if(out.ok) return { ok: true };
-      return { ok: false, reason: out.reason || 'Invalid invite code.' };
-    } catch(e){
-      return { ok: false, reason: 'Network error.' };
+  // ── Invite code validation (A11; single-sourced 2026-08-23) ─────────────
+  // THE IMPLEMENTATION MOVED to src/net/account-gate.js and this delegates to
+  // it. It used to be duplicated here, and a duplicated predicate is the b332
+  // shape: two copies, one of them eventually wrong. account-gate.js owns it
+  // because account-gate.js IS the front door — it has to work when nothing
+  // else on the page has loaded, so it cannot depend on this file, and the
+  // dependency therefore has to run this way round. It loads first
+  // (index.html:918 vs :1082), so the seam is always present by the time
+  // anything here can be clicked.
+  //
+  // The rule it enforces is unchanged and still worth restating: NEVER read
+  // `beta_invites` directly. Its SELECT policy was world-readable to the anon
+  // key, so `GET /rest/v1/beta_invites?select=*` handed any visitor every code
+  // in the closed beta. `beta_invite_check()` answers only about the ONE code
+  // it was given.
+  //
+  // And since 2026-08-23 this is only UX. The gate is the AFTER INSERT trigger
+  // on auth.users in 2026-08-23-beta-invite-gate.sql; skipping this check gets
+  // an HTTP 403 from the server, not an account.
+  function validateInvite(code){
+    var inv = window.HearthriseInvite;
+    if(inv && typeof inv.validate === 'function' && inv.validate !== validateInvite){
+      return inv.validate(code);
     }
+    // account-gate.js did not load. Do NOT invent a second implementation and do
+    // NOT pass: hand back a refusal and let the server be the authority it now
+    // is. Failing closed here costs one confusing message; failing open here is
+    // how the last five ungated accounts happened.
+    return Promise.resolve({ ok: false, reason: 'Could not check that code — reload and try again.' });
   }
-  window.HearthriseInvite = { validate: validateInvite };
 
   // Player-facing auth modal — drives Supabase email/pw sign-in or sign-up.
   // Reachable from Settings → Account when cloud is configured.
@@ -293,11 +293,18 @@
           }
           // Pass display_name as user metadata — picked up by the
           // handle_new_user trigger to set profiles.display_name on
-          // first row creation.
-          await auth.signUp(email, password, { display_name: displayName });
-          // Stash the invite code + display name for post-signin pickup
+          // first row creation. `invite_code` rides the same channel and is
+          // read by the auth.users gate trigger (2026-08-23-beta-invite-gate.sql),
+          // which consumes it in the same transaction as the account. Omitting
+          // it now means the signup is REFUSED with a 403, not silently allowed.
+          await auth.signUp(email, password, { display_name: displayName, invite_code: invite });
+          // Stash the display name for post-signin pickup. The invite is no
+          // longer stashed: it was consumed at account creation, and the
+          // post-hoc claim_beta_invite RPC it used to feed has been revoked from
+          // `authenticated` — it burned an unused code for whoever called it and
+          // granted the caller nothing.
           try {
-            localStorage.setItem('hearthrise:pending-invite', invite);
+            localStorage.removeItem('hearthrise:pending-invite');
             localStorage.setItem('hearthrise:pending-name', displayName);
           } catch(e){}
           // Set the in-game player name immediately so the offline guest
@@ -312,8 +319,8 @@
           setTimeout(function(){ close(); if(typeof window.renderSettings === 'function') window.renderSettings(); }, 2200);
         } else {
           await auth.signIn(email, password);
-          // Claim a pending invite + apply pending name if there is one
-          await claimPendingInvite();
+          // No invite claim on sign-in any more — see claimPendingInvite().
+          claimPendingInvite();
           var pendingName = null;
           try { pendingName = localStorage.getItem('hearthrise:pending-name'); } catch(e){}
           if(pendingName && window.G){
@@ -332,25 +339,24 @@
     });
 
     // ── Invite code helpers ──
-    async function claimPendingInvite(){
-      var pending = null;
-      try { pending = localStorage.getItem('hearthrise:pending-invite'); } catch(e){}
-      if(!pending) return;
-      var cfg = window.HearthriseSupabase && window.HearthriseSupabase.getConfig && window.HearthriseSupabase.getConfig();
-      var session = window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession();
-      if(!cfg || !session) return;
-      try {
-        await fetch(cfg.url + '/rest/v1/rpc/claim_beta_invite', {
-          method: 'POST',
-          headers: {
-            'apikey': cfg.anonKey,
-            'Authorization': 'Bearer ' + session.access_token,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ code_in: pending }),
-        });
-        localStorage.removeItem('hearthrise:pending-invite');
-      } catch(e){}
+    // GUTTED 2026-08-23, deliberately, and kept as a named tombstone rather than
+    // deleted so the next person to look for "where do we claim the invite" finds
+    // the reason instead of the hole.
+    //
+    // This used to POST /rest/v1/rpc/claim_beta_invite after sign-in, from a
+    // localStorage stash. Two things were wrong with it:
+    //   1. It was not a gate. Nothing read beta_invites.used_by to grant or deny
+    //      anything, so an account that never claimed played identically to one
+    //      that did. Five of the eight live accounts had never claimed.
+    //   2. It was a griefing surface. The RPC was executable by `authenticated`
+    //      and consumed any unused code for whoever called it, at 12/minute,
+    //      granting the caller nothing — one beta account could have destroyed
+    //      every unsent invitation in about ninety seconds.
+    // The code is now consumed by the auth.users trigger at account creation,
+    // and the RPC's `authenticated` grant is revoked. All this does is clear the
+    // stale key off devices that still carry one.
+    function claimPendingInvite(){
+      try { localStorage.removeItem('hearthrise:pending-invite'); } catch(e){}
     }
     document.body.appendChild(overlay);
     setTimeout(function(){ var f = form.querySelector('input[name="email"]'); if(f) f.focus(); }, 50);

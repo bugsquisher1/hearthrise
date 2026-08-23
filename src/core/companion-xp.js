@@ -47,12 +47,12 @@
 // companions.js) and by the Edge bundle (through accrual.js).
 // ============================================================================
 
-import { COMPANIONS } from '../data/companions.js?v=456';
+import { COMPANIONS } from '../data/companions.js?v=457';
 /* THE CURVE, REUSED — never re-copied. companion-perk.js already restates the
    client's XP curve and is pinned equal to src/features/companions.js by
    tests/companion-perk.mjs. Importing its cap here inherits that pin rather than
    opening a third copy that could drift. */
-import { companionXpToReach, COMPANION_MAX_LEVEL } from './companion-perk.js?v=456';
+import { companionXpToReach, COMPANION_MAX_LEVEL } from './companion-perk.js?v=457';
 
 /* THE CAP, DERIVED FROM THE SHARED CURVE. Cumulative XP to reach the max level —
    the same ceiling src/features/companions.js clamps to (COMPANION_XP_CAP). */

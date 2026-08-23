@@ -103,16 +103,16 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm } from './accrue.js?v=456';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm } from './accrue.js?v=457';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=456';
+import { applyClientState } from './client-state.js?v=457';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, resetPredictions } from './predict.js?v=456';
+import { coverageBoundary, retirePredictions, resetPredictions } from './predict.js?v=457';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -1370,6 +1370,24 @@ function settle(verdict) {
        while dormant, so the dormant load path is byte-for-byte unchanged. Guarded —
        a throw here must never break the record load. */
     try { reconcileFarm(G, verdict.body); } catch (e) {}
+    /* ── BOOT-RESUME (b456 QA finding): the boot hr_load envelope carries
+       state.active_kind/active_id, but reconcileActivityPointer was only wired
+       to the activity-SWITCH hook — so a reload booted to "Idle" while the
+       server kept settling the player's real activity. Resume it here, on the
+       same envelope that rebuilt everything else. Call-time window reads
+       (activity.js imports THIS module — a static import back would cycle).
+       Safe at boot: the local pointer is idle, so a genuinely-idle server
+       answer no-ops; a throw must never break the record load. */
+    try {
+      const HA = (typeof window !== 'undefined') && window.HearthriseActivity;
+      const rap = (typeof window !== 'undefined') && window.reconcileActivityPointer;
+      if (HA && typeof HA.activityOf === 'function' && typeof rap === 'function') {
+        const act = HA.activityOf(verdict.body);
+        if (act && act.kind && act.kind !== 'idle') {
+          rap(act, typeof HA.fightOf === 'function' ? HA.fightOf(verdict.body) : null);
+        }
+      }
+    } catch (e) {}
   } else {
     console.warn('[record] the server did not supply the record (' + verdict.outcome
       + (verdict.reason ? ': ' + verdict.reason : '') + ') — '

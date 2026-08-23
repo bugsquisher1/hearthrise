@@ -1397,6 +1397,28 @@ async function raidBossRewardPreflight() {
   return 1;
 }
 
+// PREFLIGHT — the closed beta stays closed. On 2026-08-23 production held 8
+// accounts against 3 consumed invites: the gate was three client-side
+// courtesies and account-gate.js — the actual front door — had no invite field
+// at all. Nothing in this suite could see it, because nothing asserted a
+// NEGATIVE about signup. tests/beta-invite-gate.mjs does; its static half needs
+// no network and runs here. Its --live half (real POST to /auth/v1/signup,
+// trigger + auth-hook registration) needs a token CI does not have and is run
+// by hand after any change to auth config, auth.users or beta_invites.
+async function betaInviteGatePreflight() {
+  const guard = join(ROOT, 'tests', 'beta-invite-gate.mjs');
+  try { await stat(guard); } catch { return 0; }
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [guard], { encoding: 'utf8' });
+  const out = ((r.stdout || '') + (r.stderr || '')).trim();
+  if (r.status === 0) {
+    console.log(`Beta invite gate preflight: ${out.split('\n').pop()}`);
+    return 0;
+  }
+  console.error(`\nBeta invite gate preflight FAILED — the closed beta may be open.\n${out}\n`);
+  return 1;
+}
+
 // PREFLIGHT — SECURITY CONDITION S5: src/data/items.js ⊆ hr_items.
 //
 // The check above regenerates the SQL and compares it to the file, so both
@@ -1716,6 +1738,7 @@ const run = async () => {
   if (await bountyMonsterPreflight()) process.exit(1);
   if (await farmCataloguePreflight()) process.exit(1);
   if (await raidBossRewardPreflight()) process.exit(1);
+  if (await betaInviteGatePreflight()) process.exit(1);
   if (await itemsCataloguePreflight()) process.exit(1);
   if (await recipeYieldPreflight()) process.exit(1);
   if (await itemLedgerPreflight()) process.exit(1);

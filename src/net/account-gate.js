@@ -216,7 +216,7 @@
          which is also the behaviour you want: the scene stays still and the
          panel travels over it. Seen at 922x423; invisible at 1440x900. */
       '.hr-gate::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;',
-      '  background:url(assets/brand/hearthrise-splash.jpg?v=456) 50% 42%/cover no-repeat}',
+      '  background:url(assets/brand/hearthrise-splash.jpg?v=457) 50% 42%/cover no-repeat}',
       /* The scrim. --scene-scrim-* exist precisely for "keep UI legible on top
          of the picture" and are dark in BOTH themes, so this one rule holds on
          parchment too. Vignetted rather than flat: the lightest point sits
@@ -334,8 +334,8 @@
   // audit, and the wordmark carries the alt text (it IS the word "Hearthrise";
   // an empty alt there would leave a screen reader with only the dialog label).
   var BRAND = {
-    crest: 'assets/brand/hearthrise-crest.png?v=456',
-    word:  'assets/brand/hearthrise-wordmark.svg?v=456'
+    crest: 'assets/brand/hearthrise-crest.png?v=457',
+    word:  'assets/brand/hearthrise-wordmark.svg?v=457'
   };
   function brandImg(cls, src, alt, w, h) {
     var i = document.createElement('img');
@@ -413,7 +413,19 @@
       i.spellcheck = false;
       l.appendChild(i);
       form.appendChild(l);
+      i.__row = l;                 // so paintMode can hide the whole row, label included
       return i;
+    }
+    // The invite code comes FIRST because it is the thing that decides whether
+    // an account may exist at all — asking for it after the credentials reads as
+    // an afterthought, and it is the field most likely to be pasted from Discord.
+    // Sign-in never shows it: it gates creation, not entry.
+    var invite = reauth ? null : field('Invite code', 'text', 'invite', 'off');
+    if (invite) {
+      invite.placeholder = 'FRIEND-001';
+      invite.autocapitalize = 'characters';
+      invite.style.textTransform = 'uppercase';
+      invite.style.letterSpacing = '1px';
     }
     var email = field('Email', 'email', 'email', 'email');
     var pass  = field('Password', 'password', 'password', 'current-password');
@@ -442,12 +454,13 @@
       bSignIn.setAttribute('aria-selected', creating ? 'false' : 'true');
       pass.autocomplete = creating ? 'new-password' : 'current-password';
       go.textContent = creating ? 'Create account' : 'Sign in';
+      if (invite) invite.__row.style.display = creating ? '' : 'none';
       if (reauth) {
         lead.textContent = 'Your session ended. Sign in again to keep your progress syncing to the realm — ' +
           'nothing you have earned is lost either way.';
       } else {
         lead.textContent = creating
-          ? 'Your account holds your name, your progress, and your place on the boards.'
+          ? 'Hearthrise is in closed beta — creating an account needs the invite code you were sent.'
           : 'Welcome back. Sign in to pick up where the realm left you.';
       }
     }
@@ -482,10 +495,13 @@
 
     return {
       root: root, form: form, email: email, pass: pass, go: go, note: note,
-      later: later, foot: foot,
+      later: later, foot: foot, invite: invite,
       getMode: function () { return mode; },
       say: function (text, tone) { note.textContent = text || ''; note.setAttribute('data-tone', tone || 'muted'); },
-      busy: function (on) { go.disabled = !!on; email.disabled = !!on; pass.disabled = !!on; }
+      busy: function (on) {
+        go.disabled = !!on; email.disabled = !!on; pass.disabled = !!on;
+        if (invite) invite.disabled = !!on;
+      }
     };
   }
 
@@ -537,8 +553,82 @@
     unavailable: 'The realm’s sign-in service could not be reached. Check your connection and reload.',
     email:       'Enter your email address.',
     password:    'Enter your password.',
-    short:       'Passwords must be at least 6 characters.'
+    short:       'Passwords must be at least 6 characters.',
+    invite:      'Enter the invite code you were sent. Hearthrise is in closed beta.',
+    inviteBad:   'That invite code cannot be used. Check it for typos, or ask in the Discord.'
   };
+
+  // ════════════════════════════════════════════════════════════
+  // 4a · THE INVITE PRE-CHECK
+  // ════════════════════════════════════════════════════════════
+  // ⚠ THIS IS UX, NOT THE GATE. The gate is server-side and unconditional:
+  // 2026-08-23-beta-invite-gate.sql attaches an AFTER INSERT trigger to
+  // auth.users that consumes an unused code in the same transaction as the
+  // account, plus a before-user-created auth hook. Deleting this function, or
+  // POSTing straight at /auth/v1/signup, gets a 403 — that is the difference
+  // between this and what shipped before, where the equivalent check WAS the
+  // only gate and five of eight live accounts had walked past it.
+  // What it buys is that a player learns their code is wrong BEFORE they type
+  // an email and a password.
+  //
+  // It lives here rather than in settings-page.js (which used to own it) for one
+  // reason: this is the front door. It has to work when nothing else has loaded.
+  // settings-page.js now delegates to the object published below, so there is
+  // one implementation, not two — the b332 shape this project keeps re-finding.
+  //
+  // NEVER read the beta_invites table directly (b329/A11): its SELECT policy was
+  // world-readable to the anon key, so one request returned every code in the
+  // beta. beta_invite_check() is SECURITY DEFINER, rate-gated, and answers only
+  // about the ONE code it was handed. Keep the code in the POST BODY — a GET
+  // would put it in proxy and server access logs.
+  function validateInvite(code) {
+    var cfg = window.HearthriseSupabase && window.HearthriseSupabase.getConfig && window.HearthriseSupabase.getConfig();
+    if (!cfg) return Promise.resolve({ ok: false, reason: 'Cloud not configured.' });
+    return fetch(cfg.url + '/rest/v1/rpc/beta_invite_check', {
+      method: 'POST',
+      headers: {
+        'apikey': cfg.anonKey,
+        'Authorization': 'Bearer ' + cfg.anonKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_code: code })
+    }).then(function (res) {
+      if (!res.ok) return { ok: false, reason: 'Could not check that code — try again in a moment.' };
+      return res.json();
+    }).then(function (out) {
+      if (!out || typeof out !== 'object') return { ok: false, reason: 'Could not check that code — try again in a moment.' };
+      if (out.ok) return { ok: true };
+      return { ok: false, reason: out.reason || ERR.inviteBad };
+    }).catch(function () {
+      return { ok: false, reason: 'Network error — check your connection.' };
+    });
+  }
+  window.HearthriseInvite = { validate: validateInvite };
+
+  /**
+   * Turn whatever the auth layer threw into something a player can act on.
+   *
+   * Two server refusal shapes, both real and both observed against production
+   * on 2026-08-23:
+   *   · the auth HOOK refuses with HTTP 403 and our own sentence — that arrives
+   *     as error.message and is already the right thing to show.
+   *   · the TRIGGER refuses with HTTP 500 (GoTrue has no vocabulary for "a
+   *     trigger said no"), and supabase-js may surface either our message or its
+   *     own "Database error saving new user". The second is meaningless to a
+   *     player, so it is translated. Matching on the STRING is admittedly
+   *     brittle; it is a fallback behind a path that should not normally be
+   *     reached (the hook refuses first), and the honest alternative — showing
+   *     the raw text — is worse.
+   */
+  function humaniseAuthError(err, creating) {
+    var msg = (err && err.message) ? String(err.message) : '';
+    if (!msg) return 'That did not work — try again.';
+    if (!creating) return msg;
+    if (/database error|unexpected_failure|saving new user/i.test(msg)) {
+      return ERR.inviteBad + ' If it is definitely right, tell us in the Discord.';
+    }
+    return msg;
+  }
 
   function wire(ui, opts) {
     opts = opts || {};
@@ -547,33 +637,56 @@
     ui.form.addEventListener('submit', function (e) {
       e.preventDefault();
       if (working) return;
+      var creating = ui.getMode() === 'signup';
       var addr = ui.email.value.trim();
       var pw = ui.pass.value;
+      // Uppercased and trimmed here AND normalised again server-side. The client
+      // copy is so the player sees the canonical form; the server one is because
+      // the client's is not evidence of anything.
+      var code = (creating && ui.invite) ? ui.invite.value.trim().toUpperCase() : '';
+      if (creating && ui.invite && !code) { ui.say(ERR.invite, 'bad'); ui.invite.focus(); return; }
       if (!addr) { ui.say(ERR.email, 'bad'); ui.email.focus(); return; }
       if (!pw) { ui.say(ERR.password, 'bad'); ui.pass.focus(); return; }
-      if (ui.getMode() === 'signup' && pw.length < 6) { ui.say(ERR.short, 'bad'); ui.pass.focus(); return; }
+      if (creating && pw.length < 6) { ui.say(ERR.short, 'bad'); ui.pass.focus(); return; }
 
       working = true;
       ui.busy(true);
-      ui.say(ui.getMode() === 'signup' ? 'Creating your account…' : 'Signing in…', 'muted');
+      ui.say(creating ? 'Checking your invite code…' : 'Signing in…', 'muted');
 
       whenAuthReady().then(function (ok) {
         if (!ok) throw new Error(ERR.unavailable);
         var a = auth();
-        return ui.getMode() === 'signup' ? a.signUp(addr, pw) : a.signIn(addr, pw);
+        if (!creating) return a.signIn(addr, pw);
+        return validateInvite(code).then(function (res) {
+          if (!res.ok) {
+            var e = new Error(res.reason || ERR.inviteBad);
+            e.__invite = true;                      // already a player-facing sentence
+            throw e;
+          }
+          ui.say('Creating your account…', 'muted');
+          // The code travels as user metadata, which is where the server trigger
+          // reads it from. It is a credential being PRESENTED, not a value being
+          // asserted — the server decides whether it is real, and consumes it.
+          return a.signUp(addr, pw, { invite_code: code });
+        });
       }).then(function (data) {
         // Sign-up with email confirmation on returns no session. Say so
         // plainly rather than pretending the player is in.
-        if (ui.getMode() === 'signup' && data && !data.session) {
+        if (creating && data && !data.session) {
           working = false; ui.busy(false);
-          ui.say('Account created. Confirm the link in your email, then sign in.', 'ok');
+          ui.say('Account created — your invite code is now used. Confirm the link in your email, then sign in.', 'ok');
           return;
         }
         ui.say('Entering the realm…', 'ok');
         if (typeof opts.onSuccess === 'function') opts.onSuccess();
       }).catch(function (err) {
         working = false; ui.busy(false);
-        ui.say((err && err.message) || 'That did not work — try again.', 'bad');
+        if (err && err.__invite) {
+          ui.say(err.message, 'bad');
+          if (ui.invite) { try { ui.invite.focus(); ui.invite.select(); } catch (e) {} }
+          return;
+        }
+        ui.say(humaniseAuthError(err, creating), 'bad');
       });
     });
   }

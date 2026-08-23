@@ -233,7 +233,7 @@
     overlay.className = 'hr-auth-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
     var inviteRow = isSignUp
-      ? '<input type="text" name="invite" placeholder="Beta invite code (e.g. FRIEND-001)" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1));text-transform:uppercase;letter-spacing:1px" />'
+      ? '<input type="text" name="invite" placeholder="Beta invite code" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1));text-transform:uppercase;letter-spacing:1px" />'
       : '';
     var nameRow = isSignUp
       ? '<input type="text" name="displayName" placeholder="Your name (in-game + leaderboards)" required maxlength="20" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'

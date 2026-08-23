@@ -216,7 +216,7 @@
          which is also the behaviour you want: the scene stays still and the
          panel travels over it. Seen at 922x423; invisible at 1440x900. */
       '.hr-gate::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;',
-      '  background:url(assets/brand/hearthrise-splash.jpg?v=457) 50% 42%/cover no-repeat}',
+      '  background:url(assets/brand/hearthrise-splash.jpg?v=458) 50% 42%/cover no-repeat}',
       /* The scrim. --scene-scrim-* exist precisely for "keep UI legible on top
          of the picture" and are dark in BOTH themes, so this one rule holds on
          parchment too. Vignetted rather than flat: the lightest point sits
@@ -334,8 +334,8 @@
   // audit, and the wordmark carries the alt text (it IS the word "Hearthrise";
   // an empty alt there would leave a screen reader with only the dialog label).
   var BRAND = {
-    crest: 'assets/brand/hearthrise-crest.png?v=457',
-    word:  'assets/brand/hearthrise-wordmark.svg?v=457'
+    crest: 'assets/brand/hearthrise-crest.png?v=458',
+    word:  'assets/brand/hearthrise-wordmark.svg?v=458'
   };
   function brandImg(cls, src, alt, w, h) {
     var i = document.createElement('img');
@@ -422,7 +422,11 @@
     // Sign-in never shows it: it gates creation, not entry.
     var invite = reauth ? null : field('Invite code', 'text', 'invite', 'off');
     if (invite) {
-      invite.placeholder = 'FRIEND-001';
+      /* ⚠ NEVER use a real code format as the example — the b457 placeholder
+         'FRIEND-001' WAS a live unused invite (QA-caught within minutes of
+         deploy): players could type the placeholder and get in. The example
+         must be an unmistakably fake shape. */
+      invite.placeholder = 'Your invite code';
       invite.autocapitalize = 'characters';
       invite.style.textTransform = 'uppercase';
       invite.style.letterSpacing = '1px';

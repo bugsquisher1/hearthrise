@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 458 — 2026-08-23 (Signup polish)
+
+- 🔒 The invite-code field no longer shows a code-shaped example. (The b457 placeholder happened to match a real unused code.)
+
 ## v0.9.2-beta build 457 — 2026-08-23 (Closed beta is now actually closed)
 
 - 🔒 Creating an account now genuinely requires a beta invite code — enforced by the server, one account per code. (Previously the code check could be skipped.) Existing accounts, sign-in, and password reset are unaffected.

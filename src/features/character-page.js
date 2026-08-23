@@ -683,7 +683,12 @@ function ensureCharStyle() {
     '@media (max-width:640px){' + R + '.cr-acct-grid{grid-template-columns:repeat(2,1fr)}}',
     // Equipment sub-tab
     R + '#char-equip{display:flex;flex-direction:column;gap:12px;align-items:center}',
-    R + '.cr-equip-link{width:100%;max-width:520px}',
+    // 520px was the width of the OLD four-column doll's pane. The doll is a
+    // three-wide paper-doll now (~230px of slots, ~280px with its tab strip),
+    // and a 520px button under a 280px figure reads as two unrelated objects
+    // floating in an empty pane. The CTA takes the doll's own width so the
+    // Equipment tab is one centred column.
+    R + '.cr-equip-link{width:100%;max-width:290px}',
     R + '.cr-equip-link button{width:100%;padding:8px;background:rgba(201,162,74,.14);border:1px solid rgba(201,162,74,.32);'
       + 'border-radius:6px;color:var(--gold-2);cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;font-family:var(--f-ui)}',
     R + '.cr-equip-link button:hover{background:rgba(201,162,74,.22)}',

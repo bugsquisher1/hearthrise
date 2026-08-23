@@ -1,5 +1,87 @@
 # Art Director — running log
 
+## 2026-08-23 · THE PAPER-DOLL REBUILD — and the file the brief named was only HALF the bug
+
+**The finding I would put first, because it changes what the task was.** I was pointed at
+`src/render/equipment-doll.js`. Tyler's own words describe a DIFFERENT renderer: "weapon big
+top-left, then Offhand/Ammo, Necklace/Helmet/Body, Pants/Cape/Gloves, Boots/Ring 1/Ring 2" is
+`MANAGE_SLOTS` in `src/features/combat-screens.js` auto-flowing in ARRAY ORDER into
+`repeat(3,1fr)` — the FIGHT SCREEN rail. I only know that because I photographed all three mounts
+before touching anything; from source alone I would have rebuilt the Character doll, shipped it,
+and left the screen he was actually looking at untouched. **Equipment was drawn twice, by two
+renderers, in two different arrangements, and neither was a paper-doll:** a 4x4 table on
+Character/Inventory, an array-order flow on the fight screen. The same slot sat in a different
+place depending on which screen you opened, which is worse than either layout alone.
+
+**So the fix is ONE table, not two rebuilds.** `src/render/doll-layout.js` (new, classic script,
+`window.HearthriseDollLayout`) owns the shape; both renderers call `place()` and apply the result
+inline. Canonical RuneScape/Melvor arrangement, three columns:
+`· helmet ·` / `cape necklace ammo` / `weapon body offhand` / `gloves pants belt` /
+`ring1 boots ring2` / `· earrings ·`.
+
+**Why SIX rows, which is the one thing in this pass I expect to be argued with.** Rows 1-3 are
+canonical and untouchable. Row 5 is Tyler's stated preference (the ring pair flanking the boots —
+two identical glyphs only read as "your two rings" when they mirror). The interesting constraint is
+arithmetic: **Hearthrise has FOURTEEN gear slots against RuneScape's eleven, and 14 slots do not
+fit a 5x3 doll.** 15 cells minus 14 slots is ONE hole, and a grid with one hole is a table with a
+chipped corner — which is precisely the thing being replaced. Six rows gives 18 cells and FOUR
+holes, and those holes (the apex corners and the waist notch) ARE the silhouette. I tried seven
+5-row arrangements before accepting this; each one bought its fifth row by destroying the notch.
+
+**The compaction is what lets one table serve two slot sets.** The fight rail carries no belt and
+no earrings (a b366 design call I did not touch), so its row 6 is empty — `place()` renumbers and
+the rail draws FIVE rows while every slot it does draw keeps its Character-screen column and
+relative order. One shape, two slot sets, no second table to drift.
+
+**A real cost I am not hiding: on a 423px landscape phone this doll cannot be both above the fold
+and tappable.** Six rows at the 44px tap floor is 287px; the panel header measures 179px, leaving
+244px. No cell size satisfies both — 36px wins the fold by putting every slot under the tap floor,
+on a touch screen, where the slots ARE the targets. I kept the target and let the equip column
+scroll ~40px, and I rewrote the b369 fold assertion to say so rather than quietly lowering a
+number: it now asserts the height stays BOUNDED (300px ceiling; the historical defect was 808px)
+AND that the column is genuinely `overflow-y:auto` at that viewport. **That second half is a
+stronger guarantee than the assertion it replaced** — the old one proved the doll fitted but never
+proved a taller one would be reachable. Proven live, not argued: scrolled the column at 922x423 and
+`elementFromPoint` at the centre of boots / ring 1 / ring 2 / earrings returns each slot itself.
+
+**Two things I found by looking rather than by reading.** (1) `legacy.css` carried a full block of
+`.td-doll .td-helmet{grid-column:2;grid-row:1}` positions that had been DEAD SINCE b216 — the
+renderer's inline styles beat them — so the sheet read like the source of truth for a layout it
+could not affect. Deleted. (2) The empty-slot caption was `display:none !important` on the
+Inventory mount only, so one component labelled itself on two screens out of three and the
+Inventory doll was a grid of abstract line glyphs. It costs no space now: the caption rides the
+slot's bottom edge (the Fight rail's own idiom, `--f-label` small caps at the 14.5px `--t-micro`
+floor) instead of stacking under the glyph, so the glyph got BIGGER while the word came back.
+
+**Verified in-browser, my own Playwright harness rooted in THIS worktree** (`tools/_doll-shots.mjs`
+— launch.json serves the main tree, the trap this log has now recorded six times). Inventory,
+Character and the Fight screen at **1440x900 and 922x423**, filled AND half-empty loadouts, plus a
+scrolled-to-bottom reachability pass. **0 404s, 0 console errors, 0 page errors.** I READ them: the
+combat rail is the clearest win (paper-doll + `+0 atk · +0 str · +0 def` totals + Provisions +
+Drops all still above the fold on desktop, where I expected to lose Drops). Captures in the
+session scratchpad `doll-{before,after1,after2,final}/`.
+
+**Theme check, stated honestly rather than claimed.** "cozy AND Hearthlight" is not a reachable
+pair — `theme-picker.readSaved()` returns `'hearthlight'` unconditionally and forcing the retired
+attribute renders the whole app black-on-black (pre-existing, not mine). What IS checkable is that
+my rules are theme-NEUTRAL, and they are: identical computed geometry (`68px x3`, six rows) and
+identical caption `position:absolute` under both attributes, 0 errors. Every new declaration uses
+tokens (`--f-label`, `--t-micro`, `--ink-2`); no hex was added.
+
+**Suite 1000/1000, 0 runtime errors, and the new `DOLL-LAYOUT` guard is MUTATION-PROVEN** — I put
+the old 4-wide table back into `doll-layout.js` and the run went to 997/1000 with `DOLL-LAYOUT` and
+`b369` both red. It asserts RELATIONSHIPS, not coordinates (a coordinate test passes on any grid
+that happens to put a helmet at 2,1, including a table): helmet alone at the apex with **both
+corners beside it empty**, weapon/offhand flanking the body on one row, the spine reading
+head-to-foot down the centre column, the rings mirroring around the boots, DOM order equal to
+reading order, and the fight rail agreeing slot-for-slot on column and rank while compacting to
+five rows.
+
+**Handed off, not fixed:** `slotGlyphSVG`'s `ammo` glyph is a bare diagonal arrow that reads as a
+UI resize handle, and `cape` is a rectangle with a centre line. They now occupy the whole empty
+cell, and on the landscape phone the caption is hidden so the glyph is all there is. Filed to the
+Asset Director in DISCOVERIES.
+
 ## 2026-08-20 · RELEASE VISUAL GATE — GOLD/GEMS SERVER-OF-RECORD FLIP (assembled main, b420 + flip, NOT pushed) → PASS
 Gate on the armed build (port 8123 serves main = the assembled release). gold+gems confirmed live on
 SERVER_OF_RECORD (`serverOfRecordFields()` → offlineBudget,gold,gems). Screenshots do NOT composite in

@@ -333,9 +333,22 @@
   font-family: var(--f-ui); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 
-/* THE EQUIPMENT PANEL. Twelve slots, four across, each wearing the item's own
- * painted art — the empty state is legacy's gilt line glyph, never the emoji in
- * EQUIP_SLOT_META. Click opens a picker filtered to that slot. */
+/* THE EQUIPMENT PANEL. Twelve slots in the canonical three-wide PAPER-DOLL —
+ * helmet at the apex, weapon and offhand flanking the body, the ring pair
+ * flanking the boots — each wearing the item's own painted art; the empty state
+ * is legacy's gilt line glyph, never the emoji in EQUIP_SLOT_META. Click opens
+ * a picker filtered to that slot.
+ *
+ * THE SHAPE IS NOT AUTHORED IN THIS SHEET. Every cell comes from
+ * src/render/doll-layout.js and is applied inline by renderDoll(), the same
+ * table Character > Equipment and the Inventory Equip column read, so a slot
+ * cannot move between screens. The row count is inline too — this rail omits
+ * belt and earrings, so it draws five rows where the Character doll draws six.
+ * The cell is capped at 72px (the `--td-cell` the other mounts use) and the
+ * grid is centred, so a wider rail gives a centred doll, never an inflated one.
+ *
+ * The historical note below is why the column count is THREE and must stay
+ * three; it is now doubly true, because the columns are anatomy. */
 /* THREE ACROSS, NOT FOUR (b371) — and the reason is the LABEL, measured.
  * `--t-micro` resolves to 14.5px (b227's legibility floor, guarded), so the
  * empty-slot caption cannot be shrunk to fit. At four columns in a 232px rail
@@ -353,7 +366,11 @@
  * painted item art renders at 68px instead of 51, which is the difference
  * between reading an icon and recognising a smear. The 168px phone rail keeps
  * four across: the captions are hidden there anyway. */
-#panel-combat .fsm-doll { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+#panel-combat .fsm-doll {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 72px));
+  justify-content: center; gap: 4px;
+}
 #panel-combat .fsm-slot {
   position: relative; aspect-ratio: 1 / 1;
   display: flex; align-items: center; justify-content: center;
@@ -998,12 +1015,19 @@ body[data-theme] #panel-combat[data-foe-class="extradimensional"] .combat-arena 
    * and a phone is where "manage my loadout without leaving" matters most. */
   #panel-combat .fs-body { grid-template-columns: 168px minmax(0, 1fr); gap: 6px; }
   #panel-combat .fs-manage { padding: 5px; gap: 5px; }
-  /* FOUR ACROSS AGAIN on the 168px rail. The base grid went to three columns in
-   * b371 so the empty-slot captions fit whole; here the captions are hidden
-   * (see `.fsm-slot em { display: none }` below) so the argument does not apply,
-   * and three columns would make the doll 4 rows of 53px — 224px of a 423px
-   * screen for twelve slots nobody is reading labels on. */
-  #panel-combat .fsm-doll { grid-template-columns: repeat(4, 1fr); gap: 3px; }
+  /* STILL THREE ACROSS, and the four-across override that lived here is gone.
+   * It was a density trade that only made sense while this was a TABLE: a
+   * paper-doll's columns are anatomy (left hand / body / right hand), so
+   * reflowing it to four columns on a short screen does not compress the same
+   * picture, it draws a different one — and the whole point of the rebuild is
+   * that a slot sits in the same place on every screen. What DOES scale is the
+   * cell: 44px x 5 rows is 220px against the 168px rail's 236px of usable
+   * width, and 44px is the tap floor, where the old four-across grid was
+   * shipping 36.75px targets. */
+  #panel-combat .fsm-doll {
+    grid-template-columns: repeat(3, minmax(0, 44px));
+    justify-content: center; gap: 3px;
+  }
   #panel-combat .fsm-food-slot { width: 34px; height: 34px; }
   #panel-combat .fsm-drop-art { width: 16px; height: 16px; }
   #panel-combat .fsm-head, #panel-combat .fsm-drop,
@@ -1118,11 +1142,13 @@ body[data-theme] #panel-combat[data-foe-class="extradimensional"] .combat-arena 
   #panel-combat .wt-dest { flex: 0 0 190px; }
   #panel-combat .fs-top { flex-wrap: wrap; }
   #panel-combat .fs-body { grid-template-columns: 150px minmax(0, 1fr); }
-  /* A 150px rail cannot afford b371's three columns (42px tiles), and no
-   * caption is legible at that width either way — so this rail keeps the
-   * original four across and the density argument is settled by the tile size
-   * rather than by the label. */
-  #panel-combat .fsm-doll { grid-template-columns: repeat(4, 1fr); }
+  /* Three columns here too — see the note at max-height:560. A paper-doll's
+   * columns mean something, so this rail narrows the CELL (42px in a 150px
+   * rail) rather than reflowing the figure into a different arrangement. */
+  #panel-combat .fsm-doll {
+    grid-template-columns: repeat(3, minmax(0, 42px));
+    justify-content: center;
+  }
   /* Same 150px rail, same clipped totals — see the note at max-height:560. */
   #panel-combat .fsm-head { flex-wrap: wrap; }
   #panel-combat .fsm-head b { margin-left: 0; width: 100%; white-space: normal; }

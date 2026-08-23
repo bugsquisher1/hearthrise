@@ -4,6 +4,51 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-23 - Art Director (paper-doll rebuild) - EQUIPMENT WAS DRAWN TWICE, DIFFERENTLY, AND NEITHER DRAWING WAS A PAPER-DOLL
+
+**DISCOVERY.** Tyler: *"this player doll layout makes no fucking sense. in what game have you seen
+it work like this?"* He was looking at the FIGHT SCREEN rail, not the Character doll — his
+description (Weapon/Offhand/Ammo, Necklace/Helmet/Body, Pants/Cape/Gloves, Boots/Ring 1/Ring 2)
+is `MANAGE_SLOTS` in `src/features/combat-screens.js` auto-flowing in ARRAY ORDER into a
+3-column grid. The other doll (`buildTibiaDoll`) was a separate 4x4 TABLE. **Same component name in
+everyone's head, two different arrangements, so a slot sat in a different place depending on which
+screen you opened.** Anyone told to "fix the doll" will open `src/render/equipment-doll.js` and fix
+only half of it — that is what the brief I was handed did.
+
+**A SECOND, QUIETER TRAP IN THE SAME PLACE.** `legacy.css` carried a full block of
+`.td-doll .td-helmet{grid-column:2;grid-row:1}` positions describing a 3x6 arrangement. It had been
+**dead since b216** — the renderer sets inline `style.gridColumn`, which beats it — so the sheet
+read like the source of truth for a layout it had no effect on. Deleted. Positions now come from
+ONE table, `src/render/doll-layout.js` (`window.HearthriseDollLayout`), read by both renderers and
+applied inline.
+
+**AFFECTED SYSTEMS.** Character > Equipment, Inventory > Equip, the Fight screen loadout rail,
+`legacy.css` / `theme-cozy.css` / `art-direction.css` / `combat-screens.css` (all four authored a
+piece of this one grid — the b369 lesson, still true).
+
+**REQUIRED ACTION (others).**
+- **Adding a gear slot to `EQUIP_SLOTS` now requires a cell in `doll-layout.js`.** An unplaced slot
+  is APPENDED and auto-flows — silent, and the exact defect above. The `DOLL-LAYOUT` guard fails on
+  a homeless slot, so you will be told, but know it before you add one.
+- **No stylesheet may declare the doll's `grid-template-rows`.** The row COUNT is a property of the
+  slot set (the Fight rail omits belt + earrings and draws 5 rows where Character draws 6); the
+  renderer sets it inline from the same `place()` call that positions the slots. An `!important`
+  row count in a sheet silently wins over that — `art-direction.css` had one.
+
+**STANDING, NOT FIXED (Asset Director / iconography):** the empty-slot line glyphs in
+`slotGlyphSVG` (legacy.js:14178) are now much more prominent — they are the whole cell. Two read
+badly at size: **`ammo` is a bare diagonal arrow that reads as a UI resize handle**, and **`cape` is
+a rectangle with a centre line**. The restored slot captions carry the meaning for now, but on the
+landscape phone the captions are hidden and the glyph is all there is.
+
+**ALSO STANDING:** `cozy-light` remains an unreachable theme whose surviving scoped rules can never
+match (`theme-picker.readSaved()` returns `'hearthlight'` unconditionally). Forcing
+`body[data-theme="cozy-light"]` renders the whole app black-on-black. Any task that says "verify in
+cozy AND Hearthlight" is asking for a state no player can reach — the useful check is that a new
+rule is theme-NEUTRAL (identical computed geometry under both attributes), which is what I verified.
+
+---
+
 ### 2026-08-23 - QA Engineer (b456 test-debt burn-down) - FOUR live defects the b454/b455 cutover left behind, all found by modernising the suite to the armed model
 
 Filed together because they share one shape: **a protection or a flag that did not follow the thing

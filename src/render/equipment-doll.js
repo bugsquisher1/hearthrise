@@ -48,23 +48,34 @@
     var slotGlyphSVG = window.slotGlyphSVG || function () { return ''; };
 
     if(typeof EQUIP_SLOTS === 'undefined' || typeof EQUIP_SLOT_META === 'undefined') return null;
-    /* b216: the doll is now two panes — Equipment and Companion — so the pet
-       gets its own space instead of squatting in a gear slot, and every gear
-       slot fits on screen without scrolling. Ammo sits top-right, next to the
-       weapon side of the body, which is where players look for it. */
-    var LAYOUT = {            // [column, row] in a 4-wide doll
-      cape:[1,1],   helmet:[2,1], necklace:[3,1], ammo:[4,1],
-      weapon:[1,2], body:[2,2],   shield:[3,2],   earrings:[4,2],
-      gloves:[1,3], pants:[2,3],  belt:[3,3],     ring1:[4,3],
-                    boots:[2,4],                  ring2:[4,4],
-    };
+    /* THE SHAPE IS NOT AUTHORED HERE. It lives in src/render/doll-layout.js,
+       which the Fight screen's loadout rail reads too — one table, so a slot
+       cannot sit in one place on Character and another on the fight screen
+       (which is exactly what shipped before: a 4x4 TABLE here, array-order
+       auto-flow there). `place()` also compacts unused rows and hands back the
+       reading order, so the DOM order matches what the eye and the tab key
+       walk. Resolved at CALL time via window.* like every other global in this
+       module, so load order stays free. */
+    var DL = window.HearthriseDollLayout;
+    var gearSlots = EQUIP_SLOTS.filter(function(s){ return s !== 'companion'; });
+    var plan = DL && typeof DL.place === 'function'
+      ? DL.place(gearSlots)
+      : { pos:{}, order:gearSlots, unplaced:gearSlots, cols:3, rows:0 };
+
     var wrap = document.createElement('div');
     wrap.className = 'td-wrap';
     var doll = document.createElement('div');
     doll.className = 'td-doll';
+    /* Rows are declared from the plan rather than from a magic number in CSS:
+       the sheet cannot know how many rows a slot set uses, and the last time it
+       guessed (repeat(4,auto) for a layout that used four) it left two empty
+       90px tracks under the boots. */
+    if(plan.rows) doll.style.gridTemplateRows = 'repeat(' + plan.rows + ', auto)';
     var companionPane = document.createElement('div');
     companionPane.className = 'td-pet-pane';
-    EQUIP_SLOTS.forEach(function(s){
+    /* The companion is drawn into its OWN pane (b216) and has no place on a
+       body, so it is walked separately from the doll's reading order. */
+    plan.order.concat(EQUIP_SLOTS.indexOf('companion') >= 0 ? ['companion'] : []).forEach(function(s){
       // b229: the companion slot used to resolve through `ITEMS[G.equipment.
       // companion]` like every other slot, but equipCompanion() only ever
       // mirrors the legacy 'fox_companion' item id into G.equipment.companion
@@ -129,7 +140,7 @@
         slot.innerHTML = slotGlyphSVG(s) + '<span class="td-slot-lbl">'+(slotLabel||s)+'</span>';
       }
       // 'companion' is handled by the early-return branch above.
-      var pos = LAYOUT[s];
+      var pos = plan.pos[s];
       if(pos){ slot.style.gridColumn = pos[0]; slot.style.gridRow = pos[1]; }
       doll.appendChild(slot);
     });

@@ -356,11 +356,21 @@ const Swing = (() => {
    so every legacy renderer, wrapper and test that addresses them by id keeps
    working. They are hidden by the stylesheet, not by removal — deleting a node
    a 17k-line engine writes into is how you get a silent null-render. */
-/* THE MANAGEMENT PANEL'S SLOT ORDER (b366). Four columns, three rows, read in
-   the order a player thinks about a fight: what you swing, what you block with,
-   then armour head-to-foot, then the trinkets. `companion` and `belt` are not
-   here — the companion has its own pane on Character and is not a mid-fight
-   decision, and belt carries no combat stat in any live item. */
+/* THE MANAGEMENT PANEL'S SLOT SET. A SET, not an order: the rail is a
+   paper-doll now, and where each slot is drawn comes from the one shared table
+   in src/render/doll-layout.js that Character > Equipment and the Inventory
+   Equip column also read. (b366 authored this array as a reading order and let
+   it auto-flow into three columns, which rendered Weapon/Offhand/Ammo over
+   Necklace/Helmet/Body over Pants/Cape/Gloves — a spreadsheet of gear whose
+   rows correspond to nothing on a body, and which disagreed with the doll two
+   screens away. Tyler, correctly: "in what game have you seen it work like
+   this?")
+
+   `companion` and `belt` are still absent — the companion has its own pane on
+   Character and is not a mid-fight decision, and belt carries no combat stat in
+   any live item. Because they are absent the doll's sixth row (earrings) is
+   empty here, so `place()` compacts the rail to FIVE rows while every slot it
+   does draw keeps its Character-screen position. */
 const MANAGE_SLOTS = [
   'weapon', 'shield', 'ammo', 'necklace',
   'helmet', 'body', 'pants', 'cape',
@@ -965,19 +975,27 @@ function renderDoll() {
   if (!host) return;
   const g = G(); if (!g) return;
   const eqp = g.equipment || {};
-  const html = MANAGE_SLOTS.map((slot) => {
+  const DL = window.HearthriseDollLayout;
+  const plan = DL && typeof DL.place === 'function'
+    ? DL.place(MANAGE_SLOTS)
+    : { pos: {}, order: MANAGE_SLOTS, rows: 0 };
+  const html = plan.order.map((slot) => {
     const id = eqp[slot];
     const def = id && ITEMS[id];
     const meta = slotMeta(slot);
+    const pos = plan.pos[slot];
+    const style = pos ? ` style="grid-column:${pos[0]};grid-row:${pos[1]}"` : '';
     const title = def ? `${meta.label}: ${def.n} — click to change` : `${meta.label} — empty, click to equip`;
     return `<button type="button" class="fsm-slot${def ? '' : ' is-empty'}" data-cs-act="slot"` +
-      ` data-slot="${esc(slot)}" title="${esc(title)}" aria-label="${esc(title)}">` +
+      ` data-slot="${esc(slot)}" title="${esc(title)}" aria-label="${esc(title)}"${style}>` +
       (def ? itemImg(id, 'fsm-slot-art') : `<span class="fsm-slot-gly">${slotGlyph(slot)}</span>`) +
       `<em>${esc(meta.label)}</em></button>`;
   }).join('');
   if (host.dataset.sig === html) return;
   host.dataset.sig = html;
   host.innerHTML = html;
+  // Only the rows this slot set actually uses — see the compaction note above.
+  host.style.gridTemplateRows = plan.rows ? `repeat(${plan.rows}, auto)` : '';
 }
 
 function renderTotals() {

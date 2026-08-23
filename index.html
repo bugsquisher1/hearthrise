@@ -993,6 +993,12 @@
        paints a transient node, re-checks achievements). Re-exports
        window.showLevelupCelebration for the addXp wrapper in legacy.js -->
   <script src="src/render/levelup-celebration.js?v=461"></script>
+  <!-- THE paper-doll layout table (window.HearthriseDollLayout). One shape for
+       every equipment mount — Character > Equipment, the Inventory Equip
+       column and the Fight screen's loadout rail. Must load BEFORE
+       equipment-doll.js; combat-screens.js (ESM, deferred) reads it off window
+       at render time. -->
+  <script src="src/render/doll-layout.js?v=461"></script>
   <!-- Equipment paper-doll — 7th render-layer extraction out of legacy.js; the
        controller on-ramp. buildTibiaDoll moved VERBATIM (reads EQUIP_SLOTS/
        G/ITEMS/COMPANIONS via window.*, returns a detached node). Re-exports

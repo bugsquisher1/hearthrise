@@ -2682,14 +2682,20 @@ body.hide-profile-overflow #daily-goals-host{grid-column:1;grid-row:2}
  * centred doll, not a doll blown up to fill it. Themes may retint it; no theme
  * may re-author the tracks. */
 .td-doll{
-  --td-cell:84px;
+  /* THREE columns, because the doll is a paper-doll now and not a table — the
+     shape and every slot's cell live in src/render/doll-layout.js, which the
+     Fight rail reads too. 68px is deliberately the cell the Fight rail's 232px
+     column produces on its own, so the doll is the SAME SIZE on all three
+     mounts; six rows of it is 441px, where the old 4x4 grid's 84px cell would
+     have made the six-row figure 529px. */
+  --td-cell:68px;
   display:grid;
-  grid-template-columns:repeat(4,minmax(0,var(--td-cell)));
-  /* FOUR rows, because buildTibiaDoll's LAYOUT places into four (b216 moved
-     the companion out to its own pane). Declaring six left two empty tracks
-     and their gaps below the boots — 178px of dead panel on desktop. `auto`
-     rather than a length, so the row is whatever the square cell in it is. */
-  grid-template-rows:repeat(4,auto);
+  grid-template-columns:repeat(3,minmax(0,var(--td-cell)));
+  /* NO grid-template-rows here on purpose. The row COUNT is a property of the
+     slot set, which a stylesheet cannot see: the renderer sets it inline from
+     the same placement call that positions the slots, so a mount that omits
+     slots (the Fight rail has no belt or earrings) never reserves an empty
+     track — the failure this declaration caused twice before. */
   grid-auto-rows:auto;
   gap:5px;
   justify-content:center;
@@ -2712,26 +2718,34 @@ body.hide-profile-overflow #daily-goals-host{grid-column:1;grid-row:2}
    box, so every slot label overflowed its own padding box (measured, not seen —
    it stayed centred and unclipped). Harmless at 12px, structurally wrong at the
    13.5px floor: reset the padding here so the slot measures honestly. */
-.td-doll .td-slot.empty{opacity:1;border-style:dashed;border-color:rgba(233,225,204,.16);background:rgba(0,0,0,.28);flex-direction:column;gap:4px;padding:6px 3px}
-.td-doll .td-slot.empty svg{width:42%;height:42%;color:var(--gold-2,#e3c77e);opacity:.62}
-.td-doll .td-slot .td-slot-lbl{font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-2);line-height:1;text-align:center;padding:0 2px}
+.td-doll .td-slot.empty{opacity:1;border-style:dashed;border-color:rgba(233,225,204,.16);background:rgba(0,0,0,.28);padding:4px}
+/* 46%, the Fight rail's figure: the glyph now has the whole cell to sit in
+   (the caption is absolute) and still clears the caption's line at the bottom
+   edge — 33px of glyph in a 72px cell, caption top at 56px. */
+.td-doll .td-slot.empty svg{width:46%;height:46%;color:var(--gold-2,#e3c77e);opacity:.62}
+/* THE SLOT NAME RIDES THE BOTTOM EDGE, and it is the same treatment the Fight
+   rail's caption already uses (`#panel-combat .fsm-slot em`) — one component,
+   one label idiom, whichever screen you opened it from. It was a flex-column
+   row under the glyph here, which spent a third of the cell on type and left
+   the glyph too small to recognise. Absolute, so the glyph keeps the whole
+   cell; small caps via --f-label; --t-micro is the 14.5px legibility floor,
+   never a smaller number; wraps rather than truncating, because b139 ruled
+   that half a slot name reads as a random string. */
+.td-doll .td-slot .td-slot-lbl{
+  position:absolute;left:0;right:0;bottom:1px;
+  font-family:var(--f-label,var(--f-ui));
+  font-size:var(--t-micro,calc(14.5px * var(--ui-scale, 1)));
+  font-weight:700;letter-spacing:0;line-height:1.05;
+  color:var(--ink-2);text-align:center;padding:0 2px;
+  overflow:hidden;white-space:normal;word-break:normal;overflow-wrap:break-word;
+}
 .td-doll .td-slot small{position:absolute;bottom:3px;left:3px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);background:rgba(0,0,0,.75);padding:2px 5px;border-radius:3px;line-height:1.2;font-weight:700;letter-spacing:.04em}
 
-/* Slot grid positions (Tibia-inspired) */
-.td-doll .td-helmet  {grid-column:2;grid-row:1}
-.td-doll .td-earrings{grid-column:1;grid-row:2}
-.td-doll .td-necklace{grid-column:2;grid-row:2}
-.td-doll .td-cape    {grid-column:3;grid-row:2}
-.td-doll .td-weapon  {grid-column:1;grid-row:3}
-.td-doll .td-body    {grid-column:2;grid-row:3}
-.td-doll .td-ammo    {grid-column:3;grid-row:3}
-.td-doll .td-gloves  {grid-column:1;grid-row:4}
-.td-doll .td-belt    {grid-column:2;grid-row:4}
-.td-doll .td-companion{grid-column:3;grid-row:4}
-.td-doll .td-ring1   {grid-column:1;grid-row:5}
-.td-doll .td-pants   {grid-column:2;grid-row:5}
-.td-doll .td-ring2   {grid-column:3;grid-row:5}
-.td-doll .td-boots   {grid-column:2;grid-row:6}
+/* NO per-slot grid positions in this sheet. They lived here from b105 to b460
+   describing a 3x6 arrangement the renderer had already stopped using — every
+   one of them was overridden by an inline style, so the block was a decoy that
+   read like the source of truth. The positions come from
+   src/render/doll-layout.js and are applied inline by the renderer. */
 
 /* ─────── PROFILE: toolbar popouts ─────── */
 .prof-toolbar{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}

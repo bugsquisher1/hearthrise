@@ -4696,6 +4696,32 @@ function hrGoalDayKey(nowMs){
   return `${d.getUTCFullYear()}-${d.getUTCMonth()+1}-${d.getUTCDate()}`;
 }
 window.hrGoalDayKey=hrGoalDayKey;
+/* ── THE ELIGIBILITY CAPS (b45x, P0) ────────────────────────────────────────
+   What the daily-task filter in src/data/goal-catalogue.js is allowed to ask
+   about this character. Read through the SAME accessors the rest of the engine
+   uses — `HearthriseHomestead.roomLevel` (which routes through the rooms record,
+   so it becomes server-first the day that arm flips) and `skillXp` (the
+   record-first XP read) — because a second way of asking "do you own the Forge?"
+   is a second answer waiting to disagree with the server's.
+
+   FAIL CLOSED: if the homestead module is not up we report NOTHING unlocked, so
+   the worst case is a doable task instead of a padlocked one. The old behaviour
+   was the padlock. */
+function dailyTaskCaps(){
+  const rooms={}, sx={};
+  try{
+    const HH=window.HearthriseHomestead;
+    if(HH&&typeof HH.roomLevel==='function'){
+      rooms.workshop=HH.roomLevel('workshop')||0;
+      rooms.forge=HH.roomLevel('forge')||0;
+    }
+  }catch(e){}
+  try{
+    if(typeof skillXp==='function'){ sx.crafting=skillXp('crafting')||0; sx.smithing=skillXp('smithing')||0; }
+  }catch(e){}
+  return {rooms:rooms, skillXp:sx};
+}
+window.dailyTaskCaps=dailyTaskCaps;
 function generateDailyTasks(notice=true){
   ensureRetentionState();
   const today=hrGoalDayKey();
@@ -4717,7 +4743,25 @@ function generateDailyTasks(notice=true){
     }
   }catch(e){}
   const taskCount=Math.min(DAILY_TASK_POOL.length, 3+extraTasks);
-  G.daily.tasks=indexes.slice(0,taskCount).map(i=>DAILY_TASK_POOL[i]());
+  /* b45x (P0) — ELIGIBILITY. `indexes` is the raw date-seeded order; the offered
+     SET skips a task whose bench the player has not built and takes the next one
+     down the same order. The rule and the algorithm live in
+     src/data/goal-catalogue.js so the server's hr_daily_task_set_for is a port of
+     ONE implementation rather than a second one — see that file's header for the
+     ruling (a fresh account was dealt Craft 8 + Smith 8, 900 of 1300 daily gold,
+     against zero craftable recipes at level 1).
+     If the bridge is not up we fall back to the raw slice, which is exactly
+     today's behaviour — degraded, never broken, and never a second copy of the
+     filter. */
+  let chosen=null;
+  try{
+    const GC=window.HearthriseCore&&window.HearthriseCore.goalCatalogue;
+    if(GC&&typeof GC.dailyTaskSetIndexes==='function'){
+      chosen=GC.dailyTaskSetIndexes(today,dailyTaskCaps(),taskCount);
+    }
+  }catch(e){}
+  if(!Array.isArray(chosen)||chosen.length!==taskCount)chosen=indexes.slice(0,taskCount);
+  G.daily.tasks=chosen.map(i=>DAILY_TASK_POOL[i]());
   if(notice)notify('📅 New daily tasks!','info');
 }
 /* b228: exposed so the suite can prove the King's daily-task slot is really
@@ -7926,7 +7970,18 @@ const TRAITS={
      every marks-priced trait onto the Bounty Shop panel. `desc` is therefore
      read on two screens; the old copy ended "Earned with Bounty Marks", which
      was a signpost to a currency the reader is now standing in. */
-  auto_eat:{name:'Auto-Eat',cost:100,currency:'marks',glyph:'meat',desc:'Eats for you when your health drops, INCLUDING while you\'re away — your fights stop being ninety seconds long. Set the threshold in Settings → Gameplay.'},
+  /* b45x (Designer ruling 2026-08-23) — TWO TIERS. The death sheet teaches
+     "unlock Auto-Eat" on the player's first death and quotes THIS row's price
+     (src/features/death-sheet.js reads window.TRAITS.auto_eat.cost and
+     G.traits.auto_eat), so the ENTRY tier keeps the `auto_eat` id: the sheet
+     then names the cheapest unlockable price and goes quiet the moment the
+     player owns any tier, with no change to the sheet itself.
+     What a tier buys is a CEILING on the trigger point — the rule and the
+     numbers live in src/core/auto-eat.js AUTO_EAT_TIERS, shared with the
+     server's away simulation, and tests/auto-eat-authority.mjs binds these
+     prices to that table. */
+  auto_eat:{name:'Auto-Eat I',cost:15,currency:'marks',glyph:'meat',desc:'Eats for you the moment your health drops below a quarter, INCLUDING while you\'re away — your fights stop being ninety seconds long.'},
+  auto_eat_2:{name:'Auto-Eat II',cost:100,currency:'marks',glyph:'meat',req:'auto_eat',desc:'Eat sooner, and choose exactly when — unlocks the full threshold slider in Settings → Gameplay instead of the fixed quarter. Requires Auto-Eat I.'},
 };
 window.TRAITS=TRAITS;
 function hasTrait(id){return !!(G.traits&&G.traits[id]);}
@@ -7934,6 +7989,14 @@ window.hasTrait=hasTrait;
 function buyTrait(id){
   const t=TRAITS[id];if(!t)return;
   if(hasTrait(id)){notify('Already unlocked','info');return;}
+  /* b45x — a TIERED trait declares its predecessor as data (`req`). Refusing
+     here rather than silently granting the predecessor keeps the price ladder
+     honest: Auto-Eat II is priced as an UPGRADE from I, so selling it to someone
+     who skipped I would hand out the entry tier for free. */
+  if(t.req && !hasTrait(t.req)){
+    const need=TRAITS[t.req];
+    notify(`Unlock ${(need&&need.name)||t.req} first`,'kill');return;
+  }
   if(t.currency==='marks'){
     const MR=window.HearthriseMarks;
     /* ARM-BLOCKER (marks flip): a marks-priced trait has NO server spend verb yet
@@ -7962,7 +8025,10 @@ function buyTrait(id){
   }
   G.traits=G.traits||{};
   G.traits[id]=true;
-  // Buying auto-eat turns it on so it works immediately; threshold stays default.
+  // Buying auto-eat turns it on so it works immediately; threshold stays default
+  // (b45x: the TIER CEILING is applied on read by HearthriseAuto.eatThreshold, so
+  // the stored preference survives an upgrade to Auto-Eat II instead of being
+  // overwritten at purchase time).
   if(id==='auto_eat'&&window.HearthriseAuto&&typeof window.HearthriseAuto.setEat==='function'){
     window.HearthriseAuto.setEat({enabled:true});
   }

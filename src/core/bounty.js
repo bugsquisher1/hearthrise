@@ -28,6 +28,71 @@ export const BOUNTY_KILL_COUNTS = {
   streak: { 1: [40, 60], 2: [35, 55], 3: [30, 50], 4: [25, 45], 5: [20, 40], 6: [18, 35] },
 };
 
+/* ── THE FIRST-CONTRACT BRACKET (Designer ruling, 2026-08-23) ─────────────
+   `cull[1] = [80,120]` is offered as the board's EASY slot to a brand-new
+   Bounty Hunter, and 80–120 kills is roughly a hundred fights before the first
+   Bounty Mark exists. The death sheet teaches "unlock Auto-Eat", Auto-Eat is
+   priced in Marks, and the cheapest route to a Mark was a wall — so the tutorial
+   moment pointed at a currency the first session could not reach.
+
+   The ruling: a Bounty Hunter at LEVEL 1 gets a 15–25 kill bracket, and from
+   level 2 the tier table applies exactly as before.
+
+   SCOPE, and why it is narrower than "all tiers":
+     • TIER 1 ONLY. A player can be Bounty-Hunter level 1 with a level-60 combat
+       character (they simply never used the board), and tier 6 pays 13,000 gold
+       — handing that for 15 kills is not a first-session ramp, it is a mint.
+       Tier 1 is where an actual day-one player stands, and its easy cull pays
+       270 gold / 5 Marks, so the blast radius of being wrong here is one
+       trivial contract.
+     • CULL ONLY. It is the only type unlocked at level 1 (`unlockedTypes`), and
+       it is the only type the server can verify (2026-08-23-bounty.sql). The
+       `weapon` recursion inherits it arithmetically and is unreachable at
+       level 1 by construction.
+     • AN EXPLICIT LEVEL IS REQUIRED. A caller that does not pass `bountyLevel`
+       gets today's table, not the generous bracket — `undefined|0 === 0` would
+       otherwise make every legacy call site a first contract, which is the
+       failure mode that turns a UX ruling into an economy change.
+
+   THE SERVER MIRROR is `hr_bounty_first_contract_range` /
+   `hr_bounty_accept_grace` in supabase/migrations/2026-08-29-bounty-first-
+   contract.sql, bound to these constants by tests/bounty-drift.mjs. The server
+   cannot read a Bounty-Hunter LEVEL (BH xp lives in the client blob, not
+   player_skills), so it grants the wider floor while the character has fewer
+   than FIRST_CONTRACT_GRACE server-journalled turn-ins — a deliberate SUPERSET
+   of "level 1", because a range that is wider than the client's only ever lets
+   an honest `required` through unchanged, while a narrower one would silently
+   raise a 20-kill contract to 80. */
+export const BOUNTY_FIRST_CONTRACT_COUNT = [15, 25];
+export const BOUNTY_FIRST_CONTRACT_MAX_LEVEL = 1;
+export const BOUNTY_FIRST_CONTRACT_TIER = 1;
+/* How many server-journalled cull turn-ins the wider floor survives. Derived,
+   not chosen: the smallest cull XP a tier-1 contract can pay is
+   round(45 × 0.85) = 38 (easy), and level 2 is 83 XP — so a character can hold
+   Bounty-Hunter level 1 across at most turn-ins #1, #2 and #3 (0/38/76 xp).
+   tests/bounty-drift.mjs re-derives this from XP_TABLE rather than trusting it. */
+export const BOUNTY_FIRST_CONTRACT_GRACE = 3;
+
+/** True iff this (type, tier, bountyLevel) draws from the first-contract bracket. */
+export function isFirstContract(type, tier, bountyLevel) {
+  if (type !== 'cull') return false;
+  if ((tier || 0) !== BOUNTY_FIRST_CONTRACT_TIER) return false;
+  /* `typeof !== 'number'` FIRST, and it is not defensive padding — it is the
+     same trap src/core/auto-eat.js `thresholdFromPct` documents. `Number(null)`
+     is 0: finite, in range, and therefore silently "Bounty-Hunter level 0", which
+     would hand the generous bracket to every caller that simply forgot to pass a
+     level. The absence of a level must mean the tier table. */
+  if (typeof bountyLevel !== 'number' || !Number.isFinite(bountyLevel)) return false;
+  return bountyLevel <= BOUNTY_FIRST_CONTRACT_MAX_LEVEL;
+}
+
+/** The [min,max] the count is drawn from. Pure — the SQL clamp mirrors it. */
+export function bountyCountRange(type, tier, bountyLevel) {
+  if (isFirstContract(type, tier, bountyLevel)) return BOUNTY_FIRST_CONTRACT_COUNT;
+  const table = BOUNTY_KILL_COUNTS[type] || BOUNTY_KILL_COUNTS.cull;
+  return table[tier] || table[1];
+}
+
 export const BOUNTY_BASE_REWARDS = {
   1: { gold: 320, marks: 6, xp: 45 }, 2: { gold: 800, marks: 11, xp: 95 }, 3: { gold: 1600, marks: 18, xp: 180 },
   4: { gold: 3200, marks: 30, xp: 340 }, 5: { gold: 6500, marks: 48, xp: 620 }, 6: { gold: 13000, marks: 78, xp: 1100 },
@@ -123,10 +188,9 @@ export function pickProofItem(monsterId, monsters, items) {
   return (any && any.id) || null;
 }
 
-export function bountyCount(type, tier, rng) {
-  if (type === 'weapon') return Math.round(bountyCount('cull', tier, rng) * 0.85);
-  const table = BOUNTY_KILL_COUNTS[type] || BOUNTY_KILL_COUNTS.cull;
-  const r = table[tier] || table[1];
+export function bountyCount(type, tier, rng, bountyLevel) {
+  if (type === 'weapon') return Math.round(bountyCount('cull', tier, rng, bountyLevel) * 0.85);
+  const r = bountyCountRange(type, tier, bountyLevel);
   return rng.int(r[0], r[1]);
 }
 
@@ -159,20 +223,28 @@ export function makeBounty(type, monsterId, difficulty, ctx) {
     id, type, target: monsterId, difficulty: diff, tier, progress: 0,
     createdAt: c.now || 0, rewards: bountyRewards(tier, type, diff),
   };
+  /* `c.bountyLevel` is the FIRST-CONTRACT input and it is threaded through the
+     ctx, not re-derived: generateBountyBoard already carries it (it is what
+     `unlockedTypes` reads), and a second source for the same level is how the
+     board comes to offer a bracket the turn-in does not honour. */
   if (type === 'proof') {
     b.proofItem = pickProofItem(monsterId, c.monsters, c.items);
     if (!b.proofItem) b.type = 'cull';
-    b.required = bountyCount('proof', tier, c.rng);
+    /* Deliberately still drawn as 'proof' even when the row degraded to a cull
+       above — the REWARD is priced as 'proof' too (see bountyRewards at the top
+       of this function), so changing the count here without the reward would be
+       a silent nerf. Unchanged from before the first-contract bracket. */
+    b.required = bountyCount('proof', tier, c.rng, c.bountyLevel);
   } else if (type === 'weapon') {
-    b.required = bountyCount('weapon', tier, c.rng);
+    b.required = bountyCount('weapon', tier, c.rng, c.bountyLevel);
     /* b356: `neutral` is retired — every monster answers a real weapon. */
     b.requiredWeaponType = (m && m.weaponWeak) || null;
   } else if (type === 'streak') {
-    b.required = bountyCount('streak', tier, c.rng);
+    b.required = bountyCount('streak', tier, c.rng, c.bountyLevel);
     b.streak = 0;
     b.failOnDeath = true;
   } else {
-    b.required = bountyCount('cull', tier, c.rng);
+    b.required = bountyCount('cull', tier, c.rng, c.bountyLevel);
   }
   return b;
 }

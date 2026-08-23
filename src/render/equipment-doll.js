@@ -90,7 +90,17 @@
         companionPane.appendChild(cslot);
         return;
       }
-      var id = window.HearthriseEquipRead ? window.HearthriseEquipRead.equippedItem(G, s) : (G.equipment ? G.equipment[s] : null);
+      /* b459 (journey-audit P1-3): the doll is a DISPLAY surface, so it follows
+         the b456 display ladder — record KNOWN → server truth; record UNKNOWN
+         (no/failed session, boot window) → the local optimistic value, exactly
+         what the fight screen's doll shows. The old read returned null while
+         UNKNOWN, so Inventory showed all 14 slots empty while the player was
+         visibly swinging a Bronze Sword on the fight screen. Authority reads
+         (the equip intent, stat rollups' gates) are unchanged. */
+      var _er = window.HearthriseEquipRead;
+      var id = (_er && typeof _er.isEquipmentKnown === 'function' && _er.isEquipmentKnown(G))
+        ? _er.equippedItem(G, s)
+        : (G.equipment ? G.equipment[s] : null);
       var def = id && (typeof ITEMS!=='undefined') ? ITEMS[id] : null;
       var path = id && window._itemPath && window._itemPath[id];
       var slot = document.createElement('div');

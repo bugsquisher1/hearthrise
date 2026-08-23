@@ -336,6 +336,29 @@ const ALSO_LINTED = [
      and the grant lints below are the repo's only static defence against it.
      It is on no derivation chain and touches none of the graded bodies. */
   '2026-08-23-beta-invite-gate.sql',
+  /* P0 — DAILY-TASK ELIGIBILITY (2026-08-23). Creates three functions in
+     `public` (hr_daily_task_eligible, hr_daily_task_set_caps,
+     hr_daily_task_set_for — the last SECURITY DEFINER and taking p_user as an
+     ARGUMENT, i.e. the shape a stray grant turns into "read anyone's room
+     ladder") and `create or replace`s hr_claim_daily__ungated, a SECURITY
+     DEFINER body that credits gold. Exactly the case this list exists for: a
+     create-or-replace PRESERVES an ACL, so the file must restate its own revoke
+     and the lint is the only static thing that checks it did. On no derivation
+     chain — it touches none of the graded bodies. */
+  '2026-08-29-daily-task-eligibility.sql',
+  /* AUTO-EAT TIERS (2026-08-23). `create or replace`s hr_set_auto_eat — which is
+     on CLIENT_CALLABLE, so PART 1b-ii (A9) must confirm the restated body still
+     references a rate gate, and PART 1c-iii that its rejection is still recorded
+     AND sampled — plus two new privileged helpers (hr_auto_eat_tier /
+     hr_auto_eat_max_pct) that decide an entitlement and must reach no client. */
+  '2026-08-29-auto-eat-tiers.sql',
+  /* BOUNTY FIRST-CONTRACT BRACKET (2026-08-23). `create or replace`s
+     hr_accept_bounty__ungated (a SECURITY DEFINER body that fixes a gold+Marks
+     reward and its required kill count) and creates two helpers that decide the
+     clamp floor. None client-callable; the rate-gated wrapper in
+     2026-08-23-bounty.sql §9 is untouched, which is precisely why the inner
+     body's revoke has to be restated here rather than inherited. */
+  '2026-08-29-bounty-first-contract.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────

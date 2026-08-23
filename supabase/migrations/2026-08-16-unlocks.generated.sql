@@ -5,8 +5,8 @@
 --   perks}.js. Any hand edit here is reverted by the next generation and FAILS
 --   `node tools/gen-unlocks.mjs --check`, a preflight in tests/run-smoke.mjs.
 --
---   unlock digest: c146d07a8e4574b9477877d25752ea64588e197a0228c736c91a86dcc7f245c8
---   61 unlock ids · bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=3 · farm_plot_tier=1 · plot=4 · property=5 · recipe=9 · room=8 · theme=6 · trait=1 · worker=1
+--   unlock digest: 82af81354e4d270a2830160ae387d149fd6229a5fdc2e34baae5dda19dba8341
+--   62 unlock ids · bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=3 · farm_plot_tier=1 · plot=4 · property=5 · recipe=9 · room=8 · theme=6 · trait=2 · worker=1
 --
 -- ── WHAT THIS TABLE IS ──────────────────────────────────────────────────
 -- BOOKKEEPING ONLY. For every unlock the game can grant: how two writes to it
@@ -159,6 +159,7 @@ values
   ('theme:volcanic', 'theme', 'flag', 'flag', null, null),
   ('theme:winter', 'theme', 'flag', 'flag', null, null),
   ('trait:auto_eat', 'trait', 'flag', 'flag', null, null),
+  ('trait:auto_eat_2', 'trait', 'flag', 'flag', null, null),
   ('worker', 'worker', 'count', 'stat', 1, null);
 
 -- ── SELF-CHECK ───────────────────────────────────────────────────────────
@@ -166,8 +167,8 @@ do $$
 declare v_n int; v_bad text;
 begin
   select count(*) into v_n from public.hr_unlocks;
-  if v_n <> 61 then
-    raise exception 'hr_unlocks holds % rows, expected 61 — the insert was partial', v_n;
+  if v_n <> 62 then
+    raise exception 'hr_unlocks holds % rows, expected 62 — the insert was partial', v_n;
   end if;
 
   -- Every level has a ladder, every ladder is inside its ceiling, and no ladder
@@ -197,5 +198,5 @@ begin
     raise exception 'the recipe namespace lost its flag storage — % of 9 rows', v_n;
   end if;
 
-  raise notice 'hr_unlocks OK — % ids, bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=3 · farm_plot_tier=1 · plot=4 · property=5 · recipe=9 · room=8 · theme=6 · trait=1 · worker=1', 61;
+  raise notice 'hr_unlocks OK — % ids, bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=3 · farm_plot_tier=1 · plot=4 · property=5 · recipe=9 · room=8 · theme=6 · trait=2 · worker=1', 62;
 end $$;

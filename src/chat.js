@@ -278,7 +278,7 @@
     dockEl = document.createElement('div');
     dockEl.id = 'chat-dock';
     dockEl.innerHTML = ''
-      + '<div id="chat-dock-min">'
+      + '<div id="chat-dock-min" title="Chat" aria-label="Chat" role="button">'
       +   '<span class="cdm-icon"><svg viewBox="0 0 24 24" style="width:15px;height:15px;vertical-align:-2px" aria-hidden="true">'
       +     '<path fill="currentColor" d="M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-4 4v-4H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg></span>'
       +   '<span class="cdm-label">Chat</span>'

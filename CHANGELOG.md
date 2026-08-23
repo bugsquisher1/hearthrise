@@ -4,6 +4,17 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 459 — 2026-08-23 (The overnight audit build)
+
+- 🎓 The tutorial actually works now: clicking the highlighted button does what it says (it never did — fixed), and all six steps teach the real game loop.
+- 📋 Daily tasks are now always doable: the roll can no longer hand you craft/smith tasks before you own the bench that unlocks them.
+- 🍖 Auto-Eat is affordable when you need it: a new 15-Mark tier (triggers at 25% HP); the original becomes tier II.
+- 🎯 Your first bounty contracts ask for 15–25 kills, not 80–120.
+- 🍳 Fixed cooking XP being pushed back down every sync (a half-flipped switch from the cutover).
+- 🛒 Fixed buying hero slots (every purchase was refusing and refunding since the cutover).
+- 🛡️ Monster cards now say what they're weak to; the death screen quotes the real Auto-Eat price; the equipment view matches the fight screen during connection hiccups; reload resumes your activity.
+- 🧪 The test suite was modernized to the server-authoritative world: 987/994 → this build.
+
 ## v0.9.2-beta build 458 — 2026-08-23 (Signup polish)
 
 - 🔒 The invite-code field no longer shows a code-shaped example. (The b457 placeholder happened to match a real unused code.)

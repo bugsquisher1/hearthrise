@@ -2,6 +2,26 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-23 · FROM QA Engineer → TO Systems Engineer · **The farm arm is the only one with no reachable test seam — please publish `__setFarmServerArm`**
+
+Every other arm in the server-authority program exposes its override on a window global, so an in-page
+test can drive the OFF position of the kill switch: `record.js` (`__setSkillsRecordArm`,
+`__setEquipmentRecordArm`, `__setRoomsRecordArm`, `__setMarksRecordArm`, `__setRestedRecordArm`),
+`capstone.js` (`__setBlobRetired`), `artisan-sim.js` (`__setCookingSettlementArm`).
+
+`__setFarmServerArm` lives in `src/data/item-authority.js` and is re-exported by **neither**
+`window.HearthriseItemAuthority` (its publish block lists ~20 names and omits it and
+`isFarmServerArmed`) nor `window.HearthriseFarmSync` (which publishes `isFarmServerArmed` but not the
+setter). So the five in-page farm tests that need the client path — plant/harvest, the perennial
+regrow ladder, the watering window, the `watered` dual-write sweep, `upgradePlot` — cannot reach the
+flag. `withLocalFarm` in `smoke-test.js` currently overrides
+`HearthriseFarmSync.isFarmServerArmed` instead, which drives the exact branch legacy.js's
+`farmSyncArmed()` reads but is one indirection further from the flag than it should be.
+
+**Ask:** add `isFarmServerArmed, __setFarmServerArm` to the `window.HearthriseItemAuthority` publish
+block (or to `HearthriseFarmSync`). Two names. `withLocalFarm` then becomes a two-liner identical to
+`withLocalBlob`, and its ⚠ note can be deleted.
+
 ### 2026-08-17 · FROM Art Director → TO Asset Director · **Home-banner visual-upgrade pass surfaced 3 art requests; b374 shipped the code-doable one (painted plate), these need generation**
 
 The b374 pass swapped the Home hearth banner from flat-vector SVG to the login's painted plate

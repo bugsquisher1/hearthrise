@@ -41,7 +41,7 @@
 // fight without moving a single later roll.
 // ============================================================
 
-import { isAutoEatable } from '../data/items.js?v=458';
+import { isAutoEatable } from '../data/items.js?v=459';
 
 export { isAutoEatable };
 
@@ -49,6 +49,96 @@ export { isAutoEatable };
    Named once so the client, the server and the migration's column default
    cannot each pick their own 0.5. */
 export const DEFAULT_THRESHOLD = 0.5;
+
+/* ════════════════════════════════════════════════════════════════════════
+   TWO TIERS (Designer ruling, 2026-08-23).
+
+   ── WHY ─────────────────────────────────────────────────────────────────
+   The death sheet is the game's best teaching moment, and what it teaches a
+   day-one player is "unlock Auto-Eat". Auto-Eat cost 100 Bounty Marks ≈ 18
+   contracts ≈ ~1,800 kills. The lesson pointed at a purchase the first week
+   could not make, which is the same failure class as the daily-task pool
+   dealing a level-1 account a bench recipe.
+
+   The ruling: a cheap entry tier the SECOND session can afford, triggering at
+   a tighter 25% HP; the existing 100-Mark trait becomes tier II and keeps the
+   settable threshold it has today.
+
+   ── THE SHAPE, AND WHY THE CHEAP TIER KEEPS THE OLD ID ─────────────────
+   `trait:auto_eat` (client `G.traits.auto_eat`) stays the ENTRY tier, and the
+   new `trait:auto_eat_2` is the upgrade. That direction is deliberate:
+   src/features/death-sheet.js reads `G.traits.auto_eat` for "do you own it"
+   and `window.TRAITS.auto_eat.cost` for the price it quotes. Keeping the
+   entry tier on the existing id means the sheet names the CHEAPEST unlockable
+   price and stops nagging a player who already owns tier I, with no change to
+   the sheet at all. Putting the NEW id on the cheap tier would have made the
+   sheet quote 100 Marks to someone who had already bought in.
+
+   It also means the server's entitlement gate — `hr_set_auto_eat`'s
+   "kind='flag', key='trait:auto_eat'" check — keeps its exact meaning: "may
+   this character switch auto-eat on at all". Tier II only widens the SLIDER.
+
+   ── WHAT A TIER ACTUALLY BUYS ──────────────────────────────────────────
+   A CEILING on the trigger point, not a different algorithm. Tier I may set
+   anything up to 25%; tier II up to 100%. `resolveAutoEat` is untouched — it
+   still takes a threshold — because the tier is an ENTITLEMENT question and
+   the decision is a COMBAT question, and merging the two would put an
+   ownership lookup inside a function that runs on every tick of a seeded
+   fight.
+
+   ── WHERE THE CEILING IS APPLIED, ON EACH SIDE ─────────────────────────
+   • Client: `HearthriseAuto.eatThreshold()` — the file's own "ONE reader of
+     the effective trigger point" — clamps on READ, so the engine, the combat
+     panel and the settings copy cannot disagree, and a stored preference is
+     not destroyed when the player is on the cheaper tier.
+   • Server: `hr_set_auto_eat` clamps on WRITE (2026-08-29-auto-eat-tiers.sql).
+     It is the only writer of `auto_eat_pct` AND of `auto_eat_enabled`, an
+     entitlement is never revoked, and the engine only eats when enabled — so
+     "stored pct ≤ the owner's ceiling" holds for every row that can ever pay,
+     which is what lets the accrual engine keep reading the column directly
+     instead of growing a tier key in the hr_state_of envelope.
+   Both sides land on the same effective number, which is the property the
+   away/live parity guard actually needs.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* THE TIER TABLE. `marks` is the authored price and is bound to legacy.js
+   TRAITS (and therefore to the generated src/data/shops.js) by
+   tests/auto-eat-authority.mjs; `maxPct` is bound to the SQL clamp. */
+export const AUTO_EAT_TIERS = Object.freeze({
+  1: Object.freeze({ traitId: 'auto_eat', unlock: 'trait:auto_eat', name: 'Auto-Eat I', marks: 15, maxPct: 25 }),
+  2: Object.freeze({ traitId: 'auto_eat_2', unlock: 'trait:auto_eat_2', name: 'Auto-Eat II', marks: 100, maxPct: 100 }),
+});
+
+/** Highest tier owned: 0 (none), 1 or 2. `owned` is a map of traitId → truthy. */
+export function autoEatTier(owned) {
+  const o = owned || {};
+  if (o[AUTO_EAT_TIERS[2].traitId]) return 2;
+  if (o[AUTO_EAT_TIERS[1].traitId]) return 1;
+  return 0;
+}
+
+/* The ceiling, in the STORED integer-percent form. Tier 0 gets tier 1's
+   ceiling rather than 0: a character who owns nothing never eats anyway
+   (`resolveAutoEat` refuses on `owned`), and returning 0 here would make an
+   un-owned row read as "never auto-eat" if the ownership check were ever
+   reordered — a silent no-op is the most damaging value in this range. */
+export function maxPctForTier(tier) {
+  return (tier >= 2) ? AUTO_EAT_TIERS[2].maxPct : AUTO_EAT_TIERS[1].maxPct;
+}
+
+/** Clamp a stored integer percent to what the tier entitles. */
+export function effectivePct(pct, tier) {
+  const ceiling = maxPctForTier(tier);
+  if (typeof pct !== 'number' || !Number.isFinite(pct)) {
+    return Math.min(ceiling, Math.round(DEFAULT_THRESHOLD * 100));
+  }
+  return Math.max(0, Math.min(ceiling, Math.round(pct)));
+}
+
+/** The same clamp in the client's FRACTION form. */
+export function effectiveThreshold(threshold, tier) {
+  return Math.min(clampThreshold(threshold), maxPctForTier(tier) / 100);
+}
 
 /* THE STORED FORM IS AN INTEGER PERCENT, 0..100 — see the `auto_eat_pct`
    column in supabase/migrations/2026-08-14-auto-eat.sql.

@@ -23,11 +23,15 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   BOUNTY_BASE_REWARDS, BOUNTY_DIFFICULTY_MULT, BOUNTY_KILL_COUNTS,
-  bountyRewards, unlockedTier,
+  BOUNTY_FIRST_CONTRACT_COUNT, BOUNTY_FIRST_CONTRACT_GRACE,
+  BOUNTY_FIRST_CONTRACT_MAX_LEVEL, BOUNTY_FIRST_CONTRACT_TIER,
+  bountyRewards, bountyCountRange, unlockedTier, unlockedTypes, isFirstContract,
 } from '../src/core/bounty.js';
+import { XP_TABLE, levelFromXp } from '../src/core/xp.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SQL = join(ROOT, 'supabase', 'migrations', '2026-08-23-bounty.sql');
+const SQL_FIRST = join(ROOT, 'supabase', 'migrations', '2026-08-29-bounty-first-contract.sql');
 
 // `when <a> then <b>` with any run of whitespace around the tokens.
 function whenThen(a, b) {
@@ -91,6 +95,64 @@ export async function bountyDriftGuard() {
     'CONTROL: the accept/claim RPCs are missing from the migration.');
   ok(/'type_not_server_verifiable'/.test(sql),
     'CONTROL: the non-cull refusal is missing — proof/weapon/streak would be accepted.');
+
+  // ── (5) THE FIRST-CONTRACT BRACKET (designer ruling 2026-08-23) ─────────
+  // src/core/bounty.js draws the count; 2026-08-29-bounty-first-contract.sql
+  // clamps it. A drift means the board offers "kill 18" and the turn-in demands
+  // 80 — the client and the server disagreeing about one contract, which is the
+  // failure the whole server-authority program exists to prevent.
+  const sqlFirst = (await readFile(SQL_FIRST, 'utf8')).replace(/\r\n/g, '\n');
+  const [flo, fhi] = BOUNTY_FIRST_CONTRACT_COUNT;
+  ok(new RegExp(`select\\s+${flo}::bigint,\\s*${fhi}::bigint`).test(sqlFirst),
+    `SQL hr_bounty_first_contract_range does not return (${flo},${fhi}) — the client would draw a `
+    + 'count the server clamps away.');
+  ok(new RegExp(`limit\\s+${BOUNTY_FIRST_CONTRACT_GRACE}\\)\\s*t\\)\\s*<\\s*${BOUNTY_FIRST_CONTRACT_GRACE}`)
+    .test(sqlFirst.replace(/\s+/g, ' ').replace(/ \)/g, ')')),
+    `SQL hr_bounty_first_contract does not use the grace ${BOUNTY_FIRST_CONTRACT_GRACE} on both the `
+    + 'LIMIT and the comparison — a mismatch makes the probe answer a different question than the clamp asks.');
+
+  // The FLOOR moves and the CEILING does not. Asserted as a property of the SQL,
+  // because "only the floor" is the whole reason an honest 80-kill contract from
+  // a level-2 client survives a server that still thinks the character is new.
+  ok(/select\s+kmin\s+into\s+v_kmin\s+from\s+public\.hr_bounty_first_contract_range\(\)/.test(sqlFirst),
+    'SQL: the first-contract swap must take kmin ONLY. Taking kmax too would rewrite a legitimate '
+    + '80-kill contract down to 25 whenever the server under-knows the Bounty-Hunter level.');
+  ok(!/into\s+v_kmin,\s*v_kmax\s+from\s+public\.hr_bounty_first_contract_range/.test(sqlFirst),
+    'SQL: hr_bounty_first_contract_range must not overwrite v_kmax — see above.');
+
+  // The GRACE is DERIVED, not chosen: the cheapest tier-1 cull XP against the
+  // level-2 rung decides how many turn-ins a character can hold level 1 for.
+  {
+    const cheapest = Math.min(...Object.keys(BOUNTY_DIFFICULTY_MULT)
+      .map((d) => bountyRewards(BOUNTY_FIRST_CONTRACT_TIER, 'cull', d).xp));
+    let xp = 0; let n = 0;
+    while (levelFromXp(xp) <= BOUNTY_FIRST_CONTRACT_MAX_LEVEL && n < 50) { n++; xp += cheapest; }
+    ok(n === BOUNTY_FIRST_CONTRACT_GRACE,
+      `BOUNTY_FIRST_CONTRACT_GRACE=${BOUNTY_FIRST_CONTRACT_GRACE} but the reward table now allows `
+      + `${n} turn-in(s) at Bounty-Hunter level <= ${BOUNTY_FIRST_CONTRACT_MAX_LEVEL} `
+      + `(cheapest tier-${BOUNTY_FIRST_CONTRACT_TIER} cull xp ${cheapest}, level-2 rung ${XP_TABLE[1]}). `
+      + 'The server grace must stay a SUPERSET of the client bracket, or a legitimate contract is '
+      + 'silently raised to the tier floor.');
+  }
+
+  // The bracket applies where the ruling says and NOWHERE else.
+  ok(bountyCountRange('cull', 1, 1)[0] === flo && bountyCountRange('cull', 1, 1)[1] === fhi,
+    'bountyCountRange(cull, tier 1, BH level 1) is not the first-contract bracket.');
+  ok(bountyCountRange('cull', 1, 2)[0] === BOUNTY_KILL_COUNTS.cull[1][0],
+    'bountyCountRange(cull, tier 1, BH level 2) must be the tier table — the ruling scales up from level 2.');
+  for (let t = 2; t <= 6; t++) {
+    ok(bountyCountRange('cull', t, 1)[0] === BOUNTY_KILL_COUNTS.cull[t][0],
+      `tier ${t} must keep its own floor at BH level 1 — a tier-6 cull for 15 kills pays `
+      + `${BOUNTY_BASE_REWARDS[6].gold} gold and is a mint, not a ramp.`);
+  }
+  ok(!isFirstContract('cull', 1, undefined) && !isFirstContract('cull', 1, null)
+     && !isFirstContract('cull', 1, NaN),
+    'A caller that supplies NO Bounty-Hunter level must get the tier table, not the generous bracket '
+    + '— `undefined|0 === 0` would silently make every legacy call site a first contract.');
+  ok(unlockedTypes(BOUNTY_FIRST_CONTRACT_MAX_LEVEL).length === 1
+     && unlockedTypes(BOUNTY_FIRST_CONTRACT_MAX_LEVEL)[0] === 'cull',
+    'CONTROL: cull is no longer the only type unlocked at the first-contract level, so restricting '
+    + 'the bracket to cull no longer covers what a new hunter is offered.');
 
   return problems;
 }

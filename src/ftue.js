@@ -50,7 +50,12 @@
       target: 'body',                     // centered modal — no spotlight
       placement: 'center',
       title: 'Welcome to Hearthrise',
-      body: 'A cozy idle RPG where you train skills, fight monsters, and build a homestead. Want a quick 60-second tour of the basics?',
+      /* b432: the old line listed three activities side by side ("train skills,
+         fight monsters, build a homestead") and drew no line between them, so
+         the tour opened by describing a menu instead of a loop. The whole game
+         is one sentence — gather, make, fight, build, repeat — and it is worth
+         the first card we get. */
+      body: 'A cozy idle RPG. You gather materials, cook and craft them into food and gear, fight for loot, and spend it all building a homestead — and the loop keeps running while you are away. Want a quick 60-second tour?',
       primary: 'Take the tour',
       // b217: was "Skip — I know what I'm doing", which wrapped to two lines
       // and made the secondary taller than the primary sitting beside it.
@@ -62,17 +67,33 @@
       target: '.top-stats',
       placement: 'below',
       title: 'Your stats live up here',
-      body: 'Combat level, total level, gold, and gems. Your progress saves itself to your account, continuously — no save button needed.',
+      /* b432: this step used to spend the whole card naming the pills it was
+         pointing at, which taught nothing — a new player can read "500 Gold"
+         without being told it says gold. It is also the ONLY moment the tour
+         spotlights the purse, and the new-player audit found the tour never
+         mentions the shop at all: the answer to "why do I keep dying on my
+         first night" is 700g of starter armour, and nothing in the game says
+         so. Point the number at what it buys. */
+      body: 'Combat level, total level, gold and gems. Gold is your first upgrade — a few hundred buys boots, gloves and a belt at Shops, and armour is what stops you dying. Progress saves itself to your account; there is no save button.',
       primary: 'Got it',
     },
     {
       id: 'skills',
-      // b229: Skills folded into the Character screen (its default sub-tab), so
-      // the standalone Skills nav button is gone — point the tour at Character.
-      target: 'button[data-tab="character"]',
+      /* b229 pointed this at Character because Skills had been folded into it
+         as a sub-tab and the standalone nav button was gone.
+         b432: the button is BACK — the live sidebar renders `Skills` under
+         ADVENTURE, directly below Inventory — so the tour was routing players
+         the long way round to a screen that has its own door, and then the
+         player found a second Skills entry the tour had not mentioned. Point
+         at the door that exists. */
+      target: 'button[data-tab="skills"]',
       placement: 'right',
-      title: 'Train skills on the Character screen',
-      body: 'Open Character and you land on Skills — Woodcutting, Mining, Fishing, Cooking and the rest. Pick one and let it run; even when you\'re offline, progress continues.',
+      /* And say what gathering is FOR. Every gathering tile shows XP and a
+         timer and never names the item it yields or the recipe it feeds, so
+         the link between "chop a tree" and "build a house" — the spine of the
+         whole game — was nowhere on screen. */
+      title: 'Gathering feeds everything else',
+      body: 'Woodcutting, Mining, Fishing and Farming stock your bag. Cooking, Smithing and Crafting turn what you gathered into food, gear and the timber your homestead is built from. Start one and let it run — even when you\'re offline, progress continues.',
       primary: 'Next',
       autoAdvanceOnClick: true,
     },
@@ -89,7 +110,14 @@
          what actually ends an unattended fight is running out of health with
          nobody there to eat, and that is a thing the player can act on rather
          than a permit they have to wait for. */
-      body: 'Combat is the part you play with your hands. Monsters hit back, so you eat between kills — and a fight ends when you fall. Your fights carry on while you\'re away, but only until you fall, so learn a foe here before you leave one running overnight.',
+      /* b432: "you eat between kills" was true and useless — it never said WHO
+         eats. Nobody does: Auto-Eat is a Bounty Shop unlock, so on day one the
+         Eat button is a thing the player has to press with their own hand, and
+         the audit's very first fight ended with eight uneaten shrimp in the
+         bag. The death sheet already teaches this beautifully; it should not
+         have to be the first place a player hears it. Naming Cooking closes
+         the other half — where food comes from at all. */
+      body: 'Combat is the part you play with your hands. Monsters hit back, so you eat between kills — press Eat yourself, nobody does it for you yet, and food comes from Cooking. A fight ends when you fall. Your fights carry on while you\'re away, but only until you fall, so learn a foe here before you leave one running overnight.',
       primary: 'Next',
       autoAdvanceOnClick: true,
     },
@@ -97,8 +125,15 @@
       id: 'inventory',
       target: 'button[data-tab="inventory"]',
       placement: 'right',
-      title: 'Your items live here',
-      body: 'Drag items onto the equipment doll to wear them. Right-click any item to equip, eat, bury bones, inspect, or sell. Hover to compare gear vs what you have on.',
+      /* b432: this step opened on "drag items onto the equipment doll", which
+         is a mechanic a brand-new player cannot try — a day-one bag holds two
+         kinds of seed, some raw shrimp and whatever the first monster dropped,
+         and not one of them is equippable. Lead with what is actually in the
+         bag, keep the equip instruction as the second half for when there IS
+         gear, and answer the question every RPG player has already asked
+         themselves by this point: what happens to my stuff when I die. */
+      title: 'Your loot lives here',
+      body: 'Everything you gather, cook and kill for lands in your bag. Right-click any item to eat it, equip it, bury bones or see what it is for — and once you own gear, drag it onto the doll beside your bag to wear it. Nothing here is lost when you fall.',
       primary: 'Next',
       autoAdvanceOnClick: true,
     },
@@ -114,7 +149,12 @@
          used to carry it. The `skills` step above is deliberately UNCHANGED —
          "even when you're offline, progress continues" is true for skills, and
          it is the promise the game keeps. */
-      body: 'Set a skill running before you close the tab — it pays the whole time you\'re gone. A fight pays too, but only until you fall, so leave one running with food to spare. Good luck out there.',
+      /* b432: the tour used to end by handing the player back a full dashboard
+         with no single next action, which is the exact moment the audit heard
+         "…so what do I do now?". The game already answers it — the "Next up"
+         list on Home routes every goal to the screen it is played on — and the
+         tour was the one surface that never pointed at it. */
+      body: 'Start with "Next up" on the Home screen — every row takes you straight to where it is played. Set a skill running before you close the tab and it pays the whole time you\'re gone. A fight pays too, but only until you fall, so leave one running with food to spare. Good luck out there.',
       primary: 'Start playing',
       onPrimary: function(){ endFTUE(true); },
     },
@@ -237,6 +277,34 @@
       if(s && typeof s.onSecondary === 'function'){ s.onSecondary(); return; }
     });
 
+    /* b432 — THE HIGHLIGHT HAD TO BE CLICKABLE AND WAS NOT.
+       Three of the six steps (skills / combat / inventory) arm
+       `autoAdvanceOnClick` on the nav button they spotlight, and the card
+       invites the player to click it. `.ftue-shade` is a full-viewport
+       pointer-events:auto layer that sits ON TOP of that button, so the click
+       hit the shade and nothing happened at all — the single worst kind of
+       tutorial bug, an invitation with no response. The auto-advance hook has
+       therefore never been able to fire since it was written; the player had
+       to find the small "Next" button instead.
+       MEASURED before the fix, on the live boot:
+         document.elementFromPoint(centre of the spotlit Character tab)
+           === DIV.ftue-shade    (not the button)
+       FORWARD rather than unblock: dropping pointer-events on the shade would
+       make the whole darkened page live during the tour, so a stray click
+       could fire any control behind it. Only a click that lands inside the
+       CURRENT step's target, on a step that actually invited it, passes. */
+    rootEl.querySelector('.ftue-shade').addEventListener('click', function(e){
+      var step = STEPS[stepIndex];
+      if(!step || !step.autoAdvanceOnClick || !step.target) return;
+      var tgt = findTarget(step.target);
+      if(!tgt) return;
+      var r = tgt.getBoundingClientRect();
+      if(!r.width || !r.height) return;
+      if(e.clientX < r.left || e.clientX > r.right) return;
+      if(e.clientY < r.top  || e.clientY > r.bottom) return;
+      tgt.click();   // fires the tab AND the armed auto-advance handler
+    });
+
     document.addEventListener('keydown', escListener, true);
     window.addEventListener('resize', onResize);
     window.addEventListener('scroll', onResize, true);
@@ -248,6 +316,26 @@
   function onResize(){
     if(resizeRaf) cancelAnimationFrame(resizeRaf);
     resizeRaf = requestAnimationFrame(positionCurrent);
+  }
+
+  /* b432 — TAKE THE TARGET THAT IS ACTUALLY ON SCREEN.
+     Every nav destination exists TWICE in the DOM: the desktop left rail and
+     the mobile bottom bar both render `button[data-tab="combat"]`.
+     `document.querySelector` returns the rail's copy, which on a phone is
+     `display:none` — so the spotlight collapsed to a zero-size box at 0,0 and
+     the card pointed at the top-left corner of the screen while the real,
+     visible tab sat un-highlighted at the bottom. Resolve to the first match
+     that is genuinely laid out; fall back to the first match so a target that
+     is briefly un-rendered still behaves exactly as it used to. */
+  function findTarget(sel){
+    if(!sel) return null;
+    var all;
+    try { all = document.querySelectorAll(sel); } catch(e){ return null; }
+    for(var i = 0; i < all.length; i++){
+      var r = all[i].getBoundingClientRect();
+      if(r.width > 0 && r.height > 0) return all[i];
+    }
+    return all[0] || null;
   }
 
   // ── Step rendering ──────────────────────────────────────────
@@ -294,7 +382,7 @@
     // now tracked and disarmed on step change AND at endFTUE.
     disarmAutoAdvance();
     if(step.autoAdvanceOnClick && step.target){
-      var tgt = document.querySelector(step.target);
+      var tgt = findTarget(step.target);
       if(tgt){
         var handler = function(){
           disarmAutoAdvance();
@@ -332,7 +420,7 @@
       return;
     }
 
-    var tgt = document.querySelector(step.target);
+    var tgt = findTarget(step.target);
     if(!tgt){
       // Target missing — fall back to centered card
       spot.style.display = 'none';

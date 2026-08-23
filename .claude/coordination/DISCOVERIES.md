@@ -4,6 +4,78 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-23 - QA Engineer (b456 test-debt burn-down) - FOUR live defects the b454/b455 cutover left behind, all found by modernising the suite to the armed model
+
+Filed together because they share one shape: **a protection or a flag that did not follow the thing
+it protects when authority moved.** Each is reproduced, each has a red guard pinning it, and none is
+silenced. Full repro detail is in the test comments named below.
+
+**P1 · The cooking settlement arm is HALF-FLIPPED — cooking XP is server-owned and never paid.**
+`src/data/item-authority.js:91 COOKING_SETTLEMENT_ARM_ENABLED = true` while its coupled twin
+`src/core/artisan-sim.js:547` is still `false`. Both files' own headers say the three legs (plus
+`record.js ROOMS_RECORD_ARM_ENABLED`, which IS true) flip together. b454 flipped two of three.
+MEASURED in this build: `classifySkill('cooking') === 'accrued'`, `serverAccruedSkill('cooking') === true`,
+`benchPayable('cooking') === false` (blocked on `noBurn`, because `serverOwnedBonusKeys()` is empty).
+So cooking is enrolled as server-settled — the absolute envelope ASSIGNS its xp, including downward —
+while the settlement engine (the same artisan-sim.js `tools/pack-edge.mjs` vendors into the Edge
+Function) refuses to pay the bench. Cooking xp cannot advance and every settle re-asserts it down;
+this is the live "cooking XP resets on reload" report returning. The Home "banking offline" row also
+now tells the player cooking banks away time, which it does not.
+AFFECTED: `src/core/artisan-sim.js`, `src/data/item-authority.js`, `src/data/skill-authority.js`,
+`src/features/home-dashboard.js` (copy only).  RED GUARDS: `B431-4`, `B431-5`, `B385-CLIENTSKILL`,
+`OFFLINE-CLARITY 2`.  ACTION → **Systems Engineer**: flip `artisan-sim.js:547` to `true` and redeploy
+the Edge Function (it vendors that file). Do not "fix" it by relaxing the guards.
+
+**P1 · A hero slot cannot be bought at all under the retired blob.**
+`src/multi-character.js unlockSlot()` earns its atomicity by PROVING the write: it calls `saveLocal()`
+and reads `hearthbound-save-v2` back, requiring both the gem debit and `heroSlotsUnlocked` to be in the
+blob before granting. b455 retires that blob (saveLocal returns before writing; loadLocal removes any
+leftover), so the readback is `null`, `durable` is false, and **every** purchase rolls back.
+MEASURED: `unlockSlot(1)` → `{ok:false, reason:"Couldn't save your purchase, so nothing was charged."}`,
+gems untouched, slot not granted. Nothing is charged, so it is a hard block rather than a loss — but a
+200/400/1500-gem premium purchase is dead. It also blinds two CI guards: `saveSlotGuard` and
+`slotSwitchGuard` build their multi-character fixtures through the real `unlockSlot` and now correctly
+report vacuity ("the harness never reached character 3").
+ACTION → **Systems Engineer**: move the durability proof to a store that still exists (a server
+slot-purchase verb, or the durable profile / `client_state` record). Do NOT delete the proof — it is
+what stopped the b371 gem dupe (entitlement outliving the payment).  RED GUARD: `SLOT-BUY-1`.
+
+**P1 · The capstone's save write bypasses the auth breaker AND the gateway retry.**
+Under `BLOB_RETIRED`, `sync.js snapshotIfDue` takes the `isBlobRetired()` branch and PUTs through
+`hr_put_client_state` (`src/net/client-state.js putClientState`) — a bare `fetch`. It does not go
+through `fetchWithAuthRetry`, so the one periodic save the game still makes lost, in one step:
+(1) b371's single jittered retry on 502/503/504 (measured: a 503 costs the save outright, one attempt);
+(2) b331's auth accounting — a 401 is not counted as server evidence, the dead-token latch never
+closes, and `onAuthExpired` never fires, which is the infinite-retry loop that guard exists to prevent;
+(3) the clock-skew lesson a 200-carrying-an-"expired"-token teaches.
+Reads still go through the wrapper, so a poll may still teach the gate — the WRITE path's own hardening
+is simply gone.  ACTION → **Systems Engineer**: route `putClientState` through the same auth/retry
+wrapper (or give it equivalent accounting).  RED GUARDS: `b371: a write killed in flight is retried
+ONCE` (part 4), `authResilienceGuard` (the ARMED leg).
+
+**P3 · Settings still advertises a 30-second sync cadence the game stopped using.**
+b371 derived the cadence in the auth card (`src/settings-page.js` ~546, `syncing every ' + everySec + 's'`)
+but left an un-derived twin six lines below: `cloudMeta = 'Auto-syncing every 30s — waiting for first
+round-trip.'` (~595). That branch is taken whenever a live session has no `G.cloudSyncedAt` yet — i.e.
+every player's first minute. The real cadence is 60s.  ACTION → derive it from the same
+`syncCfg.snapshotIntervalMs` the line above already reads.  RED GUARD: `b371: 503 writes + 200 reads
+must NOT claim "cloud save active"`.
+
+**Also filed (not a defect, a standing debt):** `renderCombat` loses its error boundary
+non-deterministically — three wrap-by-reassignment sites (`src/features/combat-screens.js` ~1483,
+`src/legacy.js` ~9836 and ~10167) reassign it at module-init without carrying `__hrWrapped` through, and
+which of them lands relative to the boundary's `wrapAll()` is module load order. MEASURED: 4/4 fresh
+boots showed it wrapped; 3/8 full suite runs on the same build showed it stripped. It is pinned as
+RACY in `b334` with its reason (the same treatment `renderProfile` already has) rather than left as a
+coin-flip red. The real fix is the standing `wrapShowTab` debt — stop hooking by reassignment;
+`showTab` already paid it via the tap registry.
+
+**A harness lesson worth keeping.** `applyRecord` replaces `G._record` WHOLESALE. Mixing
+`stampBalanceLikeLoad` with `stampRecordLikeLoad` in one test silently drops the fields the other one
+supplied — measured as a Kitchen rung vanishing mid-test and a "Build" button appearing where the test
+expected "Upgrade". Use ONE stamper per test, and stamp BEFORE the action you are measuring (a stamp
+carrying a fresh `accrued_to` legitimately retires the display predictions you just made).
+
 ### 2026-08-17 - Art Director (b374) - The Home hearth banner now shares the login's painted plate; the flat-vector SVG scene is retired from Home (still exported)
 
 **Discovery / change.** The Home dashboard's hearth band (`.hd-hearth`, built in

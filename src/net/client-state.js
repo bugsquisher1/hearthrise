@@ -48,7 +48,7 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=458';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=459';
 
 /* ── THE DORMANT ARM ─────────────────────────────────────────────────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):
@@ -118,6 +118,9 @@ export const RESIDUE_FIELDS = Object.freeze([
   'autoEatPct',     // auto-eat threshold pref (the authoritative eat is server combat;
                     // this is the client's own slider position — self-only, would reset to 0.5 otherwise)
   'createdAt',      // the account's Founder date — self-only display; would be lost under arm otherwise
+  'heroSlotsUnlocked', // b459: hero-slot ENTITLEMENT (the gems payment is the record side; this is
+                    // which slots the account owns). Was stranded under arm — a purchased slot
+                    // would vanish on reload; caught while fixing SLOT-BUY-1.
 ]);
 const RESIDUE_SET = new Set(RESIDUE_FIELDS);
 
@@ -269,7 +272,12 @@ export async function putClientState(patch, opts) {
   const slot = (o.slot !== undefined && o.slot !== null) ? o.slot : resolveActiveSlot(o.pinnedSlot);
   const idem = o.idem || (typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID() : String(Date.now()) + '-' + Math.floor(Math.random() * 1e9));
-  const f = (typeof fetch !== 'undefined') ? fetch : null;
+  /* b459: honor an injected transport FIRST — sync.js passes fetchWithAuthRetry
+     here so the capstone save write gets the gateway-retry + auth-accounting
+     hardening (the bare global fetch had silently bypassed both), and a test's
+     override really is the transport, as the header promises. */
+  const f = (typeof o.fetch === 'function') ? o.fetch
+    : (typeof fetch !== 'undefined') ? fetch : null;
   if (!f) return { ok: false, error: 'no_fetch' };
   try {
     const resp = await f(url.replace(/\/$/, '') + '/rest/v1/rpc/hr_put_client_state', {

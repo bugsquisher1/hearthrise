@@ -10,6 +10,58 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - Bug flow: reproduce → minimize → severity → root cause → fix/route → reproduce → regression test → verify surroundings.
 
 ## Log
+### 2026-08-23 · TEST-DEBT BURN-DOWN after the b454/b455/b456 cutover — 73 red → 7, and the 7 are real bugs
+
+**What the 73 actually were.** Not 73 problems: ONE problem, 73 times. The harness never runs a real
+`hr_load`, so `G._record` is absent and every armed field (`skills`, `equipment`, `rooms`, `marks`,
+`restedXp/At`, plus `gold/gems`) reads UNKNOWN and fail-closes. `stampBalanceLikeLoad` had already
+solved this for gold/gems; the cutover armed seven more fields and nobody extended it. The fix is
+`stampRecordLikeLoad(G)` (smoke-test.js, beside its gold ancestor): builds a real hr_load envelope out
+of what G holds — `state.*` scalars, `res.skills`/`res.equipment` at the top level, `res.progress[]`
+`room:<id>` rows — and pushes it through the REAL `applyRecord`. It pokes no `_record` internals, so a
+green test proves the armed READ path carries the value.
+
+**Three new seam runners, all "drive the position the test is ABOUT".**
+`withLocalBlob` (capstone off — saveLocal/loadLocal are no-ops under the arm, which silently turned
+nine save/load tests into tests of nothing), `withLocalFarm` (farm RPC routing off — plant/water/
+harvest/upgrade now send intents, so the local farm arithmetic had no path to run), and
+`restoreGAndRecord` (a test that drives a REAL `loadLocal` ends in `forgetServerOfRecord`, which strips
+G and leaves the ambient character at 1/1 hp — that took ACT-1 and four COMBAT-UI tests down with it
+until the restore also re-stamped).
+
+**Things I got wrong on the way, worth not repeating.**
+1. `applyRecord` replaces `_record` WHOLESALE — mixing the two stampers in one test drops fields.
+2. A `const` declared inside `try` is invisible to `finally`. Hoist anything the cleanup touches.
+3. A test that caches a DOM node across a render that does `panel.innerHTML = …` is asserting on a
+   detached node (ELEM-DISC-4 — it had been passing for the wrong reason for as long as the ambient
+   worn set happened to contain a weapon).
+4. XP is granted as a FLOOR of `paced * (1+bonus)`, so whether a +5% buff is visible at all depends on
+   where the ambient stack leaves that product relative to the next integer. AWAY-16 measured 30000 vs
+   30125 in isolation and 36000 vs 36000 inside the suite, same build. Neutralise the ambient stack AND
+   pick a magnitude that clears a whole point — then assert the headroom on the real grant path first,
+   so a future fixture failure says "fixture", not "the engine paid nothing".
+
+**Two flakes killed with the same tool.** `b217` (cooking quest, 1/2/3 across three runs) was an
+unstamped Kitchen rung making a burn-proof range a 25% coin flip. `b334`'s `renderCombat` is a genuine
+boot-order race (4/4 boots wrapped, 3/8 suite runs stripped) and is now pinned RACY with its reason
+rather than left as a coin-flip red — the same treatment `renderProfile` already carried.
+
+**Also modernised the NODE guards** nobody had looked at: `marks-record`, `rested-record`,
+`rooms-record`, `equipment-record`, `farm-sync`, `blob-retire`. Every one asserted `ARM_ENABLED must
+ship false` and reached its dormant block via `reset()` — which now falls back to the armed const. Same
+treatment: invert the default assertion, force the dormant position through the seam.
+
+**The rule I held throughout:** never delete an assertion to make a run green. 83 assertion lines
+removed, 156 added; every removed line is either re-added verbatim inside a seam-forced block, inverted
+deliberately with a message naming the new failure, or restated for the armed model with its reason.
+Two fixtures that had rotted (`B340-2`, `B347-R3/R4`) are now DERIVED from the registry instead of
+listing the fields that happened to be moved when they were written, so the next arm cannot rot them.
+
+**7 red on purpose, 4 real product bugs** — filed in DISCOVERIES.md and routed to Systems Engineer:
+the half-flipped cooking arm (4 guards), the dead hero-slot purchase (1, + it blinds `saveSlotGuard`
+and `slotSwitchGuard`), the capstone save write bypassing the auth breaker and the gateway retry (2),
+and the 30s Settings copy (1).
+
 ### 2026-08-11 · CONSERVATION-INVARIANT FUZZ built — `tests/conservation-fuzz.mjs`
 Security's three-times-named cutover blocker. Randomised, seeded, ~61,000 ops exercised; **10/10
 planted conservation violations caught**; no real violation found in the server-authority foundation.

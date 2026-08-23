@@ -16,8 +16,8 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 47a5b70ed02535daaa17e682d2c82299617fddcdc5b47f2b82e82aa2f21a70b8
-//   128 offers · 224 cost lines · 6 prices that are formulas, not data
+//   catalogue digest: 682f10bb4d66b6cac2d78ad2ea7b0ade321e1bff3d5d8246c1594d00acd858c7
+//   129 offers · 225 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
@@ -26,7 +26,7 @@
 //   seed               9  src/legacy.js
 //   equip             20  src/legacy.js
 //   bounty             5  src/legacy.js
-//   trait              1  src/legacy.js
+//   trait              2  src/legacy.js
 //   cosmetic           4  src/render/shop.js
 //   bank               1  src/legacy.js
 //   iap                9  src/legacy.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "47a5b70ed02535daaa17e682d2c82299617fddcdc5b47f2b82e82aa2f21a70b8";
+export const SHOPS_DIGEST = "682f10bb4d66b6cac2d78ad2ea7b0ade321e1bff3d5d8246c1594d00acd858c7";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -860,9 +860,15 @@ export const SHOP_OFFERS = [
   },
   {
     id: "trait.auto_eat", table: "trait",
-    name: "Auto-Eat",
-    cost: [{ kind: "currency", id: "marks", amount: 100 }],
+    name: "Auto-Eat I",
+    cost: [{ kind: "currency", id: "marks", amount: 15 }],
     grant: [{ kind: "unlock", id: "trait:auto_eat", amount: 1 }],
+  },
+  {
+    id: "trait.auto_eat_2", table: "trait",
+    name: "Auto-Eat II",
+    cost: [{ kind: "currency", id: "marks", amount: 100 }],
+    grant: [{ kind: "unlock", id: "trait:auto_eat_2", amount: 1 }],
   },
   {
     id: "worker.1", table: "worker",
@@ -973,7 +979,7 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const TRAITS={",
     "spends_at": "legacy.js buyTrait()",
-    "count": 1
+    "count": 2
   },
   {
     "table": "cosmetic",

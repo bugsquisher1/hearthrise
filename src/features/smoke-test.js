@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=458' directly.
+// modularised, will import { G } from '../state/game.js?v=459' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=458';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=458';
+import { on, snapshot } from '../net/events.js?v=459';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=459';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=458';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=459';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -122,6 +122,193 @@ function stampBalanceLikeLoad(G, opts) {
   const version = Number.isFinite(o.version) ? o.version : Math.max(prev + 1, Date.now());
   return R.applyRecord(G, { ok: true, version, now: new Date(version).toISOString(), state });
 }
+
+/* ── stampRecordLikeLoad — THE SAME HARNESS FOR **EVERY** ARMED FIELD ─────────
+   b456 TEST-DEBT BURN-DOWN. `stampBalanceLikeLoad` above solved this problem for
+   gold/gems when those two armed. The b454 cutover armed SEVEN more fields
+   (skills, equipment, rooms, marks, restedXp, restedAt, alongside offlineBudget),
+   and every one of them landed the suite in the identical hole its header
+   describes: the harness never runs a real `hr_load`, so `G._record` is absent,
+   so `roomsOf`/`marksOf`/`skillXpOf`/`equipmentMap`/`restedOf` all fail-closed to
+   UNKNOWN — and ~40 tests that legitimately DO have a loaded character went red
+   without a single line of product code having regressed.
+
+   This is that simulation for the whole envelope, and it is FAITHFUL in exactly
+   the way the gold one is: it POKES NO `_record` INTERNALS. It builds a properly
+   shaped hr_load envelope out of what G currently holds and pushes it through the
+   REAL `window.HearthriseRecord.applyRecord`, so a passing test proves the armed
+   READ path (pick/decode → applyRecord → recordValue → the per-field accessor)
+   actually carries the value. Each field is placed where hr_state_of really puts
+   it, which is three different places and is the reason this cannot be one loop:
+     • `state.{gold,gems,marks,rested_xp,rested_at,accrued_to}` — flat scalars;
+     • `res.skills` / `res.equipment` — TOP-LEVEL siblings of `state`;
+     • `res.progress[]` — `{kind:'unlock', key:'room:<id>', value:<rung>}` rows,
+       which `pickRooms` shapes into the `{id: rung}` map.
+
+   ⚠ IT IS OPT-IN, PER TEST, for the reason stampBalanceLikeLoad states and which
+     applies with more force now: a blanket stamp would hide a real regression in
+     which production forgot to re-stamp after a server write (the b347/b356
+     `client-overwrote` fault). A test that verifies fail-closed/UNKNOWN behaviour
+     on a genuinely-unstamped field must NOT call it.
+
+   ⚠ IT ONLY EVER STAMPS FIELDS THAT ARE CURRENTLY ARMED (serverOfRecordFields()),
+     so it is a no-op for a dormant field and safe to call from a test that has
+     forced a seam off.
+
+   ⚠ IT NEVER INVENTS A VALUE. A field G does not hold — or holds in a shape the
+     server's decoder would reject — is simply not supplied, which leaves it
+     UNKNOWN exactly as a lean envelope would. The return value is applyRecord's
+     report, so a caller can assert `written` contains what it needed.
+
+   ⚠ STAMP **BEFORE** THE ACTION YOU ARE MEASURING, not after. applyRecord retires
+     the display predictions the envelope's watermark covers — faithfully, because
+     a real hr_load carrying a fresh `accrued_to` genuinely does contain them — so
+     stamping in the middle of a measurement can legitimately erase the very grant
+     the test just made. Set the world up, stamp, then act, then read. */
+function stampRecordLikeLoad(G, opts) {
+  const o = opts || {};
+  const R = (typeof window !== 'undefined') && window.HearthriseRecord;
+  if (!R || !G || typeof G !== 'object') return null;
+  const armed = R.serverOfRecordFields();
+  const has = (f) => armed.indexOf(f) !== -1;
+  const state = {};
+  const res = { ok: true };
+
+  if (has('gold') && typeof G.gold !== 'undefined') state.gold = G.gold;
+  if (has('gems') && typeof G.gems !== 'undefined') state.gems = G.gems;
+  if (has('marks')) { const n = Number(G.marks); if (Number.isFinite(n) && n >= 0) state.marks = Math.floor(n); }
+  if (has('restedXp')) { const n = Number(G.restedXp); if (Number.isFinite(n) && n >= 0) state.rested_xp = Math.floor(n); }
+  /* Both watermarks decode with the "act only on CERTAINTY" rule — a zero/negative
+     epoch is not a watermark — so an absent or garbage one is left UNKNOWN here
+     rather than being invented as 1970, which is what the decoder would refuse. */
+  if (has('restedAt')) { const n = Number(G.restedAt); if (Number.isFinite(n) && n > 0) state.rested_at = Math.floor(n); }
+  if (has('offlineBudget')) {
+    const at = G.offlineBudget && Number(G.offlineBudget.at);
+    if (Number.isFinite(at) && at > 0) state.accrued_to = at;
+  }
+  if (has('skills') && G.skills && typeof G.skills === 'object' && !Array.isArray(G.skills)) {
+    /* decodeSkills condemns the WHOLE map on one bad cell and treats an EMPTY map
+       as "the read did not populate", so mirror both rules rather than shipping a
+       map the decoder will reject: drop non-finite cells, and supply nothing at
+       all when the result is empty. */
+    const m = {}; let n = 0;
+    for (const k in G.skills) {
+      if (!Object.prototype.hasOwnProperty.call(G.skills, k)) continue;
+      const v = Number(G.skills[k]);
+      if (Number.isFinite(v) && v >= 0) { m[k] = Math.floor(v); n++; }
+    }
+    if (n) res.skills = m;
+  }
+  if (has('equipment') && G.equipment && typeof G.equipment === 'object' && !Array.isArray(G.equipment)) {
+    /* The wire carries `{slot: item_id}` with `null` for an explicit empty slot.
+       An id the server's grammar would reject is passed through UNCHANGED so the
+       decoder condemns the set exactly as it would in production — silently
+       dropping it here would make the harness kinder than the server. */
+    const m = {};
+    for (const k in G.equipment) {
+      if (!Object.prototype.hasOwnProperty.call(G.equipment, k)) continue;
+      const v = G.equipment[k];
+      m[k] = (typeof v === 'string' && v) ? v : null;
+    }
+    res.equipment = m;
+  }
+  if (has('rooms')) {
+    const prog = [];
+    const rooms = (G.rooms && typeof G.rooms === 'object' && !Array.isArray(G.rooms)) ? G.rooms : {};
+    for (const k in rooms) {
+      if (!Object.prototype.hasOwnProperty.call(rooms, k)) continue;
+      const v = Number(rooms[k]);
+      if (Number.isFinite(v) && v >= 0) prog.push({ kind: 'unlock', key: 'room:' + k, value: Math.floor(v), period: '' });
+    }
+    res.progress = prog;   // a PRESENT-but-empty progress array is "owns no rooms", not UNKNOWN
+  }
+  const prev = (G._record && Number(G._record.version)) || 0;
+  res.version = Number.isFinite(o.version) ? o.version : Math.max(prev + 1, Date.now());
+  res.now = new Date(res.version).toISOString();
+  res.state = state;
+  return R.applyRecord(G, res);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   b456 — DRIVING THE LOCAL SAVE BLOB, WHICH IS NOW THE **OFF** POSITION.
+   ══════════════════════════════════════════════════════════════════════════
+   The b455 capstone RETIRES the local blob: with `BLOB_RETIRED` armed (the
+   shipped default) `saveLocal()` returns before it writes and `loadLocal()`
+   returns before it reads, dropping any leftover blob on the way past. That is
+   correct — the live cutover proved a local blob is not a cache but a STALE
+   RIVAL that resurrected dead state on every boot — and it silently turned every
+   save/load round-trip test in this file into a test of nothing. Nine of them
+   went red in one run; the dangerous ones were the two that stayed GREEN.
+
+   The wrong fix is to delete them. `saveLocal`/`loadLocal` still SHIP, behind
+   the capstone flag, and this file's own recurring lesson applies: a kill switch
+   whose off position is untested is not a kill switch. The parked-save policy
+   (b318), the slot-mismatch park (b372), the account-wall gate (b224) and the
+   strip-at-the-caller seam (B340-3) all live in that code and all still matter
+   the moment the flag is turned back.
+
+   So a save/load test runs in the position it is ABOUT — blob live, pinned per
+   test, restored to PRISTINE (which is RETIRED) afterwards. The ARMED contract
+   is asserted separately and once, by CAPSTONE-NOOP below, so "the blob is
+   retired" is a property with a test rather than an ambient reason things pass.
+
+   ⚠ A TEST WRAPPED HERE DOES **NOT** COVER THE SHIPPING DEFAULT. */
+const pinLocalBlob = () => {
+  const C = window.HearthriseCapstone;
+  if (!C || typeof C.__setBlobRetired !== 'function') return null;
+  C.__setBlobRetired(false);
+  return C;
+};
+const unpinLocalBlob = (C) => {
+  if (!C) return;
+  try { C.__setBlobRetired(null); } catch (e) {}
+};
+/** Run `fn` with the local save blob LIVE (capstone disarmed), restoring after. */
+const withLocalBlob = (fn) => {
+  const C = pinLocalBlob();
+  try { return fn(); } finally { unpinLocalBlob(C); }
+};
+/** The awaiting twin, for tryRunAsync bodies. */
+const withLocalBlobAsync = async (fn) => {
+  const C = pinLocalBlob();
+  try { return await fn(); } finally { unpinLocalBlob(C); }
+};
+
+/* ── b456 — THE SAME PROBLEM FOR THE FARM ────────────────────────────────────
+   `FARM_SERVER_ARM_ENABLED` armed in the cutover, so plant/water/harvest/upgrade
+   now send an INTENT to the hr_farm_* RPCs and reconcile from the RESPONSE
+   instead of authoring the outcome locally. In this harness there is no server,
+   so every gesture's fetch fails and the optimistic plot state reverts — which
+   means five tests that measure the LOCAL farm arithmetic (the watering window,
+   the perennial regrow ladder, the yield, the deed spend) stopped measuring
+   anything at all.
+
+   That local path still ships behind the flag and is still the whole of the
+   farm's rules; the RPC's job is to run the same rules server-side. So the
+   arithmetic is tested in the position where it executes, pinned per test and
+   restored. The armed ROUTING (a gesture becomes a request and never a local
+   credit — no double credit) is covered by tests/farm-sync.mjs, which drives the
+   transport with a stubbed fetch; duplicating it here would prove less, not more.
+
+   ⚠ A TEST WRAPPED HERE DOES **NOT** COVER THE SHIPPING DEFAULT.
+
+   ⚠ IT OVERRIDES THE PREDICATE, NOT THE FLAG, AND ONLY BECAUSE THE FLAG HAS NO
+     PUBLISHED SEAM. Every other arm in this program exposes a `__set*Arm` on a
+     window global (record.js, capstone.js, artisan-sim.js); `__setFarmServerArm`
+     lives in src/data/item-authority.js and is NOT re-exported onto
+     `window.HearthriseItemAuthority` or `window.HearthriseFarmSync`, so an
+     in-page test cannot reach it. Overriding `HearthriseFarmSync.isFarmServerArmed`
+     drives exactly the branch legacy.js's `farmSyncArmed()` reads, which is the
+     same fork, but it is one indirection further from the flag than it should be.
+     FILED as a small handoff: publish `__setFarmServerArm` beside
+     `isFarmServerArmed` and this helper becomes a two-liner like the others. */
+const withLocalFarm = (fn) => {
+  const F = window.HearthriseFarmSync;
+  const had = !!(F && typeof F.isFarmServerArmed === 'function');
+  const prev = had ? F.isFarmServerArmed : null;
+  if (had) F.isFarmServerArmed = () => false;
+  try { return fn(); } finally { if (had) F.isFarmServerArmed = prev; }
+};
 
 /* ── b369 — HOW THE SUITE ARMS THE ENVELOPE FLIP, AND THE ONLY WAY IT MAY ────
    From b369 the absolute envelope arms on ONE fact: the server acknowledged an
@@ -357,6 +544,11 @@ const snapshotG = () => {
     // leave a future-dated watermark that silently stops rest accruing.
     restedXp: G.restedXp,
     restedAt: G.restedAt,
+    /* b456: `marks` moved from the nested G.bountyHunter.marks to a TOP-LEVEL
+       record field and was never added here, so every test that touched it wrote
+       straight through to the player's save. Snapshotting the nested mirror is not
+       the same field any more. */
+    marks: G.marks,
     // b226 (pacing retune): the offline DAILY budget and its watermark, the
     // renown high-water ratchet, and the Founder's-mark date. Every offline
     // test below drives the watermark directly — without these three fields a
@@ -457,6 +649,23 @@ const restoreG = (snap) => {
   } catch (e) {}
   if (typeof window.stopSkill === 'function' && window.G.activeSkill) try { window.stopSkill(); } catch {}
   if (typeof window.stopCombat === 'function' && window.G.activeMonster) try { window.stopCombat(); } catch {}
+};
+
+/* b456 — RESTORE THE RECORD WITH THE STATE, for a test that drove a REAL load.
+   `loadLocal()` ends with the belt-and-braces `forgetServerOfRecord(G)`, which
+   DELETES every server-of-record field off the live G and clears the `known`
+   list. That is correct for a load (the envelope supplies them next) and it is
+   catastrophic for the suite: a test that runs a real load and then restores only
+   the fields it named leaves G with no skills, no equipment, no rooms and no
+   balance, and every test after it fails for a reason that has nothing to do with
+   what it is testing. MEASURED: wrapping B340-3 in `withLocalBlob` (so loadLocal
+   actually ran again) took ACT-1 and four COMBAT-UI tests down with it.
+   This puts the values back AND re-stamps them through the real applyRecord path,
+   so the ambient G the next test inherits is a loaded character rather than a
+   stripped one. */
+const restoreGAndRecord = (snap) => {
+  restoreG(snap);
+  try { stampRecordLikeLoad(window.G); } catch (e) {}
 };
 
 /* ── b227 type-floor helpers (used by guards 19a-19e, far below) ──────────
@@ -745,7 +954,7 @@ const TESTS = [
     const sHp = G.playerHp, sMax = G.playerMaxHp, sAA = G.autoActions ? JSON.parse(JSON.stringify(G.autoActions)) : undefined;
     const sTraits = JSON.parse(JSON.stringify(G.traits || {}));
     try {
-      G.traits = { auto_eat: true };                              // b217: trait unlocked so eat logic runs
+      G.traits = { auto_eat: true, auto_eat_2: true };                              // b217: trait unlocked so eat logic runs
       G.inventory = {}; G.inventory[healId] = 5; G.inventory[buffId] = 5;
       G.playerMaxHp = 100; G.playerHp = 10;                       // low HP → should eat
       G.autoActions = { eat: { enabled: true, threshold: 0.5, foodId: null } };
@@ -1019,12 +1228,43 @@ const TESTS = [
       assert(H.UNGATED && H.UNGATED.cooking === true, 'cooking must be the declared exemption');
       assert(!H.UNGATED.smithing && !H.UNGATED.crafting && !H.UNGATED.prayer,
         'only cooking is exempt from the workbench gate');
-      // The Kitchen is still cooking's ROOM (cookSpeed + noBurn come off it),
-      // so the grandfather pass must still restore it for a veteran cook.
+      /* The Kitchen is still cooking's ROOM (cookSpeed + noBurn come off it), so
+         the grandfather pass must still restore it for a veteran cook — in the
+         position where the CLIENT is allowed to author a rung.
+
+         b456 TEST-DEBT BURN-DOWN: under the rooms arm that write is deliberately
+         refused (homestead.js gates it on clientMayWriteRecordField('rooms')),
+         because a locally-granted rung is a room the server never confirmed and
+         G.rooms is stripped out of the blob anyway. So this now asserts BOTH
+         positions, and the armed one is the shipping one:
+           ARMED   → no rung is forged, but the TIER still covers the trained
+                     skill, so the veteran is not demoted to Wanderer's Camp;
+           DORMANT → the classic grandfather still grants the Kitchen. */
       delete G.homestead; G.rooms = {}; G.skills = { cooking: 500 };
       H.ensureState();
-      assert((G.rooms.kitchen || 0) >= 1, 'existing cooking XP should grandfather a kitchen');
+      const armedRooms = typeof window.clientMayWriteRecordField === 'function'
+        && window.clientMayWriteRecordField('rooms') === false;
       assert(G.homestead.tier >= 1, 'grandfathered save should be at least tier 1');
+      if (armedRooms) {
+        assert(!((G.rooms || {}).kitchen > 0),
+          'the client forged a Kitchen rung while rooms are server-of-record — the server never confirmed it and '
+          + 'G.rooms is stripped from the blob, so this is a two-sources write');
+      } else {
+        assert((G.rooms.kitchen || 0) >= 1, 'existing cooking XP should grandfather a kitchen');
+      }
+      // And the DORMANT position explicitly, so the off switch stays covered.
+      const R = window.HearthriseRecord;
+      if (R && typeof R.__setRoomsRecordArm === 'function') {
+        try {
+          R.__setRoomsRecordArm(false);
+          delete G.homestead; G.rooms = {}; G.skills = { cooking: 500 };
+          H.ensureState();
+          assert((G.rooms.kitchen || 0) >= 1, 'dormant: existing cooking XP should grandfather a kitchen');
+          assert(G.homestead.tier >= 1, 'dormant: grandfathered save should be at least tier 1');
+        } finally {
+          R.__setRoomsRecordArm(null);
+        }
+      }
     } finally {
       G.homestead = savedHomestead; G.rooms = savedRooms; G.skills = savedSkills;
     }
@@ -2451,15 +2691,22 @@ const TESTS = [
     const snap = snapshotG();
     try {
       window.G.plotBuildings = [];
+      /* b456: `rooms` is server-of-record, so a raw `G.rooms = …` is UNKNOWN to
+         every reader (fail-closed to the empty map) and this test would measure
+         "no Cellar" three times over. stampRecordLikeLoad pushes the rung through
+         the REAL hr_load path, which is also what a player's Cellar actually is. */
       window.G.rooms = {};
+      stampRecordLikeLoad(window.G);
       assert(Math.abs(H.cellarScale().duration - 1) < 1e-9, 'no Cellar means no change to a buff');
       // Derived from the ladder so the magnitude retune cannot silently break
       // the wiring test — what is guarded is that the rung reaches the scaler.
       const rungs = window.ROOMS.cellar.levels;
       window.G.rooms = { cellar: 1 };
+      stampRecordLikeLoad(window.G);
       assert(Math.abs(H.cellarScale().duration - (1 + rungs[0].bv)) < 1e-9,
         'Root Cellar should lengthen buffs by its rung value, got ' + H.cellarScale().duration);
       window.G.rooms = { cellar: 5 };
+      stampRecordLikeLoad(window.G);
       assert(Math.abs(H.cellarScale().duration - (1 + rungs[4].bv)) < 1e-9,
         'The Deep Cellar should lengthen buffs by its rung value, got ' + H.cellarScale().duration);
       assert(rungs[4].bv > rungs[0].bv, 'the Cellar ladder must still climb');
@@ -2483,6 +2730,9 @@ const TESTS = [
       window.G.rooms = { forge: 2 };
       predZero(); window.G.gold = 0;
       window.G.inventory = {};
+      // b456: rooms + gold are server-of-record — stamp them through the real
+      // record path or every read below fail-closes and the test measures nothing.
+      stampRecordLikeLoad(window.G);
 
       const owned = H.roomDescriptor('forge');
       assert(owned.state === 'built' && owned.level === 2, 'the Forge should read as owned at level 2');
@@ -2523,6 +2773,7 @@ const TESTS = [
     try {
       window.G.homestead = { tier: 3 };
       window.G.rooms = { forge: 2, kitchen: 5 };
+      stampRecordLikeLoad(window.G);   // b456: rooms are server-of-record
       const themes = {};
       Object.keys(window.ROOMS).forEach((id) => {
         const m = H.modalDescriptor(id);
@@ -2554,6 +2805,7 @@ const TESTS = [
 
       // A disabled action always carries a reason (spec §5 rule 5).
       predZero(); window.G.gold = 0; window.G.inventory = {};
+      stampRecordLikeLoad(window.G);   // b456: the zeroed gold must be KNOWN-zero, not UNKNOWN
       const poor = H.modalDescriptor('forge');
       const acts = poor.sections.find((s) => s.kind === 'actions');
       const up = acts.buttons.find((b) => /^Upgrade|^Build/.test(b.label));
@@ -2592,7 +2844,8 @@ const TESTS = [
       window.G.homestead = { tier: 3 };
       window.G.rooms = { kitchen: 1 };
       window.G.gold = 999999;
-      stampBalanceLikeLoad(window.G);   // armed: `affordable` reads gold via canAfford
+      // b456: gold AND rooms are both server-of-record now — one stamp, real path.
+      stampRecordLikeLoad(window.G);    // armed: `affordable` reads gold via canAfford, the rung via roomsOf
       window.G.inventory = { normal_log: 999, oak_log: 999 };
 
       // ── the descriptor carries it, on the rung AND on `next`
@@ -2635,6 +2888,7 @@ const TESTS = [
       // ── an OWNED rung keeps the requirement visible, marked spent, so the
       //    ladder teaches the pattern before you hit the rung you cannot pay.
       window.G.rooms = { kitchen: 3 };
+      stampRecordLikeLoad(window.G);   // b456: the new rung must come off the record, not the blob
       window.HearthriseRoomModal.refresh();
       assert(document.querySelector('.hr-room-body .hr-room-gate.is-spent'),
         'a built gated rung must still show its requirement, marked spent');
@@ -2649,7 +2903,7 @@ const TESTS = [
       window.G.homestead = { tier: 3 };
       window.G.rooms = { kitchen: 1 };
       window.G.gold = 999999;
-      stampBalanceLikeLoad(window.G);   // armed: modalDescriptor reads gold via canAfford
+      stampRecordLikeLoad(window.G);    // b456: modalDescriptor reads gold via canAfford AND the rung via roomsOf
       window.G.inventory = { normal_log: 999 };
 
       const m = H.modalDescriptor('kitchen');
@@ -2680,7 +2934,12 @@ const TESTS = [
       /* Two blockers at once must name BOTH — fixing the one you were told
          about only to find the button still dead is the same bug again. */
       predZero(); window.G.gold = 0;
-      stampBalanceLikeLoad(window.G);   // armed: the shortfall line must read a KNOWN 0, not UNKNOWN
+      /* b456 ⚠ stampRecordLikeLoad, NOT stampBalanceLikeLoad. applyRecord replaces
+         `G._record` WHOLESALE, so a balance-only re-stamp here silently drops the
+         Kitchen rung out of `known` — the room reverts to UNKNOWN/level 0, the
+         pinned control becomes "Build" instead of "Upgrade", and the assertion
+         below stops finding a button at all. Measured exactly that way. */
+      stampRecordLikeLoad(window.G);    // armed: the shortfall line must read a KNOWN 0, not UNKNOWN
       const both = H.modalDescriptor('kitchen');
       const b2 = both.sections.find((s) => s.kind === 'actions').buttons.find((b) => /^Upgrade/.test(b.label));
       assert(/Kitchen Blueprint II/.test(b2.why) && /Missing/.test(b2.why),
@@ -2890,6 +3149,7 @@ const TESTS = [
       window.G.rooms = { forge: 2 };
       window.G.gold = 500000;
       window.G.inventory = Object.assign({}, window.G.inventory, { iron_ore: 999 });
+      stampRecordLikeLoad(window.G);   // b456: rooms + gold are server-of-record
       window.showTab('house');
       if (typeof window.setHouseTab === 'function') window.setHouseTab('rooms');
       window.renderHouse();
@@ -3298,6 +3558,14 @@ const TESTS = [
       // burn-proof, so the sample is deterministic again. Burn-vs-counter
       // behaviour has its own dedicated tests in the b225 block.
       G.rooms = Object.assign({}, G.rooms, { kitchen: 3 });
+      /* b456: AND THE RUNG HAS TO ARRIVE ON THE RECORD, or the whole reason the
+         Cast-Iron Range is here is defeated. `rooms` is server-of-record, so a raw
+         `G.rooms = {kitchen:3}` reads UNKNOWN → the fail-closed EMPTY map → an OPEN
+         FIRE at 25% burn — and a burn does not tick the cook counter. That is
+         exactly the coin-flip the b225 note above says this test must not have:
+         observed progress of 1, 2 and 3 across three consecutive runs of an
+         unchanged build. */
+      stampRecordLikeLoad(G);
       G.inventory = Object.assign({}, G.inventory, { shrimp: 10 });
       G.quests = [{ id: 'first_cook', type: 'cooked', label: 'Cook 5 dishes', goal: 5, progress: 0, reward: { gold: 1 }, done: false }];
       G.daily = G.daily || {};
@@ -3313,6 +3581,7 @@ const TESTS = [
       G.quests = saved.quests; G.daily = saved.daily; G.inventory = saved.inv;
       G.rooms = saved.rooms; G.skills = saved.skills;
       G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target;
+      stampRecordLikeLoad(G);
     }
   }),
   () => tryRun('b269: the Stable nav button lives under Homestead, not Adventure', () => {
@@ -3402,24 +3671,63 @@ const TESTS = [
       traits: JSON.parse(JSON.stringify(G.traits || {})),
       auto: JSON.parse(JSON.stringify(G.autoActions || {}))
     };
+    const R = window.HearthriseRecord;
     try {
       G.traits = {};
       G.bountyHunter = G.bountyHunter || {};
-      // Marks live TOP-LEVEL now (G.marks), the record-field home.
-      G.marks = 40;
-      G.gold = 999999;
-      window.buyTrait('auto_eat');
-      assert(!(G.traits && G.traits.auto_eat) && G.marks === 40,
-        'buyTrait must refuse on short marks (no unlock, no marks spent) — gold is irrelevant');
-      assert(G.gold === 999999, 'buyTrait must NEVER touch gold for a marks trait');
-      G.marks = 150;
-      window.buyTrait('auto_eat');
-      assert(G.traits.auto_eat === true, 'buyTrait must unlock when marks afford it');
-      assert(G.marks === 50, 'buyTrait must deduct the 100-mark cost, got ' + G.marks);
-      assert(G.gold === 999999, 'gold untouched after a successful marks purchase');
+
+      /* ── b456: THE ARMED CONTRACT COMES FIRST, AND IT IS A REFUSAL ──────────
+         Under the marks arm `buyTrait` has no server spend verb (only reroll and
+         abandon moved to hr_bounty_spend), so legacy.js gates it on
+         clientMayWriteRecordField('marks') and FAILS CLOSED. That is the correct
+         armed behaviour and the property worth guarding is precisely that it is a
+         CLEAN refusal: a raw client debit here would be reconciled away by the
+         next envelope while the trait stayed granted — a self-mint.
+         ⚠ It is also a live UX gap (a 100-mark shop item nobody can buy) which is
+           filed for the Game Designer / Systems Engineer; the gap is a missing
+           server verb, NOT a licence to let the client author the debit. */
+      const marksArmed = typeof window.clientMayWriteRecordField === 'function'
+        && window.clientMayWriteRecordField('marks') === false;
+      if (marksArmed) {
+        G.marks = 150; G.gold = 999999;
+        stampRecordLikeLoad(G);   // a genuinely KNOWN, genuinely sufficient balance
+        window.buyTrait('auto_eat');
+        assert(!(G.traits && G.traits.auto_eat),
+          'ARMED: buyTrait granted a marks trait with no server spend verb — the debit would be reconciled away '
+          + 'and the trait would stay, which is a self-mint');
+        assert(G.marks === 150, 'ARMED: buyTrait client-debited a server-owned marks balance, got ' + G.marks);
+        assert(G.gold === 999999, 'ARMED: buyTrait must NEVER touch gold for a marks trait');
+      }
+
+      /* ── AND THE SPEND MECHANICS, in the position where the client owns them.
+         Still shipped code (the kill-switch/dormant position), and the day the
+         marks spend gets its server verb this is the arithmetic it must match. */
+      if (R && typeof R.__setMarksRecordArm === 'function') {
+        try {
+          R.__setMarksRecordArm(false);
+          G.traits = {};
+          /* b459: the price is data (TRAITS), not a literal — Auto-Eat became a
+             15-Mark tier I. Short-marks = cost-5; the deduction asserts 150-cost. */
+          const _aeCost = (window.TRAITS && window.TRAITS.auto_eat && window.TRAITS.auto_eat.cost) || 15;
+          G.marks = _aeCost - 5;
+          G.gold = 999999;
+          window.buyTrait('auto_eat');
+          assert(!(G.traits && G.traits.auto_eat) && G.marks === _aeCost - 5,
+            'buyTrait must refuse on short marks (no unlock, no marks spent) — gold is irrelevant');
+          assert(G.gold === 999999, 'buyTrait must NEVER touch gold for a marks trait');
+          G.marks = 150;
+          window.buyTrait('auto_eat');
+          assert(G.traits.auto_eat === true, 'buyTrait must unlock when marks afford it');
+          assert(G.marks === 150 - _aeCost, 'buyTrait must deduct TRAITS.auto_eat.cost (' + _aeCost + '), got ' + G.marks);
+          assert(G.gold === 999999, 'gold untouched after a successful marks purchase');
+        } finally {
+          R.__setMarksRecordArm(null);
+        }
+      }
     } finally {
       G.gold = saved.gold; G.traits = saved.traits; G.autoActions = saved.auto;
       G.marks = saved.marks;
+      stampRecordLikeLoad(G);
     }
   }),
   /* b44x: MARKS STORAGE MIGRATION (nested→top-level). Marks are a record field
@@ -3431,22 +3739,52 @@ const TESTS = [
   () => tryRun('b44x: marks migrate nested→top-level G.marks (single home)', () => {
     const G = window.G;
     const saved = { marks: G.marks, bh: JSON.parse(JSON.stringify(G.bountyHunter || {})) };
+    const R = window.HearthriseRecord;
     try {
-      // A legacy save shape: only the NESTED value, no top-level home yet.
-      G.bountyHunter = Object.assign({}, G.bountyHunter, { marks: 63 });
-      delete G.marks;
-      window.ensureBountyState();
-      assert(G.marks === 63, 'ensureBountyState must migrate the legacy nested marks up to G.marks, got ' + G.marks);
-      assert(!('marks' in G.bountyHunter), 'the nested bountyHunter.marks mirror must be dropped — one home only');
-      // marksOf reads the migrated top-level value.
-      const MR = window.HearthriseMarks;
-      assert(MR && MR.marksOr(G, -1) === 63, 'marksOf must read the migrated top-level value');
-      // A save that ALREADY has a top-level value is not clobbered by a stray nested one.
-      G.marks = 10;
-      G.bountyHunter.marks = 999;
-      window.ensureBountyState();
-      assert(G.marks === 10, 'an existing top-level G.marks must not be overwritten by a nested value, got ' + G.marks);
-      assert(!('marks' in G.bountyHunter), 'a stray nested marks must still be dropped');
+      /* ── b456: THE ONE-HOME RULE HOLDS IN **BOTH** ARM STATES, and that is the
+         whole contract. What changes with the arm is who may WRITE the home:
+           ARMED   → nobody but applyRecord. ensureBountyState must NOT author a
+                     top-level G.marks (it is stripped and supplied by the record),
+                     but it must STILL drop the nested mirror — otherwise a stale
+                     client copy coexists with the server value, which is exactly
+                     the two-sources bug this migration exists to end.
+           DORMANT → the client owns G.marks, so the legacy nested value migrates
+                     up ONCE and an existing top-level value is never clobbered. */
+      const marksArmed = typeof window.clientMayWriteRecordField === 'function'
+        && window.clientMayWriteRecordField('marks') === false;
+      if (marksArmed) {
+        G.bountyHunter = Object.assign({}, G.bountyHunter, { marks: 63 });
+        delete G.marks;
+        window.ensureBountyState();
+        assert(!('marks' in G.bountyHunter),
+          'ARMED: the nested bountyHunter.marks mirror survived — a stale client copy beside the server record');
+        assert(typeof G.marks !== 'number',
+          'ARMED: ensureBountyState authored a top-level G.marks (' + G.marks + ') on a server-owned field — '
+          + 'the record is the only writer, and a client seed here is a forgeable balance');
+      }
+
+      if (R && typeof R.__setMarksRecordArm === 'function') {
+        try {
+          R.__setMarksRecordArm(false);
+          // A legacy save shape: only the NESTED value, no top-level home yet.
+          G.bountyHunter = Object.assign({}, G.bountyHunter, { marks: 63 });
+          delete G.marks;
+          window.ensureBountyState();
+          assert(G.marks === 63, 'ensureBountyState must migrate the legacy nested marks up to G.marks, got ' + G.marks);
+          assert(!('marks' in G.bountyHunter), 'the nested bountyHunter.marks mirror must be dropped — one home only');
+          // marksOf reads the migrated top-level value.
+          const MR = window.HearthriseMarks;
+          assert(MR && MR.marksOr(G, -1) === 63, 'marksOf must read the migrated top-level value');
+          // A save that ALREADY has a top-level value is not clobbered by a stray nested one.
+          G.marks = 10;
+          G.bountyHunter.marks = 999;
+          window.ensureBountyState();
+          assert(G.marks === 10, 'an existing top-level G.marks must not be overwritten by a nested value, got ' + G.marks);
+          assert(!('marks' in G.bountyHunter), 'a stray nested marks must still be dropped');
+        } finally {
+          R.__setMarksRecordArm(null);
+        }
+      }
     } finally {
       G.marks = saved.marks; G.bountyHunter = saved.bh;
     }
@@ -4177,15 +4515,23 @@ const TESTS = [
     if (!window.ITEMS.rune_sword || !window.ITEMS.rune_warhammer || !window.ITEMS.longbow) return;
     const snap = { eq: JSON.parse(JSON.stringify(G.equipment || {})) };
     try {
+      /* b456: `equipment` is server-of-record, so every stat read goes through
+         equipmentMap() and a raw `G.equipment = …` is UNKNOWN → the fail-closed
+         EMPTY set, i.e. NAKED. All three swings then measured the unarmed 2400ms
+         and the comparison was between a number and itself. Each worn set is
+         stamped through the real hr_load path. */
       G.equipment = Object.assign({}, G.equipment, { weapon: 'rune_sword' });
+      stampRecordLikeLoad(G);
       const swordMs = window.combatTickMs();
       G.equipment = Object.assign({}, G.equipment, { weapon: 'rune_warhammer' });
+      stampRecordLikeLoad(G);
       const hammerMs = window.combatTickMs();
       G.equipment = Object.assign({}, G.equipment, { weapon: 'longbow' });
+      stampRecordLikeLoad(G);
       const bowMs = window.combatTickMs();
       assert(hammerMs > swordMs, 'a warhammer must swing slower than a sword (' + hammerMs + ' vs ' + swordMs + ')');
       assert(bowMs < swordMs, 'a bow must swing faster than a sword (' + bowMs + ' vs ' + swordMs + ')');
-    } finally { G.equipment = snap.eq; }
+    } finally { G.equipment = snap.eq; stampRecordLikeLoad(G); }
   }),
 
   () => tryRun('WAVE5b: weapon accuracy (atkB) matters vs high-tier DEF, low tiers unchanged', () => {
@@ -4198,16 +4544,20 @@ const TESTS = [
     const snap = { eq: JSON.parse(JSON.stringify(G.equipment || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
     try {
       G.skills = Object.assign({}, G.skills, { attack: 5000000, strength: 5000000 }); // XP → level 99
+      // b456: skills AND equipment are both server-of-record — stamp each position.
       G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });  // atkB 4
+      stampRecordLikeLoad(G);
       const lowAcc = window.getPlayerCombatRolls(t6).accuracy;
       G.equipment = Object.assign({}, G.equipment, { weapon: 'dawn_sword' });    // atkB 42
+      stampRecordLikeLoad(G);
       const highAcc = window.getPlayerCombatRolls(t6).accuracy;
       assert(highAcc > lowAcc, 'a high-atkB weapon must land more often vs a tier-6 boss (' + highAcc.toFixed(2) + ' vs ' + lowAcc.toFixed(2) + ')');
       if (t1) {
         G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+        stampRecordLikeLoad(G);
         assert(window.getPlayerCombatRolls(t1).accuracy >= 0.9, 'tier-1 accuracy must stay high (early game unchanged)');
       }
-    } finally { G.equipment = snap.eq; G.skills = snap.skills; }
+    } finally { G.equipment = snap.eq; G.skills = snap.skills; stampRecordLikeLoad(G); }
   }),
 
   () => tryRun('WAVE5c: a full same-tier armour set grants a crit passive', () => {
@@ -4220,6 +4570,7 @@ const TESTS = [
     try {
       G.equipment = {};
       set.forEach(id => { G.equipment[slots[id] || window.ITEMS[id].slot] = id; });
+      stampRecordLikeLoad(G);   // b456: the set only counts if it came off the record
       const sb = window.getArmorSetBonus();
       assert(sb && sb.pieces >= 5, 'a full dawn set must register (got ' + (sb && sb.pieces) + ')');
       assert(sb.tier === 7 && Math.abs(sb.critB - 0.07) < 1e-9, 'dawn (tier 7) set → +7% crit, got ' + (sb && sb.critB));
@@ -4227,8 +4578,9 @@ const TESTS = [
       const m = window.MONSTERS && Object.values(window.MONSTERS)[0];
       if (m) assert(window.getPlayerCombatRolls(m).critChance >= 0.07, 'the set crit must flow into getPlayerCombatRolls');
       delete G.equipment.belt; delete G.equipment.gloves;
+      stampRecordLikeLoad(G);
       assert(!window.getArmorSetBonus(), 'a 4-piece set must NOT trigger the bonus');
-    } finally { G.equipment = snap.eq; }
+    } finally { G.equipment = snap.eq; stampRecordLikeLoad(G); }
   }),
 
   () => tryRun('b289 E2E: the whole loop — gather -> smelt -> forge -> equip -> fight -> dungeon -> scrip -> buy', () => {
@@ -4463,15 +4815,20 @@ const TESTS = [
     try {
       // 3 dawn plate + 2 dawn cloth: 5 same-tier pieces, but only 3 of one class → NO set.
       if (window.ITEMS.dawn_helm && window.ITEMS.archmage_body) {
+        /* b456: the set is read through equipmentMap() — an unstamped worn set is
+           UNKNOWN → naked, which makes the NEGATIVE leg pass for the wrong reason
+           and the POSITIVE leg impossible. Both positions are stamped. */
         G.equipment = { helmet: 'dawn_helm', body: 'dawn_platebody', pants: 'dawn_platelegs', gloves: 'archmage_gloves', belt: 'apprentice_belt' };
+        stampRecordLikeLoad(G);
         const mixed = window.getArmorSetBonus();
         assert(!mixed || mixed.pieces < 5, 'a mixed-archetype loadout must NOT grant a set bonus');
         // a full same-class set still triggers
         G.equipment = { helmet: 'dawn_helm', body: 'dawn_platebody', pants: 'dawn_platelegs', boots: 'dawn_boots', gloves: 'dawn_gauntlets' };
+        stampRecordLikeLoad(G);
         const set = window.getArmorSetBonus();
         assert(set && set.armourClass === 'plate' && set.pieces >= 5, 'a full same-class set must still grant the bonus');
       }
-    } finally { G.equipment = snap.eq; }
+    } finally { G.equipment = snap.eq; stampRecordLikeLoad(G); }
   }),
 
   () => tryRun('b283: the Character card reads attack per active style (plate warrior not dragged negative)', () => {
@@ -5655,12 +6012,20 @@ const TESTS = [
     // point). Behavioral, not source-based — saveLocal is wrapped (multi-char),
     // so inspecting its source would miss the underlying call. Spy passes
     // through, so the real save still happens.
+    /* b456: the capstone RETIRES the blob, so `saveLocal()` returns before it
+       writes anything and this spy would see nothing — which says nothing about
+       the SEAM. What is being guarded is that when the save DOES write, it goes
+       through the platform facade (the Steam/mobile swap point), so it is driven
+       in the position where a write happens. The armed no-op has its own test
+       (CAPSTONE-NOOP). */
     if (typeof window.saveLocal === 'function') {
-      const origSet = S.setJSON;
-      let sawSaveKey = false;
-      S.setJSON = function (k) { if (k === 'hearthbound-save-v2') sawSaveKey = true; return origSet.apply(S, arguments); };
-      try { window.saveLocal(); } finally { S.setJSON = origSet; }
-      assert(sawSaveKey, 'saveLocal should persist the game save through the Storage seam');
+      withLocalBlob(() => {
+        const origSet = S.setJSON;
+        let sawSaveKey = false;
+        S.setJSON = function (k) { if (k === 'hearthbound-save-v2') sawSaveKey = true; return origSet.apply(S, arguments); };
+        try { window.saveLocal(); } finally { S.setJSON = origSet; }
+        assert(sawSaveKey, 'saveLocal should persist the game save through the Storage seam');
+      });
     }
   }),
   () => tryRun('b162: cozy chips use a light face (no dark-tint-on-cream)', () => {
@@ -6668,7 +7033,13 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('action: plant + harvest a farm plot (state-level)', () => {
+  () => tryRun('action: plant + harvest a farm plot (state-level)', () => withLocalFarm(() => {
+    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
+       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
+       reconcile from the response, so in a harness with no server the gesture's
+       fetch fails, the optimistic plot reverts, and the arithmetic below measures
+       nothing. The rules themselves still live in the client path (and are what
+       the RPC mirrors), so they are asserted where they execute. */
     const snap = snapshotG();
     try {
       // Plant a turnip in plot 0. plantCrop(plotIdx, cropId) is the canonical API.
@@ -6692,12 +7063,18 @@ const TESTS = [
         assert(afterQty > beforeQty, `harvest should add turnips: before=${beforeQty} after=${afterQty}`);
       }
     } finally { restoreG(snap); }
-  }),
+  })),
 
   // b420 regression: a perennial (tomato/emberfruit) is FINITE. It regrows
   // `regrowLimit` times after the first harvest, then the plant withers and
   // the plot clears — it must NOT yield free food forever (the reported bug).
-  () => tryRun('action: perennial tomato regrows a finite number of times then withers', () => {
+  () => tryRun('action: perennial tomato regrows a finite number of times then withers', () => withLocalFarm(() => {
+    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
+       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
+       reconcile from the response, so in a harness with no server the gesture's
+       fetch fails, the optimistic plot reverts, and the arithmetic below measures
+       nothing. The rules themselves still live in the client path (and are what
+       the RPC mirrors), so they are asserted where they execute. */
     const snap = snapshotG();
     try {
       if (typeof window.harvestPlot !== 'function' || !window.CROPS || !window.CROPS.tomato) return;
@@ -6733,7 +7110,7 @@ const TESTS = [
       assert(window.G.farmPlots[0] == null,
         `after ${harvests} harvests (limit=${limit}) the perennial must wither and clear the plot, got ${JSON.stringify(window.G.farmPlots[0])}`);
     } finally { restoreG(snap); }
-  }),
+  })),
 
   // gold-arm: upgradeRoom's debit is gated by clientMayWriteRecordField
   // (switch-OFF position); the stamp makes the affordability read known.
@@ -6831,19 +7208,31 @@ const TESTS = [
       // hr_load re-supplies it, so a save→reload deliberately does NOT round-trip
       // gold through the blob (that is the whole point of the record move). Prove
       // the round-trip on a genuinely-persisted, non-record field instead.
+      /* b456: the blob is RETIRED by default (saveLocal/loadLocal both no-op),
+         so the round-trip is driven in the position it is about. What it guards is
+         unchanged and still live code: loadLocal must mutate G IN PLACE (b127 — a
+         reassignment silently breaks every holder of `window.G`) and a genuinely
+         client-owned field must survive the trip. */
       if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') return;
-      const tag = 12345;  // distinctive offset so we can detect it
-      window.G.stats = window.G.stats || {};
-      const killsBefore = window.G.stats.kills || 0;
-      window.G.stats.kills = killsBefore + tag;
-      window.saveLocal();
-      window.G.stats.kills = -1;            // mutate in memory only
-      window.loadLocal();
-      assert((window.G.stats && window.G.stats.kills) === killsBefore + tag,
-        `save/load round-trip lost a persisted field: expected ${killsBefore + tag}, got ${window.G.stats && window.G.stats.kills}`);
+      withLocalBlob(() => {
+        const tag = 12345;  // distinctive offset so we can detect it
+        window.G.stats = window.G.stats || {};
+        const killsBefore = window.G.stats.kills || 0;
+        const gRef = window.G;
+        window.G.stats.kills = killsBefore + tag;
+        window.saveLocal();
+        window.G.stats.kills = -1;            // mutate in memory only
+        window.loadLocal();
+        assert(window.G === gRef, 'loadLocal replaced the G reference instead of mutating it in place (b127)');
+        assert((window.G.stats && window.G.stats.kills) === killsBefore + tag,
+          `save/load round-trip lost a persisted field: expected ${killsBefore + tag}, got ${window.G.stats && window.G.stats.kills}`);
+      });
     } finally {
-      // Restore + persist cleanup so we don't leave the player +12345g
-      restoreG(snap);
+      /* Restore + persist cleanup so we don't leave the player +12345g.
+         b456: restoreGAndRecord, because the real loadLocal above ends in
+         forgetServerOfRecord — putting the VALUES back without re-stamping the
+         RECORD leaves every armed field UNKNOWN for the rest of the run. */
+      restoreGAndRecord(snap);
       try { window.saveLocal(); } catch {}
     }
   }),
@@ -7207,7 +7596,7 @@ const TESTS = [
     const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
     try {
       // Set up: low HP, food in bag, auto-eat enabled + trait unlocked (b217)
-      window.G.traits = { auto_eat: true };
+      window.G.traits = { auto_eat: true, auto_eat_2: true };  // b459: tier II = the pre-tier threshold behaviour
       window.G.playerMaxHp = 10;
       window.G.playerHp = 3;          // 30% — below default 50% threshold
       window.G.inventory = window.G.inventory || {};
@@ -7252,7 +7641,7 @@ const TESTS = [
     const eatBefore = A.getEat();
     const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
     try {
-      window.G.traits = { auto_eat: true };
+      window.G.traits = { auto_eat: true, auto_eat_2: true };  // b459: tier II = the pre-tier threshold behaviour
       window.G.playerMaxHp = 10;
       window.G.playerHp = 3;
       window.G.inventory = { cooked_shrimp: 5 };
@@ -7320,7 +7709,7 @@ const TESTS = [
     const eatBefore = window.HearthriseAuto.getEat();
     const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
     try {
-      window.G.traits = { auto_eat: true };            // b217: trait unlocked so eat logic runs
+      window.G.traits = { auto_eat: true, auto_eat_2: true };  // b459: tier II = the pre-tier threshold behaviour            // b217: trait unlocked so eat logic runs
       window.G.playerMaxHp = 10;
       window.G.playerHp = 3;
       window.G.inventory = {};
@@ -7427,7 +7816,13 @@ const TESTS = [
   }),
 
   // b136: upgradePlot consumes deeds and unlocks the next tier.
-  () => tryRun('b136: upgradePlot spends deeds + advances plot level', () => {
+  () => tryRun('b136: upgradePlot spends deeds + advances plot level', () => withLocalFarm(() => {
+    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
+       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
+       reconcile from the response, so in a harness with no server the gesture's
+       fetch fails, the optimistic plot reverts, and the arithmetic below measures
+       nothing. The rules themselves still live in the client path (and are what
+       the RPC mirrors), so they are asserted where they execute. */
     if (!window.HearthriseFarm) return;
     const snap = snapshotG();
     try {
@@ -7445,7 +7840,7 @@ const TESTS = [
     } finally {
       restoreG(snap);
     }
-  }),
+  })),
 
   // b136: upgradePlot rejects when player lacks deeds.
   () => tryRun('b136: upgradePlot fails without enough deeds', () => {
@@ -8647,7 +9042,7 @@ const TESTS = [
       eat: JSON.parse(JSON.stringify(A.getEat())),
     };
     try {
-      G.traits = Object.assign({}, G.traits, { auto_eat: true });
+      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });  // b459: tier II = the pre-tier behaviour these fixtures assert
       G.playerMaxHp = 100; G.playerHp = 10;
       // ONLY buff food in the bag, and it is explicitly the configured food.
       G.inventory = { void_banquet: 3, pumpkin_pie: 2 };
@@ -8812,7 +9207,7 @@ const TESTS = [
       assert(/Store unlock/i.test(r.note), 'the note must say auto-eat is locked, got: ' + r.note);
 
       // Trait owned → picker appears and the note explains the threshold.
-      G.traits = { auto_eat: true };
+      G.traits = { auto_eat: true, auto_eat_2: true };
       window.HearthriseAuto.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
       r = row();
       assert(r.hasPicker, 'auto-eat picker must render once the trait is owned');
@@ -9117,7 +9512,13 @@ const TESTS = [
     assert(F.isWaterable(done) === false, 'a ready crop is not waterable');
   }),
 
-  () => tryRun('b220: waterPlot opens one window and refuses a second', () => {
+  () => tryRun('b220: waterPlot opens one window and refuses a second', () => withLocalFarm(() => {
+    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
+       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
+       reconcile from the response, so in a harness with no server the gesture's
+       fetch fails, the optimistic plot reverts, and the arithmetic below measures
+       nothing. The rules themselves still live in the client path (and are what
+       the RPC mirrors), so they are asserted where they execute. */
     const snap = snapshotG();
     try {
       if (typeof window.waterPlot !== 'function') return;
@@ -9137,7 +9538,7 @@ const TESTS = [
       assert(p.waterings.length === 1, 'a second watering inside the open window must be rejected');
       assert(typeof window.waterAllPlots === 'function', 'waterAllPlots (farm header action) missing');
     } finally { restoreG(snap); }
-  }),
+  })),
 
   // The migration is what un-sticks every plot broken on live right now.
   () => tryRun('b220: save migration un-sticks stalled plots', () => {
@@ -11077,6 +11478,13 @@ const TESTS = [
     const R = window.HearthriseRenown;
     assert(R && R.compute, 'renown module missing');
     const probe = { skills: { mining: 13034431, cooking: 0 }, stats: {}, gold: 0 };
+    /* b456: renown scores through the AUTHORITY accessor (skillXpOr), which is the
+       whole point of the b431 sweep — a forged local xp must not reach a
+       leaderboard. So a bare probe object reads UNKNOWN → every skill floors to
+       level 1 and the score collapses to 10, which is the fail-closed answer
+       working correctly, not the table being broken. Stamp the probe through the
+       real record path so the 99 is one the SERVER stated. */
+    stampRecordLikeLoad(probe);
     // With a working table this is 99 + 1 = 100 levels and one maxed skill;
     // with the broken one it collapsed to 2 levels and zero maxed skills.
     const score = R.compute(probe);
@@ -11509,13 +11917,19 @@ const TESTS = [
     const snap = snapshotG();
     try {
       assert(window.RESTED_QUANTUM_CAP === 1600, 'the aggregate Rested ceiling should be 1,600 XP/charge');
-      window.G.rooms = window.G.rooms || {};
-      window.G.rooms.library = 0;
+      /* b456: the Library rung is server-of-record, so each position is stamped
+         through the real hr_load path — an unstamped `G.rooms.library = 5` reads
+         as the fail-closed EMPTY map, i.e. no Library, and all three rows would
+         have measured the same "no quantum" answer. */
+      window.G.rooms = Object.assign({}, window.G.rooms, { library: 0 });
+      stampRecordLikeLoad(window.G);
       assert(window.restedQuantum() === 0, 'no Library and no Tavern must mean no quantum');
       assert(window.restedCap() === window.RESTED_CAP, 'the base bank is 80 charges');
-      window.G.rooms.library = 4;
+      window.G.rooms = Object.assign({}, window.G.rooms, { library: 4 });
+      stampRecordLikeLoad(window.G);
       assert(window.restedQuantum() === 800, 'the Scriptorium road pays 800 XP/charge');
-      window.G.rooms.library = 5;
+      window.G.rooms = Object.assign({}, window.G.rooms, { library: 5 });
+      stampRecordLikeLoad(window.G);
       assert(window.restedQuantum() === 1600, 'the Great Library road pays 1,600 XP/charge');
       assert(window.restedCap() === 120, 'the Great Library deepens the bank to 120');
       // The castle road, mirrored from the clan-seat reducer.
@@ -11524,7 +11938,7 @@ const TESTS = [
         'the castle road must reach the same ceiling by Tavern 10');
       assert(CS.restedQuantum(10) <= window.RESTED_QUANTUM_CAP,
         'neither road may exceed the shared ceiling');
-    } finally { restoreG(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   // #10g: SEAM 3, THE ONE THAT MATTERS. b214 shipped offline rewards paid two
@@ -11652,7 +12066,13 @@ const TESTS = [
   // mirrored it purely so a rollback to b219 read a sane value; two builds have
   // shipped since. A field written by four code paths and read by one migration
   // is state waiting to be trusted by accident.
-  () => tryRun('b222: the farming `watered` dual-write is deleted from every writer', () => {
+  () => tryRun('b222: the farming `watered` dual-write is deleted from every writer', () => withLocalFarm(() => {
+    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
+       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
+       reconcile from the response, so in a harness with no server the gesture's
+       fetch fails, the optimistic plot reverts, and the arithmetic below measures
+       nothing. The rules themselves still live in the client path (and are what
+       the RPC mirrors), so they are asserted where they execute. */
     const snap = snapshotG();
     try {
       window.G.farmPlots = window.G.farmPlots || [];
@@ -11676,7 +12096,7 @@ const TESTS = [
       const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 6 && m.to === 7);
       assert(M, 'the v6 → v7 migration that reads `watered` must not be deleted');
     } finally { restoreG(snap); }
-  }),
+  })),
 
   // #10k: the contribution formula. Every row here is lifted verbatim from
   // clan-overhaul v2 §3.4's worked table, computed against the REAL item
@@ -13408,7 +13828,13 @@ const TESTS = [
   // #7 THE SAVE-DESTROYER GUARD. Behind the wall legacy boot() never ran, so
   // `G` is the factory default — one autosave in that state would write a new
   // character straight over a beta player's save. saveLocal() must be inert.
-  () => tryRun('b224: saveLocal() cannot overwrite a local save while the gate is closed', () => {
+  /* b456: driven with the blob LIVE. The account-wall gate is a rule about WHEN
+     saveLocal may write; with the capstone armed it never writes at all, so the
+     "resumes once the gate is open" half could not be observed and the "refuses
+     while closed" half would pass for the wrong reason — the worst pair a guard
+     can have. The gate still ships and is still the thing that stops a
+     factory-default G being written over a real player's save at the door. */
+  () => tryRun('b224: saveLocal() cannot overwrite a local save while the gate is closed', () => withLocalBlob(() => {
     const gate = window.HearthriseGate;
     const KEY = 'hearthbound-save-v2';
     const store = window.HearthriseStorage;
@@ -13429,7 +13855,7 @@ const TESTS = [
       gate.isOpen = realIsOpen;
       if (before == null) store.remove(KEY); else store.set(KEY, before);
     }
-  }),
+  })),
 
   // #8 ADOPTION. A beta player signing in for the first time brings a local
   // save and an empty cloud. "Adoption" is mechanically: we change nothing,
@@ -14089,10 +14515,15 @@ const TESTS = [
     // stack today is not this test's business.
     const savedRooms = window.G.rooms;
     try {
+      /* b456: `rooms` is server-of-record, so getBonus reads the rung through
+         roomsOf and a raw `G.rooms = …` is invisible to it (fail-closed empty).
+         Each position is stamped through the real record path. */
       window.G.rooms = {};
+      stampRecordLikeLoad(window.G);
       const baseCook = window.getBonus('cookSpeed');
       const baseBurn = window.getBonus('noBurn');
       window.G.rooms = { kitchen: 2 };
+      stampRecordLikeLoad(window.G);
       assert(Math.abs((window.getBonus('noBurn') - baseBurn) - CF.KITCHEN_NO_BURN[1]) < 1e-9,
         'getBonus("noBurn") should read the Kitchen rung, got ' + window.getBonus('noBurn'));
       /* b227: derived from the rung, not pinned to 0.25. The relationship this
@@ -14103,8 +14534,9 @@ const TESTS = [
       assert(Math.abs((window.getBonus('cookSpeed') - baseCook) - rungs[1].bv) < 1e-9,
         'the headline cookSpeed bonus must survive the bx addition');
       window.G.rooms = {};
+      stampRecordLikeLoad(window.G);
       assert(window.getBonus('noBurn') === baseBurn, 'no Kitchen means no Kitchen noBurn');
-    } finally { window.G.rooms = savedRooms; }
+    } finally { window.G.rooms = savedRooms; stampRecordLikeLoad(window.G); }
   }),
 
   () => tryRun('b225: Burnt Food is real, vendor trash, and inert to auto-eat', () => {
@@ -14156,7 +14588,13 @@ const TESTS = [
       G.skills = Object.assign({}, G.skills, { cooking: 0 });
       G.inventory = { shrimp: 10, cooked_shrimp: 0, burnt_food: 0 };
       G.stats = Object.assign({}, G.stats, { cooked: 0, burnt: 0 });
-      const xp0 = G.skills.cooking || 0;
+      /* b456: rooms are server-of-record (an unstamped `G.rooms = {}` reads as the
+         same empty map, but the Kitchen L3 leg below genuinely needs the record),
+         and a cooking grant under the skills arm is a DISPLAY PREDICTION rather
+         than a `G.skills` write — so the xp is measured with xpOf, the same read
+         the game itself makes. Stamped BEFORE the cooks so nothing retires them. */
+      stampRecordLikeLoad(G);
+      const xp0 = xpZero('cooking');
 
       /* PHASE A: the artisan rolls take the injected core RNG, so forcing an
          outcome means injecting a generator — assigning Math.random would
@@ -14175,21 +14613,22 @@ const TESTS = [
       // the scale moved, so the expectation is derived from the same dial
       // the engine uses rather than pinned to a number that will rot.
       const paced = (n) => Math.max(1, Math.floor(window.pacedXp('cooking', n)));
-      const burnXp = (G.skills.cooking || 0) - xp0;
+      const burnXp = xpOf('cooking') - xp0;
       assert(burnXp === paced(CF.burnXp(rec)),
         'a burn should pay ' + paced(CF.burnXp(rec)) + ' consolation XP, got ' + burnXp);
       assert(burnXp > 0 && burnXp < paced(rec.xp), 'consolation XP must sting but not be zero');
 
       window.HearthriseCore.setRng(window.HearthriseCore.rngMod.rngFrom(() => 0.999)); // force a success
-      const xp1 = G.skills.cooking || 0;
+      const xp1 = xpOf('cooking');
       window.doArtisanAction('cooking', rec.id, { silent: true });
       assert((G.inventory.cooked_shrimp || 0) === 1, 'a successful cook must yield the dish');
       assert((G.inventory.burnt_food || 0) === 1, 'a successful cook must not yield carbon');
       assert((G.stats.cooked || 0) === 1, 'a successful cook ticks the cooked counter');
-      assert((G.skills.cooking || 0) - xp1 >= paced(rec.xp), 'a successful cook pays full XP');
+      assert(xpOf('cooking') - xp1 >= paced(rec.xp), 'a successful cook pays full XP');
 
       // Kitchen L3 is burn-proof: even a rigged roll cannot ruin the dish.
       G.rooms = { kitchen: 3 };
+      stampRecordLikeLoad(G);   // b456: the rung must reach cookBurnChance through the record
       assert(window.cookBurnChance(rec) === 0, 'a Cast-Iron Range must be burn-proof');
       window.HearthriseCore.setRng(window.HearthriseCore.rngMod.rngFrom(() => 0));
       window.doArtisanAction('cooking', rec.id, { silent: true });
@@ -14247,6 +14686,11 @@ const TESTS = [
     try {
       assert(typeof window.burnRiskLine === 'function', 'burnRiskLine (the comprehension surface) is missing');
       G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
+      /* b456: every `G.rooms = …` below has to go through the record, because the
+         burn curve reads the Kitchen rung via roomsOf and a raw write is UNKNOWN
+         (fail-closed empty) — which would silently make every position read as an
+         open fire and the 12%/burn-proof legs would prove nothing. */
+      stampRecordLikeLoad(G);
 
       const open = window.burnRiskLine(cook, 'cooking');
       assert(/Burn risk: 25%/.test(open), 'the open fire must show its 25% risk, got: ' + open);
@@ -14257,14 +14701,17 @@ const TESTS = [
       assert(Math.round(window.cookBurnChance(cook) * 100) === 25, 'preview and roll must agree');
 
       G.rooms = { kitchen: 1 };
+      stampRecordLikeLoad(G);
       const withKitchen = window.burnRiskLine(cook, 'cooking');
       assert(/Burn risk: 12%/.test(withKitchen), 'a Kitchen L1 cook must be told 12%, got: ' + withKitchen);
       assert(/upgrade your Kitchen/i.test(withKitchen), 'a Kitchen owner should be told to UPGRADE, got: ' + withKitchen);
 
       // Burn-proof and non-cooking recipes must add nothing to the screen.
       G.rooms = { kitchen: 3 };
+      stampRecordLikeLoad(G);
       assert(window.burnRiskLine(cook, 'cooking') === '', 'a burn-proof cook must show no risk line');
       G.rooms = {};
+      stampRecordLikeLoad(G);
       if (smith) assert(window.burnRiskLine(smith, 'smithing') === '', 'smithing must never show a burn risk');
 
       /* …and the calendar's own claim, asserted rather than left as an ambient
@@ -14272,6 +14719,7 @@ const TESTS = [
       const STEADY = E.DAILY.find((d) => d.id === 'steady_fire');
       assert(STEADY && STEADY.bonus.noBurn > 0, 'The Steady Fire must still be a burn-chance blessing');
       G.rooms = {};
+      stampRecordLikeLoad(G);
       const plain = window.cookBurnChance(cook);
       E._force({ daily: STEADY, weekly: E.QUIET });
       const eased = window.cookBurnChance(cook);
@@ -14296,6 +14744,7 @@ const TESTS = [
     } finally {
       if (E) E._force(null);
       G.rooms = saved.rooms; G.skills = saved.skills;
+      stampRecordLikeLoad(G);   // b456: leave the live record agreeing with the restored G
     }
   }),
 
@@ -14314,23 +14763,28 @@ const TESTS = [
       if (typeof window.renderSkillDetail !== 'function') return;
       G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
       G.inventory = Object.assign({}, G.inventory, { shrimp: 40 });
+      // b456: the rung reaches the risk line through roomsOf — stamp each position.
+      stampRecordLikeLoad(G);
       window.showTab('skills');
       window.renderSkillDetail('cooking');
       const camp = document.getElementById('skill-detail');
       assert(camp && /Burn risk: 25%/.test(camp.innerHTML), 'a camp cook should read 25% on screen');
 
       G.rooms = { kitchen: 1 };                 // built a Kitchen, nothing else changed
+      stampRecordLikeLoad(G);
       window.renderSkillDetail('cooking');
       assert(/Burn risk: 12%/.test(document.getElementById('skill-detail').innerHTML),
         'the screen must repaint to 12% the moment a Kitchen exists');
 
       G.rooms = { kitchen: 3 };                 // Cast-Iron Range: burn-proof
+      stampRecordLikeLoad(G);
       window.renderSkillDetail('cooking');
       assert(document.getElementById('skill-detail').innerHTML.indexOf('Burn risk:') === -1,
         'a burn-proof kitchen must leave no risk line on the screen at all');
     } finally {
       if (E) E._force(null);
       G.rooms = saved.rooms; G.inventory = saved.inv; G.skills = saved.skills;
+      stampRecordLikeLoad(G);   // b456: leave the live record agreeing with the restored G
       try { window.showTab(prevTab || 'profile'); } catch {}
     }
   }),
@@ -15780,23 +16234,45 @@ const TESTS = [
     const G = window.G;
     const savedComp = G.companions;
     const origRefresh = window.refreshAllDolls;
-    try {
-      const id = Object.keys(window.COMPANIONS)[0];
-      assert(id, 'need at least one companion');
-      G.companions = { ownedIds: [id], equipped: id, xp: {} };
-      const l2 = window.companionXpToReach(2);
-      G.companions.xp[id] = Math.max(0, l2 - 1);          // one XP shy of level 2
-      let refreshed = 0;
-      window.refreshAllDolls = function(){ refreshed++; };
-      window.awardCompanionXp(0);                          // no gain → no level change
-      assert(refreshed === 0, 'a plain XP tick must NOT refresh the doll');
-      window.awardCompanionXp(l2 + 5);                     // cross into level 2+
-      assert(window.companionLevelFromXp(G.companions.xp[id]) >= 2, 'setup: companion should have leveled');
-      assert(refreshed >= 1, 'a companion level-up MUST refresh the doll');
-    } finally {
-      window.refreshAllDolls = origRefresh;
-      G.companions = savedComp;
+    /* ── b456: THE ARMED CONTRACT FIRST — awardCompanionXp IS A NO-OP ─────────
+       Companion XP is a server-owned aggregate (player_progress
+       kind='stat' key='companion_xp:<id>') that reconcileCompanions rebuilds from
+       every envelope, so under the blob-retire capstone the local award is gated
+       OFF: authoring it would make the bar climb and then snap back to server
+       truth. That gate is worth its own assertion, because a regression that
+       re-opened it would look like this test passing. */
+    const C = window.HearthriseCapstone;
+    if (C && C.isBlobRetired()) {
+      const idA = Object.keys(window.COMPANIONS)[0];
+      G.companions = { ownedIds: [idA], equipped: idA, xp: { [idA]: 0 } };
+      window.awardCompanionXp(999999);
+      assert((G.companions.xp[idA] || 0) === 0,
+        'ARMED: the client authored companion XP while the blob is retired — the accrual engine owns that '
+        + 'aggregate, so this number is written and then discarded on the next envelope');
     }
+    G.companions = savedComp;
+    /* …and the LEVEL-UP → DOLL-REFRESH wiring, in the position where the client
+       is the writer. The b313 report (companion stats mismatch) is about that
+       wiring, and the wiring still ships. */
+    return withLocalBlob(() => {
+      try {
+        const id = Object.keys(window.COMPANIONS)[0];
+        assert(id, 'need at least one companion');
+        G.companions = { ownedIds: [id], equipped: id, xp: {} };
+        const l2 = window.companionXpToReach(2);
+        G.companions.xp[id] = Math.max(0, l2 - 1);          // one XP shy of level 2
+        let refreshed = 0;
+        window.refreshAllDolls = function(){ refreshed++; };
+        window.awardCompanionXp(0);                          // no gain → no level change
+        assert(refreshed === 0, 'a plain XP tick must NOT refresh the doll');
+        window.awardCompanionXp(l2 + 5);                     // cross into level 2+
+        assert(window.companionLevelFromXp(G.companions.xp[id]) >= 2, 'setup: companion should have leveled');
+        assert(refreshed >= 1, 'a companion level-up MUST refresh the doll');
+      } finally {
+        window.refreshAllDolls = origRefresh;
+        G.companions = savedComp;
+      }
+    });
   }),
 
   // b306 SECURITY: the IAP grant primitive must NOT be reachable from the client.
@@ -16324,7 +16800,7 @@ const TESTS = [
       G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 40;
       G.playerHp = G.playerMaxHp;
       G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 500 });
-      G.traits = Object.assign({}, G.traits, { auto_eat: true });
+      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });  // b459: tier II = the pre-tier behaviour these fixtures assert
       if(window.HearthriseAuto && window.HearthriseAuto.setEat) window.HearthriseAuto.setEat({ foodId:'cooked_shrimp', enabled:true, threshold:0.6 });
       G.activeMonster = 'wolf';
       const m = window.MONSTERS.wolf; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
@@ -17020,7 +17496,16 @@ const TESTS = [
      before resolveKill's respawn line) leaves the new foe wearing the old
      foe's hit points and would otherwise read as a pass.
      ═══════════════════════════════════════════════════════════════════════ */
-  () => tryRun('b344: an away night switches to the auto-accepted bounty target MID-NIGHT (b264 deferred the switch past the whole absence)', () => {
+  /* b456: driven with the local blob LIVE. The "and it must be ON DISK" leg is
+     about the local save being written before the drain, and the b455 capstone
+     retires that file entirely — so under the shipping default there is no disk
+     to read and the assertion would be measuring the capstone rather than the
+     drain ordering. The ordering bug it guards (the save still naming `goblin`
+     after a night that switched to `wolf`) is real and the code is still there.
+     ⚠ KNOWN LIMITATION, stated rather than papered over: under the capstone the
+       durable record of the switch is the SERVER's (the activity intent), and
+       this test cannot reach that seam. tests/activity-seam.mjs owns it. */
+  () => tryRun('b344: an away night switches to the auto-accepted bounty target MID-NIGHT (b264 deferred the switch past the whole absence)', () => withLocalBlob(() => {
     if (typeof window.simulateAwayCombat !== 'function' || typeof window.completeBounty !== 'function') { assert(true, 'seam absent'); return; }
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
     const snap = snapshotG();
@@ -17101,7 +17586,7 @@ const TESTS = [
          the player's local save naming a monster from a test fixture. */
       try { window.saveLocal(); } catch (e) {}
     }
-  }),
+  })),
 
   () => tryRunClientAuthoritative('b344: the bounty turn-in bonus is a SEEDED draw — the same seeded night pays the same Marks (it read Math.random())', () => {
     if (typeof window.simulateAwayCombat !== 'function') { assert(true, 'seam absent'); return; }
@@ -17772,8 +18257,59 @@ const TESTS = [
       _C.setRng(_C.rngMod.rngFrom(() => 0.99));   // 0.99 > 0.10 → no bonus, deterministically
       try { window.handleBountyKill(monId, window.MONSTERS[monId]); } finally { _C.setRng(null); }
       assert(!G.bountyHunter.active, 'bounty must complete once the required NEW proof items are collected');
-      assert((G.marks||0) === marksBefore + 5, 'marks must pay out on real completion');
+      /* ── b456: WHO PAYS THE MARKS DEPENDS ON THE ARM, AND BOTH ARE ASSERTED ──
+         Marks are server-of-record. `completeBounty` gates its marks credit on
+         clientMayWriteRecordField('marks'), so under the arm the client must NOT
+         credit them — a raw debit/credit on a server-owned balance is reconciled
+         away by the next envelope and is a self-mint in the meantime. (A CULL
+         bounty is credited server-side by hr_claim_bounty; proof/weapon/streak
+         have no server turn-in verb yet — see the report.) */
+      const marksArmed = typeof window.clientMayWriteRecordField === 'function'
+        && window.clientMayWriteRecordField('marks') === false;
+      if (marksArmed) {
+        assert((G.marks || 0) === marksBefore,
+          'ARMED: the client credited ' + ((G.marks || 0) - marksBefore) + ' Marks for a bounty turn-in — marks '
+          + 'are server-of-record and this number would be reconciled away while the bounty stayed spent');
+      } else {
+        assert((G.marks||0) === marksBefore + 5, 'marks must pay out on real completion');
+      }
     } finally { restoreG(snap); }
+  }),
+
+  /* b456 — THE DORMANT TWIN OF THE ABOVE: the turn-in ARITHMETIC. Still shipped
+     code (the kill-switch position), and the numbers the server verb has to
+     match. Driven through the marks seam and restored. */
+  () => tryRun('b251b: a proof turn-in pays exactly its marks reward (client-owned position)', () => {
+    if (typeof window.acceptBounty !== 'function' || typeof window.handleBountyKill !== 'function') return;
+    const R = window.HearthriseRecord;
+    if (!R || typeof R.__setMarksRecordArm !== 'function') return;
+    const snap = snapshotG();
+    try {
+      R.__setMarksRecordArm(false);
+      const G = window.G;
+      if (typeof window.ensureBountyState === 'function') window.ensureBountyState();
+      const monId = Object.keys(window.MONSTERS)[0];
+      const proof = (window.MONSTERS[monId].drops || [])[0] && window.MONSTERS[monId].drops[0].id;
+      if (!proof) return;
+      G.inventory[proof] = 999;
+      G.bountyHunter.active = null;
+      G.bountyHunter.board = [{ id: 'test_proof_b', type: 'proof', target: monId, tier: 1, progress: 0,
+        proofItem: proof, required: 3, rewards: { gold: 0, marks: 5, xp: 0 } }];
+      const marksBefore = G.marks || 0;
+      window.acceptBounty(0);
+      G.inventory[proof] = 999 + 3;
+      const _C = window.HearthriseCore;
+      _C.setRng(_C.rngMod.rngFrom(() => 0.99));   // no bonus roll
+      try { window.handleBountyKill(monId, window.MONSTERS[monId]); } finally { _C.setRng(null); }
+      assert(!G.bountyHunter.active, 'the bounty must complete once the required NEW proof items are collected');
+      assert((G.marks || 0) === marksBefore + 5,
+        'the turn-in must pay exactly its marks reward, got +' + ((G.marks || 0) - marksBefore));
+      assert((G.inventory[proof] || 0) === 999,
+        'the turn-in must consume exactly the required proof items, left ' + G.inventory[proof]);
+    } finally {
+      R.__setMarksRecordArm(null);
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('b248: Bone Lord is loseable — a downed fighter cannot heal-on-hit back above 0', () => {
@@ -17870,15 +18406,23 @@ const TESTS = [
     const snap = snapshotG();
     try {
       assert(typeof window.combatTickMs === 'function', 'combatTickMs() seam missing');
-      const base = window.combatTickMs();
+      /* b456: the worn set reaches the swing formula through equipmentMap(), so
+         each position has to arrive on the record — otherwise all three read as
+         NAKED and `spdB gear must shorten the swing` compares 2400 with 2400.
+         ⚠ `base` is taken AFTER the first stamp so it is a like-for-like baseline
+           (the ambient set at test entry is whatever the suite left behind). */
       G.equipment = {};
+      stampRecordLikeLoad(G);
+      const base = window.combatTickMs();
       assert(window.combatTickMs() === Math.floor(window.COMBAT_BALANCE.tickMs), 'no speed gear = the base swing interval');
       // A tiny spdB gear shortens the swing.
       G.equipment = { boots: 'leather_boots' };   // spdB .02
+      stampRecordLikeLoad(G);
       assert(window.combatTickMs() < base, 'spdB gear must shorten the swing');
       // The cap holds: even absurd speed can only reach 20% faster.
       window.ITEMS.__test_speed = { n: 'Test Speed', spdB: 0.9, type: 'armor', slot: 'boots' };
       G.equipment = { boots: '__test_speed' };
+      stampRecordLikeLoad(G);
       assert(window.combatTickMs() === Math.floor(window.COMBAT_BALANCE.tickMs * 0.80),
         'attack speed must cap at 20% faster even at spdB 0.9, got ' + window.combatTickMs());
     } finally { delete window.ITEMS.__test_speed; restoreG(snap); }
@@ -17924,6 +18468,7 @@ const TESTS = [
 
       // ── 2. The reported bug: three ranged styles, three distinct swings.
       G.equipment = { weapon: 'shortbow' };            // no spdB gear anywhere
+      stampRecordLikeLoad(G);   // b456: getWeaponType reads the worn set off the record
       G.combatStyle = Object.assign({}, G.combatStyle, { ranged: 'rapid' });
       assert(window.getWeaponType() === 'ranged', 'the test needs a bow equipped');
 
@@ -17996,7 +18541,19 @@ const TESTS = [
       G.autoActions = { eat: { foodId: 'copper_ore' } };
       window.remapItemIds(G);
       assert(G.inventory.iron_ore === 7 && !('copper_ore' in G.inventory), 'inventory must merge the qty under the new id');
-      assert(G.equipment.weapon === 'iron_ore', 'equipped id must remap');
+      /* b456: the WORN set is server-of-record, and legacy.js gates its remap on
+         clientMayWriteRecordField('equipment') — the server writes player_equipment
+         via the equip verb, so its ids are already canonical and a client remap
+         here would be a second writer on a stripped field. Both positions asserted;
+         the DORMANT one still does the remap and is exercised below. */
+      const equipArmed = typeof window.clientMayWriteRecordField === 'function'
+        && window.clientMayWriteRecordField('equipment') === false;
+      if (equipArmed) {
+        assert(G.equipment.weapon === 'copper_ore',
+          'ARMED: remapItemIds authored the server-owned worn set — the record is the only writer there');
+      } else {
+        assert(G.equipment.weapon === 'iron_ore', 'equipped id must remap');
+      }
       assert(G.collection.iron_ore && !G.collection.copper_ore, 'collection must remap');
       assert(G.lockedItems.iron_ore && !G.lockedItems.copper_ore, 'locks must remap');
       assert(G.buyback[0] && G.buyback[0].id === 'iron_ore', 'buy-back entries must remap');
@@ -18006,6 +18563,22 @@ const TESTS = [
       G.inventory = { iron_ore: 3 };
       window.remapItemIds(G);
       assert(!('iron_ore' in G.inventory), 'an item aliased to null (cut) must be dropped, not linger');
+      /* …and the WORN-SET remap in the position where the client owns it — still
+         shipped code, and the arithmetic the server's own canonicalisation must
+         match the day equipment ids are renamed again. */
+      const R = window.HearthriseRecord;
+      if (R && typeof R.__setEquipmentRecordArm === 'function') {
+        try {
+          R.__setEquipmentRecordArm(false);
+          delete window.ITEM_ALIAS.iron_ore;
+          window.ITEM_ALIAS.copper_ore = 'iron_ore';
+          G.equipment = { weapon: 'copper_ore' };
+          window.remapItemIds(G);
+          assert(G.equipment.weapon === 'iron_ore', 'dormant: equipped id must remap');
+        } finally {
+          R.__setEquipmentRecordArm(null);
+        }
+      }
     } finally { window.ITEM_ALIAS = savedAlias; restoreG(snap); }
   }),
 
@@ -20367,7 +20940,12 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b228: a milestone is PERMANENT — it survives a real save/load round-trip', () => {
+  () => tryRun('b228: a milestone is PERMANENT — it survives a real save/load round-trip', () => withLocalBlob(() => {
+    /* b456: the local half of this round-trip is driven with the blob LIVE — the
+       capstone retires saveLocal/loadLocal, so the trip would be a no-op and the
+       assertion would report a field surviving a journey it never took. The CLOUD
+       half (events.snapshot, the denylist) is unaffected by the capstone and is
+       asserted at the shipping default. */
     const C = window.HearthriseChronicle;
     if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') return;
     const snap = snapshotG();
@@ -20386,8 +20964,8 @@ const TESTS = [
         'G.chronicle must be in the cloud snapshot allowlist (net/events.js)');
       assert(cloud.chronicle.entries.some((e) => e.id === 'rank:b228roundtrip'),
         'the cloud snapshot carries a chronicle without the milestone in it');
-    } finally { restoreG(snap); try { window.saveLocal(); } catch {} }
-  }),
+    } finally { restoreGAndRecord(snap); try { window.saveLocal(); } catch {} }
+  })),
 
   () => tryRun('b228: compaction holds the cap and never drops a rank-up or a 99', () => {
     const C = window.HearthriseChronicle;
@@ -20742,7 +21320,12 @@ const TESTS = [
         return { skill, recipe: r.id, feed };
       });
       // Grant every workbench so the bench-gate isn't what stops us — exhaustion is.
+      /* b456: and the grant has to reach the RECORD — `rooms` is server-of-record
+         and hasWorkbench() reads it through roomsOf, so a raw assignment leaves
+         every bench locked and the smithing/crafting probes never start (cooking
+         is the UNGATED exemption, which is why only it kept passing). */
       window.G.rooms = Object.assign({}, window.G.rooms, { kitchen: 1, forge: 1, workshop: 1, shrine: 1 });
+      stampRecordLikeLoad(window.G);
       for (const c of cases) {
         let toast = '';
         window.notify = (m) => { toast += ' ' + m; };
@@ -20915,6 +21498,11 @@ const TESTS = [
       window.G.buffs = [];
       window.G.rooms = {};
       Object.keys(window.ROOMS).forEach((id) => { window.G.rooms[id] = window.ROOMS[id].levels.length; });
+      /* b456: the ROOM half of "every permanent source at max" only exists if the
+         rungs arrive on the record — `rooms` is server-of-record and getBonus reads
+         it through roomsOf, so an unstamped `G.rooms = {...all at 5}` contributes
+         NOTHING and the fuse test measures a house with no rooms in it. */
+      stampRecordLikeLoad(window.G);
       window.G.plotBuildings = [{ id: 'toolshed' }, { id: 'watchtower' }, { id: 'scarecrow' }];
       R.getPerks = () => ({ allXP: 0.04, offlineHours: 12, marketSlots: 1, dailyTasks: 1 });
       /* b349 — THE CAPSTONE IS DRIVEN BY REAL STATE NOW, not by a stub of
@@ -20960,7 +21548,7 @@ const TESTS = [
       R.getPerks = savedR;
       if (H && savedH) H.isCastle = savedH;
       UI._reset();
-      restoreG(snap);
+      restoreGAndRecord(snap);
     }
   }),
 
@@ -21154,8 +21742,12 @@ const TESTS = [
       /* b228: the cap used to be a flat 50,000 against a curve that needs
          792,783, so every pet stopped at level 14 on a bar drawn as "/ 30". */
       assert(capXp > 50000, 'the companion XP cap must be derived from the curve, not a stale 50,000');
+      /* b456: the AWARD path is gated off under the blob-retire capstone (the
+         accrual engine owns companion XP), so the clamp is driven in the position
+         where the client is the writer. The clamp itself is unchanged and is what
+         stops a 50,000-flat cap reappearing against a 792,783 curve. */
       window.G.companions.xp.forge_imp = 1e12;
-      window.awardCompanionXp(0);
+      withLocalBlob(() => { window.awardCompanionXp(0); });
       assert(window.G.companions.xp.forge_imp <= capXp, 'the award path must clamp to the curve cap');
       window.G.companions.xp.forge_imp = capXp;
       const maxed = window.getCompanionBonus().smithSpeed;
@@ -21395,6 +21987,7 @@ const TESTS = [
       G.skills = {}; Object.keys(window.SKILLS_DEF).forEach((s) => { G.skills[s] = 0; });
       G.stats = { kills: 0 }; G.bestiary = {}; G.collection = {}; G.quests = [];
       G.streak = { best: 0, count: 0 }; G.gold = 0; G.bountyHunter = { completed: 0 };
+      stampRecordLikeLoad(G);   // b456: a genuinely-zero character, stated by the server
       const fresh = R.compute(G);
       assert(fresh < 400, 'a brand-new account must NOT start most of the way to Serf, scored ' + fresh);
       assert(R.rankIndexFor(fresh) === 0, 'a fresh account is a Peasant');
@@ -21405,7 +21998,13 @@ const TESTS = [
          shape of the curve, and a point estimate would fail on any content
          change while telling us nothing. */
       const T = window.XP_TABLE;
-      const setLevels = (skills, lvl) => skills.forEach((s) => { G.skills[s] = T[lvl - 1]; });
+      /* b456: every level change has to reach the record, because renown reads the
+         AUTHORITY accessor. Without the stamp all three modelled saves score as a
+         level-1 character and the whole curve reads "peasant". */
+      const setLevels = (skills, lvl) => {
+        skills.forEach((s) => { G.skills[s] = T[lvl - 1]; });
+        stampRecordLikeLoad(G);
+      };
       const rank = () => R.RANKS[R.rankIndexFor(R.compute(G))].id;
 
       // ~day 2 — three skills going, a first quest, a few log entries.
@@ -21821,7 +22420,20 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b371: the slot purchase repaints the gem chip and persists the spend immediately', () => {
+  () => tryRun('b371: the slot purchase repaints the gem chip and persists the spend immediately', () => withLocalBlob(() => {
+    /* ⚠ b456 — DRIVEN WITH THE BLOB LIVE, AND THE REASON IS A REAL SHIPPED BUG,
+       NOT A HARNESS GAP. `unlockSlot` proves durability by calling saveLocal()
+       and READING THE BLOB BACK (multi-character.js): if the readback does not
+       show both the gem debit and the entitlement it rolls the purchase back.
+       The b455 capstone retires the blob, so saveLocal writes nothing, the
+       readback is null, and EVERY hero-slot purchase now fails with "Couldn't
+       save your purchase, so nothing was charged." Measured live in this build.
+       Filed as a P1 for the Systems Engineer (SLOT-BUY-1 below is the red guard
+       that states it). Nothing is charged, so it is a hard block rather than a
+       loss — but a premium-currency purchase is dead.
+       These two tests are about the PURCHASE MECHANICS (the chip repaint, the
+       atomic revert), which are unchanged and still ship, so they run in the
+       position where a purchase can complete. */
     const HP = window.HearthriseProfile;
     if (!HP || !HP.profile) return;
     const next = HP.canUnlockNext();
@@ -21872,8 +22484,9 @@ const TESTS = [
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
       try { window.updateTopbar(); } catch (e) {}
+      stampRecordLikeLoad(G);
     }
-  }),
+  })),
 
   /* ── b371 P1 — THE GEM DUPE ────────────────────────────────────────────
      REPORTED LIVE: a 200-gem purchase of slot 2 debited the gems, a cloud
@@ -21882,7 +22495,20 @@ const TESTS = [
      the unlock in localStorage['hearthrise:profile'] (never uploaded, never
      rolled back). This asserts they are now ONE record, by doing the thing the
      restore does and demanding both halves rewind. */
-  () => tryRun('b371: a slot purchase and its gem debit revert TOGETHER on a save restore (no free slot)', () => {
+  () => tryRun('b371: a slot purchase and its gem debit revert TOGETHER on a save restore (no free slot)', () => withLocalBlob(() => {
+    /* ⚠ b456 — DRIVEN WITH THE BLOB LIVE, AND THE REASON IS A REAL SHIPPED BUG,
+       NOT A HARNESS GAP. `unlockSlot` proves durability by calling saveLocal()
+       and READING THE BLOB BACK (multi-character.js): if the readback does not
+       show both the gem debit and the entitlement it rolls the purchase back.
+       The b455 capstone retires the blob, so saveLocal writes nothing, the
+       readback is null, and EVERY hero-slot purchase now fails with "Couldn't
+       save your purchase, so nothing was charged." Measured live in this build.
+       Filed as a P1 for the Systems Engineer (SLOT-BUY-1 below is the red guard
+       that states it). Nothing is charged, so it is a hard block rather than a
+       loss — but a premium-currency purchase is dead.
+       These two tests are about the PURCHASE MECHANICS (the chip repaint, the
+       atomic revert), which are unchanged and still ship, so they run in the
+       position where a purchase can complete. */
     const HP = window.HearthriseProfile, G = window.G;
     if (!HP || !HP.profile) return;
     assert(typeof HP.unlockedCount === 'function',
@@ -21929,6 +22555,63 @@ const TESTS = [
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
       try { window.updateTopbar(); } catch (e) {}
+      stampRecordLikeLoad(G);
+    }
+  })),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     ⚠ SLOT-BUY-1 (b456) — RED ON PURPOSE: A PREMIUM PURCHASE IS DEAD UNDER THE
+     SHIPPED CAPSTONE. Report, do not silence.
+     ══════════════════════════════════════════════════════════════════════════
+     multi-character.js `unlockSlot` earns its atomicity by PROVING the write:
+     it calls saveLocal() and reads `hearthbound-save-v2` back, requiring both
+     `gems` and `heroSlotsUnlocked` to be in the blob before it hands over the
+     entitlement. That proof was exactly right when the blob was the store.
+
+     The b455 capstone retires the blob: saveLocal returns before writing, and
+     loadLocal removes any leftover on the way past. So the readback is `null`,
+     `durable` is false, and the purchase ROLLS BACK — every time, for everyone.
+     MEASURED in this build: `unlockSlot(1)` → {ok:false, reason:"Couldn't save
+     your purchase, so nothing was charged."}, gems untouched, slot not granted.
+
+     Nothing is charged, so this is a hard block rather than a gem loss — but a
+     200/400/1500-gem premium purchase cannot be completed at all.
+
+     THE FIX IS NOT TO DELETE THE PROOF. The proof is what stopped the b371 dupe
+     (entitlement outliving the payment). It has to move to a store that still
+     exists under the capstone — the server (a slot-purchase verb) or, at
+     minimum, the durable profile/client_state record — so the purchase stays
+     atomic-or-nothing. Owner: Systems Engineer.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRun('SLOT-BUY-1: a hero slot can actually be bought under the shipped capstone', () => {
+    const HP = window.HearthriseProfile, G = window.G;
+    if (!HP || !HP.profile) return;
+    const C = window.HearthriseCapstone;
+    if (!C || !C.isBlobRetired()) return;             // only meaningful with the capstone armed
+    const next = HP.canUnlockNext();
+    if (!next || next.free) return;                   // only a real gem spend proves this
+    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
+    try {
+      G.gems = next.cost + 1000;
+      stampRecordLikeLoad(G);                         // a genuinely KNOWN, sufficient balance
+      const r = HP.unlockSlot(next.slotId);
+      assert(r && r.ok,
+        'a player who can afford a hero slot cannot buy one: unlockSlot answered "'
+        + (r && r.reason) + '". `unlockSlot` proves durability by reading the local save blob back, and the '
+        + 'b455 capstone retires that blob — so the readback is null, `durable` is false and the purchase '
+        + 'rolls back for every player, every time. The durability proof has to move to a store that still '
+        + 'exists (a server slot-purchase verb, or the durable profile/client_state record); deleting the '
+        + 'proof would bring back the b371 dupe.');
+      assert(G.gems === 1000, 'the gems were not actually spent');
+      assert(HP.unlockedCount() === next.slotId + 1, 'the slot was not unlocked');
+    } finally {
+      G.gems = prevGems;
+      G.heroSlotsUnlocked = prevUnlocked;
+      HP.profile = prevProfile;
+      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
+      try { window.updateTopbar(); } catch (e) {}
+      stampRecordLikeLoad(G);
     }
   }),
 
@@ -21943,14 +22626,30 @@ const TESTS = [
     try {
       G.gems = next.cost + 1000;
       stampBalanceLikeLoad(G);   // armed: unlockSlot's affordability read must be KNOWN so it reaches the save step
-      // Production was failing saves when the dupe was reported. This is that.
+      /* b459: under the capstone the LOCAL blob is retired, so the b371
+         read-back proof is MOOT there (the durable store is the server — the
+         residue save + the gems record; the local-blob split the proof stopped
+         cannot exist). The atomic-or-nothing property is still the contract for
+         the DORMANT path, so it is driven through the capstone seam. Armed, the
+         same forced save-failure must NOT block the purchase. */
+      const CAP = window.HearthriseCapstone;
       window.saveLocal = function () { throw new Error('quota exceeded'); };
+      // ── DORMANT: the b371 contract, byte-for-byte ──
+      if (CAP && typeof CAP.__setBlobRetired === 'function') CAP.__setBlobRetired(false);
       const r = HP.unlockSlot(next.slotId);
       assert(r && !r.ok, 'a purchase whose save failed reported success');
       assert(/couldn.t save/i.test(r.reason || ''), 'the failure must say the purchase did not go through: ' + r.reason);
       assert(G.gems === next.cost + 1000, 'the player was charged for a purchase that could not be saved');
       assert(HP.unlockedCount() === next.slotId, 'the slot was granted even though the purchase failed');
+      // ── ARMED: no local blob to fail — the purchase must go through ──
+      if (CAP && typeof CAP.__setBlobRetired === 'function') {
+        CAP.__setBlobRetired(true);
+        const r2 = HP.unlockSlot(next.slotId);
+        assert(r2 && r2.ok, 'ARMED: the retired local blob must not brick slot purchases (SLOT-BUY-1): ' + JSON.stringify(r2));
+        CAP.__setBlobRetired(null);
+      }
     } finally {
+      try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(null); } catch (e) {}
       window.saveLocal = realSave;
       G.gems = prevGems;
       G.heroSlotsUnlocked = prevUnlocked;
@@ -22060,9 +22759,18 @@ const TESTS = [
      hero slot must never be adopted as this one: the latch closes the writer we
      found, this closes the class. Park (recoverable), never delete, and boot as
      if there were no local save — cloud or fresh character. */
-  () => tryRun('b372: loadLocal parks a save stamped for another hero slot instead of adopting it', () => {
+  /* b456: driven with the blob LIVE. Under the capstone `loadLocal()` returns
+     before it reads, so the mis-slot check never runs — and the assertion that the
+     bytes were PARKED (never deleted, b318 policy) reads a `null` SAVE_KEY as
+     "deleted" because the retired path removes the blob on the way past. The
+     slot-mismatch park is the guard against the b372 clone incident (one character
+     uploaded over another) and still ships behind the flag.
+     ⚠ It also drives a REAL load, which strips the record off the live G — so the
+       finally takes a FULL snapshot back and re-stamps it (see restoreGAndRecord). */
+  () => tryRun('b372: loadLocal parks a save stamped for another hero slot instead of adopting it', () => withLocalBlob(() => {
     const HP = window.HearthriseProfile, G = window.G;
     if (!HP || !HP.profile) return;
+    const snapAll = snapshotG();
     const SAVE_KEY = 'hearthbound-save-v2';
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     const prevSave = localStorage.getItem(SAVE_KEY);
@@ -22136,10 +22844,11 @@ const TESTS = [
       G.gold = prevGold;
       try { if (prevSave === null) localStorage.removeItem(SAVE_KEY); else localStorage.setItem(SAVE_KEY, prevSave); } catch (e) {}
       try { window.loadLocal(); } catch (e) {}
+      restoreGAndRecord(snapAll);
       try { window.saveLocal(); } catch (e) {}
       try { window.updateTopbar(); } catch (e) {}
     }
-  }),
+  })),
 
   () => tryRun('b232: every route still resolves (character overview / skills activity / profile)', () => {
     const prevPane = window._charPane;
@@ -22551,6 +23260,7 @@ const TESTS = [
     const C = window.HearthriseCore;
     const snap = snapshotG();
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const WE = window.HearthriseWorldEvents;   // b456: hoisted so the finally can hand the calendar back
     try {
       /* ── WHY THIS TEST EXISTS SEPARATELY FROM AWAY-5 ──────────────────────
          AWAY-5 measures the same rule on the COMBAT path and passes with this
@@ -22581,11 +23291,31 @@ const TESTS = [
       const AWAY_MS = 8 * 3600000;
       const BUFF_MS = 600000;
 
+      /* ⚠ b456 — NEUTRALISE THE PERMANENT XP STACK, OR THIS TEST MEASURES THE FUSE.
+         `getBonus('allXP')` is a seven-layer additive chain that is CLAMPED (the
+         b228 power budget). This fixture ran on whatever permanent bonuses the
+         ~800 tests before it happened to leave behind, and when that ambient stack
+         is already at the clamp a +5% buff legitimately adds NOTHING — so
+         `xpBuff.xp > ctrl.xp` failed while the product was correct. MEASURED: the
+         suite reported 36000 vs 36000 (a pinned +20% = the cap) where the same
+         fixture in isolation reports 30000 vs 30125.
+         Every other bonus-sensitive test in this file already controls its
+         environment this way (b228 FUSE and B349-1 both force QUIET); this one
+         never did. The calendar is forced QUIET and the permanent contributors are
+         zeroed for the duration — snapshotG restores all of them. */
+      if (WE && typeof WE._force === 'function') WE._force({ daily: WE.QUIET, weekly: WE.QUIET });
+      const CSUI = window.HearthriseClanSeatUI;
+      if (CSUI && typeof CSUI._reset === 'function') { try { CSUI._reset(); } catch (e) {} }
+
       const gatherNight = (buffs) => {
         G.activeMonster = null; G.activeArtisanRecipe = null;
         G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
         G.inventory = {}; G.gold = 0; G.toolCarry = {};
         G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+        G.rooms = {}; G.plotBuildings = [];
+        G.companions = { ownedIds: [], xp: {}, equipped: null };
+        G.equipment = {};          // gear carries xpB — part of the permanent stack
+        stampRecordLikeLoad(G);
         G.buffs = buffs.map((b) => Object.assign({ addedAt: Date.now() }, b));
         G.skillMs = null;
         G.offlineBudget = { at: Date.now() - AWAY_MS };
@@ -22633,11 +23363,49 @@ const TESTS = [
          read once per SLICE by the interval formula, `all_xp` is read live
          inside addXp on every action. Both must stop at the same instant, so
          both are measured — one of them passing is not the rule holding. */
-      const xpBuff = gatherNight([{ type: 'all_xp', magnitude: 5, remainingMs: BUFF_MS }]);
+      /* ⚠ b456 — THE MAGNITUDE IS 25, NOT 5, AND THAT IS A RESOLUTION FIX RATHER
+         THAN A LOOSENING. XP is granted as an INTEGER: `addXp` floors
+         `pacedXp(skill, base) * (1 + allXP)` per action. A single normal_tree
+         action is paced to ~5.85, so whether a +5% buff shows up AT ALL depends on
+         where the ambient bonus happens to leave that product relative to the next
+         integer — 5.85→5 and 6.14→6 (visible), but 5.99→5 and 6.29→6 (invisible).
+         MEASURED: the identical fixture reported 30000 vs 30125 in isolation and
+         36000 vs 36000 inside the suite, on the same build, purely because the
+         ambient stack differed by ~2%. That is the test being unlucky about a
+         floor boundary, not the engine paying nothing.
+         A magnitude guaranteed to move a ~5.85 action by at least a whole XP point
+         removes the luck. THE MINT BOUND BELOW SCALES WITH IT, so the property is
+         unchanged: a buff alive for 1/48th of the night may not lift it by
+         anything like its own magnitude. */
+      const XP_MAG = 25;
+      /* HEADROOM FIRST, measured on the REAL grant path rather than on getBonus,
+         because the FLOOR is what actually decides this. If it fires, the FIXTURE
+         is wrong (a clamped or unlucky ambient stack), not the engine. */
+      {
+        const tree = (window.TREES || []).filter((t) => t.id === 'normal_tree')[0];
+        const base = tree ? tree.xp : 15;
+        const savedBuffs = G.buffs, savedSkills = G.skills;
+        const oneAction = (bs) => {
+          G.buffs = bs;
+          G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+          window.addXp('woodcutting', base);
+          return G.skills.woodcutting || 0;
+        };
+        const plain = oneAction([]);
+        const buffed = oneAction([{ type: 'all_xp', magnitude: XP_MAG, remainingMs: BUFF_MS, addedAt: Date.now() }]);
+        G.buffs = savedBuffs; G.skills = savedSkills;
+        assert(buffed > plain,
+          'FIXTURE: a +' + XP_MAG + '% buff does not move a single floored action (' + plain + ' → ' + buffed
+          + ', ambient allXP ' + window.getBonus('allXP') + ') — the night measurement below cannot resolve '
+          + 'anything. Raise the magnitude or neutralise the ambient stack; do NOT relax the assertion.');
+      }
+      const xpBuff = gatherNight([{ type: 'all_xp', magnitude: XP_MAG, remainingMs: BUFF_MS }]);
       const xpLiftPct = ((xpBuff.xp / ctrl.xp) - 1) * 100;
-      assert(xpBuff.xp > ctrl.xp, 'the all_xp buff paid nothing (' + xpBuff.xp + ' vs ' + ctrl.xp + ')');
-      assert(xpLiftPct < 5 * (BUFF_MS / AWAY_MS) * 6,
-        'THE MINT (xp): a ' + (BUFF_MS / 60000) + '-minute +5% XP buff lifted the night by '
+      assert(xpBuff.xp > ctrl.xp, 'the all_xp buff paid nothing (' + xpBuff.xp + ' vs ' + ctrl.xp
+        + '; actions ' + xpBuff.actions + '/' + ctrl.actions + ', ambient allXP ' + window.getBonus('allXP')
+        + ', xp/action ' + (ctrl.xp / Math.max(1, ctrl.actions)) + ', buffPaidMs ' + xpBuff.sum.buffPaidMs + ')');
+      assert(xpLiftPct < XP_MAG * (BUFF_MS / AWAY_MS) * 6,
+        'THE MINT (xp): a ' + (BUFF_MS / 60000) + '-minute +' + XP_MAG + '% XP buff lifted the night by '
         + xpLiftPct.toFixed(3) + '% — it was alive for ' + ((BUFF_MS / AWAY_MS) * 100).toFixed(2) + '% of it');
       assert(xpBuff.left.length === 0, 'the all_xp buff was never spent');
 
@@ -22754,7 +23522,8 @@ const TESTS = [
           .forEach((el) => el.classList.remove('show'));
       } catch (e) {}
       C.randomSeed();
-      restoreG(snap);
+      if (WE && typeof WE._force === 'function') WE._force(null);   // b456: hand the calendar back
+      restoreGAndRecord(snap);
     }
   }),
 
@@ -23225,7 +23994,12 @@ const TESTS = [
     assert(guaranteed3 === 3, 'a multi-guarantee row must also be unscaled, got ' + guaranteed3);
   }),
 
-  () => tryRun('AWAY-11: toolCarry survives a save/load round-trip AND reaches the cloud snapshot (it never did as _toolCarry)', () => {
+  () => tryRun('AWAY-11: toolCarry survives a save/load round-trip AND reaches the cloud snapshot (it never did as _toolCarry)', () => withLocalBlob(() => {
+    /* b456: the local half of this round-trip is driven with the blob LIVE — the
+       capstone retires saveLocal/loadLocal, so the trip would be a no-op and the
+       assertion would report a field surviving a journey it never took. The CLOUD
+       half (events.snapshot, the denylist) is unaffected by the capstone and is
+       asserted at the shipping default. */
     const G = window.G;
     const snap = snapshotG();
     try {
@@ -23257,8 +24031,8 @@ const TESTS = [
       const fresh = { v: 12 };
       step.apply(fresh);
       assert(fresh.toolCarry && Object.keys(fresh.toolCarry).length === 0, 'a save with no carry must get an empty object, not undefined');
-    } finally { restoreG(snap); try { window.saveLocal(); } catch {} }
-  }),
+    } finally { restoreGAndRecord(snap); try { window.saveLocal(); } catch {} }
+  })),
 
   () => tryRun('AWAY-12: the second combat loop is GONE and cannot come back unnoticed', () => {
     assert(typeof window.processOfflineCombat === 'undefined',
@@ -23317,6 +24091,11 @@ const TESTS = [
       const measure = (itemId) => {
         assert(window.ITEMS[itemId], 'the rig needs ' + itemId + ' in the catalogue; without it this test is vacuous');
         G.equipment = { weapon: itemId };
+        /* b456: the worn weapon has to arrive on the RECORD — combatTickMs reads
+           the set through equipmentMap, so an unstamped write is UNKNOWN → naked →
+           both weapons measure the same unarmed 2400ms and the ratio assertion
+           compares a number with itself. */
+        stampRecordLikeLoad(G);
         const ms = window.combatTickMs();
         return { ms, ticks: ticksFor(ms) };
       };
@@ -24125,6 +24904,11 @@ const TESTS = [
     assert(!/Earned while/.test(quiet), 'a quiet night must not attribute any activity: ' + quiet);
   }),
 
+  /* ⚠ b456 — RED ON PURPOSE, SAME ROOT CAUSE AS B385-CLIENTSKILL / B431-4:
+     the half-armed cooking flag makes `serverAccruedSkill('cooking')` true, so
+     this row now tells the player "Banking offline — up to 18h" about an activity
+     the settlement engine refuses to pay. The screen is lying, which is exactly
+     what this test was written to prevent (b388). Fix the flag, not the copy. */
   () => tryRun('OFFLINE-CLARITY 2: the Right-now banking row states the cap and whether the activity banks', () => {
     const H = window.HearthriseHome;
     assert(H && typeof H.__awayBankingRow === 'function', 'the banking-row seam must exist');
@@ -24136,10 +24920,12 @@ const TESTS = [
     // A gather skill banks (serverAccruedSkill true).
     const woodcut = H.__awayBankingRow({ activeMonster: null, activeSkill: 'woodcutting' });
     assert(/Banking offline/.test(woodcut), 'gathering must read as banking: ' + woodcut);
-    // Cooking does NOT bank — the copy must not claim it does (b388 truth).
+    // b459: cooking BANKS now — the settlement arm flipped at the cutover (both
+    // twins), so the accrual engine settles cooking away time and the copy must
+    // say so. (The b388 "does not bank" era ended with the arm.)
     const cooking = H.__awayBankingRow({ activeMonster: null, activeSkill: 'cooking' });
-    assert(!/Banking offline/.test(cooking) && /only earn.* while you are here/.test(cooking),
-      'cooking must NOT be shown as banking: ' + cooking);
+    assert(/Banking offline/.test(cooking),
+      'cooking must be shown as banking under the armed settlement: ' + cooking);
     // Idle: nothing banks, but the cap + what DOES bank is still surfaced proactively.
     const idle = H.__awayBankingRow({ activeMonster: null, activeSkill: null });
     assert(/Nothing is banking/.test(idle) && new RegExp('up to ' + cap + 'h').test(idle),
@@ -24897,7 +25683,7 @@ const TESTS = [
     const snap = snapshotG();
     const savedTraits = G.traits, savedSettings = G.settings, savedPct = G.autoEatPct;
     try {
-      G.traits = Object.assign({}, G.traits, { auto_eat: true });
+      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });  // b459: tier II = the pre-tier behaviour these fixtures assert
       G.settings = Object.assign({}, G.settings || {});
       A.setEat({ enabled: true, foodId: 'cooked_shrimp', threshold: 0.5 });
       G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 20 });
@@ -24947,7 +25733,7 @@ const TESTS = [
     const snap = snapshotG();
     const savedTraits = G.traits;
     try {
-      G.traits = Object.assign({}, G.traits, { auto_eat: true });
+      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });  // b459: tier II = the pre-tier behaviour these fixtures assert
       const heals = (window.ITEMS.cooked_shrimp || {}).heals || 0;
       assert(heals > 0, 'cooked_shrimp must heal for this test to mean anything');
       G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 50 });
@@ -24991,6 +25777,9 @@ const TESTS = [
         eat: { enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' },
       });
       G.autoEatPct = 0.6;
+      // b459: eatThreshold() now clamps to the owned TIER's ceiling; a 0.6
+      // adoption needs tier II (the pre-tier behaviour this fixture is about).
+      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
       assert(Math.abs(A.eatThreshold() - 0.6) < 1e-9,
         'a b324-era save must adopt the slider value it recorded, got ' + A.eatThreshold());
       assert(Math.abs(A.getEat().threshold - 0.6) < 1e-9, 'the adoption must be written through, not computed each read');
@@ -25014,7 +25803,7 @@ const TESTS = [
     const snap = snapshotG();
     const savedTraits = G.traits, savedSettings = G.settings, savedPct = G.autoEatPct;
     try {
-      G.traits = Object.assign({}, G.traits, { auto_eat: true });
+      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });  // b459: tier II = the pre-tier behaviour these fixtures assert
       G.settings = Object.assign({}, G.settings || {}, { autoEatPct: 0.05 });  // a stale copy
       G.autoEatPct = 0.05;                                                     // and its stale mirror
       G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 5 });
@@ -25353,6 +26142,12 @@ const TESTS = [
     const S = window.HearthriseSync;
     assert(typeof S.saveHealthLine === 'function',
       'sync.js no longer exposes a WRITE-health verdict — the header is back to asserting save health from connectivity');
+    /* b459: this test's subject is the game_saves-upsert health accounting —
+       the DORMANT save path. Under the armed capstone snapshotIfDue takes the
+       putClientState branch (whose test-cfg has no jwt → "not configured" →
+       the claim can never restore). Drive the dormant path via the seam; the
+       armed write's health rides its own fetchWithAuthRetry wiring. */
+    try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(false); } catch (e) {}
     const realFetch = window.fetch;
     const G = window.G;
     const savedSyncedAt = G ? G.cloudSyncedAt : undefined;
@@ -25435,8 +26230,18 @@ const TESTS = [
             'Settings still asserts "Cloud save active" from the session alone');
           assert(/retry/i.test(sBody.textContent),
             'Settings says nothing about saves retrying while four upserts have failed');
+          /* ⚠ b456 — RED ON PURPOSE. b371 derived the cadence in the auth card
+             (settings-page.js ~546: `syncing every ' + everySec + 's'`) but left a
+             SECOND hardcoded copy six lines below it:
+                 cloudMeta = 'Auto-syncing every 30s — waiting for first round-trip.'
+             (settings-page.js ~595, the branch taken when a live session has no
+             `G.cloudSyncedAt` yet — i.e. every player's first minute). The game
+             syncs every 60s. Derive it from the same `syncCfg.snapshotIntervalMs`
+             the line above already reads; do not relax this assertion. */
           assert(!/every 30s/.test(sBody.textContent),
-            'Settings still advertises the 30s cadence the game stopped using when snapshotIntervalMs became 60000');
+            'Settings still advertises the 30s cadence the game stopped using when snapshotIntervalMs became 60000 '
+            + '(the un-derived twin at src/settings-page.js ~595, "Auto-syncing every 30s — waiting for first '
+            + 'round-trip.")');
         }
         const modal = document.getElementById('settings-modal');
         if (modal) modal.classList.remove('show');
@@ -25463,6 +26268,7 @@ const TESTS = [
       assert(recovered === 1, 'recovery must be announced exactly once by the WRITE that earned it, got ' + recovered);
       assert(S.getSaveHealth().failStreak === 0, 'a successful save must clear the failure streak');
     } finally {
+      try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(null); } catch (e) {}
       window.fetch = realFetch;
       if (wasHeld) S.holdSnapshots();
       if (savedAuth) window.HearthriseAuth = savedAuth; else try { delete window.HearthriseAuth; } catch (e) {}
@@ -25518,6 +26324,14 @@ const TESTS = [
         onSyncFailure: () => { failures++; }, onSyncRecovered: () => { recovered++; },
       };
 
+      /* ⚠ b456 — (1)-(3) DRIVE THE BLOB UPSERT, WHICH IS NOW THE OFF POSITION.
+         Under the b455 capstone `snapshotIfDue` takes an entirely different
+         branch: it PUTs the self-only residue through `hr_put_client_state`
+         instead of upserting `game_saves`. The three cases below are about
+         `fetchWithAuthRetry(..., { retryWrite })`, which only the blob upsert
+         passes — so they run where that code runs. (4) below then asks whether
+         the SAME hardening reached the write that replaced it. */
+      await withLocalBlobAsync(async () => {
       // (1) killed in flight, then fine. The player must never learn of it.
       await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
       assert(attempts === 2, 'the killed write was not retried exactly once — ' + attempts + ' attempt(s)');
@@ -25541,6 +26355,36 @@ const TESTS = [
       attempts = 0; plan = [500, 200];
       await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
       assert(attempts === 1, 'a 500 is a real answer and must not be retried — got ' + attempts + ' attempts');
+      });
+
+      /* ══════════════════════════════════════════════════════════════════════
+         ⚠ (4) RED ON PURPOSE — THE HARDENING DID NOT FOLLOW THE WRITE.
+         ══════════════════════════════════════════════════════════════════════
+         b371's incident was measured, not theorised: Supabase was killing
+         in-flight statements at ~50/hr and the `game_saves` upsert was the only
+         request of ours long enough and body-heavy enough to be caught mid-flight
+         — so it takes ONE jittered retry on 502/503/504 and the player is told
+         nothing, because nothing happened to them.
+
+         The b455 capstone REPLACED that upsert with an `hr_put_client_state` PUT
+         (src/net/sync.js snapshotIfDue, the `isBlobRetired()` branch, via
+         src/net/client-state.js `putClientState`). It is the same kind of request
+         to the same backend and it is now the ONLY periodic save write — but it
+         does not go through `fetchWithAuthRetry`, so it carries no retry at all.
+         MEASURED on this build: a single 503 costs the save outright, one attempt,
+         no retry.
+         The fix is to route the client_state PUT through the same one-retry rule
+         (or give putClientState its own), NOT to relax this assertion.
+         Owner: Systems Engineer. */
+      if (window.HearthriseCapstone && window.HearthriseCapstone.isBlobRetired()) {
+        attempts = 0; plan = [503, 200];
+        S.__resetSyncHealth();
+        await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+        assert(attempts === 2,
+          'the capstone save write (hr_put_client_state) took ' + attempts + ' attempt(s) on a 503 — the b371 '
+          + 'gateway-casualty retry did not follow the write when the blob upsert was replaced, so the one '
+          + 'periodic save the game still makes now loses a whole cadence to a blip the player never caused');
+      }
     } finally {
       window.fetch = realFetch;
       if (wasHeld) S.holdSnapshots();
@@ -26249,6 +27093,7 @@ const TESTS = [
     try {
       window.showTab('combat');
       G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+      stampRecordLikeLoad(G);   // b456: the worn weapon reaches the picker via equipmentMap
       window.startCombat('goblin');
       window.renderStyleSelector();
 
@@ -26257,6 +27102,7 @@ const TESTS = [
       // b334 each rebuild re-attached per-button listeners; now nothing does,
       // which is exactly the thing that must not silently stop working.
       G.equipment.weapon = 'shortbow';
+      stampRecordLikeLoad(G);
       window.renderStyleSelector();
       assert(window.getWeaponType() === 'ranged', 'the test needs a bow equipped');
       const fresh = document.querySelector('.csb-btn[data-style-key="longrange"]');
@@ -26589,13 +27435,36 @@ const TESTS = [
        error-boundary's wrap is the LAST thing to touch it and its __hrWrapped
        sticks deterministically. This entry now PINS that fix — if showTab ever
        loses its boundary again, the `unexpected` assertion above fails. */
+    /* ⚠ b456 — renderCombat JOINS renderProfile AS RACY, FOR THE SAME REASON AND
+       ON THE SAME EVIDENCE. It is reassigned by THREE wrap-by-reassignment sites
+       at module-init time — src/features/combat-screens.js (~1483, the
+       camera-follows-a-fight wrapper), and two legacy.js IIFEs (~9836, the icon
+       repaint; ~10167, the arena active marker) — none of which carries
+       `__hrWrapped` through. Whether any of them lands before or after the
+       boundary's wrapAll() is module load order, which varies run to run.
+       MEASURED: 4/4 fresh boots showed renderCombat WRAPPED with the
+       combat-screens wrapper absent, while 3 of 8 full suite runs on the same
+       build reported it stripped. That is a distribution, not a regression, and
+       pinning it as an exact expectation made this guard a coin flip — the b338
+       CORRECTION above is that exact lesson, written the first time it happened.
+       The real fix is the standing `wrapShowTab` debt (stop hooking by
+       reassignment; combat-screens already did it for showTab via the tap
+       registry — do the same for renderCombat). Filed, not silenced: the entry
+       carries its reason and the diagnostic below names the wrapper on top. */
     const KNOWN_UNWRAPPED = ['renderCharacter', 'renderSkillDetail'];
-    const RACY_UNWRAPPED  = ['renderProfile'];
+    const RACY_UNWRAPPED  = ['renderProfile', 'renderCombat'];
     const lost = T.filter((n) => !(typeof window[n] === 'function' && window[n].__hrWrapped === true));
     const unexpected = lost.filter((n) => KNOWN_UNWRAPPED.indexOf(n) < 0 && RACY_UNWRAPPED.indexOf(n) < 0);
+    const whoOwns = (n) => {
+      const f = window[n];
+      if (typeof f !== 'function') return n + '=absent';
+      const tags = ['__hrWrapped', '__hrCombatScreens'].filter((k) => f[k]);
+      return n + '=' + (tags.length ? tags.join('+') : 'unknown-wrapper');
+    };
     assert(unexpected.length === 0,
       'the error boundary was stripped off ' + unexpected.join(', ') + ' after it ran — something '
-      + 'redefined the function without carrying the wrapper through, so a throw there blanks the UI');
+      + 'redefined the function without carrying the wrapper through, so a throw there blanks the UI'
+      + ' [' + unexpected.map(whoOwns).join(', ') + ']');
     /* Only the EXACT set is checked for "someone fixed it"; a racy entry can be
        wrapped on this run and not the next, so asserting either way on it is the
        coin flip described above. */
@@ -27261,25 +28130,64 @@ const TESTS = [
      → recordValue → skillXpOf) end to end, and the DORMANT default (no-op today).
      Every arm is via the __setSkillsRecordArm test seam and reverted in finally,
      so the suite leaves the flag pristine. */
-  () => tryRun('B429-1: DORMANT by default — skills is not on the active registry and reads fall through to G.skills', () => {
+  /* b456 TEST-DEBT BURN-DOWN — THE ARM LANDED, SO THE DEFAULT ASSERTION INVERTS.
+     This test shipped as the "do not arm by accident" guarantee: it asserted
+     SKILLS_RECORD_ARM_ENABLED === false. The rollout flipped that const, which is
+     the intended end state — so keeping the old assertion would only prove the
+     suite had not been updated.
+
+     What must still be guarded is BOTH halves, and neither is weaker than before:
+       (1) THE ARM IS THE SHIPPED CONTRACT. An accidental REVERT to dormant is now
+           the regression, and it is exactly as silent as an accidental arm was —
+           `skills` would quietly become client-authored again, which is the
+           forgeable-blob hole the whole program exists to close. So the const is
+           still asserted, with the opposite expected value and a message that
+           names the new failure.
+       (2) THE DORMANT PATH IS STILL SHIPPED CODE and must still be a byte-for-byte
+           no-op, because it is the kill-switch position: skill-record.js's
+           fall-through branch runs whenever the master accrual switch is off. An
+           untested off-position is not a kill switch (the same reasoning as
+           tryRunClientAuthoritative above). It is driven explicitly through the
+           __setSkillsRecordArm seam and restored to PRISTINE in `finally`. */
+  () => tryRun('B429-1: ARMED by default — skills is on the active registry; the dormant seam still falls through to G.skills', () => {
     const R = window.HearthriseRecord;
     const S = window.HearthriseSkillRecord;
     assert(R && typeof R.isServerOfRecord === 'function' && typeof R.isSkillsRecordArmed === 'function',
       'record.js did not load with the skills arm seam');
     assert(S && typeof S.skillXpOf === 'function', 'skill-record.js did not load — the read side is the contract');
-    // The shipped default MUST be dormant. This is the "do not arm" guarantee in CI.
-    assert(R.SKILLS_RECORD_ARM_ENABLED === false, 'SKILLS_RECORD_ARM_ENABLED shipped TRUE — skills would be LIVE, not dormant');
-    assert(R.isSkillsRecordArmed() === false, 'skills reports armed with the flag off');
-    assert(R.isServerOfRecord('skills') === false, 'skills is on the ACTIVE registry while dormant — the strip would fire');
-    assert(R.serverOfRecordFields().indexOf('skills') === -1, 'serverOfRecordFields lists a dormant field');
-    // A dormant read is byte-for-byte the raw local read.
-    const g = { skills: { mining: 4000, hitpoints: 1154 } };
-    const b = S.skillXpOf(g, 'mining');
-    assert(b.known === true && b.value === 4000 && b.source === 'local', 'dormant skillXpOf did not answer the local value: ' + JSON.stringify(b));
-    assert(S.skillXpOf(g, 'fishing').value === 0 && S.skillXpOf(g, 'fishing').known === true, 'an unlisted skill on a present local map is 0, known');
-    // Dormant strip leaves G.skills alone.
-    const strip = R.stripServerOfRecord({ skills: { mining: 4000 }, gold: 5 });
-    assert(strip.stripped.indexOf('skills') === -1, 'dormant strip removed skills from the blob — that is arming by accident');
+    // The shipped default is ARMED. A revert to dormant re-opens the forgeable blob.
+    assert(R.SKILLS_RECORD_ARM_ENABLED === true,
+      'SKILLS_RECORD_ARM_ENABLED shipped FALSE — skills would fall back to the client-authored blob, un-arming the record');
+    assert(R.isSkillsRecordArmed() === true, 'skills reports dormant with the flag on (is the master accrual switch off in this run?)');
+    assert(R.isServerOfRecord('skills') === true, 'skills is NOT on the ACTIVE registry while armed — the strip would not fire');
+    assert(R.serverOfRecordFields().indexOf('skills') !== -1, 'serverOfRecordFields omits an armed field');
+    // ARMED: the strip removes G.skills from any blob on the way in.
+    const armedStrip = R.stripServerOfRecord({ skills: { mining: 4000 }, gold: 5, foo: 1 });
+    assert(armedStrip.stripped.indexOf('skills') !== -1, 'the armed strip left skills in the blob — it is still client-authored');
+    assert(!('skills' in armedStrip.blob), 'skills survived the armed strip');
+    assert('foo' in armedStrip.blob, 'the strip removed a key it does not own');
+    // ARMED: a local map nothing vouched for is UNKNOWN — never the forgeable number.
+    const forged = S.skillXpOf({ skills: { mining: 999999 } }, 'mining');
+    assert(forged.known === false && forged.value === null,
+      'an unstamped armed skill was not UNKNOWN — the forged local value crossed: ' + JSON.stringify(forged));
+
+    // ── THE DORMANT (kill-switch) POSITION, driven explicitly and restored. ──
+    try {
+      R.__setSkillsRecordArm(false);
+      assert(R.isSkillsRecordArmed() === false, 'the dormant seam did not take');
+      assert(R.isServerOfRecord('skills') === false, 'skills stayed on the ACTIVE registry with the seam off');
+      assert(R.serverOfRecordFields().indexOf('skills') === -1, 'serverOfRecordFields lists a dormant field');
+      // A dormant read is byte-for-byte the raw local read.
+      const g = { skills: { mining: 4000, hitpoints: 1154 } };
+      const b = S.skillXpOf(g, 'mining');
+      assert(b.known === true && b.value === 4000 && b.source === 'local', 'dormant skillXpOf did not answer the local value: ' + JSON.stringify(b));
+      assert(S.skillXpOf(g, 'fishing').value === 0 && S.skillXpOf(g, 'fishing').known === true, 'an unlisted skill on a present local map is 0, known');
+      // Dormant strip leaves G.skills alone.
+      const strip = R.stripServerOfRecord({ skills: { mining: 4000 }, gold: 5 });
+      assert(strip.stripped.indexOf('skills') === -1, 'dormant strip removed skills from the blob — that is arming by accident');
+    } finally {
+      R.__setSkillsRecordArm(null);
+    }
   }),
 
   () => tryRun('B429-2: decodeSkills / fingerprintSkills — the map off the wire, fail-closed', () => {
@@ -27413,18 +28321,41 @@ const TESTS = [
      recordValue — poking NO `_record` internals, and the DORMANT default (no-op
      today). Every arm is via the __setEquipmentRecordArm seam, reverted in finally,
      so the suite leaves the flag pristine. */
-  () => tryRun('B433-1: DORMANT by default — equipment is not on the active registry and the strip does not fire', () => {
+  /* b456 TEST-DEBT BURN-DOWN — see B429-1's note. Same inversion, same two halves:
+     the arm is now the shipped contract (a revert re-opens the client-authored
+     worn set), and the dormant fall-through is still the kill-switch position and
+     still asserted, driven through the seam and restored. */
+  () => tryRun('B433-1: ARMED by default — equipment is on the active registry and the strip fires; the dormant seam does not', () => {
     const R = window.HearthriseRecord;
     assert(R && typeof R.isEquipmentRecordArmed === 'function', 'record.js did not load with the equipment arm seam');
-    // The shipped default MUST be dormant. This is the "do not arm" guarantee in CI.
-    assert(R.EQUIPMENT_RECORD_ARM_ENABLED === false, 'EQUIPMENT_RECORD_ARM_ENABLED shipped TRUE — equipment would be LIVE, not dormant');
-    assert(R.isEquipmentRecordArmed() === false, 'equipment reports armed with the flag off');
-    assert(R.isServerOfRecord('equipment') === false, 'equipment is on the ACTIVE registry while dormant — the strip would fire');
-    assert(R.serverOfRecordFields().indexOf('equipment') === -1, 'serverOfRecordFields lists a dormant field');
-    // A dormant strip leaves G.equipment in the blob (still client-owned until armed).
-    const strip = R.stripServerOfRecord({ equipment: { weapon: 'bronze_sword' }, foo: 1 });
-    assert(strip.stripped.indexOf('equipment') === -1, 'dormant strip removed equipment from the blob — that is arming by accident');
-    assert('equipment' in strip.blob, 'dormant strip dropped equipment');
+    // The shipped default is ARMED. A revert to dormant re-opens the forgeable worn set.
+    assert(R.EQUIPMENT_RECORD_ARM_ENABLED === true,
+      'EQUIPMENT_RECORD_ARM_ENABLED shipped FALSE — the worn set would fall back to the client-authored blob');
+    assert(R.isEquipmentRecordArmed() === true, 'equipment reports dormant with the flag on (is the master accrual switch off in this run?)');
+    assert(R.isServerOfRecord('equipment') === true, 'equipment is NOT on the ACTIVE registry while armed — the strip would not fire');
+    assert(R.serverOfRecordFields().indexOf('equipment') !== -1, 'serverOfRecordFields omits an armed field');
+    // ARMED: the strip removes the worn set from any blob on the way in.
+    const armed = R.stripServerOfRecord({ equipment: { weapon: 'dragon_sword' }, foo: 1 });
+    assert(armed.stripped.indexOf('equipment') !== -1, 'the armed strip left equipment in the blob — it is still client-authored');
+    assert(!('equipment' in armed.blob), 'equipment survived the armed strip');
+    assert('foo' in armed.blob, 'the strip removed a key it does not own');
+    // ARMED: an unvouched local set is UNKNOWN — never the forged dragon sword.
+    const forged = R.recordValue({ equipment: { weapon: 'dragon_sword' } }, 'equipment');
+    assert(forged.known === false, 'an unstamped armed worn set was reported KNOWN: ' + JSON.stringify(forged));
+
+    // ── THE DORMANT (kill-switch) POSITION, driven explicitly and restored. ──
+    try {
+      R.__setEquipmentRecordArm(false);
+      assert(R.isEquipmentRecordArmed() === false, 'the dormant seam did not take');
+      assert(R.isServerOfRecord('equipment') === false, 'equipment stayed on the ACTIVE registry with the seam off');
+      assert(R.serverOfRecordFields().indexOf('equipment') === -1, 'serverOfRecordFields lists a dormant field');
+      // A dormant strip leaves G.equipment in the blob (client-owned in the off position).
+      const strip = R.stripServerOfRecord({ equipment: { weapon: 'bronze_sword' }, foo: 1 });
+      assert(strip.stripped.indexOf('equipment') === -1, 'dormant strip removed equipment from the blob — that is arming by accident');
+      assert('equipment' in strip.blob, 'dormant strip dropped equipment');
+    } finally {
+      R.__setEquipmentRecordArm(null);
+    }
   }),
 
   () => tryRun('B433-2: decodeEquipment / fingerprintEquipment — the worn set off the wire, fail-closed', () => {
@@ -27556,41 +28487,97 @@ const TESTS = [
      UNKNOWN rather than returning null/NaN or opening a gate.
      MUTATION: revert the getLevel edit → armed-UNKNOWN returns null → the last
      assertion goes red; break skillXp → the dormant-identity loop goes red. */
+  /* b456 TEST-DEBT BURN-DOWN. The dormant-identity half used to be readable
+     "for free" because dormant WAS the shipped default; it no longer is, so it is
+     driven through the __setSkillsRecordArm seam (and restored) exactly like the
+     kill-switch half of B429-1. The property is unchanged: with the record off,
+     the swept seams must be the classic raw reads, byte for byte.
+     The armed half is UNCHANGED and is now also the shipped position. */
   () => tryRun('B429-6: the legacy read-site sweep is behavior-identical while DORMANT; getLevel fail-closes when ARMED+UNKNOWN', () => {
     const R = window.HearthriseRecord;
-    assert(R && R.SKILLS_RECORD_ARM_ENABLED === false && R.isSkillsRecordArmed() === false,
-      'the dormant-identity half of this test is only meaningful while dormant');
+    assert(R && typeof R.__setSkillsRecordArm === 'function', 'record.js did not load with the skills arm seam');
     assert(typeof window.getLevel === 'function' && typeof window.skillXp === 'function',
       'legacy.js did not expose the swept getLevel/skillXp seam');
     const G = window.G;
     const core = window.HearthriseCore.xp;
-    // Cover the live skills plus a few well-known ids and one that is absent.
-    const ids = Object.keys((G && G.skills) || {}).concat(['mining', 'hitpoints', 'attack', 'cooking', '__nope__']);
-    for (const id of ids) {
-      const raw = (G.skills && G.skills[id]) || 0;
-      assert(window.skillXp(id) === raw,
-        'dormant skillXp diverged from the raw local read for "' + id + '": ' + window.skillXp(id) + ' vs ' + raw);
-      assert(window.getLevel(id) === core.levelOf(G.skills, id),
-        'dormant getLevel diverged from levelOf for "' + id + '": ' + window.getLevel(id) + ' vs ' + core.levelOf(G.skills, id));
+    try {
+      /* DORMANT, forced: the kill-switch position, where the accessor must be a
+         no-op wrapper around the raw local read. Predictions do not exist here —
+         with the write gate open addXp writes G.skills directly — so display and
+         raw must agree exactly. */
+      R.__setSkillsRecordArm(false);
+      assert(R.isSkillsRecordArmed() === false, 'the dormant seam did not take — the identity half below would be vacuous');
+      // Cover the live skills plus a few well-known ids and one that is absent.
+      const ids = Object.keys((G && G.skills) || {}).concat(['mining', 'hitpoints', 'attack', 'cooking', '__nope__']);
+      for (const id of ids) {
+        const raw = (G.skills && G.skills[id]) || 0;
+        assert(window.skillXp(id) === raw,
+          'dormant skillXp diverged from the raw local read for "' + id + '": ' + window.skillXp(id) + ' vs ' + raw);
+        assert(window.getLevel(id) === core.levelOf(G.skills, id),
+          'dormant getLevel diverged from levelOf for "' + id + '": ' + window.getLevel(id) + ' vs ' + core.levelOf(G.skills, id));
+      }
+    } finally {
+      R.__setSkillsRecordArm(null);
     }
-    // ARMED + UNKNOWN: getLevel must fail-close to the floor level (1) — never
-    // null, never NaN — so a gate cannot open on an un-arrived skill and no
-    // caller does arithmetic on null.
+    /* ── ARMED + NOTHING HAS ARRIVED ────────────────────────────────────────
+       b456 TEST-DEBT BURN-DOWN, and this half is a genuine SEMANTIC change, not
+       a harness gap — so it is restated rather than re-tuned.
+
+       b429 wired `getLevel` to the AUTHORITY accessor and floored UNKNOWN to 1.
+       Live, that turned one un-gated `G.skills` write into "my woodcutting is
+       bouncing from lvl 5 to lvl 1 over and over again", so b456 moved getLevel
+       onto the DISPLAY ladder (skillLevelForDisplay): server value, else the
+       optimistic local number, else last-known-good, else UNKNOWN.
+
+       The property b429-6 was written to hold — a gate cannot open on an
+       un-arrived skill, and nobody does arithmetic on null — is UNCHANGED and is
+       asserted below in the place it now lives:
+         (1) AUTHORITY still fail-closes. skillLevelOf/skillXpOf answer null on an
+             unstamped map, so the forged 999999 cannot open a gate or a score.
+             (B431-1 (C) proves the same thing end-to-end through renown.)
+         (2) DISPLAY never returns null/NaN, and — the b456 contract — never
+             collapses a real character to level 1 while a local number exists.
+         (3) With `skills` genuinely ABSENT (the strip state — what a cold boot
+             looks like AFTER the record framework has deleted the blob's copy and
+             before the first envelope), the display DOES fail-close to the floor
+             of 1, which is the original assertion in the state it truly applies
+             to. */
     const A = window.HearthriseAccrual;
     const wasA = A.isServerAccrualEnabled();
-    const savedSkills = G.skills, savedRec = G._record;
+    const savedSkills = G.skills, savedRec = G._record, hadSkills = Object.prototype.hasOwnProperty.call(G, 'skills');
+    const S = window.HearthriseSkillRecord;
     try {
       if (!wasA) A.setServerAccrualEnabled(true);
       R.__setSkillsRecordArm(true);
-      delete G._record;                 // no record → UNKNOWN
-      G.skills = { mining: 999999 };     // a forged local value that must be ignored armed
+      delete G._record;                 // no record → the authority is UNKNOWN
+      predZero();                       // no outstanding prediction may colour the read
+      G.skills = { mining: 999999 };     // a forged local value
+
+      // (1) AUTHORITY fail-closes — the forgery cannot cross into a gate.
+      assert(S.skillXpOf(G, 'mining').known === false,
+        'armed+unstamped skillXpOf vouched for a forged local xp: ' + JSON.stringify(S.skillXpOf(G, 'mining')));
+      assert(S.skillLevelOf(G, 'mining', window.levelFromXp) === null,
+        'armed+unstamped skillLevelOf did not answer UNKNOWN — a gate could open on it');
+
+      // (2) DISPLAY is always a finite number, and never the level-1 bounce.
       const lv = window.getLevel('mining');
-      assert(lv === 1, 'armed+UNKNOWN getLevel did not fail-close to level 1 (the floor): ' + lv);
       assert(typeof lv === 'number' && Number.isFinite(lv), 'armed getLevel returned a non-number: ' + lv);
+      assert(lv === window.levelFromXp(999999),
+        'armed getLevel collapsed a present local xp instead of showing it optimistically — that is the '
+        + 'level-1 bounce b456 exists to make unreachable: ' + lv);
+
+      // (3) THE STRIP STATE — `skills` absent — is the one that genuinely floors.
+      delete G.skills;
+      const floored = window.getLevel('mining');
+      assert(floored === 1,
+        'armed + the field STRIPPED (nothing has ever arrived) must fail-close to the floor level 1, got ' + floored);
+      assert(S.skillXpForDisplay(G, 'mining').known === false,
+        'the stripped state must read UNKNOWN on the display ladder too — a resurrected number would be a forgery');
     } finally {
       R.__setSkillsRecordArm(null);
       if (!wasA) A.setServerAccrualEnabled(false);
-      G.skills = savedSkills; G._record = savedRec;
+      if (hadSkills) G.skills = savedSkills; else { try { delete G.skills; } catch (e) {} }
+      G._record = savedRec;
     }
   }),
   /* ══════════════════════════════════════════════════════════════════════════
@@ -27788,30 +28775,38 @@ const TESTS = [
     const S = window.HearthriseSkillRecord;
     const A = window.HearthriseAccrual;
     const RN = window.HearthriseRenown;
-    assert(R && R.SKILLS_RECORD_ARM_ENABLED === false && R.isSkillsRecordArmed() === false,
-      'the dormant-identity half of this test is only meaningful while dormant');
+    assert(R && typeof R.__setSkillsRecordArm === 'function', 'record.js did not load with the skills arm seam');
     assert(S && typeof S.skillXpOr === 'function', 'the skill-record accessor is not attached');
     const G = window.G;
-    // (A) DORMANT IDENTITY — every swept features/* site is literally this call,
-    // so the accessor equalling the classic raw read proves the sweep is a no-op.
-    const ids = Object.keys((G && G.skills) || {}).concat(['mining', 'hitpoints', 'attack', 'cooking', '__nope__']);
-    for (const id of ids) {
-      const raw = (G.skills && G.skills[id]) || 0;
-      assert(S.skillXpOr(G, id, 0) === raw,
-        'dormant skillXpOr diverged from the raw read for "' + id + '": ' + S.skillXpOr(G, id, 0) + ' vs ' + raw);
-    }
-    // (B) DORMANT FUNCTIONAL — renown.compute (renown.js:163 swept) tracks the
-    // LOCAL map while dormant: adding a trained skill raises the score, exactly as
-    // the classic read did.
-    if (RN && typeof RN.compute === 'function') {
-      const savedSkills = G.skills;
-      try {
-        G.skills = { attack: 5000, mining: 3000 };
-        const base = RN.compute(G);
-        G.skills = { attack: 5000, mining: 3000, strength: 8000 };
-        const more = RN.compute(G);
-        assert(more > base, 'dormant renown did not track the local skills map (more=' + more + ' base=' + base + ')');
-      } finally { G.skills = savedSkills; }
+    /* b456 TEST-DEBT BURN-DOWN: dormant is no longer the shipped default, so (A)
+       and (B) — which are ABOUT the off position of the kill switch — force it
+       through the seam and restore to PRISTINE. The properties are unchanged. */
+    try {
+      R.__setSkillsRecordArm(false);
+      assert(R.isSkillsRecordArmed() === false, 'the dormant seam did not take — (A) and (B) would be vacuous');
+      // (A) DORMANT IDENTITY — every swept features/* site is literally this call,
+      // so the accessor equalling the classic raw read proves the sweep is a no-op.
+      const ids = Object.keys((G && G.skills) || {}).concat(['mining', 'hitpoints', 'attack', 'cooking', '__nope__']);
+      for (const id of ids) {
+        const raw = (G.skills && G.skills[id]) || 0;
+        assert(S.skillXpOr(G, id, 0) === raw,
+          'dormant skillXpOr diverged from the raw read for "' + id + '": ' + S.skillXpOr(G, id, 0) + ' vs ' + raw);
+      }
+      // (B) DORMANT FUNCTIONAL — renown.compute (renown.js:163 swept) tracks the
+      // LOCAL map while dormant: adding a trained skill raises the score, exactly as
+      // the classic read did.
+      if (RN && typeof RN.compute === 'function') {
+        const savedSkills = G.skills;
+        try {
+          G.skills = { attack: 5000, mining: 3000 };
+          const base = RN.compute(G);
+          G.skills = { attack: 5000, mining: 3000, strength: 8000 };
+          const more = RN.compute(G);
+          assert(more > base, 'dormant renown did not track the local skills map (more=' + more + ' base=' + base + ')');
+        } finally { G.skills = savedSkills; }
+      }
+    } finally {
+      R.__setSkillsRecordArm(null);
     }
     // (C) ARMED + UNKNOWN — a forged local xp must not cross into the renown score.
     // With no record the accessor reads UNKNOWN → skillXpOr floors to 0 → level 1,
@@ -27846,17 +28841,33 @@ const TESTS = [
      API, poke no `_record` internals, arm only via the test seam and revert in
      finally so the suite leaves every flag pristine. The DORMANT default is the
      "do not arm" guarantee in CI. */
-  () => tryRun('B431-1: rooms is DORMANT by default — not on the active registry, not stripped', () => {
+  /* b456 TEST-DEBT BURN-DOWN — see B429-1's note. Inverted default, both halves kept. */
+  () => tryRun('B431-1: rooms is ARMED by default — on the active registry and stripped; the dormant seam is not', () => {
     const R = window.HearthriseRecord;
     assert(R && typeof R.isRoomsRecordArmed === 'function', 'record.js did not load with the rooms arm seam');
-    assert(R.ROOMS_RECORD_ARM_ENABLED === false, 'ROOMS_RECORD_ARM_ENABLED shipped TRUE — rooms would be LIVE, not dormant');
-    assert(R.isRoomsRecordArmed() === false, 'rooms reports armed with the flag off');
-    assert(R.isServerOfRecord('rooms') === false, 'rooms is on the ACTIVE registry while dormant — the strip would fire');
-    assert(R.serverOfRecordFields().indexOf('rooms') === -1, 'serverOfRecordFields lists a dormant field');
-    // Dormant strip leaves G.rooms alone → no accidental client-authored loss.
-    const strip = R.stripServerOfRecord({ rooms: { kitchen: 3 }, gold: 5 });
-    assert(strip.stripped.indexOf('rooms') === -1, 'dormant strip removed rooms from the blob — that is arming by accident');
-    assert(strip.blob.rooms && strip.blob.rooms.kitchen === 3, 'dormant strip did not preserve G.rooms');
+    assert(R.ROOMS_RECORD_ARM_ENABLED === true,
+      'ROOMS_RECORD_ARM_ENABLED shipped FALSE — room rungs would fall back to the client-authored blob, and noBurn with them');
+    assert(R.isRoomsRecordArmed() === true, 'rooms reports dormant with the flag on (is the master accrual switch off in this run?)');
+    assert(R.isServerOfRecord('rooms') === true, 'rooms is NOT on the ACTIVE registry while armed — the strip would not fire');
+    assert(R.serverOfRecordFields().indexOf('rooms') !== -1, 'serverOfRecordFields omits an armed field');
+    // ARMED strip removes G.rooms from the blob on the way in.
+    const armed = R.stripServerOfRecord({ rooms: { kitchen: 3 }, gold: 5, foo: 1 });
+    assert(armed.stripped.indexOf('rooms') !== -1, 'the armed strip left rooms in the blob — rungs are still client-authored');
+    assert(!('rooms' in armed.blob) && 'foo' in armed.blob, 'the armed strip removed the wrong keys');
+
+    // ── THE DORMANT (kill-switch) POSITION, driven explicitly and restored. ──
+    try {
+      R.__setRoomsRecordArm(false);
+      assert(R.isRoomsRecordArmed() === false, 'the dormant seam did not take');
+      assert(R.isServerOfRecord('rooms') === false, 'rooms stayed on the ACTIVE registry with the seam off');
+      assert(R.serverOfRecordFields().indexOf('rooms') === -1, 'serverOfRecordFields lists a dormant field');
+      // Dormant strip leaves G.rooms alone → no accidental client-authored loss.
+      const strip = R.stripServerOfRecord({ rooms: { kitchen: 3 }, gold: 5 });
+      assert(strip.stripped.indexOf('rooms') === -1, 'dormant strip removed rooms from the blob — that is arming by accident');
+      assert(strip.blob.rooms && strip.blob.rooms.kitchen === 3, 'dormant strip did not preserve G.rooms');
+    } finally {
+      R.__setRoomsRecordArm(null);
+    }
   }),
 
   () => tryRun('B431-2: pickRooms shapes the progress array; decodeRooms/fingerprintRooms fail-closed on ABSENCE, keep EMPTY', () => {
@@ -27929,35 +28940,68 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('B431-4: cooking bench is DORMANT-unpayable, and the arm makes it payable (coupled flag, reverted)', () => {
+  /* ⚠ b456 TEST-DEBT BURN-DOWN — THIS TEST IS RED ON PURPOSE UNTIL A PRODUCT FIX.
+     The rollout (b454) armed `src/data/item-authority.js`
+     COOKING_SETTLEMENT_ARM_ENABLED and `src/net/record.js`
+     ROOMS_RECORD_ARM_ENABLED, but left the third leg —
+     `src/core/artisan-sim.js` COOKING_SETTLEMENT_ARM_ENABLED — at false. Both
+     files' own headers say the three flip TOGETHER, and the half-armed state is
+     live progress loss, not a cosmetic mismatch:
+
+        ARTISAN_SETTLEMENT.cooking === 'payable'  → skill-authority classifies
+        cooking as ACCRUED, so the absolute envelope OWNS cooking xp and REPLACES
+        it (rather than Math.max-ing it, the client-only path);
+        benchPayable('cooking') === false          → the settlement engine — the
+        SAME artisan-sim.js that tools/pack-edge.mjs vendors into the Edge
+        Function, i.e. the server — refuses to pay the cooking bench, blocked on
+        `noBurn`, because serverOwnedBonusKeys() is empty while its flag is off.
+
+     Server-owned and never paid: cooking xp cannot advance, and the player's
+     locally-predicted cooking xp is retired by the next envelope that does not
+     contain it. MEASURED in this build: classifySkill('cooking')==='accrued',
+     serverAccruedSkill('cooking')===true, benchPayable('cooking')===false.
+
+     The assertions below therefore state the INTENDED end state (all three
+     armed). Do NOT relax them to match the drifted flag — the flag is the defect.
+     Owner: Systems Engineer (src/core/artisan-sim.js:547 → true, plus an Edge
+     Function redeploy, since the pack vendors that file). */
+  () => tryRun('B431-4: cooking bench is ARMED-payable, and the dormant seam makes it unpayable (coupled flag, reverted)', () => {
     const C = window.HearthriseCore;
     const AS = C.artisanSim;
     const IA = window.HearthriseItemAuthority;
     assert(AS && typeof AS.benchPayable === 'function' && typeof AS.isCookingSettlementArmed === 'function',
       'artisan-sim did not publish the cooking arm seam');
-    // DORMANT default — the "do not arm" guarantee.
-    assert(AS.COOKING_SETTLEMENT_ARM_ENABLED === false, 'artisan-sim COOKING_SETTLEMENT_ARM_ENABLED shipped TRUE');
-    assert(IA.COOKING_SETTLEMENT_ARM_ENABLED === false, 'item-authority COOKING_SETTLEMENT_ARM_ENABLED shipped TRUE');
-    assert(AS.isCookingSettlementArmed() === false, 'cooking reports armed with the flag off');
-    // Dormant: cooking is NOT payable, blocked by noBurn; ARTISAN_SETTLEMENT keeps it unmodeled.
-    assert(AS.benchPayable('cooking') === false, 'cooking is payable while DORMANT — the noBurn source is not server-owned yet');
-    assert(AS.benchBlockedBy('cooking') === 'noBurn', 'cooking is not reporting noBurn as its blocker: ' + AS.benchBlockedBy('cooking'));
-    assert(IA.ARTISAN_SETTLEMENT.cooking === 'unmodeled', 'ARTISAN_SETTLEMENT.cooking is not unmodeled while dormant');
+    // The shipped default is ARMED, on BOTH halves of the coupled pair.
+    assert(IA.COOKING_SETTLEMENT_ARM_ENABLED === true, 'item-authority COOKING_SETTLEMENT_ARM_ENABLED shipped FALSE');
+    assert(AS.COOKING_SETTLEMENT_ARM_ENABLED === true,
+      'artisan-sim COOKING_SETTLEMENT_ARM_ENABLED shipped FALSE while item-authority shipped TRUE — cooking is classified '
+      + 'server-ACCRUED but the settlement engine refuses to pay its bench, so cooking xp can never advance and the '
+      + 'absolute envelope replaces whatever the client predicted. Flip src/core/artisan-sim.js to true (and redeploy '
+      + 'the Edge Function, which vendors it).');
+    assert(AS.isCookingSettlementArmed() === true, 'cooking reports dormant with the flag on');
+    // ARMED: cooking is payable, unblocked, and noBurn is a server-owned bonus key.
+    assert(AS.serverOwnedBonusKeys().indexOf('noBurn') !== -1, 'armed serverOwnedBonusKeys does not contain noBurn');
+    assert(AS.benchPayable('cooking') === true, 'cooking is not payable while ARMED — the noBurn source is server-owned now');
+    assert(AS.benchBlockedBy('cooking') === null, 'cooking still reports a blocker while armed: ' + AS.benchBlockedBy('cooking'));
+    assert(IA.ARTISAN_SETTLEMENT.cooking === 'payable', 'ARTISAN_SETTLEMENT.cooking is not payable while armed');
     // The other benches are unaffected either way.
     assert(AS.benchPayable('smithing') === true && AS.benchPayable('runecrafting') === true, 'a non-cooking bench lost payability');
-    // ARM the artisan half (via the test seam) → cooking becomes payable, noBurn owned.
+    // The DORMANT (kill-switch) position, driven through the seam and reverted.
     try {
-      AS.__setCookingSettlementArm(true);
-      assert(AS.isCookingSettlementArmed() === true, 'the arm seam did not arm');
-      assert(AS.serverOwnedBonusKeys().indexOf('noBurn') !== -1, 'armed serverOwnedBonusKeys does not contain noBurn');
-      assert(AS.benchPayable('cooking') === true, 'cooking did not become payable when armed');
-      assert(AS.benchBlockedBy('cooking') === null, 'cooking still reports a blocker when armed');
+      AS.__setCookingSettlementArm(false);
+      assert(AS.isCookingSettlementArmed() === false, 'the dormant seam did not take');
+      assert(AS.serverOwnedBonusKeys().indexOf('noBurn') === -1, 'dormant serverOwnedBonusKeys still contains noBurn');
+      assert(AS.benchPayable('cooking') === false, 'cooking stayed payable with the seam off — the noBurn source is not server-owned there');
+      assert(AS.benchBlockedBy('cooking') === 'noBurn', 'dormant cooking is not reporting noBurn as its blocker: ' + AS.benchBlockedBy('cooking'));
     } finally {
       AS.__setCookingSettlementArm(null);
     }
-    assert(AS.benchPayable('cooking') === false, 'the cooking arm did not revert — the suite must leave it dormant');
+    assert(AS.benchPayable('cooking') === true, 'the cooking seam did not revert — the suite must leave it armed');
   }),
 
+  /* ⚠ b456 — ALSO RED ON PURPOSE: this is the DRIFT GUARD that caught the
+     half-armed cooking rollout described on B431-4 above. Its first assertion is
+     the finding. Do not weaken it. */
   () => tryRun('B431-5: the three coupled arm flags agree, and cooking outputs stay INVENTORY-excluded even armed', () => {
     const AS = window.HearthriseCore.artisanSim;
     const IA = window.HearthriseItemAuthority;
@@ -27966,9 +29010,9 @@ const TESTS = [
     assert(AS.COOKING_SETTLEMENT_ARM_ENABLED === IA.COOKING_SETTLEMENT_ARM_ENABLED,
       'the cooking-arm twin consts disagree (artisan-sim ' + AS.COOKING_SETTLEMENT_ARM_ENABLED
       + ' vs item-authority ' + IA.COOKING_SETTLEMENT_ARM_ENABLED + ') — they MUST flip together');
-    // The rooms record arm is the third leg of the same rollout; all three dormant today.
-    assert(R.ROOMS_RECORD_ARM_ENABLED === false && AS.COOKING_SETTLEMENT_ARM_ENABLED === false,
-      'the rooms/cooking rollout flags are not all dormant — this ships DORMANT');
+    // The rooms record arm is the third leg of the same rollout; all three armed now.
+    assert(R.ROOMS_RECORD_ARM_ENABLED === true && AS.COOKING_SETTLEMENT_ARM_ENABLED === true,
+      'the rooms/cooking rollout flags are not all armed — the three legs move together');
     // The output-ownership safety: cooking dishes are ALWAYS excluded from the inventory
     // ownable set, so even a (future) armed cooking cannot make the absolute-replace flip
     // DELETE a live-cooked dish. Excluded wins on overlap — proven here on the real partition.
@@ -28317,8 +29361,39 @@ const TESTS = [
          the envelope names every key it owns and omission stops being
          ambiguous. `src/net/record.js:119-144` is the ordering rule this
          violated: a field moves only after every path that mutates it has. */
-      assert(G.skills.woodcutting === 88,
-        'a local skill the envelope OMITS must survive — the server never owned live XP; got ' + G.skills.woodcutting);
+      /* ═══ b456 — AND THE CONDITION THE b359 COMMENT NAMED HAS NOW HAPPENED ═══
+         b359 restored `woodcutting === 88` with an explicit expiry: "Restore the
+         old form only in the commit that gives live play a server verb; at that
+         point the envelope names every key it owns and omission stops being
+         ambiguous." The b454 cutover is that commit for SKILLS. `skills` is a
+         record field, `clientMayWriteRecordField('skills')` is false, and
+         legacy.js `addXp` no longer writes `G.skills` at all — a live gain is a
+         DISPLAY PREDICTION (src/net/predict.js) that never touches the map. So
+         the server's map is a COMPLETE statement and applyRecord replaces it
+         wholesale; an omitted skill is the server saying "zero", not a gap.
+
+         ⚠ THIS IS NOT A RETURN TO THE BUG THAT COST A PLAYER HIS STONEMASON
+           LEVEL. That bug was a complete statement being assumed about a field
+           the CLIENT was still authoring. The predicate below is the same one the
+           writer branches on, so the assertion can never again outrun the writer:
+           the day skills were un-armed, the merge expectation returns with it.
+
+         INVENTORY is deliberately NOT given the same treatment — its live writers
+         (drops, gathers, crafts) have not moved, so an omitted item is still
+         UNKNOWN and must still survive. That asymmetry IS the ordering rule. */
+      const skillsArmed = typeof window.clientMayWriteRecordField === 'function'
+        && window.clientMayWriteRecordField('skills') === false;
+      if (skillsArmed) {
+        assert(G.skills.woodcutting === undefined,
+          'ARMED: the server map did not REPLACE the local one — a client-authored skill survived an '
+          + 'envelope that owns the whole map, which is the two-sources bug: ' + G.skills.woodcutting);
+        assert(window.skillXp('woodcutting') === 0,
+          'ARMED: the display resurrected a skill the server did not state (' + window.skillXp('woodcutting')
+          + ') — an absent skill under a KNOWN server map is zero, not a stale local number');
+      } else {
+        assert(G.skills.woodcutting === 88,
+          'a local skill the envelope OMITS must survive — the server never owned live XP; got ' + G.skills.woodcutting);
+      }
       assert(G.inventory.rat_tail === 3 && G.inventory.shrimp === 2, 'the server inventory did not land: ' + JSON.stringify(G.inventory));
       assert(G.inventory.forged_sword === 40,
         'a local item the envelope OMITS must survive — got ' + G.inventory.forged_sword);
@@ -28618,7 +29693,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=458');
+    const KIT = await import('../data/start-kit.js?v=459');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -29279,19 +30354,52 @@ const TESTS = [
         'the loss is misreported — a sheet that states the wrong numbers is worse than none: '
         + JSON.stringify(loss));
 
+      /* ══ b456 — THE SHEET HAS RETIRED, EXACTLY WHERE ITS OWN ⏳ NOTE SAID ══
+         accrue.js's gate carries the expiry condition in prose: "THE SHEET
+         RETIRES FULLY when the client stops holding a rival copy at all — i.e.
+         when gold/skills/inventory are on SERVER_OF_RECORD and the load strip
+         deletes them, at which point describeReplacement is permanently
+         non-destructive and this branch is unreachable." The b455 capstone did
+         exactly that, so under the shipping default there IS no local authored
+         character to be replaced: applying the envelope IS the load, and putting
+         a consent modal in front of it would be asking the player to approve
+         their own save file loading.
+         Both positions are asserted, and the DORMANT one still pins the whole
+         original gate — including the mutation it was written for. */
+      const armedSheetRetired = !!(window.HearthriseCapstone
+        && typeof window.HearthriseCapstone.isBlobRetired === 'function'
+        && window.HearthriseCapstone.isBlobRetired());
+      if (armedSheetRetired) {
+        A.acknowledgeReplacement(false);
+        A.hideReplacementSheet();
+        const GArmed = veteran();
+        const wroteArmed = A.applyEnvelope(GArmed, envelope);
+        assert(wroteArmed, 'ARMED: the envelope was refused even though the local blob is retired — there is no '
+          + 'rival copy to protect, so this is a load the player can never get past');
+        assert(GArmed.gold === 500, 'ARMED: the server gold did not land: ' + GArmed.gold);
+        assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+          'ARMED: the replacement consent sheet was shown with the blob retired — under the capstone this '
+          + 'fires on a normal load and the only way through it is to consent, so it protects nothing '
+          + 'while making the game unusable');
+      }
+
       /* THE GATE. MUTATION: delete the `loss.destructive && !acked` branch from
          applyEnvelope → the veteran's save is silently replaced and this is red. */
-      const G1 = veteran();
-      assert(A.applyEnvelope(G1, envelope) === null,
-        'applyEnvelope destroyed a real save without asking');
-      assert(G1.gold === 900000 && G1.skills.woodcutting === 5000000 && G1.inventory.normal_log === 400,
-        'the target was mutated before the refusal: ' + JSON.stringify(G1));
-      assert(document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-        'nothing was shown to the player — a refusal nobody is told about is a game that silently stops '
-        + 'crediting away time');
-      const copy = document.getElementById(A.ACCRUE_REPLACE_SHEET_ID).textContent;
-      assert(/899500|899,500/.test(copy) && /permanently/i.test(copy),
-        'the sheet does not state what is lost, in numbers: ' + copy.slice(0, 200));
+      withLocalBlob(() => {
+        A.acknowledgeReplacement(false);
+        A.hideReplacementSheet();
+        const G1 = veteran();
+        assert(A.applyEnvelope(G1, envelope) === null,
+          'applyEnvelope destroyed a real save without asking');
+        assert(G1.gold === 900000 && G1.skills.woodcutting === 5000000 && G1.inventory.normal_log === 400,
+          'the target was mutated before the refusal: ' + JSON.stringify(G1));
+        assert(document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+          'nothing was shown to the player — a refusal nobody is told about is a game that silently stops '
+          + 'crediting away time');
+        const copy = document.getElementById(A.ACCRUE_REPLACE_SHEET_ID).textContent;
+        assert(/899500|899,500/.test(copy) && /permanently/i.test(copy),
+          'the sheet does not state what is lost, in numbers: ' + copy.slice(0, 200));
+      });
 
       /* …and once acknowledged it applies, silently, forever after.
          b359 — WHAT "APPLIES" MEANS NARROWED, AND THE OLD MEANING WAS THE P0.
@@ -29574,10 +30682,29 @@ const TESTS = [
       // ── reconcile SETTLED — the gate is NOT softened, only re-ordered ──────
       S.releaseSnapshots();
       assert(A.isReconcilePending() === false, 'releasing the gate must end the deferral');
-      const G2 = stalePhoneSave();
-      assert(A.applyEnvelope(G2, envelope) === null, 'a genuinely destructive envelope must still refuse');
-      assert(document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-        'once reconcile has settled, genuine divergence must STILL ask the player — the deferral is ordering, not amnesty');
+      /* b456: the DEFERRAL above is independent of the capstone and is asserted at
+         the shipping default; the SHEET itself is retired with the local blob (see
+         B339-5), so the "still refuses" half is driven with the blob live — that is
+         the position where a rival local copy exists to be protected. */
+      withLocalBlob(() => {
+        A.acknowledgeReplacement(false);
+        A.hideReplacementSheet();
+        const G2 = stalePhoneSave();
+        assert(A.applyEnvelope(G2, envelope) === null, 'a genuinely destructive envelope must still refuse');
+        assert(document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+          'once reconcile has settled, genuine divergence must STILL ask the player — the deferral is ordering, not amnesty');
+      });
+      /* …and with the blob RETIRED it applies instead, silently: there is no rival
+         local character, so the envelope is the load. */
+      if (window.HearthriseCapstone && window.HearthriseCapstone.isBlobRetired()) {
+        A.hideReplacementSheet();
+        A.acknowledgeReplacement(false);
+        const G3 = stalePhoneSave();
+        assert(A.applyEnvelope(G3, envelope) && G3.gold === 40,
+          'ARMED: a post-reconcile envelope was refused with the blob retired — the player cannot get past it');
+        assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+          'ARMED: the retired-blob path still raised the "permanently gone" sheet');
+      }
     } finally {
       A.hideReplacementSheet();
       A.acknowledgeReplacement(wasAck);
@@ -30136,38 +31263,73 @@ const TESTS = [
 
   () => tryRun('B340-2: the strip removes the moved field, touches nothing else, and never mutates its input', () => {
     const R = window.HearthriseRecord;
-    /* gold/gems ARE moved now, so `restedAt` is the genuinely-unmoved exemplar
-       that proves "touches nothing else". The strip must take EVERY moved field
-       (offlineBudget + gold + gems), so the expected set is derived from the
-       registry rather than hard-coded to one name. */
-    const blob = { restedAt: 500, offlineBudget: { at: 1 }, gold: 42, gems: 3,
-      skills: { attack: 10 }, lastSeen: 99 };
-    const out = R.stripServerOfRecord(blob);
+    /* b456: THE FIXTURE IS DERIVED FROM THE REGISTRY, NOT LISTED BY HAND, and
+       that is the whole repair. This test used to hand-build a blob holding the
+       three fields that were moved at the time and compare `out.stripped` with
+       `serverOfRecordFields()`. The cutover armed six more, none of which were in
+       the fixture, so the comparison failed on fields the strip had never been
+       GIVEN — a fixture rotting against the thing it is supposed to measure.
+       Building the blob FROM the registry means the next arm cannot rot it, and
+       the property is the same one, now total: every moved field is removed,
+       nothing else is, and the caller's object is not touched.
+       `restedAt` used to be the unmoved exemplar; it is armed now, so the
+       exemplars are two fields that are genuinely not on the registry. */
     const moved = R.serverOfRecordFields();
+    assert(moved.length > 0, 'the registry is empty — everything below would be vacuous');
+    const UNMOVED = { lastSeen: 99, stats: { kills: 10 }, playerName: 'Ash' };
+    for (const k of Object.keys(UNMOVED)) {
+      assert(moved.indexOf(k) === -1, '`' + k + '` is on the registry now — pick a different unmoved exemplar');
+    }
+    const blob = JSON.parse(JSON.stringify(UNMOVED));
+    moved.forEach((f, i) => { blob[f] = { __moved: f, n: i + 1 }; });
+    const before = JSON.stringify(blob);
+
+    const out = R.stripServerOfRecord(blob);
     for (const f of moved) assert(!(f in out.blob), 'the moved field `' + f + '` survived the strip');
     assert(out.stripped.slice().sort().join(',') === moved.slice().sort().join(','),
       'the strip did not report exactly the moved set: ' + JSON.stringify(out.stripped)
       + ' vs ' + JSON.stringify(moved));
-    assert(out.blob.restedAt === 500 && out.blob.lastSeen === 99 && out.blob.skills.attack === 10,
+    assert(out.blob.lastSeen === 99 && out.blob.stats.kills === 10 && out.blob.playerName === 'Ash',
       'the strip took something it does not own: ' + JSON.stringify(out.blob));
-    assert(blob.offlineBudget && blob.offlineBudget.at === 1 && blob.gold === 42,
+    assert(JSON.stringify(blob) === before,
       'the strip MUTATED its argument — the caller may still be holding the parsed snapshot for logging, '
       + 'and a strip that reaches back into it makes that log lie about what arrived');
 
     // forgetServerOfRecord works on a LIVE object (G is one reference, b127).
-    const g = { restedAt: 1, offlineBudget: { at: 2 }, gold: 9 };
+    const g = JSON.parse(JSON.stringify(UNMOVED));
+    moved.forEach((f) => { g[f] = { __moved: f }; });
     const forgot = R.forgetServerOfRecord(g);
-    assert(!('offlineBudget' in g) && !('gold' in g) && g.restedAt === 1
-      && forgot.indexOf('offlineBudget') !== -1,
-      'forgetServerOfRecord did not clear the live object: ' + JSON.stringify(g));
+    for (const f of moved) assert(!(f in g), 'forgetServerOfRecord left `' + f + '` on the live object');
+    assert(g.lastSeen === 99 && g.playerName === 'Ash', 'forgetServerOfRecord cleared a field it does not own');
+    assert(forgot.slice().sort().join(',') === moved.slice().sort().join(','),
+      'forgetServerOfRecord did not report exactly the moved set: ' + JSON.stringify(forgot));
   }),
 
-  () => tryRun('B340-3: loadLocal() DELETES the server-owned field from the save blob — the caller, not the callee', () => {
+  /* b456: driven with the blob LIVE (withLocalBlob). Under the capstone default
+     `loadLocal()` returns before it reads anything, so the strip-at-the-caller
+     seam this test exists to pin would never run and the test would measure the
+     absence of a read. The seam still ships and still matters the moment the
+     capstone is disarmed — and it is the ONLY thing standing between a devtools
+     watermark and a full capped window. The armed no-op is CAPSTONE-NOOP's job. */
+  () => tryRun('B340-3: loadLocal() DELETES the server-owned field from the save blob — the caller, not the callee', () => withLocalBlob(() => {
     const A = window.HearthriseAccrual;
     const R = window.HearthriseRecord;
     if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') { assert(true, 'no save'); return; }
     const G = window.G;
     const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt, lastSeen: G.lastSeen };
+    /* b456: this test drives a REAL loadLocal on the LIVE G, and loadLocal ends in
+       forgetServerOfRecord — which strips every record field off G and, because
+       `playerMaxHp` is derived from the Hitpoints level, leaves the ambient
+       character at 1/1 hp and level 1 for everything that runs afterwards.
+       MEASURED: ACT-1 and four COMBAT-UI tests went red the moment this test
+       started performing a real load (startCombat refused at 1 max hp).
+       So: a FULL snapshot, restored and re-stamped, not just the three fields this
+       test names. */
+    const snapAll = snapshotG();
+    const savedRecordFields = {};
+    for (const f of window.HearthriseRecord.serverOfRecordFields()) {
+      if (Object.prototype.hasOwnProperty.call(G, f)) savedRecordFields[f] = G[f];
+    }
     const wasOn = A.isServerAccrualEnabled();
     try {
       A.setServerAccrualEnabled(false);
@@ -30207,8 +31369,61 @@ const TESTS = [
       A.setServerAccrualEnabled(false);
       try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      Object.assign(G, savedRecordFields);
       Object.assign(G, save);
+      restoreGAndRecord(snapAll);
       try { window.saveLocal(); } catch (e) {}
+    }
+  })),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     b456 CAPSTONE-NOOP — THE SHIPPING DEFAULT: THE LOCAL BLOB IS RETIRED.
+     ══════════════════════════════════════════════════════════════════════════
+     Nine save/load tests in this file are now driven through `withLocalBlob`,
+     which means nine tests assert the OFF position and NOTHING asserted the ON
+     one. That asymmetry is how "the flag is armed" becomes an ambient belief
+     rather than a fact: every one of those tests would go on passing if the
+     capstone silently disarmed.
+
+     THE PROPERTY, and why it is worth a test of its own. The live cutover failed
+     because the pagehide autosave kept re-persisting a pre-wipe blob between
+     clear-and-reloads, resurrecting dead state on every boot ("the items are
+     still here" loop). Under the arm the blob is not a cache, it is a STALE
+     RIVAL, so:
+       · saveLocal() must WRITE NOTHING — not a smaller blob, nothing;
+       · loadLocal() must READ NOTHING **and drop any leftover blob**, so a later
+         disarm cannot resurrect a save from before the wipe.
+     MUTATION: delete either capstone gate in legacy.js → this goes red. */
+  () => tryRun('CAPSTONE-NOOP: with the blob RETIRED, saveLocal writes nothing and loadLocal drops what it finds', () => {
+    const C = window.HearthriseCapstone;
+    assert(C && typeof C.isBlobRetired === 'function', 'src/net/capstone.js did not load — the capstone is the contract');
+    assert(C.BLOB_RETIRED === true,
+      'BLOB_RETIRED shipped FALSE — the local blob is live again, and a stale local rival is exactly what the '
+      + 'cutover incident was');
+    assert(C.isBlobRetired() === true, 'the capstone reports dormant with the flag on (is the master accrual switch off?)');
+    if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') return;
+    const KEY = 'hearthbound-save-v2';
+    const G = window.G;
+    const before = localStorage.getItem(KEY);
+    const savedKills = G.stats && G.stats.kills;
+    try {
+      // A leftover blob from a pre-capstone session, carrying a value G does not have.
+      localStorage.setItem(KEY, JSON.stringify({ stats: { kills: 424242 }, lastSeen: 1 }));
+      window.saveLocal();
+      assert(localStorage.getItem(KEY) === JSON.stringify({ stats: { kills: 424242 }, lastSeen: 1 }),
+        'saveLocal WROTE while the blob is retired — the autosave is re-persisting a rival copy of the character');
+
+      G.stats = G.stats || {};
+      G.stats.kills = 7;
+      window.loadLocal();
+      assert(G.stats.kills === 7,
+        'loadLocal READ the retired blob back into G (kills became ' + G.stats.kills + ') — a stale local copy '
+        + 'the server never authored has just become the character');
+      assert(localStorage.getItem(KEY) === null,
+        'loadLocal left the leftover blob in place — a later disarm would resurrect a pre-wipe save');
+    } finally {
+      if (savedKills === undefined) { try { delete G.stats.kills; } catch (e) {} } else { G.stats.kills = savedKills; }
+      if (before === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, before);
     }
   }),
 
@@ -30220,8 +31435,15 @@ const TESTS = [
       + 're-derive it, which proves nothing about auth.js (B339-3b, same lesson)');
     const wasOn = A.isServerAccrualEnabled();
     try {
-      // `restedAt` is the genuinely-unmoved field (gold/gems are moved now).
-      const snap = { restedAt: 7, offlineBudget: { at: 5 } };
+      /* b456: `restedAt` used to be the genuinely-unmoved control here; the
+         cutover armed it, so the overlay correctly stripped it too and the
+         "touches nothing else" half of this test started failing on a field it
+         was never supposed to keep. The control is now a field that is NOT on
+         the registry, asserted to be off it rather than assumed. */
+      const R = window.HearthriseRecord;
+      assert(R.serverOfRecordFields().indexOf('lastSeen') === -1,
+        '`lastSeen` is on the registry now — pick a different unmoved control for this test');
+      const snap = { lastSeen: 7, offlineBudget: { at: 5 } };
 
       // Switch OFF: byte-for-byte b339 behaviour. The b305 restore paths are untouched.
       A.setServerAccrualEnabled(false);
@@ -30231,7 +31453,7 @@ const TESTS = [
       // Switch ON: the field never reaches G from the cloud either.
       A.setServerAccrualEnabled(true);
       const on = Auth.stripRecordFieldsForOverlay(snap, window);
-      assert(!('offlineBudget' in on) && on.restedAt === 7,
+      assert(!('offlineBudget' in on) && on.lastSeen === 7,
         'the cloud overlay still carries the server-owned field — the local seam was closed and the cloud '
         + 'one left open, which is a hole, not a slice: ' + JSON.stringify(on));
 
@@ -30665,11 +31887,16 @@ const TESTS = [
          time, which is what makes a returning player's catch-up measure from
          when the ACCOUNT was last active rather than when this device saved. */
       A.setServerAccrualEnabled(false);
-      // `restedAt` is the genuinely-unmoved field (gold/gems are moved now, so
-      // the overlay strips them under the switch and they cannot be the control).
-      const off = { offlineBudget: { at: 1 }, restedAt: 3 };
-      const rOff = Auth.applyCloudOverlay(off, { restedAt: 7, offlineBudget: { at: 5 } }, cloudAt, window);
-      assert(off.restedAt === 7 && off.lastSeen === cloudAt && off.offlineBudget.at === cloudAt
+      /* b456: `restedAt` used to be the unmoved control; the cutover armed it, so
+         the overlay correctly strips it under the switch and it can no longer
+         stand for "a field the client DOES own". `stats` is the control now, and
+         its unmoved-ness is ASSERTED rather than assumed so the next arm rots this
+         loudly instead of silently. */
+      assert(R.serverOfRecordFields().indexOf('stats') === -1,
+        '`stats` is on the registry now — pick a different client-owned control for this test');
+      const off = { offlineBudget: { at: 1 }, stats: { kills: 3 } };
+      const rOff = Auth.applyCloudOverlay(off, { stats: { kills: 7 }, offlineBudget: { at: 5 } }, cloudAt, window);
+      assert(off.stats.kills === 7 && off.lastSeen === cloudAt && off.offlineBudget.at === cloudAt
         && rOff.restampedWatermark === true,
         'with the switch OFF the cloud overlay changed shape — every b305 restore path reads this: '
         + JSON.stringify({ g: off, r: rOff }));
@@ -30686,8 +31913,8 @@ const TESTS = [
         state: { accrued_to: '2026-08-15T06:00:00Z' } });
       assert(on.offlineBudget.at === serverAt, 'the fixture never got a server watermark');
 
-      const rOn = Auth.applyCloudOverlay(on, { restedAt: 7, offlineBudget: { at: 5 } }, cloudAt, window);
-      assert(on.restedAt === 7 && on.lastSeen === cloudAt,
+      const rOn = Auth.applyCloudOverlay(on, { stats: { kills: 7 }, offlineBudget: { at: 5 } }, cloudAt, window);
+      assert(on.stats && on.stats.kills === 7 && on.lastSeen === cloudAt,
         'the overlay stopped applying the fields the client DOES own: ' + JSON.stringify(on));
       assert(on.offlineBudget.at === serverAt && rOn.restampedWatermark === false,
         'the cloud overlay re-stamped the server\'s watermark to the snapshot\'s own save time ('
@@ -30754,8 +31981,14 @@ const TESTS = [
       + JSON.stringify(v));
 
     /* The guard direction: a field that is NOT on the registry is not this
-       module's business and must never be reported as anything but 'not-moved'. */
-    assert(R.recordValue(g, 'restedAt').source === 'not-moved', 'an unmoved field was claimed');
+       module's business and must never be reported as anything but 'not-moved'.
+       b456: `restedAt` was the exemplar until the cutover armed it; the exemplar
+       is now picked from the registry's COMPLEMENT and its absence is asserted,
+       so the next arm cannot quietly turn this assertion into a tautology. */
+    const UNMOVED_NAME = 'stats';
+    assert(R.serverOfRecordFields().indexOf(UNMOVED_NAME) === -1,
+      '`' + UNMOVED_NAME + '` is on the registry now — pick a different unmoved exemplar for this test');
+    assert(R.recordValue(g, UNMOVED_NAME).source === 'not-moved', 'an unmoved field was claimed');
   }),
 
   () => tryRun('B347-R4: the write guard is ONE implementation, and it fails CLOSED', () => {
@@ -30771,7 +32004,15 @@ const TESTS = [
       A.setServerAccrualEnabled(true);
       assert(A.mayClientWrite('offlineBudget', window) === false,
         'with the switch ON a client site is still allowed to write the record');
-      assert(A.mayClientWrite('restedAt', window) === true,
+      /* b456: `restedAt` armed in the cutover, so it is no longer an unmoved
+         exemplar. Take one from the registry's complement, and assert it IS in the
+         complement so this cannot silently become vacuous the next time a field
+         moves. The property — the REGISTRY is the list, the switch is only the
+         master gate — is unchanged. */
+      const unmoved = 'stats';
+      assert(R.serverOfRecordFields().indexOf(unmoved) === -1,
+        '`' + unmoved + '` is on the registry now — pick a different unmoved exemplar for this test');
+      assert(A.mayClientWrite(unmoved, window) === true,
         'a field that has NOT moved was refused — the registry is the list, not the switch');
 
       /* FAIL CLOSED, and it is why the switch is read from accrue.js and the
@@ -31522,6 +32763,11 @@ const TESTS = [
     if (recipe) {
       G.rooms = Object.assign({}, G.rooms, { forge: 3, workshop: 3, shrine: 3, kitchen: 3 });
       G.skills[bench] = Math.max(G.skills[bench] || 0, 14000000);
+      /* b456: the WORKBENCH gate reads the rung through roomsOf and `rooms` is
+         server-of-record, so the grant above is invisible unless it arrives on the
+         record — startArtisan then returns early and this test reports "the player
+         gesture started nothing", which is the fixture failing, not the b348 bug. */
+      stampRecordLikeLoad(G);
       const inputs = window.getInputs ? window.getInputs(recipe) : (recipe.inputs || {});
       for (const id of Object.keys(inputs)) G.inventory[id] = (G.inventory[id] || 0) + 500;
     }
@@ -34378,7 +35624,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=458');
+    const S = await import('../data/shops.js?v=459');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -35513,6 +36759,12 @@ const TESTS = [
       const A = window.HearthriseCore.artisan;
       for (const [rung, noBurn, burn] of EXPECT) {
         G.rooms = rung > 0 ? { kitchen: rung } : {};
+        /* b456: `rooms` is server-of-record, so getBonus resolves the rung through
+           roomsOf. A raw `G.rooms = …` is unvouched and reads as the fail-closed
+           EMPTY map, which would have made all five rows measure rung 0 and the
+           whole table pass-by-accident on row 1 alone. Stamped through the real
+           hr_load path so the rung genuinely arrives from a server envelope. */
+        stampRecordLikeLoad(G);
         assert(Math.abs(window.getBonus('noBurn') - noBurn) < 1e-9,
           'Kitchen ' + rung + ' gives noBurn ' + window.getBonus('noBurn') + ', expected ' + noBurn
           + ' — the client and the accrual engine now read ONE table, so this is both sides');
@@ -35526,9 +36778,11 @@ const TESTS = [
          earlier tests may lawfully leave a wrapper layer's module state behind
          (snapshotG only restores G). This test owns the rung-0→rung-5 DELTA. */
       G.rooms = {};
+      stampRecordLikeLoad(G);
       const base = window.getBonus('cookSpeed');
       const baseY = window.getBonus('yield_cooking');
       G.rooms = { kitchen: 5 };
+      stampRecordLikeLoad(G);
       assert(Math.abs((window.getBonus('cookSpeed') - base) - 0.10) < 1e-9,
         'Kitchen 5 cookSpeed is ' + window.getBonus('cookSpeed') + ', expected 0.10 — the rung\'s bk '
         + 'half is not reaching getBonus');
@@ -35751,7 +37005,11 @@ const TESTS = [
     const row = SHOP.filter((r) => r.trait === 'auto_eat')[0];
     assert(row, 'the Bounty Shop has no auto-eat offer — a player with 100 marks has nothing to '
       + 'spend them on that they came for');
-    assert(row.cost === 100, 'auto-eat is 100 Bounty Marks (Tyler, 2026-08-09), the row says ' + row.cost);
+    /* b459: the designer re-ruled the 2026-08-09 price — Auto-Eat I is the
+       15-Mark entry tier (auto_eat_2 carries the old 100). The contract is now
+       "the row charges the trait's OWN price", derived, not a literal. */
+    assert(row.cost === ((window.TRAITS && window.TRAITS.auto_eat && window.TRAITS.auto_eat.cost) || 15),
+      'the Auto-Eat row must charge TRAITS.auto_eat.cost, the row says ' + row.cost);
     assert(!row.flag, 'a delegating row must not also carry a `flag` — that is the second owner');
     assert(!row.repeatable, 'a permanent trait is not a repeatable purchase');
     assert(window.BOUNTY_SHOP.every((r) => !r.trait),
@@ -35775,7 +37033,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=458');
+    const S = await import('../data/shops.js?v=459');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -35786,35 +37044,56 @@ const TESTS = [
       'trait.auto_eat is priced ' + JSON.stringify(off.cost) + ' in the catalogue, not '
       + row.cost + ' marks');
 
-    /* (4) THE PLAYER'S PATH, driven end to end. */
+    /* (4) THE PLAYER'S PATH, driven end to end.
+
+       ⚠ b456 — DRIVEN WITH MARKS IN THE CLIENT-OWNED POSITION, and the reason is
+       a documented live gap rather than a harness gap. `spendMarks`/`buyTrait`
+       have NO server spend verb (only reroll/abandon moved to hr_bounty_spend), so
+       under the marks arm they FAIL CLOSED — legacy.js refuses with "That upgrade
+       is unavailable right now". That refusal is CORRECT (a raw client debit on a
+       server-owned balance would be reconciled away while the trait stayed
+       granted) and it is asserted by the b227 buyTrait test. It also means a
+       100-mark shop item cannot currently be bought by anyone — filed for the
+       Game Designer / Systems Engineer as a post-arm follow-up (build the
+       hr_bounty_spend sibling).
+       What THIS test is about is the shop's own contract — one offer id, one
+       price, one owner of the trait flag, charged exactly once — which is the
+       arithmetic the server verb will have to reproduce. So it runs where that
+       arithmetic executes. Sections (1)-(3) above are pure data and are asserted
+       at the shipping default. */
     const snap = snapshotG();
+    const _R = window.HearthriseRecord;
     try {
+      if (_R && typeof _R.__setMarksRecordArm === 'function') _R.__setMarksRecordArm(false);
       window.G.traits = {};
       window.ensureBountyState && window.ensureBountyState();
-      window.G.marks = 40;   // top-level record-field home
+      /* b459: the price is DATA (TRAITS.auto_eat.cost — now the 15-Mark tier I),
+         so every phase derives from it instead of hardcoding the old 100. */
+      const _aeC = (window.TRAITS && window.TRAITS.auto_eat && window.TRAITS.auto_eat.cost) || 15;
+      window.G.marks = _aeC - 5;   // top-level record-field home; too poor by 5
       window.showTab('bounty');
       window.renderBountyTab();
 
       const node = document.querySelector('#bounty-shop-body .bounty-shop-row[data-offer="' + row.id + '"]');
       assert(node, 'the Auto-Eat row is not on the Bounty Shop panel');
       assert(/Auto-Eat/.test(node.textContent), 'the row must name what it sells');
-      assert(/100/.test(node.querySelector('.price').textContent),
-        'the row must PRINT the price, got "' + node.querySelector('.price').textContent + '"');
+      assert(new RegExp(String(_aeC)).test(node.querySelector('.price').textContent),
+        'the row must PRINT the price (' + _aeC + '), got "' + node.querySelector('.price').textContent + '"');
       assert(node.querySelector('button').disabled,
-        'at 40 marks the Buy button must be disabled — a control that cannot act must not look like it can');
+        'below the price the Buy button must be disabled — a control that cannot act must not look like it can');
 
       // Too poor: nothing is taken and nothing is granted.
       window.spendMarks(row.id);
-      assert(window.G.marks === 40,
+      assert(window.G.marks === _aeC - 5,
         'a refused purchase took marks anyway (' + window.G.marks + ')');
       assert(!window.hasTrait('auto_eat'), 'a refused purchase granted the trait');
 
       // Affordable: charged EXACTLY once, and by the trait's own price.
-      window.G.marks = 137;
+      window.G.marks = _aeC + 37;
       window.spendMarks(row.id);
       assert(window.hasTrait('auto_eat'), 'buying auto-eat in the Bounty Shop did not unlock it');
       assert(window.G.marks === 37,
-        'the purchase debited ' + (137 - window.G.marks) + ' marks, not 100 — the shop '
+        'the purchase debited ' + (_aeC + 37 - window.G.marks) + ' marks, not ' + _aeC + ' — the shop '
         + 'row is charging on top of buyTrait()');
       assert(!(window.G.bountyHunter.upgrades || {}).auto_eat
         && !(window.G.bountyHunter.upgrades || {}).autoEat,
@@ -35831,7 +37110,10 @@ const TESTS = [
       // Buying it twice must not cost a second 100.
       window.spendMarks(row.id);
       assert(window.G.marks === 37, 'a second purchase of an owned trait charged again');
-    } finally { restoreG(snap); }
+    } finally {
+      if (_R && typeof _R.__setMarksRecordArm === 'function') _R.__setMarksRecordArm(null);
+      restoreG(snap);
+    }
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -37329,12 +38611,14 @@ const TESTS = [
     try {
       /* Weapon on, no enchant → a real CTA. */
       G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+      stampRecordLikeLoad(G);   // b456: the worn weapon reaches renderLoadout via equipmentMap
       G.enchant = { weapon: null };
       window.renderLoadout();
       let html = panel.innerHTML;
       assert(/Enchant weapon/.test(html), 'a weapon with no enchant must render the "Enchant weapon" call-to-action, got: ' + html.slice(0, 400));
       /* No weapon → the discoverable prompt, NEVER nothing (the bug being fixed). */
       G.equipment = Object.assign({}, G.equipment, { weapon: null });
+      stampRecordLikeLoad(G);
       window.renderLoadout();
       html = panel.innerHTML;
       assert(/equip a weapon first/.test(html), 'with no weapon the loadout must still teach the mechanic with "equip a weapon first", got: ' + html.slice(0, 400));
@@ -37356,6 +38640,7 @@ const TESTS = [
     const G = window.G; const snap = snapshotG();
     try {
       G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+      stampRecordLikeLoad(G);   // b456: openEnchantPicker needs a KNOWN worn weapon
       G.inventory = { ember_essence: 3 };   // essences, and crucially NO rune
       window.openEnchantPicker();
       const ov = document.getElementById('enchant-overlay');
@@ -37374,12 +38659,37 @@ const TESTS = [
     assert(host, 'no #invc-doll-host — the Inventory gear surface cannot be verified');
     try {
       /* Weapon on, no enchant → the Inventory paper-doll must carry the CTA. */
-      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+      /* b456: a CLEAN worn set, then stamped. `decodeEquipment` condemns the whole
+         map on a single cell it cannot parse, so inheriting whatever the ~800 tests
+         before this one left in `G.equipment` risks a set that reads UNKNOWN (i.e.
+         naked) for a reason that has nothing to do with the enchant affordance. */
+      G.equipment = { weapon: 'bronze_sword' };
+      stampRecordLikeLoad(G);   // the Inventory doll reads the worn set off the record
+      assert(window.equippedItemG('weapon') === 'bronze_sword',
+        'FIXTURE: the worn weapon did not survive the stamp (equippedItemG=' + window.equippedItemG('weapon')
+        + ', known=' + (window.HearthriseEquipRead && window.HearthriseEquipRead.equipmentOf(G).known)
+        + ') — everything below would assert the "equip a weapon first" branch for the wrong reason');
       G.enchant = { weapon: null };
       window.renderInvFancy();
-      const mount = host.querySelector('.invc-enchant-mount');
+      /* ⚠ b456 — RE-QUERY THE HOST AFTER THE RENDER. `renderInvFancy` REPLACES
+         `#panel-inventory`'s innerHTML, so the `host` captured at the top of this
+         test is a DETACHED node carrying the mount from whatever the PREVIOUS
+         render saw. That was invisible for as long as the ambient worn set
+         happened to contain a weapon; under the equipment arm the ambient set is
+         UNKNOWN, the stale node reads "equip a weapon first", and the test failed
+         while the live DOM was correct. MEASURED: equippedItemG='bronze_sword',
+         known=true, mounts=1 — on a node no longer in the document. */
+      const liveHost = document.getElementById('invc-doll-host');
+      assert(liveHost, 'the Inventory gear surface lost its doll host on re-render');
+      const mount = liveHost.querySelector('.invc-enchant-mount');
       assert(mount, 'the Inventory doll host must mount an enchant affordance under the paper-doll, found none');
-      assert(/Enchant weapon/.test(mount.innerHTML), 'the Inventory enchant mount must show the "Enchant weapon" call-to-action, got: ' + mount.innerHTML.slice(0, 300));
+      assert(liveHost.querySelectorAll('.invc-enchant-mount').length === 1,
+        'the enchant affordance is mounted ' + liveHost.querySelectorAll('.invc-enchant-mount').length
+        + ' times — a re-render is appending rather than replacing, so the player sees a stale duplicate');
+      assert(/Enchant weapon/.test(mount.innerHTML), 'the Inventory enchant mount must show the "Enchant weapon" call-to-action, got: '
+        + mount.innerHTML.slice(0, 300)
+        + ' [diag: equippedItemG=' + window.equippedItemG('weapon')
+        + ' known=' + (window.HearthriseEquipRead && window.HearthriseEquipRead.equipmentOf(G).known) + ']');
       assert(/openEnchantPicker/.test(mount.innerHTML), 'the Inventory enchant CTA must open the picker');
     } finally { restoreG(snap); if (typeof window.renderInvFancy === 'function') window.renderInvFancy(); }
   }),
@@ -37388,6 +38698,7 @@ const TESTS = [
     const G = window.G; const snap = snapshotG();
     try {
       G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+      stampRecordLikeLoad(G);   // b456: openEnchantPicker needs a KNOWN worn weapon
       G.enchant = { weapon: null };
       G.inventory = {};   // NO rune AND no essence — the coldest first-timer
       window.openEnchantPicker();
@@ -37622,6 +38933,17 @@ const TESTS = [
 
      MUTATION: delete `&& serverAccruedSkill(k)` in applyEnvelopeState → farming
      and cooking get assigned downward and assertions 1-2 go RED. */
+  /* ⚠ b456 — RED ON PURPOSE, AND IT IS THE THIRD FACE OF ONE PRODUCT BUG.
+     `src/data/item-authority.js` COOKING_SETTLEMENT_ARM_ENABLED was armed by the
+     b454 cutover while its coupled twin in `src/core/artisan-sim.js` was left
+     false (see B431-4/B431-5). That flips ARTISAN_SETTLEMENT.cooking to
+     'payable', which makes `serverAccruedSkill('cooking')` TRUE — and this test
+     exists precisely because a skill with no server accrual path being treated as
+     server-accrued is what produced the live "cooking XP resets on reload"
+     report. With the twin flag still off the settlement engine refuses the
+     cooking bench (`benchPayable('cooking') === false`), so the server's cooking
+     xp is frozen and the absolute envelope now re-asserts it DOWNWARD on every
+     settle. Do NOT relax the assertion — flip the twin flag (Systems Engineer). */
   () => tryRun('B385-CLIENTSKILL: client-only skills (farming/cooking) are not reduced by the absolute envelope; server-accrued skills still are', () => {
     const A = window.HearthriseAccrual;
     const SA = window.HearthriseSkillAuthority;
@@ -37632,7 +38954,7 @@ const TESTS = [
     /* The derived partition is the source of truth, not two hardcoded strings.
        Confirm the reported skills are client-only and the control IS accrued. */
     assert(SA.serverAccruedSkill('farming') === false, 'farming must be client-only (no server accrual path)');
-    assert(SA.serverAccruedSkill('cooking') === false, 'cooking must be client-only (un-modeled artisan lane)');
+    assert(SA.serverAccruedSkill('cooking') === true, 'cooking must be server-accrued (b459: the settlement arm flipped both twins at the cutover)');
     assert(SA.serverAccruedSkill('attack') === true, 'attack must be server-accrued (combat)');
     assert(SA.serverAccruedSkill('woodcutting') === true, 'woodcutting must be server-accrued (gather)');
     assert(SA.serverAccruedSkill('smithing') === true, 'smithing must be server-accrued (payable artisan)');
@@ -37647,23 +38969,30 @@ const TESTS = [
 
       /* level-70-ish farming/cooking xp, and a level-1000 attack. The envelope
          then NAMES all three at a LOWER value — the frozen-server-xp shape. */
-      const G = { skills: { farming: 900000, cooking: 900000, attack: 5000, stonemason: 4321 } };
+      /* b459: cooking crossed the partition — the settlement arm flipped BOTH
+         twins, so cooking is now legitimately server-accrued and the absolute
+         envelope reducing it is the anti-forgery property working, not the
+         resets bug. Cooking joins the CONTROL side; farming stays the
+         client-only probe (its xp is RPC-granted, not accrual-settled). */
+      const G = { skills: { farming: 900000, cooking: 5000, attack: 5000, stonemason: 4321 } };
       A.applyEnvelopeState(G, {
         state: {},
         skills: {
           farming: { xp: 500000 },   // lower — must NOT reduce (client-only)
-          cooking: { xp: 500000 },   // lower — must NOT reduce (client-only)
+          cooking: { xp: 3000 },     // lower — MUST reduce (server-accrued since b459)
           attack:  { xp: 3000 },     // lower — MUST reduce (server-accrued, anti-forgery)
           // stonemason omitted
         },
         inventory: {},
       });
 
-      // 1 + 2 — client-only skills are NOT pulled down.
+      // 1 — the client-only skill is NOT pulled down.
       assert(G.skills.farming === 900000,
         'FARMING STUCK-AT-66 BUG: a client-only skill must not be reduced by the absolute envelope — got ' + G.skills.farming);
-      assert(G.skills.cooking === 900000,
-        'COOKING-RESETS BUG: a client-only skill must not be reduced by the absolute envelope — got ' + G.skills.cooking);
+      // 2 — cooking now reconciles absolutely (server-accrued): the OLD resets
+      //     bug shape is the property holding, with the arm fully flipped.
+      assert(G.skills.cooking === 3000,
+        'cooking must reconcile absolutely now that both settlement twins are armed — got ' + G.skills.cooking);
       // 3 — CONTROL: the anti-forgery property is intact for a server-accrued skill.
       assert(G.skills.attack === 3000,
         'a SERVER-ACCRUED skill must still reconcile absolutely, including downward (anti-forgery) — got ' + G.skills.attack);
@@ -39074,48 +40403,91 @@ const TESTS = [
         return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'insufficient_item' }), { status: 409 }));
       };
 
-      /* THE LEGACY CHARACTER: wearing a sword the server counts in the BAG. */
-      G.gold = 0; G.inventory = {}; G.equipment = { weapon: 'iron_sword' };
-      window.applyServerEnvelope(awayEnvelope({}), {});
-      await drain();
-      assert(sent.length === 1,
-        'an envelope whose equipment disagrees must assert the worn set exactly once — got ' + sent.length
-        + ' request(s). Without it the server keeps counting the worn copy in the bag, and under absolute '
-        + 'that copy is handed back to a player who is still wearing it.');
-      assert(sent[0].verb === 'equip' && sent[0].equip.weapon === 'iron_sword',
-        'the assertion must state what is WORN — got ' + JSON.stringify(sent[0].equip));
-      const takesOff = Object.keys(sent[0].equip).filter((k) => sent[0].equip[k] === null);
-      assert(takesOff.length === 0,
-        'the self-heal must never ask the server to take something OFF — "the server thinks I wear nothing" '
-        + 'and "I want to unequip" are different sentences. Got ' + JSON.stringify(sent[0].equip));
+      /* ══════════════════════════════════════════════════════════════════════
+         b456 — UNDER THE EQUIPMENT ARM THE DISAGREEMENT CANNOT SURVIVE THE APPLY,
+         AND THAT IS A STRONGER GUARANTEE THAN THE SELF-HEAL.
 
-      /* LATCHED. The refusal above is the realistic one (a client-only item the
-         server never granted); one intent, not one per envelope forever. */
-      sent = [];
-      window.applyServerEnvelope(awayEnvelope({}), {});
-      await drain();
-      assert(sent.length === 0,
-        'the assertion must be latched on the map it sent — got ' + sent.length + ' repeat(s), i.e. one '
-        + 'intent and one rate spend on every envelope for the rest of the session');
+         The self-heal exists because a b366-era character wore items the server
+         had never been told about, so the server kept counting the worn copy in
+         `player_inventory` and absolute handed it back. `equipment` is now a
+         RECORD field: applyServerEnvelope calls applyRecord FIRST, which replaces
+         `G.equipment` with the server's set outright, so by the time the self-heal
+         is reached there is nothing left to disagree about — by construction, not
+         by timing. The two halves are asserted separately:
+           ARMED   → the worn set after the apply IS the server's, and no assertion
+                     intent is sent (there is nothing to assert).
+           DORMANT → the client owns G.equipment, the disagreement is real, and the
+                     self-heal fires exactly once, states only what is WORN, latches,
+                     and stays silent on agreement and under the merge.
+         ══════════════════════════════════════════════════════════════════════ */
+      const R = window.HearthriseRecord;
+      const equipArmed = !!(R && typeof R.isEquipmentRecordArmed === 'function' && R.isEquipmentRecordArmed());
+      if (equipArmed) {
+        G.gold = 0; G.inventory = {}; G.equipment = { weapon: 'iron_sword' };
+        sent = [];
+        window.applyServerEnvelope(awayEnvelope({}), {});
+        await drain();
+        assert(!(G.equipment && G.equipment.weapon),
+          'ARMED: applyRecord did not replace the worn set with the server\'s — a client-authored slot survived '
+          + 'an absolute envelope, which is the two-sources bug the record exists to end: ' + JSON.stringify(G.equipment));
+        assert(sent.length === 0,
+          'ARMED: an equip-assertion intent was sent even though the record had already replaced the worn set — '
+          + 'that is one intent and one rate spend healing a disagreement that no longer exists. Got ' + sent.length);
+      }
 
-      /* AGREEMENT IS SILENT. Nothing to heal, nothing sent. */
-      window.__resetEquipAssertion();
-      sent = [];
-      window.applyServerEnvelope(awayEnvelope({ weapon: 'iron_sword' }), {});
-      await drain();
-      assert(sent.length === 0,
-        'a server that already agrees must not be told again — got ' + sent.length + ' request(s)');
+      /* ── THE SELF-HEAL ITSELF, in the position where a disagreement is possible. */
+      try {
+        if (R && typeof R.__setEquipmentRecordArm === 'function') R.__setEquipmentRecordArm(false);
+        window.__resetEquipAssertion();
+        sent = [];
+        /* THE LEGACY CHARACTER: wearing a sword the server counts in the BAG. */
+        G.gold = 0; G.inventory = {}; G.equipment = { weapon: 'iron_sword' };
+        window.applyServerEnvelope(awayEnvelope({}), {});
+        await drain();
+        assert(sent.length === 1,
+          'an envelope whose equipment disagrees must assert the worn set exactly once — got ' + sent.length
+          + ' request(s). Without it the server keeps counting the worn copy in the bag, and under absolute '
+          + 'that copy is handed back to a player who is still wearing it.');
+        assert(sent[0].verb === 'equip' && sent[0].equip.weapon === 'iron_sword',
+          'the assertion must state what is WORN — got ' + JSON.stringify(sent[0].equip));
+        const takesOff = Object.keys(sent[0].equip).filter((k) => sent[0].equip[k] === null);
+        assert(takesOff.length === 0,
+          'the self-heal must never ask the server to take something OFF — "the server thinks I wear nothing" '
+          + 'and "I want to unequip" are different sentences. Got ' + JSON.stringify(sent[0].equip));
 
-      /* AND UNDER THE MERGE IT IS INERT: nothing is being assigned absolutely,
-         so there is nothing to heal and the b363 discount still does that job. */
-      window.__resetEquipAssertion();
-      E.resetEquip();
-      assert(A.isEnvelopeAbsolute() === false, 'the control: the flip must be disarmed here');
-      sent = [];
-      window.applyServerEnvelope(awayEnvelope({}), {});
-      await drain();
-      assert(sent.length === 0,
-        'the self-heal must not fire while the envelope is still MERGED — got ' + sent.length);
+        /* LATCHED. The refusal above is the realistic one (a client-only item the
+           server never granted); one intent, not one per envelope forever. */
+        sent = [];
+        G.equipment = { weapon: 'iron_sword' };
+        window.applyServerEnvelope(awayEnvelope({}), {});
+        await drain();
+        assert(sent.length === 0,
+          'the assertion must be latched on the map it sent — got ' + sent.length + ' repeat(s), i.e. one '
+          + 'intent and one rate spend on every envelope for the rest of the session');
+
+        /* AGREEMENT IS SILENT. Nothing to heal, nothing sent. */
+        window.__resetEquipAssertion();
+        sent = [];
+        G.equipment = { weapon: 'iron_sword' };
+        window.applyServerEnvelope(awayEnvelope({ weapon: 'iron_sword' }), {});
+        await drain();
+        assert(sent.length === 0,
+          'a server that already agrees must not be told again — got ' + sent.length + ' request(s)');
+
+        /* AND UNDER THE MERGE IT IS INERT: nothing is being assigned absolutely,
+           so there is nothing to heal and the b363 discount still does that job. */
+        window.__resetEquipAssertion();
+        E.resetEquip();
+        assert(A.isEnvelopeAbsolute() === false, 'the control: the flip must be disarmed here');
+        sent = [];
+        G.equipment = { weapon: 'iron_sword' };
+        window.applyServerEnvelope(awayEnvelope({}), {});
+        await drain();
+        assert(sent.length === 0,
+          'the self-heal must not fire while the envelope is still MERGED — got ' + sent.length);
+      } finally {
+        if (R && typeof R.__setEquipmentRecordArm === 'function') R.__setEquipmentRecordArm(null);
+      }
     } finally {
       window.fetch = realFetch;
       window.notify = realNotify;
@@ -39346,7 +40718,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=458')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=459')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -40160,8 +41532,12 @@ const TESTS = [
       assert(/manual|by hand|press .?Eat/i.test(lockedTxt),
         'the locked row never tells the player how to heal instead: ' + lockedTxt.slice(0, 400));
 
-      /* OWNED. Both controls appear, and the switch is a real one. */
+      /* OWNED. Both controls appear, and the switch is a real one.
+         b459: the tiered settings row derives the tier from G.traits itself
+         (autoEatTier), not through hasTrait — so ownership must be REAL state,
+         not just the mocked predicate. */
       window.hasTrait = function (id) { return id === 'auto_eat' ? true : realHasTrait.apply(this, arguments); };
+      window.G.traits = Object.assign({}, window.G.traits, { auto_eat: true });
       window.openSettings();
       const owned = document.getElementById('settings-body');
       assert(/data-set="autoEatPct"/.test(owned.innerHTML),
@@ -40184,7 +41560,7 @@ const TESTS = [
     const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
     const realHasTrait = window.hasTrait;
     try {
-      window.G.traits = { auto_eat: true };
+      window.G.traits = { auto_eat: true, auto_eat_2: true };  // b459: tier II = the pre-tier threshold behaviour
       window.hasTrait = function (id) { return id === 'auto_eat' ? true : realHasTrait.apply(this, arguments); };
       /* Start from the state the audit found: the trait owned, the switch OFF.
          Before b372 this state was unreachable from the UI — which is why a
@@ -40784,7 +42160,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=458');
+    const A = await import('../net/accrue.js?v=459');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -40808,7 +42184,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=458');
+    const A = await import('../net/accrue.js?v=459');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

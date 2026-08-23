@@ -60,9 +60,17 @@ export async function equipmentRecordGuard() {
   };
 
   try {
-    // ── ARM OFF (default): dormant, no regression ──────────────────────────
+    /* ── b456: THE SHIPPED DEFAULT IS ARMED, so the const assertion inverts and
+       the dormant block is no longer reachable via `reset()`. Both positions are
+       still held: the ARM is the contract (a revert re-opens a forgeable,
+       client-authored value), and the dormant fall-through is the kill-switch
+       position, driven explicitly through the seam rather than assumed. */
     reset();
-    if (R.EQUIPMENT_RECORD_ARM_ENABLED !== false) fail('EQUIPMENT_RECORD_ARM_ENABLED must ship false (DORMANT)');
+    if (R.EQUIPMENT_RECORD_ARM_ENABLED !== true) fail('EQUIPMENT_RECORD_ARM_ENABLED must ship true (ARMED) — a revert '
+      + 'puts the worn set back in the client-authored save blob');
+
+    // ── ARM OFF (seam-forced): dormant, no regression ──────────────────────
+    R.__setEquipmentRecordArm(false);
     if (R.isServerOfRecord('equipment')) fail('ARM OFF: `equipment` is on the active registry but the flag is off');
     {
       const G = { equipment: { weapon: 'bronze_sword', helmet: 'iron_helm' } };

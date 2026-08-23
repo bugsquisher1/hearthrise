@@ -451,7 +451,11 @@ body[data-theme] #panel-shop .sc-prop-lit { fill: var(--sc-prop-lit); }
 
 body[data-theme] #panel-shop .sc-counter {
   position: relative;
-  padding: 6px 13px 14px;
+  /* b459 (reachability catch): the floating Chat FAB (bottom-right) covered the
+     LAST Buy button once the trait list grew a row — a click at its centre
+     landed on the chat label at 1440x900. Bottom clearance ≥ the FAB's height +
+     margin so the final row always scrolls clear of it. */
+  padding: 6px 13px 72px;
   border-radius: 0 0 3px 3px;
   background:
     radial-gradient(ellipse 60% 100% at 22% 0%, rgba(255,186,110,.10), rgba(255,186,110,0) 64%),

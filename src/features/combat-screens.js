@@ -41,8 +41,8 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=458';
-import { ITEMS } from '../data/items.js?v=458';
+import { MONSTERS } from '../data/monsters.js?v=459';
+import { ITEMS } from '../data/items.js?v=459';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -878,7 +878,16 @@ function renderGrid() {
       : k > 0 ? `<span class="wtc-kills">×${num(k)}</span>`
       : '<span class="wtc-kills is-new">NEW</span>';
     return `<button type="button" class="wt-card${locked ? ' is-locked' : ''}${fighting ? ' is-live' : ''}"` +
-      `${locked ? ' disabled' : ''} data-monster="${esc(id)}" title="${esc(m.name)}">
+      /* b432 (new-player audit): the card prints "2H Hammer · 8 HP" and the
+         `title` said only "Slime" — a duplicate of the name already rendered
+         two lines below it. So the single most important decision input on the
+         war table, the weapon a foe is WEAK to, read to a new player as an
+         unexplained label that might just as easily have meant "this monster
+         carries a hammer". The fight screen does say "Weak to 2H Hammer", but
+         only after you have already committed to the foe, which is one screen
+         too late to be a choice. Spend the tooltip on the thing the player
+         cannot infer instead of repeating the thing they can read. */
+      `${locked ? ' disabled' : ''} data-monster="${esc(id)}" title="${esc(m.name)} — weak to ${esc(weaponLabel(m.weaponWeak))} · ${num(m.hp)} HP${locked ? ` · unlocks at Combat Lv ${req}` : ''}">
       <span class="wtc-art">${monsterArt(id, 'wtc-img')}</span>
       <span class="wtc-name">${esc(m.name)}</span>
       <span class="wtc-stats"><em>${esc(weaponLabel(m.weaponWeak))}</em><b>${num(m.hp)} HP</b></span>

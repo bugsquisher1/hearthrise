@@ -40,10 +40,24 @@ export async function farmSyncGuard() {
   const reset = () => { try { IA.__setFarmServerArm(null); } catch (e) {} };
 
   try {
-    // ── DORMANT (default): the arm is off, legacy farming is unchanged ────────
+    /* ── b456: ARMED IS NOW THE SHIPPED DEFAULT, so the const assertion inverts.
+       The b454 cutover flipped FARM_SERVER_ARM_ENABLED; asserting the dormant
+       value afterwards only proves this guard was not updated. What still has to
+       be held is BOTH positions, and neither is weaker than before:
+         · the ARM is the contract — a silent revert would put the farm's produce,
+           XP and deed spend back in the client's hands, which is the forgeable
+           surface the whole program closes;
+         · the DORMANT fall-through is the kill-switch position and still ships,
+           so it is driven explicitly through the seam rather than assumed. */
+    // ── ARMED (default): the flip is the shipped state ───────────────────────
     reset();
-    if (IA.FARM_SERVER_ARM_ENABLED !== false) fail('FARM_SERVER_ARM_ENABLED must ship false (DORMANT)');
-    if (F.isFarmServerArmed()) fail('DORMANT: isFarmServerArmed must be false by default');
+    if (IA.FARM_SERVER_ARM_ENABLED !== true) fail('FARM_SERVER_ARM_ENABLED must ship true (ARMED) — a revert '
+      + 'puts crop produce, XP, the seed debit and the deed spend back under client authority');
+    if (!F.isFarmServerArmed()) fail('ARMED: isFarmServerArmed must be true by default');
+
+    // ── ARM OFF (test seam): the kill-switch position must still be a clean no-op
+    if (IA.__setFarmServerArm(false) !== false) fail('ARM OFF: __setFarmServerArm(false) did not disarm');
+    if (F.isFarmServerArmed()) fail('ARM OFF: farm-sync must see the disarmed state (shared module instance)');
 
     // ── ARM ON (test seam) ────────────────────────────────────────────────────
     if (!IA.__setFarmServerArm(true)) fail('ARM ON: __setFarmServerArm(true) did not arm');

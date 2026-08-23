@@ -42,6 +42,7 @@ export async function armHomingGuard() {
     'daily', 'collection', 'quests', 'entitlements', 'lastSeen', 'autoEatPct', 'createdAt',
     // other persisted top-level state
     'marks', 'gems', 'plotLevels', 'workers', 'enchant',
+    'heroSlotsUnlocked',  // b459: the hero-slot entitlement — missed by the original census
   ];
 
   // ── The THREE homing mechanisms, read from source so they cannot drift. ──

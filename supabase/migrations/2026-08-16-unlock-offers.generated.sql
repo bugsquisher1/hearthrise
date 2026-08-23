@@ -8,8 +8,8 @@
 --   here is reverted by the next generation and FAILS
 --   `node tools/gen-unlock-offers.mjs --check`, a preflight in tests/run-smoke.mjs.
 --
---   offer digest: 400fbaf2df7f825623e1389dc6d9d903f6cc10c5ae41aa840fbc8b8fdd1add8f
---   93 authored unlock offers · 45 sellable (property=5 · room=40) · refused: multi_line_grant=1 · namespace_unsupported=47
+--   offer digest: 57de34f20c84468ad759dcfac6553a82081ae98d304bdaec67154d0fa918426f
+--   94 authored unlock offers · 45 sellable (property=5 · room=40) · refused: multi_line_grant=1 · namespace_unsupported=48
 --
 -- ── WHAT THIS TABLE IS ──────────────────────────────────────────────────
 -- THE PRICE AND THE PREREQUISITE OF A PERMANENT UNLOCK, so that
@@ -194,7 +194,8 @@ values
   ('theme.forest', 'theme', 'Forest Lodge', 'theme:forest', 1, null, null, null, null, 'namespace_unsupported:theme'),
   ('theme.volcanic', 'theme', 'Volcanic Keep', 'theme:volcanic', 1, null, null, null, null, 'namespace_unsupported:theme'),
   ('theme.winter', 'theme', 'Winter Chalet', 'theme:winter', 1, null, null, null, null, 'namespace_unsupported:theme'),
-  ('trait.auto_eat', 'trait', 'Auto-Eat', 'trait:auto_eat', 1, null, null, null, null, 'namespace_unsupported:trait'),
+  ('trait.auto_eat', 'trait', 'Auto-Eat I', 'trait:auto_eat', 1, null, null, null, null, 'namespace_unsupported:trait'),
+  ('trait.auto_eat_2', 'trait', 'Auto-Eat II', 'trait:auto_eat_2', 1, null, null, null, null, 'namespace_unsupported:trait'),
   ('worker.1', 'worker', 'Hire worker #1', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker'),
   ('worker.2', 'worker', 'Hire worker #2', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker'),
   ('worker.3', 'worker', 'Hire worker #3', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker'),
@@ -207,8 +208,8 @@ do $$
 declare v_n int; v_bad text;
 begin
   select count(*) into v_n from public.hr_unlock_offers;
-  if v_n <> 93 then
-    raise exception 'hr_unlock_offers holds % rows, expected 93 — the insert was partial', v_n;
+  if v_n <> 94 then
+    raise exception 'hr_unlock_offers holds % rows, expected 94 — the insert was partial', v_n;
   end if;
   select count(*) into v_n from public.hr_unlock_offers where refusal is null;
   if v_n <> 45 then
@@ -263,5 +264,5 @@ begin
                     '''artisan'' cannot become payable';
   end if;
 
-  raise notice 'hr_unlock_offers OK — % rows, % sellable (property=5 · room=40)', 93, 45;
+  raise notice 'hr_unlock_offers OK — % rows, % sellable (property=5 · room=40)', 94, 45;
 end $$;

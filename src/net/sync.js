@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=458';
+//   import { setupSync } from './net/sync.js?v=459';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,23 +16,23 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=458';
+import { on, snapshot } from './events.js?v=459';
 /* b342 — WHICH CHARACTER'S SAVE IS THIS? The same resolver src/net/{accrue,
    character,record}.js use, imported rather than re-derived: multi-character.js
    owns the answer and a second reader of that record is a second thing to
    drift. accrue.js has no imports of its own, so this adds no cycle. */
-import { resolveActiveSlot } from './accrue.js?v=458';
+import { resolveActiveSlot } from './accrue.js?v=459';
 /* Read-only, for the cloud-save self-test's report. A balance the client has
    not been told is a different fact from a balance of zero. */
-import { balanceState } from './balance.js?v=458';
+import { balanceState } from './balance.js?v=459';
 /* ── THE CAPSTONE SAVE PATH (blob-retire, DORMANT) ───────────────────────────
    Under the capstone the authoritative snapshot() blob is NOT uploaded — the
    authority fields flow through their own server writes (record / RPCs / accrual)
    and only the self-only residue is persisted, via putClientState. isBlobRetired
    is the one flag; buildResiduePatch is the census→patch. No cycle: neither
    capstone.js nor client-state.js imports sync.js. */
-import { isBlobRetired, buildResiduePatch } from './capstone.js?v=458';
-import { putClientState } from './client-state.js?v=458';
+import { isBlobRetired, buildResiduePatch } from './capstone.js?v=459';
+import { putClientState } from './client-state.js?v=459';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -1021,7 +1021,21 @@ async function snapshotIfDue(force, keepalive) {
     const anonKey = typeof config.apiKey === 'function' ? config.apiKey() : config.apiKey;
     const jwt = typeof config.authToken === 'function' ? config.authToken() : config.authToken;
     if (!base || !anonKey || !jwt) return false;   // not configured → wait, never author locally
-    const put = await putClientState(patch, { url: base, anonKey, jwt, pinnedSlot: config.slot });
+    /* b459 (suite catch): this is the ONE periodic write the armed game still
+       makes, and a bare fetch inside putClientState lost b371's gateway retry
+       AND b331's auth accounting (a 401 never latched the dead token, never
+       fired onAuthExpired). Inject fetchWithAuthRetry as the transport so the
+       capstone save gets the same hardening as every other write. It returns
+       null on a definitive failure — map that to a rejected fetch so
+       putClientState reports {ok:false, error:'transport'} as designed. */
+    const put = await putClientState(patch, {
+      url: base, anonKey, jwt, pinnedSlot: config.slot,
+      fetch: async (u, init) => {
+        const res = await fetchWithAuthRetry(u, () => init, 'client_state', { retryWrite: true });
+        if (!res) throw new Error('transport_failed');
+        return res;
+      },
+    });
     const okc = !!(put && put.ok);
     noteSaveOutcome(okc, okc ? null : (put && put.error) || 'client_state_put_failed', now);
     if (okc && window.G) { window.G.cloudSyncedAt = now; lastCloudSaveAt = now; }

@@ -766,6 +766,18 @@ async function authResilienceGuard(browser, url) {
       const past = jwt({ sub: 'u1', exp: Math.floor(Date.now() / 1000) - 7200 });
       const real = window.fetch;
       const out = {};
+      /* ⚠ b456 — DRIVEN WITH THE LOCAL BLOB LIVE, AND (4) BELOW SAYS WHY.
+         Every property this guard pins — probe-once, tell-the-player-once, latch
+         the dead token, count server evidence, learn the clock from a 200 — is
+         implemented in `fetchWithAuthRetry`, which only the game_saves UPSERT
+         goes through. Under the b455 capstone `snapshotIfDue` takes the
+         `isBlobRetired()` branch and PUTs through `hr_put_client_state`
+         (src/net/client-state.js putClientState), a bare fetch that touches none
+         of it. So the four properties are exercised where they are implemented,
+         and the ARMED gap is measured separately and reported. */
+      const CAP = window.HearthriseCapstone;
+      const blobWasRetired = !!(CAP && CAP.isBlobRetired && CAP.isBlobRetired());
+      try { if (CAP && CAP.__setBlobRetired) CAP.__setBlobRetired(false); } catch (e) {}
       const base = {
         snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
         apiKey: 'anon', userId: () => 'u1', authToken: () => past,
@@ -821,11 +833,30 @@ async function authResilienceGuard(browser, url) {
         await S.__withConfig({ ...base, onAuthError: async () => true, onAuthExpired: () => {} },
           async () => { await S.snapshotIfDue(true, false); });
         out.afterLearningHits = hits;              // must be >= 1
+
+        /* ── (4) THE ARMED WRITE, MEASURED. Same dead-token scenario, but with
+           the capstone in its shipped position, so the request that goes out is
+           the hr_put_client_state PUT rather than the game_saves upsert. */
+        if (blobWasRetired && CAP && CAP.__setBlobRetired) {
+          CAP.__setBlobRetired(null);              // back to the shipped (armed) state
+          let aHits = 0, aTold = 0;
+          window.fetch = () => { aHits++; return Promise.resolve(new Response('{"code":"PGRST303"}', { status: 401 })); };
+          S.setClockTrusted(true);
+          S.resetAuthGate({ streak: S.AUTH_DEAD_AFTER_TRIES - 1, firstAt: Date.now() - 1000, blockedUntil: 0, serverFails: 0 });
+          await S.__withConfig({ ...base, onAuthError: async () => false, onAuthExpired: () => { aTold++; } },
+            async () => { await S.snapshotIfDue(true, false); });
+          out.armedWriteHits = aHits;
+          out.armedWriteTold = aTold;
+          out.armedWriteLatched = S.getAuthGate().dead;
+          out.armedWriteServerFails = S.getAuthGate().serverFails;
+          CAP.__setBlobRetired(false);
+        }
       } finally {
         window.fetch = real;
         S.setClockTrusted(true);
         S.resetAuthGate();
         S.__resetSyncHealth();
+        try { if (CAP && CAP.__setBlobRetired) CAP.__setBlobRetired(null); } catch (e) {}
       }
       return out;
     });
@@ -841,6 +872,30 @@ async function authResilienceGuard(browser, url) {
     if (r.clockDistrusted !== true) problems.push('a 200 carrying a locally-"expired" token did not teach this device that its clock is wrong');
     if (r.refreshTaughtUs !== true) problems.push('a freshly REFRESHED token that reads "expired" did not teach this device that its clock is wrong');
     if (!(r.afterLearningHits >= 1)) problems.push('the local expiry veto survived proof that the clock is wrong');
+    /* ⚠ b456 — RED ON PURPOSE UNTIL A PRODUCT FIX. The capstone replaced the
+       game_saves upsert with an hr_put_client_state PUT that does NOT go through
+       fetchWithAuthRetry, so the periodic save write no longer feeds the auth
+       breaker at all: a 401 is not counted as server evidence, the dead-token
+       latch never closes, and `onAuthExpired` never fires — which is the b331
+       loop this guard exists to make impossible. (Reads still go through the
+       retry wrapper, so a player may still learn from a poll; the WRITE path's
+       own hardening is simply gone, and with it this guard's ability to see it.)
+       Fix: route putClientState through the same auth/retry wrapper, or give it
+       the same accounting. Owner: Systems Engineer. */
+    if (r.armedWriteHits !== undefined) {
+      if (r.armedWriteTold !== 1) {
+        problems.push(`ARMED (capstone) write: the player was told ${r.armedWriteTold} times that their sign-in `
+          + 'died (expected exactly 1) — hr_put_client_state bypasses fetchWithAuthRetry, so the save write no '
+          + 'longer participates in the b331 auth breaker');
+      }
+      if (r.armedWriteLatched !== true) {
+        problems.push('ARMED (capstone) write: a server-confirmed dead token did not terminate — the b331 '
+          + 'infinite-retry loop can come back on the one periodic write the game still makes');
+      }
+      if (!(r.armedWriteServerFails >= 1)) {
+        problems.push('ARMED (capstone) write: the 401 was not recorded as server evidence');
+      }
+    }
   } catch (err) {
     problems.push('harness failure: ' + err.message);
   } finally {
@@ -902,6 +957,13 @@ async function saveSlotGuard(browser, url) {
 
     const r = await page.evaluate(async () => {
       const P = window.HearthriseProfile;
+      /* b459: this guard's subject is the game_saves autosave ADDRESSING (blob →
+         the active slot) — the DORMANT save path. Under the armed capstone the
+         autosave ships residue via hr_put_client_state instead and this capture
+         goes vacuous (the exact blindness the burn-down flagged). Drive the
+         dormant path via the seam; the armed write's addressing rides
+         putClientState's own pinnedSlot contract. */
+      try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(false); } catch (e) {}
       // Become a player with three characters, on the third — through the REAL
       // slot API (unlockSlot/switchSlot), not by writing the profile record.
       P.init();

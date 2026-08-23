@@ -60,12 +60,21 @@ export async function blobRetireGuard() {
   };
 
   try {
-    // ── DORMANT (default) ───────────────────────────────────────────────────
+    /* ── b456: THE CAPSTONE IS ARMED IN THE SHIPPED BUILD, so the const assertion
+       inverts and the dormant block is no longer reachable via `reset()`. Both
+       positions still matter: the ARM is the contract (a revert re-introduces the
+       stale local rival that resurrected dead state on every boot during the live
+       cutover), and the dormant path is the kill-switch position, still shipped,
+       and is driven explicitly through the seam. */
     reset();
-    if (C.BLOB_RETIRED !== false) fail('BLOB_RETIRED must ship false (DORMANT)');
-    // even with the master accrual switch ON, the flag stays off until armed.
     A.setServerAccrualEnabled(true);
-    if (C.isBlobRetired()) fail('DORMANT: isBlobRetired() must be false even with master accrual on');
+    if (C.BLOB_RETIRED !== true) fail('BLOB_RETIRED must ship true (ARMED) — the local save blob is a stale '
+      + 'rival to the server copy, and re-enabling it is the cutover incident');
+    if (!C.isBlobRetired()) fail('ARMED: isBlobRetired() must be true with the flag on and the master switch on');
+
+    // ── DORMANT (seam-forced) ───────────────────────────────────────────────
+    C.__setBlobRetired(false);
+    if (C.isBlobRetired()) fail('DORMANT: isBlobRetired() must be false with the seam off');
     // clientField reads the blob byte-for-byte.
     {
       const G = { stats: { kills: 7 }, foodSlot: 'apple' };

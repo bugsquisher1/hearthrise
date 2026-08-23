@@ -41,7 +41,7 @@
 // It never WRITES a slot. Not a default, not a repair. DOM-free. Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue } from './record.js?v=458';
+import { isServerOfRecord, recordValue } from './record.js?v=459';
 
 /** A frozen empty map, returned for the UNKNOWN case. Frozen so a caller that
  *  (wrongly) tries to WRITE a slot into the fail-closed value cannot mutate a

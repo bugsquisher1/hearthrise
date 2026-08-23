@@ -49,13 +49,13 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { resolveArtisanAction, missingInput, recipeInputs, gateOk } from './artisan.js?v=458';
-import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=458';
-import { actionIntervalMs } from './pacing.js?v=458';
-import { CHANNEL, channelApplies, rateMult } from './away.js?v=458';
-import { sliceSpan } from './skill-sim.js?v=458';
-import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=458';
-import { levelOf } from './xp.js?v=458';
+import { resolveArtisanAction, missingInput, recipeInputs, gateOk } from './artisan.js?v=459';
+import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=459';
+import { actionIntervalMs } from './pacing.js?v=459';
+import { CHANNEL, channelApplies, rateMult } from './away.js?v=459';
+import { sliceSpan } from './skill-sim.js?v=459';
+import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=459';
+import { levelOf } from './xp.js?v=459';
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 function call(fx, name, ...args) {
@@ -544,7 +544,7 @@ export const SERVER_OWNED_BONUS_KEYS = Object.freeze([]);
    changes byte-for-byte. `SERVER_OWNED_BONUS_KEYS` stays the frozen empty const
    it always was (external readers — tests/artisan-accrual.mjs — see the dormant
    baseline); benchPayable/benchBlockedBy read the runtime set instead. */
-export const COOKING_SETTLEMENT_ARM_ENABLED = false;   // DORMANT — post-wipe, coupled with rooms record arm
+export const COOKING_SETTLEMENT_ARM_ENABLED = true;   // ARMED b459 — the b454 cutover flipped item-authority's twin but MISSED this one; half-flipped, cooking was enrolled as server-settled while the bench refused to pay → cooking XP re-asserted DOWN every settle (the modernized suite caught it)
 let cookingArmOverride = null;
 export function isCookingSettlementArmed() {
   return cookingArmOverride !== null ? cookingArmOverride : COOKING_SETTLEMENT_ARM_ENABLED;

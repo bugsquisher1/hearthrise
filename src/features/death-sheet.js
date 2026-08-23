@@ -90,11 +90,30 @@
          browser check. The quantity marker sidesteps the problem entirely and
          matches how every other quantity in the game is written. */
       var carried = d.foodQty + ' x ' + d.foodName;
+      /* b432 (new-player audit) — NAME THE PRICE.
+         The old line sent a player who had just died on their first slime to
+         "the Bounty Shop", where Auto-Eat sits behind 100 Marks and a tier-1
+         cull contract pays 5–6 for 80–120 kills. Following the game's own
+         advice therefore led to a padlock roughly eighteen contracts away,
+         with nothing on the sheet or the shop row saying so — a recommendation
+         that reads as "do this now" and behaves as "do this next week" is a
+         dead end, not a tip. Stating the number converts it into a goal the
+         player can decide about, and it keeps the honest ordering: the thing
+         they can do THIS fight comes first.
+         The cost is READ from the shop table (window.TRAITS via readMoment),
+         never authored here — a second copy of "100" would be a number that
+         can drift silently away from the thing it describes. When it is
+         unavailable the sentence simply does not claim one. */
+      var cost = Number(d.autoEatCost) > 0 ? d.autoEatCost : 0;
+      var later = cost
+        ? ' Longer term, Bounty Board contracts pay Marks — ' + cost +
+          ' of them unlock Auto-Eat in the Bounty Shop, and then you never think about it again.'
+        : ' Longer term, Auto-Eat in the Bounty Shop does it for you.';
       return 'You were carrying ' + carried + ' and never ate ' +
-        (d.foodQty === 1 ? 'it' : 'one') + '. Press Eat beside your champion during a fight' +
+        (d.foodQty === 1 ? 'it' : 'one') + '. Press Eat beside your champion during a fight.' +
         (d.autoEatOwned
-          ? ' — or switch Auto-Eat on in Settings so it happens for you.'
-          : ' — or unlock Auto-Eat in the Bounty Shop and never think about it again.');
+          ? ' Or switch Auto-Eat on in Settings so it happens for you.'
+          : later);
     },
     'auto-eat-idle': function () {
       return 'Auto-Eat is watching your health, but your bag had no provisions left to eat. ' +
@@ -179,7 +198,10 @@
       rows: rows,
       tipKey: tipKey,
       tip: TIPS[tipKey](
-        { foodQty: foodQty, foodName: foodName, monsterName: monsterName || 'That foe', autoEatOwned: !!d.autoEatOwned }
+        { foodQty: foodQty, foodName: foodName, monsterName: monsterName || 'That foe',
+          autoEatOwned: !!d.autoEatOwned,
+          // 0 / absent => the tip states no price rather than inventing one.
+          autoEatCost: Math.max(0, Number(d.autoEatCost) || 0) }
       ),
       /* The Bounty Shop link only appears when it is actually the answer —
          an offer to buy something you already own is noise. */
@@ -259,6 +281,16 @@
       foodName: food ? food.name : 'provision',
       ateThisFight: ateThisFight(G),
       autoEatOwned: !!(G.traits && G.traits.auto_eat),
+      /* b432: the Marks price of Auto-Eat, read from the ONE place it is
+         authored (legacy.js TRAITS, the same row the Bounty Shop renders), so
+         the death sheet and the shop can never quote different numbers. Guard
+         the currency too — if the trait is ever repriced in gold the tip must
+         stop saying "Marks" rather than start lying. */
+      autoEatCost: (function () {
+        var t = window.TRAITS && window.TRAITS.auto_eat;
+        if (!t || t.currency !== 'marks') return 0;
+        return Number(t.cost) > 0 ? Number(t.cost) : 0;
+      })(),
       maxHp: G.playerMaxHp || 10,
       streakBroken: !!(info && info.streakBroken),
       deaths: (G.stats && G.stats.deaths) || 1

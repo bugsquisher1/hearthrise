@@ -42,11 +42,19 @@ export async function restedRecordGuard() {
   const NOW = 1_700_000_000_000;   // a fixed, positive watermark ms
 
   try {
-    // ── ARM OFF (default): dormant, no regression ──────────────────────────
+    /* ── b456: THE SHIPPED DEFAULT IS ARMED, so the const assertion inverts and
+       the dormant block is no longer reachable via `reset()`. Both positions are
+       still held: the ARM is the contract (a revert re-opens a forgeable,
+       client-authored value), and the dormant fall-through is the kill-switch
+       position, driven explicitly through the seam rather than assumed. */
     reset();
+    if (R.RESTED_RECORD_ARM_ENABLED !== true) fail('RESTED_RECORD_ARM_ENABLED must ship true (ARMED) — a revert '
+      + 'puts the Rested bank and its watermark back in the client-authored save blob');
+
+    // ── ARM OFF (seam-forced): dormant, no regression ──────────────────────
+    R.__setRestedRecordArm(false);
     if (R.isServerOfRecord('restedXp')) fail('ARM OFF: `restedXp` is on the active registry but the flag is off');
     if (R.isServerOfRecord('restedAt')) fail('ARM OFF: `restedAt` is on the active registry but the flag is off');
-    if (R.RESTED_RECORD_ARM_ENABLED !== false) fail('RESTED_RECORD_ARM_ENABLED must ship false (DORMANT)');
     {
       const G = { restedXp: 7, restedAt: NOW };
       const b = M.restedOf(G);

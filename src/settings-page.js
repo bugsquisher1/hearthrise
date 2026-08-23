@@ -456,13 +456,23 @@
      a `G.settings` key — `HearthriseAuto.setEat()` is the one authoritative
      writer (b326/b329), and routing it through the generic settings binder
      would create the second writer that whole comment block exists to prevent. */
+  /* b45x — ANY tier unlocks the row. Asking about a specific trait id would
+     lock the slider for a character who somehow held only Auto-Eat II, which is
+     exactly the "gate reads an id instead of a capability" bug the server's
+     entitlement gate was widened to avoid. */
   function ownsAutoEat(){
-    try { return (typeof window.hasTrait === 'function') && !!window.hasTrait('auto_eat'); }
+    try {
+      var AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+      if (AE && typeof AE.autoEatTier === 'function') return AE.autoEatTier((window.G && window.G.traits) || {}) > 0;
+      return (typeof window.hasTrait === 'function') && !!window.hasTrait('auto_eat');
+    }
     catch(e){ return false; }
   }
   function autoEatPrice(){
-    var t = (window.TRAITS && window.TRAITS.auto_eat) || { cost:100, currency:'marks' };
-    var n = Number(t.cost); if(!isFinite(n)) n = 100;
+    /* The fallback tracks the ENTRY tier's authored price (src/core/auto-eat.js
+       AUTO_EAT_TIERS[1].marks). A stale literal here is a lie about a price. */
+    var t = (window.TRAITS && window.TRAITS.auto_eat) || { cost:15, currency:'marks' };
+    var n = Number(t.cost); if(!isFinite(n)) n = 15;
     return n.toLocaleString() + (t.currency === 'marks' ? ' Bounty Marks' : ' gold');
   }
   function autoEatHtml(){
@@ -477,14 +487,36 @@
     var eat = (window.HearthriseAuto && window.HearthriseAuto.getEat)
       ? window.HearthriseAuto.getEat() : null;
     var on = !!(eat && eat.enabled);
+    /* b45x — THE TIER CEILING IS THE SLIDER'S MAX, not a footnote under it.
+       Auto-Eat I entitles a trigger point up to 25%; `HearthriseAuto.eatThreshold()`
+       clamps there and the server's hr_set_auto_eat clamps the stored value the same
+       way. A slider that let a tier-I owner drag to 50% would be showing them a
+       number the fight does not honour — the exact class of lie b326 was written
+       about. So the control cannot express what the entitlement does not cover, and
+       the hint says why. */
+    var maxT = 1;
+    var tier = 1;
+    try {
+      var AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+      if (AE && typeof AE.autoEatTier === 'function') {
+        tier = AE.autoEatTier(window.G.traits || {});
+        maxT = AE.maxPctForTier(tier) / 100;
+      }
+    } catch(e){}
+    var upsell = (tier < 2 && window.TRAITS && window.TRAITS.auto_eat_2)
+      ? ' Auto-Eat II (' + esc(String(Number(window.TRAITS.auto_eat_2.cost) || 100).toLocaleString())
+        + ' Bounty Marks — Store → Bounty Shop) raises the ceiling.'
+      : '';
     return '<div class="ss-row"><div class="ss-label">Auto-eat</div>'
       +      '<label class="ss-toggle"><input type="checkbox" data-autoeat="enabled"'
       +        (on ? ' checked' : '') + ' />'
       +        '<span class="ss-toggle-track"><span class="ss-toggle-knob"></span></span></label>'
       +    '</div>'
-      + sliderRow('Auto-eat HP threshold', 'autoEatPct', d.autoEatPct, 0, 1, 0.05, pct(d.autoEatPct),
+      + sliderRow('Auto-eat HP threshold', 'autoEatPct', Math.min(d.autoEatPct, maxT),
+          0, maxT, 0.05, pct(Math.min(d.autoEatPct, maxT)),
           on
-            ? 'Eat one Provision automatically on each swing your HP is below this percentage. Feasts & Draughts are never auto-eaten.'
+            ? 'Eat one Provision automatically on each swing your HP is below this percentage. '
+              + 'Feasts & Draughts are never auto-eaten.' + upsell
             : 'Auto-eat is switched OFF — this threshold does nothing until you turn it on above.');
   }
 
@@ -592,7 +624,7 @@
     if (G.cloudSyncedAt) {
       cloudMeta = 'Last synced: ' + new Date(G.cloudSyncedAt).toLocaleString();
     } else if (liveSession && liveSession.user) {
-      cloudMeta = 'Auto-syncing every 30s — waiting for first round-trip.';
+      cloudMeta = 'Auto-syncing every 60s — waiting for first round-trip.';
     } else {
       cloudMeta = 'Offline. Sign in above to enable cloud sync.';
     }

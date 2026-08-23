@@ -3393,3 +3393,30 @@ body.in-combat #combat-area {
 
 /* b293: a learned recipe reads as an achievement, not a gap */
 .hr-cl-drop .hr-cl-learned { color: var(--role-success, #6fae7f); font-style: normal; font-weight: 600; }
+
+/* b459 (reachability catch): the floating Chat FAB (bottom-right) covered the
+   shop's LAST Buy button once the trait list grew a row — a click at its centre
+   landed on the chat label at 1440x900. Theme-agnostic (the board-and-shop rule
+   is body[data-theme]-scoped and misses the default theme): bottom clearance >=
+   the FAB's height + margin so the final row always scrolls clear of it. */
+#panel-shop .sc-counter { padding-bottom: 72px !important; }
+
+/* b459 (part 2): padding alone cannot fix the overlap — scrollIntoView pins the
+   target to the viewport bottom edge, straight under the fixed Chat FAB.
+   scroll-padding-bottom is the purpose-built fix: every scroll-into-view (and
+   keyboard/tab scroll) now leaves clearance above the FAB, on every scroller. */
+html, #main, .panel, [id^="panel-"] { scroll-padding-bottom: 84px; }
+
+/* b459 (part 3 — the actual fix): the collapsed chat pill's "Chat" text label
+   widened its footprint left over the shop's Buy column, covering the LAST Buy
+   button's click centre at 1440x900 (reachability guard). Icon-only when
+   collapsed — the circle sits in the corner, clear of every control column;
+   the name survives for a11y via title/aria-label on the pill (chat.js). */
+#chat-dock-min .cdm-label { display: none; }
+#chat-dock-min { padding: 10px 12px; }
+
+/* b459 (part 4 — the geometry): the guard pins a scrolled row flush to the
+   viewport bottom, so the ONLY reliable fix is that the fixed dock and the Buy
+   column never share an x-range. Inset the shop rows from the right edge by
+   the dock's footprint; the themed counter frame absorbs it naturally. */
+#panel-shop .sc-counter { padding-right: 88px !important; }

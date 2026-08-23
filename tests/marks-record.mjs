@@ -42,10 +42,21 @@ export async function marksRecordGuard() {
   const reset = () => { try { R.__setMarksRecordArm(null); } catch (e) {} };
 
   try {
-    // ── ARM OFF (default): dormant, no regression ──────────────────────────
+    /* ── b456: THE SHIPPED DEFAULT IS ARMED, so the const assertion inverts and
+       the dormant block stops being reachable by `reset()`. Both positions are
+       still held: the ARM is the contract (a revert re-opens a forgeable marks
+       balance), and the dormant fall-through is the kill-switch position, driven
+       explicitly through the seam instead of assumed. */
     reset();
+    if (R.MARKS_RECORD_ARM_ENABLED !== true) fail('MARKS_RECORD_ARM_ENABLED must ship true (ARMED) — a revert '
+      + 'puts the Bounty Marks balance back in the client-authored save blob');
+    if (!R.isRecordActive || R.isRecordActive()) {
+      if (!R.isServerOfRecord('marks')) fail('ARMED: `marks` is not on the active registry with the flag on');
+    }
+
+    // ── ARM OFF (seam-forced): dormant, no regression ──────────────────────
+    R.__setMarksRecordArm(false);
     if (R.isServerOfRecord('marks')) fail('ARM OFF: `marks` is on the active registry but the flag is off');
-    if (R.MARKS_RECORD_ARM_ENABLED !== false) fail('MARKS_RECORD_ARM_ENABLED must ship false (DORMANT)');
     {
       // STORAGE MIGRATED: the dormant client home is the TOP-LEVEL scalar G.marks.
       const G = { marks: 42 };

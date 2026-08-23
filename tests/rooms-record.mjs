@@ -56,9 +56,17 @@ export async function roomsRecordGuard() {
   };
 
   try {
-    // ── ARM OFF (default): dormant, no regression ──────────────────────────
+    /* ── b456: THE SHIPPED DEFAULT IS ARMED, so the const assertion inverts and
+       the dormant block is no longer reachable via `reset()`. Both positions are
+       still held: the ARM is the contract (a revert re-opens a forgeable,
+       client-authored value), and the dormant fall-through is the kill-switch
+       position, driven explicitly through the seam rather than assumed. */
     reset();
-    if (R.ROOMS_RECORD_ARM_ENABLED !== false) fail('ROOMS_RECORD_ARM_ENABLED must ship false (DORMANT)');
+    if (R.ROOMS_RECORD_ARM_ENABLED !== true) fail('ROOMS_RECORD_ARM_ENABLED must ship true (ARMED) — a revert '
+      + 'puts the house room rungs (and the noBurn they produce) back under client authority');
+
+    // ── ARM OFF (seam-forced): dormant, no regression ──────────────────────
+    R.__setRoomsRecordArm(false);
     if (R.isServerOfRecord('rooms')) fail('ARM OFF: `rooms` is on the active registry but the flag is off');
     {
       const G = { rooms: { kitchen: 3, forge: 1 } };

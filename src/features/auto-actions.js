@@ -132,8 +132,27 @@
   function eatThreshold(){
     var a = ensureShape();
     var t = a && a.eat ? a.eat.threshold : null;
-    if(typeof t !== 'number' || !isFinite(t)) return DEFAULTS.eat.threshold;
-    return Math.max(0, Math.min(1, t));
+    if(typeof t !== 'number' || !isFinite(t)) t = DEFAULTS.eat.threshold;
+    t = Math.max(0, Math.min(1, t));
+    /* b45x — THE TIER CEILING, applied HERE because this is the file's declared
+     * "ONE reader of the effective auto-eat trigger point": the engine, the
+     * combat panel and the settings copy all come through it, so they cannot
+     * disagree about what Auto-Eat I actually does.
+     *
+     * Clamped on READ rather than on write so a preference set while the player
+     * owned tier II is not destroyed, and so a save restored on a device that
+     * has not seen the trait tables yet still lands on the entitlement.
+     *
+     * The SERVER applies the same ceiling on WRITE (hr_set_auto_eat,
+     * 2026-08-29-auto-eat-tiers.sql) — different moment, same effective number,
+     * which is what the away/live parity guard needs. If the core is not up we
+     * return the unclamped value, matching every other core-less path in this
+     * file rather than inventing a second copy of the tier rule. */
+    var A = core();
+    if(A && typeof A.effectiveThreshold === 'function' && typeof A.autoEatTier === 'function'){
+      return A.effectiveThreshold(t, A.autoEatTier((window.G && window.G.traits) || {}));
+    }
+    return t;
   }
 
   function getTrainGoal(){ var a = ensureShape(); return a ? a.trainGoal : Object.assign({}, DEFAULTS.trainGoal); }
@@ -253,7 +272,12 @@
       // b217: auto-eat is a purchased trait — unbypassable gate. Until bought
       // in the Store, combat healing is manual (the player clicks food).
       // ensureShape() above grandfathers pre-b217 saves that already had it on.
-      owned: !!(window.G.traits && window.G.traits.auto_eat),
+      // b45x: ANY tier owns the feature — the tier only sets the CEILING, which
+      // eatThreshold() below applies. Asking about one trait id would silently
+      // stop auto-eating for a character holding only the upgrade.
+      owned: (typeof A.autoEatTier === 'function')
+        ? A.autoEatTier(window.G.traits || {}) > 0
+        : !!(window.G.traits && window.G.traits.auto_eat),
       hp: window.G.playerHp,
       maxHp: window.G.playerMaxHp,
       threshold: eatThreshold(),

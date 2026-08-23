@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 450 — 2026-08-22 (Under the hood: rally reward item ownership, dormant)
+
+- 🔧 No gameplay change. Made sure rally (muster) reward materials — including the away/half-honors payout — are credited server-side so they can never be lost when the bag moves to the server, and added a safety gate that blocks the switchover while any reward path isn't yet server-owned. Shipped dormant.
+
 ## v0.9.2-beta build 449 — 2026-08-22 (Under the hood: arm-safety guard, dormant)
 
 - 🔧 No gameplay change. Added a build-time safety check that verifies every part of your character has a confirmed server home before the server switchover can happen, so nothing can ever silently reset or crash on the move. Also gave two small prefs (auto-eat threshold, account date) a server home.

@@ -53,10 +53,10 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=449';
-import { ARTISAN_RECIPES } from './recipes.js?v=449';
-import { MONSTERS } from './monsters.js?v=449';
-import { BOSSES } from './bosses.js?v=449';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=450';
+import { ARTISAN_RECIPES } from './recipes.js?v=450';
+import { MONSTERS } from './monsters.js?v=450';
+import { BOSSES } from './bosses.js?v=450';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -141,6 +141,43 @@ export function gatherProductIds() {
    on next load = expected/accepted. Post-wipe every crew is empty, so no further
    transition. Coupled with INVENTORY_ARM_ENABLED below (both set true together). */
 export const WORKER_PRODUCTION_SERVER_BACKED = false;   // REVERTED to dormant b425 — see note below
+
+/* ── RAID CHEST MATERIALS — UNBACKED OWNABLE MINT (2026-08-22) ───────────────
+   src/features/raids.js `grantReward` mints the raid chest MATERIALS
+   (chest.items — boss.reward.items keys) AND the signature spoil (chest.sig)
+   CLIENT-SIDE via window.addItem, with NO server write: raid_claim
+   (2026-08-11-raid-claim-authority.sql, credit added b412) authorises the claim
+   and credits gold/gems into player_state but writes NO player_inventory. Those
+   material ids classify OWNABLE (bars/logs/ores) and several signature ids are
+   OWNABLE too (verified live: hollow_sigil, abyssal_pearl). So under the inventory
+   absolute-replace flip they would be DELETED.
+
+   Unlike the muster chest, the raid chest ITEM CATALOGUE is NOT server-known: the
+   material ids come from raids.js BOSSES[*].reward.items — a CLIENT feature file,
+   not the pure src/data layer, and the DB's hr_hunt_bosses holds only sig_item,
+   hr_hunt_tiers only chest_mats (a count). A correct server mint therefore needs
+   a PREREQUISITE: extract the raid boss reward catalogue into src/data and
+   generate a DB catalogue (with a drift guard), then extend raid_claim to mint
+   from it — the clan_deposit pattern. Until that lands this flag stays FALSE, the
+   lane below is an arm-blocker (assumeOwnable), and the flip fails closed. The
+   client grantReward addItem is already gated on the inventory record seam, so no
+   raid reward is stranded by the gate — the flip simply cannot arm. Flip TRUE only
+   in the commit that makes the raid server mint live + verified. */
+export const RAID_ITEMS_SERVER_BACKED = false;   // DORMANT — raid chest mats/sig not yet server-written
+
+/* ── MUSTER ABSENCE CHEST ITEMS — SERVER-BACKED (2026-08-22, LIVE) ───────────
+   The muster ONLINE claim (world_event_claim) has written its chest items to
+   player_inventory since b422. The ABSENCE / half-honors path
+   (world_event_absence_claim) did NOT — it computed the chest and returned
+   gold/gems but minted no items server-side, so grantAbsent addItem'd OWNABLE
+   theme materials client-side with no server write. 2026-08-22-absence-chest-items.sql
+   closes that: the RPC now writes the hr_rally_chest items into player_inventory
+   after its once-per-day settle guard, journals a 'rally' ledger row, and returns
+   the item list; muster.js grantAbsent renders that list and gates its local
+   addItem on the inventory record seam. Applied + self-check verified live
+   (credit-once, replay-safe, inventory-survival, grant-hygiene). So this is TRUE
+   and the absence path is NOT an arm-blocker. */
+export const MUSTER_ABSENCE_ITEMS_SERVER_BACKED = true;   // LIVE — 2026-08-22-absence-chest-items.sql applied + verified
 
 /* THE INVENTORY-FLIP LIVE-ARM ENABLE (rollout gate, 2026-08-20).
    ⚠⚠ b424 ARMED PRE-WIPE, then b425 REVERTED (2026-08-20) after a LIVE TEST found it
@@ -424,6 +461,21 @@ export function unbackedOwnableMintLanes() {
       backedBy: 'WORKER_PRODUCTION_SERVER_BACKED (server accrual settles worker output into player_inventory)',
     });
   }
+  if (!RAID_ITEMS_SERVER_BACKED) {
+    /* The raid chest material + signature ids live in src/features/raids.js
+       BOSSES[*].reward.items / .sig — a CLIENT feature file, not importable here
+       without a DOM. So this lane cannot enumerate its ids from the data layer;
+       it is marked assumeOwnable, which makes flipArmBlockers/pendingUnbackedOwnableMints
+       treat it as an un-backed OWNABLE mint (fail closed) regardless of the id
+       set. Verified live that raid sig ids include OWNABLE members (hollow_sigil,
+       abyssal_pearl) and the chest mats are gather/artisan ownables. */
+    lanes.push({
+      source: 'src/features/raids.js grantReward -> window.addItem(chest.items / chest.sig)',
+      ids: new Set(),
+      assumeOwnable: true,
+      backedBy: 'RAID_ITEMS_SERVER_BACKED (raid_claim mints chest mats/sig into player_inventory; needs the BOSSES reward catalogue extracted to src/data first)',
+    });
+  }
   return lanes;
 }
 
@@ -435,6 +487,7 @@ export function pendingUnbackedOwnableMints() {
   const a = itemAuthority();
   const out = new Set();
   for (const lane of unbackedOwnableMintLanes()) {
+    if (lane.assumeOwnable) { out.add('@' + lane.source); continue; }
     for (const id of lane.ids) if (a.ownable.has(id)) out.add(id);
   }
   return out;
@@ -447,6 +500,12 @@ export function flipArmBlockers() {
   const pend = pendingUnbackedOwnableMints();
   if (pend.size > 0) {
     for (const lane of unbackedOwnableMintLanes()) {
+      if (lane.assumeOwnable) {
+        blockers.push('un-backed OWNABLE mint: ' + lane.source
+          + ' grants OWNABLE id(s) whose set is not enumerable from the data layer '
+          + '(assumeOwnable) with no server write (backed by ' + lane.backedBy + ')');
+        continue;
+      }
       const owned = [...lane.ids].filter((id) => itemAuthority().ownable.has(id));
       if (owned.length) {
         blockers.push('un-backed OWNABLE mint: ' + lane.source
@@ -461,6 +520,7 @@ export function flipArmBlockers() {
 if (typeof window !== 'undefined') {
   window.HearthriseItemAuthority = {
     WORKER_PRODUCTION_SERVER_BACKED, INVENTORY_ARM_ENABLED, workerProductIds,
+    RAID_ITEMS_SERVER_BACKED, MUSTER_ABSENCE_ITEMS_SERVER_BACKED,
     unbackedOwnableMintLanes, pendingUnbackedOwnableMints, flipArmBlockers,
     COOKING_SKILL, ARTISAN_SETTLEMENT, COOKING_SETTLEMENT_ARM_ENABLED,
     gatherProductIds, cropProductIds, combatDropIds, artisanOutputIds,

@@ -921,14 +921,26 @@
     var _mayGems = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems');
     if (_mayGold) G.gold = (G.gold || 0) + gold;
     if (_mayGems) G.gems = (G.gems || 0) + gems;
+    /* INVENTORY-FLIP SAFETY (2026-08-22, Finding: raid chest mats/sig were an
+       UNBACKED OWNABLE MINT). The raid chest materials AND the signature spoil are
+       still authored CLIENT-SIDE — the raid_claim RPC authorises the claim and
+       credits gold/gems but writes NO player_inventory (the chest item catalogue
+       lives in raids.js BOSSES, not the pure data layer, so a server mint needs a
+       data-layer extraction first — see item-authority.js RAID_ITEMS_SERVER_BACKED
+       and unbackedOwnableMintLanes). Gate the addItem on the inventory record seam
+       exactly like gold: pre-arm it credits locally (no-op change today), and the
+       arm-gate (flipArmBlockers) FAILS CLOSED while RAID_ITEMS_SERVER_BACKED is
+       false, so the inventory flip physically cannot arm and delete these — the
+       gate can never strand a raid reward. Mats/sig are still shown either way. */
+    var _mayInv = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('inventory');
     var mats = [];
     Object.keys(chest.items || {}).forEach(function (id) {
       var q = Math.max(1, Math.floor(chest.items[id] * s));
-      if (typeof window.addItem === 'function') addItem(id, q);
+      if (_mayInv && typeof window.addItem === 'function') addItem(id, q);
       mats.push(q + '× ' + itemName(id));
     });
-    if (sig && chest.sig && typeof window.addItem === 'function') {
-      addItem(chest.sig, 1);
+    if (sig && chest.sig) {
+      if (_mayInv && typeof window.addItem === 'function') addItem(chest.sig, 1);
       mats.push('1× ' + itemName(chest.sig));
     }
     notify('🏆 ' + chest.name + ' chest: +' + gold.toLocaleString() + 'g, +' + gems + ' gems' +

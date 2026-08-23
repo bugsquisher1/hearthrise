@@ -2073,6 +2073,23 @@ const run = async () => {
       exitCode = 1;
     }
 
+    /* ── The inventory-mint census (un-backed OWNABLE mint tripwire) ─────────
+       Enumerates every client G.inventory-mint site and fails the build the
+       instant a NEW un-classified one appears, so a future addItem(gatherProduct)
+       with no server write cannot silently re-open the inventory-flip data-loss
+       landmine. Also asserts flipArmBlockers() stays NON-EMPTY (fail-closed) while
+       any un-backed ownable lane (raid, workers) exists — the flip physically
+       cannot arm and delete a client-minted raid/worker haul. */
+    const { inventoryMintCensusGuard } = await import('./inventory-mint-census.mjs');
+    const mintProblems = await inventoryMintCensusGuard();
+    if (mintProblems.length) {
+      console.log('\nInventory-mint census — FAILED:');
+      for (const p of mintProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nInventory-mint census — OK: every mint site classified; arm-gate fail-closed while un-backed lanes (raid, workers) exist.');
+    }
+
     /* ── The farm-record guard (blob-retire capstone, CRITICAL blocker) ──────
        Proves the CLIENT half of the farm reconstruction: under the capstone arm
        the client stops loading the save blob, so accrue.js reconcileFarm rebuilds

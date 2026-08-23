@@ -18095,7 +18095,15 @@ console.log('[Bundle Icons v1] applied:',
        the whole claim — do NOT grant items/xp, mark it claimed, or toast — rather
        than burning the claim for currency that never lands. It stays claimable
        for when it is server-credited. No-op until gold/gems are armed. */
-    if(reward && ((reward.gold && !clientMayWriteRecordField('gold')) || (reward.gems && !clientMayWriteRecordField('gems')))) return;
+    /* Also defer when the reward grants ITEMS and the inventory record is armed
+       (INVENTORY_ARM_ENABLED): the whole claim stays claimable rather than paying
+       currency/xp while the item mint is skipped. Today the only item-granting goal
+       (gold_500 → small_bones/starter_bundle_token) grants NON-ownable ids, so the
+       inventory flip would not delete them and nothing is stranded — but if a
+       future goal reward gains an OWNABLE item this defer keeps it whole, and the
+       inventory-mint census (tests/inventory-mint-census.mjs) fails the build the
+       instant such a reward is added un-backed. */
+    if(reward && ((reward.gold && !clientMayWriteRecordField('gold')) || (reward.gems && !clientMayWriteRecordField('gems')) || (reward.items && Object.keys(reward.items).length && !clientMayWriteRecordField('inventory')))) return;
     if(reward){
       if(reward.gold && typeof G.gold === 'number') G.gold += reward.gold;
       if(reward.gems && typeof G.gems === 'number') G.gems += reward.gems;

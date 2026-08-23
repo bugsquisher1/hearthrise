@@ -780,7 +780,15 @@
     return { action: 'accept',
              gold:  Math.max(0, Math.min(ABSENT_BAND.gold, +out.gold || 0)),
              gems:  Math.max(0, Math.min(ABSENT_BAND.gems, +out.gems || 0)),
-             seals: 0 };
+             seals: 0,
+             /* SERVER-AUTHORITATIVE ABSENCE ITEMS (2026-08-22). When the RPC
+                returns an `items` array it has ALREADY written those materials
+                into player_inventory (2026-08-22-absence-chest-items.sql), exactly
+                like the online claim path. grantAbsent renders this list and gates
+                its local addItem on the inventory record seam so the credit is not
+                doubled once the inventory flip arms. Absent (legacy server) → the
+                client falls back to computing absentChest itself. */
+             items: Array.isArray(out.items) ? out.items : null };
   }
 
   // ── serverSkewMs ────────────────────────────────────────────
@@ -1186,8 +1194,19 @@
   }
   function grantAbsent(p, d) {
     var ev = eventForKey(p.eventKey);
-    var chest = absentChest(p.eventKey, d.gold, d.gems);
-    payChest(chest);
+    /* SERVER-AUTHORITATIVE (2026-08-22): if the RPC returned a server-computed
+       item list, the RPC already WROTE those materials into player_inventory
+       (2026-08-22-absence-chest-items.sql). Render that list and mark serverItems
+       so payChest gates the local addItem on the inventory record seam — pre-arm
+       it credits locally for display (server write is dark), post-arm it no-ops
+       and the absolute envelope carries the rows. No server list (legacy server)
+       → compute the chest client-side as before. Mirrors the online grant(). */
+    var serverItems = Array.isArray(d.items);
+    var chest = serverItems
+      ? { eventId: ev ? ev.id : null, gold: d.gold, gems: d.gems, seals: 0,
+          items: d.items, xp: [] }
+      : absentChest(p.eventKey, d.gold, d.gems);
+    payChest(chest, { serverItems: serverItems });
     toast('You answered ' + (ev ? ev.name : 'the rally') + ' in absence — half honors: ' +
           chestSummary(chest), 'levelup');
     if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch (e) {}

@@ -339,7 +339,15 @@
     var _mayGems = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems');
     if (rw.gold && _mayGold) G.gold = (G.gold || 0) + rw.gold;   // prediction; no-op under arm
     if (rw.gems && _mayGems) G.gems = (G.gems || 0) + rw.gems;   // prediction; no-op under arm
-    if (rw.item && typeof window.addItem === 'function') { try { window.addItem(rw.item, rw.itemQty || 1); } catch (e) {} }
+    /* INVENTORY-FLIP SAFETY (2026-08-22): renown rank rewards CAN carry an item
+       (rw.item). No rank in src/data/renown-ranks.js grants one today, so this is
+       a dormant slot — but gate it on the inventory record seam like gold/gems so
+       that IF an ownable item reward is ever added it cannot be minted client-side
+       un-backed and then deleted by the inventory absolute-replace. Before shipping
+       any renown ITEM reward, register the lane in item-authority.js
+       unbackedOwnableMintLanes() (or server-author the grant). */
+    var _mayInv = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('inventory');
+    if (rw.item && _mayInv && typeof window.addItem === 'function') { try { window.addItem(rw.item, rw.itemQty || 1); } catch (e) {} }
     s.claimed.push(rankId);
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}
     return rw;

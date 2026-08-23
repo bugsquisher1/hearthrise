@@ -1227,14 +1227,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=447';
+import * as itemLedger from './item-ledger.js?v=448';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=447';
+import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=448';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1243,7 +1243,7 @@ import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_E
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=447';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=448';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -1418,6 +1418,101 @@ export function reconcileCompanions(G, res) {
   if (equipped && !owned.has(equipped)) equipped = null;
   G.companions = { ownedIds: Array.from(owned), xp, equipped };
   return { mode: 'server', owned: owned.size, equipped };
+}
+
+/* ── THE FARM PLOTS, RECONSTRUCTED FROM THE ENVELOPE (blob-retire capstone) ────
+   THE CRITICAL BLOCKER THIS CLOSES. Under the capstone arm the client stops
+   loading the save blob, and NOTHING would rebuild G.farmPlots / G.plotLevels —
+   so startFarmCheck's forEach and the two farm render loops would deref an
+   `undefined` and THROW, and every standing/growing crop would silently vanish.
+   The four farm gestures are already server-authoritative (hr_farm_*), and
+   `hr_state_of` projects the plot set at `res.farm`, verified LIVE 2026-08-22:
+
+     res.farm = [ { i:<plot_idx>, crop:<crop_id>,
+                    planted_at:<timestamptz>, watered_at:<timestamptz|null> }, … ]
+
+   — one row PER PLANTED PLOT (empty plots have no row), ordered by plot_idx. It
+   carries the REAL server `planted_at`, which is strictly better than the
+   per-action path (reconcileFarmResult approximates a regrow's plantedAt to
+   Date.now() because the RPC response does not restate it — the full-state load
+   does not have to). The server→client mapping mirrors reconcileFarmResult's
+   plot-object shape so the two stay consistent:
+
+     { cropId:res.crop, plantedAt:<ms>, waterings:[<ms>|…], state:'growing',
+       regrowCount:0 }
+
+   The growth model (HearthriseFarm.growthHours) reads `waterings[]`, so the
+   single server `watered_at` column becomes a one-element `waterings` array (the
+   most recent watering — the projection does not restate the full array); the
+   live tick then promotes a finished plot to state:'ready'.
+
+   ⚠ TWO FIELDS THE LIVE PROJECTION DOES NOT CARRY, stated honestly:
+     • G.plotLevels (player_state.plot_level) is NOT in the state envelope today
+       (verified live: hr_state_of has no plot_level key). So this reads it only
+       IF a future projection adds `state.plot_level`, and otherwise leaves
+       G.plotLevels UNTOUCHED — getPlotLevel() already fail-safes an undefined to
+       Lv 1. Restoring the true plot tier under arm needs a one-line server
+       projection add (`'plot_level', v_st.plot_level`); until then an armed farm
+       reads as Lv 1. Flagged, not silently defaulted-as-if-correct.
+     • regrow_count is not projected either, so regrowCount rebuilds to 0. This is
+       display-only: the finite-perennial wither LIMIT is enforced server-side in
+       hr_farm_harvest, so a client that under-counts regrows cannot exceed it.
+
+   ⚠ ARM-GATED (companionAuthorityArmed / isBlobRetired), like reconcileCompanions
+   and for the same reason: G.farmPlots is CLIENT-authored today, so running this
+   dormant would overwrite the live client farm and break byte-parity. Dormant it
+   is a pure no-op ({mode:'dormant'}).
+
+   FAIL-CLOSED on absence: no readable `res.farm` ARRAY leaves G.farmPlots
+   UNTOUCHED — a server build predating the projection, or a partial we cannot
+   trust, must NEVER wipe a populated farm on a lean envelope (the accrue-idle
+   envelope, which carries no farm, must not blank the plots). An EMPTY array IS a
+   claim (the farm is genuinely unplanted) and clears to []. Pure. */
+function farmParseTs(v) {
+  const n = Date.parse(v);
+  return Number.isFinite(n) ? n : Date.now();
+}
+
+export function reconcileFarm(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  /* DORMANT: the client owns G.farmPlots exactly as today — a pure no-op that
+     keeps the un-armed load path byte-for-byte unchanged. */
+  if (!companionAuthorityArmed()) return { mode: 'dormant' };
+  const rows = res && res.farm;
+  /* FAIL-CLOSED: absence is not a claim the farm is empty. Leave it alone. */
+  if (!Array.isArray(rows)) return { mode: 'absent' };
+
+  const plots = [];
+  let planted = 0;
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue;
+    const idx = Number(row.i);
+    if (!Number.isFinite(idx) || idx < 0 || idx > 255) continue;   // sane bound
+    const cropId = (typeof row.crop === 'string' && row.crop) ? row.crop : null;
+    if (!cropId) continue;
+    const waterings = (row.watered_at != null) ? [farmParseTs(row.watered_at)] : [];
+    plots[idx] = {
+      cropId,
+      plantedAt: farmParseTs(row.planted_at),
+      waterings,
+      state: 'growing',
+      regrowCount: 0,
+    };
+    planted++;
+  }
+  G.farmPlots = plots;
+
+  /* PLOT TIER — only if a future projection carries it; else leave untouched so
+     getPlotLevel() keeps its Lv 1 fail-safe. Never invented from the client. */
+  const st = res && res.state;
+  const tier = st && Number(st.plot_level);
+  let plotLevel = null;
+  if (Number.isFinite(tier) && tier >= 1) {
+    G.plotLevels = Math.floor(tier);
+    plotLevel = G.plotLevels;
+  }
+
+  return { mode: 'server', planted, plots: plots.length, plotLevel };
 }
 
 export function applyEnvelopeState(G, res, ownKey) {
@@ -1645,6 +1740,16 @@ export function applyEnvelopeState(G, res, ownKey) {
      boot hr_load path reconstructs through record.js's settle() (the always-full
      envelope), which calls this same function. */
   written.companions = reconcileCompanions(G, res);
+
+  /* THE FARM IS THE SERVER'S UNDER ARM (blob-retire capstone). Reconciled here,
+     alongside the crew and companions, so it rides EVERY envelope (away,
+     activity-switch, gold) regardless of which return path the bag takes.
+     Arm-gated inside — a pure no-op while dormant, so today's path is
+     byte-for-byte unchanged. The boot hr_load path reconstructs through
+     record.js's settle() (the always-full envelope), which calls this same
+     function. Fail-closed on an absent res.farm — a lean envelope never wipes a
+     populated farm. */
+  written.farm = reconcileFarm(G, res);
 
   const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
   /* ══════════════════════════════════════════════════════════════════════
@@ -2793,7 +2898,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileWorkers, reconcileCompanions, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileWorkers, reconcileCompanions, reconcileFarm, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, classifyReceipt, receiptNotice, receiptSentence,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,

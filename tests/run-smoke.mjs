@@ -2060,6 +2060,28 @@ const run = async () => {
       console.log('\nCompanion-record guard — dormant no-op; armed rebuild from envelope (not fox-reset); fail-closed pre-envelope; xp-award gated off under arm.');
     }
 
+    /* ── The farm-record guard (blob-retire capstone, CRITICAL blocker) ──────
+       Proves the CLIENT half of the farm reconstruction: under the capstone arm
+       the client stops loading the save blob, so accrue.js reconcileFarm rebuilds
+       G.farmPlots from the envelope's `farm` projection (verified live: {i,crop,
+       planted_at,watered_at} per planted plot) instead of leaving G.farmPlots
+       undefined — which would throw in startFarmCheck + both render loops and
+       vanish every standing crop. DORMANT it is a pure no-op; ARMED it rebuilds
+       crops/real-planted_at/waterings and (if the projection carries it) the plot
+       tier; FAIL-CLOSED an absent farm array leaves a populated farm untouched
+       (a lean/idle envelope never wipes crops) while an empty array is an
+       unplanted claim; and the guarded (G.farmPlots||[]) read never throws on an
+       undefined farm. */
+    const { farmRecordGuard } = await import('./farm-record.mjs');
+    const farmProblems = await farmRecordGuard();
+    if (farmProblems.length) {
+      console.log('\nFarm-record guard — FAILED:');
+      for (const p of farmProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nFarm-record guard — dormant no-op; armed rebuild from envelope (crops/planted_at/waterings/tier); fail-closed absent (no wipe); empty-array claim; undefined-farm no-throw.');
+    }
+
     /* ── The client_state home guard (non-authority residue, b439) ──────────
        Proves the CLIENT half of 2026-08-28-client-state.sql: DORMANT,
        clientField(G,f) reads the save blob byte-for-byte (no regression); ARMED

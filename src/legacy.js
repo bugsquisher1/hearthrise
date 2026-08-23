@@ -5434,7 +5434,11 @@ let farmInterval=null;
 function startFarmCheck(){
   farmInterval=setInterval(()=>{
     let changed=false;
-    G.farmPlots.forEach((p,i)=>{
+    /* blob-retire capstone: under arm G.farmPlots is rebuilt from the server
+       envelope (accrue.reconcileFarm) and is undefined until the first envelope
+       lands — an unguarded forEach would throw and kill the tick. Fail-closed to
+       an empty set: no crops render until the projection arrives, never a crash. */
+    (G.farmPlots||[]).forEach((p,i)=>{
       if(!p)return;
       const crop=CROPS[p.cropId];if(!crop)return;
       if(p.state==='ready')return;
@@ -6157,7 +6161,9 @@ function renderProfile(){
 
   /* homestead */
   const plots=Array.from({length:8}).map((_,i)=>{
-    const p=G.farmPlots[i];
+    /* blob-retire capstone: guard an undefined farm (armed, pre-first-envelope)
+       so the homestead render shows empty plots instead of throwing. */
+    const p=(G.farmPlots||[])[i];
     if(!p)return `<div class="farm-tile empty"><span>＋</span><small>Empty</small></div>`;
     const crop=CROPS[p.cropId];
     /* b220: this second render site used to hide dry progress behind the word
@@ -7044,7 +7050,9 @@ function renderFarm(){
     </div>`;
   el.innerHTML = header + `<div class="farm-mini" style="grid-template-columns:repeat(4,1fr)">
     ${Array.from({length:plotCount}).map((_,i)=>{
-      const p=G.farmPlots[i];
+      /* blob-retire capstone: guard an undefined farm (armed, pre-first-envelope)
+         so the farm panel renders empty plots instead of throwing. */
+      const p=(G.farmPlots||[])[i];
       /* b217: an empty plot rendered as a dashed-border rectangle holding a
          "＋" and the word "Empty". At the farm's grid size that is a 430x420
          void per plot — a third of the screen given to two dashed boxes, which

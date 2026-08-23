@@ -103,11 +103,11 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions } from './accrue.js?v=447';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm } from './accrue.js?v=448';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=447';
+import { applyClientState } from './client-state.js?v=448';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -1268,6 +1268,17 @@ function settle(verdict) {
        dormant, so the dormant load path is byte-for-byte unchanged. Guarded — a
        throw here must never break the record load. */
     try { reconcileCompanions(G, verdict.body); } catch (e) {}
+    /* ── REBUILD THE FARM PLOTS FROM THE SAME ENVELOPE (blob-retire capstone) ────
+       The boot hr_load envelope is the ALWAYS-FULL statement of the character
+       (accrue's hr-accrue returns nothing on an idle settle, so applyEnvelopeState
+       may never run on an idle boot). Under arm the client stops loading the save
+       blob, so NOTHING else rebuilds G.farmPlots / G.plotLevels — and the farm tick
+       + render loops would deref an undefined and throw, silently vanishing every
+       standing crop. Rebuilt here from `res.farm`, exactly as companions/workers
+       rebuild in applyEnvelopeState. Arm-gated inside reconcileFarm: a pure no-op
+       while dormant, so the dormant load path is byte-for-byte unchanged. Guarded —
+       a throw here must never break the record load. */
+    try { reconcileFarm(G, verdict.body); } catch (e) {}
   } else {
     console.warn('[record] the server did not supply the record (' + verdict.outcome
       + (verdict.reason ? ': ' + verdict.reason : '') + ') — '

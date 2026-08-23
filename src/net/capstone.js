@@ -81,8 +81,8 @@
 // DOM-free. Node-importable. `fetch`/`window` resolve at call time.
 // ============================================================================
 
-import { isServerAccrualEnabled } from './accrue.js?v=451';
-import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=451';
+import { isServerAccrualEnabled } from './accrue.js?v=452';
+import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=452';
 
 /* ── THE ARM ─────────────────────────────────────────────────────────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):
@@ -164,6 +164,47 @@ export function buildResiduePatch(G) {
    consulted on the armed branches, and its whole job there is to make an
    UNCERTAIN load a NON-EVENT: the client keeps waiting (UNKNOWN balances, no
    upload), never substituting a local authored save. */
+/* ── ARM_PRECONDITIONS — the every-field-homed runtime gate (strand-audit) ────
+   BLOB_RETIRED is the UNION of every arm: retiring the blob while any field's
+   arm is still dormant strands that field (undefined → crash / reset), and the
+   old canProceedArmed checked only record-version + residue-arrival, NOT that
+   every field the client READS is actually homed. This list makes the capstone
+   REFUSE to proceed unless every homing is live — so a partial arm (BLOB_RETIRED
+   on but, say, equipment arm forgotten) leaves the boot WAITING (UNKNOWN, no
+   authored save) instead of crashing the fleet. It is data, not scattered ifs,
+   so adding a homed field adds a row. Predicates are read at CALL time off the
+   window globals (HearthriseRecord / HearthriseAccrual) to avoid an import cycle;
+   in a Node test with no window a precondition whose global is absent is treated
+   as UNMET (fail-closed), and the armed-path tests drive it via the seams. */
+const REQUIRED_RECORD_FIELDS = Object.freeze(
+  ['gold', 'gems', 'skills', 'equipment', 'rooms', 'marks', 'restedXp', 'restedAt']);
+export const ARM_PRECONDITIONS = Object.freeze([
+  { name: 'record-fields-armed', ok: () => {
+    try {
+      const R = (typeof window !== 'undefined') && window.HearthriseRecord;
+      if (!R || typeof R.serverOfRecordFields !== 'function') return false;
+      const active = new Set(R.serverOfRecordFields());
+      return REQUIRED_RECORD_FIELDS.every((f) => active.has(f));
+    } catch (e) { return false; }
+  } },
+  { name: 'inventory-absolute+baseline', ok: () => {
+    try {
+      const A = (typeof window !== 'undefined') && window.HearthriseAccrual;
+      if (!A || typeof A.isInventoryAbsolute !== 'function' || typeof A.isBaselineCompleteSeen !== 'function') return false;
+      return !!A.isInventoryAbsolute() && !!A.isBaselineCompleteSeen();
+    } catch (e) { return false; }
+  } },
+  { name: 'companions-reconstructed', ok: (G) => !!(G && G.companions && Array.isArray(G.companions.ownedIds)) },
+  { name: 'farm-reconstructed', ok: (G) => !!(G && Array.isArray(G.farmPlots)) },
+]);
+
+/** The first unmet precondition name, or null when all are met. Exported so a
+ *  test / a diagnostic can name exactly what is blocking the arm. */
+export function firstUnmetArmPrecondition(G) {
+  for (const p of ARM_PRECONDITIONS) { try { if (!p.ok(G)) return p.name; } catch (e) { return p.name; } }
+  return null;
+}
+
 export function canProceedArmed(G, opts) {
   if (!isBlobRetired()) return true;             // dormant — old path decides
   const o = opts || {};
@@ -171,12 +212,18 @@ export function canProceedArmed(G, opts) {
   const rec = G && G._record;
   const hasRecord = !!(rec && Number.isFinite(Number(rec.version)));
   const hasResidue = isClientStateFromServer();
-  return hasRecord && hasResidue;
+  if (!hasRecord || !hasResidue) return false;
+  // EVERY-FIELD-HOMED: refuse the arm until every field's homing mechanism is
+  // live. A miss here means the boot keeps WAITING, never authors a local save,
+  // never strands a field into a crash. (o.skipPreconditions is a test seam only.)
+  if (o.skipPreconditions === true) return true;
+  return firstUnmetArmPrecondition(G) === null;
 }
 
 if (typeof window !== 'undefined') {
   window.HearthriseCapstone = {
     BLOB_RETIRED, isBlobRetired, __setBlobRetired,
     RESIDUE_FIELDS, buildResiduePatch, canProceedArmed,
+    ARM_PRECONDITIONS, firstUnmetArmPrecondition,
   };
 }

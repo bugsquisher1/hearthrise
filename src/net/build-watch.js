@@ -53,7 +53,7 @@
 // change and rests on the very connection that is dead in this failure mode.
 // ============================================================
 
-import { BUILD } from '../build-info.js?v=451';
+import { BUILD } from '../build-info.js?v=452';
 
 /* ── Cadence ────────────────────────────────────────────────────────────────
    POLL_INTERVAL_MS: 15 minutes. We ship a handful of builds on a busy day, so

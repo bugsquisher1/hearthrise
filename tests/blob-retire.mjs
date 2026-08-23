@@ -144,11 +144,31 @@ export async function blobRetireGuard() {
       if ('skills' in G) fail('SECURITY: forged bag `skills` must NOT hydrate into G');
       if ('inventory' in G) fail('SECURITY: forged bag `inventory` must NOT hydrate into G');
       if (typeof G.bountyHunter.marks !== 'undefined') fail('SECURITY: a nested bountyHunter.marks in the bag must be DROPPED by hydration, never carried into G');
-      // and the fail-closed gate is satisfied once record + bag are present.
+      // The record+residue LAYER is satisfied once record + bag are present
+      // (skipPreconditions isolates it from the every-field-homed gate below).
       G._record = { version: 5 };
-      if (C.canProceedArmed(G, {}) !== true)
-        fail('ARMED: record version + residue bag present → may proceed');
+      if (C.canProceedArmed(G, { skipPreconditions: true }) !== true)
+        fail('ARMED: record version + residue bag present → record/residue layer may proceed');
       if (!CS.isClientStateFromServer()) fail('ARMED: bag must be marked server-sourced after a good envelope');
+
+      // ── THE EVERY-FIELD-HOMED PRE-ARM GATE (strand-audit) ──────────────────
+      // Even with record+residue present, canProceedArmed must REFUSE while any
+      // field's homing is not live — the union-of-arms property. In this Node
+      // env the record/inventory globals are absent, so a precondition is UNMET
+      // → firstUnmetArmPrecondition names it and canProceedArmed is false. This
+      // proves a partial arm cannot silently proceed into a stranded field.
+      const unmet = C.firstUnmetArmPrecondition(G);
+      if (unmet === null) fail('ARM-GATE: preconditions reported all-met with no record/inventory globals present — the gate is not actually checking');
+      if (C.canProceedArmed(G, {}) !== false)
+        fail('ARM-GATE: canProceedArmed must be FALSE while a homing precondition (' + unmet + ') is unmet — a partial arm must never proceed');
+      // companions/farm preconditions ARE checkable in Node (they read G): with
+      // them present but the record/inventory globals absent, the FIRST unmet
+      // must be a global-backed one, proving those two rows pass on real data.
+      G.companions = { ownedIds: ['fox'], xp: {}, equipped: null };
+      G.farmPlots = [];
+      const unmet2 = C.firstUnmetArmPrecondition(G);
+      if (unmet2 === 'companions-reconstructed' || unmet2 === 'farm-reconstructed')
+        fail('ARM-GATE: companions/farm precondition failed on well-formed G (' + unmet2 + ')');
     }
 
     // the residue patch (for putClientState) EXCLUDES marks and authority fields.

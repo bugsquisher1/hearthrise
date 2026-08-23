@@ -2040,6 +2040,26 @@ const run = async () => {
       console.log('\nBank item-store guard — dormant leaves G.bank untouched; absolute owns server truth, keeps excluded, preserves space counters.');
     }
 
+    /* ── The companion-roster reconstruction guard (blob-retire blocker) ─────
+       Proves the CLIENT half of 2026-08-22-companion-record.sql: under the
+       blob-retire arm accrue.js reconcileCompanions rebuilds G.companions.
+       {ownedIds,xp,equipped} from the envelope's `companions` projection (owned ∪
+       fox, per-id xp, equipped-safety) instead of ensureCompanionState defaulting
+       every player to the starter fox with 0 XP. DORMANT it is a pure no-op (the
+       client keeps authoring the roster); ARMED-BEFORE-THE-ENVELOPE is fail-closed
+       (empty roster, never a fox-reset that could persist); awardCompanionXp is
+       gated off under arm (the server owns companion XP). The server half — the
+       full roster projection — is proven by the migration's own §2 self-check. */
+    const { companionsRecordGuard } = await import('./companions-record.mjs');
+    const compProblems = await companionsRecordGuard();
+    if (compProblems.length) {
+      console.log('\nCompanion-record guard — FAILED:');
+      for (const p of compProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nCompanion-record guard — dormant no-op; armed rebuild from envelope (not fox-reset); fail-closed pre-envelope; xp-award gated off under arm.');
+    }
+
     /* ── The client_state home guard (non-authority residue, b439) ──────────
        Proves the CLIENT half of 2026-08-28-client-state.sql: DORMANT,
        clientField(G,f) reads the save blob byte-for-byte (no regression); ARMED

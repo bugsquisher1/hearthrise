@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=446';
-import { emit } from '../net/events.js?v=446';
+import { COMPANIONS } from '../data/companions.js?v=447';
+import { emit } from '../net/events.js?v=447';
 /* THE SERVER-OF-RECORD ARM SWITCH for companion XP. While false (DORMANT) the
    client awards companion XP locally exactly as before. When flipped true, the
    accrual engine becomes the sole writer (a `stat companion_xp:<id>` op priced
@@ -22,7 +22,7 @@ import { emit } from '../net/events.js?v=446';
    the server accrues the same role-matched actions this client seam does. The
    passive bonus already reads server companion XP through hr_perks_of, so under
    arm the level shown reconciles to server truth. */
-import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=446';
+import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=447';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may
@@ -130,9 +130,31 @@ export function companionLevelFromXp(xp) {
   return 1;
 }
 
+/* Is the blob-retire capstone armed? Read at call time off the window global —
+   companions.js must stay free of an import cycle with the net layer, and the
+   capstone flag is published there. Dormant (prod) → false, so every gate below is
+   byte-for-byte today's behaviour. */
+function blobRetired() {
+  try {
+    return !!(window.HearthriseCapstone
+      && typeof window.HearthriseCapstone.isBlobRetired === 'function'
+      && window.HearthriseCapstone.isBlobRetired());
+  } catch (e) { return false; }
+}
+
 function ensureState() {
   const G = window.G;
   if (!G) return;
+  /* ⚠ FAIL-CLOSED UNDER ARM (critical blocker) — mirror of legacy.js
+     ensureCompanionState. Under the blob-retire arm the SERVER owns the roster
+     (rebuilt by accrue.js reconcileCompanions from the envelope); seeding the
+     starter fox here BEFORE that envelope arrives would silently reset the player.
+     So under arm we seed an EMPTY roster, never fox, and never read a client
+     equip value. Dormant, the original block runs unchanged. */
+  if (blobRetired()) {
+    if (!G.companions) G.companions = { ownedIds: [], xp: {}, equipped: null };
+    return;
+  }
   if (!G.companions) {
     G.companions = {
       ownedIds: ['fox'],
@@ -177,6 +199,14 @@ export function awardCompanionXp(amount) {
      the next envelope, never authored here. While dormant this is inert and the
      client remains the writer, so there is no regression. */
   if (COMPANION_XP_SERVER_BACKED) return;
+  /* ⚠ ALSO GATED OFF UNDER THE BLOB-RETIRE ARM. Companion XP is a SERVER-OWNED
+     aggregate (player_progress kind='stat' key='companion_xp:<id>') the accrual
+     engine writes, and under arm reconcileCompanions rebuilds G.companions.xp from
+     the envelope every load. A local award would be authored-then-discarded (the
+     blob is not uploaded under arm), so at best it makes the XP bar climb and then
+     snap back to server truth on the next envelope. The client renders server
+     state; it never authors an authoritative number. Dormant this is inert. */
+  if (blobRetired()) return;
   ensureState();
   const eq = window.G?.companions?.equipped;
   if (!eq) return;

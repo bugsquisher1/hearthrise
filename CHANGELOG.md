@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 447 — 2026-08-22 (Under the hood: companion roster from server, dormant)
+
+- 🔧 No gameplay change. Added the server-side projection of your full companion roster (owned companions, their XP, and which is equipped) and wired the client to rebuild it from the server, so when this moves to the server your companions can never reset. Shipped dormant.
+
 ## v0.9.2-beta build 446 — 2026-08-22 (Under the hood: equipment read-accessor, dormant)
 
 - 🔧 No gameplay change. Added the safe server-read path for your equipped gear so that when equipment moves to the server (at the wipe), the game reads confirmed gear and can never crash on an unconfirmed state (the same protection rooms got). Shipped dormant.

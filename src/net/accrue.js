@@ -1227,14 +1227,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=446';
+import * as itemLedger from './item-ledger.js?v=447';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=446';
+import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=447';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1243,7 +1243,7 @@ import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_E
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=446';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=447';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -1346,6 +1346,78 @@ export function reconcileBank(G, res, invAbsolute, baselineComplete) {
   }
   G.bank = next;
   return { mode: 'absolute', keys: Object.keys(next).length };
+}
+
+/* ── THE COMPANION ROSTER, RECONSTRUCTED FROM THE ENVELOPE (blob-retire) ──────
+   THE CRITICAL BLOCKER THIS CLOSES. Under the capstone arm the client stops
+   loading the save blob, so NOTHING would rebuild G.companions — and
+   ensureCompanionState() (src/legacy.js / src/features/companions.js) would then
+   default every player to the starter fox with 0 XP, silently RESETTING the whole
+   roster + per-companion XP + equipped companion on the first armed boot. The
+   server OWNS the underlying facts and `hr_state_of` now projects the WHOLE set
+   at `res.companions` (2026-08-22-companion-record.sql):
+     { equipped: <id>|null, owned: [<id>,…], xp: { <id>: <xp> } }
+
+   ⚠ ARM-GATED, unlike reconcileWorkers/reconcileBank. G.companions is CLIENT-
+   authored today (dormant) — the client awards XP, equips, and unlocks locally.
+   So this must run ONLY under the capstone arm (isBlobRetired), or it would
+   overwrite the live client roster and break dormant byte-parity. Dormant it is a
+   pure no-op ({mode:'dormant'}), so today's load path is byte-for-byte unchanged.
+
+   THE STARTER FOX is owned by grammar (no unlock row server-side — see
+   hr_companion_equip c_starter), so the projection's `owned` deliberately omits
+   it; the union below re-adds it, exactly as ensureCompanionState seeds it. XP is
+   0 for any id the server has not written a companion_xp row for (the XP writer,
+   b434, is still dormant) — the same self-configuring default hr_perks_of uses;
+   the pet then shows level 1, reconciled to server truth, never client-invented.
+
+   FAIL-CLOSED on absence: no readable `res.companions` object → leave G.companions
+   UNTOUCHED (absence is not a claim the roster is empty — a server build predating
+   this projection, or a partial we cannot trust, must not wipe the roster). The
+   armed boot BEFORE the first projecting envelope arrives is handled by
+   ensureCompanionState's own fail-closed empty state, never a fox-reset. Pure:
+   takes G + res, returns a small receipt, so the suite drives it without a live
+   window. Read the capstone flag off the window global at CALL time — accrue.js is
+   imported BY capstone.js, so importing back would be a cycle (the same rule
+   isReconcilePending uses). */
+function companionAuthorityArmed() {
+  try {
+    const w = (typeof window !== 'undefined') ? window
+      : (typeof globalThis !== 'undefined' ? globalThis.window : null);
+    return !!(w && w.HearthriseCapstone
+      && typeof w.HearthriseCapstone.isBlobRetired === 'function'
+      && w.HearthriseCapstone.isBlobRetired());
+  } catch (e) { return false; }
+}
+
+export function reconcileCompanions(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  /* DORMANT: the client owns G.companions exactly as today. A pure no-op — this
+     is what keeps the un-armed load path byte-for-byte unchanged. */
+  if (!companionAuthorityArmed()) return { mode: 'dormant' };
+  const c = res && res.companions;
+  /* FAIL-CLOSED: an un-projecting/partial envelope leaves the roster alone. */
+  if (!c || typeof c !== 'object' || Array.isArray(c) || !Array.isArray(c.owned)) {
+    return { mode: 'absent' };
+  }
+  /* OWNED = server's unlock set ∪ the grammar-owned starter fox. */
+  const owned = new Set(['fox']);
+  for (const id of c.owned) if (typeof id === 'string' && id) owned.add(id);
+  /* PER-ID XP, an integer floor for every owned id; an id the server has no xp
+     row for reads 0 (level 1 base — the self-configuring default). */
+  const xpIn = (c.xp && typeof c.xp === 'object' && !Array.isArray(c.xp)) ? c.xp : {};
+  const xp = {};
+  for (const id of owned) {
+    const v = Number(xpIn[id]);
+    xp[id] = (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0;
+  }
+  /* EQUIPPED is the server-owned column. A stale/forged id the player does not
+     (server-)own is refused to null rather than trusted — the same safe direction
+     hr_companion_equip's ownership gate enforces. */
+  let equipped = (typeof c.equipped === 'string' && c.equipped) ? c.equipped : null;
+  if (equipped && !owned.has(equipped)) equipped = null;
+  G.companions = { ownedIds: Array.from(owned), xp, equipped };
+  return { mode: 'server', owned: owned.size, equipped };
 }
 
 export function applyEnvelopeState(G, res, ownKey) {
@@ -1565,6 +1637,14 @@ export function applyEnvelopeState(G, res, ownKey) {
      before the inventory branch splits, so it rides EVERY envelope (away,
      activity-switch, gold) regardless of which return path the bag takes. */
   written.workers = reconcileWorkers(G, res);
+
+  /* THE COMPANION ROSTER IS THE SERVER'S UNDER ARM (blob-retire). Reconciled
+     here, alongside the crew, so it rides EVERY envelope (away, activity-switch,
+     gold) regardless of which return path the bag takes. Arm-gated inside — a
+     pure no-op while dormant, so today's path is byte-for-byte unchanged. The
+     boot hr_load path reconstructs through record.js's settle() (the always-full
+     envelope), which calls this same function. */
+  written.companions = reconcileCompanions(G, res);
 
   const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
   /* ══════════════════════════════════════════════════════════════════════
@@ -2713,7 +2793,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileWorkers, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileWorkers, reconcileCompanions, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, classifyReceipt, receiptNotice, receiptSentence,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,

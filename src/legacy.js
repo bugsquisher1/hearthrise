@@ -15842,6 +15842,24 @@ window.companionLevelFromXp = function(xp){
 // State migration
 function ensureCompanionState(){
   if(typeof G === 'undefined') return;
+  /* ⚠ FAIL-CLOSED UNDER THE BLOB-RETIRE ARM (critical blocker). Under arm the
+     client stops loading the save blob and the SERVER owns the roster: ownership
+     rows, the equipped column, and per-id XP, projected on the envelope and
+     rebuilt into G.companions by accrue.js reconcileCompanions (on the hr_load
+     boot path via record.js). If this function seeded the starter fox with 0 XP
+     BEFORE that envelope arrived, an armed boot would silently RESET every
+     player's roster — and (once the blob is retired) that reset would be what the
+     UI renders until the envelope lands. So under arm we NEVER invent fox: we seed
+     an EMPTY roster ("no companions yet") that reconcileCompanions replaces with
+     server truth. We also do NOT read equippedItemG (a client value). Dormant,
+     the block below is byte-for-byte unchanged. */
+  if(window.HearthriseCapstone && typeof window.HearthriseCapstone.isBlobRetired === 'function'
+     && window.HearthriseCapstone.isBlobRetired()){
+    if(!G.companions){
+      G.companions = { ownedIds: [], xp: {}, equipped: null };
+    }
+    return;
+  }
   if(!G.companions){
     G.companions = {
       ownedIds: ['fox'],          // start with fox

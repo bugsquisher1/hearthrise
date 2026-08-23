@@ -383,6 +383,18 @@ const ALSO_LINTED = [
      `if not public.hr_rate_ok(…)` block, which PART 1c-iii/S6 must see. On no
      derivation chain — it touches none of the graded bodies. */
   '2026-08-23-open-beta.sql',
+  /* P0 (live) — the permanent-TRAIT purchase verb. It creates one client-callable
+     SECURITY DEFINER RPC (hr_trait_buy, which debits the server-owned Bounty-Marks
+     balance and writes the kind='flag' trait:<id> ownership row) plus its
+     __ungated inner, which must reach no client. Exactly the case this list
+     exists for: a new SECURITY DEFINER function is born PUBLIC=EXECUTE unless the
+     file revokes, and the grant lints below are the repo's only static defence
+     against it. PART 1b-ii (A9) must see the wrapper and confirm it references a
+     rate gate. It patches hr_rpc_gate and hr_state_of PROGRAMMATICALLY
+     (pg_get_functiondef + a guarded exactly-once anchor replace, the
+     2026-08-28-client-state.sql idiom), so it carries no literal create-or-replace
+     header for either and is on NO derivation chain. */
+  '2026-08-23-trait-buy.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -749,6 +761,17 @@ const CLIENT_CALLABLE = new Map([
      records both in hr_client_rpc_baseline. */
   ['hr_claim_goal', ['authenticated']],
   ['hr_goal_state', ['authenticated']],
+  /* 2026-08-23-trait-buy.sql — the permanent-TRAIT purchase. The caller sends a
+     trait id and a slot and NOTHING else: price, currency and prerequisite are
+     read from the server-side public.hr_traits catalogue, the balance from the
+     character's own row under the SAME per-character advisory lock hr_apply
+     takes. Idempotent (p_idem caches the SUCCESS envelope; refusals deliberately
+     are not cached), journalled kind='trait', rate-gated (hr_trait_buy bucket,
+     12/min). It does NOT write the auto_eat columns — it calls hr_set_auto_eat,
+     which stays their single writer. Deliberately NOT granted to hr_engine: the
+     accrual engine must never buy a paid trait for anybody. §7 records the
+     hr_client_rpc_baseline row. */
+  ['hr_trait_buy', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {

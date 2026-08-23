@@ -593,8 +593,13 @@ export const MUTATIONS = {
     why: 'F10 — a deferred row whose kind has no flip behaviour. On flip day nobody could say '
       + 'whether that site erases the player\'s gold or refunds it.',
     file: LEDGER_FILE,
-    find: "  'src/legacy.js#buyTrait': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },",
-    repl: "  'src/legacy.js#buyTrait': { kind: 'mystery', status: 'deferred', blockedBy: B.UNLOCK_BUY },",
+    /* b46x: re-anchored. buyTrait's row grew a `site:` note and a flipGuard when
+       hr_trait_buy took over the purchase, so the old single-line anchor named a
+       row that no longer exists — a planted bug that was never planted. The
+       property under test is unchanged: a deferred row whose KIND has no flip
+       behaviour must fail. */
+    find: "  'src/legacy.js#buyTrait': {\n    kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,",
+    repl: "  'src/legacy.js#buyTrait': {\n    kind: 'mystery', status: 'deferred', blockedBy: B.UNLOCK_BUY,",
   },
   deferred_with_no_blocker: {
     why: '"not yet" with no named dependency is indistinguishable from "forgotten" — which is the '

@@ -8042,58 +8042,166 @@ const TRAITS={
 window.TRAITS=TRAITS;
 function hasTrait(id){return !!(G.traits&&G.traits[id]);}
 window.hasTrait=hasTrait;
+/* b46x — EVERYTHING THAT HAPPENS AFTER A TRAIT PURCHASE IS AGREED, IN ONE
+   PLACE, so the pre-arm local path and the server-authoritative path cannot
+   drift into granting different things. `ownedIds` is the SERVER's whole owned
+   set when it sent one — a union, never a replace, exactly as
+   src/net/accrue.js reconcileTraits explains: a trait bought before the server
+   verb existed has no server row and must never be revoked. */
+function applyTraitUnlock(id, ownedIds){
+  const t=TRAITS[id]||{};
+  G.traits=G.traits||{};
+  if(Array.isArray(ownedIds)){
+    ownedIds.forEach(function(x){ if(typeof x==='string'&&x) G.traits[x]=true; });
+  }
+  G.traits[id]=true;
+  // Buying auto-eat turns it on so it works immediately; threshold stays default
+  // (b45x: the TIER CEILING is applied on read by HearthriseAuto.eatThreshold, so
+  // the stored preference survives an upgrade to Auto-Eat II instead of being
+  // overwritten at purchase time). Server-side the SAME switch is thrown by
+  // hr_trait_buy calling hr_set_auto_eat — the single writer of that column —
+  // so the two halves of one purchase leave the player in one state.
+  if(id==='auto_eat'&&window.HearthriseAuto&&typeof window.HearthriseAuto.setEat==='function'){
+    window.HearthriseAuto.setEat({enabled:true});
+  }
+  notify(`Unlocked ${t.name||id}!`,'levelup');
+  if(typeof saveLocal==='function')saveLocal();
+  if(typeof updateTopbar==='function')updateTopbar();
+  if(typeof renderShop==='function')renderShop();
+  /* The Bounty Shop panel and the death sheet both quote this price and both
+     stop nagging once it is owned. spendMarks() repaints the bounty tab
+     synchronously, which under the SERVER path happens before the answer
+     arrives — so repaint it again here, when the answer is in. */
+  try{ if(typeof renderBountyTab==='function') renderBountyTab(); }catch(e){}
+}
+/* The honest toast for each machine code hr_trait_buy can answer. Named per
+   error rather than a single "unavailable": a player told "you cannot afford
+   it" when the real answer is "sign in" files the wrong bug, and this shop's
+   whole failure mode for the last two builds was ONE opaque sentence. */
+const TRAIT_BUY_TOASTS={
+  unknown_trait:'That upgrade is not available',
+  already_owned:'Already unlocked',
+  insufficient_marks:'Not enough Bounty Marks — hunt bounties to earn them',
+  insufficient_gold:'Not enough gold',
+  trait_daily_cap:'That is enough upgrades for today',
+  no_character:'Your character is still loading — try again in a moment',
+  bad_slot:'Your character is still loading — try again in a moment',
+  rate_limited:'Slow down a moment, then try again',
+  not_signed_in:'Sign in to unlock upgrades',
+  rpc_missing:'That upgrade is unavailable right now',
+  no_endpoint:'That upgrade is unavailable right now',
+  no_token:'Sign in to unlock upgrades'
+};
+function traitBuyToast(res){
+  const reason=String((res&&res.reason)||'');
+  /* `requires:<id>` carries the id in its NAME, so it is rendered from the
+     authored table rather than from a second copy of the ladder. */
+  if(reason.indexOf('requires:')===0){
+    const need=TRAITS[reason.slice(9)];
+    return `Unlock ${(need&&need.name)||reason.slice(9)} first`;
+  }
+  if(TRAIT_BUY_TOASTS[reason]) return TRAIT_BUY_TOASTS[reason];
+  const outcome=String((res&&res.outcome)||'');
+  if(outcome==='unreachable'||outcome==='timeout') return 'No connection — your unlock did not go through';
+  if(outcome==='unavailable') return 'The server is busy — try that again in a moment';
+  return 'That upgrade is unavailable right now';
+}
 function buyTrait(id){
   const t=TRAITS[id];if(!t)return;
   if(hasTrait(id)){notify('Already unlocked','info');return;}
   /* b45x — a TIERED trait declares its predecessor as data (`req`). Refusing
      here rather than silently granting the predecessor keeps the price ladder
      honest: Auto-Eat II is priced as an UPGRADE from I, so selling it to someone
-     who skipped I would hand out the entry tier for free. */
+     who skipped I would hand out the entry tier for free. The SERVER refuses the
+     same thing (`requires:<id>`) from its own catalogue — this is the local
+     courtesy, not the authority. */
   if(t.req && !hasTrait(t.req)){
     const need=TRAITS[t.req];
     notify(`Unlock ${(need&&need.name)||t.req} first`,'kill');return;
   }
-  if(t.currency==='marks'){
-    const MR=window.HearthriseMarks;
-    /* ARM-BLOCKER (marks flip): a marks-priced trait has NO server spend verb yet
-       (only reroll/abandon moved to hr_bounty_spend). Under arm the raw `G.marks-=`
-       would be a client-authored debit on a server-owned balance, then reconciled
-       away by the next envelope while the trait stayed granted — a self-mint. Fail
-       CLOSED until the shop spend is server-owned. No-op while dormant (today's
-       behaviour unchanged). Affordability reads through marksOf so it fail-closes on
-       an UNKNOWN balance too. */
-    if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('marks')){
+  const field = t.currency==='marks' ? 'marks' : 'gold';
+  const mayWrite = (typeof window.clientMayWriteRecordField!=='function')
+    || window.clientMayWriteRecordField(field);
+  /* ══════════════════════════════════════════════════════════════════════
+     THE ARMED PATH — THE SERVER OWNS THE PURCHASE (b46x).
+     ══════════════════════════════════════════════════════════════════════
+     `mayWrite === false` means the balance has MOVED HOME: it is
+     player_state.marks / player_state.gold, and a local `G.marks -= cost` would
+     be a client-authored debit the next envelope reconciles away while the
+     trait stayed granted — a self-mint. For two builds this branch was a bare
+     refusal ("That upgrade is unavailable right now") because no server verb
+     existed, which meant AUTO-EAT — the purchase the death sheet teaches on a
+     player's first death — could not be bought AT ALL. hr_trait_buy
+     (supabase/migrations/2026-08-23-trait-buy.sql) is that verb.
+
+     ⚠ NOTHING LOCAL IS DEBITED HERE, not even optimistically. The server owns
+       both balances; the client sends a trait id and a slot and renders what
+       comes back. The new balance is reconciled by the record refresh below and
+       by the next envelope — never written from this answer. */
+  if(!mayWrite){
+    const GG=window.HearthriseGold;
+    if(!GG||typeof GG.buyTrait!=='function'||typeof GG.newIntentKey!=='function'){
       notify('That upgrade is unavailable right now','kill');return;
     }
+    /* ONE PURCHASE IN FLIGHT PER TRAIT. A double tap must not spend two intent
+       keys on one gesture: the second would be refused `already_owned` and read
+       to the player as a failure. `_`-prefixed, so it is scratch and never
+       synced. */
+    G._traitBuying=G._traitBuying||{};
+    if(G._traitBuying[id])return;
+    const key=GG.newIntentKey();
+    if(!key){notify('That upgrade is unavailable right now','kill');return;}
+    G._traitBuying[id]=true;
+    let p=null;
+    try{ p=GG.buyTrait(id,key); }catch(e){ p=null; }
+    if(!p||typeof p.then!=='function'){
+      G._traitBuying[id]=false;
+      notify('That upgrade is unavailable right now','kill');return;
+    }
+    p.then(function(res){
+      const ownedNow=!!(GG.isTraitOwnedOutcome&&GG.isTraitOwnedOutcome(res&&res.outcome));
+      if(ownedNow){
+        applyTraitUnlock(id,res&&res.owned);
+        /* Pull the new balance from the server rather than believing the
+           receipt: `res.marks` is for rendering, and the RECORD is what every
+           affordability check reads. One extra hr_load per purchase — twice in
+           the lifetime of a character — is the cheapest honest refresh there
+           is. Fire-and-forget; the next envelope settles it either way. */
+        try{
+          if(window.HearthriseRecord&&typeof window.HearthriseRecord.requestRecord==='function'){
+            const r=window.HearthriseRecord.requestRecord();
+            if(r&&r.catch)r.catch(function(){});
+          }
+        }catch(e){}
+      } else if(res&&res.reason==='already_owned'){
+        /* The server says the character already holds it — a stale local
+           G.traits, not a failure. Adopt the truth and say so once. */
+        applyTraitUnlock(id,res&&res.owned);
+      } else {
+        notify(traitBuyToast(res),'kill');
+      }
+    }).catch(function(){
+      notify('That upgrade is unavailable right now','kill');
+    }).then(function(){ G._traitBuying[id]=false; });
+    return;
+  }
+  /* ══════════════════════════════════════════════════════════════════════
+     THE PRE-ARM PATH — byte-for-byte today's behaviour while the balance is
+     still the client's. Unchanged on purpose: this is what runs on a build with
+     the record dormant, and it is what the b227 regression test grades.
+     ══════════════════════════════════════════════════════════════════════ */
+  if(t.currency==='marks'){
+    const MR=window.HearthriseMarks;
     if(MR?(!MR.canAffordMarks(G,t.cost)):((G.marks||0)<t.cost)){notify('Not enough Bounty Marks — hunt bounties to earn them','kill');return;}
     G.marks=(G.marks||0)-t.cost;
   } else {
-    /* ARM-SAFE (gold flip): a trait unlock has no server verb and the server
-       ignores its perk. Under arm the raw debit would be REFUNDED by the next
-       envelope while the trait stayed granted — a mint in the player's favour.
-       Fail CLOSED like buy-back: refuse the purchase until it is server-owned.
-       No-op until gold is armed (today's behaviour unchanged). */
-    if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
-      notify('That upgrade is unavailable right now','kill');return;
-    }
     if(!balCanAfford(t.cost,'gold')){notify(balShortfall(t.cost,'gold'),'kill');return;}
     G.gold-=t.cost;
   }
-  G.traits=G.traits||{};
-  G.traits[id]=true;
-  // Buying auto-eat turns it on so it works immediately; threshold stays default
-  // (b45x: the TIER CEILING is applied on read by HearthriseAuto.eatThreshold, so
-  // the stored preference survives an upgrade to Auto-Eat II instead of being
-  // overwritten at purchase time).
-  if(id==='auto_eat'&&window.HearthriseAuto&&typeof window.HearthriseAuto.setEat==='function'){
-    window.HearthriseAuto.setEat({enabled:true});
-  }
-  notify(`Unlocked ${t.name}!`,'levelup');
-  if(typeof saveLocal==='function')saveLocal();
-  if(typeof updateTopbar==='function')updateTopbar();
-  if(typeof renderShop==='function')renderShop();
+  applyTraitUnlock(id,null);
 }
 window.buyTrait=buyTrait;
+try{ window.applyTraitUnlock=applyTraitUnlock; window.traitBuyToast=traitBuyToast; }catch(_){}
 
 /* ────────────────────────────────────────────────
    SETTINGS modal

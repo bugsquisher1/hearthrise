@@ -1544,6 +1544,101 @@ const TESTS = [
       'a malformed offer id must refuse locally as bad_offer, not go to the server; got ' + JSON.stringify(r));
   }),
 
+  () => tryRunAsync('hr_trait_buy client transport: a trait id crosses, a price never does', async () => {
+    /* THE SLICE (b46x). A permanent TRAIT is now bought through hr_trait_buy —
+       a direct PostgREST RPC, not a gold verb, because it moves no gold and
+       returns no envelope. The load-bearing client properties are the same two
+       unlock_buy's are: the wire carries a NAME and never a NUMBER, and a
+       malformed gesture is refused locally instead of spending a real player's
+       rate budget to be told so. The server half is tests/trait-buy.mjs. */
+    const S = window.HearthriseGold;
+    if (!S || typeof S.buildTraitBuyRequest !== 'function') {
+      assert(false, 'HearthriseGold.buildTraitBuyRequest is missing — legacy.js buyTrait() has '
+        + 'nothing to route to under the marks arm and every trait is unbuyable');
+      return;
+    }
+
+    // 1. THE BYTES. Exactly {p_trait_id, p_slot, p_idem} and nothing else.
+    const req = S.buildTraitBuyRequest({ trait: 'auto_eat', slot: 0, intentId: 'k',
+      url: 'https://x.example', apiKey: 'a', token: 't' });
+    const body = JSON.parse(req.init.body);
+    assert(body.p_trait_id === 'auto_eat' && body.p_slot === 0 && body.p_idem === 'k',
+      'the trait-buy body must carry the trait id, the slot and the idempotency key; got '
+      + JSON.stringify(body));
+    assert(Object.keys(body).length === 3,
+      'the trait-buy body grew a field: ' + JSON.stringify(body) + '. Price, currency and '
+      + 'prerequisite live in public.hr_traits — a number added here is a client authoring a '
+      + 'permanent capability, which is exactly what this verb was written to make impossible.');
+    assert(!('p_cost' in body) && !('p_price' in body) && !('p_currency' in body)
+      && !('p_marks' in body) && !('p_gold' in body),
+      'the trait-buy wire must carry NO price/currency/balance; got ' + JSON.stringify(body));
+    assert(/\/rest\/v1\/rpc\/hr_trait_buy$/.test(req.url),
+      'the trait-buy request must POST to the hr_trait_buy RPC; got ' + req.url);
+
+    // 2. A REFUSAL ARRIVES AS HTTP 200. PostgREST returns 200 for any function
+    //    that RETURNS a value, so classifying on status alone would read
+    //    {ok:false,error:'insufficient_marks'} as a purchase and grant it free.
+    const C = S.classifyTraitResponse;
+    assert(C(200, { ok: true, trait_id: 'auto_eat' }).outcome === 'applied',
+      'a successful purchase must classify as applied');
+    assert(C(200, { ok: true, replayed: true }).outcome === 'replayed',
+      'a replayed purchase must classify as replayed (the original landed — the trait IS owned)');
+    const refused = C(200, { ok: false, error: 'insufficient_marks' });
+    assert(refused.outcome === 'refused' && refused.reason === 'insufficient_marks',
+      'a 200 carrying ok:false is a REFUSAL, not a purchase; got ' + JSON.stringify(refused));
+    assert(C(429, null).outcome === 'rate-limited' && C(404, null).reason === 'rpc_missing'
+      && C(503, null).outcome === 'unavailable' && C(401, null).outcome === 'not-signed-in',
+      'the transport must name each transport-level failure separately');
+    assert(S.isTraitOwnedOutcome('applied') && S.isTraitOwnedOutcome('replayed')
+      && !S.isTraitOwnedOutcome('refused') && !S.isTraitOwnedOutcome('unavailable'),
+      'ownership must follow applied/replayed only');
+
+    // 3. A MALFORMED TRAIT ID IS REFUSED LOCALLY — no rate slot burned.
+    const bad = S.buyTrait('not a trait!!', S.newIntentKey ? (S.newIntentKey() || 'k') : 'k');
+    assert(bad && typeof bad.then === 'function', 'buyTrait must return a promise');
+    const r = await bad;
+    assert(r && r.outcome === 'unsendable' && r.reason === 'bad_trait',
+      'a malformed trait id must refuse locally as bad_trait, not go to the server; got '
+      + JSON.stringify(r));
+    // …and so is a missing idempotency key: a purchase with no key cannot be
+    // replayed safely, so it must never leave the client.
+    const noKey = await S.buyTrait('auto_eat', 'not-a-uuid');
+    assert(noKey && noKey.outcome === 'unsendable' && noKey.reason === 'no_intent_key',
+      'a purchase with no valid idempotency key must not be sent; got ' + JSON.stringify(noKey));
+  }),
+
+  () => tryRun('b46x: the trait ownership hydration is a UNION, never a replace', () => {
+    /* THE ONE IRREVERSIBLE MISTAKE available in this slice. G.traits is still a
+       blob field, and there are live players who bought Auto-Eat BEFORE the
+       server verb existed: they hold it locally with NO server row. An absolute
+       assignment from the envelope would REVOKE a paid trait from every one of
+       them. reconcileTraits therefore only ever ADDS. */
+    const A = window.HearthriseAccrual;
+    if (!A || typeof A.reconcileTraits !== 'function') {
+      assert(false, 'HearthriseAccrual.reconcileTraits is missing — nothing hydrates trait '
+        + 'ownership from the server envelope, so a purchase would not survive a device change');
+      return;
+    }
+    const g = { traits: { legacy_local: true } };
+    A.reconcileTraits(g, { traits: ['auto_eat'] });
+    assert(g.traits.auto_eat === true, 'a server-owned trait must be hydrated onto the client');
+    assert(g.traits.legacy_local === true,
+      'the hydration REVOKED a locally-owned trait the server has no row for — that is a paid '
+      + 'purchase taken away from a live player, and it is not recoverable');
+
+    // FAIL-CLOSED on absence: an envelope with no `traits` key changes nothing.
+    const g2 = { traits: { auto_eat: true } };
+    const res = A.reconcileTraits(g2, { state: {} });
+    assert(res && res.mode === 'absent' && g2.traits.auto_eat === true,
+      'an envelope that does not project traits must not be read as "you own nothing"');
+
+    // A fresh character with an EMPTY server set is a valid known state and
+    // still takes nothing away.
+    const g3 = { traits: {} };
+    A.reconcileTraits(g3, { traits: [] });
+    assert(Object.keys(g3.traits).length === 0, 'an empty owned set must grant nothing');
+  }),
+
   () => tryRunClientAuthoritative('unlock_buy slice: upgradeProperty resolves property.<tierId> and debits once (client-authoritative)', () => {
     // Client-authoritative (switch off), goldSettle is the plain local debit that
     // shipped before, so this asserts the rewiring preserved the exact charge and
@@ -3845,7 +3940,7 @@ const TESTS = [
   }),
   // b227 (Tyler): auto-eat is a BOUNTY MARK purchase (100 marks), not gold —
   // earned at the board, and gold must never be touched by the buy.
-  () => tryRun('b227: buyTrait spends 100 Bounty Marks, never gold; refuses when short', () => {
+  () => tryRunAsync('b227/b46x: buyTrait routes to hr_trait_buy under arm and spends Marks, never gold', async () => {
     const G = window.G;
     assert(typeof window.buyTrait === 'function', 'window.buyTrait missing');
     const saved = {
@@ -3854,31 +3949,96 @@ const TESTS = [
       auto: JSON.parse(JSON.stringify(G.autoActions || {}))
     };
     const R = window.HearthriseRecord;
+    const S = window.HearthriseGold;
+    const realBuyTrait = S && S.buyTrait;
+    const realRequestRecord = R && R.requestRecord;
+    const realNotify = window.notify;
     try {
       G.traits = {};
       G.bountyHunter = G.bountyHunter || {};
 
-      /* ── b456: THE ARMED CONTRACT COMES FIRST, AND IT IS A REFUSAL ──────────
-         Under the marks arm `buyTrait` has no server spend verb (only reroll and
-         abandon moved to hr_bounty_spend), so legacy.js gates it on
-         clientMayWriteRecordField('marks') and FAILS CLOSED. That is the correct
-         armed behaviour and the property worth guarding is precisely that it is a
-         CLEAN refusal: a raw client debit here would be reconciled away by the
-         next envelope while the trait stayed granted — a self-mint.
-         ⚠ It is also a live UX gap (a 100-mark shop item nobody can buy) which is
-           filed for the Game Designer / Systems Engineer; the gap is a missing
-           server verb, NOT a licence to let the client author the debit. */
+      /* ── b46x: THE ARMED CONTRACT COMES FIRST, AND IT IS NO LONGER A REFUSAL ──
+         For two builds the armed branch was a bare "That upgrade is unavailable
+         right now" — correct (a raw client debit on a server-owned balance is a
+         self-mint) and a P0 in production, because AUTO-EAT is the purchase the
+         death sheet teaches on a player's FIRST death and nobody could buy it.
+         hr_trait_buy (supabase/migrations/2026-08-23-trait-buy.sql) is the server
+         verb; the client contract this guards is exactly three things:
+           1. under arm the gesture CALLS THE TRANSPORT (it does not refuse),
+           2. it NEVER debits a balance locally — not marks, not gold — because
+              the server owns both and the receipt is for rendering only,
+           3. `applied` grants the trait; a refusal does NOT, and says why.
+         The transport itself is stubbed, so this is a statement about legacy.js
+         and not about the network. tests/trait-buy.mjs owns the server half. */
       const marksArmed = typeof window.clientMayWriteRecordField === 'function'
         && window.clientMayWriteRecordField('marks') === false;
-      if (marksArmed) {
+      if (marksArmed && S) {
+        assert(typeof realBuyTrait === 'function',
+          'HearthriseGold.buyTrait is missing — under the marks arm buyTrait() has nothing to route '
+          + 'to and every trait in the game is unbuyable');
+        const settle = () => new Promise((r) => setTimeout(r, 0));
+        const calls = [];
+        const toasts = [];
+        window.notify = (m) => { toasts.push(String(m)); };
+        if (R) R.requestRecord = () => Promise.resolve({ outcome: 'stubbed' });
+
+        // (1) APPLIED — the transport is called, nothing is locally debited, the
+        //     trait is granted from the SERVER's owned set.
+        S.buyTrait = (id, key) => {
+          calls.push({ id, key });
+          return Promise.resolve({ outcome: 'applied', reason: null, trait: id, key,
+            owned: [id], marks: 135, gold: null, name: 'Auto-Eat I' });
+        };
         G.marks = 150; G.gold = 999999;
         stampRecordLikeLoad(G);   // a genuinely KNOWN, genuinely sufficient balance
         window.buyTrait('auto_eat');
-        assert(!(G.traits && G.traits.auto_eat),
-          'ARMED: buyTrait granted a marks trait with no server spend verb — the debit would be reconciled away '
-          + 'and the trait would stay, which is a self-mint');
-        assert(G.marks === 150, 'ARMED: buyTrait client-debited a server-owned marks balance, got ' + G.marks);
+        await settle();
+        assert(calls.length === 1 && calls[0].id === 'auto_eat',
+          'ARMED: buyTrait did not call the hr_trait_buy transport (calls: '
+          + JSON.stringify(calls) + ') — the purchase is dead again');
+        assert(typeof calls[0].key === 'string' && /^[0-9a-f-]{36}$/i.test(calls[0].key),
+          'ARMED: the purchase carried no idempotency key, so a retry would debit twice; got '
+          + calls[0].key);
+        assert(G.traits && G.traits.auto_eat === true,
+          'ARMED: an applied purchase did not grant the trait');
+        assert(G.marks === 150,
+          'ARMED: buyTrait client-debited a server-owned marks balance, got ' + G.marks
+          + ' — the server owns the debit and the receipt is for rendering only');
         assert(G.gold === 999999, 'ARMED: buyTrait must NEVER touch gold for a marks trait');
+        assert(toasts.some((t) => /Unlocked/i.test(t)),
+          'ARMED: an applied purchase said nothing to the player; toasts=' + JSON.stringify(toasts));
+
+        // (2) REFUSED — the trait is NOT granted and the reason is told honestly.
+        G.traits = {};
+        toasts.length = 0;
+        calls.length = 0;
+        S.buyTrait = (id, key) => {
+          calls.push({ id, key });
+          return Promise.resolve({ outcome: 'refused', reason: 'insufficient_marks', trait: id, key,
+            owned: null, marks: null, gold: null, name: null });
+        };
+        window.buyTrait('auto_eat');
+        await settle();
+        assert(calls.length === 1, 'ARMED: the refused purchase did not reach the transport');
+        assert(!(G.traits && G.traits.auto_eat),
+          'ARMED: a REFUSED purchase granted the trait anyway — the client would own a trait the '
+          + 'server never sold, and the next envelope would not take it back');
+        assert(G.marks === 150 && G.gold === 999999,
+          'ARMED: a refused purchase moved a balance (' + G.marks + '/' + G.gold + ')');
+        assert(toasts.some((t) => /Bounty Marks/i.test(t)),
+          'ARMED: the refusal did not name its reason; toasts=' + JSON.stringify(toasts)
+          + ' — one opaque sentence for every failure is what made this shop unfixable for two builds');
+
+        // (3) THE PREREQUISITE REFUSAL renders from the authored table, by name.
+        toasts.length = 0;
+        S.buyTrait = (id, key) => Promise.resolve({ outcome: 'refused', reason: 'requires:auto_eat',
+          trait: id, key, owned: null, marks: null, gold: null, name: null });
+        window.buyTrait('auto_eat_2');
+        await settle();
+        assert(!(G.traits && G.traits.auto_eat_2), 'ARMED: a prerequisite refusal still granted tier II');
+        assert(toasts.some((t) => /Auto-Eat I/.test(t)),
+          'ARMED: `requires:auto_eat` must render the required trait\'s NAME; toasts='
+          + JSON.stringify(toasts));
       }
 
       /* ── AND THE SPEND MECHANICS, in the position where the client owns them.
@@ -3907,6 +4067,10 @@ const TESTS = [
         }
       }
     } finally {
+      if (S && realBuyTrait) S.buyTrait = realBuyTrait;
+      if (R && realRequestRecord) R.requestRecord = realRequestRecord;
+      window.notify = realNotify;
+      if (G._traitBuying) G._traitBuying = {};
       G.gold = saved.gold; G.traits = saved.traits; G.autoActions = saved.auto;
       G.marks = saved.marks;
       stampRecordLikeLoad(G);

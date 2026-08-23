@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=459' directly.
+// modularised, will import { G } from '../state/game.js?v=460' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=459';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=459';
+import { on, snapshot } from '../net/events.js?v=460';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=460';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=459';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=460';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -932,6 +932,86 @@ const TESTS = [
     assert(ratio >= 4.5,
       'FTUE secondary button text must be readable on its own face — got ' + ratio.toFixed(2) + ':1 (' + cs.color + ' on ' + cs.backgroundColor + ')');
   }),
+
+  /* ── b459 FTUE-CLICK-1 / FTUE-TARGET-1 (journey-audit regression pair) ──────
+     THE BUG THIS PINS: .ftue-shade is a full-viewport pointer-events layer
+     painted OVER the element it spotlights, so autoAdvanceOnClick could never
+     fire — clicking the glowing gold-ringed button did NOTHING, on every step
+     that invited it, since the tour was written. The fix forwards a shade click
+     landing inside the current target's rect to the target. Both halves are
+     asserted: the SHAPE of the bug (elementFromPoint at the spotlit centre is
+     the shade) and the FIX (that click navigates AND advances); plus the guard
+     against over-forwarding (a click on a non-target tab does nothing).
+     Mutation: revert ftue.js's shade listener → both halves go red. */
+  () => tryRunAsync('b459 FTUE-CLICK-1: the spotlit target is reachable through the shade', async () => {
+    if (typeof window.startFTUE !== 'function' || typeof window.endFTUE !== 'function') { assert(true, 'ftue seams absent'); return; }
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const prevTab = window.activeTab;
+    const laidOut = (el) => { const r = el.getBoundingClientRect(); return r.width > 1 && r.height > 1; };
+    try {
+      window.startFTUE();
+      await sleep(400);
+      const stepLabel = () => (document.querySelector('.ftue-step') || { textContent: '' }).textContent;
+      // Advance card-primary until the SKILLS step (step 3), the first autoAdvanceOnClick step.
+      for (let i = 0; i < 4 && !/Step 3 of/.test(stepLabel()); i++) {
+        const primary = [...document.querySelectorAll('.ftue-card .ftue-btn')].filter(laidOut).pop();
+        assert(primary, 'the tour card lost its primary button at ' + stepLabel());
+        primary.click();
+        await sleep(350);
+      }
+      assert(/Step 3 of/.test(stepLabel()), 'could not reach the skills step, stuck at ' + stepLabel());
+      const tgt = [...document.querySelectorAll('button[data-tab="skills"]')].filter(laidOut)[0];
+      assert(tgt, 'no laid-out skills tab to spotlight');
+      const r = tgt.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const atPoint = document.elementFromPoint(cx, cy);
+      const shade = document.querySelector('.ftue-shade');
+      assert(shade, 'the tour shade is not mounted');
+      // The SHAPE of the bug: the shade intercepts the spotlit centre…
+      assert(atPoint === shade || (atPoint && atPoint.closest && atPoint.closest('.ftue-shade') === shade),
+        'the spotlit centre is not covered by the shade — the bug shape changed; re-derive this test (got ' + (atPoint && atPoint.tagName) + ')');
+      // …and the FIX: a click there is forwarded — it navigates AND advances.
+      shade.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: cx, clientY: cy }));
+      await sleep(450);
+      const skillsPanel = document.getElementById('panel-skills');
+      assert(skillsPanel && getComputedStyle(skillsPanel).display !== 'none',
+        'clicking the spotlit Skills tab through the shade did not navigate');
+      assert(/Step 4 of/.test(stepLabel()), 'the forwarded click did not advance the tour, at ' + stepLabel());
+      // Over-forwarding guard: a click on a NON-target tab must do nothing.
+      const wrong = [...document.querySelectorAll('button[data-tab="house"]')].filter(laidOut)[0];
+      if (wrong) {
+        const wr = wrong.getBoundingClientRect();
+        shade.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: wr.left + wr.width / 2, clientY: wr.top + wr.height / 2 }));
+        await sleep(300);
+        assert(/Step 4 of/.test(stepLabel()), 'a click on a non-target tab advanced/changed the tour: ' + stepLabel());
+        const housePanel = document.getElementById('panel-house');
+        assert(!housePanel || getComputedStyle(housePanel).display === 'none',
+          'a shaded click on a NON-target tab navigated — the forwarder is too permissive');
+      }
+    } finally {
+      try { window.endFTUE(true); } catch (e) {}
+      try { if (prevTab && typeof window.showTab === 'function') window.showTab(prevTab); } catch (e) {}
+    }
+  }),
+  () => tryRun('b459 FTUE-TARGET-1: every tour step resolves a LAID-OUT spotlight target', () => {
+    /* The companion bug: findTarget used querySelector's FIRST match — at
+       922x423 that was the hidden desktop rail's zero-rect button, collapsing
+       the spotlight to a dot in the corner. The contract: at the running
+       viewport, every step's target selector matches at least one laid-out
+       element. Mutation: swap findTarget back to document.querySelector → the
+       geometric half of CLICK-1 goes red at phone sizes; this pins the data. */
+    const F = window.HearthriseFTUE;
+    if (!F || typeof F.steps !== 'function') { assert(true, 'steps seam absent'); return; }
+    const laidOut = (el) => { const r = el.getBoundingClientRect(); return r.width > 1 && r.height > 1; };
+    for (const step of F.steps()) {
+      if (!step.target) continue;
+      const matches = [...document.querySelectorAll(step.target)];
+      assert(matches.length > 0, 'FTUE step "' + step.id + '" target matches nothing: ' + step.target);
+      assert(matches.some(laidOut),
+        'FTUE step "' + step.id + '" resolves only zero-rect elements at this viewport — the spotlight would collapse (' + step.target + ')');
+    }
+  }),
+
   // b168, restated in b220. The intent was always "auto-eat must not burn the
   // food you were saving" — but the signal it tested was `!it.buff`, and EVERY
   // cooked food in Hearthrise carries a buff. So "plain food" meant raw
@@ -29693,7 +29773,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=459');
+    const KIT = await import('../data/start-kit.js?v=460');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -35624,7 +35704,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=459');
+    const S = await import('../data/shops.js?v=460');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -37033,7 +37113,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=459');
+    const S = await import('../data/shops.js?v=460');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -40718,7 +40798,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=459')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=460')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -42160,7 +42240,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=459');
+    const A = await import('../net/accrue.js?v=460');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -42184,7 +42264,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=459');
+    const A = await import('../net/accrue.js?v=460');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

@@ -48,7 +48,7 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=459';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=460';
 
 /* ── THE DORMANT ARM ─────────────────────────────────────────────────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):

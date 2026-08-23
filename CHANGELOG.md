@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 460 — 2026-08-23 (Tutorial regression tests)
+
+- 🧪 Test-only: pinned the tutorial click-through and spotlight-targeting fixes with regression tests (suite: 996/996).
+
 ## v0.9.2-beta build 459 — 2026-08-23 (The overnight audit build)
 
 - 🎓 The tutorial actually works now: clicking the highlighted button does what it says (it never did — fixed), and all six steps teach the real game loop.

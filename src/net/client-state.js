@@ -48,7 +48,7 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=448';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=449';
 
 /* ── THE DORMANT ARM ─────────────────────────────────────────────────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):
@@ -115,6 +115,9 @@ export const RESIDUE_FIELDS = Object.freeze([
   'entitlements',
   'playerName',     // the player's OWN copy; cross-player name is server-derived
   'lastSeen',       // the client's own last-active stamp (NOT the authority watermark)
+  'autoEatPct',     // auto-eat threshold pref (the authoritative eat is server combat;
+                    // this is the client's own slider position — self-only, would reset to 0.5 otherwise)
+  'createdAt',      // the account's Founder date — self-only display; would be lost under arm otherwise
 ]);
 const RESIDUE_SET = new Set(RESIDUE_FIELDS);
 

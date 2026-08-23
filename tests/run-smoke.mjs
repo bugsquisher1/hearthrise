@@ -2060,6 +2060,19 @@ const run = async () => {
       console.log('\nCompanion-record guard — dormant no-op; armed rebuild from envelope (not fox-reset); fail-closed pre-envelope; xp-award gated off under arm.');
     }
 
+    /* ── The arm-homing guard (strand-audit mechanical net) ──────────────────
+       BLOB_RETIRED is the union of every arm: any persisted field homed by no
+       mechanism is stranded under arm (crash / data reset). This fails the build
+       the instant a blob field is added that nothing reconstructs — the net that
+       would have caught companions/farm before they shipped as strands. */
+    const { armHomingGuard } = await import('./arm-homing-guard.mjs');
+    const homingProblems = await armHomingGuard();
+    if (homingProblems.length) {
+      console.log('\nArm-homing guard — FAILED:');
+      for (const p of homingProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    }
+
     /* ── The farm-record guard (blob-retire capstone, CRITICAL blocker) ──────
        Proves the CLIENT half of the farm reconstruction: under the capstone arm
        the client stops loading the save blob, so accrue.js reconcileFarm rebuilds

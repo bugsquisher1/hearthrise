@@ -1,11 +1,11 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=450';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=450';
-import { SLOT_ITEMS } from './slot-ladders.js?v=450';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=450';
-import { LIB2_ITEMS } from './library2-items.js?v=450';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=450';
+import { GEAR_ITEMS } from './gear-tiers.js?v=451';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=451';
+import { SLOT_ITEMS } from './slot-ladders.js?v=451';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=451';
+import { LIB2_ITEMS } from './library2-items.js?v=451';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=451';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×

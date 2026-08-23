@@ -1381,6 +1381,22 @@ async function farmCataloguePreflight() {
   return 1;
 }
 
+// The raid-chest reward catalogue (hr_hunt_boss_reward) is generated from
+// src/data/raid-bosses.js. It is what raid_claim reads to mint the Hunt chest
+// materials + signature into player_inventory. A stale one mints the wrong
+// materials (real player item gain/loss under the inventory flip), so --check
+// gates it exactly like the farm catalogues.
+async function raidBossRewardPreflight() {
+  const gen = join(ROOT, 'tools', 'gen-raid-boss-rewards.mjs');
+  try { await stat(gen); } catch { return 0; }
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
+  const out = ((r.stdout || '') + (r.stderr || '')).trim();
+  if (r.status === 0) { console.log(`Raid boss-reward preflight: ${out || 'in sync'}`); return 0; }
+  console.error(`\nRaid boss-reward preflight FAILED — src/data/raid-bosses.js no longer matches the generated SQL.\n${out}\n`);
+  return 1;
+}
+
 // PREFLIGHT — SECURITY CONDITION S5: src/data/items.js ⊆ hr_items.
 //
 // The check above regenerates the SQL and compares it to the file, so both
@@ -1690,6 +1706,7 @@ const run = async () => {
   if (await catalogueDriftPreflight()) process.exit(1);
   if (await bountyMonsterPreflight()) process.exit(1);
   if (await farmCataloguePreflight()) process.exit(1);
+  if (await raidBossRewardPreflight()) process.exit(1);
   if (await itemsCataloguePreflight()) process.exit(1);
   if (await recipeYieldPreflight()) process.exit(1);
   if (await itemLedgerPreflight()) process.exit(1);

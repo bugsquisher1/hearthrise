@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 451 — 2026-08-22 (Under the hood: raid chest items server-owned, dormant)
+
+- 🔧 No gameplay change. Raid (Hunt) chest materials are now credited server-side, closing the last item path that needed it before the bag can move to the server. Shipped dormant.
+
 ## v0.9.2-beta build 450 — 2026-08-22 (Under the hood: rally reward item ownership, dormant)
 
 - 🔧 No gameplay change. Made sure rally (muster) reward materials — including the away/half-honors payout — are credited server-side so they can never be lost when the bag moves to the server, and added a safety gate that blocks the switchover while any reward path isn't yet server-owned. Shipped dormant.

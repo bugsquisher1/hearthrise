@@ -76,32 +76,17 @@
      `glyph` is a typographic mark, never an emoji. Six painted portraits are
      an open Art hand-off (§6).
      ══════════════════════════════════════════════════════════════ */
-  var BOSSES = [
-    { id: 'emberclad_tyrant', name: 'The Emberclad Tyrant', glyph: '☲',
-      desc: 'A furnace given a crown. Its slag-armor weeps molten iron.',
-      def: 55, weak: 'hammer', tiers: [1, 2], sig: 'slagheart_core',
-      reward: { gold: 12000, gems: 25, items: { mithril_bar: 6, hell_ember: 2 } } },
-    { id: 'hollow_regent', name: 'The Hollow Regent', glyph: '♔',
-      desc: 'A king who outlived his own bones. The crown remembers.',
-      def: 48, weak: 'magic', tiers: [1, 2], sig: 'hollow_sigil',
-      reward: { gold: 10000, gems: 25, items: { ancient_rune: 4, grave_dust: 8 } } },
-    { id: 'maw_below', name: 'The Maw Below', glyph: '◎',
-      desc: 'The lake was never empty. It was waiting.',
-      def: 62, weak: 'ranged', tiers: [2, 3], sig: 'abyssal_pearl',
-      reward: { gold: 14000, gems: 30, items: { dragon_scale: 3, silk_thread: 10 } } },
-    { id: 'sunken_choir', name: 'The Sunken Choir', glyph: '☵',
-      desc: 'Nine drowned cantors beneath the ice, holding one note. It has not changed in six hundred years.',
-      def: 70, weak: 'magic', tiers: [3, 4], sig: 'choirbone',
-      reward: { gold: 28000, gems: 30, items: { void_chitin: 3, ancient_rune: 8, shadow_thread: 4 } } },
-    { id: 'warden_long_dark', name: 'Warden of the Long Dark', glyph: '◈',
-      desc: 'It was set to guard a door. The door is gone. It still guards.',
-      def: 78, weak: 'hammer', tiers: [4, 5], sig: 'warden_seal',
-      reward: { gold: 50000, gems: 45, items: { death_steel: 5, void_chitin: 4, ruby: 3 } } },
-    { id: 'crownless_wyrm', name: 'The Crownless Wyrm', glyph: '❖',
-      desc: 'It ate the king who named it, and took nothing else.',
-      def: 88, weak: 'ranged', tiers: [5], sig: 'wyrm_gilding',
-      reward: { gold: 90000, gems: 60, items: { dragon_scale: 8, dragon_bones: 10, hell_ember: 6 } } }
-  ];
+  // ── THE BOSSES (§3.4) now live in the PURE DATA LAYER (src/data/raid-bosses.js),
+  //    published to window.RAID_BOSSES by src/main.js (like window.BOSSES /
+  //    window.COMPANIONS). ONE copy: the same records feed this client card, the
+  //    inventory-authority partition, and the server mint catalogue generator, so
+  //    the raid chest reward catalogue cannot silently drift between client and
+  //    server. Read lazily (a function, never a captured snapshot) because this
+  //    classic <script> parses BEFORE the main.js module runs — every reader below
+  //    is a post-boot call, so window.RAID_BOSSES is always populated by then.
+  function BOSSES_() {
+    return (typeof window !== 'undefined' && window.RAID_BOSSES) || [];
+  }
 
   /* Asset pass (b224+): six painted portraits promoted from _archive/reserve-art
      (same CraftPix house style as the shipped painted/monsters set), matched to
@@ -342,8 +327,9 @@
 
   function bossesForTier(tier) {
     var t = Math.max(MIN_TIER, Math.min(MAX_TIER, tier | 0));
-    var set = BOSSES.filter(function (b) { return b.tiers.indexOf(t) >= 0; });
-    return set.length ? set : BOSSES.slice(0, 3);
+    var all = BOSSES_();
+    var set = all.filter(function (b) { return b.tiers.indexOf(t) >= 0; });
+    return set.length ? set : all.slice(0, 3);
   }
   function hash(s) { return W() ? W()._hash(s) : 0; }
 
@@ -354,12 +340,13 @@
      boss deterministically rather than showing a blank card. */
   function bossOfWeek(wk, tier) {
     var w = wk || weekKey();
-    if (tier == null || !(tier | 0)) return BOSSES[hash('hr-raid-' + w) % BOSSES.length];
+    if (tier == null || !(tier | 0)) { var all = BOSSES_(); return all[hash('hr-raid-' + w) % all.length]; }
     var set = bossesForTier(tier);
     return set[hash('hr-hunt-' + (tier | 0) + '-' + w) % set.length];
   }
   function bossById(id) {
-    for (var i = 0; i < BOSSES.length; i++) if (BOSSES[i].id === id) return BOSSES[i];
+    var all = BOSSES_();
+    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
     return null;
   }
 
@@ -1420,7 +1407,7 @@
   else arm();
 
   window.HearthriseRaids = {
-    BOSSES: BOSSES,
+    get BOSSES() { return BOSSES_(); },
     HUNT_TIERS: HUNT_TIERS,
     BANDS: BANDS,
     bossOfWeek: bossOfWeek,

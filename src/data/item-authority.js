@@ -53,10 +53,10 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=450';
-import { ARTISAN_RECIPES } from './recipes.js?v=450';
-import { MONSTERS } from './monsters.js?v=450';
-import { BOSSES } from './bosses.js?v=450';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=451';
+import { ARTISAN_RECIPES } from './recipes.js?v=451';
+import { MONSTERS } from './monsters.js?v=451';
+import { BOSSES } from './bosses.js?v=451';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -162,8 +162,26 @@ export const WORKER_PRODUCTION_SERVER_BACKED = false;   // REVERTED to dormant b
    lane below is an arm-blocker (assumeOwnable), and the flip fails closed. The
    client grantReward addItem is already gated on the inventory record seam, so no
    raid reward is stranded by the gate — the flip simply cannot arm. Flip TRUE only
-   in the commit that makes the raid server mint live + verified. */
-export const RAID_ITEMS_SERVER_BACKED = false;   // DORMANT — raid chest mats/sig not yet server-written
+   in the commit that makes the raid server mint live + verified.
+
+   ── BACKED (2026-08-22, LIVE) ───────────────────────────────────────────────
+   The prerequisite landed: the raid boss reward catalogue was extracted to the
+   pure data layer (src/data/raid-bosses.js, published as window.RAID_BOSSES) and
+   generated into the DB (hr_hunt_boss_reward, tools/gen-raid-boss-rewards.mjs +
+   2026-08-22-raid-boss-rewards.generated.sql, drift-guarded in run-smoke). The
+   raid_claim RPC now mints the chest MATERIALS + signature into player_inventory
+   from that server catalogue — clan AND solo paths — scaled the same way the
+   client's chestFor/grantReward did (each = round(chest_mats / n_ids), per-id qty
+   = greatest(1, floor(each × scale)); solo = first two materials at qty 1; sig ×1
+   when the server's v_sig roll lands), consume-before-credit so a replay never
+   double-mints alongside the b412 gold/gems credit, journalled on the SAME 'raid'
+   ledger row. Applied + in-tx self-check verified live (2026-08-22-raid-chest-items.sql:
+   credit-once, replay-refused, materials land, no double-mint with the gold path,
+   net-zero rolled-back probe). So this is TRUE and the raid lane is no longer an
+   arm-blocker — unbackedOwnableMintLanes() drops it. The client grantReward addItem
+   stays inventory-seam gated (b450): pre-arm it credits locally, post-arm it no-ops
+   and the server-minted items arrive via the inventory envelope. */
+export const RAID_ITEMS_SERVER_BACKED = true;   // LIVE — 2026-08-22-raid-chest-items.sql applied + verified
 
 /* ── MUSTER ABSENCE CHEST ITEMS — SERVER-BACKED (2026-08-22, LIVE) ───────────
    The muster ONLINE claim (world_event_claim) has written its chest items to

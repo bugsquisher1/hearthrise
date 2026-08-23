@@ -103,11 +103,16 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm } from './accrue.js?v=454';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm } from './accrue.js?v=455';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=454';
+import { applyClientState } from './client-state.js?v=455';
+/* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
+   field, so it is also the one place that can honestly retire a prediction: the
+   number it is about to stamp already contains whatever the client predicted.
+   predict.js imports nothing, so there is no cycle. */
+import { clearPredictionsFor, resetPredictions } from './predict.js?v=455';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -903,7 +908,14 @@ export function forgetServerOfRecord(G) {
      field's presence precisely so a leftover value cannot be reported as
      server-supplied; forgetting the value without forgetting the claim would
      have inverted that into reporting `undefined` as server-supplied. */
-  if (G._record) G._record = { ...G._record, known: [], stamp: {}, forgottenAt: Date.now() };
+  /* b455 — AND THE LAST-KNOWN-GOOD CACHE GOES WITH THEM, for exactly the reason
+     the `known` list does. The cache is what the DISPLAY falls back on; carrying
+     it across a strip (a slot switch, a sign-out, a device handoff) would render
+     the PREVIOUS character's balance and levels while the new one loads. The
+     prediction scratch goes for the same reason — a predicted gather tick belongs
+     to the character it was made about and to no other. */
+  if (G._record) G._record = { ...G._record, known: [], stamp: {}, last: {}, forgottenAt: Date.now() };
+  try { resetPredictions(G); } catch (e) {}
   return forgotten;
 }
 
@@ -1011,6 +1023,25 @@ export function applyRecord(G, res) {
     if (known.indexOf(f) === -1) known.push(f);
   }
   const version = stale && Number.isFinite(prev) ? prev : dec.version;
+  /* ── THE LAST-KNOWN-GOOD CACHE (b455) ─────────────────────────────────────
+     A COPY of the last value the SERVER actually stated for each field, kept
+     beside the stamp. It is NOT a second source of authority — `recordValue` does
+     not read it and neither does any spend — it exists so the DISPLAY path has
+     something honest to fall back on when the stamp stops matching.
+
+     WHY IT IS NEEDED. `recordValue` answers UNKNOWN the instant anything other
+     than this function moves a stamped field. Fail-closed is right for authority
+     and catastrophic for a renderer: legacy `getLevel()` floors an UNKNOWN skill
+     to 1, which is how a single un-gated `G.skills` write turned into the live
+     "woodcutting bouncing from lvl 5 to lvl 1 over and over again". With this
+     cache the display degrades to a slightly-stale REAL number instead of to 1,
+     so a writer this sweep did not find costs freshness and never a bounce.
+
+     Deep-copied for map fields, because `G[f]` is the very object a second writer
+     mutates — keeping the reference would cache the corruption it exists to
+     survive. Maps here are ~15 keys and this runs once per settle. */
+  const lastBase = base && base.last && typeof base.last === 'object' ? { ...base.last } : {};
+  for (const f of written) lastBase[f] = cloneRecordValue(G[f]);
   G._record = {
     version,
     at: Date.now(),
@@ -1018,8 +1049,46 @@ export function applyRecord(G, res) {
     known,
     missing: dec.missing.slice(),
     stamp,
+    last: lastBase,
   };
-  return { written, missing: dec.missing, version, filledStale: stale };
+  /* ── RETIRE THE PREDICTIONS THIS ENVELOPE ALREADY CONTAINS (b455) ──────────
+     The same rule gold.js's reconcilePredictions follows, applied at the record
+     seam: a field the server has just restated ABSOLUTELY includes every action
+     the client predicted for it, so carrying the prediction on top would
+     double-count. ONLY the fields actually WRITTEN — a lean envelope that
+     supplied no `skills` must not clear xp a live tick has predicted since, or
+     the display would drop progress the server has not yet stated. */
+  let retired = null;
+  try { retired = clearPredictionsFor(G, written); } catch (e) {}
+  return { written, missing: dec.missing, version, filledStale: stale, retired };
+}
+
+/** A defensive copy for the last-known-good cache. Scalars pass through; a map
+ *  is shallow-copied one level (every record map in this game is `{key: number}`
+ *  or `{key: string|null}`), which is enough to be immune to a later in-place
+ *  mutation of `G[field]`. */
+function cloneRecordValue(v) {
+  if (v === null || typeof v !== 'object') return v;
+  if (Array.isArray(v)) return v.slice();
+  const out = {};
+  for (const k in v) if (Object.prototype.hasOwnProperty.call(v, k)) out[k] = v[k];
+  return out;
+}
+
+/**
+ * THE LAST VALUE THE SERVER ACTUALLY STATED for a moved field, or `undefined`.
+ *
+ * ⚠ NOT AUTHORITY, AND NEVER TO BE USED AS ANY. It is deliberately NOT consulted
+ *   by `recordValue`, `balanceOf`, `skillXpOf`, `canAfford`, or anything that
+ *   crosses to another player. Its ONE job is to let a renderer show a real,
+ *   if slightly stale, number instead of an em dash or a level 1 while the
+ *   record is temporarily un-vouchable. See the block in applyRecord.
+ */
+export function recordLastKnown(G, field) {
+  const rec = G && G._record;
+  if (!rec || !rec.last || typeof rec.last !== 'object') return undefined;
+  const f = String(field == null ? '' : field);
+  return Object.prototype.hasOwnProperty.call(rec.last, f) ? rec.last[f] : undefined;
 }
 
 /* ── THE ONLY READ ACCESSOR ─────────────────────────────────────────────────
@@ -1319,7 +1388,7 @@ if (typeof window !== 'undefined') {
     decodeRestedAt, fingerprintRestedAt,
     RESTED_RECORD_ARM_ENABLED, isRestedRecordArmed, __setRestedRecordArm,
     stripServerOfRecord, forgetServerOfRecord,
-    decodeRecord, applyRecord, recordValue,
+    decodeRecord, applyRecord, recordValue, recordLastKnown,
     configureRecord, getRecordConfig, recordEndpoint,
     buildLoadRequest, classifyLoadResponse,
     requestRecord, beginRecordLoad, getRecordState, resetRecord,

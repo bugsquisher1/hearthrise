@@ -39,7 +39,8 @@
 // It never WRITES a skill. Not a default, not a repair. DOM-free. Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue } from './record.js?v=454';
+import { isServerOfRecord, recordValue, recordLastKnown } from './record.js?v=455';
+import { predictedXp, predictedXpMap } from './predict.js?v=455';
 
 /** The one read. Everything else is a shape of this answer.
  *  @returns {{id, known, value, reason, source}} value is null when !known. */
@@ -115,6 +116,153 @@ export function skillLevelOf(G, id, levelFn) {
   if (!fn) return null;
   const lv = Number(fn(b.value));
   return Number.isFinite(lv) ? lv : null;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE DISPLAY SIDE (b455) — SERVER TRUTH **PLUS** THE PREDICTION
+   ══════════════════════════════════════════════════════════════════════════
+
+   Everything above is the AUTHORITY side and stays exactly as it was: it answers
+   what the SERVER said, or UNKNOWN, and it never adds a client number. Nothing
+   that gates, spends, or crosses to another player may use anything below.
+
+   What is below is what a RENDERER asks. It differs in two deliberate ways and
+   both were paid for by the live "woodcutting bouncing lvl 5 → lvl 1" defect:
+
+   1. IT ADDS THE PREDICTION. Under the arm the client no longer writes G.skills
+      (legacy.js addXp routes to predict.js instead), so the record stays
+      `known:true` and the player would otherwise see NOTHING move for up to the
+      server's 90-second settle floor. Display = server xp + predicted delta, so
+      every tick moves the bar immediately and the settle is a small snap rather
+      than the only event.
+
+   2. IT NEVER ANSWERS "UNKNOWN" ONCE THE SERVER HAS EVER SPOKEN. The authority
+      accessor fail-closes the moment anything but applyRecord touches G.skills.
+      For a spend that is right. For a renderer it is how one un-gated write
+      became a level-1 bounce. So the display walks a LADDER, most-trustworthy
+      first, and only the top rung is ever treated as authority:
+
+        (a) record KNOWN            → the server's map. The normal path.
+        (b) record CLIENT-OVERWROTE → the local `G.skills` value. Something wrote
+                                      it; it is optimistic, not forged-by-design,
+                                      and it is strictly better to show than a
+                                      collapse to 1. (A devtools forgery shows a
+                                      wrong number to the forger and changes
+                                      nothing the server does.)
+        (c) last-known-good         → the last value the SERVER stated
+                                      (record.js `recordLastKnown`), for the case
+                                      where G.skills is unreadable entirely.
+        (d) nothing has ever landed → UNKNOWN, and the caller must handle it.
+                                      Only reachable BEFORE the first envelope.
+
+   Rung (b) is what makes the bounce structurally impossible instead of merely
+   fixed: it does not depend on this sweep having found every writer. */
+
+/** THE DISPLAY READ. Same answer shape as skillXpOf, plus `predicted` and the
+ *  `rung` it came from (for the diagnostic — a display that silently degrades is
+ *  a display nobody notices has degraded). */
+export function skillXpForDisplay(G, id) {
+  const key = String(id == null ? '' : id);
+  if (!G || typeof G !== 'object') {
+    return { id: key, known: false, value: null, predicted: 0, rung: 'no-state', source: 'none' };
+  }
+  const pred = predictedXp(G, key);
+  if (!isServerOfRecord('skills')) {
+    /* DORMANT — the client owns G.skills, so it is BOTH the truth and where any
+       gain already landed. Adding a prediction here would double-count; there is
+       none to add, because nothing predicts while the write gate is open. */
+    const b = skillXpOf(G, key);
+    return { id: key, known: b.known, value: b.value, predicted: 0, rung: 'local', source: b.source };
+  }
+  const rv = recordValue(G, 'skills');
+  let base = null;
+  let rung = null;
+  if (rv.known && rv.value && typeof rv.value === 'object') {
+    base = numOrNull(rv.value[key]);
+    if (base === null && !Object.prototype.hasOwnProperty.call(rv.value, key)) base = 0;
+    rung = 'server';
+  }
+  if (base === null && rv.source === 'client-overwrote') {
+    const map = (G.skills && typeof G.skills === 'object' && !Array.isArray(G.skills)) ? G.skills : null;
+    if (map) {
+      base = Object.prototype.hasOwnProperty.call(map, key) ? numOrNull(map[key]) : 0;
+      if (base !== null) rung = 'client-overwrote';
+    }
+  }
+  if (base === null) {
+    const last = recordLastKnown(G, 'skills');
+    if (last && typeof last === 'object') {
+      base = Object.prototype.hasOwnProperty.call(last, key) ? numOrNull(last[key]) : 0;
+      if (base !== null) rung = 'last-known';
+    }
+  }
+  if (base === null) {
+    return { id: key, known: false, value: null, predicted: pred, rung: 'unknown',
+      source: rv.source || 'unknown' };
+  }
+  /* Clamped at 0: a NEGATIVE prediction (a refunded/reversed grant) must never
+     render a negative xp bar, and a level curve fed a negative is undefined. */
+  return { id: key, known: true, value: Math.max(0, Math.floor(base + pred)),
+    predicted: pred, rung, source: rung === 'server' ? 'server' : rung };
+}
+
+function numOrNull(v) {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+}
+
+/** The DISPLAY xp as a number, with an explicit fallback. This is what legacy's
+ *  `skillXp()` reads. */
+export function skillXpForDisplayOr(G, id, fallback) {
+  const b = skillXpForDisplay(G, id);
+  return b.known ? b.value : (fallback === undefined ? 0 : fallback);
+}
+
+/** The DISPLAY level, or `null` when nothing has ever landed. The caller still
+ *  decides what "nothing has ever landed" means — but unlike skillLevelOf, this
+ *  cannot answer null merely because a local write happened. */
+export function skillLevelForDisplay(G, id, levelFn) {
+  const b = skillXpForDisplay(G, id);
+  if (!b.known) return null;
+  const fn = resolveLevelFn(levelFn);
+  if (!fn) return null;
+  const lv = Number(fn(b.value));
+  return Number.isFinite(lv) ? lv : null;
+}
+
+/** The DISPLAY skills map — server truth (or the ladder's fallback) plus every
+ *  prediction. For the rollups (`totalLevel`, `combatLevel`) that need the whole
+ *  map at once rather than one id. Always an object, never null. */
+export function skillsForDisplay(G) {
+  const out = {};
+  if (!G || typeof G !== 'object') return out;
+  const seen = {};
+  const push = (src) => {
+    if (!src || typeof src !== 'object' || Array.isArray(src)) return;
+    for (const k in src) if (Object.prototype.hasOwnProperty.call(src, k)) seen[k] = true;
+  };
+  if (isServerOfRecord('skills')) {
+    const rv = recordValue(G, 'skills');
+    push(rv.known ? rv.value : null);
+    push(recordLastKnown(G, 'skills'));
+  }
+  push(G.skills);
+  push(predictedXpMap(G));
+  for (const k in seen) {
+    const b = skillXpForDisplay(G, k);
+    if (b.known) out[k] = b.value;
+  }
+  return out;
+}
+
+function resolveLevelFn(levelFn) {
+  if (typeof levelFn === 'function') return levelFn;
+  if (typeof window !== 'undefined' && window.HearthriseCore
+      && window.HearthriseCore.xp && typeof window.HearthriseCore.xp.levelFromXp === 'function') {
+    return window.HearthriseCore.xp.levelFromXp;
+  }
+  if (typeof window !== 'undefined' && typeof window.levelFromXp === 'function') return window.levelFromXp;
+  return null;
 }
 
 /** One line for a diagnostic / bug report — never player-facing. */

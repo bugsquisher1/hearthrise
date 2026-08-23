@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 455 — 2026-08-23 (Cutover fix: local save fully retired)
+
+- 🐛 Fixed stale pre-wipe data resurrecting on devices that played before the cutover: under server authority the game no longer writes or reads the old local save at all — your character loads purely from the server every boot. Fresh devices were never affected.
+
 ## v0.9.2-beta build 454 — 2026-08-23 (Server-authoritative cutover — your character now lives on the server)
 
 - 🎉 The big one. After the wipe, your entire character — gold, gems, skills, inventory, bank, equipment, rooms, farm, companions, bounty marks — is now owned and computed by the server. Nothing is stored authoritatively on your device anymore, so progress can never drift between devices or be tampered with, and the old "replace your local progress" device prompt is gone for good. Offline progress is still exactly what active play would earn, minus world buffs — computed by the server. Fresh start for everyone.

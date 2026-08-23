@@ -749,6 +749,14 @@ function _activeSaveSlot(){
   return null;
 }
 function saveLocal(){
+  /* b455 BLOB-RETIRE (capstone completion) — under the arm the SERVER is the
+     sole authoritative copy of the character; a local blob is not a cache, it
+     is a STALE RIVAL. The live cutover proved it: the pagehide autosave kept
+     re-persisting a pre-wipe mix between every clear-and-reload, resurrecting
+     dead state on each boot (the "items are still here" loop). Under arm the
+     local blob is simply never written; boot loads pure server (record +
+     residue + reconciles). Dormant: byte-for-byte as before. */
+  try{ if(window.HearthriseCapstone && window.HearthriseCapstone.isBlobRetired()) return; }catch(e){}
   /* b224 ACCOUNT WALL — the single most dangerous line in this change.
      While the gate is closed boot() has NOT run, so loadLocal() has NOT run,
      so `G` is still the factory-default object. Any autosave, any hook, any
@@ -1167,6 +1175,19 @@ function stripRecordFields(d){
   return out.blob;
 }
 function loadLocal(){
+  /* b455 BLOB-RETIRE (capstone completion) — under the arm the character loads
+     ENTIRELY from the server (applyRecord + client_state hydrate + the
+     reconcile* rebuilds). A local blob read here would seed G with a stale
+     rival copy that the empty-bag hydrate cannot fully overwrite (it only
+     writes fields the server bag HAS) — the exact stale-state loop from the
+     live cutover. Under arm: skip the read, and drop any leftover blob so a
+     later disarm can't resurrect it. Dormant: byte-for-byte as before. */
+  try{
+    if(window.HearthriseCapstone && window.HearthriseCapstone.isBlobRetired()){
+      try{ _removeSave(SAVE_KEY); }catch(e){}
+      return;
+    }
+  }catch(e){}
   // b127: must MUTATE G in place. Earlier we did `G = {...G, ...migrated}`
   // which silently breaks every caller that reads `window.G` — they keep
   // a reference to the *old* object while the module-scoped `G` points

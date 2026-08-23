@@ -459,9 +459,19 @@ body[data-theme="classic"] {
      Tyler's report. 52px is the largest cell whose four rows clear the fold
      under this screen's 179px header, and it is 8px above the 44px tap
      floor. */
+  /* SIX ROWS, NOT FOUR, so the number changed with it. Fourteen gear slots in
+     the canonical three-wide paper-doll is six rows; at the old 52px cell that
+     is 335px, and at the 44px iOS tap floor it is 283px. The panel's own
+     header measures 179px here, which leaves 244px — so on a 423px-tall
+     landscape phone a fourteen-slot doll CANNOT be both fully above the fold
+     and tappable, and the honest answer is to keep the target size and let the
+     equip column scroll the last ~40px (it is already `overflow-y:auto` at
+     this breakpoint — see the b392 note in art-direction.css). Shrinking the
+     cell to 36px to win the fold would put every slot under the tap floor,
+     which is the worse trade on a touch screen. */
   .td-doll {
-    --td-cell: 52px;
-    gap: 4px !important;
+    --td-cell: 44px;
+    gap: 3px !important;
   }
   /* The empty-slot WORD cannot come with it, and that is a ruling rather than
      a shrug. "NECKLACE" needs ~70px at the 14.5px type floor this project does
@@ -3420,8 +3430,13 @@ body[data-theme="hearthlight"] #panel-inventory .td-slot:has(img) {
 body[data-theme="hearthlight"] #panel-inventory .td-slot img {
   width: 100%; height: 100%; object-fit: contain;
 }
-/* The per-slot word labels were the main space cost — the tooltip covers it. */
-body[data-theme="hearthlight"] #panel-inventory .td-slot-lbl { display: none !important; }
+/* The empty-slot caption is BACK on this mount (it was `display:none` here and
+   visible on Character > Equipment and on the Fight rail — one component
+   labelling itself on two screens out of three, so the Inventory doll was a
+   grid of abstract line glyphs and nothing said which was Cape and which was
+   Ammo). It costs no space now: the caption rides the slot's bottom edge
+   instead of stacking under the glyph. Short screens still hide it — see the
+   mobile-landscape block above, where a 44px cell cannot hold "Necklace". */
 /* With everything in view the column no longer needs its own scrollbar. */
 body[data-theme="hearthlight"] #panel-inventory .invc-equip-col { overflow: visible !important; }
 

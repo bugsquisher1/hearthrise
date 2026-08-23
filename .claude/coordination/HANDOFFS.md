@@ -2,6 +2,29 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-23 · FROM Art Director → TO Asset Director · **Two empty-slot glyphs now carry the whole cell and two of them read wrong**
+
+The equipment doll is the canonical three-wide paper-doll now, and the empty state changed shape:
+the gilt line glyph from `slotGlyphSVG` (`src/legacy.js:14178`) has the whole cell to itself (46% of
+a 68px tile, up from a squeezed 42% above a stacked word), and on a landscape phone the caption is
+hidden entirely — **so on a phone the glyph is the only thing identifying the slot.** Two of the
+fourteen do not survive that promotion:
+
+- **`ammo`** — `M5 19L18 6` with a head and a fletch. At 31px it reads as a **UI resize handle**,
+  not a quiver. It is also the only glyph in the set that points diagonally, which is what makes it
+  look like chrome rather than gear.
+- **`cape`** — a rectangle with a vertical centre line. Reads as a blank panel / placeholder.
+
+Not urgent (P3) and NOT blocking — the desktop captions carry the meaning today. But these are the
+two I would re-draw first if the slot vocabulary gets a pass. The rest of the set (helmet, necklace,
+gloves, boots, belt, shield, body, pants, ring, earrings) reads fine at the new size; I checked all
+fourteen in a half-empty loadout at both viewports.
+
+No code change wanted from you unless you are re-cutting the set — this is a "when you're next in
+here" note, filed so it is not rediscovered.
+
+---
+
 ### 2026-08-23 · FROM QA Engineer → TO Systems Engineer · **The farm arm is the only one with no reachable test seam — please publish `__setFarmServerArm`**
 
 Every other arm in the server-authority program exposes its override on a window global, so an in-page

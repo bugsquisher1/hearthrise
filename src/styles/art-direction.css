@@ -2367,12 +2367,11 @@ body[data-theme] .brand-word {
     min-width: 0; min-height: 0;
     overflow-y: auto !important;
   }
-  /* The doll declares SIX rows of `minmax(64px,90px)` for a layout that uses
-   * FOUR — two empty 90px rows, and rows 2.3x taller than the square cells
-   * sitting in them. Four content-sized rows. */
-  body[data-theme] #panel-inventory .invc-equip-col .td-doll {
-    grid-template-rows: repeat(4, auto) !important;
-  }
+  /* The row COUNT left this sheet. It was `repeat(4, auto) !important` — a
+   * correction for the six fixed 90px tracks that used to be declared for a
+   * four-row layout — and an `!important` row count is exactly the wrong tool
+   * now that the renderer knows how many rows its slot set uses and sets them
+   * inline (inline loses to !important). No sheet may declare the doll's rows. */
   /* Equipment / Stats / Companion wrapped to two lines in the narrowed column
    * (66px for three words). Tighter gutters keep them on one rank without
    * touching the 14.5px floor. */

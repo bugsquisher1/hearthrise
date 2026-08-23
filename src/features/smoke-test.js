@@ -16603,7 +16603,12 @@ const TESTS = [
       doll.parentElement.style.width = '860px';
       doll.parentElement.style.maxWidth = 'none';
       const stretched = measure(doll);
-      out = { vpW: win.innerWidth, vpH: win.innerHeight, natural, stretched, inventory };
+      /* The paper-doll is six rows tall and a 423px phone cannot hold six
+         tappable rows under a 179px header, so the column's own scroll is what
+         makes the bottom rows reachable. Read it rather than assume it. */
+      const invCol = doc.querySelector('#panel-inventory .invc-equip-col');
+      const invColOverflowY = invCol ? win.getComputedStyle(invCol).overflowY : null;
+      out = { vpW: win.innerWidth, vpH: win.innerHeight, natural, stretched, inventory, invColOverflowY };
     } finally {
       frame.remove();
     }
@@ -16631,17 +16636,32 @@ const TESTS = [
     // (4) Still tappable, and still entirely on the 423px screen.
     assert(out.natural.cellW >= 44,
       'the slot must stay above the 44px tap floor on a phone — measured ' + Math.round(out.natural.cellW) + 'px');
-    /* THE FOLD, stated as a budget rather than a rendered top edge. The probe
-     * renders the doll alone — it does not reproduce the topbar, the activity
-     * strip, the Skills/Equipment/Hero tabs or the Equipment/Stats/Companion
-     * pills above it. Those measured 179px on the live page at this viewport
-     * (screenshot, not inference), so the doll's own height is what has to fit
-     * in what is left. The shipped doll was 808px against a 244px allowance. */
+    /* THE FOLD — RE-RULED when the doll became a real paper-doll, and the
+     * re-ruling is stated here rather than buried, because it relaxes a
+     * previously absolute assertion.
+     *
+     * The old budget was `dollH + 179 <= 423`: the header measured 179px on the
+     * live page at this viewport (screenshot, not inference), leaving 244px,
+     * and a FOUR-row 4x4 table fitted. Fourteen gear slots in the canonical
+     * THREE-wide doll is SIX rows, and six rows at the 44px iOS tap floor is
+     * 287px. 287 > 244, and no cell size satisfies both — 36px would win the
+     * fold by putting every slot under the tap floor, on a touch screen, where
+     * these slots are the tap targets. So: KEEP THE TARGET, LET THE COLUMN
+     * SCROLL, and assert the two things that actually protect the player —
+     *   (a) the height stays BOUNDED, so it can never drift back toward the
+     *       808px that started this (that is the regression this test exists
+     *       for; it was never really about the exact fold line), and
+     *   (b) the column holding it is genuinely scrollable at this viewport, so
+     *       "below the fold" means "one flick away" and not "unreachable".
+     * (b) is a STRONGER guarantee than the old assertion, which proved the doll
+     * fitted but never proved a taller one would be reachable. */
     const HEADER_PX = 179;
-    assert(out.natural.dollH + HEADER_PX <= 423,
-      'the whole doll must fit above the fold on a 423px-tall landscape phone — doll ' + Math.round(out.natural.dollH) +
-      'px + ' + HEADER_PX + 'px of measured header = ' + Math.round(out.natural.dollH + HEADER_PX) +
-      ' of 423 (the shipped doll was 808px, putting boots and ring 2 off-screen)');
+    const DOLL_H_CEILING = 300;   // 287px measured; the 808px defect is 2.7x this
+    assert(out.natural.dollH <= DOLL_H_CEILING,
+      'the doll must stay compact on a 423px-tall landscape phone — measured ' + Math.round(out.natural.dollH) +
+      'px against a ' + DOLL_H_CEILING + 'px ceiling (' + HEADER_PX + 'px of that screen is header; the shipped 4-sheet defect reached 808px)');
+    assert(/^(auto|scroll)$/.test(String(out.invColOverflowY)),
+      'the equipment column must be scrollable at 922x423 — the six-row paper-doll is taller than the fold by design, so overflow-y must be auto/scroll for boots, rings and earrings to be reachable; computed ' + out.invColOverflowY);
     assert(out.natural.right <= 922,
       'the doll must not run off the right edge — right edge at ' + Math.round(out.natural.right) + 'px');
 
@@ -16658,6 +16678,181 @@ const TESTS = [
       'the inventory doll\'s slots must be square too — worst difference ' + Math.round(out.inventory.maxSkew) + 'px');
     assert(out.inventory.cellW <= 96,
       'the inventory doll must not inflate its cell to fill the column — measured ' + Math.round(out.inventory.cellW) + 'px (was 152px)');
+  }),
+
+  () => tryRun('DOLL-LAYOUT: the equipment doll is the canonical paper-doll — helmet at the apex, weapon left of body, offhand right of it, rings flanking the boots (Tyler: "this player doll layout makes no fucking sense. in what game have you seen it work like this?")', () => {
+    /* WHAT WAS WRONG. Equipment was drawn twice and neither drawing was a
+     * paper-doll. `buildTibiaDoll` laid fourteen slots out as a 4x4 TABLE
+     * (cape/helmet/necklace/ammo across the top, weapon/body/offhand/earrings
+     * under it). The Fight screen's loadout rail let twelve slots auto-flow in
+     * ARRAY order into three columns, which rendered Weapon/Offhand/Ammo over
+     * Necklace/Helmet/Body over Pants/Cape/Gloves over Boots/Ring 1/Ring 2 —
+     * rows that correspond to nothing on a body, and which DISAGREED with the
+     * other doll, so the same slot sat in a different place depending on which
+     * screen you opened.
+     *
+     * WHY THIS TEST ASSERTS RELATIONSHIPS AND NOT COORDINATES. A test that
+     * pinned `helmet === [2,1]` would pass on any grid that happened to put a
+     * helmet there, including a table. What makes it a doll is the RELATIONS —
+     * the helmet is alone at the top, the weapon and the offhand flank the
+     * body on one row, the ring pair mirrors around the boots — plus the thing
+     * that separates a doll from a spreadsheet: THE APEX CORNERS ARE EMPTY.
+     * A layout with no holes is a table however you order it, which is exactly
+     * how the 4x4 got shipped.
+     *
+     * MUTATION PROVEN: restore the old 4-wide LAYOUT in doll-layout.js and the
+     * apex-corner, flank and column-count assertions all fail; delete the
+     * `place()` call from combat-screens.js renderDoll and the rail-agreement
+     * assertions fail. */
+    const DL = window.HearthriseDollLayout;
+    assert(DL && typeof DL.place === 'function',
+      'window.HearthriseDollLayout must exist — it is the ONE table every equipment mount places from');
+
+    // ── 1 · EVERY GEAR SLOT HAS A HOME ────────────────────────────────────
+    // A slot with no entry lands in auto-flow, which is silent and is how the
+    // rail ended up in array order. Adding a slot to EQUIP_SLOTS must fail here.
+    const allSlots = (window.EQUIP_SLOTS || []).filter((s) => s !== 'companion');
+    assert(allSlots.length >= 12, 'EQUIP_SLOTS looks empty in this env (' + allSlots.length + ')');
+    const homeless = allSlots.filter((s) => !DL.has(s));
+    assert(homeless.length === 0,
+      'every gear slot must have a cell in the paper-doll or it silently auto-flows — unplaced: ' + homeless.join(', '));
+    assert(!DL.has('companion'),
+      'the companion is not worn on a body — it belongs in its own pane (b216), not in the doll grid');
+
+    // ── 2 · THE RENDERED CHARACTER DOLL ───────────────────────────────────
+    const built = window.buildTibiaDoll();
+    assert(built, 'buildTibiaDoll must return a node');
+    const grid = built.querySelector('.td-doll');
+    assert(grid, 'the built doll has no .td-doll grid');
+    const at = {};
+    grid.querySelectorAll('.td-slot').forEach((el) => {
+      const cls = [...el.classList].find((c) => c.startsWith('td-') && c !== 'td-slot' && c !== 'td-companion-slot');
+      if (!cls) return;
+      const col = parseInt(el.style.gridColumn, 10);
+      const row = parseInt(el.style.gridRow, 10);
+      assert(col >= 1 && row >= 1,
+        'slot ' + cls + ' was rendered WITHOUT a grid position — it is auto-flowing, which is the defect this layout replaced');
+      at[cls.replace(/^td-/, '')] = { col, row };
+    });
+
+    const need = ['helmet', 'cape', 'necklace', 'ammo', 'weapon', 'body', 'gloves', 'pants', 'ring1', 'boots', 'ring2'];
+    need.forEach((s) => assert(at[s], 'the doll did not render the ' + s + ' slot'));
+
+    // THREE columns. A paper-doll is left-hand / body / right-hand; four is a table.
+    const cols = Math.max(...Object.values(at).map((p) => p.col));
+    assert(cols === 3, 'the doll must be exactly three columns wide, measured ' + cols +
+      ' (four columns is the 4x4 table this replaced)');
+    assert(DL.COLS === 3, 'the layout table must declare three columns, declares ' + DL.COLS);
+
+    // THE APEX. Helmet alone on the top row, in the centre column.
+    const topRow = Math.min(...Object.values(at).map((p) => p.row));
+    assert(at.helmet.row === topRow && at.helmet.col === 2,
+      'the helmet must sit alone at the top-centre of the doll — found col ' + at.helmet.col + ' row ' + at.helmet.row);
+    const alsoOnTop = Object.keys(at).filter((s) => at[s].row === topRow && s !== 'helmet');
+    assert(alsoOnTop.length === 0,
+      'the top row belongs to the helmet alone — the empty corners either side of it ARE the silhouette; found ' + alsoOnTop.join(', ') + ' up there too');
+
+    // THE ARMS. Weapon left of the body, offhand right of it, all on one row.
+    assert(at.weapon.row === at.body.row && at.weapon.col < at.body.col,
+      'the weapon must sit on the body\'s row, to its LEFT — weapon ' + JSON.stringify(at.weapon) + ' body ' + JSON.stringify(at.body));
+    if (at.shield) {
+      assert(at.shield.row === at.body.row && at.shield.col > at.body.col,
+        'the offhand must sit on the body\'s row, to its RIGHT — offhand ' + JSON.stringify(at.shield));
+    }
+
+    // THE SHOULDER ROW, directly under the helmet: cape | necklace | ammo.
+    assert(at.necklace.col === 2 && at.necklace.row === at.helmet.row + 1,
+      'the necklace belongs directly under the helmet — found ' + JSON.stringify(at.necklace));
+    assert(at.cape.row === at.necklace.row && at.cape.col < at.necklace.col,
+      'the cape belongs on the necklace\'s row, to its left — found ' + JSON.stringify(at.cape));
+    assert(at.ammo.row === at.necklace.row && at.ammo.col > at.necklace.col,
+      'the ammo/quiver belongs on the necklace\'s row, to its right — found ' + JSON.stringify(at.ammo));
+
+    // THE SPINE. helmet -> necklace -> body -> pants -> boots, all centre column,
+    // strictly top to bottom. This is the read that makes it a body.
+    const spine = ['helmet', 'necklace', 'body', 'pants', 'boots'];
+    spine.forEach((s) => assert(at[s].col === 2, s + ' must sit in the doll\'s centre column, found col ' + at[s].col));
+    for (let i = 1; i < spine.length; i++) {
+      assert(at[spine[i]].row > at[spine[i - 1]].row,
+        'the doll reads head to foot: ' + spine[i] + ' must sit BELOW ' + spine[i - 1] +
+        ' (' + spine[i - 1] + ' row ' + at[spine[i - 1]].row + ', ' + spine[i] + ' row ' + at[spine[i]].row + ')');
+    }
+
+    // THE RINGS. A mirrored pair around the boots — two identical glyphs read as
+    // "your two rings" only when they are symmetric.
+    assert(at.ring1.row === at.boots.row && at.ring2.row === at.boots.row,
+      'ring 1 and ring 2 must flank the boots on one row — ring1 ' + JSON.stringify(at.ring1) + ' ring2 ' + JSON.stringify(at.ring2) + ' boots ' + JSON.stringify(at.boots));
+    assert(at.ring1.col < at.boots.col && at.ring2.col > at.boots.col,
+      'the ring pair must MIRROR around the boots (one either side), found ring1 col ' + at.ring1.col + ' ring2 col ' + at.ring2.col);
+    assert(at.gloves.col === 1 && at.gloves.row === at.pants.row,
+      'the gloves belong on the legs\' row, on the hand side — found ' + JSON.stringify(at.gloves));
+
+    // ── 3 · DOM ORDER IS READING ORDER ────────────────────────────────────
+    // Tab order and screen readers follow the DOM, not the grid.
+    const domOrder = [...grid.querySelectorAll('.td-slot')].map((el) => ({
+      row: parseInt(el.style.gridRow, 10), col: parseInt(el.style.gridColumn, 10),
+    }));
+    for (let i = 1; i < domOrder.length; i++) {
+      const a = domOrder[i - 1]; const b = domOrder[i];
+      assert(b.row > a.row || (b.row === a.row && b.col > a.col),
+        'the doll\'s DOM order must run top-to-bottom, left-to-right (the tab key walks the DOM) — ' +
+        'slot ' + i + ' at r' + b.row + 'c' + b.col + ' follows r' + a.row + 'c' + a.col);
+    }
+
+    // ── 4 · THE FIGHT RAIL DRAWS THE SAME DOLL ────────────────────────────
+    // One shape, two slot sets: the rail carries no belt and no earrings, so it
+    // COMPACTS to five rows while every slot it does draw keeps its column and
+    // its relative row. Before this change the rail was a different arrangement
+    // entirely, which is what Tyler was looking at.
+    const CS = window.HearthriseCombatScreens;
+    assert(CS && typeof CS.preview === 'function', 'the Fight screen did not boot — its loadout rail cannot be checked');
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      try { window.stopCombat(); } catch (e) {}
+      window.G.activeMonster = null;
+      assert(CS.preview('goblin'), 'preview() refused a live monster id');
+      const rail = document.getElementById('fsm-doll');
+      assert(rail, 'there is no loadout rail on the Fight screen');
+      const railAt = {};
+      rail.querySelectorAll('.fsm-slot').forEach((el) => {
+        const s = el.getAttribute('data-slot');
+        const col = parseInt(el.style.gridColumn, 10);
+        const row = parseInt(el.style.gridRow, 10);
+        assert(col >= 1 && row >= 1,
+          'the Fight rail rendered ' + s + ' with no grid position — it is auto-flowing in array order again, which IS the reported defect');
+        railAt[s] = { col, row };
+      });
+      ['helmet', 'weapon', 'body', 'shield', 'boots', 'ring1', 'ring2', 'cape', 'necklace', 'ammo', 'pants', 'gloves']
+        .forEach((s) => assert(railAt[s], 'the Fight rail is missing the ' + s + ' slot'));
+
+      // Same columns as the Character doll, slot for slot.
+      Object.keys(railAt).forEach((s) => {
+        assert(at[s] && railAt[s].col === at[s].col,
+          'slot "' + s + '" sits in column ' + railAt[s].col + ' on the Fight rail and column ' +
+          (at[s] && at[s].col) + ' on Character — one component may not draw itself two ways');
+      });
+      // Same vertical ORDER (rows compact, so compare the ranking, not the number).
+      const rank = (m) => Object.keys(m).sort((a, b) => m[a].row - m[b].row || m[a].col - m[b].col);
+      const railRank = rank(railAt);
+      const charRank = rank(at).filter((s) => railAt[s]);
+      assert(railRank.join(',') === charRank.join(','),
+        'the Fight rail must read in the same head-to-foot order as the Character doll —\n  rail: ' +
+        railRank.join(' ') + '\n  char: ' + charRank.join(' '));
+
+      // Compaction: no reserved empty track for the slots this mount omits.
+      const railRows = Math.max(...Object.values(railAt).map((p) => p.row));
+      assert(railRows === 5,
+        'the Fight rail carries no belt and no earrings, so its sixth row is empty and must be COMPACTED away — measured ' +
+        railRows + ' rows (six means an empty 68px track is being reserved, the exact waste that made a sheet hard-code repeat(4,auto))');
+      assert(/repeat\(5,/.test(rail.style.gridTemplateRows || ''),
+        'the rail must declare only the rows it uses, declares "' + rail.style.gridTemplateRows + '"');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
   }),
 
   () => tryRun('b369: a REFUSED equip leaves every equipment surface agreeing — including the Fight screen rail (Tyler: sword worn in the rail and sitting in the bag at once)', () => {

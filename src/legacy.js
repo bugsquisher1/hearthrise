@@ -4725,7 +4725,40 @@ window.dailyTaskCaps=dailyTaskCaps;
 function generateDailyTasks(notice=true){
   ensureRetentionState();
   const today=hrGoalDayKey();
-  if(G.daily.lastReset===today&&G.daily.tasks.length)return;
+  if(G.daily.lastReset===today&&G.daily.tasks.length){
+    /* ── b461 — HEAL a pre-eligibility slate. The b459 eligibility filter
+       applies at GENERATION, so a slate rolled BEFORE the fix keeps its
+       impossible tasks all day (found live: Tyler's account still carried
+       Craft 8 + Smith 8 the morning after). If any UN-done task in today's
+       stored slate is ineligible NOW, rebuild the slate from the filtered
+       deterministic set. Safe by construction: eligibility only WIDENS during
+       a day (skills/rooms are never lost), so ineligible-now ⇒ ineligible at
+       roll ⇒ zero progress lost; and every eligible old member is necessarily
+       in the new set (same seeded order, bad members only free slots), so
+       progress/done on kept tasks is preserved via the id match below. */
+    try{
+      const GCat=window.HearthriseCore&&window.HearthriseCore.goalCatalogue;
+      if(GCat&&typeof GCat.dailyTaskEligible==='function'&&typeof GCat.dailyTaskSetIndexes==='function'){
+        /* window seam, not the local binding — DAILY-HEAL-1 stubs the caps. */
+        const caps=(typeof window.dailyTaskCaps==='function')?window.dailyTaskCaps():dailyTaskCaps();
+        const hasBad=G.daily.tasks.some(t=>t&&!t.done&&!GCat.dailyTaskEligible(t.id,caps));
+        if(hasBad){
+          const oldById={};
+          G.daily.tasks.forEach(t=>{ if(t&&t.id) oldById[t.id]=t; });
+          const fixed=GCat.dailyTaskSetIndexes(today,caps,G.daily.tasks.length);
+          if(Array.isArray(fixed)&&fixed.length){
+            G.daily.tasks=fixed.map(i=>{
+              const fresh=DAILY_TASK_POOL[i]();
+              const old=oldById[fresh.id];
+              if(old){ fresh.progress=old.progress||0; fresh.done=!!old.done; }
+              return fresh;
+            });
+          }
+        }
+      }
+    }catch(e){}
+    return;
+  }
   G.daily.lastReset=today;
   // Deterministic shuffle of pool by date seed
   const indexes=dailyTaskIndexes(today);
@@ -18266,16 +18299,73 @@ console.log('[Bundle Icons v1] applied:',
   };
 
   // ── Helpers to compute progress ──
+  /* ── b461 — THE SERVER IS THE DISPLAY TRUTH FOR THESE GOALS UNDER ARM ──
+     hr_claim_goal verifies completion from the SERVER's period counters, so a
+     modal that decides "Claim" from local stats would show a button the server
+     refuses — the same dead button in a different hat (the counters for
+     chopped/mined/fished/levelups only start at this deploy, so local 25/25
+     vs server 0/25 is the day-one shape). hr_goal_state projects every
+     catalogued goal {have, complete, claimed} for the current day/ISO-week;
+     under arm the readers below prefer it and fall back to the local stats
+     when it has not arrived (offline, pre-arm, or a transport failure — the
+     claim path still surfaces the honest server verdict). Refreshed on modal
+     open, after every claim, and at most every 30s from the strip. */
+  var _srvGoals = null;        // { 'd:<id>' | 'w:<id>' : {have, target, complete, claimed} }
+  var _srvGoalsAt = 0;
+  var _srvGoalsInflight = false;
+  function goalsArmed(){
+    return typeof window.clientMayWriteRecordField === 'function'
+      && !window.clientMayWriteRecordField('gold');
+  }
+  function syncServerGoals(done, maxAgeMs){
+    var GC = window.HearthriseGoalClaim;
+    if(!goalsArmed() || !(GC && typeof GC.goalState === 'function' && GC.isSignedIn && GC.isSignedIn())){
+      if(typeof done === 'function') done(false); return;
+    }
+    var age = Date.now() - _srvGoalsAt;
+    if(_srvGoalsInflight || (typeof maxAgeMs === 'number' && _srvGoals && age < maxAgeMs)){
+      if(typeof done === 'function') done(false); return;
+    }
+    _srvGoalsInflight = true;
+    GC.goalState().then(function(res){
+      _srvGoalsInflight = false;
+      if(res && res.ok && Array.isArray(res.goals)){
+        var m = {};
+        res.goals.forEach(function(g){
+          if(!g || !g.goal_id) return;
+          m[(g.weekly ? 'w:' : 'd:') + g.goal_id] = {
+            have: Math.max(0, Number(g.have) || 0), target: Number(g.target) || 0,
+            complete: !!g.complete, claimed: !!g.claimed
+          };
+        });
+        _srvGoals = m; _srvGoalsAt = Date.now();
+        if(typeof done === 'function') done(true);
+      } else if(typeof done === 'function') done(false);
+    }).catch(function(){ _srvGoalsInflight = false; if(typeof done === 'function') done(false); });
+  }
+  function srvGoal(goal, isWeekly){
+    if(!_srvGoals || !goalsArmed()) return null;
+    return _srvGoals[(isWeekly ? 'w:' : 'd:') + goal.id] || null;
+  }
+  window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
+  window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; };
+
   function getProgress(goal, isWeekly){
+    var sg = srvGoal(goal, isWeekly);
+    if(sg) return sg.have;
     var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
     var startVal = (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0;
     return Math.max(0, src(goal.source) - startVal);
   }
   function isClaimed(goal, isWeekly){
     var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
-    return !!(stateObj && stateObj.claimed && stateObj.claimed[goal.id]);
+    var local = !!(stateObj && stateObj.claimed && stateObj.claimed[goal.id]);
+    var sg = srvGoal(goal, isWeekly);
+    return local || !!(sg && sg.claimed);
   }
   function isComplete(goal, isWeekly){
+    var sg = srvGoal(goal, isWeekly);
+    if(sg) return sg.complete;
     return getProgress(goal, isWeekly) >= goal.target;
   }
 
@@ -18345,20 +18435,68 @@ console.log('[Bundle Icons v1] applied:',
     if(!isComplete(goal, isWeekly)) return;
     if(isClaimed(goal, isWeekly)) return;
     var reward = rewardFor(goalId, isWeekly);
-    /* ARM-SAFE (gold flip): daily/weekly goal rewards are client-authored
-       (DAILY_COUNTERS blocker). Under arm the gold/gems credit no-ops, so DEFER
-       the whole claim — do NOT grant items/xp, mark it claimed, or toast — rather
-       than burning the claim for currency that never lands. It stays claimable
-       for when it is server-credited. No-op until gold/gems are armed. */
-    /* Also defer when the reward grants ITEMS and the inventory record is armed
-       (INVENTORY_ARM_ENABLED): the whole claim stays claimable rather than paying
-       currency/xp while the item mint is skipped. Today the only item-granting goal
-       (gold_500 → small_bones/starter_bundle_token) grants NON-ownable ids, so the
-       inventory flip would not delete them and nothing is stranded — but if a
-       future goal reward gains an OWNABLE item this defer keeps it whole, and the
-       inventory-mint census (tests/inventory-mint-census.mjs) fails the build the
-       instant such a reward is added un-backed. */
-    if(reward && ((reward.gold && !clientMayWriteRecordField('gold')) || (reward.gems && !clientMayWriteRecordField('gems')) || (reward.items && Object.keys(reward.items).length && !clientMayWriteRecordField('inventory')))) return;
+    /* ── b461: THE SERVER-CLAIMED PATH (replaces the b411 silent defer) ──────
+       Under the arm this branch used to bare-`return` — every Claim button in
+       this modal was a SILENT no-op, found live by Tyler on beta morning
+       ("I can't even claim quests"). The b414 credit RPCs wired the OTHER two
+       goal systems (updateDaily → hr_claim_daily, completeQuest →
+       hr_claim_quest) but this modal's pools never got a server credit path.
+
+       Now: any reward component whose record is armed routes the claim through
+       hr_claim_goal (2026-08-23-modal-goal-claims.sql), which VERIFIES
+       completion from the server's own period counters and credits the WHOLE
+       reward server-side — gold, gems, xp AND items. Client-applied xp/items
+       would be display predictions the next settle retires (the server never
+       received them), which is why the whole payout moves, not just currency.
+       The claim is AWAITED and every outcome is surfaced — a claim must never
+       be silent again (regression: GOAL-CLAIM-1). */
+    var _armedClaim = reward && (
+         (reward.gold && !clientMayWriteRecordField('gold'))
+      || (reward.gems && !clientMayWriteRecordField('gems'))
+      || (reward.xp && Object.keys(reward.xp).length && !clientMayWriteRecordField('skills'))
+      || (reward.items && Object.keys(reward.items).length && !clientMayWriteRecordField('inventory')));
+    if(_armedClaim){
+      var GC = window.HearthriseGoalClaim;
+      if(!(GC && typeof GC.claimGoal === 'function' && GC.isSignedIn && GC.isSignedIn())){
+        if(typeof window.notify === 'function') notify('Claiming needs a connection — try again in a moment', 'kill');
+        return;
+      }
+      /* In-flight latch: a double-click may not double-fire (the server
+         once-guard would refuse anyway, but the second toast would confuse). */
+      window._goalClaimsInFlight = window._goalClaimsInFlight || {};
+      var _fk = (isWeekly ? 'w:' : 'd:') + goalId;
+      if(window._goalClaimsInFlight[_fk]) return;
+      window._goalClaimsInFlight[_fk] = true;
+      GC.claimGoal(goalId, !!isWeekly).then(function(res){
+        delete window._goalClaimsInFlight[_fk];
+        var st = isWeekly ? G.weeklyGoals : G.dailyGoals;
+        if(res && res.ok){
+          if(st){ st.claimed = st.claimed || {}; st.claimed[goalId] = true; }
+          if(typeof window.notify === 'function') notify('Reward claimed: '+rewardSummary(reward), 'loot');
+          if(typeof window.updateTopbar === 'function') window.updateTopbar();
+          if(window.HearthriseEvents) window.HearthriseEvents.emit('questClaim', {goalId:goalId, isWeekly:isWeekly, reward:reward});
+        } else if(res && res.error === 'already_claimed'){
+          /* The claimed flag is not in the residue, so a reload forgets it —
+             the server once-guard is the memory. Mark it claimed and say so. */
+          if(st){ st.claimed = st.claimed || {}; st.claimed[goalId] = true; }
+          if(typeof window.notify === 'function') notify('Already claimed — your reward is safe', 'loot');
+        } else {
+          var why = (res && res.error) || 'network';
+          var msg = why === 'incomplete' ? 'The server hasn’t counted enough progress yet — give it a few seconds and try again'
+                  : why === 'unknown_goal' ? 'This quest can’t be claimed yet — it has been reported'
+                  : why === 'rpc_missing' ? 'Claiming is being upgraded — try again in a few minutes'
+                  : 'Claim failed ('+why+') — please try again';
+          if(typeof window.notify === 'function') notify(msg, 'kill');
+        }
+        renderModal();
+        renderStrip();
+        /* Re-read the server's goal state after any verdict — a claim changed
+           it, and a refusal means our picture of it was stale. */
+        _srvGoalsAt = 0;
+        syncServerGoals(function(fresh){ if(fresh){ renderModal(); renderStrip(); } });
+      });
+      return;
+    }
     if(reward){
       if(reward.gold && typeof G.gold === 'number') G.gold += reward.gold;
       if(reward.gems && typeof G.gems === 'number') G.gems += reward.gems;
@@ -18413,6 +18551,10 @@ console.log('[Bundle Icons v1] applied:',
        && window.HearthrisePresence.inOfflineReplay()) return;
     var strip = ensureStrip();
     if(!strip) return;
+    /* b461: keep the strip's numbers on the server's picture, refreshed at
+       most every 30s (the strip repaints on every bus event — the TTL + the
+       in-flight latch keep this to one small read per half-minute). */
+    syncServerGoals(function(fresh){ if(fresh) renderStrip(); }, 30000);
     var list = strip.querySelector('.gq-list');
     var meta = strip.querySelector('#gq-reset');
     var goals = (typeof window.getGoalsForToday === 'function') ? window.getGoalsForToday() : [];
@@ -18489,6 +18631,9 @@ console.log('[Bundle Icons v1] applied:',
     });
     document.body.appendChild(overlay);
     renderModal();
+    /* b461: paint local first (instant), then repaint from the server's goal
+       state the moment it lands so Claim reflects what the server will honor. */
+    syncServerGoals(function(fresh){ if(fresh){ renderModal(); renderStrip(); } });
   }
   function closeQuestsModal(){
     var existing = document.getElementById('quests-modal-overlay');

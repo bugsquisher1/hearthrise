@@ -109,6 +109,23 @@
     /** @returns Promise<jsonb> the RPC envelope: {ok, gold, ...} or {ok:false,error} */
     claimDaily: function (taskId) { return call('hr_claim_daily', { p_task_id: String(taskId || ''), p_slot: activeSlot() }); },
     claimQuest: function (questId) { return call('hr_claim_quest', { p_quest_id: String(questId || ''), p_slot: activeSlot() }); },
+    /* MODAL daily/weekly GOAL claim — supabase/migrations/2026-08-23-modal-goal-claims.sql
+       (b461). The quest modal's pools (DAILY_GOAL_POOL / WEEKLY_GOAL_POOL) are a THIRD
+       goal system, distinct from QUEST_DEFS and DAILY_TASK_POOL; under the arm their
+       claims were a silent no-op (the b411 defer predates the credit RPCs and was never
+       rewired — found live by Tyler, 2026-08-23). hr_claim_goal verifies completion from
+       the server's own period counters and credits the WHOLE reward server-side
+       (gold+gems+xp+items — client-applied xp/items would be retired at the next settle
+       under the skills/inventory arms). NOT fire-and-forget: claimQuestReward awaits the
+       verdict and surfaces refusals honestly. */
+    claimGoal: function (goalId, weekly) {
+      return call('hr_claim_goal', { p_goal_id: String(goalId || ''), p_weekly: !!weekly, p_slot: activeSlot(), p_idem: newIdem() });
+    },
+    /* The server's projection of every catalogued modal goal for the current
+       day / ISO week — {ok, day_key, week_key, goals:[{goal_id, weekly, target,
+       have, complete, claimed, ...}]}. Under arm the modal/strip paint THIS, so
+       a Claim button only appears when hr_claim_goal will honor it. */
+    goalState: function () { return call('hr_goal_state', { p_slot: activeSlot() }); },
     /* Collection-Log MILESTONE credit — supabase/migrations/2026-08-22-collection-claim.sql.
        The server re-derives the DISTINCT count from hr_bestiary_of / hr_collection_of and
        credits the server-owned gold+gems once-guarded per milestone. Fire-and-forget. */

@@ -52,7 +52,18 @@
 -- rung and both prerequisites out of it and FAILS CLOSED if it is absent or
 -- empty.
 --
--- SAFE TO RE-RUN. The table is created if absent and refilled wholesale.
+-- ⚠ THE REFILL IS SCOPED BY `source`, AND THAT IS A LIVE-INCIDENT FIX ────
+-- This file used to refill with a bare `delete from public.hr_unlock_offers`.
+-- 2026-08-19-gold-spend-slices-2-3.sql adds 48 MORE offers to the same table
+-- (worker_hire · plot:farm_land · bank), and its header warned in prose that
+-- "RE-APPLYING EITHER 2026-08-16 CATALOGUE ALONE WIPES THESE ROWS". It then
+-- happened in production: a regen of this file deleted all three gold-ladder
+-- families and every one of those purchases became `unknown_offer`.
+-- A prose warning is not an interlock. Every row now carries the tool that
+-- OWNS it, and each generator deletes only its own — so re-running either file,
+-- alone or in any order, can no longer touch the other's rows.
+--
+-- SAFE TO RE-RUN, and safe to re-run ALONE.
 -- ════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.hr_unlock_offers (
@@ -103,117 +114,151 @@ end $$;
 -- a grant to PUBLIC is held by every role that exists.
 revoke all on public.hr_unlock_offers from public, anon, authenticated, service_role;
 
--- Refilled wholesale, inside the migration's transaction.
-delete from public.hr_unlock_offers;
+-- ── ROW OWNERSHIP ────────────────────────────────────────────────────────
+-- Which tool wrote a row, so a refill can be scoped to its own. Added
+-- additively; the DEFAULT names this generator because every row that predates
+-- the column was written by it — with ONE exception, which the same block
+-- rescues by name-free derivation (any pre-existing row this generation does
+-- not emit belongs to somebody else).
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'hr_unlock_offers'
+                and column_name = 'source') then
+    return;   -- already owned; the rescue below is strictly one-time
+  end if;
+  alter table public.hr_unlock_offers
+    add column source text not null default 'gen-unlock-offers';
+  update public.hr_unlock_offers set source = 'foreign:pre-source'
+   where offer_id <> all (array['bounty.auto_bounty_1', 'bounty.cosmetic_cape', 'bounty.free_reroll_2', 'bounty.mark_pouch', 'bounty.reroll_token', 'character_slot.1', 'character_slot.2', 'character_slot.3', 'character_slot.4', 'companion.honeybee', 'companion.owl', 'companion.raccoon', 'companion.sparrow', 'cosmetic.avatar_dragon', 'cosmetic.emote_pack', 'cosmetic.name_gold', 'cosmetic.pet_phoenix', 'dungeon.ancient_wyrm', 'dungeon.crypt_of_bones', 'dungeon.goblin_warcamp', 'dungeon.haunted_archive', 'dungeon.obsidian_keep', 'dungeon.voidbringer', 'farm_plot.2', 'farm_plot.3', 'farm_plot.4', 'farm_plot.5', 'iap.hearth_hall_premium', 'iap.offline_boost', 'iap.remove_ads', 'iap.starter_bundle', 'plot.farm_plot', 'plot.scarecrow', 'plot.toolshed', 'plot.watchtower', 'property.castle', 'property.farmstead', 'property.homestead', 'property.keep', 'property.manor', 'room.cellar.1', 'room.cellar.2', 'room.cellar.3', 'room.cellar.4', 'room.cellar.5', 'room.forge.1', 'room.forge.2', 'room.forge.3', 'room.forge.4', 'room.forge.5', 'room.garden.1', 'room.garden.2', 'room.garden.3', 'room.garden.4', 'room.garden.5', 'room.kitchen.1', 'room.kitchen.2', 'room.kitchen.3', 'room.kitchen.4', 'room.kitchen.5', 'room.library.1', 'room.library.2', 'room.library.3', 'room.library.4', 'room.library.5', 'room.shrine.1', 'room.shrine.2', 'room.shrine.3', 'room.shrine.4', 'room.shrine.5', 'room.trophy.1', 'room.trophy.2', 'room.trophy.3', 'room.trophy.4', 'room.trophy.5', 'room.workshop.1', 'room.workshop.2', 'room.workshop.3', 'room.workshop.4', 'room.workshop.5', 'theme.default', 'theme.desert', 'theme.fairy', 'theme.forest', 'theme.volcanic', 'theme.winter', 'trait.auto_eat', 'trait.auto_eat_2', 'worker.1', 'worker.2', 'worker.3', 'worker.4', 'worker.5', 'worker.6']);
+  raise notice 'hr_unlock_offers.source added; % pre-existing foreign row(s) preserved',
+    (select count(*) from public.hr_unlock_offers where source = 'foreign:pre-source');
+end $$;
+
+-- Refilled inside the migration's transaction, SCOPED TO THIS GENERATOR'S OWN
+-- ROWS. A family another migration owns is untouched — see the header.
+delete from public.hr_unlock_offers where source = 'gen-unlock-offers';
 insert into public.hr_unlock_offers
-  (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal)
+  (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal, source)
 values
-  ('bounty.auto_bounty_1', 'bounty', 'Auto-Accept I', 'bounty:auto_bounty_1', 1, null, null, null, null, 'namespace_unsupported:bounty'),
-  ('bounty.cosmetic_cape', 'bounty', 'Hunter Cloak', 'bounty:cosmetic_cape', 1, null, null, null, null, 'namespace_unsupported:bounty'),
-  ('bounty.free_reroll_2', 'bounty', '+1 Free Reroll/day', 'bounty:free_reroll_2', 1, null, null, null, null, 'namespace_unsupported:bounty'),
-  ('bounty.mark_pouch', 'bounty', 'Hunter''s Pouch', 'bounty:mark_pouch', 1, null, null, null, null, 'namespace_unsupported:bounty'),
-  ('bounty.reroll_token', 'bounty', 'Reroll Token', 'bounty:reroll_token', 1, null, null, null, null, 'namespace_unsupported:bounty'),
-  ('character_slot.1', 'character_slot', 'Character slot 2', 'character_slot:1', 1, null, null, null, null, 'namespace_unsupported:character_slot'),
-  ('character_slot.2', 'character_slot', 'Character slot 3', 'character_slot:2', 1, null, null, null, null, 'namespace_unsupported:character_slot'),
-  ('character_slot.3', 'character_slot', 'Character slot 4', 'character_slot:3', 1, null, null, null, null, 'namespace_unsupported:character_slot'),
-  ('character_slot.4', 'character_slot', 'Character slot 5', 'character_slot:4', 1, null, null, null, null, 'namespace_unsupported:character_slot'),
-  ('companion.honeybee', 'companion', 'Honeybee', 'companion:honeybee', 1, null, null, null, null, 'namespace_unsupported:companion'),
-  ('companion.owl', 'companion', 'Owl', 'companion:owl', 1, null, null, null, null, 'namespace_unsupported:companion'),
-  ('companion.raccoon', 'companion', 'Raccoon', 'companion:raccoon', 1, null, null, null, null, 'namespace_unsupported:companion'),
-  ('companion.sparrow', 'companion', 'Sparrow', 'companion:sparrow', 1, null, null, null, null, 'namespace_unsupported:companion'),
-  ('cosmetic.avatar_dragon', 'cosmetic', 'Dragon Avatar', 'cosmetic:avatar_dragon', 1, null, null, null, null, 'namespace_unsupported:cosmetic'),
-  ('cosmetic.emote_pack', 'cosmetic', 'Emote Pack', 'cosmetic:emote_pack', 1, null, null, null, null, 'namespace_unsupported:cosmetic'),
-  ('cosmetic.name_gold', 'cosmetic', 'Golden Name', 'cosmetic:name_gold', 1, null, null, null, null, 'namespace_unsupported:cosmetic'),
-  ('cosmetic.pet_phoenix', 'cosmetic', 'Phoenix Pet', 'cosmetic:pet_phoenix', 1, null, null, null, null, 'namespace_unsupported:cosmetic'),
-  ('dungeon.ancient_wyrm', 'dungeon', 'Ancient Wyrm', 'dungeon_run:ancient_wyrm', 1, null, null, null, null, 'namespace_unsupported:dungeon_run'),
-  ('dungeon.crypt_of_bones', 'dungeon', 'Crypt of Bones', 'dungeon_run:crypt_of_bones', 1, null, null, null, null, 'namespace_unsupported:dungeon_run'),
-  ('dungeon.goblin_warcamp', 'dungeon', 'Goblin Warcamp', 'dungeon_run:goblin_warcamp', 1, null, null, null, null, 'namespace_unsupported:dungeon_run'),
-  ('dungeon.haunted_archive', 'dungeon', 'Haunted Archive', 'dungeon_run:haunted_archive', 1, null, null, null, null, 'namespace_unsupported:dungeon_run'),
-  ('dungeon.obsidian_keep', 'dungeon', 'Obsidian Keep', 'dungeon_run:obsidian_keep', 1, null, null, null, null, 'namespace_unsupported:dungeon_run'),
-  ('dungeon.voidbringer', 'dungeon', 'The Voidbringer', 'dungeon_run:voidbringer', 1, null, null, null, null, 'namespace_unsupported:dungeon_run'),
-  ('farm_plot.2', 'farm_plot', 'Farm plot tier 2', 'farm_plot_tier', 2, null, null, null, null, 'namespace_unsupported:farm_plot_tier'),
-  ('farm_plot.3', 'farm_plot', 'Farm plot tier 3', 'farm_plot_tier', 3, null, null, null, null, 'namespace_unsupported:farm_plot_tier'),
-  ('farm_plot.4', 'farm_plot', 'Farm plot tier 4', 'farm_plot_tier', 4, null, null, null, null, 'namespace_unsupported:farm_plot_tier'),
-  ('farm_plot.5', 'farm_plot', 'Farm plot tier 5', 'farm_plot_tier', 5, null, null, null, null, 'namespace_unsupported:farm_plot_tier'),
-  ('iap.hearth_hall_premium', 'iap', 'Hearth Hall Premium', 'entitlement:hearthHall', 1, null, null, null, null, 'namespace_unsupported:entitlement'),
-  ('iap.offline_boost', 'iap', 'Lifetime Offline+', 'entitlement:offlinePlus', 1, null, null, null, null, 'namespace_unsupported:entitlement'),
-  ('iap.remove_ads', 'iap', 'Remove Ads', 'entitlement:noAds', 1, null, null, null, null, 'namespace_unsupported:entitlement'),
-  ('iap.starter_bundle', 'iap', 'Starter Bundle', 'theme:forest', 1, null, null, null, null, 'multi_line_grant'),
-  ('plot.farm_plot', 'plot', 'Farm Plot', 'plot:farm_plot', 1, null, null, null, null, 'namespace_unsupported:plot'),
-  ('plot.scarecrow', 'plot', 'Scarecrow', 'plot:scarecrow', 1, null, null, null, null, 'namespace_unsupported:plot'),
-  ('plot.toolshed', 'plot', 'Tool Shed', 'plot:toolshed', 1, null, null, null, null, 'namespace_unsupported:plot'),
-  ('plot.watchtower', 'plot', 'Watchtower', 'plot:watchtower', 1, null, null, null, null, 'namespace_unsupported:plot'),
-  ('property.castle', 'property', 'Hearthrise Castle', 'property:castle', 5, 150000, '{"ashlar":25,"dragon_scale":4,"mithril_bar":40,"rune_bar":8,"yew_plank":70}'::jsonb, 4, null, null),
-  ('property.farmstead', 'property', 'Fieldworth Farmstead', 'property:farmstead', 2, 2500, '{"cooked_shrimp":10,"copper_ore":25,"oak_log":40,"wolf_pelt":4}'::jsonb, 1, null, null),
-  ('property.homestead', 'property', 'Hearthside Homestead', 'property:homestead', 1, 400, '{"copper_ore":20,"normal_log":30}'::jsonb, 0, null, null),
-  ('property.keep', 'property', 'Ironvale Keep', 'property:keep', 4, 40000, '{"ashlar":12,"bear_pelt":5,"big_bones":20,"maple_plank":50,"steel_bar":35}'::jsonb, 3, null, null),
-  ('property.manor', 'property', 'Stonecross Manor', 'property:manor', 3, 10000, '{"ashlar":6,"iron_ore":40,"silk_thread":8,"willow_plank":35}'::jsonb, 2, null, null),
-  ('room.cellar.1', 'room', 'Cellar — Root Cellar', 'room:cellar', 1, 1200, '{"normal_log":60}'::jsonb, 2, null, null),
-  ('room.cellar.2', 'room', 'Cellar — Stone Cellar', 'room:cellar', 2, 4000, '{"oak_log":60}'::jsonb, 2, null, null),
-  ('room.cellar.3', 'room', 'Cellar — The Vault', 'room:cellar', 3, 12000, '{"willow_log":50}'::jsonb, 2, null, null),
-  ('room.cellar.4', 'room', 'Cellar — The Cask Room', 'room:cellar', 4, 70000, '{"field_ration":20,"goldenroot_roast":6,"timber_beam":12}'::jsonb, 3, null, null),
-  ('room.cellar.5', 'room', 'Cellar — The Deep Cellar', 'room:cellar', 5, 320000, '{"duskwood_plank":20,"keystone":2,"moonbloom_elixir":4}'::jsonb, 5, null, null),
-  ('room.forge.1', 'room', 'Forge — Field Forge', 'room:forge', 1, 800, '{"copper_ore":30}'::jsonb, 2, null, null),
-  ('room.forge.2', 'room', 'Forge — Stone Forge', 'room:forge', 2, 3000, '{"iron_ore":50}'::jsonb, 2, 'forge_blueprint_t2', null),
-  ('room.forge.3', 'room', 'Forge — Double Bellows', 'room:forge', 3, 12000, '{"iron_ore":100}'::jsonb, 2, 'forge_blueprint_t3', null),
-  ('room.forge.4', 'room', 'Forge — The Great Bellows', 'room:forge', 4, 55000, '{"coal":20,"iron_fitting":15,"steel_bar":60}'::jsonb, 3, null, null),
-  ('room.forge.5', 'room', 'Forge — The Deep Forge', 'room:forge', 5, 280000, '{"dragon_scale":6,"keystone":2,"mithril_bar":20}'::jsonb, 4, null, null),
-  ('room.garden.1', 'room', 'Garden — Kitchen Garden', 'room:garden', 1, 600, '{"wheat":20}'::jsonb, 1, null, null),
-  ('room.garden.2', 'room', 'Garden — Walled Garden', 'room:garden', 2, 2500, '{"wheat":60}'::jsonb, 1, null, null),
-  ('room.garden.3', 'room', 'Garden — The Beds', 'room:garden', 3, 9000, '{"pumpkin":5}'::jsonb, 1, null, null),
-  ('room.garden.4', 'room', 'Garden — The Glasshouse', 'room:garden', 4, 60000, '{"goldenroot":15,"silk_thread":20,"timber_beam":10}'::jsonb, 3, null, null),
-  ('room.garden.5', 'room', 'Garden — The Orchard', 'room:garden', 5, 300000, '{"duskwood_plank":40,"keystone":2,"moonbloom":12}'::jsonb, 4, null, null),
-  ('room.kitchen.1', 'room', 'Kitchen — Hearthstone', 'room:kitchen', 1, 500, '{"normal_log":20}'::jsonb, 1, null, null),
-  ('room.kitchen.2', 'room', 'Kitchen — Iron Stove', 'room:kitchen', 2, 2000, '{"normal_log":50}'::jsonb, 1, 'kitchen_blueprint_t2', null),
-  ('room.kitchen.3', 'room', 'Kitchen — Cast-Iron Range', 'room:kitchen', 3, 8000, '{"oak_log":30}'::jsonb, 1, 'kitchen_blueprint_t3', null),
-  ('room.kitchen.4', 'room', 'Kitchen — Twin Range', 'room:kitchen', 4, 45000, '{"field_ration":25,"timber_beam":12,"willow_log":40}'::jsonb, 3, null, null),
-  ('room.kitchen.5', 'room', 'Kitchen — The Great Hearth', 'room:kitchen', 5, 250000, '{"dragon_scale":8,"duskwood_plank":30,"keystone":2}'::jsonb, 5, null, null),
-  ('room.library.1', 'room', 'Library — Shelf', 'room:library', 1, 1000, '{"normal_log":50}'::jsonb, 3, null, null),
-  ('room.library.2', 'room', 'Library — Reading Room', 'room:library', 2, 4000, '{"oak_log":50}'::jsonb, 3, 'library_blueprint_t2', null),
-  ('room.library.3', 'room', 'Library — The Library', 'room:library', 3, 15000, '{"maple_log":30}'::jsonb, 3, 'library_blueprint_t3', null),
-  ('room.library.4', 'room', 'Library — The Scriptorium', 'room:library', 4, 65000, '{"magic_essence":10,"silk_thread":25,"timber_beam":12}'::jsonb, 3, null, null),
-  ('room.library.5', 'room', 'Library — The Great Library', 'room:library', 5, 300000, '{"ancient_rune":12,"duskwood_plank":30,"keystone":2}'::jsonb, 5, null, null),
-  ('room.shrine.1', 'room', 'Shrine — Wayside Shrine', 'room:shrine', 1, 900, '{"bones":40}'::jsonb, 4, null, null),
-  ('room.shrine.2', 'room', 'Shrine — Stone Altar', 'room:shrine', 2, 3500, '{"big_bones":25}'::jsonb, 4, null, null),
-  ('room.shrine.3', 'room', 'Shrine — The Chapel', 'room:shrine', 3, 13000, '{"dragon_bones":8}'::jsonb, 4, null, null),
-  ('room.shrine.4', 'room', 'Shrine — The Reliquary', 'room:shrine', 4, 55000, '{"big_bones":60,"grave_dust":20,"iron_fitting":10}'::jsonb, 4, null, null),
-  ('room.shrine.5', 'room', 'Shrine — The Ossuary', 'room:shrine', 5, 270000, '{"dragon_bones":30,"keystone":2,"war_crown":4}'::jsonb, 4, null, null),
-  ('room.trophy.1', 'room', 'Trophy Room — Trophy Wall', 'room:trophy', 1, 2000, '{"wolf_pelt":5}'::jsonb, 4, null, null),
-  ('room.trophy.2', 'room', 'Trophy Room — The Hall', 'room:trophy', 2, 8000, '{"troll_hide":3}'::jsonb, 4, 'trophy_blueprint_t2', null),
-  ('room.trophy.3', 'room', 'Trophy Room — Hall of Heads', 'room:trophy', 3, 25000, '{"dragon_scale":2}'::jsonb, 4, 'trophy_blueprint_t3', null),
-  ('room.trophy.4', 'room', 'Trophy Room — Hall of Banners', 'room:trophy', 4, 60000, '{"ancient_claw":3,"bear_pelt":6,"iron_fitting":12}'::jsonb, 4, null, null),
-  ('room.trophy.5', 'room', 'Trophy Room — The Long Gallery', 'room:trophy', 5, 290000, '{"dragon_gem":1,"dragon_scale":6,"keystone":2}'::jsonb, 4, null, null),
-  ('room.workshop.1', 'room', 'Workshop — Work Bench', 'room:workshop', 1, 700, '{"normal_log":40}'::jsonb, 2, null, null),
-  ('room.workshop.2', 'room', 'Workshop — Joiner''s Bench', 'room:workshop', 2, 2800, '{"oak_plank":25}'::jsonb, 2, null, null),
-  ('room.workshop.3', 'room', 'Workshop — The Sawpit', 'room:workshop', 3, 11000, '{"willow_plank":30}'::jsonb, 2, null, null),
-  ('room.workshop.4', 'room', 'Workshop — The Lathe', 'room:workshop', 4, 50000, '{"iron_fitting":12,"maple_plank":30,"silk_thread":10}'::jsonb, 3, null, null),
-  ('room.workshop.5', 'room', 'Workshop — The Master''s Shop', 'room:workshop', 5, 260000, '{"duskwood_plank":25,"keystone":2,"rune_bar":6}'::jsonb, 4, null, null),
-  ('theme.default', 'theme', 'Cozy Cottage', 'theme:default', 1, null, null, null, null, 'namespace_unsupported:theme'),
-  ('theme.desert', 'theme', 'Desert Oasis', 'theme:desert', 1, null, null, null, null, 'namespace_unsupported:theme'),
-  ('theme.fairy', 'theme', 'Fairy Glen', 'theme:fairy', 1, null, null, null, null, 'namespace_unsupported:theme'),
-  ('theme.forest', 'theme', 'Forest Lodge', 'theme:forest', 1, null, null, null, null, 'namespace_unsupported:theme'),
-  ('theme.volcanic', 'theme', 'Volcanic Keep', 'theme:volcanic', 1, null, null, null, null, 'namespace_unsupported:theme'),
-  ('theme.winter', 'theme', 'Winter Chalet', 'theme:winter', 1, null, null, null, null, 'namespace_unsupported:theme'),
-  ('trait.auto_eat', 'trait', 'Auto-Eat I', 'trait:auto_eat', 1, null, null, null, null, 'namespace_unsupported:trait'),
-  ('trait.auto_eat_2', 'trait', 'Auto-Eat II', 'trait:auto_eat_2', 1, null, null, null, null, 'namespace_unsupported:trait'),
-  ('worker.1', 'worker', 'Hire worker #1', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker'),
-  ('worker.2', 'worker', 'Hire worker #2', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker'),
-  ('worker.3', 'worker', 'Hire worker #3', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker'),
-  ('worker.4', 'worker', 'Hire worker #4', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker'),
-  ('worker.5', 'worker', 'Hire worker #5', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker'),
-  ('worker.6', 'worker', 'Hire worker #6', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker');
+  ('bounty.auto_bounty_1', 'bounty', 'Auto-Accept I', 'bounty:auto_bounty_1', 1, null, null, null, null, 'namespace_unsupported:bounty', 'gen-unlock-offers'),
+  ('bounty.cosmetic_cape', 'bounty', 'Hunter Cloak', 'bounty:cosmetic_cape', 1, null, null, null, null, 'namespace_unsupported:bounty', 'gen-unlock-offers'),
+  ('bounty.free_reroll_2', 'bounty', '+1 Free Reroll/day', 'bounty:free_reroll_2', 1, null, null, null, null, 'namespace_unsupported:bounty', 'gen-unlock-offers'),
+  ('bounty.mark_pouch', 'bounty', 'Hunter''s Pouch', 'bounty:mark_pouch', 1, null, null, null, null, 'namespace_unsupported:bounty', 'gen-unlock-offers'),
+  ('bounty.reroll_token', 'bounty', 'Reroll Token', 'bounty:reroll_token', 1, null, null, null, null, 'namespace_unsupported:bounty', 'gen-unlock-offers'),
+  ('character_slot.1', 'character_slot', 'Character slot 2', 'character_slot:1', 1, null, null, null, null, 'namespace_unsupported:character_slot', 'gen-unlock-offers'),
+  ('character_slot.2', 'character_slot', 'Character slot 3', 'character_slot:2', 1, null, null, null, null, 'namespace_unsupported:character_slot', 'gen-unlock-offers'),
+  ('character_slot.3', 'character_slot', 'Character slot 4', 'character_slot:3', 1, null, null, null, null, 'namespace_unsupported:character_slot', 'gen-unlock-offers'),
+  ('character_slot.4', 'character_slot', 'Character slot 5', 'character_slot:4', 1, null, null, null, null, 'namespace_unsupported:character_slot', 'gen-unlock-offers'),
+  ('companion.honeybee', 'companion', 'Honeybee', 'companion:honeybee', 1, null, null, null, null, 'namespace_unsupported:companion', 'gen-unlock-offers'),
+  ('companion.owl', 'companion', 'Owl', 'companion:owl', 1, null, null, null, null, 'namespace_unsupported:companion', 'gen-unlock-offers'),
+  ('companion.raccoon', 'companion', 'Raccoon', 'companion:raccoon', 1, null, null, null, null, 'namespace_unsupported:companion', 'gen-unlock-offers'),
+  ('companion.sparrow', 'companion', 'Sparrow', 'companion:sparrow', 1, null, null, null, null, 'namespace_unsupported:companion', 'gen-unlock-offers'),
+  ('cosmetic.avatar_dragon', 'cosmetic', 'Dragon Avatar', 'cosmetic:avatar_dragon', 1, null, null, null, null, 'namespace_unsupported:cosmetic', 'gen-unlock-offers'),
+  ('cosmetic.emote_pack', 'cosmetic', 'Emote Pack', 'cosmetic:emote_pack', 1, null, null, null, null, 'namespace_unsupported:cosmetic', 'gen-unlock-offers'),
+  ('cosmetic.name_gold', 'cosmetic', 'Golden Name', 'cosmetic:name_gold', 1, null, null, null, null, 'namespace_unsupported:cosmetic', 'gen-unlock-offers'),
+  ('cosmetic.pet_phoenix', 'cosmetic', 'Phoenix Pet', 'cosmetic:pet_phoenix', 1, null, null, null, null, 'namespace_unsupported:cosmetic', 'gen-unlock-offers'),
+  ('dungeon.ancient_wyrm', 'dungeon', 'Ancient Wyrm', 'dungeon_run:ancient_wyrm', 1, null, null, null, null, 'namespace_unsupported:dungeon_run', 'gen-unlock-offers'),
+  ('dungeon.crypt_of_bones', 'dungeon', 'Crypt of Bones', 'dungeon_run:crypt_of_bones', 1, null, null, null, null, 'namespace_unsupported:dungeon_run', 'gen-unlock-offers'),
+  ('dungeon.goblin_warcamp', 'dungeon', 'Goblin Warcamp', 'dungeon_run:goblin_warcamp', 1, null, null, null, null, 'namespace_unsupported:dungeon_run', 'gen-unlock-offers'),
+  ('dungeon.haunted_archive', 'dungeon', 'Haunted Archive', 'dungeon_run:haunted_archive', 1, null, null, null, null, 'namespace_unsupported:dungeon_run', 'gen-unlock-offers'),
+  ('dungeon.obsidian_keep', 'dungeon', 'Obsidian Keep', 'dungeon_run:obsidian_keep', 1, null, null, null, null, 'namespace_unsupported:dungeon_run', 'gen-unlock-offers'),
+  ('dungeon.voidbringer', 'dungeon', 'The Voidbringer', 'dungeon_run:voidbringer', 1, null, null, null, null, 'namespace_unsupported:dungeon_run', 'gen-unlock-offers'),
+  ('farm_plot.2', 'farm_plot', 'Farm plot tier 2', 'farm_plot_tier', 2, null, null, null, null, 'namespace_unsupported:farm_plot_tier', 'gen-unlock-offers'),
+  ('farm_plot.3', 'farm_plot', 'Farm plot tier 3', 'farm_plot_tier', 3, null, null, null, null, 'namespace_unsupported:farm_plot_tier', 'gen-unlock-offers'),
+  ('farm_plot.4', 'farm_plot', 'Farm plot tier 4', 'farm_plot_tier', 4, null, null, null, null, 'namespace_unsupported:farm_plot_tier', 'gen-unlock-offers'),
+  ('farm_plot.5', 'farm_plot', 'Farm plot tier 5', 'farm_plot_tier', 5, null, null, null, null, 'namespace_unsupported:farm_plot_tier', 'gen-unlock-offers'),
+  ('iap.hearth_hall_premium', 'iap', 'Hearth Hall Premium', 'entitlement:hearthHall', 1, null, null, null, null, 'namespace_unsupported:entitlement', 'gen-unlock-offers'),
+  ('iap.offline_boost', 'iap', 'Lifetime Offline+', 'entitlement:offlinePlus', 1, null, null, null, null, 'namespace_unsupported:entitlement', 'gen-unlock-offers'),
+  ('iap.remove_ads', 'iap', 'Remove Ads', 'entitlement:noAds', 1, null, null, null, null, 'namespace_unsupported:entitlement', 'gen-unlock-offers'),
+  ('iap.starter_bundle', 'iap', 'Starter Bundle', 'theme:forest', 1, null, null, null, null, 'multi_line_grant', 'gen-unlock-offers'),
+  ('plot.farm_plot', 'plot', 'Farm Plot', 'plot:farm_plot', 1, null, null, null, null, 'namespace_unsupported:plot', 'gen-unlock-offers'),
+  ('plot.scarecrow', 'plot', 'Scarecrow', 'plot:scarecrow', 1, null, null, null, null, 'namespace_unsupported:plot', 'gen-unlock-offers'),
+  ('plot.toolshed', 'plot', 'Tool Shed', 'plot:toolshed', 1, null, null, null, null, 'namespace_unsupported:plot', 'gen-unlock-offers'),
+  ('plot.watchtower', 'plot', 'Watchtower', 'plot:watchtower', 1, null, null, null, null, 'namespace_unsupported:plot', 'gen-unlock-offers'),
+  ('property.castle', 'property', 'Hearthrise Castle', 'property:castle', 5, 150000, '{"ashlar":25,"dragon_scale":4,"mithril_bar":40,"rune_bar":8,"yew_plank":70}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('property.farmstead', 'property', 'Fieldworth Farmstead', 'property:farmstead', 2, 2500, '{"cooked_shrimp":10,"copper_ore":25,"oak_log":40,"wolf_pelt":4}'::jsonb, 1, null, null, 'gen-unlock-offers'),
+  ('property.homestead', 'property', 'Hearthside Homestead', 'property:homestead', 1, 400, '{"copper_ore":20,"normal_log":30}'::jsonb, 0, null, null, 'gen-unlock-offers'),
+  ('property.keep', 'property', 'Ironvale Keep', 'property:keep', 4, 40000, '{"ashlar":12,"bear_pelt":5,"big_bones":20,"maple_plank":50,"steel_bar":35}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('property.manor', 'property', 'Stonecross Manor', 'property:manor', 3, 10000, '{"ashlar":6,"iron_ore":40,"silk_thread":8,"willow_plank":35}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.cellar.1', 'room', 'Cellar — Root Cellar', 'room:cellar', 1, 1200, '{"normal_log":60}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.cellar.2', 'room', 'Cellar — Stone Cellar', 'room:cellar', 2, 4000, '{"oak_log":60}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.cellar.3', 'room', 'Cellar — The Vault', 'room:cellar', 3, 12000, '{"willow_log":50}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.cellar.4', 'room', 'Cellar — The Cask Room', 'room:cellar', 4, 70000, '{"field_ration":20,"goldenroot_roast":6,"timber_beam":12}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.cellar.5', 'room', 'Cellar — The Deep Cellar', 'room:cellar', 5, 320000, '{"duskwood_plank":20,"keystone":2,"moonbloom_elixir":4}'::jsonb, 5, null, null, 'gen-unlock-offers'),
+  ('room.forge.1', 'room', 'Forge — Field Forge', 'room:forge', 1, 800, '{"copper_ore":30}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.forge.2', 'room', 'Forge — Stone Forge', 'room:forge', 2, 3000, '{"iron_ore":50}'::jsonb, 2, 'forge_blueprint_t2', null, 'gen-unlock-offers'),
+  ('room.forge.3', 'room', 'Forge — Double Bellows', 'room:forge', 3, 12000, '{"iron_ore":100}'::jsonb, 2, 'forge_blueprint_t3', null, 'gen-unlock-offers'),
+  ('room.forge.4', 'room', 'Forge — The Great Bellows', 'room:forge', 4, 55000, '{"coal":20,"iron_fitting":15,"steel_bar":60}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.forge.5', 'room', 'Forge — The Deep Forge', 'room:forge', 5, 280000, '{"dragon_scale":6,"keystone":2,"mithril_bar":20}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('room.garden.1', 'room', 'Garden — Kitchen Garden', 'room:garden', 1, 600, '{"wheat":20}'::jsonb, 1, null, null, 'gen-unlock-offers'),
+  ('room.garden.2', 'room', 'Garden — Walled Garden', 'room:garden', 2, 2500, '{"wheat":60}'::jsonb, 1, null, null, 'gen-unlock-offers'),
+  ('room.garden.3', 'room', 'Garden — The Beds', 'room:garden', 3, 9000, '{"pumpkin":5}'::jsonb, 1, null, null, 'gen-unlock-offers'),
+  ('room.garden.4', 'room', 'Garden — The Glasshouse', 'room:garden', 4, 60000, '{"goldenroot":15,"silk_thread":20,"timber_beam":10}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.garden.5', 'room', 'Garden — The Orchard', 'room:garden', 5, 300000, '{"duskwood_plank":40,"keystone":2,"moonbloom":12}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('room.kitchen.1', 'room', 'Kitchen — Hearthstone', 'room:kitchen', 1, 500, '{"normal_log":20}'::jsonb, 1, null, null, 'gen-unlock-offers'),
+  ('room.kitchen.2', 'room', 'Kitchen — Iron Stove', 'room:kitchen', 2, 2000, '{"normal_log":50}'::jsonb, 1, 'kitchen_blueprint_t2', null, 'gen-unlock-offers'),
+  ('room.kitchen.3', 'room', 'Kitchen — Cast-Iron Range', 'room:kitchen', 3, 8000, '{"oak_log":30}'::jsonb, 1, 'kitchen_blueprint_t3', null, 'gen-unlock-offers'),
+  ('room.kitchen.4', 'room', 'Kitchen — Twin Range', 'room:kitchen', 4, 45000, '{"field_ration":25,"timber_beam":12,"willow_log":40}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.kitchen.5', 'room', 'Kitchen — The Great Hearth', 'room:kitchen', 5, 250000, '{"dragon_scale":8,"duskwood_plank":30,"keystone":2}'::jsonb, 5, null, null, 'gen-unlock-offers'),
+  ('room.library.1', 'room', 'Library — Shelf', 'room:library', 1, 1000, '{"normal_log":50}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.library.2', 'room', 'Library — Reading Room', 'room:library', 2, 4000, '{"oak_log":50}'::jsonb, 3, 'library_blueprint_t2', null, 'gen-unlock-offers'),
+  ('room.library.3', 'room', 'Library — The Library', 'room:library', 3, 15000, '{"maple_log":30}'::jsonb, 3, 'library_blueprint_t3', null, 'gen-unlock-offers'),
+  ('room.library.4', 'room', 'Library — The Scriptorium', 'room:library', 4, 65000, '{"magic_essence":10,"silk_thread":25,"timber_beam":12}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.library.5', 'room', 'Library — The Great Library', 'room:library', 5, 300000, '{"ancient_rune":12,"duskwood_plank":30,"keystone":2}'::jsonb, 5, null, null, 'gen-unlock-offers'),
+  ('room.shrine.1', 'room', 'Shrine — Wayside Shrine', 'room:shrine', 1, 900, '{"bones":40}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('room.shrine.2', 'room', 'Shrine — Stone Altar', 'room:shrine', 2, 3500, '{"big_bones":25}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('room.shrine.3', 'room', 'Shrine — The Chapel', 'room:shrine', 3, 13000, '{"dragon_bones":8}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('room.shrine.4', 'room', 'Shrine — The Reliquary', 'room:shrine', 4, 55000, '{"big_bones":60,"grave_dust":20,"iron_fitting":10}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('room.shrine.5', 'room', 'Shrine — The Ossuary', 'room:shrine', 5, 270000, '{"dragon_bones":30,"keystone":2,"war_crown":4}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('room.trophy.1', 'room', 'Trophy Room — Trophy Wall', 'room:trophy', 1, 2000, '{"wolf_pelt":5}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('room.trophy.2', 'room', 'Trophy Room — The Hall', 'room:trophy', 2, 8000, '{"troll_hide":3}'::jsonb, 4, 'trophy_blueprint_t2', null, 'gen-unlock-offers'),
+  ('room.trophy.3', 'room', 'Trophy Room — Hall of Heads', 'room:trophy', 3, 25000, '{"dragon_scale":2}'::jsonb, 4, 'trophy_blueprint_t3', null, 'gen-unlock-offers'),
+  ('room.trophy.4', 'room', 'Trophy Room — Hall of Banners', 'room:trophy', 4, 60000, '{"ancient_claw":3,"bear_pelt":6,"iron_fitting":12}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('room.trophy.5', 'room', 'Trophy Room — The Long Gallery', 'room:trophy', 5, 290000, '{"dragon_gem":1,"dragon_scale":6,"keystone":2}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('room.workshop.1', 'room', 'Workshop — Work Bench', 'room:workshop', 1, 700, '{"normal_log":40}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.workshop.2', 'room', 'Workshop — Joiner''s Bench', 'room:workshop', 2, 2800, '{"oak_plank":25}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.workshop.3', 'room', 'Workshop — The Sawpit', 'room:workshop', 3, 11000, '{"willow_plank":30}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.workshop.4', 'room', 'Workshop — The Lathe', 'room:workshop', 4, 50000, '{"iron_fitting":12,"maple_plank":30,"silk_thread":10}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.workshop.5', 'room', 'Workshop — The Master''s Shop', 'room:workshop', 5, 260000, '{"duskwood_plank":25,"keystone":2,"rune_bar":6}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('theme.default', 'theme', 'Cozy Cottage', 'theme:default', 1, null, null, null, null, 'namespace_unsupported:theme', 'gen-unlock-offers'),
+  ('theme.desert', 'theme', 'Desert Oasis', 'theme:desert', 1, null, null, null, null, 'namespace_unsupported:theme', 'gen-unlock-offers'),
+  ('theme.fairy', 'theme', 'Fairy Glen', 'theme:fairy', 1, null, null, null, null, 'namespace_unsupported:theme', 'gen-unlock-offers'),
+  ('theme.forest', 'theme', 'Forest Lodge', 'theme:forest', 1, null, null, null, null, 'namespace_unsupported:theme', 'gen-unlock-offers'),
+  ('theme.volcanic', 'theme', 'Volcanic Keep', 'theme:volcanic', 1, null, null, null, null, 'namespace_unsupported:theme', 'gen-unlock-offers'),
+  ('theme.winter', 'theme', 'Winter Chalet', 'theme:winter', 1, null, null, null, null, 'namespace_unsupported:theme', 'gen-unlock-offers'),
+  ('trait.auto_eat', 'trait', 'Auto-Eat I', 'trait:auto_eat', 1, null, null, null, null, 'namespace_unsupported:trait', 'gen-unlock-offers'),
+  ('trait.auto_eat_2', 'trait', 'Auto-Eat II', 'trait:auto_eat_2', 1, null, null, null, null, 'namespace_unsupported:trait', 'gen-unlock-offers'),
+  ('worker.1', 'worker', 'Hire worker #1', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers'),
+  ('worker.2', 'worker', 'Hire worker #2', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers'),
+  ('worker.3', 'worker', 'Hire worker #3', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers'),
+  ('worker.4', 'worker', 'Hire worker #4', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers'),
+  ('worker.5', 'worker', 'Hire worker #5', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers'),
+  ('worker.6', 'worker', 'Hire worker #6', 'worker', 1, null, null, null, null, 'namespace_unsupported:worker', 'gen-unlock-offers');
 
 -- ── SELF-CHECK ───────────────────────────────────────────────────────────
 do $$
 declare v_n int; v_bad text;
 begin
-  select count(*) into v_n from public.hr_unlock_offers;
+  -- Scoped to THIS generator's rows: another migration's families live in the
+  -- same table and are none of this count's business.
+  select count(*) into v_n from public.hr_unlock_offers where source = 'gen-unlock-offers';
   if v_n <> 94 then
-    raise exception 'hr_unlock_offers holds % rows, expected 94 — the insert was partial', v_n;
+    raise exception 'hr_unlock_offers holds % gen-unlock-offers rows, expected 94 — the insert was partial', v_n;
   end if;
-  select count(*) into v_n from public.hr_unlock_offers where refusal is null;
+  select count(*) into v_n from public.hr_unlock_offers
+   where source = 'gen-unlock-offers' and refusal is null;
   if v_n <> 45 then
-    raise exception 'hr_unlock_offers holds % sellable rows, expected 45', v_n;
+    raise exception 'hr_unlock_offers holds % sellable gen-unlock-offers rows, expected 45', v_n;
+  end if;
+  -- ⚠ THE INTERLOCK. A refill that deleted a family this file does not own is
+  --   the production incident this scoping exists to prevent, and an assertion
+  --   is the only thing that notices if the scoping is ever "simplified" away.
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'hr_unlock_offers'
+                and column_name = 'source' and column_default is null) then
+    raise exception 'hr_unlock_offers.source lost its default — a row inserted without an owner '
+                    'would be deleted by the next refill of whichever tool guessed first';
   end if;
 
   -- ⚠ THE CROSS-CATALOGUE JOIN. This table says what a purchase costs;

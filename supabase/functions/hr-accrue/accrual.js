@@ -138,6 +138,15 @@ import {
   makeBestiaryCounter, bestiaryProgressOps,
   makeCollectionCounter, collectionProgressOps,
 } from '../../../src/core/goals.js';
+/* THE QUEST-MODAL DAILY COUNTERS (b461) — chopped / mined / fished / rare_drop
+   / levelup. A SECOND PROJECTION of integers this engine already computed (the
+   same values written one line away as lifetime `stat` rows), NOT a second
+   count, so a daily row and its lifetime row cannot disagree. There is
+   deliberately no `weekly` kind: a weekly total is DERIVED at claim time as the
+   sum of the ISO week's seven day rows. See goal-period.js's header for why
+   mirroring it as rows was rejected (it would double the progress ops on every
+   settle, and `progress_clamp` HALVES THE SPAN rather than failing). */
+import { modalGoalOps } from './goal-period.js';
 /* The ONE catalogue-lookup guard in this payload. See its definition for why a
    truthiness test on a `[a-z0-9_]` id is not one. ./intents.js imports nothing,
    so this cannot cycle. */
@@ -1320,6 +1329,14 @@ export function computeAccrual(input) {
        the goal-event counter. They will agree on a combat night, and G3
        asserts that they do — the redundancy IS the drift guard. */
   for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);
+  /* THE MODAL-GOAL DAILY COUNTERS (b461). `rare_drops` is the SAME integer
+     `stat('rare_drops', …)` files two lines above — the lifetime row and the
+     daily row are one fact over two windows, under one spelling. `levelups` is
+     the length of the levelUps array the XP grant already produced, i.e. the
+     number of level CROSSINGS this span, which is exactly what "Gain a skill
+     level" asks. At most two ops; the budget is analysed in goal-period.js. */
+  for (const op of modalGoalOps(nowMs,
+        { rare_drops: stats.rareDrops, levelups: levelUps.length }, events)) progress.push(op);
   /* THE BESTIARY OPS (Slice 1) — per-monster kill counts. A combat span fights
      a SINGLE activeId, so `bestiary` holds exactly one key and this pushes
      exactly one op; it cannot approach c_max_progress_ops. Folded into the same
@@ -1735,6 +1752,17 @@ function accrueGather(inp, span) {
      combat builder states: one is the lifetime yield, one is the goal event,
      and their agreement is asserted by G3. */
   for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);
+  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own
+     SKILL_ACTION_STAT value — 'chopped' | 'mined' | 'fished' — and the count
+     is the SAME integer `stat(perSkill, …)` files five lines above, so the
+     daily row and the lifetime row are one fact over two windows. A skill with
+     no per-action stat (none today) contributes nothing rather than minting a
+     key named `undefined`. */
+  {
+    const modal = { levelups: levelUps.length };
+    if (perSkill) modal[perSkill] = stats[perSkill];
+    for (const op of modalGoalOps(nowMs, modal, events)) progress.push(op);
+  }
   /* THE COMPANION XP OP (dormant) — the equipped pet earns per gather-yield
      action, the count wireAddItemForGather awards on live. Draw-free, gated. */
   for (const op of companionXpOps(inp, 'gather', companionActions)) progress.push(op);
@@ -2126,6 +2154,12 @@ function accrueArtisan(inp, span) {
      paths. `events` is passed so a clamp or an unknown type leaves a receipt
      instead of vanishing. */
   for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);
+  /* THE MODAL-GOAL DAILY COUNTERS (b461). The artisan bench produces no
+     chopped/mined/fished/rare drops, so `levelups` is the only counter this
+     path can move — one op, and only on a span that actually crossed a level.
+     The bench's own dailies (cook / smith / craft) are already carried by
+     goalProgressOps above as `ev:cooked` / `ev:smithed` / `ev:crafted`. */
+  for (const op of modalGoalOps(nowMs, { levelups: levelUps.length }, events)) progress.push(op);
   /* THE COMPANION XP OP (dormant) — the equipped pet earns per produce action,
      the count wireAddItemForGather awards on live for an active recipe.
      Draw-free, gated. */

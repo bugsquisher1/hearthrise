@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=460' directly.
+// modularised, will import { G } from '../state/game.js?v=461' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=460';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=460';
+import { on, snapshot } from '../net/events.js?v=461';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=461';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=460';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=461';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2261,6 +2261,108 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.HearthriseGoalClaim = origClaim;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('GOAL-CLAIM-1 (b461): under arm a MODAL goal claim fires hr_claim_goal and surfaces every outcome — never a silent no-op', async () => {
+    // The beta-morning regression: the quest modal's daily/weekly pools are a
+    // THIRD goal system (≠ QUEST_DEFS, ≠ DAILY_TASK_POOL) and their
+    // claimQuestReward carried the b411 bare-return defer — every Claim button
+    // was a silent no-op under the arm (no RPC, no toast, no error). Found live
+    // by Tyler. The contract now: armed claims go through
+    // HearthriseGoalClaim.claimGoal, and ok / already_claimed / refusal /
+    // missing-transport ALL surface to the player.
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origClaim = window.HearthriseGoalClaim;
+    const origNotify = window.notify;
+    const calls = []; const toasts = [];
+    const microtasks = () => new Promise((r) => setTimeout(r, 0));
+    try {
+      window.clientMayWriteRecordField = (f) => f !== 'gold';
+      window.notify = (m) => { toasts.push(String(m)); };
+      window.getGoalsForToday();
+      const dayKey = window.G.dailyGoals.dayKey;
+      window.G.stats.kills = 99;
+      window.G.dailyGoals = { dayKey, picks: ['kill_more'], startValues: { kill_more: 0 }, claimed: {} };
+      window.G._goalClaimsInFlight = null; window._goalClaimsInFlight = {};
+
+      // 1 — ok:true → RPC fired with the id, claimed marked, toast shown, no local gold
+      window.HearthriseGoalClaim = { isSignedIn: () => true,
+        claimGoal: (id, weekly) => { calls.push([id, !!weekly]); return Promise.resolve({ ok: true, gold: 400 }); } };
+      const goldBefore = window.G.gold;
+      window.claimQuestReward('kill_more', false);
+      assert(calls.length === 1 && calls[0][0] === 'kill_more' && calls[0][1] === false,
+        'THE BUG: an armed modal claim must FIRE claimGoal (was a silent bare return)');
+      await microtasks();
+      assert(window.G.dailyGoals.claimed && window.G.dailyGoals.claimed.kill_more === true,
+        'an ok claim must mark the goal claimed');
+      assert(toasts.some((t) => /claimed/i.test(t)), 'an ok claim must toast the player');
+      assert(window.G.gold === goldBefore, 'armed claim must NOT credit gold locally (server credits it)');
+
+      // 2 — already_claimed → marked claimed + honest toast (reload forgot the flag; server remembered)
+      toasts.length = 0;
+      window.G.dailyGoals.claimed = {};
+      window.HearthriseGoalClaim = { isSignedIn: () => true,
+        claimGoal: () => Promise.resolve({ ok: false, error: 'already_claimed' }) };
+      window.claimQuestReward('kill_more', false);
+      await microtasks();
+      assert(window.G.dailyGoals.claimed.kill_more === true, 'already_claimed must mark the goal claimed');
+      assert(toasts.some((t) => /already claimed/i.test(t)), 'already_claimed must be surfaced');
+
+      // 3 — refusal (incomplete) → NOT claimed, honest toast
+      toasts.length = 0;
+      window.G.dailyGoals.claimed = {};
+      window.HearthriseGoalClaim = { isSignedIn: () => true,
+        claimGoal: () => Promise.resolve({ ok: false, error: 'incomplete' }) };
+      window.claimQuestReward('kill_more', false);
+      await microtasks();
+      assert(!window.G.dailyGoals.claimed.kill_more, 'a refused claim must stay claimable');
+      assert(toasts.length > 0, 'a refusal must be surfaced, never silent');
+
+      // 4 — no transport → honest toast, no crash
+      toasts.length = 0;
+      window.HearthriseGoalClaim = null;
+      window.claimQuestReward('kill_more', false);
+      assert(toasts.length > 0, 'a missing transport must be surfaced, never silent');
+
+      // 5 — GOAL-STATE: under arm the SERVER's projection is the display truth.
+      // Local stats say 99/30 (complete); the server says 4/30 — the modal must
+      // show 4/30 and offer NO Claim. Then the server says claimed → reads claimed.
+      window.G.dailyGoals.claimed = {};
+      window.HearthriseGoalClaim = { isSignedIn: () => true,
+        claimGoal: () => Promise.resolve({ ok: false, error: 'incomplete' }),
+        goalState: () => Promise.resolve({ ok: true, day_key: 'x', week_key: 'y', goals: [
+          { goal_id: 'kill_more', weekly: false, target: 30, have: 4, complete: false, claimed: false },
+        ] }) };
+      await new Promise((r) => window.__hrSyncServerGoals((fresh) => r(fresh)));
+      let badge = window.questBadgeState();
+      assert(badge.claimable === 0, 'server says incomplete → nothing may read as claimable (local stats said 99/30)');
+      window.openQuestsModal();
+      (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || {click(){}}).click();
+      await microtasks();
+      const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');
+      assert(prog && /4\s*\/\s*30/.test(prog.textContent), 'the modal must paint the SERVER progress (4 / 30), got: ' + (prog && prog.textContent));
+      assert(!document.querySelector('#quests-modal-overlay .qm-q-claim'), 'no Claim button when the server says incomplete');
+      window.closeQuestsModal();
+      window.HearthriseGoalClaim.goalState = () => Promise.resolve({ ok: true, goals: [
+        { goal_id: 'kill_more', weekly: false, target: 30, have: 30, complete: true, claimed: true } ] });
+      await new Promise((r) => window.__hrSyncServerGoals((fresh) => r(fresh)));
+      window.openQuestsModal();
+      (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || {click(){}}).click();
+      await microtasks();
+      assert(document.querySelector('#quests-modal-overlay .qm-q-claimed'),
+        'server says claimed → the row reads "Claimed" even with no local flag');
+      window.closeQuestsModal();
+    } finally {
+      // drop the stubbed server picture so later tests read local again
+      window.__hrSyncServerGoals.reset();
+      if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+      window.clientMayWriteRecordField = origMay;
+      window.HearthriseGoalClaim = origClaim;
+      window.notify = origNotify;
+      window._goalClaimsInFlight = {};
       restoreG(snap);
     }
   }),
@@ -8595,6 +8697,25 @@ const TESTS = [
     assert(/merge-duplicates/.test((req.headers && req.headers.Prefer) || ''), 'snapshot must use resolution=merge-duplicates');
     assert(req.body && req.body.slot === 0, 'snapshot body must include slot (NOT NULL col), got ' + JSON.stringify(req.body && req.body.slot));
     assert(req.body && 'user_id' in req.body && 'snapshot' in req.body, 'snapshot body must include user_id + snapshot');
+  }),
+
+  () => tryRun('SYNC-ONCE-1 (b461): the forced-save DOM listeners register once per page, however often setupSync re-runs', () => {
+    /* setupSync() re-runs on module load, sign-in, and EVERY ~55-min token
+       refresh (onAuthStateChange → enableLiveSync). Its pagehide/visibilitychange
+       forced-save listeners were re-registered each time with no removal, so a
+       long mobile session accumulated one forced-save pair per refresh — found
+       live as a beta player blowing hr_put_client_state's 60/min rate gate.
+       The smoke page has already run setupSync at least twice (offline boot +
+       cloud upgrade when signed in); run it twice more and prove the
+       registration count never moves past one. */
+    const S = window.HearthriseSync;
+    assert(S && typeof S.__lifecycleRegistrationCount === 'function',
+      'HearthriseSync.__lifecycleRegistrationCount not exported');
+    const before = S.__lifecycleRegistrationCount();
+    assert(before === 1, 'the listener pair must have registered exactly once by now, got ' + before);
+    S.setupSync(); S.setupSync();
+    assert(S.__lifecycleRegistrationCount() === 1,
+      'THE BUG: re-running setupSync must not stack another forced-save listener pair');
   }),
 
   // b146: guard the live wiring set by auth.js. Only asserts when a cloud
@@ -21754,6 +21875,42 @@ const TESTS = [
     } finally { R.getPerks = savedPerks; restoreG(snap); }
   }),
 
+  () => tryRun('DAILY-HEAL-1 (b461): a stale pre-eligibility slate is healed in place — impossible tasks swapped, progress on kept tasks preserved', () => {
+    /* The b459 eligibility filter applies at GENERATION only, so a slate rolled
+       before the fix carried its impossible tasks all day (found live on beta
+       morning: Craft 8 + Smith 8 against zero craftable recipes). The heal in
+       generateDailyTasks rebuilds today's slate from the filtered deterministic
+       set when an UN-done stored task is ineligible now. */
+    const snap = snapshotG();
+    const GCat = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
+    assert(GCat && typeof GCat.dailyTaskEligible === 'function', 'goalCatalogue bridge must be up');
+    const savedCaps = window.dailyTaskCaps;
+    try {
+      // A fresh account: no rooms, no artisan XP — craft/smith are ineligible.
+      window.dailyTaskCaps = () => ({ rooms: {}, skillXp: {} });
+      const today = window.hrGoalDayKey();
+      // Stale slate: one impossible task + one eligible task with real progress.
+      window.G.daily = { lastReset: today, tasks: [
+        { id: 'daily_gather', type: 'gather', label: 'Gather 50', goal: 50, progress: 37, reward: 400, done: false },
+        { id: 'daily_craft', type: 'crafted', label: 'Craft 8', goal: 8, progress: 0, reward: 450, done: false },
+        { id: 'daily_smith', type: 'smithed', label: 'Smith 8', goal: 8, progress: 0, reward: 450, done: false },
+      ] };
+      window.generateDailyTasks(false);
+      const ids = window.G.daily.tasks.map((t) => t.id);
+      const caps = window.dailyTaskCaps();
+      assert(window.G.daily.tasks.length === 3, 'the healed slate keeps its size, got ' + ids.length);
+      assert(ids.every((id) => GCat.dailyTaskEligible(id, caps)),
+        'THE BUG: the healed slate still offers an impossible task: ' + ids.join(','));
+      const kept = window.G.daily.tasks.find((t) => t.id === 'daily_gather');
+      assert(kept && kept.progress === 37, 'progress on a kept task must survive the heal');
+      // Idempotent: a second call with a clean slate changes nothing.
+      const before = JSON.stringify(window.G.daily.tasks.map((t) => t.id));
+      window.generateDailyTasks(false);
+      assert(JSON.stringify(window.G.daily.tasks.map((t) => t.id)) === before,
+        'a clean slate must not be re-rolled');
+    } finally { window.dailyTaskCaps = savedCaps; restoreG(snap); }
+  }),
+
   () => tryRun('b228 P1: combatXP pays RANGED and MAGIC, not four styles out of six', () => {
     /* Pre-existing, ~unknown lifetime: addXp listed attack/strength/defense/
        hitpoints and silently skipped ranged and magic, so the Trophy Room, the
@@ -29773,7 +29930,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=460');
+    const KIT = await import('../data/start-kit.js?v=461');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -35704,7 +35861,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=460');
+    const S = await import('../data/shops.js?v=461');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -37113,7 +37270,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=460');
+    const S = await import('../data/shops.js?v=461');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -40798,7 +40955,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=460')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=461')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -42240,7 +42397,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=460');
+    const A = await import('../net/accrue.js?v=461');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -42264,7 +42421,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=460');
+    const A = await import('../net/accrue.js?v=461');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);

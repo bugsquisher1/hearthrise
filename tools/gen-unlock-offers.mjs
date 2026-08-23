@@ -234,7 +234,8 @@ const refusalSummary = Object.keys(byRefusal).sort().map((k) => `${k}=${byRefusa
 
 const valueLines = rows.map((r) =>
   `  (${q(r.offer_id)}, ${q(r.table_name)}, ${q(r.name)}, ${q(r.unlock_id)}, ${num(r.value)}, `
-  + `${num(r.gold)}, ${jsonb(r.items)}, ${num(r.req_property_tier)}, ${q(r.req_item)}, ${q(r.refusal)})`)
+  + `${num(r.gold)}, ${jsonb(r.items)}, ${num(r.req_property_tier)}, ${q(r.req_item)}, ${q(r.refusal)}, `
+  + `'gen-unlock-offers')`)
   .join(',\n');
 
 const file = `-- ════════════════════════════════════════════════════════════════════════
@@ -291,7 +292,18 @@ const file = `-- ═════════════════════
 -- rung and both prerequisites out of it and FAILS CLOSED if it is absent or
 -- empty.
 --
--- SAFE TO RE-RUN. The table is created if absent and refilled wholesale.
+-- ⚠ THE REFILL IS SCOPED BY \`source\`, AND THAT IS A LIVE-INCIDENT FIX ────
+-- This file used to refill with a bare \`delete from public.hr_unlock_offers\`.
+-- 2026-08-19-gold-spend-slices-2-3.sql adds 48 MORE offers to the same table
+-- (worker_hire · plot:farm_land · bank), and its header warned in prose that
+-- "RE-APPLYING EITHER 2026-08-16 CATALOGUE ALONE WIPES THESE ROWS". It then
+-- happened in production: a regen of this file deleted all three gold-ladder
+-- families and every one of those purchases became \`unknown_offer\`.
+-- A prose warning is not an interlock. Every row now carries the tool that
+-- OWNS it, and each generator deletes only its own — so re-running either file,
+-- alone or in any order, can no longer touch the other's rows.
+--
+-- SAFE TO RE-RUN, and safe to re-run ALONE.
 -- ════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.hr_unlock_offers (
@@ -342,10 +354,32 @@ end $$;
 -- a grant to PUBLIC is held by every role that exists.
 revoke all on public.hr_unlock_offers from public, anon, authenticated, service_role;
 
--- Refilled wholesale, inside the migration's transaction.
-delete from public.hr_unlock_offers;
+-- ── ROW OWNERSHIP ────────────────────────────────────────────────────────
+-- Which tool wrote a row, so a refill can be scoped to its own. Added
+-- additively; the DEFAULT names this generator because every row that predates
+-- the column was written by it — with ONE exception, which the same block
+-- rescues by name-free derivation (any pre-existing row this generation does
+-- not emit belongs to somebody else).
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'hr_unlock_offers'
+                and column_name = 'source') then
+    return;   -- already owned; the rescue below is strictly one-time
+  end if;
+  alter table public.hr_unlock_offers
+    add column source text not null default 'gen-unlock-offers';
+  update public.hr_unlock_offers set source = 'foreign:pre-source'
+   where offer_id <> all (array[${rows.map((r) => `'${r.offer_id.replace(/'/g, "''")}'`).join(', ')}]);
+  raise notice 'hr_unlock_offers.source added; % pre-existing foreign row(s) preserved',
+    (select count(*) from public.hr_unlock_offers where source = 'foreign:pre-source');
+end $$;
+
+-- Refilled inside the migration's transaction, SCOPED TO THIS GENERATOR'S OWN
+-- ROWS. A family another migration owns is untouched — see the header.
+delete from public.hr_unlock_offers where source = 'gen-unlock-offers';
 insert into public.hr_unlock_offers
-  (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal)
+  (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal, source)
 values
 ${valueLines};
 
@@ -353,13 +387,25 @@ ${valueLines};
 do $$
 declare v_n int; v_bad text;
 begin
-  select count(*) into v_n from public.hr_unlock_offers;
+  -- Scoped to THIS generator's rows: another migration's families live in the
+  -- same table and are none of this count's business.
+  select count(*) into v_n from public.hr_unlock_offers where source = 'gen-unlock-offers';
   if v_n <> ${rows.length} then
-    raise exception 'hr_unlock_offers holds % rows, expected ${rows.length} — the insert was partial', v_n;
+    raise exception 'hr_unlock_offers holds % gen-unlock-offers rows, expected ${rows.length} — the insert was partial', v_n;
   end if;
-  select count(*) into v_n from public.hr_unlock_offers where refusal is null;
+  select count(*) into v_n from public.hr_unlock_offers
+   where source = 'gen-unlock-offers' and refusal is null;
   if v_n <> ${sellableRows.length} then
-    raise exception 'hr_unlock_offers holds % sellable rows, expected ${sellableRows.length}', v_n;
+    raise exception 'hr_unlock_offers holds % sellable gen-unlock-offers rows, expected ${sellableRows.length}', v_n;
+  end if;
+  -- ⚠ THE INTERLOCK. A refill that deleted a family this file does not own is
+  --   the production incident this scoping exists to prevent, and an assertion
+  --   is the only thing that notices if the scoping is ever "simplified" away.
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'hr_unlock_offers'
+                and column_name = 'source' and column_default is null) then
+    raise exception 'hr_unlock_offers.source lost its default — a row inserted without an owner '
+                    'would be deleted by the next refill of whichever tool guessed first';
   end if;
 
   -- ⚠ THE CROSS-CATALOGUE JOIN. This table says what a purchase costs;

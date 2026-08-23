@@ -25,14 +25,17 @@
 -- one of those structurally impossible — hr_unlock_buy already refuses a skipped
 -- rung, an already-owned rung and an off-ladder value.
 --
--- ⚠ APPLY-ORDER / RE-APPLY CONTRACT (READ THIS)
---   public.hr_unlocks and public.hr_unlock_offers are WHOLESALE-REFILLED by the
---   two 2026-08-16 generated catalogues (`delete from ...; insert ...`). Those
---   run EARLIER in migration order, so a full ordered replay is correct: they
---   fill room/property/etc, THEN this file adds the gold ladders. But
---   RE-APPLYING EITHER 2026-08-16 CATALOGUE ALONE WIPES THESE ROWS. They are a
---   SET: after re-applying a 2026-08-16 catalogue, re-apply THIS file. It is
---   fully idempotent (upsert + scoped delete), so re-applying it is always safe.
+-- ⚠ APPLY-ORDER / RE-APPLY CONTRACT (READ THIS — IT CHANGED)
+--   These 48 offers share public.hr_unlock_offers with the 2026-08-16 generated
+--   catalogue. That file used to refill the table with a bare
+--   `delete from public.hr_unlock_offers`, so RE-APPLYING IT ALONE WIPED THESE
+--   ROWS — which is exactly what happened in production: worker_hire, farm_land
+--   and bank all became `unknown_offer` and three gold sinks went dark. The
+--   prose warning that used to sit here was not an interlock.
+--   Every row now carries the tool that OWNS it (`hr_unlock_offers.source`) and
+--   each generator deletes only its own, so either file may be re-applied ALONE,
+--   in any order, without touching the other's rows. This file remains fully
+--   idempotent (upsert + scoped delete).
 --
 -- REVERSIBILITY
 --   delete from public.hr_unlock_offers where offer_id in (48 ids below);
@@ -74,60 +77,68 @@ on conflict (unlock_id) do update
       progress_kind = excluded.progress_kind, max_value = excluded.max_value, rungs = excluded.rungs;
 
 -- ── 2. THE OFFER ROWS (hr_unlock_offers) — the PRICE and the GATE ────────
+-- Row ownership, added additively so this file can be applied against a
+-- database that has not yet run the patched 2026-08-16 catalogue. The DEFAULT
+-- names the OTHER generator because every row that predates the column was
+-- written by it; the insert below states this file's ownership explicitly.
+alter table public.hr_unlock_offers
+  add column if not exists source text not null default 'gen-unlock-offers';
+
 -- Scoped delete + insert: this file OWNS exactly these offer ids and touches no
--- other row, so it never fights the wholesale refill for the shop-derived rows.
+-- other row, so it never fights the shop-derived refill — and, since the refill
+-- is now scoped by `source`, the refill no longer fights it either.
 delete from public.hr_unlock_offers where offer_id in ('worker_hire.1', 'worker_hire.2', 'worker_hire.3', 'worker_hire.4', 'worker_hire.5', 'worker_hire.6', 'farm_land.1', 'farm_land.2', 'farm_land.3', 'farm_land.4', 'farm_land.5', 'farm_land.6', 'farm_land.7', 'farm_land.8', 'farm_land.9', 'farm_land.10', 'farm_land.11', 'farm_land.12', 'bank.0', 'bank.1', 'bank.2', 'bank.3', 'bank.4', 'bank.5', 'bank.6', 'bank.7', 'bank.8', 'bank.9', 'bank.10', 'bank.11', 'bank.12', 'bank.13', 'bank.14', 'bank.15', 'bank.16', 'bank.17', 'bank.18', 'bank.19', 'bank.20', 'bank.21', 'bank.22', 'bank.23', 'bank.24', 'bank.25', 'bank.26', 'bank.27', 'bank.28', 'bank.29');
 insert into public.hr_unlock_offers
-  (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal)
+  (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal, source)
 values
-  ('worker_hire.1', 'worker', 'Hire worker #1', 'worker_hire', 1, 500, '{}'::jsonb, 1, null, null),
-  ('worker_hire.2', 'worker', 'Hire worker #2', 'worker_hire', 2, 3000, '{}'::jsonb, 2, null, null),
-  ('worker_hire.3', 'worker', 'Hire worker #3', 'worker_hire', 3, 15000, '{}'::jsonb, 3, null, null),
-  ('worker_hire.4', 'worker', 'Hire worker #4', 'worker_hire', 4, 75000, '{}'::jsonb, 4, null, null),
-  ('worker_hire.5', 'worker', 'Hire worker #5', 'worker_hire', 5, 250000, '{}'::jsonb, 5, null, null),
-  ('worker_hire.6', 'worker', 'Hire worker #6', 'worker_hire', 6, 750000, '{}'::jsonb, 5, null, null),
-  ('farm_land.1', 'plot', 'Farm plot #1', 'plot:farm_land', 1, 100, '{"normal_log":5}'::jsonb, 0, null, null),
-  ('farm_land.2', 'plot', 'Farm plot #2', 'plot:farm_land', 2, 100, '{"normal_log":5}'::jsonb, 0, null, null),
-  ('farm_land.3', 'plot', 'Farm plot #3', 'plot:farm_land', 3, 100, '{"normal_log":5}'::jsonb, 1, null, null),
-  ('farm_land.4', 'plot', 'Farm plot #4', 'plot:farm_land', 4, 100, '{"normal_log":5}'::jsonb, 1, null, null),
-  ('farm_land.5', 'plot', 'Farm plot #5', 'plot:farm_land', 5, 100, '{"normal_log":5}'::jsonb, 2, null, null),
-  ('farm_land.6', 'plot', 'Farm plot #6', 'plot:farm_land', 6, 100, '{"normal_log":5}'::jsonb, 2, null, null),
-  ('farm_land.7', 'plot', 'Farm plot #7', 'plot:farm_land', 7, 100, '{"normal_log":5}'::jsonb, 3, null, null),
-  ('farm_land.8', 'plot', 'Farm plot #8', 'plot:farm_land', 8, 100, '{"normal_log":5}'::jsonb, 3, null, null),
-  ('farm_land.9', 'plot', 'Farm plot #9', 'plot:farm_land', 9, 100, '{"normal_log":5}'::jsonb, 4, null, null),
-  ('farm_land.10', 'plot', 'Farm plot #10', 'plot:farm_land', 10, 100, '{"normal_log":5}'::jsonb, 4, null, null),
-  ('farm_land.11', 'plot', 'Farm plot #11', 'plot:farm_land', 11, 100, '{"normal_log":5}'::jsonb, 5, null, null),
-  ('farm_land.12', 'plot', 'Farm plot #12', 'plot:farm_land', 12, 100, '{"normal_log":5}'::jsonb, 5, null, null),
-  ('bank.0', 'bank', 'Bank expansion (+20)', 'bank', 1, 3000, '{}'::jsonb, 0, null, null),
-  ('bank.1', 'bank', 'Bank expansion (+20)', 'bank', 2, 3960, '{}'::jsonb, 0, null, null),
-  ('bank.2', 'bank', 'Bank expansion (+20)', 'bank', 3, 5227, '{}'::jsonb, 0, null, null),
-  ('bank.3', 'bank', 'Bank expansion (+20)', 'bank', 4, 6900, '{}'::jsonb, 0, null, null),
-  ('bank.4', 'bank', 'Bank expansion (+20)', 'bank', 5, 9108, '{}'::jsonb, 0, null, null),
-  ('bank.5', 'bank', 'Bank expansion (+20)', 'bank', 6, 12022, '{}'::jsonb, 0, null, null),
-  ('bank.6', 'bank', 'Bank expansion (+20)', 'bank', 7, 15870, '{}'::jsonb, 0, null, null),
-  ('bank.7', 'bank', 'Bank expansion (+20)', 'bank', 8, 20948, '{}'::jsonb, 0, null, null),
-  ('bank.8', 'bank', 'Bank expansion (+20)', 'bank', 9, 27651, '{}'::jsonb, 0, null, null),
-  ('bank.9', 'bank', 'Bank expansion (+20)', 'bank', 10, 36499, '{}'::jsonb, 0, null, null),
-  ('bank.10', 'bank', 'Bank expansion (+20)', 'bank', 11, 48179, '{}'::jsonb, 0, null, null),
-  ('bank.11', 'bank', 'Bank expansion (+20)', 'bank', 12, 63597, '{}'::jsonb, 0, null, null),
-  ('bank.12', 'bank', 'Bank expansion (+20)', 'bank', 13, 83948, '{}'::jsonb, 0, null, null),
-  ('bank.13', 'bank', 'Bank expansion (+20)', 'bank', 14, 110811, '{}'::jsonb, 0, null, null),
-  ('bank.14', 'bank', 'Bank expansion (+20)', 'bank', 15, 146270, '{}'::jsonb, 0, null, null),
-  ('bank.15', 'bank', 'Bank expansion (+20)', 'bank', 16, 193077, '{}'::jsonb, 0, null, null),
-  ('bank.16', 'bank', 'Bank expansion (+20)', 'bank', 17, 254861, '{}'::jsonb, 0, null, null),
-  ('bank.17', 'bank', 'Bank expansion (+20)', 'bank', 18, 336417, '{}'::jsonb, 0, null, null),
-  ('bank.18', 'bank', 'Bank expansion (+20)', 'bank', 19, 444071, '{}'::jsonb, 0, null, null),
-  ('bank.19', 'bank', 'Bank expansion (+20)', 'bank', 20, 586173, '{}'::jsonb, 0, null, null),
-  ('bank.20', 'bank', 'Bank expansion (+20)', 'bank', 21, 773749, '{}'::jsonb, 0, null, null),
-  ('bank.21', 'bank', 'Bank expansion (+20)', 'bank', 22, 1021348, '{}'::jsonb, 0, null, null),
-  ('bank.22', 'bank', 'Bank expansion (+20)', 'bank', 23, 1348180, '{}'::jsonb, 0, null, null),
-  ('bank.23', 'bank', 'Bank expansion (+20)', 'bank', 24, 1779597, '{}'::jsonb, 0, null, null),
-  ('bank.24', 'bank', 'Bank expansion (+20)', 'bank', 25, 2349068, '{}'::jsonb, 0, null, null),
-  ('bank.25', 'bank', 'Bank expansion (+20)', 'bank', 26, 3100770, '{}'::jsonb, 0, null, null),
-  ('bank.26', 'bank', 'Bank expansion (+20)', 'bank', 27, 4093016, '{}'::jsonb, 0, null, null),
-  ('bank.27', 'bank', 'Bank expansion (+20)', 'bank', 28, 5402781, '{}'::jsonb, 0, null, null),
-  ('bank.28', 'bank', 'Bank expansion (+20)', 'bank', 29, 7131671, '{}'::jsonb, 0, null, null),
-  ('bank.29', 'bank', 'Bank expansion (+20)', 'bank', 30, 9413806, '{}'::jsonb, 0, null, null);
+  ('worker_hire.1', 'worker', 'Hire worker #1', 'worker_hire', 1, 500, '{}'::jsonb, 1, null, null, 'gen-gold-ladders'),
+  ('worker_hire.2', 'worker', 'Hire worker #2', 'worker_hire', 2, 3000, '{}'::jsonb, 2, null, null, 'gen-gold-ladders'),
+  ('worker_hire.3', 'worker', 'Hire worker #3', 'worker_hire', 3, 15000, '{}'::jsonb, 3, null, null, 'gen-gold-ladders'),
+  ('worker_hire.4', 'worker', 'Hire worker #4', 'worker_hire', 4, 75000, '{}'::jsonb, 4, null, null, 'gen-gold-ladders'),
+  ('worker_hire.5', 'worker', 'Hire worker #5', 'worker_hire', 5, 250000, '{}'::jsonb, 5, null, null, 'gen-gold-ladders'),
+  ('worker_hire.6', 'worker', 'Hire worker #6', 'worker_hire', 6, 750000, '{}'::jsonb, 5, null, null, 'gen-gold-ladders'),
+  ('farm_land.1', 'plot', 'Farm plot #1', 'plot:farm_land', 1, 100, '{"normal_log":5}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('farm_land.2', 'plot', 'Farm plot #2', 'plot:farm_land', 2, 100, '{"normal_log":5}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('farm_land.3', 'plot', 'Farm plot #3', 'plot:farm_land', 3, 100, '{"normal_log":5}'::jsonb, 1, null, null, 'gen-gold-ladders'),
+  ('farm_land.4', 'plot', 'Farm plot #4', 'plot:farm_land', 4, 100, '{"normal_log":5}'::jsonb, 1, null, null, 'gen-gold-ladders'),
+  ('farm_land.5', 'plot', 'Farm plot #5', 'plot:farm_land', 5, 100, '{"normal_log":5}'::jsonb, 2, null, null, 'gen-gold-ladders'),
+  ('farm_land.6', 'plot', 'Farm plot #6', 'plot:farm_land', 6, 100, '{"normal_log":5}'::jsonb, 2, null, null, 'gen-gold-ladders'),
+  ('farm_land.7', 'plot', 'Farm plot #7', 'plot:farm_land', 7, 100, '{"normal_log":5}'::jsonb, 3, null, null, 'gen-gold-ladders'),
+  ('farm_land.8', 'plot', 'Farm plot #8', 'plot:farm_land', 8, 100, '{"normal_log":5}'::jsonb, 3, null, null, 'gen-gold-ladders'),
+  ('farm_land.9', 'plot', 'Farm plot #9', 'plot:farm_land', 9, 100, '{"normal_log":5}'::jsonb, 4, null, null, 'gen-gold-ladders'),
+  ('farm_land.10', 'plot', 'Farm plot #10', 'plot:farm_land', 10, 100, '{"normal_log":5}'::jsonb, 4, null, null, 'gen-gold-ladders'),
+  ('farm_land.11', 'plot', 'Farm plot #11', 'plot:farm_land', 11, 100, '{"normal_log":5}'::jsonb, 5, null, null, 'gen-gold-ladders'),
+  ('farm_land.12', 'plot', 'Farm plot #12', 'plot:farm_land', 12, 100, '{"normal_log":5}'::jsonb, 5, null, null, 'gen-gold-ladders'),
+  ('bank.0', 'bank', 'Bank expansion (+20)', 'bank', 1, 3000, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.1', 'bank', 'Bank expansion (+20)', 'bank', 2, 3960, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.2', 'bank', 'Bank expansion (+20)', 'bank', 3, 5227, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.3', 'bank', 'Bank expansion (+20)', 'bank', 4, 6900, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.4', 'bank', 'Bank expansion (+20)', 'bank', 5, 9108, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.5', 'bank', 'Bank expansion (+20)', 'bank', 6, 12022, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.6', 'bank', 'Bank expansion (+20)', 'bank', 7, 15870, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.7', 'bank', 'Bank expansion (+20)', 'bank', 8, 20948, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.8', 'bank', 'Bank expansion (+20)', 'bank', 9, 27651, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.9', 'bank', 'Bank expansion (+20)', 'bank', 10, 36499, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.10', 'bank', 'Bank expansion (+20)', 'bank', 11, 48179, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.11', 'bank', 'Bank expansion (+20)', 'bank', 12, 63597, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.12', 'bank', 'Bank expansion (+20)', 'bank', 13, 83948, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.13', 'bank', 'Bank expansion (+20)', 'bank', 14, 110811, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.14', 'bank', 'Bank expansion (+20)', 'bank', 15, 146270, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.15', 'bank', 'Bank expansion (+20)', 'bank', 16, 193077, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.16', 'bank', 'Bank expansion (+20)', 'bank', 17, 254861, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.17', 'bank', 'Bank expansion (+20)', 'bank', 18, 336417, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.18', 'bank', 'Bank expansion (+20)', 'bank', 19, 444071, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.19', 'bank', 'Bank expansion (+20)', 'bank', 20, 586173, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.20', 'bank', 'Bank expansion (+20)', 'bank', 21, 773749, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.21', 'bank', 'Bank expansion (+20)', 'bank', 22, 1021348, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.22', 'bank', 'Bank expansion (+20)', 'bank', 23, 1348180, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.23', 'bank', 'Bank expansion (+20)', 'bank', 24, 1779597, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.24', 'bank', 'Bank expansion (+20)', 'bank', 25, 2349068, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.25', 'bank', 'Bank expansion (+20)', 'bank', 26, 3100770, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.26', 'bank', 'Bank expansion (+20)', 'bank', 27, 4093016, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.27', 'bank', 'Bank expansion (+20)', 'bank', 28, 5402781, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.28', 'bank', 'Bank expansion (+20)', 'bank', 29, 7131671, '{}'::jsonb, 0, null, null, 'gen-gold-ladders'),
+  ('bank.29', 'bank', 'Bank expansion (+20)', 'bank', 30, 9413806, '{}'::jsonb, 0, null, null, 'gen-gold-ladders');
 
 -- ── 3. STRUCTURAL ASSERTIONS ─────────────────────────────────────────────
 do $$
@@ -138,6 +149,17 @@ begin
    where refusal is null and offer_id in ('worker_hire.1', 'worker_hire.2', 'worker_hire.3', 'worker_hire.4', 'worker_hire.5', 'worker_hire.6', 'farm_land.1', 'farm_land.2', 'farm_land.3', 'farm_land.4', 'farm_land.5', 'farm_land.6', 'farm_land.7', 'farm_land.8', 'farm_land.9', 'farm_land.10', 'farm_land.11', 'farm_land.12', 'bank.0', 'bank.1', 'bank.2', 'bank.3', 'bank.4', 'bank.5', 'bank.6', 'bank.7', 'bank.8', 'bank.9', 'bank.10', 'bank.11', 'bank.12', 'bank.13', 'bank.14', 'bank.15', 'bank.16', 'bank.17', 'bank.18', 'bank.19', 'bank.20', 'bank.21', 'bank.22', 'bank.23', 'bank.24', 'bank.25', 'bank.26', 'bank.27', 'bank.28', 'bank.29');
   if v_n <> 48 then
     raise exception 'expected 48 sellable gold-ladder offers, found %', v_n;
+  end if;
+
+  -- (a2) …and every one of them OWNED BY THIS FILE. This is the interlock for
+  --      the production incident: a row left tagged 'gen-unlock-offers' is a row
+  --      the shop refill will delete the next time it runs, and three gold sinks
+  --      go dark again with nothing in any log to explain it.
+  select count(*) into v_n from public.hr_unlock_offers
+   where offer_id in ('worker_hire.1', 'worker_hire.2', 'worker_hire.3', 'worker_hire.4', 'worker_hire.5', 'worker_hire.6', 'farm_land.1', 'farm_land.2', 'farm_land.3', 'farm_land.4', 'farm_land.5', 'farm_land.6', 'farm_land.7', 'farm_land.8', 'farm_land.9', 'farm_land.10', 'farm_land.11', 'farm_land.12', 'bank.0', 'bank.1', 'bank.2', 'bank.3', 'bank.4', 'bank.5', 'bank.6', 'bank.7', 'bank.8', 'bank.9', 'bank.10', 'bank.11', 'bank.12', 'bank.13', 'bank.14', 'bank.15', 'bank.16', 'bank.17', 'bank.18', 'bank.19', 'bank.20', 'bank.21', 'bank.22', 'bank.23', 'bank.24', 'bank.25', 'bank.26', 'bank.27', 'bank.28', 'bank.29') and source = 'gen-gold-ladders';
+  if v_n <> 48 then
+    raise exception 'only % of 48 gold-ladder offers are owned by gen-gold-ladders — the '
+                    'rest would be wiped by the next shop-catalogue refill', v_n;
   end if;
 
   -- (b) CROSS-CATALOGUE PARITY. Every sellable rung must be a rung the merge

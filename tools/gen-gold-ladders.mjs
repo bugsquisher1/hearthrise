@@ -95,7 +95,8 @@ const unlockLines = GOLD_LADDER_UNLOCKS.map((u) =>
 
 const offerLines = GOLD_LADDER_OFFERS.map((r) =>
   `  (${q(r.offer_id)}, ${q(r.table_name)}, ${q(r.name)}, ${q(r.unlock_id)}, ${num(r.value)}, `
-  + `${num(r.gold)}, ${jb(r.items)}, ${num(r.req_property_tier)}, null, null)`).join(',\n');
+  + `${num(r.gold)}, ${jb(r.items)}, ${num(r.req_property_tier)}, null, null, `
+  + `'gen-gold-ladders')`).join(',\n');
 
 const offerIds = GOLD_LADDER_OFFERS.map((r) => q(r.offer_id)).join(', ');
 const nSell = GOLD_LADDER_OFFERS.length;
@@ -128,14 +129,17 @@ const file = `-- ═════════════════════
 -- one of those structurally impossible — hr_unlock_buy already refuses a skipped
 -- rung, an already-owned rung and an off-ladder value.
 --
--- ⚠ APPLY-ORDER / RE-APPLY CONTRACT (READ THIS)
---   public.hr_unlocks and public.hr_unlock_offers are WHOLESALE-REFILLED by the
---   two 2026-08-16 generated catalogues (\`delete from ...; insert ...\`). Those
---   run EARLIER in migration order, so a full ordered replay is correct: they
---   fill room/property/etc, THEN this file adds the gold ladders. But
---   RE-APPLYING EITHER 2026-08-16 CATALOGUE ALONE WIPES THESE ROWS. They are a
---   SET: after re-applying a 2026-08-16 catalogue, re-apply THIS file. It is
---   fully idempotent (upsert + scoped delete), so re-applying it is always safe.
+-- ⚠ APPLY-ORDER / RE-APPLY CONTRACT (READ THIS — IT CHANGED)
+--   These 48 offers share public.hr_unlock_offers with the 2026-08-16 generated
+--   catalogue. That file used to refill the table with a bare
+--   \`delete from public.hr_unlock_offers\`, so RE-APPLYING IT ALONE WIPED THESE
+--   ROWS — which is exactly what happened in production: worker_hire, farm_land
+--   and bank all became \`unknown_offer\` and three gold sinks went dark. The
+--   prose warning that used to sit here was not an interlock.
+--   Every row now carries the tool that OWNS it (\`hr_unlock_offers.source\`) and
+--   each generator deletes only its own, so either file may be re-applied ALONE,
+--   in any order, without touching the other's rows. This file remains fully
+--   idempotent (upsert + scoped delete).
 --
 -- REVERSIBILITY
 --   delete from public.hr_unlock_offers where offer_id in (${GOLD_LADDER_OFFERS.length} ids below);
@@ -175,11 +179,19 @@ on conflict (unlock_id) do update
       progress_kind = excluded.progress_kind, max_value = excluded.max_value, rungs = excluded.rungs;
 
 -- ── 2. THE OFFER ROWS (hr_unlock_offers) — the PRICE and the GATE ────────
+-- Row ownership, added additively so this file can be applied against a
+-- database that has not yet run the patched 2026-08-16 catalogue. The DEFAULT
+-- names the OTHER generator because every row that predates the column was
+-- written by it; the insert below states this file's ownership explicitly.
+alter table public.hr_unlock_offers
+  add column if not exists source text not null default 'gen-unlock-offers';
+
 -- Scoped delete + insert: this file OWNS exactly these offer ids and touches no
--- other row, so it never fights the wholesale refill for the shop-derived rows.
+-- other row, so it never fights the shop-derived refill — and, since the refill
+-- is now scoped by \`source\`, the refill no longer fights it either.
 delete from public.hr_unlock_offers where offer_id in (${offerIds});
 insert into public.hr_unlock_offers
-  (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal)
+  (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal, source)
 values
 ${offerLines};
 
@@ -192,6 +204,17 @@ begin
    where refusal is null and offer_id in (${offerIds});
   if v_n <> ${nSell} then
     raise exception 'expected ${nSell} sellable gold-ladder offers, found %', v_n;
+  end if;
+
+  -- (a2) …and every one of them OWNED BY THIS FILE. This is the interlock for
+  --      the production incident: a row left tagged 'gen-unlock-offers' is a row
+  --      the shop refill will delete the next time it runs, and three gold sinks
+  --      go dark again with nothing in any log to explain it.
+  select count(*) into v_n from public.hr_unlock_offers
+   where offer_id in (${offerIds}) and source = 'gen-gold-ladders';
+  if v_n <> ${nSell} then
+    raise exception 'only % of ${nSell} gold-ladder offers are owned by gen-gold-ladders — the '
+                    'rest would be wiped by the next shop-catalogue refill', v_n;
   end if;
 
   -- (b) CROSS-CATALOGUE PARITY. Every sellable rung must be a rung the merge

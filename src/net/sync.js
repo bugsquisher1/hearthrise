@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=460';
+//   import { setupSync } from './net/sync.js?v=461';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,23 +16,23 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=460';
+import { on, snapshot } from './events.js?v=461';
 /* b342 — WHICH CHARACTER'S SAVE IS THIS? The same resolver src/net/{accrue,
    character,record}.js use, imported rather than re-derived: multi-character.js
    owns the answer and a second reader of that record is a second thing to
    drift. accrue.js has no imports of its own, so this adds no cycle. */
-import { resolveActiveSlot } from './accrue.js?v=460';
+import { resolveActiveSlot } from './accrue.js?v=461';
 /* Read-only, for the cloud-save self-test's report. A balance the client has
    not been told is a different fact from a balance of zero. */
-import { balanceState } from './balance.js?v=460';
+import { balanceState } from './balance.js?v=461';
 /* ── THE CAPSTONE SAVE PATH (blob-retire, DORMANT) ───────────────────────────
    Under the capstone the authoritative snapshot() blob is NOT uploaded — the
    authority fields flow through their own server writes (record / RPCs / accrual)
    and only the self-only residue is persisted, via putClientState. isBlobRetired
    is the one flag; buildResiduePatch is the census→patch. No cycle: neither
    capstone.js nor client-state.js imports sync.js. */
-import { isBlobRetired, buildResiduePatch } from './capstone.js?v=460';
-import { putClientState } from './client-state.js?v=460';
+import { isBlobRetired, buildResiduePatch } from './capstone.js?v=461';
+import { putClientState } from './client-state.js?v=461';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -145,6 +145,13 @@ let snapshotHold = false;
 // even a reintroduced on('*') subscription stays contained.
 const EVENT_ALLOWLIST = new Set([
   'companionLevelUp', 'companionUnlock', 'companionEquip', 'questClaim', 'dungeonClear',
+  /* b461 — the BOOT PROBE. One row per session, ~12s after cloud setup: build
+     number + whether the server records actually hydrated on this device.
+     Added after the beta-morning "my stats reset to level 1" reports (mobile
+     players whose server rows were PERFECT — the display read failed
+     client-side, and nothing recorded what build or hydration state their
+     device was in). One SELECT on game_events now answers that. */
+  'boot_probe',
 ]);
 const EVENT_MAX_PER_FLUSH = 20;    // rows per POST
 const EVENT_MAX_PER_MINUTE = 30;   // ~10x the observed allowlisted peak
@@ -159,6 +166,15 @@ let eventDrops = { total: 0, notAllowed: 0, disabled: 0, rateLimited: 0, byType:
 // old on('*') never unsubscribed, so the second call left TWO subscribers and
 // every event was enqueued — and uploaded — twice.
 let eventUnsubs = [];
+// b461: the pagehide/visibilitychange forced-save listeners are wired ONCE per
+// page, not once per setupSync() call — see the block in setupSync for the
+// live incident this prevents.
+let lifecycleListenersWired = false;
+let claimVisibilityListenerWired = false;
+// Test seam (SYNC-ONCE-1): how many times the forced-save listener pair was
+// actually registered this page. Correct answer: 1, however often setupSync runs.
+let lifecycleRegistrations = 0;
+export function __lifecycleRegistrationCount() { return lifecycleRegistrations; }
 
 /** True if this event type is allowed onto the NETWORK path (the local bus is unaffected). */
 export function isEventAllowed(type) { return EVENT_ALLOWLIST.has(type); }
@@ -1505,6 +1521,30 @@ export function setupSync(opts = {}) {
   eventUnsubs.forEach((off) => { try { off(); } catch (e) {} });
   eventUnsubs = Array.from(EVENT_ALLOWLIST).map((type) => on(type, (_payload, ev) => { enqueue(ev); }));
 
+  /* b461 — fire the boot probe once per page, 12s after the cloud config lands
+     (the record should be hydrated by then; if it is not, that is exactly the
+     signal). Diagnostic only — a failure here must never touch gameplay. */
+  if (!window.__hrBootProbeFired && config.endpoint) {
+    window.__hrBootProbeFired = true;
+    setTimeout(() => {
+      try {
+        const w = window, Gg = w.G || {};
+        const SR = w.HearthriseSkillRecord;
+        const probe = {
+          build: (w.BUILD && w.BUILD.cache) || null,
+          armed: !!(w.HearthriseAccrual && w.HearthriseAccrual.isServerAccrualEnabled
+            && w.HearthriseAccrual.isServerAccrualEnabled()),
+          skillsKnown: (SR && typeof SR.isSkillXpKnown === 'function')
+            ? !!SR.isSkillXpKnown(Gg, 'woodcutting') : null,
+          goldKnown: (typeof w.balKnown === 'function') ? !!w.balKnown('gold') : null,
+          standalone: !!(w.matchMedia && w.matchMedia('(display-mode: standalone)').matches),
+          ua: (navigator.userAgent || '').slice(0, 140),
+        };
+        if (w.HearthriseEvents) w.HearthriseEvents.emit('boot_probe', probe);
+      } catch (e) { /* diagnostics never break the client */ }
+    }, 12000);
+  }
+
   // Periodic flush (whatever interval is configured, default 5s)
   if (flushTimer) clearInterval(flushTimer);
   flushTimer = setInterval(() => {
@@ -1517,10 +1557,23 @@ export function setupSync(opts = {}) {
   // event buffer flushed on hide; the authoritative save (game_saves) waited for
   // the 60s timer, so closing the app could leave the cloud up to a minute stale
   // — or empty for a short session. Now the tail is captured on the way out.
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') { flush(); snapshotIfDue(true, true); }
-  });
-  window.addEventListener('pagehide', () => { flush(); snapshotIfDue(true, true); });
+  /* b461 — ONCE. setupSync() re-runs on every auth event (module load, sign-in,
+     and EVERY ~55-min token refresh via onAuthStateChange → enableLiveSync), and
+     these two anonymous DOM listeners were re-registered each time with no
+     removal — unlike the bus subscriptions, which eventUnsubs already handles.
+     A long mobile session therefore accumulated one forced-save PAIR per token
+     refresh, and every app-switch fired them ALL: found live as a beta player
+     tripping hr_put_client_state's 60/min rate gate (11 rejections in 31 min).
+     The handlers close over module-level state, not config, so one registration
+     is correct for the life of the page. */
+  if (!lifecycleListenersWired) {
+    lifecycleListenersWired = true;
+    lifecycleRegistrations += 1;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') { flush(); snapshotIfDue(true, true); }
+    });
+    window.addEventListener('pagehide', () => { flush(); snapshotIfDue(true, true); });
+  }
 
   // b301: poll for a concurrent session on its own slower cadence (a GET each
   // time — kept off the 5s flush loop). One check shortly after connect catches
@@ -1543,7 +1596,14 @@ export function setupSync(opts = {}) {
     setTimeout(() => { checkSessionClaim(); }, 6000);                  // first eviction check
     claimTimer = setInterval(() => { checkSessionClaim(); }, config.claimIntervalMs || 15000);
     // Re-check the moment the tab regains focus, so a kicked device locks out on return.
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkSessionClaim(); });
+    /* b461 — same once-per-page rule as the forced-save listeners above (this
+       one only becomes registrable once claimEndpoint exists, so it carries its
+       own latch). Duplicates here meant one claim-row GET per accumulated
+       registration on every app-return. */
+    if (!claimVisibilityListenerWired) {
+      claimVisibilityListenerWired = true;
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkSessionClaim(); });
+    }
   }
 
   // And one immediate attempt
@@ -1575,6 +1635,9 @@ window.HearthriseSync = {
      session_claims row; every consumer reads this one variable, so staging it is
      staging the real input. Restores by passing null. */
   __setClaimView: (v) => { claimView = v ? { ...v } : null; return getClaimView(); },
+  // b461 (SYNC-ONCE-1): forced-save DOM listeners register ONCE per page,
+  // however many times setupSync re-runs (every token refresh re-runs it).
+  __lifecycleRegistrationCount,
   holdSnapshots, releaseSnapshots, isSnapshotHeld,
   // b331 expired-token circuit breaker
   tokenStatus, nextAuthBackoffMs, newAuthGate, decideAuthGate, authGateStep,

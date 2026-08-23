@@ -388,12 +388,32 @@ async function run(patches) {
   {
     const cKeys = goalOps(combat.delta).map((o) => o.key).sort();
     const gKeys = goalOps(gather.delta).map((o) => o.key).sort();
-    ok(cKeys.every((k) => k === goalKey('kill_any')),
-      `G5: the COMBAT night proposed goal ops ${JSON.stringify(cKeys)} — it may move 'kill_any' `
-      + 'and nothing else. A counter a night should not touch must stay untouched.');
-    ok(gKeys.every((k) => k === goalKey('gather')),
-      `G5: the GATHER night proposed goal ops ${JSON.stringify(gKeys)} — it may move 'gather' and `
-      + 'nothing else.');
+    /* b461 — THE MODAL-GOAL COUNTERS WIDEN WHAT A NIGHT MAY MOVE, and the
+       control is widened EXACTLY, not relaxed. supabase/functions/hr-accrue/
+       goal-period.js projects five more `ev:` keys off numbers the engine
+       already computed, and each night may move only its own:
+         · combat  — `rare_drops` (the same integer as stat:rare_drops) and
+                     `levelups` (level crossings this span). NEVER a gather key.
+         · gather  — the SKILL'S OWN per-action counter (`chopped` on a
+                     woodcutting node) and `levelups`. NEVER another skill's
+                     counter, and never a combat key: a mining counter on a
+                     woodcutting night is a real defect this line catches.
+       Listing them by name keeps G5 a control. `every(k => k === X)` would have
+       had to become `.length >= 0` to accommodate them, which is not a test. */
+    const C_ALLOWED = [goalKey('kill_any'), 'ev:rare_drops', 'ev:levelups'];
+    const G_ALLOWED = [goalKey('gather'), 'ev:chopped', 'ev:levelups'];
+    ok(cKeys.every((k) => C_ALLOWED.includes(k)),
+      `G5: the COMBAT night proposed goal ops ${JSON.stringify(cKeys)} — it may move only `
+      + `${JSON.stringify(C_ALLOWED)}. A counter a night should not touch must stay untouched.`);
+    ok(gKeys.every((k) => G_ALLOWED.includes(k)),
+      `G5: the GATHER night (woodcutting) proposed goal ops ${JSON.stringify(gKeys)} — it may move `
+      + `only ${JSON.stringify(G_ALLOWED)}. A mining or fishing counter here would be a per-skill `
+      + 'counter attributed to the wrong skill.');
+    ok(!cKeys.includes('ev:chopped') && !cKeys.includes('ev:mined') && !cKeys.includes('ev:fished')
+       && !cKeys.includes('ev:planted'),
+      `G5: the combat night moved a GATHERING modal counter: ${JSON.stringify(cKeys)}`);
+    ok(!gKeys.includes('ev:rare_drops') && !gKeys.includes('ev:mined') && !gKeys.includes('ev:fished'),
+      `G5: the gather night moved a counter that is not its own: ${JSON.stringify(gKeys)}`);
     ok(!findOp(combat.delta, 'daily', 'gather') && !findOp(combat.delta, 'stat', 'gather'),
       "G5: the combat night moved a 'gather' counter");
     ok(!findOp(gather.delta, 'daily', 'kill_any') && !findOp(gather.delta, 'stat', 'kill_any'),
@@ -942,18 +962,22 @@ const MUTATIONS = [
   { name: 'M11 combat: the BESTIARY listener is removed (goals stay correct, per-monster vanishes)',
     file: 'accrual', from: "goals.quest(type, amt == null ? 1 : amt); bestiary.record(type, amt == null ? 1 : amt, meta); },",
     to: "goals.quest(type, amt == null ? 1 : amt); }," },
+  /* b461 moved both anchors: the modal-goal emit (goal-period.js) now sits
+     immediately after each goalProgressOps push, so the distinctive text that
+     FOLLOWS the line is its own comment rather than the bestiary / delta. The
+     mutation is unchanged — delete the push, keep everything after it. */
   { name: 'M3 combat: the goal ops never reach the delta',
-    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE BESTIARY OPS",
-    to: "\n  /* THE BESTIARY OPS" },
+    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `rare_drops` is the SAME integer",
+    to: "\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `rare_drops` is the SAME integer" },
   { name: 'M4 gather: the goal ops never reach the delta',
-    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n\n  const delta = {\n    accrued_to:",
-    to: "\n  const delta = {\n    accrued_to:" },
+    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own",
+    to: "\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own" },
   { name: 'M5 gather: the yield is ignored and every action counts 1',
     file: 'accrual', from: "    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },\n    /* Still deliberately ABSENT:",
     to: "    updateDaily(type) { goals.daily(type, 1); },\n    updateQuest(type) { goals.quest(type, 1); },\n    /* Still deliberately ABSENT:" },
   { name: 'M6 combat: the daily is anchored to the credited window, not the return',
-    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE BESTIARY OPS",
-    to: "  for (const op of goalProgressOps(goals, credit.fromMs, events)) progress.push(op);\n  /* THE BESTIARY OPS" },
+    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `rare_drops` is the SAME integer",
+    to: "  for (const op of goalProgressOps(goals, credit.fromMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `rare_drops` is the SAME integer" },
   { name: 'M7 goals: the day key is zero-padded (the FM defect)',
     file: 'goals', from: "return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;",
     to: "return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;" },

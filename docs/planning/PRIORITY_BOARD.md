@@ -60,6 +60,9 @@ _Last updated: 2026-08-20 (b421). Current build: **b421**, live. **🔒 GOLD+GEM
 | Full-systems team playthrough + BALANCE audit | 🧊 | **P0** | After scalable-state: team runs every system on the test account, finds bugs + tunes balance. Then open keys. |
 | Wire rooms + banner tiers | 🔧 | P2 | Generated & on disk; visible-seam cleanup (fits the render/CSS track). |
 | Backups / restore DRILL | 🧊 | **P0** | HARD blocker for arming BOTH record flips. Needs a rehearsed run (runbook exists: docs/design/restore-runbook.md). |
+| **Beta-morning bug wave (b461)** | 🔧 | **P0** | 2026-08-23, live players: (1) quest-modal claims silently dead under arm → `hr_claim_goal` server credit + honest toasts; (2) worker_hire/farm_land/bank offers wiped by the b459 unlock regen → **re-applied live**; (3) stale impossible daily slates → heal-on-load; (4) residue-save listener stacking per token refresh → 60/min rate gate → once-latch; (5) mobile "stats reset to Lv1" — server rows intact, client display; boot-probe telemetry added, needs device screenshot. |
+| **Runecrafting coherence** | 🔧 | **P1** | Tyler 2026-08-23: "doesn't make sense." Verified: enchant runes are CRAFTING recipes, Runecrafting's runes are ammo nothing spends (E1 unbuilt), no level-1 on-ramp (needs Stonemason 8), three rune vocabularies. Game-designer ruling+build in worktree: Runecrafting owns rune binding, level-1 on-ramp, honest purpose for the ammo ladder, unified naming. |
+| Ammo consumption in the fight (E1) | 🧊 | P2 | The designed consumable loop's gate (consumable-economy.md §E1): arrows/runes/whetstones spent per swing, fail-soft ×0.25 when dry. Touches the SHA-pinned combat-sim (repack + redeploy + AWAY-1 parity). Not a drive-by; schedule after beta stabilises. |
 
 **Decision pending Tyler:** wipe timing (confirmed: wipe before new players). See §7.
 

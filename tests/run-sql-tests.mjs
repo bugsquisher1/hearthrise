@@ -359,6 +359,18 @@ const ALSO_LINTED = [
      2026-08-23-bounty.sql §9 is untouched, which is precisely why the inner
      body's revoke has to be restated here rather than inherited. */
   '2026-08-29-bounty-first-contract.sql',
+  /* b461 — THE QUEST MODAL'S third goal system gets a server credit path. It
+     creates two client-callable SECURITY DEFINER RPCs (hr_claim_goal, which
+     credits gold + gems + XP + items, and the read-only hr_goal_state) plus
+     four privileged helpers that must reach no client (hr_iso_week_key,
+     hr_goal_week_days, hr_goal_period_start, and the two __ungated inners).
+     Exactly the case this list exists for: a new SECURITY DEFINER function is
+     born PUBLIC=EXECUTE unless the file revokes, and the grant lints below are
+     the repo's only static defence against it. It patches hr_rpc_gate and
+     hr_farm_plant PROGRAMMATICALLY (pg_get_functiondef + a guarded replace, the
+     2026-08-28-client-state.sql idiom), so it carries no literal
+     create-or-replace header for either and is on NO derivation chain. */
+  '2026-08-23-modal-goal-claims.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -713,6 +725,18 @@ const CLIENT_CALLABLE = new Map([
      (256KiB), rate-gated (client_state_put bucket). NOT authority (a forged value
      is self-only), NOT journalled to player_ledger, NOT granted to hr_engine. */
   ['hr_put_client_state', ['authenticated']],
+  /* 2026-08-23-modal-goal-claims.sql (b461) — the quest MODAL's Daily/Weekly
+     claim, and the read the modal renders from. hr_claim_goal verifies
+     completion from the server's own player_progress counters (or the ledger,
+     for the gold-earned goals), consumes a once-per-period guard row, then
+     credits gold + gems + XP + items in one transaction; the goal id and the
+     slot are the only client values that cross, and both are looked up in a
+     server catalogue. hr_goal_state is read-only and self-scoped. Both are
+     rate-gated (hr_claim_goal 12/min, hr_goal_state 120/min) and deliberately
+     NOT granted to hr_engine — the accrual engine never claims for anyone. §8b
+     records both in hr_client_rpc_baseline. */
+  ['hr_claim_goal', ['authenticated']],
+  ['hr_goal_state', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {

@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 461 — 2026-08-23 (Beta-morning fixes: claims, hiring, saves)
+
+- 🎯 **Quest claiming works again.** Daily and weekly quest rewards in the Quests panel are now paid by the server (gold, gems, XP and items together), and the panel shows the server's own count — a Claim button only appears when it will actually pay. If something can't be claimed yet, you're told why instead of nothing happening.
+- 🤝 **Hiring workers, buying farm plots and bank expansions work again** — their price list had been wiped from the server by an earlier catalogue refresh. Re-applied, and the refresh can no longer wipe them.
+- 📋 Daily tasks that were rolled before yesterday's eligibility fix (an impossible Craft/Smith on a fresh account) are now swapped out on load — progress on your other tasks is kept.
+- 🔋 Fixed a slow leak where every hourly session refresh added another "save on app-switch" hook — after a long mobile session, each app-switch fired dozens of saves and tripped the server's rate limit.
+- 🔎 Added a once-per-session boot probe (build + whether your character loaded from the server) so "my stats reset" reports can be diagnosed in one query.
+- ⚠️ Heads-up: weekly quest counters start from this build, so this week's weekly goals begin at 0.
+
 ## v0.9.2-beta build 460 — 2026-08-23 (Tutorial regression tests)
 
 - 🧪 Test-only: pinned the tutorial click-through and spotlight-targeting fixes with regression tests (suite: 996/996).

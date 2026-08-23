@@ -43,6 +43,11 @@ import { bugTriageGuard } from './bug-triage.mjs';
 import { slotSwitchGuard } from './slot-switch.mjs';
 import { nativeDialogGuard } from './native-dialog.mjs';
 import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
+/* b461 — the quest MODAL's server credit path, and the catalogue-refill
+   ownership interlock that stops a regen wiping another migration's offers.
+   Both replay the real migration chain into PGlite and drive real RPCs. */
+import { modalGoalClaimGuard } from './modal-goal-claim.mjs';
+import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
 import { runAll as liveSettlementGuards, engineGuard as settleReport,
@@ -76,7 +81,11 @@ const argv = process.argv.slice(2);
 const argOf = (flag) => { const i = argv.indexOf(flag); return i >= 0 ? argv[i + 1] : null; };
 const HEADED = argv.includes('--headed');
 const EXTERNAL_URL = argOf('--url');
-const SUITE_TIMEOUT_MS = 120_000;
+/* b461: overridable for a loaded machine (parallel agent worktrees each running
+   their own Chromium suite blew the 120s in-page budget three times in a row on
+   code that passed 999/999 alone). Only the wall-clock budget flexes — every
+   assertion still has to pass. `HR_SUITE_TIMEOUT_MS=300000 node tests/run-smoke.mjs`. */
+const SUITE_TIMEOUT_MS = Number(process.env.HR_SUITE_TIMEOUT_MS) > 0 ? Number(process.env.HR_SUITE_TIMEOUT_MS) : 120_000;
 
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
@@ -2684,6 +2693,45 @@ const run = async () => {
     } else {
       console.log('\nClan-deposit ownership guard — an unowned deposit is refused and moves nothing, an '
         + 'owned one debits exactly, and a mixed batch with one short row rolls back whole.');
+    }
+
+    /* ── The quest-MODAL claim guard (b461) ──────────────────────────────
+       Hearthrise has THREE goal systems; b414 gave two of them a server credit
+       path and the modal's Daily/Weekly tabs never got one, so under the live
+       gold arm every Claim button in it was silently dead. The guard drives a
+       real player through the real rate-gated hr_claim_goal on a fully replayed
+       PGlite chain — complete/incomplete, replay, idempotency key, weekly summed
+       over the ISO week, another week's counter kept out, an empty reward
+       refused before the consume — and BINDS legacy.js's authored pools to the
+       server catalogue and to the counters the accrual engine stamps, so a goal
+       nothing grades (or a counter nothing reads) fails the build by name.
+       `--selftest` plants seven real defects; every one must read RED. */
+    const modalGoalProblems = await modalGoalClaimGuard();
+    if (modalGoalProblems.length) {
+      console.log('\nQuest-modal goal claim — FAILED:');
+      for (const p of modalGoalProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nQuest-modal goal claim guard — completion read from the server\'s own counters, '
+        + 'credited once, idempotent on replay, weekly derived from the ISO week, whole reward '
+        + '(gold + gems + XP + items) server-applied.');
+    }
+
+    /* ── The catalogue-refill ownership interlock (b461) ─────────────────
+       hr_unlock_offers is written by TWO generators. The shop one refilled with
+       a bare `delete from public.hr_unlock_offers;`, so a regen deleted all 48
+       worker_hire / farm_land / bank offers in PRODUCTION and three gold sinks
+       started answering `unknown_offer`. The 08-19 file had warned about it in
+       prose; prose is not an interlock. This replays the chain and then
+       re-applies the shop catalogue ALONE — the exact operation that caused it. */
+    const offerOwnerProblems = await unlockOfferOwnershipGuard();
+    if (offerOwnerProblems.length) {
+      console.log('\nUnlock-offer ownership — FAILED:');
+      for (const p of offerOwnerProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nUnlock-offer ownership guard — each generator refills only the rows it owns; '
+        + 're-applying the shop catalogue alone preserves all 48 gold-ladder offers.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

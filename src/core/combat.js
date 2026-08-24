@@ -17,11 +17,11 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=465';
+import { levelOf } from './xp.js?v=466';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
-} from './bane.js?v=465';
-import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=465';
+} from './bane.js?v=466';
+import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=466';
 
 /* `neutral` is retired as a MONSTER weakness (DEC-NEUT-01) but survives here
    as a WEAPON type — an unarmed/typeless loadout still has to render. */

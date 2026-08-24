@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 466 — 2026-08-24 (Reload keeps your progress)
+
+- 🐛 **Your Bestiary no longer resets when you reload.** Along with it, 18 other kinds of progress that were being forgotten on refresh now stick — including your homestead tier (so an upgraded homestead stops showing as a Wanderer's Camp), drop discoveries, collection-log claims, all-time kill count, streak high-water marks, bounty-mark traits, and your sell buy-back list.
+- 🛡️ Added a build-time guard that catches this whole class of bug automatically, so a new kind of progress can never silently stop saving again.
+
 ## v0.9.2-beta build 465 — 2026-08-24 (Daily reward, settled for good)
 
 - 🎁 The daily reward popup can no longer reappear for a reward you already claimed — the game now checks the server's own receipt (which also fixes the streak label lagging behind).

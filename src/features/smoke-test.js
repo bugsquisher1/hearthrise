@@ -73,6 +73,27 @@ const tryRunAsync = (name, fn) => Promise.resolve()
   .then(() => pass(name), (e) => fail(name, e && (e.message || e)));
 const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
 
+/* R4 COOKING PAUSE — run a cooking-MECHANIC regression under a TEMPORARY arm.
+   Cooking is disarmed (paused) in this build, so the live cooking loop (start,
+   produce, burn, counters, tile) is gated off. The historical cooking regression
+   tests below still guard that loop — the code path that MUST keep working for
+   the day the server owns noBurn and cooking is re-armed — so they run with the
+   arm flipped ON via the same seam the accrual engine reads, and ALWAYS revert to
+   the disarmed default in finally (even on throw / async rejection), so the
+   dedicated pause guards (B431-4, R4-COOKING-PAUSE, B385, OFFLINE-CLARITY 2) still
+   see cooking paused. Handles sync and thenable-returning test bodies. */
+const withCookingArmed = (fn) => {
+  const AS = (window.HearthriseCore && window.HearthriseCore.artisanSim) || null;
+  const arm = (v) => { if (AS && typeof AS.__setCookingSettlementArm === 'function') AS.__setCookingSettlementArm(v); };
+  arm(true);
+  let r;
+  try { r = fn(); }
+  catch (e) { arm(null); throw e; }
+  if (r && typeof r.then === 'function') return r.then((v) => { arm(null); return v; }, (e) => { arm(null); throw e; });
+  arm(null);
+  return r;
+};
+
 /* ── stampBalanceLikeLoad — THE MISSING HALF OF THE HARNESS (gold-arm) ────────
    THE PROBLEM THIS SOLVES, STATED EXACTLY. When gold/gems are ARMED into
    SERVER_OF_RECORD, `balanceOf` no longer trusts the presence of a number in G —
@@ -4103,6 +4124,7 @@ const TESTS = [
     }
   }),
   () => tryRun('b217: cooking progresses daily + quest trackers (live artisan path)', () => {
+    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const G = window.G;
     const saved = {
       quests: JSON.parse(JSON.stringify(G.quests || [])),
@@ -4143,6 +4165,7 @@ const TESTS = [
       assert(G.quests[0].progress === 3, 'cooking must progress the onboarding cook quest, got ' + G.quests[0].progress);
       assert(G.daily.tasks[0].progress === 3, 'cooking must progress the daily cook task, got ' + G.daily.tasks[0].progress);
     } finally {
+      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       G.quests = saved.quests; G.daily = saved.daily; G.inventory = saved.inv;
       G.rooms = saved.rooms; G.skills = saved.skills;
       G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target;
@@ -4167,6 +4190,7 @@ const TESTS = [
       'the Stable button must sit under the Homestead group, found it under: ' + group);
   }),
   () => tryRun('b269: artisan progress bar resets each action (was pinned at 100%)', () => {
+    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     // Regression (Tyler: "the progress bar stops after moving from 1 activity to
     // another"). _armArtisanTimers filled G.skillProgress to a Math.min(1,…) cap
     // but nothing reset it, so after one cycle the bar stuck at 100% forever
@@ -4194,6 +4218,7 @@ const TESTS = [
       assert(G.skillProgress === 0.5,
         'a silent offline tick must leave the live progress bar untouched, got ' + G.skillProgress);
     } finally {
+      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       G.inventory = saved.inv; G.rooms = saved.rooms; G.skills = saved.skills;
       G.skillProgress = saved.prog;
     }
@@ -10052,6 +10077,7 @@ const TESTS = [
   // in window._artisanCat and is restored on rebuild. Guard with the real
   // re-render triggers: addItem() and updateTopbar().
   () => tryRun('b220: artisan category persists across activity re-renders', () => {
+    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const AC = window.HearthriseArtisanCat;
     assert(AC && typeof AC.strip === 'function', 'HearthriseArtisanCat missing');
     const prev = JSON.parse(JSON.stringify(window._artisanCat || {}));
@@ -10094,6 +10120,7 @@ const TESTS = [
       assert(!EMOJI.test(detail.querySelector('.act-cats').textContent),
         'category strip renders emoji');
     } finally {
+      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       window._artisanCat = prev;
       window.__viewedSkillId = prevViewed;
       try { window.showTab(startTab); } catch (e) {}
@@ -15522,6 +15549,7 @@ const TESTS = [
   }),
 
   () => tryRun('b225: a burn costs the ingredients, pays consolation XP, and never ticks a cook goal', () => {
+    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const G = window.G;
     const CF = window.HearthriseCookingFire;
     /* NO CALENDAR — same reason as b222 SEAM 1 above. `steady_fire` is a daily
@@ -15597,6 +15625,7 @@ const TESTS = [
       assert((G.inventory.burnt_food || 0) === 1, 'Kitchen L3 must never burn, even on a worst-case roll');
       assert((G.inventory.cooked_shrimp || 0) === 2, 'Kitchen L3 should have produced a second dish');
     } finally {
+      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       E._force(null);
       Math.random = saved.random;
       window.HearthriseCore.setRng(null);
@@ -15716,6 +15745,7 @@ const TESTS = [
      happened to change the key. A live number behind a stale cache is worse
      than no number, so noBurn joined the key in both renderer twins. */
   () => tryRun('b225: building a Kitchen repaints the cooking screen (the risk is never stale)', () => {
+    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const G = window.G;
     const E = window.HearthriseWorldEvents;          // NO CALENDAR — see above
     const prevTab = window.activeTab;
@@ -15744,6 +15774,7 @@ const TESTS = [
       assert(document.getElementById('skill-detail').innerHTML.indexOf('Burn risk:') === -1,
         'a burn-proof kitchen must leave no risk line on the screen at all');
     } finally {
+      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       if (E) E._force(null);
       G.rooms = saved.rooms; G.inventory = saved.inv; G.skills = saved.skills;
       stampRecordLikeLoad(G);   // b456: leave the live record agreeing with the restored G
@@ -15792,6 +15823,7 @@ const TESTS = [
   // being unfailable inside the sync runner: drive the lightUpdate path
   // deterministically instead of sleeping.)
   () => tryRun('b226: cooking marks its tile active and the progress bar moves', () => {
+    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const snap = snapshotG();
     try {
       window.G.inventory.raw_shrimp = (window.G.inventory.raw_shrimp || 0) + 10;
@@ -15815,6 +15847,7 @@ const TESTS = [
       assert(f2 && /^42(\.0)?%$/.test(f2.style.width || ''),
         'lightUpdate did not drive the fill from G.skillProgress (got "' + (f2 && f2.style.width) + '", want 42%)');
     } finally {
+      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch (e) {}
       restoreG(snap);
       try { window.showTab('profile'); } catch (e) {}
@@ -21164,6 +21197,7 @@ const TESTS = [
   }),
 
   () => tryRunClientAuthoritative('b227: OFFLINE output is byte-identical with and without an active blessing', () => {
+    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     // THE test this rework exists for, and b229 left its assertions ALONE —
     // only the retired input-clock seam was dropped from the setup. The latch,
     // not the gate, is what holds the offline boundary: processOffline() runs
@@ -21231,6 +21265,7 @@ const TESTS = [
         'the welcome-back summary must state, in data, that it was paid at the base rate');
       assert(P.inOfflineReplay() === false, 'the replay latch must be released after processOffline');
     } finally {
+      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       E._force(null);
       restoreG(snap);
     }
@@ -22908,6 +22943,7 @@ const TESTS = [
   // it still shows Active on the old tile." stopSkill now strips the stale
   // active class, the Active chip, and zeroes the fill.
   () => tryRun('b228: starting combat clears the old activity tile Active state', () => {
+    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const snap = snapshotG();
     const prevTab = window.activeTab;
     try {
@@ -22923,6 +22959,7 @@ const TESTS = [
       assert(!document.querySelector('.act-tile .at-stop'),
         'a stale Active chip survived the switch');
     } finally {
+      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       try { window.stopCombat(); } catch (e) {}
       restoreG(snap);
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
@@ -22934,6 +22971,7 @@ const TESTS = [
   // Active tile and the topbar claiming work. Guard ALL THREE artisan skills:
   // running out stops the activity fully, clears the tile, and says why.
   () => tryRun('b228: running out of materials stops the activity honestly (all artisan skills)', () => {
+    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const snap = snapshotG();
     const realNotify = window.notify;
     try {
@@ -22977,6 +23015,7 @@ const TESTS = [
           c.skill + ': no honest exhaustion toast, got"' + toast + '"');
       }
     } finally {
+      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       window.notify = realNotify;
       restoreG(snap);
       try { window.showTab('profile'); } catch (e) {}
@@ -26405,6 +26444,7 @@ const TESTS = [
      the replay contract (craftSave, burn, yield). A fixture on smithing would
      pass while a reordered stream went unnoticed. */
   () => tryRunClientAuthoritative('AWAY-19 PARITY: N live artisan actions == one core span of N actions (bag, XP, burns, counters, tool carry)', () => {
+    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
@@ -26522,6 +26562,7 @@ const TESTS = [
         'the fractional artisan tool carry diverged.\n  live: ' + JSON.stringify(live.carry)
         + '\n  core: ' + JSON.stringify(core.carry));
     } finally {
+      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       window.notify = realNotify;
       window._hrOfflineBurns = 0;
       C.randomSeed();
@@ -26810,11 +26851,9 @@ const TESTS = [
     assert(!/Earned while/.test(quiet), 'a quiet night must not attribute any activity: ' + quiet);
   }),
 
-  /* ⚠ b456 — RED ON PURPOSE, SAME ROOT CAUSE AS B385-CLIENTSKILL / B431-4:
-     the half-armed cooking flag makes `serverAccruedSkill('cooking')` true, so
-     this row now tells the player "Banking offline — up to 18h" about an activity
-     the settlement engine refuses to pay. The screen is lying, which is exactly
-     what this test was written to prevent (b388). Fix the flag, not the copy. */
+  /* R4 COOKING PAUSE — cooking does NOT bank while paused (serverAccruedSkill
+     false), and the row must say so rather than promise offline banking the
+     settlement engine will not deliver (the b388 honesty rule). */
   () => tryRun('OFFLINE-CLARITY 2: the Right-now banking row states the cap and whether the activity banks', () => {
     const H = window.HearthriseHome;
     assert(H && typeof H.__awayBankingRow === 'function', 'the banking-row seam must exist');
@@ -26826,12 +26865,11 @@ const TESTS = [
     // A gather skill banks (serverAccruedSkill true).
     const woodcut = H.__awayBankingRow({ activeMonster: null, activeSkill: 'woodcutting' });
     assert(/Banking offline/.test(woodcut), 'gathering must read as banking: ' + woodcut);
-    // b459: cooking BANKS now — the settlement arm flipped at the cutover (both
-    // twins), so the accrual engine settles cooking away time and the copy must
-    // say so. (The b388 "does not bank" era ended with the arm.)
+    // R4: cooking is PAUSED (disarmed → serverAccruedSkill false), so the accrual
+    // engine does NOT settle it and the row must NOT claim it banks (b388 honesty).
     const cooking = H.__awayBankingRow({ activeMonster: null, activeSkill: 'cooking' });
-    assert(/Banking offline/.test(cooking),
-      'cooking must be shown as banking under the armed settlement: ' + cooking);
+    assert(!/Banking offline/.test(cooking),
+      'cooking must NOT be shown as banking while paused (disarmed settlement): ' + cooking);
     // Idle: nothing banks, but the cap + what DOES bank is still surfaced proactively.
     const idle = H.__awayBankingRow({ activeMonster: null, activeSkill: null });
     assert(/Nothing is banking/.test(idle) && new RegExp('up to ' + cap + 'h').test(idle),
@@ -30878,69 +30916,79 @@ const TESTS = [
     }
   }),
 
-  /* ⚠ b456 TEST-DEBT BURN-DOWN — THIS TEST IS RED ON PURPOSE UNTIL A PRODUCT FIX.
-     The rollout (b454) armed `src/data/item-authority.js`
-     COOKING_SETTLEMENT_ARM_ENABLED and `src/net/record.js`
-     ROOMS_RECORD_ARM_ENABLED, but left the third leg —
-     `src/core/artisan-sim.js` COOKING_SETTLEMENT_ARM_ENABLED — at false. Both
-     files' own headers say the three flip TOGETHER, and the half-armed state is
-     live progress loss, not a cosmetic mismatch:
+  /* R4 COOKING PAUSE (supersedes the b456 armed-state assertion) — COOKING IS
+     DISARMED ON PURPOSE, and this guard now pins the DISARMED state so that
+     re-arming cooking without also re-arming these guards is impossible.
 
-        ARTISAN_SETTLEMENT.cooking === 'payable'  → skill-authority classifies
-        cooking as ACCRUED, so the absolute envelope OWNS cooking xp and REPLACES
-        it (rather than Math.max-ing it, the client-only path);
-        benchPayable('cooking') === false          → the settlement engine — the
-        SAME artisan-sim.js that tools/pack-edge.mjs vendors into the Edge
-        Function, i.e. the server — refuses to pay the cooking bench, blocked on
-        `noBurn`, because serverOwnedBonusKeys() is empty while its flag is off.
+     WHY DISARMED. b459 armed the CLIENT bench ahead of the SERVER. The server
+     (supabase/functions/hr-accrue/set-activity.js) still refuses a cooking
+     activity with 409 ACTIVITY_UNSUPPORTED, because `noBurn`'s Kitchen-rung WRITE
+     is not server-owned (legacy.js upgradeRoom writes G.rooms; hr_unlock_buy has
+     no client call site). Armed-ahead-of-server = the client declares cooking,
+     the server refuses, and the absolute envelope retires the predicted cooking
+     xp DOWN — the live "cooked food vanished / cooking XP not saving" reports.
+     The Game Designer (final authority, R4) ruled cooking PAUSED until the real
+     fix routes upgradeRoom→hr_unlock_buy. The client now AGREES with the server.
 
-     Server-owned and never paid: cooking xp cannot advance, and the player's
-     locally-predicted cooking xp is retired by the next envelope that does not
-     contain it. MEASURED in this build: classifySkill('cooking')==='accrued',
-     serverAccruedSkill('cooking')===true, benchPayable('cooking')===false.
-
-     The assertions below therefore state the INTENDED end state (all three
-     armed). Do NOT relax them to match the drifted flag — the flag is the defect.
-     Owner: Systems Engineer (src/core/artisan-sim.js:547 → true, plus an Edge
-     Function redeploy, since the pack vendors that file). */
-  () => tryRun('B431-4: cooking bench is ARMED-payable, and the dormant seam makes it unpayable (coupled flag, reverted)', () => {
+     ⚠ THE THREE-LEGS RULE STILL HOLDS, ONE LEG DECOUPLED. artisan-sim and
+       item-authority's cooking twins MUST move together (B431-5 asserts that).
+       record.js ROOMS_RECORD_ARM_ENABLED is DELIBERATELY LEFT TRUE — homestead
+       tier persistence (the b466-era fix) is independent of cooking settlement
+       and must not regress. Re-arm = flip BOTH cooking twins true AND update
+       these guards (B431-4, B431-5, B385-CLIENTSKILL, OFFLINE-CLARITY 2) in the
+       SAME build that lands the server upgradeRoom→hr_unlock_buy route. */
+  () => tryRun('B431-4: cooking bench is DISARMED-unpayable (R4 pause), the client agrees with the server 409, and the seam still arms', () => {
     const C = window.HearthriseCore;
     const AS = C.artisanSim;
     const IA = window.HearthriseItemAuthority;
+    const M = window.HearthriseActivity;
     assert(AS && typeof AS.benchPayable === 'function' && typeof AS.isCookingSettlementArmed === 'function',
       'artisan-sim did not publish the cooking arm seam');
-    // The shipped default is ARMED, on BOTH halves of the coupled pair.
-    assert(IA.COOKING_SETTLEMENT_ARM_ENABLED === true, 'item-authority COOKING_SETTLEMENT_ARM_ENABLED shipped FALSE');
-    assert(AS.COOKING_SETTLEMENT_ARM_ENABLED === true,
-      'artisan-sim COOKING_SETTLEMENT_ARM_ENABLED shipped FALSE while item-authority shipped TRUE — cooking is classified '
-      + 'server-ACCRUED but the settlement engine refuses to pay its bench, so cooking xp can never advance and the '
-      + 'absolute envelope replaces whatever the client predicted. Flip src/core/artisan-sim.js to true (and redeploy '
-      + 'the Edge Function, which vendors it).');
-    assert(AS.isCookingSettlementArmed() === true, 'cooking reports dormant with the flag on');
-    // ARMED: cooking is payable, unblocked, and noBurn is a server-owned bonus key.
-    assert(AS.serverOwnedBonusKeys().indexOf('noBurn') !== -1, 'armed serverOwnedBonusKeys does not contain noBurn');
-    assert(AS.benchPayable('cooking') === true, 'cooking is not payable while ARMED — the noBurn source is server-owned now');
-    assert(AS.benchBlockedBy('cooking') === null, 'cooking still reports a blocker while armed: ' + AS.benchBlockedBy('cooking'));
-    assert(IA.ARTISAN_SETTLEMENT.cooking === 'payable', 'ARTISAN_SETTLEMENT.cooking is not payable while armed');
-    // The other benches are unaffected either way.
+    // The shipped default is DISARMED, on BOTH halves of the coupled pair.
+    assert(IA.COOKING_SETTLEMENT_ARM_ENABLED === false,
+      'item-authority COOKING_SETTLEMENT_ARM_ENABLED shipped TRUE — cooking is armed ahead of the server, which still 409s it (R4 pause requires FALSE)');
+    assert(AS.COOKING_SETTLEMENT_ARM_ENABLED === false,
+      'artisan-sim COOKING_SETTLEMENT_ARM_ENABLED shipped TRUE — cooking is armed ahead of the server (R4 pause requires FALSE)');
+    assert(AS.isCookingSettlementArmed() === false, 'cooking reports armed with the flag off');
+    // DISARMED: cooking is NOT payable, blocked on noBurn, classified un-modeled.
+    assert(AS.serverOwnedBonusKeys().indexOf('noBurn') === -1, 'disarmed serverOwnedBonusKeys still contains noBurn');
+    assert(AS.benchPayable('cooking') === false, 'cooking is payable while DISARMED — the R4 pause requires benchPayable(cooking)=false');
+    assert(AS.benchBlockedBy('cooking') === 'noBurn', 'disarmed cooking is not reporting noBurn as its blocker: ' + AS.benchBlockedBy('cooking'));
+    assert(IA.ARTISAN_SETTLEMENT.cooking === 'unmodeled', 'ARTISAN_SETTLEMENT.cooking is not un-modeled while disarmed');
+    // The other benches are unaffected — only cooking is paused.
     assert(AS.benchPayable('smithing') === true && AS.benchPayable('runecrafting') === true, 'a non-cooking bench lost payability');
-    // The DORMANT (kill-switch) position, driven through the seam and reverted.
+    // THE CLIENT AGREES WITH THE SERVER: every cooking recipe DOWNGRADES to idle
+    // at the wire, so no set-activity cooking call is ever issued (→ no 409).
+    if (M && typeof M.declarationFor === 'function') {
+      const cook = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.cooking) || [];
+      assert(cook.length > 0, 'no cooking recipes found — the downgrade proof is vacuous');
+      for (const r of cook) {
+        if (!r || !r.id) continue;
+        assert(M.isPayableRecipe(r.id) === false, 'a cooking recipe (' + r.id + ') is reported payable while paused');
+        const d = M.declarationFor('artisan', r.id);
+        assert(d && d.kind === 'idle' && d.unpayableRecipe === r.id,
+          'a cooking recipe (' + r.id + ') was not downgraded to idle — the client would declare it and the server would 409: ' + JSON.stringify(d));
+      }
+    }
+    // The seam still ARMS (proves the re-arm path is wired), then reverts to the
+    // disarmed default so the suite leaves cooking paused.
     try {
-      AS.__setCookingSettlementArm(false);
-      assert(AS.isCookingSettlementArmed() === false, 'the dormant seam did not take');
-      assert(AS.serverOwnedBonusKeys().indexOf('noBurn') === -1, 'dormant serverOwnedBonusKeys still contains noBurn');
-      assert(AS.benchPayable('cooking') === false, 'cooking stayed payable with the seam off — the noBurn source is not server-owned there');
-      assert(AS.benchBlockedBy('cooking') === 'noBurn', 'dormant cooking is not reporting noBurn as its blocker: ' + AS.benchBlockedBy('cooking'));
+      AS.__setCookingSettlementArm(true);
+      assert(AS.isCookingSettlementArmed() === true, 'the arm seam did not take');
+      assert(AS.serverOwnedBonusKeys().indexOf('noBurn') !== -1, 'armed serverOwnedBonusKeys does not contain noBurn');
+      assert(AS.benchPayable('cooking') === true, 'cooking stayed unpayable with the seam armed');
+      assert(AS.benchBlockedBy('cooking') === null, 'armed cooking still reports a blocker: ' + AS.benchBlockedBy('cooking'));
     } finally {
       AS.__setCookingSettlementArm(null);
     }
-    assert(AS.benchPayable('cooking') === true, 'the cooking seam did not revert — the suite must leave it armed');
+    assert(AS.benchPayable('cooking') === false, 'the cooking seam did not revert — the suite must leave it PAUSED (disarmed)');
   }),
 
-  /* ⚠ b456 — ALSO RED ON PURPOSE: this is the DRIFT GUARD that caught the
-     half-armed cooking rollout described on B431-4 above. Its first assertion is
-     the finding. Do not weaken it. */
-  () => tryRun('B431-5: the three coupled arm flags agree, and cooking outputs stay INVENTORY-excluded even armed', () => {
+  /* R4 COOKING PAUSE — the DRIFT GUARD, now pinning the DISARMED coupling.
+     The two cooking twins must move together (that invariant is permanent); the
+     rooms record arm is DECOUPLED and stays TRUE so homestead tier persistence
+     does not regress with the cooking pause. */
+  () => tryRun('B431-5: the cooking-arm twins agree (both DISARMED), rooms record stays ARMED, and cooking outputs stay INVENTORY-excluded', () => {
     const AS = window.HearthriseCore.artisanSim;
     const IA = window.HearthriseItemAuthority;
     const R = window.HearthriseRecord;
@@ -30948,9 +30996,13 @@ const TESTS = [
     assert(AS.COOKING_SETTLEMENT_ARM_ENABLED === IA.COOKING_SETTLEMENT_ARM_ENABLED,
       'the cooking-arm twin consts disagree (artisan-sim ' + AS.COOKING_SETTLEMENT_ARM_ENABLED
       + ' vs item-authority ' + IA.COOKING_SETTLEMENT_ARM_ENABLED + ') — they MUST flip together');
-    // The rooms record arm is the third leg of the same rollout; all three armed now.
-    assert(R.ROOMS_RECORD_ARM_ENABLED === true && AS.COOKING_SETTLEMENT_ARM_ENABLED === true,
-      'the rooms/cooking rollout flags are not all armed — the three legs move together');
+    // R4: both cooking twins are DISARMED (paused).
+    assert(AS.COOKING_SETTLEMENT_ARM_ENABLED === false,
+      'cooking is armed — R4 requires it PAUSED (both twins false) until the server owns noBurn\'s write');
+    // DECOUPLED: the rooms record arm is INDEPENDENT of the cooking pause and stays
+    // armed, so homestead tiers remain server-owned (no homestead-reset regression).
+    assert(R.ROOMS_RECORD_ARM_ENABLED === true,
+      'ROOMS_RECORD_ARM_ENABLED was disarmed by the cooking pause — homestead tier persistence would regress; it must stay TRUE');
     // The output-ownership safety: cooking dishes are ALWAYS excluded from the inventory
     // ownable set, so even a (future) armed cooking cannot make the absolute-replace flip
     // DELETE a live-cooked dish. Excluded wins on overlap — proven here on the real partition.
@@ -30958,6 +31010,66 @@ const TESTS = [
     assert(dishes.length > 0, 'no cooking outputs found — the exclusion proof is vacuous');
     for (const id of dishes) {
       assert(!IA.serverOwnedItem(id), 'a cooking output (' + id + ') is in the inventory ownable set — the absolute flip could delete it');
+    }
+  }),
+
+  /* R4 COOKING PAUSE — THE PLAYER-FACING GATE, end to end. Proves the load-bearing
+     promise "no ingredients and no progress will be lost": zero debit in any path,
+     start refused, an orphaned pointer cleared on load, and the screen shows the
+     pause banner with NO start affordance. MUTATION: remove the cooking guard in
+     doArtisanAction → the debit assertion goes RED. */
+  () => tryRun('R4-COOKING-PAUSE: start refused, zero ingredient debit in any path, orphan cleared, banner shown', () => {
+    assert(typeof window._cookingPaused === 'function' && window._cookingPaused() === true,
+      'cooking must report PAUSED in this build');
+    const recipe = ((window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.cooking) || []).find(r => r && r.id);
+    assert(recipe, 'no cooking recipe to exercise');
+    const inputs = recipe.inputs || (recipe.input ? { [recipe.input]: recipe.inputQty || 1 } : {});
+    const inIds = Object.keys(inputs);
+    assert(inIds.length > 0, 'the chosen cooking recipe has no inputs — the debit proof is vacuous');
+    const outId = recipe.output;
+
+    const G = window.G;
+    const save = {
+      activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillProgress: G.skillProgress,
+      inv: {}, outHad: (G.inventory && G.inventory[outId]) || 0,
+    };
+    inIds.forEach(id => { save.inv[id] = (G.inventory && G.inventory[id]) || 0; });
+    try {
+      G.inventory = G.inventory || {};
+      // Stock plenty of every input so a cook COULD run if the guard were absent.
+      inIds.forEach(id => { G.inventory[id] = 500; });
+      G.activeSkill = null; G.skillTargetId = null;
+
+      // 1 — start is refused: no activity set, no ingredients spent.
+      if (typeof window.startArtisan === 'function') window.startArtisan('cooking', recipe.id);
+      assert(G.activeSkill !== 'cooking', 'startArtisan set a cooking activity while paused');
+      inIds.forEach(id => assert(G.inventory[id] === 500, 'startArtisan debited a cooking input (' + id + ') while paused'));
+
+      // 2 — a direct production tick is a no-op: nothing consumed, nothing produced.
+      if (typeof window.doArtisanAction === 'function') window.doArtisanAction('cooking', recipe.id);
+      inIds.forEach(id => assert(G.inventory[id] === 500, 'doArtisanAction debited a cooking input (' + id + ') while paused'));
+      if (outId) assert(((G.inventory[outId]) || 0) === save.outHad, 'doArtisanAction produced a dish while paused');
+
+      // 3 — an orphaned cooking pointer (from a pre-pause save) is cleared, not resumed.
+      G.activeSkill = 'cooking'; G.skillTargetId = recipe.id;
+      assert(window._normalizePausedCooking() === true, 'normalizePausedCooking did not clear an orphaned cooking pointer');
+      assert(G.activeSkill == null && G.skillTargetId == null, 'an orphaned cooking pointer survived normalization');
+
+      // 4 — the cooking screen shows the pause banner and NO start affordance.
+      //     renderSkillDetail DIRECTLY: openSkillDetail defers its paint by a tick
+      //     (setTimeout 0), which a synchronous test cannot see (same reason b220
+      //     renders directly).
+      if (typeof window.renderSkillDetail === 'function' && document.getElementById('skill-detail')) {
+        window.__viewedSkillId = 'cooking';
+        window.renderSkillDetail('cooking');
+        const html = document.getElementById('skill-detail').innerHTML;
+        assert(/being upgraded/i.test(html), 'the cooking screen did not show the pause banner: ' + html.slice(0, 200));
+        assert(!/startArtisan\((?:'|")cooking/.test(html), 'the paused cooking screen still offers a start-cooking affordance');
+      }
+    } finally {
+      G.activeSkill = save.activeSkill; G.skillTargetId = save.skillTargetId; G.skillProgress = save.skillProgress;
+      inIds.forEach(id => { G.inventory[id] = save.inv[id]; });
+      if (outId) G.inventory[outId] = save.outHad;
     }
   }),
 
@@ -38270,6 +38382,7 @@ const TESTS = [
      the player's actual entry point and waiting for the paint is the honest
      shape; calling renderSkillDetail directly would skip the hop. */
   () => tryRunAsync('B345-3: an activity tile quotes the XP the ENGINE pays, not a number it made up', async () => {
+    if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     /* ── THE MEASURED BUG ────────────────────────────────────────────────
        The gather tile printed `Math.max(1, Math.floor(pacedXp(skill, xp)))`,
        which drops the `(1 + allXP + xpB)` term grantXp applies to every grant.
@@ -38465,6 +38578,7 @@ const TESTS = [
         'the activities-grid TWIN quotes ' + twinArtisan + ' for cooking where the engine pays '
           + cRate.xpPerAction);
     } finally {
+      if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       window.getBonus = realBonus;
       restoreG(snap);
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
@@ -41004,17 +41118,13 @@ const TESTS = [
 
      MUTATION: delete `&& serverAccruedSkill(k)` in applyEnvelopeState → farming
      and cooking get assigned downward and assertions 1-2 go RED. */
-  /* ⚠ b456 — RED ON PURPOSE, AND IT IS THE THIRD FACE OF ONE PRODUCT BUG.
-     `src/data/item-authority.js` COOKING_SETTLEMENT_ARM_ENABLED was armed by the
-     b454 cutover while its coupled twin in `src/core/artisan-sim.js` was left
-     false (see B431-4/B431-5). That flips ARTISAN_SETTLEMENT.cooking to
-     'payable', which makes `serverAccruedSkill('cooking')` TRUE — and this test
-     exists precisely because a skill with no server accrual path being treated as
-     server-accrued is what produced the live "cooking XP resets on reload"
-     report. With the twin flag still off the settlement engine refuses the
-     cooking bench (`benchPayable('cooking') === false`), so the server's cooking
-     xp is frozen and the absolute envelope now re-asserts it DOWNWARD on every
-     settle. Do NOT relax the assertion — flip the twin flag (Systems Engineer). */
+  /* R4 COOKING PAUSE — cooking is back on the CLIENT-ONLY side (paused, disarmed),
+     so it is protected from downward reconcile exactly like farming. This is the
+     load-bearing half of the R4 promise "no progress will be lost": with cooking
+     un-modeled, serverAccruedSkill('cooking')=false and the absolute envelope
+     reconciles it with Math.max — it can only rise, never be retired down. When
+     cooking is re-armed (real fix), move it back to the CONTROL side and flip the
+     B431 guards in the same build. */
   () => tryRun('B385-CLIENTSKILL: client-only skills (farming/cooking) are not reduced by the absolute envelope; server-accrued skills still are', () => {
     const A = window.HearthriseAccrual;
     const SA = window.HearthriseSkillAuthority;
@@ -41025,7 +41135,7 @@ const TESTS = [
     /* The derived partition is the source of truth, not two hardcoded strings.
        Confirm the reported skills are client-only and the control IS accrued. */
     assert(SA.serverAccruedSkill('farming') === false, 'farming must be client-only (no server accrual path)');
-    assert(SA.serverAccruedSkill('cooking') === true, 'cooking must be server-accrued (b459: the settlement arm flipped both twins at the cutover)');
+    assert(SA.serverAccruedSkill('cooking') === false, 'cooking must be client-only while PAUSED (R4: the settlement arm is disarmed, so it must not be dragged down)');
     assert(SA.serverAccruedSkill('attack') === true, 'attack must be server-accrued (combat)');
     assert(SA.serverAccruedSkill('woodcutting') === true, 'woodcutting must be server-accrued (gather)');
     assert(SA.serverAccruedSkill('smithing') === true, 'smithing must be server-accrued (payable artisan)');
@@ -41040,17 +41150,16 @@ const TESTS = [
 
       /* level-70-ish farming/cooking xp, and a level-1000 attack. The envelope
          then NAMES all three at a LOWER value — the frozen-server-xp shape. */
-      /* b459: cooking crossed the partition — the settlement arm flipped BOTH
-         twins, so cooking is now legitimately server-accrued and the absolute
-         envelope reducing it is the anti-forgery property working, not the
-         resets bug. Cooking joins the CONTROL side; farming stays the
-         client-only probe (its xp is RPC-granted, not accrual-settled). */
+      /* R4: cooking is PAUSED (disarmed), so it is a CLIENT-ONLY skill again and
+         must be protected from downward reconcile exactly like farming — this is
+         the "no progress will be lost" promise. attack/stonemason are the
+         server-accrued control side. */
       const G = { skills: { farming: 900000, cooking: 5000, attack: 5000, stonemason: 4321 } };
       A.applyEnvelopeState(G, {
         state: {},
         skills: {
           farming: { xp: 500000 },   // lower — must NOT reduce (client-only)
-          cooking: { xp: 3000 },     // lower — MUST reduce (server-accrued since b459)
+          cooking: { xp: 3000 },     // lower — must NOT reduce (client-only while PAUSED)
           attack:  { xp: 3000 },     // lower — MUST reduce (server-accrued, anti-forgery)
           // stonemason omitted
         },
@@ -41060,10 +41169,10 @@ const TESTS = [
       // 1 — the client-only skill is NOT pulled down.
       assert(G.skills.farming === 900000,
         'FARMING STUCK-AT-66 BUG: a client-only skill must not be reduced by the absolute envelope — got ' + G.skills.farming);
-      // 2 — cooking now reconciles absolutely (server-accrued): the OLD resets
-      //     bug shape is the property holding, with the arm fully flipped.
-      assert(G.skills.cooking === 3000,
-        'cooking must reconcile absolutely now that both settlement twins are armed — got ' + G.skills.cooking);
+      // 2 — cooking (PAUSED → client-only) is NOT pulled down: the R4 "no progress
+      //     will be lost" promise, and the original resets-bug protection restored.
+      assert(G.skills.cooking === 5000,
+        'COOKING RESETS BUG: a paused (client-only) cooking skill must not be reduced by the absolute envelope — got ' + G.skills.cooking);
       // 3 — CONTROL: the anti-forgery property is intact for a server-accrued skill.
       assert(G.skills.attack === 3000,
         'a SERVER-ACCRUED skill must still reconcile absolutely, including downward (anti-forgery) — got ' + G.skills.attack);

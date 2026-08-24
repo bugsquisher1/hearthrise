@@ -88,7 +88,7 @@ export const COOKING_SKILL = 'cooking';
    inventory absolute-replace can never DELETE a live-cooked dish. Owning cooking
    outputs is a post-inventory-arm follow-up (remove the unconditional exclusion);
    the SETTLEMENT here is independent of it and safe to arm first. */
-export const COOKING_SETTLEMENT_ARM_ENABLED = true;   // DORMANT — post-wipe, coupled with rooms record arm
+export const COOKING_SETTLEMENT_ARM_ENABLED = false;  // DISARMED (R4, cooking-pause) — twin of artisan-sim.js COOKING_SETTLEMENT_ARM_ENABLED; both false so ARTISAN_SETTLEMENT.cooking='unmodeled' → payableArtisanSkills() excludes cooking → serverAccruedSkill('cooking')=false → the absolute envelope reconciles cooking XP with Math.max(have,xp), never DOWN. Decoupled from record.js ROOMS_RECORD_ARM_ENABLED, which STAYS TRUE (homestead tier persistence). Re-arm both twins + guards together in the real-fix build.
 export const ARTISAN_SETTLEMENT = Object.freeze({
   smithing:     'payable',
   crafting:     'payable',

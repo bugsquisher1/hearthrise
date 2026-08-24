@@ -355,6 +355,20 @@ function renderSkillDetail(id) {
   if (titleEl) titleEl.textContent = 'Train';
 
   const head = buildHead(id);
+  // R4 COOKING PAUSE — twin of the legacy renderSkillDetail gate (block 27).
+  // Replace the recipe tiles with an informational banner and no start
+  // affordance while cooking is paused. Un-pauses when benchPayable('cooking')
+  // returns true (the real-fix re-arm). Kept identical to the legacy twin.
+  if (id === 'cooking' && typeof window._cookingPaused === 'function' && window._cookingPaused()) {
+    const cm = window._COOKING_PAUSE_MSG || 'Cooking is temporarily unavailable.';
+    const gly = (typeof window._hrGly === 'function') ? window._hrGly('uiHourglass', 18) : '';
+    const banner = `<div class="act-tile" style="grid-column:1/-1;cursor:default;border-color:var(--gold-2)">`
+      + `<div class="at-name" style="color:var(--gold-2)">${gly} Cooking is being upgraded</div>`
+      + `<div class="at-meta" style="white-space:normal;line-height:1.45">${cm.replace(/^Cooking is being upgraded — /, '')}</div>`
+      + `</div>`;
+    if (detailEl) detailEl.innerHTML = head + `<div class="act-grid" style="grid-template-columns:1fr">${banner}</div>`;
+    return;
+  }
   let tiles = '';
   let count = 0;
   let cats = '';

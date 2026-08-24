@@ -544,7 +544,7 @@ export const SERVER_OWNED_BONUS_KEYS = Object.freeze([]);
    changes byte-for-byte. `SERVER_OWNED_BONUS_KEYS` stays the frozen empty const
    it always was (external readers — tests/artisan-accrual.mjs — see the dormant
    baseline); benchPayable/benchBlockedBy read the runtime set instead. */
-export const COOKING_SETTLEMENT_ARM_ENABLED = true;   // ARMED b459 — the b454 cutover flipped item-authority's twin but MISSED this one; half-flipped, cooking was enrolled as server-settled while the bench refused to pay → cooking XP re-asserted DOWN every settle (the modernized suite caught it)
+export const COOKING_SETTLEMENT_ARM_ENABLED = false;  // DISARMED (R4, cooking-pause) — b459 armed the CLIENT bench AHEAD of the SERVER, whose set-activity.js still 409s cooking (ACTIVITY_UNSUPPORTED) because `noBurn`'s Kitchen-rung WRITE is not server-owned (upgradeRoom writes G.rooms; hr_unlock_buy has no client call site). Armed-ahead-of-server = client declares cooking, server refuses, the absolute envelope retires the predicted XP DOWN, food survives only via the un-modeled carve-out → the live "cooked food vanished / cooking XP not saving" reports. Client now AGREES with the server: benchPayable('cooking')=false → declarationFor downgrades cooking, nothing is declared, nothing is retired. RE-ARM only in the real-fix build that routes upgradeRoom→hr_unlock_buy AND flips this + item-authority's twin AND the ROOMS-COOKING/B431 guards together. record.js ROOMS_RECORD_ARM_ENABLED STAYS TRUE — homestead tier persistence is decoupled and untouched.
 let cookingArmOverride = null;
 export function isCookingSettlementArmed() {
   return cookingArmOverride !== null ? cookingArmOverride : COOKING_SETTLEMENT_ARM_ENABLED;

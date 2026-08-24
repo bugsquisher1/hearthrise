@@ -1528,6 +1528,41 @@ function _awaySpanCore(){
   return (C&&C.skillSim&&C.artisanSim&&typeof C.gatherNodes==='function'
           &&typeof C.artisanRecipes==='function') ? C : null;
 }
+/* ── R4 COOKING PAUSE — one predicate, read by every cooking site ───────────
+   Cooking is PAUSED whenever the client's bench predicate says the server
+   cannot settle it — i.e. `benchPayable('cooking')===false`, the SAME predicate
+   declarationFor / the accrual engine read (src/core/artisan-sim.js). It is
+   false in this build (COOKING_SETTLEMENT_ARM_ENABLED disarmed), so cooking is
+   paused; the day the real fix re-arms the bench, this returns false and every
+   cooking site un-pauses with no edit here. Defaults to PAUSED if core is not
+   yet attached — the safe direction is "do not let a cook run/spend". */
+function cookingPaused(){
+  try{
+    const A=window.HearthriseCore&&window.HearthriseCore.artisanSim;
+    if(A&&typeof A.benchPayable==='function') return A.benchPayable('cooking')===false;
+  }catch(e){}
+  return true;
+}
+window._cookingPaused=cookingPaused;
+/* The player-facing banner text — designer-owned copy (R4). Informational, not
+   an error. "no ingredients and no progress will be lost" is load-bearing: the
+   doArtisanAction/startArtisan guards below make it TRUE (nothing consumed,
+   nothing declared, nothing retired). */
+window._COOKING_PAUSE_MSG='Cooking is being upgraded — We’re moving Cooking onto the new server system so your progress is saved reliably. It’s temporarily unavailable — no ingredients and no progress will be lost. Back shortly. Thanks for your patience.';
+/* Clear an ORPHANED cooking pointer left in a save written before the pause, so
+   a reload never re-arms a live cook (no XP flash, no ingredient debit, no
+   activity card). Quiet — cooking was downgraded, never declared, so there is
+   no server pointer to stop; just drop the local one and kill any timer. */
+function normalizePausedCooking(){
+  try{
+    if(typeof G==='undefined'||!G) return false;
+    if(G.activeSkill!=='cooking'||!cookingPaused()) return false;
+    G.activeSkill=null; G.skillTargetId=null; G.skillProgress=0;
+    if(window._artisanInterval){ try{ clearInterval(window._artisanInterval); }catch(e){} window._artisanInterval=null; }
+    return true;
+  }catch(e){ return false; }
+}
+window._normalizePausedCooking=normalizePausedCooking;
 /* ── RULING 3.5 (2026-08-15): DID BLESSINGS PAY DURING THE ABSENCE? ────────
    Asked of the ONE table that decides it — `AWAY_SCOPE.blessing` in
    src/core/away.js, through the same `channelApplies` resolver core's three
@@ -5594,6 +5629,9 @@ function resumeActiveActivity(){
     }
     return;
   }
+  /* R4: a save written before the cooking pause can carry activeSkill:'cooking'.
+     Drop it BEFORE re-arming so no live cook resumes (no debit, no XP flash). */
+  if(normalizePausedCooking()) return;
   if(!G.activeSkill) return;
   const sk=G.activeSkill;
   const ms=((typeof activityIntervalMs==='function'&&activityIntervalMs())||G.skillMs||3000);
@@ -14096,6 +14134,16 @@ window.burnRiskText = function(recipe, skillId){
    thousand toasts for a night's cooking. Offline burns are counted and
    reported once, in the offline summary. */
 window.doArtisanAction = function(skillId, recipeId, opts){
+  /* R4 COOKING PAUSE — hard stop before ANY debit/XP/prediction. Cooking cannot
+     settle server-side (benchPayable false), so a live cook would spend
+     ingredients the server never confirms and predict XP the envelope retires.
+     Consume nothing, produce nothing, drop the pointer. Belt-and-braces behind
+     the start guard + the load normaliser, so no path can spend an ingredient. */
+  if(skillId==='cooking' && cookingPaused()){
+    if(typeof window.stopSkill==='function') { try{ activityQuietly(window.stopSkill); }catch(e){ try{window.stopSkill();}catch(_){}} }
+    else { normalizePausedCooking(); }
+    return;
+  }
   var recipes = window.ARTISAN_RECIPES[skillId];
   var r = recipes && recipes.find(function(x){return x.id===recipeId;});
   if(!r) return;
@@ -14207,6 +14255,13 @@ window.doArtisanAction = function(skillId, recipeId, opts){
 /* Override startArtisan to check inputs (any-of-them) instead of single .input */
 var origStart = window.startArtisan;
 window.startArtisan = function(skillId, recipeId){
+  /* R4 COOKING PAUSE — refuse to start a cook. No declare, no timer, no debit.
+     The cooking screen already replaces the tiles with the pause banner; this is
+     the guard for any residual onclick / programmatic call. */
+  if(skillId==='cooking' && cookingPaused()){
+    if(typeof notify==='function') notify('Cooking is being upgraded — temporarily unavailable. No ingredients will be spent.','info');
+    return;
+  }
   var recipes = window.ARTISAN_RECIPES[skillId];
   if(!recipes) return;
   var r = recipes.find(function(x){return x.id===recipeId;});
@@ -16195,6 +16250,19 @@ function patchSkillDetail(){
     if(titleEl) titleEl.textContent = 'Train';
 
     var head = buildHead(id);
+    /* R4 COOKING PAUSE — replace the recipe tiles with an informational banner
+       and no start affordance. Keeps the skill header (level/XP) so the screen
+       still reads as Cooking. Un-pauses automatically when benchPayable('cooking')
+       returns true (the real-fix re-arm). */
+    if(id==='cooking' && cookingPaused()){
+      var _cm = window._COOKING_PAUSE_MSG || 'Cooking is temporarily unavailable.';
+      var _banner = '<div class="act-tile" style="grid-column:1/-1;cursor:default;border-color:var(--gold-2)">'
+        +'<div class="at-name" style="color:var(--gold-2)">'+_hrGly('uiHourglass',18)+' Cooking is being upgraded</div>'
+        +'<div class="at-meta" style="white-space:normal;line-height:1.45">'+_cm.replace(/^Cooking is being upgraded — /,'')+'</div>'
+        +'</div>';
+      if(detailEl) detailEl.innerHTML = head + '<div class="act-grid" style="grid-template-columns:1fr">'+_banner+'</div>';
+      return;
+    }
     var tiles = '';
     var count = 0;
     var cats = '';

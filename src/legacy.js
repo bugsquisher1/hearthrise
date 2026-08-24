@@ -517,7 +517,33 @@ const HOUSE_THEMES=[
    or yielded), so farming hard-stopped at ~62 and the top 37 levels were
    unreachable. Sold here now, priced up the ladder, so the whole skill is
    climbable. (A reachability smoke guard was added so this can't regress.) */
-const SEED_SHOP=[{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150},{id:'goldenroot_seed',qty:3,cost:450},{id:'emberfruit_seed',qty:3,cost:900},{id:'moonbloom_seed',qty:2,cost:1600}];
+/* b432 (Runecrafting coherence): this table is now the village SUPPLY counter,
+   not a seed rack — the tab is labelled "Supplies" (index.html) and it stocks
+   BLANK RUNES beside the seeds.
+   WHY: Runecrafting's eleven rungs all wanted a Blank Rune, and the only blank
+   in the game came out of Stonemason. A player who picked Runecrafting first
+   met a skill they could not perform a single action in. `cut_rune_blanks`
+   dropping to Stonemason 4 fixes that for a player heading that way anyway;
+   this fixes it for the one who never wants to be a mason.
+   THE PRICE IS A DESIGN INPUT, not a round number, and the bundle SIZE is the
+   more interesting half of it.
+   • Floor: `rune_blank` books at v:5 and is NOT `raw`, so the vendor buys it
+     back at the FULL 5 — anything at or under 5 g here is a literal gold
+     printer. 140/20 = 7 g each clears it with room for a future price nudge.
+   • Size: 20, and deliberately SMALL. Measured on the live bench, one bind
+     eats 6 blanks and pays 3 effective XP, so no gold-bought bundle at any
+     sane price reaches level 2 — a fresh account's whole 1,000 g (500 start +
+     500 day-one login) buys roughly 21 binds and 63 of the 83 XP that level
+     needs. That is the honest shape of this offer and it is the RIGHT one:
+     the counter's job is "you are holding a rune thirty seconds after you
+     opened the skill", not "you can buy your way up it". Volume comes from
+     Stonemason, which costs time instead of gold — and a small repeatable
+     bundle says that with its price tag instead of needing a tutorial.
+   ⏳ FOLLOW-UP FOR SYSTEMS: the generated offer ids read `seed.rune_blank`
+      (tools/gen-shops.mjs keys them off the table name). Harmless, internal,
+      and worth renaming the table to SUPPLY_SHOP when this data leaves
+      legacy.js — the generator anchor and the SQL offer ids move together. */
+const SEED_SHOP=[{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150},{id:'goldenroot_seed',qty:3,cost:450},{id:'emberfruit_seed',qty:3,cost:900},{id:'moonbloom_seed',qty:2,cost:1600},{id:'rune_blank',qty:20,cost:140}];
 const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},{id:'shortbow',cost:120},{id:'stone_maul',cost:140},{id:'iron_sword',cost:500},{id:'oak_staff',cost:650},{id:'longbow',cost:650},{id:'iron_warhammer',cost:750},{id:'steel_sword',cost:2000},{id:'iron_helm',cost:300},{id:'iron_platebody',cost:800},{id:'steel_platebody',cost:1500},{id:'leather_boots',cost:250},{id:'traveler_cape',cost:400},{id:'copper_ring',cost:350},{id:'hunter_necklace',cost:500},{id:'leather_gloves',cost:225},{id:'bronze_belt',cost:300},{id:'iron_arrows',cost:150},{id:'fox_companion',cost:1200}];
 
 /* b221: a top-level `const` in a classic script lives in the global LEXICAL
@@ -12012,7 +12038,10 @@ window.showAcquisitionTip = function(itemId){
   if(typeof SEED_SHOP !== 'undefined'){
     var sh = SEED_SHOP.find(function(x){return x.id===itemId;});
     if(sh){
-      paths.push({g:'shop', t:'Buy from Seed Shop', s:'×' + sh.qty + ' for ' + sh.cost + 'g', a:"showTab('store')"});
+      /* b432: "Seed Shop" → "Local Shop". The table stocks Blank Runes now, and
+         a player told to buy a rune blank at the SEED shop would look for a
+         different counter that does not exist. */
+      paths.push({g:'shop', t:'Buy from the Local Shop', s:'×' + sh.qty + ' for ' + sh.cost + 'g', a:"showTab('store')"});
     }
   }
   if(typeof EQUIP_SHOP !== 'undefined'){
@@ -12043,6 +12072,42 @@ window.showAcquisitionTip = function(itemId){
       }
     });
   });
+
+  /* ── CRAFTED AT A BENCH (b432) ────────────────────────────────────────────
+     THE HOLE THIS CLOSES, MEASURED RATHER THAN GUESSED: this overlay knew about
+     shops, crops, gathering nodes and mob drops, and NOTHING about the ~150
+     artisan recipes. So the game's answer to "where do I get this?" for a Stone
+     Block, a Normal Plank, an Iron Bar or an Ember Rune was the fallback below —
+     "No known sources · This item may be quest-locked or removed". Every bar,
+     plank, blank and rune in the game. It is the single worst answer the game
+     can give, because it is not merely unhelpful, it is FALSE, and it tells a
+     player who could act right now to stop looking.
+
+     Found while playing the Runecrafting fix from an empty bag: the one item the
+     whole skill runs on answered "may be removed". Data in, sentence out —
+     nothing here is a list to maintain, so a new recipe describes itself.
+
+     LOWEST REQ WINS, and it is the same ruling as `item-index.js`: with two
+     recipes for one output the player wants the one they can reach FIRST. */
+  if(window.ARTISAN_RECIPES){
+    var _best = {};
+    Object.keys(window.ARTISAN_RECIPES).forEach(function(skill){
+      (window.ARTISAN_RECIPES[skill]||[]).forEach(function(r){
+        if(!r || r.output !== itemId) return;
+        var req = r.req || 1;
+        if(!_best[skill] || req < _best[skill].req) _best[skill] = {req:req, name:r.name||''};
+      });
+    });
+    Object.keys(_best).forEach(function(skill){
+      var def = (window.SKILLS_DEF||{})[skill] || {};
+      paths.push({
+        e: def.icon || '🛠️',
+        t: (_best[skill].name || 'Craft it') + ' (' + (def.name || skill) + ')',
+        s: 'Lv ' + _best[skill].req + ' required',
+        a: "showTab('skills');openSkillDetail('" + skill + "')",
+      });
+    });
+  }
 
   /* Mob drop */
   if(typeof MONSTERS !== 'undefined'){

@@ -135,6 +135,67 @@ cozy AND Hearthlight" is asking for a state no player can reach — the useful c
 rule is theme-NEUTRAL (identical computed geometry under both attributes), which is what I verified.
 
 ---
+### 2026-08-23 - Game Designer (b432 Runecrafting coherence) - THREE silent DUPLICATE-AUTHORING defects, one false dead end, and a "how do I get this" line that quoted the hardest recipe
+
+Tyler: *"it doesn't look like you ever fixed runecrafting to make more sense."* He was right, and the
+root cause was not a bug in any one file. It was **four correct decisions that never met each other**,
+plus a family of defects underneath them that only shows up when you play the skill from an empty bag.
+
+**1 · THE SAME CONTENT AUTHORED TWICE, THREE TIMES OVER.** This repo's signature failure is a second
+copy nobody knows about, and Runecrafting had three at once:
+  * `rune_of_ember` / `rune_of_frost` / `rune_of_poison` (library2-items.js, dormant) were a second
+    authoring of `ember_rune` / `frost_rune` / `poison_rune`, which Elements v1 had already shipped as
+    LIVE craftables. Retired; their painted art was renamed onto the live ids.
+  * `STONECRAFT_DESC` in `src/data/stonecraft.js` — 24 hand-written flavour lines with **NO IMPORTER**.
+    `item-descriptions.js` composes ITEM_DESC from WAVE3/SLOT/LIB2 and never from stonecraft.js, and
+    LIB2_DESC carried a line for all 24 of the same ids. Every word was shadowed from the day it was
+    written. **I found it by measuring, not by reading**: I rewrote the seven staff-rune lines, then
+    asked the live page for `itemDesc('air_rune')` and got the OLD line back.
+  * `STONECRAFT_ITEMS` and `library2-items.js` both declare `dressed_block`, `granite_block`,
+    `basalt_block`, `fine_rune_blank` and `ashlar` with **DIFFERENT `v` values** (22/20, 85/120,
+    230/300, 28/24, 1500/1200). Stonecraft currently wins the merge. NOT fixed here — flagged below.
+
+**2 · "HOW DO I GET THIS?" ANSWERED "IT MAY HAVE BEEN REMOVED" FOR EVERY CRAFTABLE IN THE GAME.**
+`showAcquisitionTip` (legacy.js) knew about shops, crops, gathering nodes and mob drops and **nothing
+about the ~150 artisan recipes**. Measured on the live page: Stone Block, Normal Plank and Ember Rune
+all returned *"No known sources · This item may be quest-locked or removed."* Not merely unhelpful —
+FALSE, and it tells a player who could act right now to stop looking. Fixed (data-driven, so a new
+recipe describes itself); guarded by the new `b432` acquisition test.
+
+**3 · THE SOURCE LINE QUOTED THE HARDEST RECIPE, ALWAYS.** `item-index.js` assigned
+`S(r.output).craft` with a bare `=`, so the LAST producer won — and `ARTISAN_RECIPES` is sorted by
+`req` ASCENDING, which makes the winner the highest gate every time. A Blank Rune reported
+*"Crafted · Stonemason Lv 22"* when `cut_rune_blanks` makes one at Lv 4. Affects every item with two
+recipes (blanks, planks, bars). Lowest req now wins.
+
+**4 · A GUARD THAT HAD STOPPED ASSERTING WHAT IT SAID.** `b357`'s "one stat curve" test ended on a
+ROW COUNT across the three ammo ladders, with the message *"a shorter ladder is a style with no top
+end"*. Row count only stood for that while all three ladders were shaped identically; deleting a
+dormant duplicate no player could obtain "shortened magic's ladder", which is not a thing that
+happened. Rewritten as a TIER SET comparison plus an explicit 1-7 no-gaps assertion — strictly
+stronger on the axis it names (it now fails a ladder missing tier 4 even at ten rows).
+
+**5 · `PENDING_SYSTEMS.elements` was `live: false` and had been wrong for a while.** Its note read
+*"no combat term reads it yet"*; `src/core/combat.js:244` calls `elementMultFor` inside
+`weaknessInfo`. Nine dormant items were resting their reachability exemption on a false premise.
+Flipped live; the six that are genuinely still blocked now name `elemental_variants`, which is what
+actually blocks them.
+
+**AFFECTED SYSTEMS:** Runecrafting / Crafting recipe ownership · ARTISAN_CATEGORIES · item-art
+manifest · item-index source lines · the acquisition overlay · SEED_SHOP (now the Supplies counter)
+· the generated shop + item catalogues.
+
+**REQUIRED ACTION (not mine, or not now):**
+  * **Systems** — the duplicate `v` values above are a live drift generator. One of the two tables
+    should stop declaring those five items.
+  * **Systems** — `hr-accrue` needs a redeploy (src/data changed) and
+    `2026-08-11-catalogue.generated.sql` needs applying. NOTE the deployed payload was ALREADY out of
+    sync with main before this branch (deployed `5e8115e9…`, clean main packs `833ecaeb…`).
+  * **Art Director** — `poison_rune` has no painted art and falls back to a **treasure-chest** glyph
+    on the Runecrafting bench, beside two correct runes. Screenshot in the b432 report.
+  * **Art Director / UI** — the landscape-phone skill quick-strip (WOOD·MINE·FISH·FARM·COOK·CRAFT·
+    SMITH·PRAYER·MAGIC) omits **Runecrafting and Stonemason**, two shipped skills. Reachable via the
+    Activities list, but not from the strip that exists to make skills reachable.
 
 ### 2026-08-23 - QA Engineer (b456 test-debt burn-down) - FOUR live defects the b454/b455 cutover left behind, all found by modernising the suite to the armed model
 

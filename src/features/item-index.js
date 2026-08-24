@@ -32,7 +32,12 @@ const SKILL_LABEL = {
    index: a new offer describes itself, and a price change is never restated
    here. `table` is the offer's origin table and names the counter. */
 const SHOP_LABEL = {
-  equip: 'the Store', seed: 'the Seed shop', bounty: 'the Bounty shop',
+  /* b432: `seed` was "the Seed shop", which is the name of a counter that no
+     longer exists — the tab is "Supplies" and it stocks Blank Runes beside the
+     seeds. A player told to buy a rune blank at the SEED shop goes looking for
+     a second shop. (The offer-id prefix stays `seed.` because it is a
+     generated key; only the sentence a human reads changes.) */
+  equip: 'the Store', seed: 'the Local Shop', bounty: 'the Bounty shop',
   trait: 'the Store', cosmetic: 'the Store', companion: 'the Store',
   dungeon: 'the Quartermaster', iap: 'the Hearth Shop',
 };
@@ -93,9 +98,23 @@ function build() {
          Log — the exact wall KD420 hit. Naming the inputs turns the flyout
          into one step of a chain the player can walk. Capped at three so a
          five-ingredient stew does not bury the line. */
+      /* b432 — KEEP THE EASIEST RECIPE, NOT THE LAST ONE WRITTEN.
+         This was a bare assignment, so the last producer in the list won — and
+         ARTISAN_RECIPES is sorted by `req` ASCENDING, which means the winner
+         was always the HARDEST rung. Measured on the live page: a Blank Rune
+         reported "Crafted · Stonemason Lv 22" (`split_rune_blanks`) when
+         `cut_rune_blanks` makes one at Lv 4. That is not a cosmetic slip — the
+         flyout is the game's answer to "where do I get this", and it was
+         quoting a gate eighteen levels beyond the real one, which reads as
+         "come back much later" to exactly the player who could act now.
+         Affects every item with more than one recipe (blanks, planks, bars). */
       if (r.output) {
-        const from = Object.keys(inputsOf(r));
-        S(r.output).craft = { skill, req: r.req || 1, from: from.length <= 3 ? from.map(nameOf) : [] };
+        const prev = S(r.output).craft;
+        const req = r.req || 1;
+        if (!prev || req < prev.req) {
+          const from = Object.keys(inputsOf(r));
+          S(r.output).craft = { skill, req, from: from.length <= 3 ? from.map(nameOf) : [] };
+        }
       }
       const outName = nameOf(r.output);
       Object.keys(inputsOf(r)).forEach((iid) => { (used[iid] = used[iid] || new Set()).add(outName); });

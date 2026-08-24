@@ -2,6 +2,67 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-23 - b432 - Runecrafting: the ruling, and what playing it taught me
+
+Tyler's whole brief was one sentence: *"it doesn't look like you ever fixed runecrafting to make more
+sense."* No repro, no file, no list. So the first hour was not design at all — it was reading the
+skill the way a player meets it, and the thing I want to remember is that **the diagnosis I was
+handed was 75% right and the 25% mattered.**
+
+**The brief said the skill's output "has no use". That is not true, and I nearly built the wrong fix
+on top of it.** Runes are `type:'ammo'` with `magicStrB`, and `equipmentStats` sums `magicStrB` for a
+magic loadout at legacy.js:16394. So an equipped Air Rune has ALWAYS paid +2 Magic strength. What is
+unbuilt is E1 — the per-swing SPEND — so the honest statement is not "the ladder pays nothing", it is
+**"the ladder is a permanent stat ladder that the design intends to become a consumable."** That is a
+completely different copy problem, and if I had believed the brief I would have written apologetic
+"this will matter later" text onto seven items that already work. What I wrote instead opens every
+line with the mechanic. `src/core/ammo.js` had already written the rule I had to obey — *"no
+player-facing copy anywhere may promise that it is [spent]"* — and I only found it because I went
+looking for whether the burn was real before writing about it.
+
+**Every real defect I found, I found by MEASURING the live page, not by reading source.** Three times:
+  * I rewrote the seven rune descriptions in `STONECRAFT_DESC`, then asked the booted page for
+    `itemDesc('air_rune')` and got the OLD line. The block has no importer. Twenty-four dead lines,
+    shadowed since the day they were written.
+  * I checked the "where do I get a Blank Rune" flyout expecting to confirm it was fine. It said
+    **Stonemason Lv 22**. The real answer is Lv 4. `item-index.js` used a bare `=` in a loop over a
+    req-ASCENDING list, so the hardest recipe always won — for every item with two recipes.
+  * I clicked the ingredient chip a new player would click. **"No known sources · This item may be
+    quest-locked or removed."** For a Stone Block. For a Normal Plank. For an Ember Rune. The
+    acquisition overlay had never known about artisan recipes at all.
+
+None of those three is in the brief. All three are the same defect the brief describes, one layer
+down: *the game does not tell you where the thing comes from.* I would not have found any of them
+from the diff.
+
+**The ruling I am proudest of is the one I talked myself OUT of twice.** The tidy move was to merge
+the enchanting runes into the ammo ladder — §11.2 asks for it, and the b357 guard even went red in a
+way that pushed me there. I costed it: it forces `ember_rune`'s value from 180 to 9 to satisfy the
+monotone-value guard, on a LIVE tradeable item, in a content change. So I read the guard again and
+found it was asserting a proxy (row count) for a property it stated in words (same top end). Fixing
+the guard to say what it means was the correct move and the merge was scope I would have paid for
+later. **A red guard is a claim, not an order.**
+
+**Three all-at-one-level is a choice, not a ladder.** I nearly gave the three enchanting runes reqs of
+20/30/40 because three rungs at 25 "looks lazy". Then I pulled the drop table: ember, frost and poison
+essences drop from tier 3/4/5 monsters at 0.08/0.09/0.10 apiece — perfectly parallel by construction.
+A level ladder would have been a fiction, and worse, a fiction that tells the player ember is *better*
+than frost when the entire point of the element axis is that the right one depends on what you are
+fighting.
+
+**What I would do differently:** I spent too long deciding where the Blank Rune shop row should live
+(new tab? EQUIP_SHOP? SEED_SHOP?) before checking that `SEED_SHOP` rows already carry a `qty` and
+render as bundles. Two minutes of reading the renderer would have settled twenty minutes of arguing
+with myself. Read the surface before designing for it.
+
+**The price took three passes and only the third was honest.** I set 50-for-400, then played it: a
+fresh account has 500 gold, so the bundle was 80% of the purse. Then I did the arithmetic I should
+have done first — one bind eats 6 blanks and pays 3 effective XP, so a fresh account's ENTIRE
+1,000 gold buys 63 of the 83 XP that level 2 needs. That number is not a problem to fix, it is the
+shape of the offer: the counter's job is "you are holding a rune thirty seconds after you opened the
+skill", never "you can buy your way up this". A small repeatable 20-for-140 says that with its price
+tag and needs no tutorial to explain it.
+
 ## 2026-08-17 - b373 - The death moment + the identity scoping ruling
 
 Both rulings and their reasoning are in `DECISIONS.md`; the handoffs are in `CONFLICTS.md`. What I

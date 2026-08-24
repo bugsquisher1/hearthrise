@@ -599,7 +599,11 @@
              strip them at runtime with a regex sweep, which left the labels
              correct but only after a repaint. Ship them clean. -->
         <div class="chips">
-          <button class="chip active" data-shop="seeds">Seeds</button>
+          <!-- b432: label only. The key stays `seeds` (setShopTab, render/shop.js
+               and the smoke suite all address it by that key) but the counter now
+               stocks Blank Runes beside the seeds, so "Seeds" was a lie on the tab
+               of the shop a new Runecrafter is sent to. -->
+          <button class="chip active" data-shop="seeds">Supplies</button>
           <button class="chip" data-shop="equip">Equipment</button>
           <button class="chip" data-shop="cosmetics">Cosmetics</button>
         </div>

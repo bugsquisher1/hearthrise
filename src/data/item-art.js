@@ -163,10 +163,15 @@ export const SHIPPED = Object.freeze({
     'draconias_jaw', 'dragon_bones', 'dragon_gem', 'dragon_gem_earrings', 'dragon_marrow_recipe',
     'dragon_relic', 'dragon_scale', 'dragonfang_pike', 'dragonrend_greatblade',
     'dragonsbane_key', 'dressed_block', 'dungeon_scrip', 'duskwood_log',
-    'earth_rune', 'elderscale_heart', 'ember_bar', 'emberfang_blade', 'emberstone_ore',
+    /* b432: `ember_rune` / `frost_rune` are the paintings delivered as
+       `rune_of_ember.png` / `rune_of_frost.png`, renamed on disk when the
+       duplicate `rune_of_*` items were retired (library2-items.js). Same two
+       files, same subjects — a flat rune-stone carved with an ember / frost
+       glyph — now wired to the ids a player can actually hold. */
+    'earth_rune', 'elderscale_heart', 'ember_bar', 'ember_rune', 'emberfang_blade', 'emberstone_ore',
     'fang_studs', 'fangdart_recurve', 'farm_deed', 'field_cookbook', 'field_ledger',
     'field_ration', 'fine_rune_blank', 'fire_rune', 'forge_blueprint_t2', 'forge_blueprint_t3',
-    'fox_companion', 'frost_locket', 'gemcutter_note', 'goblin_ear', 'goblin_seal',
+    'fox_companion', 'frost_locket', 'frost_rune', 'gemcutter_note', 'goblin_ear', 'goblin_seal',
     'goblin_totem', 'gold_amulet', 'gold_bar', 'gold_ore', 'gold_ring', 'granite',
     'granite_block', 'grave_dust', 'hearth_token', 'hearthstone_signet', 'heartwood_cape',
     'hell_ember', 'hollow_sigil', 'hollow_sigil_ring', 'houndskin_cloak', 'hunter_necklace',
@@ -178,7 +183,7 @@ export const SHIPPED = Object.freeze({
     'panthers_eye_pendant', 'pathfinder_studs', 'pitlord_irons', 'plague_ichor',
     'plaguewarden_greaves', 'quiet_coat', 'rat_tail', 'razor_claw', 'regent_helm',
     'riftmaw_husk', 'rubble', 'ruby', 'ruby_signet', 'rubyfire_studs', 'rune_bar', 'rune_blank',
-    'rune_frag', 'rune_of_ember', 'rune_of_frost', 'rune_whetstone', 'runewood_log',
+    'rune_frag', 'rune_whetstone', 'runewood_log',
     'shadow_pelt', 'shadow_thread', 'shadowsilk_cape', 'silk_thread',
     'slagheart_core', 'slagheart_platebody', 'slime_gel', 'small_fang', 'soul_recipe',
     'spellstone_diagram', 'spellstone_ring', 'spider_eye', 'spidereye_studs',

@@ -62,14 +62,33 @@
  * Nothing here may stay `live:false` and unowned.
  */
 export const PENDING_SYSTEMS = Object.freeze({
+  /* b432 — FLIPPED LIVE, because it already was and the note had gone stale.
+     "no combat term reads it yet" stopped being true when Elements v1 shipped:
+     src/core/combat.js imports `elementMultFor` and applies it inside
+     `weaknessInfo`, the `enchant` verb debits a rune server-side, and
+     `ember_rune` / `frost_rune` / `poison_rune` are live, craftable items. An
+     exemption resting on a false premise is the "assertion that asserts
+     nothing" family, so it is corrected rather than left comfortable. */
   elements: {
+    live: true,
+    owner: 'game-designer',
+    note: 'Elemental weapon enchants — SHIPPED (Elements v1). core/elements.js '
+        + 'runeElement + elementMultFor, applied inside weaknessInfo and '
+        + 'clamped by MAX_TOTAL_DAMAGE_MULT; the `enchant` intent debits one '
+        + 'rune server-side. The three runes are Runecrafting 25 (b432). '
+        + 'Nothing is blocked on this key any more — kept so the note is '
+        + 'findable from the six variants that name its successor.',
+  },
+  elemental_variants: {
     live: false,
     owner: 'game-designer',
-    note: 'Elemental enchanting (consumable-economy §11). Tyler sequenced it '
-        + 'AFTER the monster rework because it hangs off the weakness axis. '
-        + 'The element axis exists as DATA on all 111 monsters (b357) but no '
-        + 'combat term reads it yet. Blocks the 6 elemental rune/whetstone '
-        + 'variants — they are the phase-two content itself, not a rung.',
+    note: 'The §11.2 ELEMENT-TRANSFER recipes: 500 arrows + 1 enchanting rune '
+        + '-> 500 elemental arrows (Fletching), 10 whetstones + 1 rune -> 10 '
+        + 'elemental whetstones (Stonemason). Blocks arrows_of_* and '
+        + 'whetstone_of_*. Magic needs no variant item at all — it sockets the '
+        + 'enchanting rune itself, which is why the rune half of this set was '
+        + 'retired in b432 rather than built twice. Fletching must land first; '
+        + 'the whetstone half is authorable today and is the cheaper of the two.',
   },
   castle_tiers: {
     live: false,

@@ -4,6 +4,59 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-23 - DESIGN RULING (b432) - Runecrafting owns every rune in the game
+**Game Designer, acting under design authority. Binding until superseded.**
+
+Tyler: *"it doesn't look like you ever fixed runecrafting to make more sense."* Five rulings, in the
+order a player meets them.
+
+**1 · RUNECRAFTING OWNS EVERY RUNE.** `bind_ember_rune` / `bind_frost_rune` / `bind_poison_rune` move
+from Crafting 25 to **Runecrafting 25** — the gate is moved, never raised, so no live player is
+pushed further from a feature they already had, and the essence costs are unchanged so no supply
+chain moves. Crafting's "Runes" category leaves with them. *Why:* Elements v1 shipped the runes the
+game ACTUALLY uses (spend one, brand a weapon, +15% against a monster weak to that element) as
+CRAFTING recipes, in a Crafting lane literally labelled "Runes", while a skill named Runecrafting
+made a different set of runes entirely. The word "rune" pointed at two skills. No amount of tuning
+fixes that; only ownership does.
+
+**2 · EVERY RUNE IS BOUND ONTO A BLANK RUNE.** The three adopted recipes gain `rune_blank: 4`. *Why:*
+it gives the bench one grammar a player can state in a sentence — *a blank, plus something to write
+on it, makes a rune* — instead of two unrelated recipe shapes filed under one name, and it means the
+level-1 on-ramp feeds the ENTIRE skill rather than half of it.
+
+**3 · RUNECRAFTING IS PLAYABLE AT LEVEL 1 WITH NOTHING ELSE TRAINED.** Two routes, deliberately:
+`cut_rune_blanks` drops from Stonemason 8 to **Stonemason 4** (the free route, for a player heading
+that way anyway), and the Local Shop counter — the tab is relabelled **Supplies** — stocks **Blank
+Rune x20 for 140 g** (the gold route, for a player who never wants to be a mason). *Why:* every one
+of the skill's eleven rungs wanted a blank and the only blank in the game came from level 8 of a
+different skill, so a player who opened Runecrafting first found eleven actions and could perform
+none of them, forever. **The price is a constraint, not a preference:** `rune_blank` is not `raw`, so
+the vendor buys it back at its full 5 g book value — any shop price at or under 5 is an infinite gold
+loop. **The bundle is small on purpose:** one bind eats 6 blanks for 3 effective XP, so a fresh
+account's whole 1,000 g buys 63 of the 83 XP level 2 needs. The counter is a START, not a training
+method, and a small repeatable bundle says so without a tutorial.
+
+**4 · THE THREE ENCHANTING RUNES ALL SIT AT 25 — A CHOICE, NOT A LADDER.** *Why:* their essences drop
+from perfectly parallel sources (tier 3/4/5 monsters at 0.08/0.09/0.10 each). A level ladder between
+them would be a fiction, and a fiction that tells the player ember is "better" than frost when the
+whole point of the element axis is that the right one depends on what you are fighting.
+
+**5 · ONE RUNE IDEA, AND THE COPY TELLS THE TRUTH ABOUT E1.** The dormant `rune_of_ember` /
+`rune_of_frost` / `rune_of_poison` trio is **retired** — a second authoring of the three live
+Elements v1 runes — and its painted art is renamed onto the live ids. The Runecrafting screen gains
+two named lanes, **Staff Runes** and **Weapon Enchants**, and the seven staff-rune descriptions now
+open with the mechanic (socketed for Magic strength). **None of them promises a burn.** `ammoPerShot`
+is authored but nothing spends it: E1 is unbuilt because `combat-sim.js` is SHA-pinned into the Edge
+function. `src/core/ammo.js` already states the rule this copy obeys — *"no player-facing copy
+anywhere may promise that it is [spent]"*. When E1 lands, those seven lines are the one place the
+wording changes.
+
+**AFFECTED AGENTS:** Systems (hr-accrue redeploy + catalogue migration; the `seed.rune_blank` offer
+id and the `SUPPLY_SHOP` rename that should follow it) · Art Director (`poison_rune` has no art and
+falls back to a treasure chest; the landscape skill strip omits both new artisan skills) · QA (three
+new/rewritten guards: ELEM-1/b432 ownership, the b432 pure-Runecrafter E2E, the b432 acquisition
+test). **DATE: 2026-08-23.**
+
 ### 2026-08-17 - DESIGN RULING (b373) - Two rulings from the b372 FTUE run: the death moment, and identity scoping
 **Game Designer, acting under design authority. Both are binding until superseded.**
 

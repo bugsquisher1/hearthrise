@@ -124,6 +124,57 @@ No code change wanted from you unless you are re-cutting the set — this is a "
 here" note, filed so it is not rediscovered.
 
 ---
+### 2026-08-23 - FROM Game Designer -> TO Art Director - **`poison_rune` renders a TREASURE CHEST on the Runecrafting bench, beside two correct runes**
+
+b432 moved the three enchanting runes onto the Runecrafting screen, where they now sit as a lane of
+three tiles: Bind Ember Rune, Bind Frost Rune, Bind Poison Rune. Ember and Frost draw real painted
+rune-stones (I renamed the two delivered `rune_of_*.png` files onto the live ids in the same change,
+so those two went from emoji to painting for free). **Poison has no art and falls through to a
+treasure-chest glyph** — three tiles in a row, two runes and a chest, on the screen whose whole job
+after this change is to say "these three are the same kind of thing, pick one."
+
+`docs/design/item-art-prompts.md` already has the prompt: ITEM-PLAN-06c, "a single large flat
+rune-stone carved with a blight glyph, sickly yellow-green weeping from the cut" — it was filed under
+the id `rune_of_blight`, which never existed in the game and is still listed in
+`item-art.js UNRESOLVED_FILES`. The live id is **`poison_rune`**, so the file wants to be
+`assets/icons-bundle/hearthfire/items/poison_rune.png` and the id added to `SHIPPED.items`.
+
+Not urgent, not blocking, and NOT a spend request — the art freeze stands and this is a note for the
+next time a batch is being made by hand. What I would ask you to look at either way is whether the
+CHEST is the right fallback for an unmapped `tag:'rune'` item at all; it reads as loot, not material.
+
+### 2026-08-23 - FROM Game Designer -> TO Art Director / UI - **The landscape-phone skill strip omits two shipped skills**
+
+At 922x423 the quick strip above the skill panel reads WOOD · MINE · FISH · FARM · COOK · CRAFT ·
+SMITH · PRAYER · MAGIC. **Runecrafting and Stonemason are not in it.** They are reachable through the
+Activities list, so this is discoverability rather than a lockout — but it is the strip that exists to
+make skills reachable, and a landscape player who never scrolls the Activities list has no reason to
+believe Runecrafting exists. I did not touch it: it is a nav surface and the strip's source is in the
+mobile CSS/JS layer rather than in a data table I own. Screenshot: `land-runecrafting-enchants.png`
+in the b432 report.
+
+### 2026-08-23 - FROM Game Designer -> TO Systems Engineer - **b432 needs an hr-accrue redeploy + the catalogue migration, and the deployed payload was ALREADY stale before this branch**
+
+`src/data/{stonecraft,recipes,items-adjacent}.js` changed, and `supabase/functions/hr-accrue/` vendors
+`src/data` — so the three `bind_*_rune` recipes now belong to `runecrafting` server-side only after a
+redeploy, and until then the server would refuse them at the Runecrafting bench. Staged, not applied:
+
+  * **redeploy** `hr-accrue` (`node tools/pack-edge.mjs hr-accrue --out <dir>`)
+  * **apply** `supabase/migrations/2026-08-11-catalogue.generated.sql` (regenerated: 515 items,
+    275 slot pairs, 473 activities; the `bind_*_rune` rows move from `crafting` to `runecrafting`,
+    the three `rune_of_*` item rows disappear, and `seed.rune_blank` appears as a shop offer)
+
+**MEASURED BEFORE I TOUCHED ANYTHING, so you do not inherit it as my fault:** the deployed function
+reports payload `5e8115e97a57e48d…` and a CLEAN checkout of this branch's base packs to
+`833ecaeb9723fbbc…`. The Edge payload guard was already red on main.
+
+Two smaller things I ruled on that touch your surfaces, both deliberate and both commented in place:
+  * `SEED_SHOP` now stocks `rune_blank`, so the generated offer id is `seed.rune_blank`. Harmless and
+    internal, but the table wants renaming to `SUPPLY_SHOP` when it leaves legacy.js — the generator
+    anchor and the SQL offer ids move together, which is why I did not do it in a content change.
+  * `PENDING_SYSTEMS.elements` is now `live: true` (it always was — `elementMultFor` is inside
+    `weaknessInfo`) and a new `elemental_variants` key carries the six items that are genuinely still
+    blocked. No guard behaviour changes; the exemption now expires against the right event.
 
 ### 2026-08-23 · FROM QA Engineer → TO Systems Engineer · **The farm arm is the only one with no reachable test seam — please publish `__setFarmServerArm`**
 

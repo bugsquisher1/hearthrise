@@ -891,7 +891,12 @@
       close();
       try {
         if (typeof window.notify === 'function') {
-          window.notify('Playing offline — your progress is kept on this device and will sync when you sign in.', 'info');
+          /* b465: "your progress is kept on this device and will sync when you
+             sign in" is not true of a server-authoritative, online-only game —
+             the server owns every progression number and nothing accrues while
+             signed out. Promising a sync that will not happen is how a player
+             discovers the truth by losing an evening. */
+          window.notify('Signed out — nothing you do now is saved. Sign back in to keep playing.', 'info');
         }
       } catch (e) {}
     });

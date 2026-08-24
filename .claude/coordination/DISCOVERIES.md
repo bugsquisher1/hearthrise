@@ -50,6 +50,46 @@ game has been showing the literal word **"undefined"** above the product title. 
 "5x small_bones". Routed through a name resolver with a titleiser fallback.
 
 ---
+### 2026-08-23 - Game Designer (b465 voice pass) - THE COPY DEFECTS ARE A CLASS, NOT A LIST, AND THE CLASS IS "A SURFACE THAT SAYS SOMETHING THE ENGINE DOES NOT DO"
+
+**DISCOVERY.** Tyler is holding the Reddit post because the game "reads as AI slop". Playing it as a
+new account, the writing problems all reduce to ONE failure, in four costumes:
+
+1. **Filler** — a sentence that occupies the space where information should be. Every quest row
+   printed "Complete this objective to claim your reward." Three rows, one non-sentence, three
+   times. It is in our own store screenshots.
+2. **A promise the flag says no to** — Events honestly said the muster is "coming in Open Beta 1"
+   while the TOPBAR ticked "Rally in 8:01:35" beside it, and the combat rail offered a lit "Join ▸"
+   to a gated clan raid, and Social said "Find a clan" when there are none. `CLAN_LAUNCHED` gated
+   the CARDS in b385; nobody gated the surfaces that point AT the cards.
+3. **A promise the DATA says no to** — `gold_500` advertised "5x small_bones" for a reward that pays
+   zero gold and two item ids that exist nowhere in the game.
+4. **Our vocabulary leaking** — "req Lv 50 prayer", "No reroll function found", "running on old
+   schema", "Product not found", "Need at least 3 chars", "Claim failed (reward_unavailable)".
+
+**THE GENERAL LESSON, and it is the reusable one:** *every one of these is invisible to the smoke
+suite, because the suite reads STATE and these bugs are entirely in the WORDS.* A guard that asserts
+a countdown is correct cannot notice that the countdown should not be on screen at all. That is why
+`VOICE-1/1b/1c/2/2b/3` assert on **rendered text** and on **derivation** (mutate the data, the copy
+must follow) rather than on values.
+
+**AFFECTED SYSTEMS.** Quests modal · muster topbar pill · combat destination rail · Social signpost ·
+clan chat empty state · companion shop rows · hero-slot rail · renown ladder · collection log ·
+IAP / save-migration / account-gate toasts.
+
+**REQUIRED ACTION.** Two standing rules for everyone, both cheap to honour:
+- **A gate is one flag, and EVERY surface behind it must agree with it.** When you gate a feature,
+  grep the flag and fix the pointers too — the pill, the rail card, the signpost, the chat empty
+  state. A card that says "coming soon" next to a topbar that counts down is worse than either
+  alone, because now the game contradicts itself in one screenshot.
+- **A price, a name or a reward may never be a literal if the data exists.** `companionSourceLabel`
+  already did this right; the four companion shop rows next to it did not.
+
+**ALSO FOUND (not copy, raised in HANDOFFS):** `spendMarks('reroll_token')` deducts the Marks before
+the branch that can fail; `reward.item` (singular) is read by no claim path in the game and was
+silently dropped by every payout; `xp:{combat:…}` on three goals pays into a skill id that does not
+exist.
+
 
 ### 2026-08-23 - Art Director (paper-doll rebuild) - EQUIPMENT WAS DRAWN TWICE, DIFFERENTLY, AND NEITHER DRAWING WAS A PAPER-DOLL
 
@@ -281,7 +321,6 @@ explicit that a wide landscape phone gets the SCALED-DESKTOP layout. **That brea
 is shared by many rules; any `1fr` inside it should be re-read with a landscape phone in
 mind, because the clause that catches portrait phones is only the first one.**
 
-<<<<<<< HEAD
 ### 2026-08-17 · Art Director (b369) · FIVE stylesheets were each authoring one piece of the paper-doll's grid, and the two that disagreed produced a live overlap on two surfaces
 
 **DISCOVERY.** `.td-doll` is one component with five mounts and, until b369, five
@@ -334,7 +373,6 @@ sword worn in the rail and sitting in his bag at the same time. There is now one
 `repaintEquipSurfaces()` list (published as `window.__repaintEquipSurfaces`),
 which also covers the Character → Equipment doll. **Anything new that paints
 `G.equipment` must be added to that list, not to a fourth call site.**
-=======
 ### 2026-08-17 (bg pack) · Art Director · **The Fight stage has no wide open area for a backdrop — it has three vertical slots; and `cozy-light` is unreachable, so every `body[data-theme="cozy-light"]` rule in the codebase is dead**
 
 **DISCOVERY 1 — the backdrop brief in `combat-screen-rework.md` §5 is wrong about WHERE the hole is,
@@ -379,7 +417,6 @@ neither painted art nor an atlas glyph. 104 of 111 are wired so it is rarely rea
 live emoji-as-art path in the file that owns the two densest combat surfaces.
 **AFFECTED:** War Table cards, Fight stage, ribbon. **REQUIRED ACTION (Art Director, next combat
 pass):** replace the tail with a gilt atlas glyph; the 7 unwired monsters are the reproduction.
->>>>>>> worktree-agent-a5eae785e9a4bf6e5
 
 ---
 

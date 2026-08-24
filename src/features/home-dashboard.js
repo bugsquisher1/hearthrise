@@ -950,7 +950,15 @@
          being signed in. See the note at cloudSaveLine. */
       (isOnline()
         ? ('Online · ' + esc((window.cloudSaveLine ? window.cloudSaveLine() : { text: 'Cloud save connecting…' }).text))
-        : 'Offline · progress saved on this device') + '</div>';
+        /* b465 — THIS PROMISED SOMETHING HEARTHRISE DOES NOT DO.
+           "progress saved on this device" is the reassurance a single-player
+           game gives. Hearthrise is online-only and SERVER-AUTHORITATIVE: the
+           server owns gold, skills, inventory and every ranked number, and a
+           local copy is a cache, not a save. Telling a disconnected player their
+           progress is safe on their machine is the one sentence that turns a
+           dropped connection into a support ticket. Say the true thing, and say
+           what to do about it. */
+        : 'Offline · reconnect to keep playing') + '</div>';
     html += '</div></div>';
     html += '<div class="hd-ledger">' +
       '<div class="hd-led"><b>' + (xp != null ? num(xp) : '0') + '</b><span>XP today</span></div>' +
@@ -1167,9 +1175,18 @@
               '<div class="mi">' + gly('uiLock', 20, '', 'var(--ink-3)') + '</div>' +
               '<div class="bd"><div class="t">Hero slot ' + (r.slotId + 1) + '</div>' +
                 '<div class="s">' + (r.free ? 'Included with Hearth Hall' : (r.cost + ' gems')) + '</div></div>' +
+              /* b465 — see the ruling on slotRows().afford in multi-character.js.
+                 A lit "Buy" beside "200 gems" on an account holding one gem is
+                 the first thing a new player taps and the first thing that does
+                 nothing. Disabled + the shortfall in the label. And the
+                 not-your-turn case says WHY rather than the bare word "locked",
+                 which the drawer has always done and this rail never did. */
               (r.canBuy
-                ? '<button class="hd-cta ghost" data-herobuy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>'
-                : '<div class="when">locked</div>') +
+                ? (r.afford === false
+                  ? '<button class="hd-cta ghost" disabled title="You have ' + num(r.cost - r.shortBy)
+                    + ' of ' + num(r.cost) + ' gems">Needs ' + num(r.shortBy) + ' more gems</button>'
+                  : '<button class="hd-cta ghost" data-herobuy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>')
+                : '<div class="when">unlock slot ' + r.slotId + ' first</div>') +
             '</div>';
           }).join('');
           html += '<div><div class="hd-h"><h3>Your heroes</h3></div><div class="hd-rows">' + heroesHtml + '</div></div>';

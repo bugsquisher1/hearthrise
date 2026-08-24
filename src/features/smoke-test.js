@@ -21269,7 +21269,12 @@ const TESTS = [
     assert(at(byId('DAILY_GOAL_POOL', 'cook')) === 'skills/cooking', 'Cook 5 dishes -> cooking');
     assert(at(byId('DAILY_GOAL_POOL', 'kill_any')) === 'combat', 'Slay 10 monsters -> combat');
     assert(at(byId('DAILY_GOAL_POOL', 'plant')) === 'farming', 'Plant 5 crops -> the farm');
-    assert(at(byId('DAILY_GOAL_POOL', 'gold_500')) === 'market', 'Earn 500 gold -> the market');
+    /* b465: `gold_500` is WITHDRAWN from DAILY_GOAL_POOL (unpayable reward — see
+       the ruling at the pool row). Its ROUTING is still asserted, off a literal,
+       so the market arm of the table stays covered and the row can be restored
+       without re-deriving it. */
+    assert(at({ id: 'gold_500', name: 'Earn 500 gold', source: '_dailyGoldDelta' }) === 'market',
+      'Earn 500 gold -> the market');
     assert(at(byId('DAILY_GOAL_POOL', 'level_up')) === 'skills', 'Gain a level -> the skills grid (any skill will do)');
     assert(at(byId('WEEKLY_GOAL_POOL', 'wk_logs')) === 'skills/woodcutting', 'Cut 250 logs -> woodcutting');
     assert(at(byId('WEEKLY_GOAL_POOL', 'wk_gather')) === 'skills/mining', 'Gather 250 ores -> mining (it reads stats.mined)');
@@ -21296,6 +21301,236 @@ const TESTS = [
       const d = QN.destination(g);
       assert(!EMOJI.test(d.verb + d.label), 'destination copy must carry no emoji: ' + d.verb);
     });
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     VOICE — b465. THE COPY PASS, AS A GATE.
+     Three defects, each of which shipped and each of which is invisible to
+     every other guard in this suite, because the suite reads state and this
+     class of bug is entirely in the WORDS:
+       VOICE-1  the quests modal printed one filler sentence on every row
+       VOICE-2  the topbar counted down to a feature the player cannot open
+       VOICE-3  a price was allowed to be a literal instead of derived
+     Each test names the exact defect it re-plants, so a future edit that
+     reintroduces it fails here rather than in a store screenshot.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* The modal's Daily/Weekly tab is MODULE state that outlives the overlay:
+     clicking Weekly here and walking away left the next test (b227's Go-button
+     guard) reading a weekly row out of the daily pool. Any test that switches
+     tabs puts it back. */
+  () => tryRun('VOICE-1 (b465): no quest row prints the generic filler line', () => {
+    /* THE DEFECT: `g.desc || 'Complete this objective to claim your reward.'`
+       with not one pool row carrying a `desc`, so all three rows of a 3-row
+       modal printed the same content-free sentence. It is in our own store
+       screenshots. */
+    const FILLER = 'Complete this objective to claim your reward';
+
+    // (a) EVERY authored row carries its own description. This is the fix; the
+    //     fallback below is only the floor.
+    const pools = [['DAILY_GOAL_POOL', window.DAILY_GOAL_POOL], ['WEEKLY_GOAL_POOL', window.WEEKLY_GOAL_POOL]];
+    pools.forEach(([name, pool]) => {
+      assert(Array.isArray(pool) && pool.length, name + ' must exist');
+      pool.forEach((g) => {
+        assert(typeof g.desc === 'string' && g.desc.trim().length >= 20,
+          name + '/' + g.id + ' needs a real one-line description (got ' + JSON.stringify(g.desc) + ')');
+        assert(g.desc.indexOf(FILLER) < 0, name + '/' + g.id + ' is printing the filler line');
+        // A description earns its space by saying something the NAME does not.
+        assert(g.desc.trim().toLowerCase() !== String(g.name || '').trim().toLowerCase(),
+          name + '/' + g.id + ' description just repeats the name');
+      });
+    });
+
+    // (b) THE RENDERED MODAL — what the player actually reads. Zero instances,
+    //     on both tabs, not "the pool looks fine".
+    const wasOpen = !!document.getElementById('quests-modal-overlay');
+    try {
+      window.openQuestsModal();
+      const ov = document.getElementById('quests-modal-overlay');
+      assert(ov, 'the quests modal must open');
+      const readAll = () => (ov.innerText || ov.textContent || '');
+      assert(readAll().indexOf(FILLER) < 0, 'the DAILY tab still renders the filler line');
+      const wk = ov.querySelector('.qm-tab[data-tab="weekly"]');
+      if (wk) { wk.click(); assert(readAll().indexOf(FILLER) < 0, 'the WEEKLY tab still renders the filler line'); }
+      // And the rows really did render a description each (not an empty div).
+      const descs = [...ov.querySelectorAll('.qm-q-desc')];
+      assert(descs.length > 0, 'no quest rows rendered — the test proved nothing');
+      descs.forEach((d) => assert((d.textContent || '').trim().length >= 20,
+        'a quest row rendered an empty/stub description'));
+    } finally {
+      try { const d = document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]'); if (d) d.click(); } catch (e) {}
+      if (!wasOpen && typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+    }
+  }),
+
+  () => tryRun('VOICE-1b (b465): the reward summary speaks names, never item ids', () => {
+    /* THE DEFECT: rewardSummary pushed `qty + 'x ' + itemId`, so the "Earn 500
+       gold" daily advertised "5x small_bones". The renderer is block-scoped, so
+       this reads what it PRODUCES, through the modal. */
+    const wasOpen = !!document.getElementById('quests-modal-overlay');
+    try {
+      window.openQuestsModal();
+      const ov = document.getElementById('quests-modal-overlay');
+      assert(ov, 'the quests modal must open');
+      const scan = () => [...ov.querySelectorAll('.qm-r-val')].map((e) => (e.textContent || '').trim());
+      const ID_SHAPED = /\b[a-z][a-z0-9]*_[a-z0-9_]+\b/;
+      const bad = [];
+      const sweep = () => scan().forEach((t) => { if (ID_SHAPED.test(t)) bad.push(t); });
+      sweep();
+      const wk = ov.querySelector('.qm-tab[data-tab="weekly"]');
+      if (wk) { wk.click(); sweep(); }
+      assert(!bad.length, 'a reward summary printed a raw id: ' + JSON.stringify(bad.slice(0, 3)));
+      // The gem glyph was a pictogram standing in for a noun ("1💎").
+      const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
+      scan().forEach((t) => assert(!EMOJI.test(t), 'a reward summary is using an emoji as a word: ' + t));
+    } finally {
+      try { const d = document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]'); if (d) d.click(); } catch (e) {}
+      if (!wasOpen && typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+    }
+  }),
+
+  () => tryRun('VOICE-1c (b465): every offered goal has a payable reward', () => {
+    /* THE DEFECT: `gold_500` was dealt to players with `{gold:0, item:
+       'starter_bundle_token', items:{small_bones:5}}` — zero gold and two ids
+       that exist nowhere in the game, so hr_claim_goal answered
+       `reward_unavailable` and the Claim button could never succeed. It is
+       withdrawn from the pool; this stops it (or a successor) coming back
+       unnoticed. Items are checked against ITEMS, which is the same table the
+       claim path pays out of. */
+    const ITEMS = window.ITEMS || {};
+    const check = (label, g, reward) => {
+      assert(reward, label + ' has no reward table entry at all');
+      const items = Object.keys(reward.items || {});
+      items.forEach((id) => assert(ITEMS[id], label + ' promises item "' + id + '", which is not in ITEMS'));
+      const pays = (reward.gold > 0) || (reward.gems > 0)
+        || Object.keys(reward.xp || {}).length > 0 || items.length > 0;
+      assert(pays, label + ' pays nothing a claim can actually grant');
+    };
+    (window.WEEKLY_GOAL_POOL || []).forEach((g) => check('WEEKLY_GOAL_POOL/' + g.id, g, g.reward));
+    // The daily rewards table is block-scoped; reach it the way the modal does.
+    const daily = (typeof window.getGoalsForToday === 'function') ? window.getGoalsForToday() : [];
+    assert(daily.length, 'no daily goals were offered — the test proved nothing');
+    daily.forEach((g) => {
+      assert(g.id !== 'gold_500', 'gold_500 is back in the offered slate with an unpayable reward');
+    });
+    (window.DAILY_GOAL_POOL || []).forEach((g) => {
+      assert(g.id !== 'gold_500', 'gold_500 must stay out of DAILY_GOAL_POOL until its reward is authored on BOTH sides');
+    });
+  }),
+
+  () => tryRun('VOICE-2 (b465): no gated surface advertises a countdown or a lit door', () => {
+    /* THE DEFECT: the Events screen honestly said the muster is "coming in Open
+       Beta 1" while the TOPBAR ticked "Rally in 8:01:35" beside it, and the
+       combat rail offered a lit "Join ▸" to a clan raid behind the same flag.
+       The gate is one flag; every surface behind it must agree with it. */
+    const CL = window.HearthriseClans;
+    assert(CL && typeof CL.clanLaunched === 'function', 'the clan gate must be readable');
+    if (CL.clanLaunched()) return;   // launched: nothing to hide, nothing to assert
+
+    // (a) The topbar pill is not merely hidden — it is not in the DOM. A hidden
+    //     countdown still ticks, and still reappears on the next repaint.
+    assert(!document.getElementById('hr-muster-pill'),
+      'the topbar is counting down to the muster while clans are gated');
+
+    // (b) The topbar carries no countdown copy for it at all.
+    const top = document.querySelector('.topbar');
+    const topText = top ? (top.innerText || top.textContent || '') : '';
+    assert(!/Rally in\s+\d/.test(topText), 'the topbar reads "' + topText.replace(/\s+/g, ' ').slice(0, 80) + '"');
+
+    // (c) The combat rail's clan-raid card is stated as gated, using the same
+    //     `locked` field the dungeon and boss cards already use.
+    const CS = window.HearthriseCombatScreens;
+    if (CS && typeof CS._destinations === 'function') {
+      const raid = CS._destinations().find((d) => d.kick === 'Clan Raid');
+      if (raid) {
+        assert(raid.locked, 'the Clan Raid card offers a lit CTA to a gated feature');
+        assert(!/^Join/.test(String(raid.locked)), 'a gated card must name the gate, not repeat the invitation');
+      }
+    }
+  }),
+
+  () => tryRun('VOICE-2b (b465): an unaffordable Buy is disabled and says what it needs', () => {
+    /* THE DEFECT: `slotRows().canBuy` means "this is the NEXT slot", and both
+       renderers read it as "you can afford this" — so a new account holding one
+       gem got a lit Buy beside "200 gems". Every other shop row in the game
+       disables an unaffordable Buy (render/shop.js); the hero rail did not.
+       The gem balance is SERVER-OF-RECORD and reads UNKNOWN while signed out,
+       and unknown deliberately abstains (a player must never be told "not
+       enough" when we simply have not been told the number) — so this stubs a
+       KNOWN balance, which is the state every signed-in player is in. */
+    const B = window.HearthriseBalance;
+    const HP = window.HearthriseProfile;
+    if (!B || !HP || typeof HP.slotRows !== 'function') return;   // multi-character optional
+    const realBalanceNum = B.balanceNum;
+    try {
+      B.balanceNum = (G, f) => (f === 'gems' ? 1 : realBalanceNum(G, f));
+      const rows = HP.slotRows().filter((r) => r.kind === 'locked' && !r.free);
+      assert(rows.length, 'no locked hero slots — the test proved nothing');
+      const next = rows.find((r) => r.canBuy);
+      assert(next, 'no next-buyable slot');
+      assert(next.afford === false, 'a 200-gem slot must not read as affordable on 1 gem');
+      assert(next.shortBy === next.cost - 1,
+        'shortBy must be the real gap (got ' + next.shortBy + ' of ' + next.cost + ')');
+
+      // And the RENDERED rail must disable it and name the gap.
+      if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') {
+        window.HearthriseHome.render();
+        const btn = document.querySelector('#panel-profile [data-herobuy], #panel-profile .hd-cta[disabled]');
+        const rail = document.getElementById('panel-profile');
+        if (rail && /Hero slot/.test(rail.textContent || '')) {
+          const live = [...rail.querySelectorAll('[data-herobuy]')];
+          assert(!live.length, 'the Home rail still offers a live Buy for a slot the player cannot afford');
+          assert(/Needs \d[\d,]* more gems/.test(rail.textContent || ''),
+            'the disabled hero-slot button must name the shortfall');
+        }
+        void btn;
+      }
+
+      // AFFORDABLE stays buyable — the guard must not just disable everything.
+      B.balanceNum = (G, f) => (f === 'gems' ? 999999 : realBalanceNum(G, f));
+      const rich = HP.slotRows().filter((r) => r.kind === 'locked' && !r.free).find((r) => r.canBuy);
+      assert(rich && rich.afford === true, 'a slot the player CAN afford must stay buyable');
+    } finally {
+      B.balanceNum = realBalanceNum;
+      if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') {
+        try { window.HearthriseHome.render(); } catch (e) {}
+      }
+    }
+  }),
+
+  () => tryRun('VOICE-3 (b465): a price is derived from the data, never a literal', () => {
+    /* THE DEFECT CLASS: a price typed into a string drifts from the price the
+       spend path charges, and the player is the one who finds out. Proven by
+       MUTATION rather than by matching today's number — a literal "50" would
+       pass a same-number check. */
+    const C = window.COMPANIONS;
+    const S = window.HearthriseCompanions;
+    assert(C && C.owl, 'the Owl companion must exist');
+    assert(S && typeof S.sourceLabel === 'function', 'HearthriseCompanions.sourceLabel must be published');
+    const sourceLabel = S.sourceLabel;
+
+    // The authored price, read off the ONE place that owns it.
+    const priced = String(C.owl.source || '').split(':');
+    assert(priced[0] === 'shop', 'the Owl must still be a shop companion');
+    const price = Number(priced[1]);
+    assert(Number.isFinite(price), 'the Owl price must be a number in its source');
+
+    const label = sourceLabel(C.owl.source);
+    assert(label.indexOf(price.toLocaleString()) >= 0,
+      'the Owl label (' + label + ') does not state its authored price ' + price);
+    assert(!/\bshop:|_\d|:prayer/.test(label), 'the Owl label is leaking its source key: ' + label);
+    // It states the SKILL GATE by name, not by key.
+    assert(/Prayer/.test(label), 'the Owl label must name the Prayer requirement: ' + label);
+
+    // MUTATE THE OWNER — the label must follow it, which a literal cannot.
+    const mutated = sourceLabel('shop:12345:prayer50');
+    assert(mutated.indexOf((12345).toLocaleString()) >= 0,
+      'the price is NOT derived — a changed source produced "' + mutated + '"');
+    /* Scoped to the GOLD clause on purpose: the Owl's skill gate is "Prayer
+       50", so a bare indexOf('50') would match the requirement and fail a
+       correct implementation. */
+    assert(mutated.indexOf(price.toLocaleString() + ' gold') < 0,
+      'the old price survived a source change — it is baked in somewhere: ' + mutated);
   }),
 
   () => tryRun('b227: Go lands you ON the thing, not just on the right tab', () => {

@@ -416,3 +416,71 @@ Read-only plan per Tyler's directive + guardrail. No game code touched. Mapped e
 identity + style fit are the two checks a prompt cannot enforce). Systems owns the ember-valuation
 contract (`blessing_catalogue.embers = v`, `donatable = NOT super_rare`), the 2.5× threshold/cap
 re-scale, and the seeded 50/50 tie flip.
+
+
+---
+
+## 2026-08-23 — b465 · THE VOICE PASS (the writing half of "does this read as AI slop?")
+
+**Branch:** worktree `agent-a54fd6e995b15acd8`. **Not bumped, not pushed.**
+**Suite:** baseline **1013/1014** → final **1019/1020** (+6 tests). The one failure,
+`DAILY-HEAL-1 (b461)`, is **pre-existing** — it fails on the untouched base. 0 runtime errors.
+**Mutation-verified:** re-planted all three headline defects at once; `VOICE-1`, `VOICE-2` and
+`VOICE-3` each failed with the right message, and the existing `b371 (F20)` guard corroborated the
+price one. Restored, re-ran green.
+
+**THE VOICE CARD (derived from the away card, the death sheet, the b459 tour, the item descriptions
+and the stonecraft headers — the best copy we already ship):**
+1. **Second person, present tense, plain.** "Any tree, any tier." Not "The player may gather logs."
+2. **Say what is TRUE of the engine, and only that.** Every line is checkable against the counter,
+   the flag or the table behind it. A sentence we cannot verify is a bug we have not found yet.
+3. **A line earns its space by telling you something the label does not.** If it restates the name,
+   delete it. Filler is worse than blank — blank at least does not lie.
+4. **Warm, dry, never exclamatory.** One wry beat is allowed ("the axe does not care which"). No
+   "!", no ALL CAPS, no emoji standing in for a noun.
+5. **Never our vocabulary.** No ids, no field names, no error codes, no "schema", "record",
+   "envelope", "seam", "chars", "UI". Names come from `ITEMS` / `SKILLS_DEF` / `MONSTERS`; prices,
+   levels and quantities are DERIVED from the data, never typed into a string.
+
+**What I learned / what future-me should not re-derive:**
+
+* **`window.itemName` and `window.skillName` DO NOT EXIST.** Both are block-scoped function
+  declarations inside `legacy.js` IIFEs. Any renderer in another block (the quests modal is block
+  40; `itemName` is in block ~16) must read `window.ITEMS` / `window.SKILLS_DEF` directly. A bare
+  `typeof skillName === 'function'` guard there silently falls through to the raw id — which is the
+  defect, reintroduced by its own fallback. That is exactly how "5x small_bones" survived.
+* **The quests modal's Daily/Weekly tab is MODULE state that outlives the overlay.** A test that
+  clicks Weekly and closes the modal leaves `currentTab='weekly'`, and the NEXT test (b227's
+  Go-button guard) then reads a weekly row out of the daily pool. Any test that switches tabs must
+  put it back — mine do, in `finally`.
+* **`balanceOf(G,'gems')` is `known:false` while signed out**, because gems are server-of-record and
+  the record has not arrived. So an affordability check must have THREE states, not two: yes / no /
+  unknown, and **unknown abstains**. Telling a player "not enough gems" when we simply have not been
+  told the number is the bug `balShortfall` already exists to prevent. `slotRows().afford` is
+  `true|false|null` for exactly this reason.
+* **`hr_claim_goal` does NOT derive today's offered goal set** — it verifies completion and
+  catalogue membership only. That is what makes withdrawing a client pool row safe: a goal never
+  offered is never claimed, and its catalogue row sits harmless. (`hr_daily_task_set` — the OTHER
+  goal system — *does* derive the set, and is bound by `tests/goal-catalogue-drift.mjs`. Do not
+  confuse the two.)
+* **Burnt cooks genuinely do not count.** `artisan-sim.js` returns an empty `progress` on a burn, so
+  "Burnt dishes do not count" is a true statement, not a guess. Runecrafting and Stonemason DO count
+  as `crafted` (`BENCH_COUNTERS`), which is why the weekly craft goal says so.
+* **A designer ruling can be a comment.** `gold_500`'s withdrawal is a commented-out pool row with
+  the reasoning and the exact two-file restore recipe beside it. The next person to want it back
+  does not have to rediscover why it left.
+
+**RULINGS MADE (delegated design authority):**
+- **`gold_500` is withdrawn from the daily slate** until its reward is authored on both sides. A
+  quest that cannot pay must not be dealt. Restore recipe in HANDOFFS and in the code.
+- **A surface may not advertise a countdown or a lit CTA for a feature behind `CLAN_LAUNCHED`.**
+  Applied to the topbar rally pill (removed from the DOM, not hidden — a hidden countdown still
+  ticks), the combat rail's Clan Raid card (`locked: 'Opens in Open Beta 1'`, the same field the
+  dungeon and boss cards use), the Social signpost and the clan chat empty state.
+- **An unaffordable or locked action is visibly disabled and names its reason.** Applied to the four
+  companion shop rows (the only shop rows in the game that were not) and the hero-slot rail.
+
+**HANDOFFS raised:** Systems + Coordinator own the `gold_500` payout (client row + the SQL seed, one
+change) and the `xp:{combat:…}` phantom on three goals, plus the `spendMarks` charge-before-fail.
+Art Director owns the surviving emoji — currency sigils in markup, the Homestead padlocks, the two
+missing skill medallions (Runecrafting, Stonemason), and the inert `emoji:` data fields.

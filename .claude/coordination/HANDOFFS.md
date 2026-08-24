@@ -27,6 +27,80 @@ a release — each is a legible holding — but each is a place where the game s
    these two are the first candidates.
 
 Untouched by me, as briefed: monster art, scene art, the brand.
+### 2026-08-23 · FROM Game Designer (b465) → TO Systems Engineer + Coordinator · **The Owl costs 50 gold. That is the real "price mismatch" the audit smelled — and it is DATA, not copy**
+
+The audit logged "the Owl companion shows 50 gold vs its real price (P2)". There is no display
+drift: `companionSourceLabel` derives the number from `source:` and I mutation-tested it (`VOICE-3`).
+**The number itself is the anomaly.** On the Stable, side by side:
+
+| Companion | Price | Gate |
+|---|---|---|
+| Sparrow | 5,000 gold | — |
+| Honeybee | 8,000 gold | Cooking 25 |
+| Raccoon | 25,000 gold | — |
+| **Owl** | **50 gold** | **Prayer 50** |
+
+A pet behind the single hardest skill gate in the shop costs 0.2% of the ungated Raccoon. It reads
+as a typo for 5,000 or 50,000 and it is almost certainly one.
+
+I did NOT change it: a price is an economy value, it is mirrored in `src/data/companion-unlocks.js`
+(`companion.owl`, `gold: 50`) and seeded into `hr_unlock_offers`, and
+`tools/gen-companion-unlocks.mjs --check` binds the two — so the fix is a coordinated three-way
+change (`companions.js` `source:` → `companion-unlocks.js` → regenerate the migration), which is
+outside a strings-and-data-rows pass and touches `supabase/**`. **My recommendation: 8,000**, level
+with the Honeybee, which is the other skill-gated artisan pet and the closest comparable.
+
+### 2026-08-23 · FROM Game Designer (b465 voice pass) → TO Systems Engineer + Coordinator · **`gold_500` pays nothing; the reward needs authoring on BOTH sides**
+
+`2026-08-23-modal-goal-claims.sql` already found this and deferred it to me ("game data is the
+Designer's"). Ruling: **the goal is WITHDRAWN from `DAILY_GOAL_POOL` until its reward is real.**
+
+The defect: `DAILY_REWARDS.gold_500 = {gold: 0, xp:{}, item:'starter_bundle_token',
+items:{small_bones:5}}`. `gold: 0` pays nothing; `reward.item` (singular) is read by **no claim
+path in the game** — not the local branch, not `hr_claim_goal`; and neither `starter_bundle_token`
+nor `small_bones` is an id in `src/data/items.js` (the real ids are `bones` / `big_bones` /
+`dragon_bones`). Server-side the RPC answers `reward_unavailable`, so a player who earned 500 gold
+got a Claim button that could only ever error.
+
+**To restore it, ONE change touching two files (I did not make it — it is an economy change and it
+crosses `supabase/**`):**
+1. `src/legacy.js` `DAILY_REWARDS.gold_500` → a real payout. My recommendation, in band with its
+   siblings (`kill_more` 600g+1 gem, `level_up` 500g+1 gem, and it is a market/selling daily):
+   `{gold: 300, xp:{}, gems: 1}`.
+2. `supabase/migrations/2026-08-23-modal-goal-claims.sql` line ~254 → the same numbers
+   (`'gold_500', false, 'ledger_gold', 'gold', 500, 300, 1, '{}', '{}'`).
+3. Un-comment the pool row in `DAILY_GOAL_POOL` (the ruling and the exact restore steps are in a
+   comment right there) and drop the two `gold_500` assertions in `VOICE-1c`.
+
+**Related, still open, NOT fixed here (same migration's other phantom):** `xp:{combat:…}` on
+`kill_any` / `kill_more` / `wk_kills`. `combat` is not a `skill_id` — it is a derived level — so the
+server skips it (`skipped_xp`) and the client has been inventing a phantom `G.skills.combat`. Those
+rows still pay gold and gems, so they are not unpayable; but the advertised Combat XP is not real
+and my `rewardSummary` now prints it in words ("200 Combat XP"), which makes the lie legible. Needs
+a designer+systems ruling on whether it becomes `attack`/`strength`/`hitpoints` XP or is dropped.
+
+### 2026-08-23 · FROM Game Designer (b465) → TO Systems Engineer · **`spendMarks('reroll_token')` charges before it can fail**
+
+`src/legacy.js` deducts `def.cost` Marks and THEN branches; if `rerollBountyBoard` is missing the
+player has paid for nothing. I fixed the copy only (it used to say "No reroll function found" — our
+stack trace, read aloud) and left a `console.warn` at the site. The refund/ordering is yours.
+
+### 2026-08-23 · FROM Game Designer (b465) → TO Art Director · **Emoji survive in HTML as CURRENCY SIGILS and in three data `emoji:` fields**
+
+I swept the emoji out of every **plain-text** string I touched (toasts, reward summaries) because
+those are words, not art. I deliberately did NOT touch the **markup** ones, which are yours and want
+atlas glyphs rather than words:
+- `🪙` as a gold sigil in `src/legacy.js` — buyback rows (~9618/9619), inventory tile titles (~9771),
+  the multi-select value bar (~9790/9798); `💎`/`🪙` in `src/features/collection-log.js:239`;
+  `🪙` in `src/features/inv-context-menu.js:190` ("🪙  Sell 1").
+- `🔒` on the Homestead room rows (renders live: "Kitchen 🔒 Requires Hearthside Homestead").
+- `🎟️` on the Dungeon Scrip counter; `🐾` on the Stable nav button (`features/companions.js:591`).
+- `🔮` / `🧱` still render as the Runecrafting and Stonemason **skill medallions** on Character —
+  they are the only two of eighteen without one.
+- `emoji:` fields still live in `DAILY_GOAL_POOL` / `WEEKLY_GOAL_POOL` / achievement rows. In the
+  quests modal they are already replaced by painted icons at render time, so they are inert there —
+  but they are one `innerHTML` away from surfacing again.
+
 
 ### 2026-08-23 · FROM Art Director → TO Asset Director · **Two empty-slot glyphs now carry the whole cell and two of them read wrong**
 

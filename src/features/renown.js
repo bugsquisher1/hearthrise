@@ -480,12 +480,27 @@
     return Math.max(0, effectiveRenown(G) - snap.renown);
   }
 
+  /* b465 — THE RENOWN LADDER IS THE META-SPINE; IT MUST READ LIKE PROSE.
+     This produced "🪙 250" — a pictogram standing in for the word "gold" — and,
+     on the item arm, the RAW ITEM ID ("🎁 1× dawn_sword"). The item arm has no
+     live data behind it today (RENOWN_RANK_REWARDS is gold/gems only), which is
+     exactly why it had to be fixed now: the first rank that adds an item would
+     have shipped a database key onto the Rise-to-the-Throne screen. Names come
+     from ITEMS, so a rename follows for free; an unknown id degrades to a
+     titleised form, never to the key. Currencies are WORDS — this string is read
+     in a toast, a button label and a screen reader. */
+  function rewardItemName(id) {
+    var it = window.ITEMS && window.ITEMS[id];
+    if (it && (it.n || it.name)) return it.n || it.name;
+    return String(id || '').split(/[_\-:]/).filter(Boolean)
+      .map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
+  }
   function rewardText(rw) {
     if (!rw) return '';
     var parts = [];
     if (rw.gold) parts.push(_rnGly('gold',13,'--gold-2') + ' ' + fmt(rw.gold));
     if (rw.gems) parts.push(_rnGly('gems',13,'--gem') + ' ' + fmt(rw.gems));
-    if (rw.item) parts.push(_rnGly('uiGift',13,'--gold-2') + ' ' + (rw.itemQty || 1) + '× ' + rw.item);
+    if (rw.item) parts.push(_rnGly('uiGift',13,'--gold-2') + ' ' + (rw.itemQty || 1) + '× ' + rewardItemName(rw.item));
     return parts.join('  ');
   }
 

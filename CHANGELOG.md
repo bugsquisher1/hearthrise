@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 471 — 2026-08-24 (Your combat style stays put)
+
+- ⚔️ Fixed your combat style snapping back (e.g. Focus reverting to Cast, or a magic style flipping to Attack) right after you picked it or leveled a stat — a server update arriving mid-change was overwriting your fresh pick. Your selection now holds until the server confirms it.
+
 ## v0.9.2-beta build 470 — 2026-08-24 (One name, everywhere)
 
 - 🪪 Your character name now shows the same everywhere — the top bar, the Home banner and the Character screen were reading three different sources (one even showed part of your account email). All of them now use your one chosen name.

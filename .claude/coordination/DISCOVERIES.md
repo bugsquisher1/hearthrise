@@ -4,6 +4,53 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-23 - Art Director (emoji-as-icon sweep) - A REPO GREP CANNOT SEE THIS PROBLEM, WHICH IS WHY IT SURVIVED FOUR PURGES
+
+**DISCOVERY.** `grep` over `src/**` reports ~1,800 pictographs and always will: they live in DATA
+rows no renderer reads any more (`ITEMS[].icon`, `MONSTERS[].icon`), inside COMMENTS that explain
+why an emoji was removed, and in CHANGELOG prose that is allowed to keep them. A grep cannot tell
+the violation from its own fix note, so every previous pass measured a number that could not reach
+zero and stopped somewhere arbitrary. **The only measurable surface is the rendered DOM.** Booting
+the real client and walking visible text nodes across 20 screens x 2 viewports gave the true figure:
+**10 distinct STRUCTURAL sites** — an emoji that is the ENTIRE content of its element, i.e. the
+element is an icon slot. Not the ~64 the live audit estimated, and not the 1,800 a grep reports.
+
+**THE SECOND HALF, which nobody had counted.** Emoji is not the only thing that reads as generated.
+A live boot showed **49 unmapped item ids collapsing onto the SAME `uiChest` glyph**, so the bottom
+four rows of a full inventory were one chest repeated. `itemGlyphKey` had 10 patterns; it has 26
+now, every one derived from that list of 49 rather than guessed, and the chest count is **2**.
+
+**THE THIRD THING, and it is the nastiest.** `stripChromeEmoji()` in `src/features/icon-set.js`
+DELETES pictographs out of a fixed selector list at runtime. Where the atlas had no glyph to draw,
+that left a HOLE: Runecrafting and Stonemason rendered an EMPTY medallion in the skills rail and on
+the Character sheet, and the mobile activity strip (`.ams-btn`) and combat sub-tabs (`.cmt-btn`)
+drew labels with nothing above them. **Stripping is not fixing** — a de-emoji pass with no glyph to
+put back ships blanks. Both skills now have hand-authored glyphs (`src/data/glyphs-extra.js`) and
+both strips draw atlas keys.
+
+**AFFECTED SYSTEMS.** `icon-set.js` (the strip list), `itemGlyphKey`/`itemFallbackIcon` (the b217
+backstop), and every renderer that ended in `|| x.icon`: legacy.js, market.js, item-ux.js,
+dungeons.js, dungeon-scavenger.js, collection-log.js, recipe-book.js, combat-render.js,
+combat-screens.js, bestiary.js, achievements.js, active-effects.js, levelup-celebration.js,
+lifetime-stats.js, profile-launchpad.js, homestead.js, renown.js, workers.js, companions.js,
+activities-grid.js, the two mobile tab strips, inv-context-menu.js.
+
+**REQUIRED ACTION.** Measure this in the DOM, never by grep. The guard
+`art: ZERO emoji-as-icon in the rendered DOM of the main screens` in `smoke-test.js` is pinned at
+**0** and is mutation-proven. When you add a data row, give it a **`glyph`** (an atlas key), never
+an **`icon`** (a character) — seven data tables were converted this pass for exactly that reason
+(`DAILY_GOAL_POOL`, `WEEKLY_GOAL_POOL`, `ACHIEVEMENTS`, `HOUSE_THEMES`, `BUFFS_DEF`, homestead
+`TIERS`, and the dungeon + scavenger configs).
+
+**A REAL BUG FOUND WHILE LOOKING.** `confirmIAP()` printed `p.icon` at 54px — and no `IAP_CATALOG`
+row has ever carried an `icon` field (they carry `glyph`). Every purchase-confirmation modal in the
+game has been showing the literal word **"undefined"** above the product title. Fixed.
+
+**A SECOND ONE, same class as b371's F20.** The Quests modal reward line printed raw ids:
+"5x small_bones". Routed through a name resolver with a titleiser fallback.
+
+---
+
 ### 2026-08-23 - Art Director (paper-doll rebuild) - EQUIPMENT WAS DRAWN TWICE, DIFFERENTLY, AND NEITHER DRAWING WAS A PAPER-DOLL
 
 **DISCOVERY.** Tyler: *"this player doll layout makes no fucking sense. in what game have you seen

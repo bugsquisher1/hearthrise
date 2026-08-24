@@ -769,7 +769,7 @@
     if (d.action !== 'accept') { notify(d.message, 'kill'); return null; }
 
     invalidate();
-    notify('⚔ ' + tierName(d.tier) + ' declared — ' + boss.name + ', ' +
+    notify('' + tierName(d.tier) + ' declared — ' + boss.name + ', ' +
       d.pool.toLocaleString() + ' HP across ' + d.members + ' member' + (d.members === 1 ? '' : 's'), 'levelup');
     render();
     return d;
@@ -841,7 +841,7 @@
     st.lastStrikeDay = dayKey();
     var dealt = d.damage || dmg;
     var pct = Math.round(100 * d.hp / (d.max || CLAN_POOL_HP));
-    notify('⚔ You dealt ' + dealt.toLocaleString() + ' to ' + boss.name + ' — ' +
+    notify('You dealt ' + dealt.toLocaleString() + ' to ' + boss.name + ' — ' +
       (d.downed ? 'THE BOSS FALLS! Claim your chest.' : pct + '% remains'),
       d.downed ? 'levelup' : 'loot');
     // §4.1 The Faltering: people convene because the boss is nearly dead, not
@@ -877,7 +877,7 @@
     st.solo.damage += dmg;
     st.solo.strikes = (st.solo.strikes | 0) + 1;
     var downed = st.solo.hp === 0;
-    notify('⚔ You dealt ' + dmg.toLocaleString() + ' to ' + boss.name + ' — ' +
+    notify('You dealt ' + dmg.toLocaleString() + ' to ' + boss.name + ' — ' +
       (downed ? 'THE BOSS FALLS! Claim your chest.' : Math.round(100 * st.solo.hp / st.solo.max) + '% remains'),
       downed ? 'levelup' : 'loot');
     persist(); render();
@@ -930,7 +930,7 @@
       if (_mayInv && typeof window.addItem === 'function') addItem(chest.sig, 1);
       mats.push('1× ' + itemName(chest.sig));
     }
-    notify('🏆 ' + chest.name + ' chest: +' + gold.toLocaleString() + 'g, +' + gems + ' gems' +
+    notify('' + chest.name + ' chest: +' + gold.toLocaleString() + 'g, +' + gems + ' gems' +
       (mats.length ? ', ' + mats.join(', ') : ''), 'levelup');
     if (sig && chest.sig) {
       notify('The ' + itemName(chest.sig) + ' is yours — the Hunt\'s signature spoil.', 'levelup');

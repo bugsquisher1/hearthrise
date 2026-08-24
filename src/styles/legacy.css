@@ -620,6 +620,11 @@ img,svg{display:block;max-width:100%}
   background:var(--gold);color:#1a1100;letter-spacing:.06em;
 }
 .iap-card .iap-icon{font-size:calc(36px * var(--ui-scale, 1))}
+/* The purchase-confirmation plate. It used to print `p.icon`, a field no
+   IAP_CATALOG row has ever carried (they carry `glyph`), so this slot rendered
+   the literal word "undefined" at 54px above every product title. It now draws
+   the same gilt glyph as the store card it was opened from. */
+.iap-confirm-art{display:flex;align-items:center;justify-content:center;min-height:52px}
 .iap-card h3{font-family:var(--f-display);font-size:calc(18px * var(--ui-scale, 1));font-weight:700;color:var(--gold-2);letter-spacing:.04em}
 .iap-card .desc{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);flex:1}
 .iap-card .iap-price{font-weight:800;font-size:calc(21.5px * var(--ui-scale, 1));color:var(--ink)}

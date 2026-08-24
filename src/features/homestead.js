@@ -26,7 +26,7 @@
   'use strict';
 
   var TIERS = [
-    { id: 'camp',      name: "Wanderer's Camp",      icon: '⛺', plots: 2,  workers: 0, offlineHours: 0,
+    { id: 'camp',      name: "Wanderer's Camp",      glyph: 'uiCamp', plots: 2,  workers: 0, offlineHours: 0,
       desc: 'A bedroll, a fire, and two rows of dirt. Everyone starts somewhere.',
       cost: null, rooms: [] },
     /* b213 QA: tier costs may only require materials a player can actually
@@ -35,11 +35,11 @@
        2-3 (bars need the Forge — a tier-3 room): a hard progression deadlock
        for every fresh account (veterans were grandfathered past it, which is
        why it went unseen). Each tier's new room now feeds the NEXT rung. */
-    { id: 'homestead', name: 'Hearthside Homestead', icon: '🏡', plots: 4,  workers: 1, offlineHours: 0,
+    { id: 'homestead', name: 'Hearthside Homestead', glyph: 'uiHome', plots: 4,  workers: 1, offlineHours: 0,
       desc: 'Four walls and a hearth. Unlocks the Kitchen and Garden — and your first hired hand.',
       cost: { gold: 400, normal_log: 30, copper_ore: 20 },
       rooms: ['kitchen', 'garden'] },
-    { id: 'farmstead', name: 'Fieldworth Farmstead', icon: '🌾', plots: 6,  workers: 2, offlineHours: 1,
+    { id: 'farmstead', name: 'Fieldworth Farmstead', glyph: 'uiBarn', plots: 6,  workers: 2, offlineHours: 1,
       /* b226 (Tyler): the Forge moves DOWN to tier 2 — smithing opens with the
          farmstead. Moving a bench EARLIER can never create a b213-style cost
          deadlock (it only relaxes what later tiers may demand). */
@@ -66,15 +66,15 @@
        Quantities are deliberately modest — 25 ashlar at the castle is 100
        granite blocks, i.e. a real Stonemason commitment but not a second
        property grind bolted onto the first. */
-    { id: 'manor',     name: 'Stonecross Manor',     icon: '🏛️', plots: 8,  workers: 3, offlineHours: 2,
+    { id: 'manor',     name: 'Stonecross Manor',     glyph: 'navHouse', plots: 8,  workers: 3, offlineHours: 2,
       desc: 'Cut stone and iron gates. Unlocks the Library, a third worker, +2h offline cap.',
       cost: { gold: 10000, willow_plank: 35, iron_ore: 40, silk_thread: 8, ashlar: 6 },
       rooms: ['library'] },
-    { id: 'keep',      name: 'Ironvale Keep',        icon: '🏰', plots: 10, workers: 4, offlineHours: 3,
+    { id: 'keep',      name: 'Ironvale Keep',        glyph: 'uiCastle', plots: 10, workers: 4, offlineHours: 3,
       desc: 'Ramparts and a watch bell. Unlocks the Shrine and Trophy Room, a fourth worker, +3h offline cap.',
       cost: { gold: 40000, maple_plank: 50, steel_bar: 35, big_bones: 20, bear_pelt: 5, ashlar: 12 },
       rooms: ['shrine', 'trophy'] },
-    { id: 'castle',    name: 'Hearthrise Castle',    icon: '👑', plots: 12, workers: 6, offlineHours: 4,
+    { id: 'castle',    name: 'Hearthrise Castle',    glyph: 'uiCrown', plots: 12, workers: 6, offlineHours: 4,
       desc: 'The banner over the valley. Six workers, +4h offline cap, and the pride of the realm: +5% all XP.',
       cost: { gold: 150000, yew_plank: 70, mithril_bar: 40, rune_bar: 8, dragon_scale: 4, ashlar: 25 },
       rooms: [] }
@@ -259,7 +259,7 @@
     if (_k && window.HearthriseGold && typeof window.HearthriseGold.buyUnlock === 'function') {
       var _p = window.HearthriseGold.buyUnlock(_offer, _k); if (_p && _p.catch) _p.catch(function () {});
     }
-    if (window.notify) notify('🏗️ ' + nxt.name + ' built! ' + (nxt.desc || ''), 'levelup');
+    if (window.notify) notify('' + nxt.name + ' built! ' + (nxt.desc || ''), 'levelup');
     if (typeof window.refreshAll === 'function') window.refreshAll();
     renderCard();
     return true;
@@ -331,12 +331,19 @@
       return '<span style="width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px;' +
         'background:' + (i <= t ? 'var(--gold)' : 'rgba(255,255,255,.12)') + '"></span>';
     }).join('');
-    /* b213 (phase 2): gilt house glyph instead of emoji — the property card
-       is the House panel's hero and led the screen with 🏗️/⛺. */
+    /* b213 (phase 2): gilt house glyph instead of emoji — the property card is
+       the House panel's hero and led the screen with 🏗️/⛺.
+       2026-08-23: it now draws the TIER's own glyph (camp → home → barn →
+       manor → castle → crown) rather than one house for all six, so the card
+       says which rung you are on the way the pips beneath it do. `cur.icon` —
+       the emoji fallback that survived b213 as a dead branch — is gone; TIERS
+       carries `glyph` (an atlas key) instead. */
     var IS = window.HearthriseIconSet;
-    var houseIco = (IS && IS.path && IS.path('navHouse'))
-      ? '<svg viewBox="0 0 512 512" style="width:30px;height:30px;flex:0 0 auto" aria-hidden="true"><path fill="var(--gold-2,#cda24a)" d="' + IS.path('navHouse') + '"/></svg>'
-      : '<span style="font-size:calc(29px * var(--ui-scale, 1))">' + cur.icon + '</span>';
+    var tierKey = (cur && cur.glyph) || 'navHouse';
+    var tierPath = (IS && IS.path) ? (IS.path(tierKey) || IS.path('navHouse')) : null;
+    var houseIco = tierPath
+      ? '<svg viewBox="0 0 512 512" style="width:30px;height:30px;flex:0 0 auto" aria-hidden="true"><path fill="var(--gold-2,#cda24a)" d="' + tierPath + '"/></svg>'
+      : '';
     var body =
       '<div class="card-head"><div class="card-title">Property</div><div class="card-sub">Tier ' + (t + 1) + ' / ' + TIERS.length + '</div></div>' +
       '<div class="card-body" style="padding:12px 14px">' +
@@ -1035,7 +1042,14 @@
          one, and it is the highest-contrast thing on the card. */
       var badge = owned
         ? '<span class="hh-room-badge">Lv ' + d.level + '<i>/' + d.cap + '</i></span>'
-        : (d.state === 'locked' ? '<span class="hh-room-badge is-lock" aria-hidden="true">&#128274;</span>' : '');
+        /* was `&#128274;` (🔒). Same lock the rest of the game draws — the
+           gilt `uiLock` glyph — so a locked room, a locked skill node and a
+           locked shop row are visibly the same state. */
+        : (d.state === 'locked'
+            ? '<span class="hh-room-badge is-lock" aria-hidden="true">'
+              + ((window.HR && window.HR.icon) ? (window.HR.icon('uiLock', 13, 'currentColor') || '') : '')
+              + '</span>'
+            : '');
       var line = owned
         ? '<span class="hh-room-rung">' + esc(d.currentName) + '</span>' +
           '<span class="hh-room-eff">' + esc(d.currentBonus || '') + '</span>'

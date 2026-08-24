@@ -43401,6 +43401,156 @@ const TESTS = [
     }
   }),
 
+  /* ══ EMOJI-AS-ICON: THE RENDERED-DOM CENSUS ══════════════════════════════
+     2026-08-23, Art Director. Tyler: "people are gonna call out AI slop really
+     quickly," and the loudest tell is an emoji standing where an icon belongs.
+
+     WHY THIS IS A DOM COUNT AND NOT A REPO GREP, which is the interesting part.
+     A grep over `src/**` reports ~1,800 emoji and always will: they sit in DATA
+     rows (`ITEMS[].icon`, `MONSTERS[].icon`) that no renderer reads any more,
+     inside comments that explain why an emoji was removed, and in the CHANGELOG
+     prose that is allowed to keep them. A grep therefore cannot distinguish the
+     violation from its own fix note, so it can only ever be ignored. What a
+     player sees is the DOM, so the DOM is what is counted.
+
+     WHAT COUNTS AS A VIOLATION — "STRUCTURAL": the emoji is the ENTIRE text
+     content of its element, i.e. the element exists to hold a picture and the
+     picture is a pictograph. A pictograph inside a sentence is prose and is not
+     counted here (there is none left on these surfaces either, but the line has
+     to be drawn somewhere defensible, and "is this element an icon slot?" is
+     the line the eye actually uses).
+
+     THE PIN IS ZERO, and zero is a number this can only stay at or fail on.
+     If a future build needs to raise it, that is a decision someone has to make
+     out loud in this file rather than by editing a threshold quietly. */
+  () => tryRun('art: ZERO emoji-as-icon in the rendered DOM of the main screens', () => {
+    const EMO = /\p{Extended_Pictographic}/u;
+    /* Curated: the screens a player actually looks at, plus the two densest
+       (Combat + Inventory) that the release visual gate names. Deliberately a
+       LIST — a blanket `document.body` sweep would also police the dev smoke
+       panel and any harness furniture, and would fail for reasons that are not
+       about the game. */
+    const SURFACES = [
+      ['topbar', '.topbar'],
+      ['nav', '#sidebar'],
+      ['quests-strip', '#global-quests-strip'],
+      ['activity-bar', '.activity-bar'],
+      ['home', '#panel-profile'],
+      ['character', '#panel-character'],
+      ['inventory', '#panel-inventory'],
+      ['combat', '#panel-combat'],
+      ['skills', '#panel-skills'],
+      ['farm', '#panel-farming'],
+      ['house', '#panel-house'],
+      ['shop', '#panel-shop'],
+      ['market', '#panel-market'],
+      ['stable', '#panel-stable'],
+      ['clan', '#panel-clan'],
+      ['social', '#panel-social'],
+    ];
+    const TABS = ['profile', 'character', 'inventory', 'combat', 'skills',
+      'farming', 'house', 'shops', 'stable', 'clan', 'social'];
+
+    const offenders = [];
+    const seen = new Set();
+    const sweep = (label, root) => {
+      if (!root) return;
+      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let t;
+      while ((t = w.nextNode())) {
+        const raw = t.nodeValue || '';
+        if (!EMO.test(raw)) continue;
+        const el = t.parentElement;
+        if (!el || el.closest('#smoke-test-panel, #smoke-test-btn')) continue;
+        // STRUCTURAL = stripping the pictographs leaves nothing behind.
+        const stripped = raw.replace(/\p{Extended_Pictographic}️?/gu, '').trim();
+        if (stripped) continue;
+        const sig = label + '|' + raw.trim() + '|' + (el.className || el.tagName);
+        if (seen.has(sig)) continue;
+        seen.add(sig);
+        offenders.push(label + ' ' + (el.className || el.tagName) + ' → "' + raw.trim() + '"');
+      }
+    };
+
+    const prevTab = window.activeTab;
+    try {
+      TABS.forEach((tab) => {
+        try { window.showTab(tab); } catch (e) { /* a tab that will not open is another test's problem */ }
+        SURFACES.forEach(([label, sel]) => sweep(label, document.querySelector(sel)));
+      });
+      /* The Quests modal is the site the sweep was commissioned for — its rows
+         carried 🩸 / 📈 / ⛏️ in 48px icon plates. It is a modal, so no tab
+         switch reaches it. */
+      if (typeof window.openQuestsModal === 'function') {
+        window.openQuestsModal();
+        sweep('quests-modal', document.getElementById('quests-modal-overlay'));
+        if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+        else { const o = document.getElementById('quests-modal-overlay'); if (o) o.remove(); }
+      }
+    } finally {
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+
+    assert(offenders.length === 0,
+      offenders.length + ' emoji-as-icon site(s) rendered (the pin is 0): '
+        + offenders.slice(0, 8).join(' | '));
+  }),
+
+  /* The other half of the same job: the placeholder-icon stragglers. An emoji
+     is not the only way to look generated — so is ONE glyph repeated down the
+     bag because the fallback could not tell a fang from a blueprint. A live
+     boot before this pass put FORTY-NINE unmapped ids on `uiChest`; the widened
+     `itemGlyphKey` puts almost none there. This pins that, in both directions:
+     the fallback must stay CATEGORY-AWARE (it cannot collapse back to one
+     glyph) and it must never return a character. */
+  () => tryRun('art: the item-art fallback is category-aware and never a pictograph', () => {
+    const EMO = /\p{Extended_Pictographic}/u;
+    assert(typeof window.itemGlyphKey === 'function', 'itemGlyphKey is not exported — the no-emoji backstop is unreachable from other modules');
+    assert(typeof window.itemFallbackIcon === 'function', 'itemFallbackIcon is not exported');
+    assert(typeof window.monsterFallbackIcon === 'function', 'monsterFallbackIcon is not exported');
+    assert(typeof window.skillIconHTML === 'function', 'skillIconHTML is not exported');
+
+    const ITEMS = window.ITEMS || {};
+    const path = window._itemPath || {};
+    const unmapped = Object.keys(ITEMS).filter((id) => !path[id]);
+    assert(unmapped.length > 0, 'no unmapped items at all — this guard has nothing to measure (suspicious)');
+
+    const keys = {};
+    unmapped.forEach((id) => {
+      const k = window.itemGlyphKey(id);
+      keys[k] = (keys[k] || 0) + 1;
+      assert(!EMO.test(String(k)), 'itemGlyphKey returned a pictograph for ' + id + ': ' + k);
+      assert(!EMO.test(window.itemFallbackIcon(id, 20)), 'itemFallbackIcon rendered a pictograph for ' + id);
+    });
+    const chest = keys.uiChest || 0;
+    const distinct = Object.keys(keys).length;
+    assert(distinct >= 8,
+      'the item fallback collapsed to ' + distinct + ' distinct glyph(s) — a bag of identical icons reads as an unfinished asset pipeline');
+    assert(chest <= Math.ceil(unmapped.length * 0.15),
+      chest + ' of ' + unmapped.length + ' unmapped items fall back to the generic chest (cap is 15%) — widen itemGlyphKey rather than shipping a wall of chests');
+
+    /* The two glyphs this pass hand-authored, because the atlas had no row and
+       `stripChromeEmoji()` was leaving an EMPTY medallion in the skills rail. */
+    ['runecrafting', 'stonemason'].forEach((k) => {
+      assert(window.HR && window.HR.has(k), 'the hand-authored ' + k + ' glyph is missing from HR_GLYPHS (src/data/glyphs-extra.js did not load)');
+      const html = window.HR.medallion(k, 34);
+      assert(html && /<path fill=/.test(html), k + ' resolves but draws no path');
+    });
+
+    /* The two empty-slot glyphs the paper-doll rebuild filed for redraw. The
+       ammo mark used to be a bare diagonal arrow (a UI resize handle) and the
+       cape a rectangle bisected by a line (a blank panel). Assert the SHAPES
+       changed rather than merely that they exist: a redraw that did not happen
+       still passes an existence check. */
+    assert(typeof window.slotGlyphSVG === 'function', 'slotGlyphSVG is not exported');
+    const ammo = window.slotGlyphSVG('ammo');
+    assert(!/M5 19L18 6/.test(ammo), 'the ammo slot glyph is still the diagonal resize arrow');
+    assert((ammo.match(/<path/g) || []).length >= 3, 'the ammo slot glyph lost its quiver detail');
+    const cape = window.slotGlyphSVG('cape');
+    assert(!/M8 4l4 3 4-3 1 16H7z/.test(cape), 'the cape slot glyph is still the bisected blank panel');
+    assert((cape.match(/<path/g) || []).length >= 3, 'the cape slot glyph lost its collar/hem detail');
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

@@ -92,7 +92,7 @@ const fmtQty = (n) => {
   return String(n);
 };
 
-function actIconHtml(prod, fallbackEmoji) {
+function actIconHtml(prod, fallbackSkillId) {
   const path = prod && window._itemPath && window._itemPath[prod];
   if (path) {
     // b217: tier tint (see window.itemTintClass) so ladders that share one
@@ -100,7 +100,12 @@ function actIconHtml(prod, fallbackEmoji) {
     const tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(prod) : '';
     return `<img class="${tint}" src="${path}" alt="" loading="lazy" draggable="false" />`;
   }
-  return `<span class="at-emoji">${fallbackEmoji || '❓'}</span>`;
+  /* was the node/recipe's authored emoji with a '❓' backstop. itemFallbackIcon
+     picks a category-correct gilt glyph and can never return a pictograph;
+     when there is no product id at all we draw the SKILL medallion, which is
+     always true of an activity tile. */
+  if (prod) return `<span class="at-emoji">${window.itemFallbackIcon(prod, 30)}</span>`;
+  return `<span class="at-emoji">${window.skillIconHTML ? window.skillIconHTML(fallbackSkillId, 30) : ''}</span>`;
 }
 
 function buildHead(skillId) {
@@ -116,7 +121,7 @@ function buildHead(skillId) {
     && window.HearthriseIconSet.medallion(skillId, 36);
   const iconHtml = window._skillIcon?.[skillId]
     ? `<img src="${window._skillIcon[skillId]}" alt="" style="width:36px;height:36px;object-fit:contain;image-rendering:pixelated" />`
-    : (medallion || `<span class="ah-icon">${s.icon}</span>`);
+    : (medallion || `<span class="ah-icon">${window.skillIconHTML ? window.skillIconHTML(skillId, 36) : ''}</span>`);
 
   // b134: train-to-level goal control. Reads + writes G.autoActions.trainGoal
   // via HearthriseAuto. Active only when goal.skillId matches THIS skill.
@@ -186,7 +191,7 @@ function tileForGather(action, skillId) {
   const prodName = (window.ITEMS?.[action.prod]?.n) || action.prod;
   return `<div class="act-tile ${unlocked ? '' : 'locked'} ${active ? 'active' : ''}"
     data-prod="${action.prod}" onclick="${click}" title="${(action.name || '').replace(/"/g, '&quot;')}">
-    <div class="at-icon">${actIconHtml(action.prod, action.icon)}</div>
+    <div class="at-icon">${actIconHtml(action.prod, skillId)}</div>
     <div class="at-name">${action.name || action.id}</div>
     <div class="at-meta">${effXp(skillId, action)} XP · ${fmtSec(ms)}</div>
     <div class="at-yield">Yields ${prodName}</div>
@@ -248,7 +253,7 @@ function tileForArtisan(recipe, skillId) {
   const tileTitle = (recipe.name || '') + (burnText ? ' — ' + burnText : '');
   return `<div class="act-tile ${unlocked ? '' : 'locked'} ${active ? 'active' : ''}"
     data-prod="${outId}" onclick="${click}" title="${tileTitle.replace(/"/g, '&quot;')}">
-    <div class="at-icon">${actIconHtml(outId, outDef ? outDef.icon : '')}</div>
+    <div class="at-icon">${actIconHtml(outId, skillId)}</div>
     <div class="at-name">${recipe.name || recipe.id}</div>
     <div class="at-meta">${effXp(skillId, recipe)} XP · ${fmtSec(effMs(skillId, recipe, recipe.ms || 3000))}</div>
     <div class="at-inputs">${inputsLine}</div>
@@ -363,7 +368,7 @@ function renderSkillDetail(id) {
     tiles = `<div class="act-tile" onclick="showTab('farming')" style="grid-column:1/-1">
       <div class="at-name">Open the Farm tab</div>
       <div class="at-meta">Plant and harvest crops on your plots.</div>
-      <div class="at-icon"><span class="at-emoji">🌾</span></div>
+      <div class="at-icon"><span class="at-emoji">${window.skillIconHTML ? window.skillIconHTML('farming', 30) : ''}</span></div>
     </div>`;
     count = 1;
   } else if (ARTISAN_RECIPES[id]) {

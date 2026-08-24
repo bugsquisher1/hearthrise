@@ -30,7 +30,7 @@
   var DUNGEONS = {
     // ---- Solo dungeons ----
     crypt_of_bones: {
-      name: 'Crypt of Bones', icon: '💀', kind: 'dungeon',
+      name: 'Crypt of Bones', glyph: 'uiSkull', kind: 'dungeon',
       reqLv: 25, cost: { key: 'bone_key' },
       duration: 60,
       cooldownH: 4,
@@ -43,19 +43,19 @@
         { id: 'farm_deed', qty: [1, 1], chance: .20 },
       ],
       phases: [
-        { type:'gather', label:'Gather torches', icon:'🔦', target: 8, durationS: 25,
+        { type:'gather', label:'Gather torches', glyph:'uiFire', target: 8, durationS: 25,
           desc: 'Light the dark crypt. Click a torch each time one appears.' },
-        { type:'fight', label:'Skeleton swarm', icon:'💀', enemyHp: 60, durationS: 70,
+        { type:'fight', label:'Skeleton swarm', glyph:'uiSkull', enemyHp: 60, durationS: 70,
           desc: 'Attack on the beat. Time your click as the marker hits the target band.' },
-        { type:'puzzle', label:'Sealed sarcophagus', icon:'⚰️',
+        { type:'puzzle', label:'Sealed sarcophagus', glyph:'uiChest',
           question: 'Which sigil seals an undead?',
-          options: ['☀️ Sun', '🌙 Moon', '🦴 Bone', '🌊 Wave'],
+          options: ['Sun', 'Moon', 'Bone', 'Wave'],
           correct: 0,
           desc: 'Pick the correct rune to claim the prize within.' },
       ],
     },
     goblin_warcamp: {
-      name: 'Goblin Warcamp', icon: '⚔️', kind: 'dungeon',
+      name: 'Goblin Warcamp', glyph: 'uiSword', kind: 'dungeon',
       reqLv: 35, cost: { key: 'goblin_seal' },
       duration: 90,
       cooldownH: 6,
@@ -70,16 +70,16 @@
         { id: 'farm_deed', qty: [1, 1], chance: .22 },
       ],
       phases: [
-        { type:'gather', label:'Sneak past patrols', icon:'👁️', target: 10, durationS: 30,
+        { type:'gather', label:'Sneak past patrols', glyph:'uiSearch', target: 10, durationS: 30,
           desc: 'Tap each green window the moment a patrol turns away.' },
-        { type:'dodge', label:'Trap corridor', icon:'⚠️', target: 5, durationS: 40,
+        { type:'dodge', label:'Trap corridor', glyph:'uiWarn', target: 5, durationS: 40,
           desc: 'Dodge swinging blades — click DODGE when the prompt flashes.' },
-        { type:'fight', label:'Grimtusk, the Broken-Tusk Warlord', icon:'⚔️', enemyHp: 180, durationS: 90, boss: true,
+        { type:'fight', label:'Grimtusk, the Broken-Tusk Warlord', glyph:'uiSword', enemyHp: 180, durationS: 90, boss: true,
           desc: 'Grimtusk himself. Time attacks on the beat to break the warlord.' },
       ],
     },
     haunted_archive: {
-      name: 'Haunted Archive', icon: '📚', kind: 'dungeon',
+      name: 'Haunted Archive', glyph: 'uiBook', kind: 'dungeon',
       reqLv: 45, cost: { key: 'arcane_tome' },
       duration: 120,
       cooldownH: 8,
@@ -94,21 +94,21 @@
         { id: 'farm_deed', qty: [1, 1], chance: .25 },
       ],
       phases: [
-        { type:'puzzle', label:'Decipher the codex', icon:'📖',
-          question: 'Three runes glow in sequence: ☀️ 🌙 ⭐. What completes the cycle?',
-          options: ['🌑 Dark', '⭐ Star', '☀️ Sun', '🌙 Moon'],
+        { type:'puzzle', label:'Decipher the codex', glyph:'uiBook',
+          question: 'Three runes glow in sequence: Sun, Moon, Star. What completes the cycle?',
+          options: ['Dark', 'Star', 'Sun', 'Moon'],
           correct: 0,
           desc: 'A clever librarian sees the pattern.' },
-        { type:'gather', label:'Bind loose pages', icon:'📜', target: 12, durationS: 35,
+        { type:'gather', label:'Bind loose pages', glyph:'uiScroll', target: 12, durationS: 35,
           desc: 'Pages flutter past — collect each one before they vanish.' },
-        { type:'fight', label:'The Pale Archivist', icon:'👻', enemyHp: 240, durationS: 100, boss: true,
+        { type:'fight', label:'The Pale Archivist', glyph:'uiSkull', enemyHp: 240, durationS: 100, boss: true,
           desc: 'The Archivist unbinds. Time attacks while it phase-shifts.' },
       ],
     },
 
     // ---- Raids (party content, currently solo-simulated) ----
     obsidian_keep: {
-      name: 'Obsidian Keep', icon: '🏰', kind: 'raid',
+      name: 'Obsidian Keep', glyph: 'uiCastle', kind: 'raid',
       reqLv: 65, cost: { key: 'obsidian_sigil' },
       duration: 240,
       cooldownH: 24,
@@ -124,16 +124,16 @@
         { id: 'farm_deed', qty: [1, 2], chance: .30 },
       ],
       phases: [
-        { type:'gather', label:'Scale the walls', icon:'🧗', target: 15, durationS: 40,
+        { type:'gather', label:'Scale the walls', glyph:'uiCastle', target: 15, durationS: 40,
           desc: 'Click each handhold as it stabilizes.' },
-        { type:'dodge', label:'Cannon barrage', icon:'💥', target: 8, durationS: 60,
+        { type:'dodge', label:'Cannon barrage', glyph:'uiWarn', target: 8, durationS: 60,
           desc: 'Dodge incoming cannonfire.' },
-        { type:'fight', label:'The Ashen King', icon:'👑', enemyHp: 520, durationS: 140, boss: true,
+        { type:'fight', label:'The Ashen King', glyph:'uiCrown', enemyHp: 520, durationS: 140, boss: true,
           desc: 'The Ashen King brings dark magic. Time your attacks.' },
       ],
     },
     voidbringer: {
-      name: 'The Voidbringer', icon: '🌌', kind: 'raid',
+      name: 'The Voidbringer', glyph: 'magic', kind: 'raid',
       reqLv: 80, cost: { key: 'void_fragment' },
       duration: 360,
       cooldownH: 24,
@@ -153,21 +153,21 @@
       /* Wave 6b (audit fix): the two marquee endgame instances were pure one-button
          loot rolls with NO encounter. Give them a real 3-phase fight like the others. */
       phases: [
-        { type:'puzzle', label:'Seal the rift', icon:'🌀',
+        { type:'puzzle', label:'Seal the rift', glyph:'magic',
           question: 'A rift tears the sky. Which sigil closes the void?',
-          options: ['🕸️ Voidwoven', '☀️ Sun', '🌊 Tide', '🔥 Ember'],
+          options: ['Voidwoven', 'Sun', 'Tide', 'Ember'],
           correct: 0,
           desc: 'Choose the sigil that binds the tear before more pour through.' },
-        { type:'dodge', label:'Rift tendrils', icon:'🐙', target: 10, durationS: 60,
+        { type:'dodge', label:'Rift tendrils', glyph:'uiWarn', target: 10, durationS: 60,
           desc: 'Dodge the lashing tendrils — click DODGE as each strikes.' },
-        { type:'fight', label:'The Riftmaw', icon:'🌌', enemyHp: 720, durationS: 150, boss: true,
+        { type:'fight', label:'The Riftmaw', glyph:'uiSkull', enemyHp: 720, durationS: 150, boss: true,
           desc: 'The Devouring Rift itself. Time your attacks through the churn.' },
       ],
     },
 
     // ---- World Bosses ----
     ancient_wyrm: {
-      name: 'Ancient Wyrm', icon: '🐲', kind: 'worldboss',
+      name: 'Ancient Wyrm', glyph: 'uiSkull', kind: 'worldboss',
       reqLv: 95, cost: { key: 'dragonsbane_key' },
       duration: 600,
       cooldownH: 72,
@@ -186,11 +186,11 @@
       ],
       /* Wave 6b: the capstone gets a real dragonslayer encounter. */
       phases: [
-        { type:'dodge', label:'Dragonfire', icon:'🔥', target: 12, durationS: 55,
+        { type:'dodge', label:'Dragonfire', glyph:'uiFire', target: 12, durationS: 55,
           desc: 'Elderscale breathes. Dodge each gout of flame.' },
-        { type:'gather', label:'Load the ballista', icon:'🎯', target: 14, durationS: 45,
+        { type:'gather', label:'Load the ballista', glyph:'uiTarget', target: 14, durationS: 45,
           desc: 'Grab dragonbane bolts and load the ballista before it lands.' },
-        { type:'fight', label:'Elderscale, the Great Wyrm', icon:'🐲', enemyHp: 1050, durationS: 170, boss: true,
+        { type:'fight', label:'Elderscale, the Great Wyrm', glyph:'uiSkull', enemyHp: 1050, durationS: 170, boss: true,
           desc: 'The Eldest of Dragons. Only a true dragonslayer stands here.' },
       ],
     },
@@ -283,7 +283,7 @@
         var can = scripHeld() >= e.scrip;
         /* b283 (studio-review P1): the shop was pure text — give each row an icon. */
         var ipath = window._itemPath && window._itemPath[id];
-        var iconHtml = ipath ? '<img src="' + ipath + '" alt="" style="width:26px;height:26px;object-fit:contain">' : '<span>' + (it && it.icon ? it.icon : '📦') + '</span>';
+        var iconHtml = ipath ? '<img src="' + ipath + '" alt="" style="width:26px;height:26px;object-fit:contain">' : '<span>' + window.itemFallbackIcon(id, 26, it) + '</span>';
         return '<div class="qm-row"><span class="qm-icon">' + iconHtml + '</span><span class="qm-name">' + (it ? it.n : id) + '</span>' +
           '<span class="qm-cost">' + e.scrip + ' Scrip</span>' +
           '<button class="btn btn-sm ' + (can ? 'btn-primary' : '') + '" ' + (can ? '' : 'disabled') +
@@ -411,6 +411,15 @@
     voidbringer: { kind: 'mon', key: 'lesser_demon' },
     ancient_wyrm: { kind: 'mon', key: 'dragon' }
   };
+  /* One gilt chrome glyph, guarded — every site in this file that used to
+     inline a pictograph goes through here. Returns '' rather than a character
+     when the atlas has no match, so a missing icon leaves a hole we can SEE
+     and fix, never an emoji we ship. */
+  function _gly(key, px, col){
+    return (window.HR && window.HR.icon)
+      ? (window.HR.icon(key, px || 15, col || 'currentColor') || '')
+      : '';
+  }
   function dgnGlyph(id, d){
     var IS = window.HearthriseIconSet;
     var map = DGN_GLYPH[id];
@@ -423,7 +432,10 @@
           '<path fill="var(--gold-2,#cda24a)" d="' + IS.path(map.key) + '"/></svg>';
       }
     }
-    return d.icon || '';
+    /* was `d.icon` — the dungeon row's authored emoji. An unmapped dungeon now
+       gets the gilt portcullis (`navDungeons`) that the nav entry uses, so a
+       new dungeon added without a DGN_GLYPH row still looks like this game. */
+    return _gly('navDungeons', 30, '--gold-2');
   }
 
   // ---- Render the Dungeons tab ----
@@ -441,7 +453,11 @@
     /* b281: Scrip banner + Quartermaster entry at the top of the dungeon panel. */
     var _scrip = (window.G && window.G.inventory && window.G.inventory.dungeon_scrip) || 0;
     var html = '<div class="dgn-scrip-bar">' +
-      '<span class="dgn-scrip-have">🎟️ <b>' + _scrip + '</b> Dungeon Scrip</span>' +
+      /* was a raw 🎟️ — a pink cinema ticket, at the head of the dungeon panel,
+         in a game whose entire palette is gilt-on-soot. Scrip is a currency, so
+         it gets the currency treatment every other balance in the game has. */
+      '<span class="dgn-scrip-have">' + _gly('uiScroll', 15, '--gold-2') +
+        ' <b>' + _scrip + '</b> Dungeon Scrip</span>' +
       '<button class="btn btn-sm dgn-qm-btn" onclick="window.openQuartermaster()">Quartermaster</button>' +
       '</div>';
     ['dungeon','raid','worldboss'].forEach(function(kind){
@@ -456,7 +472,12 @@
           var painted = window._itemPath && window._itemPath[l.id];
           var icon = painted
             ? '<img src="' + painted + '" style="width:16px;height:16px;vertical-align:-3px;border-radius:3px">'
-            : (item && item.icon ? item.icon : '');
+            /* was `item.icon` (the data emoji). itemFallbackIcon picks a
+               category-correct gilt glyph from the shipped atlas and can never
+               return a pictograph — see the b217 backstop in legacy.js. */
+            : (typeof window.itemFallbackIcon === 'function'
+                ? window.itemFallbackIcon(l.id, 16, item)
+                : '');
           var bopTag = item && item.bop ? '<span class="dgn-bop">BoP</span>' : '';
           return '<div class="dgn-loot" title="' + (item ? item.n : l.id) + '">' + icon + ' ' + (l.qty[0] === l.qty[1] ? l.qty[0] : l.qty[0]+'-'+l.qty[1]) + 'x ' + bopTag + '</div>';
         }).join('');
@@ -483,7 +504,7 @@
         } else if(d.cost.gold){
           costStr = d.cost.gold + 'g';
         } else if(d.cost.hearth_token){
-          costStr = d.cost.hearth_token + ' 🪙 tokens';
+          costStr = d.cost.hearth_token + ' Hearth Tokens';
         } else {
           costStr = 'free';
         }
@@ -502,7 +523,7 @@
               /* b281: enrich the boss line from the data-driven registry (weakness
                  to route your loadout, plus the fight's signature mechanic). */
               var br = window.BOSS_BY_DUNGEON && window.BOSS_BY_DUNGEON[id];
-              return '<div class="dgn-boss-line"><span class="dgn-boss-skull">☠</span> Final boss: <b>' + d.boss.name + '</b>' +
+              return '<div class="dgn-boss-line"><span class="dgn-boss-skull">' + _gly('uiSkull', 14, '--red') + '</span> Final boss: <b>' + d.boss.name + '</b>' +
                 (br && br.weakness ? ' <span class="dgn-boss-weak">weak to ' + br.weakness + '</span>' : '') + '</div>' +
                 (br && br.mechanic ? '<div class="dgn-boss-mech">' + br.mechanic + '</div>' : '');
             })() +
@@ -519,10 +540,10 @@
                 var keyOk = !d.cost.key || (window.G && (window.G.inventory[d.cost.key]||0) >= 1);
                 var manualOk = hasManual && lvOk && goldOk && tokenOk && keyOk;
                 var autoBtn = check.ok
-                  ? '<button class="dgn-run dgn-run-auto" data-dgn="' + id + '" title="Quick auto-run, base rewards · uses cooldown">⚡ Auto-Run</button>'
+                  ? '<button class="dgn-run dgn-run-auto" data-dgn="' + id + '" title="Quick auto-run, base rewards · uses cooldown">Auto-Run</button>'
                   : '<button class="dgn-run" disabled title="' + check.reason + '">' + check.reason + '</button>';
                 var manualBtn = manualOk
-                  ? '<button class="dgn-run dgn-run-manual" data-dgn-manual="' + id + '" title="Scavenger run · no cooldown · loot scales with boss HP taken down">▶ Manual Run</button>'
+                  ? '<button class="dgn-run dgn-run-manual" data-dgn-manual="' + id + '" title="Scavenger run · no cooldown · loot scales with boss HP taken down">Manual Run</button>'
                   : '';
                 return '<div class="dgn-run-buttons">' + manualBtn + autoBtn + '</div>';
               })() +
@@ -646,12 +667,12 @@
     if(window.G && window.G.dungeons) window.G.dungeons.lastRun[runState.dungeonId] = Date.now();
     var rewardHtml = awarded.map(function(a){
       var item = window.ITEMS && window.ITEMS[a.id];
-      return '<div class="drm-reward-row"><span>' + (item?item.icon:'📦') + '</span> +' + a.qty + ' ' + (item?item.n:a.id) + '</div>';
+      return '<div class="drm-reward-row"><span>' + window.itemFallbackIcon(a.id, 22, item) + '</span> +' + a.qty + ' ' + (item?item.n:a.id) + '</div>';
     }).join('') || '<div class="drm-empty">No drops this time.</div>';
 
     modal.innerHTML =
       '<button class="drm-close">✕</button>' +
-      '<h2 class="drm-title">' + d.icon + ' ' + d.name + '</h2>' +
+      '<h2 class="drm-title">' + dgnGlyph(runState.id, d) + ' ' + d.name + '</h2>' +
       '<div class="drm-summary">' +
         '<div class="drm-score ' + (pct >= 1 ? 'perfect' : pct >= 0.5 ? 'partial' : 'fail') + '">' +
           (pct >= 1 ? 'PERFECT' : pct >= 0.5 ? 'CLEARED' : 'FAILED') +
@@ -708,18 +729,18 @@
     } else if(phase.type === 'fight'){
       runState.phaseData = { hp: phase.enemyHp, maxHp: phase.enemyHp, deadline: Date.now() + phase.durationS*1000, beat: 0, hits: 0, perfectHits: 0 };
       bodyHtml = '<div class="drm-fight">' +
-        '<div class="drm-foe">' + phase.icon + '</div>' +
+        '<div class="drm-foe">' + _gly(phase.glyph || 'uiSkull', 44, '--red') + '</div>' +
         '<div class="drm-foe-hp"><i id="drm-foe-fill" style="width:100%"></i></div>' +
         '<div class="drm-foe-hp-text" id="drm-foe-hp-text">' + phase.enemyHp + ' / ' + phase.enemyHp + '</div>' +
         '<div class="drm-rhythm-track"><div class="drm-rhythm-target"></div><div class="drm-rhythm-marker" id="drm-marker"></div></div>' +
-        '<button class="drm-btn drm-btn-attack" id="drm-attack">⚔️ Attack</button>' +
+        '<button class="drm-btn drm-btn-attack" id="drm-attack">' + _gly('uiSword', 15) + ' Attack</button>' +
         '<div class="drm-prog-text"><span id="drm-fight-stats">0 hits</span><span id="drm-time"></span></div>' +
       '</div>';
     } else if(phase.type === 'dodge'){
       runState.phaseData = { dodged: 0, target: phase.target, missed: 0, allowedMisses: 2, deadline: Date.now() + phase.durationS*1000, nextDodge: Date.now() + 1500, prompt: false };
       bodyHtml = '<div class="drm-dodge">' +
         '<div class="drm-dodge-prompt" id="drm-prompt">Stand by…</div>' +
-        '<button class="drm-btn drm-btn-dodge" id="drm-dodge-btn" disabled>⏳ Wait</button>' +
+        '<button class="drm-btn drm-btn-dodge" id="drm-dodge-btn" disabled>' + _gly('uiHourglass', 15) + ' Wait</button>' +
         '<div class="drm-prog-text"><span id="drm-dodge-stats">0 / ' + phase.target + ' dodged · 0 missed</span><span id="drm-time"></span></div>' +
       '</div>';
     } else if(phase.type === 'puzzle'){
@@ -738,7 +759,7 @@
       '<button class="drm-close">✕</button>' +
       '<div class="drm-progress-dots">' + dotsHtml + '</div>' +
       '<div class="drm-phase-head">' +
-        '<span class="drm-phase-icon">' + phase.icon + '</span>' +
+        '<span class="drm-phase-icon">' + _gly(phase.glyph || 'uiTarget', 15, '--gold-2') + '</span>' +
         '<div class="drm-phase-title">' +
           '<h3>Phase ' + (runState.phaseIdx+1) + ' of ' + runState.phases.length + ' — ' + phase.label + '</h3>' +
           '<div class="drm-phase-desc">' + phase.desc + '</div>' +
@@ -785,7 +806,7 @@
     if(!board) return;
     var node = document.createElement('button');
     node.className = 'drm-gather-node';
-    node.textContent = runState.phases[runState.phaseIdx].icon || '✨';
+    node.innerHTML = _gly(runState.phases[runState.phaseIdx].glyph || 'uiSpark', 22, '--gold-2');
     node.style.left = Math.random()*82 + 4 + '%';
     node.style.top = Math.random()*70 + 6 + '%';
     var fadeMs = 1800;
@@ -843,7 +864,7 @@
     var btn = document.getElementById('drm-dodge-btn');
     var stats = document.getElementById('drm-dodge-stats');
     if(promptEl) promptEl.textContent = '✓ Dodged!';
-    if(btn){ btn.disabled = true; btn.textContent = '⏳ Wait'; }
+    if(btn){ btn.disabled = true; btn.innerHTML = _gly('uiHourglass', 15) + ' Wait'; }
     if(stats) stats.textContent = runState.phaseData.dodged + ' / ' + runState.phaseData.target + ' dodged · ' + runState.phaseData.missed + ' missed';
     if(runState.phaseData.dodged >= runState.phaseData.target){ endPhase(true); }
     else { runState.phaseData.nextDodge = Date.now() + (1500 + Math.random()*1500); }
@@ -883,14 +904,14 @@
       if(!pd.prompt && now >= pd.nextDodge){
         pd.prompt = true;
         pd.promptStart = now;
-        if(promptEl) promptEl.textContent = '⚠️ DODGE NOW!';
-        if(btn){ btn.disabled = false; btn.textContent = '🛡️ DODGE'; }
+        if(promptEl) promptEl.innerHTML = _gly('uiWarn', 15, '--red') + ' DODGE NOW!';
+        if(btn){ btn.disabled = false; btn.innerHTML = _gly('uiShield', 15) + ' DODGE'; }
       } else if(pd.prompt && now - pd.promptStart > 800){
         // Missed window
         pd.prompt = false;
         pd.missed++;
         if(promptEl) promptEl.textContent = '✗ Missed!';
-        if(btn){ btn.disabled = true; btn.textContent = '⏳ Wait'; }
+        if(btn){ btn.disabled = true; btn.innerHTML = _gly('uiHourglass', 15) + ' Wait'; }
         if(pd.missed > pd.allowedMisses){ endPhase(false); return; }
         var stats = document.getElementById('drm-dodge-stats');
         if(stats) stats.textContent = pd.dodged + ' / ' + pd.target + ' dodged · ' + pd.missed + ' missed';
@@ -987,7 +1008,7 @@
     var name = keyItem ? keyItem.n : entry.keyId;
     if(typeof window.addItem === 'function') window.addItem(entry.keyId, 1);
     else window.G.inventory[entry.keyId] = (window.G.inventory[entry.keyId]||0) + 1;
-    if(typeof window.notify === 'function') window.notify('🔑 Rare drop: ' + name, 'levelup');
+    if(typeof window.notify === 'function') window.notify('Rare drop: ' + name, 'levelup');
   }
 
   function hookKillMonster(){

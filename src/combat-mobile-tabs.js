@@ -20,11 +20,17 @@
 (function(){
   'use strict';
 
+  /* `glyph` is an atlas key. The old emoji rendered as an EMPTY slot in
+     practice: `stripChromeEmoji()` in icon-set.js scrubs `.cmt-btn`, so these
+     three tabs had a label and a hole where the icon should be. */
   const SUBS = [
-    { id: 'style',    label: 'Style',    icon: '⚔️' },
-    { id: 'monsters', label: 'Foes',     icon: '👹' },
-    { id: 'arena',    label: 'Arena',    icon: '🛡️' },
+    { id: 'style',    label: 'Style',    glyph: 'uiSword'   },
+    { id: 'monsters', label: 'Foes',     glyph: 'uiSkull'   },
+    { id: 'arena',    label: 'Arena',    glyph: 'navCombat' },
   ];
+  function _cmtGly(key) {
+    return (window.HR && window.HR.icon) ? (window.HR.icon(key, 18, 'currentColor') || '') : '';
+  }
   const STORAGE_KEY = 'hearthrise:combat-mobile-subtab';
 
   function getActive() {
@@ -41,7 +47,7 @@
     bar.className = 'cmb-mob-tabs';
     bar.innerHTML = SUBS.map(s =>
       '<button type="button" class="cmt-btn" data-sub="' + s.id + '">'
-      + '<span class="cmt-ic">' + s.icon + '</span>'
+      + '<span class="cmt-ic">' + _cmtGly(s.glyph) + '</span>'
       + '<span class="cmt-lbl">' + s.label + '</span>'
       + '</button>'
     ).join('');

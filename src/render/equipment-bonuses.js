@@ -25,7 +25,7 @@
 //
 // PURE REFACTOR. Byte-for-byte the same DOM and behaviour that used to live at
 // legacy.js window.renderEquipmentStatsHTML. There are NO hardcoded theme colours
-// in this JS; the 🛡️ glyph is pre-existing content. All colour lives in the
+// in this JS; the set-bonus mark is now the gilt uiShield glyph. All colour lives in the
 // .eqb-* selectors in src/styles/{audit-overrides,theme-cozy}.css.
 //
 // Globals are read via window.* (the established src/features/* convention),
@@ -54,7 +54,7 @@
     /* Wave 5c: surface the armour SET bonus so completing a set is a legible goal. */
     var _set = (typeof window.getArmorSetBonus === 'function') ? window.getArmorSetBonus() : null;
     var setHtml = _set
-      ? '<div class="eqb-set">🛡️ Set bonus · <b>' + _set.pieces + '-piece ' + ((window.MATERIAL_TIER_NAME && window.MATERIAL_TIER_NAME[_set.tier]) || ('Tier ' + _set.tier)) + '</b> — +' + Math.round(_set.critB * 100) + '% crit</div>'
+      ? '<div class="eqb-set">'+((window.HR&&window.HR.icon)?(window.HR.icon('uiShield',14,'--gold-2')||''):'')+' Set bonus · <b>' + _set.pieces + '-piece ' + ((window.MATERIAL_TIER_NAME && window.MATERIAL_TIER_NAME[_set.tier]) || ('Tier ' + _set.tier)) + '</b> — +' + Math.round(_set.critB * 100) + '% crit</div>'
       : '';
     return '<div class="eqb-grid">' + rows + '</div>' + setHtml +
       (wornList ? '<div class="eqb-sub">Equipped</div><div class="eqb-wornlist">' + wornList + '</div>' : '');

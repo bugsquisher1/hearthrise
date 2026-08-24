@@ -300,7 +300,7 @@
     window.G.stats.buffsConsumed = (window.G.stats.buffsConsumed || 0) + 1;
     if(Array.isArray(window.G.combatLog)){
       var _it = window.ITEMS && window.ITEMS[decision.foodId];
-      window.G.combatLog.push('🍖 Auto-ate ' + ((_it && _it.n) || decision.foodId)
+      window.G.combatLog.push('Auto-ate ' + ((_it && _it.n) || decision.foodId)
         + ' (+' + decision.heals + ' HP)');
     }
     return true;
@@ -338,7 +338,7 @@
     if(typeof window.stopSkill === 'function') window.stopSkill();
     if(typeof window.notify === 'function'){
       var skName = (window.SKILLS_DEF && window.SKILLS_DEF[g.skillId] && window.SKILLS_DEF[g.skillId].name) || g.skillId;
-      window.notify('🎯 ' + skName + ' Lv ' + g.targetLevel + ' reached — auto-stopped', 'levelup');
+      window.notify('' + skName + ' Lv ' + g.targetLevel + ' reached — auto-stopped', 'levelup');
     }
     cfg.trainGoal.enabled = false;
     persist();
@@ -367,7 +367,7 @@
     var seedId = crop.seed;
     var have = (window.G.inventory && window.G.inventory[seedId]) | 0;
     if(have <= 0){
-      if(typeof window.notify === 'function') window.notify('🌱 Auto-replant: out of ' + (crop.name||fr.cropId) + ' seeds', 'kill');
+      if(typeof window.notify === 'function') window.notify('Auto-replant: out of ' + (crop.name||fr.cropId) + ' seeds', 'kill');
       return false;
     }
     if(typeof window.getLevel === 'function' && window.getLevel('farming') < crop.req) return false;

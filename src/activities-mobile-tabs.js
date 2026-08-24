@@ -16,17 +16,25 @@
 
   // Game skill IDs (from SKILLS_DEF in legacy.js). Order matches
   // the desktop sidebar grouping.
+  /* No `icon` field: every id here is ALSO an atlas key (src/data/glyphs.js),
+     so the strip draws the same gilt glyph the skills rail draws for the same
+     skill. The old emoji were not merely off-palette — `stripChromeEmoji()` in
+     icon-set.js lists `.ams-btn` among the surfaces it scrubs, so these nine
+     buttons have been rendering an EMPTY icon slot with a label under it. */
   const SKILLS = [
-    { id: 'woodcutting', label: 'Wood',    icon: '🪓' },
-    { id: 'mining',      label: 'Mine',    icon: '⛏️' },
-    { id: 'fishing',     label: 'Fish',    icon: '🎣' },
-    { id: 'farming',     label: 'Farm',    icon: '🌾' },
-    { id: 'cooking',     label: 'Cook',    icon: '🍳' },
-    { id: 'crafting',    label: 'Craft',   icon: '🪡' },
-    { id: 'smithing',    label: 'Smith',   icon: '⚒️' },
-    { id: 'prayer',      label: 'Prayer',  icon: '🙏' },
-    { id: 'magic',       label: 'Magic',   icon: '✨' },
+    { id: 'woodcutting', label: 'Wood'   },
+    { id: 'mining',      label: 'Mine'   },
+    { id: 'fishing',     label: 'Fish'   },
+    { id: 'farming',     label: 'Farm'   },
+    { id: 'cooking',     label: 'Cook'   },
+    { id: 'crafting',    label: 'Craft'  },
+    { id: 'smithing',    label: 'Smith'  },
+    { id: 'prayer',      label: 'Prayer' },
+    { id: 'magic',       label: 'Magic'  },
   ];
+  function _amsGly(id) {
+    return (window.HR && window.HR.icon) ? (window.HR.icon(id, 18, 'currentColor') || '') : '';
+  }
   const STORAGE_KEY = 'hearthrise:activities-mobile-skill';
 
   function getActiveSkill() {
@@ -48,7 +56,7 @@
     strip.className = 'act-mob-strip';
     strip.innerHTML = SKILLS.map(s =>
       '<button type="button" class="ams-btn" data-skill="' + s.id + '">'
-      + '<span class="ams-ic">' + s.icon + '</span>'
+      + '<span class="ams-ic">' + _amsGly(s.id) + '</span>'
       + '<span class="ams-lbl">' + s.label + '</span>'
       + '</button>'
     ).join('');

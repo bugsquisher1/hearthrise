@@ -20,8 +20,10 @@ import { ITEMS } from '../data/items.js?v=463';
 function getMonsterIconHtml(id) {
   const path = window._monsterIcon?.[id];
   if (path) return `<img src="${path}" alt="" loading="lazy" style="width:32px;height:32px;object-fit:contain" />`;
-  const m = MONSTERS[id];
-  return `<span style="font-size:24px">${m?.icon || '👾'}</span>`;
+  /* was `m.icon || '👾'` — a space-invader standing in for a monster portrait.
+     monsterFallbackIcon draws the gilt creature medallion, else a red-ringed
+     skull; it can never return a character. */
+  return window.monsterFallbackIcon ? window.monsterFallbackIcon(id, 32) : '';
 }
 
 function renderMonsterList() {

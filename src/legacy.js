@@ -498,13 +498,19 @@ const PLOT_BUILDINGS={
   toolshed:{name:'Tool Shed',icon:'🏚️',cost:{gold:800,normal_log:40},desc:'+2% gather speed.',max:1},
   watchtower:{name:'Watchtower',icon:'🗼',cost:{gold:1500,oak_log:30},desc:'+2% combat XP.',max:1},
 };
+/* `glyph`, not `icon`. These six shipped literal emoji (🏡🌲🏜️❄️🌋🧚) and the
+   Themes tab printed them at 36px as the PRODUCT ART for a gem purchase — the
+   worst place in the game to show a system pictograph. Logged as a standing
+   FINAL-DIRECTIVE violation in the art-director log on 2026-08-19 and unowned
+   since. Six atlas glyphs is an honest holding; the right answer is six painted
+   theme plates, which is an Asset request rather than a code change (filed). */
 const HOUSE_THEMES=[
-  {id:'default',name:'Cozy Cottage',icon:'🏡',price:0},
-  {id:'forest',name:'Forest Lodge',icon:'🌲',price:500,currency:'gem'},
-  {id:'desert',name:'Desert Oasis',icon:'🏜️',price:500,currency:'gem'},
-  {id:'winter',name:'Winter Chalet',icon:'❄️',price:750,currency:'gem'},
-  {id:'volcanic',name:'Volcanic Keep',icon:'🌋',price:1000,currency:'gem'},
-  {id:'fairy',name:'Fairy Glen',icon:'🧚',price:750,currency:'gem'},
+  {id:'default',name:'Cozy Cottage',glyph:'uiHome',price:0},
+  {id:'forest',name:'Forest Lodge',glyph:'uiTree',price:500,currency:'gem'},
+  {id:'desert',name:'Desert Oasis',glyph:'uiWell',price:500,currency:'gem'},
+  {id:'winter',name:'Winter Chalet',glyph:'uiBed',price:750,currency:'gem'},
+  {id:'volcanic',name:'Volcanic Keep',glyph:'uiFire',price:1000,currency:'gem'},
+  {id:'fairy',name:'Fairy Glen',glyph:'uiSpark',price:750,currency:'gem'},
 ];
 /* b243 (progression audit): the three ENDGAME seeds — goldenroot (Farming 62),
    emberfruit (75), moonbloom (88) — had NO source anywhere (not sold, dropped,
@@ -2082,7 +2088,7 @@ function applyServerEnvelope(res,opts){
          is a wiring break, not a licence to invent a third sentence here. */
       : (s.source==='switch'
           ? 'Collected '+fmtSince(s.awayMs||0)+' — +'+s.gainedGold+' gold, +'+s.gainedXp+' XP, +'+s.gainedItems+' items'
-          : '⏰ Away '+s.hrs+'h — the server credited +'+s.gainedItems+' items, +'+s.gainedXp+' XP, +'+s.gainedGold+' gold');
+          : 'Away '+s.hrs+'h — the server credited +'+s.gainedItems+' items, +'+s.gainedXp+' XP, +'+s.gainedGold+' gold');
     if(_txt) notify(_txt,'info');
   }
   /* b366 — EVERY envelope is a statement about the worn set, so this is where a
@@ -2729,8 +2735,8 @@ function processOffline(){
        proof that they did — the omission was the original sin here. */
     const critNote = combatSummary.crits ? ` · ${combatSummary.crits} crits` : '';
     const note = combatSummary.died
-      ? `⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — fought to the death after ${combatSummary.kills} kills${critNote}, +${gainedXp} XP, +${gainedGold} gold`
-      : `⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — ${combatSummary.kills} kills${critNote}, +${gainedItems} items, +${gainedGold} gold`;
+      ? `Offline ${hrs.toFixed(1)}h ${rateNote} — fought to the death after ${combatSummary.kills} kills${critNote}, +${gainedXp} XP, +${gainedGold} gold`
+      : `Offline ${hrs.toFixed(1)}h ${rateNote} — ${combatSummary.kills} kills${critNote}, +${gainedItems} items, +${gainedGold} gold`;
     notify(note + budgetNote, combatSummary.died ? 'kill' : 'info');
   } else {
     /* b225: if the fire ruined any of it while you were away, say so — an
@@ -2750,7 +2756,7 @@ function processOffline(){
         + (_restMs >= 60000 ? `; the remaining ${fmtHm(_restMs)} paid nothing` : '')
         + '. '
       : '';
-    notify(`⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — ${stopLead}+${gainedItems} items, +${gainedXp} XP` +
+    notify(`Offline ${hrs.toFixed(1)}h ${rateNote} — ${stopLead}+${gainedItems} items, +${gainedXp} XP` +
       (offlineBurnt ? ` · ${offlineBurnt} burnt on the fire` : '') + budgetNote,'info');
   }
 }
@@ -2961,7 +2967,7 @@ const IAP=(()=>{
     /* grant entitlements */
     grant(product);
     saveLocal();updateTopbar();renderShop();
-    notify(`✅ Purchased ${product.title}`,'levelup');
+    notify(`Purchased ${product.title}`,'levelup');
   }
   function grant(p){
     /* SECURITY (gold record-flip, Finding #2): IAP entitlement gold/gems are
@@ -2993,7 +2999,7 @@ function confirmIAP(p,platform){
     const m=document.getElementById('iap-modal');
     document.getElementById('iap-modal-body').innerHTML=`
       <div style="text-align:center;padding:8px 0 16px">
-        <div style="font-size:calc(54px * var(--ui-scale, 1))">${p.icon}</div>
+        <div class="iap-confirm-art">${(window.HR&&window.HR.icon)?(window.HR.icon(p.glyph||'uiChest',44,'--gold-2')||''):''}</div>
         <h3 style="font-family:var(--f-display);font-size:calc(19px * var(--ui-scale, 1));color:var(--gold-2);margin:6px 0">${p.title}</h3>
         <div style="color:var(--ink-2);font-size:calc(14.5px * var(--ui-scale, 1));margin-bottom:14px">${p.desc}</div>
         <div style="font-size:calc(25px * var(--ui-scale, 1));font-weight:800;color:var(--ink)">${p.price}</div>
@@ -3894,8 +3900,11 @@ function _hrRenderLevelUpPop(name, skill, level, unlocks){
   let host=document.getElementById('hr-levelup-host');
   if(!host){ host=document.createElement('div'); host.id='hr-levelup-host'; document.body.appendChild(host); }
   const el=document.createElement('div'); el.className='hr-levelup-pop'; el.setAttribute('role','status');
-  const med=(window.HearthriseIconSet && window.HearthriseIconSet.medallion && window.HearthriseIconSet.medallion(skill,40))
-    || (SKILLS_DEF[skill] ? `<span class="lu-emoji">${SKILLS_DEF[skill].icon}</span>` : '');
+  /* was `|| <span class="lu-emoji">SKILLS_DEF[skill].icon</span>` — the emoji
+     escape hatch on the LEVEL-UP banner, the single most screenshotted moment
+     in an idle game. skillIconHTML keeps the medallion and falls to a gilt
+     star, never to a pictograph. */
+  const med=skillIconHTML(skill,40);
   const unlockHtml = unlocks && unlocks.length
     ? `<div class="lu-unlock">Unlocked: ${unlocks.map(escapeHtml).join(', ')}</div>` : '';
   el.innerHTML=`<div class="lu-medal">${med}</div>`
@@ -4802,7 +4811,7 @@ function generateDailyTasks(notice=true){
   }catch(e){}
   if(!Array.isArray(chosen)||chosen.length!==taskCount)chosen=indexes.slice(0,taskCount);
   G.daily.tasks=chosen.map(i=>DAILY_TASK_POOL[i]());
-  if(notice)notify('📅 New daily tasks!','info');
+  if(notice)notify('New daily tasks!','info');
 }
 /* b228: exposed so the suite can prove the King's daily-task slot is really
    read, rather than trusting a field that was declared and never granted. */
@@ -4830,7 +4839,7 @@ function updateDaily(type,amt=1){
           const _p=window.HearthriseGoalClaim.claimDaily(t.id); if(_p&&_p.catch)_p.catch(()=>{});
         }
         if(clientMayWriteRecordField('gold'))G.gold+=t.reward;   // prediction; no-op under arm
-        notify(`✅ Daily: ${t.label} (+${t.reward}g)`,'loot');
+        notify(`Daily: ${t.label} (+${t.reward}g)`,'loot');
       }
     }
   });
@@ -4938,7 +4947,7 @@ function completeQuest(q){
     const route=(C&&C.styles)?C.styles.killXpRoute(style,r.combatXp,1):[{skill:'attack',amount:r.combatXp}];
     route.forEach(function(g){ addXp(g.skill,g.amount,{authored:true}); });
   }
-  notify(q.note||`🎯 Quest: ${q.label}`,'loot');
+  notify(q.note||`Quest: ${q.label}`,'loot');
 }
 /* b341: published so the suite can drive the real merge + mirror instead of a
    copy of them. The quest catalogue reaching an existing save is the property
@@ -5009,7 +5018,7 @@ function startCombat(mId){
   activityQuietly(stopCombat);
   const m=MONSTERS[mId];
   G.activeMonster=mId;G.monsterHp=m.hp;G.monsterMaxHp=m.hp;G.combatKillsThisFoe=0;
-  G.combatLog=[`⚔️ You attack the ${m.name}!`];
+  G.combatLog=[`You attack the ${m.name}!`];
   _combatIntervalMs=combatTickMs();
   combatInterval=setInterval(combatTick,_combatIntervalMs);
   combatTick();
@@ -5150,7 +5159,7 @@ const COMBAT_FX={
         G.playerHp=Math.min(G.playerMaxHp,G.playerHp+fd.heals);
         removeItem(G.foodSlot,1);
         G.stats.buffsConsumed=(G.stats.buffsConsumed||0)+1;
-        if(Array.isArray(G.combatLog))G.combatLog.push(`🍖 Auto-ate ${fd.n} (+${fd.heals})`);
+        if(Array.isArray(G.combatLog))G.combatLog.push(`Auto-ate ${fd.n} (+${fd.heals})`);
         return true;
       }
     }
@@ -5159,11 +5168,11 @@ const COMBAT_FX={
   // ── presentation ──────────────────────────────────────────────────────
   onSwing:function(m,dmg,crit,ctx){
     if(ctx.away||!Array.isArray(G.combatLog))return;
-    G.combatLog.push(dmg>0?`${crit?'💥 CRIT! ':'⚔️ '}You hit ${m.name} for ${dmg}`:'💨 You miss!');
+    G.combatLog.push(dmg>0?`${crit?'CRIT! ':''}You hit ${m.name} for ${dmg}`:'You miss!');
   },
   onMonsterSwing:function(m,dmg,ctx){
     if(ctx.away||!Array.isArray(G.combatLog))return;
-    G.combatLog.push(dmg>0?`🩸 ${m.name} hits you for ${dmg}`:`🛡️ ${m.name} misses!`);
+    G.combatLog.push(dmg>0?`${m.name} hits you for ${dmg}`:`${m.name} misses!`);
   },
   onLoot:function(gp,m,ctx){
     /* ── b455 — THE KILL'S GOLD IS A PREDICTION, NOT A RECORD WRITE ────────────
@@ -5200,7 +5209,7 @@ const COMBAT_FX={
       hrPredictBalance('gold',gp);
     }
     if(ctx.away||!gp||!Array.isArray(G.combatLog))return;
-    G.combatLog.push(`💰 Looted ${gp} gold!`);
+    G.combatLog.push(`Looted ${gp} gold!`);
   },
   onDrop:function(ev,m,ctx){
     const itemName=(ITEMS[ev.id]&&ITEMS[ev.id].n)||ev.id;
@@ -5208,8 +5217,8 @@ const COMBAT_FX={
        news, not chatter, and the old away loop swallowed it. Ordinary drops
        stay silent away. */
     if(ev.rare){
-      if(Array.isArray(G.combatLog))G.combatLog.push(`<span class="rare">✨ RARE: ${itemName}</span>`);
-      notify(`✨ Rare: ${itemName}!`,'levelup');
+      if(Array.isArray(G.combatLog))G.combatLog.push(`<span class="rare">RARE: ${itemName}</span>`);
+      notify(`Rare: ${itemName}!`,'levelup');
       /* §3.6. Tyler: "if a person loots a rare item from a boss and then
          disconnects 3 seconds after, they won't lose the item?" Under
          interval-only settling the span IS re-paid honestly on return — but
@@ -5220,11 +5229,11 @@ const COMBAT_FX={
       return;
     }
     if(ctx.away||!Array.isArray(G.combatLog))return;
-    G.combatLog.push(`📦 ${itemName}`);
+    G.combatLog.push(`${itemName}`);
   },
   onKill:function(info,ctx){
     if(ctx.away)return;
-    notify(`☠️ Defeated ${info.monster.name}`,'kill');
+    notify(`Defeated ${info.monster.name}`,'kill');
     /* §3.6, the boss half. `boss:true` is authored in src/data/monsters.js and
        read here rather than re-derived from tier — a data row is how this scales
        to the next boss without touching code. */
@@ -5249,8 +5258,8 @@ const COMBAT_FX={
     }
     const log=G.combatLog;
     if(Array.isArray(log)){
-      if(info&&info.streakBroken)log.push('🎯 Bounty streak broken. Progress reset.');
-      log.push('💀 You died! Respawning…');
+      if(info&&info.streakBroken)log.push('Bounty streak broken. Progress reset.');
+      log.push('You died! Respawning…');
     }
     /* b373 — THE DEATH SHEET, READ BEFORE THE STATE IS TORN DOWN.
        Order is load-bearing: HearthriseDeathSheet.show() reads `G.combatLog`
@@ -5267,7 +5276,7 @@ const COMBAT_FX={
     stopCombat();
     /* The toast stays for the case the sheet declined (away, or no body yet) —
        two statements of the same fact stacked on screen is noise. */
-    if(!_sheet) notify('💀 You died!','kill');
+    if(!_sheet) notify('You died!','kill');
   },
 };
 
@@ -5725,7 +5734,7 @@ function startFarmCheck(){
       if(!p)return;
       const crop=CROPS[p.cropId];if(!crop)return;
       if(p.state==='ready')return;
-      if(plotIsReady(p)){G.farmPlots[i]={...p,state:'ready'};changed=true;notify(`🌾 ${crop.name} ready!`,'loot');return;}
+      if(plotIsReady(p)){G.farmPlots[i]={...p,state:'ready'};changed=true;notify(`${crop.name} ready!`,'loot');return;}
       /* b222: the derived `watered` mirror is GONE. b220 dual-wrote it purely
          so a rollback to b219 would read a sane value; b220 shipped, b221
          shipped, and a write-only field that no reader consumes is the exact
@@ -5863,7 +5872,7 @@ function farmSyncHarvest(plotIdx){
   window.HearthriseFarmSync.farmHarvest(plotIdx).then(function(res){
     if(res&&res.ok){
       farmSyncReconcile('harvest',res);
-      if(res.produce&&res.qty>0){ const crop=CROPS[res.crop]; notify(`🌾 +${res.qty} ${crop?crop.name:res.crop}`,'loot'); }
+      if(res.produce&&res.qty>0){ const crop=CROPS[res.crop]; notify(`+${res.qty} ${crop?crop.name:res.crop}`,'loot'); }
       if(!G.farmPlots[plotIdx] && window.HearthriseAuto && typeof window.HearthriseAuto.maybeReplant==='function'){
         window.HearthriseAuto.maybeReplant(plotIdx);
       }
@@ -5888,11 +5897,11 @@ function plantCrop(plotIdx,cropId){
   if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function'){
     if(!window.HearthriseFarm.canPlantCrop(cropId)){
       const lv = window.HearthriseFarm.getPlotLevel();
-      notify(`🔒 ${crop.name} needs Farm Plot Lv ${lv+1}+ (House → Plot)`,'kill');
+      notify(`${crop.name} needs Farm Plot Lv ${lv+1}+ (House → Plot)`,'kill');
       return;
     }
   } else if(cropId !== 'turnip'){
-    notify('🔒 Crop locked — upgrade Farm Plot in House → Plot','kill');
+    notify('Crop locked — upgrade Farm Plot in House → Plot','kill');
     return;
   }
   // Server-authority routing (DORMANT): the server owns the seed debit + plant
@@ -5996,7 +6005,7 @@ function harvestPlot(i){
   G.stats.harvested=(G.stats.harvested||0)+qty;
   updateDaily('harvest',qty);updateQuest('harvest',qty);
   addXp('farming',crop.xp*qty);
-  notify(`🌾 +${qty} ${crop.name}`,'loot');
+  notify(`+${qty} ${crop.name}`,'loot');
   /* b220: a regrow restarts dry — and now that dry crops actually finish,
      that is a fresh cycle rather than the permanent stall it used to be.
      b420 (design ruling): a perennial is FINITE. One seed buys `regrowLimit`
@@ -6009,7 +6018,7 @@ function harvestPlot(i){
     const limit=crop.regrowLimit||0;   // 0/undefined ⇒ legacy infinite perennial
     if(limit>0 && done>limit){
       G.farmPlots[i]=null;
-      notify(`🥀 ${crop.name} plant withered after its last harvest`,'kill');
+      notify(`${crop.name} plant withered after its last harvest`,'kill');
     }else{
       G.farmPlots[i]={...p,plantedAt:Date.now(),state:'growing',waterings:[],regrowCount:done};   // b222: no `watered` mirror
     }
@@ -6306,10 +6315,10 @@ function renderProfile(){
       // point of the feature for the most likely user.
       const canRename = true;
       const renameBtn = canRename
-        ? `<button class="btn btn-icon btn-ghost" title="Rename" data-rename="1" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.openRename()" style="margin-left:6px;padding:2px 6px;font-size:calc(14.5px * var(--ui-scale, 1));opacity:.7">✏️</button>`
+        ? `<button class="btn btn-icon btn-ghost" title="Rename" data-rename="1" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.openRename()" style="margin-left:6px;padding:2px 6px;font-size:calc(14.5px * var(--ui-scale, 1));opacity:.7">${_hrGly('uiEdit',13)}</button>`
         : '';
       return `<div class="activity-card">
-      <div class="ac-icon">🧙</div>
+      <div class="ac-icon">${_hrGly('navCharacter',26)}</div>
       <div style="flex:1;min-width:0">
         <b>${escapeHtml(acctName || G.playerName)}${renameBtn}</b>
         <span>${subtitle}</span>
@@ -6333,16 +6342,16 @@ function renderProfile(){
     const php=Math.max(0,(G.playerHp/G.playerMaxHp)*100),mhp=Math.max(0,(G.monsterHp/G.monsterMaxHp)*100);
     activityHtml=`
       <div class="arena" style="margin-bottom:8px">
-        <div class="fighter"><div class="portrait">🧍</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div><div class="bar hp"><i style="width:${php}%"></i></div></div>
-        <div class="vs">⚔️</div>
-        <div class="fighter enemy"><div class="portrait">${m.icon}</div><div class="fname">${m.name}</div><div class="fhp">${G.monsterHp}/${G.monsterMaxHp}</div><div class="bar hp"><i style="width:${mhp}%"></i></div></div>
+        <div class="fighter"><div class="portrait">${_hrGly('navCharacter',30)}</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div><div class="bar hp"><i style="width:${php}%"></i></div></div>
+        <div class="vs">${_hrGly('navCombat',18)}</div>
+        <div class="fighter enemy"><div class="portrait">${monsterArt(G.activeMonster,30)}</div><div class="fname">${m.name}</div><div class="fhp">${G.monsterHp}/${G.monsterMaxHp}</div><div class="bar hp"><i style="width:${mhp}%"></i></div></div>
       </div>
       <button class="btn btn-block btn-danger" onclick="stopCombat()">Stop Combat</button>`;
   } else if(G.activeSkill){
     const sd=SKILLS_DEF[G.activeSkill];const lv=getLevel(G.activeSkill);const pct=xpPct(skillXp(G.activeSkill))*100;
     activityHtml=`
       <div class="activity-card">
-        <div class="ac-icon">${sd.icon}</div>
+        <div class="ac-icon">${skillIconHTML(G.activeSkill,34)}</div>
         <div style="flex:1"><b>Training ${sd.name}</b><span>Level ${lv}</span></div>
       </div>
       <div class="bar xp" style="margin:4px 0 8px"><i style="width:${pct.toFixed(1)}%"></i></div>
@@ -6355,19 +6364,19 @@ function renderProfile(){
       const payload = window.HearthriseLaunchpad.getResumePayload();
       if(payload){
         resumeHtml = `<div class="activity-card" style="margin-bottom:8px;border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.06)">
-          <div class="ac-icon">${payload.icon}</div>
+          <div class="ac-icon">${payload.iconHtml || _hrGly('uiIdle',22)}</div>
           <div style="flex:1;min-width:0"><b>${escapeHtml(payload.label)}</b><span class="tiny muted">Pick up where you left off</span></div>
           <button class="btn btn-sm btn-primary" onclick="window.HearthriseLaunchpad.resume()">Resume</button>
         </div>`;
       }
     }
     activityHtml=resumeHtml + `
-      <div class="empty"><span class="em-icon">💤</span>No active task. Pick something to do.</div>
+      <div class="empty"><span class="em-icon">${_hrGly('uiIdle',16)}</span>No active task. Pick something to do.</div>
       <div class="kpi-row" style="margin-top:6px">
-        <button class="btn tap" onclick="showTab('combat')">⚔️ Combat</button>
-        <button class="btn tap" onclick="showTab('skills')">📊 Skills</button>
-        <button class="btn tap" onclick="showTab('farming')">🌾 Farm</button>
-        <button class="btn tap" onclick="showTab('shops')">💎 Store</button>
+        <button class="btn tap" onclick="showTab('combat')">${_hrGly('navCombat',15)} Combat</button>
+        <button class="btn tap" onclick="showTab('skills')">${_hrGly('navSkills',15)} Skills</button>
+        <button class="btn tap" onclick="showTab('farming')">${_hrGly('navFarm',15)} Farm</button>
+        <button class="btn tap" onclick="showTab('shops')">${_hrGly('navStore',15)} Store</button>
       </div>`;
   }
   /* b227: says "base rate" out loud, for the same reason the welcome-back toast
@@ -6376,7 +6385,7 @@ function renderProfile(){
      so this line, b225's burn count and b226's budget readout are all currently
      invisible. Kept correct rather than silently divergent; the visible surface
      is the toast in processOffline(). */
-  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">⏰ Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''} · at the base rate. Blessings apply while online.</div>`;
+  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''} · at the base rate. Blessings apply while online.</div>`;
   document.getElementById('dash-active-body').innerHTML=activityHtml;
 
   /* b138 #2 / b139 (QA §2.1.3): Today's progress card.
@@ -6397,14 +6406,14 @@ function renderProfile(){
         {b: d.gathered.toLocaleString(),        s:'Gathered'},
         {b: d.harvested.toLocaleString(),       s:'Harvested'},
       ];
-      if(d.deedsDropped > 0) cells.push({b: '+'+d.deedsDropped, s:'📜 Deeds'});
+      if(d.deedsDropped > 0) cells.push({b: '+'+d.deedsDropped, s:'Deeds'});
       todayBody.innerHTML = `<div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${cells.map(c=>`<div class="kpi"><b>${c.b}</b><span>${c.s}</span></div>`).join('')}</div>`;
       if(todaySub){
         const total = d.xpGained + d.goldEarned + d.kills + d.gathered + d.harvested;
         todaySub.textContent = total > 0 ? 'Live' : 'Quiet day so far';
       }
     } else {
-      todayBody.innerHTML = '<div class="empty"><span class="em-icon">📊</span>Stats start tomorrow</div>';
+      todayBody.innerHTML = '<div class="empty"><span class="em-icon">'+_hrGly('uiTrend',16)+'</span>Stats start tomorrow</div>';
     }
   }
 
@@ -6429,7 +6438,7 @@ function renderProfile(){
         </div>`;
       if(milestoneSub) milestoneSub.textContent = m2.kind === 'skill' ? 'Skill' : 'Quest';
     } else {
-      milestoneBody.innerHTML = '<div class="empty"><span class="em-icon">🎯</span>All milestones cleared</div>';
+      milestoneBody.innerHTML = '<div class="empty"><span class="em-icon">'+_hrGly('uiCheck',16)+'</span>All milestones cleared</div>';
       if(milestoneSub) milestoneSub.textContent = '—';
     }
   }
@@ -6441,8 +6450,8 @@ function renderProfile(){
   /* b215: Season Pass card removed along with the pass itself. */
   document.getElementById('dash-objectives-body').innerHTML=`
     <div class="objective-list">
-      ${open.slice(0,6).map(q=>`<div class="obj"><span>⬜ ${q.label}</span><b>${Math.min(q.progress||0,q.goal)}/${q.goal}</b></div>`).join('')}
-      ${done.slice(0,3).map(q=>`<div class="obj done"><span>✅ ${q.label}</span><b>Done</b></div>`).join('')}
+      ${open.slice(0,6).map(q=>`<div class="obj"><span>${_hrGly('uiScroll',13)} ${q.label}</span><b>${Math.min(q.progress||0,q.goal)}/${q.goal}</b></div>`).join('')}
+      ${done.slice(0,3).map(q=>`<div class="obj done"><span>${_hrGly('uiCheck',13)} ${q.label}</span><b>Done</b></div>`).join('')}
     </div>`;
 
   /* skills board */
@@ -6451,7 +6460,7 @@ function renderProfile(){
     <div class="skill-board">
       ${Object.entries(SKILLS_DEF).map(([id,s])=>{
         const xp=skillXp(id),lv=getLevel(id),pct=Math.floor(xpPct(xp)*100);
-        return `<button class="skill-tile ${G.activeSkill===id?'active':''}" onclick="showTab('skills');openSkillDetail('${id}')"><span class="sicon">${s.icon}</span><span class="slv">Lv ${lv}</span><div class="bar xp"><i style="width:${pct}%"></i></div><span class="snm">${s.name}</span></button>`;
+        return `<button class="skill-tile ${G.activeSkill===id?'active':''}" onclick="showTab('skills');openSkillDetail('${id}')"><span class="sicon">${skillIconHTML(id,34)}</span><span class="slv">Lv ${lv}</span><div class="bar xp"><i style="width:${pct}%"></i></div><span class="snm">${s.name}</span></button>`;
       }).join('')}
     </div>`;
 
@@ -6460,23 +6469,25 @@ function renderProfile(){
     /* blob-retire capstone: guard an undefined farm (armed, pre-first-envelope)
        so the homestead render shows empty plots instead of throwing. */
     const p=(G.farmPlots||[])[i];
-    if(!p)return `<div class="farm-tile empty"><span>＋</span><small>Empty</small></div>`;
+    if(!p)return `<div class="farm-tile empty"><span>${_hrGly('uiPlus',18)}</span><small>Empty</small></div>`;
     const crop=CROPS[p.cropId];
     /* b220: this second render site used to hide dry progress behind the word
        "Water" exactly like the farm panel did. Both now read plotPct(). */
     const ready=p.state==='ready'||plotIsReady(p);
     const lab=ready?'Ready':`${plotPct(p)}%`;
-    return `<div class="farm-tile ${ready?'ready':''} ${!ready&&plotWindowMs(p)>0?'watered':''}"><span>${crop.icon}</span><small>${lab}</small></div>`;
+    /* was `crop.icon` — and the data proves why that layer had to go: turnip
+       and carrot both carry 🥕, so two different crops drew the same picture. */
+    return `<div class="farm-tile ${ready?'ready':''} ${!ready&&plotWindowMs(p)>0?'watered':''}"><span>${itemArt(crop.prod,26)}</span><small>${lab}</small></div>`;
   }).join('');
   const roomLevels=Object.values(roomsMapG()).reduce((a,b)=>a+(b||0),0);
   document.getElementById('dash-homestead-body').innerHTML=`
     <div class="hmstead-grid">
       <div class="hmstead-col">
-        <div class="row between" style="margin-bottom:8px"><b>🌾 Plots</b><button class="btn btn-sm" onclick="showTab('farming')">Open</button></div>
+        <div class="row between" style="margin-bottom:8px"><b>${_hrGly('navFarm',14)} Plots</b><button class="btn btn-sm" onclick="showTab('farming')">Open</button></div>
         <div class="farm-mini" style="grid-template-columns:repeat(8,1fr)">${plots}</div>
       </div>
       <div class="hmstead-col">
-        <div class="row between" style="margin-bottom:8px"><b>🏠 House</b><button class="btn btn-sm" onclick="showTab('house')">Open</button></div>
+        <div class="row between" style="margin-bottom:8px"><b>${_hrGly('navHouse',14)} House</b><button class="btn btn-sm" onclick="showTab('house')">Open</button></div>
         <div class="muted tiny" style="line-height:1.6">Theme: <b>${HOUSE_THEMES.find(t=>t.id===G.houseTheme)?.name||'Cozy Cottage'}</b><br>${roomLevels} room levels · ${G.plotBuildings.length} plot builds</div>
       </div>
     </div>`;
@@ -6506,7 +6517,7 @@ function renderMonsterList(){
     /* b341: the row carries its id, not an inline startCombat(). See the
        MONSTER ROW DELEGATION block for why. */
     return `<button class="monster-row ${fighting?'fighting':''}" ${unlocked?'':'disabled'} data-monster="${id}" title="${m.name}">
-      <span class="mi">${m.icon}</span>
+      <span class="mi">${monsterArt(id,40)}</span>
       <div style="flex:1;min-width:0">
         <span class="mn">${m.name}${m.boss?' <span class="tag">Boss</span>':''}</span>
         <span class="ms">${m.family||'Monster'} · weak to ${WEAPON_TYPES[m.weaponWeak]||'—'}</span>
@@ -6527,7 +6538,7 @@ function renderCombat(){
   if(_ae && _ae.tagName==='SELECT' && el.contains(_ae)) return;
   const stop=document.getElementById('combat-stop');
   if(!G.activeMonster){
-    el.innerHTML=`${renderBountyPanel()}<div class="arena"><div class="fighter"><div class="portrait">🧍</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div></div><div class="vs">⚔️</div><div class="fighter enemy"><div class="portrait">❓</div><div class="fname">Choose a foe</div><div class="fhp">—</div></div></div><div class="empty"><span class="em-icon">⚔️</span>Pick a monster from the list to begin.</div>`;
+    el.innerHTML=`${renderBountyPanel()}<div class="arena"><div class="fighter"><div class="portrait">${_hrGly('navCharacter',30)}</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div></div><div class="vs">${_hrGly('navCombat',18)}</div><div class="fighter enemy"><div class="portrait">${_hrGly('uiTarget',30)}</div><div class="fname">Choose a foe</div><div class="fhp">—</div></div></div><div class="empty"><span class="em-icon">${_hrGly('navCombat',16)}</span>Pick a monster from the list to begin.</div>`;
     stop.style.display='none';return;
   }
   const m=MONSTERS[G.activeMonster];
@@ -6589,9 +6600,9 @@ function renderCombat(){
   el.innerHTML=`
     ${renderBountyPanel()}
     <div class="arena">
-      <div class="fighter"><div class="portrait">🧍</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div><div class="bar hp"><i style="width:${php}%"></i></div></div>
-      <div class="vs">⚔️</div>
-      <div class="fighter enemy"><div class="portrait">${m.icon}</div><div class="fname">${m.name}${m.boss?' <span class="tag">BOSS</span>':''}</div><div class="fhp">${G.monsterHp}/${G.monsterMaxHp}</div><div class="bar hp"><i style="width:${mhp}%"></i></div></div>
+      <div class="fighter"><div class="portrait">${_hrGly('navCharacter',30)}</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div><div class="bar hp"><i style="width:${php}%"></i></div></div>
+      <div class="vs">${_hrGly('navCombat',18)}</div>
+      <div class="fighter enemy"><div class="portrait">${monsterArt(G.activeMonster,30)}</div><div class="fname">${m.name}${m.boss?' <span class="tag">BOSS</span>':''}</div><div class="fhp">${G.monsterHp}/${G.monsterMaxHp}</div><div class="bar hp"><i style="width:${mhp}%"></i></div></div>
     </div>
     <div class="combat-log" id="clog">${[...G.combatLog].reverse().map(l=>`<div>${l}</div>`).join('')}</div>
     <div class="cbt-food">
@@ -6617,7 +6628,7 @@ function renderLoadout(){
     <div class="loadout-grid">
       ${EQUIP_SLOTS.slice(0,12).map(slot=>{
         const id=equippedItemG(slot);const def=id?ITEMS[id]:null;const meta=EQUIP_SLOT_META[slot];
-        return `<button class="loadout-slot ${def?'':'empty'}" onclick="${def?`unequip('${slot}')`:''}" title="${def?def.n+' (click to unequip)':meta.label}">${def?def.icon:meta.icon}<small>${def?def.n.split(' ')[0]:meta.label}</small></button>`;
+        return `<button class="loadout-slot ${def?'':'empty'}" onclick="${def?`unequip('${slot}')`:''}" title="${def?def.n+' (click to unequip)':meta.label}">${def?itemArt(id,26):slotIconHTML(slot)}<small>${def?def.n.split(' ')[0]:meta.label}</small></button>`;
       }).join('')}
     </div>
     <div class="stat-grid">
@@ -7094,7 +7105,7 @@ function openEnchantPicker(preselectId){
     const it=ITEMS[id];
     const hot=(preselectId&&id===preselectId);
     return `<button class="btn enchant-rune-opt" data-rune="${id}" style="display:flex;align-items:center;gap:8px;width:100%;margin:4px 0;justify-content:flex-start${hot?';border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)':''}" onclick="chooseEnchantRune('${id}')">`
-      +`<span style="font-size:20px">${it.icon||'🔮'}</span>`
+      +`<span class="ench-rune-art">${itemArt(it.id||'',20)}</span>`
       +`<span style="flex:1;text-align:left">${it.n} <span class="muted tiny">×${G.inventory[id]}</span></span>`
       +`<span class="tiny" style="color:var(--accent)">+15% vs ${it.element}-weak</span></button>`;
   }).join(''):(function(){
@@ -7197,7 +7208,7 @@ function renderSkillsList(){
     <div class="skill-board">
       ${Object.entries(SKILLS_DEF).filter(([,s])=>s.cat===cat).map(([id,s])=>{
         const xp=skillXp(id),lv=getLevel(id),pct=Math.floor(xpPct(xp)*100);
-        return `<button class="skill-tile ${G.activeSkill===id?'active':''}" onclick="openSkillDetail('${id}')"><span class="sicon">${s.icon}</span><span class="slv">Lv ${lv}</span><div class="bar xp"><i style="width:${pct}%"></i></div><span class="snm">${s.name}</span></button>`;
+        return `<button class="skill-tile ${G.activeSkill===id?'active':''}" onclick="openSkillDetail('${id}')"><span class="sicon">${skillIconHTML(id,34)}</span><span class="slv">Lv ${lv}</span><div class="bar xp"><i style="width:${pct}%"></i></div><span class="snm">${s.name}</span></button>`;
       }).join('')}
     </div>`).join('');
 }
@@ -7215,7 +7226,7 @@ function renderSkillDetail(id){
      ARTISAN_RECIPES has a lane for it, which is what made Runecrafting and
      Stonemason data rows instead of five more edits to this file. */
   else if(typeof window.renderArtisanActivities==='function' && window.ARTISAN_RECIPES && Array.isArray(window.ARTISAN_RECIPES[id])){acts=window.renderArtisanActivities(id);}
-  else acts=`<div class="empty"><span class="em-icon">⚔️</span>Train ${s.name} by fighting in the Combat tab.</div>`;
+  else acts=`<div class="empty"><span class="em-icon">${_hrGly('navCombat',16)}</span>Train ${s.name} by fighting in the Combat tab.</div>`;
   let calcHtml='';
   if(calc){
     const speed=getBonus('gatherSpeed');const ms=Math.max(500,Math.floor(calc.ms*speedClamp(speed)));
@@ -7231,7 +7242,7 @@ function renderSkillDetail(id){
         <div class="bar xp" style="margin-top:6px"><i style="width:${pct.toFixed(1)}%"></i></div>
       </div>
     </div>
-    ${G.activeSkill===id?`<div class="activity-card"><div class="ac-icon">⏳</div><div style="flex:1"><b>Training ${TREES.concat(ROCKS,FISH_SPOTS).find(a=>a.id===G.skillTargetId)?.name||''}</b><span>Auto progresses while open</span></div><button class="btn btn-sm btn-danger" onclick="stopSkill()">Stop</button></div>`:''}
+    ${G.activeSkill===id?`<div class="activity-card"><div class="ac-icon">${_hrGly('uiHourglass',22)}</div><div style="flex:1"><b>Training ${TREES.concat(ROCKS,FISH_SPOTS).find(a=>a.id===G.skillTargetId)?.name||''}</b><span>Auto progresses while open</span></div><button class="btn btn-sm btn-danger" onclick="stopSkill()">Stop</button></div>`:''}
     ${calcHtml}
     <div class="muted tiny" style="margin:12px 0 6px;text-transform:uppercase;letter-spacing:.08em;font-weight:700">Activities</div>
     ${acts}`;
@@ -7241,7 +7252,7 @@ function renderActivities(acts,skillId){
   return acts.map(a=>{
     const unlocked=lv>=a.req;const active=G.activeSkill===skillId&&G.skillTargetId===a.id;
     return `<button class="monster-row ${active?'fighting':''}" ${unlocked?'':'disabled'} onclick="${active?'stopSkill()':`startSkill('${skillId}','${a.id}',${a.ms})`}">
-      <span class="mi">${a.icon}</span>
+      <span class="mi">${a.prod ? itemArt(a.prod,26) : skillIconHTML(skillId,30)}</span>
       <div style="flex:1;min-width:0"><span class="mn">${a.name}</span><span class="ms">Lv ${a.req} · ${Math.max(1,Math.floor(pacedXp(skillId,a.xp)))} XP · ${(pacedActionMs(a.ms)/1000).toFixed(1)}s · ${ITEMS[a.prod]?.n||a.prod}</span></div>
       ${!unlocked?`<span class="mr-lock">${lockGlyph()}Lv ${a.req}</span>`:active?'<span class="mr-active">Active</span>':''}
     </button>`;
@@ -7260,7 +7271,7 @@ function renderInventory(){
   migrateEquipmentSlots();
   document.getElementById('equip-panel').innerHTML=`
     <div class="loadout-grid">
-      ${EQUIP_SLOTS.map(slot=>{const id=equippedItemG(slot);const def=id?ITEMS[id]:null;const meta=EQUIP_SLOT_META[slot];return `<button class="loadout-slot ${def?'':'empty'}" onclick="${def?`unequip('${slot}')`:''}" title="${def?def.n:meta.label}">${def?def.icon:meta.icon}<small>${def?def.n.split(' ')[0]:meta.label}</small></button>`;}).join('')}
+      ${EQUIP_SLOTS.map(slot=>{const id=equippedItemG(slot);const def=id?ITEMS[id]:null;const meta=EQUIP_SLOT_META[slot];return `<button class="loadout-slot ${def?'':'empty'}" onclick="${def?`unequip('${slot}')`:''}" title="${def?def.n:meta.label}">${def?itemArt(id,26):slotIconHTML(slot)}<small>${def?def.n.split(' ')[0]:meta.label}</small></button>`;}).join('')}
     </div>
     <div class="muted tiny" style="margin-top:10px">Tap an empty slot to see what fits, or tap an equipped item to unequip it.</div>`;
 
@@ -7268,11 +7279,11 @@ function renderInventory(){
   const el=document.getElementById('inv-panel');
   const bag=invTab==='bag'?G.inventory:G.bank;
   const items=Object.entries(bag).filter(([,q])=>q>0);
-  if(!items.length){el.innerHTML=`<div class="empty"><span class="em-icon">🎒</span>${invTab==='bag'?'Your bag is empty.':'Your bank is empty.'}</div>`;return;}
+  if(!items.length){el.innerHTML=`<div class="empty"><span class="em-icon">${_hrGly('uiChest',16)}</span>${invTab==='bag'?'Your bag is empty.':'Your bank is empty.'}</div>`;return;}
   el.innerHTML=`<div class="item-grid">${items.map(([id,qty])=>{
     const d=ITEMS[id];if(!d)return'';
     const qShow=qty>=1000?(qty/1000).toFixed(1)+'k':qty;
-    return `<button class="item-slot" title="${d.n} ×${qty} · ${vendorPrice(id)}gp" onclick="onItemTap('${id}')">${d.icon}<span class="qty">${qShow}</span><span class="nm">${d.n.split(' ')[0]}</span></button>`;
+    return `<button class="item-slot" title="${d.n} ×${qty} · ${vendorPrice(id)}gp" onclick="onItemTap('${id}')">${itemArt(id,26)}<span class="qty">${qShow}</span><span class="nm">${d.n.split(' ')[0]}</span></button>`;
   }).join('')}</div>
   <div class="muted tiny" style="margin-top:10px">Tap to use: equip, eat, plant, or sell. Long press for menu.</div>`;
 }
@@ -7440,7 +7451,7 @@ window.plantAllEmpty = function plantAllEmpty(){
     if(G.farmPlots[i]) planted++;
     else break;
   }
-  if(planted > 0) notify(`🌾 Planted ${planted} plot${planted===1?'':'s'}`, 'loot');
+  if(planted > 0) notify(`Planted ${planted} plot${planted===1?'':'s'}`, 'loot');
 };
 
 window.toggleAutoReplant = function toggleAutoReplant(){
@@ -7486,7 +7497,7 @@ function openSeedPicker(i){
   const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>Upgrade Farm Plot in House → Plot</span></div><span class="muted tiny">x${G.inventory[c.seed]||0}</span></button>`;
   let html = `<h3 style="margin-bottom:10px">Pick a seed</h3>`;
   if(plantable.length) html += plantable.map(plantBtn).join('');
-  if(lockedByPlot.length) html += `<div class="tiny muted" style="margin:10px 0 6px">🔒 Locked by Farm Plot tier</div>` + lockedByPlot.map(lockedBtn).join('');
+  if(lockedByPlot.length) html += `<div class="tiny muted" style="margin:10px 0 6px">${lockGlyph()} Locked by Farm Plot tier</div>` + lockedByPlot.map(lockedBtn).join('');
   document.getElementById('settings-body').innerHTML = html;
   m.classList.add('show');
 }
@@ -7549,11 +7560,11 @@ function renderHouse(){
       const newCropsLabel = newCrops.length ? newCrops.map(id=>`${CROPS[id]?.icon||''} ${CROPS[id]?.name||id}`).join(', ') : (lv >= max ? 'All crops unlocked' : 'No new crops at this tier');
       const canUpgrade = lv < max && have >= need;
       plotCard = `<div class="shop-row" style="border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.05)">
-        <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center;font-size:calc(33px * var(--ui-scale, 1))">🌾</span>
+        <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_hrGly('navFarm',30)}</span>
         <div class="info">
           <b>Farm Plot · Lv ${lv}/${max}</b>
-          <span>${lv >= max ? '✨ Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
-          <span class="tiny muted">📜 Have ${have} Deed${have===1?'':'s'}${lv<max?` · need ${need}`:''}</span>
+          <span>${lv >= max ? 'Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
+          <span class="tiny muted">Have ${have} Deed${have===1?'':'s'}${lv<max?` · need ${need}`:''}</span>
         </div>
         ${lv < max
           ? `<button class="btn btn-sm ${canUpgrade?'btn-primary':''}" ${canUpgrade?'':'disabled'} onclick="window.HearthriseFarm.upgradePlot()">Spend ${need} Deed${need===1?'':'s'}</button>`
@@ -7570,7 +7581,7 @@ function renderHouse(){
     el.innerHTML=`<div class="iap-grid">${HOUSE_THEMES.map(t=>{
       const owned=G.ownedThemes.includes(t.id);
       const active=G.houseTheme===t.id;
-      return `<div class="iap-card ${active?'gold':''}"><div class="iap-icon">${t.icon}</div><h3>${t.name}</h3><div class="desc">${t.price?(t.currency==='gem'?_gem(t.price):_gp(t.price)):'Default'}</div>${owned?(active?'<button class="btn btn-block" disabled>Active</button>':`<button class="btn btn-block btn-primary" onclick="setTheme('${t.id}')">Apply</button>`):`<button class="btn btn-block btn-gem" onclick="buyTheme('${t.id}')">Buy</button>`}</div>`;
+      return `<div class="iap-card ${active?'gold':''}"><div class="iap-icon">${_hrGly(t.glyph||'uiHome',30,'--gold-2')}</div><h3>${t.name}</h3><div class="desc">${t.price?(t.currency==='gem'?_gem(t.price):_gp(t.price)):'Default'}</div>${owned?(active?'<button class="btn btn-block" disabled>Active</button>':`<button class="btn btn-block btn-primary" onclick="setTheme('${t.id}')">Apply</button>`):`<button class="btn btn-block btn-gem" onclick="buyTheme('${t.id}')">Buy</button>`}</div>`;
     }).join('')}</div>`;
   }
 
@@ -7811,7 +7822,7 @@ function buyTheme(id){
      equipped FREE (the default is a free equip), never bought with gold. No gold
      wiring: a gold-priced theme is not a thing this game authors. */
   if(t.currency==='gem'){
-    if(!balCanAfford(t.price,'gems')){notify(balKnown('gems')?'Need more 💎. Open the Store.':balShortfall(t.price,'gems'),'kill');return;}
+    if(!balCanAfford(t.price,'gems')){notify(balKnown('gems')?'Need more gems. Open the Store.':balShortfall(t.price,'gems'),'kill');return;}
     G.gems-=t.price;
   }
   if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);
@@ -7837,7 +7848,7 @@ async function renderSocial(){
     const p=window.HearthriseLeaderboards.render();
     if(p&&p.catch)p.catch(()=>{});
   } else {
-    lbEl.innerHTML='<div class="empty"><span class="em-icon">⏳</span>Fetching ranks…</div>';
+    lbEl.innerHTML='<div class="empty"><span class="em-icon">'+_hrGly('uiHourglass',16)+'</span>Fetching ranks…</div>';
     const r=await NetClient.leaderboard(lbMode);
     if(r.ok){
       /* b213 QA: the b206 leaderboard override fetches the REAL Supabase view
@@ -8218,7 +8229,7 @@ function openSettings(){
   document.getElementById('settings-body').innerHTML=`
     <div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Account</div>
     ${G.account?
-      `<div class="activity-card"><div class="ac-icon">👤</div><div style="flex:1"><b>${escapeHtml(G.account.displayName)}</b><span>Provider: ${G.account.provider}</span></div><button class="btn btn-sm btn-danger" onclick="NetClient.signOut();openSettings()">Sign out</button></div>`:
+      `<div class="activity-card"><div class="ac-icon">${_hrGly('navProfile',26)}</div><div style="flex:1"><b>${escapeHtml(G.account.displayName)}</b><span>Provider: ${G.account.provider}</span></div><button class="btn btn-sm btn-danger" onclick="NetClient.signOut();openSettings()">Sign out</button></div>`:
       `<div class="kpi-row" style="margin-bottom:14px">
         <button class="btn tap" onclick="NetClient.signIn('steam').then(()=>openSettings())">Sign in (Steam)</button>
         <button class="btn tap" onclick="NetClient.signIn('apple').then(()=>openSettings())">Sign in (Apple)</button>
@@ -8236,10 +8247,10 @@ function openSettings(){
 
     <div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin:14px 0 6px">Save data</div>
     <div class="kpi-row">
-      <button class="btn tap" onclick="saveLocal();notify('Saved','info')">💾 Save now</button>
-      <button class="btn tap" onclick="cloudSync()">☁️ Cloud sync</button>
-      <button class="btn tap" onclick="exportSave()">⬇️ Export</button>
-      <button class="btn tap btn-danger" onclick="eraseSaveAsk()">🗑️ Reset</button>
+      <button class="btn tap" onclick="saveLocal();notify('Saved','info')">Save now</button>
+      <button class="btn tap" onclick="cloudSync()">Cloud sync</button>
+      <button class="btn tap" onclick="exportSave()">Export</button>
+      <button class="btn tap btn-danger" onclick="eraseSaveAsk()">Reset</button>
     </div>
     <div class="muted tiny" style="margin-top:8px">Last cloud sync: ${G.cloudSyncedAt?new Date(G.cloudSyncedAt).toLocaleString():'never'}.</div>
 
@@ -8250,7 +8261,7 @@ function openSettings(){
 async function cloudSync(){
   if(!G.account){notify('Sign in first','kill');return;}
   const r=await NetClient.cloudSync();
-  notify(r.ok?'Cloud saved ☁️':'Cloud save failed','info');
+  notify(r.ok?'Cloud saved':'Cloud save failed','info');
   openSettings();
 }
 /* b373: the destructive settings action, out of an inline `confirm()` in an
@@ -8334,7 +8345,7 @@ function bindEvents(){
     if(e.target.matches('input,textarea,select'))return;
     const map={'1':'profile','2':'combat','3':'skills','4':'inventory','5':'farming','6':'house','7':'social','8':'shops'};
     if(map[e.key]){showTab(map[e.key]);e.preventDefault();}
-    if(e.key.toLowerCase()==='s'){saveLocal();notify('Saved 💾','info');}
+    if(e.key.toLowerCase()==='s'){saveLocal();notify('Saved','info');}
   });
   /* online/offline events */
   window.addEventListener('online',updateNetStatus);
@@ -8642,12 +8653,22 @@ window._slotSVG = {
    ════════════════════════════════════════════════════════ */
 
 /* ───── State init ───── */
+/* `glyph` (an atlas key), not `icon` (an emoji). NOTE this array is SAVE STATE:
+   a live save already holds rows with the old `icon:'⚔️'` field, so the
+   renderer must never read `.icon` again — it resolves `glyph`, then the row's
+   NAME through LOADOUT_GLYPH, then a gilt star. That makes an old save draw
+   correctly without a migration, and makes the emoji field unreachable. */
 G.loadouts = G.loadouts || [
-  {name:'Combat',  icon:'⚔️', equipment:{}, tools:{}, foodSlot:null, set:false},
-  {name:'Mining',  icon:'⛏️', equipment:{}, tools:{}, foodSlot:null, set:false},
-  {name:'Cooking', icon:'🍳', equipment:{}, tools:{}, foodSlot:null, set:false},
-  {name:'Custom',  icon:'⭐', equipment:{}, tools:{}, foodSlot:null, set:false},
+  {name:'Combat',  glyph:'navCombat', equipment:{}, tools:{}, foodSlot:null, set:false},
+  {name:'Mining',  glyph:'mining',    equipment:{}, tools:{}, foodSlot:null, set:false},
+  {name:'Cooking', glyph:'cooking',   equipment:{}, tools:{}, foodSlot:null, set:false},
+  {name:'Custom',  glyph:'uiStar',    equipment:{}, tools:{}, foodSlot:null, set:false},
 ];
+var LOADOUT_GLYPH = {Combat:'navCombat', Mining:'mining', Cooking:'cooking', Custom:'uiStar'};
+window.loadoutGlyphHTML = function(l, px){
+  var key = (l && l.glyph) || (l && LOADOUT_GLYPH[l.name]) || 'uiStar';
+  return (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 15, 'currentColor') || '') : '';
+};
 window._invFilter = 'all';
 window._invSort = 'recent';
 window._invSearch = '';
@@ -8703,7 +8724,7 @@ function saveLoadout(idx){
   l.foodSlot = G.foodSlot || null;
   l.set = true;
   saveLocal();
-  notify(`💾 Saved loadout: ${l.name}`, 'info');
+  notify(`Saved loadout: ${l.name}`, 'info');
   renderInvNew();
 }
 function applyLoadout(idx){
@@ -9477,7 +9498,7 @@ function invSellOne(id){
   removeItem(id, 1);
   if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, 1, _k); if(_p && _p.catch) _p.catch(()=>{}); }
   recordVendorSale(id, 1, price);   // b240: undoable
-  notify(`Sold 1× ${it.n} (+${price}🪙)`,'loot');
+  notify(`Sold 1× ${it.n} (+${price} gp)`,'loot');
   updateTopbar(); renderInvNew();
 }
 function invSellAll(id){
@@ -9488,7 +9509,7 @@ function invSellAll(id){
   const price = vendorSellChunked(id, qty, 'vendor.sell_all');   // b377: ≤1,000 per intent
   delete G.inventory[id];
   recordVendorSale(id, qty, price);   // b240: undoable
-  notify(`Sold ${qty}× ${it.n} (+${(price*qty).toLocaleString()}🪙)`,'loot');
+  notify(`Sold ${qty}× ${it.n} (+${(price*qty).toLocaleString()} gp)`,'loot');
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
 function invSellSelected(){
@@ -9511,7 +9532,7 @@ function invSellSelected(){
      agrees with the half. Nothing is sent; the row says why. */
   goldSettle(total, 'vendor.sell_selected', null);
   window._invSelected.clear();
-  notify(`Sold ${count} items for ${total.toLocaleString()}🪙` + (skipped?` · ${skipped} locked item(s) skipped`:''),'loot');
+  notify(`Sold ${count} items for ${total.toLocaleString()} gp` + (skipped?` · ${skipped} locked item(s) skipped`:''),'loot');
   window._invSelectMode = false;
   updateTopbar(); renderInvNew();
 }
@@ -9566,7 +9587,7 @@ function repurchase(idx){
   G.gold -= cost;
   addItem(b.id, b.qty);
   G.buyback.splice(idx, 1);
-  notify(`Bought back ${b.qty}× ${it.n} (−${cost.toLocaleString()}🪙)`,'loot');
+  notify(`Bought back ${b.qty}× ${it.n} (−${cost.toLocaleString()} gp)`,'loot');
   try{ saveLocal(); }catch(e){}
   updateTopbar();
   renderBuyback();
@@ -9586,11 +9607,11 @@ function renderBuyback(){
     const it = ITEMS[b.id]; if(!it) return '';
     const cost = b.unit * b.qty;
     const afford = balCanAfford(cost,'gold');
-    const icon = (window._itemPath && window._itemPath[b.id]) ? `<img src="${window._itemPath[b.id]}" alt=""/>` : `<span class="bb-emoji">${it.icon||'❓'}</span>`;
+    const icon = (window._itemPath && window._itemPath[b.id]) ? `<img src="${window._itemPath[b.id]}" alt=""/>` : `<span class="bb-emoji">${itemFallbackIcon(b.id, 24, it)}</span>`;
     return `<div class="bb-row">
       <span class="bb-ic">${icon}</span>
-      <span class="bb-meta"><b>${b.qty}× ${it.n}</b><span>sold for ${b.unit.toLocaleString()}🪙 each</span></span>
-      <button class="btn btn-sm ${afford?'btn-primary':''}" ${afford?'':'disabled'} onclick="repurchase(${i})">Buy back · ${cost.toLocaleString()}🪙</button>
+      <span class="bb-meta"><b>${b.qty}× ${it.n}</b><span>sold for ${b.unit.toLocaleString()} gp each</span></span>
+      <button class="btn btn-sm ${afford?'btn-primary':''}" ${afford?'':'disabled'} onclick="repurchase(${i})">Buy back · ${cost.toLocaleString()} gp</button>
     </div>`;
   }).join('');
 }
@@ -9638,7 +9659,11 @@ function renderInvNew(){
   if(typeof migrateEquipmentSlots === 'function') migrateEquipmentSlots();
 
   const stats = _eqStatsTotals();
-  const slotIcon = slot => (typeof EQUIP_SLOT_META !== 'undefined' && EQUIP_SLOT_META[slot]) ? EQUIP_SLOT_META[slot].icon : '▫️';
+  /* (`slotIcon` was here and returned `EQUIP_SLOT_META[slot].icon` — a raw
+     emoji — with '▫️' as its fallback. It had ZERO call sites; the empty-slot
+     mark comes from `window._slotSVG` / slotGlyphSVG. Deleted rather than
+     converted: a dead helper whose only job was to hand out emoji is a loaded
+     gun for the next renderer that needs "the slot icon".) */
   const slotLabel = slot => (typeof EQUIP_SLOT_META !== 'undefined' && EQUIP_SLOT_META[slot]) ? EQUIP_SLOT_META[slot].label : slot;
   const slotBtn = (slot)=>{
     const id = equippedItemG(slot);
@@ -9648,7 +9673,7 @@ function renderInvNew(){
     if(!it){
       return `<button class="inv-slot empty" data-slot="${slot}" title="${slotLabel(slot)}"><span class="slot-svg">${svg||''}</span></button>`;
     }
-    return `<button class="inv-slot" data-slot="${slot}" onclick="unequipSlotInv('${slot}')" title="${it.n} (tap to unequip)">${it.icon}${tier?`<span class="tier">T${tier}</span>`:''}${(it&&it.hands===2)?'<span class="twoH">2H</span>':''}</button>`;
+    return `<button class="inv-slot" data-slot="${slot}" onclick="unequipSlotInv('${slot}')" title="${it.n} (tap to unequip)">${itemArt(id,26)}${tier?`<span class="tier">T${tier}</span>`:''}${(it&&it.hands===2)?'<span class="twoH">2H</span>':''}</button>`;
   };
 
   /* Loadout pill bar */
@@ -9658,11 +9683,11 @@ function renderInvNew(){
       ? `${Object.values(l.equipment||{}).filter(Boolean).length}+${Object.values(l.tools||{}).filter(Boolean).length} items`
       : 'empty';
     return `<button class="inv-loadout ${isActive?'active':''}" oncontextmenu="event.preventDefault();saveLoadout(${i});return false" onclick="${l.set?`applyLoadout(${i})`:`saveLoadout(${i})`}" title="${l.set?'Tap to apply · long-press / right-click to overwrite':'Tap to save current kit'}">
-      <span class="ld-icon">${l.icon}</span>
+      <span class="ld-icon">${window.loadoutGlyphHTML(l,15)}</span>
       <span class="ld-name">${l.name}</span>
       <span class="ld-empty">${summary}</span>
       <span class="ld-actions">
-        <span class="ld-act" onclick="event.stopPropagation();renameLoadout(${i})" title="Rename">✏️</span>
+        <span class="ld-act" onclick="event.stopPropagation();renameLoadout(${i})" title="Rename">${_hrGly('uiEdit',13)}</span>
         ${l.set?`<span class="ld-act" onclick="event.stopPropagation();clearLoadout(${i})" title="Clear">✕</span>`:''}
       </span>
     </button>`;
@@ -9680,7 +9705,7 @@ function renderInvNew(){
         const id = G.tools[t.slot];
         const it = id ? ITEMS[id] : null;
         const tier = it ? (it.tier || _itemTier(id)) : 0;
-        return `<button class="inv-slot ${it?'':'empty'}" title="${it?it.n:t.label}">${it?it.icon:t.icon}<small>${it?_shortName(it.n):t.label}</small>${tier?`<span class="tier">T${tier}</span>`:''}</button>`;
+        return `<button class="inv-slot ${it?'':'empty'}" title="${it?it.n:t.label}">${it?itemArt(id,26):slotIconHTML(t.slot)}<small>${it?_shortName(it.n):t.label}</small>${tier?`<span class="tier">T${tier}</span>`:''}</button>`;
       }).join('')}</div>`;
   }
 
@@ -9713,12 +9738,12 @@ function renderInvNew(){
     ? window.HearthriseInvCtx.selectJunk(junkThreshold)
     : [];
   const junkBtnHtml = junkPreview.length
-    ? `<button class="inv-sell-junk" onclick="window.HearthriseInvCtx.sellJunk(${junkThreshold})" title="Sell every stack worth less than ${junkThreshold}g per item — never sells food, gear, or recipe scrolls">🧹 Sell junk (${junkPreview.length})</button>`
+    ? `<button class="inv-sell-junk" onclick="window.HearthriseInvCtx.sellJunk(${junkThreshold})" title="Sell every stack worth less than ${junkThreshold}g per item — never sells food, gear, or recipe scrolls">Sell junk (${junkPreview.length})</button>`
     : '';
   const toolbarHtml = `
     <div class="inv-toolbar">
       <div class="inv-search">
-        <span style="font-size:calc(16px * var(--ui-scale, 1))">🔍</span>
+        <span class="inv-search-ic">${_hrGly('uiSearch',15)}</span>
         <input type="text" placeholder="Search…" value="${(window._invSearch||'').replace(/"/g,'&quot;')}" oninput="invSetSearch(this.value)">
       </div>
       <select class="inv-sort" onchange="invSetSort(this.value)">
@@ -9734,7 +9759,7 @@ function renderInvNew(){
 
   let gridHtml;
   if(!items.length){
-    gridHtml = `<div class="inv-empty"><span class="em-icon">${(window._invSearch||window._invFilter!=='all')?'🔍':'🎒'}</span>${(window._invSearch||window._invFilter!=='all')?'Nothing matches your filters.':'Your bag is empty.'}</div>`;
+    gridHtml = `<div class="inv-empty"><span class="em-icon">${(window._invSearch||window._invFilter!=='all')?_hrGly('uiSearch',16):_hrGly('uiChest',16)}</span>${(window._invSearch||window._invFilter!=='all')?'Nothing matches your filters.':'Your bag is empty.'}</div>`;
   } else {
     gridHtml = `<div class="inv-grid ${window._invSelectMode?'inv-mode-select':''}">${items.map(([id,qty])=>{
       const it = ITEMS[id]; if(!it) return '';
@@ -9742,9 +9767,9 @@ function renderInvNew(){
       const sel = window._invSelected.has(id);
       const tier = _itemTier(id);
       const qShow = qty>=10000?(qty/1000).toFixed(1)+'k':qty>=1000?(qty/1000).toFixed(1)+'k':qty;
-      return `<button class="inv-item ${sel?'selected':''}" data-cat="${cat}" onclick="invItemTap('${id}')" title="${it.n} ×${qty} · ${vendorPrice(id)}🪙 each">
+      return `<button class="inv-item ${sel?'selected':''}" data-cat="${cat}" onclick="invItemTap('${id}')" title="${it.n} ×${qty} · ${vendorPrice(id)} gp each">
         <span class="selbox"></span>
-        <span style="font-size:calc(25px * var(--ui-scale, 1));line-height:1">${it.icon}</span>
+        <span class="inv-item-art">${itemArt(id,26)}</span>
         <span class="qty">${qShow}</span>
         <span class="nm">${_shortName(it.n)}</span>
         ${tier?`<span class="tier">T${tier}</span>`:''}
@@ -9761,7 +9786,7 @@ function renderInvNew(){
       selCount += q;
     }
     batchBar = `<div class="inv-batch-bar">
-      <div class="bb-info"><b>${window._invSelected.size}</b> stacks · <b>${selCount.toLocaleString()}</b> items · worth <b>${selValue.toLocaleString()}🪙</b></div>
+      <div class="bb-info"><b>${window._invSelected.size}</b> stacks · <b>${selCount.toLocaleString()}</b> items · worth <b>${selValue.toLocaleString()} gp</b></div>
       <div class="bb-actions">
         <button class="btn" onclick="window._invSelected.clear();renderInvNew()">Clear</button>
         <button class="btn btn-danger" onclick="invSellSelected()">Sell Selected</button>
@@ -9769,7 +9794,7 @@ function renderInvNew(){
     </div>`;
   }
 
-  const summaryHtml = items.length ? `<div class="muted tiny" style="margin-top:8px;display:flex;justify-content:space-between"><span>${items.length} stack${items.length!==1?'s':''} · ${totalCount.toLocaleString()} items</span><span>worth ${totalValue.toLocaleString()}🪙</span></div>` : '';
+  const summaryHtml = items.length ? `<div class="muted tiny" style="margin-top:8px;display:flex;justify-content:space-between"><span>${items.length} stack${items.length!==1?'s':''} · ${totalCount.toLocaleString()} items</span><span>worth ${totalValue.toLocaleString()} gp</span></div>` : '';
 
   /* Tester report (paione): the bag re-renders every combat/skill tick, and
      replacing innerHTML resets the scroll container to the top — so browsing
@@ -9964,7 +9989,7 @@ window.completeBounty = function(){
 
   const afterLv = getBountyHunterLevel();
   if(afterLv > beforeLv){
-    notify(`🎯 Bounty Hunter ${afterLv}!`, 'levelup');
+    notify(`Bounty Hunter ${afterLv}!`, 'levelup');
   }
 };
 
@@ -10623,7 +10648,7 @@ function refreshActivityBar(){
         : '<span class="ab-xph ab-away" title="A fight carries on while you are away, but it ends '
           +'when you fall — nobody eats for you without Auto-Eat.">away: until you fall</span>';
       metaEl.innerHTML = ''
-        + '<span class="ab-kills">⚔️ <b>'+kills.toLocaleString()+'</b> this fight</span>'
+        + '<span class="ab-kills">'+_hrGly('uiSword',13)+' <b>'+kills.toLocaleString()+'</b> this fight</span>'
         + xpChip
         + bountyChip
         + licChip
@@ -10813,7 +10838,7 @@ console.log('Activity bar: loaded');
          render module owns the contents. */
       vs.innerHTML = `
         <div class="arena-side player">
-          <div class="arena-portrait" id="arena-player-portrait">🧙</div>
+          <div class="arena-portrait" id="arena-player-portrait">${_hrGly('navCharacter',48)}</div>
           <div class="arena-name" id="arena-player-name">You</div>
           <div class="arena-hp-bar"><i id="arena-player-hp" style="width:100%"></i></div>
           <div class="arena-hp-text" id="arena-player-hp-text">10 / 10</div>
@@ -10821,7 +10846,7 @@ console.log('Activity bar: loaded');
         </div>
         <div class="arena-vs-divider">VS</div>
         <div class="arena-side foe">
-          <div class="arena-portrait" id="arena-foe-portrait">👾</div>
+          <div class="arena-portrait" id="arena-foe-portrait">${_hrGly('uiSkull',48,'--red')}</div>
           <div class="arena-name" id="arena-foe-name">—</div>
           <div class="arena-hp-bar"><i id="arena-foe-hp" style="width:100%"></i></div>
           <div class="arena-hp-text" id="arena-foe-hp-text">— / —</div>
@@ -10851,7 +10876,9 @@ console.log('Activity bar: loaded');
     var m = window.MONSTERS && window.MONSTERS[window.G.activeMonster];
     var foeIcon = (window._monsterIcon && window._monsterIcon[window.G.activeMonster])
       ? '<img src="'+window._monsterIcon[window.G.activeMonster]+'" alt="">'
-      : (m?.icon || '👾');
+      /* was `m.icon || '👾'` — a space-invader, at portrait size, in the
+         middle of the combat arena, on any monster whose art is not wired. */
+      : monsterFallbackIcon(window.G.activeMonster, 64);
     var pf = document.getElementById('arena-foe-portrait');
     var pn = document.getElementById('arena-foe-name');
     var phb = document.getElementById('arena-foe-hp');
@@ -11139,16 +11166,19 @@ console.log('Activity bar: loaded');
     var path = window._monsterIcon && window._monsterIcon[id];
     var m = window.MONSTERS && window.MONSTERS[id];
     if(path) return '<img src="'+path+'" alt="" />';
-    return '<span style="font-size:calc(96px * var(--ui-scale, 1))">'+(m && m.icon || '👾')+'</span>';
+    /* was a 96px `m.icon || '👾'`. At 96px a system emoji is not a stand-in for
+       a portrait, it is the whole card. */
+    return monsterFallbackIcon(id, 84);
   }
 
   function lootRowHtml(d){
     var id = typeof d === 'string' ? d : d.id;
     var item = window.ITEMS && window.ITEMS[id];
     var name = item ? (item.n||id) : id;
-    var icon = item && item.icon ? item.icon : '📦';
     var iconPath = window._itemPath && window._itemPath[id];
-    var iconHtml = iconPath ? '<img src="'+iconPath+'" />' : '<span>'+icon+'</span>';
+    /* was `item.icon || '📦'` — the cardboard-box emoji, in the drop table. */
+    var iconHtml = iconPath ? '<img src="'+iconPath+'" />'
+      : '<span>'+window.itemFallbackIcon(id, 20, item)+'</span>';
     /* Wave 1 (audit fix): monster drops carry `ch` (0..1) and no `qty`. The old
        code read `d.chance`/`d.qty`, which monster rows never have, so EVERY drop
        rendered as "1× common" — the rarity structure was invisible at the exact
@@ -11233,7 +11263,7 @@ console.log('Activity bar: loaded');
     var magLv = (typeof getLevel === 'function') ? getLevel('magic') : 1;
     var foodId = G && G.foodSlot;
     var foodCount = foodId ? (G.inventory[foodId]||0) : 0;
-    var foodIcon = foodId && window.ITEMS[foodId] ? window.ITEMS[foodId].icon : '🍖';
+    var foodIcon = foodId ? itemArt(foodId, 20) : _hrGly('uiFood', 16);
     var foodName = foodId && window.ITEMS[foodId] ? window.ITEMS[foodId].n : 'No food';
 
     modal.innerHTML = `
@@ -11274,12 +11304,12 @@ console.log('Activity bar: loaded');
         <div class="mp-pane">
           <h4>Your Combat</h4>
           <div class="mp-mystats">
-            <div><span>⚔️</span><b>Lv ${atkLv}</b><small>Attack</small></div>
-            <div><span>💪</span><b>Lv ${strLv}</b><small>Strength</small></div>
-            <div><span>🛡️</span><b>Lv ${defLv}</b><small>Defense</small></div>
-            <div><span>❤️</span><b>Lv ${hpLv}</b><small>HP</small></div>
-            <div><span>🏹</span><b>Lv ${rngLv}</b><small>Ranged</small></div>
-            <div><span>🧙</span><b>Lv ${magLv}</b><small>Magic</small></div>
+            <div><span>${_hrGly('attack',15)}</span><b>Lv ${atkLv}</b><small>Attack</small></div>
+            <div><span>${_hrGly('strength',15)}</span><b>Lv ${strLv}</b><small>Strength</small></div>
+            <div><span>${_hrGly('defense',15)}</span><b>Lv ${defLv}</b><small>Defense</small></div>
+            <div><span>${_hrGly('hitpoints',15)}</span><b>Lv ${hpLv}</b><small>HP</small></div>
+            <div><span>${_hrGly('ranged',15)}</span><b>Lv ${rngLv}</b><small>Ranged</small></div>
+            <div><span>${_hrGly('magic',15)}</span><b>Lv ${magLv}</b><small>Magic</small></div>
           </div>
         </div>
         <div class="mp-pane">
@@ -11310,7 +11340,7 @@ console.log('Activity bar: loaded');
         </div>
         <div class="mp-actions">
           <button class="mp-btn mp-btn-secondary" data-act="close">Leave</button>
-          <button class="mp-btn mp-btn-primary" data-act="fight" data-monster="${monsterId}">⚔️  Fight</button>
+          <button class="mp-btn mp-btn-primary" data-act="fight" data-monster="${monsterId}">Fight</button>
         </div>
       </div>
     `;
@@ -11779,7 +11809,7 @@ setTimeout(function(){
     if(name === 'dark'){
       document.body.setAttribute('data-theme','dark');
       const btn = document.getElementById('lane1-toggle-btn');
-      if(btn) btn.textContent = '☀ Day';
+      if(btn) btn.textContent = 'Day';
     } else {
       document.body.removeAttribute('data-theme');
       const btn = document.getElementById('lane1-toggle-btn');
@@ -11951,25 +11981,25 @@ window.showAcquisitionTip = function(itemId){
   if(typeof SEED_SHOP !== 'undefined'){
     var sh = SEED_SHOP.find(function(x){return x.id===itemId;});
     if(sh){
-      paths.push({e:'🛒', t:'Buy from Seed Shop', s:'×' + sh.qty + ' for ' + sh.cost + 'g', a:"showTab('store')"});
+      paths.push({g:'shop', t:'Buy from Seed Shop', s:'×' + sh.qty + ' for ' + sh.cost + 'g', a:"showTab('store')"});
     }
   }
   if(typeof EQUIP_SHOP !== 'undefined'){
     var eq = EQUIP_SHOP.find(function(x){return x.id===itemId;});
     if(eq){
-      paths.push({e:'🛒', t:'Buy from Equipment Shop', s:eq.cost + 'g', a:"showTab('store')"});
+      paths.push({g:'shop', t:'Buy from Equipment Shop', s:eq.cost + 'g', a:"showTab('store')"});
     }
   }
 
   /* Crop / farming */
   if(def.seed && typeof CROPS !== 'undefined'){
     var crop = CROPS[def.seed];
-    if(crop){ paths.push({e:'🌾', t:'Plant on a farm plot', s:'Yields ' + crop.prod, a:"showTab('farming')"}); }
+    if(crop){ paths.push({g:'uiSprout', t:'Plant on a farm plot', s:'Yields ' + crop.prod, a:"showTab('farming')"}); }
   }
   /* Crops are produced by a seed */
   Object.keys((typeof CROPS!=='undefined' ? CROPS : {})).forEach(function(cId){
     if(CROPS[cId].prod === itemId){
-      paths.push({e:'🌾', t:'Plant ' + (CROPS[cId].name||cId) + ' seeds', s:'Harvest after ' + CROPS[cId].hours + 'h', a:"showTab('farming')"});
+      paths.push({g:'uiSprout', t:'Plant ' + (CROPS[cId].name||cId) + ' seeds', s:'Harvest after ' + CROPS[cId].hours + 'h', a:"showTab('farming')"});
     }
   });
 
@@ -11978,7 +12008,7 @@ window.showAcquisitionTip = function(itemId){
     var arr = window[pair[0]] || [];
     arr.forEach(function(node){
       if(node.prod === itemId){
-        paths.push({e:'⛏️', t:node.name + ' (' + pair[1] + ')', s:'Lv ' + node.req + ' required', a:"showTab('" + pair[1] + "')"});
+        paths.push({g:'uiPickaxe', t:node.name + ' (' + pair[1] + ')', s:'Lv ' + node.req + ' required', a:"showTab('" + pair[1] + "')"});
       }
     });
   });
@@ -11988,18 +12018,18 @@ window.showAcquisitionTip = function(itemId){
     Object.entries(MONSTERS).forEach(function(kv){
       var mid = kv[0], m = kv[1];
       if((m.drops||[]).some(function(d){return d.id===itemId;})){
-        paths.push({e:'⚔️', t:'Drops from ' + m.name, s:'Tier ' + m.tier + ' monster', a:"showTab('combat');startCombat('" + mid + "')"});
+        paths.push({g:'uiSword', t:'Drops from ' + m.name, s:'Tier ' + m.tier + ' monster', a:"showTab('combat');startCombat('" + mid + "')"});
       }
     });
   }
 
   if(paths.length === 0){
-    paths.push({e:'❓', t:'No known sources', s:'This item may be quest-locked or removed', a:''});
+    paths.push({g:'uiSearch', t:'No known sources', s:'This item may be quest-locked or removed', a:''});
   }
 
   document.getElementById('acq-paths').innerHTML = paths.slice(0,6).map(function(p){
     return '<div class="acq-path" onclick="hideAcquisitionTip();' + p.a + '">' +
-      '<span class="acq-emoji">' + p.e + '</span>' +
+      '<span class="acq-emoji">' + _hrGly(p.g || 'uiSearch', 16) + '</span>' +
       '<div class="acq-text"><b>' + p.t + '</b><span>' + p.s + '</span></div>' +
     '</div>';
   }).join('');
@@ -12375,22 +12405,30 @@ function buildWelcomeOverlay(){
 }
 
 /* ─── Daily Goals (3 quests, refresh per UTC day) ─── */
+/* GOAL ART IS A GLYPH KEY, NOT AN EMOJI (2026-08-23).
+   Every row here used to carry `emoji:'⚔️'` and three renderers printed it raw
+   into a 40px icon slot — the Quests strip, the Quests modal and Home's Daily
+   Goals card. That is emoji standing exactly where an icon belongs, on the
+   most-looked-at chrome in the game, and it was the single loudest "this was
+   generated" tell on the screen. `glyph` names a key in the baked atlas
+   (src/data/glyphs.js) and the renderers call HR.icon()/HR.medallion(); the
+   fallback is `uiTarget`, never a character. */
 var DAILY_GOAL_POOL = [
-  {id:'kill_any',  emoji:'⚔️', name:'Slay 10 monsters',   target:10, source:'stats.kills'},
-  {id:'kill_more', emoji:'🩸', name:'Slay 30 monsters',   target:30, source:'stats.kills'},
+  {id:'kill_any',  glyph:'uiSword', name:'Slay 10 monsters',   target:10, source:'stats.kills'},
+  {id:'kill_more', glyph:'uiSkull', name:'Slay 30 monsters',   target:30, source:'stats.kills'},
   /* b226 (spec §8.2) — these three read PER-SKILL counters, not item-specific
      collection counters. They used to point at collection.normal_log /
      collection.copper_ore / collection.shrimp, so a level-90 woodcutter
      chopping Duskwood made zero progress on "Gather 25 logs" and "Catch 15
      fish" was unachievable for anyone past Shrimp unless they deliberately
      downgraded. A daily that gets harder the better you are is backwards. */
-  {id:'gather_logs', emoji:'🪵', name:'Gather 25 logs',  target:25, source:'stats.chopped'},
-  {id:'mine_ore',  emoji:'⛏️', name:'Mine 25 ores',      target:25, source:'stats.mined'},
-  {id:'cook',      emoji:'🍳', name:'Cook 5 dishes',     target:5,  source:'stats.cooked'},
-  {id:'fish',      emoji:'🎣', name:'Catch 15 fish',     target:15, source:'stats.fished'},
-  {id:'gold_500',  emoji:'🪙', name:'Earn 500 gold',     target:500, source:'_dailyGoldDelta'},
-  {id:'plant',     emoji:'🌾', name:'Plant 5 crops',     target:5,  source:'stats.planted'},
-  {id:'level_up',  emoji:'📈', name:'Gain a skill level', target:1,  source:'stats.levelups'},
+  {id:'gather_logs', glyph:'uiLog',    name:'Gather 25 logs',  target:25, source:'stats.chopped'},
+  {id:'mine_ore',  glyph:'uiPickaxe',  name:'Mine 25 ores',      target:25, source:'stats.mined'},
+  {id:'cook',      glyph:'uiPot',      name:'Cook 5 dishes',     target:5,  source:'stats.cooked'},
+  {id:'fish',      glyph:'uiFish',     name:'Catch 15 fish',     target:15, source:'stats.fished'},
+  {id:'gold_500',  glyph:'gold',       name:'Earn 500 gold',     target:500, source:'_dailyGoldDelta'},
+  {id:'plant',     glyph:'uiSprout',   name:'Plant 5 crops',     target:5,  source:'stats.planted'},
+  {id:'level_up',  glyph:'uiXp',       name:'Gain a skill level', target:1,  source:'stats.levelups'},
 ];
 function getGoalsForToday(){
   var key = todayKey();
@@ -12462,7 +12500,9 @@ function renderDailyGoals(host){
       var current = Math.max(0, readSource(g.source) - startVal);
       var done = current >= g.target;
       return '<div class="daily-goal'+(done?' done':'')+'">'+
-        '<span class="dg-emoji">'+g.emoji+'</span>'+
+        /* was `g.emoji` — the pool ships glyph keys now, not characters. */
+        '<span class="dg-emoji">'+((window.HR && window.HR.icon)
+          ? (window.HR.icon(g.glyph||'uiTarget', 20, 'currentColor') || '') : '')+'</span>'+
         '<div class="dg-text"><b>'+g.name+'</b><span>'+(done?'Complete!':'Resets in ' + hoursTillUTCMidnight() + 'h')+'</span></div>'+
         '<span class="dg-progress">'+Math.min(current,g.target)+' / '+g.target+'</span>'+
       '</div>';
@@ -12720,38 +12760,51 @@ console.log('UI overhaul loaded');
 /* =========================================================
    1. ACHIEVEMENTS
    ========================================================= */
+/* `glyph` is an ATLAS KEY (src/data/glyphs.js). Every row here carried a raw
+   `icon:'⚔️'` and two renderers (the achievements list and the unlock TOAST)
+   printed it straight into an icon slot — twenty-nine system pictographs in a
+   grid, which is the most obviously-generated screen a player can be shown.
+   The ladders are drawn as ONE family climbing in rank, which the emoji set
+   could not express: kills go sword → skull → shield → trophy → crown, gold
+   goes coin → coin-stack → gem → bank, levels go xp → star → medal → crown. */
 var ACHIEVEMENTS = [
-  {id:'first_kill',  name:'First Blood',         desc:'Defeat 1 monster',           icon:'⚔️', target:1,    src:'stats.kills'},
-  {id:'kill_50',     name:'Slayer',              desc:'Defeat 50 monsters',         icon:'🩸', target:50,   src:'stats.kills'},
-  {id:'kill_250',    name:'Champion',            desc:'Defeat 250 monsters',        icon:'🛡️', target:250,  src:'stats.kills'},
-  {id:'kill_1000',   name:'Hero of the Realm',   desc:'Defeat 1,000 monsters',      icon:'🏆', target:1000, src:'stats.kills'},
-  {id:'kill_5000',   name:'Legendary',           desc:'Defeat 5,000 monsters',      icon:'👑', target:5000, src:'stats.kills'},
-  {id:'gold_1k',     name:'First Pouch',         desc:'Earn 1,000 gold lifetime',   icon:'🪙', target:1000, src:'stats.totalGoldEarned'},
-  {id:'gold_10k',    name:'Wealthy',             desc:'Earn 10,000 gold lifetime',  icon:'💰', target:10000,src:'stats.totalGoldEarned'},
-  {id:'gold_100k',   name:'Tycoon',              desc:'Earn 100,000 gold lifetime', icon:'💎', target:100000,src:'stats.totalGoldEarned'},
-  {id:'gold_1m',     name:'Millionaire',         desc:'Earn 1,000,000 gold',        icon:'🏦', target:1000000,src:'stats.totalGoldEarned'},
-  {id:'lv25_any',    name:'Apprentice',          desc:'Reach Lv 25 in any skill',   icon:'📈', target:25,   src:'highest_skill'},
-  {id:'lv50_any',    name:'Master',              desc:'Reach Lv 50 in any skill',   icon:'🌟', target:50,   src:'highest_skill'},
-  {id:'lv75_any',    name:'Grandmaster',         desc:'Reach Lv 75 in any skill',   icon:'⭐', target:75,   src:'highest_skill'},
-  {id:'lv99_any',    name:'99 Club',             desc:'Reach Lv 99 in any skill',   icon:'💫', target:99,   src:'highest_skill'},
-  {id:'all_25',      name:'Well-Rounded',        desc:'All combat skills to Lv 25', icon:'🎯', target:25,   src:'min_combat_skill'},
-  {id:'all_50',      name:'Combat Master',       desc:'All combat skills to Lv 50', icon:'⚔️', target:50,   src:'min_combat_skill'},
-  {id:'wood_500',    name:'Lumberjack',          desc:'Chop 500 logs',              icon:'🪵', target:500,  src:'stats.chopped'},
-  {id:'mine_500',    name:'Quarryman',           desc:'Mine 500 ores',              icon:'⛏️', target:500,  src:'stats.mined'},
-  {id:'fish_500',    name:'Angler',              desc:'Catch 500 fish',             icon:'🎣', target:500,  src:'stats.fished'},
-  {id:'cook_100',    name:'Chef',                desc:'Cook 100 meals',             icon:'🍳', target:100,  src:'stats.cooked'},
-  {id:'plant_100',   name:'Green Thumb',         desc:'Harvest 100 crops',          icon:'🌾', target:100,  src:'stats.harvested'},
-  {id:'house_lv1',   name:'Homebody',            desc:'Build any house room',       icon:'🏠', target:1,    src:'stats.roomsBuilt'},
-  {id:'house_all',   name:'Estate Owner',        desc:'Build all 6 house rooms',    icon:'🏰', target:6,    src:'stats.roomsBuilt'},
-  {id:'bounty_1',    name:'Bounty Hunter',       desc:'Complete your first bounty', icon:'🎯', target:1,    src:'bountyHunter.completed'},
-  {id:'bounty_50',   name:'Wanted Poster',       desc:'Complete 50 bounties',       icon:'📜', target:50,   src:'bountyHunter.completed'},
-  {id:'rare_drop',   name:'Lucky',               desc:'Get any rare drop',          icon:'🍀', target:1,    src:'stats.rareDrops'},
-  {id:'rare_25',     name:'Loot Goblin',         desc:'Get 25 rare drops',          icon:'✨', target:25,   src:'stats.rareDrops'},
-  {id:'food_100',    name:'Well-Fed',            desc:'Eat 100 buff foods',         icon:'🍖', target:100,  src:'stats.buffsConsumed'},
-  {id:'streak_7',    name:'Week Warrior',        desc:'7-day login streak',         icon:'🔥', target:7,    src:'streak.count'},
-  {id:'streak_30',   name:'Devoted',             desc:'30-day login streak',        icon:'☄️', target:30,   src:'streak.count'},
-  {id:'dragon_slayer',name:'Dragon Slayer',      desc:'Defeat the dragon',          icon:'🐲', target:1,    src:'bestiary.dragon.kills'},
+  {id:'first_kill',  name:'First Blood',         desc:'Defeat 1 monster',           glyph:'uiSword',     target:1,    src:'stats.kills'},
+  {id:'kill_50',     name:'Slayer',              desc:'Defeat 50 monsters',         glyph:'uiSkull',     target:50,   src:'stats.kills'},
+  {id:'kill_250',    name:'Champion',            desc:'Defeat 250 monsters',        glyph:'uiShield',    target:250,  src:'stats.kills'},
+  {id:'kill_1000',   name:'Hero of the Realm',   desc:'Defeat 1,000 monsters',      glyph:'uiTrophy',    target:1000, src:'stats.kills'},
+  {id:'kill_5000',   name:'Legendary',           desc:'Defeat 5,000 monsters',      glyph:'uiCrown',     target:5000, src:'stats.kills'},
+  {id:'gold_1k',     name:'First Pouch',         desc:'Earn 1,000 gold lifetime',   glyph:'gold',        target:1000, src:'stats.totalGoldEarned'},
+  {id:'gold_10k',    name:'Wealthy',             desc:'Earn 10,000 gold lifetime',  glyph:'uiCoinStack', target:10000,src:'stats.totalGoldEarned'},
+  {id:'gold_100k',   name:'Tycoon',              desc:'Earn 100,000 gold lifetime', glyph:'gems',        target:100000,src:'stats.totalGoldEarned'},
+  {id:'gold_1m',     name:'Millionaire',         desc:'Earn 1,000,000 gold',        glyph:'bank',        target:1000000,src:'stats.totalGoldEarned'},
+  {id:'lv25_any',    name:'Apprentice',          desc:'Reach Lv 25 in any skill',   glyph:'uiXp',        target:25,   src:'highest_skill'},
+  {id:'lv50_any',    name:'Master',              desc:'Reach Lv 50 in any skill',   glyph:'uiStar',      target:50,   src:'highest_skill'},
+  {id:'lv75_any',    name:'Grandmaster',         desc:'Reach Lv 75 in any skill',   glyph:'uiMedal',     target:75,   src:'highest_skill'},
+  {id:'lv99_any',    name:'99 Club',             desc:'Reach Lv 99 in any skill',   glyph:'uiCrown',     target:99,   src:'highest_skill'},
+  {id:'all_25',      name:'Well-Rounded',        desc:'All combat skills to Lv 25', glyph:'uiTarget',    target:25,   src:'min_combat_skill'},
+  {id:'all_50',      name:'Combat Master',       desc:'All combat skills to Lv 50', glyph:'navCombat',   target:50,   src:'min_combat_skill'},
+  {id:'wood_500',    name:'Lumberjack',          desc:'Chop 500 logs',              glyph:'woodcutting', target:500,  src:'stats.chopped'},
+  {id:'mine_500',    name:'Quarryman',           desc:'Mine 500 ores',              glyph:'mining',      target:500,  src:'stats.mined'},
+  {id:'fish_500',    name:'Angler',              desc:'Catch 500 fish',             glyph:'fishing',     target:500,  src:'stats.fished'},
+  {id:'cook_100',    name:'Chef',                desc:'Cook 100 meals',             glyph:'cooking',     target:100,  src:'stats.cooked'},
+  {id:'plant_100',   name:'Green Thumb',         desc:'Harvest 100 crops',          glyph:'farming',     target:100,  src:'stats.harvested'},
+  {id:'house_lv1',   name:'Homebody',            desc:'Build any house room',       glyph:'uiHome',      target:1,    src:'stats.roomsBuilt'},
+  {id:'house_all',   name:'Estate Owner',        desc:'Build all 6 house rooms',    glyph:'uiCastle',    target:6,    src:'stats.roomsBuilt'},
+  {id:'bounty_1',    name:'Bounty Hunter',       desc:'Complete your first bounty', glyph:'navBounty',   target:1,    src:'bountyHunter.completed'},
+  {id:'bounty_50',   name:'Wanted Poster',       desc:'Complete 50 bounties',       glyph:'uiScroll',    target:50,   src:'bountyHunter.completed'},
+  {id:'rare_drop',   name:'Lucky',               desc:'Get any rare drop',          glyph:'uiSpark',     target:1,    src:'stats.rareDrops'},
+  {id:'rare_25',     name:'Loot Goblin',         desc:'Get 25 rare drops',          glyph:'uiChest',     target:25,   src:'stats.rareDrops'},
+  {id:'food_100',    name:'Well-Fed',            desc:'Eat 100 buff foods',         glyph:'uiFood',      target:100,  src:'stats.buffsConsumed'},
+  {id:'streak_7',    name:'Week Warrior',        desc:'7-day login streak',         glyph:'uiFlame',     target:7,    src:'streak.count'},
+  {id:'streak_30',   name:'Devoted',             desc:'30-day login streak',        glyph:'uiFire',      target:30,   src:'streak.count'},
+  {id:'dragon_slayer',name:'Dragon Slayer',      desc:'Defeat the dragon',          glyph:'uiSkull',     target:1,    src:'bestiary.dragon.kills'},
 ];
+/* ONE resolver for achievement art, so the list and the toast can never
+   disagree and neither can reach a character. */
+window.achievementGlyphHTML = function(a, px){
+  var key = (a && a.glyph) || 'uiTrophy';
+  return (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 22, '--gold-2') || '') : '';
+};
 /* b229: this array is IIFE-scoped, but the Hero screen's Account panel needs
    ACHIEVEMENTS.length to print "X / total". Publish it read-only (the per-player
    UNLOCK state stays in G.achievements) so the panel counts against the real
@@ -12877,7 +12930,7 @@ window._applyCatchup = function(rewards){
       entry.kills++;
       if(!entry.firstKill) entry.firstKill = Date.now();
       var thresholds = [10,50,100,500,1000];
-      thresholds.forEach(function(t){ if(entry.kills === t){ if(typeof notify === 'function') notify('🏛️ Bestiary milestone: '+m.name+' × '+t,'levelup'); }});
+      thresholds.forEach(function(t){ if(entry.kills === t){ if(typeof notify === 'function') notify('Bestiary milestone: '+m.name+' × '+t,'levelup'); }});
     }
     return orig.apply(this, arguments);
   };
@@ -12952,8 +13005,8 @@ function injectProfileButtons(){
   var row = document.createElement('div');
   row.className = 'feat-buttons';
   row.style.cssText = 'display:flex;gap:8px;margin:8px 0;grid-column:1 / -1';
-  row.innerHTML = '<button class="btn" onclick="openAchievements()">🏆 Achievements</button>'+
-                  '<button class="btn" onclick="openBestiary()">📖 Bestiary</button>';
+  row.innerHTML = '<button class="btn" onclick="openAchievements()">'+_hrGly('uiTrophy',14)+' Achievements</button>'+
+                  '<button class="btn" onclick="openBestiary()">'+_hrGly('uiBook',14)+' Bestiary</button>';
   panel.insertBefore(row, panel.firstChild);
 }
 
@@ -13068,7 +13121,7 @@ window.renderArtisanActivities = function(skillId){
     var inputName = (typeof ITEMS!=='undefined' && ITEMS[r.input]) ? ITEMS[r.input].n : r.input;
     var outputLabel = r.output && typeof ITEMS!=='undefined' && ITEMS[r.output] ? ITEMS[r.output].n : (r.output||'XP only');
     var status = '';
-    if(!unlocked) status = '<span class="muted tiny">🔒 Lv '+r.req+'</span>';
+    if(!unlocked) status = '<span class="muted tiny">'+lockGlyph()+' Lv '+r.req+'</span>';
     else if(!have) status = '<span class="muted tiny">Need '+inputName+'</span>';
     else if(active) status = '<span class="mr-active">Active</span>';
     var secondaryText = '';
@@ -13290,7 +13343,7 @@ function calcRichCatchup(){
       summary.itemsGained[node.prod] = itemQty;
       summary.activities.push({
         type: G.activeSkill, label: node.name + ' (×' + actions + ' actions)',
-        emoji: node.icon || '⛏️'
+        glyphKey: 'uiPickaxe'
       });
     }
   }
@@ -13315,12 +13368,12 @@ function calcRichCatchup(){
         type:'farming',
         label: readyPlots + ' farm plot' + (readyPlots>1?'s':'') + ' ready to harvest'
                + (soonPlots > 0 ? ' · ' + soonPlots + ' more within the hour' : ''),
-        emoji:'🌾', readyPlots: readyPlots
+        glyphKey:'navFarm', readyPlots: readyPlots
       });
     } else if(soonPlots > 0){
       summary.activities.push({
         type:'farming', label: soonPlots + ' farm plot' + (soonPlots>1?'s':'') + ' ready within the hour',
-        emoji:'🌾', readyPlots: 0
+        glyphKey:'navFarm', readyPlots: 0
       });
     }
   }
@@ -13330,12 +13383,12 @@ function calcRichCatchup(){
     if(bh.progress < bh.required){
       summary.activities.push({
         type:'bounty', label:'Bounty in progress: ' + (bh.progress||0) + ' / ' + bh.required,
-        emoji:'🎯'
+        glyphKey:'navBounty'
       });
     } else {
       summary.activities.push({
         type:'bounty', label:'Bounty ready to turn in!',
-        emoji:'🎯', ready: true
+        glyphKey:'navBounty', ready: true
       });
     }
   }
@@ -13414,7 +13467,7 @@ function renderModal(summary){
   var xpTotal = xpKeys.reduce(function(a,k){return a+summary.xp[k];},0);
   if(xpKeys.length){
     sections += '<div class="wbv-section open"><div class="wbv-section-head" onclick="this.parentElement.classList.toggle(\'open\')">'+
-      '<span class="wbs-icon">⭐</span>'+
+      '<span class="wbs-icon">'+_hrGly('uiStar',16,'--gold-2')+'</span>'+
       '<span class="wbs-title">XP Gained</span>'+
       '<span class="wbs-summary">+'+fmtNum(xpTotal)+'</span>'+
       '<span class="wbs-arrow">▶</span></div>'+
@@ -13430,7 +13483,7 @@ function renderModal(summary){
   if(gainKeys.length){
     var totalGained = gainKeys.reduce(function(a,k){return a+summary.itemsGained[k];},0);
     sections += '<div class="wbv-section"><div class="wbv-section-head" onclick="this.parentElement.classList.toggle(\'open\')">'+
-      '<span class="wbs-icon">📦</span>'+
+      '<span class="wbs-icon">'+_hrGly('uiChest',16,'--gold-2')+'</span>'+
       '<span class="wbs-title">Items Gathered</span>'+
       '<span class="wbs-summary">+'+totalGained+' items</span>'+
       '<span class="wbs-arrow">▶</span></div>'+
@@ -13445,7 +13498,7 @@ function renderModal(summary){
   var lossKeys = Object.keys(summary.itemsLost||{}).filter(function(k){return summary.itemsLost[k]>0;});
   if(lossKeys.length){
     sections += '<div class="wbv-section"><div class="wbv-section-head" onclick="this.parentElement.classList.toggle(\'open\')">'+
-      '<span class="wbs-icon">🍖</span>'+
+      '<span class="wbs-icon">'+_hrGly('uiFood',16,'--gold-2')+'</span>'+
       '<span class="wbs-title">Items Consumed</span>'+
       '<span class="wbs-summary">-'+lossKeys.length+' types</span>'+
       '<span class="wbs-arrow">▶</span></div>'+
@@ -13460,13 +13513,13 @@ function renderModal(summary){
   var awaiting = (summary.activities||[]).filter(function(a){return a.ready||a.readyPlots;});
   if(awaiting.length){
     sections += '<div class="wbv-section open"><div class="wbv-section-head" onclick="this.parentElement.classList.toggle(\'open\')">'+
-      '<span class="wbs-icon">🔔</span>'+
+      '<span class="wbs-icon">'+_hrGly('uiBell',16,'--gold-2')+'</span>'+
       '<span class="wbs-title">Awaiting Your Attention</span>'+
       '<span class="wbs-summary">'+awaiting.length+'</span>'+
       '<span class="wbs-arrow">▶</span></div>'+
       '<div class="wbv-section-body">'+
       awaiting.map(function(a){
-        return '<div class="wbv-row"><span class="wbr-emoji">'+a.emoji+'</span><span class="wbr-text">'+a.label+'</span></div>';
+        return '<div class="wbv-row"><span class="wbr-emoji">'+_hrGly(a.glyphKey||'uiStar',16,'--gold-2')+'</span><span class="wbr-text">'+a.label+'</span></div>';
       }).join('') +
       '</div></div>';
   }
@@ -13475,13 +13528,13 @@ function renderModal(summary){
   var ongoing = (summary.activities||[]).filter(function(a){return !a.ready && !a.readyPlots;});
   if(ongoing.length){
     sections += '<div class="wbv-section"><div class="wbv-section-head" onclick="this.parentElement.classList.toggle(\'open\')">'+
-      '<span class="wbs-icon">⏳</span>'+
+      '<span class="wbs-icon">'+_hrGly('uiHourglass',16,'--gold-2')+'</span>'+
       '<span class="wbs-title">Continuing Activity</span>'+
       '<span class="wbs-summary">'+ongoing.length+'</span>'+
       '<span class="wbs-arrow">▶</span></div>'+
       '<div class="wbv-section-body">'+
       ongoing.map(function(a){
-        return '<div class="wbv-row"><span class="wbr-emoji">'+a.emoji+'</span><span class="wbr-text">'+a.label+'</span></div>';
+        return '<div class="wbv-row"><span class="wbr-emoji">'+_hrGly(a.glyphKey||'uiStar',16,'--gold-2')+'</span><span class="wbr-text">'+a.label+'</span></div>';
       }).join('') +
       '</div></div>';
   }
@@ -13535,7 +13588,7 @@ function injectProfileButton(){
   var btn = document.createElement('button');
   btn.className = 'btn wbv-reopen-btn';
   btn.style.cssText = 'margin-left:8px';
-  btn.textContent = '📜 Last Session Summary';
+  btn.innerHTML = _hrGly('uiScroll',14)+' Last Session Summary';
   btn.addEventListener('click', function(){
     if(G.lastSessionSummary){ renderModal(G.lastSessionSummary); }
     else if(typeof notify === 'function') notify('No previous session summary yet','info');
@@ -13890,7 +13943,7 @@ window.startArtisan = function(skillId, recipeId){
      ruling). The Forge / Workshop / Shrine gates below are unchanged. */
   if(window.HearthriseHomestead){
     var wb = window.HearthriseHomestead.hasWorkbench(skillId);
-    if(!wb.ok){ if(typeof notify==='function') notify('🔨 '+wb.reason,'kill'); return; }
+    if(!wb.ok){ if(typeof notify==='function') notify(''+wb.reason,'kill'); return; }
   }
   if(typeof getLevel==='function' && getLevel(skillId) < r.req){ if(typeof notify==='function') notify('Need Lv '+r.req+' '+skillId,'kill'); return; }
   if(!gateOk(r)){ if(typeof notify==='function') notify('Need recipe scroll: '+(ITEMS[r.gated]?.n||r.gated),'kill'); return; }
@@ -13928,8 +13981,8 @@ window.renderArtisanActivities = function(skillId){
     var active = G.activeSkill===skillId && G.skillTargetId===r.id;
     var outputLabel = r.output && ITEMS[r.output] ? ITEMS[r.output].n : (r.output||'XP only');
     var status = '';
-    if(!unlocked) status = '<span class="muted tiny">🔒 Lv '+r.req+'</span>';
-    else if(gated) status = '<span class="muted tiny">📜 Recipe locked</span>';
+    if(!unlocked) status = '<span class="muted tiny">'+lockGlyph()+' Lv '+r.req+'</span>';
+    else if(gated) status = '<span class="muted tiny">'+_hrGly('uiScroll',12)+' Recipe locked</span>';
     else if(!hasInputs(r)) status = '<span class="muted tiny">Missing materials</span>';
     else if(active) status = '<span class="mr-active">Active</span>';
     /* b225: this row is wide enough for the whole sentence, so it gets it. */
@@ -13994,7 +14047,7 @@ window.renderArtisanActivities = function(skillId){
       G.unlockedRecipes = G.unlockedRecipes || {};
       if(!G.unlockedRecipes[id]){
         G.unlockedRecipes[id] = true;
-        if(typeof notify === 'function') notify('📜 Recipe Unlocked: '+def.n,'levelup');
+        if(typeof notify === 'function') notify('Recipe Unlocked: '+def.n,'levelup');
       }
       /* Remove from inventory — scrolls are consumed on read */
       setTimeout(function(){
@@ -14202,7 +14255,7 @@ function buildActivityCard(){
   if(G.activeMonster && typeof MONSTERS !== 'undefined'){
     var m = MONSTERS[G.activeMonster];
     var path = window._monsterIcon && window._monsterIcon[G.activeMonster];
-    var icon = path ? '<img src="'+path+'" />' : (m.icon||'⚔️');
+    var icon = path ? '<img src="'+path+'" />' : monsterFallbackIcon(G.activeMonster, 34);
     card.className = 'char-active-card';
     card.innerHTML = '<div class="ca-icon">'+icon+'</div>'+
       '<div class="ca-info"><b>Fighting '+m.name+'</b><span>HP: '+G.monsterHp+' / '+m.hp+' · '+m.xp+' XP per kill</span></div>'+
@@ -14212,23 +14265,28 @@ function buildActivityCard(){
   /* Active gathering / artisan */
   if(G.activeSkill && G.skillTargetId){
     var nodeName = '';
-    var iconHtml = '⏳';
+    /* The node's own `icon` is a data-table emoji (🌲 🪨 🐟 …) and this card
+       sits at the top of the Character sheet while you gather. The card is
+       already titled with the SKILL, so the skill's struck medallion is both
+       the honest picture and the one the rail, the activity bar and the
+       level-up toast all use for the same thing. */
+    var iconHtml = skillIconHTML(G.activeSkill, 34);
     if(typeof TREES!=='undefined'){
       var n = TREES.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; iconHtml = n.icon; }
+      if(n){ nodeName = n.name; }
     }
     if(!nodeName && typeof ROCKS!=='undefined'){
       var n = ROCKS.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; iconHtml = n.icon; }
+      if(n){ nodeName = n.name; }
     }
     if(!nodeName && typeof FISH_SPOTS!=='undefined'){
       var n = FISH_SPOTS.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; iconHtml = n.icon; }
+      if(n){ nodeName = n.name; }
     }
     if(!nodeName && typeof window.ARTISAN_RECIPES !== 'undefined'){
       Object.keys(window.ARTISAN_RECIPES).forEach(function(s){
         var r = window.ARTISAN_RECIPES[s].find(function(x){return x.id===G.skillTargetId;});
-        if(r){ nodeName = r.name; iconHtml = r.icon; }
+        if(r){ nodeName = r.name; }
       });
     }
     var skName = (typeof SKILLS_DEF!=='undefined' && SKILLS_DEF[G.activeSkill]) ? SKILLS_DEF[G.activeSkill].name : G.activeSkill;
@@ -14240,7 +14298,7 @@ function buildActivityCard(){
   }
   /* Idle */
   card.className = 'char-active-card idle';
-  card.innerHTML = '<div class="ca-icon">😴</div>'+
+  card.innerHTML = '<div class="ca-icon">'+_hrGly('uiIdle',22)+'</div>'+
     '<div class="ca-info"><b>Idle</b><span>Pick a skill or monster to begin training</span></div>';
   return card;
 }
@@ -14318,9 +14376,22 @@ function slotGlyphSVG(slot){
     helmet:  '<path d="M5 14a7 7 0 0 1 14 0v2H5z"/><path d="M5 16h14M10 16v-3M14 16v-3"/>',
     necklace:'<path d="M6 5a6 6 0 0 0 12 0"/><path d="M12 11l2 3-2 2-2-2z"/>',
     earrings:'<circle cx="9" cy="8" r="1.3"/><path d="M9 9v2"/><path d="M9 11l1.4 2-1.4 2-1.4-2z"/><circle cx="15" cy="8" r="1.3"/><path d="M15 9v2"/><path d="M15 11l1.4 2-1.4 2-1.4-2z"/>',
-    cape:    '<path d="M8 4l4 3 4-3 1 16H7z"/><path d="M12 7v13"/>',
+    /* CAPE — redrawn. The old mark was `M8 4l4 3 4-3 1 16H7z` + a centre line:
+       a plain trapezium bisected vertically, which at 34px reads as a BLANK
+       PANEL (an empty card, or a door) rather than as anything worn. A cape is
+       identified by three things and none of them were present: a collar/clasp
+       at the neck, shoulders that FALL AWAY from it, and a hem that is not
+       straight. All three are here, and the vertical line is gone — it was the
+       single strongest "this is a panel" cue in the glyph. */
+    cape:    '<path d="M9.2 4.6a2.8 2.8 0 0 0 5.6 0"/><path d="M9.2 4.6C6.6 6 5.4 9 5.2 13l-.7 6.6c2.3.9 4.8 1.4 7.5 1.4s5.2-.5 7.5-1.4L18.8 13c-.2-4-1.4-7-4-8.4"/><path d="M4.5 19.6c2.6-1.1 4.8-1.6 7.5-1.6s4.9.5 7.5 1.6"/>',
     weapon:  '<path d="M15 4l5 5-9 9"/><path d="M4 20l3.5-3.5M6.5 13.5l4 4M8.5 15.5l-3 3"/>',
-    ammo:    '<path d="M5 19L18 6"/><path d="M14 6h4v4"/><path d="M5 19l4-1-3-3z"/>',
+    /* AMMO — redrawn. The old mark was a bare diagonal arrow with a corner
+       head (`M5 19L18 6` + `M14 6h4v4`), which is the universal UI symbol for
+       RESIZE / open-in-new-window; on a 36px equipment cell it read as a
+       window chrome affordance, not as a slot for arrows. A QUIVER solves it:
+       the container says "this slot holds a stack", and the three fletched
+       shafts standing out of it say what the stack is. */
+    ammo:    '<path d="M8 10h8l-.9 9.2A1.8 1.8 0 0 1 13.3 21h-2.6a1.8 1.8 0 0 1-1.8-1.8z"/><path d="M8.4 13.6h7.2"/><path d="M10 10V4.2M12 10V3M14 10V4.2"/><path d="M8.6 5.6L10 4.2l1.4 1.4M10.6 4.4L12 3l1.4 1.4M12.6 5.6L14 4.2l1.4 1.4"/>',
     ring1:   '<circle cx="12" cy="15" r="5"/><path d="M9.5 9l2.5-3 2.5 3"/>',
     ring2:   '<circle cx="12" cy="15" r="5"/><path d="M9.5 9l2.5-3 2.5 3"/>',
     body:    '<path d="M7 5l5 2 5-2 1 5-3 1.5V19H9v-7.5L6 10z"/>',
@@ -14408,10 +14479,10 @@ function buildProfileToolbar(){
   var bar = document.createElement('div');
   bar.className = 'prof-toolbar';
   bar.innerHTML =
-    '<button class="tb-btn" id="tb-objectives">📋 Objectives'+(pendingObj>0?' <span class="tb-badge">'+pendingObj+'</span>':'')+'</button>'+
-    '<button class="tb-btn" onclick="openAchievements()">🏆 Achievements</button>'+
-    '<button class="tb-btn" onclick="openBestiary()">📖 Bestiary</button>'+
-    '<button class="tb-btn" onclick="openLifetimeStats && openLifetimeStats()">📊 Lifetime</button>';
+    '<button class="tb-btn" id="tb-objectives">'+_hrGly('uiScroll',14)+' Objectives'+(pendingObj>0?' <span class="tb-badge">'+pendingObj+'</span>':'')+'</button>'+
+    '<button class="tb-btn" onclick="openAchievements()">'+_hrGly('uiTrophy',14)+' Achievements</button>'+
+    '<button class="tb-btn" onclick="openBestiary()">'+_hrGly('uiBook',14)+' Bestiary</button>'+
+    '<button class="tb-btn" onclick="openLifetimeStats && openLifetimeStats()">'+_hrGly('uiTrend',14)+' Lifetime</button>';
   panel.insertBefore(bar, panel.firstChild);
   document.getElementById('tb-objectives').addEventListener('click', openObjectivesPopout);
   /* Suppress old feat-buttons row since toolbar replaces it */
@@ -14514,7 +14585,7 @@ function patchSkillsViewing(){
         var sk = (typeof SKILLS_DEF!=='undefined') ? SKILLS_DEF[G.activeSkill] : null;
         var banner = document.createElement('div');
         banner.className = 'skill-viewing-banner';
-        banner.innerHTML = '<span>👁️</span><span>You are viewing this skill while training <b>'+(sk?sk.name:G.activeSkill)+'</b>. Click "Stop" on that skill first to start a new activity.</span>';
+        banner.innerHTML = '<span>'+_hrGly('uiWarn',14,'--gold-2')+'</span><span>You are viewing this skill while training <b>'+(sk?sk.name:G.activeSkill)+'</b>. Click "Stop" on that skill first to start a new activity.</span>';
         detail.insertBefore(banner, detail.firstChild);
       }
     }, 30);
@@ -14650,6 +14721,15 @@ function _costPart(itemId, qty){
  * gives a category-correct icon in the game's own style. Only if the atlas has
  * nothing does it fall back to a plain gilt disc — deliberate-looking, never
  * a system pictograph. */
+/* 2026-08-23 — WIDENED, because "not an emoji" was only half the job.
+   A live boot showed FORTY-NINE unmapped ids landing on the `uiChest` default,
+   and the Inventory screenshot is what that costs: a bag whose bottom four
+   rows are the SAME chest repeated, which reads as "unfinished asset pipeline"
+   just as loudly as an emoji does. Every rule added below was derived from that
+   list of 49 — no speculative patterns.
+   Order matters: the `def` tests are facts the data states outright, the id
+   patterns underneath are inference and only run when the data is silent.
+   `uiChest` is now a genuine last resort rather than the common case. */
 function itemGlyphKey(id, def){
   def = def || ((typeof ITEMS !== 'undefined') && ITEMS[id]) || null;
   if(def){
@@ -14657,10 +14737,16 @@ function itemGlyphKey(id, def){
     if(def.type === 'armor')     return 'uiBody';
     if(def.type === 'jewelry')   return 'uiAmulet';
     if(def.type === 'companion') return 'uiPaw';
+    if(def.type === 'ammo')      return 'uiArrow';
     if(def.heals)   return 'uiFood';
     if(def.seed)    return 'uiSeed';
     if(def.buryXp)  return 'uiBone';
     if(def.recipe)  return 'uiScroll';
+    /* the enchant/rune family states its own element; `tag:'rune'` and the
+       `rune_of_*` ids both land here rather than on a chest — the defect the
+       Runecrafting report filed (a CHEST beside two painted rune-stones). */
+    if(def.tag === 'rune' || def.element) return 'runecrafting';
+    if(def.slot)    return 'uiBody';
   }
   var s = String(id || '');
   /* b225: burnt food is carbon, not a chest — and the flame reads as "the fire
@@ -14674,6 +14760,19 @@ function itemGlyphKey(id, def){
   if(/gem|ruby|sapphire|emerald|diamond/.test(s)) return 'uiGem';
   if(/fish|shrimp|trout|lobster|shark/.test(s))   return 'uiFish';
   if(/token/.test(s))                     return 'token';
+  /* ── the 49, grouped ───────────────────────────────────────────────────── */
+  if(/rune/.test(s))                      return 'runecrafting';
+  if(/blueprint|_deed$|scroll|tome|codex|manual/.test(s)) return 'uiScroll';
+  if(/^.*_key$|^key_|sigil|seal$|_seal_/.test(s))         return 'uiKey';
+  if(/fang|claw|tooth|tusk|horn|scale|chitin|shell/.test(s)) return 'uiBone';
+  if(/pelt|hide|leather|fur|veil|cloth|silk|thread|wool/.test(s)) return 'uiCape';
+  if(/ichor|sac|venom|essence|dust|ash|blood|heart|eye/.test(s)) return 'uiPotion';
+  if(/meat|steak|ration|bread|pie|stew|soup|cake/.test(s)) return 'uiFood';
+  if(/medal|badge|trophy|crown|relic|totem|standard|banner/.test(s)) return 'uiMedal';
+  if(/arrow|bolt|dart|quiver/.test(s))    return 'uiArrow';
+  if(/herb|leaf|root|flower|bloom/.test(s)) return 'uiHerb';
+  if(/egg/.test(s))                       return 'uiEgg';
+  if(/steel|plate|ember|frag/.test(s))    return 'uiOre';
   return 'uiChest';
 }
 function itemFallbackIcon(id, px, def){
@@ -14682,6 +14781,70 @@ function itemFallbackIcon(id, px, def){
     : null;
   return g || '<span class="hr-blank-icon" aria-hidden="true"></span>';
 }
+/* EXPLICIT exports. These two ARE the no-emoji backstop, and renderers outside
+   this file (dungeons.js, market.js, item-ux.js, collection-log.js, the render/
+   modules) are exactly the ones that were still falling through to `it.icon`.
+   Relying on "a top-level function declaration lands on window" is the
+   cross-IIFE trap this file has already been bitten by four times (b127, b130,
+   b224, b366) — every one of them silent. */
+window.itemGlyphKey = itemGlyphKey;
+window.itemFallbackIcon = itemFallbackIcon;
+window.itemArt = window.itemArt || itemArt;
+
+/* ─── THE SAME BACKSTOP FOR THE OTHER THREE SUBJECT KINDS ──────────────────
+ * b217 built the ITEM backstop and it has held. Monsters, skills and equipment
+ * slots never got one, so ~40 render sites across nine files still ended in
+ * `|| m.icon` / `|| s.icon` / `|| meta.icon` — i.e. in the data file's emoji.
+ * Most are cold paths (an unmapped monster, a skill with no medallion, a slot
+ * meta), which is exactly why they survived four emoji purges: they are
+ * invisible until the day a content row lands without art, and then a
+ * pictograph appears on the combat screen.
+ *
+ * The rule is the same one that worked for items: make the RENDERER incapable
+ * of drawing a pictograph. Every helper below returns painted art, else a
+ * shipped glyph, else an empty deliberate blank — never a character. */
+
+/* MONSTER — painted portrait ▸ gilt creature medallion ▸ a red-ringed skull.
+ * The skull is honest: it says "a foe" without pretending to be a species. */
+function monsterFallbackIcon(id, px){
+  var IS = window.HearthriseIconSet;
+  if(IS && IS.medallionMon){
+    var med = IS.medallionMon(id, px || 34);
+    if(med) return med;
+  }
+  var g = (window.HR && window.HR.icon) ? window.HR.icon('uiSkull', Math.round((px||34)*0.7), '--red') : null;
+  return g || '<span class="hr-blank-icon" aria-hidden="true"></span>';
+}
+function monsterArt(id, px){
+  var p = window._monsterIcon && window._monsterIcon[id];
+  if(p) return '<img src="'+p+'" class="hr-mon-art" alt="" loading="lazy" draggable="false" />';
+  return monsterFallbackIcon(id, px);
+}
+
+/* SKILL — the struck medallion the skills rail already uses, so a skill looks
+ * the same on the rail, the character sheet, the activity bar and a level-up
+ * toast. `uiStar` covers a skill id with no baked glyph (there were two:
+ * runecrafting and stonemason, now drawn in src/data/glyphs-extra.js). */
+function skillIconHTML(id, px){
+  var IS = window.HearthriseIconSet;
+  if(IS && IS.medallion){
+    var med = IS.medallion(id, px || 34);
+    if(med) return med;
+  }
+  var g = (window.HR && window.HR.icon) ? window.HR.icon('uiStar', Math.round((px||34)*0.7), '--gold-2') : null;
+  return g || '<span class="hr-blank-icon" aria-hidden="true"></span>';
+}
+
+/* EQUIPMENT SLOT — the line-glyph set defined in block 24 (slotGlyphSVG) is
+ * the ONE empty-slot vocabulary; `EQUIP_SLOT_META[slot].icon` is a raw emoji
+ * and must never reach a screen. */
+function slotIconHTML(slot){
+  return (typeof window.slotGlyphSVG === 'function') ? window.slotGlyphSVG(slot) : '';
+}
+window.monsterFallbackIcon = monsterFallbackIcon;
+window.monsterArt = monsterArt;
+window.skillIconHTML = skillIconHTML;
+window.slotIconHTML = slotIconHTML;
 
 (function(){
 "use strict";
@@ -15279,7 +15442,11 @@ function fmtQty(n){
   return String(n);
 }
 
-function actIconHtml(prod, fallbackEmoji){
+/* `fallbackSkillId` (was `fallbackEmoji`, and the callers really were passing
+   `action.icon` — the node's emoji — into it). Nothing here has drawn that
+   emoji since b217, but a parameter NAMED fallbackEmoji is an invitation, and
+   the ESM twin in features/activities-grid.js was still honouring it. */
+function actIconHtml(prod, fallbackSkillId){
   var path = prod && window._itemPath && window._itemPath[prod];
   if(path){
     /* b217: tier tint (window.itemTintClass) so ladders that share one sprite
@@ -15289,7 +15456,8 @@ function actIconHtml(prod, fallbackEmoji){
     var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(prod) : '';
     return '<img src="'+path+'" class="'+tint+'" alt="" loading="lazy" draggable="false" />';
   }
-  return '<span class="at-emoji">'+itemFallbackIcon(prod, 34)+'</span>';
+  if(prod) return '<span class="at-emoji">'+itemFallbackIcon(prod, 34)+'</span>';
+  return '<span class="at-emoji">'+skillIconHTML(fallbackSkillId, 34)+'</span>';
 }
 
 /* ── Patch the Skills list (left card) to filter out combat ── */
@@ -15394,7 +15562,7 @@ function tileForGather(action, skillId){
        BOTTOM — the subject of the card was the last thing you reached, and the
        tile was mostly empty. A material's art is its identity, so it leads.
        "Qty: 0" is not information: the count appears once you own some. */
-    +'<div class="at-icon">'+actIconHtml(action.prod, action.icon)+'</div>'
+    +'<div class="at-icon">'+actIconHtml(action.prod, skillId)+'</div>'
     +'<div class="at-name">'+(action.name||action.id)+'</div>'
     +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(ms)+'</div>'
     +(unlocked ? toolLine : '')
@@ -15445,7 +15613,7 @@ window.hrArtisanGateClick = function(skillId, recipeId){
   if(window.HearthriseHomestead && typeof window.HearthriseHomestead.hasWorkbench==='function'){
     var wb = window.HearthriseHomestead.hasWorkbench(skillId);
     if(wb && wb.ok === false){
-      if(typeof notify==='function') notify('🔨 '+(wb.reason||'Build the workbench first'), 'kill');
+      if(typeof notify==='function') notify(''+(wb.reason||'Build the workbench first'), 'kill');
       if(typeof showTab==='function') showTab('house');
       return;
     }
@@ -15520,7 +15688,7 @@ function tileForArtisan(recipe, skillId){
     +'data-prod="'+outId+'" '
     +'onclick="'+click+'" '
     +'title="'+tileTitle.replace(/"/g,'&quot;')+'">'
-    +'<div class="at-icon">'+actIconHtml(outId, outDef ? outDef.icon : '')+'</div>'
+    +'<div class="at-icon">'+actIconHtml(outId, skillId)+'</div>'
     +'<div class="at-name">'+(recipe.name||recipe.id)+'</div>'
     +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(actMs)+'</div>'
     +'<div class="at-inputs">'+inputsLine+'</div>'
@@ -15767,7 +15935,7 @@ function patchSkillDetail(){
       tiles = '<div class="act-tile" onclick="showTab(\'farming\')" style="grid-column:1/-1">'
         +'<div class="at-name">Open the Farm tab</div>'
         +'<div class="at-meta">Plant and harvest crops on your plots.</div>'
-        +'<div class="at-icon"><span class="at-emoji">🌾</span></div>'
+        +'<div class="at-icon"><span class="at-emoji">'+skillIconHTML('farming',34)+'</span></div>'
         +'</div>';
       count = 1;
     } else if(window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[id]){
@@ -16675,7 +16843,7 @@ function buildSlotsCard(){
   var cl = (typeof getCombatLevel === 'function') ? getCombatLevel() : '?';
   var clsInfo = deriveClass();
   return '<div class="cr-slots">'
-    + '<div class="cr-section-title">🛡️ Your Heroes</div>'
+    + '<div class="cr-section-title">'+_hrGly('uiShield',15,'--gold-2')+' Your Heroes</div>'
     + '<div class="cr-slots-grid">'
       /* Slot 1 — active character */
       + '<div class="cr-slot active">'
@@ -16687,20 +16855,20 @@ function buildSlotsCard(){
       /* Slot 2 — locked */
       + '<div class="cr-slot locked">'
         + '<span class="cr-slot-badge">Locked</span>'
-        + '<div class="cr-slot-portrait">🔒</div>'
+        + '<div class="cr-slot-portrait">'+_hrGly('uiLock',20)+'</div>'
         + '<div class="cr-slot-name">Hero Slot 2</div>'
         + '<div class="cr-slot-meta">Hearth Hall premium</div>'
       + '</div>'
       /* Slot 3 — locked */
       + '<div class="cr-slot locked">'
         + '<span class="cr-slot-badge">Locked</span>'
-        + '<div class="cr-slot-portrait">🔒</div>'
+        + '<div class="cr-slot-portrait">'+_hrGly('uiLock',20)+'</div>'
         + '<div class="cr-slot-name">Hero Slot 3</div>'
         + '<div class="cr-slot-meta">Hearth Hall premium</div>'
       + '</div>'
     + '</div>'
     + '<div class="cr-paywall-hint">'
-      + '<span>💎</span>'
+      + '<span>'+_hrGly('gems',14,'--gem')+'</span>'
       + '<div><b>Hearth Hall Premium:</b> 3 character slots, +25% offline progress, exclusive cosmetics, monthly chests.</div>'
       + '<button onclick="window.showTab && showTab(\'shop\')">Learn more</button>'
     + '</div>'
@@ -16723,16 +16891,16 @@ function buildCombatCard(){
     + '</div>';
   }
   return '<div class="cr-row">'
-    + styleCard('Melee', '🗡️', lv('attack'), lv('strength'), lv('defense'), melee)
-    + styleCard('Ranged', '🏹', lv('ranged'), lv('ranged'), lv('defense'), ranged)
-    + styleCard('Magic', '🔮', lv('magic'), lv('magic'), lv('defense'), magic)
+    + styleCard('Melee', _hrGly('uiSword',18), lv('attack'), lv('strength'), lv('defense'), melee)
+    + styleCard('Ranged', _hrGly('uiBow',18), lv('ranged'), lv('ranged'), lv('defense'), ranged)
+    + styleCard('Magic', _hrGly('magic',18), lv('magic'), lv('magic'), lv('defense'), magic)
   + '</div>';
 }
 
 function buildRatesCard(){
   var rates = gatherRates();
   if(!rates.length){
-    return '<div class="cr-card"><div class="cr-section-title">📈 Active Rates</div><div style="color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))">Train a skill to see your rates.</div></div>';
+    return '<div class="cr-card"><div class="cr-section-title">'+_hrGly('uiTrend',15,'--gold-2')+' Active Rates</div><div style="color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))">Train a skill to see your rates.</div></div>';
   }
   var rows = rates.map(function(r){
     var skillIcon = window._skillIcon && window._skillIcon[r.id]
@@ -16745,7 +16913,7 @@ function buildRatesCard(){
       + '<span class="cr-rate-meta">via '+r.action+'</span>'
     + '</div>';
   }).join('');
-  return '<div class="cr-card"><div class="cr-section-title">📈 Best Rates by Skill</div>'
+  return '<div class="cr-card"><div class="cr-section-title">'+_hrGly('uiTrend',15,'--gold-2')+' Best Rates by Skill</div>'
     + '<div class="cr-rate-table">'+rows+'</div>'
   + '</div>';
 }
@@ -16764,7 +16932,7 @@ function buildEquipSummaryCard(){
     });
   }
   var maxSlots = (typeof EQUIP_SLOTS !== 'undefined') ? EQUIP_SLOTS.length : 13;
-  return '<div class="cr-card"><div class="cr-section-title">⚔️ Equipment</div>'
+  return '<div class="cr-card"><div class="cr-section-title">'+_hrGly('uiSword',15,'--gold-2')+' Equipment</div>'
     + '<div class="cr-stat-row"><span>Slots filled</span><b>'+equipped+' / '+maxSlots+'</b><span></span></div>'
     + '<div class="cr-stat-row"><span>Total +STR</span><b>+'+totalBonus.str+'</b><span></span></div>'
     + '<div class="cr-stat-row"><span>Total +ATK</span><b>+'+totalBonus.atk+'</b><span></span></div>'
@@ -16873,7 +17041,7 @@ function parseSource(src){
             ? '<span class="tag" style="color:#7f9a4f">Owned</span>'
             : (meetsReq
                 ? '<button class="btn btn-sm" onclick="window._buyCompanion(\''+id+'\','+price+')" style="background:#7f9a4f;color:#0f1320;font-weight:700">'+price+'g · Buy</button>'
-                : '<span class="muted tiny">🔒 '+reqText+'</span>'
+                : '<span class="muted tiny">'+lockGlyph()+' '+reqText+'</span>'
               )
           );
       listContainer.appendChild(row);
@@ -17346,12 +17514,18 @@ function buffFrozen(){
 }
 window.buffsFrozen = buffFrozen;
 
-/* THE 0-EMOJI RULE. `BUFFS_DEF[].icon` is a literal emoji (🌿⭐🍀…) chosen
-   for two emoji fonts — it was rendering as ART in the Active Effects panel.
-   The buff TYPE maps to the baked atlas instead, so the panel matches every
-   other icon in the game and draws identically on every platform. The data
-   row keeps its `icon` field (other, non-rendering consumers read it); this
-   is the render-side mapping, which is where the icon language belongs. */
+/* THE 0-EMOJI RULE. `BUFFS_DEF[].icon` used to be a literal emoji (🌿⭐🍀…)
+   chosen for two emoji FONTS, and it rendered as ART in the Active Effects
+   panel. b2xx fixed the panel with the render-side map below and left the emoji
+   in the data — which meant the registry still shipped a pictograph that any
+   NEW renderer would pick up, and one did (the legacy Active Effects fallback
+   in src/render/active-effects.js printed `def.icon` verbatim).
+
+   2026-08-23: the emoji is GONE FROM THE DATA. `BUFFS_DEF[type].glyph` is now
+   an atlas key and is the SINGLE source; this map survives only for `_paused`
+   (a UI pseudo-state with no registry row) and as the resolver's fallback, so
+   the two can no longer drift. Values here are unchanged, so nothing on screen
+   moves — the registry was aligned to the map, not the other way round. */
 const BUFF_GLYPH = {
   gather_speed:'uiLeaf', all_xp:'uiXp', drop_rate:'uiGift', farm_yield:'uiWheat',
   damage:'uiSword', defense:'uiShield', combat_xp:'uiTarget', gold_find:'uiCoinStack',
@@ -17363,10 +17537,12 @@ const BUFF_GLYPH = {
 window.BUFF_GLYPH = BUFF_GLYPH;
 function buffGlyph(type, px){
   const IS = window.HearthriseIconSet;
-  const key = BUFF_GLYPH[type] || 'uiPotion';
+  const def = (window.BUFFS_DEF || {})[type];
+  const key = (def && def.glyph) || BUFF_GLYPH[type] || 'uiPotion';
   if(!IS || typeof IS.icon !== 'function') return '';
   return IS.icon(key, px || 17, 'currentColor') || '';
 }
+window.buffGlyphHTML = buffGlyph;
 
 // Hook renderActiveEffects + renderProfile so our section refreshes
 (function(){
@@ -18325,17 +18501,18 @@ console.log('[Bundle Icons v1] applied:',
        reads to a player as "they never changed". Widened to twelve, all sourced from
        counters the engine really increments, so a week now looks different from the
        last one. */
-    {id:'wk_kills',    emoji:'⚔️', name:'Slay 100 monsters', target:100, source:'stats.kills',           reward:{gold:2500, gems:3, xp:{combat:1000}}},
-    {id:'wk_smith',    emoji:'🔨', name:'Smith 60 items',    target:60,  source:'stats.smithed',         reward:{gold:2200, xp:{smithing:600}}},
-    {id:'wk_craft',    emoji:'🪡', name:'Craft 60 items',    target:60,  source:'stats.crafted',         reward:{gold:2200, xp:{crafting:600}}},
-    {id:'wk_harvest',  emoji:'🌾', name:'Harvest 120 crops', target:120, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}}},
-    {id:'wk_bury',     emoji:'🦴', name:'Bury 150 bones',    target:150, source:'stats.buried',          reward:{gold:1800, xp:{prayer:500}}},
-    {id:'wk_rare',     emoji:'🍀', name:'Find 5 rare drops', target:5,   source:'stats.rareDrops',       reward:{gold:3000, gems:4}},
-    {id:'wk_gold',     emoji:'💰', name:'Earn 50,000 gold',  target:50000, source:'stats.totalGoldEarned', reward:{gold:2500, gems:2}},
-    {id:'wk_gather',   emoji:'⛏️', name:'Gather 250 ores',  target:250, source:'stats.mined',           reward:{gold:2000, xp:{mining:500}}},
-    {id:'wk_logs',     emoji:'🪵', name:'Cut 250 logs',     target:250, source:'stats.chopped',         reward:{gold:2000, xp:{woodcutting:500}}},
-    {id:'wk_cook',     emoji:'🍳', name:'Cook 50 dishes',    target:50,  source:'stats.cooked',         reward:{gold:1500, xp:{cooking:400}}},
-    {id:'wk_levels',   emoji:'📈', name:'Gain 5 skill levels', target:5, source:'stats.levelups',       reward:{gold:5000, gems:5}},
+    /* `glyph`, not `emoji` — see the note on DAILY_GOAL_POOL. */
+    {id:'wk_kills',    glyph:'uiSword',   name:'Slay 100 monsters', target:100, source:'stats.kills',           reward:{gold:2500, gems:3, xp:{combat:1000}}},
+    {id:'wk_smith',    glyph:'uiAnvil',   name:'Smith 60 items',    target:60,  source:'stats.smithed',         reward:{gold:2200, xp:{smithing:600}}},
+    {id:'wk_craft',    glyph:'crafting',  name:'Craft 60 items',    target:60,  source:'stats.crafted',         reward:{gold:2200, xp:{crafting:600}}},
+    {id:'wk_harvest',  glyph:'uiWheat',   name:'Harvest 120 crops', target:120, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}}},
+    {id:'wk_bury',     glyph:'uiBone',    name:'Bury 150 bones',    target:150, source:'stats.buried',          reward:{gold:1800, xp:{prayer:500}}},
+    {id:'wk_rare',     glyph:'uiSpark',   name:'Find 5 rare drops', target:5,   source:'stats.rareDrops',       reward:{gold:3000, gems:4}},
+    {id:'wk_gold',     glyph:'uiCoinStack', name:'Earn 50,000 gold',  target:50000, source:'stats.totalGoldEarned', reward:{gold:2500, gems:2}},
+    {id:'wk_gather',   glyph:'uiPickaxe', name:'Gather 250 ores',  target:250, source:'stats.mined',           reward:{gold:2000, xp:{mining:500}}},
+    {id:'wk_logs',     glyph:'uiLog',     name:'Cut 250 logs',     target:250, source:'stats.chopped',         reward:{gold:2000, xp:{woodcutting:500}}},
+    {id:'wk_cook',     glyph:'uiPot',     name:'Cook 50 dishes',    target:50,  source:'stats.cooked',         reward:{gold:1500, xp:{cooking:400}}},
+    {id:'wk_levels',   glyph:'uiXp',      name:'Gain 5 skill levels', target:5, source:'stats.levelups',       reward:{gold:5000, gems:5}},
   ];
   /* b224: this renderer reads its progress sources out of block 16 across an
      IIFE boundary. When that export was missing the old inline guard silently
@@ -18543,11 +18720,38 @@ console.log('[Bundle Icons v1] applied:',
     }
     return DAILY_REWARDS[goalId] || {gold:100};
   }
+  /* THE ONE PLACE a quest row's art is decided. Every quest surface calls this;
+     none of them may name a character. `uiTarget` is the fallback so a row
+     added without a `glyph` still draws an icon rather than a hole — the
+     failure mode that left Runecrafting's medallion blank for five builds. */
+  function goalGlyphHTML(g, px, col){
+    var key = (g && g.glyph) || 'uiTarget';
+    if(!(window.HR && window.HR.icon)) return '';
+    return window.HR.icon(key, px || 18, col || 'currentColor')
+        || window.HR.icon('uiTarget', px || 18, col || 'currentColor')
+        || '';
+  }
+  /* A reward line printed the raw id — the Quests modal read "5x small_bones"
+     beside "600g · 1 gem · 200 combat xp". Same defect class the b371 pass
+     found ("Hatched from a dragon_egg"): a snake_case key escaping onto a
+     player-facing surface. ITEMS names it when it can, and a titleiser catches
+     an id ITEMS has no row for (a chest key, a future item) rather than
+     printing the key. */
+  function _rewardItemName(id){
+    var d = (typeof ITEMS !== 'undefined') && ITEMS[id];
+    if(d && d.n) return d.n;
+    return String(id || '').replace(/_/g, ' ')
+      .replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  }
+  /* PLAIN TEXT ONLY. `notify()` sets textContent, so anything markup-shaped
+     here would be shown to the player as literal `<span…>`. The gem count used
+     to carry a 💎; it now says the word, and the MODAL (which can take markup)
+     draws the sapphire glyph via rewardSummaryHTML below. */
   function rewardSummary(reward){
     if(!reward) return '—';
     var parts = [];
     if(reward.gold) parts.push(reward.gold+'g');
-    if(reward.gems) parts.push(reward.gems+'💎');
+    if(reward.gems) parts.push(reward.gems+' '+(reward.gems===1?'gem':'gems'));
     if(reward.xp){
       Object.entries(reward.xp).forEach(function(kv){
         parts.push(kv[1]+' '+kv[0]+' xp');
@@ -18555,8 +18759,32 @@ console.log('[Bundle Icons v1] applied:',
     }
     if(reward.items){
       Object.entries(reward.items).forEach(function(kv){
-        parts.push(kv[1]+'x '+kv[0]);
+        parts.push(kv[1]+'x '+_rewardItemName(kv[0]));
       });
+    }
+    return parts.join(' · ');
+  }
+  /* The same summary for a surface that renders HTML: gold and gems get their
+     gilt / sapphire glyphs, which is what the topbar and the shop already do,
+     so one currency reads the same way everywhere in the game. */
+  function rewardSummaryHTML(reward){
+    if(!reward) return '—';
+    /* HR.amount, not a bespoke pairing: it is the game's ONE glyph+value
+       helper (glyph first, then the number) and it is what `_gp`/`_gem` on the
+       shop and homestead rows already use. A reward that reads "600g" one way
+       here and another way in the shop is two currencies as far as the eye is
+       concerned. */
+    var amt = function(k, v, col){
+      return (window.HR && window.HR.amount) ? window.HR.amount(k, v, 14, col) : String(v);
+    };
+    var parts = [];
+    if(reward.gold) parts.push(amt('gold', reward.gold.toLocaleString(), '--gold-2'));
+    if(reward.gems) parts.push(amt('gems', reward.gems, '--gem'));
+    if(reward.xp){
+      Object.entries(reward.xp).forEach(function(kv){ parts.push(kv[1]+' '+kv[0]+' xp'); });
+    }
+    if(reward.items){
+      Object.entries(reward.items).forEach(function(kv){ parts.push(kv[1]+'x '+_rewardItemName(kv[0])); });
     }
     return parts.join(' · ');
   }
@@ -18672,7 +18900,8 @@ console.log('[Bundle Icons v1] applied:',
     strip = document.createElement('div');
     strip.id = 'global-quests-strip';
     strip.className = 'global-quests-strip';
-    strip.innerHTML = '<span class="gq-label">🎯 Quests</span><div class="gq-list"></div><span class="gq-meta" id="gq-reset"></span><span class="gq-open-hint">Click to open ▸</span>';
+    var labelGly = (window.HR && window.HR.icon) ? (window.HR.icon('uiQuests', 14, '--gold-2') || '') : '';
+    strip.innerHTML = '<span class="gq-label">'+labelGly+' Quests</span><div class="gq-list"></div><span class="gq-meta" id="gq-reset"></span><span class="gq-open-hint">Click to open ▸</span>';
     strip.addEventListener('click', openQuestsModal);
     var topbar = main.querySelector('.topbar');
     var activity = main.querySelector('.activity-bar, [class*=activity-bar]');
@@ -18705,9 +18934,14 @@ console.log('[Bundle Icons v1] applied:',
       var prog = getProgress(g, false);
       var done = prog >= g.target;
       var claimed = isClaimed(g, false);
-      var prefix = claimed ? '✓ ' : (done ? '🎁 ' : '');
+      /* Claimed keeps the typographic check (a mark, not a pictograph — the
+         same ✓ the modal's "Claimed" pill uses). The 🎁 that used to mean
+         "ready to claim" is a pictograph doing an icon's job, and the row is
+         already flagged `.done`; it now uses the gilt gift glyph. */
+      var prefix = claimed ? '✓ '
+        : (done ? (((window.HR && window.HR.icon) ? (window.HR.icon('uiGift', 13, '--gold') || '') : '') + ' ') : '');
       return '<span class="gq-quest '+(done?'done':'')+'">'
-        +'<span class="gq-icon">'+(g.emoji||'🎯')+'</span>'
+        +'<span class="gq-icon">'+goalGlyphHTML(g, 15)+'</span>'
         +'<span class="gq-name">'+prefix+g.name+'</span>'
         +'<span class="gq-prog">'+Math.min(prog,g.target)+' / '+g.target+'</span>'
       +'</span>';
@@ -18797,8 +19031,18 @@ console.log('[Bundle Icons v1] applied:',
     var wCount = weeklyGoals.filter(function(g){return isComplete(g,true) && !isClaimed(g,true);}).length;
     var dailyCountEl = overlay.querySelector('[data-count="daily"]');
     var weeklyCountEl = overlay.querySelector('[data-count="weekly"]');
-    if(dailyCountEl) dailyCountEl.textContent = dCount > 0 ? dCount : '';
-    if(weeklyCountEl) weeklyCountEl.textContent = wCount > 0 ? wCount : '';
+    /* The count pill carries its own gilt plate in CSS, so emptying its TEXT
+       left a bare rounded lozenge floating after each tab title — visible in
+       every screenshot of this modal as an unexplained pale dot beside
+       "DAILY QUESTS". A badge with nothing to count should not be there at
+       all; hide the element, don't just blank it. */
+    var setCount = function(el, n){
+      if(!el) return;
+      el.textContent = n > 0 ? n : '';
+      el.style.display = n > 0 ? '' : 'none';
+    };
+    setCount(dailyCountEl, dCount);
+    setCount(weeklyCountEl, wCount);
 
     // Render list
     var goals = currentTab === 'weekly' ? weeklyGoals : dailyGoals;
@@ -18813,7 +19057,7 @@ console.log('[Bundle Icons v1] applied:',
         var claimed = isClaimed(g, isWeekly);
         var pct = Math.min(100, (prog/g.target)*100);
         var reward = rewardFor(g.id, isWeekly);
-        var rewardHtml = '<div class="qm-q-reward"><div class="qm-r-label">Reward</div><div class="qm-r-val">'+rewardSummary(reward)+'</div></div>';
+        var rewardHtml = '<div class="qm-q-reward"><div class="qm-r-label">Reward</div><div class="qm-r-val">'+rewardSummaryHTML(reward)+'</div></div>';
         var claimBtn = '';
         if(claimed) claimBtn = '<span class="qm-q-claimed">✓ Claimed</span>';
         else if(done) claimBtn = '<button class="qm-q-claim" data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
@@ -18831,7 +19075,7 @@ console.log('[Bundle Icons v1] applied:',
           : '';
         return '<div class="qm-quest '+(done&&!claimed?'claimable':done?'done':'')+'"'
           +(goBtn ? ' data-goto="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'"' : '')+'>'
-          +'<div class="qm-q-icon">'+(g.emoji||'🎯')+'</div>'
+          +'<div class="qm-q-icon">'+goalGlyphHTML(g, 26, '--gold-2')+'</div>'
           +'<div class="qm-q-info">'
             +'<div class="qm-q-name">'+g.name+'</div>'
             +'<div class="qm-q-desc">'+(g.desc||'Complete this objective to claim your reward.')+'</div>'

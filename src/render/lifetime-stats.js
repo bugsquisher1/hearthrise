@@ -29,6 +29,14 @@
 (function () {
   'use strict';
 
+  /* The panel title and the four currency rows carried 📊 / 🪙 / 💎. One gilt
+     glyph helper; '' rather than a character when the atlas has no match. */
+  function _lsGly(key, px, col) {
+    return (window.HR && window.HR.icon)
+      ? (window.HR.icon(key, px || 13, col || 'currentColor') || '')
+      : '';
+  }
+
   /* Exclusive helper — was legacy.js _fmtTime, used only by this surface. */
   function _fmtTime(ms) {
     if (!ms || ms < 0) return '—';
@@ -82,7 +90,7 @@
     m.innerHTML = '<div class="stats-card">' +
       '<div class="stats-close" onclick="document.getElementById(\'lifetime-stats\').classList.remove(\'show\')">✕</div>' +
       '<div class="stats-head">' +
-        '<div class="stats-title">📊 Lifetime Stats</div>' +
+        '<div class="stats-title">' + _lsGly('uiTrend', 15) + ' Lifetime Stats</div>' +
         '<div class="muted tiny">Save first seen ' + new Date(s.firstSeen || Date.now()).toLocaleDateString() + '</div>' +
       '</div>' +
 
@@ -125,10 +133,10 @@
       '<div class="stats-section">' +
         '<h4>Economy</h4>' +
         '<div class="stats-list">' +
-          row('Total gold earned', (s.totalGoldEarned || 0).toLocaleString() + '🪙') +
-          row('Total gold spent', (s.totalGoldSpent || 0).toLocaleString() + '🪙') +
-          row('Current gold', balText('gold') + '🪙') +
-          row('Current gems', balText('gems') + '💎') +
+          row('Total gold earned', (s.totalGoldEarned || 0).toLocaleString() + ' ' + _lsGly('gold', 13, '--gold-2')) +
+          row('Total gold spent', (s.totalGoldSpent || 0).toLocaleString() + ' ' + _lsGly('gold', 13, '--gold-2')) +
+          row('Current gold', balText('gold') + ' ' + _lsGly('gold', 13, '--gold-2')) +
+          row('Current gems', balText('gems') + ' ' + _lsGly('gems', 13, '--gem')) +
         '</div>' +
       '</div>' +
 
@@ -182,7 +190,7 @@
       }
       var btn = document.createElement('button');
       btn.className = 'stats-btn-trigger';
-      btn.textContent = '📊 Lifetime Stats';
+      btn.innerHTML = _lsGly('uiTrend', 14) + ' Lifetime Stats';
       btn.addEventListener('click', openLifetimeStats);
       featRow.appendChild(btn);
     }

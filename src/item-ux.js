@@ -22,6 +22,15 @@
 (function(){
   'use strict';
 
+  /* Every icon slot in this module (tooltip stat rows, the quantity slider's
+     action button, the market/vendor lines) used to inline an emoji. One gilt
+     glyph helper instead; '' when the atlas has no match, never a character. */
+  function _iuGly(key, px, col){
+    return (window.HR && window.HR.icon)
+      ? (window.HR.icon(key, px || 13, col || 'currentColor') || '')
+      : '';
+  }
+
   // ---- Shop availability lookup --------------------------------
   // Returns true if an item is actually sold by an NPC shop.
   function isItemSoldByNpc(id){
@@ -152,7 +161,8 @@
     if(window._itemPath && window._itemPath[itemId]){
       iconHtml = '<img src="' + window._itemPath[itemId] + '" alt="">';
     } else {
-      iconHtml = '<span>' + (item.icon || '📦') + '</span>';
+      /* was the 📦 emoji — itemFallbackIcon is the b217 no-emoji backstop. */
+      iconHtml = '<span>' + window.itemFallbackIcon(itemId, 26, item) + '</span>';
     }
 
     var head = '<div class="ttl-head">' +
@@ -176,9 +186,9 @@
       var cmp = compareToEquipped(itemId);
       if(cmp){
         statsBlock += '<div class="ttl-stats">';
-        statsBlock += statLine('Melee',  '⚔️', cmp.melee.str,  cmp.melee.acc,  cmp.melee.def);
-        statsBlock += statLine('Ranged', '🏹', cmp.ranged.str, cmp.ranged.acc, cmp.ranged.def);
-        statsBlock += statLine('Magic',  '🔮', cmp.magic.str,  cmp.magic.acc,  cmp.magic.def);
+        statsBlock += statLine('Melee',  _iuGly('uiSword',13), cmp.melee.str,  cmp.melee.acc,  cmp.melee.def);
+        statsBlock += statLine('Ranged', _iuGly('uiBow',13), cmp.ranged.str, cmp.ranged.acc, cmp.ranged.def);
+        statsBlock += statLine('Magic',  _iuGly('magic',13), cmp.magic.str,  cmp.magic.acc,  cmp.magic.def);
         statsBlock += '</div>';
         if(cmp.hasEquipped){
           statsBlock += '<div class="ttl-cmp">vs equipped: <b>' + cmp.equippedName + '</b></div>';
@@ -196,26 +206,26 @@
     if(food){
       marketBlock += '<div class="ttl-row-2"><b>' + food.label + '</b><i>' + food.verb.toLowerCase() + ' to use</i></div>';
       if(food.heals){
-        marketBlock += '<div class="ttl-row-2"><span>❤️</span><b>+' + food.heals + ' HP</b><i>' + (food.kind === 'provision' ? 'heals' : 'also heals') + '</i></div>';
+        marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('uiHeart',13,'--red') + '</span><b>+' + food.heals + ' HP</b><i>' + (food.kind === 'provision' ? 'heals' : 'also heals') + '</i></div>';
       }
       if(food.buffText){
-        marketBlock += '<div class="ttl-row-2"><span>🌟</span><b>' + food.buffText + '</b></div>';
+        marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('uiSpark',13,'--gold-2') + '</span><b>' + food.buffText + '</b></div>';
       }
       marketBlock += '<div class="ttl-row-2"><i>' + (food.autoEatable ? 'Auto-eat can use this' : 'Never auto-eaten') + '</i></div>';
     } else {
       if(item.heals){
-        marketBlock += '<div class="ttl-row-2"><span>❤️</span><b>+' + item.heals + ' HP</b></div>';
+        marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('uiHeart',13,'--red') + '</span><b>+' + item.heals + ' HP</b></div>';
       }
       if(item.buff && item.buff.type){
-        marketBlock += '<div class="ttl-row-2"><span>🌟</span><b>+' + item.buff.magnitude + '% ' + item.buff.type.replace(/_/g, ' ') + '</b><i>' + Math.round((item.buff.durationMs||0)/60000) + 'm</i></div>';
+        marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('uiSpark',13,'--gold-2') + '</span><b>+' + item.buff.magnitude + '% ' + item.buff.type.replace(/_/g, ' ') + '</b><i>' + Math.round((item.buff.durationMs||0)/60000) + 'm</i></div>';
       }
     }
     if(item.buryXp){
-      marketBlock += '<div class="ttl-row-2"><span>🙏</span><b>+' + item.buryXp + ' Prayer XP</b><i>on bury</i></div>';
+      marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('prayer',13,'--gem') + '</span><b>+' + item.buryXp + ' Prayer XP</b><i>on bury</i></div>';
     }
     // Bind-on-Pickup tag (untradeable, bound to player). Show prominently.
     if(item.bop){
-      marketBlock += '<div class="ttl-row-2 ttl-bop"><span>🔒</span><b>Bind on Pickup</b><i>untradeable</i></div>';
+      marketBlock += '<div class="ttl-row-2 ttl-bop"><span>' + _iuGly('uiLock',13) + '</span><b>Bind on Pickup</b><i>untradeable</i></div>';
     }
 
     // NPC value: only show if the item is actually sold by an NPC shop
@@ -228,17 +238,17 @@
       var sellPrice = (typeof window.vendorPrice === 'function') ? window.vendorPrice(itemId) : Math.max(1, Math.floor(item.v * 0.5));
       var isNpcSold = isItemSoldByNpc(itemId);
       if(isNpcSold){
-        marketBlock += '<div class="ttl-row-2"><span>🏪</span><b>NPC value</b><i>' + item.v + 'g · sells back ' + sellPrice + 'g</i></div>';
+        marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('shop',13) + '</span><b>NPC value</b><i>' + item.v + 'g · sells back ' + sellPrice + 'g</i></div>';
       } else if(!item.bop){
         // Item is not in any NPC shop, but is tradeable — just show vendor buyback.
-        marketBlock += '<div class="ttl-row-2"><span>💰</span><b>Vendor buys</b><i>' + sellPrice + 'g each</i></div>';
+        marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('gold',13,'--gold-2') + '</span><b>Vendor buys</b><i>' + sellPrice + 'g each</i></div>';
       } else {
         // BoP and not in NPC shop: show neither vendor lines (untradeable).
       }
       // Player market line: only for tradeable items.
       if(!item.bop){
         var pmAvg = (typeof window.getMarketAvgPrice === 'function') ? window.getMarketAvgPrice(itemId) : null;
-        marketBlock += '<div class="ttl-row-2"><span>📈</span><b>Player market avg</b><i>' + (pmAvg ? pmAvg.toLocaleString() + 'g' : '— (no recent sales)') + '</i></div>';
+        marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('uiTrend',13) + '</span><b>Player market avg</b><i>' + (pmAvg ? pmAvg.toLocaleString() + 'g' : '— (no recent sales)') + '</i></div>';
       }
     }
     marketBlock += '</div>';
@@ -311,7 +321,7 @@
   slider.innerHTML = '<div class="qs-modal">' +
     '<button class="qs-close" aria-label="Close">✕</button>' +
     '<div class="qs-title" id="qs-title">Item</div>' +
-    '<div class="qs-icon" id="qs-icon">📦</div>' +
+    '<div class="qs-icon" id="qs-icon"></div>' +
     '<div class="qs-row">' +
       '<input type="range" id="qs-range" min="1" max="100" value="1">' +
       '<input type="number" id="qs-num" min="1" max="100" value="1">' +
@@ -327,7 +337,7 @@
     '<div class="qs-actions">' +
       '<button class="qs-btn qs-btn-secondary" id="qs-cancel">Cancel</button>' +
       '<button class="qs-btn qs-btn-action" id="qs-action" style="display:none"></button>' +
-      '<button class="qs-btn qs-btn-primary" id="qs-sell">💰 Sell</button>' +
+      '<button class="qs-btn qs-btn-primary" id="qs-sell">Sell</button>' +
     '</div>' +
   '</div>';
   slider.addEventListener('click', function(e){ if(e.target === slider) closeSlider(); });
@@ -336,7 +346,9 @@
   var sliderState = { id: null, max: 1 };
 
   // Resolve a context-sensitive action for an item id.
-  // Returns {label, icon, hint, fn} or null if the item has no special action.
+  // Returns {label, glyph, hint, fn} or null if the item has no special action.
+  // `glyph` is an ATLAS KEY (src/data/glyphs.js), never a character: this object
+  // is rendered straight into the action button and the summary row.
   function resolveAction(itemId){
     var item = window.ITEMS && window.ITEMS[itemId];
     if(!item) return null;
@@ -344,7 +356,7 @@
     if(item.buryXp){
       return {
         label: 'Bury',
-        icon: '🙏',
+        glyph: 'prayer',
         hint: '+' + item.buryXp + ' Prayer XP each',
         fn: function(qty){
           // b265: route through the one bury path so every surface buries + awards
@@ -363,7 +375,7 @@
     if(food){
       return {
         label: food.verb,
-        icon: '🍴',
+        glyph: 'uiFood',
         hint: food.kind === 'provision'
           ? ('+' + food.heals + ' HP each')
           : (food.buffText || ('+' + food.heals + ' HP each')),
@@ -378,7 +390,7 @@
     if(item.heals || item.buff){
       return {
         label: 'Eat',
-        icon: '🍴',
+        glyph: 'uiFood',
         hint: item.buff ? '+' + item.buff.magnitude + '% ' + item.buff.type.replace(/_/g, ' ') : ('+' + item.heals + ' HP each'),
         fn: function(qty){
           for(var i = 0; i < qty; i++){
@@ -396,7 +408,7 @@
     if(item.seed){
       return {
         label: 'Plant',
-        icon: '🌱',
+        glyph: 'uiSprout',
         hint: 'Open the Farm to plant',
         fn: function(){
           if(typeof window.showTab === 'function') window.showTab('farming');
@@ -409,7 +421,7 @@
     if(itemId === 'shrimp' || itemId === 'trout' || itemId === 'lobster' || itemId === 'shark'){
       return {
         label: 'Cook',
-        icon: '🍳',
+        glyph: 'cooking',
         hint: 'Open Activities → Cooking',
         fn: function(){
           if(typeof window.showTab === 'function') window.showTab('skills');
@@ -423,7 +435,7 @@
     if(/_ore$/.test(itemId)){
       return {
         label: 'Smelt',
-        icon: '🔥',
+        glyph: 'uiFire',
         hint: 'Open Activities → Smithing',
         fn: function(){
           if(typeof window.showTab === 'function') window.showTab('skills');
@@ -436,7 +448,7 @@
     if(/_log$/.test(itemId)){
       return {
         label: 'Saw',
-        icon: '🪚',
+        glyph: 'crafting',
         hint: 'Open Activities → Crafting',
         fn: function(){
           if(typeof window.showTab === 'function') window.showTab('skills');
@@ -449,7 +461,7 @@
     if(item.slot && (item.type === 'weapon' || item.type === 'armor' || item.type === 'jewelry' || item.type === 'companion')){
       return {
         label: 'Equip',
-        icon: '🎽',
+        glyph: 'uiBody',
         hint: 'Equip in ' + item.slot + ' slot',
         fn: function(){
           if(typeof window.equipItem === 'function') window.equipItem(itemId);
@@ -476,7 +488,7 @@
     titleEl.textContent = item.n + ' (×' + qty + ')';
     iconEl.innerHTML = window._itemPath && window._itemPath[itemId]
       ? '<img src="' + window._itemPath[itemId] + '" alt="">'
-      : (item.icon || '📦');
+      : window.itemFallbackIcon(itemId, 26, item);
     rangeEl.max = qty;
     rangeEl.value = qty;
     numEl.max = qty;
@@ -485,7 +497,7 @@
     // Show/hide the contextual action button
     if(sliderState.action){
       actBtn.style.display = '';
-      actBtn.innerHTML = sliderState.action.icon + ' ' + sliderState.action.label;
+      actBtn.innerHTML = _iuGly(sliderState.action.glyph, 14) + ' ' + sliderState.action.label;
       actBtn.title = sliderState.action.hint || '';
     } else {
       actBtn.style.display = 'none';
@@ -504,9 +516,9 @@
     var sellEach = (typeof window.vendorPrice === 'function') ? window.vendorPrice(sliderState.id) : Math.max(1, Math.floor((item.v || 0) * 0.5));
     var totalSell = sellEach * qty;
     var lines = [];
-    lines.push('<div class="qs-sum-row">💰 Sell ' + qty + ' for <b>' + totalSell.toLocaleString() + 'g</b> <i>(' + sellEach + 'g each)</i></div>');
+    lines.push('<div class="qs-sum-row">' + _iuGly('gold',13,'--gold-2') + ' Sell ' + qty + ' for <b>' + totalSell.toLocaleString() + 'g</b> <i>(' + sellEach + 'g each)</i></div>');
     if(sliderState.action && sliderState.action.hint){
-      lines.push('<div class="qs-sum-row">' + sliderState.action.icon + ' ' + sliderState.action.label + ' ' + qty + ' — <b>' + sliderState.action.hint + '</b></div>');
+      lines.push('<div class="qs-sum-row">' + _iuGly(sliderState.action.glyph, 13) + ' ' + sliderState.action.label + ' ' + qty + ' — <b>' + sliderState.action.hint + '</b></div>');
     }
     document.getElementById('qs-summary').innerHTML = lines.join('');
   }

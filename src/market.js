@@ -21,6 +21,15 @@
 (function(){
   'use strict';
 
+  /* One gilt chrome glyph for this module's headings/chips. Returns '' rather
+     than a pictograph when the atlas has no match — a hole is a bug we can see;
+     an emoji is a bug that ships. */
+  function _mkGly(key, px, col){
+    return (window.HR && window.HR.icon)
+      ? (window.HR.icon(key, px || 15, col || 'currentColor') || '')
+      : '';
+  }
+
   const MARKET_KEY = 'hearthrise:market:listings';   // dev-only local mirror
   const OFFERS_KEY = 'hearthrise:market:offers';     // open buy-offers
   // Starting at 1.5% for soft beta — low enough to feel non-punitive while
@@ -386,7 +395,7 @@
       if(total > 0){
         window.G.gold = (window.G.gold || 0) + total;
         if(typeof window.notify === 'function'){
-          window.notify('💰 Market sales while you were away: +' + total.toLocaleString() + 'g (' + sales.length + ' sale' + (sales.length>1?'s':'') + ', after ' + (HOUSE_TAX*100) + '% tax)', 'loot');
+          window.notify('Market sales while you were away: +' + total.toLocaleString() + 'g (' + sales.length + ' sale' + (sales.length>1?'s':'') + ', after ' + (HOUSE_TAX*100) + '% tax)', 'loot');
         }
         if(typeof window.saveLocal === 'function') window.saveLocal();
         if(typeof window.updateTopbar === 'function') window.updateTopbar();
@@ -1039,7 +1048,7 @@
         var item = window.ITEMS && window.ITEMS[e.itemId];
         var iconHtml = (window._itemPath && window._itemPath[e.itemId])
           ? '<img src="' + window._itemPath[e.itemId] + '" alt="">'
-          : '<span>' + ((item && item.icon) || '📦') + '</span>';
+          : '<span>' + window.itemFallbackIcon(e.itemId, 22, item) + '</span>';
         var sold = e.role === 'sale';
         /* GROSS per unit on both sides: it is the price the listing actually
            traded at, which is the same number for buyer and seller. The tax
@@ -1110,7 +1119,7 @@
 
     var listingRow = function(l, ownsIt){
       var item = window.ITEMS && window.ITEMS[l.itemId];
-      var icon = item && item.icon ? item.icon : '📦';
+      var icon = window.itemFallbackIcon(l.itemId, 22, item);
       var iconHtml = (window._itemPath && window._itemPath[l.itemId])
         ? '<img src="' + window._itemPath[l.itemId] + '" alt="">'
         : '<span>' + icon + '</span>';
@@ -1150,13 +1159,13 @@
     var movers = getTopMovers7d(6);
     var moversBlock = '';
     if(movers.length){
-      moversBlock = '<div class="mk-block"><h3>📊 Top movers (last 7 days)</h3>'
+      moversBlock = '<div class="mk-block"><h3>' + _mkGly('uiTrend', 15) + ' Top movers (last 7 days)</h3>'
         + '<div class="mk-movers">'
         + movers.map(function(m){
             var item = window.ITEMS && window.ITEMS[m.itemId];
             var icon = (window._itemPath && window._itemPath[m.itemId])
               ? '<img src="' + window._itemPath[m.itemId] + '" alt="">'
-              : '<span>' + ((item && item.icon) || '📦') + '</span>';
+              : '<span>' + window.itemFallbackIcon(m.itemId, 22, item) + '</span>';
             var name = (item && item.n) || m.itemId;
             return '<button class="mk-mover" data-search="' + (item && item.n ? item.n : m.itemId) + '" title="Search for ' + name + '">'
               + '<div class="mm-icon">' + icon + '</div>'
@@ -1175,7 +1184,7 @@
     var myOffers = allOffers.filter(function(o){ return o.buyerId === currentSellerId(); });
     var offerRow = function(o){
       var item = window.ITEMS && window.ITEMS[o.itemId];
-      var icon = item && item.icon ? item.icon : '📦';
+      var icon = window.itemFallbackIcon(o.itemId, 22, item);
       var iconHtml = (window._itemPath && window._itemPath[o.itemId])
         ? '<img src="' + window._itemPath[o.itemId] + '" alt="">'
         : '<span>' + icon + '</span>';
@@ -1194,7 +1203,7 @@
        server market authority is on. Any pre-flip local offers stay in storage,
        untouched and unshown, and are wiped at cutover. */
     var offersBlock = (myOffers.length && !serverMarketActive())
-      ? ('<div class="mk-block"><h3>📥 Your buy offers (' + myOffers.length + ')</h3>'
+      ? ('<div class="mk-block"><h3>' + _mkGly('uiChest', 15) + ' Your buy offers (' + myOffers.length + ')</h3>'
         + myOffers.map(offerRow).join('')
         + '</div>')
       : '';
@@ -1406,7 +1415,7 @@
     var available = pool.reduce(function(s, l){ return s + l.qty; }, 0);
     var iconHtml = (window._itemPath && window._itemPath[itemId])
       ? '<img src="' + window._itemPath[itemId] + '" alt="">'
-      : '<span>' + (item.icon || '📦') + '</span>';
+      : '<span>' + window.itemFallbackIcon(itemId, 22, item) + '</span>';
 
     var modal = document.createElement('div');
     modal.id = 'buy-modal';

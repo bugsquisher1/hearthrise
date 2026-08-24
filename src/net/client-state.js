@@ -153,6 +153,54 @@ export const RESIDUE_FIELDS = Object.freeze([
   'tools',          // tool slots in the loadout kit
   'buffs',          // active consumable buffs (remainingMs) — short-lived, but a potion must survive a reload
   'lastActivity',   // the launchpad's "resume what you were doing" card
+  /* ── b466 — THE SECOND SWEEP (paione, live open beta: "Bestiary achievements
+     keep resetting every time you log out and in"). The b462 sweep above was
+     run by hand against a hand-typed census, so it only ever found the fields
+     somebody remembered to type — `bestiary` had been written by the game since
+     b288 and was on no list at all. Re-run MECHANICALLY (every `G.<field>` write
+     scanned out of src/ vs record ∪ residue ∪ mechanism ∪ NO_SYNC) it surfaced
+     nineteen strands: these FIFTEEN are self-only PROGRESS and reset on every
+     single reload today, three are in-flight scratch (now declared in NO_SYNC)
+     and one — `traits` — already had a server mechanism (see the note below).
+     tests/arm-homing-guard.mjs now derives that census from source, so this
+     class cannot come back one player report at a time.
+     None of these is an authority field: each name was checked against the
+     hr_put_client_state deny-list (gold, gems, hearthTokens, skills, inventory,
+     bank, equipment, rooms, marks, restedXp, restedAt, farmPlots, farm,
+     companions, offlineBudget) — no collision, so none of these can be refused
+     by the server as a forbidden_field. */
+  'bestiary',       // {monsterId:{kills,firstKill}} — THE REPORTED BUG; the bestiary IS the kill record
+  'dropLog',        // per-monster drop discovery ("have I ever seen this drop?")
+  'collectionLog',  // {claimed:[]} — collection MILESTONE claims. NOT an alias of `collection`
+                    // above: `collection` is {itemId:count} (what you have found),
+                    // this is which milestone rewards you have taken. Both are real.
+  /* ⚠ `traits` is DELIBERATELY NOT HERE. It looks exactly like the rest of this
+     list (paid with Marks, self-only, reset on reload) and was the first thing
+     the sweep wanted to add — but it already HAS a server home:
+     accrue.js reconcileTraits() unions `res.traits` (hr_state_of projects the
+     player_progress `trait:<id>` rows hr_trait_buy writes) into G.traits on
+     every envelope. Adding it here would give one paid entitlement TWO sources
+     — the b443 nested-marks bug in a new costume — and would let a forged
+     client_state key hydrate a trait the server never sold. It is registered in
+     the guard's SERVER_MECHANISM_FIELDS instead. */
+  'lifetimeKills',  // the ratcheting all-time kill counter (falls back to stats.kills, which under-counts)
+  'renownHigh',     // the renown high-water mark every rank claim is gated on
+  'homestead',      // {tier} — the purchased homestead tier; without it the boot RE-DERIVES a
+                    // grandfathered tier from rooms/skills, silently demoting a paid upgrade
+  'wieldGrandfather', // {itemId:true} — "once worn, always re-wearable"; losing it can un-wield live gear
+  'currentCombatTier', // which monster tier the combat picker is showing (b213 saved it on purpose)
+  'toolCarry',      // fractional gather carry-over per tool — mutated by reference each tick
+  'buyback',        // the 15-entry recently-sold list; a reload must not eat a misclick's undo
+  'dailyGoldStart', // {day,gold,earned} — the day's gold baseline the daily goals measure against;
+                    // reset on reload = the gold-earned goal restarts from the current balance
+  'raids',          // {lastStrikeDay, solo:{week,…}, claimed:{}} — weekly raid progress AND the
+                    // claim/cooldown markers (the b288 dungeon lesson: a forgotten cooldown is a faucet)
+  'muster',         // the daily muster's day/slot/claimed state (server once-guards the pay; this is
+                    // what the player has already been shown and taken)
+  'rallyPledge',    // a pledge deliberately OUTLIVES the UTC day roll — settlement clears it, not time
+  'pendingItemSpends', // item-ledger.js's outstanding client-authored trades. Its own header: an
+                    // outstanding trade that did not survive a reload "would be reverted by the first
+                    // envelope after it, taking the player's blueprint with it"
 ]);
 const RESIDUE_SET = new Set(RESIDUE_FIELDS);
 
@@ -234,7 +282,13 @@ export function isClientStateHydrated() { return hydratedOnce; }
  *  is IGNORED and can never reach G. This is the security boundary: the bag is the
  *  raw, client-writable player_state.client_state, so it is untrusted input. The
  *  bountyHunter/marks carve-out preserves the record-owned marks. */
-function hydrateInto(G, cs) {
+/* EXPORTED (b466) so the round-trip is testable as a PURE function. The live
+   hydrate is once-per-session and latched (see applyClientState), so a test that
+   drove it through the envelope path would either be vacuous — the latch is
+   already closed on a booted page — or would have to reset the session's own
+   bag. This is the same function the load path calls, on a caller-supplied
+   object; nothing about the session is touched. */
+export function hydrateInto(G, cs) {
   for (const f of RESIDUE_FIELDS) {
     if (!Object.prototype.hasOwnProperty.call(cs, f)) continue;   // bag didn't supply it
     if (f === 'bountyHunter') {
@@ -332,5 +386,6 @@ if (typeof window !== 'undefined') {
   window.HearthriseClientState = {
     clientField, isClientStateServerBacked, isClientStateFromServer,
     applyClientState, putClientState, isClientStateHydrated,
+    hydrateInto, RESIDUE_FIELDS,
   };
 }

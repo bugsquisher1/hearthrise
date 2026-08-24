@@ -23746,6 +23746,110 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('RESIDUE-B466: the bestiary (and the sweep\'s other 15 strands) survive the residue round-trip', () => {
+    /* PLAYER REPORT (paione, live open beta): "Bestiary achievements keep
+       resetting every time you log out and in."
+
+       CLASS, not bug. Under BLOB_RETIRED persistence inverted from a DENYLIST
+       (everything survives unless excluded) to an ALLOWLIST (only a homed field
+       survives). `G.bestiary` was written by the game and homed by nothing, so
+       every reload started the kill record from zero — and a mechanical sweep of
+       every `G.<field>` write found EIGHTEEN more unhomed fields, fourteen of
+       them the same silent reset, including `G.raids` (weekly claim markers,
+       i.e. a faucet when forgotten) and `G.homestead` (a paid tier the boot
+       would silently re-derive downwards).
+
+       This drives the REAL save path — buildResiduePatch (what the save loop
+       ships to hr_put_client_state) into hydrateInto (what the load path writes
+       into G) — on a caller-supplied object, so it neither depends on nor
+       disturbs the session's own once-per-session hydrate latch.
+
+       MUTATION: remove 'bestiary' from RESIDUE_FIELDS in src/net/client-state.js
+       → RED (the patch drops it and the reload reads undefined). */
+    const CS = window.HearthriseClientState, CAP = window.HearthriseCapstone;
+    assert(CS && typeof CS.hydrateInto === 'function', 'hydrateInto must be exported for the round-trip');
+    assert(CAP && typeof CAP.buildResiduePatch === 'function', 'buildResiduePatch must be exported');
+    const RF = CAP.RESIDUE_FIELDS;
+    assert(Array.isArray(RF), 'RESIDUE_FIELDS must be exported');
+    /* The whole sweep, named — so deleting any one of them fails here rather
+       than in a player's inbox six weeks later. */
+    ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'renownHigh', 'homestead',
+      'wieldGrandfather', 'currentCombatTier', 'toolCarry', 'buyback', 'dailyGoldStart', 'raids',
+      'muster', 'rallyPledge', 'pendingItemSpends'].forEach((f) =>
+      assert(RF.indexOf(f) >= 0, 'THE BUG: G.' + f + ' must be a residue field or every reload forgets it'));
+    /* `collection` (items found) and `collectionLog` (milestones claimed) are two
+       different stores, not an alias pair — both must be homed. */
+    assert(RF.indexOf('collection') >= 0 && RF.indexOf('collectionLog') >= 0,
+      'collection and collectionLog are distinct stores; both must persist');
+    /* The other half of the sweep: declared scratch must NOT also be residue. */
+    ['combatKillsThisFoe', 'viewingSkill', 'lastSessionSummary'].forEach((f) =>
+      assert(RF.indexOf(f) < 0, f + ' is declared in-flight scratch (NO_SYNC) — it must not also be residue'));
+    /* AND the ruling on `traits`: it belongs to the SERVER (reconcileTraits unions
+       hr_state_of's projection of the rows hr_trait_buy writes), so it must NOT
+       be duplicated into the self-only bag — one paid entitlement, one source. */
+    assert(RF.indexOf('traits') < 0,
+      'traits is server-homed (reconcileTraits) — putting it in the residue bag gives a paid entitlement two sources');
+    assert(window.HearthriseAccrual && typeof window.HearthriseAccrual.reconcileTraits === 'function',
+      'traits is homed by reconcileTraits — if that export is gone, traits is stranded and must be re-homed');
+
+    const G = window.G;
+    const keep = {};
+    const touched = ['bestiary', 'traits', 'toolCarry', 'raids'];
+    touched.forEach((f) => { keep[f] = G[f]; });
+    try {
+      G.bestiary = { goblin: { kills: 5, firstKill: 1700000000000 } };
+      G.toolCarry = { woodcutting: 0.75 };
+      G.raids = { lastStrikeDay: '2026-08-24', solo: { week: 9, damage: 400, strikes: 2 }, claimed: { '9': true } };
+
+      // SAVE: what the client ships to client_state
+      const patch = window.HearthriseCapstone.buildResiduePatch(G);
+      assert(patch && patch.bestiary && patch.bestiary.goblin && patch.bestiary.goblin.kills === 5,
+        'THE BUG: buildResiduePatch dropped the bestiary — it never reaches the server, so a reload cannot restore it');
+      assert(typeof patch.traits === 'undefined',
+        'traits must NOT ride the self-only bag — it is server-homed (reconcileTraits)');
+
+      // LOAD: what the server bag writes back into a fresh G on the next boot
+      const reloaded = {};
+      window.HearthriseClientState.hydrateInto(reloaded, JSON.parse(JSON.stringify(patch)));
+      assert(reloaded.bestiary && reloaded.bestiary.goblin && reloaded.bestiary.goblin.kills === 5,
+        'THE BUG: the bestiary did not survive the reload round-trip');
+      assert(reloaded.bestiary.goblin.firstKill === 1700000000000, 'the first-kill stamp was lost');
+      /* THE OTHER HOME, driven end to end: a reloaded G has no traits at all
+         until the envelope re-supplies them — that is the mechanism, and it must
+         actually work, or "not residue" would just be a different way to lose a
+         Marks purchase. */
+      assert(typeof reloaded.traits === 'undefined', 'fixture: the bag must not carry traits');
+      window.HearthriseAccrual.reconcileTraits(reloaded, { traits: ['auto_eat', 'keen_eye'] });
+      assert(reloaded.traits && reloaded.traits.auto_eat === true && reloaded.traits.keen_eye === true,
+        'THE BUG: the server\'s trait rows did not restore G.traits — a Marks purchase would be re-charged');
+      assert(reloaded.toolCarry && reloaded.toolCarry.woodcutting === 0.75, 'the fractional gather carry was lost');
+      assert(reloaded.raids && reloaded.raids.claimed && reloaded.raids.claimed['9'] === true,
+        'the weekly raid claim marker was lost — a reload would re-open a claimed reward');
+
+      /* THE BAG HAS A HARD CEILING. hr_put_client_state refuses the whole patch
+         over 256 KiB (state_too_large) — and a refused patch means EVERY residue
+         field stops saving, not just the big one. The sweep just added the two
+         per-monster logs (bestiary, dropLog) next to `collection` and
+         `chronicle`, so the ceiling stopped being theoretical. Measured on the
+         live G with a wide margin: this is a smoke alarm for a future field that
+         grows without bound (a per-kill array, a full combat log), not a
+         tight bound on today's data. */
+      const bytes = JSON.stringify(patch).length;
+      assert(bytes < 131072, 'the residue patch is ' + bytes + ' bytes — over half the 256 KiB client_state cap. '
+        + 'A field on RESIDUE_FIELDS is growing without bound; at the cap the server refuses the patch and NOTHING '
+        + 'in the residue saves for anyone.');
+
+      /* THE SECURITY BOUNDARY, unchanged by the new names: the bag is
+         client-writable, so an AUTHORITY key in it must never reach G. */
+      const forged = {};
+      window.HearthriseClientState.hydrateInto(forged, Object.assign({ gold: 1e12, skills: { attack: 99 } }, patch));
+      assert(typeof forged.gold === 'undefined' && typeof forged.skills === 'undefined',
+        'hydrateInto splatted a forged AUTHORITY key from the bag — the allowlist is broken');
+    } finally {
+      touched.forEach((f) => { if (typeof keep[f] === 'undefined') delete G[f]; else G[f] = keep[f]; });
+    }
+  }),
+
   () => tryRunAsync('DAILY-SHEET-1 (b462): the daily-reward "shown today" marker rides the residue, and a server refusal never toasts a payout', async () => {
     /* Beta morning: "every refresh i get a new daily reward". G.dailyReward.lastClaimDay
        lived only in the retired blob, so every reload forgot it and re-opened the

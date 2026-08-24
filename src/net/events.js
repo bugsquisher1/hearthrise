@@ -64,13 +64,40 @@ export function emit(type, payload = {}) {
    device-local / derived runtime state. New features now persist by default —
    the failure mode becomes "syncs something harmless" instead of "silently loses
    your progress and hands out free cooldown resets". */
+/* ── b466 — NO_SYNC IS ALSO A *DECLARATION*, NOT JUST A DENYLIST ─────────────
+   Under BLOB_RETIRED the blob is gone, so this set no longer decides what is
+   uploaded — the residue allowlist does. It still carries its original meaning
+   and gains a second, load-bearing one: it is the register of fields that are
+   DELIBERATELY not persisted. tests/arm-homing-guard.mjs treats membership here
+   as a valid "home", so naming a field here is an explicit claim that losing it
+   across a reload is CORRECT and invisible to the player. The guard also fails
+   if a field is BOTH here and on a persistence home — scratch and progress are
+   mutually exclusive claims, and save invariant 3 still stands: a
+   persistent-progress field in NO_SYNC is silent data loss and is forbidden. */
 const NO_SYNC = new Set([
   // in-flight combat — belongs to the device you are fighting on
   'activeMonster', 'monsterHp', 'monsterMaxHp', 'playerHp', 'playerMaxHp',
+  /* b466: the kill streak WITHIN the current fight. Per-fight, not per-account
+     (G.lifetimeKills + G.stats.kills are the persistent counters, both homed in
+     the residue) and re-supplied by the combat envelope on resume — so it is
+     scratch of exactly the same kind as activeMonster above it. */
+  'combatKillsThisFoe',
   // in-flight activity loop — same reason
   'activeSkill', 'skillTargetId', 'skillProgress', 'skillMs', 'activeArtisanRecipe',
+  /* b466: the legacy siblings of the two above. Nothing in the game writes them
+     any more (the activity bar and the artisan panel only READ them), but they
+     are the same in-flight-activity class, so they are declared here rather than
+     left as an unhomed trap for whoever revives the legacy action path. */
+  'activeAction', 'activeArtisanSkill',
   // transient UI / derived
   'combatLog', 'lastOfflineSummary', 'totalLevel', 'combatLevel',
+  /* b466 — transient UI, continued. Both are "what is on screen right now":
+     viewingSkill is which skill panel the player last opened (the panel re-opens
+     from the tab, not from a saved pointer), and lastSessionSummary is the
+     one-shot away-summary modal payload — the sibling of lastOfflineSummary
+     directly above, and re-showing a stale summary after a reload would be the
+     b462 daily-reward bug in another costume. */
+  'viewingSkill', 'lastSessionSummary',
 ]);
 
 export function snapshot(G) {

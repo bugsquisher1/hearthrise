@@ -22698,21 +22698,30 @@ const TESTS = [
     try {
       // A fresh account: no rooms, no artisan XP — craft/smith are ineligible.
       window.dailyTaskCaps = () => ({ rooms: {}, skillXp: {} });
+      const caps = window.dailyTaskCaps();
       const today = window.hrGoalDayKey();
-      // Stale slate: one impossible task + one eligible task with real progress.
-      window.G.daily = { lastReset: today, tasks: [
-        { id: 'daily_gather', type: 'gather', label: 'Gather 50', goal: 50, progress: 37, reward: 400, done: false },
-        { id: 'daily_craft', type: 'crafted', label: 'Craft 8', goal: 8, progress: 0, reward: 450, done: false },
-        { id: 'daily_smith', type: 'smithed', label: 'Smith 8', goal: 8, progress: 0, reward: 450, done: false },
-      ] };
+      /* The stale slate is DERIVED from today's real raw roll, not hardcoded —
+         a hand-picked slate is only "today's pre-fix roll" on days whose seed
+         happens to deal those ids, which is exactly the date-flake this test
+         shipped with (it went red at UTC midnight). The heal's guarantee is for
+         genuine pre-fix slates: raw first-N of today's order. */
+      const rawIds = GCat.dailyTaskIndexes(today).slice(0, 3).map((i) => GCat.DAILY_TASK_POOL_ORDER[i]);
+      const eligibleOld = rawIds.filter((id) => GCat.dailyTaskEligible(id, caps));
+      const hadBad = eligibleOld.length < rawIds.length;
+      window.G.daily = { lastReset: today, tasks: rawIds.map((id, n) => ({
+        id, type: id, label: id, goal: 50,
+        progress: (id === eligibleOld[0]) ? 37 : 0, reward: 400, done: false,
+      })) };
       window.generateDailyTasks(false);
       const ids = window.G.daily.tasks.map((t) => t.id);
-      const caps = window.dailyTaskCaps();
       assert(window.G.daily.tasks.length === 3, 'the healed slate keeps its size, got ' + ids.length);
       assert(ids.every((id) => GCat.dailyTaskEligible(id, caps)),
         'THE BUG: the healed slate still offers an impossible task: ' + ids.join(','));
-      const kept = window.G.daily.tasks.find((t) => t.id === 'daily_gather');
-      assert(kept && kept.progress === 37, 'progress on a kept task must survive the heal');
+      if (hadBad && eligibleOld.length) {
+        const kept = window.G.daily.tasks.find((t) => t.id === eligibleOld[0]);
+        assert(kept && kept.progress === 37,
+          'progress on a kept task must survive the heal (kept ' + eligibleOld[0] + ')');
+      }
       // Idempotent: a second call with a clean slate changes nothing.
       const before = JSON.stringify(window.G.daily.tasks.map((t) => t.id));
       window.generateDailyTasks(false);

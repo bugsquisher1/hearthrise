@@ -12473,26 +12473,16 @@ var DAILY_GOAL_POOL = [
    desc:'Five finished meals. Burnt dishes do not count, so cook what you rarely ruin.'},
   {id:'fish',      glyph:'uiFish', name:'Catch 15 fish',     target:15, source:'stats.fished',
    desc:'Any water, any catch. Fifteen shrimp finish this as surely as fifteen sharks.'},
-  /* ── b465 DESIGNER RULING — `gold_500` IS WITHDRAWN FROM THE SLATE. ──────────
-     Its reward is UNPAYABLE. DAILY_REWARDS pays it `{gold: 0, item:
-     'starter_bundle_token', items:{small_bones:5}}`: `gold: 0` is nothing,
-     `reward.item` (singular) is read by NO claim path in the game, and neither
-     `starter_bundle_token` nor `small_bones` is an id in src/data/items.js (the
-     real bones are `bones` / `big_bones` / `dragon_bones`). The server agrees and
-     said so first — supabase/migrations/2026-08-23-modal-goal-claims.sql §"TWO
-     CATALOGUED REWARDS ARE PHANTOM" carries the row verbatim, answers
-     `reward_unavailable`, and defers the fix to me ("game data is the
-     Designer's"). So a player who earned 500 gold got a Claim button that
-     returned an error.
-     A quest that cannot pay must not be dealt. Withdrawing it is client-only and
-     cannot desync: hr_claim_goal verifies COMPLETION and catalogue membership, it
-     does not derive today's offered set, so a goal never offered is simply never
-     claimed and its catalogue row sits harmless.
-     TO RESTORE IT: author a real reward on BOTH sides in one change — the
-     DAILY_REWARDS row below and the hr_goal_rewards seed at that migration's
-     line 254 — then un-comment this row. See HANDOFFS. */
-  // {id:'gold_500',  glyph:'gold', name:'Earn 500 gold',     target:500, source:'_dailyGoldDelta',
-  //  desc:'Gold earned today, from anywhere: loot, the vendor, or a market sale.'},
+  /* ── b464/b465 — `gold_500` STAYS, because it PAYS NOW. The Designer withdrew
+     it (correctly, at the time): its reward named two phantom ids and the server
+     answered `reward_unavailable`. That premise closed the same hour in a
+     parallel change — DAILY_REWARDS below now pays `{gems:1, items:{bones:5}}`
+     (real ids; bones feed Prayer, the gem is the premium drip) and the
+     hr_goal_rewards row was updated to match on production. The Designer's rule
+     stands and is now satisfied: a quest that cannot pay must not be dealt —
+     this one pays, so it is dealt. */
+  {id:'gold_500',  glyph:'gold', name:'Earn 500 gold',     target:500, source:'_dailyGoldDelta',
+   desc:'Gold earned today, from anywhere: loot, the vendor, or a market sale.'},
   {id:'plant',     glyph:'uiSprout', name:'Plant 5 crops',     target:5,  source:'stats.planted',
    desc:'Seeds in the ground. Planting is the whole task — you need not stay for the harvest.'},
   {id:'level_up',  glyph:'uiXp', name:'Gain a skill level', target:1,  source:'stats.levelups',
@@ -18585,12 +18575,12 @@ console.log('[Bundle Icons v1] applied:',
     mine_ore:    {gold: 250, xp:{mining:100}},
     cook:        {gold: 200, xp:{cooking:80}},
     fish:        {gold: 250, xp:{fishing:100}},
-    /* PHANTOM — and why its goal is withdrawn from DAILY_GOAL_POOL (b465 ruling,
-       reasoning at the pool row). `gold: 0`; `item:` is read by no claim path;
-       `starter_bundle_token` and `small_bones` are not ids in src/data/items.js.
-       Kept here, unreachable, so the fix has one obvious place to land — and it
-       must land on the server catalogue in the SAME change. */
-    gold_500:    {gold: 0, xp:{}, item:'starter_bundle_token', items:{small_bones:5}},
+    /* b464 — the reward used to name TWO items that do not exist in ITEMS
+       (`small_bones`, `starter_bundle_token`); the server correctly refused the
+       claim as reward_unavailable, so "Earn 500 gold" was never claimable and
+       the reward line printed a raw id. Real ids, and a payout that isn't
+       gold-for-gold: bones feed Prayer, gems are the premium drip. */
+    gold_500:    {gold: 0, xp:{}, gems: 1, items:{bones:5}},
     plant:       {gold: 200, xp:{farming:80}},
     level_up:    {gold: 500, xp:{}, gems: 1},
   };

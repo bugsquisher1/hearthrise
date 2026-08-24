@@ -45,7 +45,7 @@
 // is true, so it pays live and away identically.)
 // ============================================================
 
-import { COMPANIONS } from '../data/companions.js?v=472';
+import { COMPANIONS } from '../data/companions.js?v=473';
 
 /* The keys this layer projects: the src/core/perks.js GOVERNED percentage
    keys that a companion can pay, plus farmYield (a flat crop COUNT, governed

@@ -4,10 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
-## v0.9.2-beta build 472 — 2026-08-24 (Online, and it knows your name)
+## v0.9.2-beta build 473 — 2026-08-24 (Progress you can trust)
 
 - 🟢 Fixed the status showing "Offline" while you were actually connected — it was reading a dead pre-launch flag that was always off. It now reflects your real connection.
 - 🪪 Fixed your name showing as "Adventurer" instead of the name you set — the top bar and screens were waiting on a server confirmation that doesn't always arrive; they now use your claimed name right away.
+- ✅ **Quest and bounty progress no longer looks stuck or "un-completes."** Your kills count up live and never slide backwards; when you hit the goal it shows "Confirming…" for a moment, then completes and pays the instant the server agrees — so "completed a bounty but got 0 marks" is gone. A claim never shows "0 reward" and never eats your items if the server is still catching up.
+- 🍳 **Cooking is temporarily paused while we move it onto the server** — it was letting you cook online but not saving it. Rather than quietly lose your food and XP, it's clearly marked unavailable for now: no ingredients and no progress are lost. Coming back properly shortly.
 
 ## v0.9.2-beta build 471 — 2026-08-24 (Your combat style stays put)
 

@@ -363,8 +363,39 @@
     try { var btn = scrim.querySelector('.hr-dl-claim'); if (btn) btn.focus({ preventScroll: true }); } catch (er) {}
   }
 
+  /* b465 — THE SERVER'S CLAIM ROW IS THE MARKER, and this is its reader.
+     The residue copy of lastClaimDay kept losing races (second tab, a save
+     landing late) and each loss re-opened the sheet on a reward the server had
+     already paid — twice now, in two costumes. Every envelope the client
+     receives (hr_load at boot, hr-accrue each settle) carries the progress
+     rows; both appliers hand them here. A daily/login row with state='claimed'
+     for TODAY closes the question locally, whatever the residue thought. */
+  function markServerClaim(rows) {
+    try {
+      if (!Array.isArray(rows)) return false;
+      var G = window.G; var s = ensureState(G); if (!s) return false;
+      var t = todayKey();
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (!r || r.kind !== 'daily' || r.key !== 'login' || r.state !== 'claimed') continue;
+        var p = String(r.period || '').split('-');            // '2026-8-24'
+        if (p.length !== 3) continue;
+        var key = (+p[0]) * 10000 + (+p[1]) * 100 + (+p[2]);
+        if (key === t && s.lastClaimDay !== t) {
+          s.lastClaimDay = t;
+          // If the sheet is open on a claim the server already paid, fold it away.
+          var open = document.getElementById('hr-dl-modal');
+          if (open && open.remove) open.remove();
+          return true;
+        }
+      }
+    } catch (e) { /* a marker must never break an envelope */ }
+    return false;
+  }
+
   window.HearthriseDaily = {
     isClaimable: isClaimable,
+    markServerClaim: markServerClaim,
     claim: claim,
     rewardFor: rewardFor,
     cycleDay: cycleDay,

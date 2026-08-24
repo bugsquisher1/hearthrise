@@ -103,16 +103,16 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits } from './accrue.js?v=464';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits } from './accrue.js?v=465';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=464';
+import { applyClientState } from './client-state.js?v=465';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, resetPredictions } from './predict.js?v=464';
+import { coverageBoundary, retirePredictions, resetPredictions } from './predict.js?v=465';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -1381,6 +1381,14 @@ function settle(verdict) {
        revoked (see reconcileTraits' header). Guarded — a throw here must never
        break the record load. */
     try { reconcileTraits(G, verdict.body); } catch (e) {}
+    /* b465 — the server's daily-login claim row closes the daily-reward sheet's
+       question at boot (the residue marker kept losing tab/save races and the
+       sheet re-opened on a paid reward). Guarded like its neighbours. */
+    try {
+      if (window.HearthriseDaily && typeof window.HearthriseDaily.markServerClaim === 'function') {
+        window.HearthriseDaily.markServerClaim(verdict.body && verdict.body.progress);
+      }
+    } catch (e) {}
     /* ── BOOT-RESUME (b456 QA finding): the boot hr_load envelope carries
        state.active_kind/active_id, but reconcileActivityPointer was only wired
        to the activity-SWITCH hook — so a reload booted to "Idle" while the

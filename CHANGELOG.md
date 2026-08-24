@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 465 — 2026-08-24 (Daily reward, settled for good)
+
+- 🎁 The daily reward popup can no longer reappear for a reward you already claimed — the game now checks the server's own receipt (which also fixes the streak label lagging behind).
+
 ## v0.9.2-beta build 464 — 2026-08-24 (The studio-quality pass)
 
 - 🎨 Every emoji doing an icon's job is gone — real glyphs and painted art everywhere, including the quest board, skill medallions and a full bag (which no longer renders as a wall of identical chests).

@@ -784,10 +784,26 @@ function destinations() {
   if (R) {
     let boss = null;
     try { boss = R.bossOfWeek && R.bossOfWeek(); } catch (e) { boss = null; }
+    /* b465 — DO NOT INVITE A PLAYER THROUGH A DOOR THAT IS SHUT.
+       "strike with your clan · Join ▸" sat lit on the combat rail for everyone,
+       including a level-1 account with no clan and no way to make one: clans,
+       the weekly Hunt and the muster are all behind CLAN_LAUNCHED, so Join
+       landed on the "coming in Open Beta 1" card. That is the same defect b371
+       fixed one card up on the dungeon row — state a gate in prose, then
+       contradict it with a lit affordance — so it gets the same remedy, the
+       `locked` field, which renders a disabled chip naming the requirement.
+       The card stays visible on purpose: knowing a weekly clan boss is coming is
+       part of the pitch. Promising you can join it today is not. */
+    const clanShut = (function () {
+      const CL = window.HearthriseClans;
+      return !!(CL && typeof CL.clanLaunched === 'function' && !CL.clanLaunched());
+    }());
     out.push({
       kick: 'Clan Raid', glyph: 'uiShield',
       name: (boss && (boss.name || boss.n)) || 'Weekly Hunt',
-      meta: 'strike with your clan', verb: 'Join ▸', go: 'tab', tab: 'clan',
+      meta: clanShut ? 'a weekly boss no one downs alone' : 'strike with your clan',
+      verb: 'Join ▸', go: 'tab', tab: 'clan',
+      locked: clanShut ? 'Opens in Open Beta 1' : null,
     });
   }
 

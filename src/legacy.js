@@ -1249,7 +1249,9 @@ function loadLocal(){
       // run versioned migrations on the v1 save before merge
       const migrated = (typeof window.applyMigrations==='function') ? window.applyMigrations(d) : d;
       Object.assign(G, stripRecordFields(migrated));
-      notify('Save migrated from v1','info');
+      /* b465: "Save migrated from v1" is a release note, not a sentence for a
+         player who has never heard of v1. Say what it means for them. */
+      notify('Your older save was brought forward — everything is here','info');
     }catch(e){}
   }else{
     try{
@@ -2931,7 +2933,8 @@ const IAP=(()=>{
   }
   async function buy(sku){
     const product=IAP_CATALOG.find(p=>p.sku===sku);
-    if(!product){notify('Product not found','kill');return;}
+    /* b465: "Product not found" is a shop-API error string. */
+    if(!product){notify('That item is no longer in the store','kill');return;}
     const platform=detectPlatform();
     /* show confirm */
     const confirmed=await confirmIAP(product,platform);
@@ -2956,7 +2959,10 @@ const IAP=(()=>{
 
     /* server-side receipt verify (mock in dev) */
     const v=await NetClient.iapValidate(sku,receipt);
-    if(!v.ok){notify('Receipt validation failed','kill');return;}
+    /* b465: "Receipt validation failed" reads like the player did something
+       wrong. On a purchase, the one thing they need to know is that they have
+       not been charged for nothing. */
+    if(!v.ok){notify('We couldn’t confirm that purchase — you have not been charged. Contact us if your store says otherwise.','kill');return;}
 
     /* grant entitlements */
     grant(product);
@@ -3982,7 +3988,8 @@ function buyBankSpaceGold(){
      switch and flip-safe. The 30-rung ceiling is enforced server-side; the client
      clamp is DEFENCE-IN-DEPTH so a maxed bag stops asking. */
   var _k0=(G.bank.goldBuys||0);
-  if(_k0>=30){ if(typeof notify==='function')notify('Bank space is maxed via gold — the Hearth Store bag is next','info'); return false; }
+  /* b465: "maxed via gold" is two shorthands in four words. */
+  if(_k0>=30){ if(typeof notify==='function')notify('Gold has bought you all the bank space it can — the next bag is in the Hearth Store','info'); return false; }
   var cost=bankGoldCost();
   if(!balCanAfford(cost,'gold')){ if(typeof notify==='function')notify(balShortfall(cost,'gold'),'kill'); return false; }
   var _boffer='bank.'+_k0;
@@ -5877,7 +5884,12 @@ function plantCrop(plotIdx,cropId){
     notify('Plot locked — upgrade your property to farm more land','kill');return;
   }
   const seedId=crop.seed;
-  if(!hasItem(seedId)){notify('No seeds!','kill');return;}
+  /* b465: "No seeds!" — a shout with no subject and no way forward. Name the
+     seed (from the crop row, never a literal) and where to get it. */
+  if(!hasItem(seedId)){
+    var _sn=(typeof ITEMS!=='undefined'&&ITEMS[seedId]&&ITEMS[seedId].n)||crop.name+' Seed';
+    notify('You have no '+_sn+' — the Local Shop sells them','kill');return;
+  }
   if(getLevel('farming')<crop.req){notify(`Farming Lv ${crop.req} required`,'kill');return;}
   // b136: Plot-level gate. canPlantCrop returns true if cropId is in
   // the unlocked set for the player's current Farm Plot tier. The
@@ -6296,7 +6308,7 @@ function renderProfile(){
          fact it was ever about. Unknown/failing states say so, honestly:
          writes are full-snapshot upserts and self-heal, so the word is
          "retrying", never "lost". */
-      const subtitle = liveUser ? ('Online · ' + cloudSaveLine().text) : (G.account ? 'Online · '+G.account.displayName : 'Offline · progress saved on this device');
+      const subtitle = liveUser ? ('Online · ' + cloudSaveLine().text) : (G.account ? 'Online · '+G.account.displayName : 'Offline · reconnect to keep playing');  /* b465 — see home-dashboard.js: the server owns progress, not this device. */
       // b373: the pencil opens the in-game name modal (identity.js), NOT a
       // native prompt() — see HearthriseLaunchpad.openRename for why.
       // b138 #5 / b139 (QA §2.1.2): inline rename pencil is now available
@@ -7863,16 +7875,28 @@ async function renderSocial(){
   const cl=document.getElementById('social-panel');
   if(!cl)return;
   const inClan=!!(clanDisplayName());
+  /* b465 — "Find a clan" was a promise the game could not keep. Clans are behind
+     CLAN_LAUNCHED (features/clans.js), so the button took you to the honest
+     "coming in Open Beta 1" card — but only AFTER telling you to go find one.
+     The pitch is worth keeping; the verb is not. While the flag is down the
+     signpost says WHEN, and the button offers what it can actually do. Flip the
+     flag and both revert to the finding copy on their own. */
+  const clanShut=(function(){
+    try{ const C=window.HearthriseClans;
+      return !!(C&&typeof C.clanLaunched==='function'&&!C.clanLaunched()); }catch(e){ return false; }
+  })();
   cl.innerHTML=
     `<div class="friend-row is-empty">No friends yet — add the players you meet on the boards above.</div>`+
     `<div class="soc-signpost">`+
       `<div class="soc-signpost-txt">`+
         (inClan
           ? `Your hold <b>${escapeHtml(clanDisplayName())}</b> — its castle, rooms and Work Orders live on the Clan screen.`
-          : `Clans build a castle together, with shared rooms, Work Orders and a weekly boss.`)+
+          : clanShut
+            ? `Clans open in Open Beta 1: a shared castle, its rooms, Work Orders and a weekly boss no one downs alone.`
+            : `Clans build a castle together, with shared rooms, Work Orders and a weekly boss.`)+
       `</div>`+
       `<button class="btn btn-sm btn-primary" onclick="showTab('clan')">`+
-        (inClan?'Open the Clan Seat':'Find a clan')+`</button>`+
+        (inClan?'Open the Clan Seat':clanShut?'See what’s coming':'Find a clan')+`</button>`+
     `</div>`;
 }
 /* The clan's name as the game currently knows it, whichever layer holds it:
@@ -7939,7 +7963,9 @@ function setLbMode(m){
 /* b225 (#18): both of these change what the CLAN screen should say, so both
    refresh it as well as Social — the signpost on one and the hold on the other
    have to agree the moment membership changes. */
-function joinClan(name){if(!name||name.length<3){notify('Need at least 3 chars','kill');return;}G.clanName=name;notify(`Joined ${name}!`,'info');renderSocial();renderClan();updateTopbar();}
+/* b465: "Need at least 3 chars" — `chars` is a variable name, not a word we
+   say to a player. clans.js already words the same rule properly. */
+function joinClan(name){if(!name||name.length<3){notify('A clan name needs at least 3 letters','kill');return;}G.clanName=name;notify(`Joined ${name}!`,'info');renderSocial();renderClan();updateTopbar();}
 function leaveClan(){G.clanName=null;renderSocial();renderClan();updateTopbar();}
 /* b206 (SYS-10): redeem a tradable Hearth Token for gems. The other exit for
    a token is the player market (sell for gold) — that's the bond economy. */
@@ -9477,7 +9503,7 @@ function invSellOne(id){
   removeItem(id, 1);
   if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, 1, _k); if(_p && _p.catch) _p.catch(()=>{}); }
   recordVendorSale(id, 1, price);   // b240: undoable
-  notify(`Sold 1× ${it.n} (+${price}🪙)`,'loot');
+  notify(`Sold 1× ${it.n} for ${price.toLocaleString()} gold`,'loot');
   updateTopbar(); renderInvNew();
 }
 function invSellAll(id){
@@ -9488,7 +9514,7 @@ function invSellAll(id){
   const price = vendorSellChunked(id, qty, 'vendor.sell_all');   // b377: ≤1,000 per intent
   delete G.inventory[id];
   recordVendorSale(id, qty, price);   // b240: undoable
-  notify(`Sold ${qty}× ${it.n} (+${(price*qty).toLocaleString()}🪙)`,'loot');
+  notify(`Sold ${qty}× ${it.n} for ${(price*qty).toLocaleString()} gold`,'loot');
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
 function invSellSelected(){
@@ -9511,7 +9537,7 @@ function invSellSelected(){
      agrees with the half. Nothing is sent; the row says why. */
   goldSettle(total, 'vendor.sell_selected', null);
   window._invSelected.clear();
-  notify(`Sold ${count} items for ${total.toLocaleString()}🪙` + (skipped?` · ${skipped} locked item(s) skipped`:''),'loot');
+  notify(`Sold ${count} items for ${total.toLocaleString()} gold` + (skipped?` · ${skipped} locked item(s) skipped`:''),'loot');
   window._invSelectMode = false;
   updateTopbar(); renderInvNew();
 }
@@ -9566,7 +9592,7 @@ function repurchase(idx){
   G.gold -= cost;
   addItem(b.id, b.qty);
   G.buyback.splice(idx, 1);
-  notify(`Bought back ${b.qty}× ${it.n} (−${cost.toLocaleString()}🪙)`,'loot');
+  notify(`Bought back ${b.qty}× ${it.n} for ${cost.toLocaleString()} gold`,'loot');
   try{ saveLocal(); }catch(e){}
   updateTopbar();
   renderBuyback();
@@ -10192,7 +10218,12 @@ function spendMarks(itemId){
   if(def.id === 'reroll_token'){
     /* Just refresh the board */
     if(typeof rerollBountyBoard === 'function') rerollBountyBoard(true);
-    else notify('No reroll function found','kill');
+    /* b465: was "No reroll function found" — our stack trace, read aloud to the
+       player. ⚠ NOTE FOR SYSTEMS: the Marks are already spent four lines above
+       this point, so on this branch the player pays and gets nothing. Copy only
+       here; the refund is a Systems fix (raised in HANDOFFS). */
+    else { notify('The board wouldn’t refresh — reload and your Marks will be here','kill');
+           try{ console.warn('[Bounty] rerollBountyBoard is missing — a reroll was charged with no refresh'); }catch(e){} }
   } else if(def.flag){
     if(def.value !== undefined && !def.incr) G.bountyHunter.upgrades[def.flag] = def.value;
     else if(def.incr) G.bountyHunter.upgrades[def.flag] = (G.bountyHunter.upgrades[def.flag]||0) + 1;
@@ -12375,22 +12406,59 @@ function buildWelcomeOverlay(){
 }
 
 /* ─── Daily Goals (3 quests, refresh per UTC day) ─── */
+/* b465 — EVERY ROW CARRIES ITS OWN `desc`.
+   Until now not one pool row had one, so all three quests in the modal printed
+   the same fallback sentence: "Complete this objective to claim your reward."
+   Three rows, one line of nothing, repeated — it is in our own store
+   screenshots. A description earns its space only if it tells the player
+   something the name does not: WHAT COUNTS. Every line below answers that and
+   nothing else, and each is checked against the counter in `source:` —
+   "any tree" because stats.chopped is per-skill, not per-log (b226); "burnt
+   dishes don't count" because artisan-sim.js returns an empty `progress` on a
+   burn. No hype, no promises the engine does not keep. */
 var DAILY_GOAL_POOL = [
-  {id:'kill_any',  emoji:'⚔️', name:'Slay 10 monsters',   target:10, source:'stats.kills'},
-  {id:'kill_more', emoji:'🩸', name:'Slay 30 monsters',   target:30, source:'stats.kills'},
+  {id:'kill_any',  emoji:'⚔️', name:'Slay 10 monsters',   target:10, source:'stats.kills',
+   desc:'Any foe counts. Pick something you beat comfortably and let the fight run.'},
+  {id:'kill_more', emoji:'🩸', name:'Slay 30 monsters',   target:30, source:'stats.kills',
+   desc:'A long shift at the sharp end. Kills you bank while away count too.'},
   /* b226 (spec §8.2) — these three read PER-SKILL counters, not item-specific
      collection counters. They used to point at collection.normal_log /
      collection.copper_ore / collection.shrimp, so a level-90 woodcutter
      chopping Duskwood made zero progress on "Gather 25 logs" and "Catch 15
      fish" was unachievable for anyone past Shrimp unless they deliberately
      downgraded. A daily that gets harder the better you are is backwards. */
-  {id:'gather_logs', emoji:'🪵', name:'Gather 25 logs',  target:25, source:'stats.chopped'},
-  {id:'mine_ore',  emoji:'⛏️', name:'Mine 25 ores',      target:25, source:'stats.mined'},
-  {id:'cook',      emoji:'🍳', name:'Cook 5 dishes',     target:5,  source:'stats.cooked'},
-  {id:'fish',      emoji:'🎣', name:'Catch 15 fish',     target:15, source:'stats.fished'},
-  {id:'gold_500',  emoji:'🪙', name:'Earn 500 gold',     target:500, source:'_dailyGoldDelta'},
-  {id:'plant',     emoji:'🌾', name:'Plant 5 crops',     target:5,  source:'stats.planted'},
-  {id:'level_up',  emoji:'📈', name:'Gain a skill level', target:1,  source:'stats.levelups'},
+  {id:'gather_logs', emoji:'🪵', name:'Gather 25 logs',  target:25, source:'stats.chopped',
+   desc:'Any tree, any tier — the axe does not care which one you fell.'},
+  {id:'mine_ore',  emoji:'⛏️', name:'Mine 25 ores',      target:25, source:'stats.mined',
+   desc:'Any seam counts. Copper is worth exactly as much here as runite.'},
+  {id:'cook',      emoji:'🍳', name:'Cook 5 dishes',     target:5,  source:'stats.cooked',
+   desc:'Five finished meals. Burnt dishes do not count, so cook what you rarely ruin.'},
+  {id:'fish',      emoji:'🎣', name:'Catch 15 fish',     target:15, source:'stats.fished',
+   desc:'Any water, any catch. Fifteen shrimp finish this as surely as fifteen sharks.'},
+  /* ── b465 DESIGNER RULING — `gold_500` IS WITHDRAWN FROM THE SLATE. ──────────
+     Its reward is UNPAYABLE. DAILY_REWARDS pays it `{gold: 0, item:
+     'starter_bundle_token', items:{small_bones:5}}`: `gold: 0` is nothing,
+     `reward.item` (singular) is read by NO claim path in the game, and neither
+     `starter_bundle_token` nor `small_bones` is an id in src/data/items.js (the
+     real bones are `bones` / `big_bones` / `dragon_bones`). The server agrees and
+     said so first — supabase/migrations/2026-08-23-modal-goal-claims.sql §"TWO
+     CATALOGUED REWARDS ARE PHANTOM" carries the row verbatim, answers
+     `reward_unavailable`, and defers the fix to me ("game data is the
+     Designer's"). So a player who earned 500 gold got a Claim button that
+     returned an error.
+     A quest that cannot pay must not be dealt. Withdrawing it is client-only and
+     cannot desync: hr_claim_goal verifies COMPLETION and catalogue membership, it
+     does not derive today's offered set, so a goal never offered is simply never
+     claimed and its catalogue row sits harmless.
+     TO RESTORE IT: author a real reward on BOTH sides in one change — the
+     DAILY_REWARDS row below and the hr_goal_rewards seed at that migration's
+     line 254 — then un-comment this row. See HANDOFFS. */
+  // {id:'gold_500',  emoji:'🪙', name:'Earn 500 gold',     target:500, source:'_dailyGoldDelta',
+  //  desc:'Gold earned today, from anywhere: loot, the vendor, or a market sale.'},
+  {id:'plant',     emoji:'🌾', name:'Plant 5 crops',     target:5,  source:'stats.planted',
+   desc:'Seeds in the ground. Planting is the whole task — you need not stay for the harvest.'},
+  {id:'level_up',  emoji:'📈', name:'Gain a skill level', target:1,  source:'stats.levelups',
+   desc:'Any skill, any level. Your lowest skill is the cheapest way to finish this.'},
 ];
 function getGoalsForToday(){
   var key = todayKey();
@@ -15016,7 +15084,9 @@ window._invToggleMulti = function(){
   renderInvFancy();
 };
 window._invManage = function(){
-  if(typeof notify === 'function') notify('Manage UI coming soon','info');
+  /* b465: "Manage UI coming soon" — a feature name from a spec and a promise
+     with no date on it. Say what the player can do instead, right now. */
+  if(typeof notify === 'function') notify('Right-click or long-press any item to equip, eat, bury, inspect or sell it','info');
 };
 window._invLoadoutSelect = function(idx){
   if(idx === '' || isNaN(idx)) return;
@@ -15025,7 +15095,9 @@ window._invLoadoutSelect = function(idx){
 };
 window._invLoadoutManage = function(){
   if(typeof openLoadouts === 'function') openLoadouts();
-  else if(typeof notify === 'function') notify('Loadout manager coming soon','info');
+  /* b465: "Loadout manager coming soon" named a module, not a thing to do.
+     This arm is only reached if openLoadouts failed to load at all. */
+  else if(typeof notify === 'function') notify('Loadouts are still loading — try again in a moment','info');
 };
 
 /* ─── Override renderInvNew to use the new layout ─── */
@@ -16382,7 +16454,9 @@ window.unlockCompanion = function(id){
   if(G.companions.ownedIds.indexOf(id) >= 0) return false;
   G.companions.ownedIds.push(id);
   G.companions.xp[id] = 0;
-  if(typeof notify === 'function') notify('Companion unlocked: '+window.COMPANIONS[id].n+' '+window.COMPANIONS[id].icon, 'loot');
+  /* b465: same fix as features/companions.js — the raw `icon` emoji does not
+     belong in a plain-text toast, and the two copies must say the same thing. */
+  if(typeof notify === 'function') notify('Companion unlocked: '+window.COMPANIONS[id].n, 'loot');
   return true;
 };
 
@@ -16854,6 +16928,20 @@ function parseSource(src){
       var price = parseInt(s.arg1, 10);
       var skillReq = s.arg2; // e.g., "cooking25" or "prayer50"
       var owned = G.companions && G.companions.ownedIds && G.companions.ownedIds.indexOf(id) >= 0;
+      /* ── b465 — THIS ROW SPOKE IN FIELD NAMES. ────────────────────────────
+         It printed `def.role + ' companion' + ' · req Lv 50 prayer'` — a raw
+         role key, and a requirement in a word order no human uses, on the row
+         that is supposed to sell the thing. The lock state was worse: a bare
+         "🔒  · req Lv 50 prayer" with no subject at all. Every other gated
+         surface in the game already says "Needs <Skill> Lv <n>" / "Unlocks at
+         … Lv <n>"; this one now says it too, through skillName() so a renamed
+         skill follows for free.
+         AND THE BUY BUTTON WAS ALWAYS LIT. The seed, equipment, cosmetic, trait
+         and bounty rows all disable an unaffordable Buy (render/shop.js) — the
+         four companion rows were the only shop rows in the game that did not,
+         so a player with 12 gold was invited to buy a 25,000-gold Raccoon and
+         got a refusal toast for it. Same treatment, same tokens, and the price
+         still comes off `source:` — never a literal. */
       var meetsReq = true, reqText = '';
       if(skillReq){
         var m = skillReq.match(/^(\w+?)(\d+)$/);
@@ -16861,19 +16949,29 @@ function parseSource(src){
           var skill = m[1], lv = parseInt(m[2], 10);
           var have = (typeof getLevel === 'function') ? getLevel(skill) : 1;
           meetsReq = have >= lv;
-          reqText = ' · req Lv '+lv+' '+skill;
+          /* SKILLS_DEF off window, not the block-scoped skillName() helper —
+             this IIFE cannot see that declaration, and a silent fallthrough to
+             the raw key is exactly the defect being fixed. */
+          var _sd = window.SKILLS_DEF && window.SKILLS_DEF[skill];
+          var _sn = (_sd && _sd.name) || skill.replace(/^./, function(c){ return c.toUpperCase(); });
+          reqText = 'Needs '+_sn+' Lv '+lv;
         }
       }
+      var roleWord = String(def.role||'').replace(/^./, function(c){ return c.toUpperCase(); });
+      var subLine = (roleWord ? roleWord+' companion' : 'Companion') + (reqText ? ' · '+reqText : '');
+      var canPay = (typeof balCanAfford === 'function') ? balCanAfford(price, 'gold') : true;
       var row = document.createElement('div');
       row.className = 'shop-row';
       row.setAttribute('data-companion', id);
       row.innerHTML = '<span class="si">'+window.companionIconHtml(id, 28)+'</span>'
-        + '<div class="info"><b>'+def.n+'</b><span>'+def.role+' companion'+reqText+'</span></div>'
+        + '<div class="info"><b>'+def.n+'</b><span>'+subLine+'</span></div>'
+        + '<span class="price">'+price.toLocaleString()+' gold</span>'
         + (owned
-            ? '<span class="tag" style="color:#7f9a4f">Owned</span>'
-            : (meetsReq
-                ? '<button class="btn btn-sm" onclick="window._buyCompanion(\''+id+'\','+price+')" style="background:#7f9a4f;color:#0f1320;font-weight:700">'+price+'g · Buy</button>'
-                : '<span class="muted tiny">🔒 '+reqText+'</span>'
+            ? '<button class="btn btn-sm" disabled>Owned</button>'
+            : (!meetsReq
+                ? '<button class="btn btn-sm" disabled>'+reqText+'</button>'
+                : '<button class="btn btn-sm '+(canPay?'btn-primary':'')+'"'+(canPay?'':' disabled')+
+                  ' onclick="window._buyCompanion(\''+id+'\','+price+')">Buy</button>'
               )
           );
       listContainer.appendChild(row);
@@ -18311,6 +18409,11 @@ console.log('[Bundle Icons v1] applied:',
     mine_ore:    {gold: 250, xp:{mining:100}},
     cook:        {gold: 200, xp:{cooking:80}},
     fish:        {gold: 250, xp:{fishing:100}},
+    /* PHANTOM — and why its goal is withdrawn from DAILY_GOAL_POOL (b465 ruling,
+       reasoning at the pool row). `gold: 0`; `item:` is read by no claim path;
+       `starter_bundle_token` and `small_bones` are not ids in src/data/items.js.
+       Kept here, unreachable, so the fix has one obvious place to land — and it
+       must land on the server catalogue in the SAME change. */
     gold_500:    {gold: 0, xp:{}, item:'starter_bundle_token', items:{small_bones:5}},
     plant:       {gold: 200, xp:{farming:80}},
     level_up:    {gold: 500, xp:{}, gems: 1},
@@ -18325,17 +18428,31 @@ console.log('[Bundle Icons v1] applied:',
        reads to a player as "they never changed". Widened to twelve, all sourced from
        counters the engine really increments, so a week now looks different from the
        last one. */
-    {id:'wk_kills',    emoji:'⚔️', name:'Slay 100 monsters', target:100, source:'stats.kills',           reward:{gold:2500, gems:3, xp:{combat:1000}}},
-    {id:'wk_smith',    emoji:'🔨', name:'Smith 60 items',    target:60,  source:'stats.smithed',         reward:{gold:2200, xp:{smithing:600}}},
-    {id:'wk_craft',    emoji:'🪡', name:'Craft 60 items',    target:60,  source:'stats.crafted',         reward:{gold:2200, xp:{crafting:600}}},
-    {id:'wk_harvest',  emoji:'🌾', name:'Harvest 120 crops', target:120, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}}},
-    {id:'wk_bury',     emoji:'🦴', name:'Bury 150 bones',    target:150, source:'stats.buried',          reward:{gold:1800, xp:{prayer:500}}},
-    {id:'wk_rare',     emoji:'🍀', name:'Find 5 rare drops', target:5,   source:'stats.rareDrops',       reward:{gold:3000, gems:4}},
-    {id:'wk_gold',     emoji:'💰', name:'Earn 50,000 gold',  target:50000, source:'stats.totalGoldEarned', reward:{gold:2500, gems:2}},
-    {id:'wk_gather',   emoji:'⛏️', name:'Gather 250 ores',  target:250, source:'stats.mined',           reward:{gold:2000, xp:{mining:500}}},
-    {id:'wk_logs',     emoji:'🪵', name:'Cut 250 logs',     target:250, source:'stats.chopped',         reward:{gold:2000, xp:{woodcutting:500}}},
-    {id:'wk_cook',     emoji:'🍳', name:'Cook 50 dishes',    target:50,  source:'stats.cooked',         reward:{gold:1500, xp:{cooking:400}}},
-    {id:'wk_levels',   emoji:'📈', name:'Gain 5 skill levels', target:5, source:'stats.levelups',       reward:{gold:5000, gems:5}},
+    /* b465: every row carries its own `desc` for the same reason the daily pool
+       does — the modal's fallback line said nothing, three times over. Each line
+       states WHAT COUNTS toward the counter named in `source:`, and nothing else. */
+    {id:'wk_kills',    emoji:'⚔️', name:'Slay 100 monsters', target:100, source:'stats.kills',           reward:{gold:2500, gems:3, xp:{combat:1000}},
+     desc:'A week of fighting. Leave a target set when you log off and it keeps counting.'},
+    {id:'wk_smith',    emoji:'🔨', name:'Smith 60 items',    target:60,  source:'stats.smithed',         reward:{gold:2200, xp:{smithing:600}},
+     desc:'Sixty pulls at the Forge. Bars are the bottleneck — smelt ahead of yourself.'},
+    {id:'wk_craft',    emoji:'🪡', name:'Craft 60 items',    target:60,  source:'stats.crafted',         reward:{gold:2200, xp:{crafting:600}},
+     desc:'Sixty turns at the bench. Runecrafting and Stonemason work counts here too.'},
+    {id:'wk_harvest',  emoji:'🌾', name:'Harvest 120 crops', target:120, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}},
+     desc:'Crops pulled from your plots. They ripen while you are away — come back and gather.'},
+    {id:'wk_bury',     emoji:'🦴', name:'Bury 150 bones',    target:150, source:'stats.buried',          reward:{gold:1800, xp:{prayer:500}},
+     desc:'Bones off anything you kill. Every burial is Prayer XP you would otherwise vendor.'},
+    {id:'wk_rare',     emoji:'🍀', name:'Find 5 rare drops', target:5,   source:'stats.rareDrops',       reward:{gold:3000, gems:4},
+     desc:'Five rare drops from anywhere. Kill quickly and let the odds catch up with you.'},
+    {id:'wk_gold',     emoji:'💰', name:'Earn 50,000 gold',  target:50000, source:'stats.totalGoldEarned', reward:{gold:2500, gems:2},
+     desc:'Everything you take in counts — loot, vendor sales and filled market listings.'},
+    {id:'wk_gather',   emoji:'⛏️', name:'Gather 250 ores',  target:250, source:'stats.mined',           reward:{gold:2000, xp:{mining:500}},
+     desc:'Any seam. A week of steady mining, or one long stretch banked while away.'},
+    {id:'wk_logs',     emoji:'🪵', name:'Cut 250 logs',     target:250, source:'stats.chopped',         reward:{gold:2000, xp:{woodcutting:500}},
+     desc:'Any tree. Set the axe going before you log off and it accrues without you.'},
+    {id:'wk_cook',     emoji:'🍳', name:'Cook 50 dishes',    target:50,  source:'stats.cooked',         reward:{gold:1500, xp:{cooking:400}},
+     desc:'Fifty finished meals. Burnt dishes do not count toward it.'},
+    {id:'wk_levels',   emoji:'📈', name:'Gain 5 skill levels', target:5, source:'stats.levelups',       reward:{gold:5000, gems:5},
+     desc:'Five levels across any skills. Spread the work — early levels come cheapest.'},
   ];
   /* b224: this renderer reads its progress sources out of block 16 across an
      IIFE boundary. When that export was missing the old inline guard silently
@@ -18543,22 +18660,64 @@ console.log('[Bundle Icons v1] applied:',
     }
     return DAILY_REWARDS[goalId] || {gold:100};
   }
+  /* b465 — NAMES, NOT IDS, AND NOT ITEM KEYS.
+     This printed `kv[1]+'x '+kv[0]` straight off the reward table, so the "Earn
+     500 gold" daily advertised its prize as "5x small_bones" — a database key on
+     the screen whose only job is to make the reward look worth having. It also
+     dropped `reward.item` (the singular field, which is what carries
+     `starter_bundle_token`) on the floor entirely, so that quest's ACTUAL headline
+     reward was invisible. Every id now goes through the same ITEMS/SKILLS_DEF
+     lookups the rest of the UI reads, so a renamed item updates here for free; an
+     id with no row degrades to a titleised version of itself rather than to a raw
+     key. `1💎` becomes "1 gem" — a glyph is not a word, and this string is read
+     aloud in tooltips and screenshots. */
+  function _rsTitleize(id){
+    return String(id||'').split(/[_\-:]/).filter(Boolean)
+      .map(function(w){ return w.charAt(0).toUpperCase()+w.slice(1); }).join(' ');
+  }
+  function _rsItem(id){
+    var it = window.ITEMS && window.ITEMS[id];
+    return (it && (it.n || it.name)) || _rsTitleize(id);
+  }
+  function _rsSkill(id){
+    var s = window.SKILLS_DEF && window.SKILLS_DEF[id];
+    return (s && s.name) || _rsTitleize(id);
+  }
+  /* b465 — THE FALLBACK LINE MUST STILL SAY SOMETHING.
+     It used to be "Complete this objective to claim your reward." on EVERY row,
+     which is the sentence a quest row already is: it named no reward, no
+     deadline and no method, and it printed three times in a 3-row modal. Every
+     authored row now carries its own `desc`, so this is only reached by a NEW
+     row someone forgets to write one for — and when that happens it must degrade
+     to content, not to wallpaper. So it states the two facts the renderer can
+     always derive: what the row pays, and when it stops counting. */
+  function fallbackDesc(reward, isWeekly){
+    var summary = rewardSummary(reward);
+    var when = isWeekly ? 'before the weekly reset on Monday' : 'before today’s reset at UTC midnight';
+    if(summary && summary !== '—') return 'Finish it ' + when + ' to claim ' + summary + '.';
+    return 'Finish it ' + when + '.';
+  }
   function rewardSummary(reward){
     if(!reward) return '—';
     var parts = [];
-    if(reward.gold) parts.push(reward.gold+'g');
-    if(reward.gems) parts.push(reward.gems+'💎');
+    if(reward.gold) parts.push(Number(reward.gold).toLocaleString()+' gold');
+    if(reward.gems) parts.push(reward.gems+' '+(reward.gems===1?'gem':'gems'));
     if(reward.xp){
       Object.entries(reward.xp).forEach(function(kv){
-        parts.push(kv[1]+' '+kv[0]+' xp');
+        parts.push(Number(kv[1]).toLocaleString()+' '+_rsSkill(kv[0])+' XP');
       });
     }
+    /* `reward.item` (SINGULAR) is deliberately NOT rendered. No claim path in
+       the game reads it — not the local branch, not hr_claim_goal — so printing
+       it would advertise a prize that is never granted. The only row that had
+       one is withdrawn above. If a future reward needs a single item, use
+       `items:{id:1}`, which IS paid. */
     if(reward.items){
       Object.entries(reward.items).forEach(function(kv){
-        parts.push(kv[1]+'x '+kv[0]);
+        parts.push(kv[1]+'× '+_rsItem(kv[0]));
       });
     }
-    return parts.join(' · ');
+    return parts.length ? parts.join(' · ') : '—';
   }
 
   // ── Claim ──
@@ -18620,10 +18779,20 @@ console.log('[Bundle Icons v1] applied:',
           if(typeof window.notify === 'function') notify('Already claimed — your reward is safe', 'loot');
         } else {
           var why = (res && res.error) || 'network';
+          /* b465: the default arm printed the RAW server code at the player —
+             "Claim failed (reward_unavailable) — please try again", on a claim
+             that will never succeed no matter how often they try. An error code
+             is a note to us, not a sentence to them. Every code we know gets a
+             plain answer; anything unrecognised says the one true thing (we
+             couldn't pay it, your progress is safe) and keeps the code in the
+             console for us. */
           var msg = why === 'incomplete' ? 'The server hasn’t counted enough progress yet — give it a few seconds and try again'
                   : why === 'unknown_goal' ? 'This quest can’t be claimed yet — it has been reported'
                   : why === 'rpc_missing' ? 'Claiming is being upgraded — try again in a few minutes'
-                  : 'Claim failed ('+why+') — please try again';
+                  : why === 'reward_unavailable' ? 'This quest’s reward is being re-authored — nothing was spent, and we’ll make it good'
+                  : why === 'network' ? 'Couldn’t reach the server — your progress is safe, try again in a moment'
+                  : 'That claim didn’t go through — your progress is safe, try again in a moment';
+          if(why !== 'network'){ try{ console.warn('[Quests] claim refused:', why, goalId); }catch(e){} }
           if(typeof window.notify === 'function') notify(msg, 'kill');
         }
         renderModal();
@@ -18735,7 +18904,12 @@ console.log('[Bundle Icons v1] applied:',
           + '<div><h4>Quest Info</h4>'
           + '<div class="qm-summary" id="qm-summary"></div></div>'
           + '<div><h4 style="font-size:calc(14.5px * var(--ui-scale, 1))">About Quests</h4>'
-          + '<p class="qm-info-text">Daily quests refresh every 24 hours at UTC midnight. Weekly quests refresh every Monday. Complete them to claim gold, XP, gems, and rare items.</p></div>'
+          /* b465: "…gold, XP, gems, and rare items" promised a category nothing
+             in either pool pays. Rewards are gold, skill XP and gems; the one
+             row that listed items listed two that do not exist. Say what is
+             actually on offer, and say the useful thing instead — that progress
+             keeps counting while you are away. */
+          + '<p class="qm-info-text">Daily quests reset at UTC midnight; weekly quests reset on Monday. They pay gold, skill XP and gems. Progress counts while you are away, so a quest you leave running finishes without you.</p></div>'
           + '<div class="qm-reset" id="qm-reset"></div>'
         + '</aside>'
       + '</div></div>';
@@ -18834,7 +19008,7 @@ console.log('[Bundle Icons v1] applied:',
           +'<div class="qm-q-icon">'+(g.emoji||'🎯')+'</div>'
           +'<div class="qm-q-info">'
             +'<div class="qm-q-name">'+g.name+'</div>'
-            +'<div class="qm-q-desc">'+(g.desc||'Complete this objective to claim your reward.')+'</div>'
+            +'<div class="qm-q-desc">'+esc(g.desc||fallbackDesc(reward, isWeekly))+'</div>'
             +'<div class="qm-q-progbar"><i style="width:'+pct.toFixed(1)+'%"></i></div>'
             +'<div class="qm-q-progtext">'+Math.min(prog,g.target)+' / '+g.target+' ('+pct.toFixed(0)+'%)</div>'
           +'</div>'

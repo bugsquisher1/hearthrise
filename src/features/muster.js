@@ -1443,9 +1443,28 @@
   // as "what's happening" before "what I own". It ticks its own text node at
   // 1Hz and NEVER calls updateTopbar(), which writes five elements and is
   // called from a dozen places.
+  /* b465 — THE TOPBAR MAY NOT COUNT DOWN TO A DOOR THAT IS SHUT.
+     b385 gated the muster CARD behind CLAN_LAUNCHED (Events shows the honest
+     "coming in Open Beta 1" panel), but the topbar pill was never gated with it.
+     So the very first thing in a new player's topbar was "Rally in 8:01:35" —
+     a live countdown to a feature that does not exist yet — and clicking it
+     opened the full rally modal with Join / Rally controls behind the gate.
+     Same flag, same fix: while clans are unlaunched the pill is not rendered at
+     all, and any pill left over from a previous state is removed. Nothing here
+     is hidden with CSS; hiding a countdown still ticks it. Flip CLAN_LAUNCHED
+     and the pill returns unchanged. */
+  function musterGated() {
+    var CL = window.HearthriseClans;
+    return !!(CL && typeof CL.clanLaunched === 'function' && !CL.clanLaunched());
+  }
   function ensurePill() {
     var host = document.querySelector('.topbar .top-stats');
     if (!host) return null;
+    if (musterGated()) {
+      var stale = document.getElementById('hr-muster-pill');
+      if (stale) stale.remove();
+      return null;
+    }
     var el = document.getElementById('hr-muster-pill');
     if (!el) {
       ensureStyle();

@@ -626,11 +626,22 @@
          for a clan. Telling them to join one and then not saying where is the
          same dead end the Clan Seat used to be. The dock minimises itself on
          the way out — the destination is behind it. */
+      /* b465: "Join a clan to unlock this channel" + "Find a clan" is a dead end
+         while CLAN_LAUNCHED is down — there is no clan to find, and the button
+         landed on a coming-soon card. Say when instead of where. */
+      var _clanShut = false;
+      try { var _C = window.HearthriseClans;
+        _clanShut = !!(_C && typeof _C.clanLaunched === 'function' && !_C.clanLaunched()); } catch(e){}
       msgsEl.innerHTML = (channel === 'clan' && !clanOf())
-        ? '<div class="chat-empty">Join a clan to unlock this channel.'
-          + '<div style="margin-top:10px"><button class="btn btn-sm btn-primary" '
-          + 'onclick="if(window.Chat)window.Chat.close();'
-          + 'if(window.showTab)window.showTab(\'clan\')">Find a clan</button></div></div>'
+        ? (_clanShut
+          ? '<div class="chat-empty">Clan chat opens with clans, in Open Beta 1.'
+            + '<div style="margin-top:10px"><button class="btn btn-sm btn-primary" '
+            + 'onclick="if(window.Chat)window.Chat.close();'
+            + 'if(window.showTab)window.showTab(\'clan\')">See what’s coming</button></div></div>'
+          : '<div class="chat-empty">Join a clan to unlock this channel.'
+            + '<div style="margin-top:10px"><button class="btn btn-sm btn-primary" '
+            + 'onclick="if(window.Chat)window.Chat.close();'
+            + 'if(window.showTab)window.showTab(\'clan\')">Find a clan</button></div></div>')
         : '<div class="chat-empty">No messages yet — be the first.</div>';
       return;
     }

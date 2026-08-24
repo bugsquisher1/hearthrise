@@ -234,7 +234,10 @@ export function unlockCompanion(id) {
   window.G.companions.ownedIds.push(id);
   window.G.companions.xp[id] = 0;
   if (typeof window.notify === 'function') {
-    window.notify(`Companion unlocked: ${COMPANIONS[id].n} ${COMPANIONS[id].icon}`, 'loot');
+    /* b465: the trailing `${...icon}` pasted the data row's raw emoji into a
+       plain-text toast — the Final Directive's no-emoji-as-art rule, in a
+       string. The companion's NAME is the thing worth saying. */
+    window.notify(`Companion unlocked: ${COMPANIONS[id].n}`, 'loot');
   }
   emit('companionUnlock', { id });
   maybeServerGrant(id);

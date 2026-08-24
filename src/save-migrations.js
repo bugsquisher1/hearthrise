@@ -608,7 +608,10 @@
       }
       // Surface to the player so they don't silently lose progress
       if(typeof window.notify === 'function'){
-        window.notify('Save migration failed — running on old schema. Tap support if anything looks off.', 'warn');
+        /* b465: "running on old schema" and "Tap support" — one word the player
+           does not know, and one instruction pointing at a button that does not
+           exist. The report path they DO have is the bug-report button. */
+        window.notify('We couldn’t finish updating your save — nothing was deleted. If anything looks wrong, send a bug report.', 'warn');
       }
       return save;
     }

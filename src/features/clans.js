@@ -470,7 +470,9 @@
   }
 
   function requireOnline() {
-    if (!online()) { notify('Multiplayer server not configured', 'kill'); return false; }
+    /* b465: "Multiplayer server not configured" is an ops sentence. The player
+       needs to know it is a connection, not their account. */
+    if (!online()) { notify('You’re not connected to the realm — clans need a live connection', 'kill'); return false; }
     if (!signedIn()) {
       notify('Sign in (top of Home) to use clans', 'kill');
       return false;

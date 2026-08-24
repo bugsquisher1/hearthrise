@@ -272,8 +272,11 @@
       if (cid) {
         var rw = claimMilestone(cid, G);
         if (rw && typeof window.notify === 'function') {
-          var s2 = []; if (rw.gold) s2.push('🪙 ' + fmt(rw.gold)); if (rw.gems) s2.push('💎 ' + fmt(rw.gems));
-          window.notify('Collection reward: ' + s2.join(' '), 'gold');
+          /* b465: was "Collection reward: 🪙 500 💎 2" — pictograms doing the
+             work of nouns, in a plain-text toast. Words, in the house voice. */
+          var s2 = []; if (rw.gold) s2.push(fmt(rw.gold) + ' gold');
+          if (rw.gems) s2.push(fmt(rw.gems) + (rw.gems === 1 ? ' gem' : ' gems'));
+          window.notify('Collection reward: ' + s2.join(' · '), 'gold');
         }
         open();
       }

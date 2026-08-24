@@ -770,9 +770,31 @@
       for(var i = rows.length; i < MAX_SLOTS; i++){
         var hasPremium = p.entitlements && p.entitlements.hearthHall;
         var free = hasPremium && i >= 1 && i <= 3;
+        /* b465 — `canBuy` NEVER MEANT "you can buy this".
+           It means "this is the next slot in order", and both renderers read it
+           as permission: a brand-new account holding ONE gem was shown "200
+           gems" with a lit, fully enabled Buy button. Pressing it did nothing
+           useful — the spend path refuses — so the first premium surface a new
+           player meets is a button that lies. Affordability is now carried in
+           the ROW, beside the cost it is a judgement about, so the drawer and
+           the Home rail cannot disagree about it. `afford` is null when the
+           balance is UNKNOWN (server not yet heard from): unknown is not a
+           shortfall, and a renderer must not paint it as one — the same
+           distinction balShortfall() draws for gold. */
+        var _cost = free ? 0 : SLOT_COSTS_GEMS[i];
+        var _have = null;
+        try {
+          var _B = window.HearthriseBalance;
+          _have = (_B && typeof _B.balanceNum === 'function')
+            ? _B.balanceNum(window.G, 'gems')                       // null when UNKNOWN
+            : ((window.G && typeof window.G.gems === 'number') ? window.G.gems : null);
+          if (typeof _have !== 'number' || !isFinite(_have)) _have = null;
+        } catch (e) { _have = null; }
         rows.push({
           kind: 'locked', slotId: i, free: !!free,
-          cost: free ? 0 : SLOT_COSTS_GEMS[i], canBuy: (i === unlockedCount()),
+          cost: _cost, canBuy: (i === unlockedCount()),
+          afford: free ? true : (_have === null ? null : _have >= _cost),
+          shortBy: (free || _have === null) ? 0 : Math.max(0, _cost - _have),
         });
       }
       return rows;
@@ -884,8 +906,14 @@
             /* b373 — "900 gems", not "900 💎". The last emoji on this modal. */
             '<div class="cs-slot-stats">' + (r.free ? 'Included with Hearth Hall' : (r.cost + ' gems')) + '</div>' +
           '</div>' +
+          /* b465 — a Buy you cannot pay for is disabled, and says why. Unknown
+             (afford === null) still offers the button: we do not know that they
+             are short, and the spend path answers honestly if they are. */
           (r.canBuy
-            ? '<button class="cs-buy" data-buy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>'
+            ? (r.afford === false
+              ? '<button class="cs-buy" disabled title="You have ' + (r.cost - r.shortBy) + ' of ' + r.cost + ' gems">'
+                + 'Needs ' + r.shortBy + ' more gems</button>'
+              : '<button class="cs-buy" data-buy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>')
             : '<div class="cs-locked-tag">unlock the previous slot first</div>') +
         '</div>';
       }).join('');

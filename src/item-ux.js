@@ -414,7 +414,9 @@
         fn: function(){
           if(typeof window.showTab === 'function') window.showTab('skills');
           if(typeof window.openSkillDetail === 'function') window.openSkillDetail('cooking');
-          if(typeof window.notify === 'function') window.notify('Opening Cooking', 'info');
+          /* b465: "Opening Cooking" narrated a navigation the player just watched
+             happen. A toast should tell you something the screen does not. */
+          if(typeof window.notify === 'function') window.notify('Pick a recipe to start cooking', 'info');
           closeSlider();
         },
       };

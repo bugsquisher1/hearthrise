@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 468 — 2026-08-24 (Farm stays put)
+
+- 🌱 **Your farm plots no longer vanish on a reload.** A lean server update could momentarily report zero plots and the game took it literally, wiping crops that were actually still growing — it now ignores an empty update and only clears the farm when the full load says so. Your crops were always safe on the server.
+- 🔔 **Fixed the "[crop] ready!" toast spamming every few seconds.** A ready crop kept getting its "ready" flag reset, so the notification re-fired on a loop. It now tells you once per crop when it's ready.
+
 ## v0.9.2-beta build 467 — 2026-08-24 (Your bag comes back)
 
 - 🎒 **Fixed your inventory looking empty (or nearly) after a reload.** If you reloaded while idle — not actively gathering or fighting — the bag was only showing a stale scrap of itself. Your items were always safe on the server; the game just wasn't loading them back in on an idle boot. It now rebuilds your full bag (and bank) from the server every time you load.

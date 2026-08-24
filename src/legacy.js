@@ -11695,6 +11695,29 @@ function applyCombatStyle(k){
   if(!styles[k]) return false;
   G.combatStyle = G.combatStyle || {};
   G.combatStyle[t] = k;
+  /* ── AND TELL THE SERVER, BECAUSE THE SERVER IS THE ONE THAT PAYS (P0) ──
+     src/net/goal-claim.js setStyle -> hr_set_style writes
+     player_state.combat_style, which supabase/functions/hr-accrue/accrual.js
+     reads to decide WHICH SKILL every combat XP grant lands in. Before this
+     line the choice lived only on the client (and, since the blob retired, only
+     in the client_state residue bag — a self-only store the server is forbidden
+     to read for authority), so the accrual engine used the family DEFAULT for
+     everybody: Accurate, 100% to Attack. Skills are server-of-record and armed,
+     so each settle overwrote the client's predicted Strength/Defence XP with
+     that. Paione, live: "only Attack saves; the rest reset to level 1."
+
+     FIRE-AND-FORGET. The local write above stands as the display prediction and
+     reconcileCombatStyle() (src/net/accrue.js) pulls the server's own map back
+     off the next envelope, so a dropped call self-heals on the next settle
+     rather than stranding the choice. Never awaited — the picker must stay
+     instant, and a style is not a value that crosses to another player. */
+  try {
+    var GC = window.HearthriseGoalClaim;
+    if (GC && typeof GC.setStyle === 'function') {
+      var p = GC.setStyle(t, k);
+      if (p && typeof p.catch === 'function') p.catch(function () {});
+    }
+  } catch (e) {}
   if(typeof window.retimeCombat === 'function') window.retimeCombat();
   if(typeof save === 'function') save();
   if(typeof renderCombat === 'function') renderCombat();

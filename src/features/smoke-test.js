@@ -1639,6 +1639,73 @@ const TESTS = [
     assert(Object.keys(g3.traits).length === 0, 'an empty owned set must grant nothing');
   }),
 
+  () => tryRun('P0 (Paione): the combat style is the SERVER\'s, and the picker tells it', () => {
+    /* THE BUG. "When training combat, Strength/Defense/HP exp is not saving —
+       only Attack saves; the rest reset to level 1." The chosen style had no
+       server home (save blob → client_state RESIDUE bag, both self-only), so
+       the accrual engine settled every window with the family DEFAULT —
+       Accurate, 100% of styled XP to Attack — and, because skills are
+       server-of-record and armed, overwrote the client's predicted Strength /
+       Defence XP at every settle.
+
+       The engine half is proven behaviourally in tests/combat-style.mjs. THIS
+       is the client half: the picker must TELL the server, and the envelope
+       must be able to correct the picker. */
+    const A = window.HearthriseAccrual;
+    const GC = window.HearthriseGoalClaim;
+    assert(GC && typeof GC.setStyle === 'function',
+      'HearthriseGoalClaim.setStyle is missing — nothing sends hr_set_style, so the server never '
+      + 'learns the choice and the settle keeps routing every styled grant to Attack');
+    if (!A || typeof A.reconcileCombatStyle !== 'function') {
+      assert(false, 'HearthriseAccrual.reconcileCombatStyle is missing — the picker could disagree '
+        + 'with what the engine actually pays, with no way to notice');
+      return;
+    }
+
+    // 1. SERVER WINS, PER FAMILY. The engine pays from the server's map, so a
+    //    local value that disagrees is a lie the player is being shown.
+    const g = { combatStyle: { sword: 'accurate', ranged: 'longrange' } };
+    const r = A.reconcileCombatStyle(g, { state: { combat_style: { sword: 'defensive' } } });
+    assert(g.combatStyle.sword === 'defensive',
+      'the server\'s style did not win — the picker would show Accurate while the server pays '
+      + 'Defensive');
+    assert(g.combatStyle.ranged === 'longrange',
+      'a family the SERVER has no opinion about was reset — the map is deliberately partial, and '
+      + 'a whole-map assignment silently un-picks every pre-migration choice');
+
+    // 2. THE ONE-SHOT BACK-FILL is reported, and ONLY for a non-default choice.
+    //    legacy.js migrate() fills all four families with their defaults, so an
+    //    unfiltered back-fill would fire four RPCs on every account's first boot
+    //    AND destroy the "{} means chosen nothing" distinction the column rests on.
+    assert(r && Array.isArray(r.adopt), 'reconcileCombatStyle must report an adopt list');
+    const adopted = r.adopt.map((p) => p.join('/'));
+    assert(adopted.indexOf('ranged/longrange') >= 0,
+      'a locally-chosen family the server has never been told about must be back-filled; got '
+      + JSON.stringify(adopted));
+    const fresh = { combatStyle: { sword: 'accurate', hammer: 'smash', ranged: 'rapid', magic: 'cast' } };
+    const r2 = A.reconcileCombatStyle(fresh, { state: { combat_style: {} } });
+    assert(r2 && r2.adopt.length === 0,
+      'a fresh account whose four families are all DEFAULTS tried to back-fill '
+      + JSON.stringify(r2 && r2.adopt) + ' — four RPCs on every first boot, and the server map '
+      + 'would then say "chose Accurate" where it means "chose nothing"');
+
+    // 3. FAIL-CLOSED on absence. A lean envelope, or a server predating the
+    //    migration, must never be read as "you chose nothing".
+    const g3 = { combatStyle: { sword: 'aggressive' } };
+    const r3 = A.reconcileCombatStyle(g3, { state: {} });
+    assert(r3 && r3.mode === 'absent' && g3.combatStyle.sword === 'aggressive',
+      'an envelope with no combat_style wiped the local choice');
+
+    /* ⚠ WHAT THIS TEST DELIBERATELY DOES NOT DO: call applyCombatStyle().
+       It is the ONE writer and it now fires the transport, re-times a running
+       fight and re-renders three panels — driving it from inside the in-page
+       budget is how a suite starts timing out for reasons that have nothing to
+       do with the assertion. That applyCombatStyle reaches
+       HearthriseGoalClaim.setStyle is proven STATICALLY by tests/combat-style.mjs
+       section E, and the routing it decides is proven BEHAVIOURALLY against the
+       real engine in that file's section B. */
+  }),
+
   () => tryRunClientAuthoritative('unlock_buy slice: upgradeProperty resolves property.<tierId> and debits once (client-authoritative)', () => {
     // Client-authoritative (switch off), goldSettle is the plain local debit that
     // shipped before, so this asserts the rewiring preserved the exact charge and

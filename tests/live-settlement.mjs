@@ -489,8 +489,45 @@ export async function derivationGuard() {
     const at = chainSrc.indexOf(marker);
     return at >= 0 && chainSrc.slice(at, chainSrc.indexOf('];', at)).includes(`'${f}'`);
   };
+  /* ⚠ THE SCAN READS THE **CODE**, NOT THE FILE — the run-sql-tests.mjs lesson,
+     learned again here. Both regexes below look for the literal header text
+     `create or replace function public.hr_state_of(`, and the migrations that
+     patch those bodies PROGRAMMATICALLY (pg_get_functiondef + a guarded anchor
+     replace — the 2026-08-28-client-state.sql idiom) all say so IN A COMMENT,
+     quoting the header they deliberately do NOT carry:
+
+       -- ⚠ IT TAKES OVER NO LAST-TOUCHER ROLE. hr_state_of and hr_rpc_gate are
+       --   patched PROGRAMMATICALLY …, so this file carries no literal
+       --   `create or replace function public.hr_state_of(` header …
+
+     Read raw, that sentence IS the match. 2026-08-23-trait-buy.sql (live, and
+     correctly on no chain) therefore failed this assertion for documenting
+     itself, which is precisely the incentive run-sql-tests.mjs warns about:
+     "the pressure a false-positive lint creates is to stop writing the comment".
+     Stripping `--` comments first keeps the assertion exactly as strong — a real
+     create-or-replace is still a statement — and stops it taxing the prose. The
+     stripper is quote-aware and is the same one run-sql-tests.mjs uses. */
+  const stripSql = (sql) => sql.split('\n').map((line) => {
+    let q = false;
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === "'") q = !q;
+      else if (!q && line[i] === '-' && line[i + 1] === '-') return line.slice(0, i);
+    }
+    return line;
+  }).join('\n');
+  /* CONTROL: the stripper must not have blinded the scan. fight-carry itself
+     genuinely restates both bodies, so it must still match after stripping. */
+  {
+    const fc = stripSql(await readFile(
+      join(ROOT, 'supabase', 'migrations', '2026-08-17-fight-carry.sql'), 'utf8'));
+    ok(/create\s+or\s+replace\s+function\s+public\.hr_state_of\s*\(/i.test(fc)
+       && /create\s+or\s+replace\s+function\s+public\.hr_apply\s*\(/i.test(fc),
+      'SETTLE-SQL: the comment stripper BLINDED the last-toucher scan — it no longer sees '
+      + 'fight-carry\'s own create-or-replace of hr_state_of/hr_apply, so every later file '
+      + 'would pass by being invisible');
+  }
   for (const f of after) {
-    const body = await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8');
+    const body = stripSql(await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8'));
     if (/create\s+or\s+replace\s+function\s+public\.hr_state_of\s*\(/i.test(body)) {
       ok(onChain('const HR_STATE_OF_CHAIN = [', f),
         `SETTLE-SQL: ${f} replaces hr_state_of after fight-carry but is NOT on HR_STATE_OF_CHAIN in `

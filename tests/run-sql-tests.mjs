@@ -395,6 +395,18 @@ const ALSO_LINTED = [
      2026-08-28-client-state.sql idiom), so it carries no literal create-or-replace
      header for either and is on NO derivation chain. */
   '2026-08-23-trait-buy.sql',
+  /* P0 (live) — the COMBAT STYLE becomes server state. It creates one
+     client-callable SECURITY DEFINER RPC (hr_set_style, which writes
+     player_state.combat_style — the value the accrual engine reads to decide
+     WHICH SKILL every combat XP grant lands in) plus its __ungated inner, which
+     must reach no client, and it must reach hr_engine LESS than most: the engine
+     reads this column, so a grant would let it choose which skill it pays. PART
+     1b-ii (A9) must see the wrapper and confirm it references a rate gate; PART
+     1c-iii that its refusals are recorded AND sampled. It patches hr_rpc_gate and
+     hr_state_of PROGRAMMATICALLY (pg_get_functiondef + a guarded exactly-once
+     anchor replace, the 2026-08-28-client-state.sql idiom), so it carries no
+     literal create-or-replace header for either and is on NO derivation chain. */
+  '2026-08-24-combat-style.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -749,6 +761,15 @@ const CLIENT_CALLABLE = new Map([
      (256KiB), rate-gated (client_state_put bucket). NOT authority (a forged value
      is self-only), NOT journalled to player_ledger, NOT granted to hr_engine. */
   ['hr_put_client_state', ['authenticated']],
+  /* 2026-08-24-combat-style.sql — the player's own combat-style choice. A player
+     action by definition (it is a free, mutually-exclusive toggle on the combat
+     screen), validated against the server catalogue public.hr_combat_styles,
+     version-bumping, collect-first-guarded, idempotent, rate-gated
+     (hr_set_style bucket, 30/min). Deliberately NOT reachable by hr_engine — the
+     accrual engine READS player_state.combat_style to decide which skill it
+     pays, so a write grant there would let it choose its own answer. §7 records
+     the matching hr_client_rpc_baseline row; §8(b) re-asserts the whole ACL. */
+  ['hr_set_style', ['authenticated']],
   /* 2026-08-23-modal-goal-claims.sql (b461) — the quest MODAL's Daily/Weekly
      claim, and the read the modal renders from. hr_claim_goal verifies
      completion from the server's own player_progress counters (or the ledger,

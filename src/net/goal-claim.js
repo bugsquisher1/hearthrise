@@ -226,6 +226,75 @@
         p_source: String(source || ''),
         p_idem: newIdem()
       });
+    },
+    /* COMBAT STYLE — supabase/migrations/2026-08-24-combat-style.sql (P0, live).
+       hr_set_style(family, key, slot, idem) writes the SERVER-OWNED
+       player_state.combat_style, which the accrual engine reads to decide WHICH
+       SKILL every combat XP grant lands in. Until this existed the server settled
+       every styled grant with `resolveStyle(weaponType, null)` — Accurate, i.e.
+       100% to Attack — and, because skills are server-of-record and armed, it
+       overwrote the client's predicted Strength/Defence XP at every settle. That
+       is Paione's report ("only Attack saves").
+
+       Only the FAMILY and the KEY cross the wire; both are looked up in the
+       server's own catalogue (public.hr_combat_styles) and a pair it does not
+       carry is REFUSED, never clamped. No XP, no rate, no tick, no timestamp.
+
+       ── WHY IT SETTLES FIRST ────────────────────────────────────────────────
+       The server refuses a flip with an unpaid window (`collect_first`): the
+       accrual prices a WHOLE window with the style read at collection time, so
+       "fight all night on Accurate, flip to Defensive, collect" would re-route —
+       and, through speedMod, slightly re-price — the entire night. The house
+       answer is refuse-then-retry rather than the accrued_to stamp that
+       forfeits the window. Under live settlement the pointer is settled every
+       ~90 s, which is longer than the server's 60 s grace, so an ACTIVE player
+       would hit that refusal on most flips. `settleBeforeIntent()` closes the
+       window first — the same thing the equip/activity intents do — and the two
+       retries below cover the case where the settle itself was declined
+       (below-min-span) and the window closes a moment later.
+
+       FIRE-AND-FORGET, DISPLAY-PREDICTION shape: applyCombatStyle() has already
+       written G.combatStyle locally for responsiveness, and reconcileCombatStyle()
+       in src/net/accrue.js pulls the server's own map back off every envelope. A
+       refusal costs nothing the client authored — the style is a preference, and
+       the routing it decides is computed SERVER-SIDE from the server's own
+       column, so a forged local style routes nothing until the server accepts it.
+
+       THE SAME IDEMPOTENCY KEY IS REUSED ACROSS THE RETRIES, deliberately: they
+       are retries of ONE gesture, and hr_set_style caches successes only, so a
+       `collect_first` refusal never poisons the key (this is the one place the
+       intent contract's "a REJECTED intent is retried with a NEW key" rule does
+       not apply, because the server explicitly releases this refusal). */
+    setStyle: async function (family, key) {
+      var fam = String(family || ''), k = String(key || '');
+      if (!fam || !k) return { ok: false, error: 'bad_style' };
+      /* ⚠ BAIL BEFORE THE FIRST TIMER, NOT AFTER. `call()` already refuses a
+         signed-out caller, but only AFTER settleBeforeIntent() and only on the
+         first pass — so a signed-out client (a fresh boot, the account wall, and
+         every in-page suite run, which clicks the style buttons) would still
+         schedule a settle and up to 19 s of retry timers for an RPC that can
+         never go out. Nothing below is meaningful without a session; refuse
+         here, synchronously, and the gesture stays free. */
+      if (!isSignedIn()) return { ok: false, error: 'not_signed_in', refused: true };
+      var idem = newIdem();
+      var delays = [0, 4000, 15000];
+      var last = { ok: false, error: 'unsent' };
+      for (var i = 0; i < delays.length; i++) {
+        if (delays[i] > 0) await new Promise(function (r) { setTimeout(r, delays[i]); });
+        /* Close the unpaid window before asking. Best-effort: if the settle
+           transport is absent or declines, the call still goes out and either
+           succeeds (idle / inside the grace) or comes back collect_first and we
+           try again after the next settle tick. */
+        try {
+          var A = window.HearthriseAccrual;
+          if (A && typeof A.settleBeforeIntent === 'function') await A.settleBeforeIntent();
+        } catch (e) {}
+        last = await call('hr_set_style', {
+          p_family: fam, p_key: k, p_slot: activeSlot(), p_idem: idem
+        });
+        if (!last || last.error !== 'collect_first') return last;
+      }
+      return last;
     }
   };
 })();

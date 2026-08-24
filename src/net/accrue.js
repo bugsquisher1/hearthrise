@@ -1244,6 +1244,12 @@ import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_E
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
 import { serverAccruedSkill } from '../data/skill-authority.js?v=468';
+/* The style catalogue's DEFAULTS — the same object the picker, the XP router and
+   the server-side accrual engine all read (src/core/styles.js). Imported rather
+   than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
+   with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
+   b222 shape this repo has already paid for once. */
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=468';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -1460,6 +1466,82 @@ export function reconcileTraits(G, res) {
     if (G.traits[id] !== true) { G.traits[id] = true; added++; }
   }
   return { mode: 'server', owned: t.length, added };
+}
+
+/* ── THE COMBAT STYLE IS THE SERVER'S (2026-08-24-combat-style.sql) ───────────
+   THE DEFECT THIS HALF CLOSES. `G.combatStyle` was a purely local choice: the
+   save blob carried it, then the blob retired and `client-state.js`
+   RESIDUE_FIELDS carried it — a SELF-ONLY verbatim bag the server is forbidden
+   to read for authority. So the accrual engine had nothing to read and used
+   `resolveStyle(weaponType, null)`, the family DEFAULT — Accurate, 100% of
+   styled XP to ATTACK. Skills are server-of-record and armed, so every settle
+   replaced the client's predicted Strength/Defence XP with the server's
+   Attack-only routing. Paione, live: "only Attack saves."
+
+   `hr_set_style` now owns `player_state.combat_style` and hr_state_of projects
+   it at `state.combat_style`. THIS is what makes the server's copy the one the
+   picker renders, so the routing the player sees and the routing the engine
+   pays can no longer disagree — and it survives a device change, which the
+   residue bag never did.
+
+   ── THE MERGE DIRECTION, AND WHY IT IS NOT AN ASSIGNMENT ────────────────────
+   SERVER WINS PER FAMILY; a family the SERVER has no opinion about keeps the
+   local choice. Both halves are load-bearing:
+     · server-wins is the whole point — the engine pays from the server's map,
+       so a local value that disagrees is a lie the player is being shown;
+     · per-family, because the map is deliberately PARTIAL. `{}` means "has
+       chosen nothing", not "chose Accurate". A player who picked Aggressive
+       before this migration shipped has that choice only in their residue bag,
+       and a whole-map assignment would silently reset them to Accurate — which
+       is this file's own bug, reintroduced from the other side. The unchosen
+       families are then pushed up by `adopt` below, once, and after that the
+       server's map is complete and this branch never fires again.
+
+   FAIL-CLOSED on absence: no readable `res.state.combat_style` OBJECT leaves
+   G.combatStyle exactly alone. A server build predating the migration, or a
+   lean envelope, must never be read as "you chose nothing".
+
+   NOT arm-gated. There is no dormant/armed difference to gate: the value is a
+   preference, the server is already the only thing that computes XP from it,
+   and a merge that can only ever agree-or-correct has no unsafe direction.
+
+   PURE — takes G + res and returns a receipt, so the suite drives it without a
+   window. `adopt` is a LIST, not a side effect: the caller decides whether to
+   send it, which keeps the transport out of this function. */
+export function reconcileCombatStyle(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const st = (res && res.state) || null;
+  const server = st && st.combat_style;
+  if (!server || typeof server !== 'object' || Array.isArray(server)) return { mode: 'absent' };
+  if (!G.combatStyle || typeof G.combatStyle !== 'object' || Array.isArray(G.combatStyle)) {
+    G.combatStyle = {};
+  }
+  let corrected = 0;
+  const adopt = [];
+  for (const family of Object.keys(server)) {
+    const key = server[family];
+    if (typeof key !== 'string' || !key) continue;
+    if (G.combatStyle[family] !== key) { G.combatStyle[family] = key; corrected++; }
+  }
+  /* THE ONE-SHOT BACK-FILL. A family the player chose locally that the server
+     has never been told about — i.e. every pre-migration choice, which today is
+     ALL of them. Reported, not sent: the caller owns the transport.
+
+     ⚠ NON-DEFAULT CHOICES ONLY, and that filter is what keeps this from being a
+       boot-time storm. `migrate()` in legacy.js runs `normaliseStyleKeys`, which
+       FILLS ALL FOUR families with their defaults, so an unfiltered back-fill
+       would fire four RPCs on the first boot of every account — and, worse,
+       would write those defaults into the server map, destroying the
+       distinction the column is defined on ("{} means chosen nothing", not
+       "chose Accurate"). A default is already what the server resolves an absent
+       family to, so sending it says nothing. */
+  for (const family of Object.keys(G.combatStyle)) {
+    const key = G.combatStyle[family];
+    if (typeof key !== 'string' || !key) continue;
+    if (DEFAULT_STYLE_KEYS[family] === key) continue;
+    if (server[family] !== key) adopt.push([family, key]);
+  }
+  return { mode: 'server', corrected, adopt };
 }
 
 /* ── THE FARM PLOTS, RECONSTRUCTED FROM THE ENVELOPE (blob-retire capstone) ────
@@ -1839,6 +1921,25 @@ export function applyEnvelopeState(G, res, ownKey) {
      rides EVERY envelope, and as a UNION so a trait bought before the server
      verb existed is never revoked — see reconcileTraits' header. */
   written.traits = reconcileTraits(G, res);
+
+  /* THE COMBAT STYLE IS THE SERVER'S (hr_set_style). Reconciled here so it rides
+     EVERY envelope, which is what makes the picker show what the ENGINE will
+     actually pay. Server-wins per family, fail-closed on absence — see the
+     function header. The `adopt` list is the one-shot back-fill of a choice made
+     before the verb existed; it is SENT here rather than inside the reconciler
+     so that function stays pure and transport-free. Fire-and-forget, and only
+     for a NON-DEFAULT choice, so a fresh account sends nothing. */
+  written.combatStyle = reconcileCombatStyle(G, res);
+  try {
+    const adopt = written.combatStyle && written.combatStyle.adopt;
+    const GC = (typeof window !== 'undefined') ? window.HearthriseGoalClaim : null;
+    if (adopt && adopt.length && GC && typeof GC.setStyle === 'function') {
+      for (const [family, key] of adopt) {
+        const p = GC.setStyle(family, key);
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+      }
+    }
+  } catch (e) {}
 
   /* THE FARM IS THE SERVER'S UNDER ARM (blob-retire capstone). Reconciled here,
      alongside the crew and companions, so it rides EVERY envelope (away,
@@ -3051,7 +3152,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileInventory, reconcileBank, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileInventory, reconcileBank, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileCombatStyle, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, classifyReceipt, receiptNotice, receiptSentence,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,

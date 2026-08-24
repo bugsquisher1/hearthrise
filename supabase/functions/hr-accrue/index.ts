@@ -616,6 +616,18 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          self-configuring-null concern. It is what makes an AWAY fight see the
          element (accrual.js `weakness`). Mirrors set-activity.js (A14). */
       enchant: env.enchant || {},
+      /* THE COMBAT STYLE (2026-08-24-combat-style.sql). `player_state.combat_style`,
+         projected INSIDE the state object, read off the row hr_apply locks —
+         never from the request body, which carries no style field at all. It is
+         what makes an away fight train the skill the player picked; without it
+         the engine settled every styled grant to Attack (the P0 Paione
+         reported). `?? null` and NOT `?? {}`: null means the column does not
+         exist on this database, and `resolveStyle(weaponType, null)` is exactly
+         the pre-migration behaviour — the column's PRESENCE is the switch. Like
+         `enchant` it is READ-ONLY input (no delta key is derived from it), so
+         there is no self-configuring-null concern beyond that.
+         Mirrors set-activity.js field for field (A14). */
+      combatStyle: st.combat_style ?? null,
       /* THE COMPANION-XP ARM SWITCH (dormant). A deploy-time constant, NOT a
          request value. False today → the engine writes no companion_xp op.
          Mirrors set-activity.js field for field (A14). */

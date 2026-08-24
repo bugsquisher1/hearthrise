@@ -48,6 +48,7 @@ import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
    Both replay the real migration chain into PGlite and drive real RPCs. */
 import { modalGoalClaimGuard } from './modal-goal-claim.mjs';
 import { traitBuyGuard } from './trait-buy.mjs';
+import { combatStyleGuard } from './combat-style.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
@@ -2845,6 +2846,31 @@ const run = async () => {
       console.log('\nTrait-buy guard — server-priced, prerequisite-gated, debited exactly once, '
         + 'idempotent on replay, already_owned refused, refusals not cached, auto-eat enabled '
         + 'through its single writer, ownership projected on the envelope.');
+    }
+
+    /* ── THE COMBAT STYLE IS SERVER STATE (P0, live — Paione) ────────────
+       "Strength/Defense/HP exp is not saving — only Attack saves." The accrual
+       engine settled every combat window with `resolveStyle(eq.weaponType,
+       null)`, i.e. the family default (Accurate, 100% to Attack), because the
+       chosen style had no server home. Skills are server-of-record and armed, so
+       each settle overwrote the client's predicted Strength/Defence XP with it.
+       This guard DRIVES THE REAL ENGINE over a real seeded span and asserts a
+       server-stored sword/defensive routes to Defence and sword/aggressive to
+       Strength (with a null-style CONTROL, so it cannot be satisfied by an
+       engine that pays everything), that the styled TOTAL is preserved (a style
+       is a route, not a multiplier), that a foreign family cannot leak, that the
+       input is not mutated, and that speedMod reaches the swing interval. It
+       also BINDS src/core/styles.js to public.hr_combat_styles in both
+       directions. `--selftest` plants six real defects; every one must read RED. */
+    const styleProblems = await combatStyleGuard();
+    if (styleProblems.length) {
+      console.log('\nCombat-style authority — FAILED:');
+      for (const p of styleProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nCombat-style guard — the engine routes settle XP to the SERVER-STORED style, '
+        + 'catalogue bound to src/core/styles.js both ways, never read from a request body, '
+        + 'collect-first guarded, accrued_to never stamped.');
     }
 
     /* ── The catalogue-refill ownership interlock (b461) ─────────────────

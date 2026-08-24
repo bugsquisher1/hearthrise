@@ -659,6 +659,14 @@ export async function collectCurrentWindow(o) {
        delta key is derived from it, unlike toolCarry/fight). Mirrors index.ts
        field for field (A14). */
     enchant: env.enchant || {},
+    /* THE COMBAT STYLE (2026-08-24-combat-style.sql). The SAME defect class A14
+       exists for: a collect and an accrue over the same window must ROUTE the XP
+       the same, or switching activity would launder a window into a different
+       skill. Read off the state row, never from the request body. `?? null`
+       means "this database has no column", which resolveStyle reads as the
+       family default — the pre-migration behaviour. Mirrors index.ts field for
+       field (A14). */
+    combatStyle: st.combat_style ?? null,
     /* THE COMPANION-XP ARM SWITCH (dormant) — the SAME defect class A14 exists
        for: a collect and an accrue over the same window must credit the pet the
        same, so the constant is threaded here too. Mirrors index.ts (A14). */

@@ -112,7 +112,7 @@ import { createRng } from '../../../src/core/rng.js';
    it moves no seeded roll and away == live stays byte-identical (AWAY-1). */
 import { accrueRestedXp as coreAccrueRested } from '../../../src/core/rested.js';
 import { grantXp } from '../../../src/core/progression.js';
-import { resolveStyle } from '../../../src/core/styles.js';
+import { resolveStyle, normaliseStyleKeys } from '../../../src/core/styles.js';
 import { levelFromXp } from '../../../src/core/xp.js';
 /* THE PERMANENT PERK CHANNEL — the same module src/legacy.js getBonus is layer
    0 of. `makeBonus(perkState)` replaces `zeroBonus` at every site below. */
@@ -910,12 +910,43 @@ export function computeAccrual(input) {
   const eq = equipmentStats(equipment, items, inp.enchant || {});
   const setBonus = armorSetBonus(equipment, items);
   const profile = deriveProfile(eq.weaponType);
-  /* The player's chosen style is NOT server state yet (there is no column and
-     no intent that sets it), so the server uses the default for the equipped
-     weapon family. See "Known limitations" in the change contract — this
-     changes XP ROUTING (Accurate trains Attack, Aggressive trains Strength),
-     never the total, and it closes when a set_style intent exists. */
-  const style = resolveStyle(eq.weaponType, null);
+  /* THE PLAYER'S CHOSEN STYLE, FROM SERVER STATE (2026-08-24-combat-style.sql).
+     `inp.combatStyle` is `player_state.combat_style`, projected inside the
+     hr_state_of envelope at `state.combat_style` and read off the row by
+     index.ts / set-activity.js — NEVER from a request body. It is the ONLY
+     value here that a player chooses, and hr_set_style validated it against the
+     server catalogue before it was ever stored, so an unknown key cannot reach
+     this line; `resolveStyle` still falls back, because a fallback that is
+     unreachable is the cheapest kind.
+
+     ⚠ THE DEFECT THIS LINE CLOSES (P0, live — Paione, 2026-08-24). It used to
+       read `resolveStyle(eq.weaponType, null)`, i.e. the FIRST key of the weapon
+       family — `sword.accurate`, which routes 100% of styled XP to ATTACK. Skills
+       are server-of-record and ARMED, so every settle retired the client's
+       predicted Strength/Defence XP and wrote Attack instead: "Strength/Defense/
+       HP exp is not saving". The comment that stood here said this closes "when a
+       set_style intent exists". It exists.
+
+     `{}` / null / a partial map are all normal — `normaliseStyleKeys` fills the
+     families the player has never chosen for with their defaults, which is
+     byte-identical to the old behaviour for those families. A database without
+     the migration hands `null` and behaves exactly as before; the column's
+     PRESENCE is the switch, and there is no flag to forget to flip.
+
+     The style also carries `speedMod`, so `deriveTickMs` changes with it. That
+     is intended and required: the live client sim already prices Longrange's
+     10% slower swing, and an away window that ignored it would not be the same
+     fight (AWAY-1 parity is "same style object, both paths").
+
+     ⚠ A COPY, because `normaliseStyleKeys` MUTATES and returns its argument.
+       Handing it `inp.combatStyle` itself would write the four defaults back
+       into the input row, so a later reader could no longer distinguish a
+       player who CHOSE Accurate from a player who has chosen NOTHING — the same
+       aliasing shape that made `state.skills` a silent total XP loss until the
+       parity test caught it. The spread also flattens a non-object (an array
+       spreads to `{}`), so a malformed column degrades to defaults, not to a
+       throw. */
+  const style = resolveStyle(eq.weaponType, normaliseStyleKeys({ ...(inp.combatStyle || {}) }));
 
   const maxHp = Math.max(1, nat(inp.maxHp, 10));
 

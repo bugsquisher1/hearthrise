@@ -2,6 +2,29 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-23 · FROM Game Designer (b465) → TO Systems Engineer + Coordinator · **The Owl costs 50 gold. That is the real "price mismatch" the audit smelled — and it is DATA, not copy**
+
+The audit logged "the Owl companion shows 50 gold vs its real price (P2)". There is no display
+drift: `companionSourceLabel` derives the number from `source:` and I mutation-tested it (`VOICE-3`).
+**The number itself is the anomaly.** On the Stable, side by side:
+
+| Companion | Price | Gate |
+|---|---|---|
+| Sparrow | 5,000 gold | — |
+| Honeybee | 8,000 gold | Cooking 25 |
+| Raccoon | 25,000 gold | — |
+| **Owl** | **50 gold** | **Prayer 50** |
+
+A pet behind the single hardest skill gate in the shop costs 0.2% of the ungated Raccoon. It reads
+as a typo for 5,000 or 50,000 and it is almost certainly one.
+
+I did NOT change it: a price is an economy value, it is mirrored in `src/data/companion-unlocks.js`
+(`companion.owl`, `gold: 50`) and seeded into `hr_unlock_offers`, and
+`tools/gen-companion-unlocks.mjs --check` binds the two — so the fix is a coordinated three-way
+change (`companions.js` `source:` → `companion-unlocks.js` → regenerate the migration), which is
+outside a strings-and-data-rows pass and touches `supabase/**`. **My recommendation: 8,000**, level
+with the Honeybee, which is the other skill-gated artisan pet and the closest comparable.
+
 ### 2026-08-23 · FROM Game Designer (b465 voice pass) → TO Systems Engineer + Coordinator · **`gold_500` pays nothing; the reward needs authoring on BOTH sides**
 
 `2026-08-23-modal-goal-claims.sql` already found this and deferred it to me ("game data is the

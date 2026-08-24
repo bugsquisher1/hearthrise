@@ -184,7 +184,38 @@
 #panel-combat .wt-card.is-locked { opacity: .5; cursor: default; }
 #panel-combat .wtc-art { width: 100%; flex: 0 0 108px; display: flex; align-items: center; justify-content: center; }
 #panel-combat .wtc-img { max-width: 100%; max-height: 108px; object-fit: contain; }
-#panel-combat .wtc-img.is-emoji { font-size: 54px; line-height: 1; }
+/* `.is-emoji` is retired: monsterArt() no longer has an emoji branch (the last
+   one was `m.icon || '👾'` at portrait size). The unwired-monster fallback is a
+   medallion or a red-ringed skull, both `.is-glyph`. Rule kept, sized for a
+   glyph, so an old cached render does not lose its box.
+   The svg is emitted at 100% now, so EVERY mount must state a box — an unsized
+   `.is-glyph` would inherit the frame and paint a 340px skull. */
+#panel-combat .wtc-img.is-emoji,
+#panel-combat .wtc-img.is-glyph { display: flex; align-items: center; justify-content: center; line-height: 1; width: 84px; height: 84px; }
+#panel-combat .wtc-img.is-glyph svg { width: 100%; height: 100%; }
+#panel-combat .wtr-img.is-glyph { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; }
+#panel-combat .wtd-img.is-glyph.wtd-img { width: 46px; height: 46px; }
+/* THE FOE PLATE, and why this is keyed on `.hr-glyph` rather than on the
+   renderer's own class. That plate is filled by TWO code paths — the legacy
+   arena markup in legacy.js and `setHtmlOnce(...monsterArt(id,'fs-foe-img'))`
+   in combat-screens.js — and only one of them carries `.fs-foe-img`. Sizing the
+   ATOM (the glyph span every path emits) covers both, which a per-renderer
+   selector demonstrably did not: I shipped one, photographed it, and the mark
+   was still 19% of a 340px frame because the other path had drawn it.
+   `!important` is required and is not laziness: HR.icon writes `--gsz` INLINE,
+   and an inline custom property beats a stylesheet declaration without it. */
+.arena-portrait .fs-foe-img.is-glyph,
+#arena-foe-portrait .fs-foe-img.is-glyph {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.arena-portrait .hr-glyph,
+#arena-foe-portrait .hr-glyph,
+.arena-portrait .fs-foe-img.is-glyph > svg {
+  width: 56% !important; height: 56% !important;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,.7));
+}
+.arena-portrait .hr-glyph svg { width: 100%; height: 100%; }
 #panel-combat .wtc-name {
   font-family: var(--f-display); font-size: var(--t-small, 13px); font-weight: 700;
   color: var(--ink); line-height: 1.15;
@@ -990,7 +1021,7 @@ body[data-theme] #panel-combat[data-foe-class="extradimensional"] .combat-arena 
      half. The glyphs keep their size; only the leading is spent. */
   #panel-combat .wtc-stats,
   #panel-combat .wtc-kills { line-height: 1.1; }
-  #panel-combat .wtc-img.is-emoji { font-size: 30px; }
+  #panel-combat .wtc-img.is-glyph svg { width: 36px; height: 36px; }
   #panel-combat .wtc-name { -webkit-line-clamp: 1; }
   #panel-combat .wtc-drops { display: none; }
   /* THE WEAKNESS+HP LINE MUST BE ONE LINE. §2.4's whole point is that the two

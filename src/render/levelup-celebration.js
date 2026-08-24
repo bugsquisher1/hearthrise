@@ -39,7 +39,12 @@
     if (window._skillIcon && window._skillIcon[skillId]) {
       iconHtml = '<img src="' + window._skillIcon[skillId] + '" alt="" />';
     } else {
-      iconHtml = SKILLS_DEF[skillId] ? SKILLS_DEF[skillId].icon : '⭐';
+      /* was `SKILLS_DEF[skillId].icon` with a '⭐' backstop — an emoji at
+         celebration size, on the screen a player screenshots. skillIconHTML
+         draws the struck medallion the skills rail uses. */
+      iconHtml = (typeof window.skillIconHTML === 'function')
+        ? window.skillIconHTML(skillId, 44)
+        : ((window.HR && window.HR.icon) ? (window.HR.icon('uiStar', 30, '--gold-2') || '') : '');
     }
     var skName = SKILLS_DEF[skillId] ? SKILLS_DEF[skillId].name : skillId;
     el.innerHTML = '<div class="lc-ring"></div><div class="lc-icon">' + iconHtml + '</div><div class="lc-text">Level ' + level + '!</div><div class="lc-skill">' + skName + '</div>';

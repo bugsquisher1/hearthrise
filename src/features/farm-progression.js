@@ -106,7 +106,7 @@
       };
       FS.farmUpgradePlot().then(function(res){
         if(res && res.ok){ try{ FS.reconcileFarmResult(window.G,'upgrade',res,deps); }catch(e){}
-          if(typeof window.notify === 'function') window.notify('🌾 Farm Plot upgraded to Lv ' + res.plot_level + '!', 'levelup');
+          if(typeof window.notify === 'function') window.notify('Farm Plot upgraded to Lv ' + res.plot_level + '!', 'levelup');
         } else if(res && res.error && res.error!=='transport'){
           if(typeof window.notify === 'function') window.notify('Could not upgrade plot — try again', 'kill');
         }
@@ -125,7 +125,7 @@
       window.G.inventory.farm_deed = Math.max(0, have - need);
     }
     window.G.plotLevels = lv + 1;
-    if(typeof window.notify === 'function') window.notify('🌾 Farm Plot upgraded to Lv ' + (lv+1) + '!', 'levelup');
+    if(typeof window.notify === 'function') window.notify('Farm Plot upgraded to Lv ' + (lv+1) + '!', 'levelup');
     if(typeof window.saveLocal === 'function') window.saveLocal();
     // Refresh any panels that show plot state.
     try { if(typeof window.renderHouse === 'function') window.renderHouse(); } catch(e){}
@@ -168,7 +168,7 @@
       window.G.inventory.farm_deed = (window.G.inventory.farm_deed | 0) + 1;
     }
     if(typeof window.notify === 'function'){
-      window.notify("📜 Rare drop: Farmer's Deed!", 'levelup');
+      window.notify("Rare drop: Farmer's Deed!", 'levelup');
     }
     // Combat log breadcrumb if available
     try {

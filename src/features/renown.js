@@ -24,6 +24,14 @@
 (function () {
   'use strict';
 
+  /* Reward lines and the ladder's locked marks used emoji. One gilt glyph
+     helper; '' rather than a character when the atlas has no match. */
+  function _rnGly(key, px, col) {
+    return (window.HR && window.HR.icon)
+      ? (window.HR.icon(key, px || 13, col || 'currentColor') || '')
+      : '';
+  }
+
   // ── The ladder ──────────────────────────────────────────────
   // 12 ranks, Wanderer → High Jarl. `title` is the flex shown by your name.
   // `reward` is claimed once on reaching the rank (the dopamine hit).
@@ -475,9 +483,9 @@
   function rewardText(rw) {
     if (!rw) return '';
     var parts = [];
-    if (rw.gold) parts.push('🪙 ' + fmt(rw.gold));
-    if (rw.gems) parts.push('💎 ' + fmt(rw.gems));
-    if (rw.item) parts.push('🎁 ' + (rw.itemQty || 1) + '× ' + rw.item);
+    if (rw.gold) parts.push(_rnGly('gold',13,'--gold-2') + ' ' + fmt(rw.gold));
+    if (rw.gems) parts.push(_rnGly('gems',13,'--gem') + ' ' + fmt(rw.gems));
+    if (rw.item) parts.push(_rnGly('uiGift',13,'--gold-2') + ' ' + (rw.itemQty || 1) + '× ' + rw.item);
     return parts.join('  ');
   }
 
@@ -495,7 +503,9 @@
     var rows = RANKS.map(function (rank, i) {
       var reached = i <= curIdx;
       var cls = 'hr-rn-rank' + (i === curIdx ? ' is-cur' : reached ? ' is-done' : ' is-locked');
-      var medal = reached ? (i === curIdx ? '★' : '✓') : '🔒';
+      /* ★ and ✓ are typographic MARKS and stay; the 🔒 was the only pictograph
+         in the ladder, and the game already has one padlock. */
+      var medal = reached ? (i === curIdx ? '★' : '✓') : _rnGly('uiLock', 13);
       var right;
       if (claimableIds.indexOf(rank.id) >= 0) {
         right = '<button class="hr-rn-claim" data-claim="' + rank.id + '">Claim</button>';

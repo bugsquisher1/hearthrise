@@ -36,6 +36,9 @@
     attack: '--red', strength: '--red', defense: '--red', hitpoints: '--red',
     ranged: '--red', bountyHunter: '--red',
     magic: '--gem', prayer: '--gem', gems: '--gem',
+    // hand-authored glyphs (src/data/glyphs-extra.js). Runecrafting is arcane;
+    // Stonemason is an artisan craft and sits with cooking/crafting/smithing.
+    runecrafting: '--gem', stonemason: '--gold',
     woodcutting: '--green', mining: '--green', fishing: '--green',
     farming: '--green', foraging: '--green',
     cooking: '--gold', crafting: '--gold', smithing: '--gold', gold: '--gold'

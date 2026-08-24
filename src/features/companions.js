@@ -234,7 +234,7 @@ export function unlockCompanion(id) {
   window.G.companions.ownedIds.push(id);
   window.G.companions.xp[id] = 0;
   if (typeof window.notify === 'function') {
-    window.notify(`Companion unlocked: ${COMPANIONS[id].n} ${COMPANIONS[id].icon}`, 'loot');
+    window.notify(`Companion unlocked: ${COMPANIONS[id].n}`, 'loot');
   }
   emit('companionUnlock', { id });
   maybeServerGrant(id);
@@ -421,7 +421,7 @@ function rollProc(triggerType, ctx) {
       if (G.activeMonster) G.activeMonster.hp = Math.max(0, (G.activeMonster.hp || 0) - 5);
       break;
   }
-  showProc((def.icon || '') + ' ' + def.proc.label);
+  showProc(def.proc.label);
   // b269: record the pet's real, concrete contribution for the session-impact
   // panel — the amount/ctx here are exactly what the effect above paid out.
   if (window.HearthrisePetSession) {
@@ -491,7 +491,7 @@ function wireKillHook() {
 function showCompanionUnlockedToast(def) {
   try {
     const t = document.createElement('div');
-    t.textContent = `🎉 New companion unlocked: ${def.icon} ${def.n}!`;
+    t.textContent = `New companion unlocked: ${def.n}!`;
     t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;'
       + 'background:linear-gradient(180deg,#7f9a4f,#3a8a52);color:#fff;padding:14px 22px;border-radius:8px;'
       + 'font-weight:800;font-size:15px;box-shadow:0 8px 32px rgba(0,0,0,.5);'
@@ -588,7 +588,7 @@ function injectNavButton() {
   const btn = document.createElement('button');
   btn.className = 'nav-btn';
   btn.dataset.tab = 'stable';
-  btn.innerHTML = '<span class="ic">🐾</span><span class="lbl">Stable</span>';
+  btn.innerHTML = '<span class="ic">' + ((window.HR && window.HR.icon) ? (window.HR.icon('navStable', 19, 'currentColor') || '') : '') + '</span><span class="lbl">Stable</span>';
   btn.addEventListener('click', () => window.showTab && window.showTab('stable'));
   if (groupLabel) {
     let next = groupLabel.nextElementSibling;

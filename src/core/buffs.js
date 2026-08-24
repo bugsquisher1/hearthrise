@@ -43,27 +43,29 @@
 
 import { CHANNEL, channelApplies } from './away.js?v=463';
 
-/* Maps buff.type -> {label, bonusKey, isPercent|isFlat, icon}.
+/* Maps buff.type -> {label, bonusKey, isPercent|isFlat, glyph}.
    `bonusKey` is the getBonus key the effect pays into; a type with no row
    here is REJECTED by applyBuff, which is how a tooltip promising an
    effect the engine throws away gets caught at authoring time. */
 export const BUFFS_DEF = {
-  /* Icons chosen to render unambiguously on Segoe UI Emoji and Apple Color
-     Emoji — the abstract chart/graph glyphs look like the same coloured
-     block on both. */
-  gather_speed: { label: 'Gather Speed', bonusKey: 'gatherSpeed', isPercent: true, icon: '🌿' },
-  all_xp: { label: 'All XP', bonusKey: 'allXP', isPercent: true, icon: '⭐' },
-  drop_rate: { label: 'Drop Rate', bonusKey: 'dropRate', isPercent: true, icon: '🍀' },
+  /* `glyph` is an ATLAS KEY (src/data/glyphs.js), drawn by the Active Effects
+     panel and the buff pill through HR.icon(). It used to be `icon` holding a
+     raw emoji, and the comment that stood here reasoned about WHICH SYSTEM
+     EMOJI FONT rendered it least badly on Segoe vs Apple Color — which is the
+     argument for not shipping emoji as art in the first place. */
+  gather_speed: { label: 'Gather Speed', bonusKey: 'gatherSpeed', isPercent: true, glyph: 'uiLeaf' },
+  all_xp: { label: 'All XP', bonusKey: 'allXP', isPercent: true, glyph: 'uiXp' },
+  drop_rate: { label: 'Drop Rate', bonusKey: 'dropRate', isPercent: true, glyph: 'uiGift' },
   /* b228: `farmYield` is a COUNT of extra crops, never a percentage. This
      entry once claimed isPercent, so Carrot Stew's "15" reached the engine
      as 0.15 of a crop and harvestPlot floored it to nothing. */
-  farm_yield: { label: 'Farm Yield', bonusKey: 'farmYield', isPercent: false, isFlat: true, icon: '🌾' },
-  damage: { label: 'Damage', bonusKey: 'damage', isPercent: true, icon: '⚔️' },
+  farm_yield: { label: 'Farm Yield', bonusKey: 'farmYield', isPercent: false, isFlat: true, glyph: 'uiWheat' },
+  damage: { label: 'Damage', bonusKey: 'damage', isPercent: true, glyph: 'uiSword' },
   /* b238: a FLAT bump to defence (a +4 food buff reads "+4", not "+4%"),
      consumed by monsterCombatRolls. */
-  defense: { label: 'Defense', bonusKey: 'defense', isPercent: false, isFlat: true, icon: '🛡️' },
-  combat_xp: { label: 'Combat XP', bonusKey: 'combatXP', isPercent: true, icon: '🗡️' },
-  gold_find: { label: 'Gold Find', bonusKey: 'goldFind', isPercent: true, icon: '💰' },
+  defense: { label: 'Defense', bonusKey: 'defense', isPercent: false, isFlat: true, glyph: 'uiShield' },
+  combat_xp: { label: 'Combat XP', bonusKey: 'combatXP', isPercent: true, glyph: 'uiTarget' },
+  gold_find: { label: 'Gold Find', bonusKey: 'goldFind', isPercent: true, glyph: 'uiCoinStack' },
   /* Pays into the `crit` bonus key, which is ALSO fed by gear (`critB` + the
      armour-set bonus). Under b326 this buff was the ruling's worked example of
      an exclusion — crit applied away, this did not, and it fell out for free
@@ -71,7 +73,7 @@ export const BUFFS_DEF = {
      channel pays away now, so a Void Banquet's +5% crit reaches an away swing
      and then runs out mid-night like any other Feast. Still no special case —
      which is the property that survived the rule changing under it. */
-  damage_crit: { label: 'Critical Chance', bonusKey: 'crit', isPercent: true, icon: '💥' },
+  damage_crit: { label: 'Critical Chance', bonusKey: 'crit', isPercent: true, glyph: 'uiSpark' },
 };
 
 /** Is this a buff type the engine can actually pay? */

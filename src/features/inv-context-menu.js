@@ -110,13 +110,19 @@
     var isStack = qty >= 2;
     var isEquippable = !!(def.type === 'weapon' || def.type === 'armor' || def.type === 'jewelry' || def.type === 'companion' || def.type === 'ammo' || def.slot);
 
+    /* NO ICONS IN THIS MENU, and that is a decision rather than a deletion.
+       Six of the ~ten entries carried an emoji (↩️ ℹ️ ⚔️ 🦴 🪙 📊) and the rest —
+       Eat, Lock, Set as auto-eat — never had one, because there is no honest
+       glyph for them. A list where half the rows are indented behind a picture
+       and half are not reads worse than a list with none, and a right-click
+       menu is a TEXT surface in every game this one is aiming at. Words only. */
     // ── Per-source actions ────────────────────────────────
     if(ctx.source === 'equipped'){
-      opts.push({ label: '↩️  Unequip', action: function(){
+      opts.push({ label: 'Unequip', action: function(){
         if(typeof window.unequip === 'function') window.unequip(ctx.slot);
         else if(typeof window.unequipSlotInv === 'function') window.unequipSlotInv(ctx.slot);
       }});
-      opts.push({ label: 'ℹ️  Inspect', action: function(){
+      opts.push({ label: 'Inspect', action: function(){
         if(typeof window.openInvDetail === 'function') window.openInvDetail(id);
       }});
       return opts;
@@ -124,7 +130,7 @@
 
     // Equippable items in the bag
     if(isEquippable){
-      opts.push({ label: '⚔️  Equip', action: function(){
+      opts.push({ label: 'Equip', action: function(){
         if(typeof window.equipItem === 'function') window.equipItem(id);
         else if(typeof window.equipGear === 'function') window.equipGear(id);
       }});
@@ -159,7 +165,7 @@
 
     // Bones — bury for prayer XP
     if(def.buryXp && def.buryXp > 0){
-      opts.push({ label: '🦴  Bury (+' + def.buryXp + ' Prayer XP)', action: function(){
+      opts.push({ label: 'Bury (+' + def.buryXp + ' Prayer XP)', action: function(){
         if(typeof window.buryBones === 'function') window.buryBones(id);
         else {
           G.skills = G.skills || {}; G.skills.prayer = (G.skills.prayer || 0) + def.buryXp;
@@ -170,7 +176,7 @@
     }
 
     // Always: Inspect, Sell 1
-    opts.push({ label: 'ℹ️  Inspect', action: function(){
+    opts.push({ label: 'Inspect', action: function(){
       if(typeof window.openInvDetail === 'function') window.openInvDetail(id);
     }});
 
@@ -187,13 +193,13 @@
       if(!locked){
         // b240: route Sell 1 through the guarded, buy-back-recorded path so it
         // respects the lock AND becomes undoable — one sell choke-point.
-        opts.push({ label: '🪙  Sell 1 (' + price.toLocaleString() + 'g)',
+        opts.push({ label: 'Sell 1 (' + price.toLocaleString() + 'g)',
           disabled: qty < 1 || price <= 0,
           action: function(){ if(typeof window.invSellOne === 'function') window.invSellOne(id); }
         });
         // Sell N… defers to item-ux's qty slider for the actual UX
         if(isStack){
-          opts.push({ label: '📊  Sell N…  (stack: ' + qty.toLocaleString() + ')', action: function(){
+          opts.push({ label: 'Sell N…  (stack: ' + qty.toLocaleString() + ')', action: function(){
             if(typeof window.openInvQtySlider === 'function') window.openInvQtySlider(id);
             else if(typeof window.openInvDetail === 'function') window.openInvDetail(id);
           }});

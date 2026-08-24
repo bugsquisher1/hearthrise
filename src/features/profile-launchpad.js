@@ -143,6 +143,21 @@
     // their own flows + we don't want to spam disk on every click.
   }
 
+  /* `icon` on every payload below is RENDERED HTML, not a character.
+     It used to be `sd.icon || '📊'` / `m.icon || '⚔️'` — the data tables' emoji,
+     handed to callers that innerHTML it straight into a 34px art slot. Every
+     consumer already treats the field as markup, so the change is invisible to
+     them and the emoji simply has nowhere left to enter from. */
+  function _skillArt(id, px){
+    return (typeof window.skillIconHTML === 'function')
+      ? window.skillIconHTML(id, px || 30)
+      : ((window.HR && window.HR.icon) ? (window.HR.icon('uiStar', px || 20, '--gold-2') || '') : '');
+  }
+  function _monArt(id, px){
+    return (typeof window.monsterArt === 'function')
+      ? window.monsterArt(id, px || 30)
+      : ((window.HR && window.HR.icon) ? (window.HR.icon('uiSkull', px || 20, '--red') || '') : '');
+  }
   function getResumePayload(){
     if(!window.G || !window.G.lastActivity) return null;
     // If something else is already running, hide the resume card — the
@@ -154,7 +169,7 @@
       return {
         kind: 'skill', id: la.id,
         label: 'Resume training: ' + sd.name,
-        icon:  sd.icon || '📊',
+        icon:  _skillArt(la.id, 30),
         action: function(){
           if(typeof window.showTab === 'function') window.showTab('skills');
           if(typeof window.openSkillDetail === 'function') window.openSkillDetail(la.id);
@@ -166,7 +181,7 @@
       return {
         kind: 'monster', id: la.id,
         label: 'Resume fighting: ' + m.name,
-        icon:  m.icon || '⚔️',
+        icon:  _monArt(la.id, 30),
         /* ⚠ b372 (F18): `startCombat` IS A TOGGLE — its first line is
            `if(G.activeMonster===mId){stopCombat();return;}`. The guard eight
            lines above is evaluated when the card is PAINTED, not when it is
@@ -231,7 +246,7 @@
           current: xp - prevXp,
           target:  nextXp - prevXp,
           pct: Math.max(0, Math.min(1, pct)),
-          icon: window.SKILLS_DEF[sid].icon || '📊',
+          icon: _skillArt(sid, 30),
           deepLink: function(){
             if(typeof window.showTab === 'function') window.showTab('skills');
             if(typeof window.openSkillDetail === 'function') window.openSkillDetail(sid);
@@ -265,7 +280,9 @@
         current: q.progress || 0,
         target: q.goal,
         pct: Math.max(0, Math.min(1, pq)),
-        icon: q.done ? '✅' : '🎯',
+        icon: (window.HR && window.HR.icon)
+          ? (window.HR.icon(q.done ? 'uiCheck' : 'uiQuests', 30, q.done ? '--green' : '--gold-2') || '')
+          : '',
         goal: q,
         verb: (qdest && qdest.verb) || 'Go',
         deepLink: function(){

@@ -53,7 +53,8 @@
       var entry = G.bestiary[id] || { kills: 0 };
       var disc = entry.kills > 0;
       var path = window._monsterIcon && window._monsterIcon[id];
-      var img = path ? '<img src="' + path + '" />' : '<span style="font-size:calc(19px * var(--ui-scale, 1))">' + m.icon + '</span>';
+      /* was  — the monster's data emoji, in a bestiary of 111 rows. */
+      var img = path ? '<img src="' + path + '" />' : window.monsterFallbackIcon(id, 26);
       return '<div class="bestiary-row ' + (disc ? 'discovered' : 'undiscovered') + '">' +
         '<div class="br-icon">' + img + '</div>' +
         '<div class="br-info"><b>' + (disc ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small></div>' +

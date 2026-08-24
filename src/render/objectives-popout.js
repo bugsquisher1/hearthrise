@@ -18,7 +18,7 @@
       ov = document.createElement('div');
       ov.id = 'prof-pop-objectives'; ov.className = 'prof-popout';
       ov.innerHTML = '<div class="prof-popout-inner" onclick="event.stopPropagation()">'+
-        '<h3>📋 Objectives</h3>'+
+        '<h3>'+((window.HR&&window.HR.icon)?(window.HR.icon('uiScroll',15,'--gold-2')||''):'')+' Objectives</h3>'+
         '<div id="prof-pop-objectives-body"></div>'+
         '<button class="prof-popout-close" onclick="document.getElementById(\'prof-pop-objectives\').classList.remove(\'show\')">Close</button>'+
         '</div>';

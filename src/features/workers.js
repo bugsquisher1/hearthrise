@@ -173,7 +173,7 @@
       skill: null, targetId: null, xp: 0, lastCollect: Date.now()
     };
     G.workers.hired.push(w);
-    if (window.notify) notify('🤝 ' + w.name + ' joins your homestead!', 'levelup');
+    if (window.notify) notify('' + w.name + ' joins your homestead!', 'levelup');
     render();
     return w;
   }
@@ -203,7 +203,7 @@
   function hireServer(G, buy) {
     var temp = makeOptimisticWorker(G);
     G.workers.hired.push(temp);
-    if (window.notify) notify('🤝 ' + temp.name + ' joins your homestead!', 'levelup');
+    if (window.notify) notify('' + temp.name + ' joins your homestead!', 'levelup');
     render();
 
     var Net = window.HearthriseWorkersNet;
@@ -375,7 +375,7 @@
         var n = (window.ITEMS && window.ITEMS[g.id] && window.ITEMS[g.id].n) || g.id;
         return n + ' ×' + g.qty;
       }).join(', ');
-      notify('🧺 Your workers gathered: ' + txt, 'info');
+      notify('Your workers gathered: ' + txt, 'info');
     }
     return gains;
   }
@@ -457,7 +457,7 @@
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line-soft)">' +
         ((window.HearthriseIconSet && window.HearthriseIconSet.path && window.HearthriseIconSet.path('navProfile'))
           ? '<svg viewBox="0 0 512 512" style="width:18px;height:18px;flex:0 0 auto" aria-hidden="true"><path fill="var(--gold-2,#cda24a)" d="' + window.HearthriseIconSet.path('navProfile') + '"/></svg>'
-          : '<span style="font-size:calc(19px * var(--ui-scale, 1))">🧑‍🌾</span>') +
+          : '<span class="hh-worker-glyph">' + ((window.HR && window.HR.icon) ? (window.HR.icon('uiWorker', 20, '--gold-2') || '') : '') + '</span>') +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:calc(14.5px * var(--ui-scale, 1))"><b>' + w.name + '</b> <span class="tiny muted">Lv ' + level(w) + '</span></div>' +
           '<div class="tiny muted">' + (act ? (act.name + ' · ~' + rph + '/hr') : 'Idle — assign a task') + haul + '</div>' +

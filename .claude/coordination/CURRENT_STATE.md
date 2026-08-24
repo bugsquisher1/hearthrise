@@ -43,7 +43,33 @@ _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE 
 Supabase is LIVE in production — chat/market/clans/raids/leaderboards are genuinely multiplayer for signed-in players. `supabase/schema.sql` applied. Economy is server-authoritative.
 
 ## Art direction (current)
-"Forge & Stone" medieval, hearthlight (dark) default theme. 0 emoji rendered as art. Icons = baked atlas in `src/data/glyphs.js`. Type: Alegreya Sans + Cinzel. Containment is earned (no wall-of-cards). See `.claude/coordination/agents/art-director.md` and project memory `art-direction-system`.
+"Forge & Stone" medieval, hearthlight (dark) default theme. 0 emoji rendered as art. Icons = baked atlas in `src/data/glyphs.js` **+ hand-authored appendix `src/data/glyphs-extra.js`** (loads between glyphs.js and icon-set.js; merges into `HR_GLYPHS`, never clobbers a baked path). Type: Alegreya Sans + Cinzel. Containment is earned (no wall-of-cards). See `.claude/coordination/agents/art-director.md` and project memory `art-direction-system`.
+
+**EMOJI-AS-ICON SWEEP — DONE (2026-08-23, Art Director, worktree `agent-ac36599142a496b7e`, NOT bumped, NOT pushed).**
+- **0 structural emoji in the rendered DOM** across 20 surfaces x 2 viewports (1440x900 + 922x423),
+  0 console errors, 0 404s. Measured with `tools/_emoji-shots.mjs` (new): boots the real client and
+  walks visible text nodes. **A repo grep is NOT the instrument** — it reports ~1,800 pictographs
+  that live in dead data fields, in comments explaining removals, and in CHANGELOG prose. See
+  DISCOVERIES 2026-08-23.
+- **`itemGlyphKey` widened 10 → 26 patterns.** Unmapped items falling back to the generic chest:
+  **49 → 2**. A bag of identical chests is the same "generated" tell as an emoji.
+- **Two atlas glyphs hand-authored** (`runecrafting`, `stonemason`) — those two skills had been
+  rendering an EMPTY medallion because `stripChromeEmoji()` removed their emoji and the atlas had
+  nothing to put back. Same cause fixed on `.ams-btn` / `.cmt-btn` (mobile strips).
+- **Two empty-slot glyphs redrawn** (`ammo` was a UI resize handle, `cape` a blank panel) — the
+  handoff the paper-doll rebuild filed.
+- **Data tables converted `icon:'<char>'` → `glyph:'<atlasKey>'`:** `DAILY_GOAL_POOL`,
+  `WEEKLY_GOAL_POOL`, `ACHIEVEMENTS`, `HOUSE_THEMES`, `BUFFS_DEF`, homestead `TIERS`, the dungeon +
+  scavenger configs, `G.loadouts`. **New rows must use `glyph`, never `icon`.**
+- **Two live bugs found while looking:** `confirmIAP()` rendered the literal word "undefined" at
+  54px above every product title (`p.icon` — a field no `IAP_CATALOG` row has); the Quests modal
+  reward line printed raw ids ("5x small_bones").
+- **Suite 1015/1016** (clean-HEAD baseline in that worktree 1012/1014): +2 guards, 0 new failures,
+  0 runtime errors. Both new guards mutation-proven. `DAILY-HEAL-1` fails on clean HEAD too.
+- ⚠ **Owed to Asset Director** (filed in HANDOFFS): a painted `rune_of_poison` stone (it sits beside
+  two painted runes and I refused to tint a clone — the engravings would lie), six painted house
+  THEME plates (they are a gem purchase and were literal emoji until today), and a re-shoot of the
+  two hand-authored skill glyphs if the set is ever redone.
 
 **Hearthfire adoption — ITEMS UPDATED b362 (worktree `agent-a5cb9a90f10977eb5` — not integrated, not bumped, not pushed).**
 - **Items: 473 of 512 wired** (`src/data/item-art.js`). b362 wired Tyler's 71 hand-made web-UI exports

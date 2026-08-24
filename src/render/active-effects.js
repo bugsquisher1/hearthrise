@@ -31,6 +31,21 @@
 (function () {
   "use strict";
 
+  /* 2026-08-23 — the "standing debt" the header above admits to is paid.
+     Two icon slots in this file printed emoji: the LEGACY food-buff fallback
+     (`def.icon` straight out of BUFFS_DEF) and a twelve-entry `houseIcons`
+     table. Both draw gilt atlas glyphs now.
+     `_aeGly` delegates to legacy's `buffGlyph`, which reads BUFFS_DEF[].glyph —
+     ONE table for food buffs, so this fallback and the live buff-queue renderer
+     cannot show different art for the same buff. */
+  function _hrIcon(key, px) {
+    return (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 16, 'currentColor') || '') : '';
+  }
+  function _aeGly(type, px) {
+    if (typeof window.buffGlyphHTML === 'function') return window.buffGlyphHTML(type, px || 16);
+    return _hrIcon('uiPotion', px);
+  }
+
   /* Self-installing card — inject the Active Effects card into the Profile grid.
      Idempotent (guards on #active-effects-card), so re-running is harmless. */
   (function injectActiveEffectsCard() {
@@ -92,7 +107,7 @@
           var remain = Math.max(0, Math.ceil((b.expiresAt - Date.now()) / 1000));
           var mm = Math.floor(remain / 60), ss = remain % 60;
           out.push('<div class="eff-row">' +
-            '<div class="eicon">' + def.icon + '</div>' +
+            '<div class="eicon">' + _aeGly(b.id) + '</div>' +
             '<div><b>' + def.name + '</b><div class="eff-effect">+' + Math.round(def.value * 100) + '% ' + _formatBuffKindLabel(def.kind) + '</div></div>' +
             '<div class="eff-time">' + mm + ':' + ss.toString().padStart(2, '0') + '</div>' +
             '</div>');
@@ -106,10 +121,13 @@
     out.push('<div class="eff-section-h">House Buffs</div>');
     if (typeof getBonus === 'function') {
       var keys = ['cookSpeed', 'smithSpeed', 'allXP', 'combatXP', 'hearthXP', 'kitDrop', 'craftSave', 'gatherSpeed', 'farmYield', 'farmYieldPct', 'noBurn', 'storage'];
-      // Use the same icons as BUFFS_DEF where they overlap, so food and
-      // house bonuses display consistent symbols. Avoid 📚/📊/📦 — they
-      // render as low-contrast multicolor blocks in Segoe UI Emoji.
-      var houseIcons = { cookSpeed: '🍳', smithSpeed: '🔨', allXP: '⭐', combatXP: '⚔️', hearthXP: '🕯️', kitDrop: '🍀', craftSave: '🧵', gatherSpeed: '🌿', farmYield: '🌾', farmYieldPct: '🎃', noBurn: '🔥', storage: '🧰' };
+      // ATLAS KEYS, not emoji. The old table was twelve system pictographs with
+      // a comment apologising for how two emoji fonts drew them ("low-contrast
+      // multicolor blocks in Segoe UI Emoji" — an argument against emoji, not
+      // for a better emoji). A house bonus and the food buff that pays the same
+      // bonusKey now draw the SAME gilt glyph, which is the whole point of
+      // having one icon language.
+      var houseGlyph = { cookSpeed: 'cooking', smithSpeed: 'smithing', allXP: 'uiXp', combatXP: 'uiTarget', hearthXP: 'uiFlame', kitDrop: 'uiGift', craftSave: 'crafting', gatherSpeed: 'uiLeaf', farmYield: 'uiWheat', farmYieldPct: 'farming', noBurn: 'uiFire', storage: 'uiChest' };
       var any = false;
       keys.forEach(function (k) {
         var v = getBonus(k);
@@ -122,7 +140,7 @@
            reward away the way harvestPlot used to. */
         var display = isFlat ? '+' + ((v % 1) ? (Math.round(v * 10) / 10) : v) : '+' + Math.round(v * 100) + '%';
         out.push('<div class="eff-row house">' +
-          '<div class="eicon">' + (houseIcons[k] || '⭐') + '</div>' +
+          '<div class="eicon">' + _hrIcon(houseGlyph[k] || 'uiStar') + '</div>' +
           '<div><b>' + _formatBuffKindLabel(k).replace(/^./, function (c) { return c.toUpperCase(); }) + '</b><div class="eff-effect">' + display + '</div></div>' +
           '<div class="eff-time">House</div>' +
           '</div>');
@@ -141,7 +159,7 @@
       var cb = window.getClanBlessing && window.getClanBlessing();
       if (cb) {
         out.push('<div class="eff-row">' +
-          '<div class="eicon">🛡️</div>' +
+          '<div class="eicon">' + _hrIcon('uiShield') + '</div>' +
           '<div><b>' + cb.name + '</b><div class="eff-effect">' + cb.effect + '</div></div>' +
           '<div class="eff-time">' + (cb.expiresLabel || 'Active') + '</div>' +
           '</div>');

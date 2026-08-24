@@ -1,5 +1,115 @@
 # Art Director — running log
 
+## 2026-08-23 · THE EMOJI-AS-ICON SWEEP — and the number I was given was wrong in BOTH directions
+
+**The finding I would put first, because it is the reason four previous purges left survivors.**
+I was handed "~64 emoji-as-icon sites" from a repo audit. A repo grep over `src/**` actually reports
+**~1,800 pictographs**, and it always will: they sit in DATA rows no renderer reads any more
+(`ITEMS[].icon`, `MONSTERS[].icon` — 473 of 512 items and 104 of 111 monsters have painted art now),
+inside COMMENTS explaining why an emoji was removed, and in CHANGELOG prose that is allowed to keep
+them. **A grep cannot distinguish the violation from its own fix note**, so it can only ever be
+ignored, and that is exactly what happened four times. So I built the other instrument
+(`tools/_emoji-shots.mjs`): boot the real client, walk visible text nodes, and count the sites where
+the emoji is the **entire content of its element** — i.e. where the element IS an icon slot. The true
+figure was **10 distinct structural sites**, not 64 and not 1,800. It is 0 now, on 20 screens at
+1440x900 and 922x423, with 0 console errors and 0 404s.
+
+**The half of the brief that mattered more than the emoji, and I only found it by photographing the
+inventory.** A bag full of items rendered its bottom four rows as the SAME chest, over and over.
+`itemGlyphKey` — the b217 no-emoji backstop — had ten patterns and a `uiChest` default, and a live
+boot put **49 unmapped ids on that default**. Emoji is not the only thing that reads as generated;
+one glyph repeated twenty times is the same tell wearing better clothes. I dumped the real 49 out of
+the running game and wrote the new patterns FROM that list rather than guessing: fangs/claws→bone,
+pelts/thread→cape, ichor/essence→potion, blueprints/deeds→scroll, keys/sigils→key, medals/crowns→
+medal, raw meat→food, runes→rune. Chest count: **49 → 2**. That single function is the highest-
+leverage thing in the pass; every renderer in the game funnels through it.
+
+**The nastiest discovery, and it inverts what "de-emoji" means.** `stripChromeEmoji()` in
+`icon-set.js` DELETES pictographs from a fixed selector list at runtime. Where the atlas had no
+glyph to put back, it left a **HOLE**: Runecrafting and Stonemason rendered an EMPTY medallion in
+the skills rail and on the Character sheet (DISCOVERIES logged this on 2026-08-17 and my own gate on
+2026-08-19; it had been live for months), and `.ams-btn` / `.cmt-btn` — the mobile activity strip and
+combat sub-tabs — drew a label with nothing above it. **A de-emoji pass with no glyph to draw is a
+pass that ships blanks.** So the fix was to DRAW, not to strip: two hand-authored 512-box glyphs in a
+new `src/data/glyphs-extra.js` (the generated `glyphs.js` carries a do-not-hand-edit banner, so hand
+work gets its own file that merges into `HR_GLYPHS` and never clobbers a baked path).
+
+**Both of those glyphs took three cuts, and only the render told me why.** Cut 1 of `runecrafting`
+used a 36-unit stave — 7% of the 512 box — which looked fine in the path data and read as a thin
+antenna beside game-icons' neighbours, which fill 85-90% of the box with SOLID mass. Cut 2 was bold
+but sat on a plinth that turned it into a coat-stand at 34px. Cut 1 of `stonemason` drew the three
+faces of the ashlar block EDGE TO EDGE — and with one fill colour and no strokes available, adjacent
+faces MERGE, so the block read as a single flat polygon (a "note", a "flag"). **A single-fill glyph
+can only describe a solid by leaving background between its faces.** I judged all three cuts from a
+contact sheet rendering both glyphs at 128px AND 34px beside `mining`/`smithing`/`crafting`/`magic`
+on the real surface, not from the SVG.
+
+**Where I refused the brief, and I think it is the most defensible call in the pass.** It asked me
+to give `rune_of_poison` "an honest interim: tint an existing rune sprite (itemTintClass) or an SVG
+rune glyph". Tinting is the cheaper option and it is wrong here: `rune_of_ember` and `rune_of_frost`
+are painted stones with **distinct engravings**, and a green recolour of either would tell the
+player that poison and frost are the same rune, which is the "turnip and carrot both carry 🥕" defect
+I removed from `CROPS` two hours earlier in the same pass. The glyph route is the honest one. Filed
+the third painted stone to the Asset Director.
+
+**Two live bugs found by looking, neither of them about emoji.** (1) `confirmIAP()` prints `p.icon`
+at 54px and **no `IAP_CATALOG` row has ever had an `icon` field** — they carry `glyph`. Every
+purchase-confirmation modal in this game has been showing the literal word "undefined" above the
+product title. (2) The Quests modal reward line read "5x small_bones" — a raw snake_case id on a
+player-facing surface, the same class as b371's "Hatched from a dragon_egg". Both fixed.
+
+**The sizing lesson, learned the hard way and worth keeping.** I first made the unwired-monster
+portrait fallback `HR.icon('uiSkull', 64)`. Photographed it: the Fight screen's foe plate is
+**340x340** on desktop, so the mark sat at 19% of its frame and read as a lost sticker — the b361
+failure mode (an unsized icon meeting a big slot) arriving from the other direction. I then keyed
+the CSS on the RENDERER's class (`.fs-foe-img`), re-shot, and it was still small: **that plate is
+filled by TWO code paths** (legacy.js's arena markup and combat-screens' `setHtmlOnce`), and only
+one carries that class. The rule is keyed on the ATOM (`.hr-glyph`, which every path emits) with
+`!important`, because `HR.icon` writes `--gsz` INLINE and an inline custom property beats a
+stylesheet declaration without it. Three renders to get one icon the right size, and each render
+told me something the previous reasoning had not.
+
+**Design calls I made rather than mechanically substituting.** The inventory right-click menu lost
+its icons entirely: six of ~ten rows had an emoji and the rest (Eat, Lock, Set as auto-eat) never
+had one because there is no honest glyph for them, and **a list where half the rows are indented
+behind a picture reads worse than a list with none**. Same for the scavenger's DMG/DEF/CRIT/HEAL/KIT
+rail — five near-identical glyphs on a five-row number table is noise, and the labels already say it.
+The House property card now draws its TIER's own glyph (camp→home→barn→manor→castle→crown) instead
+of one house for all six, so the card says which rung you are on the way the pips beneath it do.
+Achievements got LADDERS rather than substitutions: kills climb sword→skull→shield→trophy→crown,
+gold climbs coin→coin-stack→gems→bank — a relationship the emoji set could not express.
+
+**Verified in-browser, my own harness rooted in THIS worktree** (`tools/_emoji-shots.mjs` — the
+launch.json-serves-main trap this log has now recorded seven times). 20 surfaces x 2 viewports
+(1440x900 + 922x423): 13 tabs, 8 modals, plus a live FIGHT against a deliberately UNWIRED monster
+(`ooze`) so the fallback portrait is what gets photographed, and a live GATHERING state so the
+activity bar and Character active-card are caught mid-action. **0 structural emoji, 0 decorative
+emoji, 0 console errors, 0 404s.** I READ them — the Quests modal, the inventory grid before/after
+(the chest wall is the clearest win), Achievements, the skills rail, House, the Fight screen at both
+sizes. Before/after in the session scratchpad `{before2,AFTER}/`, glyph contact sheets in `zoom5/`.
+
+**Suite 1015/1016** (baseline on clean HEAD in this worktree: 1012/1014). **+2 tests, 0 new
+failures, 0 runtime errors.** The one failure — `DAILY-HEAL-1` — is present on clean HEAD and is not
+mine; `b231` is flaky and failed on the baseline run and passed on mine.
+
+**Both new guards are MUTATION-PROVEN, in four separate runs.** Planting an emoji back into the
+quests strip → the DOM census fails naming it. Collapsing `itemGlyphKey` back to one glyph → the
+fallback guard fails on distinctness. Restoring the old diagonal-arrow ammo glyph → fails by SHAPE
+(it asserts the old path is gone, not merely that a glyph exists — an existence check passes a
+redraw that never happened). Disabling the `glyphs-extra` publish → BOTH guards fail, and the DOM
+census names `character csk-emoji → 🔮 / 🧱`, which independently confirms those two really were
+live emoji before this pass.
+
+**Known limitations, stated plainly.** (1) The DOM census walks a CURATED selector list, not
+`document.body` — a blanket sweep would police the dev smoke panel and harness furniture and fail
+for reasons that are not about the game. Adding a screen means adding a row. (2) The 🧪 dev smoke
+button keeps its emoji: it is gated off for non-testers by `beta-banner.js` and CLAUDE.md names it
+by that character. (3) The `▶` marks in the welcome-back rows and `←`/`✓`/`★` are typographic, not
+pictographic, and stay. (4) `window.ITEMS` exposes 179 of the ~512 merged items to a probe at boot
+time, so the "49 chests" census is a representative slice rather than the full catalogue — the
+direction is unambiguous but the absolute number is a floor. (5) No version bump, no CHANGELOG, as
+briefed.
+
 ## 2026-08-23 · THE PAPER-DOLL REBUILD — and the file the brief named was only HALF the bug
 
 **The finding I would put first, because it changes what the task was.** I was pointed at

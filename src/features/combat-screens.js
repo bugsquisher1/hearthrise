@@ -93,8 +93,22 @@ function monsterArt(id, cls) {
     const g = IS.medallionMon(id, 96);
     if (g) return `<span class="${cls} is-glyph">${g}</span>`;
   }
-  const m = MONSTERS[id];
-  return `<span class="${cls} is-emoji">${(m && m.icon) || '👾'}</span>`;
+  /* was `m.icon || '👾'` at PORTRAIT size, in the file that owns the two
+     densest combat surfaces (flagged in the art-director log 2026-08-17 and
+     left live at 104 of 111 monsters wired — i.e. seven foes away). A
+     red-ringed skull is an honest "a foe"; a space-invader is not.
+
+     SIZED BY ITS MOUNT, not by a constant. The first cut asked HR.icon for a
+     fixed 64px and I photographed the result: on the Fight screen that frame is
+     340x340, so the mark sat at 19% of its plate and read as a lost sticker —
+     the b361 failure mode (an unsized icon meeting a big slot) arriving from
+     the other direction. The svg is emitted at 100% and each mount's CSS box
+     decides, exactly as it already does for the painted <img>. */
+  const d = (IS && typeof IS.path === 'function') ? IS.path('uiSkull') : null;
+  if (!d) return `<span class="${cls} is-glyph"></span>`;
+  return `<span class="${cls} is-glyph">`
+    + '<svg viewBox="0 0 512 512" aria-hidden="true" focusable="false" style="width:100%;height:100%;display:block">'
+    + '<path fill="var(--red,#b23a2c)" d="' + d + '"/></svg></span>';
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -449,7 +463,7 @@ function ensureStructure() {
     </section>
     <section class="fs-view" aria-label="The Fight">
       <div class="fs-top">
-        <button type="button" class="fs-back" data-cs-act="back">◀ <span>War Table</span></button>
+        <button type="button" class="fs-back" data-cs-act="back">← <span>War Table</span></button>
         <div class="fs-title" id="fs-title"></div>
       </div>
       <div class="fs-body">

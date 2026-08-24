@@ -19,6 +19,17 @@
 (function(){
   'use strict';
 
+  /* Every room, option, boss and stat row in this run screen carried an emoji
+     in its data (`icon:'🪓'`). They are atlas KEYS now (`glyph:`), drawn here.
+     The stat rail (DMG/DEF/CRIT/HEAL/KIT) lost its icons entirely rather than
+     gaining five near-identical glyphs: it is a five-row NUMBER table, the
+     labels already say what each row is, and a picture per row was noise. */
+  function _scvGly(key, px, col){
+    return (window.HR && window.HR.icon)
+      ? (window.HR.icon(key || 'uiTarget', px || 16, col || 'currentColor') || '')
+      : '';
+  }
+
   /* Boss-fight survival rule (extracted so it's unit-testable).
      Tester report (Xarnathos): at 0 HP you kept damaging the Bone Lord, won,
      and could never be defeated. Cause: the old tick clamped playerHp to 0 and
@@ -40,64 +51,64 @@
       bossHp: 1000,
       bossDps: 18,                // boss damage per second
       bossName: 'The Marrow King',   /* Wave 2: match DUNGEONS[crypt_of_bones].boss.name (b268 rename); was 'The Bone Lord' — the card and the fight named two different bosses */
-      bossIcon: '💀',
+      bossGlyph: 'uiSkull',
       rooms: [
         {
-          name: 'Twisted Grove', icon: '🌲',
+          name: 'Twisted Grove', glyph: 'uiTree',
           desc: 'Sturdy branches and herbs grow near the crypt entrance.',
           options: [
-            { id: 'chop',   label: 'Chop a sturdy branch', icon: '🪓', durationS: 14,
+            { id: 'chop',   label: 'Chop a sturdy branch', glyph: 'uiAxe', durationS: 14,
               skill: 'woodcutting', produces: 'handle',
               hint: 'Wood handle quality scales with Woodcutting.' },
-            { id: 'forage', label: 'Forage healing herbs',  icon: '🌿', durationS: 10,
+            { id: 'forage', label: 'Forage healing herbs',  glyph: 'uiHerb', durationS: 10,
               skill: 'farming', produces: 'herb',
               hint: 'Herb potency scales with Farming.' },
           ],
         },
         {
-          name: 'Iron Vein', icon: '⛏️',
+          name: 'Iron Vein', glyph: 'uiOre',
           desc: 'Veins of iron criss-cross the rock face.',
           options: [
-            { id: 'mine',   label: 'Mine raw iron',     icon: '⛏️', durationS: 14,
+            { id: 'mine',   label: 'Mine raw iron',     glyph: 'uiPickaxe', durationS: 14,
               skill: 'mining', produces: 'ore',
               hint: 'Ore tier scales with Mining.' },
-            { id: 'gem',    label: 'Search for a gem',  icon: '💎', durationS: 22,
+            { id: 'gem',    label: 'Search for a gem',  glyph: 'uiGem', durationS: 22,
               skill: 'mining', produces: 'gem',
               hint: 'Slower but adds crit chance to your axe.' },
           ],
         },
         {
-          name: 'Abandoned Forge', icon: '🔥',
+          name: 'Abandoned Forge', glyph: 'uiAnvil',
           desc: 'Old anvil. Old hammer. Old fires waking up.',
           options: [
-            { id: 'smith_axe',   label: 'Smith axe (uses handle + ore)', icon: '⚔️', durationS: 18,
+            { id: 'smith_axe',   label: 'Smith axe (uses handle + ore)', glyph: 'uiSword', durationS: 18,
               skill: 'smithing', produces: 'axe', requires:['handle','ore'],
               hint: 'Final axe damage = (handle × ore × smithing) tiers.' },
-            { id: 'smith_armor', label: 'Smith plate (uses ore)',         icon: '🛡️', durationS: 14,
+            { id: 'smith_armor', label: 'Smith plate (uses ore)',         glyph: 'uiBody', durationS: 14,
               skill: 'smithing', produces: 'armor', requires:['ore'],
               hint: 'Plate defense scales with Smithing.' },
           ],
         },
         {
-          name: 'Stream', icon: '🐟',
+          name: 'Stream', glyph: 'uiFish',
           desc: 'A small stream snakes through the catacombs.',
           options: [
-            { id: 'fish', label: 'Catch a trout', icon: '🎣', durationS: 12,
+            { id: 'fish', label: 'Catch a trout', glyph: 'fishing', durationS: 12,
               skill: 'fishing', produces: 'fish',
               hint: 'Fish quality scales with Fishing.' },
-            { id: 'cook', label: 'Cook fish (uses fish)', icon: '🍳', durationS: 8,
+            { id: 'cook', label: 'Cook fish (uses fish)', glyph: 'uiPot', durationS: 8,
               skill: 'cooking', produces: 'food', requires:['fish'],
               hint: 'Cooking turns the fish into a heal-over-time meal.' },
           ],
         },
         {
-          name: 'Shrine', icon: '🕯️',
+          name: 'Shrine', glyph: 'uiFlame',
           desc: 'A weathered shrine. Press an offering for a blessing.',
           options: [
-            { id: 'pray',  label: 'Pray for might',   icon: '🙏', durationS: 8,
+            { id: 'pray',  label: 'Pray for might',   glyph: 'prayer', durationS: 8,
               skill: 'prayer', produces: 'blessing_dmg',
               hint: 'Prayer adds a damage buff for the boss.' },
-            { id: 'ward',  label: 'Pray for shield',  icon: '🛡️', durationS: 8,
+            { id: 'ward',  label: 'Pray for shield',  glyph: 'uiShield', durationS: 8,
               skill: 'prayer', produces: 'blessing_def',
               hint: 'Prayer adds a damage-reduction ward.' },
           ],
@@ -222,7 +233,7 @@
     });
     if(!pieces.length) pieces.push('<span class="scv-kit-empty">naked &amp; unarmed</span>');
     return '<div class="scv-status">' +
-      '<div class="scv-status-time"><span class="scv-time-icon">⏱️</span><b>' + timeLeft + 's</b></div>' +
+      '<div class="scv-status-time"><span class="scv-time-icon">' + _scvGly('uiClock', 14) + '</span><b>' + timeLeft + 's</b></div>' +
       '<div class="scv-status-kit">' + pieces.join('') + '</div>' +
     '</div>';
   }
@@ -247,23 +258,23 @@
         if(opt.durationS * 1000 > run.timeLeftMs){ disabled = true; reason = 'Not enough time'; }
         return '<button class="scv-opt' + (disabled ? ' disabled' : '') + '" data-room="' + rIdx + '" data-opt="' + oIdx + '" ' + (disabled ? 'disabled' : '') + '>' +
           '<div class="scv-opt-head">' +
-            '<span class="scv-opt-icon">' + opt.icon + '</span>' +
+            '<span class="scv-opt-icon">' + _scvGly(opt.glyph, 18) + '</span>' +
             '<span class="scv-opt-label">' + opt.label + '</span>' +
           '</div>' +
           '<div class="scv-opt-meta">' +
             '<span class="scv-opt-time">' + opt.durationS + 's</span>' +
             (opt.skill ? ' · <span class="scv-opt-skill">' + opt.skill + ' Lv ' + lv + '</span>' : '') +
           '</div>' +
-          '<div class="scv-opt-hint">' + (disabled && reason ? '⚠ ' + reason : opt.hint) + '</div>' +
+          '<div class="scv-opt-hint">' + (disabled && reason ? reason : opt.hint) + '</div>' +
         '</button>';
       }).join('');
       return '<div class="scv-room-group">' +
-          '<h4 class="scv-room-group-title"><span>' + room.icon + '</span> ' + room.name + '<small>' + room.desc + '</small></h4>' +
+          '<h4 class="scv-room-group-title"><span>' + _scvGly(room.glyph, 16, '--gold-2') + '</span> ' + room.name + '<small>' + room.desc + '</small></h4>' +
           '<div class="scv-opts">' + optsHtml + '</div>' +
         '</div>';
     }).join('');
 
-    var bossHtml = '<button class="scv-boss-now" data-boss="1">⚔ Engage boss now (' + run.config.bossName + ')</button>';
+    var bossHtml = '<button class="scv-boss-now" data-boss="1">Engage boss now (' + run.config.bossName + ')</button>';
     var hintHtml = '<div class="scv-lobby-hint">Repeat tasks for better tier rolls. The clock keeps ticking — leave enough time to fight ' + run.config.bossName + '.</div>';
 
     modal.innerHTML =
@@ -301,7 +312,7 @@
       '<button class="scv-close">✕</button>' +
       statusBarHtml() +
       '<div class="scv-room-head">' +
-        '<span class="scv-room-icon">' + opt.icon + '</span>' +
+        '<span class="scv-room-icon">' + _scvGly(opt.glyph, 20) + '</span>' +
         '<div>' +
           '<h3>' + opt.label + '</h3>' +
           '<div class="scv-room-desc">' + opt.hint + '</div>' +
@@ -377,7 +388,7 @@
       '<button class="scv-close">✕</button>' +
       statusBarHtml() +
       '<div class="scv-result scv-tier-' + tier + '">' +
-        '<div class="scv-result-icon">' + opt.icon + '</div>' +
+        '<div class="scv-result-icon">' + _scvGly(opt.glyph, 30, '--gold-2') + '</div>' +
         '<div class="scv-result-text">' +
           '<div>You crafted</div>' +
           '<h2>' + name + ' <span class="scv-tier-tag">T' + tier + '</span></h2>' +
@@ -433,32 +444,32 @@
       var youPct = (playerHp / playerMaxHp * 100);
       var rewardList = awarded.length ? awarded.map(function(a){
         var item = window.ITEMS && window.ITEMS[a.id];
-        return '<span class="scv-roll-row">' + (item?item.icon:'📦') + ' +' + a.qty + ' ' + (item?item.n:a.id) + '</span>';
+        return '<span class="scv-roll-row">' + window.itemFallbackIcon(a.id, 18, item) + ' +' + a.qty + ' ' + (item?item.n:a.id) + '</span>';
       }).join('') : '<span class="scv-roll-empty">no rolls yet</span>';
       modal.innerHTML =
         '<button class="scv-close">✕</button>' +
         '<div class="scv-boss">' +
           '<div class="scv-boss-vs">' +
             '<div class="scv-fighter scv-foe">' +
-              '<div class="scv-fighter-icon">' + run.config.bossIcon + '</div>' +
+              '<div class="scv-fighter-icon">' + _scvGly(run.config.bossGlyph || 'uiSkull', 26, '--red') + '</div>' +
               '<div class="scv-fighter-name">' + run.config.bossName + '</div>' +
               '<div class="scv-hp-bar"><i style="width:' + foePct + '%"></i></div>' +
               '<div class="scv-hp-text">' + Math.max(0, bossHp).toFixed(0) + ' / ' + bossMaxHp + '</div>' +
             '</div>' +
             '<div class="scv-vs">VS</div>' +
             '<div class="scv-fighter scv-you">' +
-              '<div class="scv-fighter-icon">🧙</div>' +
+              '<div class="scv-fighter-icon">' + _scvGly('navCharacter', 26, '--gold-2') + '</div>' +
               '<div class="scv-fighter-name">You</div>' +
               '<div class="scv-hp-bar"><i style="width:' + youPct + '%"></i></div>' +
               '<div class="scv-hp-text">' + Math.max(0, playerHp).toFixed(0) + ' / ' + playerMaxHp + '</div>' +
             '</div>' +
           '</div>' +
           '<div class="scv-loadout">' +
-            '<div class="scv-load-row"><span>⚔ DMG</span><b>' + loadout.dmgPerHit.toFixed(1) + '/hit' + (loadout.dmgBuffPct ? ' (+' + (loadout.dmgBuffPct*100).toFixed(0) + '%)' : '') + '</b></div>' +
-            '<div class="scv-load-row"><span>🛡 DEF</span><b>' + loadout.defense.toFixed(1) + (loadout.defBuffPct ? ' (+' + (loadout.defBuffPct*100).toFixed(0) + '%)' : '') + '</b></div>' +
-            '<div class="scv-load-row"><span>💥 CRIT</span><b>' + loadout.critPct.toFixed(0) + '%</b></div>' +
-            '<div class="scv-load-row"><span>❤ HEAL</span><b>' + loadout.healPerHit.toFixed(1) + '/hit</b></div>' +
-            '<div class="scv-load-row"><span>🪓 KIT</span><b>' + loadout.axeQuality + '</b></div>' +
+            '<div class="scv-load-row"><span>DMG</span><b>' + loadout.dmgPerHit.toFixed(1) + '/hit' + (loadout.dmgBuffPct ? ' (+' + (loadout.dmgBuffPct*100).toFixed(0) + '%)' : '') + '</b></div>' +
+            '<div class="scv-load-row"><span>DEF</span><b>' + loadout.defense.toFixed(1) + (loadout.defBuffPct ? ' (+' + (loadout.defBuffPct*100).toFixed(0) + '%)' : '') + '</b></div>' +
+            '<div class="scv-load-row"><span>CRIT</span><b>' + loadout.critPct.toFixed(0) + '%</b></div>' +
+            '<div class="scv-load-row"><span>HEAL</span><b>' + loadout.healPerHit.toFixed(1) + '/hit</b></div>' +
+            '<div class="scv-load-row"><span>KIT</span><b>' + loadout.axeQuality + '</b></div>' +
           '</div>' +
           '<div class="scv-rolls"><h4>Loot rolls (' + lootRolls + ' / 10)</h4>' + rewardList + '</div>' +
         '</div>';
@@ -518,12 +529,12 @@
       // the time/effort can keep running. Only the auto-run path stamps lastRun.
       var rewardHtml = awarded.length ? awarded.map(function(a){
         var item = window.ITEMS && window.ITEMS[a.id];
-        return '<div class="scv-reward-row">' + (item?item.icon:'📦') + ' +' + a.qty + ' <b>' + (item?item.n:a.id) + '</b></div>';
+        return '<div class="scv-reward-row">' + window.itemFallbackIcon(a.id, 18, item) + ' +' + a.qty + ' <b>' + (item?item.n:a.id) + '</b></div>';
       }).join('') : '<div class="scv-empty">No rolls earned. Try a different loadout.</div>';
       modal.innerHTML =
         '<button class="scv-close">✕</button>' +
         '<div class="scv-summary">' +
-          '<h2 class="scv-summary-title ' + (victory ? 'win' : 'lose') + '">' + (victory ? '🏆 VICTORY' : '💀 DEFEATED') + '</h2>' +
+          '<h2 class="scv-summary-title ' + (victory ? 'win' : 'lose') + '">' + (victory ? _scvGly('uiTrophy', 20, '--gold-2') + ' VICTORY' : _scvGly('uiSkull', 20, '--red') + ' DEFEATED') + '</h2>' +
           '<div class="scv-summary-sub">' + lootRolls + ' loot roll' + (lootRolls===1?'':'s') + ' earned (' + ((1 - bossHp/bossMaxHp)*100).toFixed(0) + '% boss HP)</div>' +
           '<div class="scv-summary-note">Gear and food assembled in the dungeon were left behind.</div>' +
           '<div class="scv-rewards-block"><h4>Loot brought home</h4>' + rewardHtml + '</div>' +

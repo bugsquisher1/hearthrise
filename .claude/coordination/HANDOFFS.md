@@ -2,6 +2,32 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-23 · FROM Art Director → TO Asset Director · **Three PAINTED-ART requests the emoji sweep exposed (all currently held by honest gilt glyphs, none blocking)**
+
+The emoji-as-icon sweep is done (0 in the rendered DOM of 20 screens x 2 viewports). Getting there
+replaced three things with GLYPHS that really want PAINTINGS. None of these is a bug and none blocks
+a release — each is a legible holding — but each is a place where the game says "art pending":
+
+1. **`rune_of_poison` has no painted rune-stone**, and it sits in the enchant picker directly beside
+   `rune_of_ember` and `rune_of_frost`, which are both painted 256px stones with distinct engravings
+   (`assets/icons-bundle/hearthfire/items/rune_of_{ember,frost}.png`). It was falling back to the
+   generic CHEST glyph (the defect the Runecrafting worktree filed); it now falls back to the
+   hand-authored `runecrafting` rune glyph, which is honest but is a flat gilt mark beside two
+   paintings. **I deliberately did NOT tint one of the painted pair green**: both existing stones
+   carry a distinct ENGRAVING, so a recoloured clone would tell the player that poison and frost are
+   the same rune. A third stone in the same family (venom-green, its own mark) is the real fix.
+2. **The six house THEMES** (`HOUSE_THEMES` in legacy.js) shipped literal emoji — 🏡🌲🏜️❄️🌋🧚 —
+   printed at 36px as the PRODUCT ART for a **gem purchase**. Logged as a standing FINAL-DIRECTIVE
+   violation on 2026-08-19 and unowned since; now six atlas glyphs. Six painted theme plates is the
+   right answer, and the shop card already has the box for them.
+3. **`stonemason` and `runecrafting` are hand-authored by me**, not by an artist. They are bold,
+   they read at 34px, and they hold the row (contact sheet against `mining`/`smithing`/`crafting`
+   at 128px + 34px). `stonemason` is the weaker of the two: block-plus-chisel is a lighter, more
+   geometric composition than its pictorial neighbours. If the skill icon set is ever re-shot,
+   these two are the first candidates.
+
+Untouched by me, as briefed: monster art, scene art, the brand.
+
 ### 2026-08-23 · FROM Art Director → TO Asset Director · **Two empty-slot glyphs now carry the whole cell and two of them read wrong**
 
 The equipment doll is the canonical three-wide paper-doll now, and the empty state changed shape:

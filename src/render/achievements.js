@@ -36,7 +36,7 @@
   function showAchToast(a) {
     var t = document.createElement('div');
     t.className = 'ach-toast';
-    t.innerHTML = '<span class="at-icon">' + a.icon + '</span><div class="at-text"><b>Achievement unlocked!</b><small>' + a.name + '</small></div>';
+    t.innerHTML = '<span class="at-icon">' + window.achievementGlyphHTML(a, 20) + '</span><div class="at-text"><b>Achievement unlocked!</b><small>' + a.name + '</small></div>';
     document.body.appendChild(t);
     setTimeout(function () { t.remove(); }, 4200);
   }
@@ -64,7 +64,7 @@
       var entry = G.achievements[a.id] || { progress: 0, unlocked: false };
       var pct = Math.min(100, (entry.progress / a.target) * 100);
       return '<div class="ach-row ' + (entry.unlocked ? 'unlocked' : '') + '">' +
-        '<div class="ach-icon">' + a.icon + '</div>' +
+        '<div class="ach-icon">' + window.achievementGlyphHTML(a, 22) + '</div>' +
         '<div class="ach-info"><b>' + a.name + '</b><small>' + a.desc + '</small></div>' +
         '<div class="ach-progress">' + Math.min(entry.progress, a.target).toLocaleString() + ' / ' + a.target.toLocaleString() + '</div>' +
       '</div>';

@@ -18,6 +18,16 @@
 (function () {
   'use strict';
 
+  /* The log is a WALL of icons — it was the densest emoji surface left in the
+     game (❔ for undiscovered, the data emoji for everything else). Cells now
+     draw painted art via itemArt/monsterArt, and every remaining slot goes
+     through this one gilt-glyph helper. Never a character. */
+  function _clGly(key, px, col) {
+    return (window.HR && window.HR.icon)
+      ? (window.HR.icon(key, px || 13, col || 'currentColor') || '')
+      : '';
+  }
+
   var MILESTONES = [
     { id: 'hunter10',  label: 'Novice Hunter',   test: function (s) { return s.mon.found >= 10; },        reward: { gold: 2000 } },
     { id: 'hunterAll', label: 'Bestiary Master',  test: function (s) { return s.mon.total && s.mon.found >= s.mon.total; }, reward: { gold: 50000, gems: 25 } },
@@ -114,6 +124,12 @@
       '.hr-cl-msb{flex:1;font-size:calc(14.5px * var(--ui-scale, 1))}',
       '.hr-cl-claim{border:none;border-radius:8px;padding:7px 13px;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a)}',
       '.hr-cl-detail{padding:14px}',
+      /* the detail sheet's hero slot. Was an inline 46px font-size holding an
+         emoji; it holds painted art or a glyph now, so it needs a box. */
+      '.hr-cl-hero{display:flex;align-items:center;justify-content:center;min-height:52px;margin-bottom:4px}',
+      '.hr-cl-hero img{width:52px;height:52px;object-fit:contain}',
+      '.hr-cl-ic img{width:26px;height:26px;object-fit:contain}',
+      '.hr-cl-drop img{width:18px;height:18px;object-fit:contain;vertical-align:-4px}',
       '.hr-cl-stats{padding:2px 12px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2,#cbb890);line-height:1.5}',
       '.hr-cl-drop{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 9px;border-radius:7px;background:var(--bg-2,#2c2216);margin:4px 0;font-size:calc(14.5px * var(--ui-scale, 1))}',
       '.hr-cl-drop b{color:var(--gold,#e0a64a);font-variant-numeric:tabular-nums}',
@@ -124,13 +140,13 @@
 
   function cell(icon, name, found) {
     return '<div class="hr-cl-cell' + (found ? '' : ' miss') + '" title="' + (name || '') + '">' +
-      '<div class="hr-cl-ic">' + (found ? (icon || '❔') : '❔') + '</div>' +
+      '<div class="hr-cl-ic">' + (found ? (icon || _clGly('uiChest', 22)) : _clGly('uiSearch', 22)) + '</div>' +
       '<div class="hr-cl-nm">' + (found ? name : '???') + '</div></div>';
   }
   // Bestiary cell — clickable into a drop-table detail when discovered.
   function cellMon(id, icon, name, found) {
     return '<div class="hr-cl-cell' + (found ? '' : ' miss') + '"' + (found ? ' data-mon="' + id + '" style="cursor:pointer"' : '') + ' title="' + (name || '') + '">' +
-      '<div class="hr-cl-ic">' + (found ? (icon || '❔') : '❔') + '</div>' +
+      '<div class="hr-cl-ic">' + (found ? (icon || _clGly('uiChest', 22)) : _clGly('uiSearch', 22)) + '</div>' +
       '<div class="hr-cl-nm">' + (found ? name : '???') + '</div></div>';
   }
   function monDetailHtml(id) {
@@ -146,15 +162,15 @@
       var learned = !!(it && it.recipe && window.G.unlockedRecipes && window.G.unlockedRecipes[d.id]);
       var mark = learned ? ' <em class="hr-cl-learned">· recipe learned</em>'
                          : (found ? '' : ' <em>· not yet found</em>');
-      return '<div class="hr-cl-drop"><span>' + (it ? it.icon : '❔') + ' ' + (it ? it.n : d.id) + mark + '</span><b>' + (pct < 1 ? '<1' : Math.round(pct)) + '%</b></div>';
+      return '<div class="hr-cl-drop"><span>' + window.itemArt(d.id, 18) + ' ' + (it ? it.n : d.id) + mark + '</span><b>' + (pct < 1 ? '<1' : Math.round(pct)) + '%</b></div>';
     }).join('') || '<div class="hr-cl-drop"><span>No drops</span></div>';
     return '<div class="hr-cl-detail">' +
       '<button class="hr-cl-claim" data-cl-back="1" style="margin-bottom:12px">← Back to log</button>' +
-      '<div style="text-align:center"><div style="font-size:calc(46px * var(--ui-scale, 1));line-height:1">' + (M.icon || '❔') + '</div>' +
+      '<div style="text-align:center"><div class="hr-cl-hero">' + window.monsterArt(id, 46) + '</div>' +
       '<div class="hr-cl-hn" style="font-size:calc(23px * var(--ui-scale, 1))">' + M.name + '</div>' +
       '<div class="hr-cl-eyebrow">Tier ' + (M.tier || 1) + ' · ' + (M.family || '') + ' · ' + fmt(b.kills || 0) + ' slain</div></div>' +
       '<div class="hr-cl-sec">Combat</div>' +
-      '<div class="hr-cl-stats">❤️ ' + M.hp + ' HP · ⚔️ ' + M.atk + ' ATK · 🛡️ ' + M.def + ' DEF · ✨ ' + M.xp + ' xp · weak to ' + (M.weaponWeak || '—') + '</div>' +
+      '<div class="hr-cl-stats">' + M.hp + ' HP · ' + M.atk + ' ATK · ' + M.def + ' DEF · ' + M.xp + ' xp · weak to ' + (M.weaponWeak || '—') + '</div>' +
       '<div class="hr-cl-sec">Drop table</div><div style="padding:2px 12px 14px">' + drops + '</div>' +
     '</div>';
   }
@@ -162,7 +178,7 @@
   // Item cell — clickable into a detail (value, properties, where it drops).
   function cellItem(id, icon, name, found) {
     return '<div class="hr-cl-cell' + (found ? '' : ' miss') + '"' + (found ? ' data-item="' + id + '" style="cursor:pointer"' : '') + ' title="' + (name || '') + '">' +
-      '<div class="hr-cl-ic">' + (found ? (icon || '❔') : '❔') + '</div>' +
+      '<div class="hr-cl-ic">' + (found ? (icon || _clGly('uiChest', 22)) : _clGly('uiSearch', 22)) + '</div>' +
       '<div class="hr-cl-nm">' + (found ? name : '???') + '</div></div>';
   }
   function itemSources(id) {
@@ -176,16 +192,16 @@
   function itemDetailHtml(id) {
     var it = (window.ITEMS || {})[id]; if (!it) return '';
     var props = [];
-    if (it.heals) props.push('❤️ heals ' + it.heals);
-    if (it.buff) props.push('✨ buff: ' + (it.buff.type || 'effect'));
-    if (it.buryXp) props.push('🙏 ' + it.buryXp + ' prayer xp (bury)');
-    if (it.atkB || it.strB || it.defB) props.push('⚔️ +' + (it.atkB || 0) + ' atk / +' + (it.strB || 0) + ' str / +' + (it.defB || 0) + ' def');
-    if (it.slot) props.push('🎽 ' + it.slot);
+    if (it.heals) props.push(_clGly('uiHeart',13,'--red') + ' heals ' + it.heals);
+    if (it.buff) props.push(_clGly('uiSpark',13,'--gold-2') + ' buff: ' + (it.buff.type || 'effect'));
+    if (it.buryXp) props.push(_clGly('prayer',13,'--gem') + ' ' + it.buryXp + ' prayer xp (bury)');
+    if (it.atkB || it.strB || it.defB) props.push(_clGly('uiSword',13) + ' +' + (it.atkB || 0) + ' atk / +' + (it.strB || 0) + ' str / +' + (it.defB || 0) + ' def');
+    if (it.slot) props.push(_clGly('uiBody',13) + ' ' + it.slot);
     var src = itemSources(id);
     var have = (window.G.collection || {})[id];
     return '<div class="hr-cl-detail">' +
       '<button class="hr-cl-claim" data-cl-back="1" style="margin-bottom:12px">← Back to log</button>' +
-      '<div style="text-align:center"><div style="font-size:calc(46px * var(--ui-scale, 1));line-height:1">' + (it.icon || '❔') + '</div>' +
+      '<div style="text-align:center"><div class="hr-cl-hero">' + window.itemArt(id, 46) + '</div>' +
       '<div class="hr-cl-hn" style="font-size:calc(23px * var(--ui-scale, 1))">' + it.n + '</div>' +
       '<div class="hr-cl-eyebrow">Worth ' + fmt(it.v || 0) + ' gold' + (have ? ' · discovered' : '') + '</div></div>' +
       (props.length ? '<div class="hr-cl-sec">Properties</div><div class="hr-cl-stats">' + props.join('<br>') + '</div>' : '') +
@@ -210,7 +226,7 @@
       return tiers.map(function (t) {
         var cells = byTier[t].map(function (id) {
           var found = best[id] && (best[id].kills || 0) > 0;
-          return cellMon(id, MON[id].icon, MON[id].name, found);
+          return cellMon(id, window.monsterArt(id, 30), MON[id].name, found);
         }).join('');
         return '<div class="hr-cl-sec">Tier ' + t + '</div><div class="hr-cl-grid">' + cells + '</div>';
       }).join('');
@@ -224,7 +240,7 @@
     return Object.keys(byCat).sort().map(function (c) {
       var ids = byCat[c];
       var found = ids.filter(function (id) { return col[id]; }).length;
-      var cells = ids.map(function (id) { return cellItem(id, ITEMS[id].icon, ITEMS[id].n, !!col[id]); }).join('');
+      var cells = ids.map(function (id) { return cellItem(id, window.itemArt(id, 26), ITEMS[id].n, !!col[id]); }).join('');
       return '<div class="hr-cl-sec">' + c + ' · ' + found + '/' + ids.length + '</div><div class="hr-cl-grid">' + cells + '</div>';
     }).join('');
   }
@@ -236,7 +252,7 @@
     var st = getStats(G);
     var claims = claimable(G);
     var msHtml = claims.map(function (m) {
-      var rw = []; if (m.reward.gold) rw.push('🪙 ' + fmt(m.reward.gold)); if (m.reward.gems) rw.push('💎 ' + fmt(m.reward.gems));
+      var rw = []; if (m.reward.gold) rw.push(_clGly('gold',13,'--gold-2') + ' ' + fmt(m.reward.gold)); if (m.reward.gems) rw.push(_clGly('gems',13,'--gem') + ' ' + fmt(m.reward.gems));
       return '<div class="hr-cl-ms"><div class="hr-cl-msb"><b>' + m.label + '</b> — ' + rw.join(' ') + '</div><button class="hr-cl-claim" data-cl-claim="' + m.id + '">Claim</button></div>';
     }).join('');
 
@@ -272,7 +288,7 @@
       if (cid) {
         var rw = claimMilestone(cid, G);
         if (rw && typeof window.notify === 'function') {
-          var s2 = []; if (rw.gold) s2.push('🪙 ' + fmt(rw.gold)); if (rw.gems) s2.push('💎 ' + fmt(rw.gems));
+          var s2 = []; if (rw.gold) s2.push(_clGly('gold',13,'--gold-2') + ' ' + fmt(rw.gold)); if (rw.gems) s2.push(_clGly('gems',13,'--gem') + ' ' + fmt(rw.gems));
           window.notify('Collection reward: ' + s2.join(' '), 'gold');
         }
         open();
@@ -311,7 +327,7 @@
       var r = origAdd.apply(this, arguments);
       try {
         if (!before && G && G.collection && G.collection[id] && window.ITEMS && window.ITEMS[id]) {
-          toast('📖 New discovery: ' + window.ITEMS[id].n + ' (' + totals(G) + ')');
+          toast('New discovery: ' + window.ITEMS[id].n + ' (' + totals(G) + ')');
         }
       } catch (e) { /* never break item pickups */ }
       return r;
@@ -329,7 +345,7 @@
         var r = origKill.apply(this, arguments);
         try {
           if (wasNew && mid && G.bestiary && G.bestiary[mid] && G.bestiary[mid].kills > 0 && window.MONSTERS && window.MONSTERS[mid]) {
-            toast('📖 Bestiary: ' + window.MONSTERS[mid].name + ' discovered! (' + totals(G) + ')');
+            toast('Bestiary: ' + window.MONSTERS[mid].name + ' discovered! (' + totals(G) + ')');
           }
         } catch (e) { /* never break combat */ }
         return r;

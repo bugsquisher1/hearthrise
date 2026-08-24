@@ -53,7 +53,7 @@
     if (owned(petId)) return false;
     if (typeof window.unlockCompanion === 'function') window.unlockCompanion(petId);
     var d = defs()[petId] || {};
-    if (window.notify) notify('🎉 A wild friend! ' + (d.icon || '🐾') + ' ' + (d.n || petId) + ' now follows you!', 'levelup');
+    if (window.notify) notify('A wild friend! ' + (d.icon || '') + ' ' + (d.n || petId) + ' now follows you!', 'levelup');
     return true;
   }
 

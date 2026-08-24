@@ -601,8 +601,8 @@
       try { syncCfg = window.HearthriseSync && window.HearthriseSync.getConfig && window.HearthriseSync.getConfig(); } catch (e) {}
       var everySec = Math.max(1, Math.round(((syncCfg && syncCfg.snapshotIntervalMs) || 60000) / 1000));
       var meta = (health.level === 'ok')
-        ? ('☁️ ' + health.text + ' · syncing every ' + everySec + 's')
-        : ((health.level === 'warn' ? '⚠️ ' : '☁️ ') + health.text);
+        ? (health.text + ' · syncing every ' + everySec + 's')
+        : health.text;
       var metaStyle = (health.level === 'warn') ? ' style="color:var(--role-danger, var(--ink-2))"' : '';
       auth = ''
         + '<div class="ss-card">'
@@ -665,7 +665,7 @@
     var showCloudSetup = (typeof location !== 'undefined' && /[?&]cloudConfig=1/.test(location.search));
     var cloudSetup = !showCloudSetup ? '' : ''
       + '<div class="ss-card" style="display:block">'
-      +   '<div class="ss-card-title">☁️ Cloud setup (developer)</div>'
+      +   '<div class="ss-card-title">Cloud setup (developer)</div>'
       +   '<div class="ss-card-meta">' + (hasCloud
               ? 'Connected to ' + esc(sbConfig.url.replace(/^https?:\/\//, ''))
               : 'Self-hoster paste form. Production builds ship with credentials baked in.') + '</div>'
@@ -729,7 +729,7 @@
       +   '<button class="btn btn-sm" id="set-save-now">Save</button>'
       + '</div>'
       + '<div class="ss-row"><div class="ss-label">Export save</div>'
-      +   '<button class="btn btn-sm" id="set-export">⬇️ Download JSON</button>'
+      +   '<button class="btn btn-sm" id="set-export">Download JSON</button>'
       + '</div>'
       + '<div class="ss-row"><div class="ss-label">Import save</div>'
       +   '<button class="btn btn-sm" id="set-import">From file…</button>'
@@ -765,7 +765,7 @@
             + '</div>'
           : '<div class="ss-hint">No automatic backups yet. Backups are created the first time the save schema migrates, so you\'ll see them after the next major game update.</div>')
       + '<div class="ss-row danger"><div class="ss-label">Reset character</div>'
-      +   '<button class="btn btn-sm btn-danger" id="set-reset">⚠️ Erase + reload</button>'
+      +   '<button class="btn btn-sm btn-danger" id="set-reset">Erase + reload</button>'
       + '</div>'
       + '<div class="ss-hint">Reset clears the active character\'s save. Other character slots are unaffected.</div>';
   }
@@ -990,7 +990,7 @@
         if(window.HearthriseSync && window.HearthriseSync.checkConcurrentDevice){
           var dev = await window.HearthriseSync.checkConcurrentDevice();
           devLine = dev && dev.concurrent
-            ? '\n⚠️ This account is ALSO active on another device — close it to avoid save conflicts.'
+            ? '\nWARNING: this account is ALSO active on another device — close it to avoid save conflicts.'
             : '\n✓ Only this device is active on your account.';
         }
       } catch(e){}

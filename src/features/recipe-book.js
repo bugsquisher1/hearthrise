@@ -44,8 +44,11 @@ function iconHtml(id) {
     const tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(id) : '';
     return `<img class="${tint}" src="${path}" alt="" loading="lazy" draggable="false" />`;
   }
+  /* was the data emoji with a '❓' backstop. itemFallbackIcon picks a
+     category-correct gilt glyph from the shipped atlas and can never return a
+     pictograph — the Recipe Book is a WALL of these. */
   const d = window.ITEMS && window.ITEMS[id];
-  return `<span class="rb-emoji">${(d && d.icon) || '❓'}</span>`;
+  return `<span class="rb-emoji">${window.itemFallbackIcon ? window.itemFallbackIcon(id, 26, d) : ''}</span>`;
 }
 const nameOf = (id) => { const d = window.ITEMS && window.ITEMS[id]; return d ? d.n : id; };
 const shortName = (id) => nameOf(id).split(' ').slice(0, 2).join(' ');

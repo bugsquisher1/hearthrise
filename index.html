@@ -686,7 +686,7 @@
       <button class="btn tap" data-tab="shops">Shops</button>
       <button class="btn tap" id="btn-chat-mobile">💬 Chat</button>
       
-      <button class="btn tap" id="btn-settings-mobile">⚙️ Settings</button>
+      <button class="btn tap" id="btn-settings-mobile">Settings</button>
     </div>
   </div>
 </div>
@@ -695,7 +695,7 @@
 <div class="modal" id="settings-modal">
   <div class="modal-card">
     <div class="modal-head">
-      <div class="modal-title">⚙️ Settings</div>
+      <div class="modal-title">Settings</div>
       <button class="btn btn-sm" data-close-modal="settings-modal">Close</button>
     </div>
     <div id="settings-body"></div>
@@ -1016,6 +1016,10 @@
   <!-- b217: baked icon atlas (was fetched from GitHub at runtime — see
        icon-set.js header). MUST load before icon-set.js, which reads it. -->
   <script src="src/data/glyphs.js?v=463"></script>
+  <!-- hand-authored atlas appendix (runecrafting / stonemason — the two skills
+       that had no baked glyph and rendered an EMPTY medallion once the emoji
+       stripper had run). Merges into HR_GLYPHS; must sit between the two. -->
+  <script src="src/data/glyphs-extra.js?v=463"></script>
   <!-- b159: cohesive icon system (game-icons.net, recolored + medallioned) -->
   <script src="src/features/icon-set.js?v=463"></script>
   <!-- b227: one quest -> destination resolver, shared by every quest surface

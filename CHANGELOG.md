@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 470 — 2026-08-24 (One name, everywhere)
+
+- 🪪 Your character name now shows the same everywhere — the top bar, the Home banner and the Character screen were reading three different sources (one even showed part of your account email). All of them now use your one chosen name.
+
 ## v0.9.2-beta build 469 — 2026-08-24 (Combat XP goes where you aim it)
 
 - ⚔️ **Fixed combat XP going to the wrong skill.** The server was crediting every fight to your weapon's default style, so training Strength, Defence or Ranged saved nothing while only Attack (or your default) climbed. Your chosen combat style is now saved on the server and the fight rewards the skill you actually picked — and it sticks across reloads.

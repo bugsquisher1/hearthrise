@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 464 — 2026-08-24 (The studio-quality pass)
+
+- 🎨 Every emoji doing an icon's job is gone — real glyphs and painted art everywhere, including the quest board, skill medallions and a full bag (which no longer renders as a wall of identical chests).
+- ✍️ Every quest now says what actually counts toward it, in plain words. Gated features stop advertising countdowns you can't open; buttons you can't afford say what's missing instead of pretending.
+- 🔮 **Runecrafting makes sense now**: it owns ALL rune-binding (the enchant runes moved in from Crafting), starts at level 1 (Blank Runes at the Local Shop, or Stonemason 4), and every recipe says what it's for.
+- 🪙 "Earn 500 gold" finally pays (5 bones + 1 gem) — its old reward didn't exist. The Owl costs a sane 8,000 gold (was 50).
+- 🐛 Purchase confirmations no longer show the word "undefined"; reward lines never show raw item ids.
+- 🔗 Links you share now unfurl with the Hearthrise shield.
+
 ## v0.9.2-beta build 463 — 2026-08-23 (Two live fixes)
 
 - 🤝 Fixed "Could not complete the hire — already owned": if you'd already paid for a worker slot, hiring now completes instead of refusing.

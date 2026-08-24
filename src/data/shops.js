@@ -16,7 +16,7 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 047d58eda3a184040d6f8985f4f72b0910145be1b2db270391c35e32b1fce1ad
+//   catalogue digest: dd848a3f6c10969d4218a5fbffc8d22e418bd9c681bba266b295193f118bacba
 //   130 offers · 226 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "047d58eda3a184040d6f8985f4f72b0910145be1b2db270391c35e32b1fce1ad";
+export const SHOPS_DIGEST = "dd848a3f6c10969d4218a5fbffc8d22e418bd9c681bba266b295193f118bacba";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -141,7 +141,7 @@ export const SHOP_OFFERS = [
   {
     id: "companion.owl", table: "companion",
     name: "Owl",
-    cost: [{ kind: "currency", id: "gold", amount: 50 }],
+    cost: [{ kind: "currency", id: "gold", amount: 8000 }],
     grant: [{ kind: "unlock", id: "companion:owl", amount: 1 }],
     reqSkill: "prayer", reqLv: 50,
   },

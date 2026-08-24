@@ -46,7 +46,7 @@ export const COMPANIONS = {
               proc:null},
   raccoon:   {n:'Raccoon',      icon:'🦝', role:'utility', bonus:{goldFind:.01},     source:'shop:25000',
               proc:{trigger:'kill',      chance:.20, effect:'extraGold', amount:5, label:'+5 gold'}},
-  owl:       {n:'Owl',          icon:'🦉', role:'artisan', bonus:{prayerSpeed:.01},  source:'shop:50:prayer50',
+  owl:       {n:'Owl',          icon:'🦉', role:'artisan', bonus:{prayerSpeed:.01},  source:'shop:8000:prayer50',
               proc:null},
   tortoise:  {n:'Tortoise',     icon:'🐢', role:'combat',  bonus:{defB:10, hpRegen:2}, source:'drop:ancient_bear',
               proc:null},

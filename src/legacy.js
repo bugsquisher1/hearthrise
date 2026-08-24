@@ -18914,6 +18914,30 @@ console.log('[Bundle Icons v1] applied:',
     return String(id || '').replace(/_/g, ' ')
       .replace(/\b\w/g, function(c){ return c.toUpperCase(); });
   }
+  /* b464 merge repair — the `_rs*` name helpers rode a dropped hunk side; the
+     functions that call them survived. Ids resolve through the same
+     ITEMS/SKILLS_DEF lookups the rest of the UI reads; an unknown id degrades
+     to a titleised version of itself, never a raw key. */
+  function _rsTitleize(id){
+    return String(id||'').split(/[_\-:]/).filter(Boolean)
+      .map(function(w){ return w.charAt(0).toUpperCase()+w.slice(1); }).join(' ');
+  }
+  function _rsItem(id){
+    var it = window.ITEMS && window.ITEMS[id];
+    return (it && (it.n || it.name)) || _rsTitleize(id);
+  }
+  function _rsSkill(id){
+    var s = window.SKILLS_DEF && window.SKILLS_DEF[id];
+    return (s && s.name) || _rsTitleize(id);
+  }
+  /* The fallback quest line derives content (payout + deadline) instead of
+     wallpaper — only reached by a future row missing its authored `desc`. */
+  function fallbackDesc(reward, isWeekly){
+    var summary = rewardSummary(reward);
+    var when = isWeekly ? 'before the weekly reset on Monday' : 'before today’s reset at UTC midnight';
+    if(summary && summary !== '—') return 'Finish it ' + when + ' to claim ' + summary + '.';
+    return 'Finish it ' + when + '.';
+  }
   /* PLAIN TEXT ONLY. `notify()` sets textContent, so anything markup-shaped
      here would be shown to the player as literal `<span…>`. The gem count used
      to carry a 💎; it now says the word, and the MODAL (which can take markup)

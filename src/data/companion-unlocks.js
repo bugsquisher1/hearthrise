@@ -70,7 +70,7 @@ export const COMPANION_OFFERS = Object.freeze([
     name: 'Companion: Owl',
     unlock_id: 'companion:owl',
     value: 1,
-    gold: 50,
+    gold: 8000,
     items: Object.freeze({}),
     req_property_tier: 0,
     req_item: null,

@@ -1904,6 +1904,73 @@ export function applyEnvelopeState(G, res, ownKey) {
      absolute/carve-out machinery as the bag. Fully inert while dormant (invAbsolute
      is false in prod): reconcileBank leaves G.bank untouched. */
   written.bank = reconcileBank(G, res, invAbsolute, baselineComplete);
+  /* THE BAG (b46x inventory-hydrate). Extracted to reconcileInventory so the
+     boot hr_load settle (record.js) can hydrate the bag on an IDLE boot — where
+     hr-accrue returns {accrued:false} and applyEnvelopeState never runs, the
+     inventory-loss-on-idle-reload P1. ONE implementation of the merge/absolute
+     rule. The prediction sweep stays HERE, with the caller, run once after the
+     bag write — the load path must NOT run it (it would re-offset the gold
+     applyRecord already wrote). */
+  const invReceipt = reconcileInventory(G, res, invAbsolute, baselineComplete);
+  if (invReceipt) {
+    written.inventory = invReceipt.inventory;
+    if (invReceipt.inventoryAbsolute) written.inventoryAbsolute = true;
+    written.itemLedger = invReceipt.itemLedger;
+  }
+
+  /* LAST, and after the bag write, because the sweep re-adds outstanding
+     predictions ON TOP of the server's numbers. Guarded: a throw in the ledger
+     must not leave a half-applied envelope, and the envelope itself is already
+     correct without the carry — the carry is display only. */
+  if (predictionSeam) {
+    try { written.predictions = predictionSeam(G, res, ownKey); }
+    catch (e) { console.warn('[accrue] prediction reconcile threw:', e && e.message); }
+  }
+  return written;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE BAG, RECONCILED FROM AN ENVELOPE — ONE IMPLEMENTATION (b46x).
+
+   Extracted VERBATIM from applyEnvelopeState so that record.js's boot hr_load
+   settle() can hydrate the bag on an IDLE boot. Root cause of the P1: inventory
+   hydration lived ONLY here, reached ONLY through applyEnvelopeState — which runs
+   ONLY on `accrued:true`. On an idle boot hr-accrue answers
+   {accrued:false, reason:'idle'}, so the bag was never applied and the player saw
+   a stale ~3-stack remnant while the server held the full inventory. settle()
+   (record.js) already rebuilds companions/farm/traits/activity from the always-
+   full hr_load body for exactly this reason; inventory + bank were the omission.
+   This function is now the shared apply, called from BOTH paths.
+
+   The merge/absolute split, the b364 debit handling (consumedKeysOf), the b362
+   equip-dupe discount (unaccountedEquipped), the serverOwnedItem carve-out, the
+   never-delete rule and itemLedger.reconcile are all preserved EXACTLY. The ONLY
+   behavioural change from the inlined version is that the prediction sweep is NOT
+   run here: applyEnvelopeState runs it once after this returns, and the load path
+   deliberately does not (it would re-offset the gold applyRecord already wrote).
+
+   IDEMPOTENCY (the double-apply concern, non-idle boot). On a non-idle boot
+   applyEnvelopeState still runs from the hr-accrue envelope AND settle() now runs
+   this from the hr_load body:
+     • MERGE (prod today): the credit path is Math.max, a one-way ratchet — max of
+       maxes is idempotent. The DEBIT path keys off `res.away.items`, and an
+       hr_load body carries NO `away` block, so consumedKeysOf is empty and the
+       load path never deletes — it can only ratchet the full server bag UP,
+       which is exactly the fix.
+     • ABSOLUTE (future arm): both envelopes replace from the SAME complete server
+       baseline, so the result is identical either order.
+     • itemLedger.reconcile only ever REMOVES (settledBy retires, refundedBy takes
+       back, clamped and floored at zero) — safe to run on both.
+
+   Pure: takes G + res + the two arm flags, returns a receipt. invAbsolute /
+   baselineComplete are OPTIONAL — computed from isInventoryAbsolute() /
+   envelopeBaselineComplete(res) when a caller (settle) does not pass them. */
+export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
+  if (!G || typeof G !== 'object') return null;
+  if (typeof invAbsolute !== 'boolean') invAbsolute = isInventoryAbsolute();
+  if (typeof baselineComplete !== 'boolean') baselineComplete = envelopeBaselineComplete(res);
+  const written = { inventoryAuthority: invAbsolute, baselineComplete };
+  const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
   const invNamed = res && res.inventory;
   if (invAbsolute && baselineComplete && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
     /* ══════════════════════════════════════════════════════════════════════
@@ -1954,15 +2021,11 @@ export function applyEnvelopeState(G, res, ownKey) {
        merge-mode players were getting them free. Same correction, both
        branches, one call site each. */
     written.itemLedger = itemLedger.reconcile(G, res);
-    if (predictionSeam) {
-      try { written.predictions = predictionSeam(G, res, ownKey); }
-      catch (e) { console.warn('[accrue] prediction reconcile threw:', e && e.message); }
-    }
     return written;
   }
 
   const consumed = consumedKeysOf(res);
-  const namedKeys = Object.keys(res.inventory || {});
+  const namedKeys = Object.keys((res && res.inventory) || {});
   const invKeys = consumed.size
     ? Array.from(new Set(namedKeys.concat(Array.from(consumed))))
     : namedKeys;
@@ -2001,7 +2064,7 @@ export function applyEnvelopeState(G, res, ownKey) {
        heals. A dupe never heals. Counted by ITEM ID, never by slot name, so
        client and server slot vocabularies cannot drift into a wrong deduction. */
     const isDebit = consumed.has(k);
-    const raw = Number((res.inventory || {})[k]);
+    const raw = Number(((res && res.inventory) || {})[k]);
     /* A debited key the envelope omits is a REAL zero (the row was deleted).
        For every other key, an unreadable figure is still "unknown" and skipped. */
     const figure = Number.isFinite(raw) ? raw : (isDebit ? 0 : NaN);
@@ -2038,15 +2101,6 @@ export function applyEnvelopeState(G, res, ownKey) {
      envelope OMITS (so "absent means unknown" keeps it). Item kept, currency
      refunded, every 90 seconds. See src/net/item-ledger.js. */
   written.itemLedger = itemLedger.reconcile(G, res);
-
-  /* LAST, and after every absolute write above, because the sweep re-adds
-     outstanding predictions ON TOP of the server's numbers. Guarded: a throw in
-     the ledger must not leave a half-applied envelope, and the envelope itself
-     is already correct without the carry — the carry is display only. */
-  if (predictionSeam) {
-    try { written.predictions = predictionSeam(G, res, ownKey); }
-    catch (e) { console.warn('[accrue] prediction reconcile threw:', e && e.message); }
-  }
   return written;
 }
 
@@ -2955,7 +3009,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileInventory, reconcileBank, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, classifyReceipt, receiptNotice, receiptSentence,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,

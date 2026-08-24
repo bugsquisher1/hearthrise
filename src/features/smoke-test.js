@@ -33252,6 +33252,98 @@ const TESTS = [
     }
   }),
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     INV-HYDRATE-1 (b46x) — AN IDLE BOOT HYDRATES THE BAG FROM THE hr_load BODY.
+
+     THE LIVE P1, root-caused by QA: on an IDLE reload the bag showed a stale
+     ~3-stack remnant while the server held the full inventory — near-total
+     apparent loss to any player whose activity had ended (out of ore/food)
+     before they reloaded. Root cause: inventory hydration lived ONLY in
+     accrue.js's applyEnvelopeState, reached ONLY on `accrued:true`. On an idle
+     boot hr-accrue answers {accrued:false, reason:'idle'} so applyEnvelopeState
+     never runs — and record.js's settle() rebuilt companions/farm/traits/activity
+     from the always-full hr_load body but NOT inventory/bank. The fix routes the
+     boot hr_load body through the SAME shared reconcileInventory the accrue path
+     uses.
+
+     This drives the REAL record-load path (requestRecord → settle → applyRecord
+     + reconcileInventory) with a stubbed fetch, exactly as B340-6 does, so it
+     proves the wiring and not just the extracted function.
+
+     MUTATION: delete the `reconcileInventory(G, verdict.body)` line in
+     record.js settle() → the bag stays {coal:3} → RED. ─────────────────────── */
+  () => tryRunAsync('INV-HYDRATE-1 (b46x): an IDLE boot hydrates the full bag from the hr_load body (inventory-loss-on-reload P1)', async () => {
+    const R = window.HearthriseRecord;
+    const realFetch = window.fetch;
+    const savedG = window.G;
+    /* The idle character: the client booted with a stale remnant, the server
+       holds the full inventory. NO `away` block on an hr_load body, so no debit
+       ever fires on this path — it can only ratchet the full bag in. */
+    const FULL = { coal: 100, iron_ore: 50, dragon_scale: 14, shrimp: 30 };
+    try {
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, version: 3, now: '2026-08-24T10:00:00Z',
+          state: { slot: 0, accrued_to: '2026-08-24T09:00:00Z' },
+          skills: {}, inventory: FULL,
+        }), { status: 200 }));
+      };
+      window.G = { inventory: { coal: 3 }, offlineBudget: {} };
+      R.resetRecord();
+      R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      const v = await R.requestRecord();
+      assert(v.outcome === 'loaded', 'the idle boot read did not load: ' + JSON.stringify(v));
+      const inv = window.G.inventory || {};
+      assert(inv.coal === 100, 'the stale remnant did not ratchet up to the server figure (coal): ' + inv.coal
+        + ' — the bag was never hydrated on the idle boot (the reported P1)');
+      assert(inv.iron_ore === 50 && inv.dragon_scale === 14 && inv.shrimp === 30,
+        'the server-held stacks the client never had were not hydrated: ' + JSON.stringify(inv));
+    } finally {
+      window.fetch = realFetch;
+      R.resetRecord();
+      R.configureRecord(null);
+      window.G = savedG;
+    }
+  }),
+
+  /* INV-HYDRATE-2 (b46x) — a NON-IDLE boot must not DOUBLE-COUNT. applyEnvelopeState
+     (the hr-accrue envelope) AND settle() (the hr_load body) both reconcile the bag
+     now; the merge ratchet (Math.max) must leave the server figure, never a sum. */
+  () => tryRunAsync('INV-HYDRATE-2 (b46x): the away/active path is not double-applied — merge ratchet stays at the server figure', async () => {
+    const A = window.HearthriseAccrual;
+    const R = window.HearthriseRecord;
+    const realFetch = window.fetch;
+    const savedG = window.G;
+    const FULL = { coal: 100, iron_ore: 50 };
+    try {
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, version: 4, now: '2026-08-24T11:00:00Z',
+          state: { slot: 0, accrued_to: '2026-08-24T10:30:00Z' },
+          skills: {}, inventory: FULL,
+        }), { status: 200 }));
+      };
+      const G = { inventory: { coal: 5 }, offlineBudget: {} };
+      window.G = G;
+      /* FIRST the hr-accrue envelope (the non-idle path), THEN the boot hr_load
+         body — the exact order a non-idle boot produces. */
+      A.applyEnvelopeState(G, { state: {}, skills: {}, inventory: FULL });
+      R.resetRecord();
+      R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      await R.requestRecord();
+      const inv = window.G.inventory || {};
+      assert(inv.coal === 100 && inv.iron_ore === 50,
+        'the bag was double-applied — the ratchet summed instead of taking the max: ' + JSON.stringify(inv));
+    } finally {
+      window.fetch = realFetch;
+      R.resetRecord();
+      R.configureRecord(null);
+      window.G = savedG;
+    }
+  }),
+
   () => tryRun('B340-7: with the switch OFF nothing moves, snapshot() is untouched, and NO_SYNC gained nothing', () => {
     const A = window.HearthriseAccrual;
     const R = window.HearthriseRecord;

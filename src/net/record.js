@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits } from './accrue.js?v=466';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank } from './accrue.js?v=466';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1381,6 +1381,31 @@ function settle(verdict) {
        revoked (see reconcileTraits' header). Guarded — a throw here must never
        break the record load. */
     try { reconcileTraits(G, verdict.body); } catch (e) {}
+    /* ── HYDRATE THE BAG + BANK FROM THE SAME ENVELOPE (b46x inventory-hydrate) ───
+       THE P1 THIS CLOSES. Inventory hydration lived ONLY in accrue.js's
+       applyEnvelopeState, which runs ONLY on `accrued:true`. On an IDLE boot
+       hr-accrue answers {accrued:false, reason:'idle'} — so applyEnvelopeState
+       never ran and the bag was never applied: the player saw a stale ~3-stack
+       remnant while the server held the full inventory (near-total apparent loss
+       to anyone whose activity had ended before they reloaded). The boot hr_load
+       envelope is the ALWAYS-FULL statement of the character and DOES carry the
+       full inventory + bank, so the bag is rebuilt HERE from `verdict.body`,
+       exactly as companions/farm/traits rebuild above and through the SAME shared
+       apply the accrue path uses (reconcileInventory / reconcileBank).
+
+       NO DOUBLE-APPLY on a non-idle boot (where applyEnvelopeState ALSO runs from
+       the hr-accrue envelope): in prod merge-mode the bag is a Math.max ratchet
+       (idempotent), the hr_load body carries no `away` block so no debit ever
+       deletes on this path, and itemLedger.reconcile only ever removes. The bank
+       reconcile is fully inert in prod (invAbsolute false → reconcileBank leaves
+       G.bank untouched); it is wired now so the always-full boot path is ready the
+       day the inventory flip arms. The prediction sweep is deliberately NOT run
+       here — that stays with applyEnvelopeState so gold applyRecord already wrote
+       is not re-offset. Guarded — a throw must never break the record load. */
+    try {
+      reconcileBank(G, verdict.body);       // dormant in prod (invAbsolute false)
+      reconcileInventory(G, verdict.body);  // merge-ratchets the full server bag in
+    } catch (e) {}
     /* b465 — the server's daily-login claim row closes the daily-reward sheet's
        question at boot (the residue marker kept losing tab/save races and the
        sheet re-opened on a paid reward). Guarded like its neighbours. */

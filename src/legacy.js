@@ -6301,6 +6301,27 @@ function refreshAll(){
   if(activeTab==='shop')renderShop();
 }
 
+/* b466: single client-side resolver for the player's DISPLAY name. Prefers the
+   server-authoritative claimed name via HearthriseIdentity.getDisplayName; falls
+   back to G.playerName, then 'Adventurer'. NEVER derives a name from the account
+   email — leaking the email local-part ("themphill22") as a name is a privacy
+   defect. Also reconciles the stale G.playerName default up to the server name so
+   any remaining raw G.playerName reads resolve correctly too. */
+function _hrDisplayName(){
+  try{
+    const id=window.HearthriseIdentity;
+    if(id && typeof id.getDisplayName==='function'){
+      const n=id.getDisplayName();
+      if(n){
+        // Reconcile the stale default up to the server truth so raw reads agree.
+        if(window.G && (!G.playerName || G.playerName==='Adventurer') && n!=='Adventurer') G.playerName=n;
+        return n;
+      }
+    }
+  }catch(e){}
+  if(window.G && G.playerName) return G.playerName;
+  return 'Adventurer';
+}
 function updateTopbar(){
   /* ⚠ THE SITE THAT HELD THE FLIP BACK. `G.gold.toLocaleString()` here is the
      line quoted in record.js's b353 block and in B353-3: with `gold` on
@@ -6312,7 +6333,12 @@ function updateTopbar(){
   balPaint(document.getElementById('top-gems'), 'gems');
   document.getElementById('top-total').textContent=getTotalLevel();
   document.getElementById('top-combat').textContent=getCombatLevel();
-  document.getElementById('player-name').textContent=G.playerName;
+  /* b466: route the topbar name through the server-authoritative identity seam
+     (HearthriseIdentity.getDisplayName) instead of the raw G.playerName default,
+     which stayed "Adventurer" because it was never reconciled to the claimed
+     server name. getDisplayName resolves the confirmed unique name, then
+     G.playerName, then 'Adventurer' — never an email local-part. */
+  document.getElementById('player-name').textContent=_hrDisplayName();
   const ct=document.getElementById('clan-tag');
   if(G.clanName){ct.classList.remove('hide');ct.textContent='['+G.clanName+']';}else ct.classList.add('hide');
 }
@@ -6350,15 +6376,12 @@ function renderProfile(){
       // 3) offline / no auth at all
       const liveSess = (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
       const liveUser = liveSess && liveSess.user;
-      // b139 (QA §2.1.1): prefer G.playerName when set — it's the player's
-      // chosen name. Fall back to user_metadata.display_name for fresh
-      // cloud users, then to email-username only as last resort. Showing
-      // "themphill22+1" (email local-part) was the visible bug.
-      const customName = (typeof G.playerName === 'string' && G.playerName && G.playerName !== 'Adventurer') ? G.playerName : null;
-      const acctName = customName
-        || (liveUser ? (liveUser.user_metadata?.display_name || (liveUser.email||'').split('@')[0] || 'Adventurer') : null)
-        || (G.account ? G.account.displayName : null)
-        || G.playerName;
+      // b466: route through the server-authoritative identity seam. The old
+      // fallback derived the name from (liveUser.email).split('@')[0], which
+      // rendered "themphill22" — the account email local-part — as the player's
+      // name (privacy defect + third divergent name source). _hrDisplayName
+      // never reads email: confirmed server name → G.playerName → 'Adventurer'.
+      const acctName = _hrDisplayName();
       const isOnline = !!(liveUser || G.account);
       /* b224: the last branch used to read "Offline play · sign in to sync",
          which advertised a mode the game no longer has. Reaching it now means

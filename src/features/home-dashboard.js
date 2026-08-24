@@ -840,11 +840,19 @@
   }
 
   function playerName() {
+    // Route ALL name display through the server-authoritative identity seam
+    // (HearthriseIdentity.getDisplayName). Never derive a name from the account
+    // EMAIL — the old (u.email||'').split('@')[0] fallback leaked the email
+    // local-part as the player's name (privacy). getDisplayName resolves the
+    // confirmed unique name, then G.playerName, then 'Adventurer' — never email.
+    var id = window.HearthriseIdentity;
+    if (id && typeof id.getDisplayName === 'function') {
+      var n = id.getDisplayName();
+      if (n) return n;
+    }
     var G = window.G || {};
-    var sess = call(function () { return window.HearthriseAuth && window.HearthriseAuth.getSession(); });
-    var u = sess && sess.user;
-    var custom = (typeof G.playerName === 'string' && G.playerName && G.playerName !== 'Adventurer') ? G.playerName : null;
-    return custom || (u && (u.user_metadata && u.user_metadata.display_name || (u.email || '').split('@')[0])) || G.playerName || 'Adventurer';
+    if (typeof G.playerName === 'string' && G.playerName) return G.playerName;
+    return 'Adventurer';
   }
   function isOnline() {
     var sess = call(function () { return window.HearthriseAuth && window.HearthriseAuth.getSession(); });

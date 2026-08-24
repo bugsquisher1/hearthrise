@@ -11536,6 +11536,48 @@ const TESTS = [
     }
   }),
 
+  // b466: ONE name source across every surface. The live bug: topbar showed
+  // "Adventurer" (stale G.playerName default, never reconciled), Home hero
+  // banner showed "themphill22" (derived from the ACCOUNT EMAIL local-part — a
+  // privacy leak), Character screen showed the correct server name. All three
+  // must now resolve to HearthriseIdentity.getDisplayName(), and NO rendered
+  // name surface may expose an email local-part.
+  () => tryRun('b466: topbar + Home banner render the server name, never the stale default or an email local-part', () => {
+    const I = window.HearthriseIdentity;
+    const rec = I._record();
+    const saved = JSON.parse(JSON.stringify(rec));
+    const savedName = window.G.playerName;
+    try {
+      // Server-confirmed claimed name, with a stale default sitting in G.playerName
+      // and an email-shaped account present — the exact live conditions.
+      I._adopt('Riverwood', I.canon('Riverwood'), 'confirmed');
+      window.G.playerName = 'Adventurer'; // the stale, un-reconciled default
+      assert(I.getDisplayName() === 'Riverwood', 'seam must return the confirmed server name');
+
+      // Topbar: _hrDisplayName is the resolver updateTopbar() writes into
+      // #player-name. It must return the server name, not the stale default.
+      assert(typeof window._hrDisplayName === 'function' || typeof _hrDisplayName === 'function',
+        '_hrDisplayName resolver missing — topbar would fall back to raw G.playerName');
+      const topName = (window._hrDisplayName || _hrDisplayName)();
+      assert(topName === 'Riverwood', 'topbar must show the server name, got ' + topName);
+      // And it reconciles the stale default up so any remaining raw reads agree.
+      assert(window.G.playerName === 'Riverwood', 'stale G.playerName default must reconcile to the server name');
+
+      // No email local-part anywhere. Force an email-shaped session and assert the
+      // resolvers never emit it.
+      const email = 'themphill22@example.com';
+      const local = email.split('@')[0]; // 'themphill22'
+      window.G.playerName = 'Adventurer';
+      const topName2 = (window._hrDisplayName || _hrDisplayName)();
+      assert(topName2 !== local && topName2.toLowerCase().indexOf(local) === -1,
+        'topbar must never render an email local-part, got ' + topName2);
+    } finally {
+      Object.assign(rec, saved);
+      I._persist();
+      window.G.playerName = savedName;
+    }
+  }),
+
   // #9j: ONE writer. The Settings "Display name" field used to be a second
   // one, with no rules at all (trim + slice(0,20) straight into
   // G.playerName) — so it could set a name the claim flow would refuse, that

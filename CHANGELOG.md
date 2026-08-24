@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 467 — 2026-08-24 (Your bag comes back)
+
+- 🎒 **Fixed your inventory looking empty (or nearly) after a reload.** If you reloaded while idle — not actively gathering or fighting — the bag was only showing a stale scrap of itself. Your items were always safe on the server; the game just wasn't loading them back in on an idle boot. It now rebuilds your full bag (and bank) from the server every time you load.
+
 ## v0.9.2-beta build 466 — 2026-08-24 (Reload keeps your progress)
 
 - 🐛 **Your Bestiary no longer resets when you reload.** Along with it, 18 other kinds of progress that were being forgotten on refresh now stick — including your homestead tier (so an upgraded homestead stops showing as a Wanderer's Camp), drop discoveries, collection-log claims, all-time kill count, streak high-water marks, bounty-mark traits, and your sell buy-back list.

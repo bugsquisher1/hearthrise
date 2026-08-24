@@ -576,16 +576,22 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'the IAP entitlement grant',
   },
-  'src/legacy.js#completeBounty': {
+  'src/legacy.js#finalizeBounty': {
     kind: 'grant', status: 'deferred',
     /* SERVER-CREDITED for CULL bounties (2026-08-23-bounty.sql). hr_accept_bounty
        snapshots the target's kill count as a baseline and owns the tier+reward;
        hr_claim_bounty verifies (kills-since-accept >= required) from the server's own
        ev:kill_monster:<id> counter and credits server-owned gold + the new
        player_state.marks (Bounty Marks) once-guarded by the active_bounty row,
-       journalled kind='bounty'. completeBounty fires HearthriseGoalClaim.claimBounty()
-       for cull; the local gold/marks write is a GATED display prediction. proof/weapon/
-       streak keep the clientMayWriteRecordField defer (NOT server-verifiable). */
+       journalled kind='bounty'.
+
+       R1/R5 (two-phase commit): the gold/marks DISPLAY write lives in
+       finalizeBounty, which for a CULL turn-in in LIVE play runs ONLY AFTER
+       hr_claim_bounty confirms (completeBounty holds in a "Confirming…" state and
+       fires the server intent first — see the completeBounty header). The AWAY
+       replay and the DORMANT path call finalizeBounty synchronously. The local
+       gold/marks write is a GATED display prediction; proof/weapon/streak keep the
+       clientMayWriteRecordField defer (NOT server-verifiable). */
     flipGuard: { serverCredits: 'hr_claim_bounty (2026-08-23-bounty.sql) verifies kills-since-accept '
       + 'from ev:kill_monster:<id> against the hr_accept_bounty baseline, owns tier+reward, credits '
       + 'server-owned gold + player_state.marks once-guarded by active_bounty, journals '

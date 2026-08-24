@@ -4096,6 +4096,11 @@ function ensureBountyState(){
   G.bountyHunter=Object.assign(base,G.bountyHunter||{});
   G.bountyHunter.upgrades=G.bountyHunter.upgrades||{};
   G.bountyHunter.warrants=G.bountyHunter.warrants||{};
+  /* R5: the two-phase turn-in flags are TRANSIENT (an in-flight lock + a
+     once-notice latch). A reload mid-confirm could persist them into the save;
+     clear them on every boot/ensure so a stale `_confirming` can never wedge a
+     bounty's turn-in shut. The next kill re-runs the server-gated turn-in. */
+  if(G.bountyHunter.active){ delete G.bountyHunter.active._confirming; delete G.bountyHunter.active._syncNoticed; }
   /* MARKS STORAGE MIGRATION (nested→top-level). Marks are a record field keyed at
      the TOP LEVEL (G.marks), like gold — the framework strip only removes a top-
      level key, so the client home must be top-level too or a stale nested copy
@@ -4274,15 +4279,57 @@ function completeBounty(){
   const b=G.bountyHunter.active;if(!b)return;
   const r=b.rewards||{gold:0,marks:0,xp:0};
   const _isCull=b.type==='cull';
-  /* SERVER TURN-IN (2026-08-23-bounty.sql). A CULL bounty is now server-credited:
-     hr_claim_bounty verifies (kills-since-accept >= required) and credits server-
-     owned gold + Bounty Marks. The local gold/marks/xp writes below become a DISPLAY
-     prediction (gold gated on clientMayWriteRecordField; the server envelope is the
-     truth). Fire in LIVE play only — the away replay stays client-side (accrual-
-     engine follow-up), and the seeded night is byte-identical there. */
-  if(_isCull && (typeof inOfflineReplay!=='function' || !inOfflineReplay())){
-    try{ if(window.HearthriseGoalClaim && HearthriseGoalClaim.claimBounty){ const _p=HearthriseGoalClaim.claimBounty(); if(_p&&_p.catch)_p.catch(()=>{}); } }catch(e){}
+  const _live=(typeof inOfflineReplay!=='function' || !inOfflineReplay());
+  /* ── R1/R5 — SERVER-GATED CULL TURN-IN (two-phase commit) ─────────────────
+     A CULL bounty is server-verified (hr_claim_bounty checks kills-since-accept
+     >= required). The ~90s span-sim can lag the local kill count, so a naive
+     "credit + celebrate + clear the bounty, fire-and-forget" produced the
+     "completed, 0 marks" report: the local display advanced, the server refused
+     the turn-in, and the next envelope reconciled the phantom marks away.
+
+     Under the ARM, in LIVE play, we now HOLD: the bounty stays active in a
+     "Confirming…" state and we do NOT celebrate, credit or consume until the
+     server confirms the turn-in. On confirm → finalizeBounty (the full
+     celebration + auto-accept). On denial → hold, ONE calm notice, and let the
+     next kill retry (the active_bounty row is the server once-guard, so the
+     retry pays exactly once). The AWAY replay and the DORMANT (client-owned)
+     path are UNCHANGED — finalizeBounty runs synchronously, so the seeded night
+     stays byte-identical (AWAY-1) and the offline suite behaves as before. */
+  const _armed=(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('gold'));
+  const _GC=window.HearthriseGoalClaim;
+  const _canServer=_armed && _GC && typeof _GC.claimBounty==='function' && _GC.isSignedIn && _GC.isSignedIn();
+  if(_isCull && _live && _canServer){
+    if(b._confirming) return;   // a turn-in is already in flight — never double-fire
+    b._confirming=true;
+    repaintBounty();
+    try{
+      const _p=_GC.claimBounty();
+      if(_p && _p.then){
+        _p.then(function(res){
+          b._confirming=false;
+          if(!G.bountyHunter || G.bountyHunter.active!==b) return;  // changed under us
+          if(res && res.ok){
+            finalizeBounty(b, r, _isCull);
+          } else {
+            /* Denied — the server hasn't counted the kills yet. HOLD (never
+               "0 reward"/failed, never consume). One non-alarming notice; the
+               next kill re-enters completeBounty and retries. */
+            if(!b._syncNoticed){ b._syncNoticed=true; if(typeof notify==='function') notify('Still counting your last few kills — this bounty completes on its own in a moment.','info'); }
+            repaintBounty();
+          }
+        }).catch(function(){ b._confirming=false; });
+      } else { b._confirming=false; }
+    }catch(e){ b._confirming=false; }
+    return;
   }
+  finalizeBounty(b, r, _isCull);
+}
+/* The client-authored finalize: celebration + credit (display-prediction under
+   the arm) + auto-accept. Reached synchronously by the AWAY replay, the DORMANT
+   path, and non-cull turn-ins; and by the server-confirmed cull turn-in above.
+   NOTE: the cull server intent is fired by completeBounty BEFORE this runs, so
+   finalize never fires it again (no double turn-in). */
+function finalizeBounty(b, r, _isCull){
   /* NON-CULL (proof/weapon/streak) have NO server turn-in path (not server-
      verifiable). Under the gold arm their gold credit no-ops, so keep the b411
      defer for THEM only — do not burn the bounty for a reward that never lands. */
@@ -10438,14 +10485,16 @@ window.renderBountyPanel = function(){
   const a = bh && bh.active;
   if(!a) return '';
   const m = MONSTERS[a.target];
-  const cur = a.type === 'proof' ? Math.min(bountyProofHave(a), a.required) : (a.progress||0);
+  const cur = a.type === 'proof' ? Math.min(bountyProofHave(a), a.required) : Math.min(a.progress||0, a.required);
+  const _confirming = !!(a._confirming || a._syncNoticed) && (a.progress||0) >= a.required;
   const pct = Math.min(100, (cur/a.required)*100);
-  return `<div class="bounty-card" style="margin-bottom:8px">
+  const _curLabel = _confirming ? `${a.required}/${a.required} · Confirming…` : `${cur}/${a.required}`;
+  return `<div class="bounty-card${_confirming?' confirming':''}" style="margin-bottom:8px">
     <div class="row between">
       <div class="bounty-title">Active bounty: ${m?.name||'?'}</div>
       <button class="btn btn-sm" onclick="showTab('bounty')">View Board</button>
     </div>
-    <div class="bounty-progress"><div class="bar"><i style="width:${pct}%"></i></div><div class="row between tiny"><span>${cur}/${a.required}</span><span>${(a.rewards?.gold||0).toLocaleString()}g · ${a.rewards?.marks||0} marks</span></div></div>
+    <div class="bounty-progress"><div class="bar"><i style="width:${pct}%"></i></div><div class="row between tiny"><span>${_curLabel}</span><span>${(a.rewards?.gold||0).toLocaleString()}g · ${a.rewards?.marks||0} marks</span></div></div>
   </div>`;
 };
 
@@ -10727,8 +10776,11 @@ function refreshActivityBar(){
       if(_ab && _ab.target === G.activeMonster){
         const _cur = _ab.type==='proof'
           ? Math.min((typeof bountyProofHave==='function'?bountyProofHave(_ab):0), _ab.required)
-          : (_ab.progress||0);
-        bountyChip = '<span class="ab-bounty">Bounty <b>'+_cur+'/'+_ab.required+'</b></span>';
+          : Math.min(_ab.progress||0, _ab.required);
+        const _abConfirming = !!(_ab._confirming || _ab._syncNoticed) && (_ab.progress||0) >= _ab.required;
+        bountyChip = _abConfirming
+          ? '<span class="ab-bounty confirming">Bounty <b>Confirming…</b></span>'
+          : '<span class="ab-bounty">Bounty <b>'+_cur+'/'+_ab.required+'</b></span>';
       }
       /* b266 (tester): show the combat SKILL you're training + XP to the next
          level, right in the always-visible bar — "can I see Strength XP til level
@@ -18953,6 +19005,66 @@ console.log('[Bundle Icons v1] applied:',
     return getProgress(goal, isWeekly) >= goal.target;
   }
 
+  /* ── R1/R5 — THE MONOTONIC PREDICTED-vs-CONFIRMED DISPLAY SEAM ──────────────
+     getProgress() returns the CONFIRMED value (the server's own count when
+     armed, the local count when dormant). localProgress() is always the LOCAL
+     OPTIMISTIC count — what the player just did this session, before the ~90s
+     span-sim has reported it. The display shows max(shownLastFrame, confirmed,
+     min(predicted, goal)) so a number, once on screen, only ever climbs; when
+     the server reconciles DOWN the bar HOLDS at its high-water and the row
+     enters "Confirming…" until server truth catches up. See src/core/goals.js.
+
+     The high-water and the one-shot celebration latch are keyed per PERIOD so a
+     daily/weekly reset (a new dayKey/weekKey) starts the counter fresh rather
+     than pinning a new day's bar at yesterday's goal. */
+  var _goalShown = Object.create(null);
+  var _goalCelebrated = Object.create(null);
+  function localProgress(goal, isWeekly){
+    var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
+    var startVal = (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0;
+    return Math.max(0, src(goal.source) - startVal);
+  }
+  function goalDisplayKey(goal, isWeekly){
+    var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
+    var per = isWeekly
+      ? ('w' + ((stateObj && stateObj.weekKey) || 0))
+      : ('d' + ((stateObj && stateObj.dayKey) || 0));
+    /* The BASELINE (startValue) is part of the key: a re-baseline is a new
+       counting epoch, so the monotonic high-water must NOT carry across it.
+       This is what keeps a reset counter (a new period, or a re-picked goal)
+       from being pinned at the prior instance's shown value — and it is exactly
+       the distinction between R1's "hold on a server reconcile-down" (baseline
+       unchanged, predicted still high) and a genuine restart (baseline moved). */
+    var startVal = (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0;
+    return per + ':' + goal.id + ':' + startVal;
+  }
+  function goalDisplay(goal, isWeekly){
+    var confirmed = getProgress(goal, isWeekly);
+    var predicted = localProgress(goal, isWeekly);
+    var k = goalDisplayKey(goal, isWeekly);
+    var prev = _goalShown[k] || 0;
+    var GLS = window.HearthriseGoals && window.HearthriseGoals.goalDisplayState;
+    var st = GLS
+      ? GLS({ goal: goal.target, confirmed: confirmed, predicted: predicted, prevShown: prev })
+      : (function(){
+          var pc = Math.min(predicted, goal.target);
+          var shown = Math.min(goal.target, Math.max(prev, confirmed, pc));
+          var phase = confirmed >= goal.target ? 'complete' : (shown >= goal.target ? 'confirming' : 'progress');
+          return { shown: shown, phase: phase, canClaim: confirmed >= goal.target };
+        })();
+    _goalShown[k] = st.shown;
+    /* SERVER-GATED CELEBRATION: exactly one completion toast, fired the frame the
+       SERVER confirms the goal (phase COMPLETE) — never at predicted>=goal
+       (that is CONFIRMING, silent). Latched per period so it cannot repeat. */
+    if(st.phase === 'complete' && !isClaimed(goal, isWeekly) && !_goalCelebrated[k]){
+      _goalCelebrated[k] = true;
+      if(typeof window.notify === 'function') notify('Quest complete: ' + goal.name + ' — reward ready to claim!', 'levelup');
+    }
+    return st;
+  }
+  window.__hrGoalDisplay = goalDisplay;   // test seam
+  window.__hrGoalDisplay.reset = function(){ _goalShown = Object.create(null); _goalCelebrated = Object.create(null); };
+
   /* b371 — THE TOPBAR QUEST BADGE READ A SENTENCE THAT STOPPED BEING WRITTEN.
      src/quests-topbar-button.js derived its count by running
      /(\d+)\s*active/ over the text of `#global-quests-strip`, because when it
@@ -19136,6 +19248,9 @@ console.log('[Bundle Icons v1] applied:',
         var st = isWeekly ? G.weeklyGoals : G.dailyGoals;
         if(res && res.ok){
           if(st){ st.claimed = st.claimed || {}; st.claimed[goalId] = true; }
+          /* R5: a completed payout retires any pending two-phase retry/notice. */
+          if(window._goalRetry) delete window._goalRetry[_fk];
+          if(window._goalSyncNotice) delete window._goalSyncNotice[_fk];
           if(typeof window.notify === 'function') notify('Reward claimed: '+rewardSummary(reward), 'loot');
           if(typeof window.updateTopbar === 'function') window.updateTopbar();
           if(window.HearthriseEvents) window.HearthriseEvents.emit('questClaim', {goalId:goalId, isWeekly:isWeekly, reward:reward});
@@ -19144,6 +19259,22 @@ console.log('[Bundle Icons v1] applied:',
              the server once-guard is the memory. Mark it claimed and say so. */
           if(st){ st.claimed = st.claimed || {}; st.claimed[goalId] = true; }
           if(typeof window.notify === 'function') notify('Already claimed — your reward is safe', 'loot');
+        } else if(res && res.error === 'incomplete'){
+          /* ── R5 TWO-PHASE COMMIT: a DENIED claim is never a failure ─────────
+             The Claim button is only OFFERED on a server-confirmed-complete row,
+             but the ~90s span-sim can reconcile progress DOWN between the confirm
+             and the click. The house answer is NOT "0 reward"/"failed"/red and
+             NOT consuming the claim: the row reverts to CONFIRMING (the display
+             holds at its shown high-water — see goalDisplay), ONE calm inline
+             notice is shown, and the claim AUTO-RETRIES on the next settle. The
+             server once-guard pays exactly once when it does complete. */
+          window._goalRetry = window._goalRetry || {};
+          window._goalRetry[_fk] = { goalId: goalId, isWeekly: !!isWeekly };
+          window._goalSyncNotice = window._goalSyncNotice || {};
+          if(!window._goalSyncNotice[_fk]){
+            window._goalSyncNotice[_fk] = true;
+            if(typeof window.notify === 'function') notify('Still syncing your last few kills — this completes on its own in a moment.', 'info');
+          }
         } else {
           var why = (res && res.error) || 'network';
           /* b465: the default arm printed the RAW server code at the player —
@@ -19239,19 +19370,22 @@ console.log('[Bundle Icons v1] applied:',
       return;
     }
     list.innerHTML = goals.map(function(g){
-      var prog = getProgress(g, false);
-      var done = prog >= g.target;
+      var d = goalDisplay(g, false);
       var claimed = isClaimed(g, false);
+      var complete = d.phase === 'complete';
+      var confirming = d.phase === 'confirming';
       /* Claimed keeps the typographic check (a mark, not a pictograph — the
-         same ✓ the modal's "Claimed" pill uses). The 🎁 that used to mean
-         "ready to claim" is a pictograph doing an icon's job, and the row is
-         already flagged `.done`; it now uses the gilt gift glyph. */
+         same ✓ the modal's "Claimed" pill uses). The gilt gift glyph means
+         "ready to claim" (server-confirmed COMPLETE only, never CONFIRMING). */
       var prefix = claimed ? '✓ '
-        : (done ? (((window.HR && window.HR.icon) ? (window.HR.icon('uiGift', 13, '--gold') || '') : '') + ' ') : '');
-      return '<span class="gq-quest '+(done?'done':'')+'">'
+        : (complete ? (((window.HR && window.HR.icon) ? (window.HR.icon('uiGift', 13, '--gold') || '') : '') + ' ') : '');
+      var progText = confirming
+        ? (d.shown + ' / ' + g.target + ' · Confirming…')
+        : (d.shown + ' / ' + g.target);
+      return '<span class="gq-quest '+(complete?'done':'')+(confirming?' confirming':'')+'">'
         +'<span class="gq-icon">'+goalGlyphHTML(g, 15)+'</span>'
         +'<span class="gq-name">'+prefix+g.name+'</span>'
-        +'<span class="gq-prog">'+Math.min(prog,g.target)+' / '+g.target+'</span>'
+        +'<span class="gq-prog">'+progText+'</span>'
       +'</span>';
     }).join('');
     if(meta) meta.textContent = (typeof window.hoursTillUTCMidnight === 'function') ? ('Resets in '+window.hoursTillUTCMidnight()+'h') : '';
@@ -19365,15 +19499,22 @@ console.log('[Bundle Icons v1] applied:',
       list.innerHTML = '<div style="color:var(--ink-3);font-style:italic;text-align:center;padding:40px">No '+(isWeekly?'weekly':'daily')+' quests.</div>';
     } else {
       list.innerHTML = goals.map(function(g){
-        var prog = getProgress(g, isWeekly);
-        var done = prog >= g.target;
+        var d = goalDisplay(g, isWeekly);
         var claimed = isClaimed(g, isWeekly);
-        var pct = Math.min(100, (prog/g.target)*100);
+        var complete = d.phase === 'complete';
+        var confirming = d.phase === 'confirming';
+        var done = complete || confirming;      // bar-full states
+        var pct = Math.min(100, (d.shown/g.target)*100);
         var reward = rewardFor(g.id, isWeekly);
         var rewardHtml = '<div class="qm-q-reward"><div class="qm-r-label">Reward</div><div class="qm-r-val">'+rewardSummaryHTML(reward)+'</div></div>';
         var claimBtn = '';
+        /* SERVER-GATED: Claim is OFFERED only when the SERVER confirms the goal
+           (phase COMPLETE). While predicted has hit the goal but the server
+           hasn't caught up (phase CONFIRMING) the row shows a non-alarming
+           "Confirming…" chip and NO claim button — R1's two-value contract. */
         if(claimed) claimBtn = '<span class="qm-q-claimed">✓ Claimed</span>';
-        else if(done) claimBtn = '<button class="qm-q-claim" data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
+        else if(complete) claimBtn = '<button class="qm-q-claim" data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
+        else if(confirming) claimBtn = '<span class="qm-q-confirming">Confirming…</span>';
         /* b227 (audit finding #2) — "take me to the area the quest is asking
            me to complete". Until now this modal was a dead end: it told you to
            catch fish and offered no way to reach fishing, so the player closed
@@ -19386,14 +19527,19 @@ console.log('[Bundle Icons v1] applied:',
           ? '<button class="qm-q-go" data-goto="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'"'
             +' title="'+esc(goDest.label)+'">'+esc(goDest.verb)+'</button>'
           : '';
-        return '<div class="qm-quest '+(done&&!claimed?'claimable':done?'done':'')+'"'
+        var rowClass = complete && !claimed ? 'claimable' : (done ? 'done' : '');
+        if(confirming) rowClass += ' confirming';
+        var progText = confirming
+          ? (g.target + ' / ' + g.target + ' · Confirming…')
+          : (d.shown + ' / ' + g.target + ' (' + pct.toFixed(0) + '%)');
+        return '<div class="qm-quest '+rowClass+'"'
           +(goBtn ? ' data-goto="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'"' : '')+'>'
           +'<div class="qm-q-icon">'+goalGlyphHTML(g, 26, '--gold-2')+'</div>'
           +'<div class="qm-q-info">'
             +'<div class="qm-q-name">'+g.name+'</div>'
             +'<div class="qm-q-desc">'+esc(g.desc||fallbackDesc(reward, isWeekly))+'</div>'
             +'<div class="qm-q-progbar"><i style="width:'+pct.toFixed(1)+'%"></i></div>'
-            +'<div class="qm-q-progtext">'+Math.min(prog,g.target)+' / '+g.target+' ('+pct.toFixed(0)+'%)</div>'
+            +'<div class="qm-q-progtext">'+progText+'</div>'
           +'</div>'
           +rewardHtml
           +goBtn
@@ -19429,8 +19575,39 @@ console.log('[Bundle Icons v1] applied:',
     }
   }
 
+  /* ── R5 AUTO-RETRY DRIVER ───────────────────────────────────────────────
+     A claim denied 'incomplete' (the server reconciled progress DOWN after the
+     confirm) is parked in window._goalRetry. On each tick we refresh the
+     server's goal view and, the moment it confirms the goal again, re-fire the
+     claim. The in-flight latch + the server once-guard make this pay EXACTLY
+     once; the entry is deleted before re-firing so a claim is never queued
+     twice. */
+  function driveGoalRetries(){
+    var R = window._goalRetry;
+    if(!R) return;
+    var keys = Object.keys(R);
+    if(!keys.length) return;
+    keys.forEach(function(fk){
+      var e = R[fk];
+      if(!e) { delete R[fk]; return; }
+      var goal = goalById(e.goalId, e.isWeekly);
+      if(!goal){ delete R[fk]; return; }
+      if(isClaimed(goal, e.isWeekly)){ delete R[fk]; return; }
+      _srvGoalsAt = 0;   // force a fresh read of the server's count
+      syncServerGoals(function(){
+        if(!R[fk]) return;                                  // cleared meanwhile
+        if(isClaimed(goal, e.isWeekly)){ delete R[fk]; return; }
+        if(isComplete(goal, e.isWeekly)){
+          delete R[fk];
+          if(typeof window.claimQuestReward === 'function') window.claimQuestReward(e.goalId, e.isWeekly);
+        }
+      });
+    });
+  }
+  window.__hrDriveGoalRetries = driveGoalRetries;   // test seam
+
   // ── Tick + boot ──
-  setInterval(function(){ renderStrip(); var m=document.getElementById('quests-modal-overlay'); if(m) renderModal(); }, 2000);
+  setInterval(function(){ renderStrip(); var m=document.getElementById('quests-modal-overlay'); if(m) renderModal(); driveGoalRetries(); }, 2000);
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', function(){ setTimeout(renderStrip, 600); });
   } else {

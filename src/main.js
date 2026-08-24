@@ -44,6 +44,13 @@ import { RAID_BOSSES } from './data/raid-bosses.js?v=472';
 import { EFFECT_KINDS, PENDING_SYSTEMS, effectsAreLive, dormantEffects } from './data/item-effects.js?v=472';
 import { LIB2_ICON_FILES } from './data/library2-items.js?v=472';
 import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=472';
+/* R1/R5 — the monotonic predicted-vs-confirmed DISPLAY seam. A CLIENT-display
+   sibling of src/core/goals.js (kept OUT of goals.js so the hr-accrue edge
+   payload stays byte-identical — see goal-display.js's header). The classic-
+   script render layer (legacy.js: the quest strip, the Quests modal, the bounty
+   board) cannot import, so it is republished on window here — ONE implementation
+   the render sites and the smoke tests both read. */
+import { goalDisplayState, GOAL_PHASE } from './core/goal-display.js?v=472';
 /* b349 — CLAIMABLE REWARDS. The daily-login cycle used to be a literal inside
    src/features/daily-reward.js, a classic <script> that neither Deno nor Node
    can import, so the server could not read the numbers it is about to be
@@ -193,6 +200,11 @@ window.HearthriseRewards = Object.freeze({
   DAILY_LOGIN_MAX_WEEK_MULT, CLAIMABLES,
   claimableFor, claimableId, priceDailyLogin,
 });
+
+/* R1/R5 — the monotonic display seam, published for legacy.js's render layer
+   (quest strip, Quests modal, bounty board) and the smoke suite. See the header
+   in src/core/goals.js for the rule. */
+window.HearthriseGoals = Object.freeze({ goalDisplayState, GOAL_PHASE });
 
 // 2. Network — auto-boots in offline mode, ready to upgrade to Supabase later.
 //    The bootstrap module reads stored credentials from localStorage and

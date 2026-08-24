@@ -1369,7 +1369,12 @@ function settle(verdict) {
        rebuild in applyEnvelopeState. Arm-gated inside reconcileFarm: a pure no-op
        while dormant, so the dormant load path is byte-for-byte unchanged. Guarded —
        a throw here must never break the record load. */
-    try { reconcileFarm(G, verdict.body); } catch (e) {}
+    /* {authoritative:true}: the boot hr_load body IS the full statement of the
+       farm, so an empty farm here legitimately clears the plots (a new/unplanted
+       character). The LEAN accrue-settle path (applyEnvelopeState) passes no flag,
+       so an empty array there never wipes a standing farm — the KD420
+       disappearing-plots fix. */
+    try { reconcileFarm(G, verdict.body, { authoritative: true }); } catch (e) {}
     /* ── HYDRATE THE OWNED TRAIT SET FROM THE SAME ENVELOPE (b46x) ───────────────
        hr_trait_buy is now the server-side writer of a permanent trait, and
        hr_state_of projects the owned ids as a flat `traits` array. The boot

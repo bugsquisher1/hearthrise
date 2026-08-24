@@ -5756,31 +5756,60 @@ function fmtSpan(ms){
   return Math.floor(mins/60)+'h '+(mins%60)+'m';
 }
 let farmInterval=null;
+/* The set of ready-plot identities we have already toasted. Keyed by
+   index+cropId+plantedAt so a single ready plot toasts ONCE even as the reconcile
+   rebuilds it every envelope (Paione "turnip ready every 5s"), while a REPLANT
+   (new plantedAt) still re-notifies. Pruned each tick to what is currently ready,
+   so it stays bounded and a harvested-then-replanted plot re-toasts. */
+let farmReadyNotified=new Set();
+/* Extracted from the interval so the smoke suite can drive it deterministically
+   (the every-5s toast bug cannot be reproduced by waiting on a real interval). */
+function farmCheckTick(){
+  let changed=false;
+  const liveReady=new Set();
+  /* blob-retire capstone: under arm G.farmPlots is rebuilt from the server
+     envelope (accrue.reconcileFarm) and is undefined until the first envelope
+     lands — an unguarded forEach would throw and kill the tick. Fail-closed to
+     an empty set: no crops render until the projection arrives, never a crash. */
+  (G.farmPlots||[]).forEach((p,i)=>{
+    if(!p)return;
+    const crop=CROPS[p.cropId];if(!crop)return;
+    /* reconcileFarm now promotes a ready plot to state:'ready' on rebuild, so a
+       ready plot may already carry the state — treat either as ready and let the
+       notified-set (not the state flag) decide whether to toast, so the first
+       legitimate toast still fires and the every-5s re-fire is gone. */
+    const ready = p.state==='ready' || plotIsReady(p);
+    if(!ready)return;
+    const key=i+':'+p.cropId+':'+p.plantedAt;
+    liveReady.add(key);
+    if(p.state!=='ready'){G.farmPlots[i]={...p,state:'ready'};changed=true;}
+    if(!farmReadyNotified.has(key)){
+      farmReadyNotified.add(key);
+      try{ if(typeof window!=='undefined') window.__farmReadyToasts=(window.__farmReadyToasts|0)+1; }catch(e){}
+      notify(`${crop.name} ready!`,'loot');
+    }
+    /* b222: the derived `watered` mirror is GONE. b220 dual-wrote it purely
+       so a rollback to b219 would read a sane value; b220 shipped, b221
+       shipped, and a write-only field that no reader consumes is the exact
+       shape of state that drifts and then gets trusted by accident. The one
+       surviving reader is the legacy-save migration
+       (HearthriseFarm.normalizePlot / save-migrations v6→v7), which converts
+       `watered` INTO `waterings[]` and must stay — old saves still carry it.
+       Nothing writes it any more; `waterings[]` is the only source. */
+  });
+  /* Drop notified keys whose plot is no longer ready/present (harvested/cleared)
+     so the set stays bounded and a replant at the same index re-toasts. */
+  farmReadyNotified.forEach(k=>{ if(!liveReady.has(k)) farmReadyNotified.delete(k); });
+  if(changed&&activeTab==='farming')renderFarm();
+  if(changed&&activeTab==='profile')renderProfile();
+}
 function startFarmCheck(){
-  farmInterval=setInterval(()=>{
-    let changed=false;
-    /* blob-retire capstone: under arm G.farmPlots is rebuilt from the server
-       envelope (accrue.reconcileFarm) and is undefined until the first envelope
-       lands — an unguarded forEach would throw and kill the tick. Fail-closed to
-       an empty set: no crops render until the projection arrives, never a crash. */
-    (G.farmPlots||[]).forEach((p,i)=>{
-      if(!p)return;
-      const crop=CROPS[p.cropId];if(!crop)return;
-      if(p.state==='ready')return;
-      if(plotIsReady(p)){G.farmPlots[i]={...p,state:'ready'};changed=true;notify(`${crop.name} ready!`,'loot');return;}
-      /* b222: the derived `watered` mirror is GONE. b220 dual-wrote it purely
-         so a rollback to b219 would read a sane value; b220 shipped, b221
-         shipped, and a write-only field that no reader consumes is the exact
-         shape of state that drifts and then gets trusted by accident. The one
-         surviving reader is the legacy-save migration
-         (HearthriseFarm.normalizePlot / save-migrations v6→v7), which converts
-         `watered` INTO `waterings[]` and must stay — old saves still carry it.
-         Nothing writes it any more; `waterings[]` is the only source. */
-    });
-    if(changed&&activeTab==='farming')renderFarm();
-    if(changed&&activeTab==='profile')renderProfile();
-  },5000);
+  farmInterval=setInterval(farmCheckTick,5000);
   startFarmTicker();
+}
+if(typeof window!=='undefined'){
+  window.__farmCheckTickForTest=farmCheckTick;
+  window.__resetFarmReadyNotifiedForTest=function(){ farmReadyNotified=new Set(); try{ window.__farmReadyToasts=0; }catch(e){} };
 }
 /* b220: the watered window is a 2-hour countdown the player is meant to plan
    around, so it has to move. A full renderFarm() every second would rebuild

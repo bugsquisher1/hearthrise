@@ -20,7 +20,9 @@
 //      state.plot_level tier IF the projection carries one.
 //   3. ARMED, FAIL-CLOSED — an absent res.farm array leaves a populated farm
 //      UNTOUCHED (a lean/idle envelope must never wipe standing crops); an EMPTY
-//      array IS a claim and clears to [].
+//      array clears to [] ONLY on the authoritative full statement (the boot
+//      hr_load body), and on a LEAN envelope leaves a standing farm alone (the
+//      KD420 disappearing-plots fix).
 //   4. NO-THROW — an undefined G.farmPlots after a rebuild-from-empty still
 //      forEach's without throwing (the guard the render/tick rely on).
 //
@@ -128,11 +130,19 @@ export async function farmRecordGuard() {
       if (!r || r.mode !== 'absent') fail('ARMED/absent: must return {mode:absent} (got ' + JSON.stringify(r) + ')');
       if (!G.farmPlots.length || G.farmPlots[0].cropId !== 'potato')
         fail('ARMED/absent: a lean envelope WIPED a standing crop — must leave the farm untouched');
-      // (b) an EMPTY array IS a claim the farm is unplanted → clears to [].
+      // (b) an EMPTY array on a LEAN (non-authoritative) envelope must NOT wipe a
+      //     standing farm — the KD420 disappearing-plots fix. A lean hr-accrue
+      //     settle can project farm:[] for a moment; wiping there erased crops.
       const G2 = { farmPlots: [{ cropId: 'potato', plantedAt: 5, waterings: [] }] };
-      const r2 = A.reconcileFarm(G2, { ok: true, version: 8, farm: [] });
-      if (!r2 || r2.mode !== 'server') fail('ARMED/empty: an empty farm array must be a {mode:server} claim (got ' + JSON.stringify(r2) + ')');
-      if (G2.farmPlots.length !== 0) fail('ARMED/empty: an empty farm array must clear the plots (got ' + JSON.stringify(G2.farmPlots) + ')');
+      const r2 = A.reconcileFarm(G2, { ok: true, version: 8, farm: [] });  // no authoritative flag
+      if (!r2 || r2.mode !== 'empty-noclaim') fail('ARMED/empty-lean: an empty farm array on a lean envelope must be {mode:empty-noclaim} (got ' + JSON.stringify(r2) + ')');
+      if (G2.farmPlots.length !== 1 || G2.farmPlots[0].cropId !== 'potato') fail('ARMED/empty-lean: an empty LEAN farm array WIPED a standing crop — the disappearing-plots bug (got ' + JSON.stringify(G2.farmPlots) + ')');
+      // (c) an EMPTY array on the AUTHORITATIVE full statement (boot hr_load body)
+      //     IS a claim the farm is unplanted → clears to [].
+      const G3 = { farmPlots: [{ cropId: 'potato', plantedAt: 5, waterings: [] }] };
+      const r3 = A.reconcileFarm(G3, { ok: true, version: 8, farm: [] }, { authoritative: true });
+      if (!r3 || r3.mode !== 'server') fail('ARMED/empty-auth: an authoritative empty farm array must be a {mode:server} claim (got ' + JSON.stringify(r3) + ')');
+      if (G3.farmPlots.length !== 0) fail('ARMED/empty-auth: an authoritative empty farm array must clear the plots (got ' + JSON.stringify(G3.farmPlots) + ')');
     }
 
     // ── 4. NO-THROW: the guarded read pattern never throws on undefined ──────
@@ -155,5 +165,5 @@ const SELF = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace
 if (SELF) {
   const probs = await farmRecordGuard();
   if (probs.length) { console.error('FAIL:\n' + probs.map((p) => '  - ' + p).join('\n')); process.exit(1); }
-  console.log('farm-record: dormant no-op + armed rebuild + fail-closed-absent + empty-claim + no-throw — all green');
+  console.log('farm-record: dormant no-op + armed rebuild + fail-closed-absent + empty-lean-no-wipe + empty-authoritative-clears + no-throw — all green');
 }

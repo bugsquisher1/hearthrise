@@ -9984,6 +9984,57 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
+  // ── FARM RELOAD REGRESSIONS (KD420 "disappearing plots" + Paione "turnip ready
+  //    every 5s"), both client-only, both a reconcile churning G.farmPlots ─────
+  () => tryRun('FARM-A (KD420): a lean empty farm envelope must NOT wipe a populated farm', () => {
+    const A = window.HearthriseAccrual, CAP = window.HearthriseCapstone;
+    if (!A || typeof A.reconcileFarm !== 'function' || !CAP || typeof CAP.__setBlobRetired !== 'function') { assert(true, 'no accrue/capstone api'); return; }
+    const snap = snapshotG();
+    try {
+      CAP.__setBlobRetired(true);   // ARM: reconcileFarm is live (dormant otherwise)
+      window.G.farmPlots = [{ cropId: 'turnip', plantedAt: Date.now() - 3600000, waterings: [], state: 'growing' }];
+      // A lean/partial accrue settle that projects an EMPTY farm array (no authoritative flag).
+      const r = A.reconcileFarm(window.G, { ok: true, version: 8, farm: [] });
+      assert(r && r.mode === 'empty-noclaim', 'a lean empty farm array must be {mode:empty-noclaim}, got ' + JSON.stringify(r));
+      assert(window.G.farmPlots.length === 1 && window.G.farmPlots[0] && window.G.farmPlots[0].cropId === 'turnip',
+        'the standing turnip was WIPED by an empty lean envelope — the disappearing-plots bug, got ' + JSON.stringify(window.G.farmPlots));
+      // …and the AUTHORITATIVE boot statement can still clear a genuinely-empty farm.
+      const r2 = A.reconcileFarm(window.G, { ok: true, version: 8, farm: [] }, { authoritative: true });
+      assert(r2 && r2.mode === 'server' && window.G.farmPlots.length === 0,
+        'the authoritative boot body must still clear an unplanted farm, got ' + JSON.stringify(window.G.farmPlots));
+    } finally { try { CAP.__setBlobRetired(null); } catch (e) {} restoreG(snap); }
+  }),
+
+  () => tryRun('FARM-B (Paione): a ready plot toasts ONCE across ticks + a reconcile, not every 5s', () => {
+    const A = window.HearthriseAccrual, CAP = window.HearthriseCapstone;
+    if (typeof window.__farmCheckTickForTest !== 'function' || typeof window.__resetFarmReadyNotifiedForTest !== 'function') { assert(true, 'no farm-tick test seam'); return; }
+    const snap = snapshotG();
+    try {
+      // A genuinely-ready turnip (planted well past its grow time).
+      const past = Date.now() - (window.CROPS.turnip.hours + 5) * 3600000;
+      window.G.farmPlots = [{ cropId: 'turnip', plantedAt: past, waterings: [], state: 'growing' }];
+      assert(window.HearthriseFarm.isReady(window.G.farmPlots[0]) === true, 'setup: the turnip must be ready');
+      window.__resetFarmReadyNotifiedForTest();
+      // Five ticks in a row: the toast must fire exactly ONCE (the bug fired each tick).
+      for (let n = 0; n < 5; n++) window.__farmCheckTickForTest();
+      assert((window.__farmReadyToasts | 0) === 1,
+        'a ready plot re-fired the ready toast across ticks (fired ' + (window.__farmReadyToasts | 0) + ' times) — the every-5s bug');
+      // A reconcile rebuilds the plot every envelope; the churn must NOT reset the latch.
+      if (A && typeof A.reconcileFarm === 'function' && CAP && typeof CAP.__setBlobRetired === 'function') {
+        CAP.__setBlobRetired(true);
+        try {
+          A.reconcileFarm(window.G, { ok: true, version: 8, farm: [{ i: 0, crop: 'turnip', planted_at: new Date(past).toISOString(), watered_at: null }] });
+          // reconcileFarm should have promoted the rebuilt plot straight to 'ready'.
+          assert(window.G.farmPlots[0] && window.G.farmPlots[0].state === 'ready',
+            'reconcileFarm must promote a ready plot to state:ready on rebuild, got ' + JSON.stringify(window.G.farmPlots[0]));
+        } finally { try { CAP.__setBlobRetired(null); } catch (e) {} }
+        for (let n = 0; n < 5; n++) window.__farmCheckTickForTest();
+        assert((window.__farmReadyToasts | 0) === 1,
+          'a reconcile rebuild re-fired the ready toast (total ' + (window.__farmReadyToasts | 0) + ') — the state-churn re-latch bug');
+      }
+    } finally { try { window.__resetFarmReadyNotifiedForTest(); } catch (e) {} restoreG(snap); }
+  }),
+
   // The invisibility half of the bug: a dry plot rendered no % and no bar, so
   // a permanently stalled plot looked exactly like a fresh one.
   () => tryRun('b220: a growing dry plot renders a percentage and a moving bar', () => {

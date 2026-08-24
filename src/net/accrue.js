@@ -1508,14 +1508,38 @@ export function reconcileTraits(G, res) {
    FAIL-CLOSED on absence: no readable `res.farm` ARRAY leaves G.farmPlots
    UNTOUCHED — a server build predating the projection, or a partial we cannot
    trust, must NEVER wipe a populated farm on a lean envelope (the accrue-idle
-   envelope, which carries no farm, must not blank the plots). An EMPTY array IS a
-   claim (the farm is genuinely unplanted) and clears to []. Pure. */
+   envelope, which carries no farm, must not blank the plots).
+
+   ⚠ EMPTY ARRAY (bug-fix, KD420 "disappearing plots" / Paione live reports):
+   an EMPTY farm:[] is a claim the farm is unplanted ONLY on the AUTHORITATIVE
+   full statement — the boot hr_load body (record.js settle passes
+   {authoritative:true}). On a LEAN/partial envelope (the frequent hr-accrue
+   settle, which may project farm:[] for a moment) an empty array is NOT a claim:
+   wiping a populated G.farmPlots there is exactly the disappearing-plots bug, and
+   under blob-retire there is no local blob to restore them. So a non-authoritative
+   empty array leaves a standing farm ALONE (save-invariant #2 — act only on
+   certainty). The legit "a plot was cleared/harvested" path is the harvest RPC
+   response (farm-sync.js reconcileFarmResult), never this whole-state reconcile.
+   Pure. */
 function farmParseTs(v) {
   const n = Date.parse(v);
   return Number.isFinite(n) ? n : Date.now();
 }
 
-export function reconcileFarm(G, res) {
+/* Is a rebuilt plot already past its ready time? Reads HearthriseFarm.isReady
+   (the single growth authority) off the window at CALL time — accrue.js is
+   Node-importable, so this fail-safes to false (stays 'growing') when the farm
+   API is absent, e.g. in a headless guard. */
+function farmPlotReady(p) {
+  try {
+    const w = (typeof window !== 'undefined') ? window
+      : (typeof globalThis !== 'undefined' ? globalThis.window : null);
+    const A = w && w.HearthriseFarm;
+    return !!(A && typeof A.isReady === 'function' && A.isReady(p));
+  } catch (e) { return false; }
+}
+
+export function reconcileFarm(G, res, opts) {
   if (!G || typeof G !== 'object') return null;
   /* DORMANT: the client owns G.farmPlots exactly as today — a pure no-op that
      keeps the un-armed load path byte-for-byte unchanged. */
@@ -1523,6 +1547,8 @@ export function reconcileFarm(G, res) {
   const rows = res && res.farm;
   /* FAIL-CLOSED: absence is not a claim the farm is empty. Leave it alone. */
   if (!Array.isArray(rows)) return { mode: 'absent' };
+
+  const authoritative = !!(opts && opts.authoritative);
 
   const plots = [];
   let planted = 0;
@@ -1533,15 +1559,31 @@ export function reconcileFarm(G, res) {
     const cropId = (typeof row.crop === 'string' && row.crop) ? row.crop : null;
     if (!cropId) continue;
     const waterings = (row.watered_at != null) ? [farmParseTs(row.watered_at)] : [];
-    plots[idx] = {
+    const plot = {
       cropId,
       plantedAt: farmParseTs(row.planted_at),
       waterings,
       state: 'growing',
       regrowCount: 0,
     };
+    /* BUG FIX (Paione "turnip ready every 5s"): promote a genuinely-ready plot to
+       'ready' AT REBUILD TIME. The reconcile ran on every envelope and rebuilt
+       every plot as 'growing', wiping the ready-latch startFarmCheck sets — so the
+       tick re-detected readiness and re-fired the "ready!" toast each 5s cycle.
+       Rebuilding it already-ready removes that churn. */
+    if (farmPlotReady(plot)) plot.state = 'ready';
+    plots[idx] = plot;
     planted++;
   }
+
+  /* BUG FIX (KD420 "disappearing plots"): an empty/zero-plot envelope may not wipe
+     a standing farm unless it is the authoritative full statement. A lean accrue
+     settle projecting farm:[] leaves the populated farm untouched. */
+  const hasStanding = Array.isArray(G.farmPlots) && G.farmPlots.some((p) => p && p.cropId);
+  if (planted === 0 && hasStanding && !authoritative) {
+    return { mode: 'empty-noclaim', planted: 0, kept: G.farmPlots.length };
+  }
+
   G.farmPlots = plots;
 
   /* PLOT TIER — only if a future projection carries it; else leave untouched so

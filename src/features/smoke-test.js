@@ -1696,6 +1696,56 @@ const TESTS = [
     assert(r3 && r3.mode === 'absent' && g3.combatStyle.sword === 'aggressive',
       'an envelope with no combat_style wiped the local choice');
 
+    // 4. THE OPTIMISTIC-PICK GUARD ("magic style swaps back to attack when you
+    //    level a stat or switch cast↔focus"). applyCombatStyle writes the pick
+    //    locally + fires set_style fire-and-forget; set_style settles-first then
+    //    retries on a ladder, so an envelope that lands in that window carries the
+    //    server's OLD map. Server-wins would roll the fresh pick straight back to
+    //    the family default. The pending marker must HOLD it.
+    const gm = { combatStyle: { sword: 'accurate', hammer: 'smash', ranged: 'rapid', magic: 'cast' } };
+    gm.combatStyle.magic = 'focus';           // player taps Focus on a magic weapon
+    gm._pendingStyle = { magic: 'focus' };     // applyCombatStyle records this
+    const rStale = A.reconcileCombatStyle(gm, { state: { combat_style: { magic: 'cast' } } });
+    assert(gm.combatStyle.magic === 'focus',
+      'a STALE envelope reverted the just-picked magic style to the family default — this is the '
+      + '"cast↔focus / level-up swaps back to attack" bug; got ' + gm.combatStyle.magic);
+    assert(rStale && rStale.held >= 1,
+      'reconcile did not report HOLDING the pending pick against a stale server echo');
+    assert(rStale.adopt.some((p) => p[0] === 'magic' && p[1] === 'focus'),
+      'a held pick must be re-queued in adopt so the intent keeps being resent until the server agrees');
+    // The pick NEVER lands under the wrong family — a magic write must not touch sword.
+    assert(gm.combatStyle.sword === 'accurate',
+      'selecting a magic style disturbed the sword family — the picker wrote the wrong weapon key');
+
+    // Server catches up: the marker clears and the pick stays.
+    const rCaught = A.reconcileCombatStyle(gm, { state: { combat_style: { magic: 'focus' } } });
+    assert(gm.combatStyle.magic === 'focus' && (!gm._pendingStyle || !gm._pendingStyle.magic) && rCaught.held === 0,
+      'once the server echoes the pick the pending marker must clear and Focus must remain');
+
+    // A genuine cross-device change (no pending) still wins — the guard only
+    // protects the in-flight local gesture, it does not freeze the family.
+    const rCross = A.reconcileCombatStyle(gm, { state: { combat_style: { magic: 'warded' } } });
+    assert(gm.combatStyle.magic === 'warded' && rCross.corrected >= 1,
+      'with no pending pick, a server change must still win — the guard must not pin the family');
+
+    // 5. EACH FAMILY stays in-family through a held stale echo. A pick under one
+    //    weapon family must never bleed into another (part (a)/(c) of the report).
+    [['sword', 'defensive', 'accurate'], ['hammer', 'crush', 'smash'],
+     ['ranged', 'longrange', 'rapid'], ['magic', 'focus', 'cast']].forEach(([fam, pick, def]) => {
+      const gf = { combatStyle: { sword: 'accurate', hammer: 'smash', ranged: 'rapid', magic: 'cast' } };
+      gf.combatStyle[fam] = pick;
+      gf._pendingStyle = { [fam]: pick };
+      // stale echo for THIS family, plus untouched values for the others
+      const stale = { sword: 'accurate', hammer: 'smash', ranged: 'rapid', magic: 'cast' };
+      A.reconcileCombatStyle(gf, { state: { combat_style: stale } });
+      assert(gf.combatStyle[fam] === pick,
+        fam + ': a stale echo reverted the pick to ' + gf.combatStyle[fam] + ' (default ' + def + ')');
+      ['sword', 'hammer', 'ranged', 'magic'].filter((o) => o !== fam).forEach((other) => {
+        assert(gf.combatStyle[other] === { sword: 'accurate', hammer: 'smash', ranged: 'rapid', magic: 'cast' }[other],
+          fam + ' pick leaked into the ' + other + ' family (now ' + gf.combatStyle[other] + ')');
+      });
+    });
+
     /* ⚠ WHAT THIS TEST DELIBERATELY DOES NOT DO: call applyCombatStyle().
        It is the ONE writer and it now fires the transport, re-times a running
        fight and re-renders three panels — driving it from inside the in-page

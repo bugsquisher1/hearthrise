@@ -11718,6 +11718,16 @@ function applyCombatStyle(k){
   if(!styles[k]) return false;
   G.combatStyle = G.combatStyle || {};
   G.combatStyle[t] = k;
+  /* ── MARK THE PICK AS AN UNCONFIRMED OPTIMISTIC WRITE ──────────────────────
+     reconcileCombatStyle (src/net/accrue.js) HOLDS a family with a pending marker
+     instead of rolling it back to a stale server echo. Without this, an envelope
+     that lands before set_style commits (a routine settle, or the one a stat
+     level-up fires) reverts the fresh pick to the server's old value — the
+     "magic style swaps back to attack when you level / switch cast↔focus" report.
+     Scratch, `_`-prefixed, so it never reaches the snapshot or the server. The
+     marker is cleared by reconcile the moment the server's map echoes this key. */
+  G._pendingStyle = (G._pendingStyle && typeof G._pendingStyle === 'object') ? G._pendingStyle : {};
+  G._pendingStyle[t] = k;
   /* ── AND TELL THE SERVER, BECAUSE THE SERVER IS THE ONE THAT PAYS (P0) ──
      src/net/goal-claim.js setStyle -> hr_set_style writes
      player_state.combat_style, which supabase/functions/hr-accrue/accrual.js

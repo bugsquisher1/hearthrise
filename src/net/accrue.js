@@ -1516,11 +1516,37 @@ export function reconcileCombatStyle(G, res) {
   if (!G.combatStyle || typeof G.combatStyle !== 'object' || Array.isArray(G.combatStyle)) {
     G.combatStyle = {};
   }
+  /* ── THE OPTIMISTIC-PICK GUARD (2026-08-24, "magic style reverts to attack") ──
+     applyCombatStyle() writes G.combatStyle[family] the instant the player taps a
+     style AND fires set_style fire-and-forget. But set_style settles first, then
+     runs on a 0/4s/15s retry ladder, so for up to a few seconds the SERVER'S map
+     still holds the OLD value. Any envelope that lands in that window — a routine
+     settle, or the one a stat level-up triggers — carried the pre-change map, and
+     "server-wins per family" then rolled the fresh pick straight back (Focus →
+     Cast; a magic user watched their choice snap to the family default). That is
+     the report: "styles swap back when you level a stat or switch cast↔focus".
+
+     So applyCombatStyle records G._pendingStyle[family] = key (scratch, `_`-prefixed
+     → never synced). A family with a pending pick the server has NOT yet echoed is
+     HELD, not overwritten, and re-queued in `adopt` so the intent keeps being
+     resent until the server agrees. The moment the server's map matches the pending
+     key, the marker is cleared and normal server-wins resumes — so a genuine
+     cross-device change still wins, this only protects the in-flight local gesture. */
+  const pending = (G._pendingStyle && typeof G._pendingStyle === 'object' && !Array.isArray(G._pendingStyle))
+    ? G._pendingStyle : null;
   let corrected = 0;
+  let held = 0;
   const adopt = [];
   for (const family of Object.keys(server)) {
     const key = server[family];
     if (typeof key !== 'string' || !key) continue;
+    if (pending && pending[family] && pending[family] !== key) {
+      /* The server is stale for this family — its echo predates our pick. Keep
+         the local value, keep the marker, and let the back-fill below re-send. */
+      held++;
+      continue;
+    }
+    if (pending && pending[family] === key) delete pending[family];  // server caught up
     if (G.combatStyle[family] !== key) { G.combatStyle[family] = key; corrected++; }
   }
   /* THE ONE-SHOT BACK-FILL. A family the player chose locally that the server
@@ -1541,7 +1567,7 @@ export function reconcileCombatStyle(G, res) {
     if (DEFAULT_STYLE_KEYS[family] === key) continue;
     if (server[family] !== key) adopt.push([family, key]);
   }
-  return { mode: 'server', corrected, adopt };
+  return { mode: 'server', corrected, held, adopt };
 }
 
 /* ── THE FARM PLOTS, RECONSTRUCTED FROM THE ENVELOPE (blob-retire capstone) ────

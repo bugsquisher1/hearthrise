@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 472 — 2026-08-24 (Online, and it knows your name)
+
+- 🟢 Fixed the status showing "Offline" while you were actually connected — it was reading a dead pre-launch flag that was always off. It now reflects your real connection.
+- 🪪 Fixed your name showing as "Adventurer" instead of the name you set — the top bar and screens were waiting on a server confirmation that doesn't always arrive; they now use your claimed name right away.
+
 ## v0.9.2-beta build 471 — 2026-08-24 (Your combat style stays put)
 
 - ⚔️ Fixed your combat style snapping back (e.g. Focus reverting to Cast, or a magic style flipping to Attack) right after you picked it or leveled a stat — a server update arriving mid-change was overwriting your fresh pick. Your selection now holds until the server confirms it.

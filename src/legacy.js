@@ -2939,7 +2939,15 @@ function updateNetStatus(){
      against the actual Supabase host) — do not reintroduce a write to it
      here. */
   const pill=document.getElementById('status-pill');
-  const online=NetClient.online()&&G.account;
+  /* b472: the online signal must come from the REAL presence system, not the
+     dead pre-Supabase mock. NetClient.online() is `navigator.onLine && !!ENDPOINT`
+     and ENDPOINT is hardcoded null, so it is ALWAYS false → the pill said
+     "Offline" for every player forever (and `&& G.account` compounded it: real
+     Supabase auth never populates the mock G.account field). HearthrisePresence
+     .isOnline() is the authoritative online state the blessing/away system uses. */
+  const online = (window.HearthrisePresence && typeof window.HearthrisePresence.isOnline==='function')
+    ? window.HearthrisePresence.isOnline()
+    : (navigator.onLine && !!(window.HearthriseSupabase && window.HearthriseSupabase.isConfigured && window.HearthriseSupabase.isConfigured()));
   if(pill){
     pill.classList.toggle('off',!online);
     /* b224: "Offline play" was a product state; it is now only ever a
@@ -6310,9 +6318,14 @@ function refreshAll(){
 function _hrDisplayName(){
   try{
     const id=window.HearthriseIdentity;
-    if(id && typeof id.getDisplayName==='function'){
-      const n=id.getDisplayName();
-      if(n){
+    /* b472: use displayName() (confirmed/provisional/G/profile chain, email-safe)
+       not getDisplayName() — the latter returns the CONFIRMED-server-answer only
+       and is null until an async fetch resolves (often never this session), which
+       made every surface fall back to the "Adventurer" default even when the
+       player has a claimed name. displayName() returns the claimed name now. */
+    if(id && typeof id.displayName==='function'){
+      const n=id.displayName();
+      if(n && n!=='Adventurer'){
         // Reconcile the stale default up to the server truth so raw reads agree.
         if(window.G && (!G.playerName || G.playerName==='Adventurer') && n!=='Adventurer') G.playerName=n;
         return n;

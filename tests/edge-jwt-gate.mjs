@@ -29,7 +29,7 @@
 //
 // ── WHY THE EXISTING TEST DID NOT CATCH IT ─────────────────────────────────
 // tests/accrual-engine.mjs asserts that config.toml SAYS verify_jwt = true and
-// that no script in the repo carries --no-verify-jwt. Both are true. Neither is
+// that no script in the repo carries --no-verify-jwt (never use this flag). Both are true. Neither is
 // a statement about the deployed function. A file is not a deployment.
 //
 // ── WHAT THIS PROBE DOES, AND WHY IT IS SAFE AGAINST PRODUCTION ────────────

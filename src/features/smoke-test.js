@@ -9952,11 +9952,44 @@ const TESTS = [
     //   are the server's, read from src/data; the client names the food only.
     assert(!('heals' in body) && !('hp' in body) && !('qty' in body) && !('amount' in body),
       'eat wire leaked a computed value — the heal/hp must be server-owned: ' + init.body);
-    // A refusal that reached the DB (insufficient_item / already_full) carries an
-    // envelope so the client reconciles rather than keeps its optimistic guess.
+    // A refusal that reached the DB (insufficient_item / version_conflict) carries
+    // an envelope so the client reconciles rather than keeps its optimistic guess.
     const c = M.classifyEatResponse(409, { ok: false, error: 'insufficient_item', state: {}, version: 3, inventory: {} });
     assert(c.outcome === 'refused' && c.reason === 'insufficient_item', 'classifyEatResponse misread a refusal');
     assert(M.isAnswered('timeout') === false && M.isAnswered('refused') === true, 'eat answered-set is wrong (key reuse safety)');
+  }),
+
+  // (2c) EAT-COMBAT-HP — THE LIVE-COMBAT HALF OF THE P0 (2026-08-25 play-gate).
+  //      During a live client-predicted fight the server pointer is idle and
+  //      server hp is STALE-FULL. accrue.js's HP floor writes an envelope's hp
+  //      unconditionally while G.activeMonster is set (b373), so an eat envelope
+  //      would SNAP the client's live combat hp up to the stale-full server
+  //      value (the "hp jumped to 10" the play-gate saw). The eat hook must
+  //      PRESERVE the client-owned combat hp across the reconcile. This drives
+  //      the REAL hook installed by wireServerEat().
+  () => tryRun('eat: an eat envelope does not snap client combat HP during a live fight', () => {
+    const G = window.G;
+    assert(typeof window.wireServerEat === 'function', 'wireServerEat missing — the eat hook is not wired');
+    const M = window.wireServerEat();
+    assert(M && typeof M.getEatHooks === 'function', 'eat transport not installed');
+    const hook = M.getEatHooks().onEnvelope;
+    assert(typeof hook === 'function', 'the eat onEnvelope hook was not installed');
+    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})), hp: G.playerHp,
+      maxHp: G.playerMaxHp, mon: G.activeMonster, gold: G.gold };
+    try {
+      // Model a live client fight at LOW combat hp; the server (envelope) reads FULL.
+      G.activeMonster = 'goblin'; G.playerMaxHp = 10; G.playerHp = 4; G.gold = 0;
+      const env = { ok: true, version: 999999999, now: new Date().toISOString(),
+        state: { hp: 10, max_hp: 10, gold: 0, accrued_to: new Date().toISOString() },
+        skills: {}, inventory: { turnip: 1 }, equipment: {} };
+      hook(env);   // the floor would set G.playerHp = 10; the hook must restore 4
+      assert(G.playerHp === 4,
+        'EAT-COMBAT-HP: the envelope SNAPPED live combat hp to the stale-full server value ('
+        + G.playerHp + ' — expected the preserved 4). Paione\'s live-combat symptom is back.');
+    } finally {
+      G.inventory = snap.inv; G.playerHp = snap.hp; G.playerMaxHp = snap.maxHp;
+      G.activeMonster = snap.mon; G.gold = snap.gold;
+    }
   }),
 
   // (3) Full HP is an honest dead end for a Provision (its only value is the

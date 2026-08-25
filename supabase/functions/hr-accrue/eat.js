@@ -30,11 +30,27 @@
 //     magnitude comes from src/data, not the wire. It is safe by CLAUDE.md's
 //     target property regardless — HP is not tradeable, rankable or
 //     contributable, so no forged value can cross into another player's economy.
-//   · During a LIVE fight the server's player_state.hp lags (damage is settled
-//     at accrual), so an eat mid-fight is priced against that lagged hp — the
-//     same combat-HP-ownership limitation the accrual engine already has. It is
-//     NOT this verb's to fix (that is the separate max_hp/HP-derivation work);
-//     it changes nothing about whether the food is duped, which is the P0.
+//   · During a LIVE, client-predicted fight the server pointer is IDLE and
+//     player_state.hp is STALE-FULL (measured on live QA: active_kind='idle',
+//     hp=10/10 while the client shows a goblin fight at 4 HP). The server cannot
+//     distinguish that from a genuinely-idle player at full HP. So:
+//       — The server does NOT gate on full HP. There is no `already_full`
+//         refusal: refusing it would leave the food UNDEBITED during a live
+//         fight (server hp reads full), which is exactly Paione's P0 —
+//         "I eat 1 mid-combat, it heals and the food returns to 2". The heal
+//         credit is a no-op when server hp is already full (min(max,max+h)=max);
+//         the DEBIT — the authoritative part — always lands.
+//       — Wasting a full-HP eat is refused on the CLIENT (legacy.js eatFood's
+//         b224 guard), which is the ONLY place that knows the real hp during a
+//         live fight (the client owns combat hp, see events.js NO_SYNC). The
+//         server owns the food; the client owns the fight's hp.
+//   · The client applies the heal to its combat hp locally (eatFood) and the eat
+//     transport PRESERVES that combat hp across the envelope reconcile while a
+//     fight is in flight (src/net/... wireServerEat), because accrue.js's HP
+//     floor writes an envelope's hp unconditionally during a fight (b373) and
+//     would otherwise snap the client's live hp up to the stale-full server hp.
+//     Out of combat (idle, genuinely-low server hp — e.g. post-away), the server
+//     hp IS the truth and the normal reconcile applies it.
 //
 // Same shape as vendor_sell (an `item` name → a server-priced delta), but the
 // delta CANNOT be precomputed by runValueIntent: `hp` depends on the state READ.
@@ -155,21 +171,15 @@ export async function runEat(o) {
   const serverHp = Number(st.hp) || 0;
   const maxHp = Number(st.max_hp) || 0;
 
-  /* (2) ALREADY-FULL, on SERVER hp. A pure heal (heals, no buff) at full HP
-     wastes the food for no visible effect — the b224 "kept your X" rule, now
-     enforced where the HP is actually owned. Refused with the envelope so the
-     client reconciles its optimistic local debit rather than losing the food. A
-     buff food is never blocked: its value is the timed buff, not the heal. */
-  if (food.heals > 0 && !food.hasBuff && maxHp > 0 && serverHp >= maxHp) {
-    return {
-      status: 409,
-      body: await refusalBody({
-        exec, user, slot, verb: VERB,
-        refusal: { error: INTENT_ERRORS.ALREADY_FULL, stage: 'plan', detail: { hp: serverHp, maxHp } },
-        fallback: env,
-      }),
-    };
-  }
+  /* (2) NO SERVER-SIDE "ALREADY FULL" GATE — see the header. During a live
+     client-predicted fight the server pointer is idle and server hp reads
+     STALE-FULL, so a full-hp gate here would refuse the eat, leave the food
+     UNDEBITED, and reproduce Paione's P0. The DEBIT must always land; the heal
+     credit is a harmless no-op when server hp is genuinely full. "Do not waste
+     food at full HP" is the client's call (eatFood's b224 guard), because the
+     client is the only party that knows the real hp mid-fight. `food.hasBuff`
+     and `serverHp` are still read above for the (unused-here) receipt and the
+     newHp computation below. */
 
   /* Clamp to max_hp ONLY when the server states one (> 0). A DB with max_hp = 0
      is broken, but `min(0, …)` would then propose hp = 0 — so fall back to the

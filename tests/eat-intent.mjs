@@ -100,8 +100,15 @@ export function contractGuard() {
     'C2: `constructor` was not refused unknown_item (catalogueGet defence)');
 
   ok(STATELESS_REFUSALS.includes(INTENT_ERRORS.ITEM_NOT_FOOD), 'C3: item_not_food must be stateless (pre-DB)');
-  ok(refusalCarriesState(INTENT_ERRORS.ALREADY_FULL) === true,
-    'C3: already_full must carry state — it is decided after the server hp read');
+  /* ⚠ THE FIX: there is NO server-side already_full gate. During a live
+     client-predicted fight the server pointer is idle and server hp reads
+     stale-FULL, so gating there refused the eat, left the food undebited, and
+     reproduced Paione's P0. The server always debits; full-hp waste is the
+     client's call (eatFood's b224 guard, which knows the real combat hp). */
+  ok(INTENT_ERRORS.ALREADY_FULL === undefined,
+    'C3: an already_full code exists — it must not; that server gate reproduced the live-combat P0');
+  ok(refusalCarriesState('insufficient_item') === true,
+    'C3: insufficient_item must carry state so the client reconciles a refused over-eat');
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -172,14 +179,11 @@ async function body(db, call) {
   }
 
   // E5. OVER-EAT — a NEW key with no stock left is insufficient_item, nothing
-  // lost. hp is dropped below max first so the no-stock eat reaches the DEBIT
-  // (the already_full guard fires before it, and would mask insufficient_item).
+  // lost. (No already_full gate to work around any more — drain and probe.)
   {
-    ok((await admin(db, { hp: 3 })).ok === true, 'E5-SETUP: hp admin refused');
     let guard = 0;
     while (await invOf(db, 'turnip') > 0 && guard++ < 10) { await call({ item: 'turnip' }); }
     ok(await invOf(db, 'turnip') === 0, 'E5-SETUP: could not drain the stack');
-    await admin(db, { hp: 3 });                  // eating may have topped hp up
     const r = await call({ item: 'turnip' });    // none left
     ok(r.status === 409 && r.body.error === 'insufficient_item',
       `E5: eating with no stock returned ${r.status} ${JSON.stringify(r.body).slice(0, 200)}`);
@@ -196,21 +200,29 @@ async function body(db, call) {
     ok(await hpOf(db) === maxHp, `E6: hp is ${await hpOf(db)}, must clamp to max_hp ${maxHp}`);
   }
 
-  // E7. ALREADY-FULL — a pure heal at full HP is refused, food KEPT.
+  // E7. THE LIVE-COMBAT CASE (Paione's actual P0). During a live
+  // client-predicted fight the SERVER sees idle + FULL hp, while the client is
+  // at low combat hp. The eat MUST still DEBIT the food server-side (the old
+  // already_full gate refused here → food undebited → "it heals and returns").
+  // hp full is modelled by setting server hp = max_hp; the debit must land and
+  // the heal is a harmless no-op. (The client-side "heal the combat hp and do
+  // not let the envelope snap it" half is asserted by the browser smoke suite,
+  // EAT-COMBAT-HP; it cannot be exercised in this SQL-only harness.)
   {
     ok((await admin(db, { items: { turnip: 1 }, hp: maxHp })).ok === true, 'E7-SETUP: admin refused');
     const before = await invOf(db, 'turnip');
     const r = await call({ item: 'turnip' });
-    ok(r.status === 409 && r.body.error === 'already_full',
-      `E7: a pure heal at full HP returned ${r.status} ${JSON.stringify(r.body).slice(0, 200)}`);
-    ok(await invOf(db, 'turnip') === before, 'E7: already_full still consumed the food');
-    ok(r.body.state, 'E7: already_full did not carry the envelope');
+    ok(r.status === 200 && r.body.ok === true,
+      `E7: an eat at FULL server hp was refused — ${r.status} ${JSON.stringify(r.body).slice(0, 200)}. `
+      + 'This is Paione\'s live-combat P0: the food must debit even when the server reads full.');
+    ok(await invOf(db, 'turnip') === before - 1,
+      `E7: the food was NOT debited at full server hp (turnip ${await invOf(db, 'turnip')}, expected ${before - 1}) — the dupe persists in live combat`);
+    ok(await hpOf(db) === maxHp, `E7: hp moved above max — clamp broken (${await hpOf(db)} vs ${maxHp})`);
   }
 
   // E8. INTENT_MISMATCH — one key reused for a DIFFERENT food is refused loudly.
   {
     ok((await admin(db, { items: { turnip: 1, shrimp: 1 } })).ok === true, 'E8-SETUP: admin refused');
-    // put hp below max so neither eat is already_full
     await admin(db, { hp: 3 });
     const key = uuid();
     const a = await runEat({ exec: makeExec(db), user: UID, slot: 0, intentId: key, item: 'turnip' });

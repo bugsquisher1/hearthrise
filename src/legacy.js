@@ -7255,14 +7255,35 @@ window.wireServerEnchant=wireServerEnchant;
    Install the envelope hook ONCE. The eat transport is CONFIGURED at sign-in by
    src/net/auth.js (configureEat(w.eat)); this only teaches it where to send the
    server's answer — the SAME applier the away card and every other intent use,
-   so the eaten food's debit and the heal are reconciled ABSOLUTELY (inventory
-   under the armed absolute branch, HP raised by applyEnvelopeState's floor). */
+   so the eaten food's DEBIT is reconciled absolutely (inventory under the armed
+   absolute branch). HP is the one field this hook overrides during a live
+   fight — see below. */
 function wireServerEat(){
   const M=window.HearthriseEat;
   if(!M)return null;
   const h=(typeof M.getEatHooks==='function')?M.getEatHooks():null;
   if(!(h&&typeof h.onEnvelope==='function')&&typeof M.setEatHooks==='function'){
-    M.setEatHooks({onEnvelope:function(res){ return applyServerEnvelope(res,{intent:true}); }});
+    M.setEatHooks({onEnvelope:function(res){
+      /* ⚠ COMBAT HP IS CLIENT-OWNED DURING A LIVE FIGHT (Paione P0, phase 2).
+         The eat envelope reconciles the FOOD DEBIT (the dupe fix — must apply)
+         and everything else, but its `state.hp` is the SERVER's, which during a
+         live client-predicted fight is STALE-FULL (the server pointer is idle;
+         measured live: active_kind='idle', hp=10/10 while the client shows a
+         goblin fight at 4 HP). accrue.js's HP floor writes an envelope's hp
+         UNCONDITIONALLY while `G.activeMonster` is set (b373) — designed for
+         AWAY combat, where the server owns hp — so without this, eating mid-fight
+         SNAPS the client's live combat hp up to the stale-full server value (the
+         "hp jumped to 10" the play-gate saw). The client already applied the real
+         heal to its combat hp in eatFood before firing, so we snapshot that hp
+         and restore it after the reconcile: the food debit lands, the fight's hp
+         is preserved. Out of combat there is no activeMonster, keepHp is null,
+         and the server hp reconciles normally (it is the truth then, e.g.
+         post-away). try/FINALLY so the floor's write is undone even on a throw. */
+      var inFight=!!(typeof G!=='undefined'&&G&&G.activeMonster);
+      var keepHp=(inFight&&typeof G.playerHp==='number')?G.playerHp:null;
+      try{ return applyServerEnvelope(res,{intent:true}); }
+      finally{ if(keepHp!==null) G.playerHp=keepHp; }
+    }});
   }
   return M;
 }

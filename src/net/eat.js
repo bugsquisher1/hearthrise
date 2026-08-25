@@ -9,7 +9,7 @@
 //   POST <SUPABASE_URL>/functions/v1/hr-accrue
 //     {"verb":"eat","slot":N,"intentId":"<uuid>","item":"turnip"}
 //   → 200 {ok:true, verb:'eat', state:{hp,…}, inventory:{…}, receipt:{…}|null, …env}
-//     409 {ok:false, error:'insufficient_item'|'already_full'|'item_not_food'|…}
+//     409 {ok:false, error:'insufficient_item'|'item_not_food'|'version_conflict'|…}
 //
 // ── WHY THIS FILE EXISTS ────────────────────────────────────────────────────
 // Before it, `window.eatFood` (src/legacy.js) debited G.inventory CLIENT-ONLY
@@ -81,7 +81,6 @@ export function isAnswered(outcome) { return UNANSWERED_OUTCOMES.indexOf(outcome
    so a player can quote it in a bug report. */
 export const EAT_REFUSALS = Object.freeze({
   insufficient_item: 'The server says you do not have that food.',
-  already_full: 'You are already at full health — the server kept your food.',
   item_not_food: 'That is not something you can eat.',
   unknown_item: "The server does not have that item yet — it may be a newer build than the server's.",
   bad_item: 'That food could not be read. Nothing was changed.',
@@ -173,7 +172,7 @@ export function buildEatRequest(opts) {
 
 /** The envelope, constructed field by field — never a spread of the body. The
     SHAPE decides whether an answer carries state, so a refusal that reached the
-    database (insufficient_item, already_full, version_conflict) is reconciled
+    database (insufficient_item, version_conflict) is reconciled
     the same way a success is. */
 export function envelopeOf(body) {
   const b = (body && typeof body === 'object') ? body : null;
@@ -269,7 +268,7 @@ export async function sendEat(foodId, o = {}) {
   const verdict = { ...classifyEatResponse(res.status, body), status: res.status, key };
 
   /* THE ENVELOPE IS THE TRUTH WHETHER THE EAT LANDED OR NOT. A refused eat
-     (insufficient_item, already_full, version_conflict) carries the server's
+     (insufficient_item, version_conflict) carries the server's
      current state, and applying it is what puts the optimistic local debit and
      heal back to server truth — the food that "returned" no longer can. */
   const env = envelopeOf(body);

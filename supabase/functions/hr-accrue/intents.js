@@ -734,7 +734,7 @@ export const INTENT_ERRORS = Object.freeze({
   BAD_ENCHANT: 'bad_enchant',
 
   /* ── MANUAL FOOD CONSUMPTION (2026-08-25) ────────────────────────────────
-     TWO codes minted HERE; everything else about an eat is hr_apply's own
+     ONE code minted HERE; everything else about an eat is hr_apply's own
      vocabulary returned verbatim (the same bargain equip strikes):
 
        bad_item          400 — absent or malformed item id. SHARED with the
@@ -747,18 +747,17 @@ export const INTENT_ERRORS = Object.freeze({
                          such item" and "that item is not food" are different
                          facts, and collapsing them tells a player their Bronze
                          Bar does not exist.
-       already_full      409 — a pure heal (heals but no buff) at full HP. It
-                         would waste the food for no effect, so the SERVER
-                         refuses it and NOTHING is debited — mirroring the
-                         client's b224 "kept your X" guard, but now enforced
-                         where the HP is actually owned. Carries the envelope
-                         (it is decided AFTER the server HP read), so the client
-                         reconciles rather than guesses.
        insufficient_item 409 — hr_apply's own, under the row lock: the player
                          owns no copy. THIS IS THE DUPE/OVER-EAT REFUSAL — the
-                         debit IS the ownership check, exactly as for equip. */
+                         debit IS the ownership check, exactly as for equip.
+
+     ⚠ THERE IS NO `already_full` CODE, AND ITS ABSENCE IS THE FIX. An earlier
+       revision gated a full-HP eat server-side; but during a live
+       client-predicted fight the server pointer is idle and server hp reads
+       stale-FULL, so that gate refused the eat, left the food UNDEBITED, and
+       reproduced Paione's P0 exactly. The server always debits (the heal is a
+       no-op at full server hp); wasting food at full HP is the client's call. */
   ITEM_NOT_FOOD: 'item_not_food',
-  ALREADY_FULL: 'already_full',
 });
 
 /* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────
@@ -845,10 +844,9 @@ export const STATELESS_REFUSALS = Object.freeze([
      ITEMS catalogue BEFORE the rate gate and before any database work, exactly
      like `item_not_sellable`, so reading a state envelope for it is the database
      work the shape check exists to avoid. `bad_item` / `unknown_item` are
-     already on this list above (shared with vendor_sell).
-     ⚠ `already_full` is DELIBERATELY NOT here: it is decided AFTER the server HP
-       read, the caller has already paid for the envelope, and a refusal it
-       cannot reconcile from would leave the client's optimistic heal standing. */
+     already on this list above (shared with vendor_sell). There is no
+     `already_full` — the server never gates a full-hp eat (see the eat error
+     block above for why that gate reproduced the live-combat P0). */
   INTENT_ERRORS.ITEM_NOT_FOOD,
 ]);
 

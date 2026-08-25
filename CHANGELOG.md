@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 479 — 2026-08-25 (Harvest counts, chat names, Tools filter)
+
+- 🌱 Fixed the Home "Harvest" tile always showing 0 — it was reading a counter nothing writes. It now reads the real crops-harvested count, so today's harvest actually shows.
+- 🔒 **Fixed a chat name showing your email prefix.** If you were signed in but hadn't picked a display name, chat could broadcast the front part of your email as your name to other players. It now falls back to your chosen name (or "Adventurer"), never your email.
+- 🧰 Added a **Tools** filter to the inventory — axes, pickaxes, and fishing rods now have their own category instead of hiding under "All".
+
 ## v0.9.2-beta build 477 — 2026-08-25 (Workers show up again — really this time)
 
 - 👷 **Actually fixed the empty worker roster on reload.** Build 476 fixed the server side, but the client still didn't rebuild your crew when you reloaded while idle (the code that hydrates workers only ran mid-activity) — so a returning idle player still saw zero workers. Your crew now rebuilds on every load, idle or not. Added a test that fails if any load-time rebuild (workers, inventory, farm, companions, traits) is ever left unwired again.

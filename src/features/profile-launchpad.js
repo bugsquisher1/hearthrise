@@ -91,7 +91,13 @@
       gold:          (typeof window.balOr === 'function') ? window.balOr('gold', 0) : (window.G.gold | 0),
       kills:         stats.kills | 0,
       gathered:      stats.gathered | 0,
-      harvested:     stats.harvested | 0,
+      /* b478: harvest reads cropsHarvested, NOT the dead `harvested`. Farm harvest
+         increments G.stats.cropsHarvested (companions.js/harvestPlot); the old
+         `harvested` field is never written on a crop harvest, so the Home "Harvest"
+         tile printed 0 forever — the same dead-field class as the b341 xp tile.
+         The delta key below stays `harvested` so consumers (home-dashboard.js) are
+         unchanged; only the SOURCE counter moves to the live one. */
+      harvested:     stats.cropsHarvested | 0,
       deedsDropped:  inv.farm_deed | 0,
       /* b228: renown joins the baseline so the Throne ladder can honestly say
          "+N renown today" off the SAME midnight rollover every other daily
@@ -123,7 +129,7 @@
         ? 0 : Math.max(0, ((typeof window.balOr === 'function' ? window.balOr('gold', 0) : (window.G.gold|0))) - snap.gold),
       kills:        Math.max(0, (stats.kills|0)   - snap.kills),
       gathered:     Math.max(0, (stats.gathered|0)- snap.gathered),
-      harvested:    Math.max(0, (stats.harvested|0)-snap.harvested),
+      harvested:    Math.max(0, (stats.cropsHarvested|0)-snap.harvested),
       deedsDropped: Math.max(0, (inv.farm_deed|0) - snap.deedsDropped),
     };
   }

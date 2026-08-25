@@ -9015,6 +9015,7 @@ const _CATEGORIES = [
   {id:'food',    label:'Food',     test:it=>it && it.heals},
   {id:'seeds',   label:'Crops',    test:it=>it && (it.seed || it.crop)},
   {id:'bones',   label:'Bones',    test:it=>it && (it.buryXp || /bones?$/.test(it.n||''))},
+  {id:'tools',   label:'Tools',    test:it=>it && it.type==='tool'},   // b479: axes/picks/rods live in the bag (core/tools.js scans it) but only matched "All"
   {id:'mat',     label:'Materials',test:it=>it && !it.type && !it.heals && !it.seed && !it.buryXp},
 ];
 function _filteredItems(srcDict){
@@ -15192,6 +15193,7 @@ var CATEGORIES = [
   {id:'mats',    glyph:'uiOre',    name:'Materials',    test:function(it){return it && !it.type && !it.heals && !it.seed && !it.buryXp && !it.recipe;}},
   {id:'seeds',   glyph:'uiSeed',   name:'Seeds',        test:function(it){return it && it.seed;}},
   {id:'bones',   glyph:'uiBone',   name:'Bones',        test:function(it){return it && it.buryXp;}},
+  {id:'tools',   glyph:'uiPickaxe',name:'Tools',        test:function(it){return it && it.type==='tool';}},
   {id:'recipes', glyph:'uiScroll', name:'Recipes',      test:function(it){return it && it.recipe;}},
   {id:'comp',    glyph:'uiPaw',    name:'Companions',   test:function(it){return it && it.type==='companion';}},
 ];

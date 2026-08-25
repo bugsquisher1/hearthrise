@@ -157,8 +157,17 @@
     var id = window.HearthriseIdentity;
     var unique = (id && typeof id.isUniqueName === 'function' && id.isUniqueName() &&
                   typeof id.displayName === 'function') ? id.displayName() : null;
+    // b479 — NEVER derive a chat name from the account EMAIL. `from_name` is
+    // written to the messages row (supabase-chat-backend.js) and shown to every
+    // other player, so the old `(liveUser.email||'').split('@')[0]` fallback
+    // BROADCAST the email local-part as a signed-in-but-unclaimed player's chat
+    // name (privacy leak — the last surviving copy of the fallback that
+    // home-dashboard.js/identity.js already removed). Keep the auth
+    // display_name (a name the player chose, not their email), then fall through
+    // to the email-safe HearthriseIdentity.displayName() → G.playerName →
+    // 'Adventurer' chain.
     var name = unique
-            || (liveUser && (liveUser.user_metadata && liveUser.user_metadata.display_name || (liveUser.email||'').split('@')[0]))
+            || (liveUser && liveUser.user_metadata && liveUser.user_metadata.display_name)
             || (id && typeof id.displayName === 'function' ? id.displayName() : null)
             || G.playerName
             || (profile && profile.displayName)

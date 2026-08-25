@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=475' directly.
+// modularised, will import { G } from '../state/game.js?v=476' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=475';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=475';
+import { on, snapshot } from '../net/events.js?v=476';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=476';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=475';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=476';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -1824,7 +1824,15 @@ const TESTS = [
     // the same shape as slice 1's upgradeProperty test.
     const snap = snapshotG();
     try {
-      if (window.HearthriseWorkers && typeof window.HearthriseWorkers.hire === 'function' && window.HearthriseHomestead) {
+      /* The WORKER block is the FLAG-OFF (legacy, client-mints) path only. With
+         WORKER_PRODUCTION_SERVER_BACKED armed (the live default) the hire is
+         HIRE-FIRST and async — it materialises against the server's paid cap and
+         debits only on a real crew_cap_reached round-trip — so a synchronous
+         single-debit assertion no longer describes it. That armed path is covered
+         by the dedicated async tests (worker-settlement / HIRE-OWNED-1 /
+         HIRE-STRANDED-1). buildPlot + bank below are unchanged and still sync. */
+      const workerArmed = !!(window.HearthriseItemAuthority && window.HearthriseItemAuthority.WORKER_PRODUCTION_SERVER_BACKED);
+      if (!workerArmed && window.HearthriseWorkers && typeof window.HearthriseWorkers.hire === 'function' && window.HearthriseHomestead) {
         window.G.homestead = { tier: 1 };            // 1 worker slot
         window.G.workers = { hired: [] };
         window.G.gold = 100000;
@@ -1872,7 +1880,13 @@ const TESTS = [
     try {
       S.buyUnlock = function () { sent.push(Array.prototype.slice.call(arguments)); return Promise.resolve({ sent: false }); };
 
-      if (window.HearthriseWorkers && typeof window.HearthriseWorkers.hire === 'function' && window.HearthriseHomestead) {
+      /* WORKER block is FLAG-OFF only: HIRE-FIRST fires buyUnlock asynchronously,
+         and only after the server answers crew_cap_reached — a synchronous
+         `sent`-capture cannot observe it. The armed path's wire (buyUnlock sends
+         worker_hire.<next rung>, offer+key only) is asserted in the async
+         worker-settlement test. buildPlot + bank below are synchronous and stay. */
+      const workerArmed = !!(window.HearthriseItemAuthority && window.HearthriseItemAuthority.WORKER_PRODUCTION_SERVER_BACKED);
+      if (!workerArmed && window.HearthriseWorkers && typeof window.HearthriseWorkers.hire === 'function' && window.HearthriseHomestead) {
         window.G.homestead = { tier: 1 }; window.G.workers = { hired: [] }; window.G.gold = 100000;
         stampBalanceLikeLoad(window.G);   // armed: hire() gates on the affordability read before firing buyUnlock
         sent.length = 0;
@@ -3924,10 +3938,17 @@ const TESTS = [
     window.HearthriseGold = Object.assign({}, goldBefore, {
       buyUnlock: function (offer) { buyCalls.push(offer); return Promise.resolve({ outcome: 'applied' }); }
     });
-    // net stub: records intents, answers server-shaped envelopes.
+    /* net stub: HIRE-FIRST — hr_worker_hire is asked FIRST. With no rung paid
+       yet it answers crew_cap_reached(paid_cap:0), which drives the client to
+       buy worker_hire.1 and hire again (the second call materialises). */
+    let hireN = 0;
     window.HearthriseWorkersNet = {
       isSignedIn: function () { return true; },
-      hire: function () { hireCalls.push(1); return Promise.resolve({ ok: true, uid: SRV_UID, name: 'Aldric', crew: 1 }); },
+      hire: function () {
+        hireCalls.push(1);
+        if (++hireN === 1) return Promise.resolve({ ok: false, error: 'crew_cap_reached', crew: 0, paid_cap: 0 });
+        return Promise.resolve({ ok: true, uid: SRV_UID, name: 'Aldric', crew: 1 });
+      },
       assign: function (uid, skill, target) { assignCalls.push([uid, skill, target]); return Promise.resolve({ ok: true, uid: uid, skill: skill, target_id: target }); }
     };
     const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -3942,10 +3963,10 @@ const TESTS = [
       const temp = W.hire();
       assert(temp && temp.uid, 'hire returns an optimistic worker for instant feedback');
       assert(G.workers.hired.length === 1, 'the optimistic worker is shown immediately');
-      assert(buyCalls.length === 0 || buyCalls[buyCalls.length - 1] === 'worker_hire.1',
-        'hire buys the next paid rung worker_hire.1; got ' + JSON.stringify(buyCalls));
-      await tick(); await tick(); await tick();   // let buy -> materialise settle
-      assert(hireCalls.length === 1, 'hire must call hr_worker_hire after the rung commits');
+      await tick(); await tick(); await tick(); await tick();   // hire -> cap -> buy -> hire
+      assert(buyCalls.length === 1 && buyCalls[0] === 'worker_hire.1',
+        'on crew_cap_reached the hire buys the next paid rung worker_hire.1; got ' + JSON.stringify(buyCalls));
+      assert(hireCalls.length === 2, 'HIRE-FIRST: hr_worker_hire is called once to probe the cap, then again to materialise after the rung commits; got ' + hireCalls.length);
       assert(G.workers.hired.length === 1 && G.workers.hired[0].uid === SRV_UID,
         'the optimistic worker takes the server uid; got ' + JSON.stringify(G.workers.hired.map((w) => w.uid)));
       assert(G.workers.hired[0]._pending === false, 'the worker is no longer pending once materialised');
@@ -24531,18 +24552,81 @@ const TESTS = [
       window.HearthriseGold = Object.assign({}, origGold, {
         buyUnlock: () => Promise.resolve({ outcome: 'refused', reason: 'already_owned' }),
       });
+      /* HIRE-FIRST: the first hr_worker_hire probes the cap. Force
+         crew_cap_reached so the client is driven into the rung-purchase branch,
+         where the already_owned RECEIPT must still let the second hire land. */
+      let hireN = 0;
       window.HearthriseWorkersNet = Object.assign({}, origNet, {
         isSignedIn: () => true,
-        hire: () => { netHired++; return Promise.resolve({ ok: true, uid: 'srv-1', name: 'Test Hand' }); },
+        hire: () => {
+          if (++hireN === 1) return Promise.resolve({ ok: false, error: 'crew_cap_reached', crew: 0, paid_cap: 0 });
+          netHired++; return Promise.resolve({ ok: true, uid: 'srv-1', name: 'Test Hand' });
+        },
       });
       G.workers = { hired: [] };
       const w = W.hire();
       assert(w, 'the optimistic worker must be created');
       await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
       assert(netHired === 1, 'THE BUG: an already_owned rung must proceed to hr_worker_hire (the cap is paid)');
       assert(G.workers.hired.length === 1 && G.workers.hired[0].uid === 'srv-1',
         'the crew row must survive and take the server uid');
       assert(!toasts.some((t) => /could not complete/i.test(t)), 'no failure toast on a paid cap');
+    } finally {
+      window.HearthriseGold = origGold; window.HearthriseWorkersNet = origNet;
+      window.HearthriseHomestead = origHomestead; window.clientMayWriteRecordField = origMay;
+      window.balCanAfford = origAfford; window.goldSettle = origSettle; window.goldIntentKey = origKey;
+      window.notify = origNotify;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('HIRE-STRANDED-1 (2026-08-25): a paid-but-unmaterialised rung heals on the next hire with NO repurchase', async () => {
+    /* THE LIVE FAILURE, QA account 0a47ba77, slot 0: worker_hire=1 owned in
+       player_progress, player_workers empty, gold unspent. The old code bought
+       the rung FIRST, and when the buy came back already_owned in a wire shape
+       the client did not classify as `owned`, it dropped the optimistic worker
+       and NEVER called hr_worker_hire — so the paid crew was unreachable.
+       HIRE-FIRST fix: hr_worker_hire is asked first and materialises against the
+       already-paid cap, so buyUnlock is never sent for a stranded/available rung.
+       MUTATION: revert workers.js hireServer to buy-then-hire -> buyUnlock is
+       called, returns a non-`owned` refusal, the worker is dropped -> RED. */
+    const W = window.HearthriseWorkers, G = window.G;
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origNet = window.HearthriseWorkersNet;
+    const origHomestead = window.HearthriseHomestead, origMay = window.clientMayWriteRecordField;
+    const origAfford = window.balCanAfford, origSettle = window.goldSettle, origKey = window.goldIntentKey;
+    const origNotify = window.notify;
+    const toasts = []; let netHired = 0, buyCalls = 0;
+    try {
+      window.clientMayWriteRecordField = () => false;   // armed
+      window.notify = (m) => { toasts.push(String(m)); };
+      window.balCanAfford = () => true;
+      window.goldSettle = () => {}; window.goldIntentKey = () => 'k-test';
+      window.HearthriseHomestead = Object.assign({}, origHomestead, { workerSlots: () => 1 });
+      /* If the fix regresses, buyUnlock is reached and returns a shape the old
+         `owned` check rejects — reproducing the live drop. If the fix holds,
+         buyUnlock is never called at all. */
+      window.HearthriseGold = Object.assign({}, origGold, {
+        buyUnlock: () => { buyCalls++; return Promise.resolve({ outcome: 'refused', reason: 'unlock_buy_failed' }); },
+      });
+      /* The stranded state: the paid cap has room (crew 0 < paid_cap 1), so the
+         FIRST hr_worker_hire materialises for free. */
+      window.HearthriseWorkersNet = Object.assign({}, origNet, {
+        isSignedIn: () => true,
+        hire: () => { netHired++; return Promise.resolve({ ok: true, uid: 'srv-strand', name: 'Aldric', crew: 1 }); },
+      });
+      G.workers = { hired: [] };
+      const w = W.hire();
+      assert(w, 'the optimistic worker must be created');
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+      assert(netHired === 1, 'THE FIX: a stranded/available paid cap materialises on hr_worker_hire directly');
+      assert(buyCalls === 0, 'NO repurchase is sent for a rung already paid — buyUnlock must not be called');
+      assert(G.workers.hired.length === 1 && G.workers.hired[0].uid === 'srv-strand',
+        'the crew survives and takes the server uid; got ' + JSON.stringify(G.workers.hired.map((x) => x.uid)));
+      assert(!toasts.some((t) => /could not complete/i.test(t)), 'no failure toast when the cap is already paid');
     } finally {
       window.HearthriseGold = origGold; window.HearthriseWorkersNet = origNet;
       window.HearthriseHomestead = origHomestead; window.clientMayWriteRecordField = origMay;
@@ -31796,7 +31880,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=475');
+    const KIT = await import('../data/start-kit.js?v=476');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -37819,7 +37903,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=475');
+    const S = await import('../data/shops.js?v=476');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -39230,7 +39314,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=475');
+    const S = await import('../data/shops.js?v=476');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -42948,7 +43032,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=475')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=476')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -44390,7 +44474,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=475');
+    const A = await import('../net/accrue.js?v=476');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -44414,7 +44498,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=475');
+    const A = await import('../net/accrue.js?v=476');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -44567,7 +44651,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=475')).text();
+      const raw = await (await fetch(f + '?v=476')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -44617,7 +44701,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=475')).text();
+    const raw = await (await fetch('src/observability.js?v=476')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 

@@ -42,7 +42,7 @@ export async function accrueEnvelopeAwayGuard() {
     fail('could not load accrue.js, so NOTHING below ran: ' + (e && e.message));
     return problems;
   }
-  const { isEnvelopeApplicable, classifyAccrueResponse } = A;
+  const { isEnvelopeApplicable, classifyAccrueResponse, reconcileWorkers } = A;
   if (typeof isEnvelopeApplicable !== 'function' || typeof classifyAccrueResponse !== 'function') {
     fail('accrue.js does not export isEnvelopeApplicable / classifyAccrueResponse');
     return problems;
@@ -84,6 +84,15 @@ export async function accrueEnvelopeAwayGuard() {
         fail('SOURCE: the standalone-settle away receipt sets `windowTo: read.now` (an ISO string) — '
           + 'summaryFromAway does Number(a.windowTo) so the card shows a null window. Use nowMs (ms).');
       }
+      /* THE ROSTER-CLOBBER GUARD (2026-08-25). The branch must NOT put the worker
+         SUMMARY back at the `workers` key — that overwrites hr_state_of's crew
+         roster (from `...wr`) with a stats object, and reconcileWorkers then sees
+         a non-array and leaves the crew empty. The summary rides `workerSummary`. */
+      if (/\bworkers:\s*wout\.summary\b/.test(branch)) {
+        fail('SOURCE: the standalone-settle branch spreads `workers: wout.summary`, clobbering the '
+          + 'crew ROSTER `...wr` carries. reconcileWorkers reads `workers` as an array and will skip '
+          + 'the summary object, leaving an idle player\'s producing crew invisible. Use workerSummary.');
+      }
     }
   } catch (e) {
     fail('SOURCE: could not read index.ts: ' + (e && e.message));
@@ -119,18 +128,27 @@ export async function accrueEnvelopeAwayGuard() {
   // charged. `away` carries no items; the bank is surfaced via `rested`.
   const restedOnly = { ...baseEnvelope(), away: awayReceipt({}), rested: { granted: 3 } };
 
-  // Worker-only standalone settle: crew haul on `away.items` + `workers` summary.
+  /* Worker-only standalone settle: crew haul on `away.items`; `workers` is the
+     CREW ROSTER (the array reconcileWorkers reads), and the stats summary rides
+     the non-colliding `workerSummary` key. The pre-2026-08-25 shape put the
+     summary at `workers`, which clobbered the roster and left an idle player's
+     producing crew invisible. */
+  const WORKER_ROSTER = [
+    { uid: 'wSRV', name: 'Aldric', skill: 'mining', target_id: 'copper_rock', xp: 74598, acc_ms: 0 },
+  ];
   const workerOnly = {
     ...baseEnvelope(),
     away: awayReceipt({ copper_ore: 40 }),
-    workers: { spanMs: 172800000, qty: 40, workers: 1, capped: false },
+    workers: WORKER_ROSTER,
+    workerSummary: { spanMs: 172800000, qty: 40, workers: 1, capped: false },
   };
 
   // Both compose.
   const both = {
     ...baseEnvelope(),
     away: awayReceipt({ copper_ore: 40 }),
-    workers: { spanMs: 172800000, qty: 40, workers: 1, capped: false },
+    workers: WORKER_ROSTER,
+    workerSummary: { spanMs: 172800000, qty: 40, workers: 1, capped: false },
     rested: { granted: 3 },
   };
 
@@ -169,6 +187,31 @@ export async function accrueEnvelopeAwayGuard() {
       fail(`CONTRACT: the idle-nothing-owed accrued:false response classified as "${c.outcome}" — `
         + 'expected "nothing".');
     }
+  }
+
+  /* RECONCILE CONTRACT (2026-08-25). The worker-only standalone-settle envelope
+     must actually RENDER the crew: reconcileWorkers reads `res.workers` as the
+     roster and returns the crew size. A summary object at `workers` (the pre-fix
+     shape) returns null — the invisible-crew bug. This is the client half of the
+     roster-clobber guard above. */
+  if (typeof reconcileWorkers === 'function') {
+    const G = { workers: { hired: [] } };
+    const n = reconcileWorkers(G, workerOnly);
+    if (n !== 1 || !(G.workers && G.workers.hired && G.workers.hired.length === 1)) {
+      fail('RECONCILE: the worker-only standalone-settle envelope did not render the crew '
+        + `(reconcileWorkers -> ${n}); the roster must live at res.workers as an array.`);
+    } else if (G.workers.hired[0].uid !== 'wSRV' || G.workers.hired[0].targetId !== 'copper_rock') {
+      fail('RECONCILE: the crew rendered but lost its identity/assignment (target_id -> targetId).');
+    }
+    // The pre-fix shape (summary at `workers`) must NOT reconcile — proving the fix is load-bearing.
+    const G2 = { workers: { hired: [] } };
+    const preFix = { ...workerOnly, workers: { spanMs: 1, qty: 40, workers: 1, capped: false } };
+    if (reconcileWorkers(G2, preFix) !== null) {
+      fail('RECONCILE: a summary object at `workers` was treated as a roster — the guard is not '
+        + 'catching the clobber shape.');
+    }
+  } else {
+    fail('accrue.js does not export reconcileWorkers');
   }
 
   return problems;

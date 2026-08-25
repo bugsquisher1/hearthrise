@@ -819,8 +819,19 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
             levelUps: [],
             events: [],
           };
+          /* ⚠ THE ROSTER, NOT THE SUMMARY, LIVES AT `workers` (2026-08-25).
+             `...wr` is hr_state_of and already carries `workers` as the CREW
+             ROSTER — the array src/net/accrue.js reconcileWorkers reads. An
+             earlier revision spread the worker SUMMARY at that same key here,
+             which OVERWROTE that array with a stats object; reconcileWorkers saw
+             a non-array, returned null, and left G.workers.hired = [] — so an
+             idle player with a PRODUCING crew (their own pointer idle, crew
+             mining) saw an empty roster and re-hired a worker they already had
+             (QA 0a47ba77, live). The crew haul is already surfaced on
+             `away.items`; the summary is telemetry only, so it moves to a
+             non-colliding key and the roster survives. */
           return json({ ok: true, accrued: true, ...wr, away,
-            ...(wout.accrued ? { workers: wout.summary } : {}),
+            ...(wout.accrued ? { workerSummary: wout.summary } : {}),
             ...(rout.accrued ? { rested: { granted: rout.granted } } : {}) });
         }
         // A refused / replayed aux settle falls through to the plain not-accrued
@@ -830,7 +841,15 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       // advanced, so a sub-threshold call cannot confiscate the time it
       // declined to pay for. The rate budget HAS been spent (see the gate
       // above), so this path is not free to loop.
-      return json({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now });
+      // ⚠ BUT THE CREW ROSTER STILL RIDES (2026-08-25). This is the boot path for
+      //   an idle player with an idle crew: the pointer owes nothing and the
+      //   workers produced nothing, yet the client must still render the crew it
+      //   HAS. `env` is hr_state_of, so its `workers` is the authoritative
+      //   roster; passing it lets reconcileWorkers paint the crew. An empty roster
+      //   is a truthful [] (the player has no crew) — reconcile treats that as
+      //   "the crew is genuinely empty", which is correct.
+      return json({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now,
+        ...(Array.isArray((env as Record<string, any>).workers) ? { workers: (env as Record<string, any>).workers } : {}) });
     }
 
     // ── APPLY. The single writer. ──────────────────────────────────────────

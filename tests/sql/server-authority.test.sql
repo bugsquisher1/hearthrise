@@ -67,6 +67,36 @@ begin
   return v;
 end $$;
 
+-- THE UNLOCK PURCHASE, as the Edge reaches it: role hr_engine, naming the user
+-- it authenticated, at the version this call read. Mirrors eapply.
+create or replace function pg_temp.ebuy(
+  p_user uuid, p_version bigint, p_offer text, p_key uuid default null)
+returns jsonb language plpgsql as $$
+declare v jsonb;
+begin
+  perform set_config('role', 'hr_engine', true);
+  v := public.hr_unlock_buy(p_user, 0, p_version, coalesce(p_key, gen_random_uuid()), p_offer);
+  perform set_config('role', 'none', true);
+  return v;
+end $$;
+
+-- THE WORKER HIRE, as the client reaches it: directly as the authenticated
+-- user (hr_worker_hire reads auth.uid(), not an engine-named user).
+create or replace function pg_temp.ehire(p_user uuid, p_key uuid default null)
+returns jsonb language plpgsql as $$
+declare v jsonb;
+begin
+  perform pg_temp.as_user(p_user);
+  v := public.hr_worker_hire(0, coalesce(p_key, gen_random_uuid()));
+  perform set_config('request.jwt.claims', '', true);
+  return v;
+end $$;
+
+create or replace function pg_temp.crew(p_user uuid)
+returns int language sql security definer as $$
+  select count(*)::int from public.player_workers where user_id = p_user and slot = 0
+$$;
+
 -- Read helpers are SECURITY DEFINER so they keep working whatever role the
 -- test is wearing.
 create or replace function pg_temp.ver(p_user uuid)
@@ -1003,6 +1033,93 @@ begin
   perform pg_temp.ok(exists (select 1 from public.market_listings where id = lid),
     'the listing is untouched by the refused buy');
   perform set_config('request.jwt.claims', '', true);
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 23. W1 — WORKER HIRE: property gate, rung purchase, crew materialisation,
+--     idempotent replay, and THE STRANDED-CAP SELF-HEAL (2026-08-25).
+--
+--     THE LIVE FAILURE (QA 0a47ba77, slot 0): the crew is created by TWO RPCs —
+--     hr_unlock_buy raises the paid cap (worker_hire.<N>), hr_worker_hire
+--     materialises a crew row up to it. They are not atomic, so a paid rung with
+--     an empty player_workers is a reachable state. This section proves the
+--     server contract that makes the HIRE-FIRST client fix correct: with a rung
+--     already paid, hr_worker_hire materialises a worker for FREE (no gold, no
+--     repurchase) and is idempotent on replay. If hr_worker_hire ever gated
+--     materialisation behind a fresh purchase, §(e) below goes RED.
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare c uuid := '00000000-0000-4000-8000-00000000cccc';
+        r jsonb; g0 bigint; ver bigint; k uuid; v_gold bigint;
+begin
+  raise notice '-- W1 worker hire + stranded self-heal';
+  insert into auth.users (id) values (c) on conflict (id) do nothing;
+  insert into public.profiles (id, display_name) values (c, 'TestCrew')
+    on conflict (id) do update set display_name = excluded.display_name;
+  perform pg_temp.as_user(c);
+  perform public.hr_create_character(0);
+  perform set_config('request.jwt.claims', '', true);
+
+  -- Fund the character: gold + the exact property-upgrade item cost.
+  perform pg_temp.eapply(c, pg_temp.ver(c),
+    '{"gold":100000,"items":{"normal_log":30,"copper_ore":20}}'::jsonb);
+
+  -- (a) HIRE BEFORE ANY HOMESTEAD — property gate on worker_hire.1 (needs tier 1).
+  perform pg_temp.ok((pg_temp.ehire(c))->>'error' = 'crew_cap_reached',
+    'a tier-0 character has paid cap 0 — the hire answers crew_cap_reached');
+  r := pg_temp.ebuy(c, pg_temp.ver(c), 'worker_hire.1');
+  perform pg_temp.ok(r->>'ok' is distinct from 'true' and r->>'error' = 'prereq_property_tier',
+    'worker_hire.1 is refused with prereq_property_tier before a homestead exists');
+
+  -- (b) THE PROPERTY UPGRADE tier 0 -> 1: gold AND items charged, rung recorded.
+  g0 := pg_temp.gold(c);
+  r := pg_temp.ebuy(c, pg_temp.ver(c), 'property.homestead');
+  perform pg_temp.ok(r->>'ok' = 'true', 'property.homestead upgrade lands');
+  perform pg_temp.ok(pg_temp.gold(c) = g0 - 400, 'the 400g property cost left the account');
+  perform pg_temp.ok(pg_temp.inv(c, 'normal_log') = 0 and pg_temp.inv(c, 'copper_ore') = 0,
+    'the item cost (30 log + 20 ore) was consumed server-side');
+  perform pg_temp.ok(
+    coalesce((select value from public.player_progress
+               where user_id = c and slot = 0 and kind = 'unlock'
+                 and key = 'property:homestead' and period_key = ''), 0) = 1,
+    'the property rung is recorded in player_progress');
+
+  -- (c) BUY THE WORKER RUNG: 500g charged, worker_hire=1 recorded, crew still 0.
+  g0 := pg_temp.gold(c);
+  r := pg_temp.ebuy(c, pg_temp.ver(c), 'worker_hire.1');
+  perform pg_temp.ok(r->>'ok' = 'true', 'worker_hire.1 rung purchased once the homestead exists');
+  perform pg_temp.ok(pg_temp.gold(c) = g0 - 500, 'the 500g rung cost left the account exactly once');
+  perform pg_temp.ok(pg_temp.crew(c) = 0, 'buying the RUNG does not itself create a crew row (two-step by design)');
+
+  -- (d) HIRE materialises the crew up to the paid cap: 500g NOT charged again.
+  k := gen_random_uuid();
+  v_gold := pg_temp.gold(c);
+  r := pg_temp.ehire(c, k);
+  perform pg_temp.ok(r->>'ok' = 'true' and (r->>'crew')::int = 1, 'hr_worker_hire materialises the paid worker');
+  perform pg_temp.ok(pg_temp.crew(c) = 1, 'exactly one crew row now exists');
+  perform pg_temp.ok(pg_temp.gold(c) = v_gold, 'materialising a paid worker charges NO gold');
+
+  -- (e) IDEMPOTENT REPLAY: the same key returns the same answer, no second worker.
+  r := pg_temp.ehire(c, k);
+  perform pg_temp.ok(r->>'ok' = 'true' and pg_temp.crew(c) = 1,
+    'replaying the hire key is a no-op — the crew stays at 1');
+
+  -- (f) THE STRANDED-CAP SELF-HEAL. Wipe the crew but KEEP the paid rung — the
+  --     exact live state. The next hire must re-materialise for FREE, no rung
+  --     repurchase, because the cap is already paid.
+  delete from public.player_workers where user_id = c and slot = 0;
+  perform pg_temp.ok(pg_temp.crew(c) = 0, 'crew wiped, worker_hire=1 rung still owned (stranded)');
+  v_gold := pg_temp.gold(c);
+  r := pg_temp.ehire(c);
+  perform pg_temp.ok(r->>'ok' = 'true' and pg_temp.crew(c) = 1,
+    'THE FIX: a stranded paid cap re-materialises a worker on the next hire');
+  perform pg_temp.ok(pg_temp.gold(c) = v_gold,
+    'and it costs NO gold — the rung was already paid (no double-charge)');
+
+  -- (g) AT THE CAP, hiring again is refused (crew 1 == paid_cap 1), no free worker.
+  perform pg_temp.ok((pg_temp.ehire(c))->>'error' = 'crew_cap_reached',
+    'once the paid cap is full the hire is refused — the client must buy the next rung');
+  perform pg_temp.ok(pg_temp.crew(c) = 1, 'and no extra worker was minted past the paid cap');
 end $$;
 
 do $$

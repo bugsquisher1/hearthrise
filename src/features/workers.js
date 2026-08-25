@@ -129,42 +129,40 @@
       if (window.notify) notify(slots() === 0 ? 'Upgrade your property to hire workers' : 'No free worker slots — upgrade your property', 'kill');
       return null;
     }
+    /* ── SERVER-BACKED (the live path). Crew size is a SELLABLE unlock ladder
+       (`worker_hire.<N>`) and the crew itself is a SERVER-OWNED table. The two
+       are materialised by TWO SECURITY DEFINER RPCs: hr_unlock_buy raises the
+       PAID CAP, hr_worker_hire creates a crew row up to that cap. They are NOT
+       atomic, so a paid rung with no crew is a real, reachable state — three
+       live players hit it in the b463 offers-wipe window and the QA account hit
+       it again on 2026-08-25 (rung `worker_hire=1` owned, `player_workers`
+       empty, gold correctly unspent). The old order (buy the rung, THEN hire)
+       lost the crew whenever the buy came back `already_owned` in a wire shape
+       the client did not classify as `owned`, so hr_worker_hire was never
+       reached.
+       THE ORDER IS NOW HIRE-FIRST. Materialise against the paid cap BEFORE
+       spending a coin: if the cap has room — a fresh purchase OR a stranded rung
+       — the worker is created for free and NO unlock_buy is sent at all, so the
+       hire can no longer be lost to however the edge spells `already_owned`.
+       Only when the server itself answers `crew_cap_reached` do we buy the NEXT
+       rung (stated by the server as paid_cap+1) and hire again. hr_worker_hire
+       is the single authority for "is there room"; the purchase is a CONSEQUENCE
+       of hitting the cap, never a precondition. No price crosses either call. */
+    if (serverBacked()) return hireServer(G);
+
+    // ── LEGACY LOCAL PATH (flag off): buy the rung, then mint the crew locally.
     var cost = hireCost();
     if (!window.balCanAfford(cost, 'gold')) {
       if (window.notify) notify(window.balKnown('gold') ? ('Need ' + cost.toLocaleString() + ' gold to hire')
         : window.balShortfall(cost, 'gold'), 'kill');
       return null;
     }
-    /* ── b4xx — THE GOLD DEBIT IS THE SERVER'S NOW (unlock_buy, slice 2). ──────
-       Crew size is a SELLABLE unlock ladder (`worker_hire.<N>`). The offer id is
-       the NEXT rung — current crew + 1 — mirroring homestead.js's
-       `property.<nextTier>`; hr_unlock_buy reads price + the per-rung property-
-       tier gate off public.hr_unlock_offers and merges the rung GREATEST. NO
-       PRICE CROSSES. The gold line goes through the record seam (window.goldSettle)
-       so with the accrual switch ON it is a PREDICTION the envelope reconciles and
-       flip-safe; switch OFF it is the plain local debit that shipped before. */
     var _offer = 'worker_hire.' + (G.workers.hired.length + 1);
     var _k = (typeof window.goldIntentKey === 'function') ? window.goldIntentKey() : null;
     window.goldSettle(-cost, 'workers.hire', _k);
-    /* THE RUNG PURCHASE — real gold debit + paid-cap raise, server-side. Fired
-       for BOTH paths (unchanged from the pre-slice wiring): the server-backed
-       hire below reads this same purchase's promise so it can AWAIT the rung
-       before materialising, and the legacy path just lets it settle. */
-    var _buy = null;
     if (_k && window.HearthriseGold && typeof window.HearthriseGold.buyUnlock === 'function') {
-      _buy = window.HearthriseGold.buyUnlock(_offer, _k); if (_buy && _buy.catch) _buy.catch(function () {});
+      var _b = window.HearthriseGold.buyUnlock(_offer, _k); if (_b && _b.catch) _b.catch(function () {});
     }
-
-    /* ── SERVER-BACKED HIRE (worker-settlement slice) ─────────────────────────
-       With the crew server-owned, the AUTHORITATIVE crew row is created by
-       hr_worker_hire (materialised up to the paid cap) and rendered from the
-       envelope by reconcileWorkers(). The optimistic worker pushed below is a
-       DISPLAY PREDICTION only — reconcileWorkers REPLACES G.workers.hired
-       wholesale from the server on the next envelope, so it is never a
-       client-authored crew the server reads. */
-    if (serverBacked()) return hireServer(G, _buy);
-
-    // ── LEGACY LOCAL PATH (flag off): the client mints the crew verbatim ──────
     var used = G.workers.hired.map(function (w) { return w.name; });
     var pool = NAMES.filter(function (n) { return used.indexOf(n) < 0; });
     var w = {
@@ -193,54 +191,77 @@
     if (i >= 0) G.workers.hired.splice(i, 1);
   }
 
-  /* Show an optimistic worker at once (matching the pre-slice instant feedback),
-     then materialise the AUTHORITATIVE crew row on the server. The rung purchase
-     is AWAITED before hr_worker_hire because that RPC reads the paid cap
-     (hr_unlock_levels) and would answer crew_cap_reached against a rung that has
-     not committed yet. The server's uid is stamped onto the prediction so the
+  /* HIRE-FIRST server materialisation. Show an optimistic worker at once, then
+     ask the server to CREATE the authoritative crew row against the paid cap. A
+     rung that is already paid (a fresh purchase from a previous click, or a
+     stranded rung) is drained here for FREE with no purchase attempt — which is
+     the whole fix for the 2026-08-25 stranded-cap failure. Only a genuine
+     `crew_cap_reached` triggers a purchase of the NEXT rung, after which we
+     materialise again. The server's uid is stamped onto the prediction so the
      next envelope's reconcileWorkers() matches it and preserves the display
-     ledger; a refusal drops the prediction. Returns the optimistic worker. */
-  function hireServer(G, buy) {
+     ledger; a hard refusal drops the prediction. Returns the optimistic worker. */
+  function hireServer(G) {
+    var Net = window.HearthriseWorkersNet;
+    if (!Net || !Net.isSignedIn()) {
+      if (window.notify) notify('Connect to the server to hire workers', 'kill');
+      return null;
+    }
     var temp = makeOptimisticWorker(G);
     G.workers.hired.push(temp);
     if (window.notify) notify('' + temp.name + ' joins your homestead!', 'levelup');
     render();
 
-    var Net = window.HearthriseWorkersNet;
-    if (Net && Net.isSignedIn()) {
-      Promise.resolve(buy || { outcome: 'applied' }).then(function (r) {
-        /* b463 — `already_owned` IS A RECEIPT, NOT A REFUSAL. Three live players
-           paid the worker_hire.1 rung and got no crew (the offers-wipe window),
-           and every retry then died here with "Could not complete the hire —
-           already owned" (Tyler, live). An owned rung means the cap is PAID —
-           the gold seam already rolled this attempt's prediction back (nothing
-           is charged twice; the server refused the debit), so the only correct
-           move is to proceed to hr_worker_hire, which materialises the crew up
-           to the paid cap. */
+    function settleOk(res) { temp.uid = res.uid; temp.name = res.name; temp._pending = false; render(); }
+    function fail(res) { dropWorker(G, temp); notifyHireError(res); render(); }
+
+    // (1) MATERIALISE against the paid cap first — free, and drains a stranded rung.
+    Promise.resolve(Net.hire()).then(function (res) {
+      if (res && res.ok) { settleOk(res); return; }
+      if (!res || res.error !== 'crew_cap_reached') { fail(res); return; }
+
+      /* (2) AT THE PAID CAP — buy the NEXT rung, then materialise. The rung is
+         (paid_cap + 1), STATED by the server in the crew_cap_reached answer, so
+         the client never guesses which rung it already owns. */
+      var paidCap = (res && isFiniteNum(res.paid_cap)) ? (res.paid_cap | 0) : (G.workers.hired.length - 1);
+      var nextRung = paidCap + 1;
+      if (nextRung > HIRE_COSTS.length) {          // 6 is the hard ceiling
+        dropWorker(G, temp);
+        if (window.notify) notify('Your crew is already at full strength', 'kill');
+        render(); return;
+      }
+      var cost = HIRE_COSTS[Math.min(paidCap, HIRE_COSTS.length - 1)];
+      if (!window.balCanAfford(cost, 'gold')) {
+        dropWorker(G, temp);
+        if (window.notify) notify(window.balKnown('gold') ? ('Need ' + cost.toLocaleString() + ' gold to hire')
+          : window.balShortfall(cost, 'gold'), 'kill');
+        render(); return;
+      }
+      var _k = (typeof window.goldIntentKey === 'function') ? window.goldIntentKey() : null;
+      window.goldSettle(-cost, 'workers.hire', _k);
+      var _buy = (_k && window.HearthriseGold && typeof window.HearthriseGold.buyUnlock === 'function')
+        ? window.HearthriseGold.buyUnlock('worker_hire.' + nextRung, _k) : null;
+      if (_buy && _buy.catch) _buy.catch(function () {});
+      Promise.resolve(_buy || { outcome: 'applied' }).then(function (r) {
+        /* b463 — `already_owned` is a RECEIPT, not a refusal: the rung is paid
+           and the gold seam already rolled this attempt's prediction back, so we
+           proceed to materialise. Any other refusal is real; drop and explain. */
         var owned = !!(r && r.outcome === 'refused' && r.reason === 'already_owned');
-        var ok = !buy || owned || (r && (r.outcome === 'applied' || r.outcome === 'replayed'));
+        var ok = !_buy || owned || (r && (r.outcome === 'applied' || r.outcome === 'replayed'));
         if (!ok) {
-          /* The gold seam retires/rolls back the prediction on a refusal; drop
-             the optimistic worker so the display does not overstate the crew. */
           dropWorker(G, temp);
           if (window.notify) notify('Could not complete the hire — ' + ((r && r.reason) || 'try again'), 'kill');
-          render();
-          return null;
+          render(); return;
         }
-        return Net.hire().then(function (res) {
-          if (res && res.ok) {
-            temp.uid = res.uid; temp.name = res.name; temp._pending = false;
-            render();
-          } else {
-            dropWorker(G, temp);
-            notifyHireError(res);
-            render();
-          }
-        });
+        Promise.resolve(Net.hire()).then(function (res2) {
+          if (res2 && res2.ok) settleOk(res2); else fail(res2);
+        }).catch(function () {});
       }).catch(function () {});
-    }
+    }).catch(function () { /* transient — leave the optimistic worker; the next envelope reconciles */ });
+
     return temp;
   }
+
+  function isFiniteNum(v) { return typeof v === 'number' && isFinite(v); }
 
   function notifyHireError(res) {
     if (!window.notify) return;

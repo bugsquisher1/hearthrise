@@ -1227,14 +1227,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=482';
+import * as itemLedger from './item-ledger.js?v=483';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=482';
+import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=483';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1243,13 +1243,13 @@ import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_E
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=482';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=483';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=482';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=483';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -1795,11 +1795,49 @@ export function applyEnvelopeState(G, res, ownKey) {
      disagree in the first place. Raised for the Systems Engineer in
      CONFLICTS.md — do not let this guard become the reason that never happens.
      ══════════════════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════════════════════════════════
+     PAIONE P0 (2026-08-25) — DURING A LIVE FIGHT, HP IS CLIENT-OWNED UNLESS
+     THE SERVER GENUINELY COMPUTED IT (an AWAY grant).
+
+     THE MEASURED BUG. On a live client-predicted fight the periodic sync/settle
+     returns an envelope whose `state.hp` is STALE-FULL — the server pointer is
+     `idle` and never saw the fight (confirmed live: active_kind='idle', hp=10/10
+     while the client is mid-goblin-fight at 4 HP). The b373 floor below RAISED hp
+     freely (`next >= cur`), so every few seconds the live fight's hp snapped back
+     to full and the player never took real damage / never fell. b373 was written
+     for AWAY combat, where the server DID compute hp and must win.
+
+     THE DISTINGUISHER, stated rather than guessed: an AWAY-return envelope
+     carries an `away` receipt block (isEnvelopeApplicable requires `res.away` for
+     accrued:true, and applyEnvelope — the only away-grant path — passes the full
+     response through). A live sync / lean settle / intent collect (eat, equip,
+     enchant, activity switch) carries NO `away` block; those come through
+     applyIntentEnvelope / gold.js with the bare state envelope. So:
+       • away envelope (server owns hp) → apply b373 exactly as before;
+       • non-away envelope during a live fight → PRESERVE the client's combat hp
+         (never raise to stale-full, never lower to a stale reading).
+     This is the GENERAL form of the wireServerEat onEnvelope keepHp guard in
+     legacy.js (Paione P0 phase 2) — that hook snapshots/restores G.playerHp
+     around the eat reconcile; this makes the applier itself refuse the write, so
+     every non-away path (sync, equip, enchant, activity) is covered at the source
+     and the eat hook's restore becomes a harmless no-op consistent with it.
+
+     Out of combat (no activeMonster) the b373 raise-only floor is unchanged: an
+     idle player cannot be wounded by a stale envelope, and a heal still applies.
+     ══════════════════════════════════════════════════════════════════════ */
   if (Number.isFinite(Number(st.hp))) {
     const next = Number(st.hp);
     const cur = Number(G.playerHp);
     const inFight = !!G.activeMonster;
-    if (inFight || !Number.isFinite(cur) || next >= cur) {
+    const awayOwnsHp = !!(res && res.away && typeof res.away === 'object');
+    if (inFight && !awayOwnsHp) {
+      /* LIVE fight, non-away envelope: combat hp is client-owned. Preserve it.
+         (Adopt the server value only if the client has no finite hp at all — a
+         cold state where there is nothing to preserve.) */
+      if (Number.isFinite(cur)) { written.hp = cur; written.hpRefused = next; }
+      else { G.playerHp = next; written.hp = G.playerHp; }
+    } else if (inFight || !Number.isFinite(cur) || next >= cur) {
+      /* Away combat (server owns hp) OR idle-and-raising — b373 unchanged. */
       G.playerHp = next; written.hp = G.playerHp;
     } else {
       written.hp = cur; written.hpRefused = next;

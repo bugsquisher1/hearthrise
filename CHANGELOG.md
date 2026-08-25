@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 483 — 2026-08-25 (Your HP stops resetting mid-fight)
+
+- ❤️ **Fixed your HP snapping back to full every few seconds during a fight.** A background sync was "correcting" your health up to a stale value, undoing the damage you'd taken. It now leaves your live combat HP alone during a fight and only lets the server set your HP where it truly owns it (after an away/offline stretch). (A related issue — bounties that reach their target but hang on "completing in a moment" — is a deeper fix we're still working; that one's the server under-counting your live kills, not your HP.)
+
 ## v0.9.2-beta build 482 — 2026-08-25 (Eating in combat, fixed properly)
 
 - 🍖 **Eating during a fight now works right.** Build 480 stopped food duping on reload, but in a live fight the server still saw you at full health, so eating a crop refused and your HP snapped back up — the food looked like it "came back" (Paione). Now the server always consumes the food and your combat HP heals by the food's amount and stays where the fight left it. Eat 1 → you have 1 fewer, you're healed, and it stays that way after a reload.

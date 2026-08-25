@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=482' directly.
+// modularised, will import { G } from '../state/game.js?v=483' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=482';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=482';
+import { on, snapshot } from '../net/events.js?v=483';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=483';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=482';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=483';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -9980,18 +9980,43 @@ const TESTS = [
        "something is covering the buy control"). snapshotG/restoreG covers the whole
        reconciled surface. */
     const snap = snapshotG();
+    /* THE ENVELOPE MUST ACTUALLY APPLY FOR THIS TEST TO MEAN ANYTHING. The eat
+       hook routes through applyIntentEnvelope, which first runs the b366
+       replacement gate: this synthetic env carries empty skills + a one-item
+       inventory, so describeReplacement reads DESTRUCTIVE against the real local
+       save and — unacknowledged — REFUSES the envelope and mounts the consent
+       sheet (#hr-accrual-replace-gate). That did two bad things: the floor never
+       fired, so `G.playerHp === 4` passed for the WRONG reason (nothing applied),
+       and the mounted sheet leaked to cover a LATER render test (b221 shop "buy
+       control covered"). Acknowledge the replacement so the envelope truly
+       applies (floor sets hp=10, hook must restore 4); restore the ack + tear
+       down any sheet in finally. */
+    const A = window.HearthriseAccrual;
+    const wasAck = !!(A && A.isReplacementAcknowledged && A.isReplacementAcknowledged());
     try {
+      if (A && A.acknowledgeReplacement) A.acknowledgeReplacement(true);
       // Model a live client fight at LOW combat hp; the server (envelope) reads FULL.
       G.activeMonster = 'goblin'; G.playerMaxHp = 10; G.playerHp = 4; G.gold = 0;
       const env = { ok: true, version: 999999999, now: new Date().toISOString(),
         state: { hp: 10, max_hp: 10, gold: 0, accrued_to: new Date().toISOString() },
         skills: {}, inventory: { turnip: 1 }, equipment: {} };
-      hook(env);   // the floor would set G.playerHp = 10; the hook must restore 4
+      const applied = hook(env);   // the floor would set G.playerHp = 10; the hook must restore 4
+      assert(applied, 'EAT-COMBAT-HP: the envelope was REFUSED (replacement gate) — the HP floor never ran, so this test proves nothing');
       assert(G.playerHp === 4,
         'EAT-COMBAT-HP: the envelope SNAPPED live combat hp to the stale-full server value ('
         + G.playerHp + ' — expected the preserved 4). Paione\'s live-combat symptom is back.');
     } finally {
+      if (A && A.acknowledgeReplacement) A.acknowledgeReplacement(wasAck);
+      if (A && A.hideReplacementSheet) A.hideReplacementSheet();
       restoreG(snap);
+      /* hook(env) → applyServerEnvelope → refreshAll(), and this test set
+         activeMonster='goblin', so the hook re-rendered the COMBAT view. restoreG
+         restores G but not the rendered DOM, which then overlapped a LATER
+         render-geometry test (b221 shop "something is covering the buy control").
+         Reset to a neutral view + clear transient overlays so the DOM matches the
+         restored state. */
+      try { window.closeAllModals && window.closeAllModals(); } catch (e) {}
+      try { window.showTab && window.showTab('profile'); } catch (e) {}
     }
   }),
 
@@ -12176,10 +12201,20 @@ const TESTS = [
           const r = btn.getBoundingClientRect();
           assert(r.width > 24 && r.height > 16,
             tab + ' row ' + i + ': buy control collapsed to ' + Math.round(r.width) + 'x' + Math.round(r.height));
-          assert(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
-            ? row.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))
-            : true,
-            tab + ' row ' + i + ': something is covering the buy control');
+          const _hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          /* If something IS covering the control, name it — a bare "covered"
+             cost a full root-cause session once (b483: an eat test leaked the
+             replacement-gate sheet over this row). The cover's id/class is the
+             first thing the next investigator needs. */
+          let _desc = '';
+          if (_hit && !row.contains(_hit)) {
+            try { _desc = ' COVER=<' + _hit.tagName.toLowerCase() + '>'
+              + (_hit.id ? '#' + _hit.id : '')
+              + (_hit.className ? '.' + String(_hit.className).split(' ').filter(Boolean).join('.') : ''); }
+            catch (e) { _desc = ' (cover undescribable)'; }
+          }
+          assert(_hit ? row.contains(_hit) : true,
+            tab + ' row ' + i + ': something is covering the buy control' + _desc);
         });
       });
       window.setShopTab('seeds');
@@ -32047,7 +32082,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=482');
+    const KIT = await import('../data/start-kit.js?v=483');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -38070,7 +38105,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=482');
+    const S = await import('../data/shops.js?v=483');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -39481,7 +39516,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=482');
+    const S = await import('../data/shops.js?v=483');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -43199,7 +43234,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=482')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=483')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -44641,20 +44676,47 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=482');
+    const A = await import('../net/accrue.js?v=483');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
 
-    // In a fight the server keeps full authority — away combat depends on it.
+    // AWAY combat: the envelope carries an `away` receipt, so the server genuinely
+    // computed hp and keeps full authority — away accrual depends on it.
     const G2 = { playerHp: 10, playerMaxHp: 10, activeMonster: 'slime' };
-    A.applyEnvelopeState(G2, { state: { hp: 2, max_hp: 10 } });
-    assert(G2.playerHp === 2, 'the guard stole hp authority during a live fight: ' + G2.playerHp);
+    A.applyEnvelopeState(G2, { state: { hp: 2, max_hp: 10 }, away: { grantMs: 60000, kills: 3 } });
+    assert(G2.playerHp === 2, 'an AWAY envelope did not apply server hp during combat: ' + G2.playerHp);
 
-    // Healing always applies, fight or no fight.
+    // Healing always applies out of combat, fight or no fight.
     const G3 = { playerHp: 3, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G3, { state: { hp: 9, max_hp: 10 } });
     assert(G3.playerHp === 9, 'the guard blocked a HEAL: ' + G3.playerHp);
+  }),
+
+  () => tryRunAsync('paione-P0: a LIVE-sync envelope cannot snap combat hp back to stale-full', async () => {
+    /* THE ROOT CAUSE OF "syncs every few seconds and my HP goes to full". During
+       a live client-predicted fight the server pointer is idle and its hp is
+       stale-FULL; the periodic sync/settle envelope carries NO away block. b373
+       raised hp freely (next >= cur), so the live fight snapped to full and the
+       player never took damage. A non-away envelope during a live fight must
+       PRESERVE the client's combat hp; an away-return envelope still applies. */
+    const A = await import('../net/accrue.js?v=483');
+
+    // Live sync: activeMonster set, NO away block, server hp full, client hp low.
+    const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
+    const w = A.applyEnvelopeState(G, { state: { hp: 10, max_hp: 10 } });
+    assert(G.playerHp === 4, 'a live-sync envelope raised combat hp to stale-full: ' + G.playerHp);
+    assert(w && w.hpRefused === 10, 'the refusal was not recorded for the drift counter: ' + (w && w.hpRefused));
+
+    // A live-sync envelope must not LOWER live combat hp to a stale reading either.
+    const Glow = { playerHp: 7, playerMaxHp: 10, activeMonster: 'goblin' };
+    A.applyEnvelopeState(Glow, { state: { hp: 2, max_hp: 10 } });
+    assert(Glow.playerHp === 7, 'a live-sync envelope lowered combat hp to a stale value: ' + Glow.playerHp);
+
+    // The away-return path is UNTOUCHED: an away receipt still owns hp mid-fight.
+    const Gaway = { playerHp: 9, playerMaxHp: 10, activeMonster: 'goblin' };
+    A.applyEnvelopeState(Gaway, { state: { hp: 3, max_hp: 10 }, away: { grantMs: 30000, kills: 1, died: false } });
+    assert(Gaway.playerHp === 3, 'an away-return envelope failed to apply server-owned hp: ' + Gaway.playerHp);
   }),
 
   () => tryRunAsync('b374: a hitpoints level gained via a server envelope raises maxHp + the heal cap live (no reload)', async () => {
@@ -44665,7 +44727,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=482');
+    const A = await import('../net/accrue.js?v=483');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -44818,7 +44880,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=482')).text();
+      const raw = await (await fetch(f + '?v=483')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -44868,7 +44930,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=482')).text();
+    const raw = await (await fetch('src/observability.js?v=483')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 

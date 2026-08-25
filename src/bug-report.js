@@ -364,8 +364,8 @@ function captureScreenshot(timeoutMs = CAPTURE_TIMEOUT_MS, opts) {
 // fallback that fires when the local file is unreachable hands the whole fix
 // back to anyone who can make it unreachable.
 const VENDOR_SCRIPTS = {
-  htmlToImage: 'src/vendor/html-to-image-1.11.13.umd.js?v=482',
-  html2canvas: 'src/vendor/html2canvas-1.4.1.min.js?v=482',
+  htmlToImage: 'src/vendor/html-to-image-1.11.13.umd.js?v=483',
+  html2canvas: 'src/vendor/html2canvas-1.4.1.min.js?v=483',
 };
 const _vendorLoads = {};
 function loadVendor(globalName) {

@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 481 — 2026-08-25 (Combat style holds; HP matches)
+
+- ⚔️ **Fixed the combat style flipping to Magic (or back to Attack) when you swap gear or level up.** The style picker was reading the wrong weapon for a moment whenever your equipment updated, snapping the family to the default and back. It now follows the weapon you actually have equipped and stays put. (Your XP was always routed correctly server-side — this was the on-screen picker only.)
+- ❤️ **Fixed the character screen and combat showing different HP** (e.g. 11 vs 10). Your max HP now tracks your Hitpoints level everywhere, updating the moment you level up instead of waiting for a reload.
+
 ## v0.9.2-beta build 480 — 2026-08-25 (Food you eat stays eaten)
 
 - 🍖 **Fixed food coming back after you eat it.** Eating a crop or raw fish in combat healed you but the food reappeared on reload (a free heal). Eating is now server-authoritative: the server debits the food and applies the heal, so what you eat is actually gone and the heal sticks. (Cooked dishes were already safe; this fixes raw foods and crops like moonbloom.)

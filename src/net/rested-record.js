@@ -26,7 +26,7 @@
 // It never WRITES rested. Not a default, not a repair. DOM-free. Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue } from './record.js?v=480';
+import { isServerOfRecord, recordValue } from './record.js?v=481';
 
 /** The one read. Everything else is a shape of this answer.
  *  @returns {{known, xp, at, source, reason}} xp/at are null when !known. */

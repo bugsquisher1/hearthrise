@@ -274,6 +274,16 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'and the crew cap tracks the SERVER property tier. The local gold debit is a PREDICTION keyed '
       + 'to that intent; switch OFF it is the plain debit that shipped before.',
   },
+  'seam:workers.hire@2': {
+    kind: 'spend', status: 'wired', verb: 'unlock_buy',
+    site: 'src/features/workers.js hireServer() — the buy-NEXT-rung debit (hire-first)',
+    note: 'The hire-first orchestration calls hr_worker_hire FIRST against the paid cap; a '
+      + 'stranded/available rung materialises for FREE (no debit here). This second site fires ONLY '
+      + 'when the server answers crew_cap_reached(paid_cap): the client then buys the NEXT rung '
+      + '`worker_hire.<paid_cap+1>` — same escalating server-priced ladder, property-tier gated, '
+      + 'GREATEST-merged. The wire is the offer id only; NO PRICE CROSSES. The local gold debit is a '
+      + 'PREDICTION keyed to that intent, reconciled by the envelope (rolled back on refusal).',
+  },
   'seam:farm.build_plot': {
     kind: 'spend', status: 'wired', verb: 'unlock_buy',
     site: 'src/legacy.js buildPlot(\'farm_plot\') — the farm-land ladder (slice 3)',

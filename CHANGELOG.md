@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 484 — 2026-08-25 (Bounties complete when you finish them)
+
+- 🎯 **Fixed bounties that hit their target but never completed** — sitting forever on "completing in a moment" (Paione). The server was counting your kills as if you were away/unattended, which massively under-counts an active fighter, so it never reached the target. Your live kills are now credited to the server (capped to what's physically possible, so it can't be cheated), and the bounty completes and pays out. If the count ever lags, the bar now shows your real confirmed progress and tells you to keep fighting, instead of a spinner that never ends.
+
 ## v0.9.2-beta build 483 — 2026-08-25 (Your HP stops resetting mid-fight)
 
 - ❤️ **Fixed your HP snapping back to full every few seconds during a fight.** A background sync was "correcting" your health up to a stale value, undoing the damage you'd taken. It now leaves your live combat HP alone during a fight and only lets the server set your HP where it truly owns it (after an away/offline stretch). (A related issue — bounties that reach their target but hang on "completing in a moment" — is a deeper fix we're still working; that one's the server under-counting your live kills, not your HP.)

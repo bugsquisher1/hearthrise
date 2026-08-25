@@ -171,7 +171,15 @@ export async function runEat(o) {
     };
   }
 
-  const newHp = food.heals > 0 ? Math.min(maxHp, serverHp + food.heals) : serverHp;
+  /* Clamp to max_hp ONLY when the server states one (> 0). A DB with max_hp = 0
+     is broken, but `min(0, …)` would then propose hp = 0 — so fall back to the
+     unclamped sum, which hr_apply re-clamps to [0, max_hp] under the lock
+     anyway. The clamp source is player_state.max_hp; when the separate
+     HP-derivation fix makes max_hp track the hitpoints level, this tracks it
+     automatically with no change here. */
+  const newHp = food.heals > 0
+    ? (maxHp > 0 ? Math.min(maxHp, serverHp + food.heals) : serverHp + food.heals)
+    : serverHp;
   const delta = eatDelta(food, newHp);
 
   /* (2b) RULE 3's DELTA HALF. eat does not collect first, so its delta must not

@@ -767,7 +767,59 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         });
         const wr = wres?.res as Record<string, any>;
         if (wr && wr.ok === true && wr.replayed !== true) {
-          return json({ ok: true, accrued: true, ...wr,
+          /* THE ENVELOPE CONTRACT (b475). A standalone rested/worker settle
+             applied a delta and advanced its watermark(s) exactly like the main
+             away path, so it MUST carry an `away` receipt or the client gate
+             `isEnvelopeApplicable` (src/net/accrue.js) rejects the 200 as
+             malformed — three of those trip ACCRUE_HALT_AFTER_TRIES and raise
+             the alarming "Away progress is paused" modal while HIDING a grant
+             the server already made. The receipt below is a PURE PROJECTION of
+             what was already granted on THIS call — no new rolls, no
+             Math.random, so AWAY-1 determinism holds and no forgery surface is
+             added (it only reports values the server minted).
+
+             `grantMs` is the wall span from the OLDEST driving watermark that
+             actually accrued to `now`; rested banks on wall-clock for everyone,
+             workers on their own watermark. The rested BANK is surfaced through
+             the existing `rested:{granted}` field, NOT folded into `away.xp` —
+             summaryFromAway would otherwise misreport a bank charge as skill
+             XP. `items` carries the worker haul so the welcome-back card credits
+             the crew's production. */
+          const driveMsList: number[] = [];
+          if (wout.accrued && st.workers_accrued_to) driveMsList.push(new Date(st.workers_accrued_to).getTime());
+          if (rout.accrued && st.rested_at) driveMsList.push(new Date(st.rested_at).getTime());
+          const driveMs = driveMsList.length ? Math.min(...driveMsList) : nowMs;
+          const grantMs = Math.max(0, nowMs - driveMs);
+          const away = {
+            grantMs,
+            capped: false,
+            awayMs: grantMs,
+            paidMs: grantMs,
+            unpaidMs: 0,
+            /* MS NUMBERS, not ISO. The main away path sets these from
+               credit.fromMs / credit.toMs (accrual.js), and the client's
+               summaryFromAway reads them as `Number(a.windowFrom) || null` — an
+               ISO string coerces to NaN and the welcome-back card would show a
+               null window. So the projection uses the same numeric contract. */
+            windowFrom: driveMs,
+            windowTo: nowMs,
+            tickMs: 0,
+            perkChannel: 'n/a',
+            kills: 0,
+            crits: 0,
+            died: false,
+            foodEaten: 0,
+            blessed: false,
+            buffsPaused: false,
+            featuredMs: 0,
+            featuredDropMult: 1,
+            gold: 0,
+            xp: {},
+            items: wout.accrued ? wout.items : {},
+            levelUps: [],
+            events: [],
+          };
+          return json({ ok: true, accrued: true, ...wr, away,
             ...(wout.accrued ? { workers: wout.summary } : {}),
             ...(rout.accrued ? { rested: { granted: rout.granted } } : {}) });
         }

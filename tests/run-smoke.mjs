@@ -49,6 +49,7 @@ import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
 import { modalGoalClaimGuard } from './modal-goal-claim.mjs';
 import { traitBuyGuard } from './trait-buy.mjs';
 import { combatStyleGuard } from './combat-style.mjs';
+import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
@@ -2871,6 +2872,28 @@ const run = async () => {
       console.log('\nCombat-style guard — the engine routes settle XP to the SERVER-STORED style, '
         + 'catalogue bound to src/core/styles.js both ways, never read from a request body, '
         + 'collect-first guarded, accrued_to never stamped.');
+    }
+
+    /* ── THE ENVELOPE CONTRACT: every accrued:true carries `away` (b475) ─
+       The standalone parallel-settle branch in index.ts (pointer idle, rested
+       bank and/or worker crew owe) returned accrued:true WITHOUT an `away`
+       receipt, so the client gate isEnvelopeApplicable classified a genuine
+       grant as `malformed` — three of those tripped ACCRUE_HALT_AFTER_TRIES and
+       raised "Away progress is paused" while HIDING the grant the server made.
+       Affected any returning player idle with a pending rested bank (everyone
+       banks on wall-clock) or a worker crew. This guard proves the source
+       attaches `away` (RED against pre-fix index.ts) AND that the rested-only /
+       worker-only responses pass the real client gate, while the same responses
+       WITHOUT away read malformed — the class this would have caught. */
+    const envAwayProblems = await accrueEnvelopeAwayGuard();
+    if (envAwayProblems.length) {
+      console.log('\nAccrue envelope contract (every accrued:true carries away) — FAILED:');
+      for (const p of envAwayProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nAccrue-envelope-away guard — the standalone rested/worker settle attaches a '
+        + 'well-formed away receipt (pure projection, no rolls); the real client gate accepts it '
+        + 'and fails closed on a missing receipt.');
     }
 
     /* ── The catalogue-refill ownership interlock (b461) ─────────────────

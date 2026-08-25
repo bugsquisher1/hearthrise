@@ -207,6 +207,33 @@ export async function armHomingGuard() {
     fail('the residue/deny-list collision check threw: ' + (e && e.message));
   }
 
+  // ── THE LOAD-PATH CALL WIRING (b477). ──────────────────────────────────────
+  // Listing a field as a SERVER_MECHANISM above only claims a reconcile<X> EXISTS
+  // — it does NOT prove settle() (the idle-boot / hr_load handler in record.js)
+  // actually CALLS it. That gap shipped the "invisible crew" bug: reconcileWorkers
+  // existed and was unit-tested, but settle() never invoked it, so on an IDLE boot
+  // (hr-accrue → accrued:false, applyEnvelopeState never runs) the roster was never
+  // hydrated and a player with a producing crew saw G.workers.hired=[] (QA
+  // 0a47ba77, live). Every reconcile that hydrates a SERVER_MECHANISM field on the
+  // load path MUST be called in record.js, or an idle boot silently drops it.
+  try {
+    const recSrc = await readFile(new URL('src/net/record.js', ROOT), 'utf8');
+    const MUST_CALL = ['reconcileInventory', 'reconcileBank', 'reconcileWorkers',
+      'reconcileCompanions', 'reconcileFarm', 'reconcileTraits'];
+    for (const fn of MUST_CALL) {
+      // a CALL, not merely the import — `fn(` with G as the first arg on the load path.
+      const called = new RegExp(fn + '\\s*\\(\\s*G\\b').test(recSrc);
+      if (!called) {
+        fail(`'${fn}' is a SERVER_MECHANISM reconcile but record.js's load path never CALLS it (no `
+           + `\`${fn}(G…\`). Listing the field as a mechanism is not enough — an IDLE boot answers `
+           + `accrued:false so applyEnvelopeState never runs; the reconcile MUST be invoked in settle() from `
+           + `the hr_load envelope or the field silently resets on reload (b477 invisible-crew class).`);
+      }
+    }
+  } catch (e) {
+    fail('the load-path call-wiring check threw: ' + (e && e.message));
+  }
+
   // Bank purchase counters (goldBuys/gemBuys/grandfather) ride inside G.bank —
   // covered by the bank mechanism; no separate assertion. bountyHunter.marks was
   // the historic nested-authority trap — now top-level G.marks (b443), asserted above.

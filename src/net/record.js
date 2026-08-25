@@ -103,16 +103,16 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank } from './accrue.js?v=476';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileWorkers } from './accrue.js?v=477';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=476';
+import { applyClientState } from './client-state.js?v=477';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, resetPredictions } from './predict.js?v=476';
+import { coverageBoundary, retirePredictions, resetPredictions } from './predict.js?v=477';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -1410,6 +1410,17 @@ function settle(verdict) {
     try {
       reconcileBank(G, verdict.body);       // dormant in prod (invAbsolute false)
       reconcileInventory(G, verdict.body);  // merge-ratchets the full server bag in
+      /* b477 — SAME IDLE-BOOT CLASS FOR THE CREW. The worker roster hydrated ONLY
+         via applyEnvelopeState (accrue.js), which runs ONLY on accrued:true. On an
+         IDLE boot hr-accrue answers {accrued:false}, so a player with a producing
+         crew (e.g. Aldric mining) saw G.workers.hired=[] — an "invisible crew" that
+         reads as "my workers reset" and makes them re-hire one they already own
+         (QA 0a47ba77, live). The hr_load body always carries the full `workers`
+         roster (hr_state_of), so rebuild it HERE like inventory/bank/companions.
+         reconcileWorkers is fail-closed on a missing array (leaves G.workers alone)
+         and idempotent on a non-idle boot (server-owned fields win, display ledger
+         preserved by uid). */
+      reconcileWorkers(G, verdict.body);
     } catch (e) {}
     /* b465 — the server's daily-login claim row closes the daily-reward sheet's
        question at boot (the residue marker kept losing tab/save races and the

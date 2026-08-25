@@ -482,25 +482,28 @@ export function simulateArtisanSpan(state, ctx) {
      next author does not re-derive it, and so nobody reads "the server owns
      the rung" as "the rung was honestly earned".
 
-   ── THE ONE THING THAT IS STILL OPEN, AND WHY IT GATES ONE BENCH ──────
-   Reading a rung is not owning the WRITE either. `src/legacy.js upgradeRoom()`
-   still writes `G.rooms[id] = lv + 1` locally and uploads it in the save blob;
-   `hr_unlock_buy` is deployed and has NO CLIENT CALL SITE, and `rooms` is
-   not on `src/net/record.js`'s SERVER_OF_RECORD. So the client and the
-   server hold two independent copies of every rung, and they agree only
-   because the import copied one into the other ONCE. They diverge at the
-   first rung a player buys after that import — and this time in the OTHER
-   direction: the server's copy goes STALE-LOW.
+   ── THE WRITE PATH IS NOW CLOSED (cooking real-fix, supersedes the below) ──
+   Reading a rung is not owning the WRITE either — and that write is now
+   server-owned end to end. `src/legacy.js upgradeRoom()` routes the purchase
+   through `hr_unlock_buy` (`window.HearthriseGold.buyUnlock('room.<id>.<rung>')`,
+   fired on every build/upgrade), and `rooms` is on `src/net/record.js`'s
+   SERVER_OF_RECORD with ROOMS_RECORD_ARM_ENABLED=true, so
+   `clientMayWriteRecordField('rooms')` is FALSE and the client no longer
+   authors `G.rooms` at all — the server envelope is the sole writer of the
+   rung. The two independent copies are gone: the rung lives in
+   `player_progress` (`kind='unlock' key='room:kitchen'`), the SERVER reads it
+   through `hr_perks_of`, and a forged client Kitchen has no effect on the
+   server's burn rate.
 
-   For almost every perk a stale-low rung is an UNDER-PAYMENT of a bonus —
-   the direction this engine is already wrong in, by name, for renown, the
-   clan castle and companions. `noBurn` is the single exception in the whole
-   catalogue: it does not shave a bonus, it decides whether the recipe's
-   INPUT becomes the dish or becomes `burnt_food`. A server reading a stale
-   Kitchen 0 against a client's Kitchen 3 destroys a quarter of the input
-   the player already paid gold to protect. That asymmetry — every other key
-   fails safe, this one fails destructive — is the whole reason the gate below
-   is per-KEY rather than per-bench or per-kind.
+   The historical hazard this gate guarded against: `noBurn` is the single
+   destructive key in the catalogue — it does not shave a bonus, it decides
+   whether the recipe's INPUT becomes the dish or becomes `burnt_food`. A
+   server reading a stale Kitchen 0 against a client's Kitchen 3 would destroy
+   a quarter of the input the player paid gold to protect. That asymmetry —
+   every other key fails safe, this one fails destructive — is why the gate is
+   per-KEY, and why it stayed shut until the WRITE (not just the read) was
+   server-owned. It now is, so the gate opens: `COOKING_SETTLEMENT_ARM_ENABLED`
+   is true and `serverOwnedBonusKeys()` includes `noBurn`.
 
    So the rule is written as the property, not as the name "cooking":
 
@@ -523,9 +526,12 @@ export function simulateArtisanSpan(state, ctx) {
    comment that claimed otherwise would be the same wrong argument C4 caught.
    What this list promises is that the row cannot MOVE without the server.
 
-   EMPTY TODAY, and the emptiness is a measurement rather than a placeholder:
-   `hr_unlock_buy` exists and is deployed, and `grep -rn unlock_buy src/`
-   returns exactly one hit, in a comment. */
+   STAYS the frozen empty const it always was: the ARMED `noBurn` is added by
+   `serverOwnedBonusKeys()` at runtime (via isCookingSettlementArmed), so
+   external readers that import this const see the static baseline while the
+   engine reads the live set. The WRITE that made `noBurn` server-owned is
+   `src/legacy.js upgradeRoom()` → `window.HearthriseGold.buyUnlock` →
+   `hr_unlock_buy` (no longer a comment-only reference). */
 export const SERVER_OWNED_BONUS_KEYS = Object.freeze([]);
 
 /* ── THE COOKING SETTLEMENT ARM (b431), SHIPPED DORMANT ──────────────────────
@@ -544,7 +550,7 @@ export const SERVER_OWNED_BONUS_KEYS = Object.freeze([]);
    changes byte-for-byte. `SERVER_OWNED_BONUS_KEYS` stays the frozen empty const
    it always was (external readers — tests/artisan-accrual.mjs — see the dormant
    baseline); benchPayable/benchBlockedBy read the runtime set instead. */
-export const COOKING_SETTLEMENT_ARM_ENABLED = false;  // DISARMED (R4, cooking-pause) — b459 armed the CLIENT bench AHEAD of the SERVER, whose set-activity.js still 409s cooking (ACTIVITY_UNSUPPORTED) because `noBurn`'s Kitchen-rung WRITE is not server-owned (upgradeRoom writes G.rooms; hr_unlock_buy has no client call site). Armed-ahead-of-server = client declares cooking, server refuses, the absolute envelope retires the predicted XP DOWN, food survives only via the un-modeled carve-out → the live "cooked food vanished / cooking XP not saving" reports. Client now AGREES with the server: benchPayable('cooking')=false → declarationFor downgrades cooking, nothing is declared, nothing is retired. RE-ARM only in the real-fix build that routes upgradeRoom→hr_unlock_buy AND flips this + item-authority's twin AND the ROOMS-COOKING/B431 guards together. record.js ROOMS_RECORD_ARM_ENABLED STAYS TRUE — homestead tier persistence is decoupled and untouched.
+export const COOKING_SETTLEMENT_ARM_ENABLED = true;   // ARMED (cooking real-fix, supersedes the R4 pause) — the noBurn Kitchen-rung WRITE is now server-owned END TO END: src/legacy.js upgradeRoom() routes the purchase through hr_unlock_buy (window.HearthriseGold.buyUnlock('room.<id>.<rung>')), rooms is on src/net/record.js SERVER_OF_RECORD with ROOMS_RECORD_ARM_ENABLED=true so the client no longer authors G.rooms (clientMayWriteRecordField('rooms')===false), and the READ is hr_perks_of → makeBonus → noBurn off the server-owned room:kitchen rung. So serverOwnedBonusKeys() may honestly include 'noBurn' → benchPayable('cooking')=true → set-activity accepts cooking (in ARTISAN_RECIPES_PAYABLE), accrual settles the bench at the CORRECT server burn rate, and the client un-pauses (cookingPaused() reads this predicate). Coupled twin: item-authority.js COOKING_SETTLEMENT_ARM_ENABLED. A forged client Kitchen cannot skip burn: the server reads the rung from player_progress, never from the request. ⚠ artisan-sim.js is VENDORED into hr-accrue by tools/pack-edge.mjs — this flip requires an Edge redeploy to take effect server-side.
 let cookingArmOverride = null;
 export function isCookingSettlementArmed() {
   return cookingArmOverride !== null ? cookingArmOverride : COOKING_SETTLEMENT_ARM_ENABLED;

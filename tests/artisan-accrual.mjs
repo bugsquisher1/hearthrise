@@ -1187,6 +1187,86 @@ function ladderGuard() {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// T8. COOKING SETTLES — THE REAL FIX. Cooking is now a payable bench (its only
+// destructive key, `noBurn`, is server-owned end to end: upgradeRoom→hr_unlock_buy
+// writes the Kitchen rung, the rooms record arm makes the server the sole writer,
+// and hr_perks_of→makeBonus reads it back). This proves the server SETTLES a
+// cooking span (consume raw → produce dish → grant XP), burns at the CORRECT rate
+// given the Kitchen rung, is byte-for-byte identical away==live (the AWAY-1
+// property, for cooking, with burns), and — the anti-forgery property — sources
+// `noBurn` ONLY from the server-owned perk state, never from any client field.
+// ════════════════════════════════════════════════════════════════════════
+function cookingSettlementGuard() {
+  ok(benchPayable('cooking') === true,
+    'T8: the cooking bench is not payable — COOKING_SETTLEMENT_ARM_ENABLED is off, so the server would '
+    + '409 cooking and settle nothing. The real fix requires it armed (the Kitchen write is server-owned).');
+  if (!benchPayable('cooking')) return;
+
+  const recipe = pickRecipe('cooking', (r) => r.output && r.xp > 0 && Object.keys(inputsOf(r)).length >= 1);
+  ok(!!recipe, 'T8: no cooking recipe with an input+output+xp — the settlement proof is vacuous');
+  if (!recipe) return;
+
+  /* Cook AT the recipe's required level so the base burn rate is LIVE — a maxed
+     cook may not burn at all, which would make the Kitchen comparison vacuous. */
+  const atReq = recipe.req || 1;
+  const cookSkills = { ...SKILLS, cooking: atReq };
+  const inv = () => supplyFor(recipe, 200000);
+  const rawIn = Object.keys(inputsOf(recipe))[0];
+
+  const serverSpan = (rung) => call({
+    activeId: recipe.id, inventory: inv(), skills: { ...cookSkills },
+    perks: rung == null ? null : { rooms: { kitchen: rung } },
+  });
+  const clientSpan = (rung) => clientArtisanSpan({
+    skill: 'cooking', recipe, spanMs: SPAN_MS, rng: createRng(SEED),
+    skills: { ...cookSkills }, inventory: inv(), equipment: {}, toolCarry: {}, unlockedRecipes: {},
+    bonus: makeBonus(rung == null ? {} : { rooms: { kitchen: rung } }),
+  });
+
+  // ── (1) SETTLEMENT: consume raw, produce dish, grant cooking XP.
+  const s0 = serverSpan(null);
+  ok(s0.accrued === true, `T8: cooking accrued nothing (reason: ${s0.reason})`);
+  ok(!!(s0.summary.xp && s0.summary.xp.cooking > 0), 'T8: a cooking span granted no cooking XP');
+  const items0 = s0.delta.items || {};
+  ok((items0[rawIn] || 0) < 0, `T8: the raw ingredient (${rawIn}) was not consumed by the span`);
+  ok((items0[recipe.output] || 0) > 0, `T8: the cooked dish (${recipe.output}) was not produced by the span`);
+
+  // ── (2) BURN IS CORRECT GIVEN THE KITCHEN. Kitchen 3 (noBurn) burns strictly
+  //        less than no Kitchen; the rung comes from `perks`, not the bag.
+  const s3 = serverSpan(3);
+  ok(s0.summary.burnt > 0, 'T8: no Kitchen produced zero burns at req level — the burn path is untested');
+  ok(s3.summary.burnt < s0.summary.burnt,
+    `T8: Kitchen 3 (${s3.summary.burnt} burns) did not burn less than no Kitchen (${s0.summary.burnt}) — `
+    + 'the server is not reading noBurn off the server-owned rung');
+
+  // ── (3) AWAY==LIVE PARITY (AWAY-1, for cooking, WITH burns): seeded server span
+  //        == seeded client span, byte for byte, at BOTH Kitchen levels.
+  for (const rung of [null, 3]) {
+    const s = serverSpan(rung), c = clientSpan(rung);
+    const P = (m) => `T8 PARITY [cooking · ${recipe.id} · kitchen ${rung == null ? 0 : rung}]: ${m}`;
+    eq(s.summary.ticks, c.ticks, P('action count differs'));
+    eq(s.summary.xp, c.xp, P('XP grants differ'));
+    eq(s.summary.burnt, c.stats.burnt || 0, P('burn count differs'));
+    const clientNet = {};
+    for (const [id, q] of Object.entries(c.items)) clientNet[id] = (clientNet[id] || 0) + q;
+    for (const [id, q] of Object.entries(c.consumed)) clientNet[id] = (clientNet[id] || 0) - q;
+    for (const id of Object.keys(clientNet)) if (clientNet[id] === 0) delete clientNet[id];
+    eqMap(s.delta.items || {}, clientNet, P('the net item movement differs'));
+  }
+
+  // ── (4) FORGERY: noBurn is sourced ONLY from `perks` (hr_perks_of). A forged
+  //        Kitchen smuggled into the bag / skills / a bogus request key cannot
+  //        reduce the burn — only the server-owned perk state can.
+  const forged = call({
+    activeId: recipe.id, inventory: { ...inv(), kitchen: 5, room_kitchen: 5, noBurn: 5 },
+    skills: { ...cookSkills, kitchen: 99 }, perks: null,
+  });
+  ok(forged.summary.burnt === s0.summary.burnt,
+    `T8 FORGERY: a forged Kitchen in the client bag/skills changed the burn count (${forged.summary.burnt} `
+    + `vs the server-truth ${s0.summary.burnt}) — noBurn must come ONLY from server-owned perks`);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 export async function runAll() {
   problems.length = 0;
   unsimulatedKindGuard();
@@ -1195,6 +1275,7 @@ export async function runAll() {
   materialGuard();
   gateGuard();
   burnGuard();
+  cookingSettlementGuard();
   shapeGuard();
   /* The span function itself is imported and exercised above through
      computeAccrual; assert it is the real one rather than a stub, because an

@@ -401,16 +401,18 @@ export const SKIP = {
    `kind='flag'` progress row projected by `hr_perks_of`, and the Kitchen rung
    is a `kind='unlock'` row read through `hr_unlock_levels`.
 
-   ⚠ ONE BENCH OF THE FOUR IS STILL HELD BACK, AND IT IS HELD BACK BY A
-     PROPERTY RATHER THAN BY ITS NAME. Reading a Kitchen rung is not owning it:
-     `src/legacy.js upgradeRoom()` still writes `G.rooms` locally, `hr_unlock_buy`
-     has no client call site, and `rooms` is not on SERVER_OF_RECORD — so the two
-     copies agree only because the cutover import copied one into the other once,
-     and diverge at the first rung bought after it. For every other perk that
-     divergence under-pays a bonus; for `noBurn` it turns the recipe's INPUT into
-     `burnt_food`. `benchPayable` in src/core/artisan-sim.js is that rule, and
-     `SERVER_OWNED_BONUS_KEYS` is the one line that opens it. §9(3) of
-     2026-08-16-artisan-progress-model.sql authorises exactly this shape.
+   ⚠ ALL FOUR BENCHES NOW SETTLE, cooking included (cooking real-fix). The
+     Kitchen rung is server-owned END TO END: `src/legacy.js upgradeRoom()`
+     routes the purchase through `hr_unlock_buy`
+     (`window.HearthriseGold.buyUnlock`), `rooms` is on SERVER_OF_RECORD with
+     the rooms record arm live so the client no longer authors `G.rooms`, and
+     the rung is READ here through `hr_perks_of` → makeBonus → `noBurn`. So a
+     server reading a Kitchen 0 against a real Kitchen 3 can no longer happen —
+     the server holds the only copy. `benchPayable('cooking')` in
+     src/core/artisan-sim.js is now true (its arm flag flipped, `noBurn` is a
+     server-owned bonus key), so this engine settles the cooking bench at the
+     CORRECT burn rate. §9(3) of 2026-08-16-artisan-progress-model.sql
+     authorised exactly this shape.
 
    ⚠ AND `PAYABLE_KINDS` IS THE WRONG PLACE TO EXPRESS IT. Removing `artisan`
      from this array would take the other 261 recipes down with it AND make
@@ -1903,8 +1905,10 @@ function accrueArtisan(inp, span) {
      between a dish and a lump of charcoal. `bonus('noBurn')` is the Kitchen
      rung, read through hr_perks_of from a `kind='unlock'` progress row; absent
      it is 0 and `burnChance` is the base 0.25. That is precisely why
-     `benchPayable` refuses the cooking bench until the rung's WRITE path is
-     server-owned — see the block at the foot of src/core/artisan-sim.js. */
+     `benchPayable` refused the cooking bench until the rung's WRITE path was
+     server-owned (upgradeRoom→hr_unlock_buy + the rooms record arm) — now that
+     it is, the bench is payable and this stack burns at the true rate. See the
+     block at the foot of src/core/artisan-sim.js. */
   const bonus = bonusFor(inp.perks);
 
   const skills0 = {};

@@ -327,6 +327,14 @@ import './net/equip.js?v=479';
 // name; the server authors state.enchant.weapon. No flip of its own — it reuses
 // the equip transport's config (same hr-accrue endpoint) via wireServerEnchant.
 import './net/enchant.js?v=479';
+// MANUAL EAT (2026-08-25, Paione P0) — the `eat` intent. Publishes
+// window.HearthriseEat so legacy.js's eatFood() can route the gesture to
+// hr-accrue, where the food is DEBITED and the heal CREDITED server-side.
+// Imported eagerly so the transport exists for the gesture and the smoke suite;
+// it moves no gold/gems, so it has no prediction ledger and no flip of its own —
+// it reuses the shared kill switch (isServerAccrualEnabled) and reconciles HP +
+// inventory absolutely through applyEnvelopeState like every other envelope.
+import './net/eat.js?v=479';
 // b361 — YOUR OWN TRADE LEDGER. A pure reader over rows the player can already
 // SELECT under market-v2's existing `own sales readable` policy; it authors
 // nothing and no payment path consults it. Imported EAGERLY (not lazily, the

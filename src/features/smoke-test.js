@@ -9836,6 +9836,33 @@ const TESTS = [
     }
   }),
 
+  // (2b) SERVER-AUTHORITATIVE EAT (Paione P0, 2026-08-25). The transport that
+  //      makes the consumption REAL server-side must be published and its wire
+  //      must carry a NAME and nothing computable — no heals, no hp, no qty.
+  //      Before this verb, eatFood debited G.inventory client-only and the
+  //      absolute inventory reconcile RESTORED the eaten food on reload: a free
+  //      heal and an effective dupe. This asserts the wire, not a round trip
+  //      (the suite has no live server) — the round trip is graded by
+  //      tests/eat-intent.mjs against real PostgreSQL.
+  () => tryRun('eat: the manual-eat transport is published and sends only a NAME', () => {
+    const M = window.HearthriseEat;
+    assert(M && typeof M.sendEat === 'function', 'window.HearthriseEat.sendEat missing — eatFood cannot back the eat server-side');
+    assert(typeof M.configureEat === 'function' && typeof M.buildEatRequest === 'function', 'eat transport is incomplete');
+    const { url, init } = M.buildEatRequest({ url: 'https://x/functions/v1/hr-accrue', token: 't', intentId: '00000000-0000-4000-a000-000000000001', item: 'turnip', slot: 0 });
+    assert(/\/functions\/v1\/hr-accrue$/.test(url), 'eat endpoint wrong: ' + url);
+    const body = JSON.parse(init.body);
+    assert(body.verb === 'eat' && body.item === 'turnip', 'eat wire must carry verb+item, got ' + init.body);
+    // ⚠ THE SECURITY PROPERTY: no computed value crosses. The heal and the hp
+    //   are the server's, read from src/data; the client names the food only.
+    assert(!('heals' in body) && !('hp' in body) && !('qty' in body) && !('amount' in body),
+      'eat wire leaked a computed value — the heal/hp must be server-owned: ' + init.body);
+    // A refusal that reached the DB (insufficient_item / already_full) carries an
+    // envelope so the client reconciles rather than keeps its optimistic guess.
+    const c = M.classifyEatResponse(409, { ok: false, error: 'insufficient_item', state: {}, version: 3, inventory: {} });
+    assert(c.outcome === 'refused' && c.reason === 'insufficient_item', 'classifyEatResponse misread a refusal');
+    assert(M.isAnswered('timeout') === false && M.isAnswered('refused') === true, 'eat answered-set is wrong (key reuse safety)');
+  }),
+
   // (3) Full HP is an honest dead end for a Provision (its only value is the
   //     heal, so eating one at full HP destroyed it and changed nothing —
   //     literally "I clicked eat and nothing happened"). A Feast is spent for

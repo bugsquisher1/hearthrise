@@ -510,6 +510,26 @@ export const INTENT_REGISTRY = Object.freeze({
      `bucket: 'activity'`, shared with set_activity and equip — one surface (the
      character's own loadout/pointer), one budget. */
   enchant: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
+  /* ── MANUAL FOOD CONSUMPTION (2026-08-25, Paione P0) ──────────────────────
+     `collectsFirst: FALSE`, and it is DERIVED, not preferred: hr_apply stamps
+     `accrued_to = now()` only on a delta carrying `equip`, `activity` or
+     `enchant` (STAMPING_DELTA_KEYS). An eat's delta carries `items` (a signed
+     debit) and `hp` (an absolute) — neither closes the accrual window — so
+     collecting first would cost a round trip and buy nothing. `guardStampKeys`
+     re-checks that against the delta eat.js actually builds, so the day someone
+     adds an `equip` key to an eat (a "drink this and wield that" gimmick) it is
+     a loud `delta_would_stamp` refusal rather than a silent confiscation.
+
+     `bucket: 'activity'`, shared with set_activity / equip / enchant — the
+     character's own state is one surface and a player spamming it should
+     exhaust ONE budget. 30/min is far above a human's manual-eat cadence
+     (auto-eat is server-modelled in the accrual and never reaches this verb).
+     THE COST, stated: a player who both re-gears and eats rapidly mid-fight
+     shares the 30/min budget across both. A new bucket would need a fifth arm
+     in hr_rate_gate — a `create or replace` the market-v2 file deliberately
+     froze — so a registry row naming an unknown bucket is a verb that 429s
+     forever, not a wider budget. Reuse, do not widen. */
+  eat: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -712,6 +732,33 @@ export const INTENT_ERRORS = Object.freeze({
      inventing a second name for a refusal the database already names is how a
      taxonomy stops meaning one thing per code. */
   BAD_ENCHANT: 'bad_enchant',
+
+  /* ── MANUAL FOOD CONSUMPTION (2026-08-25) ────────────────────────────────
+     TWO codes minted HERE; everything else about an eat is hr_apply's own
+     vocabulary returned verbatim (the same bargain equip strikes):
+
+       bad_item          400 — absent or malformed item id. SHARED with the
+                         other item verbs; one code, one meaning.
+       unknown_item      409 — not in src/data/items.js. SHARED, answered from
+                         the in-process catalogue before any database work.
+       item_not_food     409 — a REAL item that neither heals nor carries a
+                         buff. Split from `unknown_item` for the reason
+                         vendor_sell splits `item_not_sellable`: "there is no
+                         such item" and "that item is not food" are different
+                         facts, and collapsing them tells a player their Bronze
+                         Bar does not exist.
+       already_full      409 — a pure heal (heals but no buff) at full HP. It
+                         would waste the food for no effect, so the SERVER
+                         refuses it and NOTHING is debited — mirroring the
+                         client's b224 "kept your X" guard, but now enforced
+                         where the HP is actually owned. Carries the envelope
+                         (it is decided AFTER the server HP read), so the client
+                         reconciles rather than guesses.
+       insufficient_item 409 — hr_apply's own, under the row lock: the player
+                         owns no copy. THIS IS THE DUPE/OVER-EAT REFUSAL — the
+                         debit IS the ownership check, exactly as for equip. */
+  ITEM_NOT_FOOD: 'item_not_food',
+  ALREADY_FULL: 'already_full',
 });
 
 /* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────
@@ -794,6 +841,15 @@ export const STATELESS_REFUSALS = Object.freeze([
        from under the row lock, and THAT one carries an envelope.
        `refusalCarriesState` is consulted only on this layer's own refusals. */
   INTENT_ERRORS.BAD_ENCHANT,
+  /* MANUAL FOOD CONSUMPTION — `item_not_food` is answered from the in-process
+     ITEMS catalogue BEFORE the rate gate and before any database work, exactly
+     like `item_not_sellable`, so reading a state envelope for it is the database
+     work the shape check exists to avoid. `bad_item` / `unknown_item` are
+     already on this list above (shared with vendor_sell).
+     ⚠ `already_full` is DELIBERATELY NOT here: it is decided AFTER the server HP
+       read, the caller has already paid for the envelope, and a refusal it
+       cannot reconcile from would leave the client's optimistic heal standing. */
+  INTENT_ERRORS.ITEM_NOT_FOOD,
 ]);
 
 /** Must a refusal with this code carry the `hr_state_of` envelope? */

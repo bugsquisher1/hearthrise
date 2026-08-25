@@ -7208,6 +7208,23 @@ function wireServerEnchant(){
 }
 window.wireServerEnchant=wireServerEnchant;
 
+/* ── MANUAL EAT (2026-08-25, Paione P0) ────────────────────────────────────
+   Install the envelope hook ONCE. The eat transport is CONFIGURED at sign-in by
+   src/net/auth.js (configureEat(w.eat)); this only teaches it where to send the
+   server's answer — the SAME applier the away card and every other intent use,
+   so the eaten food's debit and the heal are reconciled ABSOLUTELY (inventory
+   under the armed absolute branch, HP raised by applyEnvelopeState's floor). */
+function wireServerEat(){
+  const M=window.HearthriseEat;
+  if(!M)return null;
+  const h=(typeof M.getEatHooks==='function')?M.getEatHooks():null;
+  if(!(h&&typeof h.onEnvelope==='function')&&typeof M.setEatHooks==='function'){
+    M.setEatHooks({onEnvelope:function(res){ return applyServerEnvelope(res,{intent:true}); }});
+  }
+  return M;
+}
+window.wireServerEat=wireServerEat;
+
 /* Route a chosen rune to the server. Optimistic: NOTHING local is authored —
    the element is the server's to set, so the client waits for the envelope and
    renders what it returns. A refusal is surfaced; an unreachable server leaves
@@ -17689,6 +17706,25 @@ window.eatFood = function(foodId, opts){
   if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
   if(typeof window.renderActiveEffects === 'function') window.renderActiveEffects();
   if(typeof window.updateTopbar === 'function') window.updateTopbar();
+
+  /* ── SERVER-AUTHORITATIVE CONSUMPTION (2026-08-25, Paione P0) ─────────────
+     Everything above is DISPLAY PREDICTION — instant heal, buff, debit and
+     toast, so the tap feels immediate. The ACTUAL consumption is the server's:
+     fire the `eat` intent and reconcile HP + inventory from the envelope it
+     returns (applyServerEnvelope → applyEnvelopeState, the same applier the away
+     card uses). Without this the local debit was reversed by the next absolute
+     inventory reconcile — the food "returned" — which was the whole P0.
+     FIRE-AND-RECONCILE: never awaited (an idle game must feel instant), and a
+     no-op with the switch off (byte-for-byte today's pure-client behaviour). */
+  if(typeof serverAccrualActive==='function' && serverAccrualActive()){
+    try{
+      const M=wireServerEat();
+      if(M&&typeof M.sendEat==='function'){
+        const p=M.sendEat(foodId);
+        if(p&&typeof p.catch==='function')p.catch(function(){});
+      }
+    }catch(e){ /* the local prediction stands; the next envelope reconciles */ }
+  }
   return true;
 };
 

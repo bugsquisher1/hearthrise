@@ -86,6 +86,7 @@ import { runUnlockBuy } from './unlock-buy.js';
 import { runMarketList, runMarketCancel, runMarketBuy } from './market.js';
 import { runEquip } from './equip.js';
 import { runEnchant } from './enchant.js';
+import { runEat } from './eat.js';
 import { withCors } from './cors.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
@@ -314,6 +315,23 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         slot,
         intentId: intent.intentId,
         enchant: intent.enchant,
+      });
+      return json(out.body, out.status);
+    }
+
+    /* ── MANUAL FOOD CONSUMPTION (2026-08-25, Paione P0) ───────────────────
+       An ITEM NAME and nothing else. No heal amount (it is `ITEMS[item].heals`,
+       server-side), no qty (an eat is one unit), no hp (the server computes the
+       absolute from its own hp + the catalogue heal). If a `heals`, `hp`, `qty`
+       or `amount` ever appears in this argument list, the heal is forgeable from
+       devtools and the food is duped from devtools. */
+    if (intent.verb === 'eat') {
+      const out = await runEat({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        intentId: intent.intentId,
+        item: intent.item,
       });
       return json(out.body, out.status);
     }

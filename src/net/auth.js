@@ -359,7 +359,10 @@ export function buildIntentWiring(cfg) {
      made in wireServerIntents() below by LOOKING for the routing function
      rather than by a constant somebody has to remember to keep true. */
   return { accrual: { ...base }, character: { ...base, userId: c.userId },
-    record: { ...base }, activity: { ...base }, gold: { ...base }, equip: { ...base } };
+    record: { ...base }, activity: { ...base }, gold: { ...base }, equip: { ...base },
+    /* MANUAL EAT (2026-08-25). Same base as the other value intents — url,
+       apiKey, a re-read authToken and NO pinned slot (resolved per call). */
+    eat: { ...base } };
 }
 
 /* ── IS THE EQUIP GESTURE ACTUALLY ROUTED ON THIS CLIENT? (b366) ────────────
@@ -408,6 +411,8 @@ export function wireServerIntents(win, cfg) {
   catch (e) { console.warn('[auth] activity wiring skipped:', e && e.message); }
   try { if (win && win.HearthriseGold) win.HearthriseGold.configureGold(w.gold); }
   catch (e) { console.warn('[auth] gold wiring skipped:', e && e.message); }
+  try { if (win && win.HearthriseEat) win.HearthriseEat.configureEat(w.eat); }
+  catch (e) { console.warn('[auth] eat wiring skipped:', e && e.message); }
   /* ⚠ b369 — THIS CALL NO LONGER ARMS ANYTHING. It states a NECESSARY
      condition (the gesture routes here) and configures the transport; the flip
      arms in src/net/equip.js on the server's first `ok:true`. The returned

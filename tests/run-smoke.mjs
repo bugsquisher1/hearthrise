@@ -31,6 +31,7 @@ import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
 import { runAll as equipIntentGuards } from './equip-intent.mjs';
+import { runAll as eatIntentGuards } from './eat-intent.mjs';
 import { guard as skillRowUpsertGuard } from './skill-row-upsert.mjs';
 import { guard as leaderboardSourceGuard } from './leaderboard-server-source.mjs';
 import { itemsCatalogueGuard, itemsCatalogueMutationGuard } from './items-catalogue.mjs';
@@ -2480,6 +2481,25 @@ const run = async () => {
         + 'copy the player does not own is refused, a catalogue-staleness refusal releases the '
         + 'intent key and the ownership refusal does not, and the verb collects the window BEFORE '
         + 'it swaps the gear that prices it.');
+    }
+
+    /* ── Manual eat (Paione P0, 2026-08-25) ─────────────────────────────
+       The REAL runEat bytes, behind index.ts's one-statement exec seam, against
+       the real migration chain in PGlite: an eat DEBITS the food server-side
+       (the P0 — a client-only debit was restored by the absolute reconcile, so
+       the food "returned"), CREDITS the heal clamped to max_hp, is idempotent on
+       replay (no double-debit), refuses insufficient_item / already_full /
+       intent_mismatch, and every stateful refusal carries the envelope. */
+    const eatProblems = await eatIntentGuards();
+    if (eatProblems.length) {
+      console.log('\nEat intent (manual food) — FAILED:');
+      for (const p of eatProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nEat intent (manual food) — a manual eat debits the food through hr_apply '
+        + 'exactly once, credits the catalogue heal clamped to max_hp, is idempotent on replay, and '
+        + 'the eaten food does not return: player_inventory holds one fewer unit for the absolute '
+        + 'reconcile to read.');
     }
 
     /* ── The `unknown_skill` incident's permanent fix (b370) ────────────

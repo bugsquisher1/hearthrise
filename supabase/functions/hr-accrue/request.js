@@ -128,7 +128,16 @@ export const VERBS = Object.freeze(
        ELEMENT (hr_runes), checks the weapon slot holds a weapon, debits the rune
        and sets the server-owned enchant state. The client never sends an
        element, a magnitude or a success bit. */
-    'enchant']);
+    'enchant',
+    /* MANUAL FOOD CONSUMPTION (2026-08-25, Paione P0). The wire carries an
+       `item` NAME (`{verb:'eat',item:'turnip'}`) — the SAME field vendor_sell
+       reads — and NOTHING ELSE. No heal amount, no qty, no hp: eat.js reads
+       ITEMS[item].heals server-side and hr_apply credits `hp` (clamped to
+       max_hp) and debits one unit under the row lock. Before this verb existed,
+       `window.eatFood` debited G.inventory CLIENT-ONLY and sent no intent, so
+       the absolute inventory reconcile RESTORED the eaten OWNABLE food on the
+       next envelope — a free heal AND an effective dupe. See eat.js's header. */
+    'eat']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`

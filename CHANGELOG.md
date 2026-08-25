@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 480 — 2026-08-25 (Food you eat stays eaten)
+
+- 🍖 **Fixed food coming back after you eat it.** Eating a crop or raw fish in combat healed you but the food reappeared on reload (a free heal). Eating is now server-authoritative: the server debits the food and applies the heal, so what you eat is actually gone and the heal sticks. (Cooked dishes were already safe; this fixes raw foods and crops like moonbloom.)
+
 ## v0.9.2-beta build 479 — 2026-08-25 (Harvest counts, chat names, Tools filter)
 
 - 🌱 Fixed the Home "Harvest" tile always showing 0 — it was reading a counter nothing writes. It now reads the real crops-harvested count, so today's harvest actually shows.

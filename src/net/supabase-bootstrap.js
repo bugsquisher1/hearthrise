@@ -25,7 +25,7 @@
 // what the player pastes in.
 // ============================================================
 
-import { setupAuth } from './auth.js?v=473';
+import { setupAuth } from './auth.js?v=474';
 
 // ============================================================
 // PRODUCTION CREDENTIALS — paste once, ship to players.
@@ -128,9 +128,9 @@ async function importBackendsLazily() {
   // Each backend self-installs a `window.HearthriseChat.setBackend(...)` /
   // `HearthriseMarket.setBackend(...)` swap, so chat + market upgrade
   // from local to cloud automatically once they're loaded.
-  try { await import('./supabase-chat-backend.js?v=473'); }
+  try { await import('./supabase-chat-backend.js?v=474'); }
   catch (e) { console.warn('[supabase-bootstrap] chat backend skipped:', e.message); }
-  try { await import('./supabase-market-backend.js?v=473'); }
+  try { await import('./supabase-market-backend.js?v=474'); }
   catch (e) { console.warn('[supabase-bootstrap] market backend skipped:', e.message); }
 }
 

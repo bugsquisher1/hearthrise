@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 474 — 2026-08-24 (Cooking is back — for real)
+
+- 🍳 **Cooking works again and actually saves.** It's now fully server-authoritative: cook online or while you're away, and your cooked food + Cooking XP persist across reloads, with your Kitchen's reduced burn correctly applied. (This replaces the temporary pause — the earlier problem was the client thinking cooking was saved while the server never accepted it; the server now owns it end to end.)
+
 ## v0.9.2-beta build 473 — 2026-08-24 (Progress you can trust)
 
 - 🟢 Fixed the status showing "Offline" while you were actually connected — it was reading a dead pre-launch flag that was always off. It now reflects your real connection.

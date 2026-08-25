@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 475 — 2026-08-25 (Daily reward shows the right day)
+
+- 🎁 Fixed the Daily Reward popup showing the wrong day (e.g. "Day 1 · 500 gold" when you actually had a longer streak and got the bigger reward). The popup now reads your real, server-tracked streak, so the day and reward it shows match what you're given.
+
 ## v0.9.2-beta build 474 — 2026-08-24 (Cooking is back — for real)
 
 - 🍳 **Cooking works again and actually saves.** It's now fully server-authoritative: cook online or while you're away, and your cooked food + Cooking XP persist across reloads, with your Kitchen's reduced burn correctly applied. (This replaces the temporary pause — the earlier problem was the client thinking cooking was saved while the server never accepted it; the server now owns it end to end.)

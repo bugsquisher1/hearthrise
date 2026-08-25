@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=474';
+//   import { setupSync } from './net/sync.js?v=475';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,23 +16,23 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=474';
+import { on, snapshot } from './events.js?v=475';
 /* b342 — WHICH CHARACTER'S SAVE IS THIS? The same resolver src/net/{accrue,
    character,record}.js use, imported rather than re-derived: multi-character.js
    owns the answer and a second reader of that record is a second thing to
    drift. accrue.js has no imports of its own, so this adds no cycle. */
-import { resolveActiveSlot } from './accrue.js?v=474';
+import { resolveActiveSlot } from './accrue.js?v=475';
 /* Read-only, for the cloud-save self-test's report. A balance the client has
    not been told is a different fact from a balance of zero. */
-import { balanceState } from './balance.js?v=474';
+import { balanceState } from './balance.js?v=475';
 /* ── THE CAPSTONE SAVE PATH (blob-retire, DORMANT) ───────────────────────────
    Under the capstone the authoritative snapshot() blob is NOT uploaded — the
    authority fields flow through their own server writes (record / RPCs / accrual)
    and only the self-only residue is persisted, via putClientState. isBlobRetired
    is the one flag; buildResiduePatch is the census→patch. No cycle: neither
    capstone.js nor client-state.js imports sync.js. */
-import { isBlobRetired, buildResiduePatch } from './capstone.js?v=474';
-import { putClientState } from './client-state.js?v=474';
+import { isBlobRetired, buildResiduePatch } from './capstone.js?v=475';
+import { putClientState } from './client-state.js?v=475';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';

@@ -1777,6 +1777,102 @@ const TESTS = [
        real engine in that file's section B. */
   }),
 
+  () => tryRun('combat style FAMILY follows the actual weapon, not a fail-closed equipment read (Paione: "styles keep swapping from attack to magic when you swap them / on level up")', () => {
+    // ROOT CAUSE this guards: getWeaponType() picks the style SET from the worn
+    // weapon via the SERVER-authoritative equipment record accessor. That accessor
+    // (correctly) fail-closes to UNKNOWN the instant the client writes G.equipment
+    // — which EVERY equip / unequip / loadout swap does (it breaks the record
+    // fingerprint → recordValue 'client-overwrote') — and also before the first
+    // envelope. Without the fix the family then snapped to the 'sword'/Attack
+    // default and flipped back when the next envelope re-applied the record: a
+    // magic/ranged user watched their picker swap Attack↔Magic on every gear swap
+    // and every level-up re-render. The family is DISPLAY-ONLY (the server routes
+    // XP from its own equipment row), so it must fall back to the player's own
+    // best-known weapon rather than fail-close.
+    const R = window.HearthriseRecord;
+    if (!R || typeof R.applyRecord !== 'function' || typeof window.getWeaponType !== 'function') {
+      assert(false, 'record/getWeaponType wiring missing — the style family could silently flip');
+      return;
+    }
+    const G = window.G;
+    const savedRecord = G._record ? JSON.parse(JSON.stringify(G._record)) : undefined;
+    const savedEquip = G.equipment ? JSON.parse(JSON.stringify(G.equipment)) : undefined;
+    const armed = R.isServerOfRecord && R.isServerOfRecord('equipment');
+    try {
+      // MAGIC user: server record confirms a staff → family is magic.
+      R.applyRecord(G, { ok: true, version: 9000001, state: {}, equipment: { weapon: 'apprentice_staff' } });
+      assert(window.getWeaponType() === 'magic',
+        'a confirmed magic weapon must resolve to the magic style family; got ' + window.getWeaponType());
+      // The player equips a helmet — a client write to G.equipment. Under the arm
+      // this makes recordValue 'client-overwrote' (the exact flip trigger).
+      G.equipment = G.equipment || {};
+      G.equipment.weapon = 'apprentice_staff';
+      G.equipment.helmet = 'leather_helm';
+      if (armed) {
+        assert(R.recordValue(G, 'equipment').source === 'client-overwrote',
+          'precondition: a client G.equipment write should make the equipment record client-overwrote');
+      }
+      assert(window.getWeaponType() === 'magic',
+        'THE BUG: after a client gear swap the magic family flipped to the sword/Attack default; '
+        + 'got ' + window.getWeaponType());
+      // BOTH DIRECTIONS: a melee user must stay melee through the same gesture.
+      R.applyRecord(G, { ok: true, version: 9000002, state: {}, equipment: { weapon: 'bronze_sword' } });
+      assert(window.getWeaponType() === 'sword', 'a confirmed sword must resolve to the sword family');
+      G.equipment.weapon = 'bronze_sword';
+      G.equipment.body = 'leather_body';
+      assert(window.getWeaponType() === 'sword',
+        'a melee gear swap wrongly flipped the family away from sword; got ' + window.getWeaponType());
+      // THE LEVEL-UP CASE: a lean envelope (a settle / level-up) that OMITS
+      // equipment must leave the family exactly where the last worn weapon put it.
+      R.applyRecord(G, { ok: true, version: 9000003, state: { combat_style: { sword: 'aggressive' } } });
+      assert(window.getWeaponType() === 'sword',
+        'a lean level-up envelope disturbed the weapon family; got ' + window.getWeaponType());
+    } finally {
+      if (savedRecord === undefined) { try { delete G._record; } catch (e) { G._record = undefined; } }
+      else G._record = savedRecord;
+      if (savedEquip === undefined) { try { delete G.equipment; } catch (e) { G.equipment = undefined; } }
+      else G.equipment = savedEquip;
+    }
+  }),
+
+  () => tryRun('maxHp tracks the shown Hitpoints level — one source of truth (Paione: "character screen shows 11 HP, combat shows 10")', () => {
+    // A hitpoints level gained through the DISPLAY prediction, or one that only
+    // settles later via the away/settle envelope, left the STORED G.playerMaxHp
+    // behind — so the character/skills screen showed level 11 while the combat HP
+    // bar read the stale cap (10) until a reload. hrSyncMaxHp() re-derives the cap
+    // from the SAME level the character screen shows (getLevel), raise-only.
+    assert(typeof window.hrSyncMaxHp === 'function',
+      'hrSyncMaxHp is missing — nothing re-derives maxHp from the hitpoints level, so the HP bar '
+      + 'drifts from the character screen until a reload');
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      G.skills = G.skills || {};
+      G.skills.hitpoints = 1358;   // level 11
+      G.playerMaxHp = 10;          // stale — one behind the level-up
+      G.playerHp = 10;             // resting at (old) full
+      const shown = window.getLevel('hitpoints');
+      assert(shown === 11, 'precondition: the shown hitpoints level should be 11; got ' + shown);
+      window.hrSyncMaxHp();
+      assert(G.playerMaxHp === shown,
+        'THE BUG: maxHp did not follow the shown hitpoints level (' + shown + '); combat still reads '
+        + G.playerMaxHp);
+      assert(G.playerHp === G.playerMaxHp,
+        'a resting player at full HP should be handed the new headroom, not stay one under');
+      // RAISE-ONLY: a later, lower level (a prediction rollback) must not shrink a
+      // resting player's cap — HP is not tradeable/rankable.
+      G.skills.hitpoints = 100;    // ~level 2
+      window.hrSyncMaxHp();
+      assert(G.playerMaxHp === 11, 'maxHp must be raise-only; a lower level shrank the cap to ' + G.playerMaxHp);
+      // MID-FIGHT: an injured live hp is preserved (not topped up), max still rises.
+      G.skills.hitpoints = 1358; G.playerMaxHp = 10; G.playerHp = 3;
+      window.hrSyncMaxHp();
+      assert(G.playerMaxHp === 11 && G.playerHp === 3,
+        'a mid-fight level-up must raise the cap but leave an injured hp where the fight put it; got '
+        + G.playerHp + '/' + G.playerMaxHp);
+    } finally { restoreG(snap); }
+  }),
+
   () => tryRunClientAuthoritative('unlock_buy slice: upgradeProperty resolves property.<tierId> and debits once (client-authoritative)', () => {
     // Client-authoritative (switch off), goldSettle is the plain local debit that
     // shipped before, so this asserts the rewiring preserved the exact charge and

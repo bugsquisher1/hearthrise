@@ -3244,6 +3244,41 @@ function getLevel(sk){
   }
   return window.HearthriseCore.xp.levelOf(G.skills,sk);
 }
+/* ── MAX HP TRACKS THE HITPOINTS LEVEL — ONE SOURCE OF TRUTH (Paione: "character
+   screen shows 11 HP, combat shows 10") ─────────────────────────────────────
+   maxHp == the Hitpoints level everywhere in this client. G.playerMaxHp is a
+   STORED field, seeded from hitpoints xp at boot and bumped by addXp's live
+   level-up event. But a hitpoints level gained through the DISPLAY prediction
+   (getLevel = server xp + in-flight prediction, which the character/skills screen
+   shows the instant a hit lands) — or one that only settles later via the
+   away/settle envelope — left the stored max behind, so the HP bar read the stale
+   number until a reload re-ran the boot seed. This re-derives the cap from the
+   SAME display level the character screen shows, so the two can never disagree.
+
+   RAISE-ONLY, on purpose: HP is not tradeable or rankable (server routes nothing
+   off it), so a prediction that later corrects down must not shrink a resting
+   player's cap mid-session — the same direction the b374 envelope derive uses.
+   A level-up hands the player the new headroom, but only when they are not
+   mid-fight-injured (a live hp > 0 below its old max is left exactly where the
+   fight put it). playerHp is always clamped to the (new) max. */
+function hrSyncMaxHp(){
+  try{
+    if(typeof G==='undefined' || !G) return;
+    var lvl = (typeof getLevel==='function') ? getLevel('hitpoints') : null;
+    if(!(typeof lvl==='number' && Number.isFinite(lvl) && lvl>=1)){
+      lvl = levelFromXp((G.skills && G.skills.hitpoints) || 0);
+    }
+    if(!(typeof lvl==='number' && Number.isFinite(lvl) && lvl>=1)) return;
+    var cur = Number(G.playerMaxHp) || 0;
+    if(lvl > cur){
+      var wasFull = Number(G.playerHp) >= cur;
+      G.playerMaxHp = lvl;
+      if(wasFull || !(Number(G.playerHp) > 0)) G.playerHp = G.playerMaxHp;
+    }
+    if(Number(G.playerHp) > G.playerMaxHp) G.playerHp = G.playerMaxHp;
+  }catch(e){}
+}
+window.hrSyncMaxHp = hrSyncMaxHp;
 /* b455 — the ROLLUPS read the display map too. They used to read `G.skills` raw,
    which under the arm is the server's map with NO prediction folded in: total
    level and combat level would sit still for 90 seconds while every individual
@@ -5139,6 +5174,10 @@ function startCombat(mId){
      AFTER the local pointer moves (fire-and-reconcile: an idle game must feel
      instant, and the envelope reconciles the guess). */
   activityQuietly(stopCombat);
+  /* maxHp tracks the Hitpoints level the player is actually shown (getLevel),
+     re-derived here so a fight never opens on a stale cap — the "character screen
+     shows 11, combat shows 10" drift. Raise-only, playerHp clamped. */
+  hrSyncMaxHp();
   const m=MONSTERS[mId];
   G.activeMonster=mId;G.monsterHp=m.hp;G.monsterMaxHp=m.hp;G.combatKillsThisFoe=0;
   G.combatLog=[`You attack the ${m.name}!`];
@@ -6716,6 +6755,10 @@ function renderMonsterList(){
 }
 function renderCombat(){
   const el=document.getElementById('combat-area');if(!el)return;
+  /* Keep the HP bar's max in step with the shown Hitpoints level even when the
+     player only VIEWS combat after an away settle (no new startCombat). Cheap,
+     idempotent, raise-only. */
+  hrSyncMaxHp();
   /* Tester report (paione): the auto-eat food dropdown "keeps closing every few
      ticks". renderCombat rebuilds this area's innerHTML on every combat tick,
      which destroys the <select> mid-pick and closes its native menu. If the
@@ -11771,6 +11814,42 @@ function migrate(){
 window.getWeaponType = function(){
   if(typeof G==='undefined' || !G) return 'sword';
   var id = equippedItemG('weapon');
+  /* ── THE STYLE FAMILY FOLLOWS THE ACTUAL WEAPON, NOT A FAIL-CLOSED READ ──────
+     equippedItemG() reads the SERVER-AUTHORITATIVE equipment record
+     (src/net/equipment-record.js). That accessor correctly fail-closes to null
+     the instant it cannot vouch for the worn set — which is EVERY time the client
+     writes G.equipment (any equip / unequip / loadout swap breaks the record
+     fingerprint → recordValue returns `client-overwrote`), and also before the
+     first envelope of a session. Fail-closed is right for AUTHORITY, but the
+     combat-STYLE FAMILY is a pure DISPLAY concern: the server routes every
+     styled XP grant from ITS OWN equipment row, never from this value. So
+     snapping the family to the 'sword' default whenever the record is momentarily
+     unknown made a magic/ranged/hammer user's style picker flip to the Attack set
+     on every gear swap and reload, then flip back the instant the next envelope
+     re-applied the record — Paione, live: "combat styles keep swapping from
+     attack styles to magic styles when you try to swap them ... also on level up."
+
+     When the record cannot confirm a worn weapon, fall back to the player's OWN
+     best-known weapon for the DISPLAY family only: the raw G.equipment.weapon
+     (the optimistic value they literally just equipped), then the last-known
+     server value the b455 display cache keeps. This keeps the family stable
+     across the record's known/unknown transitions without ever trusting a client
+     value for authority. */
+  if(!id){
+    try{
+      var raw = (G.equipment && typeof G.equipment==='object' && !Array.isArray(G.equipment)) ? G.equipment.weapon : null;
+      if(typeof raw==='string' && raw) id = raw;
+    }catch(e){}
+  }
+  if(!id){
+    try{
+      var R=window.HearthriseRecord;
+      if(R && typeof R.recordLastKnown==='function'){
+        var last=R.recordLastKnown(G,'equipment');
+        if(last && typeof last==='object' && typeof last.weapon==='string' && last.weapon) id=last.weapon;
+      }
+    }catch(e){}
+  }
   if(typeof ITEMS==='undefined' || !ITEMS[id]) return 'sword';
   return ITEMS[id].weaponType || 'sword';
 };

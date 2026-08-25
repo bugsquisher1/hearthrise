@@ -13,9 +13,11 @@
 //   Regenerate:  node tools/gen-bounty-monsters.mjs
 //   Verify:      node tools/gen-bounty-monsters.mjs --check   (run in run-smoke)
 //
-// Emits ONLY ids + tier — no hp, no reward, no game number beyond the tier the
-// bounty economy already keys on. The reward MULTIPLIER tables live inline in
-// 2026-08-23-bounty.sql (drift-guarded against src/core/bounty.js), not here.
+// Emits ids + tier + hp. `hp` was added 2026-08-30 for the plausibility cap in
+// hr_credit_kills (the ONLY consumer of hp); `tier` still drives reward + the
+// combat-level gate. No reward, no other game number — the reward MULTIPLIER
+// tables live inline in 2026-08-23-bounty.sql (drift-guarded against
+// src/core/bounty.js), not here.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -31,14 +33,23 @@ function rows() {
     const t = MONSTERS[id].tier;
     if (!(t >= 1 && t <= 6)) throw new Error(`monster ${id} has out-of-range tier ${t}`);
     if (!/^[a-z0-9_]+$/.test(id)) throw new Error(`monster id ${id} is not [a-z0-9_]`);
-    return [id, t | 0];
+    /* HP joins tier (bounty-kill-credit, 2026-08-30). It is the ONE game number
+       the plausibility cap in hr_credit_kills needs — swings-to-kill = hp /
+       maxHitCeil — and it lives on each monster in src/data/monsters.js and
+       nowhere server-side. A missing/garbage hp fails the build rather than
+       shipping a 1-HP monster that would make every kill a single swing. */
+    const hp = MONSTERS[id].hp;
+    if (!(Number.isInteger(hp) && hp >= 1 && hp <= 100000)) {
+      throw new Error(`monster ${id} has out-of-range hp ${hp}`);
+    }
+    return [id, t | 0, hp | 0];
   });
 }
 
 export function render() {
   const r = rows();
   const digest = createHash('sha256').update(JSON.stringify(r)).digest('hex');
-  const values = r.map(([id, t]) => `  ('${id}', ${t})`).join(',\n');
+  const values = r.map(([id, t, hp]) => `  ('${id}', ${t}, ${hp})`).join(',\n');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE BOUNTY MONSTER→TIER CATALOGUE  (GENERATED — DO NOT EDIT)
 --
@@ -59,11 +70,19 @@ begin
   if to_regclass('public.hr_bounty_monsters') is null then
     create table public.hr_bounty_monsters (
       monster_id text primary key,
-      tier       int  not null check (tier between 1 and 6)
+      tier       int  not null check (tier between 1 and 6),
+      hp         int  not null default 1 check (hp >= 1)
     );
     alter table public.hr_bounty_monsters enable row level security;
   end if;
 end $$;
+
+-- ADDITIVE: databases that ran the pre-2026-08-30 catalogue have no hp column.
+-- Add it before the truncate+insert so the re-seed below can fill it.
+alter table public.hr_bounty_monsters add column if not exists hp int not null default 1;
+do $$ begin
+  alter table public.hr_bounty_monsters add constraint hr_bounty_monsters_hp_chk check (hp >= 1);
+exception when duplicate_object then null; end $$;
 
 -- Read-only catalogue: readable by everyone signed in, written by NO client.
 drop policy if exists hr_bounty_monsters_sel on public.hr_bounty_monsters;
@@ -72,7 +91,7 @@ revoke all on public.hr_bounty_monsters from anon, authenticated, service_role;
 grant select on public.hr_bounty_monsters to anon, authenticated, service_role;
 
 truncate table public.hr_bounty_monsters;
-insert into public.hr_bounty_monsters (monster_id, tier) values
+insert into public.hr_bounty_monsters (monster_id, tier, hp) values
 ${values};
 
 do $$

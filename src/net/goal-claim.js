@@ -156,6 +156,32 @@
        the once-guard (deleted under a row lock). Fire-and-forget: a replay returns
        no_active_bounty with no second credit. */
     claimBounty: function () { return call('hr_claim_bounty', { p_slot: activeSlot() }); },
+    /* Bounty KILL CREDIT — supabase/migrations/2026-08-30-bounty-kill-credit.sql
+       (bug #5). The server bounty counter (ev:kill_monster:<target>) is written
+       only by the away/span-sim, which re-simulates the window UNATTENDED and
+       realizes 60–99% fewer kills than the attended player got — so the bar hits
+       102/102 while the server counter never reaches target and hr_claim_bounty
+       refuses forever. This lets the LIVE client TOP UP the server counter with
+       its OBSERVED kills; the server CLAMPS the credit to the physical-max
+       plausibility cap (floor(1.3 × elapsed / min_time_to_kill)), grants NO
+       gold/XP/drops (the turn-in still pays the reward, once), and journals any
+       throttled claim as a forgery signal.
+
+       DISPLAY-SAFE + IDEMPOTENT: the server tops UP to (baseline + capped credit),
+       never lower and never double-counting the settle, and p_idem makes a replay
+       a no-op. Only the target id + the client's observed count cross the wire;
+       the cap, the level and the elapsed clock are all the server's. A refusal
+       (no_active_bounty / rate_limited / throttled) costs nothing — the client
+       just retries on the next kill. @returns {ok, progress, required, cap,
+       credited, throttled, ...}. */
+    creditKills: function (target, claimed) {
+      return call('hr_credit_kills', {
+        p_slot: activeSlot(),
+        p_target: String(target || ''),
+        p_claimed: Math.max(0, Math.floor(Number(claimed) || 0)),
+        p_idem: newIdem()
+      });
+    },
     /* Bounty MARKS spend — supabase/migrations/2026-08-26-marks-record.sql. ONE
        server-authoritative debit for reroll + abandon. The server derives the
        reroll cost (5 + paid-rerolls-today*5, counted from the ledger) and the

@@ -4372,24 +4372,38 @@ function completeBounty(){
     if(b._confirming) return;   // a turn-in is already in flight — never double-fire
     b._confirming=true;
     repaintBounty();
-    try{
-      const _p=_GC.claimBounty();
-      if(_p && _p.then){
-        _p.then(function(res){
-          b._confirming=false;
-          if(!G.bountyHunter || G.bountyHunter.active!==b) return;  // changed under us
-          if(res && res.ok){
-            finalizeBounty(b, r, _isCull);
-          } else {
-            /* Denied — the server hasn't counted the kills yet. HOLD (never
-               "0 reward"/failed, never consume). One non-alarming notice; the
-               next kill re-enters completeBounty and retries. */
-            if(!b._syncNoticed){ b._syncNoticed=true; if(typeof notify==='function') notify('Still counting your last few kills — this bounty completes on its own in a moment.','info'); }
-            repaintBounty();
-          }
-        }).catch(function(){ b._confirming=false; });
-      } else { b._confirming=false; }
-    }catch(e){ b._confirming=false; }
+    /* ── bug #5 — CREDIT THE SERVER COUNTER, THEN VERIFY THE TURN-IN ─────────
+       The away/span-sim undercounts the attended player's kills (60–99% fewer),
+       so hr_claim_bounty refuses forever once the player stops. We first submit
+       the client's OBSERVED kill count to hr_credit_kills, which TOPS UP the
+       server counter (clamped server-side to the physical-max plausibility cap,
+       granting no gold/XP), then fire the turn-in. On denial we HOLD, reconcile
+       the bar DOWN to the server-confirmed count, show ONE calm notice, and let
+       the next kill retry — the credit's returned progress advances each time,
+       so a stopped-at-target bounty is never a permanent lie. */
+    const _observed = Math.max(0, Math.floor(Number(b.progress)||0));
+    let _creditP;
+    try{ _creditP = (typeof _GC.creditKills==='function') ? _GC.creditKills(b.target, _observed) : Promise.resolve(null); }
+    catch(e){ _creditP = Promise.resolve(null); }
+    Promise.resolve(_creditP).then(function(cr){
+      if(!G.bountyHunter || G.bountyHunter.active!==b){ b._confirming=false; return null; }
+      /* Decision 1: the confirmed count is the server's, never the local phantom. */
+      if(cr && cr.ok && typeof cr.progress==='number'){ b._serverConfirmed = Math.max(0, Math.min(b.required, cr.progress|0)); }
+      return _GC.claimBounty();
+    }).then(function(res){
+      b._confirming=false;
+      if(!G.bountyHunter || G.bountyHunter.active!==b) return;  // changed under us
+      if(res && res.ok){
+        finalizeBounty(b, r, _isCull);
+      } else {
+        /* Denied — the server hasn't counted enough kills yet. HOLD (never
+           "0 reward"/failed, never consume). One calm notice; the next kill
+           re-enters completeBounty, tops the counter up again, and retries (the
+           active_bounty row is the server once-guard, so the retry pays once). */
+        if(!b._syncNoticed){ b._syncNoticed=true; if(typeof notify==='function') notify('Verifying your kills with the server — keep fighting to lock it in.','info'); }
+        repaintBounty();
+      }
+    }).catch(function(){ b._confirming=false; });
     return;
   }
   finalizeBounty(b, r, _isCull);
@@ -10607,8 +10621,14 @@ window.renderBountyPanel = function(){
   const m = MONSTERS[a.target];
   const cur = a.type === 'proof' ? Math.min(bountyProofHave(a), a.required) : Math.min(a.progress||0, a.required);
   const _confirming = !!(a._confirming || a._syncNoticed) && (a.progress||0) >= a.required;
+  /* Decision 1 (bug #5): while the server catches up, show the SERVER-CONFIRMED
+     count (never the phantom local total), reconciled DOWN to server truth by the
+     credit RPC's returned progress. Never below what the server has confirmed. */
+  const _confirmed = Math.max(0, Math.min(a.required, Math.floor(Number(a._serverConfirmed)||0)));
   const pct = Math.min(100, (cur/a.required)*100);
-  const _curLabel = _confirming ? `${a.required}/${a.required} · Confirming…` : `${cur}/${a.required}`;
+  const _curLabel = _confirming
+    ? `${_confirmed}/${a.required} confirmed · Verifying your kills…`
+    : `${cur}/${a.required}`;
   return `<div class="bounty-card${_confirming?' confirming':''}" style="margin-bottom:8px">
     <div class="row between">
       <div class="bounty-title">Active bounty: ${m?.name||'?'}</div>
@@ -10898,8 +10918,9 @@ function refreshActivityBar(){
           ? Math.min((typeof bountyProofHave==='function'?bountyProofHave(_ab):0), _ab.required)
           : Math.min(_ab.progress||0, _ab.required);
         const _abConfirming = !!(_ab._confirming || _ab._syncNoticed) && (_ab.progress||0) >= _ab.required;
+        const _abConfirmed = Math.max(0, Math.min(_ab.required, Math.floor(Number(_ab._serverConfirmed)||0)));
         bountyChip = _abConfirming
-          ? '<span class="ab-bounty confirming">Bounty <b>Confirming…</b></span>'
+          ? '<span class="ab-bounty confirming">Bounty <b>'+_abConfirmed+'/'+_ab.required+' confirmed</b></span>'
           : '<span class="ab-bounty">Bounty <b>'+_cur+'/'+_ab.required+'</b></span>';
       }
       /* b266 (tester): show the combat SKILL you're training + XP to the next

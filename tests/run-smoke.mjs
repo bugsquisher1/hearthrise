@@ -2178,6 +2178,22 @@ const run = async () => {
       console.log('\nBounty drift guard — bounty.js reward/range/tier tables and the credit RPC SQL agree.');
     }
 
+    /* ── The kill-credit plausibility-cap drift guard (bug #5) ──────────────
+       hr_bounty_kill_cap reproduces src/core/kill-time.js in SQL so
+       hr_credit_kills can clamp a client's claimed kills to the physical maximum
+       a character of its level could make. Binds the integer coefficients + the
+       migration's GATE(c) anchors to the core model so the two runtimes cannot
+       diverge (a divergence = an honest kill refused, or a forged one accepted). */
+    try {
+      const { killTimeDriftGuard } = await import('./kill-time-drift.mjs');
+      const r = await killTimeDriftGuard();
+      console.log(`\nKill-time drift guard — ${r.checks}`);
+    } catch (e) {
+      console.log('\nKill-time drift guard — FAILED:');
+      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    }
+
     /* ── The Bounty-Marks record guard (server-of-record slice) ─────────────
        Proves the CLIENT half of 2026-08-26-marks-record.sql: arm OFF is a no-op
        (marksOf reads G.bountyHunter.marks); arm ON reads the server's record and

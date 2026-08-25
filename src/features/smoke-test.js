@@ -4565,6 +4565,52 @@ const TESTS = [
       G.marks = saved.marks; G.bountyHunter = saved.bh;
     }
   }),
+  /* bug #5 (Paione, live): a CULL bounty that reaches target but hangs because
+     the away/span-sim undercounts the attended player's kills. completeBounty
+     must now CREDIT the server counter with the observed kills (hr_credit_kills)
+     BEFORE it fires the turn-in (hr_claim_bounty), so the counter reaches target
+     and the claim completes. This asserts the client wiring: the credit call
+     carries the observed count and precedes the claim; on a held (denied) turn-in
+     the bar reconciles to the server-confirmed count and shows the calm notice. */
+  () => tryRunAsync('bug #5: completeBounty credits observed kills BEFORE the turn-in (cull, armed)', async () => {
+    const G = window.G;
+    assert(window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.creditKills === 'function',
+      'HearthriseGoalClaim.creditKills transport is missing — the credit RPC is unwired');
+    const armed = typeof window.clientMayWriteRecordField === 'function'
+      && window.clientMayWriteRecordField('gold') === false;
+    if (!armed) return; // the server-gated turn-in path only runs under the gold arm
+
+    const target = (window.MONSTERS && window.MONSTERS.goblin) ? 'goblin' : Object.keys(window.MONSTERS || {})[0];
+    const saved = { bh: JSON.parse(JSON.stringify(G.bountyHunter || {})), gc: window.HearthriseGoalClaim };
+    const calls = [];
+    // Stub the transport: record order + args; hold the turn-in (ok:false) so we
+    // observe the reconcile path without running finalizeBounty's side effects.
+    window.HearthriseGoalClaim = Object.assign({}, saved.gc, {
+      isSignedIn: function () { return true; },
+      creditKills: function (t, claimed) { calls.push({ fn: 'credit', t: t, claimed: claimed }); return Promise.resolve({ ok: true, progress: 3, required: 5 }); },
+      claimBounty: function () { calls.push({ fn: 'claim' }); return Promise.resolve({ ok: false, error: 'incomplete' }); }
+    });
+    try {
+      window.ensureBountyState && window.ensureBountyState();
+      G.bountyHunter.active = { id: 'b_test', type: 'cull', target: target, difficulty: 'normal',
+        required: 5, progress: 7, rewards: { gold: 320, marks: 6, xp: 45 } };
+      window.completeBounty();
+      // creditKills fires SYNCHRONOUSLY; the turn-in is chained on a microtask.
+      assert(calls.length === 1 && calls[0].fn === 'credit',
+        'creditKills must fire first and synchronously; call log: ' + JSON.stringify(calls));
+      assert(calls[0].claimed === 7, 'creditKills must carry the OBSERVED kill count (7), got ' + calls[0].claimed);
+      await Promise.resolve(); await Promise.resolve();
+      assert(calls.some((c) => c.fn === 'claim'), 'the turn-in (claimBounty) must run after the credit resolves');
+      const ci = calls.findIndex((c) => c.fn === 'credit'), qi = calls.findIndex((c) => c.fn === 'claim');
+      assert(ci < qi, 'credit must precede the turn-in: ' + JSON.stringify(calls));
+      const ab = G.bountyHunter.active;
+      assert(ab && ab._serverConfirmed === 3,
+        'a held turn-in must reconcile the confirmed count DOWN to the server value (3), got ' + (ab && ab._serverConfirmed));
+    } finally {
+      window.HearthriseGoalClaim = saved.gc;
+      G.bountyHunter = saved.bh;
+    }
+  }),
   // b269 (Tyler): purchasable bank space. Cap counts distinct stacks; gold path
   // escalates; gem path is the better-value premium deal; can't overspend.
   /* b4xx: CLIENT-AUTHORITATIVE now — buyBankSpaceGold() is wired to unlock_buy

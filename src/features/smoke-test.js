@@ -24161,6 +24161,48 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('DAILY-SHEET-3 (b475): the sheet DISPLAYS the server streak, not the drifting residue', () => {
+    /* LIVE-PROVEN: residue G.streak.count was 1 while player_state.streak_days
+       was 3, so the sheet showed "Day 1 · 500 gold" while the claim credited
+       Day 3 (+5 gems). The server projects its streak as state.streak_days on
+       every envelope; noteServerStreak() captures it and the display prefers it.
+       RED before the fix: streakCount read the residue, so day/eyebrow/reward
+       all rendered Day 1. */
+    const D = window.HearthriseDaily, G = window.G, R = window.HearthriseRewards;
+    assert(D && typeof D.noteServerStreak === 'function', 'noteServerStreak must be exported');
+    assert(R && typeof R.priceDailyLogin === 'function', 'HearthriseRewards must be present');
+    const snap = snapshotG();
+    try {
+      D.noteServerStreak(null);                 // start clean
+      G.streak = { count: 1, lastDay: 0 };      // residue LAGS the server
+      G.dailyReward = { lastClaimDay: 0 };      // claimable today
+      // The server's authoritative streak arrives on an envelope.
+      D.noteServerStreak({ state: { streak_days: 3 } });
+
+      // cycleDay() is the sheet's day source; it must now be Day 3, not Day 1.
+      assert(D.cycleDay(G) === 3, 'cycleDay must follow the server streak (3), got ' + D.cycleDay(G));
+      // The reward preview must be the Day-3 reward the server will pay.
+      const want = R.priceDailyLogin(3), rw = D.rewardFor(G);
+      assert(!!(want.gems) === !!(rw.gems) && (rw.gems || 0) === (want.gems || 0),
+        'rewardFor must preview the Day-3 gems, got ' + JSON.stringify(rw));
+      assert((rw.gold || 0) === (want.gold || 0), 'rewardFor must preview the Day-3 gold');
+
+      // And the rendered sheet must say so.
+      const existing = document.getElementById('hr-dl-modal'); if (existing) existing.remove();
+      D.open();
+      const modal = document.getElementById('hr-dl-modal');
+      assert(!!modal, 'the sheet must open');
+      assert(/3-day streak/.test(modal.textContent), 'eyebrow must read "3-day streak", got: ' + modal.textContent.slice(0, 80));
+      assert(/Claim Day 3/.test(modal.textContent), 'claim button must read "Claim Day 3", got: ' + modal.textContent.slice(0, 120));
+      const today = modal.querySelector('.hr-dl-day.today');
+      assert(today && /^D3/.test(today.textContent), 'the highlighted tile must be D3, got: ' + (today && today.textContent));
+    } finally {
+      const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
+      D.noteServerStreak(null);                 // do not leak the captured streak
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('RESIDUE-B466: the bestiary (and the sweep\'s other 15 strands) survive the residue round-trip', () => {
     /* PLAYER REPORT (paione, live open beta): "Bestiary achievements keep
        resetting every time you log out and in."

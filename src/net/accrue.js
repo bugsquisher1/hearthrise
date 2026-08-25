@@ -1729,6 +1729,11 @@ export function applyEnvelopeState(G, res, ownKey) {
     if (w && w.HearthriseDaily && typeof w.HearthriseDaily.markServerClaim === 'function') {
       w.HearthriseDaily.markServerClaim(res && res.progress);
     }
+    // b475 — feed the server's authoritative streak (state.streak_days) so the
+    // daily-reward sheet renders the day/reward the server will actually pay.
+    if (w && w.HearthriseDaily && typeof w.HearthriseDaily.noteServerStreak === 'function') {
+      w.HearthriseDaily.noteServerStreak(res);
+    }
   } catch (e) {}
   written.absolute = absolute;
 

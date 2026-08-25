@@ -70,7 +70,37 @@
     return G.dailyReward;
   }
 
+  /* b475 — THE AUTHORITATIVE LOGIN STREAK, off the envelope.
+     `G.streak.count` is a RESIDUE field (client-state.js): a self-only copy the
+     server stores verbatim, which drifts from — and lags behind — the streak the
+     SERVER actually pays a claim against. Live repro: residue count was 1 while
+     player_state.streak_days was 3, so the sheet said "Day 1 · 500 gold" and the
+     claim credited Day 3 (+5 gems). The server projects its own streak as
+     `state.streak_days` on every envelope (hr_state_of, 2026-08-21-streak-state
+     .sql); noteServerStreak() captures it and the display prefers it whenever it
+     is a real (finite, ≥1) count, so "Day N", the "-day streak" label, the
+     highlighted D-tile and the reward preview all match what the server will pay.
+     A fresh character (streak_days 0/absent) falls back to the residue, which
+     floors at 1 = Day 1 — the correct opening state. This is DISPLAY-only: the
+     claim/payout is unchanged (the server derives its own streak; G.streak.count
+     is never an input to it). */
+  var serverStreakDays = null;   // null = no envelope seen; a number once one arrives.
+  function noteServerStreak(env) {
+    if (env === null) { serverStreakDays = null; return; }   // test seam: forget the captured streak
+    try {
+      var st = env && env.state;
+      if (!st || typeof st !== 'object') return;
+      if (!Object.prototype.hasOwnProperty.call(st, 'streak_days')) return;
+      var n = Number(st.streak_days);
+      // Act only on CERTAINTY (save-invariant #2's rule): a NaN/negative is not a
+      // streak, and 0 is "no streak yet" → leave it to the residue's Day-1 floor.
+      if (Number.isFinite(n) && n >= 1) serverStreakDays = Math.floor(n);
+    } catch (e) { /* a display hint must never break an envelope apply */ }
+  }
+
   function streakCount(G) {
+    // Server-authoritative streak wins over the residue whenever it is a real count.
+    if (typeof serverStreakDays === 'number' && serverStreakDays >= 1) return serverStreakDays;
     return (G && G.streak && typeof G.streak.count === 'number' && G.streak.count > 0) ? G.streak.count : 1;
   }
 
@@ -396,6 +426,7 @@
   window.HearthriseDaily = {
     isClaimable: isClaimable,
     markServerClaim: markServerClaim,
+    noteServerStreak: noteServerStreak,
     claim: claim,
     rewardFor: rewardFor,
     cycleDay: cycleDay,

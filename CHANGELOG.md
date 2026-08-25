@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 482 — 2026-08-25 (Eating in combat, fixed properly)
+
+- 🍖 **Eating during a fight now works right.** Build 480 stopped food duping on reload, but in a live fight the server still saw you at full health, so eating a crop refused and your HP snapped back up — the food looked like it "came back" (Paione). Now the server always consumes the food and your combat HP heals by the food's amount and stays where the fight left it. Eat 1 → you have 1 fewer, you're healed, and it stays that way after a reload.
+
 ## v0.9.2-beta build 481 — 2026-08-25 (Combat style holds; HP matches)
 
 - ⚔️ **Fixed the combat style flipping to Magic (or back to Attack) when you swap gear or level up.** The style picker was reading the wrong weapon for a moment whenever your equipment updated, snapping the family to the default and back. It now follows the weapon you actually have equipped and stays put. (Your XP was always routed correctly server-side — this was the on-screen picker only.)

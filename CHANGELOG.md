@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 485 — 2026-08-26 (Bounties finish while you fight)
+
+- 🎯 **Fixed bounties that still wouldn't finish** (Paione). Your kills are now credited to the server *as you fight* (on a short cadence), instead of only at the moment your bar hits the target — so the server keeps up with you and the bounty completes. And if you stop right on the target, it now finishes on its own within a few seconds instead of hanging on "completing in a moment." (Still coming: a related fix so combat *levels* stick immediately instead of briefly reverting — that one needs a server change and is next.)
+
 ## v0.9.2-beta build 484 — 2026-08-25 (Bounties complete when you finish them)
 
 - 🎯 **Fixed bounties that hit their target but never completed** — sitting forever on "completing in a moment" (Paione). The server was counting your kills as if you were away/unattended, which massively under-counts an active fighter, so it never reached the target. Your live kills are now credited to the server (capped to what's physically possible, so it can't be cheated), and the bounty completes and pays out. If the count ever lags, the bar now shows your real confirmed progress and tells you to keep fighting, instead of a spinner that never ends.

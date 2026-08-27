@@ -29,47 +29,47 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=484';
-import * as xp from './core/xp.js?v=484';
-import * as combat from './core/combat.js?v=484';
-import * as bane from './core/bane.js?v=484';
-import * as elements from './core/elements.js?v=484';
-import * as drops from './core/drops.js?v=484';
-import * as pacing from './core/pacing.js?v=484';
-import * as rested from './core/rested.js?v=484';
-import * as tools from './core/tools.js?v=484';
-import * as farm from './core/farm.js?v=484';
-import * as progression from './core/progression.js?v=484';
-import * as styles from './core/styles.js?v=484';
-import * as artisan from './core/artisan.js?v=484';
-import * as bounty from './core/bounty.js?v=484';
-import * as away from './core/away.js?v=484';
-import * as botd from './core/botd.js?v=484';
-import * as buffs from './core/buffs.js?v=484';
-import * as combatSim from './core/combat-sim.js?v=484';
+import * as rngMod from './core/rng.js?v=485';
+import * as xp from './core/xp.js?v=485';
+import * as combat from './core/combat.js?v=485';
+import * as bane from './core/bane.js?v=485';
+import * as elements from './core/elements.js?v=485';
+import * as drops from './core/drops.js?v=485';
+import * as pacing from './core/pacing.js?v=485';
+import * as rested from './core/rested.js?v=485';
+import * as tools from './core/tools.js?v=485';
+import * as farm from './core/farm.js?v=485';
+import * as progression from './core/progression.js?v=485';
+import * as styles from './core/styles.js?v=485';
+import * as artisan from './core/artisan.js?v=485';
+import * as bounty from './core/bounty.js?v=485';
+import * as away from './core/away.js?v=485';
+import * as botd from './core/botd.js?v=485';
+import * as buffs from './core/buffs.js?v=485';
+import * as combatSim from './core/combat-sim.js?v=485';
 /* The gather half of the same unification. `skillSim.sliceSpan` IS
    `replayAwaySpan` (legacy.js:1153), lifted; `simulateSkillSpan` is the loop
    the away gather branch and the accrual Edge Function both run. Published
    here because a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as skillSim from './core/skill-sim.js?v=484';
+import * as skillSim from './core/skill-sim.js?v=485';
 /* The ARTISAN half. `simulateArtisanSpan` is what legacy.js's artisan away
    branch (`replayAwaySpan` over `window.doArtisanAction`) becomes — 290 of the
    344 catalogue rows, and the last simulation in the game with no DOM-free
    form. It runs on `skillSim.sliceSpan`, so there is still exactly one
    buff-expiry timeline. */
-import * as artisanSim from './core/artisan-sim.js?v=484';
+import * as artisanSim from './core/artisan-sim.js?v=485';
 /* b357 — the consumption seam (R1: one field, one carry, one guard). Published
    because BOTH the pre-flight supply projection and the away card are client
    surfaces, and §4.5 requires them to call the same `hoursOfSupply`/`dryAtMs`
    the server's accrual will — "if the projection computes its own copy, the two
    will disagree, and the player will be told a number the night does not
    honour." Nothing in the fight calls it yet; see src/core/ammo.js's header. */
-import * as ammo from './core/ammo.js?v=484';
+import * as ammo from './core/ammo.js?v=485';
 /* The auto-eat DECISION, shared with the server accrual engine. Published so
    src/features/auto-actions.js — a classic script, which cannot import — can
    delegate to the same predicate Deno runs. */
-import * as autoEat from './core/auto-eat.js?v=484';
+import * as autoEat from './core/auto-eat.js?v=485';
 /* The PERMANENT PERK CHANNEL, shared with the server accrual engine. Layer 0
    of the getBonus chain — room rungs, plot buildings and the property
    capstone — is this module now, on both sides, so the client's `noBurn` and
@@ -78,7 +78,7 @@ import * as autoEat from './core/auto-eat.js?v=484';
    `hr_perks_of` returns. Published rather than inlined for the reason every
    other core module is: a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as perks from './core/perks.js?v=484';
+import * as perks from './core/perks.js?v=485';
 /* THE DAILY-TASK SELECTION, shared with the server. `src/data/goal-catalogue.js`
    owns the date-seeded shuffle AND the eligibility filter that stops a level-1
    account being dealt "Craft 8 items" behind a room it cannot build for two
@@ -87,7 +87,7 @@ import * as perks from './core/perks.js?v=484';
    second copy of the selection, which is exactly the drift the SQL port and
    tests/goal-catalogue-drift.mjs exist to prevent. Note this is a `src/data`
    module rather than `src/core`; the seam is the same. */
-import * as goalCatalogue from './data/goal-catalogue.js?v=484';
+import * as goalCatalogue from './data/goal-catalogue.js?v=485';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from

@@ -4176,10 +4176,22 @@ function ensureBountyState(){
     /* bug #5 ROOT — the credit cadence + hold-retry are TRANSIENT too. In a
        browser setTimeout returns a NUMBER, so a persisted `_retryTimer` would
        survive a reload and make hrScheduleBountyRetry believe a (dead) timer is
-       already running → the cap-catch-up retry never re-arms. Clear all of them;
-       the next kill re-enters the cadence and re-schedules the retry. */
-    delete _a._retryTimer; delete _a._creditAt; delete _a._confirmed; delete _a._serverConfirmed;
+       already running → the cap-catch-up retry never re-arms.
+       ⚠ BOOT-ONCE, NOT EVERY ENSURE. ensureBountyState() runs on EVERY kill
+       (handleBountyKill calls it first), so stripping these here unconditionally
+       WIPED the 15s cadence watermark (_creditAt) on every kill → the throttle
+       never held and every below-target kill fired a credit RPC (caught by the
+       "credit ONCE per cadence window; got 3" regression). These are harmless to
+       carry within a live session (a stale _retryTimer only matters across a
+       RELOAD), so clear them only on the first ensure of the session (boot),
+       which is exactly when a persisted stale timer would be present. */
+    if(!window.__hrBountyBootStripped){
+      delete _a._retryTimer; delete _a._creditAt; delete _a._confirmed; delete _a._serverConfirmed;
+    }
   }
+  /* Session-scoped latch (NOT saved — a window flag, reset on every reload=boot),
+     so the transient strip above runs exactly once per session. */
+  window.__hrBountyBootStripped=true;
   /* MARKS STORAGE MIGRATION (nested→top-level). Marks are a record field keyed at
      the TOP LEVEL (G.marks), like gold — the framework strip only removes a top-
      level key, so the client home must be top-level too or a stale nested copy

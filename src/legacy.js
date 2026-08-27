@@ -4170,7 +4170,16 @@ function ensureBountyState(){
      once-notice latch). A reload mid-confirm could persist them into the save;
      clear them on every boot/ensure so a stale `_confirming` can never wedge a
      bounty's turn-in shut. The next kill re-runs the server-gated turn-in. */
-  if(G.bountyHunter.active){ delete G.bountyHunter.active._confirming; delete G.bountyHunter.active._syncNoticed; }
+  if(G.bountyHunter.active){
+    const _a=G.bountyHunter.active;
+    delete _a._confirming; delete _a._syncNoticed;
+    /* bug #5 ROOT — the credit cadence + hold-retry are TRANSIENT too. In a
+       browser setTimeout returns a NUMBER, so a persisted `_retryTimer` would
+       survive a reload and make hrScheduleBountyRetry believe a (dead) timer is
+       already running → the cap-catch-up retry never re-arms. Clear all of them;
+       the next kill re-enters the cadence and re-schedules the retry. */
+    delete _a._retryTimer; delete _a._creditAt; delete _a._confirmed; delete _a._serverConfirmed;
+  }
   /* MARKS STORAGE MIGRATION (nested→top-level). Marks are a record field keyed at
      the TOP LEVEL (G.marks), like gold — the framework strip only removes a top-
      level key, so the client home must be top-level too or a stale nested copy
@@ -4299,6 +4308,7 @@ function abandonBounty(){
     }
   }
   else notify('Bounty abandoned','info');
+  hrClearBountyRetry(b);
   G.bountyHunter.active=null;renderCombat();repaintBounty();saveLocal();
 }
 function rerollBountyBoard(){
@@ -4322,6 +4332,73 @@ function rerollBountyBoard(){
   }
   G.bountyHunter.board=generateBountyBoard();notify('Bounty board refreshed','info');renderCombat();repaintBounty();saveLocal();
 }
+/* ── bug #5 ROOT — CREDIT THE SERVER COUNTER ON A CADENCE, NOT ONLY AT TARGET ─
+   b484 only credited the server kill-counter from completeBounty, i.e. the one
+   instant the LOCAL bar reached `required`. Real play never hits that cleanly:
+   the credit is clamped to floor(1.3 × elapsed_since_accept / min_time_to_kill),
+   so a burst of fast kills reaches the target bar while the server cap is still
+   below it — the turn-in is refused, the player STOPS, and with the retry gated
+   on "the next kill" the bounty hangs forever (Paione, live). The fix is to make
+   the server counter climb continuously DURING the fight and to keep retrying on
+   a TIMER after the bar is full, so the cap catches up to the observed count as
+   `elapsed` grows even when no further kills happen. Both reuse the reviewed,
+   capped, idempotent, journalled hr_credit_kills — the client mints nothing.
+
+   THROTTLED so a 600 ms swing does not fire an RPC per kill: at most one credit
+   per HR_BOUNTY_CREDIT_MS while below target (the cap is time-based, so more
+   frequent calls buy nothing), and the RPC's own 60/min rate gate is the backstop.
+   Server-authoritative and safe: only the target id + the client's OBSERVED count
+   cross the wire; the cap, the damage level and the clock are all the server's. */
+const HR_BOUNTY_CREDIT_MS=15000;   // cadence floor while a cull bounty is below target
+const HR_BOUNTY_RETRY_MS =12000;   // hold-retry cadence once the bar is full (cap catch-up)
+function hrBountyServerReady(b){
+  const _armed=(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('gold'));
+  const _live=(typeof inOfflineReplay!=='function' || !inOfflineReplay());
+  const _GC=window.HearthriseGoalClaim;
+  return _armed && _live && b && b.type==='cull' && _GC
+    && typeof _GC.creditKills==='function' && _GC.isSignedIn && _GC.isSignedIn() ? _GC : null;
+}
+/* Fire-and-forget mid-fight credit. Advances the server counter toward the
+   observed count (server clamps). NEVER completes the bounty — that stays the
+   two-phase completeBounty()'s job (the one turn-in / pay-once authority). */
+function hrBountyCadenceCredit(b){
+  const _GC=hrBountyServerReady(b);
+  if(!_GC) return;
+  const now=Date.now();
+  if(b._creditAt && (now-b._creditAt)<HR_BOUNTY_CREDIT_MS) return;
+  b._creditAt=now;
+  const observed=Math.max(0,Math.floor(Number(b.progress)||0));
+  if(observed<=0) return;
+  try{
+    const p=_GC.creditKills(b.target,observed);
+    Promise.resolve(p).then(function(cr){
+      if(!G.bountyHunter || G.bountyHunter.active!==b) return;
+      /* Keep the "confirmed" read fresh for the bar; do not touch b.progress
+         (the local observed count) — the display shows min(observed,required). */
+      if(cr && cr.ok && typeof cr.progress==='number'){
+        b._serverConfirmed=Math.max(0,Math.min(b.required,cr.progress|0));
+      }
+    }).catch(function(){});
+  }catch(e){}
+}
+/* Once the bar is full but the server has not yet confirmed, keep retrying the
+   two-phase turn-in on a timer — the plausibility cap grows with elapsed time,
+   so a bounty the player STOPPED at target still completes on its own. Cleared
+   on finalize / abandon / accept so it never leaks across bounties. */
+function hrScheduleBountyRetry(b){
+  if(!b || b._retryTimer) return;
+  if(!hrBountyServerReady(b)) return;
+  b._retryTimer=setTimeout(function(){
+    b._retryTimer=null;
+    if(!G.bountyHunter || G.bountyHunter.active!==b) return;
+    if(b._confirmed) return;
+    if((Number(b.progress)||0)>=b.required){
+      completeBounty();                 // re-enters the two-phase credit+claim
+      hrScheduleBountyRetry(b);         // and keep the timer alive until it lands
+    }
+  },HR_BOUNTY_RETRY_MS);
+}
+function hrClearBountyRetry(b){ if(b && b._retryTimer){ clearTimeout(b._retryTimer); b._retryTimer=null; } }
 function handleBountyKill(monsterId,m){
   ensureBountyState();
   const b=G.bountyHunter.active;if(!b||b.target!==monsterId)return;
@@ -4342,6 +4419,10 @@ function handleBountyKill(monsterId,m){
     b.progress=(b.progress||0)+1;b.streak=(b.streak||0)+1;
   }else{
     b.progress=(b.progress||0)+1;
+    /* CULL: feed the server counter continuously so it reaches `required` from
+       the credit path (clamped, idempotent) rather than depending on the local
+       bar to hit target unaided. Fires below target; completeBounty owns at/above. */
+    if((b.progress||0)<b.required) hrBountyCadenceCredit(b);
   }
   if((b.progress||0)>=b.required)completeBounty();
 }
@@ -4401,6 +4482,10 @@ function completeBounty(){
            re-enters completeBounty, tops the counter up again, and retries (the
            active_bounty row is the server once-guard, so the retry pays once). */
         if(!b._syncNoticed){ b._syncNoticed=true; if(typeof notify==='function') notify('Verifying your kills with the server — keep fighting to lock it in.','info'); }
+        /* ROOT: do not wait for "the next kill". The plausibility cap grows with
+           elapsed-since-accept, so a bounty the player STOPPED at target still
+           locks in on a timer as the cap catches up to the observed count. */
+        hrScheduleBountyRetry(b);
         repaintBounty();
       }
     }).catch(function(){ b._confirming=false; });
@@ -4414,6 +4499,7 @@ function completeBounty(){
    NOTE: the cull server intent is fired by completeBounty BEFORE this runs, so
    finalize never fires it again (no double turn-in). */
 function finalizeBounty(b, r, _isCull){
+  b._confirmed=true; hrClearBountyRetry(b);   // the turn-in landed — stop the cap-catch-up timer
   /* NON-CULL (proof/weapon/streak) have NO server turn-in path (not server-
      verifiable). Under the gold arm their gold credit no-ops, so keep the b411
      defer for THEM only — do not burn the bounty for a reward that never lands. */

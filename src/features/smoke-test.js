@@ -4611,6 +4611,53 @@ const TESTS = [
       G.bountyHunter = saved.bh;
     }
   }),
+  /* bug #5 ROOT (Paione, live): the b484 credit only fired at target, and the
+     cap grows with elapsed — so a burst of fast kills reached the bar while the
+     server cap was still below it, the turn-in was refused, the player stopped,
+     and the retry (gated on "the next kill") never came. This asserts the ROOT
+     wiring: a CULL kill BELOW target now feeds the server counter on a throttled
+     cadence, and it does NOT complete the bounty (completeBounty owns at target). */
+  () => tryRunAsync('bug #5 ROOT: cull kills below target credit the server counter on a cadence (not only at target)', async () => {
+    const G = window.G;
+    if (typeof window.handleBountyKill !== 'function') { assert(true, 'bounty seam absent'); return; }
+    assert(window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.creditKills === 'function',
+      'creditKills transport missing');
+    const armed = typeof window.clientMayWriteRecordField === 'function'
+      && window.clientMayWriteRecordField('gold') === false;
+    if (!armed) return; // the server credit cadence only runs under the gold arm
+    const target = (window.MONSTERS && window.MONSTERS.goblin) ? 'goblin' : Object.keys(window.MONSTERS || {})[0];
+    const saved = { bh: JSON.parse(JSON.stringify(G.bountyHunter || {})), gc: window.HearthriseGoalClaim };
+    const calls = [];
+    window.HearthriseGoalClaim = Object.assign({}, saved.gc, {
+      isSignedIn: function () { return true; },
+      creditKills: function (t, claimed) { calls.push({ t: t, claimed: claimed }); return Promise.resolve({ ok: true, progress: claimed, required: 20 }); },
+      claimBounty: function () { calls.push({ fn: 'claim' }); return Promise.resolve({ ok: false, error: 'incomplete' }); }
+    });
+    try {
+      window.ensureBountyState && window.ensureBountyState();
+      G.bountyHunter.active = { id: 'b_cad', type: 'cull', target: target, difficulty: 'normal',
+        required: 20, progress: 0, rewards: { gold: 100, marks: 3, xp: 10 } };
+      const b = G.bountyHunter.active;
+      // First kill below target → one credit fires; the throttle then suppresses
+      // an immediate second kill (the cap is time-based, so a burst buys nothing).
+      window.handleBountyKill(target, window.MONSTERS[target]);
+      window.handleBountyKill(target, window.MONSTERS[target]);
+      window.handleBountyKill(target, window.MONSTERS[target]);
+      await Promise.resolve();
+      const credits = calls.filter((c) => !c.fn);
+      assert(credits.length === 1, 'a below-target kill must credit the server counter ONCE per cadence window; got ' + credits.length);
+      assert(credits[0].t === target, 'the credit must carry the bounty target');
+      assert(!calls.some((c) => c.fn === 'claim'), 'a below-target kill must NOT fire the turn-in (completeBounty owns at target)');
+      // Force the cadence window open and confirm a later kill credits again.
+      b._creditAt = Date.now() - 60000;
+      window.handleBountyKill(target, window.MONSTERS[target]);
+      await Promise.resolve();
+      assert(calls.filter((c) => !c.fn).length === 2, 'a kill after the cadence window must credit again');
+    } finally {
+      window.HearthriseGoalClaim = saved.gc;
+      G.bountyHunter = saved.bh;
+    }
+  }),
   // b269 (Tyler): purchasable bank space. Cap counts distinct stacks; gold path
   // escalates; gem path is the better-value premium deal; can't overspend.
   /* b4xx: CLIENT-AUTHORITATIVE now — buyBankSpaceGold() is wired to unlock_buy

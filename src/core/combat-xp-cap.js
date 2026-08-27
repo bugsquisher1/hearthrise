@@ -103,9 +103,14 @@ export const HEADROOM_NUM = Math.round(PLAUSIBILITY_HEADROOM * 100);            
 export const HEADROOM_DEN = 100;
 
 /**
- * The plausibility cap on credited combat XP for ONE skill over `elapsedMs`, for
- * a character whose damage-relevant level is `dmgLevel`. An over-estimate on
- * purpose. Integer-exact — mirrors the SQL bigint arithmetic.
+ * The plausibility cap on credited combat XP over `elapsedMs` for a character
+ * whose damage-relevant level is `dmgLevel`. This is the TOTAL a single credit may
+ * grant across ALL combat skills — a shared pool, not a per-skill entitlement
+ * (Security condition 1b, 2026-08-31): attributing the full per-damage + kill XP to
+ * each of the seven combat skills independently was ~7x pure headroom. The
+ * per-CALL cap is deliberately loose; the DAILY combat-XP ceiling
+ * (c_combat_xp_day_budget, ~honest-24h-grind) is the tight bound. An over-estimate
+ * on purpose. Integer-exact — mirrors the SQL bigint arithmetic.
  * Zero for a zero/negative elapsed (a fresh window credits nothing until time
  * passes — the self-healing property kill-time.js relies on).
  * @param dmgLevel  the greater of the player's strength/ranged/magic LEVEL

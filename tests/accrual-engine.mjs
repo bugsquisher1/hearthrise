@@ -2470,6 +2470,58 @@ async function dayBudgetGuard() {
   }
 }
 
+/* ── THE COMBAT-XP CREDIT DAILY-CEILING GUARD (Security 2026-08-31, condition 1a) ─
+   Sibling of dayBudgetGuard. hr_credit_combat_xp has its OWN daily ceiling
+   (c_combat_xp_day_budget) because combat XP is RANKED (leaderboards server-sourced
+   since 2026-08-18) and the shared 40M XP pool is ~9x the honest combat maximum —
+   a forger on the shared pool reaches max combat level in ~2.3 days without
+   playing. This BINDS that ceiling to the measured honest maximum a real maxed
+   character can earn in a 24h NONSTOP attended grind (the credit path is attended,
+   so the ceiling is per-play-hour x 24, not the away offline cap). It FAILS THE
+   BUILD if the constant is below the honest max (would throttle a hardcore grinder)
+   or too far above it (would hand a forger more than ~a grinder's day). */
+async function combatXpDayCeilingGuard() {
+  const file = join(ROOT, 'supabase', 'migrations', '2026-08-31-combat-xp-credit.sql');
+  let sql;
+  try { sql = await readFile(file, 'utf8'); }
+  catch { ok(false, 'COMBAT-XP CEILING: 2026-08-31-combat-xp-credit.sql is missing'); return; }
+  const m = sql.match(/c_combat_xp_day_budget\s+constant\s+bigint\s*:=\s*(\d+)/);
+  ok(!!m, 'COMBAT-XP CEILING: could not read c_combat_xp_day_budget out of the migration — the guard would be vacuous');
+  if (!m) return;
+  const budget = Number(m[1]);
+
+  // Honest max: the best combat total-XP any maxed, auto-eating character can earn
+  // in ONE hour, x24 for a full nonstop day. Measured on the same fixture the
+  // dayBudgetGuard uses (HONEST_SUSTAIN), so the two ceilings share one definition
+  // of "honest". A 1h window is used so tick granularity does not favour a monster.
+  const H = 1;
+  let perHour = 0, where = '';
+  for (const id of Object.keys(MONSTERS)) {
+    const r = computeAccrual({
+      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+      nowMs: NOW_MS, accruedToMs: NOW_MS - H * 3600000, activeSinceMs: NOW_MS - H * 3600000,
+      activeKind: 'combat', activeId: id, capMs: H * 3600000, seed: SEED,
+      gold: 0, skills: MAXED, equipment: EQUIPMENT, items: ITEMS, monsters: MONSTERS,
+      ...HONEST_SUSTAIN,
+    });
+    if (!r.accrued) continue;
+    const tot = Object.values(r.delta.xp || {}).reduce((a, b) => a + b, 0);
+    if (tot > perHour) { perHour = tot; where = id; }
+  }
+  const honestDay = perHour * 24;
+  combatXpDayCeilingGuard.report = `c_combat_xp_day_budget ${budget} vs honest 24h-grind `
+    + `${honestDay} (${(budget / honestDay).toFixed(2)}x, worst monster ${where})`;
+  ok(perHour > 0, 'COMBAT-XP CEILING: the honest sweep produced no combat XP — fixture is not exercising the path');
+  ok(budget >= honestDay,
+    `COMBAT-XP CEILING: c_combat_xp_day_budget (${budget}) is BELOW the honest 24h-grind maximum `
+    + `(${honestDay}, at ${where}) — a hardcore grinder would be THROTTLED. Raise the constant in `
+    + '2026-08-31-combat-xp-credit.sql (the escalation rule is dayBudgetGuard\'s: raise the budget, never clip a player).');
+  ok(budget <= Math.ceil(honestDay * 1.5),
+    `COMBAT-XP CEILING: c_combat_xp_day_budget (${budget}) is more than 1.5x the honest 24h-grind maximum `
+    + `(${honestDay}) — a forger's daily combat-XP ceiling is too loose. This is a RANKED surface; tighten `
+    + 'the constant toward the honest max so the forgeable ceiling stays "hardcore grinder", not "5.6x the best player".');
+}
+
 // ── 6. THE DEPLOY CONTRACT ──────────────────────────────────────────────────
 // D2's second lock. In-function verification is the primary control, but
 // `verify_jwt = true` must also exist as a committed artefact, and nothing in
@@ -2684,6 +2736,7 @@ export async function runAll() {
   await autoEatDriftGuard();
   await clampGuard();
   await dayBudgetGuard();
+  await combatXpDayCeilingGuard();
   await deployGuard();
   await packerGuard();
   return problems.slice();
@@ -2702,6 +2755,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
      number nobody notices tightening. */
   for (const line of clampGuard.report || []) console.log(`  clamp headroom: ${line}`);
   for (const line of dayBudgetGuard.report || []) console.log(`  day-budget headroom: ${line}`);
+  if (combatXpDayCeilingGuard.report) console.log(`  combat-xp ceiling: ${combatXpDayCeilingGuard.report}`);
   /* ⚠ THE ACCEPTED RESIDUAL, PRINTED ON EVERY RUN. Security ruled the
      ammunition lane may exceed c_max_item_delta pending a yield decision; a
      residual nobody can see the size of is a residual nobody re-examines. */

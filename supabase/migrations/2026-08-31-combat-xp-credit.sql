@@ -166,6 +166,14 @@ declare
   c_combat_skills constant text[] :=
     array['attack','strength','defense','hitpoints','ranged','magic','prayer'];
   c_max_skill_xp  constant bigint := 2000000000;  -- a single-skill claim ceiling (sanity, pre-cap)
+  -- CONDITION 1a (Security 2026-08-31): the forger's DAILY combat-XP ceiling, sized
+  -- to the honest 24h-nonstop-grind maximum (~4.54M/day, measured) plus ~10%
+  -- headroom, so an honest hardcore grinder is never throttled and a forger is
+  -- bounded to ~1.1x that — NOT the shared 40M XP pool (~9x the combat honest max).
+  -- Combat XP is RANKED (leaderboards server-sourced since 2026-08-18), so this
+  -- must be tight. BOUND to the measured honest max by
+  -- tests/combat-xp-cap-drift.mjs combatXpDayCeilingGuard so it cannot drift up.
+  c_combat_xp_day_budget constant bigint := 5000000;
   v_uid        uuid := auth.uid();
   v_slot       int  := coalesce(p_slot, 0);
   v_dmg_lvl    int;
@@ -173,6 +181,10 @@ declare
   v_cap        bigint;
   v_prior      public.hr_combat_xp_credit_log%rowtype;
   v_wm         timestamptz;
+  v_accrued    timestamptz;
+  v_active_kind text;
+  v_used_today bigint := 0;
+  v_remaining  bigint;         -- the shared pool this call may still credit
   v_claimed_total bigint := 0;
   v_credit_total  bigint := 0;
   v_throttled  boolean := false;
@@ -207,10 +219,22 @@ begin
       'credit', v_prior.credit, 'claimed', v_prior.claimed, 'throttled', v_prior.throttled, 'slot', v_slot);
   end if;
 
-  -- SERVER CLOCK ONLY. The window is [combat_xp_accrued_to, now]; the cap is
-  -- computed against it, and it is advanced to now() at the end of this call.
-  select combat_xp_accrued_to into v_wm from public.player_state
+  -- SERVER CLOCK ONLY. The window is [max(combat_xp_accrued_to, accrued_to), now].
+  -- ⚠ CONDITION 2 (Security 2026-08-31) — THE SPLIT IS SERVER-ENFORCED, NOT
+  --   CLIENT-ORDERING-DEPENDENT. The settle (hr_apply) drives accrued_to to now()
+  --   but takes a DIFFERENT lock and does not advance combat_xp_accrued_to. So a
+  --   settle that reaches the server BEFORE a credit (a forger who skips the client
+  --   flush, or a cold-load away-settle racing a live credit) would pay combat XP
+  --   for [accrued_to, now] and then this credit would pay the same window again.
+  --   Flooring elapsed at accrued_to closes it WITHOUT any client cooperation:
+  --   settle-first means accrued_to = now, so v_wm = now, elapsed = 0, cap = 0, and
+  --   this credit pays NOTHING for a window the settle already claimed. The client
+  --   still flushes-before-settle for the happy path (so attended XP is not lost to
+  --   a race), but correctness no longer depends on it.
+  select combat_xp_accrued_to, accrued_to, active_kind into v_wm, v_accrued, v_active_kind
+    from public.player_state
     where user_id = v_uid and slot = v_slot for update;
+  v_wm := greatest(v_wm, v_accrued);
   v_elapsed := floor(extract(epoch from (now() - v_wm)) * 1000)::bigint;
 
   -- Damage LEVEL = the greatest of the SERVER-owned strength/ranged/magic levels
@@ -219,18 +243,29 @@ begin
     public.hr_level_from_xp(coalesce((select xp from public.player_skills where user_id=v_uid and slot=v_slot and skill_id='strength'),0)),
     public.hr_level_from_xp(coalesce((select xp from public.player_skills where user_id=v_uid and slot=v_slot and skill_id='ranged'),0)),
     public.hr_level_from_xp(coalesce((select xp from public.player_skills where user_id=v_uid and slot=v_slot and skill_id='magic'),0)));
-  v_cap := public.hr_combat_xp_cap(v_dmg_lvl, v_elapsed);   -- PER SKILL
 
-  -- Clamp each submitted skill to the per-skill cap. Reject a non-combat skill
-  -- (a general-XP forgery attempt) whole.
+  -- CONDITION 1b — ONE PHYSICAL BUDGET FOR THE WHOLE CALL, not seven. Attributing
+  -- the full per-damage + kill XP to EVERY combat skill independently was ~7x pure
+  -- headroom. hr_combat_xp_cap is now the TOTAL a call may credit across all seven
+  -- combat skills, shared as a pool. And CONDITION 1a — that pool is further capped
+  -- by the day's remaining combat-XP ceiling (summed from this character's own
+  -- credit log for the UTC day; a replay does not re-sum, it returns above).
+  select coalesce(sum(applied), 0) into v_used_today from public.hr_combat_xp_credit_log
+    where user_id = v_uid and slot = v_slot and created_at >= public.hr_utc_day_start(now());
+  v_cap := public.hr_combat_xp_cap(v_dmg_lvl, v_elapsed);        -- TOTAL for this call
+  v_remaining := least(v_cap, greatest(0, c_combat_xp_day_budget - v_used_today));
+
+  -- Distribute the shared pool across the submitted skills (iteration order — a
+  -- ceiling, never a per-skill entitlement). Reject a non-combat skill whole.
   for k, v_raw in select key, coalesce(nullif(value,'')::bigint, 0) from jsonb_each_text(p_xp) loop
     if not (k = any(c_combat_skills)) then
       return jsonb_build_object('ok', false, 'error', 'bad_skill', 'skill_id', k);
     end if;
     v_claim  := least(greatest(0, v_raw), c_max_skill_xp);
     if v_claim <= 0 then continue; end if;
-    v_credit := least(v_claim, greatest(0, v_cap));
+    v_credit := least(v_claim, greatest(0, v_remaining));
     if v_credit < v_claim then v_throttled := true; end if;
+    v_remaining := v_remaining - v_credit;
     v_claimed_total := v_claimed_total + v_claim;
     v_credit_total  := v_credit_total  + v_credit;
     if v_credit > 0 then
@@ -238,10 +273,11 @@ begin
     end if;
   end loop;
 
-  -- DAILY XP BUDGET (the tight backstop). Checked BEFORE any write, so a rejection
-  -- is a clean no-op: the watermark does not move and no idem row is stored, so the
-  -- client may retry later when the day rolls. Reject rather than clamp — an honest
-  -- player never approaches 40M XP/day; only a forger does.
+  -- The SHARED daily XP budget (40M, all XP sources) remains an outer bound so a
+  -- day's combat credits plus every other XP inflow cannot jointly exceed it.
+  -- Checked on the already-clamped credit_total, BEFORE any write, so a rejection
+  -- is a clean no-op (watermark unmoved, no idem row). The combat ceiling above is
+  -- the binding control; this is belt-and-suspenders.
   if v_credit_total > 0 then
     v_bud := public.hr_day_budget_check(v_uid, v_slot, 0, v_credit_total, 0, 0);
     if v_bud is not null then
@@ -288,11 +324,18 @@ begin
         0, 0, v_credit_total, 0,
         jsonb_build_object('claimed', v_claimed_total, 'credit', v_credit_total,
           'cap', v_cap, 'elapsed_ms', v_elapsed, 'dmg_level', v_dmg_lvl,
-          'skills', v_applied, 'throttled', v_throttled));
+          'skills', v_applied, 'throttled', v_throttled,
+          -- Non-blocking audit signal (Security 2026-08-31): the server-known
+          -- activity at credit time. A credit while active_kind is not 'combat' is
+          -- plausible on a final post-fight flush, but a run of them is a forgery
+          -- tell — recorded here rather than as a separate row.
+          'active_kind', v_active_kind,
+          'kind_mismatch', (v_active_kind is distinct from 'combat')));
   end if;
 
   return jsonb_build_object('ok', true, 'credited', v_applied, 'credit', v_credit_total,
     'claimed', v_claimed_total, 'cap', v_cap, 'throttled', v_throttled,
+    'day_used', v_used_today + v_credit_total, 'day_budget', c_combat_xp_day_budget,
     'elapsed_ms', v_elapsed, 'dmg_level', v_dmg_lvl, 'slot', v_slot);
 end $$;
 
@@ -450,9 +493,12 @@ begin
   begin
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
     insert into auth.users (id) values (v_uid) on conflict (id) do nothing;
-    insert into public.player_state (user_id, slot, gold, gems, version, combat_xp_accrued_to)
-      values (v_uid, v_slot, 0, 0, 1, now() - interval '10 minutes')
-      on conflict (user_id, slot) do update set gold = 0, combat_xp_accrued_to = now() - interval '10 minutes';
+    -- accrued_to ALSO 10 min ago: condition-2 floors elapsed at max(watermark,
+    -- accrued_to), so a settled-10-min-ago state is what makes the honest window ~10m.
+    insert into public.player_state (user_id, slot, gold, gems, version, combat_xp_accrued_to, accrued_to)
+      values (v_uid, v_slot, 0, 0, 1, now() - interval '10 minutes', now() - interval '10 minutes')
+      on conflict (user_id, slot) do update set gold = 0,
+        combat_xp_accrued_to = now() - interval '10 minutes', accrued_to = now() - interval '10 minutes';
     insert into public.player_skills (user_id, slot, skill_id, xp)
       select v_uid, v_slot, s, 100000 from unnest(array['attack','strength','defense','hitpoints','ranged','magic','prayer']) s
       on conflict do nothing;
@@ -506,6 +552,30 @@ begin
     if (select count(*) from public.player_ledger
          where user_id=v_uid and intent = 'xp_credit_throttled') < 1 then
       raise exception 'GATE(f): a throttled claim was not journalled';
+    end if;
+
+    -- (h) CONDITION 2 — SETTLE-FIRST PAYS NOTHING. accrued_to = now() (a settle
+    --     just ran) with a STALE combat_xp_accrued_to must floor elapsed to 0, so a
+    --     credit racing behind the settle cannot double-pay the settled window.
+    update public.player_state
+       set accrued_to = now(), combat_xp_accrued_to = now() - interval '10 minutes'
+     where user_id = v_uid and slot = v_slot;
+    v := public.hr_credit_combat_xp__ungated(v_slot, jsonb_build_object('attack', 500000), 'idem-settlefirst');
+    if coalesce((v->>'credit')::bigint, -1) <> 0 then
+      raise exception 'GATE(h): settle-first (accrued_to=now) still paid combat XP (%) — the split is not server-enforced', v->>'credit';
+    end if;
+
+    -- (i) CONDITION 1a — THE DAILY COMBAT-XP CEILING BOUNDS THE DAY. With today's
+    --     credit log already at the ceiling and a generous elapsed window, a fresh
+    --     credit is clamped to 0 (the forger cannot exceed ~honest-24h-grind/day).
+    insert into public.hr_combat_xp_credit_log (user_id, slot, idem, claimed, credit, applied, throttled)
+      values (v_uid, v_slot, 'idem-fill', 5000000, 5000000, 5000000, false);
+    update public.player_state
+       set accrued_to = now() - interval '10 minutes', combat_xp_accrued_to = now() - interval '10 minutes'
+     where user_id = v_uid and slot = v_slot;
+    v := public.hr_credit_combat_xp__ungated(v_slot, jsonb_build_object('attack', 500000), 'idem-daycap');
+    if coalesce((v->>'credit')::bigint, -1) <> 0 then
+      raise exception 'GATE(i): the daily combat-XP ceiling did not bound the credit (credit=%)', v->>'credit';
     end if;
 
     raise exception using errcode = 'HR820', message = 'combat-xp-credit §9 complete — rolling back';

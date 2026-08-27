@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 486 — 2026-08-26 (Levels you earn in combat stick)
+
+- ⬆️ **Fixed combat levels reverting** (e.g. Attack 5 dropping back to 4 a few seconds after you hit it — Paione). Your combat XP is now credited to the server *as you fight*, so a level you earn holds instead of being pulled back to an older count on the next sync. (Anti-cheat: the credit is capped to what's physically possible in the time you've spent, so it can't be used to inflate levels or the leaderboards.)
+
 ## v0.9.2-beta build 485 — 2026-08-26 (Bounties finish while you fight)
 
 - 🎯 **Fixed bounties that still wouldn't finish** (Paione). Your kills are now credited to the server *as you fight* (on a short cadence), instead of only at the moment your bar hits the target — so the server keeps up with you and the bounty completes. And if you stop right on the target, it now finishes on its own within a few seconds instead of hanging on "completing in a moment." (Still coming: a related fix so combat *levels* stick immediately instead of briefly reverting — that one needs a server change and is next.)

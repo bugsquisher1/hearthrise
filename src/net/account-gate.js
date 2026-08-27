@@ -216,7 +216,7 @@
          which is also the behaviour you want: the scene stays still and the
          panel travels over it. Seen at 922x423; invisible at 1440x900. */
       '.hr-gate::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;',
-      '  background:url(assets/brand/hearthrise-splash.jpg?v=485) 50% 42%/cover no-repeat}',
+      '  background:url(assets/brand/hearthrise-splash.jpg?v=486) 50% 42%/cover no-repeat}',
       /* The scrim. --scene-scrim-* exist precisely for "keep UI legible on top
          of the picture" and are dark in BOTH themes, so this one rule holds on
          parchment too. Vignetted rather than flat: the lightest point sits
@@ -349,8 +349,8 @@
   // audit, and the wordmark carries the alt text (it IS the word "Hearthrise";
   // an empty alt there would leave a screen reader with only the dialog label).
   var BRAND = {
-    crest: 'assets/brand/hearthrise-crest.png?v=485',
-    word:  'assets/brand/hearthrise-wordmark.svg?v=485'
+    crest: 'assets/brand/hearthrise-crest.png?v=486',
+    word:  'assets/brand/hearthrise-wordmark.svg?v=486'
   };
   function brandImg(cls, src, alt, w, h) {
     var i = document.createElement('img');

@@ -182,6 +182,36 @@
         p_idem: newIdem()
       });
     },
+    /* ATTENDED COMBAT-XP credit — supabase/migrations/2026-08-31-combat-xp-credit.sql
+       (bug #5 root, part 2 — "attack level reverts 5→4"). Live combat XP is
+       client-PREDICTED only; the only server writer is the away/span-sim, which
+       prices the window UNATTENDED and undercounts 60-99%, so on settle predict.js
+       retires the client's prediction DOWN to the undercount and the gained level
+       reverts. This lets the LIVE client SUBMIT its observed per-combat-skill XP;
+       the server CLAMPS each skill to the physical-max cap (floor(1.3 × elapsed ×
+       max_hit × 1200 / 6000000)), charges it against the shared daily XP budget,
+       advances the SEPARATE combat_xp_accrued_to watermark (so the settle does not
+       double-pay), and journals any throttled skill as a forgery signal.
+
+       Only the observed per-skill XP map crosses the wire; the cap, the damage
+       level and the elapsed clock are all the server's. A refusal (rate_limited /
+       daily_budget / bad_skill) costs nothing — the caller keeps the pending XP
+       and flushes again later. @param xpMap {skill_id: observed_xp}. */
+    creditCombatXp: function (xpMap) {
+      var clean = {};
+      if (xpMap && typeof xpMap === 'object') {
+        for (var k in xpMap) {
+          if (!Object.prototype.hasOwnProperty.call(xpMap, k)) continue;
+          var n = Math.floor(Number(xpMap[k]) || 0);
+          if (n > 0) clean[k] = n;
+        }
+      }
+      return call('hr_credit_combat_xp', {
+        p_slot: activeSlot(),
+        p_xp: clean,
+        p_idem: newIdem()
+      });
+    },
     /* Bounty MARKS spend — supabase/migrations/2026-08-26-marks-record.sql. ONE
        server-authoritative debit for reroll + abandon. The server derives the
        reroll cost (5 + paid-rerolls-today*5, counted from the ledger) and the

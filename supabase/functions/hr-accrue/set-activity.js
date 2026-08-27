@@ -611,6 +611,11 @@ export async function collectCurrentWindow(o) {
     slot,
     nowMs,
     accruedToMs,
+    /* THE COMBAT-XP WATERMARK (2026-08-31-combat-xp-credit.sql). Same as index.ts:
+       the collect a switch runs must price combat XP with the same watermark split
+       the live loop does, or a switch-collect would re-pay XP a live credit already
+       applied. Absent column → 0 → the split is inert. */
+    combatXpAccruedToMs: st.combat_xp_accrued_to ? new Date(st.combat_xp_accrued_to).getTime() : 0,
     activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : null,
     activeKind: st.active_kind,
     activeId: st.active_id,

@@ -399,6 +399,13 @@ export function simulateSpan(state, ctx) {
     const run = () => {
       for (let i = 0; i < n; i++) {
         if (!state.activeMonster) break;
+        /* THE TICK CLOCK, for a caller that needs to attribute this tick's XP to
+           an instant (the away combat-XP settle clamps its credited window to
+           combat_xp_accrued_to — src/core/combat-xp-cap.js / accrual.js). A pure
+           notification: no arithmetic here changes, and it is a NO-OP for every
+           caller that does not define `fx.mark` (the live client, the AWAY-1
+           fixtures), so parity is byte-for-byte preserved. */
+        if (typeof segFx.mark === 'function') segFx.mark(seg.fromMs + i * tickMs);
         /* Read the target BEFORE the tick: the death fx nulls `activeMonster`
            (legacy COMBAT_FX.onDeath), so after the fact there is nothing left
            to name and the card would have to say "you died" to nobody. */

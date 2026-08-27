@@ -574,6 +574,12 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       slot,
       nowMs,
       accruedToMs,
+      /* THE COMBAT-XP WATERMARK (2026-08-31-combat-xp-credit.sql). Advanced ONLY
+         by hr_credit_combat_xp; the settle reads it here and credits combat XP
+         only for the window at/after it (accrual.js xpEligibleFromMs), so it never
+         re-mints XP a live credit already applied. Absent column → 0 → the split
+         is inert and the settle pays the whole window exactly as before. */
+      combatXpAccruedToMs: st.combat_xp_accrued_to ? new Date(st.combat_xp_accrued_to).getTime() : 0,
       /* NULL, not a fallback to accruedToMs (b345). `active_since` is the second
          watermark and substituting the first one for it removes the clamp at
          exactly the moment it is needed — a `start_activity` that forgot to send

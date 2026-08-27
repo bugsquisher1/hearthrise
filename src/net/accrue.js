@@ -496,6 +496,16 @@ export async function requestAccrual(opts) {
   const { url, init } = buildAccrueRequest({ url: config.url, apiKey: config.apiKey, token, slot });
 
   inFlight = (async () => {
+    /* bug #5 root pt2 — CREDIT ATTENDED COMBAT XP BEFORE THE SETTLE PRICES IT.
+       hr_credit_combat_xp advances combat_xp_accrued_to; the settle then reads
+       that watermark and credits combat XP only for the window at/after it. If the
+       settle ran FIRST it would price the attended window UNATTENDED and the
+       credit would then re-pay it — a double-count on a rankable surface. Awaiting
+       the flush here makes credit-before-settle a hard ordering. A no-op off the
+       arm, when signed out, or with nothing pending (a cold-load / away settle). */
+    if (typeof window !== 'undefined' && typeof window.hrCreditCombatXpFlush === 'function') {
+      try { await window.hrCreditCombatXpFlush(true); } catch (e) {}
+    }
     let res = null;
     try {
       res = await fetch(url, init);

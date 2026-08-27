@@ -1090,19 +1090,52 @@ export function computeAccrual(input) {
   };
   let foodEaten = 0;
 
+  /* ── THE COMBAT-XP WATERMARK SPLIT (docs/design/combat-authority.md §3) ─────
+     Attended combat XP is credited SEPARATELY by hr_credit_combat_xp, which
+     advances `player_state.combat_xp_accrued_to`. The settle must NOT re-credit
+     combat XP the live client already credited, so it only counts XP earned at or
+     after that watermark. `xpEligibleFromMs` is the boundary in the simulation's
+     own time coordinate (the credited window [credit.fromMs, credit.toMs]); it is
+     floored at credit.fromMs so a stale watermark BELOW accrued_to pays the whole
+     away window (correct), and only a watermark that LEADS (a live credit since
+     the last settle) trims the front of the window. When there is no watermark
+     (a database without the column, or genuinely-away time with no credits) this
+     equals credit.fromMs and EVERY grant is eligible — byte-identical to the
+     pre-split behaviour, which is why AWAY-1 parity is preserved.
+
+     `curAtMs` is updated per tick by `fx.mark` (combat-sim.js). Only the ELIGIBLE
+     portion is accumulated into `eligibleXp`; grantXp still mutates state.skills
+     on every grant (level-ups must affect later rolls identically to the client),
+     so the simulation itself is unchanged — only WHICH grants become the delta. */
+  const combatXpAccruedToMs = nat(inp.combatXpAccruedToMs, 0);
+  const xpEligibleFromMs = Math.max(credit.fromMs, combatXpAccruedToMs);
+  let curAtMs = credit.fromMs;
+  const eligibleXp = Object.create(null);
+
   const fx = {
+    /* Per-tick clock, so addXp can decide whether this tick's XP falls in the
+       window the live credit has NOT already covered. A no-op for the client. */
+    mark(atMs) { const t = Number(atMs); if (Number.isFinite(t)) curAtMs = t; },
     /* XP goes through the SHARED grant, not a bare accumulator. grantXp applies
        PACE.xp (0.39 — a raw sum would over-pay by 2.5x), the perk block, the
        single floor and the "a positive grant never rounds to zero" rule, and it
        mutates state.skills. Skipping it would not be an optimisation; it would
        be a second XP formula. */
     addXp(skillId, amt) {
+      const before = Number(state.skills[skillId]) || 0;
       const res = grantXp(state, skillId, amt, {
         bonus,
         xpB: eq.xpB || 0,
         restedQuantum: 0,     // Rested XP is not server state yet.
         authored: false,
       });
+      /* The delta the settle will PROPOSE is the eligible portion only. A grant
+         at a tick the live credit already paid (curAtMs < xpEligibleFromMs) still
+         happens in the simulation but is not re-proposed here. */
+      if (curAtMs >= xpEligibleFromMs) {
+        const applied = (Number(state.skills[skillId]) || 0) - before;
+        if (applied > 0) eligibleXp[skillId] = (eligibleXp[skillId] || 0) + applied;
+      }
       for (const ev of res.events) {
         if (ev.type !== 'levelup') continue;
         /* The client raises max HP on a Hitpoints level (legacy.js:2003). The
@@ -1278,9 +1311,14 @@ export function computeAccrual(input) {
   // fractional string ('12.32' — which a 0.33-ratio style XP split produces
   // before grantXp floors it) raises invalid_text_representation and comes back
   // as `bad_delta`. Integers are a contract requirement, not tidiness.
+  /* THE ELIGIBLE combat-XP delta — the portion NOT already credited by a live
+     hr_credit_combat_xp call (the watermark split above). When there is no
+     watermark this is exactly `state.skills - skills0`, so an away night is
+     byte-identical to before (AWAY-1). Loot/gold/progress below are UNCHANGED and
+     still pay the full [accrued_to, now] window — only combat XP is split. */
   const xpDelta = {};
-  for (const k in state.skills) {
-    const gained = Math.floor((state.skills[k] || 0) - (skills0[k] || 0));
+  for (const k in eligibleXp) {
+    const gained = Math.floor(eligibleXp[k] || 0);
     if (gained > 0) xpDelta[k] = gained;
   }
   const goldDelta = Math.floor(state.gold || 0);

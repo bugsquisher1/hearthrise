@@ -3946,6 +3946,19 @@ function addXp(sk,amt,opts){
     _shadow.skills[sk]=(_disp.known?_disp.value:0);
     res=C.progression.grantXp(_shadow, sk, amt, _ctx);
     hrPredictXp(sk, res.gain);
+    /* bug #5 root pt2 — ACCUMULATE observed combat XP for the server credit.
+       Under the arm the server's only combat-XP writer is the away/span-sim,
+       which prices this window UNATTENDED and undercounts 60-99%; on settle
+       predict.js retires this prediction DOWN to that undercount and the gained
+       level reverts. hrCreditCombatXpFlush() submits the accumulated observed XP
+       to hr_credit_combat_xp (server-clamped) on a cadence so the server credits
+       the ATTENDED number and the reconcile is UP to truth. Buffer only — the
+       flush decides eligibility (armed + live + signed-in) and throttling. */
+    if(res.gain>0 && typeof HR_COMBAT_XP_SKILLS!=='undefined' && HR_COMBAT_XP_SKILLS.indexOf(sk)>=0){
+      if(!G._combatXpPending||typeof G._combatXpPending!=='object') G._combatXpPending={};
+      G._combatXpPending[sk]=(Number(G._combatXpPending[sk])||0)+res.gain;
+      hrCreditCombatXpFlush();
+    }
     /* ── THE RESTED BURN MIRRORS BACK, AND ONLY WHEN ONE HAPPENED ─────────────
        `grantXp` spends a rested charge out of the state it is handed, so the
        shadow absorbs it. A charge can only ever burn when the QUANTUM is
@@ -4363,6 +4376,52 @@ function rerollBountyBoard(){
    cross the wire; the cap, the damage level and the clock are all the server's. */
 const HR_BOUNTY_CREDIT_MS=15000;   // cadence floor while a cull bounty is below target
 const HR_BOUNTY_RETRY_MS =12000;   // hold-retry cadence once the bar is full (cap catch-up)
+
+/* ── ATTENDED COMBAT-XP CREDIT (bug #5 root pt2) ────────────────────────────
+   The combat skills the server's hr_credit_combat_xp will accept (its allowlist).
+   NOT 'bountyHunter' — that is a client-only meta-skill with no player_skills row. */
+const HR_COMBAT_XP_SKILLS=['attack','strength','defense','hitpoints','ranged','magic','prayer'];
+/* One credit per this window at most — a burst of 600ms swings must not fire an
+   RPC per hit. Chosen shorter than the ~90s live-settle cadence so the server has
+   the attended XP BEFORE the settle would retire the prediction down to the
+   undercount; the RPC's own 60/min gate is the backstop. The cap is time-based so
+   more frequent calls buy nothing. */
+const HR_COMBAT_XP_MS=60000;
+let _hrCombatXpAt=0, _hrCombatXpInFlight=false;
+/* Flush the accumulated observed combat XP to the server (clamped there). SAFE:
+   only the observed per-skill XP crosses the wire; the cap/level/clock are the
+   server's. Pending is cleared by SUBTRACTING what was actually sent on success,
+   so XP accumulated DURING the async call is preserved, and a failed/throttled
+   call keeps the pending XP for the next flush (a resend is naturally bounded —
+   the watermark advanced, so the cap on the resent window is tiny). */
+function hrCreditCombatXpFlush(force){
+  const _armed=(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('skills'));
+  const _live=(typeof inOfflineReplay!=='function' || !inOfflineReplay());
+  const _GC=window.HearthriseGoalClaim;
+  if(!_armed || !_live || !_GC || typeof _GC.creditCombatXp!=='function' || !(_GC.isSignedIn&&_GC.isSignedIn())) return Promise.resolve(null);
+  if(_hrCombatXpInFlight) return Promise.resolve(null);
+  const pend=G._combatXpPending;
+  if(!pend||typeof pend!=='object') return Promise.resolve(null);
+  const now=Date.now();
+  if(!force && _hrCombatXpAt && (now-_hrCombatXpAt)<HR_COMBAT_XP_MS) return Promise.resolve(null);
+  const snap={}; let any=false;
+  for(const k in pend){ const n=Math.floor(Number(pend[k])||0); if(n>0){ snap[k]=n; any=true; } }
+  if(!any) return Promise.resolve(null);
+  _hrCombatXpAt=now; _hrCombatXpInFlight=true;
+  let p; try{ p=_GC.creditCombatXp(snap); }catch(e){ _hrCombatXpInFlight=false; return Promise.resolve(null); }
+  return Promise.resolve(p).then(function(cr){
+    _hrCombatXpInFlight=false;
+    if(cr && cr.ok){
+      /* Subtract exactly what we sent; new gains since the snapshot remain. */
+      for(const k in snap){ G._combatXpPending[k]=Math.max(0,(Number(G._combatXpPending[k])||0)-snap[k]); }
+    }
+    /* On !ok (rate_limited / daily_budget / bad_skill / network) keep the pending
+       XP untouched — the next flush retries. */
+    return cr;
+  }).catch(function(){ _hrCombatXpInFlight=false; return null; });
+}
+window.hrCreditCombatXpFlush=hrCreditCombatXpFlush;
+
 function hrBountyServerReady(b){
   const _armed=(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('gold'));
   const _live=(typeof inOfflineReplay!=='function' || !inOfflineReplay());

@@ -2194,6 +2194,37 @@ const run = async () => {
       exitCode = 1;
     }
 
+    /* ── The combat-XP cap drift guard (bug #5 root pt2) ─────────────────────
+       Binds src/core/combat-xp-cap.js to hr_combat_xp_cap in
+       2026-08-31-combat-xp-credit.sql, so the ATTENDED-combat-XP credit's per-skill
+       physical-max ceiling agrees bit-for-bit across Node and Postgres — a
+       divergence would refuse an honest gain (the level keeps reverting) or accept
+       a forged one (a leaderboard the cap should have bounded). */
+    try {
+      const { combatXpCapDriftGuard } = await import('./combat-xp-cap-drift.mjs');
+      const r = await combatXpCapDriftGuard();
+      console.log(`\nCombat-XP cap drift guard — ${r.checks}`);
+    } catch (e) {
+      console.log('\nCombat-XP cap drift guard — FAILED:');
+      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    }
+
+    /* ── The combat-XP settle watermark-split guard (bug #5 root pt2) ────────
+       Proves the accrual engine credits combat XP only for the window at/after
+       combat_xp_accrued_to (so a live credit is not double-paid by the settle) AND
+       that with no watermark it is byte-identical to the pre-split behaviour (the
+       AWAY-1 parity property). */
+    try {
+      const { combatXpSettleSplitGuard } = await import('./combat-xp-settle-split.mjs');
+      const r = await combatXpSettleSplitGuard();
+      console.log(`\nCombat-XP settle-split guard — ${r.checks}`);
+    } catch (e) {
+      console.log('\nCombat-XP settle-split guard — FAILED:');
+      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    }
+
     /* ── The Bounty-Marks record guard (server-of-record slice) ─────────────
        Proves the CLIENT half of 2026-08-26-marks-record.sql: arm OFF is a no-op
        (marksOf reads G.bountyHunter.marks); arm ON reads the server's record and

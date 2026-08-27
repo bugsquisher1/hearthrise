@@ -2608,6 +2608,63 @@ const TESTS = [
     }
   }),
 
+  () => tryRunAsync('COMBAT-XP-CREDIT-1 (#5 root pt2): armed combat XP accumulates + flushes to hr_credit_combat_xp, subtracts only what was sent, keeps failures pending', async () => {
+    // Bug #5 root pt2 — "attack level reverts 5→4". Live combat XP is
+    // client-predicted; the server's only combat-XP writer is the away/span-sim,
+    // which undercounts, so on settle the prediction is retired DOWN and the level
+    // reverts. The fix accumulates observed combat XP and flushes it to
+    // hr_credit_combat_xp (server-clamped), so the server credits the ATTENDED
+    // number. This proves the CLIENT half: the transport exists, addXp under the
+    // arm buffers combat XP, and the flush subtracts exactly what it sent (so a
+    // gain DURING the async call survives) and keeps a refused flush pending.
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origClaim = window.HearthriseGoalClaim;
+    try {
+      assert(typeof window.hrCreditCombatXpFlush === 'function', 'hrCreditCombatXpFlush transport must exist');
+
+      // ── accumulation: armed, signed OUT → addXp buffers combat XP, no flush ──
+      window.clientMayWriteRecordField = function (f) { return f !== 'skills'; };
+      window.HearthriseGoalClaim = { isSignedIn: () => false, creditCombatXp: () => Promise.resolve({ ok: true }) };
+      window.G._combatXpPending = {};
+      window.addXp('attack', 400);
+      window.addXp('woodcutting', 999);   // NON-combat — must NOT buffer
+      assert((window.G._combatXpPending.attack || 0) > 0, 'armed addXp must buffer combat XP for the credit');
+      assert(!('woodcutting' in window.G._combatXpPending), 'a non-combat skill must never enter the combat-XP buffer');
+
+      // ── flush: armed + signed in → sends the buffer, subtracts what was sent ──
+      const calls = [];
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        creditCombatXp: (m) => {
+          calls.push(JSON.parse(JSON.stringify(m)));
+          // A gain lands DURING the in-flight call — it must survive the subtract.
+          window.G._combatXpPending.attack = (Number(window.G._combatXpPending.attack) || 0) + 50;
+          return Promise.resolve({ ok: true, credited: m, credit: 999 });
+        },
+      };
+      window.G._combatXpPending = { attack: 1000, strength: 300 };
+      await window.hrCreditCombatXpFlush(true);
+      assert(calls.length === 1, 'flush must call creditCombatXp exactly once');
+      assert(calls[0].attack === 1000 && calls[0].strength === 300, 'flush must send the buffered per-skill XP');
+      assert((window.G._combatXpPending.attack || 0) === 50, 'flush must subtract ONLY what it sent (the mid-call +50 survives); got ' + window.G._combatXpPending.attack);
+      assert((window.G._combatXpPending.strength || 0) === 0, 'a fully-sent skill must drain to 0');
+
+      // ── refusal: a !ok verdict keeps the pending XP for the next flush ──
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        creditCombatXp: () => Promise.resolve({ ok: false, error: 'daily_budget' }),
+      };
+      window.G._combatXpPending = { attack: 777 };
+      await window.hrCreditCombatXpFlush(true);
+      assert((window.G._combatXpPending.attack || 0) === 777, 'a refused flush must keep the pending XP untouched; got ' + window.G._combatXpPending.attack);
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.HearthriseGoalClaim = origClaim;
+      restoreG(snap);
+    }
+  }),
+
   () => tryRunAsync('GOAL-CLAIM-1 (b461): under arm a MODAL goal claim fires hr_claim_goal and surfaces every outcome — never a silent no-op', async () => {
     // The beta-morning regression: the quest modal's daily/weekly pools are a
     // THIRD goal system (≠ QUEST_DEFS, ≠ DAILY_TASK_POOL) and their

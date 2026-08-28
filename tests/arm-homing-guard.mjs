@@ -45,9 +45,111 @@ const mod = (p) => new URL(p, ROOT).href;
    is written by the GAME, so excluding the harness costs no coverage. */
 const CENSUS_SKIP = new Set(['src/features/smoke-test.js']);
 
-/** Every top-level `G.<field>` assignment site under src/, as a Set of names. */
+/* ── THE Object.assign(G, <expr>) ALLOWLIST — known blob-splat LOAD/MIGRATION
+   paths (b486). A plain `G.field =` regex is BLIND to a whole-object splat like
+   `Object.assign(G, blob)` and to alias writes (`const g = G; g.x = …`) — a field
+   introduced only that way passes the census green then STRANDS under arm exactly
+   like `bestiary` did. So the scanner now reads those too. These opaque
+   `Object.assign(G, expr)` sites splat a whole SAVE object into G on the DORMANT
+   (blob) load path and are INERT under BLOB_RETIRED (the blob is never loaded when
+   armed) — which is precisely WHY every field they carry must have an independent
+   home. They are opaque to a static scan, so they are allowlisted by their exact
+   argument expression; ANY OTHER opaque Object.assign(G, x) fails the guard (it
+   could splat an un-homed field past the field regex). Allowed args:
+     · `stripRecordFields(migrated)` — legacy.js loadLocal (v1 + slot migration)
+     · `overlay`                     — auth.js applyCloudOverlay (cloud restore) */
+const OBJECT_ASSIGN_ALLOW = new Set(['stripRecordFields(migrated)', 'overlay']);
+
+/* ── THE `X = G;` ALIAS-ROOT ALLOWLIST ───────────────────────────────────────
+   An alias write (`const g = G; g.x = …`) is the OTHER blind spot: the field
+   scanner sees `g.x =`, not `G.x =`. Attributing a bare alias var's property
+   writes to G is unsafe here because names are REUSED (`cur` is both the
+   read-only path-walker `var cur = G;` AND `const cur = G.loadouts[idx]` a dozen
+   functions away). So the guard flags the alias ROOT instead — any `NAME = G;`
+   that is not a known read-only idiom fails, forcing a reviewer to confirm the
+   alias's field writes are homed (or to allowlist it). `cur` is the read-only
+   path-walker idiom (immediately reassigned via `cur = cur[parts[i]]`, never a
+   stable G alias) — if you add a WRITING alias, name it something else. */
+const ALIAS_ROOT_ALLOW = new Set(['cur']);
+
+/** Blank the interiors of comments and string/template literals so the field
+ *  scanner never matches code-shaped text that is really prose or a docstring
+ *  (record.js documents `Object.assign(G, blob)` in a comment; gold-sites.js
+ *  quotes it in a string). Newlines are preserved. Not a full JS parser — regex
+ *  literals are left as-is, which is safe because none contain `Object.assign(G,`
+ *  or `= G;`. */
+function stripCode(src) {
+  let out = ''; let i = 0; const n = src.length; let mode = null;
+  while (i < n) {
+    const c = src[i], d = src[i + 1];
+    if (mode === null) {
+      if (c === '/' && d === '/') { mode = 'line'; out += '  '; i += 2; continue; }
+      if (c === '/' && d === '*') { mode = 'block'; out += '  '; i += 2; continue; }
+      if (c === "'" || c === '"' || c === '`') { mode = c; out += c; i++; continue; }
+      out += c; i++; continue;
+    }
+    if (mode === 'line') { if (c === '\n') { mode = null; out += c; } else out += ' '; i++; continue; }
+    if (mode === 'block') { if (c === '*' && d === '/') { mode = null; out += '  '; i += 2; } else { out += (c === '\n' ? '\n' : ' '); i++; } continue; }
+    // string/template: blank the interior, keep escapes + the closing delimiter.
+    if (c === '\\') { out += '  '; i += 2; continue; }
+    if (c === mode) { mode = null; out += c; i++; continue; }
+    out += (c === '\n' ? '\n' : ' '); i++;
+  }
+  return out;
+}
+
+/** Pull every field a source string writes into G — direct `G.f =` and
+ *  `Object.assign(G, {literal})` keys — plus structural `problems`: an opaque
+ *  un-allowlisted `Object.assign(G, expr)` or a non-idiom `X = G;` alias root,
+ *  each of which could smuggle an un-homed field past the field scanner.
+ *  Exported so the self-check below can prove the scanner still SEES these. */
+export function extractGWrites(rawSrc) {
+  const src = stripCode(rawSrc);
+  const fields = new Set();
+  const problems = [];
+  const add = (name) => { if (name && name.charAt(0) !== '_') fields.add(name); };
+
+  // 1 — direct  G.foo = (not ==/===) | ||= | += | -=
+  let m;
+  const re = /\bG\.([A-Za-z_][A-Za-z0-9_]*)\s*(?:\|\|=|\+=|-=|=[^=])/g;
+  while ((m = re.exec(src))) add(m[1]);
+
+  // 2 — Object.assign(G, …): literal keys become census fields; an opaque arg
+  //     must be on the allowlist or it is a smuggling site.
+  const marker = /Object\.assign\(\s*G\s*,\s*/g;
+  while ((m = marker.exec(src))) {
+    const i = m.index + m[0].length;
+    if (src.charAt(i) === '{') {
+      let depth = 0, j = i;
+      for (; j < src.length; j++) { const c = src[j]; if (c === '{') depth++; else if (c === '}') { depth--; if (depth === 0) { j++; break; } } }
+      const body = src.slice(i, j);
+      const keyRe = /(?:^|[,{])\s*(?:'([A-Za-z_][A-Za-z0-9_]*)'|"([A-Za-z_][A-Za-z0-9_]*)"|([A-Za-z_][A-Za-z0-9_]*))\s*:/g;
+      let k; while ((k = keyRe.exec(body))) add(k[1] || k[2] || k[3]);
+    } else {
+      // opaque expression — paren-match the whole call, isolate the 2nd arg.
+      const open = src.indexOf('(', m.index);
+      let depth = 0, j = open;
+      for (; j < src.length; j++) { const c = src[j]; if (c === '(') depth++; else if (c === ')') { depth--; if (depth === 0) { j++; break; } } }
+      const arg = src.slice(i, j - 1).trim().replace(/\s+/g, ' ');
+      if (!OBJECT_ASSIGN_ALLOW.has(arg)) problems.push('Object.assign(G, ' + arg + ')');
+    }
+  }
+
+  // 3 — alias roots:  `X = G;`  (the alias-write blind spot). Flag non-idiom roots.
+  const aliasRe = /\b([A-Za-z_$][\w$]*)\s*=\s*G\s*;/g;
+  while ((m = aliasRe.exec(src))) {
+    const name = m[1];
+    if (name === 'G' || ALIAS_ROOT_ALLOW.has(name)) continue;
+    problems.push(name + ' = G;  (alias root)');
+  }
+
+  return { fields, problems };
+}
+
+/** Every field the game writes into G under src/, plus any smuggling sites found. */
 async function scanGFieldWrites() {
   const found = new Set();
+  const smuggles = [];
   const files = [];
   async function walk(rel) {
     const entries = await readdir(new URL(rel, ROOT), { withFileTypes: true });
@@ -58,18 +160,13 @@ async function scanGFieldWrites() {
     }
   }
   await walk('src/');
-  //  G.foo = (not ==/===)   |   G.foo ||=   |   G.foo +=   |   G.foo -=
-  const re = /\bG\.([A-Za-z_][A-Za-z0-9_]*)\s*(?:\|\|=|\+=|-=|=[^=])/g;
   for (const f of files) {
     const src = await readFile(new URL(f, ROOT), 'utf8');
-    let m;
-    while ((m = re.exec(src))) {
-      const name = m[1];
-      if (name.charAt(0) === '_') continue;          // `_`-prefixed scratch is never persisted
-      found.add(name);
-    }
+    const { fields, problems } = extractGWrites(src);
+    for (const name of fields) found.add(name);
+    for (const p of problems) smuggles.push({ file: f, call: p });
   }
-  return found;
+  return { found, smuggles };
 }
 
 export async function armHomingGuard() {
@@ -94,8 +191,41 @@ export async function armHomingGuard() {
     'heroSlotsUnlocked',  // b459: the hero-slot entitlement — missed by the original census
   ];
 
+  // ── SELF-CHECK: prove the scanner SEES Object.assign / alias writes (the b486
+  //    blind spot). A regression here would silently re-open the smuggling gap,
+  //    so it FAILS the guard rather than merely warning. Underscore-prefixed
+  //    names are intentionally skipped, so the positive probes are non-underscore. ──
+  {
+    const probe = extractGWrites(
+      'Object.assign(G, { probeAssignField: 1, probeSecond: 2 });\n'
+      + 'const probeAlias = G;\n probeAlias.probeAliasField = 3;\n'
+      + 'Object.assign(G, someOpaqueSplat(x));\n'
+      + '// a comment mentioning Object.assign(G, blobInComment) must NOT flag\n'
+      + 'const s = "a string with = G; and Object.assign(G, x) inside";');
+    if (!probe.fields.has('probeAssignField') || !probe.fields.has('probeSecond')) {
+      fail('SELF-CHECK: the scanner no longer sees Object.assign(G, {…}) literal keys — the b486 smuggling blind spot is back.');
+    }
+    // The census must gain the literal keys but NOT the alias-written field name
+    // (aliases are flagged at the root, not attributed — names are reused).
+    if (probe.fields.has('probeAliasField')) {
+      fail('SELF-CHECK: an alias-written field must not be attributed to the census by name (reused-name false-positive risk).');
+    }
+    // Both smuggling shapes — the opaque Object.assign AND the alias root — must
+    // surface as problems; the comment/string mentions must NOT.
+    if (!probe.problems.some((p) => p.includes('someOpaqueSplat'))) {
+      fail('SELF-CHECK: the scanner no longer flags an opaque Object.assign(G, expr) — an un-homed field could be smuggled in unseen.');
+    }
+    if (!probe.problems.some((p) => p.startsWith('probeAlias = G;'))) {
+      fail('SELF-CHECK: the scanner no longer flags a non-idiom `X = G;` alias root — the alias-write blind spot is back.');
+    }
+    if (probe.problems.some((p) => p.includes('blobInComment')) || probe.problems.some((p) => p.includes('a string with'))) {
+      fail('SELF-CHECK: the scanner is matching code-shaped text inside comments/strings (stripCode regressed) — expect false failures.');
+    }
+  }
+
   // ── The homing mechanisms, read from source so they cannot drift. ──
   let recordFields, residueFields, noSyncFields, censusFromSource;
+  let smuggles = [];
   try {
     const recSrc = await readFile(new URL('src/net/record.js', ROOT), 'utf8');
     // every `field: 'X'` on a SERVER_OF_RECORD entry
@@ -109,10 +239,24 @@ export async function armHomingGuard() {
     const block = /const\s+NO_SYNC\s*=\s*new\s+Set\(\[([\s\S]*?)\]\)/.exec(evSrc);
     if (!block) throw new Error('could not find the NO_SYNC block in src/net/events.js');
     noSyncFields = new Set([...block[1].matchAll(/'([A-Za-z_][A-Za-z0-9_]*)'/g)].map((m) => m[1]));
-    censusFromSource = await scanGFieldWrites();
+    const scan = await scanGFieldWrites();
+    censusFromSource = scan.found;
+    smuggles = scan.smuggles;
   } catch (e) {
     fail('could not load the homing sets, so NOTHING below ran: ' + (e && e.message));
     return problems;
+  }
+
+  // ── THE SMUGGLING SITES: an opaque, un-allowlisted Object.assign(G, expr). ──
+  // Such a site splats an object the field scanner cannot read — it could carry a
+  // field homed by NOTHING, stranded under arm (the bestiary class, past the
+  // static net). Allowlist it in OBJECT_ASSIGN_ALLOW only if it is a known
+  // inert-under-arm blob-splat, or replace it with explicit `G.field =` writes.
+  for (const s of smuggles) {
+    fail(`an opaque \`${s.call}\` in ${s.file} splats an object into G the field scanner cannot see — it could `
+       + `introduce a field homed by NOTHING (stranded under BLOB_RETIRED, the bestiary class past the regex). `
+       + `Allowlist its exact argument in OBJECT_ASSIGN_ALLOW if it is a known inert-under-arm blob-splat, or write `
+       + `the fields as explicit \`G.field =\` assignments so the census sees them.`);
   }
 
   // Fields a server mechanism reconciles in-G on load (NOT the record, NOT

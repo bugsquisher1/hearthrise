@@ -2658,11 +2658,66 @@ const TESTS = [
       window.G._combatXpPending = { attack: 777 };
       await window.hrCreditCombatXpFlush(true);
       assert((window.G._combatXpPending.attack || 0) === 777, 'a refused flush must keep the pending XP untouched; got ' + window.G._combatXpPending.attack);
+
+      // ── b486: a FORCED flush while one is IN FLIGHT must AWAIT the in-flight
+      //    credit, NOT early-return null. If it early-returned, accrue.js's
+      //    credit-before-settle guarantee would break: the settle could price the
+      //    attended window UNATTENDED and a live-gained level reverts on reconcile. ──
+      let releaseInflight;
+      const gate = new Promise((r) => { releaseInflight = r; });
+      const raceCalls = [];
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        creditCombatXp: (m) => {
+          raceCalls.push(JSON.parse(JSON.stringify(m)));
+          // the FIRST call blocks on the gate; the caller must await this commit.
+          return raceCalls.length === 1
+            ? gate.then(() => ({ ok: true, credited: m }))
+            : Promise.resolve({ ok: true, credited: m });
+        },
+      };
+      window.G._combatXpPending = { attack: 500 };
+      const firstFlush = window.hrCreditCombatXpFlush(true);   // starts, now in flight (blocked)
+      let secondSettled = false;
+      const secondFlush = window.hrCreditCombatXpFlush(true).then((r) => { secondSettled = true; return r; });
+      // Let microtasks drain — the forced second flush must STILL be pending
+      // (awaiting the in-flight credit), not resolved-null.
+      await Promise.resolve(); await Promise.resolve();
+      assert(secondSettled === false, 'THE BUG: a forced flush during an in-flight credit must AWAIT it, not early-return null (would lose credit-before-settle)');
+      releaseInflight();                                       // let the in-flight credit commit
+      await firstFlush; await secondFlush;
+      assert(secondSettled === true, 'the forced flush resolves only AFTER the in-flight credit settles');
+      assert((window.G._combatXpPending.attack || 0) === 0, 'the in-flight credit still subtracts exactly what it sent — no lost/under-credited attended XP');
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.HearthriseGoalClaim = origClaim;
       restoreG(snap);
     }
+  }),
+
+  () => tryRunAsync('CLIENT-STATE-CAP (b486): putClientState surfaces state_too_large distinctly, not swallowed into a silent infinite retry', async () => {
+    // The whole residue bag shares ONE 256 KiB server cap; on overflow the RPC
+    // answers {ok:false,error:'state_too_large'} and EVERY residue field stops
+    // persisting. Swallowed into the generic {ok:false} it was an invisible
+    // infinite retry (self-only progress quietly stops saving). Contract: the
+    // overflow is FLAGGED (capExceeded) and surfaced, still non-fatal (no throw),
+    // and a generic failure is NOT mis-flagged.
+    const CS = window.HearthriseClientState;
+    assert(CS && typeof CS.putClientState === 'function', 'putClientState must exist');
+    if (typeof CS.__resetClientStateCapWarned === 'function') CS.__resetClientStateCapWarned();
+    const mkFetch = (bodyObj) => async () => ({ ok: true, status: 200, json: async () => bodyObj });
+    const opts = (bodyObj) => ({ url: 'https://example.test', anonKey: 'k', jwt: 'j', slot: 0, idem: 'cap-test-idem', fetch: mkFetch(bodyObj) });
+
+    const over = await CS.putClientState({ stats: {} }, opts({ ok: false, error: 'state_too_large', cap: 262144 }));
+    assert(over && over.ok === false, 'a too-large put is still non-fatal (ok:false, never throws)');
+    assert(over.capExceeded === true, 'THE BUG: an overflow must be FLAGGED (capExceeded), not swallowed into a generic {ok:false}');
+    assert(over.error === 'state_too_large', 'the overflow error must be preserved for telemetry/observation');
+
+    const patchOver = await CS.putClientState({ stats: {} }, opts({ ok: false, error: 'patch_too_large', cap: 262144 }));
+    assert(patchOver.capExceeded === true, 'a single over-cap patch (patch_too_large) is flagged the same way');
+
+    const gen = await CS.putClientState({ stats: {} }, opts({ ok: false, error: 'no_character' }));
+    assert(gen && gen.ok === false && !gen.capExceeded, 'a generic failure must NOT be mis-flagged as a cap overflow');
   }),
 
   () => tryRunAsync('GOAL-CLAIM-1 (b461): under arm a MODAL goal claim fires hr_claim_goal and surfaces every outcome — never a silent no-op', async () => {

@@ -4387,7 +4387,7 @@ const HR_COMBAT_XP_SKILLS=['attack','strength','defense','hitpoints','ranged','m
    undercount; the RPC's own 60/min gate is the backstop. The cap is time-based so
    more frequent calls buy nothing. */
 const HR_COMBAT_XP_MS=60000;
-let _hrCombatXpAt=0, _hrCombatXpInFlight=false;
+let _hrCombatXpAt=0, _hrCombatXpInFlight=false, _hrCombatXpInFlightP=null;
 /* Flush the accumulated observed combat XP to the server (clamped there). SAFE:
    only the observed per-skill XP crosses the wire; the cap/level/clock are the
    server's. Pending is cleared by SUBTRACTING what was actually sent on success,
@@ -4399,7 +4399,24 @@ function hrCreditCombatXpFlush(force){
   const _live=(typeof inOfflineReplay!=='function' || !inOfflineReplay());
   const _GC=window.HearthriseGoalClaim;
   if(!_armed || !_live || !_GC || typeof _GC.creditCombatXp!=='function' || !(_GC.isSignedIn&&_GC.isSignedIn())) return Promise.resolve(null);
-  if(_hrCombatXpInFlight) return Promise.resolve(null);
+  /* ── THE IN-FLIGHT RACE (b486 settle undercount) ────────────────────────────
+     force=true is the credit-BEFORE-settle guarantee: accrue.js awaits this so
+     the server has advanced combat_xp_accrued_to before the settle prices the
+     attended window. A NON-forced caller may skip when a flush is already out
+     (this cadence is covered). A FORCED caller must NOT early-return null — if it
+     did, the settle's accrue request could reach the server before the in-flight
+     credit commits, pricing the attended window UNATTENDED and reverting a
+     live-gained level on reconcile. So a forced caller AWAITS the in-flight
+     promise, then sends exactly ONE follow-up flush for XP observed during the
+     in-flight call. Bounded (not recursive) so a gain-during-call can never spin. */
+  if(_hrCombatXpInFlight){
+    if(!force) return Promise.resolve(null);
+    const inflight=_hrCombatXpInFlightP||Promise.resolve(null);
+    return inflight.then(function(){
+      if(_hrCombatXpInFlight) return null;   // a fresh flush raced in; its own caller owns it
+      return hrCreditCombatXpFlush(true);    // drain residual observed during the in-flight call
+    }).catch(function(){ return null; });
+  }
   const pend=G._combatXpPending;
   if(!pend||typeof pend!=='object') return Promise.resolve(null);
   const now=Date.now();
@@ -4408,9 +4425,9 @@ function hrCreditCombatXpFlush(force){
   for(const k in pend){ const n=Math.floor(Number(pend[k])||0); if(n>0){ snap[k]=n; any=true; } }
   if(!any) return Promise.resolve(null);
   _hrCombatXpAt=now; _hrCombatXpInFlight=true;
-  let p; try{ p=_GC.creditCombatXp(snap); }catch(e){ _hrCombatXpInFlight=false; return Promise.resolve(null); }
-  return Promise.resolve(p).then(function(cr){
-    _hrCombatXpInFlight=false;
+  let p; try{ p=_GC.creditCombatXp(snap); }catch(e){ _hrCombatXpInFlight=false; _hrCombatXpInFlightP=null; return Promise.resolve(null); }
+  const chain=Promise.resolve(p).then(function(cr){
+    _hrCombatXpInFlight=false; _hrCombatXpInFlightP=null;
     if(cr && cr.ok){
       /* Subtract exactly what we sent; new gains since the snapshot remain. */
       for(const k in snap){ G._combatXpPending[k]=Math.max(0,(Number(G._combatXpPending[k])||0)-snap[k]); }
@@ -4418,7 +4435,11 @@ function hrCreditCombatXpFlush(force){
     /* On !ok (rate_limited / daily_budget / bad_skill / network) keep the pending
        XP untouched — the next flush retries. */
     return cr;
-  }).catch(function(){ _hrCombatXpInFlight=false; return null; });
+  }).catch(function(){ _hrCombatXpInFlight=false; _hrCombatXpInFlightP=null; return null; });
+  /* Publish the FULL chain (incl. the subtract + in-flight clear) as the awaitable
+     a forced caller chains onto — so awaiting it means the credit has committed. */
+  _hrCombatXpInFlightP=chain;
+  return chain;
 }
 window.hrCreditCombatXpFlush=hrCreditCombatXpFlush;
 

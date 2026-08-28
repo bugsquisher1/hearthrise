@@ -12925,6 +12925,22 @@ function maybeShowWelcome(){
         t: _skN + ' ran out of ' + _itemLabel(_off.stoppedById) + ' — nothing was earned after',
         v: fmtSince(_off.paidMs) + ' in'});
     }
+    /* SESSION TALLY (PRIORITY_BOARD §10 #2) — the SAME per-hour shape the live
+       Fight strip reads, computed from THIS settled receipt by the one shared
+       pure module, so the welcome-back card and the live tally can never quote
+       different rates for the same credited window. Settled-only: gated on
+       serverAuthoritative, and a rate only shows when a real span was paid. */
+    try{
+      var _ST = window.HearthriseSessionTally;
+      if(_ST && _off.serverAuthoritative){
+        var _sh = _ST.tallyForReceipt(_off);
+        _ST.tallyRows(_sh).forEach(function(r){
+          if(r.key==='xp')        rows.push({g:'uiXp',    t:'XP per hour',    v:r.value});
+          else if(r.key==='gold') rows.push({g:'gold',    t:'Gold per hour',  v:r.value});
+          else if(r.key==='drops')rows.push({g:'uiChest', t:'Drops per hour', v:r.value});
+        });
+      }
+    }catch(e){}
   }
   /* b341 — THE FIRST SURFACE A RETURNING PLAYER READS must not put "Time away
      8h 0m" directly above "Total kills 2" and leave the death between them

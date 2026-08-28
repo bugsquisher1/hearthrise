@@ -43,6 +43,7 @@
 
 import { MONSTERS } from '../data/monsters.js?v=486';
 import { ITEMS } from '../data/items.js?v=486';
+import * as ST from './session-tally.js?v=486';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -265,6 +266,69 @@ const Ledger = (() => {
   function lootCount() { return loot().length; }
 
   return { sample, metrics, loot, lootCount, _end: end };
+})();
+
+/* ══════════════════════════════════════════════════════════════════════
+   1b · THE SESSION TALLY — settled server credit only (PRIORITY_BOARD §10 #2)
+   ══════════════════════════════════════════════════════════════════════
+   The Ledger above measures ONE fight's live pulse. This accumulates the
+   SETTLED SERVER RECEIPTS across a whole hunt session, so the strip can show
+   XP/h, gold/h, drops/h, net, per-monster kills and session bests — every one
+   a number the server actually credited, never a projection.
+
+   The source of truth is `G.lastOfflineSummary`: applyEnvelope (src/net/
+   accrue.js) rewrites it on EVERY settle — live (~90s cadence) and away — with
+   `serverAuthoritative:true`, the credited span `awayMs`, and the gains it
+   paid. We fold each new one in (deduped by envelope version), so the live
+   Fight strip and the away welcome-back card read the exact same shape from
+   the exact same receipts. Module scope, never in G — nothing to persist. */
+const Session = (() => {
+  let acc = ST.emptyTally();
+  const seen = new Set();
+  let bestiary0 = null;      // per-monster kill baseline at session start
+  let lastAt = 0;
+
+  function snapBestiary() {
+    const g = G(); const out = {};
+    if (g && g.bestiary) for (const id in g.bestiary) out[id] = Number(g.bestiary[id] && g.bestiary[id].kills) || 0;
+    return out;
+  }
+  function reset() {
+    acc = ST.emptyTally();
+    seen.clear();
+    bestiary0 = snapBestiary();
+    lastAt = Date.now();
+  }
+  /* Ingest the latest settled receipt if it is new, and roll the session over
+     after a long quiet gap. Cheap enough to run every tick. */
+  function poll() {
+    const g = G(); if (!g) return;
+    if (bestiary0 == null) reset();
+    const now = Date.now();
+    if (lastAt && now - lastAt > ST.SESSION_IDLE_MS) reset();
+    const r = g.lastOfflineSummary;
+    if (r && ST.isSettledReceipt(r)) {
+      const k = ST.receiptKey(r);
+      if (k && !seen.has(k)) { seen.add(k); acc = ST.addReceipt(acc, r); lastAt = now; }
+    }
+  }
+  /* Per-monster kills = current bestiary minus the session baseline. The only
+     per-kill granularity there is (the receipt carries a kill TOTAL); bestiary
+     reconciles to server truth on each envelope, so this is a settled counter,
+     not a client-authored one. */
+  function perMonster() {
+    const g = G(); if (!g || !g.bestiary || !bestiary0) return [];
+    const out = [];
+    for (const id in g.bestiary) {
+      const nowK = Number(g.bestiary[id] && g.bestiary[id].kills) || 0;
+      const d = nowK - (bestiary0[id] || 0);
+      if (d > 0) out.push({ id, name: (MONSTERS[id] && MONSTERS[id].name) || id, kills: d });
+    }
+    out.sort((a, b) => b.kills - a.kills);
+    return out;
+  }
+  function shape() { return ST.tallyShape(acc, perMonster()); }
+  return { poll, reset, shape, _acc: () => acc };
 })();
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -560,7 +624,8 @@ function buildStage(arena) {
         <button type="button" class="btn btn-sm arena-chip fs-history" data-cs-act="history">History <em id="fs-history-badge"></em></button>
       </div>
     </div>
-    <div class="fs-metrics" id="fs-metrics"></div>`;
+    <div class="fs-metrics" id="fs-metrics"></div>
+    <div class="fs-metrics fs-session" id="fs-session"></div>`;
   if (existing) {
     /* Replace, so the ids this markup shares with the legacy stage
        (`arena-player-hp`, `arena-foe-portrait`, …) are never duplicated in the
@@ -1271,6 +1336,35 @@ function renderMetrics(m, f) {
   host.innerHTML = html;
 }
 
+/* THE SESSION TALLY STRIP — the settled-only hunt summary (PRIORITY_BOARD §10
+   #2). Same shape the away welcome-back card reads, so live and offline are
+   identical. Everything here is a number the server credited; until a settle
+   lands it says so rather than quoting a rate. */
+function renderSession() {
+  const host = document.getElementById('fs-session');
+  if (!host) return;
+  const s = Session.shape();
+  let html;
+  if (!s.ready) {
+    /* No settled span yet — a 90s live-settle cadence means the first credit
+       is seconds away; we will not fabricate a rate before it lands. */
+    html = '<span class="fs-sess-idle">Session tally — settles as the server credits your hunt</span>';
+  } else {
+    const rates = ST.tallyRows(s)
+      .map((r) => `<span><b>${esc(r.value)}</b> ${esc(r.label)}</span>`)
+      .join(' <s>·</s> ');
+    const best = s.bests.gold > 0 ? ` <s>·</s> <span class="fs-sess-best">best settle +${num(s.bests.gold)}g</span>` : '';
+    const foes = s.perMonster.slice(0, 4).map((m) => `${esc(m.name)} ×${num(m.kills)}`).join(' · ');
+    const foesHtml = foes ? ` <s>·</s> <span class="fs-sess-foes">${foes}</span>` : '';
+    html = `<span class="fs-sess-head">Session</span> ${rates}`
+      + (s.net > 0 ? ` <s>·</s> <span>net <b>${num(s.net)}</b>g</span>` : '')
+      + best + foesHtml;
+  }
+  if (host.dataset.sig === html) return;
+  host.dataset.sig = html;
+  host.innerHTML = html;
+}
+
 /* The log-row loot rail is GONE (b366) — not lost, MOVED. It only existed
    while the fight was live and only under the log; the management rail carries
    the same ledger in a container that is also there before the fight, holding
@@ -1455,6 +1549,7 @@ function renderFight() {
   renderManage(m);
   adoptStyleBlock();
   renderMetrics(m, f);
+  renderSession();
 
   const badge = document.getElementById('fs-history-badge');
   const n = Ledger.lootCount();
@@ -1477,6 +1572,9 @@ function tick() {
   const p = panel();
   if (!p || !p.classList.contains('active')) return;
   Ledger.sample();
+  /* Fold any settled receipt into the session tally even on the War Table, so
+     a settle that lands while browsing is never lost. */
+  Session.poll();
   const g = G();
   if (g && g.activeMonster && previewId) previewId = null;
   if (view() === 'fight') {
@@ -1548,6 +1646,7 @@ export function setupCombatScreens() {
     preview, setView, view, render, renderFight, openFromNav, openSlotPicker,
     repaintGear,
     _ledger: Ledger, _swing: Swing, _champion: syncChampionPortrait,
+    _session: Session,
     /* b371 (F25): the destination list is pure and it is where the "Enter ▸ on
        a gated dungeon" defect lived, so the guard reads it directly rather
        than trying to find a disabled button in a strip the tick repaints. */

@@ -345,7 +345,39 @@ export function isClientStateFromServer() {
    idempotent regardless).
 
    Returns {ok, ...} from the RPC, or {ok:false, error} on a transport failure —
-   a failed put is NEVER fatal (residue is self-only), it just retries next save. */
+   a failed put is NEVER fatal (residue is self-only), it just retries next save.
+
+   ── OVERFLOW IS NOT A GENERIC FAILURE (b486) ─────────────────────────────────
+   The whole residue bag shares ONE 256 KiB server cap (hr_put_client_state
+   raises `state_too_large` once the merged bag would exceed it). That is not a
+   transient — retrying sends the same over-cap bag and fails identically forever,
+   so EVERY residue field silently stops persisting. Swallowed into the generic
+   {ok:false} it is an invisible infinite retry (self-only data quietly stops
+   saving). So this ONE failure is surfaced (console.error + telemetry + a
+   one-time visible warning) and flagged with `capExceeded` so a caller can tell
+   it apart from a transient. It is still non-fatal (no throw). */
+let _capWarned = false;
+function surfaceClientStateCap(body) {
+  try {
+    if (_capWarned) return;
+    _capWarned = true;
+    const err = (body && body.error) || 'state_too_large';
+    const cap = (body && body.cap) || 262144;
+    const msg = '[client-state] residue over the ' + cap + '-byte cap (' + err + ') — self-only '
+      + 'progress is NO LONGER being saved and every retry will fail identically. Needs attention.';
+    if (typeof console !== 'undefined' && console.error) console.error(msg);
+    if (typeof window !== 'undefined') {
+      try {
+        const T = window.HearthriseTelemetry;
+        if (T && typeof T.event === 'function') T.event('client_state_too_large', { error: err, cap });
+      } catch (e) {}
+      try { if (typeof window.captureException === 'function') window.captureException(new Error(msg), { source: 'client-state-cap' }); } catch (e) {}
+      try { if (typeof window.notify === 'function') window.notify('Save warning: too much local progress to store — please report this.', 'kill'); } catch (e) {}
+    }
+  } catch (e) {}
+}
+/** Test seam: reset the one-time cap warning latch. */
+export function __resetClientStateCapWarned() { _capWarned = false; }
 export async function putClientState(patch, opts) {
   const o = opts || {};
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
@@ -376,7 +408,15 @@ export async function putClientState(patch, opts) {
       body: JSON.stringify({ p_slot: slot, p_patch: patch, p_idem: idem }),
     });
     if (!resp || !resp.ok) return { ok: false, error: 'http_' + (resp && resp.status) };
-    return await resp.json();
+    const body = await resp.json();
+    /* The RPC answers HTTP 200 with {ok:false,error:'state_too_large'} on overflow
+       (also 'patch_too_large' for a single over-cap patch). Surface + flag it
+       instead of letting it look like any other {ok:false}. */
+    if (body && body.ok === false && (body.error === 'state_too_large' || body.error === 'patch_too_large')) {
+      surfaceClientStateCap(body);
+      return Object.assign({ capExceeded: true }, body);
+    }
+    return body;
   } catch (e) {
     return { ok: false, error: 'transport', detail: e && e.message };
   }
@@ -386,6 +426,6 @@ if (typeof window !== 'undefined') {
   window.HearthriseClientState = {
     clientField, isClientStateServerBacked, isClientStateFromServer,
     applyClientState, putClientState, isClientStateHydrated,
-    hydrateInto, RESIDUE_FIELDS,
+    hydrateInto, RESIDUE_FIELDS, __resetClientStateCapWarned,
   };
 }

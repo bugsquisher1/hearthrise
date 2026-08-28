@@ -44,6 +44,8 @@ import { bugTriageGuard } from './bug-triage.mjs';
 import { slotSwitchGuard } from './slot-switch.mjs';
 import { nativeDialogGuard } from './native-dialog.mjs';
 import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
+import { clanEconomySinksGuard } from './clan-economy-sinks.mjs';
+import { feastCatalogueDriftGuard } from './clan-feast-catalogue-drift.mjs';
 /* b461 — the quest MODAL's server credit path, and the catalogue-refill
    ownership interlock that stops a regen wiping another migration's offers.
    Both replay the real migration chain into PGlite and drive real RPCs. */
@@ -2869,6 +2871,39 @@ const run = async () => {
     } else {
       console.log('\nClan-deposit ownership guard — an unowned deposit is refused and moves nothing, an '
         + 'owned one debits exactly, and a mixed batch with one short row rolls back whole.');
+    }
+
+    /* ── The clan economy-sinks guard (2026-08-27) ───────────────────────
+       Three pre-cutover holes closed: clan_contribute now debits the caller's
+       server-owned gold (was a free treasury/ranking mint), clan_feast_deposit
+       now consumes real cooked food from player_inventory (was a free meter),
+       and the value-less legacy buy_listing RPC is dropped. Drives the real
+       rate-gated RPCs on a fully replayed PGlite chain with this migration
+       appended, proving conservation (gold/food out == treasury/meter in),
+       refusal when the caller cannot pay, the day/call clamps, the level
+       cascade, and that buy_listing is gone. */
+    const econSinkProblems = await clanEconomySinksGuard();
+    if (econSinkProblems.length) {
+      console.log('\nClan economy-sinks — FAILED:');
+      for (const p of econSinkProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nClan economy-sinks guard — contribute debits gold (conserved), feast consumes food, '
+        + 'buy_listing removed.');
+    }
+
+    /* ── The feast catalogue drift guard ─────────────────────────────────
+       hr_feast_foods (the server-authoritative feast heal values) is hand-seeded
+       from src/data/items.js. This binds the seed to the data: any cooked food
+       added / renamed / re-valued in items.js that is not mirrored in the
+       migration fails the build. */
+    const feastDriftProblems = await feastCatalogueDriftGuard();
+    if (feastDriftProblems.length) {
+      console.log('\nFeast catalogue drift — FAILED:');
+      for (const p of feastDriftProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nFeast catalogue drift guard — hr_feast_foods matches items.js exactly (28 cooked foods).');
     }
 
     /* ── The quest-MODAL claim guard (b461) ──────────────────────────────

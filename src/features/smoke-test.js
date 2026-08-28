@@ -7364,6 +7364,46 @@ const TESTS = [
     }
   }),
 
+  // 10th render-layer extraction: the vendor Buy Back modal moved out of
+  // legacy.js to src/render/buyback.js. Pure refactor — openBuyback + renderBuyback
+  // must stay on window (shop.js inline onclick="openBuyback()" and repurchase()'s
+  // bare renderBuyback() call both resolve to the globals). Read-only paint of the
+  // G.buyback journal; the gold/inventory mutation stays in repurchase() in legacy.
+  () => tryRun('render: buy back modal (extracted surface)', () => {
+    assert(typeof window.openBuyback === 'function',
+      'openBuyback must stay on window (shop.js inline onclick="openBuyback()")');
+    assert(typeof window.renderBuyback === 'function',
+      'renderBuyback must stay on window (repurchase() calls it after a buy-back)');
+    const savedBuyback = window.G.buyback;
+    try {
+      // Empty journal → the empty-state copy.
+      window.G.buyback = [];
+      window.openBuyback();
+      const m = document.getElementById('bb-modal');
+      assert(m, 'bb-modal was not created by openBuyback');
+      assert(m.classList.contains('show'), 'buy-back modal did not open (missing .show)');
+      let body = document.getElementById('bb-modal-body');
+      assert(body && body.innerHTML.indexOf('Nothing to buy back') >= 0,
+        'empty buy-back journal did not render its empty state');
+      // A journalled sale → one .bb-row with a repurchase() Buy Back control.
+      const anyId = Object.keys(window.ITEMS || {})[0];
+      assert(anyId, 'ITEMS empty — cannot seed a buy-back row');
+      window.G.buyback = [{ id: anyId, qty: 2, unit: 5 }];
+      window.renderBuyback();
+      body = document.getElementById('bb-modal-body');
+      const rows = body.querySelectorAll('.bb-row');
+      assert(rows.length === 1, 'expected exactly one buy-back row, got ' + rows.length);
+      const btn = rows[0].querySelector('button');
+      assert(btn && btn.getAttribute('onclick').indexOf('repurchase(0)') >= 0,
+        'buy-back row is missing its repurchase(0) control');
+      // Close control removes .show.
+      m.classList.remove('show');
+      assert(!m.classList.contains('show'), 'buy-back modal did not close');
+    } finally {
+      window.G.buyback = savedBuyback;
+    }
+  }),
+
   // ── b126 regression suite: every bug we fixed in b119–b125 ──
   // Each test guards against a specific historical regression. If
   // any of these fail we're shipping a bug we already paid for once.

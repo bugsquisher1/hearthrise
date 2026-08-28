@@ -10053,38 +10053,10 @@ window.toggleItemLock = toggleItemLock;
 window.recordVendorSale = recordVendorSale;
 window.repurchase = repurchase;
 
-function renderBuyback(){
-  const body = document.getElementById('bb-modal-body');
-  if(!body) return;
-  const list = Array.isArray(G.buyback) ? G.buyback : [];
-  if(!list.length){ body.innerHTML = '<div class="bb-empty">Nothing to buy back yet. Anything you sell to a vendor shows up here so you can undo it.</div>'; return; }
-  body.innerHTML = list.map((b,i)=>{
-    const it = ITEMS[b.id]; if(!it) return '';
-    const cost = b.unit * b.qty;
-    const afford = balCanAfford(cost,'gold');
-    const icon = (window._itemPath && window._itemPath[b.id]) ? `<img src="${window._itemPath[b.id]}" alt=""/>` : `<span class="bb-emoji">${itemFallbackIcon(b.id, 24, it)}</span>`;
-    return `<div class="bb-row">
-      <span class="bb-ic">${icon}</span>
-      <span class="bb-meta"><b>${b.qty}× ${it.n}</b><span>sold for ${b.unit.toLocaleString()} gp each</span></span>
-      <button class="btn btn-sm ${afford?'btn-primary':''}" ${afford?'':'disabled'} onclick="repurchase(${i})">Buy back · ${cost.toLocaleString()} gp</button>
-    </div>`;
-  }).join('');
-}
-function openBuyback(){
-  let m = document.getElementById('bb-modal');
-  if(!m){
-    m = document.createElement('div');
-    m.id = 'bb-modal'; m.className = 'modal';
-    m.innerHTML = '<div class="modal-card"><div class="modal-head"><div class="modal-title">Buy Back</div>'
-      + '<button class="btn btn-sm" onclick="document.getElementById(\'bb-modal\').classList.remove(\'show\')">Close</button></div>'
-      + '<div id="bb-modal-body" class="bb-body"></div></div>';
-    document.body.appendChild(m);
-  }
-  renderBuyback();
-  m.classList.add('show');
-}
-window.renderBuyback = renderBuyback;
-window.openBuyback = openBuyback;
+/* renderBuyback + openBuyback extracted to src/render/buyback.js (render-layer
+   strangler-fig, task #129). Both remain global via window.* there; repurchase()
+   above calls renderBuyback() bare (resolves to the global) and shop.js's inline
+   onclick="openBuyback()" is unchanged. Pure refactor — identical DOM. */
 
 /* b265: ONE bury path. The three inventory bury buttons had DIVERGED — the
    context menu (inv-context-menu.js) and the inv detail (below) fell back to

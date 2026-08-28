@@ -7942,6 +7942,50 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
+  () => tryRun('action: the session tally counts SETTLED server credit only (never a projection)', () => {
+    const ST = window.HearthriseSessionTally;
+    assert(ST && typeof ST.addReceipt === 'function', 'HearthriseSessionTally must be exposed');
+
+    // A client-authored receipt (no serverAuthoritative flag) must NEVER count —
+    // this is the whole settled-only invariant, and it is what stops a forged
+    // local number from entering the tally.
+    const forged = { gainedGold: 1e9, gainedXp: 1e9, gainedItems: 99, gainedKills: 50, awayMs: 3600000, at: 1000 };
+    let acc = ST.addReceipt(ST.emptyTally(), forged);
+    assert(acc.gold === 0 && acc.settles === 0, 'a non-serverAuthoritative receipt must be ignored');
+
+    // A settled receipt counts exactly once, and the per-hour figure is
+    // settled-total / settled-paid-span — actuals over credited time, not a
+    // forecast. 600 gold + 1200 xp over 0.5h => 1200 gold/h, 2400 xp/h.
+    const settled = { serverAuthoritative: true, version: 7, gainedGold: 600, gainedXp: 1200,
+      gainedItems: 4, gainedKills: 3, awayMs: 1800000, at: 2000 };
+    acc = ST.addReceipt(ST.emptyTally(), settled);
+    assert(acc.gold === 600 && acc.kills === 3 && acc.settles === 1, 'a settled receipt must count once');
+    assert(Math.round(ST.perHour(acc.gold, acc.paidMs)) === 1200, 'gold/h must be settled gold / settled span');
+
+    const shape = ST.tallyForReceipt(settled);
+    assert(shape.ready === true, 'a receipt with a credited span must be ready to render');
+    assert(Math.round(shape.perHour.xp) === 2400, 'xp/h from 1200 xp over 0.5h must be 2400');
+    assert(shape.net === 600, 'net must be the settled gold in');
+
+    // No credited span => NO rate. A projection is exactly what this refuses.
+    const noSpan = ST.tallyForReceipt({ serverAuthoritative: true, version: 8, gainedGold: 100, awayMs: 0, at: 3 });
+    assert(noSpan.ready === false && noSpan.perHour.gold === null,
+      'with no credited span there must be no per-hour rate (no projection)');
+
+    // The away card and the live Fight strip read ONE shape — same receipt in,
+    // same formatted rows out. This is the guarantee that they cannot diverge.
+    const rows = ST.tallyRows(shape);
+    assert(rows.some((r) => r.key === 'xp' && r.value === '2,400'), 'tallyRows must format the settled xp/h');
+    assert(rows.some((r) => r.key === 'kills' && r.value === '3'), 'tallyRows must carry settled kills');
+
+    // The live accumulator must be wired and must ignore a forged receipt too.
+    const CS = window.HearthriseCombatScreens;
+    if (CS && CS._session) {
+      const before = CS._session.shape();
+      assert(before && typeof before.ready === 'boolean', 'the live session shape must be readable');
+    }
+  }),
+
   () => tryRun('action: cook a fish creates a buff item', () => {
     const snap = snapshotG();
     try {

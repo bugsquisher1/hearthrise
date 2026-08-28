@@ -1097,6 +1097,11 @@
        #iap-panel + #shop-panel from G/catalogue data. Purchase handlers stay
        global in legacy.js; shop tab-state is window.shopTab. -->
   <script src="src/render/shop.js?v=486"></script>
+  <!-- Vendor Buy Back modal — 10th render-layer extraction out of legacy.js
+       (task #129 Phase 3.5). Re-exports window.renderBuyback + window.openBuyback;
+       read-only paint of the G.buyback journal. repurchase() stays global in
+       legacy.js. Pure refactor — identical DOM. -->
+  <script src="src/render/buyback.js?v=486"></script>
   <!-- b154: rebuilt Home dashboard (revamp) — loads AFTER legacy.js so
        window.showTab / getTotalLevel / MONSTERS exist when it wraps them -->
   <script src="src/features/home-dashboard.js?v=486"></script>

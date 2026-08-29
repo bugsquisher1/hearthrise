@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 488 — 2026-08-29 (Tiles now say whose XP they pay)
+
+- ⛏️ **Quarrying now says it trains Mining.** The Stonemason page's quarry lanes have always paid Mining XP by design (quarrying is mining — refining stone is the Stonemason part), but the tiles just said "2 XP" while the Stonemason bar sat still, which read as "no XP" (thanks Paione for the screenshot). Every lane that pays a different skill than its page now names it right on the tile: "2 Mining XP". Your 260 rubble did pay Mining all along.
+- 🚑 *(Earlier today, server-side — already live for everyone):* the "slow down a moment" wall on Auto-Eat purchases, combat styles snapping back to default, quest claims doing nothing, and progress resetting on reload were all ONE server rate-limiter bug — fixed, plus an automated guard so it can't silently return. **Please re-test those and tell us in Discord.**
+- 🧰 Under the hood: the release gate's approved-server-surface baseline caught up with the clan-economy hardening.
+
 ## v0.9.2-beta build 487 — 2026-08-29 (Your XP can no longer revert mid-fight)
 
 > **🧪 Please help us test this one!** The XP fix below attacks the bug several of you have been reporting all week. Fight for a few minutes on a **non-default combat style** (Defensive, Controlled, cast-focus…), watch a level land, keep fighting through a sync, then reload — and tell us in Discord whether anything reverts. On phones especially: fight, switch apps for a minute, come back. If XP still moves backwards on your screen, report it with the Report button — you'll be catching the exact thing we're hunting.

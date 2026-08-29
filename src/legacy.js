@@ -16328,7 +16328,11 @@ function tileForArtisan(recipe, skillId){
     +'title="'+tileTitle.replace(/"/g,'&quot;')+'">'
     +'<div class="at-icon">'+actIconHtml(outId, skillId)+'</div>'
     +'<div class="at-name">'+(recipe.name||recipe.id)+'</div>'
-    +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(actMs)+'</div>'
+    /* Cross-skill lane honesty (kept identical to the ESM twin's xpSkillLabel):
+       a quarry rung on the Stonemason page pays MINING XP by design — say so. */
+    +'<div class="at-meta">'+xpPer+' '+(recipe.xpSkill && recipe.xpSkill!==skillId
+        ? (((window.SKILLS_DEF||{})[recipe.xpSkill]||{}).name || (recipe.xpSkill.charAt(0).toUpperCase()+recipe.xpSkill.slice(1)))+' '
+        : '')+'XP · '+fmtSec(actMs)+'</div>'
     +'<div class="at-inputs">'+inputsLine+'</div>'
     +(typeof window.hrWearLineHtml==='function' ? window.hrWearLineHtml(outId) : '')   /* b348 */
     +burnLine

@@ -438,3 +438,22 @@ begin
     raise exception 'clan-economy-sinks self-check FAILED:%', v_bad;
   end if;
 end $$;
+
+-- ── 10. GRANT-HYGIENE BASELINE RECONCILIATION ────────────────────────────────
+-- The approved client-RPC surface changed on purpose (security re-review GO,
+-- 2026-08-27): the two clan wrappers gained new signatures and buy_listing is
+-- gone. Record that intent in hr_client_rpc_baseline so the grant-hygiene
+-- guard blesses the new surface and stops carrying the dead rows.
+do $$
+begin
+  if to_regclass('public.hr_client_rpc_baseline') is null then
+    raise notice 'hr_client_rpc_baseline absent — grant-hygiene not applied'; return; end if;
+  delete from public.hr_client_rpc_baseline
+   where proname in ('buy_listing', 'clan_contribute', 'clan_feast_deposit');
+  insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
+    ('clan_contribute', 'p_clan_id uuid, p_amount bigint, p_slot integer',
+     'authenticated', 'replaced 2026-08-27: contribution is a GOLD SINK — caller''s player_state.gold debited under lock, journalled (security GO)'),
+    ('clan_feast_deposit', 'p_clan_id uuid, p_item_id text, p_qty integer, p_slot integer',
+     'authenticated', 'replaced 2026-08-27: item-authoritative feast — server heal value from hr_feast_foods, inventory debited under lock (security GO)');
+  -- buy_listing intentionally has NO replacement row: hr_market_buy owns the path.
+end $$;

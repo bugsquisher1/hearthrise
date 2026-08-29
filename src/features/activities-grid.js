@@ -5,9 +5,9 @@
 // Exports: setupActivitiesGrid()
 // Hooks: window.renderSkillsList (filter combat out), window.renderSkillDetail (tile grid)
 
-import { SKILLS_DEF } from '../data/skills.js?v=487';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=487';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=487';
+import { SKILLS_DEF } from '../data/skills.js?v=488';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=488';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=488';
 
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
 
@@ -206,6 +206,20 @@ function lockGlyph() {
   return (window.HR && window.HR.icon) ? (window.HR.icon('uiLock', 12, 'currentColor') || '') : '';
 }
 
+/* A lane that pays its XP to a DIFFERENT skill than the page it lives on must
+   say so on the tile — "7 Mining XP", not a bare "7 XP" under a Stonemason
+   header whose bar never moves. Live confusion (Paione, 2026-08-29 screenshot):
+   260 Quarry Rubble with the Stonemason bar at 0/83 — the XP was correctly
+   paying Mining (stonecraft.js §8.4: quarrying IS mining; refining is the
+   stonemason part), but nothing on screen said it. Data-driven: any lane with
+   `xpSkill` ≠ its hosting skill gets the label, current and future. */
+function xpSkillLabel(skillId, recipe) {
+  const xs = recipe && recipe.xpSkill;
+  if (!xs || xs === skillId) return '';
+  const nm = (window.SKILLS_DEF?.[xs]?.name) || (xs.charAt(0).toUpperCase() + xs.slice(1));
+  return nm + ' ';
+}
+
 function tileForArtisan(recipe, skillId) {
   const lv = window.getLevel(skillId);
   const unlocked = lv >= recipe.req;
@@ -255,7 +269,7 @@ function tileForArtisan(recipe, skillId) {
     data-prod="${outId}" onclick="${click}" title="${tileTitle.replace(/"/g, '&quot;')}">
     <div class="at-icon">${actIconHtml(outId, skillId)}</div>
     <div class="at-name">${recipe.name || recipe.id}</div>
-    <div class="at-meta">${effXp(skillId, recipe)} XP · ${fmtSec(effMs(skillId, recipe, recipe.ms || 3000))}</div>
+    <div class="at-meta">${effXp(skillId, recipe)} ${xpSkillLabel(skillId, recipe)}XP · ${fmtSec(effMs(skillId, recipe, recipe.ms || 3000))}</div>
     <div class="at-inputs">${inputsLine}</div>
     ${(typeof window.hrWearLineHtml === 'function') ? window.hrWearLineHtml(outId) : ''}
     ${burnLine}

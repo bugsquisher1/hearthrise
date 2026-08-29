@@ -2384,6 +2384,15 @@ Registered in `tests/schema-apply-order.json` §order with a full note.
   and `b224` now also restores `G.playerMaxHp` because a REAL skill can level where the phantom could
   not.
 
+### TEST RESULT (final, post-rebase onto `dce57d2f`, quiet machine)
+`passed 1071/1071 · failed 0 · runtime errors 0 — All green` (exit 0; 1071 not 1070 because main's
+session-tally integration added one test). Two earlier post-rebase attempts died at exit 127 mid-run
+under concurrent-agent load (3 node.exe at 620MB/1.1GB/815MB + 27 chrome.exe) and flagged
+`auth-resilience` + `icon-boot-order`; **both pass in the clean run**, confirming the documented
+parallel-suite flake rather than a regression. Mutation proof of the new in-page assert: reverting the
+client row to `{combat:200}` gives `1069/1070 failed 1` on exactly
+*"claiming a kill goal paid 0 hitpoints XP, but the reward line promises 300."*
+
 ### HANDOFF
 - **Coordinator** — apply `supabase/migrations/2026-09-01-kill-goal-xp-hitpoints.sql` to production
   via the Management API. It is fail-closed: if prod has drifted it raises `... has DRIFTED ...` and

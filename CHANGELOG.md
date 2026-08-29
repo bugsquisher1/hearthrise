@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 489 — 2026-08-29 (The Bounty Board actually works now)
+
+> **🧪 Bounty hunters — please test this hard.** Accept a bounty, grind it, turn it in, watch your Marks arrive; reroll the board; buy from the Bounty Shop. If anything refuses, hangs, or pays 0, hit Report — you'll be looking straight at the thing we just rebuilt.
+
+- 🎯 **Contracts that could never complete are gone.** From Bounty level 5 the board's middle slot was always a "Proof" contract the game literally cannot finish yet — you'd grind it to full and… nothing. Forever. The board only posts contract types it can actually pay now; if you're currently stuck on one, it withdraws itself **free** on your next load (no abandon fee). The other contract types return once their server payouts are built.
+- 🪙 **"Completed a task, got 0 marks" — fixed.** Your turn-in was paying on the server; your screen just never fetched the new balance. Marks now update the moment the turn-in confirms.
+- 🔄 **Rerolls, fixed properly:** your free reroll is daily again (it silently became once-per-lifetime), the paid price no longer ratchets forever, and a purchased Reroll Token no longer eats your free one — plus you're charged only after we know the reroll can happen.
+- 🛒 **Honest Bounty Shop:** the five items that always answered "unavailable right now" no longer pretend to be buyable — they're greyed until their server side lands. Auto-Eat I & II remain fully buyable (and after this morning's server hotfix, purchases go through).
+- 🔇 Removed a phantom "Bonus turn-in! +3 Marks" toast for a bonus nothing actually pays.
+
 ## v0.9.2-beta build 488 — 2026-08-29 (Tiles now say whose XP they pay)
 
 - ⛏️ **Quarrying now says it trains Mining.** The Stonemason page's quarry lanes have always paid Mining XP by design (quarrying is mining — refining stone is the Stonemason part), but the tiles just said "2 XP" while the Stonemason bar sat still, which read as "no XP" (thanks Paione for the screenshot). Every lane that pays a different skill than its page now names it right on the tile: "2 Mining XP". Your 260 rubble did pay Mining all along.

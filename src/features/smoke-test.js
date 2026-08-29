@@ -14806,12 +14806,30 @@ const TESTS = [
       'the event bus that repaints the Quests strip is missing');
 
     const G = window.G;
+    /* b492 — this used to SAVE AND RESTORE `G.skills.combat`, i.e. it made room
+       for the phantom instead of refusing it. `combat` is not a skill (hr_skills
+       carries attack/strength/defense/hitpoints/…; combat level is DERIVED), so
+       hr_claim_goal dropped every kill-goal XP grant into `skipped_xp` and the
+       XP half of kill_any / kill_more / wk_kills was never paid — while the modal
+       printed it as part of the price. The reward now names HITPOINTS, and this
+       test asserts the class is dead from the client end: the claim MOVES a real
+       skill, and the phantom is never created. */
     const hadCombat = Object.prototype.hasOwnProperty.call(G.skills, 'combat');
     const saved = {
-      kills: G.stats.kills, gold: G.gold, gems: G.gems, combat: G.skills.combat,
+      kills: G.stats.kills, gold: G.gold, gems: G.gems,
+      /* hitpoints XP is a REAL skill, so unlike the phantom it can level — and a
+         hitpoints level-up assigns G.playerMaxHp (addXp's levelup branch). Both
+         are restored, or this test would quietly raise the live player's max HP. */
+      hitpoints: G.skills.hitpoints, playerMaxHp: G.playerMaxHp,
       dailyGoals: G.dailyGoals ? JSON.parse(JSON.stringify(G.dailyGoals)) : null,
       weeklyGoals: G.weeklyGoals ? JSON.parse(JSON.stringify(G.weeklyGoals)) : null,
     };
+    /* Graded on what the CLAIM does, not on what is already in G: a long-lived
+       local save can still carry legacy `combat` residue, and failing the suite
+       in that player's browser would be a false alarm. The residue is left
+       exactly as found (see the ANTI-MINT note — it is never converted into
+       hitpoints, because it was never server-authored). */
+    const combatBefore = hadCombat ? G.skills.combat : undefined;
     const repaint = () => window.HearthriseEvents.emit('smokeQuestRepaint', {});
     try {
       window.getGoalsForToday();                 // make sure today's object exists
@@ -14842,14 +14860,37 @@ const TESTS = [
       const claim = document.querySelector('#quests-modal-overlay .qm-q-claim');
       assert(claim, 'a completed quest offered no Claim button');
       const goldBefore = G.gold;
+      const hpBefore = Number(G.skills.hitpoints) || 0;
       window.claimQuestReward('kill_more', false);
       assert(G.gold > goldBefore, 'claiming a completed quest paid nothing');
+      /* b492 — THE XP HALF IS PAID, AND IT LANDS IN A REAL SKILL. kill_more is
+         authored at 300 hitpoints XP; an AUTHORED payout may be raised by perks
+         or a rested charge but must never be shrunk (the b226 PACE rule), so the
+         authored figure is the floor. */
+      const hpAfter = Number(G.skills.hitpoints) || 0;
+      assert(hpAfter >= hpBefore + 300,
+        'THE b492 BUG: claiming a kill goal paid ' + (hpAfter - hpBefore) + ' hitpoints XP, but the '
+        + 'reward line promises 300. The kill goals used to price their XP as the phantom skill '
+        + '`combat`, which the server silently skipped and the client invented — the player was '
+        + 'quoted a price and paid less than it.');
+      const combatAfter = Object.prototype.hasOwnProperty.call(G.skills, 'combat')
+        ? G.skills.combat : undefined;
+      assert(combatAfter === combatBefore,
+        'THE b492 CLASS IS BACK: claiming a kill goal wrote G.skills.combat (' + combatBefore + ' -> '
+        + combatAfter + '). `combat` is a DERIVED level, not an hr_skills row: the server drops that '
+        + 'grant into skipped_xp, so the number only ever exists on this client and dies at the next '
+        + 'settle. A PERIOD reward must name a CONSTANT real skill.');
       assert(G.dailyGoals.claimed && G.dailyGoals.claimed.kill_more === true,
         'the claim was not recorded, so the same reward could be taken twice');
     } finally {
       if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
       G.stats.kills = saved.kills; G.gold = saved.gold; G.gems = saved.gems;
-      if (hadCombat) G.skills.combat = saved.combat; else delete G.skills.combat;
+      if (saved.hitpoints === undefined) delete G.skills.hitpoints;
+      else G.skills.hitpoints = saved.hitpoints;
+      G.playerMaxHp = saved.playerMaxHp;
+      /* Residue is left as found; anything this test caused is removed. Never
+         folded into hitpoints — that would mint ranked XP from a client artefact. */
+      if (hadCombat) G.skills.combat = combatBefore; else delete G.skills.combat;
       G.dailyGoals = saved.dailyGoals; G.weeklyGoals = saved.weeklyGoals;
     }
   }),

@@ -608,7 +608,14 @@ export function __setSkillsRecordArm(v) {
    SPARSE pre-wipe
    — players earned marks into the blob, not all mirrored server-side — so a pre-wipe
    arm would strand marks, the inventory-flip lesson). */
-export const MARKS_RECORD_ARM_ENABLED = true;   // DORMANT — post-wipe rollout only
+/* ⚠ ARMED. This said "DORMANT — post-wipe rollout only" for 32 builds AFTER b454
+   ("server-authority cutover: arm all flags post-wipe") flipped the value, and on
+   2026-08-31 that stale comment produced a real misdiagnosis: a bounty-board bug
+   was triaged on the premise that "marks are client-authored today". They are
+   not. Measured on a b486 boot: clientMayWriteRecordField('marks') === false and
+   the bounty sub-header renders the pending em dash. The comment now matches the
+   value; if you flip the value, flip the comment in the same edit. */
+export const MARKS_RECORD_ARM_ENABLED = true;   // ARMED since b454 (2026-08-2x cutover)
 let marksArmOverride = null;
 export function isMarksRecordArmed() {
   const on = marksArmOverride !== null ? marksArmOverride : MARKS_RECORD_ARM_ENABLED;

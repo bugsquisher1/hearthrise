@@ -20012,6 +20012,75 @@ const TESTS = [
     }
   }),
 
+  () => tryRunAsync('BOUNTY-MARKS-1 (bug_reports #46): a server-confirmed turn-in REFRESHES the balance it just credited — "completed 1 task but I got 0 marks"', async () => {
+    if (typeof window.handleBountyKill !== 'function' || typeof window.acceptBounty !== 'function') return;
+    const R = window.HearthriseRecord;
+    if (!R || typeof R.requestRecord !== 'function') return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origClaim = window.HearthriseGoalClaim;
+    const origNotify = window.notify;
+    const toasts = [];
+    let refreshes = 0;
+    try {
+      const G = window.G;
+      window.notify = (m) => { toasts.push(String(m)); };
+      /* The LIVE arm: marks and gold are server-of-record, so finalizeBounty's
+         local credit is a no-op and the only thing that can move the number the
+         player is looking at is a fresh envelope. */
+      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'marks';
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        acceptBounty: () => Promise.resolve({ ok: true }),
+        creditKills: () => Promise.resolve({ ok: true, progress: 99999 }),
+        /* hr_claim_bounty SUCCEEDS — the server really did credit the Marks.
+           That is the whole point: the RPC was never the bug. */
+        claimBounty: () => Promise.resolve({ ok: true, gold: 270, marks: 5, xp: 38 }),
+      };
+      const _R = window.HearthriseRecord;
+      const origRequest = _R.requestRecord;
+      _R.requestRecord = function () { refreshes++; return Promise.resolve({ outcome: 'loaded', applied: true }); };
+      try {
+        const monId = Object.keys(window.MONSTERS)[0];
+        G.bountyHunter.active = null;
+        G.bountyHunter.board = [{ id: 'test_cull_marks', type: 'cull', target: monId, tier: 1, progress: 0,
+          difficulty: 'easy', required: 2, rewards: { gold: 270, marks: 5, xp: 38 } }];
+        window.acceptBounty(0);
+        assert(G.bountyHunter.active && G.bountyHunter.active.type === 'cull', 'CONTROL: the cull contract must be accepted');
+        toasts.length = 0; refreshes = 0;
+        /* PIN THE BONUS ROLL ON. It is a seeded chance(0.10), so an unpinned run
+           would skip the bonus 9 times in 10 and the "must not announce what it
+           cannot pay" assertion below would pass without grading anything —
+           exactly the flake b344 documents one screen up. 0.01 < 0.10 ⇒ rolls. */
+        const _C = window.HearthriseCore;
+        _C.setRng(_C.rngMod.rngFrom(() => 0.01));
+        try {
+          window.handleBountyKill(monId, window.MONSTERS[monId]);
+          window.handleBountyKill(monId, window.MONSTERS[monId]);
+          // let the two-phase credit → claim → finalize chain settle
+          for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
+        } finally { _C.setRng(null); }
+        assert(!G.bountyHunter.active, 'CONTROL: a server-confirmed turn-in must consume the contract');
+        assert(refreshes >= 1,
+          'the turn-in celebrated "+5 Marks" and never asked for the balance the server had just written — '
+          + 'gold and marks are server-of-record, so the local credit is a no-op and the counter sits on its old '
+          + 'number until some unrelated envelope happens along. That is bug_reports #46 verbatim.');
+      } finally { _R.requestRecord = origRequest; }
+      /* …and the client-only 10% bonus must not be ANNOUNCED where it cannot be
+         PAID. hr_claim_bounty's reward carries no bonus roll, so under the arm
+         that toast promised Marks nothing anywhere grants. */
+      const bonusToast = toasts.filter((t) => /Bonus turn-in/i.test(t));
+      assert(!bonusToast.length,
+        'the turn-in announced a bonus the arm cannot credit: "' + bonusToast[0] + '" — a second toast naming a '
+        + 'number the balance never shows is most of what "I got 0 marks" feels like');
+    } finally {
+      window.notify = origNotify;
+      window.HearthriseGoalClaim = origClaim;
+      window.clientMayWriteRecordField = origMay;
+      restoreG(snap);
+    }
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════════
      BOUNTY-REROLL — the board has a DAY, and a paid refresh is paid once
      (2026-08-31, same sweep.)

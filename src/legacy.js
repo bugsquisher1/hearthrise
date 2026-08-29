@@ -4626,6 +4626,34 @@ function completeBounty(){
       if(!G.bountyHunter || G.bountyHunter.active!==b) return;  // changed under us
       if(res && res.ok){
         finalizeBounty(b, r, _isCull);
+        /* ── bug_reports #46: "completed 1 task but I got 0 marks" ─────────────
+           REPRODUCED headless, and it is not the RPC. hr_claim_bounty DID credit
+           the gold and the Marks into player_state — but gold and marks are
+           SERVER-OF-RECORD, so finalizeBounty's `if(clientMayWriteRecordField
+           ('marks')) G.marks += …` is a permanent no-op, and the counter the
+           player is looking at reads the RECORD, which nothing refreshed. Result:
+           the toast says "+5 Marks", the balance sits on its old number, and the
+           only thing that moves it is the next envelope — a reload, or an
+           accrual settle that may never come while the player is standing still.
+           Measured: 100 Marks before, hr_claim_bounty ok with +5, 100 Marks
+           after, zero hr_load requests. With the refresh: 100 → 105.
+
+           buyTrait already solved exactly this for its server purchase, and its
+           comment calls requestRecord "the cheapest honest refresh there is" —
+           the largest Marks credit in the game simply never got the same line.
+           ONE call refreshes the whole envelope, so it fixes the gold half too.
+           Fire-and-forget: requestRecord coalesces in-flight callers, applies the
+           envelope itself, and a failure leaves the field exactly as honest as it
+           was. Gated on the ARM because while the client owns the balance
+           finalizeBounty has already written the real number. */
+        if(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('marks')){
+          try{
+            if(window.HearthriseRecord && typeof window.HearthriseRecord.requestRecord==='function'){
+              const _rr=window.HearthriseRecord.requestRecord();
+              if(_rr && _rr.then) _rr.then(function(){ try{ updateTopbar(); repaintBounty(); }catch(e){} }).catch(function(){});
+            }
+          }catch(e){}
+        }
       } else {
         /* Denied — the server hasn't counted enough kills yet. HOLD (never
            "0 reward"/failed, never consume). One calm notice; the next kill
@@ -4705,7 +4733,15 @@ function finalizeBounty(b, r, _isCull){
   const bonusRoll=(_CK&&_CK.rng)?_CK.rng.chance(0.10):(Math.random()<0.10);
   /* b221: these three toasts/log lines shipped a literal 🎯 — emoji as art,
      on a screen whose whole point this pass was to stop looking generated. */
-  if(bonusRoll){const bonus=Math.max(1,Math.round((r.marks||0)*0.5));if(clientMayWriteRecordField('marks'))G.marks=(G.marks||0)+bonus;notify(`Bonus turn-in! +${bonus} Marks`,'levelup');}
+  /* ⚠ THE BONUS IS ANNOUNCED ONLY WHERE IT IS PAID (bug_reports #46's second
+     half). The 10% bonus exists ONLY here — hr_claim_bounty's reward is
+     base × type × difficulty with no bonus roll (2026-08-23-bounty.sql) — so
+     under the Marks arm the credit is a no-op and the toast was promising
+     Marks that nothing anywhere grants. Two toasts, one turn-in, both naming a
+     number the balance never showed, is most of what "I got 0 marks" feels
+     like. Announce it where it lands; a real server-side bonus is a Systems +
+     Designer change (raised in HANDOFFS), not a louder toast. */
+  if(bonusRoll && clientMayWriteRecordField('marks')){const bonus=Math.max(1,Math.round((r.marks||0)*0.5));G.marks=(G.marks||0)+bonus;notify(`Bonus turn-in! +${bonus} Marks`,'levelup');}
   G.combatLog.push(`Bounty complete! +${r.marks} Marks, +${r.gold} gold`);
   notify(`Bounty complete: +${r.marks} Marks`,'levelup');
   if(newLevel>oldLevel)notify(`Bounty Hunter ${newLevel}!`,'levelup');

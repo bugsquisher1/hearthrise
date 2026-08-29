@@ -5653,10 +5653,15 @@ const COMBAT_FX={
     if(G.playerHp<G.playerMaxHp*(G.autoEatPct||0.5)&&G.foodSlot&&(G.inventory[G.foodSlot]||0)>0){
       const fd=ITEMS[G.foodSlot];
       if(fd&&fd.heals){
+        const _food=G.foodSlot;
         G.playerHp=Math.min(G.playerMaxHp,G.playerHp+fd.heals);
-        removeItem(G.foodSlot,1);
+        removeItem(_food,1);
         G.stats.buffsConsumed=(G.stats.buffsConsumed||0)+1;
         if(Array.isArray(G.combatLog))G.combatLog.push(`Auto-ate ${fd.n} (+${fd.heals})`);
+        /* Same seam as HearthriseAuto's path above — this pre-b134 fallback is
+           reachable before the module loads, and an un-noted debit here is the
+           same live P0 ("eaten food gets restocked") through a colder door. */
+        if(typeof noteItemConsumed==='function'){ try{ noteItemConsumed(_food,1,{auto:true}); }catch(e){} }
         return true;
       }
     }
@@ -7623,6 +7628,175 @@ function wireServerEat(){
   return M;
 }
 window.wireServerEat=wireServerEat;
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE ONE SEAM FOR A CLIENT-LOCAL CONSUMPTION  (LIVE P0, reported 4×
+   b467→b479: "Food eaten while in combat gets restocked" / "I have 2 moonblood
+   and every time I use 1 it returns back in my inventory".)
+
+   TWO INDEPENDENT DEFECTS PRODUCED THAT ONE REPORT, and neither fix alone is
+   enough — which is why both live behind this single call:
+
+   (1) THE RECONCILE RESTOCKS BY CONSTRUCTION. `reconcileInventory` takes the
+       LARGER of the client's copy and the envelope's figure. A locally-eaten
+       unit makes the client's copy SMALLER, so any envelope built before the
+       eat landed hands the unit straight back — and since the client's copy is
+       itself the ratcheted value, the eat's own correct response then loses the
+       max and the divergence is permanent. Closed by the pending-consumption
+       hold below (src/net/pending-consume.js), folded out of the server's
+       figure before the reconcile reads it.
+
+   (2) AUTO-EAT NEVER TOLD THE SERVER ANYTHING. `window.eatFood` has sent the
+       `eat` intent since the Paione P0, but `HearthriseAuto.maybeAutoEat()` —
+       the path that actually fires during a fight, from COMBAT_FX.autoEat —
+       only decremented `G.inventory` and healed locally. NOR did the server eat
+       it for them: the accrual engine only eats when `auto_eat_enabled` is set,
+       and `hr_set_auto_eat` — that column's only writer — has never been called
+       from this client (2026-08-29-auto-eat-tiers.sql: "0 rows on production").
+       So NOBODY debited an auto-eaten Provision, which is why it came back on
+       the very next envelope AND survived a reload. Closed by routing the
+       auto-eat through this seam too — but ONLY while the server says it is not
+       eating (see `_clientOwnsAutoEatDebit`), because the day it does, a client
+       intent for the same auto-eat would debit the food twice.
+
+   ⚠ AWAY IS THE SERVER'S. During an offline replay the SERVER already ate the
+     food and states the debit in `away.items`; sending an intent for it would
+     debit it twice and holding it would double-subtract. `inOfflineReplay()` is
+     the codebase's existing answer to that question and it is asked HERE, once,
+     rather than at each call site.
+
+   The seam is deliberately about ITEMS, not food: artisan inputs, ammunition
+   and any future client-authored spend adopt it by calling it. */
+
+/* ── PACING, BECAUSE AUTO-EAT IS NOT A HUMAN ────────────────────────────────
+   Auto-eat can fire once per swing in a hard fight — up to ~25/min at a 2.4 s
+   swing — and the `eat` verb shares the server's 30/min `activity` rate bucket
+   with `set_activity` (supabase/migrations/2026-08-16-claim-reward.sql). Spending
+   the whole budget on food would start 429-ing the verb that tells the server
+   what the player is DOING, which is a worse bug than the one being fixed. So
+   AUTOMATIC eats go through a paced FIFO; a MANUAL eat (a human clicking) is
+   never delayed and is sent immediately.
+
+   THE BACKLOG IS SIZED AGAINST THE HOLD, not picked round: 120 entries × 3 s is
+   six minutes of drain, comfortably inside pending-consume's ten-minute TTL, so
+   a burst is ABSORBED rather than dropped and the display stays correct while it
+   drains. Only a genuinely pathological run overflows, and then the OLDEST entry
+   is dropped and its hold RELEASED — the honest direction: stop hiding an item
+   the server is never going to be told about. */
+const EAT_SEND_GAP_MS=3000;      // 20/min, leaving 10/min of the shared bucket for set_activity
+const EAT_SEND_QUEUE_MAX=120;    // ~6 min of drain — inside the hold's TTL
+let _eatQueue=[],_eatTimer=null,_eatLastSentAt=0;
+function _pendingConsumeApi(){ return window.HearthrisePendingConsume||null; }
+function _sendEatNow(foodId){
+  if(!(typeof serverAccrualActive==='function'&&serverAccrualActive()))return false;
+  try{
+    const M=wireServerEat();
+    if(!M||typeof M.sendEat!=='function')return false;
+    _eatLastSentAt=Date.now();
+    const p=M.sendEat(foodId);
+    if(p&&typeof p.then==='function'){
+      p.then(function(v){
+        /* AN ANSWERED REFUSAL MEANS THE DEBIT WILL NEVER HAPPEN. Release the
+           hold so the next envelope restores the item instead of the client
+           hiding a unit the server still owns. An UNANSWERED outcome (timeout,
+           unreachable) is left held — the eat may well have landed, and the
+           hold drains on evidence or expires on its own. */
+        const o=(v&&v.outcome)||'';
+        if(o==='eaten'||o==='replayed')return;
+        if(M&&typeof M.isAnswered==='function'&&!M.isAnswered(o))return;
+        const P=_pendingConsumeApi();
+        if(P&&typeof P.releaseConsumed==='function')P.releaseConsumed(G,foodId,1);
+      }).catch(function(){});
+    }
+    return true;
+  }catch(e){ return false; }
+}
+function _pumpEatQueue(){
+  _eatTimer=null;
+  if(!_eatQueue.length)return;
+  const wait=Math.max(0,EAT_SEND_GAP_MS-(Date.now()-_eatLastSentAt));
+  if(wait>0){ _eatTimer=setTimeout(_pumpEatQueue,wait); return; }
+  _sendEatNow(_eatQueue.shift());
+  if(_eatQueue.length)_eatTimer=setTimeout(_pumpEatQueue,EAT_SEND_GAP_MS);
+}
+function queueEatIntent(foodId){
+  if(_eatQueue.length>=EAT_SEND_QUEUE_MAX){
+    const dropped=_eatQueue.shift();
+    const P=_pendingConsumeApi();
+    if(dropped&&P&&typeof P.releaseConsumed==='function')P.releaseConsumed(G,dropped,1);
+  }
+  _eatQueue.push(foodId);
+  if(!_eatTimer)_pumpEatQueue();
+  return true;
+}
+
+/* Is this id something the `eat` verb will accept? The SERVER asks exactly this
+   question of exactly this catalogue (supabase/functions/hr-accrue/eat.js
+   `resolveFood`: heals > 0 or a buff, else ITEM_NOT_FOOD), so asking it here
+   keeps the client from spending a rate budget on a refusal it can predict. It
+   is a SEND filter only — the HOLD is recorded for any id, because the reconcile
+   restocks any id, and a consumption with no verb yet (an artisan input) still
+   needs protecting from the ratchet until its verb ships. */
+/* ⚠ WHO OWNS AN AUTO-EAT'S DEBIT — ASK, NEVER ASSUME. The accrual engine eats
+   for the character when `player_state.auto_eat_enabled` is true, and states the
+   debit in `away.items`; sending a client `eat` intent for the same auto-eat
+   would then debit the food TWICE, which is item LOSS — strictly worse than the
+   restock this whole change exists to fix. So the client only sends when the
+   SERVER has said, on an envelope, that it is not eating (accrue.js
+   `clientOwnsAutoEatDebit` — measured today as false for every live character;
+   see its header). FAIL-CLOSED: with accrue.js absent or the flag never
+   observed, the answer is "do not send" and only the hold remains.
+   A MANUAL eat is never gated — the server has never eaten one and `eatFood`
+   has sent that intent since the Paione P0. */
+function _clientOwnsAutoEatDebit(){
+  const A=window.HearthriseAccrual;
+  if(!A||typeof A.clientOwnsAutoEatDebit!=='function')return false;
+  try{ return A.clientOwnsAutoEatDebit()===true; }catch(e){ return false; }
+}
+
+function _isEdibleItem(id){
+  if(typeof ITEMS==='undefined'||!ITEMS)return false;
+  if(!Object.prototype.hasOwnProperty.call(ITEMS,id))return false;   // never ITEMS[id] — 'constructor' is truthy
+  const it=ITEMS[id];
+  return !!(it&&(Number(it.heals)>0||it.buff));
+}
+
+/**
+ * The bag has ALREADY been decremented; record that fact and make it real.
+ * @param itemId  the id that left the bag
+ * @param qty     units (default 1)
+ * @param opts.auto  true for the auto-eat path (queued + paced against the
+ *                   server's shared 30/min `activity` rate bucket)
+ * @param opts.send  false to hold only, sending no intent
+ * @returns true when the consumption was recorded, false when it was not this
+ *          client's to record (an away replay — the server already spent it).
+ */
+function noteItemConsumed(itemId,qty,opts){
+  opts=opts||{};
+  const id=String(itemId==null?'':itemId);
+  if(!id)return false;
+  /* AWAY IS THE SERVER'S — see the header. */
+  if(typeof inOfflineReplay==='function'&&inOfflineReplay())return false;
+  const n=Math.max(1,Math.floor(Number(qty)||1));
+  const P=_pendingConsumeApi();
+  if(P&&typeof P.noteConsumed==='function'){
+    try{ P.noteConsumed(G,id,n); }catch(e){}
+  }
+  if(opts.send===false)return true;
+  if(!_isEdibleItem(id))return true;                 // no verb for this id yet — hold only
+  if(!(typeof serverAccrualActive==='function'&&serverAccrualActive()))return true;
+  if(opts.auto&&!_clientOwnsAutoEatDebit())return true;   // the server eats this one — hold only
+  for(let i=0;i<n;i++){
+    if(opts.auto)queueEatIntent(id); else _sendEatNow(id);
+  }
+  return true;
+}
+window.noteItemConsumed=noteItemConsumed;
+/* Named seams so the regression suite can drive the queue without a real clock
+   or a real server, and so a drained queue is observable. */
+window.__eatQueueState=function(){ return {queued:_eatQueue.slice(),lastSentAt:_eatLastSentAt}; };
+window.__eatQueueReset=function(){ const n=_eatQueue.length; _eatQueue=[];
+  if(_eatTimer){ clearTimeout(_eatTimer); _eatTimer=null; } return n; };
 
 /* Route a chosen rune to the server. Optimistic: NOTHING local is authored —
    the element is the server's to set, so the client waits for the envelope and
@@ -18169,17 +18343,18 @@ window.eatFood = function(foodId, opts){
      returns (applyServerEnvelope → applyEnvelopeState, the same applier the away
      card uses). Without this the local debit was reversed by the next absolute
      inventory reconcile — the food "returned" — which was the whole P0.
-     FIRE-AND-RECONCILE: never awaited (an idle game must feel instant), and a
-     no-op with the switch off (byte-for-byte today's pure-client behaviour). */
-  if(typeof serverAccrualActive==='function' && serverAccrualActive()){
-    try{
-      const M=wireServerEat();
-      if(M&&typeof M.sendEat==='function'){
-        const p=M.sendEat(foodId);
-        if(p&&typeof p.catch==='function')p.catch(function(){});
-      }
-    }catch(e){ /* the local prediction stands; the next envelope reconciles */ }
-  }
+
+     b487 — AND THE HOLD, which is the OTHER half, and the reason that P0 was
+     still open four reports later. Firing the intent does not stop an envelope
+     that was ALREADY IN FLIGHT before the eat from naming the pre-eat count, and
+     the reconcile's `Math.max` then ratchets that stale figure back in — after
+     which the eat's own (correct) response loses the max forever. So the unit is
+     also recorded as UNSETTLED, and reconcileInventory folds it out of the
+     server's figure until the server's own number comes down.
+     FIRE-AND-RECONCILE: never awaited (an idle game must feel instant), and the
+     send is a no-op with the switch off (byte-for-byte the pure-client path). */
+  try{ noteItemConsumed(foodId,1); }
+  catch(e){ /* the local prediction stands; the next envelope reconciles */ }
   return true;
 };
 

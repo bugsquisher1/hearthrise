@@ -2,6 +2,62 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-29 — LIVE P0 (4 reports, b467→b479): "eaten food gets restocked"
+
+**Branch:** `worktree-agent-acfefa38410638b13` · **Smoke:** 1057/1057, 0 failed, 0 runtime errors,
+clean console (b488, merged main). Runtime-verified in the booted game.
+
+### ROOT CAUSE — TWO DEFECTS, ONE REPORT
+1. **The reconcile restocks by construction.** `src/net/accrue.js reconcileInventory` takes the
+   LARGER of the client's copy and the envelope's figure (merge: `Math.max(have, q)`; absolute-
+   excluded: same max; absolute-owned: the server's figure outright). A locally-eaten unit makes the
+   client's copy SMALLER, so ANY envelope naming the pre-eat count hands it back — and because
+   `have` is itself the ratcheted value, the eat's own correct response then loses the max and the
+   client stays permanently one ahead of the server. Not a race that heals: a ratchet that locks.
+2. **Nobody debited an auto-eaten Provision.** `HearthriseAuto.maybeAutoEat()` (the path that fires
+   in a fight, via `COMBAT_FX.autoEat`) healed and decremented LOCALLY and sent nothing — and the
+   server was not eating either, because its engine only eats when `player_state.auto_eat_enabled`
+   is set and `hr_set_auto_eat` (that column's only writer) has never had a client caller.
+   `2026-08-29-auto-eat-tiers.sql` records it: **"0 rows on production — no character has
+   auto_eat_enabled"**. That is the deterministic half of "every time I use 1 it returns".
+
+### THE FIX
+- `src/net/pending-consume.js` (new, pure, node-importable) — a scratch, session-only hold of what
+  the client has spent and the server has not agreed to. Folded OUT of the envelope's figures before
+  EITHER branch reads one; drains on EVIDENCE (the server's own figure coming down), TTL only as a
+  safety valve. **Only ever LOWERS a figure** — no branch adds a key, raises one, or writes the bag,
+  so it cannot mint under any envelope with any ledger, forged or not.
+- `noteServerAutoEat` / `clientOwnsAutoEatDebit` in accrue.js — the client sends an auto-eat intent
+  ONLY on a definite `state.auto_eat_enabled === false` from the server. Fail-closed on unknown.
+- `window.noteItemConsumed(id, qty, opts)` in legacy.js — ONE seam for a client-local consumption:
+  records the hold, gates the send, paces the auto path (3 s, 120-deep, sized inside the hold's TTL)
+  against the shared 30/min `activity` bucket, and is a no-op during an away replay.
+
+### LEARNINGS
+- **The dangerous direction was the OPPOSITE of the bug.** My first cut sent an `eat` intent for
+  every auto-eat. If the server's `auto_eat_enabled` is ever true it eats the same food itself and
+  states the debit in `away.items` — the intent would then debit TWICE, which is item LOSS, strictly
+  worse than a restock. The fix is not a constant ("the server doesn't eat today") but an
+  OBSERVATION of `state.auto_eat_enabled`, which hr_state_of already projects on every envelope. It
+  retires itself the day the settings sync lands, with no flag to remember.
+- **A `Math.max` reconcile is a ratchet, and a ratchet has no reverse.** Every "the server's number
+  is lower and that's fine" merge is also "the client can never come down". Worth checking every
+  such site for a client-side DECREMENT that has no server verb yet.
+- **Session scratch is not fixture state.** The hold broke `b337` — a test whose envelope fixture
+  read one lower because an EARLIER test's `maybeAutoEat` left a hold on the live `G`. Cleared at
+  every `tryRun`/`tryRunAsync` boundary. In production the equivalent (a wholesale bag replacement)
+  only happens on paths that reload, so scratch dies anyway.
+- Debt paid: manual and automatic eating now share ONE consumption seam instead of two half-wired
+  paths. Debt added: the hold is a reconcile-ordering correction, not authority — it retires when
+  every consumption is an intent the server settles before it can build an envelope.
+
+### HANDOFF (raised in HANDOFFS.md)
+The remaining root cause of the auto-eat half is that **nothing syncs the client's auto-eat settings
+to the server**. `hr_set_auto_eat` is granted to `authenticated` and takes (slot, enabled, food, pct,
+…); wiring `HearthriseAuto.setEat` to it makes the server's sim eat exactly what the client's does,
+debit it for real, and retires the client-side eat intent automatically. It belongs with the
+auto-eat-tiers track, not bolted on here.
+
 ## 2026-08-17 — b372 — F7 auto-eat never fires · F18 fight resume broken (live audit)
 
 **Branch:** worktree `agent-ab5e4fe2d47d3fce8` · **Smoke:** 830/830, 0 runtime errors, exit 0. No bump, no push.

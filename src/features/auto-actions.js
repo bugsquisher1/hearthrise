@@ -303,6 +303,34 @@
       window.G.combatLog.push('Auto-ate ' + ((_it && _it.n) || decision.foodId)
         + ' (+' + decision.heals + ' HP)');
     }
+
+    /* ── THE CONSUMPTION HAS TO BECOME REAL (LIVE P0, b467→b479) ────────────
+     * "Food eaten while in combat gets restocked."
+     *
+     * The four lines above are the WHOLE of what this function used to do about
+     * the food: heal, remove from the local bag, log. Nothing told the SERVER —
+     * and the server was not eating it either (its engine only eats when
+     * `player_state.auto_eat_enabled` is set, and that column has never had a
+     * caller from this client). So NOBODY debited an auto-eaten Provision, while
+     * `reconcileInventory` takes the LARGER of the two figures — the very next
+     * envelope handed it straight back, and so did a reload. That is the
+     * deterministic half of the report (`window.eatFood` has sent the `eat`
+     * intent since the Paione P0; this path never did).
+     *
+     * `window.noteItemConsumed` is the ONE seam that both halves of the fix live
+     * behind: it records the unit as unsettled (so the reconcile stops
+     * restocking it in the meantime) and, ONLY while the server says it is not
+     * eating, routes the `eat` intent — QUEUED and paced, because auto-eat can
+     * fire once per swing and the verb shares the server's 30/min bucket. It is
+     * a no-op during an away replay — the server ate that food itself and states
+     * the debit in `away.items`, so an intent for it would debit twice.
+     *
+     * Guarded, because legacy.js is a classic script this module cannot import:
+     * with the seam absent this is byte-for-byte the pre-b487 behaviour. */
+    if(typeof window.noteItemConsumed === 'function'){
+      try{ window.noteItemConsumed(decision.foodId, 1, {auto: true}); }
+      catch(e){ /* the local heal + debit stand; the next envelope reconciles */ }
+    }
     return true;
   }
 

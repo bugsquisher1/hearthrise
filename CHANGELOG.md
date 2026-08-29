@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 491 — 2026-08-29 (Eaten food stays eaten)
+
+> **🧪 The big one for our combat testers.** Eat food mid-fight — manually AND via Auto-Eat — then keep fighting through a sync, then reload. The food should stay eaten, your heal should stick, and nothing should "come back." This was reported 4 times (the moonbloom that kept returning) — tell us in Discord if you can still make food reappear.
+
+- 🍖 **Food eaten in combat no longer restocks.** Two bugs in one: the background sync's "never lose an item" safety rule was politely handing back anything you'd just eaten (it saw your count was lower and "fixed" it), and Auto-Eat wasn't telling the server anything at all. Now the game remembers what you've spent until the server confirms it, folds that out of every sync, and Auto-Eat reports its meals properly. Built so it can only ever *lower* a count — it can't be exploited to create items.
+- 🛡️ Anti-forgery intact: only the server's word makes an item change permanent; the fix is a display-and-intent layer with hard caps.
+- 🧪 6 new regression tests covering the exact reported scenario, both sync modes, and the can't-mint direction.
+
 ## v0.9.2-beta build 490 — 2026-08-29 (Sold your pickaxe? The game noticed.)
 
 - ⛏️ **Tool bonuses now follow the tool.** Selling your pickaxe kept its speed boost running (thanks for the exact repro!), and buying a better one mid-gather didn't speed up the run you were on. Both fixed at the source — gather speed now re-times the moment a tool enters or leaves your bag, through every sell path including Sell All.

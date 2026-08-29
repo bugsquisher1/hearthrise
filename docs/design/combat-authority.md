@@ -254,14 +254,37 @@ they were *methodological*, not arithmetic:
 - **Everything is per character.** `player_state` and every counter and claim
   guard are keyed `(user_id, slot)`; an account holds six.
 
-The **XP component is currently zero**, and that is load-bearing rather than a
-footnote: `hr_goal_rewards` prices every kill goal in `xp:{"combat":N}`, `combat`
-is not a row in `hr_skills`, so `hr_claim_goal` routes it to `skipped_xp` and no
-`player_skills` row moves. If anyone maps `combat` to a real skill, a forged kill
-counter starts minting XP — a level and combat-leaderboard surface — and this
-verdict must be re-taken. That is Security **S7**, owned by the Designer and
-deliberately not fixed here; guard `K10(3)` pins the coupling so it re-opens by
-name.
+The **XP component** used to be zero, and this paragraph used to say so with the
+trigger condition *"if anyone maps `combat` to a real skill … this verdict must
+be re-taken."* **The trigger fired in b492/b493 and the verdict was re-taken.**
+`hr_goal_rewards` priced every kill goal in `xp:{"combat":N}`; `combat` is not a
+row in `hr_skills`, so `hr_claim_goal` routed the grant to `skipped_xp` — which
+was a **defect**, not a control (players had never received the XP component of
+any kill goal, while the modal quoted it as part of the price). Security **S7**,
+owned by the Designer, fixed by `2026-09-01-kill-goal-xp-hitpoints.sql`: the
+grant lands in **hitpoints**, 100 / 300 / 1,000.
+
+So the forged-counter bound gains **400 hitpoints XP per character-UTC-day +
+1,000 per ISO week**. `hitpoints` *is* ranked (combat level and the
+`skill:hitpoints` board) — but the ×6-slot multiplier above does **not** apply to
+the XP line, because `leaderboard_ranked` reads `player_skills` where `slot = 0`.
+
+**Accepted (Security, b493)** on four grounds: (1) the *amount* is server-authored
+— `hr_goal_rewards` has RLS on, no policy and every client grant revoked, and the
+forgeable number `v_have` appears only in the journal and the receipt, never in an
+arithmetic that scales a payout, so a forged counter is a **gate, never a
+multiplier** (10,000 fabricated kills pay exactly what 30 honest ones pay);
+(2) scale — `hr_credit_combat_xp` already accepts up to **5,000,000** client-
+submitted combat XP per character-day into the same seven skills, hitpoints
+included, so 400/day is 0.008% of an accepted surface; (3) `hitpoints` is in the
+**ACCRUED** set of `src/data/skill-authority.js`, so the absolute envelope
+re-asserts the server's value over the client's, downward included — it was the
+safe destination, not merely a legal one; (4) journalled by name and reversible
+(`goal_claim:<period>:<goal_id>`, `meta.xp`). **Residual, stated:** the grant is
+deliberately outside the shared 40M/day inflow budget, so the catalogue and the
+once-guard are its only bound — which is why `K10(3)` now pins all three
+catalogue terms (skill, amount, cardinality) and re-opens the review by name if
+any of them moves.
 
 Gold reaches the `wealth` board of `leaderboard_ranked` and is market purchasing
 power, so this is a ranked + tradeable surface. The accepted argument is

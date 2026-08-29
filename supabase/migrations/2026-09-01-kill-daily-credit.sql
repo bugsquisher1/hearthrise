@@ -146,15 +146,51 @@
 --       misses it, which is the same methodological trap that hid hr_claim_daily
 --       from the first draft's reader set.
 --
---     THE XP COMPONENT IS CURRENTLY ZERO, and that is load-bearing to the verdict
---     rather than a footnote. hr_goal_rewards prices every kill goal in
---     xp:{"combat":N}, and 'combat' is NOT a row in hr_skills (it is a DERIVED
---     level), so hr_claim_goal routes it to `skipped_xp` and no player_skills row
---     moves. If anyone ever maps 'combat' to a real skill, a forged kill counter
---     starts minting XP — which is a LEVEL and COMBAT-LEADERBOARD surface — and
---     this verdict must be re-taken. That defect (Security S7) is the DESIGNER's
---     and is deliberately NOT fixed here; guard K10(3) pins the coupling so the
---     day it changes, this file's review re-opens by name.
+--     THE XP COMPONENT — CORRECTED IN b493, AND THE CORRECTION IS THE POINT.
+--     This paragraph used to read "THE XP COMPONENT IS CURRENTLY ZERO, and that
+--     is load-bearing", with the trigger condition "if anyone ever maps 'combat'
+--     to a real skill … this verdict must be re-taken". THE TRIGGER FIRED, in the
+--     same release: hr_goal_rewards priced every kill goal in xp:{"combat":N},
+--     'combat' is not an hr_skills row (it is a DERIVED level), so hr_claim_goal
+--     routed the grant to `skipped_xp` — which was a DEFECT, not a control
+--     (players had never received the XP component of any kill goal, while the
+--     modal quoted it as part of the price). Security S7, the DESIGNER's to fix,
+--     fixed in b492 by 2026-09-01-kill-goal-xp-hitpoints.sql: the grant lands in
+--     HITPOINTS at 100 / 300 / 1,000.
+--
+--     So the bound gains, PER CHARACTER:  400 hitpoints XP per UTC day
+--                                       + 1,000 hitpoints XP per ISO week.
+--     hitpoints IS ranked (combat level + the skill:hitpoints board), but the
+--     x6-slot multiplier above does NOT apply to the XP line — leaderboard_ranked
+--     reads player_skills where slot = 0.
+--
+--     RE-TAKEN AND ACCEPTED (Security, b493), on four grounds:
+--       1. THE AMOUNT IS SERVER-AUTHORED. hr_claim_goal pays v_cat.gold /
+--          v_cat.gems / v_cat.xp read from hr_goal_rewards — RLS on, no policy,
+--          every client grant revoked — and the forgeable number `v_have` appears
+--          only in the journal and the receipt, never in an arithmetic that
+--          scales a payout. A forged kill counter is a GATE, never a MULTIPLIER:
+--          10,000 fabricated kills pay exactly what 30 honest ones pay.
+--       2. SCALE. hr_credit_combat_xp (2026-08-31, already accepted) admits up to
+--          5,000,000 client-submitted combat XP per character-day into the SAME
+--          seven skills, hitpoints included. 400/day is 0.008% of that accepted
+--          surface and 0.006% of the measured honest ~7.1M XP/character-day.
+--       3. hitpoints was the SAFE destination, not merely a legal one — it is in
+--          the ACCRUED set of src/data/skill-authority.js, so the absolute
+--          envelope re-asserts the SERVER's value over the client's, DOWNWARD
+--          included. A re-point to a CLIENT_ONLY skill would not have that.
+--       4. JOURNALLED BY NAME AND REVERSIBLE — one player_ledger row per claim,
+--          intent 'goal_claim:<period>:<goal_id>', meta.xp carrying the grant.
+--
+--     RESIDUAL, STATED RATHER THAN SOFTENED: this XP is deliberately kept OUT of
+--     the shared 40M/day inflow budget (gold_in/xp_in are 0 — the muster/raid-
+--     chest and b414 rule for a fixed, once-per-period, server-catalogued
+--     reward), so the CATALOGUE and the ONCE-GUARD are its only bound. Guard
+--     K10(3) therefore pins all three catalogue terms — SKILL (hitpoints),
+--     AMOUNT (100/300/1000) and CARDINALITY (once per period, measured in the XP
+--     dimension) — and fails BY NAME on a re-tune, so the review re-opens the day
+--     any of them moves. tests/modal-goal-claim.mjs BIND-PAY catches a ONE-SIDED
+--     client/server drift; only K10(3) catches a COORDINATED retune of both.
 --
 --   AND GOLD HAS ONWARD REACH — say it plainly rather than calling this a
 --   non-currency counter. Gold feeds the 'wealth' board of the leaderboard_ranked

@@ -2,8 +2,63 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
-### 2026-08-29 — b493 SHIP BLOCKER: kill-goal XP (design) breaks K10's forgery bound (security) — QA → Systems Engineer + Game Designer
-**P1. Semantic conflict between two branches that were each green in isolation. Still OPEN — this is not the `?v=` bug, and fixing that did not fix this.**
+### ✅ 2026-08-29 — b493 SHIP BLOCKER: kill-goal XP vs K10's forgery bound — **RESOLVED by SECURITY, 2026-08-29. Option 2, in the reviewer's own guard.**
+
+**RULING (Security, the owner of the recorded verdict).** The new bound is **ACCEPTED**; the
+designer's ruling stands; kill goals keep paying `xp:{hitpoints:100/300/1000}`. Option 1 (re-gate on
+`hr_kill_credit_log`) and Option 3 (revert to gold-only) are both **rejected as disproportionate** —
+they would spend real complexity to defend 400 XP/day against a lane that already, by my own GO,
+accepts 5,000,000 client-submitted combat XP/character-day into the *same seven skills*.
+
+The decisive property is not the magnitude, it is the SHAPE: **a forged kill counter is a GATE, never
+a MULTIPLIER.** `hr_claim_goal` pays `v_cat.gold`/`v_cat.gems`/`v_cat.xp` read from `hr_goal_rewards`
+(RLS on, no policy, every client grant revoked), and the forgeable number `v_have` appears only in the
+journal and the receipt — never in an arithmetic that scales a payout. Ten thousand fabricated kills
+pay exactly what thirty honest ones pay. The client's influence is on *whether* the gate opens, once
+per period; never on *how much* comes through it.
+
+**CORRECTED RECORDED BOUND** (replaces "gold only"), per CHARACTER:
+| | per UTC day | per ISO week |
+|---|---|---|
+| gold | 2,200 | 2,500 |
+| gems | 1 | 3 |
+| bones | 5 (transitive via `gold_500`) | — |
+| **hitpoints XP** | **400** | **1,000** |
+
+Currency multiplies by the account's 6 slots (13,200 g + 12 gems + 30 bones/account-day). **The XP
+line does not reach a ranking off slot 0** — `leaderboard_ranked` reads `player_skills where slot = 0`.
+
+**THE NEW K10(3) INVARIANT** — "a kill-goal claim mints no XP" was never a control, it was a *defect*
+(the phantom `combat` skill meant players had never received the XP half of any kill goal). It is
+replaced by the property that actually bounds the surface, pinning all three catalogue terms:
+
+> A kill-goal claim moves `player_skills` by **exactly the catalogued amount, on exactly the
+> catalogued skill, and nothing else** — `hitpoints`, 100 / 300 / 1,000, **once per period**, with the
+> once-guard row consumed before any credit and a second claim moving zero XP, zero gold, zero gems.
+> The catalogue is pinned by value; a re-price, a re-point to another skill, or a lost once-guard
+> fails the build **by name** and re-opens this verdict.
+
+Landed in `tests/kill-daily-credit.mjs` and proven non-decorative by four new mutations —
+`goal_xp_repriced` (300 → 300,000), `goal_xp_repointed` (hitpoints → prayer),
+`goal_claim_reclaimable` and its `_gate_blind` twin. **All 17 mutations caught; the guard is green.**
+Note `tests/modal-goal-claim.mjs` BIND-PAY catches only a *one-sided* client↔server drift — a
+coordinated retune of both sides passes it, and K10(3) is the only thing that catches that. Do not
+delete it as duplicate coverage.
+
+Prose corrected in the same pass, in all four places the bound was recorded: the guard header,
+`tests/schema-apply-order.json`, the `2026-09-01-kill-daily-credit.sql` header, and
+`docs/design/combat-authority.md`.
+
+**RESIDUAL RISKS ACCEPTED, STATED:** (a) this XP is deliberately outside the shared 40M/day inflow
+budget (`gold_in`/`xp_in` = 0 — the muster/raid-chest and b414 rule), so the catalogue and the
+once-guard are its *only* bound, which is exactly why K10(3) now pins both; (b) a forger can still
+self-inflate ≤3,800 hitpoints XP/ranked-character-week — bounded, journalled by name
+(`goal_claim:<period>:<goal_id>`, `meta.xp`) and reversible.
+
+_Original report below, kept because its diagnosis was correct and its two failing assertions are
+what forced the verdict to be re-taken inside one release rather than a year later._
+
+**P1. Semantic conflict between two branches that were each green in isolation. This is not the `?v=` bug, and fixing that did not fix this.**
 
 Two integrated branches hold incompatible models of the same surface:
 

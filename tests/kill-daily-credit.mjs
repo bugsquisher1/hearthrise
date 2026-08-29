@@ -50,14 +50,56 @@
 // predicate every reader must contain, and fails on any function outside the
 // named allowlist. A new reader of this row now fails the build BY NAME.
 //
-// THE CORRECTED FORGERY BOUND, which K10 keeps true: every claim consumes a
-// once-per-period guard row, so however many kills are fabricated the reachable
-// payout is <= 2,200 gold + 1 gem per UTC day + 2,500 gold + 3 gems per ISO
-// week. Gold is NOT inert — it feeds the 'wealth' board of the leaderboard_ranked
-// materialized view (5-minute cron refresh) and is market purchasing power.
-// Accepted because the same stipend is ~3 minutes of honest play, the live
-// accrual path pays a measured honest ~1.05M gold/character-day (~400x), and
-// every movement is journalled by name and reversible.
+// THE CORRECTED FORGERY BOUND, which K10 keeps true. Every claim consumes a
+// once-per-period guard row, and every AMOUNT is read from a catalogue no client
+// role may write — so a fabricated kill counter is a GATE, never a MULTIPLIER:
+// ten thousand forged kills pay exactly what thirty honest ones pay. Per
+// CHARACTER, the reachable payout is
+//     per UTC day    2,200 gold + 1 gem + 400 hitpoints XP
+//     per ISO week   2,500 gold + 3 gems + 1,000 hitpoints XP
+//     (+ 5 bones/day transitively: hr_claim_goal journals its gold payout, which
+//      clears gold_500's 500-gold ledger target four times over)
+// The currency lines multiply by the account's 6 slots. THE XP LINE DOES NOT
+// REACH A RANKING OFF SLOT 0 — leaderboard_ranked reads player_skills where
+// slot = 0 (2026-08-18-leaderboard-server-source.sql).
+//
+// ── b493: THE XP TERM IS NEW, AND IT IS NO LONGER ZERO ──────────────────────
+// It used to be, and K10(3) used to assert exactly that. The reason was a
+// DEFECT, not a control: every kill goal was priced in the phantom skill
+// 'combat', which is not an hr_skills row, so hr_claim_goal routed the grant to
+// `skipped_xp` and no player_skills row moved — players had never received the
+// XP component of any kill goal while the modal quoted it as part of the price.
+// b492 fixed that (2026-09-01-kill-goal-xp-hitpoints.sql) and the Designer
+// re-priced the grant into HITPOINTS: 100 / 300 / 1,000. hitpoints IS ranked
+// (combat level + the skill:hitpoints board), so the trigger condition the old
+// bound named has fired, and the verdict was RE-TAKEN rather than assumed:
+//
+//   · ACCEPTED. The neighbouring, already-accepted lane hr_credit_combat_xp
+//     (2026-08-31) lets a client submit up to 5,000,000 combat XP per
+//     character-day into the SAME seven skills, hitpoints included. 400/day is
+//     0.008% of that accepted surface and 0.006% of the measured honest ~7.1M
+//     XP/character-day the accrual engine pays. A forgery worth ~3 minutes of
+//     honest play cannot move a ranking that six figures of legitimate XP
+//     already dominates.
+//   · THE AMOUNT IS SERVER-AUTHORED. hr_goal_rewards has RLS on, no policy and
+//     every client grant revoked; the forgeable number `v_have` appears only in
+//     the journal and the receipt, never in an arithmetic that scales a payout.
+//   · hitpoints was the SAFE destination, not merely a legal one — it is in the
+//     ACCRUED set of src/data/skill-authority.js, so the absolute envelope
+//     re-asserts the SERVER's value over the client's, including DOWNWARD.
+//   · JOURNALLED BY NAME AND REVERSIBLE: one player_ledger row per claim,
+//     intent 'goal_claim:<period>:<goal_id>', meta.xp carrying the exact grant.
+//
+// RESIDUAL, ACCEPTED AND STATED: this XP is deliberately kept OUT of the shared
+// 40M/day inflow budget (gold_in/xp_in are 0 — the muster/raid-chest and b414
+// rule for a fixed, once-per-period, server-catalogued reward), so the CATALOGUE
+// and the ONCE-GUARD are the only bound on it. That is precisely why K10(3) now
+// pins all three terms of that catalogue — SKILL, AMOUNT and CARDINALITY — and
+// why a re-tune must re-open this review by name instead of widening the bound
+// quietly. tests/modal-goal-claim.mjs BIND-PAY catches a ONE-SIDED drift between
+// the client's authored reward and the server's; it cannot catch a COORDINATED
+// retune of both, because agreeing is all it asks for. K10(3) is what catches
+// that, so do not delete it as duplicate coverage.
 //
 // ── WHAT IT CANNOT PROVE ────────────────────────────────────────────────
 //   · TRUE CONCURRENCY. PGlite is one backend, so the advisory lock and the
@@ -73,6 +115,13 @@ import { fileURLToPath } from 'node:url';
 import { bootReplay } from './schema-replay.mjs';
 
 const MIG = '2026-09-01-kill-daily-credit.sql';
+/* The AUTHORING migration for hr_goal_rewards + hr_claim_goal. The b493 XP
+   mutations are planted HERE, not in MIG, because the catalogue and the
+   once-guard live there — and because 2026-09-01-kill-goal-xp-hitpoints.sql
+   (the production forward-fix, which would fail closed on a drifted row and mask
+   the mutation) sorts AFTER MIG in tests/schema-apply-order.json and is
+   therefore never applied under this guard's `upTo`. */
+const GOAL_MIG = '2026-08-23-modal-goal-claims.sql';
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────
    Each is a defect somebody could plausibly write, and each must turn this
@@ -236,6 +285,67 @@ MUTATIONS.no_settle_delta_gate_blind = {
   repl: MUTATIONS.no_settle_delta.repl,
   also: [GATE_BLIND],
 };
+/* ── b493 · THE XP-PATH MUTATIONS ───────────────────────────────────────────
+   The forged-counter bound is now arithmetic over the hr_goal_rewards catalogue
+   and the once-per-period claim guard, so each of those three terms gets a
+   planted defect. None of them is caught by any migration gate: §GATE(b) of the
+   authoring file only rejects an XP key that is NOT an hr_skills row, and a
+   re-price or a re-point to another REAL skill sails straight through it. These
+   prove K10(3) is the thing standing there. */
+MUTATIONS.goal_xp_repriced = {
+  file: GOAL_MIG,
+  why: 'THE AMOUNT TERM: the kill_more grant is re-priced 300 -> 300,000 hitpoints XP. Nothing in '
+     + 'the migration rejects it (the key is still a real skill), and modal-goal-claim BIND-PAY '
+     + 'would not either if the client data moved with it — so a forged kill counter would reach '
+     + '1,000x the RANKED XP the security verdict was taken against',
+  find: "  ('kill_more',   false, 'daily',       'ev:kill_any',  30,   600, 1, '{\"hitpoints\":300}',  '{}'),",
+  repl: "  ('kill_more',   false, 'daily',       'ev:kill_any',  30,   600, 1, '{\"hitpoints\":300000}',  '{}'),",
+};
+MUTATIONS.goal_xp_repointed = {
+  file: GOAL_MIG,
+  why: 'THE SKILL TERM: the kill_more grant is re-pointed hitpoints -> prayer. prayer is a real '
+     + 'hr_skills row so every existing gate passes it, but it is a DIFFERENT ranked column and a '
+     + 'different reconcile posture — the destination is part of the reviewed bound, not an '
+     + 'implementation detail',
+  find: "  ('kill_more',   false, 'daily',       'ev:kill_any',  30,   600, 1, '{\"hitpoints\":300}',  '{}'),",
+  repl: "  ('kill_more',   false, 'daily',       'ev:kill_any',  30,   600, 1, '{\"prayer\":300}',  '{}'),",
+};
+MUTATIONS.goal_claim_reclaimable = {
+  file: GOAL_MIG,
+  why: 'THE CARDINALITY TERM: the once-guard upserts instead of DO NOTHING, so row_count is always '
+     + '1 and the claim never reports already_claimed. Every per-period ceiling in the bound — gold, '
+     + 'gems AND the new hitpoints XP — becomes "per rate-gate call" instead',
+  find: `  insert into public.player_progress (user_id, slot, kind, key, value, period_key, state, updated_at)
+  values (v_uid, v_slot, 'quest', 'goal:' || v_cat.goal_id, 1, v_period, 'claimed', now())
+  on conflict (user_id, slot, kind, key, period_key) do nothing;`,
+  repl: `  insert into public.player_progress (user_id, slot, kind, key, value, period_key, state, updated_at)
+  values (v_uid, v_slot, 'quest', 'goal:' || v_cat.goal_id, 1, v_period, 'claimed', now())
+  on conflict (user_id, slot, kind, key, period_key) do update set updated_at = now();`,
+};
+
+/* The cardinality mutation above is caught by the authoring migration's own
+   GATE(e) at APPLY time — the strongest catch there is. But §GATE only runs on
+   apply, and the regression this must still see in a year is a LATER migration
+   restating hr_claim_goal from a stale template, so the same defect is repeated
+   with that gate short-circuited and ONLY K10(3) left to see it. Same reasoning,
+   same shape, as the three _gate_blind mutations above. */
+MUTATIONS.goal_claim_reclaimable_gate_blind = {
+  file: GOAL_MIG,
+  why: MUTATIONS.goal_claim_reclaimable.why + " — with the authoring migration's own GATE(e) "
+     + 'short-circuited, so ONLY K10(3) can see it',
+  find: MUTATIONS.goal_claim_reclaimable.find,
+  repl: MUTATIONS.goal_claim_reclaimable.repl,
+  also: [[
+    `  -- (e) EXECUTED behaviour, discarded subtransaction → zero residue.
+  begin
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);`,
+    `  -- (e) EXECUTED behaviour, discarded subtransaction → zero residue.
+  begin
+    raise exception using errcode = 'HR819', message = 'selftest: GATE(e) executed block skipped';
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);`,
+  ]],
+};
+
 MUTATIONS.free_writes_lifetime_gate_blind = {
   why: MUTATIONS.free_writes_lifetime.why + ' — with the migration\'s own §5 gate short-circuited, '
      + 'so ONLY this guard can see it',
@@ -255,7 +365,10 @@ async function run(mutate) {
   let patchList;
   if (mutate) {
     const m = MUTATIONS[mutate];
-    patchList = new Map([[MIG, [[m.find, m.repl], ...(m.also || [])]]]);
+    /* `file` defaults to MIG so every pre-b493 mutation is unchanged; the b493
+       XP mutations name GOAL_MIG. One mutation plants in ONE file — a defect
+       that needs two files is two defects. */
+    patchList = new Map([[m.file || MIG, [[m.find, m.repl], ...(m.also || [])]]]);
   }
   const { db } = await bootReplay({ patches: patchList, upTo: MIG });
 
@@ -312,6 +425,20 @@ async function run(mutate) {
   const lifeKills = () => progress('stat', 'ev:kill_any', '');
   const killsStat = () => progress('stat', 'kills', '');
   const bestiary = (t) => progress('stat', `ev:kill_monster:${t}`, '');
+  /* PER-SKILL, not a sum. b493: the reviewed property is no longer "no XP moves"
+     but "exactly the catalogued XP moves, on exactly the catalogued skill" — and
+     a sum cannot tell +300 hitpoints from +300 prayer, nor +400/-100 from 0. */
+  const skillMap = async () => Object.fromEntries((await q(
+    'select skill_id, xp::text xp from player_skills where user_id=$1 and slot=0', [uid]))
+    .map((r) => [r.skill_id, N(r.xp)]));
+  const skillDelta = (before, after) => {
+    const out = {};
+    for (const k of [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
+      const d = N(after[k]) - N(before[k]);
+      if (d !== 0) out[k] = d;
+    }
+    return out;
+  };
   const goldOf = async () => N((await q(
     'select gold::text g from player_state where user_id=$1 and slot=0', [uid]))[0].g);
   const gemsOf = async () => N((await q(
@@ -481,23 +608,38 @@ async function run(mutate) {
   await q(`insert into player_progress (user_id, slot, kind, key, value, period_key, state)
            values ($1, 0, 'daily', 'ev:kill_any', 30, $2, 'active')`, [uid, day]);
   const g7 = await goldOf(); const m7 = await gemsOf();
-  /* K10(3) — the F3 coupling. hr_goal_rewards prices every kill goal in
-     xp:{combat:N}, and 'combat' is NOT a row in hr_skills, so hr_claim_goal's
-     `exists (select 1 from hr_skills …)` test routes it to skipped_xp and NO
-     player_skills row moves. The review's conclusion depends on that: if anyone
-     ever maps 'combat' to a real skill, a forged kill counter starts minting XP,
-     which is a LEVEL/COMBAT-LEADERBOARD surface, and the verdict must be re-taken.
-     Captured across the real claim below. */
-  obs.k10_3_skillsBefore = N((await q(
-    'select coalesce(sum(xp),0)::text s from player_skills where user_id=$1 and slot=0', [uid]))[0].s);
-  obs.k7 = await claimGoal('kill_more', false);
-  obs.k10_3_skillsAfter = N((await q(
-    'select coalesce(sum(xp),0)::text s from player_skills where user_id=$1 and slot=0', [uid]))[0].s);
-  obs.k10_3_skipped = obs.k7 && obs.k7.skipped_xp;
+  /* K10(3) — THE XP PATH (b493; was "the F3 coupling"). The catalogue is read
+     BEFORE the claim, the per-skill movement ACROSS it, and the once-guard
+     AFTER it, because the bound is arithmetic over exactly those three terms.
+     `combatIsSkill` is kept: the phantom-skill defect must not come back under
+     a new spelling either. */
+  obs.k10_3_catalogue = await q(
+    "select goal_id, xp::text xp from public.hr_goal_rewards where counter_key='ev:kill_any' "
+    + 'order by goal_id');
+  obs.k10_3_nonSkillXpKeys = (await q(
+    `select g.goal_id || '.' || e.key as k
+       from public.hr_goal_rewards g, lateral jsonb_each_text(g.xp) e
+      where g.counter_key = 'ev:kill_any'
+        and not exists (select 1 from public.hr_skills s where s.skill_id = e.key)`))
+    .map((r) => r.k);
   obs.k10_3_combatIsSkill = N((await q(
     "select count(*)::text c from public.hr_skills where skill_id='combat'"))[0].c);
+  const sk7 = await skillMap();
+  obs.k7 = await claimGoal('kill_more', false);
+  obs.k10_3_move = skillDelta(sk7, await skillMap());
+  obs.k10_3_skipped = obs.k7 && obs.k7.skipped_xp;
   obs.k7_gold = (await goldOf()) - g7;
   obs.k7_gems = (await gemsOf()) - m7;
+  /* THE CARDINALITY TERM, measured in the XP dimension. The counter is still
+     over target, so only the once-per-period guard row can refuse this — and
+     since the XP is deliberately outside the 40M/day inflow budget, that guard
+     is the ONLY thing bounding the ranked column. */
+  const sk7b = await skillMap();
+  const g7b = await goldOf(); const m7b = await gemsOf();
+  obs.k10_3_replay = await claimGoal('kill_more', false);
+  obs.k10_3_replayMove = skillDelta(sk7b, await skillMap());
+  obs.k10_3_replayGold = (await goldOf()) - g7b;
+  obs.k10_3_replayGems = (await gemsOf()) - m7b;
 
   // ── K7b. THE WEEKLY IS A SUM OF THE SAME DAILY ROWS (no weekly twin) ──
   for (const d of weekDays) {
@@ -762,17 +904,71 @@ function grade(o, problems) {
       `K10: daily_kill paid +${o.k10_2_gold} gold, expected +500 — the third paying reader of this row`);
   }
 
-  // ── K10(3). A KILL-GOAL CLAIM MINTS NO XP (the F3 coupling) ─────────────
+  /* ── K10(3). A KILL-GOAL CLAIM MOVES EXACTLY THE CATALOGUED XP, ONCE ──────
+     b493, and it REPLACES "a kill-goal claim mints no XP". That older assertion
+     was true only because of a DEFECT — kill goals were priced in the phantom
+     skill 'combat', which is not an hr_skills row, so the grant went to
+     `skipped_xp` and no player_skills row moved. b492 fixed it and the Designer
+     re-priced the grant into hitpoints (100/300/1000), which IS ranked. The
+     verdict was re-taken, not assumed; the header carries it in full.
+
+     What makes the new world safe is a structural property, so that is what is
+     asserted here: a forged kill counter is a GATE, never a MULTIPLIER.
+     hr_claim_goal pays v_cat.gold / v_cat.gems / v_cat.xp straight from
+     hr_goal_rewards — RLS on, no policy, every client grant revoked — and the
+     forgeable number `v_have` appears only in the journal and the receipt, never
+     in an arithmetic that scales a payout. So the reachable amount is arithmetic
+     over three catalogue terms, and all three are pinned below:
+
+        SKILL        hitpoints, and nothing else moves
+        AMOUNT       100 / 300 / 1,000
+        CARDINALITY  once per period, guard row consumed before any credit
+
+     Move any of the three and this guard fails BY NAME, which is the point: the
+     bound is 400 hitpoints XP/character-day + 1,000/ISO-week against a
+     neighbouring accepted surface of 5,000,000 combat XP/character-day, and that
+     ratio — not the fact that some XP moves — is what the GO rests on. */
+  const CAT_XP = { kill_any: { hitpoints: 100 }, kill_more: { hitpoints: 300 },
+    wk_kills: { hitpoints: 1000 } };
+  const canon = (v) => JSON.stringify(Object.fromEntries(
+    Object.entries(v || {}).sort(([a], [b]) => (a < b ? -1 : 1))));
+  const cat = {};
+  for (const r of o.k10_3_catalogue || []) {
+    try { cat[r.goal_id] = JSON.parse(r.xp); } catch { cat[r.goal_id] = null; }
+  }
+  ok(Object.keys(cat).length === Object.keys(CAT_XP).length,
+    `K10: ${Object.keys(cat).length} goal(s) grade ev:kill_any, expected `
+    + `${Object.keys(CAT_XP).length} — the forgery bound is a sum over this exact set`);
+  for (const [g, want] of Object.entries(CAT_XP)) {
+    ok(canon(cat[g]) === canon(want),
+      `K10: goal ${g} is priced ${JSON.stringify(cat[g])}, reviewed as ${JSON.stringify(want)}. `
+      + 'A forged kill counter is a GATE on this payout, so the CATALOGUE is the bound — re-pricing '
+      + 'it or re-pointing it at another skill changes how much RANKED XP forgery reaches and must '
+      + 're-open the security verdict by name, not move the number quietly.');
+  }
   ok(o.k10_3_combatIsSkill === 0,
-    "K10: 'combat' is now a row in hr_skills, so hr_claim_goal will MINT XP for a forged kill "
-    + 'counter instead of skipping it — that is a level/combat-LEADERBOARD surface and the '
-    + 'security verdict for this change must be re-taken.');
-  ok(o.k10_3_skillsAfter === o.k10_3_skillsBefore,
-    `K10: a kill-goal claim moved player_skills by ${o.k10_3_skillsAfter - o.k10_3_skillsBefore} XP. `
-    + 'The review concluded a forged kill counter reaches gold only; an XP path changes that.');
-  ok(o.k10_3_skipped && Object.prototype.hasOwnProperty.call(o.k10_3_skipped, 'combat'),
-    'K10: the kill-goal reward no longer reports combat XP in skipped_xp — either the reward was '
-    + `re-priced or it is being minted somewhere: ${JSON.stringify(o.k10_3_skipped)}`);
+    "K10: 'combat' is now a row in hr_skills. It is the DERIVED combat level, not a trainable "
+    + 'skill; a row by that name means some path is minting into a column the leaderboard derives.');
+  ok((o.k10_3_nonSkillXpKeys || []).length === 0,
+    `K10: kill-goal XP names a NON-SKILL — ${(o.k10_3_nonSkillXpKeys || []).join(', ')}. `
+    + 'hr_claim_goal drops it into skipped_xp, so the modal quotes a price the game does not pay — '
+    + 'the exact b492 defect, coming back.');
+  ok(canon(o.k10_3_move) === canon({ hitpoints: 300 }),
+    `K10: a kill_more claim moved player_skills by ${JSON.stringify(o.k10_3_move)}, expected `
+    + 'exactly {"hitpoints":300} — the catalogued grant, on the catalogued skill, and NOTHING else. '
+    + 'hitpoints is ranked (combat level + the skill board) and this credit sits OUTSIDE the shared '
+    + '40M/day inflow budget, so the catalogue amount is the whole bound.');
+  ok(canon(o.k10_3_skipped) === '{}',
+    `K10: the kill-goal claim skipped part of its XP: ${JSON.stringify(o.k10_3_skipped)}. Since b492 `
+    + 'every kill-goal XP key must be payable — a silent skip is the defect, not the control.');
+  ok(o.k10_3_replay?.outcome === 'already_claimed',
+    `K10: a SECOND kill_more claim in the same period was not refused: ${JSON.stringify(o.k10_3_replay)}. `
+    + 'The once-per-period guard row is the only cardinality bound on a forged counter — without it '
+    + 'every ceiling in the reviewed bound becomes per-call.');
+  ok(canon(o.k10_3_replayMove) === '{}' && o.k10_3_replayGold === 0 && o.k10_3_replayGems === 0,
+    `K10: the refused second claim still paid ${JSON.stringify(o.k10_3_replayMove)} XP / `
+    + `${o.k10_3_replayGold} gold / ${o.k10_3_replayGems} gems — 'already_claimed' must be free of `
+    + 'every credit, or the refusal is cosmetic.');
 }
 
 export async function killDailyCreditGuard() {
@@ -783,7 +979,9 @@ export async function killDailyCreditGuard() {
      say which half it got, or it silently claims coverage it did not have. */
   problems.coverage = `K10: ${(obs.dailyTouchers || []).length} kind='daily' toucher(s) pinned; `
     + `hr_claim_daily prices pinned${obs.k10_2_executed ? ' AND executed (+500 g proven)'
-      : ' (daily_kill not offered today — pin only)'}`;
+      : ' (daily_kill not offered today — pin only)'}; `
+    + `kill-goal XP pinned + EXECUTED — moved ${JSON.stringify(obs.k10_3_move)}, `
+    + `second claim in period refused (${obs.k10_3_replay?.outcome})`;
   return problems;
 }
 

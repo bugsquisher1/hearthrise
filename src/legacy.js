@@ -4179,6 +4179,10 @@ function ensureBountyState(){
   G.bountyHunter=Object.assign(base,G.bountyHunter||{});
   G.bountyHunter.upgrades=G.bountyHunter.upgrades||{};
   G.bountyHunter.warrants=G.bountyHunter.warrants||{};
+  /* The FIRST ensure of a session — i.e. a boot, i.e. the one moment a save's
+     contents have just arrived and may predate a rule the build now enforces.
+     Read once, because the latch is set further down. */
+  const _firstEnsure=!window.__hrBountyBootStripped;
   /* R5: the two-phase turn-in flags are TRANSIENT (an in-flight lock + a
      once-notice latch). A reload mid-confirm could persist them into the save;
      clear them on every boot/ensure so a stale `_confirming` can never wedge a
@@ -4198,8 +4202,21 @@ function ensureBountyState(){
        carry within a live session (a stale _retryTimer only matters across a
        RELOAD), so clear them only on the first ensure of the session (boot),
        which is exactly when a persisted stale timer would be present. */
-    if(!window.__hrBountyBootStripped){
+    if(_firstEnsure){
       delete _a._retryTimer; delete _a._creditAt; delete _a._confirmed; delete _a._serverConfirmed;
+      /* ── THE RESCUE (2026-08-31) ─────────────────────────────────────────
+         A save written before the BOUNTY_TURN_IN filter can still hold an
+         ACTIVE contract of a type nothing can settle — that is the live bug:
+         the bar fills, the turn-in has nowhere to land, and because the board
+         rail hides "New notices" while a bounty is active, the player is
+         locked out of the whole board with no exit but a Marks-charging
+         Abandon. Withdraw it ONCE at boot, free, and say so. Boot-once (not
+         every ensure, which runs on every kill) so the notice cannot spam. */
+      if(!bountyTypeIsOfferable(_a.type)){
+        G.bountyHunter.active=null;
+        G.bountyHunter.board=[];                    // repost from the payable set
+        try{ if(typeof notify==='function') notify('That contract could no longer be settled — it has been withdrawn from your record at no charge, and the board has been reposted.','info'); }catch(e){}
+      }
     }
   }
   /* Session-scoped latch (NOT saved — a window flag, reset on every reload=boot),
@@ -4221,9 +4238,50 @@ function ensureBountyState(){
     }
   }
   if(G.bountyHunter&&Object.prototype.hasOwnProperty.call(G.bountyHunter,'marks'))delete G.bountyHunter.marks;
+  /* ── THE BOARD'S DAY ────────────────────────────────────────────────────────
+     `freeRerolls` and `rerollsToday` were seeded once and never moved again:
+     nothing in the game reset them, `boardGeneratedAt` was written and never
+     read, and the Bounty Shop sells "+1 Free Reroll/day" (`extraRerolls`) that
+     nothing consumed. Two consequences, both measured on a driven board:
+       · ONE free reroll per ACCOUNT LIFETIME, not per day, and the rail says
+         "Free rerolls: 0" forever after it.
+       · The paid price is `5 + rerollsToday*5` and rerollsToday only ever
+         climbs — while the SERVER (hr_bounty_spend, 2026-08-26-marks-record.sql)
+         derives the same price from the PAID rerolls in TODAY's ledger, which
+         does reset. So the client's affordability check drifts permanently
+         above the price the server would actually charge and starts refusing
+         rerolls the player can afford.
+     The day key is UTC to match the server's hr_utc_day_key — a local-midnight
+     key would hand players in some timezones two resets against the server's
+     one. Stored on `bountyHunter`, which is WHOLLY residue (src/net/client-
+     state.js RESIDUE_FIELDS), so the new field survives a reload like the rest
+     of the object. */
+  const _bDay=hrBountyDayKey();
+  if(G.bountyHunter.rerollDay!==_bDay){
+    G.bountyHunter.rerollDay=_bDay;
+    G.bountyHunter.rerollsToday=0;
+    G.bountyHunter.freeRerolls=1+Math.max(0,Math.floor(Number(G.bountyHunter.upgrades.extraRerolls)||0));
+  }
   if(!Array.isArray(G.bountyHunter.board))G.bountyHunter.board=[];
+  /* A board saved before the BOUNTY_TURN_IN filter can still hold an OFFER whose
+     type has no turn-in. Accepting one is the bug, so drop the whole slate and
+     repost rather than leave a trap nailed to the board.
+     ⚠ BOOT-ONCE, for the same reason the transient strip above is: this runs on
+     EVERY kill, and a board is only ever written by generateBountyBoard (already
+     filtered) or by a save arriving. Sanitising on every ensure would also make
+     the function fight any other legitimate writer of the slate — including the
+     suite, which hand-nails a specific notice to the board to test it. */
+  if(_firstEnsure && G.bountyHunter.board.some(function(b){return !b||!bountyTypeIsOfferable(b.type);}))G.bountyHunter.board=[];
   if(!G.bountyHunter.board.length)G.bountyHunter.board=generateBountyBoard();
 }
+/* UTC day key, the same shape the server's hr_utc_day_key produces (YYYYMMDD as
+   a number). Deliberately NOT the local-date helper further down this file —
+   the reroll price is settled server-side against a UTC ledger day. */
+function hrBountyDayKey(){
+  const d=new Date();
+  return d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();
+}
+try{ window.hrBountyDayKey=hrBountyDayKey; }catch(_){}
 function getBountyHunterLevel(){return levelFromXp(G.bountyHunter?.xp||0);}
 /* PHASE A — bounty generation delegates to src/core/bounty.js.
    Everything below is an ADAPTER: it resolves the ambient state (levels,
@@ -4241,6 +4299,21 @@ function getUnlockedBountyTypes(){
 function getPlayerWeaponTypes(){
   return window.HearthriseCore.bounty.ownedWeaponTypes(G.inventory, equipmentMapG(), ITEMS);
 }
+/* May the CLIENT still settle a bounty out of its own pocket? Under the gold arm
+   it cannot (finalizeBounty's `G.gold+=` is gated on exactly this), which is what
+   makes a proof/weapon/streak contract unpayable — see BOUNTY_TURN_IN in
+   src/core/bounty.js. Missing helper ⇒ a pre-arm runtime, where the client did
+   own gold, so the honest answer there is `true`. */
+function bountyClientMayPay(){
+  return (typeof clientMayWriteRecordField!=='function') || !!clientMayWriteRecordField('gold');
+}
+/** True iff the board may POST this type right now (server-settled, or client-
+    settled while the client still owns gold). */
+function bountyTypeIsOfferable(type){
+  const CK=window.HearthriseCore;
+  if(!CK||!CK.bounty||typeof CK.bounty.isOfferableType!=='function')return true;  // pre-core boot: don't churn
+  return CK.bounty.isOfferableType(type, bountyClientMayPay());
+}
 function generateBountyBoard(){
   const CK=window.HearthriseCore;
   const out=CK.bounty.generateBountyBoard({
@@ -4250,6 +4323,7 @@ function generateBountyBoard(){
     ownedTypes:getPlayerWeaponTypes(),
     rng:CK.rng,
     now:Date.now(),
+    clientMayPay:bountyClientMayPay(),
   });
   G.bountyHunter.boardGeneratedAt=out.generatedAt;
   return out.board;
@@ -4336,9 +4410,14 @@ function abandonBounty(){
   hrClearBountyRetry(b);
   G.bountyHunter.active=null;renderCombat();repaintBounty();saveLocal();
 }
-function rerollBountyBoard(){
+/* @param prepaid — the caller has ALREADY charged for this refresh (the Bounty
+   Shop's Reroll Token). It was passing `rerollBountyBoard(true)` into a function
+   that took no arguments, so a purchased reroll ALSO burned the free one, or
+   charged the escalating Marks price a second time. Named, and honoured. */
+function rerollBountyBoard(prepaid){
   ensureBountyState();
-  if(G.bountyHunter.freeRerolls>0){G.bountyHunter.freeRerolls--;}
+  if(prepaid){ /* already paid for by the caller — charge nothing here */ }
+  else if(G.bountyHunter.freeRerolls>0){G.bountyHunter.freeRerolls--;}
   else{
     const cost=5+(G.bountyHunter.rerollsToday||0)*5;
     if(clientMayWriteRecordField('marks')){
@@ -4568,6 +4647,34 @@ function completeBounty(){
       if(!G.bountyHunter || G.bountyHunter.active!==b) return;  // changed under us
       if(res && res.ok){
         finalizeBounty(b, r, _isCull);
+        /* ── bug_reports #46: "completed 1 task but I got 0 marks" ─────────────
+           REPRODUCED headless, and it is not the RPC. hr_claim_bounty DID credit
+           the gold and the Marks into player_state — but gold and marks are
+           SERVER-OF-RECORD, so finalizeBounty's `if(clientMayWriteRecordField
+           ('marks')) G.marks += …` is a permanent no-op, and the counter the
+           player is looking at reads the RECORD, which nothing refreshed. Result:
+           the toast says "+5 Marks", the balance sits on its old number, and the
+           only thing that moves it is the next envelope — a reload, or an
+           accrual settle that may never come while the player is standing still.
+           Measured: 100 Marks before, hr_claim_bounty ok with +5, 100 Marks
+           after, zero hr_load requests. With the refresh: 100 → 105.
+
+           buyTrait already solved exactly this for its server purchase, and its
+           comment calls requestRecord "the cheapest honest refresh there is" —
+           the largest Marks credit in the game simply never got the same line.
+           ONE call refreshes the whole envelope, so it fixes the gold half too.
+           Fire-and-forget: requestRecord coalesces in-flight callers, applies the
+           envelope itself, and a failure leaves the field exactly as honest as it
+           was. Gated on the ARM because while the client owns the balance
+           finalizeBounty has already written the real number. */
+        if(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('marks')){
+          try{
+            if(window.HearthriseRecord && typeof window.HearthriseRecord.requestRecord==='function'){
+              const _rr=window.HearthriseRecord.requestRecord();
+              if(_rr && _rr.then) _rr.then(function(){ try{ updateTopbar(); repaintBounty(); }catch(e){} }).catch(function(){});
+            }
+          }catch(e){}
+        }
       } else {
         /* Denied — the server hasn't counted enough kills yet. HOLD (never
            "0 reward"/failed, never consume). One calm notice; the next kill
@@ -4592,10 +4699,38 @@ function completeBounty(){
    finalize never fires it again (no double turn-in). */
 function finalizeBounty(b, r, _isCull){
   b._confirmed=true; hrClearBountyRetry(b);   // the turn-in landed — stop the cap-catch-up timer
-  /* NON-CULL (proof/weapon/streak) have NO server turn-in path (not server-
-     verifiable). Under the gold arm their gold credit no-ops, so keep the b411
-     defer for THEM only — do not burn the bounty for a reward that never lands. */
-  if(!_isCull && (r.gold||0)>0 && !clientMayWriteRecordField('gold'))return;
+  /* ── THE LAST b411 BARE RETURN, AND WHY IT IS NOT ONE ANY MORE ─────────────
+     This line used to read:
+
+         if(!_isCull && (r.gold||0)>0 && !clientMayWriteRecordField('gold'))return;
+
+     — the b411 "defer", kept "for THEM only — do not burn the bounty for a
+     reward that never lands". The b461 sweep deleted that idiom from the
+     milestone, rank, quest and modal-goal claims after Tyler found every Claim
+     button was a silent no-op under the arm; this one was missed, because it
+     lives in a turn-in rather than a claim. It is the same defect: a completed
+     contract, no RPC, no state change, NO TOAST. Driven on the real board it
+     read 26/26 with `completed` still 0, forever, and the rail hides the reroll
+     button while a bounty is active — so the whole board was locked behind it.
+
+     There is no reward to defer TO: proof/weapon/streak have no server verb
+     (2026-08-23-bounty.sql refuses them) and the client may not mint gold or
+     Marks. Holding the contract open for a payout that cannot arrive is not
+     caution, it is a lie with a progress bar on it. So: WITHDRAW it, free,
+     say so once, and repost the board. Belt-and-braces — generateBountyBoard no
+     longer POSTS an unsettleable type and ensureBountyState withdraws an
+     in-flight one at boot, so this is the third net, not the first.
+     When a type gets a server verb, move its BOUNTY_TURN_IN row to 'server' and
+     this branch stops being reachable for it. */
+  if(!_isCull && (r.gold||0)>0 && !clientMayWriteRecordField('gold')){
+    G.bountyHunter.active=null;
+    G.bountyHunter.board=[];                              // repost from the payable set
+    try{ ensureBountyState(); }catch(e){}
+    notify('That contract could not be settled at the board — withdrawn at no charge, and the board has been reposted.','kill');
+    try{ console.warn('[Bounty] unsettleable turn-in withdrawn: type='+b.type+' — no server verb and the client may not write gold'); }catch(e){}
+    updateTopbar();renderCombat();repaintBounty();saveLocal();
+    return;
+  }
   if(b.type==='proof'&&b.proofItem)removeItem(b.proofItem,b.required);
   if(clientMayWriteRecordField('gold'))G.gold+=r.gold||0;if(clientMayWriteRecordField('marks'))G.marks=(G.marks||0)+(r.marks||0);G.bountyHunter.xp=(G.bountyHunter.xp||0)+(r.xp||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
   const oldLevel=levelFromXp((G.bountyHunter.xp||0)-(r.xp||0)),newLevel=getBountyHunterLevel();
@@ -4619,7 +4754,15 @@ function finalizeBounty(b, r, _isCull){
   const bonusRoll=(_CK&&_CK.rng)?_CK.rng.chance(0.10):(Math.random()<0.10);
   /* b221: these three toasts/log lines shipped a literal 🎯 — emoji as art,
      on a screen whose whole point this pass was to stop looking generated. */
-  if(bonusRoll){const bonus=Math.max(1,Math.round((r.marks||0)*0.5));if(clientMayWriteRecordField('marks'))G.marks=(G.marks||0)+bonus;notify(`Bonus turn-in! +${bonus} Marks`,'levelup');}
+  /* ⚠ THE BONUS IS ANNOUNCED ONLY WHERE IT IS PAID (bug_reports #46's second
+     half). The 10% bonus exists ONLY here — hr_claim_bounty's reward is
+     base × type × difficulty with no bonus roll (2026-08-23-bounty.sql) — so
+     under the Marks arm the credit is a no-op and the toast was promising
+     Marks that nothing anywhere grants. Two toasts, one turn-in, both naming a
+     number the balance never showed, is most of what "I got 0 marks" feels
+     like. Announce it where it lands; a real server-side bonus is a Systems +
+     Designer change (raised in HANDOFFS), not a louder toast. */
+  if(bonusRoll && clientMayWriteRecordField('marks')){const bonus=Math.max(1,Math.round((r.marks||0)*0.5));G.marks=(G.marks||0)+bonus;notify(`Bonus turn-in! +${bonus} Marks`,'levelup');}
   G.combatLog.push(`Bounty complete! +${r.marks} Marks, +${r.gold} gold`);
   notify(`Bounty complete: +${r.marks} Marks`,'levelup');
   if(newLevel>oldLevel)notify(`Bounty Hunter ${newLevel}!`,'levelup');
@@ -10660,17 +10803,24 @@ function spendMarks(itemId){
   const MR=window.HearthriseMarks;
   const have = MR ? (MR.marksOr(G,0)) : (G.marks || 0);
   if(have < def.cost){ notify(`Need ${def.cost - have} more Marks`, 'kill'); return; }
+  /* ── CHECK BEFORE YOU CHARGE (the b465 handoff, closed) ────────────────────
+     The debit used to happen HERE and the "can this even work" test three lines
+     later, so a missing rerollBountyBoard meant the player paid and got nothing
+     and the only remedy on offer was "reload". Nothing about a Reroll Token
+     requires charging first: ask the question, refuse for free, then charge. */
+  if(def.id === 'reroll_token' && typeof rerollBountyBoard !== 'function'){
+    notify('The board isn’t taking new notices right now — you have not been charged.','kill');
+    try{ console.warn('[Bounty] rerollBountyBoard is missing — the Reroll Token purchase was refused before charging'); }catch(e){}
+    return;
+  }
   G.marks = (G.marks||0) - def.cost;
   G.bountyHunter.upgrades = G.bountyHunter.upgrades || {};
   if(def.id === 'reroll_token'){
-    /* Just refresh the board */
-    if(typeof rerollBountyBoard === 'function') rerollBountyBoard(true);
-    /* b465: was "No reroll function found" — our stack trace, read aloud to the
-       player. ⚠ NOTE FOR SYSTEMS: the Marks are already spent four lines above
-       this point, so on this branch the player pays and gets nothing. Copy only
-       here; the refund is a Systems fix (raised in HANDOFFS). */
-    else { notify('The board wouldn’t refresh — reload and your Marks will be here','kill');
-           try{ console.warn('[Bounty] rerollBountyBoard is missing — a reroll was charged with no refresh'); }catch(e){} }
+    /* PREPAID: the Marks were taken one line above, so the refresh must charge
+       nothing of its own. This used to pass `true` into a zero-argument
+       rerollBountyBoard, which ignored it and then burned the free reroll (or
+       charged the escalating Marks price a SECOND time). */
+    rerollBountyBoard(true);
   } else if(def.flag){
     if(def.value !== undefined && !def.incr) G.bountyHunter.upgrades[def.flag] = def.value;
     else if(def.incr) G.bountyHunter.upgrades[def.flag] = (G.bountyHunter.upgrades[def.flag]||0) + 1;
@@ -10738,11 +10888,25 @@ function renderBountyTab(){
         ? (typeof hasTrait === 'function' && hasTrait(it.trait))
         : (G.bountyHunter?.upgrades?.[it.flag] && !it.repeatable);
       const can = window.HearthriseMarks ? window.HearthriseMarks.canAffordMarks(G, cost) : ((G.marks || 0) >= cost);
-      return `<div class="bounty-shop-row" data-offer="${it.id}">
+      /* ── AN ENABLED BUY THAT ALWAYS REFUSES IS A BUG, NOT A GATE ────────────
+         spendMarks() fails CLOSED for every non-trait row while Marks are
+         server-owned: BOUNTY_SHOP has no server spend verb (hr_bounty_spend
+         only knows 'reroll' and 'abandon'), so the raw local debit would be a
+         client-authored write on a server-owned balance. That refusal is
+         correct. What was NOT correct is that the button rendered ENABLED and
+         primary-styled whenever the player could afford it — driven with 500
+         Marks on the board, all five rows offered "Buy" and all five answered
+         "That upgrade is unavailable right now". The row must ask the same
+         question the spend asks, and say the answer before the click. */
+      const sellable = it.trait ? true
+        : (typeof window.clientMayWriteRecordField !== 'function' || window.clientMayWriteRecordField('marks'));
+      const dead = owned || !sellable || !can;
+      const label = owned ? 'Owned' : (sellable ? 'Buy' : 'Unavailable');
+      return `<div class="bounty-shop-row${sellable?'':' is-unavailable'}" data-offer="${it.id}"${sellable?'':' title="Bounty Marks are held by the server and this upgrade has no server purchase yet."'}>
         <span class="si">${(window.HR && window.HR.icon) ? (window.HR.icon(it.glyph, 22, 'currentColor') || '') : ''}</span>
         <div class="info"><b>${it.name}</b><span>${it.desc}</span></div>
         <span class="price">${(window.HR&&window.HR.amount)?window.HR.amount('bountyHunter',cost,13,'--gold-2'):cost+' Marks'}</span>
-        <button class="btn btn-sm ${owned?'':can?'btn-primary':''}" ${owned||!can?'disabled':''} onclick="spendMarks('${it.id}')">${owned?'Owned':'Buy'}</button>
+        <button class="btn btn-sm ${dead?'':'btn-primary'}" ${dead?'disabled':''} onclick="spendMarks('${it.id}')">${label}</button>
       </div>`;
     }).join('');
   }

@@ -4,6 +4,80 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-31 - QA Engineer (bounty-board hunt, live b486) - THE BOARD WAS SELLING CONTRACTS THE GAME COULD NOT PAY, AND THE ONE IT COULD PAY DIDN'T SHOW UP
+
+**HOW IT WAS FOUND.** Tyler: *"there is still a bug with the bounty board."* No detail. Drove the
+real board headless (own static server + `__HR_TEST_HARNESS__`) through every interaction a player
+has: view, accept, reroll free + paid, kill toward target, turn in, buy from the shop, day
+rollover, boot with a save mid-contract. **Six defects. None of them was the thing the last two
+bounty commits (b484/b485) fixed.**
+
+**1. P1 - A PROOF/WEAPON/STREAK CONTRACT COULD BE ACCEPTED, FILLED, AND THEN HAD NOWHERE TO LAND.**
+`supabase/migrations/2026-08-23-bounty.sql` wires accept/claim for `cull` ONLY and refuses the rest
+(`type_not_server_verifiable`), on the stated assumption that the others *"keep their existing
+client behaviour"*. **That sentence stopped being true the day gold armed.** Their client behaviour
+is `finalizeBounty()`, whose credit is `if (clientMayWriteRecordField('gold'))` - permanently false
+since b421/b454. Measured on the real board: **26/26 on the notice, `completed` still 0, no gold,
+no Marks, no XP, and NO TOAST**, and the board rail hides "New notices" while a bounty is active, so
+one unpayable contract locked the entire board. Exit price: a Marks-charging Abandon.
+**Reach: from Bounty-Hunter level 5 the board's MIDDLE SLOT is proof EVERY TIME** (the generator's
+`secondType` is `proof` whenever it is unlocked). BH 5 is ~9 tier-1 turn-ins. So essentially every
+player past their first session had a permanently bricked slot.
+
+**THE CLASS, not the bug.** This is the b411 bare-return again - the same idiom the b461 sweep
+deleted from the milestone, rank, quest and modal-goal claims after Tyler found every Claim button
+was a silent no-op. It survived here because it lives in a *turn-in* rather than a *claim*.
+**Grep `!clientMayWriteRecordField(` for a bare `return` before assuming this was the last one.**
+
+**2. P1 - bug_reports #46 "completed 1 task but I got 0 marks", REPRODUCED, and the RPC is innocent.**
+`hr_claim_bounty` succeeds and credits `player_state`. But gold and marks are SERVER-OF-RECORD, so
+`finalizeBounty`'s local credit is a no-op, and **nothing asked for the balance the server had just
+written**. Measured: 100 Marks -> `hr_claim_bounty ok, +5` -> **100 Marks, zero `hr_load` requests**,
+toast reading "+5 Marks". `buyTrait` had solved exactly this (`requestRecord`, *"the cheapest honest
+refresh there is"*); the largest Marks credit in the game never got the line. Second half: the
+client-only 10% bonus toast announced Marks the server has no bonus roll for - two toasts, one
+turn-in, both naming a number the balance never showed.
+
+**3. `MARKS_RECORD_ARM_ENABLED` HAS SAID `// DORMANT` NEXT TO `= true` FOR 32 BUILDS.** b454 flipped
+the value and left the comment, and on 2026-08-31 that stale comment produced a live misdiagnosis
+(the 0-marks bug was triaged on the premise that "marks are client-authored today"; they are not -
+measured `clientMayWriteRecordField('marks') === false` on a b486 boot). Comment corrected.
+**Check the other arm flags for the same drift.**
+
+**4. P2 - THE BOARD HAD NO DAY.** `freeRerolls` / `rerollsToday` were seeded once and reset by
+nothing; `boardGeneratedAt` was written and never read; the shop's "+1 Free Reroll/day"
+(`extraRerolls`) was read by nothing. So: **one free reroll per ACCOUNT lifetime**, and the client's
+`5 + N*5` price ratcheted forever - while `hr_bounty_spend` derives the same price from **today's**
+ledger, which does reset. The client therefore drifts permanently ABOVE the server and starts
+refusing rerolls the player can afford.
+
+**5. P1 - THE BOUNTY SHOP'S OWN FIVE ROWS WERE A DEAD SURFACE.** With 500 Marks on the board, all
+five rendered an ENABLED, primary-styled **Buy** and all five answered *"That upgrade is unavailable
+right now"* - `spendMarks` fails closed because `BOUNTY_SHOP` has no server spend verb
+(`hr_bounty_spend` knows only `reroll` and `abandon`). The refusal is correct; **rendering the
+control as live was the bug.** Live since b454.
+
+**6. P3 - `spendMarks('reroll_token')` charged, then called `rerollBountyBoard(true)` - a function
+that took no arguments** - so a purchased reroll ALSO burned the free one (or charged the escalating
+Marks price a second time); and it debited before checking the function existed. (The b465 handoff
+flagged half of this; the double-charge half was not seen.)
+
+**AFFECTED SYSTEMS.** `src/core/bounty.js`, `src/legacy.js` (ensureBountyState / finalizeBounty /
+completeBounty / rerollBountyBoard / spendMarks / renderBountyTab), `src/net/record.js` (comment),
+`supabase/migrations/2026-08-23-bounty.sql` (read-only - the root of #1).
+
+**REQUIRED ACTION.**
+- 1,2,4,5,6 fixed on `worktree-agent-aebc5bfea551b3078`; tests `BOUNTY-PAY-1/2/3`, `BOUNTY-MARKS-1`,
+  `BOUNTY-REROLL-1/2`, `BOUNTY-SHOP-1`, each mutation-proven to fail without its fix.
+- **SYSTEMS + DESIGNER:** three of the four bounty types are now gated OFF by
+  `BOUNTY_TURN_IN` in `src/core/bounty.js` because nothing can settle them. Restoring them is a
+  server verb, not a client change. One word in that table brings each back. See HANDOFFS.
+- **SYSTEMS:** `BOUNTY_SHOP` needs a `hr_bounty_spend` sibling (or a generic marks spend) before its
+  five rows can be sold again; two of them (`goldBoost`, `cosmeticCloak`) are read by nothing even
+  if bought.
+
+---
+
 ### 2026-08-23 - Art Director (emoji-as-icon sweep) - A REPO GREP CANNOT SEE THIS PROBLEM, WHICH IS WHY IT SURVIVED FOUR PURGES
 
 **DISCOVERY.** `grep` over `src/**` reports ~1,800 pictographs and always will: they live in DATA

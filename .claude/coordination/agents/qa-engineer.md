@@ -10,6 +10,44 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - Bug flow: reproduce → minimize → severity → root cause → fix/route → reproduce → regression test → verify surroundings.
 
 ## Log
+
+### 2026-08-31 · Bounty-board hunt (live b486) — six defects, five fixed, one routed
+
+**Method that worked, keep it.** Tyler gave no detail ("there is still a bug with the bounty
+board"). A throwaway Playwright driver against the real page (static server + `__HR_TEST_HARNESS__`,
+wait for `window.G` && `HearthriseCore`) that DRIVES every interaction and prints a state snapshot
+after each one found all six inside twenty minutes. **Reading the code first would have found at
+most two** — the shop deadness and the finalize brick only look wrong once you see an enabled Buy
+that refuses and a 26/26 bar with `completed: 0`. Print state, not assertions, on the first pass.
+
+**The heuristic that paid.** Every one of the six is the same shape: *a client-side payout or spend
+that the record arm turned into a no-op, with the UI still narrating the old behaviour.* Under an
+arm, `if (clientMayWriteRecordField(X)) …` is not a gate, it is a DELETION — so every one of them
+needs a matching question: **who pays now, and who tells the player?** Next sweep: grep
+`clientMayWriteRecordField` for (a) a bare `return`, (b) a `notify` outside the gate, (c) a Buy
+button whose `disabled` does not consult it.
+
+**Don't trust an arm-flag comment.** `MARKS_RECORD_ARM_ENABLED = true; // DORMANT` had been wrong
+for 32 builds and it misled the Coordinator's triage of bug_reports #46 mid-task. **Measure the arm
+in the harness** (`clientMayWriteRecordField('marks')`) before believing any claim about it,
+including one from another agent.
+
+**Mutation discipline.** The full runner is 5-10 min on a loaded machine and its node-side guards
+time out first, so mutation-proving six tests through it is impractical. A 60-second in-page runner
+(`window.__smokeTest({verbose:false})` in my own Playwright script, filtered to the new test names)
+made per-fix mutation cheap enough to actually do: all seven fail against the pre-fix code, and
+BOUNTY-PAY-1 was re-mutated separately to prove it binds to the FILTER and not merely to the
+export's existence.
+
+**Worktrees have no `node_modules`.** `mklink /J` a junction to the main repo's (gitignored) —
+`MSYS2_ARG_CONV_EXCL='*' cmd /c mklink /J <worktree>
+ode_modules <repo>
+ode_modules`.
+
+**Left open (routed, not mine):** the Unlocks strip still lights types the board will not post; the
+"Easy" tier-1 cull can require more kills than the "Normal" beside it; `goldBoost`/`cosmeticCloak`
+are unimplemented goods. All in HANDOFFS to Designer/Systems.
+
 ### 2026-08-23 · TEST-DEBT BURN-DOWN after the b454/b455/b456 cutover — 73 red → 7, and the 7 are real bugs
 
 **What the 73 actually were.** Not 73 problems: ONE problem, 73 times. The harness never runs a real

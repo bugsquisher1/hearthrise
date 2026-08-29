@@ -131,6 +131,56 @@ export function unlockedTypes(bountyLevel) {
   return t;
 }
 
+/* ── WHO SETTLES A TURN-IN — the table the board must not out-run ────────────
+   THE BUG THIS ENDS (found by driving the real board, 2026-08-31; Tyler on
+   live b486: "there is still a bug with the bounty board").
+
+   Only `cull` has a turn-in. supabase/migrations/2026-08-23-bounty.sql wires
+   hr_accept_bounty / hr_claim_bounty for `cull` ONLY and REFUSES every other
+   type with `type_not_server_verifiable` — its header says so and says the
+   others "keep their existing client behaviour". That sentence stopped being
+   true the day gold armed: their existing client behaviour is finalizeBounty(),
+   whose gold credit is `if (clientMayWriteRecordField('gold'))`, and under the
+   arm that is permanently false. So a proof/weapon/streak contract could be
+   ACCEPTED and FILLED and then had nowhere to land — measured: 26/26 on the
+   notice, `active` still set, `completed` still 0, no gold, no Marks, no XP, no
+   toast, and no reroll button (the rail hides it while a bounty is active). The
+   only exit was Abandon, which charges Marks at Bounty-Hunter 10+.
+
+   `unlockedTypes` above is the LADDER and is unchanged (it is what the Unlocks
+   strip reads, and tests/core-purity.mjs pins its shape). This table is a
+   separate question — not "has the player earned it" but "can the game PAY it"
+   — and the board is generated from the intersection.
+
+   'server' = a SECURITY DEFINER RPC verifies and credits it.
+   'client' = settled locally by finalizeBounty, so it is offerable only while
+              the client still owns gold/Marks (the dormant arm, and the away
+              replay's own dormant runs).
+
+   TO RE-ENABLE A TYPE: give it a server verb and move its row to 'server'.
+   One word here, and the board posts it again — that is the whole point of it
+   being a table. Do NOT re-enable one by deleting the filter in
+   generateBountyBoard; that is how it shipped broken the first time. */
+export const BOUNTY_TURN_IN = {
+  cull: 'server',      // hr_claim_bounty — kills-since-accept, once-guarded
+  proof: 'client',     // loot IS counted server-side, but the client CONSUMES the
+                       // items on turn-in and inventory is not server-owned yet
+  weapon: 'client',    // the sim does not record which weapon was held AT a kill
+  streak: 'client',    // the sim tracks no death-streak
+  boss: 'client',
+  chain: 'client',
+};
+
+/** Who settles this type's turn-in: 'server' | 'client'. Unknown → 'client'
+    (the conservative answer: an unknown type has no server verb). */
+export function bountyTurnIn(type) { return BOUNTY_TURN_IN[type] || 'client'; }
+
+/** May the board POST this type right now?
+    @param clientMayPay true while the client still owns gold/Marks. */
+export function isOfferableType(type, clientMayPay) {
+  return bountyTurnIn(type) === 'server' ? true : !!clientMayPay;
+}
+
 /** Weapon types the player can actually satisfy a `weapon` bounty with.
     Sword is always in the set — you are never handed an impossible task
     because you sold your only blade. */
@@ -253,9 +303,15 @@ export function makeBounty(type, monsterId, difficulty, ctx) {
  * Three offers: a safe cull, a mid-tier task, and one "interesting" slot
  * that escalates as the Bounty Hunter ladder unlocks.
  *
- * @param ctx { monsters, items, combatLevel, bountyLevel, ownedTypes, rng, now }
+ * @param ctx { monsters, items, combatLevel, bountyLevel, ownedTypes, rng, now,
+ *              clientMayPay }
  * @returns { board, tier, generatedAt } — the caller stores generatedAt;
  *          core does not know about G.
+ *
+ * `clientMayPay` gates the BOUNTY_TURN_IN filter above. It defaults to FALSE —
+ * fail-closed, so a caller that forgets it posts only server-settled contracts
+ * rather than unpayable ones. The legacy adapter passes
+ * `clientMayWriteRecordField('gold')`.
  */
 export function generateBountyBoard(ctx) {
   const c = ctx || {};
@@ -264,6 +320,15 @@ export function generateBountyBoard(ctx) {
   const owned = c.ownedTypes || new Set(['sword']);
   const used = [];
   const board = [];
+  /* THE SUBSTITUTION IS THE LAST STEP ON PURPOSE. Every type decision below is
+     made exactly as before — same predicates, same `rng.chance(0.5)` draw, same
+     order — and only the RESULT is mapped to 'cull' when the game cannot settle
+     it. Filtering `types` up front would have skipped that chance() draw, which
+     shifts the seeded stream and breaks replayability (AWAY-1's contract: the
+     same seed must re-run to the same night). Every type costs exactly one
+     `rng.int` inside makeBounty, so the substituted board consumes the identical
+     number of draws in the identical order. */
+  const offer = (t) => (isOfferableType(t, c.clientMayPay) ? t : 'cull');
 
   const m1 = pickBountyMonster(tier, 'safe', used, c.monsters, c.rng);
   used.push(m1);
@@ -272,7 +337,7 @@ export function generateBountyBoard(ctx) {
   const secondType = types.indexOf('proof') >= 0 ? 'proof' : 'cull';
   const m2 = pickBountyMonster(tier, 'normal', used, c.monsters, c.rng);
   used.push(m2);
-  board.push(makeBounty(secondType, m2, 'normal', c));
+  board.push(makeBounty(offer(secondType), m2, 'normal', c));
 
   let thirdType = types.indexOf('streak') >= 0
     ? (c.rng.chance(0.5) ? 'streak' : (types.indexOf('weapon') >= 0 ? 'weapon' : 'cull'))
@@ -284,7 +349,7 @@ export function generateBountyBoard(ctx) {
     const weak = (c.monsters || {})[m3] && (c.monsters || {})[m3].weaponWeak;
     if (!weak || !owned.has(weak)) thirdType = 'cull';
   }
-  board.push(makeBounty(thirdType, m3, types.indexOf('streak') >= 0 ? 'hard' : 'normal', c));
+  board.push(makeBounty(offer(thirdType), m3, types.indexOf('streak') >= 0 ? 'hard' : 'normal', c));
 
   return { board, tier, generatedAt: c.now || 0 };
 }

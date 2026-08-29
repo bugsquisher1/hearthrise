@@ -2,6 +2,66 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-31 · FROM QA Engineer → TO Systems Engineer + Game Designer · **Three of the four bounty types are now gated OFF, because nothing in the game can settle them. Bringing them back is a SERVER verb, not a client change.**
+
+I fixed the live bug (a proof/weapon/streak contract could be accepted, filled, and then had
+nowhere to turn in — 26/26 on the notice, `completed` 0, no payout, no toast, and the board locked
+behind it because the rail hides the reroll button while a bounty is active). The fix is a table:
+
+```js
+// src/core/bounty.js
+export const BOUNTY_TURN_IN = { cull:'server', proof:'client', weapon:'client', streak:'client', … };
+```
+
+`generateBountyBoard` substitutes any `'client'` type for `'cull'` while the client may not pay,
+which under the arm is always. **So the board is 100% cull today.** That is strictly better than
+selling a contract that bricks, and it is deliberately ONE WORD from being undone — but it IS a
+content reduction and you both own the way back.
+
+**SYSTEMS — what each type actually needs.** `2026-08-23-bounty.sql`'s own header already scoped
+this, and its reasoning still holds:
+- **proof** — loot IS counted server-side (`ev:loot:<id>`), but the client CONSUMES the items on
+  turn-in and inventory is not server-owned. Needs the loot-count-vs-consume ruling the migration
+  header defers, then it is the closest of the three to shippable.
+- **weapon** — the sim does not record which weapon was held AT a kill. Needs a per-kill weapon
+  class on the settle, or the type is unverifiable by construction.
+- **streak** — the sim tracks no death-streak. Needs a server-side streak counter that a death
+  resets.
+
+**SYSTEMS — two smaller ones in the same area:**
+1. **`BOUNTY_SHOP`'s five rows have no server spend verb.** `hr_bounty_spend` knows `reroll` and
+   `abandon` only, so `spendMarks` fails closed and — until this commit — the rows still rendered
+   an ENABLED, primary-styled **Buy** that always refused. They now render `Unavailable`/disabled,
+   which is honest but is a dead shelf. A `hr_bounty_spend` sibling (or a generic marks spend
+   keyed on an offer id, matching `hr_shop_buy`'s shape) unlocks all five.
+2. **Two of those five are read by nothing even if bought:** `upgrades.goldBoost` ("+10% gold from
+   bounty turn-ins forever", 200 Marks) and `upgrades.cosmeticCloak` (300 Marks). `goldBoost`
+   CANNOT be implemented client-side under the gold arm — a client +10% on a server-paid reward is
+   a mint — so it needs to live in `hr_bounty_reward`. I made the third one (`extraRerolls`) real
+   as part of the daily-reroll fix. **Do not re-enable the shop until these two mean something**,
+   or the first thing a player buys with 200 hard-won Marks is nothing.
+
+**DESIGNER — one number, and one question.**
+- The 10% **bonus turn-in** roll exists only in the client (`finalizeBounty`); `hr_claim_bounty`'s
+  reward is `base × type × difficulty` with no bonus. Under the arm it credited nothing and only
+  toasted, so I now announce it only where it is paid — i.e. **the bonus is currently dead content**.
+  If it should exist, it belongs in `hr_bounty_reward`.
+- The **Unlocks strip** on the bounty tab still lights "Proof 5 / Weapon 10 / Streak 15" from the
+  LADDER, which is intact — but the board will not post them. I deliberately did not touch the
+  chips: making them read as "locked" would be a second lie, and a third state ("earned, not yet
+  posted") is a design + CSS decision, not a QA one. **Yours.** Same for the observation that an
+  "Easy" first-contract cull can require MORE kills than the "Normal" beside it and pay less
+  (measured: Easy 24 kills / 270g vs Normal 17 kills / 320g), because all three tier-1 slots draw
+  from the same `[15,25]` first-contract bracket while the reward still scales by difficulty.
+
+**SYSTEMS — the one that is not about bounties at all.** `src/net/record.js` carried
+`export const MARKS_RECORD_ARM_ENABLED = true;   // DORMANT — post-wipe rollout only` for 32 builds
+after b454 flipped the value. That stale comment caused a live misdiagnosis today. I corrected it.
+**Please sweep the other arm flags for the same drift** — a comment that contradicts its own
+constant is worse than no comment, because it is believed.
+
+---
+
 ### 2026-08-23 · FROM Art Director → TO Asset Director · **Three PAINTED-ART requests the emoji sweep exposed (all currently held by honest gilt glyphs, none blocking)**
 
 The emoji-as-icon sweep is done (0 in the rendered DOM of 20 screens x 2 viewports). Getting there

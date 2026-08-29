@@ -617,7 +617,7 @@ function ensureCharStyle() {
     R + '.cs-idstrip{display:flex;align-items:center;gap:14px;background:var(--bg-card);border:1px solid var(--line);'
       + 'border-radius:10px;padding:12px 16px;flex-shrink:0}',
     R + '.cs-id-portrait{width:56px;height:56px;border-radius:8px;overflow:hidden;flex:0 0 auto;'
-      + 'border:1px solid var(--gold-2);background:rgba(0,0,0,.3)}',
+      + 'border:1px solid var(--gold-2);background:var(--field-sunk)}',
     R + '.cs-id-portrait img{width:100%;height:100%;object-fit:cover}',
     R + '.cs-id-meta{min-width:0;flex:1}',
     R + '.cs-id-name{font-family:var(--f-display);font-size:calc(21px * var(--ui-scale, 1));font-weight:800;'
@@ -638,7 +638,7 @@ function ensureCharStyle() {
     R + '.csk-hero{display:flex;align-items:center;gap:14px;background:var(--bg-card);border:1px solid var(--line);'
       + 'border-radius:10px;padding:14px 16px;flex-wrap:wrap}',
     R + '.csk-hero-portrait{width:54px;height:54px;border-radius:8px;overflow:hidden;flex:0 0 auto;'
-      + 'border:1px solid var(--gold-2);background:rgba(0,0,0,.3)}',
+      + 'border:1px solid var(--gold-2);background:var(--field-sunk)}',
     R + '.csk-hero-portrait img{width:100%;height:100%;object-fit:cover}',
     R + '.csk-hero-id{flex:1;min-width:120px}',
     R + '.csk-hero-name{font-family:var(--f-display);font-size:calc(22px * var(--ui-scale, 1));font-weight:800;'
@@ -668,7 +668,7 @@ function ensureCharStyle() {
     R + '.csk-nm{font-size:calc(15px * var(--ui-scale, 1));font-weight:700;color:var(--ink);'
       + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
     R + '.csk-bar{display:block;height:3px;background:rgba(255,255,255,.09);border-radius:2px;overflow:hidden}',
-    R + '.csk-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-3,#b8893e),var(--gold-2));border-radius:2px}',
+    R + '.csk-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-3),var(--gold-2));border-radius:2px}',
     R + '.csk-bar.maxed i{background:linear-gradient(90deg,#6fae6f,#b8e6b8)}',
     R + '.csk-lv{flex:0 0 auto;font-size:calc(21px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2);'
       + 'font-variant-numeric:tabular-nums;line-height:1}',

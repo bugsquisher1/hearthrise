@@ -2583,6 +2583,14 @@ body[data-theme="hearthlight"] {
   /* Gilt gold — aged, candlelit (the unifying accent) */
   --gold:        #c9a24a;
   --gold-2:      #e3c77e;
+  /* b410 debt-paydown: --gold-3 is the DARKER third rung of the gold ladder,
+     used for the low end of skill-bar / progress fills. It was referenced as
+     `var(--gold-3, #b8893e)` in src/features/character-page.js with NO definition
+     anywhere, so the literal fallback #b8893e rendered in EVERY theme — a hidden
+     hardcoded colour. Defined here on the default :root so all themes inherit the
+     exact value they already rendered (zero visual change); a theme may now
+     override it. Widens the surface value-ladder rather than flattening it. */
+  --gold-3:      #b8893e;
   --gold-bg:     rgba(201,162,74,.14);
 
   /* Semantic seals — richer, more material (oxblood / moss / steel) */

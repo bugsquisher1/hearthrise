@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 490 — 2026-08-29 (Sold your pickaxe? The game noticed.)
+
+- ⛏️ **Tool bonuses now follow the tool.** Selling your pickaxe kept its speed boost running (thanks for the exact repro!), and buying a better one mid-gather didn't speed up the run you were on. Both fixed at the source — gather speed now re-times the moment a tool enters or leaves your bag, through every sell path including Sell All.
+- 📜 **A weekly quest with a dead Claim button is off the board.** "Bury 150 bones" could be dealt (about 1 week in 4) but its reward could never pay out — it no longer deals, and if your current slate has it, it heals on load without disturbing your other quests.
+- 🎨 **Combat styles: verified end-to-end.** Between an earlier client fix and this morning's server hotfix, your chosen style now survives leveling, gear swaps, and syncs — and any style that got knocked back to default will self-correct from the server on your next sync, no re-picking needed.
+- 🔍 Known follow-up we're actively building: kill-count dailies may briefly show "Confirming…" at target — the server-side counter for attended kills is being extended; your kills aren't lost.
+- 🧪 Under the hood: 4 new regression tests + a stronger quest-reward guard (what the modal shows and what the server pays are now compared field-by-field), and a test-harness leak that could touch real daily-quest saves during testing was closed.
+
 ## v0.9.2-beta build 489 — 2026-08-29 (The Bounty Board actually works now)
 
 > **🧪 Bounty hunters — please test this hard.** Accept a bounty, grind it, turn it in, watch your Marks arrive; reroll the board; buy from the Bounty Shop. If anything refuses, hangs, or pays 0, hit Report — you'll be looking straight at the thing we just rebuilt.

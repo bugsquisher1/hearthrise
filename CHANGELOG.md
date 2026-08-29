@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 487 — 2026-08-29 (Your XP can no longer revert mid-fight)
+
+> **🧪 Please help us test this one!** The XP fix below attacks the bug several of you have been reporting all week. Fight for a few minutes on a **non-default combat style** (Defensive, Controlled, cast-focus…), watch a level land, keep fighting through a sync, then reload — and tell us in Discord whether anything reverts. On phones especially: fight, switch apps for a minute, come back. If XP still moves backwards on your screen, report it with the Report button — you'll be catching the exact thing we're hunting.
+
+- ⚔️ **Killed the mid-fight XP revert for good** (Paione — "sync +1 item, HP goes up, and reverts my exp"). Builds 482–486 each closed one window where a background sync could pull your just-earned XP back down; this build closes the whole class. Your screen now always shows the server's credited XP *plus* everything you've earned that's still on its way to the server — so no sync, lag spike, or slow connection can ever take back XP you watched yourself earn. (Server-authoritative as always: only server-verified XP becomes permanent.)
+- 📊 **New: Session tally on the Fight screen.** Live XP/h, gold/h, drops/h, kills, net gold and session bests while you hunt — and the same numbers on your welcome-back report, so live play and away time finally read the same. Honest by design: it only counts what the server has actually credited, never a projection.
+- 🛒 **Buy Back polish** — the vendor Buy Back modal got an internal cleanup (no visible change).
+- 🔒 **Clan economy hardening** — clan contributions now actually cost the gold you contribute, and feast deposits consume the food you donate (both were free-mint holes; clans are still gated, this is groundwork for their launch). A dormant legacy market path was removed entirely.
+- 🧰 Under the hood: fixed a race where the game could under-credit your combat XP right as a sync fired; residue-save overflow is now surfaced instead of silently stopping saves; test guards extended to catch a whole class of "forgot to save on reload" bugs earlier.
+
 ## v0.9.2-beta build 486 — 2026-08-26 (Levels you earn in combat stick)
 
 - ⬆️ **Fixed combat levels reverting** (e.g. Attack 5 dropping back to 4 a few seconds after you hit it — Paione). Your combat XP is now credited to the server *as you fight*, so a level you earn holds instead of being pulled back to an older count on the next sync. (Anti-cheat: the credit is capped to what's physically possible in the time you've spent, so it can't be used to inflate levels or the leaderboards.)

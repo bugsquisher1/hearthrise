@@ -46,6 +46,7 @@ import { nativeDialogGuard } from './native-dialog.mjs';
 import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
 import { clanEconomySinksGuard } from './clan-economy-sinks.mjs';
 import { feastCatalogueDriftGuard } from './clan-feast-catalogue-drift.mjs';
+import { rpcGateBucketGuard } from './rpc-gate-bucket-guard.mjs';
 /* b461 — the quest MODAL's server credit path, and the catalogue-refill
    ownership interlock that stops a regen wiping another migration's offers.
    Both replay the real migration chain into PGlite and drive real RPCs. */
@@ -2904,6 +2905,20 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('\nFeast catalogue drift guard — hr_feast_foods matches items.js exactly (28 cooked foods).');
+    }
+
+    /* ── The RPC-gate bucket drift guard (2026-08-29) ────────────────────
+       hr_rpc_gate fail-closes an unlisted bucket as "rate_limited" with zero
+       telemetry. A stale-template replacement dropped five live buckets and
+       froze trait buys / style sets / quest claims / residue saves for days
+       (the b484–b487 wave). This asserts every caller bucket in the migration
+       chain is admitted by the FINAL gate definition's case list. */
+    try {
+      const gateBuckets = await rpcGateBucketGuard();
+      console.log(`\nRPC-gate bucket guard — ${gateBuckets.buckets} caller bucket(s) all admitted by ${gateBuckets.finalDef}.`);
+    } catch (e) {
+      console.log('\nRPC-gate bucket guard — FAILED:\n' + String(e.message || e));
+      exitCode = e.harness ? 2 : 1;
     }
 
     /* ── The quest-MODAL claim guard (b461) ──────────────────────────────

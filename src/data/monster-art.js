@@ -41,7 +41,7 @@
 // one line to change if the sheet wins.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from './monsters.js?v=488';
+import { MONSTERS } from './monsters.js?v=489';
 
 /** The retired direction — the 30 portraits that shipped before the wave. */
 export const PAINTED_DIR = 'assets/icons-bundle/painted/monsters/';

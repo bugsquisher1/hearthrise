@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=488' directly.
+// modularised, will import { G } from '../state/game.js?v=489' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=488';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=488';
+import { on, snapshot } from '../net/events.js?v=489';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=489';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=488';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=489';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -654,6 +654,19 @@ const snapshotG = () => {
     ownedThemes: G.ownedThemes,
     houseTheme: G.houseTheme,
     buyback: G.buyback,
+    /* b487: the QUEST MODAL's two slates. `G.daily` (the DAILY_TASK_POOL tasks)
+       has been on this list since b138 — its two SIBLINGS never were, and they
+       are the ones the goal tests actually drive. GOAL-CLAIM-1 assigns
+       `G.dailyGoals = {dayKey, picks:['kill_more'], startValues:{kill_more:0},
+       claimed:{}}` and the b487 wk_bury heal test assigns `G.weeklyGoals` —
+       both wrote straight through to the player's save, replacing today's real
+       three dailies with one synthetic goal and forging a `claimed` flag on a
+       weekly reward. A forged claimed flag is not cosmetic: the modal reads it
+       as "already taken" and the player never presses Claim, so the reward is
+       silently forfeited for the period. Same reason `bank` and `bestiary` are
+       here — a suite run must never edit progression it did not earn. */
+    dailyGoals: G.dailyGoals,
+    weeklyGoals: G.weeklyGoals,
   }));
 };
 
@@ -32737,7 +32750,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=488');
+    const KIT = await import('../data/start-kit.js?v=489');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -38760,7 +38773,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=488');
+    const S = await import('../data/shops.js?v=489');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -40212,7 +40225,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=488');
+    const S = await import('../data/shops.js?v=489');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -44389,7 +44402,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=488')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=489')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -45831,7 +45844,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=488');
+    const A = await import('../net/accrue.js?v=489');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -45855,7 +45868,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=488');
+    const A = await import('../net/accrue.js?v=489');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -45882,7 +45895,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=488');
+    const A = await import('../net/accrue.js?v=489');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -46035,7 +46048,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=488')).text();
+      const raw = await (await fetch(f + '?v=489')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -46085,7 +46098,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=488')).text();
+    const raw = await (await fetch('src/observability.js?v=489')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -46303,6 +46316,212 @@ const TESTS = [
     const cape = window.slotGlyphSVG('cape');
     assert(!/M8 4l4 3 4-3 1 16H7z/.test(cape), 'the cape slot glyph is still the bisected blank panel');
     assert((cape.match(/<path/g) || []).length >= 3, 'the cape slot glyph lost its collar/hem detail');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b487 — THE LIVE BUG BATCH (bug_reports #32/#33/#42)
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* #33, live: "had a steel pickaxe speed boost of 15%. Sold the pickaxe, the
+     boost still applied."
+
+     The BONUS itself was never cached — HearthriseTools.bestTool() rescans the
+     bag on every call, so `bestToolSpeed` is 0 the instant the tool leaves.
+     What survived the sale was `G.skillMs`, the interval the RUNNING gather
+     timer is armed at, because (a) nothing on any sell path called
+     retimeActivity() and (b) `invSellAll` bypassed removeItem() entirely with a
+     raw `delete G.inventory[id]`, so even a consequence hung off the bag seam
+     would not have fired. Sell All is the natural gesture for a single tool.
+
+     This drives the REAL gesture — invSellAll, the button in the item detail —
+     and asserts the stored interval equals the freshly-derived one. It is RED
+     on clean HEAD (4080ms stored vs 4800ms derived, measured). The mirror is
+     asserted too: gaining a BETTER tool must speed the run you are already in,
+     which is the papercut the same seam fixes. */
+  () => tryRun('b487 (#33): selling a tool drops its speed boost from the RUNNING activity, not just from the next one', () => {
+    const G = window.G; const T = window.HearthriseTools;
+    if (!T || typeof window.startSkill !== 'function' || typeof window.invSellAll !== 'function') {
+      assert(false, 'the tool/gather seams are missing — the boost could silently outlive the tool');
+      return;
+    }
+    const snap = snapshotG();
+    try {
+      G.inventory = { steel_pickaxe: 1 };
+      window.startSkill('mining', 'copper_rock', 3000);
+      const boosted = G.skillMs;
+      assert(T.bestToolSpeed('mining') > 0, 'precondition: the steel pickaxe must grant a mining speed bonus');
+      assert(boosted === window.activityIntervalMs(),
+        'precondition: startSkill must arm the interval it derives, got ' + boosted + ' vs ' + window.activityIntervalMs());
+
+      window.invSellAll('steel_pickaxe');
+
+      assert(!(G.inventory.steel_pickaxe > 0), 'Sell All must empty the stack');
+      assert(T.bestToolSpeed('mining') === 0,
+        'the tool bonus is derived from the bag and must be 0 once the tool is gone, got ' + T.bestToolSpeed('mining'));
+      const derived = window.activityIntervalMs();
+      assert(derived > boosted,
+        'precondition: losing a +15% tool must SLOW the derived interval (' + boosted + ' -> ' + derived + ')');
+      assert(G.skillMs === derived,
+        'THE BUG: the running activity is still armed at ' + G.skillMs + 'ms after the tool was sold; '
+        + 'the honest interval is ' + derived + 'ms. The boost outlived the pickaxe.');
+
+      /* The mirror — a better tool must apply to the run in progress. */
+      window.addItem('rune_pickaxe', 1);
+      const faster = window.activityIntervalMs();
+      assert(faster < derived, 'precondition: a Rune Pickaxe must beat bare hands');
+      assert(G.skillMs === faster,
+        'buying a better tool mid-run left the timer at ' + G.skillMs + 'ms; the tool says ' + faster + 'ms');
+    } finally {
+      try { window.stopSkill(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  /* #33 (the seam, not the symptom). Every path that can lose an item must go
+     through removeItem(), which is where a tool's consequences hang. Two vendor
+     gestures used to write the bag directly; a third (sellJunk) already routed
+     correctly and is the shape the other two now match. A source scan is the
+     right instrument here precisely because the defect is "a writer that skipped
+     the seam" — a behavioural test can only ever catch the paths it thought to
+     drive. */
+  () => tryRun('b487 (#33): the vendor gestures write the bag through removeItem(), never a raw delete', () => {
+    assert(typeof window.invSellAll === 'function' && typeof window.invSellSelected === 'function',
+      'the vendor sell gestures are missing');
+    /* ⚠ STRIP FIRST, SCAN SECOND. The comment INSIDE invSellAll names the raw
+       delete it replaced, so a scan of the raw source fails on the very
+       documentation that explains the fix — the false-positive class
+       tests/combat-style.mjs already pays for ("it taxes exactly the
+       documentation this codebase depends on"). Over-stripping can only remove
+       comment text, never a statement, so it cannot hide a real occurrence. */
+    const stripJs = (js) => js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    [['invSellAll', window.invSellAll], ['invSellSelected', window.invSellSelected]].forEach(([name, fn]) => {
+      const src = stripJs(String(fn));
+      assert(/delete\s+G\.inventory\s*\[/.test('delete G.inventory[x];'),
+        'the raw-delete scan is BLIND — it does not match a known positive');
+      assert(!/delete\s+G\.inventory\s*\[/.test(src),
+        name + '() deletes a bag entry directly. removeItem() is the ONE bag writer — a raw delete '
+        + 'skips every consequence hung off it (today: the tool retime; tomorrow: whatever is added next).');
+      assert(/removeItem\s*\(/.test(src), name + '() no longer calls removeItem()');
+    });
+  }),
+
+  /* #41 follow-up, live: "we also have a problem with claiming the quests
+     reward."
+
+     `wk_bury` ("Bury 150 bones", 1,800g) is authored in WEEKLY_GOAL_POOL and
+     DELIBERATELY absent from the server catalogue — burying is a pure client
+     function with no intent, no RPC and no settle, and the migration's own
+     §GATE(b) RAISES if anyone catalogues it. But the picker went on dealing it
+     in 13 of any 52 weeks, and the modal rendered a Claim button off the LOCAL
+     count (isComplete falls through when the server has no row for a goal), so
+     every press answered `unknown_goal`. A dead button on a 1,800-gold quest.
+
+     The fix marks the row `blocked` and skips it at the DEAL, keeping its pool
+     index so a week that never offered it is byte-identical. This asserts all
+     three halves: not dealt, index-stable, and a mid-week slate that already
+     holds it HEALS without re-baselining the goals the player kept. */
+  () => tryRun('b487 (#41): a quest the server cannot pay is never dealt (wk_bury), and a slate holding one heals', () => {
+    const G = window.G;
+    const POOL = window.WEEKLY_GOAL_POOL;
+    assert(Array.isArray(POOL) && POOL.length === 11,
+      'WEEKLY_GOAL_POOL must still be 11 rows — the weekly picker indexes into it, so a DELETION '
+      + 're-deals every player\'s mid-week slate. Block a row, never remove it. Got ' + (POOL && POOL.length));
+    const bury = POOL.find((g) => g.id === 'wk_bury');
+    assert(bury && bury.blocked,
+      'wk_bury must carry a `blocked` reason — it is uncatalogued server-side, so its Claim button '
+      + 'can only ever answer unknown_goal');
+    assert(POOL.indexOf(bury) === 4, 'wk_bury moved out of pool index 4 — the shuffle is index-keyed');
+    assert(typeof window.__hrPickWeeklyIds === 'function' && typeof window.getWeeklyGoals === 'function',
+      'the weekly picker seams are missing');
+
+    /* 1. NEVER DEALT — over a full year of week keys, not one slate may carry a
+          blocked goal, and every slate must still be a full three. */
+    const dealable = new Set(POOL.filter((g) => !g.blocked).map((g) => g.id));
+    let sawBuryWeek = 0;
+    const base = window.__thisWeekKey ? window.__thisWeekKey() : Math.floor((Date.now() / 86400000 + 3) / 7);
+    for (let w = 0; w < 60; w++) {
+      const ids = window.__hrPickWeeklyIds(base + w);
+      assert(ids.length === 3, 'week ' + (base + w) + ' was dealt ' + ids.length + ' goals, expected 3');
+      assert(new Set(ids).size === 3, 'week ' + (base + w) + ' dealt a duplicate: ' + JSON.stringify(ids));
+      ids.forEach((id) => assert(dealable.has(id),
+        'week ' + (base + w) + ' dealt the un-payable goal "' + id + '"'));
+      /* The CONTROL: the unfiltered algorithm must still want wk_bury on some
+         weeks, or this test is proving nothing. */
+      let seed = base + w; const raw = []; const used = {};
+      for (let i = 0; i < 3; i++) {
+        seed = (seed * 9301 + 49297) % 233280;
+        let idx = Math.floor((seed / 233280) * POOL.length);
+        while (used[idx]) idx = (idx + 1) % POOL.length;
+        used[idx] = true; raw.push(POOL[idx].id);
+      }
+      if (raw.indexOf('wk_bury') >= 0) sawBuryWeek++;
+      else assert(JSON.stringify(raw) === JSON.stringify(ids),
+        'week ' + (base + w) + ' offered NO blocked goal, so the filter must be a no-op: '
+        + JSON.stringify(raw) + ' -> ' + JSON.stringify(ids));
+    }
+    assert(sawBuryWeek > 0,
+      'CONTROL: the unfiltered picker never wanted wk_bury in 60 weeks — this test cannot see the bug');
+
+    /* 2. A MID-WEEK SLATE THAT ALREADY HOLDS IT HEALS, and the goals the player
+          keeps are NOT re-baselined (that would silently reset their progress). */
+    const snap = snapshotG();
+    try {
+      const key = window.__thisWeekKey();
+      G.weeklyGoals = { weekKey: key, picks: ['wk_bury', 'wk_kills', 'wk_smith'],
+        startValues: { wk_bury: 0, wk_kills: 7, wk_smith: 3 }, claimed: { wk_smith: true }, sv: 1 };
+      const dealt = window.getWeeklyGoals();
+      assert(dealt.length === 3, 'the healed slate is ' + dealt.length + ' goals, expected 3');
+      assert(!dealt.some((g) => g.id === 'wk_bury'), 'the healed slate still holds wk_bury');
+      assert(G.weeklyGoals.picks.indexOf('wk_bury') < 0, 'the stored picks still name wk_bury');
+      if (G.weeklyGoals.picks.indexOf('wk_kills') >= 0) {
+        assert(G.weeklyGoals.startValues.wk_kills === 7,
+          'the heal re-baselined a kept goal (wk_kills ' + G.weeklyGoals.startValues.wk_kills
+          + ' != 7) — the player would lose the week\'s progress');
+      }
+      assert(G.weeklyGoals.claimed && G.weeklyGoals.claimed.wk_smith === true,
+        'the heal dropped an already-claimed flag — the reward could be re-offered');
+    } finally { restoreG(snap); }
+  }),
+
+  /* #32, live: "inventory is missing the tool tab. only place to find the tools
+     is the all tab." Fixed in b479 by adding a Tools row to both filter strips —
+     but that fix shipped WITHOUT a test, so nothing stopped it regressing. This
+     is that test, and it drives the strip players actually see (renderInvFancy)
+     rather than reading the table: the chip has to RENDER, carry a live count,
+     and filtering to it has to leave the pickaxe on screen and the log off it. */
+  () => tryRun('b487 (#32): the inventory has a Tools tab, and a pickaxe is in it', () => {
+    const G = window.G;
+    const render = window._renderInvFancy || window.renderInvFancy;
+    const panel = document.getElementById('panel-inventory');
+    assert(typeof render === 'function' && panel, 'the live bag renderer / #panel-inventory is missing');
+    assert(typeof window._invSetCat === 'function', 'the category setter seam is missing');
+    assert(window.ITEMS.steel_pickaxe && window.ITEMS.steel_pickaxe.type === 'tool',
+      'a pickaxe must still be type:"tool" — the filter is written against that field');
+    const snap = snapshotG();
+    const prevCat = (window._invFilter && window._invFilter.category) || 'all';
+    try {
+      G.inventory = { steel_pickaxe: 1, normal_log: 5 };
+      window._invSetCat('all');
+      render();
+      const chips = Array.from(panel.querySelectorAll('.invc-cat-btn')).map((b) => b.title || '');
+      assert(chips.some((t) => /^Tools\b/.test(t)),
+        'no Tools chip in the inventory filter strip — axes, pickaxes and rods are only findable under "All". '
+        + 'Chips present: ' + JSON.stringify(chips));
+      assert(chips.some((t) => t === 'Tools (1)'),
+        'the Tools chip does not count the pickaxe in the bag; chips: ' + JSON.stringify(chips));
+
+      window._invSetCat('tools');
+      render();
+      const tiles = Array.from(panel.querySelectorAll('.invc-tile')).map((t) => t.title || '');
+      assert(tiles.some((t) => /Steel Pickaxe/.test(t)),
+        'the Tools tab does not show the pickaxe in the bag; tiles: ' + JSON.stringify(tiles));
+      assert(!tiles.some((t) => /Normal Log/i.test(t)),
+        'the Tools tab is showing a non-tool (Normal Log) — the filter is not filtering');
+    } finally {
+      try { window._invSetCat(prevCat); } catch (e) {}
+      restoreG(snap);
+      try { render(); } catch (e) {}
+    }
   }),
 
 ];

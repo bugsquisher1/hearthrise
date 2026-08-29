@@ -4167,10 +4167,39 @@ function addItem(id,qty=1,track=true){
   }
   G.inventory[id]=(G.inventory[id]||0)+qty;
   if(track)trackCollection(id,qty);
+  _retimeIfTool(id);
   return true;
 }
-function removeItem(id,qty=1){G.inventory[id]=(G.inventory[id]||0)-qty;if(G.inventory[id]<=0)delete G.inventory[id];}
+function removeItem(id,qty=1){G.inventory[id]=(G.inventory[id]||0)-qty;if(G.inventory[id]<=0)delete G.inventory[id];_retimeIfTool(id);}
 function hasItem(id,qty=1){return(G.inventory[id]||0)>=qty;}
+
+/* ── b487 (#33, live: "sold the pickaxe, the boost still applied") ──────────
+   THE TOOL BONUS IS DERIVED, NOT CACHED — `HearthriseTools.bestTool()` scans
+   G.inventory on every call, so the moment a pickaxe leaves the bag the bonus
+   is 0 and `activityIntervalMs()` re-derives the slower interval. What was NOT
+   re-derived is `G.skillMs`, the interval the RUNNING setInterval is armed at.
+   Nothing on the sell path (invSellOne / invSellAll / invSellSelected /
+   sellJunk / onItemTap / a market listing / a bank move / a craft input) called
+   `retimeActivity()`, so a player who sold their tool mid-gather kept swinging
+   at the boosted rate until the NEXT action happened to retime it — and if they
+   closed the tab first, the boosted number is what got persisted.
+
+   THE SEAM IS THE BAG, NOT THE SELL BUTTON. There are seven+ ways to lose an
+   item and more will be added; wiring each one is how the next one gets missed.
+   addItem/removeItem are the ONE place the bag changes, and the guard is a
+   single property read on the item row (`type==='tool'`) so the hot gather path
+   pays nothing. It fixes the mirror papercut too — buying a Rune Axe mid-session
+   now speeds the run you are already in, rather than on the next restart.
+
+   `retimeActivity()` is itself a no-op when the number has not moved and is
+   fenced out of the offline replay, so this cannot thrash a timer. */
+function _retimeIfTool(id){
+  try{
+    var it = (typeof ITEMS!=='undefined') && ITEMS[id];
+    if(!it || it.type!=='tool') return;
+    if(typeof retimeActivity==='function') retimeActivity();
+  }catch(e){}
+}
 
 
 /* ─── Bounty Hunter ─── */
@@ -10300,7 +10329,11 @@ function invSellAll(id){
   const qty = G.inventory[id]||0;
   if(qty <= 0){ notify('Nothing to sell','kill'); return; }
   const price = vendorSellChunked(id, qty, 'vendor.sell_all');   // b377: ≤1,000 per intent
-  delete G.inventory[id];
+  /* b487 — THROUGH THE BAG SEAM, not `delete G.inventory[id]`. Sell All is the
+     natural gesture for a single tool, and the raw delete skipped every
+     consequence removeItem() owns — including the tool retime (#33: "sold the
+     pickaxe, the boost still applied"). Same result on the bag, one writer. */
+  removeItem(id, qty);
   recordVendorSale(id, qty, price);   // b240: undoable
   notify(`Sold ${qty}× ${it.n} for ${(price*qty).toLocaleString()} gold`,'loot');
   updateTopbar(); renderInvNew(); closeInvDetail();
@@ -10314,7 +10347,7 @@ function invSellSelected(){
     const qty = G.inventory[id]||0; if(qty<=0) continue;
     const price = vendorPrice(id);
     total += price*qty; count += qty;
-    delete G.inventory[id];
+    removeItem(id, qty);                // b487: through the bag seam (see invSellAll)
     recordVendorSale(id, qty, price);   // b240: undoable
   }
   /* DEFERRED, and routed through the seam anyway so the census can see it. This
@@ -19556,7 +19589,30 @@ console.log('[Bundle Icons v1] applied:',
      desc:'Sixty turns at the bench. Runecrafting and Stonemason work counts here too.'},
     {id:'wk_harvest',  glyph:'uiWheat', name:'Harvest 120 crops', target:120, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}},
      desc:'Crops pulled from your plots. They ripen while you are away — come back and gather.'},
+    /* ── b487 (#41 follow-up, live: "we also have a problem with claiming the
+       quests reward") — `blocked` MEANS "NOT DEALT", AND THE ROW STAYS PUT.
+       This quest was dealt in 13 of any 52 weeks and its Claim button was DEAD:
+       hr_claim_goal answers `unknown_goal` because `wk_bury` is deliberately
+       absent from public.hr_goal_rewards, and the migration's own §GATE(b)
+       RAISES if anyone catalogues it — burying is a pure client function
+       (buryBones: removeItem + addXp + G.stats.buried) with no intent, no RPC
+       and no settle, so there is no server number to verify 1,800 gold against.
+       It is the Designer's own standing rule, already recorded two rows below
+       on gold_500: *a quest that cannot pay must not be dealt.*
+
+       WHY A MARKER AND NOT A DELETION. The weekly picker indexes into THIS
+       array, so removing the row would shift every later index and re-deal the
+       whole game's mid-week slate — the exact hazard DAILY_TASK_POOL_ORDER
+       warns about ("dropping it here would shift every index and desync the
+       selection"). Marking it keeps every week that did NOT pick it
+       byte-identical, and a week that DID pick it takes the next id in the same
+       shuffle order — the eligibility rule dailyTaskSetIndexes already uses.
+
+       UNBLOCKING IS ONE WORD: delete `blocked` the day burying is
+       server-settled and catalogued. The guard in tests/modal-goal-claim.mjs
+       binds the two, so it can never be dealt while it cannot pay. */
     {id:'wk_bury',     glyph:'uiBone', name:'Bury 150 bones',    target:150, source:'stats.buried',          reward:{gold:1800, xp:{prayer:500}},
+     blocked:'burying has no server counter, so hr_claim_goal refuses it unknown_goal',
      desc:'Bones off anything you kill. Every burial is Prayer XP you would otherwise vendor.'},
     {id:'wk_rare',     glyph:'uiSpark', name:'Find 5 rare drops', target:5,   source:'stats.rareDrops',       reward:{gold:3000, gems:4},
      desc:'Five rare drops from anywhere. Kill quickly and let the odds catch up with you.'},
@@ -19635,20 +19691,60 @@ console.log('[Bundle Icons v1] applied:',
     return Math.floor((ms / 86400000 + 3) / 7);   // +3: shift Thursday-epoch onto Monday
   }
   window.__thisWeekKey = thisWeekKey;   // test seam
+  /* b487 — THE DEAL FILTER. One expression, so "may this quest be offered?" has
+     exactly one answer and the picker below and the heal below it cannot drift.
+     A `blocked` row is skipped and the next id in the SAME shuffle order takes
+     the slot; nothing is re-seeded, so a week that offered no blocked quest is
+     byte-identical to before. See the note on wk_bury in WEEKLY_GOAL_POOL. */
+  function goalDealable(def){ return !!def && !def.blocked; }
+  window.__hrGoalDealable = goalDealable;   // test seam
+  function pickWeeklyIds(key){
+    var pool = WEEKLY_GOAL_POOL;
+    var seed = key; var picks = []; var used = {};
+    var offerable = pool.filter(goalDealable).length;
+    for(var i = 0; i < 3 && i < offerable; i++){
+      seed = (seed * 9301 + 49297) % 233280;
+      var idx = Math.floor((seed/233280) * pool.length);
+      /* The SAME walk the original had (`while(used[idx]) idx = (idx+1) % len`),
+         with one more reason to step. With nothing blocked the added term is
+         always false, so a week's picks are byte-identical to before — that
+         identity is what makes this safe to ship mid-week. The step count is
+         bounded by the pool length, so it terminates whatever the data says. */
+      for(var step = 0; step < pool.length && (used[idx] || !goalDealable(pool[idx])); step++){
+        idx = (idx+1) % pool.length;
+      }
+      if(used[idx] || !goalDealable(pool[idx])) break;   // pool exhausted
+      used[idx] = true; picks.push(pool[idx]);
+    }
+    return picks;
+  }
+  window.__hrPickWeeklyIds = function(key){ return pickWeeklyIds(key).map(function(g){return g.id;}); };
   window.getWeeklyGoals = function(){
     var key = thisWeekKey();
     if(!G.weeklyGoals || G.weeklyGoals.weekKey !== key){
-      // Pick 3 deterministic weekly goals
-      var seed = key;
-      var picks = []; var used = {};
-      for(var i = 0; i < 3 && i < WEEKLY_GOAL_POOL.length; i++){
-        seed = (seed * 9301 + 49297) % 233280;
-        var idx = Math.floor((seed/233280) * WEEKLY_GOAL_POOL.length);
-        while(used[idx]) idx = (idx+1) % WEEKLY_GOAL_POOL.length;
-        used[idx] = true; picks.push(WEEKLY_GOAL_POOL[idx]);
-      }
+      var picks = pickWeeklyIds(key);
       G.weeklyGoals = {weekKey: key, picks: picks.map(function(g){return g.id;}), startValues: {}, claimed:{}, sv:1};
       picks.forEach(function(g){ G.weeklyGoals.startValues[g.id] = src(g.source); });
+    } else if((G.weeklyGoals.picks||[]).some(function(id){
+        return !goalDealable(WEEKLY_GOAL_POOL.find(function(p){return p.id===id;}));
+      })){
+      /* ── HEAL A SLATE ROLLED BEFORE THE FILTER (the b461 daily-heal shape) ──
+         A player mid-week is holding a stored slate that still names the dead
+         quest; without this they keep it — and its dead Claim button — until
+         Monday. Re-pick from the same seed and CARRY FORWARD the baseline and
+         the claimed flag of every id that survives, so nothing already earned
+         is re-baselined. Safe by construction: `blocked` only ever removes
+         rows, so every kept member is necessarily in the new set. */
+      var keepSv = G.weeklyGoals.startValues || {};
+      var keepClaimed = G.weeklyGoals.claimed || {};
+      var fixed = pickWeeklyIds(key);
+      G.weeklyGoals.picks = fixed.map(function(g){ return g.id; });
+      G.weeklyGoals.startValues = {};
+      fixed.forEach(function(g){
+        G.weeklyGoals.startValues[g.id] = (typeof keepSv[g.id] === 'number') ? keepSv[g.id] : src(g.source);
+      });
+      G.weeklyGoals.claimed = keepClaimed;
+      G.weeklyGoals.sv = 1;
     } else if(G.weeklyGoals.sv !== 1){
       /* b224: every weekly baseline written before this build was captured
          through the broken lookup, so it is 0 for every source. Reading those
@@ -19738,6 +19834,17 @@ console.log('[Bundle Icons v1] applied:',
   function isComplete(goal, isWeekly){
     var sg = srvGoal(goal, isWeekly);
     if(sg) return sg.complete;
+    /* ── b487: NO CLAIM BUTTON THE SERVER WOULD REFUSE BY NAME ──────────────
+       `_srvGoals` is built from hr_goal_state, which returns EVERY catalogued
+       goal. So once it has answered and the payout is armed, a goal MISSING
+       from it is one hr_claim_goal answers `unknown_goal` — a button that can
+       only ever fail. Offering it is the dead-button defect b461 removed,
+       reintroduced through the fall-through: `wk_bury` (13 weeks in 52) hit
+       exactly this, and any future authored-but-uncatalogued goal would too.
+       Fail CLOSED on knowledge, never on absence: with no server answer, or
+       while the payout is client-side, the local reading still decides — a
+       signed-out or pre-arm player keeps claiming exactly as before. */
+    if(goalsArmed() && _srvGoals) return false;
     return getProgress(goal, isWeekly) >= goal.target;
   }
 

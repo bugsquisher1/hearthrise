@@ -1327,6 +1327,30 @@ export function isBootHydrationSettled(outcome) {
   return outcome === 'loaded' || outcome === 'no-character';
 }
 
+/* ── THE ONE FAILURE THE LADDER MUST **NOT** CHASE (b492) ────────────────────
+   `unconfigured / no_endpoint` means there is no request to retry: auth.js has
+   not called configureRecord yet, so a retry is a function call that returns the
+   same verdict without ever touching the network. b428 already owns this exact
+   case — `wantedBootLoad` latches the intent and configureRecord REPLAYS it the
+   instant the endpoint arrives, which is both faster and event-driven.
+
+   Laddering it as well is not merely redundant, it is ACTIVE INTERFERENCE, and I
+   measured it doing harm: on a client that never configures the record (a
+   signed-out visitor; the smoke harness) the ladder spins at its 30s floor for
+   the life of the page, and every wake re-enters settle() and the hydration hook
+   beside whatever else is running. In the suite that showed up as the FTUE
+   click-forwarding test failing in roughly half of full runs while passing every
+   time the in-page suite was run on its own.
+
+   `no_token` is the OPPOSITE case and still ladders: the endpoint exists, auth is
+   mid-refresh, and asking again in 800ms is exactly the expired-JWT recovery this
+   build was written for. */
+export function isBootRetryWorthwhile(outcome, reason) {
+  if (isBootHydrationSettled(outcome)) return false;
+  if (outcome === 'unconfigured' && reason === 'no_endpoint') return false;
+  return true;
+}
+
 export function classifyLoadResponse(status, body) {
   const b = (body && typeof body === 'object') ? body : null;
   if (status === 401 || status === 403) return { outcome: 'not-signed-in', body: b };
@@ -1457,7 +1481,10 @@ function noteBootVerdict(outcome, reason, partial) {
   }
   bootAttempts += 1;
   setHydration({ phase: 'pending', outcome: o, reason: reason || null, attempts: bootAttempts, partial: p });
-  scheduleBootRetry();
+  /* Still PENDING either way — the character has not arrived and the veil stays
+     up. What this decides is only whether THIS module schedules the next ask, or
+     whether b428's configureRecord replay owns it. */
+  if (isBootRetryWorthwhile(o, reason || null)) scheduleBootRetry();
 }
 
 /** Stop the ladder. For a sign-out / slot switch / test teardown — NOT for a
@@ -1796,6 +1823,7 @@ if (typeof window !== 'undefined') {
     onRecordApplied,
     /* b492 — the boot-hydration ladder + the phase the veil renders. */
     RECORD_TIMEOUT_MS, BOOT_RETRY_DELAYS_MS, bootRetryDelayFor, isBootHydrationSettled,
+    isBootRetryWorthwhile,
     bootHydrationState, isCharacterHydrated, onHydrationChange, stopBootHydration,
   };
 }

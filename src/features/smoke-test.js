@@ -34816,6 +34816,26 @@ const TESTS = [
         'outcome "' + o + '" stops the ladder — that is the silent failure, restored');
     });
 
+    /* (b2) …AND THE ONE FAILURE IT MUST NOT CHASE. `unconfigured/no_endpoint` has
+       no request to retry — b428's configureRecord replay owns it, event-driven
+       and faster. Laddering it too makes a client that never configures the record
+       (a signed-out visitor; the harness) wake every 30s for the life of the page,
+       re-entering settle() beside whatever else is running. Measured: that showed
+       up as an unrelated click-forwarding test failing in half of full suite runs.
+       `no_token` is the opposite — the endpoint exists, auth is refreshing — and
+       must keep laddering, because it IS the expired-JWT case. */
+    assert(R.isBootRetryWorthwhile('unconfigured', 'no_endpoint') === false,
+      'the ladder chases a boot read that has no endpoint — a 30s wake for the life of every '
+      + 'signed-out page, and b428 already replays it the instant the endpoint arrives');
+    assert(R.isBootRetryWorthwhile('unconfigured', 'no_token') === true,
+      'the ladder gave up on a missing TOKEN — that is the expired-JWT cold start this build exists for');
+    assert(R.isBootRetryWorthwhile('timeout', null) === true
+      && R.isBootRetryWorthwhile('not-signed-in', null) === true,
+      'a real failure must still be retried');
+    assert(R.isBootRetryWorthwhile('loaded', null) === false
+      && R.isBootRetryWorthwhile('no-character', null) === false,
+      'a settled verdict must not keep the ladder climbing');
+
     const realFetch = window.fetch;
     const realG = window.G;
     let calls = 0;

@@ -720,10 +720,17 @@
     if (!heals) { toast('The Tavern takes cooked food only', 'kill'); return false; }
     var have = (G_().inventory || {})[itemId] || 0;
     if (qty <= 0 || qty > have) { toast('You do not hold that many', 'kill'); return false; }
-    var d = await call('clan_feast_deposit', { p_clan_id: clanId(), p_heals: heals * qty },
+    /* 2026-08-27 economy-sinks: clan_feast_deposit is now ITEM-authoritative. We
+       send the item id + qty; the SERVER reads the heal value from its own food
+       catalogue, debits player_inventory under lock, and advances the meter. The
+       old { p_heals } contract let the client mint the meter for free (it removed
+       the item locally). The server debits the food, so the local removeItem is a
+       display echo of an amount the server actually consumed (d.out.items_consumed). */
+    var d = await call('clan_feast_deposit', { p_clan_id: clanId(), p_item_id: itemId, p_qty: qty },
       function (o) { return { out: o }; });
     if (d.action !== 'accept') { toast(d.message || C().errorText(d.error), 'kill'); return false; }
-    if (typeof window.removeItem === 'function') window.removeItem(itemId, qty);
+    var consumed = (d.out && +d.out.items_consumed) || qty;
+    if (typeof window.removeItem === 'function') window.removeItem(itemId, consumed);
     persist();
     toast('You lay ' + qty + ' ' + itemName(itemId) + ' on the Tavern table — the meter reads ' +
       (+d.out.meter).toLocaleString() + ' / ' + (+d.out.cap).toLocaleString() + '.', 'loot');

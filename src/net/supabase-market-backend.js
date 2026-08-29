@@ -347,26 +347,20 @@ const SupabaseMarketBackend = {
        reply carries the same `ok` envelope buy_listing does, which is what
        src/market.js's pushBuyToBackend reads, so the revert-on-refusal path is
        unchanged. */
-    if (tryV2()) {
-      const r = await rpc(cfg, session, 'market_buy', {
-        p_slot: activeSlot(), p_listing_id: listingId,
-        p_qty: qtyWanted, p_intent_id: intentId(),
-      });
-      if (!r.missing) {
-        if (!r.ok) throw new Error('market_buy failed: ' + r.status);
-        return r.json;
-      }
-    }
-
-    // Atomic via stored procedure (row-locked decrement + sale-ledger insert).
-    // b208: param names must match the SQL signature exactly (PostgREST).
-    const res = await fetch(cfg.url + '/rest/v1/rpc/buy_listing', {
-      method: 'POST',
-      headers: reqHeaders(cfg, session),
-      body: JSON.stringify({ p_listing_id: listingId, p_qty: qtyWanted }),
+    /* hr_market_buy (market_buy) is the ONLY authoritative buy path — it is the
+       whole trade in one conserving transaction. The legacy /rpc/buy_listing
+       fallback was REMOVED (2026-08-27 economy-sinks migration): that RPC moved
+       no value server-side (no gold debit/credit, no inventory grant) and only
+       DELETEd the listing, so falling back to it would have destroyed a seller's
+       escrowed goods for free. If market_buy is unavailable, refuse loudly rather
+       than settle a value-less trade. */
+    const r = await rpc(cfg, session, 'market_buy', {
+      p_slot: activeSlot(), p_listing_id: listingId,
+      p_qty: qtyWanted, p_intent_id: intentId(),
     });
-    if (!res.ok) throw new Error('buy_listing RPC failed: ' + res.status);
-    return await res.json();
+    if (r.missing) throw new Error('market_buy RPC unavailable — buy refused (no legacy fallback)');
+    if (!r.ok) throw new Error('market_buy failed: ' + r.status);
+    return r.json;
   },
 
   /* b208: seller proceeds. Fetch my uncollected sales, then atomically flip

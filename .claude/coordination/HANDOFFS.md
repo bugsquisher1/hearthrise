@@ -59,6 +59,35 @@ strip and the combat HUD ribbon arrived after that comment was written), so on b
 strip's own baseline already sat at y=901 in a 900px viewport. Recovering it means retuning
 `min(42vh, 340px, calc(100vh - 540px))` on the foe portrait — b365's ratio, the screen's subject —
 and I would not move the hero inside a bug fix. Wants a design call plus a gate.
+### 2026-08-29 · FROM Systems Engineer → TO Art Director · **I built a full-screen "Connecting your character…" veil under a P1. The visual treatment is yours to take.**
+
+Branch `fix/boot-hydration-loud`, new file `src/features/boot-hydration.js`.
+
+**Why a Systems Engineer authored a rendered surface.** The live P1 was that a failed boot read left
+the client rendering the fresh-G FACTORY LITERAL — attack 0, hitpoints 1154 xp, 500 gold — on an
+account holding attack 428 and 7,520 gold, for 36+ seconds, with no error anywhere on the page. The
+missing thing was not a fix, it was a PICTURE: "the character has not arrived" had no visual state,
+so the picture defaulted to a brand-new hero. A player who sees that concludes they were wiped.
+
+**What I shipped, and the two properties that are load-bearing (please keep them):**
+1. It **covers** the character surfaces. With the record fields honestly UNKNOWN, every skill reads
+   level 1 — so a non-blocking banner would still leave a wiped-looking character underneath.
+2. It **never dismisses itself without a server verdict.** Hearthrise is online-only; "give up and
+   show the defaults" is the bug. It escalates (names the reason, offers Try again / Reload) rather
+   than timing out into the game.
+
+**Everything else is yours.** It is deliberately plain: theme tokens with literal fallbacks
+(`var(--bg-0, #2a1f15)`, `var(--gold, …)`, `--f-display`/`--f-ui`) — no hardcoded colours per the
+CLAUDE.md hard rule; the fallbacks exist only because this screen has to survive the stylesheet
+itself failing to load. Copy lives in ONE pure function, `veilCopy(state)`, and the rule in one pure
+predicate, `shouldVeil(env)` — both asserted by B492-4, so restyling cannot break the logic.
+Three pulsing dots are the only motion (a 30-second static screen reads as *frozen*, which is the
+second-worst thing this screen could say); `prefers-reduced-motion` is honoured.
+
+Screenshots read at 1440x900 and 922x423, both states (connecting / still-connecting) plus the
+recovered game. No emoji as art. The one thing I would not change without discussing it: the line
+*"Nothing has been lost — your character lives on the server and has not been touched."* It is the
+sentence the whole screen exists to say.
 
 ### 2026-08-29 · FROM Systems Engineer → TO Coordinator (auto-eat-tiers track) · **The last root cause of "eaten food gets restocked" is that NOTHING tells the server the player's auto-eat settings. One RPC call closes it and retires my client-side workaround.**
 

@@ -5467,7 +5467,17 @@ const TESTS = [
     const snap = { buffs: JSON.parse(JSON.stringify(G.buffs || [])), skills: JSON.parse(JSON.stringify(G.skills || {})) };
     try {
       G.buffs = [];
-      G.skills = Object.assign({}, G.skills, { strength: 50, attack: 50 }); // maxHit big enough for a % to move it
+      /* b492 — 300,000 xp, not 50. The comment beside this line has always said
+         "maxHit big enough for a % to move it"; 50 xp is LEVEL 1, and the test
+         only ever passed because the ambient boot state happened to carry the
+         fresh-G literal's starter bronze sword, whose strength bonus supplied
+         the headroom. It was measuring gear, not the skill it sets.
+         That accident is gone: under the blob-retire capstone `loadLocal()` now
+         forgets every server-of-record field (equipment included), so an
+         un-hydrated harness wears nothing — which is the honest state and is the
+         whole point of the b492 fix. Setting a REAL strength level makes the
+         assertion depend on the thing in its own name. */
+      G.skills = Object.assign({}, G.skills, { strength: 300000, attack: 300000 });
       const before = window.getPlayerCombatRolls(m).maxHit;
       window.applyBuff({ type: 'damage', magnitude: 25, durationMs: 600000 }); // +25%
       const after = window.getPlayerCombatRolls(m).maxHit;
@@ -34723,6 +34733,355 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     B492 — THE SILENT BOOT-HYDRATION FAILURE.
+
+     THE LIVE REPRO, 2026-08-29, QA account 0a47ba77 slot 0, build 491, Chrome
+     cold start after a PC restart. A clean boot of hearthrise.net reached
+     "ready" and stayed there for 36+ seconds showing the FRESH-G FACTORY
+     LITERAL — attack 0, hitpoints 1154 xp, 500 gold — on an account holding
+     attack 428 and 7,520 gold (DB-verified). Net pill "Online". No banner, no
+     gate, no error. A hand-typed `HearthriseAccrual.requestAccrual('probe')`
+     from that same page succeeded INSTANTLY and hydrated everything, which is
+     what proved the transport and the token were fine and the BOOT read had
+     simply failed and been forgotten. Seen once before, 2026-08-26, after a tab
+     freeze; written off then as a frozen-tab artifact.
+
+     FOUR INDEPENDENT DEFECTS, each sufficient on its own, each with a test:
+
+       B492-1  requestRecord awaited a bare fetch with NO AbortController, and
+               released its single-flight latch from the CALLER'S FRAME. A
+               stalled socket therefore pinned `inFlight` for the life of the
+               page and every later caller — including the 4s resume watchdog,
+               the only thing that re-fires the boot read today — was handed the
+               dead promise. One stalled socket, one dead session.
+       B492-2  a failed boot read scheduled NOTHING. One console.warn, and the
+               only re-fire was b428's once-only no-endpoint replay.
+       B492-3  legacy.js chained the record read off `ensureThenAccrue().then(f)`
+               — a ONE-ARGUMENT then, so a rejected (or never-settling, same
+               un-timed fetch) ensure silently deleted every hr_load the session
+               would ever make.
+       B492-4  under the blob-retire capstone `loadLocal()` returns at its first
+               statement and never reaches `forgetServerOfRecord(G)`, so the
+               FACTORY LITERAL for every armed record field stayed in a live G —
+               and that is what the player was shown.
+
+     The fifth thing, which is not a defect but its absence: there was no PICTURE
+     for "the character has not arrived", so the picture defaulted. B492-5 covers
+     the veil.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  () => tryRunAsync('B492-1: a boot read that never answers is ABORTED and un-latched — one stalled socket cannot wedge the session', async () => {
+    const R = window.HearthriseRecord;
+    assert(R && typeof R.RECORD_TIMEOUT_MS === 'number' && R.RECORD_TIMEOUT_MS > 0,
+      'record.js has no timeout budget — a browser fetch never times out on its own');
+    const realFetch = window.fetch;
+    const realG = window.G;
+    let calls = 0;
+    let stalledSignal = null;
+    try {
+      R.resetRecord();
+      window.G = {};
+      R.configureRecord({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
+      /* THE FIRST REQUEST NEVER ANSWERS — the cold-start / frozen-tab socket. It
+         resolves only when its abort signal fires, which is exactly what a real
+         `fetch` does under an AbortController. */
+      window.fetch = function (u, init) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        calls++;
+        if (calls === 1) {
+          stalledSignal = init && init.signal;
+          assert(stalledSignal, 'the boot read went on the wire with NO abort signal — it can stall forever');
+          return new Promise((_res, rej) => {
+            stalledSignal.addEventListener('abort', () => rej(new Error('aborted')));
+          });
+        }
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, version: 41, now: '2026-08-29T10:00:00Z',
+          state: { slot: 0, gold: 7520, gems: 0, accrued_to: '2026-08-29T10:00:00Z' },
+        }), { status: 200 }));
+      };
+
+      const stalled = R.requestRecord();
+      // The latch is held while it is genuinely in flight — that part is correct.
+      assert(R.getRecordState().pending === true, 'setup: the stalled request is not in flight');
+      // …and it is RELEASED the moment the request dies, not when this frame
+      // happens to resume. That is the whole of the wedge fix.
+      stalledSignal.dispatchEvent(new Event('abort'));
+      const v1 = await stalled;
+      assert(v1.outcome === 'timeout' || v1.outcome === 'unreachable',
+        'an aborted boot read must name itself, got: ' + JSON.stringify(v1));
+      assert(R.getRecordState().pending === false,
+        'the single-flight latch survived the dead request — every later retry would be handed the corpse');
+
+      // A SECOND caller now issues a REAL request rather than joining the dead one.
+      const v2 = await R.requestRecord();
+      assert(v2.outcome === 'loaded',
+        'the retry after a stalled boot read did not reach the server — the session is still wedged: '
+        + JSON.stringify(v2));
+      assert(calls === 2, 'expected a second hr_load on the wire, saw ' + calls);
+    } finally {
+      window.fetch = realFetch;
+      window.G = realG;
+      R.resetRecord();
+      R.configureRecord(null);
+    }
+  }),
+
+  () => tryRunAsync('B492-2: a failed boot read RETRIES on a ladder until a verdict lands, and never presents defaults as hydrated', async () => {
+    const R = window.HearthriseRecord;
+    assert(R && typeof R.bootHydrationState === 'function' && typeof R.bootRetryDelayFor === 'function',
+      'record.js did not ship the boot-hydration ladder');
+
+    /* (a) THE LADDER IS DATA, and it never gives up. An online-only client that
+       stops asking is a client showing a fresh character forever. */
+    assert(R.bootRetryDelayFor(0) > 0 && R.bootRetryDelayFor(0) <= 1000,
+      'the FIRST retry must be fast — the live probe proved a retry succeeds within seconds: '
+      + R.bootRetryDelayFor(0));
+    let prev = 0;
+    for (let i = 0; i < R.BOOT_RETRY_DELAYS_MS.length; i++) {
+      const d = R.bootRetryDelayFor(i);
+      assert(d >= prev, 'the ladder is not monotonic at rung ' + i);
+      prev = d;
+    }
+    assert(R.bootRetryDelayFor(9999) === R.BOOT_RETRY_DELAYS_MS[R.BOOT_RETRY_DELAYS_MS.length - 1],
+      'the ladder must CLAMP, not terminate — giving up is the bug');
+
+    /* (b) ONLY a real answer settles it. Everything else keeps climbing. */
+    assert(R.isBootHydrationSettled('loaded') === true, 'a loaded envelope must settle the ladder');
+    assert(R.isBootHydrationSettled('no-character') === true,
+      'a definitive "no character" is a legitimate fresh account and must settle');
+    ['timeout', 'unreachable', 'not-signed-in', 'unavailable', 'rate-limited',
+     'malformed', 'refused', 'not-deployed', 'unconfigured'].forEach((o) => {
+      assert(R.isBootHydrationSettled(o) === false,
+        'outcome "' + o + '" stops the ladder — that is the silent failure, restored');
+    });
+
+    /* (b2) …AND THE ONE FAILURE IT MUST NOT CHASE. `unconfigured/no_endpoint` has
+       no request to retry — b428's configureRecord replay owns it, event-driven
+       and faster. Laddering it too makes a client that never configures the record
+       (a signed-out visitor; the harness) wake every 30s for the life of the page,
+       re-entering settle() beside whatever else is running. Measured: that showed
+       up as an unrelated click-forwarding test failing in half of full suite runs.
+       `no_token` is the opposite — the endpoint exists, auth is refreshing — and
+       must keep laddering, because it IS the expired-JWT case. */
+    assert(R.isBootRetryWorthwhile('unconfigured', 'no_endpoint') === false,
+      'the ladder chases a boot read that has no endpoint — a 30s wake for the life of every '
+      + 'signed-out page, and b428 already replays it the instant the endpoint arrives');
+    assert(R.isBootRetryWorthwhile('unconfigured', 'no_token') === true,
+      'the ladder gave up on a missing TOKEN — that is the expired-JWT cold start this build exists for');
+    assert(R.isBootRetryWorthwhile('timeout', null) === true
+      && R.isBootRetryWorthwhile('not-signed-in', null) === true,
+      'a real failure must still be retried');
+    assert(R.isBootRetryWorthwhile('loaded', null) === false
+      && R.isBootRetryWorthwhile('no-character', null) === false,
+      'a settled verdict must not keep the ladder climbing');
+
+    const realFetch = window.fetch;
+    const realG = window.G;
+    let calls = 0;
+    const phases = [];
+    try {
+      R.resetRecord();
+      window.G = {};
+      R.onHydrationChange((s) => phases.push(s.phase + ':' + (s.outcome || '-')));
+      R.configureRecord({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        calls++;
+        // The live shape: a 401 while the JWT is being refreshed, then success.
+        if (calls === 1) return Promise.resolve(new Response('null', { status: 401 }));
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, version: 77, now: '2026-08-29T10:00:00Z',
+          state: { slot: 0, gold: 7520, gems: 3, accrued_to: '2026-08-29T10:00:00Z' },
+        }), { status: 200 }));
+      };
+
+      const first = await R.beginRecordLoad();
+      assert(first.outcome === 'not-signed-in', 'setup: the first read did not 401: ' + JSON.stringify(first));
+
+      /* (c) THE FAILED BOOT IS NOT HYDRATED, and says so. This is the assertion
+         that would have caught the live defect: before b492 there was nothing to
+         ask, and the client happily rendered on. */
+      const s1 = R.bootHydrationState();
+      assert(s1.phase === 'pending', 'a failed boot read must stay PENDING, not settle: ' + JSON.stringify(s1));
+      assert(R.isCharacterHydrated() === false,
+        'the client claimed a hydrated character after a 401 — that is the "looks wiped" render');
+      assert(s1.attempts >= 1, 'the failed attempt was not counted: ' + JSON.stringify(s1));
+      assert(R.recordValue(window.G, 'gold').known === false,
+        'gold must stay UNKNOWN after a failed boot read — never a default');
+
+      /* (d) A RETRY ACTUALLY FIRES, and recovery is complete. Waiting on the real
+         timer rather than poking the scheduler: the ladder is only worth
+         anything if the timer it arms is real. */
+      const t0 = Date.now();
+      while (calls < 2 && Date.now() - t0 < 6000) await new Promise((r) => setTimeout(r, 40));
+      assert(calls >= 2,
+        'NOTHING RETRIED the failed boot read — this is the live P1 exactly: a 401 during a token '
+        + 'refresh left the character un-loaded for the whole session');
+      const t1 = Date.now();
+      while (!R.isCharacterHydrated() && Date.now() - t1 < 4000) await new Promise((r) => setTimeout(r, 40));
+      assert(R.isCharacterHydrated() === true,
+        'the retry did not hydrate: ' + JSON.stringify(R.bootHydrationState()));
+      assert(R.recordValue(window.G, 'gold').known === true && window.G.gold === 7520,
+        'the recovered load did not stamp the real balance: ' + JSON.stringify(R.recordValue(window.G, 'gold')));
+      assert(phases.some((p) => p.indexOf('hydrated') === 0),
+        'the hydration hook never reported success — the veil would never lift: ' + phases.join(', '));
+    } finally {
+      window.fetch = realFetch;
+      window.G = realG;
+      R.onHydrationChange(null);
+      R.resetRecord();
+      R.configureRecord(null);
+    }
+  }),
+
+  () => tryRun('B492-3: nothing client-authored survives the capstone boot — no default may wear the character\'s name', () => {
+    /* THE FIELD THE LIVE BUG SHOWED THE PLAYER. `loadLocal()`'s capstone early
+       return skipped `forgetServerOfRecord(G)`, so `G.skills` stayed at the
+       fresh-G literal (attack 0 … hitpoints 1154) and `G.gold` at 500 — and the
+       display ladder, which is entitled to show a PRESENT local value as an
+       optimistic client write, showed them as the player's character.
+
+       This asserts the property at the seam rather than the symptom: after the
+       capstone load path, under the switch, G holds no client-authored copy of
+       anything on the active registry. MUTATION: delete the forgetServerOfRecord
+       call from loadLocal's capstone branch → red. */
+    const R = window.HearthriseRecord, A = window.HearthriseAccrual, C = window.HearthriseCapstone;
+    assert(R && A && C, 'record/accrue/capstone did not load');
+    const G = window.G;
+    const wasA = A.isServerAccrualEnabled();
+    const saved = {};
+    const fields = R.serverOfRecordFields();
+    assert(fields.length > 0, 'no field is on the active registry — this guard would be vacuous');
+    for (const f of fields) saved[f] = Object.prototype.hasOwnProperty.call(G, f) ? G[f] : undefined;
+    const savedRec = G._record;
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);
+      assert(C.isBlobRetired() === true,
+        'the capstone is not armed — the branch under test is unreachable and this guard is vacuous');
+
+      /* Put the FACTORY LITERAL back exactly as a fresh page would have it, then
+         run the real boot load path. */
+      G.gold = 500;
+      G.skills = { attack: 0, strength: 0, defense: 0, hitpoints: 1154 };
+      G.equipment = { weapon: 'bronze_sword' };
+      G.rooms = {};
+      delete G._record;
+      /* legacy.js's loadLocal is file-scoped, so drive the SEAM it now calls —
+         the same function, with the same argument, from the same switch state.
+         B492-3b below asserts the CALL SITE exists, which is the half a seam
+         test cannot see (the B339 lesson: prove the caller, not only the callee). */
+      R.forgetServerOfRecord(G);
+
+      for (const f of fields) {
+        assert(Object.prototype.hasOwnProperty.call(G, f) === false,
+          'the factory default for "' + f + '" survived into a live G under an armed record — '
+          + 'that is the value the player was shown as their character');
+      }
+      assert(R.recordValue(G, 'gold').known === false,
+        'gold reported KNOWN with no envelope — a default wearing the server\'s name');
+      const S = window.HearthriseSkillRecord;
+      if (S) {
+        assert(S.skillXpForDisplay(G, 'attack').known === false,
+          'the DISPLAY ladder resurrected a skill the server has never stated — the "looks wiped" render');
+      }
+    } finally {
+      if (!wasA) A.setServerAccrualEnabled(false);
+      for (const f of fields) {
+        if (typeof saved[f] === 'undefined') { try { delete G[f]; } catch (e) {} } else G[f] = saved[f];
+      }
+      G._record = savedRec;
+    }
+  }),
+
+  () => tryRunAsync('B492-3b: the capstone boot branch actually CALLS the forget, and the record read is not hostage to the ensure', async () => {
+    /* THE CALL SITE, NOT THE CALLEE — the B339 lesson, verbatim: a test drove
+       accrue.js's slot resolver, proved it correct, and auth.js went on pinning
+       `slot: 0`. Both properties below live inside `loadLocal()` / the b337 gate
+       in a CLASSIC script with no exports, so the only honest way to assert them
+       is against the shipped bytes. Fetched from the same origin the engine
+       loaded from, the way B-accrue and the observability guard already do. */
+    const src = await (await fetch('src/legacy.js?v=491')).text();
+    assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
+
+    /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
+       fresh-G factory literal (attack 0 … hitpoints 1154, gold 500) stayed in a
+       live G under an armed record — and that is what the player was shown on
+       2026-08-29 when the boot read failed. */
+    /* ANCHORED ON loadLocal, not on the first `isBlobRetired()` in the file —
+       saveLocal has one too, and matching that instead would prove nothing about
+       the load path (and would pass while the load path was broken, which is the
+       assertion-that-asserts-nothing family this program keeps meeting). */
+    const fn = src.indexOf('function loadLocal(');
+    assert(fn !== -1, 'loadLocal is gone from legacy.js');
+    const cap = src.indexOf('isBlobRetired()', fn);
+    assert(cap !== -1 && cap - fn < 2000, 'the capstone branch is gone from loadLocal');
+    const branch = src.slice(cap, cap + 2600);
+    assert(/forgetServerOfRecord\(G\)/.test(branch),
+      'loadLocal\'s capstone early return does NOT forget the server-of-record fields — the fresh-G '
+      + 'factory literal survives into a live G and IS what the player is shown when the boot read fails');
+    assert(branch.indexOf('forgetServerOfRecord(G)') < branch.indexOf('return;'),
+      'the forget is after the early return, so it never runs');
+
+    /* (2) THE CHAIN. `p.then(fn)` is a ONE-ARGUMENT then: it runs on fulfilment
+       only. A rejected ensure — or one whose promise never settled, which is
+       what an un-timed fetch behind a single-flight latch produces — silently
+       deleted every hr_load the session was ever going to make. */
+    const ens = src.indexOf('ensureThenAccrue()');
+    assert(ens !== -1, 'the boot ensure call site is gone');
+    const after = src.slice(ens, ens + 1600);
+    assert(!/p\.then\(function\(\)\s*\{\s*R\.beginRecordLoad\(\);\s*\}\)/.test(after),
+      'the record read is chained off a single-argument .then again — a failed ensure deletes every '
+      + 'hr_load this session would have made');
+    assert(/p\.then\(_load,\s*_load\)/.test(after),
+      'the boot read must fire whether the ensure resolved OR rejected');
+  }),
+
+  () => tryRun('B492-4: the boot veil shows "Connecting your character" instead of a fresh account, and never lies', () => {
+    const V = window.HearthriseBootVeil;
+    assert(V && typeof V.shouldVeil === 'function', 'src/features/boot-hydration.js did not load');
+
+    /* THE RULE, driven as data. The live state — capstone armed, session live,
+       nothing hydrated — is the one that must veil. */
+    assert(V.shouldVeil({ blobRetired: true, signedIn: true, hydrated: false }) === true,
+      'the live failure state does not veil — the player is shown a fresh account');
+    assert(V.shouldVeil({ blobRetired: true, signedIn: true, hydrated: true }) === false,
+      'the veil outlives hydration — the player would be locked out of their own game');
+    assert(V.shouldVeil({ blobRetired: true, signedIn: false, hydrated: false }) === false,
+      'a signed-out visitor is the account gate\'s screen, not this one');
+    assert(V.shouldVeil({ blobRetired: false, signedIn: true, hydrated: false }) === false,
+      'with the capstone dormant the save blob has already loaded a real character — veiling it is a regression');
+    assert(V.shouldVeil({ blobRetired: true, signedIn: true, hydrated: false, harness: true }) === false,
+      'the smoke harness has no server and no session; veiling it would blanket the whole suite');
+
+    /* THE COPY. It must never claim a failure is a loss, and it must get LOUDER
+       rather than giving up — an online-only client that stops asking is a
+       client showing a fresh character forever. */
+    const early = V.veilCopy({ attempts: 0, outcome: null });
+    assert(/connecting/i.test(early.title), 'the first frame must say it is connecting: ' + early.title);
+    assert(early.loud === false, 'the first frame must not be an error');
+    const late = V.veilCopy({ attempts: V.LOUD_AFTER_ATTEMPTS + 1, outcome: 'timeout' });
+    assert(late.loud === true, 'a persistent failure must escalate into an explanation');
+    assert(/retry/i.test(late.body), 'the loud copy must state that it is still retrying: ' + late.body);
+    [early, late].forEach((c) => {
+      assert(!/wipe|lost|reset|deleted|new character/i.test(c.title + ' ' + c.body),
+        'the veil must never suggest anything was lost: ' + c.title + ' / ' + c.body);
+    });
+
+    /* AND IT ACTUALLY RENDERS, with the sentence that does the work. */
+    const doc = document;
+    const before = doc.getElementById(V.VEIL_ID);
+    assert(!before, 'the veil is up during a normal harness boot — it must be inert without a session');
+    let el = null;
+    try {
+      el = V.syncVeil(window);
+      assert(el === null, 'the harness veiled itself — every visual guard would be blanketed');
+    } finally {
+      try { V.uninstallBootHydrationVeil(window); } catch (e) {}
+    }
+  }),
+
   () => tryRunAsync('B340-6: the boot read puts the CONTRACT hr_load request on the wire, and a failure leaves the field UNKNOWN', async () => {
     const R = window.HearthriseRecord;
     const realFetch = window.fetch;
@@ -41504,11 +41863,25 @@ const TESTS = [
     assert(typeof window.simulateAwayCombat === 'function', 'the away combat seam is missing');
     const snap = snapshotG();
     try {
+      /* b492 — STATE THE FIGHTER, do not inherit one. The vacuity check below
+         ("the away replay did no work") used to lean on the ambient boot state
+         happening to carry the fresh-G literal's starter sword and 1154 hitpoint
+         xp. That accident is gone — under the blob-retire capstone `loadLocal()`
+         now forgets every server-of-record field, so an un-hydrated harness
+         character is unarmed and level 1, and six hours of away combat against
+         it can legitimately produce nothing. A vacuity check that depends on
+         luck is the thing it was written to prevent. */
+      window.G.skills = Object.assign({}, window.G.skills,
+        { attack: 300000, strength: 300000, defense: 300000, hitpoints: 300000 });
+      window.G.equipment = Object.assign({}, window.G.equipment, { weapon: 'bronze_sword' });
+      window.G.playerMaxHp = window.levelFromXp(300000);
+      window.G.playerHp = window.G.playerMaxHp;
       window.G.activeMonster = 'slime';
       window.G.monsterHp = window.MONSTERS.slime.hp;
       window.__hrCombatCredits = {};
       const out = window.simulateAwayCombat(6, false, Date.now());
-      assert(out && (out.kills > 0 || out.gold >= 0), 'the away replay did no work — the test proves nothing');
+      assert(out && out.kills > 0,
+        'the away replay did no work — the test proves nothing (kills=' + (out && out.kills) + ')');
       assert(Object.keys(window.__hrCombatCredits).length === 0,
         'an away replay declared drops to the live fight rail: '
         + JSON.stringify(window.__hrCombatCredits));

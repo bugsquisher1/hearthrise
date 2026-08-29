@@ -3,6 +3,94 @@
 _Important things agents learn about the codebase, game, or constraints. Append new entries at the top. Every entry: DATE · AGENT · DISCOVERY · AFFECTED SYSTEMS · REQUIRED ACTION. This is how the team avoids rediscovering the same knowledge._
 
 ---
+### 2026-08-29 — Systems Engineer — **The in-page smoke suite is AT its 120s budget on this hardware. Runs will "time out" for reasons that have nothing to do with the diff.**
+
+Measured, both trees, same machine, same probe (boot the page, `await window.__smokeTest()`, time it):
+
+| tree | tests | in-page duration |
+|------|-------|------------------|
+| `main` (b491) | 1071 | **126.5 s** |
+| `fix/boot-hydration-loud` | 1074 | **118.6 s** |
+
+`SUITE_TIMEOUT_MS` defaults to **120 s** (`tests/run-smoke.mjs`). So `main` itself is over budget here,
+and a run's verdict is decided by how busy the machine is rather than by the code. I lost roughly an
+hour treating `Harness failure: suite timed out` as a regression in my own change before measuring
+it; the same run passed at `HR_SUITE_TIMEOUT_MS=300000` with **1074/1074, 0 failed, 0 runtime
+errors**.
+
+**Two things follow.** (1) `Harness failure: suite timed out` is not evidence about a diff — measure
+before you chase it, and `HR_SUITE_TIMEOUT_MS` is the knob. (2) This needs an owner: either the
+budget rises, or the suite gets per-test timings so the expensive ones are visible (`summary.results`
+carries no duration today, which is why the probe above had to time the whole thing). CLAUDE.md's
+"the suite runs on a quiet machine" rule is doing more load-bearing work than it looks — with a ~1%
+margin it is the difference between green and red, and three concurrent runs put the machine at
+2.2 GB free.
+
+### 2026-08-29 — Systems Engineer — **The boot-hydration chain had TWO un-timed, single-flight-latched fetches. A browser `fetch` has no default timeout, and `if (inFlight) return inFlight` turns one stalled socket into a dead session.**
+
+Found while root-causing the live "36 seconds ready on a factory-default character" P1
+(branch `fix/boot-hydration-loud`).
+
+`src/net/record.js requestRecord` and `src/net/character.js ensureCharacter` both did:
+
+```js
+if (inFlight) return inFlight;
+inFlight = (async () => { const res = await fetch(url, init); ... })();
+try { return await inFlight; } finally { inFlight = null; }
+```
+
+Two compounding faults, and **every other value-bearing intent module already avoided both**
+(activity.js 15s, eat.js 15s, enchant.js 15s, equip.js 15s, gold.js 15s, build-watch.js 8s — all
+with an AbortController; record.js and character.js had zero):
+
+1. **No timeout.** A socket opened while the network stack is still coming up (Chrome cold start
+   after a reboot) or orphaned by a tab freeze stays pending for the life of the page.
+2. **The latch is released by the CALLER'S FRAME.** `finally { inFlight = null }` runs when *this
+   invocation* resumes — which never happens if the promise never settles. So every later caller is
+   handed the corpse. Release from the promise's own settlement instead, guarded on identity:
+   `const mine = inFlight; const release = () => { if (inFlight === mine) inFlight = null; };
+   mine.then(release, release);`
+
+**Why it was invisible:** legacy.js chains the record read off `ensureThenAccrue().then(fn)` — a
+ONE-ARGUMENT `.then`, so a wedged ensure deletes every hr_load the session would ever make, silently.
+And a hand-typed `HearthriseAccrual.requestAccrual()` still works, because accrue.js has its own
+latch — which is exactly what made the live diagnosis look impossible ("the transport works, so why
+didn't the boot load?").
+
+**Check any module with this shape.** The pattern `if (inFlight) return inFlight` + a bare `await
+fetch` is a permanent per-session wedge, not a transient failure, and no test that mocks a
+*responding* transport can see it. B492-1 drives a socket that only ever settles on abort.
+
+### 2026-08-29 — Systems Engineer — **The blob-retire capstone left the FRESH-G FACTORY LITERAL in a live G under an armed record, and it is what the player is shown when the boot read fails.**
+
+`loadLocal()` returns at its first statement under `isBlobRetired()`, so it never reaches the
+`forgetServerOfRecord(G)` belt fourteen lines further down. The strip only ever removed moved fields
+from the SAVE BLOB — and under the capstone there is no blob, so nobody noticed the third source:
+the `let G = {…}` literal itself (`gold:500`, `skills:{attack:0,…,hitpoints:1154}`,
+`equipment:{weapon:'bronze_sword'}`).
+
+It is invisible while the server answers (applyRecord overwrites it within a second) and becomes the
+character the moment it does not. **A SECOND WRITER PUTS IT BACK, and gating that one is NOT safe yet**: measured on a
+patched boot, `migrate()` (legacy.js — a 0/100/500/1500ms timer AND every `getActiveCombatStyle()`
+call) re-creates `G.skills = {ranged: 0}` a tenth of a second later. It is an ungated client write of
+a server-of-record field. **I gated it, measured it, and reverted it**: gating leaves `G.skills`
+genuinely ABSENT for the whole pre-hydration window, and raw readers that index it without a guard —
+`src/ftue.js:183` (boot path) and legacy.js's `gainedXp` (`Object.keys(G.skills)`) — throw. A boot
+crash is strictly worse than a level-1 map that the b492 veil never lets a player see.
+**Order of operations, so nobody does it backwards:** (1) sweep every raw `G.skills[...]` read onto
+src/net/skill-record.js, the way gold got balance.js; (2) THEN gate the write. The full rationale is
+in a block comment at the call site.
+
+**The general lesson: an early return past a cleanup belt is a hole the belt cannot see, a
+`X = X || {}` on a moved field is a writer, and you cannot delete a default until every reader
+tolerates its absence.** Grep for all three when arming a record field.
+
+**Ambient-state footgun for the whole team:** several guards silently depended on the fresh-G
+factory literal being in G at boot (`G.skills[s] = …` with no precondition, a `catch (e) {}` around
+the seeding). When the literal went away they did not fail loudly — they measured an EMPTY game and
+kept passing. `tests/run-smoke.mjs` landscapeGuard and `tests/visual-qa.mjs` MID_GAME now state their
+preconditions and the landscape guard has a vacuity check. If you seed a save in a guard, seed it
+from nothing and assert you seeded it.
 
 ### 2026-08-29 · Art Director (session-tally strip, live b491) · THE FIGHT SCREEN RENDERS IN ONE INK VALUE — EVERY SECONDARY AND HINT ROLE ON IT IS DEAD, KILLED BY ONE `!important` BLANKET
 

@@ -1276,8 +1276,101 @@ export const RECORD_OUTCOMES = [
   'refused',        // ok:false with a code this build does not know
   'malformed',      // a 200 that is not an envelope
   'unreachable',    // no answer at all (CORS, DNS, offline)
+  'timeout',        // aborted after RECORD_TIMEOUT_MS — also "no answer"
   'unconfigured',   // no endpoint / no token on this device
 ];
+
+/* ── THE BOOT READ MUST BE ABLE TO FAIL (b492) ───────────────────────────────
+   THE LIVE DEFECT THIS CLOSES, stated exactly, because the shape of it is the
+   whole reason for the two mechanisms below.
+
+   2026-08-29, QA account, build 491, Chrome cold start after a PC restart. The
+   client reached "ready" and stayed there for 36+ seconds showing the FRESH-G
+   FACTORY LITERAL — attack 0, hitpoints 1154 xp, 500 gold — with the net pill
+   reading "Online", no banner, and no error. The server's copy was intact
+   (attack 428, 7,520 gold). A hand-typed `HearthriseAccrual.requestAccrual()`
+   from that same page succeeded INSTANTLY and hydrated everything. So the
+   transport and the token were fine by then: the BOOT read had failed, and
+   nothing on earth was going to ask again.
+
+   TWO THINGS WERE MISSING, and each one alone is enough to produce that page:
+
+   1. **A TIMEOUT.** `requestRecord` awaited a bare `fetch` with no
+      AbortController. A browser `fetch` has NO default timeout — a socket
+      opened while the network stack is still coming up (a cold Chrome start),
+      or one orphaned by a tab freeze (the 2026-08-26 sighting), stays pending
+      for the life of the page. Combined with the single-flight latch
+      (`if (inFlight) return inFlight`) that is a PERMANENT WEDGE: every later
+      caller — including legacy.js's 4-second resume watchdog, which is the only
+      thing that re-fires this today — is handed the dead promise instead of
+      issuing a request. One stalled socket costs the whole session.
+      Every sibling intent already had this (activity.js 15s, eat.js 15s,
+      enchant.js 15s, equip.js 15s, gold.js 15s); the boot read, the one that
+      decides whether the player sees their character at all, did not.
+
+   2. **A RETRY THIS MODULE OWNS.** `settle()` answered a failure with one
+      `console.warn` and returned. The only re-fire was `wantedBootLoad`, which
+      replays exactly once and only for the no-endpoint-yet case, plus the
+      incidental 4s watchdog — which is a COMBAT-loop watchdog that happens to
+      call processOffline, is disabled under the test harness, and (per 1) was
+      wedged anyway. A verdict is owed to the player on every boot; owing it to
+      a watchdog that belongs to another system is not a design, it is a
+      coincidence. The ladder below is this module's own.
+
+   THE LADDER. Short first — the manual probe proves a retry succeeds within
+   seconds — then geometric to a 30s floor, and it does NOT give up. This client
+   is online-only (CLAUDE.md server-authority ruling): there is no offline mode
+   to degrade into, so "stop asking" means "show a fresh character forever",
+   which is the bug. A request every 30s is the cost of never doing that again. */
+export const RECORD_TIMEOUT_MS = 15000;
+export const BOOT_RETRY_DELAYS_MS = Object.freeze([800, 1600, 3200, 6400, 12800, 30000]);
+
+/** The delay before attempt `n` (0-based). Pure + exported so the ladder is
+ *  asserted rather than described. Clamps to the last rung, so it never stops. */
+export function bootRetryDelayFor(attempt) {
+  const n = Number(attempt);
+  const i = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  return BOOT_RETRY_DELAYS_MS[Math.min(i, BOOT_RETRY_DELAYS_MS.length - 1)];
+}
+
+/* WHICH VERDICTS END THE LADDER, and why only these two.
+     'loaded'        the record is here. Done.
+     'no-character'  the server says this slot is empty. That is a legitimate
+                     fresh account (capstone.js canProceedArmed treats it as
+                     "proceed clean"), and re-asking cannot change it — the
+                     ensure intent, not this read, is what creates a character,
+                     and the next processOffline re-fires this read anyway.
+   EVERYTHING ELSE RETRIES, including 'not-deployed' (404) and 'refused'. A 404
+   is a deploy that has not landed yet, not a permanent truth about this player,
+   and the alternative — latch and render defaults — is precisely the failure
+   this whole block exists to make unreachable. */
+export function isBootHydrationSettled(outcome) {
+  return outcome === 'loaded' || outcome === 'no-character';
+}
+
+/* ── THE ONE FAILURE THE LADDER MUST **NOT** CHASE (b492) ────────────────────
+   `unconfigured / no_endpoint` means there is no request to retry: auth.js has
+   not called configureRecord yet, so a retry is a function call that returns the
+   same verdict without ever touching the network. b428 already owns this exact
+   case — `wantedBootLoad` latches the intent and configureRecord REPLAYS it the
+   instant the endpoint arrives, which is both faster and event-driven.
+
+   Laddering it as well is not merely redundant, it is ACTIVE INTERFERENCE, and I
+   measured it doing harm: on a client that never configures the record (a
+   signed-out visitor; the smoke harness) the ladder spins at its 30s floor for
+   the life of the page, and every wake re-enters settle() and the hydration hook
+   beside whatever else is running. In the suite that showed up as the FTUE
+   click-forwarding test failing in roughly half of full runs while passing every
+   time the in-page suite was run on its own.
+
+   `no_token` is the OPPOSITE case and still ladders: the endpoint exists, auth is
+   mid-refresh, and asking again in 800ms is exactly the expired-JWT recovery this
+   build was written for. */
+export function isBootRetryWorthwhile(outcome, reason) {
+  if (isBootHydrationSettled(outcome)) return false;
+  if (outcome === 'unconfigured' && reason === 'no_endpoint') return false;
+  return true;
+}
 
 export function classifyLoadResponse(status, body) {
   const b = (body && typeof body === 'object') ? body : null;
@@ -1311,7 +1404,125 @@ export function getRecordState() {
   return { active: isRecordActive(), configured: !!config, pending: !!inFlight, last };
 }
 
-export function resetRecord() { inFlight = null; last = null; wantedBootLoad = false; }
+/* ── THE HYDRATION STATE, AND WHY IT IS A FIRST-CLASS THING ──────────────────
+   `getRecordState().last` already held the last verdict, and it was not enough
+   for the one question the UI actually has to ask: **has this character ever
+   arrived?** A renderer cannot answer that from `last` (a single verdict says
+   nothing about whether a ladder is still climbing), and it must never answer it
+   from G (that is what showed the factory literal). So the boot read publishes
+   its own phase, and the veil in src/features/boot-hydration.js reads THIS.
+
+     'idle'      no boot read has been attempted on this page yet.
+     'pending'   a read is in flight, or a retry is scheduled. NOT hydrated —
+                 the character has not arrived and must not be rendered.
+     'hydrated'  an envelope landed and applyRecord wrote fields. The real one.
+     'fresh'     the server said no_character. A legitimate new account.
+     'failed'    only reachable via `stopBootHydration()` (a test seam). The
+                 ladder never enters it on its own — see isBootHydrationSettled.
+
+   DOM-free, like everything else here: this module states the phase, and
+   something else decides what a player sees. */
+let hydration = { phase: 'idle', attempts: 0, outcome: null, reason: null, at: 0, nextAt: 0, partial: [] };
+let hydrationCb = null;
+let bootRetryTimer = null;
+let bootAttempts = 0;
+let bootOpts = null;
+
+/** A snapshot of the boot-hydration phase. Always a fresh object — a caller that
+ *  held a reference could not tell a change from a mutation. */
+export function bootHydrationState() { return { ...hydration }; }
+
+/** Has the character actually ARRIVED? The one question a renderer asks. `fresh`
+ *  counts: the server has spoken and there is genuinely nothing to load. */
+export function isCharacterHydrated() {
+  return hydration.phase === 'hydrated' || hydration.phase === 'fresh';
+}
+
+/** Register the phase-change hook (the veil). Idempotent — one registration
+ *  replaces the last, same contract as onRecordApplied. DOM-free by design. */
+export function onHydrationChange(cb) {
+  hydrationCb = (typeof cb === 'function') ? cb : null;
+  return hydrationCb;
+}
+
+function setHydration(next) {
+  const prev = hydration;
+  hydration = { ...hydration, ...next, at: Date.now() };
+  /* Fire only on a REAL transition. The 4s watchdog re-enters this path
+     constantly; a hook that fired on every pass would repaint the veil forever. */
+  if (prev.phase === hydration.phase && prev.outcome === hydration.outcome) return;
+  if (hydrationCb) { try { hydrationCb(bootHydrationState()); } catch (e) {} }
+}
+
+function clearBootRetry() {
+  if (bootRetryTimer !== null) {
+    try { clearTimeout(bootRetryTimer); } catch (e) {}
+    bootRetryTimer = null;
+  }
+}
+
+/* THE LADDER'S ONE TIMER. Re-arming while a retry is already scheduled is a
+   no-op, so the 4s watchdog calling beginRecordLoad() cannot multiply it into a
+   request storm — the watchdog's own call still goes out (that is today's
+   behaviour and it is the safety net this fix is layered UNDER, not a
+   replacement for), but it does not spawn a second ladder. */
+function scheduleBootRetry() {
+  if (bootRetryTimer !== null) return;
+  if (typeof setTimeout !== 'function') return;
+  const delay = bootRetryDelayFor(bootAttempts - 1);
+  hydration = { ...hydration, nextAt: Date.now() + delay };
+  bootRetryTimer = setTimeout(() => {
+    bootRetryTimer = null;
+    if (isCharacterHydrated()) return;
+    try { beginRecordLoad(bootOpts || undefined); } catch (e) {}
+  }, delay);
+  /* Node/jsdom keep the process alive on a pending timer; a boot retry must
+     never be the reason a test runner hangs. */
+  try { if (bootRetryTimer && typeof bootRetryTimer.unref === 'function') bootRetryTimer.unref(); } catch (e) {}
+}
+
+/** THE VERDICT THE PLAYER IS OWED. Called for every boot read.
+ *  `partial` names the hydration steps that threw (see hydrationStep) — a load
+ *  can succeed and still leave the farm or the bag un-rebuilt, and a bug report
+ *  that says which is worth an afternoon of guessing. */
+function noteBootVerdict(outcome, reason, partial) {
+  const o = outcome || 'unreachable';
+  const p = Array.isArray(partial) ? partial : [];
+  if (o === 'loaded') {
+    bootAttempts = 0;
+    clearBootRetry();
+    setHydration({ phase: 'hydrated', outcome: o, reason: null, attempts: 0, nextAt: 0, partial: p });
+    return;
+  }
+  if (o === 'no-character') {
+    bootAttempts = 0;
+    clearBootRetry();
+    setHydration({ phase: 'fresh', outcome: o, reason: null, attempts: 0, nextAt: 0, partial: p });
+    return;
+  }
+  bootAttempts += 1;
+  setHydration({ phase: 'pending', outcome: o, reason: reason || null, attempts: bootAttempts, partial: p });
+  /* Still PENDING either way — the character has not arrived and the veil stays
+     up. What this decides is only whether THIS module schedules the next ask, or
+     whether b428's configureRecord replay owns it. */
+  if (isBootRetryWorthwhile(o, reason || null)) scheduleBootRetry();
+}
+
+/** Stop the ladder. For a sign-out / slot switch / test teardown — NOT for a
+ *  failure (a failure is exactly when the ladder must keep climbing). */
+export function stopBootHydration(phase) {
+  clearBootRetry();
+  bootAttempts = 0;
+  bootOpts = null;
+  if (phase) setHydration({ phase: String(phase), nextAt: 0 });
+}
+
+export function resetRecord() {
+  inFlight = null; last = null; wantedBootLoad = false;
+  clearBootRetry();
+  bootAttempts = 0; bootOpts = null;
+  hydration = { phase: 'idle', attempts: 0, outcome: null, reason: null, at: 0, nextAt: 0, partial: [] };
+}
 
 /**
  * ASK THE SERVER FOR THE RECORD. Returns a verdict; on `loaded` it has already
@@ -1330,30 +1541,108 @@ export async function requestRecord(opts) {
      wanted to run and could not; record that so configureRecord replays it the
      instant the endpoint (and, on the next line, the token) exists. Fail-closed is
      untouched — the field stays UNKNOWN until a real envelope lands. */
-  if (!config) { wantedBootLoad = true; return (last = { outcome: 'unconfigured', reason: 'no_endpoint', applied: false }); }
+  /* ⚠ THESE TWO RETURNS BYPASS settle(), SO THEY MUST STATE THE VERDICT HERE.
+     `no_token` is the expired-JWT boot race made visible: auth.js now refuses to
+     hand out a token it knows is dead (see setupAuth), so a cold start with an
+     hours-old session lands HERE rather than 401ing — and the ladder is what
+     turns that into "ask again in 800ms" instead of "render a fresh character".
+     b428's `wantedBootLoad` latch is kept: configureRecord's replay is faster
+     than the ladder when the endpoint is what was missing, and the two are
+     idempotent with respect to each other (the replay's verdict settles the
+     ladder; the ladder's retry dedups onto any in-flight replay). */
+  if (!config) {
+    wantedBootLoad = true;
+    last = { outcome: 'unconfigured', reason: 'no_endpoint', applied: false };
+    noteBootVerdict('unconfigured', 'no_endpoint');
+    return last;
+  }
   const token = tokenOf();
-  if (!token) { wantedBootLoad = true; return (last = { outcome: 'unconfigured', reason: 'no_token', applied: false }); }
+  if (!token) {
+    wantedBootLoad = true;
+    last = { outcome: 'unconfigured', reason: 'no_token', applied: false };
+    noteBootVerdict('unconfigured', 'no_token');
+    return last;
+  }
 
   const slot = resolveActiveSlot(Number.isInteger(o.slot) ? o.slot : config.slot);
   const { url, init } = buildLoadRequest({ url: config.url, apiKey: config.apiKey, token, slot });
 
+  /* ── THE ABORT, AND IT IS THE HALF THAT ACTUALLY UNSTICKS THE PAGE ─────────
+     A browser `fetch` never times out on its own. Without this, a socket that
+     is opened and never answered — a cold Chrome start whose network stack is
+     still coming up, a tab the browser froze mid-request — leaves this promise
+     pending for the life of the page, and the single-flight latch above then
+     hands that dead promise to EVERY later caller. The retry ladder cannot
+     help, because there is nothing for it to retry: the request never ends.
+     Same 15s budget, same shape, as activity.js / eat.js / equip.js / gold.js. */
+  let ac = null; let timer = null;
+  try { ac = (typeof AbortController !== 'undefined') ? new AbortController() : null; } catch (e) { ac = null; }
+  const init2 = ac ? { ...init, signal: ac.signal } : init;
+  if (ac) {
+    timer = setTimeout(() => { try { ac.abort(); } catch (e) {} }, RECORD_TIMEOUT_MS);
+    /* Node keeps the process alive on a pending timer; a boot read must never be
+       the reason a test runner hangs. */
+    try { if (timer && typeof timer.unref === 'function') timer.unref(); } catch (e) {}
+  }
+  const done = () => { if (timer !== null) { try { clearTimeout(timer); } catch (e) {} timer = null; } };
+
   inFlight = (async () => {
     let res = null;
     try {
-      res = await fetch(url, init);
+      res = await fetch(url, init2);
     } catch (e) {
-      return settle({ outcome: 'unreachable', reason: String((e && e.message) || e) });
+      /* An abort and a dead network are different facts and are named
+         differently: 'timeout' says the server was asked and did not answer in
+         time, 'unreachable' says the request never left. Both retry. */
+      const wasAborted = !!(ac && ac.signal && ac.signal.aborted);
+      done();
+      return settle(wasAborted
+        ? { outcome: 'timeout', reason: 'no_answer_in_' + RECORD_TIMEOUT_MS + 'ms' }
+        : { outcome: 'unreachable', reason: String((e && e.message) || e) });
     }
+    done();
     let body = null;
     try { body = await res.json(); } catch (e) { body = null; }
     return settle({ ...classifyLoadResponse(res.status, body), status: res.status });
   })();
 
-  try { return await inFlight; } finally { inFlight = null; }
+  /* ⚠ THE LATCH MUST BE RELEASED BY THE PROMISE, NOT BY THE CALLER'S FRAME.
+     `try { return await inFlight } finally { inFlight = null }` releases it only
+     when THIS invocation's frame resumes — which never happens if the promise
+     never settles, and which is why one stalled socket wedged the whole session.
+     Clearing it from the promise's own settlement (and only if it is still the
+     one we installed, so a newer request is not un-latched by an older one's
+     tail) means the latch cannot outlive the request that owns it. */
+  const mine = inFlight;
+  const release = () => { if (inFlight === mine) inFlight = null; };
+  mine.then(release, release);
+  return await mine;
+}
+
+/* ── GUARDED, BUT NOT SILENT (b492 catch-audit) ──────────────────────────────
+   Every hydration step below used to be `try { … } catch (e) {}`. The GUARD is
+   right and stays: a throw inside one reconcile must never abort the others or
+   break the record load. The SILENCE is the same defect class as the one this
+   build exists to close — a throw in `reconcileInventory` leaves the bag empty
+   while the load still reports `loaded` and the veil still lifts, so the player
+   is shown a half-hydrated character with nothing anywhere saying so, and the
+   only trace is that it never happened.
+   `hydrationStep` keeps the guard and names the casualty. It also records it on
+   the verdict, so `bootHydrationState().partial` can say which parts of the
+   character did not arrive — a bug report that names `reconcileFarm` is worth an
+   afternoon of guessing about disappearing crops. */
+let partialSteps = [];
+function hydrationStep(name, fn) {
+  try { fn(); } catch (e) {
+    partialSteps.push(name);
+    console.warn('[record] the envelope landed but "' + name + '" threw — that part of the character '
+      + 'did NOT hydrate:', (e && e.message) || e);
+  }
 }
 
 function settle(verdict) {
   let applied = null;
+  partialSteps = [];
   if (verdict.outcome === 'loaded') {
     const G = (typeof window !== 'undefined') ? window.G : null;
     applied = applyRecord(G, verdict.body);
@@ -1376,7 +1665,7 @@ function settle(verdict) {
        needed for this load path. A malformed/absent client_state no-ops and the
        bag stays null, which canProceedArmed treats as "not loaded yet"
        (fail-closed). */
-    try { applyClientState(verdict.body, G); } catch (e) {}
+    hydrationStep('client-state', () => applyClientState(verdict.body, G));
     /* ── REBUILD THE COMPANION ROSTER FROM THE SAME ENVELOPE (blob-retire) ───────
        The boot hr_load envelope is the ALWAYS-FULL statement of the character
        (accrue's hr-accrue returns nothing on an idle settle, so applyEnvelopeState
@@ -1386,7 +1675,7 @@ function settle(verdict) {
        applyEnvelopeState. Arm-gated inside reconcileCompanions: a pure no-op while
        dormant, so the dormant load path is byte-for-byte unchanged. Guarded — a
        throw here must never break the record load. */
-    try { reconcileCompanions(G, verdict.body); } catch (e) {}
+    hydrationStep('companions', () => reconcileCompanions(G, verdict.body));
     /* ── REBUILD THE FARM PLOTS FROM THE SAME ENVELOPE (blob-retire capstone) ────
        The boot hr_load envelope is the ALWAYS-FULL statement of the character
        (accrue's hr-accrue returns nothing on an idle settle, so applyEnvelopeState
@@ -1402,7 +1691,7 @@ function settle(verdict) {
        character). The LEAN accrue-settle path (applyEnvelopeState) passes no flag,
        so an empty array there never wipes a standing farm — the KD420
        disappearing-plots fix. */
-    try { reconcileFarm(G, verdict.body, { authoritative: true }); } catch (e) {}
+    hydrationStep('farm', () => reconcileFarm(G, verdict.body, { authoritative: true }));
     /* ── HYDRATE THE OWNED TRAIT SET FROM THE SAME ENVELOPE (b46x) ───────────────
        hr_trait_buy is now the server-side writer of a permanent trait, and
        hr_state_of projects the owned ids as a flat `traits` array. The boot
@@ -1413,7 +1702,7 @@ function settle(verdict) {
        bought before the server verb existed has no server row and must never be
        revoked (see reconcileTraits' header). Guarded — a throw here must never
        break the record load. */
-    try { reconcileTraits(G, verdict.body); } catch (e) {}
+    hydrationStep('traits', () => reconcileTraits(G, verdict.body));
     /* ── HYDRATE THE BAG + BANK FROM THE SAME ENVELOPE (b46x inventory-hydrate) ───
        THE P1 THIS CLOSES. Inventory hydration lived ONLY in accrue.js's
        applyEnvelopeState, which runs ONLY on `accrued:true`. On an IDLE boot
@@ -1435,7 +1724,7 @@ function settle(verdict) {
        day the inventory flip arms. The prediction sweep is deliberately NOT run
        here — that stays with applyEnvelopeState so gold applyRecord already wrote
        is not re-offset. Guarded — a throw must never break the record load. */
-    try {
+    hydrationStep('inventory+bank+workers', () => {
       reconcileBank(G, verdict.body);       // dormant in prod (invAbsolute false)
       reconcileInventory(G, verdict.body);  // merge-ratchets the full server bag in
       /* b477 — SAME IDLE-BOOT CLASS FOR THE CREW. The worker roster hydrated ONLY
@@ -1449,11 +1738,11 @@ function settle(verdict) {
          and idempotent on a non-idle boot (server-owned fields win, display ledger
          preserved by uid). */
       reconcileWorkers(G, verdict.body);
-    } catch (e) {}
+    });
     /* b465 — the server's daily-login claim row closes the daily-reward sheet's
        question at boot (the residue marker kept losing tab/save races and the
        sheet re-opened on a paid reward). Guarded like its neighbours. */
-    try {
+    hydrationStep('daily', () => {
       if (window.HearthriseDaily && typeof window.HearthriseDaily.markServerClaim === 'function') {
         window.HearthriseDaily.markServerClaim(verdict.body && verdict.body.progress);
       }
@@ -1463,7 +1752,7 @@ function settle(verdict) {
       if (window.HearthriseDaily && typeof window.HearthriseDaily.noteServerStreak === 'function') {
         window.HearthriseDaily.noteServerStreak(verdict.body);
       }
-    } catch (e) {}
+    });
     /* ── BOOT-RESUME (b456 QA finding): the boot hr_load envelope carries
        state.active_kind/active_id, but reconcileActivityPointer was only wired
        to the activity-SWITCH hook — so a reload booted to "Idle" while the
@@ -1472,7 +1761,7 @@ function settle(verdict) {
        (activity.js imports THIS module — a static import back would cycle).
        Safe at boot: the local pointer is idle, so a genuinely-idle server
        answer no-ops; a throw must never break the record load. */
-    try {
+    hydrationStep('activity-resume', () => {
       const HA = (typeof window !== 'undefined') && window.HearthriseActivity;
       const rap = (typeof window !== 'undefined') && window.reconcileActivityPointer;
       if (HA && typeof HA.activityOf === 'function' && typeof rap === 'function') {
@@ -1481,15 +1770,27 @@ function settle(verdict) {
           rap(act, typeof HA.fightOf === 'function' ? HA.fightOf(verdict.body) : null);
         }
       }
-    } catch (e) {}
+    });
   } else {
     console.warn('[record] the server did not supply the record (' + verdict.outcome
       + (verdict.reason ? ': ' + verdict.reason : '') + ') — '
       + serverOfRecordFields().join(', ') + ' stay UNKNOWN, and this device will not guess.');
   }
   const didApply = !!(applied && applied.written && applied.written.length);
+  /* ── THE VERDICT IS OWED TO THE PLAYER, NOT JUST TO THE CONSOLE (b492) ─────
+     Stated HERE rather than in beginRecordLoad so it covers EVERY path that
+     lands a verdict — the boot read, the configureRecord replay, the ladder's
+     own retries, and a hand-typed requestRecord() from devtools. The one thing
+     a `loaded` outcome must not do is claim hydration when applyRecord wrote
+     nothing: an `ok:true` envelope the registry could not decode is exactly the
+     "the server was asked" ≠ "the server told us" distinction B340-6 protects,
+     and treating it as hydrated would end the ladder on a non-event. */
+  noteBootVerdict(
+    (verdict.outcome === 'loaded' && !didApply) ? 'malformed' : verdict.outcome,
+    (verdict.outcome === 'loaded' && !didApply) ? 'no_record_written' : verdict.reason,
+    partialSteps.slice());
   last = { outcome: verdict.outcome, reason: verdict.reason || null, at: Date.now(),
-    applied: didApply };
+    applied: didApply, partial: partialSteps.slice() };
   /* REPAINT ON EVERY LAND (b427/b428). record.js is DOM-free, so the UI is told to
      re-read the balance here — for the initial boot read AND for the post-config
      retry, which is the one the new-device em dash was waiting on. Only when a
@@ -1500,10 +1801,24 @@ function settle(verdict) {
 
 /** The entry point legacy.js's b337 gate calls, after the character ensure.
  *  Fire-and-forget for the same reason accrue.js's is: the game must not block
- *  a frame on a round trip. */
+ *  a frame on a round trip.
+ *
+ *  b492 — it also ARMS the ladder. `bootOpts` is remembered so a retry asks for
+ *  the same slot the boot did; a `requestRecord()` typed into devtools does not
+ *  set it and so cannot repoint the ladder at another character. A REJECTION is
+ *  a verdict too: `requestRecord` is not supposed to throw, and the one time it
+ *  does (a bug in this module, an exploding transport) the old `p.catch(()=>{})`
+ *  swallowed it whole and the boot simply stopped — the exact silence class this
+ *  build exists to remove. */
 export function beginRecordLoad(opts) {
+  if (opts) bootOpts = opts;
+  if (hydration.phase === 'idle') setHydration({ phase: 'pending', outcome: null, reason: null });
   const p = requestRecord(opts);
-  p.catch(() => {});
+  p.catch((e) => {
+    console.warn('[record] the boot read threw rather than returning a verdict — retrying:',
+      (e && e.message) || e);
+    noteBootVerdict('unreachable', 'threw');
+  });
   return p;
 }
 
@@ -1527,5 +1842,9 @@ if (typeof window !== 'undefined') {
     buildLoadRequest, classifyLoadResponse,
     requestRecord, beginRecordLoad, getRecordState, resetRecord,
     onRecordApplied,
+    /* b492 — the boot-hydration ladder + the phase the veil renders. */
+    RECORD_TIMEOUT_MS, BOOT_RETRY_DELAYS_MS, bootRetryDelayFor, isBootHydrationSettled,
+    isBootRetryWorthwhile,
+    bootHydrationState, isCharacterHydrated, onHydrationChange, stopBootHydration,
   };
 }

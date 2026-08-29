@@ -1224,6 +1224,28 @@ function loadLocal(){
   try{
     if(window.HearthriseCapstone && window.HearthriseCapstone.isBlobRetired()){
       try{ _removeSave(SAVE_KEY); }catch(e){}
+      /* ── b492: THE THIRD SOURCE THE CAPSTONE FORGOT — THE FRESH-G LITERAL ────
+         This early return skips the rest of loadLocal(), INCLUDING the
+         `forgetServerOfRecord(G)` belt further down. The strip only ever removed
+         moved fields from the SAVE BLOB, and under the capstone there is no blob
+         — so nobody noticed that G still carried the factory literal for every
+         armed record field: `gold:500`, `skills:{attack:0,…,hitpoints:1154,…}`,
+         `equipment:{weapon:'bronze_sword'}`, `rooms:{}`, `marks:0`.
+
+         That is a client-authored copy of a server-owned field living in a live
+         G under an armed record, which is precisely the two-sources bug
+         record.js's header says cannot exist. It went unseen because it is
+         invisible while the server answers — applyRecord overwrites it within a
+         second. On 2026-08-29 the boot read failed and it became the character
+         the player was shown: a level-1 hero with 500 gold, on an account
+         holding attack 428 and 7,520 gold, with no error on the page.
+
+         Forgetting them here makes the capstone path hold the SAME property the
+         blob path already held: after loadLocal, under the switch, G holds no
+         client-authored copy of anything the server owns. UNKNOWN then means
+         unknown, the display ladder cannot resurrect a default, and
+         src/features/boot-hydration.js holds the veil until a verdict lands. */
+      try{ if(serverAccrualActive()&&window.HearthriseRecord) window.HearthriseRecord.forgetServerOfRecord(G); }catch(e){}
       return;
     }
   }catch(e){}
@@ -2352,7 +2374,22 @@ function processOffline(){
       }
       if(C&&typeof C.ensureThenAccrue==='function'){
         var p=C.ensureThenAccrue();
-        if(R&&p&&typeof p.then==='function') p.then(function(){ R.beginRecordLoad(); });
+        /* b492 — THE BOOT READ MUST NOT BE HOSTAGE TO THE ENSURE.
+           This was `p.then(fn)`. A single-argument `.then` runs on FULFILMENT
+           ONLY, so an ensure that rejected — or, worse, one whose promise never
+           settled at all (character.js's fetch had no timeout until b492, and
+           its single-flight latch handed the dead promise to every later
+           caller) — silently deleted EVERY hr_load this session would have
+           made, including the ones the 4s resume watchdog would have fired.
+           That is the live "36 seconds ready on a factory-default character".
+           `.then(f, f)` makes a rejection a reason to ask, not a reason to stop:
+           whether or not the character could be ensured, the server is still the
+           authority on whether one exists, and the READ is how we find out. */
+        if(R&&p&&typeof p.then==='function'){
+          var _load=function(){ try{ R.beginRecordLoad(); }catch(e){} };
+          p.then(_load,_load);
+        }
+        else if(R) R.beginRecordLoad();
       }
       else{
         window.HearthriseAccrual.beginServerAccrual();
@@ -12392,6 +12429,34 @@ if(typeof _origStopCombatStats === 'function'){
 /* Migrate state immediately and on every G access (covers post-load) */
 function migrate(){
   if(typeof G !== 'object' || !G) return;
+  /* ⚠ b492 — THIS IS AN UNGATED CLIENT WRITE OF A SERVER-OF-RECORD FIELD, AND IT
+     IS DELIBERATELY LEFT THAT WAY FOR NOW. Read this before "fixing" it.
+
+     WHAT IT IS. A pre-Ranged save backfill, run on a 0/100/500/1500ms timer AND
+     from getActiveCombatStyle(), i.e. several times a second during combat. Under
+     the armed skills record it writes a moved field without asking
+     `clientMayWriteRecordField('skills')` — the seam every other moved-field
+     writer goes through — and it is the reason `G.skills` is PRESENT (as
+     `{ranged:0}`) a tenth of a second after loadLocal's b492 forget deletes it.
+
+     WHY IT IS NOT GATED YET. I gated it, measured it, and reverted it. Gating
+     leaves `G.skills` genuinely ABSENT for the whole pre-hydration window, and
+     this codebase still has raw readers that index it without a guard —
+     `src/ftue.js:183` (`totalXp += (G.skills[k] || 0)`, on the boot path) and
+     `src/legacy.js` gainedXp (`Object.keys(G.skills)`). Those throw, and a boot
+     crash is strictly worse than the thing gating would buy: the render is
+     already covered by src/features/boot-hydration.js's veil, so a level-1
+     `{ranged:0}` map is never shown to a player.
+
+     THE ORDER OF OPERATIONS, so the next person does not do it backwards:
+       1. route every raw `G.skills[...]` read through
+          src/net/skill-record.js (skillXpOr / skillsForDisplay) — the same sweep
+          balance.js got for gold;
+       2. THEN gate this write on clientMayWriteRecordField('skills');
+       3. the fingerprint concern is real but currently harmless — `ranged` is a
+          first-class server skill (leaderboard list + hr_state_of projection), so
+          the key it adds is already in the server's map and the b347 fingerprint
+          does not trip on it. Step 2 is a correctness cleanup, not a live bug. */
   G.skills = G.skills || {};
   if(typeof G.skills.ranged !== 'number') G.skills.ranged = 0;
   var CK = window.HearthriseCore;

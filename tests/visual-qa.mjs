@@ -197,6 +197,13 @@ const SAVE_STATE = (process.env.HR_SAVE || 'mid');
 
 const MID_GAME = () => {
   const G = window.G; if (!G) return;
+  /* b492 — STATE THE PRECONDITIONS. These indexed `G.skills` / `G.inventory`
+     bare, assuming the fresh-G factory literal is still in G at boot. Under the
+     blob-retire capstone it is not: loadLocal forgets every server-of-record
+     field, so `G.skills` is legitimately ABSENT until the server answers, and
+     this screenshot tool would throw before painting anything. */
+  if (!G.skills || typeof G.skills !== 'object') G.skills = {};
+  if (!G.inventory || typeof G.inventory !== 'object') G.inventory = {};
   G.gold = 250000; G.gems = 40;
   ['attack','strength','defense','hitpoints','mining','woodcutting','fishing','cooking','smithing','crafting','farming','ranged','magic']
     .forEach((s) => { G.skills[s] = 300000; });

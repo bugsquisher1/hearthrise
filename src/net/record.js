@@ -112,7 +112,7 @@ import { applyClientState } from './client-state.js?v=491';
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, resetPredictions } from './predict.js?v=491';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=491';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -1001,6 +1001,17 @@ export function applyRecord(G, res) {
     }
   }
 
+  /* ── THE PREVIOUS SERVER STATEMENT, CAPTURED BEFORE THE WRITE (b492) ────────
+     `reconcileCreditedXp` retires a credit-settled xp prediction by the AMOUNT
+     the record just advanced, so it needs the value the server stated LAST —
+     and it must be the RECORD's copy (`_record.last`), never `G.skills`. G.skills
+     is writeable by other passes in the same apply (accrue.js's pending
+     fold-back writes `server + pending` into it moments before this function
+     runs), and diffing against that would silently retire the fold-back's
+     headroom as if the server had paid it. Read here, one line before the
+     wholesale replace below overwrites `_record.last` with the NEW value. */
+  const prevStated = recordLastKnown(G, 'skills');
+
   const written = [];
   for (const f of candidates) { G[f] = dec.fields[f]; written.push(f); }
   /* FOUND BY B340-6. An envelope that supplies NO record must change NOTHING —
@@ -1085,9 +1096,19 @@ export function applyRecord(G, res) {
   let retired = null;
   try {
     const nowMs = Date.now();
+    /* ── AMOUNT-BASED FIRST, FOR THE BUCKETS A CLOCK CANNOT DESCRIBE (b492) ───
+       Attended combat XP reaches `player_skills` through hr_credit_combat_xp on
+       the client's flush cadence, which `accrued_to` knows nothing about — so
+       the coverage rule below both under- and over-retires it, and the player
+       watches ~26 XP appear and then vanish at the next settle (measured live,
+       b491). Those buckets are retired by how far the record ACTUALLY moved.
+       Disjoint from the pass below by construction (`credit`-tagged buckets are
+       exempt there), so the two can never retire the same xp twice. */
+    const credited = written.indexOf('skills') >= 0
+      ? reconcileCreditedXp(G, prevStated, dec.fields.skills) : null;
     const cover = coverageBoundary(res, nowMs);
     retired = retirePredictions(G, written, cover.at, nowMs);
-    if (retired) retired.coverage = cover;
+    if (retired) { retired.coverage = cover; retired.credited = credited; }
   } catch (e) {}
   return { written, missing: dec.missing, version, filledStale: stale, retired };
 }

@@ -42293,6 +42293,177 @@ const TESTS = [
     }
   }),
 
+  /* ── REGRESSION (QA "test", slot 0, live b491, 2026-08-29 ~16:01 UTC —
+     reproduced from `player_ledger` + `hr_combat_xp_credit_log`, twice):
+     WATCHED COMBAT XP APPEARS AND THEN SNAPS AWAY AT THE SETTLE.
+
+         display defense 348 → 375 (fighting) → 403 → 377   (a visible −26)
+         server  defense 348 → 349 → 376 → 377              (never lost a point)
+
+     ROOT. Attended combat XP does not reach the server through the accrual
+     settle — it reaches it through hr_credit_combat_xp on the client's own ~60 s
+     flush cadence, which never moves `accrued_to` (and the combat settle then
+     pays ZERO xp for the credited window: the live ledger's `delta.k` carries no
+     `skills`). So the RECORD advanced on the CREDIT clock while predict.js
+     retired on the ACCRUAL clock, and for one settle-lag the same 27 XP was
+     shown twice — once inside the record the credit had already moved, once as a
+     live prediction. The next envelope with a fresh watermark took the duplicate
+     away, and a 26-XP correction reads as theft.
+
+     Three properties, because the live evidence falsified one hypothesis and
+     confirmed another and both are worth pinning:
+       1. the CLAIM carries the multiplier (predicted === buffered, always) —
+          the client was NEVER under-claiming, and a change that made it do so
+          would look exactly like this bug;
+       2. the flush drains only what the SERVER said it APPLIED;
+       3. a settle can never shrink watched combat XP.
+     Fails on b491: (3) reads 403 where 376 is the truth, then 377. */
+  () => tryRunAsync('XP-CREDIT-RETIRE (b492): the claim carries the multiplier, the flush drains only what the SERVER applied, and no envelope shrinks watched combat XP', async () => {
+    const R = window.HearthriseRecord;
+    const P = window.HearthrisePredict;
+    const S = window.HearthriseSkillRecord;
+    const A = window.HearthriseAccrual;
+    const C = window.HearthriseCore;
+    assert(R && P && S && A && C, 'record/predict/skill-record/accrual/core must all be published');
+    assert(typeof window.hrCreditCombatXpFlush === 'function', 'the combat-XP credit transport must exist');
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origClaim = window.HearthriseGoalClaim;
+    const origCtx = C.xpGrantCtx;
+    const wasA = A.isServerAccrualEnabled();
+    try {
+      if (!wasA) A.setServerAccrualEnabled(true);
+      R.__setSkillsRecordArm(true);
+      assert(R.isServerOfRecord('skills') === true, 'skills must be ARMED for this test (precondition)');
+      window.clientMayWriteRecordField = function (f) { return f !== 'skills'; };
+      window.HearthriseGoalClaim = { isSignedIn: () => false, creditCombatXp: () => Promise.resolve({ ok: true }) };
+
+      const G = window.G;
+      /* The ONE seam that installs a deterministic XP multiplier: addXp reads
+         `window.HearthriseCore.xpGrantCtx` fresh on every grant, so replacing the
+         property replaces the bonus the real grant maths sees. */
+      const armMult = (mult) => {
+        C.xpGrantCtx = function (opts) {
+          return { bonus: (k) => (k === 'allXP' ? mult : 0), xpB: 0, restedQuantum: 0,
+            authored: !!(opts && opts.authored) };
+        };
+      };
+      const swing = () => window.addXp('defense', 12);
+
+      /* ══ 1. THE CLAIM CARRIES THE MULTIPLIER ═════════════════════════════ */
+      P.resetPredictions(G); G._combatXpPending = {};
+      armMult(0);
+      for (let i = 0; i < 10; i++) swing();
+      const plain = Number(G._combatXpPending.defense) || 0;
+      assert(plain > 0, 'the armed grant buffered no combat XP at all');
+      assert(P.predictedXp(G, 'defense') === plain,
+        'PREDICTED and CLAIMED disagree with no multiplier (' + P.predictedXp(G, 'defense') + ' vs ' + plain
+        + '). They are the same number by construction; any drift is XP the player is shown and never credited.');
+
+      P.resetPredictions(G); G._combatXpPending = {};
+      armMult(0.5);
+      for (let i = 0; i < 10; i++) swing();
+      const boosted = Number(G._combatXpPending.defense) || 0;
+      assert(boosted > plain,
+        'a +50% allXP bonus did not raise the grant (' + boosted + ' vs ' + plain + ') — the multiplier seam is not wired');
+      assert(P.predictedXp(G, 'defense') === boosted,
+        'THE MULTIPLIER SHARE IS PREDICTED BUT NOT CLAIMED: display shows ' + P.predictedXp(G, 'defense')
+        + ' and the server is only ever told ' + boosted + '. The claim must be the WHOLE granted gain — '
+        + 'the server cap is the anti-cheat, not the client under-claiming.');
+
+      /* ══ 2. THE LIVE SHAPE — 348 → 375 → (403) → 377, and it must not drop ═
+         The base is deliberately high so eight grants cannot cross a level and
+         drag the level-up path (and a refreshAll per swing) into this test. */
+      const BASE = 200000;
+      const NOW = Date.now();
+      const env = (i, defenseXp, lagMs) => ({
+        ok: true, version: NOW + i,
+        now: new Date(NOW + i * 1000).toISOString(),
+        state: { accrued_to: new Date(NOW + i * 1000 - lagMs).toISOString() },
+        skills: { defense: { xp: defenseXp }, hitpoints: { xp: 1300 } },
+      });
+      P.resetPredictions(G); G._combatXpPending = {};
+      R.applyRecord(G, env(0, BASE, 110000));
+      const shown = () => S.skillXpForDisplay(G, 'defense').value;
+      assert(shown() === BASE, 'setup: the record did not land (got ' + shown() + ')');
+
+      armMult(0);
+      for (let i = 0; i < 8; i++) swing();
+      const gained = Number(G._combatXpPending.defense) || 0;
+      assert(gained > 0 && shown() === BASE + gained,
+        'the display did not move by the predicted gain (got ' + shown() + ', want ' + (BASE + gained) + ')');
+      const _b = P.predictionBag(G, false);
+      const tagged = !!(_b && _b.xp && _b.xp.defense && _b.xp.defense.credit);
+      // The forced pre-settle flush credits all of it; the server advances by exactly that.
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        creditCombatXp: (m) => Promise.resolve({ ok: true, credited: m, credit: gained, throttled: false }),
+      };
+      await window.hrCreditCombatXpFlush(true);
+      assert((Number(G._combatXpPending.defense) || 0) === 0, 'the credit did not drain the buffer');
+      assert(shown() === BASE + gained,
+        'the CREDIT itself moved the display (' + shown() + '). A credit is not an envelope — the record has '
+        + 'not restated anything yet, so retiring here would blank the number for a whole settle window.');
+
+      // THE ENVELOPE that carries the credit, with a STALE watermark (the live eat verb).
+      R.applyRecord(G, env(1, BASE + gained, 110000));
+      assert(shown() === BASE + gained,
+        'THE DOUBLE-COUNT: the credited XP is shown twice — ' + shown() + ' where ' + (BASE + gained)
+        + ' is the truth. This is the live 403 the player saw for twenty seconds.');
+      assert(P.predictedXp(G, 'defense') === 0, 'the prediction the record now contains was not retired');
+      /* …and the MECHANISM that made it right, read BEFORE the retire emptied
+         the bucket and asserted here so the player-visible property above is the
+         first thing a regression reports. */
+      assert(tagged === true,
+        'addXp did not TAG the combat-XP prediction as credit-settled. Untagged, record.js retires it by the '
+        + 'accrual watermark — which is the whole b491 defect.');
+
+      // THE SETTLE — fresh watermark, nothing further credited. It must move NOTHING.
+      R.applyRecord(G, env(2, BASE + gained, 0));
+      assert(shown() === BASE + gained,
+        'THE SNAP-BACK: a settle that owed nothing still took ' + ((BASE + gained) - shown())
+        + ' watched XP away. A fresh watermark is not a payment.');
+
+      // …and XP earned AFTER that settle survives it, uncredited (the other direction).
+      for (let i = 0; i < 4; i++) swing();
+      const held = shown();
+      R.applyRecord(G, env(3, BASE + gained, 0));
+      assert(shown() === held,
+        'an envelope that restated the SAME xp retired un-credited attended XP anyway (' + held + ' → ' + shown() + ')');
+
+      /* ══ 3. THE FLUSH DRAINS ONLY WHAT THE SERVER APPLIED ════════════════
+         Dormant on live today (the physical-max cap is a deliberate
+         over-estimate and every honest row journals `throttled:false`), which is
+         exactly why it needs a test: the first time the cap DOES bite, the
+         client must not be the thing that deletes the difference. */
+      P.resetPredictions(G); G._combatXpPending = { defense: 100, hitpoints: 40 };
+      let sent = null;
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        creditCombatXp: (m) => {
+          sent = JSON.parse(JSON.stringify(m));
+          // The server CLAMPED: 60 of the 100 defense, none of the hitpoints.
+          return Promise.resolve({ ok: true, credited: { defense: 60 }, credit: 60, claimed: 140, throttled: true });
+        },
+      };
+      await window.hrCreditCombatXpFlush(true);
+      assert(sent && sent.defense === 100 && sent.hitpoints === 40, 'the flush must submit the whole buffer');
+      assert((Number(G._combatXpPending.defense) || 0) === 40,
+        'A THROTTLED CREDIT ATE THE PLAYER\'S XP: the client drained the full claim (100) when the server '
+        + 'applied 60. The uncredited 40 is the only copy there is and it must stay pending for the next '
+        + 'flush; got ' + G._combatXpPending.defense);
+      assert((Number(G._combatXpPending.hitpoints) || 0) === 40,
+        'a skill the server did not credit at all must keep every point of its pending XP; got ' + G._combatXpPending.hitpoints);
+    } finally {
+      C.xpGrantCtx = origCtx;
+      window.clientMayWriteRecordField = origMay;
+      window.HearthriseGoalClaim = origClaim;
+      try { R.__setSkillsRecordArm(null); } catch (e) {}
+      if (!wasA) { try { A.setServerAccrualEnabled(false); } catch (e) {} }
+      restoreGAndRecord(snap);
+    }
+  }),
+
   /* B372-SCRIP-1 — A PURCHASE REVERTS WHOLE, OR NOT AT ALL.
      The live P0 of 2026-08-18, reported by Xarnathos: "when you buy e.g. a
      blueprint, you will get the dungeon scrip back after a short amount of

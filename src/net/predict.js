@@ -224,7 +224,7 @@ function push(bucket, delta, at0) {
  *           can drive the coverage rule without sleeping.
  * @returns the running predicted delta for that skill (never NaN).
  */
-export function predictXp(G, skillId, delta, at) {
+export function predictXp(G, skillId, delta, at, opts) {
   const id = String(skillId == null ? '' : skillId);
   if (!id) return 0;
   const d = deltaOf(delta, 'xp delta');
@@ -251,6 +251,13 @@ export function predictXp(G, skillId, delta, at) {
     }
     bag.xp[id] = newBucket();
   }
+  /* ⚠ THE SETTLEMENT TAG (b492) — WHICH RULE RETIRES THIS BUCKET.
+     A bucket is STICKY once tagged: a skill is settled one way or the other for
+     the whole session, and a single untagged grant must not silently hand a
+     credit-settled skill back to the coverage rule (that is the bug this tag
+     exists to close, and it would come back as an intermittent). See
+     `reconcileCreditedXp` for the whole argument. */
+  if (opts && opts.credited) bag.xp[id].credit = true;
   const total = push(bag.xp[id], d, t);
   bag.at = t;
   bag.seq++;
@@ -360,6 +367,100 @@ function parseInstant(v) {
    THE RETIRE — the only thing that removes a prediction
    ══════════════════════════════════════════════════════════════════════════ */
 
+/** Drain EXACTLY `amount` from a bucket, OLDEST FIRST, splitting the head entry
+ *  when it is larger than what is left to take. Keeps `total` and `q` in step —
+ *  they are two views of one fact and a drift between them is a permanently
+ *  wrong display. Returns what it actually took (≤ amount, ≤ bucket.total). */
+function consumeBucket(bucket, amount) {
+  let left = Number(amount) || 0;
+  let took = 0;
+  while (left > 0 && bucket.q.length) {
+    const head = bucket.q[0];
+    const d = Number(head.d) || 0;
+    /* A non-positive entry can never satisfy `left`, so consuming it without
+       decrementing `left` is what stops it stranding the scan forever. */
+    if (d <= 0) { bucket.q.shift(); bucket.total -= d; continue; }
+    if (d <= left) { bucket.q.shift(); bucket.total -= d; left -= d; took += d; }
+    else { head.d = d - left; bucket.total -= left; took += left; left = 0; }
+  }
+  if (!bucket.q.length) bucket.total = 0;   // float hygiene, as retireBucket
+  return took;
+}
+
+/**
+ * RETIRE CREDIT-SETTLED XP BY THE AMOUNT THE RECORD JUST ADVANCED (b492).
+ *
+ * ── THE BUG THIS EXISTS TO KILL, stated exactly (live, b491, QA slot 0) ──────
+ * The coverage rule below is correct for xp the server ACCRUES: the settle moves
+ * `accrued_to` and the boundary is derived from `accrued_to`, so
+ * `S₁ = S₀ + Σ(retired)` holds and the settle is invisible.
+ *
+ * ATTENDED COMBAT XP IS NOT ACCRUED. `hr_credit_combat_xp` writes
+ * `player_skills.xp` on the client's own ~60 s flush cadence and DOES NOT move
+ * `accrued_to` (it moves a separate `combat_xp_accrued_to`), and the combat
+ * settle then deliberately pays ZERO xp for the credited window. So the record
+ * advances on the CREDIT clock while the retire fires on the ACCRUAL clock, and
+ * the two disagree by one settle-lag (60–90 s of fighting):
+ *
+ *     record 349 → 376 (a credit of 27 landed)   prediction bucket still 27
+ *     display = 376 + 27 = 403                   ← the player's number, 26 too high
+ *     next envelope, fresh accrued_to → the 27 finally retires
+ *     display = 377                              ← −26, "my combat XP vanished"
+ *
+ * Measured live and reproduced byte-for-byte from `player_ledger` (defense
+ * 348 → 375 → 403 → 377). NOTHING was lost server-side: 377 was always the
+ * truth. The DISPLAY double-counted the credit and then corrected, and a
+ * correction that big reads as theft.
+ *
+ * ── THE RULE ────────────────────────────────────────────────────────────────
+ * Retire what the server's number PROVABLY CONTAINS — measured as an AMOUNT,
+ * not as an instant: when an envelope moves the record for skill k from `prev`
+ * to `next`, retire exactly `next − prev` from k's bucket, oldest first.
+ *
+ *     display_before = R₀ + P
+ *     display_after  = R₁ + (P − (R₁ − R₀)) = R₀ + P
+ *
+ * Identical, for ANY cadence and with NO clock in the arithmetic at all — which
+ * is strictly stronger than the coverage rule it replaces for these buckets.
+ *
+ * FAIL-SAFE IN BOTH DIRECTIONS. Clamped at the bucket total, so an envelope that
+ * jumps further than was predicted (the server's own away accrual) drains the
+ * bucket and no more. Clamped at 0, so a DOWNWARD correction retires nothing and
+ * the display follows the server down by the full disagreement — the server
+ * still wins every contest, which is the anti-forgery property.
+ *
+ * @param prevSkills the last map the SERVER stated (record.js `recordLastKnown`),
+ *                   NEVER `G.skills` — a client-side write (e.g. accrue.js's
+ *                   pending fold-back) must not be able to move this diff.
+ * @param nextSkills the map this envelope states.
+ */
+export function reconcileCreditedXp(G, prevSkills, nextSkills) {
+  const out = { retired: 0, skills: {} };
+  const bag = predictionBag(G, false);
+  if (!bag) return out;
+  const next = (nextSkills && typeof nextSkills === 'object' && !Array.isArray(nextSkills)) ? nextSkills : null;
+  const prev = (prevSkills && typeof prevSkills === 'object' && !Array.isArray(prevSkills)) ? prevSkills : null;
+  /* NO PREVIOUS STATEMENT = NO MEASURABLE ADVANCE. The first envelope of a
+     session has nothing to diff against, so it retires nothing and the display
+     is optimistic for exactly one settle. That is the safe direction (the other
+     one deletes progress the player watched happen). */
+  if (!next || !prev) return out;
+  for (const k in bag.xp) {
+    if (!Object.prototype.hasOwnProperty.call(bag.xp, k)) continue;
+    const b = bag.xp[k];
+    if (!isBucket(b) || !b.credit) continue;
+    const n = Number(next[k]);
+    const p = Number(prev[k]);
+    if (!Number.isFinite(n) || !Number.isFinite(p)) continue;   // the envelope said nothing
+    const advance = n - p;
+    if (!(advance > 0)) continue;
+    const took = consumeBucket(b, advance);
+    if (took > 0) { out.retired += took; out.skills[k] = took; }
+    if (!b.q.length) delete bag.xp[k];     // an empty bucket is a leak with a name
+  }
+  return out;
+}
+
 function retireBucket(bucket, coveredUntil, ageFloor) {
   let removed = 0;
   while (bucket.q.length) {
@@ -400,7 +501,15 @@ export function retirePredictions(G, fields, coveredUntil, nowMs) {
       for (const k in bag.xp) {
         if (!Object.prototype.hasOwnProperty.call(bag.xp, k)) continue;
         if (!isBucket(bag.xp[k])) { delete bag.xp[k]; continue; }
-        n += retireBucket(bag.xp[k], boundary, ageFloor);
+        /* ⚠ A CREDIT-SETTLED BUCKET IS EXEMPT FROM THE COVERAGE RULE (b492).
+           `accrued_to` says nothing about when a credit landed — see
+           `reconcileCreditedXp`, which is what retires these, by amount. The
+           ABSOLUTE age belt still applies (`-Infinity` leaves only the
+           `head.at > ageFloor` half of the test standing), so a credit path that
+           breaks entirely still degrades to a bounded stale display and never to
+           an unboundedly inflated one. */
+        const bound = bag.xp[k].credit ? -Infinity : boundary;
+        n += retireBucket(bag.xp[k], bound, ageFloor);
         if (!bag.xp[k].q.length) delete bag.xp[k];   // an empty bucket is a leak with a name
       }
       if (n) { out.xp = n; out.retired.push(f); }
@@ -461,6 +570,7 @@ if (typeof window !== 'undefined') {
     MAX_PREDICTION_AGE_MS, COALESCE_MS, CLEARS,
     predictionBag, predictXp, predictedXp, predictedXpMap,
     predictBalance, predictedBalance,
-    coverageBoundary, retirePredictions, resetPredictions, hasPredictions, predictionState,
+    coverageBoundary, retirePredictions, reconcileCreditedXp,
+    resetPredictions, hasPredictions, predictionState,
   };
 }

@@ -406,6 +406,126 @@ export async function predictDisplayGuard() {
     'E/SLOT: the display still vouched for a forgotten character.');
 
   /* ══════════════════════════════════════════════════════════════════════
+     G. CREDIT-SETTLED COMBAT XP — the b491 live defect, reproduced and closed.
+     ══════════════════════════════════════════════════════════════════════
+
+     THE MEASUREMENT this section encodes (QA "test", slot 0, b491, 2026-08-29,
+     verified against `player_ledger` and `hr_combat_xp_credit_log`):
+
+       16:00:48  credit {defense:1}                 server defense 348 → 349
+       16:00:49  fight starts, honest 2400 ms swings
+       16:01:22  credit {defense:27, hitpoints:10}  server defense 349 → 376
+       16:01:22  an EAT envelope lands — `accrued_to` still the 15:59:32 settle
+       16:01:44  credit {defense:1}                 server defense 376 → 377
+       16:01:45  the settle — `accrued_to` FRESH
+
+     Attended combat XP does NOT arrive through the accrual settle: it arrives
+     through hr_credit_combat_xp on the client's own ~60 s flush cadence, which
+     never moves `accrued_to` (the combat settle deliberately pays ZERO xp for a
+     credited window — live ledger `delta.k` carries no `skills`). So the record
+     advances on the CREDIT clock while section B/C's coverage rule fires on the
+     ACCRUAL clock, and the credited xp is counted TWICE for one settle-lag:
+
+         display 348 → 375 (predicted) → 403 (record 376 + the same 27 again)
+                     → 377 at the next envelope   ← a visible −26 "XP vanished"
+
+     The server was at 377 the whole time. Nothing was lost; the DISPLAY
+     double-counted and then corrected, and a 26-XP correction reads as theft.
+     Retiring by the AMOUNT THE RECORD ADVANCED is exact at any cadence. */
+  {
+    const C1 = {};
+    /* The last combat settle was 110 s ago — every envelope below carries that
+       lag, which is what makes the coverage rule the WRONG instrument here. */
+    const LAG = 110000;
+    record.applyRecord(C1, envelope(40, { defense: 348, woodcutting: 1000 }, 500, 0, LAG));
+    ok(skillRec.skillXpForDisplay(C1, 'defense').value === 348, 'G SETUP: the boot record did not land.');
+
+    /* The fight: 27 predicted defense XP, tagged credit-settled exactly as
+       legacy.js addXp now tags a HR_COMBAT_XP_SKILLS grant. */
+    for (let i = 0; i < 27; i++) predict.predictXp(C1, 'defense', 1, undefined, { credited: true });
+    /* …and a gather tick in the same session, UNTAGGED, so the two rules are
+       proven to coexist rather than one having replaced the other. */
+    predict.predictXp(C1, 'woodcutting', 40);
+    ok(skillRec.skillXpForDisplay(C1, 'defense').value === 375,
+      'G: the tagged prediction stopped showing instantly (got '
+      + skillRec.skillXpForDisplay(C1, 'defense').value + ', want 375).');
+
+    /* THE EAT ENVELOPE. The record advances by the CREDIT (349→376) while
+       `accrued_to` has not moved at all. This is the line that used to read 403. */
+    record.applyRecord(C1, envelope(41, { defense: 376, woodcutting: 1000 }, 500, 0, LAG));
+    ok(skillRec.skillXpForDisplay(C1, 'defense').value === 376,
+      'G/DOUBLE-COUNT: the credited XP is being shown TWICE — once in the record the credit '
+      + 'already moved and once as a live prediction the accrual watermark cannot describe. '
+      + 'Got ' + skillRec.skillXpForDisplay(C1, 'defense').value + ', want 376. This is the live '
+      + '403 the player saw before it snapped back to 377.');
+    ok(predict.predictedXp(C1, 'woodcutting') === 40,
+      'G: the accrual-settled gather prediction was retired by an envelope whose watermark does '
+      + 'not cover it — the coverage rule must still govern every UNTAGGED bucket.');
+
+    /* THE SETTLE. `accrued_to` is now fresh, and the record advances by the last
+       credit (376→377). The display must move UP by one, never down by 26. */
+    const before = skillRec.skillXpForDisplay(C1, 'defense').value;
+    record.applyRecord(C1, envelope(42, { defense: 377, woodcutting: 1040 }, 500, 0, 500));
+    const after = skillRec.skillXpForDisplay(C1, 'defense').value;
+    ok(after >= before,
+      'G/SNAP-BACK: the settle took displayed combat XP AWAY (' + before + ' → ' + after + '). '
+      + 'A settle may never reduce a number the player watched them earn.');
+    ok(after === 377, 'G/SNAP-BACK: the display is not the server truth after the settle (got ' + after + ').');
+
+    /* THE "NOTHING" ENVELOPE. A settle that owes nothing restates the SAME xp
+       with a fresh watermark. It must retire nothing and move nothing — the
+       accrued:false case the live report named. */
+    for (let i = 0; i < 12; i++) predict.predictXp(C1, 'defense', 1, undefined, { credited: true });
+    const held = skillRec.skillXpForDisplay(C1, 'defense').value;
+    record.applyRecord(C1, envelope(43, { defense: 377, woodcutting: 1040 }, 500, 0, 0));
+    ok(skillRec.skillXpForDisplay(C1, 'defense').value === held,
+      'G/NOTHING: an envelope that restated the SAME xp still shrank the display (' + held + ' → '
+      + skillRec.skillXpForDisplay(C1, 'defense').value + '). Nothing was credited, so nothing '
+      + 'may be retired — a fresh watermark is not a payment.');
+    ok(predict.predictedXp(C1, 'defense') === 12, 'G/NOTHING: the un-credited prediction was retired anyway.');
+
+    /* PARTIAL — the record advances by less than was predicted (the flush is
+       mid-window). Exactly that much retires; the rest stays on the display. */
+    record.applyRecord(C1, envelope(44, { defense: 382, woodcutting: 1040 }, 500, 0, 0));
+    ok(predict.predictedXp(C1, 'defense') === 7,
+      'G/PARTIAL: a 5-XP advance did not retire exactly 5 (left ' + predict.predictedXp(C1, 'defense') + ', want 7).');
+    ok(skillRec.skillXpForDisplay(C1, 'defense').value === 389,
+      'G/PARTIAL: the display moved across a partial credit. It must be continuous (got '
+      + skillRec.skillXpForDisplay(C1, 'defense').value + ', want 389).');
+
+    /* OVER-ADVANCE — the server jumps further than was predicted (its own away
+       accrual, or a credit this device never made). The bucket drains and stops;
+       it can never go negative and re-inflate the display. */
+    record.applyRecord(C1, envelope(45, { defense: 900, woodcutting: 1040 }, 500, 0, 0));
+    ok(predict.predictedXp(C1, 'defense') === 0,
+      'G/OVER: an advance larger than the bucket left a residue (' + predict.predictedXp(C1, 'defense') + ').');
+    ok(skillRec.skillXpForDisplay(C1, 'defense').value === 900,
+      'G/OVER: the display did not follow the server up cleanly.');
+
+    /* DOWNWARD — the server disagrees and states LESS. Nothing retires (there is
+       no advance to retire), and the display follows the server DOWN by the full
+       disagreement. That direction is the anti-forgery property and must survive. */
+    predict.predictXp(C1, 'defense', 50, undefined, { credited: true });
+    record.applyRecord(C1, envelope(46, { defense: 800, woodcutting: 1040 }, 500, 0, 0));
+    ok(skillRec.skillXpForDisplay(C1, 'defense').value === 850,
+      'G/DOWN: a downward server correction did not win (got '
+      + skillRec.skillXpForDisplay(C1, 'defense').value + ', want 800 + the 50 still un-credited).');
+
+    /* THE BELT. A credit path that stops working entirely must still not leave
+       the display inflated forever — the absolute age bound still governs a
+       tagged bucket even though the coverage boundary no longer does. */
+    const C2 = {};
+    record.applyRecord(C2, envelope(47, { defense: 100 }, 0, 0, 0));
+    predict.predictXp(C2, 'defense', 90, Date.now() - predict.MAX_PREDICTION_AGE_MS - 60000, { credited: true });
+    record.applyRecord(C2, envelope(48, { defense: 100 }, 0, 0, 0));
+    ok(predict.predictedXp(C2, 'defense') === 0,
+      'G/BELT: a credit-settled prediction older than MAX_PREDICTION_AGE_MS survived. Exempting '
+      + 'these buckets from the coverage rule must not exempt them from the absolute age bound, '
+      + 'or a broken credit path becomes a permanently inflated display.');
+    predict.resetPredictions(C1);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
      F. DORMANT — byte-for-byte the pre-b455 answers.
      ══════════════════════════════════════════════════════════════════════ */
   accrue.setServerAccrualEnabled(false);
@@ -439,6 +559,10 @@ export async function predictDisplayGuard() {
   notes.push('the envelope retires exactly what it restated (no double-count, no lean-envelope drop)');
   notes.push('the lvl-5→lvl-1 bounce is unreachable: a stray stamped-field write degrades the '
     + 'DISPLAY to the local number, never to UNKNOWN');
+  notes.push('credit-settled combat XP retires by the AMOUNT the record advanced, not by the '
+    + 'accrual watermark — the live b491 348→375→403→377 double-count is closed and the display '
+    + 'is monotone across a stale-watermark envelope, a "nothing" settle, a partial credit, an '
+    + 'over-advance and a downward correction');
   notes.push('authority (skillXpOf / balanceOf / canAfford) is blind to every prediction');
   notes.push('dormant is byte-for-byte the pre-b455 answer');
   return { problems: problems.slice(), notes: notes.slice() };

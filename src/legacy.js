@@ -3184,10 +3184,16 @@ function getPreferredSlot(def){
    because legacy.js is a classic script and cannot import. Both are total: with
    the module absent they degrade to "no prediction", which is exactly the dormant
    behaviour. */
-function hrPredictXp(sk,gain){
+/* @param credited — this skill's xp reaches the server through
+   hr_credit_combat_xp (the attended-combat credit), NOT through the accrual
+   settle. It tags the prediction bucket so record.js retires it by the AMOUNT
+   the record advanced rather than by the `accrued_to` coverage clock, which the
+   credit does not move. See predict.js `reconcileCreditedXp` — without the tag
+   the credited xp is counted twice and then snaps away (the b491 live defect). */
+function hrPredictXp(sk,gain,credited){
   var P=window.HearthrisePredict;
   if(!P||typeof P.predictXp!=='function') return 0;
-  try{ return P.predictXp(G,sk,gain); }catch(e){ return 0; }
+  try{ return P.predictXp(G,sk,gain,undefined,credited?{credited:true}:undefined); }catch(e){ return 0; }
 }
 function hrPredictBalance(field,delta){
   var P=window.HearthrisePredict;
@@ -3945,7 +3951,12 @@ function addXp(sk,amt,opts){
     const _shadow={ skills:{}, restedXp:(Number(G.restedXp)||0) };
     _shadow.skills[sk]=(_disp.known?_disp.value:0);
     res=C.progression.grantXp(_shadow, sk, amt, _ctx);
-    hrPredictXp(sk, res.gain);
+    /* WHICH SERVER PATH WILL PAY THIS GRANT — decided ONCE, and used for BOTH
+       the prediction tag and the credit buffer, so the display's retire rule and
+       the thing that actually reaches the server can never describe different
+       sets of skills (b492). */
+    const _creditXp = (res.gain>0 && typeof HR_COMBAT_XP_SKILLS!=='undefined' && HR_COMBAT_XP_SKILLS.indexOf(sk)>=0);
+    hrPredictXp(sk, res.gain, _creditXp);
     /* bug #5 root pt2 — ACCUMULATE observed combat XP for the server credit.
        Under the arm the server's only combat-XP writer is the away/span-sim,
        which prices this window UNATTENDED and undercounts 60-99%; on settle
@@ -3954,7 +3965,7 @@ function addXp(sk,amt,opts){
        to hr_credit_combat_xp (server-clamped) on a cadence so the server credits
        the ATTENDED number and the reconcile is UP to truth. Buffer only — the
        flush decides eligibility (armed + live + signed-in) and throttling. */
-    if(res.gain>0 && typeof HR_COMBAT_XP_SKILLS!=='undefined' && HR_COMBAT_XP_SKILLS.indexOf(sk)>=0){
+    if(_creditXp){
       if(!G._combatXpPending||typeof G._combatXpPending!=='object') G._combatXpPending={};
       G._combatXpPending[sk]=(Number(G._combatXpPending[sk])||0)+res.gain;
       hrCreditCombatXpFlush();
@@ -4537,11 +4548,33 @@ function hrCreditCombatXpFlush(force){
   const chain=Promise.resolve(p).then(function(cr){
     _hrCombatXpInFlight=false; _hrCombatXpInFlightP=null;
     if(cr && cr.ok){
-      /* Subtract exactly what we sent; new gains since the snapshot remain. */
-      for(const k in snap){ G._combatXpPending[k]=Math.max(0,(Number(G._combatXpPending[k])||0)-snap[k]); }
+      /* ── SUBTRACT WHAT THE SERVER APPLIED, NOT WHAT WE SENT (b492) ──────────
+         hr_credit_combat_xp returns `credited` as a PER-SKILL map of what it
+         actually wrote after the physical-max cap and the daily budget. Draining
+         the full snapshot on a CLAMPED answer silently deletes the difference
+         from the only copy of it — the player's own XP, thrown away by their own
+         client. Today the cap is a deliberate over-estimate (`throttled:false` on
+         every honest live row), so this is dormant; it is the difference between
+         "cannot happen" and "cannot lose anything when it does".
+         A REPLAY answers `credited` as a NUMBER (the stored total for that idem,
+         no per-skill statement) — that call already applied this exact snapshot,
+         so the snapshot IS the applied amount and the fallback is correct.
+         New gains since the snapshot always remain: the map is re-read here, at
+         resolution time, never captured. */
+      if(!G._combatXpPending||typeof G._combatXpPending!=='object') G._combatXpPending={};
+      const _applied=(cr.credited && typeof cr.credited==='object' && !Array.isArray(cr.credited)) ? cr.credited : null;
+      for(const k in snap){
+        const got=_applied ? Math.max(0,Math.floor(Number(_applied[k])||0)) : snap[k];
+        if(got>0) G._combatXpPending[k]=Math.max(0,(Number(G._combatXpPending[k])||0)-got);
+      }
     }
     /* On !ok (rate_limited / daily_budget / bad_skill / network) keep the pending
-       XP untouched — the next flush retries. */
+       XP untouched — the next flush retries.
+       ⚠ AND ON NEITHER PATH IS A PREDICTION TOUCHED. The display prediction is
+       retired when the RECORD carrying this credit arrives (record.js →
+       predict.js `reconcileCreditedXp`), never here: retiring at credit time
+       would drop the number for the up-to-90 s until the next envelope restates
+       it, which is the same rewind seen from the other side. */
     return cr;
   }).catch(function(){ _hrCombatXpInFlight=false; _hrCombatXpInFlightP=null; return null; });
   /* Publish the FULL chain (incl. the subtract + in-flight clear) as the awaitable

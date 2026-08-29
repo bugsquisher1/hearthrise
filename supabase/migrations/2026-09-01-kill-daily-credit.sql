@@ -534,7 +534,16 @@ begin
        The bounty branch does write the lifetime row, so a mixed session
        over-subtracts — bounded by one call's credit, and it under-credits, which
        is the safe direction. A first-ever bounty-free credit has no predecessor,
-       so coalesce makes its delta 0 rather than its whole lifetime count. */
+       so coalesce makes its delta 0 rather than its whole lifetime count.
+
+       ⚠ CONCURRENCY, stated rather than assumed. hr_apply takes a DIFFERENT lock
+       (player_state), so a settle may commit between this read and the next call.
+       If it commits AFTER this read, this call under-reads the delta and
+       over-credits by that settle's contribution ONCE — and the NEXT call reads the
+       larger lifetime value and subtracts the same amount again, cancelling it. The
+       error is bounded by one settle's kills and self-corrects rather than
+       compounding, because the reference is an ABSOLUTE row value re-read every
+       call, not a running total this function maintains. */
     select coalesce(max(value), 0) into v_kills_now from public.player_progress
       where user_id = v_uid and slot = v_slot
         and kind = 'stat' and key = 'ev:kill_any' and period_key = '';

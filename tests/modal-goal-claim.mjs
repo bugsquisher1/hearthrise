@@ -45,6 +45,10 @@ import { dirname, join } from 'node:path';
 import { bootReplay } from './schema-replay.mjs';
 import { modalGoalOps, MODAL_GOAL_COUNTERS, modalGoalKey } from
   '../supabase/functions/hr-accrue/goal-period.js';
+/* b487 — the two catalogues a reward SPENDS. Imported, never re-listed: the
+   whole point of the payout bind is that no side of it is a hand copy. */
+import { SKILLS_DEF } from '../src/data/skills.js';
+import { ITEMS } from '../src/data/items.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MIG = '2026-08-23-modal-goal-claims.sql';
@@ -459,6 +463,161 @@ async function bindGuard(cat) {
     ok([...dailyRows, ...weeklyRows].some((r) => r.id === id),
       `BIND: hr_goal_rewards carries '${id}', which no authored pool offers — the server would `
       + 'credit a goal the player can never see');
+  }
+
+  /* ════════════════════════════════════════════════════════════════════════
+     (A)↔(B) THE PAYOUT, NOT JUST THE TARGET  (b487, live: "we also have a
+     problem with claiming the quests reward")
+
+     Until now this file bound the goal IDS and the TARGETS and stopped there.
+     The REWARD — the line the modal prints under "Reward", and the numbers
+     hr_claim_goal actually credits — was two independent copies that nothing
+     compared. Both halves of that gap were live:
+
+       · `gold_500` was authored `{gems:1, items:{bones:5}}` in legacy.js while
+         hr_goal_rewards still carries `{gems:0, items:{small_bones:5}}` — a
+         phantom id, so the whole reward is unmintable and the RPC answers
+         `reward_unavailable`. b464 fixed the CLIENT and hand-patched the
+         PRODUCTION row; the migration in this repo was never updated, so a
+         rebuild or a re-apply silently re-breaks the goal.
+       · `kill_any` / `kill_more` / `wk_kills` promise `xp:{combat:N}` on BOTH
+         sides — and `combat` is not a skill_id (it is a DERIVED level), so
+         hr_claim_goal's `exists (select 1 from hr_skills …)` filter skips it
+         and the player is paid gold and gems but never the XP the modal
+         advertised. Agreement between two copies is not correctness when both
+         copies name something that does not exist.
+
+     So this block binds the payout in BOTH directions and additionally checks
+     each side against the CATALOGUES it spends (hr_skills / ITEMS). Every known
+     divergence is declared BY NAME with its reason and its owner — a new one
+     fails the build, and clearing a declared one is a one-line deletion here. */
+  {
+    /* The authored payouts, EVALUATED out of the source literal rather than
+       re-typed. They are pure data (no calls, no identifiers), so this cannot
+       execute game code; and reading them means this guard can never bind a
+       stale hand-copy of the very numbers it is checking. */
+    const literalAfter = (needle, open, close) => {
+      const at = legacy.indexOf(needle);
+      if (at < 0) return null;
+      const start = legacy.indexOf(open, at);
+      let depth = 0;
+      for (let i = start; i < legacy.length; i++) {
+        if (legacy[i] === open) depth++;
+        else if (legacy[i] === close && --depth === 0) return legacy.slice(start, i + 1);
+      }
+      return null;
+    };
+    const evalLiteral = (text, what) => {
+      try { return new Function(`return (${text});`)(); }
+      catch (e) { ok(false, `BIND-PAY: could not read ${what} out of legacy.js — ${e.message}`); return null; }
+    };
+    const dailyRewards = evalLiteral(literalAfter('var DAILY_REWARDS =', '{', '}'), 'DAILY_REWARDS');
+    const weeklyPool = evalLiteral(weekly, 'WEEKLY_GOAL_POOL');
+    ok(dailyRewards && Object.keys(dailyRewards).length === 9,
+      `BIND-PAY: DAILY_REWARDS yielded ${dailyRewards && Object.keys(dailyRewards).length} rows, expected 9`);
+    ok(Array.isArray(weeklyPool) && weeklyPool.length === 11,
+      `BIND-PAY: WEEKLY_GOAL_POOL yielded ${weeklyPool && weeklyPool.length} rows, expected 11`);
+    if (!dailyRewards || !weeklyPool) return;
+
+    /* THE DECLARED DIVERGENCES. Being here is a DECISION with an owner; being
+       on neither side is a build failure. Delete a row the day it is closed. */
+    const KNOWN_PAYOUT_DRIFT = new Map([
+      ['gold_500', 'REPO⟷PROD DRIFT (b464, open). legacy.js pays {gems:1, items:{bones:5}}; this '
+        + 'migration still carries {gems:0, items:{small_bones:5}}. Production was hand-patched to '
+        + 'match the client, so players are unaffected TODAY — but a rebuild or a re-apply of this '
+        + 'file restores the phantom id and the goal goes back to reward_unavailable. Closing it '
+        + 'needs a small migration that (1) fixes the row and (2) re-points §GATE(e) and C9 — which '
+        + 'use this very row as their empty-reward FIXTURE — at a synthetic goal instead. '
+        + 'OWNER: Systems + Coordinator (migration apply).'],
+    ]);
+    const PHANTOM_XP_SKILL = new Map([
+      ['combat', 'NOT A SKILL_ID. `combat` is a DERIVED level (hr_skills has attack/strength/…), so '
+        + 'hr_claim_goal skips it into `skipped_xp` and the client\'s addXp(\'combat\') predicts a '
+        + 'phantom G.skills.combat that no settle ever confirms. Carried on kill_any / kill_more / '
+        + 'wk_kills. The precedent for the fix is four hundred lines up in legacy.js: completeQuest '
+        + 'routes a quest\'s combatXp through killXpRoute(activeStyle), i.e. the skills the player\'s '
+        + 'chosen style trains. Doing that SERVER-side is a payout decision plus a migration '
+        + '(player_state.combat_style is already there to read). NOT changed unilaterally. '
+        + 'OWNER: Game Designer (which skill) + Systems (the RPC).'],
+    ]);
+
+    const norm = (o) => JSON.stringify(Object.fromEntries(
+      Object.entries(o || {}).map(([k, v]) => [k, Number(v) || 0]).filter(([, v]) => v > 0).sort()));
+    const clientReward = (id, isWeekly) => (isWeekly
+      ? (weeklyPool.find((r) => r.id === id) || {}).reward
+      : dailyRewards[id]) || {};
+
+    for (const r of [...dailyRows.map((x) => ({ ...x, weekly: false })),
+                     ...weeklyRows.map((x) => ({ ...x, weekly: true }))]) {
+      const c = cat.get(r.id);
+      if (!c) continue;                                    // absence is BIND's job, above
+      const shown = clientReward(r.id, r.weekly);
+      const mismatch = [];
+      if ((Number(shown.gold) || 0) !== Number(c.gold)) mismatch.push(`gold ${shown.gold || 0}≠${c.gold}`);
+      if ((Number(shown.gems) || 0) !== Number(c.gems)) mismatch.push(`gems ${shown.gems || 0}≠${c.gems}`);
+      if (norm(shown.xp) !== norm(c.xp)) mismatch.push(`xp ${norm(shown.xp)}≠${norm(c.xp)}`);
+      if (norm(shown.items) !== norm(c.items)) mismatch.push(`items ${norm(shown.items)}≠${norm(c.items)}`);
+      if (KNOWN_PAYOUT_DRIFT.has(r.id)) {
+        ok(mismatch.length > 0,
+          `BIND-PAY: '${r.id}' is recorded as a KNOWN payout divergence but the two sides now AGREE. `
+          + 'Delete its KNOWN_PAYOUT_DRIFT row — a stale exemption hides the next real one.');
+        continue;
+      }
+      ok(mismatch.length === 0,
+        `BIND-PAY: '${r.id}' — the modal SHOWS a different reward from the one hr_claim_goal PAYS `
+        + `(${mismatch.join(', ')}). The player is quoted one price and paid another. Fix the side `
+        + 'that is wrong, or declare it in KNOWN_PAYOUT_DRIFT with the reason and the owner.');
+    }
+
+    /* EVERY XP KEY MUST BE A REAL SKILL, and every item id a real item — on the
+       side that SPENDS them. hr_claim_goal filters silently (`skipped_xp` /
+       `skipped_items` in the receipt), so an unpayable component is invisible
+       to the player: they claim, they are paid less than the line promised, and
+       nothing anywhere says so. */
+    const skillIds = new Set(Object.keys(SKILLS_DEF));
+    const itemIds = new Set(Object.keys(ITEMS));
+    ok(skillIds.size > 10 && itemIds.size > 100,
+      `BIND-PAY: the catalogues look empty (${skillIds.size} skills, ${itemIds.size} items) — this `
+      + 'check would be vacuous');
+    for (const c of cat.values()) {
+      for (const k of Object.keys(c.xp || {})) {
+        if (PHANTOM_XP_SKILL.has(k)) continue;             // declared, with an owner
+        ok(skillIds.has(k),
+          `BIND-PAY: '${c.goal_id}' promises XP in '${k}', which is not a skill. hr_claim_goal drops `
+          + 'it into skipped_xp and pays the rest, so the reward line is a promise the game does not '
+          + 'keep. Name a real skill, or declare it in PHANTOM_XP_SKILL with the reason and owner.');
+      }
+      for (const k of Object.keys(c.items || {})) {
+        ok(itemIds.has(k) || KNOWN_PAYOUT_DRIFT.has(c.goal_id),
+          `BIND-PAY: '${c.goal_id}' promises item '${k}', which is in no ITEMS row — hr_claim_goal `
+          + 'cannot mint it, and a reward with nothing left to pay refuses reward_unavailable.');
+      }
+    }
+
+    /* ── A DEALABLE GOAL MUST BE A CLAIMABLE GOAL (b487, the wk_bury defect) ──
+       `wk_bury` sat in WEEKLY_GOAL_POOL and NOT in hr_goal_rewards, and this
+       file's own UNCATALOGUED map said so — while the picker went on dealing it
+       in 13 of any 52 weeks, and the modal went on rendering a Claim button for
+       it off the LOCAL count (isComplete falls through when the server has no
+       row). Every press answered `unknown_goal`. Documenting that a goal cannot
+       pay is not the same as not offering it — this is the assertion that makes
+       the two agree, and it is the Designer's own standing rule: a quest that
+       cannot pay must not be dealt. */
+    for (const [id, why] of UNCATALOGUED) {
+      const row = weeklyPool.find((r) => r.id === id) || null;
+      ok(!row || !!row.blocked,
+        `BIND-PAY: '${id}' is UNCATALOGUED (${why.slice(0, 80)}…) but is still DEALABLE — the picker `
+        + 'offers it and the modal renders a Claim button the server refuses unknown_goal. Mark the '
+        + 'authored row `blocked:` so it keeps its pool index and is never dealt.');
+    }
+    for (const row of weeklyPool) {
+      if (!row.blocked) continue;
+      ok(!cat.has(row.id),
+        `BIND-PAY: '${row.id}' is marked blocked in WEEKLY_GOAL_POOL but the server CAN pay it — `
+        + 'delete the marker so players are offered a quest that works.');
+    }
+    ok(weeklyPool.filter((r) => !r.blocked).length >= 3,
+      'BIND-PAY: fewer than 3 dealable weekly goals remain — the picker cannot fill a slate');
   }
 
   /* (B)↔(C): every period counter the catalogue reads must be a key SOMETHING

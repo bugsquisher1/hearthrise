@@ -87,6 +87,38 @@ const MUTATIONS = {
     find: `    '        values (v_uid, v_slot, ''stat'', ''ev:kill_credited_any'', '''', v_applied, ''active'')' || chr(10) ||`,
     repl: `    '        values (v_uid, v_slot, ''stat'', ''ev:kill_credited_any__disabled'', '''', 0, ''active'')' || chr(10) ||`,
   },
+  credited_exceeds_bestiary: {
+    /* ⚠ THE `do update` LINE IS PART OF THE ANCHOR, and that is the whole
+       mutation. The first draft changed only the VALUES list — which is the
+       INSERT path, taken exactly once per monster per character. Every credit
+       after the first hits ON CONFLICT and used the untouched
+       `p.value + v_applied`, so the planted defect fired once on a row nobody
+       compared and then vanished. The selftest reported NOT CAUGHT rather than
+       giving a false pass, which is the mutation harness doing its job on the
+       mutation itself: a defect that only manifests on a path the fixture takes
+       once is not a defect the guard can be said to cover. */
+    why: 'the per-monster credited counter records the RAW CLAIM instead of the applied delta on '
+       + 'EVERY write, so it over-runs the bestiary row it discounts. greatest(0, best - credited) '
+       + 'then over-subtracts and the discount starts EATING renown the player earned honestly '
+       + 'through the settle — a silent progression regression that every "the faucet did not open" '
+       + 'assertion passes straight over',
+    find: `    '        values (v_uid, v_slot, ''stat'', ''ev:kill_credited:'' || p_target, '''', v_applied, ''active'')' || chr(10) ||
+    '        on conflict (user_id, slot, kind, key, period_key)' || chr(10) ||
+    '          do update set value = p.value + v_applied, updated_at = now();' || chr(10) ||
+    '      insert into public.player_progress as p (user_id, slot, kind, key, period_key, value, state)' || chr(10) ||`,
+    repl: `    '        values (v_uid, v_slot, ''stat'', ''ev:kill_credited:'' || p_target, '''', v_claimed, ''active'')' || chr(10) ||
+    '        on conflict (user_id, slot, kind, key, period_key)' || chr(10) ||
+    '          do update set value = p.value + v_claimed, updated_at = now();' || chr(10) ||
+    '      insert into public.player_progress as p (user_id, slot, kind, key, period_key, value, state)' || chr(10) ||`,
+  },
+  credited_is_periodic: {
+    why: 'the credited rows are filed with a PERIOD key instead of the permanent one, so '
+       + 'hr_progress_prune sweeps them at 31 days while ev:kill_any and the bestiary row survive '
+       + 'forever. The discount then fails OPEN — the faucet re-opens on a timer, with nothing '
+       + 'looking broken at the moment it happens',
+    find: `    '        values (v_uid, v_slot, ''stat'', ''ev:kill_credited_any'', '''', v_applied, ''active'')' || chr(10) ||`,
+    repl: `    '        values (v_uid, v_slot, ''stat'', ''ev:kill_credited_any'', public.hr_utc_day_key(now()), v_applied, ''active'')' || chr(10) ||`,
+  },
   renown_always_zero: {
     why: 'THE DEGENERATE "FIX": renown is broken to always return 0. Every "the faucet is closed" '
        + 'assertion passes trivially, so R1 (the honest control) is the only thing standing between '
@@ -120,6 +152,13 @@ MUTATIONS.no_discount_boss_gate_blind = {
      + 'ONLY this guard (R2/R3) can see it',
   find: MUTATIONS.no_discount_boss.find,
   repl: MUTATIONS.no_discount_boss.repl,
+  also: [GATE_BLIND],
+};
+MUTATIONS.credited_exceeds_bestiary_gate_blind = {
+  why: MUTATIONS.credited_exceeds_bestiary.why + ' — with the migration\'s own §3 gate '
+     + 'short-circuited, so ONLY this guard (R8\'s signed equality) can see it',
+  find: MUTATIONS.credited_exceeds_bestiary.find,
+  repl: MUTATIONS.credited_exceeds_bestiary.repl,
   also: [GATE_BLIND],
 };
 MUTATIONS.renown_always_zero_gate_blind = {
@@ -269,6 +308,83 @@ async function run(mutate) {
   obs.r6_credit = await credit(plain, 400, 'r5-plain-1');
   obs.r6_renown_delta = (await renown()) - rBeforePlain;
 
+  /* ── R8 FIXTURE: a THROTTLED credit, which is the only shape that can break
+     the ordering invariant. With a generous window v_applied == v_claimed and
+     recording the wrong one is indistinguishable — the first draft of this guard
+     measured exactly that and `credited_exceeds_bestiary` sailed through. A
+     30-second window against a 400-kill claim makes the cap bite (v_applied is a
+     few dozen, v_claimed stays 400), so a counter that records the CLAIM instead
+     of the APPLIED delta immediately overshoots the bestiary row. */
+  await accept(boss);
+  await q("update active_bounty set accepted_at = now() - interval '30 seconds' where user_id=$1", [uid]);
+  await q("update hr_kill_credit_log set created_at = now() - interval '30 minutes' where user_id=$1", [uid]);
+  const rBeforeThrottle = await renown();
+  obs.r8_throttled = await credit(boss, 400, 'r5-throttle-1');
+  obs.r8_renown_delta = (await renown()) - rBeforeThrottle;
+
+  /* ── R8. THE ORDERING INVARIANT: credited <= bestiary, per monster. ────
+     The bestiary row is written ABSOLUTELY (greatest(p.value, baseline+credit))
+     and the credited row ADDITIVELY (+= v_applied) — two merge disciplines on
+     numbers that must stay ordered. An inversion makes greatest(0, best -
+     credited) UNDER-discount, which re-opens the faucet PARTIALLY and silently:
+     renown moves LESS than before, so every "faucet closed" check above still
+     passes. Only this comparison sees it. */
+  obs.r8_inversions = N((await q(
+    `select count(*)::text c
+       from player_progress c
+       left join player_progress b
+         on b.user_id=c.user_id and b.slot=c.slot and b.kind='stat' and b.period_key=''
+        and b.key = 'ev:kill_monster:' || substring(c.key from 18)
+      where c.user_id=$1 and c.slot=0 and c.kind='stat' and c.period_key=''
+        and c.key like 'ev:kill_credited:%'
+        and c.value > coalesce(b.value, 0)`, [uid]))[0].c);
+  obs.r8_rows = N((await q(
+    "select count(*)::text c from player_progress where user_id=$1 and slot=0 and kind='stat' "
+    + "and period_key='' and key like 'ev:kill_credited:%'", [uid]))[0].c);
+
+  /* ── R9. THE DISCOUNT IS NOT PRUNABLE. hr_renown_of is only honest if the
+     credited rows outlive the rows they discount. They carry period_key = ''
+     (the permanent population) and hr_progress_prune deletes only
+     period_key <> '' — proven by RUNNING the prune at its most aggressive
+     rather than by reading its WHERE clause. If a credited row could be swept
+     while ev:kill_any survives, the discount fails OPEN and nothing looks
+     broken, which is the worst failure mode available here. */
+  await q("select public.hr_progress_prune(interval '0 seconds')");
+  obs.r9_credited_any = N((await q(
+    "select count(*)::text c from player_progress where user_id=$1 and slot=0 and kind='stat' "
+    + "and period_key='' and key='ev:kill_credited_any'", [uid]))[0].c);
+  obs.r9_credited_per = N((await q(
+    "select count(*)::text c from player_progress where user_id=$1 and slot=0 and kind='stat' "
+    + "and period_key='' and key like 'ev:kill_credited:%'", [uid]))[0].c);
+  obs.r9_kill_any = N((await q(
+    "select count(*)::text c from player_progress where user_id=$1 and slot=0 and kind='stat' "
+    + "and period_key='' and key='ev:kill_any'", [uid]))[0].c);
+
+  /* ── R7. READ COST. hr_renown_of sits on hr_perks_of's path, which the
+     accrual engine calls on EVERY settle, so the discount must not turn a hot
+     read into a scan. Seed the FULL monster catalogue as bestiary AND credited
+     rows — the worst case a character can reach — and time it. Both added
+     lookups supply player_progress' complete PRIMARY KEY, so the cost should
+     stay flat; a sequential scan per bestiary row would show up as orders of
+     magnitude, which is what the deliberately generous ceiling catches. The
+     measurement is REPORTED either way, so a creeping regression is visible even
+     on a pass. */
+  await q(`insert into player_progress (user_id, slot, kind, key, value, period_key, state)
+           select $1, 0, 'stat', 'ev:kill_monster:' || monster_id, 500, '', 'active'
+             from public.hr_bounty_monsters
+           on conflict (user_id,slot,kind,key,period_key) do update set value = 500`, [uid]);
+  await q(`insert into player_progress (user_id, slot, kind, key, value, period_key, state)
+           select $1, 0, 'stat', 'ev:kill_credited:' || monster_id, 100, '', 'active'
+             from public.hr_bounty_monsters
+           on conflict (user_id,slot,kind,key,period_key) do update set value = 100`, [uid]);
+  obs.r7_bestiary_rows = N((await q(
+    "select count(*)::text c from player_progress where user_id=$1 and slot=0 and kind='stat' "
+    + "and period_key='' and key like 'ev:kill_monster:%'", [uid]))[0].c);
+  const REPS = 40;
+  const t0 = Date.now();
+  for (let i = 0; i < REPS; i += 1) await renown();
+  obs.r7_ms_per_call = (Date.now() - t0) / REPS;
+
   await db.close?.();
   return { obs, problems };
 }
@@ -325,11 +441,60 @@ function grade(o, problems) {
     `R6: a credit against the NON-boss target '${o.plain}' moved renown by ${o.r6_renown_delta} `
     + '(must be 0). Negative means the discount is a GLOBAL subtraction and is erasing honest boss '
     + `renown; positive means the '${o.plain}' credit is still scoring.`);
+
+  // R8 — the ordering invariant the discount rests on.
+  ok(o.r8_rows > 0,
+    'R8: FIXTURE — no per-monster credited rows exist, so the invariant is untested');
+  ok(N(o.r8_throttled?.throttled) === 1 || o.r8_throttled?.throttled === true,
+    `R8: FIXTURE — the 30-second-window credit was NOT throttled (${JSON.stringify(o.r8_throttled)}); `
+    + 'with applied == claimed the invariant cannot be violated and this check proves nothing');
+  ok(N(o.r8_throttled?.credited) > 0,
+    `R8: FIXTURE — the throttled credit applied ${o.r8_throttled?.credited}; it must apply SOME `
+    + 'kills or there is no credited row to compare');
+  /* The SIGNED equality, and it is stronger than the invariant below: the
+     discount must equal the credit in BOTH directions. Record too little and the
+     faucet stays open (renown rises); record too much — the raw claim instead of
+     the applied delta — and the discount EATS renown the player earned by
+     settling (renown falls). Every "did not rise" check passes in that second
+     case, which is what makes it the sneakier failure. */
+  ok(o.r8_renown_delta === 0,
+    `R8: a THROTTLED credit moved renown by ${o.r8_renown_delta} (must be 0). Above 0 = the faucet `
+    + 'is open for throttled credits; BELOW 0 = the discount over-subtracts and is destroying '
+    + 'renown the player earned honestly through the settle.');
+  ok(o.r8_inversions === 0,
+    `R8: INVARIANT BROKEN — ${o.r8_inversions} credited counter(s) EXCEED their bestiary row. The `
+    + 'bestiary is written absolutely (greatest) and the credited row additively, so an inversion '
+    + 'makes greatest(0, best - credited) UNDER-discount: the faucet re-opens partially and '
+    + 'SILENTLY, because renown still moves less than it used to and every check above still passes.');
+
+  // R9 — the discount must outlive what it discounts.
+  ok(o.r9_kill_any === 1,
+    'R9: FIXTURE — hr_progress_prune removed ev:kill_any itself, so the comparison proves nothing');
+  ok(o.r9_credited_any === 1,
+    'R9: hr_progress_prune DELETED ev:kill_credited_any while ev:kill_any survived — the discount '
+    + 'is prunable and therefore fails OPEN, silently re-opening the aggregate half of the faucet');
+  ok(o.r9_credited_per > 0,
+    'R9: hr_progress_prune DELETED the per-monster credited rows — the boss half of the discount '
+    + 'is prunable and fails OPEN');
+
+  // R7 — read cost on the accrual engine's hot path.
+  ok(o.r7_bestiary_rows >= 100,
+    `R7: FIXTURE — only ${o.r7_bestiary_rows} bestiary rows seeded; the worst case was not measured`);
+  ok(o.r7_ms_per_call < 60,
+    `R7: hr_renown_of costs ${o.r7_ms_per_call.toFixed(1)} ms/call against a full ${o.r7_bestiary_rows}-row `
+    + 'bestiary. It is on hr_perks_of\'s path, which the accrual engine calls on EVERY settle. Both '
+    + 'lookups this change adds supply the complete player_progress PRIMARY KEY, so a number this '
+    + 'high means the plan degraded to a scan per bestiary row.');
 }
 
 export async function renownKillFaucetGuard() {
   const { obs, problems } = await run(null);
   grade(obs, problems);
+  /* Reported on the way out, pass or fail: hr_renown_of is on the accrual
+     engine's per-settle path, so the cost of the discount is a number a reader
+     should SEE rather than a threshold that quietly holds. */
+  renownKillFaucetGuard.readCost =
+    `${obs.r7_ms_per_call.toFixed(1)} ms/call over a ${obs.r7_bestiary_rows}-row bestiary`;
   return problems;
 }
 
@@ -383,8 +548,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       process.exit(1);
     }
     console.log('renown-kill-faucet guard — a client kill credit scores ZERO renown (sustained spam '
-      + 'included) while a server settle still scores in full, the discount is per-monster, the '
-      + 'bestiary row still moves and the bounty turn-in still pays.');
+      + 'and throttled credits included) while a server settle still scores in full, the discount '
+      + 'is per-monster and unprunable, the bestiary row still moves and the bounty turn-in still '
+      + `pays. hr_renown_of read cost: ${renownKillFaucetGuard.readCost}.`);
   })().catch((e) => {
     console.error(String(e.message || e));
     process.exit(e && e.harness ? 2 : 1);

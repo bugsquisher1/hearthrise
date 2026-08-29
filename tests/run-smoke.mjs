@@ -3003,8 +3003,9 @@ const run = async () => {
         exitCode = 1;
       } else {
         console.log('\nRenown kill-faucet guard — a client kill credit scores ZERO renown '
-          + '(sustained spam included) while a server settle still scores in full, the discount '
-          + 'is per-monster, the bestiary row still moves and the bounty turn-in still pays.');
+          + '(sustained spam and throttled credits included) while a server settle still scores in '
+          + 'full, the discount is per-monster and unprunable, the bestiary row still moves and the '
+          + `bounty turn-in still pays. hr_renown_of read cost: ${renownKillFaucetGuard.readCost}.`);
       }
     } catch (e) {
       console.log('\nRenown kill-faucet guard — FAILED:\n' + String(e.message || e));

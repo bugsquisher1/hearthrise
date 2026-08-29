@@ -104,15 +104,40 @@
 --     than the body it replaces. It is restated, and §0b pins the live bytes
 --     first so a restatement cannot silently revert a change made since review.
 --
--- ── NO BACKFILL, AND WHY THAT IS CORRECT HERE ──────────────────────────────
--- The credited counters start at zero, so renown for every existing character is
--- UNCHANGED at apply time — nobody loses a rank or a perk the moment this lands.
--- The corollary is stated plainly: renown already accrued from credited kills
--- since 2026-08-30 is NOT clawed back. Under the cutover ruling the beta is
--- wiped, so a backfill would be work to correct numbers that are about to cease
--- to exist; and hr_claim_rank's own high-water (greatest()) means a rank already
--- claimed stays claimed regardless. This file stops the faucet; it does not
--- re-litigate what already flowed.
+-- ── ⚠ RETROACTIVITY: THIS FIX IS FORWARD-ONLY, AND HERE IS EXACTLY WHAT THAT
+--      LEAVES BEHIND (Security pre-build condition 2 — stated, not implied) ───
+-- The credited counters start at ZERO, so renown for every existing character is
+-- UNCHANGED at apply time: nobody loses a rank or a perk the moment this lands.
+-- The price of that is precise and must be written down rather than left to be
+-- inferred from "no backfill":
+--
+--   1. EVERY KILL CREDITED SINCE 2026-08-30 KEEPS SCORING, FOREVER. Those kills
+--      are already inside stat/ev:kill_any and stat/ev:kill_monster:<id>, and
+--      nothing distinguishes them from server-simulated ones. The renown they
+--      produce is permanent.
+--   2. THERE IS NO BACKFILL SOURCE, and this is structural rather than a matter
+--      of effort. The only record of which kills were client-credited is
+--      hr_kill_credit_log, whose retention 2026-09-01 §1 sets to TWO DAYS (and
+--      whose prune this repo now schedules). Anything older is gone. A backfill
+--      would have to invent the split, which is worse than admitting the gap.
+--   3. ALREADY-CLAIMED RANKS ARE UNRECOVERABLE. hr_claim_rank consumes a
+--      once-per-rank guard row and holds a renown HIGH-WATER with greatest(), so
+--      a rank claimed on faucet-inflated renown stays claimed and its gold+gems
+--      stay paid even after the live score drops. Up to 1,603,000 gold + 925
+--      gems per character could already be banked and is not clawed back here.
+--   4. THE renownAllXp PERK reads the LIVE score, so it DOES self-correct — but
+--      only for future credits; renown already banked from past credits keeps
+--      holding the thresholds up.
+--
+--   THE ANSWER, STATED: the beta is WIPED at cutover (CLAUDE.md, Tyler
+--   2026-08-10 — "I do not care if anything has been exploited because this beta
+--   version is gonna be wiped anyway. I care about doing it correctly from this
+--   point forward"). So the residue above ceases to exist at the wipe, and
+--   building a forensic backfill for numbers that are about to be deleted is the
+--   wrong work. THAT IS THE WHOLE JUSTIFICATION — if the wipe is ever cancelled
+--   or deferred past this fix, THIS PARAGRAPH IS THE THING THAT MUST BE
+--   RE-OPENED, because then the correct action becomes a renown recompute plus a
+--   rank-claim audit, and neither exists.
 --
 -- ── STATED COST ────────────────────────────────────────────────────────────
 -- Renown no longer scores attended kills that the client credited. That is a
@@ -121,13 +146,44 @@
 -- removing a faucet that is live now. The alternative is scoring them, which is
 -- the faucet.
 --
--- ── KEY BUDGET ─────────────────────────────────────────────────────────────
+-- ── KEY BUDGET, AND THE TWO PROPERTIES THE DISCOUNT RESTS ON ───────────────
 -- 'ev:kill_credited:' is 17 chars + a monster id (<=17 today, <=48 by the
 -- BESTIARY_ID_RE fuse) — inside player_progress' 64-char key CHECK.
--- 'ev:kill_credited_any' is 20. Both are permanent rows (period_key = ''), so
--- hr_progress_prune never sweeps them, which is required: a pruned discount
--- would silently re-open the faucet. The population is bounded by the monster
+-- 'ev:kill_credited_any' is 20. The population is bounded by the monster
 -- catalogue (108) plus one, per character.
+--
+--   ⚠ (i) THE CREDITED ROWS MUST NEVER BE PRUNED. They carry period_key = '',
+--     the PERMANENT population, and hr_progress_prune deletes only
+--     `period_key <> ''`. This is load-bearing and asserted by EXECUTION in
+--     §3(c6): if a credited row could be swept while ev:kill_any survives, the
+--     discount would fail OPEN and the faucet would re-open silently — the worst
+--     possible failure mode, because nothing would look broken.
+--
+--   ⚠ (ii) THE INVARIANT ev:kill_credited:<id> <= ev:kill_monster:<id>. The
+--     bestiary row is written ABSOLUTELY (greatest(p.value, baseline + credit))
+--     while the credited row is ADDITIVE (+= v_applied), so the two use different
+--     merge disciplines on numbers that must stay ordered. It holds because
+--     v_applied IS the increase the bestiary row takes (v_target_val - v_current)
+--     and the bestiary row never decreases — including under a concurrent settle,
+--     which can only raise it further. If it ever inverted, greatest(0, …) would
+--     silently UNDER-discount and the faucet would partially re-open. Asserted in
+--     §3(c2) and by the guard's mutation `credited_exceeds_bestiary`.
+--
+-- ── READ COST (Security pre-build condition 5) ─────────────────────────────
+-- hr_renown_of is on hr_perks_of's path, which the accrual engine calls on every
+-- settle, so this is a hot read and the op-count analysis above (which covers
+-- WRITES) does not cover it. What this file adds per call:
+--   · kill term: ONE extra scalar subquery on player_progress, fully qualified on
+--     (user_id, slot, kind, key, period_key) — the table's PRIMARY KEY — so it is
+--     a single index probe.
+--   · boss term: ONE left join whose predicate ALSO supplies the complete primary
+--     key (cr.user_id, cr.slot, cr.kind, cr.key, cr.period_key), i.e. one index
+--     probe per bestiary row already being scanned. The bestiary population is
+--     bounded by the monster catalogue: <= 108 probes, and in practice a handful.
+-- No new sequential scan and no new sort; the added work is O(bestiary rows)
+-- index lookups against a key the table is already clustered on. The guard
+-- measures it (R7) against a FULL 108-monster bestiary rather than trusting this
+-- paragraph.
 --
 -- REVERSIBILITY: re-apply 2026-08-20-renown.sql (restores the undiscounted
 -- hr_renown_of) and re-apply 2026-09-01-kill-daily-credit.sql §3 (restores the
@@ -157,15 +213,61 @@ begin
     raise exception 'hr_credit_kills__ungated not found — apply 2026-08-30-bounty-kill-credit.sql first';
   end if;
 
-  -- ⚠ THE ORDER DEPENDENCY, ASSERTED BY NAME. §1's anchor lives in the body
-  --   2026-09-01-kill-daily-credit.sql installs. Without it the patch would find
-  --   no anchor and raise a confusing "anchor not found"; this says what to do.
-  v_ck := pg_get_functiondef('public.hr_credit_kills__ungated(int,text,bigint,text)'::regprocedure);
+  v_ck := null;   -- the credit body is pinned by hash in §0a, not probed here
+end $$;
+
+-- ── 0a. ⚠ THE ORDER DEPENDENCY, PINNED BY HASH — NOT BY A SUBSTRING ────────
+-- TWO migrations one commit apart now touch hr_credit_kills__ungated. That is
+-- the b484–b487 coupling living inside a single worktree, so it is pinned rather
+-- than described.
+--
+-- ⚠ A SUBSTRING PROBE IS NOT ENOUGH, AND THAT IS MEASURED RATHER THAN ASSUMED.
+--   The first revision of this block tested strpos(v_settle_delta) /
+--   strpos(kills_stat) — "does it LOOK like the kill-daily body?". Security
+--   proved the identical idiom in 2026-09-01 §0b waves through a HOTFIX APPLIED
+--   ON TOP, because such a body still contains both substrings. That file now
+--   pins two hashes; so does this one. A patch cannot revert what it does not
+--   name, but it CAN silently graft itself onto a body nobody reviewed — the
+--   anchor it needs may well still match.
+--
+--   c_expect   the body 2026-09-01-kill-daily-credit.sql installs — i.e. exactly
+--              that file's own c_self. ONE number pinned in BOTH files, so they
+--              cannot drift apart about what "the kill-daily body" means.
+--   c_applied  this file's own output, so a re-apply is a no-op, not a refusal.
+--
+-- Both measured on the PGlite replay of tests/schema-apply-order.json, which was
+-- verified byte-for-byte against production for the 2026-08-30 baseline.
+-- '[[:space:]]+' and not '\s+': the two runtimes disagree on backslash classes
+-- under standard_conforming_strings (measured).
+do $$
+declare
+  c_expect  constant text := '31894cffe792cebf6e50a0765f65c6ed';  -- post-2026-09-01 (norm len 19236)
+  c_applied constant text := '31807e6470bb0c870097490becf15338';                     -- post-THIS-FILE (norm len 20235)
+  v_ck  text;
+  v_md5 text;
+begin
+  v_ck  := pg_get_functiondef('public.hr_credit_kills__ungated(int,text,bigint,text)'::regprocedure);
+  v_md5 := md5(regexp_replace(v_ck, '[[:space:]]+', ' ', 'g'));
+  if v_md5 = c_expect then
+    raise notice 'hr_credit_kills__ungated is the expected post-kill-daily body (%)', v_md5;
+    return;
+  end if;
+  if v_md5 = c_applied then
+    raise notice 'hr_credit_kills__ungated already carries THIS file''s patch (%) — re-apply', v_md5;
+    return;
+  end if;
   if position('v_settle_delta' in v_ck) = 0 or position('kills_stat' in v_ck) = 0 then
     raise exception 'hr_credit_kills__ungated does not carry the kill-daily body — apply '
                     '2026-09-01-kill-daily-credit.sql FIRST. These two ship adjacent and this one '
-                    'is second; it patches the body that file installs.';
+                    'is SECOND; it patches the body that file installs. (live md5 %)', v_md5;
   end if;
+  raise exception
+    'BODY DRIFT — hr_credit_kills__ungated is md5 % (normalised length %). It LOOKS like the '
+    'kill-daily body but is NEITHER the reviewed post-2026-09-01 body (%) NOR this file''s own '
+    'output (%) — something changed it after review, most likely a hotfix. §1 would graft a patch '
+    'onto a body nobody reviewed. STOP: diff the live body, re-take the review, then update the '
+    'hash DELIBERATELY. Do not edit the hash to make this pass.',
+    v_md5, length(regexp_replace(v_ck, '[[:space:]]+', ' ', 'g')), c_expect, c_applied;
 end $$;
 
 -- ── 0b. THE BASELINE FINGERPRINT for the body §2 RESTATES (the C3 idiom) ────
@@ -368,7 +470,7 @@ declare
   v_uid  constant uuid := '000000c8-0000-0000-0000-0000000000c8';
   v_slot constant int  := 0;
   v_boss text; v_hp int;
-  v_r0 bigint; v_r1 bigint; v_r2 bigint; v_r3 bigint;
+  v_r0 bigint; v_r1 bigint; v_r2 bigint; v_r3 bigint; v_r4 bigint;
   v_best bigint; v_cred bigint; v_life bigint;
   v_n int;
 begin
@@ -495,6 +597,25 @@ begin
       raise exception 'GATE(c2): the aggregate credited counter is % but the credit applied %',
                       coalesce(v_life,0), v->>'credited';
     end if;
+    -- ⚠ THE ORDERING INVARIANT: credited <= bestiary, per monster. The bestiary
+    --   row is ABSOLUTE (greatest) and the credited row is ADDITIVE, so they use
+    --   different merge disciplines on numbers that must stay ordered. An
+    --   inversion would make greatest(0, best - credited) UNDER-discount and
+    --   partially re-open the faucet, silently.
+    --   The MEANINGFUL check is (c5b) below, after a THROTTLED credit on a FRESH
+    --   bounty; this one is the cheap always-on sweep.
+    if exists (
+      select 1
+        from public.player_progress c
+        left join public.player_progress b
+          on b.user_id = c.user_id and b.slot = c.slot and b.kind = 'stat'
+         and b.period_key = '' and b.key = 'ev:kill_monster:' || substring(c.key from 18)
+       where c.user_id = v_uid and c.slot = v_slot and c.kind = 'stat'
+         and c.period_key = '' and c.key like 'ev:kill_credited:%'
+         and c.value > coalesce(b.value, 0)) then
+      raise exception 'GATE(c2): INVARIANT BROKEN — a credited counter EXCEEDS its bestiary row, so '
+                      'the discount would under-subtract and the faucet is partly open';
+    end if;
 
     -- ── (c3) SUSTAINED SPAM STAYS AT ZERO ─────────────────────────────────
     --     One call could be a coincidence. Re-open the window repeatedly, the
@@ -532,6 +653,96 @@ begin
     v := public.hr_claim_bounty__ungated(v_slot);
     if coalesce(v->>'ok','') <> 'true' or coalesce((v->>'credited')::boolean,false) is not true then
       raise exception 'GATE(c5): the bounty turn-in broke: %', v;
+    end if;
+
+    -- ── (c5b) ⚠ THE ORDERING INVARIANT, UNDER A *THROTTLED* CREDIT ────────
+    --     credited <= bestiary is what makes greatest(0, best - credited) an
+    --     honest discount. It can only be violated when v_applied < v_claimed,
+    --     i.e. when the cap BITES — with a generous window the two are equal and
+    --     recording the wrong one is invisible. (Measured: the first draft of
+    --     this gate checked the invariant after the generous credit in (c2), and
+    --     the matching mutation `credited_exceeds_bestiary` sailed straight
+    --     through it.) A FRESH accept is required too: the top-up is absolute
+    --     against the accept-time baseline, so a second credit on the same bounty
+    --     applies nothing at all.
+    v := public.hr_accept_bounty__ungated(v_slot, 'r5b', v_boss, 'cull', 'normal', 100);
+    if coalesce(v->>'ok','') <> 'true' then
+      raise exception 'GATE(c5b): FIXTURE — the fresh accept failed: %', v;
+    end if;
+    update public.active_bounty set accepted_at = now() - interval '30 seconds'
+      where user_id = v_uid and slot = v_slot;
+    update public.hr_kill_credit_log set created_at = now() - interval '30 minutes'
+      where user_id = v_uid and slot = v_slot;
+    v_r4 := public.hr_renown_of(v_uid, v_slot);
+    v := public.hr_credit_kills__ungated(v_slot, v_boss, 400, 'r5-throttle-1');
+    if coalesce((v->>'throttled')::boolean, false) is not true then
+      raise exception 'GATE(c5b): FIXTURE — a 400-kill claim over a 30-second window was not '
+                      'throttled (%), so applied == claimed and the invariant cannot be violated '
+                      'by any mutation', v;
+    end if;
+    if coalesce((v->>'credited')::bigint, 0) <= 0 then
+      raise exception 'GATE(c5b): FIXTURE — the throttled credit applied nothing (%)', v->>'credited';
+    end if;
+    -- ⚠ THE PROPERTY, and it is stronger than the invariant below: a THROTTLED
+    --   credit must move renown by EXACTLY ZERO too. The discount has to equal
+    --   the credit in both directions — record too little and the faucet stays
+    --   open (renown rises); record too much (e.g. the raw claim instead of the
+    --   applied delta) and the discount EATS HONEST RENOWN the player earned by
+    --   settling (renown falls). Only a signed equality catches both, and the
+    --   fall is the sneakier failure because every "did not rise" check passes.
+    --   ⚠ The baseline is taken IMMEDIATELY BEFORE the credit, not carried from
+    --     (c4). The turn-in in (c5) pays gold, and renown carries a goldLog term
+    --     — an earlier revision compared against v_r3 + 50 and this gate caught
+    --     its own arithmetic (2902 vs 2893). Measure the delta across the ONE
+    --     operation under test.
+    if public.hr_renown_of(v_uid, v_slot) <> v_r4 then
+      raise exception 'GATE(c5b): a THROTTLED credit moved renown by % (must be 0). Above 0 = the '
+                      'faucet is open for throttled credits; BELOW 0 = the discount over-subtracts '
+                      'and is destroying renown the player earned honestly through the settle.',
+                      public.hr_renown_of(v_uid, v_slot) - v_r4;
+    end if;
+    if exists (
+      select 1
+        from public.player_progress c
+        left join public.player_progress b
+          on b.user_id = c.user_id and b.slot = c.slot and b.kind = 'stat'
+         and b.period_key = '' and b.key = 'ev:kill_monster:' || substring(c.key from 18)
+       where c.user_id = v_uid and c.slot = v_slot and c.kind = 'stat'
+         and c.period_key = '' and c.key like 'ev:kill_credited:%'
+         and c.value > coalesce(b.value, 0)) then
+      raise exception 'GATE(c5b): INVARIANT BROKEN under a throttled credit — a credited counter '
+                      'EXCEEDS its bestiary row, so greatest(0, best - credited) UNDER-discounts '
+                      'and the faucet is partly open. The counter must record the APPLIED delta, '
+                      'never the raw claim.';
+    end if;
+
+    -- ── (c6) ⚠ THE DISCOUNT MUST NOT BE PRUNABLE ──────────────────────────
+    --     If a credited row could be swept while ev:kill_any / the bestiary row
+    --     survives, the discount would fail OPEN — the faucet re-opening with
+    --     nothing appearing broken. The credited rows carry period_key = '' (the
+    --     PERMANENT population) and hr_progress_prune deletes only period_key
+    --     <> ''. Proven by RUNNING the prune at its most aggressive, not by
+    --     reading its WHERE clause.
+    if to_regprocedure('public.hr_progress_prune(interval)') is null then
+      raise exception 'GATE(c6): hr_progress_prune is missing — the prune-safety claim is unprovable';
+    end if;
+    perform public.hr_progress_prune(interval '0 seconds');
+    if not exists (select 1 from public.player_progress where user_id=v_uid and slot=v_slot
+                    and kind='stat' and period_key='' and key='ev:kill_credited_any') then
+      raise exception 'GATE(c6): hr_progress_prune DELETED ev:kill_credited_any — the discount is '
+                      'prunable and would fail OPEN, silently re-opening the faucet';
+    end if;
+    if not exists (select 1 from public.player_progress where user_id=v_uid and slot=v_slot
+                    and kind='stat' and period_key='' and key like 'ev:kill_credited:%') then
+      raise exception 'GATE(c6): hr_progress_prune DELETED a per-monster credited row — the boss '
+                      'half of the discount is prunable and would fail OPEN';
+    end if;
+    -- …and the control: the row it discounts survived the same prune, so the two
+    -- cannot fall out of step in the other direction either.
+    if not exists (select 1 from public.player_progress where user_id=v_uid and slot=v_slot
+                    and kind='stat' and period_key='' and key='ev:kill_any') then
+      raise exception 'GATE(c6): FIXTURE — the prune removed ev:kill_any itself, so the comparison '
+                      'proves nothing';
     end if;
 
     raise exception using errcode = 'HR822', message = 'renown-kill-faucet §3 complete — rolling back';

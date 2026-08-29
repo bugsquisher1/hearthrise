@@ -1,6 +1,8 @@
 # R5 — the renown kill faucet (LIVE, pre-existing, P1)
 
-**Status:** DESIGNED, not built. Branch `fix/renown-kill-faucet`.
+**Status:** BUILT on `fix/renown-kill-faucet` — migration
+`supabase/migrations/2026-09-02-renown-kill-faucet.sql`, **not applied**. Security's
+five pre-build conditions are folded in (§8).
 **Raised by:** Security, during the review of `2026-09-01-kill-daily-credit.sql`.
 **Not introduced by that file** — this is the *deployed* `2026-08-30-bounty-kill-credit.sql`
 behaviour and has been live since it was applied.
@@ -153,3 +155,74 @@ and these are written by the RPC directly, not through a delta.
   the settle (`collectionProgressOps`); no client verb touches them.
 - **The rank ladder is a second copy of `src/data/renown-ranks.js`.** Not this
   fix's to correct, but a drift guard belongs with it.
+
+
+---
+
+## 8. Security pre-build conditions, as built
+
+**1 — the two-migration coupling is pinned, not described.** Two migrations one
+commit apart touch `hr_credit_kills__ungated`, which is the b484–b487 class
+living inside one worktree. `§0a` pins **two** hashes: `c_expect` (the body
+2026-09-01 installs — literally that file's own `c_self`, so the two files cannot
+drift apart about what "the kill-daily body" means) and `c_applied` (this file's
+own output, so a re-apply is a no-op). Anything else raises. The file sits
+strictly after 2026-09-01 in `schema-apply-order.json`, and applying it first
+**fails closed by name with the remedy** — verified by booting the chain without
+kill-daily and executing this file.
+
+> A substring probe is not enough, and that is measured rather than assumed: the
+> identical idiom in 2026-09-01 §0b waved through a hotfix applied *on top*
+> (which still contains the substrings). Both files now pin hashes.
+
+**2 — retroactivity, stated.** Forward-only. Credited kills since 2026-08-30
+keep scoring **forever**; there is **no backfill source** (the only record of
+which kills were client-credited is `hr_kill_credit_log`, retained two days); and
+**already-claimed ranks are unrecoverable** (`hr_claim_rank` consumes a
+once-per-rank guard and holds a `greatest()` high-water, so up to 1,603,000 gold
++ 925 gems per character may already be banked). The `renownAllXp` perk reads the
+live score and *does* self-correct, but only for future credits.
+**The answer is the beta wipe** (CLAUDE.md, Tyler 2026-08-10) — and that is
+written down as the whole justification, with the explicit trigger: *if the wipe
+is ever cancelled or deferred past this fix, this is the paragraph that must be
+re-opened*, because the correct action then becomes a renown recompute plus a
+rank-claim audit, and neither exists.
+
+**3 — the ordering invariant `ev:kill_credited:<id> ≤ bestiary(<id>)`** is
+asserted (the bestiary is written *absolutely* via `greatest`, the counter
+*additively*, so the two must be kept ordered), with mutation
+`credited_exceeds_bestiary`.
+
+> ⚠ The invariant alone turned out to be **too weak to catch its own mutation**:
+> honest kills sit in the bestiary row and absorb the overshoot, so no inversion
+> appears. The property that actually holds the line is a **signed equality — a
+> *throttled* credit must move renown by exactly 0**. Above 0 the faucet is open;
+> **below 0 the discount is eating renown the player earned honestly**, and every
+> "did not rise" check passes straight over that. Both layers now assert it
+> (`GATE(c5b)` and `R8`), and the mutation reads −550.
+
+**4 — the credited keys can never be pruned.** They carry `period_key = ''` (the
+permanent population) and `hr_progress_prune` deletes only `period_key <> ''` —
+proven by **running the prune at `interval '0 seconds'`** and requiring the rows
+to survive, with `ev:kill_any` as the control. If a credited row could be swept
+while the row it discounts survives, the discount fails **OPEN**: the faucet
+re-opens on a timer with nothing looking broken. Mutation `credited_is_periodic`.
+
+**5 — read cost, measured.** `hr_renown_of` is on `hr_perks_of`'s path, which the
+accrual engine calls every settle. Both added lookups supply `player_progress`'
+complete **primary key**, so the added work is one index probe for the kill term
+plus one per bestiary row (≤108) for the boss term — no new scan, no new sort.
+Measured against a **full 108-row bestiary**: **6.0 ms/call on PGlite**, against a
+deliberately generous 60 ms ceiling sized to catch a plan that degraded to a scan.
+The guard reports the number on every run, pass or fail, so a creeping regression
+is visible rather than merely under threshold.
+
+### Test inventory
+
+`tests/renown-kill-faucet.mjs` — R1 honest control (a settle scores exactly 505),
+R2 faucet closed with a fixture-degenerate guard, R3 sustained spam, R4 the
+discount subtracts rather than latches, R5 the bounty turn-in still pays, R6 the
+discount is per-monster, R7 read cost, R8 throttled-credit signed equality +
+the ordering invariant, R9 unprunable. **10 mutations, all caught**, three of
+them with the migration's own gate short-circuited so the guard alone must see
+them.

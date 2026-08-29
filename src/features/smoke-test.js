@@ -19875,6 +19875,265 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     BOUNTY-PAY — THE BOARD MAY NOT POST A CONTRACT THE GAME CANNOT SETTLE
+     (2026-08-31. Tyler, on live b486: "there is still a bug with the bounty
+     board." Found by driving the real board headless.)
+
+     Only `cull` has a turn-in: supabase/migrations/2026-08-23-bounty.sql wires
+     hr_accept_bounty/hr_claim_bounty for `cull` and REFUSES every other type
+     (`type_not_server_verifiable`), on the stated assumption that the rest
+     "keep their existing client behaviour". That assumption died when gold
+     armed: their client behaviour is finalizeBounty(), whose credit is gated on
+     clientMayWriteRecordField('gold'), which is permanently false. Measured on
+     the real board: a proof contract read 26/26 with `completed` still 0, no
+     gold, no Marks, no XP and NO TOAST, and the rail hides "New notices" while a
+     bounty is active — so one unpayable contract locked the whole board, exit
+     price a Marks-charging Abandon.
+
+     Three nets, one per test below: don't POST it, rescue an in-flight one at
+     boot, and never leave a completed one hanging. Each fails without the fix.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRun('BOUNTY-PAY-1: under the gold arm the board posts ONLY settleable contract types — and the unlock ladder is intact', () => {
+    if (typeof window.generateBountyBoard !== 'function') return;
+    const C = window.HearthriseCore;
+    if (!C || !C.bounty || typeof C.bounty.isOfferableType !== 'function') {
+      assert(false, 'src/core/bounty.js must export the BOUNTY_TURN_IN payability filter — without it the board '
+        + 'can post a proof/weapon/streak contract that has no turn-in anywhere');
+      return;
+    }
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    try {
+      const G = window.G;
+      /* A Bounty Hunter well past every type unlock, so the ladder genuinely
+         offers proof (lv5) / weapon (10) / streak (15). Without that this test
+         would pass against a level-1 board that only ever had culls. */
+      G.skills.bountyHunter = 20000; if (G.bountyHunter) G.bountyHunter.xp = 20000;
+      assert(window.getBountyHunterLevel() >= 15,
+        'CONTROL: the test character must be past the streak unlock, got BH ' + window.getBountyHunterLevel());
+      assert(C.bounty.unlockedTypes(window.getBountyHunterLevel()).indexOf('proof') >= 0,
+        'CONTROL: the LADDER must still contain proof — this fix gates what is POSTED, it must not delete the ladder');
+
+      // ARMED (live): the client cannot pay, so only server-settled types may post.
+      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'marks';
+      const armedTypes = {};
+      for (let i = 0; i < 60; i++) window.generateBountyBoard().forEach((b) => { armedTypes[b.type] = 1; });
+      const armedList = Object.keys(armedTypes).sort();
+      const unsettleable = armedList.filter((t) => !C.bounty.isOfferableType(t, false));
+      assert(!unsettleable.length,
+        'the board posted ' + unsettleable.join('/') + ' while the client may not pay and no server verb accepts it — '
+        + 'that contract can be accepted and filled and then has nowhere to turn in');
+      assert(armedList.length && armedList.indexOf('cull') >= 0, 'CONTROL: the board must still post something');
+
+      // DORMANT (client owns gold): the full ladder is still posted.
+      window.clientMayWriteRecordField = () => true;
+      const dormant = {};
+      for (let i = 0; i < 120; i++) window.generateBountyBoard().forEach((b) => { dormant[b.type] = 1; });
+      assert(dormant.proof,
+        'the client-owned position must still post proof contracts — the fix is a PAYABILITY gate, not a content cut, '
+        + 'and a filter that fires in both states has silently deleted three bounty types');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('BOUNTY-PAY-2: a completed contract the game cannot settle is withdrawn and SAID — never left hanging (the last b411 bare return)', () => {
+    if (typeof window.handleBountyKill !== 'function' || typeof window.acceptBounty !== 'function') return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origNotify = window.notify;
+    const toasts = [];
+    try {
+      const G = window.G;
+      window.notify = (m) => { toasts.push(String(m)); };
+      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'marks';
+      const monId = Object.keys(window.MONSTERS)[0];
+      const proof = (window.MONSTERS[monId].drops || [])[0] && window.MONSTERS[monId].drops[0].id;
+      if (!proof) return;
+      G.inventory[proof] = 0;
+      G.bountyHunter.active = null;
+      /* gold > 0 is what makes it unsettleable — that is the exact predicate the
+         old bare return used, so a reward of {gold:0} would not reproduce it. */
+      G.bountyHunter.board = [{ id: 'test_unsettleable', type: 'proof', target: monId, tier: 1, progress: 0,
+        proofItem: proof, required: 3, rewards: { gold: 320, marks: 6, xp: 45 } }];
+      window.acceptBounty(0);
+      assert(G.bountyHunter.active && G.bountyHunter.active.type === 'proof', 'CONTROL: the proof contract must be accepted');
+      toasts.length = 0;
+      G.inventory[proof] = 3;                       // fill it, the way a player does
+      window.handleBountyKill(monId, window.MONSTERS[monId]);
+      assert(!G.bountyHunter.active,
+        'the contract is still ACTIVE at full progress with no payout — this is the live bug: the bar reads '
+        + '3/3, nothing pays, no toast fires, and the board rail hides the reroll button while a bounty is active');
+      assert(toasts.length > 0,
+        'the withdraw said nothing to the player — a silent no-op is the b411 defect the b461 sweep was supposed to end');
+      assert(G.bountyHunter.board.length > 0, 'the board must be reposted so the player is not stranded');
+    } finally {
+      window.notify = origNotify;
+      window.clientMayWriteRecordField = origMay;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('BOUNTY-PAY-3: an unsettleable contract already in a SAVE is withdrawn free on the first ensure of the session', () => {
+    if (typeof window.ensureBountyState !== 'function') return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origNotify = window.notify;
+    const origLatch = window.__hrBountyBootStripped;
+    const toasts = [];
+    try {
+      const G = window.G;
+      window.notify = (m) => { toasts.push(String(m)); };
+      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'marks';
+      const monId = Object.keys(window.MONSTERS)[0];
+      const marksBefore = G.marks || 0;
+      G.bountyHunter.active = { id: 'stuck', type: 'streak', target: monId, tier: 1, progress: 40,
+        required: 40, streak: 40, rewards: { gold: 320, marks: 6, xp: 45 } };
+      window.__hrBountyBootStripped = false;        // this ensure IS a boot
+      window.ensureBountyState();
+      assert(!G.bountyHunter.active,
+        'a save carrying an unsettleable in-flight contract must be released at boot — otherwise every player who '
+        + 'already accepted one stays locked out of the board no matter how many times they reload');
+      assert((G.marks || 0) === marksBefore,
+        'the withdraw must be FREE — the player must not be charged the abandon fee for a contract we mis-sold');
+      assert(toasts.length > 0, 'the boot withdraw must tell the player what happened to their contract');
+      assert(G.bountyHunter.board.length > 0, 'the board must be reposted after the withdraw');
+      // …and it must not fire again on the next ensure (a per-kill toast storm).
+      toasts.length = 0;
+      window.ensureBountyState();
+      assert(toasts.length === 0, 'the rescue notice must be boot-once, not once per kill');
+    } finally {
+      window.__hrBountyBootStripped = origLatch;
+      window.notify = origNotify;
+      window.clientMayWriteRecordField = origMay;
+      restoreG(snap);
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     BOUNTY-REROLL — the board has a DAY, and a paid refresh is paid once
+     (2026-08-31, same sweep.)
+
+     `freeRerolls` and `rerollsToday` were seeded once and never moved again:
+     nothing reset them, `boardGeneratedAt` was written and never read, and the
+     shop's "+1 Free Reroll/day" (`extraRerolls`) was read by nothing. So a
+     player got ONE free reroll per ACCOUNT, and the paid price 5+N*5 ratcheted
+     forever — while hr_bounty_spend derives that same price from the PAID
+     rerolls in TODAY's ledger, which does reset. The client's affordability
+     check therefore drifted permanently above the price the server charges.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRun('BOUNTY-REROLL-1: a new UTC day restores the free reroll and clears the escalating paid price', () => {
+    if (typeof window.ensureBountyState !== 'function') return;
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      window.ensureBountyState();
+      assert(typeof window.hrBountyDayKey === 'function', 'the board must have a day key to reset against');
+      const today = window.hrBountyDayKey();
+      assert(G.bountyHunter.rerollDay === today, 'ensureBountyState must stamp the current UTC day, got ' + G.bountyHunter.rerollDay);
+
+      G.bountyHunter.freeRerolls = 0;
+      G.bountyHunter.rerollsToday = 7;              // a long-lived account's ratchet
+      G.bountyHunter.rerollDay = 19700101;          // …last seen a while ago
+      window.ensureBountyState();
+      assert(G.bountyHunter.freeRerolls === 1,
+        'the free reroll must come back on a new day, got ' + G.bountyHunter.freeRerolls
+        + ' — without this a player gets exactly one free reroll for the LIFE of the account');
+      assert(G.bountyHunter.rerollsToday === 0,
+        'the paid-reroll counter must reset with the day, got ' + G.bountyHunter.rerollsToday
+        + ' — the client would demand ' + (5 + G.bountyHunter.rerollsToday * 5) + ' Marks where the server charges 5');
+
+      // The shop's "+1 Free Reroll/day" must actually be worth its 50 Marks.
+      G.bountyHunter.upgrades.extraRerolls = 2;
+      G.bountyHunter.rerollDay = 19700101;
+      window.ensureBountyState();
+      assert(G.bountyHunter.freeRerolls === 3,
+        'the extraRerolls upgrade must add its free rerolls, got ' + G.bountyHunter.freeRerolls
+        + ' — it was sold at 50 Marks and read by nothing');
+      // Same day twice must NOT top the allowance up again (a free-reroll fountain).
+      G.bountyHunter.freeRerolls = 0;
+      window.ensureBountyState();
+      assert(G.bountyHunter.freeRerolls === 0, 'a second ensure on the SAME day must not refill the allowance');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('BOUNTY-REROLL-2: a PREPAID refresh (the Reroll Token) charges nothing a second time', () => {
+    if (typeof window.rerollBountyBoard !== 'function') return;
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      window.ensureBountyState();
+      G.bountyHunter.active = null;                 // the rail only offers a reroll with no active contract
+      G.bountyHunter.freeRerolls = 1;
+      G.bountyHunter.rerollsToday = 0;
+      const before = G.bountyHunter.board.map((b) => b.id).join('|');
+      window.rerollBountyBoard(true);               // exactly what spendMarks('reroll_token') calls
+      assert(G.bountyHunter.freeRerolls === 1,
+        'a Reroll Token burned the FREE reroll as well as its 5 Marks — rerollBountyBoard ignored the argument '
+        + 'spendMarks has always passed it');
+      assert(G.bountyHunter.rerollsToday === 0, 'a prepaid refresh must not advance the paid-reroll price');
+      assert(G.bountyHunter.board.map((b) => b.id).join('|') !== before, 'CONTROL: the board must actually refresh');
+      // The free path still spends the free reroll.
+      window.rerollBountyBoard();
+      assert(G.bountyHunter.freeRerolls === 0, 'CONTROL: an unpaid reroll must still spend the free one');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('BOUNTY-SHOP-1: no Bounty Shop row offers an enabled Buy that the spend will refuse', () => {
+    if (typeof window.renderBountyTab !== 'function' || typeof window.bountyShopOffers !== 'function') return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    try {
+      const G = window.G;
+      /* Marks server-owned (the live position) and plenty of them, which is the
+         exact state that made every row look buyable: the button was gated on
+         affordability alone, so all five BOUNTY_SHOP rows rendered an enabled,
+         primary-styled "Buy" and all five answered "That upgrade is unavailable
+         right now". */
+      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'marks';
+      G.marks = 5000;
+      /* The balance must be KNOWN, or `canAffordMarks` fails closed on UNKNOWN
+         and every row would be disabled for a reason that has nothing to do
+         with this bug — the test would pass against the broken code. */
+      stampRecordLikeLoad(G);
+      assert(window.HearthriseMarks.canAffordMarks(G, 300),
+        'CONTROL: the marks balance must be KNOWN and ample, or affordability alone disables every row');
+      window.renderBountyTab();
+      const rows = Array.from(document.querySelectorAll('#bounty-shop-body .bounty-shop-row'));
+      assert(rows.length > 0, 'CONTROL: the Bounty Shop must render rows to grade');
+      const lying = rows.filter((r) => {
+        const id = r.dataset.offer || '';
+        const btn = r.querySelector('button');
+        if (!btn || btn.disabled) return false;
+        const def = window.bountyShopOffers().find((o) => o.id === id);
+        return def && !def.trait;                   // a non-trait row has no server spend verb
+      }).map((r) => r.dataset.offer);
+      assert(!lying.length,
+        lying.length + ' Bounty Shop row(s) render an ENABLED Buy that spendMarks refuses outright: '
+        + lying.join(', ') + '. A control the player can press and that can never succeed is a dead end, not a gate.');
+      /* …and the trait rows, which DO have a server purchase (buyTrait →
+         hr_unlock_buy), must stay live. Graded only on a row the character does
+         not already own — an OWNED trait is correctly disabled. */
+      const traitRow = rows.find((r) => {
+        const id = String(r.dataset.offer || '');
+        if (id.indexOf('trait_') !== 0) return false;
+        const def = window.bountyShopOffers().find((o) => o.id === id);
+        return def && !(typeof window.hasTrait === 'function' && window.hasTrait(def.trait));
+      });
+      assert(traitRow,
+        'CONTROL: the shop must offer at least one unowned marks-priced trait, or the check below grades nothing');
+      assert(!traitRow.querySelector('button').disabled,
+        'a marks-priced TRAIT routes through buyTrait/hr_unlock_buy and must remain buyable — '
+        + 'this fix must not disable the one kind of row in the shop that works');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      restoreG(snap);
+      try { window.renderBountyTab(); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b248: Bone Lord is loseable — a downed fighter cannot heal-on-hit back above 0', () => {
     assert(typeof window._scvResolvePlayerHp === 'function', 'the boss survival rule seam must exist');
     // The exact tester scenario: HP already near 0, taking a lethal blow, WITH food (heal>0).

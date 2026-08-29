@@ -2977,6 +2977,40 @@ const run = async () => {
       exitCode = e.harness ? 2 : 1;
     }
 
+    /* ── The renown kill-faucet guard (Security R5) ───────────────────────
+       A LIVE, PRE-EXISTING faucet in the deployed 2026-08-30 code:
+       hr_credit_kills writes stat/ev:kill_any and stat/ev:kill_monster:<id>,
+       and hr_renown_of SCORES both (0.05/kill; 5/kill for is_boss ids) — because
+       hr_bounty_kills reads that same bestiary row, so moving renown is a side
+       effect of making a bounty completable. Measured at 65 boss kills/min
+       behind ONE held bounty = 19,500 renown/hour, ~8.5x honest, against a score
+       that gates hr_claim_rank (1,603,000 gold + 925 gems per character) and the
+       renownAllXp perk on the LIVE level boards.
+       The guard drives a real player through the REAL hr_accept_bounty /
+       hr_credit_kills / hr_claim_bounty against a REAL is_boss monster on a fully
+       replayed PGlite chain. ⚠ Its FIRST check is the HONEST CONTROL — a
+       server-simulated settle must still score in full — because every other
+       assertion here is "a number did not move" and they all pass trivially if
+       renown is broken to always return 0. `--selftest` plants seven real
+       defects, two with the migration's own gate short-circuited; every one must
+       read RED. */
+    try {
+      const { renownKillFaucetGuard } = await import('./renown-kill-faucet.mjs');
+      const rkfProblems = await renownKillFaucetGuard();
+      if (rkfProblems.length) {
+        console.log('\nRenown kill-faucet guard — FAILED:');
+        for (const p of rkfProblems) console.log(`  ✗ ${p}`);
+        exitCode = 1;
+      } else {
+        console.log('\nRenown kill-faucet guard — a client kill credit scores ZERO renown '
+          + '(sustained spam included) while a server settle still scores in full, the discount '
+          + 'is per-monster, the bestiary row still moves and the bounty turn-in still pays.');
+      }
+    } catch (e) {
+      console.log('\nRenown kill-faucet guard — FAILED:\n' + String(e.message || e));
+      exitCode = e.harness ? 2 : 1;
+    }
+
     /* ── The permanent-TRAIT purchase guard (b46x) ───────────────────────
        Under the live marks arm legacy.js buyTrait() failed closed with no
        server verb behind it, so AUTO-EAT — the purchase the death sheet

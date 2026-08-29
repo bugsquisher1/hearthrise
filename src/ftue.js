@@ -367,8 +367,14 @@
 
     // Reveal
     setTimeout(function(){
-      rootEl.querySelector('.ftue-shade').classList.add('show');
-      card.classList.add('show');
+      /* b492 — GUARDED like lines ~408/~475: endFTUE() nulls rootEl at +280ms;
+         under load this +30ms callback can lose the race and the unguarded read
+         threw an uncaught TypeError that killed the tour mid-step (the real
+         FTUE-CLICK-1 flake, and a live first-session error for real players). */
+      if(!rootEl) return;
+      var shade = rootEl.querySelector('.ftue-shade');
+      if(shade) shade.classList.add('show');
+      if(card) card.classList.add('show');
     }, 30);
 
     // Spotlight + position card

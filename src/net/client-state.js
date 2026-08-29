@@ -49,6 +49,10 @@
 // ============================================================================
 
 import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=491';
+/* b492 — the property/worker rung OBSERVER. See applyClientState for why the
+   boot observation belongs in THIS module. property-record.js imports nothing,
+   so it cannot form a cycle with either this file or accrue.js. */
+import { notePropertyUnlocks } from './property-record.js?v=491';
 
 /* ── THE DORMANT ARM ─────────────────────────────────────────────────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):
@@ -236,6 +240,32 @@ let hydratedOnce = false;
  *  it on the way out. No residue field carries a nested field owned elsewhere anymore
  *  (audited: stats/chronicle/collection/daily/quests/settings/… are wholly self-only). */
 export function applyClientState(res, G) {
+  /* ── b492 — THE BOOT OBSERVATION OF THE PROPERTY RUNG. ───────────────────────
+     THE LIVE P1: `homestead` is one of the residue fields BELOW ("without it the
+     boot RE-DERIVES a grandfathered tier … silently demoting a paid upgrade").
+     That comment described a hazard; it became a live bug the week the rpc-gate
+     froze client_state_put — the residue never saved, the tier fell back to 0,
+     and a Homestead owner lost their worker slot, half their farm plots and
+     their room gates with it. The rung the player PAID for was in the envelope
+     the whole time (`progress`, kind='unlock', key='property:homestead').
+
+     WHY HERE. The rung must be observed on the BOOT hr_load too, not only on an
+     accrued settle — an idle boot answers {accrued:false} and applyEnvelopeState
+     never runs, which is the exact class that stranded inventory (b46x) and the
+     crew (b477). record.js's settle() calls THIS function with the always-full
+     hr_load body, and this module is the one that owns `homestead` as residue,
+     so the correction to that residue is sourced from the same place it is
+     hydrated. It is deliberately NOT a write: notePropertyUnlocks only ratchets
+     a module cache, so it is immune to the ordering hazard that a G write would
+     have here (hydrateInto below would clobber it), and the repair happens at
+     the READ instead (features/homestead.js getTier → healPropertyTier).
+
+     ⚠ BEFORE the early returns ON PURPOSE. A character that has never uploaded
+     residue has no usable `client_state`, and that is precisely the player whose
+     tier is stale — bailing out above the observation would skip the heal for
+     exactly the population that needs it. Guarded: an observation must never
+     break a record load. */
+  try { notePropertyUnlocks(res); } catch (e) {}
   if (!res || typeof res !== 'object' || res.ok !== true) return false;
   const cs = res.client_state;
   if (cs === null || typeof cs !== 'object' || Array.isArray(cs)) return false;

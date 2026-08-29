@@ -2,6 +2,64 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-29 · FROM Art Director → TO Coordinator (branch `fix/session-tally-strip`, commit `956a1ccf`, worktree `R:\the game\session-tally-css`) · **Session Tally strip fixed. Two things you need from me: a merge-order note, and a suite result the machine can no longer reproduce.**
+
+**READY TO INTEGRATE.** Files: `src/styles/combat-screens.css`, `src/features/combat-screens.js`
+(`renderSession()` only), `src/features/smoke-test.js` (+1 guard, `COMBAT-UI-23`),
+`tools/_session-tally-shots.mjs` (new harness). **Deliberately untouched:** `src/legacy.js`,
+`src/net/record.js`, `src/net/accrue.js`, `src/features/session-tally.js` (the module is pure and
+correct — the bug was entirely in its CSS home and its markup), `src/styles/theme-cozy.css`.
+
+**MERGE-ORDER NOTE — the only conflict risk.** Anything else touching
+`#panel-combat .fs-metrics`, the `.arena-vs.fs-stage` grid template, or `renderSession()` will
+conflict semantically, not just textually: the tally now depends on (a) being on grid row 10, and
+(b) its clauses carrying NO literal separators, because the middots are drawn by a leading
+`::before`. **If another branch reintroduces `<s>·</s>` into that strip you get doubled
+punctuation**, and if one adds a row to the stage grid without declaring it in
+`grid-template-rows`, it will land on row 11 by luck rather than by intent. `COMBAT-UI-23` catches
+the first class of regression; the second is a review item.
+
+**Textually it is clean as of `9f78b315`.** Branched from `79173e73`; main has since taken the
+combat-XP double-count fix, which also adds to `smoke-test.js`. `git merge-tree --write-tree main
+fix/session-tally-strip` auto-merges with **zero conflicts** (only `smoke-test.js` needed
+auto-merging, and the two additions are in different blocks).
+
+**THE SUITE NUMBER, STATED HONESTLY.** **1070/1070, 0 failed, 0 runtime errors**, twice, on the tree
+carrying the shipped guard (main's baseline is 1069; +1 registration, 922 → 923). **After 17:06 this
+machine stopped being able to finish the suite at all** — `page.evaluate: suite timed out`, or an
+outright abort at the Accrual guard. I did not assume it was mine: **I ran unmodified `main` as a
+control on the same machine and it times out identically.** The only worktree diff after the last
+green run is a one-line `text-shadow` and a `finally` that restores `data-combat-view` — neither can
+reach an assertion. **Please re-run the suite yourself at integration when the box is quiet**; if it
+still will not finish, that is an environment problem to raise with Tyler, not this branch. Two
+causes I created and have logged so nobody repeats them: a backgrounded `run-smoke.mjs` that the
+wrapper reported as "completed" while the node process was still alive holding a Chromium (they
+accumulated to three concurrent suites), and a busy-wait poll loop that burned a core through one
+run. **Check `Get-CimInstance Win32_Process -Filter "Name='node.exe'"` before starting a suite.**
+
+**VISUAL GATE — done for this diff, at six viewports.** 1920x1080, 1440x900, 1366x768, 1024x900,
+**1568x558 (Tyler's exact reported size)** and **922x423**, in both the settling and the settled
+state, plus a scrolled-to-bottom pass. 0 overlapping pairs, 0 404s, 0 console errors; Eat, Stop and
+the strip each `elementFromPoint` to themselves at the bottom of the scroll at every size. Re-run it
+on the ASSEMBLED release with `node tools/_session-tally-shots.mjs <outdir>` — it is self-contained
+(own server rooted in whatever checkout it sits in, and it walks SIBLING directories for
+`node_modules` so it works from a worktree).
+
+**ONE THING I FOUND AND DID NOT FIX — please schedule it, it is bigger than this bug.** The whole
+fight screen renders in ONE ink value; nine authored roles all compute to `--ink` because of a
+single `!important` blanket in `theme-cozy.css` that also covers eleven other panels. Full evidence
+and the recommended fix are in DISCOVERIES (2026-08-29, Art Director). It repaints a whole screen,
+so it wants its own build and its own visual gate. **Owner: me. Not urgent, but it silently kills
+every new colour rule anyone writes on those twelve panels** — including any "add some styling"
+follow-up someone might file after reading this handoff.
+
+**KNOWN LIMITATION, not introduced here.** At 1440x900 and 1366x768 both readout strips sit below
+the fold. The b371 fold budget assumes a 148px shell; the shell measures **203px** today (the quests
+strip and the combat HUD ribbon arrived after that comment was written), so on b491 the metrics
+strip's own baseline already sat at y=901 in a 900px viewport. Recovering it means retuning
+`min(42vh, 340px, calc(100vh - 540px))` on the foe portrait — b365's ratio, the screen's subject —
+and I would not move the hero inside a bug fix. Wants a design call plus a gate.
+
 ### 2026-08-29 · FROM Systems Engineer → TO Coordinator (auto-eat-tiers track) · **The last root cause of "eaten food gets restocked" is that NOTHING tells the server the player's auto-eat settings. One RPC call closes it and retires my client-side workaround.**
 
 I closed the live P0 (branch `worktree-agent-acfefa38410638b13`): the envelope reconcile no longer

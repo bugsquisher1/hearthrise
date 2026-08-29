@@ -105,21 +105,54 @@
 --   against, and a goal that pays 1,800 gold + 500 XP on an unverifiable client
 --   counter is a mint. It refuses honestly until burying is server-settled.
 --
---   ⚠ TWO CATALOGUED REWARDS ARE PHANTOM IN THE AUTHORED DATA and are carried
---     verbatim rather than silently corrected (game data is the Designer's):
---       · xp {"combat": …} on kill_any / kill_more / wk_kills — 'combat' is not
---         a skill_id (hr_skills has attack/strength/…; combat is a DERIVED
---         level). The client's addXp('combat') has been inventing a phantom
---         G.skills.combat all along.
+--   ⚠ ONE CATALOGUED REWARD IS STILL PHANTOM IN THE AUTHORED DATA and is
+--     carried verbatim rather than silently corrected (game data is the
+--     Designer's):
 --       · items {"small_bones": 5} on gold_500 — no such item id exists
 --         anywhere in src/data/items.js (the real ids are bones / big_bones /
 --         dragon_bones). gold_500 also pays 0 gold, so its ENTIRE reward is
 --         unmintable and the RPC answers `reward_unavailable` rather than
 --         burning the player's once-per-day claim on nothing.
 --     Unmintable components are skipped, REPORTED in the response
---     (`skipped_xp` / `skipped_items`) and journalled in meta. §8 raises a
---     NOTICE naming every one of them at apply time, and
---     tests/modal-goal-claim.mjs fails the build if a NEW one appears.
+--     (`skipped_xp` / `skipped_items`) and journalled in meta.
+--
+-- ── b492 — THE KILL-GOAL XP DEFECT, AND THE RULE THAT REPLACES IT ──────────
+-- kill_any / kill_more / wk_kills used to price their XP as skill id 'combat'.
+-- That is not a skill_id (hr_skills has attack/strength/defense/hitpoints/…;
+-- "combat level" is DERIVED), so the §PLAN THE MINT loop below dropped all
+-- three into `skipped_xp` and players have NEVER received the XP component of
+-- any kill goal — while the modal went on printing it as part of the price.
+-- The client's addXp('combat') meanwhile invented a phantom G.skills.combat
+-- that no settle ever confirmed.
+--
+-- The Designer's ruling (2026-08-31): the XP lands in HITPOINTS, retuned rather
+-- than translated — kill_any 50→100, kill_more 200→300, wk_kills 1000 held.
+-- hitpoints is a real hr_skills row AND a server-accrued skill
+-- (src/data/skill-authority.js ALWAYS_COMBAT_XP_SKILLS), so the credit is owned
+-- by the same record the envelope reconciles: it cannot evaporate on settle.
+--
+-- ⚠ NO CONVERSION, EVER. The phantom G.skills.combat number was never
+--   server-authored, so translating an existing one into hitpoints would MINT
+--   ranked HP XP out of a client-side artefact. Nothing in this repo does that
+--   and nothing may start: 2026-08-17-cutover-import.sql DROPS a `combat`
+--   skill key by name (tests/cutover-import.mjs C7/C8 assert it is dropped and
+--   that the drop is REPORTED, not silent). Leave any surviving read dead.
+--
+-- ── THE GENERAL RULE (Designer, so the two patterns never drift again) ─────
+--   · XP the CLIENT pays for an objective it OBSERVED IN THE MOMENT — e.g. the
+--     hundred_kills quest (legacy.js completeQuest), which style-routes its
+--     combatXp through killXpRoute(activeStyle) — MAY use the live style route.
+--     There is a style in hand at the instant of the grant. That code is
+--     correct under this rule and moves server-side in a later arming slice.
+--   · XP the SERVER grants for a PERIOD objective names a CONSTANT skill id.
+--     No style exists at claim time: a daily/weekly goal spans hours or a week
+--     of play across any number of style switches. The server must not invent a
+--     style and must not trust a client-supplied one, so a period reward is
+--     priced as a fixed skill in this catalogue — never routed.
+--
+-- §8 now RAISES (not notices) on any authored reward naming a non-skill or a
+-- non-item, so this class cannot be re-authored, and
+-- tests/modal-goal-claim.mjs fails the build if one appears in the repo data.
 -- ══════════════════════════════════════════════════════════════════════════
 
 -- ── 0. PRECONDITIONS — FAIL CLOSED ─────────────────────────────────────────
@@ -245,8 +278,12 @@ insert into public.hr_goal_rewards
   (goal_id, weekly, counter_kind, counter_key, target, gold, gems, xp, items)
 values
   -- ── DAILY (legacy.js DAILY_GOAL_POOL × DAILY_REWARDS) ────────────────────
-  ('kill_any',    false, 'daily',       'ev:kill_any',  10,   200, 0, '{"combat":50}',      '{}'),
-  ('kill_more',   false, 'daily',       'ev:kill_any',  30,   600, 1, '{"combat":200}',     '{}'),
+  /* b492 — kill-goal XP names HITPOINTS, not the phantom 'combat'. See the
+     §PHANTOM header note and 2026-09-01-kill-goal-xp-hitpoints.sql (the
+     production forward-fix; this file is NOT re-applied to prod). Amounts are
+     the Designer's retune, not a translation: 50→100, 200→300, 1000 held. */
+  ('kill_any',    false, 'daily',       'ev:kill_any',  10,   200, 0, '{"hitpoints":100}',  '{}'),
+  ('kill_more',   false, 'daily',       'ev:kill_any',  30,   600, 1, '{"hitpoints":300}',  '{}'),
   ('gather_logs', false, 'daily',       'ev:chopped',   25,   250, 0, '{"woodcutting":100}','{}'),
   ('mine_ore',    false, 'daily',       'ev:mined',     25,   250, 0, '{"mining":100}',     '{}'),
   ('cook',        false, 'daily',       'ev:cooked',     5,   200, 0, '{"cooking":80}',     '{}'),
@@ -255,7 +292,7 @@ values
   ('plant',       false, 'daily',       'ev:planted',      5,   200, 0, '{"farming":80}',     '{}'),
   ('level_up',    false, 'daily',       'ev:levelups',    1,   500, 1, '{}',                 '{}'),
   -- ── WEEKLY (legacy.js WEEKLY_GOAL_POOL; wk_bury excluded — see the header) ─
-  ('wk_kills',    true,  'daily',       'ev:kill_any',   100,  2500, 3, '{"combat":1000}',    '{}'),
+  ('wk_kills',    true,  'daily',       'ev:kill_any',   100,  2500, 3, '{"hitpoints":1000}', '{}'),
   ('wk_smith',    true,  'daily',       'ev:smithed',     60,  2200, 0, '{"smithing":600}',   '{}'),
   ('wk_craft',    true,  'daily',       'ev:crafted',     60,  2200, 0, '{"crafting":600}',   '{}'),
   ('wk_harvest',  true,  'daily',       'ev:harvest',    120,  2000, 0, '{"farming":600}',    '{}'),
@@ -698,21 +735,54 @@ begin
     raise exception 'GATE(b): wk_bury is catalogued, but burying has NO server path — it would pay '
                     'against a client-only counter. Remove it, or make buryBones a server intent.';
   end if;
-  -- Phantom reward components: NAMED, not hidden. A notice, not a failure —
-  -- the data is the Designer's and the RPC skips them safely.
+  /* ── PHANTOM REWARD COMPONENTS — b492: A FAILURE, NOT A NOTICE ────────────
+     This was a `raise notice` for four builds on the reasoning that "the data
+     is the Designer's and the RPC skips them safely". Both halves were wrong.
+     The RPC skips them safely for the SERVER — it does not skip them for the
+     PLAYER, who is quoted a price in the modal and paid less than it, with
+     nothing anywhere saying so. kill_any / kill_more / wk_kills priced their XP
+     as 'combat' (a DERIVED level, not a skill_id) and every one of those grants
+     went into `skipped_xp` from the day the RPC shipped: the XP component of
+     every kill goal in the game has never been paid. A NOTICE in an apply log
+     nobody reads is not a control. From here an authored reward that names a
+     non-skill or a non-item FAILS THE APPLY.
+     Its repo-side twin is tests/modal-goal-claim.mjs BIND-PAY, which fails on
+     the same data before it ever reaches a database. */
   select string_agg(t.k, ', ') into v_txt from (
-    select distinct e.key as k from public.hr_goal_rewards g,
+    select distinct g.goal_id || '.' || e.key as k from public.hr_goal_rewards g,
            lateral jsonb_each_text(g.xp) e
      where not exists (select 1 from public.hr_skills s where s.skill_id = e.key)) t;
   if v_txt is not null then
-    raise notice 'b461: reward XP names % — not a skill_id; those grants are SKIPPED and reported', v_txt;
+    raise exception 'GATE(b): reward XP names a NON-SKILL — %. hr_claim_goal drops it into '
+                    'skipped_xp and pays the rest, so the modal quotes a price the game does not '
+                    'keep. Name a real hr_skills id. NOTE a PERIOD reward must name a CONSTANT '
+                    'skill: no combat style exists at claim time and the server may neither invent '
+                    'one nor trust a client-supplied one.', v_txt;
   end if;
+  /* ITEMS: same rule, with exactly ONE declared carve-out, named with its owner
+     and its closing condition — and checked for STALENESS, so it cannot outlive
+     the drift it exists for. gold_500's `small_bones` is the KNOWN repo⟷prod
+     divergence (b464): production was hand-patched to the real `bones` id, this
+     file was not, and the row doubles as the empty-reward FIXTURE for GATE(e)
+     and tests/modal-goal-claim.mjs C9. Closing it means fixing the row AND
+     re-pointing both fixtures at a synthetic goal — a separate change with a
+     separate owner (Systems + Coordinator), NOT a drive-by here.
+     Every OTHER phantom item id fails the apply. */
   select string_agg(t.k, ', ') into v_txt from (
-    select distinct e.key as k from public.hr_goal_rewards g,
+    select distinct g.goal_id || '.' || e.key as k from public.hr_goal_rewards g,
            lateral jsonb_each_text(g.items) e
-     where not exists (select 1 from public.hr_items i where i.item_id = e.key)) t;
+     where not exists (select 1 from public.hr_items i where i.item_id = e.key)
+       and not (g.goal_id = 'gold_500' and e.key = 'small_bones')) t;
   if v_txt is not null then
-    raise notice 'b461: reward ITEMS name % — not an item_id; those mints are SKIPPED and reported', v_txt;
+    raise exception 'GATE(b): reward ITEMS name a NON-ITEM — %. hr_claim_goal cannot mint it, and a '
+                    'reward with nothing left to pay refuses reward_unavailable. Name a real '
+                    'hr_items id.', v_txt;
+  end if;
+  if not exists (select 1 from public.hr_goal_rewards g, lateral jsonb_each_text(g.items) e
+                  where g.goal_id = 'gold_500' and e.key = 'small_bones') then
+    raise exception 'GATE(b): the gold_500/small_bones carve-out above is STALE — the row no longer '
+                    'names the phantom id. Delete the carve-out; a stale exemption hides the next '
+                    'real one. (And re-point GATE(e) + C9 at a synthetic empty-reward goal.)';
   end if;
 
   -- (c) GRANTS: wrappers authenticated-only, inners shut out of every client role.

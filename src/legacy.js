@@ -19586,8 +19586,31 @@ console.log('[Bundle Icons v1] applied:',
 
   // ── Reward attachments (extends DAILY_GOAL_POOL semantically without mutating data) ──
   var DAILY_REWARDS = {
-    kill_any:    {gold: 200, xp:{combat:50}},
-    kill_more:   {gold: 600, xp:{combat:200}, gems: 1},
+    /* b492 — THE KILL GOALS PAID NO XP AT ALL, AND SAID THEY DID.
+       These three lines used to read `xp:{combat:N}`. `combat` is not a skill:
+       hr_skills carries attack/strength/defense/hitpoints/…, and "combat level"
+       is DERIVED from them. hr_claim_goal looks every reward xp key up in that
+       catalogue and drops an unknown one into `skipped_xp`, so from the day the
+       server credit path shipped, the XP half of kill_any / kill_more /
+       wk_kills was never paid — while this table went on printing it as part of
+       the price. (Client-side, addXp('combat') invented a phantom G.skills.combat
+       that no settle ever confirmed.)
+       Designer ruling: the XP lands in HITPOINTS, RETUNED rather than
+       translated — 50→100, 200→300, wk_kills 1000 held.
+       THE GENERAL RULE, so this and the quest path never drift again:
+         · XP the CLIENT pays for something it OBSERVED IN THE MOMENT (see
+           completeQuest's combatXp, which style-routes via killXpRoute) may use
+           the live style route — a style is in hand at the instant of the grant.
+         · XP the SERVER grants for a PERIOD objective names a CONSTANT skill.
+           A daily/weekly goal spans hours of play across any number of style
+           switches; there is no style at claim time, and the server must not
+           invent one nor trust a client-supplied one.
+       ⚠ NO CONVERSION: an existing phantom G.skills.combat is NOT migrated into
+       hitpoints anywhere. It was never server-authored, so converting it would
+       mint ranked HP XP. The cutover importer drops the key by name
+       (2026-08-17-cutover-import.sql; tests/cutover-import.mjs C7/C8). */
+    kill_any:    {gold: 200, xp:{hitpoints:100}},
+    kill_more:   {gold: 600, xp:{hitpoints:300}, gems: 1},
     gather_logs: {gold: 250, xp:{woodcutting:100}},
     mine_ore:    {gold: 250, xp:{mining:100}},
     cook:        {gold: 200, xp:{cooking:80}},
@@ -19614,7 +19637,8 @@ console.log('[Bundle Icons v1] applied:',
     /* b465: every row carries its own `desc` for the same reason the daily pool
        does — the modal's fallback line said nothing, three times over. Each line
        states WHAT COUNTS toward the counter named in `source:`, and nothing else. */
-    {id:'wk_kills',    glyph:'uiSword', name:'Slay 100 monsters', target:100, source:'stats.kills',           reward:{gold:2500, gems:3, xp:{combat:1000}},
+    /* b492 — hitpoints, not the phantom `combat`; see DAILY_REWARDS above. */
+    {id:'wk_kills',    glyph:'uiSword', name:'Slay 100 monsters', target:100, source:'stats.kills',           reward:{gold:2500, gems:3, xp:{hitpoints:1000}},
      desc:'A week of fighting. Leave a target set when you log off and it keeps counting.'},
     {id:'wk_smith',    glyph:'uiAnvil', name:'Smith 60 items',    target:60,  source:'stats.smithed',         reward:{gold:2200, xp:{smithing:600}},
      desc:'Sixty pulls at the Forge. Bars are the bottleneck — smelt ahead of yourself.'},

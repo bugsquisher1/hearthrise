@@ -129,14 +129,49 @@ const MUTATIONS = {
     find: "    values (v_uid, p_slot, ''daily'', ''ev:planted'', 1, public.hr_utc_day_key(now()), ''active'')",
     repl: "    values (v_uid, p_slot, ''daily'', ''ev:notplanted'', 1, public.hr_utc_day_key(now()), ''active'')",
   },
+  /* ── b492: THE PHANTOM XP SKILL, FROM BOTH DIRECTIONS ──────────────────
+     The defect that motivated this pair lived for four builds and cost every
+     player the XP half of every kill goal, because it was caught by a
+     `raise notice` — a line in an apply log nobody reads. So it is now checked
+     twice, and both checks are mutated: one proves the DATABASE refuses to
+     apply it, the other proves the REPO refuses to build it even if someone
+     softens the database gate again (which is precisely how it survived). */
+  phantom_xp_skill_at_apply: {
+    why: 'a kill goal goes back to pricing its XP as the phantom skill `combat`, which is not an '
+       + 'hr_skills row — hr_claim_goal would drop the grant into skipped_xp and the player would '
+       + 'be quoted a reward the game never pays. §GATE(b) must REFUSE THE APPLY',
+    find: `  ('kill_any',    false, 'daily',       'ev:kill_any',  10,   200, 0, '{"hitpoints":100}',  '{}'),`,
+    repl: `  ('kill_any',    false, 'daily',       'ev:kill_any',  10,   200, 0, '{"combat":50}',  '{}'),`,
+  },
+  phantom_xp_skill_past_the_gate: {
+    why: 'the same phantom, WITH §GATE(b) softened back to a notice — the exact configuration the '
+       + 'defect survived four builds in. C14b (graded against the rebuilt hr_skills) and BIND-PAY '
+       + 'must catch it in the repo with no help from the database gate',
+    pairs: [
+      [`  ('kill_any',    false, 'daily',       'ev:kill_any',  10,   200, 0, '{"hitpoints":100}',  '{}'),`,
+       `  ('kill_any',    false, 'daily',       'ev:kill_any',  10,   200, 0, '{"combat":50}',  '{}'),`],
+      [`    raise exception 'GATE(b): reward XP names a NON-SKILL — %. hr_claim_goal drops it into '
+                    'skipped_xp and pays the rest, so the modal quotes a price the game does not '
+                    'keep. Name a real hr_skills id. NOTE a PERIOD reward must name a CONSTANT '
+                    'skill: no combat style exists at claim time and the server may neither invent '
+                    'one nor trust a client-supplied one.', v_txt;`,
+       `    raise notice 'GATE(b) softened: %', v_txt;`],
+    ],
+  },
 };
 
 const UUID = () => crypto.randomUUID();
 
 /** One end-to-end run against a freshly replayed database. */
 async function run(mutate) {
+  /* A mutation is normally ONE anchored replacement; `pairs` lets one state
+     several at once, which some defects genuinely need (b492's second phantom
+     mutation has to soften the apply-time gate as well as re-author the row,
+     because otherwise the migration refuses to apply and the repo-side check
+     never gets its turn to fail). */
   const patches = mutate
-    ? new Map([[MIG, [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]])
+    ? new Map([[MIG, MUTATIONS[mutate].pairs
+        || [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]])
     : undefined;
   const { db } = await bootReplay({ patches, upTo: MIG });
 
@@ -309,6 +344,13 @@ async function run(mutate) {
     + 'gold::text gold, gems::text gems, xp, items from public.hr_goal_rewards order by goal_id');
   obs.gateBuckets = (await q(
     "select pg_get_functiondef('public.hr_rpc_gate(text)'::regprocedure) as r"))[0].r;
+  /* b492 — THE SERVER'S OWN SKILL CATALOGUE, read from the rebuilt database
+     rather than from src/data/skills.js. hr_claim_goal's XP filter is
+     `exists (select 1 from hr_skills …)`, so hr_skills is the table that decides
+     whether a reward's XP is PAID or silently dropped into `skipped_xp`. Grading
+     the catalogue against the client's SKILLS_DEF only proves the two client-side
+     copies agree; this is the side that actually spends it. */
+  obs.serverSkills = (await q('select skill_id from public.hr_skills order by 1')).map((r) => r.skill_id);
 
   await db.close?.();
   return obs;
@@ -391,6 +433,32 @@ function grade(o) {
     if (r.counter_kind !== 'daily') continue;
     ok(r.counter_key.startsWith('ev:'),
       `C14: '${r.goal_id}' reads '${r.counter_key}', which is outside the ev: goal namespace`);
+  }
+  /* ── C14b (b492). NO CATALOGUED XP KEY MAY BE OUTSIDE hr_skills. ────────
+     THE DEFECT: kill_any / kill_more / wk_kills priced their XP as skill id
+     'combat'. That is not an hr_skills row — "combat level" is DERIVED from
+     attack/strength/defense/hitpoints — so hr_claim_goal's
+     `exists (select 1 from hr_skills …)` filter dropped every one of those
+     grants into `skipped_xp`. The XP half of every kill goal in the game was
+     never paid, for the whole life of the RPC, while the modal printed it as
+     part of the price. It survived four builds as a `raise notice` in the
+     migration's own §8 gate — an apply-time log line nobody reads.
+     This is the hard version, graded against the SERVER's catalogue as rebuilt
+     from the repo, and §8 now raises rather than notices. Both must hold: the
+     migration refuses to APPLY, and this refuses to BUILD. */
+  const serverSkills = new Set(o.serverSkills || []);
+  ok(serverSkills.size > 10,
+    `C14b: hr_skills holds ${serverSkills.size} rows — this check would be vacuous`);
+  for (const r of cat.values()) {
+    for (const k of Object.keys(r.xp || {})) {
+      ok(serverSkills.has(k),
+        `C14b: hr_goal_rewards.'${r.goal_id}' promises XP in '${k}', which is NOT an hr_skills row. `
+        + 'hr_claim_goal drops it into skipped_xp and pays the rest, so the modal quotes a price the '
+        + 'game does not keep — invisibly, because the player is never told. There is no exemption '
+        + 'list for this: name a real skill. A PERIOD reward names a CONSTANT skill id (no combat '
+        + 'style exists at claim time, and the server may neither invent one nor trust a '
+        + 'client-supplied one).');
+    }
   }
   ok(/'hr_claim_goal'/.test(o.gateBuckets) && /'hr_goal_state'/.test(o.gateBuckets),
     'C14: hr_rpc_gate does not carry the two new buckets — an ungated client RPC is a free DoS');
@@ -480,12 +548,14 @@ async function bindGuard(cat) {
          `reward_unavailable`. b464 fixed the CLIENT and hand-patched the
          PRODUCTION row; the migration in this repo was never updated, so a
          rebuild or a re-apply silently re-breaks the goal.
-       · `kill_any` / `kill_more` / `wk_kills` promise `xp:{combat:N}` on BOTH
+       · `kill_any` / `kill_more` / `wk_kills` promised `xp:{combat:N}` on BOTH
          sides — and `combat` is not a skill_id (it is a DERIVED level), so
-         hr_claim_goal's `exists (select 1 from hr_skills …)` filter skips it
-         and the player is paid gold and gems but never the XP the modal
+         hr_claim_goal's `exists (select 1 from hr_skills …)` filter skipped it
+         and the player was paid gold and gems but never the XP the modal
          advertised. Agreement between two copies is not correctness when both
-         copies name something that does not exist.
+         copies name something that does not exist. CLOSED in b492: the reward
+         names HITPOINTS (100 / 300 / 1000, the Designer's retune), and the
+         no-exemption check below plus C14b keep it closed.
 
      So this block binds the payout in BOTH directions and additionally checks
      each side against the CATALOGUES it spends (hr_skills / ITEMS). Every known
@@ -530,16 +600,20 @@ async function bindGuard(cat) {
         + 'use this very row as their empty-reward FIXTURE — at a synthetic goal instead. '
         + 'OWNER: Systems + Coordinator (migration apply).'],
     ]);
-    const PHANTOM_XP_SKILL = new Map([
-      ['combat', 'NOT A SKILL_ID. `combat` is a DERIVED level (hr_skills has attack/strength/…), so '
-        + 'hr_claim_goal skips it into `skipped_xp` and the client\'s addXp(\'combat\') predicts a '
-        + 'phantom G.skills.combat that no settle ever confirms. Carried on kill_any / kill_more / '
-        + 'wk_kills. The precedent for the fix is four hundred lines up in legacy.js: completeQuest '
-        + 'routes a quest\'s combatXp through killXpRoute(activeStyle), i.e. the skills the player\'s '
-        + 'chosen style trains. Doing that SERVER-side is a payout decision plus a migration '
-        + '(player_state.combat_style is already there to read). NOT changed unilaterally. '
-        + 'OWNER: Game Designer (which skill) + Systems (the RPC).'],
-    ]);
+    /* ⚠ PHANTOM_XP_SKILL IS GONE, AND MUST NOT COME BACK (b492). It held one
+       entry — 'combat' on kill_any / kill_more / wk_kills — for four builds,
+       and the thing an exemption buys you is exactly what it cost here: the XP
+       half of every kill goal in the game went unpaid for the RPC's whole life
+       while the modal printed it as part of the price, and the build stayed
+       green because the defect was DECLARED.
+       Designer ruling (2026-08-31): kill-goal XP is HITPOINTS — 100 / 300 /
+       1000 — a real hr_skills row and a server-accrued skill, so the credit
+       lands in the record the envelope reconciles instead of evaporating.
+       An unpayable XP key is now a build failure with NO exemption list, both
+       here and in C14b (graded against the rebuilt hr_skills table), and the
+       migration's §GATE(b) raises rather than notices so it cannot be applied
+       either. If a future reward genuinely needs a skill the server does not
+       have, ADD THE SKILL — do not add a map. */
 
     const norm = (o) => JSON.stringify(Object.fromEntries(
       Object.entries(o || {}).map(([k, v]) => [k, Number(v) || 0]).filter(([, v]) => v > 0).sort()));
@@ -581,11 +655,14 @@ async function bindGuard(cat) {
       + 'check would be vacuous');
     for (const c of cat.values()) {
       for (const k of Object.keys(c.xp || {})) {
-        if (PHANTOM_XP_SKILL.has(k)) continue;             // declared, with an owner
+        /* NO EXEMPTION LIST — b492. See the note where PHANTOM_XP_SKILL used to
+           be. C14b runs the same claim against the SERVER's hr_skills table; this
+           one runs it against the CLIENT's SKILLS_DEF, so a skill that exists on
+           only one side is caught by the other's check. */
         ok(skillIds.has(k),
           `BIND-PAY: '${c.goal_id}' promises XP in '${k}', which is not a skill. hr_claim_goal drops `
           + 'it into skipped_xp and pays the rest, so the reward line is a promise the game does not '
-          + 'keep. Name a real skill, or declare it in PHANTOM_XP_SKILL with the reason and owner.');
+          + 'keep. Name a real skill — there is no exemption for this any more.');
       }
       for (const k of Object.keys(c.items || {})) {
         ok(itemIds.has(k) || KNOWN_PAYOUT_DRIFT.has(c.goal_id),

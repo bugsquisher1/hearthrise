@@ -150,15 +150,42 @@ const MUTATIONS = {
     return jsonb_build_object('ok', true, 'replay', true, 'target', v_prior.target,`,
     repl: `  if false then
     return jsonb_build_object('ok', true, 'replay', true, 'target', v_prior.target,`,
+    /* The idempotency INSERT would raise on the duplicate PK before the guard
+       could observe the second stamp, so the replay has to be made survivable.
+       ⚠ ANCHORED ON THE `values (…)` LINES ONLY, not on the column list: the
+       column list grows every time this verb learns a new fact (it gained `free`
+       and then `kills_stat` in this very file), and an anchor that includes it
+       silently stops matching — which the harness reports as "matched 0 times",
+       i.e. a mutation that was never planted. A mutation that cannot be planted is
+       decoration, and this one spent a build in that state before the selftest's
+       own anchor check caught it. */
     also: [[
-      `  insert into public.hr_kill_credit_log (user_id, slot, idem, target, claimed, credit, cap, applied, free, kills_stat)
-    values (v_uid, v_slot, p_idem, p_target, v_claimed, v_credit, v_cap, v_applied, v_free,
-            case when v_free then v_kills_now else null end);`,
-      `  insert into public.hr_kill_credit_log (user_id, slot, idem, target, claimed, credit, cap, applied, free, kills_stat)
-    values (v_uid, v_slot, p_idem, p_target, v_claimed, v_credit, v_cap, v_applied, v_free,
-            case when v_free then v_kills_now else null end)
+      `    values (v_uid, v_slot, p_idem, p_target, v_claimed, v_credit, v_cap, v_applied, v_free,
+            case when v_free then v_kills_mark else null end);`,
+      `    values (v_uid, v_slot, p_idem, p_target, v_claimed, v_credit, v_cap, v_applied, v_free,
+            case when v_free then v_kills_mark else null end)
     on conflict do nothing;`,
     ]],
+  },
+  settle_delta_forgiven: {
+    why: 'S1 (Security, reproduced): the watermark advances to the CURRENT lifetime value instead '
+       + 'of by what the subtraction CONSUMED, so a zero-claim call clears a settle debt it never '
+       + 'subtracted. credit(C) -> settle -> credit(0) becomes a "forgive the debt" button and the '
+       + 'daily row grows linearly past observed truth — a paying goal completing early',
+    find: `    v_kills_mark := coalesce(v_kills_prev, v_kills_now) + v_consumed;`,
+    repl: '    v_kills_mark := v_kills_now;',
+  },
+  settle_delta_stale_mark: {
+    why: 'the watermark is read as the NEWEST row\'s value rather than the maximum, so an idem '
+       + 'tiebreak on equal timestamps can return a stale mark and the credit OVER-subtracts — '
+       + 'the trap GATE(f6) caught on the first draft of the S1 fix (160 credited read as 124)',
+    find: `    select max(kills_stat) into v_kills_prev from public.hr_kill_credit_log
+      where user_id = v_uid and slot = v_slot and free and kills_stat is not null
+        and created_at >= public.hr_utc_day_start(now());`,
+    repl: `    select kills_stat into v_kills_prev from public.hr_kill_credit_log
+      where user_id = v_uid and slot = v_slot and free and kills_stat is not null
+        and created_at >= public.hr_utc_day_start(now())
+      order by created_at desc, idem desc limit 1;`,
   },
   no_settle_delta: {
     why: 'the settle-delta subtraction is deleted, so the bounty-free credit becomes purely '
@@ -193,6 +220,13 @@ MUTATIONS.daily_never_stamped_gate_blind = {
      + 'so ONLY this guard can see it',
   find: MUTATIONS.daily_never_stamped.find,
   repl: MUTATIONS.daily_never_stamped.repl,
+  also: [GATE_BLIND],
+};
+MUTATIONS.settle_delta_forgiven_gate_blind = {
+  why: MUTATIONS.settle_delta_forgiven.why + ' — with the migration\'s own §5 gate short-circuited, '
+     + 'so ONLY this guard (K12) can see it',
+  find: MUTATIONS.settle_delta_forgiven.find,
+  repl: MUTATIONS.settle_delta_forgiven.repl,
   also: [GATE_BLIND],
 };
 MUTATIONS.no_settle_delta_gate_blind = {
@@ -400,6 +434,47 @@ async function run(mutate) {
   obs.k11b = await credit(T2, 15, 'idem-k11b');
   obs.k11_daily = await dailyKills();
 
+  /* ── K12. ⚠ S1 — A ZERO-CLAIM CALL MUST NOT FORGIVE THE SUBTRACTION ─────
+     Security's repro (scratchpad/exploit-settle-forgive.mjs), kept as a durable
+     guard. The first draft of the settle-delta fix advanced the watermark to the
+     CURRENT lifetime value unconditionally. When `credit - settle_delta` floors at
+     0 the surplus is never subtracted from anything, so marking it spent
+     permanently FORGAVE it: credit(C) → settle → credit(0) made a zero-claim call
+     a "clear the debt" button, and the daily row grew linearly past observed truth
+     (measured 156 against 120 over three rounds; 196 against 160 in this fixture).
+     The watermark must advance by least(delta, credit) — what the flooring
+     actually consumed — so a call that credits nothing clears nothing.
+     A closing credit absorbs the trailing settle, which lets the row be compared
+     to the sum of the credits EXACTLY rather than "within one settle". */
+  await q('delete from hr_kill_credit_log where user_id=$1', [uid]);
+  await q("delete from player_progress where user_id=$1 and kind='daily' and key='ev:kill_any'", [uid]);
+  await q("delete from player_progress where user_id=$1 and kind='stat' and key='ev:kill_any'", [uid]);
+  let k12sum = 0;
+  for (let r = 1; r <= 3; r += 1) {
+    await setAccrued("now() - interval '10 minutes'");
+    await q("update hr_kill_credit_log set created_at = now() - interval '5 minutes' where user_id=$1", [uid]);
+    await credit(T2, 40, `idem-k12c${r}`); k12sum += 40;
+    for (const [kind, per] of [['daily', day], ['stat', '']]) {
+      await q(`insert into player_progress (user_id, slot, kind, key, value, period_key, state)
+               values ($1, 0, $2, 'ev:kill_any', 12, $3, 'active')
+               on conflict (user_id, slot, kind, key, period_key)
+                 do update set value = player_progress.value + 12`, [uid, kind, per]);
+    }
+    await setAccrued("now() - interval '10 minutes'");
+    await q("update hr_kill_credit_log set created_at = now() - interval '5 minutes' where user_id=$1", [uid]);
+    // THE ATTACK: a zero-claim call whose only purpose is to advance the watermark.
+    const z = await credit(T2, 0, `idem-k12z${r}`);
+    if (r === 1) obs.k12_zero = z;
+  }
+  await setAccrued("now() - interval '10 minutes'");
+  await q("update hr_kill_credit_log set created_at = now() - interval '5 minutes' where user_id=$1", [uid]);
+  await credit(T2, 40, 'idem-k12end'); k12sum += 40;
+  obs.k12_sum = k12sum;
+  obs.k12_daily = await dailyKills();
+  obs.k12_absorbed = N((await q(
+    "select count(*)::text c from player_ledger where user_id=$1 "
+    + "and intent = 'daily_kill_settle_absorbed'", [uid]))[0].c);
+
   // ── K7. THE PLAYER CAN NOW ACTUALLY CLAIM ─────────────────────────────
   // Reset the day's counter to exactly the kill_more target and claim for real.
   await q(`delete from player_progress where user_id=$1 and kind='daily' and key='ev:kill_any'`, [uid]);
@@ -579,6 +654,21 @@ function grade(o, problems) {
   ok(o.k11_daily === 55,
     `K11: the daily row reads ${o.k11_daily} after 55 observed kills and a 12-kill settle — it must `
     + 'be exactly 55 (never 67). A counter that over-reads completes a paying goal early.');
+
+  // K12 — S1: a zero-claim call must forgive nothing.
+  ok(N(o.k12_zero?.credited) === 0,
+    `K12: a ZERO-claim call credited ${o.k12_zero?.credited} — it must credit nothing`);
+  ok(N(o.k12_zero?.consumed) === 0,
+    `K12: a ZERO-claim call consumed ${o.k12_zero?.consumed} of the settle debt — a call that `
+    + 'subtracts nothing must clear nothing, or it is a "forgive the debt" button');
+  ok(o.k12_daily === o.k12_sum,
+    `K12: S1 — after credit->settle->credit(0) x3 the daily row reads ${o.k12_daily} against `
+    + `${o.k12_sum} credited. A zero-claim call FORGAVE the settle subtraction, so the counter `
+    + 'over-reads by one settle per round (linear in rounds) and a paying goal completes early.');
+  ok(o.k12_absorbed === 1,
+    `K12: the absorbed/zero-claim case produced ${o.k12_absorbed} journal rows, expected exactly 1 `
+    + 'per character per UTC day — S1 abuse must leave a named, greppable trace, and a row per '
+    + 'call at the 60 s client cadence would be the game_events mistake');
 
   // K7
   ok(o.k7?.ok === true,

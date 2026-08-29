@@ -167,7 +167,7 @@ be built and reviewed as one migration.
 
 **Status:** BUILT on branch `fix/kill-daily-server-credit`, migration
 `supabase/migrations/2026-09-01-kill-daily-credit.sql`, **not applied**. Gated on
-security review — it opens a new client-reachable surface.
+security review: **GO-WITH-CONDITIONS (2026-08-29) — C1/C3/C4/C5 folded in**, see below.
 
 ### The third consumer of the same root
 
@@ -228,14 +228,80 @@ shipped the bounty credit gated on "the next kill" and that is exactly how a
 bounty came to hang forever. A stopped player is the reported symptom, so the
 credit must be *scheduled*, not kill-gated.
 
-### Exploit surface delta
+### Exploit surface delta (security-reviewed — GO-WITH-CONDITIONS, conditions folded in)
 
-New client-reachable surface. Physical cap (`floor(1.3 × elapsed / 600 ms)` =
-130 kills/min) and a 10,000/UTC-day ceiling are **fuses, not the control** — the
+New client-reachable surface. The physical cap (`floor(1.3 × elapsed / 600 ms)` =
+130 kills/min) and the 10,000/UTC-day ceiling are **fuses, not the control** — the
 largest target any reader grades is 100. The control is the **once-per-period
 claim guard** in `hr_claim_goal` / `hr_claim_daily`, which bounds a perfectly
-forged counter to **≤ 2,200 gold + 1 gem per UTC day + 2,500 gold + 3 gems per
-ISO week**, reachable honestly in ~3 minutes of play. Gold reaches the `wealth`
-leaderboard board and the market, so this is a ranked + tradeable surface; the
-accepted argument is magnitude (the accrual path pays ~1.05M gold/character-day)
-plus by-name journalling on both the payout and the forgery side.
+forged counter to:
+
+| scope | ceiling |
+|---|---|
+| character · UTC day | 2,200 gold + 2 gems + 5 bones |
+| character · ISO week | 2,500 gold + 3 gems (`wk_kills`) |
+| **account · day (6 slots)** | **13,200 gold + 12 gems + 30 bones** |
+
+Two corrections to the first draft's bound, both worth carrying forward because
+they were *methodological*, not arithmetic:
+
+- **`gold_500` is coupled** even though it is not a kill goal. It is a
+  `ledger_gold` goal summing `player_ledger.gold`, and `hr_claim_goal` journals
+  each payout with `gold = v_cat.gold` — so gold minted by a forged *kill*
+  counter is itself countable toward "Earn 500 gold". A reader who greps for
+  `ev:kill_any` misses it, the same trap that hid `hr_claim_daily` from the first
+  reader set.
+- **Everything is per character.** `player_state` and every counter and claim
+  guard are keyed `(user_id, slot)`; an account holds six.
+
+The **XP component is currently zero**, and that is load-bearing rather than a
+footnote: `hr_goal_rewards` prices every kill goal in `xp:{"combat":N}`, `combat`
+is not a row in `hr_skills`, so `hr_claim_goal` routes it to `skipped_xp` and no
+`player_skills` row moves. If anyone maps `combat` to a real skill, a forged kill
+counter starts minting XP — a level and combat-leaderboard surface — and this
+verdict must be re-taken. That is Security **S7**, owned by the Designer and
+deliberately not fixed here; guard `K10(3)` pins the coupling so it re-opens by
+name.
+
+Gold reaches the `wealth` board of `leaderboard_ranked` and is market purchasing
+power, so this is a ranked + tradeable surface. The accepted argument is
+magnitude (the accrual path pays ~1.05M gold/character-day, ~80× even the
+six-slot ceiling) plus by-name journalling on the payout side (`goal_claim:` /
+`daily_claim:`) and on both forgery signals (`kill_credit_throttled:` and
+`daily_kill_settle_absorbed`).
+
+### The S1 finding — why the strong invariant needed a second pass
+
+The first build of the settle-delta fix advanced the watermark to the *current*
+lifetime value unconditionally. When `credit - settle_delta` floors at 0 the
+surplus is never subtracted from anything — but marking the watermark declared it
+consumed, permanently **forgiving** it. `credit(C) → settle → credit(0)` was
+therefore a "clear the debt" button, and the daily row grew linearly past
+observed truth (156 against 120 over three rounds). The header, `GATE(f5)` and
+`K11` all asserted "exactly observed" while that was false — the invariant was
+aspirational, and only an adversarial read found it.
+
+Three changes make it actually true:
+
+1. the watermark advances by `least(delta, credit)` — what the flooring actually
+   consumed — so a call that credits nothing clears nothing;
+2. it is **scoped to the UTC day**, because an un-consumed remainder must not
+   cross midnight and swallow the next day's attended credits, which would
+   re-create the original defect one day later and much harder to trace;
+3. it is read as `max(kills_stat)`, not "the newest row's value" — a monotone
+   watermark's current value *is* its maximum, and an ordered read broke its
+   tiebreak on equal timestamps and made the credit *over*-subtract. `GATE(f6)`
+   caught that on the first draft of the fix itself.
+
+### Applying it
+
+`§0b` pins an md5 of the live `hr_credit_kills__ungated` body this file restates
+(`6d0eb3f8ff66efd0227dc94cfb194311`, normalised length 5563) — **measured on both
+production and a full PGlite replay of this chain and found byte-identical**, so
+the hash asserts "live == the reviewed 2026-08-30 baseline" rather than "live ==
+whatever was there when I looked". It normalises with `[[:space:]]+` and not
+`'\s+'`: the two runtimes disagree on backslash classes under
+`standard_conforming_strings` (measured — the same expression normalised
+whitespace on production and ate every letter `s` under PGlite), and a
+fingerprint gate that fires differently in the harness than on production is
+worse than no gate.

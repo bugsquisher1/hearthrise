@@ -119,9 +119,42 @@
 --   kills/minute — four orders of magnitude above a 30-kill daily. What bounds a
 --   forger is STRUCTURAL: every one of those claims consumes a once-per-period
 --   guard row, so however many kills are fabricated the reachable payout is
---       <= 2,200 gold + 1 gem per UTC day
---            (800 g + 1 gem via hr_claim_goal, up to 1,400 g via hr_claim_daily)
---        +  2,500 gold + 3 gems per ISO week (wk_kills)
+--   bounded by the CATALOGUE, not by any clamp in this file.
+--
+--   ⚠ THE BOUND, CORRECTED (Security C4 — the first draft under-counted it twice
+--     over, and both corrections are recorded rather than quietly patched):
+--
+--     PER CHARACTER, PER UTC DAY   2,200 gold + 2 gems + 5 bones
+--         kill_any        10  ->    200 g
+--         kill_more       30  ->    600 g + 1 gem
+--         daily_kill      25  ->    500 g            (offered ~54% of days)
+--         daily_kill_big  60  ->    900 g            (offered ~50% of days)
+--         gold_500       500  ->            1 gem + 5 bones   ← see below
+--     PER CHARACTER, PER ISO WEEK  2,500 gold + 3 gems   (wk_kills, 100)
+--     PER ACCOUNT, PER DAY         13,200 gold + 12 gems + 30 bones
+--         — player_state is keyed (user_id, slot) and so is every counter and
+--           every claim guard, so all of the above is PER SLOT and an account
+--           holds up to 6. The x6 was missing from the first draft.
+--
+--     ⚠ gold_500 IS COUPLED TO THIS COUNTER EVEN THOUGH IT IS NOT A KILL GOAL,
+--       and that is the second correction. It is a `ledger_gold` goal: it sums
+--       player_ledger.gold where gold > 0 over the day. hr_claim_goal journals
+--       each payout with `gold = v_cat.gold`, so gold minted by a forged KILL
+--       counter is itself countable toward "Earn 500 gold" — 2,200 g clears its
+--       500 target four times over. So forging kills pays out a goal that reads a
+--       different counter entirely. A reader who only greps for 'ev:kill_any'
+--       misses it, which is the same methodological trap that hid hr_claim_daily
+--       from the first draft's reader set.
+--
+--     THE XP COMPONENT IS CURRENTLY ZERO, and that is load-bearing to the verdict
+--     rather than a footnote. hr_goal_rewards prices every kill goal in
+--     xp:{"combat":N}, and 'combat' is NOT a row in hr_skills (it is a DERIVED
+--     level), so hr_claim_goal routes it to `skipped_xp` and no player_skills row
+--     moves. If anyone ever maps 'combat' to a real skill, a forged kill counter
+--     starts minting XP — which is a LEVEL and COMBAT-LEADERBOARD surface — and
+--     this verdict must be re-taken. That defect (Security S7) is the DESIGNER's
+--     and is deliberately NOT fixed here; guard K10(3) pins the coupling so the
+--     day it changes, this file's review re-opens by name.
 --
 --   AND GOLD HAS ONWARD REACH — say it plainly rather than calling this a
 --   non-currency counter. Gold feeds the 'wealth' board of the leaderboard_ranked
@@ -131,11 +164,12 @@
 --
 --   WHY IT IS ACCEPTED ANYWAY (the reviewed rationale, recorded so a future
 --   reader does not have to re-derive it):
---     · the same stipend is reachable HONESTLY in ~3 minutes of play — the
---       forgery buys time, not capability;
+--     · the same stipend is reachable HONESTLY in ~3 minutes of play per
+--       character — the forgery buys time, not capability;
 --     · the live accrual path pays a measured honest maximum of ~1.05M gold per
---       character-day, ~400x this ceiling, so it cannot move a wealth ranking
---       that six figures of legitimate income already dominates;
+--       character-day, ~80x even the six-slot account ceiling above, so it cannot
+--       move a wealth ranking that six figures of legitimate income already
+--       dominates;
 --     · every movement is journalled BY NAME and reversible —
 --       'goal_claim:<period>:<goal>' / 'daily_claim:<day>:<task>' on the payout
 --       side, 'kill_credit_throttled:<target>' (with claimed_raw) on the forgery
@@ -305,6 +339,60 @@ begin
   end if;
 end $$;
 
+-- ── 0b. ⚠ THE BASELINE FINGERPRINT (Security C3) ───────────────────────────
+-- §3 RESTATES hr_credit_kills__ungated in full. A restated body is only safe if
+-- the body it replaces is the one that was REVIEWED: if anything changed between
+-- review and apply — a hotfix, a hand-patch, a later migration — applying this
+-- file would silently revert it. That is the b484–b487 failure in
+-- restate-the-body form rather than in replace-the-gate form, and the only
+-- defence that does not depend on someone remembering is to pin the bytes.
+--
+-- THE BASELINE: md5 6d0eb3f8ff66efd0227dc94cfb194311 (normalised length 5563).
+-- MEASURED 2026-08-29 on BOTH sides and they agree exactly:
+--   · production nezapsylztqbbwuwembx (read-only pg_get_functiondef), and
+--   · a full PGlite replay of tests/schema-apply-order.json up to (excluding)
+--     this file — i.e. the repo's own 2026-08-30-bounty-kill-credit.sql body.
+-- So this hash asserts "live == the reviewed 2026-08-30 baseline", not merely
+-- "live == whatever was there when I looked".
+--
+-- ⚠ '[[:space:]]+' AND NOT '\s+', AND THAT IS LOAD-BEARING. A backslash class in
+--   a single-quoted literal is parsed differently depending on
+--   standard_conforming_strings, and the two runtimes this file has to satisfy do
+--   NOT agree on it: measured 2026-08-29, the same '\s+' expression normalised
+--   whitespace on production and ate every letter `s` under the PGlite replay,
+--   producing two different hashes for one identical body. A fingerprint gate
+--   that fires differently in the test harness than on production is worse than
+--   no gate. The POSIX class is unambiguous under either setting.
+--
+-- REFUSING is the correct outcome: re-run the review against the live body, then
+-- either rebase §3 onto it or update this hash deliberately. NEVER "just update
+-- the hash to make the apply go through" — that is the check working.
+do $$
+declare
+  c_baseline constant text := '6d0eb3f8ff66efd0227dc94cfb194311';
+  v_live text;
+  v_md5  text;
+begin
+  v_live := pg_get_functiondef('public.hr_credit_kills__ungated(int,text,bigint,text)'::regprocedure);
+  v_md5  := md5(regexp_replace(v_live, '[[:space:]]+', ' ', 'g'));
+  if v_md5 = c_baseline then
+    raise notice 'baseline fingerprint OK (%) — the live hr_credit_kills__ungated is the reviewed body', v_md5;
+    return;
+  end if;
+  -- Re-apply of THIS file is not drift: recognise our own output and pass.
+  if strpos(v_live, 'v_settle_delta') > 0 and strpos(v_live, 'kills_stat') > 0 then
+    raise notice 'hr_credit_kills__ungated already carries this file''s body — re-apply, fingerprint check skipped';
+    return;
+  end if;
+  raise exception
+    'BASELINE DRIFT — the live hr_credit_kills__ungated is md5 % (normalised length %), not the '
+    'reviewed baseline % . §3 of this file RESTATES that body in full, so applying it now would '
+    'silently revert whatever changed it. STOP: diff the live body against '
+    '2026-08-30-bounty-kill-credit.sql §3, re-take the review, then rebase §3 and update the hash '
+    'DELIBERATELY. Do not edit the hash to make this pass.',
+    v_md5, length(regexp_replace(v_live, '[[:space:]]+', ' ', 'g')), c_baseline;
+end $$;
+
 -- ── 1. RETENTION: the day ceiling reads this log, so keep >= 2 days ─────────
 -- 2026-08-30 authored this prune with a 1-HOUR floor, which predates the day
 -- ceiling §4 introduces. A prune run with a short interval would silently reset a
@@ -427,8 +515,10 @@ declare
   v_active_kind text;
   v_used_today bigint := 0;
   v_kills_now bigint;        -- lifetime stat/'ev:kill_any' NOW
-  v_kills_prev bigint;       -- …and at this character's previous bounty-free credit
+  v_kills_prev bigint;       -- …and at this character's previous bounty-free credit TODAY
   v_settle_delta bigint := 0;
+  v_consumed  bigint := 0;   -- the part of that delta the flooring actually used
+  v_kills_mark bigint;       -- the watermark this call records (prev + consumed)
   v_out       jsonb;
 begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
@@ -547,11 +637,45 @@ begin
     select coalesce(max(value), 0) into v_kills_now from public.player_progress
       where user_id = v_uid and slot = v_slot
         and kind = 'stat' and key = 'ev:kill_any' and period_key = '';
-    select kills_stat into v_kills_prev from public.hr_kill_credit_log
+    /* ⚠ SCOPED TO THE UTC DAY (Security C1, part 2 — my addition to their fix).
+       The watermark corrects DOUBLE-COUNTING ON ONE DAILY ROW. Once the day rolls
+       over, yesterday's settle contribution sits on yesterday's row and has nothing
+       to do with today's, so an un-consumed remainder must NOT be carried across
+       midnight. Without this scope the debt from one away night (hundreds of
+       sim-kills, none of them subtractable because the credits are far smaller)
+       would silently swallow the NEXT day's attended credits and re-create the
+       exact "goal never completes" defect this file exists to remove — one day
+       later and much harder to trace. The cost of the scope is stated below. */
+    /* ⚠ max(), NOT "the newest row's value". The watermark is MONOTONE by
+       construction (mark = prev + consumed, consumed >= 0), so its current value
+       IS its maximum — and reading it as a maximum is immune to the ordering trap
+       an ordered lookup carries. GATE(f6) caught that trap on the first draft of
+       this very fix: `order by created_at desc, idem desc` breaks ties on the
+       IDEM string, and a zero-claim call (which records prev + 0) sorts above the
+       crediting call that advanced the watermark whenever their timestamps are
+       equal, so the delta was measured against a stale mark and the credit
+       over-subtracted (160 credited read as 124). created_at ties are rare in
+       production and routine in a fixture — which is exactly the class of bug
+       that ships. A maximum has no tiebreak to get wrong. */
+    select max(kills_stat) into v_kills_prev from public.hr_kill_credit_log
       where user_id = v_uid and slot = v_slot and free and kills_stat is not null
-      order by created_at desc, idem desc limit 1;
+        and created_at >= public.hr_utc_day_start(now());
     v_settle_delta := greatest(0, v_kills_now - coalesce(v_kills_prev, v_kills_now));
     v_applied := greatest(0, v_credit - v_settle_delta);
+    /* ⚠ CONSUME ONLY WHAT THE SUBTRACTION ACTUALLY USED (Security C1 — S1, and it
+       was a REAL over-count, reproduced: credit(C) → settle → credit(0) three times
+       read 156 against 120 observed, growing linearly with the rounds).
+       The first draft advanced the watermark to v_kills_now unconditionally. When
+       `v_credit - v_settle_delta` floors at 0 the surplus of the delta is never
+       subtracted from anything — but marking the watermark at v_kills_now declared
+       it spent, permanently FORGIVING it, so the next credit saw delta 0 and landed
+       in full on top of a settle contribution that was already on the row. A
+       zero-claim call was therefore a "clear the debt" button.
+       The watermark now advances by exactly `least(delta, credit)` — the portion the
+       flooring consumed — and the remainder stays owed against the next credit of
+       the SAME day. A credit of 0 consumes nothing and forgives nothing. */
+    v_consumed   := least(v_settle_delta, v_credit);
+    v_kills_mark := coalesce(v_kills_prev, v_kills_now) + v_consumed;
     v_target_val := null;
   else
     -- TOP UP the target counter to (baseline + credit); never lower it, never
@@ -605,7 +729,7 @@ begin
   -- its window, which is the safe direction.
   insert into public.hr_kill_credit_log (user_id, slot, idem, target, claimed, credit, cap, applied, free, kills_stat)
     values (v_uid, v_slot, p_idem, p_target, v_claimed, v_credit, v_cap, v_applied, v_free,
-            case when v_free then v_kills_now else null end);
+            case when v_free then v_kills_mark else null end);
 
   -- FORGERY SIGNAL: a claim the cap (or the day ceiling) threw away. An honest
   -- player never reaches 1.3x the physical maximum. AGGREGATE, never per-kill.
@@ -624,6 +748,36 @@ begin
           'kind_mismatch', (v_free and v_active_kind is distinct from 'combat')));
   end if;
 
+  /* ── THE ABSORBED SIGNAL (Security C5) ────────────────────────────────────
+     The throttle journal above cannot see the S1 shape: the abusive call carries
+     p_claimed = 0, so `v_credit < v_claimed` is false and NOTHING was recorded —
+     the very ordering that used to forgive the subtraction left no trace at all.
+     A bounty-free call whose settle delta EXCEEDS what it may credit now leaves a
+     named row, so the pattern is greppable by intent rather than reconstructible
+     from the credit log.
+     ⚠ RATE-BOUNDED to at most one row per character per UTC day, because this is
+     also the ordinary shape of an honest return from an away night (the span-sim
+     legitimately out-paces the next small credit) and a row per call at the 60 s
+     client cadence is precisely the game_events mistake. The per-call detail is
+     already in hr_kill_credit_log (claimed / credit / applied / kills_stat); this
+     row is the named flag that says "go look". */
+  if v_free and v_settle_delta > v_credit
+     and not exists (select 1 from public.player_ledger
+                      where user_id = v_uid and slot = v_slot
+                        and intent = 'daily_kill_settle_absorbed'
+                        and at >= public.hr_utc_day_start(now())) then
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
+      values (v_uid, v_slot, 'bounty', 'daily_kill_settle_absorbed',
+        0, 0, 0, 0, 0,
+        jsonb_build_object('day_key', v_day, 'claimed', v_claimed, 'credit', v_credit,
+          'settle_delta', v_settle_delta, 'consumed', v_consumed,
+          'owed', v_settle_delta - v_consumed,
+          'kills_prev', v_kills_prev, 'kills_now', v_kills_now, 'kills_mark', v_kills_mark,
+          'zero_claim', (v_claimed = 0),
+          'active_kind', v_active_kind,
+          'kind_mismatch', (v_active_kind is distinct from 'combat')));
+  end if;
+
   v_out := jsonb_build_object('ok', true, 'target', p_target, 'credited', v_applied,
     'credit', v_credit, 'claimed', v_claimed, 'cap', v_cap,
     'throttled', v_credit < v_claimed, 'bounty', not v_free, 'day', v_day, 'slot', v_slot);
@@ -632,7 +786,9 @@ begin
     -- than I killed" is answerable from the receipt rather than from a theory.
     v_out := v_out || jsonb_build_object('day_used', v_used_today + v_applied,
                                          'day_budget', c_kill_day_budget,
-                                         'settle_delta', v_settle_delta);
+                                         'settle_delta', v_settle_delta,
+                                         'consumed', v_consumed,
+                                         'owed', v_settle_delta - v_consumed);
   else
     -- progress/required exist only when there IS a bounty to have progress
     -- against. The client keys its "server-confirmed" bar on the PRESENCE of a
@@ -678,7 +834,7 @@ declare
   v_t1   text; v_hp1 int; v_t2 text;
   v_daily bigint; v_daily2 bigint; v_life bigint; v_kills bigint; v_best bigint;
   v_g0 bigint; v_g1 bigint; v_gem0 bigint; v_gem1 bigint;
-  v_cur  bigint; v_n int; v_days text[];
+  v_cur  bigint; v_n int; v_days text[]; v_sum bigint;
 begin
   -- (a) The client surface did not move: the wrapper stays authenticated-only,
   --     the inner verb and the cap stay revoked.
@@ -965,6 +1121,72 @@ begin
     if v_daily2 <> 55 then
       raise exception 'GATE(f5): the daily row is % after 55 observed kills and a 12-kill settle '
                       '(expected exactly 55 — never 67)', v_daily2;
+    end if;
+
+    -- ── (f6) ⚠ S1 — A ZERO-CLAIM CALL MUST NOT FORGIVE THE SUBTRACTION ──────
+    --        (Security C1, reproduced.) The watermark advances by what the
+    --        flooring CONSUMED, never to the current lifetime value: a call that
+    --        credits 0 subtracts 0 and therefore clears no debt. Without that,
+    --        credit(C) → settle → credit(0) is a "clear the debt" button and the
+    --        daily row grows linearly past observed truth (measured 156 vs 120
+    --        over three rounds). Run the attacker's exact ordering and require
+    --        the row to land on the sum of the credits, to the unit.
+    delete from public.hr_kill_credit_log where user_id = v_uid and slot = v_slot;
+    delete from public.player_progress
+      where user_id=v_uid and slot=v_slot and kind='daily' and key='ev:kill_any';
+    delete from public.player_progress
+      where user_id=v_uid and slot=v_slot and kind='stat' and key='ev:kill_any';
+    v_sum := 0;
+    for v_n in 1..3 loop
+      update public.player_state set accrued_to = now() - interval '10 minutes'
+        where user_id = v_uid and slot = v_slot;
+      update public.hr_kill_credit_log set created_at = now() - interval '5 minutes'
+        where user_id = v_uid and slot = v_slot;
+      v := public.hr_credit_kills__ungated(v_slot, v_t2, 40, 'idem-f6c' || v_n);
+      v_sum := v_sum + 40;
+      -- the span-sim covers the SAME window: one count onto BOTH rows.
+      insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
+        values (v_uid, v_slot, 'daily', 'ev:kill_any', 12, v_day, 'active')
+        on conflict (user_id, slot, kind, key, period_key)
+          do update set value = public.player_progress.value + 12;
+      insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
+        values (v_uid, v_slot, 'stat', 'ev:kill_any', 12, '', 'active')
+        on conflict (user_id, slot, kind, key, period_key)
+          do update set value = public.player_progress.value + 12;
+      -- THE ATTACK: a zero-claim call, whose only purpose is to advance the
+      -- watermark past a settle contribution it never subtracted.
+      update public.player_state set accrued_to = now() - interval '10 minutes'
+        where user_id = v_uid and slot = v_slot;
+      update public.hr_kill_credit_log set created_at = now() - interval '5 minutes'
+        where user_id = v_uid and slot = v_slot;
+      v := public.hr_credit_kills__ungated(v_slot, v_t2, 0, 'idem-f6z' || v_n);
+      if coalesce((v->>'credited')::bigint, -1) <> 0 then
+        raise exception 'GATE(f6): a ZERO-claim call credited % — it must credit nothing', v->>'credited';
+      end if;
+    end loop;
+    -- One closing credit absorbs the last settle, so the row can be compared to
+    -- the sum of the credits exactly rather than "within one settle".
+    update public.player_state set accrued_to = now() - interval '10 minutes'
+      where user_id = v_uid and slot = v_slot;
+    update public.hr_kill_credit_log set created_at = now() - interval '5 minutes'
+      where user_id = v_uid and slot = v_slot;
+    v := public.hr_credit_kills__ungated(v_slot, v_t2, 40, 'idem-f6end');
+    v_sum := v_sum + 40;
+    select coalesce(max(value),0) into v_daily2 from public.player_progress
+      where user_id=v_uid and slot=v_slot and kind='daily' and key='ev:kill_any' and period_key=v_day;
+    if v_daily2 <> v_sum then
+      raise exception 'GATE(f6): S1 — after credit->settle->credit(0) x3 the daily row is % against % '
+                      'credited. A zero-claim call FORGAVE the settle subtraction, so the counter '
+                      'over-reads by one settle per round and a paying goal completes early.',
+                      v_daily2, v_sum;
+    end if;
+    -- …and the absorbed case left a named, greppable signal (Security C5).
+    if (select count(*) from public.player_ledger
+         where user_id=v_uid and slot=v_slot and intent = 'daily_kill_settle_absorbed') <> 1 then
+      raise exception 'GATE(f6): the absorbed/zero-claim case is not journalled exactly once per day '
+                      '(found %) — S1 abuse would leave no named trace',
+                      (select count(*) from public.player_ledger
+                        where user_id=v_uid and slot=v_slot and intent = 'daily_kill_settle_absorbed');
     end if;
 
     -- ── (h) THE WHOLE POINT: the DAILY row the credit stamped makes the real

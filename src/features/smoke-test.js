@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=491' directly.
+// modularised, will import { G } from '../state/game.js?v=492' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=491';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=491';
+import { on, snapshot } from '../net/events.js?v=492';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=492';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=491';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=492';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -4819,6 +4819,150 @@ const TESTS = [
     } finally {
       window.HearthriseGoalClaim = saved.gc;
       G.bountyHunter = saved.bh;
+    }
+  }),
+  /* live report #41 residual (the kill-DAILY gap): daily AND weekly kill goals are
+     graded on the SERVER row player_progress(kind='daily', key='ev:kill_any'),
+     whose only writer was the away/span-sim (60-99% undercount). hr_credit_kills
+     tops that count up — but its ONLY client caller was the cull-bounty cadence,
+     so a player killing with NO bounty credited nothing and their kill-30 daily
+     sat at "30/30 · Confirming…" with no Claim. Every kill must now buffer for the
+     credit, bounty or not; a kill on the ACTIVE bounty target must NOT double-
+     buffer (that target has its own cumulative cadence); and a flush must subtract
+     exactly what the SERVER says it accepted, never what the client sent. */
+  () => tryRunAsync('report #41: kills with NO bounty buffer for the server daily-kill credit', async () => {
+    const G = window.G;
+    if (typeof window.handleBountyKill !== 'function') { assert(true, 'bounty seam absent'); return; }
+    assert(typeof window.hrKillCreditFlush === 'function',
+      'hrKillCreditFlush is missing — the bounty-free kill credit is unwired and the daily goal is dead');
+    const armed = typeof window.clientMayWriteRecordField === 'function'
+      && window.clientMayWriteRecordField('gold') === false;
+    if (!armed) return; // the server credit path only runs under the gold arm
+    const ids = Object.keys(window.MONSTERS || {});
+    const free = ids[0]; const bountied = ids[1] || ids[0];
+    if (!free || free === bountied) { assert(true, 'need two distinct monsters'); return; }
+    const saved = { bh: JSON.parse(JSON.stringify(G.bountyHunter || {})), gc: window.HearthriseGoalClaim,
+      pend: G._killCreditPending };
+    const calls = [];
+    window.HearthriseGoalClaim = Object.assign({}, saved.gc, {
+      isSignedIn: function () { return true; },
+      // Credit only 2 of whatever is claimed, so "subtract what the server took"
+      // is distinguishable from "subtract what we sent".
+      creditKills: function (t, claimed) { calls.push({ t: t, claimed: claimed }); return Promise.resolve({ ok: true, bounty: false, credit: 2, credited: 2 }); }
+    });
+    try {
+      window.ensureBountyState && window.ensureBountyState();
+      G._killCreditPending = {};
+      // A cull bounty is running on `bountied` — its kills belong to that cadence.
+      G.bountyHunter.active = { id: 'b_free', type: 'cull', target: bountied, difficulty: 'normal',
+        required: 20, progress: 0, rewards: { gold: 100, marks: 3, xp: 10 } };
+      window.handleBountyKill(free, window.MONSTERS[free]);
+      window.handleBountyKill(free, window.MONSTERS[free]);
+      window.handleBountyKill(free, window.MONSTERS[free]);
+      assert((G._killCreditPending[free] || 0) >= 1,
+        'a kill with NO bounty on that monster must buffer for the daily-kill credit; buffered '
+        + (G._killCreditPending[free] || 0));
+      window.handleBountyKill(bountied, window.MONSTERS[bountied]);
+      assert(!(bountied in G._killCreditPending),
+        'a kill on the ACTIVE bounty target must NOT double-buffer — the bounty cadence owns it '
+        + 'with cumulative semantics');
+      /* Drain whatever the kills started. Like hrCreditCombatXpFlush, a fresh
+         session's FIRST kill flushes immediately (the cadence window is open), so
+         a call may already be in flight; the assertions below must not race it. */
+      for (let i = 0; i < 6; i += 1) await Promise.resolve();
+      // Re-seed a KNOWN backlog so the payload assertion is exact regardless of
+      // what the immediate first-kill flush happened to send.
+      G._killCreditPending = {}; G._killCreditPending[free] = 3;
+      const before = calls.length;
+      await window.hrKillCreditFlush(true);
+      const mine = calls.slice(before).filter((c) => c.t === free);
+      assert(mine.length === 1, 'a forced flush must send exactly one credit for the pending target; got '
+        + mine.length);
+      assert(mine[0].claimed === 3, 'the flush must carry the OBSERVED count (3), got ' + mine[0].claimed);
+      assert((G._killCreditPending[free] || 0) === 1,
+        'the flush must subtract what the SERVER credited (2 of 3), leaving 1 pending; left '
+        + (G._killCreditPending[free] || 0));
+      const after = calls.length;
+      await window.hrKillCreditFlush();
+      assert(calls.length === after,
+        'an unforced flush inside the cadence window must send nothing — the cap is time-based, so '
+        + 'a faster cadence buys nothing and every call costs a log row');
+    } finally {
+      if (window.hrKillCreditFlush.clearTrail) window.hrKillCreditFlush.clearTrail();
+      window.HearthriseGoalClaim = saved.gc;
+      G.bountyHunter = saved.bh;
+      G._killCreditPending = saved.pend;
+    }
+  }),
+  /* report #41, THE STOP CASE — and it is the whole reported symptom, not an edge.
+     b484 shipped the bounty credit gated on "the next kill" and that is exactly how
+     a bounty came to hang forever: the player reaches the target, STOPS, and a retry
+     that only fires on a kill never fires again (b485 had to add
+     hrScheduleBountyRetry for it). A daily-kill cadence hung off the kill hook
+     reproduces the same defect — the kills observed inside the last window sit
+     unsent and the goal stays "30/30 · Confirming…". So after a kill there must be
+     a SCHEDULED drain that does not need another kill, it must keep going while a
+     backlog remains, and it must stop once the backlog is empty (an idle tab that
+     calls a money-adjacent RPC on a timer for ever is its own defect). */
+  () => tryRunAsync('report #41: stopping at target still drains — a scheduled credit, not one gated on the next kill', async () => {
+    const G = window.G;
+    if (typeof window.handleBountyKill !== 'function') { assert(true, 'bounty seam absent'); return; }
+    assert(typeof window.hrKillCreditFlush === 'function'
+      && typeof window.hrKillCreditFlush.trailArmed === 'function',
+      'the trailing drain seam is missing — a player who stops at target would sit in '
+      + '"Confirming…" until they kill again, which is the b484 bounty defect reintroduced');
+    const armed = typeof window.clientMayWriteRecordField === 'function'
+      && window.clientMayWriteRecordField('gold') === false;
+    if (!armed) return; // the server credit path only runs under the gold arm
+    const free = Object.keys(window.MONSTERS || {})[0];
+    if (!free) { assert(true, 'no monsters'); return; }
+    const saved = { bh: JSON.parse(JSON.stringify(G.bountyHunter || {})), gc: window.HearthriseGoalClaim,
+      pend: G._killCreditPending };
+    let credit = 2;   // the server accepts only part of each claim (the cap)
+    const calls = [];
+    window.HearthriseGoalClaim = Object.assign({}, saved.gc, {
+      isSignedIn: function () { return true; },
+      creditKills: function (t, claimed) { calls.push({ t: t, claimed: claimed }); return Promise.resolve({ ok: true, bounty: false, credit: credit }); }
+    });
+    try {
+      window.ensureBountyState && window.ensureBountyState();
+      G.bountyHunter.active = null;
+      G._killCreditPending = {};
+      window.hrKillCreditFlush.clearTrail();
+      // Nine kills observed; the server's cap accepts 2. Then the player STOPS.
+      G._killCreditPending[free] = 9;
+      await window.hrKillCreditFlush(true);
+      for (let i = 0; i < 6; i += 1) await Promise.resolve();
+      assert((G._killCreditPending[free] || 0) === 7,
+        'the server accepted 2 of 9, so 7 must stay pending; left ' + (G._killCreditPending[free] || 0));
+      // THE PROPERTY: with a backlog and NO further kill, a drain is SCHEDULED.
+      window.hrKillCreditFlush.armTrail();
+      assert(window.hrKillCreditFlush.trailArmed() === true,
+        'with kills still pending and the player stopped, a drain must be SCHEDULED — otherwise the '
+        + 'daily counter never reaches target and the goal parks in "Confirming…" for ever');
+      // …and the drain really drains: the next window carries the REMAINING count.
+      window.hrKillCreditFlush.clearTrail();
+      const before = calls.length;
+      credit = 7;
+      await window.hrKillCreditFlush(true);
+      for (let i = 0; i < 6; i += 1) await Promise.resolve();
+      assert(calls.length === before + 1, 'the drain must send exactly one credit per window');
+      assert(calls[calls.length - 1].claimed === 7,
+        'the drain must carry the REMAINING observed count (7), got ' + calls[calls.length - 1].claimed);
+      assert(window.hrKillCreditFlush.pendingTotal() === 0,
+        'the backlog must be empty once the server has taken it; left ' + window.hrKillCreditFlush.pendingTotal());
+      // …and an empty backlog leaves no timer behind.
+      assert(window.hrKillCreditFlush.trailArmed() === false,
+        'an empty backlog must leave NO scheduled drain — an idle tab must not call a '
+        + 'money-adjacent RPC on a timer for ever');
+      window.hrKillCreditFlush.armTrail();
+      assert(window.hrKillCreditFlush.trailArmed() === false,
+        'arming with nothing pending must be a no-op');
+    } finally {
+      if (window.hrKillCreditFlush.clearTrail) window.hrKillCreditFlush.clearTrail();
+      window.HearthriseGoalClaim = saved.gc;
+      G.bountyHunter = saved.bh;
+      G._killCreditPending = saved.pend;
     }
   }),
   // b269 (Tyler): purchasable bank space. Cap counts distinct stacks; gold path
@@ -32801,7 +32945,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=491');
+    const KIT = await import('../data/start-kit.js?v=492');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -39173,7 +39317,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=491');
+    const S = await import('../data/shops.js?v=492');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -40625,7 +40769,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=491');
+    const S = await import('../data/shops.js?v=492');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -45123,7 +45267,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=491')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=492')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -46565,7 +46709,7 @@ const TESTS = [
        NO_SYNC — "belongs to the device you are fighting on" — but the accrual
        envelope wrote it unconditionally, so an envelope for a window that
        ended BEFORE the death landed on top of the respawn heal. */
-    const A = await import('../net/accrue.js?v=491');
+    const A = await import('../net/accrue.js?v=492');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
@@ -46589,7 +46733,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=491');
+    const A = await import('../net/accrue.js?v=492');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -46616,7 +46760,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=491');
+    const A = await import('../net/accrue.js?v=492');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -46769,7 +46913,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=491')).text();
+      const raw = await (await fetch(f + '?v=492')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -46819,7 +46963,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=491')).text();
+    const raw = await (await fetch('src/observability.js?v=492')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 

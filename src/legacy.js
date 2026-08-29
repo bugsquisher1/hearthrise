@@ -4669,8 +4669,169 @@ function hrScheduleBountyRetry(b){
   },HR_BOUNTY_RETRY_MS);
 }
 function hrClearBountyRetry(b){ if(b && b._retryTimer){ clearTimeout(b._retryTimer); b._retryTimer=null; } }
+
+/* ── BOUNTY-FREE KILL CREDIT (live report #41 residual — "30/30 · Confirming…") ─
+   Daily AND weekly kill goals are graded on the SERVER row
+   player_progress(kind='daily', key='ev:kill_any', period=<utc day key>), and its
+   only writer was the away/span-sim, which prices the window as an UNATTENDED
+   character and realizes 60–99% fewer kills. hr_credit_kills exists to top the
+   server's count up to the attended number — but the ONLY client caller was the
+   cull-bounty cadence, so a player killing 30 mobs with no bounty credited
+   nothing and their kill-30 daily could never be claimed.
+
+   This flushes the kills the player actually made, on a cadence, whether or not a
+   bounty is running. IT MINTS NOTHING: only the monster id and the client's
+   OBSERVED count cross the wire; the cap, the damage level, the elapsed window,
+   the per-day ceiling and the clock are all the server's, and a bounty-free
+   credit moves the daily counter and nothing else (the server refuses to write
+   the lifetime/renown-bearing keys off this path).
+
+   60 s, not the bounty path's 15 s: the cap is time-based so a faster cadence
+   buys nothing, and one row per call lands in hr_kill_credit_log — the
+   game_events lesson (1.6M rows / 229 MB from six players in four days) says pick
+   the slowest cadence that still feels live. */
+const HR_KILL_CREDIT_MS=60000;
+/* A pending backlog ceiling. A throttled or raced flush keeps its uncredited
+   kills for the next window, but a retained count can never grow without bound —
+   past this, the oldest kills are simply not re-litigated. */
+const HR_KILL_PENDING_MAX=500;
+/* ── THE TRAILING DRAIN, and why it is not optional ──────────────────────────
+   b484 shipped the bounty credit gated on "the next kill" and that is EXACTLY
+   how the bounty came to hang forever: the player reaches the target, STOPS, and
+   a retry that only fires on a kill never fires again (see hrScheduleBountyRetry,
+   which b485 had to add for precisely this). A cadence hung off the kill hook
+   reproduces the same defect here — the reported symptom IS "stopped at 30/30 and
+   it stays Confirming…". The kills observed inside the last cadence window would
+   sit in `_killCreditPending` unsent, and the daily row would never reach target.
+
+   So: after any buffered kill, arm a ONE-SHOT timer for the moment the cadence
+   window reopens, and re-arm while there is still a backlog. The server side
+   makes this safe and effective — the plausibility cap grows with elapsed time,
+   so each trailing call can credit more than the last, and the credit is
+   idempotent + clamped, so a redundant one costs a log row and nothing else.
+
+   BOUNDED, so an idle tab can never spin: at most HR_KILL_TRAIL_MAX consecutive
+   trailing flushes after the last kill (a fresh kill resets the count). Five
+   windows drain up to 5 x 130 = 650 kills, above HR_KILL_PENDING_MAX, so a
+   backlog the client can actually hold is always drainable. Past that the
+   remainder is abandoned rather than re-litigated for ever — under-credit, never
+   a spin. */
+const HR_KILL_TRAIL_MAX=5;
+let _hrKillCreditAt=0,_hrKillCreditInFlight=false,_hrKillCreditTimer=null,_hrKillCreditTrail=0;
+
+function hrKillCreditPendingTotal(){
+  const pend=G&&G._killCreditPending;
+  if(!pend||typeof pend!=='object') return 0;
+  let n=0; for(const k in pend){ n+=Math.max(0,Math.floor(Number(pend[k])||0)); }
+  return n;
+}
+function hrClearKillCreditTrail(){
+  if(_hrKillCreditTimer){ clearTimeout(_hrKillCreditTimer); _hrKillCreditTimer=null; }
+}
+/* Arm the one-shot drain for the instant the cadence window reopens. A timer is
+   never stacked (one in flight at a time) and is never armed with nothing to
+   send, so a player who is not fighting makes no calls at all. */
+function hrArmKillCreditTrail(){
+  if(_hrKillCreditTimer) return;
+  if(_hrKillCreditTrail>=HR_KILL_TRAIL_MAX) return;
+  if(hrKillCreditPendingTotal()<=0) return;
+  if(!hrKillCreditReady()) return;
+  const wait=Math.max(1000, HR_KILL_CREDIT_MS-(Date.now()-(_hrKillCreditAt||0)));
+  _hrKillCreditTimer=setTimeout(function(){
+    _hrKillCreditTimer=null;
+    _hrKillCreditTrail++;
+    const p=hrKillCreditFlush(true);
+    Promise.resolve(p).then(function(){ hrArmKillCreditTrail(); }).catch(function(){});
+  },wait);
+}
+
+function hrKillCreditReady(){
+  const _armed=(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('gold'));
+  const _live=(typeof inOfflineReplay!=='function' || !inOfflineReplay());
+  const _GC=window.HearthriseGoalClaim;
+  return _armed && _live && _GC && typeof _GC.creditKills==='function'
+    && _GC.isSignedIn && _GC.isSignedIn() ? _GC : null;
+}
+/* Buffer one observed kill. Called for EVERY kill, bounty or not. */
+function hrRecordKillForCredit(monsterId){
+  if(typeof monsterId!=='string' || !monsterId) return;
+  if(!hrKillCreditReady()) return;
+  /* The BOUNTY cadence already credits THIS target on its own schedule, with
+     CUMULATIVE-since-baseline semantics. Buffering here too would send a second,
+     DELTA-shaped claim for the same kills — a server-side no-op (the top-up
+     computes a lower target value and applies nothing), but a wasted call and a
+     confusing receipt. The skip is a cadence decision only: the SERVER still
+     chooses the branch from its own active_bounty row, so a stale local view can
+     neither mint nor lose anything. */
+  const ab=(G.bountyHunter&&G.bountyHunter.active)||null;
+  if(ab && ab.target===monsterId) return;
+  if(!G._killCreditPending||typeof G._killCreditPending!=='object') G._killCreditPending={};
+  G._killCreditPending[monsterId]=Math.min(HR_KILL_PENDING_MAX,
+    (Number(G._killCreditPending[monsterId])||0)+1);
+  /* A fresh kill re-opens the drain budget: the player is active, so the five
+     trailing windows are measured from the LAST kill, not from the session. */
+  _hrKillCreditTrail=0;
+  hrKillCreditFlush();
+  hrArmKillCreditTrail();
+}
+/* Flush the largest pending bucket. ONE target per call, deliberately: the RPC's
+   payload is (slot, target, claimed, idem) and its window closes behind each
+   applied credit, so a second target in the same second would price against a
+   ~zero window and be thrown away. The rest stay pending for the next cadence —
+   and a real session fights one monster at a time. */
+function hrKillCreditFlush(force){
+  const _GC=hrKillCreditReady();
+  if(!_GC) return Promise.resolve(null);
+  if(_hrKillCreditInFlight) return Promise.resolve(null);
+  const pend=G._killCreditPending;
+  if(!pend||typeof pend!=='object') return Promise.resolve(null);
+  const now=Date.now();
+  if(!force && _hrKillCreditAt && (now-_hrKillCreditAt)<HR_KILL_CREDIT_MS) return Promise.resolve(null);
+  let target=null,n=0;
+  for(const k in pend){ const v=Math.floor(Number(pend[k])||0); if(v>n){ n=v; target=k; } }
+  if(!target||n<=0) return Promise.resolve(null);
+  _hrKillCreditAt=now; _hrKillCreditInFlight=true;
+  let p; try{ p=_GC.creditKills(target,n); }
+  catch(e){ _hrKillCreditInFlight=false; return Promise.resolve(null); }
+  return Promise.resolve(p).then(function(cr){
+    _hrKillCreditInFlight=false;
+    /* Subtract EXACTLY what the server says it accepted, never what we sent, so a
+       throttled or settle-raced flush keeps its uncredited kills for the next
+       window (bounded by HR_KILL_PENDING_MAX). Kills observed DURING the call are
+       preserved. On !ok (rate_limited / network) nothing is subtracted.
+
+       `cr.bounty === true` means a bounty for this target was accepted between our
+       local check and the RPC, so the server took the BOUNTY branch — whose
+       `claimed` is cumulative-since-baseline, not our delta, and whose counter that
+       target's own cadence owns. Re-sending those kills as deltas buys nothing, so
+       drop them rather than re-litigate a number that means something else. */
+    if(cr && cr.ok && G._killCreditPending){
+      const took=(cr.bounty===true) ? n : Math.max(0,Math.floor(Number(cr.credit)||0));
+      G._killCreditPending[target]=Math.max(0,
+        Math.min(HR_KILL_PENDING_MAX,(Number(G._killCreditPending[target])||0)-took));
+    }
+    /* Nothing left to send → stop the drain rather than keep a timer alive for a
+       player who has stopped fighting. A new kill arms it again. */
+    if(hrKillCreditPendingTotal()<=0) hrClearKillCreditTrail();
+    return cr;
+  }).catch(function(){ _hrKillCreditInFlight=false; return null; });
+}
+window.hrKillCreditFlush=hrKillCreditFlush;
+/* Test seam + teardown: the in-page suite drives the buffer directly and must be
+   able to leave no timer behind (a leaked 60 s timer would fire mid-suite and
+   send a credit nothing is asserting). */
+window.hrKillCreditFlush.clearTrail=hrClearKillCreditTrail;
+window.hrKillCreditFlush.armTrail=hrArmKillCreditTrail;
+window.hrKillCreditFlush.pendingTotal=hrKillCreditPendingTotal;
+window.hrKillCreditFlush.trailArmed=function(){ return !!_hrKillCreditTimer; };
+
 function handleBountyKill(monsterId,m){
   ensureBountyState();
+  /* EVERY kill feeds the server's daily kill counter, bounty or not. This runs
+     before the bounty early-return on purpose: the bounty branch below returns
+     for any monster that is not the active target, which is precisely the case
+     the daily goal was losing. */
+  hrRecordKillForCredit(monsterId);
   const b=G.bountyHunter.active;if(!b||b.target!==monsterId)return;
   if(b.type==='proof'){
     const have=bountyProofHave(b);

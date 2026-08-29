@@ -2962,6 +2962,40 @@ const run = async () => {
         + '(gold + gems + XP + items) server-applied.');
     }
 
+    /* ── The kill → DAILY-goal credit guard (live report #41 residual) ───
+       Daily AND weekly kill goals grade on player_progress(kind='daily',
+       key='ev:kill_any', period=<utc day key>), whose only writer was the
+       away/span-sim (60-99% undercount). hr_credit_kills wrote 'ev:kill_any'
+       only as the LIFETIME stat row, so an attended kill-30 daily sat at
+       "30/30 · Confirming…" with no Claim. The guard drives a real player
+       through the real rate-gated hr_credit_kills on a fully replayed PGlite
+       chain and then through the real hr_claim_goal — so the assertion is "the
+       player can now claim", not "a row exists". It also proves the CONTAINMENT
+       that makes the new bounty-free branch reviewable: a credit with no active
+       bounty moves the daily row and NOTHING else (not the lifetime counters
+       hr_renown_of scores and hr_claim_quest pays on, not the bestiary, not
+       gold/gems), the anchor closes its window, a settle-first credit pays
+       nothing, and the per-day ceiling binds. `--selftest` plants nine real
+       defects, two of them with the migration's own gate short-circuited so the
+       guard alone has to see them; every one must read RED. */
+    try {
+      const { killDailyCreditGuard } = await import('./kill-daily-credit.mjs');
+      const kdcProblems = await killDailyCreditGuard();
+      if (kdcProblems.length) {
+        console.log('\nKill → daily-goal credit guard — FAILED:');
+        for (const p of kdcProblems) console.log(`  ✗ ${p}`);
+        exitCode = 1;
+      } else {
+        console.log('\nKill → daily-goal credit guard — the daily ev:kill_any row is stamped by '
+          + 'both branches, the bounty-free branch writes that row and nothing else, the anchor '
+          + '+ per-day ceiling bind, a replay does not double-stamp, and hr_claim_goal pays '
+          + 'kill_more/wk_kills off it.');
+      }
+    } catch (e) {
+      console.log('\nKill → daily-goal credit guard — FAILED:\n' + String(e.message || e));
+      exitCode = e.harness ? 2 : 1;
+    }
+
     /* ── The permanent-TRAIT purchase guard (b46x) ───────────────────────
        Under the live marks arm legacy.js buyTrait() failed closed with no
        server verb behind it, so AUTO-EAT — the purchase the death sheet

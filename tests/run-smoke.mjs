@@ -1195,9 +1195,20 @@ async function landscapeGuard(browser, url) {
 
     // Seed a representative filled save so panels render real content, not empty
     // states (empty screens never overflow — a full inventory grid does).
-    await page.evaluate(() => {
-      const G = window.G; if (!G) return;
+    const seeded = await page.evaluate(() => {
+      const G = window.G; if (!G) return { ok: false, why: 'no G' };
       try {
+        /* b492 — STATE THE PRECONDITIONS. `G.skills[s] = …` assumed the fresh-G
+           factory literal was still in G at boot. Under the blob-retire capstone
+           it is not: loadLocal now forgets every server-of-record field, so
+           `G.skills` is legitimately ABSENT until the server answers and the bare
+           index threw. The `catch (e) {}` then swallowed it and this guard
+           silently measured an EMPTY game — no inventory, no skills, no fight —
+           which is exactly the kind of screen that never overflows and never
+           proves anything. Same class as the bug this build fixes: a guard that
+           is also silent is half a defect. */
+        if (!G.inventory || typeof G.inventory !== 'object') G.inventory = {};
+        if (!G.skills || typeof G.skills !== 'object') G.skills = {};
         const itemIds = Object.keys(window.ITEMS || {});
         itemIds.slice(0, 80).forEach((id, i) => { G.inventory[id] = (i % 9) + 1; });
         Object.keys(window.SKILLS_DEF || {}).forEach((s) => { G.skills[s] = 200000; });
@@ -1205,8 +1216,16 @@ async function landscapeGuard(browser, url) {
         G.activeMonster = 'goblin'; G.monsterHp = 15; G.monsterMaxHp = 15;
         G.playerHp = 90; G.playerMaxHp = 99;
         if (typeof window.refreshAll === 'function') window.refreshAll();
-      } catch (e) {}
+        return { ok: true, items: Object.keys(G.inventory).length, skills: Object.keys(G.skills).length };
+      } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
     });
+    /* VACUITY FIRST. An empty screen never overflows, so a seeding failure turns
+       every assertion below into a pass. */
+    if (!seeded.ok || !seeded.items || !seeded.skills) {
+      problems.push('the representative save did not seed ('
+        + (seeded.why || JSON.stringify(seeded))
+        + ') — every overflow assertion below would pass vacuously on an empty game');
+    }
     await page.waitForTimeout(500);
 
     // The portrait gate must NOT be showing in landscape.

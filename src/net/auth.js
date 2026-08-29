@@ -55,6 +55,49 @@ let recoverInFlight = null;
 let syncDownSince = 0;
 let refreshTimer = null;
 
+/* ── THE TOKEN ACCESSOR THE SERVER INTENTS ARE GIVEN (b492) ──────────────────
+   `() => session?.access_token` was handed to accrue / character / record /
+   activity / gold / equip / eat, and it would cheerfully return a JWT whose
+   `exp` passed hours ago. sync.js has refused to do that since b331 ("a request
+   is only put on the wire if we have a token we have no reason to believe is
+   dead") — the INTENT modules never got the same rule, so on a cold start they
+   spent the boot 401ing while sync.js sat the round out.
+
+   This is that rule, for them. Three deliberate properties:
+
+     • It answers `null` rather than a dead token. Every intent module treats a
+       missing token as `unconfigured/no_token` and does NOT burn a request —
+       and, since b492, record.js's ladder RETRIES that, so the honest "not yet"
+       costs 800ms instead of a guaranteed 401.
+     • It KICKS the recovery — otherwise "no token" would be a state nothing
+       ever left. `recoverSession` is single-flight, so a burst of intents in one
+       tick is one refresh; the 5s floor below covers the OTHER shape, a hard
+       auth failure where each attempt completes and the retry ladder asks again
+       800ms later. sync.js has a full backoff gate for this
+       (nextAuthBackoffMs); a token accessor cannot reach it, so it gets a floor
+       rather than an unthrottled loop against /auth/v1/token.
+     • It only condemns a token on a TRUSTED clock. A device whose clock runs
+       fast would otherwise report every token expired forever and lock itself
+       out of its own account — the same reason the b331 proactive-refresh timer
+       checks isClockTrusted(). An untrusted clock sends the token and lets the
+       server be the judge, which is the safe direction. */
+export const TOKEN_RECOVERY_FLOOR_MS = 5000;
+let lastTokenRecoveryAt = 0;
+export function liveAccessToken(now) {
+  const tok = session && session.access_token;
+  if (!tok) return null;
+  const t = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+  let dead = false;
+  try { dead = isClockTrusted() && tokenStatus(tok, t, 0) === 'expired'; }
+  catch (e) { dead = false; }
+  if (!dead) return tok;
+  if (t - lastTokenRecoveryAt >= TOKEN_RECOVERY_FLOOR_MS) {
+    lastTokenRecoveryAt = t;
+    try { recoverSession(); } catch (e) {}   // single-flight; fire-and-forget
+  }
+  return null;
+}
+
 function readCachedSession() {
   try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null'); } catch (e) { return null; }
 }
@@ -168,12 +211,77 @@ export async function setupAuth(config) {
   }
 
   // Restore prior session if present
+  /* ── b492: THE EXPIRED-TOKEN BOOT RACE, CLOSED AT ITS SOURCE ───────────────
+     This block used to read:
+         session = JSON.parse(cached);
+         await supabase.auth.setSession(session);
+     — and THREW THE ANSWER AWAY. `setSession` returns the refreshed session
+     when the cached access_token has expired (which it has on every cold start
+     after ~1h away: a PC restart, an overnight gap, a frozen tab). Discarding it
+     left `session` pointing at the DEAD token, and the whole boot then ran on
+     that: `authToken: () => session?.access_token` (enableLiveSync /
+     wireServerIntents) handed the expired JWT to hr_create_character and hr_load,
+     both 401'd as `not-signed-in`, the failure was a console.warn, and the client
+     rendered the factory-default character. The library did refresh a moment
+     later and fired onAuthStateChange — but by then the boot reads had already
+     failed, and before b492 nothing ever asked again.
+
+     So: ADOPT what setSession returns, and if the token is STILL not live, spend
+     one awaited recovery BEFORE enableLiveSync wires the intents. That is the
+     "awaited-on-auth" half; record.js's ladder is the "and retried" half, and
+     both are needed — this one removes the guaranteed first failure, the ladder
+     covers every failure this cannot foresee. */
   const cached = localStorage.getItem(LOCAL_KEY);
   if (cached) {
     try {
       session = JSON.parse(cached);
-      await supabase.auth.setSession(session);
-    } catch {}
+      const cachedTok = session && session.access_token;
+      const { data } = await supabase.auth.setSession(session);
+      const fresh = data && data.session;
+      /* ⚠ ONLY WHEN THE TOKEN ACTUALLY CHANGED, and that narrowness is load-
+         bearing rather than timid. supabase-js `setSession` returns a session on
+         the healthy path too — one it has re-derived, and whose `user` it
+         populates by calling /auth/v1/user. Adopting THAT wholesale replaces a
+         cached session that has a user id with one that may not (measured: the
+         save-slot guard's cloud READ stopped happening, because
+         `userId: () => session?.user?.id` went undefined and sync had nobody to
+         pull for). A DIFFERENT access_token is the unambiguous signal that a
+         real refresh happened, which is the only case this line exists for; an
+         identical one means nothing needed fixing and the cached session — the
+         one every other part of this module has been using — stands. */
+      if (fresh && fresh.access_token && fresh.access_token !== cachedTok) session = fresh;
+    } catch (e) {
+      /* b492 catch-audit — GUARDED, BUT NOT SILENT. This was `catch {}`, and it
+         covers both `JSON.parse(cached)` and `setSession`. A throw here leaves
+         the player with NO session while src/net/account-gate.js — which reads
+         the same cache independently — has already opened the door. That is a
+         signed-in player booting into a signed-out client, which is the same
+         "the failure had no voice" class as the boot read this build fixes.
+         Not changed behaviourally (recovering here would need its own design);
+         named, so the next incident starts with a sentence instead of a hunt. */
+      console.warn('[Auth] the cached session could not be restored — this device will boot signed out '
+        + 'even though a session is cached:', (e && e.message) || e);
+    }
+    /* A trusted clock that says the token is dead is a request we KNOW will 401,
+       so start the refresh NOW rather than letting the first hr_load discover it.
+       ⚠ DELIBERATELY NOT AWAITED. An `await` here reads better and is a worse
+       idea: it puts `enableLiveSync()` — and therefore the whole save path,
+       `pullAndMaybeRestore` included — behind a network call with no timeout of
+       its own, which is a fresh instance of the exact wedge class this build
+       exists to remove. (Measured: awaiting it turned the save-slot guard red —
+       the cloud read simply never happened inside the boot window.) Racing it is
+       correct and sufficient, because the other half of the fix makes the race
+       safe: `liveAccessToken()` refuses to put the dead token on the wire, so the
+       boot reads decline politely, and record.js's ladder re-asks in 800ms — by
+       which time this refresh has normally landed.
+       `isClockTrusted()` keeps a device with a fast clock from looping: an
+       untrusted clock may not condemn a token. */
+    try {
+      if (session && isClockTrusted()
+          && tokenStatus(session.access_token, Date.now(), 0) === 'expired') {
+        recoverSession();
+      }
+    } catch (e) {}
   }
 
   // Auth state listener — keep session in localStorage + reconfigure sync.
@@ -276,7 +384,12 @@ function enableLiveSync() {
   wireServerIntents(window, {
     url: authConfig.url,
     anonKey: authConfig.anonKey,
-    authToken: () => session?.access_token,
+    /* b492 — NOT `() => session?.access_token`. See liveAccessToken(): a token
+       whose `exp` has passed is not sent, it is refreshed, and the caller is
+       told "not yet" (which record.js's ladder retries) instead of being handed
+       a guaranteed 401. sync.js has had this rule since b331; the intents that
+       load the character had not. */
+    authToken: () => liveAccessToken(),
     userId: () => currentUserId(),
   });
   // b331 — PROACTIVE REFRESH. supabase-js is supposed to do this itself
@@ -1048,6 +1161,8 @@ window.HearthriseAuth = {
   applyCloudOverlay,
   // b331 — expired-session recovery + the sheet that tells the player the truth
   recoverSession, syncFailureMessage, ESCALATE_AFTER_MS,
+  // b492 — the token the server intents are actually given (never a dead JWT)
+  liveAccessToken,
   showAuthExpiredGate, hideAuthExpiredGate,
   // b368 — the incident hold and its gate, published so the suite grades them.
   equipGestureWired,

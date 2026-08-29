@@ -1,6 +1,64 @@
 # Systems Engineer — running log
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
+## 2026-08-29 — LIVE P1: the SILENT BOOT-HYDRATION FAILURE ("my character is gone")
+
+**Branch:** `fix/boot-hydration-loud` (worktree `R:/the game/boot-hydration-wt`) · base main b491.
+
+### THE REPRO, AND THE ONE FACT THAT CRACKED IT
+Chrome cold start after a PC restart. 36+ seconds "ready" showing attack 0 / hitpoints 1154 xp /
+500 gold on an account holding attack 428 and 7,520 gold. Pill "Online". No banner. No gate.
+**A hand-typed `HearthriseAccrual.requestAccrual('probe')` from that same page hydrated everything
+instantly.** That is the whole diagnosis in one sentence: the transport and the token were fine, so
+the boot read had failed and *nothing was ever going to ask again*. accrue.js has its OWN in-flight
+latch — which is why the probe worked while the boot chain stayed dead.
+
+### FOUR DEFECTS, EACH SUFFICIENT ALONE
+1. **No timeout + a caller-frame latch release** (record.js, character.js). A browser `fetch` never
+   times out; `try { return await inFlight } finally { inFlight = null }` only releases when *this
+   frame* resumes. One stalled socket = a permanently wedged session, and legacy.js's 4s resume
+   watchdog (the only thing that re-fires the boot read today) is handed the corpse.
+2. **No retry this module owns.** `settle()` answered a failure with one `console.warn`.
+3. **`p.then(fn)` — a one-argument then** on `ensureThenAccrue()`. A rejected/never-settling ensure
+   silently deleted every hr_load the session would make.
+4. **The capstone early return skips `forgetServerOfRecord(G)`**, so the fresh-G factory literal
+   (gold 500, attack 0, hitpoints 1154 xp, a bronze sword) lived in a live G under an armed record.
+
+### THE JUDGEMENT CALL I GOT WRONG FIRST, AND WHY IT MATTERS
+My first fix gated skill-record.js's display rung (b) on "has the server ever spoken". **B429-6 went
+red and B429-6 was right**: with the capstone dormant the blob has loaded a real character and
+`_record` may legitimately be absent, so that predicate collapses a genuine level 5 to level 1 — the
+exact bounce b456 exists to make unreachable. PRESENCE was never the wrong test; what was broken was
+the *meaning* of presence. Fixed at source instead. The wrong lever is documented in-place in
+skill-record.js so the next person does not reach for it again.
+
+### WHAT I DID NOT DO, DELIBERATELY
+- **No cadence floor on hr_load**, even though `processOffline` → `beginRecordLoad` fires it every
+  4 seconds per player (~15 rpm against a 180/min budget — real, measurable debt). Adding one on a
+  P1 trust fix would remove the incidental safety net my ladder is layered *under*. Filed, not taken.
+- **Did not fix `migrateEquipmentSlots()`**, which writes all-null slots into `G.equipment` on every
+  inventory/loadout render and permanently breaks the b347 equipment fingerprint. Real, known
+  (getWeaponType's b455 block already works around it), separate blast radius.
+- **Gated `migrate()`'s ungated `G.skills` write, measured it, and REVERTED it.** Gating leaves
+  `G.skills` genuinely absent for the whole pre-hydration window, and `src/ftue.js:183` +
+  legacy.js's `gainedXp` index it raw and throw. **A boot crash is worse than a level-1 map the veil
+  never shows.** The correct order is: sweep the raw readers onto skill-record.js FIRST, then gate.
+  Written up in full at the call site so it is not re-attempted backwards.
+
+### LEARNINGS
+- **Measure the patched boot, do not reason about it.** The `migrate()` second writer was invisible
+  in the source and obvious in a 40-line Playwright probe printing `hasOwnProperty(G, field)` four
+  seconds after load. So was the fact that gating it breaks the boot.
+- **The suite had an undeclared dependency on the fresh-G factory literal.** Five places seeded a
+  character by indexing `G.skills[...]` bare — and when the literal vanished they did not fail, they
+  measured an EMPTY game and kept passing (a `catch (e) {}` around the seeding). Fixed by stating the
+  precondition + adding a vacuity check, not by putting the literal back.
+- **A guard that is also silent is half a defect.** Seven `catch (e) {}` blocks in `settle()` could
+  drop the farm, the bag or the crew while still reporting `loaded` and lifting the veil. They are
+  now `hydrationStep(name, fn)` — same guard, named casualty, surfaced on `bootHydrationState()`.
+- **Fail-closed authority needs a fail-loud PICTURE.** record.js has always been right that an
+  un-arrived field is UNKNOWN. Nothing rendered UNKNOWN for the *character*, so the render defaulted.
+  Save-invariant #2 ("act only on certainty") had never been applied to a screen.
 
 ## 2026-08-29 — LIVE P0 (4 reports, b467→b479): "eaten food gets restocked"
 

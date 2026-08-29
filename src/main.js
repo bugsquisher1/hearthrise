@@ -346,6 +346,17 @@ import './net/eat.js?v=491';
 import './net/market-history.js?v=491';
 import './net/auth.js?v=491';
 import './net/supabase-bootstrap.js?v=491';
+// b492 — "Connecting your character…". AFTER auth.js (it asks HearthriseAuth
+// whether there is a live session) and after record.js / capstone.js, which it
+// imports. The live P1 it closes: when the boot hr_load failed, the client had
+// no picture for "the character has not arrived", so it drew the FRESH-G
+// FACTORY LITERAL — attack 0, 500 gold — and a real account looked WIPED for
+// 36+ seconds with no error anywhere on the page. This module is the missing
+// picture; record.js's retry ladder is the other half. It installs itself on
+// DOM-ready and is inert unless the capstone is armed AND a session is live AND
+// no envelope has landed — so the smoke harness, a signed-out visitor and a
+// capstone-dormant build all see exactly today's behaviour.
+import './features/boot-hydration.js?v=491';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with
 // a tab open for days, so "the fix ships" and "the fix arrives" are different
 // events; without this, every client-side fix reaches only the players who

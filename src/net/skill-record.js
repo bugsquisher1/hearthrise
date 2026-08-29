@@ -192,6 +192,23 @@ export function skillXpForDisplay(G, id) {
      — and the honest answer to that is UNKNOWN, not a resurrected number. This
      is also what keeps the B353-3 sweep meaningful: deleting a moved field from
      a live G must still render the pending state, or the guard proves nothing. */
+  /* ⚠⚠ b492 CONSIDERED GATING THIS ON "HAS THE SERVER EVER SPOKEN", AND THAT WAS
+     WRONG — recorded because the next person to meet the bug will reach for the
+     same lever. The live P1 was a PRESENT `G.skills` holding the FRESH-G FACTORY
+     LITERAL (attack 0, hitpoints 1154) being rendered here as the player's real
+     character. The tempting fix is to add "…and the server has spoken at least
+     once this session" (record.js `bootHydrationState()`) to the gate. It turns
+     B429-6 red, and B429-6 is right: with the capstone DORMANT the save blob has
+     loaded a real character and `_record` may legitimately be absent, so that
+     predicate collapses a genuine level 5 to level 1 — the exact bounce b456
+     exists to make unreachable.
+
+     PRESENCE IS THE RIGHT TEST. What was broken was not this rung, it was the
+     MEANING of presence: the capstone's early return in `loadLocal()` skipped
+     `forgetServerOfRecord(G)`, so the factory literal survived into a live G
+     under an armed record. That is fixed AT SOURCE (legacy.js loadLocal), where
+     presence goes back to meaning "somebody optimistically wrote this". Do not
+     re-litigate it here. */
   const present = Object.prototype.hasOwnProperty.call(G, 'skills');
   if (base === null && present) {
     const map = (G.skills && typeof G.skills === 'object' && !Array.isArray(G.skills)) ? G.skills : null;
@@ -266,7 +283,9 @@ export function skillsForDisplay(G) {
     if (rv.known && rv.value && typeof rv.value === 'object') base = rv.value;
     /* PRESENT-BUT-UNVOUCHED → the local optimistic map; ABSENT → last-known, then
        nothing. `hasOwnProperty` rather than truthiness: an absent `skills` is the
-       strip state and must not resurrect a number. */
+       strip state and must not resurrect a number. (b492: presence is also all
+       this may test — see the long block in skillXpForDisplay for why gating it
+       on "has the server spoken" is the wrong lever and where the real fix is.) */
     if (!base && Object.prototype.hasOwnProperty.call(G, 'skills')) base = local;
     if (!base) {
       const last = recordLastKnown(G, 'skills');

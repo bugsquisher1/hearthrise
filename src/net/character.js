@@ -210,8 +210,26 @@ export const CHARACTER_OUTCOMES = [
   'refused',        // ok:false with a code this build does not know
   'malformed',      // a 200 that is not a verdict at all
   'unreachable',    // the request never got an answer (CORS, DNS, offline)
+  'timeout',        // aborted after CHARACTER_TIMEOUT_MS — also "no answer"
   'unconfigured',   // no endpoint / no token on this device
 ];
+
+/* ── THE ENSURE IS ON THE BOOT-HYDRATION CRITICAL PATH (b492) ────────────────
+   This module looks like a fire-and-forget bootstrap, and it is not: legacy.js's
+   processOffline chains the RECORD READ off it —
+
+       var p = C.ensureThenAccrue();
+       if (R && p && p.then) p.then(function(){ R.beginRecordLoad(); });
+
+   — so a `ensureCharacter` promise that NEVER SETTLES does not merely skip the
+   ensure, it silently deletes every hr_load the session was ever going to make,
+   including the ones legacy.js's 4-second resume watchdog would have fired. A
+   browser `fetch` has no default timeout, so a socket stalled by a cold start or
+   a frozen tab does exactly that, and the single-flight latch (`if (inFlight)
+   return inFlight`) hands the dead promise to every later caller. Measured live
+   on 2026-08-29: 36+ seconds "ready" on the factory-default character.
+   Same 15s budget and same shape as record.js / equip.js / gold.js. */
+export const CHARACTER_TIMEOUT_MS = 15000;
 
 /** Does this body actually SAY a character exists? Fail closed. */
 export function isCharacterConfirmation(body) {
@@ -290,22 +308,47 @@ export async function ensureCharacter(opts) {
     url: config.url, apiKey: config.apiKey, token, slot,
   });
 
+  let ac = null; let timer = null;
+  try { ac = (typeof AbortController !== 'undefined') ? new AbortController() : null; } catch (e) { ac = null; }
+  const init2 = ac ? { ...init, signal: ac.signal } : init;
+  if (ac) {
+    timer = setTimeout(() => { try { ac.abort(); } catch (e) {} }, CHARACTER_TIMEOUT_MS);
+    try { if (timer && typeof timer.unref === 'function') timer.unref(); } catch (e) {}
+  }
+  const done = () => { if (timer !== null) { try { clearTimeout(timer); } catch (e) {} timer = null; } };
+
   inFlight = (async () => {
     let res = null;
     try {
-      res = await fetch(url, init);
+      res = await fetch(url, init2);
     } catch (e) {
       /* CORS, DNS and a dead network are indistinguishable here by design of the
          fetch spec. All three mean the same thing: we do not know whether this
-         player has a character, so we do not claim they do. */
-      return settle({ outcome: 'unreachable', reason: String((e && e.message) || e) }, slot);
+         player has a character, so we do not claim they do. An ABORT is
+         distinguishable and is named separately — it says the server was asked
+         and did not answer inside the budget, which is a different incident. */
+      const wasAborted = !!(ac && ac.signal && ac.signal.aborted);
+      done();
+      return settle(wasAborted
+        ? { outcome: 'timeout', reason: 'no_answer_in_' + CHARACTER_TIMEOUT_MS + 'ms' }
+        : { outcome: 'unreachable', reason: String((e && e.message) || e) }, slot);
     }
+    done();
     let body = null;
     try { body = await res.json(); } catch (e) { body = null; }
     return settle({ ...classifyCreateResponse(res.status, body), status: res.status }, slot);
   })();
 
-  try { return await inFlight; } finally { inFlight = null; }
+  /* ⚠ THE LATCH IS RELEASED BY THE PROMISE, NOT BY THIS FRAME. `try { return
+     await inFlight } finally { inFlight = null }` only releases when THIS
+     invocation resumes — which never happens if the promise never settles, so
+     one stalled socket used to latch the ensure (and therefore the record read
+     chained off it) for the life of the page. Guarded on identity so an older
+     request's tail cannot un-latch a newer one. */
+  const mine = inFlight;
+  const release = () => { if (inFlight === mine) inFlight = null; };
+  mine.then(release, release);
+  return await mine;
 }
 
 /** The ONE place an outcome becomes state — and the only state is the latch. */
@@ -362,7 +405,7 @@ export function ensureThenAccrue(opts) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseCharacter = {
-    CHARACTER_OUTCOMES, ACCRUE_KILL_KEY,
+    CHARACTER_OUTCOMES, ACCRUE_KILL_KEY, CHARACTER_TIMEOUT_MS,
     isCharacterIntentEnabled, configureCharacter, getCharacterConfig,
     characterEndpoint, latchKey, buildCreateCharacterRequest, classifyCreateResponse,
     isCharacterConfirmation, isCharacterPresent, isCharacterConfirmed,

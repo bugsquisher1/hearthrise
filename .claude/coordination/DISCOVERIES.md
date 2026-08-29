@@ -4,6 +4,65 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-29 · Art Director (session-tally strip, live b491) · THE FIGHT SCREEN RENDERS IN ONE INK VALUE — EVERY SECONDARY AND HINT ROLE ON IT IS DEAD, KILLED BY ONE `!important` BLANKET
+
+**AFFECTED SYSTEMS:** `src/styles/theme-cozy.css` (the blanket, ~line 2857), `src/styles/combat-screens.css`
+(the victim), and by the same mechanism `#panel-character`, `#panel-inventory`, `#panel-shop`,
+`#panel-market`, `#panel-bounty`, `#panel-skills`, `#panel-dungeons`, `#panel-stable`,
+`#panel-farming`, `#panel-house`, `#panel-social` — eleven more screens on the same rule.
+
+**THE MEASUREMENT.** Booted the real client and read the computed colour of every ink role on the
+live fight screen. `.fs-metrics`, `.fs-metrics b`, `.fs-metrics s`, `.fs-lv`, `.fs-tile em`,
+`.fs-tile b`, `.fs-weak`, `.arena-name` and `.fsm-head` **all return `rgb(236,225,204)`** — a single
+value, `--ink`. The sheet authors three roles (`--ink` / `--ink-2` / `--ink-3`) on that screen and
+the browser paints one. Every `color:` declaration in `combat-screens.css` shallower than
+`#panel-combat .arena-vs …` has been decorative for as long as the blanket has existed.
+
+**THE MECHANISM, worth internalising because it will bite the next component too:**
+`body[data-theme="hearthlight"] #panel-combat *:not(.shops-tabs,…,.hr-room *) { color: var(--ink) !important }`
+is **(1 id, 2 classes, 1 element)** — `body`(0,0,1) + `[data-theme]`(0,1,0) + `#panel-combat`(1,0,0)
++ `:not(…)`(0,1,0), where `:not()` takes the highest specificity among its arguments. A component
+rule like `#panel-combat .fs-metrics` is (1,1,0) and *plain*, so it loses twice over. **To state a
+colour role inside one of those twelve panels you need BOTH `!important` AND ≥ (1,3,0).**
+
+**WHY IT MATTERED HERE.** The b487 handoff filed `.fs-sess-best`/`.fs-sess-foes` as "no dedicated
+CSS → render identical to body text". They were not missing CSS. They were being overpainted — and
+so was the strip they were supposed to be quieter than, which is why the two readouts at the foot
+of the fight screen were literally indistinguishable. **A "missing style" report on any of these
+twelve panels should be checked against the blanket before anyone writes a new rule**, or the new
+rule will be dead on arrival too.
+
+**REQUIRED ACTION (not taken here — out of scope, needs its own visual gate).** The correct fix is
+to take `#panel-combat` **off** that list, exactly the way `#panel-profile` left it (there is a
+b222 note beside the blanket naming this as the exit criterion: *a screen leaves the list when it
+stops needing it*). Combat is now largely token-authored, so it is the strongest candidate. That
+change repaints the whole screen and must be gated, so b492 reclaimed **only** the two readout
+strips (`#panel-combat .arena-vs .fs-metrics …`, `!important`, documented as §3.10 in
+combat-screens.css with a "do not copy this outward" note). **Owner: Art Director. Cost: one
+screen-wide visual gate, no logic.**
+
+---
+
+### 2026-08-29 · Art Director (session-tally strip, live b491) · AN IMPLICIT GRID ROW IS AN UNNAMED ROW, AND AN UNNAMED ROW IS ONE CLASS ATTRIBUTE AWAY FROM BEING SOMEBODY ELSE'S
+
+**AFFECTED SYSTEMS:** `src/styles/combat-screens.css` (the fight stage grid), any future row added to it.
+
+The fight stage declared `grid-template-rows: auto ×8` and then placed two further children on rows
+9 and 10 by hand. `#fs-session` is `class="fs-metrics fs-session"` — it borrows the metrics strip's
+type idiom on purpose — so it ALSO inherited `#panel-combat .fs-metrics { grid-row: 9 }` and **the
+two readouts were assigned the same cell.** They printed character-over-character ("S6s:XPvo:KP/h2-
+kHbrfirrGift" in Tyler's live capture) and at 922x423 the tally wrapped to two lines and printed
+through the strip above it. Nothing threw, nothing 404'd, and no automated check could see it: the
+whole defect is two individually-correct rules meeting on an unnamed row.
+
+**REQUIRED ACTION:** when you add a row to a grid whose children are placed BY CLASS, declare it in
+`grid-template-rows` and name it in a comment. A shared class is not the bug — silently sharing a
+cell with it is. `COMBAT-UI-23` in `smoke-test.js` now asserts the two strips sit on different rows
+**and** that their boxes do not intersect (a grid-row check alone would pass a layout that overlaps
+for some other reason), plus that the tally holds its one-line bound.
+
+---
+
 ### 2026-08-31 - QA Engineer (bounty-board hunt, live b486) - THE BOARD WAS SELLING CONTRACTS THE GAME COULD NOT PAY, AND THE ONE IT COULD PAY DIDN'T SHOW UP
 
 **HOW IT WAS FOUND.** Tyler: *"there is still a bug with the bounty board."* No detail. Drove the

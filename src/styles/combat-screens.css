@@ -633,7 +633,13 @@ body[data-theme] #panel-combat[data-foe-class="extradimensional"] .combat-arena 
   align-content: center;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  grid-template-rows: auto auto auto auto auto auto auto auto;
+  /* TEN ROWS, ALL NAMED BELOW. The template used to stop at eight and let the
+   * readout strips land on IMPLICIT rows, which is how b487's session tally
+   * came to be drawn on top of the metrics strip: `.fs-session` also carries
+   * `.fs-metrics`, so it inherited `grid-row: 9` and the two lines printed
+   * character-over-character. An implicit row is an unnamed row, and an unnamed
+   * row is one class attribute away from being somebody else's row. */
+  grid-template-rows: auto auto auto auto auto auto auto auto auto auto;
   align-items: end;
   justify-items: center;
   gap: 4px 16px;
@@ -655,7 +661,12 @@ body[data-theme] #panel-combat[data-foe-class="extradimensional"] .combat-arena 
   grid-column: 2; grid-row: 1 / 4; align-self: center;
 }
 #panel-combat .fs-actionbar { grid-column: 1 / -1; grid-row: 8; width: 100%; }
+/* Row 9 = THIS FIGHT (the metrics strip). Row 10 = THIS HUNT (the session
+ * tally). The `.fs-session` selector must come after and is more specific than
+ * the shared `.fs-metrics` one, because the tally element carries BOTH classes
+ * on purpose — it borrows the strip's type idiom and overrides its row. */
 #panel-combat .fs-metrics { grid-column: 1 / -1; grid-row: 9; width: 100%; }
+#panel-combat .fs-metrics.fs-session { grid-row: 10; }
 
 /* COMBAT-UI-08 / 09 — the hero plates and the symmetric five-row grammar. Same
  * rows on both sides, in the same order, so the eye compares across instead of
@@ -907,10 +918,124 @@ body[data-theme] #panel-combat[data-foe-class="extradimensional"] .combat-arena 
  * it has not measured (see the module's Ledger). */
 #panel-combat .fs-metrics {
   font-size: var(--t-micro, 11px); color: var(--ink-2);
-  padding: 4px 0 0; letter-spacing: .01em;
+  /* 1.25, not the inherited 1.42. This is a data ledger, not prose: the same
+   * tight register `.fs-lv` and the tile labels use one row up. It is also 5px
+   * of the fold, paid out of leading rather than out of anything readable. */
+  padding: 4px 0 0; line-height: 1.25; letter-spacing: .01em;
+  /* BOTH STRIPS SIT ON A PHOTOGRAPH, and §3.10 below hands their quiet clauses
+   * back to `--ink-3`. Sampled off the render, that value measures ~5:1 on the
+   * dark barn boards and ~4:1 where the floor catches the light — under the
+   * 4.5:1 line on exactly the patches a painted biome will vary most. The fix
+   * is NOT to brighten the role (that would flatten the ladder the strip was
+   * just given) but to darken the ground under the glyphs, which is the idiom
+   * `.arena-hp-text` already uses six rules up for the same reason. */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .6);
 }
 #panel-combat .fs-metrics b { color: var(--ink); font-variant-numeric: tabular-nums; }
 #panel-combat .fs-metrics s { text-decoration: none; color: var(--ink-3); margin: 0 4px; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 3.10 · THE INK LADDER ON THIS SCREEN IS RESTORED BY FORCE, AND HERE IS WHY.
+ *
+ * Measured on the live fight screen at b491: `.fs-metrics`, `.fs-metrics b`,
+ * `.fs-metrics s`, `.fs-lv`, `.fs-tile em`, `.fs-tile b`, `.fs-weak`,
+ * `.arena-name` and `.fsm-head` ALL compute to the SAME colour — rgb(236,225,204),
+ * i.e. `--ink`. Every secondary and hint role authored on this screen is dead.
+ * The killer is one blanket in theme-cozy.css:
+ *
+ *   body[data-theme="hearthlight"] #panel-combat *:not(…) { color: var(--ink) !important }
+ *
+ * It is (1,2,1) AND important, so `#panel-combat .fs-metrics` (1,1,0, plain)
+ * never had a chance. That is the real reason the b487 handoff read
+ * "`.fs-sess-best`/`.fs-sess-foes` render identical to body text" — they are
+ * not missing a rule, they were being overpainted, and so was everything
+ * around them. Two strips cannot be told apart when the screen has one value.
+ *
+ * The blanket is a shared surface and widening its exclusion list would repaint
+ * a dozen screens, so this reclaims exactly the two readout strips and nothing
+ * else: `#panel-combat .arena-vs .fs-metrics …` is (1,3,0)+, which outranks it,
+ * and the `!important` is required only because the blanket's declaration is.
+ * Do not copy this pattern outward — the correct fix for the SCREEN is to take
+ * combat off that list the way #panel-profile left it (see the note beside the
+ * blanket); that is a separate pass with its own visual gate, filed in
+ * DISCOVERIES.
+ * ════════════════════════════════════════════════════════════════════════*/
+#panel-combat .arena-vs .fs-metrics { color: var(--ink-2) !important; }
+#panel-combat .arena-vs .fs-metrics b { color: var(--ink) !important; }
+#panel-combat .arena-vs .fs-metrics s { color: var(--ink-3) !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 3.11 · THE SESSION TALLY STRIP — one line, its own row, its own register
+ *
+ * Two readouts live at the foot of this stage and they answer different
+ * questions: row 9 is THIS FIGHT, row 10 is THIS HUNT. Before b492 they were
+ * the same row and the same colour, so they were the same thing twice, printed
+ * on top of each other.
+ *
+ * THE HEIGHT IS BOUNDED BY CONSTRUCTION, NOT BY A MEASUREMENT. A single
+ * `nowrap` flex row cannot become two lines at any width there will ever be, so
+ * it cannot grow into the action bar the way it did at 922x423 (measured: 34px,
+ * two wrapped lines, printing through the metrics strip). Nothing here depends
+ * on a breakpoint being tuned correctly — the row is one line because it has
+ * one line to give.
+ *
+ * WIDTH IS SPENT IN PRIORITY ORDER, WHICH IS WHY THIS IS FLEX AND NOT A NOWRAP
+ * BLOCK. A block with `text-overflow: ellipsis` clips at the box edge, and the
+ * box edge lands wherever it lands — at 960px that cut the string mid-number
+ * ("net 51,37…"), i.e. it damaged a FIGURE to save a foe roll. As flex items
+ * the clauses can be ranked: the rubric and the rates never shrink, the
+ * best-settle shrinks reluctantly, and the foe roll — reference, not rate —
+ * absorbs almost all of it and ellipsises inside its own box. The numbers the
+ * strip exists for are the last thing to go, never the first.
+ * ════════════════════════════════════════════════════════════════════════*/
+#panel-combat .fs-metrics.fs-session {
+  display: flex; flex-wrap: nowrap; align-items: baseline;
+  min-width: 0; overflow: hidden; white-space: nowrap;
+  padding-top: 2px;
+}
+#panel-combat .arena-vs .fs-session > span { flex: 0 0 auto; }
+/* 1 against 400 is not a ratio, it is an ORDER. Flex shares a deficit in
+ * proportion to shrink-factor x basis, so at 400:1 the foe roll absorbs 99.9%
+ * of it and the best-settle figure only starts to give once the roll has been
+ * eaten to nothing. Measured with an even-handed 20:1 at 1366x768 the two
+ * shared a 49px deficit and `best` lost 2px — enough to hang an ellipsis off
+ * an intact number, which is the worst of both outcomes: a figure that looks
+ * truncated and isn't. */
+#panel-combat .arena-vs .fs-session > .fs-sess-best {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+#panel-combat .arena-vs .fs-session > .fs-sess-foes {
+  flex: 0 400 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+/* The rubric. Same small-caps label idiom as `.fs-lv` and `.fss-lbl`, which is
+ * what says "a new readout starts here" without spending a rule, a box or a
+ * second hairline on it — this screen already has one hairline above the action
+ * bar and a second one 20px below it would be noise, not structure. */
+#panel-combat .arena-vs .fs-session .fs-sess-head {
+  font-family: var(--f-label, var(--f-ui)); font-weight: 800;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-3) !important;
+  margin-right: .5em;
+}
+/* Separators are drawn, not written, so a clause can be dropped at a narrow
+ * height without orphaning the middot that used to precede it. Leading (never
+ * trailing) position is what makes that safe: the rubric is always first and
+ * never hidden, so there is always something to the left of a separator. */
+#panel-combat .arena-vs .fs-session > span + span::before {
+  content: '\00b7'; color: var(--ink-3); margin: 0 .45em;
+}
+#panel-combat .arena-vs .fs-session > .fs-sess-head + span::before { content: none; }
+#panel-combat .arena-vs .fs-session .fs-sess-stat { color: var(--ink-2) !important; }
+#panel-combat .arena-vs .fs-session .fs-sess-stat b { color: var(--ink) !important; }
+/* The ONE accent on the strip, and it is spent on the one number that is a
+ * moment rather than a rate: the best single settle of this hunt. If `net`
+ * were gilt too the gold would mean "a gold figure" instead of "your best",
+ * which is the same as marking nothing (b371, the sapphire lesson). */
+#panel-combat .arena-vs .fs-session .fs-sess-best { color: var(--ink-2) !important; }
+#panel-combat .arena-vs .fs-session .fs-sess-best b { color: var(--gold-2) !important; }
+/* The quietest clause, and the first the ellipsis eats. */
+#panel-combat .arena-vs .fs-session .fs-sess-foes { color: var(--ink-3) !important; }
+#panel-combat .arena-vs .fs-session .fs-sess-idle { color: var(--ink-3) !important; }
 
 /* The log row: the combat log takes the slack, the loot rail rides its right
  * edge. Both live below the stage and neither can push the stage off screen. */
@@ -1119,6 +1244,10 @@ body[data-theme] #panel-combat[data-foe-class="extradimensional"] .combat-arena 
   #panel-combat .fs-style .csb-btn small { font-size: var(--t-micro, 11px); }
   #panel-combat .fs-actionbar .btn { padding: 2px 8px; min-height: 0; }
   #panel-combat .fs-metrics { padding-top: 1px; line-height: 1.15; }
+  /* The tally keeps its 2px of separation from the strip above it even here —
+   * the two rows answer different questions and the gap is what says so. It is
+   * the cheapest 2px on this screen and the row is one line either way. */
+  #panel-combat .fs-metrics.fs-session { padding-top: 2px; line-height: 1.15; }
   #panel-combat .arena-vs.fs-stage .arena-name { font-size: var(--t-small, 13px); }
   #panel-combat .arena-vs.fs-stage .arena-hp-bar { height: 15px; }
   #panel-combat .fs-actionbar { padding-top: 2px; gap: 6px; }
@@ -1165,6 +1294,32 @@ body[data-theme] #panel-combat[data-foe-class="extradimensional"] .combat-arena 
   #panel-combat .fs-style .csb-btn { flex: 0 1 auto; min-width: 0; }
   /* The log goes below the fold, and the rail goes with it. */
   #panel-combat .fs-logrow { padding: 0 8px 6px; min-height: 90px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * THE TALLY SHEDS ITS TAIL WHEN THE STRIP IS TOO NARROW TO HOLD IT HONESTLY,
+ * AND THIS IS A WIDTH RULE ON PURPOSE.
+ *
+ * The obvious home for it was the `max-height: 560px` block above — that is
+ * where every other landscape-phone compaction lives, and 922x423 is the phone
+ * we care about. It would have been wrong twice. Dropping a clause saves ZERO
+ * height (the row is a nowrap flex line either way), so a height query buys
+ * nothing it is asked for; and it would have fired on Tyler's 1568x558 desktop
+ * window, where the strip is 1190px wide and the whole string fits with 190px
+ * to spare. The thing that actually goes wrong is horizontal: the five rate
+ * clauses cannot shrink, so below ~660px of strip they stop ellipsising and
+ * start being CUT, which damages a figure to save a foe roll.
+ *
+ * 1100px of viewport is where the strip crosses that line — and it catches
+ * both narrow cases the height query could not tell apart: the 922x423 phone
+ * (strip 630px, icon rail) and a half-width 1024-wide desktop window (strip
+ * ~580px, full sidebar). Above it the flex order above handles the squeeze.
+ * The full string is never lost: the away/welcome-back card reads the identical
+ * shape from the identical receipts (src/features/session-tally.js).
+ * ════════════════════════════════════════════════════════════════════════*/
+@media (max-width: 1100px) {
+  #panel-combat .arena-vs .fs-session .fs-sess-foes,
+  #panel-combat .arena-vs .fs-session .fs-sess-best { display: none; }
 }
 
 /* Narrow — the destination rail scrolls sideways instead of squeezing, and the

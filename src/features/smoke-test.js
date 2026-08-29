@@ -41246,6 +41246,142 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('COMBAT-UI-23: the session tally is its own row, one line, and never lands on a control', () => {
+    /* THE DEFECT THIS EXISTS TO STOP (live on b491, 1568x558, screenshot-proven).
+       `#fs-session` carries BOTH `fs-metrics` and `fs-session`, so it inherited
+       `#panel-combat .fs-metrics { grid-row: 9 }` from the per-fight strip and
+       the two readouts were assigned THE SAME CELL of the stage grid. They
+       printed character-over-character — the live capture reads
+       "S6s:XPvo:KP/h2-kHbrfirrGift" — and at 922x423 the tally wrapped to two
+       lines and pushed through the strip above it into the action bar.
+
+       Four claims, all measured on the live DOM rather than read off the sheet,
+       because the whole bug was two rules that each looked correct alone:
+        (1) the two strips occupy DIFFERENT grid rows;
+        (2) their boxes do not intersect — and neither does the tally's box
+            intersect the action bar or the Eat button (the b221 bounding-box
+            idiom; a grid-row assertion alone would pass a layout that overlaps
+            for some other reason);
+        (3) the tally is ONE LINE. Its height is bounded by construction
+            (`nowrap` flex row), which is what makes it unable to grow into the
+            controls at any viewport — a measurement, not a breakpoint;
+        (4) the ink ladder is LIVE. theme-cozy.css paints
+            `#panel-combat *` with `color: var(--ink) !important`, which is why
+            the b487 handoff reported these spans "rendering identical to body
+            text": they were being overpainted. If that blanket ever wins again,
+            rubric == figure and this fails.
+       MUTATION PROVEN: delete `.fs-metrics.fs-session { grid-row: 10 }` and (1)
+       and (2) fail together; drop the `!important` colour reclaim and (4) fails. */
+    const CS = window.HearthriseCombatScreens;
+    assert(CS && CS._session, 'the session-tally seam is not published');
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    const panel = document.getElementById('panel-combat');
+    const prevView = panel ? panel.dataset.combatView : null;
+    try {
+      window.showTab('combat');
+      window.startCombat('slime');
+      /* THE LONGEST HONEST STRING, OR THIS MEASURES NOTHING. Two seeds, and
+         the second one is the half a first draft of this guard forgot: without
+         a BESTIARY delta `perMonster` is empty, `.fs-sess-foes` never renders,
+         and the widest clause on the strip — the one the whole overflow design
+         is about — is absent from the layout being asserted. Proven: the
+         "wrap" assertion below could not be made to fail until the foe roll
+         was seeded. */
+      /* ORDER MATTERS AND IT IS NOT OBVIOUS: the accumulator snapshots its
+         per-monster BASELINE on its first poll, so a bestiary seeded before
+         that poll is baselined away and the delta is zero. Poll once to fix
+         the baseline, THEN seed, THEN poll again. */
+      CS._session.poll();
+      G.bestiary = G.bestiary || {};
+      Object.keys(window.MONSTERS || {}).slice(0, 4).forEach((id, i) => {
+        G.bestiary[id] = G.bestiary[id] || { kills: 0 };
+        G.bestiary[id].kills = (G.bestiary[id].kills || 0) + (40 - i * 7);
+      });
+      /* Fold ONE settled receipt so the strip renders live rates. The version
+         is unique so the accumulator's dedupe cannot swallow it. */
+      G.lastOfflineSummary = {
+        serverAuthoritative: true, version: Date.now(), at: Date.now(),
+        awayMs: 1800000, gainedGold: 30115, gainedXp: 96550,
+        gainedKills: 141, gainedItems: 44, levelUps: [],
+      };
+      CS._session.poll();
+      CS.setView('fight');
+
+      const sess = document.getElementById('fs-session');
+      const mtr = document.getElementById('fs-metrics');
+      const bar = document.getElementById('fs-actionbar');
+      assert(sess && mtr && bar, 'the fight stage lost one of its bottom rows');
+      assert(sess.classList.contains('fs-session'), 'the tally lost its own class');
+
+      // (1) different rows
+      const rowS = getComputedStyle(sess).gridRowStart;
+      const rowM = getComputedStyle(mtr).gridRowStart;
+      assert(rowS !== rowM,
+        'THE OVERPRINT IS BACK: the session tally and the metrics strip share grid row ' + rowS);
+
+      // (2) no box intersects another
+      const hits = (a, b) => {
+        const x = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        return x > 0.5 && y > 0.5;
+      };
+      const rs = sess.getBoundingClientRect();
+      assert(rs.width > 0 && rs.height > 0, 'the session tally has no box');
+      assert(!hits(rs, mtr.getBoundingClientRect()),
+        'the session tally is drawn on top of the per-fight metrics strip');
+      assert(!hits(rs, bar.getBoundingClientRect()),
+        'the session tally overlaps the action bar');
+      const eat = document.querySelector('#arena-act-player .arena-eat');
+      if (eat) {
+        assert(!hits(rs, eat.getBoundingClientRect()),
+          'the session tally is drawn over the Eat control');
+      }
+
+      /* (3) exactly one line — asserted BOTH ways on purpose. The measurement
+         only catches a wrap the CURRENT viewport happens to produce (at
+         1568x558 the string fits even as a block, so a height check alone
+         passes a broken rule); the mechanism check holds at every size. */
+      const cs = getComputedStyle(sess);
+      assert(cs.display === 'flex' && cs.flexWrap === 'nowrap' && cs.whiteSpace === 'nowrap',
+        'the tally lost its one-line bound (display ' + cs.display + ', wrap ' + cs.flexWrap
+        + ', white-space ' + cs.whiteSpace + ') — it can grow into the action bar again');
+      const lh = parseFloat(cs.lineHeight) || 16;
+      assert(rs.height <= lh * 1.6,
+        'the session tally wrapped to a second line (' + Math.round(rs.height) + 'px on a '
+        + Math.round(lh) + 'px line) — it must stay one line so it cannot grow into the controls');
+
+      // (4) the ink ladder survived the theme blanket
+      const head = sess.querySelector('.fs-sess-head');
+      const figure = sess.querySelector('.fs-sess-stat b');
+      assert(head && figure, 'the tally lost its rubric or its figures');
+      const cHead = getComputedStyle(head).color;
+      const cFig = getComputedStyle(figure).color;
+      assert(cHead !== cFig,
+        'THE STRIP IS FLAT AGAIN: rubric and figure both compute to ' + cHead
+        + ' — a theme blanket is overpainting the tally\'s colour roles');
+
+      /* The separators are drawn by CSS, so the DOM must still carry real word
+         boundaries or the accessible text reads "Session180,065 XP/h". */
+      assert(/Session\s/.test(sess.textContent),
+        'the clauses have no whitespace between them: ' + sess.textContent.slice(0, 60));
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      /* Put the CAMERA back too. `setView('fight')` writes an attribute that
+         the 200ms tick only corrects on its next pass, so without this the
+         next synchronous test inherits a fight stage that is laid out but has
+         no fight — cheap to restore, and cross-test contamination through a
+         dataset attribute is invisible when it bites. */
+      if (panel) {
+        if (prevView) panel.dataset.combatView = prevView;
+        else delete panel.dataset.combatView;
+      }
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
   () => tryRun('COMBAT-UI-22: only real combat drops reach "Drops this fight"', () => {
     /* Tyler, b370, twice. First: "we can see the stuff your workers are
        collecting as well... We should remove that." Then, after the worker

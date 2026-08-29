@@ -1344,22 +1344,40 @@ function renderSession() {
   const host = document.getElementById('fs-session');
   if (!host) return;
   const s = Session.shape();
-  let html;
+  /* EVERY CLAUSE IS A SPAN, AND NO CLAUSE CARRIES A SEPARATOR (b492).
+     The strip used to interleave literal `<s>·</s>` nodes between the clauses,
+     which made the middots part of the CONTENT: dropping the foe roll on a
+     423px screen would have left the dot that preceded it hanging off the end
+     of the line. The separators are drawn by CSS now (a LEADING `::before` on
+     every span after the rubric), so any clause can be hidden at any breakpoint
+     and the punctuation stays correct without the renderer knowing the
+     viewport. The rubric span is always first and never hidden, which is what
+     guarantees a separator always has something to its left.
+
+     THE SINGLE SPACE BETWEEN SPANS IS LOAD-BEARING AND COSTS NOTHING. Flexbox
+     does not render an anonymous item that holds only white space, so the
+     layout is identical with or without it — but `textContent` is read straight
+     off the DOM, and without it the strip's accessible text (and anything a
+     player copies, and any guard that greps this element) reads
+     "Session180,065 XP/h56,045 Gold/h". Drawn punctuation must not cost the
+     text layer its word boundaries. */
+  const clauses = ['<span class="fs-sess-head">Session</span>'];
   if (!s.ready) {
     /* No settled span yet — a 90s live-settle cadence means the first credit
        is seconds away; we will not fabricate a rate before it lands. */
-    html = '<span class="fs-sess-idle">Session tally — settles as the server credits your hunt</span>';
+    clauses.push('<span class="fs-sess-idle">settles as the server credits your hunt</span>');
   } else {
-    const rates = ST.tallyRows(s)
-      .map((r) => `<span><b>${esc(r.value)}</b> ${esc(r.label)}</span>`)
-      .join(' <s>·</s> ');
-    const best = s.bests.gold > 0 ? ` <s>·</s> <span class="fs-sess-best">best settle +${num(s.bests.gold)}g</span>` : '';
+    ST.tallyRows(s).forEach((r) => {
+      clauses.push(`<span class="fs-sess-stat"><b>${esc(r.value)}</b> ${esc(r.label)}</span>`);
+    });
+    if (s.net > 0) clauses.push(`<span class="fs-sess-stat">net <b>${num(s.net)}</b>g</span>`);
+    if (s.bests.gold > 0) {
+      clauses.push(`<span class="fs-sess-best">best settle <b>+${num(s.bests.gold)}g</b></span>`);
+    }
     const foes = s.perMonster.slice(0, 4).map((m) => `${esc(m.name)} ×${num(m.kills)}`).join(' · ');
-    const foesHtml = foes ? ` <s>·</s> <span class="fs-sess-foes">${foes}</span>` : '';
-    html = `<span class="fs-sess-head">Session</span> ${rates}`
-      + (s.net > 0 ? ` <s>·</s> <span>net <b>${num(s.net)}</b>g</span>` : '')
-      + best + foesHtml;
+    if (foes) clauses.push(`<span class="fs-sess-foes">${foes}</span>`);
   }
+  const html = clauses.join(' ');
   if (host.dataset.sig === html) return;
   host.dataset.sig = html;
   host.innerHTML = html;

@@ -1,5 +1,129 @@
 # Art Director — running log
 
+## 2026-08-29 · THE SESSION TALLY STRIP — the "missing CSS" was not missing, and the garble was a SHARED CLASS landing on an UNNAMED ROW
+
+**The finding I would put first, because it is the whole bug and it is two correct rules meeting.**
+`#fs-session` is written as `class="fs-metrics fs-session"` — deliberate, it borrows the per-fight
+strip's type idiom. The stage grid declares `grid-template-rows: auto ×8` and then hand-places
+`.fs-actionbar` on row 8 and `.fs-metrics` on row 9 — **an IMPLICIT row.** So the tally inherited
+`grid-row: 9` from the class it was borrowing type from, and the two readouts were assigned the
+same cell of the same grid. They printed character-over-character. Tyler's live capture reads
+"S6s:XPvo:KP/h2-kHbrfirrGift" and that is not corruption — it is *"Session"* and *"measuring…"*
+overprinted, glyph on glyph. Nothing threw, nothing 404'd, the smoke suite was green, and no diff to
+either rule could ever have shown it. **An implicit grid row is an unnamed row, and an unnamed row
+is one class attribute away from being somebody else's row.**
+
+**The half of the brief I was handed as P3 turned out to be a screen-wide defect, and I only found
+it by measuring instead of reading.** The b487 handoff said `.fs-sess-best`/`.fs-sess-foes` "have no
+dedicated CSS → render identical to body text". They were not missing a rule. I dumped the computed
+colour of every ink role on the live fight screen: `.fs-metrics`, `.fs-metrics b`, `.fs-metrics s`,
+`.fs-lv`, `.fs-tile em`, `.fs-tile b`, `.fs-weak`, `.arena-name`, `.fsm-head` — **all nine return
+`rgb(236,225,204)`.** One value. The sheet authors a three-step ladder and the browser paints a
+flat. `body[data-theme="hearthlight"] #panel-combat *:not(…) { color: var(--ink) !important }` in
+theme-cozy.css is **(1,2,1) and important**, and `:not()` takes the max specificity of its arguments
+— so a component rule at (1,1,0) plain never had a chance. *Two strips cannot be told apart when the
+screen has one value*, which means "give the tally its own register" was impossible without first
+beating the blanket. I reclaimed exactly the two readout strips at (1,3,0)+`!important` and REFUSED
+to widen the blanket's exclusion list, because that list is a shared surface and every entry
+repaints a dozen screens. The screen-wide fix (take `#panel-combat` off the list the way
+`#panel-profile` left it — there is a b222 note naming that as the exit criterion) is filed in
+DISCOVERIES as its own gated pass. Filed, not smuggled in.
+
+**Where I overrode my own first design, and I think it is the most defensible call in the pass.**
+Cut 1 bounded the height with a nowrap BLOCK + `text-overflow: ellipsis`. It is one line at every
+width, which is the property that matters — but a block ellipsises at the box edge, and the box edge
+lands wherever it lands: at 960px it cut *"net 51,37…"*. **It damaged a FIGURE to save a foe roll.**
+Cut 2 is a flex row where the clauses are RANKED — rubric and rates `flex-shrink: 0`, best-settle 1,
+foe roll 400. Cut 2a used an even-handed 20:1 and at 1366x768 the two shared a 49px deficit so
+`best` lost 2px: an ellipsis hanging off an intact number, which is the worst of both outcomes — a
+figure that *looks* truncated and isn't. 400:1 is not a ratio, it is an ORDER. Only the render told
+me any of that; the CSS read fine three times.
+
+**And the media query I nearly filed under the wrong axis for the wrong reason.** The obvious home
+for "drop the tail clauses on a small screen" was the sheet's `@media (max-height: 560px)` block,
+where every other landscape-phone compaction lives. Wrong twice: dropping a clause saves **zero**
+height once the row is a nowrap flex line, so a height query buys nothing it is asked for; and it
+fires on Tyler's own 1568x558 window, where the strip is 1190px and the whole string fits with 190px
+to spare. The thing that actually breaks is horizontal. It is `@media (max-width: 1100px)` now,
+which catches both narrow cases a height query cannot tell apart — the 922x423 phone (strip 630px,
+icon rail) and a half-width 1024-wide desktop window (strip ~580px, *full* sidebar, i.e. NARROWER
+than the phone at a larger viewport). **Strip width does not track viewport width monotonically on
+this screen**; do not assume it does.
+
+**Separators are DRAWN now, not written.** The old markup interleaved literal `<s>·</s>` nodes, which
+made the punctuation part of the content — hide the foe roll and the middot that preceded it hangs
+off the end of the line. A leading `::before` on every span after the rubric means any clause can be
+dropped at any breakpoint and the punctuation stays correct without the renderer knowing the
+viewport. **The cost I nearly shipped: `textContent` became "Session180,065 XP/h56,045 Gold/h".**
+Drawn punctuation must not cost the text layer its word boundaries — the clauses are joined with a
+single space, which flexbox does not render (a whitespace-only anonymous flex item is dropped) and
+the DOM keeps.
+
+**My first draft of the guard could not fail.** `COMBAT-UI-23` seeds a settled receipt and asserts
+row separation, box non-intersection against the metrics strip / action bar / Eat button, the
+one-line bound, and that rubric ≠ figure. The "one-line" mutation stayed GREEN — because without a
+BESTIARY delta `perMonster` is empty, `.fs-sess-foes` never renders, and the widest clause on the
+strip was simply absent from the layout I was asserting on. And seeding the bestiary is itself
+order-dependent: the accumulator snapshots its per-monster baseline on its FIRST poll, so a seed
+placed before that poll is baselined away to zero. Poll → seed → poll. **A guard that never
+constructs the worst case is measuring the easy one.** It also asserts the MECHANISM
+(`display:flex` + `flex-wrap:nowrap` + `white-space:nowrap`) beside the measurement, because a
+height check alone passes a broken rule at any viewport where the string happens to fit — proven:
+the block mutation goes green at 1568x558 on the measurement and red on the mechanism.
+
+**Mutation-proven at THREE viewports** (1568x558, 1200x900, 922x423), each shipped rule reverted
+separately: row-10 removed → the row assertion AND the overlap assertion fail together at all three;
+one-line bound removed → the mechanism assertion fails at all three and the measurement at 1200x900;
+ink reclaim removed → the ladder assertion fails at all three, naming `rgb(236,225,204)`. Clean is
+green at all three.
+
+**Verified in-browser, my own harness rooted in THIS worktree** (`tools/_session-tally-shots.mjs` —
+the launch.json-serves-main trap, now eight entries in this log; it also walks SIBLING directories
+for node_modules, because a git worktree is a sibling of the checkout and the usual walk-up never
+reaches it). Six viewports — 1920x1080, 1440x900, 1366x768, 1024x900, **1568x558 (Tyler's exact
+reported size)** and **922x423** — in both the idle and the settled state, plus a scrolled-to-bottom
+pass that `elementFromPoint`s the Eat button, Stop, and the strip itself. **0 overlaps of any pair,
+0 404s, 0 console errors**, and at the bottom of the scroll all three hit-test to themselves at
+every size. Captures in the session scratchpad `tally-{before,after1..5,ship,ship2}/`.
+
+**One contrast call I made numerically rather than by eye.** The strip sits on a photographed
+backdrop. `--ink-3` sampled off the render measures ~5:1 on the dark barn boards and **~4:1 where
+the floor catches the light** — under 4.5 on exactly the patches a painted biome varies most. The
+fix is not to brighten the role (that flattens the ladder I had just built) but to darken the ground
+under the glyphs: `text-shadow: 0 1px 2px rgba(0,0,0,.6)`, which is the idiom `.arena-hp-text`
+already uses six rules up, for the same reason, on the same screen.
+
+**A real limitation I am not hiding: at 1440x900 and 1366x768 both readout strips sit BELOW the
+fold** (they are reached by the b371 scroll net, and I photographed and hit-tested them there).
+That is not new and it is not the tally's — the b371 comment budgets the shell at 148px and the
+shell now measures **203px**, so the fold was already eating the metrics strip on b491 before the
+tally existed (baseline: metrics 883..908 in a 900px viewport, its own baseline sitting at 901).
+Recovering it means re-tuning `min(42vh, 340px, calc(100vh - 540px))` on the foe portrait — b365's
+art-direction ratio, the screen's subject — and I will not move the hero to make room for a text
+strip inside a bug fix. Filed with the exact arithmetic. **At Tyler's reported 1568x558 and at
+922x423 the strip is fully visible and correct**, which is the size the report came from.
+
+**Suite 1070/1070, 0 failed, 0 runtime errors**, twice, on the tree carrying the shipped guard
+(+1 registration vs main's 922 → 923, so main's baseline is 1069).
+
+**And then the machine stopped being able to run the suite at all, which is worth recording because
+I nearly reported it as my regression.** Every run after 17:06 died on `page.evaluate: suite timed
+out` (or aborted outright at the Accrual guard, the heaviest step). The only diff since the last
+green run was a one-line `text-shadow` — which touches no geometry, no colour computation and no
+assertion — so the shape of the evidence was wrong before I started debugging it. **I ran the
+control: unmodified `main`, same command, same machine. It times out identically.** Two causes I
+created and should not repeat: a backgrounded `run-smoke.mjs` reported "completed" by the wrapper
+while the node process was still alive holding a Chromium (two of them accumulated, i.e. three
+concurrent suites — CLAUDE.md's "parallel suites blow the in-page budget" arriving through the back
+door), and a `while(Date.now()<t)` busy-wait I used to poll the log, which burned a core through one
+of the runs. **Poll with `setTimeout`, and verify a backgrounded suite is actually dead
+(`Get-CimInstance Win32_Process`) before starting another.** What stands: two green 1070/1070 runs
+on this guard, plus a three-viewport in-page re-run of the guard's own assertions against the FINAL
+shipped tree (clean green; all three mutations still fire).
+
+No version bump, no push — worktree `R:\the game\session-tally-css`, branch
+`fix/session-tally-strip`.
+
 ## 2026-08-23 · THE EMOJI-AS-ICON SWEEP — and the number I was given was wrong in BOTH directions
 
 **The finding I would put first, because it is the reason four previous purges left survivors.**

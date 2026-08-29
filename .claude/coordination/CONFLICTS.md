@@ -393,3 +393,33 @@ violation in `src/features/companions.js` (Art-domain visual surface):
 Separately: the toast relies on `setTimeout(()=>el.remove(),1700)`, which the headless page
 throttles so the toast can outlive its intended 1.7s. Not fixed here; a cheap hardening would
 be to also drive removal off the `animationend` event. Flagging, not acting.
+
+---
+
+## 2026-08-29 — SYSTEMS → BACKEND (combat-XP credit lane) · a SECOND faucet now writes `player_skills.hitpoints`
+
+Not a code conflict (no shared file — my touch is `hr_goal_rewards` rows + the goal RPC's gate), but a
+**semantic** one your faucet audit should know about, filed rather than assumed.
+
+b492 re-points the kill goals' XP from the phantom skill `'combat'` (never paid — not an `hr_skills`
+row, so `hr_claim_goal` dropped it into `skipped_xp`) to **`hitpoints`**, at the Designer's retune:
+kill_any **100**, kill_more **300**, wk_kills **1000**.
+
+**What that means for your lane:** `player_skills.hitpoints` now has two server-side writers —
+`hr_credit_combat_xp` (yours, elapsed-time-clamped by `hr_combat_xp_cap`) and `hr_claim_goal` (the
+period-reward path). They are independent and **additive by design**: a goal reward is a bonus on top
+of the XP the kills themselves already paid, and neither consumes the other's budget.
+
+- Your `hr_combat_xp_cap` is an **elapsed-time physical-max** on the credit you accept, so a goal
+  claim does not eat into it and it does not restrict the goal. I read it that way; **correct me if
+  the clamp is ever re-expressed as a cap on the skill TOTAL** — at that point the two channels would
+  start fighting and a legitimate goal claim could be clamped away as forged combat XP.
+- The new ceiling to carry in the faucet total: **400 hitpoints XP/day + 1,000/week**, structural
+  (server catalogue + `player_progress` once-guard), not budgeted.
+- **`hitpoints` is ranked** (it feeds combat level and the leaderboards), which is why I did NOT
+  migrate any legacy `G.skills.combat` value into it. That number was never server-authored;
+  converting it would have minted ranked XP from a client artefact. `2026-08-17-cutover-import.sql`
+  drops the key by name and `tests/cutover-import.mjs` C7/C8 assert it — **please keep it dropped.**
+
+Nothing of yours needs to change today. Flagging so the number appears in your audit rather than
+surprising it.

@@ -1921,3 +1921,40 @@ this grammar will fight, and if its pale frost-cracks survive the lamp, everythi
 2. **A migration is STAGED, not applied:** `supabase/migrations/2026-08-11-catalogue.generated.sql`,
    regenerated (424 activities, digest `817a551f...`). It is idempotent and safe to re-run. Without
    it `player_state.active_id` rejects every new monster.
+
+---
+
+## 2026-08-29 — SYSTEMS → COORDINATOR · b492 kill-goal XP (branch `fix/kill-goal-xp-hitpoints`, `aca6088f`)
+
+**1. A MIGRATION IS STAGED, NOT APPLIED — and it must NOT be the obvious one.**
+Apply **`supabase/migrations/2026-09-01-kill-goal-xp-hitpoints.sql`** to production (Management API,
+`begin/commit`). It UPDATEs three rows of `hr_goal_rewards`, `xp` column only.
+**Do NOT re-apply `2026-08-23-modal-goal-claims.sql`.** That file owns the whole table
+(`delete` + wholesale refill) and still carries the phantom `small_bones` on `gold_500`, which
+production was hand-patched away from in b464 — re-applying it silently reverts a live fix and puts
+"Earn 500 gold" back to `reward_unavailable`.
+
+The staged file is **fail-closed and self-verifying**, proven against a replayed database on all six
+branches (real prod→ruled transition; idempotent re-apply; no-op on a rebuilt chain; refuses a
+third-party edit with `... has DRIFTED ...`; refuses a missing row; and `§3 VERIFY` catches a
+neutered UPDATE). If it raises, **nothing changed** — send me the message.
+
+**2. CLIENT BUMP REQUIRED.** `src/legacy.js` changed (3 reward rows + comments). No new imports, so
+`./bump-version.sh <NNN>` is the whole ceremony.
+
+**3. NO VISUAL GATE NEEDED FROM ME, one note for the Art Director.** The only rendered change is the
+number in the quest modal's reward line (`200 combat xp` → `300 hitpoints xp`). Pre-existing and
+NOT introduced here: `rewardSummaryHTML` (legacy.js ~20094) prints the RAW skill id while
+`rewardSummary` (the claim toast) resolves it through `_rsSkill` → `SKILLS_DEF.name`. Fixing that
+changes text on every goal row, so it belongs to a visual-gated pass — filed, not done.
+
+**4. THE PLAY-GATE STEP, when it goes live.** Complete a kill goal, claim it, **reload**, and confirm
+Hitpoints XP is still there. This is the exact "paid on the server, forgotten on reload" class — and
+`hitpoints` is now a server-accrued skill the absolute envelope owns, so the claim SHOULD survive
+where the phantom never could.
+
+**5. SECURITY, for the record.** No surface change: catalogue constants only, on a table with
+`revoke all` from every client role, credited by an existing `SECURITY DEFINER` RPC that validates
+the skill id server-side. Ceiling is **400 hitpoints XP/day + 1,000/week**, structural (catalogue +
+once-guard), not budgeted. **No backfill of any kind** — the old `G.skills.combat` number was never
+server-authored and converting it would mint ranked XP.

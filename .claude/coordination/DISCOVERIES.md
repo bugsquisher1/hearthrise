@@ -1881,3 +1881,34 @@ including the Green Dragon, the game's capstone - were being paid for opting out
 exactly those 7 rows. Nobody is worse off, the engine loses a magic constant, and drop-rate identity
 becomes a data lever any monster can carry rather than a side effect of having no weakness. Guarded
 by `MON-NEUT-1`, which asserts all 7 still measure exactly 1.15 and that `goblin` did not acquire one.
+
+---
+
+## 2026-08-29 — SYSTEMS · A declared defect is a defect the team agreed to keep (b492)
+
+`kill_any` / `kill_more` / `wk_kills` paid **zero** XP for the entire life of `hr_claim_goal`, because
+their reward named skill id `'combat'` — which is not an `hr_skills` row. The server filtered it into
+`skipped_xp` and paid the gold; the modal went on quoting the XP as part of the price.
+
+**It was known the whole time, in two places, and both were designed to keep the build green:**
+- the migration's §8 gate raised a `NOTICE` naming it at apply time;
+- `tests/modal-goal-claim.mjs` carried it in a `PHANTOM_XP_SKILL` map with an owner attached.
+
+That is the pattern worth naming. **An exemption list with an entry in it is a defect with a
+signature on it.** It converts "this is broken" into "this is filed", and filed things do not turn a
+suite red. Four builds, every player, silently short-paid — under a green suite that was *reporting
+the bug it was hiding*.
+
+Three rules taken from it, now enforced rather than written down:
+1. **If the condition is "this must never be authored", the verb is `raise exception`.** A `notice` in
+   an apply log nobody reads is a comment with a transaction id. Both probes were promoted.
+2. **Grade a catalogue on the side that SPENDS it.** The old check read the client's `SKILLS_DEF`,
+   which only proved two client copies agree. `hr_claim_goal` spends `hr_skills`, so the new `C14b`
+   reads `hr_skills` out of the rebuilt database — two independent sources, either can catch the other.
+3. **An exemption that must exist gets a staleness check.** The one carve-out left (the open b464
+   `gold_500`/`small_bones` repo⟷prod drift, which also fixtures GATE(e)+C9) now raises if the row
+   stops needing it. An exemption that can outlive its reason is the next silent failure.
+
+Related, and generalisable beyond goals: **"the RPC handles it safely" was true and irrelevant.**
+`skipped_xp` protects the economy perfectly and short-pays a price the UI already quoted. Safe for the
+server is not the same as correct for the player — and the player is never told.

@@ -2241,3 +2241,97 @@ order costs signups. The transitional copy exists either way.
 - Debt paid: the front door's Discord URL was written twice; it is now `DISCORD_INVITE` +
   `discordLink()`. Debt added: none. New seams `_wire` / `_humaniseAuthError` exist because the
   wall's markup was testable and its BEHAVIOUR was not.
+
+---
+
+## 2026-08-29 — b492 · KILL-GOAL XP: the phantom `combat` skill that never paid (security S7)
+**Branch** `fix/kill-goal-xp-hitpoints` (worktree `worktrees/kill-goal-xp`, rebased onto `dce57d2f`)
+**Commit** `aca6088f`
+
+### THE DEFECT (pre-existing, live, invisible)
+`hr_goal_rewards` priced the XP of `kill_any` / `kill_more` / `wk_kills` as skill id `'combat'`.
+`combat` is not an `hr_skills` row — the table carries attack/strength/defense/hitpoints/ranged/
+magic/prayer, and "combat level" is DERIVED from them. `hr_claim_goal`'s mint planner filters with
+`exists (select 1 from hr_skills where skill_id = v_k)`, so all three grants went into `skipped_xp`
+from the day the RPC shipped: **the XP component of every kill goal in the game has never been paid**,
+while the quest modal went on printing it as part of the price. Client-side, `addXp('combat')`
+mirrored the mistake and invented a phantom `G.skills.combat` that no settle ever confirmed.
+
+### WHY IT SURVIVED — the lesson worth keeping
+It was **documented**. §8 of `2026-08-23-modal-goal-claims.sql` raised a `NOTICE` naming it at apply
+time, and `tests/modal-goal-claim.mjs` carried it in a `PHANTOM_XP_SKILL` exemption map with an owner
+attached. Both were honest and both were useless: a notice in an apply log nobody reads is not a
+control, and a declared defect keeps the build green by construction. **An exemption map with an
+entry in it is a defect the team has agreed to keep.** Four builds, every player, silently short-paid.
+
+### THE FIX (Designer ruling, final)
+XP lands in **hitpoints**, RETUNED not translated: kill_any 50→**100**, kill_more 200→**300**,
+wk_kills **1000** held. Gold/gems/targets/counters untouched. `hitpoints` is a real `hr_skills` row
+AND a server-accrued skill (`skill-authority.js ALWAYS_COMBAT_XP_SKILLS`), so the credit lands in the
+record the absolute envelope reconciles — it cannot evaporate on the next settle, which is the whole
+reason a period reward is credited server-side.
+
+### ANTI-MINT (hard rule, recorded)
+**No conversion of any existing `G.skills.combat` into hitpoints, anywhere.** That number was never
+server-authored; folding it in would mint RANKED XP (hitpoints feeds combat level and the
+leaderboards) out of a client artefact. `2026-08-17-cutover-import.sql` already drops the key by name
+and `tests/cutover-import.mjs` C7/C8 assert both that it never reaches `player_skills` and that the
+drop is REPORTED. The only surviving reads were in `smoke-test.js` (save/restore scaffolding) and are
+now gone. Ceiling for the record: **400 HP XP/day + 1,000/week**, structural (catalogue + once-guard).
+
+### THE CLASS-KILL (three nets, all mutation-proven)
+1. §GATE(b) promoted `raise notice` → `raise exception` on BOTH probes (xp-vs-`hr_skills`,
+   items-vs-`hr_items`). An authored reward naming a non-skill/non-item now **fails the apply**.
+2. `PHANTOM_XP_SKILL` **deleted**. New `C14b` grades every catalogued xp key against the **rebuilt
+   `hr_skills` table** (a different source from the client's `SKILLS_DEF`, which BIND-PAY uses), with
+   **no exemption list**. Two new mutations: `phantom_xp_skill_at_apply` (the database must refuse)
+   and `phantom_xp_skill_past_the_gate` (the repo must still refuse with the database gate softened
+   back to a notice — the exact configuration the defect lived in).
+3. In-page `b224` asserts the claim MOVES `G.skills.hitpoints` by ≥ the authored 300 and never writes
+   `G.skills.combat`. Mutation-proven: reverting the client row to `{combat:200}` turns the suite red
+   with *"claiming a kill goal paid 0 hitpoints XP"*.
+
+### THE ONE CARVE-OUT I DID NOT CLOSE (deliberate, named)
+The items probe keeps exactly one exemption: `gold_500`/`small_bones`, the **open b464 repo⟷prod
+drift** — and that row also fixtures §GATE(e) and C9 as the empty-reward case. Closing it means
+fixing the row AND re-pointing two fixtures at a synthetic goal: a separate change with a separate
+owner. So the carve-out is **staleness-checked** — if the row stops naming the phantom, GATE(b)
+raises telling you to delete the exemption. It cannot outlive the drift it exists for.
+
+### PRODUCTION DISCIPLINE
+`2026-08-23-modal-goal-claims.sql` is **NOT re-applied** — it owns the table wholesale
+(`delete` + refill) and would silently revert the live gold_500 hand-patch. The prod change is
+`supabase/migrations/2026-09-01-kill-goal-xp-hitpoints.sql`: REVIEW ONLY, three rows, `xp` column
+only, fail-closed on drift, idempotent (accepts the ruled shape so a repo rebuild still replays),
+self-verifying (re-runs `hr_claim_goal`'s own `hr_skills` filter and asserts gold/gems did not move).
+Registered in `tests/schema-apply-order.json` §order with a full note.
+
+### LEARNINGS
+- **A `raise notice` is documentation, not a gate.** If the condition is "this must never be
+  authored", the only honest verb is `raise exception`. Everything else is a comment with a
+  transaction id.
+- **The side that SPENDS a catalogue is the side that must grade it.** Checking reward xp keys against
+  the client's `SKILLS_DEF` only proved two client-side copies agree. `hr_claim_goal` spends
+  `hr_skills`, so C14b reads `hr_skills` out of the rebuilt database. Two independent sources, either
+  can catch the other.
+- **A skipped component is safe for the server and unsafe for the player.** `skipped_xp` protects the
+  economy and silently short-pays a price the modal already quoted. "The RPC handles it safely" was
+  true and irrelevant.
+- **Rule now recorded in three places so the two XP patterns cannot drift:** XP the CLIENT pays for
+  something it OBSERVED IN THE MOMENT may style-route (`completeQuest` → `killXpRoute` — correct,
+  left alone); XP the SERVER grants for a PERIOD objective names a CONSTANT skill id, because no
+  style exists at claim time and the server may neither invent one nor trust a client-supplied one.
+- Debt paid: one exemption map deleted, two `raise notice`s promoted to gates, a phantom's last two
+  client reads removed. Debt added: one staleness-checked carve-out (the pre-existing b464 drift),
+  and `b224` now also restores `G.playerMaxHp` because a REAL skill can level where the phantom could
+  not.
+
+### HANDOFF
+- **Coordinator** — apply `supabase/migrations/2026-09-01-kill-goal-xp-hitpoints.sql` to production
+  via the Management API. It is fail-closed: if prod has drifted it raises `... has DRIFTED ...` and
+  changes nothing. Client bump required (`src/legacy.js` changed).
+- **Art Director (P4, pre-existing)** — `rewardSummaryHTML` (legacy.js ~20094) prints the RAW skill id
+  in the modal's reward line (`300 hitpoints xp`) while `rewardSummary` (the claim toast) resolves it
+  through `_rsSkill` → `SKILLS_DEF.name` (`300 Hitpoints XP`). Not introduced here — it printed
+  `200 combat xp` before — but it is now the only place the fixed reward reads wrong. Fixing it
+  changes rendered text on every goal row, so it belongs to a visual-gated pass, not this one.

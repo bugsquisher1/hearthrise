@@ -222,9 +222,22 @@
 -- and AWAY-1 parity is untouched because accrual.js is not modified. §5(f5)
 -- proves the composition by executing a real credit, a simulated settle on the
 -- same window, and a second credit, and asserting the row never passes observed
--- truth. STATED LIMIT: a session that MIXES bounty and bounty-free credits
--- over-subtracts (the bounty branch writes the lifetime row too), bounded by one
--- call's credit and always in the UNDER direction — never a mint.
+-- truth.
+--
+-- ── THE TWO STATED LIMITS OF THE SETTLE-DELTA MODEL ────────────────────────
+--   1. OVER-COUNT, bounded and once a day. The watermark is scoped to the UTC
+--      day (an un-consumed remainder must not cross midnight and swallow the
+--      next day's credits), so at most ONE settle's contribution — the one
+--      landing between midnight and that day's first bounty-free credit, whose
+--      delta is 0 by construction — goes un-subtracted, once per character per
+--      UTC day. It CANNOT compound (the next call measures from the mark this
+--      one records), it is SELF-ONLY, and the payout it could accelerate is
+--      claim-guarded once per period by hr_claim_goal / hr_claim_daily. ~0 in
+--      practice: a player's first credit of a day follows their first kill, and
+--      the settle before it covered a window in which they were not fighting.
+--   2. UNDER-COUNT: a session that MIXES bounty and bounty-free credits
+--      over-subtracts (the bounty branch writes the lifetime row too), bounded
+--      by one call's credit and always in the UNDER direction — never a mint.
 --   The BOUNTY branch is byte-for-byte the reviewed 2026-08-30 behaviour plus the
 --   daily stamp; neither new clamp applies to it, so the money turn-in path is
 --   not re-tuned by this file.
@@ -367,9 +380,23 @@ end $$;
 -- REFUSING is the correct outcome: re-run the review against the live body, then
 -- either rebase §3 onto it or update this hash deliberately. NEVER "just update
 -- the hash to make the apply go through" — that is the check working.
+--
+-- ⚠ THE RE-APPLY ESCAPE HATCH IS A SECOND PINNED HASH, NOT A SUBSTRING PROBE.
+--   The first revision recognised its own output with
+--   `strpos(v_live,'v_settle_delta') > 0 and strpos(v_live,'kills_stat') > 0`.
+--   Security PROVED that silently reverts a post-apply hotfix: a fix landed ON TOP
+--   of this body still contains both substrings, so the probe passes, §3 restates,
+--   and the hotfix is gone — the exact class the fingerprint exists to stop,
+--   displaced by one generation. A substring probe answers "does it look like
+--   mine?"; only a hash answers "is it EXACTLY mine?".
+--   c_self is the body §3 installs (measured on the PGlite replay of this chain,
+--   which agrees byte-for-byte with production for the c_baseline body). PASS on
+--   c_baseline (first apply) OR c_self (re-apply); RAISE on anything else,
+--   including "mine plus a hotfix" — which is precisely when a human must look.
 do $$
 declare
-  c_baseline constant text := '6d0eb3f8ff66efd0227dc94cfb194311';
+  c_baseline constant text := '6d0eb3f8ff66efd0227dc94cfb194311';  -- the reviewed 2026-08-30 body
+  c_self     constant text := '31894cffe792cebf6e50a0765f65c6ed';  -- the body §3 installs (normalised length 19236)
   v_live text;
   v_md5  text;
 begin
@@ -379,18 +406,18 @@ begin
     raise notice 'baseline fingerprint OK (%) — the live hr_credit_kills__ungated is the reviewed body', v_md5;
     return;
   end if;
-  -- Re-apply of THIS file is not drift: recognise our own output and pass.
-  if strpos(v_live, 'v_settle_delta') > 0 and strpos(v_live, 'kills_stat') > 0 then
-    raise notice 'hr_credit_kills__ungated already carries this file''s body — re-apply, fingerprint check skipped';
+  if v_md5 = c_self then
+    raise notice 'fingerprint matches THIS file''s own output (%) — re-apply, no drift', v_md5;
     return;
   end if;
   raise exception
-    'BASELINE DRIFT — the live hr_credit_kills__ungated is md5 % (normalised length %), not the '
-    'reviewed baseline % . §3 of this file RESTATES that body in full, so applying it now would '
-    'silently revert whatever changed it. STOP: diff the live body against '
-    '2026-08-30-bounty-kill-credit.sql §3, re-take the review, then rebase §3 and update the hash '
+    'BASELINE DRIFT — the live hr_credit_kills__ungated is md5 % (normalised length %), which is '
+    'NEITHER the reviewed 2026-08-30 baseline (%) NOR this file''s own output (%). §3 RESTATES that '
+    'body in full, so applying it now would silently revert whatever changed it — including a '
+    'hotfix applied ON TOP of this file, which is the case a substring probe would have waved '
+    'through. STOP: diff the live body, re-take the review, then rebase §3 and update the hash '
     'DELIBERATELY. Do not edit the hash to make this pass.',
-    v_md5, length(regexp_replace(v_live, '[[:space:]]+', ' ', 'g')), c_baseline;
+    v_md5, length(regexp_replace(v_live, '[[:space:]]+', ' ', 'g')), c_baseline, c_self;
 end $$;
 
 -- ── 1. RETENTION: the day ceiling reads this log, so keep >= 2 days ─────────
@@ -645,7 +672,22 @@ begin
        sim-kills, none of them subtractable because the credits are far smaller)
        would silently swallow the NEXT day's attended credits and re-create the
        exact "goal never completes" defect this file exists to remove — one day
-       later and much harder to trace. The cost of the scope is stated below. */
+       later and much harder to trace.
+
+       ⚠ THE COST OF THE SCOPE, STATED. (An earlier revision of this comment said
+       "stated below" and then stated it nowhere — a promise of a limitation is
+       worse than no claim at all, because a reviewer stops looking.)
+         RESIDUAL = at most ONE settle's contribution, once per character per UTC
+         day, left UN-SUBTRACTED. It arises only when a settle lands between
+         midnight and that day's first bounty-free credit: the day's first credit
+         has no predecessor row, so its delta is 0 by construction and that one
+         settle's kills go undiscounted. It is BOUNDED (one settle, not a day's
+         worth), it CANNOT COMPOUND (the next call measures from the mark this one
+         records), it is SELF-ONLY, and the payout it could accelerate is
+         CLAIM-GUARDED once per period by hr_claim_goal / hr_claim_daily. In
+         practice it is ~0: a player's first credit of a day follows their first
+         kill, and the settle before it covered a window in which they were not
+         fighting. */
     /* ⚠ max(), NOT "the newest row's value". The watermark is MONOTONE by
        construction (mark = prev + consumed, consumed >= 0), so its current value
        IS its maximum — and reading it as a maximum is immune to the ordering trap

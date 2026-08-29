@@ -93,3 +93,7 @@ tests/.mutation-journal.json
 
 # watermark-fixed item sources (handoff to item pipeline; not shipped as-is)
 assets/_wm-fixed-item-sources/
+
+# transient local test artifacts
+smoke-*.log
+smoke-*-done.txt

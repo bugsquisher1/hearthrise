@@ -407,6 +407,22 @@ const ALSO_LINTED = [
      anchor replace, the 2026-08-28-client-state.sql idiom), so it carries no
      literal create-or-replace header for either and is on NO derivation chain. */
   '2026-08-24-combat-style.sql',
+  /* THE KILL → DAILY-GOAL CREDIT (2026-09-01). It `create or replace`s TWO
+     SECURITY DEFINER functions — hr_credit_kills__ungated (which now also stamps
+     the daily ev:kill_any counter FIVE gold/gem claims are graded on, and accepts
+     a credit with NO active bounty) and hr_kill_credit_prune (a wider retention
+     floor) — which is exactly the shape PART 1b's revoke-before-grant lint is the
+     only static defence against, and `create or replace` PRESERVES an ACL, so a
+     restated body that forgot its revoke/grant block would silently keep whatever
+     the previous ACL was. The client wrapper hr_credit_kills is unchanged in
+     signature and stays authenticated-only. It touches hr_rpc_gate / hr_state_of /
+     hr_apply NOT AT ALL (the hr_credit_kills bucket already exists in the live
+     gate), so it is on NO derivation chain and takes over no last-toucher role.
+     ⚠ Its predecessors 2026-08-30-bounty-kill-credit.sql and
+     2026-08-31-combat-xp-credit.sql are NOT on this list — a pre-existing coverage
+     gap, raised for the Coordinator rather than closed here, because widening the
+     list can surface findings in files this change does not own. */
+  '2026-09-01-kill-daily-credit.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────

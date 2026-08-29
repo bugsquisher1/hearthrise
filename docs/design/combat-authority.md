@@ -160,3 +160,82 @@ be built and reviewed as one migration.
   per-skill physical-max cap, the daily XP budget (`daily_budget`), the journal,
   and the watermark (which makes the credit non-replayable and non-double-paid).
   Requires security review.
+
+---
+
+## 5. Part 3 — the DAILY GOAL kill counter (2026-09-01)
+
+**Status:** BUILT on branch `fix/kill-daily-server-credit`, migration
+`supabase/migrations/2026-09-01-kill-daily-credit.sql`, **not applied**. Gated on
+security review — it opens a new client-reachable surface.
+
+### The third consumer of the same root
+
+Parts 1 and 2 fixed the bounty counter and combat XP. The third consumer of the
+attended undercount is the **daily/weekly kill goal**, graded on
+
+```
+player_progress(kind='daily', key='ev:kill_any', period_key=hr_utc_day_key(now()))
+```
+
+Five paying claims read that one row: `hr_claim_goal`'s `kill_any` (10 → 200g),
+`kill_more` (30 → 600g + 1 gem) and `wk_kills` (weekly 100 → 2500g + 3 gems, a
+**SUM** of the week's seven daily rows — there is no `kind='weekly'`), plus
+`hr_claim_daily`'s `daily_kill` (25 → 500g) and `daily_kill_big` (60 → 900g).
+Its only writer was the span-sim, so an attended goal reached full on the client
+and never became claimable: "30 / 30 · Confirming…".
+
+### The two changes
+
+1. **`hr_credit_kills` stamps the daily row on both branches**, from the same
+   `v_applied` the lifetime aggregate already used.
+2. **A credit no longer requires an active bounty.** The presence of the
+   `active_bounty` row — a *server* fact — chooses the branch. The
+   **bounty-free branch writes the daily row and nothing else**: not
+   `stat/ev:kill_any`, not `stat/kills`, not the bestiary key, because
+   `hr_claim_quest` pays on the first and `hr_renown_of` *scores* the first
+   (0.05/kill) and the bestiary (5/boss kill) — renown is **ranked**.
+
+### No double-advance — and the accrued_to floor is only half of it
+
+Anchoring the bounty-free window at `greatest(last free credit, accrued_to)`
+stops a credit paying for a window a settle already covered. It does **not** stop
+the *next* settle covering a window the credit already paid: `hr_apply` /
+`accrual.js` re-simulate `[accrued_to, now]` in full and have no kill watermark
+to clamp against (unlike combat XP, which bought `combat_xp_accrued_to` **and** an
+edge change). The closure is a **settle-delta subtraction**:
+
+`src/core/goals.js` `goalProgressOps` writes daily `ev:kill_any` and lifetime
+`stat ev:kill_any` from **one counter in one delta**, so the lifetime row's growth
+since this character's previous bounty-free credit *is* the number the settle put
+on the daily row. The branch records that value on the log row it already writes
+for idempotency (`hr_kill_credit_log.kills_stat`) and applies
+
+```
+applied = max(0, credit - settle_delta)      ⟹  daily total = observed
+```
+
+giving the bounty-free branch the same arithmetic cancellation the bounty branch
+already had against the bestiary counter. **No edge change**, so AWAY-1 parity is
+untouched by construction.
+
+### Client half
+
+`src/legacy.js` `hrRecordKillForCredit` buffers **every** kill (skipping the
+active bounty target, which has its own cumulative cadence) and flushes on a 60 s
+cadence — plus a **bounded trailing drain**. That drain is not polish: b484
+shipped the bounty credit gated on "the next kill" and that is exactly how a
+bounty came to hang forever. A stopped player is the reported symptom, so the
+credit must be *scheduled*, not kill-gated.
+
+### Exploit surface delta
+
+New client-reachable surface. Physical cap (`floor(1.3 × elapsed / 600 ms)` =
+130 kills/min) and a 10,000/UTC-day ceiling are **fuses, not the control** — the
+largest target any reader grades is 100. The control is the **once-per-period
+claim guard** in `hr_claim_goal` / `hr_claim_daily`, which bounds a perfectly
+forged counter to **≤ 2,200 gold + 1 gem per UTC day + 2,500 gold + 3 gems per
+ISO week**, reachable honestly in ~3 minutes of play. Gold reaches the `wealth`
+leaderboard board and the market, so this is a ranked + tradeable surface; the
+accepted argument is magnitude (the accrual path pays ~1.05M gold/character-day)
+plus by-name journalling on both the payout and the forgery side.

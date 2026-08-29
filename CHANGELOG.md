@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 492 — 2026-08-29 ("Confirming…" on kill goals is done)
+
+> **🧪 Testers:** take a kill goal ("Slay 10/30 monsters", the weekly "Slay 100", or a kill daily), fight *without* a bounty running, then **stop**. Within a minute the bar should turn into a real **Claim** and pay. Tell us in Discord if any kill goal still sits at "30 / 30 · Confirming…".
+
+- ⚔️ **Kill goals count the kills you actually made.** The server was only counting kills it re-simulated in the background, which lands well under what an attended player really does — so a kill goal could read full on your screen and never become claimable. Your live kills are now reported to the server (clamped to what is physically possible, so nothing can be forged) and they count toward daily *and* weekly kill goals.
+- 🏹 **You no longer need a bounty for a kill to count.** Until now only cull-bounty kills were reported. Every kill counts now.
+- ⏱️ **Stopping at target still finishes the job.** The credit keeps draining on a timer after your last kill, so a goal you finished and then walked away from completes on its own.
+- 🔒 Counted once, never twice: the background settle and the live credit are reconciled against each other, so one kill can never be counted by both.
+- 🧪 Two new in-game regression tests plus a database guard carrying eleven planted-defect proofs.
+
 ## v0.9.2-beta build 491 — 2026-08-29 (Eaten food stays eaten)
 
 > **🧪 The big one for our combat testers.** Eat food mid-fight — manually AND via Auto-Eat — then keep fighting through a sync, then reload. The food should stay eaten, your heal should stick, and nothing should "come back." This was reported 4 times (the moonbloom that kept returning) — tell us in Discord if you can still make food reappear.

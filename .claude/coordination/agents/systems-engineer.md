@@ -2241,3 +2241,63 @@ order costs signups. The transitional copy exists either way.
 - Debt paid: the front door's Discord URL was written twice; it is now `DISCORD_INVITE` +
   `discordLink()`. Debt added: none. New seams `_wire` / `_humaniseAuthError` exist because the
   wall's markup was testable and its BEHAVIOUR was not.
+
+---
+
+## b492 — the property TIER is derived from the server rung, not residue alone (branch `fix/property-tier-derive`, commit `2b588db1`)
+
+**Two live reports, ONE root** (Paione, 2026-08-29): "hire a worker and it disappears" +
+"the problem with the planting in farm". Both are the same integer coming back 0.
+
+### What was actually wrong
+`G.homestead.tier` is a **RESIDUE** field — a self-only bag the server stores verbatim and
+derives no authority from. Six systems read it through one function (`getTier`): farm-plot
+count, worker slots, room prerequisites, offline-cap hours, the castle XP capstone, and the
+next-upgrade price. When a residue save was lost — the rpc-gate window froze
+`client_state_put` for five builds — the tier fell back to 0 and **nothing re-derived it**
+from the rung the player had paid for. The server had `property:homestead = 1` and
+`worker_hire = 1`; the client showed Wanderer's Camp, 2 plots and `Workers 1/0` beside a
+worker the server owned.
+
+### The rung was already on the wire
+`hr_state_of` projects **every permanent `player_progress` row** in the top-level `progress`
+array (permanent rows, `period_key = ''`, are read unfiltered). So the fix is **client-only**:
+no migration, no server change, no security review. `src/net/property-record.js` is the read
+side — the exact analogue of `rooms-record.js`, which already shapes `room:<id>` rows out of
+that same array.
+
+### Learnings worth keeping
+- **A residue field that GATES capability is a bug waiting for a lost save.** Residue is the
+  right home for "what have I already been shown"; it is the wrong sole home for "what have I
+  bought". The test for a residue field is now: *if this value vanished, would the player lose
+  an ability?* If yes it needs a server-derived floor. `heroSlotsUnlocked`, `unlockedRecipes`,
+  `entitlements`, `ownedThemes`, `ownedCosmetics` and `renown.claimed` all deserve the same
+  question — several already have server rows nobody reads. **This is a class, not a bug.**
+- **max(server, residue) — never server-only.** `progress` is capped at 1000 rows with a
+  `progress_truncated` flag, and a build predating a projection sends no array at all. Under
+  server-only, every one of those DEMOTES a castle owner to a bedroll — the same bug from the
+  other side, hitting players whose residue was fine. Absence is not a claim.
+- **Separate OBSERVE from REPAIR and the ordering hazard disappears.** `notePropertyUnlocks`
+  only ratchets a module cache, so it is safe to call from any path at any point in boot;
+  `healPropertyTier` repairs at the READ. A heal written into G at envelope time would have
+  been clobbered by the residue hydrate that follows it in `settle()` — the exact race class
+  that produced this bug's neighbours all week. Repair-at-read cannot lose that race, and
+  because `homestead` is residue the raised value uploads itself on the next save.
+- **The idle-boot class is now three deep** (inventory b46x, crew b477, property b492). Any
+  state hydrated ONLY from `applyEnvelopeState` is lost on an idle boot, because hr-accrue
+  answers `{accrued:false}` and that function never runs. **Anything hydrated from an envelope
+  needs a call site on the boot `hr_load` path too.** Worth a guard that enumerates them.
+- **Two rows, two independent heals.** The crew cap is floored by `worker_hire` as well as by
+  the tier, so a truncated `progress` that drops either row still heals the crew.
+- **Found while there:** `getTier()` was unclamped, so a garbage residue tier made
+  `TIERS[n].plots` a TypeError that would take the House *and* the farm down (the farm asks for
+  the plot cap every render). Latent since b201; closed by clamping at the one read.
+
+### Verification
+Suite **1074/1074, 0 failures, 0 runtime errors** (clean-HEAD baseline 1070/1070 — exactly +4).
+**Mutation-proven:** reverting ONLY the read site in `homestead.js` (module and observers left
+in place) turns all four b492 tests red with the right diagnostics. Runtime proof in a real
+booted client: House card goes Wanderer's Camp / 2 plots / `Workers 1/0` → Hearthside Homestead
+/ 4 plots / `Workers 1/1`, the farm goes 2 tiles → 4 plantable, Kitchen + Garden unlock while
+the Forge stays correctly locked, residue patch carries `{tier:1}` so the heal survives reload.
+0 page errors. Desktop 1440x900 + mobile-landscape 922x423 both read clean.

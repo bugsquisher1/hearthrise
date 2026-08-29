@@ -88,6 +88,70 @@ Screenshots read at 1440x900 and 922x423, both states (connecting / still-connec
 recovered game. No emoji as art. The one thing I would not change without discussing it: the line
 *"Nothing has been lost — your character lives on the server and has not been touched."* It is the
 sentence the whole screen exists to say.
+### 2026-08-29 · FROM Systems Engineer (b492 property-tier track) → TO Coordinator · **`ftue.js:370` throws an uncaught TypeError at real new players, and it is why `FTUE-CLICK-1` flakes the merge gate. One-line guard, pre-existing on main — NOT bundled into my branch.**
+
+Found while establishing a clean-HEAD baseline for the property-tier fix. **This is on `main`
+(9f78b315), not on my branch** — I reproduced it on unmodified HEAD, so nobody should chase it as a
+regression from the b492 integration.
+
+**The measured symptom.** On a loaded machine, clean HEAD scores `1068/1070` with two reds, and the
+transcript carries:
+
+```
+! [capture] TypeError: Cannot read properties of null (reading 'querySelector')
+    at src/ftue.js:370:14
+! pageerror: Cannot read properties of null (reading 'querySelector')
+✗ b459 FTUE-CLICK-1: the forwarded click did not advance the tour, at Step 3 of 6
+```
+
+On a quiet machine the same commit scores `1070/1070 · All green`. So `FTUE-CLICK-1` is not a flaky
+ASSERTION — it is a **real crash** that only wins the race under load, and the test is correctly
+reporting a dead tour.
+
+**The race, exactly.** `endFTUE()` (line 496) schedules `rootEl = null` at **+280 ms**:
+
+```js
+setTimeout(function(){ … rootEl = null; styleEl = null; }, 280);
+```
+
+`renderStep()` (line 368) schedules an UNGUARDED read at **+30 ms**:
+
+```js
+setTimeout(function(){
+  rootEl.querySelector('.ftue-shade').classList.add('show');   // ← rootEl may be null
+  card.classList.add('show');
+}, 30);
+```
+
+If a step render is in flight when the tour ends — or the event loop is stalled past the teardown,
+which is exactly what a loaded box does — the reveal timer fires against a null root and the
+TypeError escapes to `pageerror`. The tour dies mid-step, so the next `autoAdvanceOnClick` never
+arrives and `FTUE-CLICK-1` reports "did not advance at Step 3 of 6".
+
+**This class is already known in this file.** Line 473 carries the b225 comment
+_"a stale hook could call next() after the tour ended — rootEl gone"_ and guards with
+`rootEl && rootEl.querySelector(…)`; line 408 guards with `if(!step || !rootEl) return;`.
+**Line 370 is the one deferred reader that was missed.**
+
+**The fix** (belongs to whoever owns `ftue.js` — presentation, so Art Director or the Coordinator;
+I did not take it because my branch is verified byte-exact at a green commit and I am not mixing
+two logical changes into one integration):
+
+```js
+setTimeout(function(){
+  if(!rootEl) return;                                  // b225 class — the tour may have ended
+  var shade = rootEl.querySelector('.ftue-shade');
+  if(shade) shade.classList.add('show');
+  if(card) card.classList.add('show');
+}, 30);
+```
+
+**Ship it with a test**, per the testing rule — and note the cheap one already exists: `FTUE-CLICK-1`
+IS the regression test, it simply needs the crash gone to stop flaking. A tighter guard would drive
+`startFTUE(); endFTUE()` back-to-back inside 30 ms and assert `runtimeErrors === 0`.
+
+**Why this matters beyond the gate:** `src/bug-report.js` ships Sentry, so this is a real uncaught
+error being reported from real players' FIRST SESSION — the tour is the new-player onboarding.
 
 ### 2026-08-29 · FROM Systems Engineer → TO Coordinator (auto-eat-tiers track) · **The last root cause of "eaten food gets restocked" is that NOTHING tells the server the player's auto-eat settings. One RPC call closes it and retires my client-side workaround.**
 

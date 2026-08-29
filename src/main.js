@@ -269,7 +269,16 @@ import './net/marks-record.js?v=492';
 // skill-record.js but the fail-closed value is a SAFE EMPTY MAP (not UNKNOWN),
 // because every room read iterates and a null/undefined there crashes boot.
 // Publishes window.HearthriseRooms; a no-op until ROOMS_RECORD_ARM_ENABLED flips.
-import './net/rooms-record.js?v=492';
+import './net/rooms-record.js?v=491';
+// b492 — the read side of the server-owned PROPERTY RUNG, shaped out of the SAME
+// permanent `progress` rows rooms-record.js reads (`property:<tier>` and
+// `worker_hire`). NOT dormant and NOT arm-gated: unlike the records above this
+// is a max() FLOOR under the residue copy of `G.homestead.tier`, so it can only
+// ever raise a stale tier toward what the player already paid for. It is what
+// heals the live P1 where a lost residue save demoted a Homestead owner to the
+// camp — taking their worker slots, farm plots and room gates with it.
+// Publishes window.HearthriseProperty; features/homestead.js reads it at getTier.
+import './net/property-record.js?v=491';
 // The read side of server-owned RESTED XP (dormant, b437). Publishes
 // window.HearthriseRested (restedOf/restedCharges) so the rested display + the
 // bank read the server's value under arm and fail-closed to 0 while UNKNOWN.

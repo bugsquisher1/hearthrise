@@ -97,3 +97,4 @@ assets/_wm-fixed-item-sources/
 # transient local test artifacts
 smoke-*.log
 smoke-*-done.txt
+worktrees/

@@ -163,11 +163,70 @@
     G.homestead = { tier: tier };
   }
 
-  function getTier() { ensureState(); return (G_().homestead || { tier: 0 }).tier; }
+  /* ── b492 — THE TIER IS max(SERVER RUNG, RESIDUE), AND THIS IS THE ONE READ ───
+     Every property-gated number in the game funnels through getTier(): maxPlots
+     (the farm's plantable count), workerSlots, offlineBonusHours, isCastle (the
+     +5% XP capstone), roomAllowed/canBuildRoom (every room prerequisite),
+     nextTier (the upgrade price), and legacy.js clientPerkState.propertyTier.
+     That is the whole blast radius of ONE integer — which is why it was the
+     whole blast radius of ONE live bug when that integer came back 0.
+
+     `G.homestead.tier` is RESIDUE (src/net/client-state.js): a self-only cache
+     the server stores verbatim and never derives authority from. The rung the
+     player actually bought is a permanent `player_progress` row that arrives in
+     every envelope. So the residue is now a FLOOR under the server's rung rather
+     than the sole source, and healPropertyTier raises the stored copy to match —
+     which persists (homestead rides the residue patch) and keeps the ~15 direct
+     `G.homestead.tier` readers agreeing with the UI.
+
+     Read through the window global at CALL time, exactly as this file already
+     reads HearthriseRooms / HearthriseSkillRecord: this is a classic script and
+     the accessor is an ESM module. Absent (Node, a boot frame before main.js) it
+     degrades to the residue read this line has always been.
+
+     ⚠ CLAMPED TO THE TABLE. Every consumer indexes TIERS with this number, and
+     `TIERS[6].plots` is a TypeError that takes the whole House screen (and the
+     farm, which asks for the plot cap on every render) down with it. The value
+     can exceed the table from either side — a `property:` row from a server that
+     has shipped a sixth rung before this client has, or a garbage residue tier,
+     which has been a live crash path since b201 and is closed here too. Clamping
+     at the ONE read means no consumer has to remember to. */
+  function getTier() {
+    ensureState();
+    var t = null;
+    var P = window.HearthriseProperty;
+    if (P && typeof P.healPropertyTier === 'function') {
+      /* One call does both halves: it RAISES G.homestead.tier to the server's
+         rung when the rung is higher (so the value persists and every direct
+         reader agrees) and RETURNS the effective tier. */
+      try { t = P.healPropertyTier(window.G).tier; } catch (e) { t = null; }
+    }
+    if (typeof t !== 'number') t = Number((G_().homestead || { tier: 0 }).tier);
+    t = Math.floor(Number(t));
+    if (!isFinite(t) || t < 0) t = 0;
+    return Math.min(t, TIERS.length - 1);
+  }
   function tierDef(i) { return TIERS[i == null ? getTier() : i]; }
   function nextTier() { var t = getTier(); return t < TIERS.length - 1 ? TIERS[t + 1] : null; }
   function maxPlots() { return tierDef().plots; }
-  function workerSlots() { return tierDef().workers; }
+  /* b492 — BELT AND BRACES ON THE CREW CAP. The tier heal above already fixes
+     this in the normal case, but the crew has its OWN server rung (`worker_hire`,
+     the ladder hr_worker_hire materialises against), so the cap is floored by it
+     independently. Two reasons that is worth the extra line rather than trusting
+     the tier alone: (1) `progress` is capped at 1000 rows, so the `property:` row
+     is droppable while the `worker_hire` row survives (and vice versa) — either
+     one alone now heals the crew; (2) it makes the client's PRE-FLIGHT gate
+     (workers.js hire(): `hired.length >= slots()`) incapable of refusing a hire
+     the server would grant, which is the "Workers 1/0" contradiction Paione and
+     the QA account both hit — a paid worker the panel said they could not have. */
+  function workerSlots() {
+    var base = tierDef().workers;
+    var P = window.HearthriseProperty;
+    if (P && typeof P.effectiveWorkerSlots === 'function') {
+      try { return P.effectiveWorkerSlots(window.G, base); } catch (e) {}
+    }
+    return base;
+  }
   function offlineBonusHours() { return tierDef().offlineHours; }
   function isCastle() { return getTier() === TIERS.length - 1; }
 

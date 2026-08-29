@@ -47389,6 +47389,211 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     b492 — THE PROPERTY TIER IS DERIVED FROM THE SERVER RUNG, NOT ONLY RESIDUE.
+
+     TWO live reports, ONE root (Paione 2026-08-29: "hire a worker and it
+     disappears" + "the problem with the planting in farm"). Measured on the live
+     server for QA 0a47ba77 slot 0: player_progress held
+     kind='unlock' key='property:homestead' value=1 AND key='worker_hire' value=1,
+     with a real player_workers row — while the client rendered
+     G.homestead={tier:0}: Wanderer's Camp, worker cap 0 beside a hired worker
+     ("Workers 1/0"), and 2 farm plots instead of 4, so plots 3-4 were
+     unplantable. `G.homestead.tier` is RESIDUE, and residue is a self-only cache
+     with no authority behind it; when a residue save was lost NOTHING re-derived
+     the tier from the rung the player had paid for.
+
+     These four tests are written against the SHAPE OF THE LIVE FAILURE (rung
+     present, residue 0) rather than against the implementation, and every one
+     fails on clean HEAD because clean HEAD has no reader for the rung at all. */
+
+  () => tryRun('b492-1: server rung 1 + residue tier 0 heals — House, worker cap, plot cap and the crew all agree', () => {
+    const P = window.HearthriseProperty;
+    const H = window.HearthriseHomestead;
+    const W = window.HearthriseWorkers;
+    assert(P && typeof P.notePropertyUnlocks === 'function' && typeof P.healPropertyTier === 'function',
+      'window.HearthriseProperty is missing — the property rung has no reader (src/net/property-record.js)');
+    assert(H && typeof H.getTier === 'function' && typeof H.maxPlots === 'function' && typeof H.workerSlots === 'function',
+      'the homestead API is missing');
+    const prev = P.__resetPropertyRecord();
+    const snap = snapshotG();
+    try {
+      /* THE LIVE STATE, verbatim: the server says Homestead + one paid worker,
+         the residue says camp, and a real crew row exists. */
+      window.G.homestead = { tier: 0 };
+      window.G.workers = { hired: [{ uid: 'w1', name: 'Aldric', skill: null, targetId: null, xp: 0, lastCollect: Date.now() }] };
+      const env = { ok: true, progress: [
+        { kind: 'unlock', key: 'property:homestead', value: 1, period: '' },
+        { kind: 'unlock', key: 'worker_hire', value: 1, period: '' },
+        { kind: 'stat', key: 'ev:kill_monster:goblin', value: 40, period: '' },   // a counter — must be ignored
+      ] };
+      assert(P.pickPropertyTier(env) === 1, 'pickPropertyTier did not read the property:homestead rung: ' + P.pickPropertyTier(env));
+      assert(P.pickWorkerRung(env) === 1, 'pickWorkerRung did not read the worker_hire rung: ' + P.pickWorkerRung(env));
+      P.notePropertyUnlocks(env);
+
+      assert(H.getTier() === 1, 'THE BUG: the tier stayed ' + H.getTier() + ' with a server rung of 1 — the player is still at the camp');
+      assert(H.TIERS[H.getTier()].id === 'homestead', 'the House card would still name the Wanderer\'s Camp');
+      assert(H.maxPlots() === 4, 'THE FARM HALF: plot cap is ' + H.maxPlots() + ', expected 4 — plots 3 and 4 stay unplantable');
+      assert(typeof window.farmPlotCap !== 'function' || window.farmPlotCap() === 4,
+        'the farm renderer\'s own cap disagrees with maxPlots()');
+      assert(H.workerSlots() === 1, 'THE WORKER HALF: worker cap is ' + H.workerSlots() + ' beside a hired worker — the "Workers 1/0" contradiction');
+      assert(!W || W.slots() === 1, 'workers.js still reads a cap of ' + (W && W.slots()) + ', so hire() would refuse a worker the server owns');
+      // The heal is WRITTEN, so the ~15 direct G.homestead.tier readers agree too.
+      assert(window.G.homestead.tier === 1, 'the heal was derived but not written back into G.homestead.tier');
+    } finally {
+      // Put a LIVE signed-in session back exactly as found — never drop a rung a
+      // real envelope had already delivered just because a test ran.
+      P.__resetPropertyRecord(prev.tier, prev.workers);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('b492-2: NO downgrade and NO invention — an absent/lower rung leaves the residue tier alone', () => {
+    const P = window.HearthriseProperty;
+    const H = window.HearthriseHomestead;
+    const prev = P.__resetPropertyRecord();
+    const snap = snapshotG();
+    try {
+      /* (a) ABSENCE IS NOT A CLAIM. `progress` missing entirely = UNKNOWN. A
+             server build predating the projection, or a truncated/lean envelope,
+             must never demote a castle owner to a bedroll. */
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 4 };
+      assert(P.pickPropertyTier({ ok: true }) === null, 'a body with no progress array did not signal UNKNOWN');
+      assert(P.pickPropertyTier({ ok: true, progress: 'nope' }) === null, 'a non-array progress did not signal UNKNOWN');
+      P.notePropertyUnlocks({ ok: true });
+      assert(H.getTier() === 4, 'an UNKNOWN rung changed the tier to ' + H.getTier() + ' — absence was read as a claim');
+
+      /* (b) A PRESENT array with no property row is a real "owns no rung yet"
+             (0) — and STILL must not lower a residue tier. */
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 3 };
+      assert(P.pickPropertyTier({ ok: true, progress: [] }) === 0, 'an empty progress array is not a known 0');
+      P.notePropertyUnlocks({ ok: true, progress: [] });
+      assert(H.getTier() === 3, 'a rung of 0 DEMOTED the residue tier to ' + H.getTier());
+
+      /* (c) A LOWER rung never wins. The residue is a floor. */
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 3 };
+      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'property:homestead', value: 1, period: '' }] });
+      assert(H.getTier() === 3, 'a lower server rung demoted the residue tier to ' + H.getTier());
+
+      /* (d) THE MAX IS OVER THE WHOLE NAMESPACE — hr_unlock_buy's own rule. A
+             player who bought every rung holds a row for each; the highest wins. */
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 0 };
+      P.notePropertyUnlocks({ ok: true, progress: [
+        { kind: 'unlock', key: 'property:homestead', value: 1, period: '' },
+        { kind: 'unlock', key: 'property:manor', value: 3, period: '' },
+        { kind: 'unlock', key: 'property:farmstead', value: 2, period: '' },
+      ] });
+      assert(H.getTier() === 3, 'the tier is ' + H.getTier() + ', expected the MAX of the property namespace (3)');
+
+      /* (e) THE RATCHET IS MONOTONE. A later, leaner envelope cannot take a rung
+             back — a rung is bought, never sold. */
+      P.notePropertyUnlocks({ ok: true, progress: [] });
+      assert(P.serverPropertyTier() === 3, 'a later empty envelope lowered the observed rung to ' + P.serverPropertyTier());
+
+      /* (f) NEVER PAST THE TABLE. A sixth rung from a server ahead of this
+             client (or a garbage residue) must not index TIERS out of range —
+             `TIERS[6].plots` is a TypeError that takes the House AND the farm down. */
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 0 };
+      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'property:spire', value: 99, period: '' }] });
+      assert(H.getTier() === H.TIERS.length - 1, 'an over-range rung was not clamped to the table: ' + H.getTier());
+      assert(typeof H.maxPlots() === 'number' && H.maxPlots() > 0, 'an over-range rung crashed the plot cap');
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 99 };           // a garbage residue tier, no rung at all
+      assert(H.getTier() === H.TIERS.length - 1, 'an over-range RESIDUE tier was not clamped: ' + H.getTier());
+      window.G.homestead = { tier: NaN };          // typeof NaN === 'number', so ensureState waves it through
+      assert(H.getTier() === 0 && typeof H.maxPlots() === 'number',
+        'a NaN residue tier was not coerced to a usable index (it would index TIERS[NaN] and throw)');
+
+      /* (g) A DATED row is not a rung. Period rows are dailies and are pruned at
+             31 days; reading a tier out of one would be a tier that expires. */
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 0 };
+      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'property:castle', value: 5, period: '2026-08-29' }] });
+      assert(H.getTier() === 0, 'a PERIOD-keyed row was read as a permanent property rung');
+    } finally {
+      // Put a LIVE signed-in session back exactly as found — never drop a rung a
+      // real envelope had already delivered just because a test ran.
+      P.__resetPropertyRecord(prev.tier, prev.workers);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('b492-3: the heal survives a reload — it is observed on the BOOT hr_load and re-saved into residue', () => {
+    const P = window.HearthriseProperty;
+    const H = window.HearthriseHomestead;
+    const CS = window.HearthriseClientState;
+    const CAP = window.HearthriseCapstone;
+    assert(CS && typeof CS.applyClientState === 'function', 'applyClientState is not published');
+    assert(CAP && typeof CAP.buildResiduePatch === 'function', 'buildResiduePatch is not published');
+    const prev = P.__resetPropertyRecord();
+    const snap = snapshotG();
+    try {
+      /* THE IDLE-BOOT CLASS (the one that stranded inventory in b46x and the crew
+         in b477): hr-accrue answers {accrued:false} on an idle boot, so
+         applyEnvelopeState NEVER runs and anything hydrated only there is lost.
+         record.js's settle() calls applyClientState with the always-full hr_load
+         body, so the rung must be observed from THERE too. */
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 0 };
+      const bootBody = { ok: true, version: 3, now: Date.now(), state: {}, progress: [
+        { kind: 'unlock', key: 'property:farmstead', value: 2, period: '' },
+      ] };
+      CS.applyClientState(bootBody, window.G);
+      assert(P.serverPropertyTier() === 2,
+        'THE IDLE-BOOT BUG: the boot hr_load body did not feed the rung observer (got ' + P.serverPropertyTier() + ') — '
+        + 'a player who reloads while idle stays demoted for the whole session');
+      assert(H.getTier() === 2, 'the boot observation did not heal the tier: ' + H.getTier());
+
+      /* AND IT PERSISTS: `homestead` is a residue field, so the healed value is
+         what the next residue upload carries. Without this the heal would be
+         re-done every session and would silently un-do itself the moment the
+         rung projection ever went missing. */
+      const patch = CAP.buildResiduePatch(window.G);
+      assert(patch.homestead && patch.homestead.tier === 2,
+        'the residue patch still uploads the stale tier ' + JSON.stringify(patch.homestead) + ' — the heal would not survive a reload');
+    } finally {
+      // Put a LIVE signed-in session back exactly as found — never drop a rung a
+      // real envelope had already delivered just because a test ran.
+      P.__resetPropertyRecord(prev.tier, prev.workers);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('b492-4: the crew cap is floored by the paid worker_hire rung independently of the property row', () => {
+    const P = window.HearthriseProperty;
+    const H = window.HearthriseHomestead;
+    const prev = P.__resetPropertyRecord();
+    const snap = snapshotG();
+    try {
+      /* hr_state_of caps `progress` at 1000 rows (progress_truncated), so ONE of
+         the two rows can arrive without the other. Either one alone must heal the
+         crew, because the "Workers 1/0" contradiction is what makes hire() refuse
+         a worker the server has already sold. */
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 0 };
+      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'worker_hire', value: 2, period: '' }] });
+      assert(H.getTier() === 0, 'the worker rung must not move the PROPERTY tier — that would invent a purchase');
+      assert(H.workerSlots() === 2, 'the crew cap ignored the paid worker_hire rung: ' + H.workerSlots());
+      assert(H.maxPlots() === H.TIERS[0].plots, 'the worker rung leaked into the plot cap');
+      // The tier's own figure still wins when it is the larger of the two.
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 5 };            // castle: 6 workers
+      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'worker_hire', value: 1, period: '' }] });
+      assert(H.workerSlots() === H.TIERS[5].workers,
+        'a lower worker rung capped a castle crew at ' + H.workerSlots());
+    } finally {
+      // Put a LIVE signed-in session back exactly as found — never drop a rung a
+      // real envelope had already delivered just because a test ran.
+      P.__resetPropertyRecord(prev.tier, prev.workers);
+      restoreG(snap);
+    }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

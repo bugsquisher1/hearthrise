@@ -1277,7 +1277,11 @@ import * as pendingConsume from './pending-consume.js?v=492';
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=492';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=491';
+/* b492 — the property/worker rung OBSERVER. A static import rather than a window
+   hop so the observation is exercised in Node by the suite exactly as it runs in
+   the browser; property-record.js imports NOTHING, so there is no cycle. */
+import { notePropertyUnlocks } from './property-record.js?v=491';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -2041,6 +2045,14 @@ export function applyEnvelopeState(G, res, ownKey) {
      rides EVERY envelope, and as a UNION so a trait bought before the server
      verb existed is never revoked — see reconcileTraits' header. */
   written.traits = reconcileTraits(G, res);
+
+  /* b492 — THE PROPERTY RUNG IS THE SERVER'S TOO, and it rides the SAME permanent
+     `progress` rows as traits (`property:<tier>`, `worker_hire`). OBSERVED here
+     rather than applied: notePropertyUnlocks only ratchets a module cache, so it
+     cannot race record.js's residue hydrate the way a write into G would. The
+     repair happens at the READ (features/homestead.js getTier → healPropertyTier).
+     Guarded — an observation must never throw into an envelope apply. */
+  try { written.property = notePropertyUnlocks(res); } catch (e) {}
 
   /* THE COMBAT STYLE IS THE SERVER'S (hr_set_style). Reconciled here so it rides
      EVERY envelope, which is what makes the picker show what the ENGINE will

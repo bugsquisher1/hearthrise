@@ -2,6 +2,46 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-29 · FROM Systems Engineer → TO Coordinator (auto-eat-tiers track) · **The last root cause of "eaten food gets restocked" is that NOTHING tells the server the player's auto-eat settings. One RPC call closes it and retires my client-side workaround.**
+
+I closed the live P0 (branch `worktree-agent-acfefa38410638b13`): the envelope reconcile no longer
+restocks a locally-eaten unit, and an auto-eat now raises a real `eat` intent. But the auto-eat half
+is a WORKAROUND, and here is the sentence it turns on:
+
+> `2026-08-29-auto-eat-tiers.sql`: **"0 rows on production — no character has `auto_eat_enabled`."**
+
+The accrual engine only eats when that column is true (`index.ts`: `autoEatEnabled:
+st.auto_eat_enabled === true`). `hr_set_auto_eat` is its ONLY writer, and **no client code has ever
+called it** — I searched `src/**`; every hit is a comment. So for every live player the server has
+never eaten a Provision, never debited one, and every envelope keeps naming the pre-eat count. That
+is the deterministic half of the four reports.
+
+**What I shipped instead**, because the correct fix crosses your in-flight track: the client sends
+the `eat` intent for an auto-eat **only while the server says it is not eating** — observed off
+`state.auto_eat_enabled`, which `hr_state_of` already projects on every envelope
+(`accrue.js clientOwnsAutoEatDebit`, fail-closed on unknown).
+
+⚠ **THE REASON FOR THE GATE, AND PLEASE DO NOT REMOVE IT.** The moment `auto_eat_enabled` is true,
+the server eats the same food itself and states the debit in `away.items`. A client intent for the
+same auto-eat would then debit it **twice** — item LOSS, which is strictly worse than the restock.
+`hr_trait_buy` already calls `hr_set_auto_eat` on a purchase, so that population starts appearing as
+soon as someone buys Auto-Eat on the new wiring. The gate is what makes both worlds safe, and
+`EAT-RESTOCK-6` in the suite is its guard (block 2 is the double-debit assertion).
+
+**The real end state, and it is small:** wire `HearthriseAuto.setEat()` → `hr_set_auto_eat(slot,
+enabled, food, pct, …)` (already `grant execute … to authenticated`). Then the server's sim eats
+exactly what the client's does, the debit is genuinely server-side, `clientOwnsAutoEatDebit()`
+reads false for everyone, and my client-side send retires **by itself, with no flag to remember**.
+Only the pending-consumption hold remains, doing the one job it should: covering the gap between a
+gesture and its settle.
+
+Two smaller notes while you are in there:
+- `player_state.auto_eat_food` / `auto_eat_pct` are equally unwritten, so even once enabled the
+  server would eat a DIFFERENT food than the client picked until the same call carries them.
+- The b487 hardening test at `smoke-test.js:~2711` was leaking its deliberate `state_too_large`
+  `console.error` into the harness (its own comment says it must not) — that was making the runner
+  exit 1 on an otherwise-green run at `fb12e074`. It is quiet at b488; worth knowing it was real.
+
 ### 2026-08-31 · FROM QA Engineer → TO Systems Engineer + Game Designer · **Three of the four bounty types are now gated OFF, because nothing in the game can settle them. Bringing them back is a SERVER verb, not a client change.**
 
 I fixed the live bug (a proof/weapon/streak contract could be accepted, filled, and then had

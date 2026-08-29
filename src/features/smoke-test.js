@@ -48,7 +48,29 @@ const fail = (name, why) => ({ name, status: 'FAIL', why: String(why) });
    to the runner rather than to an assertion.
    Detect it instead of documenting it: a thenable return is now a LOUD failure
    naming the fix. `tryRunAsync` is the awaiting runner. */
+/* ── TEST ISOLATION: THE PENDING-CONSUMPTION LEDGER IS SESSION STATE ────────
+   A test that eats (there are a dozen: maybeAutoEat fixtures, eatFood fixtures,
+   the auto-eat threshold slider) leaves a HOLD on the live `G` —
+   `G._pendingConsume`, the record of "the client spent this and the server has
+   not agreed yet" that stops the envelope reconcile restocking eaten food
+   (src/net/pending-consume.js). In the GAME that is exactly right and it drains
+   on the server's own movement. In the SUITE the next test's envelope is a
+   FIXTURE from a different world, and a hold left over from a previous fixture
+   subtracts from it — which is how b337 ("the server's answer REPLACES local
+   state") started reading `shrimp: 1` for an envelope that says 2.
+
+   So the ledger is cleared at every test boundary. Session scratch is not
+   fixture state, and nothing here is asserting the ledger's lifetime — the
+   EAT-RESTOCK tests build their own `G` objects or set up inside one test. */
+const clearConsumeHolds = () => {
+  try {
+    const P = window.HearthrisePendingConsume;
+    if (P && window.G && typeof P.clearPendingConsume === 'function') P.clearPendingConsume(window.G);
+  } catch (e) { /* never let isolation break a run */ }
+};
+
 const tryRun = (name, fn) => {
+  clearConsumeHolds();
   try {
     const r = fn();
     if (r && typeof r.then === 'function') {
@@ -57,6 +79,7 @@ const tryRun = (name, fn) => {
     }
     return pass(name);
   } catch (e) { return fail(name, e && (e.message || e)); }
+  finally { clearConsumeHolds(); }
 };
 /* b337 — THE SUITE CAN NOW AWAIT.
    Until now every test was synchronous, which meant a network path could only
@@ -69,8 +92,10 @@ const tryRun = (name, fn) => {
    runSmokeTest() below now awaits each entry IN ORDER — order is load-bearing,
    because these tests mutate the live G. */
 const tryRunAsync = (name, fn) => Promise.resolve()
+  .then(() => { clearConsumeHolds(); })
   .then(fn)
-  .then(() => pass(name), (e) => fail(name, e && (e.message || e)));
+  .then(() => { clearConsumeHolds(); return pass(name); },
+        (e) => { clearConsumeHolds(); return fail(name, e && (e.message || e)); });
 const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
 
 /* R4 COOKING PAUSE — run a cooking-MECHANIC regression under a TEMPORARY arm.
@@ -43923,6 +43948,406 @@ const TESTS = [
       'with no away receipt there is no debit statement, so the max must stand — got ' + G5.inventory.shrimp);
     assert(A.consumedKeysOf({}).size === 0 && A.consumedKeysOf(null).size === 0,
       'consumedKeysOf must fail closed to an EMPTY set, never null');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     EAT-RESTOCK — THE LIVE P0, REPORTED FOUR TIMES (b467 → b479).
+
+       "Food eaten while in combat gets restocked."
+       "have 2 moonblood and everytime i use 1 it returns back in my inventory."
+
+     ROOT CAUSE, and it is arithmetic rather than a race condition on its own:
+     every branch of `reconcileInventory` takes the LARGER of the client's copy
+     and the server's figure (or, for an OWNED id under absolute, the server's
+     figure outright). A locally-eaten unit makes the client's copy SMALLER, so
+     an envelope that still names the pre-eat count HANDS THE UNIT BACK BY
+     CONSTRUCTION. And it does not heal: `have` is itself the ratcheted value, so
+     the eat's own — correct — response then loses the max and the client stays
+     permanently one ahead of the server. A dupe as well as a bug.
+
+     Two defects produced the one report and both are covered here:
+       · the reconcile restocking a unit the server has not settled yet
+         (EAT-RESTOCK-1..4, the pending-consumption fold), and
+       · AUTO-eat never telling the server anything at all, so the server kept
+         every auto-eaten Provision and handed it back on the next envelope AND
+         after a reload (EAT-RESTOCK-5).
+
+     MUTATION PROOF: delete the `foldPendingConsume` call in reconcileInventory
+     and 1, 2 and 4 go red; delete the `noteItemConsumed` call in
+     auto-actions.js `maybeAutoEat` and 5 goes red. */
+
+  () => tryRun('EAT-RESTOCK-1: an envelope naming the PRE-EAT count must not restock the food (merge branch)', () => {
+    const A = window.HearthriseAccrual;
+    assert(typeof A.noteConsumed === 'function' && typeof A.foldPendingConsume === 'function'
+      && typeof A.pendingConsumeFor === 'function',
+      'the pending-consumption ledger must be published on HearthriseAccrual');
+    assert(window.HearthrisePendingConsume && typeof window.HearthrisePendingConsume.noteConsumed === 'function',
+      'the ledger module must publish itself for legacy.js (a classic script cannot import)');
+
+    /* Pin MERGE for the whole block, deterministically, rather than depending on
+       whether an earlier test left equip/inventory authority armed. */
+    let hadKey = null;
+    try { hadKey = localStorage.getItem(A.ENVELOPE_MERGE_KEY); } catch (e) { hadKey = null; }
+    try {
+      try { localStorage.setItem(A.ENVELOPE_MERGE_KEY, 'on'); } catch (e) {}
+      assert(A.isInventoryAbsolute() === false, 'this block asserts the MERGE branch');
+
+      /* THE LITERAL REPORT. `moonbloom` (the player's "moonblood") is a CROP
+         product, so it is EXCLUDED from the ownable set and takes the max path
+         in BOTH branches — which is why it was the one they noticed. */
+      const G = { gold: 0, skills: {}, equipment: {}, inventory: { moonbloom: 2 } };
+      G.inventory.moonbloom = 1;                  // the eat: the client debits…
+      A.noteConsumed(G, 'moonbloom', 1);          // …and records the unit as unsettled
+      assert(A.pendingConsumeFor(G, 'moonbloom') === 1, 'the eaten unit must be held');
+
+      /* An envelope built BEFORE the eat landed — the ordinary case, because the
+         settle loop and the eat intent are independent round trips. */
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory: { moonbloom: 2 } });
+      assert(G.inventory.moonbloom === 1,
+        'the eaten Moonbloom must NOT come back — got ' + G.inventory.moonbloom);
+
+      /* AND IT MUST STAY GONE. A second stale envelope was the part players
+         actually felt: without the hold the first one ratchets 2 back in and
+         nothing can ever bring it down again. */
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory: { moonbloom: 2 } });
+      assert(G.inventory.moonbloom === 1,
+        'a SECOND stale envelope must not restock it either — got ' + G.inventory.moonbloom);
+
+      /* THE SERVER CATCHES UP. Its figure comes down, the hold drains on that
+         evidence, and no further envelope may subtract again — otherwise the fix
+         would eat a second Moonbloom the player still owns. */
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory: { moonbloom: 1 } });
+      assert(G.inventory.moonbloom === 1, 'the settled figure is believed — got ' + G.inventory.moonbloom);
+      assert(A.pendingConsumeFor(G, 'moonbloom') === 0, 'the hold must drain on the server\'s own movement');
+      A.applyEnvelopeState(G, { state: {}, skills: {}, equipment: {}, inventory: { moonbloom: 4 } });
+      assert(G.inventory.moonbloom === 4,
+        'once drained, a real credit must arrive in full — no lingering subtraction; got ' + G.inventory.moonbloom);
+    } finally {
+      try {
+        if (hadKey === null) localStorage.removeItem(A.ENVELOPE_MERGE_KEY);
+        else localStorage.setItem(A.ENVELOPE_MERGE_KEY, hadKey);
+      } catch (e) {}
+    }
+  }),
+
+  () => tryRun('EAT-RESTOCK-2: the hold cannot MINT, cannot be forged into a deletion, and expires', () => {
+    const A = window.HearthriseAccrual;
+    const P = window.HearthrisePendingConsume;
+    let hadKey = null;
+    try { hadKey = localStorage.getItem(A.ENVELOPE_MERGE_KEY); } catch (e) { hadKey = null; }
+    try {
+      try { localStorage.setItem(A.ENVELOPE_MERGE_KEY, 'on'); } catch (e) {}
+
+      /* 1. THE ANTI-FORGERY DIRECTION. A hand-written hold may never subtract
+         more than what actually went through `noteConsumed` this session — the
+         `seen` clamp — and in the merge branch it can never take an item out of
+         the bag at all, because the reconcile still ends at Math.max(have, …). */
+      const G = { gold: 0, skills: {}, equipment: {}, inventory: { rune_bar: 9 } };
+      A.noteConsumed(G, 'rune_bar', 1);
+      G._pendingConsume.rune_bar.qty = 50;                 // forged, structurally sane
+      const eff = A.foldPendingConsume(G, { rune_bar: 10 }, {});
+      assert(eff.rune_bar === 9,
+        'a forged qty must be clamped at what was actually observed eaten — got ' + eff.rune_bar);
+
+      const G2 = { gold: 0, skills: {}, equipment: {}, inventory: { rune_bar: 9 } };
+      A.noteConsumed(G2, 'rune_bar', 1);
+      G2._pendingConsume.rune_bar.qty = 9e9;               // beyond the structural cap
+      const eff2 = A.foldPendingConsume(G2, { rune_bar: 10 }, {});
+      assert(eff2.rune_bar === 10, 'a structurally impossible hold is DROPPED, not honoured — got ' + eff2.rune_bar);
+
+      /* 2. IT CANNOT MINT, IN ANY DIRECTION. The fold only ever LOWERS, never
+         adds a key, and never mutates the caller's object. That single property
+         is what makes it safe to run on all ~320 envelopes a day. */
+      const G3 = { gold: 0, skills: {}, equipment: {}, inventory: {} };
+      A.noteConsumed(G3, 'coal', 5);
+      const src = { coal: 3, iron_ore: 4 };
+      const out = A.foldPendingConsume(G3, src, {});
+      assert(out.coal <= 3 && out.iron_ore === 4, 'the fold may never RAISE a figure');
+      assert(src.coal === 3 && Object.keys(src).length === 2, 'the envelope object must not be mutated');
+      assert(!('moonbloom' in out), 'the fold must never ADD a key the envelope omitted');
+
+      /* 3. THE SAFETY VALVE. An unacknowledged hold must not suppress a real
+         stack for a whole session — after the TTL the server is believed again,
+         which is honest, because at that point it really does still hold it. */
+      const G4 = { gold: 0, skills: {}, equipment: {}, inventory: { turnip: 1 } };
+      A.noteConsumed(G4, 'turnip', 1, { nowMs: 0 });
+      const late = A.foldPendingConsume(G4, { turnip: 2 }, { nowMs: P.ENTRY_TTL_MS + 1 });
+      assert(late.turnip === 2, 'after the TTL the server figure wins again — got ' + late.turnip);
+      assert(A.pendingConsumeFor(G4, 'turnip', P.ENTRY_TTL_MS + 1) === 0, 'the expired hold is gone');
+
+      /* 4. BOUNDED AT 10x CONTENT SCALE — a mis-wired caller cannot grow G. */
+      const G5 = { gold: 0, skills: {}, equipment: {}, inventory: {} };
+      for (let i = 0; i < P.MAX_IDS * 3; i++) A.noteConsumed(G5, 'probe_' + i, 1, { nowMs: 1000 + i });
+      assert(Object.keys(G5._pendingConsume).length === P.MAX_IDS,
+        'the ledger must be bounded at MAX_IDS — got ' + Object.keys(G5._pendingConsume).length);
+
+      /* 5. ZERO COST WHEN NOTHING IS HELD — the hot path is untouched. */
+      const G6 = { gold: 0, skills: {}, equipment: {}, inventory: {} };
+      const same = { coal: 3 };
+      assert(A.foldPendingConsume(G6, same, {}) === same,
+        'with an empty ledger the fold must return the SAME object (no allocation, no behaviour change)');
+    } finally {
+      try {
+        if (hadKey === null) localStorage.removeItem(A.ENVELOPE_MERGE_KEY);
+        else localStorage.setItem(A.ENVELOPE_MERGE_KEY, hadKey);
+      } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('EAT-RESTOCK-3: the ABSOLUTE branch must not restock an eaten OWNED food either', async () => {
+    const A = window.HearthriseAccrual;
+    const E = window.HearthriseEquip;
+    const IA = window.HearthriseItemAuthority;
+    /* Same dual-branch honesty as the INVENTORY-BASELINE tests: while an
+       un-backed OWNABLE mint lane remains, arming correctly refuses and the
+       absolute scenario is unreachable. */
+    if (IA && IA.flipArmBlockers && IA.flipArmBlockers().length) {
+      let refused = false;
+      try { A.markInventoryAuthorityLive(true); } catch (e) { refused = true; }
+      assert(refused === true, 'arming must refuse while an un-backed OWNABLE mint lane remains');
+      return;
+    }
+    const prev = E.getEquipConfig();
+    try {
+      await armEquipFlipForTest(E);
+      A.noteBaselineComplete({ inventory_complete: true });
+      A.markInventoryAuthorityLive(true);
+      assert(A.isInventoryAbsolute() === true, 'this block asserts the ABSOLUTE branch');
+
+      /* `shrimp` is a gather product — OWNABLE — so the absolute branch ASSIGNS
+         the server figure outright. That is strictly worse than the max: it does
+         not merely restock the eaten unit, it overwrites the client with a count
+         the server has not caught up to. */
+      const G = { gold: 0, skills: {}, equipment: {}, inventory: { shrimp: 3 } };
+      G.inventory.shrimp = 2;
+      A.noteConsumed(G, 'shrimp', 1);
+      A.applyEnvelopeState(G, {
+        state: {}, skills: {}, equipment: {}, inventory_complete: true, inventory: { shrimp: 3 },
+      });
+      assert(G.inventory.shrimp === 2,
+        'the eaten shrimp must not be re-asserted by the absolute assign — got ' + G.inventory.shrimp);
+
+      /* THE LAST ONE. hr_apply DELETEs the row at zero and hr_state_of omits it,
+         so a complete envelope that OMITS an owned id is a real zero — which is
+         also the server agreeing the eat landed, and must drain the hold rather
+         than leave it to subtract from a future re-acquisition. */
+      const G2 = { gold: 0, skills: {}, equipment: {}, inventory: { shrimp: 1 } };
+      G2.inventory.shrimp = 0; delete G2.inventory.shrimp;
+      A.noteConsumed(G2, 'shrimp', 1, { before: 1 });
+      A.applyEnvelopeState(G2, {
+        state: {}, skills: {}, equipment: {}, inventory_complete: true, inventory: {},
+      });
+      assert(!('shrimp' in G2.inventory), 'a fully-eaten owned stack stays gone');
+      assert(A.pendingConsumeFor(G2, 'shrimp') === 0,
+        'a COMPLETE envelope omitting the id is the server agreeing — the hold must drain');
+      A.applyEnvelopeState(G2, {
+        state: {}, skills: {}, equipment: {}, inventory_complete: true, inventory: { shrimp: 6 },
+      });
+      assert(G2.inventory.shrimp === 6,
+        'a later re-acquisition must arrive in full, not one short — got ' + G2.inventory.shrimp);
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      E.resetEquip();
+      if (prev) E.configureEquip(prev);
+    }
+  }),
+
+  () => tryRun('EAT-RESTOCK-4: the away receipt still wins, and nothing double-subtracts', () => {
+    const A = window.HearthriseAccrual;
+    let hadKey = null;
+    try { hadKey = localStorage.getItem(A.ENVELOPE_MERGE_KEY); } catch (e) { hadKey = null; }
+    try {
+      try { localStorage.setItem(A.ENVELOPE_MERGE_KEY, 'on'); } catch (e) {}
+
+      /* AWAY IS THE SERVER'S. When the server states a debit in `away.items` it
+         has already spent the unit, so a client hold on the same id must DRAIN
+         against that movement rather than subtract a second time — otherwise the
+         fix would delete food the player still owns, which is the one direction
+         that is worse than the bug. */
+      const G = { gold: 0, skills: {}, equipment: {}, inventory: { shrimp: 9 } };
+      G.inventory.shrimp = 8;
+      A.noteConsumed(G, 'shrimp', 1);                       // one eaten live, unsettled
+      A.applyEnvelopeState(G, {
+        state: {}, skills: {}, equipment: {},
+        inventory: { shrimp: 6 },                           // server: 9 → 6
+        away: { items: { shrimp: -3 } },                    // …and says so
+      });
+      assert(G.inventory.shrimp === 6,
+        'a stated server debit is authoritative and must not be subtracted twice — got ' + G.inventory.shrimp);
+      assert(A.pendingConsumeFor(G, 'shrimp') === 0,
+        'the server figure moved past the hold, so the hold is settled');
+
+      /* SETTLE-2's properties are untouched by the fold: a credited/omitted key
+         still keeps b359's max, and a debited key still takes the server's
+         figure, with no hold in play at all. */
+      const G2 = { gold: 0, skills: {}, equipment: {}, inventory: { dragon_scale: 14, shrimp: 4 } };
+      A.applyEnvelopeState(G2, {
+        state: {}, skills: {}, equipment: {},
+        inventory: { dragon_scale: 2, shrimp: 3, rune_bar: 9 },
+        away: { items: { shrimp: -1, rune_bar: 9 } },
+      });
+      assert(G2.inventory.dragon_scale === 14, 'b359\'s max must survive the fold');
+      assert(G2.inventory.shrimp === 3, 'a debited key still takes the server figure');
+      assert(G2.inventory.rune_bar === 9, 'a credit still arrives');
+    } finally {
+      try {
+        if (hadKey === null) localStorage.removeItem(A.ENVELOPE_MERGE_KEY);
+        else localStorage.setItem(A.ENVELOPE_MERGE_KEY, hadKey);
+      } catch (e) {}
+    }
+  }),
+
+  () => tryRun('EAT-RESTOCK-5: AUTO-eat must tell the server, and must stay silent during an away replay', () => {
+    /* The deterministic half of the report. `window.eatFood` has sent the `eat`
+       intent since the Paione P0; `HearthriseAuto.maybeAutoEat()` — the path that
+       actually fires during a fight, through COMBAT_FX.autoEat — only healed and
+       decremented locally. The server therefore still held every auto-eaten
+       Provision, which is why it came back on the next envelope AND after a
+       reload. Nothing here talks to a server: it asserts that the consumption
+       reaches the ONE seam, which is what owns the hold and the intent. */
+    const Auto = window.HearthriseAuto;
+    if (!Auto || typeof Auto.maybeAutoEat !== 'function') return;
+    if (!window.ITEMS || !window.ITEMS.cooked_shrimp || !window.ITEMS.cooked_shrimp.heals) return;
+    assert(typeof window.noteItemConsumed === 'function',
+      'legacy.js must publish the consumption seam window.noteItemConsumed');
+
+    const snap = snapshotG();
+    const eatBefore = Auto.getEat();
+    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
+    const realNote = window.noteItemConsumed;
+    const realReplay = window.inOfflineReplay;
+    const seen = [];
+    try {
+      window.noteItemConsumed = function (id, qty, opts) { seen.push({ id, qty, opts }); return true; };
+      window.G.traits = { auto_eat: true, auto_eat_2: true };
+      window.G.playerMaxHp = 10;
+      window.G.playerHp = 3;
+      window.G.inventory = window.G.inventory || {};
+      window.G.inventory.cooked_shrimp = 5;
+      window.G.combatLog = window.G.combatLog || [];
+      Auto.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
+
+      assert(Auto.maybeAutoEat() === true, 'the fixture must actually auto-eat');
+      assert(seen.length === 1, 'an auto-eat must reach the consumption seam exactly once — got ' + seen.length);
+      assert(seen[0].id === 'cooked_shrimp', 'the seam must be told WHICH food — got ' + seen[0].id);
+      assert(seen[0].qty === 1, 'one unit per auto-eat — got ' + seen[0].qty);
+      assert(seen[0].opts && seen[0].opts.auto === true,
+        'the auto path must be marked so its intents are paced against the shared rate bucket');
+
+      /* AND THE AWAY GATE, on the REAL seam: during an offline replay the SERVER
+         ate the food and states the debit in `away.items`, so a second intent
+         would debit it twice and a hold would double-subtract. Driven with a
+         probe id no other test or content row uses, against the live G, because
+         legacy.js closes over its own `G` binding and cannot be handed another. */
+      window.noteItemConsumed = realNote;
+      window.inOfflineReplay = function () { return true; };
+      assert(window.noteItemConsumed('probe_away_food', 1, { auto: true }) === false,
+        'the seam must be a no-op during an away replay');
+      assert(!(window.G._pendingConsume && window.G._pendingConsume.probe_away_food),
+        'an away replay must record no hold — the server already stated the debit');
+
+      /* …and OUT of the replay it does hold (so the gate is the away flag, not a
+         dead call). `send:false` keeps the assertion off the network entirely. */
+      window.inOfflineReplay = function () { return false; };
+      assert(window.noteItemConsumed('probe_away_food', 1, { send: false }) === true,
+        'outside an away replay the seam must record the consumption');
+      assert(window.HearthrisePendingConsume.pendingFor(window.G, 'probe_away_food') === 1,
+        'the unit must be held once recorded');
+    } finally {
+      window.noteItemConsumed = realNote;
+      window.inOfflineReplay = realReplay;
+      Auto.setEat(eatBefore);
+      window.G.traits = traitsBefore;
+      try { if (window.G._pendingConsume) delete window.G._pendingConsume.probe_away_food; } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('EAT-RESTOCK-6: the client sends an auto-eat intent ONLY when the SERVER is not eating', () => {
+    /* THE DIRECTION THAT WOULD BE WORSE THAN THE BUG. The accrual engine eats
+       for the character when `player_state.auto_eat_enabled` is true and states
+       the debit in `away.items`; a client `eat` intent for the same auto-eat
+       would then debit the food TWICE — item LOSS, not a restock. So the send is
+       gated on the SERVER'S OWN answer, observed off `state.auto_eat_enabled`
+       (hr_state_of projects it on every envelope), and it fails CLOSED.
+
+       Measured premise, not an assumption: 2026-08-29-auto-eat-tiers.sql records
+       "0 rows on production (no character has auto_eat_enabled)", and
+       hr_set_auto_eat is that column's only writer — which is why the server
+       keeps every auto-eaten Provision today, and why the client must send.
+
+       MUTATION: drop the `opts.auto && !_clientOwnsAutoEatDebit()` guard in
+       legacy.js noteItemConsumed → block 3 goes red. */
+    const A = window.HearthriseAccrual;
+    assert(typeof A.serverAutoEats === 'function' && typeof A.clientOwnsAutoEatDebit === 'function'
+      && typeof A.__resetServerAutoEat === 'function', 'the auto-eat ownership observation must be published');
+    assert(typeof window.__eatQueueState === 'function' && typeof window.__eatQueueReset === 'function',
+      'the eat-queue seams must be published for this test');
+
+    const realActive = window.serverAccrualActive;
+    const realReplay = window.inOfflineReplay;
+    const M = window.HearthriseEat;
+    const realSend = M.sendEat;
+    let sent = 0;
+    /* Count RAISED INTENTS, not queue depth: an intent may go straight out or
+       wait out the pacing gap, and the property under test is "was the server
+       told", not "how fast". */
+    const raised = () => sent + window.__eatQueueState().queued.length;
+    const reset = () => { window.__eatQueueReset(); sent = 0; };
+    try {
+      window.serverAccrualActive = function () { return true; };
+      window.inOfflineReplay = function () { return false; };
+      M.sendEat = function () { sent++; return Promise.resolve({ outcome: 'eaten' }); };
+
+      /* 1. NEVER OBSERVED ⇒ FAIL CLOSED. Unknown must mean "leave it to the
+         server", because the unknown-and-wrong case destroys an item. */
+      A.__resetServerAutoEat();
+      assert(A.serverAutoEats() === null, 'a fresh device has observed nothing');
+      assert(A.clientOwnsAutoEatDebit() === false, 'unknown must fail CLOSED — the client does not send');
+      reset();
+      window.noteItemConsumed('cooked_shrimp', 1, { auto: true });
+      assert(raised() === 0, 'with the server unknown, an auto-eat must NOT be sent — got ' + raised());
+
+      /* 2. THE SERVER SAYS IT EATS ⇒ STILL NO SEND. This is the double-debit
+         guard, and it must survive whichever path observed the flag: the boot
+         hr_load settle reaches it through reconcileInventory, exactly like the
+         live envelope does. */
+      A.reconcileInventory({ inventory: {} }, { state: { auto_eat_enabled: true }, inventory: {} }, false, false);
+      assert(A.serverAutoEats() === true, 'the observation must take the server\'s word');
+      assert(A.clientOwnsAutoEatDebit() === false, 'when the server eats, the client must not');
+      reset();
+      window.noteItemConsumed('cooked_shrimp', 1, { auto: true });
+      assert(raised() === 0, 'THE DOUBLE-DEBIT GUARD: no client intent while the server eats the same food');
+
+      /* 3. THE SERVER SAYS IT DOES NOT ⇒ THE CLIENT OWNS THE DEBIT. Today's live
+         answer, and the half of the P0 that makes auto-eaten food stay eaten. */
+      A.reconcileInventory({ inventory: {} }, { state: { auto_eat_enabled: false }, inventory: {} }, false, false);
+      assert(A.serverAutoEats() === false, 'a definite no must be recorded');
+      assert(A.clientOwnsAutoEatDebit() === true, 'a definite no hands the debit to the client');
+      reset();
+      window.noteItemConsumed('cooked_shrimp', 1, { auto: true });
+      assert(raised() === 1,
+        'THE BUG: with the server not eating, the client MUST send the debit — got ' + raised());
+
+      /* 4. A MANUAL eat is never gated by any of this — the server has never
+         eaten one, and eatFood has sent that intent since the Paione P0. */
+      A.reconcileInventory({ inventory: {} }, { state: { auto_eat_enabled: true }, inventory: {} }, false, false);
+      reset();
+      window.noteItemConsumed('cooked_shrimp', 1);   // manual
+      assert(sent === 1, 'a manual eat must always send, whatever the server does about auto-eat');
+
+      /* 5. AN ENVELOPE THAT DOES NOT CARRY THE FIELD MUST NOT CHANGE THE ANSWER
+         — absence is not a claim, the same rule the bag follows. */
+      A.reconcileInventory({ inventory: {} }, { state: {}, inventory: {} }, false, false);
+      assert(A.serverAutoEats() === true, 'an envelope omitting the field leaves the last answer alone');
+    } finally {
+      window.__eatQueueReset();
+      M.sendEat = realSend;
+      window.serverAccrualActive = realActive;
+      window.inOfflineReplay = realReplay;
+      A.__resetServerAutoEat();
+      try { if (window.G && window.G._pendingConsume) delete window.G._pendingConsume.cooked_shrimp; } catch (e) {}
+    }
   }),
 
   () => tryRun('SETTLE-3: `below_min_span` is a NON-EVENT — no sheet, no receipt reset, no halt', () => {

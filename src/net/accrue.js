@@ -1254,6 +1254,24 @@ import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_E
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
 import { serverAccruedSkill } from '../data/skill-authority.js?v=490';
+
+/* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
+   "food eaten in combat gets restocked"). Another pure leaf that imports
+   nothing, so a direct import like item-ledger.js above — and for the same
+   reason: a correction that prevents an item DUPE must not have an
+   "unregistered, therefore silently inert" failure mode. `reconcileInventory`
+   folds these holds OUT of the envelope's figures before either branch reads
+   one; see the module header for why the max/assign restocks by construction.
+
+   ⚠ THE INVENTORY TWIN OF THE b487 SKILLS FOLD-BACK directly below the skills
+   branch: same class ("a server reconcile stomps state the client has observed
+   but the server has not yet settled"), same shape (a scratch, session-only
+   record of what is in flight, folded through the reconcile, drained on
+   evidence). Kept as a separate module rather than merged with the XP buffer
+   because the XP buffer is ADDITIVE and drains on the flush's own receipt,
+   while this is SUBTRACTIVE and drains on the server's figure moving — one file
+   holding both rules would have to state which one it was obeying per call. */
+import * as pendingConsume from './pending-consume.js?v=490';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
@@ -2175,6 +2193,61 @@ export function applyEnvelopeState(G, res, ownKey) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   DOES THE SERVER EAT FOR THIS CHARACTER?  (live P0, b467→b479.)
+
+   THE QUESTION MATTERS BECAUSE THE ANSWER DECIDES WHO OWNS THE DEBIT, and
+   getting it wrong in either direction is a bug:
+
+     server eats  → the accrual engine consumes the food itself and states the
+                    debit in `away.items`; a client `eat` intent for the SAME
+                    auto-eat would debit it TWICE — real item loss.
+     server does NOT eat → nothing server-side ever removes an auto-eaten
+                    Provision, the envelope keeps naming the pre-eat count, and
+                    the reconcile hands it straight back. That is the reported
+                    bug, and only a client intent closes it.
+
+   ON PRODUCTION TODAY THE ANSWER IS "NO", and it is measured rather than
+   assumed: supabase/migrations/2026-08-29-auto-eat-tiers.sql records
+   "0 rows on production 2026-08-23 (no character has auto_eat_enabled)" —
+   `hr_set_auto_eat` is the column's only writer and nothing on the client has
+   ever called it. So the engine's `autoEatEnabled: st.auto_eat_enabled === true`
+   is false for everyone and the server's sim never eats.
+
+   That will change the moment hr_trait_buy's hr_set_auto_eat wiring reaches a
+   purchaser — so this is NOT a constant, it is an OBSERVATION of the server's
+   own `state.auto_eat_enabled` (hr_state_of projects it on every envelope,
+   2026-08-15-auto-eat.sql). TRI-STATE and FAIL-CLOSED:
+
+     false  → the client must send the eat intent (the only debit there is)
+     true   → the server does it; the client must NOT send (no double debit)
+     null   → never observed on this device; treated as `true` by the caller,
+              i.e. do not send. The safe direction is the one that cannot
+              destroy an item.
+
+   ⏳ RETIREMENT: when the client syncs its auto-eat settings through
+   `hr_set_auto_eat` (so the server's sim eats exactly what the client's does)
+   this reads `true` for everyone, the client send retires itself with no flag
+   to flip, and only the pending-consumption hold remains. That sync is the real
+   end state and is raised as a handoff. */
+let serverAutoEatObserved = null;
+export function noteServerAutoEat(res) {
+  const st = res && res.state;
+  if (st && typeof st === 'object'
+      && Object.prototype.hasOwnProperty.call(st, 'auto_eat_enabled')) {
+    const v = st.auto_eat_enabled;
+    if (v === true || v === false) serverAutoEatObserved = v;
+  }
+  return serverAutoEatObserved;
+}
+/** true | false | null (never observed). Never infers — only reports. */
+export function serverAutoEats() { return serverAutoEatObserved; }
+/** Should the CLIENT send an eat intent for an auto-eat? Only on a definite NO
+ *  from the server. Unknown and yes both mean "leave it to the server". */
+export function clientOwnsAutoEatDebit() { return serverAutoEatObserved === false; }
+/** TEST-ONLY. Restore the never-observed state. */
+export function __resetServerAutoEat() { serverAutoEatObserved = null; return serverAutoEatObserved; }
+
+/* ══════════════════════════════════════════════════════════════════════════
    THE BAG, RECONCILED FROM AN ENVELOPE — ONE IMPLEMENTATION (b46x).
 
    Extracted VERBATIM from applyEnvelopeState so that record.js's boot hr_load
@@ -2216,7 +2289,54 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
   if (typeof baselineComplete !== 'boolean') baselineComplete = envelopeBaselineComplete(res);
   const written = { inventoryAuthority: invAbsolute, baselineComplete };
   const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
-  const invNamed = res && res.inventory;
+
+  /* Observe whether the SERVER eats for this character. Done HERE rather than in
+     applyEnvelopeState because this function is the one the boot hr_load settle
+     ALSO calls (record.js), so the answer is known from the first envelope of a
+     session either way. See noteServerAutoEat. */
+  noteServerAutoEat(res);
+
+  /* ══════════════════════════════════════════════════════════════════════
+     THE LIVE P0 (reported 4×, b467→b479): "food eaten in combat gets
+     restocked" / "I have 2 moonblood and every time I use 1 it comes back".
+
+     EVERY branch below takes the LARGER of the client's copy and the server's
+     figure (or, for an OWNED id under absolute, the server's figure outright).
+     A locally-eaten unit makes the client's copy SMALLER, so an envelope that
+     still names the pre-eat count RESTOCKS it BY CONSTRUCTION — and because
+     `have` is itself the ratcheted value, the eat's own (correct) response then
+     loses the max and the client is permanently one ahead of the server.
+
+     So the pending holds are folded OUT of the server's figures BEFORE either
+     branch reads one. The fold only ever LOWERS a figure — it cannot mint, add
+     a key, or write the bag — and it drains on EVIDENCE that the server's own
+     figure has come down. See src/net/pending-consume.js.
+
+     `omissionIsZero` is the same distinction the branches themselves draw: a
+     complete, armed absolute envelope is a COMPLETE STATEMENT (an omitted key
+     is a real zero, so a hold on it is settled), while a merge envelope's
+     omission means "unknown" — except for the ids the away receipt explicitly
+     DEBITED, which is a positive statement and is exactly `consumedKeysOf`.
+
+     ⚠ `itemLedger.reconcile` BELOW IS DELIBERATELY GIVEN THE RAW `res`, not the
+     folded figures. Its two predicates ask what the SERVER LITERALLY STATED
+     ("does it name the goods?", "did it hand the payment back?"), and a hold is
+     a fact about the CLIENT, not a statement by the server. The two cannot
+     collide today — only foods reach a hold, and no food is a Quartermaster
+     trade leg — but a future caller that adopts the consumption seam for a
+     tradeable id must revisit that sentence rather than assume it. */
+  /* ARRAYS ARE EXCLUDED HERE RATHER THAN ONLY AT THE ABSOLUTE GUARD BELOW. An
+     array is a malformed bag, not a claim; letting one through and then spreading
+     it into a folded copy would turn it into a plain object and quietly defeat
+     the `!Array.isArray` fail-closed check the absolute branch depends on. The
+     merge branch is unaffected — an array's index keys never parse as item ids,
+     so it wrote nothing before and writes nothing now. */
+  const invNamedRaw = (res && res.inventory && typeof res.inventory === 'object' && !Array.isArray(res.inventory))
+    ? res.inventory : null;
+  const consumedIds = consumedKeysOf(res);
+  const invNamed = pendingConsume.foldPendingConsume(G, invNamedRaw, {
+    omissionIsZero: (invAbsolute && baselineComplete) ? true : consumedIds,
+  });
   if (invAbsolute && baselineComplete && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
     /* ══════════════════════════════════════════════════════════════════════
        THE SERVER-OWNED CARVE-OUT (server-authority inventory-flip, Step 2).
@@ -2269,8 +2389,12 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
     return written;
   }
 
-  const consumed = consumedKeysOf(res);
-  const namedKeys = Object.keys((res && res.inventory) || {});
+  /* The SAME folded figures the absolute branch above reads — computed once, at
+     the top, so neither branch can be fixed without the other. `consumed` is the
+     set built there. */
+  const consumed = consumedIds;
+  const namedFigures = (invNamed && typeof invNamed === 'object') ? invNamed : {};
+  const namedKeys = Object.keys(namedFigures);
   const invKeys = consumed.size
     ? Array.from(new Set(namedKeys.concat(Array.from(consumed))))
     : namedKeys;
@@ -2309,7 +2433,7 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
        heals. A dupe never heals. Counted by ITEM ID, never by slot name, so
        client and server slot vocabularies cannot drift into a wrong deduction. */
     const isDebit = consumed.has(k);
-    const raw = Number(((res && res.inventory) || {})[k]);
+    const raw = Number(namedFigures[k]);
     /* A debited key the envelope omits is a REAL zero (the row was deleted).
        For every other key, an unreadable figure is still "unknown" and skipped. */
     const figure = Number.isFinite(raw) ? raw : (isDebit ? 0 : NaN);
@@ -3244,6 +3368,19 @@ if (typeof window !== 'undefined') {
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem, serverAccruedSkill, markEquipAuthorityLive,
     equippedCount, unaccountedEquipped, consumedKeysOf,
+    /* THE PENDING-CONSUMPTION LEDGER (live P0 — "eaten food gets restocked").
+       Re-published here as well as on window.HearthrisePendingConsume so a
+       caller that already holds the accrual module does not need a second
+       lookup, and so the suite can drive the fold through the same handle it
+       drives applyEnvelopeState with. */
+    noteConsumed: pendingConsume.noteConsumed,
+    releaseConsumed: pendingConsume.releaseConsumed,
+    pendingConsumeFor: pendingConsume.pendingFor,
+    pendingConsumeSnapshot: pendingConsume.pendingSnapshot,
+    clearPendingConsume: pendingConsume.clearPendingConsume,
+    foldPendingConsume: pendingConsume.foldPendingConsume,
+    /* WHO OWNS AN AUTO-EAT'S DEBIT — observed off `state.auto_eat_enabled`. */
+    noteServerAutoEat, serverAutoEats, clientOwnsAutoEatDebit, __resetServerAutoEat,
     /* Phase 1 — live settlement (docs/design/live-settlement.md §3). */
     SETTLE_INTERVAL_MS, ACCRUE_MIN_SPAN_MS, ACCRUE_RATE_PER_MIN,
     decideSettle, settleTick, startSettleLoop, stopSettleLoop, resetSettleLoop,

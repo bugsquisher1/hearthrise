@@ -41814,6 +41814,65 @@ const TESTS = [
     }
   }),
 
+  /* ── REGRESSION (Paione, live, reported repeatedly 08-23 → 08-27): mid-combat
+     envelope must not revert attended XP that is still awaiting credit.
+     "when im in combat i am getting sync +1 item and my HP goes up and reverts
+     my exp." Root class: the armed absolute assign re-asserts the server's
+     skill xp DOWNWARD while attended XP sits un-credited in G._combatXpPending
+     (credit lag: RTT, throttle, rate gate, in-flight race). The fold-back in
+     applyEnvelopeState displays server truth PLUS still-pending attended XP,
+     so no credit-lag window can revert what the player watched happen.
+     Fails without the fold-back (attack lands at 3000, the revert). */
+  () => tryRun('XP-FOLDBACK: an absolute envelope folds still-pending attended combat XP back on top (no mid-fight revert); no pending = absolute anti-forgery unchanged', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
+    const wasAbsolute = A.isEnvelopeAbsolute();
+    A.markEquipAuthorityLive(true);
+    try {
+      assert(A.isEnvelopeAbsolute() === true, 'envelope must be ABSOLUTE for this test (precondition)');
+
+      /* Player at attack 3500 locally: server has settled 3000, and 500 attended
+         XP is observed-but-not-yet-credited (sitting in the pending buffer when
+         the settle's envelope lands). The pre-fix behavior assigned 3000 — the
+         on-screen revert. Correct display = 3000 (server truth) + 500 (pending). */
+      const G = {
+        skills: { attack: 3500, cooking: 5000 },
+        _combatXpPending: { attack: 500 },
+      };
+      A.applyEnvelopeState(G, {
+        state: {},
+        skills: { attack: { xp: 3000 }, cooking: { xp: 3000 } },
+        inventory: {},
+      });
+      assert(G.skills.attack === 3500,
+        'THE REVERT: envelope stomped attended XP still awaiting credit — got ' + G.skills.attack + ', want 3000 server + 500 pending = 3500');
+      // A skill with NO pending still reconciles absolutely (anti-forgery intact).
+      assert(G.skills.cooking === 3000,
+        'a server-accrued skill with no pending must still reconcile absolutely downward — got ' + G.skills.cooking);
+
+      /* Anti-forgery direction: pending is display-only headroom on top of
+         SERVER truth — it can never hold the display ABOVE what server+pending
+         says. A higher server value simply wins (fold-back adds, never blocks). */
+      A.applyEnvelopeState(G, { state: {}, skills: { attack: { xp: 9000 } }, inventory: {} });
+      assert(G.skills.attack === 9500,
+        'fold-back must ride ON TOP of the server value (9000 + 500 pending) — got ' + G.skills.attack);
+
+      /* Drained pending = pure absolute again (the fold-back retires itself). */
+      G._combatXpPending = {};
+      A.applyEnvelopeState(G, { state: {}, skills: { attack: { xp: 4000 } }, inventory: {} });
+      assert(G.skills.attack === 4000,
+        'with pending drained the absolute assign must fully own the value again — got ' + G.skills.attack);
+
+      /* Garbage pending must not poison the apply (NaN/negative → ignored). */
+      G._combatXpPending = { attack: NaN, magic: -50 };
+      A.applyEnvelopeState(G, { state: {}, skills: { attack: { xp: 4100 } }, inventory: {} });
+      assert(G.skills.attack === 4100,
+        'garbage pending (NaN) must be ignored, not folded — got ' + G.skills.attack);
+    } finally {
+      A.markEquipAuthorityLive(wasAbsolute ? true : false);
+    }
+  }),
+
   /* B372-SCRIP-1 — A PURCHASE REVERTS WHOLE, OR NOT AT ALL.
      The live P0 of 2026-08-18, reported by Xarnathos: "when you buy e.g. a
      blueprint, you will get the dungeon scrip back after a short amount of

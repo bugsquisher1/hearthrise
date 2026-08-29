@@ -1912,8 +1912,31 @@ export function applyEnvelopeState(G, res, ownKey) {
          edited xp figure and a round trip that laundered it into permanence.
          PHASE 1: MAX. Kept behind the switch, not deleted, because it is the
          incident lever — and it is now ALSO the client-only-skill floor. */
-      skills[k] = skillAbsolute ? xp : Math.max(have, xp);
-      written.skills[k] = skills[k];
+      let next = skillAbsolute ? xp : Math.max(have, xp);
+      /* ── PENDING FOLD-BACK (the "reverts my exp" class-kill, 2026-08-27) ────
+         The absolute assign is correct as the durable floor, but ATTENDED combat
+         XP the client has observed and NOT YET successfully credited lives in
+         G._combatXpPending (scratch, never synced) — and the server cannot know
+         it at settle time. Every envelope applied while credit lags — network
+         RTT between the credit snapshot and the settle, a rate-gated or
+         throttled credit, the in-flight race — re-asserted the server's stale
+         figure DOWNWARD and the player watched just-earned XP (even a level)
+         revert mid-fight. Reported repeatedly on live (08-23 → 08-27); each
+         prior fix narrowed ONE lag window; this closes the class: the DISPLAY
+         is server truth PLUS still-pending attended XP, so no lag window can
+         revert what the player watched happen.
+         NOT a forgery hole: pending becomes durable only through
+         hr_credit_combat_xp's server-clamped path; a devtools-forged pending is
+         scratch (dies on reload, never persisted) and cannot cross the server's
+         per-day cap. Only added under skillAbsolute — the Math.max branch's
+         `have` already contains pending (double-count otherwise). */
+      if (skillAbsolute) {
+        const pend = G._combatXpPending;
+        const p = (pend && typeof pend === 'object') ? Math.floor(Number(pend[k]) || 0) : 0;
+        if (p > 0) next = xp + p;
+      }
+      skills[k] = next;
+      written.skills[k] = next;
     }
   }
   /* ⚠ A SKILL THE ENVELOPE OMITS IS **LEFT ALONE**, EVEN UNDER ABSOLUTE, AND

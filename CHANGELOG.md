@@ -4,6 +4,17 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 493 — 2026-08-29 (The trust build: workers back, goals complete, accounts never look wiped)
+
+> **🧪 Testers (Paione, this one's yours):** ① log in — if your homestead had "lost" its upgrade, your **workers and farm plots come back on their own** the moment you load in. ② Hire a worker: it should stay. ③ Plant on every plot you've unlocked. ④ On a bad connection you'll now see **"Connecting your character…"** instead of a fresh-looking account — your data was never gone, but now the game can't even *pretend* it is.
+
+- 🏠 **Your homestead upgrade, workers and farm plots can no longer "vanish."** The property tier now reads the server's record of what you bought (which never lost it) instead of a local copy that could go stale — anyone affected is healed automatically at next login. This was the "hired a worker and it disappeared" + "can't plant" pair.
+- 🔌 **Your account can never again *look* wiped on a bad start.** A stalled connection used to boot you into a blank character (level 1, 500 gold) with no error and no retry. Now: a clear "Connecting your character…" veil, automatic retries, and the game never renders your character until the server has actually spoken.
+- ⬆️ **Kill goals finally pay their XP** — they never did (the reward was priced in a skill that doesn't exist, so it silently paid nothing since launch). They now pay **Hitpoints XP**, retuned: 100 (Slay 10), 300 (Slay 30), 1000 (weekly 100).
+- 📊 **Your XP no longer briefly shows double and then "drops."** Credited XP could appear in both the server total and the on-screen prediction for a minute, then visibly snap down. No XP was ever lost — the display now retires the prediction the instant the server confirms it.
+- 🧾 **The fight-screen session tally is readable** — it was printing two lines of text on top of each other at the bottom of the fight screen.
+- 🐣 Fixed a first-session crash that could kill the tutorial tour mid-step under load.
+
 ## v0.9.2-beta build 492 — 2026-08-29 ("Confirming…" on kill goals is done)
 
 > **🧪 Testers:** take a kill goal ("Slay 10/30 monsters", the weekly "Slay 100", or a kill daily), fight *without* a bounty running, then **stop**. Within a minute the bar should turn into a real **Claim** and pay. Tell us in Discord if any kill goal still sits at "30 / 30 · Confirming…".

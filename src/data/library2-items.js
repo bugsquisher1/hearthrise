@@ -71,7 +71,7 @@
 // line.vmul), the same expression the generator uses.
 // ============================================================
 
-import { MAX_BANE_MULT } from '../core/bane.js?v=492';
+import { MAX_BANE_MULT } from '../core/bane.js?v=493';
 
 /* The generator's own value expression, so a hand-authored rung and a generated
    one can never price differently. Kept local rather than exported from

@@ -35146,7 +35146,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=491')).text();
+    const src = await (await fetch('src/legacy.js?v=493')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the

@@ -1277,11 +1277,11 @@ import * as pendingConsume from './pending-consume.js?v=493';
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=491';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=493';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks } from './property-record.js?v=491';
+import { notePropertyUnlocks } from './property-record.js?v=493';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write

@@ -11,6 +11,58 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-08-29 · b493 release blocker — 19 failures on the assembled tree, ONE cause, and it was in the bump script
+
+**Verdict: 1063/1082 → 1082/1082, 0 runtime errors.** Cause: fourteen `?v=491` import specifiers
+that survived the 492→493 bump. See DISCOVERIES for the full write-up; the log-worthy part is HOW
+it was found and what nearly sent me the wrong way.
+
+**What found it in ten minutes, not two hours.** I opened `src/features/boot-hydration.js` (the
+newest module in the assembly, and the brief's suspect) intending to read its state machine — and
+the first thing on screen was `from '../net/record.js?v=491'` on a b493 tree. One grep
+(`?v=4[0-9][0-9]` excluding 493) turned a "which of these 19 tests is lying" problem into a
+one-line answer. **Read the imports before you read the logic.** On this codebase the version query
+is load-bearing, and a wrong one is visible in the first ten lines of a file.
+
+**The proof step that made it a verdict rather than a theory** — counting importers per version:
+
+```
+record : v493=7  v491=1     accrue : v493=14 v491=1     predict : v493=3 v491=1
+capstone: v493=1 v491=1     auth   : v493=4  v491=1     styles  : v493=6 v491=1
+```
+
+Six modules loaded TWICE, each with its own module state. Then I matched it to a specific failure
+before touching anything: B429-1 does `R = window.HearthriseRecord; R.__setSkillsRecordArm(false)`
+and then calls `S.skillXpOf` from `skill-record.js`, which imports `record.js?v=493`. The observed
+error text was `source:"record"` — i.e. the ARMED path. Handle on one instance, call on the other.
+**Don't fix until one named test's exact error string is explained by the theory.**
+
+**The strong prior I was handed was wrong, and checking it was still cheap.** The brief pointed hard
+at `property-record.js`'s module-level `max()` ratchet having no test reset seam. It has one
+(`__resetPropertyRecord`, returning the previous pair for restore) and the suite uses it **18
+times**. Two greps to rule out, and ruling it out early stopped me building a fix for a healthy
+module. Same for `boot-hydration.js`: it refuses to install its poll under `__HR_TEST_HARNESS__`,
+so it holds no state during a suite run.
+
+**Self-inflicted, worth remembering.** My new guard file lives under `tests/`, where
+`versionQueryGuard` forbids a **quoted** `?v=` outright — so my *documentation* and my *fixtures*
+failed the build, twice, in two different guards. Resolution: de-quote the prose (fidelity kept,
+regex dodged honestly) and replace the embedded "these lines must NOT match" fixtures with reads of
+the **real files** (`icon-swap.js`, `legacy.js`, `build-watch.js`, `showtab-registry.js`) plus a
+`trigger` string so the control fails loudly if it ever goes vacuous. The on-disk version is a
+better control than the one I set out to write — a pasted copy cannot drift with the file, and my
+first cut literally "proved" it left `build-watch.js` alone while flagging it in the same run.
+
+**Verified-to-fail, not just verified-to-pass:** injected `predict.js?v=491` into `src/net/record.js`
+→ `node tests/run-smoke.mjs` exits 1 in under a second, before the browser launches, naming
+`src/net/record.js:115` and printing `run ./bump-version.sh 493`.
+
+**Still open, routed, NOT mine:** K10 in `tests/kill-daily-credit.mjs` — the kill-goal XP branch
+re-priced kill goals to `xp:{hitpoints:N}` and `hitpoints` IS a skill, so a claim now mints 300 XP
+into `player_skills` and breaks the security review's "a forged kill counter reaches gold only"
+bound. Filed in CONFLICTS.md → Systems Engineer + Game Designer. **This blocks b493 independently of
+the cache-buster fix — do not read "1082/1082" as "ship it".**
+
 ### 2026-08-31 · Bounty-board hunt (live b486) — six defects, five fixed, one routed
 
 **Method that worked, keep it.** Tyler gave no detail ("there is still a bug with the bounty

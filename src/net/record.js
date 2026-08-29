@@ -112,7 +112,7 @@ import { applyClientState } from './client-state.js?v=493';
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=491';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=493';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse

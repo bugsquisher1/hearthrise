@@ -3,6 +3,70 @@
 _Important things agents learn about the codebase, game, or constraints. Append new entries at the top. Every entry: DATE · AGENT · DISCOVERY · AFFECTED SYSTEMS · REQUIRED ACTION. This is how the team avoids rediscovering the same knowledge._
 
 ---
+### 2026-08-29 — QA Engineer — **A stale `?v=` does not serve old code. It loads the module TWICE, with two copies of its module state. That is what broke the b493 assembly (19 tests), and it is a whole class.**
+
+**Root cause of the b493 release blocker.** 19 smoke tests failed on the assembled tree that every
+constituent branch had passed in isolation. None of the branches were wrong. Fourteen `?v=491`
+import specifiers survived the 492→493 bump:
+
+| file:line | specifier |
+|---|---|
+| `src/main.js:368` | `import ./features/boot-hydration.js?v=491` |
+| `src/features/boot-hydration.js:69,70` | `../net/record.js?v=491`, `../net/capstone.js?v=491` |
+| `src/net/client-state.js:51` | `./accrue.js?v=491` |
+| `src/net/record.js:115` | `./predict.js?v=491` |
+| `src/net/accrue.js:1280,1284` | `../core/styles.js?v=491`, `./property-record.js?v=491` |
+| + 6 more in `main.js` / `smoke-test.js` | |
+
+**THE MECHANISM, and it is the part worth internalising.** A `?v=` is not decoration to the browser
+— it is part of the **module key**. `record.js?v=491` and `record.js?v=493` are two DIFFERENT
+modules: fetched twice, evaluated twice, **each with its own module-level state**. Six modules ran
+as doubles: `record`, `accrue`, `capstone`, `predict`, `auth`, `styles` — two accrual kill-switch
+overrides, two prediction ledgers, two blob-retire capstones, two sessions. Whichever copy evaluated
+LAST won the `window.Hearthrise*` handle, and `boot-hydration.js` is imported last in `main.js`, so
+the 491 copies won. The suite then drove one instance while the game ran on the other:
+
+```
+R = window.HearthriseRecord     → the ?v=491 copy (evaluated last)
+R.__setSkillsRecordArm(false)   → disarms the 491 copy
+S.skillXpOf(...)                → skill-record.js imports record.js?v=493, still ARMED
+✗ "dormant skillXpOf did not answer the local value: source:'record'"
+```
+
+That is why the failures clustered on arm seams, predictions and inventory and looked like a
+state-pollution bug: **every failing test drove a `window.*` handle while production code used the
+other instance.** Fixing the 14 specifiers took the in-page suite from 1063/1082 to **1082/1082**,
+and also healed the blob-retire capstone guard and the save-slot guard, which were failing for the
+same reason.
+
+**In production this is worse than a failing test** — it is a player whose gold prediction is
+retired on a ledger nobody reads, and a session restored into an auth module the game does not use.
+
+**WHY BOTH EXISTING GATES MISSED IT.** `bump-version.sh <new>` rewrote only `?v=<old>` (492→493) and
+then verified only that no `?v=<old>` was left. A specifier merged in from a branch cut at build 491
+matched *neither*, so it passed the bump's own verification silently. `--check` **would** have
+caught it (it compares against the CURRENT number) — but it was a separate command nobody ran, and
+`node tests/run-smoke.mjs`, the gate everyone *does* run, never asserted the invariant at all. Two
+gates, one blind, and the blind one was the one in the loop.
+
+**FIXED, three ways** (commit on `main`):
+1. The 14 specifiers normalised to 493.
+2. `bump-version.sh` — new step 3b NORMALISES every quoted versioned specifier to the new build
+   instead of only rewriting `$old`; the post-bump verification now calls the SAME `check_invariant`
+   function `--check` does, so the two can never disagree again; and `./bump-version.sh <same-number>`
+   no longer early-exits with "nothing to do" — that refusal meant the one command that repairs a
+   post-merge tree declined to run on exactly the tree that needs it.
+3. `tests/cache-buster-guard.mjs` + a preflight in `tests/run-smoke.mjs` — runs FIRST, before the
+   browser, ~200 ms, and asserts the thing the shell check cannot: **no module is reachable at two
+   versions.** Verified to fail: injecting `predict.js?v=491` into `src/net/record.js` exits 1 in
+   under a second naming `src/net/record.js:115` and the remedy.
+
+**THE RULE TO CARRY.** After ANY merge or cherry-pick into a release tree, run
+`bash bump-version.sh --check` (or just the suite now). A branch cut at build N and integrated at
+build N+2 carries stale specifiers *by construction* — this will happen again, and the merge is
+where it is born. The `?v=` is not cosmetic and a mixed tree is not "slightly stale", it is a
+**split-brain runtime**.
+
 ### 2026-08-29 — Systems Engineer — **The in-page smoke suite is AT its 120s budget on this hardware. Runs will "time out" for reasons that have nothing to do with the diff.**
 
 Measured, both trees, same machine, same probe (boot the page, `await window.__smokeTest()`, time it):

@@ -2,6 +2,49 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+### 2026-08-29 — b493 SHIP BLOCKER: kill-goal XP (design) breaks K10's forgery bound (security) — QA → Systems Engineer + Game Designer
+**P1. Semantic conflict between two branches that were each green in isolation. Still OPEN — this is not the `?v=` bug, and fixing that did not fix this.**
+
+Two integrated branches hold incompatible models of the same surface:
+
+- **`2026-09-01-kill-goal-xp-hitpoints.sql`** (integrate `aca6088f`, designer-ruled) re-prices every
+  kill goal from `xp:{combat:N}` to `xp:{hitpoints:N}` — 100/300/1000.
+- **`2026-09-01-kill-daily-credit.sql` + `tests/kill-daily-credit.mjs` K10** (integrate `4fac7beb`,
+  security-reviewed) concluded the change was safe *because* a forged/inflated kill counter reached
+  **gold only**. That held only because `combat` is not a row in `hr_skills`, so `hr_claim_goal`
+  routed the reward to `skipped_xp` and no `player_skills` row moved.
+
+`hitpoints` **is** a row in `hr_skills`. So the reward is no longer skipped — it is minted:
+
+```
+✗ K10: a kill-goal claim moved player_skills by 300 XP.
+      The review concluded a forged kill counter reaches gold only; an XP path changes that.
+✗ K10: the kill-goal reward no longer reports combat XP in skipped_xp — either the reward was
+      re-priced or it is being minted somewhere: {}
+```
+
+Why it matters: hitpoints feeds **combat level and the leaderboards**, so an inflated kill counter
+now converts into a RANKED value instead of gold. The XP branch's own header anticipated the
+neighbouring risk ("folding an existing `G.skills.combat` into `player_skills.hitpoints` would mint
+RANKED XP") and correctly refused a backfill — but the *claim* path was not re-examined, and K10's
+first assertion (`'combat' is now a row in hr_skills`) does not fire because the reward moved to a
+different key rather than the key becoming a skill. K10's 2nd/3rd assertions caught it.
+
+**Not resolvable in the QA lane** — it is a design-vs-security decision, and both positions are
+defensible. Options for the owners, in the order I'd rank them:
+1. Gate the kill-goal XP on the SERVER's own kill evidence (`hr_kill_credit_log`) rather than the
+   client-influenced daily counter — keeps the designer's ruling and closes the bound.
+2. Clamp + journal the XP so the reachable amount is bounded and reversible, and re-take the verdict.
+3. Revert kill goals to gold-only (loses the designer's ruling; last resort).
+
+Whatever is chosen, K10's prose must be updated in the same commit — it currently describes a world
+where kill goals pay `xp:{combat:N}`.
+
+**Repro:** `node tests/run-smoke.mjs` on `main` @ b493 → "Kill → daily-goal credit guard — FAILED",
+two ✗ under K10. Present in the pre-fix baseline log too, so it is independent of the cache-buster fix.
+
+---
+
 ### 2026-08-23 — OPEN BETA: the CLIENT is codeless-optional BEFORE the SERVER is (Systems → Coordinator)
 Branch `agent-a4b1b5fffc2a6ed2a`. **Semantic conflict, not a git one.**
 

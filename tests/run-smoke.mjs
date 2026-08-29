@@ -66,6 +66,7 @@ import { runAll as corsGuards } from './cors-preflight.mjs';
 import { runAll as iconBootOrderGuard } from './icon-boot-order.mjs';
 import { reachabilityGuard } from './reachability.mjs';
 import { recipeYieldGuard, recipeYieldMutationGuard } from './recipe-yield-guard.mjs';
+import { cacheBusterGuard, cacheBusterMutationGuard } from './cache-buster-guard.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
 import { createServer } from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
@@ -1369,6 +1370,35 @@ async function landscapeGuard(browser, url) {
 //
 // The six Hunt/raid boss portraits live in the same folder and are NOT in
 // MONSTERS, so they are allowlisted explicitly rather than by pattern.
+// ── The cache-buster / duplicate-module preflight (b493) ────────────────────
+// See tests/cache-buster-guard.mjs for the defect this closes. Two checks, in
+// this order, because the second one is the interesting failure: every
+// browser-loaded reference is at the CURRENT build, and no module is reachable
+// at two versions (which loads it twice, with two copies of its state).
+// The mutation control runs alongside — a guard asserting an absence is worth
+// nothing unless it is proven to still be able to see.
+async function cacheBusterPreflight() {
+  let r, m;
+  try {
+    r = await cacheBusterGuard();
+    m = await cacheBusterMutationGuard();
+  } catch (e) {
+    console.error(`\nCache-buster preflight FAILED — the guard threw: ${e.message}\n`);
+    return 1;
+  }
+  if (m.problems.length) {
+    console.error(`\nCache-buster preflight — THE GUARD ITSELF IS BROKEN:\n  · ${m.problems.join('\n  · ')}\n`);
+    return 1;
+  }
+  if (r.problems.length) {
+    console.error(`\nCache-buster preflight FAILED (${r.problems.length}) — run ./bump-version.sh ${r.cache}\n`
+      + `  · ${r.problems.join('\n  · ')}\n`);
+    return 1;
+  }
+  console.log(`Cache-buster preflight: ${r.note}; ${m.note}`);
+  return 0;
+}
+
 async function monsterArtPreflight() {
   const mod = join(ROOT, 'src', 'data', 'monster-art.js');
   try { await stat(mod); } catch { return 0; }
@@ -1932,6 +1962,13 @@ async function itemLedgerPreflight() {
 
 const run = async () => {
   await recoverMutationResidue();
+  /* FIRST, AND IT COSTS ~200ms. A stale `?v=` makes a module load TWICE with two
+     copies of its state, and the symptom is not "stale code" — it is a scatter
+     of unrelated-looking test failures across arm seams, prediction ledgers and
+     inventory (b493: 19 of them, on an assembly whose every branch was green).
+     Running it before the browser starts turns a two-hour root-cause hunt into
+     one line naming the file. */
+  if (await cacheBusterPreflight()) process.exit(1);
   if (await monsterArtPreflight()) process.exit(1);
   if (await itemArtPreflight()) process.exit(1);
   if (await artPalettePreflight()) process.exit(1);

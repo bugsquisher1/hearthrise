@@ -9,7 +9,16 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 🧊 backlog · ⛔ blocked · ⏸️ back-burner (deprioritized, not cancelled).
 **Priority:** P0 (now) · P1 (soon) · P2 (this cycle) · P3 (nice-to-have).
 
-_Last updated: 2026-08-29 (bug-wave day). Live build: **b489**. **🔒 GOLD+GEMS ARMED — server-authority program COMPLETE.**_
+_Last updated: 2026-08-29 (studio-quality push, post-restart). Live build: **b491**. **🔒 GOLD+GEMS ARMED — server-authority program COMPLETE.**_
+
+> **🎯 2026-08-29 STUDIO-QUALITY PUSH (post-restart; Tyler: "you know what needs done").** Six parallel workstreams dispatched off the b491 live playthrough:
+> - **NEW P1 — silent boot-hydration failure** (found by playing): clean boot can render a DEFAULT account (skills 0/gold 500) with "Online" + zero errors + no retry; a manual sync instantly hydrates. 2nd confirmed occurrence — the "my account got wiped" trust class. Hypothesis: expired-token boot race, swallowed. Fix in flight (systems): await-auth + retry + fail-LOUD, never default-render under the armed record.
+> - **NEW P1 — combat-XP claim-vs-prediction leak** (found by playing, journal-proven): at honest cadence the client CLAIMS less XP than it predicts (multiplier share suspected missing from `_combatXpPending`); an `accrued:false` envelope then retires the unclaimed remainder — display dropped 403→377 with `throttled:false` everywhere (cap is innocent). Honest players silently lose the multiplier share every settle. Fix in flight (backend).
+> - **Kill-daily credit**: prior staging RESCUED from an uncommitted stale worktree → branch `staged/kill-daily-credit` (a83e131b; 884-line migration + 696-line test, REVIEW-ONLY header). Backend agent reconciling it against b491 + completing. Security review required before ship.
+> - **Load-test (scalable-state exit criterion #4)**: reliability-engineer measuring hr-accrue capacity + beta-wave verdict (zero-spend constraints).
+> - **Session Tally visual defect** (P2, fight screen): bottom strip self-overlapping/unstyled at short viewports (the flagged `.fs-sess-best` P3 is worse live) — art-director fixing with both-size screenshots.
+> - **Worktree audit COMPLETE**: 69 worktrees + 191 stale branches classified; ~11 GB reclaimable; kill-daily was the ONE dirty-valuable (rescued); `debt/css-tokens-pass-1`'s zero-visual-change commit cherry-picked to `hold/css-tokens-pass-1` (ships with next integration + visual gate). Deletion sweep HELD until the current wave lands (live agents own worktrees).
+> - **b491 live-verified by playthrough**: food-stays-eaten ✓ (real settle), anti-cheat cap ✓ (clamps 30× drive, never honest play), daily claim ✓, style persistence ✓, maxHP=HP-level ✓, level_up daily "Confirming…" resolves ✓.
 
 > **⚡ 2026-08-29 BUG-WAVE DAY (Tyler: "do whatever it takes to fix the bugs today"). Shipped LIVE: b487 → b489 + 2 prod hotfixes, all gated (true-exit smoke + headless visual gate) + Discord-announced with test CTAs.**
 > - **b487:** mid-fight XP-revert CLASS-KILL (pending fold-back over the absolute envelope — closes ALL credit-lag windows, the bug reported ~10×) · Session Tally (§10 #2) · Buy Back render extraction · 3 integrity fixes. **Clan P1 exploit CLOSED IN PROD** (clan_contribute gold-debit + feast inventory-debit + buy_listing dropped; security GO; migration applied + verified).

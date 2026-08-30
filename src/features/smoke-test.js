@@ -2955,12 +2955,25 @@ const TESTS = [
       };
       window.ensureRetentionState();
 
+      /* ⚠ THE FIXTURE IS DERIVED FROM THE AUTHORED POOL, never hand-typed
+         (b497). It used to state `reward: 500` and assert `G.gold === 500`
+         because that is what daily_kill happened to pay. The Designer's balance
+         retune moved it to 600 AND the b497 stale-slate heal now corrects any
+         stored task whose numbers disagree with the pool — so a hand-typed
+         fixture both stops describing the game and gets rewritten underneath
+         the assertion. The PROPERTY here is "the unarmed prediction credits THE
+         REWARD", which is a statement about the code, not about a balance
+         number that is the Designer's to move. */
+      const kill = window.DAILY_TASK_POOL.map((f) => f()).find((t) => t.id === 'daily_kill');
+      assert(kill && kill.reward > 0, 'CONTROL: daily_kill is not in the authored pool with a reward');
+      const freshKill = () => Object.assign(
+        window.DAILY_TASK_POOL.map((f) => f()).find((t) => t.id === 'daily_kill'),
+        { progress: kill.goal - 1, done: false });
+
       // ── DAILY under arm: proceeds, fires claimDaily, no local gold ──
       window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
       predZero(); window.G.gold = 0;
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [
-        { id: 'daily_kill', type: 'kill_any', label: 'Kill 25', goal: 25, progress: 24, reward: 500, done: false },
-      ] };
+      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [freshKill()] };
       window.updateDaily('kill_any', 1);
       const dt = window.G.daily.tasks[0];
       assert(dt.done === true, 'armed daily completion must mark the task done (defer is gone)');
@@ -2979,11 +2992,11 @@ const TESTS = [
       calls.length = 0;
       window.clientMayWriteRecordField = function () { return true; };
       predZero(); window.G.gold = 0;
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [
-        { id: 'daily_kill', type: 'kill_any', label: 'Kill 25', goal: 25, progress: 24, reward: 500, done: false },
-      ] };
+      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [freshKill()] };
       window.updateDaily('kill_any', 1);
-      assert(window.G.gold === 500, 'unarmed daily must credit the reward locally as the prediction; got ' + window.G.gold);
+      assert(window.G.gold === kill.reward,
+        'unarmed daily must credit THE AUTHORED REWARD locally as the prediction; expected '
+        + kill.reward + ', got ' + window.G.gold);
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.HearthriseGoalClaim = origClaim;
@@ -11363,6 +11376,102 @@ const TESTS = [
       assert(big.reward === big.goal * 30, 'the reward must scale with the goal, got ' + big.reward);
       assert(!/Harvest 25 crops/.test(small.label + '|' + big.label),
         'the fixed "Harvest 25 crops" daily must be gone');
+    } finally { restoreG(snap); }
+  }),
+
+  /* ── b497 RETUNE-1: A BALANCE CHANGE MUST REACH A SLATE ALREADY IN THE SAVE ──
+     A daily slate is rolled once per UTC day and FROZEN in the save, so a
+     retune of the pool's authored numbers is invisible until midnight — while
+     the SERVER moves the moment its migration is applied. That gap is not
+     cosmetic: stored "Smith 8 items" + server goal 40 means updateDaily latches
+     `done` at 8, fires claimDaily ONCE (fire-and-forget), the server answers
+     `incomplete`, and under the gold arm the local credit is a no-op. The
+     player's daily is spent, nothing is paid, and the UI says it is finished. */
+  () => tryRun('RETUNE-1: a stale daily slate is healed to the authored numbers, and a `done` its own progress does not support is repaired', () => {
+    const snap = snapshotG();
+    try {
+      const pool = window.DAILY_TASK_POOL;
+      assert(Array.isArray(pool), 'DAILY_TASK_POOL is not exposed for testing');
+      const authored = pool.map((f) => f()).find((t) => t.id === 'daily_smith');
+      assert(authored && authored.goal > 8,
+        'CONTROL: daily_smith no longer asks for more than the pre-b497 8 — re-derive this fixture '
+        + 'from whatever the retune moved, or the test proves nothing');
+
+      /* THE SAVE AS PRODUCTION HAS IT: today's slate, rolled before the retune. */
+      window.G.daily = {
+        lastReset: window.hrGoalDayKey(),
+        tasks: [{ id: 'daily_smith', type: 'smithed', label: 'Smith 8 items', goal: 8, progress: 8, reward: 450, done: true }],
+      };
+      window.generateDailyTasks(false);
+      const t = window.G.daily.tasks.find((x) => x.id === 'daily_smith');
+      assert(t, 'the heal dropped the task entirely');
+      assert(t.goal === authored.goal && t.reward === authored.reward && t.label === authored.label,
+        'the stale slate kept its pre-retune numbers (' + t.goal + '/' + t.reward + '/' + t.label
+        + ') — the client would show one price and the server pay another');
+      assert(t.progress === 8, 'the heal threw away earned progress, got ' + t.progress);
+      assert(t.done === false,
+        'a `done` latched against the OLD goal survived. That is the whole defect: it fires '
+        + 'claimDaily once, the server refuses `incomplete`, and the task can never fire again');
+
+      /* IT MUST NOT RE-OPEN A GENUINELY FINISHED TASK. The repair is an
+         invariant (`done` implies progress >= goal), not a blanket reset. */
+      window.G.daily = {
+        lastReset: window.hrGoalDayKey(),
+        tasks: [Object.assign({}, authored, { progress: authored.goal, done: true })],
+      };
+      window.generateDailyTasks(false);
+      assert(window.G.daily.tasks[0].done === true,
+        'the heal re-opened a task whose progress really does meet its goal — that would re-fire a '
+        + 'claim the server has already once-guarded');
+    } finally { restoreG(snap); }
+  }),
+
+  /* ── b497 RETUNE-2: THE SAME CLASS ON QUESTS, AND IT IS PERMANENT THERE ──
+     b341 made "add a quest" reach an existing save. RE-TUNING one still did
+     not: a quest row is a frozen copy of its QUEST_DEFS entry, so the farmhand
+     goal 10 -> 6 ruling reached nobody — every live save would keep goal 10
+     forever while the server started accepting 6. A daily slate at least
+     self-heals at midnight; this one never does. */
+  () => tryRun('RETUNE-2: a quest row re-reads its AUTHORED definition on merge and keeps only progress + done', () => {
+    const snap = snapshotG();
+    try {
+      const def = (window.QUEST_DEFS || []).find((q) => q.id === 'farmhand');
+      assert(def && def.goal === 6,
+        'CONTROL: farmhand is not at the ruled goal of 6 — re-derive this fixture');
+
+      /* A PRE-RETUNE SAVE, exactly as production holds it. */
+      window.G.quests = [
+        { id: 'farmhand', type: 'harvest', label: 'Harvest 10 crops', goal: 10, progress: 4, reward: { gold: 500, item: 'wheat_seed', qty: 5 }, done: false },
+        { id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true },
+      ];
+      window.ensureRetentionState();
+      const q = window.G.quests.find((x) => x.id === 'farmhand');
+      assert(q.goal === 6, 'the retuned goal never reached the save, got ' + q.goal);
+      assert(q.label === def.label, 'the save still shows the retired label: ' + q.label);
+      assert(q.progress === 4, 'the refresh threw away earned progress, got ' + q.progress);
+      assert(q.done === false, 'the refresh completed a quest the player has not finished');
+
+      /* THE SAVE HALF IS SACRED. A finished quest stays finished — refreshing
+         the definition must never re-open something already paid. */
+      const g = window.G.quests.find((x) => x.id === 'gatherer');
+      assert(g.done === true, 'the definition refresh re-opened a COMPLETED quest — it would pay twice');
+      assert(g.progress === 15, 'the refresh moved a completed quest\'s progress, got ' + g.progress);
+
+      /* PROGRESS IS CLAMPED to the new goal, exactly as updateQuest clamps it —
+         a bar reading 9/6 is the same drift wearing a different number. */
+      window.G.quests = [{ id: 'farmhand', type: 'harvest', label: 'Harvest 10 crops', goal: 10, progress: 9, reward: { gold: 500 }, done: false }];
+      window.ensureRetentionState();
+      assert(window.G.quests.find((x) => x.id === 'farmhand').progress === 6,
+        'progress above the new goal was not clamped, got '
+        + window.G.quests.find((x) => x.id === 'farmhand').progress);
+
+      /* A STALE `mirror` MUST BE DROPPED, not carried. It changes how
+         updateQuest BEHAVES (read instead of count), so a row keeping one the
+         def has dropped is a quest that silently stops counting. */
+      window.G.quests = [{ id: 'farmhand', type: 'harvest', mirror: 'stats.kills', label: 'x', goal: 10, progress: 0, reward: { gold: 500 }, done: false }];
+      window.ensureRetentionState();
+      assert(!('mirror' in window.G.quests.find((x) => x.id === 'farmhand')),
+        'a stale `mirror` survived the refresh — the quest would READ stats.kills forever');
     } finally { restoreG(snap); }
   }),
 

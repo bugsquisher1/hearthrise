@@ -54,7 +54,45 @@ rung**, stated over `GEAR_LADDERS` and resolved **by output item** (an id-keyed 
 The mechanism I chose (the tier's plank at half the slot's weight) borrows a material rather than
 adding a cloth-bolt ladder — flagged to the Designer in CONFLICTS with the measurement behind it.
 
+### THE RETUNE WOULD HAVE SHIPPED TWO SAVE-BLOB BUGS, AND I ALMOST DIDN'T LOOK
+Everything above was green when I asked the CLAUDE.md question — *what does this write, and how
+long does it live?* Both answers were bad, and both are the "forgotten in the save blob" class:
+
+- **`G.quests` freezes the DEFINITION.** A quest row is a copy of its QUEST_DEFS entry made once,
+  and the b341 merge only ever adds MISSING rows. So `farmhand` goal 10 → 6 reached **nobody** —
+  every live save would keep `goal:10` and the label "Harvest 10 crops" forever while the server
+  started accepting 6. A ruling authored, tested, migrated onto production, and delivered to no one.
+  That is the *same sentence* b341 wrote about ADDING a quest; it fixed one half and left the other.
+  Fixed by stating the model: a quest row is AUTHORED DATA plus exactly TWO save fields
+  (`progress`, `done`), and the authored half is re-read on every merge.
+- **`G.daily.tasks` freezes the SLATE, and the failure is worse than staleness.** Stored
+  "Smith 8 items" + a server goal of 40: the player smiths 8, `updateDaily` latches `done` and fires
+  `claimDaily` **once**, fire-and-forget; the server answers `incomplete`; `done` means it can never
+  fire again; and under the gold arm the local credit is a no-op. The daily is spent, nothing is
+  paid, and the UI says it is finished. A **fresh instance of the exact class I fixed on the rank and
+  milestone claims last week** — created by a pure balance change, which is what makes it worth
+  writing down: *a data retune can manufacture a fire-and-forget loss if any consumer latches a
+  completion flag against the old number.*
+
+The daily repair is deliberately TWO things, because they break independently: the numbers are
+re-read from the authored pool, and **`done` is re-derived from `progress >= goal` unconditionally**.
+The second is not a consequence of the first — the pre-existing b461 eligibility rebuild already
+produces the bad state on its own by copying an old `done` onto a freshly generated task, so a repair
+gated on "the numbers differ" walks straight past it. `done` unsupported by its own progress is never
+legitimate, which makes it an invariant of the structure rather than a guess about how it broke.
+
 ### VERIFICATION NOTES WORTH KEEPING
+- **THREE "mutated" runs were not mutated, and they all looked like results.** My patch script
+  asserted on a multi-line anchor written with `\n` against a file read with `newline=''` — i.e. CRLF
+  — so it raised, `python` exited 2, and the next command in the chain ran the suite on CLEAN source
+  anyway. Two of those runs timed out (I blamed load) and one reported **1091/1091 green**, which I
+  was one keystroke away from recording as "the mutation was not caught". A mutation harness must
+  PROVE it planted something; single-line anchors, or a newline-normalising read, or an explicit
+  post-check. `bootReplay`'s own patcher gets this right and throws — mine did not.
+- **`HR_SUITE_TIMEOUT_MS` exists for exactly the machine I was on.** The in-page budget is 120 s and
+  I had been running PGlite replays back to back beside Tyler's 1.4 GB Chrome; the suite flaked
+  twice on unmodified code. It is documented in run-smoke.mjs's own header (b461) and it is not a
+  licence to widen an assertion — only the wall clock flexes.
 - **A mutation that plants no observable defect proves nothing.** My first `verify_is_decoration`
   only softened the migration's read-back — but §1 still wrote, so every assertion passed either way
   and the selftest said MISSED. The configuration a real defect survives in is BOTH halves (the write

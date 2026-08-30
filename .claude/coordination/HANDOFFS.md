@@ -42,7 +42,25 @@ The goal/quest halves need NO redeploy (`goal-catalogue.js` is not in the hr-acc
    can craft cloth today. Full measurement in CONFLICTS.md — if you want the bolt ladder, this
    becomes a one-column change to `MATERIAL_TIERS` plus the content behind it.
 
-4. **SYSTEMS/DOCS DEBT I FOUND AND DID NOT FIX (out of ruled scope, but it is now wrong in writing).**
+4. **QA / COORDINATOR — the retune would have shipped TWO save-blob bugs; both are fixed here, and
+   the second one is worth the play-gate's attention.** A pure balance change manufactured a fresh
+   instance of the fire-and-forget-loss class:
+   · `G.quests` freezes the DEFINITION, and the b341 merge only adds MISSING rows — so `farmhand`
+     10 → 6 would have reached **nobody**. Every live save keeps `goal:10` forever while the server
+     accepts 6. Fixed: a quest row is authored data + exactly two save fields (`progress`, `done`),
+     and the authored half is re-read on every merge.
+   · `G.daily.tasks` freezes the SLATE for the rest of the UTC day. Stored "Smith 8 items" + server
+     goal 40 = the player smiths 8, `updateDaily` latches `done` and fires `claimDaily` ONCE, the
+     server answers `incomplete`, and the task can never fire again — the daily is spent, nothing is
+     paid, and the UI says it is finished. Fixed by re-reading the authored numbers AND re-deriving
+     `done` from `progress >= goal` (the second is separate: the pre-existing eligibility rebuild
+     produces that state on its own).
+   **PLAY-GATE ASK:** on the ship build, with a pre-retune slate in the save, complete a daily and a
+   quest and RELOAD — that is the only thing that finds this class. Guarded by RETUNE-1 / RETUNE-2 in
+   `src/features/smoke-test.js`, both mutation-proven (disabling the two heals reads exactly 2 red,
+   1089/1091, with the right messages).
+
+5. **SYSTEMS/DOCS DEBT I FOUND AND DID NOT FIX (out of ruled scope, but it is now wrong in writing).**
    `src/data/goal-catalogue.js BLOCKED_GOAL_BOARD` and `src/net/gold-sites.js DAILY_COUNTERS` both
    still say the modal goals board has no server model and cannot be verified from the ev counters.
    **It has had one since 2026-08-23** — `hr_goal_rewards` + `hr_claim_goal` + `goal-period.js`'s

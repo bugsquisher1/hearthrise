@@ -72,12 +72,25 @@
        food-unused   held healing food, never ate any of it. THE new-player
                      case, and the one the audit caught. Names the item, the
                      button, and the automation.
-       auto-eat-idle owns Auto-Eat but had no provision to eat. The system is
-                     working; the bag was empty.
+       auto-eat-idle Auto-Eat is SWITCHED ON but had no provision to eat. The
+                     system is working; the bag was empty.
+
        no-food       carried nothing healing at all. The gap is upstream — go
                      cook or buy some.
        outmatched    ate everything and still lost. Nothing about healing left
                      to teach; the answer is gear, levels or a softer target.
+
+     ⚠ b497 — `autoEatOwned` STOPPED BEING A PROXY FOR "AUTO-EAT IS ACTIVE",
+     and the branch rule had to move with it. The designer ruling grants
+     Auto-Eat I to every character at creation
+     (supabase/migrations/2026-09-04-auto-eat-at-creation.sql), so OWNERSHIP is
+     now universal while the client's live-combat switch
+     (`G.autoActions.eat.enabled`, and `maybeAutoEat`'s real gate) still starts
+     OFF. Keyed on ownership, `auto-eat-idle` would tell every new player with
+     an empty bag that "Auto-Eat is watching your health" when nothing is —
+     precisely the class of lie the F7/b432 audit built this sheet to remove.
+     So the ACTIVE branch keys on `autoEatOn` (the switch) and the OFFER copy
+     keys on `autoEatOwned` (the entitlement). Two facts, two fields.
 
      `tip` is copy. `tipKey` is the STATED branch, so the suite asserts the
      rule rather than a sentence somebody may reword. */
@@ -109,11 +122,32 @@
         ? ' Longer term, Bounty Board contracts pay Marks — ' + cost +
           ' of them unlock Auto-Eat in the Bounty Shop, and then you never think about it again.'
         : ' Longer term, Auto-Eat in the Bounty Shop does it for you.';
+      /* b497 — THREE ENDINGS, because there are now three states and the old
+         two-way split told one of them something false.
+           owned + ON   Auto-Eat is running and still did not save this fight,
+                        so "switch it on" would be wrong. The honest fact is the
+                        THRESHOLD: tier I fires below a quarter health and this
+                        foe crossed that gap in one blow. Names the paid upgrade
+                        that actually answers it, which is the sink the ruling
+                        deliberately kept.
+           owned + off  The new default. Says they ALREADY HAVE IT — a player
+                        who was never told cannot act on it — and where the
+                        switch is.
+           not owned    The pre-ruling path, unchanged and still literally true
+                        for any character without the trait (the Bounty Shop
+                        still sells it at this price). Kept rather than deleted
+                        so a grant that has not reached this device does not
+                        leave the sheet with nothing to say. */
+      var closer = d.autoEatOwned
+        ? (d.autoEatOn
+          ? ' Auto-Eat is on, but it only fires below a quarter health and ' + d.monsterName +
+            ' closed that gap in one blow — eat sooner, or raise the trigger point with Auto-Eat II.'
+          : ' You already have Auto-Eat — switch it on in Settings → Gameplay and it feeds you' +
+            ' below a quarter health, including while you are away.')
+        : later;
       return 'You were carrying ' + carried + ' and never ate ' +
         (d.foodQty === 1 ? 'it' : 'one') + '. Press Eat beside your champion during a fight.' +
-        (d.autoEatOwned
-          ? ' Or switch Auto-Eat on in Settings so it happens for you.'
-          : later);
+        closer;
     },
     'auto-eat-idle': function () {
       return 'Auto-Eat is watching your health, but your bag had no provisions left to eat. ' +
@@ -138,7 +172,10 @@
    *   foodQty        {number}  healing provisions still in the bag
    *   foodName       {string}  the provision's display name
    *   ateThisFight   {number}  provisions consumed during the run
-   *   autoEatOwned   {boolean} is the Bounty Shop trait bought
+   *   autoEatOwned   {boolean} is the Auto-Eat trait held (granted at creation
+   *                            since b497, or bought in the Bounty Shop)
+   *   autoEatOn      {boolean} is the live-combat switch actually ON — the gate
+   *                            maybeAutoEat() reads. NOT the same question.
    *   maxHp          {number}  respawn health (see RESPAWN below)
    *   streakBroken   {boolean} did the death reset a bounty streak
    *   deaths         {number}  lifetime deaths, AFTER this one
@@ -165,7 +202,11 @@
        was empty — technically true, and useless advice. Caught by the suite,
        not by review. Healing worked; the fight was the problem. */
     else if (ate > 0) tipKey = 'outmatched';
-    else if (d.autoEatOwned) tipKey = 'auto-eat-idle';
+    /* b497: the SWITCH, not the entitlement. Every character owns Auto-Eat from
+       creation now, so `autoEatOwned` here would tell a player who has never
+       turned it on that it is "watching your health". An owner with it OFF and
+       an empty bag is a `no-food` death — the gap really is upstream. */
+    else if (d.autoEatOn) tipKey = 'auto-eat-idle';
     else tipKey = 'no-food';
 
     var rows = [];
@@ -200,6 +241,9 @@
       tip: TIPS[tipKey](
         { foodQty: foodQty, foodName: foodName, monsterName: monsterName || 'That foe',
           autoEatOwned: !!d.autoEatOwned,
+          // b497: the live-combat SWITCH, distinct from ownership. See the
+          // branch note above TIPS.
+          autoEatOn: !!d.autoEatOn,
           // 0 / absent => the tip states no price rather than inventing one.
           autoEatCost: Math.max(0, Number(d.autoEatCost) || 0) }
       ),
@@ -281,6 +325,18 @@
       foodName: food ? food.name : 'provision',
       ateThisFight: ateThisFight(G),
       autoEatOwned: !!(G.traits && G.traits.auto_eat),
+      /* b497 — THE SWITCH, read from its one authoritative writer
+         (HearthriseAuto, b326/b329) rather than from `G.autoActions` directly,
+         which is the shape ensureShape() maintains and not the contract. Since
+         every character is granted Auto-Eat I at creation, ownership no longer
+         answers "is it running"; only this does. Absent module => false, which
+         is the honest reading of "we cannot tell, so do not claim it is on". */
+      autoEatOn: (function () {
+        try {
+          var A = window.HearthriseAuto;
+          return !!(A && typeof A.getEat === 'function' && A.getEat().enabled);
+        } catch (e) { return false; }
+      })(),
       /* b432: the Marks price of Auto-Eat, read from the ONE place it is
          authored (legacy.js TRAITS, the same row the Bounty Shop renders), so
          the death sheet and the shop can never quote different numbers. Guard

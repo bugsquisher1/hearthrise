@@ -17330,6 +17330,82 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('b497: bounty difficulty scales the KILL COUNT, and the pay-per-kill rises with it', () => {
+    /* THE b489 INVERSION. bountyCount read (type, tier) and nothing else, so
+       the board's EASY slot and its NORMAL slot drew from the SAME range while
+       bountyRewards already paid easy 0.85x. Identical work, less gold: "Easy"
+       was strictly the best-paying contract on the board.
+
+       This asserts the RULE (a monotonic gold-per-kill ladder) and the two
+       numbers the ruling actually names, not a table nobody would notice
+       drifting. The SQL half — hr_bounty_kill_range(tier, difficulty), which
+       CLAMPS what the server will accept — is bound to these same values by
+       tests/bounty-drift.mjs and driven against a real Postgres by
+       tests/bounty-difficulty-count.mjs; a client-only change would have the
+       board offer 72 kills and the turn-in demand 80. */
+    const B = window.HearthriseCore.bounty;
+    assert(B && typeof B.bountyCountRange === 'function', 'the bounty core is not published');
+
+    const t1 = ['easy', 'normal', 'hard', 'elite'].map((d) => {
+      const r = B.bountyCountRange('cull', 1, 2, d);
+      return { d, lo: r[0], hi: r[1], gpk: B.bountyRewards(1, 'cull', d).gold / ((r[0] + r[1]) / 2) };
+    });
+    assert(t1[0].lo === 72 && t1[0].hi === 108,
+      'tier-1 EASY draws ' + t1[0].lo + '-' + t1[0].hi + ', the ruling says 72-108');
+    assert(t1[1].lo === 80 && t1[1].hi === 120,
+      'tier-1 NORMAL must be the identity (80-120), got ' + t1[1].lo + '-' + t1[1].hi);
+    assert(t1[3].lo === 120 && t1[3].hi === 180,
+      'tier-1 ELITE draws ' + t1[3].lo + '-' + t1[3].hi + ', the ruling says 120-180');
+
+    for (let t = 1; t <= 6; t++) {
+      let prev = null;
+      for (const d of ['easy', 'normal', 'hard', 'elite']) {
+        const r = B.bountyCountRange('cull', t, 2, d);
+        const gpk = B.bountyRewards(t, 'cull', d).gold / ((r[0] + r[1]) / 2);
+        /* `prev` is null on the first difficulty of each tier, and an assert
+           MESSAGE is evaluated eagerly in JavaScript — `prev.toFixed()` here
+           threw on every run rather than asserting anything. Caught by the
+           suite itself on the first assembled run, which is the only reason
+           this monotonicity check is real. */
+        assert(prev === null || gpk > prev,
+          'tier ' + t + ': gold-per-kill is not monotonic — ' + d + ' pays ' + gpk.toFixed(3)
+          + ' and the easier difficulty paid ' + (prev === null ? 'n/a' : prev.toFixed(3))
+          + '. The b489 inversion ("Easy is the best contract on the board") is back.');
+        prev = gpk;
+      }
+    }
+
+    /* AN ABSENT DIFFICULTY IS THE IDENTITY. Every call site written before this
+       ruling must keep today's numbers exactly rather than silently drawing a
+       different contract — the failure that turns a UX ruling into an economy
+       change. (The SERVER does the opposite and fails CLOSED; the asymmetry is
+       deliberate and is asserted in bounty-difficulty-count.mjs.) */
+    const bare = B.bountyCountRange('cull', 3, 2);
+    assert(bare[0] === B.BOUNTY_KILL_COUNTS.cull[3][0] && bare[1] === B.BOUNTY_KILL_COUNTS.cull[3][1],
+      'a call with no difficulty no longer returns the tier table: ' + bare.join('-'));
+    assert(B.bountyCountMult('nonsense') === 1 && B.bountyCountMult(undefined) === 1,
+      'an unknown difficulty must be the identity on the client');
+
+    /* THE FIRST-CONTRACT BRACKET SCALES TOO — the board's first slot is always
+       EASY, and the server clamps against the scaled floor. */
+    const first = B.bountyCountRange('cull', 1, 1, 'easy');
+    assert(first[0] === 14 && first[1] === 23,
+      'the b487 first-contract bracket did not scale for the easy slot: ' + first.join('-'));
+
+    /* THE SEEDED STREAM IS UNCHANGED. rng.int consumes exactly one draw per
+       call whatever range it is handed, so scaling the RANGE (rather than the
+       drawn value) leaves generateBountyBoard's draw order and count identical
+       — the property the replayability test above depends on. */
+    const C = window.HearthriseCore;
+    C.reseed(497001);
+    const a = B.bountyCount('cull', 1, C.rng, 2, 'hard');
+    C.reseed(497001);
+    const b = B.bountyCount('cull', 1, C.rng, 2, 'easy');
+    C.randomSeed();
+    assert(a >= 96 && a <= 144, 'a hard tier-1 draw landed outside 96-144: ' + a);
+    assert(b >= 72 && b <= 108, 'an easy tier-1 draw landed outside 72-108: ' + b);
+  }),
+
   () => tryRun('Phase A: kill XP is routed by the SAME table the live hit uses (and BotD scales it)', () => {
     /* The routing table used to be four copies of one walk. The away loop
        omitting the KILL half of it is the ~21%-of-combat-XP hole named in
@@ -47314,23 +47390,68 @@ const TESTS = [
   () => tryRun('b373: death sheet — every food state gets its own tip, and only one', () => {
     const D = window.HearthriseDeathSheet;
     const base = { monsterName: 'Slime', killsThisFoe: 2, maxHp: 40, deaths: 4, foodName: 'Trout' };
+    /* b497 — THE ACTIVE BRANCH KEYS ON THE SWITCH, NOT THE ENTITLEMENT.
+       Auto-Eat I is granted to every character at creation (designer ruling;
+       supabase/migrations/2026-09-04-auto-eat-at-creation.sql), so `autoEatOwned`
+       is now universal and stopped being a proxy for "auto-eat is running".
+       Keyed on ownership, an empty-bag death would tell a player who has never
+       touched the toggle that "Auto-Eat is watching your health" — the exact
+       class of lie the F7/b432 audit built this sheet to remove. Row 3 is the
+       case the ruling creates, and it is the one that fails without the split. */
     const cases = [
-      [{ foodQty: 3, ateThisFight: 0, autoEatOwned: false }, 'food-unused'],
-      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: true },  'auto-eat-idle'],
-      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: false }, 'no-food'],
-      [{ foodQty: 0, ateThisFight: 5, autoEatOwned: true },  'outmatched'],
-      [{ foodQty: 2, ateThisFight: 4, autoEatOwned: true },  'outmatched'],
+      [{ foodQty: 3, ateThisFight: 0, autoEatOwned: false, autoEatOn: false }, 'food-unused'],
+      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: true,  autoEatOn: true },  'auto-eat-idle'],
+      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: true,  autoEatOn: false }, 'no-food'],
+      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: false, autoEatOn: false }, 'no-food'],
+      [{ foodQty: 0, ateThisFight: 5, autoEatOwned: true,  autoEatOn: true },  'outmatched'],
+      [{ foodQty: 2, ateThisFight: 4, autoEatOwned: true,  autoEatOn: true },  'outmatched'],
     ];
     for (const [d, want] of cases) {
       const m = D.describeDeath(Object.assign({}, base, d));
       assert(m.tipKey === want,
-        'food=' + d.foodQty + ' ate=' + d.ateThisFight + ' autoEat=' + d.autoEatOwned
-        + ' selected ' + m.tipKey + ', expected ' + want);
+        'food=' + d.foodQty + ' ate=' + d.ateThisFight + ' owned=' + d.autoEatOwned
+        + ' on=' + d.autoEatOn + ' selected ' + m.tipKey + ', expected ' + want);
       assert(typeof m.tip === 'string' && m.tip.length > 20, 'tip ' + want + ' has no copy');
       /* Never offer to sell a player something they already own. */
       if (d.autoEatOwned) assert(m.shopLink === false, want + ' offered the shop to an owner');
     }
     assert(D._TIP_KEYS.length === 4, 'the tip branch list drifted from the four states');
+  }),
+
+  () => tryRun('b497: death sheet — the free entry trait changed what the tip may claim', () => {
+    const D = window.HearthriseDeathSheet;
+    const base = { monsterName: 'Goblin', killsThisFoe: 1, maxHp: 10, deaths: 1,
+      foodQty: 4, foodName: 'Cooked Shrimp', ateThisFight: 0, autoEatCost: 15 };
+
+    /* THE NEW DEFAULT: every character owns Auto-Eat from creation and the
+       client's live-combat switch still starts OFF. The tip must SAY they
+       already have it — a player who is never told cannot act on it — and must
+       not try to sell back a trait they hold. */
+    const owned = D.describeDeath(Object.assign({}, base, { autoEatOwned: true, autoEatOn: false }));
+    assert(owned.tipKey === 'food-unused', 'the granted-but-off death lost the food-unused tip');
+    assert(/already have Auto-Eat/i.test(owned.tip),
+      'a player who was granted Auto-Eat is not told they have it: ' + owned.tip);
+    assert(/Settings/i.test(owned.tip), 'the tip does not say where the switch is: ' + owned.tip);
+    assert(!/Bounty Shop/.test(owned.tip) && !/15/.test(owned.tip),
+      'the tip still quotes the Marks price of a trait the player already owns: ' + owned.tip);
+    assert(owned.shopLink === false, 'the Bounty Shop door opened for an owner');
+
+    /* SWITCHED ON AND STILL DEAD: "turn it on" would be false. The honest fact
+       is the tier-I threshold, and the answer to it is the PAID upgrade — the
+       sink the ruling deliberately kept. */
+    const on = D.describeDeath(Object.assign({}, base, { autoEatOwned: true, autoEatOn: true }));
+    assert(on.tipKey === 'food-unused', 'the switched-on death lost the food-unused tip');
+    assert(!/switch it on/i.test(on.tip),
+      'the tip told a player whose Auto-Eat is already ON to switch it on: ' + on.tip);
+    assert(/quarter health/i.test(on.tip) && /Auto-Eat II/.test(on.tip),
+      'the tip does not explain the tier-I threshold or name the upgrade that raises it: ' + on.tip);
+
+    /* THE RESIDUAL PATH is unchanged and still literally true: the Bounty Shop
+       sells Auto-Eat I at this price to anyone without it. */
+    const unowned = D.describeDeath(Object.assign({}, base, { autoEatOwned: false, autoEatOn: false }));
+    assert(/Bounty Shop/.test(unowned.tip) && /15/.test(unowned.tip),
+      'the unowned branch stopped naming the shop and the price: ' + unowned.tip);
+    assert(unowned.shopLink === true, 'the shop door closed on the one branch that needs it');
   }),
 
   () => tryRun('b373: death sheet — the receipt states no-loss, full heal and the stopped run', () => {

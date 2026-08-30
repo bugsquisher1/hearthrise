@@ -42,7 +42,11 @@
     "test:intent-mismatch": "node tests/intent-mismatch.mjs",
     "test:intent-mismatch:selftest": "node tests/intent-mismatch.mjs --selftest",
     "test:cron-health": "node tests/cron-health.mjs",
-    "test:cron-health:selftest": "node tests/cron-health.mjs --selftest"
+    "test:cron-health:selftest": "node tests/cron-health.mjs --selftest",
+    "test:restore-census": "node tests/restore-census.mjs",
+    "test:restore-census:mutate": "node tests/restore-census.mjs --mutate",
+    "test:restore-census:selftest": "node tests/restore-census.mjs --baseline-selftest",
+    "restore-census:live-sql": "node tests/restore-census.mjs --live-sql"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",

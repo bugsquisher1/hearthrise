@@ -89,6 +89,7 @@ jobs:
       # 2026-08-30 the production delta was unfalsifiable prose that had been
       # measured exactly once; this is what stops it going back to that.
       - name: Schema drift — the repo must rebuild the database
+        if: ${{ !cancelled() }}
         run: |
           node tests/schema-drift.mjs
           node tests/schema-drift.mjs --mutate
@@ -103,6 +104,7 @@ jobs:
       # shipped six always-null probes. Bounded op count here (~25s); soak with
       # `npm run test:conservation:soak`.
       - name: Conservation fuzz + injection selftest
+        if: ${{ !cancelled() }}
         run: node tests/conservation-fuzz.mjs --selftest --ops=400
 
       # THE PLAYER INTENTS. Both run the REAL Edge-Function modules — the same
@@ -115,6 +117,7 @@ jobs:
       #   intents copy. Found while wiring the second intent in, which is the
       #   ordinary way a coverage hole surfaces — the second time you do a thing.
       - name: The activity intent — collect-before-switch, replay, key hygiene
+        if: ${{ !cancelled() }}
         run: node tests/activity-intent.mjs --selftest
 
       # THE GRANT INTENT (b349). The first intent that MOVES MONEY, so the
@@ -124,6 +127,7 @@ jobs:
       # rather than a silent no-op. --selftest plants 23 regressions and demands
       # every one is caught.
       - name: The grant intent — claim once, server-priced, server-dated
+        if: ${{ !cancelled() }}
         run: node tests/claim-intent.mjs --selftest
 
       # THE CLAN JOURNAL INVARIANT (F1 + F3, 2026-08-13). "Every RPC that writes
@@ -133,6 +137,7 @@ jobs:
       # plants seven regressions; FOUR of them are invisible to the migrations'
       # own commit gates and are caught only here.
       - name: Clan journal + per-day caps (F1/F3)
+        if: ${{ !cancelled() }}
         run: node tests/clan-journal-guard.mjs --selftest
 
       # THE ANON RATE GATE (F4, 2026-08-13). Reproduces Security's probe — 30
@@ -141,6 +146,7 @@ jobs:
       # forged-x-forwarded-for test that separates a real key from a decorative
       # one. Must stay green before A11's server half is applied.
       - name: Anon rate gate (F4)
+        if: ${{ !cancelled() }}
         run: node tests/anon-rate-gate.mjs --selftest
 
       # THE HUNT BAND. Proves, by running the real migration bodies on an
@@ -149,12 +155,14 @@ jobs:
       # and that a free-rider still collects nothing either way. --selftest
       # mutates the real fix SQL five ways and demands every mutation is caught.
       - name: Hunt band — denial before, gone after, free-rider still refused
+        if: ${{ !cancelled() }}
         run: node tests/raid-band-denial.mjs --selftest
 
       # ...and that the rule is READABLE. A reward rule a player cannot see is
       # the same failure as a stat that renders no number. Drives the real
       # raids.js in real Chromium and asserts on the card's own text.
       - name: Hunt card states the band rule
+        if: ${{ !cancelled() }}
         run: node tests/raid-card-copy.mjs
 
       # THE POSTGREST RPC RESOLUTION GATE.
@@ -171,6 +179,7 @@ jobs:
       # src/net/supabase-bootstrap.js. `continue-on-error` is DELIBERATELY ABSENT —
       # an RPC the client can no longer see is a player-facing outage.
       - name: RPC resolution vs baseline
+        if: ${{ !cancelled() }}
         run: node tests/rpc-resolution.mjs
 
       # IS verify_jwt ACTUALLY ON, ON THE DEPLOYED FUNCTIONS?
@@ -186,6 +195,7 @@ jobs:
       # (the public leaderboard) that MUST succeed, so an unreachable project
       # is reported as INCONCLUSIVE rather than as a green tick.
       - name: Edge Functions verify JWT at the gateway
+        if: ${{ !cancelled() }}
         run: node tests/edge-jwt-gate.mjs --strict
 
       # A failing run is far easier to diagnose with the page state attached.

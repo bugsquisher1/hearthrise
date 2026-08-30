@@ -132,7 +132,17 @@
     claimMilestone: function (milestoneId) { return call('hr_claim_milestone', { p_milestone_id: String(milestoneId || ''), p_slot: activeSlot() }); },
     /* Renown RANK credit — supabase/migrations/2026-08-22-renown-claim.sql. The server
        ratchets a high-water off hr_renown_of, maps it to the rank via a server-owned
-       catalogue, and credits gold+gems once-guarded per rank. Fire-and-forget. */
+       catalogue, and credits gold+gems once-guarded per rank.
+
+       ⚠ NOT fire-and-forget (it was, and that was a P1 silent loss). The server
+       decides on ITS OWN score and can answer `not_reached`; `G.renown.claimed`
+       is RESIDUE, so a fire-and-forget claim marked a REFUSED rank claimed
+       forever and the player permanently lost a rank worth real gold+gems.
+       src/features/renown.js claimRank AWAITS this verdict and writes nothing
+       until ok — the same rule as claimGoal above. Envelope: {ok, rank, gold,
+       gems, renown_high, credited} or {ok:false, error: not_reached |
+       already_claimed | unknown_rank | rate_limited | no_character |
+       not_signed_in, renown_high?, min?}. */
     claimRank: function (rankId) { return call('hr_claim_rank', { p_rank_id: String(rankId || ''), p_slot: activeSlot() }); },
     /* Bounty ACCEPT — supabase/migrations/2026-08-23-bounty.sql. The server derives
        the tier from hr_bounty_monsters, owns the reward + required-count, and

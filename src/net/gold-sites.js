@@ -532,7 +532,10 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
 
   // ══ GRANTS ════════════════════════════════════════════════════════════════
-  'src/features/collection-log.js#claimMilestone': {
+  /* b494 — the write moved from claimMilestone into msGrantLocally, the DISPLAY
+     half of the claim that now runs only after the server's verdict. Same site,
+     same verb, renamed with it. */
+  'src/features/collection-log.js#msGrantLocally': {
     kind: 'grant', status: 'deferred',
     /* SERVER-CREDITED (2026-08-22-collection-claim.sql). hr_claim_milestone
        RE-DERIVES the DISTINCT monster/item count from the server's own
@@ -540,7 +543,17 @@ export const GOLD_SITE_LEDGER = Object.freeze({
        flag), owns the gold+gems amount, once-guards a player_progress
        kind='collection' claim row per milestone, and journals it. claimMilestone
        fires HearthriseGoalClaim.claimMilestone(id); the local gold/gems write is
-       a GATED prediction the envelope reconciles. */
+       a GATED prediction the envelope reconciles.
+
+       R1/R5 (two-phase commit, the b494 fix): under the arm the DISPLAY write —
+       and the `G.collectionLog.claimed` mark — happen ONLY AFTER
+       hr_claim_milestone returns ok. The claim used to be fire-and-forget with
+       an UNCONDITIONAL claimed-push, and `collectionLog` is residue, so an
+       `incomplete` refusal marked an EARNED milestone claimed forever. And
+       `incomplete` is the COMMON case, not the edge one: the client counts what
+       the ATTENDED player saw while the server counts its own away-sim rows,
+       which realise 60–99% fewer kills. A refusal now writes nothing, keeps the
+       milestone claimable, and answers in the server's own count. */
     flipGuard: { serverCredits: 'hr_claim_milestone (2026-08-22-collection-claim.sql) re-derives the '
       + 'DISTINCT count from hr_bestiary_of / hr_collection_of, owns the fixed gold+gems amount, '
       + 'once-guards a player_progress kind=collection claim row per milestone, journals '
@@ -561,7 +574,11 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'companion extraGold proc, inside killMonster',
   },
-  'src/features/renown.js#claimRank': {
+  /* b494 — the write moved from claimRank into grantLocally, the DISPLAY half
+     of the claim that now runs only after the server's verdict. Same site, same
+     verb, renamed with it: a census row that names a function nobody runs is
+     read as coverage that does not exist. */
+  'src/features/renown.js#grantLocally': {
     kind: 'grant', status: 'deferred',
     /* SERVER-CREDITED (2026-08-22-renown-claim.sql). hr_claim_rank reads the
        SERVER-DERIVED renown score (hr_renown_of), ratchets a SERVER HIGH-WATER
@@ -570,7 +587,16 @@ export const GOLD_SITE_LEDGER = Object.freeze({
        catalogue, owns the gold+gems amount, once-guards a player_progress
        kind='flag' claim row per rank, and journals it. claimRank fires
        HearthriseGoalClaim.claimRank(id); the local gold/gems write is a GATED
-       prediction the envelope reconciles. */
+       prediction the envelope reconciles.
+
+       R1/R5 (two-phase commit, the b494 fix): under the arm the DISPLAY write —
+       and, decisively, the `G.renown.claimed` mark — happen ONLY AFTER
+       hr_claim_rank returns ok. The claim used to be fire-and-forget with an
+       UNCONDITIONAL claimed-push, and `G.renown` is residue, so a `not_reached`
+       refusal marked a reached rank claimed forever: a permanent, silent loss of
+       up to 1,000,000 gold + 500 gems. A refusal now writes nothing, keeps the
+       rank claimable, and answers in a sentence. requestRecord() refreshes the
+       balance after an ok credit (the bug_reports #46 class). */
     flipGuard: { serverCredits: 'hr_claim_rank (2026-08-22-renown-claim.sql) reads hr_renown_of, '
       + 'ratchets player_state.renown_high, maps it to the rank via a server-owned catalogue, owns '
       + 'the fixed gold+gems amount, once-guards a player_progress kind=flag renown_claim row per '

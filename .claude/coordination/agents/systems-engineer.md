@@ -1,6 +1,91 @@
 # Systems Engineer — running log
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
+
+## 2026-08-29 — P1: THE RANK CLAIM WAS FIRE-AND-FORGET OVER A SERVER VERDICT
+
+**Branch:** `fix/rank-claim-silent-loss` (worktree `R:/the game/wt-rank-claim`), commit `0f69312c`,
+base main b493 `62c7b293`. Found by the security pass on the renown kill-faucet fix (F2).
+
+### THE SHAPE OF THE BUG, AND WHY IT IS A CLASS
+`claimRank` fired `hr_claim_rank` with `.catch(noop)` and then did `s.claimed.push(rankId)`
+**unconditionally**. Three facts have to be held at once for it to be visible, which is exactly why
+it survived a migration written *by* a security review:
+
+1. the server decides on ITS OWN score (`hr_renown_of` → `renown_high`) and can answer
+   `not_reached`;
+2. `G.renown` is **residue** — `client-state.js RESIDUE_FIELDS` — so the claimed mark survives
+   every reload, forever;
+3. under the gold arm the local credit is a **no-op**, so the only thing the click actually did was
+   consume the rank.
+
+Fire-and-forget is safe *only* where a refusal costs nothing a later call cannot recover — that is
+literally the sentence in `goal-claim.js`'s own header, written for `claimDaily`/`claimQuest`, where
+the claim slot is not consumed until the server credits it. Ranks broke the precondition by
+consuming the slot LOCALLY and PERMANENTLY. **The lesson generalises: fire-and-forget is a property
+of the PAIR (transport, local state lifetime), never of the transport alone.** Audit rule for next
+time — for every `.catch(noop)` RPC, ask "what does the client write regardless, and how long does
+it live?" If the answer is residue or a record, it is not fire-and-forget, it is a two-phase commit
+missing its second phase.
+
+**I applied that rule and it found a second instance immediately — so I killed the class, not the
+bug** (CLAUDE.md session criterion 3). `collection-log.js claimMilestone` is byte-for-byte the same
+defect: `.catch(noop)`, unconditional `s.claimed.push(id)`, and `collectionLog` is residue.
+**It is arguably WORSE, because its refusal is the common case rather than the edge one:**
+`getStats` counts `G.bestiary`/`G.collection` — everything the ATTENDED player saw — while
+`hr_claim_milestone` counts `hr_bestiary_of`/`hr_collection_of`, rows the away/span-sim writes,
+which realise 60–99% fewer kills (goal-claim.js `creditKills`). Client 12 monsters, server 4,
+`incomplete`, milestone consumed, nothing paid. The renown one needed the faucet fix to start
+biting; this one has been live. Fixed in the same shape, second commit, separable.
+
+Both are now the ONLY two remaining `.catch(noop)` claim transports that consume residue.
+`claimDaily`/`claimQuest` are genuinely fire-and-forget (the slot is not consumed until the server
+credits); `creditKills`/`creditCombatXp`/`bountyReroll`/`equipCompanion`/`setStyle` write nothing
+permanent a refusal cannot recover.
+
+### WHAT I DID NOT DO, AND WHY
+Did **not** hide the Claim button on a rank the server is known to be short on. `hr_claim_rank`
+advances `renown_high = greatest(renown_high, hr_renown_of(...))` **before** it decides — the click
+is the only thing that moves the server's number — so the b487 fail-closed-on-knowledge treatment
+would have converted a dead button into a permanent dead END. Fail-closed is not free; it is only
+correct where something else advances the state.
+
+Did **not** add the server-score projection. `hr_renown_of` is revoked from `authenticated` on
+purpose and `hr_state_of` is the b487 anchored-patch danger zone. Instead the client caches the
+`renown_high` + `min` the refusal envelope **already carries** — zero migration, and it makes the
+refusal honest in the server's own figures. Full projection scoped in HANDOFFS (recommendation: a
+new `hr_renown_state(p_slot)`, additive, rather than patching `hr_state_of`).
+
+### FOUND WHILE THERE
+- **`snapshotG()` did not cover `G.renown`** while it did cover `renownHigh`. Four tests assign
+  `{claimed:[],seenRank:0}`, and `renown` is residue — so a smoke run in the live page **erased the
+  player's record of which rank rewards they had taken, and persisted it.** The suite's snapshot
+  list is an allowlist over a residue allowlist; the two drift silently. Worth a mechanical guard
+  (every `G.<field>` a test assigns vs `snapshotG` keys), same shape as `arm-homing-guard`.
+- **An ok credit refreshed nothing.** gold/gems are SERVER_OF_RECORD, so the largest single payout
+  in the game (1,000,000 gold) left the topbar untouched until the next envelope — the
+  bug_reports #46 "completed, 0 marks" class, third occurrence. `requestRecord()` is one line and
+  three surfaces now use it; it should be part of the definition of "server-credited claim".
+- **The gold-site census earned its keep.** Renaming the write site `claimRank` → `grantLocally`
+  failed the run *twice over* (undeclared new site + a ledger row naming code nobody runs). That is
+  a guard that cannot be satisfied by accident.
+
+### Verification
+**Rebased onto current main `9dfab9d4` (which already carries the kill-faucet integration) and
+verified there: suite 1085/1085, 0 failed, 0 runtime errors, 0 console errors.** On my original
+base it was 1084/1085, the one failure pre-existing and **date-dependent**: today's Boss of the Day
+is `cyclops`, which has no wired art, and `bossIconHtml()` falls through to the monster's raw emoji.
+I traced it to source before assuming it was not mine — and main had independently exempted
+declared-pending icons from the pin in the meantime. **The underlying hole is still open:**
+`bossIconHtml` has no atlas-glyph fallback, so an unwired monster still renders an emoji to a real
+player even though the test no longer fails on it. Handed to Art/Asset. Runtime proof: booted the real client at 1440x900 and 922x423, drove a
+REAL `not_reached` through the real transport (mocked only the wire), and read the ladder — the
+Knight row keeps its Claim button, gains "The realm has counted 1,840 of 2,200 — this unlocks
+itself as it catches up", `getClaimable` still offers it, no gold/gem prediction, `overflowX 0`,
+zero page errors. Same for the Collection Log's Novice Hunter row ("counted 4 of 10 monsters"),
+still claimable, button intact. `RANK-CLAIM-1` and `MILESTONE-CLAIM-1` both fail on clean HEAD (the
+unconditional push).
+
 ## 2026-08-29 — LIVE P1: the SILENT BOOT-HYDRATION FAILURE ("my character is gone")
 
 **Branch:** `fix/boot-hydration-loud` (worktree `R:/the game/boot-hydration-wt`) · base main b491.

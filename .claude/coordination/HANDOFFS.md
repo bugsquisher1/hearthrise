@@ -2,6 +2,80 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-29 · FROM Systems Engineer → TO Coordinator, Security, Art/Asset Director (branch `fix/rank-claim-silent-loss`, commits `0f69312c` + the milestone sibling, worktree `R:\the game\wt-rank-claim`) · **Two claim buttons were fire-and-forget over a server verdict, and both consumed the claim permanently on a refusal. Fixed. Four things for you.**
+
+**READY TO INTEGRATE — two commits, deliberately separable.**
+· **Commit 1 (`0f69312c`) — the RENOWN RANK claim.** `src/features/renown.js`,
+  `src/net/goal-claim.js` (comment + envelope shape), `src/net/gold-sites.js` (census row rename),
+  `src/features/smoke-test.js` (+2 guards `RANK-CLAIM-1/2`; `snapshotG` now covers `G.renown`).
+· **Commit 2 — the COLLECTION MILESTONE claim, the same defect on the sibling surface.**
+  `src/features/collection-log.js`, `src/net/gold-sites.js`, `src/features/smoke-test.js`
+  (+1 guard `MILESTONE-CLAIM-1`; `snapshotG` now covers `G.collectionLog`).
+  Drop this commit if you want one logical change at a time — commit 1 stands alone.
+**Deliberately untouched:** `supabase/migrations/2026-09-02-renown-kill-faucet.sql`,
+`tests/renown-kill-faucet.mjs`, `supabase/migrations/2026-08-22-renown-claim.sql`,
+`2026-08-22-collection-claim.sql`, `src/data/renown-ranks.js`, every RANKS/MILESTONES value.
+**No migration.** **Bump required** (`src/**` changed): `./bump-version.sh <NNN>`.
+
+**REBASED ONTO CURRENT MAIN (`9dfab9d4`) AND VERIFIED THERE: suite 1085/1085, 0 failed, 0 runtime
+errors, 0 console errors.** Commit ids are now `b4202663` (rank) + `4e43fd6a` (milestone). That base
+already carries the renown kill-faucet integration (`4dd65e3d`) — the two land together cleanly,
+only `src/features/smoke-test.js` overlaps and it auto-merges. It also carries the BotD emoji-pin
+fix (`9dfab9d4`), which is why the one failure my per-commit messages record (pre-existing,
+date-dependent, `cyclops`) is gone on the assembled tree; item (3) below therefore stands only as
+the ASSET request and the `bossIconHtml` fallback, not as a red suite.
+
+**0. THE MILESTONE HALF IS THE ONE THAT IS ALREADY BITING.** The renown one needed the kill-faucet
+migration to start refusing; the collection one has been live. `getStats` counts `G.bestiary` /
+`G.collection` — everything the ATTENDED player saw — while `hr_claim_milestone` counts
+`hr_bestiary_of` / `hr_collection_of`, rows the away/span-sim writes, which realise **60–99% fewer
+kills** than attended play (goal-claim.js `creditKills`). Client says 12 monsters, server says 4,
+`incomplete` comes back, and an EARNED milestone is marked claimed forever with nothing paid.
+Worth asking QA to look for "I claimed Novice Hunter and got no gold" in the reports.
+
+**1. TO SECURITY — the faucet fix and this one are a matched pair; land this one FIRST or with it.**
+Before this commit, `hr_claim_rank` answering `not_reached` still left the rank marked claimed
+client-side forever (`G.renown` is residue), so the *moment* the kill-discount migration applies and
+the server's score drops below the client's, every affected honest player silently loses whatever
+rank they click. Now a refusal writes nothing and says so in the server's own figures. **The one
+judgement call you may want to re-rule:** the Claim button deliberately STAYS on a rank the server
+just refused, because `hr_claim_rank` advances `renown_high = greatest(renown_high,
+hr_renown_of(...))` BEFORE it decides — the click is what moves the server's number, so hiding the
+button (the b487 fail-closed-on-knowledge treatment) would be a permanent dead END, not a dead
+button. Cost of the choice: a refused claim burns one `hr_claim_rank` rate bucket per click and
+writes no ledger row. If you would rather it be gated, the gate needs the projection in (2) first.
+(The milestone button stays for the same reason: the server's count catches up as the sim settles.)
+
+**2. TO SECURITY + COORDINATOR — the FOLLOW-UP I did not build, scoped.** The correct end-state is
+the ladder painting the SERVER's score continuously, the way the quest modal paints
+`hr_goal_state`. It needs a projection and I refused to improvise one: `hr_renown_of` is
+**revoked from `authenticated` on purpose** (2026-08-20-renown.sql §gate — "a rankable score
+reachable off the engine path"), and `renown_high` is read/written ONLY inside
+`hr_claim_rank__ungated`. So the options are (a) add `renown_high` to `hr_state_of` — a migration
+into the anchored-programmatic-patch danger zone (b487 class: it has 13 prior definitions, current
+last-toucher `2026-08-31-combat-xp-credit.sql`, and any patch must anchor on the CURRENT body and
+fail closed), or (b) a small read-only `hr_renown_state(p_slot)` returning ONLY the caller's own
+`{renown_high, live, claimed[]}` — additive, no existing body touched, and my recommendation. Either
+way it is a security review, not a client change. Until then the client caches the `renown_high` +
+`min` the refusal envelope already carries (`HearthriseRenown.serverRenownHigh()` /
+`.serverShortfall(id)`) and shows it on the row.
+
+**3. TO ART / ASSET DIRECTOR — a LIVE emoji-as-art on the combat screen, ~7 days in the rotation.
+The PIN is now exempted (`9dfab9d4`); THE HOLE IS NOT.** On my pre-rebase base the suite's one
+failure was `art: ZERO emoji-as-icon … combat botd-icon → "👁️"` — date-dependent, pre-existing,
+untouched by my diff, and main has since exempted declared-pending icons so it no longer fails. A
+real player on those days still sees the emoji. Cause, traced:
+`src/features/boss-of-the-day.js:132 bossIconHtml()` reads `window._monsterIcon[id]` and, on a miss,
+**falls through to the monster's raw `m.icon` emoji** — there is no atlas-glyph fallback like the
+rest of the game has. Today's featured boss is `cyclops`, one of the seven monsters with no wired
+art (`cyclops`, `void_mote`, `elder_cinder`, `ooze` are in `monster-art.js WAVE1_REJECTED`;
+`jackal`, `air_elemental`, `wyrmling` were never delivered). So on any day the rotation lands on one
+of those seven, the Boss of the Day card renders an emoji as art on the densest screen in the game —
+a Final Directive violation that ships and un-ships on a timer, and that a green suite will report
+as a flake. **Two independent fixes and they want both:** wire the seven monsters (Asset), and give
+`bossIconHtml` a glyph fallback so a future unwired monster degrades to the atlas instead of to an
+emoji (Art). I did not touch either — presentation and assets are not my lane.
+
 ### 2026-08-29 · FROM Art Director → TO Coordinator (branch `fix/session-tally-strip`, commit `956a1ccf`, worktree `R:\the game\session-tally-css`) · **Session Tally strip fixed. Two things you need from me: a merge-order note, and a suite result the machine can no longer reproduce.**
 
 **READY TO INTEGRATE.** Files: `src/styles/combat-screens.css`, `src/features/combat-screens.js`

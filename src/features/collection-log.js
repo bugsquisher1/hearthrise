@@ -64,36 +64,173 @@
     return MILESTONES.filter(function (m) { return m.test(st) && s.claimed.indexOf(m.id) < 0; });
   }
 
-  function claimMilestone(id, G) {
-    G = G || window.G; var s = ensureState(G); if (!s) return null;
-    if (s.claimed.indexOf(id) >= 0) return null;
-    var m = null; for (var i = 0; i < MILESTONES.length; i++) if (MILESTONES[i].id === id) m = MILESTONES[i];
-    if (!m) return null;
-    var st = getStats(G); if (!m.test(st)) return null;
-    var rw = m.reward || {};
-    /* SERVER-CREDITED (2026-08-22-collection-claim.sql). hr_claim_milestone
-       RE-DERIVES the DISTINCT monster/item count from the server's own
-       hr_bestiary_of / hr_collection_of projections, owns the gold+gems amount,
-       once-guards a player_progress kind='collection' claim row per milestone,
-       and journals it (kind='collection'). The b411 arm-safety DEFER is GONE —
-       the claim proceeds and the local gold/gems write is a GATED PREDICTION the
-       server envelope reconciles: pre-arm it credits locally (the server credit
-       is dark), under arm it no-ops and the server's player_state value arrives
-       on the next envelope. Fire-and-forget; the server once-guard is the
-       authority and a replay returns already_claimed with no second credit. */
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE MILESTONE CLAIM IS A TWO-PHASE COMMIT, NOT FIRE-AND-FORGET.
+     The identical defect fixed in src/features/renown.js claimRank, on the
+     sibling surface — CLAUDE.md session criterion 3, kill the CLASS.
+
+     WHAT WAS WRONG. The claim fired hr_claim_milestone with `.catch(noop)` and
+     then did `s.claimed.push(id)` UNCONDITIONALLY. `G.collectionLog` is RESIDUE
+     (src/net/client-state.js), so a refused milestone was marked claimed
+     FOREVER — gone from `claimable`, no reward, and under the arm the local
+     credit is a no-op, so the click's ONLY effect was to consume it.
+
+     AND THE REFUSAL IS THE COMMON CASE, not the edge one. `getStats` counts
+     from `G.bestiary` / `G.collection` — the client's own record of everything
+     the ATTENDED player ever killed or picked up. hr_claim_milestone counts
+     from `hr_bestiary_of` / `hr_collection_of`, server rows the away/span-sim
+     writes, which realise 60–99% fewer kills than attended play (see
+     goal-claim.js creditKills). So the client says 12 monsters and the server
+     says 4, and `incomplete` comes back on a milestone the player has genuinely
+     earned. This is the same shape as the "completed 26/26, 0 marks" bounty
+     report, with the loss made permanent by residue.
+
+     THE FIX. Under the ARM the claim is AWAITED and nothing is written until
+     the server says ok. A refusal keeps the milestone claimable and answers in
+     a sentence carrying the SERVER's own count. `already_claimed` marks it (the
+     once-guard is the memory). The button stays on a refused milestone: the
+     server's count catches up as the sim settles, so the same click pays later.
+     ══════════════════════════════════════════════════════════════════════════ */
+  var _msInFlight = Object.create(null);      // milestoneId → true while a verdict is pending
+  var _msShort = Object.create(null);         // milestoneId → {have, goal, domain, at}
+  var MS_SHORT_TTL_MS = 600000;
+
+  function msSay(msg, kind) {
+    try { if (typeof window.notify === 'function') window.notify(msg, kind || 'info'); } catch (e) {}
+  }
+  function msRepaint() {
+    try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
+  }
+  /* gold/gems are SERVER_OF_RECORD under the arm, so the server's credit is
+     invisible to the topbar until an envelope arrives. Same one-line refresh the
+     bounty turn-in and the rank claim use. */
+  function msRefreshRecord() {
     try {
-      if (window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.claimMilestone === 'function') {
-        var _p = window.HearthriseGoalClaim.claimMilestone(id); if (_p && _p.catch) _p.catch(function () {});
+      var R = window.HearthriseRecord;
+      if (R && typeof R.requestRecord === 'function') {
+        var p = R.requestRecord();
+        if (p && p.then) { p.then(function () { msRepaint(); }, function () {}); return; }
       }
     } catch (e) {}
-    var _mayGold = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold');
-    var _mayGems = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems');
-    if (rw.gold && _mayGold) G.gold = (G.gold || 0) + rw.gold;   // prediction; no-op under arm
-    if (rw.gems && _mayGems) G.gems = (G.gems || 0) + rw.gems;   // prediction; no-op under arm
-    s.claimed.push(id);
+    msRepaint();
+  }
+  function msMayWrite(field) {
+    return !window.clientMayWriteRecordField || window.clientMayWriteRecordField(field);
+  }
+  function msRewardText(rw) {
+    var out = [];
+    if (rw.gold) out.push(_clGly('gold', 13, '--gold-2') + ' ' + fmt(rw.gold));
+    if (rw.gems) out.push(_clGly('gems', 13, '--gem') + ' ' + fmt(rw.gems));
+    return out.join(' ');
+  }
+  /* The DISPLAY half. Under the arm every branch is a no-op; pre-arm this IS the
+     payout. It runs only after a verdict that authorises it. */
+  function msGrantLocally(G, s, id, rw) {
+    if (rw.gold && msMayWrite('gold')) G.gold = (G.gold || 0) + rw.gold;
+    if (rw.gems && msMayWrite('gems')) G.gems = (G.gems || 0) + rw.gems;
+    msMarkClaimed(s, id);
+  }
+  function msMarkClaimed(s, id) {
+    if (s.claimed.indexOf(id) < 0) s.claimed.push(id);
+    delete _msShort[id];
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}
-    try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
-    return rw;
+  }
+  function msRefusalMessage(res, m) {
+    var why = (res && res.error) || 'network';
+    if (why === 'incomplete') {
+      var have = Math.max(0, Math.floor(Number(res && res.have) || 0));
+      var goal = Math.max(0, Math.floor(Number(res && res.goal) || 0));
+      var what = (res && res.domain === 'items') ? 'items' : 'monsters';
+      return 'Not yet — the realm has counted ' + fmt(have) + ' of ' + fmt(goal) + ' ' + what +
+        '. Nothing was lost; ' + m.label + ' is still waiting and claims itself as the count catches up.';
+    }
+    if (why === 'rate_limited') return 'That came through a little fast — try claiming ' + m.label + ' again in a few seconds.';
+    if (why === 'not_signed_in') return 'Claiming needs a connection — ' + m.label + ' is safe and still waiting.';
+    if (why === 'no_character') return 'Your character is still loading — try claiming ' + m.label + ' again in a moment.';
+    if (why === 'unknown_milestone') return 'This reward cannot be claimed yet — it has been reported. Nothing was lost.';
+    if (why === 'rpc_missing') return 'Claiming is being upgraded — try again in a few minutes. ' + m.label + ' is safe.';
+    return 'Could not reach the realm — ' + m.label + ' is safe and still claimable. Try again in a moment.';
+  }
+
+  /* @returns Promise<reward|null> — ALWAYS a promise; resolves to the reward on
+     an ok credit and null on every refusal. Never rejects. Owns its messaging. */
+  function claimMilestone(id, G) {
+    G = G || window.G; var s = ensureState(G); if (!s) return Promise.resolve(null);
+    if (s.claimed.indexOf(id) >= 0) return Promise.resolve(null);
+    var m = null; for (var i = 0; i < MILESTONES.length; i++) if (MILESTONES[i].id === id) m = MILESTONES[i];
+    if (!m) return Promise.resolve(null);
+    var st = getStats(G); if (!m.test(st)) return Promise.resolve(null);
+    var rw = m.reward || {};
+
+    var armed = !!((rw.gold && !msMayWrite('gold')) || (rw.gems && !msMayWrite('gems')));
+    var GC = window.HearthriseGoalClaim;
+    var canServer = !!(GC && typeof GC.claimMilestone === 'function'
+                       && typeof GC.isSignedIn === 'function' && GC.isSignedIn());
+
+    if (!armed) {
+      /* DORMANT: the client owns the balance, so the local grant IS the payout
+         and no server verdict can take it away. Fire the intent best-effort. */
+      if (canServer) {
+        try { var _p = GC.claimMilestone(id); if (_p && _p.catch) _p.catch(function () {}); } catch (e) {}
+      }
+      msGrantLocally(G, s, id, rw);
+      msSay('Collection reward: ' + msRewardText(rw), 'gold');
+      msRepaint();
+      return Promise.resolve(rw);
+    }
+    if (!canServer) {
+      msSay(msRefusalMessage({ error: 'not_signed_in' }, m), 'kill');
+      return Promise.resolve(null);
+    }
+    if (_msInFlight[id]) return Promise.resolve(null);
+    _msInFlight[id] = true;
+
+    return Promise.resolve().then(function () { return GC.claimMilestone(id); }).then(function (res) {
+      delete _msInFlight[id];
+      if (res && res.ok) {
+        msGrantLocally(G, s, id, rw);            // AFTER the verdict — nothing to revert
+        msSay('Collection reward: ' + msRewardText(rw), 'gold');
+        msRefreshRecord();
+        return rw;
+      }
+      if (res && res.error === 'already_claimed') {
+        msMarkClaimed(s, id);
+        msSay(m.label + ' was already claimed — your reward is safe.', 'loot');
+        return null;
+      }
+      /* REFUSED. Nothing written: no claimed mark, no credit, no save. */
+      if (res && res.error === 'incomplete') {
+        _msShort[id] = {
+          have: Math.max(0, Math.floor(Number(res.have) || 0)),
+          goal: Math.max(0, Math.floor(Number(res.goal) || 0)),
+          domain: res.domain === 'items' ? 'items' : 'monsters',
+          at: Date.now()
+        };
+      }
+      var why = (res && res.error) || 'network';
+      if (why !== 'network' && why !== 'incomplete') {
+        try { console.warn('[Collection] milestone claim refused:', why, id); } catch (e) {}
+      }
+      msSay(msRefusalMessage(res, m), why === 'incomplete' ? 'info' : 'kill');
+      return null;
+    }).catch(function () {
+      delete _msInFlight[id];
+      msSay(msRefusalMessage({ error: 'network' }, m), 'kill');
+      return null;
+    });
+  }
+  /* {have, goal, domain} for a milestone the server most recently refused as
+     incomplete, or null. Expires — a note that outlives the truth is a new lie. */
+  function milestoneShortfall(id) {
+    var e = _msShort[id];
+    if (!e) return null;
+    if (Date.now() - e.at > MS_SHORT_TTL_MS) { delete _msShort[id]; return null; }
+    return { have: e.have, goal: e.goal, domain: e.domain };
+  }
+  /* Test seam — the in-page suite drives mocked refusals in the LIVE page. */
+  function __resetClaimState() {
+    _msInFlight = Object.create(null);
+    _msShort = Object.create(null);
   }
 
   function fmt(n) { return (n || 0).toLocaleString(); }
@@ -122,6 +259,10 @@
       '.hr-cl-sec{padding:2px 12px;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;color:var(--gold-2,#c8862a);text-transform:uppercase;letter-spacing:.08em}',
       '.hr-cl-ms{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:6px 12px;border:1px solid var(--gold,#e0a64a);border-radius:10px;background:color-mix(in srgb,var(--gold,#e0a64a) 10%,transparent)}',
       '.hr-cl-msb{flex:1;font-size:calc(14.5px * var(--ui-scale, 1))}',
+      /* b494: the server's shortfall note on a refused milestone. A SENTENCE, so
+         it must not borrow .hr-cl-eyebrow's uppercase letter-spacing — that
+         style is for labels. Tokens only, same fallback convention as above. */
+      '.hr-cl-msnote{margin-top:3px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a);line-height:1.35}',
       '.hr-cl-claim{border:none;border-radius:8px;padding:7px 13px;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a)}',
       '.hr-cl-detail{padding:14px}',
       /* the detail sheet's hero slot. Was an inline 46px font-size holding an
@@ -253,7 +394,17 @@
     var claims = claimable(G);
     var msHtml = claims.map(function (m) {
       var rw = []; if (m.reward.gold) rw.push(_clGly('gold',13,'--gold-2') + ' ' + fmt(m.reward.gold)); if (m.reward.gems) rw.push(_clGly('gems',13,'--gem') + ' ' + fmt(m.reward.gems));
-      return '<div class="hr-cl-ms"><div class="hr-cl-msb"><b>' + m.label + '</b> — ' + rw.join(' ') + '</div><button class="hr-cl-claim" data-cl-claim="' + m.id + '">Claim</button></div>';
+      /* The SERVER's own count for a milestone IT most recently refused. The
+         client counts what the attended player saw; the server counts its own
+         rows, and they legitimately differ — when they do, the player is owed
+         the reason in numbers rather than a button that "did nothing". */
+      var sh = milestoneShortfall(m.id);
+      var shLine = sh
+        ? '<div class="hr-cl-msnote">The realm has counted ' + fmt(sh.have) + ' of ' +
+            fmt(sh.goal) + ' ' + sh.domain + ' — this unlocks itself as it catches up.</div>'
+        : '';
+      return '<div class="hr-cl-ms"><div class="hr-cl-msb"><b>' + m.label + '</b> — ' + rw.join(' ') +
+        shLine + '</div><button class="hr-cl-claim" data-cl-claim="' + m.id + '">Claim</button></div>';
     }).join('');
 
     var scrim = document.createElement('div');
@@ -286,12 +437,13 @@
       if (itemCell) { detailItem = itemCell.getAttribute('data-item'); open(); return; }
       var cid = t.getAttribute('data-cl-claim');
       if (cid) {
-        var rw = claimMilestone(cid, G);
-        if (rw && typeof window.notify === 'function') {
-          var s2 = []; if (rw.gold) s2.push(_clGly('gold',13,'--gold-2') + ' ' + fmt(rw.gold)); if (rw.gems) s2.push(_clGly('gems',13,'--gem') + ' ' + fmt(rw.gems));
-          window.notify('Collection reward: ' + s2.join(' '), 'gold');
-        }
-        open();
+        /* claimMilestone owns the toast for EVERY outcome; a call site that only
+           reacted to success is how the refusal used to be silent. Re-render on
+           any verdict — but only if the log is still on screen, so a verdict
+           arriving after the player closed it never re-opens a modal at them. */
+        claimMilestone(cid, G).then(function () {
+          if (document.getElementById('hr-cl-modal')) open();
+        });
       }
     });
     document.body.appendChild(scrim);
@@ -300,7 +452,12 @@
   window.HearthriseCollection = {
     getStats: getStats,
     claimable: claimable,
+    /* ⚠ RETURNS A PROMISE<reward|null> since the two-phase fix — a claim is a
+       server round-trip. Resolves null on every refusal, never rejects, and owns
+       its own toast. */
     claimMilestone: claimMilestone,
+    milestoneShortfall: milestoneShortfall,
+    __resetClaimState: __resetClaimState,
     open: open,
     ensureState: ensureState
   };

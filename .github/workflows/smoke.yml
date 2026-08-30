@@ -80,10 +80,19 @@ jobs:
       # A11 lockdown GUC removed) and demands every one is caught. This repo has
       # shipped a guard that asserted nothing twelve times; this one does not get
       # to claim it works.
+      #
+      # --live-selftest proves the PRODUCTION half can fail. That half cannot run
+      # here (it needs a live database, and no credentials belong in CI), but the
+      # classifier behind it can: it plants a prod-only table, a repo-only table,
+      # a changed table, a changed category with no per-table breakdown, and a
+      # partial paste, and requires each to be reported. From 2026-08-14 to
+      # 2026-08-30 the production delta was unfalsifiable prose that had been
+      # measured exactly once; this is what stops it going back to that.
       - name: Schema drift — the repo must rebuild the database
         run: |
           node tests/schema-drift.mjs
           node tests/schema-drift.mjs --mutate
+          node tests/schema-drift.mjs --live-selftest
 
       # THE CONSERVATION FUZZ. Randomised, seeded operations across several
       # characters against the REAL server-authority migrations, running on an

@@ -27,6 +27,8 @@
     "test:delta-transport:selftest": "node tests/delta-transport.mjs --selftest",
     "test:schema-drift": "node tests/schema-drift.mjs",
     "test:schema-drift:selftest": "node tests/schema-drift.mjs --mutate",
+    "test:schema-drift:live-selftest": "node tests/schema-drift.mjs --live-selftest",
+    "schema-drift:live-sql": "node tests/schema-drift.mjs --live-sql",
     "test:schema-replay": "node tests/schema-replay.mjs --list",
     "test:gem-budget": "node tests/gem-daily-budget.mjs",
     "test:gem-budget:selftest": "node tests/gem-daily-budget.mjs --mutate",

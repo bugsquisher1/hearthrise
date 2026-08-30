@@ -9,6 +9,8 @@
 // Run:  node tests/schema-drift.mjs            (CI: no credentials needed)
 //       node tests/schema-drift.mjs --write    (re-baseline, after a real change)
 //       node tests/schema-drift.mjs --mutate   (prove the guard can see failure)
+//       node tests/schema-drift.mjs --live-sql             (read-only SQL for prod)
+//       node tests/schema-drift.mjs --live-compare r.json  (classify the result)
 //
 // ── WHAT THIS GUARD CAN SEE ─────────────────────────────────────────────────
 //  1. THE REPO CANNOT REBUILD THE DATABASE. Every file applies, in the declared
@@ -37,17 +39,35 @@
 //     structurally incapable of detecting it: the replay knows what the repo
 //     builds and nothing about what the database holds. It needs a live query.
 //     `known_production_delta` in the baseline records the last real
-//     measurement and its date; --live re-measures it. A stale delta block is
-//     a stale measurement, NOT a passing check, and the guard says so on every
-//     run instead of letting silence read as health.
+//     measurement and its date; `--live-sql` + `--live-compare` re-measure it
+//     (two steps, because the credentials deliberately live outside this repo).
+//     A stale delta block is a stale measurement, NOT a passing check, and the
+//     guard says so on every run instead of letting silence read as health.
+//     ⚠ Until 2026-08-30 this header promised a `--live` mode that had never
+//     been implemented — the one instruction for closing the guard's only
+//     structural blind spot pointed at nothing. Measured that day: production
+//     agreed with the replay on 7 of 9 categories BYTE FOR BYTE, and the two
+//     that disagreed are both recorded in `acknowledged` below.
 //  B. DATA. This proves the SCHEMA rebuilds. It says nothing about whether any
 //     row survives a restore. Only a real restore test proves that, and as of
 //     2026-08-14 none has ever been run.
 //  C. PRODUCTION'S FUNCTION BODIES. The fingerprint carries signatures, not
-//     bodies. Production's hr_apply is a known stale revision (25,966 chars vs
-//     the file's 40,754) and this guard is blind to it — signature-identical,
-//     behaviour-different. Deliberate: hashing bodies would fail on whitespace
-//     and search_path rewrites and would be turned off within a week.
+//     bodies, so a signature-identical / behaviour-different function is
+//     invisible here. Deliberate: hashing bodies would fail on whitespace and
+//     search_path rewrites and would be turned off within a week.
+//     RE-MEASURED 2026-08-30 (the old note here — "hr_apply is a known stale
+//     revision, 25,966 chars vs the file's 40,754" — was itself three revisions
+//     stale, which is how a real warning becomes noise people scroll past):
+//       hr_apply       production 82,410 chars vs replay 82,548. The whole
+//                      138-char delta is ONE two-line comment ("rested-record
+//                      (b437): the ABSOLUTE bank…") present in the file and not
+//                      in the deployed body. Code identical, behaviour identical.
+//       hr_rpc_gate    md5-identical to the replay (the hotfix restore was
+//                      folded back into the repo correctly).
+//       hr_cron_health md5-identical.
+//     Spot-checked, not exhaustive: 3 of 261. Localising that delta cost two
+//     queries (chunked md5 over prosrc, then one substr) — cheap enough to be
+//     worth doing for any function whose behaviour is ever in question.
 //  D. TRUE CONCURRENCY, and the PostgREST/gateway request path. PGlite is one
 //     backend with no HTTP in front of it.
 //  E. POSTGRES VERSION SKEW. PGlite is PG18; production is PG17.
@@ -67,10 +87,85 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { ROOT, bootReplay, inventory, CATEGORIES, manifest } from './schema-replay.mjs';
+import { ROOT, bootReplay, inventory, CATEGORIES, manifest, QUERIES } from './schema-replay.mjs';
 
 const BASELINE = join(ROOT, 'tests', 'schema-drift.baseline.json');
 const argv = process.argv.slice(2);
+
+// ── THE PRODUCTION HALF (--live-sql / --live-compare), added 2026-08-30 ─────
+// Blind spot (A) in the header: a credential-free replay cannot see an object
+// that exists in production and in no file. That was answered by `open` prose in
+// the baseline, MEASURED ONCE on 2026-08-14 and never again — and prose does not
+// go red. These two modes make the measurement a repeatable ritual instead:
+//
+//   node tests/schema-drift.mjs --live-sql            -> read-only SQL to run on prod
+//   node tests/schema-drift.mjs --live-compare r.json -> classify what came back
+//
+// No credentials live in the repo and none are needed: the SQL is pasted into
+// whatever read-only path the operator already has (Supabase SQL editor, the
+// MCP execute_sql tool), and the JSON result is fed back. Every divergence must
+// be named in the baseline's known_production_delta.acknowledged or the compare
+// exits 1 — so a NEW hand-patch on production goes red the first time anyone
+// looks, and an acknowledged one that got fixed also goes red, so the list
+// cannot rot in the other direction.
+//
+// The SQL is BUILT FROM `QUERIES` in schema-replay.mjs, never copied. A
+// hand-copied second version of these catalog queries is how the repo and its
+// own remeasurement instructions drift apart.
+// Categories whose names carry a table prefix, so a mismatch can be narrowed to
+// one table without shipping every name over the wire. columns -> "tbl.col …",
+// constraints -> "tbl :: name".
+const PER_TABLE = ['columns', 'constraints'];
+const tableOfSql = "case when cat='columns' then split_part(nm,'.',1) else split_part(nm,' :: ',1) end";
+const tableOfJs = (cat, nm) => (cat === 'columns' ? nm.split('.')[0] : nm.split(' :: ')[0]);
+
+function liveSqlLevel1() {
+  const parts = CATEGORIES.map((c) => `  select '${c}'::text as cat, nm from (${QUERIES[c]}) q_${c}`);
+  return `-- READ-ONLY. Generated by: node tests/schema-drift.mjs --live-sql
+-- Run against production, then: node tests/schema-drift.mjs --live-compare <result.json>
+with p as (
+${parts.join('\n  union all\n')}
+)
+select 'cat'::text as kind, cat as name, count(*)::int as n,
+       md5(string_agg(nm, chr(10) order by nm)) as sum
+  from p group by cat
+union all
+select 'tbl', cat||' '||${tableOfSql},
+       count(*)::int, md5(string_agg(nm, chr(10) order by nm))
+  from p where cat in (${PER_TABLE.map((c) => `'${c}'`).join(',')}) group by 2
+order by 1, 2;`;
+}
+
+function liveSqlLevel2(cat) {
+  if (!CATEGORIES.includes(cat)) {
+    const e = new Error(`unknown category "${cat}". One of: ${CATEGORIES.join(', ')}`);
+    e.harness = true; throw e;
+  }
+  return `-- READ-ONLY. Full object list for the "${cat}" category.
+select '${cat}'::text as kind, nm as name, 0::int as n, ''::text as sum
+  from (${QUERIES[cat]}) q order by 2;`;
+}
+
+const md5 = (s) => createHash('md5').update(s, 'utf8').digest('hex');
+
+/** Local equivalent of the level-1 query, computed from a replay inventory. */
+function localLevel1(inv) {
+  const cat = new Map();
+  const tbl = new Map();
+  for (const c of CATEGORIES) {
+    const list = [...inv[c]].sort();
+    cat.set(c, [list.length, md5(list.join('\n'))]);
+    if (!PER_TABLE.includes(c)) continue;
+    const g = new Map();
+    for (const nm of list) {
+      const t = tableOfJs(c, nm);
+      if (!g.has(t)) g.set(t, []);
+      g.get(t).push(nm);
+    }
+    for (const [t, l] of g) tbl.set(`${c} ${t}`, [l.length, md5(l.sort().join('\n'))]);
+  }
+  return { cat, tbl };
+}
 
 const digest = (inv) =>
   createHash('sha256')
@@ -100,7 +195,13 @@ const MUTATIONS = {
   },
   rename_a_column: {
     what: 'a column name diverges from production — the defect that made game_events unrebuildable while every constraint NAME still matched',
-    expect: 'fingerprint',
+    // Was 'fingerprint'. Re-measured 2026-08-30: the rename is now caught EARLIER,
+    // as a replay failure, because the file's own self-check and then
+    // 2026-08-23-game-events-bounds.sql both reference occurred_at/event_type. That
+    // is stronger, not weaker — but it means this mutation no longer exercises the
+    // `columns` fingerprint category. `silent_column_type` below still does, and is
+    // the one to keep if these two are ever consolidated.
+    expect: 'replay',
     patches: [['2026-08-10-dr-legacy-cloud-save.sql', [[
       '      occurred_at timestamptz not null default now()\n    );',
       '      created_at timestamptz not null default now()\n    );',
@@ -122,12 +223,22 @@ const MUTATIONS = {
     ]]]],
   },
   rls_off_unwatched: {
-    what: 'RLS turned off on a table NO self-check anywhere asserts about (chat_blocks) — the only thing that can catch this is the `rls` fingerprint category',
-    expect: 'fingerprint',
-    // `weaken_rls` above targets player_state, which a later file's self-check
-    // defends, so it is caught via `replay` and proves nothing about the
-    // fingerprint. This one is deliberately aimed at the blind spot: if the
-    // `rls` category were removed, this mutation would slip and say so.
+    what: 'RLS turned off on a table no file-specific self-check asserts about (chat_blocks)',
+    // Was 'fingerprint', on the reasoning that nothing else watched chat_blocks.
+    // Re-measured 2026-08-30: 2026-08-23-client-grant-narrowing.sql now asserts
+    // RLS is ON across the whole public schema and raises
+    //   "RLS is OFF on chat_blocks — fix that FIRST; grants are the second lock"
+    // so this is caught as a replay failure, by a check that fires DURING the
+    // rebuild rather than after it. Strictly better coverage; the expectation is
+    // corrected rather than the check weakened.
+    //
+    // THE `rls` FINGERPRINT CATEGORY IS STILL PROVEN — by `weaken_rls` above,
+    // which lands after that global assertion and is caught via `fingerprint`.
+    // Until 2026-08-30 it was NOT: a `$$`-mangling bug in the patcher turned that
+    // mutation into a syntax error, so it passed as a replay catch and the `rls`
+    // category had no live proof at all. If `weaken_rls` ever stops reporting
+    // `via fingerprint`, the category is unproven again and needs a new arm.
+    expect: 'replay',
     patches: [['2026-08-13-beta-invite-check-volatile.sql', [[
       'alter function public.beta_invite_check(text) volatile;',
       'alter function public.beta_invite_check(text) volatile;\nalter table public.chat_blocks disable row level security;',
@@ -184,7 +295,238 @@ async function fingerprint(patches) {
   return inventory(db);
 }
 
+/**
+ * Pure classifier: production's rows vs a replay inventory. No IO, no exit — so
+ * --live-selftest can plant divergences and require each to be reported.
+ * @returns {{findings:{key:string,detail:string}[], provenCats:string[]}}
+ */
+function classifyLive(rows, inv) {
+  const local = localLevel1(inv);
+  const findings = [];          // {key, detail}
+
+  const catRows = rows.filter((r) => r.kind === 'cat');
+  const tblRows = rows.filter((r) => r.kind === 'tbl');
+  const objRows = rows.filter((r) => CATEGORIES.includes(r.kind));
+
+  // Level 1, per category. A category whose count AND hash match is proven
+  // identical to production — no names needed.
+  const badCats = new Set();
+  for (const r of catRows) {
+    const l = local.cat.get(r.name);
+    if (!l) { findings.push({ key: `cat ${r.name}`, detail: 'category exists on production, not in the replay' }); continue; }
+    if (l[0] !== Number(r.n) || l[1] !== r.sum) badCats.add(r.name);
+  }
+  for (const c of CATEGORIES) {
+    if (!catRows.some((r) => r.name === c)) {
+      findings.push({ key: `cat ${c}`, detail: 'the live result carries no row for this category — partial measurement' });
+    }
+  }
+
+  // Level 1, per table — narrows a bad category to the tables responsible.
+  const explained = new Set();
+  for (const r of tblRows) {
+    const key = `tbl ${r.name}`;
+    const l = local.tbl.get(r.name);
+    const [cat] = r.name.split(' ');
+    if (!l) { findings.push({ key, detail: `on production with ${r.n} ${cat}, absent from the replay` }); explained.add(cat); continue; }
+    if (l[0] !== Number(r.n) || l[1] !== r.sum) {
+      findings.push({ key, detail: `production ${r.n}/${r.sum.slice(0, 8)} vs repo ${l[0]}/${l[1].slice(0, 8)}` });
+      explained.add(cat);
+    }
+  }
+  for (const [name, l] of local.tbl) {
+    const key = `tbl ${name}`;
+    if (tblRows.length && !tblRows.some((r) => r.name === name)) {
+      findings.push({ key, detail: `built by the repo with ${l[0]} entries, absent on production` });
+      explained.add(name.split(' ')[0]);
+    }
+  }
+
+  // Level 2, exact names, for whatever categories were fetched in detail.
+  const byCat = {};
+  for (const r of objRows) (byCat[r.kind] = byCat[r.kind] || []).push(r.name);
+  for (const [cat, names] of Object.entries(byCat)) {
+    const prod = new Set(names);
+    const repo = new Set(inv[cat]);
+    for (const x of prod) if (!repo.has(x)) findings.push({ key: `obj ${cat} ${x}`, detail: 'on production, built by no file in the repo' });
+    for (const x of repo) if (!prod.has(x)) findings.push({ key: `obj ${cat} ${x}`, detail: 'built by the repo chain, ABSENT on production' });
+    explained.add(cat);
+  }
+
+  // A category that disagrees and that nothing above accounted for is an
+  // UNRESOLVED measurement, not a pass — say so and name the drill-down.
+  for (const c of badCats) {
+    if (explained.has(c)) continue;
+    findings.push({
+      key: `cat ${c}`,
+      detail: `disagrees with production and has no per-table breakdown — re-run with `
+        + `\`node tests/schema-drift.mjs --live-sql=${c}\` and compare again`,
+    });
+  }
+
+  return {
+    findings,
+    provenCats: CATEGORIES.filter((c) => !badCats.has(c) && catRows.some((r) => r.name === c)),
+  };
+}
+
+/**
+ * Classify what production returned against a fresh replay of the repo.
+ * Exit 1 on any divergence that is not acknowledged in the baseline, and on any
+ * acknowledged divergence that is no longer there (the list must not rot).
+ */
+async function liveCompare(file) {
+  let rows;
+  try {
+    const raw = JSON.parse(await readFile(file, 'utf8'));
+    // Accept either the bare array or {result:[…]} / {rows:[…]} wrappers, since
+    // different consoles hand it back differently.
+    rows = Array.isArray(raw) ? raw : (raw.result || raw.rows);
+    if (!Array.isArray(rows)) throw new Error('not an array of rows');
+  } catch (e) {
+    const err = new Error(`could not read live result "${file}": ${e.message}\n`
+      + '  Expected the JSON rows from  node tests/schema-drift.mjs --live-sql');
+    err.harness = true; throw err;
+  }
+
+  const base = JSON.parse(await readFile(BASELINE, 'utf8'));
+  const ack = new Map(
+    ((base.known_production_delta || {}).acknowledged || []).map((a) => [a.key, a]));
+  const inv = await fingerprint();
+  const { findings, provenCats } = classifyLive(rows, inv);
+
+  console.log('repo-vs-production, measured against the replay of this working tree');
+  console.log(`  categories proven byte-identical: ${provenCats.join(', ') || '(none)'}`);
+
+  let unacked = 0; let resolved = 0;
+  for (const f of findings) {
+    const a = ack.get(f.key);
+    if (a) { console.log(`  acknowledged  ${f.key}\n                  ${f.detail}\n                  → ${a.why}`); }
+    else { console.error(`  UNACKNOWLEDGED  ${f.key}\n                  ${f.detail}`); unacked++; }
+  }
+  for (const [key, a] of ack) {
+    if (findings.some((f) => f.key === key)) continue;
+    console.error(`  RESOLVED  ${key} is no longer divergent — remove it from`);
+    console.error(`            known_production_delta.acknowledged in the baseline.`);
+    console.error(`            It was: ${a.why}`);
+    resolved++;
+  }
+
+  if (unacked || resolved) {
+    console.error(`\n${unacked} unacknowledged divergence(s), ${resolved} stale acknowledgement(s).`);
+    console.error('An object that exists in production and in no file is the drift this');
+    console.error('guard cannot otherwise see. Explain it, fix it, or acknowledge it in');
+    console.error('the baseline with a reason and a date — silence is not a measurement.');
+    process.exit(1);
+  }
+  console.log(`\nlive delta: ${findings.length} divergence(s), all acknowledged. Record the date in`);
+  console.log('known_production_delta.measured.');
+}
+
+/**
+ * --live-selftest: PROVE the production comparison can see failure.
+ *
+ * This repo has shipped a guard that asserted nothing twelve times, and the
+ * production delta in particular sat as unfalsifiable prose from 2026-08-14 to
+ * 2026-08-30. A comparison that has only ever been run against a database that
+ * agrees with it is not evidence. So: synthesize the result a production
+ * IDENTICAL to the repo would return, plant one real divergence at a time, and
+ * require each to be reported. Needs no credentials — it runs in CI.
+ */
+async function liveSelftest() {
+  const inv = await fingerprint();
+  const local = localLevel1(inv);
+  const clean = [
+    ...[...local.cat].map(([name, [n, sum]]) => ({ kind: 'cat', name, n, sum })),
+    ...[...local.tbl].map(([name, [n, sum]]) => ({ kind: 'tbl', name, n, sum })),
+  ];
+
+  // Sanity: an identical production must produce ZERO findings, or every case
+  // below would "pass" on the noise floor rather than on the planted defect.
+  const base = classifyLive(clean, inv);
+  if (base.findings.length) {
+    const e = new Error(
+      `--live-selftest: a production identical to the repo produced ${base.findings.length}\n`
+      + `  finding(s) — the comparison has a false-positive floor and every case below\n`
+      + `  would pass for the wrong reason. First: ${base.findings[0].key}`);
+    e.harness = true; throw e;
+  }
+  if (base.provenCats.length !== CATEGORIES.length) {
+    const e = new Error('--live-selftest: an identical production did not prove every category');
+    e.harness = true; throw e;
+  }
+
+  const anyTbl = clean.find((r) => r.kind === 'tbl');
+  const CASES = {
+    prod_only_table: {
+      what: 'a table exists in production and in NO file — the exact drift that motivated this guard',
+      expect: 'tbl columns hr_forgotten_hotfix',
+      rows: () => [...clean, { kind: 'tbl', name: 'columns hr_forgotten_hotfix', n: 3, sum: 'f'.repeat(32) }],
+    },
+    repo_only_table: {
+      what: 'a table the repo chain builds is ABSENT on production — a migration that never actually applied',
+      expect: `tbl ${anyTbl.name}`,
+      rows: () => clean.filter((r) => r !== anyTbl),
+    },
+    changed_table: {
+      what: 'a table whose shape diverges — the hand-patched-column class (hr_crops nullability)',
+      expect: `tbl ${anyTbl.name}`,
+      rows: () => clean.map((r) => (r === anyTbl ? { ...r, sum: '0'.repeat(32) } : r)),
+    },
+    changed_unbreakdownable_category: {
+      what: 'a category with no per-table breakdown disagrees (a policy or function on production and in no file) — must NOT read as a pass',
+      expect: 'cat policies',
+      rows: () => clean.map((r) => (r.kind === 'cat' && r.name === 'policies' ? { ...r, sum: '0'.repeat(32) } : r)),
+    },
+    partial_measurement: {
+      what: 'the operator pasted back an incomplete result — silence about a category must not read as agreement',
+      expect: 'cat functions',
+      rows: () => clean.filter((r) => !(r.kind === 'cat' && r.name === 'functions')),
+    },
+  };
+
+  let slipped = 0;
+  for (const [name, c] of Object.entries(CASES)) {
+    const { findings } = classifyLive(c.rows(), inv);
+    const hit = findings.find((f) => f.key === c.expect);
+    if (hit) console.log(`caught   ${name.padEnd(32)} ${hit.key}\n           ${c.what}`);
+    else {
+      console.error(`SLIPPED  ${name}\n           ${c.what}\n`
+        + `           expected a finding keyed "${c.expect}"; got: `
+        + `${findings.map((f) => f.key).join(', ') || '(nothing)'}`);
+      slipped++;
+    }
+  }
+  if (slipped) {
+    console.error(`\n${slipped} planted production divergence(s) went unreported.`);
+    process.exit(1);
+  }
+  console.log(`\nall ${Object.keys(CASES).length} planted production divergences reported`);
+}
+
 async function main() {
+  // ── --live-selftest: prove the production comparison can fail ────────────
+  if (argv.includes('--live-selftest')) { await liveSelftest(); return; }
+
+  // ── --live-sql[=category]: emit the read-only measurement query ──────────
+  const sqlArg = argv.find((a) => a === '--live-sql' || a.startsWith('--live-sql='));
+  if (sqlArg) {
+    console.log(sqlArg.includes('=') ? liveSqlLevel2(sqlArg.split('=')[1]) : liveSqlLevel1());
+    return;
+  }
+
+  // ── --live-compare <file>: classify what production returned ─────────────
+  const cmpAt = argv.indexOf('--live-compare');
+  if (cmpAt !== -1) {
+    const file = argv[cmpAt + 1];
+    if (!file) {
+      const e = new Error('--live-compare needs the JSON file produced by running --live-sql on production');
+      e.harness = true; throw e;
+    }
+    await liveCompare(file);
+    return;
+  }
+
   // ── --mutate: prove the guard sees failure ───────────────────────────────
   if (argv.includes('--mutate')) {
     const base = JSON.parse(await readFile(BASELINE, 'utf8'));

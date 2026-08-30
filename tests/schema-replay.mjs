@@ -196,9 +196,28 @@ export async function bootReplay({ patches, tolerant = false, upTo } = {}) {
             + '  mutation silently no-op.');
           e.harness = true; throw e;
         }
-        const after = sql.replace(find, replace);
+        // () => replace, NOT replace. A STRING replacement is interpreted:
+        // `$$` in it means a literal `$`, and `$&`/`$1` mean matched text. Every
+        // PL/pgSQL body in this repo is dollar-quoted, so a string replacement
+        // silently turned `do $$` into `do $` and the mutation became a SYNTAX
+        // ERROR — which the harness then reported as "caught via replay",
+        // because a file that fails to apply looks the same either way.
+        // Measured 2026-08-30: `weaken_rls` had been passing on
+        // `syntax error at or near "$"` instead of on the RLS defect it plants.
+        // A function replacement disables all `$` semantics. The assertion below
+        // cannot see this class — the text DID change — so it is not a backstop.
+        const after = sql.replace(find, () => replace);
         if (after === sql) {
           const e = new Error(`patch on ${name} produced identical SQL`);
+          e.harness = true; throw e;
+        }
+        if (replace.includes('$') && !after.includes(replace)) {
+          // The replacement went in mangled. Only reachable if the escaping
+          // above regresses; a planted defect that is not the defect is the
+          // exact failure this whole file exists to prevent.
+          const e = new Error(
+            `patch on ${name} did not land verbatim — the replacement was rewritten\n`
+            + '  on the way in (check for `$` escaping in String.replace).');
           e.harness = true; throw e;
         }
         sql = after;
@@ -249,7 +268,7 @@ export async function bootReplay({ patches, tolerant = false, upTo } = {}) {
 // ── The inventory: what a rebuilt database actually contains ───────────────
 // Every field is a SORTED list of NAMES, so a diff names the object rather than
 // reporting "count changed from 71 to 70" and leaving someone to find it.
-const QUERIES = {
+export const QUERIES = {
   relations: `select c.relkind::text||' '||c.relname::text as nm
                 from pg_class c join pg_namespace n on n.oid=c.relnamespace
                where n.nspname='public' and c.relkind in ('r','v','m','S') order by 1`,

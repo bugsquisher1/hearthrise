@@ -577,3 +577,63 @@ b495 migration to touch a second table on a wave build. It stops being inert the
 renders from the server's plot rows rather than from the cap. Ruling for whoever picks it up:
 `START_CURRENCY.farm_plots 4 → 2`, regenerate, and a forward migration on `hr_start_kit` alone —
 NEW characters only, no backfill (an existing character's rows are theirs).
+
+---
+
+## 2026-08-30 · SYSTEMS → LANE A / SECURITY · b497 auto-eat: the staged premise is false, and acting on it is a DOUBLE DEBIT
+
+**Branch:** `fix/attended-eat-intent-gate` (off `cb97ae17`). **No behavioural change shipped — deliberately.**
+
+`supabase/migrations/2026-09-04-auto-eat-at-creation.sql` (header, §"WHAT THIS DOES **NOT** DO")
+states:
+
+> the server's sim only eats during AWAY accrual. An ATTENDED auto-eat would therefore be held for
+> `ENTRY_TTL_MS` (10 minutes) and then RESTOCKED by the next envelope. Free food, self-only, but real.
+
+…and proposes a one-line client fix: re-shape `noteItemConsumed`'s gate so an attended consumption
+always sends the `eat` intent, with `inOfflineReplay()` excluding away.
+
+**The premise is false and the proposed fix is item LOSS.** Three independent proofs:
+
+1. **Structural.** `computeAccrual` has no away input and no presence input. It prices
+   `[max(accrued_to, active_since), +grantMs]` — whatever elapsed — and `fx.autoEat()` is gated on
+   `autoEatEnabled` **alone**.
+2. **The settle loop is ATTENDED-ONLY.** `src/net/accrue.js decideSettle`:
+   `if (!st.visible) return { settle: false, reason: 'hidden' }`. The 90 s cadence
+   (`SETTLE_INTERVAL_MS`) runs *only while the tab is visible* and stops when it is hidden. So every
+   periodic settle prices an attended window; away time is settled on return, by a different trigger.
+3. **Measured.** New guard `attendedSettleAutoEatGuard` (`tests/accrual-engine.mjs`): a fresh
+   10-HP character fighting a goblin with `autoEatEnabled: true` eats **2 meals over 60 s and 3 over
+   90 s**, each with the matching negative `delta.items` figure. The same window with the flag false
+   pays **0 kills and dies** — which is the death loop the ruling exists to close, and is why the
+   server eating attended is the *mechanism* by which an attended window is paid at all.
+
+So with `auto_eat_enabled = true` universal, the settle already debits the attended meal. A client
+`eat` intent for the same meal debits it twice. The existing gate — "send only on a definite NO from
+the server" — is correct on **both** sides of the b497 flip, and retires itself with no flag to flip,
+exactly as `clientOwnsAutoEatDebit`'s own RETIREMENT note anticipated.
+
+Guarded on both ends now, so the premise cannot be re-asserted from either: `EAT-RESTOCK-6` block 2
+(client — the proposed fix turns it red) and `attendedSettleAutoEatGuard` (server engine — an
+"away-only" mutant turns it red while the pre-existing 12-hour parity fixtures stay green).
+
+### ⚠ THE REAL DEFECT b497 INTRODUCES, and it is a different one — SETTINGS ARE NEVER SYNCED
+
+Nothing on this client has ever called `hr_set_auto_eat` (grep: zero call sites in `src/`). It is the
+only writer of `auto_eat_enabled` / `auto_eat_pct` / `auto_eat_food`. After b497 every new character
+has the switch **on** server-side and:
+
+- **`auto_eat_food` is NULL**, so the engine falls back to `bestHealingFood` — the **biggest healer in
+  the bag** — while the client honours the player's `G.foodSlot` nomination. Unit *counts* still
+  converge (pending-consume drains on the server's own movement, so nothing is lost or duplicated),
+  but the two sides can drain **different stacks**, and the server's pick is the more valuable one.
+  Invisible on a fresh account (the start kit holds one food); it bites the first time a player banks
+  a Shark/Moonbloom stack and fights attended.
+- **The Settings toggle and threshold slider are client-only.** Turning Auto-Eat off does not stop
+  the server eating — and it *should not*, because with it off the server's sim dies and pays 0 kills
+  (measured above). So this is a genuine design question, not just a wiring gap.
+
+Recommendation: wire the client's auto-eat settings to `hr_set_auto_eat`, debounced — it bumps
+`version` and journals a `set_auto_eat` row, so a per-slider-drag call would invalidate in-flight
+accruals. **Not fixed by touching the debit gate**, and out of scope for a wave build. Systems owns
+the wiring; Designer owns "may a player turn off a mechanic their payout depends on?".

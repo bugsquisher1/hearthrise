@@ -7949,11 +7949,32 @@ window.wireServerEat=wireServerEat;
        eating (see `_clientOwnsAutoEatDebit`), because the day it does, a client
        intent for the same auto-eat would debit the food twice.
 
-   ⚠ AWAY IS THE SERVER'S. During an offline replay the SERVER already ate the
+   ⚠ AN OFFLINE REPLAY IS THE SERVER'S. During one the SERVER already ate the
      food and states the debit in `away.items`; sending an intent for it would
      debit it twice and holding it would double-subtract. `inOfflineReplay()` is
      the codebase's existing answer to that question and it is asked HERE, once,
      rather than at each call site.
+
+   ⚠⚠ AND `inOfflineReplay()` IS **NOT** THE WHOLE OF "WHO ATE THIS". It answers
+     "was this consumption produced by the client replaying an absence", which is
+     a narrower question than "will the server debit this unit anyway". The
+     accrual engine has NO away input and no presence input: it prices whatever
+     elapsed since `accrued_to` and `fx.autoEat()` is gated on `autoEatEnabled`
+     ALONE, so a settle over an ATTENDED window eats too. The client settles on a
+     ~90 s cadence while the tab is VISIBLE (src/net/accrue.js "The cadence
+     (§3.1). 90 s"), and live settlement is shipped, not planned
+     (docs/design/live-settlement.md Phase 0; src/net/predict.js measures a live
+     mid-fight window in which the settle moved kills 3756 -> 3755).
+     MEASURED, tests/accrual-engine.mjs `attendedSettleAutoEatGuard`: a fresh
+     10-HP character fighting a goblin with `autoEatEnabled: true` eats 2 meals
+     over a 60 s window and 3 over 90 s, and the engine proposes the matching
+     NEGATIVE item delta both times.
+     So `!inOfflineReplay()` does NOT mean "the debit is mine to send", and
+     rewriting the gate below to say that is a DOUBLE DEBIT. It has been proposed
+     once (the b497 staging note in
+     supabase/migrations/2026-09-04-auto-eat-at-creation.sql claims "the server's
+     sim only eats during AWAY accrual"); it is wrong, and it is now red on both
+     sides — EAT-RESTOCK-6 block 2 here, `attendedSettleAutoEatGuard` there.
 
    The seam is deliberately about ITEMS, not food: artisan inputs, ammunition
    and any future client-authored spend adopt it by calling it. */
@@ -8029,15 +8050,35 @@ function queueEatIntent(foodId){
    needs protecting from the ratchet until its verb ships. */
 /* ⚠ WHO OWNS AN AUTO-EAT'S DEBIT — ASK, NEVER ASSUME. The accrual engine eats
    for the character when `player_state.auto_eat_enabled` is true, and states the
-   debit in `away.items`; sending a client `eat` intent for the same auto-eat
-   would then debit the food TWICE, which is item LOSS — strictly worse than the
-   restock this whole change exists to fix. So the client only sends when the
-   SERVER has said, on an envelope, that it is not eating (accrue.js
-   `clientOwnsAutoEatDebit` — measured today as false for every live character;
-   see its header). FAIL-CLOSED: with accrue.js absent or the flag never
-   observed, the answer is "do not send" and only the hold remains.
-   A MANUAL eat is never gated — the server has never eaten one and `eatFood`
-   has sent that intent since the Paione P0. */
+   debit in the settle's signed `items` delta; sending a client `eat` intent for
+   the same auto-eat would then debit the food TWICE, which is item LOSS —
+   strictly worse than the restock this whole change exists to fix. So the client
+   only sends when the SERVER has said, on an envelope, that it is not eating
+   (accrue.js `clientOwnsAutoEatDebit`). FAIL-CLOSED: with accrue.js absent or
+   the flag never observed, the answer is "do not send" and only the hold remains.
+
+   ⚠ THE GATE IS THE COLUMN, NOT THE CLOCK, AND THAT IS THE WHOLE POINT.
+     `auto_eat_enabled` is a property of the CHARACTER, not of the window: when
+     it is true the settle eats over EVERY window it prices — attended 90 s ones
+     included (see the seam header above, and tests/accrual-engine.mjs
+     `attendedSettleAutoEatGuard`). Re-shaping this predicate to "did I eat this
+     locally / am I not in an offline replay" therefore does not narrow it to a
+     case the server misses; it opens the double debit on every attended meal.
+     Guarded on both sides — EAT-RESTOCK-6 block 2 (client) and
+     `attendedSettleAutoEatGuard` (server engine).
+
+   ⏳ WHAT DOES REMAIN OPEN is the SETTINGS side, and it is a different bug:
+     nothing on this client has ever called `hr_set_auto_eat`, so the server's
+     nominated food (`auto_eat_food`, NULL) and threshold are not the player's.
+     A null nomination makes the engine pick `bestHealingFood` — the BIGGEST
+     healer in the bag — while the client honours `G.foodSlot`. The unit counts
+     still converge (the hold drains on the server's own movement), but the two
+     sides can eat DIFFERENT stacks. Raised as a handoff; it is not fixed by
+     touching this predicate.
+
+   A MANUAL eat is never gated — the server's sim only ever eats through the
+   auto-eat rule, so a human pressing Eat is a consumption nothing else states,
+   and `eatFood` has sent that intent since the Paione P0. */
 function _clientOwnsAutoEatDebit(){
   const A=window.HearthriseAccrual;
   if(!A||typeof A.clientOwnsAutoEatDebit!=='function')return false;

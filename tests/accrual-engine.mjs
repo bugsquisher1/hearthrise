@@ -67,8 +67,8 @@ import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { indexArtisanRecipes, benchPayable } from '../src/core/artisan-sim.js';
 
-import { resolveAutoEat, thresholdFromPct, pctFromThreshold, bestHealingFood, DEFAULT_THRESHOLD }
-  from '../src/core/auto-eat.js';
+import { resolveAutoEat, thresholdFromPct, pctFromThreshold, bestHealingFood, DEFAULT_THRESHOLD,
+         maxPctForTier } from '../src/core/auto-eat.js';
 import {
   computeAccrual, deriveTickMs, deriveProfile, zeroBonus,
   ACCRUE_MIN_MS, ACCRUE_MAX_SPAN_MS,
@@ -853,6 +853,95 @@ function autoEatParityGuard() {
       `AUTO-EAT: bestHealingFood picked a different food for the same bag in a different key order `
       + `(${pair.join(' vs ')}) — the client and the server would drain different stacks`);
   }
+}
+
+// ── 1b-ii. THE SETTLE EATS AT EVERY SPAN — THERE IS NO "AWAY ONLY" ──────────
+// ⚠ READ THIS BEFORE TOUCHING src/legacy.js `noteItemConsumed` OR
+//   src/net/accrue.js `clientOwnsAutoEatDebit`.
+//
+// THE BELIEF THIS GUARD EXISTS TO KILL, quoted from the b497 staging note that
+// held it (supabase/migrations/2026-09-04-auto-eat-at-creation.sql, header):
+// "the server's sim only eats during AWAY accrual". It does not, and acting on
+// that belief has one specific consequence: the client would start sending an
+// `eat` intent for an ATTENDED auto-eat that the settle ALREADY debits, which is
+// a DOUBLE DEBIT — real item loss, strictly worse than the restock the send was
+// meant to fix. That exact direction is guarded on the client by EAT-RESTOCK-6
+// block 2; this is the SERVER-side half — the measurement the client gate rests
+// on — so the premise can never be re-asserted from either end.
+//
+// WHY THE BELIEF IS FALSE, structurally: `computeAccrual` has NO away input and
+// no presence input. It prices `[max(accrued_to, active_since), +grantMs]` —
+// whatever elapsed — and `fx.autoEat()` is gated on `autoEatEnabled` ALONE. The
+// client settles on a ~90 s cadence WHILE VISIBLE (src/net/accrue.js: "The
+// cadence (§3.1). 90 s"), and live settlement is the shipped model, not a plan
+// (docs/design/live-settlement.md Phase 0; src/net/predict.js measures a live
+// mid-fight window where the settle moved kills 3756 -> 3755). So an attended
+// 90 s window is simulated, paid, and — with auto-eat on — EATEN, by the server.
+//
+// THE MUTANT: add any span/away condition to `fx.autoEat` (e.g. only eat when
+// `grantMs` exceeds some "this was a night" threshold). Every fixture in
+// autoEatParityGuard above runs a TWELVE-HOUR span and stays green; only the
+// short spans here go red.
+function attendedSettleAutoEatGuard() {
+  const PROVISION = Object.keys(ITEMS)
+    .filter((id) => ITEMS[id] && ITEMS[id].foodClass === 'healing' && ITEMS[id].heals > 0)
+    .sort((a, b) => ITEMS[b].heals - ITEMS[a].heals)[0];
+  if (!PROVISION) return;                 // already reported by autoEatParityGuard
+
+  /* A FRESH CHARACTER, which is the shape the b497 ruling is about: 10 max HP,
+     no equipment, no skills, the tier-I clamp (25%). Deliberately NOT the
+     FIXTURES above — those are 60/99 HP veterans over a 12 h night, i.e. exactly
+     the case that stays green under the mutant. */
+  const run = (spanMs, autoEatEnabled) => computeAccrual({
+    userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+    nowMs: FROM_MS + spanMs, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+    activeKind: 'combat', activeId: MONSTER,
+    capMs: SPAN_MS, seed: SEED,
+    hp: 10, maxHp: 10, gold: 0,
+    skills: {}, equipment: {},
+    inventory: { [PROVISION]: 5000 },
+    autoEatEnabled, autoEatFood: PROVISION, autoEatPct: maxPctForTier(1),
+    items: ITEMS, monsters: MONSTERS,
+  });
+
+  /* ACCRUE_MIN_MS is the SHORTEST window the engine will pay — below it the
+     answer is `below_min_span` — and 90 s is the client's actual settle cadence.
+     Both are ATTENDED windows by construction: no human is "away" for 60 s and
+     the tab is visible the whole time. */
+  const SPANS = [ACCRUE_MIN_MS, 90000, 5 * 60000];
+  let saw = 0;
+  for (const spanMs of SPANS) {
+    const label = `${Math.round(spanMs / 1000)}s`;
+    const on = run(spanMs, true);
+    ok(on.accrued === true,
+      `ATTENDED-EAT [${label}]: the engine accrued nothing (${on.reason}) — the fixture is vacuous`);
+    if (!on.accrued) continue;
+
+    ok(on.foodEaten > 0,
+      `ATTENDED-EAT [${label}]: the settle ate NOTHING over an attended window. If this is a `
+      + 'deliberate change, the client gate has to move with it — src/legacy.js noteItemConsumed '
+      + 'currently declines to send an `eat` intent whenever the server reports '
+      + 'auto_eat_enabled=true, on the strength of exactly this measurement.');
+    ok((on.delta.items || {})[PROVISION] === -on.foodEaten,
+      `ATTENDED-EAT [${label}]: ate ${on.foodEaten} but the item delta is `
+      + `${(on.delta.items || {})[PROVISION]} — an attended meal that is not DEBITED is the free `
+      + 'food the client gate assumes cannot happen');
+    saw += on.foodEaten;
+
+    /* AND THE PAYMENT DEPENDS ON IT. This is why the debit belongs to the
+       settle: with auto-eat off, the SAME attended minute pays ZERO kills and
+       reports a death, because `simulateSpan` breaks on the first death. The
+       server eating is not a courtesy — it is the mechanism by which an attended
+       window is paid at all for a 10-HP character. */
+    const off = run(spanMs, false);
+    ok(off.foodEaten === 0,
+      `ATTENDED-EAT [${label}]: auto_eat_enabled=false still ate — the entitlement gate does not hold`);
+    ok(off.summary.kills === 0 && off.summary.died === true,
+      `ATTENDED-EAT [${label}]: the auto_eat_enabled=false control paid ${off.summary.kills} kills / `
+      + `died=${off.summary.died}, so this fixture no longer demonstrates the death loop the b497 `
+      + 'ruling exists to close — re-pick it rather than deleting the assertion');
+  }
+  ok(saw > 0, 'ATTENDED-EAT COVERAGE: no span ate anything — every assertion above was vacuous');
 }
 
 // ── 1c. GATHER PARITY ───────────────────────────────────────────────────────
@@ -2724,6 +2813,7 @@ export async function runAll() {
   parityGuard();
   creditWindowGuard();
   autoEatParityGuard();
+  attendedSettleAutoEatGuard();
   gatherParityGuard();
   gatherBuffTimelineGuard();
   toolCarryContinuityGuard();

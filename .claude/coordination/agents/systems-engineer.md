@@ -2544,3 +2544,64 @@ booted client: House card goes Wanderer's Camp / 2 plots / `Workers 1/0` → Hea
 / 4 plots / `Workers 1/1`, the farm goes 2 tiles → 4 plantable, Kitchen + Garden unlock while
 the Forge stays correctly locked, residue patch carries `{tier:1}` so the heal survives reload.
 0 page errors. Desktop 1440x900 + mobile-landscape 922x423 both read clean.
+
+---
+
+## b497 · The attended auto-eat gate — the fix I was asked for was the bug (2026-08-30)
+
+**Branch `fix/attended-eat-intent-gate` off `cb97ae17`. Zero behavioural change, on purpose.**
+
+Asked to make `noteItemConsumed` always send the `eat` intent for an ATTENDED auto-eat, with
+`inOfflineReplay()` excluding away — on the premise (from
+`2026-09-04-auto-eat-at-creation.sql`'s header) that "the server's sim only eats during AWAY
+accrual", so lane A's universal `auto_eat_enabled = true` would silence the intent and leave free
+food.
+
+**The premise is false.** Full reasoning in `CONFLICTS.md` (2026-08-30). The one line worth carrying
+forward:
+
+> `src/net/accrue.js decideSettle`: `if (!st.visible) return { settle: false, reason: 'hidden' }`
+
+The 90-second settle loop runs **only while the tab is visible**. The periodic settle is therefore
+an *attended-only* loop — away time is settled on return by a different trigger — and
+`computeAccrual` has no away or presence input at all: `fx.autoEat()` is gated on `autoEatEnabled`
+alone. Measured: a fresh 10-HP goblin fight with the flag on eats 2 meals over 60 s, 3 over 90 s,
+each with the matching negative item delta; with it off the same window pays **0 kills and dies**.
+
+So the settle already debits the attended meal, and the requested change is a double debit — item
+loss, strictly worse than the restock it was meant to fix. `EAT-RESTOCK-6` block 2 already had
+teeth against it (it goes red the moment the gate is dropped).
+
+### The lesson, generalised
+
+**"Away" and "the server computed it" are different questions, and the codebase has one predicate
+for the first and none for the second.** `inOfflineReplay()` answers "is the client replaying an
+absence" — a *client-side* latch. Whether the SERVER will state a debit for a window is a property
+of the character's server columns (`auto_eat_enabled`), not of the client's latch or the wall clock.
+Every time those two get conflated the result is a double-count or a double-debit; the combat-XP
+watermark (`combat_xp_accrued_to`) exists because of exactly the same conflation on the XP side.
+When a gate reads "am I away?", ask what it actually needs to know.
+
+### What I shipped instead
+
+- `tests/accrual-engine.mjs` — new `attendedSettleAutoEatGuard()`: the engine eats and debits at
+  `ACCRUE_MIN_MS`, 90 s and 5 min, and the flag-off control at the same spans pays 0 kills / dies.
+  Mutation-proven: an "away-only" condition on `fx.autoEat` turns it red while the pre-existing
+  **12-hour** parity fixtures stay green — which is precisely the hole that let the premise survive.
+- `src/features/smoke-test.js` — `EAT-RESTOCK-6` block **2b**: while the server owns the debit and
+  the eat is ATTENDED, the client must still record the pending-consume HOLD. Mutation-proven: a
+  return before `P.noteConsumed` is caught by this assertion **and nothing else in 1091 tests**.
+  ("The server owns the debit" is a statement about the intent, never about the hold — the settle is
+  up to ~90 s away and every envelope in between names the pre-eat count.)
+- Comment corrections in `src/legacy.js` (the seam header + `_clientOwnsAutoEatDebit`) and
+  `src/net/accrue.js` (the `clientOwnsAutoEatDebit` header, whose "0 rows on production" measurement
+  b497 invalidates). Comment-only: `git diff` adds no executable line to either file.
+
+### Handoff raised
+
+`hr_set_auto_eat` has **zero client call sites**. After b497, `auto_eat_food` is NULL server-side for
+every new character, so the engine eats `bestHealingFood` (the biggest healer in the bag) while the
+client honours `G.foodSlot`. Counts converge; the two sides can drain different stacks. See
+CONFLICTS.md — Systems owns the wiring, Designer owns the toggle question.
+
+**Suite: 1091/1091, failed 0, runtime errors 0.**

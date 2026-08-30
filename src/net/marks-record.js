@@ -31,7 +31,7 @@
 // It never WRITES marks. Not a default, not a repair. DOM-free. Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue } from './record.js?v=494';
+import { isServerOfRecord, recordValue } from './record.js?v=495';
 
 /** The one read. Everything else is a shape of this answer.
  *  @returns {{known, value, reason, source}} value is null when !known. */

@@ -41,7 +41,7 @@
 // It never WRITES a room. Not a default, not a repair. DOM-free. Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue } from './record.js?v=494';
+import { isServerOfRecord, recordValue } from './record.js?v=495';
 
 /** A frozen empty map, returned for the UNKNOWN case. Frozen so a caller that
  *  (wrongly) tries to WRITE a rung into the fail-closed value cannot mutate a

@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 495 — 2026-08-30 (Your first hour just got fair)
+
+- 🍖 **New characters start with real food** (10 raw + 20 cooked shrimp) and it's armed for auto-eating from the first fight — measured: your first death moves from 26 seconds in to 13+ minutes in, and deaths in the first half hour drop ~50%.
+- 🛡️ **Armor actually works now.** A rounding bug made every piece of armor worth a flat "-1 damage" no matter how good it was — the real curve (3% per defense point) never ran. Tier-1 fighters hit ~33% harder through goblin hide; high-tier gear scales properly.
+- 🌙 **Leaving a fight running overnight now earns a real night.** The away simulation used to stop at your first death — a fresh character got credited ~30 seconds of a 12-hour night. Now the same night credits properly.
+- 🌾 The "Harvest 10 crops" daily is finishable at the starter camp (now 6 — one full harvest round on 2 plots).
+
 ## v0.9.2-beta build 494 — 2026-08-30 (Claims you earn can never be lost)
 
 - 🏅 **Rank and milestone claims are now bulletproof.** Claiming a Renown rank or a Collection milestone used to trust your screen's count and mark the reward "claimed" even if the server disagreed — which could permanently eat a reward (the "claimed Novice Hunter, got no gold" reports). Now nothing is marked or paid until the server says yes; if it says "not yet," you see the server's own count ("the realm has counted 1,840 of 2,200 Renown") and the button stays until you truly qualify.

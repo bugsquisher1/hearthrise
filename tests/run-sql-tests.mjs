@@ -423,6 +423,19 @@ const ALSO_LINTED = [
      gap, raised for the Coordinator rather than closed here, because widening the
      list can surface findings in files this change does not own. */
   '2026-09-01-kill-daily-credit.sql',
+  /* THE RENOWN KILL-FAUCET CLOSURE (2026-09-02, Security R5). It `create or
+     replace`s hr_renown_of — a SECURITY DEFINER function that takes an ARBITRARY
+     uuid and must therefore reach no client role at all — and PATCHES
+     hr_credit_kills__ungated programmatically at a guarded anchor (so it carries
+     no literal create-or-replace header for it and takes over no last-toucher
+     role for the credit verb). It DOES become hr_renown_of's new last toucher;
+     that function had exactly one before (2026-08-20-renown.sql) and is on no
+     derivation chain. Listed here so PART 1b's revoke-before-grant lint sees the
+     restated body: `create or replace` PRESERVES an ACL, and a restatement that
+     forgot its revoke/grant block would silently keep whatever was there — which
+     on a function that scores ANY player's renown from a uuid argument is the
+     exact shape this lint is the only static defence against. */
+  '2026-09-02-renown-kill-faucet.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────

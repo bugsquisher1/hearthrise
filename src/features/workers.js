@@ -9,8 +9,12 @@
 // Design:
 //   • Slots come from the property tier (features/homestead.js): 0 at
 //     the camp → 6 at the castle. Hiring costs gold, escalating.
-//   • Efficiency: 25% of player rate at worker Lv1, +3%/level to 52%
-//     at Lv10. Workers level by working (slowly — days, not minutes).
+//   • Efficiency: a fraction of the ACTIVE PLAYER's rate at the same node —
+//     10% at worker Lv1, +0.8%/level to 17.2% at Lv10 (b389). Workers level by
+//     working (slowly — days, not minutes). The curve and the paced anchor it
+//     is a fraction of are authored ONCE, in src/core/workers.js; this file no
+//     longer owns a rate number. (This line read "25% … to 52%" for four builds
+//     after b389 changed it — hence the module, and hence the ratio guard.)
 //   • Workers produce RESOURCES ONLY, never player XP — your 99s stay
 //     yours; workers feed the castle build costs. That's the loop:
 //     workers gather → you upgrade property → more workers.
@@ -33,10 +37,36 @@
      active-equivalents (≈ ONE extra gatherer working while you're away).
      Lever B — escalate hire cost so the full crew is a King-tier investment
      (~1.09M total vs 323k), not free money. Workers stay a nice passive helper;
-     manual play is the fast path again. (Upkeep/food = Lever C, deferred to Systems.) */
+     manual play is the fast path again. (Upkeep/food = Lever C, deferred to Systems.)
+     ⚠ b497 — Lever A's ARITHMETIC ABOVE IS THE RULING; its IMPLEMENTATION was
+     wrong from b389 to b496. Both engines divided the raw `node.ms` by eff while
+     the player gathers at `pacedActionMs(node.ms)`, so the shipped figure was
+     6 x 0.172 x 1.60 = 1.65, not 1.03 — the nerf landed 60% short. Nothing in
+     this note changed; only the anchor did. HIRE_COSTS is unaffected. */
   var HIRE_COSTS = [500, 3000, 15000, 75000, 250000, 750000];
-  var ACCRUE_CAP_MS = 24 * 3600000;   // workers rest after 24h without direction
-  var BASE_EFF = 0.10, EFF_PER_LVL = 0.008, MAX_LVL = 10;
+
+  /* ── THE RATE MODEL IS NOT AUTHORED HERE (b497) ──────────────────────────
+     `BASE_EFF / EFF_PER_LVL / MAX_LVL / ACCRUE_CAP_MS` and the level/eff curve
+     used to be literals in this file AND again in
+     supabase/functions/hr-accrue/accrual.js, reconciled by a comment reading
+     "Mirrors src/features/workers.js". Worse, the quantity the efficiency is a
+     fraction OF was named in neither: both divided the RAW `node.ms`, while the
+     player gathers at `pacedActionMs(node.ms)` — so b389's "10% efficiency"
+     nerf shipped at 1.60x its stated size (a Lv10 crew of six = 1.65
+     active-player-equivalents against the 1.03 the ruling names).
+     src/core/workers.js owns all of it now and BOTH engines import it. Do not
+     re-inline a constant here: a display that quotes a rate the server settle
+     does not pay is the away-divergence class this codebase has paid for twice.
+
+     Reached through core-bridge because this is a classic script. If core is
+     somehow absent the accessors degrade toward ZERO PRODUCTION, never toward a
+     guessed rate — `eff` 0 makes perTickMs Infinity, so `accrueWorker` takes its
+     `ticks <= 0` branch, which returns WITHOUT advancing `lastCollect`. Time is
+     deferred, never confiscated and never mispaid. */
+  function CW() {
+    var C = window.HearthriseCore;
+    return (C && C.workers) || null;
+  }
 
   function G_() { return window.G || {}; }
 
@@ -119,8 +149,13 @@
     return null;
   }
 
-  function level(w) { return Math.min(MAX_LVL, 1 + Math.floor(Math.sqrt((w.xp || 0) / 2000))); }
-  function eff(w) { return BASE_EFF + EFF_PER_LVL * (level(w) - 1); }
+  function level(w) { var K = CW(); return K ? K.workerLevel(w && w.xp) : 1; }
+  function eff(w) { var K = CW(); return K ? K.workerEff(w && w.xp) : 0; }
+  /* The interval between this worker's productions — the PACED action interval
+     at the node divided by the worker's efficiency. One expression, shared with
+     the server settle (which evaluates the same rational in exact integers). */
+  function tickMs(w, act) { var K = CW(); return K ? K.workerTickMs(act.ms, w && w.xp) : Infinity; }
+  function accrueCapMs() { var K = CW(); return K ? K.WORKER_ACCRUE_CAP_MS : 24 * 3600000; }
 
   function hire() {
     ensureState();
@@ -369,8 +404,8 @@
     if (serverBacked()) { w.lastCollect = now; return null; }
     var act = w.skill && actFor(w.skill, w.targetId);
     if (!act) { w.lastCollect = now; return null; }
-    var elapsed = Math.min(Math.max(0, now - (w.lastCollect || now)), ACCRUE_CAP_MS);
-    var perTickMs = act.ms / eff(w);
+    var elapsed = Math.min(Math.max(0, now - (w.lastCollect || now)), accrueCapMs());
+    var perTickMs = tickMs(w, act);
     var ticks = Math.floor(elapsed / perTickMs);
     if (ticks <= 0) return null;
     var avgQty = (act.qty[0] + act.qty[1]) / 2;
@@ -401,11 +436,16 @@
     return gains;
   }
 
+  /* THE ADVERTISED CREW RATE. Reads the SAME `workerTickMs` the settle prices
+     the haul with — the readout under a worker's name is a promise, and before
+     b497 it over-quoted by 60% because it divided the un-paced node time. */
   function ratePerHour(w) {
     var act = w.skill && actFor(w.skill, w.targetId);
     if (!act) return null;
     var avgQty = (act.qty[0] + act.qty[1]) / 2;
-    return Math.round(3600000 / (act.ms / eff(w)) * avgQty);
+    var per = tickMs(w, act);
+    if (!(per > 0) || !isFinite(per)) return 0;
+    return Math.round(3600000 / per * avgQty);
   }
 
   // ---------- UI (renders into the host div inside the Property card) ----------

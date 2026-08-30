@@ -43577,7 +43577,20 @@ const TESTS = [
 
       const G = window.G;
       const BASE = 200000;               // high enough that eight grants cannot cross a level
-      const NOW = Date.now();
+      /* ── VERSIONS: ABOVE THE AMBIENT RECORD, AND NEVER INTO THE FUTURE ─────
+         `applyRecord` is monotonic on `version`, so an envelope numbered below
+         whatever the previous test left is silently gap-filled instead of
+         applied and this test's own setup reads 0. And the suite's shared
+         `stampRecordLikeLoad` stamps at `max(prev + 1, Date.now())` — a RATCHET
+         that carries a future version forward — so a test that ends with a
+         version above `Date.now()` makes the NEXT test's honest `Date.now()`
+         envelope look stale. MEASURED, and it is a millisecond race: this test
+         ran in ~2 ms, left the record at `NOW + 3`, and took XP-CREDIT-RETIRE
+         down with "setup: the record did not land (got 0)" — a failure with
+         nothing whatsoever to do with what that test asserts.
+         Both halves are handled: start ABOVE the ambient version, and hand the
+         record back at a version that is not in the future (see the finally). */
+      const NOW = Math.max(Date.now(), (Number(G._record && G._record.version) || 0) + 1);
       const env = (i, xp) => ({
         ok: true, version: NOW + i,
         now: new Date(NOW + i * 1000).toISOString(),
@@ -43645,6 +43658,18 @@ const TESTS = [
       try { R.__setSkillsRecordArm(null); } catch (e) {}
       A.markEquipAuthorityLive(wasAbsolute ? true : false);
       if (!wasA) { try { A.setServerAccrualEnabled(false); } catch (e) {} }
+      /* ⚠ DROP THE VERSION BEFORE THE RESTORE. `restoreGAndRecord` re-stamps
+         through `stampRecordLikeLoad`, whose version is `max(prev + 1,
+         Date.now())` — so handing it a `prev` at or above the clock ratchets the
+         record into the FUTURE and every later test's honest envelope reads as
+         stale. Zeroing first makes that `max` resolve to `Date.now()`, which is
+         what "the record as of now" is supposed to mean. See the version note
+         above for the measured failure this prevents. */
+      try {
+        if (window.G && window.G._record) {
+          window.G._record = { ...window.G._record, version: 0 };
+        }
+      } catch (e) {}
       restoreGAndRecord(snap);
     }
   }),

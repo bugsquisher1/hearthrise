@@ -403,7 +403,13 @@
        un-backed and then deleted by the inventory absolute-replace. Before shipping
        any renown ITEM reward, register the lane in item-authority.js
        unbackedOwnableMintLanes() (or server-author the grant). */
-    if (rw.item && mayWrite('inventory') && typeof window.addItem === 'function') {
+    /* The seam predicate is spelled OUT here (not via the mayWrite helper) on
+       purpose: the inventory-mint census pins the greppable literal
+       `clientMayWriteRecordField('inventory')` at this call site, so an edit
+       that drops the gate fails the build by name instead of silently
+       re-opening an un-backed ownable mint under the flip. */
+    if (rw.item && (!window.clientMayWriteRecordField || window.clientMayWriteRecordField('inventory'))
+        && typeof window.addItem === 'function') {
       try { window.addItem(rw.item, rw.itemQty || 1); } catch (e) {}
     }
     markClaimed(s, rankId);

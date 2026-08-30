@@ -95,6 +95,46 @@ jobs:
           node tests/schema-drift.mjs --mutate
           node tests/schema-drift.mjs --live-selftest
 
+      # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
+      # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
+      # it "says nothing about whether any row survives a restore". This is that
+      # half: every base table in `public` must state whether a repo rebuild
+      # reproduces its rows or whether only a BACKUP has them.
+      #
+      # ⚠ It existed since 2026-08-15 and was WIRED INTO NOTHING — not here, not
+      #   run-smoke, not package.json. In that fortnight the schema went from 67
+      #   to 90 base tables and 23 arrived with no DR class at all, including
+      #   player_bank and player_workers, which hold player value, while every
+      #   other player_* table was classified restore_only. Nobody could have
+      #   known: no build ran it. That is the whole reason this step exists.
+      #
+      # The census now also fails on a rationale-free classification, on a
+      # player-value table quietly downgraded to make a red build green, and on
+      # any NEW table carrying a user_id that appears in neither the player-value
+      # manifest nor the written exemption list. Adding a player-scoped table
+      # without ruling on it is one red line and one line to fix.
+      #
+      # --mutate plants six defects in the real migration text (a catalogue that
+      # rebuilds one row long past its own floor check, a lost retention cron, an
+      # unclassified table, an unruled player-scoped table, a restore_only table
+      # that starts being seeded) and demands each is caught BY THIS GUARD rather
+      # than by a neighbour. --baseline-selftest does the same for the half that
+      # lives in the baseline rather than in SQL: nine planted classification
+      # defects, each pinned to the specific message that must fire.
+      #
+      # No credentials; production untouched. The PRODUCTION half is
+      # `--live-sql` / `--live-compare` and is deliberately NOT here: it needs a
+      # live database, and no database credential belongs in a job that runs npm
+      # lifecycle scripts (see `permissions:` above). It is a pre-apply ritual —
+      # run it before any migration that touches a data-bearing table, and before
+      # any rebuild or restore.
+      - name: Restore census — which rows only a backup gives back
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/restore-census.mjs
+          node tests/restore-census.mjs --mutate
+          node tests/restore-census.mjs --baseline-selftest
+
       # THE CONSERVATION FUZZ. Randomised, seeded operations across several
       # characters against the REAL server-authority migrations, running on an
       # in-process PostgreSQL — no database credentials, no branch, nothing to

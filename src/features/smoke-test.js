@@ -47055,8 +47055,22 @@ const TESTS = [
      THE PIN IS ZERO, and zero is a number this can only stay at or fail on.
      If a future build needs to raise it, that is a decision someone has to make
      out loud in this file rather than by editing a threshold quietly. */
-  () => tryRun('art: ZERO emoji-as-icon in the rendered DOM of the main screens', () => {
+  () => tryRunAsync('art: ZERO emoji-as-icon in the rendered DOM of the main screens', async () => {
     const EMO = /\p{Extended_Pictographic}/u;
+    /* b493 — THE DECLARED-PENDING CARVE-OUT, DERIVED NOT HARDCODED. The BotD
+       rotation paints the daily boss's icon into #panel-combat; six monsters
+       are still awaiting the painted batch (art spend frozen) and their
+       MONSTERS[].icon is an emoji by design — MON-ART-2 explicitly BLESSES the
+       glyph fallback for exactly this set, so on a day the rotation lands on
+       one (cyclops, 2026-08-30 was the first) this pin contradicted MON-ART-2
+       and went red date-dependently. Exempt ONLY the icon strings of monsters
+       pendingArt() names TODAY: the set is read live from monster-art.js, so
+       the moment the batch ships and SHIPPED grows, the exemption evaporates
+       and a leftover emoji fails again on its own — staleness by construction. */
+    const _art = await import('../data/monster-art.js?v=493');
+    const _pendingIcons = new Set(
+      _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
+        .map((s) => String(s).trim()));
     /* Curated: the screens a player actually looks at, plus the two densest
        (Combat + Inventory) that the release visual gate names. Deliberately a
        LIST — a blanket `document.body` sweep would also police the dev smoke
@@ -47097,6 +47111,8 @@ const TESTS = [
         // STRUCTURAL = stripping the pictographs leaves nothing behind.
         const stripped = raw.replace(/\p{Extended_Pictographic}️?/gu, '').trim();
         if (stripped) continue;
+        // Declared-pending monster icons (see the carve-out header above).
+        if (_pendingIcons.has(raw.trim())) continue;
         const sig = label + '|' + raw.trim() + '|' + (el.className || el.tagName);
         if (seen.has(sig)) continue;
         seen.add(sig);

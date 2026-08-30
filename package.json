@@ -36,7 +36,11 @@
     "test:open-beta": "node tests/open-beta.mjs",
     "test:open-beta:selftest": "node tests/open-beta.mjs --selftest",
     "test:bug-triage": "node tests/bug-triage.mjs",
-    "test:bug-triage:mutate": "node tests/bug-triage.mjs --mutate"
+    "test:bug-triage:mutate": "node tests/bug-triage.mjs --mutate",
+    "test:intent-mismatch": "node tests/intent-mismatch.mjs",
+    "test:intent-mismatch:selftest": "node tests/intent-mismatch.mjs --selftest",
+    "test:cron-health": "node tests/cron-health.mjs",
+    "test:cron-health:selftest": "node tests/cron-health.mjs --selftest"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",

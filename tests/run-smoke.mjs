@@ -2977,6 +2977,57 @@ const run = async () => {
       exitCode = e.harness ? 2 : 1;
     }
 
+    /* ── ONE IDEMPOTENCY KEY, ONE INTENT (b493/b494 security finding #7) ──
+       player_intents is ONE key namespace for every verb. hr_apply compares the
+       stored intent AND slot before serving a cached envelope; twelve other
+       SECURITY DEFINER RPCs read the same cache and compared neither, so a uuid
+       burned on a free verb answered a money verb with the wrong envelope —
+       self-only, but it spends a completed daily for nothing. The guard drives a
+       real player through the real RPCs on a fully replayed PGlite chain, and
+       asserts the property at CHAIN END, which is the only position from which a
+       LATER migration restating a patched body (the b484–b487 class) is visible.
+       `--selftest` plants seven real defects; every one must read RED. */
+    try {
+      const { intentMismatchGuard } = await import('./intent-mismatch.mjs');
+      const intentProblems = await intentMismatchGuard();
+      if (intentProblems.length) {
+        console.log('\nIntent-mismatch guard — FAILED:');
+        for (const p of intentProblems) console.log(`  ✗ ${p}`);
+        exitCode = 1;
+      } else {
+        console.log('\nIntent-mismatch guard — one key answers one intent on one slot; a genuine '
+          + 'replay still replays; twelve bodies guarded at chain end; the helper reaches nobody.');
+      }
+    } catch (e) {
+      console.log('\nIntent-mismatch guard — FAILED:\n' + String(e.message || e));
+      exitCode = e.harness ? 2 : 1;
+    }
+
+    /* ── The generalized cron-health detector (the b319 lesson) ──────────
+       hr_cron_health alarmed on the size of ONE hardcoded table. b319's own
+       migration says a policy that cannot fire is worse than no policy, so this
+       guard asserts every ARM fires at its fuse (database size + growth,
+       per-table size + growth + row delta, connection headroom, the never-ran
+       escalation), that NONE fires on a healthy database, that the sensitivity
+       scale which makes the first half testable cannot be raised into an off
+       switch, and that the detector's own tables are bounded and unreachable by
+       a client. `--selftest` plants eight real defects; every one must read RED. */
+    try {
+      const { cronHealthGuard } = await import('./cron-health.mjs');
+      const cronProblems = await cronHealthGuard();
+      if (cronProblems.length) {
+        console.log('\nCron-health guard — FAILED:');
+        for (const p of cronProblems) console.log(`  ✗ ${p}`);
+        exitCode = 1;
+      } else {
+        console.log('\nCron-health guard — every arm fires at its fuse, none on a healthy database, '
+          + 'the scale cannot be raised, retention bounds the detector itself.');
+      }
+    } catch (e) {
+      console.log('\nCron-health guard — FAILED:\n' + String(e.message || e));
+      exitCode = e.harness ? 2 : 1;
+    }
+
     /* ── The quest-MODAL claim guard (b461) ──────────────────────────────
        Hearthrise has THREE goal systems; b414 gave two of them a server credit
        path and the modal's Daily/Weekly tabs never got one, so under the live

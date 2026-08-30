@@ -436,6 +436,34 @@ const ALSO_LINTED = [
      on a function that scores ANY player's renown from a uuid argument is the
      exact shape this lint is the only static defence against. */
   '2026-09-02-renown-kill-faucet.sql',
+  /* ONE IDEMPOTENCY KEY, ONE INTENT (2026-09-03, security finding #7). It creates
+     ONE function — hr_intent_replay, which takes a uuid ARGUMENT and must
+     therefore reach no role at all, i.e. exactly the shape PART 1b is the only
+     static defence against — and PATCHES twelve bodies programmatically at
+     guarded exactly-once anchors, so it carries no literal create-or-replace for
+     any of them and takes over NO last-toucher role. It touches none of the
+     graded bodies (hr_apply / hr_state_of / hr_perks_of / hr_rate_gate /
+     hr_assert_grant_hygiene) and is on no derivation chain. */
+  '2026-09-03-intent-mismatch-class.sql',
+  /* THE intent_mismatch ESCALATION (2026-09-03, Security condition C2). It
+     PATCHES hr_record_rejection programmatically at a guarded exactly-once anchor
+     (so no literal create-or-replace header and no last-toucher role) to move
+     'intent_mismatch' into the c_escalating array. Listed here because the patch
+     re-executes a SECURITY DEFINER body that writes hr_rejections for an
+     ARBITRARY user id: `create or replace` PRESERVES an ACL, and a restatement
+     that lost its revoke block would leave a way to forge another player's abuse
+     record. The file asserts the ACL is byte-identical across the replace; this
+     lint is the static half of the same claim. On no derivation chain. */
+  '2026-09-03-intent-mismatch-escalates.sql',
+  /* THE GENERALIZED CRON-HEALTH DETECTOR (2026-09-03). Operator-only telemetry.
+     It creates two SECURITY DEFINER functions (hr_db_sample, hr_cron_health_ex —
+     the second reads pg_stat_activity and writes two maintenance tables) and
+     `create or replace`s hr_cron_health, which is the case this list exists for
+     twice over: a NEW definer function is anon-callable until it is revoked, and
+     a create-or-replace PRESERVES whatever ACL was there. Nothing here is
+     client-callable, so it must appear in no CLIENT_CALLABLE entry. On no
+     derivation chain. */
+  '2026-09-03-cron-health-generalized.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────

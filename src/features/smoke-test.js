@@ -1932,6 +1932,21 @@ const TESTS = [
     const H = window.HearthriseHomestead;
     if (!H || typeof H.upgradeProperty !== 'function') return;
     const snap = snapshotG();
+    /* ── ORDER-DEPENDENCE (QA P3, b495) ────────────────────────────────────
+       `G.homestead.tier = 0` is NOT the tier this test upgrades from.
+       property-record.js keeps a MODULE-LEVEL, session-scoped, MONOTONE cache of
+       the highest property rung the server has ever reported, and getTier()
+       heals `G.homestead.tier` UP to it on every read — deliberately, so a
+       residue hydrate cannot demote a paid-for tier. `snapshotG()` cannot see
+       that cache (it is not in G), so any earlier test that let a server
+       envelope through leaves this one upgrading from tier N, buying a
+       different offer at a different price, and failing on assertions that have
+       nothing to do with the seam under test. Reset it, and put back exactly
+       what was there — `__resetPropertyRecord` returns the previous pair for
+       precisely this, so a live signed-in session does not lose a real rung. */
+    const propRec = window.HearthriseProperty;
+    const prevProp = (propRec && typeof propRec.__resetPropertyRecord === 'function')
+      ? propRec.__resetPropertyRecord() : null;
     try {
       window.G.homestead = { tier: 0 };                 // camp → next is homestead (400g)
       window.G.gold = 500000;
@@ -1940,11 +1955,18 @@ const TESTS = [
       const goldBefore = window.G.gold;
       const ok = H.upgradeProperty();
       assert(ok === true, 'the property upgrade from camp should succeed with funds in hand');
-      assert(window.G.homestead.tier === 1, 'the tier should advance to homestead');
+      assert(window.G.homestead.tier === 1,
+        'the tier should advance to homestead; got ' + window.G.homestead.tier
+        + ' (if this is > 1 the property-record ratchet was not reset — see the note above)');
       assert(window.G.gold === goldBefore - 400,
         'the homestead upgrade must debit exactly 400 gold once (offer property.homestead); got '
         + (goldBefore - window.G.gold));
-    } finally { restoreG(snap); }
+    } finally {
+      if (prevProp && propRec) {
+        try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {}
+      }
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('unlock_buy slices 2-3: worker/farm/bank offer ids cross, a price never does', () => {
@@ -43496,62 +43518,159 @@ const TESTS = [
     }
   }),
 
-  /* ── REGRESSION (Paione, live, reported repeatedly 08-23 → 08-27): mid-combat
-     envelope must not revert attended XP that is still awaiting credit.
-     "when im in combat i am getting sync +1 item and my HP goes up and reverts
-     my exp." Root class: the armed absolute assign re-asserts the server's
-     skill xp DOWNWARD while attended XP sits un-credited in G._combatXpPending
-     (credit lag: RTT, throttle, rate gate, in-flight race). The fold-back in
-     applyEnvelopeState displays server truth PLUS still-pending attended XP,
-     so no credit-lag window can revert what the player watched happen.
-     Fails without the fold-back (attack lands at 3000, the revert). */
-  () => tryRun('XP-FOLDBACK: an absolute envelope folds still-pending attended combat XP back on top (no mid-fight revert); no pending = absolute anti-forgery unchanged', () => {
+  /* ── REGRESSION (Paione, live, reported repeatedly 08-23 → 08-27), RETARGETED
+     TO THE LAYER THAT ACTUALLY PROTECTS (b495).
+
+     THE PLAYER-FACING PROPERTY IS UNCHANGED and is the whole point: "when im in
+     combat i am getting sync +1 item and my HP goes up and reverts my exp." A
+     settle that lands while attended combat XP is still awaiting credit (RTT,
+     throttle, rate gate, in-flight race) must not shrink the number the player
+     watched go up.
+
+     WHAT MOVED IS WHERE THAT IS ENFORCED. b487 enforced it by folding
+     `G._combatXpPending` back on top of the absolute assign inside
+     applyEnvelopeState — and this test asserted that fold, on a bare object,
+     with applyEnvelopeState called alone. PRODUCTION NEVER RUNS IT ALONE:
+     legacy.js:2124 calls it and legacy.js:2144 hands the SAME envelope to
+     record.js applyRecord, which replaces `G.skills` wholesale and re-stamps it
+     microseconds later. So the old test passed against a function whose output
+     production overwrites — green, and guarding nothing. Worse, on the one path
+     where the fold DID survive (a stale envelope, where applyRecord fills only
+     the fields the record cannot vouch for) the folded map no longer matched
+     `_record.stamp`, `recordValue` answered `client-overwrote`, and
+     skillXpForDisplay fell to the `local` rung — which ADDS the prediction on
+     top of a number that already contained it. The b491 double-count, recreated.
+
+     The fold-back is therefore GONE (src/net/accrue.js), and this test now
+     drives the PRODUCTION PAIR in the production order —
+     applyEnvelopeState → applyRecord — and asserts the property at the layer
+     that survives it: the prediction bag.
+
+     MUTATION: reinstate the fold-back in applyEnvelopeState → the STALE-envelope
+     section reads RED (rung falls off `server`, display double-counts). Delete
+     the `credit`-tagged prediction seam → the credit-lag section reads RED. */
+  () => tryRunAsync('XP-FOLDBACK (b495): a settle landing while attended XP is still pending cannot shrink the display, at the layer production actually uses (envelope → record); a lower server number still wins; no pending = absolute anti-forgery unchanged', async () => {
+    const R = window.HearthriseRecord;
+    const P = window.HearthrisePredict;
+    const S = window.HearthriseSkillRecord;
     const A = window.HearthriseAccrual;
-    assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
+    const C = window.HearthriseCore;
+    assert(R && P && S && A && C, 'record/predict/skill-record/accrual/core must all be published');
+    assert(typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origClaim = window.HearthriseGoalClaim;
+    const origCtx = C.xpGrantCtx;
+    const wasA = A.isServerAccrualEnabled();
     const wasAbsolute = A.isEnvelopeAbsolute();
-    A.markEquipAuthorityLive(true);
     try {
-      assert(A.isEnvelopeAbsolute() === true, 'envelope must be ABSOLUTE for this test (precondition)');
-
-      /* Player at attack 3500 locally: server has settled 3000, and 500 attended
-         XP is observed-but-not-yet-credited (sitting in the pending buffer when
-         the settle's envelope lands). The pre-fix behavior assigned 3000 — the
-         on-screen revert. Correct display = 3000 (server truth) + 500 (pending). */
-      const G = {
-        skills: { attack: 3500, cooking: 5000 },
-        _combatXpPending: { attack: 500 },
+      if (!wasA) A.setServerAccrualEnabled(true);
+      A.markEquipAuthorityLive(true);
+      R.__setSkillsRecordArm(true);
+      assert(R.isServerOfRecord('skills') === true, 'skills must be ARMED for this test (precondition)');
+      assert(A.isEnvelopeAbsolute() === true, 'the envelope must be ABSOLUTE for this test (precondition)');
+      window.clientMayWriteRecordField = function (f) { return f !== 'skills'; };
+      window.HearthriseGoalClaim = { isSignedIn: () => false, creditCombatXp: () => Promise.resolve({ ok: true }) };
+      C.xpGrantCtx = function (opts) {
+        return { bonus: () => 0, xpB: 0, restedQuantum: 0, authored: !!(opts && opts.authored) };
       };
-      A.applyEnvelopeState(G, {
-        state: {},
-        skills: { attack: { xp: 3000 }, cooking: { xp: 3000 } },
-        inventory: {},
+
+      const G = window.G;
+      const BASE = 200000;               // high enough that eight grants cannot cross a level
+      /* ── VERSIONS: ABOVE THE AMBIENT RECORD, AND NEVER INTO THE FUTURE ─────
+         `applyRecord` is monotonic on `version`, so an envelope numbered below
+         whatever the previous test left is silently gap-filled instead of
+         applied and this test's own setup reads 0. And the suite's shared
+         `stampRecordLikeLoad` stamps at `max(prev + 1, Date.now())` — a RATCHET
+         that carries a future version forward — so a test that ends with a
+         version above `Date.now()` makes the NEXT test's honest `Date.now()`
+         envelope look stale. MEASURED, and it is a millisecond race: this test
+         ran in ~2 ms, left the record at `NOW + 3`, and took XP-CREDIT-RETIRE
+         down with "setup: the record did not land (got 0)" — a failure with
+         nothing whatsoever to do with what that test asserts.
+         Both halves are handled: start ABOVE the ambient version, and hand the
+         record back at a version that is not in the future (see the finally). */
+      const NOW = Math.max(Date.now(), (Number(G._record && G._record.version) || 0) + 1);
+      const env = (i, xp) => ({
+        ok: true, version: NOW + i,
+        now: new Date(NOW + i * 1000).toISOString(),
+        state: { accrued_to: new Date(NOW + i * 1000).toISOString() },
+        skills: { defense: { xp }, hitpoints: { xp: 1300 } },
       });
-      assert(G.skills.attack === 3500,
-        'THE REVERT: envelope stomped attended XP still awaiting credit — got ' + G.skills.attack + ', want 3000 server + 500 pending = 3500');
-      // A skill with NO pending still reconciles absolutely (anti-forgery intact).
-      assert(G.skills.cooking === 3000,
-        'a server-accrued skill with no pending must still reconcile absolutely downward — got ' + G.skills.cooking);
+      /* THE PRODUCTION PAIR, in the production order. Calling either one alone is
+         what made the previous version of this test vacuous. */
+      const settle = (e) => { A.applyEnvelopeState(G, e); R.applyRecord(G, e); };
+      const shown = () => S.skillXpForDisplay(G, 'defense').value;
+      const rung = () => S.skillXpForDisplay(G, 'defense').rung;
 
-      /* Anti-forgery direction: pending is display-only headroom on top of
-         SERVER truth — it can never hold the display ABOVE what server+pending
-         says. A higher server value simply wins (fold-back adds, never blocks). */
-      A.applyEnvelopeState(G, { state: {}, skills: { attack: { xp: 9000 } }, inventory: {} });
-      assert(G.skills.attack === 9500,
-        'fold-back must ride ON TOP of the server value (9000 + 500 pending) — got ' + G.skills.attack);
+      P.resetPredictions(G); G._combatXpPending = {};
+      settle(env(0, BASE));
+      assert(shown() === BASE, 'setup: the record did not land (got ' + shown() + ')');
+      assert(rung() === 'server', 'setup: the display is not on the server rung (got ' + rung() + ')');
 
-      /* Drained pending = pure absolute again (the fold-back retires itself). */
-      G._combatXpPending = {};
-      A.applyEnvelopeState(G, { state: {}, skills: { attack: { xp: 4000 } }, inventory: {} });
-      assert(G.skills.attack === 4000,
-        'with pending drained the absolute assign must fully own the value again — got ' + G.skills.attack);
+      for (let i = 0; i < 8; i++) window.addXp('defense', 12);
+      const gained = Number(G._combatXpPending.defense) || 0;
+      assert(gained > 0, 'the armed grant buffered no attended combat XP at all — fixture is degenerate');
+      assert(shown() === BASE + gained,
+        'the display did not move by the watched gain (got ' + shown() + ', want ' + (BASE + gained) + ')');
 
-      /* Garbage pending must not poison the apply (NaN/negative → ignored). */
-      G._combatXpPending = { attack: NaN, magic: -50 };
-      A.applyEnvelopeState(G, { state: {}, skills: { attack: { xp: 4100 } }, inventory: {} });
-      assert(G.skills.attack === 4100,
-        'garbage pending (NaN) must be ignored, not folded — got ' + G.skills.attack);
+      /* 1 — THE CREDIT-LAG SETTLE. The envelope restates the server's number,
+         which does NOT yet include the attended XP (the credit has not landed).
+         The display must not move: this is the exact frame the player reported. */
+      settle(env(1, BASE));
+      assert(shown() === BASE + gained,
+        'THE REVERT: a settle that landed while the credit was still pending took '
+        + ((BASE + gained) - shown()) + ' watched XP off the screen.');
+      assert(rung() === 'server',
+        'the display fell off the `server` rung to `' + rung() + '` — something wrote G.skills '
+        + 'without the record stamping it, which is the fold-back defect.');
+
+      /* 2 — THE STALE ENVELOPE: the ONE path where a client write to G.skills
+         survives applyRecord (it fills only the fields the record cannot vouch
+         for). If a fold-back is ever reintroduced, THIS is where it lands — and
+         it lands as a double-count on the `local` rung. */
+      settle(env(-5, BASE));
+      assert(rung() === 'server',
+        'A STALE ENVELOPE LEFT G.skills DISAGREEING WITH THE RECORD (rung `' + rung() + '`). '
+        + 'applyEnvelopeState wrote a value applyRecord did not stamp — the b487 fold-back, back.');
+      assert(shown() === BASE + gained,
+        'the stale envelope changed the display to ' + shown() + ' (want ' + (BASE + gained)
+        + '). On the `local` rung the prediction is added to a number that already contains it.');
+
+      /* 3 — A LOWER SERVER NUMBER STILL WINS. Pending is headroom ON TOP of
+         server truth, never a floor under it: the server wins every contest,
+         including downward, and that direction IS the anti-forgery property. */
+      settle(env(2, BASE - 500));
+      assert(shown() === BASE - 500 + gained,
+        'a LOWER server number must still win, with the pending headroom on top — got ' + shown()
+        + ', want ' + (BASE - 500 + gained));
+
+      /* 4 — WITH NOTHING PENDING the record owns the number outright. */
+      P.resetPredictions(G); G._combatXpPending = {};
+      settle(env(3, 4000));
+      assert(shown() === 4000,
+        'with nothing pending the server value must own the display absolutely — got ' + shown());
+      assert(rung() === 'server', 'and it must still be on the server rung — got ' + rung());
     } finally {
+      C.xpGrantCtx = origCtx;
+      window.clientMayWriteRecordField = origMay;
+      window.HearthriseGoalClaim = origClaim;
+      try { R.__setSkillsRecordArm(null); } catch (e) {}
       A.markEquipAuthorityLive(wasAbsolute ? true : false);
+      if (!wasA) { try { A.setServerAccrualEnabled(false); } catch (e) {} }
+      /* ⚠ DROP THE VERSION BEFORE THE RESTORE. `restoreGAndRecord` re-stamps
+         through `stampRecordLikeLoad`, whose version is `max(prev + 1,
+         Date.now())` — so handing it a `prev` at or above the clock ratchets the
+         record into the FUTURE and every later test's honest envelope reads as
+         stale. Zeroing first makes that `max` resolve to `Date.now()`, which is
+         what "the record as of now" is supposed to mean. See the version note
+         above for the measured failure this prevents. */
+      try {
+        if (window.G && window.G._record) {
+          window.G._record = { ...window.G._record, version: 0 };
+        }
+      } catch (e) {}
+      restoreGAndRecord(snap);
     }
   }),
 

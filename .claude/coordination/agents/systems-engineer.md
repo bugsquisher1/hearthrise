@@ -83,6 +83,111 @@ hand-tuned bands around magic numbers, one of them with arithmetic its own comme
 ("~1.5 qty" on a `[1,1]` node). A band that has to be re-tuned every time a rate moves is a band
 that cannot detect a rate moving. Both are exact now and predicted from the PLAYER's side of the
 ratio, so the worker engine cannot satisfy them by agreeing with itself.
+## 2026-09-04 — b497 DATA RETUNE: "one migration on hr_goal_rewards" was THREE surfaces
+
+**Branch:** `data/goal-gold-retune` (worktree `R:/the game/wt-data-retune`), base main b496
+`fe2a7111`. Designer balance ruling, implemented as authored.
+
+### THE FIRST THING I DID WAS DISPROVE THE BRIEF, AND IT WAS THE WHOLE JOB
+The task said "+ ONE forward migration on `hr_goal_rewards`", and told me to check that before
+assuming it. The eight retuned ids do **not** live in one place. They live in three, and the
+difference decides the shape of every fix:
+
+| system | where its catalogue lives | how you move PRODUCTION |
+|---|---|---|
+| modal goal board (`gather_logs`/`mine_ore`/`fish`/`cook`/`plant`) | **rows** in `public.hr_goal_rewards` | `UPDATE` |
+| daily TASKS (`daily_kill`/`_big`/`daily_smith`/`daily_craft`) | a **`case`** inside `hr_claim_daily__ungated` | patch the function body |
+| onboarding QUESTS (`farmhand`) | a **`case`** inside `hr_claim_quest__ungated` | patch the function body |
+
+**The reusable lesson: "is it server-catalogued?" and "is it a ROW?" are different questions, and
+only the second one tells you what a forward migration has to be.** A catalogue that lives inside a
+function body cannot be UPDATEd; it can only be re-created, and re-creating a ~90-line body this
+change did not author is exactly how the b484-b487 wave silently reverted other migrations. So §2/§3
+use the programmatic-patch idiom (`pg_get_functiondef` + an anchored `regexp_replace` that refuses to
+patch blind), which takes over no last-toucher role and cannot delete a stranger's change.
+
+`src/data/goal-catalogue.js`'s `BLOCKED_GOAL_BOARD` string says the modal board has no server model.
+**That has been false since 2026-08-23** (`hr_goal_rewards` + `hr_claim_goal` + `goal-period.js`'s
+counters). `src/net/gold-sites.js DAILY_COUNTERS` repeats it and cites it. I did NOT fix them — a
+gold-site blocker is censused and this was not my ruled scope — but I nearly reasoned from a comment
+that has been wrong for two weeks. Filed in HANDOFFS.
+
+### THE HOLE I FOUND WHILE BINDING THE CATALOGUE
+`hr_claim_daily__ungated`'s CASE catalogue exists in **two** migrations —
+`2026-08-20-goal-reward-rpc-credit.sql` §6 and its verbatim restatement in
+`2026-08-29-daily-task-eligibility.sql` §4 — and `goal-catalogue-drift.mjs` read **only the first**.
+The second is the one a rebuild installs (it runs later). So the checked copy was the one that does
+not matter, and the two could disagree forever. Same two-copies-nothing-compares shape the file
+exists to prevent, one layer down. Both are bound now, plus the forward migration's ruled
+replacements — mutation-proven (planting 900 in the restatement reads RED).
+
+### THE CLOTH FAUCET WAS A GENERATOR DEFECT, NOT A RECIPE
+`recipe-yield-guard.mjs`'s own header has recorded "gear ratios reach 700x (`craft_voidweave_body`:
+108 g of silk and essence into a 75,600 g robe)" since the day it was written, and guarded nothing.
+It was right that a flat ratio cap can't express the gear rule; it was wrong that no rule could.
+Measured: plate and leather cost `[tier material] × [slot weight]`; cloth had **neither term**, so a
+whole 42-item line ran 160 g → 540 g of input while its output ran 50 g → 75,600 g, **and a Voidweave
+Sash cost exactly what a Voidweave Robe Top did**. One wrong expression, 42 wrong rows — which is why
+no per-recipe review would ever have seen it. CHECK 4 now caps the vendor faucet ratio **per ladder
+rung**, stated over `GEAR_LADDERS` and resolved **by output item** (an id-keyed lookup silently skips
+12 rungs, because a hand-authored recipe wins under its own id — `forge_bronze_sword` beats
+`make_bronze_sword`). Cap 20; post-fix population tops out at 11.2×; the replanted defect reads 700×.
+The mechanism I chose (the tier's plank at half the slot's weight) borrows a material rather than
+adding a cloth-bolt ladder — flagged to the Designer in CONFLICTS with the measurement behind it.
+
+### THE RETUNE WOULD HAVE SHIPPED TWO SAVE-BLOB BUGS, AND I ALMOST DIDN'T LOOK
+Everything above was green when I asked the CLAUDE.md question — *what does this write, and how
+long does it live?* Both answers were bad, and both are the "forgotten in the save blob" class:
+
+- **`G.quests` freezes the DEFINITION.** A quest row is a copy of its QUEST_DEFS entry made once,
+  and the b341 merge only ever adds MISSING rows. So `farmhand` goal 10 → 6 reached **nobody** —
+  every live save would keep `goal:10` and the label "Harvest 10 crops" forever while the server
+  started accepting 6. A ruling authored, tested, migrated onto production, and delivered to no one.
+  That is the *same sentence* b341 wrote about ADDING a quest; it fixed one half and left the other.
+  Fixed by stating the model: a quest row is AUTHORED DATA plus exactly TWO save fields
+  (`progress`, `done`), and the authored half is re-read on every merge.
+- **`G.daily.tasks` freezes the SLATE, and the failure is worse than staleness.** Stored
+  "Smith 8 items" + a server goal of 40: the player smiths 8, `updateDaily` latches `done` and fires
+  `claimDaily` **once**, fire-and-forget; the server answers `incomplete`; `done` means it can never
+  fire again; and under the gold arm the local credit is a no-op. The daily is spent, nothing is
+  paid, and the UI says it is finished. A **fresh instance of the exact class I fixed on the rank and
+  milestone claims last week** — created by a pure balance change, which is what makes it worth
+  writing down: *a data retune can manufacture a fire-and-forget loss if any consumer latches a
+  completion flag against the old number.*
+
+The daily repair is deliberately TWO things, because they break independently: the numbers are
+re-read from the authored pool, and **`done` is re-derived from `progress >= goal` unconditionally**.
+The second is not a consequence of the first — the pre-existing b461 eligibility rebuild already
+produces the bad state on its own by copying an old `done` onto a freshly generated task, so a repair
+gated on "the numbers differ" walks straight past it. `done` unsupported by its own progress is never
+legitimate, which makes it an invariant of the structure rather than a guess about how it broke.
+
+### VERIFICATION NOTES WORTH KEEPING
+- **THREE "mutated" runs were not mutated, and they all looked like results.** My patch script
+  asserted on a multi-line anchor written with `\n` against a file read with `newline=''` — i.e. CRLF
+  — so it raised, `python` exited 2, and the next command in the chain ran the suite on CLEAN source
+  anyway. Two of those runs timed out (I blamed load) and one reported **1091/1091 green**, which I
+  was one keystroke away from recording as "the mutation was not caught". A mutation harness must
+  PROVE it planted something; single-line anchors, or a newline-normalising read, or an explicit
+  post-check. `bootReplay`'s own patcher gets this right and throws — mine did not.
+- **`HR_SUITE_TIMEOUT_MS` exists for exactly the machine I was on.** The in-page budget is 120 s and
+  I had been running PGlite replays back to back beside Tyler's 1.4 GB Chrome; the suite flaked
+  twice on unmodified code. It is documented in run-smoke.mjs's own header (b461) and it is not a
+  licence to widen an assertion — only the wall clock flexes.
+- **A mutation that plants no observable defect proves nothing.** My first `verify_is_decoration`
+  only softened the migration's read-back — but §1 still wrote, so every assertion passed either way
+  and the selftest said MISSED. The configuration a real defect survives in is BOTH halves (the write
+  dropped AND the gate softened), which is precisely how b492's phantom XP lived four builds.
+  Restated as a `pairs` mutation; now caught.
+- **Drift is a property of the DATABASE, so plant it there.** For the migration's fail-closed proof I
+  drift each surface *in the booted database* (an `UPDATE`, and two `regexp_replace` re-authorings of
+  the installed bodies) rather than in an authoring file — patching a file would test a
+  differently-built chain instead of a drifted one, and it also costs three extra full replays.
+- **`59 logs must be REFUSED`** is the assertion that proves the TARGET moved. A gold-only check
+  passes just as happily against a target still sitting at 25 — the mutation run printed
+  `target: 25, gold: 250, outcome: applied`, and that is what caught it.
+- `[[:space:]]+`, never `\s+`, in any SQL that normalises a function body. The b493 note is right:
+  the two runtimes disagree on backslash classes under `standard_conforming_strings`.
 
 ## 2026-08-29 — P1: THE RANK CLAIM WAS FIRE-AND-FORGET OVER A SERVER VERDICT
 

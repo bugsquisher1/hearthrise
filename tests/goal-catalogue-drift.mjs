@@ -138,6 +138,57 @@ export async function goalCatalogueDriftGuard() {
     }
   }
 
+  /* ── (3-BIS) THE SECOND COPY OF THE CASE CATALOGUE (b497) ────────────────
+     hr_claim_daily__ungated is RESTATED in 2026-08-29-daily-task-eligibility.sql
+     §4, and that restatement — not the 2026-08-20 original — is the body a
+     rebuild installs, because it runs LATER in the apply order. Until b497 this
+     guard read only the ORIGINAL, so the two SQL copies could disagree and the
+     one that actually runs was the unchecked one. That is the same
+     two-copies-nothing-compares shape the whole file exists to prevent, one
+     layer down. Both are bound now, to the same catalogue. */
+  {
+    const elig4 = await readFile(
+      join(ROOT, 'supabase', 'migrations', '2026-08-29-daily-task-eligibility.sql'), 'utf8');
+    for (const [id, cat] of Object.entries(DAILY_TASK_REWARDS)) {
+      const re = new RegExp(`when\\s+'${id}'\\s+then\\s+v_type\\s*:=\\s*'([a-z_]+)';\\s*v_goal\\s*:=\\s*(\\d+);\\s*v_gold\\s*:=\\s*(\\d+);`);
+      const m = elig4.match(re);
+      ok(!!m, `2026-08-29-daily-task-eligibility.sql RESTATES hr_claim_daily__ungated but has no `
+        + `CASE arm for task '${id}'. That restatement is what a REBUILD installs (it runs later), `
+        + 'so a missing arm there is a task the rebuilt server refuses.');
+      if (m) {
+        ok(m[1] === cat.type, `eligibility-SQL daily '${id}' type '${m[1]}' != catalogue '${cat.type}'`);
+        ok(Number(m[2]) === cat.goal, `eligibility-SQL daily '${id}' goal ${m[2]} != catalogue ${cat.goal} `
+          + '— the RESTATED body is the one a rebuild installs, so this is the number that would run.');
+        ok(Number(m[3]) === cat.gold, `eligibility-SQL daily '${id}' gold ${m[3]} != catalogue ${cat.gold} `
+          + '— the RESTATED body is the one a rebuild installs, so this is the number that would pay.');
+      }
+    }
+  }
+
+  /* ── (3-TER) THE PRODUCTION FORWARD MIGRATION (b497) ─────────────────────
+     Editing an authoring file makes a REBUILD correct; it does nothing to a
+     database that already has the old body installed. The forward migration is
+     the only thing that moves PRODUCTION, so it has to name the same numbers —
+     otherwise the repo, the rebuild and the live server hold three answers and
+     the two that are checked are the two that do not matter. */
+  {
+    const fwd = await readFile(
+      join(ROOT, 'supabase', 'migrations', '2026-09-04-goal-gold-retune.sql'), 'utf8');
+    for (const [id, cat] of Object.entries(DAILY_TASK_REWARDS)) {
+      // Only the RETUNED arms appear in the forward file; an untouched task
+      // legitimately has no line there.
+      if (!new RegExp(`when ''${id}''`).test(fwd)) continue;
+      const re = new RegExp(`'when ''${id}'' then v_type := ''${cat.type}''; v_goal := ${cat.goal}; v_gold := ${cat.gold};'`);
+      ok(re.test(fwd), `2026-09-04-goal-gold-retune.sql patches daily task '${id}' but its ruled `
+        + `replacement is not "${cat.type}/${cat.goal}/${cat.gold}" — the number applied to `
+        + 'PRODUCTION would differ from the one the client shows and a rebuild installs.');
+    }
+    const fq = QUEST_REWARDS.farmhand;
+    ok(new RegExp(`'when ''farmhand'' then v_key := ''${fq.checkKey}''; v_goal := ${fq.goal}; v_gold := ${fq.gold};'`).test(fwd),
+      `2026-09-04-goal-gold-retune.sql's ruled farmhand arm is not ${fq.checkKey}/${fq.goal}/${fq.gold} `
+      + '— production would grade the onboarding quest against a different goal than the client shows.');
+  }
+
   // The SQL pool array must equal DAILY_TASK_POOL_ORDER (the shuffle index space).
   const poolM = sql.match(/c_pool\s+constant\s+text\[\]\s*:=\s*array\[([^\]]+)\]/);
   ok(!!poolM, 'SQL hr_daily_task_set c_pool array not found.');

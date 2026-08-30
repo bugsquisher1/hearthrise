@@ -36,17 +36,49 @@
 // stays a set of decisions rather than a place failures go to be silenced.
 //
 // ── CHECK 2: THE BATCH FAUCET RATIO (exploit class) ────────────────────────
-// Scoped to outputQty > 1 DELIBERATELY. Measured across all 339 recipes, gear
-// ratios reach 700x (`craft_voidweave_body`: 108 g of silk and essence into a
-// 75,600 g robe) because gear is priced on POWER, not on materials. A global
-// ratio guard is therefore a false-positive machine that everyone learns to
-// ignore. Batch commodities are the class where the ratio MULTIPLIES, and they
-// are the class the vendor turns into gold at scale.
+// Scoped to outputQty > 1 DELIBERATELY. Gear is priced on POWER, not on
+// materials, so a single global ratio guard across all 339 recipes is a
+// false-positive machine that everyone learns to ignore. Batch commodities are
+// the class where the ratio MULTIPLIES, and they are the class the vendor turns
+// into gold at scale.
+//
+// ⚠ THIS FILE USED TO SAY "gear ratios reach 700x (`craft_voidweave_body`: 108 g
+// of silk and essence into a 75,600 g robe)" AND LEAVE IT THERE — a measured
+// faucet, written down, guarded by nothing, for the whole life of the file.
+// It was right that a FLAT ratio cap could not express the gear rule. It was
+// wrong that no rule could. See CHECK 4, which caps the ratio PER LADDER RUNG
+// and caught exactly that recipe.
 //
 // Both sides are measured with `vendorPriceOf`, not with raw `.v`, because the
 // exploit is gather -> craft -> vendor and the vendor pays raw materials only
 // 40%. This is the FAUCET measure, and it deliberately differs from the "book
 // margin" the b222 castle-margin test in smoke-test.js asserts.
+//
+// ── CHECK 4: THE GEAR-LADDER COST CURVE (b497, the cloth faucet) ───────────
+// The finding this file recorded and did not police was real, and the shape of
+// it was worse than one bad recipe. `src/data/gear-tiers.js` GENERATES every
+// tiered armour and weapon recipe, and two of the three armour archetypes cost
+// [a TIER-INDEXED material] x [the slot's weight] — bronze_bar 32 g climbs to
+// dawn_bar 4,200 g, normal_plank 18 g to duskwood_plank 2,600 g. CLOTH HAD
+// NEITHER TERM: `silk_thread 2+i` + `magic_essence 1..2`, both untiered and both
+// blind to the slot, so a whole LINE of 42 items cost 160 g -> 540 g while its
+// output ran 50 g -> 75,600 g, and a Voidweave Sash cost exactly what a
+// Voidweave Robe Top did.
+//
+// The lesson generalises past cloth: a GENERATOR defect is 42 wrong rows from
+// one wrong expression, and no per-recipe review will ever see it, because every
+// individual recipe looks like its neighbours. So the check is stated over the
+// generator's own published lanes (`GEAR_LADDERS`) rather than over recipe ids.
+//
+// Measured across all 154 gear rungs AFTER the fix: the whole population sits at
+// or below 11.2x (cloth/helm at tier 7), with plate topping out at 6.9x and
+// leather at 7.5x. The cap is 20 — 1.8x clear of every legitimate rung, and 35x
+// under the 700x this check was written for, so it fails loudly without needing
+// constant retuning. A rung is resolved BY ITS OUTPUT ITEM, not by the
+// generator's recipe id: a hand-authored recipe in recipes.js is spread FIRST
+// and WINS, under its own id (`forge_bronze_sword` beats `make_bronze_sword`),
+// so an id-keyed lookup would silently skip 12 rungs — which is precisely the
+// blind spot GEAR_LADDERS was published to close.
 //
 // ── CHECK 3: THE AMMO LADDER (the specific regression) ─────────────────────
 // Every ammo-slot item's book value must sit inside the ladder's band, and the
@@ -124,6 +156,18 @@ export const RATIO_ALLOW = Object.freeze({
   dress_basalt:   'REVIEW (game-designer): 9.6x, ~322k g/hr — as above',
 });
 
+/* ── THE GEAR-LADDER RUNG CAP (CHECK 4) ───────────────────────────────────
+   20.0, and the number is measured rather than chosen: the post-b497
+   population of all 154 generated gear rungs tops out at 11.2x (cloth/helm at
+   tier 7), plate at 6.9x and leather at 7.5x. 20 is 1.8x clear of the worst
+   legitimate rung and 35x under the 700x defect it was written for.
+   ⚠ NO ALLOWLIST, ON PURPOSE. The last time this class was found it was
+   RECORDED in this file's own header and left unguarded, and it stayed live for
+   the whole life of the generator. An exemption map here would be the same
+   decision with more ceremony: a rung over the cap means the LADDER's cost
+   expression is wrong, and a ladder is 42 rows, not one. Fix the generator. */
+export const GEAR_RATIO_CAP = 20.0;
+
 /** Inputs, normalised across the two authored recipe shapes. */
 export function inputsOf(r) {
   if (r.inputs && typeof r.inputs === 'object') return r.inputs;
@@ -177,6 +221,51 @@ export async function recipeYieldGuard(overrides) {
         }
       }
     }
+  }
+
+  /* ── CHECK 4: the GEAR-LADDER cost curve. See the header for why this is
+     stated over the generator's lanes and resolved by OUTPUT ITEM. */
+  const { GEAR_LADDERS } = await imp('src/data/gear-tiers.js');
+  const byOutput = new Map();
+  for (const [, list] of Object.entries(ARTISAN_RECIPES || {})) {
+    for (const r of list || []) if (r?.output && !byOutput.has(r.output)) byOutput.set(r.output, r);
+  }
+  let rungs = 0;
+  let worst = { key: '(none)', ratio: 0 };
+  for (const lane of GEAR_LADDERS || []) {
+    for (const rung of lane.rungs || []) {
+      const rec = byOutput.get(rung.itemId);
+      if (!rec) {
+        problems.push(`${lane.key} tier ${rung.tier}: nothing in ARTISAN_RECIPES produces `
+          + `'${rung.itemId}'. The generator published a ladder rung the player cannot make — `
+          + `either the recipe was lost in the merge or the lane is stale.`);
+        continue;
+      }
+      const cost = Object.entries(inputsOf(rec))
+        .reduce((s, [k, c]) => s + vendorPriceOf(ITEMS, k) * (Number(c) || 0), 0);
+      const gross = vendorPriceOf(ITEMS, rung.itemId) * (Number(rec.outputQty) || 1);
+      if (!(cost > 0)) {
+        problems.push(`${lane.key} tier ${rung.tier} (${rec.id}): a gear rung with NO input value `
+          + `vendors for ${gross} g. Tiered gear must cost a tiered material.`);
+        continue;
+      }
+      rungs++;
+      const ratio = gross / cost;
+      if (ratio > worst.ratio) worst = { key: `${lane.key} T${rung.tier}`, ratio };
+      if (ratio > GEAR_RATIO_CAP) {
+        problems.push(`${lane.key} tier ${rung.tier} (${rec.id}): gear faucet ratio `
+          + `${ratio.toFixed(1)}x exceeds ${GEAR_RATIO_CAP}x (${Math.round(cost)} g of input -> `
+          + `${Math.round(gross)} g at the vendor). A ladder rung this far off the curve means the `
+          + `GENERATOR's cost expression does not scale with the tier — which is 42 wrong rows from `
+          + `one wrong line, never one bad recipe. Fix src/data/gear-tiers.js GEAR_RECIPES.`);
+      }
+    }
+  }
+  /* CONTROL. A lane list that failed to load, or a byOutput map built from an
+     empty override, would make every assertion above vacuous and report green. */
+  if (rungs < 100) {
+    problems.push(`CHECK 4 measured only ${rungs} gear rungs (expected >= 100 across `
+      + `${(GEAR_LADDERS || []).length} lanes) — the check is vacuous, not passing.`);
   }
 
   // ── CHECK 3: the ammo ladder, measured in GOLD PER SWING.
@@ -235,7 +324,8 @@ export async function recipeYieldGuard(overrides) {
 
   return {
     problems,
-    note: `${n} recipes (${batches} batched) · qty cap ${QTY_CAP} · batch faucet cap ${RATIO_CAP}x`,
+    note: `${n} recipes (${batches} batched) · qty cap ${QTY_CAP} · batch faucet cap ${RATIO_CAP}x`
+      + ` · ${rungs} gear rungs, worst ${worst.key} ${worst.ratio.toFixed(1)}x / cap ${GEAR_RATIO_CAP}x`,
   };
 }
 
@@ -274,6 +364,35 @@ export async function recipeYieldMutationGuard() {
     ['an off-ladder ammo item (the class, not the instance)', async () => {
       const I = cloneI(); I.steel_arrows.v = 400;
       return recipeYieldGuard({ ITEMS: I });
+    }],
+    /* ── b497: THE REAL SHIPPED CLOTH FAUCET, REPLANTED ────────────────────
+       Not a synthetic number — this is byte-for-byte the expression
+       src/data/gear-tiers.js carried until b497 (`silk_thread: 2+i`,
+       `magic_essence: 1 + (i>=3)`, no tiered material and no slot term). It ran
+       from the day the archetype shipped and this file's own header described
+       it without failing on it. CHECK 4 must now read RED on it. */
+    ['the b497 cloth faucet: cloth armour back on UNTIERED inputs (craft_voidweave_body at 700x)', async () => {
+      const R = clone();
+      const TIERS = ['apprentice', 'adept', 'scholar', 'warlock', 'sorcerer', 'archmage', 'voidweave'];
+      const SLOTS = ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'];
+      for (let i = 0; i < TIERS.length; i++) {
+        for (const slot of SLOTS) {
+          const rec = R.crafting.find((x) => x.output === `${TIERS[i]}_${slot}`);
+          if (rec) rec.inputs = { silk_thread: 2 + i, magic_essence: 1 + (i >= 3 ? 1 : 0) };
+        }
+      }
+      return recipeYieldGuard({ ARTISAN_RECIPES: R });
+    }],
+    /* And the SLOT half of the same defect on its own: the tiered material is
+       present but its count ignores the slot, so a Sash costs what a Robe Top
+       does. Separate mutation because it is caught by a different rung. */
+    ['cloth ignores the slot weight: every piece costs ONE plank', async () => {
+      const R = clone();
+      for (const slot of ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']) {
+        const rec = R.crafting.find((x) => x.output === `voidweave_${slot}`);
+        if (rec) rec.inputs = { duskwood_plank: 1, silk_thread: 8, magic_essence: 2 };
+      }
+      return recipeYieldGuard({ ARTISAN_RECIPES: R });
     }],
   ];
 

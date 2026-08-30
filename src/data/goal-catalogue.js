@@ -37,7 +37,14 @@ export const QUEST_REWARDS = Object.freeze({
   gatherer:    { checkKey: 'ev:gather',   goal: 15, gold: 150 },
   first_cook:  { checkKey: 'ev:cooked',   goal: 5,  gold: 200 },
   first_blood: { checkKey: 'ev:kill_any', goal: 5,  gold: 150 },
-  farmhand:    { checkKey: 'ev:harvest',  goal: 10, gold: 500 },
+  /* b497: goal 10 → 6. Onboarding step 4 was a TWO-grow-cycle wall at the
+     starting Wanderer's Camp (2 plots × 2-4 turnips ≈ 6 produce a round), the
+     same defect b495 fixed on the harvest DAILY. 6 = one harvest round.
+     Retuning a QUEST goal is safe on live saves: `goal` is re-read from
+     QUEST_DEFS at render/grade time, `progress` is the save field, and a save
+     already carrying progress ≥ 6 completes on its next harvest tick rather
+     than re-granting (ensureRetentionState merges BY ID and keeps `done`). */
+  farmhand:    { checkKey: 'ev:harvest',  goal: 6,  gold: 500 },
 });
 
 /* DAILY TASKS — the FIXED-reward rows of legacy.js DAILY_TASK_POOL. `type` is
@@ -45,14 +52,29 @@ export const QUEST_REWARDS = Object.freeze({
    for TODAY's UTC day key and completes at `value >= goal`. Reward is pure gold.
 
    `daily_harvest` is ABSENT — see BLOCKED_DAILY. */
+/* ── b497 — THE GOLD-PER-EFFORT-MINUTE RETUNE (Designer, balance audit) ─────
+   The pool paid a 13:1 spread across gold-per-effort-minute and FIGHTERS sat at
+   the bottom of it. Killing 60 monsters is the longest task in the pool and
+   paid 900 g; "Craft 8 items" is eight unattended bench pulls (~8 seconds of
+   the player's attention) and paid 450. Ruled: kills up, bench targets up 5×.
+   The pair that moved most is also the pair with a REQUIREMENT
+   (DAILY_TASK_REQUIREMENTS below), so the harder goal is only ever offered to
+   an account that owns the bench.
+   ⚠ THE SERVER PAYS THESE. Changing a number here is a change in FOUR places:
+   this table, src/legacy.js DAILY_TASK_POOL, and the embedded CASE catalogue in
+   BOTH 2026-08-20-goal-reward-rpc-credit.sql and its restatement in
+   2026-08-29-daily-task-eligibility.sql. tests/goal-catalogue-drift.mjs binds
+   all four; a production database additionally needs the forward migration
+   2026-09-04-goal-gold-retune.sql, because `create or replace` on prod is the
+   only thing that moves a body already installed there. */
 export const DAILY_TASK_REWARDS = Object.freeze({
-  daily_kill:       { type: 'kill_any', goal: 25,  gold: 500 },
-  daily_kill_big:   { type: 'kill_any', goal: 60,  gold: 900 },
+  daily_kill:       { type: 'kill_any', goal: 25,  gold: 600 },
+  daily_kill_big:   { type: 'kill_any', goal: 60,  gold: 1400 },
   daily_gather:     { type: 'gather',   goal: 50,  gold: 400 },
   daily_gather_big: { type: 'gather',   goal: 120, gold: 800 },
   daily_cook:       { type: 'cooked',   goal: 12,  gold: 400 },
-  daily_smith:      { type: 'smithed',  goal: 8,   gold: 450 },
-  daily_craft:      { type: 'crafted',  goal: 8,   gold: 450 },
+  daily_smith:      { type: 'smithed',  goal: 40,  gold: 500 },
+  daily_craft:      { type: 'crafted',  goal: 40,  gold: 500 },
 });
 
 /* THE POOL ORDER — the EXACT authored order of legacy.js DAILY_TASK_POOL, so

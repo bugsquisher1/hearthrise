@@ -245,13 +245,19 @@ begin
 
   -- SERVER-OWNED CATALOGUE (FIXED tasks only; daily_harvest is dynamic → blocked).
   case p_task_id
-    when 'daily_kill'       then v_type := 'kill_any'; v_goal := 25;  v_gold := 500;
-    when 'daily_kill_big'   then v_type := 'kill_any'; v_goal := 60;  v_gold := 900;
+    -- b497 RETUNE (Designer, balance audit). Kept in lockstep with
+    -- 2026-08-20-goal-reward-rpc-credit.sql §6, which this file restates, and
+    -- with src/data/goal-catalogue.js DAILY_TASK_REWARDS. This file runs LATER
+    -- in the apply order, so on a REBUILD these are the numbers that install;
+    -- on PRODUCTION the installed body is moved by
+    -- 2026-09-04-goal-gold-retune.sql instead.
+    when 'daily_kill'       then v_type := 'kill_any'; v_goal := 25;  v_gold := 600;
+    when 'daily_kill_big'   then v_type := 'kill_any'; v_goal := 60;  v_gold := 1400;
     when 'daily_gather'     then v_type := 'gather';   v_goal := 50;  v_gold := 400;
     when 'daily_gather_big' then v_type := 'gather';   v_goal := 120; v_gold := 800;
     when 'daily_cook'       then v_type := 'cooked';   v_goal := 12;  v_gold := 400;
-    when 'daily_smith'      then v_type := 'smithed';  v_goal := 8;   v_gold := 450;
-    when 'daily_craft'      then v_type := 'crafted';  v_goal := 8;   v_gold := 450;
+    when 'daily_smith'      then v_type := 'smithed';  v_goal := 40;  v_gold := 500;
+    when 'daily_craft'      then v_type := 'crafted';  v_goal := 40;  v_gold := 500;
     when 'daily_harvest'    then
       return jsonb_build_object('ok', false, 'error', 'not_creditable',
         'task', p_task_id, 'reason', 'dynamic goal (farm plot cap) — no server model yet');

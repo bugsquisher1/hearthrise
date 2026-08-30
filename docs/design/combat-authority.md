@@ -238,9 +238,22 @@ forged counter to:
 
 | scope | ceiling |
 |---|---|
-| character · UTC day | 2,200 gold + 2 gems + 5 bones |
+| character · UTC day | 2,800 gold + 2 gems + 5 bones |
 | character · ISO week | 2,500 gold + 3 gems (`wk_kills`) |
-| **account · day (6 slots)** | **13,200 gold + 12 gems + 30 bones** |
+| **account · day (6 slots)** | **16,800 gold + 12 gems + 30 bones** |
+
+> **b497 (2026-09-04) — the day rows moved; the CONTROL did not.** The Game
+> Designer's gold-per-effort-minute retune re-priced two of the four kill-graded
+> terms: `daily_kill` 500 → 600 and `daily_kill_big` 900 → 1,400 (`kill_any` 200
+> and `kill_more` 600 unchanged), so the character-day line went 2,200 → 2,800
+> and the account-day line 13,200 → 16,800. What bounds a forged counter is
+> unchanged — a once-per-period guard row plus an amount read from a catalogue no
+> client role may write, which is what makes a fabricated counter a GATE and
+> never a MULTIPLIER. Only the amount moved, by 0.06% of one character's measured
+> honest ~1.05M gold/day from the live accrual path. Applied by
+> `supabase/migrations/2026-09-04-goal-gold-retune.sql`; pinned BY VALUE in
+> `tests/kill-daily-credit.mjs` K10(2), so the next re-tune re-opens this review
+> by name.
 
 Two corrections to the first draft's bound, both worth carrying forward because
 they were *methodological*, not arithmetic:

@@ -140,7 +140,12 @@ const ARMOUR_LINES = [
     id: (mat, slot, line, i) => line.tierIds[i] + '_' + slot.slot,
     name: (mat, slot, line, i) => line.tierNames[i] + ' ' + line.slotLabels[slot.slot],
     fields: (def, i) => ({ rangeAtkB: Math.round(def * 0.5), critB: 0.004 * (i + 1), magicAtkB: -Math.round(def * 0.15) }) },
-  { key: 'cloth', vmul: 0.70, defMul: 0.30, icon: '🧥', craftMat: 'cloth',
+  /* `craftMat: 'plank'` since b497 — it said `'cloth'` for the line's whole
+     life, naming a tiered material this game has never had. Nothing reads the
+     field, which is exactly why the lie survived: it described the intent, and
+     the recipe generator below silently shipped an UNTIERED cloth cost instead.
+     It now names what the recipe actually consumes. */
+  { key: 'cloth', vmul: 0.70, defMul: 0.30, icon: '🧥', craftMat: 'plank',
     tierNames: ['Apprentice', 'Adept', 'Scholar', 'Warlock', 'Sorcerer', 'Archmage', 'Voidweave'],
     tierIds:   ['apprentice', 'adept', 'scholar', 'warlock', 'sorcerer', 'archmage', 'voidweave'],
     slotLabels: { helmet: 'Hat', body: 'Robe Top', pants: 'Robe Bottom', boots: 'Slippers', gloves: 'Gloves', belt: 'Sash' },
@@ -274,9 +279,54 @@ export const GEAR_RECIPES = (() => {
             ms: 2400 + mat.tier * 320,
           });
         } else {
+          /* ── THE ARMOUR COST SHAPE, AND WHY CLOTH DID NOT HAVE IT (b497) ──
+             Plate and leather both cost [a TIER-INDEXED material] x [the slot's
+             own weight] (+ leather, an untiered reagent rising with the tier).
+             The tiered material is what makes the cost climb: bronze_bar 32 g ->
+             dawn_bar 4,200 g is 131x, normal_plank 18 -> duskwood_plank 2,600 is
+             144x. CLOTH HAD NEITHER TERM. Its inputs were `silk_thread 2+i` and
+             `magic_essence 1..2` — both UNTIERED and both blind to the slot — so
+             a whole line's cost ran 160 g -> 540 g (3.4x) while its output ran
+             50 g -> 75,600 g. Measured against the real ITEMS table:
+
+                            T1    T2    T3    T4    T5    T6     T7   (out/in)
+               plate body  1.1   0.9   2.0   1.4   2.3   4.9    5.1
+               leather     0.9   0.7   1.4   2.2   3.3   4.5    5.6
+               cloth       0.8   1.3   3.9   8.4  22.0  56.3  140.0   <-- faucet
+
+             craft_voidweave_body turned 540 g of thread into a 75,600 g robe,
+             and a Voidweave SASH cost exactly what the robe did, because nothing
+             in the old expression mentioned the slot at all.
+
+             THE FIX MIRRORS THE OTHER TWO LINES RATHER THAN INVENTING A NUMBER:
+             the tier's plank at HALF the slot's weight (rounded up), keeping the
+             identity reagents on top. Half, not full: at full weight cloth would
+             cost MORE than leather for an item of identical book value while
+             carrying 45% less defence, which would kill the line. At half it
+             stays the cheapest of the three archetypes to make — its design
+             identity — and lands at 5.6x-9.7x at tier 7 against leather's
+             3.6x-6.8x, instead of 140x. Tier 1 moves 160 g -> 178-214 g, so the
+             opening rungs are where they were.
+
+             NO NEW ITEM IDS, deliberately. A bespoke seven-rung "bolt" ladder is
+             the textbook answer and it is a content program (seven items, seven
+             sources, art, drop tables) that would also strand every player who
+             can craft cloth today. The tier plank is already the crafting
+             skill's universal tiered stock — leather armour, every bow and every
+             staff draw on it — and the magic staves draw on these EXACT planks
+             (yew / runewood / duskwood are the magic woods), so an arcane robe
+             framed with the same enchanted timber is the fiction the game
+             already ships.
+             ⚠ RECIPES ARE VENDORED INTO THE EDGE (supabase/functions/hr-accrue/
+             catalogue.js imports src/data/recipes.js). Changing this line needs
+             an EDGE REDEPLOY or the server keeps charging the old inputs. */
           const inputs = {};
           if (line.key === 'leather') { inputs[mat.plank] = slotDef.bars; inputs.silk_thread = 1 + i; }
-          else { inputs.silk_thread = 2 + i; inputs.magic_essence = 1 + (i >= 3 ? 1 : 0); } // cloth
+          else {                                                          // cloth
+            inputs[mat.plank] = Math.max(1, Math.ceil(slotDef.bars / 2));
+            inputs.silk_thread = 2 + i;
+            inputs.magic_essence = 1 + (i >= 3 ? 1 : 0);
+          }
           crafting.push({
             id: 'craft_' + output, name: (line.key === 'cloth' ? 'Weave ' : 'Stitch ') + line.name(mat, slotDef, line, i), icon: line.icon,
             inputs, output,

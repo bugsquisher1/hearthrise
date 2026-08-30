@@ -5414,7 +5414,16 @@ const QUEST_DEFS=[
   {id:'gatherer',type:'gather',label:'Gather 15 resources',goal:15,progress:0,reward:{gold:150},done:false},
   {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200,item:'carrot_seed',qty:3},done:false},
   {id:'first_blood',type:'kill_any',label:'Defeat 5 monsters',goal:5,progress:0,reward:{gold:150,item:'turnip_seed',qty:5},done:false},
-  {id:'farmhand',type:'harvest',label:'Harvest 10 crops',goal:10,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
+  /* b497 (balance audit): 10 → 6. The SAME two-plot-camp wall b495 fixed on the
+     harvest DAILY, one system over and still open. This is onboarding step 4:
+     the Wanderer's Camp has TWO plots (features/homestead.js TIERS[0].plots),
+     turnips take 4h and yield 2-4, so one full harvest round is ~6 produce and a
+     goal of 10 was TWO grow cycles — ~8 wall-clock hours — parked in front of
+     the fourth quest a new player ever sees. 6 = one harvest round at the
+     starting property, the identical derivation DAILY_TASK_POOL's floor uses.
+     The goal is BOUND SERVER-SIDE (hr_claim_quest reads ev:harvest >= 6), so it
+     moves in three places at once — see src/data/goal-catalogue.js. */
+  {id:'farmhand',type:'harvest',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
   /* ── THE HUNDRED-KILL MILESTONE ──────────────────────────────────────────
      b341 shipped this as the "Field Licence": a GATE that withheld away
      combat until it was earned. b343 removes the gate (see processOffline's
@@ -5533,8 +5542,56 @@ function ensureRetentionState(){
   /* Renames run BEFORE the merge, or the merge would seed the new id beside
      the old row and pay its reward a second time. */
   migrateQuestIds();
+  /* ── b497: THE MERGE NOW REFRESHES THE DEFINITION, NOT JUST THE ROW SET ───
+     b341 fixed "a new quest never reaches an existing save". It did not fix the
+     other half, and the b497 farmhand retune walked straight into it: a quest
+     row is a FROZEN COPY of its QUEST_DEFS entry, so re-tuning `goal` (10 → 6)
+     reached nobody. Every live save kept `goal:10` and the label "Harvest 10
+     crops" FOREVER, while the server started accepting 6 — a designer ruling
+     authored, tested, migrated onto production, and delivered to no one. That
+     is the same sentence b341 wrote about adding a quest.
+
+     THE MODEL, stated once: a quest row is AUTHORED DATA (id, type, label,
+     goal, reward, mirror, target, note) plus exactly TWO save fields
+     (`progress`, `done`). The authored half is re-read from QUEST_DEFS on every
+     merge; only the save half survives from the blob. Retuning any quest is now
+     a data edit that reaches every save, which is what the file already claims
+     for adding one.
+
+     WHY REFRESHING `goal` CANNOT DOUBLE-PAY. `done` is preserved untouched, and
+     completeQuest is only ever reached from `if(q.progress>=q.goal)` on a row
+     with `done` false — i.e. a row that has never been paid. Lowering a goal
+     under an unfinished quest completes it on the next tick, which is the
+     ruling's intent; raising one leaves it unfinished with an honest bar.
+     `progress` is clamped to the new goal exactly as updateQuest clamps it.
+
+     `mirror` and `target` are DELETED when the def drops them, by name rather
+     than by a blanket key sweep: they are the two optional fields that change
+     how updateQuest BEHAVES (mirror makes the row read instead of count), so a
+     stale one left on a row is a quest that silently stops counting. Every
+     other authored field is overwrite-only, so a field some other system parked
+     on the row is not collateral. */
   QUEST_DEFS.forEach(function(def){
-    if(!G.quests.some(function(q){ return q && q.id===def.id; })) G.quests.push(Object.assign({},def));
+    var row=null;
+    for(var i=0;i<G.quests.length;i++){ if(G.quests[i]&&G.quests[i].id===def.id){ row=G.quests[i]; break; } }
+    if(!row){ G.quests.push(Object.assign({},def)); return; }
+    /* CHEAP PRE-CHECK, because ensureRetentionState runs on EVERY kill. `goal`
+       and `label` are the two fields a retune moves, and `mirror` is the one
+       whose staleness changes behaviour — three comparisons in the steady
+       state, and the answer is `false` for every save written after this build
+       ships. No allocation and no key sweep on the hot path. (Same discipline
+       as migrateQuestIds' own pre-check, six lines up.) */
+    if(row.goal===def.goal && row.label===def.label && row.type===def.type
+       && row.mirror===def.mirror && row.target===def.target
+       && (row.reward&&row.reward.gold)===(def.reward&&def.reward.gold)
+       && row.progress<=def.goal) return;
+    var done=!!row.done;
+    var progress=Math.max(0,Number(row.progress)||0);
+    Object.keys(def).forEach(function(k){ if(k!=='progress'&&k!=='done') row[k]=def[k]; });
+    if(!('mirror' in def)) delete row.mirror;
+    if(!('target' in def)) delete row.target;
+    row.done=done;
+    row.progress=Math.min(Number(def.goal)||0,progress);
   });
   syncMirroredQuests();
 }
@@ -5543,9 +5600,18 @@ function ensureRetentionState(){
    level/character later if we want. Deterministic seed = date string.
    Only types with corresponding updateDaily() call sites are listed —
    adding a new type requires hooking the source counter too. */
+/* ── b497 — THE GOLD-PER-EFFORT-MINUTE RETUNE (Designer, balance audit) ─────
+   The pool paid a 13:1 spread across gold-per-effort-minute and the FIGHTERS
+   sat at the bottom of it: killing 60 monsters is the longest task in the pool
+   and paid 900 g, while "Craft 8 items" — eight bench pulls, ~8 seconds of
+   actual input — paid 450. The ruled numbers below flatten that.
+   ⚠ EVERY NUMBER HERE IS ALSO SERVER-OWNED. hr_claim_daily credits the gold
+   from its own CASE catalogue, so a change here is a change in THREE places
+   (this table, src/data/goal-catalogue.js DAILY_TASK_REWARDS, and the SQL) and
+   tests/goal-catalogue-drift.mjs fails the build if only one of them moves. */
 const DAILY_TASK_POOL=[
-  ()=>({id:'daily_kill',     type:'kill_any', label:'Kill 25 monsters',         goal:25, progress:0, reward:500, done:false}),
-  ()=>({id:'daily_kill_big', type:'kill_any', label:'Kill 60 monsters',         goal:60, progress:0, reward:900, done:false}),
+  ()=>({id:'daily_kill',     type:'kill_any', label:'Kill 25 monsters',         goal:25, progress:0, reward:600, done:false}),
+  ()=>({id:'daily_kill_big', type:'kill_any', label:'Kill 60 monsters',         goal:60, progress:0, reward:1400, done:false}),
   ()=>({id:'daily_gather',   type:'gather',   label:'Gather 50 resources',      goal:50, progress:0, reward:400, done:false}),
   ()=>({id:'daily_gather_big',type:'gather',  label:'Gather 120 resources',     goal:120,progress:0, reward:800, done:false}),
   /* b220 (backlog #13): the harvest daily used to be a flat 25 while the farm
@@ -5568,8 +5634,15 @@ const DAILY_TASK_POOL=[
         return {id:'daily_harvest', type:'harvest', label:`Harvest ${goal} crops`,
                 goal, progress:0, reward:goal*30, done:false}; },
   ()=>({id:'daily_cook',     type:'cooked',   label:'Cook 12 items',            goal:12, progress:0, reward:400, done:false}),
-  ()=>({id:'daily_smith',    type:'smithed',  label:'Smith 8 items',            goal:8,  progress:0, reward:450, done:false}),
-  ()=>({id:'daily_craft',    type:'crafted',  label:'Craft 8 items',            goal:8,  progress:0, reward:450, done:false}),
+  /* b497: 8 → 40. Eight bench pulls is ~8 SECONDS of the player's attention
+     (artisan actions are ~2.4-4.6 s and run unattended), which made these two
+     the cheapest gold in the game by an order of magnitude. 40 items ≈ 40
+     seconds of bench time and puts them on the same effort footing as the kill
+     and gather rows. The Workshop/Forge eligibility filter
+     (src/data/goal-catalogue.js DAILY_TASK_REQUIREMENTS) still keeps them away
+     from an account that cannot reach a bench at all. */
+  ()=>({id:'daily_smith',    type:'smithed',  label:'Smith 40 items',           goal:40, progress:0, reward:500, done:false}),
+  ()=>({id:'daily_craft',    type:'crafted',  label:'Craft 40 items',           goal:40, progress:0, reward:500, done:false}),
 ];
 /* b220: exposed so the smoke suite can evaluate a factory deterministically
    instead of depending on which 3 tasks today's date happens to draw. */
@@ -5642,6 +5715,26 @@ function dailyTaskCaps(){
   return {rooms:rooms, skillXp:sx};
 }
 window.dailyTaskCaps=dailyTaskCaps;
+/* ── b497 — THE AUTHORED NUMBERS OF EVERY FIXED DAILY, BY ID ───────────────
+   `daily_harvest` is DELIBERATELY ABSENT: its factory reads farmPlotCap(), so
+   its goal is a function of the property the player owns rather than an
+   authored constant, and "differs from the factory" would mean "you upgraded
+   your homestead today" — which must not re-roll a slate mid-day.
+   Memoised on the POOL'S IDENTITY, not unconditionally: generateDailyTasks runs
+   on EVERY updateDaily (i.e. every kill), so calling eight factories per tick
+   would be real cost on the hot path — while a test that swaps the pool still
+   gets a fresh answer instead of a stale cache. */
+let _dailySpecPool=null, _dailySpecs=null;
+function dailyTaskSpecs(){
+  if(_dailySpecs&&_dailySpecPool===DAILY_TASK_POOL) return _dailySpecs;
+  const m={};
+  DAILY_TASK_POOL.forEach(function(f){
+    let t=null; try{ t=f(); }catch(e){}
+    if(t&&t.id&&t.id!=='daily_harvest') m[t.id]={goal:t.goal,reward:t.reward,label:t.label};
+  });
+  _dailySpecPool=DAILY_TASK_POOL; _dailySpecs=m;
+  return m;
+}
 function generateDailyTasks(notice=true){
   ensureRetentionState();
   const today=hrGoalDayKey();
@@ -5676,6 +5769,45 @@ function generateDailyTasks(notice=true){
           }
         }
       }
+    }catch(e){}
+    /* ── b497 — HEAL A SLATE WHOSE NUMBERS THE CATALOGUE HAS MOVED PAST ──────
+       The eligibility heal above is the same class one trigger over: a slate is
+       rolled ONCE a day and frozen in the save, so any change to the pool's
+       authored numbers is invisible until UTC midnight. That is not cosmetic
+       here, because the SERVER moved with the catalogue and the client did not:
+
+         · stored daily_smith says "Smith 8 items"; hr_claim_daily requires 40.
+         · the player smiths 8 → updateDaily latches `done` and fires
+           claimDaily ONCE, fire-and-forget.
+         · the server answers `incomplete`, the envelope is discarded, and
+           `done` means the task can never fire again.
+         · under the gold arm the local credit is a no-op.
+       Net: the daily is spent, nothing is paid, and the UI says it is finished.
+       Exactly the "fire-and-forget over a server verdict where the local state
+       is consumed" class the rank/milestone claims were fixed for.
+
+       TWO REPAIRS, deliberately separate, because they break in different ways:
+       (1) the NUMBERS are re-read from the authored pool;
+       (2) `done` is re-derived from `progress >= goal` UNCONDITIONALLY. (2) is
+           not a consequence of (1): the eligibility rebuild above already
+           produces the bad state on its own by copying an old `done` onto a
+           freshly-generated task, so a repair gated on "the numbers differ"
+           would walk straight past it. `done` unsupported by its own progress
+           is never legitimate — updateDaily only ever sets it at
+           progress >= goal — so this is an invariant of the structure and not a
+           guess about how it broke. */
+    try{
+      const spec=dailyTaskSpecs();
+      G.daily.tasks.forEach(function(t){
+        if(!t||!t.id)return;
+        const s=spec[t.id];
+        if(!s)return;                                   // daily_harvest: dynamic by design
+        if(t.goal!==s.goal||t.reward!==s.reward||t.label!==s.label){
+          t.goal=s.goal; t.reward=s.reward; t.label=s.label;
+        }
+        t.progress=Math.min(t.goal,Math.max(0,Number(t.progress)||0));
+        if(t.done&&t.progress<t.goal)t.done=false;
+      });
     }catch(e){}
     return;
   }
@@ -13845,14 +13977,24 @@ var DAILY_GOAL_POOL = [
      chopping Duskwood made zero progress on "Gather 25 logs" and "Catch 15
      fish" was unachievable for anyone past Shrimp unless they deliberately
      downgraded. A daily that gets harder the better you are is backwards. */
-  {id:'gather_logs', glyph:'uiLog', name:'Gather 25 logs',  target:25, source:'stats.chopped',
+  /* ── b497 — THE GATHERING GOALS WERE THE CHEAPEST GOLD ON THE BOARD ───────
+     Balance audit: gathering and cooking actions run unattended at ~2-4 s each,
+     so "Gather 25 logs" was ~60 seconds of elapsed time for 250 g while "Slay
+     30 monsters" was a long shift for 600. The TARGETS move (25→60, 15→50,
+     5→25) and the gold moves with them; the per-action rate barely changes,
+     but the goals stop being free money the moment a player logs in.
+     ⚠ TARGET AND GOLD ARE BOTH SERVER-OWNED — public.hr_goal_rewards grades the
+     target and credits the gold, and tests/modal-goal-claim.mjs BIND/BIND-PAY
+     fails the build if this table and that catalogue disagree in either
+     direction. Three homes: here, DAILY_REWARDS below, and the SQL. */
+  {id:'gather_logs', glyph:'uiLog', name:'Gather 60 logs',  target:60, source:'stats.chopped',
    desc:'Any tree, any tier — the axe does not care which one you fell.'},
-  {id:'mine_ore',  glyph:'uiPickaxe', name:'Mine 25 ores',      target:25, source:'stats.mined',
+  {id:'mine_ore',  glyph:'uiPickaxe', name:'Mine 60 ores',      target:60, source:'stats.mined',
    desc:'Any seam counts. Copper is worth exactly as much here as runite.'},
-  {id:'cook',      glyph:'uiPot', name:'Cook 5 dishes',     target:5,  source:'stats.cooked',
-   desc:'Five finished meals. Burnt dishes do not count, so cook what you rarely ruin.'},
-  {id:'fish',      glyph:'uiFish', name:'Catch 15 fish',     target:15, source:'stats.fished',
-   desc:'Any water, any catch. Fifteen shrimp finish this as surely as fifteen sharks.'},
+  {id:'cook',      glyph:'uiPot', name:'Cook 25 dishes',    target:25, source:'stats.cooked',
+   desc:'Finished meals only. Burnt dishes do not count, so cook what you rarely ruin.'},
+  {id:'fish',      glyph:'uiFish', name:'Catch 50 fish',     target:50, source:'stats.fished',
+   desc:'Any water, any catch. Fifty shrimp finish this as surely as fifty sharks.'},
   /* ── b464/b465 — `gold_500` STAYS, because it PAYS NOW. The Designer withdrew
      it (correctly, at the time): its reward named two phantom ids and the server
      answered `reward_unavailable`. That premise closed the same hour in a
@@ -13863,7 +14005,13 @@ var DAILY_GOAL_POOL = [
      this one pays, so it is dealt. */
   {id:'gold_500',  glyph:'gold', name:'Earn 500 gold',     target:500, source:'_dailyGoldDelta',
    desc:'Gold earned today, from anywhere: loot, the vendor, or a market sale.'},
-  {id:'plant',     glyph:'uiSprout', name:'Plant 5 crops',     target:5,  source:'stats.planted',
+  /* b497: 5 → 3. The ONLY target that goes DOWN, and for the same reason
+     farmhand and daily_harvest came down — the starting Wanderer's Camp has TWO
+     plots (features/homestead.js TIERS[0].plots), so "plant 5" could not be
+     completed in one pass at the property every new player owns. 3 is one pass
+     plus a replant; the gold comes down with it (200 → 150) so the rate is
+     unchanged rather than buffed. */
+  {id:'plant',     glyph:'uiSprout', name:'Plant 3 crops',     target:3,  source:'stats.planted',
    desc:'Seeds in the ground. Planting is the whole task — you need not stay for the harvest.'},
   {id:'level_up',  glyph:'uiXp', name:'Gain a skill level', target:1,  source:'stats.levelups',
    desc:'Any skill, any level. Your lowest skill is the cheapest way to finish this.'},
@@ -20029,17 +20177,21 @@ console.log('[Bundle Icons v1] applied:',
        (2026-08-17-cutover-import.sql; tests/cutover-import.mjs C7/C8). */
     kill_any:    {gold: 200, xp:{hitpoints:100}},
     kill_more:   {gold: 600, xp:{hitpoints:300}, gems: 1},
-    gather_logs: {gold: 250, xp:{woodcutting:100}},
-    mine_ore:    {gold: 250, xp:{mining:100}},
-    cook:        {gold: 200, xp:{cooking:80}},
-    fish:        {gold: 250, xp:{fishing:100}},
+    /* b497 — the gathering retune. Targets moved in DAILY_GOAL_POOL (25→60,
+       15→50, 5→25, plant 5→3); the gold moves here, in lockstep with
+       public.hr_goal_rewards. XP is UNCHANGED by the ruling — only gold and the
+       targets were retuned, and BIND-PAY compares all four components. */
+    gather_logs: {gold: 300, xp:{woodcutting:100}},
+    mine_ore:    {gold: 300, xp:{mining:100}},
+    cook:        {gold: 250, xp:{cooking:80}},
+    fish:        {gold: 300, xp:{fishing:100}},
     /* b464 — the reward used to name TWO items that do not exist in ITEMS
        (`small_bones`, `starter_bundle_token`); the server correctly refused the
        claim as reward_unavailable, so "Earn 500 gold" was never claimable and
        the reward line printed a raw id. Real ids, and a payout that isn't
        gold-for-gold: bones feed Prayer, gems are the premium drip. */
     gold_500:    {gold: 0, xp:{}, gems: 1, items:{bones:5}},
-    plant:       {gold: 200, xp:{farming:80}},
+    plant:       {gold: 150, xp:{farming:80}},
     level_up:    {gold: 500, xp:{}, gems: 1},
   };
 

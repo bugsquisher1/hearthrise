@@ -36,8 +36,10 @@
 // ── WHY K10 EXISTS, AND THE MISTAKE THAT PUT IT HERE (Security C1/C2) ────
 // The first draft of this change claimed the daily row had TWO paying readers.
 // It has THREE. hr_claim_daily__ungated grades kind='daily' 'ev:kill_any' too —
-// daily_kill pays 500 g at 25 kills and daily_kill_big pays 900 g at 60, offered
-// on ~54% / ~50% of days by the day-seeded hr_daily_task_set.
+// daily_kill pays 600 g at 25 kills and daily_kill_big pays 1,400 g at 60,
+// offered on ~54% / ~50% of days by the day-seeded hr_daily_task_set.
+// (b497: 500/900 before the Designer's gold-per-effort-minute retune —
+// 2026-09-04-goal-gold-retune.sql, which carries the acceptance.)
 //
 // The reason it was missed is the reusable part: the search was for functions
 // containing the LITERAL string 'ev:kill_any', and NOT ONE of the three readers
@@ -55,7 +57,14 @@
 // role may write — so a fabricated kill counter is a GATE, never a MULTIPLIER:
 // ten thousand forged kills pay exactly what thirty honest ones pay. Per
 // CHARACTER, the reachable payout is
-//     per UTC day    2,200 gold + 1 gem + 400 hitpoints XP
+//     per UTC day    2,800 gold + 1 gem + 400 hitpoints XP
+//                    (kill_any 200 + kill_more 600 + daily_kill 600
+//                     + daily_kill_big 1,400 — b497 re-priced the last two from
+//                     500/900, so this line moved 2,200 -> 2,800 and the
+//                     ACCOUNT-day ceiling 13,200 -> 16,800. The CONTROL did not
+//                     move: the once-guard plus a server-owned amount. Only the
+//                     amount did, by 0.06% of one character's measured honest
+//                     ~1.05M gold/day from the live accrual path.)
 //     per ISO week   2,500 gold + 3 gems + 1,000 hitpoints XP
 //     (+ 5 bones/day transitively: hr_claim_goal journals its gold payout, which
 //      clears gold_500's 500-gold ledger target four times over)
@@ -891,17 +900,23 @@ function grade(o, problems) {
 
   // ── K10(2). hr_claim_daily's KILL-TASK PRICES ARE PINNED ────────────────
   const def = o.claimDailyDef || '';
-  ok(/when 'daily_kill'\s+then v_type := 'kill_any'; v_goal := 25;\s+v_gold := 500;/.test(def),
-    "K10: hr_claim_daily's daily_kill is no longer 25 kills -> 500 gold. The reviewed forgery "
-    + 'bound (<= 2,200 gold/UTC day) is arithmetic over these numbers — re-open the review.');
-  ok(/when 'daily_kill_big'\s+then v_type := 'kill_any'; v_goal := 60;\s+v_gold := 900;/.test(def),
-    "K10: hr_claim_daily's daily_kill_big is no longer 60 kills -> 900 gold. The reviewed forgery "
+  /* b497 RETUNE (Designer, balance audit): daily_kill 500 -> 600 and
+     daily_kill_big 900 -> 1400. The pin MOVED WITH THE REVIEW rather than being
+     loosened — the bound restated in this file's header went 2,200 -> 2,800
+     gold per character-UTC-day, and 2026-09-04-goal-gold-retune.sql carries the
+     arithmetic and the acceptance. A guard that stopped naming an exact number
+     here would be the thing that lets the NEXT re-tune through unreviewed. */
+  ok(/when 'daily_kill'\s+then v_type := 'kill_any'; v_goal := 25;\s+v_gold := 600;/.test(def),
+    "K10: hr_claim_daily's daily_kill is no longer 25 kills -> 600 gold. The reviewed forgery "
+    + 'bound (<= 2,800 gold/UTC day) is arithmetic over these numbers — re-open the review.');
+  ok(/when 'daily_kill_big'\s+then v_type := 'kill_any'; v_goal := 60;\s+v_gold := 1400;/.test(def),
+    "K10: hr_claim_daily's daily_kill_big is no longer 60 kills -> 1400 gold. The reviewed forgery "
     + 'bound is arithmetic over these numbers — re-open the review.');
   if (o.k10_2_executed) {
     ok(o.k10_2 && o.k10_2.ok === true,
       `K10: daily_kill was offered today but did not pay off the stamped daily row: ${JSON.stringify(o.k10_2)}`);
-    ok(o.k10_2_gold === 500,
-      `K10: daily_kill paid +${o.k10_2_gold} gold, expected +500 — the third paying reader of this row`);
+    ok(o.k10_2_gold === 600,
+      `K10: daily_kill paid +${o.k10_2_gold} gold, expected +600 — the third paying reader of this row`);
   }
 
   /* ── K10(3). A KILL-GOAL CLAIM MOVES EXACTLY THE CATALOGUED XP, ONCE ──────

@@ -136,6 +136,25 @@ const MUTATIONS = {
      twice, and both checks are mutated: one proves the DATABASE refuses to
      apply it, the other proves the REPO refuses to build it even if someone
      softens the database gate again (which is precisely how it survived). */
+  /* ── b497: THE RETUNE FAMILY. A balance ruling is only real if BOTH sides
+     move; a half-applied one shows the player one bar and grades them against
+     another, which is the exact BIND defect this file was extended for in b487.
+     Two mutations, one per direction, because the two are caught by DIFFERENT
+     assertions and a single one would leave half the bind unproven. */
+  goal_retune_target_reverted: {
+    why: 'b497: the CATALOGUE keeps the pre-retune target/gold for gather_logs while legacy.js '
+       + 'carries the ruled 60 @ 300 g. The modal would show "Gather 60 logs" and the server would '
+       + 'pay at 25 — BIND (target) and BIND-PAY (gold) and C3 must all read RED',
+    find: `  ('gather_logs', false, 'daily',       'ev:chopped',   60,   300, 0, '{"woodcutting":100}','{}'),`,
+    repl: `  ('gather_logs', false, 'daily',       'ev:chopped',   25,   250, 0, '{"woodcutting":100}','{}'),`,
+  },
+  goal_retune_plant_wrong_way: {
+    why: 'b497: `plant` was ruled DOWN (5 -> 3 crops, 200 -> 150 g) because the starting camp has '
+       + 'two plots; this puts the target back up while the client shows 3. A retune that moves in '
+       + 'the wrong direction is indistinguishable from a typo, and only the bind can tell',
+    find: `  ('plant',       false, 'daily',       'ev:planted',      3,   150, 0, '{"farming":80}',     '{}'),`,
+    repl: `  ('plant',       false, 'daily',       'ev:planted',      5,   200, 0, '{"farming":80}',     '{}'),`,
+  },
   phantom_xp_skill_at_apply: {
     why: 'a kill goal goes back to pricing its XP as the phantom skill `combat`, which is not an '
        + 'hr_skills row — hr_claim_goal would drop the grant into skipped_xp and the player would '
@@ -245,7 +264,8 @@ async function run(mutate) {
   obs.c2_gold = await goldOf();
 
   // ── C3. A COMPLETE DAILY CREDITS EVERY HALF OF ITS REWARD, ONCE ───────
-  await stamp('ev:chopped', 25, dayKey);
+  // b497 retune: gather_logs is 60 logs -> 300 gold + 100 woodcutting XP.
+  await stamp('ev:chopped', 60, dayKey);
   const g0 = await goldOf(); const x0 = await xpOf('woodcutting');
   obs.c3 = await claim('gather_logs', false);
   obs.c3_gold = (await goldOf()) - g0;
@@ -367,7 +387,7 @@ function grade(o) {
 
   ok(o.c3?.ok === true && o.c3?.outcome === 'applied',
     `C3: a complete daily did not credit: ${JSON.stringify(o.c3)}`);
-  ok(o.c3_gold === 250, `C3: gather_logs credited ${o.c3_gold} gold, expected 250`);
+  ok(o.c3_gold === 300, `C3: gather_logs credited ${o.c3_gold} gold, expected 300`);
   ok(o.c3_xp === 100, `C3: gather_logs credited ${o.c3_xp} woodcutting XP, expected 100 — the XP `
     + 'half of the reward is not server-applied, so it would evaporate at the next settle');
 
@@ -404,8 +424,9 @@ function grade(o) {
   ok(o.c11?.ok === true && Array.isArray(o.c11?.goals) && o.c11.goals.length === 19,
     `C11: hr_goal_state did not project all 19 goals: ${JSON.stringify(o.c11).slice(0, 300)}`);
   const gl = (o.c11?.goals || []).find((g) => g.goal_id === 'gather_logs');
-  ok(gl && gl.claimed === true && Number(gl.target) === 25,
-    `C11: hr_goal_state does not report a claimed daily as claimed: ${JSON.stringify(gl)}`);
+  ok(gl && gl.claimed === true && Number(gl.target) === 60,
+    `C11: hr_goal_state does not report a claimed daily as claimed (or its target is not the b497 `
+    + `ruled 60): ${JSON.stringify(gl)}`);
   const wl = (o.c11?.goals || []).find((g) => g.goal_id === 'wk_logs');
   ok(wl && wl.period === o.weekKey,
     `C11: a weekly goal is projected under the wrong period: ${JSON.stringify(wl)}`);

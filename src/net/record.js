@@ -1004,12 +1004,15 @@ export function applyRecord(G, res) {
   /* ── THE PREVIOUS SERVER STATEMENT, CAPTURED BEFORE THE WRITE (b492) ────────
      `reconcileCreditedXp` retires a credit-settled xp prediction by the AMOUNT
      the record just advanced, so it needs the value the server stated LAST —
-     and it must be the RECORD's copy (`_record.last`), never `G.skills`. G.skills
-     is writeable by other passes in the same apply (accrue.js's pending
-     fold-back writes `server + pending` into it moments before this function
-     runs), and diffing against that would silently retire the fold-back's
-     headroom as if the server had paid it. Read here, one line before the
-     wholesale replace below overwrites `_record.last` with the NEW value. */
+     and it must be the RECORD's copy (`_record.last`), never `G.skills`.
+     G.skills is writeable by other passes in the same apply — accrue.js's
+     `applyEnvelopeState` assigns it from this same envelope moments before this
+     function runs — and diffing a SERVER advance against a number another pass
+     just wrote measures that pass, not the server. (Until b495 the sharpest
+     example was accrue.js's pending fold-back, which wrote `server + pending`
+     into G.skills at exactly that point; it has been removed, and this rule is
+     what made its removal a no-op for the reconcile.) Read here, one line before
+     the wholesale replace below overwrites `_record.last` with the NEW value. */
   const prevStated = recordLastKnown(G, 'skills');
 
   const written = [];

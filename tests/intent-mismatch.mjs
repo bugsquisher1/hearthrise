@@ -292,7 +292,9 @@ async function run(mutate) {
      fixture is narrower and a missing service_role revoke is invisible to every
      behavioural probe above. The migration's own §3 asserts it at apply time on
      the real database — this is the half that fails the BUILD. */
-  obs.p7 = await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8');
+  // LF in memory: the migrations are checked in with CRLF on Windows and the
+  // mutation anchors are written with LF (the same normalisation bootReplay does).
+  obs.p7 = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
   if (mutate && (MUTATIONS[mutate].pairs || [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]])) {
     for (const [find, repl] of (MUTATIONS[mutate].pairs
         || [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]])) {

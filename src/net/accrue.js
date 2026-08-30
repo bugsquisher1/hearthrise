@@ -1934,29 +1934,40 @@ export function applyEnvelopeState(G, res, ownKey) {
          edited xp figure and a round trip that laundered it into permanence.
          PHASE 1: MAX. Kept behind the switch, not deleted, because it is the
          incident lever — and it is now ALSO the client-only-skill floor. */
-      let next = skillAbsolute ? xp : Math.max(have, xp);
-      /* ── PENDING FOLD-BACK (the "reverts my exp" class-kill, 2026-08-27) ────
-         The absolute assign is correct as the durable floor, but ATTENDED combat
-         XP the client has observed and NOT YET successfully credited lives in
-         G._combatXpPending (scratch, never synced) — and the server cannot know
-         it at settle time. Every envelope applied while credit lags — network
-         RTT between the credit snapshot and the settle, a rate-gated or
-         throttled credit, the in-flight race — re-asserted the server's stale
-         figure DOWNWARD and the player watched just-earned XP (even a level)
-         revert mid-fight. Reported repeatedly on live (08-23 → 08-27); each
-         prior fix narrowed ONE lag window; this closes the class: the DISPLAY
-         is server truth PLUS still-pending attended XP, so no lag window can
-         revert what the player watched happen.
-         NOT a forgery hole: pending becomes durable only through
-         hr_credit_combat_xp's server-clamped path; a devtools-forged pending is
-         scratch (dies on reload, never persisted) and cannot cross the server's
-         per-day cap. Only added under skillAbsolute — the Math.max branch's
-         `have` already contains pending (double-count otherwise). */
-      if (skillAbsolute) {
-        const pend = G._combatXpPending;
-        const p = (pend && typeof pend === 'object') ? Math.floor(Number(pend[k]) || 0) : 0;
-        if (p > 0) next = xp + p;
-      }
+      const next = skillAbsolute ? xp : Math.max(have, xp);
+      /* ── THE PENDING FOLD-BACK USED TO BE HERE, AND IT IS GONE (b495) ──────
+         b487 added `if (skillAbsolute) next = xp + pending` so the DISPLAY was
+         server truth plus still-uncredited attended combat XP — the fix for
+         "sync reverts my exp mid-fight" (reported live 08-23 → 08-27). The
+         intent was right; this was the wrong LAYER, and by b494 it was doing
+         nothing here and harm where it survived:
+
+           · DEAD on the normal path. `G.skills` is a MOVED field. record.js
+             `applyRecord` runs microseconds after this function on the very same
+             envelope (legacy.js:2124 then :2144) and REPLACES `G.skills`
+             wholesale from `dec.fields.skills`, then re-stamps it. Whatever is
+             folded in here is overwritten before any reader sees it.
+           · ACTIVELY WRONG where it survived. On a STALE envelope applyRecord
+             fills only the fields the record cannot vouch for, so a folded
+             `G.skills` stays — and it then no longer matches `_record.stamp`, so
+             `recordValue` answers `client-overwrote`, `skillXpForDisplay` drops
+             from the `server` rung to the `local` rung, and that rung ADDS the
+             prediction on top of a number which already contains it. That is the
+             b491 double-count — "watched XP appears and then snaps away" —
+             recreated by the very thing meant to prevent it.
+
+         THE PROTECTION NOW LIVES IN THE LAYER THAT SURVIVES applyRecord: the
+         prediction bag. `addXp` records the attended gain as a `credit`-tagged
+         bucket (predict.js `predictXp`), `skillXpForDisplay` renders record truth
+         PLUS the un-retired bucket, and `reconcileCreditedXp` retires it by the
+         AMOUNT the record actually advanced rather than by a watermark the credit
+         never moves. Same player-facing property — a settle can never shrink
+         watched combat XP — now asserted at the layer that owns it, by
+         XP-FOLDBACK and XP-CREDIT-RETIRE in smoke-test.js.
+
+         ⚠ DO NOT REINTRODUCE A CLIENT WRITE OF `G.skills` HERE. Under the armed
+         record it is not a display buffer; it is a field with provenance, and
+         writing it un-stamped is how a real number starts reading as forged. */
       skills[k] = next;
       written.skills[k] = next;
     }

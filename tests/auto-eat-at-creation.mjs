@@ -64,8 +64,14 @@
 //   · TRUE CONCURRENCY. PGlite is one backend; the advisory lock is exercised
 //     and contended by nothing.
 //   · The CLIENT half. This asserts the server grants and enables; it says
-//     nothing about G.autoActions.eat.enabled, which this change deliberately
-//     does NOT flip (see the migration header's handoff).
+//     nothing about G.autoActions.eat.enabled. That switch is not written by the
+//     migration, but a fresh character still ends up `owned + ON`, because
+//     ensureShape() flips it the moment G.foodSlot is set and the fresh-G
+//     literal carries foodSlot:'cooked_shrimp' (b495). ⚠ An earlier version of
+//     this line said the change "deliberately does NOT flip" it and pointed at a
+//     handoff. There is no handoff and none was needed: the server debits
+//     attended meals at every visible settle. See the migration header, and
+//     tests/accrual-engine.mjs `attendedSettleAutoEatGuard` on 2087eba3.
 //
 // ── FALSIFIABILITY ─────────────────────────────────────────────────────
 //   node tests/auto-eat-at-creation.mjs             clean run

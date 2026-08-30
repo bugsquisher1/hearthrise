@@ -4530,28 +4530,58 @@ function hrAdoptAcceptedBounty(res,accepted){
   if(!res||typeof res!=='object'){out.reason='no_envelope';return out;}
   const act=G.bountyHunter&&G.bountyHunter.active;
   if(!act){out.reason='no_active';return out;}
-  /* TWO IDENTITY CHECKS, both load-bearing. The reply is asynchronous, so by the
-     time it lands the player may have abandoned this contract and accepted
-     another — writing a stale `required` onto a live bounty would manufacture
-     the exact desync this function exists to remove. Object identity catches
-     abandon→accept (acceptBounty deep-copies, so the new active is a different
-     object); the id/target pair catches everything else, including a reply
-     arriving for a bounty a reload has already replaced. */
+  /* TWO IDENTITY CHECKS, both load-bearing, AND THEY SIT ON OPPOSITE SIDES OF
+     THE REFUSAL BRANCH — see the F7 note below for why that is not tidiness.
+     The reply is asynchronous, so by the time it lands the player may have
+     abandoned this contract and accepted another; writing a stale `required`
+     onto a live bounty would manufacture the exact desync this function exists
+     to remove. Object identity (here) catches abandon→accept, because
+     acceptBounty deep-copies and a new active is a different object. The
+     id/target pair (below, guarding the ADOPT only) catches everything else,
+     including a success reply for a bounty a reload has already replaced. */
   if(accepted&&act!==accepted){out.reason='superseded';return out;}
-  if(String(res.bounty_id||'')!==String(act.id||'')
-     ||String(res.target||'')!==String(act.target||'')){out.reason='mismatch';return out;}
 
+  /* ⚠ THE REFUSAL CHECK COMES BEFORE THE id/target PAIR, AND THE ORDER IS THE
+     WHOLE REASON THIS BRANCH IS REACHABLE (Security F7). It shipped the other
+     way round in 66709733 and was DEAD CODE: not one refusal envelope the
+     system can produce carries `bounty_id`, so every real refusal fell out at
+     the pair check as `mismatch` and `_acceptError` never fired. Enumerated
+     from source rather than assumed — server:
+       not_signed_in (bare) · rate_limited (bare, the rate wrapper) ·
+       no_character (+slot) · type_not_server_verifiable (+type) ·
+       bad_difficulty (+difficulty,+tier) · tier_locked (+tier,+unlocked_tier,
+       +combat_level) · unknown_monster (+target ONLY — still no id)
+     and the transport (goal-claim.js `call()`): not_signed_in · rpc_missing ·
+     no_config · bad_response (+status) · network. Twelve shapes, zero ids.
+     `tier_locked` and `rate_limited` are reachable by ordinary players, so the
+     silence this function was written to end was still fully in place.
+
+     SAFE TO REORDER because a failure envelope writes NO NUMBERS — only the
+     marker below — and the identity guard above already covers abandon→accept
+     (acceptBounty deep-copies, so a new active is a different object).
+     `call()` never rejects: every failure is a RESOLVED envelope, which is what
+     makes this reachable from the `.then` at the call site at all. */
   if(res.ok!==true){
     /* NOT SILENT ANY MORE. A refused accept means there is no active_bounty row,
        so the turn-in can never settle — the contract is already dead, and the
        honest thing available here is to record why. Withdrawing and reposting it
-       is a designer decision; raised as a handoff, not invented here. */
+       is a designer decision; raised as a handoff, not invented here.
+       ⚠ `_acceptError` (and `_serverContract` below) are CLIENT-AUTHORED
+       MARKERS — diagnostics only. They ride nested under `bountyHunter`, so the
+       top-level `_`-strip does not reach them and they persist through residue.
+       Harmless today; they MUST NEVER BECOME A GATE, because a forged client
+       value must not be able to decide whether a contract is payable. */
     act._acceptError=String(res.error||'unknown');
     out.reason='refused:'+act._acceptError;
     try{console.warn('[Bounty] accept refused ('+act._acceptError+') — this contract has no server '
       +'row, so its turn-in will not settle');}catch(e){}
     return out;
   }
+
+  /* The pair check guards the ADOPT only: it stops a success envelope for one
+     bounty writing its numbers onto another. */
+  if(String(res.bounty_id||'')!==String(act.id||'')
+     ||String(res.target||'')!==String(act.target||'')){out.reason='mismatch';return out;}
   delete act._acceptError;
 
   /* EVERY FIELD IS RE-DERIVED AND VALIDATED, never spread: a malformed or absent

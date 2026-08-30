@@ -88,48 +88,69 @@
 -- change at all. The client edits that DO ship alongside this are teaching copy
 -- only (src/features/death-sheet.js) — listed in the change contract.
 --
--- ⚠⚠ THE ATTENDED-EAT SEAM — READ THIS BEFORE APPLYING. ⚠⚠
+-- ⚠⚠ WHO EATS, AND WHO DEBITS — THIS HEADER HAS BEEN WRONG TWICE. ⚠⚠
 --
---   ⚠ CORRECTED 2026-08-30 (Security review). An earlier draft of this header
---     said this file "does not turn on the CLIENT's live-combat switch
---     (`G.autoActions.eat.enabled`, default false)" and rested its safety
---     argument on that. **THAT WAS FALSE**, and it was false for the one
---     population that matters — a brand-new character. The correction is
---     recorded rather than quietly deleted, because the deleted version is the
---     one a reviewer already read.
+--   Two reviews have now been misled by this section, so both retracted versions
+--   are quoted rather than deleted: a reader who saw an earlier draft needs to
+--   recognise what they read and know it is dead.
 --
---     `DEFAULTS.eat.enabled` is indeed false, but `ensureShape()` in
---     src/features/auto-actions.js (the b163 migration branch) sets
---     `aa.eat.enabled = true` whenever `G.foodSlot` is truthy — and the fresh-`G`
---     literal in src/legacy.js carries `foodSlot:'cooked_shrimp'`, which THIS
---     PROGRAM put there in b495 (the start-kit food bridge). So on a fresh
---     character the client's live switch is **ON**, and auto-actions.js says so
---     in its own comment. The only thing that was holding attended auto-eat back
---     was the `owned` gate — the trait — which is precisely what this file
---     grants.
+--   ✗ RETRACTED #1 (original draft): "this file does not turn on the CLIENT's
+--     live-combat switch (`G.autoActions.eat.enabled`, default false)".
+--     FALSE for the population that matters. `DEFAULTS.eat.enabled` is false,
+--     but `ensureShape()` in src/features/auto-actions.js (the b163 migration
+--     branch) sets `aa.eat.enabled = true` whenever `G.foodSlot` is truthy, and
+--     the fresh-`G` literal in src/legacy.js carries `foodSlot:'cooked_shrimp'`
+--     — which THIS PROGRAM put there in b495 (the start-kit food bridge).
+--     auto-actions.js says so in its own comment.
 --
---   WHAT THAT MEANS, PLAINLY: applying §1 turns ATTENDED auto-eat ON for every
---   new character, not just away accrual. And attended auto-eat walks straight
---   into a KNOWN, OPEN seam: `src/legacy.js noteItemConsumed` refuses to send
---   the `eat` intent for an auto-eat whenever the server reports
---   `auto_eat_enabled = true` (accrue.js `clientOwnsAutoEatDebit`), on the
---   assumption that "the server eats" means "the server eats THIS one". It does
---   not — the server's sim only eats during AWAY accrual. An attended auto-eat
---   is therefore held for `ENTRY_TTL_MS` (10 minutes) and then RESTOCKED by the
---   next envelope. Free food. Self-only, and bounded by what the player is
---   carrying, but real and reachable by every new account.
+--   ✗ RETRACTED #2 (the first "correction", 2026-08-30 — mine, and it is the
+--     one that fooled the review): "the server's sim only eats during AWAY
+--     accrual", and therefore "§1 IS SAFE ONLY IF THE ATTENDED-EAT GATE FIX
+--     SHIPS IN THE SAME BUILD".
+--     ALSO FALSE, and it was an inference from the WORD "away" rather than a
+--     reading of the function. Acting on it would have been worse than leaving
+--     it alone: the Systems Engineer built the "fix" it demanded and measured
+--     that it DESTROYS items (a double debit), 1090/1091.
 --
---   ⚠ THEREFORE: §1 IS SAFE ONLY IF THE ATTENDED-EAT GATE FIX SHIPS IN THE SAME
---     BUILD. It is not a "handoff for later" and this file must not be applied
---     ahead of it. The fix is one line and it is NOT in this file's scope
---     (client wiring belongs to the Systems Engineer, with a Security look): the
---     gate asks "does the server eat?" when the question it needs answered is
---     "did *I* eat this one?", and `inOfflineReplay()` one line above already
---     excludes the away path — the only path the server eats on.
+--   ── THE TRUE MODEL, read off the source rather than reasoned about ────────
+--   `computeAccrual` HAS NO PRESENCE INPUT AT ALL. There is no away/attended
+--   branch inside it, which is exactly why "away accrual" was the wrong noun:
+--     · supabase/functions/hr-accrue/accrual.js:1084 —
+--         `const autoEatOn = inp.autoEatEnabled === true;`
+--       and `eatCfg = { enabled: autoEatOn, owned: autoEatOn, … }`. The gate is
+--       `auto_eat_enabled` and nothing else.
+--     · accrual.js:~1200 — the eat is a REAL DEBIT that rides in the delta:
+--         `bag[foodId] -= 1;  itemDelta[foodId] = (itemDelta[foodId] || 0) - 1;`
+--     · src/net/accrue.js `decideSettle` — `if (!st.visible) return
+--       { settle:false, reason:'hidden' }`, so the 90 s settle loop
+--       (`SETTLE_INTERVAL_MS = 90000`) runs ONLY while the tab is visible. Every
+--       settle it performs therefore prices an ATTENDED window.
+--   Put together: with `auto_eat_enabled = true` the server prices and DEBITS
+--   every attended meal at each visible settle. The client's pending-consume
+--   hold drains against the server's own movement instead of expiring, so there
+--   is no restock and there is no free food. `clientOwnsAutoEatDebit()` refusing
+--   to send is CORRECT; sending on top would debit the same meal twice, which is
+--   item LOSS — strictly worse than the bug it was meant to fix.
 --
---   The AWAY half is what the ruling is actually buying and it is unaffected by
---   any of the above: `player_state.auto_eat_enabled` is what the accrual engine
---   reads, and this file sets it.
+--   ── WHY §1 IS SAFE ────────────────────────────────────────────────────────
+--   Not because of a gate fix — there is none, and none was ever needed. §1 is
+--   safe because the server OWNS and DEBITS the attended meals it enables, at
+--   every visible settle, by the two lines cited above. Applying §1 does turn
+--   attended auto-eat on for every new character (see retraction #1); that is
+--   the intended behaviour and it is server-accounted.
+--
+--   PINNED, so this premise cannot be re-asserted a third time from either end:
+--   branch `fix/attended-eat-intent-gate` (2087eba3, comment-only + two guards,
+--   merging in the SAME BUILD as this file) adds `attendedSettleAutoEatGuard`
+--   in tests/accrual-engine.mjs — the engine eats and debits on a fresh 10-HP
+--   fight — and `EAT-RESTOCK-6` block 2b in src/features/smoke-test.js, which
+--   turns RED if the client is ever made to send the intent while the server is
+--   eating. Verified independently here before writing this paragraph: all four
+--   source claims above were read, not taken on report.
+--
+--   The AWAY half is unaffected by any of this and is what the ruling is
+--   actually buying: `player_state.auto_eat_enabled` is what the accrual engine
+--   reads for a long absence too, and this file sets it.
 --
 -- ── §grant-existing: TRIVIAL, IDEMPOTENT, AND GATED ──────────────────────
 -- The ruling covers NEW creation. Every current beta player suffered the same

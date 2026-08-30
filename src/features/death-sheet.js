@@ -84,11 +84,24 @@
      and the branch rule had to move with it. The designer ruling grants
      Auto-Eat I to every character at creation
      (supabase/migrations/2026-09-04-auto-eat-at-creation.sql), so OWNERSHIP is
-     now universal while the client's live-combat switch
-     (`G.autoActions.eat.enabled`, and `maybeAutoEat`'s real gate) still starts
-     OFF. Keyed on ownership, `auto-eat-idle` would tell every new player with
-     an empty bag that "Auto-Eat is watching your health" when nothing is —
-     precisely the class of lie the F7/b432 audit built this sheet to remove.
+     now universal — while the switch `maybeAutoEat` actually reads
+     (`G.autoActions.eat.enabled`) is a SEPARATE fact that ownership says
+     nothing about.
+
+     ✗ RETRACTED (2026-08-30): this passage used to continue "…still starts
+       OFF", and that is FALSE. `DEFAULTS.eat.enabled` is false, but
+       `ensureShape()` in src/features/auto-actions.js flips it to true whenever
+       `G.foodSlot` is set, and the fresh-`G` literal carries
+       `foodSlot:'cooked_shrimp'` (b495). A FRESH CHARACTER IS `owned + ON`.
+       The code below was always right — it reads
+       `HearthriseAuto.getEat().enabled` — only this comment lied, and it is
+       quoted rather than deleted because two reviews were misled by the same
+       claim elsewhere.
+
+     The split is still exactly as necessary, just for the opposite population:
+     a player who has TURNED IT OFF (or cleared their food slot) would be told
+     "Auto-Eat is watching your health" when nothing is — precisely the class of
+     lie the F7/b432 audit built this sheet to remove.
      So the ACTIVE branch keys on `autoEatOn` (the switch) and the OFFER copy
      keys on `autoEatOwned` (the entitlement). Two facts, two fields.
 

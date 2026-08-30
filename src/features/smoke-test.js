@@ -17426,8 +17426,33 @@ const TESTS = [
       const mk = () => ({ id: 'cull_goblin_1700_7', type: 'cull', target: 'goblin',
         difficulty: 'hard', tier: 1, progress: 0, required: 88,
         rewards: { gold: 420, marks: 8, xp: 59 } });
+      /* `env` builds the SUCCESS envelope only — the shape
+         hr_accept_bounty__ungated's final jsonb_build_object actually returns.
+         ⚠ IT MUST NEVER BE USED TO BUILD A REFUSAL (Security F7, and the third
+         time this program has been bitten by a fixture assembled from a base
+         object instead of from the producer's real output): NOT ONE of the
+         twelve refusal envelopes the system can emit carries `bounty_id`.
+         `Object.assign({…, bounty_id}, {ok:false})` therefore produces a shape
+         the server cannot make, and a refusal test built from it tests the
+         fixture. `refusal()` below is the real vocabulary. */
       const env = (over) => Object.assign({ ok: true, bounty_id: 'cull_goblin_1700_7',
         target: 'goblin', tier: 1, required: 96, gold: 420, marks: 8, xp: 59 }, over || {});
+      /* THE REAL REFUSAL SHAPES, transcribed from the producers — the server's
+         hr_accept_bounty / __ungated bodies and goal-claim.js `call()`. No
+         bounty_id in any of them; `unknown_monster` carries a target and still
+         no id. Each entry is exactly what the client would receive. */
+      const REFUSALS = [
+        { ok: false, error: 'rate_limited' },                                   // the rate wrapper
+        { ok: false, error: 'tier_locked', tier: 3, unlocked_tier: 1, combat_level: 8 },
+        { ok: false, error: 'bad_difficulty', difficulty: 'elite', tier: 1 },
+        { ok: false, error: 'no_character', slot: 0 },
+        { ok: false, error: 'not_signed_in' },
+        { ok: false, error: 'type_not_server_verifiable', type: 'proof' },
+        { ok: false, error: 'unknown_monster', target: 'goblin' },              // target, no id
+        { ok: false, error: 'network' },                                        // goal-claim.js call()
+        { ok: false, error: 'bad_response', status: 500 },
+        { ok: false, error: 'rpc_missing' },
+      ];
 
       // ── 1. THE DEAD CASE. Client drew 88; the server stored 96.
       G.bountyHunter.active = mk();
@@ -17455,15 +17480,37 @@ const TESTS = [
       assert(r3.adopted === true && r3.changed.length === 0,
         'an agreeing envelope reported changes: ' + JSON.stringify(r3.changed));
 
-      // ── 4. A REFUSAL adopts NOTHING and stops being silent. There is no
-      //      active_bounty row, so this contract can never settle.
-      G.bountyHunter.active = mk();
-      const r4 = window.hrAdoptAcceptedBounty(env({ ok: false, error: 'tier_locked' }));
-      assert(r4.adopted === false && /refused:tier_locked/.test(r4.reason),
-        'a refused accept was not reported: ' + JSON.stringify(r4));
-      assert(G.bountyHunter.active.required === 88, 'a refusal moved the requirement');
-      assert(G.bountyHunter.active._acceptError === 'tier_locked',
-        'the refusal was swallowed — nothing records that this bounty is dead');
+      /* ── 4. EVERY REAL REFUSAL adopts NOTHING and stops being silent. There
+            is no active_bounty row, so the contract can never settle.
+            ⚠ THIS IS THE ASSERTION THAT WOULD HAVE CAUGHT F7, and it only
+            works because the fixtures are the PRODUCER'S shapes. The version
+            in 66709733 used `env({ok:false, error:'tier_locked'})` — a
+            success base with a `bounty_id` bolted on — which the server cannot
+            emit. It passed against a refusal branch that was DEAD CODE: with
+            the pair check ahead of the ok check, a real (id-less) refusal
+            returned `mismatch` and never reached it. Driving all ten shapes
+            also means a future refusal that grows an id cannot silently
+            re-order this. */
+      for (const ref of REFUSALS) {
+        assert(!('bounty_id' in ref),
+          'a REFUSAL fixture carries bounty_id — no producer emits that, so this test would be '
+          + 'testing the fixture (the F7 defect, re-introduced): ' + JSON.stringify(ref));
+        G.bountyHunter.active = mk();
+        const r = window.hrAdoptAcceptedBounty(ref);
+        assert(r.adopted === false && r.reason === 'refused:' + ref.error,
+          'the refusal "' + ref.error + '" was not reported as a refusal — got '
+          + JSON.stringify(r) + '. If this reads "mismatch", the ok check has been moved back '
+          + 'behind the id/target pair and the whole branch is dead again (F7).');
+        assert(G.bountyHunter.active.required === 88 && G.bountyHunter.active.tier === 1,
+          'the refusal "' + ref.error + '" moved the contract');
+        assert(G.bountyHunter.active._acceptError === ref.error,
+          'the refusal "' + ref.error + '" was swallowed — nothing records that this bounty is dead');
+      }
+      /* The two a player meets by ordinary play, named so a future reviewer can
+         see the reachability claim rather than infer it. */
+      assert(REFUSALS.some((r) => r.error === 'tier_locked')
+        && REFUSALS.some((r) => r.error === 'rate_limited'),
+      'the two player-reachable refusals are no longer covered');
 
       // ── 5. A LATE REPLY FOR AN ABANDONED CONTRACT touches nothing. This is
       //      the race the identity guard exists for: writing a stale `required`
@@ -17474,16 +17521,28 @@ const TESTS = [
       assert(r5.reason === 'superseded' && G.bountyHunter.active.required === 88,
         'a reply for a superseded contract was adopted: ' + JSON.stringify(r5));
 
-      // ── 6. A REPLY FOR A DIFFERENT BOUNTY is refused on the id/target pair.
+      /* ── 6. A SUCCESS REPLY FOR A DIFFERENT BOUNTY is refused on the pair.
+            PRODUCER-REAL: the server echoes the p_bounty_id it was given, so
+            this is literally the envelope from the player's OTHER accept
+            arriving late. */
       G.bountyHunter.active = mk();
       const r6 = window.hrAdoptAcceptedBounty(env({ bounty_id: 'cull_wolf_1_2', required: 144 }));
       assert(r6.reason === 'mismatch' && G.bountyHunter.active.required === 88,
         'a reply for another bounty was adopted: ' + JSON.stringify(r6));
+      /* ⚠ SYNTHETIC, and labelled so nobody reads it as a producer shape: the
+         server echoes p_bounty_id and p_target from the SAME request, so an
+         id that matches while the target does not cannot occur in the wild.
+         It exists to prove the TARGET half of the pair check is present at
+         all — a guard probe, not a scenario. */
       const r6b = window.hrAdoptAcceptedBounty(env({ target: 'wolf', required: 144 }));
       assert(r6b.reason === 'mismatch', 'the TARGET half of the identity check is missing');
 
-      // ── 7. A MALFORMED FIELD leaves the client's value alone rather than
-      //      stamping NaN onto the bar the player is watching.
+      /* ── 7. A MALFORMED FIELD leaves the client's value alone rather than
+            stamping NaN onto the bar the player is watching.
+            ⚠ ALSO SYNTHETIC: no producer emits `required: null` or a
+            non-numeric gold. This is a defensive probe of the re-derive step,
+            deliberately hostile, and is not a claim about what the server
+            sends. */
       G.bountyHunter.active = mk();
       window.hrAdoptAcceptedBounty(env({ required: null, gold: 'lots' }));
       assert(G.bountyHunter.active.required === 88 && G.bountyHunter.active.rewards.gold === 420,
@@ -47509,8 +47568,12 @@ const TESTS = [
     const base = { monsterName: 'Goblin', killsThisFoe: 1, maxHp: 10, deaths: 1,
       foodQty: 4, foodName: 'Cooked Shrimp', ateThisFight: 0, autoEatCost: 15 };
 
-    /* THE NEW DEFAULT: every character owns Auto-Eat from creation and the
-       client's live-combat switch still starts OFF. The tip must SAY they
+    /* OWNED BUT SWITCHED OFF — a player who turned it off, or whose food slot
+       is cleared. NOT the new default: a fresh character is `owned + ON`
+       (ensureShape flips eat.enabled the moment G.foodSlot is set, and the
+       fresh-G literal carries foodSlot:'cooked_shrimp' since b495). This label
+       said "THE NEW DEFAULT" until 2026-08-30 and was wrong; the case is still
+       worth asserting, just for the opposite population. The tip must SAY they
        already have it — a player who is never told cannot act on it — and must
        not try to sell back a trait they hold. */
     const owned = D.describeDeath(Object.assign({}, base, { autoEatOwned: true, autoEatOn: false }));
@@ -47522,9 +47585,10 @@ const TESTS = [
       'the tip still quotes the Marks price of a trait the player already owns: ' + owned.tip);
     assert(owned.shopLink === false, 'the Bounty Shop door opened for an owner');
 
-    /* SWITCHED ON AND STILL DEAD: "turn it on" would be false. The honest fact
-       is the tier-I threshold, and the answer to it is the PAID upgrade — the
-       sink the ruling deliberately kept. */
+    /* THE ACTUAL NEW DEFAULT — `owned + ON` — AND STILL DEAD. "Turn it on"
+       would be false here, so the honest fact is the tier-I threshold, and the
+       answer to it is the PAID upgrade: the sink the ruling deliberately kept.
+       This is the branch a brand-new player reaches. */
     const on = D.describeDeath(Object.assign({}, base, { autoEatOwned: true, autoEatOn: true }));
     assert(on.tipKey === 'food-unused', 'the switched-on death lost the food-unused tip');
     assert(!/switch it on/i.test(on.tip),

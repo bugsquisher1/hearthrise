@@ -1,0 +1,75 @@
+# ============================================================================
+# edge-quota-watch — the Spend-Cap-OFF guardrail (2026-08-30).
+#
+# Tyler turned the Supabase Spend Cap OFF (correct call: ON would hard-stop the
+# game for every player at 2M Edge invocations/month; OFF risks ~$2 per extra
+# million). This watch is the control that makes OFF safe: once a day it reads
+# the last-24h Edge Function invocation count from the Management API (the same
+# analytics query tools/load-probe.mjs --live uses), projects it to a monthly
+# run-rate, and posts to Discord when the projection crosses 50 / 75 / 90 % of
+# the 2M Pro quota — weeks of warning before the first overage dollar.
+#
+# Quiet by design: under 50 % it posts NOTHING. An API failure posts once (a
+# watch that can die silently is not a watch — the b319/cron-health lesson).
+#
+# Secrets required (repo Settings → Secrets and variables → Actions):
+#   SUPABASE_ACCESS_TOKEN   — the Management API token (same one used locally)
+#   DISCORD_ALERT_WEBHOOK   — a Discord webhook URL (the changelog one is fine)
+#
+# Mitigation ladder if this ever fires, in order (docs/planning board §9):
+#   1. accept the overage (~$2/M — 540 DAU ≈ $16/mo)
+#   2. SETTLE_INTERVAL_MS 90s → 180s in src/net/accrue.js (halves the driver)
+#   3. fold the seed round-trip into the state read (index.ts, −⅓ per request)
+# ============================================================================
+name: edge-quota-watch
+
+on:
+  schedule:
+    - cron: '17 14 * * *'   # daily, 14:17 UTC (off the busy top-of-hour)
+  workflow_dispatch: {}      # manual run button for testing
+
+permissions: {}
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read 24h invocations and alert on run-rate
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DISCORD_ALERT_WEBHOOK: ${{ secrets.DISCORD_ALERT_WEBHOOK }}
+          PROJECT_REF: nezapsylztqbbwuwembx
+          QUOTA_MONTH: "2000000"
+        run: |
+          set -u
+          post() {  # post one message to Discord; never fail the job over it
+            curl -s -o /dev/null -X POST "$DISCORD_ALERT_WEBHOOK" \
+              -H 'Content-Type: application/json' \
+              -d "$(jq -nc --arg c "$1" '{content:$c}')" || true
+          }
+          END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          START=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          SQL='select%20count(*)%20as%20n%20from%20function_edge_logs'
+          BODY=$(curl -s --max-time 60 \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/analytics/endpoints/logs.all?sql=${SQL}&iso_timestamp_start=${START}&iso_timestamp_end=${END}" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}") || BODY=""
+          N=$(echo "$BODY" | jq -r '.result[0].n // empty' 2>/dev/null)
+          if [ -z "$N" ]; then
+            echo "API read failed; body: $(echo "$BODY" | head -c 200)"
+            post "⚠️ **edge-quota-watch could not read the invocation count** — the watch itself needs attention (Management API/token). Spend Cap is OFF, so this is the only early warning; please check."
+            exit 0
+          fi
+          MONTHLY=$(( N * 31 ))
+          PCT=$(( MONTHLY * 100 / QUOTA_MONTH ))
+          echo "last 24h: $N invocations -> projected ${MONTHLY}/month = ${PCT}% of ${QUOTA_MONTH}"
+          if   [ "$PCT" -ge 90 ]; then
+            OVER=$(( (MONTHLY - QUOTA_MONTH) > 0 ? (MONTHLY - QUOTA_MONTH) : 0 ))
+            COST=$(( OVER * 2 / 1000000 ))
+            post "🚨 **Edge quota: projected ${PCT}% of the 2M/month included** (last 24h: ${N} calls → ~${MONTHLY}/mo). Spend Cap is OFF so nothing breaks — projected overage ≈ \$${COST}/mo at \$2/M. Mitigation ladder is in .github/workflows/edge-quota-watch.yml (settle cadence 90→180s halves this)."
+          elif [ "$PCT" -ge 75 ]; then
+            post "🟠 **Edge quota: projected ${PCT}% of the 2M/month included** (last 24h: ${N} → ~${MONTHLY}/mo). No cost yet; heads-up only. The 180s settle-cadence lever is ready if this keeps climbing."
+          elif [ "$PCT" -ge 50 ]; then
+            post "🟡 Edge quota heads-up: projected ${PCT}% of the monthly 2M (last 24h: ${N} → ~${MONTHLY}/mo). Zero cost; posting so the trend is visible early."
+          else
+            echo "under 50% — staying quiet"
+          fi

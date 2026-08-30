@@ -57,7 +57,8 @@
 --       special case of the new (e); adds (d) database size + 24h growth,
 --       (e) per-table size + growth + row delta, (f) connection headroom,
 --       (g) the never-ran escalation; and prunes maintenance_log / acked
---       maintenance_alerts, which nothing did. The second parameter is a
+--       maintenance_alerts at 180 days — the gap and the retention docs/design/
+--       restore-runbook.md's audit already ruled on, which nothing implemented. The second parameter is a
 --       sensitivity scale CLAMPED TO (0, 1] — it can only make an alarm fire
 --       sooner, never later — and exists so every arm can be EXERCISED by a
 --       test against a 16 MB replay instead of shipping never having fired.
@@ -458,10 +459,24 @@ begin
   -- Nothing pruned these. 471 maintenance_log rows since 2026-08-11 is small,
   -- but "small and unbounded" is precisely what game_events was on day one, and
   -- a monitoring table that outgrows the thing it monitors is a bad joke.
-  -- Acked alerts only: an OPEN alert is never deleted by a timer.
-  delete from public.maintenance_log where ran_at < now() - interval '90 days';
+  --
+  -- 180 DAYS, AND THE NUMBER IS NOT MINE: docs/design/restore-runbook.md's
+  -- retention audit already ruled on this gap — "one hr_maintenance_prune()
+  -- retaining 180 days of maintenance_log and acked maintenance_alerts" — and a
+  -- second author quietly picking 90 is how two policies for one table start.
+  -- What DOES differ from that recommendation is the location: it lands inside
+  -- the hourly detector rather than as a new function on a new cron slot,
+  -- because it is two DELETEs against tables holding hundreds of rows and a
+  -- scheduled job is a thing that can silently stop (which is check (b) of this
+  -- very function). Same policy, one fewer moving part.
+  --
+  -- ⚠ ACKED ALERTS ONLY. An OPEN alert is never deleted by a timer — ageing out
+  --   an alarm nobody has acknowledged is deleting the evidence of the thing you
+  --   are watching for. bug_reports is deliberately untouched (player-reported
+  --   evidence: curated, never aged out — the runbook's call, and it is right).
+  delete from public.maintenance_log where ran_at < now() - interval '180 days';
   delete from public.maintenance_alerts
-   where acked_at is not null and created_at < now() - interval '90 days';
+   where acked_at is not null and created_at < now() - interval '180 days';
 
   insert into public.maintenance_log (job, detail)
   values ('cron-health', jsonb_build_object(

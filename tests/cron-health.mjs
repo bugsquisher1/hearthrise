@@ -182,9 +182,12 @@ async function run(mutate) {
   // ── H5. RETENTION: SAMPLES, LOG, AND ONLY *ACKED* ALERTS ──────────────
   await q(`insert into public.hr_db_samples (at, db_bytes) values (now() - interval '31 days', 1)`);
   await q(`insert into public.maintenance_log (job, detail, ran_at)
-           values ('probe-old', '{}'::jsonb, now() - interval '91 days')`);
+           values ('probe-old', '{}'::jsonb, now() - interval '200 days')`);
+  /* The window is 180 days (restore-runbook.md's ruling), so a 91-day row is
+     the CONTROL that must survive — without it "everything was deleted" passes
+     the same assertion as "the right things were deleted". */
   await q(`insert into public.maintenance_log (job, detail, ran_at)
-           values ('probe-new', '{}'::jsonb, now() - interval '1 day')`);
+           values ('probe-new', '{}'::jsonb, now() - interval '91 days')`);
   await q(`insert into public.maintenance_alerts (source, ref, severity, message, created_at, acked_at)
            values ('probe','probe-acked','warn','acked', now() - interval '200 days', now())`);
   await q(`insert into public.maintenance_alerts (source, ref, severity, message, created_at)
@@ -288,8 +291,11 @@ function grade(o) {
   ok(o.h5_old_sample === 0,
     `H5: ${o.h5_old_sample} sample(s) older than 30 days survived — the table that measures growth `
     + 'must not be the one that grows.');
-  ok(o.h5_old_log === 0, 'H5: a 91-day-old maintenance_log row survived the 90-day prune');
-  ok(o.h5_new_log === 1, 'H5: the prune deleted a ONE-DAY-OLD maintenance_log row — the window is wrong');
+  ok(o.h5_old_log === 0, 'H5: a 200-day-old maintenance_log row survived the 180-day prune');
+  ok(o.h5_new_log === 1,
+    'H5: the prune deleted a 91-DAY-OLD maintenance_log row. The window is 180 days '
+    + '(docs/design/restore-runbook.md\'s ruling) — a prune that takes more than it was asked for '
+    + 'deletes incident evidence.');
   ok(o.h5_acked === 0, 'H5: a 200-day-old ACKED alert survived the prune');
   ok(o.h5_open === 1,
     'H5: an OPEN 200-day-old alert was DELETED. An alarm nobody has acknowledged must never expire '

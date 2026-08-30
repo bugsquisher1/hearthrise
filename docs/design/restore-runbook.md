@@ -1110,9 +1110,10 @@ Measured 2026-08-15, **all figures below re-measured 20:55 UTC** ✅.
   | `hr_rate_counters` | 145 | none needed — bounded by PK | upsert on `(user_id, bucket)` | ✅ bounded by design, not append-only |
   | `session_claims` | 6 | none needed — `primary key (user_id)` | one row per user | ✅ bounded |
   | `player_ledger_rollup` | 0 | **none — and this is the deliberate one** | — | ⚠ see below |
-  | `maintenance_log` | 112 | **NONE** | — | ⚠ gap, low severity |
-  | `maintenance_alerts` | 13 | **NONE** | — | ⚠ gap, low severity |
-  | `bug_reports` | 27 | **NONE** | — | ⚠ gap, low severity |
+  | `maintenance_log` | 112 | 180 d | inside `hr_cron_health`, hourly | ✅ **staged**, see below |
+  | `maintenance_alerts` | 13 | 180 d, **acked only** | inside `hr_cron_health`, hourly | ✅ **staged**, see below |
+  | `hr_db_samples` | — | 30 d | inside `hr_db_sample`, hourly | ✅ **staged** — new table, born with its policy |
+  | `bug_reports` | 27 | **NONE** | — | ⚠ gap, low severity — deliberately, see below |
 
   **`player_ledger_rollup` having no prune is correct** — it is the *destination* of the
   ledger prune and exists to outlive the rows it summarises. But it is not free:
@@ -1132,6 +1133,20 @@ Measured 2026-08-15, **all figures below re-measured 20:55 UTC** ✅.
   migration): one `hr_maintenance_prune()` retaining 180 days of `maintenance_log` and acked
   `maintenance_alerts`, on the existing 04:xx cron slot.** Explicitly NOT recommended for
   `bug_reports` — those are player-reported evidence and should be curated, not aged out.
+
+  > **RULED AND BUILT — `supabase/migrations/2026-09-03-cron-health-generalized.sql` (staged,
+  > REVIEW-ONLY, not yet applied).** The retention is exactly as recommended: **180 days** of
+  > `maintenance_log`, 180 days of **acked-only** `maintenance_alerts` (an open alarm is never
+  > aged out — that would be deleting the evidence of the thing being watched for), and
+  > `bug_reports` untouched. **One deviation, and it is location, not policy:** it runs inside the
+  > hourly `hr_cron_health` rather than as a new `hr_maintenance_prune()` on a new cron slot. Two
+  > DELETEs against tables holding hundreds of rows do not need their own schedule, and a scheduled
+  > job is a thing that can silently stop — which is check (b) of the very function it would sit
+  > beside. Same policy, one fewer moving part, one fewer name in `cron.job`.
+  > That migration also generalises the detector itself (it alarmed on the size of ONE hardcoded
+  > table) to database size + growth rate, per-table size + growth + row delta, connection headroom
+  > against `max_connections`, and an escalation for a job that has **never** run — the four signals
+  > this audit and the b319 post-mortem both name. Guarded by `tests/cron-health.mjs`.
 * **Connections: 60 max, 24 in use** ✅ — `ci_micro.connections_direct = 60` from the billing
   API matches the database exactly. Pooler allows 200. The hard rule in design §2a-ii
   (port 6543, never 5432) is what keeps this from being the first thing to break, and §5

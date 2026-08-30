@@ -491,10 +491,45 @@ Two independent locks close it:
 
 1. **`hr_apply` refuses a replay that is not a replay of the same thing.** `player_intents.intent`
    already records what the key was claimed for; if the incoming call names a different one, the
-   answer is `intent_mismatch` rather than somebody else's decision. One comparison, and it hardens
-   every intent in the system rather than only accrual. *Verified on production inside a rolled-back
-   transaction: the unpatched function answered `{"ok":false,"error":"no_character","replayed":true}`
-   — the other intent's stored decision — and the patched one answered `intent_mismatch`.*
+   answer is `intent_mismatch` rather than somebody else's decision. It compares the stored **slot**
+   too. *Verified on production inside a rolled-back transaction: the unpatched function answered
+   `{"ok":false,"error":"no_character","replayed":true}` — the other intent's stored decision — and
+   the patched one answered `intent_mismatch`.*
+
+   > ⚠ **This paragraph used to end "one comparison, and it hardens every intent in the system
+   > rather than only accrual", and that was FALSE for two weeks** (b493/b494 security pass, finding
+   > #7). It hardened every intent *that reaches the database through `hr_apply`*. Twelve
+   > `SECURITY DEFINER` RPCs answer the client **directly** — `hr_claim_goal`, `hr_trait_buy`,
+   > `hr_bank_move`, `hr_bounty_spend`, `hr_set_style`, `hr_put_client_state`, `hr_worker_hire`,
+   > `hr_worker_assign` and the four `hr_farm_*` verbs — and each read the same shared cache with
+   > `select result into … where user_id = … and intent_id = …`, comparing neither column. A uuid
+   > burned on a free verb therefore answered a money verb with the wrong envelope: measured shape —
+   > present a `client_state_put` key to `hr_claim_goal` with a complete daily and the claim answers
+   > `ok:true` with the client-state verb's envelope, pays nothing, and the goal is spent. Self-only
+   > (`user_id` is `auth.uid()`) and unreachable by accident (every client site mints a fresh uuid),
+   > hence P3 — but it is the exact class this section claimed to have closed.
+   >
+   > Closed by `supabase/migrations/2026-09-03-intent-mismatch-class.sql`: one helper,
+   > `hr_intent_replay(uid, slot, idem, intent)`, holds the rule; the twelve bodies are patched at a
+   > guarded exactly-once anchor to call it with the SAME intent expression each already writes when
+   > it claims the row. **A count is not the assertion** (the b339 lesson): the list lives in the
+   > migration and in `tests/intent-mismatch.mjs`, which replays the whole chain and fails the build
+   > if any of them reaches CHAIN END unguarded — the only position from which a later migration
+   > restating a patched body (the b484–b487 class) is visible.
+   >
+   > **The five claim verbs that take no `p_idem` at all** — `hr_claim_daily`, `hr_claim_rank`,
+   > `hr_claim_milestone`, `hr_claim_quest`, `hr_claim_bounty` — are NOT part of this and are not a
+   > gap: their once-guard is a `player_progress` state transition to `claimed`, which is keyed on
+   > the reward rather than on a client uuid and so cannot be confused between intents. What they
+   > cannot do is distinguish "you already have this" from "that failed" for a client whose success
+   > response was lost on the wire; if that ever becomes player-visible the answer is a `created`-
+   > style receipt (§2a-iv), not a uuid.
+   >
+   > **Residual, stated:** the written labels are unchanged, so INTRA-verb key reuse (one uuid for
+   > goal A then goal B, both filed under `goal_claim`) still replays the first decision. Self-only,
+   > strictly smaller, and deliberately not fixed in the same change — moving a written label makes a
+   > retry that crosses the deploy boundary see `intent_mismatch` for a claim that actually
+   > succeeded.
 2. **The accrual key is salted with a server secret.** `hr_seed(user, slot,
    'intent:accrue:<watermark>')` mixes the same 256-bit secret the PRNG uses (under a *different*
    label, so the salt cannot be inferred from observed drops), which makes the key unguessable while

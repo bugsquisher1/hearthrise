@@ -4,6 +4,17 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 497 — 2026-08-30 (The balance build: Auto-Eat for everyone, honest bounty pricing, workers at their real pace)
+
+> **🧪 Testers:** ① Make a new character — you start with **Auto-Eat already on** (no 15-Mark purchase needed). Existing characters: you now **own** Auto-Eat I free — switch it on in Settings → Gameplay. ② Check the Bounty Board: Easy contracts now genuinely pay less per kill than Normal, Normal less than Hard — no more "Easy asks more for less." ③ If a daily task looks half-done after the update, its numbers refresh honestly — nothing you finished is lost.
+
+- 🍖 **Auto-Eat I is free for everyone, from character creation.** Dying in your first fights because you didn't know about a 15-Mark shop upgrade was a trap, not a challenge. New characters start with it on; existing characters own it now too (turning it on stays your choice, in Settings → Gameplay). Auto-Eat II (the threshold slider) is unchanged as the paid upgrade.
+- 🎯 **Bounty difficulty pricing is honest now.** Easy culls ask ~10% fewer kills, Hard asks ~20% more, and the pay-per-kill now *rises* with difficulty at every tier — the "Easy needs more kills for less gold" inversion is gone. Accepting a bounty also locks your contract to the server's exact terms, so a bounty can never again fill its bar and refuse to pay.
+- 👷 **Workers now work at their intended pace.** A crew of six was quietly producing like 1.65 extra players instead of ~1. Passive worker income drops about 37% to its designed rate — your *attended* play is untouched.
+- ⚖️ **Daily and quest gold retuned to effort.** Kill dailies pay more (600/1400), smith & craft dailies ask more but pay honestly (40 items → 500g), gathering boards ask and pay more, planting asks less (3 crops → 150g), and the Farmhand quest is finishable at the starter camp (6 harvests).
+- 🧵 **Cloth gear now costs real materials at high tiers** — cloth recipes gain the tier's planks, so a Voidweave piece no longer costs the same inputs as a starter robe.
+- 🩹 Two update-safety fixes shipped with the retune: quest targets and daily-task numbers now refresh from the source instead of freezing at whatever your save remembered — the class of bug where a task says "done" but never pays is closed for balance updates.
+
 ## v0.9.2-beta build 496 — 2026-08-30 (Server hardening, invisible but important)
 
 - 🔒 Closed a class of server-cache confusion across twelve actions (six of them money-moving) where a stale retry could get the wrong cached answer — found by our own security review, never exploited. Also removed a dead client code path and upgraded the server's self-monitoring (database growth, connection headroom, and stuck scheduled jobs now raise alarms).

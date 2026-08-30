@@ -46088,10 +46088,29 @@ const TESTS = [
        Measured premise, not an assumption: 2026-08-29-auto-eat-tiers.sql records
        "0 rows on production (no character has auto_eat_enabled)", and
        hr_set_auto_eat is that column's only writer — which is why the server
-       keeps every auto-eaten Provision today, and why the client must send.
+       kept every auto-eaten Provision, and why the client had to send.
+       ⚠ b497 FLIPS THAT PREMISE, and the gate is correct on the other side of it
+       too: 2026-09-04-auto-eat-at-creation.sql sets `auto_eat_enabled = true` at
+       character creation, so the LIVE answer becomes block 2, not block 3, and
+       the client send retires itself with no flag to flip.
+
+       ⚠⚠ "THE SERVER EATS" IS ABOUT THE CHARACTER, NOT ABOUT BEING AWAY. Block 2
+       runs with `inOfflineReplay()` FALSE — i.e. an ATTENDED auto-eat — on
+       purpose: `computeAccrual` has no away input and no presence input, prices
+       whatever elapsed since `accrued_to`, and gates `fx.autoEat()` on
+       `autoEatEnabled` alone, while this client settles on a ~90 s cadence with
+       the tab visible. Measured server-side by tests/accrual-engine.mjs
+       `attendedSettleAutoEatGuard` (a fresh 10-HP goblin fight eats 2 meals over
+       60 s, 3 over 90 s, each with the matching negative item delta).
+       So the proposal to re-shape the gate as "attended ⇒ always send, away
+       excluded by inOfflineReplay()" — 2026-09-04-auto-eat-at-creation.sql's
+       header claims "the server's sim only eats during AWAY accrual" — is a
+       DOUBLE DEBIT on every attended meal. Block 2 is where it goes red.
 
        MUTATION: drop the `opts.auto && !_clientOwnsAutoEatDebit()` guard in
-       legacy.js noteItemConsumed → block 3 goes red. */
+       legacy.js noteItemConsumed → block 3 goes red.
+       MUTATION: replace it with `opts.auto && inOfflineReplay()` → block 2 goes
+       red. Return BEFORE `P.noteConsumed` → block 2b goes red. */
     const A = window.HearthriseAccrual;
     assert(typeof A.serverAutoEats === 'function' && typeof A.clientOwnsAutoEatDebit === 'function'
       && typeof A.__resetServerAutoEat === 'function', 'the auto-eat ownership observation must be published');
@@ -46132,6 +46151,32 @@ const TESTS = [
       reset();
       window.noteItemConsumed('cooked_shrimp', 1, { auto: true });
       assert(raised() === 0, 'THE DOUBLE-DEBIT GUARD: no client intent while the server eats the same food');
+
+      /* 2b. …AND THE HOLD IS STILL RECORDED. "The server owns the debit" is a
+         statement about the INTENT, never about the hold, and the difference is
+         the whole restock bug: the client has ALREADY decremented G.inventory,
+         and the settle that will state the same debit is up to ~90 s away. For
+         those 90 s every envelope names the pre-eat count, and without a hold
+         `reconcileInventory` ratchets it straight back — the b467→b479 P0, with
+         auto-eat now on for every new character (b497) instead of nobody.
+         The hold DRAINS on evidence: when the settle's figure comes down, the
+         entry's `drop` covers it and the entry is deleted. So this is not a
+         second debit — it is the seam that keeps the display honest until the
+         one real debit lands.
+         MUTATION: return from noteItemConsumed before `P.noteConsumed` when the
+         server owns the debit → this goes red and block 2 stays green. */
+      const PC = window.HearthrisePendingConsume;
+      assert(PC && typeof PC.pendingFor === 'function' && typeof PC.releaseConsumed === 'function',
+        'the pending-consumption seam must be published for this test');
+      PC.releaseConsumed(window.G, 'cooked_shrimp');          // start from a known zero
+      assert(PC.pendingFor(window.G, 'cooked_shrimp') === 0, 'the fixture must start with no hold');
+      reset();
+      assert(window.noteItemConsumed('cooked_shrimp', 1, { auto: true }) === true,
+        'an attended auto-eat must be RECORDED even when the server owns the debit');
+      assert(raised() === 0, 'still no intent — block 2b must not weaken the double-debit guard');
+      assert(PC.pendingFor(window.G, 'cooked_shrimp') === 1,
+        'THE RESTOCK GUARD: the locally-eaten unit must be HELD until the settle states the debit, '
+        + 'or the next envelope ratchets it back — got ' + PC.pendingFor(window.G, 'cooked_shrimp'));
 
       /* 3. THE SERVER SAYS IT DOES NOT ⇒ THE CLIENT OWNS THE DEBIT. Today's live
          answer, and the half of the P0 that makes auto-eaten food stay eaten. */

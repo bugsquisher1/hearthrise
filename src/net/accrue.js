@@ -2222,24 +2222,40 @@ export function applyEnvelopeState(G, res, ownKey) {
    getting it wrong in either direction is a bug:
 
      server eats  → the accrual engine consumes the food itself and states the
-                    debit in `away.items`; a client `eat` intent for the SAME
-                    auto-eat would debit it TWICE — real item loss.
+                    debit in the settle's signed `items` delta; a client `eat`
+                    intent for the SAME auto-eat would debit it TWICE — real
+                    item loss.
      server does NOT eat → nothing server-side ever removes an auto-eaten
                     Provision, the envelope keeps naming the pre-eat count, and
                     the reconcile hands it straight back. That is the reported
                     bug, and only a client intent closes it.
 
-   ON PRODUCTION TODAY THE ANSWER IS "NO", and it is measured rather than
-   assumed: supabase/migrations/2026-08-29-auto-eat-tiers.sql records
-   "0 rows on production 2026-08-23 (no character has auto_eat_enabled)" —
-   `hr_set_auto_eat` is the column's only writer and nothing on the client has
-   ever called it. So the engine's `autoEatEnabled: st.auto_eat_enabled === true`
-   is false for everyone and the server's sim never eats.
+   ⚠ "THE SERVER EATS" IS A PROPERTY OF THE CHARACTER, NOT OF THE WINDOW, AND
+     THAT DISTINCTION HAS ALREADY BEEN MISREAD ONCE. The b497 staging note in
+     supabase/migrations/2026-09-04-auto-eat-at-creation.sql asserts that "the
+     server's sim only eats during AWAY accrual" and proposes re-shaping the
+     client gate around `inOfflineReplay()` on the strength of it. It is FALSE.
+     `computeAccrual` takes no away input and no presence input: it prices
+     whatever elapsed since `accrued_to`, and `fx.autoEat()` is gated on
+     `autoEatEnabled` alone. This module settles on a ~90 s cadence WHILE THE TAB
+     IS VISIBLE (see `decideSettle` below), so an ATTENDED window is simulated,
+     paid and eaten by the server exactly like a night is.
+     MEASURED, tests/accrual-engine.mjs `attendedSettleAutoEatGuard`: a fresh
+     10-HP goblin fight with `autoEatEnabled: true` eats 2 meals over 60 s and 3
+     over 90 s, each with the matching negative item delta — and the same window
+     with the flag false pays 0 kills and dies. Re-shaping the gate would open a
+     double debit on every attended meal; both sides are now red on it
+     (EAT-RESTOCK-6 block 2, and the engine guard above).
 
-   That will change the moment hr_trait_buy's hr_set_auto_eat wiring reaches a
-   purchaser — so this is NOT a constant, it is an OBSERVATION of the server's
-   own `state.auto_eat_enabled` (hr_state_of projects it on every envelope,
-   2026-08-15-auto-eat.sql). TRI-STATE and FAIL-CLOSED:
+   THE COLUMN'S VALUE IS AN OBSERVATION, NEVER A CONSTANT. It was false for every
+   character while `hr_set_auto_eat` (its only writer) had never been called —
+   supabase/migrations/2026-08-29-auto-eat-tiers.sql records "0 rows on
+   production 2026-08-23". b497's `2026-09-04-auto-eat-at-creation.sql` makes it
+   TRUE at character creation, so the live answer flips to "the server eats" for
+   every new character and the client send retires itself, exactly as the
+   RETIREMENT note below anticipated. Nothing here has to change for that: this
+   reads the server's own `state.auto_eat_enabled` off every envelope
+   (hr_state_of projects it, 2026-08-15-auto-eat.sql). TRI-STATE and FAIL-CLOSED:
 
      false  → the client must send the eat intent (the only debit there is)
      true   → the server does it; the client must NOT send (no double debit)
@@ -2247,11 +2263,19 @@ export function applyEnvelopeState(G, res, ownKey) {
               i.e. do not send. The safe direction is the one that cannot
               destroy an item.
 
-   ⏳ RETIREMENT: when the client syncs its auto-eat settings through
-   `hr_set_auto_eat` (so the server's sim eats exactly what the client's does)
-   this reads `true` for everyone, the client send retires itself with no flag
-   to flip, and only the pending-consumption hold remains. That sync is the real
-   end state and is raised as a handoff. */
+   ⏳ RETIREMENT — HALF DONE AS OF b497, AND THE OTHER HALF IS THE OPEN BUG.
+   b497 makes this read `true` for every new character, so the client send has
+   retired itself with no flag to flip and only the pending-consumption hold
+   remains. What has NOT shipped is the SETTINGS sync: nothing on this client has
+   ever called `hr_set_auto_eat`, so `auto_eat_food` is NULL server-side and the
+   engine falls back to `bestHealingFood` — the biggest healer in the bag — while
+   the client honours the player's `G.foodSlot` nomination. The unit COUNTS still
+   converge (pending-consume drains on the server's own movement, so nothing is
+   lost or duplicated), but the two sides can drain DIFFERENT stacks, and the
+   server's pick is the more valuable one. The threshold and the on/off toggle
+   are unsynced for the same reason.
+   That sync is the real end state and remains a handoff — it is a NEW verb call
+   site, not a change to this predicate. */
 let serverAutoEatObserved = null;
 export function noteServerAutoEat(res) {
   const st = res && res.state;

@@ -610,8 +610,11 @@ const snapshotG = () => {
        persisted the erasure — the ladder then re-offers ranks the server has
        already paid, and every one of those buttons can only answer
        `already_claimed`. The server once-guard means no gold moved either way;
-       the damage was to what the player is shown. */
+       the damage was to what the player is shown. `collectionLog` ({claimed:[]})
+       is the same field on the sibling surface, assigned by three tests, and was
+       likewise unsnapshotted. */
     renown: G.renown,
+    collectionLog: G.collectionLog,
     createdAt: G.createdAt,
     // b228: the Chronicle. The suite drives record()/reconcile() directly and
     // opens the panel (which stamps seenAt), so without this a run would write
@@ -2307,7 +2310,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('server-credited (Tier-1 collection): under arm a milestone claim PROCEEDS, fires hr_claim_milestone WITH the slot, and does not double-pay locally', () => {
+  () => tryRunAsync('server-credited (Tier-1 collection): under arm a milestone claim PROCEEDS, fires hr_claim_milestone WITH the slot, and does not double-pay locally', async () => {
     // 2026-08-22: hr_claim_milestone RE-DERIVES the DISTINCT monster/item count
     // from hr_bestiary_of / hr_collection_of and CREDITS the server-owned
     // gold+gems into player_state, once-guarded. The b411 defer is GONE. So under
@@ -2326,9 +2329,12 @@ const TESTS = [
     const origAuth = window.HearthriseAuth;
     const origRpc = window.HearthriseRpc;
     const origProf = window.HearthriseProfile;
-    let claimBody = null, claimCalls = 0;
+    const origRec = window.HearthriseRecord;
+    let claimBody = null, claimCalls = 0, refreshCalls = 0;
     try {
       // A signed-in, server-backed environment with a mocked hr_claim_milestone.
+      // Never let the balance refresh apply a real envelope into the live G.
+      window.HearthriseRecord = { requestRecord: () => { refreshCalls++; return Promise.resolve(null); } };
       window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
       window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
       window.HearthriseRpc = { mayCall: () => true };
@@ -2350,7 +2356,7 @@ const TESTS = [
       window.clientMayWriteRecordField = function () { return true; };
       window.G.collectionLog = { claimed: [] };
       predZero(); window.G.gold = 0; claimCalls = 0; claimBody = null;
-      const r1 = C.claimMilestone('hunter10');
+      const r1 = await C.claimMilestone('hunter10');
       assert(r1 && r1.gold === 2000, 'pre-arm claim must return the reward');
       assert(window.G.gold === 2000, 'pre-arm claim renders the reward locally; got ' + window.G.gold);
       assert(window.G.collectionLog.claimed.indexOf('hunter10') >= 0, 'pre-arm claim marks the milestone claimed');
@@ -2361,13 +2367,14 @@ const TESTS = [
       //    and does NOT write gold locally (the server credited player_state).
       window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };
       window.G.collectionLog = { claimed: [] };
-      predZero(); window.G.gold = 0; claimCalls = 0; claimBody = null;
-      const r2 = C.claimMilestone('hunter10');
+      predZero(); window.G.gold = 0; claimCalls = 0; claimBody = null; refreshCalls = 0;
+      const r2 = await C.claimMilestone('hunter10');
       assert(r2 && r2.gold === 2000, 'armed claim must PROCEED and return the reward (the b411 defer is gone)');
       assert(window.G.gold === 0, 'armed claim must NOT double-pay gold locally (server credits player_state); got ' + window.G.gold);
       assert(window.G.collectionLog.claimed.indexOf('hunter10') >= 0, 'armed claim marks the milestone claimed (consumed server-side)');
       assert(claimCalls === 1, 'armed claim must fire hr_claim_milestone; the defer is removed; saw ' + claimCalls);
       assert(claimBody && claimBody.p_slot === 3, 'armed claim must pass the active slot for the server to credit; got ' + JSON.stringify(claimBody));
+      assert(refreshCalls === 1, 'an ok credit must refresh the record so the balance moves; saw ' + refreshCalls);
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
@@ -2375,6 +2382,100 @@ const TESTS = [
       window.HearthriseAuth = origAuth;
       window.HearthriseRpc = origRpc;
       window.HearthriseProfile = origProf;
+      window.HearthriseRecord = origRec;
+      if (C.__resetClaimState) C.__resetClaimState();
+      restoreG(snap);
+    }
+  }),
+
+  /* ── MILESTONE-CLAIM-1 — THE SAME DEFECT ON THE SIBLING SURFACE ──────────────
+     claimMilestone was fire-and-forget with an UNCONDITIONAL
+     `s.claimed.push(id)`, and `G.collectionLog` is RESIDUE — so a refused
+     milestone was marked claimed forever. And the refusal is the COMMON case,
+     not the edge: `getStats` counts what the ATTENDED player saw (G.bestiary /
+     G.collection), hr_claim_milestone counts its own away-sim rows, which
+     realise 60–99% fewer kills. Client 12 monsters, server 4, `incomplete`, and
+     an EARNED milestone is consumed with nothing paid. */
+  () => tryRunAsync('MILESTONE-CLAIM-1: a REFUSED hr_claim_milestone leaves the milestone re-claimable, pays nothing, and says so honestly', async () => {
+    const C = window.HearthriseCollection;
+    if (!C || typeof C.claimMilestone !== 'function' || !window.MONSTERS) return;
+    const monIds = Object.keys(window.MONSTERS).slice(0, 12);
+    if (monIds.length < 12) return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origFetch = window.fetch;
+    const origSb = window.HearthriseSupabase;
+    const origAuth = window.HearthriseAuth;
+    const origRpc = window.HearthriseRpc;
+    const origProf = window.HearthriseProfile;
+    const origRec = window.HearthriseRecord;
+    const origNotify = window.notify;
+    let claimCalls = 0, refreshCalls = 0;
+    const said = [];
+    try {
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
+      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
+      window.HearthriseRpc = { mayCall: () => true };
+      window.HearthriseProfile = { activeSlot: () => 0 };
+      window.HearthriseRecord = { requestRecord: () => { refreshCalls++; return Promise.resolve(null); } };
+      window.notify = (m) => { said.push(String(m || '')); };
+      window.fetch = function (url) {
+        if (String(url).indexOf('hr_claim_milestone') !== -1) {
+          claimCalls++;
+          return Promise.resolve(new Response(
+            JSON.stringify({ ok: false, error: 'incomplete', milestone: 'hunter10', have: 4, goal: 10, domain: 'monsters' }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };  // ARMED
+      window.G.bestiary = {}; monIds.forEach((m) => { window.G.bestiary[m] = { kills: 1 }; });
+      window.G.collectionLog = { claimed: [] };
+      predZero(); window.G.gold = 0;
+
+      assert(C.claimable(window.G).some((m) => m.id === 'hunter10'), 'hunter10 must be claimable at 12 monsters');
+      const out = await C.claimMilestone('hunter10', window.G);
+
+      assert(claimCalls === 1, 'the claim must reach the server exactly once; saw ' + claimCalls);
+      assert(out === null, 'a refused claim must resolve to null, never the reward');
+      assert(window.G.collectionLog.claimed.indexOf('hunter10') < 0,
+        'THE BUG: a REFUSED milestone was marked claimed — permanently and silently lost. It must stay unclaimed.');
+      assert(C.claimable(window.G).some((m) => m.id === 'hunter10'),
+        'a refused milestone must still be offered — the player has not been paid for it');
+      assert((window.G.gold || 0) === 0, 'a refused claim must leave no gold prediction; got ' + window.G.gold);
+      assert(refreshCalls === 0, 'a refused claim has nothing to refresh');
+      const msg = said.join(' | ');
+      assert(said.length >= 1, 'a refused claim must TELL the player — silence is the original defect');
+      assert(msg.indexOf('incomplete') < 0, 'the player is told a sentence, never the raw error code: ' + msg);
+      assert(/4/.test(msg) && /10/.test(msg), 'the refusal must answer in the SERVER’s own count: ' + msg);
+      const sh = C.milestoneShortfall('hunter10');
+      assert(sh && sh.have === 4 && sh.goal === 10 && sh.domain === 'monsters',
+        'the server shortfall must be retained for the modal row; got ' + JSON.stringify(sh));
+
+      // And it must be re-claimable for real once the server's count catches up.
+      window.fetch = function (url) {
+        if (String(url).indexOf('hr_claim_milestone') !== -1) {
+          claimCalls++;
+          return Promise.resolve(new Response(
+            JSON.stringify({ ok: true, milestone: 'hunter10', gold: 2000, gems: 0, credited: true }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      const out2 = await C.claimMilestone('hunter10', window.G);
+      assert(out2 && out2.gold === 2000, 'the retry after the server caught up must pay');
+      assert(window.G.collectionLog.claimed.indexOf('hunter10') >= 0, 'the successful retry marks it claimed');
+      assert(C.milestoneShortfall('hunter10') === null, 'a paid milestone must drop its shortfall note');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.fetch = origFetch;
+      window.HearthriseSupabase = origSb;
+      window.HearthriseAuth = origAuth;
+      window.HearthriseRpc = origRpc;
+      window.HearthriseProfile = origProf;
+      window.HearthriseRecord = origRec;
+      window.notify = origNotify;
+      if (C.__resetClaimState) C.__resetClaimState();
       restoreG(snap);
     }
   }),
@@ -7227,7 +7328,7 @@ const TESTS = [
   }),
   // gold-arm: claimMilestone credits gold via clientMayWriteRecordField (a
   // deferred GRANT, blocked on the server collection model) — switch-OFF position.
-  () => tryRunClientAuthoritative('b167: Collection Log tracks completion + claims milestones', () => {
+  () => tryRunAsyncClientAuthoritative('b167: Collection Log tracks completion + claims milestones', async () => {
     const C = window.HearthriseCollection;
     assert(C && typeof C.getStats === 'function' && typeof C.claimMilestone === 'function', 'HearthriseCollection missing');
     const G = window.G;
@@ -7244,7 +7345,9 @@ const TESTS = [
       G.collectionLog = { claimed: [] };
       assert(C.claimable(G).some(function (m) { return m.id === 'hunter10'; }), 'hunter10 should be claimable at 12 monsters');
       const before = G.gold || 0;
-      const rw = C.claimMilestone('hunter10', G);
+      // b494: claimMilestone is a Promise (a claim is a server round-trip). In
+      // this client-authoritative position the grant is local and immediate.
+      const rw = await C.claimMilestone('hunter10', G);
       assert(rw && (G.gold || 0) > before, 'claiming a milestone should grant its reward');
       assert(!C.claimable(G).some(function (m) { return m.id === 'hunter10'; }), 'a claimed milestone should not be claimable again');
     } finally {

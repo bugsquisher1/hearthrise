@@ -532,7 +532,10 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
 
   // ══ GRANTS ════════════════════════════════════════════════════════════════
-  'src/features/collection-log.js#claimMilestone': {
+  /* b494 — the write moved from claimMilestone into msGrantLocally, the DISPLAY
+     half of the claim that now runs only after the server's verdict. Same site,
+     same verb, renamed with it. */
+  'src/features/collection-log.js#msGrantLocally': {
     kind: 'grant', status: 'deferred',
     /* SERVER-CREDITED (2026-08-22-collection-claim.sql). hr_claim_milestone
        RE-DERIVES the DISTINCT monster/item count from the server's own
@@ -540,7 +543,17 @@ export const GOLD_SITE_LEDGER = Object.freeze({
        flag), owns the gold+gems amount, once-guards a player_progress
        kind='collection' claim row per milestone, and journals it. claimMilestone
        fires HearthriseGoalClaim.claimMilestone(id); the local gold/gems write is
-       a GATED prediction the envelope reconciles. */
+       a GATED prediction the envelope reconciles.
+
+       R1/R5 (two-phase commit, the b494 fix): under the arm the DISPLAY write —
+       and the `G.collectionLog.claimed` mark — happen ONLY AFTER
+       hr_claim_milestone returns ok. The claim used to be fire-and-forget with
+       an UNCONDITIONAL claimed-push, and `collectionLog` is residue, so an
+       `incomplete` refusal marked an EARNED milestone claimed forever. And
+       `incomplete` is the COMMON case, not the edge one: the client counts what
+       the ATTENDED player saw while the server counts its own away-sim rows,
+       which realise 60–99% fewer kills. A refusal now writes nothing, keeps the
+       milestone claimable, and answers in the server's own count. */
     flipGuard: { serverCredits: 'hr_claim_milestone (2026-08-22-collection-claim.sql) re-derives the '
       + 'DISTINCT count from hr_bestiary_of / hr_collection_of, owns the fixed gold+gems amount, '
       + 'once-guards a player_progress kind=collection claim row per milestone, journals '

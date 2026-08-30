@@ -23,34 +23,34 @@
 // be deleted.
 
 // 1. Data — single source of truth
-import { SKILLS_DEF } from './data/skills.js?v=493';
-import { MONSTERS } from './data/monsters.js?v=493';
-import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoster, TIER_BANDS } from './data/monster-classes.js?v=493';
-import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=493';
-import * as ItemArt from './data/item-art.js?v=493';
-import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=493';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=493';
-import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=493';
+import { SKILLS_DEF } from './data/skills.js?v=494';
+import { MONSTERS } from './data/monsters.js?v=494';
+import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoster, TIER_BANDS } from './data/monster-classes.js?v=494';
+import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=494';
+import * as ItemArt from './data/item-art.js?v=494';
+import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=494';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=494';
+import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=494';
 // b348 — the generated progression lanes, published so the suite can grade the
 // LIVE recipe table against the ladder the generator actually laid down (a
 // hand-authored recipe wins the merge, so the two can disagree; see gear-tiers).
-import { GEAR_LADDERS, MATERIAL_TIERS } from './data/gear-tiers.js?v=493';
-import { COMPANIONS } from './data/companions.js?v=493';
-import { RAID_BOSSES } from './data/raid-bosses.js?v=493';
+import { GEAR_LADDERS, MATERIAL_TIERS } from './data/gear-tiers.js?v=494';
+import { COMPANIONS } from './data/companions.js?v=494';
+import { RAID_BOSSES } from './data/raid-bosses.js?v=494';
 /* b356 — the review-book catalogue's two published seams. `EFFECT_KINDS` is
    what the reachability guard reads to decide whether an item is legitimately
    not-yet-obtainable; `LIB2_ICON_FILES` is the art batch's work order. Both are
    plain data with no legacy twin, so no unify is needed. */
-import { EFFECT_KINDS, PENDING_SYSTEMS, effectsAreLive, dormantEffects } from './data/item-effects.js?v=493';
-import { LIB2_ICON_FILES } from './data/library2-items.js?v=493';
-import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=493';
+import { EFFECT_KINDS, PENDING_SYSTEMS, effectsAreLive, dormantEffects } from './data/item-effects.js?v=494';
+import { LIB2_ICON_FILES } from './data/library2-items.js?v=494';
+import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=494';
 /* R1/R5 — the monotonic predicted-vs-confirmed DISPLAY seam. A CLIENT-display
    sibling of src/core/goals.js (kept OUT of goals.js so the hr-accrue edge
    payload stays byte-identical — see goal-display.js's header). The classic-
    script render layer (legacy.js: the quest strip, the Quests modal, the bounty
    board) cannot import, so it is republished on window here — ONE implementation
    the render sites and the smoke tests both read. */
-import { goalDisplayState, GOAL_PHASE } from './core/goal-display.js?v=493';
+import { goalDisplayState, GOAL_PHASE } from './core/goal-display.js?v=494';
 /* b349 — CLAIMABLE REWARDS. The daily-login cycle used to be a literal inside
    src/features/daily-reward.js, a classic <script> that neither Deno nor Node
    can import, so the server could not read the numbers it is about to be
@@ -61,7 +61,7 @@ import {
   DAILY_LOGIN_CYCLE, DAILY_LOGIN_CYCLE_DAYS, DAILY_LOGIN_WEEK_BONUS,
   DAILY_LOGIN_MAX_WEEK_MULT, CLAIMABLES, claimableFor, claimableId,
   priceDailyLogin,
-} from './data/rewards.js?v=493';
+} from './data/rewards.js?v=494';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
 // shadowing them on window.
@@ -211,24 +211,24 @@ window.HearthriseGoals = Object.freeze({ goalDisplayState, GOAL_PHASE });
 //    auto-wires auth + sync + realtime backends if found. Until the player
 //    enters Supabase URL/anonKey via Settings → Account, everything stays
 //    in offline mode and no network requests are made.
-import './net/events.js?v=493';
-import './net/sync.js?v=493';
+import './net/events.js?v=494';
+import './net/sync.js?v=494';
 // b337 — server-authoritative away time. Imported BEFORE auth.js because
 // enableLiveSync() calls configureAccrual() with the same credentials it hands
 // sync.js, so there is one source of the url/key/token and no second copy to
 // drift. Ships DARK: the kill switch defaults OFF and processOffline() is
 // byte-for-byte b336 behaviour until it is turned on.
-import './net/accrue.js?v=493';
+import './net/accrue.js?v=494';
 // b338 — the character-creation intent. AFTER accrue.js (it imports the kill
 // switch from it) and BEFORE auth.js, which configures both with the same
 // credentials. Ships DARK behind the SAME switch as b337.
-import './net/character.js?v=493';
+import './net/character.js?v=494';
 // b372 — the Quartermaster trade ledger's classic-script door. AFTER accrue.js,
 // which applies the ledger inside applyEnvelopeState; this module only opens
 // `window.__recordItemTrade` for src/dungeons.js. Loading it late would mean a
 // purchase made in the first moments after boot is not recorded, so it sits
 // with the other net modules rather than behind a feature gate.
-import './net/dungeon-purchase.js?v=493';
+import './net/dungeon-purchase.js?v=494';
 // The RECORD seam. AFTER accrue.js (it imports the same kill switch and the
 // same slot resolver) and BEFORE auth.js, which configures all three with one
 // copy of the credentials. Ships DARK behind the SAME switch as b337/b338.
@@ -243,8 +243,8 @@ import './net/dungeon-purchase.js?v=493';
 // (the scratch bag lives on G), so its position here is documentation, not
 // ordering — but the ordering is right anyway: it must exist before the record
 // seam retires anything.
-import './net/predict.js?v=493';
-import './net/record.js?v=493';
+import './net/predict.js?v=494';
+import './net/record.js?v=494';
 // The READ side of a server-owned balance. AFTER record.js, which it imports:
 // once `gold`/`gems` are on SERVER_OF_RECORD, `recordValue` is the only thing
 // entitled to say a balance is known, and this module is the single accessor
@@ -253,7 +253,7 @@ import './net/record.js?v=493';
 // that held the flip back — see the b353 block in src/net/record.js).
 // It is NOT behind the kill switch: it is a read shape, correct in both
 // positions, and today it answers exactly what the raw read answered.
-import './net/balance.js?v=493';
+import './net/balance.js?v=494';
 // b429 — the READ side of server-owned SKILL XP, the analogue of balance.js for
 // the `skills` record entry (shipped DORMANT in record.js behind
 // SKILLS_RECORD_ARM_ENABLED). A no-op today: `skills` is not on the active
@@ -261,15 +261,15 @@ import './net/balance.js?v=493';
 // byte-for-byte. Once armed, it is the ONE accessor that reads skill xp from the
 // server map and fail-closes on UNKNOWN. NOT behind the master kill switch — a
 // read shape, correct in both positions.
-import './net/skill-record.js?v=493';
+import './net/skill-record.js?v=494';
 // The read side of server-owned BOUNTY MARKS (dormant). Same shape as
 // skill-record.js: publishes window.HearthriseMarks; a no-op until the arm flips.
-import './net/marks-record.js?v=493';
+import './net/marks-record.js?v=494';
 // The read side of server-owned HOUSE ROOMS (dormant). Same shape as
 // skill-record.js but the fail-closed value is a SAFE EMPTY MAP (not UNKNOWN),
 // because every room read iterates and a null/undefined there crashes boot.
 // Publishes window.HearthriseRooms; a no-op until ROOMS_RECORD_ARM_ENABLED flips.
-import './net/rooms-record.js?v=493';
+import './net/rooms-record.js?v=494';
 // b492 — the read side of the server-owned PROPERTY RUNG, shaped out of the SAME
 // permanent `progress` rows rooms-record.js reads (`property:<tier>` and
 // `worker_hire`). NOT dormant and NOT arm-gated: unlike the records above this
@@ -278,13 +278,13 @@ import './net/rooms-record.js?v=493';
 // heals the live P1 where a lost residue save demoted a Homestead owner to the
 // camp — taking their worker slots, farm plots and room gates with it.
 // Publishes window.HearthriseProperty; features/homestead.js reads it at getTier.
-import './net/property-record.js?v=493';
+import './net/property-record.js?v=494';
 // The read side of server-owned RESTED XP (dormant, b437). Publishes
 // window.HearthriseRested (restedOf/restedCharges) so the rested display + the
 // bank read the server's value under arm and fail-closed to 0 while UNKNOWN.
 // A no-op until RESTED_RECORD_ARM_ENABLED flips. (Was authored in b437 but never
 // imported — the accessor was dead at runtime until b445 wired it here.)
-import './net/rested-record.js?v=493';
+import './net/rested-record.js?v=494';
 // The read side of server-owned EQUIPMENT (dormant, b446). Same shape as
 // rooms-record.js — the fail-closed value is a SAFE EMPTY MAP (not UNKNOWN),
 // because every equipment read iterates/indexes and a null/undefined there
@@ -293,13 +293,13 @@ import './net/rested-record.js?v=493';
 // a no-op until EQUIPMENT_RECORD_ARM_ENABLED flips. This is the READ side —
 // distinct from window.HearthriseEquip (equip.js), which is the equip INTENT
 // transport (the WRITE side).
-import './net/equipment-record.js?v=493';
+import './net/equipment-record.js?v=494';
 // b347 — the ACTIVITY intent (`set_activity`). AFTER accrue.js: it imports the
 // same kill switch, the same slot resolver, the same endpoint derivation AND the
 // envelope/receipt writers, so the switch verb and the accrue verb cannot form
 // two ideas of what the server's answer means. BEFORE auth.js, which configures
 // all four with one copy of the credentials. Ships DARK behind the SAME switch.
-import './net/activity.js?v=493';
+import './net/activity.js?v=494';
 // b354 — the three ECONOMY verbs (`shop_buy`, `vendor_sell`, `claim_reward`).
 // AFTER accrue.js for the same reason as every seam before it: it imports the
 // same kill switch, the same slot resolver, the same endpoint derivation and
@@ -310,14 +310,14 @@ import './net/activity.js?v=493';
 // It must load whenever legacy.js's `goldSettle` can be reached with the switch
 // on: that helper THROWS rather than paying a client-authored number when this
 // module is absent, exactly as the b340 record strip does.
-import './net/gold.js?v=493';
+import './net/gold.js?v=494';
 // FARM SERVER-AUTHORITY (b435 RPCs) — the CLIENT transport for the four farm
 // gestures (plant/water/harvest/upgrade-plot). Publishes window.HearthriseFarmSync
 // so legacy.js can route the gestures to hr_farm_* under isFarmServerArmed().
 // Ships DORMANT: FARM_SERVER_ARM_ENABLED (item-authority.js) is false, so the
 // legacy farm writers run byte-for-byte as today and nothing here is called.
 // Importing it does NOT arm anything — it only makes the transport available.
-import './net/farm-sync.js?v=493';
+import './net/farm-sync.js?v=494';
 // b366 — the EQUIP intent (`equip`), Phase 2 of docs/design/live-settlement.md.
 // AFTER accrue.js, and for a reason stronger than the shared kill switch this
 // time: loading it is what makes `markEquipAuthorityLive` REACHABLE, and that
@@ -329,13 +329,13 @@ import './net/farm-sync.js?v=493';
 // Read the block above `equipAuthorityLive` in net/accrue.js before changing
 // either half — arming without the gesture reopens the b362 dupe at settle
 // cadence, which is worse than the merge it replaces.
-import './net/equip.js?v=493';
+import './net/equip.js?v=494';
 // ELEMENTS v1 — the enchant intent (bind an element rune to the weapon slot).
 // equip.js's sibling; imported eagerly so window.HearthriseEnchant exists for
 // the gear-doll affordance and the smoke suite. Sends only a slot + a rune
 // name; the server authors state.enchant.weapon. No flip of its own — it reuses
 // the equip transport's config (same hr-accrue endpoint) via wireServerEnchant.
-import './net/enchant.js?v=493';
+import './net/enchant.js?v=494';
 // MANUAL EAT (2026-08-25, Paione P0) — the `eat` intent. Publishes
 // window.HearthriseEat so legacy.js's eatFood() can route the gesture to
 // hr-accrue, where the food is DEBITED and the heal CREDITED server-side.
@@ -343,7 +343,7 @@ import './net/enchant.js?v=493';
 // it moves no gold/gems, so it has no prediction ledger and no flip of its own —
 // it reuses the shared kill switch (isServerAccrualEnabled) and reconciles HP +
 // inventory absolutely through applyEnvelopeState like every other envelope.
-import './net/eat.js?v=493';
+import './net/eat.js?v=494';
 // b361 — YOUR OWN TRADE LEDGER. A pure reader over rows the player can already
 // SELECT under market-v2's existing `own sales readable` policy; it authors
 // nothing and no payment path consults it. Imported EAGERLY (not lazily, the
@@ -352,9 +352,9 @@ import './net/eat.js?v=493';
 // must exist in a build that was never signed in, including the smoke harness.
 // It reaches for the backend through `window` at call time, so no Supabase
 // build is a hard dependency.
-import './net/market-history.js?v=493';
-import './net/auth.js?v=493';
-import './net/supabase-bootstrap.js?v=493';
+import './net/market-history.js?v=494';
+import './net/auth.js?v=494';
+import './net/supabase-bootstrap.js?v=494';
 // b492 — "Connecting your character…". AFTER auth.js (it asks HearthriseAuth
 // whether there is a live session) and after record.js / capstone.js, which it
 // imports. The live P1 it closes: when the boot hr_load failed, the client had
@@ -365,36 +365,36 @@ import './net/supabase-bootstrap.js?v=493';
 // DOM-ready and is inert unless the capstone is armed AND a session is live AND
 // no envelope has landed — so the smoke harness, a signed-out visitor and a
 // capstone-dormant build all see exactly today's behaviour.
-import './features/boot-hydration.js?v=493';
+import './features/boot-hydration.js?v=494';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with
 // a tab open for days, so "the fix ships" and "the fix arrives" are different
 // events; without this, every client-side fix reaches only the players who
 // happen to reload. Never reloads without consent; escalates into the b331
 // sign-in-expired sheet when sync has died, because there a stale build is the
 // difference between saving and not saving.
-import './net/build-watch.js?v=493';
+import './net/build-watch.js?v=494';
 
 // 2.5 Utilities — shared helpers + boot-time integrity checks. Importing
 // these for side effects:
 //   • exposes window.HearthriseDom / HearthriseSafe / HearthriseConfig /
 //     HearthriseIdentity for classic-script modules to consume,
 //   • runs the ITEMS-divergence check ~1.5s after boot.
-import './config.js?v=493';
-import './utils/dom.js?v=493';
-import './utils/safe.js?v=493';
-import './utils/profile.js?v=493';
-import './utils/data-integrity.js?v=493';
-import './utils/image-fallback.js?v=493';
+import './config.js?v=494';
+import './utils/dom.js?v=494';
+import './utils/safe.js?v=494';
+import './utils/profile.js?v=494';
+import './utils/data-integrity.js?v=494';
+import './utils/image-fallback.js?v=494';
 
 // 3. Feature modules — each registers itself on setup()
-import { setupSmokeTest } from './features/smoke-test.js?v=493';
-import { setupCompanions } from './features/companions.js?v=493';
-import { setupActivitiesGrid } from './features/activities-grid.js?v=493';
-import { setupCharacterPage } from './features/character-page.js?v=493';
-import { setupCombatRender } from './features/combat-render.js?v=493';
-import { setupCombatScreens } from './features/combat-screens.js?v=493';
-import { setupRecipeBook } from './features/recipe-book.js?v=493';
-import { setupItemIndex } from './features/item-index.js?v=493';
+import { setupSmokeTest } from './features/smoke-test.js?v=494';
+import { setupCompanions } from './features/companions.js?v=494';
+import { setupActivitiesGrid } from './features/activities-grid.js?v=494';
+import { setupCharacterPage } from './features/character-page.js?v=494';
+import { setupCombatRender } from './features/combat-render.js?v=494';
+import { setupCombatScreens } from './features/combat-screens.js?v=494';
+import { setupRecipeBook } from './features/recipe-book.js?v=494';
+import { setupItemIndex } from './features/item-index.js?v=494';
 
 // Boot diagnostics
 const counts = {

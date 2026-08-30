@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 494 — 2026-08-30 (Claims you earn can never be lost)
+
+- 🏅 **Rank and milestone claims are now bulletproof.** Claiming a Renown rank or a Collection milestone used to trust your screen's count and mark the reward "claimed" even if the server disagreed — which could permanently eat a reward (the "claimed Novice Hunter, got no gold" reports). Now nothing is marked or paid until the server says yes; if it says "not yet," you see the server's own count ("the realm has counted 1,840 of 2,200 Renown") and the button stays until you truly qualify.
+- 💰 Rank/milestone payouts now appear in your gold instantly instead of after the next sync.
+
 ## v0.9.2-beta build 493 — 2026-08-29 (The trust build: workers back, goals complete, accounts never look wiped)
 
 > **🧪 Testers (Paione, this one's yours):** ① log in — if your homestead had "lost" its upgrade, your **workers and farm plots come back on their own** the moment you load in. ② Hire a worker: it should stay. ③ Plant on every plot you've unlocked. ④ On a bad connection you'll now see **"Connecting your character…"** instead of a fresh-looking account — your data was never gone, but now the game can't even *pretend* it is.

@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 496 — 2026-08-30 (Server hardening, invisible but important)
+
+- 🔒 Closed a class of server-cache confusion across twelve actions (six of them money-moving) where a stale retry could get the wrong cached answer — found by our own security review, never exploited. Also removed a dead client code path and upgraded the server's self-monitoring (database growth, connection headroom, and stuck scheduled jobs now raise alarms).
+
 ## v0.9.2-beta build 495 — 2026-08-30 (Your first hour just got fair)
 
 - 🍖 **New characters start with real food** (10 raw + 20 cooked shrimp) and it's armed for auto-eating from the first fight — measured: your first death moves from 26 seconds in to 13+ minutes in, and deaths in the first half hour drop ~50%.

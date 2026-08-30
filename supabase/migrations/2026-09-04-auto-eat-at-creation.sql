@@ -88,29 +88,48 @@
 -- change at all. The client edits that DO ship alongside this are teaching copy
 -- only (src/features/death-sheet.js) — listed in the change contract.
 --
--- ⚠ WHAT THIS DOES **NOT** DO, STATED SO NOBODY READS IT AS DONE.
---   It does not turn on the CLIENT's live-combat auto-eat switch
---   (`G.autoActions.eat.enabled`, default false). That is deliberate and it is
---   a HANDOFF, not an oversight:
---     · The value the ruling is actually buying is the AWAY night, and that is
---       server-side — `player_state.auto_eat_enabled` is what the accrual
---       engine reads, and this file sets it.
---     · Flipping the client switch today would walk every new player into a
---       KNOWN, DOCUMENTED, OPEN seam: `src/legacy.js noteItemConsumed` refuses
---       to send the `eat` intent for an auto-eat whenever the server reports
---       `auto_eat_enabled = true` (accrue.js `clientOwnsAutoEatDebit`), on the
---       assumption that "the server eats" means "the server eats THIS one". It
---       does not — the server's sim only eats during AWAY accrual. An ATTENDED
---       auto-eat would therefore be held for `ENTRY_TTL_MS` (10 minutes) and
---       then RESTOCKED by the next envelope. Free food, self-only, but real.
---     · The correct fix is one line in the client (`inOfflineReplay()` one line
---       above already excludes the away path, which is the only path the server
---       eats on) and it belongs to the Systems Engineer with a Security look —
---       raised as a handoff rather than smuggled in behind a data ruling.
---   Consequence of shipping this file alone: a new character's AWAY nights eat
---   and survive; their ATTENDED fights still need the Settings toggle or the
---   Eat button — which is exactly what a PURCHASER of Auto-Eat gets today, so
---   this widens no behaviour that is not already live.
+-- ⚠⚠ THE ATTENDED-EAT SEAM — READ THIS BEFORE APPLYING. ⚠⚠
+--
+--   ⚠ CORRECTED 2026-08-30 (Security review). An earlier draft of this header
+--     said this file "does not turn on the CLIENT's live-combat switch
+--     (`G.autoActions.eat.enabled`, default false)" and rested its safety
+--     argument on that. **THAT WAS FALSE**, and it was false for the one
+--     population that matters — a brand-new character. The correction is
+--     recorded rather than quietly deleted, because the deleted version is the
+--     one a reviewer already read.
+--
+--     `DEFAULTS.eat.enabled` is indeed false, but `ensureShape()` in
+--     src/features/auto-actions.js (the b163 migration branch) sets
+--     `aa.eat.enabled = true` whenever `G.foodSlot` is truthy — and the fresh-`G`
+--     literal in src/legacy.js carries `foodSlot:'cooked_shrimp'`, which THIS
+--     PROGRAM put there in b495 (the start-kit food bridge). So on a fresh
+--     character the client's live switch is **ON**, and auto-actions.js says so
+--     in its own comment. The only thing that was holding attended auto-eat back
+--     was the `owned` gate — the trait — which is precisely what this file
+--     grants.
+--
+--   WHAT THAT MEANS, PLAINLY: applying §1 turns ATTENDED auto-eat ON for every
+--   new character, not just away accrual. And attended auto-eat walks straight
+--   into a KNOWN, OPEN seam: `src/legacy.js noteItemConsumed` refuses to send
+--   the `eat` intent for an auto-eat whenever the server reports
+--   `auto_eat_enabled = true` (accrue.js `clientOwnsAutoEatDebit`), on the
+--   assumption that "the server eats" means "the server eats THIS one". It does
+--   not — the server's sim only eats during AWAY accrual. An attended auto-eat
+--   is therefore held for `ENTRY_TTL_MS` (10 minutes) and then RESTOCKED by the
+--   next envelope. Free food. Self-only, and bounded by what the player is
+--   carrying, but real and reachable by every new account.
+--
+--   ⚠ THEREFORE: §1 IS SAFE ONLY IF THE ATTENDED-EAT GATE FIX SHIPS IN THE SAME
+--     BUILD. It is not a "handoff for later" and this file must not be applied
+--     ahead of it. The fix is one line and it is NOT in this file's scope
+--     (client wiring belongs to the Systems Engineer, with a Security look): the
+--     gate asks "does the server eat?" when the question it needs answered is
+--     "did *I* eat this one?", and `inOfflineReplay()` one line above already
+--     excludes the away path — the only path the server eats on.
+--
+--   The AWAY half is what the ruling is actually buying and it is unaffected by
+--   any of the above: `player_state.auto_eat_enabled` is what the accrual engine
+--   reads, and this file sets it.
 --
 -- ── §grant-existing: TRIVIAL, IDEMPOTENT, AND GATED ──────────────────────
 -- The ruling covers NEW creation. Every current beta player suffered the same
@@ -131,15 +150,40 @@
 -- ── REVERSIBILITY ────────────────────────────────────────────────────────
 -- Mechanical. Re-apply supabase/migrations/2026-08-14-character-bootstrap.sql
 -- (the last author of hr_create_character — it restores the unpatched body).
--- To also revoke the grants:
---     delete from public.player_progress
---      where kind = 'flag' and key = 'trait:auto_eat' and period_key = ''
+-- To also revoke the grants — and the two `not exists` clauses are BOTH
+-- required, because deleting a PURCHASED entitlement is irreversible and the
+-- evidence of a purchase is not permanent:
+--     delete from public.player_progress pp
+--      where pp.kind = 'flag' and pp.key = 'trait:auto_eat' and pp.period_key = ''
+--        -- (1) the purchase itself, while it is still in the live journal
 --        and not exists (select 1 from public.player_ledger l
---                         where l.user_id = player_progress.user_id
---                           and l.slot    = player_progress.slot
---                           and l.intent  = 'trait_buy:auto_eat');
--- — the `not exists` is required: it is the only thing separating a granted
--- trait from a PURCHASED one, and deleting a purchase is irreversible.
+--                         where l.user_id = pp.user_id and l.slot = pp.slot
+--                           and l.intent  = 'trait_buy:auto_eat')
+--        -- (2) ...and its SHADOW after the prune. THIS CLAUSE IS THE FIX FOR
+--        --     F6 (Security, 2026-08-30): hr_ledger_prune deletes rows older
+--        --     than hr_ledger_config.retain_days (default 90) and rolls them
+--        --     into player_ledger_rollup, which keeps (user_id, slot, month,
+--        --     kind, n) and DROPS `intent`. So clause (1) alone silently stops
+--        --     protecting anyone who bought Auto-Eat more than ~90 days ago —
+--        --     and the row that proved they paid is exactly the row that is
+--        --     gone, so the mistake would also be undiagnosable.
+--        and not exists (select 1 from public.player_ledger_rollup r
+--                         where r.user_id = pp.user_id and r.slot = pp.slot
+--                           and r.kind = 'trait' and r.n > 0);
+--
+-- ⚠ CLAUSE (2) IS DELIBERATELY COARSE, and the direction is the point. The
+--   rollup keeps `kind`, not `intent`, so it cannot distinguish "bought
+--   Auto-Eat I" from "bought Auto-Eat II" or any future trait: a character with
+--   ANY long-ago trait purchase is spared. That OVER-protects — some genuinely
+--   granted flags survive a rollback — which is the correct way to be wrong when
+--   the other error revokes something a player paid Marks for and cannot be
+--   detected afterwards.
+--
+--   A dedicated marker row (`trait_granted:auto_eat`) was considered and
+--   REJECTED: it costs a permanent row per character, on every envelope,
+--   forever, to serve a manual operation that runs at most once — and the rollup
+--   is already prune-proof by construction, because the rollup is what the prune
+--   WRITES. Zero storage beat 0.3 MB of insurance.
 --
 -- ── COST AT 100x PLAYERS ─────────────────────────────────────────────────
 -- Per character created, forever: ONE player_progress row (~80 bytes, against a
@@ -331,26 +375,58 @@ end $do$;
 -- in the envelope and not in the counter. Off by exactly one, every player,
 -- every time — and the ceremony is a one-shot event.
 --
--- THE FIX IS THE SHAPE THE TWO ARMS EITHER SIDE OF IT ALREADY USE. `inventory`
--- and `farm` compare the envelope against the TABLE; only `progress` compared it
--- against a plan-side counter. The stated purpose of the check — its own comment
--- — is "a row that was written and did not arrive", which is an envelope-vs-table
--- property. So the comparison moves to the table and `v_n_prog` stays exactly
--- what the receipt means by it ("rows imported"), now reported alongside.
+-- WHAT THIS FILE DOES ABOUT IT — and read the correction below before judging
+-- it. The comparison is moved to the shape the two arms either side of it use:
+-- `inventory` and `farm` compare the envelope against the TABLE, and only
+-- `progress` compared it against a plan-side counter. `v_n_prog` stays exactly
+-- what the receipt means by it ("rows imported") and is now reported alongside.
+-- That STOPS THE FALSE FAILURE. It does not preserve the check.
 --
--- NOT A WEAKENING, and the alternatives were worse:
---   · A drop is still reported by name: the plan loop's `check_violation`
---     handler appends to `v_drops` and does NOT increment `v_n_prog`, so a
---     refused row is visible in the receipt exactly as before.
---   · An insert that reported success and wrote nothing cannot happen.
---   · Special-casing `trait:auto_eat` in the counter was rejected: it would go
---     stale the moment any other bootstrap-written progress row exists
---     (companions, starting unlocks), and it would encode this file's name into
---     someone else's verifier.
---   · Seeding `v_n_prog` from a pre-plan baseline was rejected: the plan's
---     `on conflict do update` means a plan row that collides with a bootstrap
---     row adds no row, so baseline + plan-count over-counts — the same defect
---     in the other direction.
+-- ⚠⚠ IT **IS** A WEAKENING. CORRECTED 2026-08-30 (Security review). ⚠⚠
+--   This paragraph used to be headed "NOT A WEAKENING" and argued that the new
+--   comparison preserved the old property. The reviewer disproved it, and the
+--   disproof is short enough to be checkable:
+--
+--     Let B = the rows the BOOTSTRAP wrote and P = the rows the PLAN wrote.
+--     The table holds B + P. `hr_state_of`'s progress projection returns the
+--     permanent rows it holds — and none of its filters bite here, because an
+--     import plan writes no `ev:kill_monster` / `ev:loot` keys. So the envelope
+--     is also B + P. The new test is therefore `B + P <> B + P`: a TAUTOLOGY.
+--     It cannot fail, which means it verifies nothing at all.
+--
+--   The OLD comparison (`envelope <> v_n_prog`) was a real check — it caught a
+--   plan row that was counted but did not land — and this file removes it. The
+--   honest statement is:
+--
+--     **THIS FILE REMOVES player_progress IMPORT VERIFICATION.** Skills,
+--     inventory and equipment are still verified value-by-value; the progress
+--     arm is not verified at all after this patch. It is accepted to land
+--     because §1 makes the old arm fire on every honest player and the ceremony
+--     is not scheduled — NOT because the replacement is equivalent.
+--
+--   ⚠ BLOCKING FOLLOW-UP, and it has a precise trigger: the counting shape must
+--     be restored — `insert ... on conflict ... returning (xmax = 0) into
+--     v_is_new`, incrementing `v_n_prog` only on a genuine INSERT, and comparing
+--     `envelope <> bootstrap_rows + v_n_prog` — **BEFORE any wipe-day ceremony**,
+--     i.e. the moment `hearthrise.import_reopen` is set. Importing real players
+--     with the progress arm unverified is exactly the risk 2026-08-17's own
+--     header calls "THE transactional backstop".
+--
+--   The two alternatives considered and rejected at the time, recorded because
+--   the `xmax = 0` shape supersedes both:
+--     · Special-casing `trait:auto_eat` in the counter — goes stale the moment
+--       any other bootstrap-written progress row exists (companions, starting
+--       unlocks), and encodes this file's name into someone else's verifier.
+--     · Seeding `v_n_prog` from a pre-plan baseline — the plan's `on conflict
+--       do update` means a colliding plan row adds no row, so baseline +
+--       plan-count OVER-counts: the same defect in the other direction. (This
+--       is precisely what `xmax = 0` fixes, by counting inserts rather than
+--       attempts.)
+--
+--   What genuinely does survive, so the residual is not overstated: a plan row
+--   REFUSED by the unlock guard is still reported by name (`v_drops`, and
+--   `v_n_prog` is not incremented), and the skills/inventory/equipment
+--   value-by-value comparisons below are untouched.
 --
 -- ANCHORED, EXACTLY-ONCE, FAIL-CLOSED, IDEMPOTENT, ACL-asserted, CR-tolerant.
 -- Verified 2026-09-04 at 1 hit in BOTH places it must match: production
@@ -368,10 +444,21 @@ declare
       v_bad := format('progress %s <> %s',
                       (select count(*) from jsonb_array_elements(v_env->'progress') e
                         where e->>'period' = ''), v_n_prog);$a$;
-  c_repl constant text := $a$    -- b497: ENVELOPE vs TABLE, the same shape the inventory and farm arms
-    -- above use. It used to compare against v_n_prog (rows THE PLAN wrote),
-    -- which is equal to the table only while hr_create_character writes no
-    -- progress rows — and since 2026-09-04 the bootstrap grants trait:auto_eat.
+  c_repl constant text := $a$    -- ⚠ b497 — READ THIS BEFORE THE NEXT CEREMONY. This arm used to compare
+    -- the envelope against v_n_prog (rows THE PLAN wrote), which equals the
+    -- table only while hr_create_character writes no progress rows. Since
+    -- 2026-09-04 the bootstrap grants trait:auto_eat, so the old test failed by
+    -- exactly one for EVERY player. It was moved to envelope-vs-table, the shape
+    -- the inventory and farm arms above use.
+    -- ⚠ THAT MAKES IT A TAUTOLOGY, AND THAT IS KNOWN: the table holds
+    -- bootstrap+plan, hr_state_of returns bootstrap+plan (an import plan writes
+    -- no ev:kill_monster/ev:loot keys, so none of its filters bite), so this can
+    -- never fail. player_progress is therefore UNVERIFIED on import. Accepted
+    -- only because no ceremony is scheduled. RESTORE THE COUNTING SHAPE —
+    -- `insert ... on conflict ... returning (xmax = 0)`, incrementing v_n_prog
+    -- only on a real INSERT, compared against bootstrap_rows + v_n_prog —
+    -- BEFORE hearthrise.import_reopen is ever set. Skills, inventory and
+    -- equipment are still verified value-by-value below; only this arm is not.
     -- v_n_prog stays the receipt's "rows imported" and is reported below.
     elsif (select count(*) from jsonb_array_elements(v_env->'progress') e
             where e->>'period' = '') is distinct from

@@ -47,23 +47,50 @@ const SQL_FIRST = join(ROOT, 'supabase', 'migrations', '2026-08-29-bounty-first-
 const SQL_COUNT = join(ROOT, 'supabase', 'migrations', '2026-09-04-bounty-difficulty-count.sql');
 
 /* THE MUTATION CATALOGUE. Each entry plants a REAL defect in the REAL migration
-   text (never in a copy) and must be caught by at least one assertion below.
-   `file` names which of the three migrations is edited. */
+   text (never in a copy) — or, for `range`, perturbs the JS range the way a real
+   retune would — and must be caught by a NAMED assertion.
+
+   ⚠ `expect` IS THE POINT, not decoration. "some assertion fired" is a weak
+   proof: several of these defects trip more than one arm, and a guard that
+   reports the wrong failure for the right defect is one refactor away from
+   reporting nothing. The selftest requires a problem MATCHING `expect`, so each
+   mutation proves the specific arm it was written for.
+
+   `file` names which of the three migrations is edited (text mutations);
+   `range` is a JS-side function applied to section (6)'s ranges. */
 const MUTATIONS = {
   easy_mult_drift: {
     file: SQL_COUNT,
     why: 'the SQL easy multiplier drifts from the ruling, so the board draws 72 kills and the '
        + 'server clamps the contract up to 76 — a player shown one contract and made to fill another',
     find: "when 'easy'   then 0.90", repl: "when 'easy'   then 0.95",
+    expect: /missing the arm 'when 'easy'/,
+  },
+  band_widened_downward: {
+    /* THE F5 MUTATION, and it is the only one in this file that the MIDPOINT
+       loop cannot see. A future ruling widens `easy`'s band asymmetrically —
+       a lower floor and a higher ceiling, the shape "make Easy feel easier"
+       naturally takes. tier-1 easy becomes 60–130: the midpoint DROPS to 95
+       (270/95 = 2.84 < normal's 3.20, still monotonic and still green), while
+       the FLOOR pays 270/60 = 4.50 against normal's 4.00 — inverted. And the
+       floor is what a player is handed, because hr_accept_bounty clamps
+       p_required to kmin. */
+    why: 'a difficulty band is widened downward, so gold-per-kill stays monotonic at the range '
+       + 'MIDPOINT and inverts AT THE FLOOR — which is the number an optimising player actually '
+       + 'gets, because p_required clamps to kmin. Invisible to a midpoint-only check',
+    range: (r, d) => (d === 'easy' ? [Math.round(r[0] * 0.8333), Math.round(r[1] * 1.2037)] : r),
+    expect: /AT THE FLOOR/,
   },
   elite_mult_drift: {
     file: SQL_COUNT,
+    expect: /missing the arm 'when 'elite'/,
     why: 'the elite arm drifts. Unreachable through the accept TODAY (elite is refused), which is '
        + 'exactly why it needs a guard: the day elite becomes server-owned nobody re-derives it',
     find: "when 'elite'  then 1.50", repl: "when 'elite'  then 1.40",
   },
   mult_defaults_open: {
     file: SQL_COUNT,
+    expect: /has an ELSE arm/,
     why: 'an unknown difficulty stops being NULL, so a forged difficulty string is silently served '
        + 'the NORMAL range instead of being refused — the fail-closed half is gone',
     find: "           when 'elite'  then 1.50\n         end::numeric;",
@@ -71,6 +98,7 @@ const MUTATIONS = {
   },
   range_restated_not_composed: {
     file: SQL_COUNT,
+    expect: /no longer COMPOSES the tier table/,
     why: 'the scaled range stops COMPOSING hr_bounty_kill_range(p_tier) and grows its own copy of '
        + 'the tier table — a second source for the same numbers, which is how the pair drifts',
     find: 'from public.hr_bounty_kill_range(p_tier) r',
@@ -78,6 +106,7 @@ const MUTATIONS = {
   },
   no_kill_floor: {
     file: SQL_COUNT,
+    expect: /kill floor is missing/,
     why: 'the greatest(1, …) floor is dropped, so a future multiplier can author a zero-kill '
        + 'contract that is COMPLETE ON ACCEPTANCE',
     find: '  select greatest(1, round(r.kmin * m.dm))::bigint,\n         greatest(1, round(r.kmax * m.dm))::bigint\n    from public.hr_bounty_kill_range(p_tier) r',
@@ -85,6 +114,7 @@ const MUTATIONS = {
   },
   first_contract_unscaled: {
     file: SQL_COUNT,
+    expect: /UNSCALED bracket/,
     why: 'the first-contract floor stops scaling, so a new hunter\'s honest 14-kill easy contract '
        + 'is silently raised to 15 — the b487 bracket and the b497 ruling disagreeing',
     find: '    select kmin into v_kmin from public.hr_bounty_first_contract_range(p_difficulty);',
@@ -92,6 +122,7 @@ const MUTATIONS = {
   },
   accept_keeps_tier_only_range: {
     file: SQL_COUNT,
+    expect: /does not clamp on the difficulty-scaled range/,
     why: 'the accept patch stops using the difficulty-scaled range, so the whole ruling installs '
        + 'three functions NOTHING CALLS and reads as shipped',
     find: "    || '    from public.hr_bounty_kill_range(v_tier, p_difficulty);' || chr(10)",
@@ -99,6 +130,7 @@ const MUTATIONS = {
   },
   elite_refusal_check_removed: {
     file: SQL_COUNT,
+    expect: /no longer asserts that the accept REFUSES elite/,
     why: 'the migration stops asserting that the accept still REFUSES elite — the 2026-08-23 '
        + 'security ruling could then be relaxed by a later file with nothing noticing',
     find: "  if position('p_difficulty not in (''easy'',''normal'',''hard'')' in v_src) = 0 then",
@@ -117,9 +149,18 @@ export async function bountyDriftGuard(mutation) {
   const ok = (cond, msg) => { if (!cond) problems.push(msg); };
   const mut = mutation ? MUTATIONS[mutation] : null;
   if (mutation && !mut) throw new Error(`unknown mutation "${mutation}"`);
+  /* THE RANGE SEAM. Section (6) reads every range through this, so a mutation
+     can perturb the JS side the way a real retune would — the SQL-text
+     mutations above cannot reach `bountyCountRange`, and a kmin-vs-midpoint
+     split is a property of the RANGE, not of the migration text. Identity when
+     no mutation is active, so the shipped guard is byte-for-byte what it was. */
+  const range = (type, tier, lv, diff) => {
+    const r = bountyCountRange(type, tier, lv, diff);
+    return (mut && mut.range) ? mut.range(r, diff) : r;
+  };
   const load = async (path) => {
     let text = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
-    if (mut && mut.file === path) {
+    if (mut && mut.file && mut.file === path) {
       if (!text.includes(mut.find)) {
         throw new Error(`mutation "${mutation}" no longer applies — its anchor is gone from ${path}. `
           + 'A mutation that cannot be planted proves nothing; re-author it.');
@@ -300,7 +341,7 @@ export async function bountyDriftGuard(mutation) {
         const sqlLo = Math.max(1, Math.round(blo * m));
         const sqlHi = Math.max(1, Math.round(bhi * m));
         // bountyLevel 2 = past the first-contract bracket, i.e. the tier table.
-        const [lo, hi] = bountyCountRange('cull', t, 2, d);
+        const [lo, hi] = range('cull', t, 2, d);
         ok(lo === sqlLo && hi === sqlHi,
           `count drift (tier ${t} ${d}): bounty.js draws ${lo}-${hi}, the SQL clamp allows `
           + `${sqlLo}-${sqlHi}. The board would offer one contract and the turn-in demand another.`);
@@ -313,7 +354,7 @@ export async function bountyDriftGuard(mutation) {
     // always EASY, so an unscaled server floor silently raises the honest draw.
     for (const d of Object.keys(BOUNTY_DIFFICULTY_COUNT)) {
       const m = BOUNTY_DIFFICULTY_COUNT[d];
-      const [lo, hi] = bountyCountRange('cull', BOUNTY_FIRST_CONTRACT_TIER,
+      const [lo, hi] = range('cull', BOUNTY_FIRST_CONTRACT_TIER,
         BOUNTY_FIRST_CONTRACT_MAX_LEVEL, d);
       ok(lo === Math.max(1, Math.round(BOUNTY_FIRST_CONTRACT_COUNT[0] * m))
          && hi === Math.max(1, Math.round(BOUNTY_FIRST_CONTRACT_COUNT[1] * m)),
@@ -332,16 +373,36 @@ export async function bountyDriftGuard(mutation) {
     // (6f) THE PROPERTY THE RULING ACTUALLY BUYS, re-derived on the JS side the
     // way the migration's §5(d) re-derives it on the SQL side. Two independent
     // derivations of one ruling; a retune that re-inverts the ladder fails both.
+    //
+    // ⚠ TWO READINGS, and the second is the one that matters (Security F5). The
+    //   MIDPOINT describes the average contract; `kmin` describes the one an
+    //   optimising player actually takes, because hr_accept_bounty CLAMPS
+    //   p_required and a client asking for less than the floor is handed exactly
+    //   kmin. Today they cannot disagree — kmin and kmax scale by the SAME
+    //   multiplier, so gpk(kmin)/gpk(mid) is a constant per tier — but that is a
+    //   property of the CURRENT shape, not of the ruling: a difficulty that
+    //   widened its band asymmetrically (lower floor, higher ceiling) stays
+    //   monotonic at the midpoint and inverts at the floor, and the floor is
+    //   where the exploit lives. `band_widened_downward` proves the split.
     for (let t = 1; t <= 6; t++) {
       let prev = null;
+      let prevLo = null;
       for (const d of ['easy', 'normal', 'hard', 'elite']) {
-        const [lo, hi] = bountyCountRange('cull', t, 2, d);
-        const gpk = bountyRewards(t, 'cull', d).gold / ((lo + hi) / 2);
+        const [lo, hi] = range('cull', t, 2, d);
+        const gold = bountyRewards(t, 'cull', d).gold;
+        const gpk = gold / ((lo + hi) / 2);
         ok(prev === null || gpk > prev,
-          `gold-per-kill is NOT monotonic at tier ${t}: ${d} pays ${gpk.toFixed(3)} and the easier `
-          + `difficulty paid ${(prev || 0).toFixed(3)} — "Easy is the best contract on the board" `
-          + '(the b489 inversion) is back.');
+          `gold-per-kill is NOT monotonic at tier ${t}: ${d} pays ${gpk.toFixed(3)} at the range `
+          + `MIDPOINT and the easier difficulty paid ${(prev || 0).toFixed(3)} — "Easy is the best `
+          + `contract on the board" (the b489 inversion) is back.`);
         prev = gpk;
+        const gpkLo = gold / lo;
+        ok(prevLo === null || gpkLo > prevLo,
+          `gold-per-kill is NOT monotonic at tier ${t} AT THE FLOOR: ${d} pays ${gpkLo.toFixed(3)} `
+          + `per kill at kmin=${lo} and the easier difficulty paid ${(prevLo || 0).toFixed(3)}. `
+          + 'p_required clamps to kmin, so this is the contract an optimising player actually '
+          + 'takes — the midpoint passing does not save it.');
+        prevLo = gpkLo;
       }
     }
     // The published tier-1 figures, so the ruling's own numbers are pinned by
@@ -400,9 +461,19 @@ if (process.argv[1]?.endsWith('bounty-drift.mjs')) {
     }
     let slipped = 0;
     for (const id of Object.keys(MUTATIONS)) {
+      const m = MUTATIONS[id];
       const p = await bountyDriftGuard(id);
-      if (p.length) console.log(`  ✓ ${id} — caught (${p.length} assertion${p.length === 1 ? '' : 's'})`);
-      else { console.log(`  ✗ ${id} — SLIPPED: ${MUTATIONS[id].why}`); slipped++; }
+      /* THE NAMED ARM, not "something fired". Several of these defects trip more
+         than one assertion, and a mutation graded on the total would keep
+         passing after the arm it was written for had been deleted. */
+      const hit = p.filter((x) => m.expect.test(x));
+      if (hit.length) {
+        console.log(`  ✓ ${id} — caught by the intended arm (${hit.length}/${p.length} problem(s) match)`);
+      } else if (p.length) {
+        console.log(`  ✗ ${id} — WRONG ARM: ${p.length} problem(s) fired but none matched ${m.expect}`);
+        console.log(`      first: ${p[0]}`);
+        slipped++;
+      } else { console.log(`  ✗ ${id} — SLIPPED: ${m.why}`); slipped++; }
     }
     console.log(slipped
       ? `bounty-drift --selftest: ${slipped} mutation(s) SLIPPED`

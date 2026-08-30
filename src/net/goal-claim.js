@@ -148,7 +148,16 @@
        the tier from hr_bounty_monsters, owns the reward + required-count, and
        SNAPSHOTS the target's current kill count as the baseline into active_bounty so
        the turn-in requires NEW kills. Only the ids/type/difficulty cross the wire; the
-       reward never does. 'cull' only (proof/weapon/streak are refused server-side). */
+       reward never does. 'cull' only (proof/weapon/streak are refused server-side).
+
+       ⚠ THE ANSWER IS NOT OPTIONAL (b497 · Security F2). `p_required` below is a
+       REQUEST: hr_accept_bounty CLAMPS it into a server-computed range and the
+       envelope reports what it actually stored — {ok, required, tier, gold,
+       marks, xp, baseline, first_contract}. This call used to be
+       fire-and-forget, so a clamp stayed invisible until the turn-in refused
+       forever with the bar full (the dead-claims class). `hrAdoptAcceptedBounty`
+       in src/legacy.js now adopts required/tier/rewards from it — a caller must
+       keep reading this promise, not drop it. */
     acceptBounty: function (b) {
       b = b || {};
       return call('hr_accept_bounty', {

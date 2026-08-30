@@ -26,8 +26,12 @@
 //   B6  'elite' is still REFUSED (Security ruling 2026-08-23) — this change is
 //       not allowed to open it.
 //   B7  gold-per-kill, read from the LIVE hr_bounty_reward and the LIVE range,
-//       rises with difficulty at every tier. The b489 inversion, asserted as a
-//       property of the database rather than of a comment.
+//       rises with difficulty at every tier — measured at the range MIDPOINT and
+//       again AT THE FLOOR (kmin), because hr_accept_bounty CLAMPS p_required and
+//       a client asking for less than the floor is handed exactly kmin. The
+//       floor is where exploit-optimal play sits; the midpoint is the average
+//       contract. The b489 inversion, asserted as a property of the database
+//       rather than of a comment.
 //   B8  none of the three new functions is executable by anon / authenticated /
 //       service_role.
 //
@@ -125,11 +129,15 @@ async function run(mutate) {
 
   // ── B7: gold per kill, from the LIVE reward function ──────────────────
   const gpk = {};
+  const gpkLo = {};
   for (let t = 1; t <= 6; t++) {
     for (const d of DIFFS) {
       const rw = (await q("select gold::text g from public.hr_bounty_reward($1,'cull',$2)", [t, d]))[0];
       const rg = sqlRange[`${t}:${d}`];
       gpk[`${t}:${d}`] = rg ? Number(rw.g) / ((rg[0] + rg[1]) / 2) : null;
+      /* THE FLOOR (Security F5): what an optimising player is actually handed,
+         because hr_accept_bounty CLAMPS p_required to kmin. */
+      gpkLo[`${t}:${d}`] = rg ? Number(rw.g) / rg[0] : null;
     }
   }
 
@@ -183,7 +191,7 @@ async function run(mutate) {
   }
   const elite = await accept('elite', 150);
 
-  return { sqlRange, sqlFirst, unknownRange, unknownFirst, tierOnly, gpk, acl,
+  return { sqlRange, sqlFirst, unknownRange, unknownFirst, tierOnly, gpk, gpkLo, acl,
     created, round, clampLo, clampHi, elite, graceBefore, graceAfter, firstEasy };
 }
 
@@ -263,14 +271,27 @@ function grade(o) {
     + `reaching the server is forged, at 1.75x tradeable gold). Got ${JSON.stringify(o.elite)}`);
 
   // ── B7 ────────────────────────────────────────────────────────────────
+  //     TWO READINGS (Security F5). The midpoint is the average contract; the
+  //     FLOOR is the one an optimising player is handed, because
+  //     hr_accept_bounty clamps p_required to kmin. tests/bounty-drift.mjs
+  //     `band_widened_downward` demonstrates a retune the midpoint cannot see.
   for (let t = 1; t <= 6; t++) {
     let prev = null;
+    let prevLo = null;
     for (const d of DIFFS) {
       const v = o.gpk[`${t}:${d}`];
       ok(prev === null || v > prev,
-        `B7 tier ${t}: gold-per-kill is not monotonic — ${d} pays ${v?.toFixed(3)} and the easier `
-        + `difficulty paid ${prev?.toFixed(3)}. "Easy is the best contract on the board" is back.`);
+        `B7 tier ${t}: gold-per-kill is not monotonic at the range MIDPOINT — ${d} pays `
+        + `${v?.toFixed(3)} and the easier difficulty paid ${prev?.toFixed(3)}. "Easy is the best `
+        + 'contract on the board" is back.');
       prev = v;
+      const vLo = o.gpkLo[`${t}:${d}`];
+      ok(prevLo === null || vLo > prevLo,
+        `B7 tier ${t}: gold-per-kill is not monotonic AT THE FLOOR — ${d} pays ${vLo?.toFixed(3)} `
+        + `per kill at kmin=${o.sqlRange[`${t}:${d}`]?.[0]} and the easier difficulty paid `
+        + `${prevLo?.toFixed(3)}. p_required clamps to kmin, so this is the contract an optimising `
+        + 'player actually takes.');
+      prevLo = vLo;
     }
   }
   // The two derivations must also agree with each other.

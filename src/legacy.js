@@ -4483,11 +4483,102 @@ function acceptBounty(index){
      inside the away replay (a synchronous night must not fire network calls; away
      bounties stay client-side, a documented follow-up for the accrual engine). */
   if(G.bountyHunter.active.type==='cull' && (typeof inOfflineReplay!=='function' || !inOfflineReplay())){
-    try{ if(window.HearthriseGoalClaim && HearthriseGoalClaim.acceptBounty){ const _p=HearthriseGoalClaim.acceptBounty(G.bountyHunter.active); if(_p&&_p.catch)_p.catch(()=>{}); } }catch(e){}
+    try{
+      if(window.HearthriseGoalClaim && HearthriseGoalClaim.acceptBounty){
+        /* Captured by IDENTITY so the adopt below can tell "my accept came back"
+           from "the player abandoned this and took another while it was in
+           flight" — see hrAdoptAcceptedBounty. */
+        const _accepted=G.bountyHunter.active;
+        const _p=HearthriseGoalClaim.acceptBounty(_accepted);
+        if(_p&&_p.then)_p.then(function(res){ hrAdoptAcceptedBounty(res,_accepted); }).catch(function(){});
+        else if(_p&&_p.catch)_p.catch(function(){});
+      }
+    }catch(e){}
   }
   notify(`Accepted bounty: ${MONSTERS[b.target]?.name}`,'info');
   renderCombat();repaintBounty();saveLocal();
 }
+/* ── THE SERVER'S CONTRACT **IS** THE CONTRACT (b497 · Security condition F2) ─
+   THE DEAD-BOUNTY CLASS THIS ENDS. `hr_accept_bounty` does not accept the
+   client's `required` — it CLAMPS it into a server-computed range and returns
+   the number it actually wrote, plus `tier` and the three reward figures.
+   Nothing read that envelope. The call was fire-and-forget, so any disagreement
+   between what the board drew and what the server stored stayed invisible until
+   the turn-in, which then refuses forever while the bar sits full — the
+   beta-morning dead-claims shape, with a progress bar on it.
+
+   b497 makes that disagreement REACHABLE rather than theoretical: the difficulty
+   now scales the kill count, so a `hard` tier-1 slot drawn BEFORE the deploy
+   holds a `required` in [80, 95] and the post-deploy server clamps it up to 96 —
+   roughly 39% of tier-1 hard slots. And boards PERSIST: ensureBountyState only
+   regenerates when the board is EMPTY, so the window stays open until the player
+   rerolls, not until the deploy lands.
+
+   Adopting the envelope closes the count drift AND the reward drift, for this
+   ruling and every future one, because the client stops holding an opinion about
+   a number the server owns. It is also the only binding of its kind here:
+   tests/bounty-drift.mjs and tests/bounty-difficulty-count.mjs both bind SQL to
+   src/core — file to file — and neither can see the envelope reaching (or
+   failing to reach) client state.
+
+   @param res       the hr_accept_bounty envelope
+   @param accepted  the object that was sent (optional; identity guard)
+   @returns {adopted, reason, changed[]} — a receipt, so the suite asserts the
+            RULE rather than a rendered string. */
+function hrAdoptAcceptedBounty(res,accepted){
+  const out={adopted:false,reason:'',changed:[]};
+  if(!res||typeof res!=='object'){out.reason='no_envelope';return out;}
+  const act=G.bountyHunter&&G.bountyHunter.active;
+  if(!act){out.reason='no_active';return out;}
+  /* TWO IDENTITY CHECKS, both load-bearing. The reply is asynchronous, so by the
+     time it lands the player may have abandoned this contract and accepted
+     another — writing a stale `required` onto a live bounty would manufacture
+     the exact desync this function exists to remove. Object identity catches
+     abandon→accept (acceptBounty deep-copies, so the new active is a different
+     object); the id/target pair catches everything else, including a reply
+     arriving for a bounty a reload has already replaced. */
+  if(accepted&&act!==accepted){out.reason='superseded';return out;}
+  if(String(res.bounty_id||'')!==String(act.id||'')
+     ||String(res.target||'')!==String(act.target||'')){out.reason='mismatch';return out;}
+
+  if(res.ok!==true){
+    /* NOT SILENT ANY MORE. A refused accept means there is no active_bounty row,
+       so the turn-in can never settle — the contract is already dead, and the
+       honest thing available here is to record why. Withdrawing and reposting it
+       is a designer decision; raised as a handoff, not invented here. */
+    act._acceptError=String(res.error||'unknown');
+    out.reason='refused:'+act._acceptError;
+    try{console.warn('[Bounty] accept refused ('+act._acceptError+') — this contract has no server '
+      +'row, so its turn-in will not settle');}catch(e){}
+    return out;
+  }
+  delete act._acceptError;
+
+  /* EVERY FIELD IS RE-DERIVED AND VALIDATED, never spread: a malformed or absent
+     field must leave the client's value alone rather than stamp NaN onto the bar
+     the player is watching. */
+  const n=Math.floor(Number(res.required));
+  if(Number.isFinite(n)&&n>0&&n!==act.required){out.changed.push('required '+act.required+'->'+n);act.required=n;}
+  const t=Math.floor(Number(res.tier));
+  if(Number.isFinite(t)&&t>0&&t!==act.tier){out.changed.push('tier '+act.tier+'->'+t);act.tier=t;}
+  act.rewards=act.rewards||{};
+  ['gold','marks','xp'].forEach(function(k){
+    const v=Math.floor(Number(res[k]));
+    if(Number.isFinite(v)&&v>=0&&v!==act.rewards[k]){
+      out.changed.push(k+' '+act.rewards[k]+'->'+v);act.rewards[k]=v;
+    }
+  });
+  act._serverContract=true;
+  out.adopted=true;
+  /* Repaint only when something MOVED — an accept that agreed (the common case,
+     and every case once the board is drawn post-deploy) must not churn the DOM.
+     The save is unconditional: `_serverContract` is what a later reader uses to
+     tell an adopted contract from one that never heard back. */
+  if(out.changed.length){ try{renderCombat();}catch(e){} try{repaintBounty();}catch(e){} }
+  try{saveLocal();}catch(e){}
+  return out;
+}
+window.hrAdoptAcceptedBounty=hrAdoptAcceptedBounty;
 function abandonBounty(){
   if(!G.bountyHunter?.active)return;
   const b=G.bountyHunter.active;

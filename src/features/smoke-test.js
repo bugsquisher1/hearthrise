@@ -17406,6 +17406,92 @@ const TESTS = [
     assert(b >= 72 && b <= 108, 'an easy tier-1 draw landed outside 72-108: ' + b);
   }),
 
+  () => tryRun('b497/F2: the accept ENVELOPE becomes the contract (the dead-bounty class)', () => {
+    /* THE GAP THIS COVERS, stated because it is the whole point of the test
+       existing HERE rather than beside the other two bounty guards:
+       tests/bounty-drift.mjs and tests/bounty-difficulty-count.mjs bind SQL to
+       src/core — FILE TO FILE. Neither can see whether the server's answer ever
+       reaches client state. `hr_accept_bounty` CLAMPS the client's `required`
+       and returns what it actually wrote; until b497 nothing read that, so a
+       disagreement was invisible until the turn-in refused forever with the bar
+       full. Boards persist across a deploy (ensureBountyState only regenerates
+       an EMPTY board), so a `hard` slot drawn pre-b497 carries a required in
+       [80,95] and the post-deploy server demands 96. */
+    const snap = snapshotG();
+    const G = window.G;
+    try {
+      window.ensureBountyState();
+      assert(typeof window.hrAdoptAcceptedBounty === 'function',
+        'hrAdoptAcceptedBounty is not published — the accept envelope is unread again');
+      const mk = () => ({ id: 'cull_goblin_1700_7', type: 'cull', target: 'goblin',
+        difficulty: 'hard', tier: 1, progress: 0, required: 88,
+        rewards: { gold: 420, marks: 8, xp: 59 } });
+      const env = (over) => Object.assign({ ok: true, bounty_id: 'cull_goblin_1700_7',
+        target: 'goblin', tier: 1, required: 96, gold: 420, marks: 8, xp: 59 }, over || {});
+
+      // ── 1. THE DEAD CASE. Client drew 88; the server stored 96.
+      G.bountyHunter.active = mk();
+      const r1 = window.hrAdoptAcceptedBounty(env());
+      assert(r1.adopted === true, 'the envelope was not adopted: ' + JSON.stringify(r1));
+      assert(G.bountyHunter.active.required === 96,
+        'the client still shows ' + G.bountyHunter.active.required + ' kills while the server '
+        + 'demands 96 — the bar fills, the turn-in refuses, and the failure is silent');
+      assert(G.bountyHunter.active._serverContract === true,
+        'an adopted contract is not marked as server-owned');
+
+      // ── 2. REWARD DRIFT closes on the same path. A player shown 420 gold and
+      //      paid 300 is the same defect in the other currency.
+      G.bountyHunter.active = mk();
+      window.hrAdoptAcceptedBounty(env({ gold: 300, marks: 5, xp: 38, tier: 2 }));
+      const rw = G.bountyHunter.active.rewards;
+      assert(rw.gold === 300 && rw.marks === 5 && rw.xp === 38,
+        'the rewards were not adopted: ' + JSON.stringify(rw));
+      assert(G.bountyHunter.active.tier === 2, 'the tier was not adopted');
+
+      // ── 3. AN AGREEING ENVELOPE CHANGES NOTHING (the common case). A repaint
+      //      on every accept would churn the DOM for no reason.
+      G.bountyHunter.active = mk();
+      const r3 = window.hrAdoptAcceptedBounty(env({ required: 88 }));
+      assert(r3.adopted === true && r3.changed.length === 0,
+        'an agreeing envelope reported changes: ' + JSON.stringify(r3.changed));
+
+      // ── 4. A REFUSAL adopts NOTHING and stops being silent. There is no
+      //      active_bounty row, so this contract can never settle.
+      G.bountyHunter.active = mk();
+      const r4 = window.hrAdoptAcceptedBounty(env({ ok: false, error: 'tier_locked' }));
+      assert(r4.adopted === false && /refused:tier_locked/.test(r4.reason),
+        'a refused accept was not reported: ' + JSON.stringify(r4));
+      assert(G.bountyHunter.active.required === 88, 'a refusal moved the requirement');
+      assert(G.bountyHunter.active._acceptError === 'tier_locked',
+        'the refusal was swallowed — nothing records that this bounty is dead');
+
+      // ── 5. A LATE REPLY FOR AN ABANDONED CONTRACT touches nothing. This is
+      //      the race the identity guard exists for: writing a stale `required`
+      //      onto a live bounty would MANUFACTURE the desync being fixed.
+      const sent = mk();
+      G.bountyHunter.active = mk();            // a different object, same fields
+      const r5 = window.hrAdoptAcceptedBounty(env({ required: 144 }), sent);
+      assert(r5.reason === 'superseded' && G.bountyHunter.active.required === 88,
+        'a reply for a superseded contract was adopted: ' + JSON.stringify(r5));
+
+      // ── 6. A REPLY FOR A DIFFERENT BOUNTY is refused on the id/target pair.
+      G.bountyHunter.active = mk();
+      const r6 = window.hrAdoptAcceptedBounty(env({ bounty_id: 'cull_wolf_1_2', required: 144 }));
+      assert(r6.reason === 'mismatch' && G.bountyHunter.active.required === 88,
+        'a reply for another bounty was adopted: ' + JSON.stringify(r6));
+      const r6b = window.hrAdoptAcceptedBounty(env({ target: 'wolf', required: 144 }));
+      assert(r6b.reason === 'mismatch', 'the TARGET half of the identity check is missing');
+
+      // ── 7. A MALFORMED FIELD leaves the client's value alone rather than
+      //      stamping NaN onto the bar the player is watching.
+      G.bountyHunter.active = mk();
+      window.hrAdoptAcceptedBounty(env({ required: null, gold: 'lots' }));
+      assert(G.bountyHunter.active.required === 88 && G.bountyHunter.active.rewards.gold === 420,
+        'a malformed envelope corrupted the contract: '
+        + JSON.stringify(G.bountyHunter.active.rewards));
+    } finally { restoreG(snap); }
+  }),
+
   () => tryRun('Phase A: kill XP is routed by the SAME table the live hit uses (and BotD scales it)', () => {
     /* The routing table used to be four copies of one walk. The away loop
        omitting the KILL half of it is the ~21%-of-combat-XP hole named in

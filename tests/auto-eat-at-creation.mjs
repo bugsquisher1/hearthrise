@@ -45,6 +45,14 @@
 //   A8  the ACL did not move: authenticated may create, hr_engine may NOT
 //       (server-authority §2a-iv — the engine must never mint starting kits),
 //       anon may not; and player_progress still has no client write policy.
+//   A10 the DOCUMENTED ROLLBACK, extracted from the migration header and
+//       EXECUTED. A comment is not a control. Three characters: granted (must be
+//       revoked), purchased-with-a-live-ledger-row (must survive), and
+//       purchased-but-PRUNED — evidence living only in player_ledger_rollup,
+//       which keeps `kind` and drops `intent` (must survive). The last is
+//       Security F6: without it the rollback revokes a PAID entitlement from
+//       every player who bought Auto-Eat more than retain_days (90) ago, and the
+//       row that proved they paid is the row that is gone.
 //   A9  a cutover-import DRY RUN of an empty plan still succeeds. The bootstrap
 //       now writes one player_progress row and hr_import_apply verified its work
 //       by comparing the envelope's progress count against a counter of rows THE
@@ -64,7 +72,7 @@
 //   node tests/auto-eat-at-creation.mjs --list      the mutation catalogue
 //   node tests/auto-eat-at-creation.mjs --selftest  every mutation must be caught
 //   node tests/auto-eat-at-creation.mjs --mutate=<id>
-// Five of the seven mutations additionally BLIND the migration's own §2
+// Five of the eight mutations additionally BLIND the migration's own §2
 // self-check, so the guard alone has to see them — a defect that only the file
 // under test reports is not evidence that the guard works.
 // ════════════════════════════════════════════════════════════════════════
@@ -154,6 +162,17 @@ const MUTATIONS = {
       ["  if to_regprocedure('public.hr_import_apply(uuid,int,jsonb,jsonb,boolean)') is not null\n     and position('progress env %s <> table %s' in",
         "  if false\n     and position('progress env %s <> table %s' in"],
     ],
+  },
+  rollback_ignores_rollup: {
+    why: 'the documented rollback loses its second not-exists clause, so it revokes a PURCHASED '
+       + 'Auto-Eat from every player whose trait_buy ledger row has aged past retain_days into '
+       + 'player_ledger_rollup (which keeps `kind` and drops `intent`) — an irreversible revoke '
+       + 'of a paid entitlement, undiagnosable afterwards because the proof is the pruned row',
+    pairs: [[
+      "--        and not exists (select 1 from public.player_ledger_rollup r\n"
+      + "--                         where r.user_id = pp.user_id and r.slot = pp.slot\n"
+      + "--                           and r.kind = 'trait' and r.n > 0);",
+      '--        ;']],
   },
   sink_precondition_removed: {
     why: 'the file stops refusing to run when the PAID upgrade is gone. Making tier I free is '
@@ -283,9 +302,62 @@ async function run(mutate) {
       (select count(*)::text from pg_policies where schemaname='public'
         and tablename='player_progress' and cmd in ('INSERT','UPDATE','DELETE','ALL')) wp`))[0];
 
+  /* A10 — THE DOCUMENTED ROLLBACK, EXECUTED (Security F6). The revoke query
+     lives in the migration's header, and a comment is not a control. This
+     EXTRACTS the exact text (never a copy — a copy is how the two drift) and
+     runs it against three characters:
+       G  granted at creation, no purchase evidence           → must be DELETED
+       P  granted, with a LIVE trait_buy ledger row           → must SURVIVE
+       R  granted, whose ledger row has been PRUNED and now
+          exists only as a player_ledger_rollup row           → must SURVIVE
+     R is the whole finding. hr_ledger_prune deletes rows older than
+     hr_ledger_config.retain_days (default 90) and rolls them into the rollup,
+     which keeps `kind` and DROPS `intent` — so a rollback trusting the live
+     journal alone revokes a PAID entitlement from every long-tenured player,
+     and the row that proved they paid is exactly the row that is gone.
+     RUNS LAST: the delete is deliberately unscoped, so every read above is
+     already captured. */
+  const rbLines = migText.split('\n');
+  const rbStart = rbLines.findIndex((l) => /^--\s+delete from public\.player_progress pp$/.test(l));
+  let rollbackSql = null;
+  if (rbStart >= 0) {
+    const body = [];
+    for (let i = rbStart; i < rbLines.length; i++) {
+      const line = rbLines[i].replace(/^--\s?/, '');
+      body.push(line);
+      if (/;\s*$/.test(line)) break;
+    }
+    rollbackSql = body.join('\n');
+  }
+  const rb = { extracted: !!rollbackSql };
+  if (rollbackSql) {
+    const mkChar = async (email) => {
+      const u = (await q('select gen_random_uuid() as i'))[0].i;
+      await q("insert into auth.users (id, instance_id, aud, role, email) "
+        + "values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2)",
+      [u, email]);
+      await q('insert into public.profiles (id) values ($1) on conflict do nothing', [u]);
+      await gate();
+      await asUser(u, 'select public.hr_create_character(0) as r');
+      return u;
+    };
+    const uG = await mkChar('rbg@probe.invalid');
+    const uP = await mkChar('rbp@probe.invalid');
+    const uR = await mkChar('rbr@probe.invalid');
+    await q("insert into public.player_ledger (user_id, slot, kind, intent, meta) "
+      + "values ($1, 0, 'trait', 'trait_buy:auto_eat', '{}'::jsonb)", [uP]);
+    await q("insert into public.player_ledger_rollup (user_id, slot, month, kind, n, gold_in, gold_out) "
+      + "values ($1, 0, date_trunc('month', now() - interval '200 days')::date, 'trait', 1, 0, 0)", [uR]);
+    const owns = async (u) => Number((await q("select count(*)::text c from public.player_progress "
+      + "where user_id=$1 and slot=0 and kind='flag' and key='trait:auto_eat'", [u]))[0].c);
+    rb.before = { G: await owns(uG), P: await owns(uP), R: await owns(uR) };
+    try { await db.exec(rollbackSql); rb.ran = true; } catch (e) { rb.ran = `threw: ${e.message}`; }
+    rb.after = { G: await owns(uG), P: await owns(uP), R: await owns(uR) };
+  }
+
   return { created, flags, tier, st, tierIMax, tierIIMax, ledger, ensured, flagsAfter, bootLedger,
     rebuy, marksAfterRebuy, cost2, shortBuy, buy2, tier2, marksAfter2, traitsProj,
-    tierWithout, grantGatedOff, grantOn, grantTwice, acl, migText, importDry };
+    tierWithout, grantGatedOff, grantOn, grantTwice, acl, migText, importDry, rb };
 }
 
 function grade(o) {
@@ -386,6 +458,30 @@ function grade(o) {
     + 'The bootstrap now writes one player_progress row, and hr_import_apply used to verify the '
     + 'progress count against a counter of rows THE PLAN wrote — off by exactly one, for every '
     + 'player, at a ceremony that happens once. See §1b of the migration.');
+
+  // ── A10 ───────────────────────────────────────────────────────────────
+  ok(o.rb.extracted === true,
+    'A10: the documented rollback query could not be extracted from the migration header. It is '
+    + 'the only revoke instruction anyone will follow; if it cannot be read it cannot be tested, '
+    + 'and an untested delete against player entitlements is how a paid trait disappears.');
+  if (o.rb.extracted) {
+    ok(o.rb.ran === true, `A10: the documented rollback does not execute — ${o.rb.ran}`);
+    ok(o.rb.before && o.rb.before.G === 1 && o.rb.before.P === 1 && o.rb.before.R === 1,
+      `A10 FIXTURE: not all three probe characters owned the trait before the rollback `
+      + `(${JSON.stringify(o.rb.before)}) — the assertions below would pass vacuously.`);
+    ok(o.rb.after && o.rb.after.G === 0,
+      `A10: the rollback did not revoke a GRANTED trait (${JSON.stringify(o.rb.after)}) — it does `
+      + 'not do the one thing it is documented to do.');
+    ok(o.rb.after && o.rb.after.P === 1,
+      'A10: the rollback deleted a PURCHASED trait whose ledger row is still live. Clause (1) is '
+      + 'missing or wrong.');
+    ok(o.rb.after && o.rb.after.R === 1,
+      'A10 (F6): the rollback deleted a PURCHASED trait whose ledger row had been PRUNED into '
+      + 'player_ledger_rollup. hr_ledger_prune drops `intent` at retain_days (default 90), so '
+      + 'clause (1) alone silently stops protecting every long-tenured buyer — and the row that '
+      + 'proved they paid is the row that is gone, so the mistake is undiagnosable afterwards. '
+      + 'Clause (2) (the rollup, kind=\'trait\') is missing.');
+  }
 
   // ── A8 ────────────────────────────────────────────────────────────────
   ok(o.acl.a === true, 'A8: authenticated lost EXECUTE on hr_create_character — nobody can make a character.');

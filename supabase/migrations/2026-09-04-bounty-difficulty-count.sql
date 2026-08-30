@@ -294,6 +294,7 @@ declare
   v_lo bigint; v_hi bigint;
   v_g bigint; v_m int; v_x int;
   v_prev numeric; v_gpk numeric;
+  v_prev_lo numeric; v_gpk_lo numeric;
   v_src text;
   v_n int;
   d text;
@@ -334,16 +335,36 @@ begin
   --     ladder fails here instead of shipping.
   for t in 1..6 loop
     v_prev := null;
+    v_prev_lo := null;
     foreach d in array c_diffs loop
       select kmin, kmax into v_lo, v_hi from public.hr_bounty_kill_range(t, d);
       select gold, marks, xp into v_g, v_m, v_x from public.hr_bounty_reward(t, 'cull', d);
       v_gpk := v_g::numeric / ((v_lo + v_hi)::numeric / 2);
       if v_prev is not null and v_gpk <= v_prev then
-        raise exception 'VERIFY: gold-per-kill is NOT monotonic at tier % (% pays %, the easier '
-                        'difficulty paid %) — "Easy is the best contract on the board" is back.',
+        raise exception 'VERIFY: gold-per-kill is NOT monotonic at tier % (% pays % per kill at the '
+                        'range MIDPOINT, the easier difficulty paid %) — "Easy is the best contract '
+                        'on the board" is back.',
           t, d, round(v_gpk, 3), round(v_prev, 3);
       end if;
       v_prev := v_gpk;
+      -- THE EXPLOIT-OPTIMAL READING (Security F5). `p_required` is CLAMPED, so a
+      -- client asking for less than the floor is handed exactly kmin — that is
+      -- the contract an optimising player actually takes, and the midpoint says
+      -- nothing about it. Today the two loops cannot disagree (kmin and kmax are
+      -- scaled by the SAME multiplier, so gpk(kmin)/gpk(mid) is constant per
+      -- tier) — but that is a property of the CURRENT shape, not of the ruling.
+      -- A future difficulty that widens its band asymmetrically (lower floor,
+      -- higher ceiling) stays monotonic at the midpoint and inverts at the
+      -- floor, which is precisely where the exploit lives.
+      v_gpk_lo := v_g::numeric / v_lo::numeric;
+      if v_prev_lo is not null and v_gpk_lo <= v_prev_lo then
+        raise exception 'VERIFY: gold-per-kill is NOT monotonic at tier % AT THE FLOOR (% pays % per '
+                        'kill at kmin=%, the easier difficulty paid %). p_required clamps to kmin, '
+                        'so this is the contract an optimising player actually takes — the midpoint '
+                        'passing does not save it.',
+          t, d, round(v_gpk_lo, 3), v_lo, round(v_prev_lo, 3);
+      end if;
+      v_prev_lo := v_gpk_lo;
       if v_lo > v_hi then raise exception 'VERIFY: tier % % range inverted (%-%)', t, d, v_lo, v_hi; end if;
       if v_lo < 1 then raise exception 'VERIFY: tier % % has a zero-kill floor — the contract would '
                                        'be complete on acceptance', t, d; end if;

@@ -251,7 +251,7 @@
    "verified against cron.job 2026-08-30."
   ],
   "expected": [
-   "hr-combat-xp-credit-prune | 35 4 * * * | select public.hr_combat_xp_credit_prune(interval '1 day')",
+   "hr-combat-xp-credit-prune | 33 4 * * * | select public.hr_combat_xp_credit_prune(interval '1 day')",
    "hr-cron-health | 7 * * * * | select public.hr_cron_health()",
    "hr-grant-hygiene | 50 4 * * * | select public.hr_assert_grant_hygiene(true)",
    "hr-intents-prune | 17 * * * * | select public.hr_intents_prune()",

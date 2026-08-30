@@ -255,6 +255,19 @@ forged counter to:
 > `tests/kill-daily-credit.mjs` K10(2), so the next re-tune re-opens this review
 > by name.
 
+> **⚠ THE BOUND'S HIDDEN DEPENDENCY (Security C1, 2026-08-30 — the trigger, not
+> the reassurance).** 2,800 holds *only* because the seven non-kill day rows
+> (gather_logs, mine_ore, fish, cook, plant, daily_smith, daily_craft) sit on
+> counters NO client-callable RPC can credit — verified on production: the only
+> counter-credit verbs are `hr_credit_kills` and `hr_credit_combat_xp`; the
+> gathering/craft counters are written solely by the settle (`fx.updateDaily`),
+> and `hr_apply` is `hr_engine`-only. The same pressure that produced
+> `hr_credit_kills` ("attended play doesn't credit the daily") WILL arrive for
+> gathering. **Any new client-callable counter-credit RPC re-opens this bound
+> and returns to Security before it ships** — with one, the character-day line
+> jumps to roughly 7,200 gold (~43,200/account-day), a 2.6× move, not a rounding
+> change.
+
 Two corrections to the first draft's bound, both worth carrying forward because
 they were *methodological*, not arithmetic:
 

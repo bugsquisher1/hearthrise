@@ -145,6 +145,30 @@ The pattern:
 
 Add it to the `TESTS` array in `src/features/smoke-test.js`, near the section that fits (regression suite, click coverage, or player actions).
 
+### The fixture rule (named after four instances, 2026-08-30)
+
+> **A fixture assembled from a base object — or hard-coding a value it does not
+> own — tests the fixture, not the system.** Build every fixture from the
+> producer's REAL output, and read every threshold from the catalogue that owns it.
+
+The four instances that earned this a name, all found by security review or
+mutation proof, none by the suite itself:
+
+1. The away-vs-live parity fixtures compared the two sides *with each other*, so
+   an away-only condition planted on `fx.autoEat` moved both identically and
+   stayed green — the blind spot that let a false "server only eats away" premise
+   survive two weeks and nearly ship an item-destroying "fix" (b497).
+2. The renown-faucet prune probe ran on rows younger than the prune's own 7-day
+   floor, so "nothing was deleted" passed identically whether the rows were
+   protected or not. A nothing-was-deleted assertion is evidence ONLY when
+   something else WAS deleted in the same run.
+3. The bounty-accept refusal fixture was built on a success base carrying
+   `bounty_id` — a shape the server cannot emit — so the test passed while the
+   entire refusal branch was dead code (b497 F7).
+4. `intent-mismatch.mjs` hard-coded a goal target of 25, so a legitimate balance
+   retune turned an unrelated guard red with a message pointing at the intent
+   cache (fixed in b497 by reading the target from `hr_goal_rewards`).
+
 ---
 
 ## Future: GitHub Action

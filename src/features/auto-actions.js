@@ -65,6 +65,25 @@
       // G.autoEatPct (driven by the removed combatTick watchdog). If a save
       // still has that but no unified config, carry it over so those players
       // don't silently lose auto-eat when the watchdog is deleted.
+      //
+      // ⚠ b495 — A FRESH CHARACTER NOW TAKES THIS BRANCH TOO, and that is the
+      //   intended outcome rather than a mis-migration. The starting kit points
+      //   G.foodSlot at Cooked Shrimp (src/data/start-kit.js, the food-bridge
+      //   ruling) so the away preview can price the food a new player is
+      //   actually carrying; the side effect is that `eat.enabled` starts true.
+      //   It is SAFE and it is WANTED:
+      //     · safe    — `owned` in maybeAutoEat() is an unbypassable trait gate
+      //                 (autoEatTier(G.traits) > 0), so nothing is eaten until
+      //                 Auto-Eat is owned. DEFAULTS.eat.enabled stays false, so
+      //                 a save with NO foodSlot is still opt-in and the "never
+      //                 accidentally start auto-eating someone's food" rule
+      //                 holds for every character that has cleared their slot.
+      //     · wanted  — buying Auto-Eat used to do nothing until the player
+      //                 ALSO found the settings toggle and nominated a food.
+      //                 The trait now works the moment it is bought, which is
+      //                 what its own store copy promises.
+      //   If the b163 half is ever retired, do NOT delete the branch: re-home
+      //   this default into the fresh-`G` literal first.
       if(window.G.foodSlot){
         aa.eat.enabled = true;
         aa.eat.foodId  = window.G.foodSlot;

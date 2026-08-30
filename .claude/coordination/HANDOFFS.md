@@ -2125,3 +2125,67 @@ where the phantom never could.
 the skill id server-side. Ceiling is **400 hitpoints XP/day + 1,000/week**, structural (catalogue +
 once-guard), not budgeted. **No backfill of any kind** — the old `G.skills.combat` number was never
 server-authored and converting it would mint ranked XP.
+
+---
+
+## 2026-08-30 — GAME DESIGNER → COORDINATOR · b495 full balance audit, SHIP-NOW batch
+
+**WHAT LANDED (one build, 5 files + 1 migration).** The pre-beta-wave balance audit's (a) tier.
+Everything else is ruled but NOT written — see the ranked list in the audit report.
+
+| file | change |
+|---|---|
+| `src/data/start-kit.js` | START_INVENTORY: `shrimp 8 → 10`, `+ cooked_shrimp: 20` (the food bridge) |
+| `src/legacy.js` | fresh-`G` literal to match (B338-1) · `foodSlot: null → 'cooked_shrimp'` · `__FRESH_START` now snapshots `foodSlot` · `daily_harvest` floor `10 → 6` |
+| `src/core/combat.js` | **ONE LINE**: `max(1, maxHit - floor(defScore*rate))` replaces `max(1, floor(maxHit - defScore*rate))` — the truncation tax |
+| `src/features/smoke-test.js` | B495-1/2/3 added; the b220 harvest assertion updated (10 → 6, now derived from turnip yield) |
+| `supabase/migrations/2026-08-11-catalogue.generated.sql` | regenerated, digest `fbd5307d…` (3 rows moved) |
+
+**1. A MIGRATION IS STAGED, NOT APPLIED — and it must NOT be the obvious one.**
+Apply **`supabase/migrations/2026-09-03-start-kit-food-bridge.sql`** (Management API, `begin/commit`).
+It touches `hr_start_inventory` only: one UPDATE, one upsert.
+**Do NOT re-apply `2026-08-11-catalogue.generated.sql`** to move three rows — it OWNS eleven
+catalogues and refills every one wholesale (515 items, 473 activities, 275 slot pairs). The repo
+copy was regenerated in the same commit so a REBUILD is correct; the file is registered in
+`tests/schema-apply-order.json` with a note saying exactly this. It is fail-closed (refuses a
+drifted table by whole-set fingerprint), idempotent (accepts the ruled shape as a no-op, which is
+what a rebuilt chain presents) and self-verifying (§3 raises unless the kit reads back exactly, is
+fully catalogued, and carries ≥120 HP of auto-eatable food).
+
+**2. CLIENT BUMP REQUIRED + EDGE REDEPLOY IN THE SAME RELEASE.** `src/core/combat.js` changed, and
+`supabase/functions/hr-accrue` VENDORS it at pack time (`tools/pack-edge.mjs` — green, 39 vendored).
+Ship the client and the Edge Function together or the live tick and the away replay compute
+different max hits. No new imports, so `./bump-version.sh <NNN>` is the whole client ceremony.
+
+**3. THE ONE LINE IS SEPARABLE.** If you want a strictly data-only build, revert only the
+`src/core/combat.js` hunk and the B495-2 test; the other four files stand alone. I recommend
+shipping it — it is the single largest first-hour improvement after the food, it is self-scaling
+(+33% damage at the fresh character, +2% at Dawnsteel), and a def-0 monster is byte-identical, so
+AWAY-HONEST-3's Slime acceptance window does not move.
+
+**4. PLAY-GATE STEPS (the reload-and-redo class).** Create a NEW character on live, then:
+(a) bag shows 20 Cooked Shrimp + 10 Raw Shrimp; (b) the combat preview's Away line reads
+"about Nh, on 20 Cooked Shrimp" and NOT "then you fall" (that line reads `G.foodSlot`, which is
+client-state — **reload and check it survives**); (c) hit a Goblin and confirm the damage numbers
+top out at 4, not 3; (d) start a fight, close the tab, return — the welcome-back card should report
+minutes, not seconds.
+
+**5. TESTS I COULD RUN HERE (no Playwright/pglite in my env — the browser suite is yours).**
+green: `gen-catalogues --check`, `gen-shops --check`, `gen-unlock-offers --check`,
+`pack-edge --check`, `bump-version.sh --check`, `tests/core-purity.mjs`,
+`tests/accrual-engine.mjs`, `tests/kill-time-drift.mjs`, `tests/combat-xp-cap-drift.mjs`,
+`tests/bounty-drift.mjs`, `tests/goal-catalogue-drift.mjs`. Not runnable here:
+`tests/run-smoke.mjs` (playwright), `tests/auto-eat-authority.mjs` + `tests/schema-replay.mjs`
+(pglite). **B495-1/2/3 and the amended b220 need the browser suite before this ships.**
+
+**6. NO VISUAL GATE NEEDED FROM ME.** No CSS, no icons, no layout. Two rendered surfaces change
+text only: the combat preview's Away line (now the "on N Cooked Shrimp" branch for a fresh
+character) and the harvest daily's label ("Harvest 6 crops" at the camp).
+
+**7. FOR TYLER — TWO MONETISATION FLAGS I WILL NOT RULE ON (see the audit report §P2W).**
+`hearth_hall_premium` advertises "+25% offline progress" and NOTHING implements it (grep: the
+`hearthHall` entitlement is read only by `multi-character.js` for slots). It is both an unshipped
+promise on a live $4.99/mo product and, if ever implemented, the exact class the Season Pass was
+removed for. And `starter_bundle` sells **200,000 gold** for $7.99 against a property ladder whose
+whole gold cost is 202,900. The b215 guard only checks `sku !== 'pass_season'` and `type !== 'pass'`,
+so neither is caught. His call, not mine.

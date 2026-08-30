@@ -545,3 +545,101 @@ and the stonecraft headers — the best copy we already ship):**
 change) and the `xp:{combat:…}` phantom on three goals, plus the `spendMarks` charge-before-fail.
 Art Director owns the surviving emoji — currency sigils in markup, the Homestead padlocks, the two
 missing skill medallions (Runecrafting, Stonemason), and the inert `emoji:` data fields.
+
+---
+
+# 2026-08-30 — THE FULL BALANCE AUDIT (b495), ahead of the beta wave
+
+Measured, not argued. Every number below came out of the shipped simulators run in Node
+(`src/core/combat-sim.js`, `combat.js`, `progression.js`, `pacing.js`, the `src/data/*` catalogues)
+against real fixtures, not out of reading the tables.
+
+## What the first hour actually was
+
+A fresh character is Attack/Strength/Defence 1, 10 maxHP (maxHp === the Hitpoints level, and the
+kit's 1,154 XP is exactly level 10), a Bronze Sword, and 8 RAW shrimp (heals 3).
+
+    foe               s/kill   dmg taken per kill   kills before death
+    Slime               12.2          2.06                4.8
+    Giant Rat           13.7          2.39                4.2
+    Goblin              25.3          4.94                2.0
+    Brittle Skeleton    27.6          5.37                1.9
+    Scarecrow           31.5          6.14                1.6
+    Wolf Cub            31.0          9.36                1.1   ← dies to the FIRST one
+
+36 deaths in a measured first thirty minutes. But the P0 was AWAY, not attended: `simulateSpan`
+BREAKS on the first death, so a brand-new player who left a fight running overnight was credited
+**30 seconds of a twelve-hour night** — 0.1%, 23 XP, 0 gold. The idle pillar was off by default for
+every new account, and no amount of "attended premium" explains it: `AWAY_RATE_MULT` is 1.00 and
+gathering away is exactly 1:1 (verified — a 12h woodcutting span runs 9,000 actions at 4,800 ms,
+the live interval). The 60–99% combat gap is ENTIRELY the death-stop.
+
+## The three ruled causes, and why these three
+
+1. **No food.** 24 HP of buffer against 4.94 HP per kill. → the food bridge (20 cooked shrimp).
+2. **No auto-eat.** The trait gates ALL away healing. Auto-Eat I is 15 Marks, and Marks come from
+   bounties you die in. b493's first-contract bracket (15–25 kills) softened the loop but did not
+   close it. → grant tier I at creation (ruled, staged, needs a server start-unlock — (b)).
+3. **The truncation tax.** `Math.floor(maxHit - defScore*0.03)` on an ALREADY-INTEGER maxHit is
+   `maxHit - 1` for every monster with def ≥ 1. The authored 3%-per-point curve never ran; a flat
+   −1 ran instead. At tier 1 that is 25–33% of the player's damage; at Dawnsteel it is 2%.
+   Self-correcting by construction, which is why the fix is the expression and not a constant.
+
+Post-fix, measured: Goblin 25.3s → 20.2s, 2.0 → 2.6 kills before death; with the ruled kit the first
+away night goes 0.5 min → 13.5 min / 40 kills, and attended deaths in the first half hour go 36 → 19.
+
+## Rulings recorded (full ranked list in the b495 report)
+
+- **Food bridge**, not a food supply: 20 cooked shrimp = 160 HP ≈ 34 goblin kills. Enough for
+  `first_blood` + a first-contract bounty + a first away night with no deaths; NOT enough to avoid
+  learning fish→cook→fight. It runs out inside session one *on purpose*.
+- **`foodSlot` starts filled.** `estimateSurvival` prices the away pool off it and `awayLineHtml`
+  picks its whole sentence from it, so a null slot told a player carrying a bag of food that they
+  would fall in five kills. Core's `chooseFood` already fell back to the best food in the bag — only
+  the SCREEN was wrong, which is the worst kind of wrong.
+- **`daily_harvest` floor 10 → 6.** Two plots of 4h turnips yielding 2–4 is ~6 a cycle, so a floor
+  of 10 was TWO grow cycles (~8h) for a daily that resets at UTC midnight. 6 = one harvest round.
+  Every tier above the camp is governed by `n*3` and does not move by a crop.
+- **Bounty difficulty must move the COUNT, not only the reward.** `bountyCount` reads (type, tier)
+  only, so `easy` was 15% less gold for an identically-distributed job — and `elite` was 75% more
+  for the same job, i.e. free money for reading the board. Ruled multipliers
+  `{easy .90, normal 1.00, hard 1.20, elite 1.50}` make gold/kill monotonic (3.00 / 3.20 / 3.50 /
+  3.73 at T1) and turn difficulty into a commitment premium. Needs `hr_bounty_kill_range` to take
+  the difficulty — a forward migration, so (b).
+- **Workers: the "10% efficiency" is 16%.** `perTickMs = node.ms / eff` uses the UNPACED ms while
+  the player runs at `ms × PACE.actionMs (1.60)`. A Lv10 crew of 6 is **1.65** active-equivalents
+  against b389's own stated 1.03. Anchor to `pacedActionMs(node.ms)` on both sides. Break-even on
+  worker #1 (500g) is 1–5 hours either way, so the correction does not make the first worker a bad
+  buy — it makes the sixth one honest.
+- **Defence is a DEAD STAT from Rune upward.** `monsterAccuracy = clamp(0.50 + (atk − D)*0.006,
+  0.10, 0.85)` floors at D = atk + 66.7. A Rune plate set + Defence 60 is 213 against a T6 monster's
+  86–105 attack, so it is already floored — Emberforged and Dawnsteel plate (two full material
+  tiers) buy **zero** survivability. Watch-with-telemetry; the fix is a scale change to
+  `monsterAccuracyPerPoint`, not a data row.
+
+## The two structural findings the wave will not feel but the month will
+
+- **Time-to-99 spans 26h to 1,098h.** Woodcutting 1,098 · Mining 1,068 · Fishing 1,050 · Prayer 417
+  · Cooking 155 · Runecrafting 35 · Stonemason 35 · Crafting 26 · Smithing 27 (bench-only). Feeding
+  the bench from gathering closes some of it (Smithing 444h true, Crafting 929h true) but the game's
+  own xp/hr readout quotes the BENCH number — 521,089 xp/hr for Smithing 90 against 12,938 for
+  Mining 90 — and that is a promise the ore faucet cannot keep.
+- **The vendor is an unbounded gold faucet.** `vendorPrice` = `raw ? 0.2×v : v`, and NOTHING a bench
+  produces is marked `raw`. `smelt_copper` is +33 gold per action at level 1 (14,583 g/hr full
+  cycle); `smelt_mithril` is 112,500 g/hr; `craft_voidweave_body` turns 108 gold of silk and essence
+  into a 75,600-gold item. Against ~4.22M of lifetime one-off sinks (property 202,900 + rooms
+  2,872,500 + workers 1,093,500 + plots + companions) the whole economy is ~37 hours of smelting.
+  Only the 25M/day server ceiling bounds it. The cloth line is the acute case and is a DATA bug:
+  `GEAR_RECIPES` gives cloth `silk_thread: 2+i, magic_essence: 1..2` at EVERY tier while its value
+  climbs 600×.
+
+## Closed from the standing backlog (verified, not assumed)
+
+- Cellar "+500 storage" — already repurposed to food-buff duration (`legacy.js` ROOMS.cellar).
+- Solo raid pool — already `clamp(5 × your first strike, 20k, 200k)` frozen weekly, with a
+  self-scaling `max(5000, pool × 10%)` strike clamp. The one-tap chest is gone.
+- `deaths` — increments in `resolveDeath` since b325 (both paths, one loop).
+- "~25 tier-3–6 vendor-trash drops" — down to FOUR ids with no job (`goblin_ear`, `goblin_totem`,
+  `sticky_core`, `keystone`), and three of those are bounty-proof or a shop cost. The b356 wave
+  closed it.
+- "Harvest 25 crops" — b220 already made it scale; the residue was the FLOOR, fixed here.

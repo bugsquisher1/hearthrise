@@ -651,7 +651,11 @@ let G={
   /* b215: seasonPass field retired (pay-to-win XP). Old saves may still
      carry the key; nothing reads it. */
   skills:{attack:0,strength:0,defense:0,hitpoints:1154,prayer:0,magic:0,woodcutting:0,mining:0,fishing:0,farming:0,cooking:0,crafting:0,smithing:0},
-  inventory:{turnip_seed:5,carrot_seed:3,shrimp:8},
+  /* b495 — MUST EQUAL src/data/start-kit.js START_INVENTORY (smoke B338-1).
+     20 cooked shrimp is the food BRIDGE; read the ruling in that file before
+     changing a number here. This literal cannot import it (classic script,
+     evaluated at parse time), which is why the guard exists. */
+  inventory:{turnip_seed:5,carrot_seed:3,shrimp:10,cooked_shrimp:20},
   bank:{},
   equipment:{...Object.fromEntries(EQUIP_SLOTS.map(s=>[s,null])),weapon:'bronze_sword'},
   /* ELEMENTS v1 — the weapon-slot enchant, SERVER-AUTHORED. Element name only,
@@ -663,7 +667,17 @@ let G={
   plotBuildings:[],
   houseTheme:'default',
   farmPlots:[],
-  foodSlot:null,
+  /* b495 — THE FOOD SLOT STARTS FILLED, and that is a correctness fix as much
+     as a convenience one. `estimateSurvival()` (the away-honesty preview) reads
+     G.foodSlot to price the food pool, and `awayLineHtml` reads it to decide
+     between "about N kills, then you fall" and "about Nh, on N Cooked Shrimp".
+     With a NULL slot a character holding twenty cooked shrimp was told they
+     would fall in five kills — the preview was honest about the wrong state.
+     (Core's `chooseFood` already falls back to the best food in the bag, so
+     auto-eat itself never depended on this; only the SCREEN did.)
+     A client-state pref (src/net/client-state.js), so this is a client-only
+     default and the player may re-point it at any time. */
+  foodSlot:'cooked_shrimp',
   autoEatPct:0.5,
   activeMonster:null,
   monsterHp:0,monsterMaxHp:0,
@@ -740,6 +754,13 @@ window.__FRESH_START = Object.freeze({
   skills: Object.freeze({ ...G.skills }),
   inventory: Object.freeze({ ...G.inventory }),
   equipment: Object.freeze({ ...G.equipment }),
+  /* b495 — the equipped-food POINTER is part of the starting kit in every sense
+     that matters to a player: the away preview prices its whole sentence off it
+     (`estimateSurvival` → `awayLineHtml`), so a fresh character with a null slot
+     is told they will fall in five kills while carrying a bag of food. It is a
+     client-state pref rather than a server catalogue row, so B338-1 cannot reach
+     it through START_KIT — B495-1 grades it here. */
+  foodSlot: G.foodSlot,
 });
 
 /* ════════════════════════════════════════════════
@@ -5412,8 +5433,17 @@ const DAILY_TASK_POOL=[
      babysitting for 700g, and at the castle it was one harvest pass. These
      entries are factories evaluated at generation time, so the goal can simply
      scale with the plot cap. Reward scales with it too. */
+  /* b495 (balance audit): the FLOOR was 10 and the scaling term never reached
+     it at the starting property. Wanderer's Camp has TWO plots
+     (features/homestead.js TIERS[0].plots), turnips take 4h and yield 2-4, so
+     one full harvest round is ~6 produce and `max(10, 2*3)` clamped to 10 —
+     TWO grow cycles, ~8 wall-clock hours, for a daily that resets at UTC
+     midnight. A starter who logged in after noon could not finish it at all.
+     The floor is now 6 = ONE harvest round at the camp; every tier from
+     homestead (4 plots) up is governed by `n*3` exactly as before, so nothing
+     above the starting property moves by a single crop. */
   ()=>{ const n=(typeof farmPlotCap==='function'?farmPlotCap():8);
-        const goal=Math.max(10,n*3);
+        const goal=Math.max(6,n*3);
         return {id:'daily_harvest', type:'harvest', label:`Harvest ${goal} crops`,
                 goal, progress:0, reward:goal*30, done:false}; },
   ()=>({id:'daily_cook',     type:'cooked',   label:'Cook 12 items',            goal:12, progress:0, reward:400, done:false}),

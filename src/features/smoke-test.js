@@ -11318,7 +11318,23 @@ const TESTS = [
         'expected exactly one harvest daily after folding daily_harvest_big away');
       window.G.homestead = { tier: 0 };                    // Wanderer's Camp — 2 plots
       const small = pool.map((f) => f()).find((t) => t.type === 'harvest');
-      assert(small.goal === 10, 'a 2-plot camp goal must floor at 10, got ' + small.goal);
+      /* b495 (balance audit): the floor was 10 and it was UNREACHABLE at the
+         starting property. Two plots of 4h turnips yielding 2-4 is ~6 produce a
+         cycle, so a floor of 10 meant TWO grow cycles — ~8 wall-clock hours —
+         for a daily that resets at UTC midnight. The floor is now 6 = ONE
+         harvest round at the camp. Derived, not copied: the expectation below is
+         computed from the crop the camp actually grows, so a change to turnip's
+         yield moves the test with the game rather than against it. */
+      const camp = 2;
+      const perRound = camp * ((window.CROPS.turnip.yield[0] + window.CROPS.turnip.yield[1]) / 2);
+      assert(small.goal === 6,
+        'a 2-plot camp goal must floor at 6, got ' + small.goal);
+      assert(small.goal <= perRound,
+        'the camp harvest daily asks for ' + small.goal + ' crops but ONE full harvest round at the '
+        + 'starting property yields ~' + perRound + ' — that is more than one 4h grow cycle, which is '
+        + 'the b495 defect (a same-day daily that needs two cycles cannot be finished after noon)');
+      assert(small.reward === small.goal * 30,
+        'the camp reward must scale with the goal, got ' + small.reward);
       window.G.homestead = { tier: 5 };                    // Hearthrise Castle — 12 plots
       const big = pool.map((f) => f()).find((t) => t.type === 'harvest');
       assert(big.goal === 36, 'a 12-plot castle goal must be 3 x 12 = 36, got ' + big.goal);
@@ -33334,6 +33350,231 @@ const TESTS = [
         'START_EQUIPMENT wears "' + id + '" and START_INVENTORY also grants it — '
         + 'unequipping it would yield two, because hr_apply conserves the pair');
     }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b495 — THE FIRST HOUR. Three properties from the balance audit
+     (2026-08-30, ahead of the beta wave), each pinned as a NUMBER the engine
+     produces rather than as a constant the test copies.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRunAsync('B495-1: the starting kit carries enough food to survive the first fight', async () => {
+    /* THE DEFECT. The kit was `shrimp: 8` — raw, heals 3 — i.e. 24 HP of buffer
+       on a 10 HP character, against a Goblin that costs 4.94 HP per kill. Two
+       kills and the death sheet; measured, 36 deaths in the first thirty
+       minutes. Away it was worse and that is why this is a P0: simulateSpan
+       BREAKS on the first death, so a first overnight paid 30 SECONDS of twelve
+       hours (0.1%).
+
+       B338-1 above already pins the kit's exact SHAPE against the server. This
+       test pins the PROPERTY that shape exists for, so a future edit that keeps
+       the shape honest while swapping the bridge for a prettier item that heals
+       3 fails here instead of shipping. */
+    const KIT = await import('../data/start-kit.js?v=494');
+    const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+    assert(AE && typeof AE.isAutoEatable === 'function',
+      'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
+
+    let healing = 0;
+    for (const id of Object.keys(KIT.START_INVENTORY)) {
+      const it = window.ITEMS[id];
+      if (!AE.isAutoEatable(it)) continue;               // a Feast is never auto-eaten (b220)
+      healing += KIT.START_INVENTORY[id] * (Number(it.heals) || 0);
+    }
+    /* The floor is DERIVED: 24 goblin kills at the measured 4.94 HP per kill is
+       ~119 HP, which is `first_blood` (5 kills) plus a first-contract bounty
+       (15-25 kills) without a single death. Rounded to 120. */
+    assert(healing >= 120,
+      'the starting kit carries only ' + healing + ' HP of auto-eatable healing; the ruled floor is '
+      + '120 (a fresh character takes ~4.94 damage per Goblin kill, so below this the first bounty '
+      + 'contract cannot be finished without dying and the first away night pays seconds)');
+
+    /* AND THE SLOT MUST POINT AT IT. `estimateSurvival()` prices the away food
+       pool off G.foodSlot and `awayLineHtml` chooses its whole sentence from it,
+       so a null slot told a character holding twenty cooked shrimp that they
+       would fall in five kills — the preview honest about the wrong state. */
+    const F = window.__FRESH_START;
+    assert(F && F.foodSlot,
+      'a fresh character has no foodSlot — the away preview will price their food pool at zero and '
+      + 'quote "then you fall" to a player who is carrying a bag of food');
+    assert((KIT.START_INVENTORY[F.foodSlot] || 0) > 0,
+      'the fresh foodSlot is "' + F.foodSlot + '" but the starting kit does not contain it');
+    assert(AE.isAutoEatable(window.ITEMS[F.foodSlot]),
+      'the fresh foodSlot "' + F.foodSlot + '" is not an auto-eatable Provision');
+  }),
+
+  () => tryRun('B495-2: armour reduction is a CURVE, not a one-point truncation step', () => {
+    /* THE DEFECT. `maxHit = Math.floor(maxHit - defScore * 0.03)` — but `maxHit`
+       was ALREADY an integer, so `floor(int - 0.03)` is `int - 1`. Every monster
+       with def >= 1 cost a full point of max hit and the second point only
+       arrived past defScore 33. The authored 3%-per-point curve never ran; a
+       flat -1 ran instead, and at tier 1 that is 25-33% of the player's damage.
+
+       Graded as a RELATION between two monsters that differ only in `def`, so
+       the test cannot pass by copying the formula it is testing. */
+    const C = window.HearthriseCore && window.HearthriseCore.combat;
+    assert(C && typeof C.playerCombatRolls === 'function', 'HearthriseCore.combat is missing');
+
+    const eqp = { weapon: 'bronze_sword' };
+    const eq = C.equipmentStats(eqp, window.ITEMS);
+    /* A synthetic tier-1 VERMIN: hammer-weak, so a sword never matches and the
+       weakness multiplier is a constant 1 across the whole sweep. The relation
+       under test is `maxHit(def)`, and folding a x1.20 through it would make the
+       differences non-linear for no reason. Only `def` varies. */
+    const foe = (def) => ({ tier: 1, def, cls: 'vermin', weaponWeak: 'hammer',
+      weaponResist: ['ranged'], elementWeak: 'frost', elementResist: [], elementImmune: ['poison'] });
+    const rollAt = (strXp) => (def) => C.playerCombatRolls(foe(def), {
+      equipment: eqp, items: window.ITEMS, skills: { attack: 0, strength: strXp }, eq, bonus: () => 0,
+    }).maxHit;
+
+    /* (a) THE DEFECT, at the level it actually bit: a level-1 character. */
+    const low = rollAt(0);
+    assert(low(1) === low(0),
+      'a def-1 monster costs ' + (low(0) - low(1)) + ' max hit vs a def-0 one ('
+      + low(0) + ' -> ' + low(1) + '). 3% of 1 is 0.03 — it must cost NOTHING. This is the b495 '
+      + 'truncation tax: `floor(maxHit - defScore*0.03)` on an ALREADY-INTEGER maxHit, which is a '
+      + 'flat -1 for every armoured foe and 25% of a starting character\'s damage.');
+
+    /* And the player-visible number it produces: a fresh character swinging the
+       starting Bronze Sword at the starting-area Goblin (def 1, sword-weak, so
+       x1.20 applies). Pinned because this ONE figure is what the first hour
+       feels like — it was 3, it is 4, and the kill went 25.3s -> 20.2s. */
+    const goblin = C.playerCombatRolls(window.MONSTERS.goblin, {
+      equipment: eqp, items: window.ITEMS, skills: { attack: 0, strength: 0 }, eq, bonus: () => 0,
+    });
+    assert(goblin.maxHit === 4,
+      'a fresh character\'s max hit on a Goblin is ' + goblin.maxHit + ', expected 4 '
+      + '(floor(1*0.35 + 3*0.6 + 2) = 4, def 1 costs nothing, x1.20 sword weakness floors back to 4)');
+
+    /* (b) THE CURVE MUST STILL BITE. Graded at a high strength level so the
+       `Math.max(1, …)` damage floor cannot mask a difference — at level 1 a
+       6-point reduction clamps and would make "never reduce" pass. */
+    const hi = rollAt(window.HearthriseCore.xp.xpForLevel(60));
+    const base = hi(0);
+    assert(base > 10, 'the high-level fixture must have headroom above the max(1) floor, got ' + base);
+    assert(hi(33) === base,
+      'defScore 33 is 0.99 points of reduction and must still cost nothing, got ' + hi(33) + ' vs ' + base);
+    assert(hi(34) === base - 1,
+      'defScore 34 is the FIRST whole point of armour reduction and must cost exactly 1, got '
+      + hi(34) + ' vs ' + base);
+    assert(hi(200) === base - 6,
+      'defScore 200 must cost floor(200 * 0.03) = 6 max hit, got ' + (base - hi(200)));
+
+    /* The reduction reads its rate from COMBAT_BALANCE rather than a literal,
+       so a tuning change moves one number. */
+    assert(window.COMBAT_BALANCE.monsterDefenseDamageReduction === 0.03,
+      'monsterDefenseDamageReduction moved — re-derive the defScore thresholds above (they are '
+      + '1/rate and 2/rate) rather than editing them to match');
+  }),
+
+  () => tryRunAsync('B495-3: a fresh character survives a first away night instead of dying in seconds', async () => {
+    /* THE PROPERTY THE KIT EXISTS FOR, measured through the REAL engine rather
+       than argued from the item table. simulateSpan BREAKS on the first death
+       (`if (r.outcome === OUTCOME.DEATH) break`), so the whole value of an
+       overnight is `survivedMs`. As shipped, a fresh character on a Goblin
+       survived ~30 seconds of a twelve-hour night. */
+    const CS = window.HearthriseCore && window.HearthriseCore.combatSim;
+    const C = window.HearthriseCore && window.HearthriseCore.combat;
+    const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+    const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
+    const ST = window.HearthriseCore && window.HearthriseCore.styles;
+    const KIT = await import('../data/start-kit.js?v=494');
+    if (!CS || !C || !AE || !RNGM || !ST) { assert(true, 'core sim unavailable'); return; }
+
+    const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
+    const eq = C.equipmentStats(eqp, window.ITEMS);
+    const style = ST.resolveStyle(eq.weaponType, null);
+    const skills = Object.assign({}, KIT.START_SKILL_XP);
+    const maxHp = window.levelFromXp(skills.hitpoints || 0);
+    const state = {
+      skills, gold: 0, stats: {}, buffs: [],
+      inventory: Object.assign({}, KIT.START_INVENTORY),
+      activeMonster: 'goblin', playerHp: maxHp, playerMaxHp: maxHp,
+      monsterHp: window.MONSTERS.goblin.hp, monsterMaxHp: window.MONSTERS.goblin.hp,
+    };
+    const from = Date.UTC(2026, 8, 3, 2, 0, 0);
+    const bonus = () => 0;
+    const summary = CS.simulateSpan(state, {
+      away: true, rng: RNGM.createRng(0x5eed1234), bonus, style, monsters: window.MONSTERS,
+      fromMs: from, toMs: from + 12 * 3600000, tickMs: C.swingIntervalMs(eq, style),
+      playerRolls: (m) => C.playerCombatRolls(m, { equipment: eqp, items: window.ITEMS, skills, eq, style, bonus }),
+      monsterRolls: (m) => C.monsterCombatRolls(m, { eq, skills, bonus }),
+      weakness: (m) => C.weaknessInfo(m, eq),
+      fx: {
+        /* auto-eat OWNED, because the ruling is that the entry tier is the
+           baseline affordance. If the grant is ever taken away this test still
+           measures the kit; it is the kit that is on trial here. */
+        autoEat: () => {
+          const r = AE.resolveAutoEat({
+            enabled: true, owned: true, hp: state.playerHp, maxHp: state.playerMaxHp,
+            threshold: 0.25, foodId: window.__FRESH_START && window.__FRESH_START.foodSlot,
+            inventory: state.inventory, items: window.ITEMS,
+          });
+          if (!r) return false;
+          state.playerHp = r.hp;
+          state.inventory[r.foodId] -= 1;
+          return true;
+        },
+        onDeath: () => { state.activeMonster = null; },
+      },
+    });
+
+    const mins = summary.survivedMs / 60000;
+    /* The floor is 10 minutes, and it is deliberately far below the ~14 the kit
+       measures: this test is a CLIFF DETECTOR for the 0.5-minute regression, not
+       a pin on an RNG-sensitive figure. */
+    assert(mins >= 10,
+      'a fresh character with the starting kit survived only ' + mins.toFixed(1) + ' minutes of a '
+      + '12h away night (' + summary.kills + ' kills). The floor is 10. As shipped before b495 this '
+      + 'was 0.5 minutes — an overnight paid 23 XP and no gold, so the idle pillar was off by '
+      + 'default for every new account.');
+    assert(summary.kills >= 24,
+      'the starting kit banked only ' + summary.kills + ' away kills; the ruled floor is 24 (a '
+      + 'first-contract bounty is 15-25 kills and must be finishable while the player sleeps)');
+  }),
+
+  () => tryRun('B495-4: a filled starting foodSlot arms auto-eat WITHOUT bypassing the trait gate', () => {
+    /* THE COUPLING b495 INTRODUCED, pinned so it cannot rot in either
+       direction. Giving a fresh character a foodSlot makes auto-actions.js's
+       b163 migration branch fire (`if (G.foodSlot) aa.eat.enabled = true`), so
+       the trait now WORKS the moment it is bought instead of needing the player
+       to also find the settings toggle. That is the wanted half.
+       The dangerous half is the other one: `DEFAULTS.eat.enabled` is false with
+       the comment "never accidentally start auto-eating someone's food", and an
+       enabled config must still eat NOTHING until Auto-Eat is owned. */
+    const A = window.HearthriseAuto;
+    if (!A || typeof A.maybeAutoEat !== 'function') { assert(true, 'HearthriseAuto unavailable'); return; }
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      /* a fresh-shaped character, hurt, carrying food, with NO trait. */
+      delete G.autoActions;
+      G.foodSlot = window.__FRESH_START.foodSlot;
+      G.traits = {};
+      G.playerMaxHp = 10; G.playerHp = 1;
+      G.inventory = Object.assign({}, G.inventory, { [G.foodSlot]: 20 });
+
+      const cfg = (typeof A._ensureShape === 'function') ? A._ensureShape() : null;
+      assert(!A.maybeAutoEat(),
+        'auto-eat fired for a character who owns NO Auto-Eat tier — the trait gate in '
+        + 'resolveAutoEat({owned}) has been bypassed, and a filled foodSlot is now spending food '
+        + 'nobody paid for the right to spend');
+      assert(G.inventory[G.foodSlot] === 20 && G.playerHp === 1,
+        'nothing may be consumed or healed without the trait');
+
+      /* …and the moment the entry tier is owned it works, with no settings trip. */
+      G.traits = { auto_eat: true };
+      assert(A.maybeAutoEat() === true,
+        'a character who has just bought Auto-Eat I, is at 10% HP and is carrying 20 Cooked Shrimp '
+        + 'did NOT auto-eat. Buying the trait must be sufficient — needing to also toggle a setting '
+        + 'and nominate a food is the b495 defect this default removes.');
+      assert(G.playerHp > 1 && G.inventory[G.foodSlot] === 19,
+        'the eat did not apply: hp ' + G.playerHp + ', food ' + G.inventory[G.foodSlot]);
+      if (cfg && cfg.eat) {
+        assert(cfg.eat.enabled === true && cfg.eat.foodId === window.__FRESH_START.foodSlot,
+          'the migrated eat config is ' + JSON.stringify(cfg.eat) + ' — it must adopt the kit food');
+      }
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('B338-2: the intent carries ONE integer to hr_create_character, and no way to name another player', () => {

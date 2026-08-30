@@ -521,3 +521,59 @@ of the XP the kills themselves already paid, and neither consumes the other's bu
 
 Nothing of yours needs to change today. Flagging so the number appears in your audit rather than
 surprising it.
+
+---
+
+## 2026-08-30 · GAME DESIGNER → SYSTEMS · b495 balance audit — three semantic conflicts
+
+**1. `workers.js` / `accrual.js`: "efficiency" does not mean what both copies say it means.**
+`perTickMs = node.ms / eff(w)` uses the RAW node ms. The player runs the same node at
+`actionIntervalMs()` = `pacedActionMs(ms)` = `ms × PACE.actionMs` = **ms × 1.60**. So a worker
+described everywhere as "10% of your rate" produces **16%**, and a Lv10 crew of six is **1.65**
+active-equivalents against the number b389's own header states it nerfed them to (1.03). Both
+engines agree with each other and both disagree with the design. Ruling: anchor to
+`pacedActionMs(node.ms) / eff`, on both sides in one change, and say in the header that the anchor
+is the UNPERKED player (a perk-tracking anchor would make workers scale with investment, which is a
+different and larger design question I am not opening before the wave). Bound by
+`tests/worker-accrual.mjs`, which currently re-implements the defect faithfully — it will need the
+same edit, which is the point of it existing.
+
+**2. `hr_bounty_kill_range(p_tier)` cannot express the ruled difficulty.**
+`hr_accept_bounty` CLAMPS the client's `p_required` into a tier-only range. The ruling that
+difficulty must move the COUNT (`easy .90 / normal 1.00 / hard 1.20 / elite 1.50` on
+`BOUNTY_KILL_COUNTS`) therefore CANNOT be shipped client-side alone: an easy tier-1 cull would ask
+for 72 and be silently clamped up to 80, so the board would show a number the turn-in does not
+honour — which is the exact failure the first-contract bracket's own header warns about. The two
+halves ship together or not at all. `tests/bounty-drift.mjs` is the binding.
+
+**3. "The artisan skills are the gold path" (b226 / pacing-overhaul §6.1) is true in a way nobody
+priced.** The rule is right; the magnitude is not. `vendorPrice` pays FULL book value for anything
+not flagged `raw`, and no bench output is flagged: `smelt_mithril` is 112,500 gold/hr full-cycle
+against 23,412 for tier-matched tier-5 combat, and the generated gear ladders top out at
+`craft_voidweave_body` — 108 gold of inputs, 75,600 gold at the vendor. This is not a vendor-rate
+question (a uniform rate cannot fix a 700× input:output ratio); it is that generated gear values
+are `slot.vmul × mat.value × line.vmul` while cloth's recipe inputs are `silk_thread: 2+i,
+magic_essence: 1..2` at every tier. **The acute half is mine and is a data fix** (scale the cloth
+line's inputs with the material tier); **the structural half is a joint call** on whether item `v`
+for generated gear should be derived from recipe cost. Flagged now, not smuggled into the wave
+build. The 25M/day `hr_day_budget_check` ceiling is the only thing currently bounding it, and it is
+a security fuse, not a balance number.
+
+**4. `hr_start_kit.farm_plots = 4` against a Wanderer's Camp that has 2 plots.**
+`hr_create_character` (2026-08-14-character-bootstrap.sql §334) inserts
+`generate_series(0, farm_plots - 1)` = FOUR `player_farm_plots` rows, and its §477 self-check
+asserts exactly four. The client caps planting at `farmPlotCap()` → `HearthriseHomestead.maxPlots()`
+→ `TIERS[0].plots` = **2**, and `plantCrop` refuses `plotIdx >= farmPlotCap()`. So a new character is
+created with two plot rows they can never plant in, and `src/data/goal-catalogue.js`'s own comment
+("the starting Wanderer's Camp has 2 plots") already reads the client's number.
+
+**The client is right, and that is a design ruling rather than a preference:** 2 plots at the camp
+is what makes the Homestead (400 gold + 20 copper + 30 logs) a legible, cheap, wanted first upgrade
+— it doubles your farm. Creating 4 at the camp deletes the reason to buy the first rung of the
+property ladder.
+
+It is INERT today (the extra rows are invisible and unplantable), which is why I did not widen the
+b495 migration to touch a second table on a wave build. It stops being inert the moment any surface
+renders from the server's plot rows rather than from the cap. Ruling for whoever picks it up:
+`START_CURRENCY.farm_plots 4 → 2`, regenerate, and a forward migration on `hr_start_kit` alone —
+NEW characters only, no backfill (an existing character's rows are theirs).

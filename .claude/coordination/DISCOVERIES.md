@@ -2064,3 +2064,33 @@ Three rules taken from it, now enforced rather than written down:
 Related, and generalisable beyond goals: **"the RPC handles it safely" was true and irrelevant.**
 `skipped_xp` protects the economy perfectly and short-pays a price the UI already quoted. Safe for the
 server is not the same as correct for the player — and the player is never told.
+
+---
+
+## 2026-08-30 · GAME DESIGNER · b495 balance audit — two handoffs to the ART DIRECTOR
+
+Both are cases where a good mechanic reads badly. Neither is a UI redesign request; both are copy /
+affordance calls that I do not own.
+
+**1. THE DEATH SHEET FIRES 19–36 TIMES IN THE FIRST THIRTY MINUTES.**
+Measured on the shipped kit (36) and on the b495 kit (19). The sheet is the game's best teaching
+moment and it is currently the game's most repeated interruption. Whatever it costs to dismiss, a
+brand-new player pays it every ~50 seconds. Worth a look at whether the second and subsequent deaths
+in a session should degrade to a toast, or whether the sheet should carry a "don't show again this
+session" that the first one earns. I have removed the CAUSE as far as data can (food + damage), but
+the frequency at the low end is structural: 10 maxHP against a 1-damage-per-hit monster is ~46
+seconds of life, at EVERY tier (the ratio is roughly constant — an Emberforged character at tier 6
+survives 1.8 kills unfed).
+
+**2. THE AWAY LINE IS THE BEST COPY IN THE GAME AND ALMOST NOBODY SEES IT HONESTLY.**
+`awayLineHtml` (legacy.js ~12300) already answers the player's actual question — "can I leave this
+running?" — with two states that name the real limit (death, then food). It is excellent. But it
+reads `G.foodSlot`, which was `null` on every fresh character, so the branch a new player got was
+always *"about 5 kills, then you fall"* while they were carrying food. b495 fixes the default. The
+remaining ask is placement: this sentence is the single most valuable thing on the monster preview
+for a semi-idle game and it sits below the fold of the stat grid. Consider promoting it.
+
+**Not a handoff, recorded for the record:** the goal/quest reward line at `rewardSummaryHTML`
+(legacy.js ~20094) prints the RAW skill id while the claim toast resolves it through
+`SKILLS_DEF.name`. Already filed by Systems in the b492 handoff; I am confirming it from the design
+side — "300 hitpoints xp" is a debug string on a reward.

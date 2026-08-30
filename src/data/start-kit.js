@@ -69,11 +69,42 @@ export const START_SKILL_XP = Object.freeze({
 
 /* Inventory. item_id -> qty. Every id must exist in src/data/items.js; the
    generator FAILS if one does not, so a typo here cannot become a character
-   holding an item the item catalogue has never heard of. */
+   holding an item the item catalogue has never heard of.
+
+   ── b495 · THE FOOD BRIDGE (Designer ruling, balance audit 2026-08-30) ────
+   The kit used to carry `shrimp: 8` — RAW shrimp, heals 3, so 24 HP of buffer
+   on a 10 HP character. Measured against the real engine (src/core/combat-sim.js,
+   seeded, fresh save, bronze sword, Accurate):
+
+     foe          dmg taken per kill   kills before the character falls
+     Slime  (T1)        2.06                     4.8
+     Goblin (T1)        4.94                     2.0
+     Wolf Cub (T1)      9.36                     1.1
+
+   Two goblins, then the death sheet — and 36 deaths in a measured first
+   thirty minutes. AWAY was worse and is the reason this is a P0 rather than a
+   feel note: `simulateSpan` BREAKS on the first death, so a brand-new player
+   who leaves a fight running overnight was credited **30 seconds of a
+   twelve-hour night** (0.1%). The idle pillar was off by default for every
+   new account.
+
+   THE BRIDGE, not a supply. 20 cooked shrimp = 20 x 8 = 160 HP on top of the
+   10 the character has, which is ~34 goblin kills: enough to finish
+   `first_blood` (5 kills), a first-contract bounty (15-25 kills) and ~14
+   minutes of a first away night without a single death, and NOT enough to
+   avoid learning the loop. It runs out inside session one, on purpose — the
+   lesson "fish, then cook, then fight" is the one the first hour has to teach,
+   and it teaches far better from an empty food slot than from a corpse.
+
+   `shrimp` stays (8 -> 10) because it is the INPUT half of that lesson: the
+   `first_cook` quest asks for 5 dishes and `cook_shrimp` is the level-1 recipe.
+   A kit with only cooked food would hand the player the output and hide the
+   verb. */
 export const START_INVENTORY = Object.freeze({
   turnip_seed: 5,
   carrot_seed: 3,
-  shrimp: 8,
+  shrimp: 10,
+  cooked_shrimp: 20,
 });
 
 /* Equipment. equip_slot -> item_id. Every pair must exist in

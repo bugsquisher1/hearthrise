@@ -307,7 +307,37 @@ export function playerCombatRolls(monster, ctx) {
   accuracy = Math.max(0.15, Math.min(0.95, accuracy));
 
   let maxHit = Math.floor((dmgLvl * 0.35) + (strBonus * 0.6) + 2);
-  maxHit = Math.max(1, Math.floor(maxHit - (defScore * 0.03)));
+  /* ⚠ `- Math.floor(defScore * 0.03)`, NOT `Math.floor(maxHit - defScore*0.03)`.
+     b495 (balance audit) — THE TRUNCATION TAX. `maxHit` is ALREADY an integer
+     on the line above, so `floor(int - 0.03)` is `int - 1`: ANY monster with
+     def >= 1 cost a full point of max hit, and armour reduction only reached
+     its second point at defScore > 33. The damage was therefore a step
+     function of nothing — the intended 3%-per-defence-point curve never ran;
+     what ran was a flat -1 across the whole tier-1..tier-3 band.
+
+     It is worst exactly where it hurts most. Measured against the shipped
+     formula (full tier-matched plate + that tier's sword, combat levels at the
+     gear gate):
+
+       fresh char vs Goblin (def 1)     3 -> 4   +33%
+       Iron   vs Wolf       (def 3)     9 -> 10  +11%
+       Steel  vs Dire Wolf  (def 7)    17 -> 18   +6%
+       Mithril vs Bear      (def 16)   25 -> 26   +4%
+       Rune   vs Giant Boar (def 33)   33 -> 34   +3%
+       Ember  vs Revenant   (def 50)   41 -> 42   +2%
+       Dawn   vs Revenant   (def 50)   50 -> 51   +2%
+
+     Self-scaling by construction: the correction is one point everywhere, so
+     it is a 33% buff to the character who has 3 max hit and a 2% buff to the
+     one who has 50. That is precisely the shape the first hour needed and the
+     endgame did not, which is why the fix is this expression rather than a
+     tuned constant. A def-0 monster (Slime, Giant Rat, Imp…) is UNCHANGED —
+     floor(0 * 0.03) is 0 either way — so AWAY-HONEST-3's Slime acceptance
+     window does not move.
+
+     One expression, both engines: supabase/functions/hr-accrue/accrual.js
+     imports THIS file, so the away replay follows with no second edit. */
+  maxHit = Math.max(1, maxHit - Math.floor(defScore * COMBAT_BALANCE.monsterDefenseDamageReduction));
   maxHit = Math.max(1, Math.floor(maxHit * (style.damageMod || 1)));
   maxHit = Math.max(1, Math.floor(maxHit * (weak.damageMult || 1)));
 

@@ -52,6 +52,12 @@ import { rpcGateBucketGuard } from './rpc-gate-bucket-guard.mjs';
    Both replay the real migration chain into PGlite and drive real RPCs. */
 import { modalGoalClaimGuard } from './modal-goal-claim.mjs';
 import { traitBuyGuard } from './trait-buy.mjs';
+/* b497 — the two designer rulings that move server-owned numbers. Both replay
+   the real migration chain into PGlite and drive real RPCs, because both are
+   client/server CONTRACTS: the board DRAWS a kill count the accept CLAMPS, and
+   the entry trait is granted by the same RPC that mints the starting kit. */
+import { autoEatAtCreationGuard } from './auto-eat-at-creation.mjs';
+import { bountyDifficultyCountGuard } from './bounty-difficulty-count.mjs';
 import { combatStyleGuard } from './combat-style.mjs';
 import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
@@ -2237,6 +2243,30 @@ const run = async () => {
       console.log('\nBounty drift guard — bounty.js reward/range/tier tables and the credit RPC SQL agree.');
     }
 
+    /* ── b497 · THE DIFFICULTY SCALES THE KILL COUNT (designer ruling) ─────
+       The b489 inversion: bountyCount read (type, tier) only, so the board's
+       EASY and NORMAL slots drew from the same range while the reward table
+       already paid easy 0.85x — Easy was strictly the best-paying contract on
+       the board. The ruling scales the COUNT (0.90/1.00/1.20/1.50) so
+       gold-per-kill rises with commitment. The guard above binds the tables
+       statically; this one asks the DATABASE, because both sides of a static
+       comparison are JavaScript and a Postgres/JS rounding disagreement would
+       be invisible to it. It replays the chain into PGlite and drives a real
+       signed-in accept at every difficulty: the range round-trips, an
+       out-of-range request clamps to the SCALED bounds, 'elite' is still
+       refused (Security 2026-08-23), and gold-per-kill is monotonic at all six
+       tiers. `--selftest` plants six real defects; every one must read RED. */
+    const bntCountProblems = await bountyDifficultyCountGuard();
+    if (bntCountProblems.length) {
+      console.log('\nBounty difficulty count — FAILED:');
+      for (const p of bntCountProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nBounty difficulty count — Postgres and bounty.js agree on all 24 scaled ranges '
+        + 'and the first-contract bracket; the accept clamps to the scaled bounds, elite stays '
+        + 'refused, and gold-per-kill rises with difficulty at every tier.');
+    }
+
     /* ── The kill-credit plausibility-cap drift guard (bug #5) ──────────────
        hr_bounty_kill_cap reproduces src/core/kill-time.js in SQL so
        hr_credit_kills can clamp a client's claimed kills to the physical maximum
@@ -3141,6 +3171,36 @@ const run = async () => {
       console.log('\nTrait-buy guard — server-priced, prerequisite-gated, debited exactly once, '
         + 'idempotent on replay, already_owned refused, refusals not cached, auto-eat enabled '
         + 'through its single writer, ownership projected on the envelope.');
+    }
+
+    /* ── b497 · AUTO-EAT I IS FREE AT CREATION (designer ruling) ───────────
+       The last new-player death loop: a 10-max-HP character takes 4.94 damage
+       per goblin kill, the death sheet teaches "unlock Auto-Eat", Auto-Eat is
+       priced in Marks, and the cheapest Mark is an 80-120 kill contract away.
+       The AWAY half was the P0 — simulateSpan BREAKS on the first death, so a
+       new player who left a fight running overnight was credited ~30 seconds of
+       a twelve-hour night. hr_create_character now writes the same
+       player_progress flag row hr_trait_buy writes and sets the switch with the
+       SAME clamp expression hr_set_auto_eat evaluates — but NOT through
+       hr_set_auto_eat, which bumps `version` and writes a ledger row that
+       2026-08-17-cutover-import.sql reads as "this character has already
+       played". The guard replays the chain into PGlite and drives a real
+       create: the trait lands in the shape hr_auto_eat_tier reads, the switch is
+       on at a DERIVED tier-I clamp, version stays 0 and the journal stays one
+       row so a cutover dry-run still imports, the shop refuses to re-sell it,
+       the PAID upgrade is unchanged, creation is still an ensure,
+       §grant-existing is gated + idempotent, and no ACL or policy moved.
+       `--selftest` plants seven real defects — five of which also blind the
+       migration's own self-check, so the guard alone must see them. */
+    const autoEatCreationProblems = await autoEatAtCreationGuard();
+    if (autoEatCreationProblems.length) {
+      console.log('\nAuto-Eat at creation — FAILED:');
+      for (const p of autoEatCreationProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nAuto-Eat at creation — the entry trait is granted in the shape the tier reader '
+        + 'expects, switched on at a DERIVED tier-I clamp, leaves version 0 + one ledger row so the '
+        + 'cutover still imports, unsellable twice, and the 100-Mark upgrade is untouched.');
     }
 
     /* ── THE COMBAT STYLE IS SERVER STATE (P0, live — Paione) ────────────

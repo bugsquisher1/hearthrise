@@ -17361,6 +17361,227 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('b497: bounty difficulty scales the KILL COUNT, and the pay-per-kill rises with it', () => {
+    /* THE b489 INVERSION. bountyCount read (type, tier) and nothing else, so
+       the board's EASY slot and its NORMAL slot drew from the SAME range while
+       bountyRewards already paid easy 0.85x. Identical work, less gold: "Easy"
+       was strictly the best-paying contract on the board.
+
+       This asserts the RULE (a monotonic gold-per-kill ladder) and the two
+       numbers the ruling actually names, not a table nobody would notice
+       drifting. The SQL half — hr_bounty_kill_range(tier, difficulty), which
+       CLAMPS what the server will accept — is bound to these same values by
+       tests/bounty-drift.mjs and driven against a real Postgres by
+       tests/bounty-difficulty-count.mjs; a client-only change would have the
+       board offer 72 kills and the turn-in demand 80. */
+    const B = window.HearthriseCore.bounty;
+    assert(B && typeof B.bountyCountRange === 'function', 'the bounty core is not published');
+
+    const t1 = ['easy', 'normal', 'hard', 'elite'].map((d) => {
+      const r = B.bountyCountRange('cull', 1, 2, d);
+      return { d, lo: r[0], hi: r[1], gpk: B.bountyRewards(1, 'cull', d).gold / ((r[0] + r[1]) / 2) };
+    });
+    assert(t1[0].lo === 72 && t1[0].hi === 108,
+      'tier-1 EASY draws ' + t1[0].lo + '-' + t1[0].hi + ', the ruling says 72-108');
+    assert(t1[1].lo === 80 && t1[1].hi === 120,
+      'tier-1 NORMAL must be the identity (80-120), got ' + t1[1].lo + '-' + t1[1].hi);
+    assert(t1[3].lo === 120 && t1[3].hi === 180,
+      'tier-1 ELITE draws ' + t1[3].lo + '-' + t1[3].hi + ', the ruling says 120-180');
+
+    for (let t = 1; t <= 6; t++) {
+      let prev = null;
+      for (const d of ['easy', 'normal', 'hard', 'elite']) {
+        const r = B.bountyCountRange('cull', t, 2, d);
+        const gpk = B.bountyRewards(t, 'cull', d).gold / ((r[0] + r[1]) / 2);
+        /* `prev` is null on the first difficulty of each tier, and an assert
+           MESSAGE is evaluated eagerly in JavaScript — `prev.toFixed()` here
+           threw on every run rather than asserting anything. Caught by the
+           suite itself on the first assembled run, which is the only reason
+           this monotonicity check is real. */
+        assert(prev === null || gpk > prev,
+          'tier ' + t + ': gold-per-kill is not monotonic — ' + d + ' pays ' + gpk.toFixed(3)
+          + ' and the easier difficulty paid ' + (prev === null ? 'n/a' : prev.toFixed(3))
+          + '. The b489 inversion ("Easy is the best contract on the board") is back.');
+        prev = gpk;
+      }
+    }
+
+    /* AN ABSENT DIFFICULTY IS THE IDENTITY. Every call site written before this
+       ruling must keep today's numbers exactly rather than silently drawing a
+       different contract — the failure that turns a UX ruling into an economy
+       change. (The SERVER does the opposite and fails CLOSED; the asymmetry is
+       deliberate and is asserted in bounty-difficulty-count.mjs.) */
+    const bare = B.bountyCountRange('cull', 3, 2);
+    assert(bare[0] === B.BOUNTY_KILL_COUNTS.cull[3][0] && bare[1] === B.BOUNTY_KILL_COUNTS.cull[3][1],
+      'a call with no difficulty no longer returns the tier table: ' + bare.join('-'));
+    assert(B.bountyCountMult('nonsense') === 1 && B.bountyCountMult(undefined) === 1,
+      'an unknown difficulty must be the identity on the client');
+
+    /* THE FIRST-CONTRACT BRACKET SCALES TOO — the board's first slot is always
+       EASY, and the server clamps against the scaled floor. */
+    const first = B.bountyCountRange('cull', 1, 1, 'easy');
+    assert(first[0] === 14 && first[1] === 23,
+      'the b487 first-contract bracket did not scale for the easy slot: ' + first.join('-'));
+
+    /* THE SEEDED STREAM IS UNCHANGED. rng.int consumes exactly one draw per
+       call whatever range it is handed, so scaling the RANGE (rather than the
+       drawn value) leaves generateBountyBoard's draw order and count identical
+       — the property the replayability test above depends on. */
+    const C = window.HearthriseCore;
+    C.reseed(497001);
+    const a = B.bountyCount('cull', 1, C.rng, 2, 'hard');
+    C.reseed(497001);
+    const b = B.bountyCount('cull', 1, C.rng, 2, 'easy');
+    C.randomSeed();
+    assert(a >= 96 && a <= 144, 'a hard tier-1 draw landed outside 96-144: ' + a);
+    assert(b >= 72 && b <= 108, 'an easy tier-1 draw landed outside 72-108: ' + b);
+  }),
+
+  () => tryRun('b497/F2: the accept ENVELOPE becomes the contract (the dead-bounty class)', () => {
+    /* THE GAP THIS COVERS, stated because it is the whole point of the test
+       existing HERE rather than beside the other two bounty guards:
+       tests/bounty-drift.mjs and tests/bounty-difficulty-count.mjs bind SQL to
+       src/core — FILE TO FILE. Neither can see whether the server's answer ever
+       reaches client state. `hr_accept_bounty` CLAMPS the client's `required`
+       and returns what it actually wrote; until b497 nothing read that, so a
+       disagreement was invisible until the turn-in refused forever with the bar
+       full. Boards persist across a deploy (ensureBountyState only regenerates
+       an EMPTY board), so a `hard` slot drawn pre-b497 carries a required in
+       [80,95] and the post-deploy server demands 96. */
+    const snap = snapshotG();
+    const G = window.G;
+    try {
+      window.ensureBountyState();
+      assert(typeof window.hrAdoptAcceptedBounty === 'function',
+        'hrAdoptAcceptedBounty is not published — the accept envelope is unread again');
+      const mk = () => ({ id: 'cull_goblin_1700_7', type: 'cull', target: 'goblin',
+        difficulty: 'hard', tier: 1, progress: 0, required: 88,
+        rewards: { gold: 420, marks: 8, xp: 59 } });
+      /* `env` builds the SUCCESS envelope only — the shape
+         hr_accept_bounty__ungated's final jsonb_build_object actually returns.
+         ⚠ IT MUST NEVER BE USED TO BUILD A REFUSAL (Security F7, and the third
+         time this program has been bitten by a fixture assembled from a base
+         object instead of from the producer's real output): NOT ONE of the
+         twelve refusal envelopes the system can emit carries `bounty_id`.
+         `Object.assign({…, bounty_id}, {ok:false})` therefore produces a shape
+         the server cannot make, and a refusal test built from it tests the
+         fixture. `refusal()` below is the real vocabulary. */
+      const env = (over) => Object.assign({ ok: true, bounty_id: 'cull_goblin_1700_7',
+        target: 'goblin', tier: 1, required: 96, gold: 420, marks: 8, xp: 59 }, over || {});
+      /* THE REAL REFUSAL SHAPES, transcribed from the producers — the server's
+         hr_accept_bounty / __ungated bodies and goal-claim.js `call()`. No
+         bounty_id in any of them; `unknown_monster` carries a target and still
+         no id. Each entry is exactly what the client would receive. */
+      const REFUSALS = [
+        { ok: false, error: 'rate_limited' },                                   // the rate wrapper
+        { ok: false, error: 'tier_locked', tier: 3, unlocked_tier: 1, combat_level: 8 },
+        { ok: false, error: 'bad_difficulty', difficulty: 'elite', tier: 1 },
+        { ok: false, error: 'no_character', slot: 0 },
+        { ok: false, error: 'not_signed_in' },
+        { ok: false, error: 'type_not_server_verifiable', type: 'proof' },
+        { ok: false, error: 'unknown_monster', target: 'goblin' },              // target, no id
+        { ok: false, error: 'network' },                                        // goal-claim.js call()
+        { ok: false, error: 'bad_response', status: 500 },
+        { ok: false, error: 'rpc_missing' },
+      ];
+
+      // ── 1. THE DEAD CASE. Client drew 88; the server stored 96.
+      G.bountyHunter.active = mk();
+      const r1 = window.hrAdoptAcceptedBounty(env());
+      assert(r1.adopted === true, 'the envelope was not adopted: ' + JSON.stringify(r1));
+      assert(G.bountyHunter.active.required === 96,
+        'the client still shows ' + G.bountyHunter.active.required + ' kills while the server '
+        + 'demands 96 — the bar fills, the turn-in refuses, and the failure is silent');
+      assert(G.bountyHunter.active._serverContract === true,
+        'an adopted contract is not marked as server-owned');
+
+      // ── 2. REWARD DRIFT closes on the same path. A player shown 420 gold and
+      //      paid 300 is the same defect in the other currency.
+      G.bountyHunter.active = mk();
+      window.hrAdoptAcceptedBounty(env({ gold: 300, marks: 5, xp: 38, tier: 2 }));
+      const rw = G.bountyHunter.active.rewards;
+      assert(rw.gold === 300 && rw.marks === 5 && rw.xp === 38,
+        'the rewards were not adopted: ' + JSON.stringify(rw));
+      assert(G.bountyHunter.active.tier === 2, 'the tier was not adopted');
+
+      // ── 3. AN AGREEING ENVELOPE CHANGES NOTHING (the common case). A repaint
+      //      on every accept would churn the DOM for no reason.
+      G.bountyHunter.active = mk();
+      const r3 = window.hrAdoptAcceptedBounty(env({ required: 88 }));
+      assert(r3.adopted === true && r3.changed.length === 0,
+        'an agreeing envelope reported changes: ' + JSON.stringify(r3.changed));
+
+      /* ── 4. EVERY REAL REFUSAL adopts NOTHING and stops being silent. There
+            is no active_bounty row, so the contract can never settle.
+            ⚠ THIS IS THE ASSERTION THAT WOULD HAVE CAUGHT F7, and it only
+            works because the fixtures are the PRODUCER'S shapes. The version
+            in 66709733 used `env({ok:false, error:'tier_locked'})` — a
+            success base with a `bounty_id` bolted on — which the server cannot
+            emit. It passed against a refusal branch that was DEAD CODE: with
+            the pair check ahead of the ok check, a real (id-less) refusal
+            returned `mismatch` and never reached it. Driving all ten shapes
+            also means a future refusal that grows an id cannot silently
+            re-order this. */
+      for (const ref of REFUSALS) {
+        assert(!('bounty_id' in ref),
+          'a REFUSAL fixture carries bounty_id — no producer emits that, so this test would be '
+          + 'testing the fixture (the F7 defect, re-introduced): ' + JSON.stringify(ref));
+        G.bountyHunter.active = mk();
+        const r = window.hrAdoptAcceptedBounty(ref);
+        assert(r.adopted === false && r.reason === 'refused:' + ref.error,
+          'the refusal "' + ref.error + '" was not reported as a refusal — got '
+          + JSON.stringify(r) + '. If this reads "mismatch", the ok check has been moved back '
+          + 'behind the id/target pair and the whole branch is dead again (F7).');
+        assert(G.bountyHunter.active.required === 88 && G.bountyHunter.active.tier === 1,
+          'the refusal "' + ref.error + '" moved the contract');
+        assert(G.bountyHunter.active._acceptError === ref.error,
+          'the refusal "' + ref.error + '" was swallowed — nothing records that this bounty is dead');
+      }
+      /* The two a player meets by ordinary play, named so a future reviewer can
+         see the reachability claim rather than infer it. */
+      assert(REFUSALS.some((r) => r.error === 'tier_locked')
+        && REFUSALS.some((r) => r.error === 'rate_limited'),
+      'the two player-reachable refusals are no longer covered');
+
+      // ── 5. A LATE REPLY FOR AN ABANDONED CONTRACT touches nothing. This is
+      //      the race the identity guard exists for: writing a stale `required`
+      //      onto a live bounty would MANUFACTURE the desync being fixed.
+      const sent = mk();
+      G.bountyHunter.active = mk();            // a different object, same fields
+      const r5 = window.hrAdoptAcceptedBounty(env({ required: 144 }), sent);
+      assert(r5.reason === 'superseded' && G.bountyHunter.active.required === 88,
+        'a reply for a superseded contract was adopted: ' + JSON.stringify(r5));
+
+      /* ── 6. A SUCCESS REPLY FOR A DIFFERENT BOUNTY is refused on the pair.
+            PRODUCER-REAL: the server echoes the p_bounty_id it was given, so
+            this is literally the envelope from the player's OTHER accept
+            arriving late. */
+      G.bountyHunter.active = mk();
+      const r6 = window.hrAdoptAcceptedBounty(env({ bounty_id: 'cull_wolf_1_2', required: 144 }));
+      assert(r6.reason === 'mismatch' && G.bountyHunter.active.required === 88,
+        'a reply for another bounty was adopted: ' + JSON.stringify(r6));
+      /* ⚠ SYNTHETIC, and labelled so nobody reads it as a producer shape: the
+         server echoes p_bounty_id and p_target from the SAME request, so an
+         id that matches while the target does not cannot occur in the wild.
+         It exists to prove the TARGET half of the pair check is present at
+         all — a guard probe, not a scenario. */
+      const r6b = window.hrAdoptAcceptedBounty(env({ target: 'wolf', required: 144 }));
+      assert(r6b.reason === 'mismatch', 'the TARGET half of the identity check is missing');
+
+      /* ── 7. A MALFORMED FIELD leaves the client's value alone rather than
+            stamping NaN onto the bar the player is watching.
+            ⚠ ALSO SYNTHETIC: no producer emits `required: null` or a
+            non-numeric gold. This is a defensive probe of the re-derive step,
+            deliberately hostile, and is not a claim about what the server
+            sends. */
+      G.bountyHunter.active = mk();
+      window.hrAdoptAcceptedBounty(env({ required: null, gold: 'lots' }));
+      assert(G.bountyHunter.active.required === 88 && G.bountyHunter.active.rewards.gold === 420,
+        'a malformed envelope corrupted the contract: '
+        + JSON.stringify(G.bountyHunter.active.rewards));
+    } finally { restoreG(snap); }
+  }),
+
   () => tryRun('Phase A: kill XP is routed by the SAME table the live hit uses (and BotD scales it)', () => {
     /* The routing table used to be four copies of one walk. The away loop
        omitting the KILL half of it is the ~21%-of-combat-XP hole named in
@@ -47355,23 +47576,73 @@ const TESTS = [
   () => tryRun('b373: death sheet — every food state gets its own tip, and only one', () => {
     const D = window.HearthriseDeathSheet;
     const base = { monsterName: 'Slime', killsThisFoe: 2, maxHp: 40, deaths: 4, foodName: 'Trout' };
+    /* b497 — THE ACTIVE BRANCH KEYS ON THE SWITCH, NOT THE ENTITLEMENT.
+       Auto-Eat I is granted to every character at creation (designer ruling;
+       supabase/migrations/2026-09-04-auto-eat-at-creation.sql), so `autoEatOwned`
+       is now universal and stopped being a proxy for "auto-eat is running".
+       Keyed on ownership, an empty-bag death would tell a player who has never
+       touched the toggle that "Auto-Eat is watching your health" — the exact
+       class of lie the F7/b432 audit built this sheet to remove. Row 3 is the
+       case the ruling creates, and it is the one that fails without the split. */
     const cases = [
-      [{ foodQty: 3, ateThisFight: 0, autoEatOwned: false }, 'food-unused'],
-      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: true },  'auto-eat-idle'],
-      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: false }, 'no-food'],
-      [{ foodQty: 0, ateThisFight: 5, autoEatOwned: true },  'outmatched'],
-      [{ foodQty: 2, ateThisFight: 4, autoEatOwned: true },  'outmatched'],
+      [{ foodQty: 3, ateThisFight: 0, autoEatOwned: false, autoEatOn: false }, 'food-unused'],
+      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: true,  autoEatOn: true },  'auto-eat-idle'],
+      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: true,  autoEatOn: false }, 'no-food'],
+      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: false, autoEatOn: false }, 'no-food'],
+      [{ foodQty: 0, ateThisFight: 5, autoEatOwned: true,  autoEatOn: true },  'outmatched'],
+      [{ foodQty: 2, ateThisFight: 4, autoEatOwned: true,  autoEatOn: true },  'outmatched'],
     ];
     for (const [d, want] of cases) {
       const m = D.describeDeath(Object.assign({}, base, d));
       assert(m.tipKey === want,
-        'food=' + d.foodQty + ' ate=' + d.ateThisFight + ' autoEat=' + d.autoEatOwned
-        + ' selected ' + m.tipKey + ', expected ' + want);
+        'food=' + d.foodQty + ' ate=' + d.ateThisFight + ' owned=' + d.autoEatOwned
+        + ' on=' + d.autoEatOn + ' selected ' + m.tipKey + ', expected ' + want);
       assert(typeof m.tip === 'string' && m.tip.length > 20, 'tip ' + want + ' has no copy');
       /* Never offer to sell a player something they already own. */
       if (d.autoEatOwned) assert(m.shopLink === false, want + ' offered the shop to an owner');
     }
     assert(D._TIP_KEYS.length === 4, 'the tip branch list drifted from the four states');
+  }),
+
+  () => tryRun('b497: death sheet — the free entry trait changed what the tip may claim', () => {
+    const D = window.HearthriseDeathSheet;
+    const base = { monsterName: 'Goblin', killsThisFoe: 1, maxHp: 10, deaths: 1,
+      foodQty: 4, foodName: 'Cooked Shrimp', ateThisFight: 0, autoEatCost: 15 };
+
+    /* OWNED BUT SWITCHED OFF — a player who turned it off, or whose food slot
+       is cleared. NOT the new default: a fresh character is `owned + ON`
+       (ensureShape flips eat.enabled the moment G.foodSlot is set, and the
+       fresh-G literal carries foodSlot:'cooked_shrimp' since b495). This label
+       said "THE NEW DEFAULT" until 2026-08-30 and was wrong; the case is still
+       worth asserting, just for the opposite population. The tip must SAY they
+       already have it — a player who is never told cannot act on it — and must
+       not try to sell back a trait they hold. */
+    const owned = D.describeDeath(Object.assign({}, base, { autoEatOwned: true, autoEatOn: false }));
+    assert(owned.tipKey === 'food-unused', 'the granted-but-off death lost the food-unused tip');
+    assert(/already have Auto-Eat/i.test(owned.tip),
+      'a player who was granted Auto-Eat is not told they have it: ' + owned.tip);
+    assert(/Settings/i.test(owned.tip), 'the tip does not say where the switch is: ' + owned.tip);
+    assert(!/Bounty Shop/.test(owned.tip) && !/15/.test(owned.tip),
+      'the tip still quotes the Marks price of a trait the player already owns: ' + owned.tip);
+    assert(owned.shopLink === false, 'the Bounty Shop door opened for an owner');
+
+    /* THE ACTUAL NEW DEFAULT — `owned + ON` — AND STILL DEAD. "Turn it on"
+       would be false here, so the honest fact is the tier-I threshold, and the
+       answer to it is the PAID upgrade: the sink the ruling deliberately kept.
+       This is the branch a brand-new player reaches. */
+    const on = D.describeDeath(Object.assign({}, base, { autoEatOwned: true, autoEatOn: true }));
+    assert(on.tipKey === 'food-unused', 'the switched-on death lost the food-unused tip');
+    assert(!/switch it on/i.test(on.tip),
+      'the tip told a player whose Auto-Eat is already ON to switch it on: ' + on.tip);
+    assert(/quarter health/i.test(on.tip) && /Auto-Eat II/.test(on.tip),
+      'the tip does not explain the tier-I threshold or name the upgrade that raises it: ' + on.tip);
+
+    /* THE RESIDUAL PATH is unchanged and still literally true: the Bounty Shop
+       sells Auto-Eat I at this price to anyone without it. */
+    const unowned = D.describeDeath(Object.assign({}, base, { autoEatOwned: false, autoEatOn: false }));
+    assert(/Bounty Shop/.test(unowned.tip) && /15/.test(unowned.tip),
+      'the unowned branch stopped naming the shop and the price: ' + unowned.tip);
+    assert(unowned.shopLink === true, 'the shop door closed on the one branch that needs it');
   }),
 
   () => tryRun('b373: death sheet — the receipt states no-loss, full heal and the stopped run', () => {

@@ -62,7 +62,14 @@ export const BOUNTY_KILL_COUNTS = {
    than FIRST_CONTRACT_GRACE server-journalled turn-ins — a deliberate SUPERSET
    of "level 1", because a range that is wider than the client's only ever lets
    an honest `required` through unchanged, while a narrower one would silently
-   raise a 20-kill contract to 80. */
+   raise a 20-kill contract to 80.
+
+   b497: THIS BRACKET IS DIFFICULTY-SCALED TOO, and it has to be — the board's
+   first slot is always EASY, so the client now draws from round(15×0.9)=14. The
+   server's mirror gained `hr_bounty_first_contract_range(p_difficulty)` in the
+   same build (2026-09-04-bounty-difficulty-count.sql); an unscaled floor of 15
+   would silently raise that honest 14-kill contract, which is exactly the
+   failure this paragraph already warns about, on a new axis. */
 export const BOUNTY_FIRST_CONTRACT_COUNT = [15, 25];
 export const BOUNTY_FIRST_CONTRACT_MAX_LEVEL = 1;
 export const BOUNTY_FIRST_CONTRACT_TIER = 1;
@@ -72,6 +79,62 @@ export const BOUNTY_FIRST_CONTRACT_TIER = 1;
    Bounty-Hunter level 1 across at most turn-ins #1, #2 and #3 (0/38/76 xp).
    tests/bounty-drift.mjs re-derives this from XP_TABLE rather than trusting it. */
 export const BOUNTY_FIRST_CONTRACT_GRACE = 3;
+
+/* ── DIFFICULTY SCALES THE WORK, NOT ONLY THE PAY (Designer ruling, b497) ────
+   THE INVERSION THIS ENDS (found on live, b489). `bountyCount` read
+   `(type, tier)` and NOTHING ELSE, so the board's EASY slot and its NORMAL slot
+   drew their kill count from the SAME range — while `bountyRewards` already
+   paid easy 0.85x and normal 1.0x. Identical work, less gold: "Easy" was
+   strictly the best-paying contract on the board, and the difficulty label
+   argued against ever taking the harder one.
+
+   THE RULING: a multiplier on the KILL COUNT, chosen so gold-per-kill RISES
+   with commitment — a premium for the longer contract rather than a penalty.
+   At tier 1 (320 base gold, an 80–120 range, midpoint 100) the four
+   difficulties now pay
+
+       easy 270g / 90 kills   = 3.00      hard  420g / 120 kills = 3.50
+       normal 320g / 100      = 3.20      elite 560g / 150       = 3.73
+
+   and the same ordering holds at every tier. tests/bounty-drift.mjs RE-DERIVES
+   that from the two tables instead of trusting this paragraph.
+
+   TWO TABLES, ON PURPOSE. `BOUNTY_DIFFICULTY_MULT` above prices the REWARD and
+   is UNCHANGED by this ruling; this one prices the WORK. Folding them into one
+   number would make "harder pays more per kill" impossible to express.
+
+   ⚠ THE SERVER MIRRORS THIS AND HAS TO. `hr_accept_bounty` does not accept the
+   client's `required` — it CLAMPS it into a server-computed range. A
+   client-only change would have the board offer 72 kills and the turn-in demand
+   80: the client showing one contract while the server enforces another, which
+   is the precise failure the server-authority program exists to prevent. The
+   mirror is `hr_bounty_count_mult` + `hr_bounty_kill_range(int,text)` +
+   `hr_bounty_first_contract_range(text)` in
+   supabase/migrations/2026-09-04-bounty-difficulty-count.sql, and
+   tests/bounty-drift.mjs binds the two by VALUE — every (tier, difficulty)
+   range and the first-contract bracket, not just the four multipliers.
+
+   AN ABSENT OR UNKNOWN DIFFICULTY IS `normal`, deliberately: `normal` is the
+   identity, so every call site that predates this ruling keeps today's numbers
+   exactly rather than silently drawing a different contract. The SERVER does
+   the opposite and fails CLOSED (an unknown difficulty yields no range at all,
+   and the accept refuses) — the asymmetry is correct, because a client that
+   guesses `normal` renders a wrong label while a server that guesses one writes
+   a wrong contract. */
+export const BOUNTY_DIFFICULTY_COUNT = { easy: 0.9, normal: 1, hard: 1.2, elite: 1.5 };
+
+/** The count multiplier for a difficulty. Unknown/absent/garbage → 1 (normal). */
+export function bountyCountMult(difficulty) {
+  const m = BOUNTY_DIFFICULTY_COUNT[difficulty];
+  return (typeof m === 'number' && Number.isFinite(m) && m > 0) ? m : 1;
+}
+
+/* One rounding rule, written once. `Math.round` and Postgres `round(numeric)`
+   agree on every positive half-way value, which is what lets the SQL mirror be
+   a transcription rather than an approximation; the floor of 1 exists so no
+   future multiplier can author a zero-kill contract that is complete on
+   acceptance. */
+function scaleCount(n, m) { return Math.max(1, Math.round(n * m)); }
 
 /** True iff this (type, tier, bountyLevel) draws from the first-contract bracket. */
 export function isFirstContract(type, tier, bountyLevel) {
@@ -86,11 +149,21 @@ export function isFirstContract(type, tier, bountyLevel) {
   return bountyLevel <= BOUNTY_FIRST_CONTRACT_MAX_LEVEL;
 }
 
-/** The [min,max] the count is drawn from. Pure — the SQL clamp mirrors it. */
-export function bountyCountRange(type, tier, bountyLevel) {
-  if (isFirstContract(type, tier, bountyLevel)) return BOUNTY_FIRST_CONTRACT_COUNT;
-  const table = BOUNTY_KILL_COUNTS[type] || BOUNTY_KILL_COUNTS.cull;
-  return table[tier] || table[1];
+/** The [min,max] the count is drawn from. Pure — the SQL clamp mirrors it.
+ *  `difficulty` is OPTIONAL and defaults to the identity (`normal`), so a
+ *  caller written before the b497 ruling gets exactly the numbers it always
+ *  got. A fresh array is returned rather than the table's own row: the tables
+ *  are module constants and handing one out by identity invites a mutation
+ *  nobody can trace. */
+export function bountyCountRange(type, tier, bountyLevel, difficulty) {
+  const base = isFirstContract(type, tier, bountyLevel)
+    ? BOUNTY_FIRST_CONTRACT_COUNT
+    : (function () {
+      const table = BOUNTY_KILL_COUNTS[type] || BOUNTY_KILL_COUNTS.cull;
+      return table[tier] || table[1];
+    }());
+  const m = bountyCountMult(difficulty);
+  return [scaleCount(base[0], m), scaleCount(base[1], m)];
 }
 
 export const BOUNTY_BASE_REWARDS = {
@@ -238,9 +311,19 @@ export function pickProofItem(monsterId, monsters, items) {
   return (any && any.id) || null;
 }
 
-export function bountyCount(type, tier, rng, bountyLevel) {
-  if (type === 'weapon') return Math.round(bountyCount('cull', tier, rng, bountyLevel) * 0.85);
-  const r = bountyCountRange(type, tier, bountyLevel);
+/** @param difficulty OPTIONAL — see BOUNTY_DIFFICULTY_COUNT. Absent = `normal`.
+ *
+ *  THE SEEDED STREAM IS UNCHANGED BY THE SCALING, and that is a requirement,
+ *  not a happy accident: `rng.int` consumes exactly one draw whatever range it
+ *  is handed (and NONE when the range collapses, which is why `scaleCount`
+ *  keeps min <= max). Scaling the RANGE rather than the drawn value therefore
+ *  leaves `generateBountyBoard`'s draw ORDER and COUNT byte-identical — the
+ *  property core-purity.mjs asserts as "the same seed produced the same board".
+ *  It also means the client and the server agree on the SET of legal counts,
+ *  not merely on an interval containing them. */
+export function bountyCount(type, tier, rng, bountyLevel, difficulty) {
+  if (type === 'weapon') return Math.round(bountyCount('cull', tier, rng, bountyLevel, difficulty) * 0.85);
+  const r = bountyCountRange(type, tier, bountyLevel, difficulty);
   return rng.int(r[0], r[1]);
 }
 
@@ -284,17 +367,21 @@ export function makeBounty(type, monsterId, difficulty, ctx) {
        above — the REWARD is priced as 'proof' too (see bountyRewards at the top
        of this function), so changing the count here without the reward would be
        a silent nerf. Unchanged from before the first-contract bracket. */
-    b.required = bountyCount('proof', tier, c.rng, c.bountyLevel);
+    b.required = bountyCount('proof', tier, c.rng, c.bountyLevel, diff);
   } else if (type === 'weapon') {
-    b.required = bountyCount('weapon', tier, c.rng, c.bountyLevel);
+    b.required = bountyCount('weapon', tier, c.rng, c.bountyLevel, diff);
     /* b356: `neutral` is retired — every monster answers a real weapon. */
     b.requiredWeaponType = (m && m.weaponWeak) || null;
   } else if (type === 'streak') {
-    b.required = bountyCount('streak', tier, c.rng, c.bountyLevel);
+    b.required = bountyCount('streak', tier, c.rng, c.bountyLevel, diff);
     b.streak = 0;
     b.failOnDeath = true;
   } else {
-    b.required = bountyCount('cull', tier, c.rng, c.bountyLevel);
+    /* `diff` and NOT `b.difficulty`: they are the same value, and reading the
+       local keeps the count bound to the difficulty this bounty was PRICED at
+       (`bountyRewards(tier, type, diff)` above). Two reads of one decision is
+       how a reward and a count come to disagree. */
+    b.required = bountyCount('cull', tier, c.rng, c.bountyLevel, diff);
   }
   return b;
 }

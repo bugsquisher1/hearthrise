@@ -125,6 +125,15 @@
 --      a rank claimed on faucet-inflated renown stays claimed and its gold+gems
 --      stay paid even after the live score drops. Up to 1,603,000 gold + 925
 --      gems per character could already be banked and is not clawed back here.
+--      ⚠ AND THE HIGH-WATER IS WORSE THAN "RANKS ALREADY TAKEN": an inflated
+--      renown_high is also a STANDING CLAIM on every rank BELOW it, not only on
+--      the ones already claimed. The ratchet does not decay, so a score reached
+--      once by the faucet keeps every cheaper rank claimable indefinitely, long
+--      after this fix stops the score from rising that way. Moot today — the
+--      live maximum renown_high is 773, below even `squire` (900) — but that is
+--      an observation about today's data, not a property, so the trigger is
+--      recorded: if any character's renown_high is above a rank threshold it did
+--      not honestly earn, this is the mechanism that keeps paying.
 --   4. THE renownAllXp PERK reads the LIVE score, so it DOES self-correct — but
 --      only for future credits; renown already banked from past credits keeps
 --      holding the thresholds up.
@@ -147,17 +156,33 @@
 -- the faucet.
 --
 -- ── KEY BUDGET, AND THE TWO PROPERTIES THE DISCOUNT RESTS ON ───────────────
--- 'ev:kill_credited:' is 17 chars + a monster id (<=17 today, <=48 by the
--- BESTIARY_ID_RE fuse) — inside player_progress' 64-char key CHECK.
+-- 'ev:kill_credited:' is 17 chars, so a monster id may be at most 47 before the
+-- key breaks player_progress' 64-char CHECK. That is ONE CHARACTER TIGHTER than
+-- the bestiary key it shadows ('ev:kill_monster:' is 16, hence BESTIARY_ID_RE's
+-- 48), so a 48-char id would be legal for the bestiary and ILLEGAL here — the
+-- credit RPC would start raising a check violation on a live money path. Ids are
+-- <=17 today; §0 asserts the 47 ceiling against the real catalogue so the drift
+-- fails at APPLY time rather than at a player's next kill (Security F5).
 -- 'ev:kill_credited_any' is 20. The population is bounded by the monster
 -- catalogue (108) plus one, per character.
 --
 --   ⚠ (i) THE CREDITED ROWS MUST NEVER BE PRUNED. They carry period_key = '',
 --     the PERMANENT population, and hr_progress_prune deletes only
---     `period_key <> ''`. This is load-bearing and asserted by EXECUTION in
---     §3(c6): if a credited row could be swept while ev:kill_any survives, the
---     discount would fail OPEN and the faucet would re-open silently — the worst
---     possible failure mode, because nothing would look broken.
+--     `period_key <> ''`. If a credited row could be swept while ev:kill_any
+--     survives, the discount would fail OPEN and the faucet would re-open
+--     silently — the worst failure mode available here, because nothing would
+--     look broken.
+--     ⚠ THE FIRST PROOF OF THIS WAS VACUOUS (Security C1) and the correction is
+--       recorded because the shape recurs: §3(c6) called hr_progress_prune at
+--       `interval '0 seconds'` on rows created microseconds earlier, but the
+--       prune floors its age at `greatest(interval '7 days', p_older)`, so it
+--       deleted NOTHING and the assertion passed identically whether the rows
+--       were permanent or periodic. Measured: fresh → 0 deleted; backdated 400
+--       days → the periodic control deleted, credited rows survive. The PROPERTY
+--       was true; the PROOF was not testing it. §3(c6) now ages the probe rows
+--       past the floor, plants a `period_key <> ''` CONTROL that must die, and
+--       fails the FIXTURE loudly if the prune turns out to be a no-op — because
+--       "nothing was deleted" is evidence only when something else WAS.
 --
 --   ⚠ (ii) THE INVARIANT ev:kill_credited:<id> <= ev:kill_monster:<id>. The
 --     bestiary row is written ABSOLUTELY (greatest(p.value, baseline + credit))
@@ -181,9 +206,14 @@
 --     probe per bestiary row already being scanned. The bestiary population is
 --     bounded by the monster catalogue: <= 108 probes, and in practice a handful.
 -- No new sequential scan and no new sort; the added work is O(bestiary rows)
--- index lookups against a key the table is already clustered on. The guard
--- measures it (R7) against a FULL 108-monster bestiary rather than trusting this
--- paragraph.
+-- index lookups against a key the table is already clustered on.
+-- MEASURED ON PRODUCTION (Security, against a full bestiary): 2.67 ms/call, a
+-- DELTA of +0.44 ms over the undiscounted body — i.e. the discount is ~20% of an
+-- already-cheap read, on a call that happens once per ~90 s settle.
+-- ⚠ The guard's R7 number is a PGlite figure (~3 ms, noisy) and is a PROXY, not
+--   the production cost: it exists to catch a plan that collapsed into a scan
+--   per bestiary row (which would read orders of magnitude higher), not to
+--   benchmark. The 2.67 ms above is the number to quote.
 --
 -- REVERSIBILITY: re-apply 2026-08-20-renown.sql (restores the undiscounted
 -- hr_renown_of) and re-apply 2026-09-01-kill-daily-credit.sql §3 (restores the
@@ -213,6 +243,20 @@ begin
     raise exception 'hr_credit_kills__ungated not found — apply 2026-08-30-bounty-kill-credit.sql first';
   end if;
 
+  -- ⚠ THE KEY-LENGTH CEILING (Security F5). 'ev:kill_credited:' is 17 chars
+  --   against player_progress' 64-char key CHECK, so a monster id may be at most
+  --   47 — ONE TIGHTER than the bestiary key this shadows ('ev:kill_monster:' is
+  --   16, hence BESTIARY_ID_RE's 48). A 48-char id would therefore be legal for
+  --   the bestiary and ILLEGAL here, and the first kill credited against it would
+  --   raise a check violation inside a live money verb. Ids are <=17 today; this
+  --   fails the APPLY instead of a player's next kill.
+  if exists (select 1 from public.hr_bounty_monsters where length(monster_id) > 47) then
+    raise exception 'monster id(s) longer than 47 chars exist (%) — ''ev:kill_credited:'' || id '
+                    'would break player_progress'' 64-char key CHECK and hr_credit_kills would '
+                    'raise on the next kill. Shorten the id or shorten the key prefix.',
+                    (select string_agg(monster_id, ', ') from public.hr_bounty_monsters
+                      where length(monster_id) > 47);
+  end if;
   v_ck := null;   -- the credit body is pinned by hash in §0a, not probed here
 end $$;
 
@@ -473,6 +517,7 @@ declare
   v_r0 bigint; v_r1 bigint; v_r2 bigint; v_r3 bigint; v_r4 bigint;
   v_best bigint; v_cred bigint; v_life bigint;
   v_n int;
+  v_day text := public.hr_utc_day_key(now());   -- (c6)'s periodic control row
 begin
   -- (a) THE SCORE IS STILL ENGINE-ONLY. A client that could call it could not
   --     forge it, but it would still be an information leak about any player.
@@ -721,12 +766,40 @@ begin
     --     survives, the discount would fail OPEN — the faucet re-opening with
     --     nothing appearing broken. The credited rows carry period_key = '' (the
     --     PERMANENT population) and hr_progress_prune deletes only period_key
-    --     <> ''. Proven by RUNNING the prune at its most aggressive, not by
-    --     reading its WHERE clause.
+    --     <> ''.
+    --
+    --     ⚠⚠ THE FIRST VERSION OF THIS GATE WAS VACUOUS, and the shape is worth
+    --     naming because it recurs. It ran hr_progress_prune(interval '0
+    --     seconds') against rows created microseconds earlier and then asserted
+    --     the credited rows had survived — but the prune FLOORS its age at
+    --     `greatest(interval '7 days', p_older)` (2026-08-11-player-state.sql),
+    --     so it deleted NOTHING and the assertion passed identically whether the
+    --     rows were permanent or periodic. Measured: fresh rows → 0 deleted;
+    --     backdated 400 days → the periodic control deleted, credited rows
+    --     survive. The PROPERTY was true; the PROOF was not testing it.
+    --     A "nothing was deleted" assertion is evidence ONLY when something else
+    --     WAS deleted. So this now (a) plants a period_key <> '' CONTROL that
+    --     must die, (b) ages every probe row past the 7-day floor, and (c) fails
+    --     the FIXTURE loudly if the prune turns out to have been a no-op.
     if to_regprocedure('public.hr_progress_prune(interval)') is null then
       raise exception 'GATE(c6): hr_progress_prune is missing — the prune-safety claim is unprovable';
     end if;
-    perform public.hr_progress_prune(interval '0 seconds');
+    insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
+      values (v_uid, v_slot, 'stat', 'ev:prune_control', 1, v_day, 'active')
+      on conflict (user_id, slot, kind, key, period_key) do update set value = 1;
+    update public.player_progress set updated_at = now() - interval '400 days'
+      where user_id = v_uid and slot = v_slot;
+    v_n := public.hr_progress_prune(interval '0 seconds');
+    if v_n < 1 then
+      raise exception 'GATE(c6): FIXTURE VACUOUS — the prune deleted % row(s), so "the credited rows '
+                      'survived" proves nothing. It floors its age at greatest(7 days, p_older), so '
+                      'the probe rows must be aged past that floor before it can reach them.', v_n;
+    end if;
+    if exists (select 1 from public.player_progress where user_id=v_uid and slot=v_slot
+                and kind='stat' and key='ev:prune_control') then
+      raise exception 'GATE(c6): FIXTURE VACUOUS — the PERIODIC control row survived a prune that '
+                      'reported % deletion(s), so the sweep is not reaching this character', v_n;
+    end if;
     if not exists (select 1 from public.player_progress where user_id=v_uid and slot=v_slot
                     and kind='stat' and period_key='' and key='ev:kill_credited_any') then
       raise exception 'GATE(c6): hr_progress_prune DELETED ev:kill_credited_any — the discount is '
@@ -737,8 +810,8 @@ begin
       raise exception 'GATE(c6): hr_progress_prune DELETED a per-monster credited row — the boss '
                       'half of the discount is prunable and would fail OPEN';
     end if;
-    -- …and the control: the row it discounts survived the same prune, so the two
-    -- cannot fall out of step in the other direction either.
+    -- …and the row it discounts survived the SAME sweep, so the two cannot fall
+    -- out of step in the other direction either.
     if not exists (select 1 from public.player_progress where user_id=v_uid and slot=v_slot
                     and kind='stat' and period_key='' and key='ev:kill_any') then
       raise exception 'GATE(c6): FIXTURE — the prune removed ev:kill_any itself, so the comparison '

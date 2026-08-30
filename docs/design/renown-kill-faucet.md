@@ -182,6 +182,14 @@ which kills were client-credited is `hr_kill_credit_log`, retained two days); an
 once-per-rank guard and holds a `greatest()` high-water, so up to 1,603,000 gold
 + 925 gems per character may already be banked). The `renownAllXp` perk reads the
 live score and *does* self-correct, but only for future credits.
+Worse than "ranks already taken": **an inflated `renown_high` is also a standing
+claim on every rank *below* it.** The ratchet does not decay, so a score reached
+once by the faucet keeps every cheaper rank claimable indefinitely, long after
+this fix stops the score rising that way. Moot today — the live maximum
+`renown_high` is **773**, below even `squire` (900) — but that is an observation
+about today's data, not a property, so the trigger is recorded rather than the
+reassurance.
+
 **The answer is the beta wipe** (CLAUDE.md, Tyler 2026-08-10) — and that is
 written down as the whole justification, with the explicit trigger: *if the wipe
 is ever cancelled or deferred past this fix, this is the paragraph that must be
@@ -202,20 +210,38 @@ asserted (the bestiary is written *absolutely* via `greatest`, the counter
 > (`GATE(c5b)` and `R8`), and the mutation reads −550.
 
 **4 — the credited keys can never be pruned.** They carry `period_key = ''` (the
-permanent population) and `hr_progress_prune` deletes only `period_key <> ''` —
-proven by **running the prune at `interval '0 seconds'`** and requiring the rows
-to survive, with `ev:kill_any` as the control. If a credited row could be swept
-while the row it discounts survives, the discount fails **OPEN**: the faucet
-re-opens on a timer with nothing looking broken. Mutation `credited_is_periodic`.
+permanent population) and `hr_progress_prune` deletes only `period_key <> ''`. If
+a credited row could be swept while the row it discounts survives, the discount
+fails **OPEN**: the faucet re-opens on a timer with nothing looking broken.
+
+> ⚠ **The first proof of this was vacuous, and Security caught it.** `GATE(c6)`
+> and `R9` called `hr_progress_prune(interval '0 seconds')` on rows created
+> microseconds earlier — but the prune **floors its age at
+> `greatest(interval '7 days', p_older)`**, so it deleted *nothing* and the
+> assertion passed identically whether the rows were permanent or periodic.
+> Measured: fresh rows → **0 deleted**; backdated 400 days → the periodic control
+> deleted and the credited rows survive. The **property was true; the proof was
+> not testing it.**
+>
+> A "nothing was deleted" assertion is evidence **only when something else was**.
+> Both layers now (a) plant a `period_key <> ''` **control that must die**,
+> (b) age every probe row past the floor, and (c) **fail the fixture loudly** if
+> the prune reports zero deletions. Mutations: `credited_is_periodic` (the
+> property) and `prune_probe_not_aged` (the *proof* — it restores the vacuous
+> shape and must read RED, which it does: "FIXTURE VACUOUS — the prune deleted 0
+> row(s)").
 
 **5 — read cost, measured.** `hr_renown_of` is on `hr_perks_of`'s path, which the
 accrual engine calls every settle. Both added lookups supply `player_progress`'
 complete **primary key**, so the added work is one index probe for the kill term
 plus one per bestiary row (≤108) for the boss term — no new scan, no new sort.
-Measured against a **full 108-row bestiary**: **6.0 ms/call on PGlite**, against a
-deliberately generous 60 ms ceiling sized to catch a plan that degraded to a scan.
-The guard reports the number on every run, pass or fail, so a creeping regression
-is visible rather than merely under threshold.
+**Measured on production** (Security, full bestiary): **2.67 ms/call, a delta of
++0.44 ms** over the undiscounted body — about 20% of an already-cheap read, once
+per ~90 s settle. The guard's own figure (~3 ms on PGlite) is a **proxy, not the
+production cost**: it exists to catch a plan that collapsed into a scan per
+bestiary row (orders of magnitude), not to benchmark, and it is labelled as such
+in the output. Reported on every run so a creeping regression is visible rather
+than merely under threshold.
 
 ### Test inventory
 
@@ -223,6 +249,7 @@ is visible rather than merely under threshold.
 R2 faucet closed with a fixture-degenerate guard, R3 sustained spam, R4 the
 discount subtracts rather than latches, R5 the bounty turn-in still pays, R6 the
 discount is per-monster, R7 read cost, R8 throttled-credit signed equality +
-the ordering invariant, R9 unprunable. **10 mutations, all caught**, three of
-them with the migration's own gate short-circuited so the guard alone must see
-them.
+the ordering invariant, R9 unprunable (with its own anti-vacuity fixture checks). **11 mutations, all
+caught**, three of them with the migration's own gate short-circuited so the guard
+alone must see them, and one (`prune_probe_not_aged`) that proves the *proof*
+rather than the behaviour.

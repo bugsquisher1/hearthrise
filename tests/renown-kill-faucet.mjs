@@ -111,6 +111,21 @@ const MUTATIONS = {
     '          do update set value = p.value + v_claimed, updated_at = now();' || chr(10) ||
     '      insert into public.player_progress as p (user_id, slot, kind, key, period_key, value, state)' || chr(10) ||`,
   },
+  prune_probe_not_aged: {
+    /* Not a defect in the SHIPPED behaviour — a defect in the PROOF, planted so
+       the anti-vacuity check is itself proven to have teeth. Removing the
+       backdate restores exactly the gate Security found: hr_progress_prune floors
+       its age at greatest(7 days, p_older), so a prune over microseconds-old rows
+       deletes nothing and "the credited rows survived" becomes a statement about
+       a no-op that passes whether the rows are permanent or periodic. */
+    why: 'the (c6) probe rows are no longer aged past hr_progress_prune\'s 7-day floor, so the prune '
+       + 'is a NO-OP and the "credited rows are unprunable" proof becomes vacuous again — it would '
+       + 'pass identically if the rows were periodic',
+    find: `    update public.player_progress set updated_at = now() - interval '400 days'
+      where user_id = v_uid and slot = v_slot;`,
+    repl: `    update public.player_progress set updated_at = now()
+      where user_id = v_uid and slot = v_slot;`,
+  },
   credited_is_periodic: {
     why: 'the credited rows are filed with a PERIOD key instead of the permanent one, so '
        + 'hr_progress_prune sweeps them at 31 days while ev:kill_any and the bestiary row survive '
@@ -344,12 +359,30 @@ async function run(mutate) {
 
   /* ── R9. THE DISCOUNT IS NOT PRUNABLE. hr_renown_of is only honest if the
      credited rows outlive the rows they discount. They carry period_key = ''
-     (the permanent population) and hr_progress_prune deletes only
-     period_key <> '' — proven by RUNNING the prune at its most aggressive
-     rather than by reading its WHERE clause. If a credited row could be swept
-     while ev:kill_any survives, the discount fails OPEN and nothing looks
-     broken, which is the worst failure mode available here. */
-  await q("select public.hr_progress_prune(interval '0 seconds')");
+     (the permanent population) and hr_progress_prune deletes only period_key
+     <> ''. If a credited row could be swept while ev:kill_any survives, the
+     discount fails OPEN and nothing looks broken — the worst failure mode here.
+
+     ⚠⚠ THE FIRST VERSION OF THIS CHECK WAS VACUOUS. It called the prune at
+     `interval '0 seconds'` on rows created microseconds earlier and asserted the
+     credited rows survived — but the prune FLOORS its age at
+     `greatest(interval '7 days', p_older)`, so it deleted NOTHING and the
+     assertion passed identically whether the rows were permanent or periodic.
+     Measured: fresh rows → 0 deleted; backdated 400 days → the periodic control
+     deleted and the credited rows survive. The property was true; the proof was
+     not testing it. A "nothing was deleted" assertion is evidence ONLY when
+     something else WAS deleted, so this now plants a period_key <> '' CONTROL
+     that must die, ages every row past the floor, and records the delete count
+     so a no-op prune fails the FIXTURE instead of passing the property. */
+  const pruneDay = (await q('select public.hr_utc_day_key(now()) as r'))[0].r;
+  await q(`insert into player_progress (user_id, slot, kind, key, value, period_key, state)
+           values ($1, 0, 'stat', 'ev:prune_control', 1, $2, 'active')
+           on conflict (user_id,slot,kind,key,period_key) do update set value = 1`, [uid, pruneDay]);
+  await q("update player_progress set updated_at = now() - interval '400 days' where user_id=$1", [uid]);
+  obs.r9_deleted = N((await q("select public.hr_progress_prune(interval '0 seconds') as n"))[0].n);
+  obs.r9_control = N((await q(
+    "select count(*)::text c from player_progress where user_id=$1 and slot=0 and kind='stat' "
+    + "and key='ev:prune_control'", [uid]))[0].c);
   obs.r9_credited_any = N((await q(
     "select count(*)::text c from player_progress where user_id=$1 and slot=0 and kind='stat' "
     + "and period_key='' and key='ev:kill_credited_any'", [uid]))[0].c);
@@ -468,6 +501,16 @@ function grade(o, problems) {
     + 'SILENTLY, because renown still moves less than it used to and every check above still passes.');
 
   // R9 — the discount must outlive what it discounts.
+  /* The FIXTURE checks come first, and they are the whole difference between a
+     proof and a tautology: unless the prune actually DELETED something, "the
+     credited rows survived" is a statement about a no-op. */
+  ok(o.r9_deleted >= 1,
+    `R9: FIXTURE VACUOUS — hr_progress_prune deleted ${o.r9_deleted} row(s), so "the credited rows `
+    + 'survived" proves nothing. The prune floors its age at greatest(7 days, p_older); probe rows '
+    + 'must be aged past that floor before it can reach them.');
+  ok(o.r9_control === 0,
+    `R9: FIXTURE VACUOUS — the PERIODIC control row survived a prune reporting ${o.r9_deleted} `
+    + 'deletion(s), so the sweep is not reaching this character\'s rows at all');
   ok(o.r9_kill_any === 1,
     'R9: FIXTURE — hr_progress_prune removed ev:kill_any itself, so the comparison proves nothing');
   ok(o.r9_credited_any === 1,
@@ -493,8 +536,13 @@ export async function renownKillFaucetGuard() {
   /* Reported on the way out, pass or fail: hr_renown_of is on the accrual
      engine's per-settle path, so the cost of the discount is a number a reader
      should SEE rather than a threshold that quietly holds. */
+  /* ⚠ A PROXY, NOT THE PRODUCTION COST. PGlite is slower and noisy; this number
+     exists to catch a plan that collapsed into a scan per bestiary row (orders of
+     magnitude), not to benchmark. Production, measured by Security against a full
+     bestiary: 2.67 ms/call, a delta of +0.44 ms over the undiscounted body. */
   renownKillFaucetGuard.readCost =
-    `${obs.r7_ms_per_call.toFixed(1)} ms/call over a ${obs.r7_bestiary_rows}-row bestiary`;
+    `${obs.r7_ms_per_call.toFixed(1)} ms/call over a ${obs.r7_bestiary_rows}-row bestiary `
+    + '(PGlite proxy; prod is 2.67 ms/call, +0.44 ms delta)';
   return problems;
 }
 

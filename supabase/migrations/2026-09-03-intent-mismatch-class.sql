@@ -469,18 +469,7 @@ begin
 end $do$;
 
 
--- ── §4. THE DATABASE-SIDE DETECTOR, re-run strict ─────────────────────────
--- Guarded so a database without it still applies this file.
-do $$
-begin
-  if to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is not null then
-    perform public.hr_assert_grant_hygiene(true);
-    raise notice 'hr_assert_grant_hygiene(strict) passed after the patch';
-  end if;
-end $$;
-
-
--- ── §5. RECORDED, NOT BUILT ───────────────────────────────────────────────
+-- ── §4. RECORDED, NOT BUILT ───────────────────────────────────────────────
 -- (i) FIVE CLAIM VERBS TAKE NO IDEMPOTENCY KEY: hr_claim_daily, hr_claim_rank,
 --     hr_claim_milestone, hr_claim_quest, hr_claim_bounty. Their once-guard (a
 --     player_progress state transition to 'claimed') makes a double PAYOUT
@@ -495,3 +484,17 @@ end $$;
 --     discriminator (goal_claim, farm_*, worker_*, client_state_put). Self-only.
 --     See "WHAT THIS DELIBERATELY DOES NOT DO" (1).
 -- (iii) `intent_mismatch` is still severity 'normal' in hr_rejections. See (2).
+
+
+-- ── §5. THE DATABASE-SIDE DETECTOR, re-run strict ─────────────────────────
+-- Guarded so a database without it still applies this file. LAST, because the
+-- migration guard in tests/run-smoke.mjs requires every migration to END on a
+-- real SQL terminator — a file whose last line is prose is indistinguishable
+-- from a file that was truncated.
+do $$
+begin
+  if to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is not null then
+    perform public.hr_assert_grant_hygiene(true);
+    raise notice 'hr_assert_grant_hygiene(strict) passed after the patch';
+  end if;
+end $$;

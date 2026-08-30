@@ -4489,8 +4489,21 @@ const TESTS = [
       const before = (G.inventory.normal_log || 0);
       W.accrueAll(false);
       const gained = (G.inventory.normal_log || 0) - before;
-      // b389 rebalance: Lv1 eff cut 25%→10%. 1h on a 3s action ≈ 300 ticks × ~1.5 qty × 0.10 ≈ 180 logs
-      assert(gained > 80 && gained < 350, 'worker should bank ~180 logs for 1h at the rebalanced 10% eff, got ' + gained);
+      /* b497 — EXACT, and predicted from the PLAYER's side of the ratio rather
+         than from the worker code under test. A worker banks `eff` of what an
+         active player would gather in the same hour, and the active interval is
+         `window.pacedActionMs(node.ms)` (an independently-authored function), so
+         a wrong anchor inside the worker engine cannot satisfy this. The old
+         assertion was a 4x-wide band around a figure whose own comment did the
+         arithmetic wrong (`~1.5 qty` on a [1,1] node), and it let the whole
+         b389→b496 1.60x over-payment through. */
+      const node = (window.TREES || []).find((t) => t.id === 'normal_tree');
+      assert(node && typeof window.pacedActionMs === 'function', 'normal_tree + pacedActionMs available');
+      const activeMs = window.pacedActionMs(node.ms);          // an ACTIVE, perkless player
+      const expTicks = Math.floor(3600000 / (activeMs / W.eff({ xp: 0 })));
+      const expQty = Math.floor(expTicks * (node.qty[0] + node.qty[1]) / 2);
+      assert(gained === expQty,
+        'a Lv1 worker banks exactly eff x the ACTIVE paced rate for 1h — expected ' + expQty + ', got ' + gained);
       assert(JSON.stringify(G.skills) === xpBefore, 'workers must never grant player XP');
     } finally {
       if (IA) IA.WORKER_PRODUCTION_SERVER_BACKED = flagBefore;
@@ -4498,16 +4511,34 @@ const TESTS = [
       G.inventory = saved.inv; G.skills = saved.skills;
     }
   }),
-  () => tryRun('b389: worker rebalance — a full castle crew ≤ ~1 active-equivalent (anti-faucet guard)', () => {
+  () => tryRun('b389/b497: worker rebalance — a full castle crew ≤ ~1 active-equivalent, MEASURED as a ratio', () => {
     const W = window.HearthriseWorkers;
-    assert(W && typeof W.eff === 'function', 'workers module + eff present');
-    /* A max-level worker's efficiency × the 6-slot castle crew must stay ≈ ONE active
-       gatherer — never the pre-b389 3.12x free-24/7 faucet that defeated the b226 vendor
-       ceiling (~6.3M gold/day passive). A future BASE_EFF / EFF_PER_LVL bump that reopens
-       it fails here. */
-    const effMax = W.eff({ xp: 1e12 });   // level 10
-    const crew = 6 * effMax;               // castle = 6 slots
-    assert(effMax <= 0.20, 'a maxed worker must be ≤ 20% of an active gatherer, got ' + effMax);
+    assert(W && typeof W.eff === 'function' && typeof W.ratePerHour === 'function', 'workers module + eff + ratePerHour present');
+    assert(typeof window.pacedActionMs === 'function' && Array.isArray(window.TREES), 'pacedActionMs + TREES available');
+    /* A max-level worker's output × the 6-slot castle crew must stay ≈ ONE active
+       gatherer — never the pre-b389 3.12x free-24/7 faucet that defeated the b226
+       vendor ceiling (~6.3M gold/day passive).
+
+       ⚠ THIS GUARD USED TO ASSERT `6 * W.eff(...) <= 1.1` AND IT WAS GREEN FOR THE
+       ENTIRE TIME THE RULE WAS BROKEN. `eff` is one HALF of a ratio; the engine
+       divided the RAW `node.ms` while a player gathers at `pacedActionMs(node.ms)`,
+       so the shipped crew was 6 x 0.172 x 1.60 = 1.65 equivalents against the 1.03
+       b389 ruled — and a guard that measures a proxy cannot see that. It measures
+       the RATIO now, through the two functions that actually produce it:
+         • `W.ratePerHour(worker)`  — what the crew screen promises and the settle pays;
+         • `pacedActionMs(node.ms)` — what an active, perkless player takes.
+       Neither can be edited alone to satisfy it. Same shape as W11 in
+       tests/worker-accrual.mjs, which proves the server half. */
+    const node = window.TREES.find((t) => t.id === 'normal_tree');
+    assert(node, 'normal_tree present in TREES');
+    const avgQty = (node.qty[0] + node.qty[1]) / 2;
+    const activePerHour = 3600000 / window.pacedActionMs(node.ms) * avgQty;
+    const maxed = { xp: 1e12, skill: 'woodcutting', targetId: node.id };   // level 10
+    const equivalents = W.ratePerHour(maxed) / activePerHour;
+    const crew = 6 * equivalents;                                          // castle = 6 slots
+    assert(Math.abs(equivalents - W.eff(maxed)) < 1e-6,
+      'a worker produces exactly eff x the ACTIVE paced rate — got ' + equivalents + ' vs eff ' + W.eff(maxed));
+    assert(equivalents <= 0.20, 'a maxed worker must be ≤ 20% of an active gatherer, got ' + equivalents);
     assert(crew <= 1.1, 'a full 6-worker castle crew must be ≤ 1.1 active-equivalents, got ' + crew);
   }),
   /* worker-settlement slice — THE CLIENT WIRING. With the crew server-owned
@@ -42703,7 +42734,17 @@ const TESTS = [
       W.accrueAll(false);
 
       const L = W.ledger();
-      assert(L.total > 80, 'the crew ledger did not record the haul: ' + L.total);  // b389: floor lowered for the 25%→10% eff rebalance
+      /* b497 — the ledger must record THE WHOLE HAUL, so the expectation is the
+         haul, computed from the PLAYER's side of the ratio (an active perkless
+         hour at this node x the worker's efficiency). A hand-tuned floor was
+         what this line used to be, and it had to be edited every time the rate
+         moved — which is precisely how a rate that had silently moved 1.60x
+         went unnoticed for four builds. */
+      const _node = (window.TREES || []).find((t) => t.id === 'normal_tree');
+      const _ticks = Math.floor(3600000 / (window.pacedActionMs(_node.ms) / W.eff({ xp: 0 })));
+      const _expected = Math.floor(_ticks * (_node.qty[0] + _node.qty[1]) / 2);
+      assert(L.total === _expected,
+        'the crew ledger did not record the whole haul: ' + L.total + ' (expected ' + _expected + ')');
       assert(L.byItem.normal_log === L.total, 'the ledger lost the item breakdown: ' + JSON.stringify(L.byItem));
       assert(L.workers.length === 1 && L.workers[0].total === L.total,
         'the per-worker tally disagrees with the crew total');

@@ -2,6 +2,88 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-30 — THE WORKER EFFICIENCY ANCHOR: a nerf that missed by 60%, and the guard that watched it happen
+
+**Branch:** `fix/worker-efficiency-anchor` (worktree `R:/the game/wt-worker-anchor`), base main
+b496 `fe2a7111`.
+
+### THE DEFECT IN ONE LINE
+Both engines computed `perTickMs = node.ms / eff` while a player gathers at
+`pacedActionMs(node.ms)` (`PACE.actionMs` = 1.60). So a worker produced `1.60 x eff` of an active
+player, not `eff`: a Lv10 crew of six was **1.65 active-player-equivalents**, not the 1.03 b389
+ruled. The nerf landed 60% short, in the direction of the faucet it was written to close.
+
+### WHAT MAKES IT INTERESTING, AND THE RULE I TOOK FROM IT
+`docs/design/bonus-rebase.md` §244 already stated the model exactly right — worker efficiency is
+"a *fraction* of [your rate] … **It inherits `PACE` automatically** and cannot inflate." The design
+was correct and the implementation simply never expressed it, because **the thing the fraction was
+a fraction OF had no name in the code.** `eff` existed (twice, mirrored, with a "Mirrors …"
+comment); its denominator existed nowhere. An unnamed quantity cannot be reviewed, cannot be
+tested, and cannot drift *loudly*.
+
+**THE GUARD IS THE REAL LESSON.** `smoke-test.js` "b389: worker rebalance — a full castle crew ≤ ~1
+active-equivalent" was written specifically to stop this and asserted `6 * W.eff(...) <= 1.1`. It
+was green for four builds while the rule was broken, because **it measured one HALF of a ratio and
+assumed the other.** Generalised, and worth applying elsewhere: *a guard on a RATIO must divide the
+two quantities, each through the function its own consumer calls.* A guard on a proxy is satisfied
+by construction and tells you nothing. Both new guards (W11 in `tests/worker-accrual.mjs`, the
+rewritten in-page one) now compute `actionIntervalMs(node) / workerTickMs(node)` — two functions in
+two modules with two different consumers, so no single edit can satisfy them.
+
+Same shape as the b493 "pinned BY VALUE" ruling and the gold-site census: **the assertion has to be
+in the dimension of the thing you care about.**
+
+### WHAT I BUILT
+`src/core/workers.js` — the crew rate model as one authority: the constants, the level/eff curve,
+`workerEffE` (the integer that keeps the server's tick split exact), and the newly-named
+`workerAnchorMs` = `pacedActionMs`. `accrual.js` imports and **re-exports** it (index.ts and the
+Node suite keep their import sites, and there is no second definition to drift);
+`src/features/workers.js` reaches it through core-bridge. The client is display-only under
+`WORKER_PRODUCTION_SERVER_BACKED`, so the reason this had to be lockstep is not value — it is that
+the crew card was **advertising a rate the settle would not pay**.
+
+Deliberately NOT in the anchor: the player's own speed perks + tool ladder. A share of the BASE
+paced action, not of what the employer is wearing — otherwise a Rune Axe speeds the whole crew, the
+client can never predict the server (perks are re-derived server-side), and the rate moves on every
+tool swap. Written into the module header so the omission reads as a decision.
+
+### THE THING I CHECKED THAT NOBODY ASKED ABOUT
+`WORKER_MAX_ACC_MS = 900000` is a **security** constant — `hr_apply` REFUSES (never clamps) an
+`acc_ms` outside `[0, it)`. Its justification lived in a comment: "largest perTickMs =
+max(node.ms)/min(eff) = 13000/0.10 = 130,000". That was stale **twice**: the slowest node is 14,000
+ms today, and the anchor moved it to 224,000. Still inside 900,000 — but I found that out by
+computing it, and the next person would have found out from a `bad_worker_carry` rejection in
+production. **A comment cannot notice it has gone stale**, so W13 walks the real node catalogue and
+fails if the achievable carry ever reaches the constant. That is the derivation as a test, and it
+holds at 10x the content. (The applied migration's comment is left as history; the live rationale
+now lives in `src/core/workers.js`.)
+
+### THE DEPLOY BOUNDARY, PROVEN NOT ARGUED
+`acc_ms` is banked TIME, and the anchor only ever LENGTHENS a tick — so a carry written under the
+old regime is `< oldPerTick < newPerTick` and cannot buy a tick on its own. W12 asserts both
+directions: the largest possible legacy carry mints nothing across a 1 ms settle (no burst), and
+the same carry still buys its tick once enough new time joins it (not confiscated).
+
+### DEPLOY ORDER MATTERS AND ONLY IN ONE DIRECTION
+Client-first is safe (display under-quotes, server over-pays for a few minutes); edge-first
+over-promises. No correctness hazard either way — the client mints nothing under the arm — but the
+honest order is client, then edge.
+
+### VERIFICATION
+Suite **1089/1089, 0 failed, 0 runtime errors** (edge-payload guard red by construction until the
+Coordinator redeploys). `tests/worker-accrual.mjs` all green; **mutation: reverting the anchor to
+the raw `node.ms` turns 7 assertions red and reports exactly 1.651 equivalents — the audit's
+measured figure.** Runtime in the real client: the crew card renders "Normal Tree · ~75/hr", banks
+75, and the player-side prediction is 75 — three numbers that used to be 120 / 120 / 75. 0 console
+errors, 0 page errors.
+
+### TWO TESTS I HAD TO FIX, AND WHY THAT IS PART OF THE FINDING
+`WORKER-LEDGER-1` asserted `L.total > 80` and the legacy-mint test `gained > 80 && gained < 350` —
+hand-tuned bands around magic numbers, one of them with arithmetic its own comment got wrong
+("~1.5 qty" on a `[1,1]` node). A band that has to be re-tuned every time a rate moves is a band
+that cannot detect a rate moving. Both are exact now and predicted from the PLAYER's side of the
+ratio, so the worker engine cannot satisfy them by agreeing with itself.
+
 ## 2026-08-29 — P1: THE RANK CLAIM WAS FIRE-AND-FORGET OVER A SERVER VERDICT
 
 **Branch:** `fix/rank-claim-silent-loss` (worktree `R:/the game/wt-rank-claim`), commit `0f69312c`,

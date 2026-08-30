@@ -151,6 +151,17 @@ import { modalGoalOps } from './goal-period.js';
    truthiness test on a `[a-z0-9_]` id is not one. ./intents.js imports nothing,
    so this cannot cycle. */
 import { catalogueHas } from './intents.js';
+/* THE HIRED-CREW RATE MODEL, shared with the client (src/features/workers.js
+   reaches it through core-bridge). The efficiency curve used to live HERE and
+   AGAIN in the client, kept in step by a comment that said "Mirrors …"; the
+   thing it was an efficiency OF — the paced action interval — was never named
+   in either, which is how b389's rebalance shipped at 1.60x its stated size.
+   One module owns it now. See src/core/workers.js for the full account. */
+import {
+  WORKER_BASE_EFF, WORKER_EFF_PER_LVL, WORKER_MAX_LVL,
+  WORKER_ACCRUE_CAP_MS, WORKER_MAX_ACC_MS,
+  workerLevel, workerEff, workerEffE, workerAnchorMs,
+} from '../../../src/core/workers.js';
 
 /* The floor on an accrual. Below this nothing is simulated and — unlike the
    client, which advances its watermark regardless (legacy.js:987) — NOTHING IS
@@ -2415,40 +2426,41 @@ export function levelsOf(skills) {
 //      persisted against the advanced watermark, so the slow worker's remainder
 //      rides forward instead of being discarded.
 //
+// ── THE ANCHOR (b497) ───────────────────────────────────────────────────────
+// A worker's tick is `workerAnchorMs(node.ms) / eff`, and the anchor is the
+// PACED action interval — what an active player actually takes at that node —
+// NOT the raw `node.ms`. This engine divided the un-paced number for four
+// builds, which paid every crew PACE.actionMs (1.60x) more than the b389
+// rebalance said it did. The formula, the efficiency curve and the constants now
+// live in src/core/workers.js and are imported by BOTH engines; see that file's
+// header for the measurement and for why the player's own perks/tools are
+// deliberately not in the anchor.
+//
 // EXACTNESS — away == live byte-identical. `eff` is EXACTLY rational with
-// denominator 1000: eff = (100 + 8·(lvl-1)) / 1000. So perTickMs = ms·1000/E with
+// denominator 1000: eff = (100 + 8·(lvl-1)) / 1000, and the anchor is an INTEGER
+// number of ms (pacedActionMs floors). So perTickMs = anchorMs·1000/E with
 // E = 100+8·(lvl-1) an integer, and the whole-ticks / leftover split is exact
 // integer arithmetic (no float remainder to drift). For a worker at a FIXED level
 // (E constant) one 24h settle and N small settles produce byte-identical totals —
 // proven in tests/worker-accrual.mjs. (For a worker CROSSING a level boundary the
 // two genuinely differ, exactly as the pre-flip client's online vs offline did,
 // because eff changes mid-span; that is a property of the rate curve, not a bug.)
+//
+// ── THE DEPLOY BOUNDARY (a rate change with money in the bank) ───────────────
+// `acc_ms` is banked TIME, not banked output, and the anchor only ever makes a
+// tick LONGER. A carry written under the old anchor is < oldPerTick < newPerTick,
+// so on the first settle after the deploy it still buys strictly less than one
+// tick: no burst, and nothing is confiscated either (the time is re-priced, not
+// dropped). Proven in tests/worker-accrual.mjs W12 rather than argued here.
 // ============================================================================
-export const WORKER_BASE_EFF = 0.10;
-export const WORKER_EFF_PER_LVL = 0.008;
-export const WORKER_MAX_LVL = 10;
-export const WORKER_ACCRUE_CAP_MS = 24 * 3600000;
-// A blast radius on the stored carry. A legit carry is < perTickMs, and the
-// largest perTickMs is max(node.ms)/min(eff) = 13000/0.10 = 130,000 ms, so any
-// value near this ceiling is corruption; hr_apply refuses `acc_ms` outside
-// [0, WORKER_MAX_ACC_MS). Set generously above 130 s, far below a mint.
-export const WORKER_MAX_ACC_MS = 900000;   // 15 min
-
-/** A worker's level from its lifetime xp — min 1, capped at WORKER_MAX_LVL.
- *  Mirrors src/features/workers.js `level`. */
-export function workerLevel(xp) {
-  return Math.min(WORKER_MAX_LVL, 1 + Math.floor(Math.sqrt(nat(xp, 0) / 2000)));
-}
-/** Efficiency (fraction of the active rate) at a worker's level. Mirrors
- *  src/features/workers.js `eff`. Exactly (100 + 8·(lvl-1))/1000. */
-export function workerEff(xp) {
-  return WORKER_BASE_EFF + WORKER_EFF_PER_LVL * (workerLevel(xp) - 1);
-}
-/** E = eff·1000 (integer 100..172) — the exact-arithmetic denominator that makes
- *  the whole-tick / carry split byte-identical across settle granularities. */
-function workerEffE(xp) {
-  return 100 + 8 * (workerLevel(xp) - 1);
-}
+/* RE-EXPORTED, NOT REDEFINED. index.ts and tests/worker-accrual.mjs import these
+   names from this module; they resolve to src/core/workers.js, so there is one
+   definition and no mirror to drift. */
+export {
+  WORKER_BASE_EFF, WORKER_EFF_PER_LVL, WORKER_MAX_LVL,
+  WORKER_ACCRUE_CAP_MS, WORKER_MAX_ACC_MS,
+  workerLevel, workerEff, workerEffE, workerAnchorMs,
+};
 
 /**
  * Settle a hired crew over [workers_accrued_to, now()].
@@ -2510,17 +2522,22 @@ export function accrueWorkers(input) {
     const ms = nat(node.ms, 0);
     if (!(ms > 0)) continue;
 
-    // EXACT-ARITHMETIC TICK SPLIT. eff = E/1000 with E an integer, so perTickMs =
-    // ms·1000/E and the whole-tick / leftover split is done in INTEGER units of
-    // (ms·E) — no float remainder to drift, so N small settles and one big settle
-    // land on the SAME tick boundaries for a constant-eff worker (W8). The carry
-    // is stored as milliseconds (leftoverScaled/E) as a float8; re-reading it and
-    // multiplying by E recovers the exact integer remainder, because the value is
-    // an integer/E and float8 round-trips it well inside 0.5. The carry read from
-    // the row is clamped defensively (hr_apply already refuses an out-of-range write).
+    // EXACT-ARITHMETIC TICK SPLIT. eff = E/1000 with E an integer and the anchor
+    // is integer ms, so perTickMs = anchorMs·1000/E and the whole-tick / leftover
+    // split is done in INTEGER units of (ms·E) — no float remainder to drift, so N
+    // small settles and one big settle land on the SAME tick boundaries for a
+    // constant-eff worker (W8). The carry is stored as milliseconds
+    // (leftoverScaled/E) as a float8; re-reading it and multiplying by E recovers
+    // the exact integer remainder, because the value is an integer/E and float8
+    // round-trips it well inside 0.5. The carry read from the row is clamped
+    // defensively (hr_apply already refuses an out-of-range write).
     const E = workerEffE(w.xp);
     const accMs = Math.min(Math.max(0, Number(w.acc_ms) || 0), WORKER_MAX_ACC_MS);
-    const divScaled = ms * 1000;                       // perTick in (ms·E) units
+    /* THE ANCHOR — the PACED interval an active player takes at this node, not
+       the raw catalogue `ms`. src/core/workers.js owns the formula and the
+       client reads the same function, so a display and this settle cannot
+       disagree. Integer, so the split below stays exact. */
+    const divScaled = workerAnchorMs(ms) * 1000;       // perTick in (ms·E) units
     const carryScaled = Math.round(accMs * E);         // exact remainder, (ms·E) units
     const nScaled = baseMs * E + carryScaled;          // total available, (ms·E) units
     const ticks = Math.floor(nScaled / divScaled);

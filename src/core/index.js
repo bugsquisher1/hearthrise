@@ -71,3 +71,8 @@ export * as skillSim from './skill-sim.js?v=496';
    second copy of it, which is what keeps one buff-expiry timeline serving all
    three simulations. 290 of the 344 catalogue rows are artisan. */
 export * as artisanSim from './artisan-sim.js?v=496';
+/* THE HIRED-CREW RATE MODEL. A worker is priced as a FRACTION of the active
+   player's rate at the same node, so the fraction (`workerEff`) and the thing it
+   is a fraction OF (`workerAnchorMs` = the PACED action interval) belong in one
+   place. They were previously two mirrored copies and, respectively, nowhere. */
+export * as workers from './workers.js?v=496';

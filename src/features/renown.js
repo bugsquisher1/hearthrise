@@ -318,35 +318,84 @@
     return out;
   }
 
-  // Grant a rank's reward once. Returns the reward granted, or null.
-  function claimRank(rankId, G) {
-    G = G || window.G; var s = ensureState(G); if (!s) return null;
-    if (s.claimed.indexOf(rankId) >= 0) return null;         // already claimed
-    var idx = -1; for (var i = 0; i < RANKS.length; i++) if (RANKS[i].id === rankId) { idx = i; break; }
-    if (idx < 0) return null;
-    if (idx > rankIndexFor(effectiveRenown(G))) return null;    // not reached yet
-    var rank = RANKS[idx];
-    var rw = rank.reward || {};
-    /* SERVER-CREDITED (2026-08-22-renown-claim.sql). hr_claim_rank reads the
-       SERVER-DERIVED renown score (hr_renown_of), ratchets a SERVER HIGH-WATER
-       (player_state.renown_high) so a transient low read cannot un-earn a
-       reached rank, maps the high-water to the rank via a server-owned
-       catalogue, owns the gold+gems amount, once-guards a player_progress
-       kind='flag' claim row per rank, and journals it (kind='renown'). The b411
-       arm-safety DEFER is GONE — the claim proceeds and the local gold/gems
-       write is a GATED PREDICTION the server envelope reconciles. Fire-and-forget;
-       the server once-guard is the authority and a replay returns already_claimed
-       with no second credit. (No rank has an `item` reward today; the client
-       item grant stays client-side as a later arming slice if one is ever added.) */
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE RANK CLAIM IS A TWO-PHASE COMMIT, NOT FIRE-AND-FORGET.
+
+     ── WHAT WAS WRONG ────────────────────────────────────────────────────────
+     claimRank fired hr_claim_rank with `.catch(noop)`, wrote the gold/gems
+     prediction, and then pushed the rank into `G.renown.claimed`
+     UNCONDITIONALLY. The server decides on ITS OWN score (hr_renown_of,
+     ratcheted into player_state.renown_high) and can answer `not_reached`.
+     `G.renown` is RESIDUE — it survives every reload (src/net/client-state.js
+     RESIDUE_FIELDS) — so a REFUSED rank was marked claimed FOREVER: never
+     offered again, ✓ in the ladder, and the predicted gold reconciled away at
+     the next envelope. Silent, permanent loss of a claimable rank. The ladder
+     pays 1,603,000 gold + 925 gems in total and up to 1,000,000 + 500 in one
+     rank, so this is the highest-value loss the reward program can produce —
+     and any client-vs-server score divergence makes it bite HONEST players.
+
+     ── THE HOUSE PATTERN, APPLIED ────────────────────────────────────────────
+     Same shape as the modal goal claim (legacy.js claimQuestReward, b461) and
+     the cull bounty turn-in (legacy.js completeBounty, R1/R5): under the ARM
+     the claim is AWAITED and NOTHING is written until the server says ok — no
+     `claimed` mark, no prediction, no save. A refusal leaves the rank exactly
+     as claimable as it was and says so in a sentence, never a raw code (b465).
+     `already_claimed` is the one refusal that DOES mark it claimed: the server
+     once-guard is the memory, and the reward is already banked.
+
+     ── WHY THE BUTTON STAYS ON A REFUSED RANK ────────────────────────────────
+     Deliberately NOT the b487 fail-closed-on-knowledge treatment. hr_claim_rank
+     advances the server high-water — `renown_high = greatest(renown_high,
+     hr_renown_of(...))` — BEFORE it decides, so THE CLICK IS WHAT MOVES THE
+     SERVER'S NUMBER, and it succeeds the moment the server's own live score
+     reaches the threshold. Hiding the button on a known-short score would
+     remove the only thing that advances it: a permanent dead END instead of a
+     dead button. So the button stays, and the ladder row explains the shortfall
+     in the SERVER's own figures (the `not_reached` envelope carries
+     renown_high + min), which is as close to "paint the ladder from the
+     server's score" as the client can get without a new projection RPC —
+     hr_renown_of is deliberately not client-executable (2026-08-20-renown.sql
+     §gate: "a rankable score reachable off the engine path"). See the FOLLOW-UP
+     note on serverRenownHigh below.
+     ══════════════════════════════════════════════════════════════════════════ */
+  var _claimInFlight = Object.create(null);   // rankId → true while a verdict is pending
+  var _serverHigh = null;                     // the SERVER's renown high-water, learned from a verdict
+  var _serverShort = Object.create(null);     // rankId → {high, min, at} from a `not_reached`
+  var SHORT_TTL_MS = 600000;                  // a shortfall note goes stale; never outlive the session
+
+  function say(msg, kind) {
+    try { if (typeof window.notify === 'function') window.notify(msg, kind || 'info'); } catch (e) {}
+  }
+  function repaintBalances() {
+    try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
+  }
+  /* "The cheapest honest refresh there is" (buyTrait's phrase, and the
+     bug_reports #46 fix in completeBounty). gold/gems are SERVER_OF_RECORD
+     under the arm, so the credit hr_claim_rank just made is INVISIBLE to the
+     topbar until an envelope arrives — the player claims 300,000 gold and
+     watches the counter not move. One request refreshes the whole envelope. */
+  function refreshRecordAfterCredit() {
     try {
-      if (window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.claimRank === 'function') {
-        var _p = window.HearthriseGoalClaim.claimRank(rankId); if (_p && _p.catch) _p.catch(function () {});
+      var R = window.HearthriseRecord;
+      if (R && typeof R.requestRecord === 'function') {
+        var p = R.requestRecord();
+        if (p && p.then) p.then(function () { repaintBalances(); }, function () {});
+        else repaintBalances();
+        return;
       }
     } catch (e) {}
-    var _mayGold = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold');
-    var _mayGems = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems');
-    if (rw.gold && _mayGold) G.gold = (G.gold || 0) + rw.gold;   // prediction; no-op under arm
-    if (rw.gems && _mayGems) G.gems = (G.gems || 0) + rw.gems;   // prediction; no-op under arm
+    repaintBalances();
+  }
+  function mayWrite(field) {
+    return !window.clientMayWriteRecordField || window.clientMayWriteRecordField(field);
+  }
+  /* The DISPLAY half of a claim. Under the arm every branch here is a no-op and
+     the server's credit is the only real one; pre-arm (signed-out, suite, the
+     client-authoritative switch position) this IS the payout. It runs only
+     after a verdict that authorises it — never before one. */
+  function grantLocally(G, s, rankId, rw) {
+    if (rw.gold && mayWrite('gold')) G.gold = (G.gold || 0) + rw.gold;
+    if (rw.gems && mayWrite('gems')) G.gems = (G.gems || 0) + rw.gems;
     /* INVENTORY-FLIP SAFETY (2026-08-22): renown rank rewards CAN carry an item
        (rw.item). No rank in src/data/renown-ranks.js grants one today, so this is
        a dormant slot — but gate it on the inventory record seam like gold/gems so
@@ -354,11 +403,164 @@
        un-backed and then deleted by the inventory absolute-replace. Before shipping
        any renown ITEM reward, register the lane in item-authority.js
        unbackedOwnableMintLanes() (or server-author the grant). */
-    var _mayInv = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('inventory');
-    if (rw.item && _mayInv && typeof window.addItem === 'function') { try { window.addItem(rw.item, rw.itemQty || 1); } catch (e) {} }
-    s.claimed.push(rankId);
+    if (rw.item && mayWrite('inventory') && typeof window.addItem === 'function') {
+      try { window.addItem(rw.item, rw.itemQty || 1); } catch (e) {}
+    }
+    markClaimed(s, rankId);
+  }
+  function markClaimed(s, rankId) {
+    if (s.claimed.indexOf(rankId) < 0) s.claimed.push(rankId);
+    delete _serverShort[rankId];
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}
-    return rw;
+  }
+  /* Every refusal answers in a SENTENCE. An error code is a note to us, not a
+     sentence to the player (b465) — and every one of these says the load-bearing
+     thing: nothing was lost, the rank is still yours to claim. */
+  function refusalMessage(res, rank) {
+    var why = (res && res.error) || 'network';
+    if (why === 'not_reached') {
+      var high = Math.max(0, Math.floor(Number(res && res.renown_high) || 0));
+      var min = Math.max(0, Math.floor(Number(res && res.min) || rank.min || 0));
+      return 'Not yet — the realm has counted ' + fmt(high) + ' of ' + fmt(min) +
+        ' Renown for ' + rank.name + '. Nothing was spent; ' + rank.name +
+        ' is still waiting for you and claims itself the moment it catches up.';
+    }
+    if (why === 'rate_limited') return 'That came through a little fast — try claiming ' + rank.name + ' again in a few seconds.';
+    if (why === 'not_signed_in') return 'Claiming needs a connection — ' + rank.name + ' is safe and still waiting.';
+    if (why === 'no_character')  return 'Your character is still loading — try claiming ' + rank.name + ' again in a moment.';
+    if (why === 'unknown_rank')  return 'This rank cannot be claimed yet — it has been reported. Nothing was lost.';
+    if (why === 'rpc_missing')   return 'Claiming is being upgraded — try again in a few minutes. ' + rank.name + ' is safe.';
+    return 'Could not reach the realm — ' + rank.name + ' is safe and still claimable. Try again in a moment.';
+  }
+
+  /* Grant a rank's reward once.
+     @returns Promise<reward|null> — ALWAYS a promise (a claim is a server
+     round-trip; a sometimes-sync return would be a trap for the next caller).
+     Resolves to the reward when it was granted, null on every refusal. It never
+     rejects, and it owns ALL of its own messaging so there is one voice for a
+     verdict rather than one per call site. */
+  function claimRank(rankId, G) {
+    G = G || window.G;
+    var s = ensureState(G);
+    if (!s) return Promise.resolve(null);
+    if (s.claimed.indexOf(rankId) >= 0) return Promise.resolve(null);   // already claimed
+    var idx = -1; for (var i = 0; i < RANKS.length; i++) if (RANKS[i].id === rankId) { idx = i; break; }
+    if (idx < 0) return Promise.resolve(null);
+    if (idx > rankIndexFor(effectiveRenown(G))) return Promise.resolve(null);   // not reached yet
+    var rank = RANKS[idx];
+    var rw = rank.reward || {};
+    /* Peasant has no reward, and the server answers `unknown_rank` for it (its
+       catalogue starts at Serf). Consuming a claim slot and toasting "Claimed"
+       with nothing in it is noise; refuse it here rather than at the wire. */
+    if (!hasReward(rank)) return Promise.resolve(null);
+
+    /* ARMED = at least one reward component whose record the SERVER owns. The
+       same test claimQuestReward makes, per component, so a partially-armed
+       reward routes through the server rather than half-paying itself. */
+    var armed = !!((rw.gold && !mayWrite('gold'))
+                || (rw.gems && !mayWrite('gems'))
+                || (rw.item && !mayWrite('inventory')));
+    var GC = window.HearthriseGoalClaim;
+    var canServer = !!(GC && typeof GC.claimRank === 'function'
+                       && typeof GC.isSignedIn === 'function' && GC.isSignedIn());
+
+    if (!armed) {
+      /* DORMANT (pre-arm / signed-out / the client-authoritative switch
+         position). The client owns the balance, so the local grant IS the
+         payout and a server verdict cannot take it away. Still fire the intent
+         best-effort — the server once-guard is the authority the day this arms. */
+      if (canServer) {
+        try { var _p = GC.claimRank(rankId); if (_p && _p.catch) _p.catch(function () {}); } catch (e) {}
+      }
+      grantLocally(G, s, rankId, rw);
+      say('Claimed ' + rewardText(rw), 'gold');
+      repaintBalances();
+      return Promise.resolve(rw);
+    }
+
+    if (!canServer) {
+      /* The payout is the server's and the server is unreachable. Refusing here
+         is the whole point: the old code marked the rank claimed anyway. */
+      say(refusalMessage({ error: 'not_signed_in' }, rank), 'kill');
+      return Promise.resolve(null);
+    }
+    /* In-flight latch — a double-click may not double-fire. The server
+       once-guard would refuse the second call anyway, but the second toast
+       ("already claimed") on a first, successful claim would read as a bug. */
+    if (_claimInFlight[rankId]) return Promise.resolve(null);
+    _claimInFlight[rankId] = true;
+
+    return Promise.resolve().then(function () { return GC.claimRank(rankId); }).then(function (res) {
+      delete _claimInFlight[rankId];
+      /* Learn the SERVER's high-water from any verdict that carries one — ok and
+         not_reached both do. This is the only renown figure the client can get
+         from the server today, and it is the honest one. */
+      if (res && typeof res.renown_high === 'number' && isFinite(res.renown_high)) {
+        _serverHigh = Math.max(_serverHigh === null ? 0 : _serverHigh, Math.floor(res.renown_high));
+      }
+      if (res && res.ok) {
+        grantLocally(G, s, rankId, rw);        // AFTER the verdict — nothing to revert
+        say('Claimed ' + rewardText(rw), 'gold');
+        refreshRecordAfterCredit();
+        return rw;
+      }
+      if (res && res.error === 'already_claimed') {
+        /* The server once-guard already paid this rank. Marking it claimed is
+           the correct memory, and no local credit belongs with it. */
+        markClaimed(s, rankId);
+        say(rank.name + ' was already claimed — your reward is safe.', 'loot');
+        return null;
+      }
+      /* REFUSED. Nothing is written: no claimed mark, no credit, no save. The
+         rank stays exactly as claimable as it was — that is the fix. */
+      if (res && res.error === 'not_reached') {
+        _serverShort[rankId] = {
+          high: Math.max(0, Math.floor(Number(res.renown_high) || 0)),
+          min: Math.max(0, Math.floor(Number(res.min) || rank.min || 0)),
+          at: Date.now()
+        };
+      }
+      var why = (res && res.error) || 'network';
+      if (why !== 'network' && why !== 'not_reached') {
+        try { console.warn('[Renown] rank claim refused:', why, rankId); } catch (e) {}
+      }
+      say(refusalMessage(res, rank), why === 'not_reached' ? 'info' : 'kill');
+      return null;
+    }).catch(function () {
+      delete _claimInFlight[rankId];
+      say(refusalMessage({ error: 'network' }, rank), 'kill');
+      return null;
+    });
+  }
+
+  /* The SERVER's renown high-water as last reported by a claim verdict, or null
+     if it has never answered. READ-ONLY and advisory — it is NOT used to gate
+     the Claim button (see the header: the click is what advances it).
+
+     FOLLOW-UP, filed not hidden: the correct end-state is the ladder painting
+     the SERVER's score continuously, the way the quest modal paints
+     hr_goal_state. That needs a projection — `renown_high` (and ideally the
+     live hr_renown_of read) on the hr_state_of envelope, or a small read-only
+     hr_renown_state RPC. hr_renown_of is revoked from `authenticated` on
+     purpose, so it is a migration and a security review, and hr_state_of is the
+     anchored-programmatic-patch danger zone (the b487 class). Until then this
+     cache is what makes a refusal honest instead of mysterious. */
+  function serverRenownHigh() { return _serverHigh; }
+  /* {high, min} for a rank the server most recently refused as not_reached, or
+     null. Expires: a note that outlives the truth is a new lie. */
+  function serverShortfall(rankId) {
+    var e = _serverShort[rankId];
+    if (!e) return null;
+    if (Date.now() - e.at > SHORT_TTL_MS) { delete _serverShort[rankId]; return null; }
+    return { high: e.high, min: e.min };
+  }
+  /* Test seam. The in-page suite drives claims against a mocked transport in the
+     LIVE page; without this a mocked refusal would leave a stale shortfall note
+     on the player's own ladder. */
+  function __resetClaimState() {
+    _claimInFlight = Object.create(null);
+    _serverHigh = null;
+    _serverShort = Object.create(null);
   }
 
   // Aggregate passive perks from every rank reached (perks are passive on-rank,
@@ -529,10 +731,21 @@
       } else {
         right = '<span class="hr-rn-req">' + fmt(rank.min) + '</span>';
       }
+      /* The SERVER's own figures for a rank IT most recently refused. The client
+         ladder is scored from client-authored residue and the server scores it
+         itself, so the two can legitimately disagree; when they do, the player
+         is owed the reason in numbers rather than a button that "did nothing".
+         Only rendered on a rank the server has actually spoken about. */
+      var short = serverShortfall(rank.id);
+      var shortLine = short
+        ? '<div class="hr-rn-unlock">The realm has counted ' + fmt(short.high) + ' of ' +
+            fmt(short.min) + ' — this unlocks itself as it catches up.</div>'
+        : '';
       return '<div class="' + cls + '">' +
         '<div class="hr-rn-medal">' + medal + '</div>' +
         '<div class="hr-rn-info"><div class="hr-rn-nm">' + rank.name + '</div>' +
-        '<div class="hr-rn-unlock">' + rank.unlock + (hasReward(rank) ? '  ·  ' + rewardText(rank.reward) : '') + '</div></div>' +
+        '<div class="hr-rn-unlock">' + rank.unlock + (hasReward(rank) ? '  ·  ' + rewardText(rank.reward) : '') + '</div>' +
+        shortLine + '</div>' +
         right + '</div>';
     }).join('');
 
@@ -573,12 +786,14 @@
       if (e.target === scrim || e.target.getAttribute('data-close')) { closeModal(); return; }
       var id = e.target.getAttribute('data-claim');
       if (id) {
-        var rw = claimRank(id, window.G);
-        if (rw) {
-          if (typeof window.notify === 'function') window.notify('Claimed ' + rewardText(rw), 'gold');
-          if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch (er) {}
-          openLadder(); // re-render (button → ✓)
-        }
+        /* claimRank owns the toast and the balance repaint for EVERY outcome; a
+           call site that only reacted to success is how the refusal used to be
+           silent. Re-render on any verdict (✓ on success, the shortfall line on
+           a refusal) — but only if the ladder is still on screen, so a verdict
+           arriving after the player closed it never re-opens a modal at them. */
+        claimRank(id, window.G).then(function () {
+          if (document.getElementById('hr-rn-modal')) openLadder();
+        });
       }
     });
     document.body.appendChild(scrim);
@@ -610,11 +825,10 @@
       '</div>';
     scrim.addEventListener('click', function (e) {
       var id = e.target.getAttribute('data-cele-claim');
-      if (id) {
-        var rw = claimRank(id, window.G);
-        if (rw && typeof window.notify === 'function') window.notify('Claimed ' + rewardText(rw), 'gold');
-        if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch (er) {}
-      }
+      /* The celebration closes on the click either way — the rank-up moment is
+         over. If the server refuses, claimRank's own message says the rank is
+         still waiting, and it IS: it stays claimable in the ladder. */
+      if (id) claimRank(id, window.G);
       if (id || e.target.getAttribute('data-cele-close') || e.target === scrim) scrim.remove();
     });
     document.body.appendChild(scrim);
@@ -656,7 +870,13 @@
     rankIndexFor: rankIndexFor,
     ensureState: ensureState,
     getClaimable: getClaimable,
+    /* ⚠ RETURNS A PROMISE<reward|null> since the two-phase fix — a claim is a
+       server round-trip. It resolves to null on every refusal AND on every
+       already-handled no-op, and it never rejects. It also owns its own toast. */
     claimRank: claimRank,
+    serverRenownHigh: serverRenownHigh,
+    serverShortfall: serverShortfall,
+    __resetClaimState: __resetClaimState,
     getPerks: getPerks,
     pollRankUp: pollRankUp,
     openLadder: openLadder,

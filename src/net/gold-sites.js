@@ -561,7 +561,11 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     flipGuard: { gated: 'clientMayWriteRecordField' },
     site: 'companion extraGold proc, inside killMonster',
   },
-  'src/features/renown.js#claimRank': {
+  /* b494 — the write moved from claimRank into grantLocally, the DISPLAY half
+     of the claim that now runs only after the server's verdict. Same site, same
+     verb, renamed with it: a census row that names a function nobody runs is
+     read as coverage that does not exist. */
+  'src/features/renown.js#grantLocally': {
     kind: 'grant', status: 'deferred',
     /* SERVER-CREDITED (2026-08-22-renown-claim.sql). hr_claim_rank reads the
        SERVER-DERIVED renown score (hr_renown_of), ratchets a SERVER HIGH-WATER
@@ -570,7 +574,16 @@ export const GOLD_SITE_LEDGER = Object.freeze({
        catalogue, owns the gold+gems amount, once-guards a player_progress
        kind='flag' claim row per rank, and journals it. claimRank fires
        HearthriseGoalClaim.claimRank(id); the local gold/gems write is a GATED
-       prediction the envelope reconciles. */
+       prediction the envelope reconciles.
+
+       R1/R5 (two-phase commit, the b494 fix): under the arm the DISPLAY write —
+       and, decisively, the `G.renown.claimed` mark — happen ONLY AFTER
+       hr_claim_rank returns ok. The claim used to be fire-and-forget with an
+       UNCONDITIONAL claimed-push, and `G.renown` is residue, so a `not_reached`
+       refusal marked a reached rank claimed forever: a permanent, silent loss of
+       up to 1,000,000 gold + 500 gems. A refusal now writes nothing, keeps the
+       rank claimable, and answers in a sentence. requestRecord() refreshes the
+       balance after an ok credit (the bug_reports #46 class). */
     flipGuard: { serverCredits: 'hr_claim_rank (2026-08-22-renown-claim.sql) reads hr_renown_of, '
       + 'ratchets player_state.renown_high, maps it to the rank via a server-owned catalogue, owns '
       + 'the fixed gold+gems amount, once-guards a player_progress kind=flag renown_claim row per '

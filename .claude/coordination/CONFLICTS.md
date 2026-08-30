@@ -2,6 +2,56 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+### ⚠ OPEN 2026-09-04 — b497 goal-gold retune MOVES the recorded forgery bound (Systems → Security)
+
+Branch `data/goal-gold-retune`. The Designer's gold-per-effort-minute ruling re-prices two of the
+**four kill-graded terms** the b493 bound is arithmetic over: `daily_kill` 500 → **600** and
+`daily_kill_big` 900 → **1,400**. `kill_any` (200) and `kill_more` (600 + 1 gem) are untouched, and
+**no XP, gem or item value moves anywhere in this change**.
+
+| | recorded (b493) | after b497 |
+|---|---|---|
+| gold · character-day | 2,200 | **2,800** |
+| gold · account-day (6 slots) | 13,200 | **16,800** |
+| gems / bones / hitpoints XP | 1 / 5 / 400 | unchanged |
+| ISO week | 2,500 g + 3 gems + 1,000 XP | unchanged |
+
+**The SHAPE that earned the b493 acceptance is unchanged** — the amount is read from
+`hr_goal_rewards` / the RPC's own CASE catalogue, neither of which any client role may write, and the
+forgeable `v_have` still appears only in the journal and the receipt. A forged counter remains a
+**gate**, never a multiplier. What moved is the amount, by +600 g/character-day = **0.06%** of one
+character's measured honest ~1.05M g/day from the live accrual path, against a 25,000,000 g/day
+server-wide inflow budget.
+
+Not silently absorbed: K10(2) in `tests/kill-daily-credit.mjs` still pins both numbers **by value**
+(the pin moved with the review rather than being loosened), `docs/design/combat-authority.md`'s
+ceiling table is updated with the derivation, and `2026-09-04-goal-gold-retune.sql` carries the
+arithmetic in its own SECURITY header. **Security: ratify or re-rule the new figure before the
+migration is applied.** Owner: Systems Engineer + Security.
+
+### ⚠ OPEN 2026-09-04 — cloth armour has no tiered material, and the ruled fix borrows one (Systems → Game Designer)
+
+The Designer ruled: *"scale cloth inputs with tier consistent with how plate/leather recipe lines
+scale."* Measured, the reason cloth did not scale is **structural, not a bad number**: plate and
+leather cost `[a TIER-INDEXED material] × [the slot's weight]`, and **cloth has neither term** —
+`silk_thread 2+i` + `magic_essence 1..2`, both untiered and both blind to the slot. There is no
+seven-rung textile ladder in `ITEMS` to scale against, and no arrangement of the two untiered
+reagents can carry a 600× output curve (parity would need ~250 units at tier 7).
+
+**What I shipped, and the choice it embeds:** cloth now draws the tier's **plank** at
+`ceil(slot.bars / 2)`, keeping thread + essence on top. Half-weight, not full, so cloth stays the
+cheapest of the three archetypes to make (its design identity) rather than costing *more* than
+leather for an item of identical book value with 45% less defence. Tier 1 moves 160 g → 178-214 g;
+the tier-7 vendor faucet ratio falls **700× → 11.2×** (plate tops out at 6.9×, leather 7.5×).
+
+**The semantic flag:** a robe costing enchanted *planks* is a fiction borrowed from the magic-staff
+line (yew/runewood/duskwood are already the magic woods, and staves are planks + magic essence). It
+is defensible, not ideal. **The ideal fix is a bespoke cloth-bolt ladder** — seven items, seven
+sources, art, drop tables — which is a content program, crosses Designer + Asset, and would strand
+every player who can craft cloth today. Recorded here rather than silently chosen. Designer: if the
+bolt ladder is wanted, this line becomes a one-row change to `MATERIAL_TIERS` (a `cloth:` column) plus
+the content behind it. Owner: Game Designer (call), Systems (mechanism).
+
 ### ✅ 2026-08-29 — b493 SHIP BLOCKER: kill-goal XP vs K10's forgery bound — **RESOLVED by SECURITY, 2026-08-29. Option 2, in the reviewer's own guard.**
 
 **RULING (Security, the owner of the recorded verdict).** The new bound is **ACCEPTED**; the

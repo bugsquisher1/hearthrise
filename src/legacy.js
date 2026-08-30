@@ -5293,7 +5293,16 @@ const QUEST_DEFS=[
   {id:'gatherer',type:'gather',label:'Gather 15 resources',goal:15,progress:0,reward:{gold:150},done:false},
   {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200,item:'carrot_seed',qty:3},done:false},
   {id:'first_blood',type:'kill_any',label:'Defeat 5 monsters',goal:5,progress:0,reward:{gold:150,item:'turnip_seed',qty:5},done:false},
-  {id:'farmhand',type:'harvest',label:'Harvest 10 crops',goal:10,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
+  /* b497 (balance audit): 10 → 6. The SAME two-plot-camp wall b495 fixed on the
+     harvest DAILY, one system over and still open. This is onboarding step 4:
+     the Wanderer's Camp has TWO plots (features/homestead.js TIERS[0].plots),
+     turnips take 4h and yield 2-4, so one full harvest round is ~6 produce and a
+     goal of 10 was TWO grow cycles — ~8 wall-clock hours — parked in front of
+     the fourth quest a new player ever sees. 6 = one harvest round at the
+     starting property, the identical derivation DAILY_TASK_POOL's floor uses.
+     The goal is BOUND SERVER-SIDE (hr_claim_quest reads ev:harvest >= 6), so it
+     moves in three places at once — see src/data/goal-catalogue.js. */
+  {id:'farmhand',type:'harvest',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
   /* ── THE HUNDRED-KILL MILESTONE ──────────────────────────────────────────
      b341 shipped this as the "Field Licence": a GATE that withheld away
      combat until it was earned. b343 removes the gate (see processOffline's
@@ -5422,9 +5431,18 @@ function ensureRetentionState(){
    level/character later if we want. Deterministic seed = date string.
    Only types with corresponding updateDaily() call sites are listed —
    adding a new type requires hooking the source counter too. */
+/* ── b497 — THE GOLD-PER-EFFORT-MINUTE RETUNE (Designer, balance audit) ─────
+   The pool paid a 13:1 spread across gold-per-effort-minute and the FIGHTERS
+   sat at the bottom of it: killing 60 monsters is the longest task in the pool
+   and paid 900 g, while "Craft 8 items" — eight bench pulls, ~8 seconds of
+   actual input — paid 450. The ruled numbers below flatten that.
+   ⚠ EVERY NUMBER HERE IS ALSO SERVER-OWNED. hr_claim_daily credits the gold
+   from its own CASE catalogue, so a change here is a change in THREE places
+   (this table, src/data/goal-catalogue.js DAILY_TASK_REWARDS, and the SQL) and
+   tests/goal-catalogue-drift.mjs fails the build if only one of them moves. */
 const DAILY_TASK_POOL=[
-  ()=>({id:'daily_kill',     type:'kill_any', label:'Kill 25 monsters',         goal:25, progress:0, reward:500, done:false}),
-  ()=>({id:'daily_kill_big', type:'kill_any', label:'Kill 60 monsters',         goal:60, progress:0, reward:900, done:false}),
+  ()=>({id:'daily_kill',     type:'kill_any', label:'Kill 25 monsters',         goal:25, progress:0, reward:600, done:false}),
+  ()=>({id:'daily_kill_big', type:'kill_any', label:'Kill 60 monsters',         goal:60, progress:0, reward:1400, done:false}),
   ()=>({id:'daily_gather',   type:'gather',   label:'Gather 50 resources',      goal:50, progress:0, reward:400, done:false}),
   ()=>({id:'daily_gather_big',type:'gather',  label:'Gather 120 resources',     goal:120,progress:0, reward:800, done:false}),
   /* b220 (backlog #13): the harvest daily used to be a flat 25 while the farm
@@ -5447,8 +5465,15 @@ const DAILY_TASK_POOL=[
         return {id:'daily_harvest', type:'harvest', label:`Harvest ${goal} crops`,
                 goal, progress:0, reward:goal*30, done:false}; },
   ()=>({id:'daily_cook',     type:'cooked',   label:'Cook 12 items',            goal:12, progress:0, reward:400, done:false}),
-  ()=>({id:'daily_smith',    type:'smithed',  label:'Smith 8 items',            goal:8,  progress:0, reward:450, done:false}),
-  ()=>({id:'daily_craft',    type:'crafted',  label:'Craft 8 items',            goal:8,  progress:0, reward:450, done:false}),
+  /* b497: 8 → 40. Eight bench pulls is ~8 SECONDS of the player's attention
+     (artisan actions are ~2.4-4.6 s and run unattended), which made these two
+     the cheapest gold in the game by an order of magnitude. 40 items ≈ 40
+     seconds of bench time and puts them on the same effort footing as the kill
+     and gather rows. The Workshop/Forge eligibility filter
+     (src/data/goal-catalogue.js DAILY_TASK_REQUIREMENTS) still keeps them away
+     from an account that cannot reach a bench at all. */
+  ()=>({id:'daily_smith',    type:'smithed',  label:'Smith 40 items',           goal:40, progress:0, reward:500, done:false}),
+  ()=>({id:'daily_craft',    type:'crafted',  label:'Craft 40 items',           goal:40, progress:0, reward:500, done:false}),
 ];
 /* b220: exposed so the smoke suite can evaluate a factory deterministically
    instead of depending on which 3 tasks today's date happens to draw. */
@@ -13683,14 +13708,24 @@ var DAILY_GOAL_POOL = [
      chopping Duskwood made zero progress on "Gather 25 logs" and "Catch 15
      fish" was unachievable for anyone past Shrimp unless they deliberately
      downgraded. A daily that gets harder the better you are is backwards. */
-  {id:'gather_logs', glyph:'uiLog', name:'Gather 25 logs',  target:25, source:'stats.chopped',
+  /* ── b497 — THE GATHERING GOALS WERE THE CHEAPEST GOLD ON THE BOARD ───────
+     Balance audit: gathering and cooking actions run unattended at ~2-4 s each,
+     so "Gather 25 logs" was ~60 seconds of elapsed time for 250 g while "Slay
+     30 monsters" was a long shift for 600. The TARGETS move (25→60, 15→50,
+     5→25) and the gold moves with them; the per-action rate barely changes,
+     but the goals stop being free money the moment a player logs in.
+     ⚠ TARGET AND GOLD ARE BOTH SERVER-OWNED — public.hr_goal_rewards grades the
+     target and credits the gold, and tests/modal-goal-claim.mjs BIND/BIND-PAY
+     fails the build if this table and that catalogue disagree in either
+     direction. Three homes: here, DAILY_REWARDS below, and the SQL. */
+  {id:'gather_logs', glyph:'uiLog', name:'Gather 60 logs',  target:60, source:'stats.chopped',
    desc:'Any tree, any tier — the axe does not care which one you fell.'},
-  {id:'mine_ore',  glyph:'uiPickaxe', name:'Mine 25 ores',      target:25, source:'stats.mined',
+  {id:'mine_ore',  glyph:'uiPickaxe', name:'Mine 60 ores',      target:60, source:'stats.mined',
    desc:'Any seam counts. Copper is worth exactly as much here as runite.'},
-  {id:'cook',      glyph:'uiPot', name:'Cook 5 dishes',     target:5,  source:'stats.cooked',
-   desc:'Five finished meals. Burnt dishes do not count, so cook what you rarely ruin.'},
-  {id:'fish',      glyph:'uiFish', name:'Catch 15 fish',     target:15, source:'stats.fished',
-   desc:'Any water, any catch. Fifteen shrimp finish this as surely as fifteen sharks.'},
+  {id:'cook',      glyph:'uiPot', name:'Cook 25 dishes',    target:25, source:'stats.cooked',
+   desc:'Finished meals only. Burnt dishes do not count, so cook what you rarely ruin.'},
+  {id:'fish',      glyph:'uiFish', name:'Catch 50 fish',     target:50, source:'stats.fished',
+   desc:'Any water, any catch. Fifty shrimp finish this as surely as fifty sharks.'},
   /* ── b464/b465 — `gold_500` STAYS, because it PAYS NOW. The Designer withdrew
      it (correctly, at the time): its reward named two phantom ids and the server
      answered `reward_unavailable`. That premise closed the same hour in a
@@ -13701,7 +13736,13 @@ var DAILY_GOAL_POOL = [
      this one pays, so it is dealt. */
   {id:'gold_500',  glyph:'gold', name:'Earn 500 gold',     target:500, source:'_dailyGoldDelta',
    desc:'Gold earned today, from anywhere: loot, the vendor, or a market sale.'},
-  {id:'plant',     glyph:'uiSprout', name:'Plant 5 crops',     target:5,  source:'stats.planted',
+  /* b497: 5 → 3. The ONLY target that goes DOWN, and for the same reason
+     farmhand and daily_harvest came down — the starting Wanderer's Camp has TWO
+     plots (features/homestead.js TIERS[0].plots), so "plant 5" could not be
+     completed in one pass at the property every new player owns. 3 is one pass
+     plus a replant; the gold comes down with it (200 → 150) so the rate is
+     unchanged rather than buffed. */
+  {id:'plant',     glyph:'uiSprout', name:'Plant 3 crops',     target:3,  source:'stats.planted',
    desc:'Seeds in the ground. Planting is the whole task — you need not stay for the harvest.'},
   {id:'level_up',  glyph:'uiXp', name:'Gain a skill level', target:1,  source:'stats.levelups',
    desc:'Any skill, any level. Your lowest skill is the cheapest way to finish this.'},
@@ -19867,17 +19908,21 @@ console.log('[Bundle Icons v1] applied:',
        (2026-08-17-cutover-import.sql; tests/cutover-import.mjs C7/C8). */
     kill_any:    {gold: 200, xp:{hitpoints:100}},
     kill_more:   {gold: 600, xp:{hitpoints:300}, gems: 1},
-    gather_logs: {gold: 250, xp:{woodcutting:100}},
-    mine_ore:    {gold: 250, xp:{mining:100}},
-    cook:        {gold: 200, xp:{cooking:80}},
-    fish:        {gold: 250, xp:{fishing:100}},
+    /* b497 — the gathering retune. Targets moved in DAILY_GOAL_POOL (25→60,
+       15→50, 5→25, plant 5→3); the gold moves here, in lockstep with
+       public.hr_goal_rewards. XP is UNCHANGED by the ruling — only gold and the
+       targets were retuned, and BIND-PAY compares all four components. */
+    gather_logs: {gold: 300, xp:{woodcutting:100}},
+    mine_ore:    {gold: 300, xp:{mining:100}},
+    cook:        {gold: 250, xp:{cooking:80}},
+    fish:        {gold: 300, xp:{fishing:100}},
     /* b464 — the reward used to name TWO items that do not exist in ITEMS
        (`small_bones`, `starter_bundle_token`); the server correctly refused the
        claim as reward_unavailable, so "Earn 500 gold" was never claimable and
        the reward line printed a raw id. Real ids, and a payout that isn't
        gold-for-gold: bones feed Prayer, gems are the premium drip. */
     gold_500:    {gold: 0, xp:{}, gems: 1, items:{bones:5}},
-    plant:       {gold: 200, xp:{farming:80}},
+    plant:       {gold: 150, xp:{farming:80}},
     level_up:    {gold: 500, xp:{}, gems: 1},
   };
 

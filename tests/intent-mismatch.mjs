@@ -316,6 +316,16 @@ async function run(mutate) {
      on conflict (user_id, slot, kind, key, period_key)
        do update set value = public.player_progress.value + excluded.value`,
     [uid, key, n, dayKey]);
+  /* ⚠ READ THE TARGET FROM THE SERVER'S OWN CATALOGUE, never a literal (b497).
+     This fixture used to stamp a hard-coded 25, because that is what
+     `gather_logs` and `mine_ore` happened to ask for. The Designer's balance
+     retune moved both to 60 and every probe below silently became "an INCOMPLETE
+     goal is refused" — which is true, and is not the property this file exists to
+     test. A fixture that hard-codes a BALANCE number turns a legitimate content
+     change into a false failure in an unrelated guard, and the failure message
+     then points at the intent cache instead of at the number. */
+  const targetOf = async (goal) => Number((await q(
+    'select target::text t from public.hr_goal_rewards where goal_id = $1', [goal]))[0].t);
 
   const putState = async (slot, idem) => {
     await gate();
@@ -331,7 +341,7 @@ async function run(mutate) {
   const obs = { dayKey };
 
   // ── P1. THE HEADLINE: A KEY BURNED ON A FREE VERB CANNOT ANSWER A CLAIM ──
-  await complete('ev:chopped', 25);
+  await complete('ev:chopped', await targetOf('gather_logs'));
   const k1 = UUID();
   obs.p1_state = await putState(0, k1);
   const goldBefore = await goldOf();
@@ -348,7 +358,7 @@ async function run(mutate) {
     [uid]))[0].c);
 
   // ── P2. A GENUINE REPLAY STILL REPLAYS (the property being hardened, not removed)
-  await complete('ev:mined', 25);
+  await complete('ev:mined', await targetOf('mine_ore'));
   const k2 = UUID();
   const g2 = await goldOf();
   obs.p2_first = await claimGoal(k2, 'mine_ore');

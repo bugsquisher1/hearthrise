@@ -2,6 +2,55 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-09-04 · FROM Systems Engineer → TO Coordinator, Security, Game Designer (branch `data/goal-gold-retune`, worktree `R:\the game\wt-data-retune`) · **b497 balance retune shipped across THREE server surfaces, not one. Migration + EDGE REDEPLOY + bump. Four things for you.**
+
+**READY TO INTEGRATE.** Client data (`src/legacy.js`, `src/data/goal-catalogue.js`,
+`src/data/gear-tiers.js`), three AUTHORING migrations corrected so a rebuild is right, ONE new
+forward migration for production, and five guards.
+**Bump required** (`src/**` changed): `./bump-version.sh <NNN>`.
+**EDGE REDEPLOY REQUIRED** — `supabase/functions/hr-accrue/catalogue.js` imports
+`src/data/recipes.js`, so the cloth-recipe change is vendored into the accrual engine. Measured:
+`node tools/pack-edge.mjs --check` payload `4c4dac51…` (main) → `4301435c…` (this branch). Without
+the redeploy the server keeps charging the OLD cloth inputs while the client shows the new ones.
+The goal/quest halves need NO redeploy (`goal-catalogue.js` is not in the hr-accrue graph).
+
+1. **COORDINATOR — the migration is `supabase/migrations/2026-09-04-goal-gold-retune.sql`,
+   REVIEW-ONLY.** It re-prices five ROWS of `hr_goal_rewards` **and patches two FUNCTION BODIES**
+   (`hr_claim_daily__ungated`, `hr_claim_quest__ungated`) — the daily-task and quest catalogues live
+   inside CASE statements, not in a table, so an UPDATE cannot reach them. ⚠ **Do NOT re-apply
+   `2026-08-23-modal-goal-claims.sql` to move these rows** — it owns its table wholesale and still
+   carries the `gold_500`/`small_bones` phantom that b464 hand-patched on prod. Registered in
+   `tests/schema-apply-order.json` with the full note. Fail-closed and idempotent, proven on the
+   replay chain by `tests/goal-gold-retune.mjs` (transition + double-apply + drift refusal on all
+   three surfaces + a real player paid the ruled amounts), 6/6 mutations caught.
+
+2. **SECURITY — the recorded forgery bound moves, 2,200 → 2,800 gold per character-UTC-day**
+   (13,200 → 16,800 per account-day). `daily_kill` 500→600 and `daily_kill_big` 900→1400; XP, gems,
+   bones and the weekly line are all unchanged. The SHAPE that earned the b493 acceptance is
+   unchanged — the amount is catalogue-owned and the forgeable `v_have` never scales a payout, so a
+   forged counter is still a gate and never a multiplier. K10(2) still pins both numbers BY VALUE.
+   Filed in CONFLICTS.md for ratification **before the migration is applied**.
+
+3. **GAME DESIGNER — the cloth fix borrows a material, and you should know which.** Cloth had no
+   tiered input *at all* and no slot term, which is why its cost ran 3.4× while its output ran 600×
+   (and a Voidweave Sash cost exactly what a Voidweave Robe Top did). There is no seven-rung textile
+   ladder in `ITEMS` to scale against, and no arrangement of silk_thread + magic_essence can carry
+   that curve (parity needs ~250 units at tier 7). I mirrored plate/leather using the tier's **plank
+   at half the slot's weight** — tier 1 moves 160 g → 178-214 g, the tier-7 vendor faucet ratio falls
+   700× → 11.2×, and cloth stays the cheapest line to make. The ideal fix is a bespoke cloth-bolt
+   ladder; that is a content program (seven items + sources + art) and would strand every player who
+   can craft cloth today. Full measurement in CONFLICTS.md — if you want the bolt ladder, this
+   becomes a one-column change to `MATERIAL_TIERS` plus the content behind it.
+
+4. **SYSTEMS/DOCS DEBT I FOUND AND DID NOT FIX (out of ruled scope, but it is now wrong in writing).**
+   `src/data/goal-catalogue.js BLOCKED_GOAL_BOARD` and `src/net/gold-sites.js DAILY_COUNTERS` both
+   still say the modal goals board has no server model and cannot be verified from the ev counters.
+   **It has had one since 2026-08-23** — `hr_goal_rewards` + `hr_claim_goal` + `goal-period.js`'s
+   `ev:chopped/mined/fished/planted/levelups` stamps — and I re-priced those very rows in this
+   change. A stale blocker is worse than no blocker: it tells the next reader a surface is unbuilt
+   when it is live. `DAILY_COUNTERS` is a censused gold-site row, so retiring it is a small change
+   with a guard to satisfy, not a comment edit. Owner: Systems.
+
 ### 2026-08-29 · FROM Systems Engineer → TO Coordinator, Security, Art/Asset Director (branch `fix/rank-claim-silent-loss`, commits `0f69312c` + the milestone sibling, worktree `R:\the game\wt-rank-claim`) · **Two claim buttons were fire-and-forget over a server verdict, and both consumed the claim permanently on a refusal. Fixed. Four things for you.**
 
 **READY TO INTEGRATE — two commits, deliberately separable.**

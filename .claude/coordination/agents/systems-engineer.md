@@ -2,6 +2,74 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-09-04 — b497 DATA RETUNE: "one migration on hr_goal_rewards" was THREE surfaces
+
+**Branch:** `data/goal-gold-retune` (worktree `R:/the game/wt-data-retune`), base main b496
+`fe2a7111`. Designer balance ruling, implemented as authored.
+
+### THE FIRST THING I DID WAS DISPROVE THE BRIEF, AND IT WAS THE WHOLE JOB
+The task said "+ ONE forward migration on `hr_goal_rewards`", and told me to check that before
+assuming it. The eight retuned ids do **not** live in one place. They live in three, and the
+difference decides the shape of every fix:
+
+| system | where its catalogue lives | how you move PRODUCTION |
+|---|---|---|
+| modal goal board (`gather_logs`/`mine_ore`/`fish`/`cook`/`plant`) | **rows** in `public.hr_goal_rewards` | `UPDATE` |
+| daily TASKS (`daily_kill`/`_big`/`daily_smith`/`daily_craft`) | a **`case`** inside `hr_claim_daily__ungated` | patch the function body |
+| onboarding QUESTS (`farmhand`) | a **`case`** inside `hr_claim_quest__ungated` | patch the function body |
+
+**The reusable lesson: "is it server-catalogued?" and "is it a ROW?" are different questions, and
+only the second one tells you what a forward migration has to be.** A catalogue that lives inside a
+function body cannot be UPDATEd; it can only be re-created, and re-creating a ~90-line body this
+change did not author is exactly how the b484-b487 wave silently reverted other migrations. So §2/§3
+use the programmatic-patch idiom (`pg_get_functiondef` + an anchored `regexp_replace` that refuses to
+patch blind), which takes over no last-toucher role and cannot delete a stranger's change.
+
+`src/data/goal-catalogue.js`'s `BLOCKED_GOAL_BOARD` string says the modal board has no server model.
+**That has been false since 2026-08-23** (`hr_goal_rewards` + `hr_claim_goal` + `goal-period.js`'s
+counters). `src/net/gold-sites.js DAILY_COUNTERS` repeats it and cites it. I did NOT fix them — a
+gold-site blocker is censused and this was not my ruled scope — but I nearly reasoned from a comment
+that has been wrong for two weeks. Filed in HANDOFFS.
+
+### THE HOLE I FOUND WHILE BINDING THE CATALOGUE
+`hr_claim_daily__ungated`'s CASE catalogue exists in **two** migrations —
+`2026-08-20-goal-reward-rpc-credit.sql` §6 and its verbatim restatement in
+`2026-08-29-daily-task-eligibility.sql` §4 — and `goal-catalogue-drift.mjs` read **only the first**.
+The second is the one a rebuild installs (it runs later). So the checked copy was the one that does
+not matter, and the two could disagree forever. Same two-copies-nothing-compares shape the file
+exists to prevent, one layer down. Both are bound now, plus the forward migration's ruled
+replacements — mutation-proven (planting 900 in the restatement reads RED).
+
+### THE CLOTH FAUCET WAS A GENERATOR DEFECT, NOT A RECIPE
+`recipe-yield-guard.mjs`'s own header has recorded "gear ratios reach 700x (`craft_voidweave_body`:
+108 g of silk and essence into a 75,600 g robe)" since the day it was written, and guarded nothing.
+It was right that a flat ratio cap can't express the gear rule; it was wrong that no rule could.
+Measured: plate and leather cost `[tier material] × [slot weight]`; cloth had **neither term**, so a
+whole 42-item line ran 160 g → 540 g of input while its output ran 50 g → 75,600 g, **and a Voidweave
+Sash cost exactly what a Voidweave Robe Top did**. One wrong expression, 42 wrong rows — which is why
+no per-recipe review would ever have seen it. CHECK 4 now caps the vendor faucet ratio **per ladder
+rung**, stated over `GEAR_LADDERS` and resolved **by output item** (an id-keyed lookup silently skips
+12 rungs, because a hand-authored recipe wins under its own id — `forge_bronze_sword` beats
+`make_bronze_sword`). Cap 20; post-fix population tops out at 11.2×; the replanted defect reads 700×.
+The mechanism I chose (the tier's plank at half the slot's weight) borrows a material rather than
+adding a cloth-bolt ladder — flagged to the Designer in CONFLICTS with the measurement behind it.
+
+### VERIFICATION NOTES WORTH KEEPING
+- **A mutation that plants no observable defect proves nothing.** My first `verify_is_decoration`
+  only softened the migration's read-back — but §1 still wrote, so every assertion passed either way
+  and the selftest said MISSED. The configuration a real defect survives in is BOTH halves (the write
+  dropped AND the gate softened), which is precisely how b492's phantom XP lived four builds.
+  Restated as a `pairs` mutation; now caught.
+- **Drift is a property of the DATABASE, so plant it there.** For the migration's fail-closed proof I
+  drift each surface *in the booted database* (an `UPDATE`, and two `regexp_replace` re-authorings of
+  the installed bodies) rather than in an authoring file — patching a file would test a
+  differently-built chain instead of a drifted one, and it also costs three extra full replays.
+- **`59 logs must be REFUSED`** is the assertion that proves the TARGET moved. A gold-only check
+  passes just as happily against a target still sitting at 25 — the mutation run printed
+  `target: 25, gold: 250, outcome: applied`, and that is what caught it.
+- `[[:space:]]+`, never `\s+`, in any SQL that normalises a function body. The b493 note is right:
+  the two runtimes disagree on backslash classes under `standard_conforming_strings`.
+
 ## 2026-08-29 — P1: THE RANK CLAIM WAS FIRE-AND-FORGET OVER A SERVER VERDICT
 
 **Branch:** `fix/rank-claim-silent-loss` (worktree `R:/the game/wt-rank-claim`), commit `0f69312c`,

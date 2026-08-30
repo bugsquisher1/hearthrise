@@ -3050,6 +3050,38 @@ const run = async () => {
         + '(gold + gems + XP + items) server-applied.');
     }
 
+    /* ── The b497 goal-gold retune guard ─────────────────────────────────
+       The Designer's balance ruling re-prices THREE server surfaces that live
+       in three different places: five rows of hr_goal_rewards, four CASE arms
+       inside hr_claim_daily__ungated and one inside hr_claim_quest__ungated.
+       Editing the AUTHORING migrations makes a rebuild correct and does nothing
+       to a database that already has the old bodies installed, so the repo-side
+       drift guards are blind to whether the FORWARD migration actually works.
+       This one replays the chain with the authoring files reverted to the
+       pre-ruling numbers — the shape production is in — makes the migration do
+       real work, and then PLAYS it: a real player refused at 59 logs, paid 300
+       at 60, paid the LOWERED 150 for three plantings, refused the onboarding
+       quest at 5 harvests and paid at 6. It also proves the file re-applies as a
+       no-op on both a transitioned and a rebuilt database, and REFUSES each of
+       the three surfaces when it is drifted underneath it.
+       `--selftest` plants six real defects; every one must read RED. */
+    try {
+      const { goalGoldRetuneGuard } = await import('./goal-gold-retune.mjs');
+      const ggrProblems = await goalGoldRetuneGuard();
+      if (ggrProblems.length) {
+        console.log('\nGoal-gold retune guard — FAILED:');
+        for (const p of ggrProblems) console.log(`  ✗ ${p}`);
+        exitCode = 1;
+      } else {
+        console.log('\nGoal-gold retune guard — the pre-ruling database transitions on all three '
+          + 'surfaces, re-applies as a no-op, refuses a drifted surface, and pays a real player the '
+          + `ruled amounts.\n  ${ggrProblems.coverage}`);
+      }
+    } catch (e) {
+      console.log('\nGoal-gold retune guard — FAILED:\n' + String(e.message || e));
+      exitCode = e.harness ? 2 : 1;
+    }
+
     /* ── The kill → DAILY-goal credit guard (live report #41 residual) ───
        Daily AND weekly kill goals grade on player_progress(kind='daily',
        key='ev:kill_any', period=<utc day key>), whose only writer was the
@@ -3605,6 +3637,7 @@ const run = async () => {
       'Cutover import guard', 'Client write sweep guard', 'Client write sweep batch 3',
       'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
       'Display-prediction guard',
+      'Goal-gold retune guard',
       'Clan-deposit ownership guard', 'Activity-seam guard', 'Delta-transport guard',
       'Reachability guard',
       'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',

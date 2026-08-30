@@ -284,12 +284,22 @@ values
      the Designer's retune, not a translation: 50→100, 200→300, 1000 held. */
   ('kill_any',    false, 'daily',       'ev:kill_any',  10,   200, 0, '{"hitpoints":100}',  '{}'),
   ('kill_more',   false, 'daily',       'ev:kill_any',  30,   600, 1, '{"hitpoints":300}',  '{}'),
-  ('gather_logs', false, 'daily',       'ev:chopped',   25,   250, 0, '{"woodcutting":100}','{}'),
-  ('mine_ore',    false, 'daily',       'ev:mined',     25,   250, 0, '{"mining":100}',     '{}'),
-  ('cook',        false, 'daily',       'ev:cooked',     5,   200, 0, '{"cooking":80}',     '{}'),
-  ('fish',        false, 'daily',       'ev:fished',    15,   250, 0, '{"fishing":100}',    '{}'),
+  /* b497 — THE GATHERING RETUNE (Designer, balance audit). These five rows were
+     the cheapest gold on the board: their actions run unattended at ~2-4 s, so
+     "Gather 25 logs" was ~60 s of elapsed time for 250 g against "Slay 30
+     monsters" for 600. TARGETS 25→60 / 15→50 / 5→25 with the gold moved to
+     match, and plant 5→3 (DOWN: the starting Wanderer's Camp has TWO plots, so
+     five plantings could not be done in one pass) with its gold down too, so
+     the rate is unchanged rather than buffed. XP is UNTOUCHED by the ruling.
+     AUTHORING copy — production is moved by 2026-09-04-goal-gold-retune.sql,
+     which UPDATEs these five rows and never re-applies this file (see that
+     file's header and the gold_500 phantom divergence it must not revert). */
+  ('gather_logs', false, 'daily',       'ev:chopped',   60,   300, 0, '{"woodcutting":100}','{}'),
+  ('mine_ore',    false, 'daily',       'ev:mined',     60,   300, 0, '{"mining":100}',     '{}'),
+  ('cook',        false, 'daily',       'ev:cooked',    25,   250, 0, '{"cooking":80}',     '{}'),
+  ('fish',        false, 'daily',       'ev:fished',    50,   300, 0, '{"fishing":100}',    '{}'),
   ('gold_500',    false, 'ledger_gold', 'gold',        500,     0, 0, '{}',                 '{"small_bones":5}'),
-  ('plant',       false, 'daily',       'ev:planted',      5,   200, 0, '{"farming":80}',     '{}'),
+  ('plant',       false, 'daily',       'ev:planted',      3,   150, 0, '{"farming":80}',     '{}'),
   ('level_up',    false, 'daily',       'ev:levelups',    1,   500, 1, '{}',                 '{}'),
   -- ── WEEKLY (legacy.js WEEKLY_GOAL_POOL; wk_bury excluded — see the header) ─
   ('wk_kills',    true,  'daily',       'ev:kill_any',   100,  2500, 3, '{"hitpoints":1000}', '{}'),
@@ -853,18 +863,19 @@ begin
       raise exception 'GATE(e): an incomplete goal was not refused: %', v;
     end if;
 
-    -- meet the DAILY goal, then claim once. gather_logs pays 250 gold + 100
-    -- woodcutting XP — a component of each kind that the server really owns.
+    -- meet the DAILY goal, then claim once. gather_logs pays 300 gold + 100
+    -- woodcutting XP (b497 retune: target 25->60, gold 250->300) — a component
+    -- of each kind that the server really owns.
     insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
-      values (v_uid, v_slot, 'daily', 'ev:chopped', 25, v_day, 'active');
+      values (v_uid, v_slot, 'daily', 'ev:chopped', 60, v_day, 'active');
     select gold into v_g0 from public.player_state where user_id = v_uid and slot = v_slot;
     v := public.hr_claim_goal__ungated('gather_logs', false, v_slot, null);
     if coalesce(v->>'ok','') <> 'true' or v->>'outcome' <> 'applied' then
       raise exception 'GATE(e): a complete daily did not credit: %', v;
     end if;
     select gold into v_g1 from public.player_state where user_id = v_uid and slot = v_slot;
-    if v_g1 - v_g0 <> 250 then
-      raise exception 'GATE(e): gather_logs credited % gold, expected 250', v_g1 - v_g0;
+    if v_g1 - v_g0 <> 300 then
+      raise exception 'GATE(e): gather_logs credited % gold, expected 300', v_g1 - v_g0;
     end if;
     select xp into v_xp from public.player_skills
       where user_id = v_uid and slot = v_slot and skill_id = 'woodcutting';

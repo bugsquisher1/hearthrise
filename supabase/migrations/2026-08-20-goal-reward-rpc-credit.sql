@@ -232,7 +232,10 @@ begin
     when 'gatherer'    then v_key := 'ev:gather';   v_goal := 15; v_gold := 150;
     when 'first_cook'  then v_key := 'ev:cooked';   v_goal := 5;  v_gold := 200;
     when 'first_blood' then v_key := 'ev:kill_any'; v_goal := 5;  v_gold := 150;
-    when 'farmhand'    then v_key := 'ev:harvest';  v_goal := 10; v_gold := 500;
+    -- b497: goal 10 -> 6 (Designer, balance audit). This file is the AUTHORING
+    -- copy — production is moved by 2026-09-04-goal-gold-retune.sql, which
+    -- patches the installed body programmatically and no-ops on a rebuild.
+    when 'farmhand'    then v_key := 'ev:harvest';  v_goal := 6;  v_gold := 500;
     else return jsonb_build_object('ok', false, 'error', 'unknown_quest', 'quest', p_quest_id);
   end case;
 
@@ -300,13 +303,19 @@ begin
 
   -- SERVER-OWNED CATALOGUE (FIXED tasks only; daily_harvest is dynamic → blocked).
   case p_task_id
-    when 'daily_kill'       then v_type := 'kill_any'; v_goal := 25;  v_gold := 500;
-    when 'daily_kill_big'   then v_type := 'kill_any'; v_goal := 60;  v_gold := 900;
+    -- b497 RETUNE (Designer, balance audit): daily_kill 500->600,
+    -- daily_kill_big 900->1400, daily_smith/daily_craft 8->40 items and
+    -- 450->500 gold. AUTHORING copy; production is moved by
+    -- 2026-09-04-goal-gold-retune.sql. NOTE the SAME catalogue is restated in
+    -- 2026-08-29-daily-task-eligibility.sql §4 — both must carry these numbers
+    -- or a rebuild installs whichever ran last (that file runs LATER).
+    when 'daily_kill'       then v_type := 'kill_any'; v_goal := 25;  v_gold := 600;
+    when 'daily_kill_big'   then v_type := 'kill_any'; v_goal := 60;  v_gold := 1400;
     when 'daily_gather'     then v_type := 'gather';   v_goal := 50;  v_gold := 400;
     when 'daily_gather_big' then v_type := 'gather';   v_goal := 120; v_gold := 800;
     when 'daily_cook'       then v_type := 'cooked';   v_goal := 12;  v_gold := 400;
-    when 'daily_smith'      then v_type := 'smithed';  v_goal := 8;   v_gold := 450;
-    when 'daily_craft'      then v_type := 'crafted';  v_goal := 8;   v_gold := 450;
+    when 'daily_smith'      then v_type := 'smithed';  v_goal := 40;  v_gold := 500;
+    when 'daily_craft'      then v_type := 'crafted';  v_goal := 40;  v_gold := 500;
     when 'daily_harvest'    then
       return jsonb_build_object('ok', false, 'error', 'not_creditable',
         'task', p_task_id, 'reason', 'dynamic goal (farm plot cap) — no server model yet');

@@ -23364,12 +23364,12 @@ const TESTS = [
     const byId = (pool, id) => (window[pool] || []).find((g) => g.id === id);
 
     // Daily goals route on what they MEASURE (`source`).
-    assert(at(byId('DAILY_GOAL_POOL', 'fish')) === 'skills/fishing', 'Catch 15 fish -> fishing');
-    assert(at(byId('DAILY_GOAL_POOL', 'gather_logs')) === 'skills/woodcutting', 'Gather 25 logs -> woodcutting');
-    assert(at(byId('DAILY_GOAL_POOL', 'mine_ore')) === 'skills/mining', 'Mine 25 ores -> mining');
-    assert(at(byId('DAILY_GOAL_POOL', 'cook')) === 'skills/cooking', 'Cook 5 dishes -> cooking');
+    assert(at(byId('DAILY_GOAL_POOL', 'fish')) === 'skills/fishing', 'Catch 50 fish -> fishing');
+    assert(at(byId('DAILY_GOAL_POOL', 'gather_logs')) === 'skills/woodcutting', 'Gather 60 logs -> woodcutting');
+    assert(at(byId('DAILY_GOAL_POOL', 'mine_ore')) === 'skills/mining', 'Mine 60 ores -> mining');
+    assert(at(byId('DAILY_GOAL_POOL', 'cook')) === 'skills/cooking', 'Cook 25 dishes -> cooking');
     assert(at(byId('DAILY_GOAL_POOL', 'kill_any')) === 'combat', 'Slay 10 monsters -> combat');
-    assert(at(byId('DAILY_GOAL_POOL', 'plant')) === 'farming', 'Plant 5 crops -> the farm');
+    assert(at(byId('DAILY_GOAL_POOL', 'plant')) === 'farming', 'Plant 3 crops -> the farm');
     /* b465: `gold_500` is WITHDRAWN from DAILY_GOAL_POOL (unpayable reward — see
        the ruling at the pool row). Its ROUTING is still asserted, off a literal,
        so the market arm of the table stays covered and the row can be restored
@@ -23381,8 +23381,8 @@ const TESTS = [
     assert(at(byId('WEEKLY_GOAL_POOL', 'wk_gather')) === 'skills/mining', 'Gather 250 ores -> mining (it reads stats.mined)');
 
     // Daily TASKS route on `type` — updateDaily()'s own action vocabulary.
-    assert(at({ type: 'smithed', label: 'Smith 8 items' }) === 'skills/smithing', 'smithed -> smithing');
-    assert(at({ type: 'crafted', label: 'Craft 8 items' }) === 'skills/crafting', 'crafted -> crafting');
+    assert(at({ type: 'smithed', label: 'Smith 40 items' }) === 'skills/smithing', 'smithed -> smithing');
+    assert(at({ type: 'crafted', label: 'Craft 40 items' }) === 'skills/crafting', 'crafted -> crafting');
     assert(at({ type: 'harvest', label: 'Harvest 24 crops' }) === 'farming', 'harvest -> the farm');
     assert(at({ type: 'gather', label: 'Gather 50 resources' }) === 'skills', 'a generic gather -> the grid, not a guess');
 
@@ -23658,7 +23658,7 @@ const TESTS = [
       // b232: Skills is a standalone Adventure screen again — a gathering goal
       // lands on #panel-skills (the activity screen), NOT the Character overview.
       assert(document.getElementById('panel-skills').classList.contains('active'),
-        'Catch 15 fish must land on the standalone Skills activity screen');
+        'Catch 50 fish must land on the standalone Skills activity screen');
       assert(window.__viewedSkillId === 'fishing',
         'it must OPEN fishing, not leave the player on the grid (got ' + window.__viewedSkillId + ')');
       // openSkillDetail defers its paint a tick; paint it to see what the

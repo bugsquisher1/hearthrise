@@ -135,6 +135,23 @@ const MUTATIONS = {
     find: 'revoke execute on function public.hr_intent_replay(uuid, int, uuid, text) from anon, authenticated, service_role;',
     repl: 'revoke execute on function public.hr_intent_replay(uuid, int, uuid, text) from anon, authenticated;',
   },
+  written_label_drifts: {
+    /* THE ONLY MUTATION HERE THAT PATCHES A FILE THIS CHANGE DOES NOT OWN, and
+       that is the point: it is a stand-in for the FUTURE migration that restates
+       hr_claim_goal__ungated from a template and gives its written label a
+       discriminator (`'goal_claim'` → `'goal_claim:' || p_goal_id`) without
+       touching the guard argument. The body still compiles, the migration still
+       applies, presence-only P6 stays green — and every honest retry of a goal
+       claim answers intent_mismatch in production. P6b is what sees it (P2 sees
+       it too, from the other side: the replay probe stops replaying). */
+    why: 'a later migration changes hr_claim_goal__ungated\'s WRITTEN label to '
+       + "`'goal_claim:' || p_goal_id` and leaves the guard asking for `'goal_claim'`. The body "
+       + 'compiles, the migration applies, presence-only P6 passes — and every legitimate retry of '
+       + 'a goal claim is refused in production. P6b (correspondence) must catch it.',
+    file: '2026-08-23-modal-goal-claims.sql',
+    find: "      values (v_uid, p_idem, v_slot, 'goal_claim', v_result, now())",
+    repl: "      values (v_uid, p_idem, v_slot, 'goal_claim:' || p_goal_id, v_result, now())",
+  },
   one_body_left_unguarded: {
     why: 'hr_claim_goal — the verb the finding actually named — is dropped from the patch list. '
        + 'P1 and P6 must both catch it; P6 is the one that also catches a FUTURE migration '
@@ -151,11 +168,109 @@ const MUTATIONS = {
 
 const UUID = () => crypto.randomUUID();
 
+/* ── READING A BODY'S OWN SQL ────────────────────────────────────────────────
+   P6 used to assert PRESENCE — "this body calls the guard". That is necessary
+   and NOT sufficient, and the hole is the one Security named on the sign-off: a
+   future template-restatement that changes a body's WRITTEN label
+   (`'goal_claim'` → `'goal_claim:' || p_goal_id`) while leaving the guard's
+   argument alone passes a presence check, keeps the migration's own assertions
+   green — and refuses EVERY legitimate retry of that verb in production, because
+   the row now stores a label the read no longer sends.
+
+   So the assertion is CORRESPONDENCE: pull the `slot` and `intent` expressions
+   out of the body's own `insert into player_intents … values (…)` and out of its
+   `hr_intent_replay(…)` call, and require them to be the same expression. The
+   two are a matched pair by construction — the guard's argument is copied from
+   the write site — and nothing but a comparison keeps them that way.
+
+   Parsed rather than regexed at the top level: a label like
+   `'set_style:' || p_family || ':' || p_key` is fine for a naive split today and
+   stops being fine the first time one contains a function call or a comma. */
+
+/** Split on TOP-LEVEL commas — parens and single-quoted literals are opaque. */
+function splitArgs(s) {
+  const out = [];
+  let depth = 0; let quote = false; let cur = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (quote) {
+      cur += c;
+      if (c === "'") { if (s[i + 1] === "'") cur += s[++i]; else quote = false; }
+      continue;
+    }
+    if (c === "'") { quote = true; cur += c; continue; }
+    if (c === '(') depth++;
+    else if (c === ')') depth--;
+    if (c === ',' && depth === 0) { out.push(cur.trim()); cur = ''; continue; }
+    cur += c;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+
+/** The balanced contents of the paren group opening at `open`. */
+function parenBody(src, open) {
+  let depth = 0; let quote = false;
+  for (let i = open; i < src.length; i++) {
+    const c = src[i];
+    if (quote) { if (c === "'") { if (src[i + 1] === "'") i++; else quote = false; } continue; }
+    if (c === "'") { quote = true; continue; }
+    if (c === '(') depth++;
+    else if (c === ')') { depth--; if (depth === 0) return src.slice(open + 1, i); }
+  }
+  return null;
+}
+
+/* SQL is whitespace-insensitive inside an expression, so a reformat is not a
+   drift and must not read as one. Everything else is compared character for
+   character. */
+const norm = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+
+/** `hr_intent_replay(v_uid, <slot>, p_idem, <label>)` — the READ side. */
+function guardArgs(src) {
+  const k = src.indexOf('hr_intent_replay(');
+  if (k === -1) return null;
+  const body = parenBody(src, src.indexOf('(', k));
+  if (body === null) return null;
+  const a = splitArgs(body);
+  if (a.length !== 4) return { argc: a.length, args: a.map(norm) };
+  return { uid: norm(a[0]), slot: norm(a[1]), idem: norm(a[2]), label: norm(a[3]) };
+}
+
+/** Every `insert into public.player_intents (cols) values (vals)` — the WRITE
+ *  side. All of them: a body with two write sites (hr_worker_assign) must have
+ *  both agree, or one of its paths files a key the read cannot match. */
+function writeArgs(src) {
+  const needle = 'insert into public.player_intents';
+  const out = [];
+  let i = src.indexOf(needle);
+  while (i !== -1) {
+    const colOpen = src.indexOf('(', i);
+    const cols = colOpen === -1 ? null : parenBody(src, colOpen);
+    const vIdx = colOpen === -1 ? -1 : src.indexOf('values', colOpen);
+    const valOpen = vIdx === -1 ? -1 : src.indexOf('(', vIdx);
+    const vals = valOpen === -1 ? null : parenBody(src, valOpen);
+    out.push({
+      cols: cols === null ? null : splitArgs(cols).map(norm).join(','),
+      vals: vals === null ? null : splitArgs(vals).map(norm),
+    });
+    i = src.indexOf(needle, i + needle.length);
+  }
+  return out;
+}
+
+/** The anchored replacements a mutation makes, and the file it makes them in.
+ *  `file` defaults to this change's own migration; `written_label_drifts` names
+ *  another one on purpose — the defect it stands in for lives in a body this
+ *  change does not own. */
+const mutationPairs = (id) => MUTATIONS[id].pairs
+  || [[MUTATIONS[id].find, MUTATIONS[id].repl]];
+const mutationFile = (id) => MUTATIONS[id].file || MIG;
+
 /** One end-to-end run against a freshly replayed database. */
 async function run(mutate) {
   const patches = mutate
-    ? new Map([[MIG, MUTATIONS[mutate].pairs
-        || [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]])
+    ? new Map([[mutationFile(mutate), mutationPairs(mutate)]])
     : undefined;
   /* NO `upTo` — see the header. The property must hold at the END of the chain. */
   const { db } = await bootReplay({ patches });
@@ -269,7 +384,8 @@ async function run(mutate) {
                      where p.oid='public.hr_intent_replay(uuid,int,uuid,text)'::regprocedure
                        and a.grantee = 0) as public_exec`))[0];
 
-  // ── P6. CHAIN-END: EVERY GUARDED BODY IS STILL GUARDED ────────────────
+  // ── P6. CHAIN-END: EVERY GUARDED BODY IS STILL GUARDED, AND THE GUARD
+  //        STILL DESCRIBES WHAT THAT BODY WRITES ────────────────────────────
   obs.p6 = [];
   for (const sig of GUARDED) {
     let row = null;
@@ -277,9 +393,12 @@ async function run(mutate) {
       row = (await q(
         `select (length(src) - length(replace(src,'hr_intent_replay(','')))
                   / length('hr_intent_replay(')          as guards,
-                position('from public.player_intents' in src) as raw
+                position('from public.player_intents' in src) as raw,
+                src
            from (select replace(pg_get_functiondef($1::regprocedure), chr(13),'') as src) s`,
         [sig]))[0];
+      row = { ...row, guard: guardArgs(row.src), writes: writeArgs(row.src) };
+      delete row.src;                       // the bodies are large; keep the observation small
     } catch (e) { row = { guards: -1, raw: -1, err: String(e.message).split('\n')[0] }; }
     obs.p6.push({ sig, ...row });
   }
@@ -295,11 +414,10 @@ async function run(mutate) {
   // LF in memory: the migrations are checked in with CRLF on Windows and the
   // mutation anchors are written with LF (the same normalisation bootReplay does).
   obs.p7 = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
-  if (mutate && (MUTATIONS[mutate].pairs || [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]])) {
-    for (const [find, repl] of (MUTATIONS[mutate].pairs
-        || [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]])) {
-      obs.p7 = obs.p7.split(find).join(repl);
-    }
+  // A mutation aimed at another file leaves this text alone, exactly as the
+  // replay does — otherwise P7 would grade a mutation it never saw.
+  if (mutate && mutationFile(mutate) === MIG) {
+    for (const [find, repl] of mutationPairs(mutate)) obs.p7 = obs.p7.split(find).join(repl);
   }
 
   return obs;
@@ -371,6 +489,43 @@ function grade(o) {
     ok(Number(r.raw) === 0,
       `P6: ${r.sig} still reads player_intents directly (position ${r.raw}) — a body that reads the `
       + 'cache twice, once through the guard and once around it, is unguarded.');
+
+    /* ── P6b. CORRESPONDENCE (Security condition C1) ────────────────────────
+       Presence is not enough. The guard's arguments and the body's own write
+       must be the SAME expression, because they are a matched pair: the read
+       compares against exactly what the write filed. Drift between them is
+       invisible to every other check here and is not theoretical — it is one
+       careless template-restatement away, and it does not fail loudly, it
+       refuses every legitimate retry of that verb in production. */
+    const g = r.guard;
+    ok(g && !g.argc,
+      `P6b: ${r.sig}'s hr_intent_replay call does not take four arguments `
+      + `(${JSON.stringify(g)}). The signature is (uid, slot, idem, intent).`);
+    if (!g || g.argc) continue;
+    ok(g.uid === 'v_uid' && g.idem === 'p_idem',
+      `P6b: ${r.sig} passes ${g.uid}/${g.idem} where v_uid/p_idem are expected — the guard must be `
+      + "asked about the caller's own key, not one the body computed.");
+    ok(Array.isArray(r.writes) && r.writes.length >= 1,
+      `P6b: ${r.sig} calls the guard but has NO player_intents write site. A verb that reads the `
+      + 'cache and never claims it re-executes on every retry.');
+    for (const w of (r.writes || [])) {
+      const cols = w.cols === 'user_id,intent_id,slot,intent,result,at';
+      ok(cols,
+        `P6b: ${r.sig} writes player_intents with the column list "${w.cols}". The comparison below `
+        + 'is positional, so a reordered or extended insert makes it compare the wrong things — fix '
+        + 'the extraction before trusting the rest of this check.');
+      if (!cols) continue;
+      ok(w.vals[2] === g.slot,
+        `P6b SLOT DRIFT in ${r.sig}: it FILES the key under slot \`${w.vals[2]}\` and asks the guard `
+        + `about \`${g.slot}\`. Those must be one expression.`);
+      ok(w.vals[3] === g.label,
+        `P6b LABEL DRIFT in ${r.sig}: it FILES the key under intent \`${w.vals[3]}\` and asks the `
+        + `guard about \`${g.label}\`. Every genuine retry of this verb now answers `
+        + 'intent_mismatch — a refusal for a call that already succeeded. This is exactly what a '
+        + 'template restatement that changed the WRITTEN label and left the guard argument alone '
+        + 'looks like; correct the table in §2 of 2026-09-03-intent-mismatch-class.sql and '
+        + 're-apply it.');
+    }
   }
 
   // ── P7 ────────────────────────────────────────────────────────────────

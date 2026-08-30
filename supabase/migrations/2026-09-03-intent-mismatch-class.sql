@@ -10,12 +10,17 @@
 --   should be recorded rather than assumed. Nothing here widens a grant, creates
 --   a client-callable surface, or changes any payout.
 --
---   APPLY LAST. This file PATCHES twelve live function bodies programmatically
---   (pg_get_functiondef → guarded exactly-once anchor replace → execute), the
---   2026-08-28-client-state.sql / 2026-08-23-modal-goal-claims.sql §5 idiom. It
---   therefore carries NO literal create-or-replace for any of them and takes over
---   NO last-toucher role. It creates exactly one new function
---   (public.hr_intent_replay) and grants it to nobody.
+--   APPLY AFTER EVERY MIGRATION THAT AUTHORS ONE OF THE TWELVE — which today
+--   means last, but the rule is the dependency, not the position: this file
+--   PATCHES twelve live function bodies programmatically (pg_get_functiondef →
+--   guarded exactly-once anchor replace → execute), the 2026-08-28-client-state.sql
+--   / 2026-08-23-modal-goal-claims.sql §5 idiom, so any file that authors one of
+--   them must have run first or the anchor is not there to find (and this file
+--   fails closed, by name, rather than half-hardening). The twelve and their
+--   authoring migrations are the table in §2. It carries NO literal
+--   create-or-replace for any of them and takes over NO last-toucher role. It
+--   creates exactly one new function (public.hr_intent_replay) and grants it to
+--   nobody.
 --
 --   ⚠ CONSEQUENCE OF BEING A PATCHER, STATED LOUDLY: a LATER migration that
 --     restates any of the twelve bodies from a template will silently DELETE this
@@ -100,9 +105,11 @@
 --     select public.hr_intent_replay(v_uid, <slot>, p_idem, <intent>) into v_x;
 --     if v_x ->> 'error' = 'intent_mismatch' then return v_x; end if;
 -- and leaves the caller's EXISTING `if v_x is not null then return …` line
--- standing, untouched — including the three sites that append
--- `|| jsonb_build_object('replayed', true)`, which the early return above keeps
--- off the mismatch envelope (a refusal must never be labelled a replay).
+-- standing, untouched — including the FOUR sites that append
+-- `|| jsonb_build_object('replayed', true)` (hr_bounty_spend__ungated,
+-- hr_put_client_state__ungated, hr_set_style__ungated, hr_trait_buy__ungated),
+-- which the early return above keeps off the mismatch envelope: a refusal must
+-- never be labelled a replay.
 --
 -- WHY A HELPER AND NOT TWELVE INLINE COMPARISONS. The comparison needs the
 -- stored `intent` and the stored `slot`, i.e. two more local variables in each
@@ -129,8 +136,14 @@
 --    `goal_claim:<goal_id>` is the tighter fix and it is NOT taken here on
 --    purpose: changing a written label means a retry that crosses the deploy
 --    boundary sees `intent_mismatch` for a claim that actually succeeded, which
---    trades a self-only confusion for a player-visible refusal. Worth doing as
---    its own change, with the wipe, not smuggled into a P3.
+--    trades a self-only confusion for a player-visible refusal.
+--    ⏳ THE TRIGGER IS THE WIPE, and it is a scheduled debt rather than a
+--    someday: at cutover `player_intents` is EMPTY, so the deploy-window
+--    objection above evaporates entirely — there is no in-flight retry to
+--    refuse. It also ends a real inconsistency, because three of the twelve
+--    (`set_style:<family>:<key>`, `trait_buy:<id>`, `bank_<dir>`) ALREADY carry
+--    a discriminator, so the label vocabulary is half-migrated today. Do it in
+--    the wipe window, all twelve at once, or not at all.
 -- 2. It does not reclassify `intent_mismatch` as an INCIDENT in
 --    hr_record_rejection's `c_incident` array. It arguably belongs there (an
 --    honest client mints a fresh uuid per gesture, so reuse is anomalous by
@@ -481,9 +494,23 @@ end $do$;
 --     (a retry showing "already claimed" as an error), the fix is a `created`-
 --     style receipt, not a uuid.
 -- (ii) INTRA-VERB KEY REUSE survives for the verbs whose label carries no
---     discriminator (goal_claim, farm_*, worker_*, client_state_put). Self-only.
---     See "WHAT THIS DELIBERATELY DOES NOT DO" (1).
--- (iii) `intent_mismatch` is still severity 'normal' in hr_rejections. See (2).
+--     discriminator (goal_claim, farm_*, worker_*, client_state_put). Self-only,
+--     and its retirement is scheduled for the WIPE — see "WHAT THIS DELIBERATELY
+--     DOES NOT DO" (1) for why that window and not this change.
+-- (iii) `intent_mismatch` SEVERITY. Not touched by this file (see (2)), and
+--     BUILT BY ITS SIBLING: 2026-09-03-intent-mismatch-escalates.sql adds it to
+--     hr_record_rejection's `c_escalating` array — Security's ruling, and the
+--     right one: a single mismatch is a stale retry, sustained mismatches are a
+--     signature an honest client cannot produce. That is the `rate_limited`
+--     profile, not the `c_incident` profile (which fires on the FIRST
+--     occurrence). Applying THIS file without that one leaves the detector
+--     recording every mismatch at severity 'normal' forever, at any n.
+-- (iv) NOT THIS FILE'S PROBLEM, RECORDED SO IT IS NOT LOST (Security F5, raised
+--     during this review as PRE-EXISTING and separately tracked): the
+--     anon-callable `beta_invite_check` enumeration oracle, and the
+--     `market_price_history` SECURITY DEFINER view. Neither is touched here and
+--     neither should be fixed in a file about idempotency keys — a security fix
+--     smuggled into an unrelated migration is one nobody reviews.
 
 
 -- ── §5. THE DATABASE-SIDE DETECTOR, re-run strict ─────────────────────────

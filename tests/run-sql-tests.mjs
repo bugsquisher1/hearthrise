@@ -445,6 +445,16 @@ const ALSO_LINTED = [
      graded bodies (hr_apply / hr_state_of / hr_perks_of / hr_rate_gate /
      hr_assert_grant_hygiene) and is on no derivation chain. */
   '2026-09-03-intent-mismatch-class.sql',
+  /* THE intent_mismatch ESCALATION (2026-09-03, Security condition C2). It
+     PATCHES hr_record_rejection programmatically at a guarded exactly-once anchor
+     (so no literal create-or-replace header and no last-toucher role) to move
+     'intent_mismatch' into the c_escalating array. Listed here because the patch
+     re-executes a SECURITY DEFINER body that writes hr_rejections for an
+     ARBITRARY user id: `create or replace` PRESERVES an ACL, and a restatement
+     that lost its revoke block would leave a way to forge another player's abuse
+     record. The file asserts the ACL is byte-identical across the replace; this
+     lint is the static half of the same claim. On no derivation chain. */
+  '2026-09-03-intent-mismatch-escalates.sql',
   /* THE GENERALIZED CRON-HEALTH DETECTOR (2026-09-03). Operator-only telemetry.
      It creates two SECURITY DEFINER functions (hr_db_sample, hr_cron_health_ex —
      the second reads pg_stat_activity and writes two maintenance tables) and

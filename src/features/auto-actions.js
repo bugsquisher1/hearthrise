@@ -114,6 +114,181 @@
     return aa;
   }
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE SETTINGS SYNC — `hr_set_auto_eat`, DEBOUNCED.   (b499)
+
+     ── THE DEFECT ────────────────────────────────────────────────────────────
+     `hr_set_auto_eat` (supabase/migrations/2026-08-15-auto-eat.sql, restated by
+     2026-08-29-auto-eat-tiers.sql) is the ONLY writer of
+     player_state.auto_eat_enabled / auto_eat_food / auto_eat_pct — and it had
+     ZERO client call sites. So `auto_eat_food` was NULL for every character and
+     the accrual engine's `chooseFood(null, …)` fell back to `bestHealingFood`,
+     the BIGGEST healer in the bag, while THIS file honoured the player's own
+     nomination. The unit COUNTS still converged (the pending-consume hold drains
+     on the server's own movement — see src/net/accrue.js), so nothing was lost
+     or duplicated, but the two sides drained DIFFERENT STACKS and the server's
+     pick was the more valuable one. The threshold and the ON/OFF toggle were
+     unsynced for the same reason, so a player who switched auto-eat OFF was
+     still eaten for overnight.
+
+     ── WHY IT HANGS OFF setEat() ─────────────────────────────────────────────
+     setEat is this file's declared ONE WRITER of the eat config, and every
+     player-facing control routes through it: the Settings toggle and threshold
+     slider (src/settings-page.js), the combat food picker and the inventory food
+     tap (legacy.js setAutoEatFood / setCombatAutoEat), the loadout apply, and
+     buyTrait's switch-on. One hook, every gesture — and nothing on the LOAD path
+     calls setEat, so a boot never syncs.
+
+     ── ONLY WHAT THE PLAYER EXPRESSED ────────────────────────────────────────
+     Every argument of the RPC is THREE-VALUED: null means "leave this column
+     alone". So the pending set records WHICH KEYS the player touched, and the
+     flush reads the current value for exactly those. A player who has never
+     picked a food never sends one, and `auto_eat_food` stays NULL server-side —
+     the NULL-fallback policy is the Designer's and must not be invented here by
+     helpfully pushing up a default. An EXPLICIT clear (the picker's Off option)
+     is a real gesture and goes out as `p_clear_food:true`, which is the only way
+     to say "back to best in the bag" when NULL already means unchanged.
+
+     ── WHY THE DEBOUNCE IS NOT OPTIONAL ──────────────────────────────────────
+     The verb bumps player_state.version and writes ONE player_ledger row PER
+     CALL, and is rate-gated at 30/hour with a rejected call still consuming
+     budget. The threshold control is a SLIDER: one drag fires `change` once, but
+     a keyboard arrow-storm or a re-render fires many, and each unsynced call
+     would be a wasted version bump against an in-flight accrual. So the flush
+     waits for a quiet window AND dedupes against what the server has already
+     PROJECTED (accrue.js serverAutoEatSettings, read off every envelope's
+     `state.auto_eat_*`): a change that lands back on the server's own value
+     sends nothing at all.
+
+     ── THE THRESHOLD SENT IS THE EFFECTIVE ONE ───────────────────────────────
+     `eatThreshold()`, not the raw stored preference. The client clamps on READ
+     and the server clamps on WRITE, so sending the raw value would leave a
+     tier-I owner's stored 25 permanently disagreeing with their local 50 and the
+     dedupe would re-send forever. Both sides land on the same effective number,
+     which is the property the away/live parity guard needs.
+
+     ── REFUSALS ──────────────────────────────────────────────────────────────
+     `collect_first` (an unpaid window — these three columns PRICE an absence) is
+     RETRIED, not dropped: the transport already settles-then-retries three times
+     over ~19 s, and if the window is STILL open the keys are re-queued for
+     another quiet period. Everything else is logged and left DIRTY — the keys
+     are not marked sent, so the player's next change re-sends them. Nothing here
+     is surfaced to the player: this is a preference sync, it destroys nothing,
+     and a toast per background refusal would be noise. */
+  var SYNC_QUIET_MS = 1500;
+  var SYNC_RETRY_MS = 20000;      // after a still-unpaid window
+  var _syncPending = null;        // {enabled?:true, food?:true, pct?:true}
+  var _syncTimer = null;
+  var _syncInFlight = false;
+  /* ⚠ PARKED FOR THE SUITE, the same way runSmokeTest parks the 90 s settle loop
+     and the autosave. Thirty-odd tests drive setEat() (and applyLoadout, whose
+     fixture kit carries `foodSlot: null`), so an unparked sync would push a
+     TEST's food choice — including an explicit CLEAR — to the live server on
+     Tyler's own account, mid-run, and the player would come back to auto-eat
+     pointing at nothing. The AUTOEAT-SYNC tests unpark inside their own bodies,
+     exactly as SETTLE-5/6 drive the settle loop themselves, so parking hides
+     nothing. Default OFF: production never touches this. */
+  var _syncParked = false;
+
+  /* What the SERVER already believes, as last projected. A field is `undefined`
+     when no envelope has carried it — treated as "unknown, so send", never as a
+     stored NULL. */
+  function serverBelief(){
+    try {
+      var A = window.HearthriseAccrual;
+      if(A && typeof A.serverAutoEatSettings === 'function') return A.serverAutoEatSettings() || {};
+    } catch(e){}
+    return {};
+  }
+  function effectivePct(){
+    var A = core();
+    var t = eatThreshold();
+    if(A && typeof A.pctFromThreshold === 'function') return A.pctFromThreshold(t);
+    return Math.max(0, Math.min(100, Math.round(t * 100)));
+  }
+
+  /* Record which keys the player just expressed, and (re)arm the quiet window.
+     Called ONLY from setEat — a value this file computes for itself is not a
+     gesture and must not be pushed to the server. */
+  function queueServerSync(opts){
+    if(_syncParked) return;
+    if(!opts || typeof opts !== 'object') return;
+    var want = _syncPending || {};
+    if(Object.prototype.hasOwnProperty.call(opts, 'enabled')) want.enabled = true;
+    if(Object.prototype.hasOwnProperty.call(opts, 'foodId'))  want.food    = true;
+    if(typeof opts.threshold === 'number' && isFinite(opts.threshold)) want.pct = true;
+    if(!want.enabled && !want.food && !want.pct) return;
+    _syncPending = want;
+    if(_syncTimer) clearTimeout(_syncTimer);
+    _syncTimer = setTimeout(flushServerSync, SYNC_QUIET_MS);
+  }
+
+  function flushServerSync(){
+    _syncTimer = null;
+    if(_syncParked) { _syncPending = null; return; }
+    var pending = _syncPending;
+    if(!pending) return;
+    if(_syncInFlight){                       // one call at a time; re-arm behind it
+      _syncTimer = setTimeout(flushServerSync, SYNC_QUIET_MS);
+      return;
+    }
+    var GC = window.HearthriseGoalClaim;
+    if(!GC || typeof GC.setAutoEat !== 'function') return;               // stay dirty
+    if(typeof GC.isSignedIn === 'function' && !GC.isSignedIn()) return;  // stay dirty
+
+    var a = ensureShape();
+    if(!a || !a.eat) return;
+    var have = serverBelief();
+    var patch = {}, sending = {};
+
+    if(pending.enabled){
+      var en = !!a.eat.enabled;
+      if(have.enabled !== en){ patch.enabled = en; sending.enabled = true; }
+    }
+    if(pending.pct){
+      var pc = effectivePct();
+      if(have.pct !== pc){ patch.pct = pc; sending.pct = true; }
+    }
+    if(pending.food){
+      var fid = (typeof a.eat.foodId === 'string' && a.eat.foodId) ? a.eat.foodId : null;
+      if(have.food !== fid){
+        if(fid) patch.food = fid; else patch.clearFood = true;
+        sending.food = true;
+      }
+    }
+
+    /* Everything the player touched already matches the server. Clear the
+       pending set and send NOTHING — this is the branch that keeps a settings
+       panel that is merely opened, and a suite that restores what it changed,
+       off the 30/hour budget entirely. */
+    if(!sending.enabled && !sending.pct && !sending.food){ _syncPending = null; return; }
+
+    _syncPending = null;
+    _syncInFlight = true;
+    Promise.resolve().then(function(){ return GC.setAutoEat(patch); }).then(function(res){
+      _syncInFlight = false;
+      if(res && res.ok) return;
+      var why = (res && res.error) || 'network';
+      /* THE WINDOW IS STILL UNPAID (or the bucket is full). The transport already
+         settled + retried three times; give the settle loop a full cycle and try
+         again rather than dropping the player's choice on the floor. */
+      if(why === 'collect_first' || why === 'rate_limited'){
+        var again = _syncPending || {};
+        if(sending.enabled) again.enabled = true;
+        if(sending.pct)     again.pct     = true;
+        if(sending.food)    again.food    = true;
+        _syncPending = again;
+        if(_syncTimer) clearTimeout(_syncTimer);
+        _syncTimer = setTimeout(flushServerSync, SYNC_RETRY_MS);
+        return;
+      }
+      try { console.warn('[auto-eat] settings sync refused:', why); } catch(e){}
+    }).catch(function(e){
+      _syncInFlight = false;
+      try { console.warn('[auto-eat] settings sync threw:', e && e.message); } catch(_){}
+    });
+  }
+
   // ── Getters / setters ───────────────────────────────────────
   function getEat(){ var a = ensureShape(); return a ? a.eat : Object.assign({}, DEFAULTS.eat); }
   function setEat(opts){
@@ -136,6 +311,9 @@
       if(window.G) window.G.autoEatPct = a.eat.threshold;
     }
     persist();
+    /* b499 — AND TELL THE SERVER. Debounced + deduped; see the block above.
+       LAST, after the local write, so the flush reads the settled value. */
+    queueServerSync(opts);
   }
 
   /* b326: the ONE reader of the effective auto-eat trigger point.
@@ -448,6 +626,19 @@
     // Exposed for tests + future migrations
     _DEFAULTS: DEFAULTS,
     _ensureShape: ensureShape,
+    /* b499 — the settings sync, published for the regression suite. `_flushEat`
+       runs the pending flush NOW instead of waiting out the quiet window (a test
+       that slept 1.5 s per assertion would not get written); `_syncState` reports
+       what is queued; `_resetEatSync` drops any pending work so one test cannot
+       leak a queued call into the next. */
+    _flushEatSync: flushServerSync,
+    _syncState: function(){ return { pending: _syncPending && Object.assign({}, _syncPending), inFlight: _syncInFlight, armed: !!_syncTimer, parked: _syncParked }; },
+    _resetEatSync: function(){ if(_syncTimer) clearTimeout(_syncTimer); _syncTimer = null; _syncPending = null; _syncInFlight = false; },
+    /* Park/unpark, for runSmokeTest (and for the AUTOEAT-SYNC tests, which
+       unpark themselves). Returns the PREVIOUS state so a caller can restore it
+       rather than assuming what it was. */
+    _parkEatSync: function(on){ var was = _syncParked; _syncParked = !!on; if(_syncParked){ if(_syncTimer) clearTimeout(_syncTimer); _syncTimer = null; _syncPending = null; } return was; },
+    _SYNC_QUIET_MS: SYNC_QUIET_MS,
   };
 
   console.log('[auto-actions] API loaded — engine hooks are stubs until b134/b135.');

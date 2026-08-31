@@ -9433,6 +9433,207 @@ const TESTS = [
       assert(after.foodId === 'cooked_shrimp', 'eat.foodId should be cooked_shrimp');
     } finally {
       window.HearthriseAuto.setEat(before);
+      if (window.HearthriseAuto._resetEatSync) window.HearthriseAuto._resetEatSync();
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     AUTOEAT-SYNC — THE PLAYER'S FOOD PICK REACHES THE SERVER.   (b499)
+
+     THE DEFECT. `hr_set_auto_eat` is the ONLY writer of
+     player_state.auto_eat_enabled / auto_eat_food / auto_eat_pct, and it had
+     ZERO client call sites. `auto_eat_food` was therefore NULL for every
+     character, so the accrual engine's `chooseFood(null, …)` fell back to
+     `bestHealingFood` — the BIGGEST healer in the bag — while the client
+     honoured the player's nomination. The unit COUNTS converge (the
+     pending-consume hold drains on the server's own movement), so nothing is
+     lost or duplicated; the two sides just drain DIFFERENT STACKS, and the
+     server takes the more valuable one. The toggle and threshold were unsynced
+     for the same reason, so a player who switched auto-eat OFF was still eaten
+     for overnight.
+
+     WHY EVERY ASSERTION BELOW IS ABOUT COUNTING CALLS: the verb bumps the state
+     version and writes a player_ledger row PER CALL, rate-gated 30/hour with a
+     rejected call still consuming budget. A sync that fires per slider step is
+     not a smaller version of the fix, it is a different bug.
+
+     MUTATION (all proved): replace the debounce with an immediate flush → -1
+     stops carrying the final value and -2 starts spending on a no-op; drop the
+     `have.pct !== pc` dedupe → -2 goes red; drop the collect_first re-queue →
+     -3 goes red.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRunAsync('AUTOEAT-SYNC-1: a settings change fires exactly ONE debounced hr_set_auto_eat with the right args', async () => {
+    const A = window.HearthriseAuto, GC = window.HearthriseGoalClaim;
+    if (!A || typeof A._flushEatSync !== 'function' || !GC || typeof GC.setAutoEat !== 'function') return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
+    const origRpc = window.HearthriseRpc, origProf = window.HearthriseProfile, origAcc = window.HearthriseAccrual;
+    const before = A.getEat();
+    const bodies = [];
+    let wasParked = false;
+    try {
+      wasParked = A._parkEatSync(false);   // this test drives the sync itself
+      A._resetEatSync();
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
+      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
+      window.HearthriseRpc = { mayCall: () => true };
+      window.HearthriseProfile = { activeSlot: () => 2 };
+      /* The server's own projected belief — hr_state_of has carried all three
+         columns since 2026-08-15-auto-eat.sql; accrue.js reads them off every
+         envelope. This is the dedupe anchor. */
+      window.HearthriseAccrual = Object.assign({}, origAcc, {
+        serverAutoEatSettings: () => ({ enabled: true, food: null, pct: 50 }),
+        settleBeforeIntent: () => Promise.resolve(null),
+      });
+      window.fetch = function (url, init) {
+        if (String(url).indexOf('hr_set_auto_eat') !== -1) {
+          try { bodies.push(JSON.parse(init && init.body)); } catch (e) { bodies.push(null); }
+          return Promise.resolve(new Response(
+            JSON.stringify({ ok: true, auto_eat: { enabled: true, food: null, pct: 25, tier: 2, max_pct: 100 } }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      window.G.traits = Object.assign({}, window.G.traits, { auto_eat: true, auto_eat_2: true });
+
+      A.setEat({ threshold: 0.25 });
+      assert(bodies.length === 0, 'THE GESTURE ITSELF must not go to the wire — the verb writes a ledger row '
+        + 'per call and is rate-gated at 30/hour; saw ' + bodies.length);
+      assert(A._syncState().armed === true, 'the quiet window was not armed');
+      A._flushEatSync();
+      await new Promise((r) => setTimeout(r, 40));
+      assert(bodies.length === 1, 'exactly one RPC; saw ' + bodies.length);
+      const b = bodies[0];
+      assert(b && b.p_pct === 25, 'p_pct must carry the EFFECTIVE threshold; got ' + JSON.stringify(b));
+      assert(b.p_enabled === null && b.p_food === null && b.p_clear_food === false,
+        'a key the player did not touch must go out as NULL ("leave the column alone"); got ' + JSON.stringify(b));
+      assert(b.p_slot === 2, 'the active slot must ride along; got ' + JSON.stringify(b));
+    } finally {
+      A._resetEatSync();
+      window.fetch = origFetch; window.HearthriseSupabase = origSb; window.HearthriseAuth = origAuth;
+      window.HearthriseRpc = origRpc; window.HearthriseProfile = origProf; window.HearthriseAccrual = origAcc;
+      A.setEat(before); A._resetEatSync(); A._parkEatSync(wasParked);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('AUTOEAT-SYNC-2: a drag storm still sends ONE call, and a change that lands back on the server value sends NONE', async () => {
+    const A = window.HearthriseAuto;
+    if (!A || typeof A._flushEatSync !== 'function') return;
+    const snap = snapshotG();
+    const origGC = window.HearthriseGoalClaim, origAcc = window.HearthriseAccrual;
+    const before = A.getEat();
+    let sent = 0, lastPatch = null, wasParked = false;
+    try {
+      wasParked = A._parkEatSync(false);   // this test drives the sync itself
+      A._resetEatSync();
+      window.HearthriseGoalClaim = Object.assign({}, origGC, {
+        isSignedIn: () => true,
+        setAutoEat: (p) => { sent++; lastPatch = p; return Promise.resolve({ ok: true, auto_eat: {} }); },
+      });
+      window.HearthriseAccrual = Object.assign({}, origAcc, {
+        serverAutoEatSettings: () => ({ enabled: true, food: 'cooked_shrimp', pct: 50 }),
+      });
+      window.G.traits = Object.assign({}, window.G.traits, { auto_eat: true, auto_eat_2: true });
+
+      // ── (a) THE DRAG STORM.
+      [0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1].forEach((t) => A.setEat({ threshold: t }));
+      A._flushEatSync();
+      await new Promise((r) => setTimeout(r, 40));
+      assert(sent === 1, 'eight slider steps must coalesce into ONE call; saw ' + sent);
+      assert(lastPatch && lastPatch.pct === 10, 'and it must carry the LAST value; got ' + JSON.stringify(lastPatch));
+
+      // ── (b) THE NO-OP. Changed and changed back = the server already agrees.
+      sent = 0;
+      A.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
+      A.setEat({ threshold: 0.25 });
+      A.setEat({ threshold: 0.5 });
+      A._flushEatSync();
+      await new Promise((r) => setTimeout(r, 40));
+      assert(sent === 0, 'a change that lands back on the server\'s own value must send NOTHING — that is what '
+        + 'keeps an opened settings panel (and this suite) off the 30/hour budget; saw ' + sent);
+      assert(A._syncState().pending === null, 'the pending set must be cleared, not left to fire later');
+
+      // ── (c) THE SAFE DEFAULT. A threshold change must not push a food.
+      sent = 0; lastPatch = null;
+      A.setEat({ threshold: 0.3 });
+      A._flushEatSync();
+      await new Promise((r) => setTimeout(r, 40));
+      assert(sent === 1, 'a real change must still send; saw ' + sent);
+      assert(lastPatch && lastPatch.food === undefined && lastPatch.clearFood === undefined,
+        'a threshold change must not carry a food the player did not touch (the NULL-food fallback is the '
+        + 'Designer\'s policy, not a transport default); got ' + JSON.stringify(lastPatch));
+    } finally {
+      A._resetEatSync();
+      window.HearthriseGoalClaim = origGC; window.HearthriseAccrual = origAcc;
+      A.setEat(before); A._resetEatSync(); A._parkEatSync(wasParked);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('AUTOEAT-SYNC-3: an explicit food pick / clear is sent correctly, and collect_first is RETRIED not dropped', async () => {
+    const A = window.HearthriseAuto;
+    if (!A || typeof A._flushEatSync !== 'function') return;
+    const snap = snapshotG();
+    const origGC = window.HearthriseGoalClaim, origAcc = window.HearthriseAccrual;
+    const before = A.getEat();
+    let sent = 0, lastPatch = null, answer = { ok: true, auto_eat: {} }, wasParked = false;
+    try {
+      wasParked = A._parkEatSync(false);   // this test drives the sync itself
+      A._resetEatSync();
+      window.HearthriseGoalClaim = Object.assign({}, origGC, {
+        isSignedIn: () => true,
+        setAutoEat: (p) => { sent++; lastPatch = p; return Promise.resolve(answer); },
+      });
+      window.HearthriseAccrual = Object.assign({}, origAcc, {
+        serverAutoEatSettings: () => ({ enabled: true, food: null, pct: 50 }),
+      });
+      window.G.traits = Object.assign({}, window.G.traits, { auto_eat: true, auto_eat_2: true });
+
+      // ── (a) AN EXPLICIT PICK.
+      A.setEat({ foodId: 'cooked_shrimp', enabled: true });
+      A._flushEatSync();
+      await new Promise((r) => setTimeout(r, 40));
+      assert(sent === 1 && lastPatch && lastPatch.food === 'cooked_shrimp',
+        'the nominated food must reach the server, or the engine keeps eating the biggest healer in the bag; '
+        + 'got ' + JSON.stringify(lastPatch));
+      assert(!lastPatch.clearFood, 'a pick is not a clear');
+
+      // ── (b) AN EXPLICIT CLEAR (the picker's Off option). p_clear_food is the
+      //        ONLY way to say "back to best in the bag" — NULL means unchanged.
+      window.HearthriseAccrual.serverAutoEatSettings = () => ({ enabled: true, food: 'cooked_shrimp', pct: 50 });
+      sent = 0; lastPatch = null;
+      A.setEat({ foodId: null, enabled: false });
+      A._flushEatSync();
+      await new Promise((r) => setTimeout(r, 40));
+      assert(sent === 1 && lastPatch && lastPatch.clearFood === true,
+        'an explicit clear must be clearFood:true, not a null food (which means "unchanged"); got '
+        + JSON.stringify(lastPatch));
+      assert(lastPatch.enabled === false, 'and the OFF toggle must ride with it; got ' + JSON.stringify(lastPatch));
+
+      // ── (c) collect_first — the server refuses a change with an unpaid window
+      //        because these three columns PRICE an absence. The choice must be
+      //        re-queued, never dropped.
+      window.HearthriseAccrual.serverAutoEatSettings = () => ({ enabled: true, food: null, pct: 50 });
+      sent = 0; answer = { ok: false, error: 'collect_first', detail: { unpaid_ms: 90000 } };
+      A.setEat({ threshold: 0.35 });
+      A._flushEatSync();
+      await new Promise((r) => setTimeout(r, 40));
+      assert(sent === 1, 'the refused call went out; saw ' + sent);
+      const st = A._syncState();
+      assert(st.pending && st.pending.pct === true,
+        'a collect_first refusal DROPPED the player\'s threshold instead of re-queueing it: ' + JSON.stringify(st));
+      assert(st.armed === true, 'no retry timer was armed after collect_first');
+      answer = { ok: true, auto_eat: {} };
+      A._flushEatSync();
+      await new Promise((r) => setTimeout(r, 40));
+      assert(sent === 2, 'the retry must actually fire once the window is paid; saw ' + sent);
+      assert(A._syncState().pending === null, 'the queue must clear once the change lands');
+    } finally {
+      A._resetEatSync();
+      window.HearthriseGoalClaim = origGC; window.HearthriseAccrual = origAcc;
+      A.setEat(before); A._resetEatSync(); A._parkEatSync(wasParked);
+      restoreG(snap);
     }
   }),
 
@@ -49243,6 +49444,16 @@ export async function runSmokeTest(opts = {}) {
   const _A = window.HearthriseAccrual;
   const _loopWasRunning = !!(_A && typeof _A.getSettleState === 'function' && _A.getSettleState().running);
   try { if (_loopWasRunning) _A.stopSettleLoop(); } catch (e) {}
+  /* ── PARK THE AUTO-EAT SETTINGS SYNC, for the same reason (b499) ──────────
+     Thirty-odd tests drive HearthriseAuto.setEat(), and applyLoadout's fixture
+     kit carries `foodSlot: null` — so an unparked sync would push a TEST's food
+     choice, including an explicit CLEAR, to the live server on the account
+     running the suite. The player would come back to auto-eat pointing at
+     nothing. AUTOEAT-SYNC-1..3 unpark inside their own bodies (like SETTLE-5/6
+     drive the settle loop themselves), so nothing here is left untested. */
+  const _Auto = window.HearthriseAuto;
+  let _eatSyncWasParked = false;
+  try { if (_Auto && typeof _Auto._parkEatSync === 'function') _eatSyncWasParked = _Auto._parkEatSync(true); } catch (e) {}
   /* ── THE ONE hr_load THE HARNESS PERFORMS (gold-arm) ─────────────────────
      With gold/gems ARMED, `balanceOf` reads a number only when `G._record`
      vouches for it — the provenance stamp that in production `hr_load` writes
@@ -49265,6 +49476,7 @@ export async function runSmokeTest(opts = {}) {
     try {
       if (_loopWasRunning && _A) { _A.setSettleEnv(null); _A.startSettleLoop(); }
     } catch (e) {}
+    try { if (_Auto && typeof _Auto._parkEatSync === 'function') _Auto._parkEatSync(_eatSyncWasParked); } catch (e) {}
   }
   try { window.showTab(startTab); } catch {}
   const summary = {

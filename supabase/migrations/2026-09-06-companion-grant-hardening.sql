@@ -1,7 +1,11 @@
 -- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — hr_companion_grant HARDENING (Security conditions C1 · C2 · C3)
---   ⚠ STAGED / REVIEW-ONLY. The Coordinator applies. Nothing here is applied
---     by writing the file.
+--   ✅ APPLIED TO PRODUCTION 2026-08-31 (dry-run begin/rollback 201 → commit
+--     201 via the Management API; post-apply body pin 0d0c7310b9573968916d3254
+--     cacd9df1, recorded in tests/live-hash-drift.baseline.json — the guard's
+--     baseline, not this prose, is the deployment record). REVIEW-ONLY file:
+--     nothing is applied by writing it; re-apply is safe (§0's already-hardened
+--     fork).
 --
 --   Same-build follow-up to 2026-09-05-companion-unlock-catalogue-reseed.sql
 --   (APPLIED to production 2026-08-30; hr_unlocks 82 total / 21 companion,

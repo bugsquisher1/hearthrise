@@ -1,6 +1,6 @@
 -- 2026-09-03-intent-mismatch-class.sql
 --
--- ⚠⚠⚠ REVIEW ONLY — NOT AUTO-APPLIED. NOT APPLIED TO PRODUCTION. ⚠⚠⚠
+-- ⚠⚠⚠ REVIEW ONLY — NOT AUTO-APPLIED BY TOOLING. ✅ APPLIED TO PRODUCTION 2026-08-30 (one ordered txn with its siblings; hr_intent_replay live at md5 97f6c74e…, all twelve patched bodies verified live-vs-replay by tests/live-hash-drift.mjs 2026-08-31). ⚠⚠⚠
 -- ⚠ SECURITY ACK REQUESTED (not a full review): this file changes IDEMPOTENCY
 --   BEHAVIOUR on verbs that move money (hr_claim_goal, hr_trait_buy,
 --   hr_bank_move, hr_bounty_spend, hr_worker_hire, hr_farm_harvest …). The

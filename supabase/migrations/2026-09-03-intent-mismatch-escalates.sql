@@ -1,6 +1,6 @@
 -- 2026-09-03-intent-mismatch-escalates.sql
 --
--- ⚠⚠⚠ REVIEW ONLY — NOT AUTO-APPLIED. NOT APPLIED TO PRODUCTION. ⚠⚠⚠
+-- ⚠⚠⚠ REVIEW ONLY — NOT AUTO-APPLIED BY TOOLING. ✅ APPLIED TO PRODUCTION 2026-08-30 (one ordered txn with its siblings; hr_intent_replay live at md5 97f6c74e…, all twelve patched bodies verified live-vs-replay by tests/live-hash-drift.mjs 2026-08-31). ⚠⚠⚠
 --   Detector-only. It changes NO payout, NO grant, NO client-callable surface and
 --   NO control path: the only thing that moves is the `severity` a rejection row
 --   is recorded under, and only after the FIFTIETH occurrence in one

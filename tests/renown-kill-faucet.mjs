@@ -5,8 +5,24 @@
 //
 //   node tests/renown-kill-faucet.mjs             # the guard
 //   node tests/renown-kill-faucet.mjs --list      # the mutation catalogue
-//   node tests/renown-kill-faucet.mjs --selftest  # every mutation must be CAUGHT
+//   node tests/renown-kill-faucet.mjs --selftest  # every mutation must be caught BY
+//                                                 # THE ASSERTION WRITTEN FOR IT
+//   node tests/renown-kill-faucet.mjs --observe   # what each mutation actually trips
 //   node tests/renown-kill-faucet.mjs --mutate=<id>
+//
+// ── F2 (2026-08-31): THIS HARNESS USED TO GRADE ANY THROW AS A CATCH ────
+// `catch (e) { caught = […] }` scored every exception as CAUGHT, so eight of the
+// eleven mutations demonstrated only "the apply threw" and a reviewer's
+// SYNTAX-ONLY non-defect duly reported ✓ CAUGHT. Every mutation now declares
+// `by` (which mechanism must catch it: the migration's own §3 `gate`, or this
+// file's `guard` assertions) and `expect` (a regex the catch must MATCH) — the
+// convention at tests/bounty-drift.mjs:52-56. A syntax error, a mangled
+// replacement or an unmatched anchor is classified HARNESS and exits 2, and two
+// permanent NEGATIVE CONTROLS (a syntax-only plant and a comment-only plant)
+// must never read as catches. Making `by` explicit also exposed that R2's
+// counter equality, R6 and R9 had no mutation that reached them at all: §3
+// refused every defect aimed at them first, so all three were assertions nothing
+// had ever fired. They now have gate-blind twins.
 //
 // Ships with: supabase/migrations/2026-09-02-renown-kill-faucet.sql
 //
@@ -52,6 +68,8 @@ const MIG = '2026-09-02-renown-kill-faucet.sql';
    than silently skipped — a mutation that cannot be planted is decoration. */
 const MUTATIONS = {
   no_discount_kill_any: {
+    by: 'gate',
+    expect: /GATE\(c2\)[\s\S]*moved renown by 20 \(must be 0\)/,
     why: 'the kill term stops subtracting ev:kill_credited_any, so every client-credited kill scores '
        + '0.05 renown again — the aggregate half of the faucet is re-opened',
     find: `    + greatest(0::bigint,
@@ -67,6 +85,8 @@ const MUTATIONS = {
                    and kind = 'stat' and period_key = '' and key = 'ev:kill_any'), 0)::float8`,
   },
   no_discount_boss: {
+    by: 'gate',
+    expect: /GATE\(c2\)[\s\S]*moved renown by 2000 \(must be 0\)/,
     why: 'THE BIG HALF: the boss term stops subtracting the per-monster credited count, so a client '
        + 'kill credit scores 5 renown per boss kill again — 19,500 renown/hour behind one held '
        + 'bounty, against a ladder worth 1.6M gold + 925 gems per character',
@@ -74,6 +94,8 @@ const MUTATIONS = {
     repl: `    + coalesce((select sum(pp.value)`,
   },
   discount_is_aggregate: {
+    by: 'gate',
+    expect: /GATE\(b\): hr_renown_of does not subtract the credited counters/,
     why: 'the boss term subtracts the GLOBAL credited total instead of the per-monster one, so a '
        + 'credit against a NON-boss target silently erases honest boss renown (and a player who '
        + 'legitimately killed bosses loses the score for it)',
@@ -81,6 +103,8 @@ const MUTATIONS = {
     repl: "                   and cr.key = 'ev:kill_credited_any'",
   },
   credit_records_nothing: {
+    by: 'gate',
+    expect: /GATE\(c2\)[\s\S]*moved renown by 20 \(must be 0\)/,
     why: 'hr_credit_kills stops recording the credited counters, so hr_renown_of has nothing to '
        + 'subtract and the discount silently becomes a no-op — the faucet is open again with the '
        + 'score-side code still looking correct',
@@ -88,6 +112,8 @@ const MUTATIONS = {
     repl: `    '        values (v_uid, v_slot, ''stat'', ''ev:kill_credited_any__disabled'', '''', 0, ''active'')' || chr(10) ||`,
   },
   credited_exceeds_bestiary: {
+    by: 'gate',
+    expect: /GATE\(c5b\)[\s\S]*moved renown by -550/,
     /* ⚠ THE `do update` LINE IS PART OF THE ANCHOR, and that is the whole
        mutation. The first draft changed only the VALUES list — which is the
        INSERT path, taken exactly once per monster per character. Every credit
@@ -112,6 +138,8 @@ const MUTATIONS = {
     '      insert into public.player_progress as p (user_id, slot, kind, key, period_key, value, state)' || chr(10) ||`,
   },
   prune_probe_not_aged: {
+    by: 'gate',
+    expect: /GATE\(c6\): FIXTURE VACUOUS/,
     /* Not a defect in the SHIPPED behaviour — a defect in the PROOF, planted so
        the anti-vacuity check is itself proven to have teeth. Removing the
        backdate restores exactly the gate Security found: hr_progress_prune floors
@@ -127,6 +155,8 @@ const MUTATIONS = {
       where user_id = v_uid and slot = v_slot;`,
   },
   credited_is_periodic: {
+    by: 'gate',
+    expect: /GATE\(c2\)[\s\S]*moved renown by 20 \(must be 0\)/,
     why: 'the credited rows are filed with a PERIOD key instead of the permanent one, so '
        + 'hr_progress_prune sweeps them at 31 days while ev:kill_any and the bestiary row survive '
        + 'forever. The discount then fails OPEN — the faucet re-opens on a timer, with nothing '
@@ -135,6 +165,8 @@ const MUTATIONS = {
     repl: `    '        values (v_uid, v_slot, ''stat'', ''ev:kill_credited_any'', public.hr_utc_day_key(now()), v_applied, ''active'')' || chr(10) ||`,
   },
   renown_always_zero: {
+    by: 'gate',
+    expect: /GATE\(c1\): THE HONEST CONTROL FAILED/,
     why: 'THE DEGENERATE "FIX": renown is broken to always return 0. Every "the faucet is closed" '
        + 'assertion passes trivially, so R1 (the honest control) is the only thing standing between '
        + 'this file and a green build that deleted a progression system',
@@ -150,9 +182,18 @@ $body$;`,
    Every mutation above is also caught by the MIGRATION's own §3 gate — it
    refuses to install broken, which is the strongest catch available. But §3 only
    runs at APPLY time, and the regression this guard must catch a year from now
-   is a LATER migration restating hr_renown_of from a stale copy. So the two most
-   load-bearing defects are repeated with §3's executed block short-circuited,
-   leaving ONLY this file's assertions to see them. */
+   is a LATER migration restating hr_renown_of from a stale copy, where no gate
+   runs at all. So the load-bearing defects are repeated with §3's executed block
+   short-circuited, leaving ONLY this file's assertions to see them.
+
+   ⚠ THE LIST GREW FROM TWO TO FIVE ON 2026-08-31, and the reason is the point of
+     the F2 fix rather than thoroughness for its own sake. Once every mutation had
+     to name WHICH mechanism catches it (`by`), it became visible that R2's
+     credited-counter equality, R6 (the discount is PER MONSTER) and R9 (the
+     credited rows are UNPRUNABLE) had no mutation that reached them at all —
+     every defect aimed at those three arms was intercepted by §3 first, so all
+     three were assertions nothing had ever fired. An assertion no mutation can
+     trigger is decoration, whatever the summary line says. */
 const GATE_BLIND = [
   `  begin
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
@@ -162,39 +203,75 @@ const GATE_BLIND = [
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
     insert into auth.users (id) values (v_uid) on conflict (id) do nothing;`,
 ];
-MUTATIONS.no_discount_boss_gate_blind = {
-  why: MUTATIONS.no_discount_boss.why + ' — with the migration\'s own §3 gate short-circuited, so '
-     + 'ONLY this guard (R2/R3) can see it',
-  find: MUTATIONS.no_discount_boss.find,
-  repl: MUTATIONS.no_discount_boss.repl,
-  also: [GATE_BLIND],
-};
-MUTATIONS.credited_exceeds_bestiary_gate_blind = {
-  why: MUTATIONS.credited_exceeds_bestiary.why + ' — with the migration\'s own §3 gate '
-     + 'short-circuited, so ONLY this guard (R8\'s signed equality) can see it',
-  find: MUTATIONS.credited_exceeds_bestiary.find,
-  repl: MUTATIONS.credited_exceeds_bestiary.repl,
-  also: [GATE_BLIND],
-};
-MUTATIONS.renown_always_zero_gate_blind = {
-  why: MUTATIONS.renown_always_zero.why + ' — with the migration\'s own §3 gate short-circuited, so '
-     + 'ONLY this guard\'s honest control (R1) can see it',
-  find: MUTATIONS.renown_always_zero.find,
-  repl: MUTATIONS.renown_always_zero.repl,
-  also: [...(MUTATIONS.renown_always_zero.also || []), GATE_BLIND],
-};
+/* §3(b) is a STATIC text probe, so short-circuiting the executed block is not
+   enough for a defect that (b) can read off the source. Blinding it is a second,
+   separate patch — and it is deliberately NARROW: only the
+   `'ev:kill_credited:'`-is-present arm is neutered, so the sibling arm that
+   requires `ev:kill_credited_any` still has to hold. A twin that turned the whole
+   gate off would stop being "the same defect with one catcher removed". */
+const GATE_B_BLIND = [
+  `     or position('ev:kill_credited:' in
+       pg_get_functiondef('public.hr_renown_of(uuid,int)'::regprocedure)) = 0 then`,
+  '     or false then   -- selftest: §3(b) per-monster text probe blinded',
+];
+
+const blind = (src, arm, expect, extra = []) => ({
+  by: 'guard',
+  expect,
+  why: `${MUTATIONS[src].why} — with the migration's own §3 gate short-circuited, so ONLY this `
+     + `guard (${arm}) can see it`,
+  find: MUTATIONS[src].find,
+  repl: MUTATIONS[src].repl,
+  also: [...(MUTATIONS[src].also || []), GATE_BLIND, ...extra],
+});
+
+MUTATIONS.no_discount_boss_gate_blind = blind('no_discount_boss', 'R2/R3',
+  /R2: THE FAUCET IS OPEN[\s\S]*moved renown by 2000/);
+MUTATIONS.credited_exceeds_bestiary_gate_blind = blind('credited_exceeds_bestiary', "R8's signed equality",
+  /R8: a THROTTLED credit moved renown by -550/);
+/* The three added by the F2 fix. Each is the FIRST thing ever to fire the arm it
+   names — before this, R2's counter equality, R6 and R9 had no mutation that
+   reached them, because §3 refused every defect aimed at them first. */
+MUTATIONS.credit_records_nothing_gate_blind = blind('credit_records_nothing',
+  "R2's credited-counter equality",
+  /R2: the aggregate credited counter is 0 but the credit applied \d+/);
+MUTATIONS.discount_is_aggregate_gate_blind = blind('discount_is_aggregate',
+  'R6, the per-monster discount',
+  /R6: a credit against the NON-boss target/, [GATE_B_BLIND]);
+MUTATIONS.credited_is_periodic_gate_blind = blind('credited_is_periodic',
+  'R9, the discount must outlive what it discounts',
+  /R9: hr_progress_prune DELETED ev:kill_credited_any/);
+MUTATIONS.renown_always_zero_gate_blind = blind('renown_always_zero',
+  "R1, the honest control", /R1: THE HONEST CONTROL FAILED/);
 
 const N = (v) => Number(v ?? 0);
 
-/** One end-to-end run against a freshly replayed database. */
-async function run(mutate) {
+/**
+ * One end-to-end run against a freshly replayed database.
+ * @param {string|null} mutate  id in MUTATIONS
+ * @param {object}      [inline] a mutation object supplied directly (the negative
+ *                      controls, which are deliberately NOT in MUTATIONS — a
+ *                      non-defect must never be reachable from --mutate=<id>)
+ */
+async function run(mutate, inline) {
   const problems = [];
   const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 
   let patchList;
-  if (mutate) {
-    const m = MUTATIONS[mutate];
-    patchList = new Map([[MIG, [[m.find, m.repl], ...(m.also || [])]]]);
+  const m = inline || (mutate ? MUTATIONS[mutate] : null);
+  if (m) {
+    /* ⚠ ANCHORS ARE NORMALISED TO LF BEFORE USE. bootReplay reads every migration
+       with .replace(/\r\n/g,'\n'), and .gitattributes pins supabase/migrations/**
+       to eol=lf for exactly the b330 reason (a CRLF checkout made four of five
+       mutations match NOTHING) — but it does NOT pin tests/**, and core.autocrlf
+       is true on the Windows machine this is authored on. So a fresh Windows
+       clone would hand these multi-line template anchors CRLF and every mutation
+       here would fail to plant. It fails loudly rather than silently, which is
+       why it has never bitten, but "loud" is not the same as "works". One
+       normalisation removes the whole class and is a no-op on LF. */
+    const lf = (s) => s.replace(/\r\n/g, '\n');
+    patchList = new Map([[MIG,
+      [[m.find, m.repl], ...(m.also || [])].map(([f, r]) => [lf(f), lf(r)])]]);
   }
   const { db } = await bootReplay({ patches: patchList, upTo: MIG });
 
@@ -546,24 +623,137 @@ export async function renownKillFaucetGuard() {
   return problems;
 }
 
-/** Every planted defect must be CAUGHT. A mutation that passes is a blind guard. */
-async function selftest() {
-  let bad = 0;
-  for (const id of Object.keys(MUTATIONS)) {
-    let caught = [];
-    try {
-      const { obs, problems } = await run(id);
-      grade(obs, problems);
-      caught = problems;
-    } catch (e) {
-      caught = [`migration/harness rejected it: ${String(e.message || e).split('\n')[0]}`];
+/* ── NEGATIVE CONTROLS: THINGS THAT MUST NOT READ AS A CATCH ────────────────
+   The reviewer's plant, kept permanently. Neither of these is a DEFECT — the
+   first is a pure syntax error and the second edits a comment — so neither may
+   be scored as "the guard caught it". Before this file graded by NAMED
+   assertion, the syntax-only plant reported ✓ CAUGHT, because the harness
+   treated any throw as a catch. A mutation harness that cannot tell a defect
+   from a typo is not evidence of anything. The selftest FAILS AS A HARNESS
+   PROBLEM (exit 2) if either of these ever reads as caught.
+   They live outside MUTATIONS on purpose: a non-defect must not be reachable
+   from --mutate=<id> or appear in --list as though it were one. */
+const CONTROLS = {
+  syntax_only_non_defect: {
+    why: 'THE REVIEWER\'S PLANT. A pure syntax error — no behaviour is changed, because the file '
+       + 'never applies at all. It must read as a MALFORMED MUTATION, never as a catch',
+    expectClass: 'harness',
+    find: '  with ps as (\n',
+    repl: '  with ps as ((((\n',
+  },
+  comment_only_non_defect: {
+    why: 'a comment is reworded in the migration. Behaviour is identical, so every assertion in '
+       + 'this file must stay green — a harness that "catches" this would catch anything',
+    expectClass: 'clean',
+    find: '      -- skill99 × 100 (each skill taken to 99)',
+    repl: '      -- skill99 x 100 (each skill taken to 99) [reworded; no behaviour change]',
+  },
+};
+
+/**
+ * Classify ONE planted mutation.
+ * @returns {{cls:'harness'|'gate'|'guard'|'clean', text:string, problems:string[]}}
+ *   harness  the mutation could not be planted, or the file broke in a way that is
+ *            not a deliberate refusal (a syntax error). NOT a catch.
+ *   gate     the migration's own §3 executed block refused to install it.
+ *   guard    the migration applied and THIS FILE's assertions saw it.
+ *   clean    nothing saw it.
+ */
+async function classifyMutation(m) {
+  try {
+    const { obs, problems } = await run(null, m);
+    grade(obs, problems);
+    return { cls: problems.length ? 'guard' : 'clean', text: problems.join('\n'), problems };
+  } catch (e) {
+    const text = String(e.message || e);
+    /* A SYNTAX ERROR IS NOT A CATCH. bootReplay reports a file that fails to
+       apply and a file that deliberately RAISES identically, so without this
+       split a mangled replacement scores as a pass — measured on schema-drift's
+       `weaken_rls`, which passed for a fortnight on `syntax error at or near "$"`
+       instead of on the RLS defect it plants. */
+    if (e.harness || /syntax error|unterminated|invalid input syntax|patch anchor|did not land verbatim/i.test(text)) {
+      return { cls: 'harness', text, problems: [] };
     }
-    if (caught.length) {
-      console.log(`  ✓ ${id} — CAUGHT (${caught.length}): ${caught[0]}`);
+    return { cls: 'gate', text, problems: [] };
+  }
+}
+
+/**
+ * Every planted defect must be caught BY THE ASSERTION WRITTEN FOR IT.
+ *
+ * ⚠ WHAT THIS USED TO DO, AND WHY IT PROVED ALMOST NOTHING (F2, 2026-08-31).
+ *   `catch (e) { caught = ['migration/harness rejected it: …'] }` graded ANY
+ *   throw as CAUGHT. Eight of the eleven mutations demonstrated only "the apply
+ *   threw" — never that a named property held — and the reviewer proved the hole
+ *   by planting a SYNTAX-ONLY non-defect, which duly reported ✓ CAUGHT.
+ *   The convention is stated at tests/bounty-drift.mjs:52-56 and was already used
+ *   by the census: `expect` is a regex the catch must MATCH, and `by` names WHICH
+ *   mechanism must produce it, so a mutation that starts being caught by a
+ *   neighbour — or by a typo — is reported instead of scored.
+ *
+ *   `by` matters as much as `expect` here. Most of these defects are ALSO caught
+ *   by the migration's own §3 gate, which only runs at APPLY time; the regression
+ *   this file must catch a year from now is a LATER migration restating
+ *   hr_renown_of from a stale copy, where no gate runs at all. A mutation whose
+ *   only catcher is the gate proves nothing about that, which is exactly why the
+ *   three `_gate_blind` variants exist and are declared `by: 'guard'`.
+ */
+async function selftest(observe) {
+  let bad = 0; let harnessBad = 0;
+  for (const [id, m] of Object.entries(MUTATIONS)) {
+    const { cls, text, problems } = await classifyMutation(m);
+    if (observe) {
+      console.log(`${id}\n    class=${cls}\n    ${(problems[0] || text).split('\n').slice(0, 3).join('\n    ').slice(0, 420)}\n`);
+      continue;
+    }
+    if (!m.expect || !m.by) {
+      console.error(`  HARNESS ${id} — no \`expect\` regex / \`by\` declared. A mutation without a `
+        + 'named assertion proves only that something threw.');
+      harnessBad += 1; continue;
+    }
+    if (cls === 'harness') {
+      console.error(`  HARNESS ${id} — the mutation could not be planted, or the file broke in a way `
+        + `that is not a deliberate refusal:\n            ${text.split('\n')[0].slice(0, 200)}\n`
+        + '            A bug that was never planted is the same defect as a probe that is always null.');
+      harnessBad += 1; continue;
+    }
+    if (cls === 'clean') { console.error(`  ✗ ${id} — NOT CAUGHT. ${m.why}`); bad += 1; continue; }
+    if (cls !== m.by) {
+      console.error(`  ✗ ${id} — caught by the ${cls.toUpperCase()}, but the assertion written for it `
+        + `names the ${m.by.toUpperCase()}.\n            ${cls === 'gate'
+          ? 'The migration refused to install, so THIS FILE proved nothing — and a later migration '
+            + 'restating the body would meet no gate at all.'
+          : 'The gate was expected to refuse it.'}\n            got: ${text.split('\n')[0].slice(0, 180)}`);
+      bad += 1; continue;
+    }
+    const hay = cls === 'guard' ? problems.join('\n') : text;
+    if (!m.expect.test(hay)) {
+      console.error(`  ✗ ${id} — caught, but NOT by the assertion written for it. Expected `
+        + `${m.expect}\n            got: ${hay.split('\n')[0].slice(0, 200)}`);
+      bad += 1; continue;
+    }
+    console.log(`  ✓ ${id} — caught by the ${cls}, matching ${m.expect}`);
+  }
+
+  if (observe) return 0;
+
+  // ── the negative controls. A harness that catches these catches anything. ──
+  for (const [id, c] of Object.entries(CONTROLS)) {
+    const { cls, text, problems } = await classifyMutation(c);
+    if (cls === c.expectClass) {
+      console.log(`  ✓ control ${id} — read as ${cls}, which is correct: it is not a defect`);
     } else {
-      console.log(`  ✗ ${id} — NOT CAUGHT. ${MUTATIONS[id].why}`);
-      bad += 1;
+      console.error(`  HARNESS control ${id} — read as ${cls.toUpperCase()}, expected `
+        + `${c.expectClass.toUpperCase()}. ${c.why}\n            got: `
+        + `${(problems[0] || text).split('\n')[0].slice(0, 200)}`);
+      harnessBad += 1;
     }
+  }
+
+  if (harnessBad) {
+    console.error(`\n${harnessBad} HARNESS problem(s) — this file cannot be trusted to grade a`);
+    console.error('mutation, so its green runs mean nothing either. Fix the harness first.');
+    process.exit(2);
   }
   return bad;
 }
@@ -572,13 +762,24 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const arg = process.argv[2] || '';
   (async () => {
     if (arg === '--list') {
-      for (const [id, m] of Object.entries(MUTATIONS)) console.log(`${id}\n    ${m.why}\n`);
+      for (const [id, m] of Object.entries(MUTATIONS)) {
+        console.log(`${id}\n    caught by the ${m.by}, must match ${m.expect}\n    ${m.why}\n`);
+      }
+      console.log('NEGATIVE CONTROLS (must NOT read as catches):');
+      for (const [id, c] of Object.entries(CONTROLS)) {
+        console.log(`${id}\n    must classify as "${c.expectClass}"\n    ${c.why}\n`);
+      }
       return;
     }
-    if (arg === '--selftest') {
-      const bad = await selftest();
-      if (bad) { console.error(`${bad} mutation(s) NOT CAUGHT`); process.exit(1); }
-      console.log('all mutations caught');
+    if (arg === '--selftest' || arg === '--observe') {
+      const bad = await selftest(arg === '--observe');
+      if (arg === '--observe') return;
+      if (bad) {
+        console.error(`${bad} mutation(s) were not caught by the assertion written for them`);
+        process.exit(1);
+      }
+      console.log(`all ${Object.keys(MUTATIONS).length} mutations caught by their NAMED assertion; `
+        + `${Object.keys(CONTROLS).length} negative controls correctly NOT scored as catches`);
       return;
     }
     if (arg.startsWith('--mutate=')) {

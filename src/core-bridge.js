@@ -64,7 +64,8 @@ import * as artisanSim from './core/artisan-sim.js?v=498';
    surfaces, and §4.5 requires them to call the same `hoursOfSupply`/`dryAtMs`
    the server's accrual will — "if the projection computes its own copy, the two
    will disagree, and the player will be told a number the night does not
-   honour." Nothing in the fight calls it yet; see src/core/ammo.js's header. */
+   honour." WIRED into the fight since E1 (2026-08-31) — `simulateTick` charges
+   one swing per tick through `spendForSwings`; see src/core/ammo.js's header. */
 import * as ammo from './core/ammo.js?v=498';
 /* The auto-eat DECISION, shared with the server accrual engine. Published so
    src/features/auto-actions.js — a classic script, which cannot import — can

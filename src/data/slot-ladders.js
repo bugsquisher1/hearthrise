@@ -63,10 +63,10 @@ export const SLOT_ITEMS = {
      rung is therefore free — training arrows — and the supply loop starts at
      tier 2, where the same 13,600 arrows cost ~27% of gross at book value.
 
-     NOTHING CONSUMES THESE YET. `src/core/**` contains no reference to `ammo`
-     at all (verified by grep across src/core and supabase/functions). The
-     engine change is specified in the handoff; until it lands `ammoPerShot` is
-     inert, and no flavour line below promises a burn that does not happen.  */
+     THESE ARE SPENT (E1, 2026-08-31). `src/core/ammo.js spendForSwings` is
+     called by `src/core/combat-sim.js simulateTick` on every swing, live and
+     away, and the debit lands in the server accrual's signed `items` delta.
+     Before that date `ammoPerShot` was inert and this block said so.  */
   bronze_arrows:    { n: 'Bronze Arrows',      icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 1, rarity: 'common',    reqSkill: 'ranged', reqLv: 1,  rangeAtkB: 2, rangeStrB: 2,  ammoPerShot: 0 },
   barbed_arrows:    { n: 'Barbed Arrows',      icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: 'uncommon',  reqSkill: 'ranged', reqLv: 15, rangeAtkB: 3, rangeStrB: 3,  ammoPerShot: 1 },
   steel_arrows:     { n: 'Steel Arrows',       icon: '🏹', v: 2,  type: 'ammo', slot: 'ammo', tier: 3, rarity: 'rare',      reqSkill: 'ranged', reqLv: 30, rangeAtkB: 4, rangeStrB: 5,  critB: 0.01,  ammoPerShot: 1 },

@@ -2429,3 +2429,182 @@ sites) turns the b341 regression test red, because that test stubs `hasTrait` al
 locked state and would need its fixture moved to `G.traits`. Changing a guarded regression test's
 fixture for a defect unrelated to either build on this branch is how a clean integration becomes an
 argument. It is a two-line change plus a fixture move; it wants its own commit.
+
+---
+
+## 2026-08-31 · Systems Engineer → Coordinator / Security / Designer — E1, the ammo spend
+**Branch `fix/ammo-consumption`, REBASED onto `61d3417a` (b499 streak vocabulary). Paione,
+2026-08-20, board §8 P2: "crafted arrows are
+never spent in combat."**
+
+### 1. → COORDINATOR: THE EDGE FUNCTION MUST BE REDEPLOYED. NON-NEGOTIABLE.
+`src/core/combat-sim.js` and `src/core/ammo.js` are vendored into `hr-accrue` by
+`tools/pack-edge.mjs`, and `deployedPayloadGuard` (inside `node tests/run-smoke.mjs`) compares the
+deployed function's `payload_sha256` against a fresh pack of this repo.
+
+```
+main @ 61d3417a   2fc78db75f2c9adc...  -> (moved by the SKIP.NOTHING line, see below)
+this branch       c17cd6bde229a8b2344c30d15820aaf59e6c09a57ed3247d5a665fea29ae2a83  (64 files)
+```
+(Pre-rebase this branch packed to `809dfeb9…`; the rebase pulled in the Coordinator's
+`accrueWorkers` SKIP.NOTHING line, which is in the payload, so the hash moved. **Repack at merge
+rather than trusting either figure** — `node tools/pack-edge.mjs hr-accrue --out <dir>` prints it.)
+
+The new file is `vendor/core/ammo.js`. **Until the redeploy lands, `run-smoke` reports a payload
+mismatch and the LIVE server still does not spend ammo while the client does** — which is the one
+state worse than the bug, because the client would predict a debit the server never states and the
+pending-consume hold would expire into a restock. Deploy and merge together.
+`node tools/pack-edge.mjs hr-accrue --out <dir>` then the usual CLI push; `pack --check` is green
+(0 problems).
+
+### 2. → SECURITY: THE REVIEW HEADER (item movement in the engine)
+**WHAT MOVES.** One new signed negative in the accrual's existing `items` delta: `-qty` of the item
+named by `player_equipment.ammo`, at `ITEMS[id].ammoPerShot` per simulated swing. No new verb, no new
+intent id, no new client-reported value, no new trusted input — it rides the accrual delta that
+already carries the auto-eat food debit, through the same `fx` sink shape.
+
+**WHAT CAPS IT.** Five independent limits, four of them pre-existing:
+1. `swings = floor(grantMs / tickMs)`, and `tickMs` is DERIVED from server-owned equipment
+   (`deriveTickMs`), clamped by `resolveTickMs` at `COMBAT_BALANCE.minTickMs` (600 ms). `grantMs` is
+   `min(elapsed, sinceActivity, cap)` off the server clock.
+2. `spendForSwings` charges only what the stack it read out of the engine's own live `bag` covers
+   (`covered = min(n, floor((stock - carry) / perShot))`, clamped at 0), so it structurally cannot
+   propose more than the character owns.
+3. `fx.removeItem` floors again at `min(n, bag[id])` — deliberately redundant, because
+   `insufficient_item` is NOT on index.ts's DEGRADABLE list and would 409 a whole night.
+4. The existing `startQty(id) + n < 0` clamp emits `overeat_clamped` and floors at `-startQty`.
+5. `hr_apply` re-reads `player_inventory` under the row lock and refuses `have + delta < 0`.
+
+**WHY IT CANNOT MINT.** The ammo delta is strictly NEGATIVE — there is no branch that adds. The daily
+quantity budget sums `greatest(0, value)` (`v_qty_in` in hr_apply), so a debit contributes ZERO to the
+inflow budget and cannot be used to launder headroom. `c_max_item_delta` is 1,000,000 per item per
+call against a worst case of 25,577 (12 h, Rapid bow, `spdB` at the 0.20 clamp) — 2.6%. Nothing
+crosses to another player: the ammo id comes from the server's own equipment row, the quantity from
+the server's own simulation, the clock from `now()`.
+
+**THE ONE NEW STATE FIELD** is `G.ammoCarry`, a `{ammoId: 0..1}` fraction added to `RESIDUE_FIELDS`
+(self-only `client_state`). It is worth **strictly less than one item** by construction —
+`advanceAmmoCarry` pays out whole units the instant it reaches 1 — so a forged value cannot mint a
+single arrow. It collides with nothing on the `hr_put_client_state` deny-list.
+
+### 3. → COORDINATOR / SECURITY: ONE MIGRATION IS OWED, AND THE ENGINE IS ALREADY WIRED FOR IT
+`player_state.ammo_carry` does not exist. The engine takes `inp.ammoCarry` through the **exact
+`tool_carry` self-configuring-null idiom**: null (today) means start each span from an empty carry and
+**OMIT** the `ammo_carry` delta key, so nothing changes by a single byte until the column lands.
+`index.ts` and `set-activity.js` already pass `st.ammo_carry ?? null` (A14 mirror green).
+
+**Cost of the gap, measured rather than estimated:** an INTEGER `ammoPerShot` — every arrow, every
+rune, i.e. the reported bug — is **exact with or without the column**, because the carry lands on
+exactly 0 after each swing (`AMMO-E6` asserts this directly). Only a FRACTIONAL rung is affected, and
+only by UNDER-charging. Today that is whetstones alone (`0.02`): exact on an away window, ~zero while
+attended (a 90 s settle is ~37 swings against a 50-swing stone, and the dropped fraction is forgiven
+at every boundary). `AMMO-E6`'s continuity block measures both.
+
+**The migration, spelled out so it is one SQL file and no engine change:**
+1. copy `supabase/migrations/2026-08-25-workers.sql` (the current `hr_apply` + `hr_state_of` holder);
+2. `alter table player_state add column if not exists ammo_carry jsonb not null default '{}'` plus a
+   `jsonb_typeof(...) = 'object'` check, mirroring `player_state_tool_carry_object`;
+3. project it in `hr_state_of` beside `'tool_carry', v_st.tool_carry`;
+4. add `'ammo_carry'` to `c_delta_keys`, and copy the `tool_carry` validation block with ONE change —
+   **the key check must be an ITEM id (`public.hr_items`), not `public.hr_skills`.** That is the only
+   substantive difference and it is the line to review: `hr_apply` currently rejects any `tool_carry`
+   key that is not a known skill, which is precisely why the ammo carry could not simply ride in the
+   existing column;
+5. write it in the `update player_state set ...` block beside `tool_carry`;
+6. register in `tests/schema-apply-order.json`; `tests/schema-drift.mjs` + `tests/schema-replay.mjs`
+   must go green (pglite is available — junction `node_modules` into the worktree).
+
+Nothing in `AMMO-E6` needs flipping: it already asserts BOTH the with-column and the no-column shapes.
+
+### 4. → DESIGNER (3 rulings) and → ART DIRECTOR (1 surface)
+All three are written up with their arithmetic in `CONFLICTS.md` (2026-08-31). One line each:
+- **spend-vs-penalty split** — implemented as the design states; confirm melee was meant to SPEND.
+- **`AMMO_EMPTY_SLOT_IS_DRY`** — the mechanic is opt-out until this flips (not equipping measures 3.4x
+  better than running dry). Needs the Art Director's empty-quiver indicator in the same build.
+- **an emptied slot keeps its stats** — melee's ceiling is still effectively free after one stone.
+
+**→ ART DIRECTOR, and it is now unblocked:** `simulateSpan`'s summary states `consumed {id:qty}`,
+`dryMs`, `dryItemId` and `weakMs`, and the accrual journals `meta.spent`. §10's away-card copy ("You
+ran out of Steel Arrows 4h 20m in — the rest of the night fought at a quarter strength") can be
+rendered from stated facts with nothing inferred. WARNING: test `dryMs !== null`, never `if (dryMs)` —
+**zero** means "already empty when the span began", which truthiness reports as a good night.
+
+### 5. NOT DONE, DELIBERATELY — design item E3 is SERVER-side, not client-side
+§2.2 proposes `equipItem` stop moving a unit into the slot (the pointer model). It cannot be a client
+change any more: `hr_equip` states "Equipping is a TRANSFER, not a flag. One unit leaves
+player_inventory" (`2026-08-18-equip-release-codes.sql`). Consequence today: equipping a stack strands
+exactly **one** unit in the slot, loosable only after unequipping. No mint, no loss, cosmetically odd
+("0 arrows" beside an armed doll). Owner: whoever next touches `hr_equip`.
+
+### 6. FOUND WHILE THERE — two things the next agent should know
+- **`tools/pack-edge.mjs`'s specifier scan is comment-blind.** The words `... from "nothing is loaded"`
+  inside a block comment in `src/core/ammo.js` failed the pack as a bare specifier. The guard did its
+  job loudly; the sharp edge is that any PROSE containing an import-shaped phrase in a vendored file
+  breaks the deploy. Not fixed here (widening the regex touches the packer's own correctness
+  argument), but worth a follow-up.
+- **`node tests/activity-intent.mjs` was RED on clean `main` — CLOSED before this branch merged.**
+  Reported here from `f46c824c` (`A0-CONTROL: every catalogue kind AND every artisan recipe is
+  settable, so ... the refusal proves nothing`); the Coordinator resurrected the contract in
+  `1796ba58` and it is green on `61d3417a`, which this branch is now rebased onto. Left in the log
+  because the *class* is the interesting part: the guard was run by nothing, so it rotted silently.
+
+### 7. SECURITY VERDICT GO — the two conditions that were mine, discharged on the branch
+
+**A1 — the coupling written AT THE FLAG, and ENFORCED.** `src/core/ammo.js` now carries the
+knowledge-tax argument at `AMMO_EMPTY_SLOT_IS_DRY` in the security reviewer's own framing: flipped
+without the indicator, an INFORMED player unequips (58 vs 17 maxHit) and an UNINFORMED one silently
+eats x0.25 all night, so the mechanic stops taxing *preparation* — which is the design's whole intent
+(§4: "the loadout decision made before the tab closes is THE decision") — and starts taxing
+*information*, hardest on exactly the newest players §12.2 argues it is safe to ship to.
+
+A cheap greppable anchor exists, so this is enforced rather than only documented:
+**the marker is the literal token `hr-ammo-dry` anywhere under `src/` outside `src/core/`.** The NAME
+is mine (the guard needs something to grep); the MECHANISM is the Art Director's — CSS class, `data-`
+attribute, glyph key, render helper, whatever the indicator honestly wants to be. `AMMO_DRY_UI_MARKER`
+is exported from `src/core/ammo.js` so the guard reads the contract off the module that owns it.
+
+`AMMO-E4` asserts the **IMPLICATION** `flag === true => marker exists`, deliberately NOT a
+biconditional: the indicator may land FIRST and alone (an empty-quiver badge is useful copy while the
+penalty is off), so UI-without-flag stays green and only penalty-without-sign goes red. When the UI
+lands with the flag still false the guard PRINTS a note saying the design call is now unblocked.
+
+⚠ **`src/core/**` is excluded from the evidence scan, and that exclusion IS the control.** The first
+version of this check was UNFALSIFIABLE — `src/core/ammo.js` is where the marker string is defined and
+where the coupling is documented, so the scan found the token in the very file that names it and the
+"flag flipped, no indicator" mutation passed GREEN. Caught by running the mutation. The exclusion is
+also correct independently: `src/core` is DOM-free by construction (enforced by `core-purity`), so an
+indicator can never honestly live there. Two controls now run BEFORE the implication — the scanner can
+see a token that is really out there (`COMBAT_FX`), and it CANNOT see one that only exists in
+`src/core` (`AMMO_DRY_UI_MARKER`).
+
+**A2 — the invariant pinned, not the stat behaviour.** `EQUIPPED DOES NOT IMPLY HELD` is now stated in
+a block above `equipmentStats` in `src/core/combat.js` (comment-only; `git diff` adds no executable
+line to that file). It says what changed and why: the state used to be unreachable through play and
+became ordinary on 2026-08-31, because the ammo slot is a POINTER by ruling (§2.2) and the fight now
+spends what it points at. It names the consequences a reader needs — `equipment.ammo === 'x'` does not
+license `inventory.x > 0`; `readAmmo` is the ONE reader that answers both at once; the stat
+consequence is documented rather than accidental — and it names the open design question and why
+closing it is its own commit.
+
+`AMMO-E5b` pins it as a property of the SYSTEM. It drives the real engine until a whetstone stack is
+spent to exactly zero — produced, not posited, because a hand-built `{equipment:{ammo:x},
+inventory:{}}` would only prove the shape is representable — and then asserts four things: the stack
+really did empty; the accrual proposed **no `equipment` key** (running out must never rearrange a
+loadout behind the player); `readAmmo` reports `{id, stock: 0}`; and `equipmentStats` still pays the
+stat, with the message naming the deliberate fix that would flip it. A fifth assertion requires the
+non-guarantee to still be WRITTEN DOWN at `equipmentStats` — an invariant a test knows and a reader
+does not is how the next author assumes `equipped => held`.
+
+**Six new mutation proofs, all named** (on top of the original ten, all still red on demand):
+
+| # | mutation | caught by |
+|---|---|---|
+| M11 | `AMMO_EMPTY_SLOT_IS_DRY` flipped, no indicator | E4 (the coupling) |
+| M12 | flipped **with** a marker present | GREEN — proves it is an implication, not a lock |
+| M13 | the `src/core` exclusion removed | E4 control (b) — the unfalsifiable state |
+| M14 | the `EQUIPPED DOES NOT IMPLY HELD` note deleted | E5b |
+| M15b | the engine unequips an emptied slot | E5b ("proposed an EQUIPMENT key") |
+| M16 | `readAmmo` drops the pointer once the stack is empty | E5b + E1b + E3 |
+
+**A3** (the `ammo_carry` migration trigger) is the Coordinator's board item, not addressed here; the
+step-by-step spec above stands unchanged.

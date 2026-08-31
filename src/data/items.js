@@ -135,9 +135,9 @@ export const ITEMS={
 
      v:1 is ladder parity with `barbed_arrows`, its exact tier peer (iron-tier,
      lv 15 vs this rung's 20). `ammoPerShot: 1` matches every tier-2+ rung so
-     this stops being the one arrow in the game with no sink once the combat
-     loop starts spending (E1, src/core/ammo.js). Both are enforced by the
-     ammo-ladder guard in tests/recipe-yield-guard.mjs. */
+     this stopped being the one arrow in the game with no sink the day the
+     combat loop started spending (E1, 2026-08-31, src/core/ammo.js). Both are
+     enforced by the ammo-ladder guard in tests/recipe-yield-guard.mjs. */
   iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',atkB:2,critB:.01,ammoPerShot:1},
   fox_companion:{n:'Fox Companion',icon:'🦊',v:600,type:'companion',slot:'companion',strB:2,xpB:.02},
   iron_ore:{n:'Iron Ore',icon:'⬜',v:25},

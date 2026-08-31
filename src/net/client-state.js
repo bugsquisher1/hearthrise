@@ -200,6 +200,18 @@ export const RESIDUE_FIELDS = Object.freeze([
   'wieldGrandfather', // {itemId:true} — "once worn, always re-wearable"; losing it can un-wield live gear
   'currentCombatTier', // which monster tier the combat picker is showing (b213 saved it on purpose)
   'toolCarry',      // fractional gather carry-over per tool — mutated by reference each tick
+  /* ── E1/E2 — THE CONSUMPTION CARRY. `toolCarry`'s exact twin, one system
+     over: `{ <ammoItemId>: 0..1 }`, mutated by reference on every swing by
+     src/core/ammo.js. A whetstone burns 0.02 per swing, so 49 swings in 50 bank
+     a fraction rather than spending an item, and a carry that reset on reload
+     would make every fractional consumable free to anyone who refreshes.
+     ⚠ Self-only and worth STRICTLY LESS THAN ONE ITEM by construction — the
+       range is [0,1) and `advanceAmmoCarry` pays out whole units the moment it
+       reaches 1 — so a forged value cannot mint even a single arrow. That is
+       what makes residue the right home rather than a server column today; when
+       `player_state.ammo_carry` lands, the server's copy becomes authority and
+       this one becomes the prediction, exactly as `toolCarry` did. */
+  'ammoCarry',
   'buyback',        // the 15-entry recently-sold list; a reload must not eat a misclick's undo
   'dailyGoldStart', // {day,gold,earned} — the day's gold baseline the daily goals measure against;
                     // reset on reload = the gold-earned goal restarts from the current balance

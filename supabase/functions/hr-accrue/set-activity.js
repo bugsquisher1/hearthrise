@@ -644,6 +644,14 @@ export async function collectCurrentWindow(o) {
        because hr_apply's answer to an unknown key is a 409 that costs the
        window this collect exists to pay. */
     toolCarry: st.tool_carry ?? null,
+    /* THE CONSUMPTION CARRY (design item E2) — the same self-configuring null,
+       and it matters MORE here than at the accrue call site: a collect prices
+       the partial window before the switch, and a fractional consumable whose
+       carry was dropped at every collect would be free for any player who
+       re-targets often. Null today (`player_state.ammo_carry` does not exist
+       yet), so the engine starts empty and omits the key.
+       Mirrors index.ts field for field (A14). */
+    ammoCarry: st.ammo_carry ?? null,
     /* THE IN-FLIGHT FIGHT (Phase 0) — and this call site is the one that made
        it urgent BEFORE any settle timer exists. A switch collects first, and a
        collect that restarts the fight at full monster HP throws away every

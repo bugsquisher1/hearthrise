@@ -111,7 +111,11 @@
           row('Total kills', (s.kills || 0).toLocaleString()) +
           row('Deaths', (s.deaths || 0).toLocaleString()) +
           row('Best kill streak', (s.bestKillStreak || 0).toLocaleString()) +
-          row('Current streak', (s.killStreak || 0).toLocaleString()) +
+          /* b499 — "Current kill streak", never a bare "Current streak". This is
+             the THIRD quantity in the game called a streak (play / claim / kill);
+             an unqualified one on a stats screen is read against the flame chip
+             in the topbar, which counts something else entirely. */
+          row('Current kill streak', (s.killStreak || 0).toLocaleString()) +
           row('Rare drops looted', (s.rareDrops || 0).toLocaleString()) +
         '</div>' +
       '</div>' +

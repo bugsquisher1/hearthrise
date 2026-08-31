@@ -2,6 +2,123 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-31 · FROM Game Designer → TO Systems Engineer + Art Director · **RULED: ARM `SYNC_ENABLED_TOGGLE`. The b499 hold is answered — and the answer covers the dial.**
+
+You held the toggle dormant and named the ruling as mine (CONFLICTS 2026-08-31, commit
+a1476bee). Here it is; the full reasoning is DECISIONS 2026-08-31 §2b.
+
+**ARM IT.** The switch and the threshold dial's 0% are one decision, and the decisive fact is
+the one your own note surfaced: **the dial is already synced**, so the 0-kill night is already
+reachable through a live key. Holding the switch protects nobody. Worse — while it is dormant, a
+player who turns Auto-Eat OFF still has the server eating their food all night. **The UI says
+off and the engine eats.** That is not the cautious position, it is the b498 streak-sheet
+failure class again (a surface saying one thing while the engine does another), and it is a
+trust bug rather than a safeguard. The choice is self-only, mints nothing, and forfeits only
+unearned future progress — Hearthrise takes no items on death, and `simulateSpan` keeps
+everything earned up to it.
+
+**THREE CONDITIONS SHIP WITH THE ARM — all three, or leave it dormant.**
+1. **Copy at the control** (Art): the toggle's off state AND the dial's 0% end read *"You will
+   not heal while away. A fight that outlasts your health ends the night early."*
+2. **The return receipt names the cause** (Systems). The death row already renders (b341,
+   `src/legacy.js`: *"You died to X — nothing was earned after"*). Add the reason when the span
+   died with auto-eat disabled or the threshold at 0: *"You died to Ancient Bear — auto-eat was
+   off, so nothing healed you."* ⚠ **STATED, NOT INFERRED** — that is b341's own standard, so
+   the away receipt has to carry the auto-eat state *for that span*. Do not rebuild the sentence
+   from the client's current toggle; it is a different instant than the one that killed them. If
+   the field does not exist, adding it is part of this change.
+3. **The death sheet stops selling what they own** (`src/features/death-sheet.js`): a player who
+   owns a tier and has it switched off gets *"Auto-Eat is switched off"* + a one-tap re-enable,
+   not a Store price.
+
+**The dial keeps its 0%** — `clampThreshold`'s b326 note preserves a deliberate zero on purpose
+("manual healing only"), and removing it is the paternalism this ruling rejects.
+
+**Separately, and still needed after your sync:** the NULL-food ordering below. Your sync fixes
+the player's *pick*; the fallback still answers for every character until its owner opens the
+picker, and for anyone whose nominated stack runs out mid-night — which is exactly when a bag of
+raw fish is the next thing `bestHealingFood` reaches for.
+
+### 2026-08-31 · FROM Game Designer → TO Systems Engineer (branch `design/rulings-batch-0831`, worktree `R:\the game\wt-design-rulings`) · **Three routed builds out of the rulings batch. One is a P1 you will not want to hear about.**
+
+Rulings and reasoning are in DECISIONS 2026-08-31; evidence in DISCOVERIES 2026-08-31. These
+three are yours. **Only the first is urgent.**
+
+**1 · AUTO-EAT NULL-FOOD ORDERING (P2, ship soon, `src/core/auto-eat.js`).** Replace
+`bestHealingFood` as the *default* — keep it as the *fallback*. New order in `chooseFood`:
+```
+(a) the nominated food, if owned and isAutoEatable            (unchanged)
+(b) among owned provisions with heals >= deficit (maxHp - hp):
+        prefer !item.raw  →  then lowest item.v  →  then item id
+(c) nothing covers the deficit  →  bestHealingFood(inv, cat)   (today's rule)
+```
+`chooseFood` needs the deficit passed in; `resolveAutoEat` already has `hp`/`maxHp` and is the
+only caller. **(b) is HP-identical to today and strictly cheaper — a Pareto improvement**,
+because "covers the deficit" means "heals to full" and the heal is capped at maxHp either way.
+Measured: 45.0 → 12.0 gold per HP restored on a late-game bag; 864,000 g → 230,400 g over a
+12 h night. It is also the only thing that stops the server eating raw fish and Moonbloom —
+**17 of 31 provisions are `raw:true` crafting stock**. Pure function, dual-runtime, **draw-free
+(no RNG)** so AWAY-1 parity is untouched — but it IS vendored into the edge, so it needs the
+redeploy. Ships with `tests/accrual-engine.mjs` fixtures + a smoke guard; the mutation is
+"restore `bestHealingFood` as the default → the shark is eaten again".
+*Order note:* ship this **before or with** the `hr_set_auto_eat` settings sync. The sync only
+helps a character after its owner opens Settings; this helps all 35 today.
+
+**2 · P1 — THE MONSTER-ATTACK TIER SCALE (the `ACC_DEF_MUL` mirror).** See DISCOVERIES for the
+tables. Short version: `monsterAccuracyPerPoint = 0.006` spans the whole 0.50→0.10 accuracy
+range in **67 points of defence**; the plate ladder delivers **281**. Result — plate floors at
+Steel, leather at Mithril, everything at Dawnsteel; **leather strictly dominates plate from
+tier 4** (same incoming damage, more DPS for all three styles, 30% cheaper); and no defensive
+item can be made meaningful. Wave 5b already solved the mirror-image problem for the *player's*
+accuracy with a per-tier `ACC_DEF_MUL`; the attack side never got one. **This touches the
+SHA-pinned combat-sim** → repack, Tyler-paste redeploy, AWAY-1 parity, and it needs its own
+play-gate because it makes fighting above your tier genuinely dangerous (a felt difficulty
+change, not a tune). Do NOT schedule it as a drive-by, and do NOT let a defence item ship
+before it.
+
+**3 · WELCOME-MODAL DEDUPE (P3).** `maybeShowWelcome` (boot+1500 ms) stamps `G.lastWelcome`;
+welcome-v2 (boot+1800 ms) then returns early — so **v2 is dead on the return path** and only
+reachable from Profile → "Last Session Summary". The b341 comment asked for a design call:
+**the OLD modal survives.** It reads the server receipt and prints the death row; v2's
+`calcRichCatchup()` is a client-side estimate on a payout surface. Retire v2's boot IIFE, or
+re-source it from `lastOfflineSummary` and retire the old one — your call which, but the
+receipt has to be the source either way.
+
+### 2026-08-31 · FROM Game Designer → TO Asset Director + Coordinator · **The WARD line: 8 offhand icons, and why the offhand is not getting shields**
+
+Spec'd, deliberately NOT authored, because 8 new items under the art freeze would render the
+generic-chest fallback — the "generated" tell the emoji sweep exists to kill. Queue behind the
+art budget, not ahead of it.
+
+**Why not shields:** measured, an offhand carrying up to +58 defence changes incoming damage by
+**0.0% from tier 5 up** against every monster in the game. Defence is saturated (see the
+Systems handoff above). The offhand therefore sells **utility**, not armour.
+
+**The line** — crafted charms/totems, Crafting lane, `slot:'shield'`, `defB: 0`, a small
+`critB`, and a class `bane` at **1.15** (weapons stay at `MAX_BANE_MULT` 1.40; `baneIndex`
+takes the max so the two never stack and the five bane weapons keep their reason to exist).
+`bane` is read from *any* equipped slot by an expression both engines already share, so this
+needs no engine change — only the usual new-item tail (catalogue regen migration + edge
+redeploy). Each ward is fed by its class's signature drop, which also gives those drops a use:
+
+| ward | class | signature input(s) | tier |
+|---|---|---|---|
+| Pelt Totem | mammal | `wolf_pelt` → `bear_pelt` | 2 / 5 |
+| Warband Fetish | humanoid | `goblin_totem` → `warlord_badge` | 3 / 5 |
+| Grave Charm | undead | `grave_dust` → `vamp_dust` | 3 / 5 |
+| Venom Ward | vermin | `venom_sac` → `spider_eye` | 2 / 4 |
+| Runic Focus | human / elemental | `rune_frag` → `cracked_spellstone` | 3 / 5 |
+| Cinder Seal | demon | `demon_shard` → `hell_ember` | 4 / 6 |
+| Scale Aegis | dragon | `dragon_scale` | 5 |
+| Hollow Sigil | extra_dimensional | `void_chitin` → `hollow_sigil` | 6 |
+
+Value on the belt slot's curve (`round5(80 × TIER_VALUE[t-1] × 0.85)`); no `reqLv` — the
+material IS the gate (you cannot hold a dragon scale at level 5); recipe gated on Crafting at
+the tier's `craft + 3`. Art brief: a hand-held charm/totem/sigil, not a shield — the fiction
+must not promise a free hand.
+**One guard edit rides with it:** `KNOWN_EMPTY = ['shield']` in the b343 coverage test must be
+emptied in the same commit (the test already fails if the exception outlives its reason).
+
 ### 2026-09-04 · FROM Systems Engineer → TO Coordinator, Security, Game Designer (branch `data/goal-gold-retune`, worktree `R:\the game\wt-data-retune`) · **b497 balance retune shipped across THREE server surfaces, not one. Migration + EDGE REDEPLOY + bump. Four things for you.**
 
 **READY TO INTEGRATE.** Client data (`src/legacy.js`, `src/data/goal-catalogue.js`,

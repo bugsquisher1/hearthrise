@@ -3,6 +3,79 @@
 _Important things agents learn about the codebase, game, or constraints. Append new entries at the top. Every entry: DATE · AGENT · DISCOVERY · AFFECTED SYSTEMS · REQUIRED ACTION. This is how the team avoids rediscovering the same knowledge._
 
 ---
+### 2026-08-31 — Game Designer — **DEFENCE SATURATES AT TIER 3-4. Every point above it is dead, and it is why the offhand slot could never be filled.** (P1)
+
+Found while pricing a shield ladder. `monsterCombatRolls` clamps monster accuracy at
+`monsterMinAccuracy = 0.10`, and `monsterAccuracyPerPoint = 0.006` means the whole
+0.50 → 0.10 range is spanned by **67 points of defence**. The plate ladder delivers **281**.
+
+Measured (⚠ `levelOf` reads XP, not a level — pass `XP_TABLE[L-1]` or every number below is
+wrong by 80 levels; that mistake cost me a whole run and a wrong conclusion):
+
+| tier | lvl | plate set def | vs the tier's worst monster — plate% / leather% / cloth% |
+|---|---|---|---|
+| 3 Steel | 40 | 66 | **10.0** / 18.2 / 27.8 |
+| 4 Mithril | 55 | 104 | **10.0** / **10.0** / 23.0 |
+| 5 Rune | 70 | 153 | **10.0** / **10.0** / 23.0 |
+| 6 Ember | 82 | 210 | **10.0** / **10.0** / 22.4 |
+| 7 Dawn | 92 | 281 | **10.0** / **10.0** / **10.0** |
+
+Consequences, each measured rather than reasoned:
+1. **From Mithril, plate and leather are identical in outcome.** Both floored. Leather is 30%
+   cheaper (9.1k vs 13.1k a set at T4), carries `rangeAtkB` and up to 12% crit, and out-DPSes
+   plate for *every* style (sword 30.4 vs 29.1, ranged 30.4 vs 25.2, magic 39.6 vs 23.5). The
+   smithing armour lane — the most expensive branch of the crafting tree — has no buyer above
+   Steel.
+2. **Defence is binary, not a gradient**: you are floored (safe) or you are fighting above your
+   tier (lethal). There is no in-between for an item to sell into.
+3. **An offhand carrying +58 defence changes incoming damage by 0.0% from tier 5 up**, against
+   every monster in the game (highest `atk` is 105, Green Dragon). That is why the b343 guard's
+   `KNOWN_EMPTY = ['shield']` has survived since b216: the stated reason was handedness, but the
+   real reason is that the slot had nothing to sell.
+
+**The fix is already precedented in the same file.** Wave 5b added `ACC_DEF_MUL = {4:1.15,
+5:1.30, 6:1.50}` to scale monster DEFENCE against player accuracy "so weapon atkB still matters
+at the top of the ladder". The mirror on the ATTACK side was never written. A per-tier scale on
+the monster's effective `atk` restores the whole triangle with one symmetric table.
+
+**AFFECTED:** `src/core/combat.js` (SHA-pinned into combat-sim → repack + edge redeploy +
+AWAY-1 parity), the plate/leather/cloth identities, the Defence skill's endgame payoff, the
+offhand slot, and any future defensive item. **REQUIRED ACTION:** routed to the Systems
+Engineer as a scoped build with its own play-gate — it makes fighting above your tier genuinely
+dangerous, which is a felt difficulty change, not a tune. Do NOT ship a defence item before it.
+
+---
+### 2026-08-31 — Game Designer — **17 of the 31 auto-eatable provisions are `raw:true` crafting stock, so the NULL auto-eat policy eats the Cooking supply chain.**
+
+`foodClassOf` answers `'healing'` for anything with `heals` and no explicit `foodClass` — which
+is every raw fish and most raw crops. So `bestHealingFood` (the server's fallback when
+`auto_eat_food` is NULL, i.e. for every character alive) will happily spend a **Raw Moonfish
+(24 hp, 900 g)** or a **Moonbloom (20 hp, 850 g)**. One auto-eaten Moonbloom destroys 1,750 g and
+780 Cooking XP of Moonbloom Elixir. It also **overheals**: `resolveAutoEat` caps at maxHp, so a
+42 HP Cooked Shark spent on a 20 HP deficit throws away 22 HP *and* costs 45.0 g/HP where Cooked
+Lobster costs 9.6. Over a 12 h night at one meal per 45 s a late-game cook burns **864,000 g
+where 230,400 g does the identical job**. Ruled: cheapest-sufficient, processed-before-raw, with
+`bestHealingFood` demoted to the fallback for when nothing covers the deficit (DECISIONS
+2026-08-31 §2). **AFFECTED:** `src/core/auto-eat.js` (dual-runtime → edge redeploy).
+
+---
+### 2026-08-31 — Game Designer — **The rich welcome-back modal (v2) is dead on the return path; the flat one is what players see.**
+
+Confirmed by playing, not by reading. `maybeShowWelcome` fires at boot+1500 ms and stamps
+`G.lastWelcome`; welcome-v2's own IIFE fires at boot+1800 ms and returns early on
+`Date.now() - G.lastWelcome < 5000`. Measured in a headless boot: `oldShown: true`,
+`v2WouldSkip: true`. So the modal with the XP/items/drops sections only ever appears via
+Profile → "Last Session Summary". The b341 comment flagged "which of the two welcome modals
+survives is a design call" — **RULED: the OLD one survives.** It reads the server receipt
+(`lastOfflineSummary`, b342) and prints the death row; v2's `calcRichCatchup()` is a
+CLIENT-SIDE ESTIMATE, which is exactly what the away-honesty program forbids on a payout
+surface. Retire v2 or re-source it from the receipt — routed to Systems, not urgent.
+**AFFECTED:** `src/legacy.js` welcome blocks.
+
+---
+### 2026-08-31 — Game Designer — **`stats.deaths` DOES increment now** (`src/core/combat-sim.js:166`, since b325). The long-standing backlog item "deaths never increments" is CLOSED and removed from my open list; the Hero screen has a real number.
+
+---
 ### 2026-08-29 — QA Engineer — **A stale `?v=` does not serve old code. It loads the module TWICE, with two copies of its module state. That is what broke the b493 assembly (19 tests), and it is a whole class.**
 
 **Root cause of the b493 release blocker.** 19 smoke tests failed on the assembled tree that every

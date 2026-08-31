@@ -4,6 +4,137 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-31 — DESIGN RULINGS BATCH (four queued from the b497/b498 reviews)
+**Game Designer, acting under design authority. Binding until superseded.**
+
+**1 · THE STREAK LABEL COLLISION → RENAME BOTH. DO NOT MERGE THE STREAKS. (authored)**
+Hearthrise has two true streaks and they may not share a word. The **PLAY streak**
+(`G.streak.count`, days settled) pays renown (`streakBest x5`) and the Week Warrior /
+Devoted achievements; the **CLAIM streak** (server-derived by `deriveLoginStreak`) pays the
+7-day gold/gem cycle. *Measured on b498, headless boot of the real client, play streak 3 with
+a missed claim day:* the welcome-back modal read **"Daily streak 3 days"**, the Home card
+behind it read **"Daily reward · Day 1"**, and the sheet read **"1-DAY STREAK"** — three
+surfaces, two numbers, one word, inside ten seconds. Every number was correct; b498 fixed the
+arithmetic and left the naming, which is the same trust failure at a fraction of the cause.
+*Ruling:* the reward sheet drops the word "streak" entirely and states its **cycle position**
+("Daily reward · Day 1 of 7"), which is also strictly more informative — it names the D1..D7
+ladder directly below it. Every play-streak surface says **played / running / in a row** and
+never "daily". **MERGING WAS COSTED AND REJECTED:** making the reward ride the play streak is
+a server change (`deriveLoginStreak` + `hr_claim_daily` + edge redeploy + security review)
+whose *effect* is to pay MORE for LESS engagement — the cycle would escalate on any visit
+instead of on the daily act of claiming, and a player who claimed once then merely logged in
+for six days would collect the Day-7 jackpot. It would also couple two reward spines
+(renown and the login cycle) to one counter, so neither could be tuned alone.
+
+**2 · AUTO-EAT WITH `auto_eat_food` NULL → CHEAPEST-SUFFICIENT, PROCESSED FIRST. (spec, routed)**
+Today a NULL nomination makes the server eat `bestHealingFood` — the biggest healer in the
+bag. *Measured:* **17 of the 31 auto-eatable provisions are `raw:true` crafting stock**
+(every raw fish, plus wheat / goldenroot / emberfruit / moonbloom), so the rule eats the
+Cooking skill's own supply chain: one Moonbloom auto-eaten is 1,750 g and 780 Cooking XP of
+Moonbloom Elixir destroyed. It also **overheals** — `resolveAutoEat` caps at maxHp, so a 42 HP
+Cooked Shark spent on a 20 HP deficit throws away 22 HP. Costed over a 12 h night at one meal
+per 45 s: a late-game fisher/cook burns **864,000 g of food where 230,400 g does the identical
+job** (45.0 vs 12.0 gold per HP restored). *Ruling — the order is:* (a) the nominated food if
+owned and legal; (b) among owned provisions that **cover the deficit** (`maxHp - hp`), prefer
+**non-`raw`**, then **lowest book value**, then item id; (c) if nothing covers the deficit,
+today's `bestHealingFood` — largest heal — because survival beats thrift exactly there.
+"Covers the deficit" means "heals to full", so **(b) is HP-identical to today's rule and
+strictly cheaper: a Pareto improvement, never a nerf.** *"refuse-until-set" is REJECTED* — it
+punishes non-engagement with a whole night's lost accrual for a setting the client has never
+once sent when this was ruled) and it would undo b497's free Auto-Eat I.
+**STILL REQUIRED AFTER b499's SETTINGS SYNC**, which landed while this was being written: the
+sync makes `auto_eat_food` the player's pick, but the NULL fallback still answers for (a) every
+character until its owner opens Settings and touches the picker, and (b) any character whose
+nominated food runs out mid-night — `chooseFood` falls through to `bestHealingFood` on an empty
+stack, which is precisely when a bag full of raw fish is standing there.
+
+**2b · MAY A PLAYER DISABLE AUTO-EAT WHEN AWAY SURVIVAL DEPENDS ON IT? → YES. ARM THE TOGGLE.**
+*(Answering the b499 `SYNC_ENABLED_TOGGLE = false` hold in CONFLICTS 2026-08-31, and covering
+the DIAL as that entry correctly demands.)*
+
+**The switch and the 0% end of the threshold dial are one decision and get one answer: both are
+the player's, and the server must honour both.** It is a self-only choice over the player's own
+resources — it mints nothing, it crosses to no other player, and Hearthrise has **no item loss
+on death** (a standing rejection: "death-protection blessings → fake stakes"), so `simulateSpan`
+keeps everything earned up to the death and forfeits only the remainder of the span. Opportunity
+cost is the right-sized consequence for a deliberate choice, and *"do not burn my 2,100 g
+Moonfish Fillets on a low-value grind"* is the reason the control exists at all.
+
+**DORMANT IS NOT THE SAFE POSITION — IT IS THE DISHONEST ONE, AND THAT IS WHY THIS IS A YES.**
+Two facts settle it. First, the dial's 0% minimum is **already synced today**, so the 0-kill
+night is already reachable through a live key; withholding the switch protects nobody and only
+makes two equivalent controls behave differently. Second, and worse: with the toggle dormant a
+player who switches Auto-Eat OFF still has the server eating their food all night. **The UI says
+off and the engine eats** — the exact "a UI that says one thing while the engine does another"
+failure class this codebase names in `gen-catalogues.mjs` and spent b498 paying down on the
+streak sheet. A player finding their Cooked Sharks gone in the morning after switching the
+feature off is a trust bug, not a protection.
+
+**THREE BINDING CONDITIONS — arm it with all three, or not at all.** The answer to "they might
+not have understood" is never a guardrail; it is making the consequence legible.
+1. **AT THE CONTROL.** Both the toggle's off state and the dial's 0% end read:
+   *"You will not heal while away. A fight that outlasts your health ends the night early."*
+2. **ON THE RETURN RECEIPT, NAMED.** The death row already renders (`src/legacy.js`, b341:
+   *"You died to X — nothing was earned after"*). When the span died with auto-eat disabled or
+   the threshold at 0, it must say **why**: *"You died to Ancient Bear — auto-eat was off, so
+   nothing healed you."* This is the condition that turns a silent loss into a rule the player
+   learns once. ⚠ It must be **STATED, NOT INFERRED** (b341's own standard): the away receipt
+   needs to carry the auto-eat state for that span. If the field does not exist yet, add it —
+   do NOT reconstruct the sentence from the client's *current* toggle, which is a different
+   instant than the one that killed them.
+3. **THE DEATH SHEET STOPS SELLING WHAT THEY ALREADY OWN.** `src/features/death-sheet.js` reads
+   ownership to nag "unlock Auto-Eat". For a player who owns a tier and has it switched off it
+   must say *"Auto-Eat is switched off"* with a one-tap re-enable, not quote a Store price.
+
+**The dial keeps its 0%.** `clampThreshold`'s b326 note exists to preserve a deliberate zero
+("manual healing only"); removing it would be the paternalism this ruling rejects. The designed
+answer to the same need is Standing Orders B1 *Withdraw when… food out / HP danger* (board §10
+#4) — retreat instead of dying. The disable toggle is the crude version of it and stays free.
+
+**3 · THE OFFHAND IS NOT A DEFENCE SLOT. SHIELDS PROPER ARE BLOCKED, AND THE BLOCKER IS NAMED.**
+First, the record: **zero shield items exist** (`slot:'shield'` count = 0). The report is an
+empty *socket*, not orphaned items. Second, and this is the ruling: **defence saturates at
+tier 3-4 and a shield has nothing to sell.** `monsterCombatRolls` floors monster accuracy at
+`monsterMinAccuracy = 0.10`, and `monsterAccuracyPerPoint = 0.006` spans the whole 0.50→0.10
+range in **67 points of defence** while the plate ladder delivers **281**. Measured against
+the toughest monster of each tier: a plate wearer is at the floor from **Steel**, leather from
+**Mithril**, and by **Dawnsteel even cloth is floored** — and an offhand carrying up to +58
+defence changes the incoming number by **0.0%** from tier 5 up, against every monster in the
+game (highest `atk` is 105). Shipping a defence offhand ships seven pieces of vendor trash.
+*Ruling:* (3a) the offhand becomes the **WARD line** — crafted charms/totems carrying a small
+`critB` and a **class `bane` at 1.15** (weapons keep 1.40; `baneIndex` takes the max so they
+never stack), fed by the signature drop of each monster class. It needs no handedness seam
+because it grants no defence, it makes the offhand the one slot you swap *per hunt*, and
+`bane` is read from any slot by an expression both engines already share. **SPEC'D, NOT
+AUTHORED** — 8 new items need icons under the art freeze, and a generic-chest fallback is the
+"generated" tell the emoji sweep exists to kill. (3b) **Real shields stay blocked** on the
+combat fix, which is *already precedented in the same file*: Wave 5b added `ACC_DEF_MUL` to
+scale monster DEFENCE against player accuracy "so weapon atkB still matters at the top of the
+ladder", and the mirror on the ATTACK side was never written. Once it is, shields are **one
+row in `ARMOUR_SLOTS`** and the generator lays down all 21 offhands, priced and gated.
+
+**4 · CLOTH: KEEP THE b497 TIER-PLANK STOPGAP. DO NOT COMMISSION THE BOLT LADDER.**
+*Measured:* the stopgap did its job — cloth's out/in ratio at tier 7 went from **140x to
+5.6-9.7x**, against a plate ∪ leather band of 3.4-6.9x. Two residuals remain and neither is a
+player-felt moment: cloth is still the hottest crafting faucet at the top, and `ceil(bars/2)`
+collapses **four of six slots to an identical cost** (helmet/boots/gloves/belt all = 1 plank).
+A bolt ladder is 7 items + 7 sources + 7 icons + a catalogue migration + an edge redeploy to
+refine a curve that is already inside tolerance, and it would strand every current cloth
+crafter behind a new input. *Ruling: keep, and the expiry is a CONDITION rather than a date* —
+the bolt ladder becomes correct only if a tiered cloth material acquires a source for another
+reason (a Weaving skill, or the Chitin-Weave "second supply chain" pattern extended to cloth).
+Until then one tiered plank + one untiered arcane reagent is the right shape. The residual is
+a **one-line tightening**, spec'd and measured, to ride the next change that already needs an
+edge redeploy: plank at FULL slot weight, `silk_thread: 1 + i`, `magic_essence: 1` — cloth
+becomes "leather's recipe plus one essence", lands at **3.6-6.6x** (dead centre of the band)
+and restores slot shape (body/belt 4.31x vs plate 5.00x / leather 4.48x).
+
+**Affected agents:** Systems Engineer (2 = the auto-eat ordering + the disable copy; 3b = the
+monster-attack tier scale), Asset Director (3a = 8 ward icons), Art Director (2b toggle copy),
+Coordinator (edge redeploy + catalogue migration ride along with any new item).
+
+---
+
 ### 2026-08-23 - DESIGN RULING (b432) - Runecrafting owns every rune in the game
 **Game Designer, acting under design authority. Binding until superseded.**
 

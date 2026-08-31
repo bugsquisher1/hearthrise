@@ -135,7 +135,13 @@ export const RESIDUE_FIELDS = Object.freeze([
      derives the real streak from its own claim rows and the quest modal reads
      hr_goal_state under arm; these are "what have I already been shown". */
   'dailyReward',    // { lastClaimDay } — the daily login sheet's shown-today cache
-  'streak',         // { count, lastDay } — the streak the sheet DISPLAYS (server derives the paid one)
+  /* { count, lastDay } — the PLAY streak (consecutive days settled). b499: the
+     old note here said "the streak the sheet DISPLAYS", which stopped being
+     true at b498 and was the exact premise b475 acted on. The reward sheet
+     derives its own CLAIM streak from the server's claim rows and never reads
+     this. What DOES read it: the topbar flame chip, the welcome-back modals,
+     the Week Warrior/Devoted achievements, and renown (streakBest x5). */
+  'streak',
   'dailyGoals',     // quest-modal day picks + local claimed/startValues (server state is the truth under arm)
   'weeklyGoals',    // same, weekly
   /* b462 — THE SWEEP (CLAUDE.md session criterion 3: kill the class). Every

@@ -13931,7 +13931,24 @@ function maybeShowWelcome(){
       rows.push({g:'uiSkull', bad:true, t: 'You died' + (_nm ? ' to ' + _nm : '') + ' — nothing was earned after', v: _when});
     }
   }catch(e){}
-  if(G.streak.count > 0) rows.push({g:'uiFlame', t: 'Daily streak', v: G.streak.count + ' day' + (G.streak.count===1?'':'s')});
+  /* ── b499 (Designer ruling, THE STREAK LABEL COLLISION) ────────────────────
+     "Daily streak" was the wrong name for this number and it was the SECOND
+     surface saying it. There are two true streaks in Hearthrise and only one of
+     them may own the word:
+       · the PLAY streak — `G.streak.count`, consecutive days the character was
+         SETTLED. It pays RENOWN (streakBest x5, 2026-08-20-renown.sql) and the
+         Week Warrior / Devoted achievements. THIS row.
+       · the CLAIM streak — consecutive days the daily reward was CLAIMED,
+         derived server-side by `deriveLoginStreak`. It pays the 7-day gold/gem
+         cycle and it is the ONLY thing the reward sheet may call a day.
+     They are different quantities and they diverge the moment a player plays
+     without claiming. MEASURED on this build: this modal read "Daily streak
+     3 days" while the Home card behind it read "Daily reward · Day 1" and the
+     sheet read "1-DAY STREAK" — three surfaces, two numbers, one word.
+     RULING: the reward sheet keeps the day language ("Day 1 of 7") and drops
+     "streak" entirely; every play-streak surface says PLAYED / RUNNING and
+     never "daily". See DECISIONS 2026-08-31. */
+  if(G.streak.count > 0) rows.push({g:'uiFlame', t: 'Played', v: G.streak.count + ' day' + (G.streak.count===1?'':'s') + ' running'});
   rows.push({g:'uiTarget', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
   rows.push({g:'gold', t: 'Gold in pocket', v: balText('gold')});
   /* b342: the "bad" tone is now an EXPLICIT flag. It used to key off `r.g`
@@ -14405,8 +14422,11 @@ var ACHIEVEMENTS = [
   {id:'rare_drop',   name:'Lucky',               desc:'Get any rare drop',          glyph:'uiSpark',     target:1,    src:'stats.rareDrops'},
   {id:'rare_25',     name:'Loot Goblin',         desc:'Get 25 rare drops',          glyph:'uiChest',     target:25,   src:'stats.rareDrops'},
   {id:'food_100',    name:'Well-Fed',            desc:'Eat 100 buff foods',         glyph:'uiFood',      target:100,  src:'stats.buffsConsumed'},
-  {id:'streak_7',    name:'Week Warrior',        desc:'7-day login streak',         glyph:'uiFlame',     target:7,    src:'streak.count'},
-  {id:'streak_30',   name:'Devoted',             desc:'30-day login streak',        glyph:'uiFire',      target:30,   src:'streak.count'},
+  /* b499 — these two count `streak.count`, the PLAY streak (days settled), NOT
+     the daily-reward claim streak. "login streak" named the reward's quantity
+     and pointed the player at the wrong number to chase. */
+  {id:'streak_7',    name:'Week Warrior',        desc:'Play 7 days in a row',       glyph:'uiFlame',     target:7,    src:'streak.count'},
+  {id:'streak_30',   name:'Devoted',             desc:'Play 30 days in a row',      glyph:'uiFire',      target:30,   src:'streak.count'},
   {id:'dragon_slayer',name:'Dragon Slayer',      desc:'Defeat the dragon',          glyph:'uiSkull',     target:1,    src:'bestiary.dragon.kills'},
 ];
 /* ONE resolver for achievement art, so the list and the toast can never
@@ -15158,7 +15178,10 @@ function renderModal(summary){
     '<div class="wbv-sub">Your homestead missed you.</div>'+
     '<div class="wbv-statrow">'+
       '<div class="wbv-stat"><b>'+fmtTime(summary.hoursAway)+'</b><span>Time away</span></div>'+
-      '<div class="wbv-stat"><b>'+streakCount+'</b><span>Day streak</span></div>'+
+      /* b499 — "Days running", never "Day streak": this is the PLAY streak and
+         the daily-reward sheet owns no streak word at all. See the ruling note
+         at the old welcome modal's own streak row. */
+      '<div class="wbv-stat"><b>'+streakCount+'</b><span>Days running</span></div>'+
       '<div class="wbv-stat"><b>'+balMarkup('gold',{format:fmtNum})+'</b><span>Gold pouch</span></div>'+
     '</div>'+
     sections +

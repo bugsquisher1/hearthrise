@@ -141,7 +141,11 @@
     questDone:   'Each quest finished',
     collection:  'Each Collection Log entry',
     skill99:     'Each skill taken to 99',
-    streakBest:  'Each day of your best login streak',
+    /* b499 — NOT "login streak". This weight reads `player_state.streak_days`,
+       the SERVER PLAY streak (days SETTLED), and "login" is the daily reward's
+       word for a different number that pays a different thing. See DECISIONS
+       2026-08-31 §1: only the reward cycle may point a player at "daily". */
+    streakBest:  'Each day of your best run of days played',
     bountyDone:  'Each bounty completed',
     goldLog:     'Every tenfold of gold above 1,000'
   };
@@ -785,7 +789,9 @@
         earnRows() +
         '<div class="hr-rn-hownote">Early on, levels are most of your renown. ' +
           'Later they slow down while quests, bosses, your Collection Log and ' +
-          'your login streak keep adding — so the climb shifts from <i>how much ' +
+          /* b499 — "login streak" belonged to the daily reward; this is the play
+             streak. Same ruling as WEIGHT_LABELS.streakBest above. */
+          'your run of days played keep adding — so the climb shifts from <i>how much ' +
           'you played</i> to <i>what you have done</i>.</div>' +
       '</div>';
     scrim.addEventListener('click', function (e) {

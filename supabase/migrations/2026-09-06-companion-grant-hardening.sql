@@ -266,7 +266,7 @@ begin
   -- ── THE BODY PIN. Normalised, so it holds across production's
   --    comment-stripped copy AND the repo replay AND the PG17/PG18 skew.
   select p.prosrc into v_src from pg_proc p where p.oid = v_p;
-  v_norm := md5(btrim(regexp_replace(regexp_replace(v_src, '--.*', '', 'gn'), '\s+', ' ', 'g')));
+  v_norm := md5(btrim(regexp_replace(regexp_replace(v_src, '--.*', '', 'gn'), '[[:space:]]+', ' ', 'g')));
   if v_norm = c_before then
     raise notice '§0: pre-hardening body confirmed (normalised md5 %). Applying C1+C2+C3.', v_norm;
   elsif v_src like '%claimed_source%' and v_src like '%missing_req_item%'
@@ -642,7 +642,7 @@ begin
                'search_path=public; C1+C2+C3 present by anchor; baseline row intact; catalogue '
                'untouched (17 grantable / 21 companion). New normalised body md5 = %.',
                v_before,
-               md5(btrim(regexp_replace(regexp_replace(v_src, '--.*', '', 'gn'), '\s+', ' ', 'g')));
+               md5(btrim(regexp_replace(regexp_replace(v_src, '--.*', '', 'gn'), '[[:space:]]+', ' ', 'g')));
 end $$;
 
 -- ── 4. BEHAVIOUR — driven through the REAL RPC, rolled back (HRG28) ───────

@@ -536,10 +536,24 @@ async function run(mutate) {
     const unpayableKinds = kinds.filter((k) => !sa.SETTABLE_KINDS.includes(k));
     const unpayableRecipes = Object.keys(cat.ARTISAN_RECIPES_ALL)
       .filter((id) => !Object.prototype.hasOwnProperty.call(cat.ARTISAN_RECIPES_PAYABLE, id));
-    ok(unpayableKinds.length > 0 || unpayableRecipes.length > 0,
-      'A0-CONTROL: every catalogue kind AND every artisan recipe is settable, so nothing below can '
-      + 'produce an `activity_unsupported` and the refusal proves nothing. If that is genuinely the '
-      + 'state of the world, drive this with a synthetic kind rather than deleting it.');
+    /* 2026-08-31: the world legitimately became fully payable — every catalogue
+       kind is settable and every artisan recipe pays — so the two "real"
+       unpayable lists are empty and this control fired for a week with nothing
+       running it (found by the ammo lane; the test was not wired into
+       run-smoke). Per this control's own original message, the refusal is now
+       driven with a SYNTHETIC kind when no real case exists: a kind
+       hr_activities does not contain is the ELSE arm's real refusal, so the
+       property ("declaring an unpayable activity refuses by name, never
+       silently accepts") stays proven on every run. The real-list loops below
+       still run whenever a future catalogue change re-creates a genuine
+       unpayable, so this cannot rot in the other direction. */
+    if (unpayableKinds.length === 0 && unpayableRecipes.length === 0) {
+      const r = await call({ intentId: uuid(), activity: { kind: 'zz_synthetic_unsupported_probe', id: 'oak' } });
+      ok(r.status === 409 && r.body.error === 'activity_unsupported',
+        `A0-CONTROL(synthetic): declaring a kind the catalogue does not contain returned `
+        + `${r.status} ${JSON.stringify(r.body)} — expected 409 activity_unsupported; the refusal `
+        + `path is gone, not merely undriven`);
+    }
     for (const k of unpayableKinds) {
       const r = await call({ intentId: uuid(), activity: { kind: k, id: 'oak' } });
       ok(r.body.error === 'activity_unsupported',
@@ -934,21 +948,31 @@ async function run(mutate) {
      waiting WOULD, and forfeiting there is exactly the confiscation the
      collect-before-switch rule exists to prevent. Both arms are driven here. */
   {
-    /* THE ROLLBACK, SIMULATED HONESTLY: the pointer holds a real catalogue row
-       (`cook_shrimp` IS in hr_activities) that THIS BUILD cannot price, which
-       is precisely what a rename or a payload rollback produces. Written by
-       direct SQL because the intent surface correctly refuses to create it. */
+    /* THE ROLLBACK, SIMULATED HONESTLY: the pointer holds an id THIS BUILD
+       cannot price, which is precisely what a rename or a payload rollback
+       produces. Written by direct SQL because the intent surface correctly
+       refuses to create it. 2026-08-31: `cook_shrimp` (the original fixture)
+       became payable when cooking completed, which left this section vacuous
+       and RED for a week with nothing running it. Per the control's own
+       message, the stuck id is now CHOSEN: the first real recipe this build
+       refuses, or — when the world is fully payable — a synthetic id absent
+       from the catalogue entirely, which is the RENAME arm of the same rollback
+       class. The real-recipe arm re-arms itself the moment a future build
+       carries an unpayable recipe again. */
+    const stuckId = Object.keys(cat.ARTISAN_RECIPES_ALL)
+      .find((id) => !Object.prototype.hasOwnProperty.call(cat.ARTISAN_RECIPES_PAYABLE, id))
+      || 'zz_renamed_recipe_probe';
     await db.query(
       `update public.player_state
-          set active_kind = 'artisan', active_id = 'cook_shrimp',
+          set active_kind = 'artisan', active_id = $2,
               accrued_to = now() - interval '3 hours', active_since = now() - interval '3 hours'
-        where user_id = $1 and slot = 0`, [UID]);
+        where user_id = $1 and slot = 0`, [UID, stuckId]);
 
     const stuckIsUnpriceable = !Object.prototype.hasOwnProperty.call(
-      cat.ARTISAN_RECIPES_PAYABLE, 'cook_shrimp');
+      cat.ARTISAN_RECIPES_PAYABLE, stuckId);
     ok(stuckIsUnpriceable,
-      'A3d: `cook_shrimp` is payable in this build, so the pointer below is not stuck and the whole '
-      + 'section proves nothing. Pick a recipe this build refuses, or drive it with a synthetic id.');
+      `A3d: chosen stuck id '${stuckId}' is payable in this build — the chooser above is broken, `
+      + 'because a synthetic id can never be payable.');
 
     if (stuckIsUnpriceable) {
       /* (i) THE LOCKOUT IS REAL — anything that is NOT a stop still refuses.
@@ -959,7 +983,7 @@ async function run(mutate) {
         + `${JSON.stringify(sideways.body).slice(0, 200)} — expected 409 uncollectable_window. If this `
         + 'succeeds the escape hatch is not needed and (ii) is measuring nothing.');
       const stillStuck = await state(db, UID);
-      ok(stillStuck.active_id === 'cook_shrimp',
+      ok(stillStuck.active_id === stuckId,
         `A3d(i): the refused switch moved the pointer to ${stillStuck.active_id}`);
 
       /* (ii) …AND A STOP GETS OUT. */
@@ -976,9 +1000,17 @@ async function run(mutate) {
       ok(Number(after.gold) === beforeGold,
         `A3d(ii): the forfeit MOVED GOLD (${beforeGold} -> ${after.gold}). It must move no value at `
         + 'all — a watermark and a journal row, nothing else.');
-      ok(stop.body.forfeited && stop.body.forfeited.reason === 'unpayable_bench',
-        `A3d(ii): the response reports forfeited=${JSON.stringify(stop.body.forfeited)}. A stop that `
-        + 'silently discarded three hours is the same defect class as a payment nobody is told about.');
+      /* The expected reason follows the chosen arm: a REAL unpayable recipe is
+         the bench/rollback shape (`unpayable_bench`); the synthetic id is the
+         rename shape (`unknown_recipe`). Both are POINTER_SKIP_REASONS by
+         design — what this asserts is that the forfeit NAMES its reason, not
+         which arm the fixture happened to take. */
+      const expectReason = Object.prototype.hasOwnProperty.call(cat.ARTISAN_RECIPES_ALL, stuckId)
+        ? 'unpayable_bench' : 'unknown_recipe';
+      ok(stop.body.forfeited && stop.body.forfeited.reason === expectReason,
+        `A3d(ii): the response reports forfeited=${JSON.stringify(stop.body.forfeited)} — expected `
+        + `reason '${expectReason}' for stuck id '${stuckId}'. A stop that silently discarded three `
+        + 'hours is the same defect class as a payment nobody is told about.');
 
       /* (iii) IT IS JOURNALLED, as its OWN row, separate from the declaration.
          One merged row would show neither the forfeit nor the switch. */
@@ -990,9 +1022,10 @@ async function run(mutate) {
       ok(forfeit && forfeit.kind === 'admin',
         `A3d(iii): the forfeit was journalled as '${forfeit && forfeit.kind}' — it moves no value, so `
         + 'filing it under an earning kind puts a zero row in the rollup\'s buckets');
-      ok(forfeit && forfeit.meta && forfeit.meta.reason === 'unpayable_bench'
-         && forfeit.meta.from_id === 'cook_shrimp',
-        `A3d(iii): the forfeit row does not say what was given up: ${JSON.stringify(forfeit && forfeit.meta)}`);
+      ok(forfeit && forfeit.meta && forfeit.meta.reason === expectReason
+         && forfeit.meta.from_id === stuckId,
+        `A3d(iii): the forfeit row does not say what was given up (expected reason '${expectReason}', `
+        + `from_id '${stuckId}'): ${JSON.stringify(forfeit && forfeit.meta)}`);
       ok(!!rows.find((x) => x.intent === 'set_activity:idle'),
         'A3d(iii): the stop itself was not journalled — the forfeit and the declaration are two '
         + 'applies and must be two rows');
@@ -1484,7 +1517,48 @@ async function run(mutate) {
        `no_cap` escaped it for four builds. */
     const src = (await readFile(join(fnDir, 'accrual.js'), 'utf8')).replace(/\r\n/g, '\n');
     const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-    const sites = [...code.matchAll(/reason:\s*([^,}\n]+)/g)].map((m) => m[1].trim());
+    /* 2026-08-31 (found when the ammo lane surfaced this test as orphaned-red):
+       two SIDE-BANK accruers were added to accrual.js after this scan was
+       written — `accrueRested` (reasons 'absent'/'nothing') and `accrueWorkers`
+       ('no_crew'/'no_span'/'nothing_accrued'). Their `reason:` fields are their
+       OWN envelope contracts: they never reach classifySkip or the pointer
+       partition, so demanding SKIP members of them would couple two unrelated
+       vocabularies. Exempted BY ENCLOSING FUNCTION, not by literal, so a new
+       side-bank reason doesn't reopen this file — with two tripwires: the
+       exempt functions must exist (else the exemption is stale), and no
+       exempted literal may appear in the partition's own vocabulary (else a
+       side-bank word has leaked into the activity contract and the exemption
+       is hiding exactly what A17 hunts). */
+    const A17_EXEMPT_FNS = ['accrueRested', 'accrueWorkers'];
+    const fnSpans = [...code.matchAll(/(?:export )?(?:async )?function\s+([A-Za-z_][A-Za-z0-9_]*)/g)]
+      .map((m) => ({ name: m[1], at: m.index }));
+    for (const fn of A17_EXEMPT_FNS) {
+      ok(fnSpans.some((f) => f.name === fn),
+        `A17-EXEMPT: exempt function '${fn}' no longer exists in accrual.js — stale exemption`);
+    }
+    const enclosing = (at) => { let cur = '?'; for (const f of fnSpans) { if (f.at < at) cur = f.name; else break; } return cur; };
+    const allSites = [...code.matchAll(/reason:\s*([^,}\n]+)/g)]
+      .map((m) => ({ s: m[1].trim(), fn: enclosing(m.index) }));
+    /* Only BARE LITERALS in the exempt functions need the vocabulary tripwire —
+       a site that names a SKIP member (e.g. accrueWorkers' SKIP.NOTHING) is
+       already speaking the partition's language by name, which is the whole
+       point; it is checked by the main loop's membership assertion instead. */
+    const exempted = allSites.filter((x) => A17_EXEMPT_FNS.includes(x.fn) && !/SKIP\./.test(x.s));
+    for (const x of exempted) {
+      const word = (x.s.match(/^'([a-z_]+)'$/) || [])[1];
+      ok(word && !it.POINTER_SKIP_REASONS.includes(word) && it.classifySkip(word) === 'refused',
+        `A17-EXEMPT: side-bank reason ${x.s} (in ${x.fn}) appears in — or is classified by — the `
+        + 'activity partition; the two vocabularies have merged and the exemption must fall');
+    }
+    /* …and a SKIP.* site inside an exempt function must still name a REAL member. */
+    for (const x of allSites.filter((y) => A17_EXEMPT_FNS.includes(y.fn) && /SKIP\./.test(y.s))) {
+      for (const ref of x.s.match(/SKIP\.([A-Za-z_]+)/g) || []) {
+        const k = ref.slice(5);
+        ok(Object.prototype.hasOwnProperty.call(ac.SKIP, k),
+          `A17-EXEMPT: ${x.fn} names SKIP.${k}, which does not exist — undefined at runtime`);
+      }
+    }
+    const sites = allSites.filter((x) => !A17_EXEMPT_FNS.includes(x.fn)).map((x) => x.s);
     ok(sites.length >= 6,
       `A17-CONTROL: the scan found ${sites.length} \`reason:\` sites in accrual.js — it is blind`);
     for (const s of sites) {

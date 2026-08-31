@@ -2573,7 +2573,11 @@ export function accrueWorkers(input) {
   // for free by the un-advanced watermark — the carry is only ever needed to
   // bridge the settles a FASTER worker forces (see the header). index.ts omits
   // the whole delta on this branch.
-  if (!produced) return { accrued: false, reason: 'nothing_accrued' };
+  // 2026-08-31: SKIP.NOTHING, not the bare literal — 'nothing_accrued' IS the
+  // partition's vocabulary (SAFE_SKIP_REASONS lists it), and a literal spelling
+  // of a partition word is exactly how `no_cap` escaped it for four builds
+  // (activity-intent A17, which now runs and enforces this).
+  if (!produced) return { accrued: false, reason: SKIP.NOTHING };
 
   const items_ = {};
   for (const id in itemDelta) items_[id] = itemDelta[id];

@@ -3036,6 +3036,31 @@ const run = async () => {
       exitCode = e.harness ? 2 : 1;
     }
 
+    /* ── The activity-intent contract (collect-before-switch et al.) ─────
+       2026-08-31: this test sat RED and ORPHANED for a week — invoked by
+       nothing, failing on its own anti-vacuity controls after the world
+       became fully payable (found by the ammo lane; the CI-masking class in
+       miniature). Wired here as a spawned script (it is main-style, not an
+       exported guard) so it can never orphan again: a red exit fails the
+       build by name. 22 groups on real PG18 + the deployed intent module. */
+    try {
+      const { spawnSync } = await import('node:child_process');
+      const r = spawnSync(process.execPath, [join(ROOT, 'tests', 'activity-intent.mjs')],
+        { encoding: 'utf8', timeout: 600_000 });
+      if (r.status !== 0) {
+        console.log('\nActivity-intent contract — FAILED:');
+        console.log((r.stdout || '').split('\n').slice(-12).join('\n'));
+        console.log(r.stderr || '');
+        exitCode = 1;
+      } else {
+        console.log('\nActivity-intent contract — collect-before-switch, forfeit partition, refusal '
+          + 'envelopes and the skip taxonomy all hold on a full PGlite chain.');
+      }
+    } catch (e) {
+      console.log('\nActivity-intent contract — FAILED:\n' + String(e.message || e));
+      exitCode = 1;
+    }
+
     /* ── The generalized cron-health detector (the b319 lesson) ──────────
        hr_cron_health alarmed on the size of ONE hardcoded table. b319's own
        migration says a policy that cannot fire is worse than no policy, so this

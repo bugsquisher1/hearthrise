@@ -7,9 +7,9 @@
 <!-- updated: 2026-08-31 -->
 
 🔨 **Right now**
-- Making Auto-Eat smarter — it will eat the *cheapest* food that does the job instead of burning your best cooking overnight
-- The big one: an armor & defence overhaul so gear genuinely matters at every tier (right now high-tier armor stops pulling its weight — we measured it, and we're fixing the math)
+- The big one: an armor & defence overhaul so gear genuinely matters at every tier — we measured the current math and it stops pulling its weight at both ends; that's getting fixed properly
+- A rescue prompt for your first nights: leaving a fight you can't survive will offer the gathering switch, so your away time banks the whole night instead of ending at your first death
+- Smoothing the path from sign-up to first fight — the confirmation email will drop you straight into the game, signed in
 - A new "ward" line of off-hand charms and totems fed by monster drops
-- Smoothing the first minutes for new players — sign-up to first fight without a single rough edge
 
 🗺️ **The road to Beta 3:** finish the quality pass → full fresh-start wipe → new invite keys. No date until it's genuinely ready — Beta 2 taught us that lesson.

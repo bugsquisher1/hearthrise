@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 500 — 2026-08-31 (Auto-Eat, finished: eats smart, obeys the switch, and deaths explain themselves)
+
+- 🍖 **Auto-Eat stopped burning your best food.** It now eats the *cheapest* meal that covers your missing health — never raw crafting ingredients while cooked food is in the bag. Measured on a full night: identical survival, up to 47× cheaper. Your bag, your Moonblooms, your call.
+- 🔘 **The Auto-Eat switch is real now.** Off means off — the realm no longer quietly eats your food all night while the toggle says otherwise. Fair warning lives on the toggle and the 0% end of the dial: with it off, an overnight fight ends at your first death.
+- 💀 **Deaths on the welcome-back card explain themselves.** "You died to a Dragon — auto-eat was off, so nothing healed you." The card states what was true *during that night*, not what your settings say now — and deaths with zero kills no longer vanish from the card entirely.
+- 🎚️ 100% on the threshold dial now means "eat the moment I take any damage" — it used to burn a whole meal every single swing at full health.
+- 🩹 The death screen offers "Turn Auto-Eat back on" if you own it and switched it off, instead of quoting you a store price for something you already have.
+
 ## v0.9.2-beta build 499 — 2026-08-31 (The consumption build: arrows are real, refusals speak, one word per streak)
 
 > **🧪 Testers (Paione — the arrow report is yours):** ① equip arrows above the starter tier and fight — **they deplete now**, per swing, and running dry drops your max hit to a quarter until you re-supply (starter-tier training ammo stays free). ② Earn a companion — if the realm can't record it you now get an honest message instead of a companion that appears and vanishes. ③ The words "daily streak" now mean exactly one thing everywhere — days you *claimed*, on the reward sheet; days you *played* says "played," in the topbar and welcome card.

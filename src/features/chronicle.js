@@ -689,21 +689,36 @@
     return true;
   }
 
+  /* b499 — THE EVENT, NOT A WRAPPER AROUND THE CALL.
+     This used to wrap window.unlockCompanion and record "Bonded with X" for
+     every CALL, which was wrong twice over: a call for an already-owned pet
+     recorded a duplicate line (harmless only because record() dedupes by id),
+     and — the reason it had to change — under the blob-retire capstone arm
+     src/features/companions.js now waits for the server's hr_companion_grant
+     verdict before the companion joins. A call-wrapper would have written a
+     permanent "Bonded with X" for a companion the server REFUSED and the next
+     envelope never delivers.
+
+     `companionUnlock` is emitted by applyUnlockLocally exactly once per real
+     acquisition, on BOTH the dormant and the armed paths, which is precisely the
+     honest moment this milestone wants. It also removes one wrap site.
+
+     Fails to install (and is retried) only while the ESM event bus is still
+     booting; anything it misses is covered by reconcile(), which derives the
+     same rows from G.companions.ownedIds. */
   function hookCompanion() {
-    if (typeof window.unlockCompanion !== 'function' || window.unlockCompanion.__hrChron) return false;
-    var orig = window.unlockCompanion;
-    var wrapped = function (id) {
-      var r = orig.apply(this, arguments);
+    var E = window.HearthriseEvents;
+    if (!E || typeof E.on !== 'function' || hookCompanion.__hrChron) return false;
+    hookCompanion.__hrChron = 1;
+    E.on('companionUnlock', function (p) {
       try {
+        var id = p && p.id;
         var def = (window.COMPANIONS || {})[id];
         if (def && def.source !== 'starter') {
           record('pet', 'Bonded with ' + (def.n || id), { id: 'pet:' + id });
         }
       } catch (e) {}
-      return r;
-    };
-    wrapped.__hrChron = 1;
-    window.unlockCompanion = wrapped;
+    });
     return true;
   }
 

@@ -8657,7 +8657,20 @@ function onItemTap(id){
      assigning one here would promise an auto-eat that never fires. Say so
      instead of silently falling through to the sell prompt. */
   if(d.foodClass==='buff'){notify(`${d.n} is a feast — eat it when you want the buff`,'info');return;}
-  if(d.heals){G.foodSlot=id;notify(`Auto-eat: ${d.n}`,'info');return;}
+  /* b499 — ROUTE THE INVENTORY FOOD TAP THROUGH THE ONE WRITER.
+     This wrote `G.foodSlot` and toasted "Auto-eat: <food>" — and that is ALL it
+     did. The engine reads `G.autoActions.eat.foodId` (b134); `G.foodSlot` is the
+     legacy mirror nothing consumes, which is the exact complaint written above
+     window.setAutoEatFood. So tapping a Provision in the bag SAID auto-eat was
+     set and changed nothing the fight would honour — and, now that the choice is
+     also pushed to the server (hr_set_auto_eat), it would have left the server
+     eating the biggest healer in the bag too. setAutoEatFood is the one writer:
+     it keeps the mirror in step, routes through HearthriseAuto.setEat, and says
+     something true when the food is not eligible or the trait is not owned. */
+  if(d.heals){
+    if(typeof window.setAutoEatFood === 'function'){ window.setAutoEatFood(id); return; }
+    G.foodSlot=id;notify(`Auto-eat: ${d.n}`,'info');return;
+  }
   if(d.seed){showTab('farming');return;}
   /* default: prompt to sell */
   const _p=vendorPrice(id);
@@ -10140,9 +10153,20 @@ function applyLoadout(idx){
       if(target && ITEMS[target]) G.tools[slot] = target;
     });
   }
-  /* Food slot */
-  if(l.foodSlot && hasItem(l.foodSlot, 1)) G.foodSlot = l.foodSlot;
-  else if(!l.foodSlot) G.foodSlot = null;
+  /* Food slot.
+     b499: the loadout is a PLAYER GESTURE that expresses a food choice, so it
+     goes through HearthriseAuto.setEat — the one writer the engine reads and the
+     seam that debounces the choice out to hr_set_auto_eat. Writing only the
+     legacy `G.foodSlot` mirror meant applying a loadout changed the food the
+     player was SHOWN and not the food the fight (or the server's overnight
+     accrual) would actually eat. The toggle is deliberately NOT touched: a
+     loadout says what to carry, not whether auto-eat is on. */
+  var _loadoutFood;
+  if(l.foodSlot && hasItem(l.foodSlot, 1)) { G.foodSlot = l.foodSlot; _loadoutFood = l.foodSlot; }
+  else if(!l.foodSlot) { G.foodSlot = null; _loadoutFood = null; }
+  if(_loadoutFood !== undefined && window.HearthriseAuto && window.HearthriseAuto.setEat){
+    window.HearthriseAuto.setEat({ foodId: _loadoutFood });
+  }
   window._activeLoadout = idx;
   saveLocal();
   notify(`✓ Applied loadout: ${l.name}`, 'levelup');

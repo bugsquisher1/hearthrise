@@ -49,11 +49,25 @@
     return out;
   }
 
+  /* @returns whether the ROLL fired (the pet was not owned and the acquisition
+     was dispatched) — deliberately NOT "is it owned now". rollSkillPet /
+     rollBossPet report a hit, and under the capstone arm ownership arrives a
+     round trip later; conflating the two would make a hit look like a miss. */
   function tryUnlock(petId) {
     if (owned(petId)) return false;
-    if (typeof window.unlockCompanion === 'function') window.unlockCompanion(petId);
     var d = defs()[petId] || {};
-    if (window.notify) notify('A wild friend! ' + (d.icon || '') + ' ' + (d.n || petId) + ' now follows you!', 'levelup');
+    /* b499: the "a wild friend!" line rides unlockCompanion's own callback, so
+       it fires exactly when the pet really joins — inline on the dormant path,
+       after the server verdict under the arm. It used to fire unconditionally,
+       which under the arm announced pets that reconcileCompanions then removed.
+       (The raw `d.icon` emoji goes too: the Final Directive's no-emoji-as-art
+       rule, same fix companions.js took in b465 — the NAME is the thing worth
+       saying.) */
+    var say = function () {
+      if (window.notify) notify('A wild friend! ' + (d.n || petId) + ' now follows you!', 'levelup');
+    };
+    if (typeof window.unlockCompanion === 'function') window.unlockCompanion(petId, say);
+    else say();
     return true;
   }
 

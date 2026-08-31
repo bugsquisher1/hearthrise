@@ -2267,26 +2267,50 @@ export function applyEnvelopeState(G, res, ownKey) {
               i.e. do not send. The safe direction is the one that cannot
               destroy an item.
 
-   ⏳ RETIREMENT — HALF DONE AS OF b497, AND THE OTHER HALF IS THE OPEN BUG.
-   b497 makes this read `true` for every new character, so the client send has
-   retired itself with no flag to flip and only the pending-consumption hold
-   remains. What has NOT shipped is the SETTINGS sync: nothing on this client has
-   ever called `hr_set_auto_eat`, so `auto_eat_food` is NULL server-side and the
-   engine falls back to `bestHealingFood` — the biggest healer in the bag — while
-   the client honours the player's `G.foodSlot` nomination. The unit COUNTS still
-   converge (pending-consume drains on the server's own movement, so nothing is
-   lost or duplicated), but the two sides can drain DIFFERENT stacks, and the
-   server's pick is the more valuable one. The threshold and the on/off toggle
-   are unsynced for the same reason.
-   That sync is the real end state and remains a handoff — it is a NEW verb call
-   site, not a change to this predicate. */
+   ⏳ RETIREMENT — HALF DONE AS OF b497. b497 makes this read `true` for every
+   new character, so the client send has retired itself with no flag to flip and
+   only the pending-consumption hold remains. THE OTHER HALF — the settings sync
+   — SHIPPED IN b499: src/features/auto-actions.js now debounces the player's
+   own toggle / threshold / food pick out to `hr_set_auto_eat`, so
+   `auto_eat_food` stops being NULL and the engine stops falling back to
+   `bestHealingFood` (the most valuable healer in the bag) while the client
+   honours the player's nomination. Nothing about THIS predicate changed for it:
+   the sync is a new verb call site, and the who-eats question is still answered
+   by the server's own `auto_eat_enabled` column, read below. */
 let serverAutoEatObserved = null;
+/* ── THE FULL OBSERVED TRIPLE (b499) ──────────────────────────────────────────
+   hr_state_of has projected all three auto-eat columns since
+   2026-08-15-auto-eat.sql (`state.auto_eat_enabled` / `auto_eat_food` /
+   `auto_eat_pct`); only the first was ever read. The settings sync needs the
+   other two as its DEDUPE ANCHOR — "what does the server already believe" — so
+   that a settings panel that is merely OPENED, or a suite that sets a value and
+   puts it straight back, sends nothing at all. `hr_set_auto_eat` bumps the
+   version and writes a ledger row on EVERY call and is rate-gated at 30/hour, so
+   "would this call change anything" is a question worth answering locally.
+
+   OBSERVATION, NEVER INFERENCE: a key the envelope does not carry leaves the
+   previous observation alone, and an unobserved field reads `undefined` — which
+   the sync treats as "unknown, so send it" rather than as a value. Absence must
+   never be read as "the server has NULL". */
+const serverAutoEatSeen = { enabled: undefined, food: undefined, pct: undefined };
 export function noteServerAutoEat(res) {
   const st = res && res.state;
   if (st && typeof st === 'object'
       && Object.prototype.hasOwnProperty.call(st, 'auto_eat_enabled')) {
     const v = st.auto_eat_enabled;
-    if (v === true || v === false) serverAutoEatObserved = v;
+    if (v === true || v === false) { serverAutoEatObserved = v; serverAutoEatSeen.enabled = v; }
+  }
+  if (st && typeof st === 'object'
+      && Object.prototype.hasOwnProperty.call(st, 'auto_eat_food')) {
+    const f = st.auto_eat_food;
+    /* NULL is a real, meaningful value here — "no nomination, use the best in
+       the bag" — so it is recorded as null, not skipped. */
+    if (f === null || typeof f === 'string') serverAutoEatSeen.food = f;
+  }
+  if (st && typeof st === 'object'
+      && Object.prototype.hasOwnProperty.call(st, 'auto_eat_pct')) {
+    const p = Number(st.auto_eat_pct);
+    if (Number.isFinite(p)) serverAutoEatSeen.pct = Math.max(0, Math.min(100, Math.round(p)));
   }
   return serverAutoEatObserved;
 }
@@ -2295,8 +2319,26 @@ export function serverAutoEats() { return serverAutoEatObserved; }
 /** Should the CLIENT send an eat intent for an auto-eat? Only on a definite NO
  *  from the server. Unknown and yes both mean "leave it to the server". */
 export function clientOwnsAutoEatDebit() { return serverAutoEatObserved === false; }
+/** The server's own auto-eat settings as last PROJECTED. A field is `undefined`
+ *  when no envelope has carried it — never confuse that with a stored NULL.
+ *  Returns a copy; the observation is not the caller's to edit. */
+export function serverAutoEatSettings() {
+  return { enabled: serverAutoEatSeen.enabled, food: serverAutoEatSeen.food, pct: serverAutoEatSeen.pct };
+}
+/** TEST-ONLY. Record an observation without an envelope. */
+export function __noteAutoEatSettings(patch) {
+  const p = patch || {};
+  if (Object.prototype.hasOwnProperty.call(p, 'enabled')) serverAutoEatSeen.enabled = p.enabled;
+  if (Object.prototype.hasOwnProperty.call(p, 'food')) serverAutoEatSeen.food = p.food;
+  if (Object.prototype.hasOwnProperty.call(p, 'pct')) serverAutoEatSeen.pct = p.pct;
+  return serverAutoEatSettings();
+}
 /** TEST-ONLY. Restore the never-observed state. */
-export function __resetServerAutoEat() { serverAutoEatObserved = null; return serverAutoEatObserved; }
+export function __resetServerAutoEat() {
+  serverAutoEatObserved = null;
+  serverAutoEatSeen.enabled = undefined; serverAutoEatSeen.food = undefined; serverAutoEatSeen.pct = undefined;
+  return serverAutoEatObserved;
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    THE BAG, RECONCILED FROM AN ENVELOPE — ONE IMPLEMENTATION (b46x).
@@ -3430,8 +3472,12 @@ if (typeof window !== 'undefined') {
     pendingConsumeSnapshot: pendingConsume.pendingSnapshot,
     clearPendingConsume: pendingConsume.clearPendingConsume,
     foldPendingConsume: pendingConsume.foldPendingConsume,
-    /* WHO OWNS AN AUTO-EAT'S DEBIT — observed off `state.auto_eat_enabled`. */
-    noteServerAutoEat, serverAutoEats, clientOwnsAutoEatDebit, __resetServerAutoEat,
+    /* WHO OWNS AN AUTO-EAT'S DEBIT — observed off `state.auto_eat_enabled`.
+       serverAutoEatSettings is the b499 settings-sync DEDUPE ANCHOR (all three
+       projected columns); it answers "what does the server already believe",
+       never "what should it believe". */
+    noteServerAutoEat, serverAutoEats, clientOwnsAutoEatDebit, serverAutoEatSettings,
+    __noteAutoEatSettings, __resetServerAutoEat,
     /* Phase 1 — live settlement (docs/design/live-settlement.md §3). */
     SETTLE_INTERVAL_MS, ACCRUE_MIN_SPAN_MS, ACCRUE_RATE_PER_MIN,
     decideSettle, settleTick, startSettleLoop, stopSettleLoop, resetSettleLoop,

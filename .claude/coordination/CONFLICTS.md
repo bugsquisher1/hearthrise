@@ -713,3 +713,50 @@ Recommendation: wire the client's auto-eat settings to `hr_set_auto_eat`, deboun
 `version` and journals a `set_auto_eat` row, so a per-slider-drag call would invalidate in-flight
 accruals. **Not fixed by touching the debit gate**, and out of scope for a wave build. Systems owns
 the wiring; Designer owns "may a player turn off a mechanic their payout depends on?".
+
+---
+
+## 2026-08-31 · SYSTEMS → DESIGNER / ART · b499 auto-eat sync: the toggle is BUILT, DORMANT, and waiting on a ruling
+
+**Branch:** `fix/refused-hatch-and-autoeat-sync`. Resolves the wiring half of the 2026-08-30 entry
+above ("THE REAL DEFECT b497 INTRODUCES — SETTINGS ARE NEVER SYNCED"), and deliberately does NOT
+resolve the design half it names.
+
+**SHIPPED ARMED — food + threshold.** `src/features/auto-actions.js` now debounces the player's
+food nomination and HP threshold out to `hr_set_auto_eat`. Both only ever make the server honour a
+choice the UI already claims it honours: `auto_eat_food` stops being NULL, so the engine stops
+falling back to `bestHealingFood` (the biggest healer in the bag) while the client honours
+`autoActions.eat.foodId`. The threshold sent is the EFFECTIVE (tier-clamped) one, so both sides land
+on the same number.
+
+**SHIPPED DORMANT — the ON/OFF toggle.** `SYNC_ENABLED_TOGGLE = false`, one line, tested in both
+positions (AUTOEAT-SYNC-3 asserts the shipped position AND drives the armed one). Reason: with
+`auto_eat_enabled` false the accrual engine's `fx.autoEat()` never fires and a measured night pays
+**0 kills and dies at the first fight**. Pushing a client preference up therefore converts a toggle
+into a total loss of overnight progress. That is the question the entry above assigns to the
+Designer — *"may a player switch off a mechanic their payout depends on, and what should the game
+say when they do?"* — and Systems does not get to answer it by shipping.
+
+> ⚠ **THE RULING HAS TO COVER THE DIAL, NOT JUST THE SWITCH.** The threshold slider's minimum is 0%
+> ("never auto-eat"), step 0.05, and `pct` IS synced — so a player who drags to zero already
+> reproduces the same 0-kill night through a key that is live today. Arming the toggle without a
+> rule for the dial is half a decision; ruling on the dial may make the toggle moot.
+
+**ALSO FOR DESIGN — a live behaviour change lands with this build even at the dormant setting.**
+Once players start syncing a food, the server's overnight accrual stops eating the most valuable
+healer in the bag and starts eating what they nominated. Overnight *survival* can go DOWN for anyone
+who nominates a weak Provision while holding Sharks — the server used to quietly eat the Shark. That
+is correct (it is their choice, and the counts always converged), but it is a real change to what a
+night pays and it is not covered by any balance pass.
+
+**FOR ART / COPY — three player-facing strings are new or changed, all in the honest-refusal voice
+established by the renown rank claim (b494):**
+- `src/features/companions.js grantRefusalMessage()` — five sentences, one per refusal class, e.g.
+  *"The realm has no record of your Dragon Egg, so Whelp could not hatch. Nothing was consumed —
+  your Dragon Egg is still in your bag."*
+- `src/legacy.js onItemTap` — tapping a Provision in the bag now routes through `setAutoEatFood`, so
+  it says *"Auto-eat set to X."* (and an honest *"Auto-eat is locked — unlock it in the Store."* for
+  a non-owner) instead of the old `"Auto-eat: X"` toast, which wrote a field the engine does not
+  read and therefore promised something that never happened.
+- `src/features/pets.js tryUnlock` — the raw `d.icon` emoji is gone from the *"A wild friend!"* line
+  (Final Directive no-emoji-as-art, the same fix companions.js took in b465).

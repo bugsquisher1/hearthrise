@@ -51,27 +51,35 @@ function companionIconHtml(id, px) {
 // renamed monster or a re-tuned rate updates here for free. Anything this
 // function cannot resolve degrades to the id it was given rather than to a
 // blank — an unhelpful hint beats a missing one, and it stays greppable.
+/* Last-resort humaniser. `hatch:dragon_egg` was the case that proved it is
+   needed: there is no `dragon_egg` row in ITEMS at all (it is a hatch source
+   with no inventory entry), so the lookup fell through and my first pass
+   printed "Hatched from a dragon_egg" — the very defect companionSourceLabel
+   exists to remove, reintroduced by its own fallback. Caught by reading the
+   render, not the code.
+
+   b499: hoisted to module scope (verbatim) because the REFUSAL copy needs the
+   same item humaniser — `missing_req_item` names the item the server wanted,
+   and `dragon_egg` is exactly the id with no ITEMS row. Two copies of this
+   would drift the moment one of them learned about a new catalogue. */
+const titleizeId = (id) => String(id || '')
+  .split(/[_\-:]/).filter(Boolean)
+  .map((w) => w[0].toUpperCase() + w.slice(1))
+  .join(' ');
+const itemLabel = (id) => {
+  const it = window.ITEMS && window.ITEMS[id];
+  return (it && (it.n || it.name)) || titleizeId(id);
+};
+
 export function companionSourceLabel(source) {
   const raw = String(source || '');
   const p = raw.split(':');
-  /* Last-resort humaniser. `hatch:dragon_egg` was the case that proved it is
-     needed: there is no `dragon_egg` row in ITEMS at all (it is a hatch source
-     with no inventory entry), so the lookup fell through and my first pass
-     printed "Hatched from a dragon_egg" — the very defect this function
-     exists to remove, reintroduced by its own fallback. Caught by reading the
-     render, not the code. */
-  const titleize = (id) => String(id || '')
-    .split(/[_\-:]/).filter(Boolean)
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(' ');
+  const titleize = titleizeId;
   const monster = (id) => {
     const m = window.MONSTERS && window.MONSTERS[id];
     return (m && (m.name || m.n)) || titleize(id);
   };
-  const item = (id) => {
-    const it = window.ITEMS && window.ITEMS[id];
-    return (it && (it.n || it.name)) || titleize(id);
-  };
+  const item = itemLabel;
   const skill = (id) => {
     const s = window.SKILLS_DEF && window.SKILLS_DEF[id];
     return (s && s.name) || titleize(id);
@@ -227,10 +235,34 @@ export function awardCompanionXp(amount) {
   }
 }
 
-export function unlockCompanion(id) {
+/**
+ * Acquire a companion.
+ *
+ * @param id          the companion id
+ * @param onUnlocked  OPTIONAL, called with (id) the moment the companion really
+ *                    joins the stable — synchronously on the dormant path, and
+ *                    only AFTER the server verdict under the capstone arm. Call
+ *                    sites put their own celebration here (the drop's big toast,
+ *                    pets.js's "a wild friend!", the hatch's egg consume) so a
+ *                    refused acquisition never gets a party thrown for it.
+ * @returns true only when the companion is in the local stable NOW. A dispatched
+ *          (armed, awaiting verdict) grant returns false — it is not owned yet,
+ *          and saying otherwise is the bug this function was rewritten to kill.
+ */
+export function unlockCompanion(id, onUnlocked) {
   ensureState();
   if (!COMPANIONS[id]) return false;
   if (window.G.companions.ownedIds.includes(id)) return false;
+  /* ⚠ SERVER-CONFIRMED BEFORE IT APPEARS (b499). See requestServerUnlock. */
+  if (needsServerConfirm(id)) { requestServerUnlock(id, onUnlocked); return false; }
+  applyUnlockLocally(id, onUnlocked);
+  return true;
+}
+
+/* The local half of an acquisition — VERBATIM the body unlockCompanion used to
+   have, minus the transport. Extracted so the armed path can run exactly the
+   same writes a beat later, rather than growing a second (drifting) copy. */
+function applyUnlockLocally(id, onUnlocked) {
   window.G.companions.ownedIds.push(id);
   window.G.companions.xp[id] = 0;
   if (typeof window.notify === 'function') {
@@ -240,8 +272,7 @@ export function unlockCompanion(id) {
     window.notify(`Companion unlocked: ${COMPANIONS[id].n}`, 'loot');
   }
   emit('companionUnlock', { id });
-  maybeServerGrant(id);
-  return true;
+  if (typeof onUnlocked === 'function') { try { onUnlocked(id); } catch (e) {} }
 }
 
 /* ── SERVER TRANSPORT (companion-grant) — persist a NON-SHOP acquisition ──────
@@ -251,30 +282,200 @@ export function unlockCompanion(id) {
    loading the save blob and reconcileCompanions (accrue.js) rebuilds G.companions
    from the SERVER owned-set (companion:<id> unlock rows), so a companion acquired
    with no server row is DROPPED on the next reload — a real player loss. This
-   fire-and-reconcile call writes that server row (hr_companion_grant), so the
-   acquisition survives.
+   call writes that server row (hr_companion_grant), so the acquisition survives.
 
-   ⚠ DORMANT = BYTE-UNCHANGED. Gated on the capstone arm (blobRetired(), the same
-   signal reconcileCompanions uses), so while dormant NO network call is made and
-   the local ownedIds write above is exactly today's behaviour. Under arm the
-   server row is what reconcileCompanions reads back.
+   ── THE ORDERING DEFECT THIS REPLACES (b499, and the arm is LIVE) ────────────
+   unlockCompanion PUSHED the id into ownedIds, toasted "Companion unlocked",
+   emitted, and only THEN fired hr_companion_grant fire-and-forget with a bare
+   `.catch(noop)`. So under arm a refused grant produced: a toast, a Stable card,
+   a chronicle line — and then reconcileCompanions rebuilt G.companions from the
+   server owned-set on the very next envelope and the companion VANISHED, with
+   nothing said. That is b494's rank-claim defect in companion form (a local
+   write committed ahead of a verdict that can say no, against state the server
+   rebuilds), and the hardening migration made it worse in the only way that
+   matters: the refusals are now MACHINE CODES the client can read
+   (`unknown_unlock:<key>`, `missing_req_item`, `not_grantable`) instead of a 500,
+   so swallowing them is now a choice rather than an inability.
+
+   THE RULE: under arm the companion appears only once the SERVER has recorded
+   it. Nothing is shown, nothing is spent, and a refusal is said out loud.
+
+   ── WHAT IS AND IS NOT RETRIED ───────────────────────────────────────────────
+   A TRANSPORT failure never decided the acquisition, so it is retried on a
+   bounded ladder (~103 s, five attempts, none of which reaches the database on
+   the failing paths). A DEFINITIVE refusal is not retried — the server already
+   answered, and re-asking burns the 60/hour budget (a rejected call still
+   consumes it, A9) to be told the same thing.
+
+   IDEMPOTENCY: each attempt takes a fresh key from goal-claim's newIdem(), which
+   is correct here — hr_companion_grant is owned-ONCE by the `companion:<id>`
+   progress row, not by the idem key, so a retry of a call that actually landed
+   comes back `already_owned:true` and writes nothing twice. That envelope is
+   treated as success below, which is what makes the ladder safe.
 
    SHOP companions are skipped — they already get their server row from
    hr_unlock_buy (legacy.js buy → HearthriseGold.buyUnlock), and hr_companion_grant
    would refuse them 'not_grantable' anyway. The starter fox is owned by grammar
-   (no row). Fire-and-forget: a refusal costs nothing the client authored. */
-function maybeServerGrant(id) {
+   (no row). DORMANT is byte-unchanged: needsServerConfirm() is false, so the
+   local write runs inline exactly as it did before this change and no network
+   call is made at all. */
+function grantKind(id) {
+  const def = COMPANIONS[id];
+  return String((def && def.source) || '').split(':')[0];
+}
+function grantTransport() {
+  const gc = window.HearthriseGoalClaim;
+  return (gc && typeof gc.grantCompanion === 'function') ? gc : null;
+}
+/** Is this acquisition one the SERVER has to record before it can be shown? */
+export function needsServerConfirm(id) {
   try {
-    if (!blobRetired()) return;                       // DORMANT: no call, byte-unchanged
-    const def = COMPANIONS[id];
-    const kind = String((def && def.source) || '').split(':')[0];
-    if (!kind || kind === 'shop' || kind === 'starter') return;
-    const gc = window.HearthriseGoalClaim;
-    if (gc && typeof gc.grantCompanion === 'function') {
-      const p = gc.grantCompanion(id, (def && def.source) || '');
-      if (p && p.catch) p.catch(function () {});
+    if (!blobRetired()) return false;                 // DORMANT: byte-unchanged
+    const kind = grantKind(id);
+    if (!kind || kind === 'shop' || kind === 'starter') return false;
+    return !!grantTransport();
+  } catch (e) { return false; }
+}
+
+/* ── ASK ONCE, NOT ONCE PER HARVEST ──────────────────────────────────────────
+   THE TRIGGER IS NOT ALWAYS A ONE-SHOT, and the old code hid that: it pushed
+   the id into ownedIds immediately, so the `ownedIds.includes(id)` guard at the
+   top of unlockCompanion stopped every later call. Waiting for the server means
+   that guard no longer closes, and the repeating triggers are real —
+   wireBunnyQuest calls unlockCompanion('bunny') on EVERY harvest once the
+   hundredth crop is in, and the drop/skill/boss rolls re-roll for anything
+   un-owned. Without this, one refusal becomes a refusal PER HARVEST: an RPC
+   each, the 60/hour budget gone, an hr_rejections row each, and the same toast
+   over and over.
+
+   A DEFINITIVE refusal blocks for the session (the server decided; re-asking
+   cannot change its mind). An exhausted TRANSPORT ladder blocks for five
+   minutes only, because the thing that failed was the network and a reconnect
+   deserves another go — which is also a second chance at a 1-in-2,500 drop. */
+const GRANT_TRANSPORT_COOLDOWN_MS = 300000;
+const _grantBlocked = Object.create(null);    // id → epoch ms until (Infinity = session)
+function grantBlocked(id) {
+  const until = _grantBlocked[id];
+  if (until === undefined) return false;
+  if (until === Infinity) return true;
+  if (Date.now() < until) return true;
+  delete _grantBlocked[id];
+  return false;
+}
+/** TEST-ONLY. Forget every refusal memo. */
+export function __clearGrantBlocks() {
+  for (const k of Object.keys(_grantBlocked)) delete _grantBlocked[k];
+}
+
+/* Bounded, transport-only. Nothing here reaches the database on the paths it
+   covers (a refused session and a negative RPC probe both answer locally), so
+   the cost of the ladder is five timers, and the benefit is that a twenty-second
+   reconnect no longer eats a 1-in-2,500 drop. */
+const GRANT_RETRY_DEFAULT_MS = Object.freeze([0, 3000, 10000, 30000, 60000]);
+let GRANT_RETRY_MS = GRANT_RETRY_DEFAULT_MS;
+/** TEST-ONLY seam (same spirit as record.js's __set* arms). Pass nothing to
+ *  restore the shipped ladder — a suite must never leave it shortened. */
+export function __setGrantRetryMs(arr) {
+  GRANT_RETRY_MS = (Array.isArray(arr) && arr.length) ? arr.slice() : GRANT_RETRY_DEFAULT_MS;
+  return GRANT_RETRY_MS;
+}
+/* "The acquisition was never decided" — everything the transport itself can
+   answer, plus the two server codes that mean "not yet" rather than "no".
+   An UNKNOWN code is NOT retried: the server answered something, and guessing
+   that an unrecognised verdict is retryable is how a refusal becomes a loop. */
+const GRANT_RETRYABLE = new Set([
+  'network', 'no_config', 'rpc_missing', 'bad_response', 'not_signed_in', 'no_character',
+]);
+const _grantInFlight = Object.create(null);   // id → true while a verdict is pending
+
+/* Every refusal answers in a SENTENCE — an error code is a note to us, not a
+   sentence to the player (b465), and the renown rank-claim (b494) set the house
+   voice: say what happened, and say what is still safe. */
+export function grantRefusalMessage(res, id) {
+  const def = COMPANIONS[id] || {};
+  const name = def.n || titleizeId(id);
+  const why = String((res && res.error) || 'network');
+  if (why === 'missing_req_item') {
+    const item = itemLabel((res && res.item) || String(def.source || '').split(':')[1]);
+    return `The realm has no record of your ${item}, so ${name} could not hatch. `
+      + `Nothing was consumed — your ${item} is still in your bag.`;
+  }
+  if (why.indexOf('unknown_unlock:') === 0) {
+    return `The realm cannot record ${name} yet — that is our fault, not yours, and it has been `
+      + `reported. Nothing was spent.`;
+  }
+  if (why === 'not_grantable') {
+    return `The realm does not recognise ${name} as an earnable companion. Nothing was spent; `
+      + `this has been reported.`;
+  }
+  if (why === 'rate_limited') {
+    return `That arrived faster than the realm could write it down, so ${name} was not recorded. `
+      + `Nothing else was affected.`;
+  }
+  if (why === 'bad_slot' || why === 'unknown_companion') {
+    return `${name} could not be recorded — this has been reported. Nothing was spent.`;
+  }
+  return `The realm couldn't record ${name} — try again shortly. Nothing was spent.`;
+}
+
+/* Ask the server, then — and only then — hand the companion over. Returns a
+   promise for the tests; no caller awaits it (an acquisition is not a gesture
+   the player is standing on). It never rejects. */
+export function requestServerUnlock(id, onUnlocked) {
+  if (_grantInFlight[id]) return Promise.resolve(false);
+  if (grantBlocked(id)) return Promise.resolve(false);
+  _grantInFlight[id] = true;
+  const def = COMPANIONS[id] || {};
+  const source = String(def.source || '');
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  const run = async () => {
+    let last = { ok: false, error: 'network' };
+    for (let i = 0; i < GRANT_RETRY_MS.length; i++) {
+      if (GRANT_RETRY_MS[i] > 0) await sleep(GRANT_RETRY_MS[i]);
+      const gc = grantTransport();
+      if (!gc) { last = { ok: false, error: 'network' }; continue; }
+      try { last = await gc.grantCompanion(id, source); }
+      catch (e) { last = { ok: false, error: 'network' }; }
+      /* ok — including `already_owned:true`, which is a landed grant seen twice. */
+      if (last && last.ok) return last;
+      if (!GRANT_RETRYABLE.has(String((last && last.error) || 'network'))) return last;
     }
-  } catch (e) {}
+    return last;
+  };
+
+  return run().then((res) => {
+    delete _grantInFlight[id];
+    /* Re-read ownership: an envelope may have reconciled the companion in while
+       the verdict was in flight, and pushing it twice would duplicate the card. */
+    ensureState();
+    const owned = !!(window.G && window.G.companions
+      && window.G.companions.ownedIds.includes(id));
+    if (res && res.ok) {
+      if (!owned) applyUnlockLocally(id, onUnlocked);
+      return true;
+    }
+    /* REFUSED. Nothing was written: no ownedIds push, no xp row, no toast, no
+       chronicle line, no consume at the call site (the callback never ran). The
+       player is told, once, in a sentence. */
+    const why = String((res && res.error) || 'network');
+    /* …and ONCE is enforced here, not hoped for: the trigger may repeat (the
+       bunny quest fires on every harvest). See the block table above. */
+    _grantBlocked[id] = GRANT_RETRYABLE.has(why) ? (Date.now() + GRANT_TRANSPORT_COOLDOWN_MS) : Infinity;
+    try { console.warn('[Companions] grant refused:', why, id); } catch (e) {}
+    if (typeof window.notify === 'function') {
+      window.notify(grantRefusalMessage(res, id), 'kill');
+    }
+    return false;
+  }).catch((e) => {
+    delete _grantInFlight[id];
+    _grantBlocked[id] = Date.now() + GRANT_TRANSPORT_COOLDOWN_MS;
+    try { console.warn('[Companions] grant failed:', e); } catch (_) {}
+    if (typeof window.notify === 'function') {
+      window.notify(grantRefusalMessage(null, id), 'kill');
+    }
+    return false;
+  });
 }
 
 export function equipCompanion(id) {
@@ -480,10 +681,13 @@ function wireKillHook() {
            only if the core has not booted. */
         const C = window.HearthriseCore;
         const hit = (C && C.rng) ? C.rng.chance(chance) : (Math.random() < chance);
-        if (hit) {
-          unlockCompanion(id);
-          showCompanionUnlockedToast(def);
-        }
+        /* b499: the celebration rides the unlock's own callback instead of the
+           next statement. Dormant that is the same order it always was (the
+           toast still fires straight after the emit); under the capstone arm it
+           waits for the server verdict, so a refused grant never shows a
+           "New companion unlocked!" banner for a companion the next envelope
+           is about to take away. */
+        if (hit) unlockCompanion(id, () => showCompanionUnlockedToast(def));
       }
       emit('kill', { monsterId });
     }
@@ -565,9 +769,28 @@ function wireDragonEggHatch() {
           confirmLabel: 'Hatch' }).then(function (ok) {
           if (!ok) return;
           if (!(window.G?.inventory?.dragon_egg > 0)) return;
-          window.G.inventory.dragon_egg--;
-          unlockCompanion('whelp');
-          if (typeof window.renderInvFancy === 'function') window.renderInvFancy();
+          if (window.G.companions?.ownedIds?.includes('whelp')) {
+            if (typeof window.notify === 'function') {
+              window.notify('A Whelp already follows you — your egg is untouched.', 'info');
+            }
+            return;
+          }
+          /* b499 — THE EGG IS SPENT ONLY ON A RECORDED HATCH.
+             This used to decrement first and unlock second, which under the
+             capstone arm meant a `missing_req_item` refusal (the server enforces
+             the req_item since 2026-09-06-companion-grant-hardening.sql C2) ate
+             the egg AND showed a Whelp that the next envelope removed. Moving
+             the consume into the unlock's callback makes the two atomic from the
+             player's side on BOTH paths: dormant it runs inline exactly as
+             before (two independent writes, no observer between them), and armed
+             it runs only after the server has written the ownership row — the
+             same transaction in which the server consumes its own copy of the
+             egg. It also stops a second egg being burnt for a Whelp already
+             owned, which the old order did silently. */
+          unlockCompanion('whelp', function () {
+            if (window.G?.inventory?.dragon_egg > 0) window.G.inventory.dragon_egg--;
+            if (typeof window.renderInvFancy === 'function') window.renderInvFancy();
+          });
         });
         return;
       }
@@ -732,6 +955,13 @@ export function setupCompanions() {
      for the guard that walks every authored `source` in the data. */
   window.HearthriseCompanions = Object.assign(window.HearthriseCompanions || {}, {
     sourceLabel: companionSourceLabel,
+    /* b499 — the server-confirmed acquisition path, published so the regression
+       suite can drive it directly (it is async and has a retry ladder; a test
+       that could only reach it through a 1-in-2,500 drop roll would not exist).
+       `requestServerUnlock` returns a promise that resolves true only when the
+       companion really joined. */
+    needsServerConfirm, requestServerUnlock, grantRefusalMessage,
+    __setGrantRetryMs, __clearGrantBlocks,
   });
 
   // Hook into existing engine functions

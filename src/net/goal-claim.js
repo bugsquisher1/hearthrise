@@ -302,6 +302,87 @@
         p_idem: newIdem()
       });
     },
+    /* AUTO-EAT SETTINGS — supabase/migrations/2026-08-15-auto-eat.sql, restated
+       by 2026-08-29-auto-eat-tiers.sql. `hr_set_auto_eat(slot, enabled, food,
+       pct, clear_food)` is the ONLY writer of player_state.auto_eat_enabled /
+       auto_eat_food / auto_eat_pct — the three columns the accrual engine reads
+       to decide whether it eats for the player, WHAT it eats, and at what HP.
+
+       ── THE DEFECT THIS CLOSES (b499) ──────────────────────────────────────
+       The verb shipped with ZERO client call sites. So `auto_eat_food` was NULL
+       for every character, and the engine's `chooseFood(null, …)` falls back to
+       `bestHealingFood` — the BIGGEST healer in the bag — while the client
+       honours the player's own nomination (G.autoActions.eat.foodId). The unit
+       COUNTS converge (the pending-consume hold drains on the server's own
+       movement, so nothing is lost or duplicated), but the two sides drain
+       DIFFERENT STACKS and the server's pick is the more valuable one: a player
+       nominating Cooked Shrimp watched their Sharks go. The threshold and the
+       on/off toggle were unsynced for the same reason, so a player who switched
+       auto-eat OFF was still eaten for overnight.
+
+       ── THE ARGUMENTS ARE THREE-VALUED, AND THAT IS THE CONTRACT ───────────
+       NULL means "leave this column alone". So a caller sends ONLY the fields
+       the player actually expressed, and `p_clear_food:true` is the one way to
+       say "back to best-in-the-bag" (NULL already means unchanged). This
+       function passes exactly what it is given and invents nothing — a key the
+       caller omits goes out as null. Never guess a value on the player's behalf:
+       the NULL-food fallback policy belongs to the Designer, not to a transport.
+
+       ── WHY IT SETTLES FIRST, AND RETRIES ──────────────────────────────────
+       Same shape as setStyle below, for the same reason: these three columns
+       PRICE AN ABSENCE, so the server refuses a change with an unpaid window
+       (`collect_first`) rather than re-pricing a whole night at settings chosen
+       after it. Live settlement runs every ~90 s against a 60 s server grace, so
+       an ACTIVE player would hit that refusal on most changes.
+       `settleBeforeIntent()` closes the window first and the two extra rungs
+       cover a settle that was itself declined (below-min-span). No idempotency
+       key is reused across them because the verb takes none — it is an absolute
+       SET, so a replay is idempotent in value by construction.
+
+       ⚠ NOT for the ENGINE and NOT for a tick. The verb bumps the state version
+       and writes one player_ledger row PER CALL, and is rate-gated at 30/hour —
+       so the caller MUST debounce (src/features/auto-actions.js does, and
+       dedupes against the server's own projected values first). Envelope:
+       {ok:true, auto_eat:{enabled, food, pct, tier, max_pct}} or {ok:false,
+       error: trait_not_owned | bad_pct | unknown_item | not_auto_eatable |
+       collect_first | rate_limited | bad_slot | no_character | not_signed_in}. */
+    setAutoEat: async function (patch) {
+      var p = patch || {};
+      /* Bail before the first timer, exactly as setStyle does: `call()` would
+         refuse a signed-out caller anyway, but only AFTER a settle and a 19 s
+         retry ladder for a request that can never go out. */
+      if (!isSignedIn()) return { ok: false, error: 'not_signed_in', refused: true };
+      var body = {
+        p_slot: activeSlot(),
+        p_enabled: (typeof p.enabled === 'boolean') ? p.enabled : null,
+        p_food: (typeof p.food === 'string' && p.food) ? p.food : null,
+        p_pct: (typeof p.pct === 'number' && isFinite(p.pct))
+          ? Math.max(0, Math.min(100, Math.round(p.pct))) : null,
+        p_clear_food: p.clearFood === true
+      };
+      if (body.p_enabled === null && body.p_food === null && body.p_pct === null
+          && body.p_clear_food === false) {
+        /* A call that would change nothing still bumps the version and writes a
+           ledger row. Refuse it here rather than spending the player's 30/hour. */
+        return { ok: false, error: 'nothing_to_set', refused: true };
+      }
+      var delays = [0, 4000, 15000];
+      var last = { ok: false, error: 'unsent' };
+      for (var i = 0; i < delays.length; i++) {
+        if (delays[i] > 0) await new Promise(function (r) { setTimeout(r, delays[i]); });
+        /* Close the unpaid window before asking. Best-effort: if the settle
+           transport is absent or declines, the call still goes out and either
+           succeeds (idle / inside the grace) or comes back collect_first and we
+           try again after the next settle tick. */
+        try {
+          var A = window.HearthriseAccrual;
+          if (A && typeof A.settleBeforeIntent === 'function') await A.settleBeforeIntent();
+        } catch (e) {}
+        last = await call('hr_set_auto_eat', body);
+        if (!last || last.error !== 'collect_first') return last;
+      }
+      return last;
+    },
     /* COMBAT STYLE — supabase/migrations/2026-08-24-combat-style.sql (P0, live).
        hr_set_style(family, key, slot, idem) writes the SERVER-OWNED
        player_state.combat_style, which the accrual engine reads to decide WHICH

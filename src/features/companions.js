@@ -337,6 +337,36 @@ export function needsServerConfirm(id) {
   } catch (e) { return false; }
 }
 
+/* ── ASK ONCE, NOT ONCE PER HARVEST ──────────────────────────────────────────
+   THE TRIGGER IS NOT ALWAYS A ONE-SHOT, and the old code hid that: it pushed
+   the id into ownedIds immediately, so the `ownedIds.includes(id)` guard at the
+   top of unlockCompanion stopped every later call. Waiting for the server means
+   that guard no longer closes, and the repeating triggers are real —
+   wireBunnyQuest calls unlockCompanion('bunny') on EVERY harvest once the
+   hundredth crop is in, and the drop/skill/boss rolls re-roll for anything
+   un-owned. Without this, one refusal becomes a refusal PER HARVEST: an RPC
+   each, the 60/hour budget gone, an hr_rejections row each, and the same toast
+   over and over.
+
+   A DEFINITIVE refusal blocks for the session (the server decided; re-asking
+   cannot change its mind). An exhausted TRANSPORT ladder blocks for five
+   minutes only, because the thing that failed was the network and a reconnect
+   deserves another go — which is also a second chance at a 1-in-2,500 drop. */
+const GRANT_TRANSPORT_COOLDOWN_MS = 300000;
+const _grantBlocked = Object.create(null);    // id → epoch ms until (Infinity = session)
+function grantBlocked(id) {
+  const until = _grantBlocked[id];
+  if (until === undefined) return false;
+  if (until === Infinity) return true;
+  if (Date.now() < until) return true;
+  delete _grantBlocked[id];
+  return false;
+}
+/** TEST-ONLY. Forget every refusal memo. */
+export function __clearGrantBlocks() {
+  for (const k of Object.keys(_grantBlocked)) delete _grantBlocked[k];
+}
+
 /* Bounded, transport-only. Nothing here reaches the database on the paths it
    covers (a refused session and a negative RPC probe both answer locally), so
    the cost of the ladder is five timers, and the benefit is that a twenty-second
@@ -393,6 +423,7 @@ export function grantRefusalMessage(res, id) {
    the player is standing on). It never rejects. */
 export function requestServerUnlock(id, onUnlocked) {
   if (_grantInFlight[id]) return Promise.resolve(false);
+  if (grantBlocked(id)) return Promise.resolve(false);
   _grantInFlight[id] = true;
   const def = COMPANIONS[id] || {};
   const source = String(def.source || '');
@@ -428,6 +459,9 @@ export function requestServerUnlock(id, onUnlocked) {
        chronicle line, no consume at the call site (the callback never ran). The
        player is told, once, in a sentence. */
     const why = String((res && res.error) || 'network');
+    /* …and ONCE is enforced here, not hoped for: the trigger may repeat (the
+       bunny quest fires on every harvest). See the block table above. */
+    _grantBlocked[id] = GRANT_RETRYABLE.has(why) ? (Date.now() + GRANT_TRANSPORT_COOLDOWN_MS) : Infinity;
     try { console.warn('[Companions] grant refused:', why, id); } catch (e) {}
     if (typeof window.notify === 'function') {
       window.notify(grantRefusalMessage(res, id), 'kill');
@@ -435,6 +469,7 @@ export function requestServerUnlock(id, onUnlocked) {
     return false;
   }).catch((e) => {
     delete _grantInFlight[id];
+    _grantBlocked[id] = Date.now() + GRANT_TRANSPORT_COOLDOWN_MS;
     try { console.warn('[Companions] grant failed:', e); } catch (_) {}
     if (typeof window.notify === 'function') {
       window.notify(grantRefusalMessage(null, id), 'kill');
@@ -926,7 +961,7 @@ export function setupCompanions() {
        `requestServerUnlock` returns a promise that resolves true only when the
        companion really joined. */
     needsServerConfirm, requestServerUnlock, grantRefusalMessage,
-    __setGrantRetryMs,
+    __setGrantRetryMs, __clearGrantBlocks,
   });
 
   // Hook into existing engine functions

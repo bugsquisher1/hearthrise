@@ -2375,6 +2375,7 @@ const TESTS = [
     let grantCalls = 0, body = null;
     try {
       Cap.__setBlobRetired(true);
+      CO.__clearGrantBlocks();
       CO.__setGrantRetryMs([0, 5]);          // keep the transport ladder test-fast
       window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
       window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
@@ -2421,7 +2422,24 @@ const TESTS = [
         'an error code is a note to us, not a sentence to the player; said "' + refusal[0].m + '"');
       assert(!said.some((s) => /Companion unlocked/.test(s.m)),
         'a refused grant still toasted "Companion unlocked"');
+
+      /* ── ASK ONCE, NOT ONCE PER HARVEST ────────────────────────────────────
+         The old code pushed the id into ownedIds immediately, so the
+         `ownedIds.includes(id)` guard at the top of unlockCompanion stopped
+         every later call. Waiting for the server means that guard no longer
+         closes — and wireBunnyQuest calls unlockCompanion('bunny') on EVERY
+         harvest past the hundredth. Without a refusal memo, one refusal becomes
+         one RPC, one hr_rejections row and one toast PER HARVEST. */
+      const before = grantCalls, saidBefore = said.length;
+      await CO.requestServerUnlock('whelp');
+      await CO.requestServerUnlock('whelp');
+      assert(grantCalls === before,
+        'a DEFINITIVE refusal must be remembered — the repeating trigger asked the server again ('
+        + (grantCalls - before) + ' extra call(s)), burning the 60/hour budget to be told the same thing');
+      assert(said.length === saidBefore,
+        'and the player must be told ONCE, not once per harvest; saw ' + (said.length - saidBefore) + ' extra');
     } finally {
+      CO.__clearGrantBlocks();
       CO.__setGrantRetryMs();
       Cap.__setBlobRetired(null);
       window.fetch = origFetch; window.HearthriseSupabase = origSb; window.HearthriseAuth = origAuth;
@@ -2443,6 +2461,7 @@ const TESTS = [
     let grantCalls = 0;
     try {
       Cap.__setBlobRetired(true);
+      CO.__clearGrantBlocks();
       CO.__setGrantRetryMs([0, 5]);
       window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
       window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
@@ -2471,6 +2490,7 @@ const TESTS = [
       assert(cheers.length === 1, 'exactly one unlock toast; saw ' + JSON.stringify(said));
       assert(!said.some((s) => s.k === 'kill'), 'a SUCCESS produced a refusal notice: ' + JSON.stringify(said));
     } finally {
+      CO.__clearGrantBlocks();
       CO.__setGrantRetryMs();
       Cap.__setBlobRetired(null);
       window.fetch = origFetch; window.HearthriseSupabase = origSb; window.HearthriseAuth = origAuth;
@@ -2491,6 +2511,7 @@ const TESTS = [
     let said = [], grantCalls = 0, answers = [];
     try {
       Cap.__setBlobRetired(true);
+      CO.__clearGrantBlocks();
       CO.__setGrantRetryMs([0, 5, 5]);
       window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
       window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
@@ -2520,6 +2541,14 @@ const TESTS = [
       assert(r.length === 1 && !/unknown_unlock/.test(r[0].m),
         'the catalogue refusal needs its own player sentence, not the machine code; said ' + JSON.stringify(said));
 
+      /* THE MEMO IS REAL, and this is where it has to be cleared: (a) blocked
+         this id for the session, so (b) would be refused before it reached the
+         transport. Asserted rather than just cleared, so the block cannot
+         silently stop existing. */
+      assert(await CO.requestServerUnlock(id) === false && grantCalls === 1,
+        'the definitive refusal in (a) was not remembered — the repeating trigger would re-ask forever');
+      CO.__clearGrantBlocks();
+
       /* (b) THE TRANSPORT FAILURE — the acquisition was never DECIDED, so it is
          retried. This is the half that stops a twenty-second reconnect eating a
          1-in-2,500 drop. */
@@ -2533,6 +2562,7 @@ const TESTS = [
       assert(!said.some((s) => s.k === 'kill'),
         'an eventually-successful retry must not scare the player with a refusal: ' + JSON.stringify(said));
     } finally {
+      CO.__clearGrantBlocks();
       CO.__setGrantRetryMs();
       Cap.__setBlobRetired(null);
       window.fetch = origFetch; window.HearthriseSupabase = origSb; window.HearthriseAuth = origAuth;

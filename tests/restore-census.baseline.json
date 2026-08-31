@@ -229,13 +229,14 @@
     "the migration chain rebuilds (the `replay` pins below). A SEEDED table that",
     "differs is a live content divergence: production's players earned their rows",
     "against production's catalogue, and a rebuild would hand them a different",
-    "game. This block RECORDS AN OPEN ISSUE \u2014 it is not an acceptance. The",
+    "game. An entry here RECORDS AN ISSUE (open until its status says closed) \u2014 it is not an acceptance. The",
     "--live-compare mode reports it every time it is run until it is closed.",
     "Everything not listed here matched exactly (515 items, 473 activities, 275",
     "item slots, 142 unlock offers, 108 bounty monsters, 72 RPC baseline rows,",
     "34 castle items, 28 feast foods, 19 goal rewards, 17 skills, 17 companion",
     "grants, 13 combat styles, 9 crops, 6 hunt bosses, 5 tiers, 3 runes, 2",
-    "traits \u2026)."
+    "traits \u2026).",
+    "2026-08-31: hr_unlocks CLOSED after the reseed applied (82/21 live-verified); the entry is kept as the incident record per its own rule."
    ],
    "hr_unlocks": {
     "production": 82,

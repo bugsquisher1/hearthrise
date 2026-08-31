@@ -1749,9 +1749,11 @@ function settle(verdict) {
       if (window.HearthriseDaily && typeof window.HearthriseDaily.markServerClaim === 'function') {
         window.HearthriseDaily.markServerClaim(verdict.body && verdict.body.progress);
       }
-      // b475 — feed the server's authoritative streak (state.streak_days) so the
-      // daily-reward sheet displays the day/reward the server will actually pay,
-      // not the drifting residue copy.
+      /* b475/b498 — the same envelope again, this time so the sheet can derive
+         the day the server will PAY. It reads the daily/login rows and `now`;
+         ⚠ NOT `state.streak_days`, which is hr_apply's SETTLE streak (days
+           PLAYED). b475 rendered that as the login streak and the sheet
+           advertised Day 3 against a Day 1 payout (b497). */
       if (window.HearthriseDaily && typeof window.HearthriseDaily.noteServerStreak === 'function') {
         window.HearthriseDaily.noteServerStreak(verdict.body);
       }

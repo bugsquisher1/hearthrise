@@ -87,6 +87,78 @@ export function priceDailyLogin(streak) {
   };
 }
 
+/* ── THE LOGIN STREAK, DERIVED FROM A CLAIM HISTORY ─────────────────────────
+   MOVED HERE FROM supabase/functions/hr-accrue/claim-reward.js (b498). It is
+   the same function, verbatim; what changed is that it is now readable by the
+   BROWSER as well as by Deno, through `window.HearthriseRewards`.
+
+   ⚠ THE MOVE IS THE BUG FIX, and the bug is worth stating because it is the
+     same shape as the one `priceDailyLogin` was moved here to end.
+
+     LIVE, 2026-08-31 (b497 play-gate): the sheet advertised "DAILY REWARD ·
+     3-DAY STREAK / Claim Day 3 · 2,000 gold · 5 gems" and the server paid Day
+     1's 500 gold and no gems. Nothing was lost, but the modal promised 4x what
+     it paid — the "feels like theft" class.
+
+     The cause was NOT arithmetic drift. It was that the client was rendering a
+     DIFFERENT QUANTITY and calling it the same thing. There are two streaks on
+     the server and they answer two different questions:
+
+       player_state.streak_days   consecutive UTC days the player SETTLED
+         (hr_apply §4c, 2026-08-21-streak-state.sql) — advanced by any delta
+         carrying `accrued_to`, i.e. by PLAYING. Projected on every envelope as
+         `state.streak_days`, which is what b475 taught the sheet to read.
+
+       deriveLoginStreak (this)   consecutive UTC days the player CLAIMED the
+         login reward — the only one the PAYOUT is a function of.
+
+     They agree exactly while every played day is also a claimed day, which is
+     why b475 looked right for three weeks. Play a day without claiming — or
+     merely open the game before the day's first settle has reset the settle
+     streak — and the sheet promises a day the server will not pay.
+
+     A drift GUARD between two copies would not have caught that: neither copy
+     was wrong. One implementation, read by both halves, is the only shape in
+     which the question "which day will I be paid?" has one answer.
+
+   `player_progress.value` on a `daily:login` row is THE STREAK LENGTH ON THAT
+   DAY — unusual for that column, which is normally a counter, and stated here
+   because the shape is what makes the rule one lookup instead of a scan:
+
+       yesterday's row exists and is 'claimed'  ⇒  streak = its value + 1
+       anything else                            ⇒  streak = 1
+
+   Nothing walks a history, nothing depends on a retention window, and a player
+   who misses a day resets by ARITHMETIC rather than by a reset that has to be
+   remembered. It also means the 31-day `hr_progress_prune` cannot silently
+   shorten a streak: only yesterday is ever read, and yesterday is never pruned.
+
+   PURE, and it takes the day from its caller — this file holds no clock and no
+   day-key function (see the block at the foot of this file for why). The SERVER
+   passes `hr_claim_lookup`'s answer; the CLIENT builds the same shape out of the
+   `daily`/`login` rows on its envelope. Both hand it `{ prev, rows }` and
+   neither computes what "yesterday" means twice.
+
+   ⚠ THE STREAK IS NEVER READ FROM THE CLIENT ON THE SERVER'S SIDE.
+     `G.streak.count` exists and is forgeable; it is not an input to the pricer
+     and there is no field through which it could become one. The client calling
+     this function is rendering a PREVIEW of the server's own arithmetic over the
+     server's own rows — it is not proposing a number.
+
+   @param lookup  { prev: <day key>, rows: { <day key>: {value, state} } }
+   @returns the 1-based consecutive-day count, floored at 1.
+*/
+export function deriveLoginStreak(lookup) {
+  const rows = (lookup && lookup.rows) || {};
+  const prev = lookup && lookup.prev;
+  if (typeof prev !== 'string') return 1;
+  if (!Object.prototype.hasOwnProperty.call(rows, prev)) return 1;
+  const row = rows[prev];
+  if (!row || row.state !== 'claimed') return 1;
+  const v = Number(row.value);
+  return Number.isFinite(v) && v >= 1 ? Math.floor(v) + 1 : 1;
+}
+
 /* ════════════════════════════════════════════════════════════════════════════
    THE CLAIMABLE REGISTRY — every gold GRANT site that is a discrete player
    gesture, and what the server would need in order to own it.

@@ -2,7 +2,9 @@
 // src/features/daily-reward.js  — Daily login reward (retention)
 //
 // The single most proven "keep them coming back" mechanic, built on the
-// login streak the game already tracks (G.streak = {count,lastDay}).
+// CLAIM streak the server derives from the character's own daily/login claim
+// rows (src/data/rewards.js `deriveLoginStreak`) — NOT on `G.streak`, which is
+// the play streak and a different quantity. See the b498 block below.
 //
 // How it works:
 //   • A 7-day escalating cycle (Day 1 small → Day 7 jackpot).
@@ -46,7 +48,8 @@
   var _rewardsWarned = false;
   function REWARDS() {
     var R = window.HearthriseRewards;
-    if (!R || typeof R.priceDailyLogin !== 'function' || !R.DAILY_LOGIN_CYCLE) {
+    if (!R || typeof R.priceDailyLogin !== 'function' || !R.DAILY_LOGIN_CYCLE
+        || typeof R.deriveLoginStreak !== 'function') {
       if (!_rewardsWarned) {
         _rewardsWarned = true;
         console.error('[DailyReward] window.HearthriseRewards is missing — src/data/rewards.js is '
@@ -62,6 +65,15 @@
     var d = new Date();
     return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
   }
+  /* Same LOCAL form as todayKey (YYYYMMDD), one UTC day earlier. Deliberately
+     NOT the server's `hr_utc_day_key` spelling ('2026-8-31') — these two keys
+     only ever compare against `lastClaimDay`, which is this file's own local
+     "have I shown the sheet today" cache and has never been authority. The
+     server's spelling is used, unmixed, in the capture below. */
+  function yesterdayKey() {
+    var d = new Date(Date.now() - 86400000);
+    return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+  }
 
   function ensureState(G) {
     G = G || window.G; if (!G) return null;
@@ -70,38 +82,153 @@
     return G.dailyReward;
   }
 
-  /* b475 — THE AUTHORITATIVE LOGIN STREAK, off the envelope.
-     `G.streak.count` is a RESIDUE field (client-state.js): a self-only copy the
-     server stores verbatim, which drifts from — and lags behind — the streak the
-     SERVER actually pays a claim against. Live repro: residue count was 1 while
-     player_state.streak_days was 3, so the sheet said "Day 1 · 500 gold" and the
-     claim credited Day 3 (+5 gems). The server projects its own streak as
-     `state.streak_days` on every envelope (hr_state_of, 2026-08-21-streak-state
-     .sql); noteServerStreak() captures it and the display prefers it whenever it
-     is a real (finite, ≥1) count, so "Day N", the "-day streak" label, the
-     highlighted D-tile and the reward preview all match what the server will pay.
-     A fresh character (streak_days 0/absent) falls back to the residue, which
-     floors at 1 = Day 1 — the correct opening state. This is DISPLAY-only: the
-     claim/payout is unchanged (the server derives its own streak; G.streak.count
-     is never an input to it). */
-  var serverStreakDays = null;   // null = no envelope seen; a number once one arrives.
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE LOGIN STREAK THIS SHEET DISPLAYS — b475, RE-RULED IN b498.
+     ══════════════════════════════════════════════════════════════════════════
+     b475 read `state.streak_days` off the envelope and called it the streak.
+     That was the WRONG QUANTITY, and it took three weeks to show: there are two
+     streaks on the server and only one of them prices a claim.
+
+       state.streak_days   hr_apply §4c (2026-08-21-streak-state.sql). Advanced
+                           by any delta carrying `accrued_to` — i.e. by PLAYING.
+                           "Consecutive days settled."
+       deriveLoginStreak   src/data/rewards.js, and the ONLY input to the
+                           payout. "Consecutive days CLAIMED", read off the
+                           character's own daily/login claim rows.
+
+     LIVE, 2026-08-31 (b497 play-gate): lastClaimDay was 20260829, Aug 30 went
+     unclaimed, and on Aug 31 this sheet advertised "3-DAY STREAK / Claim Day 3 ·
+     2,000 gold · 5 gems" while the server correctly paid Day 1 — 500 gold, no
+     gems. Nothing was lost and the claim stamped clean, but the modal promised
+     4x what it paid, which is the "feels like theft" class. Two ways to reach
+     it, both live: play a day without claiming it, or simply open the game
+     before the day's first settle has reset the settle streak.
+
+     THE FIX IS NOT A SECOND RULE — IT IS THE SERVER'S OWN RULE, ON THE SERVER'S
+     OWN ROWS. `hr_state_of` already projects the `daily`/`login` progress rows
+     on every envelope (that is what b465's markServerClaim reads), and
+     `deriveLoginStreak` is now authored in src/data/rewards.js, which the
+     browser reaches through window.HearthriseRewards and the Edge Function
+     vendors. So the sheet and the pricer run THE SAME FUNCTION over THE SAME
+     ROWS. There is no copy to drift and no guard needed to hold two copies
+     together — the b349 discipline that ended this for the reward LADDER,
+     applied to the day.
+
+     Still DISPLAY-only: the claim/payout is unchanged, the server derives its
+     own streak from its own rows under a lock, and nothing the client computes
+     here is ever sent. */
+  /* The capture: the daily/login rows the last envelope carried, plus the
+     SERVER's UTC day number at that moment. `null` = no envelope seen yet. */
+  var serverClaim = null;
   function noteServerStreak(env) {
-    if (env === null) { serverStreakDays = null; return; }   // test seam: forget the captured streak
+    if (env === null) { serverClaim = null; return; }   // test seam: forget the capture
     try {
-      var st = env && env.state;
-      if (!st || typeof st !== 'object') return;
-      if (!Object.prototype.hasOwnProperty.call(st, 'streak_days')) return;
-      var n = Number(st.streak_days);
-      // Act only on CERTAINTY (save-invariant #2's rule): a NaN/negative is not a
-      // streak, and 0 is "no streak yet" → leave it to the residue's Day-1 floor.
-      if (Number.isFinite(n) && n >= 1) serverStreakDays = Math.floor(n);
+      if (!env || typeof env !== 'object') return;
+      var rows = env.progress;
+      /* An envelope with no progress array is a REFUSAL shape, not "no rows" —
+         it must never clobber a good capture with an empty one. */
+      if (!Array.isArray(rows)) return;
+      /* ⚠ AND A TRUNCATED ENVELOPE IS NOT AN ANSWER. hr_state_of's progress read
+         is `limit 1000`; the claim path uses hr_claim_lookup, which is bounded
+         to three period keys and cannot truncate. So a truncated envelope is
+         exactly the case where yesterday's row may be missing WITHOUT the
+         streak being broken — the silent under-payment 2026-08-16-claim-reward
+         .sql §(a) names. Decline to capture and let the local rule answer. */
+      if (env.progress_truncated === true) return;
+      var B = window.HearthriseCore && window.HearthriseCore.botd;
+      if (!B || typeof B.utcDayNumber !== 'function') return;
+      /* THE SERVER'S CLOCK, off the envelope — never Date.now(). A device clock
+         running behind would otherwise read a claimed row from two days ago as
+         "yesterday" and re-open the exact over-promise this block closes. */
+      var ms = Date.parse(env.now);
+      if (!Number.isFinite(ms)) return;
+      var map = {};
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (!r || r.kind !== 'daily' || r.key !== 'login') continue;
+        if (typeof r.period !== 'string' || r.period === '') continue;
+        map[r.period] = { value: r.value, state: r.state };
+      }
+      serverClaim = { rows: map, dayN: B.utcDayNumber(ms) };
     } catch (e) { /* a display hint must never break an envelope apply */ }
   }
 
+  /**
+   * The streak the SERVER will price a claim at, or `null` when the client
+   * cannot know it with certainty (no envelope yet, or the capture does not
+   * cover the day being asked about).
+   */
+  var _botdWarned = false;
+  function serverClaimStreak() {
+    if (!serverClaim) return null;
+    var R = REWARDS(); if (!R) return null;
+    var B = window.HearthriseCore && window.HearthriseCore.botd;
+    if (!B || typeof B.utcDayKey !== 'function' || typeof B.utcDayNumber !== 'function') {
+      /* WE HOLD A CAPTURE AND CANNOT READ THE DAY IT IS FILED UNDER. That is a
+         wiring break, not a quiet fallback — the sheet is about to advertise a
+         day derived from a guess, which is precisely the b497 failure. Loud
+         once (console.error fails the headless gate), never per render.
+         Unreachable in practice: noteServerStreak refuses to capture without
+         botd, so a capture existing means botd existed a moment ago. */
+      if (!_botdWarned) {
+        _botdWarned = true;
+        console.error('[DailyReward] HearthriseCore.botd.utcDayKey/utcDayNumber is missing — the '
+          + 'sheet cannot read the server day its claim rows are filed under, so the advertised '
+          + 'day falls back to a local guess');
+      }
+      return null;
+    }
+    /* WHICH DAY ARE WE ASKING ABOUT? The one the rest of this file already
+       treats as today — `isClaimable` keys on the local UTC day — so a tab left
+       open across UTC midnight asks about the new day and gets the new day's
+       answer. But the capture only licenses ONE such rollover: outside
+       [serverDay, serverDay+1] the rows we hold say nothing about the day in
+       question, and inventing an answer from them is how a wrong device clock
+       becomes a wrong promise. Act only on certainty (save-invariant #2). */
+    var dayN = B.utcDayNumber(Date.now());
+    if (dayN < serverClaim.dayN || dayN > serverClaim.dayN + 1) return null;
+    /* `utcDayKey` is src/core/botd.js's — the ONE JS spelling of
+       `public.hr_utc_day_key`, bound to the SQL by tests/claim-intent.mjs C13d.
+       src/data/rewards.js deliberately holds no day-key function; see the block
+       at the foot of that file for why a fourth one must never be written. */
+    var prev = B.utcDayKey((dayN - 1) * 86400000);
+    return R.deriveLoginStreak({ prev: prev, rows: serverClaim.rows });
+  }
+
+  /**
+   * THE FALLBACK, for the pre-envelope moment (boot before hydration, or a
+   * client-authoritative build). It applies THE SAME RESET RULE the server
+   * applies, over the only claim history the client holds: `lastClaimDay`.
+   *
+   *   the last claim was neither today nor yesterday  ⇒  the streak is broken
+   *                                                      ⇒ Day 1, which is what
+   *                                                        deriveLoginStreak
+   *                                                        will return
+   *
+   * ⚠ `lastClaimDay === 0` IS NOT A GAP — it is the ABSENCE of a claim history
+   *   (a fresh character, or a residue that never hydrated), and treating it as
+   *   evidence of a broken streak would be acting without certainty in the other
+   *   direction. The residue answers there, and on a genuinely fresh character
+   *   the residue is 1, which is the correct opening state.
+   *
+   * The residue (`G.streak.count`) is the PLAY streak, not the claim streak, so
+   * it is a guess even when it is used — but it can now only ever UNDER-state
+   * the day, never promise one the server will not pay.
+   */
+  function localStreak(G) {
+    var residue = (G && G.streak && typeof G.streak.count === 'number' && G.streak.count > 0)
+      ? G.streak.count : 1;
+    var s = ensureState(G);
+    var last = (s && typeof s.lastClaimDay === 'number') ? s.lastClaimDay : 0;
+    if (!last) return residue;
+    if (last !== todayKey() && last !== yesterdayKey()) return 1;
+    return residue;
+  }
+
   function streakCount(G) {
-    // Server-authoritative streak wins over the residue whenever it is a real count.
-    if (typeof serverStreakDays === 'number' && serverStreakDays >= 1) return serverStreakDays;
-    return (G && G.streak && typeof G.streak.count === 'number' && G.streak.count > 0) ? G.streak.count : 1;
+    var srv = serverClaimStreak();
+    if (typeof srv === 'number' && srv >= 1) return srv;
+    return localStreak(G || window.G);
   }
 
   /* Every one of these is now a VIEW of the shared pricing function rather than

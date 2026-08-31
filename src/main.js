@@ -60,7 +60,7 @@ import { goalDisplayState, GOAL_PHASE } from './core/goal-display.js?v=497';
 import {
   DAILY_LOGIN_CYCLE, DAILY_LOGIN_CYCLE_DAYS, DAILY_LOGIN_WEEK_BONUS,
   DAILY_LOGIN_MAX_WEEK_MULT, CLAIMABLES, claimableFor, claimableId,
-  priceDailyLogin,
+  priceDailyLogin, deriveLoginStreak,
 } from './data/rewards.js?v=497';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
@@ -194,11 +194,15 @@ window.__hrIconsReady?.();
    cannot import (src/features/daily-reward.js). A NAMESPACE rather than seven
    loose globals: these are read by exactly one consumer today and by the
    server's `claim_reward` intent tomorrow, and a namespace is what makes
-   "is the data wired?" a single, testable question. */
+   "is the data wired?" a single, testable question.
+   b498 — `deriveLoginStreak` joins it. It is the rule that turns a claim
+   HISTORY into "which day am I on", and until b498 the browser had no access to
+   it, so the sheet rendered a different quantity (hr_apply's SETTLE streak) and
+   advertised a day the server would not pay. */
 window.HearthriseRewards = Object.freeze({
   DAILY_LOGIN_CYCLE, DAILY_LOGIN_CYCLE_DAYS, DAILY_LOGIN_WEEK_BONUS,
   DAILY_LOGIN_MAX_WEEK_MULT, CLAIMABLES,
-  claimableFor, claimableId, priceDailyLogin,
+  claimableFor, claimableId, priceDailyLogin, deriveLoginStreak,
 });
 
 /* R1/R5 — the monotonic display seam, published for legacy.js's render layer

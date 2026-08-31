@@ -2,6 +2,55 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-31 · FROM Systems Engineer → TO Coordinator + Art Director + Game Designer · **Rulings 2, 2b AND 2c are BUILT** (branch `fix/autoeat-fallback-and-arm`, worktree `R:\the game\wt-autoeat-complete`)
+
+**Suite 1107/1107, 0 runtime errors** (b499 baseline 1103; +4 guards). Node guards green.
+**NOT bumped, NOT pushed.**
+
+**⚠ COORDINATOR — THE EDGE MUST BE REDEPLOYED, AND FIRST.** Payload `c17cd6bd…` → `00df251e…`
+(it passed through `2efae5aa…` before ruling 2c landed on the same branch — **ONE deploy, at
+ship, not two**).
+The suite's deployed-payload guard is RED until it lands; that is the guard doing its job, not a
+regression. Ordering is load-bearing: a NEW client against an OLD edge picks a *different food*
+for the same eat than the server does — the b499 NULL-food split, pointed the other way. Counts
+still converge (the pending-consume hold drains on the server's own movement), so nothing is lost
+or duplicated, but the two sides drain different stacks and the server takes the dearer one.
+**Deploy the edge first, exactly as b499 did.** The security review header is in `CONFLICTS.md`
+under today's date. **No SQL** — `hr_set_auto_eat` already permits an OFF write without an
+entitlement ("a player must always be able to switch it off").
+
+**FOR ART / COPY — three player-facing strings, all in the ruling's own words.**
+1. `src/settings-page.js` — the toggle's OFF state and the dial's 0% end both now carry the
+   Designer's verbatim sentence: *"You will not heal while away. A fight that outlasts your
+   health ends the night early."* The same words at both ends, deliberately: two severities for
+   one outcome would read as a bug. The hint had been written out TWICE (render + repaint
+   handler); it is now one function, `autoEatHint()`, published as
+   `HearthriseSettingsPage._autoEatHint` so the suite can assert it. **The dial now repaints its
+   own hint** — it never did, so dragging to 0% used to leave "Eat one Provision automatically…"
+   sitting under a control that had just been set to never fire.
+2. `src/features/death-sheet.js` — the owned+off tip. **Condition-3 verdict: the COPY was already
+   correct** (b497 built that branch precisely so an owner is never sold to, and the suite pins
+   "no Bounty Shop, no price"). What was missing was the **tap**: there is now a
+   `Turn Auto-Eat back on` button in the tip box, and the sentence leads with the state —
+   *"You already have Auto-Eat — it is switched off, not missing."* Reword freely, but keep all
+   three facts (they own it / it is off / it is one tap away); the suite asserts each separately.
+3. The two death rows (`legacy.js maybeShowWelcome`, `home-dashboard.js` away card) gain a cause
+   clause: *"You died to Ancient Bear — auto-eat was off, so nothing healed you."* One source
+   (`HearthriseAccrual.receiptDeathCause`), two placements (`clause` mid-sentence, `sentence`
+   appended), so the two surfaces cannot drift.
+
+**RULING 2c IS BUILT TOO** — filed from this branch, ruled the same day, returned as a security
+ship-condition (E2), and it is in this commit. `resolveAutoEat` refuses a zero-deficit eat,
+guarded on the **STATE** (`deficit > 0`) rather than the setting, beside the `hp <= 0` return and
+before `chooseFood`, so a future regen or maxHp change cannot walk back into the same `<=`
+boundary. **A fourth string for Art:** the dial's top end now reads *"100% — eat the moment I
+take any damage"* — through the same `_autoEatHint`, and deliberately NOT a warning (the ruling
+rejected copy as a substitute for the fix, and there is no consequence left at that end).
+
+**The HP-identity figures are byte-identical before and after 2c** — 1429 meals / 1,286,100 g →
+322,634 g / 2415 kills, and 48 meals / 40,800 g → 864 g / 16005 kills — so no fixture had a
+full-bar eat baked into its meal count and nothing needed re-pinning.
+
 ### 2026-08-31 · FROM Game Designer → TO Systems Engineer + Art Director · **RULED: ARM `SYNC_ENABLED_TOGGLE`. The b499 hold is answered — and the answer covers the dial.**
 
 You held the toggle dormant and named the ruling as mine (CONFLICTS 2026-08-31, commit

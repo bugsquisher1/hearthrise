@@ -480,6 +480,14 @@ export function awayFromCollected(collected) {
     kills: Number(c.kills) || 0,
     crits: Number(c.crits) || 0,
     died: !!c.died,
+    /* Ruling 2b (2026-08-31): WHAT killed them, and the auto-eat state the
+       engine ran that span with, so `receiptDeathCause` can name the reason on
+       a switch receipt too. Both are self-configuring — a server that does not
+       state them leaves them undefined and the sentence simply omits the
+       clause, which is the same rule `windowFrom`/`windowTo` follow above. */
+    diedTo: c.diedTo || null,
+    paidMs: Number(c.paidMs) || 0,
+    autoEat: (c.autoEat && typeof c.autoEat === 'object') ? c.autoEat : null,
     gold: Number(c.gold) || 0,
     xp: c.xp,
     items: c.items,

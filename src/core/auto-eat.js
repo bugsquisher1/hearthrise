@@ -179,6 +179,100 @@ export function clampThreshold(t) {
   return Math.max(0, Math.min(1, n));
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   THE BAG SCAN — ONE PASS, TWO ANSWERS.   (Designer ruling 2, 2026-08-31)
+
+   ── WHY ONE PASS ────────────────────────────────────────────────────────
+   `chooseFood` needs both candidates: the CHEAPEST food that covers the
+   deficit (the new default) and the BIGGEST healer (the fallback for when
+   nothing covers it). Late game the fallback is the COMMON case, not the
+   rare one — a 99 HP character at the tier-I 25% trigger is 74 HP down and
+   the largest Provision in the game heals 42 — so a naive
+   "try cheapest, else best" would walk a 500-key bag twice on every meal of
+   an 18,000-tick night. It also would have been TWO implementations of
+   "which items are edible", which is the drift this file exists to prevent.
+
+   So both public helpers below delegate here and the rule is stated once.
+   `bestHealingFood` keeps its exact shipped semantics — it is exported, it
+   has its own tie-break contract, and tests/accrual-engine.mjs asserts it
+   directly.
+
+   ── THE ORDER, AND WHY IT IS PARETO ─────────────────────────────────────
+   "Covers the deficit" means `heals >= maxHp - hp`, i.e. HEALS TO FULL.
+   `resolveAutoEat` caps the result at maxHp either way, so every candidate
+   in the covering set produces the IDENTICAL post-eat HP — the fight cannot
+   diverge by one tick, and the choice inside that set is therefore free.
+   The ruling spends it on two things, in this order:
+
+     1. NON-`raw` FIRST. 17 of the 31 auto-eatable Provisions are `raw:true`
+        crafting stock (every raw fish, plus wheat / goldenroot / emberfruit
+        / moonbloom). One auto-eaten Moonbloom is 1,750 g and 780 Cooking XP
+        of Moonbloom Elixir destroyed — the old rule ate the Cooking skill's
+        own supply chain, at the moment its owner was not watching.
+     2. LOWEST BOOK VALUE `v`. Measured over a 12 h night at one meal per
+        45 s: 864,000 g of Cooked Shark where 230,400 g of Cooked Lobster
+        does the identical job (45.0 vs 12.0 gold per HP restored).
+
+   Preference (1) can cost gold against (2) — a bag whose only cheap covering
+   food is raw pays more to keep the reagent. That is deliberate and is the
+   ruling's stated motivation; it is never an HP cost.
+
+   ── TIES ARE BROKEN BY ITEM ID, for the reason bestHealingFood's are ────
+   The two sides receive the bag in different key orders (client: insertion
+   history; server: `jsonb_object_agg`, which is length-then-bytewise), so a
+   tie resolved by iteration order would drain DIFFERENT STACKS on each side
+   and the away/live parity guard would be comparing two different nights.
+   ════════════════════════════════════════════════════════════════════════ */
+/**
+ * @param {object} inv    id → count
+ * @param {object} cat    the ITEMS catalogue
+ * @param {number|null} need  the deficit to cover, or null for "do not ask"
+ * @returns {{best: string|null, cheapest: string|null}}
+ */
+function scanProvisions(inv, cat, need) {
+  let bestId = null;
+  let bestHeals = 0;
+  /* `wantCover === false` skips the cheapest-sufficient half entirely, which
+     is what a caller that did not state a deficit gets. A non-finite deficit
+     is NOT quietly treated as 0: "I do not know how hurt you are" and "you
+     are at full health" are different facts, and only one of them makes
+     every food in the bag a legal answer. */
+  const wantCover = typeof need === 'number' && Number.isFinite(need) && need >= 0;
+  let cheapId = null;
+  let cheapRaw = true;          // a raw candidate loses to any processed one
+  let cheapV = Infinity;
+  for (const id of Object.keys(inv)) {
+    if (!((Number(inv[id]) || 0) > 0)) continue;
+    const it = cat[id];
+    if (!isAutoEatable(it)) continue;
+    const heals = Number(it.heals) || 0;
+    if (heals > bestHeals || (heals === bestHeals && bestId !== null && id < bestId)) {
+      bestId = id;
+      bestHeals = heals;
+    }
+    if (!wantCover) continue;
+    if (!(heals > 0) || heals < need) continue;      // does not heal to full
+    const raw = !!it.raw;
+    /* AN UNPRICED PROVISION SORTS LAST, NOT FIRST. `Number(it.v) || 0` would
+       make a food with no book value the cheapest thing in the bag and the
+       engine would eat it forever. Every authored Provision carries a `v`
+       today (asserted in tests/accrual-engine.mjs so an unpriced one is a
+       failed build, not a silent policy change); Infinity is the honest
+       reading of the one that does not. */
+    const v = Number(it.v);
+    const val = Number.isFinite(v) ? v : Infinity;
+    if (cheapId === null
+        || (cheapRaw && !raw)                                   // processed beats raw
+        || (raw === cheapRaw && (val < cheapV
+            || (val === cheapV && id < cheapId)))) {            // then value, then id
+      cheapId = id;
+      cheapRaw = raw;
+      cheapV = val;
+    }
+  }
+  return { best: bestHeals > 0 ? bestId : null, cheapest: cheapId };
+}
+
 /**
  * The biggest-healing Provision in the bag.
  *
@@ -196,39 +290,65 @@ export function clampThreshold(t) {
  *   is identical either way (that is what a tie means), so this is not a
  *   balance change; it is the difference between a reproducible night and one
  *   that depends on which machine replayed it.
+ *
+ * Since the 2026-08-31 ruling this is the FALLBACK, not the default — see
+ * `chooseFood`. It is unchanged, still exported, and still the answer when
+ * nothing in the bag can heal the player to full.
  */
 export function bestHealingFood(inventory, items) {
-  const inv = inventory || {};
-  const cat = items || {};
-  let bestId = null;
-  let bestHeals = 0;
-  for (const id of Object.keys(inv)) {
-    if (!((Number(inv[id]) || 0) > 0)) continue;
-    const it = cat[id];
-    if (!isAutoEatable(it)) continue;
-    const heals = Number(it.heals) || 0;
-    if (heals > bestHeals || (heals === bestHeals && bestId !== null && id < bestId)) {
-      bestId = id;
-      bestHeals = heals;
-    }
-  }
-  return bestHeals > 0 ? bestId : null;
+  return scanProvisions(inventory || {}, items || {}, null).best;
 }
 
 /**
- * Which food this eat will consume.
- * The nominated food wins if it is a Provision AND the player owns one;
- * otherwise the biggest-healing Provision in the bag. (b220: a Feast or a
- * Draught — `foodClass: 'buff'` — is never eligible, even as the only food
- * owned. Auto-eat burning a Void Banquet to soak one wolf hit is the failure
- * that rule exists to prevent.)
+ * The cheapest Provision that heals the deficit AWAY ENTIRELY: processed
+ * before raw, then lowest book value, then item id. `null` when nothing in
+ * the bag covers it (or when no deficit was stated).
  */
-export function chooseFood(nominated, inventory, items) {
+export function cheapestSufficientFood(inventory, items, deficit) {
+  return scanProvisions(inventory || {}, items || {}, statedDeficit(deficit)).cheapest;
+}
+
+/* `typeof !== 'number'` FIRST, and it is the same trap `thresholdFromPct`
+   documents twelve lines up: `Number(null)` is 0 — finite, in range, and
+   therefore silently accepted as "you are at full health", which makes every
+   food in the bag sufficient and hands the cheap branch to a caller that never
+   stated a deficit. Caught by tests/accrual-engine.mjs, not by review. */
+function statedDeficit(deficit) {
+  if (typeof deficit !== 'number' || !Number.isFinite(deficit)) return null;
+  return Math.max(0, deficit);
+}
+
+/**
+ * Which food this eat will consume. The order is the Designer's ruling of
+ * 2026-08-31 (.claude/coordination/DECISIONS.md §2):
+ *
+ *   (a) the NOMINATED food, if it is a Provision and the player owns one;
+ *   (b) otherwise the CHEAPEST-SUFFICIENT Provision — processed before raw,
+ *       then lowest `v`, then id — among those that heal to full;
+ *   (c) otherwise today's rule, the BIGGEST healer in the bag, because when
+ *       nothing can heal you to full, survival beats thrift exactly there.
+ *
+ * (b) is HP-IDENTICAL to (c) whenever it fires — both land the player on
+ * maxHp — so this is a Pareto improvement and never a nerf. It matters
+ * because `auto_eat_food` is NULL until its owner opens the picker, and
+ * because a nominated stack that runs out mid-night falls through to here,
+ * which is precisely when a bag of raw fish is the next thing in reach.
+ *
+ * b220: a Feast or a Draught (`foodClass: 'buff'`) is never eligible in any
+ * branch, even as the only food owned. Auto-eat burning a Void Banquet to
+ * soak one wolf hit is the failure that rule exists to prevent.
+ *
+ * @param deficit `maxHp - hp`. OMITTED (or non-finite) → (b) is skipped and
+ *        this behaves exactly as it did before the ruling. A caller that
+ *        cannot say how hurt the player is has not earned the cheap branch.
+ */
+export function chooseFood(nominated, inventory, items, deficit) {
   const cat = items || {};
   const inv = inventory || {};
   const nom = nominated ? cat[nominated] : null;
   if (isAutoEatable(nom) && (Number(inv[nominated]) || 0) > 0) return nominated;
-  return bestHealingFood(inv, cat);
+  const scan = scanProvisions(inv, cat, statedDeficit(deficit));
+  return scan.cheapest || scan.best;
 }
 
 /**
@@ -257,10 +377,48 @@ export function resolveAutoEat(opts) {
   const maxHp = Number(o.maxHp);
   if (!Number.isFinite(hp) || !Number.isFinite(maxHp) || !(maxHp > 0)) return null;
   if (hp <= 0) return null;                       // already dead — respawn owns this
+  /* ── A FULL BAR HAS NOTHING TO HEAL (Designer ruling 2c, 2026-08-31) ─────
+     Deliberately beside the line above, because it has the same shape: nothing
+     to do here, another system owns this state.
+
+     THE BUG IT CLOSES. At the Auto-Eat II ceiling the effective threshold is
+     1.0, so a character sitting at FULL health satisfies `hp/maxHp <= 1` and
+     ate — a whole Provision, for zero HP, on every swing. About 1,400 meals a
+     night of pure item destruction, and once the cheap processed stock runs
+     out it works down into exactly the raw crafting material the chooser above
+     exists to protect. Reachable live today through a synced key.
+
+     ⚠ THE GUARD IS `deficit > 0`, NOT `threshold < 1`, and that is the ruling
+       rather than a style preference: the 100% dial is one INSTANCE of the
+       boundary, not the class. Any future regen, heal-over-time or maxHp change
+       puts a character on a full bar with a live threshold and reaches the same
+       `<=` comparison. A guard on the SETTING would have to be rediscovered
+       each time; a guard on the STATE cannot be.
+
+     WHY THIS DOES NOT CONTRADICT 2b's "the dial's ends belong to the player":
+     at 0% the player gets exactly what the label promises — never heal — which
+     is a strategy someone can form an intent about. At 100% the label says
+     "eat when my HP drops to X%", and a character at full health has not
+     dropped to anything. `hp/maxHp <= 1.0` being true at a full bar is the
+     arithmetic of a `<=` boundary, not a preference, and there is no build and
+     no edge case in which destroying a Provision for 0 HP helps anyone.
+
+     BEFORE `chooseFood`, deliberately — a call that will not eat must not also
+     go and pick a food. HP-identical by construction (the eat healed 0 either
+     way) and draw-free, so AWAY-1 parity is byte-unmoved.
+
+     `!(deficit > 0)` rather than `deficit === 0` also catches hp ABOVE maxHp,
+     which is the same "nothing to heal" state arrived at from the other side. */
+  const deficit = maxHp - hp;
+  if (!(deficit > 0)) return null;
   if (hp / maxHp > clampThreshold(o.threshold)) return null;
 
   const items = o.items || {};
-  const foodId = chooseFood(o.foodId, o.inventory, items);
+  /* THE DEFICIT is what makes "cheapest SUFFICIENT" answerable, and this is
+     the only caller that knows it. Passed rather than re-derived inside
+     chooseFood so that function stays honest about its inputs: a caller with
+     no deficit gets the pre-ruling behaviour instead of a guessed one. */
+  const foodId = chooseFood(o.foodId, o.inventory, items, deficit);
   if (!foodId) return null;
   const heals = Number(items[foodId] && items[foodId].heals) || 0;
   if (!(heals > 0)) return null;

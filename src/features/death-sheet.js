@@ -151,12 +151,28 @@
                         still sells it at this price). Kept rather than deleted
                         so a grant that has not reached this device does not
                         leave the sheet with nothing to say. */
+      /* ⚠ 2026-08-31 (Designer ruling 2b, condition 3). The owned+off line is
+         the one the ruling names: *"for a player who owns a tier and has it
+         switched off it must say 'Auto-Eat is switched off' with a one-tap
+         re-enable, not quote a Store price."* The price half was ALREADY right
+         — b497 built this branch precisely so an owner is never sold to, and
+         the suite pins it. What was missing is the TAP: the sheet named a
+         switch three screens away and made them go and find it, at the one
+         moment they have proof they need it. `enableAutoEat` below is the
+         button; the sentence still names Settings, because the button settles
+         this fight and the words are how they find it for the next one.
+
+         "including while you are away" is not decoration any more: with the
+         ON/OFF sync ARMED, off reaches the server and really does mean the
+         night too. Three surfaces — this sheet, the settings hint, the return
+         receipt — now make one promise. */
       var closer = d.autoEatOwned
         ? (d.autoEatOn
           ? ' Auto-Eat is on, but it only fires below a quarter health and ' + d.monsterName +
             ' closed that gap in one blow — eat sooner, or raise the trigger point with Auto-Eat II.'
-          : ' You already have Auto-Eat — switch it on in Settings → Gameplay and it feeds you' +
-            ' below a quarter health, including while you are away.')
+          : ' You already have Auto-Eat — it is switched off, not missing. Turn it back on here,' +
+            ' or in Settings → Gameplay, and it feeds you below a quarter health, including while' +
+            ' you are away.')
         : later;
       return 'You were carrying ' + carried + ' and never ate ' +
         (d.foodQty === 1 ? 'it' : 'one') + '. Press Eat beside your champion during a fight.' +
@@ -263,6 +279,13 @@
       /* The Bounty Shop link only appears when it is actually the answer —
          an offer to buy something you already own is noise. */
       shopLink: tipKey === 'food-unused' && !d.autoEatOwned,
+      /* THE ONE-TAP RE-ENABLE (Designer ruling 2b condition 3, 2026-08-31).
+         The exact complement of `shopLink`: the same tip, the same slot, the
+         other population. An owner who has it switched OFF is the only player
+         for whom one tap fixes the thing that just killed them, so it is the
+         only one who gets a button — an owner with it ON would be offered a
+         switch already thrown, and a non-owner a switch they do not have. */
+      enableAutoEat: tipKey === 'food-unused' && !!d.autoEatOwned && !d.autoEatOn,
       actions: [
         { k: 'again', label: monsterName ? 'Fight ' + monsterName + ' again' : 'Fight again', primary: true },
         { k: 'table', label: 'Back to the War Table' }
@@ -337,7 +360,20 @@
       foodQty: food ? food.qty : 0,
       foodName: food ? food.name : 'provision',
       ateThisFight: ateThisFight(G),
-      autoEatOwned: !!(G.traits && G.traits.auto_eat),
+      /* ANY TIER OWNS THE FEATURE. Asking about the entry-tier id alone told a
+         character holding only Auto-Eat II that they did not have Auto-Eat, and
+         then quoted them the Store price for it — which is exactly the sale the
+         2b ruling's third condition forbids, arriving through the gate rather
+         than the copy. Same predicate `maybeAutoEat`, the settings row and the
+         server entitlement all use: a capability, never an id. Falls back to
+         the id read when the core is not up, which is the honest degrade. */
+      autoEatOwned: (function () {
+        try {
+          var AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+          if (AE && typeof AE.autoEatTier === 'function') return AE.autoEatTier(G.traits || {}) > 0;
+        } catch (e) {}
+        return !!(G.traits && G.traits.auto_eat);
+      })(),
       /* b497 — THE SWITCH, read from its one authoritative writer
          (HearthriseAuto, b326/b329) rather than from `G.autoActions` directly,
          which is the shape ensureShape() maintains and not the contract. Since
@@ -479,6 +515,9 @@
         '<div class="hr-death-tip" data-tip="' + esc(model.tipKey) + '">' +
           '<b>What to do differently</b>' + esc(model.tip) +
           (model.shopLink ? '<button class="hr-death-shop" data-act="shop">Open the Bounty Shop</button>' : '') +
+          /* Same class as the shop link — one affordance in this slot, so the
+             two never look like different kinds of thing. */
+          (model.enableAutoEat ? '<button class="hr-death-shop" data-act="autoeat">Turn Auto-Eat back on</button>' : '') +
         '</div>' +
         '<div class="hr-death-acts">' +
           model.actions.map(function (a) {
@@ -509,6 +548,28 @@
       /* The Bounty Shop is a card on the `bounty` panel, not the gem store —
          Auto-Eat is bought with Marks (legacy.js injectBountyPanel). */
       if (kind === 'shop') { nav('bounty'); return; }
+      /* ── THE ONE TAP (ruling 2b condition 3) ────────────────────────────
+         Through `HearthriseAuto.setEat` and nothing else: it is the declared
+         ONE WRITER of the eat config (b326/b329), it persists itself, and
+         since the 2b arm it is also what pushes the switch to the server —
+         so this single call fixes the next fight AND the next night. Writing
+         `G.autoActions` here would fix neither and would be the second writer
+         that whole comment block exists to prevent.
+         The player is then dropped on Combat like every other exit, having
+         been told what changed. */
+      if (kind === 'autoeat') {
+        try {
+          var A = window.HearthriseAuto;
+          if (A && typeof A.setEat === 'function') {
+            A.setEat({ enabled: true });
+            if (typeof window.notify === 'function') {
+              window.notify('Auto-Eat is back on — it will feed you below a quarter health.', 'good');
+            }
+          }
+        } catch (e) { /* a dead sheet must never trap the player behind it */ }
+        nav('combat');
+        return;
+      }
       /* 'table' and every fallback land on Combat, which is where stopCombat()
          already left them — the difference is that they arrive having been
          told why. */

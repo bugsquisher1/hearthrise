@@ -2681,6 +2681,31 @@ export function summaryFromAway(away, res) {
     gainedKills: Number(a.kills) || 0,
     burnt: 0,
     combat: a.kills ? { kills: Number(a.kills) || 0, crits: Number(a.crits) || 0, died: !!a.died } : null,
+    /* ── DEATH, AT THE TOP LEVEL (ruling 2b, 2026-08-31) ─────────────────────
+       These three are the shape legacy.js's own summary has carried since b341
+       and every welcome-back renderer reads (`home-dashboard.js` asks
+       `off.diedTo || c.diedTo`; `maybeShowWelcome` prints the row off `_off`).
+       This translation carried NONE of them: a server-stated death arrived with
+       the foe missing, and on a 0-KILL death `combat` is null too, so
+       `receiptDied()` read false and the death row was dropped entirely. The
+       absence that most needs explaining is exactly the one that ended sixty
+       seconds in, and it was the one the receipt could not describe.
+
+       `diedAfterMs` comes from `paidMs`, which is what the SERVER sets it from
+       (accrual.js `windowEnvelope`: the earning span is `survivedMs` when the
+       run died) — the same meaning legacy.js gives the field, not a second one. */
+    died: !!a.died,
+    diedAfterMs: a.died ? (Number(a.paidMs) || 0) : 0,
+    diedTo: a.died ? (a.diedTo || null) : null,
+    /* THE AUTO-EAT STATE FOR THIS SPAN, as the engine ran it. `null` when the
+       server did not state one (a deployment older than this build) — and that
+       null is load-bearing: the death row then names WHAT killed the player but
+       not WHY nothing healed them, which is the honest outcome. It must never
+       be reconstructed from the live toggle; that is a different instant, and
+       b341's rule for this row is STATED, NOT INFERRED. */
+    autoEat: (a.autoEat && typeof a.autoEat === 'object')
+      ? { enabled: !!a.autoEat.enabled, pct: Number(a.autoEat.pct) }
+      : null,
     capped: !!a.capped,
     blessed: !!a.blessed,
     buffsPaused: !!a.buffsPaused,
@@ -2781,6 +2806,55 @@ export function receiptDied(summary) {
   return !!(s.died || (s.combat && s.combat.died));
 }
 
+/* ── WHY NOTHING HEALED THEM (Designer ruling 2b, 2026-08-31) ───────────────
+   The ruling arms the auto-eat ON/OFF sync — a player may switch off a
+   mechanic their overnight survival depends on — on THREE binding conditions,
+   and this is the second: *"the return receipt NAMES the cause on a death.
+   STATED, NOT INFERRED."*
+
+   ⚠ THE WHOLE POINT IS WHAT THIS FUNCTION REFUSES TO DO. It reads the auto-eat
+     state THE RECEIPT CARRIES — the state the engine ran that span with — and
+     nothing else. Reconstructing the sentence from `HearthriseAuto.getEat()`
+     would be describing a different instant: a player who comes back to a
+     corpse and switches auto-eat on before opening the modal would be told
+     their death happened with it running. That is b341's own standard for this
+     row, and it is why `summaryFromAway` had to grow a field rather than a
+     renderer growing a lookup.
+
+   `null` is the honest answer in three distinct cases, and they are
+   deliberately not distinguished: nobody died; the receipt predates the field
+   (an older Edge deployment — self-configuring, no flag to forget); or
+   auto-eat was on and simply lost the fight, which is a gear problem and
+   already has copy of its own on the death sheet.
+
+   THE DIAL AND THE SWITCH ARE ONE ANSWER because they are one outcome: a 0%
+   trigger point reproduces the 0-heal night exactly, through a key that has
+   been live since b499. The ruling covers both, so this does too.
+
+   Pure. Returns `{key, clause, sentence}` — the KEY is the branch (assertable),
+   the copy is rewordable, so a test pins the rule and not a sentence. Two
+   forms because there are two placements and neither may re-punctuate the
+   other's: the modal row joins the CLAUSE onto "You died to X — …", and the
+   durable Home card, which already ends its own sentence, appends the
+   SENTENCE. One source, so the surfaces cannot drift. */
+export function receiptDeathCause(summary) {
+  const s = summary || {};
+  if (!receiptDied(s)) return null;
+  const ae = s.autoEat;
+  if (!ae || typeof ae !== 'object') return null;      // not stated → claim nothing
+  const said = (key, clause, sentence) => ({ key, clause, sentence });
+  if (ae.enabled === false) {
+    return said('auto-eat-off', 'auto-eat was off, so nothing healed you',
+      'Auto-eat was off, so nothing healed you.');
+  }
+  const pct = Number(ae.pct);
+  if (Number.isFinite(pct) && pct <= 0) {
+    return said('threshold-zero', 'your auto-eat trigger was at 0%, so nothing healed you',
+      'Your auto-eat trigger was at 0%, so nothing healed you.');
+  }
+  return null;
+}
+
 /**
  * 'switch' | 'sync' | 'away' — the three genuinely different events that share
  * one receipt shape. Callers pick a sentence from this and nothing else.
@@ -2850,6 +2924,36 @@ export function receiptSentence(summary, opts) {
     if (c.xp > 0) parts.push('+' + c.xp + ' XP');
     if (c.gold > 0) parts.push('+' + c.gold + ' gold');
     return 'Synced' + (parts.length ? (' — ' + parts.join(', ')) : '') + tail;
+  }
+  /* ── A DEATH IS NOT AN ABSENCE, AND MUST NOT WEAR ITS WORDS ─────────────
+     `classifyReceipt` sends every death down the 'away' branch on purpose
+     (b343: "a death is never a quiet toast"). Until 2026-08-31 a 0-KILL death
+     could not reach here at all — `summaryFromAway` carried no top-level
+     `died` and `combat` is null with no kills — so this branch was only ever
+     entered by deaths that had also earned something. Closing that receipt gap
+     pointed the b361 defect straight back at the line below: a character who
+     dies inside an ATTENDED 90 s settle has an `hrs` of 0 and no credit, and
+     the generic sentence would announce **"⏰ Away 0h — the server credited +0
+     items, +0 XP, +0 gold"** at a player sitting at the keyboard watching it
+     happen. That is the exact sentence b361 exists to have deleted.
+
+     So a death gets its own sentence: it says what happened, quotes only what
+     was actually credited, and never claims an absence. The FOE is resolved by
+     the CALLER (`opts.foeLabel`, the same injection shape as `spanLabel`)
+     because this module is pure and MONSTERS is data — the away card and the
+     welcome modal resolve `diedTo` the same way. */
+  if (receiptDied(s)) {
+    const foe = (typeof o.foeLabel === 'function') ? o.foeLabel(s.diedTo) : null;
+    const why = receiptDeathCause(s);
+    const gains = [];
+    if (c.items > 0) gains.push('+' + c.items + ' items');
+    if (c.xp > 0) gains.push('+' + c.xp + ' XP');
+    if (c.gold > 0) gains.push('+' + c.gold + ' gold');
+    return 'You died' + (foe ? (' to ' + foe) : '') + ' — '
+      + (why ? why.clause + (gains.length ? '. Credited ' + gains.join(', ') : '')
+             : (gains.length ? 'credited ' + gains.join(', ') + ' before it'
+                             : 'nothing was earned after'))
+      + tail;
   }
   return '⏰ Away ' + s.hrs + 'h — the server credited +' + c.items + ' items, +'
     + c.xp + ' XP, +' + c.gold + ' gold' + tail;
@@ -3489,7 +3593,7 @@ if (typeof window !== 'undefined') {
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileInventory, reconcileBank, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileCombatStyle, summaryFromAway,
-    SYNC_MAX_MS, receiptCredit, receiptDied, classifyReceipt, receiptNotice, receiptSentence,
+    SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,
   };

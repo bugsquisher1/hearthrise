@@ -9705,29 +9705,55 @@ const TESTS = [
         'an explicit clear must be clearFood:true, not a null food (which means "unchanged"); got '
         + JSON.stringify(lastPatch));
 
-      /* ── (b2) THE ON/OFF TOGGLE IS DORMANT, AND THAT IS THE DESIGNER'S CALL.
-         `auto_eat_enabled` is the flag the accrual engine's fx.autoEat() is
-         gated on; with it off a measured night pays 0 kills and dies. So
-         pushing a client preference up turns it into a total loss of overnight
-         progress, and CONFLICTS.md (2026-08-30) records the question as the
-         Designer's. Asserted in BOTH positions so the mechanism is proven and
-         the shipped position cannot drift unnoticed. */
-      assert(A._syncEnabledToggle() === false,
-        'the auto-eat ON/OFF toggle sync has been ARMED. It is the Designer\'s call (CONFLICTS.md '
-        + '2026-08-30): with auto_eat_enabled false the server\'s sim dies at the first fight and pays '
-        + '0 kills for the night. If this is deliberate, move the ruling with it.');
-      assert(lastPatch.enabled === undefined,
-        'the DORMANT toggle still rode along in the patch: ' + JSON.stringify(lastPatch));
-      const wasArmed = A._syncEnabledToggle(true);
+      /* ── (b2) THE ON/OFF TOGGLE IS **ARMED**, BY RULING.
+         ⚠ THIS EXPECTATION WAS DELIBERATELY FLIPPED on 2026-08-31. b499
+         shipped the toggle DORMANT and this block asserted `=== false`,
+         naming the question as the Designer's (CONFLICTS.md 2026-08-30).
+         DECISIONS.md 2026-08-31 §2b answers it: ARM IT — the threshold dial's
+         0% has been synced since b499, so the 0-heal night was already
+         reachable through a live key, and while the switch stayed dormant a
+         player who turned Auto-Eat OFF still had the server eating their food
+         all night. The UI said off and the engine ate.
+
+         The arm is conditional and the conditions are testable, so they are
+         asserted where they live rather than here: the control copy
+         (SETTINGS-AUTOEAT-1), the receipt's named cause (RECEIPT-DEATHCAUSE-1
+         and the summaryFromAway assertions), and the death sheet's one-tap
+         re-enable (the b497 death-sheet test). If this flag is ever put back
+         to false, THOSE tests are what stop the copy rotting in place.
+
+         Both positions are still driven, for the reason they were before: the
+         mechanism must be proven to be gated, not merely proven to fire. */
+      assert(A._syncEnabledToggle() === true,
+        'the auto-eat ON/OFF toggle sync has been DISARMED. It is armed by ruling (DECISIONS.md '
+        + '2026-08-31 §2b) and it does not ship alone — three binding conditions ride with it '
+        + '(control copy, the receipt naming the cause, the death sheet\'s one-tap re-enable). '
+        + 'If it is going back to dormant, move the ruling with it.');
+      assert(lastPatch.enabled === true,
+        'ARMED, an explicit enable must ride along with the food pick that carried it — the server '
+        + 'believed false and the player expressed true: ' + JSON.stringify(lastPatch));
+      /* THE GATE STILL GATES. Driven from the armed default to the dormant
+         position, which is the direction that matters now. */
+      const wasArmed = A._syncEnabledToggle(false);
       try {
         window.HearthriseAccrual.serverAutoEatSettings = () => ({ enabled: true, food: null, pct: 50 });
         sent = 0; lastPatch = null;
-        A.setEat({ enabled: false });
+        A.setEat({ enabled: false, threshold: 0.35 });
         A._flushEatSync();
         await new Promise((r) => setTimeout(r, 40));
-        assert(sent === 1 && lastPatch && lastPatch.enabled === false,
-          'ARMED, the toggle must reach the server; got ' + JSON.stringify(lastPatch));
+        assert(sent === 1 && lastPatch && lastPatch.enabled === undefined,
+          'DORMANT, the toggle must NOT reach the server (the threshold beside it still must); got '
+          + JSON.stringify(lastPatch));
       } finally { A._syncEnabledToggle(wasArmed); }
+      /* …and armed, it does reach it. The assertion the arm exists for. */
+      window.HearthriseAccrual.serverAutoEatSettings = () => ({ enabled: true, food: null, pct: 50 });
+      sent = 0; lastPatch = null;
+      A.setEat({ enabled: false });
+      A._flushEatSync();
+      await new Promise((r) => setTimeout(r, 40));
+      assert(sent === 1 && lastPatch && lastPatch.enabled === false,
+        'ARMED, switching auto-eat OFF must reach the server — otherwise the UI says off and the '
+        + 'engine keeps eating the player\'s food all night; got ' + JSON.stringify(lastPatch));
 
       // ── (c) collect_first — the server refuses a change with an unpaid window
       //        because these three columns PRICE an absence. The choice must be
@@ -9753,6 +9779,162 @@ const TESTS = [
       A.setEat(before); A._resetEatSync(); A._parkEatSync(wasParked);
       restoreG(snap);
     }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     RECEIPT-DEATHCAUSE — THE RETURN RECEIPT NAMES WHY NOTHING HEALED.
+
+     Designer ruling 2b (2026-08-31), condition 2 of the three that ARM the
+     auto-eat ON/OFF sync: *"When the span died with auto-eat disabled or the
+     threshold at 0, the receipt must say WHY. ⚠ STATED, NOT INFERRED — the
+     away receipt has to carry the auto-eat state FOR THAT SPAN. Do NOT
+     reconstruct the sentence from the client's current toggle, which is a
+     different instant than the one that killed them."*
+
+     TWO DEFECTS ARE CLOSED HERE and only one of them is the new field:
+       · `summaryFromAway` carried NO death at all above the nested `combat`
+         block — no `diedTo`, so a server-stated death rendered "You died" with
+         a blank where the monster goes, and on a 0-KILL death `combat` is null
+         so `receiptDied()` read false and the row vanished entirely. The
+         absence that most needs explaining is exactly the one that ended sixty
+         seconds in.
+       · the auto-eat state was nowhere on the receipt, so the sentence could
+         only ever have been inferred.
+
+     MUTATION (both proved): make `receiptDeathCause` read
+     `HearthriseAuto.getEat().enabled` instead of the receipt → the
+     "different instant" assertion goes red while every other one stays green;
+     drop `diedTo` from summaryFromAway → the pass-through assertion goes red.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRun('RECEIPT-DEATHCAUSE-1: a server death receipt carries the foe AND the auto-eat state that span ran with', () => {
+    const A = window.HearthriseAccrual;
+    if (!A || typeof A.summaryFromAway !== 'function' || typeof A.receiptDeathCause !== 'function') return;
+
+    /* The PRODUCER's shape — supabase/functions/hr-accrue/index.ts, the `away`
+       literal — not an invented one. A fixture that drifts from the producer
+       proves nothing about the producer (TESTING.md, the fixture rule). */
+    const away = (over) => Object.assign({
+      grantMs: 43200000, capped: false, awayMs: 43200000, paidMs: 42000,
+      unpaidMs: 0, windowFrom: 1770000000000, windowTo: 1770043200000,
+      tickMs: 2400, perkChannel: 'live', kills: 0, crits: 0,
+      died: true, diedTo: 'dragon', autoEat: { enabled: false, pct: 25 },
+      foodEaten: 0, blessed: false, buffsPaused: false, featuredMs: 0,
+      featuredDropMult: 1, gold: 0, xp: {}, items: {}, levelUps: [], events: [],
+    }, over || {});
+
+    /* ── 1. THE DEATH SURVIVES THE TRANSLATION, WITH ZERO KILLS ──────────── */
+    const rec = A.summaryFromAway(away(), { version: 7 });
+    assert(rec.died === true,
+      'a 0-kill death vanished from the receipt — `combat` is null with no kills, so this was the ONE '
+      + 'absence the card could not describe: ' + JSON.stringify(rec.combat));
+    assert(rec.diedTo === 'dragon', 'the receipt does not name the foe: ' + rec.diedTo);
+    assert(rec.diedAfterMs === 42000,
+      'the receipt lost how far into the night the run got (server states it as paidMs): ' + rec.diedAfterMs);
+    assert(A.receiptDied(rec) === true, 'receiptDied() cannot see a 0-kill death');
+    assert(A.classifyReceipt(rec) === 'away',
+      'a death was classified as a quiet live sync — "you fell" is the one piece of news that is not '
+      + 'measured in items: ' + A.classifyReceipt(rec));
+
+    /* ── 2. THE CAUSE, BY BRANCH. The KEY is the rule; the copy may be
+           reworded by Art without turning this red. ─────────────────────── */
+    assert(A.receiptDeathCause(rec).key === 'auto-eat-off',
+      'a death with auto-eat switched off did not name the cause: ' + JSON.stringify(A.receiptDeathCause(rec)));
+    assert(/nothing healed you/i.test(A.receiptDeathCause(rec).clause),
+      'the clause does not say what happened: ' + A.receiptDeathCause(rec).clause);
+
+    const zero = A.summaryFromAway(away({ autoEat: { enabled: true, pct: 0 } }), {});
+    assert(A.receiptDeathCause(zero).key === 'threshold-zero',
+      'a death at a 0% trigger point was not named — the dial reproduces the same no-heal night as the '
+      + 'switch and the ruling covers both: ' + JSON.stringify(A.receiptDeathCause(zero)));
+
+    /* ── 3. AND IT CLAIMS NOTHING IT WAS NOT TOLD ────────────────────────── */
+    const running = A.summaryFromAway(away({ autoEat: { enabled: true, pct: 25 } }), {});
+    assert(A.receiptDeathCause(running) === null,
+      'a death WITH auto-eat running was blamed on auto-eat — that is a gear problem and the death '
+      + 'sheet already has copy for it');
+    const older = A.summaryFromAway(away({ autoEat: undefined }), {});
+    assert(older.autoEat === null && A.receiptDeathCause(older) === null,
+      'a receipt from a server that does not state the auto-eat state produced a sentence anyway — '
+      + 'the field is self-configuring and its absence must claim nothing');
+    const lived = A.summaryFromAway(away({ died: false, diedTo: null }), {});
+    assert(A.receiptDeathCause(lived) === null, 'a night nobody died in was given a death cause');
+    assert(lived.diedTo === null && lived.diedAfterMs === 0,
+      'a receipt with no death carried a foe or a death span: ' + JSON.stringify(lived));
+
+    /* ── 3b · A DEATH MUST NOT WEAR AN ABSENCE'S WORDS (the b361 defect,
+           re-opened by this very fix and closed with it) ──────────────────
+       Making a 0-kill death visible on the receipt also made it reachable by
+       `classifyReceipt`, which sends every death down the 'away' branch by
+       design (b343: "a death is never a quiet toast"). The generic away
+       sentence would then have announced "⏰ Away 0h — the server credited +0
+       items, +0 XP, +0 gold" at a player who is sitting at the keyboard
+       watching a 90-second settle. That is the exact sentence b361 deleted. */
+    const attended = A.summaryFromAway(away({ grantMs: 90000, awayMs: 90000, paidMs: 42000 }), {});
+    const line = A.receiptSentence(attended, { foeLabel: (id) => (id === 'dragon' ? 'Dragon' : null) });
+    assert(line && !/Away 0h/i.test(line) && !/\+0 items/.test(line),
+      'a death inside an attended 90-second settle announced itself as an absence with three zeroes '
+      + '— the b361 sentence, back through the death branch: ' + line);
+    assert(/You died to Dragon/.test(line),
+      'the death toast does not name the foe the receipt states (the caller injects the label the '
+      + 'same way it injects spanLabel): ' + line);
+    assert(/nothing healed you/i.test(line),
+      'the death toast dropped the cause the receipt carries: ' + line);
+    assert(A.receiptNotice(attended).announce === true,
+      'a death was demoted to a silent sync — "you fell" is the one piece of news that is not '
+      + 'measured in items');
+
+    /* ── 4. STATED, NOT INFERRED — the condition the ruling underlines.
+           The LIVE toggle is the opposite of the receipt's in both directions;
+           the sentence must follow the receipt every time. ───────────────── */
+    const Auto = window.HearthriseAuto;
+    if (Auto && typeof Auto.getEat === 'function') {
+      const before = Auto.getEat();
+      let parked = false;
+      try {
+        parked = (typeof Auto._parkEatSync === 'function') ? Auto._parkEatSync(true) : false;
+        Auto.setEat({ enabled: true, threshold: 0.5 });     // switched back ON since the death
+        assert(A.receiptDeathCause(rec).key === 'auto-eat-off',
+          'the cause was rebuilt from the CURRENT toggle: a player who comes back to a corpse and '
+          + 'switches auto-eat on before opening the modal would be told their death happened with it '
+          + 'running. That is a different instant (b341: stated, not inferred).');
+        Auto.setEat({ enabled: false });                    // switched OFF since a survivable night
+        assert(A.receiptDeathCause(running) === null,
+          'the live toggle invented a cause for a death the receipt says auto-eat was running through');
+      } finally {
+        Auto.setEat(before);
+        if (typeof Auto._resetEatSync === 'function') Auto._resetEatSync();
+        if (typeof Auto._parkEatSync === 'function') Auto._parkEatSync(parked);
+      }
+    }
+  }),
+
+  /* SETTINGS-AUTOEAT-1 — condition 1 of the 2b arm: the warning is AT the
+     control, on BOTH ends, before the night rather than after it. Asserted on
+     the pure hint function through the panel's own published seam, because the
+     panel is 900 lines of string building and a DOM walk here would be testing
+     the renderer instead of the rule. */
+  () => tryRun('SETTINGS-AUTOEAT-1: the away warning is on the toggle\'s OFF state AND the dial\'s 0% end', () => {
+    const S = window.HearthriseSettingsPage;
+    if (!S || typeof S._autoEatHint !== 'function') return;
+    const off = S._autoEatHint(false, 0.25, '');
+    const zero = S._autoEatHint(true, 0, '');
+    const live = S._autoEatHint(true, 0.25, ' Auto-Eat II raises the ceiling.');
+    const WARN = /will not heal while away/i;
+    assert(WARN.test(off),
+      'the toggle\'s OFF state does not warn that nothing heals you while away. With the ON/OFF sync '
+      + 'armed (ruling 2b) that switch now reaches the server, and the warning is a BINDING condition '
+      + 'of arming it: "' + off + '"');
+    assert(WARN.test(zero),
+      'the dial\'s 0% end does not carry the same warning. It reproduces the identical no-heal night '
+      + 'through a different key, so a warning on the switch alone is half the rule: "' + zero + '"');
+    assert(off.replace(/^[^.]*\.\s*/, '') === zero.replace(/^[^.]*\.\s*/, ''),
+      'the two controls warn in different words, which reads as two different severities:\n  off:  '
+      + off + '\n  zero: ' + zero);
+    assert(!WARN.test(live) && /Auto-Eat II/.test(live),
+      'a live auto-eat setting is being warned at (or lost its upsell): "' + live + '"');
+    assert(/manual/i.test(zero),
+      'the 0% hint no longer says healing is manual — b326 keeps a deliberate zero meaning exactly '
+      + 'that, and removing the meaning is the paternalism the ruling rejects: "' + zero + '"');
   }),
 
   // b133: HearthriseDropLog API + recordKill mutation
@@ -27861,6 +28043,187 @@ const TESTS = [
     } finally {
       window.getBonus = origBonus;
       C.randomSeed();
+      restoreG(snap);
+    }
+  }),
+
+  /* ── AWAY-1b: THE SAME CONTRACT, WITH AUTO-EAT IN THE LOOP ────────────────
+     AWAY-1 above runs on an EMPTY bag, so `fx.autoEat` decides nothing and the
+     parity it proves is parity of the fight. Since the 2026-08-31 ruling the
+     chooser is a three-branch rule reading `raw`, `v` and the DEFICIT off the
+     catalogue, and it runs INSIDE the seeded loop — a path that chose a
+     different food would heal by a different amount and every later roll would
+     diverge. So the family gets an arm rather than a fork: the same rig, the
+     same seed, a bag with a real choice in it, and the INVENTORY comparison
+     (which stacks were drained, food by food) is the assertion.
+
+     The 95% trigger is not decoration: the largest Provision heals 42, so at
+     the default 50% a 60 HP character is 30 HP down and only the top of the
+     ladder covers it — the cheap branch would never fire and this arm would be
+     AWAY-1 again with extra steps. The server-side twin of this assertion is
+     `AUTO-EAT MIXED-BAG PARITY` in tests/accrual-engine.mjs. */
+  () => tryRunClientAuthoritative('AWAY-1b PARITY: with auto-eat ON, live and away drain the SAME stacks out of the same bag', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const P = window.HearthrisePresence;
+    const A = window.HearthriseAuto;
+    if (!A || typeof A.getEat !== 'function') return;
+    const snap = snapshotG();
+    const origBonus = window.getBonus;
+    const beforeEat = A.getEat();
+    let wasParked = false;
+    try {
+      wasParked = (typeof A._parkEatSync === 'function') ? A._parkEatSync(true) : false;
+      window.getBonus = () => 0;
+      G.buffs = [];
+      /* Real catalogue rows, chosen so the ladder has rungs: a 900 g Cooked
+         Shark (the biggest healer, and what the PRE-ruling rule ate every
+         time), a 240 g Lobster, a 55 g Trout, an 18 g Shrimp. */
+      const BAG = { cooked_shark: 400, cooked_lobster: 400, cooked_trout: 400, cooked_shrimp: 400 };
+      const run = (away) => {
+        G.skills = Object.assign({}, G.skills, { attack: 40000, strength: 40000, hitpoints: 15000, defense: 15000 });
+        G.activeMonster = 'goblin';
+        const m = window.MONSTERS.goblin;
+        G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+        G.playerMaxHp = 60; G.playerHp = 60;
+        G.gold = 0;
+        G.inventory = Object.assign({}, BAG);
+        G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
+        G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 });
+        G.quests = [];
+        A.setEat({ enabled: true, threshold: 0.95, foodId: null });
+        const xpBefore = xpMap();
+        C.reseed(0xC0FFEE);
+        const body = () => {
+          const ctx = window.HearthriseCombatSim.ctx();
+          for (let i = 0; i < 240; i++) {
+            if (!G.activeMonster) break;
+            C.combatSim.simulateTick(G, ctx);
+          }
+        };
+        if (away) P._withOfflineReplay(body); else body();
+        const xp = {};
+        Object.keys(G.skills).forEach((k) => { const d = (G.skills[k] || 0) - (xpBefore[k] || 0); if (d) xp[k] = d; });
+        const ate = {};
+        Object.keys(BAG).forEach((id) => {
+          const gone = BAG[id] - (Number(G.inventory[id]) || 0);
+          if (gone > 0) ate[id] = gone;
+        });
+        return { gold: G.gold, kills: G.stats.kills, crits: G.stats.crits, xp, ate };
+      };
+
+      const live = run(false);
+      const away = run(true);
+
+      assert(live.kills > 0, 'the rig produced no kills — the parity assertion would be vacuous');
+      const mealCount = Object.values(live.ate).reduce((s, n) => s + n, 0);
+      assert(mealCount > 0,
+        'auto-eat never fired, so this arm is AWAY-1 with a fuller bag: ' + JSON.stringify(live.ate));
+      assert(JSON.stringify(live.ate) === JSON.stringify(away.ate),
+        'the SAME seeded fight drained different stacks live vs away — the chooser is not one rule.\n'
+        + '  live: ' + JSON.stringify(live.ate) + '\n  away: ' + JSON.stringify(away.ate));
+      assert(JSON.stringify(live.xp) === JSON.stringify(away.xp),
+        'XP DIVERGED with auto-eat on.\n  live: ' + JSON.stringify(live.xp) + '\n  away: ' + JSON.stringify(away.xp));
+      assert(live.gold === away.gold, 'gold diverged: live ' + live.gold + ' vs away ' + away.gold);
+      assert(live.kills === away.kills, 'kills diverged: live ' + live.kills + ' vs away ' + away.kills);
+      assert(live.crits === away.crits, 'crits diverged: live ' + live.crits + ' vs away ' + away.crits);
+      /* AND THE RULING ACTUALLY BIT. Without this the two runs could agree by
+         both eating the Cooked Shark every time, which is the behaviour the
+         ruling replaced. */
+      assert(!live.ate.cooked_shark || Object.keys(live.ate).length > 1,
+        'every meal was the biggest healer in the bag (' + JSON.stringify(live.ate) + ') — the '
+        + 'cheapest-sufficient branch is not reading the deficit');
+    } finally {
+      window.getBonus = origBonus;
+      C.randomSeed();
+      A.setEat(beforeEat);
+      if (typeof A._resetEatSync === 'function') A._resetEatSync();
+      if (typeof A._parkEatSync === 'function') A._parkEatSync(wasParked);
+      restoreG(snap);
+    }
+  }),
+
+  /* ── AUTOEAT-FOOD-1: THE ORDER, THROUGH THE LIVE CLIENT ───────────────────
+     The rule is unit-tested against the real catalogue in
+     tests/accrual-engine.mjs. What THAT cannot see is the client ADAPTER:
+     `maybeAutoEat()` has to hand `resolveAutoEat` the hp/maxHp pair the deficit
+     is computed from, and an adapter that passed a stale or absent maxHp would
+     silently drop the whole cheap branch while every unit assertion stayed
+     green. So this drives the shipped path on a live `G` and reads the bag. */
+  () => tryRun('AUTOEAT-FOOD-1: with no food nominated, the client eats the CHEAPEST food that heals to full — not the biggest', () => {
+    const G = window.G;
+    const A = window.HearthriseAuto;
+    const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+    if (!A || !AE) return;
+    const snap = snapshotG();
+    const beforeEat = A.getEat();
+    let wasParked = false;
+    try {
+      wasParked = (typeof A._parkEatSync === 'function') ? A._parkEatSync(true) : false;
+      /* THE ORDER, on producer-real rows. Named expects, so a reworded rule
+         cannot pass by accident:
+           shrimp           heals 3,  v 5,   RAW  (Cooking's own input)
+           cooked_wolf_meat heals 6,  v 12        (processed, dearer, WINS)
+           cooked_shrimp    heals 8,  v 18
+           cooked_shark     heals 42, v 900       (the pre-ruling answer) */
+      const I = window.ITEMS;
+      assert(I.shrimp.raw === true && I.shrimp.v === 5 && I.cooked_wolf_meat.v === 12,
+        'the fixture rows moved — this test is no longer about what it says it is about');
+      assert(AE.chooseFood(null, { shrimp: 9, cooked_wolf_meat: 9 }, I, 3) === 'cooked_wolf_meat',
+        'a RAW Provision was eaten while a processed one covered the same deficit');
+      assert(AE.chooseFood(null, { cooked_shark: 9, cooked_shrimp: 9 }, I, 5) === 'cooked_shrimp',
+        'the chooser did not take the cheapest Provision that heals to full');
+      assert(AE.chooseFood(null, { cooked_shark: 9, cooked_shrimp: 9 }, I, 30) === 'cooked_shark',
+        'with nothing able to heal to full the chooser must fall back to the BIGGEST healer');
+
+      /* AND THE ADAPTER. A live 60 HP character, 5 HP down, holding both. */
+      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
+      G.playerMaxHp = 60; G.playerHp = 55;
+      G.inventory = { cooked_shark: 4, cooked_shrimp: 4 };
+      G.combatLog = [];
+      A.setEat({ enabled: true, threshold: 0.95, foodId: null });
+      const ate = A.maybeAutoEat();
+      assert(ate === true, 'the client refused to auto-eat a 5 HP deficit at a 95% trigger');
+      assert(G.inventory.cooked_shrimp === 3 && G.inventory.cooked_shark === 4,
+        'the client ate the wrong stack — it must spend the 18 g Cooked Shrimp, not the 900 g Cooked '
+        + 'Shark, on a 5 HP hole: ' + JSON.stringify(G.inventory));
+      assert(G.playerHp === 60, 'the cheap food must still heal to FULL — that is what makes this free: '
+        + G.playerHp);
+
+      /* ── A FULL BAR CONSUMES NOTHING (Designer ruling 2c, 2026-08-31) ────
+         The unit gates live in tests/accrual-engine.mjs; this is the half only
+         the shipped client can prove — that the ADAPTER's apply step never
+         runs, so no stack is decremented. The bug it closes is the tier-II
+         ceiling turning `hp/maxHp <= 1` into one destroyed Provision per swing
+         at full health, ~1,400 times a night, for 0 HP.
+         CONTROL FIRST, deliberately: a guard that simply stopped auto-eating
+         altogether must fail here rather than pass by doing nothing. */
+      G.playerHp = 59; G.inventory = { cooked_shrimp: 4 };
+      A.setEat({ enabled: true, threshold: 1 });
+      assert(A.maybeAutoEat() === true && G.inventory.cooked_shrimp === 3,
+        'CONTROL: a 1 HP deficit at a 100% trigger did not eat — the deficit guard has broken the '
+        + 'max-safety setting instead of the zero-deficit case: ' + JSON.stringify(G.inventory));
+      G.playerHp = 60; G.inventory = { cooked_shrimp: 4 };
+      assert(A.maybeAutoEat() === false,
+        'the client auto-ate at FULL health against a 100% trigger — the dial says "eat when my HP '
+        + 'drops to X%", and a full bar has not dropped to anything (ruling 2c)');
+      assert(G.inventory.cooked_shrimp === 4,
+        'a full-health auto-eat consumed a Provision for 0 HP restored: ' + JSON.stringify(G.inventory));
+
+      /* …and the dial's top end says what the setting now means. */
+      const S = window.HearthriseSettingsPage;
+      if (S && typeof S._autoEatHint === 'function') {
+        const top = S._autoEatHint(true, 1, '');
+        assert(/eat the moment I take any damage/i.test(top),
+          'the 100% end of the dial does not say what the setting now does: ' + top);
+        assert(!/will not heal while away/i.test(top),
+          'the 100% end wears the 0% end\'s warning — the ruling rejected copy as a substitute for '
+          + 'the engine fix, and there is no consequence left to warn about: ' + top);
+      }
+    } finally {
+      A.setEat(beforeEat);
+      if (typeof A._resetEatSync === 'function') A._resetEatSync();
+      if (typeof A._parkEatSync === 'function') A._parkEatSync(wasParked);
       restoreG(snap);
     }
   }),
@@ -48783,9 +49146,28 @@ const TESTS = [
     assert(/already have Auto-Eat/i.test(owned.tip),
       'a player who was granted Auto-Eat is not told they have it: ' + owned.tip);
     assert(/Settings/i.test(owned.tip), 'the tip does not say where the switch is: ' + owned.tip);
+    /* ⚠ THIS LINE IS A COPY PIN AND IT CAUGHT A REAL REWRITE (2026-08-31).
+       Ruling 2b condition 3 asked the sentence to lead with the STATE ("Auto-Eat
+       is switched off"), and the first draft dropped "already have Auto-Eat" —
+       the fact this test exists for — while keeping everything else green. The
+       rule is BOTH: they own it, AND it is off, AND that is one tap away. The
+       assertions are kept separate so a future rewording is told which of the
+       three it lost. */
     assert(!/Bounty Shop/.test(owned.tip) && !/15/.test(owned.tip),
       'the tip still quotes the Marks price of a trait the player already owns: ' + owned.tip);
     assert(owned.shopLink === false, 'the Bounty Shop door opened for an owner');
+    /* ⚠ 2026-08-31 — Designer ruling 2b, condition 3: *"a player who owns a
+       tier and has it switched off gets 'Auto-Eat is switched off' with a
+       ONE-TAP RE-ENABLE, not a Store price."* The price half was already right
+       (asserted above, since b497); the tap was missing — the sheet named a
+       switch three screens away at the one moment the player has proof they
+       need it. Verified as a VERDICT, not assumed: the copy was correct and the
+       action was not. */
+    assert(/switched off/i.test(owned.tip),
+      'the tip does not state the switch is off in the ruling\'s own words: ' + owned.tip);
+    assert(owned.enableAutoEat === true,
+      'an owner with Auto-Eat switched off is offered no one-tap re-enable — that is condition 3 of '
+      + 'the arm, and without it the sheet is still sending them looking for a setting');
 
     /* THE ACTUAL NEW DEFAULT — `owned + ON` — AND STILL DEAD. "Turn it on"
        would be false here, so the honest fact is the tier-I threshold, and the
@@ -48797,6 +49179,8 @@ const TESTS = [
       'the tip told a player whose Auto-Eat is already ON to switch it on: ' + on.tip);
     assert(/quarter health/i.test(on.tip) && /Auto-Eat II/.test(on.tip),
       'the tip does not explain the tier-I threshold or name the upgrade that raises it: ' + on.tip);
+    assert(on.enableAutoEat === false,
+      'a player whose Auto-Eat is already ON was offered a button to turn it on');
 
     /* THE RESIDUAL PATH is unchanged and still literally true: the Bounty Shop
        sells Auto-Eat I at this price to anyone without it. */
@@ -48804,6 +49188,9 @@ const TESTS = [
     assert(/Bounty Shop/.test(unowned.tip) && /15/.test(unowned.tip),
       'the unowned branch stopped naming the shop and the price: ' + unowned.tip);
     assert(unowned.shopLink === true, 'the shop door closed on the one branch that needs it');
+    assert(unowned.enableAutoEat === false,
+      'a non-owner was offered a switch they do not have — the two buttons are complements, not '
+      + 'alternatives, and both appearing (or the wrong one) is the sale the ruling forbids');
   }),
 
   () => tryRun('b373: death sheet — the receipt states no-loss, full heal and the stopped run', () => {

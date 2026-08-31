@@ -767,6 +767,15 @@ export async function collectCurrentWindow(o) {
       ms: out.grantMs, capped: out.capped, kills: out.summary.kills,
       gold: out.summary.gold, xp: out.summary.xp, items: out.summary.items,
       levelUps: out.levelUps, died: out.summary.died,
+      /* Ruling 2b (2026-08-31): a collect-before-switch settles a real window
+         and that window can end in a death — so it states WHAT killed them and
+         the auto-eat state it ran with, exactly as the accrue verb does. One
+         receipt shape, or the two payment paths describe one death
+         differently. `paidMs` rides along because the client reads
+         `diedAfterMs` off it. */
+      diedTo: out.summary.diedTo ?? null,
+      autoEat: out.summary.autoEat,
+      paidMs: out.summary.paidMs,
       /* Ruling 2: WHICH hours the switch settled. A collect-before-switch pays
          the same window an accrue would, so it states it the same way. */
       unpaidMs: out.summary.unpaidMs,

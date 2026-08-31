@@ -501,6 +501,80 @@
     var n = Number(t.cost); if(!isFinite(n)) n = 15;
     return n.toLocaleString() + (t.currency === 'marks' ? ' Bounty Marks' : ' gold');
   }
+  /* ── THE HINT UNDER THE DIAL — ONE SOURCE, THREE STATES ──────────────────
+     It used to be written out TWICE (here and again in the `data-autoeat`
+     change handler, which repaints it rather than re-rendering the panel), so
+     the two copies could disagree — and the moment the ruling below added a
+     third state they would have.
+
+     ⚠ THE WARNING IS A BINDING CONDITION OF ARMING THE SYNC, not decoration.
+       Designer ruling 2b (2026-08-31): the auto-eat ON/OFF toggle now reaches
+       the server, so switching it off really does mean nothing heals you while
+       you are away — the accrual engine's `fx.autoEat()` is gated on that exact
+       column and a measured 12-hour night with it off pays 0 kills and dies at
+       the first fight. The ruling's answer to "they might not have understood"
+       is never a guardrail; it is making the consequence legible, AT the
+       control, before the night rather than after it.
+
+       BOTH ENDS, because they are one outcome. The dial's 0% minimum
+       reproduces the same no-heal night through a different key
+       (`clampThreshold`'s b326 note keeps a deliberate zero meaning "manual
+       healing only" — that stays), so a warning on the switch alone would be
+       half the rule. Same sentence, so the two controls cannot be read as two
+       different severities.
+
+     The copy is the Designer's, verbatim. Do not reword it here without them —
+     the death receipt (src/net/accrue.js `receiptDeathCause`) is the other half
+     of the same promise and the two are meant to rhyme. */
+  var AUTO_EAT_AWAY_WARNING =
+    'You will not heal while away. A fight that outlasts your health ends the night early.';
+  function autoEatHint(on, threshold, upsell){
+    if(!on){
+      return 'Auto-eat is switched OFF — this threshold does nothing until you turn it on above. '
+        + AUTO_EAT_AWAY_WARNING;
+    }
+    if(!(Number(threshold) > 0)){
+      return 'At 0% auto-eat never fires — healing in combat is manual. ' + AUTO_EAT_AWAY_WARNING;
+    }
+    /* THE TOP END, LABELLED HONESTLY (Designer ruling 2c, 2026-08-31). This
+       rides WITH the engine fix and is not a substitute for it — copy at this
+       end was explicitly rejected as the answer. `resolveAutoEat` now refuses a
+       zero-deficit eat, so 100% has stopped meaning "burn a Provision every
+       swing at full health" and started meaning the max-safety setting a
+       tier-II owner paid 100 Marks for. The label says that in the player's own
+       words instead of leaving them to infer it from a percentage that reads
+       like a paradox. Deliberately NOT a warning: the 0% end warns because
+       there is a real consequence to inform; here there is none left. */
+    if(Number(threshold) >= 1){
+      return '100% — eat the moment I take any damage. '
+        + 'Feasts & Draughts are never auto-eaten.' + (upsell || '');
+    }
+    return 'Eat one Provision automatically on each swing your HP is below this percentage. '
+      + 'Feasts & Draughts are never auto-eaten.' + (upsell || '');
+  }
+
+  /* Re-say the hint from the LIVE control values. Both writers (the switch and
+     the dial) call this, so neither can leave the other's sentence stale — and
+     it reads the DOM rather than being handed a value, because the two handlers
+     fire on different elements and a parameter would be a third statement of
+     the same state. */
+  function repaintAutoEatHint(root){
+    if(!root) return;
+    var slider = root.querySelector('[data-set="autoEatPct"]');
+    var toggle = root.querySelector('[data-autoeat="enabled"]');
+    if(!slider || !toggle) return;
+    var row = slider.closest ? slider.closest('.ss-row') : null;
+    var hint = row ? row.nextElementSibling : null;
+    if(!hint || !hint.classList || !hint.classList.contains('ss-hint')) return;
+    /* The upsell is carried on the node, not re-derived. It is a PURCHASE
+       PROMPT read from TRAITS at render time; re-deriving it on every toggle
+       would make this a second reader of the price, which is the drift the
+       death sheet's b432 note is about. Stashing it means the tier-II line
+       survives a repaint instead of vanishing on the first flip. */
+    hint.textContent = autoEatHint(!!toggle.checked, parseFloat(slider.value),
+      hint.getAttribute('data-upsell') || '');
+  }
+
   function autoEatHtml(){
     var d = window.G.settings;
     if(!ownsAutoEat()){
@@ -533,17 +607,15 @@
       ? ' Auto-Eat II (' + esc(String(Number(window.TRAITS.auto_eat_2.cost) || 100).toLocaleString())
         + ' Bounty Marks — Store → Bounty Shop) raises the ceiling.'
       : '';
+    var val = Math.min(d.autoEatPct, maxT);
     return '<div class="ss-row"><div class="ss-label">Auto-eat</div>'
       +      '<label class="ss-toggle"><input type="checkbox" data-autoeat="enabled"'
       +        (on ? ' checked' : '') + ' />'
       +        '<span class="ss-toggle-track"><span class="ss-toggle-knob"></span></span></label>'
       +    '</div>'
-      + sliderRow('Auto-eat HP threshold', 'autoEatPct', Math.min(d.autoEatPct, maxT),
-          0, maxT, 0.05, pct(Math.min(d.autoEatPct, maxT)),
-          on
-            ? 'Eat one Provision automatically on each swing your HP is below this percentage. '
-              + 'Feasts & Draughts are never auto-eaten.' + upsell
-            : 'Auto-eat is switched OFF — this threshold does nothing until you turn it on above.');
+      + sliderRow('Auto-eat HP threshold', 'autoEatPct', val,
+          0, maxT, 0.05, pct(val), autoEatHint(on, val, upsell),
+          'data-upsell="' + esc(upsell) + '"');
   }
 
   // ── Gameplay ───────────────────────────────────────────────
@@ -786,7 +858,10 @@
       +   '<span class="ss-toggle-track"><span class="ss-toggle-knob"></span></span>'
       + '</label>';
   }
-  function sliderRow(label, key, value, min, max, step, displayValue, hint){
+  /* `hintAttrs` is an optional attribute string on the hint node — used by the
+     auto-eat row to CARRY its upsell across a repaint (see
+     repaintAutoEatHint), so the price stays read from TRAITS exactly once. */
+  function sliderRow(label, key, value, min, max, step, displayValue, hint, hintAttrs){
     return '<div class="ss-row">'
       +     '<div class="ss-label">' + esc(label) + '</div>'
       +     '<div class="ss-slider">'
@@ -794,7 +869,7 @@
       +       '<span class="ss-slider-value">' + esc(displayValue) + '</span>'
       +     '</div>'
       +   '</div>'
-      + (hint ? '<div class="ss-hint">' + esc(hint) + '</div>' : '');
+      + (hint ? '<div class="ss-hint"' + (hintAttrs ? ' ' + hintAttrs : '') + '>' + esc(hint) + '</div>' : '');
   }
   function selectRow(label, key, current, options, namespace){
     var attr = (namespace === 'chat') ? 'data-chat-set' : 'data-set';
@@ -860,6 +935,14 @@
             window.HearthriseAuto.setEat({ threshold: v });
           }
           window.G.autoEatPct = v;
+          /* THE DIAL REPAINTS ITS OWN HINT NOW. It never did — so dragging to
+             0% left "Eat one Provision automatically…" sitting under a control
+             that had just been set to never fire, which is the b326 class of
+             lie in the surface rather than the engine. It is a binding
+             condition of the 2b arm that the 0% end carries the away warning,
+             and a warning that only appears on the next panel open is not at
+             the control. */
+          repaintAutoEatHint(root);
         }
         if(typeof window.saveLocal === 'function') window.saveLocal();
         // Update visible slider value
@@ -884,13 +967,7 @@
            re-render would collapse every section the player had opened and
            throw away their scroll position, which is a worse bug than the
            stale sentence. */
-        var slider = root.querySelector('[data-set="autoEatPct"]');
-        var hint = slider && slider.closest('.ss-row') ? slider.closest('.ss-row').nextElementSibling : null;
-        if(hint && hint.classList && hint.classList.contains('ss-hint')){
-          hint.textContent = el.checked
-            ? 'Eat one Provision automatically on each swing your HP is below this percentage. Feasts & Draughts are never auto-eaten.'
-            : 'Auto-eat is switched OFF — this threshold does nothing until you turn it on above.';
-        }
+        repaintAutoEatHint(root);
       });
     });
     // Chat settings controls
@@ -1311,6 +1388,15 @@
   var prev = window.openSettings;
   window.openSettings = openSettings;
   window._legacyOpenSettings = prev || null;
+
+  /* The one pure rule in this file, published so the suite can assert it
+     without opening a modal and walking 900 lines of generated HTML. The
+     away warning on the toggle's OFF state and the dial's 0% end is a BINDING
+     condition of arming the auto-eat ON/OFF sync (Designer ruling 2b,
+     2026-08-31), so it needs a test that fails when the copy is dropped —
+     SETTINGS-AUTOEAT-1. Nothing else here is worth a seam; the rest is
+     rendering. */
+  window.HearthriseSettingsPage = { _autoEatHint: autoEatHint };
 
   console.log('[settings] page rebuilt — 6 sections active');
 })();

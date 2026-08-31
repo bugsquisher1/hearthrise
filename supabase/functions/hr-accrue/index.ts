@@ -1040,6 +1040,22 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         kills: out.summary.kills,
         crits: out.summary.crits,
         died: out.summary.died,
+        /* WHAT KILLED THEM, and WHY NOTHING HEALED THEM. Both are the same
+           sentence on the return receipt — *"You died to Ancient Bear —
+           auto-eat was off, so nothing healed you"* — and neither may be
+           inferred (b341's standard, restated by ruling 2b, 2026-08-31).
+
+           `diedTo` was missing outright: the client's `summaryFromAway` had no
+           foe to name, so a server-stated death rendered "You died" with a
+           blank where the monster goes. `autoEat` is the state the ENGINE ran
+           this span with (accrual.js states it off `eatCfg`), not the client's
+           current toggle, which is a different instant.
+
+           Both are self-configuring on the way down: a client reading a
+           receipt from an older deployment finds them absent, says nothing,
+           and never guesses. */
+        diedTo: out.summary.diedTo ?? null,
+        autoEat: out.summary.autoEat,
         // How much food the night ate. The welcome-back card has to be able to
         // say it: a player who returns to an empty Cooked Shark stack and no
         // explanation files a bug, and the honest answer is "it kept you alive

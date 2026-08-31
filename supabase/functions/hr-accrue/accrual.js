@@ -1639,6 +1639,24 @@ export function computeAccrual(input) {
       // so the welcome-back line can say "+50% drops" (daily) or "+100%"
       // (weekly) instead of a renderer guessing and halving a weekly night.
       featuredDropMult: summary.featuredDropMult,
+      /* ── THE AUTO-EAT STATE THIS SPAN ACTUALLY RAN WITH (ruling 2b) ──────
+         STATED BY THE ENGINE, not re-read off the row by a caller, for the
+         same reason `blessed` / `died` / `featuredDropMult` are: the return
+         receipt has to be able to say *"you died to X — auto-eat was off, so
+         nothing healed you"*, and b341's standard for that sentence is STATED,
+         NOT INFERRED. Rebuilt from the client's CURRENT toggle it would
+         describe a different instant than the one that killed them — a player
+         who finds the corpse and switches auto-eat back on would be told the
+         death happened with it ON.
+
+         It is `eatCfg` — the object `fx.autoEat` was actually gated on — so
+         the receipt cannot disagree with the simulation. `pct` is the
+         EFFECTIVE trigger point as an integer percent, because the 0% end of
+         the dial reproduces the same no-heal night as the switch and the
+         ruling covers both controls with one answer.
+
+         REPORTED, NEVER APPLIED: nothing reads this back into a grant. */
+      autoEat: { enabled: eatCfg.enabled, pct: Math.round(eatCfg.threshold * 100) },
       ...windowEnvelope(credit, summary.died ? summary.survivedMs : null),
       gold: goldDelta,
       xp: xpDelta,

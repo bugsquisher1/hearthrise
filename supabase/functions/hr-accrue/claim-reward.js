@@ -179,7 +179,9 @@ import {
   claimIntentNameFor, deltaClosesWindow, INTENT_ERRORS,
 } from './intents.js';
 import { refusalBody } from './envelope.js';
-import { CLAIMABLES, claimableFor, claimableId, priceDailyLogin } from '../../../src/data/rewards.js';
+import {
+  CLAIMABLES, claimableFor, claimableId, priceDailyLogin, deriveLoginStreak,
+} from '../../../src/data/rewards.js';
 
 /** The verb's own name — used to build `journal.intent` and to read the
     registry. Never a literal at a call site. */
@@ -218,31 +220,28 @@ export function pricedClaimables() {
 export function pricerIds() { return Object.keys(PRICERS).sort(); }
 
 /* ── THE STREAK, DERIVED FROM THE SERVER'S OWN CLAIM HISTORY ────────────────
-   `player_progress.value` on a `daily:login` row is THE STREAK LENGTH ON THAT
-   DAY — unusual for that column, which is normally a counter, and stated here
-   because the shape is what makes the rule one lookup instead of a scan:
+   THE IMPLEMENTATION MOVED TO src/data/rewards.js (b498), for the same reason
+   the seven-day cycle moved there in b349 and stated at length at its new site:
+   a number the CLIENT renders and the SERVER pays must be produced by one
+   function, not by two that agree.
 
-       yesterday's row exists and is 'claimed'  ⇒  streak = its value + 1
-       anything else                            ⇒  streak = 1
+   It did not stay agreed. b475 taught the daily sheet to render
+   `state.streak_days` — hr_apply's SETTLE streak, "consecutive days the player
+   played" — as if it were this one, "consecutive days the player CLAIMED".
+   Live on 2026-08-31 the two diverged and the sheet advertised Day 3 (2,000
+   gold, 5 gems) against a Day 1 payout (500 gold, no gems).
 
-   Nothing walks a history, nothing depends on a retention window, and a player
-   who misses a day resets by ARITHMETIC rather than by a reset that has to be
-   remembered. It also means the 31-day `hr_progress_prune` cannot silently
-   shorten a streak: only yesterday is ever read, and yesterday is never pruned.
+   The client cannot call `hr_claim_lookup`, but it does not need to: every
+   envelope carries the same `daily`/`login` progress rows, so the client builds
+   `{prev, rows}` from what it was given and calls THIS function. Re-exported
+   here so nothing that imports it from this module (tests/claim-intent.mjs, and
+   any future pricer) has to know it moved.
 
-   ⚠ THE STREAK IS NEVER READ FROM THE CLIENT. `G.streak.count` exists and is
+   ⚠ THE STREAK IS STILL NEVER READ FROM THE CLIENT. `G.streak.count` is
      forgeable; it is not an input here and there is no field through which it
-     could become one. */
-export function deriveLoginStreak(lookup) {
-  const rows = (lookup && lookup.rows) || {};
-  const prev = lookup && lookup.prev;
-  if (typeof prev !== 'string') return 1;
-  if (!Object.prototype.hasOwnProperty.call(rows, prev)) return 1;
-  const row = rows[prev];
-  if (!row || row.state !== 'claimed') return 1;
-  const v = Number(row.value);
-  return Number.isFinite(v) && v >= 1 ? Math.floor(v) + 1 : 1;
-}
+     could become one. What the client now shares is the RULE, applied to the
+     SERVER's own rows — never a value it gets to name. */
+export { deriveLoginStreak };
 
 /* ── THE PERIOD, AND THE FAIL-CLOSED ROW CHECK — SHARED BY EVERY PRICER ─────
    Security G6. Both of these were written INSIDE priceLoginClaim, where they

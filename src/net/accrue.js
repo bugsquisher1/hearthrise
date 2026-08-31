@@ -1761,8 +1761,12 @@ export function applyEnvelopeState(G, res, ownKey) {
     if (w && w.HearthriseDaily && typeof w.HearthriseDaily.markServerClaim === 'function') {
       w.HearthriseDaily.markServerClaim(res && res.progress);
     }
-    // b475 — feed the server's authoritative streak (state.streak_days) so the
-    // daily-reward sheet renders the day/reward the server will actually pay.
+    /* b475/b498 — feed the WHOLE envelope so the daily-reward sheet can derive
+       the day the server will pay from the server's own daily/login claim rows
+       (`progress`) against the server's own clock (`now`).
+       ⚠ NOT `state.streak_days`. That is hr_apply's SETTLE streak — days
+         PLAYED, not days CLAIMED — and b475 rendering it as the login streak is
+         what made the sheet advertise Day 3 against a Day 1 payout (b497). */
     if (w && w.HearthriseDaily && typeof w.HearthriseDaily.noteServerStreak === 'function') {
       w.HearthriseDaily.noteServerStreak(res);
     }

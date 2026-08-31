@@ -1,8 +1,41 @@
 # R5 — the renown kill faucet (LIVE, pre-existing, P1)
 
-**Status:** BUILT on `fix/renown-kill-faucet` — migration
-`supabase/migrations/2026-09-02-renown-kill-faucet.sql`, **not applied**. Security's
+**Status:** **APPLIED TO PRODUCTION on or before 2026-08-30 06:56:52 UTC** — the
+first `ev:kill_credited*` row carries that timestamp. Record corrected 2026-08-31
+after the full security pass found the repo still said "not applied": the pass
+proved the deployed bytes byte-identical to this file (live `hr_credit_kills__ungated`
+md5 `31807e64…` = the file's `c_applied`; stripping §1's patch from the live body
+reproduces `c_expect` `31894cff…` exactly; live `hr_renown_of` = §2's body), and
+**measured the property on production**: all 11 monster rows reconcile
+credited-vs-applied exactly, `credited ≤ bestiary` holds with 0 violations, and a
+forged client credit contributes exactly zero renown. Verdict: SIGN-OFF WITH
+CONDITIONS on the change; the stale record itself was the P1 (see the forensic
+record and the live-hash drift check follow-up below). Security's
 five pre-build conditions are folded in (§8).
+
+## Forensic record of the open faucet window (captured 2026-08-31, before the 2-day log prune)
+
+The faucet was exploitable 2026-08-29 06:57 → 2026-08-30 06:56 UTC only. The whole
+window was still in `hr_kill_credit_log` at capture time. Measured residue:
+
+| user | bounty credits | applied | applied vs a BOSS | undiscounted renown produced |
+|---|---|---|---|---|
+| `bf18bd7f` | 491 | 491 | **0** | 24.55 |
+| `0a47ba77` (QA) | 10 | 12 | **0** | 0.60 |
+
+**Zero boss kills were ever credited by any player** — the 5-renown boss term
+(the 19,500/hr scripted rate that justified the P1) was never exercised. Total
+renown ever minted by the faucet: **~25 points**. Ranks claimed ever: 1
+(`renown_claim:serf`, 2026-08-27 — two days before the credit verb existed, not
+faucet-derived). Gems paid through the ladder: **0**. The retroactivity residue
+is effectively nil, and the beta wipe removes it entirely.
+
+⚠ **Correction to the high-water paragraph (§ below and the migration header):**
+`renown_high` is a ratchet that advances only on a claim attempt — it is NOT a
+high-water of the score. Live max `renown_high` = 773 (below squire 900), but the
+live max *score* via `hr_renown_of` = 1,275 (above squire) — honestly earned
+(only ~25 renown total is faucet-derived). The re-open trigger is correctly
+stated against the SCORE, not the ratchet column.
 **Raised by:** Security, during the review of `2026-09-01-kill-daily-credit.sql`.
 **Not introduced by that file** — this is the *deployed* `2026-08-30-bounty-kill-credit.sql`
 behaviour and has been live since it was applied.

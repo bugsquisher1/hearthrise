@@ -36,7 +36,12 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 15 -> 20 on 2026-08-31: live-hash-drift replays the whole migration chain
+    # once for the guard and three more times for its mutation proof, and the
+    # renown-faucet mutation harness replays it sixteen times (~2m). A timeout
+    # that trims mutation proofs is a timeout that deletes the only evidence a
+    # guard can fail.
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -94,6 +99,59 @@ jobs:
           node tests/schema-drift.mjs
           node tests/schema-drift.mjs --mutate
           node tests/schema-drift.mjs --live-selftest
+
+      # ...AND DOES PRODUCTION CARRY THE BODIES THE REPO BELIEVES IT CARRIES?
+      # schema-drift fingerprints SIGNATURES; its own header names function
+      # BODIES as blind spot (C). On 2026-08-30 the renown-faucet migration ran
+      # on production while the repo went on recording it as staged for a full
+      # day, and nothing in this repository could have said so: the platform's
+      # migration ledger is frozen (applies go through execute_sql) and the
+      # migrations' own md5 pins fire only at APPLY time — they answer "may I
+      # install?", never "what is installed right now?".
+      #
+      # This is the credential-free half. It DERIVES every hash-pinned and
+      # programmatically-patched function from supabase/migrations/** — never a
+      # hand list, which would be one migration from being wrong, and the
+      # function that fell off it is the one nobody is watching — replays the
+      # chain, and fails if the repo no longer rebuilds to the body the baseline
+      # records. --selftest plants 16 defects (a mutated live hash, a deleted
+      # baseline entry, a prod-only OVERLOAD of a hash-pinned function, a STAGED
+      # migration found applied, a truncated paste, an unexplained divergence,
+      # --write's own REVIEW placeholder left in place, two unreadable patcher
+      # idioms) and requires each to be caught by the NAMED assertion written
+      # for it, after a false-positive floor check. --mutate plants three in the
+      # REAL migration text, including a comment edited into a body after it was
+      # applied — invisible to every other guard in this repo.
+      #
+      # The PRODUCTION half (--live / --live-sql / --live-compare / --codediff)
+      # is deliberately NOT here: the repository is public and this job runs npm
+      # lifecycle scripts, so no database credential belongs in it. It is an
+      # operator ritual — run it before any migration, restore or cutover step.
+      - name: Live-hash drift — the repo's belief about deployed bodies
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/live-hash-drift.mjs
+          node tests/live-hash-drift.mjs --selftest
+          node tests/live-hash-drift.mjs --mutate
+
+      # THE RENOWN FAUCET'S MUTATION HARNESS — the half that proves the guard
+      # itself can fail. The guard already runs inside run-smoke; its --selftest
+      # was wired into NOTHING, which is the restore-census mistake below,
+      # repeated. Worse, until 2026-08-31 it graded ANY throw as a catch: eight
+      # of eleven mutations demonstrated only "the apply threw", and a reviewer's
+      # SYNTAX-ONLY non-defect duly reported ✓ CAUGHT. Every mutation now names
+      # WHICH mechanism must catch it (the migration's own §3 gate, or this
+      # file's assertions) and a regex the catch must MATCH; a syntax error or an
+      # unplantable anchor is classified HARNESS and exits 2; and two permanent
+      # NEGATIVE CONTROLS — the reviewer's syntax-only plant and a comment-only
+      # plant — must never read as catches. Making `by` explicit also exposed
+      # that R2's counter equality, R6 and R9 had no mutation that reached them
+      # at all (§3 refused every defect aimed at them first), so all three were
+      # assertions nothing had ever fired; they now have gate-blind twins.
+      # 14 mutations + 2 controls, ~2 minutes of real PostgreSQL.
+      - name: Renown faucet — every mutation caught by its NAMED assertion
+        if: ${{ !cancelled() }}
+        run: node tests/renown-kill-faucet.mjs --selftest
 
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that

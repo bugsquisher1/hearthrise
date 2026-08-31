@@ -61,6 +61,7 @@ import { bountyDifficultyCountGuard } from './bounty-difficulty-count.mjs';
 import { combatStyleGuard } from './combat-style.mjs';
 import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
+import { unlockCatalogueOwnershipGuard } from './unlock-catalogue-ownership.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
 import { runAll as liveSettlementGuards, engineGuard as settleReport,
@@ -3297,6 +3298,25 @@ const run = async () => {
     } else {
       console.log('\nUnlock-offer ownership guard — each generator refills only the rows it owns; '
         + 're-applying the shop catalogue alone preserves all 48 gold-ladder offers.');
+    }
+
+    /* ── The SAME interlock, on the sibling table (b498) ─────────────────
+       The guard above declared hr_unlocks out of scope — "whose merge rows are
+       upserted rather than refilled and were therefore never at risk". That was
+       false: 2026-08-16-unlocks.generated.sql refills hr_unlocks with a bare
+       `delete from public.hr_unlocks;`, and its 2026-08-23 regen destroyed the
+       17 non-shop companion rows in PRODUCTION, which then ran 65 rows against
+       a repo that rebuilds 82 for a week. This replays that exact operation and
+       requires the DECLARED repair list to restore the catalogue exactly. */
+    const catOwnerProblems = await unlockCatalogueOwnershipGuard();
+    if (catOwnerProblems.length) {
+      console.log('\nUnlock-catalogue ownership — FAILED:');
+      for (const p of catOwnerProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nUnlock-catalogue ownership guard — the chain rebuilds all 21 companion rows; '
+        + 're-applying the wholesale unlock catalogue alone is repaired exactly by the declared '
+        + 'repair list, which is cross-checked against the apply manifest.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

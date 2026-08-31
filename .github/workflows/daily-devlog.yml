@@ -1,0 +1,73 @@
+# ============================================================================
+# daily-devlog — the "so people know what we are working on" post (Tyler,
+# 2026-08-31, rebuilding trust after the beta-2 launch).
+#
+# Once a day, posts to Discord:
+#   1. the current contents of docs/planning/NOW.md (player-curated by the
+#      Coordinator — the ONLY allowed source for "working on" copy), and
+#   2. a "shipped in the last day" line derived from CHANGELOG.md headings
+#      dated today/yesterday (also player-curated by construction).
+#
+# DELIBERATELY NEVER sources from git commit subjects or the priority board:
+# both carry internal detail (exploit residuals, security review language)
+# that must not reach a public channel. If NOW.md's updated-stamp is more
+# than 10 days old the post is SKIPPED rather than repeating stale copy —
+# a devlog that repeats itself reads worse than silence.
+#
+# Secret required: DISCORD_ALERT_WEBHOOK (same as edge-quota-watch). The job
+# no-ops quietly without it.
+# ============================================================================
+name: daily-devlog
+
+on:
+  schedule:
+    - cron: '3 17 * * *'   # daily 17:03 UTC (~noon US central)
+  workflow_dispatch: {}     # manual run button for testing
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose and post the devlog
+        env:
+          DISCORD_ALERT_WEBHOOK: ${{ secrets.DISCORD_ALERT_WEBHOOK }}
+        run: |
+          set -u
+          if [ -z "${DISCORD_ALERT_WEBHOOK:-}" ]; then
+            echo "no webhook secret — skipping (add DISCORD_ALERT_WEBHOOK to enable)"; exit 0
+          fi
+
+          NOW_FILE=docs/planning/NOW.md
+          [ -f "$NOW_FILE" ] || { echo "NOW.md missing — skipping"; exit 0; }
+
+          # staleness gate: the updated-stamp comment must be within 10 days
+          STAMP=$(grep -oP '(?<=updated: )\d{4}-\d{2}-\d{2}' "$NOW_FILE" | head -1 || true)
+          if [ -n "$STAMP" ]; then
+            AGE=$(( ( $(date -u +%s) - $(date -u -d "$STAMP" +%s) ) / 86400 ))
+            if [ "$AGE" -gt 10 ]; then
+              echo "NOW.md is ${AGE}d old — skipping rather than repeating stale copy"; exit 0
+            fi
+          fi
+
+          # body = NOW.md minus comment lines and the h1
+          BODY=$(grep -v '^<!--' "$NOW_FILE" | grep -v '^# ' | sed '/^$/N;/^\n$/D')
+
+          # shipped-recently line from CHANGELOG headings dated today/yesterday
+          TODAY=$(date -u +%Y-%m-%d); YDAY=$(date -u -d 'yesterday' +%Y-%m-%d)
+          SHIPPED=$(grep -oP '^## \Kv[^(]+\((.+)\)$' CHANGELOG.md 2>/dev/null | head -8 | \
+            grep -E "$TODAY|$YDAY" | sed -E 's/ — [0-9-]+ \(/ — /; s/\)$//' | sed 's/^/• /' || true)
+
+          MSG="**📜 Hearthrise dev log — $(date -u '+%b %-d')**"$'\n\n'"$BODY"
+          if [ -n "$SHIPPED" ]; then
+            MSG="$MSG"$'\n\n'"✅ **Shipped in the last day**"$'\n'"$SHIPPED"
+          fi
+
+          jq -nc --arg c "$MSG" '{content:$c, username:"Hearthrise Dev Log"}' > body.json
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$DISCORD_ALERT_WEBHOOK" \
+            -H 'Content-Type: application/json' --data-binary @body.json)
+          echo "discord: $CODE"
+          [ "$CODE" = "204" ] || [ "$CODE" = "200" ] || exit 1

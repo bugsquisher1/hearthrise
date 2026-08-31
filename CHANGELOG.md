@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 499 — 2026-08-31 (The consumption build: arrows are real, refusals speak, one word per streak)
+
+> **🧪 Testers (Paione — the arrow report is yours):** ① equip arrows above the starter tier and fight — **they deplete now**, per swing, and running dry drops your max hit to a quarter until you re-supply (starter-tier training ammo stays free). ② Earn a companion — if the realm can't record it you now get an honest message instead of a companion that appears and vanishes. ③ The words "daily streak" now mean exactly one thing everywhere — days you *claimed*, on the reward sheet; days you *played* says "played," in the topbar and welcome card.
+
+- 🏹 **Ammo is consumed in combat.** The whole system was designed and built weeks ago — the fight just never called it. Arrows spend per swing (whetstones per-use for melee), the away simulation charges the same night an attended fight would, and running out degrades your damage honestly instead of stalling your night. Starter-tier ammo is deliberately free.
+- 🐾 **A companion the realm can't record no longer pretends to arrive.** It used to appear, toast, chronicle itself — then vanish on the next sync, eating the Whelp's dragon egg on the way. Now nothing is shown or spent until the server confirms, refusals say why in a sentence, and the egg is only consumed on a recorded hatch.
+- 🍖 **The realm finally knows which food you picked for Auto-Eat.** Your food choice and threshold now sync to the server (it used to eat your most valuable healer overnight regardless of what you chose).
+- 🗣️ **One streak, one word.** The reward sheet says "Day N of 7" (your claim cycle). The topbar and welcome card say "played N days running." They were both called "daily streak" while counting different things.
+- 🔧 Under the hood: refusal codes now carry severity (a destroyed catalogue alarms on the first occurrence), an orphaned test contract was resurrected and wired into the suite, and the whole suite is green at 1103/1103.
+
 ## v0.9.2-beta build 498 — 2026-08-31 (The honesty build: the daily sheet tells the truth, companions are acquirable again)
 
 - 🎁 **The daily-reward sheet can no longer promise more than it pays.** If you missed a day, the streak resets — the server always knew that, but the sheet kept advertising your old day's reward and then paid Day 1. The display now reads the same claim streak the server pays on. (If you open the game in the first seconds before your data loads, the sheet may briefly *under*-state your day — never over.)

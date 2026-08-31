@@ -34,6 +34,31 @@ everything earned up to it.
 **The dial keeps its 0%** — `clampThreshold`'s b326 note preserves a deliberate zero on purpose
 ("manual healing only"), and removing it is the paternalism this ruling rejects.
 
+**AND THE ZERO-DEFICIT EAT YOU FILED → OPTION (a), REFUSE IT.** Full reasoning in DECISIONS
+2026-08-31 §2c; the short version is that it does **not** collide with 2b. 2b protects a
+*choice*: at 0% the player gets exactly what the dial promises, and "don't burn my Moonfish on a
+low-value grind" is an intent someone can hold. At 100% they get something the label does **not**
+promise — the dial says *"eat when my HP drops to X%"* and a character at full bar has not
+dropped to anything. `hp/maxHp <= 1.0` at full health is the arithmetic of a `<=` boundary, not a
+preference, and there is no build or strategy in which destroying a Provision for 0 HP helps
+anyone. Refusing is also what makes the ceiling worth its 100 Marks instead of the setting that
+empties your bag.
+
+**Guard on `deficit > 0`, not `threshold < 1`** (kills the class, not the 100% instance — any
+future maxHp change or regen reaches the same boundary), placed **before `chooseFood`** so a
+zero-deficit call does not also pick a food it will not eat; it sits beside the existing
+`hp <= 0` return, same shape. HP-identical, draw-free, AWAY-1 unmoved. **It must ride the SAME
+edge redeploy as the chooser** — shipping the chooser alone makes this 50x cheaper and therefore
+50x harder to spot while it drains the bag all night regardless, and once the cheap processed
+stock is gone it works down into the raw crafting material ruling 2 exists to protect. The dial
+label rides with the fix, not instead of it: **"100% — eat the moment I take any damage"**.
+Test: `hp === maxHp` + threshold 1.0 → null and nothing consumed; CONTROL at `maxHp - 1`, same
+threshold, still eats; mutation = delete the guard.
+**(b) 99% clamp rejected** — a dial that shows 100% and stores 99% is the "UI says one thing,
+engine does another" class, and it still eats a whole Provision for a 1 HP deficit. **(c)
+copy-only rejected** — a warning is the right answer at 0%, where there is a real consequence to
+inform; here it would be the game's only warning about behaviour nobody wants.
+
 **Separately, and still needed after your sync:** the NULL-food ordering below. Your sync fixes
 the player's *pick*; the fallback still answers for every character until its owner opens the
 picker, and for anyone whose nominated stack runs out mid-night — which is exactly when a bag of

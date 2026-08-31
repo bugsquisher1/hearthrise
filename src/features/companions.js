@@ -323,8 +323,28 @@ function grantKind(id) {
   const def = COMPANIONS[id];
   return String((def && def.source) || '').split(':')[0];
 }
+/* ⚠ NEVER A BARE `window` ON THE ASYNC PATH.
+   Every other reference in this file is reached only from a live page, so a bare
+   `window` is safe there. The grant ladder is NOT: it sleeps between rungs and
+   therefore OUTLIVES whatever set the context up, and a bare `window` is a
+   ReferenceError — not an undefined property — the moment that context is gone.
+   Measured, and it did not merely fail a test: tests/companions-record.mjs §6
+   arms the capstone, calls unlockCompanion, and its `finally` runs
+   `delete globalThis.window` while the ladder is still sleeping. grantTransport()
+   threw ReferenceError, the .catch handler below then threw the SAME error
+   dereferencing `window.notify`, and the unhandled rejection killed the whole
+   `node tests/run-smoke.mjs` process before it ever reached the browser. Same
+   idiom blobRetired() above already uses. */
+function win() {
+  try {
+    if (typeof window !== 'undefined') return window;
+    if (typeof globalThis !== 'undefined' && globalThis.window) return globalThis.window;
+  } catch (e) {}
+  return null;
+}
 function grantTransport() {
-  const gc = window.HearthriseGoalClaim;
+  const w = win();
+  const gc = w && w.HearthriseGoalClaim;
   return (gc && typeof gc.grantCompanion === 'function') ? gc : null;
 }
 /** Is this acquisition one the SERVER has to record before it can be shown? */
@@ -354,6 +374,27 @@ export function needsServerConfirm(id) {
    deserves another go — which is also a second chance at a 1-in-2,500 drop. */
 const GRANT_TRANSPORT_COOLDOWN_MS = 300000;
 const _grantBlocked = Object.create(null);    // id → epoch ms until (Infinity = session)
+
+/* ⚠ PARKED FOR THE SUITE — the same treatment runSmokeTest already gives the
+   90 s settle loop, the autosave and the auto-eat settings sync, and it is here
+   because this ladder proved the need. `b202: pets` drives
+   `P.rollSkillPet('woodcutting', () => 0)` with a FORCED win; under the live
+   capstone arm that dispatches a real hr_companion_grant, the suite is signed
+   out, `not_signed_in` is retryable, and the ladder then slept 3 s / 10 s / 30 s
+   / 60 s — a hundred seconds of timers running THROUGH the rest of the suite,
+   ending in a `notify()` toast and a possible `G.companions` write long after
+   that test's `finally` had restored everything. Two of them, from one test.
+   That is a cross-test state leak by construction, and no amount of care inside
+   the individual tests can close it: the leak is the ladder outliving them.
+   Default OFF; production never touches it. */
+let _grantsParked = false;
+/** Park/unpark the grant ladder. Returns the PREVIOUS state so a caller can
+ *  restore what it found rather than assuming. */
+export function __parkGrants(on) {
+  const was = _grantsParked;
+  _grantsParked = !!on;
+  return was;
+}
 function grantBlocked(id) {
   const until = _grantBlocked[id];
   if (until === undefined) return false;
@@ -422,6 +463,7 @@ export function grantRefusalMessage(res, id) {
    promise for the tests; no caller awaits it (an acquisition is not a gesture
    the player is standing on). It never rejects. */
 export function requestServerUnlock(id, onUnlocked) {
+  if (_grantsParked) return Promise.resolve(false);
   if (_grantInFlight[id]) return Promise.resolve(false);
   if (grantBlocked(id)) return Promise.resolve(false);
   _grantInFlight[id] = true;
@@ -434,47 +476,68 @@ export function requestServerUnlock(id, onUnlocked) {
     for (let i = 0; i < GRANT_RETRY_MS.length; i++) {
       if (GRANT_RETRY_MS[i] > 0) await sleep(GRANT_RETRY_MS[i]);
       const gc = grantTransport();
-      if (!gc) { last = { ok: false, error: 'network' }; continue; }
+      /* ⚠ THE TRANSPORT VANISHED — STOP, do not keep sleeping through the ladder.
+         needsServerConfirm() required a transport before this was ever dispatched,
+         so a null one HERE means the context went away underneath us: a torn-down
+         test fixture, or a page being unloaded. There is nothing to retry against
+         and the remaining rungs are ~100 s of timers firing into a dead world. */
+      if (!gc) return { ok: false, error: 'network', gone: true };
       try { last = await gc.grantCompanion(id, source); }
       catch (e) { last = { ok: false, error: 'network' }; }
       /* ok — including `already_owned:true`, which is a landed grant seen twice. */
       if (last && last.ok) return last;
-      if (!GRANT_RETRYABLE.has(String((last && last.error) || 'network'))) return last;
+      /* A response that is not an envelope at all is not a verdict. Treat it as a
+         transport failure (the safe direction — nothing was decided), but do NOT
+         spin the full ladder on it: a caller wired to the old fire-and-forget
+         contract returns a bare thenable-less object every time, and retrying it
+         four more times just burns ~100 s to be handed the same non-answer. */
+      if (!last || typeof last !== 'object'
+          || (last.ok === undefined && last.error === undefined)) {
+        return { ok: false, error: 'network', unshaped: true };
+      }
+      if (!GRANT_RETRYABLE.has(String(last.error || 'network'))) return last;
     }
     return last;
   };
 
-  return run().then((res) => {
+  const settle = (res, threw) => {
     delete _grantInFlight[id];
+    const w = win();
     /* Re-read ownership: an envelope may have reconciled the companion in while
        the verdict was in flight, and pushing it twice would duplicate the card. */
-    ensureState();
-    const owned = !!(window.G && window.G.companions
-      && window.G.companions.ownedIds.includes(id));
-    if (res && res.ok) {
+    if (!threw && res && res.ok) {
+      /* No world to hand it to (the context was torn down mid-flight) — the
+         server row EXISTS, which is the durable half, and reconcileCompanions
+         will deliver it from the owned-set on the next envelope. Applying into a
+         dead `window` would only throw. */
+      if (!w) return false;
+      ensureState();
+      const owned = !!(w.G && w.G.companions
+        && Array.isArray(w.G.companions.ownedIds)
+        && w.G.companions.ownedIds.includes(id));
       if (!owned) applyUnlockLocally(id, onUnlocked);
       return true;
     }
     /* REFUSED. Nothing was written: no ownedIds push, no xp row, no toast, no
        chronicle line, no consume at the call site (the callback never ran). The
        player is told, once, in a sentence. */
-    const why = String((res && res.error) || 'network');
+    const why = threw ? 'network' : String((res && res.error) || 'network');
     /* …and ONCE is enforced here, not hoped for: the trigger may repeat (the
        bunny quest fires on every harvest). See the block table above. */
     _grantBlocked[id] = GRANT_RETRYABLE.has(why) ? (Date.now() + GRANT_TRANSPORT_COOLDOWN_MS) : Infinity;
     try { console.warn('[Companions] grant refused:', why, id); } catch (e) {}
-    if (typeof window.notify === 'function') {
-      window.notify(grantRefusalMessage(res, id), 'kill');
+    /* ⚠ SAY NOTHING INTO A DEAD CONTEXT. If the world this acquisition belonged
+       to is gone (`gone`, or no window at all), there is no player to tell and a
+       toast would only be an exception. The memo above still stands. */
+    if (w && !(res && res.gone) && typeof w.notify === 'function') {
+      w.notify(grantRefusalMessage(threw ? null : res, id), 'kill');
     }
     return false;
-  }).catch((e) => {
-    delete _grantInFlight[id];
-    _grantBlocked[id] = Date.now() + GRANT_TRANSPORT_COOLDOWN_MS;
-    try { console.warn('[Companions] grant failed:', e); } catch (_) {}
-    if (typeof window.notify === 'function') {
-      window.notify(grantRefusalMessage(null, id), 'kill');
-    }
-    return false;
+  };
+
+  return run().then((res) => settle(res, false), (e) => {
+    try { console.warn('[Companions] grant threw:', e && e.message); } catch (_) {}
+    return settle(null, true);
   });
 }
 
@@ -961,7 +1024,7 @@ export function setupCompanions() {
        `requestServerUnlock` returns a promise that resolves true only when the
        companion really joined. */
     needsServerConfirm, requestServerUnlock, grantRefusalMessage,
-    __setGrantRetryMs, __clearGrantBlocks,
+    __setGrantRetryMs, __clearGrantBlocks, __parkGrants,
   });
 
   // Hook into existing engine functions

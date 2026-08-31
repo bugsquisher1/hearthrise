@@ -172,8 +172,25 @@ export async function companionsRecordGuard() {
     // Shop + starter: skipped (shop gets its row from hr_unlock_buy; fox is grammar).
     if (typeof C.unlockCompanion === 'function') {
       const calls = [];
+      /* b499 — THE STUB RETURNS A REAL ENVELOPE NOW, and the old shape was not a
+         style nit. `grantCompanion` used to be fire-and-forget, so this fixture
+         returned `{catch(){}}` — enough for `p.catch(noop)` and nothing more.
+         The caller now READS the verdict (a refused grant must not show a
+         companion that the next envelope removes), so a response carrying
+         neither `ok` nor `error` is a NON-ANSWER: the retry ladder classified it
+         as a transport failure and slept between rungs, this block's `finally`
+         deleted `globalThis.window` underneath it, and the whole
+         `node tests/run-smoke.mjs` process then died on the ReferenceError
+         before it ever reached the browser.
+         The ASSERTIONS below are unchanged — this fixture's subject is still
+         "which acquisitions fire a grant, and with what source". Only the return
+         SHAPE is re-pinned, to hr_companion_grant's real success envelope
+         (2026-09-06-companion-grant-hardening.sql §4(a)). */
       globalThis.window.HearthriseGoalClaim = {
-        grantCompanion: (id, source) => { calls.push({ id, source }); return { catch() {} }; },
+        grantCompanion: (id, source) => {
+          calls.push({ id, source });
+          return Promise.resolve({ ok: true, companion: id, egg_consumed: null });
+        },
       };
 
       // (a) DORMANT: a non-shop unlock fires NO server grant (byte-unchanged).

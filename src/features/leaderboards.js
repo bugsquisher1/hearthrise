@@ -715,6 +715,28 @@
     _resetProbe: _resetProbe,
     _markAvailability: markAvailability,
     _available: available,
+    /* b499 — SNAPSHOT/RESTORE THE AVAILABILITY MAP.
+       `UNAVAILABLE` is module-global and session-scoped (deliberately — see the
+       note above markAvailability), and its ONLY writer is a real
+       `available:false` answer arriving from a real render. That makes it
+       AMBIENT STATE that no test can see and none of them restore: production
+       currently answers `{ok:true, board:'renown', available:false}` for renown
+       (measured live), so the FIRST leaderboard render of a suite run
+       permanently withdraws the Throne chip, and every later picker-shape
+       assertion is then measuring the server's mood rather than the picker.
+       snapshotG/restoreG cannot reach module state, which is why this has to be
+       a seam here rather than discipline over there.
+       Two tests pin their own starting state through these; the same treatment
+       runSmokeTest already gives the settle loop and the autosave. */
+    _availabilitySnapshot: function () {
+      var out = {};
+      for (var k in UNAVAILABLE) if (Object.prototype.hasOwnProperty.call(UNAVAILABLE, k)) out[k] = true;
+      return out;
+    },
+    _restoreAvailability: function (snap) {
+      for (var k in UNAVAILABLE) if (Object.prototype.hasOwnProperty.call(UNAVAILABLE, k)) delete UNAVAILABLE[k];
+      if (snap) for (var j in snap) if (Object.prototype.hasOwnProperty.call(snap, j)) UNAVAILABLE[j] = true;
+    },
     _pickerHtml: pickerHtml
   };
 })();

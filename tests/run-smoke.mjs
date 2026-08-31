@@ -63,6 +63,7 @@ import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
 import { unlockCatalogueOwnershipGuard } from './unlock-catalogue-ownership.mjs';
 import { companionGrantHardeningGuard } from './companion-grant-hardening.mjs';
+import { companionCodesSeverityGuard } from './companion-codes-severity.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
 import { runAll as liveSettlementGuards, engineGuard as settleReport,
@@ -3346,6 +3347,39 @@ const run = async () => {
         + 'refused without its dragon_egg and consumes exactly one when held, the ledger separates '
         + 'claimed_source from catalogue_source, every other storage-guard violation still '
         + 'propagates, and the hardening file is the manifest\'s last toucher of the RPC.');
+    }
+
+    /* ── C6: the two new refusal codes join the severity taxonomy ─────────
+       The hardening above gave hr_companion_grant two machine refusals and
+       journalled both through hr_record_rejection — which grades severity from
+       its OWN arrays, and neither code was in either, so both landed 'normal'
+       forever, at any n. Security's C6 ruling files them separately, because
+       they are separate populations: `unknown_unlock` is a destroyed unlock
+       catalogue (never player behaviour, damage on call ONE) and becomes an
+       INCIDENT on its first occurrence; `missing_req_item` is a stale client
+       once and a signature fifty times, so it ESCALATES on the existing
+       50/user/slot/day counter.
+
+       Measured through the real function AND end-to-end through the real RPC
+       with the code read off the row the verb wrote — the only thing that can
+       see the emitted code drifting from the graded code — plus the two
+       controls that make the proof non-vacuous (one occurrence must STAY
+       normal; an unclassified code must stay normal at ANY n) and a dual-shape
+       arm that applies the migration to the COMMENT-STRIPPED body production
+       actually runs. See tests/companion-codes-severity.mjs. */
+    const codeSevProblems = await companionCodesSeverityGuard();
+    if (codeSevProblems.length) {
+      console.log('\nCompanion-code severity (C6: unknown_unlock incident · missing_req_item '
+        + 'escalates) — FAILED:');
+      for (const p of codeSevProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nCompanion-code severity guard — unknown_unlock is an incident on its FIRST '
+        + 'occurrence and missing_req_item stays normal on its first and escalates at '
+        + 'c_escalate_at, proven through the real hr_record_rejection and end-to-end through the '
+        + 'real hr_companion_grant; an unclassified control code stays normal at any n; every '
+        + 'incumbent code survived the patch; the ACL is unchanged across the definer-body '
+        + 'replace; and both anchors match the comment-stripped body production runs.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

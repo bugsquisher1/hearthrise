@@ -19,3 +19,16 @@ src/data/** text eol=lf
 # falsifiability check cannot be silently disarmed by a line ending.
 supabase/migrations/** text eol=lf
 tests/sql/** text eol=lf
+
+# 2026-08-31 (two incidents in one day, board §8): the HARNESS FILES themselves
+# must be LF too. tests/*.mjs carry template-anchor strings that must byte-match
+# the LF-pinned migrations they mutate — a CRLF checkout of the .mjs hands the
+# matcher CRLF anchors against LF targets and every mutation fails to plant
+# (the b330 class, one directory over). tools/ carries the packer + generators
+# whose emitted text and anchor scans have the same property. The rest of src/
+# is pinned for uniformity: the in-page suite greps source text for census
+# literals, and a split-eol tree is how two tools disagree about one commit.
+src/** text eol=lf
+tests/** text eol=lf
+tools/** text eol=lf
+index.html text eol=lf

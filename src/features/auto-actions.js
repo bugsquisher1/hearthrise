@@ -313,7 +313,23 @@
   }
 
   // ── Getters / setters ───────────────────────────────────────
-  function getEat(){ var a = ensureShape(); return a ? a.eat : Object.assign({}, DEFAULTS.eat); }
+  /* ⚠ RETURNS A COPY, and that is load-bearing rather than tidy (b499).
+     This used to hand back the LIVE `a.eat`, so the natural-looking
+     snapshot/restore every caller writes —
+         const before = getEat(); …mutate…; setEat(before);
+     — was an ALIAS, not a snapshot: `before` moved with every setEat and the
+     "restore" assigned the object to itself. Measured in the browser
+     (`getEat() === G.autoActions.eat` → true). It cost a full diagnosis cycle:
+     the AUTOEAT-SYNC tests left `eat` cleared, which changed what renderCombat
+     draws, which shifted the arena card, which failed `b227: the Eat button is
+     on the stage` several thousand lines later with no visible connection. The
+     b133 round-trip test carries the same idiom and had the same latent hole.
+     A copy makes the obvious code correct. Every production caller is READ-ONLY
+     (combat-render, death-sheet, settings-page, legacy's picker + food block —
+     grepped), and `setEat` merges a plain object, so a copy round-trips
+     exactly. The live object is still reachable via `_ensureShape()` for
+     anything that genuinely needs it. */
+  function getEat(){ var a = ensureShape(); return Object.assign({}, a ? a.eat : DEFAULTS.eat); }
   function setEat(opts){
     var a = ensureShape(); if(!a) return;
     if(opts && typeof opts === 'object') Object.assign(a.eat, opts);

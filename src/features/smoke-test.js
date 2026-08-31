@@ -2372,9 +2372,10 @@ const TESTS = [
     const origFetch = window.fetch, origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
     const origRpc = window.HearthriseRpc, origProf = window.HearthriseProfile, origNotify = window.notify;
     const said = [];
-    let grantCalls = 0, body = null;
+    let grantCalls = 0, body = null, wasParked = false;
     try {
       Cap.__setBlobRetired(true);
+      wasParked = CO.__parkGrants(false);   // this test drives the ladder itself
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs([0, 5]);          // keep the transport ladder test-fast
       window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
@@ -2413,9 +2414,16 @@ const TESTS = [
         'a refused grant seeded an xp row');
       assert(consumed === 0, 'the call-site callback (the hatch\'s egg consume) ran for a REFUSED grant');
       assert(window.G.inventory.dragon_egg === 2, 'a refused hatch spent the egg; have ' + window.G.inventory.dragon_egg);
-      const refusal = said.filter((s) => s.k === 'kill');
-      assert(refusal.length === 1, 'a refusal must be surfaced exactly once; saw ' + said.length
-        + ' notices: ' + JSON.stringify(said));
+      /* ⚠ MATCH THE SUBJECT, NOT THE CHANNEL. This counted every 'kill'-channel
+         notice that arrived while the stub was installed, and the suite runs on a
+         LIVE page: an unrelated async toast from an earlier test ("Could not
+         plant — try again", measured on the assembled run) landed in the
+         collector and the assertion blamed this code for it. A test that any
+         other feature's toast can fail is not measuring what its name says. */
+      const refusal = said.filter((s) => /Whelp|Dragon Egg/.test(s.m));
+      assert(refusal.length === 1, 'a refusal about THIS acquisition must be surfaced exactly once; saw '
+        + refusal.length + ' of ' + JSON.stringify(said));
+      assert(refusal[0].k === 'kill', 'the refusal must use the refusal channel; got ' + refusal[0].k);
       assert(/Dragon Egg/.test(refusal[0].m),
         'the missing_req_item refusal must NAME the item the server wanted; said "' + refusal[0].m + '"');
       assert(!/missing_req_item/.test(refusal[0].m),
@@ -2430,15 +2438,17 @@ const TESTS = [
          closes — and wireBunnyQuest calls unlockCompanion('bunny') on EVERY
          harvest past the hundredth. Without a refusal memo, one refusal becomes
          one RPC, one hr_rejections row and one toast PER HARVEST. */
-      const before = grantCalls, saidBefore = said.length;
+      const mine = () => said.filter((s) => /Whelp|Dragon Egg/.test(s.m)).length;
+      const before = grantCalls, saidBefore = mine();
       await CO.requestServerUnlock('whelp');
       await CO.requestServerUnlock('whelp');
       assert(grantCalls === before,
         'a DEFINITIVE refusal must be remembered — the repeating trigger asked the server again ('
         + (grantCalls - before) + ' extra call(s)), burning the 60/hour budget to be told the same thing');
-      assert(said.length === saidBefore,
-        'and the player must be told ONCE, not once per harvest; saw ' + (said.length - saidBefore) + ' extra');
+      assert(mine() === saidBefore,
+        'and the player must be told ONCE, not once per harvest; saw ' + (mine() - saidBefore) + ' extra');
     } finally {
+      CO.__parkGrants(wasParked);
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs();
       Cap.__setBlobRetired(null);
@@ -2458,9 +2468,10 @@ const TESTS = [
     const origFetch = window.fetch, origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
     const origRpc = window.HearthriseRpc, origNotify = window.notify;
     const said = [];
-    let grantCalls = 0;
+    let grantCalls = 0, wasParked = false;
     try {
       Cap.__setBlobRetired(true);
+      wasParked = CO.__parkGrants(false);   // this test drives the ladder itself
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs([0, 5]);
       window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
@@ -2488,8 +2499,13 @@ const TESTS = [
       assert(cheered === 1, 'the call-site celebration must fire exactly once; fired ' + cheered);
       const cheers = said.filter((s) => /Companion unlocked/.test(s.m));
       assert(cheers.length === 1, 'exactly one unlock toast; saw ' + JSON.stringify(said));
-      assert(!said.some((s) => s.k === 'kill'), 'a SUCCESS produced a refusal notice: ' + JSON.stringify(said));
+      /* Subject-scoped, not channel-scoped — see the note in HATCH-REFUSE-1. The
+         suite is a live page and unrelated async toasts share the 'kill' channel. */
+      const nameOf = (window.COMPANIONS[id] || {}).n || id;
+      assert(!said.some((s) => s.k === 'kill' && s.m.indexOf(nameOf) >= 0),
+        'a SUCCESS produced a refusal notice about ' + nameOf + ': ' + JSON.stringify(said));
     } finally {
+      CO.__parkGrants(wasParked);
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs();
       Cap.__setBlobRetired(null);
@@ -2508,9 +2524,10 @@ const TESTS = [
     const snap = snapshotG();
     const origFetch = window.fetch, origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
     const origRpc = window.HearthriseRpc, origNotify = window.notify;
-    let said = [], grantCalls = 0, answers = [];
+    let said = [], grantCalls = 0, answers = [], wasParked = false;
     try {
       Cap.__setBlobRetired(true);
+      wasParked = CO.__parkGrants(false);   // this test drives the ladder itself
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs([0, 5, 5]);
       window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
@@ -2537,7 +2554,12 @@ const TESTS = [
       await CO.requestServerUnlock(id);
       assert(grantCalls === 1, 'an unknown_unlock is a server catalogue defect — retrying it is pointless spend; saw ' + grantCalls);
       assert(window.G.companions.ownedIds.length === 0, 'an unknown_unlock still delivered the companion');
-      const r = said.filter((s) => s.k === 'kill');
+      /* Subject-scoped, not channel-scoped — see the note in HATCH-REFUSE-1. An
+         unrelated async toast from an earlier test ("Could not plant — try
+         again", measured twice) also rides the 'kill' channel, and counting the
+         channel made this test fail on another feature's noise. */
+      const nameOf = (window.COMPANIONS[id] || {}).n || id;
+      const r = said.filter((s) => s.k === 'kill' && s.m.indexOf(nameOf) >= 0);
       assert(r.length === 1 && !/unknown_unlock/.test(r[0].m),
         'the catalogue refusal needs its own player sentence, not the machine code; said ' + JSON.stringify(said));
 
@@ -2559,9 +2581,11 @@ const TESTS = [
       assert(grantCalls === 2, 'a transport failure must be RETRIED, not surfaced as a refusal; saw ' + grantCalls);
       assert(got === true && window.G.companions.ownedIds.indexOf(id) >= 0,
         'the retry landed but the companion was not delivered');
-      assert(!said.some((s) => s.k === 'kill'),
-        'an eventually-successful retry must not scare the player with a refusal: ' + JSON.stringify(said));
+      assert(!said.some((s) => s.k === 'kill' && s.m.indexOf(nameOf) >= 0),
+        'an eventually-successful retry must not scare the player with a refusal about ' + nameOf
+        + ': ' + JSON.stringify(said));
     } finally {
+      CO.__parkGrants(wasParked);
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs();
       Cap.__setBlobRetired(null);
@@ -4980,7 +5004,24 @@ const TESTS = [
     });
     const G = window.G;
     const saved = G.companions ? JSON.parse(JSON.stringify(G.companions)) : undefined;
+    /* ── RE-PINNED (b499). THE ROLL IS SYNCHRONOUS; THE OWNERSHIP IS NOT. ─────
+       This block asserts pets.js's ROLL MATHS — forced win unlocks, owned pets
+       skip, forced loss does not — by reading `ownedIds` on the line after the
+       roll. That read is only valid on the DORMANT path. The blob-retire
+       capstone is ARMED in production (src/net/capstone.js BLOB_RETIRED = true)
+       and a skill/boss pet is a non-shop acquisition, so `unlockCompanion` now
+       waits for hr_companion_grant before the pet joins: `ownedIds` is
+       legitimately still empty one line later. The expectation is OBSOLETED by
+       the server-confirmed flow, not broken by it.
+       So the capstone is PINNED OFF for the roll maths — the same re-pin the
+       slice-4 gold-arm test took, for the same reason: this test's subject is
+       `rollSkillPet`/`rollBossPet`, and its dependence on the capstone was
+       accidental and unstated. The ARMED contract is then asserted directly
+       below, so coverage goes UP, not down. */
+    const Cap = window.HearthriseCapstone;
+    const CO = window.HearthriseCompanions;
     try {
+      if (Cap && Cap.__setBlobRetired) Cap.__setBlobRetired(false);
       G.companions = { ownedIds: [], equipped: null, xp: {} };
       // forced win (rng → 0) unlocks the woodcutting pet
       assert(P.rollSkillPet('woodcutting', () => 0) === true, 'forced roll should unlock beaver');
@@ -4990,7 +5031,31 @@ const TESTS = [
       // forced loss (rng → 1) never unlocks
       assert(P.rollBossPet('lich', () => 0.999999) === false, 'losing roll should not unlock');
       assert(P.rollBossPet('lich', () => 0) === true, 'forced boss roll should unlock lichling');
+
+      /* THE ARMED CONTRACT, stated rather than assumed: the roll still FIRES (a
+         hit is a hit), and the pet does NOT appear locally until the server has
+         recorded it. Without this the re-pin above would be a hole. Parked, so
+         the dispatch happens without leaving a live retry ladder running
+         through the rest of the suite — which is exactly what this test used to
+         do, twice, before the runner learned to park it. */
+      if (Cap && Cap.__setBlobRetired && CO && typeof CO.needsServerConfirm === 'function') {
+        Cap.__setBlobRetired(true);
+        if (Cap.isBlobRetired() === true && CO.needsServerConfirm('beaver') === true) {
+          const wasParked = CO.__parkGrants(true);
+          try {
+            G.companions = { ownedIds: [], equipped: null, xp: {} };
+            assert(P.rollSkillPet('woodcutting', () => 0) === true,
+              'ARMED: a forced roll must still report a HIT — ownership arriving a round trip later '
+              + 'is not a miss');
+            assert(!G.companions.ownedIds.includes('beaver'),
+              'ARMED: the pet appeared BEFORE the server recorded it — reconcileCompanions rebuilds '
+              + 'the roster from the server owned-set, so the player would watch it vanish');
+          } finally { CO.__parkGrants(wasParked); }
+        }
+      }
     } finally {
+      if (Cap && Cap.__setBlobRetired) Cap.__setBlobRetired(null);
+      if (CO && CO.__clearGrantBlocks) CO.__clearGrantBlocks();
       if (saved === undefined) delete G.companions; else G.companions = saved;
     }
   }),
@@ -11553,7 +11618,7 @@ const TESTS = [
      "does an Eat button exist" (b224 already covers that) but "can the player
      reach it without scrolling, during a fight". The suite runs at 1440×900,
      so the geometry below is a real measurement at a real supported size. */
-  () => tryRun('b227: the Eat button is on the stage and reachable without scrolling', () => {
+  () => tryRunAsync('b227: the Eat button is on the stage and reachable without scrolling', async () => {
     const G = window.G;
     const snap = { monster: G.activeMonster, mhp: G.monsterHp, mmax: G.monsterMaxHp,
       hp: G.playerHp, maxHp: G.playerMaxHp, inv: JSON.parse(JSON.stringify(G.inventory || {})),
@@ -11564,6 +11629,38 @@ const TESTS = [
       G.playerMaxHp = 100; G.playerHp = 30;
       G.inventory = { cooked_shrimp: 5 };
       window.renderCombat();
+
+      /* ⚠ MEASURE THE SETTLED LAYOUT, NOT A TRANSIENT (b499).
+         Every assertion below reads getBoundingClientRect(), and the arena is
+         NOT laid out when renderCombat() returns: the portraits and their
+         plates load asynchronously, so the stage keeps resizing for a few
+         hundred milliseconds. MEASURED on this build, one fresh page, nothing
+         else running — the Eat button against the arena card's bottom edge:
+             immediately after renderCombat()   +1.11px OVER   (fail)
+             +50ms                              +5.69px OVER   (fail)
+             +300ms                             -11.2px inside (pass)
+             +1s / fonts ready                  -10.89px inside (pass)
+         The settled answer has ELEVEN PIXELS of headroom, so the assertion is
+         not marginal and is not being loosened — it was simply being asked
+         before the page had finished answering. That is why this went red with
+         no CSS, markup or layout change anywhere in the build: the boot path
+         got a little heavier and the transient moved.
+         Settle by WAITING FOR THE GEOMETRY TO STOP MOVING rather than by
+         sleeping a magic number, so a slower machine cannot reintroduce the
+         flake and a faster one does not pay for it. */
+      const settle = async () => {
+        let last = null;
+        for (let i = 0; i < 40; i++) {                     // ~1.3s ceiling
+          await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 32)));
+          const b = document.querySelector('#arena-act-player .arena-eat');
+          const c = document.querySelector('#panel-combat .combat-arena');
+          if (!b || !c) continue;
+          const key = b.getBoundingClientRect().bottom + '|' + c.getBoundingClientRect().bottom;
+          if (key === last) return;                        // two frames agree
+          last = key;
+        }
+      };
+      await settle();
 
       const btn = document.querySelector('#arena-act-player .arena-eat');
       assert(btn, 'no Eat button on the player side of the arena');
@@ -11584,8 +11681,22 @@ const TESTS = [
       assert(r.top >= 0 && r.bottom <= window.innerHeight,
         'the Eat button is off-screen at ' + Math.round(r.top) + '–' + Math.round(r.bottom) +
         ' in a ' + window.innerHeight + 'px viewport');
+      /* A geometry failure that does not say BY HOW MUCH, or what the page
+         looked like when it was measured, costs a whole suite run to diagnose —
+         this one did. The numbers are the message. */
       assert(r.bottom <= card.bottom + 1 && r.top >= card.top - 1,
-        'the Eat button escaped the arena card');
+        'the Eat button escaped the arena card: button ' + Math.round(r.top) + '–' + Math.round(r.bottom)
+        + ' vs card ' + Math.round(card.top) + '–' + Math.round(card.bottom)
+        + ' (over bottom by ' + Math.round(r.bottom - card.bottom)
+        + ', over top by ' + Math.round(card.top - r.top) + '); viewport ' + window.innerHeight
+        + '; card height ' + Math.round(card.height)
+        + '; scroller height ' + Math.round((document.getElementById('combat-area') || {getBoundingClientRect:()=>({height:0})}).getBoundingClientRect().height)
+        + '; eat=' + JSON.stringify(window.HearthriseAuto && window.HearthriseAuto.getEat && window.HearthriseAuto.getEat())
+        + '; traits=' + JSON.stringify({ ae: !!(G.traits && G.traits.auto_eat), ae2: !!(G.traits && G.traits.auto_eat_2) })
+        + '; buffs=' + ((G.buffs && G.buffs.length) | 0)
+        + '; log=' + ((G.combatLog && G.combatLog.length) | 0)
+        + '; scale=' + (document.documentElement.style.getPropertyValue('--ui-scale') || 'unset')
+        + '; overlays=' + document.querySelectorAll('.hr-room-scrim, .hr-modal, #aep-overlay').length);
 
       // It reads as the primary action, and its disabled state stays legible
       // rather than dropping to the global 38% — an unreadable reason is not a
@@ -13918,6 +14029,18 @@ const TESTS = [
   // chips, and not a "coming soon" note, which is a roadmap shown to a player.
   () => tryRun('b222: an un-migrated server offers only the boards it can answer', () => {
     const LB = window.HearthriseLeaderboards;
+    /* ⚠ PIN THE AVAILABILITY MAP (b499). Every assertion below is about the
+       PICKER'S SHAPE, but `UNAVAILABLE` in leaderboards.js is module-global,
+       session-scoped, and written by any real render that gets an
+       `available:false` answer. Production answers exactly that for `renown`
+       today (measured live: {ok:true, board:'renown', available:false}), so once
+       any earlier test has rendered a board, the Throne category is gone and
+       `fullCats.length` is 4. That is the server's mood leaking into a unit
+       test through state snapshotG cannot see. Pinned here, restored below —
+       the withdraw/return BEHAVIOUR is still asserted, by b371. */
+    const _avail = LB._availabilitySnapshot();
+    LB._restoreAvailability(null);
+    try {
 
     const legacyCats = LB._categoriesFor('legacy').map((c) => c.id);
     assert(legacyCats.indexOf('throne') < 0, 'Throne needs snapshot.renown — hide it until then');
@@ -13941,6 +14064,7 @@ const TESTS = [
     assert(b.cat === 'skills' && b.board === 'skill:mining', 'a valid selection must be kept');
     const c = LB._resolveSelection('full', 'skills', 'skill:nonsense');
     assert(c.cat === 'skills' && c.board === 'skill:attack', 'a junk board falls back inside its category');
+    } finally { LB._restoreAvailability(_avail); }
   }),
 
   // §3.2 hand-off: the Throne board cannot exist unless the client writes the
@@ -48555,6 +48679,14 @@ const TESTS = [
     const on = LB._reduceBoard(200, { ok: true, board: 'overall', top: [], total: 0 });
     assert(on.available === true, 'a board with no `available` field must default to available');
 
+    /* ⚠ PIN THE AVAILABILITY MAP (b499) — see the note in the b222 picker test.
+       This test DRIVES _markAvailability itself, so it needs a known starting
+       point; without one the very first assertion below is measuring whether a
+       real render happened to have answered `available:false` for renown
+       earlier in the run, which production currently does. */
+    const _avail = LB._availabilitySnapshot();
+    LB._restoreAvailability(null);
+
     // The picker is data-driven off the same flag.
     assert(LB._boardsIn('throne', 'full').indexOf('renown') >= 0, 'renown is not in the throne category');
     try {
@@ -48568,7 +48700,9 @@ const TESTS = [
       LB._markAvailability('renown', true);
     }
     assert(LB._boardsIn('throne', 'full').indexOf('renown') >= 0,
-      'renown did not come back when the server said it was available again');  }),
+      'renown did not come back when the server said it was available again');
+    LB._restoreAvailability(_avail);
+  }),
 
   // ════════════════════════════════════════════════════════════════════════
   // b373 regression suite — THE DEATH MOMENT + THE IDENTITY SCOPING RULING
@@ -49669,6 +49803,18 @@ export async function runSmokeTest(opts = {}) {
   const _Auto = window.HearthriseAuto;
   let _eatSyncWasParked = false;
   try { if (_Auto && typeof _Auto._parkEatSync === 'function') _eatSyncWasParked = _Auto._parkEatSync(true); } catch (e) {}
+  /* ── AND THE COMPANION GRANT LADDER, for exactly the same reason (b499) ───
+     `b202: pets` drives a FORCED skill/boss roll. Under the live capstone arm
+     that dispatches a real hr_companion_grant; the suite is signed out,
+     `not_signed_in` is retryable, and the ladder then sleeps 3/10/30/60 s —
+     ~100 s of timers running THROUGH the rest of the suite, ending in a
+     notify() toast and a possible G.companions write long after that test's
+     `finally` restored everything. TWO ladders, from one test, measured. No
+     amount of care inside the individual tests closes that: the leak IS the
+     ladder outliving them. HATCH-REFUSE-1..3 unpark inside their own bodies. */
+  const _Comp = window.HearthriseCompanions;
+  let _grantsWereParked = false;
+  try { if (_Comp && typeof _Comp.__parkGrants === 'function') _grantsWereParked = _Comp.__parkGrants(true); } catch (e) {}
   /* ── THE ONE hr_load THE HARNESS PERFORMS (gold-arm) ─────────────────────
      With gold/gems ARMED, `balanceOf` reads a number only when `G._record`
      vouches for it — the provenance stamp that in production `hr_load` writes
@@ -49692,6 +49838,8 @@ export async function runSmokeTest(opts = {}) {
       if (_loopWasRunning && _A) { _A.setSettleEnv(null); _A.startSettleLoop(); }
     } catch (e) {}
     try { if (_Auto && typeof _Auto._parkEatSync === 'function') _Auto._parkEatSync(_eatSyncWasParked); } catch (e) {}
+    try { if (_Comp && typeof _Comp.__parkGrants === 'function') _Comp.__parkGrants(_grantsWereParked); } catch (e) {}
+    try { if (_Comp && typeof _Comp.__clearGrantBlocks === 'function') _Comp.__clearGrantBlocks(); } catch (e) {}
   }
   try { window.showTab(startTab); } catch {}
   const summary = {

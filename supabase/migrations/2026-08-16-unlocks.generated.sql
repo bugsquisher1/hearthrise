@@ -8,6 +8,16 @@
 --   unlock digest: 82af81354e4d270a2830160ae387d149fd6229a5fdc2e34baae5dda19dba8341
 --   62 unlock ids · bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=3 · farm_plot_tier=1 · plot=4 · property=5 · recipe=9 · room=8 · theme=6 · trait=2 · worker=1
 --
+-- ⚠⚠⚠ DO NOT RE-APPLY THIS FILE STANDALONE — IT DESTROYS OTHER SEEDERS' ROWS.
+--   Its seed block opens with an UNSCOPED `delete from public.hr_unlocks` and
+--   refills ONLY its own ids. The 2026-08-23 standalone re-apply took 20 rows
+--   from three later migrations (17 companion grants + bank/plot/worker_hire)
+--   and left the 4 shop companions flag-shaped — the b453 companion-loss
+--   incident, invisible until 2026-08-31 (security C5 banner). Re-apply ONLY
+--   as part of the full chain (tests/schema-apply-order.json), where the later
+--   seeders re-add their rows; a rebuild self-heals, a standalone apply cannot.
+--   The class fix (owner column + scoped deletes) is queued on the board.
+--
 -- ── WHAT THIS TABLE IS ──────────────────────────────────────────────────
 -- BOOKKEEPING ONLY. For every unlock the game can grant: how two writes to it
 -- COMBINE, which player_progress.kind stores it (i.e. WHO MAY WRITE IT), its

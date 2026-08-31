@@ -314,6 +314,16 @@ const file = `-- ═════════════════════
 --   unlock digest: ${DIGEST}
 --   ${rows.length} unlock ids · ${nsSummary}
 --
+-- ⚠⚠⚠ DO NOT RE-APPLY THIS FILE STANDALONE — IT DESTROYS OTHER SEEDERS' ROWS.
+--   Its seed block opens with an UNSCOPED \`delete from public.hr_unlocks\` and
+--   refills ONLY its own ids. The 2026-08-23 standalone re-apply took 20 rows
+--   from three later migrations (17 companion grants + bank/plot/worker_hire)
+--   and left the 4 shop companions flag-shaped — the b453 companion-loss
+--   incident, invisible until 2026-08-31 (security C5 banner). Re-apply ONLY
+--   as part of the full chain (tests/schema-apply-order.json), where the later
+--   seeders re-add their rows; a rebuild self-heals, a standalone apply cannot.
+--   The class fix (owner column + scoped deletes) is queued on the board.
+--
 -- ── WHAT THIS TABLE IS ──────────────────────────────────────────────────
 -- BOOKKEEPING ONLY. For every unlock the game can grant: how two writes to it
 -- COMBINE, which player_progress.kind stores it (i.e. WHO MAY WRITE IT), its

@@ -2297,3 +2297,18 @@ drives both positions.
 **5. DEBT PAID.** One `showTab`-era wrap site removed (`chronicle.js` now subscribes to the
 `companionUnlock` event instead of wrapping `window.unlockCompanion`), and two dead `G.foodSlot`
 writes that never reached the engine are now routed through the one writer.
+
+**6. FOUND, NOT FIXED — a tier-II-only owner cannot nominate a food.** `src/legacy.js`
+`setAutoEatFood` and `openAutoEatPicker` both gate on `hasTrait('auto_eat')` — the ENTRY tier id —
+while b45x ruled that ANY tier owns the feature (`src/core/auto-eat.js autoEatTier() > 0`, which is
+what `HearthriseAuto.eatThreshold()`, `maybeAutoEat`'s `owned` gate, the Settings panel's
+`ownsAutoEat()` and the server's own entitlement gate all use). A character holding only
+`trait:auto_eat_2` is therefore told "Auto-eat is locked — unlock it in the Store" for a feature they
+bought the upgrade to, and the picker greys every row. Reachable: the server's gate was explicitly
+widened for exactly this case (2026-08-29-auto-eat-tiers.sql §"THE ENTITLEMENT GATE").
+
+**NOT fixed on this branch, deliberately.** The one-line fix (use the tier, not the id, at both
+sites) turns the b341 regression test red, because that test stubs `hasTrait` alone to produce the
+locked state and would need its fixture moved to `G.traits`. Changing a guarded regression test's
+fixture for a defect unrelated to either build on this branch is how a clean integration becomes an
+argument. It is a two-line change plus a fixture move; it wants its own commit.

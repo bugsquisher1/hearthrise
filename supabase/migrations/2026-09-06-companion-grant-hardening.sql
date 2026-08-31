@@ -117,14 +117,21 @@
 --
 -- ── SEVERITY CLASSIFICATION, and the open question it leaves ────────────
 -- Both new codes are recorded through public.hr_record_rejection, which grades
--- severity from ITS OWN arrays. Neither `unknown_unlock` nor `missing_req_item`
--- is in c_incident, so both land 'normal'. That is deliberate here:
---   · unknown_unlock is a SERVER catalogue defect (an ops alarm), never a
---     client forgery — an 'incident' would blame the player for our bug.
---   · missing_req_item is TODAY only producible by a forged local inventory,
---     but the moment dragon_egg exists client-side ahead of server-side it is
---     also producible HONESTLY by state divergence. Grading first-occurrence
---     'incident' would then alarm on honest players.
+-- severity from ITS OWN arrays.
+-- ✗ SUPERSEDED (2026-08-31, security C6 — 2026-09-07-companion-codes-severity
+--   .sql, APPLIED): the paragraph that stood here argued BOTH codes should
+--   stay 'normal' ("an incident would blame the player for our bug"). C6's
+--   re-rule is the better case and now governs: `unknown_unlock` IS
+--   c_incident — it is never player behaviour, one occurrence means the
+--   catalogue was destroyed again, and a per-user threshold can never trip on
+--   a server-wide defect; the alarm blames US, which is the point.
+--   `missing_req_item` is c_escalating at the shared n=50 (one is a stale
+--   client, fifty in a day is a signature an honest client cannot produce —
+--   safe in both worlds once dragon_egg becomes honestly producible).
+--   The client side is compatible BY GUARD, not by luck: the b499 ask-once
+--   memo latches both codes to Infinity (companions.js _grantBlocked), so a
+--   refused repeating trigger fires ONE rejection row ever — never a
+--   per-harvest incident storm. Asserted in smoke-test.js's ask-once pair.
 --   OPEN FOR SECURITY (C6): if sustained missing_req_item should escalate, the
 --   one-line home is `c_escalating` in hr_record_rejection (50/day, the
 --   rate_limited/own_listing/intent_mismatch profile) — NOT this file, because

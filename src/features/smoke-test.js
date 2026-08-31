@@ -2318,7 +2318,15 @@ const TESTS = [
     if (!nonShop) return;
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
+    const Cap = window.HearthriseCapstone;
     try {
+      /* b499: PIN THE CAPSTONE OFF. This test's subject is the GOLD arm-gate,
+         and it asserted the SYNCHRONOUS local add — which is only the dormant
+         contract now that a non-shop acquisition is server-confirmed under the
+         blob-retire arm (HATCH-REFUSE-1..4 below own the armed path). The
+         coupling was accidental and unstated; pinning it makes the test measure
+         what its name says. */
+      if (Cap && Cap.__setBlobRetired) Cap.__setBlobRetired(false);
       window.clientMayWriteRecordField = function (f) { return f !== 'gold'; }; // gold ARMED
       window.G.companions = { ownedIds: [], xp: {}, equipped: null };
       const g0 = window.G.gold;
@@ -2327,7 +2335,260 @@ const TESTS = [
       assert(window.G.companions.ownedIds.indexOf(nonShop) >= 0, 'the non-shop companion must be owned');
       assert(window.G.gold === g0, 'unlockCompanion must move no gold');
     } finally {
+      if (Cap && Cap.__setBlobRetired) Cap.__setBlobRetired(null);
       window.clientMayWriteRecordField = origMay;
+      restoreG(snap);
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     HATCH-REFUSE — A REFUSED COMPANION GRANT IS SURFACED, AND NOTHING IS SHOWN
+     UNTIL THE SERVER HAS RECORDED IT.   (b499, regression)
+
+     THE DEFECT. src/features/companions.js unlockCompanion PUSHED the id into
+     G.companions.ownedIds, toasted "Companion unlocked", emitted the chronicle
+     milestone, and only THEN fired hr_companion_grant fire-and-forget with a
+     bare `.catch(noop)`. The blob-retire capstone is ARMED (capstone.js
+     BLOB_RETIRED = true), so accrue.js reconcileCompanions rebuilds
+     G.companions from the SERVER owned-set on the next envelope: a refused grant
+     therefore produced a toast, a Stable card and a chronicle line, and then the
+     companion VANISHED with nothing said. Same shape as b494's rank claims.
+
+     2026-09-06-companion-grant-hardening.sql made the refusals MACHINE CODES
+     (unknown_unlock:<key> · missing_req_item · not_grantable) instead of a 500,
+     so the client can now tell a refusal from an outage — and the fixtures below
+     are that migration's own return envelopes, verbatim from its §4 probes.
+
+     MUTATION (both proved): move applyUnlockLocally back ahead of the confirm →
+     -1 goes red on four assertions; delete the notify in requestServerUnlock's
+     refusal branch → -1 goes red on the notice assertions.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRunAsync('HATCH-REFUSE-1: under the capstone arm a REFUSED grant shows NO companion, spends nothing, and says why', async () => {
+    const CO = window.HearthriseCompanions;
+    const Cap = window.HearthriseCapstone;
+    if (!CO || typeof CO.requestServerUnlock !== 'function' || !Cap || !Cap.__setBlobRetired) return;
+    if (!window.COMPANIONS || !window.COMPANIONS.whelp) return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
+    const origRpc = window.HearthriseRpc, origProf = window.HearthriseProfile, origNotify = window.notify;
+    const said = [];
+    let grantCalls = 0, body = null;
+    try {
+      Cap.__setBlobRetired(true);
+      CO.__setGrantRetryMs([0, 5]);          // keep the transport ladder test-fast
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
+      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
+      window.HearthriseRpc = { mayCall: () => true };
+      window.HearthriseProfile = { activeSlot: () => 2 };
+      window.notify = function (m, k) { said.push({ m: String(m), k }); };
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      window.G.inventory = Object.assign({}, window.G.inventory, { dragon_egg: 2 });
+
+      /* PRODUCER-REAL FIXTURE — 2026-09-06-companion-grant-hardening.sql §4(e):
+         `return jsonb_build_object('ok', false, 'error', 'missing_req_item',
+          'item', v_cat.req_item, 'companion', p_companion)`. */
+      window.fetch = function (url, init) {
+        if (String(url).indexOf('hr_companion_grant') !== -1) {
+          grantCalls++;
+          try { body = JSON.parse(init && init.body); } catch (e) { body = null; }
+          return Promise.resolve(new Response(
+            JSON.stringify({ ok: false, error: 'missing_req_item', item: 'dragon_egg', companion: 'whelp' }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+
+      let consumed = 0;
+      const got = await CO.requestServerUnlock('whelp', () => { consumed++; });
+      assert(got === false, 'a refused grant must report failure');
+      assert(grantCalls === 1, 'a DEFINITIVE refusal must not be retried (a rejected call still burns the '
+        + '60/hour budget); saw ' + grantCalls + ' calls');
+      assert(body && body.p_slot === 2 && body.p_companion === 'whelp',
+        'the grant must carry the active slot + the companion id; got ' + JSON.stringify(body));
+      assert(window.G.companions.ownedIds.indexOf('whelp') < 0,
+        'THE BUG: the refused companion was added to the stable anyway — reconcileCompanions will remove it '
+        + 'on the next envelope and the player watches it vanish');
+      assert(!window.G.companions.xp || window.G.companions.xp.whelp === undefined,
+        'a refused grant seeded an xp row');
+      assert(consumed === 0, 'the call-site callback (the hatch\'s egg consume) ran for a REFUSED grant');
+      assert(window.G.inventory.dragon_egg === 2, 'a refused hatch spent the egg; have ' + window.G.inventory.dragon_egg);
+      const refusal = said.filter((s) => s.k === 'kill');
+      assert(refusal.length === 1, 'a refusal must be surfaced exactly once; saw ' + said.length
+        + ' notices: ' + JSON.stringify(said));
+      assert(/Dragon Egg/.test(refusal[0].m),
+        'the missing_req_item refusal must NAME the item the server wanted; said "' + refusal[0].m + '"');
+      assert(!/missing_req_item/.test(refusal[0].m),
+        'an error code is a note to us, not a sentence to the player; said "' + refusal[0].m + '"');
+      assert(!said.some((s) => /Companion unlocked/.test(s.m)),
+        'a refused grant still toasted "Companion unlocked"');
+    } finally {
+      CO.__setGrantRetryMs();
+      Cap.__setBlobRetired(null);
+      window.fetch = origFetch; window.HearthriseSupabase = origSb; window.HearthriseAuth = origAuth;
+      window.HearthriseRpc = origRpc; window.HearthriseProfile = origProf; window.notify = origNotify;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('HATCH-REFUSE-2: a CONFIRMED grant delivers the companion exactly once and celebrates once', async () => {
+    const CO = window.HearthriseCompanions;
+    const Cap = window.HearthriseCapstone;
+    if (!CO || typeof CO.requestServerUnlock !== 'function' || !Cap || !Cap.__setBlobRetired) return;
+    const id = Object.keys(window.COMPANIONS || {}).find((k) => String(window.COMPANIONS[k].source || '').indexOf('drop:') === 0);
+    if (!id) return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
+    const origRpc = window.HearthriseRpc, origNotify = window.notify;
+    const said = [];
+    let grantCalls = 0;
+    try {
+      Cap.__setBlobRetired(true);
+      CO.__setGrantRetryMs([0, 5]);
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
+      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
+      window.HearthriseRpc = { mayCall: () => true };
+      window.notify = function (m, k) { said.push({ m: String(m), k }); };
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      /* §4(a)'s success envelope. `egg_consumed` is null for the sixteen
+         companions with no req_item — exactly what the server returns. */
+      window.fetch = function (url) {
+        if (String(url).indexOf('hr_companion_grant') !== -1) {
+          grantCalls++;
+          return Promise.resolve(new Response(JSON.stringify({ ok: true, companion: id, egg_consumed: null }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      let cheered = 0;
+      const got = await CO.requestServerUnlock(id, () => { cheered++; });
+      assert(got === true, 'a confirmed grant must report success');
+      assert(grantCalls === 1, 'one acquisition, one call; saw ' + grantCalls);
+      const owned = window.G.companions.ownedIds.filter((x) => x === id).length;
+      assert(owned === 1, 'the companion must appear EXACTLY once; ownedIds has it ' + owned + ' times');
+      assert(window.G.companions.xp[id] === 0, 'the xp row must be seeded at 0');
+      assert(cheered === 1, 'the call-site celebration must fire exactly once; fired ' + cheered);
+      const cheers = said.filter((s) => /Companion unlocked/.test(s.m));
+      assert(cheers.length === 1, 'exactly one unlock toast; saw ' + JSON.stringify(said));
+      assert(!said.some((s) => s.k === 'kill'), 'a SUCCESS produced a refusal notice: ' + JSON.stringify(said));
+    } finally {
+      CO.__setGrantRetryMs();
+      Cap.__setBlobRetired(null);
+      window.fetch = origFetch; window.HearthriseSupabase = origSb; window.HearthriseAuth = origAuth;
+      window.HearthriseRpc = origRpc; window.notify = origNotify;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('HATCH-REFUSE-3: an unknown_unlock (the b453 catalogue class) gets its OWN sentence, and a TRANSPORT failure is retried', async () => {
+    const CO = window.HearthriseCompanions;
+    const Cap = window.HearthriseCapstone;
+    if (!CO || typeof CO.requestServerUnlock !== 'function' || !Cap || !Cap.__setBlobRetired) return;
+    const id = Object.keys(window.COMPANIONS || {}).find((k) => String(window.COMPANIONS[k].source || '').indexOf('drop:') === 0);
+    if (!id) return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
+    const origRpc = window.HearthriseRpc, origNotify = window.notify;
+    let said = [], grantCalls = 0, answers = [];
+    try {
+      Cap.__setBlobRetired(true);
+      CO.__setGrantRetryMs([0, 5, 5]);
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
+      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
+      window.HearthriseRpc = { mayCall: () => true };
+      window.notify = function (m, k) { said.push({ m: String(m), k }); };
+      window.fetch = function (url) {
+        if (String(url).indexOf('hr_companion_grant') !== -1) {
+          grantCalls++;
+          const a = answers.shift();
+          if (a === 'boom') return Promise.reject(new TypeError('Failed to fetch'));
+          return Promise.resolve(new Response(JSON.stringify(a),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+
+      /* (a) THE CATALOGUE REFUSAL — §4(f)/(h)'s envelope verbatim. A server-side
+         defect, so it must NOT be retried and must not blame the player. */
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      said = []; grantCalls = 0;
+      answers = [{ ok: false, error: 'unknown_unlock:companion:' + id,
+        detail: { companion: id, unlock_id: 'companion:' + id, raced: false } }];
+      await CO.requestServerUnlock(id);
+      assert(grantCalls === 1, 'an unknown_unlock is a server catalogue defect — retrying it is pointless spend; saw ' + grantCalls);
+      assert(window.G.companions.ownedIds.length === 0, 'an unknown_unlock still delivered the companion');
+      const r = said.filter((s) => s.k === 'kill');
+      assert(r.length === 1 && !/unknown_unlock/.test(r[0].m),
+        'the catalogue refusal needs its own player sentence, not the machine code; said ' + JSON.stringify(said));
+
+      /* (b) THE TRANSPORT FAILURE — the acquisition was never DECIDED, so it is
+         retried. This is the half that stops a twenty-second reconnect eating a
+         1-in-2,500 drop. */
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      said = []; grantCalls = 0;
+      answers = ['boom', { ok: true, companion: id, egg_consumed: null }];
+      const got = await CO.requestServerUnlock(id);
+      assert(grantCalls === 2, 'a transport failure must be RETRIED, not surfaced as a refusal; saw ' + grantCalls);
+      assert(got === true && window.G.companions.ownedIds.indexOf(id) >= 0,
+        'the retry landed but the companion was not delivered');
+      assert(!said.some((s) => s.k === 'kill'),
+        'an eventually-successful retry must not scare the player with a refusal: ' + JSON.stringify(said));
+    } finally {
+      CO.__setGrantRetryMs();
+      Cap.__setBlobRetired(null);
+      window.fetch = origFetch; window.HearthriseSupabase = origSb; window.HearthriseAuth = origAuth;
+      window.HearthriseRpc = origRpc; window.notify = origNotify;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('HATCH-REFUSE-4: DORMANT is byte-unchanged — the local add is inline and NO grant call is made', () => {
+    /* THE CONTROL for the three above. Every one of them pins the arm ON; if the
+       confirm path were unconditional, a dormant client (and every offline test
+       run) would stop delivering companions entirely. */
+    const CO = window.HearthriseCompanions;
+    const Cap = window.HearthriseCapstone;
+    if (!CO || typeof CO.needsServerConfirm !== 'function' || !Cap || !Cap.__setBlobRetired) return;
+    const id = Object.keys(window.COMPANIONS || {}).find((k) => String(window.COMPANIONS[k].source || '').indexOf('drop:') === 0);
+    const shopId = Object.keys(window.COMPANIONS || {}).find((k) => String(window.COMPANIONS[k].source || '').indexOf('shop') === 0);
+    if (!id) return;
+    const snap = snapshotG();
+    const origFetch = window.fetch;
+    let grantCalls = 0;
+    try {
+      window.fetch = function (url) {
+        if (String(url).indexOf('hr_companion_grant') !== -1) grantCalls++;
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      Cap.__setBlobRetired(false);
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      assert(CO.needsServerConfirm(id) === false, 'dormant must never take the confirm path');
+      let cheered = 0;
+      const r = window.unlockCompanion(id, () => { cheered++; });
+      assert(r === true, 'dormant unlockCompanion must still return true');
+      assert(window.G.companions.ownedIds.indexOf(id) >= 0, 'dormant must add the companion inline');
+      assert(cheered === 1, 'dormant must run the celebration synchronously (it did ' + cheered + ' times)');
+      assert(grantCalls === 0, 'dormant fired a grant RPC — the dormant path must be byte-unchanged');
+
+      /* THE POSITIVE CONTROL. Without it every assertion above is satisfied by a
+         needsServerConfirm() that answers false for everything — which is the
+         pre-b499 behaviour this test is supposed to be able to see. */
+      Cap.__setBlobRetired(true);
+      if (Cap.isBlobRetired() === true && window.HearthriseGoalClaim
+          && typeof window.HearthriseGoalClaim.grantCompanion === 'function') {
+        assert(CO.needsServerConfirm(id) === true,
+          'CONTROL FAILED: with the capstone armed a drop companion must be server-confirmed. Everything '
+          + 'above is measuring a confirm path that never engages.');
+        /* SHOP companions never take it on EITHER setting: their server row comes
+           from hr_unlock_buy, and hr_companion_grant refuses them `not_grantable`
+           (2026-09-06-companion-grant-hardening.sql §4(d)). */
+        if (shopId) {
+          assert(CO.needsServerConfirm(shopId) === false,
+            'a SHOP companion must not be routed through hr_companion_grant — the server refuses it not_grantable');
+        }
+      }
+    } finally {
+      Cap.__setBlobRetired(null);
+      window.fetch = origFetch;
       restoreG(snap);
     }
   }),

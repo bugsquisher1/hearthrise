@@ -2,6 +2,74 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-31 — THE AUTO-EAT COMPLETION: a Pareto change you cannot prove by reading it
+
+**Branch:** `fix/autoeat-fallback-and-arm` (worktree `R:/the game/wt-autoeat-complete`), base
+main `f9a04b0a` (b499 live). Suite **1107/1107, 0 runtime errors** (baseline 1103, +4). Edge
+payload `c17cd6bd…` → `2efae5aa…`. Not bumped, not pushed.
+
+### WHAT SHIPPED
+Designer rulings 2 (cheapest-sufficient, processed-before-raw) and 2b (arm the ON/OFF sync, with
+all three of its binding conditions), as one branch. Details in HANDOFFS/CONFLICTS today.
+
+### THE LESSON I WANT BACK LATER: "HP-IDENTICAL" IS A CLAIM ABOUT A NIGHT, NOT ABOUT A FUNCTION
+The ruling's whole justification is *"(b) is HP-identical to today and strictly cheaper — a
+Pareto improvement, never a nerf."* Every instinct says that is obvious: "covers the deficit"
+means "heals to full", `resolveAutoEat` caps at maxHp, so the post-eat HP is the same number.
+Reading the diff proves it.
+
+**It is not enough, and the reason is that the chooser is INSIDE a seeded loop.** The claim that
+actually matters is *the fight does not move* — same ticks, same kills, same crits, same death,
+same survivedMs, same XP, same gold, same loot — and that only holds while the covering stack
+lasts. The moment a stack empties the two rules diverge for real. A unit test on the pick order
+cannot see any of that. So the guard runs a **twelve-hour night twice on the same seed**, once
+through a transcription of the pre-ruling rule and once through the shipped one, and asserts the
+identity field by field while the bag bill drops:
+
+```
+late-game fisher/cook vs magma_elemental: 1429 meals · 1,286,100 g (1429x cooked_shark)
+  → 322,634 g (144x cooked_shark + 705x cooked_lobster + 362x cooked_trout + 218x cooked_shrimp)
+  = 4.0x cheaper, same 2415 kills / 18556 ticks / died=false
+farmer holding Moonbloom vs slime: 48 meals · 40,800 g (48x moonbloom) → 864 g (48x cooked_shrimp)
+  = 47.2x cheaper, same 16005 kills / 18556 ticks / died=false
+```
+
+**The rule I am taking from it:** when a change is defended as "identical except for X", the test
+must run the thing end to end with X varied and assert the identity — because the interesting
+failure is never in the branch you changed, it is in what the branch feeds.
+
+### THREE THINGS THE TESTS CAUGHT THAT REVIEW DID NOT
+1. **`Number(null)` is 0.** `chooseFood(nominated, inv, items, deficit)` treated an omitted
+   deficit as "you are at full health", which makes every food in the bag sufficient and hands
+   the cheap branch to a caller that never stated one. This file's own header documents the same
+   trap on `thresholdFromPct` twelve lines away and I walked straight into it. `typeof !== 'number'`
+   FIRST, every time, on any parameter whose absence has a different meaning from its zero.
+2. **`JSON.stringify` is an ordered comparison.** The mixed-bag parity assertion reported
+   "the two sides drained DIFFERENT STACKS" on identical maps — the client walks the bag, the
+   server accumulates as it eats, so the key orders differ by construction. Sort before comparing
+   maps, or the guard cries wolf on its first real run and gets weakened by whoever is in a hurry.
+3. **A copy pin earned its keep.** Rewording the death-sheet tip to lead with the ruling's phrase
+   dropped "already have Auto-Eat" — the exact fact that test was written for — while every other
+   assertion stayed green. Kept the assertions separate so a future rewrite is told *which* of the
+   three facts it lost.
+
+### THE HOLE THE RULING MADE ME FIND
+Condition 2 says the receipt must NAME the cause. It could not: **`summaryFromAway` carried no
+death at all above the nested `combat` block** — no `diedTo`, so a server-stated death rendered
+"You died" with a blank where the monster goes, and on a **0-kill** death `combat` is `null`, so
+`receiptDied()` read false and the row vanished entirely. The absence that most needs explaining
+is precisely the one that ended sixty seconds in, and it was the one the receipt could not
+describe. b341 built that row on the client path and the server cutover quietly took it away.
+Generalise: **when a payment path is replaced, diff the RECEIPT field by field, not just the
+totals.** The totals were right the whole time.
+
+### PERFORMANCE, MEASURED
+247-key late-game bag, 300k calls: pre-ruling `chooseFood` 22.67 µs, shipped 24.11 µs — **+6.3%**
+on a function that runs about 1,400 times in a twelve-hour night, i.e. **+2 ms per night**. It is
+ONE pass, not two: `scanProvisions` answers both questions at once, because for a maxed character
+the "nothing covers it" fallback is the COMMON case (74 HP down, largest Provision heals 42) and a
+try-cheapest-then-best shape would have walked the bag twice on every meal.
+
 ## 2026-08-30 — THE WORKER EFFICIENCY ANCHOR: a nerf that missed by 60%, and the guard that watched it happen
 
 **Branch:** `fix/worker-efficiency-anchor` (worktree `R:/the game/wt-worker-anchor`), base main

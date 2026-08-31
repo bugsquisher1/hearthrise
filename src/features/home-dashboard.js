@@ -589,11 +589,27 @@
           ? Math.max(1, Math.round(death.afterMs / 1000)) + 's'
           : fmtSpanShort(death.afterMs)) + ' in';
       }
+      /* ── WHY NOTHING HEALED YOU (Designer ruling 2b, 2026-08-31) ─────────
+         The auto-eat ON/OFF sync is armed, so a night really can be spent with
+         nothing healing — and the ruling's price for arming it is that the
+         receipt NAMES that, in the death sentence, on the durable surface as
+         well as in the modal. Same helper, same clause, so the two surfaces
+         cannot tell different stories about one death. STATED, NOT INFERRED:
+         it reads the receipt's own auto-eat state, never the live toggle. */
+      var why = null;
+      try {
+        var AC = window.HearthriseAccrual;
+        if (AC && typeof AC.receiptDeathCause === 'function') why = AC.receiptDeathCause(off);
+      } catch (e) {}
       /* One minute of slack: a death 30s from the end is "the whole absence",
          not "and then 42 seconds paid nothing". */
       t += (restMs >= 60000)
         ? ' — the remaining ' + fmtSpanShort(restMs) + ' paid nothing.'
         : ' — nothing was earned after that.';
+      /* The cause is APPENDED, never substituted: how much of the night was
+         forfeited and why nothing healed are two different facts and the card
+         is the durable surface that owes both. */
+      if (why) t += ' ' + why.sentence;
       notes.push({ tone: 'bad', icon: 'uiSkull', text: t });
     }
     /* ── b345: THE RUN THAT STOPPED, on the same durable surface and for the

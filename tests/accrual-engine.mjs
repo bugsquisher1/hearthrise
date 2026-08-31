@@ -73,7 +73,7 @@ import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { indexArtisanRecipes, benchPayable } from '../src/core/artisan-sim.js';
 
 import { resolveAutoEat, thresholdFromPct, pctFromThreshold, bestHealingFood, DEFAULT_THRESHOLD,
-         maxPctForTier } from '../src/core/auto-eat.js';
+         maxPctForTier, chooseFood, cheapestSufficientFood } from '../src/core/auto-eat.js';
 import {
   computeAccrual, deriveTickMs, deriveProfile, zeroBonus,
   ACCRUE_MIN_MS, ACCRUE_MAX_SPAN_MS,
@@ -194,6 +194,39 @@ function clientProfile(weaponType) {
   return Object.assign({}, DEFAULT_PROFILE, { type: weaponType || 'sword' });
 }
 
+/* ── THE RULE AS IT STOOD BEFORE THE 2026-08-31 RULING ─────────────────────
+   Kept here — and ONLY here — so the improvement can be MEASURED against the
+   thing it replaced rather than asserted about itself. Every gate is
+   `resolveAutoEat`'s; the ONE difference is the chooser, which fell straight
+   through to `bestHealingFood` (the biggest healer in the bag) whenever the
+   nominated food was absent or unowned.
+
+   It is a transcription, not an import, for the same reason `clientAwaySpan`
+   itself is one: a reference that called the shipped function would compare a
+   rule to itself. `cheapestSufficientGuard` runs a night through each and
+   asserts the fight is byte-identical while the BAG is not. */
+function preRulingResolveAutoEat(o) {
+  if (!o.enabled) return null;
+  if (!o.owned) return null;
+  const hp = Number(o.hp);
+  const maxHp = Number(o.maxHp);
+  if (!Number.isFinite(hp) || !Number.isFinite(maxHp) || !(maxHp > 0)) return null;
+  if (hp <= 0) return null;
+  const t = Number(o.threshold);
+  if (hp / maxHp > (Number.isFinite(t) ? Math.max(0, Math.min(1, t)) : DEFAULT_THRESHOLD)) return null;
+  const items = o.items || {};
+  const inv = o.inventory || {};
+  const nom = o.foodId ? items[o.foodId] : null;
+  const foodId = (nom && nom.foodClass !== 'buff' && (nom.foodClass === 'healing' || nom.heals)
+                  && (Number(inv[o.foodId]) || 0) > 0)
+    ? o.foodId
+    : bestHealingFood(inv, items);
+  if (!foodId) return null;
+  const heals = Number(items[foodId] && items[foodId].heals) || 0;
+  if (!(heals > 0)) return null;
+  return { foodId, heals, hp: Math.min(maxHp, hp + heals) };
+}
+
 function clientAwaySpan(opts) {
   const items = ITEMS; const monsters = MONSTERS;
   const equipment = opts.equipment;
@@ -266,15 +299,25 @@ function clientAwaySpan(opts) {
        gate on one side only, a snapshot bag instead of a live one. */
     autoEat() {
       const eat = G.autoActions.eat;
-      const decision = resolveAutoEat({
-        enabled: !!eat.enabled,
-        owned: !!(G.traits && G.traits.auto_eat),
-        hp: G.playerHp, maxHp: G.playerMaxHp,
-        threshold: eat.threshold,
-        foodId: eat.foodId,
-        inventory: G.inventory,
-        items,
-      });
+      const decision = opts.preRulingChooser
+        ? preRulingResolveAutoEat({
+          enabled: !!eat.enabled,
+          owned: !!(G.traits && G.traits.auto_eat),
+          hp: G.playerHp, maxHp: G.playerMaxHp,
+          threshold: eat.threshold,
+          foodId: eat.foodId,
+          inventory: G.inventory,
+          items,
+        })
+        : resolveAutoEat({
+          enabled: !!eat.enabled,
+          owned: !!(G.traits && G.traits.auto_eat),
+          hp: G.playerHp, maxHp: G.playerMaxHp,
+          threshold: eat.threshold,
+          foodId: eat.foodId,
+          inventory: G.inventory,
+          items,
+        });
       if (!decision) return false;
       G.playerHp = decision.hp;
       G.inventory[decision.foodId] = (G.inventory[decision.foodId] || 1) - 1;
@@ -657,7 +700,7 @@ function autoEatParityGuard() {
   ok(!!FEAST, 'AUTO-EAT: no buff food in the catalogue — the b220 "never burn a Feast" rule is untested');
 
   const PCT = 50;                       // stored form: integer percent
-  const seen = { ate: 0, survivedFull: 0, negativeDelta: 0 };
+  const seen = { ate: 0, survivedFull: 0, negativeDelta: 0, mixedAte: 0, mixedLadder: 0 };
 
   for (const f of FIXTURES) {
     const inventory = { [PROVISION]: 5000 };
@@ -719,6 +762,65 @@ function autoEatParityGuard() {
     ok(!((feastOnly.delta.items || {})[FEAST] < 0),
       P(`the server debited ${FEAST} — a Feast must never be auto-eaten`));
 
+    /* ── PARITY WITH THE CHOOSER ACTUALLY CHOOSING (ruling 2, 2026-08-31) ──
+       The pass above hands both sides a bag containing ONE food, so the
+       cheapest-sufficient branch has nothing to choose between: it proves
+       parity of the GATES, not of the CHOICE. The choice is now a rule with
+       three branches reading `raw`, `v` and the deficit off the catalogue, and
+       it runs INSIDE the seeded fight — a side that picked differently would
+       heal by a different amount and every later roll would diverge.
+
+       So the same fixture runs again on a MIXED bag at a trigger point high
+       enough for the cheap branch to fire (see cheapestSufficientGuard for why
+       95%: the largest Provision heals 42, and a 99 HP veteran at 50% is 49 HP
+       down). Same seed, same state; the FULL parity set is re-asserted, plus
+       the per-item delta, because "the two sides ate the same NUMBER of meals"
+       is exactly what a divergent chooser would still satisfy. */
+    {
+      const mixed = { cooked_shark: 5000, cooked_moonfish: 5000, cooked_lobster: 5000,
+                      cooked_trout: 5000, cooked_shrimp: 5000, moonfish: 5000, shark: 5000 };
+      const HIGH = 95;
+      const sm = serverAccrual({
+        activeId: f.monster, skills: f.skills, hp: f.hp, maxHp: f.maxHp,
+        inventory: { ...mixed }, autoEatEnabled: true, autoEatFood: null, autoEatPct: HIGH,
+      });
+      const cm = clientAwaySpan({
+        monsterId: f.monster, equipment: EQUIPMENT, skills: f.skills,
+        hp: f.hp, maxHp: f.maxHp, seed: SEED, fromMs: FROM_MS, toMs: NOW_MS, capped: false,
+        inventory: { ...mixed }, traits: { auto_eat: true },
+        eat: { enabled: true, threshold: HIGH / 100, foodId: null },
+      });
+      const M = (m) => `AUTO-EAT MIXED-BAG PARITY [${f.name}]: ${m}`;
+      if (sm.accrued) {
+        eq(sm.summary.ticks, cm.summary.ticks, M('tick count differs'));
+        eq(sm.summary.kills, cm.summary.kills, M('kill count differs'));
+        eq(sm.summary.crits, cm.summary.crits, M('crit count differs'));
+        eq(sm.summary.died, cm.summary.died, M('death outcome differs'));
+        eq(sm.summary.survivedMs, cm.summary.survivedMs, M('time survived differs'));
+        eq(sm.summary.foodEaten, cm.summary.foodEaten, M('food eaten differs'));
+        eq(sm.summary.gold, cm.gold, M('gold differs'));
+        eq(sm.summary.xp, cm.xp, M('XP grants differ'));
+        /* THE ASSERTION THIS BLOCK EXISTS FOR. Which STACKS were drained, food
+           by food — the client's bag against the server's signed delta. */
+        /* SORTED, because `eq` compares JSON text and the two sides build the
+           map in different orders BY CONSTRUCTION — the client walks the bag,
+           the server accumulates as it eats. An order-sensitive comparison here
+           reported a divergence that was not one (measured, first run). */
+        const sorted = (o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => (a < b ? -1 : 1)));
+        const clientAte = {};
+        for (const id of Object.keys(mixed)) {
+          const gone = mixed[id] - (Number(cm.inventory[id]) || 0);
+          if (gone > 0) clientAte[id] = -gone;
+        }
+        const serverAte = {};
+        for (const [id, n] of Object.entries(sm.delta.items || {})) if (n < 0) serverAte[id] = n;
+        eq(sorted(serverAte), sorted(clientAte),
+          M('the two sides drained DIFFERENT STACKS out of the same bag — the chooser is not one rule'));
+        if (Object.keys(clientAte).length > 1) seen.mixedLadder++;
+        if (Object.keys(clientAte).length) seen.mixedAte++;
+      }
+    }
+
     /* THE ENTITLEMENT GATE, on the engine. Identical state, identical food,
        `autoEatEnabled` false — which is what every character has until
        hr_set_auto_eat is called with the trait owned. It must be byte-identical
@@ -741,6 +843,11 @@ function autoEatParityGuard() {
   ok(seen.survivedFull > 0,
     'AUTO-EAT COVERAGE: every fixture still died with auto-eat on — the fixtures do not exercise '
     + 'the outcome the feature exists to produce (surviving the night)');
+  ok(seen.mixedAte > 0,
+    'AUTO-EAT COVERAGE: the mixed-bag parity pass never ate — it is comparing two no-ops');
+  ok(seen.mixedLadder > 0,
+    'AUTO-EAT COVERAGE: no mixed-bag night drained more than ONE stack, so the parity above would '
+    + 'stay green with a chooser that ignores the deficit. Raise the trigger point or widen the bag.');
 
   /* ── THE BAG IS LIVE, NOT A SNAPSHOT ──────────────────────────────────
      The client's auto-eat reads `G.inventory`, which `addItem` mutates, so a
@@ -891,6 +998,268 @@ function autoEatParityGuard() {
       `AUTO-EAT: bestHealingFood picked a different food for the same bag in a different key order `
       + `(${pair.join(' vs ')}) — the client and the server would drain different stacks`);
   }
+}
+
+// ── 1b-i. CHEAPEST-SUFFICIENT, PROCESSED BEFORE RAW ─────────────────────────
+// The Designer's ruling of 2026-08-31 (.claude/coordination/DECISIONS.md §2).
+//
+// THE OLD RULE, when `auto_eat_food` was NULL — which is EVERY character until
+// its owner opens the picker, and any character whose nominated stack runs out
+// mid-night — ate `bestHealingFood`: the biggest healer in the bag. Two costs,
+// both measured on the live catalogue:
+//
+//   1. IT ATE THE CRAFTING SUPPLY CHAIN. 17 of the 31 auto-eatable Provisions
+//      are `raw:true` (asserted below, not assumed). One auto-eaten Moonbloom
+//      is 1,750 g and 780 Cooking XP of Moonbloom Elixir destroyed.
+//   2. IT OVERHEALED. `resolveAutoEat` caps at maxHp, so a 42 HP Cooked Shark
+//      spent on a 5 HP deficit throws away 37 HP of food. Over a 12 h night:
+//      864,000 g where 230,400 g does the IDENTICAL job.
+//
+// WHAT THIS GUARD PROVES, and the second half is the one that matters:
+//   A. THE ORDER LAW, on real catalogue rows, by named expect.
+//   B. THE HP IDENTITY. The same seed, the same state, the same bag, run once
+//      through the pre-ruling chooser and once through the shipped one — the
+//      fight comes out BYTE-IDENTICAL (ticks, kills, crits, death, survivedMs,
+//      XP, gold, resulting HP, and the number of meals) while the BAG DELTA is
+//      strictly cheaper. That is what "Pareto improvement, never a nerf" means,
+//      and it is not provable by inspecting the pick order.
+//
+// MUTATION (both proved): restore `bestHealingFood` as chooseFood's default →
+// A's named expects and B's cost assertions go red together, and the parity
+// family stays green (which is the point: parity cannot see a rule change made
+// on both sides at once — only this can).
+function cheapestSufficientGuard() {
+  const P = (m) => `AUTO-EAT CHEAPEST-SUFFICIENT: ${m}`;
+
+  /* ── THE FIXTURE PREMISES, asserted rather than assumed ─────────────────
+     Every named expect below rests on these six rows. A catalogue edit that
+     moves one must fail HERE, naming the row, instead of silently turning a
+     named expect into a test of nothing (TESTING.md, the fixture rule). */
+  const provisions = Object.keys(ITEMS).filter((id) => ITEMS[id] && isAutoEatableRow(ITEMS[id]));
+  const rawCount = provisions.filter((id) => ITEMS[id].raw).length;
+  ok(provisions.length >= 20 && rawCount * 2 > provisions.length * 0.4,
+    P(`the catalogue now holds ${provisions.length} auto-eatable Provisions, ${rawCount} of them raw `
+      + '— the ruling was costed at 31 and 17. Re-measure before trusting the numbers in this header.'));
+  const unpriced = provisions.filter((id) => !(Number(ITEMS[id].v) > 0));
+  ok(unpriced.length === 0,
+    P(`these Provisions carry no book value: ${unpriced.join(', ')}. The chooser sorts on \`v\`, and an `
+      + 'unpriced Provision would be either the cheapest thing in the bag (if `v` read as 0) or '
+      + 'permanently last. Price them, or the thrift rule is deciding on a number nobody authored.'));
+
+  const premise = (id, heals, v, raw) => {
+    const it = ITEMS[id];
+    ok(!!it, P(`fixture row ${id} no longer exists`));
+    if (!it) return;
+    ok(Number(it.heals) === heals && Number(it.v) === v && !!it.raw === raw,
+      P(`fixture row ${id} moved: heals ${it.heals} (fixture ${heals}), v ${it.v} (fixture ${v}), `
+        + `raw ${!!it.raw} (fixture ${raw}). The named expects below are now testing something else.`));
+  };
+  premise('shrimp', 3, 5, true);
+  premise('cooked_wolf_meat', 6, 12, false);
+  premise('cooked_shrimp', 8, 18, false);
+  premise('cooked_lobster', 25, 240, false);
+  premise('cooked_shark', 42, 900, false);
+  premise('moonbloom', 20, 850, true);
+
+  // ══ A · THE ORDER LAW ════════════════════════════════════════════════════
+
+  /* (a) THE NOMINATION STILL WINS, and it wins even when it is the single most
+     wasteful choice in the bag. The player asked for it; thrift is the answer
+     to a NULL, not an override of a stated preference. */
+  eq(chooseFood('cooked_shark', { cooked_shark: 9, cooked_shrimp: 9 }, ITEMS, 5), 'cooked_shark',
+    P('a nominated food was overruled by the cheap branch — the ruling\'s (a) is unconditional'));
+
+  /* (b1) PROCESSED BEATS RAW **EVEN WHEN THE RAW ONE IS CHEAPER**. This is the
+     expect that carries the whole ruling: Raw Shrimp (v 5) is less than half
+     the book value of Cooked Wolf Meat (v 12) and still loses, because it is
+     Cooking's own input and the night is spending it unattended. Swap the two
+     comparisons in scanProvisions and this is the assertion that goes red. */
+  eq(chooseFood(null, { shrimp: 9, cooked_wolf_meat: 9 }, ITEMS, 3), 'cooked_wolf_meat',
+    P('a RAW Provision was eaten while a processed one covered the same deficit — 17 of 31 Provisions '
+      + 'are crafting stock, and eating them unattended is the whole reason for this ruling'));
+
+  /* (b2) THEN LOWEST BOOK VALUE. All three cover a 5 HP deficit and all three
+     heal to full, so the choice is free and thrift takes it. */
+  eq(chooseFood(null, { cooked_shark: 9, cooked_lobster: 9, cooked_shrimp: 9 }, ITEMS, 5), 'cooked_shrimp',
+    P('the cheap branch did not pick the cheapest covering Provision'));
+
+  /* (c) NOTHING COVERS THE DEFICIT → the pre-ruling rule, unchanged. A 30 HP
+     hole with a 25 HP Lobster and an 8 HP Shrimp in the bag is exactly where
+     survival beats thrift, and the biggest healer is the right answer. */
+  eq(chooseFood(null, { cooked_lobster: 9, cooked_shrimp: 9 }, ITEMS, 30), 'cooked_lobster',
+    P('with nothing in the bag able to heal to full, the chooser must fall back to the BIGGEST healer '
+      + '— thrift there would be a slower death'));
+
+  /* AN OMITTED DEFICIT IS NOT A ZERO ONE. A caller that cannot say how hurt the
+     player is gets the pre-ruling behaviour, never the whole bag treated as
+     "sufficient". */
+  eq(chooseFood(null, { cooked_shark: 9, cooked_shrimp: 9 }, ITEMS), 'cooked_shark',
+    P('chooseFood with no deficit stated took the cheap branch — it cannot know what covers what'));
+  for (const junk of [null, NaN, 'lots', {}, undefined]) {
+    eq(chooseFood(null, { cooked_shark: 9, cooked_shrimp: 9 }, ITEMS, junk), 'cooked_shark',
+      P(`a ${String(junk)} deficit was treated as a real one`));
+  }
+
+  /* THE b220 RULE SURVIVES THE NEW BRANCH. A Feast is cheap, plentiful and
+     heals — and is still never eligible, in the cheap branch as in the old one. */
+  const FEAST = Object.keys(ITEMS)
+    .filter((id) => ITEMS[id] && ITEMS[id].foodClass === 'buff' && ITEMS[id].heals > 0)
+    .sort((a, b) => (ITEMS[a].v || 0) - (ITEMS[b].v || 0))[0];
+  ok(!!FEAST, P('no buff food in the catalogue — the b220 half of this guard is vacuous'));
+  if (FEAST) {
+    eq(cheapestSufficientFood({ [FEAST]: 99 }, ITEMS, 1), null,
+      P(`the cheap branch was willing to eat ${FEAST} (foodClass:buff) — b220 says never, and "it was `
+        + 'the cheapest thing in the bag" is not an exception'));
+  }
+
+  /* KEY ORDER CANNOT DECIDE IT. The client's bag arrives in insertion order and
+     the server's out of `jsonb_object_agg` (length, then bytewise); a chooser
+     that let iteration order break a tie would drain different stacks on the
+     two sides and the parity guard would be comparing two different nights.
+     Proved on the real bag AND — because no two non-raw Provisions share a `v`
+     today, so the real bag cannot express the tie — on an injected pair. */
+  const bagFwd = { cooked_shark: 9, cooked_lobster: 9, cooked_shrimp: 9, moonbloom: 9, shrimp: 9 };
+  const bagRev = {};
+  for (const k of Object.keys(bagFwd).reverse()) bagRev[k] = bagFwd[k];
+  eq(chooseFood(null, bagFwd, ITEMS, 5), chooseFood(null, bagRev, ITEMS, 5),
+    P('the same bag in a different key order chose a different food'));
+  {
+    const tiedV = Object.entries(ITEMS)
+      .filter(([, it]) => it && isAutoEatableRow(it) && !it.raw)
+      .reduce((m, [id, it]) => { (m[it.v] ||= []).push(id); return m; }, {});
+    const realTie = Object.values(tiedV).find((ids) => ids.length > 1);
+    ok(!realTie,
+      P(`two non-raw Provisions now share a book value (${(realTie || []).join(' vs ')}) — the injected `
+        + 'probe below is no longer the only way to reach the tie-break, so fixture it for real.'));
+    const items = { ...ITEMS,
+      probe_b_food: { n: 'Probe B', v: 77, heals: 40, foodClass: 'healing' },
+      probe_a_food: { n: 'Probe A', v: 77, heals: 40, foodClass: 'healing' } };
+    eq(cheapestSufficientFood({ probe_b_food: 5, probe_a_food: 5 }, items, 10), 'probe_a_food',
+      P('a value tie was not broken by item id — the two sides would drain different stacks'));
+    eq(cheapestSufficientFood({ probe_a_food: 5, probe_b_food: 5 }, items, 10), 'probe_a_food',
+      P('the value tie-break depends on key order'));
+  }
+
+  // ══ B · THE HP IDENTITY, OVER A REAL NIGHT ═══════════════════════════════
+
+  /* WHY 95%, AND NOT THE 50% THE OTHER FIXTURES USE. The cheap branch can only
+     fire when something in the bag heals to FULL, and the largest Provision in
+     the game heals 42. A 99 HP veteran at a 50% trigger is 49 HP down, so
+     branch (b) would never run and this whole section would silently compare a
+     rule to itself. 95% is a real setting (Auto-Eat II's ceiling is 100) and it
+     is the setting under which the overheal the ruling measured actually
+     happens. The coverage assertions at the end refuse a vacuous run. */
+  const NIGHT_PCT = 95;
+  const STACK = 1000000;    // deep enough that neither rule can exhaust a stack
+
+  const night = (bag, preRulingChooser, monsterId) => clientAwaySpan({
+    monsterId, equipment: EQUIPMENT, skills: MAXED,
+    hp: 99, maxHp: 99, seed: SEED, fromMs: FROM_MS, toMs: NOW_MS, capped: false,
+    inventory: bag,
+    traits: { auto_eat: true },
+    eat: { enabled: true, threshold: NIGHT_PCT / 100, foodId: null },
+    preRulingChooser,
+  });
+  const bagValue = (spent) => Object.entries(spent)
+    .reduce((s, [id, n]) => s + n * (Number(ITEMS[id] && ITEMS[id].v) || 0), 0);
+  const eatenFrom = (before, after) => {
+    const out = {};
+    for (const id of Object.keys(before)) {
+      const gone = before[id] - (Number(after[id]) || 0);
+      if (gone > 0) out[id] = gone;
+    }
+    return out;
+  };
+
+  const BAGS = [
+    /* THE LATE-GAME FISHER/COOK the ruling costed: a cooked ladder plus the raw
+       stock feeding it. The old rule reaches for the Cooked Shark every time. */
+    { name: 'late-game fisher/cook', bag: {
+      cooked_shark: STACK, cooked_moonfish: STACK, cooked_lobster: STACK,
+      cooked_trout: STACK, cooked_shrimp: STACK, moonfish: STACK, shark: STACK },
+      dear: 'cooked_shark', monster: DAY1_BOSS },
+    /* THE FARMER. Here the biggest healer IS the crafting reagent, so the old
+       rule eats 1,750 g of Moonbloom Elixir supply per meal while a Cooked
+       Shrimp does the identical job. This is the ruling's headline case. */
+    { name: 'farmer holding Moonbloom', bag: { moonbloom: STACK, cooked_shrimp: STACK },
+      spend: 'cooked_shrimp', dear: 'moonbloom', monster: 'slime' },
+  ];
+
+  let sawCheapBranch = 0;
+  for (const B of BAGS) {
+    const oldRun = night({ ...B.bag }, true, B.monster);
+    const newRun = night({ ...B.bag }, false, B.monster);
+    const N = (m) => P(`[${B.name}] ${m}`);
+
+    /* THE IDENTITY. Every one of these is what "HP-identical" MEANS: the same
+       fight, tick for tick, to the same end, with the same number of meals. */
+    eq(newRun.summary.ticks, oldRun.summary.ticks, N('tick count moved'));
+    eq(newRun.summary.kills, oldRun.summary.kills, N('kill count moved'));
+    eq(newRun.summary.crits, oldRun.summary.crits, N('crit count moved'));
+    eq(newRun.summary.died, oldRun.summary.died, N('the death outcome moved — this is NOT HP-identical'));
+    eq(newRun.summary.survivedMs, oldRun.summary.survivedMs, N('time survived moved'));
+    eq(newRun.summary.foodEaten, oldRun.summary.foodEaten, N('a different number of meals was eaten'));
+    eq(newRun.hp, oldRun.hp, N('the resulting HP moved'));
+    eq(newRun.xp, oldRun.xp, N('the XP grants moved'));
+    eq(newRun.gold, oldRun.gold, N('the gold moved'));
+    eq(newRun.items, oldRun.items, N('the loot moved'));
+
+    /* …AND THE BAG IS NOT IDENTICAL, which is the entire point. */
+    const oldSpent = eatenFrom(B.bag, oldRun.inventory);
+    const newSpent = eatenFrom(B.bag, newRun.inventory);
+    const meals = newRun.summary.foodEaten;
+    ok(meals >= 20, N(`only ${meals} meals were eaten — too few to measure a night's food bill`));
+    /* THE OLD RULE HAD ONE ANSWER FOR THE WHOLE NIGHT: the biggest healer in
+       the bag, whatever the deficit was. That single-key map IS the defect. */
+    eq(oldSpent, { [B.dear]: meals }, N(`the pre-ruling rule was expected to spend ${meals} x ${B.dear}`));
+    if (B.spend) {
+      /* A UNIFORM NIGHT — the veteran is chipped for the same few HP every
+         time, so the ruling has one answer too and it can be named exactly. */
+      eq(newSpent, { [B.spend]: meals }, N(`the ruling was expected to spend ${meals} x ${B.spend}`));
+    } else {
+      /* A VARIED NIGHT. The boss lands hits of very different sizes, so the
+         ruling walks the LADDER — a Cooked Shrimp for a chip, a Cooked Shark
+         for a real wound. That the spend is a MIX is the property; pinning one
+         id here would be pinning the boss's damage roll. */
+      ok(Object.keys(newSpent).length >= 2,
+        N(`the ruling spent only ${JSON.stringify(newSpent)} across ${meals} meals of a boss night — `
+          + 'the cheap branch is not tracking the deficit, it has just swapped one constant for another'));
+      const rawEaten = Object.keys(newSpent).filter((id) => ITEMS[id] && ITEMS[id].raw);
+      ok(rawEaten.length === 0,
+        N(`the ruling ate raw crafting stock (${rawEaten.join(', ')}) while processed Provisions in the `
+          + 'same bag covered the same deficits'));
+    }
+    const oldCost = bagValue(oldSpent);
+    const newCost = bagValue(newSpent);
+    ok(newCost < oldCost, N(`the night cost ${newCost} g under the ruling and ${oldCost} g before it — `
+      + 'the cheap branch bought nothing'));
+    if (ITEMS[B.dear].raw) {
+      ok(!newSpent[B.dear], N(`${B.dear} is raw crafting stock and the ruling still ate ${newSpent[B.dear]} of it`));
+    }
+    cheapestSufficientGuard.report.push(
+      `${B.name} vs ${B.monster}: ${meals} meals · ${oldCost.toLocaleString()} g (${meals}x ${B.dear}) → `
+      + `${newCost.toLocaleString()} g (${Object.entries(newSpent).map(([k, n]) => n + 'x ' + k).join(' + ')}) `
+      + `= ${(oldCost / Math.max(1, newCost)).toFixed(1)}x cheaper, same ${oldRun.summary.kills} kills / `
+      + `${oldRun.summary.ticks} ticks / died=${oldRun.summary.died}`);
+    /* Branch (b) really fired: what the ruling ate is not what the old rule
+       would have. Without this the identity above could be two identical runs.
+       NOT "the biggest healer was never eaten" — on the boss night it correctly
+       IS eaten, for the deficits nothing cheaper covers. */
+    if (JSON.stringify(newSpent) !== JSON.stringify(oldSpent)) sawCheapBranch++;
+  }
+  ok(sawCheapBranch === BAGS.length,
+    P('a night finished without branch (b) ever choosing differently from the old rule — the identity '
+      + 'above was a comparison of a rule with itself'));
+}
+cheapestSufficientGuard.report = [];
+
+/* The eligibility predicate, restated locally ONLY for the fixture-premise
+   assertions above — importing `isAutoEatable` here would make the premise
+   check agree with the module it is meant to be checking. */
+function isAutoEatableRow(it) {
+  if (!it || typeof it !== 'object') return false;
+  if (it.foodClass === 'buff') return false;
+  return it.foodClass === 'healing' || !!it.heals;
 }
 
 // ── 1b-ii. THE SETTLE EATS AT EVERY SPAN — THERE IS NO "AWAY ONLY" ──────────
@@ -3496,6 +3865,7 @@ export async function runAll() {
   ammoGuard();
   creditWindowGuard();
   autoEatParityGuard();
+  cheapestSufficientGuard();
   attendedSettleAutoEatGuard();
   gatherParityGuard();
   gatherBuffTimelineGuard();
@@ -3542,6 +3912,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
     + `(hr_offline_cap_ms base + every bump); forecast at ${FORECAST_CAP_H}h (its fuse ceiling). `
     + `day budgets read from ${dayBudgetGuard.source}.`);
   for (const line of toolCarryContinuityGuard.report || []) console.log(`  ${line}`);
+  /* The food bill, printed for the reason the clamp headroom is: a number
+     nobody sees is a number nobody notices moving. */
+  for (const line of cheapestSufficientGuard.report || []) console.log(`  auto-eat: ${line}`);
   /* The gather fixtures, printed. A parity number nobody sees is a number
      nobody notices moving — the same reason the clamp headroom is printed. */
   for (const f of GATHER_FIXTURES) {

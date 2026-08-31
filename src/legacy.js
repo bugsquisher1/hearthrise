@@ -2188,8 +2188,14 @@ function applyServerEnvelope(res,opts){
       if(_MH){ _MH.refreshHistoryIfStale(); _sale=_MH.salesLineFor(s); }
     }catch(e){}
     var _A=window.HearthriseAccrual;
+    /* `foeLabel` is injected for the same reason `spanLabel` is: accrue.js is a
+       pure module and MONSTERS is data it must not reach for, but a death toast
+       that could not name what killed you would be the one sentence on this
+       receipt worth reading and the least informative. Same resolution the away
+       card and the welcome modal already do on `diedTo`. */
     var _txt=(_A&&typeof _A.receiptSentence==='function')
-      ? _A.receiptSentence(s,{saleLine:_sale,spanLabel:fmtSince})
+      ? _A.receiptSentence(s,{saleLine:_sale,spanLabel:fmtSince,
+          foeLabel:function(id){ return (id&&MONSTERS[id]&&MONSTERS[id].name)||null; }})
       /* The fallback is the PRE-b361 sentence exactly. A missing accrual module
          is a wiring break, not a licence to invent a third sentence here. */
       : (s.source==='switch'
@@ -2285,6 +2291,39 @@ function _awayActivityPays(){
     if(SA&&typeof SA.serverAccruedSkill==='function') return !!SA.serverAccruedSkill(sk);
   }catch(e){}
   return false;
+}
+/* THE AUTO-EAT STATE THE CLIENT-PATH AWAY REPLAY ACTUALLY RAN WITH.
+   (Designer ruling 2b, 2026-08-31 — the return receipt must NAME why nothing
+   healed, and b341's standard for that row is STATED, NOT INFERRED.)
+
+   Read HERE, at the moment the receipt is written, because this IS the state
+   the span was simulated with: `simulateSpan` → COMBAT_FX.autoEat →
+   HearthriseAuto.maybeAutoEat(), whose gates are exactly the three below. A
+   renderer reading them later would be describing a different instant — the
+   player may have switched auto-eat back on the moment they saw the corpse.
+
+   `enabled` folds the ENTITLEMENT into the switch on purpose: a character
+   without the trait never heals either, and the receipt's job is to state the
+   outcome, not to audit which of two gates produced it. The server has one
+   column for the same reason (accrual.js: hr_set_auto_eat refuses to write
+   `auto_eat_enabled = true` without the ownership flag).
+
+   Returns null when the module is not up — "we cannot tell" is honest, and
+   `receiptDeathCause` then claims nothing. */
+function awayAutoEatState(){
+  try{
+    var A=window.HearthriseAuto;
+    if(!A||typeof A.getEat!=='function') return null;
+    var eat=A.getEat()||{};
+    var owned=true;
+    var AE=window.HearthriseCore&&window.HearthriseCore.autoEat;
+    if(AE&&typeof AE.autoEatTier==='function') owned=AE.autoEatTier((G&&G.traits)||{})>0;
+    else owned=!!(G&&G.traits&&G.traits.auto_eat);
+    var t=(typeof A.eatThreshold==='function')?A.eatThreshold():eat.threshold;
+    var n=Number(t);
+    return { enabled: !!(eat.enabled&&owned),
+             pct: isFinite(n)?Math.round(Math.max(0,Math.min(1,n))*100):null };
+  }catch(e){ return null; }
 }
 function maybeIdleAwayReceipt(now,watermark){
   if(typeof document!=='undefined' && document.hidden) return null;
@@ -2781,6 +2820,14 @@ function processOffline(){
     died: combatSummary ? !!combatSummary.died : false,
     diedAfterMs: (combatSummary && combatSummary.died) ? (combatSummary.survivedMs||0) : 0,
     diedTo: (combatSummary && combatSummary.died) ? (combatSummary.diedTo||null) : null,
+    /* ── AND WHY NOTHING HEALED (Designer ruling 2b, 2026-08-31) ───────────
+       The SAME field the server states on its own receipt (hr-accrue
+       accrual.js → index.ts `away.autoEat` → src/net/accrue.js
+       summaryFromAway), so `receiptDeathCause` reads ONE shape whichever
+       engine ran the night and the two paths cannot describe one death
+       differently. Only on a combat receipt: a gather night has no auto-eat
+       to report and a stated `enabled:false` there would read as a cause. */
+    autoEat: combatSummary ? awayAutoEatState() : null,
 
     featuredMs: combatSummary ? (combatSummary.featuredMs||0) : 0,
     /* The MULTIPLIER that featured time actually paid, so the welcome-back
@@ -13967,7 +14014,23 @@ function maybeShowWelcome(){
                        : Math.floor(_ms/60000) < 60 ? Math.floor(_ms/60000) + 'm in'
                        : Math.floor(_ms/3600000) + 'h in')
         : '—';
-      rows.push({g:'uiSkull', bad:true, t: 'You died' + (_nm ? ' to ' + _nm : '') + ' — nothing was earned after', v: _when});
+      /* ── WHY NOTHING HEALED YOU (Designer ruling 2b, 2026-08-31) ────────
+         The ON/OFF sync is armed, so a player really can spend a night with
+         auto-eat off — and the ruling's price for that is that the receipt
+         says so, in the sentence about the death, on the first surface they
+         read. STATED, NOT INFERRED: the clause comes off the RECEIPT's own
+         auto-eat state (the state the engine ran that span with), never off
+         the live toggle, which is a different instant. Absent field → the row
+         reads exactly as it did before. */
+      var _why = null;
+      try{
+        var _AC = window.HearthriseAccrual;
+        if(_AC && typeof _AC.receiptDeathCause === 'function') _why = _AC.receiptDeathCause(_off);
+      }catch(e){}
+      rows.push({g:'uiSkull', bad:true,
+        t: 'You died' + (_nm ? ' to ' + _nm : '')
+           + (_why ? ' — ' + _why.clause : ' — nothing was earned after'),
+        v: _when});
     }
   }catch(e){}
   /* ── b499 (Designer ruling, THE STREAK LABEL COLLISION) ────────────────────

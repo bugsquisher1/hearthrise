@@ -2,6 +2,93 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-08-31 · SYSTEMS → SECURITY · **REVIEW HEADER: the auto-eat completion build** (`fix/autoeat-fallback-and-arm`)
+
+Two behaviour changes ship together, both self-only, both under Designer rulings 2 and 2b
+(DECISIONS 2026-08-31). This is written FOR the reviewer: what moves, what cannot, and where to
+point a mutant.
+
+**⚠ EDGE REDEPLOY REQUIRED, AND FIRST.** Repo payload moves
+`c17cd6bd…` → `2efae5aa…`. The suite's deployed-payload guard is RED until it lands (that is the
+guard working). Ordering is not cosmetic: with a NEW client against an OLD edge the two sides
+choose *different* foods for the same eat — the exact b499 NULL-food split, pointed the other
+way. Deploy the edge first, exactly as b499 did.
+
+**1 · WHAT THE CHOOSER CAN MOVE.** `src/core/auto-eat.js chooseFood` now picks, for an eat with
+no nominated food, the cheapest Provision that heals to full (processed before raw, then lowest
+`v`, then id) instead of the biggest healer. The ONLY thing it changes is **which item id gets
+`-1`** out of the player's own bag.
+- It does not change the QUANTITY (always exactly 1, unchanged).
+- It does not change the HP: every candidate in the covering set lands the player on `maxHp`, so
+  the post-eat value `min(maxHp, hp + heals)` is byte-identical. Proved over a full seeded night,
+  not argued: `cheapestSufficientGuard` in `tests/accrual-engine.mjs` runs 12 h twice, pre-ruling
+  chooser vs shipped, and asserts identical ticks / kills / crits / death / survivedMs / XP /
+  gold / loot / resulting HP while the bag bill drops 4.0x and 47.2x.
+- It does not touch gold, XP, drops, market, clan, leaderboard or any cross-player surface.
+- **Direction of the value change is DOWNWARD, always**: the server consumes strictly less book
+  value out of the player's own inventory. There is no input that makes it consume more.
+
+**2 · WHY A FORGED CLIENT VALUE CANNOT STEER IT.** The server runs the same chooser **on its own
+bag, with its own catalogue, against its own columns**:
+- the bag is `player_inventory` via `hr_state_of`, mutated only by the engine's own `addItem` /
+  `removeItem` during the span;
+- `items` (which carries `raw` and `v` — the two fields the new order reads) is a NAMED INPUT to
+  `computeAccrual` supplied by `supabase/functions/hr-accrue/catalogue.js`, which imports
+  `src/data/items.js` **at pack time**. It is not a request field and cannot be one — `requestGuard`
+  and `computeAccrualInputParity` already pin that, and `hostileGuard` proves unnamed request keys
+  are inert;
+- the only client-expressible auto-eat inputs remain the three `hr_set_auto_eat` columns, which are
+  entitlement-gated, clamped, journalled and rate-limited (30/h, rejections billed).
+- A forged `raw` or `v` therefore has nowhere to enter. There is no new client input in this build.
+
+**3 · THE ARMED TOGGLE (`SYNC_ENABLED_TOGGLE = true`).** No new RPC, no new column, **no SQL at
+all**: `hr_set_auto_eat` already refuses the entitlement gate only *on the way ON*
+(2026-08-29-auto-eat-tiers.sql: *"a player must always be able to switch it off"*), so the arm is
+a client line reaching an existing, already-reviewed verb.
+- The value direction is **strictly downward for the actor**: auto-eat only heals, so disabling it
+  can only shorten `survivedMs` and therefore the span that pays. It cannot raise any grant.
+- The counterpart is that the food stays in the bag — items the player already owned. Nothing is
+  minted and nothing crosses to another player.
+- The 0-heal outcome was ALREADY reachable before this build through the threshold dial's 0%,
+  which b499 shipped armed. This closes the gap between two equivalent controls; it does not open
+  a new one.
+
+**4 · THE RECEIPT'S NEW FIELDS.** `away.diedTo` (a monster id from the server's own catalogue) and
+`away.autoEat = {enabled, pct}` (stated by the engine off `eatCfg`, the object `fx.autoEat` was
+actually gated on). Both are **response-only**: they are not `delta` keys, so there is no
+unknown-delta-key surface (`shapeGuard` green), nothing reads them back into a grant, and they
+carry no other player's data. On the client they are **self-configuring**: absent → the receipt
+says nothing, never a guess.
+
+**5 · WHERE TO POINT A MUTANT** (all four already run and land on exactly their target):
+restore `bestHealingFood` as `chooseFood`'s default → `cheapestSufficientGuard` A+B go red;
+delete the processed-before-raw clause → the named raw expect goes red alone; disarm
+`SYNC_ENABLED_TOGGLE` → `AUTOEAT-SYNC-3` goes red; make `receiptDeathCause` read the LIVE toggle
+instead of the receipt → `RECEIPT-DEATHCAUSE-1`'s "different instant" assertion goes red alone.
+
+---
+
+### ⚠ OPEN 2026-08-31 — SYSTEMS → DESIGNER: a 100% auto-eat dial eats one Provision per swing at FULL health
+
+Found while building ruling 2; **not fixed, because it is not mine to rule**, and it is not made
+worse by this build.
+
+`resolveAutoEat` eats when `hp / maxHp <= threshold`. At the Auto-Eat II ceiling the effective
+threshold is **1.0**, so a character sitting at full health satisfies `1 <= 1` and eats — a whole
+Provision for **0 HP**, on every swing, for as long as the dial is at 100%. It is reachable today
+by any tier-II owner, live, through a synced key.
+
+The ruling **reduces the damage without removing it**: with a 0 deficit every food "covers", so
+cheapest-sufficient now burns the cheapest Provision in the bag rather than the biggest healer.
+Measured on the late-game fisher bag that is 18 g a swing instead of 900 g.
+
+The design question is whether an eat that restores nothing should happen at all — i.e. should
+`resolveAutoEat` refuse on a zero deficit? Refusing is one line and would be HP-identical (it
+heals nothing either way), but it silently redefines what the top of the dial means, and "the
+dial's ends belong to the player" is the position ruling 2b just took. **Designer's call.**
+
+---
+
 ### ⚠ OPEN 2026-08-31 — SEMANTIC: two incompatible models of what armour sells (Designer ↔ Systems)
 
 Not a merge conflict. Two live parts of the codebase hold different beliefs about whether

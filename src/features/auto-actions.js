@@ -175,29 +175,44 @@
      are not marked sent, so the player's next change re-sends them. Nothing here
      is surfaced to the player: this is a preference sync, it destroys nothing,
      and a toast per background refusal would be noise. */
-  /* ⚠ THE ON/OFF TOGGLE IS **DORMANT** AND THAT IS A DESIGN DECISION, NOT AN
-     OVERSIGHT.  (.claude/coordination/CONFLICTS.md, 2026-08-30, SYSTEMS →
-     LANE A / SECURITY, the section headed "THE REAL DEFECT b497 INTRODUCES".)
+  /* ⚠ THE ON/OFF TOGGLE IS **ARMED**, BY RULING, AND IT DOES NOT SHIP ALONE.
+     (Designer, .claude/coordination/DECISIONS.md 2026-08-31 §2b, answering the
+     b499 hold recorded in CONFLICTS.md 2026-08-30/31.)
 
-     Syncing the FOOD and the THRESHOLD only ever makes the server honour a
-     choice the UI already claims it honours — the reported defect, and an
-     unambiguous win. Syncing `enabled:false` is DIFFERENT: `auto_eat_enabled`
-     is the flag the accrual engine's `fx.autoEat()` is gated on, and with it
-     off a measured 12-hour night pays 0 kills and dies at the first fight
+     b499 shipped this dormant with the question stated as the Designer's: with
+     `auto_eat_enabled` false the accrual engine's `fx.autoEat()` never fires
+     and a measured 12-hour night pays 0 kills and dies at the first fight
      (tests/accrual-engine.mjs `attendedSettleAutoEatGuard`, and the 63–99%
-     figures in src/core/auto-eat.js's header). So pushing the toggle up turns a
-     client-side preference into a total loss of overnight progress, and the
-     open question — "may a player switch off a mechanic their payout depends
-     on, and what should the game say when they do?" — is the DESIGNER'S, and is
-     recorded as theirs. Systems owns the wiring; Systems does not get to answer
-     it by shipping.
+     figures in src/core/auto-eat.js's header). Pushing a client preference up
+     therefore turns a toggle into a total loss of overnight progress.
 
-     So the mechanism is built, tested in BOTH positions, and arming it is this
-     one line. ⚠ NOTE FOR WHOEVER FLIPS IT: dragging the threshold slider to 0%
-     already reproduces the same outcome through the `pct` key, so the ruling
-     needs to cover the dial as well as the switch — arming this without that is
-     half a decision. */
-  var SYNC_ENABLED_TOGGLE = false;
+     THE RULING IS YES, and the decisive argument is the one the hold itself
+     surfaced: the threshold dial's 0% minimum has been synced since b499, so
+     the 0-heal night was ALREADY reachable through a live key — holding the
+     switch protected nobody. Worse, while it was dormant a player who switched
+     Auto-Eat OFF still had the server eating their food all night: the UI said
+     off and the engine ate. That is a trust bug, not a safeguard. The choice is
+     self-only, mints nothing, and forfeits only unearned future progress —
+     Hearthrise takes no items on death and `simulateSpan` keeps everything
+     earned up to it.
+
+     ⚠ THREE CONDITIONS SHIP WITH THE ARM. Arming this line WITHOUT them is
+       explicitly not the ruling ("all three, or not at all"):
+       1. COPY AT THE CONTROL — src/settings-page.js `autoEatHint()`, on the
+          toggle's off state AND the dial's 0% end.
+       2. THE RECEIPT NAMES THE CAUSE — hr-accrue accrual.js states the
+          span's auto-eat config, index.ts carries it as `away.autoEat`,
+          src/net/accrue.js `receiptDeathCause()` turns it into the sentence,
+          and both death rows print it. STATED, NOT INFERRED.
+       3. THE DEATH SHEET STOPS SELLING WHAT THEY OWN — src/features/
+          death-sheet.js: an owner with it switched off gets a one-tap
+          re-enable, not a Store price.
+
+     The dial KEEPS its 0% (`clampThreshold`'s b326 note): a deliberate zero is
+     "manual healing only" and removing it is the paternalism the ruling
+     rejects. AUTOEAT-SYNC-3 drives BOTH positions of this flag, so the
+     mechanism stays proven in each. */
+  var SYNC_ENABLED_TOGGLE = true;
   var SYNC_QUIET_MS = 1500;
   var SYNC_RETRY_MS = 20000;      // after a still-unpaid window
   var _syncPending = null;        // {enabled?:true, food?:true, pct?:true}

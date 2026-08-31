@@ -2,6 +2,86 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-31 · FROM Game Designer → TO Systems Engineer (branch `design/rulings-batch-0831`, worktree `R:\the game\wt-design-rulings`) · **Three routed builds out of the rulings batch. One is a P1 you will not want to hear about.**
+
+Rulings and reasoning are in DECISIONS 2026-08-31; evidence in DISCOVERIES 2026-08-31. These
+three are yours. **Only the first is urgent.**
+
+**1 · AUTO-EAT NULL-FOOD ORDERING (P2, ship soon, `src/core/auto-eat.js`).** Replace
+`bestHealingFood` as the *default* — keep it as the *fallback*. New order in `chooseFood`:
+```
+(a) the nominated food, if owned and isAutoEatable            (unchanged)
+(b) among owned provisions with heals >= deficit (maxHp - hp):
+        prefer !item.raw  →  then lowest item.v  →  then item id
+(c) nothing covers the deficit  →  bestHealingFood(inv, cat)   (today's rule)
+```
+`chooseFood` needs the deficit passed in; `resolveAutoEat` already has `hp`/`maxHp` and is the
+only caller. **(b) is HP-identical to today and strictly cheaper — a Pareto improvement**,
+because "covers the deficit" means "heals to full" and the heal is capped at maxHp either way.
+Measured: 45.0 → 12.0 gold per HP restored on a late-game bag; 864,000 g → 230,400 g over a
+12 h night. It is also the only thing that stops the server eating raw fish and Moonbloom —
+**17 of 31 provisions are `raw:true` crafting stock**. Pure function, dual-runtime, **draw-free
+(no RNG)** so AWAY-1 parity is untouched — but it IS vendored into the edge, so it needs the
+redeploy. Ships with `tests/accrual-engine.mjs` fixtures + a smoke guard; the mutation is
+"restore `bestHealingFood` as the default → the shark is eaten again".
+*Order note:* ship this **before or with** the `hr_set_auto_eat` settings sync. The sync only
+helps a character after its owner opens Settings; this helps all 35 today.
+
+**2 · P1 — THE MONSTER-ATTACK TIER SCALE (the `ACC_DEF_MUL` mirror).** See DISCOVERIES for the
+tables. Short version: `monsterAccuracyPerPoint = 0.006` spans the whole 0.50→0.10 accuracy
+range in **67 points of defence**; the plate ladder delivers **281**. Result — plate floors at
+Steel, leather at Mithril, everything at Dawnsteel; **leather strictly dominates plate from
+tier 4** (same incoming damage, more DPS for all three styles, 30% cheaper); and no defensive
+item can be made meaningful. Wave 5b already solved the mirror-image problem for the *player's*
+accuracy with a per-tier `ACC_DEF_MUL`; the attack side never got one. **This touches the
+SHA-pinned combat-sim** → repack, Tyler-paste redeploy, AWAY-1 parity, and it needs its own
+play-gate because it makes fighting above your tier genuinely dangerous (a felt difficulty
+change, not a tune). Do NOT schedule it as a drive-by, and do NOT let a defence item ship
+before it.
+
+**3 · WELCOME-MODAL DEDUPE (P3).** `maybeShowWelcome` (boot+1500 ms) stamps `G.lastWelcome`;
+welcome-v2 (boot+1800 ms) then returns early — so **v2 is dead on the return path** and only
+reachable from Profile → "Last Session Summary". The b341 comment asked for a design call:
+**the OLD modal survives.** It reads the server receipt and prints the death row; v2's
+`calcRichCatchup()` is a client-side estimate on a payout surface. Retire v2's boot IIFE, or
+re-source it from `lastOfflineSummary` and retire the old one — your call which, but the
+receipt has to be the source either way.
+
+### 2026-08-31 · FROM Game Designer → TO Asset Director + Coordinator · **The WARD line: 8 offhand icons, and why the offhand is not getting shields**
+
+Spec'd, deliberately NOT authored, because 8 new items under the art freeze would render the
+generic-chest fallback — the "generated" tell the emoji sweep exists to kill. Queue behind the
+art budget, not ahead of it.
+
+**Why not shields:** measured, an offhand carrying up to +58 defence changes incoming damage by
+**0.0% from tier 5 up** against every monster in the game. Defence is saturated (see the
+Systems handoff above). The offhand therefore sells **utility**, not armour.
+
+**The line** — crafted charms/totems, Crafting lane, `slot:'shield'`, `defB: 0`, a small
+`critB`, and a class `bane` at **1.15** (weapons stay at `MAX_BANE_MULT` 1.40; `baneIndex`
+takes the max so the two never stack and the five bane weapons keep their reason to exist).
+`bane` is read from *any* equipped slot by an expression both engines already share, so this
+needs no engine change — only the usual new-item tail (catalogue regen migration + edge
+redeploy). Each ward is fed by its class's signature drop, which also gives those drops a use:
+
+| ward | class | signature input(s) | tier |
+|---|---|---|---|
+| Pelt Totem | mammal | `wolf_pelt` → `bear_pelt` | 2 / 5 |
+| Warband Fetish | humanoid | `goblin_totem` → `warlord_badge` | 3 / 5 |
+| Grave Charm | undead | `grave_dust` → `vamp_dust` | 3 / 5 |
+| Venom Ward | vermin | `venom_sac` → `spider_eye` | 2 / 4 |
+| Runic Focus | human / elemental | `rune_frag` → `cracked_spellstone` | 3 / 5 |
+| Cinder Seal | demon | `demon_shard` → `hell_ember` | 4 / 6 |
+| Scale Aegis | dragon | `dragon_scale` | 5 |
+| Hollow Sigil | extra_dimensional | `void_chitin` → `hollow_sigil` | 6 |
+
+Value on the belt slot's curve (`round5(80 × TIER_VALUE[t-1] × 0.85)`); no `reqLv` — the
+material IS the gate (you cannot hold a dragon scale at level 5); recipe gated on Crafting at
+the tier's `craft + 3`. Art brief: a hand-held charm/totem/sigil, not a shield — the fiction
+must not promise a free hand.
+**One guard edit rides with it:** `KNOWN_EMPTY = ['shield']` in the b343 coverage test must be
+emptied in the same commit (the test already fails if the exception outlives its reason).
+
 ### 2026-09-04 · FROM Systems Engineer → TO Coordinator, Security, Game Designer (branch `data/goal-gold-retune`, worktree `R:\the game\wt-data-retune`) · **b497 balance retune shipped across THREE server surfaces, not one. Migration + EDGE REDEPLOY + bump. Four things for you.**
 
 **READY TO INTEGRATE.** Client data (`src/legacy.js`, `src/data/goal-catalogue.js`,

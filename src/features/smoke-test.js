@@ -26059,7 +26059,9 @@ const TESTS = [
       D.open();
       const modal = document.getElementById('hr-dl-modal');
       assert(!!modal, 'the sheet must open');
-      assert(/3-day streak/.test(modal.textContent), 'eyebrow must read "3-day streak", got: ' + modal.textContent.slice(0, 80));
+      /* b499: the eyebrow states the CYCLE POSITION, never a "streak" — see
+         DAILY-SHEET-5 for why the word may not appear on this sheet at all. */
+      assert(/Day 3 of 7/.test(modal.textContent), 'eyebrow must read "Day 3 of 7", got: ' + modal.textContent.slice(0, 80));
       assert(/Claim Day 3/.test(modal.textContent), 'claim button must read "Claim Day 3", got: ' + modal.textContent.slice(0, 120));
       const today = modal.querySelector('.hr-dl-day.today');
       assert(today && /^D3/.test(today.textContent), 'the highlighted tile must be D3, got: ' + (today && today.textContent));
@@ -26134,8 +26136,10 @@ const TESTS = [
         'THE BUG: the sheet advertised ' + rwA.gems + ' gems on a broken streak; Day 1 pays none');
       const mA = openSheet();
       assert(!!mA, 'the sheet must open');
-      assert(/1-day streak/.test(mA.textContent),
-        'eyebrow must read "1-day streak", got: ' + mA.textContent.slice(0, 80));
+      /* b499: the eyebrow no longer says "streak" at all — it says the CYCLE
+         POSITION, which is the quantity this sheet actually owns. */
+      assert(/Day 1 of 7/.test(mA.textContent),
+        'eyebrow must read "Day 1 of 7", got: ' + mA.textContent.slice(0, 80));
       assert(/Claim Day 1/.test(mA.textContent),
         'claim button must read "Claim Day 1", got: ' + mA.textContent.slice(0, 120));
       const tileA = mA.querySelector('.hr-dl-day.today');
@@ -26204,6 +26208,164 @@ const TESTS = [
         + D.cycleDay(G));
     } finally {
       const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
+      D.noteServerStreak(null);
+      restoreG(snap);
+      if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
+    }
+  }),
+
+  () => tryRun('DAILY-SHEET-5 (b499): TWO true streaks may not share one word — the reward sheet owns "Day", the play streak owns "running"', () => {
+    /* THE DEFECT THIS PINS, MEASURED on b498 in a headless boot of the real
+       client (play streak 3, last claim two days ago, i.e. a missed day):
+
+         topbar chip           "3"   title="Daily login streak"
+         welcome-back modal    "Daily streak            3 days"
+         Home card             "Daily reward · Day 1"
+         daily-reward sheet    "DAILY REWARD · 1-DAY STREAK / Claim Day 1"
+
+       Every number was CORRECT. b498 fixed the arithmetic; the naming was left,
+       so the player reads a 3 and a 1 for two things both called a streak inside
+       ten seconds and concludes the game lost their progress. That is the same
+       trust failure as an actual mis-payment, at a fraction of the cause.
+
+       THE RULE, and it is a rule about VOCABULARY rather than about a string:
+         · The daily-reward sheet describes a CYCLE POSITION. It may say "Day n
+           of N"; it may NOT say "streak" — the word is what invites the reader
+           to compare it against the flame chip.
+         · Every PLAY-streak surface says played / running / in a row, and never
+           "daily" (which belongs to the reward) and never a bare "streak"
+           (which is ambiguous the moment two exist).
+
+       WHY A TEXT ASSERTION IS THE RIGHT INSTRUMENT HERE. The quantities are
+       already guarded by DAILY-SHEET-3/4; what has never been guarded is that
+       the two quantities are DISTINGUISHABLE ON SCREEN, and that is a property
+       of the rendered words and of nothing else.
+
+       MUTATION (any one of these turns it RED):
+         · restore "-day streak" in the sheet's eyebrow (daily-reward.js);
+         · restore 'Daily streak' on the welcome row (legacy.js);
+         · restore 'Day streak' in the welcome-v2 stat (legacy.js);
+         · restore title="Daily login streak" on .streak-badge (index.html). */
+    const D = window.HearthriseDaily, G = window.G;
+    const B = window.HearthriseCore && window.HearthriseCore.botd;
+    assert(D && B, 'HearthriseDaily / HearthriseCore.botd must be present');
+    const snap = snapshotG();
+    const sStreak = G.streak, sDR = G.dailyReward;
+    const dayLocal = (ms) => { const d = new Date(ms); return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); };
+    try {
+      /* THE EXACT DIVERGENCE. Played three days running, claimed two days ago —
+         so the play streak is 3 and the claim cycle is back at Day 1. */
+      D.noteServerStreak(null);
+      G.streak = { count: 3, lastDay: dayLocal(Date.now()) };
+      G.dailyReward = { lastClaimDay: dayLocal(Date.now() - 2 * 86400000) };
+      assert(D.cycleDay(G) === 1,
+        'CONTROL: this fixture must actually diverge (play 3 / claim Day 1), got Day ' + D.cycleDay(G));
+
+      // ── 1. THE SHEET. Names its cycle position; owns no streak word. ───────
+      const old = document.getElementById('hr-dl-modal'); if (old) old.remove();
+      D.open();
+      const sheet = document.getElementById('hr-dl-modal');
+      assert(!!sheet, 'the sheet must open');
+      const sheetText = sheet.textContent || '';
+      assert(!/streak/i.test(sheetText),
+        'the daily-reward sheet must not use the word "streak" — it describes a cycle position, and the '
+        + 'word is what makes a player compare it against the flame chip. Got: ' + sheetText.slice(0, 120));
+      assert(/Day 1 of 7/.test(sheetText),
+        'the sheet must state the cycle position as "Day n of N", got: ' + sheetText.slice(0, 120));
+      sheet.remove();
+
+      // ── 2. THE TOPBAR CHIP. Same number as the modal, and it must say which. ─
+      const chip = document.querySelector('.streak-badge');
+      assert(!!chip, '.streak-badge must exist — it is the play streak\'s only always-on surface');
+      const chipTitle = chip.getAttribute('title') || '';
+      assert(!/daily/i.test(chipTitle),
+        'the flame chip must not call itself "daily" — "daily" belongs to the reward, and this chip '
+        + 'counts days PLAYED. Got title: ' + JSON.stringify(chipTitle));
+      assert(/played|running|in a row/i.test(chipTitle),
+        'the flame chip must say what it counts (played / running / in a row), got: ' + JSON.stringify(chipTitle));
+
+      // ── 3. THE WELCOME-BACK MODAL — the one players actually get (b341). ───
+      assert(typeof window.__maybeShowWelcome === 'function',
+        '__maybeShowWelcome (the b341 seam) must exist — it is the modal the boot really shows');
+      const prevSeen = G.lastSeen, prevWel = G.lastWelcome;
+      G.lastSeen = Date.now() - 8 * 3600e3;
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const ov = document.getElementById('welcome-overlay');
+      assert(!!ov, 'the welcome-back overlay must build');
+      const wbText = ov.textContent || '';
+      assert(/3/.test(wbText), 'CONTROL: the modal must actually be showing the play streak (3)');
+      assert(!/daily streak/i.test(wbText),
+        'the welcome-back modal must not label the PLAY streak "Daily streak" — that is the reward\'s '
+        + 'word and the two numbers differ. Got: ' + wbText.replace(/\s+/g, ' ').slice(0, 160));
+      assert(/running|played|in a row/i.test(wbText),
+        'the welcome-back modal must name the play streak in play language, got: '
+        + wbText.replace(/\s+/g, ' ').slice(0, 160));
+      ov.classList.remove('show');
+      G.lastSeen = prevSeen; G.lastWelcome = prevWel;
+
+      // ── 4. THE WELCOME-V2 MODAL (reachable from Profile > Last Session). ───
+      if (typeof window._renderWelcomeV2 === 'function') {
+        window._renderWelcomeV2({ hoursAway: 8, xp: {}, itemsGained: {}, gold: 0 });
+        const v2 = document.getElementById('wbv-modal');
+        if (v2) {
+          assert(!/day streak/i.test(v2.textContent || ''),
+            'welcome-v2 must not say "Day streak" — same collision, second modal. Got: '
+            + (v2.textContent || '').replace(/\s+/g, ' ').slice(0, 160));
+          const v2ov = document.getElementById('wbv-overlay'); if (v2ov) v2ov.classList.remove('show');
+        }
+      }
+
+      // ── 5. THE ACHIEVEMENTS that read streak.count must not say "login". ───
+      const ACH = window.ACHIEVEMENTS || (window.__LEGACY_INLINE || {}).ACHIEVEMENTS || [];
+      const playAch = ACH.filter((a) => a && a.src === 'streak.count');
+      assert(playAch.length >= 2, 'CONTROL: the play-streak achievements must still exist, got ' + playAch.length);
+      playAch.forEach((a) => {
+        assert(!/login/i.test(a.desc || ''),
+          'achievement "' + a.id + '" counts the PLAY streak but its description says "login streak", '
+          + 'which points the player at the reward cycle instead: ' + JSON.stringify(a.desc));
+      });
+
+      /* ── 6. RENOWN'S OWN LABEL for the same quantity. `streakBest` reads
+         `player_state.streak_days` — the SERVER play streak — and calling it a
+         "login streak" points the reader at the reward cycle, which pays a
+         different thing off a different counter. This is the surface that made
+         the collision expensive rather than merely confusing: renown is the
+         "Rise to the Throne" spine, so a player who chases the wrong number
+         chases it for weeks. */
+      const RN = window.HearthriseRenown;
+      if (RN && RN.WEIGHT_LABELS) {
+        const lbl = RN.WEIGHT_LABELS.streakBest || '';
+        assert(!/login/i.test(lbl),
+          'renown WEIGHT_LABELS.streakBest scores the PLAY streak; it may not call it a "login '
+          + 'streak" (that is the daily reward\'s number). Got: ' + JSON.stringify(lbl));
+        assert(/play|running|in a row/i.test(lbl),
+          'renown WEIGHT_LABELS.streakBest must name what it counts, got: ' + JSON.stringify(lbl));
+      }
+
+      /* ── 7. THE THIRD STREAK. Lifetime Stats carries a KILL streak, and an
+         unqualified "Current streak" on a stats screen is read against the
+         topbar flame. Every streak in the game must be qualified by what it
+         counts — that is the whole rule, applied to the surface that has no
+         daily/claim involvement at all. */
+      assert(typeof window.openLifetimeStats === 'function',
+        'openLifetimeStats must be on window (it is the only door to the Lifetime Stats copy)');
+      window.openLifetimeStats();
+      const ls = document.getElementById('lifetime-stats');
+      assert(!!ls, 'the Lifetime Stats modal must build');
+      const lsText = ls.textContent || '';
+      assert(/kill streak/i.test(lsText),
+        'CONTROL: Lifetime Stats must actually be rendering a kill-streak row');
+      assert(!/(^|[^a-z])Current streak([^a-z]|$)/i.test(lsText),
+        'Lifetime Stats renders a bare "Current streak" — qualify it ("Current kill streak"). '
+        + 'Three quantities in this game are called a streak; an unqualified one on a stats screen '
+        + 'is read against the topbar flame, which counts something else.');
+      ls.classList.remove('show');
+    } finally {
+      const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      const v2ov = document.getElementById('wbv-overlay'); if (v2ov) v2ov.classList.remove('show');
       D.noteServerStreak(null);
       restoreG(snap);
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;

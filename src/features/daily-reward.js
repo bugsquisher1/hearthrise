@@ -431,7 +431,28 @@
     scrim.innerHTML =
       '<div class="hr-dl-box">' +
         '<button class="hr-dl-close" data-dl-close="1" aria-label="Close" title="Close">&times;</button>' +
-        '<div class="hr-dl-eyebrow">Daily reward · ' + streakCount(G) + '-day streak' + (wk ? ' · week ' + (wk + 1) : '') + '</div>' +
+        /* ── b499 (Designer ruling, THE STREAK LABEL COLLISION) ───────────────
+           THE WORD "STREAK" IS GONE FROM THIS SHEET, DELIBERATELY, AND IT MAY
+           NOT COME BACK. b498 made the sheet read the right NUMBER; it left the
+           wrong NAME. Hearthrise has two true streaks:
+             · the PLAY streak (`G.streak.count`, days settled) — the topbar
+               flame chip, the welcome-back modal, the Week Warrior/Devoted
+               achievements, and RENOWN (streakBest x5). It owns the word
+               "running"/"played".
+             · the CLAIM streak (this sheet) — consecutive days CLAIMED, derived
+               by `deriveLoginStreak` from the server's own claim rows. It owns
+               the word "Day", and the D1..D7 strip right below this line is
+               what "of N" refers to.
+           They diverge the moment a player plays a day without claiming, and
+           MEASURED on this build a returning player saw "Daily streak 3 days"
+           (modal) over "Daily reward · Day 1" (Home) over "1-DAY STREAK"
+           (here) inside ten seconds. Two numbers, one word, three surfaces.
+           "Day n of N" is also strictly more informative than "n-day streak":
+           it names the ladder the player is looking at.
+           ⚠ N comes from DAILY_LOGIN_CYCLE_DAYS, never a literal 7 — the strip
+             above is built from the same constant. */
+        '<div class="hr-dl-eyebrow">Daily reward · Day ' + day + ' of ' + R.DAILY_LOGIN_CYCLE_DAYS
+          + (wk ? ' · week ' + (wk + 1) : '') + '</div>' +
         '<div class="hr-dl-h">' + (streakCount(G) > 1 ? 'Welcome back!' : 'Your daily reward') + '</div>' +
         '<div class="hr-dl-week">' + week + '</div>' +
         (claimable

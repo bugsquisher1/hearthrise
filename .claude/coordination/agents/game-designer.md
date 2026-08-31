@@ -2,6 +2,67 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-31 — four rulings, and the one I got by pricing an item nobody asked me to price
+
+Four questions queued off b497/b498. Three of them I answered roughly where I expected. The
+fourth — "where do shields enter the economy" — turned into the most important thing I have
+found in months, and only because I refused to pick a bar count without simulating what the
+item would actually do.
+
+**What I want to remember: the ask was "price it", and the answer was "it has nothing to sell."**
+I nearly wrote a perfectly reasonable shield ladder — def curve between helm and platelegs,
+3 bars, smithing at `mat.smith + 6`, a `strB/rangeStrB/magicStrB` tax so a two-hander pays for
+the defence the engine can't stop it having. It would have passed every guard in the repo. Then
+I ran it through `playerCombatRolls`/`monsterCombatRolls` and the incoming-damage column did not
+move. Not "moved a little". **0.0%, from tier 5 up, against every monster in the game.** Monster
+accuracy floors at 10% and a geared player is already there from Steel. Seven items of vendor
+trash, shipped with a straight face, into the exact backlog category I have been complaining
+about. A ladder that satisfies the *shape* of the request and none of its purpose is the most
+expensive kind of wrong, because it looks finished.
+
+**The methodology note I keep relearning: measure through the engine, not through the table.**
+And the trap inside the trap: `levelOf(skills, id)` reads **XP**, not a level. My first run
+passed `{defense: 70}` and silently simulated a level-1 character, which produced a plausible
+but wrong table (it said the triangle was healthy). I only caught it because one row was
+non-monotonic — leather took *more* damage at t6 than t7 with the same monster — and a number
+that moves the wrong way is worth an hour. The corrected run inverted the conclusion.
+
+**What playing taught me on the streak collision.** I could have ruled that one off the source.
+Booting the real client and driving it took twenty minutes and produced the sentence that made
+the ruling obvious: in ten seconds a returning player reads *"Daily streak 3 days"* (modal),
+*"Daily reward · Day 1"* (Home card behind it), *"1-DAY STREAK"* (sheet). Three surfaces, two
+numbers, one word. Nobody would have written that down from the code, because each surface is
+correct in isolation — the defect only exists in the sequence. It also handed me two things I
+was not looking for: the welcome-v2 modal is **dead on the return path** (the old one stamps
+`lastWelcome` 300 ms first), and `stats.deaths` **does** increment now, so I can finally close
+that backlog item.
+
+**On merging the two streaks — I costed it and the cost was the wrong direction.** It is
+tempting because "one number" reads as simpler. But the claim streak's whole retention function
+is *come back AND press the button*; riding it on days-settled makes the 7-day jackpot
+automatic, pays more for less engagement, and couples the login cycle to renown's counter so
+neither can be tuned alone. A naming problem does not deserve an economy change. Rename.
+
+**On the disable ruling.** I nearly reached for a constraint. Then I asked what the toggle is
+actually FOR, and it is *"do not burn my 2,100 g Moonfish Fillets on a low-value grind"* — a
+real strategy, self-only, and bounded because Hearthrise takes nothing from you on death. The
+right answer was not a constraint but a sentence at the point of choice, plus a pointer at
+Standing Orders B1 (withdraw instead of dying), which is the designed version of the same need.
+**Freedom plus an honest warning beats a guardrail** when the consequence is opportunity cost.
+
+**On the cloth lane — the discipline was in NOT changing it.** b497 shipped that stopgap
+yesterday with an edge redeploy. It moved cloth from 140x to 5.6-9.7x against a 3.4-6.9x band,
+and the repo's own faucet guard caps at 20x. The residual (four slots priced identically) is
+real and I measured the one-line fix that lands it at 3.6-6.6x — and then filed it instead of
+shipping it, because re-tuning a live economy twice in a week for a difference no player feels
+is churn wearing a lab coat. I gave the fix a *condition* to expire on rather than a date.
+
+**Standing backlog, updated:** Cellar +500 storage — still open, and board §10 #8 (Depot → Bank
+UI) is its real home. Solo raid pool one-tap chest — still open. "Harvest 25 crops" for a 2-plot
+starter — still open. `deaths` never increments — **CLOSED, it does.** ~25 recipe-less tier-3-6
+drops — largely closed by library2/wave3; a fresh sweep finds **one** (`keystone`), and the ward
+line I spec'd today would consume the class-signature drops properly.
+
 ## 2026-08-23 - b432 - Runecrafting: the ruling, and what playing it taught me
 
 Tyler's whole brief was one sentence: *"it doesn't look like you ever fixed runecrafting to make more

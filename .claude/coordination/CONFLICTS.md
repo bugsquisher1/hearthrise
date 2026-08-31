@@ -2,6 +2,38 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+### ⚠ OPEN 2026-08-31 — SEMANTIC: two incompatible models of what armour sells (Designer ↔ Systems)
+
+Not a merge conflict. Two live parts of the codebase hold different beliefs about whether
+DEFENCE is a scarce stat, and they are both acting on it.
+
+**Model A — `src/data/gear-tiers.js` (b497 cloth header, shipped yesterday).** Prices armour on
+defence: *"at full weight cloth would cost MORE than leather for an item of identical book value
+while carrying 45% less defence, which would kill the line."* The half-weight plank exists
+because of that sentence.
+
+**Model B — measured 2026-08-31 (DISCOVERIES, same date).** Monster accuracy floors at
+`monsterMinAccuracy = 0.10`, reached by a plate wearer from **Steel** and by a leather wearer
+from **Mithril**. At **Dawnsteel all three lines take identical damage (4.4/swing)**. Above
+tier 3, "45% less defence" costs the player nothing against tier-matched content, so Model A's
+premise — and therefore its 0.5x discount — does not hold in the half of the ladder it was
+written for.
+
+**Why it matters beyond cloth:** the same premise is load-bearing for the whole triangle
+(gear-tiers.js `ARMOUR_LINES` header: "plate buys survival"), for the two standing Tyler
+rulings recorded there, and for any future defensive item — including the offhand.
+
+**RESOLUTION PATH (not resolved here, deliberately):** Model B is a measurement and Model A is
+a design intent; the correct outcome is to make the intent TRUE rather than to delete it —
+i.e. the monster-attack tier scale (the Wave 5b `ACC_DEF_MUL` mirror, routed to Systems). Until
+that lands, **neither model should be acted on again**: b497's cloth line stays exactly as
+shipped (Designer ruling, DECISIONS 2026-08-31 §4) and no new defence-selling item ships
+(§3). Re-open the cloth cost expression only in the same build as the combat fix, so the two
+are re-measured together.
+
+**Owners:** Systems Engineer (the combat scale), Game Designer (the armour identities that
+depend on it). **Evidence:** the saturation + triangle tables in DISCOVERIES 2026-08-31.
+
 ### ⚠ OPEN 2026-09-04 — b497 goal-gold retune MOVES the recorded forgery bound (Systems → Security)
 
 Branch `data/goal-gold-retune`. The Designer's gold-per-effort-minute ruling re-prices two of the

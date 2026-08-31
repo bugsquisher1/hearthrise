@@ -65,7 +65,7 @@
 // the omission reads as a decision rather than an oversight.
 // ============================================================
 
-import { pacedActionMs } from './pacing.js?v=497';
+import { pacedActionMs } from './pacing.js?v=498';
 
 /* b389 WORKER REBALANCE (game-designer; Tyler: "workers are overpowered").
    A castle crew of 6 at Lv10 = 6 x 0.172 = 1.03 active-player-equivalents —

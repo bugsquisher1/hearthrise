@@ -53,7 +53,7 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=497';
+import { applyClassProfiles } from './monster-classes.js?v=498';
 
 export const MONSTERS = {
 

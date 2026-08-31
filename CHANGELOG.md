@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 498 — 2026-08-31 (The honesty build: the daily sheet tells the truth, companions are acquirable again)
+
+- 🎁 **The daily-reward sheet can no longer promise more than it pays.** If you missed a day, the streak resets — the server always knew that, but the sheet kept advertising your old day's reward and then paid Day 1. The display now reads the same claim streak the server pays on. (If you open the game in the first seconds before your data loads, the sheet may briefly *under*-state your day — never over.)
+- 🐾 **Companions can be earned again.** A catalogue repair on our side: 17 companion unlocks had been silently destroyed by an internal migration re-run a week ago, which made every non-shop companion acquisition fail with a server error (nobody hit it — you'd have been the first). The catalogue is restored, and the grant path got three hardenings while we were in there: a missing catalogue row now refuses cleanly instead of erroring, the Whelp genuinely requires its dragon egg, and the acquisition journal now labels claimed-vs-verified provenance honestly.
+- 🔎 Behind the scenes: the repo now *measures* which server code is deployed instead of believing its own notes — a new drift check compares 40 tracked server functions against production on every CI run. It found and fixed two stale records on its first day.
+
 ## v0.9.2-beta build 497 — 2026-08-30 (The balance build: Auto-Eat for everyone, honest bounty pricing, workers at their real pace)
 
 > **🧪 Testers:** ① Make a new character — you start with **Auto-Eat already on** (no 15-Mark purchase needed). Existing characters: you now **own** Auto-Eat I free — switch it on in Settings → Gameplay. ② Check the Bounty Board: Easy contracts now genuinely pay less per kill than Normal, Normal less than Hard — no more "Easy asks more for less." ③ If a daily task looks half-done after the update, its numbers refresh honestly — nothing you finished is lost.

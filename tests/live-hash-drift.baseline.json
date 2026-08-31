@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-08-31",
- "replay_ms": 8991,
+ "replay_ms": 9091,
  "counts": {
-  "tracked_names": 37,
-  "entries": 37
+  "tracked_names": 40,
+  "entries": 40
  },
  "functions": [
   {
@@ -74,6 +74,28 @@
    "replay": {
     "md5": "d84d880319b3427b0220333462821036",
     "norm_len": 362,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "clan_upkeep_pay(p_clan_id uuid)",
+   "name": "clan_upkeep_pay",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-authenticated-surface-lockdown.sql"
+   ],
+   "live": {
+    "md5": "c7cc52ec200e74e6b73a2c6fea4d26df",
+    "norm_len": 2359,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "c7cc52ec200e74e6b73a2c6fea4d26df",
+    "norm_len": 2359,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -281,6 +303,28 @@
    },
    "agree": false,
    "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 2,267 code chars. Same shape as hr_claim_daily__ungated: production carries the goal-gold-retune patch (farmhand goal 6), the repo file carries the same value plus the b497 comment and re-alignment."
+  },
+  {
+   "sig": "hr_companion_grant(p_slot integer, p_companion text, p_source text, p_idem uuid)",
+   "name": "hr_companion_grant",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-06-companion-grant-hardening.sql"
+   ],
+   "live": {
+    "md5": "81b5a41b4861f284f25b0dc1046d941f",
+    "norm_len": 8482,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "81b5a41b4861f284f25b0dc1046d941f",
+    "norm_len": 8482,
+    "source": "computed-from-replay"
+   },
+   "agree": true
   },
   {
    "sig": "hr_create_character(p_slot integer)",
@@ -781,6 +825,28 @@
    "agree": true
   },
   {
+   "sig": "hr_unlock_buy(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_offer_id text)",
+   "name": "hr_unlock_buy",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-19-companion-unlocks.sql"
+   ],
+   "live": {
+    "md5": "40f1ead2515b0c3f898db0bd4bf97a35",
+    "norm_len": 20059,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "40f1ead2515b0c3f898db0bd4bf97a35",
+    "norm_len": 20059,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_unlock_levels(p_user uuid, p_slot integer)",
    "name": "hr_unlock_levels",
    "tracked_by": [
@@ -948,15 +1014,5 @@
    "agree": false,
    "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 10,175 code chars. 2026-08-22-raid-chest-items.sql grew provenance comments (the src/features/raids.js constants each chest value mirrors, the R1 week-key note, the bossOfWeek derivation) and re-wrapped two statements after the apply. Every constant and every branch is identical."
   }
- ],
- "how_to_verify_a_divergence": [
-  "A divergence between live and replay is a TEXT difference and says nothing on its own",
-  "about behaviour, because the hash is deliberately whitespace- and comment-sensitive.",
-  "Do not guess. Run:   node tests/live-hash-drift.mjs --codediff [name]",
-  "It fetches the live body, rebuilds the repo body, strips SQL comments from both",
-  "(dollar-quote and single-quote aware, so a -- inside a literal is not mistaken for a",
-  "comment) and reports CODE-IDENTICAL or the first differing character. A divergence",
-  "that is NOT cosmetic means production is running different code from the repo, which",
-  "is an incident, not a documentation gap."
  ]
 }

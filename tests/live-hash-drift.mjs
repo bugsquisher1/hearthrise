@@ -205,6 +205,41 @@ export async function sweep(sources) {
     }
     for (const n of authored) restated.set(n, (restated.get(n) || new Set()).add(f));
 
+    /* (pin, prosrc shape — 2026-09-06-companion-grant-hardening.sql) a migration
+       that reads a body via `select prosrc from pg_proc where oid = <var>` with
+       `<var> := to_regprocedure('public.name(args)')` pins that body exactly as
+       a pg_get_functiondef reader does. Resolve the signature from the
+       to_regprocedure literal in the same file. Checked BEFORE the
+       pg_get_functiondef gate: such a file may mention pg_get_functiondef only
+       inside a raise-message string, which codeOnly() keeps. */
+    {
+      const oidReads = [...sql.matchAll(/\bprosrc\b[\s\S]{0,160}?from\s+pg_proc(?:\s+[a-z]+)?\s+where\s+(?:[a-z]+\.)?oid\s*=\s*(to_regprocedure\(\s*'([^']+)'\s*\)|[a-z_][a-z0-9_]*)/gi)];
+      let prosrcHits = 0;
+      for (const r of oidReads) {
+        if (r[2]) {
+          // inline form: `where oid = to_regprocedure('public.name(args)')`
+          if (SIGLIT.test(r[2])) { note(r[2].replace(/^public\./, '').replace(/\(.*$/s, ''), 'pin', f); prosrcHits += 1; }
+          continue;
+        }
+        // variable form: resolve ONLY the literal that feeds the oid variable,
+        // not every to_regprocedure in the file — those are §-gate existence checks.
+        for (const m of sql.matchAll(new RegExp(`\\b${r[1]}\\s*:=\\s*to_regprocedure\\(\\s*'(public\\.[a-z_][a-z0-9_]*\\([^']*\\))'\\s*\\)`, 'g'))) {
+          if (SIGLIT.test(m[1])) { note(m[1].replace(/^public\./, '').replace(/\(.*$/s, ''), 'pin', f); prosrcHits += 1; }
+        }
+      }
+      if (oidReads.length && !prosrcHits) shapeless.push(`${f}: reads prosrc from pg_proc by oid but no to_regprocedure assignment resolves the signature`);
+      if (!sql.includes('pg_get_functiondef')) continue;
+      // fall through: the file may ALSO carry pg_get_functiondef readers below;
+      // the raise-string-only case is satisfied by the prosrc hits just noted.
+      if (prosrcHits) {
+        const hasRealReader =
+          /pg_get_functiondef\(\s*'[^']+'\s*::\s*regprocedure\s*\)/.test(sql)
+          || /pg_get_functiondef\(\s*to_regprocedure\(/.test(sql)
+          || /pg_get_functiondef\(\s*oid\s*\)\s+from\s+pg_proc/.test(sql)
+          || /pg_get_functiondef\(\s*[a-z_][a-z0-9_.]*\s*::\s*regprocedure\s*\)/.test(sql);
+        if (!hasRealReader) continue;
+      }
+    }
     if (!sql.includes('pg_get_functiondef')) continue;
 
     // (pin) the four shapes this repo actually uses to read a body back.

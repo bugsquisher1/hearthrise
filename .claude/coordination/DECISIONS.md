@@ -91,6 +91,48 @@ not have understood" is never a guardrail; it is making the consequence legible.
 answer to the same need is Standing Orders B1 *Withdraw when… food out / HP danger* (board §10
 #4) — retreat instead of dying. The disable toggle is the crude version of it and stays free.
 
+**2c · A ZERO-DEFICIT EAT MUST NOT HAPPEN. → OPTION (a): `resolveAutoEat` REFUSES ON A FULL BAR.**
+*(Answering the Systems filing "a 100% auto-eat dial eats one Provision per swing at FULL
+health". It is an ENGINE change — `src/core/auto-eat.js`, vendored — and it must ride the SAME
+edge redeploy as ruling 2's chooser. Landing the chooser alone makes this bug 50x cheaper and
+therefore 50x harder to notice, while it drains the bag all night just the same.)*
+
+**THIS DOES NOT CONTRADICT 2b, AND THE REASON IS THE WHOLE RULING.** 2b protects a player's
+*choice*. At 0% the player gets exactly what the dial's label promises — never heal — and
+"do not burn my Moonfish on a low-value grind" is a real strategy someone can form an intent
+about. At 100% the player gets something the label does **not** promise. The dial reads *"eat
+when my HP drops to X%"*, and **a character at full health has not dropped to anything**;
+`hp/maxHp <= 1.0` being true at full bar is the arithmetic of a `<=` boundary, not a preference.
+Honouring it is not respecting the player — it is mistaking a comparison operator for a setting.
+The two ends are asymmetric because one expresses an intent and the other cannot: **there is no
+build, no strategy and no edge case in which destroying a Provision for 0 HP helps anyone.**
+That is the test I applied, and it is the only one that separates the cases cleanly.
+
+It is also the position that makes the ceiling worth its 100 Marks. "Top me up the instant I
+take any damage" is the max-safety setting a tier-II owner paid for; today it is the setting
+that empties their bag. And a full-health night is **pure item destruction** — ~1,400 meals for
+zero HP, and once the cheap processed stock runs out it works down into exactly the raw crafting
+material ruling 2 exists to protect. It re-opens that wound at the boundary, only slowly.
+
+**(b) clamping the ceiling to 99% is REJECTED** — it is the "UI says one thing, the engine does
+another" class twice over (a dial that shows 100% and stores 99%, or a max the player can see is
+missing), and it does not kill the class: at 99% a 100-HP character still eats a whole Provision
+for a 1 HP deficit. **(c) copy at the 100% end is REJECTED** — a warning is the right answer for
+0%, where there is a real consequence to inform; here it would be the only line in the game that
+warns a player about behaviour nobody wants instead of not doing it.
+
+**THE GUARD IS `deficit > 0`, NOT `threshold < 1`** — that kills the class rather than the 100%
+instance (any future maxHp change, regen or heal-over-time reaches the same boundary), and it
+sits beside the existing `hp <= 0` early return, which has exactly the same shape: nothing to do
+here, a different system owns this state. **Place it BEFORE `chooseFood`**, so a zero-deficit
+call does not also pick a food it will not eat. HP-identical (nothing healed either way, so no
+balance movement) and **draw-free** — auto-eat spends no RNG, so AWAY-1 stays byte-identical.
+
+**The dial's top end gets an honest label** (this rides with the fix, it is not a substitute for
+it): **"100% — eat the moment I take any damage"**. Test shape: at `hp === maxHp` with threshold
+1.0, `resolveAutoEat` returns null and nothing is consumed; CONTROL at `hp === maxHp - 1`, same
+threshold, still eats. Mutation: delete the deficit guard → the full-bar case eats again.
+
 **3 · THE OFFHAND IS NOT A DEFENCE SLOT. SHIELDS PROPER ARE BLOCKED, AND THE BLOCKER IS NAMED.**
 First, the record: **zero shield items exist** (`slot:'shield'` count = 0). The report is an
 empty *socket*, not orphaned items. Second, and this is the ruling: **defence saturates at

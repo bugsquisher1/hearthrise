@@ -2,6 +2,43 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-31 · FROM Game Designer → TO Systems Engineer + Art Director · **RULED: ARM `SYNC_ENABLED_TOGGLE`. The b499 hold is answered — and the answer covers the dial.**
+
+You held the toggle dormant and named the ruling as mine (CONFLICTS 2026-08-31, commit
+a1476bee). Here it is; the full reasoning is DECISIONS 2026-08-31 §2b.
+
+**ARM IT.** The switch and the threshold dial's 0% are one decision, and the decisive fact is
+the one your own note surfaced: **the dial is already synced**, so the 0-kill night is already
+reachable through a live key. Holding the switch protects nobody. Worse — while it is dormant, a
+player who turns Auto-Eat OFF still has the server eating their food all night. **The UI says
+off and the engine eats.** That is not the cautious position, it is the b498 streak-sheet
+failure class again (a surface saying one thing while the engine does another), and it is a
+trust bug rather than a safeguard. The choice is self-only, mints nothing, and forfeits only
+unearned future progress — Hearthrise takes no items on death, and `simulateSpan` keeps
+everything earned up to it.
+
+**THREE CONDITIONS SHIP WITH THE ARM — all three, or leave it dormant.**
+1. **Copy at the control** (Art): the toggle's off state AND the dial's 0% end read *"You will
+   not heal while away. A fight that outlasts your health ends the night early."*
+2. **The return receipt names the cause** (Systems). The death row already renders (b341,
+   `src/legacy.js`: *"You died to X — nothing was earned after"*). Add the reason when the span
+   died with auto-eat disabled or the threshold at 0: *"You died to Ancient Bear — auto-eat was
+   off, so nothing healed you."* ⚠ **STATED, NOT INFERRED** — that is b341's own standard, so
+   the away receipt has to carry the auto-eat state *for that span*. Do not rebuild the sentence
+   from the client's current toggle; it is a different instant than the one that killed them. If
+   the field does not exist, adding it is part of this change.
+3. **The death sheet stops selling what they own** (`src/features/death-sheet.js`): a player who
+   owns a tier and has it switched off gets *"Auto-Eat is switched off"* + a one-tap re-enable,
+   not a Store price.
+
+**The dial keeps its 0%** — `clampThreshold`'s b326 note preserves a deliberate zero on purpose
+("manual healing only"), and removing it is the paternalism this ruling rejects.
+
+**Separately, and still needed after your sync:** the NULL-food ordering below. Your sync fixes
+the player's *pick*; the fallback still answers for every character until its owner opens the
+picker, and for anyone whose nominated stack runs out mid-night — which is exactly when a bag of
+raw fish is the next thing `bestHealingFood` reaches for.
+
 ### 2026-08-31 · FROM Game Designer → TO Systems Engineer (branch `design/rulings-batch-0831`, worktree `R:\the game\wt-design-rulings`) · **Three routed builds out of the rulings batch. One is a P1 you will not want to hear about.**
 
 Rulings and reasoning are in DECISIONS 2026-08-31; evidence in DISCOVERIES 2026-08-31. These

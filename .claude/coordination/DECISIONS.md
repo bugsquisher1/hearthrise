@@ -41,21 +41,55 @@ today's `bestHealingFood` — largest heal — because survival beats thrift exa
 "Covers the deficit" means "heals to full", so **(b) is HP-identical to today's rule and
 strictly cheaper: a Pareto improvement, never a nerf.** *"refuse-until-set" is REJECTED* — it
 punishes non-engagement with a whole night's lost accrual for a setting the client has never
-once sent (`hr_set_auto_eat` has zero call sites), and it would undo b497's free Auto-Eat I.
-Ship the NULL policy **before or with** the settings sync: the sync only protects a character
-after its owner opens Settings; the policy protects all 35 today.
+once sent when this was ruled) and it would undo b497's free Auto-Eat I.
+**STILL REQUIRED AFTER b499's SETTINGS SYNC**, which landed while this was being written: the
+sync makes `auto_eat_food` the player's pick, but the NULL fallback still answers for (a) every
+character until its owner opens Settings and touches the picker, and (b) any character whose
+nominated food runs out mid-night — `chooseFood` falls through to `bestHealingFood` on an empty
+stack, which is precisely when a bag full of raw fish is standing there.
 
-**2b · MAY A PLAYER DISABLE AUTO-EAT WHEN AWAY SURVIVAL DEPENDS ON IT? → YES, UNCONSTRAINED.**
-It is a self-only choice over the player's own resources: it mints nothing, it crosses to no
-other player, and Hearthrise has **no item loss on death** (that is a standing rejection —
-"death-protection blessings → fake stakes"), so `simulateSpan` keeps everything earned up to
-the death and forfeits only the remainder of the span. Opportunity cost is the right-sized
-consequence for a deliberate choice, and *"do not burn my 2,100 g Moonfish Fillets on a
-low-value grind" is the reason the toggle exists.* **One binding condition:** the consequence
-must be stated AT THE TOGGLE, not only on the return receipt — "Auto-Eat off: you will not
-heal while away. A fight that outlasts your health ends the night early." The designed answer
-to the same need is Standing Orders B1 *Withdraw when… food out / HP danger* (board §10 #4):
-retreat instead of dying. The disable toggle is the crude version of it and stays free.
+**2b · MAY A PLAYER DISABLE AUTO-EAT WHEN AWAY SURVIVAL DEPENDS ON IT? → YES. ARM THE TOGGLE.**
+*(Answering the b499 `SYNC_ENABLED_TOGGLE = false` hold in CONFLICTS 2026-08-31, and covering
+the DIAL as that entry correctly demands.)*
+
+**The switch and the 0% end of the threshold dial are one decision and get one answer: both are
+the player's, and the server must honour both.** It is a self-only choice over the player's own
+resources — it mints nothing, it crosses to no other player, and Hearthrise has **no item loss
+on death** (a standing rejection: "death-protection blessings → fake stakes"), so `simulateSpan`
+keeps everything earned up to the death and forfeits only the remainder of the span. Opportunity
+cost is the right-sized consequence for a deliberate choice, and *"do not burn my 2,100 g
+Moonfish Fillets on a low-value grind"* is the reason the control exists at all.
+
+**DORMANT IS NOT THE SAFE POSITION — IT IS THE DISHONEST ONE, AND THAT IS WHY THIS IS A YES.**
+Two facts settle it. First, the dial's 0% minimum is **already synced today**, so the 0-kill
+night is already reachable through a live key; withholding the switch protects nobody and only
+makes two equivalent controls behave differently. Second, and worse: with the toggle dormant a
+player who switches Auto-Eat OFF still has the server eating their food all night. **The UI says
+off and the engine eats** — the exact "a UI that says one thing while the engine does another"
+failure class this codebase names in `gen-catalogues.mjs` and spent b498 paying down on the
+streak sheet. A player finding their Cooked Sharks gone in the morning after switching the
+feature off is a trust bug, not a protection.
+
+**THREE BINDING CONDITIONS — arm it with all three, or not at all.** The answer to "they might
+not have understood" is never a guardrail; it is making the consequence legible.
+1. **AT THE CONTROL.** Both the toggle's off state and the dial's 0% end read:
+   *"You will not heal while away. A fight that outlasts your health ends the night early."*
+2. **ON THE RETURN RECEIPT, NAMED.** The death row already renders (`src/legacy.js`, b341:
+   *"You died to X — nothing was earned after"*). When the span died with auto-eat disabled or
+   the threshold at 0, it must say **why**: *"You died to Ancient Bear — auto-eat was off, so
+   nothing healed you."* This is the condition that turns a silent loss into a rule the player
+   learns once. ⚠ It must be **STATED, NOT INFERRED** (b341's own standard): the away receipt
+   needs to carry the auto-eat state for that span. If the field does not exist yet, add it —
+   do NOT reconstruct the sentence from the client's *current* toggle, which is a different
+   instant than the one that killed them.
+3. **THE DEATH SHEET STOPS SELLING WHAT THEY ALREADY OWN.** `src/features/death-sheet.js` reads
+   ownership to nag "unlock Auto-Eat". For a player who owns a tier and has it switched off it
+   must say *"Auto-Eat is switched off"* with a one-tap re-enable, not quote a Store price.
+
+**The dial keeps its 0%.** `clampThreshold`'s b326 note exists to preserve a deliberate zero
+("manual healing only"); removing it would be the paternalism this ruling rejects. The designed
+answer to the same need is Standing Orders B1 *Withdraw when… food out / HP danger* (board §10
+#4) — retreat instead of dying. The disable toggle is the crude version of it and stays free.
 
 **3 · THE OFFHAND IS NOT A DEFENCE SLOT. SHIELDS PROPER ARE BLOCKED, AND THE BLOCKER IS NAMED.**
 First, the record: **zero shield items exist** (`slot:'shield'` count = 0). The report is an

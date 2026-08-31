@@ -2256,3 +2256,44 @@ promise on a live $4.99/mo product and, if ever implemented, the exact class the
 removed for. And `starter_bundle` sells **200,000 gold** for $7.99 against a property ladder whose
 whole gold cost is 202,900. The b215 guard only checks `sku !== 'pass_season'` and `type !== 'pass'`,
 so neither is caught. His call, not mine.
+
+---
+
+## 2026-08-31 · SYSTEMS → COORDINATOR · b499 client-surfacing branch (`fix/refused-hatch-and-autoeat-sync`)
+
+Three commits, one branch, worktree `R:/the game/wt-client-surfacing`, off `f46c824c`. **No version
+bump** — the Coordinator bumps at ship. Tree clean.
+
+**1. THE ORDERING FINDING (asked for explicitly).** `unlockCompanion` pushed the id into
+`G.companions.ownedIds`, toasted, and emitted the chronicle milestone **before** `hr_companion_grant`
+was even fired — the RPC was the last statement, fire-and-forget with a bare `.catch(noop)`. The
+capstone is ARMED in production (`src/net/capstone.js BLOB_RETIRED = true`, and the `CAPSTONE-NOOP`
+test asserts `isBlobRetired() === true`), so `reconcileCompanions` rebuilds the roster from the
+server owned-set on the next envelope: a refused grant showed a toast, a Stable card and a permanent
+chronicle line, then removed the companion with nothing said. This is **live**, not dormant. Fixed by
+making the local write server-confirmed under the arm, byte-unchanged dormant.
+
+**2. WHAT NEEDS THE BROWSER SUITE.** I ran targeted node guards + two purpose-built harnesses +
+in-browser drives of both paths (see the change contract), **not** `tests/run-smoke.mjs` — other
+agents were active and the instruction was to stay off it. Seven new in-page tests ship with the
+branch and have never run in the real suite: `HATCH-REFUSE-1..4`, `AUTOEAT-SYNC-1..3`. Run the suite
+before integration.
+
+**3. PLAY-GATE STEPS (the reload-and-redo class).**
+(a) Settings → drag the auto-eat threshold, wait ~2 s, watch the network tab: exactly ONE
+`hr_set_auto_eat`, `p_pct` = the final value, `p_enabled` null. Drag again to the SAME value → no
+call at all. (b) Combat → food picker → pick a Provision: one call with `p_food`. Pick "Off": one
+call with `p_clear_food: true`. (c) Tap a Provision in the inventory: the toast must now say
+"Auto-eat set to X." and the combat screen's food must actually change (before this build it wrote a
+field nothing reads). (d) Apply a loadout with a food slot → the same. (e) **Reload** and confirm all
+of it survives. (f) Companion refusal cannot be play-gated without forcing a server refusal; the
+in-browser drive is in the contract.
+
+**4. ONE THING FOR THE DESIGNER, BLOCKING NOTHING.** `SYNC_ENABLED_TOGGLE = false` in
+`src/features/auto-actions.js` — the auto-eat ON/OFF sync is built and dormant pending their ruling.
+Full reasoning in `CONFLICTS.md` (2026-08-31 entry). Arming it is one line and the test already
+drives both positions.
+
+**5. DEBT PAID.** One `showTab`-era wrap site removed (`chronicle.js` now subscribes to the
+`companionUnlock` event instead of wrapping `window.unlockCompanion`), and two dead `G.foodSlot`
+writes that never reached the engine are now routed through the one writer.

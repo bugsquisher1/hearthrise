@@ -175,6 +175,29 @@
      are not marked sent, so the player's next change re-sends them. Nothing here
      is surfaced to the player: this is a preference sync, it destroys nothing,
      and a toast per background refusal would be noise. */
+  /* ⚠ THE ON/OFF TOGGLE IS **DORMANT** AND THAT IS A DESIGN DECISION, NOT AN
+     OVERSIGHT.  (.claude/coordination/CONFLICTS.md, 2026-08-30, SYSTEMS →
+     LANE A / SECURITY, the section headed "THE REAL DEFECT b497 INTRODUCES".)
+
+     Syncing the FOOD and the THRESHOLD only ever makes the server honour a
+     choice the UI already claims it honours — the reported defect, and an
+     unambiguous win. Syncing `enabled:false` is DIFFERENT: `auto_eat_enabled`
+     is the flag the accrual engine's `fx.autoEat()` is gated on, and with it
+     off a measured 12-hour night pays 0 kills and dies at the first fight
+     (tests/accrual-engine.mjs `attendedSettleAutoEatGuard`, and the 63–99%
+     figures in src/core/auto-eat.js's header). So pushing the toggle up turns a
+     client-side preference into a total loss of overnight progress, and the
+     open question — "may a player switch off a mechanic their payout depends
+     on, and what should the game say when they do?" — is the DESIGNER'S, and is
+     recorded as theirs. Systems owns the wiring; Systems does not get to answer
+     it by shipping.
+
+     So the mechanism is built, tested in BOTH positions, and arming it is this
+     one line. ⚠ NOTE FOR WHOEVER FLIPS IT: dragging the threshold slider to 0%
+     already reproduces the same outcome through the `pct` key, so the ruling
+     needs to cover the dial as well as the switch — arming this without that is
+     half a decision. */
+  var SYNC_ENABLED_TOGGLE = false;
   var SYNC_QUIET_MS = 1500;
   var SYNC_RETRY_MS = 20000;      // after a still-unpaid window
   var _syncPending = null;        // {enabled?:true, food?:true, pct?:true}
@@ -241,7 +264,7 @@
     var have = serverBelief();
     var patch = {}, sending = {};
 
-    if(pending.enabled){
+    if(pending.enabled && SYNC_ENABLED_TOGGLE){
       var en = !!a.eat.enabled;
       if(have.enabled !== en){ patch.enabled = en; sending.enabled = true; }
     }
@@ -638,6 +661,9 @@
        unpark themselves). Returns the PREVIOUS state so a caller can restore it
        rather than assuming what it was. */
     _parkEatSync: function(on){ var was = _syncParked; _syncParked = !!on; if(_syncParked){ if(_syncTimer) clearTimeout(_syncTimer); _syncTimer = null; _syncPending = null; } return was; },
+    /* The on/off toggle's arm. Read it to assert the SHIPPED position; set it to
+       drive the armed one. Returns the previous value. */
+    _syncEnabledToggle: function(v){ var was = SYNC_ENABLED_TOGGLE; if(arguments.length) SYNC_ENABLED_TOGGLE = !!v; return was; },
     _SYNC_QUIET_MS: SYNC_QUIET_MS,
   };
 

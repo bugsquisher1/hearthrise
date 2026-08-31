@@ -9631,15 +9631,38 @@ const TESTS = [
 
       // ── (b) AN EXPLICIT CLEAR (the picker's Off option). p_clear_food is the
       //        ONLY way to say "back to best in the bag" — NULL means unchanged.
-      window.HearthriseAccrual.serverAutoEatSettings = () => ({ enabled: true, food: 'cooked_shrimp', pct: 50 });
+      window.HearthriseAccrual.serverAutoEatSettings = () => ({ enabled: false, food: 'cooked_shrimp', pct: 50 });
       sent = 0; lastPatch = null;
-      A.setEat({ foodId: null, enabled: false });
+      A.setEat({ foodId: null, enabled: true });
       A._flushEatSync();
       await new Promise((r) => setTimeout(r, 40));
       assert(sent === 1 && lastPatch && lastPatch.clearFood === true,
         'an explicit clear must be clearFood:true, not a null food (which means "unchanged"); got '
         + JSON.stringify(lastPatch));
-      assert(lastPatch.enabled === false, 'and the OFF toggle must ride with it; got ' + JSON.stringify(lastPatch));
+
+      /* ── (b2) THE ON/OFF TOGGLE IS DORMANT, AND THAT IS THE DESIGNER'S CALL.
+         `auto_eat_enabled` is the flag the accrual engine's fx.autoEat() is
+         gated on; with it off a measured night pays 0 kills and dies. So
+         pushing a client preference up turns it into a total loss of overnight
+         progress, and CONFLICTS.md (2026-08-30) records the question as the
+         Designer's. Asserted in BOTH positions so the mechanism is proven and
+         the shipped position cannot drift unnoticed. */
+      assert(A._syncEnabledToggle() === false,
+        'the auto-eat ON/OFF toggle sync has been ARMED. It is the Designer\'s call (CONFLICTS.md '
+        + '2026-08-30): with auto_eat_enabled false the server\'s sim dies at the first fight and pays '
+        + '0 kills for the night. If this is deliberate, move the ruling with it.');
+      assert(lastPatch.enabled === undefined,
+        'the DORMANT toggle still rode along in the patch: ' + JSON.stringify(lastPatch));
+      const wasArmed = A._syncEnabledToggle(true);
+      try {
+        window.HearthriseAccrual.serverAutoEatSettings = () => ({ enabled: true, food: null, pct: 50 });
+        sent = 0; lastPatch = null;
+        A.setEat({ enabled: false });
+        A._flushEatSync();
+        await new Promise((r) => setTimeout(r, 40));
+        assert(sent === 1 && lastPatch && lastPatch.enabled === false,
+          'ARMED, the toggle must reach the server; got ' + JSON.stringify(lastPatch));
+      } finally { A._syncEnabledToggle(wasArmed); }
 
       // ── (c) collect_first — the server refuses a change with an unpaid window
       //        because these three columns PRICE an absence. The choice must be

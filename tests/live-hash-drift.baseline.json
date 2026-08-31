@@ -1,0 +1,962 @@
+{
+ "_readme": [
+  "WHAT THE REPO BELIEVES IS DEPLOYED, as a measured fact rather than as prose.",
+  "One entry per function whose live body this repo has an opinion about — every",
+  "hash-pinned / programmatically-patched body (derived by sweep() in",
+  "tests/live-hash-drift.mjs), every body three or more migrations restate, and",
+  "the program floor. `live` is what production ACTUALLY had when it was last",
+  "measured; `replay` is what supabase/schema.sql + supabase/migrations/**",
+  "rebuild to. Both hashes are",
+  "  md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
+  "computed IN SQL on each side — POSIX class, never '\\s+' (the two runtimes",
+  "disagree about backslash classes; measured 2026-08-29).",
+  "",
+  "THIS FILE IS THE DEPLOYMENT RECORD. Its diff is how a reviewer sees that a",
+  "body on production moved. Regenerate ONLY with --live --write, and only when",
+  "the change was intended. Never edit a hash by hand to make a build green —",
+  "a red hash is the check working."
+ ],
+ "generated": "2026-08-31",
+ "project": "nezapsylztqbbwuwembx",
+ "postgres": {
+  "production": "17.x",
+  "replay": "PGlite (PG18) — see tests/schema-replay.mjs"
+ },
+ "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
+ "live_measured": "2026-08-31",
+ "replay_ms": 8991,
+ "counts": {
+  "tracked_names": 37,
+  "entries": 37
+ },
+ "functions": [
+  {
+   "sig": "clan_feast_call(p_clan_id uuid)",
+   "name": "clan_feast_call",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-08-08-clan-seat.sql",
+    "2026-08-09-bonus-rebase.sql",
+    "2026-08-09-clan-governance.sql"
+   ],
+   "live": {
+    "md5": "e3f895cda2cd6f376ddc59bdf5558512",
+    "norm_len": 365,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e3f895cda2cd6f376ddc59bdf5558512",
+    "norm_len": 365,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "clan_seat_read(p_clan_id uuid)",
+   "name": "clan_seat_read",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-08-08-clan-seat-2.sql",
+    "2026-08-08-clan-seat.sql",
+    "2026-08-09-clan-governance.sql"
+   ],
+   "live": {
+    "md5": "d84d880319b3427b0220333462821036",
+    "norm_len": 362,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d84d880319b3427b0220333462821036",
+    "norm_len": 362,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_accept_bounty__ungated(p_slot integer, p_bounty_id text, p_target text, p_type text, p_difficulty text, p_required bigint)",
+   "name": "hr_accept_bounty__ungated",
+   "tracked_by": [
+    "floor",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-29-bounty-first-contract.sql",
+    "2026-09-04-bounty-difficulty-count.sql"
+   ],
+   "live": {
+    "md5": "7170f2a2bace93ffcab7e8e4883f9455",
+    "norm_len": 4654,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7170f2a2bace93ffcab7e8e4883f9455",
+    "norm_len": 4654,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_apply(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_delta jsonb)",
+   "name": "hr_apply",
+   "tracked_by": [
+    "chain",
+    "floor",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-apply-engine.sql",
+    "2026-08-15-gem-daily-budget.sql",
+    "2026-08-15-intent-key-hygiene.sql",
+    "2026-08-15-tool-carry.sql",
+    "2026-08-17-fight-carry.sql",
+    "2026-08-18-enchant.sql",
+    "2026-08-18-equip-release-codes.sql",
+    "2026-08-18-skill-row-upsert.sql",
+    "2026-08-21-streak-state.sql",
+    "2026-08-22-rested-record.sql",
+    "2026-08-25-workers.sql"
+   ],
+   "live": {
+    "md5": "e6c80087ed93882b2bf560eea3f4c619",
+    "norm_len": 72961,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "04192fc407172ff097ed4cb051873f7e",
+    "norm_len": 73091,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 28,489 code chars, zero differences. The whole 130-char delta is ONE two-line comment (\"rested-record (b437): the ABSOLUTE bank + its watermark…\") that 2026-08-22-rested-record.sql grew AFTER its patch was applied. Same finding the schema-drift.mjs header records for this function."
+  },
+  {
+   "sig": "hr_assert_grant_hygiene(p_strict boolean)",
+   "name": "hr_assert_grant_hygiene",
+   "tracked_by": [
+    "chain",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-grant-hygiene.sql",
+    "2026-08-16-client-write-grant-sweep-5.sql",
+    "2026-08-16-client-write-grant-sweep.sql",
+    "2026-08-16-engine-allowlist-claim-perks.sql",
+    "2026-08-16-unlock-buy.sql",
+    "2026-08-17-market-v2.sql",
+    "2026-08-20-live-progress-engine-allow.sql",
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "8d8f3c783df2ebd4e33c3863b5dc18e9",
+    "norm_len": 22124,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "8d8f3c783df2ebd4e33c3863b5dc18e9",
+    "norm_len": 22124,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_bank_move(p_slot integer, p_item text, p_qty bigint, p_dir text, p_idem uuid)",
+   "name": "hr_bank_move",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "aa4a12e183acd6ed37de9affc191bd50",
+    "norm_len": 6269,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "aa4a12e183acd6ed37de9affc191bd50",
+    "norm_len": 6269,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_bounty_spend__ungated(p_slot integer, p_reason text, p_bounty_level integer, p_reward_marks bigint, p_idem uuid)",
+   "name": "hr_bounty_spend__ungated",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "db1826672c8a43de334b0a0bbf582d63",
+    "norm_len": 4445,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "db1826672c8a43de334b0a0bbf582d63",
+    "norm_len": 4445,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_claim_daily__ungated(p_task_id text, p_slot integer)",
+   "name": "hr_claim_daily__ungated",
+   "tracked_by": [
+    "floor",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-29-daily-task-eligibility.sql",
+    "2026-09-04-goal-gold-retune.sql"
+   ],
+   "live": {
+    "md5": "36a972a99b24ddcb4564694e50a978b0",
+    "norm_len": 3995,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4b7dbdd207193bcd45d7faee9abb2acc",
+    "norm_len": 4377,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 3,181 code chars. Production was moved by 2026-09-04-goal-gold-retune.sql's programmatic patch; the authoring file 2026-08-20-goal-reward-rpc-credit.sql was separately re-aligned and given a b497 explanatory comment, so the rebuild installs the SAME numbers (25/600, 60/1400, 50/400, 120/800, 12/400, 40/500, 40/500) with different comments and column alignment. 2026-09-04-goal-gold-retune.sql states this divergence itself."
+  },
+  {
+   "sig": "hr_claim_goal__ungated(p_goal_id text, p_weekly boolean, p_slot integer, p_idem uuid)",
+   "name": "hr_claim_goal__ungated",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "f538e493cc118188511d16a050d30f67",
+    "norm_len": 8503,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f538e493cc118188511d16a050d30f67",
+    "norm_len": 8503,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_claim_quest__ungated(p_quest_id text, p_slot integer)",
+   "name": "hr_claim_quest__ungated",
+   "tracked_by": [
+    "floor",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-04-goal-gold-retune.sql"
+   ],
+   "live": {
+    "md5": "4de38bb26d60420603176075e1919daa",
+    "norm_len": 2676,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6c8e384f6e170d6a15b013a05198788c",
+    "norm_len": 2896,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 2,267 code chars. Same shape as hr_claim_daily__ungated: production carries the goal-gold-retune patch (farmhand goal 6), the repo file carries the same value plus the b497 comment and re-alignment."
+  },
+  {
+   "sig": "hr_create_character(p_slot integer)",
+   "name": "hr_create_character",
+   "tracked_by": [
+    "floor",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-04-auto-eat-at-creation.sql"
+   ],
+   "live": {
+    "md5": "2324d13adefe2fdccca478b6e2d6e432",
+    "norm_len": 9921,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2324d13adefe2fdccca478b6e2d6e432",
+    "norm_len": 9921,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_credit_combat_xp__ungated(p_slot integer, p_xp jsonb, p_idem text)",
+   "name": "hr_credit_combat_xp__ungated",
+   "tracked_by": [
+    "floor"
+   ],
+   "touched_by": [],
+   "live": {
+    "md5": "7420455785668adcedd55c6c3002a8fe",
+    "norm_len": 9839,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7420455785668adcedd55c6c3002a8fe",
+    "norm_len": 9839,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_credit_kills__ungated(p_slot integer, p_target text, p_claimed bigint, p_idem text)",
+   "name": "hr_credit_kills__ungated",
+   "tracked_by": [
+    "floor",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-01-kill-daily-credit.sql",
+    "2026-09-02-renown-kill-faucet.sql"
+   ],
+   "live": {
+    "md5": "31807e6470bb0c870097490becf15338",
+    "norm_len": 20235,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "31807e6470bb0c870097490becf15338",
+    "norm_len": 20235,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_day_budget_limits()",
+   "name": "hr_day_budget_limits",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-08-11-daily-budget.sql",
+    "2026-08-15-gem-daily-budget.sql",
+    "2026-08-16-day-budget-artisan.sql"
+   ],
+   "live": {
+    "md5": "9cdfde85f2d243619627d452bb0641bf",
+    "norm_len": 2299,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "9cdfde85f2d243619627d452bb0641bf",
+    "norm_len": 2299,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_farm_harvest(p_slot integer, p_plot_idx integer, p_idem uuid)",
+   "name": "hr_farm_harvest",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "dc29fafa960cc07eb59198b00cea27f6",
+    "norm_len": 7384,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "dc29fafa960cc07eb59198b00cea27f6",
+    "norm_len": 7384,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_farm_plant(p_slot integer, p_plot_idx integer, p_crop text, p_idem uuid)",
+   "name": "hr_farm_plant",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-23-modal-goal-claims.sql",
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "03acf831a83a2f2c2ffa2a68fce036a9",
+    "norm_len": 6472,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "03acf831a83a2f2c2ffa2a68fce036a9",
+    "norm_len": 6472,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_farm_upgrade_plot(p_slot integer, p_idem uuid)",
+   "name": "hr_farm_upgrade_plot",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "d172d0c18a9f4f60bcb37e875fe9ac8c",
+    "norm_len": 2886,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d172d0c18a9f4f60bcb37e875fe9ac8c",
+    "norm_len": 2886,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_farm_water(p_slot integer, p_plot_idx integer, p_idem uuid)",
+   "name": "hr_farm_water",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "73ffa7a89b02fd773b7cc9dbb2975fe6",
+    "norm_len": 3958,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "73ffa7a89b02fd773b7cc9dbb2975fe6",
+    "norm_len": 3958,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_import_apply(p_user uuid, p_slot integer, p_plan jsonb, p_meta jsonb, p_commit boolean)",
+   "name": "hr_import_apply",
+   "tracked_by": [
+    "floor",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-04-auto-eat-at-creation.sql"
+   ],
+   "live": {
+    "md5": "5dca0a6164cd29c4f9cac881b41f6f32",
+    "norm_len": 38373,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "5dca0a6164cd29c4f9cac881b41f6f32",
+    "norm_len": 38373,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_intent_replay(p_uid uuid, p_slot integer, p_idem uuid, p_intent text)",
+   "name": "hr_intent_replay",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "97f6c74e00fa9e8419b9c6437efc0685",
+    "norm_len": 1645,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "97f6c74e00fa9e8419b9c6437efc0685",
+    "norm_len": 1645,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_perks_of(p_user uuid, p_slot integer)",
+   "name": "hr_perks_of",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-08-15-perk-channel.sql",
+    "2026-08-16-artisan-progress-model.sql",
+    "2026-08-20-companion-model.sql",
+    "2026-08-20-renown.sql"
+   ],
+   "live": {
+    "md5": "abe004d3ba1bc85dcaa555659a8afd23",
+    "norm_len": 5999,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "abe004d3ba1bc85dcaa555659a8afd23",
+    "norm_len": 5999,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_put_client_state__ungated(p_slot integer, p_patch jsonb, p_idem uuid)",
+   "name": "hr_put_client_state__ungated",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-22-client-state-denylist.sql",
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "e54b07a6a5ae2388e4cab0186550ccee",
+    "norm_len": 3558,
+    "measured": "2026-08-31",
+    "source": "measured-live",
+    "mojibake": true
+   },
+   "replay": {
+    "md5": "dffca4ca18bc418467ced87150a7edb2",
+    "norm_len": 3406,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 2,366 code chars — BUT THE CAUSE IS A DEFECT, not documentation. The production body stores its box-drawing comment characters DOUBLE-ENCODED (U+2500 arrived as the CP1252 reading of its UTF-8 bytes), which is the entire 152-char delta. Cosmetic today because it is confined to comments; it proves an apply path mangled UTF-8, and the same path applied to a string literal (an error code, a jsonb key, an item id) would be a silent behaviour change. Measured 2026-08-31: 1 of 264 public functions on production is affected. Flagged live.mojibake:true so a SECOND occurrence goes red. Fix requires re-applying 2026-08-22-client-state-denylist.sql / 2026-08-28-client-state.sql through a UTF-8-clean path — a production DDL write, and therefore NOT taken without explicit authorisation."
+  },
+  {
+   "sig": "hr_rate_gate(p_user uuid, p_slot integer, p_bucket text)",
+   "name": "hr_rate_gate",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-08-11-accrue-gate.sql",
+    "2026-08-15-activity-intent.sql",
+    "2026-08-15-gold-intents.sql",
+    "2026-08-16-claim-reward.sql"
+   ],
+   "live": {
+    "md5": "1d4b32ddac88a883dab862e8ff1e8996",
+    "norm_len": 2175,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1d4b32ddac88a883dab862e8ff1e8996",
+    "norm_len": 2175,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_record_rejection(p_user uuid, p_slot integer, p_intent text, p_code text, p_detail jsonb, p_count bigint)",
+   "name": "hr_record_rejection",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-03-intent-mismatch-class.sql",
+    "2026-09-03-intent-mismatch-escalates.sql"
+   ],
+   "live": {
+    "md5": "48f44dae7cb0503b3003f8740a875f29",
+    "norm_len": 3051,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4abf8aa12dc10c7214f51445977f89b7",
+    "norm_len": 4015,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 1,639 code chars. 2026-08-11-player-state.sql expanded three comment blocks after the apply (why rate_limited is not an incident on its own, the own_listing wash-trading rationale, the severity ratchet note) and corrected a cross-reference from §6c-ii to §6c. The escalating-code list, the threshold and the exception handler are byte-identical."
+  },
+  {
+   "sig": "hr_renown_of(p_user uuid, p_slot integer)",
+   "name": "hr_renown_of",
+   "tracked_by": [
+    "floor",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-02-renown-kill-faucet.sql"
+   ],
+   "live": {
+    "md5": "c583b4545f4ae41e378340e8c1b101e2",
+    "norm_len": 3922,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "c583b4545f4ae41e378340e8c1b101e2",
+    "norm_len": 3922,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_rpc_gate(p_bucket text)",
+   "name": "hr_rpc_gate",
+   "tracked_by": [
+    "chain",
+    "floor",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-authenticated-surface-lockdown.sql",
+    "2026-08-11-clan-membership-authority.sql",
+    "2026-08-13-anon-rate-gate.sql",
+    "2026-08-20-goal-reward-rpc-credit.sql",
+    "2026-08-22-collection-claim.sql",
+    "2026-08-22-server-farming-complete.sql",
+    "2026-08-23-bounty.sql",
+    "2026-08-23-modal-goal-claims.sql",
+    "2026-08-23-trait-buy.sql",
+    "2026-08-24-combat-style.sql",
+    "2026-08-25-workers.sql",
+    "2026-08-26-marks-record.sql",
+    "2026-08-27-bank-store.sql",
+    "2026-08-28-client-state.sql",
+    "2026-08-29-rpc-gate-bucket-restore.sql",
+    "2026-08-30-bounty-kill-credit.sql",
+    "2026-08-31-combat-xp-credit.sql",
+    "2026-09-01-kill-daily-credit.sql"
+   ],
+   "live": {
+    "md5": "fa3c918cfbde89393bf6cdac777abe7a",
+    "norm_len": 2577,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "fa3c918cfbde89393bf6cdac777abe7a",
+    "norm_len": 2577,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_set_auto_eat(p_slot integer, p_enabled boolean, p_food text, p_pct integer, p_clear_food boolean)",
+   "name": "hr_set_auto_eat",
+   "tracked_by": [
+    "floor",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-23-trait-buy.sql",
+    "2026-08-29-auto-eat-tiers.sql"
+   ],
+   "live": {
+    "md5": "f95e1dd00a7970424c54daf40504da06",
+    "norm_len": 6060,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f95e1dd00a7970424c54daf40504da06",
+    "norm_len": 6060,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_set_style__ungated(p_family text, p_key text, p_slot integer, p_idem uuid)",
+   "name": "hr_set_style__ungated",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-24-combat-style.sql",
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "aaa43577cb9de2fadfa813705427c7b6",
+    "norm_len": 5357,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "aaa43577cb9de2fadfa813705427c7b6",
+    "norm_len": 5357,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_state_of(p_user uuid, p_slot integer)",
+   "name": "hr_state_of",
+   "tracked_by": [
+    "chain",
+    "floor",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-apply-engine.sql",
+    "2026-08-15-auto-eat.sql",
+    "2026-08-15-tool-carry.sql",
+    "2026-08-17-fight-carry.sql",
+    "2026-08-18-enchant.sql",
+    "2026-08-21-streak-state.sql",
+    "2026-08-22-companion-record.sql",
+    "2026-08-22-rested-record.sql",
+    "2026-08-23-trait-buy.sql",
+    "2026-08-24-combat-style.sql",
+    "2026-08-24-inventory-complete.sql",
+    "2026-08-25-workers.sql",
+    "2026-08-26-marks-record.sql",
+    "2026-08-27-bank-store.sql",
+    "2026-08-28-client-state.sql",
+    "2026-08-31-combat-xp-credit.sql"
+   ],
+   "live": {
+    "md5": "6e4f3a7f65da63ef2c22dbb306d5b0b3",
+    "norm_len": 10057,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4d7e28a9a53a5391a139a355fac68a7e",
+    "norm_len": 10805,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 4,652 code chars. Two comment blocks present in the repo files and not in the deployed body — the rested-record watermark note (2026-08-22-rested-record.sql) and the companion-record roster note (2026-08-22-companion-record.sql), both added after their patches were applied. Every emitted key is identical."
+  },
+  {
+   "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",
+   "name": "hr_trait_buy__ungated",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-23-trait-buy.sql",
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "89916214f9aa67785acac0103db9dcef",
+    "norm_len": 10518,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "89916214f9aa67785acac0103db9dcef",
+    "norm_len": 10518,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_unlock_levels(p_user uuid, p_slot integer)",
+   "name": "hr_unlock_levels",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-24-worker-hire-cap-read.sql"
+   ],
+   "live": {
+    "md5": "11394712df724d52990bce2c6ca6c7d6",
+    "norm_len": 1235,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "11394712df724d52990bce2c6ca6c7d6",
+    "norm_len": 1235,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_utc_day_key(p_at timestamp with time zone)",
+   "name": "hr_utc_day_key",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-08-08-clan-seat.sql",
+    "2026-08-08-hunt.sql",
+    "2026-08-08-muster.sql",
+    "2026-08-08-raid-hardening.sql",
+    "2026-08-09-rally-preselect.sql",
+    "2026-08-09-rally-v2.sql"
+   ],
+   "live": {
+    "md5": "0d0ed3b05cde0bbdac584696fb159f90",
+    "norm_len": 220,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "0d0ed3b05cde0bbdac584696fb159f90",
+    "norm_len": 220,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_utc_week_key(p_at timestamp with time zone)",
+   "name": "hr_utc_week_key",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-08-08-clan-seat.sql",
+    "2026-08-08-hunt.sql",
+    "2026-08-08-raid-hardening.sql"
+   ],
+   "live": {
+    "md5": "6ec96537a3581e36ab6568c8f53817e2",
+    "norm_len": 235,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6ec96537a3581e36ab6568c8f53817e2",
+    "norm_len": 235,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_worker_assign(p_slot integer, p_uid text, p_skill text, p_target text, p_idem uuid)",
+   "name": "hr_worker_assign",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "4bed83b13c3b484f3fea328dee6580b6",
+    "norm_len": 3903,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4bed83b13c3b484f3fea328dee6580b6",
+    "norm_len": 3903,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_worker_hire(p_slot integer, p_idem uuid)",
+   "name": "hr_worker_hire",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-24-worker-hire-cap-read.sql",
+    "2026-09-03-intent-mismatch-class.sql"
+   ],
+   "live": {
+    "md5": "2d4fd7ed73e16782653d457ce8d0a84b",
+    "norm_len": 3526,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2d4fd7ed73e16782653d457ce8d0a84b",
+    "norm_len": 3526,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "raid_claim(p_scope text, p_clan_id uuid, p_week text, p_slot integer)",
+   "name": "raid_claim",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-08-08-hunt.sql",
+    "2026-08-08-raid-hardening.sql",
+    "2026-08-19-muster-raid-rpc-credit.sql"
+   ],
+   "live": {
+    "md5": "7a0bf95efdf3fa959e73f846ed74ca3e",
+    "norm_len": 405,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7a0bf95efdf3fa959e73f846ed74ca3e",
+    "norm_len": 405,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "raid_claim__ungated(p_scope text, p_clan_id uuid, p_week text, p_slot integer)",
+   "name": "raid_claim__ungated",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-08-11-raid-claim-authority.sql",
+    "2026-08-12-raid-band-fairness.sql",
+    "2026-08-19-muster-raid-rpc-credit.sql",
+    "2026-08-22-raid-chest-items.sql"
+   ],
+   "live": {
+    "md5": "0ae1c264bf0fce09e76834d16a446972",
+    "norm_len": 10176,
+    "measured": "2026-08-31",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d1dd6adf56ca1822347a3ffb230d9679",
+    "norm_len": 11624,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 10,175 code chars. 2026-08-22-raid-chest-items.sql grew provenance comments (the src/features/raids.js constants each chest value mirrors, the R1 week-key note, the bossOfWeek derivation) and re-wrapped two statements after the apply. Every constant and every branch is identical."
+  }
+ ],
+ "how_to_verify_a_divergence": [
+  "A divergence between live and replay is a TEXT difference and says nothing on its own",
+  "about behaviour, because the hash is deliberately whitespace- and comment-sensitive.",
+  "Do not guess. Run:   node tests/live-hash-drift.mjs --codediff [name]",
+  "It fetches the live body, rebuilds the repo body, strips SQL comments from both",
+  "(dollar-quote and single-quote aware, so a -- inside a literal is not mistaken for a",
+  "comment) and reports CODE-IDENTICAL or the first differing character. A divergence",
+  "that is NOT cosmetic means production is running different code from the repo, which",
+  "is an incident, not a documentation gap."
+ ]
+}

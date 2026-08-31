@@ -412,6 +412,27 @@ Machine codes only, never prose. Rejections merge a detail payload into the enve
 | Farm | `unknown_crop`, `plot_unavailable`, `bad_farm`, `too_many_farm_ops` |
 | Progress | `bad_progress_kind`, `bad_progress_key`, `bad_progress_state`, `progress_clamp`, `not_claimable` |
 | Market | `bad_qty`, `bad_price`, `not_tradeable`, `too_many_listings`, `gone`, `expired`, `own_listing`, `not_enough`, `not_yours`, `seller_unavailable`, `overflow` |
+| Companions | `unknown_companion`, `bad_slot`, `not_grantable`, `missing_req_item` — detail `{item, companion}` — and `unknown_unlock:<unlock_id>` — detail `{companion, unlock_id, raced}` |
+
+`unknown_unlock:<unlock_id>` is the one **prefixed** code in the taxonomy, and the shape is
+deliberate: a client matches it with `error.startsWith('unknown_unlock:')`, and the suffix names the
+catalogue row that is missing, which is the only fact an operator needs to fix it. It was added by
+`2026-09-06-companion-grant-hardening.sql` because `hr_companion_grant` had **no exception handler**:
+when a `companion:<id>` row is absent from `hr_unlocks`, `player_progress_unlock_guard` raises
+`23514` and PostgREST returns a **500 — indistinguishable from the server being down**. A refusal
+that cannot be told from an outage is not a refusal. The translation sits *on top of* the trigger,
+never instead of it: the handler catches `check_violation` **and only** the message prefix
+`unknown_unlock:`, so `unlock_wrong_kind`, `unlock_over_ceiling`, `unlock_bad_rung`,
+`unlock_not_storable` and `unlock_regressed` all still propagate loudly. `raced:true` distinguishes
+"the catalogue row was already gone" from "it vanished while we held the character lock".
+
+`missing_req_item` is what an **enforced** server-verifiable precondition looks like. The same RPC
+previously read the caller's `dragon_egg`, recorded the answer, and granted `whelp` either way — a
+control that measured without deciding, which is worse than none because it reads as protection.
+Both codes are recorded through `hr_record_rejection` at severity `normal` rather than `incident`:
+`unknown_unlock` is *our* catalogue defect and not a client forgery, and `missing_req_item` becomes
+honestly reachable by client/server inventory divergence the moment an item exists client-side ahead
+of server-side.
 
 A replay of a known idempotency key returns the original envelope with `"replayed": true`.
 

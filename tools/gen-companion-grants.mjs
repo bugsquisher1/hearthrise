@@ -42,6 +42,30 @@
 // (their perks are not server-projected / not tradeable today) and rely on the
 // allowlist — exactly the model the task scopes.
 //
+// ── ⚠⚠ STOP — THIS TOOL IS NO LONGER THE LAST TOUCHER OF THE RPC ⚠⚠ ─────
+// The §3 body emitted below is the PRE-HARDENING one. The live definition of
+// public.hr_companion_grant is owned by
+//   supabase/migrations/2026-09-06-companion-grant-hardening.sql
+// which carries three SECURITY conditions this template does NOT:
+//   C1  a missing `companion:<id>` row in hr_unlocks answers the machine code
+//       {ok:false, error:'unknown_unlock:companion:<id>'} instead of letting
+//       player_progress_unlock_guard raise 23514 — a PostgREST 500 the client
+//       cannot tell from the server being down;
+//   C2  the `whelp` req_item (dragon_egg) is ENFORCED. The version below
+//       measures it, records it in v_egg, and grants anyway: a fake control;
+//   C3  the ledger names the CLIENT's p_source `claimed_source`, so it stops
+//       being a peer of the server-derived `catalogue_source`.
+//
+// REGENERATING THIS FILE IS SAFE. RE-APPLYING ITS OUTPUT IS NOT: applying
+// 2026-08-22-companion-grant.sql ALONE reverts all three, SILENTLY — its own
+// §5/§6 self-checks were written for the unhardened body and still pass on it.
+// That is the b453 catalogue incident (a wholesale owner re-applied on top of
+// later work) in FUNCTION form. THE REPAIR: apply
+// 2026-09-06-companion-grant-hardening.sql immediately afterwards. Enforced by
+// tests/companion-grant-hardening.mjs — arm 3 derives the writer list from
+// tests/schema-apply-order.json and requires the hardening file to be last;
+// arm 4 performs the revert, measures it, and proves the repair.
+//
 // PURE ESM, Node only. Writes one file.
 // ════════════════════════════════════════════════════════════════════════
 

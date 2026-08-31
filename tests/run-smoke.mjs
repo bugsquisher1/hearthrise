@@ -62,6 +62,7 @@ import { combatStyleGuard } from './combat-style.mjs';
 import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
 import { unlockCatalogueOwnershipGuard } from './unlock-catalogue-ownership.mjs';
+import { companionGrantHardeningGuard } from './companion-grant-hardening.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
 import { runAll as liveSettlementGuards, engineGuard as settleReport,
@@ -3317,6 +3318,34 @@ const run = async () => {
       console.log('\nUnlock-catalogue ownership guard — the chain rebuilds all 21 companion rows; '
         + 're-applying the wholesale unlock catalogue alone is repaired exactly by the declared '
         + 'repair list, which is cross-checked against the apply manifest.');
+    }
+
+    /* ── The three SECURITY conditions on hr_companion_grant ─────────────
+       The reseed above ARMED an already-live client-callable RPC. C1 turns the
+       storage guard's 23514 into a machine code instead of a PostgREST 500 the
+       client cannot tell from an outage; C2 ENFORCES the whelp req_item, which
+       measured its precondition and granted anyway; C3 renames the client's
+       p_source to `claimed_source` so the ledger stops presenting it as a peer
+       of the server-derived catalogue_source.
+
+       Driven through the REAL RPC on a rebuilt database, with the two arms the
+       migration's own §4 cannot run: C1's second layer with the pre-check
+       neutralised (a single backend cannot race the catalogue delete), and the
+       derivation chain — 2026-08-22-companion-grant.sql is GENERATED and still
+       carries the pre-hardening body, so re-applying it alone reverts all three
+       in silence. See tests/companion-grant-hardening.mjs. */
+    const cgHardenProblems = await companionGrantHardeningGuard();
+    if (cgHardenProblems.length) {
+      console.log('\nCompanion-grant hardening (C1 machine code · C2 req_item · C3 claimed_source) '
+        + '— FAILED:');
+      for (const p of cgHardenProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nCompanion-grant hardening guard — a missing companion:<id> catalogue row '
+        + 'answers unknown_unlock:<key> on both layers without consuming the req_item, whelp is '
+        + 'refused without its dragon_egg and consumes exactly one when held, the ledger separates '
+        + 'claimed_source from catalogue_source, every other storage-guard violation still '
+        + 'propagates, and the hardening file is the manifest\'s last toucher of the RPC.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

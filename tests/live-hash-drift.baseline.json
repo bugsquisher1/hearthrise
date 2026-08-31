@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-08-31",
- "replay_ms": 9091,
+ "replay_ms": 12337,
  "counts": {
   "tracked_names": 40,
   "entries": 40
@@ -311,7 +311,8 @@
     "pin"
    ],
    "touched_by": [
-    "2026-09-06-companion-grant-hardening.sql"
+    "2026-09-06-companion-grant-hardening.sql",
+    "2026-09-07-companion-codes-severity.sql"
    ],
    "live": {
     "md5": "81b5a41b4861f284f25b0dc1046d941f",
@@ -634,7 +635,8 @@
    ],
    "touched_by": [
     "2026-09-03-intent-mismatch-class.sql",
-    "2026-09-03-intent-mismatch-escalates.sql"
+    "2026-09-03-intent-mismatch-escalates.sql",
+    "2026-09-07-companion-codes-severity.sql"
    ],
    "live": {
     "md5": "48f44dae7cb0503b3003f8740a875f29",
@@ -643,12 +645,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "4abf8aa12dc10c7214f51445977f89b7",
-    "norm_len": 4015,
+    "md5": "469be2d32f1f0de228429166ff8f1939",
+    "norm_len": 5616,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 1,639 code chars. 2026-08-11-player-state.sql expanded three comment blocks after the apply (why rate_limited is not an incident on its own, the own_listing wash-trading rationale, the severity ratchet note) and corrected a cross-reference from §6c-ii to §6c. The escalating-code list, the threshold and the exception handler are byte-identical."
+   "why": "STAGED, NOT APPLIED - and for once the divergence is CODE, not comments, ON PURPOSE. supabase/migrations/2026-09-07-companion-codes-severity.sql (Security ruling C6) is in the apply manifest and therefore in the replay, and it has NOT been applied to production: it patches this body to put 'unknown_unlock' in c_incident and 'missing_req_item' in c_escalating. So the repo rebuilds a body that really is different from the deployed one, and --codediff will correctly report CODE DIFFERS until the Coordinator applies. The live half is UNCHANGED and still the value MEASURED on production 2026-08-31 (md5 48f44dae7cb0503b3003f8740a875f29, normalised length 3051, re-read read-only the same day): c_incident holds its 22 codes and c_escalating holds rate_limited, own_listing, intent_mismatch. It was deliberately NOT pre-updated to a hash that is not live yet. THE PRE-EXISTING, COMMENT-ONLY HALF OF THIS DIVERGENCE STILL STANDS and is why the two shapes have to be handled together: VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  that the bodies were CODE-IDENTICAL at 1,639 code chars, because 2026-08-11-player-state.sql expanded three comment blocks after the apply (why rate_limited is not an incident on its own, the own_listing wash-trading rationale, the severity ratchet note) and corrected a cross-reference from S6c-ii to S6c. Production therefore carries SHORT comment blocks around both classification arrays and the replay carries LONG ones - which is exactly why the C6 migration anchors on PURE CODE lines that are byte-identical in both shapes (measured read-only against production 2026-08-31: each anchor matches exactly once), and why tests/companion-codes-severity.mjs installs the comment-stripped body and applies the migration on top of it. AFTER THE APPLY: run  node tests/live-hash-drift.mjs --live --write  and let the baseline diff be the deploy record. The expected post-apply live hash is the replay hash recorded here only if production's comment blocks were also brought into line; if it is not, re-run --codediff and expect the residual difference to be comments only again."
   },
   {
    "sig": "hr_renown_of(p_user uuid, p_slot integer)",

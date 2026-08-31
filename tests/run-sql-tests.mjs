@@ -464,6 +464,18 @@ const ALSO_LINTED = [
      client-callable, so it must appear in no CLIENT_CALLABLE entry. On no
      derivation chain. */
   '2026-09-03-cron-health-generalized.sql',
+  /* C6 — THE COMPANION-GRANT REFUSAL CODES JOIN THE SEVERITY TAXONOMY
+     (2026-08-31, Security). Same shape as intent-mismatch-escalates one entry
+     up, and here for the same reason: it PATCHES hr_record_rejection at two
+     guarded exactly-once anchors (no literal create-or-replace header, no
+     last-toucher role) to put `unknown_unlock` in c_incident and
+     `missing_req_item` in c_escalating, and the patch RE-EXECUTES a SECURITY
+     DEFINER body that writes hr_rejections for an ARBITRARY user id.
+     `create or replace` PRESERVES an ACL, so a restatement that lost its revoke
+     block would leave a way to forge another player's abuse record; the file
+     asserts the ACL and the OWNER are byte-identical across the replace and
+     this lint is the static half of the same claim. On no derivation chain. */
+  '2026-09-07-companion-codes-severity.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────

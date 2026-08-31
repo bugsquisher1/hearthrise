@@ -32,8 +32,18 @@
 //   · That production has been repaired. Restoring the wiped rows is an APPLY
 //     (re-run 2026-08-19-gold-spend-slices-2-3.sql); this guard only proves the
 //     next regen cannot repeat the wipe.
-//   · Anything about hr_unlocks, whose merge rows are upserted rather than
-//     refilled and were therefore never at risk.
+//   · Anything about hr_unlocks. ⚠ THIS BULLET USED TO END "whose merge rows
+//     are upserted rather than refilled and were therefore never at risk", AND
+//     THAT WAS FALSE. 2026-08-16-unlocks.generated.sql opens ITS seed block with
+//     an unscoped `delete from public.hr_unlocks;`, and the table this guard
+//     exempted suffered the identical incident three days after this file was
+//     written: the 2026-08-23 regen (b459, `trait:auto_eat_2`) destroyed the 17
+//     non-shop companion rows 2026-08-22-companion-grant.sql had added, and
+//     production ran 65 rows against a repo that rebuilds 82 until it was
+//     measured on 2026-08-30. The retraction is kept rather than deleted,
+//     because an exemption written into a guard is a CLAIM and this one was
+//     never verified. hr_unlocks is now covered by
+//     tests/unlock-catalogue-ownership.mjs.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';

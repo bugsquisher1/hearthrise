@@ -192,6 +192,28 @@ restore-census: OK — 66 tables classified, 8 scheduled job(s) reproduced by th
 production's row count** — 21 at the time of the run below, **22 including `hr_unlocks`
 (61 = 61 ✅, re-measured 2026-08-15 20:5x UTC)** — measured against live counts the same day:
 
+> ⚠ **ADDENDUM 2026-08-30 — `hr_unlocks` DID NOT STAY 61 = 61, and a restore planned off
+> the paragraph above would have been planned against the wrong catalogue.** Production
+> now holds **65** rows and a rebuild produces **82**; the whole delta is the 17 non-shop
+> `companion:<id>` rows. Root cause: `2026-08-16-unlocks.generated.sql` refills the table
+> with an unscoped `delete from public.hr_unlocks;`, and its 2026-08-23 regen destroyed
+> every row three later migrations had added. Two of the three were repaired by re-applying
+> their files; `2026-08-22-companion-grant.sql` was not.
+>
+> **The two rules a restorer needs:**
+> 1. **Never re-apply `2026-08-16-unlocks.generated.sql` alone.** It deletes 20 rows it
+>    does not own and silently flag-shapes the four shop companions — which
+>    `hr_unlock_buy` sells by rung. The repair list, and the proof that it restores the
+>    catalogue byte-identically, is `tests/unlock-catalogue-ownership.mjs`.
+> 2. The forward fix is `supabase/migrations/2026-09-05-companion-unlock-catalogue-reseed.sql`
+>    (**STAGED, REVIEW-ONLY**). Until it is applied, the open finding lives in
+>    `tests/restore-census.baseline.json` → `production.divergence_vs_repo.hr_unlocks`,
+>    which carries the full diagnosis and the condition for closing it.
+>
+> The lesson for this runbook: a `seeded` classification means "rebuilt from the repo, no
+> restore dependency" — it does **not** mean "production and the repo agree". Only
+> `--live-compare` says that, and it has to be re-run, never remembered.
+
 | | rebuild | production | | | rebuild | production |
 |---|---|---|---|---|---|---|
 | `hr_items` | 426 | 426 ✓ | | `hr_activities` | 344 | 344 ✓ |

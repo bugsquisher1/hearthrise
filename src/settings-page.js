@@ -536,6 +536,19 @@
     if(!(Number(threshold) > 0)){
       return 'At 0% auto-eat never fires — healing in combat is manual. ' + AUTO_EAT_AWAY_WARNING;
     }
+    /* THE TOP END, LABELLED HONESTLY (Designer ruling 2c, 2026-08-31). This
+       rides WITH the engine fix and is not a substitute for it — copy at this
+       end was explicitly rejected as the answer. `resolveAutoEat` now refuses a
+       zero-deficit eat, so 100% has stopped meaning "burn a Provision every
+       swing at full health" and started meaning the max-safety setting a
+       tier-II owner paid 100 Marks for. The label says that in the player's own
+       words instead of leaving them to infer it from a percentage that reads
+       like a paradox. Deliberately NOT a warning: the 0% end warns because
+       there is a real consequence to inform; here there is none left. */
+    if(Number(threshold) >= 1){
+      return '100% — eat the moment I take any damage. '
+        + 'Feasts & Draughts are never auto-eaten.' + (upsell || '');
+    }
     return 'Eat one Provision automatically on each swing your HP is below this percentage. '
       + 'Feasts & Draughts are never auto-eaten.' + (upsell || '');
   }

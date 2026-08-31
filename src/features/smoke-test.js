@@ -28189,6 +28189,37 @@ const TESTS = [
         + 'Shark, on a 5 HP hole: ' + JSON.stringify(G.inventory));
       assert(G.playerHp === 60, 'the cheap food must still heal to FULL — that is what makes this free: '
         + G.playerHp);
+
+      /* ── A FULL BAR CONSUMES NOTHING (Designer ruling 2c, 2026-08-31) ────
+         The unit gates live in tests/accrual-engine.mjs; this is the half only
+         the shipped client can prove — that the ADAPTER's apply step never
+         runs, so no stack is decremented. The bug it closes is the tier-II
+         ceiling turning `hp/maxHp <= 1` into one destroyed Provision per swing
+         at full health, ~1,400 times a night, for 0 HP.
+         CONTROL FIRST, deliberately: a guard that simply stopped auto-eating
+         altogether must fail here rather than pass by doing nothing. */
+      G.playerHp = 59; G.inventory = { cooked_shrimp: 4 };
+      A.setEat({ enabled: true, threshold: 1 });
+      assert(A.maybeAutoEat() === true && G.inventory.cooked_shrimp === 3,
+        'CONTROL: a 1 HP deficit at a 100% trigger did not eat — the deficit guard has broken the '
+        + 'max-safety setting instead of the zero-deficit case: ' + JSON.stringify(G.inventory));
+      G.playerHp = 60; G.inventory = { cooked_shrimp: 4 };
+      assert(A.maybeAutoEat() === false,
+        'the client auto-ate at FULL health against a 100% trigger — the dial says "eat when my HP '
+        + 'drops to X%", and a full bar has not dropped to anything (ruling 2c)');
+      assert(G.inventory.cooked_shrimp === 4,
+        'a full-health auto-eat consumed a Provision for 0 HP restored: ' + JSON.stringify(G.inventory));
+
+      /* …and the dial's top end says what the setting now means. */
+      const S = window.HearthriseSettingsPage;
+      if (S && typeof S._autoEatHint === 'function') {
+        const top = S._autoEatHint(true, 1, '');
+        assert(/eat the moment I take any damage/i.test(top),
+          'the 100% end of the dial does not say what the setting now does: ' + top);
+        assert(!/will not heal while away/i.test(top),
+          'the 100% end wears the 0% end\'s warning — the ruling rejected copy as a substitute for '
+          + 'the engine fix, and there is no consequence left to warn about: ' + top);
+      }
     } finally {
       A.setEat(beforeEat);
       if (typeof A._resetEatSync === 'function') A._resetEatSync();

@@ -9,8 +9,9 @@ Two behaviour changes ship together, both self-only, both under Designer rulings
 point a mutant.
 
 **⚠ EDGE REDEPLOY REQUIRED, AND FIRST.** Repo payload moves
-`c17cd6bd…` → `2efae5aa…`. The suite's deployed-payload guard is RED until it lands (that is the
-guard working). Ordering is not cosmetic: with a NEW client against an OLD edge the two sides
+`c17cd6bd…` → **`00df251e…`** (it passed through `2efae5aa…` before ruling 2c landed on the same
+branch; ONE deploy, at ship). The suite's deployed-payload guard is RED until it lands (that is
+the guard working). Ordering is not cosmetic: with a NEW client against an OLD edge the two sides
 choose *different* foods for the same eat — the exact b499 NULL-food split, pointed the other
 way. Deploy the edge first, exactly as b499 did.
 
@@ -60,15 +61,50 @@ unknown-delta-key surface (`shapeGuard` green), nothing reads them back into a g
 carry no other player's data. On the client they are **self-configuring**: absent → the receipt
 says nothing, never a guess.
 
-**5 · WHERE TO POINT A MUTANT** (all four already run and land on exactly their target):
+**6 · THE ZERO-DEFICIT REFUSAL (ruling 2c, E2).** `resolveAutoEat` refuses when `maxHp - hp <= 0`.
+It can only ever REMOVE a consumption of the actor's own item — it grants nothing, heals nothing
+(the eat it replaces restored 0 HP by definition), draws no RNG, and shortens no span. There is
+no input through which it can be made to fire on a real deficit: it reads `hp`/`maxHp`, which on
+the server are `player_state` columns the engine itself advances during the span.
+
+**7 · WHERE TO POINT A MUTANT** (all six already run and land on exactly their target):
 restore `bestHealingFood` as `chooseFood`'s default → `cheapestSufficientGuard` A+B go red;
 delete the processed-before-raw clause → the named raw expect goes red alone; disarm
 `SYNC_ENABLED_TOGGLE` → `AUTOEAT-SYNC-3` goes red; make `receiptDeathCause` read the LIVE toggle
-instead of the receipt → `RECEIPT-DEATHCAUSE-1`'s "different instant" assertion goes red alone.
+instead of the receipt → `RECEIPT-DEATHCAUSE-1`'s "different instant" assertion goes red alone;
+delete the zero-deficit guard → the full-bar expect goes red; write that guard on the SETTING
+(`threshold < 1`) instead of the STATE → the 1-HP-deficit CONTROL goes red, which is the pair
+that proves the class was killed and not the instance.
 
 ---
 
-### ⚠ OPEN 2026-08-31 — SYSTEMS → DESIGNER: a 100% auto-eat dial eats one Provision per swing at FULL health
+### ✅ RESOLVED 2026-08-31 (same day, same branch) — a 100% auto-eat dial ate one Provision per swing at FULL health
+
+**RULED as DECISIONS §2c, option (a): refuse. BUILT on `fix/autoeat-fallback-and-arm`.** Security
+conditioned this lane's ship on it (E2), and the ruling is right about why: landing the chooser
+alone would have made this bug **50x cheaper and therefore 50x harder to notice**, while it
+drained the bag all night just the same.
+
+`resolveAutoEat` now refuses on `deficit > 0` — beside the existing `hp <= 0` early return and
+**before `chooseFood`**, so a call that will not eat does not also pick a food. The guard is on
+the STATE, not the setting: `threshold < 1` would fix the 100% instance and leave the class, and
+any future regen, heal-over-time or maxHp change walks back into the same `<=` boundary. The
+dial's top end reads *"100% — eat the moment I take any damage"* through the single
+`_autoEatHint`, riding with the fix rather than instead of it.
+
+**HP-identity re-verified and BYTE-IDENTICAL to the pre-2c run** — 1429 meals · 1,286,100 g →
+322,634 g · 2415 kills · 18556 ticks, and 48 meals · 40,800 g → 864 g · 16005 kills. No fixture
+had a full-bar eat baked into its meal count, so nothing needed re-pinning. Two mutants, each
+landing on its own target: delete the guard → the full-bar case eats again; guard the SETTING
+(`threshold < 1`) instead of the STATE → the 1-HP-deficit CONTROL goes red.
+
+Payload moves again: `2efae5aa…` → **`00df251e…`**. One deploy, at ship, edge-first.
+
+_The original filing is kept below for its reasoning._
+
+---
+
+### _(superseded by the ruling above)_ OPEN 2026-08-31 — SYSTEMS → DESIGNER: a 100% auto-eat dial eats one Provision per swing at FULL health
 
 Found while building ruling 2; **not fixed, because it is not mine to rule**, and it is not made
 worse by this build.

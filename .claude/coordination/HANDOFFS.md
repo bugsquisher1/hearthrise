@@ -2,12 +2,14 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
-### 2026-08-31 · FROM Systems Engineer → TO Coordinator + Art Director + Game Designer · **Rulings 2 and 2b are BUILT** (branch `fix/autoeat-fallback-and-arm`, worktree `R:\the game\wt-autoeat-complete`)
+### 2026-08-31 · FROM Systems Engineer → TO Coordinator + Art Director + Game Designer · **Rulings 2, 2b AND 2c are BUILT** (branch `fix/autoeat-fallback-and-arm`, worktree `R:\the game\wt-autoeat-complete`)
 
 **Suite 1107/1107, 0 runtime errors** (b499 baseline 1103; +4 guards). Node guards green.
 **NOT bumped, NOT pushed.**
 
-**⚠ COORDINATOR — THE EDGE MUST BE REDEPLOYED, AND FIRST.** Payload `c17cd6bd…` → `2efae5aa…`.
+**⚠ COORDINATOR — THE EDGE MUST BE REDEPLOYED, AND FIRST.** Payload `c17cd6bd…` → `00df251e…`
+(it passed through `2efae5aa…` before ruling 2c landed on the same branch — **ONE deploy, at
+ship, not two**).
 The suite's deployed-payload guard is RED until it lands; that is the guard doing its job, not a
 regression. Ordering is load-bearing: a NEW client against an OLD edge picks a *different food*
 for the same eat than the server does — the b499 NULL-food split, pointed the other way. Counts
@@ -37,11 +39,17 @@ entitlement ("a player must always be able to switch it off").
    (`HearthriseAccrual.receiptDeathCause`), two placements (`clause` mid-sentence, `sentence`
    appended), so the two surfaces cannot drift.
 
-**FOR THE DESIGNER — one thing found while building, NOT ruled, filed in `CONFLICTS.md`:** at the
-Auto-Eat II ceiling the effective threshold is **1.0**, so `hp/maxHp <= 1` holds at FULL health
-and the engine eats one Provision per swing for **0 HP**. Reachable live today through a synced
-key. Ruling 2 reduces the damage (18 g a swing instead of 900 g on a late-game bag) and does not
-remove it. Whether a zero-deficit eat should happen at all is yours.
+**RULING 2c IS BUILT TOO** — filed from this branch, ruled the same day, returned as a security
+ship-condition (E2), and it is in this commit. `resolveAutoEat` refuses a zero-deficit eat,
+guarded on the **STATE** (`deficit > 0`) rather than the setting, beside the `hp <= 0` return and
+before `chooseFood`, so a future regen or maxHp change cannot walk back into the same `<=`
+boundary. **A fourth string for Art:** the dial's top end now reads *"100% — eat the moment I
+take any damage"* — through the same `_autoEatHint`, and deliberately NOT a warning (the ruling
+rejected copy as a substitute for the fix, and there is no consequence left at that end).
+
+**The HP-identity figures are byte-identical before and after 2c** — 1429 meals / 1,286,100 g →
+322,634 g / 2415 kills, and 48 meals / 40,800 g → 864 g / 16005 kills — so no fixture had a
+full-bar eat baked into its meal count and nothing needed re-pinning.
 
 ### 2026-08-31 · FROM Game Designer → TO Systems Engineer + Art Director · **RULED: ARM `SYNC_ENABLED_TOGGLE`. The b499 hold is answered — and the answer covers the dial.**
 

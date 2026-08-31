@@ -933,6 +933,30 @@ function autoEatParityGuard() {
     'AUTO-EAT: did NOT eat at exactly the threshold — the client eats when hp/maxHp <= threshold');
   ok(resolveAutoEat({ ...eatable, enabled: true, owned: true, hp: 0 }) === null,
     'AUTO-EAT: ate while dead — respawn owns that, and a corpse eating is a free resurrection');
+  /* ── A FULL BAR HAS NOTHING TO HEAL (Designer ruling 2c, 2026-08-31) ────
+     The Auto-Eat II ceiling makes the effective threshold 1.0, and `hp/maxHp
+     <= 1` is TRUE at full health — so the max-safety setting a tier-II owner
+     paid 100 Marks for destroyed one Provision per swing for 0 HP, about 1,400
+     times a night, working down into the raw crafting stock the chooser exists
+     to protect once the cheap food ran out.
+
+     ⚠ THE ASSERTION IS ABOUT THE STATE, NOT THE SETTING. A test phrased as
+       "threshold 1.0 does not eat" would also pass against a `threshold < 1`
+       guard, which fixes the instance and leaves the class: any future regen,
+       heal-over-time or maxHp change reaches the same boundary. The CONTROL is
+       what makes the pair mean something — the SAME threshold, one HP down,
+       must still eat, or the fix has broken the ceiling instead of the bug. */
+  ok(resolveAutoEat({ ...eatable, enabled: true, owned: true, hp: 100, maxHp: 100, threshold: 1 }) === null,
+    'AUTO-EAT: a character at FULL health ate a whole Provision for 0 HP restored — `hp/maxHp <= 1` '
+    + 'is the arithmetic of a `<=` boundary, not a player preference (ruling 2c)');
+  ok(resolveAutoEat({ ...eatable, enabled: true, owned: true, hp: 99, maxHp: 100, threshold: 1 })?.foodId
+      === PROVISION,
+    'AUTO-EAT CONTROL: a ONE HP deficit at the same 100% threshold did not eat — the deficit guard has '
+    + 'broken the max-safety setting instead of the zero-deficit case, and every assertion around it '
+    + 'would still be green');
+  ok(resolveAutoEat({ ...eatable, enabled: true, owned: true, hp: 101, maxHp: 100, threshold: 1 }) === null,
+    'AUTO-EAT: a character ABOVE max HP ate — that is the same "nothing to heal" state reached from '
+    + 'the other side, which is why the guard is `deficit > 0` and not `deficit === 0`');
   ok(resolveAutoEat({ ...eatable, enabled: true, owned: true, inventory: {} }) === null,
     'AUTO-EAT: ate out of an empty bag');
   ok(resolveAutoEat({ ...eatable, enabled: true, owned: true, inventory: { [FEAST]: 99 }, foodId: FEAST }) === null,

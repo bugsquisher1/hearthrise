@@ -63,6 +63,30 @@ describe. b341 built that row on the client path and the server cutover quietly 
 Generalise: **when a payment path is replaced, diff the RECEIPT field by field, not just the
 totals.** The totals were right the whole time.
 
+### THE ADDENDUM: RULING 2c CAME BACK THE SAME DAY, AND THAT IS THE SYSTEM WORKING
+I filed the full-bar eat as "found, not mine to rule" and moved on. It was ruled within hours
+(option (a): refuse), security made it a ship condition (E2), and it came back to this branch.
+Two things worth keeping:
+
+**The ruling's reason for urgency was one I had not seen.** I wrote "ruling 2 reduces the damage
+without removing it — 18 g a swing instead of 900 g" as *mitigation*. The Designer read the same
+fact the other way: *landing the chooser alone makes this bug 50x cheaper and therefore 50x
+harder to notice, while it drains the bag all night just the same.* A fix that lowers the cost of
+a defect also lowers the odds anyone reports it. **I will not describe a cost reduction as
+mitigation again without asking whether it is also camouflage.**
+
+**The guard SHAPE was the whole ruling, and the TEST is what enforces it.** `deficit > 0`, not
+`threshold < 1` — the state, not the setting, because regen, heal-over-time or a maxHp change
+reaches the same `<=` boundary and a guard on the setting has to be rediscovered each time. A
+test phrased "threshold 1.0 does not eat" passes against the WRONG shape. It is the CONTROL that
+separates them: same threshold, one HP down, must still eat. Proved by planting the wrong-shaped
+guard — the control goes red and nothing else does. Generalise: **whenever a ruling says "kill
+the class, not the instance", the suite needs a case only the class-killing version passes.**
+
+And the prediction held — the HP-identity fixtures came out **byte-identical** before and after
+2c (same 1429/48 meal counts, same gold, same kills, same ticks). A zero-deficit eat healed 0 by
+definition, so no honest fixture could have had one baked into its meal count.
+
 ### PERFORMANCE, MEASURED
 247-key late-game bag, 300k calls: pre-ruling `chooseFood` 22.67 µs, shipped 24.11 µs — **+6.3%**
 on a function that runs about 1,400 times in a twelve-hour night, i.e. **+2 ms per night**. It is

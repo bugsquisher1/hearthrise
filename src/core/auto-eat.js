@@ -377,6 +377,40 @@ export function resolveAutoEat(opts) {
   const maxHp = Number(o.maxHp);
   if (!Number.isFinite(hp) || !Number.isFinite(maxHp) || !(maxHp > 0)) return null;
   if (hp <= 0) return null;                       // already dead — respawn owns this
+  /* ── A FULL BAR HAS NOTHING TO HEAL (Designer ruling 2c, 2026-08-31) ─────
+     Deliberately beside the line above, because it has the same shape: nothing
+     to do here, another system owns this state.
+
+     THE BUG IT CLOSES. At the Auto-Eat II ceiling the effective threshold is
+     1.0, so a character sitting at FULL health satisfies `hp/maxHp <= 1` and
+     ate — a whole Provision, for zero HP, on every swing. About 1,400 meals a
+     night of pure item destruction, and once the cheap processed stock runs
+     out it works down into exactly the raw crafting material the chooser above
+     exists to protect. Reachable live today through a synced key.
+
+     ⚠ THE GUARD IS `deficit > 0`, NOT `threshold < 1`, and that is the ruling
+       rather than a style preference: the 100% dial is one INSTANCE of the
+       boundary, not the class. Any future regen, heal-over-time or maxHp change
+       puts a character on a full bar with a live threshold and reaches the same
+       `<=` comparison. A guard on the SETTING would have to be rediscovered
+       each time; a guard on the STATE cannot be.
+
+     WHY THIS DOES NOT CONTRADICT 2b's "the dial's ends belong to the player":
+     at 0% the player gets exactly what the label promises — never heal — which
+     is a strategy someone can form an intent about. At 100% the label says
+     "eat when my HP drops to X%", and a character at full health has not
+     dropped to anything. `hp/maxHp <= 1.0` being true at a full bar is the
+     arithmetic of a `<=` boundary, not a preference, and there is no build and
+     no edge case in which destroying a Provision for 0 HP helps anyone.
+
+     BEFORE `chooseFood`, deliberately — a call that will not eat must not also
+     go and pick a food. HP-identical by construction (the eat healed 0 either
+     way) and draw-free, so AWAY-1 parity is byte-unmoved.
+
+     `!(deficit > 0)` rather than `deficit === 0` also catches hp ABOVE maxHp,
+     which is the same "nothing to heal" state arrived at from the other side. */
+  const deficit = maxHp - hp;
+  if (!(deficit > 0)) return null;
   if (hp / maxHp > clampThreshold(o.threshold)) return null;
 
   const items = o.items || {};
@@ -384,7 +418,7 @@ export function resolveAutoEat(opts) {
      the only caller that knows it. Passed rather than re-derived inside
      chooseFood so that function stays honest about its inputs: a caller with
      no deficit gets the pre-ruling behaviour instead of a guessed one. */
-  const foodId = chooseFood(o.foodId, o.inventory, items, maxHp - hp);
+  const foodId = chooseFood(o.foodId, o.inventory, items, deficit);
   if (!foodId) return null;
   const heals = Number(items[foodId] && items[foodId].heals) || 0;
   if (!(heals > 0)) return null;

@@ -792,3 +792,69 @@ established by the renown rank claim (b494):**
   read and therefore promised something that never happened.
 - `src/features/pets.js tryUnlock` — the raw `d.icon` emoji is gone from the *"A wild friend!"* line
   (Final Directive no-emoji-as-art, the same fix companions.js took in b465).
+
+---
+
+## 2026-08-31 · Systems Engineer — E1, the ammo spend (branch `fix/ammo-consumption`)
+
+Three things surfaced that are **not** the Systems Engineer's to rule on. All three are wired,
+measured and pinned by named tests; none of them is shipped as a behaviour change.
+
+### 1. SEMANTIC (Systems → Designer): `AMMO_STYLES` answered two questions with one table
+
+`src/core/ammo.js` shipped one frozen table, `AMMO_STYLES = {ranged:true, magic:true, sword:false,
+hammer:false, neutral:false}`, and `spendForSwings` gated the SPEND on it. That is R5's first half
+("melee's floor is free") applied to the wrong question, and the cost is measurable: a melee player
+could equip a Dawnsteel Whetstone (+18 strB, `v` 990, `ammoPerShot: 0.02`) and **wear it forever for
+nothing**, while §6.3 prices that stone at 240 a night / 15,840 g of input. The design's own words
+are "melee's FLOOR is free; melee's CEILING is paid" — two questions.
+
+**Resolved in the engine as two tables** (`AMMO_SPEND_STYLES` = who pays, `AMMO_STYLES` = who suffers).
+`styleNeedsAmmo` keeps its exact published meaning, so no existing consumer moves. This implements
+the ruling as written; it does not change a value. Flagged because if the Designer intended melee to
+be exempt from *spending* too, the whetstone ladder needs a different sink and §6.3's parity
+arithmetic is void.
+
+### 2. DESIGN + LEGIBILITY (Systems → Designer + Art Director): the mechanic is OPT-OUT today
+
+An ammo-hungry style with a **completely empty** ammo slot fights at **full strength**. `ammoDamageMult`
+cannot tell a loaded free tier-1 rung from an empty slot, so `perShot === 0` reads as "supplied".
+Measured on the real catalogue (`playerCombatRolls`, Ranged 99, Duskwood Bow):
+
+| loadout | maxHit |
+|---|---|
+| `dawnpoint_arrows`, supplied | 69 |
+| `dawnpoint_arrows`, run dry | **17** (x0.25, floored) |
+| **no ammo equipped at all** | **58** |
+
+**Not equipping is 3.4x better than running dry.** The dominant play is an empty quiver, which is the
+whole mechanic opted out of — and R2's own wording is the other way ("you can still train ranged or
+magic with NO arrows/runes, it is just very very weak").
+
+**NOT flipped in this commit, on purpose.** §14 hands the Art Director "the empty-quiver state must
+read on the equip doll and in the combat panel — a player fighting at x0.25 who cannot see why is a
+support ticket", and that indicator does not exist. Shipping the cliff before the sign turns a
+correct mechanic into a bug report. The engine is one frozen boolean from closing it:
+`AMMO_EMPTY_SLOT_IS_DRY` in `src/core/ammo.js`, pinned in both directions by `AMMO-E4`.
+
+**Owners:** Designer rules the position; Art Director owns the indicator; Systems flips the constant.
+They should land together — and now they MUST. Security (A1, 2026-08-31) made the coupling a build
+condition rather than an intention: `AMMO-E4` asserts `AMMO_EMPTY_SLOT_IS_DRY === true` implies the
+literal token **`hr-ammo-dry`** appears in a rendered surface under `src/` (outside `src/core`). The
+name is Systems' so the guard has an anchor; the MECHANISM is the Art Director's — a CSS class, a
+`data-` attribute, a glyph key, a render helper, anything that carries the token. It is an
+IMPLICATION, so the indicator may ship FIRST and alone; only penalty-without-sign goes red.
+
+### 3. DESIGN (Systems → Designer): an EMPTIED slot keeps its stats
+
+`equipmentStats` sums the ammo item's bonuses off the **equipment map**, and §2.2's slot is a POINTER
+that survives its stack reaching zero. So a burnt-out whetstone still pays +18 strB forever. For
+ranged/magic the x0.25 makes it irrelevant; for **melee**, which by R5 takes no depletion penalty,
+one stone buys a permanent bonus and the consumption is a rounding error on the way there.
+
+Not a regression (before E1 the stone was never consumed either), but it is the half of "melee's
+ceiling is paid" that consumption alone cannot close. Closing it means teaching the STAT layer about
+stock — threading inventory into `equipmentStats` / `playerCombatRolls`, the one function both
+engines share and every loadout's numbers run through. A deliberate change with a ruling attached,
+not a drive-by. `AMMO-E5` pins today's behaviour in both directions, so the fix arrives as two
+expected, named failures.

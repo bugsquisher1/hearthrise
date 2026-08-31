@@ -44,7 +44,9 @@ export * as bounty from './bounty.js?v=498';
    pre-flight supply projection and the away card must call the SAME
    `hoursOfSupply`/`dryAtMs` the fight will, or the player is quoted a number
    the night does not honour.
-   ⚠ NOT yet called by combat-sim.js — see the header of ./ammo.js. */
+   WIRED (E1, 2026-08-31): `combat-sim.js simulateTick` charges one swing
+   through `spendForSwings` on every tick — live and away, ctx-blind, so the
+   quiver drains identically down both paths. */
 export * as ammo from './ammo.js?v=498';
 /* Auto-eat is the ONE fx handler combat-sim.js calls that the server accrual
    engine did not implement, and a missing handler is a silent no-op — so the

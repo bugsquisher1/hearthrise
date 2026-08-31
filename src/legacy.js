@@ -6164,6 +6164,45 @@ const COMBAT_FX={
       b[id] = (b[id]||0) + qty;
     }catch(e){ /* attribution is best-effort; never block a drop */ }
   },
+  /* ── THE CONSUMPTION SINK (design item E1) ────────────────────────────────
+     Reached from src/core/ammo.js `spendForSwings`, which src/core/combat-sim.js
+     `simulateTick` calls on EVERY swing. Paione, 2026-08-20: "crafted arrows are
+     never spent in combat." This is the line that spends them.
+
+     TWO STATEMENTS, AND THE SECOND IS THE ONE THAT IS EASY TO FORGET.
+     (1) The bag moves NOW, because a quiver that only drains ninety seconds
+         later, when the settle lands, reads as a broken counter.
+     (2) The move is recorded as a PENDING-CONSUME HOLD, because the settle's
+         envelope was built BEFORE this swing and names the pre-swing count —
+         and `reconcileInventory` takes `Math.max(have, q)`, which RESTOCKS a
+         locally-decremented item by construction. That is the exact P0 class
+         Paione reported four times about food ("everytime i use 1 it returns
+         back in my inventory"), and ammunition is named in pending-consume.js's
+         own header as the next consumer of this seam. Without the hold, a
+         13,636-arrow night would be un-spent by the next envelope.
+
+     `send:false` — HOLD ONLY, NO INTENT. There is no `spend_ammo` verb and
+     there must not be one: consumption rides the accrual the server already
+     computes (consumable-economy.md §13.1, "no new client-reported value, no
+     new trusted input, no new intent id namespace"). The server states the
+     debit in the settle's signed `items` delta, exactly as it does for auto-eat,
+     and the hold drains on the server's own movement. `noteItemConsumed` would
+     hold-only for an ammo id anyway (`_isEdibleItem` is false), but saying it
+     at the call site is the difference between a decision and an accident.
+
+     ⚠ NEVER NEGATIVE. `spendForSwings` clamps its spend to the stack it read
+       out of this same `G.inventory`, and `removeItem` deletes a key at <= 0. */
+  removeItem:function(id,qty){
+    const n=Math.max(0,Math.floor(Number(qty)||0));
+    if(!id||n<=0)return;
+    const before=Math.max(0,Math.floor(Number(G.inventory&&G.inventory[id])||0));
+    if(before<=0)return;
+    const take=Math.min(n,before);
+    removeItem(id,take);
+    if(typeof noteItemConsumed==='function'){
+      try{ noteItemConsumed(id,take,{send:false}); }catch(e){}
+    }
+  },
   killMonster:function(m){
     const info=killMonster(m);
     /* b344 — THE ONE SAFE POINT IN A TICK FOR THE TARGET TO CHANGE. Every

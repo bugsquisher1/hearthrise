@@ -89,6 +89,45 @@ export const STYLE_SPEED_MAX = 2.00;
 
 // ── Derived equipment state ──────────────────────────────────────────────
 
+/* ══════════════════════════════════════════════════════════════════════════
+   ⚠ EQUIPPED DOES NOT IMPLY HELD. `equipment[slot]` NAMES AN ITEM; IT IS NOT
+     A CLAIM THAT THE CHARACTER STILL OWNS ONE.
+
+   This function reads the equipment MAP and nothing else — it never consults
+   an inventory, and it must not start to without a ruling (see below). So a
+   slot can name an item the bag no longer contains, and every stat on that
+   item still counts.
+
+   THAT STATE USED TO BE UNREACHABLE THROUGH PLAY and became ordinary on
+   2026-08-31 (design item E1, src/core/ammo.js). The `ammo` slot is a POINTER
+   by ruling — consumable-economy.md §2.2: the slot names WHICH stack is in use
+   and the quiver stays in `inventory` — and the fight now SPENDS that stack. An
+   archer who looses their last arrow, or a swordsman whose whetstone wears
+   through, ends the swing with a populated slot and an empty bag. Nothing
+   unequips them: neither the engine nor `hr_apply` writes an equipment key on a
+   consumption, deliberately, because an engine that silently rearranged a
+   player's loadout overnight would be a worse surprise than the one it fixed.
+
+   WHAT THIS MEANS FOR ANYONE WRITING CODE AGAINST THIS FUNCTION:
+     · `equipment.ammo === 'steel_arrows'` does NOT license
+       `inventory.steel_arrows > 0`. Ask the inventory.
+     · `src/core/ammo.js readAmmo` is the ONE reader that answers both at once —
+       `{ id, stock, dry }` — and every consumer should go through it rather
+       than re-deriving "am I supplied?" from the equipment map.
+     · The stat consequence is DOCUMENTED, not accidental: a burnt-out whetstone
+       still pays its `strB`. For ranged/magic the x0.25 dry penalty dwarfs it;
+       for melee, which by R5 takes no penalty, it means one stone buys a
+       lasting bonus. That is an open DESIGN question (CONFLICTS.md 2026-08-31
+       item 3), and closing it is precisely "teach this function about stock" —
+       a change to the one function both engines share, every loadout's numbers
+       run through, and both AWAY-1 columns read. It wants its own commit and a
+       Designer ruling, not a quiet parameter.
+
+   Pinned by tests/accrual-engine.mjs AMMO-E5, which asserts this state ARISES
+   from an ordinary span and is stable — so code that assumes equipped ⇒ held
+   goes red with this note attached instead of being quietly wrong.
+   ══════════════════════════════════════════════════════════════════════════ */
+
 /**
  * @param equipment { slot: itemId | null }
  * @param items     the ITEMS catalogue

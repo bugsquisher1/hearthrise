@@ -594,14 +594,15 @@ export const LIB2_DESC = {
      Each line now opens with the answer — it goes in the ammo slot and raises
      Magic strength — and earns its keep as flavour afterwards.
 
-     ⚠ AND NONE OF THEM PROMISES A BURN. `ammoPerShot` is authored on every rung
-       above tier 1, but nothing spends it yet: `simulateTick` does not call
-       `spendForSwings` (design item E1, deliberately a separate commit because
-       combat-sim.js is SHA-pinned into the Edge function). src/core/ammo.js
-       states the rule this copy obeys — "until E1 lands, ammo is still not
-       spent in the fight, and no player-facing copy anywhere may promise that
-       it is." So no line here says "spent", "runs out" or "supply". When E1
-       lands, these seven lines are the one place the wording changes. */
+     ⚠ THE BURN IS REAL NOW (E1, 2026-08-31): `simulateTick` calls
+       `spendForSwings` on every swing, so every rung above tier 1 is spent at
+       1 rune per cast. The copy below still does not SAY so, and that is a
+       deliberate hold rather than an oversight: consumable-economy.md §14 hands
+       the Art Director "the empty-quiver state must read on the equip doll and
+       in the combat panel", and an item tooltip that says "spent" while no
+       surface shows the remaining count teaches the mechanic in the worst
+       possible order. These seven lines are the one place the wording changes
+       when that indicator lands. */
   air_rune: 'Socketed in a staff for a first thread of Magic strength — barely a whisper, and a student\'s whole arsenal',
   earth_rune: 'Socketed for Magic strength; a stone rune heavy in the palm out of all proportion to its size',
   water_rune: 'Socketed for Magic strength; a rune that beads with moisture in a dry room',

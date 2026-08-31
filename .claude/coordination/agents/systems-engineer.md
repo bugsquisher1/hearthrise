@@ -2792,3 +2792,174 @@ client honours `G.foodSlot`. Counts converge; the two sides can drain different 
 CONFLICTS.md — Systems owns the wiring, Designer owns the toggle question.
 
 **Suite: 1091/1091, failed 0, runtime errors 0.**
+
+---
+
+## E1 — the arrow is spent on the swing (branch `fix/ammo-consumption`, rebased onto `61d3417a`)
+
+**Paione, 2026-08-20 (board §8 P2): "crafted arrows/ammo craft fine but are never spent in combat."**
+
+### What was actually true before I started
+Most of this was already built, and finding that out first was worth more than any code I wrote.
+`src/core/ammo.js` shipped in b357 — the whole arithmetic (`ammoPerShot`, the deterministic carry,
+`consumablesPerHour`, `hoursOfSupply`, `dryAtMs`, `ammoDamageMult`), PURE, tested by three browser
+guards, and consumed by nothing. Its own header said so in capitals: *"`simulateTick` does NOT yet
+call `spendForSwings`. That wiring is design-doc item E1."* `docs/design/consumable-economy.md`
+(1,282 lines, every number produced by running the real engine) had already ruled the model, and
+`src/data/slot-ladders.js` / `stonecraft.js` / `library2-items.js` had already authored 21 ammo rows
+against it.
+
+So the bug was not "nobody designed this". It was **one missing call**, deliberately deferred because
+`combat-sim.js` is vendored byte-for-byte into the Edge function and the author did not want a parity
+failure with two candidate causes. That deferral was correct and it cost eleven days.
+
+### Three defects I found in the seam while wiring it
+The wiring itself is two lines. The value of the commit is in what wiring it surfaced:
+
+1. **`AMMO_STYLES` answered two questions with one table**, and `spendForSwings` gated the SPEND on
+   it — so `sword: false` meant melee never spends. A Dawnsteel Whetstone (+18 strB, v 990,
+   `ammoPerShot: 0.02`) was a **permanent free stat**. R5's actual words are "melee's FLOOR is free;
+   melee's CEILING is paid" — two questions, and the second table (`AMMO_SPEND_STYLES`) is what makes
+   the second half sayable. **Lesson worth keeping: when a boolean table gates two different
+   decisions, one of them is wrong and the tests will not know.**
+2. **`spendForSwings.mult` restated the fail-soft rule** as `after > 0 ? 1 : AMMO_DRY_MULT` instead of
+   asking `ammoDamageMult`, so it reported 0.25 for a melee run with an empty whetstone slot — a
+   family that by ruling takes no penalty at all. It reached nothing today (the fight reads
+   `startMult`), which is exactly how a latent wrong answer waits for its first consumer. Now one
+   expression, asked twice.
+3. **The mechanic is OPT-OUT and nobody had noticed.** `ammoDamageMult` cannot tell a loaded free
+   tier-1 rung from an EMPTY slot, so an archer with no ammo at all fights at full strength.
+   Measured on the real catalogue at Ranged 99 with a Duskwood Bow: supplied 69 maxHit, run dry 17,
+   **no ammo equipped 58**. Not equipping is 3.4x better than running dry. Left shut behind a frozen
+   `AMMO_EMPTY_SLOT_IS_DRY = false` because §14 owes the Art Director an empty-quiver indicator and
+   shipping the cliff before the sign turns a correct mechanic into a support ticket.
+
+### The one architectural decision that mattered
+`readAmmo` needs the weapon FAMILY, and the obvious move was a new `ctx.weaponType` at every call
+site. I derived it from `state.equipment.weapon` + `ctx.items` instead, with `ctx.weaponType` kept as
+an explicit override for the projection surface.
+
+**Why:** `simulateTick` has four callers (the live tick, the away accrual, the client's away replay,
+and every fixture). A required new ctx key is a key one of those four can forget, and the failure mode
+of forgetting it is SILENT — `undefined` becomes `'neutral'`, `styleSpendsAmmo('neutral')` is false,
+and that caller quietly spends nothing. That is *this exact bug*, re-introduced through a different
+door. A derivation cannot be forgotten. The drift risk (two readings of one catalogue field) is closed
+by `AMMO-E7`, which walks every weapon in `ITEMS` and asserts `weaponTypeOf` agrees with
+`equipmentStats().weaponType`.
+
+Same reasoning drove keeping the spend **ctx-blind**: nothing in `simulateTick` or `ammo.js` reads
+`ctx.away`, so AWAY-1 is true of the quiver for the same structural reason it is true of the XP —
+there is one path, not two that agree.
+
+### Where the fight's supply state lives, and why not on `state`
+First draft accumulated `state.ammoSpent` for the span tally. Wrong: on the client `state` IS `G`, so
+that is a new top-level G field, which is a save-allowlist question (b462/b466 strand class) for a
+number that is only ever a per-span readout. It rides the tick RESULT instead (`r.supply`) and
+`simulateSpan` folds it. The only field that *does* land in G is `ammoCarry`, which genuinely is
+persistent progress — and it went into `RESIDUE_FIELDS`, not `NO_SYNC`.
+
+### The gap I could not close in one commit, stated honestly
+`player_state.ammo_carry` does not exist, and adding a delta key means replacing `hr_apply` verbatim
+(~2,200 lines, the `2026-08-25-workers.sql` copy). The design doc's own sequencing note is explicit —
+*"E1 should land as its own commit with its own parity re-verification, not bundled"* — so the engine
+ships wired through the `tool_carry` self-configuring-null idiom (null ⇒ start empty, OMIT the key)
+and the SQL is a spelled-out handoff.
+
+I tried three ways to avoid the migration and each failed for a reason worth recording:
+- **Ride `tool_carry`.** Dead: `hr_apply` validates every carry key against `public.hr_skills` and
+  answers `unknown_skill`, which 409s the whole night. A prefixed key does not help.
+- **Ride `player_state.fight`.** Rejected: the fight is VOIDED to `{}` whenever it ends, which is
+  exactly when a carry must survive, and muddling the two facts is how the next author loses one.
+- **Derive the fraction statelessly** from the swing's absolute instant. Rejected: the client's tick
+  grid and the server's `credit.fromMs + i*tickMs` grid are out of phase, so parity would be
+  approximate — and AWAY-1 is byte-identical or it is nothing.
+
+**Cost of the gap, measured not guessed:** an integer `ammoPerShot` is exact either way (the carry
+lands on 0 after every swing), so the REPORTED BUG is fully fixed today. Only whetstones (0.02) are
+under-charged, and only while attended. `AMMO-E6` asserts both halves rather than describing them.
+
+### Verification
+`node tests/accrual-engine.mjs` GREEN, including the pre-existing AWAY-1 parity fixtures (unchanged
+byte-for-byte — a no-ammo loadout takes the identity path through `applyAmmoMult`) plus eight new
+`AMMO-E` blocks. `core-purity`, `mutation-safety`, `combat-xp-settle-split`, `artisan-accrual`,
+`worker-accrual`, `live-settlement`, `goal-counters`, `kill-daily-credit`, `auto-eat-authority`,
+`combat-style` all green. `bump-version.sh --check` green at 498. `pack-edge --check` 0 problems.
+
+**Ten mutation proofs, each caught by NAMED assertions** (harness: the new `ammoGuardProblems()`
+export, so a mutation run costs no network round trip):
+
+| # | mutation | caught by |
+|---|---|---|
+| M1 | the pre-E1 engine (no spend at all) | 14 assertions across E1/E2/E3/E5/E6 |
+| M2 | gate the spend on `needed` (the original one-table defect) | E5 (melee never spends) |
+| M3 | drop `applyAmmoMult` (spend but never weaken) | E3 ("the dry span killed the same") |
+| M4 | never propose `ammo_carry` | E6 |
+| M5 | `weaponTypeOf` always `'neutral'` | 16 assertions |
+| M6 | `supply.startMult` -> `supply.mult` at the call site | E1b (source) |
+| M7 | `startMult` hardcoded to 1 | E1b + E3 |
+| M8 | server `fx.removeItem` missing | E1/E2/E3 |
+| M9 | client pending-consume hold dropped | E8 |
+| M10 | `ammoCarry` stranded (not in RESIDUE_FIELDS) | E8 |
+
+Two fixture-rule bugs in my OWN tests, caught by running them (TESTING.md instance 1 is real):
+- the short-stack fixture asserted "running dry did not kill me" against an UNFED character, and
+  every parity fixture in that file dies — so it was asserting a property of the fixture. Fed it, and
+  added the CONTROL assertion that the supplied run survives, or the dry run proves nothing.
+- the fed fixture then picked its food by `heals` sort and got `void_banquet`, which is
+  `foodClass: 'buff'` and which `isAutoEatable` REFUSES. The character starved and the failure
+  pointed at ammo. Now the food is chosen by the engine's own `bestHealingFood`.
+- and the seam fixture's `fx.removeItem` only RECORDED, so the stack never emptied and the
+  "next swing is weak" assertion passed for the wrong reason. Both real sinks decrement; so does it.
+
+**Measured behaviour, 12 h fed span, maxed ranged vs slime, Duskwood Bow + Barbed Arrows:**
+
+| | ticks | kills | arrows spent | dryMs | weakMs | meals |
+|---|---|---|---|---|---|---|
+| supplied | 20,454 | 17,462 | 20,454 | null | 0 | 6 |
+| 5,113 arrows (1/4 night) | 20,454 | 13,668 | 5,113 | 10,798,656 | 32,400,192 | 16 |
+
+20,454 is exactly the figure `consumable-economy.md` §4.2 publishes for a 12 h Rapid bow, derived
+independently there. `dryMs` is `5113 x 2112` to the millisecond — the closed form `dryAtMs()` quotes
+before the span begins. And the meals going 6 -> 16 is §3.4's predicted second-order effect
+("running dry makes you eat more") showing up unprompted in a real run.
+
+### Debt paid / added
+**Paid:** the `ammoPerShot` field stopped being inert after eleven days; `spendForSwings.mult` stopped
+being a second statement of the fail-soft rule; four stale "NOTHING CONSUMES THESE YET" headers in
+`src/data/*` stopped being lies.
+**Added:** one owed migration (spelled out in HANDOFFS), one dormant `AMMO_EMPTY_SLOT_IS_DRY` switch,
+and the E3 pointer-model gap (now a `hr_equip` SQL concern, not a client one). All three are named,
+measured, and pinned by tests that go red in a readable way when they are addressed.
+
+### Post-review: the rebase, and two checks that were about themselves
+
+Security returned GO with four conditions; three were mine. Rebased onto `61d3417a` (b499): every
+CODE file auto-merged — only the two coordination markdowns collided, both tail-append conflicts. I
+read main's full `src/legacy.js` delta rather than trusting the clean merge, because the coordinator
+flagged it as a possible semantic neighbour. Verdict: five hunks, all at 8657+, mine at 6164 — no
+line overlap, and no semantic one either. `noteItemConsumed` is UNCHANGED, and my sink passes
+`{send:false}`, which returns before any auto-eat branch, so b499's `hr_set_auto_eat` wiring cannot
+reach my path. The real neighbour is `renderModal`/`maybeShowWelcome` — the streak vocabulary moved
+in exactly the renderer §10's away-card copy will land in. Nothing reads my `consumed`/`dryMs` fields
+yet, so it is a handoff fact, not a conflict.
+
+**THE LESSON, AND IT REPEATED ON THIS BRANCH.** Twice now a check I had just written turned out to be
+about itself:
+
+1. the dry-run fixture asserted "running out did not kill me" against an UNFED character, where every
+   fixture in that file already dies;
+2. the A1 coupling scanned `src/` for a marker token — including `src/core/ammo.js`, the file that
+   DEFINES the marker and documents the coupling. The "flag flipped, no indicator" mutation passed
+   GREEN. An unfalsifiable check that reads like a strong one.
+
+Both were found by MUTATING, never by reading. The generalisation I want to carry: **a guard that
+searches for evidence must be told where evidence may not come from**, and the first mutation to run
+is always "make the thing the guard forbids, and watch it stay green." The fix in (2) was also the
+correct rule independently — `src/core` is DOM-free by construction, so an indicator cannot honestly
+live there — which is the tell that the exclusion was a missing invariant rather than a patch.
+
+Also worth keeping: **the marker name is mine, the mechanism is theirs.** A cross-discipline coupling
+only becomes enforceable if one side defines a cheap anchor the other can satisfy any way it likes.
+Asserting on a CSS class would have been me designing the Art Director's indicator; asserting on a
+token they must carry asks for evidence of the OUTCOME and leaves the implementation alone. And it is
+an IMPLICATION, not a biconditional — the UI must be allowed to land first.

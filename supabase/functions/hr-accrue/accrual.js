@@ -743,6 +743,21 @@ export function accrueRested({ nowMs, restedAtMs, restedXp, libraryCap }) {
  *                written. Cost of the gap: at most one bonus unit per skill
  *                per accrual (~0.5 expected), measured in
  *                tests/accrual-engine.mjs' carry-continuity fixture.
+ *   ammoCarry    player_state.ammo_carry — the CONSUMPTION carry's twin,
+ *                `{ <ammoItemId>: 0..1 }`, and the same self-configuring null
+ *                switch for the same reason. A whetstone burns 0.02 per swing,
+ *                so 49 swings in 50 bank a fraction instead of spending an
+ *                item; without somewhere to put that fraction a 90-second
+ *                attended settle charges zero and the melee consumable is free.
+ *                **NULL means the column does not exist yet** — TRUE TODAY, the
+ *                migration is not written — and the engine then starts each
+ *                span from an empty carry and OMITS `ammo_carry` from the delta.
+ *                ⚠ COST OF THE GAP IS ZERO FOR AN INTEGER `ammoPerShot`: every
+ *                  arrow and every rune is 1/swing, so the carry lands on
+ *                  exactly 0 after each one and the burn is exact with or
+ *                  without the column. Only a FRACTIONAL rung is affected, and
+ *                  only by under-charging (< 1 item per settled window), which
+ *                  is the safe direction. See src/core/ammo.js.
  *   fight        player_state.fight — the IN-FLIGHT FIGHT at `accrued_to`,
  *                `{ monster, hp, kills }` or `{}` for none. **NULL means the
  *                column does not exist yet**, the same self-configuring switch
@@ -1019,6 +1034,22 @@ export function computeAccrual(input) {
     skills: { ...skills0 },
     stats: {},
     combatKillsThisFoe: resumed ? resumed.kills : 0,
+    /* ── THE TWO FIELDS THE CONSUMPTION SEAM READS (design item E1) ────────
+       `src/core/ammo.js readAmmo` asks the state which stack is loaded
+       (`equipment.ammo`) and how much of it is left (`inventory[id]`). On the
+       client `state` IS `G` and both are already there; here they are wired to
+       the server's own two objects so there is ONE reader and no second shape.
+
+       ⚠ `inventory` IS `bag` BY IDENTITY, not a copy, and that is required.
+         `bag` is the LIVE view — `startInv + every addItem - every autoEat` —
+         so a quiver that DROPS at hour two is loosable at hour three, exactly
+         as it is on the client. A snapshot here would diverge from the client
+         on precisely the long absences where it matters, which is the same
+         reasoning the auto-eat bag already carries.
+       ⚠ `equipment` is the server row hr_state_of returned, never a request
+         body, and it is READ-ONLY to the simulation — nothing below writes it.
+       `inventory` and `ammoCarry` are attached below, where `bag` is built. */
+    equipment,
   };
   /* `state.gold` starts at ZERO rather than at the player's balance. resolveKill
      does `state.gold = state.gold + gp`, so it accumulates the delta directly —
@@ -1053,6 +1084,34 @@ export function computeAccrual(input) {
     const q = Math.floor(nat(inp.inventory[id], 0));
     if (q > 0) bag[id] = q;
   }
+  /* ⚠ BY IDENTITY, NOT A COPY. `src/core/ammo.js readAmmo` asks the state how
+     much of the loaded stack is left, and the answer has to be the LIVE bag —
+     `startInv + every addItem - every autoEat - every arrow already loosed` —
+     or a quiver that DROPS at hour two is not loosable at hour three, and the
+     spend would over-charge a stack the debit had already emptied. Same
+     reasoning the auto-eat bag carries; one object, so there is nothing to
+     keep in sync. */
+  state.inventory = bag;
+  /* THE DETERMINISTIC FRACTIONAL CARRY, `{ <ammoId>: 0..1 }` (design item E2).
+     A whetstone burns at 0.02/swing, so 49 swings in 50 spend nothing and bank
+     a fraction instead — and that fraction must survive the span boundary or a
+     90-second attended settle charges zero, forever.
+     NORMALISED THROUGH `normaliseToolCarry`, deliberately: it is the same value
+     shape ([0,1), out-of-range DROPPED rather than clamped, null means the
+     column is absent) and one normaliser cannot disagree with itself.
+     ⚠ SELF-CONFIGURING, exactly like tool_carry and fight: `ammoCarry0 === null`
+       means `player_state.ammo_carry` does not exist on this database, and the
+       engine then starts every span from an empty carry and OMITS the delta key
+       — because hr_apply refuses an unknown delta key and that refusal costs
+       the player their whole window. There is no flag to forget to flip; the
+       column's presence IS the switch.
+       COST OF THE GAP, stated so it is not discovered: an INTEGER `ammoPerShot`
+       (every arrow, every rune — the reported bug) is exact either way, because
+       the carry lands on exactly 0 after every swing. Only a FRACTIONAL rung
+       (whetstones, 0.02) is under-charged, by less than one stone per settled
+       window. */
+  const ammoCarry0 = normaliseToolCarry(inp.ammoCarry);
+  state.ammoCarry = { ...(ammoCarry0 || {}) };
 
   /* THE PURCHASED-TRAIT GATE, and it fails CLOSED.
      Auto-Eat costs 100 Bounty Marks in the Store and the client refuses to eat
@@ -1162,6 +1221,41 @@ export function computeAccrual(input) {
       itemDelta[id] = (itemDelta[id] || 0) + n;
       bag[id] = (bag[id] || 0) + n;      // edible from the moment it drops
       collection.record(id, n);          // Slice 2: the per-item loot counter
+    },
+    /* ── THE CONSUMPTION SINK (design item E1) ─────────────────────────────
+       The ONLY caller today is `src/core/ammo.js spendForSwings`, reached from
+       `simulateTick` on every swing. It is the exact mirror of the auto-eat
+       debit six handlers below — the same signed `itemDelta`, the same live
+       `bag`, the same reason: hr_apply re-reads `player_inventory` under the
+       row lock and refuses `have + delta < 0` as `insufficient_item`, which is
+       NOT on index.ts's DEGRADABLE list, so proposing one 409s an entire night
+       rather than shortening it.
+
+       IT DRAWS NO RANDOM NUMBERS, and that is a contract rather than a
+       coincidence: the fight is seeded, so a handler that consumed a draw would
+       shift every later roll and the AWAY-1 parity fixtures would be comparing
+       two different fights.
+
+       AGGREGATION IS FREE HERE, and §13.2 requires it: this is called up to
+       13,636 times in an 8-hour ranged absence, but `itemDelta` is an in-memory
+       accumulator, so what crosses the hop is ONE signed key and hr_apply
+       writes ONE ledger row. Never a row per tick.
+
+       The floor is belt-and-braces: `spendForSwings` already clamps its spend
+       to the stack it read out of this same `bag`, so `take` can only ever
+       equal `n`. Written anyway, because this is the sink a future consumer
+       (an artisan input, a durability tick) will reach for, and the one error
+       in this function with no recovery path is the one it must not be able to
+       propose. */
+    removeItem(id, qty) {
+      const n = Math.floor(Number(qty) || 0);
+      if (!id || n <= 0) return;
+      const have = Math.max(0, Math.floor(Number(bag[id]) || 0));
+      const take = Math.min(n, have);
+      if (take <= 0) return;
+      bag[id] = have - take;
+      if (bag[id] <= 0) delete bag[id];
+      itemDelta[id] = (itemDelta[id] || 0) - take;
     },
     onDrop(ev) { if (ev && ev.rare) events.push({ type: 'rare_drop', item: ev.id }); },
 
@@ -1459,8 +1553,15 @@ export function computeAccrual(input) {
          "how long" no longer implies "which hours": a capped night forfeits its
          tail, and a dispute about a Boss-of-the-Day multiplier is only
          answerable from the instants the segments were resolved at. */
+      /* `spent` is the AGGREGATE consumable burn for the window, `{id: qty}`
+         straight off the simulation's own tally — the only trace of why a
+         quiver came back 13,636 arrows lighter, which a support request about a
+         vanished stack has to be answerable from. Aggregate like `ate`, never a
+         row per swing (§13.2). Omitted entirely when nothing was spent, so a
+         melee night's journal is byte-for-byte what it was. */
       meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills, capped,
               ate: foodEaten,
+              ...(Object.keys(summary.consumed || {}).length ? { spent: summary.consumed } : {}),
               from: new Date(credit.fromMs).toISOString(),
               to: new Date(credit.toMs).toISOString() },
     },
@@ -1500,6 +1601,26 @@ export function computeAccrual(input) {
           kills: Math.max(0, Math.floor(state.combatKillsThisFoe || 0)) }
       : {};
   }
+
+  /* ── THE END-OF-WINDOW AMMO CARRY (design item E2) ───────────────────────
+     ABSOLUTE, not a delta — the third key in this contract that is, for the
+     reason `tool_carry` and `fight` already state: the engine computes the
+     RESULTING state from a starting one it was handed, and adding two
+     remainders is arithmetic nobody defined.
+
+     `if (ammoCarry0)` is the self-configuring switch, identical in shape to the
+     two above: a null input means `player_state.ammo_carry` does not exist on
+     this database, and proposing the key would be an unknown-delta-key 409 that
+     costs the player the whole window. `roundCarry` is the same 12-digit round
+     the tool carry uses, for the same reason — a raw 0.9999999999 float would
+     fail hr_apply's `< 1` range check and reject the entire night.
+
+     ⚠ THE COLUMN DOES NOT EXIST YET. This branch is DORMANT today (`inp.ammoCarry`
+       is `st.ammo_carry ?? null` and there is no such column), so nothing here
+       changes a single byte of the delta until the migration lands. It ships
+       now, with the engine it belongs to, so the migration is one SQL file and
+       not an SQL file plus an Edge redeploy of a second engine change. */
+  if (ammoCarry0) delta.ammo_carry = roundCarry(state.ammoCarry);
 
   return {
     accrued: true,

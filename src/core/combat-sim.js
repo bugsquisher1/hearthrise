@@ -67,6 +67,11 @@ import { applyGoldFind } from './pacing.js?v=498';
 import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, utcDaySegments } from './away.js?v=498';
 import { NO_BONUS } from './botd.js?v=498';
 import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=498';
+/* THE CONSUMPTION SEAM (design item E1). The arithmetic lives in ./ammo.js and
+   is imported rather than restated — one field, one carry, one guard. Nothing
+   below branches on `ctx.away`, which is what keeps the AWAY-1 parity property
+   true of the quiver as well as of the XP. */
+import { spendForSwings, applyAmmoMult } from './ammo.js?v=498';
 
 export { AWAY_RATE_MULT };
 
@@ -193,6 +198,12 @@ export function resolveDeath(state, ctx) {
  *   2. crit           (1 draw, only on a landed hit)
  *   3. [kill] gold    (1 draw) then the drop table (1 draw per row)
  *   4. monster swing  (rollAttack: up to 2 draws)
+ *
+ * ⚠ THE AMMO SPEND DRAWS NOTHING, AND THAT IS A CONTRACT. `spendForSwings` is
+ *   a deterministic carry, never a dice roll (src/core/ammo.js §2.1). If it
+ *   ever consumed a draw it would shift every roll after it and the parity
+ *   test would be comparing two different fights — which is also why a
+ *   "20% chance to consume" model was rejected in favour of `ammoPerShot: 0.2`.
  */
 export function simulateTick(state, ctx) {
   const fx = fxOf(ctx);
@@ -202,8 +213,26 @@ export function simulateTick(state, ctx) {
   const m = monsters[id];
   if (!m) { state.activeMonster = null; return { outcome: OUTCOME.STOP, reason: 'unknown-monster' }; }
 
+  /* ── E1: THE ARROW IS SPENT ON THE SWING ──────────────────────────────
+     Hit or miss, kill or not (R3). That is what makes the burn a pure
+     function of time, which is what makes the pre-flight projection and the
+     away card's dry-out line the same expression evaluated at two moments —
+     `consumablesPerHour` / `dryAtMs` in ./ammo.js. Spending on HITS would make
+     the rate a function of the monster's defence and the player's accuracy, so
+     a high-accuracy build would be CHEAPER to run and the projection could not
+     be computed before the target was chosen.
+
+     Charged BEFORE the roll and applied to it, because `startMult` is the
+     supply state the swing is loosed at: the swing that spends the LAST arrow
+     is a supplied swing and hits at full strength; the next one is weak.
+
+     No-ammo loadouts are byte-identical to the pre-E1 engine — `applyAmmoMult`
+     returns its input unchanged at a multiplier of 1, and `spendForSwings`
+     returns without touching `state` when the slot is empty or the rung free. */
+  const supply = spendForSwings(state, 1, ctx);
+
   const roll = ctx.playerRolls(m);
-  let pDmg = rollAttack(ctx.rng, roll.accuracy, roll.maxHit);
+  let pDmg = rollAttack(ctx.rng, roll.accuracy, applyAmmoMult(roll.maxHit, supply.startMult));
 
   /* CRITS APPLY AWAY (the ruling reverses the old behaviour). Crit is gear —
      `critB` from equipment plus the armour-set bonus — so it is a permanent
@@ -233,7 +262,7 @@ export function simulateTick(state, ctx) {
        Falling back to resolveKill keeps this file usable bare, in Deno and
        in tests. */
     const info = typeof fx.killMonster === 'function' ? fx.killMonster(m) : resolveKill(state, m, ctx);
-    return { outcome: OUTCOME.KILL, crit: didCrit, pDmg, kill: info || null };
+    return { outcome: OUTCOME.KILL, crit: didCrit, pDmg, kill: info || null, supply };
   }
 
   const mr = ctx.monsterRolls(m);
@@ -248,9 +277,14 @@ export function simulateTick(state, ctx) {
 
   if (state.playerHp <= 0) {
     resolveDeath(state, ctx);
-    return { outcome: OUTCOME.DEATH, crit: didCrit, pDmg, mDmg, ate };
+    return { outcome: OUTCOME.DEATH, crit: didCrit, pDmg, mDmg, ate, supply };
   }
-  return { outcome: OUTCOME.HIT, crit: didCrit, pDmg, mDmg, ate };
+  /* `supply` rides on EVERY outcome, kill included, because the span's
+     `consumed` tally is built from it and an arrow spent on a killing blow is
+     still an arrow. Returned rather than accumulated into `state`: the client's
+     `state` IS `G`, and a new top-level G field would be a save-allowlist
+     question for a number that is only ever a per-span readout. */
+  return { outcome: OUTCOME.HIT, crit: didCrit, pDmg, mDmg, ate, supply };
 }
 
 /**
@@ -380,6 +414,23 @@ export function simulateSpan(state, ctx) {
   let buffPaidMs = 0;              // ms of the span a buff was actually live for
   const buffsExpired = [];         // the types that ran out DURING the absence
 
+  /* ── THE SUPPLY LEDGER FOR THIS SPAN (consumable-economy.md §10) ─────────
+     STATED BY THE SIMULATION, never inferred by a renderer — the same rule as
+     `blessed`, `crits` and `died`. The away card has to be able to say "you
+     ran out of Steel Arrows 4h 20m in — the rest of the night fought at a
+     quarter strength", and §10's binding condition is that the pre-flight
+     quote and the post-hoc report come from one expression. `dryAtMs` in
+     ./ammo.js is that expression evaluated BEFORE the span; these three fields
+     are the same fact observed after it, so the two cannot disagree.
+
+     `consumed` is an AGGREGATE per item id, not a row per tick: §13.2 —
+     "13,636 arrows over an 8-hour absence is 13,636 ledger rows if anyone gets
+     that wrong." The server folds this into its one signed `items` delta. */
+  const consumed = Object.create(null);
+  let dryAtSpanMs = null;          // ms INTO the span at which the stack hit 0
+  let dryItemId = null;            // which stack ran out
+  let weakTicks = 0;               // ticks simulated at the unsupplied multiplier
+
   for (const seg of segments) {
     if (!state.activeMonster) break;
     /* Carry the sub-tick remainder across the UTC boundary so splitting a
@@ -417,6 +468,24 @@ export function simulateSpan(state, ctx) {
         const q = liveQueue();
         const buffLive = q ? hasActiveBuff(q) : false;
         const r = simulateTick(state, segCtx);
+        /* THE SUPPLY LEDGER, folded per tick and reported once. `sup.startMult`
+           is the multiplier the swing that just happened actually ran at, so a
+           span never has to average two states it was never in.
+           `dryAtMs` is stamped on the FIRST tick whose swing was unsupplied —
+           `ticks + ran` is that tick's index, and index x tickMs is the same
+           closed form `ammo.js dryAtMs()` quoted before the span began. §10:
+           the pre-flight promise and the post-hoc report are one expression. */
+        const sup = r.supply;
+        if (sup) {
+          if (sup.spent > 0) consumed[sup.id] = (consumed[sup.id] || 0) + sup.spent;
+          if (sup.startMult < 1) {
+            weakTicks++;
+            if (dryAtSpanMs === null) {
+              dryAtSpanMs = (ticks + ran) * tickMs;
+              dryItemId = sup.id;
+            }
+          }
+        }
         ran++;
         if (q) {
           if (buffLive) buffPaidMs += tickMs;
@@ -524,6 +593,21 @@ export function simulateSpan(state, ctx) {
        this design exists to prevent. */
     buffPaidMs,
     buffsExpired,
+    /* ── THE SUPPLY HALF OF THE HONESTY PAYLOAD (§10) ────────────────────
+       `consumed` is `{itemId: qty}` — what the quiver actually paid, aggregated.
+       `dryMs` is how far into the span the stack hit zero, `dryItemId` names
+       it, and `weakMs` is how much of the span was fought unsupplied. §10's
+       first rule is that the card must never say "you ran out" without saying
+       what it cost, and it cannot say what it cost from a number nobody stated.
+
+       ⚠ TEST `dryMs !== null`, NEVER `if (dryMs)`. `null` means "it never ran
+         out"; ZERO means "it was already empty when the span began", which is
+         the most important case to say out loud and the one a truthiness check
+         silently reports as a good night. */
+    consumed: Object.assign({}, consumed),
+    dryMs: dryAtSpanMs,
+    dryItemId,
+    weakMs: weakTicks * tickMs,
     featuredMs,              // ms spent on a Boss of the Day / Week
     featuredDropMult,        // the drop multiplier that featured time paid (1 when none)
     capped: !!ctx.capped,

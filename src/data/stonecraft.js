@@ -44,9 +44,12 @@
 //      to *what do I make, from what, and why* is on the screen rather than in
 //      this comment.
 //
-// WHAT IS EXPLICITLY NOT IN THIS RULING: E1, the per-swing ammo spend. Nothing
-// consumes `ammoPerShot` yet, and the item copy below is written to that fact
-// rather than around it.
+// WHAT WAS EXPLICITLY NOT IN THIS RULING: E1, the per-swing ammo spend. It
+// LANDED 2026-08-31 — `simulateTick` charges `spendForSwings` every swing, so
+// runes burn at 1/cast and whetstones at 0.02/swing on both the live and the
+// away path. The item copy below still does not promise a burn, because the
+// empty-quiver indicator (§14, Art Director) does not exist yet; the mechanic
+// is real, the wording is held until the surface can show it.
 // ══════════════════════════════════════════════════════════════════════════
 //
 // R8: STONEMASON NEEDS NO WORKBENCH, and it already has none: homestead.js's

@@ -37,7 +37,7 @@ import { readFile, readdir } from 'node:fs/promises';
 /* SYNC, deliberately: REACHABLE_CAP_H is a module-scope constant the sweep
    tables below are built from, and an async read there would make it a promise
    that every fixture silently compared against. */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -61,6 +61,11 @@ import { bestTool, toolSpeed, toolXpB, toolDouble } from '../src/core/tools.js';
 import { pacedActionMs, speedClamp } from '../src/core/pacing.js';
 import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, buffBonusFor } from '../src/core/buffs.js';
 import { levelOf } from '../src/core/xp.js';
+/* THE CONSUMPTION SEAM (E1). Imported as a namespace so the guard below can
+   assert against the module's own frozen tables — `AMMO_EMPTY_SLOT_IS_DRY` is a
+   design position, and a test that restated it instead of reading it would
+   agree with itself forever. */
+import * as AMMO from '../src/core/ammo.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
@@ -77,6 +82,11 @@ import { parseIntent, readSlot, MAX_SLOT, INTENT_KEYS } from '../supabase/functi
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const FN_DIR = join(ROOT, 'supabase', 'functions', 'hr-accrue');
+/* SYNC, like REACHABLE_CAP_H above and for the same reason: `ammoGuard` is
+   synchronous so the whole family can run under a mutation harness without a
+   network round trip, and an async read here would be a promise every
+   assertion silently compared against. */
+const COMBAT_SIM_SRC = readFileSync(join(ROOT, 'src', 'core', 'combat-sim.js'), 'utf8');
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -206,10 +216,21 @@ function clientAwaySpan(opts) {
        edible for the rest of it, which is the property the server's live `bag`
        has to reproduce. */
     inventory: { ...(opts.inventory || {}) },
+    /* THE EQUIPPED SET, on G, exactly as the real client holds it. E1's
+       `readAmmo` asks the STATE which stack is loaded and which weapon family
+       is swinging — `G.equipment.ammo` and `ITEMS[G.equipment.weapon].weaponType`
+       — so a reference that omitted it would silently answer 'neutral', spend
+       nothing, and agree with a server that also spent nothing. That is
+       precisely the fixture-rule blind spot (TESTING.md, instance 1). */
+    equipment: { ...equipment },
+    /* The deterministic fractional carry, threaded so a caller can prove that
+       two consecutive spans charge what one long span charges. */
+    ammoCarry: { ...(opts.ammoCarry || {}) },
     traits: opts.traits || {},
     autoActions: { eat: opts.eat || { enabled: false, threshold: DEFAULT_THRESHOLD, foodId: null } },
   };
   const bag = {};
+  const spentBag = {};
   const fx = {
     addXp(sk, amt) {
       const r = grantXp(G, sk, amt, { bonus, xpB: eqStats.xpB || 0, restedQuantum: 0, authored: false });
@@ -218,6 +239,22 @@ function clientAwaySpan(opts) {
     addItem(id, qty) {
       bag[id] = (bag[id] || 0) + qty;
       G.inventory[id] = (G.inventory[id] || 0) + qty;
+    },
+    /* THE CONSUMPTION SINK (E1), written out here for the same reason
+       `clientCombatTickMs` and `autoEat` are: this reference is an INDEPENDENT
+       second construction of legacy.js's COMBAT_FX, and the adapters are where
+       the bugs live. legacy.js's version additionally records a pending-consume
+       HOLD — a client-reconcile concern with no server twin — but the BAG
+       ARITHMETIC, which is the half the server must agree with, is this. */
+    removeItem(id, qty) {
+      const n = Math.max(0, Math.floor(Number(qty) || 0));
+      if (!id || n <= 0) return;
+      const have = Math.max(0, Math.floor(Number(G.inventory[id]) || 0));
+      const take = Math.min(n, have);
+      if (take <= 0) return;
+      G.inventory[id] = have - take;
+      if (G.inventory[id] <= 0) delete G.inventory[id];
+      spentBag[id] = (spentBag[id] || 0) + take;
     },
     /* THE CLIENT'S ADAPTER, written out here rather than imported, exactly as
        clientCombatTickMs above is. This mirrors src/features/auto-actions.js
@@ -270,7 +307,8 @@ function clientAwaySpan(opts) {
     if (d > 0) xp[k] = d;
   }
   return { summary, gold: Math.floor(G.gold), xp, items: bag, hp: G.playerHp, maxHp: G.playerMaxHp,
-           stats: G.stats, inventory: G.inventory, ate: G._ate || 0 };
+           stats: G.stats, inventory: G.inventory, ate: G._ate || 0,
+           spent: spentBag, ammoCarry: G.ammoCarry };
 }
 
 // ── Server call helper ──────────────────────────────────────────────────────
@@ -2808,9 +2846,654 @@ async function settableKindsGuard() {
   }
 }
 
+/* ════════════════════════════════════════════════════════════════════════════
+   THE CONSUMPTION GUARD (design item E1) — "crafted arrows are never spent in
+   combat" (Paione, 2026-08-20).
+
+   Six claims, and every one of them is checked against a number this file
+   derives from the CATALOGUE rather than against the other engine's answer.
+   That is the fixture rule (TESTING.md, instance 1) applied on purpose: the
+   away-vs-live parity fixtures compare two sides that share `src/core`, so a
+   defect planted inside the shared half moves BOTH columns identically and
+   stays green. `ticks x ITEMS[id].ammoPerShot` is the third opinion.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* The ranged loadout, picked from the LIVE catalogue like `pickEquipment` — an
+   invented bow would test the engine against data the game does not contain. */
+function rangedLoadout(ammoId) {
+  const bow = Object.keys(ITEMS)
+    .filter((id) => ITEMS[id]?.weaponType === 'ranged' && ITEMS[id]?.rangeStrB)
+    .sort((a, b) => (ITEMS[b].rangeStrB || 0) - (ITEMS[a].rangeStrB || 0))[0];
+  const eqp = { weapon: bow };
+  if (ammoId) eqp.ammo = ammoId;
+  return eqp;
+}
+
+function meleeLoadout(ammoId) {
+  const sword = Object.keys(ITEMS)
+    .filter((id) => ITEMS[id]?.weaponType === 'sword' && ITEMS[id]?.strB)
+    .sort((a, b) => (ITEMS[b].strB || 0) - (ITEMS[a].strB || 0))[0];
+  const eqp = { weapon: sword };
+  if (ammoId) eqp.ammo = ammoId;
+  return eqp;
+}
+
+/** The signed debit the server proposed for `id`, as a POSITIVE count. */
+function serverSpent(out, id) {
+  const n = Number((out.delta && out.delta.items && out.delta.items[id]) || 0);
+  return n < 0 ? -n : 0;
+}
+
+/* ── DOES ANY SHIPPED SOURCE FILE CARRY THIS TOKEN? ─────────────────────────
+   The instrument behind the A1 coupling: `AMMO_EMPTY_SLOT_IS_DRY` may not be
+   true unless the empty-quiver indicator exists, and "exists" has to be
+   something a build can SEE. Walks `src/` once (js/mjs/css/html) and memoises,
+   because `ammoGuard` is synchronous so the whole family can run under a
+   mutation harness with no network and no await.
+
+   The indicator is allowed to be a CSS class, a data attribute, a glyph key or
+   a render helper, so the scan does not narrow by mechanism — narrowing it
+   would be this file dictating the Art Director's implementation instead of
+   asking for evidence of the outcome.
+
+   ⚠ `src/core/**` IS EXCLUDED, AND THAT EXCLUSION IS THE WHOLE CONTROL.
+     Without it the check is UNFALSIFIABLE: `src/core/ammo.js` is where the
+     marker string is DEFINED (`AMMO_DRY_UI_MARKER`) and where the coupling is
+     documented, so the scan found the token in the very file that names it and
+     the "flag flipped, no indicator" mutation passed green. Caught by running
+     that mutation — which is the second time on this branch that a check I had
+     just written proved to be about itself.
+     Excluding core is not a patch over that; it is the correct rule
+     independently: `src/core` is pure and DOM-free by construction (enforced by
+     tests/core-purity.mjs), so an INDICATOR can never honestly live there. The
+     evidence has to come from a surface that can actually render. */
+const SRC_SCAN_EXT = new Set(['.js', '.mjs', '.css', '.html']);
+const SRC_SCAN_SKIP = join(ROOT, 'src', 'core');
+let SRC_TREE_BLOB = null;
+function srcTreeBlob() {
+  if (SRC_TREE_BLOB !== null) return SRC_TREE_BLOB;
+  const parts = [];
+  const walk = (dir) => {
+    if (dir === SRC_SCAN_SKIP) return;
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) { walk(full); continue; }
+      const dot = e.name.lastIndexOf('.');
+      if (dot < 0 || !SRC_SCAN_EXT.has(e.name.slice(dot))) continue;
+      try { parts.push(readFileSync(full, 'utf8')); } catch { /* unreadable is not evidence */ }
+    }
+  };
+  walk(join(ROOT, 'src'));
+  SRC_TREE_BLOB = parts.join('\n');
+  return SRC_TREE_BLOB;
+}
+/** Does a RENDERABLE source file under `src/` (i.e. not `src/core`) carry this
+ *  token? See the exclusion note above before widening this. */
+function srcTreeContains(token) {
+  return srcTreeBlob().indexOf(token) !== -1;
+}
+
+/* The other half of the tree — `src/core` only. Its one caller (AMMO-E5b) is
+   asking whether an invariant is still WRITTEN DOWN at the function it governs,
+   which is exactly the region `srcTreeContains` excludes. Kept separate rather
+   than adding a flag, so neither reader can be handed the wrong half. */
+let CORE_TREE_BLOB = null;
+function srcTreeBlobCore() {
+  if (CORE_TREE_BLOB !== null) return CORE_TREE_BLOB;
+  const parts = [];
+  let entries;
+  try { entries = readdirSync(SRC_SCAN_SKIP, { withFileTypes: true }); } catch { entries = []; }
+  for (const e of entries) {
+    if (e.isDirectory()) continue;
+    const dot = e.name.lastIndexOf('.');
+    if (dot < 0 || !SRC_SCAN_EXT.has(e.name.slice(dot))) continue;
+    try { parts.push(readFileSync(join(SRC_SCAN_SKIP, e.name), 'utf8')); } catch { /* skip */ }
+  }
+  CORE_TREE_BLOB = parts.join('\n');
+  return CORE_TREE_BLOB;
+}
+
+function ammoGuard() {
+  const A = 'AMMO-E';
+  const RANGED_SKILLS = { ...MAXED, ranged: 13034431 };
+  /* A monster that dies fast enough to keep the fight going all night and does
+     not kill a maxed character, so the span runs its full tick budget and the
+     consumption arithmetic is not truncated by a death. */
+  const TARGET = MONSTERS.slime ? 'slime' : MONSTER;
+
+  /* Every arrow, rune and whetstone the catalogue ships, so a new ladder rung
+     is covered on the day it is authored rather than the day someone
+     remembers to add it here. */
+  const AMMO_IDS = Object.keys(ITEMS).filter((id) => ITEMS[id] && ITEMS[id].slot === 'ammo');
+  ok(AMMO_IDS.length >= 14,
+    `${A}0: the catalogue holds only ${AMMO_IDS.length} ammo-slot items — this guard is reading the wrong table`);
+  const PAID_ARROW = AMMO_IDS.find((id) => ITEMS[id].ammoPerShot === 1 && ITEMS[id].rangeStrB);
+  const FREE_ARROW = AMMO_IDS.find((id) => ITEMS[id].ammoPerShot === 0 && ITEMS[id].rangeStrB);
+  const WHETSTONE = AMMO_IDS.find((id) => ITEMS[id].ammoPerShot > 0 && ITEMS[id].ammoPerShot < 1);
+  ok(!!PAID_ARROW && !!FREE_ARROW && !!WHETSTONE,
+    `${A}0: the catalogue no longer carries one of {paid arrow, free arrow, fractional whetstone} `
+    + `— got ${PAID_ARROW}/${FREE_ARROW}/${WHETSTONE}. The ladders moved; re-point this guard.`);
+  if (!PAID_ARROW || !FREE_ARROW || !WHETSTONE) return;
+
+  const STOCK = 1000000;                       // far more than any 12h span burns
+
+  /* ── THE FIXTURE IS FED, AND EVERY CASE BELOW USES IT ────────────────────
+     The parity fixtures at the top of this file run with auto-eat OFF (the
+     shipped default) and every one of them ends in a DEATH partway through the
+     night — which truncates the tick budget and would make "ticks x
+     ammoPerShot" a claim about a 3-hour span dressed as a claim about a
+     12-hour one. Feeding the character makes the span run its FULL budget
+     (20,454 swings at 2112 ms), which is the number consumable-economy.md §4.2
+     publishes and the number a supply projection quotes.
+
+     ⚠ THE FOOD IS PICKED BY THE ENGINE'S OWN CHOOSER, not by a `heals` sort —
+       the fixture rule (TESTING.md). The catalogue's biggest healer is
+       `void_banquet`, and it is `foodClass: 'buff'`, which `isAutoEatable`
+       REFUSES: a fixture that nominated it would feed the character food the
+       engine will not eat, watch it die, and blame the arrows. */
+  const everything = {};
+  for (const id of Object.keys(ITEMS)) everything[id] = 1;
+  const FOOD = bestHealingFood(everything, ITEMS);
+  ok(!!FOOD && Number(ITEMS[FOOD].heals) > 0,
+    `${A}0: bestHealingFood found nothing auto-eatable in the catalogue — every fixture below `
+    + 'would starve and the failures would all point at ammo');
+  const runServer = (over) => serverAccrual({
+    activeId: TARGET, skills: RANGED_SKILLS, hp: 99, maxHp: 99,
+    autoEatEnabled: true, autoEatFood: FOOD, autoEatPct: 50, ...over,
+  });
+  /* An inventory with the quiver AND the larder. */
+  const fed = (inv) => ({ ...inv, [FOOD]: 100000 });
+
+  // ── E1. THE RATE. Exactly `ticks x ammoPerShot`, from the catalogue. ───────
+  {
+    const eqp = rangedLoadout(PAID_ARROW);
+    const s = runServer({ equipment: eqp, inventory: fed({ [PAID_ARROW]: STOCK }) });
+    ok(s.accrued === true, `${A}1: the supplied ranged fixture accrued nothing (${s.reason})`);
+    if (s.accrued) {
+      const want = s.summary.ticks * ITEMS[PAID_ARROW].ammoPerShot;
+      ok(want > 10000,
+        `${A}1: the fixture only fired ${want} arrows in ${SPAN_MS / 3600000}h — it died early, so `
+        + 'the rate claim below would be about a span nobody asked about');
+      ok(serverSpent(s, PAID_ARROW) === want,
+        `${A}1: a ${SPAN_MS / 3600000}h span ran ${s.summary.ticks} swings and should have spent `
+        + `${want} ${PAID_ARROW} at ammoPerShot ${ITEMS[PAID_ARROW].ammoPerShot}, but the delta says `
+        + `${serverSpent(s, PAID_ARROW)}. Burn is a pure function of TIME (R3) — never of accuracy, `
+        + 'kills or drops.');
+      ok((s.summary.consumed || {})[PAID_ARROW] === want,
+        `${A}1: summary.consumed disagrees with the item delta — the away card and the ledger `
+        + 'would tell the player two different numbers');
+      /* THE LEDGER SHAPE (§13.2): "consumption is a per-tick inventory
+         decrement… it MUST be aggregated into the span's single delta, never
+         written per tick — 13,636 arrows over an 8-hour absence is 13,636
+         ledger rows if anyone gets that wrong." The delta names ONE key for
+         ~20,000 spends, and the whole map stays bounded by the DROP TABLE
+         rather than by the tick count. */
+      ok(Object.keys(s.delta.items || {}).length <= 12,
+        `${A}1: the item delta carries ${Object.keys(s.delta.items || {}).length} keys — it must be `
+        + 'bounded by the monster\'s drop table, never by the tick count');
+      ok(s.delta.items[PAID_ARROW] === -want,
+        `${A}1: ${s.summary.ticks} separate spends must arrive as ONE signed key of ${-want}, `
+        + `got ${s.delta.items[PAID_ARROW]}`);
+      ok(s.delta.journal.meta.spent && s.delta.journal.meta.spent[PAID_ARROW] === want,
+        `${A}1: the journal does not record the burn — a support request about a vanished quiver `
+        + 'has to be answerable from it');
+    }
+  }
+
+  // ── E1b. THE LAST ARROW'S OWN SHOT IS A SUPPLIED SHOT. ────────────────────
+  /* The off-by-one a player would feel as "it took my arrow AND weakened the
+     shot". Pinned at the seam because it is invisible in a 20,000-swing
+     aggregate: one weak swing in twenty thousand moves no fixture's kill count.
+     `startMult` and `mult` exist as two fields precisely for this swing. */
+  {
+    const st = { equipment: { weapon: rangedLoadout(PAID_ARROW).weapon, ammo: PAID_ARROW },
+                 inventory: { [PAID_ARROW]: 1 } };
+    const removed = [];
+    /* THE SINK MOVES THE BAG — `spendForSwings` states the debit, it does not
+       apply it. A fixture whose sink only recorded would leave the stack full
+       and then "prove" that the next swing was still supplied, which is a
+       property of the fixture. Both real sinks (legacy COMBAT_FX.removeItem and
+       accrual.js's) decrement; so does this one. */
+    const c = { items: ITEMS, fx: { removeItem: (id, q) => {
+      removed.push([id, q]);
+      st.inventory[id] = Math.max(0, (st.inventory[id] || 0) - q);
+    } } };
+    const r = AMMO.spendForSwings(st, 1, c);
+    ok(r.spent === 1 && removed.length === 1,
+      `${A}1b: the last arrow was not spent (spent ${r.spent}, ${removed.length} removeItem calls)`);
+    ok(r.startMult === 1,
+      `${A}1b: the swing that looses the LAST arrow ran at x${r.startMult}. It was supplied when it `
+      + 'was loosed — only the NEXT swing is weak.');
+    ok(r.mult === AMMO.AMMO_DRY_MULT && r.dry === true,
+      `${A}1b: after the last arrow the run must report the unsupplied multiplier for its remainder`);
+    const after = AMMO.spendForSwings(st, 1, c);
+    ok(after.spent === 0 && after.startMult === AMMO.AMMO_DRY_MULT,
+      `${A}1b: the swing AFTER the stack emptied must spend nothing and run weak `
+      + `(spent ${after.spent}, startMult ${after.startMult})`);
+    ok((st.inventory[PAID_ARROW] || 0) === 0,
+      `${A}1b: the quiver went to ${st.inventory[PAID_ARROW]} — a stack may empty, never go negative`);
+    /* R5 through the same door: melee's remainder multiplier is 1, not 0.25. */
+    const mst = { equipment: { weapon: meleeLoadout(WHETSTONE).weapon, ammo: WHETSTONE },
+                  inventory: {} };
+    const mr = AMMO.spendForSwings(mst, 100, { items: ITEMS, fx: {} });
+    ok(mr.mult === 1 && mr.startMult === 1 && mr.dry === false,
+      `${A}1b: an empty whetstone slot reported mult ${mr.mult} / dry ${mr.dry} — melee takes NO `
+      + 'depletion penalty (R5), and a second statement of the fail-soft rule that forgets that is '
+      + 'a wrong answer waiting for its first consumer');
+    /* AND THE CALL SITE READS THE RIGHT ONE. The two fields differ on exactly
+       one swing in a night, so no aggregate fixture can tell them apart — a
+       20,454-swing span moves by zero kills either way. The source is the only
+       instrument with the resolution, and this file already uses it for the
+       same reason AWAY-12 reads `String(window.combatTick)`. */
+    ok(/applyAmmoMult\(\s*roll\.maxHit\s*,\s*supply\.startMult\s*\)/.test(COMBAT_SIM_SRC),
+      `${A}1b: simulateTick no longer applies supply.startMult to the rolled max hit. Reading `
+      + '`supply.mult` there charges the last arrow\'s OWN swing at x0.25 — an off-by-one worth '
+      + 'zero kills a night and one very confused bug report.');
+  }
+
+  // ── E2. PARITY. Away and live spend the SAME arrows, byte for byte. ───────
+  {
+    const eqp = rangedLoadout(PAID_ARROW);
+    const s = runServer({ equipment: eqp, inventory: fed({ [PAID_ARROW]: STOCK }) });
+    const c = clientAwaySpan({
+      monsterId: TARGET, equipment: eqp, skills: RANGED_SKILLS, hp: 99, maxHp: 99,
+      seed: SEED, fromMs: FROM_MS, toMs: NOW_MS, capped: false,
+      inventory: fed({ [PAID_ARROW]: STOCK }),
+      /* The client's own auto-eat adapter, driven the same way — otherwise the
+         two columns run DIFFERENT-LENGTH nights and the arrow comparison is
+         between a 12-hour span and a 3-hour one. */
+      traits: { auto_eat: true },
+      eat: { enabled: true, threshold: thresholdFromPct(50), foodId: FOOD },
+    });
+    eq(s.summary.ticks, c.summary.ticks, `${A}2: PARITY tick count differs with ammo equipped`);
+    eq(s.summary.kills, c.summary.kills, `${A}2: PARITY kills differ with ammo equipped`);
+    eq(serverSpent(s, PAID_ARROW), c.spent[PAID_ARROW],
+      `${A}2: PARITY the two paths spent different numbers of arrows. AWAY-1's contract is that a `
+      + 'seeded fight is byte-identical live and away, and the quiver is part of the fight.');
+    /* THE THIRD OPINION. Both columns above share src/core, so they would agree
+       even if the shared half were wrong (TESTING.md fixture rule, instance 1).
+       This is the catalogue's own arithmetic, computed here. */
+    eq(c.spent[PAID_ARROW], c.summary.ticks * ITEMS[PAID_ARROW].ammoPerShot,
+      `${A}2: both engines agree with each other and DISAGREE with the catalogue — `
+      + 'ticks x ammoPerShot is the number the pre-flight projection quotes the player');
+  }
+
+  // ── E3. RUNNING OUT. Honest degradation, never a negative bag, never zero. ─
+  {
+    const eqp = rangedLoadout(PAID_ARROW);
+    /* ⚠ A FED FIXTURE IS WHAT MAKES "running dry did not kill me" SAYABLE.
+       Against an unfed character the death is the FIXTURE's (auto-eat is off by
+       default and every parity fixture above dies), so the assertion would be
+       about the fixture rather than the system. A supplied character who
+       survives the night must still survive it after the quiver empties — that
+       is what fail-soft means. */
+    /* Enough to cover a visible slice of the night and run out inside it. */
+    const supplied = runServer({ equipment: eqp, inventory: fed({ [PAID_ARROW]: STOCK }) });
+    const SHORT = Math.floor(supplied.summary.ticks / 4);
+    const s = runServer({ equipment: eqp, inventory: fed({ [PAID_ARROW]: SHORT }) });
+    ok(supplied.summary.died === false,
+      `${A}3: the CONTROL died with a full quiver and 100,000 meals — the fixture is broken, so `
+      + 'the dry run below would prove nothing about ammo');
+    ok(s.accrued === true, `${A}3: the short-stack fixture accrued nothing (${s.reason})`);
+    if (s.accrued) {
+      ok(serverSpent(s, PAID_ARROW) === SHORT,
+        `${A}3: a stack of ${SHORT} must be spent EXACTLY to zero, not ${serverSpent(s, PAID_ARROW)} — `
+        + 'over-billing the night that already went wrong is the one direction that is unforgivable');
+      ok(SHORT + (s.delta.items[PAID_ARROW] || 0) === 0,
+        `${A}3: the proposed delta would take the quiver NEGATIVE — hr_apply answers `
+        + 'insufficient_item, which is not on the DEGRADABLE list and 409s the whole night');
+      ok((s.summary.consumed || {})[PAID_ARROW] === SHORT,
+        `${A}3: the simulation's own tally disagrees with the delta on a span that ran dry`);
+      /* FAIL-SOFT: the span keeps paying. A stall that pays zero for the rest
+         of the window is the failure mode the ruling exists to forbid. */
+      ok(s.summary.kills > 0 && (s.delta.gold || 0) > 0 && Object.keys(s.delta.xp || {}).length > 0,
+        `${A}3: an unsupplied span paid nothing — running dry is FAIL-SOFT (x${0.25} on max hit), `
+        + 'not a stop');
+      ok(s.summary.died === false,
+        `${A}3: running out of arrows killed the character — fail-soft must not become fail-fatal`);
+      /* IT MUST ACTUALLY HURT, or the mechanic is decoration. */
+      ok(s.summary.kills < supplied.summary.kills,
+        `${A}3: the dry span killed ${s.summary.kills} against the supplied span's `
+        + `${supplied.summary.kills} — the x0.25 max-hit penalty is not being applied at all`);
+      /* THE MOMENT IS STATED, not inferred, and it is the SAME closed form the
+         pre-flight projection quotes (§10). */
+      ok(s.summary.dryMs === SHORT * s.tickMs,
+        `${A}3: summary.dryMs is ${s.summary.dryMs} but the closed form `
+        + `fromMs + floor(stock/perShot) x tickMs says ${SHORT * s.tickMs}. §10: "a player who buys `
+        + 'exactly what they were quoted must not run dry in the last minute" — the quote and the '
+        + 'report have to be one expression.');
+      ok(s.summary.dryItemId === PAID_ARROW && s.summary.weakMs > 0,
+        `${A}3: the span ran dry and did not name the stack or the time it cost`);
+    }
+  }
+
+  // ── E4. NO AMMO, AND A FREE RUNG. Nothing spent; the boost tracks the item. ─
+  {
+    const bare = runServer({ equipment: rangedLoadout(null), inventory: fed({}) });
+    ok(!Object.keys(bare.delta.items || {}).some((k) => bare.delta.items[k] < 0 && k !== FOOD),
+      `${A}4: a bow with an EMPTY ammo slot proposed a debit — nothing may be spent from a slot `
+      + 'that holds nothing');
+    ok(Object.keys(bare.summary.consumed || {}).length === 0,
+      `${A}4: summary.consumed is not empty for a loadout with no ammo`);
+
+    const free = runServer({
+      equipment: rangedLoadout(FREE_ARROW), inventory: fed({ [FREE_ARROW]: 500 }),
+    });
+    ok(serverSpent(free, FREE_ARROW) === 0,
+      `${A}4: the tier-1 rung ${FREE_ARROW} is authored ammoPerShot 0 and must NEVER deplete — `
+      + 'a free rung is what makes this mechanic invisible to a new player (§12.2)');
+    /* NO AMMO EQUIPPED = NO BOOST. The free rung carries rangeStrB, so it must
+       out-kill the empty slot; if it did not, the ammo slot would be paying its
+       stats to a player who never equipped anything. */
+    ok(free.summary.kills > bare.summary.kills,
+      `${A}4: a loadout with ${FREE_ARROW} equipped killed ${free.summary.kills} against `
+      + `${bare.summary.kills} with an EMPTY slot — the ammo slot's rangeStrB is reaching a player `
+      + 'who has no ammo, which is the cross-style leak in another costume');
+    /* ── THE KNOWLEDGE-TAX COUPLING, ENFORCED (security A1) ────────────────
+       The empty slot is not penalised today. Flipping `AMMO_EMPTY_SLOT_IS_DRY`
+       is a legitimate design call — but flipping it WITHOUT the empty-quiver
+       indicator stops the mechanic taxing PREPARATION and starts it taxing
+       INFORMATION: an informed player unequips (58 vs 17 maxHit), an uninformed
+       one silently eats x0.25 all night with no surface saying why, and it
+       lands hardest on the newest players. So the coupling is an IMPLICATION,
+       checked against the source rather than restated:
+
+           flag === true   =>   the marker token exists under src/
+
+       NOT a biconditional: the indicator may land FIRST and alone (an
+       empty-quiver badge is useful copy while the penalty is off), so
+       UI-without-flag stays green. Only penalty-without-sign goes red. The
+       marker NAME is read off src/core/ammo.js, so the guard cannot drift from
+       the contract it is enforcing. */
+    const marker = AMMO.AMMO_DRY_UI_MARKER;
+    ok(typeof marker === 'string' && marker.length > 3,
+      `${A}4: src/core/ammo.js no longer exports AMMO_DRY_UI_MARKER — the coupling between the `
+      + 'penalty and its indicator has lost its anchor, so the check below proves nothing');
+    if (typeof marker === 'string' && marker.length > 3) {
+      /* TWO CONTROLS, BOTH FIRST, because this check passes forever on a false
+         flag and a blind scanner would never be noticed (TESTING.md's fixture
+         rule: a nothing-was-found assertion is evidence only when something
+         else WAS found in the same run).
+           (a) the scanner can see a token that really is out there, and
+           (b) it CANNOT see one that only exists inside src/core — which is the
+               exclusion that makes the implication falsifiable at all, and the
+               exact hole a mutation caught here. */
+      ok(srcTreeContains('COMBAT_FX'),
+        `${A}4: the source scan cannot find COMBAT_FX under src/ — srcTreeContains is blind, so the `
+        + 'coupling check below is decoration');
+      ok(!srcTreeContains('AMMO_DRY_UI_MARKER'),
+        `${A}4: the source scan is reading src/core/** — it can see AMMO_DRY_UI_MARKER, which only `
+        + 'exists in src/core/ammo.js. The coupling would then be satisfied by its own definition '
+        + 'and could never go red. Restore the src/core exclusion in srcTreeBlob.');
+      const uiExists = srcTreeContains(marker);
+      ok(!AMMO.AMMO_EMPTY_SLOT_IS_DRY || uiExists,
+        `${A}4: AMMO_EMPTY_SLOT_IS_DRY is TRUE and no rendered surface under src/ carries the `
+        + `marker '${marker}'. An unsupplied player now loses three quarters of their max hit with `
+        + 'NOTHING on the equip doll or the combat panel telling them why — that taxes KNOWLEDGE '
+        + 'rather than preparation, which is not the mechanic the design ruled. Ship the '
+        + 'empty-quiver indicator in the SAME build (consumable-economy.md §14, Art Director) or '
+        + 'flip the flag back. See the coupling block above the flag in src/core/ammo.js.');
+      if (!AMMO.AMMO_EMPTY_SLOT_IS_DRY && uiExists) {
+        /* Not a failure — the honest ordering. Printed so the flip is not
+           forgotten once the surface it was waiting on exists. */
+        ammoGuard.notes = (ammoGuard.notes || []).concat(
+          `the empty-quiver indicator ('${marker}') has landed and AMMO_EMPTY_SLOT_IS_DRY is still `
+          + 'false — the design call is now unblocked');
+      }
+    }
+  }
+
+  // ── E5. MELEE. The whetstone burns; the empty slot still costs nothing. ────
+  {
+    const eqp = meleeLoadout(WHETSTONE);
+    const per = ITEMS[WHETSTONE].ammoPerShot;
+    const s = runServer({
+      equipment: eqp, skills: MAXED, inventory: fed({ [WHETSTONE]: STOCK }),
+    });
+    ok(s.accrued === true, `${A}5: the melee fixture accrued nothing (${s.reason})`);
+    if (s.accrued) {
+      const want = Math.floor(s.summary.ticks * per + 1e-9);
+      ok(want > 100, `${A}5: only ${want} stones owed — too short a span to prove a fractional rate`);
+      ok(serverSpent(s, WHETSTONE) === want,
+        `${A}5: ${s.summary.ticks} sword swings at ammoPerShot ${per} owe ${want} ${WHETSTONE}, `
+        + `and the delta says ${serverSpent(s, WHETSTONE)}. R5 gives melee a FREE FLOOR, not a free `
+        + 'CEILING: a whetstone that is never consumed is a permanent +strB for nothing, which is '
+        + 'the faucet §6.3 priced at 15,840 g a night. `styleSpendsAmmo` and `styleNeedsAmmo` are '
+        + 'two tables precisely so this half of R5 can be true.');
+      /* MELEE TAKES NO DEPLETION PENALTY (R5), with an empty slot or no slot. */
+      const dryMelee = runServer({ equipment: eqp, skills: MAXED, inventory: fed({}) });
+      const noSlot = runServer({ equipment: meleeLoadout(null), skills: MAXED, inventory: fed({}) });
+      ok(dryMelee.summary.weakMs === 0 && noSlot.summary.weakMs === 0,
+        `${A}5: a melee span reported unsupplied time (${dryMelee.summary.weakMs}ms / `
+        + `${noSlot.summary.weakMs}ms) — R5 is explicit that melee's floor is free, because the `
+        + 'starting weapon is a Bronze Sword and a paid floor would put every brand-new character '
+        + 'in the penalty state from second one');
+      ok(serverSpent(dryMelee, WHETSTONE) === 0,
+        `${A}5: an EMPTY whetstone slot was still billed — a stack of zero cannot be spent`);
+      /* ── THE STATED LIMITATION, PINNED SO CHANGING IT IS DELIBERATE ────────
+         `equipmentStats` sums the ammo slot's stats off the EQUIPMENT MAP, and
+         the slot is a POINTER (§2.2) that survives its stack hitting zero. So
+         an emptied whetstone still pays its +strB, and a melee player can burn
+         one stone and keep the bonus forever. That is not a regression — before
+         E1 the stone was never consumed at all — but it IS the half of R5's
+         "melee's ceiling is paid" that consumption alone does not close, and
+         closing it means teaching the STAT layer about stock, which is a change
+         to the one function both engines share. Handed to the Designer with the
+         arithmetic; these two assertions are what a fix would flip. */
+      eq(dryMelee.summary.kills, s.summary.kills,
+        `${A}5: spending stones changed the fight. It must not — consumption is a cost, not a `
+        + 'combat input. (If this went red because an emptied slot now loses its stats, that is '
+        + 'the deliberate fix landing: update this pin.)');
+      ok(dryMelee.summary.kills > noSlot.summary.kills,
+        `${A}5: an emptied whetstone stopped paying its strB. That is the RIGHT end state and it `
+        + 'is not what ships today — see the block above before changing this line.');
+    }
+
+    /* ── E5b. THE INVARIANT: **EQUIPPED DOES NOT IMPLY HELD** (security A2) ──
+       Pinned as a PROPERTY OF THE SYSTEM, not as a stat outcome, because this
+       branch is what makes it arise from ordinary play for the first time. The
+       ammo slot is a POINTER by ruling (§2.2) and the fight now spends what it
+       points at, so "a populated slot naming an item the bag no longer holds"
+       stops being an impossible state and becomes the ordinary end of any night
+       that outlasts its supply.
+
+       Driven through the REAL engine to zero rather than hand-built, because a
+       hand-built `{equipment:{ammo:x}, inventory:{}}` would prove the shape is
+       representable, not that play produces it. That distinction is the whole
+       point of the pin: future code may not assume equipped ⇒ held, and the
+       reason it may not is that the engine manufactures the counter-example. */
+    {
+      const eqp = meleeLoadout(WHETSTONE);
+      const per = ITEMS[WHETSTONE].ammoPerShot;
+      const full = runServer({ equipment: eqp, skills: MAXED, inventory: fed({ [WHETSTONE]: STOCK }) });
+      const SHORT = Math.max(1, Math.floor(full.summary.ticks * per / 4));
+      const out = runServer({ equipment: eqp, skills: MAXED, inventory: fed({ [WHETSTONE]: SHORT }) });
+      ok(out.accrued === true, `${A}5b: the short-stone fixture accrued nothing (${out.reason})`);
+      if (out.accrued) {
+        // (a) ORDINARY PLAY EMPTIES THE STACK — the state is produced, not posited.
+        ok(serverSpent(out, WHETSTONE) === SHORT && SHORT + (out.delta.items[WHETSTONE] || 0) === 0,
+          `${A}5b: the span did not spend the stone stack to exactly zero `
+          + `(${serverSpent(out, WHETSTONE)} of ${SHORT}) — without that this pin is about a `
+          + 'hand-built object rather than about the game');
+        // (b) NOTHING UNEQUIPS. The pointer outlives the stack, deliberately.
+        ok(!('equipment' in out.delta),
+          `${A}5b: the accrual proposed an EQUIPMENT key. Running out of a consumable must never `
+          + 'rearrange a loadout behind the player — the pointer is meant to outlive the stack, and '
+          + 'an engine that silently unequipped overnight is a worse surprise than the empty slot.');
+        // (c) SO THE STATE IS: slot populated, bag empty. Say it in one object.
+        const after = AMMO.readAmmo({ equipment: eqp, inventory: {} }, { items: ITEMS });
+        ok(after.id === WHETSTONE && after.stock === 0,
+          `${A}5b: readAmmo does not report the equipped-but-not-held state as `
+          + `{id:'${WHETSTONE}', stock:0} — it is the ONE reader that answers "what is loaded" and `
+          + '"how much is left" together, and every consumer is meant to ask it instead of reading '
+          + 'the equipment map and guessing');
+        // (d) AND THE STATS DO NOT KNOW. Documented, not accidental.
+        const withStone = equipmentStats(eqp, ITEMS).strB;
+        const without = equipmentStats(meleeLoadout(null), ITEMS).strB;
+        ok(withStone > without,
+          `${A}5b: equipmentStats stopped paying an equipped item's stats. If that is the deliberate `
+          + '"teach the stat layer about stock" fix landing, this whole block is the expected diff '
+          + '— update it and the note above equipmentStats in src/core/combat.js together.');
+        ok(srcTreeBlobCore().indexOf('EQUIPPED DOES NOT IMPLY HELD') !== -1,
+          `${A}5b: the non-guarantee is no longer stated at equipmentStats. This invariant is only `
+          + 'safe while it is WRITTEN DOWN where the function is read — a test that knows it and a '
+          + 'reader who does not is how the next author assumes equipped ⇒ held.');
+      }
+    }
+  }
+
+  // ── E6. THE CARRY. Deterministic, continuous across spans, self-configuring. ─
+  {
+    const eqp = meleeLoadout(WHETSTONE);
+    const withCol = runServer({
+      equipment: eqp, skills: MAXED, inventory: fed({ [WHETSTONE]: STOCK }), ammoCarry: {},
+    });
+    ok(withCol.delta.ammo_carry && typeof withCol.delta.ammo_carry === 'object',
+      `${A}6: with the column present the engine must PROPOSE ammo_carry — without it a 90-second `
+      + 'attended settle drops the fraction every time and a 0.02 consumable is free forever');
+    const carried = Number((withCol.delta.ammo_carry || {})[WHETSTONE]);
+    ok(Number.isFinite(carried) && carried >= 0 && carried < 1,
+      `${A}6: the proposed carry ${carried} is outside [0,1) — hr_apply refuses it as `
+      + 'bad_tool_carry and the refusal costs the player the whole window');
+
+    const noCol = runServer({
+      equipment: eqp, skills: MAXED, inventory: fed({ [WHETSTONE]: STOCK }), ammoCarry: null,
+    });
+    ok(!('ammo_carry' in noCol.delta),
+      `${A}6: the engine proposed ammo_carry with NO column — hr_apply answers unknown_delta_key `
+      + 'and 409s the night. The column\'s presence IS the switch (the tool_carry idiom).');
+    /* THE COST OF THE GAP, ASSERTED RATHER THAN ASSUMED: an INTEGER perShot is
+       exact with or without the column, because the carry lands on 0 every
+       swing. That is why the reported bug (arrows) is fully fixed today and
+       only the fractional rung waits on SQL. */
+    const arrowCol = runServer({
+      equipment: rangedLoadout(PAID_ARROW), inventory: fed({ [PAID_ARROW]: STOCK }), ammoCarry: {},
+    });
+    const arrowNoCol = runServer({
+      equipment: rangedLoadout(PAID_ARROW), inventory: fed({ [PAID_ARROW]: STOCK }), ammoCarry: null,
+    });
+    ok(serverSpent(arrowCol, PAID_ARROW) === serverSpent(arrowNoCol, PAID_ARROW),
+      `${A}6: an integer ammoPerShot spent differently with and without the carry column `
+      + `(${serverSpent(arrowCol, PAID_ARROW)} vs ${serverSpent(arrowNoCol, PAID_ARROW)}) — it must `
+      + 'not, and the claim that arrows are exact today rests on it');
+
+    /* ── CONTINUITY: WHY THE COLUMN IS NOT OPTIONAL FOR A FRACTIONAL RUNG ───
+       Two consecutive half-spans with the carry THREADED must charge what one
+       whole span charges. Run with the carry DROPPED between them — which is
+       exactly what a database without the column does — and the fraction is
+       forgiven at every boundary. At the live 90-second settle cadence that is
+       ~37 swings per window against a 50-swing stone, i.e. ZERO stones, forever.
+       This is the arithmetic behind the known limitation, asserted rather than
+       asserted-about. Split spans are run with `AWAY_RATE_MULT` untouched, so
+       the two halves are the same fight the whole span is. */
+    const halfMs = SPAN_MS / 2;
+    const runHalf = (fromMs, toMs, carry, stock) => serverAccrual({
+      activeId: TARGET, skills: MAXED, hp: 99, maxHp: 99,
+      autoEatEnabled: true, autoEatFood: FOOD, autoEatPct: 50,
+      equipment: eqp, inventory: fed({ [WHETSTONE]: stock }), ammoCarry: carry,
+      accruedToMs: fromMs, activeSinceMs: fromMs, nowMs: toMs, capMs: halfMs,
+    });
+    const h1 = runHalf(FROM_MS, FROM_MS + halfMs, {}, STOCK);
+    const threaded = runHalf(FROM_MS + halfMs, NOW_MS, h1.delta.ammo_carry, STOCK - serverSpent(h1, WHETSTONE));
+    const dropped = runHalf(FROM_MS + halfMs, NOW_MS, {}, STOCK - serverSpent(h1, WHETSTONE));
+    const oneSpan = serverSpent(withCol, WHETSTONE);
+    const twoThreaded = serverSpent(h1, WHETSTONE) + serverSpent(threaded, WHETSTONE);
+    const twoDropped = serverSpent(h1, WHETSTONE) + serverSpent(dropped, WHETSTONE);
+    ok(Math.abs(twoThreaded - oneSpan) <= 1,
+      `${A}6: two threaded half-spans spent ${twoThreaded} against one whole span's ${oneSpan}. `
+      + 'A carry that is threaded must make the split invisible — that is the entire reason it '
+      + 'exists (src/core/ammo.js advanceAmmoCarry, and src/core/tools.js before it).');
+    ok(twoDropped <= twoThreaded,
+      `${A}6: DROPPING the carry between spans charged MORE (${twoDropped} vs ${twoThreaded}). `
+      + 'The gap must only ever under-charge — over-billing a player for a database column they '
+      + 'do not have is the one direction with no defence.');
+  }
+
+  // ── E7. THE FAMILY DERIVATION AGREES WITH equipmentStats, EVERY WEAPON. ────
+  {
+    let checked = 0;
+    for (const [id, it] of Object.entries(ITEMS)) {
+      if (!it || it.type !== 'weapon' || !it.weaponType) continue;
+      checked++;
+      const derived = AMMO.weaponTypeOf({ equipment: { weapon: id } }, { items: ITEMS });
+      const canonical = equipmentStats({ weapon: id }, ITEMS).weaponType;
+      if (derived !== canonical) {
+        ok(false, `${A}7: weaponTypeOf says '${derived}' for ${id} and equipmentStats says `
+          + `'${canonical}'. Two readings of one catalogue field is exactly the drift this `
+          + 'codebase has paid for eleven times.');
+        break;
+      }
+    }
+    ok(checked > 20, `${A}7: only ${checked} weapons walked — the catalogue scan is broken`);
+    ok(AMMO.weaponTypeOf({}, { items: ITEMS }) === 'neutral',
+      `${A}7: an unarmed state must read 'neutral' — an unarmed player looses no arrow`);
+    ok(AMMO.weaponTypeOf({ equipment: { weapon: 'x' } }, { items: ITEMS, weaponType: 'magic' }) === 'magic',
+      `${A}7: an explicit ctx.weaponType must WIN — the pre-flight projection asks about a `
+      + 'hypothetical loadout it holds in its hand, not about state.equipment');
+  }
+
+  // ── E8. THE CLIENT SINK, AND ITS HOLD. ────────────────────────────────────
+  /* legacy.js is a classic script; node cannot execute it, and the browser
+     suite cannot see a missing line that only matters ninety seconds later. So
+     the contract is asserted against the source, which is the same instrument
+     AWAY-12 uses on the same file for the same reason.
+
+     THE HOLD IS THE HALF THAT GETS FORGOTTEN. `reconcileInventory` takes
+     `Math.max(have, q)` off every envelope, and the envelope in flight when a
+     swing happens names the PRE-swing count — so a debit with no hold is
+     RESTOCKED by construction. That is the live P0 Paione reported four times
+     about food ("everytime i use 1 it returns back in my inventory"), and
+     pending-consume.js's own header names ammunition as the next consumer.
+     A 20,454-arrow night with no hold spends nothing that survives. */
+  {
+    const src = readFileSync(join(ROOT, 'src', 'legacy.js'), 'utf8');
+    const at = src.indexOf('  removeItem:function(id,qty){');
+    ok(at > 0,
+      `${A}8: legacy.js COMBAT_FX has no removeItem handler. A missing fx handler is a silent `
+      + 'no-op in combat-sim.js, so the live client would spend nothing and only the away path '
+      + 'would drain the quiver — the exact two-loops-drift class the one-loop mandate exists for.');
+    if (at > 0) {
+      const body = src.slice(at, at + 900);
+      ok(/removeItem\(id,take\)/.test(body),
+        `${A}8: the client sink does not move the bag — the quiver would only appear to drain when `
+        + 'the settle lands, up to ninety seconds after the shot');
+      ok(/noteItemConsumed\(id,take,\{send:false\}\)/.test(body),
+        `${A}8: the client sink does not record a pending-consume HOLD. Without it the next `
+        + 'envelope RESTOCKS every arrow spent since it was built (accrue.js reconcileInventory '
+        + 'takes Math.max(have, q)) — the food-restock P0 with a different item id.');
+      ok(!/queueEatIntent|_sendEatNow/.test(body),
+        `${A}8: the client sink sends an intent. There is no spend-ammo verb and there must not `
+        + 'be one — consumption rides the accrual the server already computes (§13.1: no new '
+        + 'client-reported value, no new trusted input, no new intent id namespace).');
+    }
+    /* AND THE CARRY HAS A HOME. `G.ammoCarry` is written by src/core/ammo.js on
+       every fractional swing; a field the game writes and no mechanism homes is
+       STRANDED under the arm and resets on every reload — which for a carry
+       means a fractional consumable is free to anyone who refreshes. */
+    const cs = readFileSync(join(ROOT, 'src', 'net', 'client-state.js'), 'utf8');
+    ok(/'ammoCarry'/.test(cs),
+      `${A}8: ammoCarry is not in RESIDUE_FIELDS. src/core/ammo.js writes it into G on every `
+      + 'fractional swing, so without a home it resets on every reload and a 0.02 consumable '
+      + 'becomes free to anyone who refreshes (the b462/b466 strand class).');
+  }
+}
+
+/* THE MUTATION SEAM. `computeAccrualInputParity` is exported for the same
+   reason: a guard whose failures cannot be reproduced in isolation is a guard
+   nobody mutation-proves, and `runAll` costs a network round trip. This runs the
+   consumption block alone and hands back its problems. */
+export function ammoGuardProblems() {
+  const before = problems.length;
+  ammoGuard();
+  return problems.splice(before);
+}
+
 export async function runAll() {
   problems.length = 0;
   parityGuard();
+  ammoGuard();
   creditWindowGuard();
   autoEatParityGuard();
   attendedSettleAutoEatGuard();

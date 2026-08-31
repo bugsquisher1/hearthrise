@@ -624,6 +624,14 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          switch — there is no flag to forget to flip.
          Mirrors set-activity.js field for field (A14). */
       toolCarry: st.tool_carry ?? null,
+      /* THE CONSUMPTION CARRY (design item E2). `?? null` for exactly the
+         reason above, and it resolves to null TODAY because
+         `player_state.ammo_carry` does not exist yet — the engine then starts
+         each span from an empty carry and omits the delta key, which is
+         byte-for-byte the pre-E1 behaviour. Wired now so the migration that
+         adds the column is one SQL file rather than SQL plus a second Edge
+         redeploy. Mirrors set-activity.js field for field (A14). */
+      ammoCarry: st.ammo_carry ?? null,
       /* THE IN-FLIGHT FIGHT (Phase 0). `?? null` and NOT `?? {}`, for exactly
          the reason above: null means the column does not exist on this
          database, the engine starts every span at full monster HP and omits

@@ -52,12 +52,24 @@ import { bootReplay, ROOT } from './schema-replay.mjs';
 
 const MIG = '2026-09-03-intent-mismatch-class.sql';
 
-/* THE TWELVE. Named here as well as in the migration on purpose: this list is
-   what a chain-end sweep checks, so a body quietly dropped from the migration's
-   own values list still fails here. */
+/* THE TWELVE — now THIRTEEN. Named here as well as in the migration on purpose:
+   this list is what a chain-end sweep checks, so a body quietly dropped from the
+   migration's own values list still fails here.
+
+   ⚠ hr_buy_hero_slot__ungated is NOT one of the twelve this migration PATCHES.
+   It was written after the class was closed and calls hr_intent_replay from
+   BIRTH (2026-09-08-hero-slot-buy.sql §4(3)), so the migration's own
+   `v_patched + v_already <> 12` accounting is untouched and stays at twelve. It
+   belongs HERE because P6 is not about the patch — it is about the PROPERTY:
+   every direct-client RPC that reads the shared player_intents namespace under a
+   client-supplied key must compare the stored intent AND slot, and must keep
+   doing so after some future migration restates its body from a template (the
+   b484–b487 wave). A verb that carries a premium-currency debit and is left out
+   of this sweep is precisely the hole the sweep exists to see. */
 export const GUARDED = [
   'public.hr_bank_move(int,text,bigint,text,uuid)',
   'public.hr_bounty_spend__ungated(int,text,int,bigint,uuid)',
+  'public.hr_buy_hero_slot__ungated(int,int,uuid)',
   'public.hr_claim_goal__ungated(text,boolean,int,uuid)',
   'public.hr_farm_harvest(int,int,uuid)',
   'public.hr_farm_plant(int,int,text,uuid)',
@@ -295,10 +307,30 @@ async function run(mutate) {
   await q('insert into public.profiles (id) values ($1) on conflict do nothing', [uid]);
   await gate();
   await asUser(uid, 'select public.claim_display_name($1) as r', ['ImmProbe']);
-  for (const slot of [0, 1]) {
+  await gate();
+  {
+    const cr = await asUser(uid, 'select public.hr_create_character(0) as r');
+    ok(cr?.ok === true, `FIXTURE: hr_create_character(0) refused: ${JSON.stringify(cr)}`);
+  }
+  /* SLOT 1 HAS TO BE BOUGHT NOW (2026-09-08-hero-slot-buy.sql §8). It used to be
+     free: hr_create_character validated p_slot for SHAPE ONLY, so {"p_slot":1}
+     minted a second character with a full starting kit — which was the whole
+     3,100-gem hero-slot ladder bypassed by one fetch. The fixture therefore does
+     what a real player does: fund the account and buy the slot through the REAL
+     verb, with the price READ FROM THE CATALOGUE rather than typed (the fixture
+     rule — a hard-coded 200 would turn this guard red on a Designer retune with
+     a message about the intent cache). P3 needs two characters to prove the SLOT
+     half of the (intent, slot) comparison, so this is load-bearing, not scenery. */
+  await q('update public.player_state set gems = '
+    + '(select max(cost_gems) from public.hr_hero_slots) where user_id = $1 and slot = 0', [uid]);
+  await gate();
+  {
+    const bs = await asUser(uid, 'select public.hr_buy_hero_slot(1, 0, $1) as r',
+      [crypto.randomUUID()]);
+    ok(bs?.ok === true, `FIXTURE: hr_buy_hero_slot(1) refused: ${JSON.stringify(bs)}`);
     await gate();
-    const cr = await asUser(uid, 'select public.hr_create_character($1) as r', [slot]);
-    ok(cr?.ok === true, `FIXTURE: hr_create_character(${slot}) refused: ${JSON.stringify(cr)}`);
+    const cr = await asUser(uid, 'select public.hr_create_character(1) as r');
+    ok(cr?.ok === true, `FIXTURE: hr_create_character(1) refused: ${JSON.stringify(cr)}`);
   }
 
   const goldOf = async (slot = 0) => Number((await q(
@@ -598,7 +630,10 @@ if (RUN_DIRECTLY) {
     for (const p of problems) console.error(`  ✗ ${p}`);
     process.exit(mutateArg ? 0 : 1);
   }
-  console.log('intent-mismatch: green — one key answers one intent on one slot, a genuine replay '
-    + 'still replays, twelve bodies guarded at chain end, the helper reaches nobody.');
+  /* DERIVED, not typed (the b339 lesson: "DO NOT WRITE A COUNT HERE"). This line
+     said "twelve" while the list was thirteen, which is exactly how a number in
+     prose starts lying about the assertion beside it. */
+  console.log(`intent-mismatch: green — one key answers one intent on one slot, a genuine replay `
+    + `still replays, ${GUARDED.length} bodies guarded at chain end, the helper reaches nobody.`);
   if (mutateArg) { console.error('the mutation was NOT caught'); process.exit(1); }
 }

@@ -254,6 +254,67 @@
         p_idem: newIdem()
       });
     },
+    /* ══════════════════════════════════════════════════════════════════════
+       HERO-SLOT PURCHASE — supabase/migrations/2026-09-08-hero-slot-buy.sql.
+       ══════════════════════════════════════════════════════════════════════
+       THE DEFECT IT CLOSES. Both halves of the hero-slot purchase were broken
+       in production at once. hr_unlock_offers carries the four character_slot
+       rows with refusal='namespace_unsupported:character_slot' (a hero slot is
+       priced in GEMS; that generated catalogue has a gold column and no other),
+       so hr_unlock_buy refuses the namespace by construction — and the only
+       other path, src/multi-character.js unlockSlot(), is a client-side
+       `G.gems -= cost` that the next envelope reconciles away because gems are
+       SERVER-OF-RECORD and ARMED. So the Buy button was lit, the confirm modal
+       opened, and nothing true happened. Worse, the ENTITLEMENT stuck in the
+       G.heroSlotsUnlocked residue while the gems came back — the b371 gem dupe
+       multi-character.js's own header documents ("the purchase became free").
+
+       ⚠ NO PRICE, NO CURRENCY, NO FREE FLAG CROSSES. Two integers and a uuid:
+         which hero slot to buy, which of your OWN characters pays for it, and
+         an idempotency key. The gem price, the ladder order and the Hearth Hall
+         waiver all live in public.hr_hero_slots and are read under a per-account
+         advisory lock. A `p_cost` field added here would be a client number
+         authoring a permanent capability, which is exactly what the server verb
+         was written to make impossible (tests/hero-slot-buy.mjs bindGuard fails
+         the build if one appears).
+
+       ⚠ WHICH WALLET. `p_slot` is the ACTIVE character, deliberately: gems are
+         stored per character (player_state.gems) and the topbar gem chip shows
+         the ACTIVE character's balance, so charging any other row would take
+         gems the player cannot see and quote a shortfall that is not on their
+         screen. The ENTITLEMENT it buys is account-level and the server files it
+         on the account's canonical row — see the migration's header.
+
+       NOT fire-and-forget, and NOT a prediction. The caller AWAITS the verdict
+       (multi-character.js buySlot) because a premium spend that silently failed
+       is the whole bug; and nothing local is debited, so there is nothing to
+       predict, retire, or orphan into the F1 permanent offset. The new balance
+       comes back for RENDERING only and is reconciled by the next envelope —
+       the hr_trait_buy / hr_bounty_spend discipline exactly.
+
+       Envelope: {ok:true, slot_id, name, cost, gems, version, slot, hero_slots}
+       or {ok:false, error: bad_slot | unknown_slot | requires_previous_slot |
+       already_owned | insufficient_gems | no_character | no_account |
+       hero_slot_daily_cap | intent_mismatch | rate_limited | not_signed_in},
+       plus {error:'rpc_missing'} from `call()` when the migration is not applied
+       — which the caller renders as "unavailable", never as "you cannot afford
+       it". */
+    buyHeroSlot: function (slotId) {
+      var n = Math.floor(Number(slotId));
+      if (!isFinite(n) || n < 0 || n > 5) {
+        /* Refused LOCALLY on shape so a malformed gesture does not spend a real
+           player's rate budget to be told bad_slot — the buyShop/buyUnlock/
+           buyTrait discipline. Every rule about a ROW (is it owned, is it next
+           in the ladder, can you afford it) is left to the RPC, under the lock,
+           where it can be answered truthfully. */
+        return Promise.resolve({ ok: false, error: 'bad_slot', refused: true });
+      }
+      return call('hr_buy_hero_slot', {
+        p_slot_id: n,
+        p_slot: activeSlot(),
+        p_idem: newIdem()
+      });
+    },
     /* Companion EQUIP / UNEQUIP — supabase/migrations/2026-08-20-companion-model.sql.
        hr_companion_equip(slot, companion, unequip) sets the SERVER-OWNED
        player_state.companion_equipped AFTER an ownership check (a companion:<id>

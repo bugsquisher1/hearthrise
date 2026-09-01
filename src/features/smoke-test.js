@@ -320,6 +320,34 @@ const withLocalBlobAsync = async (fn) => {
   try { return await fn(); } finally { unpinLocalBlob(C); }
 };
 
+/* ── 2026-09-08 — THE SAME PROBLEM FOR THE HERO-SLOT ENTITLEMENT ─────────────
+   `hr_buy_hero_slot` moved hero-slot ownership to the server: hr_state_of
+   projects the account's owned set, src/net/accrue.js reconcileHeroSlots lands
+   it in `G._heroSlots`, and multi-character.js `ownsSlot`/`unlockedCount` prefer
+   it over the `G.heroSlotsUnlocked` residue — which is the whole fix, because
+   the residue is the store a cloud restore can rewind while the entitlement it
+   paid for stays granted (the b371 dupe).
+
+   Four tests below are ABOUT the CLIENT-OWNED path (`unlockSlot`, kept verbatim
+   as the pre-arm branch and unreachable from any UI once gems are armed). Signed
+   in against a server that carries the projection, `G._heroSlots` is populated,
+   so those tests would be asserting the residue against a server answer that
+   correctly disagrees with it — a green-today, red-on-apply trap, which is worse
+   than a failure. So they run in the position they are ABOUT: server answer
+   ABSENT, residue authoritative, restored afterwards.
+
+   ⚠ A TEST WRAPPED HERE DOES **NOT** COVER THE ARMED PATH. That is SLOT-SRV-*,
+   which drives the server verb and asserts the residue is NOT believed. */
+const withClientOwnedSlots = (fn) => {
+  const G = window.G;
+  const had = !!(G && Object.prototype.hasOwnProperty.call(G, '_heroSlots'));
+  const prev = had ? G._heroSlots : undefined;
+  try { if (G) delete G._heroSlots; } catch (e) {}
+  try { return fn(); } finally {
+    try { if (G) { if (had) G._heroSlots = prev; else delete G._heroSlots; } } catch (e) {}
+  }
+};
+
 /* ── b456 — THE SAME PROBLEM FOR THE FARM ────────────────────────────────────
    `FARM_SERVER_ARM_ENABLED` armed in the cutover, so plant/water/harvest/upgrade
    now send an INTENT to the hr_farm_* RPCs and reconcile from the RESPONSE
@@ -27338,7 +27366,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b371: the slot purchase repaints the gem chip and persists the spend immediately', () => withLocalBlob(() => {
+  () => tryRun('b371: the slot purchase repaints the gem chip and persists the spend immediately', () => withClientOwnedSlots(() => withLocalBlob(() => {
     /* ⚠ b456 — DRIVEN WITH THE BLOB LIVE, AND THE REASON IS A REAL SHIPPED BUG,
        NOT A HARNESS GAP. `unlockSlot` proves durability by calling saveLocal()
        and READING THE BLOB BACK (multi-character.js): if the readback does not
@@ -27404,7 +27432,7 @@ const TESTS = [
       try { window.updateTopbar(); } catch (e) {}
       stampRecordLikeLoad(G);
     }
-  })),
+  }))),
 
   /* ── b371 P1 — THE GEM DUPE ────────────────────────────────────────────
      REPORTED LIVE: a 200-gem purchase of slot 2 debited the gems, a cloud
@@ -27413,7 +27441,7 @@ const TESTS = [
      the unlock in localStorage['hearthrise:profile'] (never uploaded, never
      rolled back). This asserts they are now ONE record, by doing the thing the
      restore does and demanding both halves rewind. */
-  () => tryRun('b371: a slot purchase and its gem debit revert TOGETHER on a save restore (no free slot)', () => withLocalBlob(() => {
+  () => tryRun('b371: a slot purchase and its gem debit revert TOGETHER on a save restore (no free slot)', () => withClientOwnedSlots(() => withLocalBlob(() => {
     /* ⚠ b456 — DRIVEN WITH THE BLOB LIVE, AND THE REASON IS A REAL SHIPPED BUG,
        NOT A HARNESS GAP. `unlockSlot` proves durability by calling saveLocal()
        and READING THE BLOB BACK (multi-character.js): if the readback does not
@@ -27475,7 +27503,7 @@ const TESTS = [
       try { window.updateTopbar(); } catch (e) {}
       stampRecordLikeLoad(G);
     }
-  })),
+  }))),
 
   /* ══════════════════════════════════════════════════════════════════════════
      ⚠ SLOT-BUY-1 (b456) — RED ON PURPOSE: A PREMIUM PURCHASE IS DEAD UNDER THE
@@ -27624,7 +27652,7 @@ const TESTS = [
     } finally { G.lastSeen = prev; }
   }),
 
-  () => tryRun('SLOT-BUY-1: a hero slot can actually be bought under the shipped capstone', () => {
+  () => tryRun('SLOT-BUY-1: a hero slot can actually be bought under the shipped capstone', () => withClientOwnedSlots(() => {
     const HP = window.HearthriseProfile, G = window.G;
     if (!HP || !HP.profile) return;
     const C = window.HearthriseCapstone;
@@ -27654,9 +27682,9 @@ const TESTS = [
       try { window.updateTopbar(); } catch (e) {}
       stampRecordLikeLoad(G);
     }
-  }),
+  })),
 
-  () => tryRun('b371: a slot purchase that cannot be saved charges nothing (atomic-or-nothing)', () => {
+  () => tryRun('b371: a slot purchase that cannot be saved charges nothing (atomic-or-nothing)', () => withClientOwnedSlots(() => {
     const HP = window.HearthriseProfile, G = window.G;
     if (!HP || !HP.profile) return;
     const next = HP.canUnlockNext();
@@ -27699,6 +27727,254 @@ const TESTS = [
       try { window.saveLocal(); } catch (e) {}
       try { window.updateTopbar(); } catch (e) {}
     }
+  })),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     SLOT-SRV — THE HERO SLOT IS THE SERVER'S NOW
+     (supabase/migrations/2026-09-08-hero-slot-buy.sql)
+
+     THE TWO DEFECTS THE PLAY-GATE FOUND ON PRODUCTION, from the client side:
+       1. THE BUY BUTTON WAS LIT AND DEAD. hr_unlock_offers refuses the
+          character_slot namespace by construction, and the only other path
+          (unlockSlot's `G.gems -= cost`) is reconciled away by the next envelope
+          because gems are SERVER-OF-RECORD and ARMED. So the click went through
+          a confirm modal and produced nothing a player could see.
+       2. OWNERSHIP WAS CLIENT-AUTHORED. `G.heroSlotsUnlocked` is residue; a
+          restore rewinds it while the slot stays granted — the b371 gem dupe.
+
+     The SERVER half is graded against real PostgreSQL by tests/hero-slot-buy.mjs
+     (16 mutations, all caught). These four are the CLIENT contract: the honest
+     button, the transport that sends no price, the server answer beating the
+     residue, and the refusal reaching the player in the b494 voice. ══════════ */
+  () => tryRun('SLOT-SRV-1: a Buy the server cannot be asked about is DISABLED, not lit', () => {
+    /* THE DEFECT: `canBuy` means "this is the next rung", and both renderers
+       read it as permission (the b465 finding). b465 fixed the AFFORDABILITY
+       half; this is the other half — until hr_state_of has told us which slots
+       this account owns, we do not know the purchase is even possible, and a lit
+       button in that state is what dead-ended live. */
+    const HP = window.HearthriseProfile, G = window.G;
+    if (!HP || !HP.profile || typeof HP.slotRows !== 'function') return;
+    const B = window.HearthriseBalance;
+    const realBalanceNum = B && B.balanceNum;
+    const had = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
+    const prev = had ? G._heroSlots : undefined;
+    try {
+      if (B) B.balanceNum = (g, f) => (f === 'gems' ? 999999 : realBalanceNum(g, f));
+
+      // ── SERVER SILENT: the row is buyable-in-order but NOT offered. ──
+      delete G._heroSlots;
+      let row = HP.slotRows().filter((r) => r.kind === 'locked' && !r.free).find((r) => r.canBuy);
+      assert(row, 'no next-buyable hero slot — the test proved nothing');
+      assert(row.serverKnown === false,
+        'slotRows() claims the server has answered when G._heroSlots is absent');
+      assert(row.afford === true,
+        'the fixture is degenerate: the row must be AFFORDABLE, so that a disabled button can only '
+        + 'be about the server being silent and not about the gems');
+
+      if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') {
+        window.HearthriseHome.render();
+        const rail = document.getElementById('panel-profile');
+        if (rail && /Hero slot/.test(rail.textContent || '')) {
+          assert(![...rail.querySelectorAll('[data-herobuy]')].length,
+            'THE LIT-AND-DEAD BUTTON: the Home rail offers a live Buy for a slot the server has '
+            + 'not confirmed. hr_buy_hero_slot is the only path that can complete a purchase, and '
+            + 'we have not heard from it — the click would dead-end exactly as it did live.');
+          assert(/Checking|Unavailable/.test(rail.textContent || ''),
+            'a disabled hero-slot Buy must SAY why (b494 voice), not just go grey');
+        }
+      }
+
+      // ── SERVER ANSWERED: the same row goes live. The guard must not just
+      //    disable everything, which is the failure mode of a fail-closed fix.
+      assert(typeof HP.adoptServerSlots === 'function',
+        'HearthriseProfile.adoptServerSlots must be the door the hr_state_of projection comes in');
+      HP.adoptServerSlots([0]);
+      row = HP.slotRows().filter((r) => r.kind === 'locked' && !r.free).find((r) => r.canBuy);
+      assert(row && row.serverKnown === true, 'the server answer did not reach slotRows()');
+      if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') {
+        window.HearthriseHome.render();
+        const rail = document.getElementById('panel-profile');
+        if (rail && /Hero slot/.test(rail.textContent || '')) {
+          assert([...rail.querySelectorAll('[data-herobuy]')].length,
+            'a slot the player can afford AND the server has confirmed must stay buyable');
+        }
+      }
+    } finally {
+      if (B && realBalanceNum) B.balanceNum = realBalanceNum;
+      try { if (had) G._heroSlots = prev; else delete G._heroSlots; } catch (e) {}
+      if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') {
+        try { window.HearthriseHome.render(); } catch (e) {}
+      }
+    }
+  }),
+
+  () => tryRun('SLOT-SRV-2: the SERVER\'s owned set beats a forged G.heroSlotsUnlocked', () => {
+    /* THE b371 DUPE, CLOSED AT THE READ. The residue is a self-authored number:
+       a restore rewinds it, and devtools can raise it. Either way it must buy
+       and unlock nothing once the server has spoken. */
+    const HP = window.HearthriseProfile, G = window.G;
+    if (!HP || !HP.profile) return;
+    const had = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
+    const prev = had ? G._heroSlots : undefined;
+    const prevUnlocked = G.heroSlotsUnlocked;
+    const prevCache = HP.profile.unlockedSlots;
+    try {
+      HP.adoptServerSlots([0]);              // the server says: one hero
+      G.heroSlotsUnlocked = 5;               // the forgery
+      HP.profile.unlockedSlots = 5;          // …and the device-local cache agrees with it
+      assert(HP.unlockedCount() === 1,
+        'THE FORGED ENTITLEMENT: G.heroSlotsUnlocked = 5 still grants slots. The server projection '
+        + 'must beat the residue — that residue is exactly the store a cloud restore rewinds while '
+        + 'the slot stays granted (b371).');
+      assert(HP.ownsSlot(3) === false, 'a forged residue unlocked slot 3');
+      assert(HP.switchSlot(3) === null, 'a slot the account does not own could still be switched to');
+      const rows = HP.slotRows();
+      assert(!rows.some((r) => r.kind === 'char' && r.id === 3),
+        'a forged residue listed slot 3 as a playable character');
+
+      /* …and a GRANDFATHERED hole is honoured, because the server's set is the
+         answer and hr_hero_slots_of counts an existing character as ownership.
+         Production's shape: zero character_slot flag rows, one two-hero account. */
+      HP.adoptServerSlots([0, 1]);
+      assert(HP.ownsSlot(1) === true, 'a server-owned slot was not honoured');
+      assert(HP.unlockedCount() === 2, 'the server set of [0,1] must read as two heroes');
+      const nx = HP.canUnlockNext();
+      assert(nx && nx.slotId === 2,
+        'the ladder must point at the first slot the SERVER says is missing, got '
+        + JSON.stringify(nx));
+      assert(nx.free === false,
+        'under the server answer the Hearth Hall waiver is decided SERVER-SIDE (a waived slot '
+        + 'arrives already owned), so a device-local entitlements claim must not make a slot free');
+    } finally {
+      G.heroSlotsUnlocked = prevUnlocked;
+      HP.profile.unlockedSlots = prevCache;
+      try { if (had) G._heroSlots = prev; else delete G._heroSlots; } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('SLOT-SRV-3: under the gems arm buySlot sends an INTENT and never a price', async () => {
+    /* The transport contract, driven through the real buySlot: the confirm modal
+       still runs (a premium spend is never one click), then the server verb gets
+       a slot id, a character slot and an idempotency key — and nothing else. */
+    const HP = window.HearthriseProfile, G = window.G;
+    if (!HP || !HP.profile || typeof HP.buySlot !== 'function') return;
+    const origGC = window.HearthriseGoalClaim, origMay = window.clientMayWriteRecordField;
+    const origNotify = window.notify, origRec = window.HearthriseRecord;
+    const had = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
+    const prev = had ? G._heroSlots : undefined;
+    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
+    const sent = []; const toasts = []; let refreshed = 0;
+    try {
+      HP.adoptServerSlots([0]);
+      window.clientMayWriteRecordField = () => false;           // gems ARMED
+      window.notify = (m) => { toasts.push(String(m)); };
+      /* STUBBED, and not only for tidiness: the real requestRecord() drives a
+         live hr_load that REPLACES the record on the shared G, landing a network
+         response into whichever test happens to be running by then. A
+         fire-and-forget real request is how one test poisons another. Stubbing
+         it also lets the refresh itself be ASSERTED rather than merely allowed. */
+      window.HearthriseRecord = Object.assign({}, origRec, {
+        requestRecord: () => { refreshed++; return Promise.resolve(null); },
+      });
+      window.HearthriseGoalClaim = Object.assign({}, origGC, {
+        buyHeroSlot: (id) => {
+          sent.push(id);
+          return Promise.resolve({ ok: true, slot_id: id, cost: 200, gems: 40,
+            hero_slots: [0, 1] });
+        },
+      });
+      const p = HP.buySlot(1);
+      // The in-game confirm (never window.confirm — b371) has to be answered.
+      await new Promise((r) => setTimeout(r, 0));
+      const yes = document.querySelector('#hr-confirm-overlay [data-hrc="yes"]');
+      assert(yes, 'buySlot did not raise the in-game confirm — a premium spend is never one click');
+      yes.click();
+      const r = await p;
+
+      assert(sent.length === 1 && sent[0] === 1,
+        'buySlot did not send exactly one hero-slot intent: ' + JSON.stringify(sent));
+      assert(r && r.ok === true && r.server === true,
+        'the server purchase did not report success: ' + JSON.stringify(r));
+      assert(G.gems === prevGems,
+        'THE SELF-MINT: buySlot debited G.gems locally under the arm. The server owns that balance; '
+        + 'a local debit is reconciled away by the next envelope while the slot stays granted, '
+        + 'which is the b371 dupe.');
+      assert(HP.unlockedCount() === 2,
+        'the receipt\'s hero_slots was not adopted — the drawer would not repaint until the next '
+        + 'envelope');
+      assert(toasts.some((t) => /Unlocked Hero 2/.test(t)), 'the purchase said nothing to the player');
+      assert(refreshed === 1,
+        'the purchase did not refresh the balance record. `res.gems` is for RENDERING; the record '
+        + 'is what every affordability check reads, so without the refresh the gem chip keeps the '
+        + 'pre-purchase number until the next envelope (the b371 P2 stale-chip class).');
+    } finally {
+      window.HearthriseGoalClaim = origGC;
+      window.clientMayWriteRecordField = origMay;
+      window.HearthriseRecord = origRec;
+      window.notify = origNotify;
+      G.gems = prevGems; G.heroSlotsUnlocked = prevUnlocked;
+      HP.profile = prevProfile;
+      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
+      try { if (had) G._heroSlots = prev; else delete G._heroSlots; } catch (e) {}
+      try { document.getElementById('hr-confirm-overlay')?.remove(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('SLOT-SRV-4: a server refusal reaches the player by NAME, and charges nothing', async () => {
+    /* The b494 voice. A player told "you cannot afford it" when the real answer
+       is "sign in" files the wrong bug — and this surface's entire failure mode
+       for several builds was silence. */
+    const HP = window.HearthriseProfile, G = window.G;
+    if (!HP || !HP.profile || typeof HP.buySlot !== 'function') return;
+    const origGC = window.HearthriseGoalClaim, origMay = window.clientMayWriteRecordField;
+    const had = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
+    const prev = had ? G._heroSlots : undefined;
+    const prevGems = G.gems;
+    const cases = [
+      ['insufficient_gems', /Not enough gems/i, { short_by: 150 }],
+      ['rpc_missing', /unavailable/i, {}],
+      ['not_signed_in', /Sign in/i, {}],
+      ['rate_limited', /Slow down/i, {}],
+      ['requires_previous_slot', /Unlock the slot before it/i, {}],
+    ];
+    try {
+      window.clientMayWriteRecordField = () => false;
+      for (const [code, want, extra] of cases) {
+        HP.adoptServerSlots([0]);
+        window.HearthriseGoalClaim = Object.assign({}, origGC, {
+          buyHeroSlot: () => Promise.resolve(Object.assign({ ok: false, error: code }, extra)),
+        });
+        const p = HP.buySlot(1);
+        await new Promise((r) => setTimeout(r, 0));
+        document.querySelector('#hr-confirm-overlay [data-hrc="yes"]')?.click();
+        const r = await p;
+        assert(r && r.ok !== true, `'${code}' was reported as a successful purchase`);
+        assert(want.test(String(r.reason || '')),
+          `'${code}' rendered as "${r.reason}" — every machine code needs its own honest sentence, `
+          + 'or the player files the wrong bug (b494)');
+        assert(G.gems === prevGems, `'${code}' moved gems on a refusal`);
+        assert(HP.unlockedCount() === 1, `'${code}' granted the slot anyway`);
+      }
+      // …and a refusal must never leave the in-flight latch stuck.
+      HP.adoptServerSlots([0]);
+      window.HearthriseGoalClaim = Object.assign({}, origGC, {
+        buyHeroSlot: () => Promise.resolve({ ok: false, error: 'rate_limited' }),
+      });
+      const p2 = HP.buySlot(1);
+      await new Promise((r) => setTimeout(r, 0));
+      document.querySelector('#hr-confirm-overlay [data-hrc="yes"]')?.click();
+      const r2 = await p2;
+      assert(r2 && r2.cancelled !== true,
+        'a second attempt after a refusal was swallowed by the in-flight latch — the player would '
+        + 'have to reload to retry a purchase that failed');
+    } finally {
+      window.HearthriseGoalClaim = origGC;
+      window.clientMayWriteRecordField = origMay;
+      G.gems = prevGems;
+      try { if (had) G._heroSlots = prev; else delete G._heroSlots; } catch (e) {}
+      try { document.getElementById('hr-confirm-overlay')?.remove(); } catch (e) {}
+    }
   }),
 
   /* ── b372 P0 — THE SWITCH DUPLICATED THE CHARACTER ─────────────────────
@@ -27728,6 +28004,8 @@ const TESTS = [
     const SAVE_KEY = 'hearthbound-save-v2', TARGET = 1, CHAR1 = 'hearthrise:char:1';
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     const prevUnlocked = G.heroSlotsUnlocked;
+    const hadSrv = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
+    const prevSrv = hadSrv ? G._heroSlots : undefined;
     const prevSave = localStorage.getItem(SAVE_KEY);
     const prevChar1 = localStorage.getItem(CHAR1);
     const prevChar0 = localStorage.getItem('hearthrise:char:0');
@@ -27737,6 +28015,15 @@ const TESTS = [
       HP.profile = { activeSlot: 0, unlockedSlots: 2, version: 1,
         slots: [{ id: 0, name: 'Outgoing' }, { id: 1, name: 'Target' }] };
       G.heroSlotsUnlocked = 2;                       // the entitlement lives in the save (b371)
+      /* …and, since 2026-09-08, the SERVER is the authority on it: switchSlotAsync
+         asks ownsSlot(), which prefers hr_state_of's projection over the residue
+         (that residue is the store a restore rewinds while the slot stays
+         granted — the b371 dupe). Stating the fixture in BOTH stores is what
+         makes this test about the QUIESCE LATCH rather than about whichever
+         account happens to be signed in: without it the switch would be refused
+         on any account that does not really own a second hero, and every
+         assertion below would read as a b372 regression. */
+      if (typeof HP.adoptServerSlots === 'function') HP.adoptServerSlots([0, 1]);
       localStorage.removeItem(CHAR1);                // target slot EMPTY — exactly the live repro
       // The awaited pre-swap flush. Answering it is what lets the swap proceed.
       if (S && typeof S.snapshotIfDue === 'function') S.snapshotIfDue = () => Promise.resolve(true);
@@ -27787,6 +28074,7 @@ const TESTS = [
       if (S && realSnapshotIfDue) S.snapshotIfDue = realSnapshotIfDue;
       HP.profile = prevProfile;
       G.heroSlotsUnlocked = prevUnlocked;
+      try { if (hadSrv) G._heroSlots = prevSrv; else delete G._heroSlots; } catch (e) {}
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
       try { if (prevSave === null) localStorage.removeItem(SAVE_KEY); else localStorage.setItem(SAVE_KEY, prevSave); } catch (e) {}
       try { if (prevChar1 === null) localStorage.removeItem(CHAR1); else localStorage.setItem(CHAR1, prevChar1); } catch (e) {}

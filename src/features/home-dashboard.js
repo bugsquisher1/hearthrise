@@ -1207,11 +1207,23 @@
                  nothing. Disabled + the shortfall in the label. And the
                  not-your-turn case says WHY rather than the bare word "locked",
                  which the drawer has always done and this rail never did. */
+              /* 2026-09-08 — and a Buy the SERVER cannot yet be asked about is
+                 disabled too. The purchase moved to hr_buy_hero_slot; until the
+                 envelope has told us which slots this account owns, a lit button
+                 is the b465 lie in a new place — and it WAS, live: the click
+                 dead-ended through a confirm modal with no visible outcome.
+                 Checked FIRST, because "we do not know whether this is possible"
+                 outranks "you are short". Shared with the topbar drawer through
+                 slotRows().serverKnown so both surfaces move together. */
               (r.canBuy
-                ? (r.afford === false
-                  ? '<button class="hd-cta ghost" disabled title="You have ' + num(r.cost - r.shortBy)
-                    + ' of ' + num(r.cost) + ' gems">Needs ' + num(r.shortBy) + ' more gems</button>'
-                  : '<button class="hd-cta ghost" data-herobuy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>')
+                ? (!r.serverKnown
+                  ? '<button class="hd-cta ghost" disabled title="Waiting for the server to confirm '
+                    + 'which heroes this account owns">'
+                    + (r.waiting ? 'Checking…' : 'Unavailable') + '</button>'
+                  : (r.afford === false
+                    ? '<button class="hd-cta ghost" disabled title="You have ' + num(r.cost - r.shortBy)
+                      + ' of ' + num(r.cost) + ' gems">Needs ' + num(r.shortBy) + ' more gems</button>'
+                    : '<button class="hd-cta ghost" data-herobuy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>'))
                 : '<div class="when">unlock slot ' + r.slotId + ' first</div>') +
             '</div>';
           }).join('');

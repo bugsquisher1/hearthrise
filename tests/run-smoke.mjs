@@ -52,6 +52,10 @@ import { rpcGateBucketGuard } from './rpc-gate-bucket-guard.mjs';
    Both replay the real migration chain into PGlite and drive real RPCs. */
 import { modalGoalClaimGuard } from './modal-goal-claim.mjs';
 import { traitBuyGuard } from './trait-buy.mjs';
+/* The HERO-SLOT purchase — the same shape as trait-buy and for the same reason:
+   a premium-currency spend whose only working path is a server verb, plus the
+   entitlement gate that stops hr_create_character minting the slots for free. */
+import { heroSlotBuyGuard } from './hero-slot-buy.mjs';
 /* b497 — the two designer rulings that move server-owned numbers. Both replay
    the real migration chain into PGlite and drive real RPCs, because both are
    client/server CONTRACTS: the board DRAWS a kill count the accept CLAMPS, and
@@ -3231,6 +3235,43 @@ const run = async () => {
       console.log('\nTrait-buy guard — server-priced, prerequisite-gated, debited exactly once, '
         + 'idempotent on replay, already_owned refused, refusals not cached, auto-eat enabled '
         + 'through its single writer, ownership projected on the envelope.');
+    }
+
+    /* ── The HERO-SLOT purchase guard (2026-09-08) ───────────────────────
+       Three live defects in one surface. The Buy button was LIT AND DEAD:
+       hr_unlock_offers refuses the character_slot namespace by construction
+       (a hero slot is priced in gems and that catalogue has a gold column
+       and no other), and the only other path was a client-side G.gems debit
+       the next envelope reconciles away — so the click dead-ended through a
+       confirm modal with no visible outcome. Ownership was client-authored
+       in the G.heroSlotsUnlocked residue, which is the b371 gem dupe
+       ("the purchase became free"). And hr_create_character validated its
+       slot for SHAPE ONLY, so {"p_slot":4} minted a fifth character with a
+       full starting kit for nothing — the whole 3,100-gem ladder bypassed
+       by one fetch, five times over.
+       The guard drives a real player through the real rate-gated
+       hr_buy_hero_slot on a fully replayed PGlite chain: shape and catalogue
+       refusals, the ladder, the exact debit from the CALLING character's
+       wallet with the entitlement on the ACCOUNT row, the idempotent replay,
+       already_owned, insufficient-then-buyable-with-the-same-key, the
+       grandfathered two-character account (the production shape — zero
+       character_slot flag rows), the premium waiver as OWNERSHIP rather
+       than a price of zero, cross-verb key reuse, the create gate, and the
+       account-scoped projection. It also BINDS the three copies of the price
+       ladder — src/multi-character.js SLOT_COSTS_GEMS, the generated
+       src/data/shops.js offers, and public.hr_hero_slots — so a price that
+       differs by one gem fails the build by name.
+       `--selftest` plants sixteen real defects; every one must read RED. */
+    const heroSlotProblems = await heroSlotBuyGuard();
+    if (heroSlotProblems.length) {
+      console.log('\nHero-slot purchase — FAILED:');
+      for (const p of heroSlotProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nHero-slot guard — server-priced, ladder-ordered, debited once from the wallet '
+        + 'the player can see, entitlement on the account row, idempotent on replay, grandfathered '
+        + 'characters kept, the premium waiver expressed as ownership rather than a free price, and '
+        + 'the free-character mint closed.');
     }
 
     /* ── b497 · AUTO-EAT I IS FREE AT CREATION (designer ruling) ───────────

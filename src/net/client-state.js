@@ -125,6 +125,14 @@ export const RESIDUE_FIELDS = Object.freeze([
   'heroSlotsUnlocked', // b459: hero-slot ENTITLEMENT (the gems payment is the record side; this is
                     // which slots the account owns). Was stranded under arm — a purchased slot
                     // would vanish on reload; caught while fixing SLOT-BUY-1.
+                    // ⚠ NO LONGER THE AUTHORITY (2026-09-08-hero-slot-buy.sql). hr_state_of now
+                    // projects the account's owned set as a top-level `hero_slots` array;
+                    // src/net/accrue.js reconcileHeroSlots lands it in G._heroSlots (scratch, never
+                    // persisted) and multi-character.js ownsSlot() prefers it. This field stays a
+                    // self-only PRE-ENVELOPE HINT — it is what lets the hero list render before the
+                    // first envelope — and a forged value now buys and unlocks nothing. Do not
+                    // promote it back: the residue is exactly the store a cloud restore can rewind
+                    // while the entitlement it paid for stays granted, which IS the b371 gem dupe.
   /* b462 — THE "SHOWN TODAY" MARKERS. These four were self-only flags that
      lived in the save blob; with the blob retired every reload forgot them, so
      the daily-reward sheet re-opened on every refresh (Tyler, beta morning:

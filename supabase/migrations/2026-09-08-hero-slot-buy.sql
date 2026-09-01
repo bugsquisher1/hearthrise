@@ -490,6 +490,15 @@ returns jsonb language sql stable security invoker set search_path = public as $
   select coalesce(jsonb_agg(q.s order by q.s), '[]'::jsonb) from (
     select 0 as s
     union
+    -- CLAUSE (1) GRANDFATHER — an existing character IS ownership.
+    -- ⚠ G5 (known behaviour, P4, QA-only today): a grandfathered slot > 0 with
+    --   NO flag row forfeits its free slot if a character-DELETE path ever
+    --   removes the player_state row — §8's create gate then blocks recreation,
+    --   because ownership was only ever the character's own existence. There is
+    --   no such delete path in the shipped game (self-inflicted via QA tooling
+    --   only), so this is a stated property, not a live bug. If a delete-a-hero
+    --   feature is ever built, it must first mint the `character_slot:<n>` flag
+    --   (the shape hr_buy_hero_slot writes) so ownership survives the delete.
     select ps.slot
       from public.player_state ps
      where ps.user_id = p_user and ps.slot > 0

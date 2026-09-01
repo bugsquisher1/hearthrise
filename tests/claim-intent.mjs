@@ -268,6 +268,16 @@ const MUTATIONS = {
     find: "  'flag:renown_rank': Object.freeze({\n    status: 'blocked',",
     repl: "  'flag:renown_rank': Object.freeze({\n    status: 'priced',",
   },
+  reward_key_admits_namespace: {
+    file: FN('request.js'),
+    why: 'G2a: REWARD_KEY_RE is widened to admit a colon, so a namespaced entitlement key like '
+       + 'character_slot:1 — the EXACT ownership flag hr_buy_hero_slot writes, which hr_apply\'s '
+       + 'generic progress block would accept — becomes a claimable reward key. That is a gem-priced '
+       + 'hero slot granted for free through claim_reward. The closure protecting the hero-slot '
+       + 'entitlement must go RED by name when the reward-key regex loosens.',
+    find: 'export const REWARD_KEY_RE = ACTIVITY_ID_RE;',
+    repl: 'export const REWARD_KEY_RE = /^[a-z0-9_:]{1,64}$/;',
+  },
   stamping_keys_empty: {
     file: FN('intents.js'),
     why: 'the list of delta keys that close the accrual window is emptied, so the fail-closed '
@@ -630,6 +640,62 @@ async function run(mutate) {
       'C1: an unlisted progress kind was admitted');
     ok(rq.readReward({ reward: { kind: 'daily', key: 'HAS CAPS' } }).key === null,
       'C1: a malformed reward key was admitted');
+
+    /* ── G2a (Security G2a, 2026-09-08) — THE HERO-SLOT ENTITLEMENT KEY IS
+       UNREACHABLE THROUGH THE CLAIM PATH, ON BOTH SIDES. ──────────────────────
+       hr_buy_hero_slot (2026-09-08-hero-slot-buy.sql) writes an ownership flag
+       `character_slot:<n>`, and hr_apply's generic `progress` block WOULD accept
+       `{kind:'flag', key:'character_slot:1'}` — 'flag' is an allowed reward kind.
+       The one thing between a gem-priced entitlement and a free claim_reward is
+       that the reward-KEY regex rejects a colon, on BOTH the edge parser
+       (request.js REWARD_KEY_RE) and the client builder (src/net/gold.js
+       REWARD_KEY_RE). Security accepted "closed twice" as sufficient and did NOT
+       require the hr_apply refusal (that belt-and-suspenders is G2b, boarded
+       separately) — but "closed twice" is a claim, and a claim about a money
+       surface needs an assertion, so a future widening of either REWARD_KEY_RE to
+       admit ns:id rewards goes RED by name and points at this block.
+       The key is READ FROM ITS PRODUCER — the generated character_slot grant in
+       src/data/shops.js, the exact string hr_buy_hero_slot writes — never typed,
+       so the pin tracks the id shape rather than a literal (the fixture rule). */
+    {
+      const { pathToFileURL } = await import('node:url');
+      const shops = await import(pathToFileURL(join(ROOT, 'src', 'data', 'shops.js')).href);
+      const goldNet = await import(pathToFileURL(join(ROOT, 'src', 'net', 'gold.js')).href);
+      const heroOffer = (shops.SHOP_OFFERS || []).find((o) => o.table === 'character_slot');
+      ok(heroOffer && heroOffer.grant && heroOffer.grant[0],
+        'G2a-FIXTURE: src/data/shops.js has no character_slot offer to read the entitlement key '
+        + 'from — the pin has nothing producer-real to aim at');
+      const heroKey = heroOffer.grant[0].id;                // e.g. 'character_slot:1'
+      ok(/^character_slot:\d+$/.test(heroKey),
+        `G2a-CONTROL: the hero-slot grant id is '${heroKey}', not the namespaced 'character_slot:<n>' `
+        + 'shape hr_buy_hero_slot writes — the pin is aimed at the wrong string');
+      const colonFree = heroKey.replace(/:/g, '_');         // the SAME key without the colon
+
+      // EDGE — request.js REWARD_KEY_RE, exercised through the real parser.
+      ok(rq.readReward({ reward: { kind: 'flag', key: heroKey } }).key === null,
+        `G2a: the EDGE reward parser admitted the namespaced hero-slot key '${heroKey}'. hr_apply's `
+        + 'generic progress block would then write it as an ownership flag — a gem-priced hero slot '
+        + 'granted free through claim_reward. REWARD_KEY_RE (request.js) must reject the colon.');
+      ok(rq.readReward({ reward: { kind: 'flag', key: colonFree } }).key === colonFree,
+        `G2a-CONTROL: the edge parser also rejected the colon-FREE key '${colonFree}', so the `
+        + 'assertion above proves nothing — it is rejecting everything, not the namespace');
+
+      // CLIENT — src/net/gold.js REWARD_KEY_RE, the request builder half.
+      ok(!goldNet.REWARD_KEY_RE.test(heroKey),
+        `G2a: the CLIENT reward-key regex admitted '${heroKey}'. src/net/gold.js buildGoldRequest `
+        + 'would put a namespaced entitlement key on the wire; the edge is the backstop, not the '
+        + 'only lock, and both halves must reject it.');
+      ok(goldNet.REWARD_KEY_RE.test(colonFree),
+        `G2a-CONTROL: the client regex also rejected the colon-free '${colonFree}' — it is rejecting `
+        + 'everything, so the assertion above is vacuous');
+
+      // …and the ONE legitimate flag reward still passes BOTH locks, so the pin is
+      // not merely "reject every flag key" (which would break the real claim).
+      ok(rq.readReward({ reward: { kind: 'flag', key: 'renown_rank' } }).key === 'renown_rank'
+         && goldNet.REWARD_KEY_RE.test('renown_rank'),
+        'G2a-CONTROL: the real flag reward `renown_rank` (claimableFor\'s only flag member) is '
+        + 'rejected too — the pin is too tight and would break the one legitimate flag claim');
+    }
     ok(rq.VERBS.includes('claim_reward'), 'C1: claim_reward is not in the verb allowlist');
   }
 

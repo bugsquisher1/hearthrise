@@ -292,7 +292,7 @@
     var profile = window.HearthriseProfile && window.HearthriseProfile.profile;
     if(!profile) return Promise.resolve({ ok:false, reason:'no-profile' });
     if(slotId === profile.activeSlot) return Promise.resolve({ ok:false, reason:'already-active' });
-    if(slotId < 0 || slotId >= unlockedCount()){        // b371: the entitlement, not the local cache
+    if(!ownsSlot(slotId)){        // b371/b50x: the ENTITLEMENT (server first), not the local cache
       notifySafe('Slot not unlocked', 'kill');
       return Promise.resolve({ ok:false, reason:'locked' });
     }
@@ -359,7 +359,7 @@
   function switchSlot(slotId){
     var profile = window.HearthriseProfile && window.HearthriseProfile.profile;
     if(!profile) return null;
-    if(slotId < 0 || slotId >= unlockedCount()){        // b371: the entitlement, not the local cache
+    if(!ownsSlot(slotId)){        // b371/b50x: the ENTITLEMENT (server first), not the local cache
       if(typeof window.notify === 'function') window.notify('Slot not unlocked', 'kill');
       return null;
     }
@@ -426,16 +426,112 @@
      make it authoritative, and a determined client can still forge either half.
      ══════════════════════════════════════════════════════════════════════ */
 
-  /* THE ONE ANSWER to "how many hero slots does this account own". Reads the
-     snapshot first, always. Falls back to the device-local record only while G
-     has no answer yet (pre-adoption boot), and clamps to the hard cap. */
-  function unlockedCount(){
+  /* ══════════════════════════════════════════════════════════════════════
+     THE SERVER OWNS THE ENTITLEMENT NOW (2026-09-08-hero-slot-buy.sql).
+
+     The block above ends by naming the fix: "the real fix is one server intent
+     (`hr_buy_hero_slot`) that debits gems and records the unlock in ONE
+     transaction, with the client sending an intent and rendering the result."
+     This is the client half of that, and the ⚠ note above is now DISCHARGED —
+     a determined client can no longer forge either half.
+
+     hr_state_of projects the ACCOUNT's owned slot set as a top-level
+     `hero_slots` array; src/net/accrue.js reconcileHeroSlots puts it in
+     `G._heroSlots` — deliberately NOT into `G.heroSlotsUnlocked`. Keeping the
+     two apart IS the fix: the residue is a self-authored number a cloud restore
+     can rewind while the entitlement it paid for stays granted (the b371 dupe
+     above), so merging the server's answer into it would leave this module
+     unable to tell "the server says you own this" from "a local field says so"
+     — and the Buy button would go straight back to being lit before anything is
+     known, which is the OTHER live defect this closes.
+
+     THREE STATES, and the third is the one the old code could not express:
+       · the server has answered  → its set is the authority, full stop;
+       · it has not answered YET  → the residue is a HINT for LISTING the heroes,
+                                    and nothing may be BOUGHT (slotRows() carries
+                                    `serverKnown` so both renderers agree);
+       · a forged residue         → buys nothing and unlocks nothing, because
+                                    ownsSlot() prefers the server's set. ══════ */
+
+  /* How long "we have not heard yet" is still an honest thing to say. After it,
+     a locked row stops claiming to be checking and says it is unavailable —
+     because a button that says "checking…" forever is a lie, and a lie the
+     player cannot act on is only marginally better than the lit-and-dead button.
+     Self-healing: the moment an envelope arrives, the row goes live. */
+  var SERVER_WAIT_MS = 20000;
+  var _armedAt = Date.now();
+
+  /** The SERVER's owned set, or null if it has not answered. Never throws. */
+  function serverSlots(){
+    try {
+      var g = (typeof window !== 'undefined') && window.G;
+      var h = g && g._heroSlots;
+      if(!h || !Array.isArray(h.owned) || !h.owned.length) return null;
+      return h.owned;
+    } catch(e){ return null; }
+  }
+  function serverKnown(){ return serverSlots() !== null; }
+  /** Are we still inside the honest "checking" window? */
+  function serverWaiting(){ return !serverKnown() && (Date.now() - _armedAt) < SERVER_WAIT_MS; }
+
+  /* Adopt a set the server just handed us — from the boot envelope (through
+     reconcileHeroSlots) or straight off a purchase receipt, so the drawer
+     repaints on the ANSWER rather than on the next accrual. ONE home for the
+     projection, so there is only ever one thing to keep in step. */
+  function adoptServerSlots(list){
+    if(!Array.isArray(list)) return false;
+    var out = [];
+    for(var i = 0; i < list.length; i++){
+      var v = Number(list[i]);
+      if(v === Math.floor(v) && v >= 0 && v < MAX_SLOTS && out.indexOf(v) < 0) out.push(v);
+    }
+    if(out.indexOf(0) < 0) out.push(0);   // slot 0 is free; a set without it is a partial
+    out.sort(function(a,b){ return a - b; });
+    try {
+      var g = (typeof window !== 'undefined') && window.G;
+      if(!g) return false;
+      g._heroSlots = { owned: out, at: Date.now() };
+      return true;
+    } catch(e){ return false; }
+  }
+
+  /* The DEVICE-LOCAL hint — i.e. everything unlockedCount() used to be, kept
+     verbatim as the pre-envelope fallback and as the WHOLE answer on a build
+     where gems are not yet server-of-record. */
+  function residueCount(){
     var g = (typeof window !== 'undefined') && window.G;
     var n = g && g.heroSlotsUnlocked;
     if(typeof n === 'number' && n >= 1 && n <= MAX_SLOTS) return n | 0;
     var p = window.HearthriseProfile && window.HearthriseProfile.profile;
     var q = p && p.unlockedSlots;
     return (typeof q === 'number' && q >= 1 && q <= MAX_SLOTS) ? (q | 0) : 1;
+  }
+
+  /* MEMBERSHIP, which is the honest question — "does this account own slot N".
+     The server's set can legitimately have a HOLE (a grandfathered character on
+     slot 3 with nothing bought below it — hr_hero_slots_of counts an existing
+     character as ownership), and a COUNT cannot express one. */
+  function ownsSlot(n){
+    if(typeof n !== 'number' || n < 0 || n >= MAX_SLOTS) return false;
+    var s = serverSlots();
+    if(s) return s.indexOf(n | 0) >= 0;
+    return (n | 0) < residueCount();
+  }
+
+  /* THE ONE ANSWER to "how many hero slots does this account own". Server first,
+     always; the device-local record only while the server has not answered.
+     Deliberately the CONTIGUOUS PREFIX of the server's set rather than its size,
+     so a hole cannot inflate the count — "which slot is next in the ladder" and
+     "do I own THIS slot" are different questions, and ownsSlot() answers the
+     second one. */
+  function unlockedCount(){
+    var s = serverSlots();
+    if(s){
+      var k = 0;
+      while(k < MAX_SLOTS && s.indexOf(k) >= 0) k++;
+      return Math.max(1, k);
+    }
+    return residueCount();
   }
 
   /* One-time adoption for accounts that bought slots before the entitlement
@@ -451,6 +547,15 @@
   }
 
   // ── Slot purchases ────────────────────────────────────────────
+  /* ⚠ unlockSlot IS THE PRE-ARM PATH AND ONLY THE PRE-ARM PATH.
+     It is left byte-for-byte as it was, for the same reason legacy.js buyTrait()
+     keeps its local branch: it is what runs on a build where the client still
+     owns `gems` (clientMayWriteRecordField('gems') === true), and it is what the
+     b371 atomicity regressions grade. Under the LIVE gems arm nothing reaches it
+     — buySlot() routes to the server verb instead — and even if something did,
+     the entitlement it writes into G.heroSlotsUnlocked is no longer the
+     authority: ownsSlot() prefers the server's set, so a forged residue unlocks
+     nothing. Do NOT wire a new caller to this. */
   function unlockSlot(slotId){
     var profile = window.HearthriseProfile.profile;
     var owned = unlockedCount();
@@ -558,7 +663,130 @@
           confirmLabel:'Buy slot ' + n, cancelLabel:'Not now' };
     return confirmDialog(opts).then(function(yes){
       if(!yes) return { ok:false, cancelled:true, reason:'cancelled' };
+      /* ── THE FORK (2026-09-08-hero-slot-buy.sql) ────────────────────────
+         `mayWrite === false` means the gem balance has MOVED HOME: it is
+         player_state.gems, and a local `G.gems -= cost` would be a
+         client-authored debit the next envelope reconciles away while the slot
+         stayed granted — which is the b371 dupe, and which is exactly what this
+         path has been doing in production since gems were armed. The server verb
+         is hr_buy_hero_slot; the confirm above still runs first, because a
+         premium spend is never one click. */
+      var mayWrite = (typeof window.clientMayWriteRecordField !== 'function')
+        || window.clientMayWriteRecordField('gems');
+      if(!mayWrite) return serverBuySlot(slotId);
       return unlockSlot(slotId);
+    });
+  }
+
+  /* The honest toast for each machine code hr_buy_hero_slot can answer. Named
+     per error rather than one opaque "unavailable" (the b494 voice): a player
+     told "you cannot afford it" when the real answer is "sign in" files the
+     wrong bug, and this surface's entire failure mode for the last several
+     builds was a button that said nothing at all. */
+  var SLOT_BUY_TOASTS = {
+    unknown_slot:           'That hero slot is not for sale',
+    bad_slot:               'That hero slot does not exist',
+    already_owned:          'You already own that hero slot',
+    requires_previous_slot: 'Unlock the slot before it first',
+    insufficient_gems:      'Not enough gems',
+    hero_slot_daily_cap:    'That is enough new heroes for today',
+    no_character:           'Your character is still loading — try again in a moment',
+    no_account:             'Your account is still loading — try again in a moment',
+    intent_mismatch:        'That went out twice — try again in a moment',
+    rate_limited:           'Slow down a moment, then try again',
+    not_signed_in:          'Sign in to unlock hero slots',
+    rpc_missing:            'Hero slots are unavailable right now',
+    no_config:              'Hero slots are unavailable right now',
+    network:                'No connection — your unlock did not go through',
+    bad_response:           'The server is busy — try that again in a moment'
+  };
+  function slotBuyToast(res){
+    var code = String((res && res.error) || '');
+    if(code === 'insufficient_gems' && res && typeof res.short_by === 'number'){
+      return 'Not enough gems — you need ' + res.short_by + ' more';
+    }
+    if(SLOT_BUY_TOASTS[code]) return SLOT_BUY_TOASTS[code];
+    return 'Hero slots are unavailable right now';
+  }
+
+  /* ── THE SERVER PURCHASE ───────────────────────────────────────────────
+     Sends a SLOT ID and nothing else. No price, no currency, no "free" flag:
+     hr_buy_hero_slot reads the gem cost, the ladder order and the Hearth Hall
+     waiver from its own catalogue under a per-account advisory lock, debits the
+     ACTIVE character's server-owned gems and writes the ownership row in ONE
+     transaction. NOTHING LOCAL IS DEBITED HERE, not even optimistically — the
+     server owns the balance, and the client renders what comes back.
+
+     ONE PURCHASE IN FLIGHT PER SLOT. A double tap must not spend two intent keys
+     on one gesture: the second would be refused `already_owned` and read to the
+     player as a failure. */
+  var _buyingSlot = {};
+  function serverBuySlot(slotId){
+    var GC = window.HearthriseGoalClaim;
+    if(!GC || typeof GC.buyHeroSlot !== 'function'){
+      return Promise.resolve({ ok:false, reason: SLOT_BUY_TOASTS.rpc_missing });
+    }
+    if(_buyingSlot[slotId]){
+      return Promise.resolve({ ok:false, cancelled:true, reason:'already in flight' });
+    }
+    _buyingSlot[slotId] = true;
+    var p;
+    try { p = GC.buyHeroSlot(slotId); } catch(e){ p = null; }
+    if(!p || typeof p.then !== 'function'){
+      _buyingSlot[slotId] = false;
+      return Promise.resolve({ ok:false, reason: SLOT_BUY_TOASTS.rpc_missing });
+    }
+    return Promise.resolve(p).then(function(res){
+      /* ADOPT THE SERVER'S WHOLE SET, on success AND on already_owned — both
+         answers carry it, and `already_owned` means our picture was stale rather
+         than that anything failed. */
+      if(res && Array.isArray(res.hero_slots)) adoptServerSlots(res.hero_slots);
+
+      if(res && res.ok === true){
+        /* METADATA ONLY. `profile.unlockedSlots` is a CACHE that improves the
+           pre-envelope render on the next cold boot; it is never consulted once
+           the server has answered (see unlockedCount). The ENTITLEMENT is the
+           server's row, and this device does not get a vote on it. */
+        var p2 = window.HearthriseProfile && window.HearthriseProfile.profile;
+        if(p2){
+          p2.unlockedSlots = Math.max(p2.unlockedSlots || 1, unlockedCount());
+          if(!(p2.slots || []).some(function(s){ return s && s.id === slotId; })){
+            (p2.slots = p2.slots || []).push({
+              id: slotId, name: 'Adventurer ' + (slotId + 1),
+              combatLv: 1, totalLv: 1, createdAt: Date.now(), lastSeen: Date.now()
+            });
+          }
+          saveProfile(p2);
+        }
+        /* Pull the new balance from the server rather than believing the
+           receipt: `res.gems` is for rendering, and the RECORD is what every
+           affordability check reads. Fire-and-forget; the next envelope settles
+           it either way. The topbar repaint is the b371 pairing — without it the
+           gem chip shows the pre-purchase number until a reload. */
+        try {
+          if(window.HearthriseRecord && typeof window.HearthriseRecord.requestRecord === 'function'){
+            var r = window.HearthriseRecord.requestRecord();
+            if(r && r.catch) r.catch(function(){});
+          }
+        } catch(e){}
+        try { if(typeof window.updateTopbar === 'function') window.updateTopbar(); } catch(e){}
+        notifySafe('Unlocked Hero ' + (slotId + 1) + ' for '
+          + (Number(res.cost) || SLOT_COSTS_GEMS[slotId] || 0) + ' gems', 'levelup');
+        return { ok:true, server:true, heroSlots: res.hero_slots || null };
+      }
+
+      if(res && res.error === 'already_owned'){
+        /* The server says the account already holds it — a stale local picture,
+           not a failure. Adopt the truth and say so once. */
+        notifySafe(SLOT_BUY_TOASTS.already_owned, 'info');
+        return { ok:true, server:true, alreadyOwned:true, heroSlots: res.hero_slots || null };
+      }
+      return { ok:false, server:true, code:(res && res.error) || null, reason: slotBuyToast(res) };
+    }).catch(function(){
+      return { ok:false, server:true, reason: SLOT_BUY_TOASTS.network };
+    }).then(function(r){
+      _buyingSlot[slotId] = false;
+      return r;
     });
   }
 
@@ -698,6 +926,17 @@
       return (typeof s === 'number' && s >= 0 && s < MAX_SLOTS) ? (s | 0) : 0;
     },
     unlockedCount: unlockedCount,
+    /* ── THE SERVER-ENTITLEMENT SEAM (2026-09-08-hero-slot-buy.sql) ────────
+       `ownsSlot` is the honest membership question and the one every gate in
+       this module now asks; `unlockedCount` stays for the ladder and for callers
+       that genuinely want a count. `adoptServerSlots` is how the hr_state_of
+       projection gets in (src/net/accrue.js reconcileHeroSlots writes the same
+       key; this is the explicit door for a purchase receipt and for the suite).
+       `serverKnownSlots` is what the renderers use to stay honest about not
+       knowing yet. */
+    ownsSlot: ownsSlot,
+    adoptServerSlots: adoptServerSlots,
+    serverKnownSlots: serverKnown,
     switchSlot: switchSlot,
     switchSlotAsync: switchSlotAsync,
     isSwitching: isSwitching,
@@ -717,20 +956,36 @@
     listSlots: function(){
       var p = this.profile || loadProfile();
       if(!p) return [];
-      var owned = unlockedCount();
-      return (p.slots || []).filter(function(s){ return s.id < owned; });
+      /* MEMBERSHIP, not a count (2026-09-08): the server's owned set can have a
+         hole, and `id < unlockedCount()` would drop a grandfathered hero above
+         it. Same rule slotRows() applies, so the two cannot disagree. */
+      return (p.slots || []).filter(function(s){ return ownsSlot(s.id); });
     },
     canUnlockNext: function(){
       var p = this.profile;
       if(!p) return null;
-      var nextId = unlockedCount();
+      /* THE FIRST SLOT THIS ACCOUNT DOES NOT OWN, asked as membership rather
+         than derived from a count — the server's set can have a hole (a
+         grandfathered character with nothing bought beneath it) and the ladder
+         has to point at the first GAP, which is what hr_buy_hero_slot's
+         `requires_previous_slot` will accept. */
+      var nextId = 0;
+      while(nextId < MAX_SLOTS && ownsSlot(nextId)) nextId++;
       if(nextId >= MAX_SLOTS) return null;
-      var hasPremium = p.entitlements && p.entitlements.hearthHall;
+      /* ⚠ `free` IS DEVICE-LOCAL AND IS NOW DISPLAY-ONLY. Under the arm the
+         Hearth Hall waiver is a fact about OWNERSHIP that the server decides
+         (hr_hero_slots_of reads an `entitlement:hearthHall` flag row), so a
+         waived slot arrives ALREADY OWNED and never reaches this function at
+         all — which is why `free` is forced false once the server has spoken.
+         Pre-envelope, and on a build where gems are still the client's, the old
+         localStorage rule stands so nothing changes byte-for-byte. */
+      var hasPremium = !serverKnown() && p.entitlements && p.entitlements.hearthHall;
       var free = hasPremium && nextId >= 1 && nextId <= 3;
       return {
         slotId: nextId,
         cost: free ? 0 : SLOT_COSTS_GEMS[nextId],
         free: !!free,
+        serverKnown: serverKnown(),
       };
     },
     // b229 — ONE model of "what slots exist and what each row can do", read by
@@ -748,27 +1003,44 @@
       /* The character being PLAYED is always listed, even if a restore rewound
          the entitlement below it — see the note on activeSlot(). It still buys
          nothing: `canBuy` below keys on the entitlement alone. */
-      var owned = Math.max(unlockedCount(), active + 1);
       var byId = {};
       (p.slots || []).forEach(function(s){ if(s && typeof s.id === 'number') byId[s.id] = s; });
       var rows = [];
-      /* Driven by the OWNED COUNT rather than by the metadata list, in both
+      /* Driven by MEMBERSHIP rather than by the metadata list, in both
          directions. A restore can rewind the entitlement below the number of
          local character records (rows must disappear), and it can also raise it
-         above them — a snapshot carried in from another device owns slots this
-         device has never seen metadata for, and those must still be listed and
-         playable rather than silently missing. */
-      for(var k = 0; k < owned && k < MAX_SLOTS; k++){
-        var s = byId[k] || { id:k, combatLv:1, totalLv:1, lastSeen:0 };
-        rows.push({
-          /* b373 — heroLabel(), never s.name. See the ruling on heroLabel. */
-          kind: 'char', id: k, name: heroLabel(k),
-          combatLv: s.combatLv || 1, totalLv: s.totalLv || 1,
-          active: k === active, lastSeen: s.lastSeen,
-        });
+         above them — a snapshot carried in from another device, or a slot bought
+         on another device, owns slots this device has never seen metadata for,
+         and those must still be listed and playable rather than silently
+         missing. Asked per slot rather than as a count because the server's set
+         can have a HOLE (a grandfathered character with nothing bought beneath
+         it) and a count cannot express one. */
+      var _srv = serverKnown();
+      var _wait = serverWaiting();
+      var buyNext = -1;
+      for(var k = 0; k < MAX_SLOTS; k++){
+        if(k === active || ownsSlot(k)){
+          var s = byId[k] || { id:k, combatLv:1, totalLv:1, lastSeen:0 };
+          rows.push({
+            /* b373 — heroLabel(), never s.name. See the ruling on heroLabel. */
+            kind: 'char', id: k, name: heroLabel(k),
+            combatLv: s.combatLv || 1, totalLv: s.totalLv || 1,
+            active: k === active, lastSeen: s.lastSeen,
+          });
+        } else if(buyNext < 0){
+          buyNext = k;                    // the first GAP is the ladder's next rung
+        }
       }
-      for(var i = rows.length; i < MAX_SLOTS; i++){
-        var hasPremium = p.entitlements && p.entitlements.hearthHall;
+      for(var i = 0; i < MAX_SLOTS; i++){
+        if(i === active || ownsSlot(i)) continue;
+        /* ⚠ `free` IS DISPLAY-ONLY AND DEVICE-LOCAL. See canUnlockNext: under the
+           arm the Hearth Hall waiver is decided SERVER-SIDE and a waived slot
+           arrives already owned, so it renders as a hero row and never as a
+           "free unlock" button. `hearthrise:profile` is localStorage that nothing
+           in the shipped build ever writes — one devtools line used to be three
+           free hero slots — so once the server has spoken, this claim is not
+           consulted. */
+        var hasPremium = !_srv && p.entitlements && p.entitlements.hearthHall;
         var free = hasPremium && i >= 1 && i <= 3;
         /* b465 — `canBuy` NEVER MEANT "you can buy this".
            It means "this is the next slot in order", and both renderers read it
@@ -792,9 +1064,27 @@
         } catch (e) { _have = null; }
         rows.push({
           kind: 'locked', slotId: i, free: !!free,
-          cost: _cost, canBuy: (i === unlockedCount()),
+          cost: _cost, canBuy: (i === buyNext),
           afford: free ? true : (_have === null ? null : _have >= _cost),
           shortBy: (free || _have === null) ? 0 : Math.max(0, _cost - _have),
+          /* ── THE HONEST BUTTON (2026-09-08) ─────────────────────────────
+             `canBuy` still means only "this is the next rung in the ladder"
+             (b465). What was missing is whether the SERVER can be asked at all:
+             hr_buy_hero_slot is the only path that can complete a purchase now,
+             and until hr_state_of has told us which slots this account owns we
+             do not know that the verb is even deployed. Rendering a lit Buy in
+             that state is the b465 lie in a new place — and it is precisely the
+             live defect the play-gate found, where the click dead-ended through
+             a confirm modal with no visible outcome.
+               serverKnown === true   → the row is live (afford still governs);
+               serverKnown === false  → the row is DISABLED. `waiting` splits
+                 that into the two honest sentences: inside the first few
+                 seconds we genuinely are still checking; after that the truthful
+                 answer is "unavailable right now", not a spinner that never
+                 resolves. Both renderers read these two fields, so the drawer
+                 and the Home rail cannot disagree. */
+          serverKnown: _srv,
+          waiting: !_srv && _wait,
         });
       }
       return rows;
@@ -908,12 +1198,21 @@
           '</div>' +
           /* b465 — a Buy you cannot pay for is disabled, and says why. Unknown
              (afford === null) still offers the button: we do not know that they
-             are short, and the spend path answers honestly if they are. */
+             are short, and the spend path answers honestly if they are.
+             2026-09-08 — and a Buy the SERVER cannot yet be asked about is
+             disabled too. The purchase is hr_buy_hero_slot now; until the
+             envelope has told us which slots this account owns, a lit button is
+             the same lie in a new place (and was, live: it dead-ended through a
+             confirm modal with no visible outcome). Checked FIRST, because "we
+             do not know if this is possible" outranks "you are short". */
           (r.canBuy
-            ? (r.afford === false
-              ? '<button class="cs-buy" disabled title="You have ' + (r.cost - r.shortBy) + ' of ' + r.cost + ' gems">'
-                + 'Needs ' + r.shortBy + ' more gems</button>'
-              : '<button class="cs-buy" data-buy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>')
+            ? (!r.serverKnown
+              ? '<button class="cs-buy" disabled title="Waiting for the server to confirm which '
+                + 'heroes this account owns">' + (r.waiting ? 'Checking…' : 'Unavailable') + '</button>'
+              : (r.afford === false
+                ? '<button class="cs-buy" disabled title="You have ' + (r.cost - r.shortBy) + ' of ' + r.cost + ' gems">'
+                  + 'Needs ' + r.shortBy + ' more gems</button>'
+                : '<button class="cs-buy" data-buy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>'))
             : '<div class="cs-locked-tag">unlock the previous slot first</div>') +
         '</div>';
       }).join('');

@@ -1500,6 +1500,61 @@ export function reconcileTraits(G, res) {
   return { mode: 'server', owned: t.length, added };
 }
 
+/* ── THE OWNED HERO SLOTS, HYDRATED FROM THE ENVELOPE ─────────────────────────
+   hr_buy_hero_slot (supabase/migrations/2026-09-08-hero-slot-buy.sql) is the
+   server-side writer of a hero slot: it debits the server-owned GEM balance on
+   the calling character and writes a player_progress kind='flag'
+   key='character_slot:<n>' row on the ACCOUNT's canonical row. hr_state_of
+   projects the account's owned set as a flat top-level `hero_slots` array, and
+   THIS is what puts it where multi-character.js can read it.
+
+   ⚠ IT DOES NOT WRITE `G.heroSlotsUnlocked`, AND THAT IS THE WHOLE POINT.
+   That field is the RESIDUE — a self-authored count a cloud restore can rewind
+   while the entitlement it paid for stays granted, which IS the b371 gem dupe.
+   If the server's answer were merged into it the two would become
+   indistinguishable, and the client could no longer tell "the server says you
+   own this" from "a local field says so". So the server's answer lands in its
+   OWN `_`-prefixed scratch key, which:
+     · is never synced (the snapshot denylist skips `_` prefixes) and never
+       persisted, so it cannot outlive the connection that produced it — exactly
+       right for a projection;
+     · is ABSENT on a cold boot, which is what lets multi-character.js render an
+       honest "checking…" state instead of a lit Buy button that dead-ends. A
+       button that is lit before we know anything is the defect this closes.
+
+   FAIL-CLOSED on absence: no readable `res.hero_slots` ARRAY → leave the scratch
+   key exactly as it was. A server build predating the projection, or a partial
+   we cannot trust, must not be read as "you own nothing" — that would evict a
+   player from a hero they are standing in.
+
+   ABSOLUTE, NOT A UNION — the one way this differs from reconcileTraits. The
+   server's set ALREADY INCLUDES every grandfathered character (hr_hero_slots_of
+   counts an existing player_state row as ownership), so there is no
+   pre-migration population to protect, and a union could only keep a forged
+   local claim alive. reconcileTraits unions because a trait bought before its
+   verb existed has no server row; a hero slot bought before this verb existed
+   HAS one — in the form of the character sitting in it.
+
+   NOT arm-gated: writing a scratch key nothing else reads is a no-op on a build
+   whose multi-character.js has not been updated. Pure — takes G + res, returns a
+   small receipt, so the suite drives it without a window. */
+export function reconcileHeroSlots(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const h = res && res.hero_slots;
+  if (!Array.isArray(h)) return { mode: 'absent' };
+  const owned = [];
+  for (const n of h) {
+    const v = Number(n);
+    if (Number.isInteger(v) && v >= 0 && v < 16 && !owned.includes(v)) owned.push(v);
+  }
+  /* Slot 0 is free and every account has it. A projection that somehow arrived
+     without it is a partial, not an eviction — the player is playing SOMETHING. */
+  if (!owned.includes(0)) owned.push(0);
+  owned.sort((a, b) => a - b);
+  G._heroSlots = { owned, at: Date.now() };
+  return { mode: 'server', owned: owned.length };
+}
+
 /* ── THE COMBAT STYLE IS THE SERVER'S (2026-08-24-combat-style.sql) ───────────
    THE DEFECT THIS HALF CLOSES. `G.combatStyle` was a purely local choice: the
    save blob carried it, then the blob retired and `client-state.js`
@@ -2060,6 +2115,13 @@ export function applyEnvelopeState(G, res, ownKey) {
      rides EVERY envelope, and as a UNION so a trait bought before the server
      verb existed is never revoked — see reconcileTraits' header. */
   written.traits = reconcileTraits(G, res);
+
+  /* THE OWNED HERO SLOTS ARE THE SERVER'S (hr_buy_hero_slot). Reconciled here so
+     the projection rides EVERY envelope — away, activity-switch and gold alike —
+     which is what lets the hero drawer stay honest without a poll of its own.
+     Lands in `G._heroSlots` scratch, NEVER in the G.heroSlotsUnlocked residue;
+     see reconcileHeroSlots' header for why keeping the two apart is the fix. */
+  written.heroSlots = reconcileHeroSlots(G, res);
 
   /* b492 — THE PROPERTY RUNG IS THE SERVER'S TOO, and it rides the SAME permanent
      `progress` rows as traits (`property:<tier>`, `worker_hire`). OBSERVED here
@@ -3592,7 +3654,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileInventory, reconcileBank, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileCombatStyle, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileInventory, reconcileBank, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileCombatStyle, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,

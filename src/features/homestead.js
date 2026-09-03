@@ -280,6 +280,33 @@
     return missing;
   }
 
+  /* In-flight latch: a double-click may not fire two purchases. The server's
+     idempotency key is fresh per call, so two taps are two DIFFERENT keys and
+     two real attempts — the second would answer `already_owned` (harmless) but
+     would toast twice. Mirrors renown.js `_claimInFlight`. */
+  var _upgradeInFlight = false;
+
+  /* Debit the tier's cost. Gold rides the record seam (a PREDICTION the server
+     envelope reconciles under the accrual switch; the plain local debit with it
+     off). Items stay client-side — item authority is a separate program
+     (src/net/item-ledger.js) and hr_unlock_buy consumes them server-side. */
+  function debitTierCost(G, cost, k) {
+    Object.keys(cost).forEach(function (key) {
+      if (key === 'gold') window.goldSettle(-cost[key], 'homestead.upgrade', k);
+      else if (typeof window.removeItem === 'function') window.removeItem(key, cost[key]);
+      else G.inventory[key] = (G.inventory[key] || 0) - cost[key];
+    });
+  }
+  function advanceTierTo(G, idx) {
+    if (!G.homestead || typeof G.homestead !== 'object') G.homestead = { tier: 0 };
+    G.homestead.tier = Math.max(Number(G.homestead.tier) || 0, idx);
+  }
+  function announceBuilt(nxt) {
+    if (window.notify) notify('' + nxt.name + ' built! ' + (nxt.desc || ''), 'levelup');
+    if (typeof window.refreshAll === 'function') window.refreshAll();
+    renderCard();
+  }
+
   function upgradeProperty() {
     ensureState();
     var G = G_();
@@ -294,33 +321,73 @@
       }).join(', '), 'kill');
       return false;
     }
-    /* ── b3xx — THE GOLD DEBIT IS THE SERVER'S NOW (unlock_buy). ──────────────
+    /* ── b500 — THE UPGRADE ADVANCES ONLY WHEN THE SERVER RECORDS IT. ─────────
        The property spine is a SELLABLE unlock namespace (unlock-catalogue.js
-       SELLABLE_NAMESPACES). The offer id is `property.<tierId>` and the SHOP_OFFERS
-       price for it is byte-identical to this tier's `cost` (verified), so nothing
-       the player sees changes — only who owns the debit. The gold line goes
-       through the record seam (window.goldSettle) so with the accrual switch ON it
-       is a PREDICTION the server envelope reconciles, and on the eventual gold
-       record-flip it is NOT a second write the absolute envelope double-counts.
-       Switch OFF, goldSettle is the plain local debit that shipped before.
-       ⚠ THE ITEM COST LINES STAY CLIENT-SIDE FOR NOW — item authority is a
-         separate program (src/net/item-ledger.js). hr_unlock_buy also consumes
-         the item cost server-side, so this predicts the gold half only. */
+       SELLABLE_NAMESPACES); the offer id is `property.<tierId>` and its
+       SHOP_OFFERS price equals this tier's `cost`. NO PRICE crosses — the client
+       sends the offer id and the server reads price + prereqs off
+       hr_unlock_offers, charges under a per-character lock and merges the rung.
+
+       THE BUG THIS CLOSES (player report #1, the Forge): the old code did
+       `G.homestead.tier++` BEFORE the server confirmed and fired buyUnlock with
+       a `.catch(function(){})` — which could not even fire, because buyUnlock
+       RESOLVES with the verdict, it never rejects. So a refused Farmstead
+       upgrade (the combat-drop client/server divergence: the client shows 4
+       Wolf Pelt, the server settled 3) advanced the tier anyway. getTier() =
+       max(server rung=1, residue=2) then believed tier 2, the UI let the player
+       build the Forge, the server refused THAT too, and it was gone on reload
+       with the materials looking spent. Now the tier moves ONLY on the server's
+       ok, and a refusal is spoken plainly.
+
+       The residue tier is a FLOOR the server rung heals UP (property-record.js),
+       never down — that is precisely why an optimistic ++ was STRANDED and the
+       gold/item debit self-healed around it. So the tier advance is what must
+       wait for the server, and it is. */
     var _offer = 'property.' + nxt.id;
     var _k = (typeof window.goldIntentKey === 'function') ? window.goldIntentKey() : null;
-    Object.keys(nxt.cost).forEach(function (k) {
-      if (k === 'gold') window.goldSettle(-nxt.cost[k], 'homestead.upgrade', _k);
-      else if (typeof window.removeItem === 'function') window.removeItem(k, nxt.cost[k]);
-      else G.inventory[k] = (G.inventory[k] || 0) - nxt.cost[k];
-    });
-    G.homestead.tier++;
-    /* FIRE AND RECONCILE — never await. No-op with the switch off. */
-    if (_k && window.HearthriseGold && typeof window.HearthriseGold.buyUnlock === 'function') {
-      var _p = window.HearthriseGold.buyUnlock(_offer, _k); if (_p && _p.catch) _p.catch(function () {});
+    var GLD = window.HearthriseGold;
+    var serverOwned = !!(_k && GLD && typeof GLD.buyUnlock === 'function');
+
+    if (!serverOwned) {
+      /* CLIENT-AUTHORITATIVE (switch off / signed out / seam absent): no server
+         confirmation is coming, so the local grant IS the upgrade — debit and
+         advance now, byte-for-byte what shipped before the fix. */
+      debitTierCost(G, nxt.cost, _k);
+      advanceTierTo(G, getTier() + 1);
+      announceBuilt(nxt);
+      return true;
     }
-    if (window.notify) notify('' + nxt.name + ' built! ' + (nxt.desc || ''), 'levelup');
-    if (typeof window.refreshAll === 'function') window.refreshAll();
-    renderCard();
+
+    /* SERVER-OWNED: spend and advance NOTHING locally until hr_unlock_buy
+       confirms (b494 pattern). On ok the confirm envelope already wrote gold +
+       inventory ABSOLUTELY and notePropertyUnlocks ratcheted the server rung;
+       raising the residue floor here makes the advance immediate and persists it.
+       A refusal touched nothing local, so "nothing was spent" is always true. */
+    if (_upgradeInFlight) return false;
+    _upgradeInFlight = true;
+    var nxtIndex = getTier() + 1;
+    Promise.resolve(GLD.buyUnlock(_offer, _k)).then(function (v) {
+      _upgradeInFlight = false;
+      var c = (typeof window.hrClassifyUnlock === 'function')
+        ? window.hrClassifyUnlock(v)
+        : { ok: !!(v && (v.outcome === 'applied' || v.outcome === 'replayed')), owned: false,
+            reason: (v && v.reason) || 'network' };
+      if (c.ok) {
+        advanceTierTo(G, nxtIndex);
+        if (c.owned) { if (window.notify) notify('' + nxt.name + ' is already yours.', 'info'); renderCard(); }
+        else announceBuilt(nxt);
+      } else if (window.notify) {
+        notify((typeof window.hrUnlockRefusalMessage === 'function')
+          ? window.hrUnlockRefusalMessage(c, 'the ' + nxt.name + ' upgrade')
+          : ('The realm couldn’t record the ' + nxt.name + ' upgrade — nothing was spent.'), 'kill');
+        renderCard();
+      }
+    }).catch(function () {
+      _upgradeInFlight = false;
+      if (window.notify) notify('The realm couldn’t record the ' + nxt.name
+        + ' upgrade right now — nothing was spent. Try again in a moment.', 'kill');
+    });
+    /* The gesture was accepted and dispatched; the true verdict is async. */
     return true;
   }
 

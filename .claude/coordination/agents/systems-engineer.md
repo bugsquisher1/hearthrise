@@ -3055,3 +3055,72 @@ only becomes enforceable if one side defines a cheap anchor the other can satisf
 Asserting on a CSS class would have been me designing the Art Director's indicator; asserting on a
 token they must carry asks for evidence of the OUTCOME and leaves the implementation alone. And it is
 an IMPLICATION, not a biconditional — the UI must be allowed to land first.
+
+---
+
+## The "gained, then gone on reload" dungeon class — the guard hole was in the MINT census, not the field census (branch `fix/dungeon-rooms-persistence-class`)
+
+**Three live P1 reports, one root:** Dungeon Scrip → 0 after dungeons; BoP keys (bone_key/goblin_seal)
+vanish; a built Forge disappears. All "gained then gone on reload."
+
+### The root, stated precisely
+`src/net/capstone.js` **BLOB_RETIRED = true is LIVE** (it only needs `isServerAccrualEnabled()`, which
+defaults ON). Under it `loadLocal()` skips the blob entirely, so **G.inventory is rebuilt ONLY from the
+server envelope on every reload** (`reconcileInventory`). Any item a CLIENT path mints that the server
+never settles was carried across reloads by the blob before — with the blob retired it is simply GONE.
+
+The dungeon economy is entirely client-authored, no server write:
+- `src/dungeons.js` `awardDungeonScrip` → `addItem('dungeon_scrip')` (bug #3)
+- `src/dungeons.js` `trySpawnKeyDrop` (a `window.killMonster` wrapper, NOT in MONSTERS.drops nor
+  combat-sim.js) → `addItem(keyId)` (bug #2)
+- `src/dungeons.js` `awardLoot` → `addItem(roll.id)`; `buyFromQuartermaster` → `addItem(id)`
+- `src/dungeon-scavenger.js` per-node loot
+
+These ids are **non-ownable** (scrip/keys are unclassified; dungeon loot + boss sigs are EXCLUDED in
+item-authority.js), so the absolute-flip DELETE branch KEEPS them — which is exactly why everyone
+thought they were safe. They are not: **"excluded = safe" was only ever true while the blob existed.**
+
+**Bug #1 (Forge) is NOT the same root.** The task's hypothesis ("no server intent writes room:<id>")
+is DISPROVEN: `upgradeRoom` fires `buyUnlock('room.<id>.<rung>')` → `hr_unlock_buy`, the offer
+`room.forge.1`..`.5` EXISTS in the generated catalogue, and the cost is `{gold:800, copper_ore:30}`
+(copper_ore is a server-settled gather product). Under the rooms arm `clientMayWriteRecordField('rooms')`
+is false so G.rooms is server-only. So the write path is present and structurally correct — the Forge
+failure needs LIVE reproduction (a server-side hr_unlock_buy refusal, or the phantom-material variant
+of the same client-mint class). Flagged to backend; not fabricated a client fix.
+
+### The guard hole — and it was NOT arm-homing-guard
+`tests/arm-homing-guard.mjs` is GREEN (75 fields homed) and CORRECTLY so: it works at G-FIELD
+granularity, and `inventory` IS homed (a SERVER_MECHANISM) and `rooms` IS homed (a record). It
+structurally cannot see that specific ITEMS inside G.inventory are client-minted without settlement.
+
+The guard that owns that is **`tests/inventory-mint-census.mjs`**, and it had TWO holes:
+1. **Coverage:** `src/dungeons.js` and `src/dungeon-scavenger.js` were never in `FILES`. The entire
+   dungeon reward economy minted unseen for months.
+2. **Semantic:** it modelled only the absolute-flip DELETE (ownable ids), treating non-ownable client
+   mints as "safe" — which stopped being true the day BLOB_RETIRED armed.
+
+### What I fixed (client-side, one commit, test-only)
+`tests/inventory-mint-census.mjs`: added the two dungeon files to `FILES`+`BASELINE`; added a **(4)
+BLOB-RETIRE PERSISTENCE** section with a `BLOB_RETIRE_UNSAFE_LANES` registry (each dungeon lane named
+with the server intent it is owed) that FAILS the build if a dungeon-file mint token is neither
+declared unsafe nor proven `serverOwnedItem`; reads `BLOB_RETIRED` from capstone.js source and
+fail-closes if the anchor is renamed; fails if a dungeon file drops out of `FILES` (the original hole).
+Mutation-proven M1 (drop dungeons.js from FILES → "must watch, not scanned"), M2 (undeclare
+'dungeon_scrip' → "UN-DECLARED"), M4 (empty registry), M5 (rename the BLOB_RETIRED anchor → fail-closed).
+
+Also NAMED, in the guard file itself, one confirmed **sibling**: `src/legacy.js` `addItem(r.item,…)`
+(~6021) — quest REWARD ITEMS, which the code's own comment calls a "later arming slice" (client-applied,
+no settlement) → also lost on reload. Enforcement is dungeon-scoped for now (a full legacy.js token
+audit is its own commit); the sibling is documented so it is not re-found from a player report.
+
+### What is DEFERRED to server intents (spec in the change report)
+ALL THREE reports are authority-deferred. A client-side residue mirror for scrip/keys was REJECTED on
+purpose: it re-authors a currency the server-authority program spent months removing, fragments the
+item model (some inventory items in a side bag), and makes scrip self-forgeable. The right home is
+server settlement — spec'd: `hr_dungeon_settle` (scrip + loot), server-side key drops (fold KEY_DROPS
+into the combat drop model), `quartermaster_buy` (QM_STOCK → src/data catalogue; the item-ledger
+drains itself the day it ships), and a live repro of the Forge `hr_unlock_buy` round-trip.
+
+**Verify:** `node tests/inventory-mint-census.mjs` OK; `node tests/arm-homing-guard.mjs` 75/75.
+Browser suite could not run (node_modules degraded to 4 entries — the emptying warned about; Playwright
+absent). Change is test-only, no `src/` touched, so runtime/browser behaviour is unchanged by construction.

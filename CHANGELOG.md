@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 501 — 2026-09-03 (The disappearing-rewards build: rooms build, combat keys stay)
+
+- 🏠 **Rooms you build actually get built.** Building a homestead room (the Forge and its siblings) used to take your resources and then leave the room unbuilt after a reload. It now waits for the realm to confirm the build before spending anything — and if the realm can't build it, it says why and keeps your resources instead of pocketing them. *(Player report — thank you.)*
+- 🗝️ **Combat keys and seals stop vanishing.** Bone keys, goblin seals and the other dungeon keys are now granted and recorded by the realm as part of the monster's own drop table — so they survive a reload instead of disappearing from your bag. As a bonus they drop while you're **away** now too, the same as every other drop, and show up on your welcome-back card. *(Player report — thank you.)*
+- 🏚️ **Next up: dungeon scrip.** We've traced why solo-dungeon scrip resets to zero and the server-side fix is being built now — it's the same class of "earned then forgotten on reload" as the two above, and it's first in the queue.
+- 🔧 Behind the scenes: the one-time account-import path (for the eventual fresh-start cutover) now restores the hero slots a player owned — reviewed for safety and verified against production before it went live.
+
 ## v0.9.2-beta build 500 — 2026-08-31 (Auto-Eat, finished: eats smart, obeys the switch, and deaths explain themselves)
 
 - 🍖 **Auto-Eat stopped burning your best food.** It now eats the *cheapest* meal that covers your missing health — never raw crafting ingredients while cooked food is in the bag. Measured on a full night: identical survival, up to 47× cheaper. Your bag, your Moonblooms, your call.

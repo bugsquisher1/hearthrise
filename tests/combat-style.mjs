@@ -46,7 +46,8 @@ import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { COMBAT_STYLES, DEFAULT_STYLE_KEYS, resolveStyle, normaliseStyleKeys }
+import { COMBAT_STYLES, DEFAULT_STYLE_KEYS, resolveStyle, normaliseStyleKeys,
+  hitXpRoute, killXpRoute, HIT_XP_PER_DAMAGE }
   from '../src/core/styles.js';
 import { computeAccrual, deriveTickMs } from '../supabase/functions/hr-accrue/accrual.js';
 import { ITEMS } from '../src/data/items.js';
@@ -241,6 +242,43 @@ function accrue(combatStyle) {
   });
 }
 
+/* ── THE THROUGHPUT-INVARIANT FIXTURE (the route-not-multiplier equality) ────
+   The default fixture above cannot compare styled TOTALS across styles, and the
+   reason is the whole b501 lesson (see the block in sectionB): the compared
+   styles change the FIGHT — accuracyMod, damageMod — not just the route, and any
+   change to a seeded damage/accuracy roll desyncs the RNG stream, so two styles
+   legitimately fight different fights and earn different totals. To test "a
+   style re-routes XP, it does not multiply it" AS A BEHAVIOURAL PROOF, the fight
+   itself has to be held identical between the two compared styles.
+
+   This fixture does exactly that for null (⇒ Accurate ⇒ Attack) vs Defensive
+   (⇒ Defence):
+     • skills SATURATED so base accuracy exceeds the 0.95 ceiling — Accurate's
+       accuracyMod 1.05 and Defensive's 1.00 then BOTH clamp to 0.95, washing out
+       the one combat mod they differ in;
+     • player INVULNERABLE (huge HP vs a tier-1 foe) so nobody dies and the span
+       runs to its last deterministic tick, removing the death-timing variance.
+   The two styles then share EVERY combat mod (accuracy 0.95, damageMod 1.00,
+   speedMod 1.00) ⇒ the seeded fight is byte-identical ⇒ the styled totals MUST
+   be exactly equal, differing only in which skill banks them. Aggressive is
+   deliberately excluded: its damageMod 1.05 makes a genuinely higher-maxHit
+   fight, which is the throughput the old check mistook for a bonus. */
+function accrueSaturated(combatStyle) {
+  const sat = 50000000;          // ⇒ base accuracy well past the 0.95 clamp
+  return computeAccrual({
+    userId: '00000000-0000-4000-8000-0000000000c5',
+    slot: 0,
+    nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+    activeKind: 'combat', activeId: MONSTER,
+    capMs: 12 * 3600000, seed: SEED,
+    hp: 1000000, maxHp: 1000000, gold: 0,   // invulnerable vs a tier-1 foe
+    skills: { attack: sat, strength: sat, defense: sat, hitpoints: sat, ranged: sat, magic: sat },
+    equipment: {},                 // bare hands ⇒ weaponType 'sword'
+    combatStyle,
+    items: ITEMS, monsters: MONSTERS,
+  });
+}
+
 function sectionB() {
   /* The CONTROL. `null` is what a database without the migration hands the
      engine, and it must still behave exactly as it did before: Accurate, i.e.
@@ -286,14 +324,93 @@ function sectionB() {
       + 'landed hit regardless of style, so zero means the fight itself is not landing');
   }
 
-  /* THE TOTAL IS PRESERVED. A style is a ROUTE, not a multiplier: the styled XP
-     of Defensive and Aggressive must be within rounding of each other, or a
-     player could pick a style for more XP rather than for a different skill. */
+  /* ── A STYLE IS A ROUTE, NOT AN XP MULTIPLIER ────────────────────────────
+     The property a player relies on: you pick a style for a DIFFERENT skill,
+     never for MORE XP. Two ways to test it, both below, because neither alone
+     is enough.
+
+     ⚠ WHY THE OLD CHECK HERE WAS WRONG — DO NOT "RESTORE" IT (b501). It read:
+         const dTot = styled(dx), aTot = styled(ax);
+         ok(dTot > 0 && Math.abs(dTot - aTot) <= Math.max(4, dTot * 0.02), …
+            "both are speedMod 1.00 single-skill routes over the same seed, so a
+             gap means a style is paying a bonus")
+       i.e. it asserted the styled TOTALS of Defensive and Aggressive over the
+       default 4h goblin span were within 2% of each other. That premise is
+       false, and it is false for a specific, provable reason: SPEEDMOD IS NOT
+       THE ONLY THROUGHPUT LEVER. Aggressive's damageMod (1.05) raises maxHit and
+       Accurate's accuracyMod (1.05) raises accuracy — and ANY change to a seeded
+       damage/accuracy roll desyncs the whole RNG stream downstream of it (kill
+       timing → per-kill gold + drop-table draws → monster swings → the tick the
+       player dies on), so the two styles legitimately fight DIFFERENT fights and
+       land a different amount of total damage. The styled XP tracks that damage,
+       not any per-hit multiplier. Measured over 400 seeds, the natural styled-
+       total spread between styles reaches ~76%; the 2% bound only ever passed by
+       accident of the pre-b501 goblin drop table, and adding one drop row (one
+       extra RNG draw per kill, 2026-08-31) shifted the seed enough to expose it:
+       defensive 1156 vs aggressive 1073. Throughput ≠ speedMod alone, so a raw
+       total-equality across two styles with different combat mods is not a valid
+       test — it was measuring RNG desync, not a bonus. (Engine verified correct;
+       this is a test-only fix.)
+
+     (i) THE ROUTE INVARIANT, CATALOGUE-WIDE AND EXACT. The styled XP a hit or a
+     kill pays is `base × Σ(style.xp ratios)` — see hitXpRoute / killXpRoute in
+     src/core/styles.js, the exact functions combat-sim.js routes every swing and
+     every kill through. So "route, not multiplier" is precisely `Σ(ratios) === 1`
+     for every style, and the per-event payout must equal the unstyled base
+     regardless of throughput. This reads a fixed damage and a fixed monster.xp,
+     so no fight is run and throughput cannot enter; a route multiplier of ANY
+     size (xp:{defense:2}, a split summing to 1.5, a hitXpRoute that scales) fails
+     one of these three exactly. */
   const styled = (m) => (m.attack || 0) + (m.strength || 0) + (m.defense || 0);
-  const dTot = styled(dx), aTot = styled(ax);
-  ok(dTot > 0 && Math.abs(dTot - aTot) <= Math.max(4, dTot * 0.02),
-    `B: styled XP totals differ (defensive ${dTot} vs aggressive ${aTot}) — both are speedMod `
-    + '1.00 single-skill routes over the same seed, so a gap means a style is paying a bonus');
+  const D = 37;                                    // an arbitrary fixed damage
+  const MX = (MONSTERS[MONSTER] && MONSTERS[MONSTER].xp) || 0;
+  for (const family of Object.keys(COMBAT_STYLES)) {
+    for (const key of Object.keys(COMBAT_STYLES[family])) {
+      const st = COMBAT_STYLES[family][key];
+      const sumRatios = Object.values(st.xp).reduce((a, b) => a + Number(b), 0);
+      ok(Math.abs(sumRatios - 1) <= 1e-9,
+        `B: ${family}/${key} xp ratios sum to ${sumRatios}, not 1 — the styled XP a hit pays is `
+        + 'base × Σ(ratios), so a sum ≠ 1 is a style that multiplies total XP instead of re-routing it');
+      const hitStyled = hitXpRoute(st, D).filter((g) => g.skill !== 'hitpoints')
+        .reduce((a, g) => a + g.amount, 0);
+      ok(hitStyled === D * HIT_XP_PER_DAMAGE,
+        `B: hitXpRoute(${family}/${key}, ${D}) pays ${hitStyled} styled XP, not ${D * HIT_XP_PER_DAMAGE} `
+        + '(= dmg × HIT_XP_PER_DAMAGE) — the per-hit styled magnitude must be identical across styles');
+      const killStyled = killXpRoute(st, MX, 1).reduce((a, g) => a + g.amount, 0);
+      ok(killStyled === MX,
+        `B: killXpRoute(${family}/${key}, ${MX}) pays ${killStyled} styled XP, not ${MX} (= monster.xp) `
+        + '— the per-kill styled magnitude must be identical across styles');
+    }
+  }
+
+  /* (ii) THE SAME PROPERTY THROUGH THE FULL ENGINE, THROUGHPUT-INVARIANT. (i)
+     reads the routing seam directly; this drives computeAccrual end-to-end so it
+     also catches a multiplier applied AFTER routing (in grantXp / simulateSpan /
+     accrual). It uses accrueSaturated (see its header): with accuracy saturated
+     and the player invulnerable, null (⇒ Attack) and Defensive (⇒ Defence) fight
+     a BYTE-IDENTICAL seeded fight — so their styled totals must be EXACTLY equal,
+     differing only in the skill that banks them. No tolerance, because the fight
+     is genuinely identical (proven by the tick/kill equality guard). */
+  const nSat = accrueSaturated(null);
+  const dSat = accrueSaturated({ sword: 'defensive' });
+  ok(nSat.accrued === true && dSat.accrued === true,
+    `B: the saturated invariant fixture did not accrue (null ${nSat.reason}, def ${dSat.reason})`);
+  if (nSat.accrued && dSat.accrued) {
+    const nxs = (nSat.delta && nSat.delta.xp) || {};
+    const dxs = (dSat.delta && dSat.delta.xp) || {};
+    ok(nSat.summary.ticks === dSat.summary.ticks && nSat.summary.kills === dSat.summary.kills
+       && nSat.summary.died === false && dSat.summary.died === false,
+      `B: accrueSaturated did not hold the fight identical (null ${nSat.summary.ticks}t/${nSat.summary.kills}k/`
+      + `died=${nSat.summary.died} vs def ${dSat.summary.ticks}t/${dSat.summary.kills}k/died=${dSat.summary.died}) — `
+      + 'the invariance PREMISE is broken (a balance change moved the clamp), not the engine; re-tune the fixture');
+    ok((nxs.attack || 0) > 0 && styled(nxs) === styled(dxs),
+      `B: over an IDENTICAL fight, null banked ${styled(nxs)} styled XP (to Attack) but Defensive banked `
+      + `${styled(dxs)} (to Defence) — equal fights must pay equal styled totals, so a style is applying a `
+      + 'multiplier rather than only re-routing');
+    ok((nxs.hitpoints || 0) === (dxs.hitpoints || 0),
+      `B: Hitpoints XP differs across an identical fight (${nxs.hitpoints} vs ${dxs.hitpoints}) — HP is `
+      + 'unstyled and cannot change with the style');
+  }
 
   /* A PARTIAL MAP IS NORMAL, AND A FOREIGN FAMILY MUST NOT LEAK. Choosing a bow
      style must not change how a sword fight is routed. */

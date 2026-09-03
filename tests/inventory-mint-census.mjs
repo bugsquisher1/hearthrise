@@ -108,10 +108,15 @@ const BASELINE = {
   // and refundIngredients restores cook inputs (inv:k — excluded, same).
   'src/features/companions.js': ['inv:ctx.cropId', 'inv:ctx.lastDrop.id', 'inv:k'],
   // ── THE DUNGEON REWARD ECONOMY (blob-retire-unsafe; see BLOB_RETIRE_UNSAFE_LANES).
-  //    'dungeon_scrip' = awardDungeonScrip; entry.keyId/inv:entry.keyId = the
-  //    killMonster BoP key-drop hook; roll.id/inv:roll.id = awardLoot (run loot);
-  //    id/inv:id = buyFromQuartermaster (keys/blueprints/weapons for scrip).
-  'src/dungeons.js': ["'dungeon_scrip'", 'entry.keyId', 'id', 'inv:entry.keyId', 'inv:id', 'inv:roll.id', 'roll.id'],
+  //    'dungeon_scrip' = awardDungeonScrip; roll.id/inv:roll.id = awardLoot (run
+  //    loot); id/inv:id = buyFromQuartermaster (keys/blueprints/weapons for scrip).
+  //    ── increment 1 (docs/design/dungeon-settlement.md §3): the BoP key-drop
+  //    mint (formerly entry.keyId / inv:entry.keyId, the killMonster wrapper) is
+  //    GONE — folded into MONSTERS[*].drops (src/data/monsters.js), so keys now
+  //    settle server-side through the accrual engine like every combat drop.
+  //    Its tokens are removed from this baseline AND from BLOB_RETIRE_UNSAFE_LANES;
+  //    the fold is guarded by tests/dungeon-key-drops.mjs.
+  'src/dungeons.js': ["'dungeon_scrip'", 'id', 'inv:id', 'inv:roll.id', 'roll.id'],
   //    a.id/inv:a.id = the scavenger's per-node loot grant (scrip rides
   //    awardDungeonScrip, a function call the mint regex does not match — it is
   //    covered by the dungeons.js 'dungeon_scrip' lane, one implementation).
@@ -150,8 +155,15 @@ const BLOB_RETIRE_UNSAFE_LANES = {
   'src/dungeons.js': [
     { tokens: ["'dungeon_scrip'"], mints: 'Dungeon Scrip (awardDungeonScrip)',
       owedIntent: 'hr_dungeon_settle — server computes + credits scrip into player_inventory on a clear intent (shop_buy/clan_deposit pattern; scrip catalogue in src/data)' },
-    { tokens: ['entry.keyId', 'inv:entry.keyId'], mints: 'BoP dungeon keys from the killMonster drop hook (KEY_DROPS)',
-      owedIntent: 'server-side key drops — fold KEY_DROPS into the accrual combat drop model so away+live kills settle keys server-side (they are BoP, so a residue home is also viable if kept self-only)' },
+    // ── increment 1 SHIPPED: the BoP dungeon-key lane is CLOSED. Keys were folded
+    //    into MONSTERS[*].drops (src/data/monsters.js §3 of the settlement design),
+    //    so they settle server-side via the accrual engine → hr_apply →
+    //    player_inventory on both live and away kills, and item-authority.js now
+    //    classifies them serverOwnedItem. The client killMonster wrapper is deleted,
+    //    so entry.keyId / inv:entry.keyId are no longer minted here. The completeness
+    //    of the fold is asserted by tests/dungeon-key-drops.mjs. (Removing the lane
+    //    is required: a STALE entry — declared unsafe but no longer minted — fails
+    //    this guard by design.)
     { tokens: ['roll.id', 'inv:roll.id'], mints: 'dungeon run loot (awardLoot)',
       owedIntent: 'hr_dungeon_settle — server rolls the loot table (server RNG, server catalogue) and credits into player_inventory' },
     { tokens: ['id', 'inv:id'], mints: 'Quartermaster purchases — keys/blueprints/weapons bought with scrip (buyFromQuartermaster)',

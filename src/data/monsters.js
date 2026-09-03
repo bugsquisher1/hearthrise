@@ -95,7 +95,7 @@ export const MONSTERS = {
     drops: [{ id: 'goldenroot', ch: .3 }, { id: 'moonbloom', ch: .08 }, { id: 'turnip', ch: .35 }] },
   goblin: { name: 'Goblin', icon: '👺', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 15, atk: 4, def: 1, xp: 13, gp: [2, 8],
-    drops: [{ id: 'goblin_ear', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'bronze_sword', ch: .03 }, { id: 'goblin_totem', ch: .01 }] },
+    drops: [{ id: 'goblin_ear', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'bronze_sword', ch: .03 }, { id: 'goblin_totem', ch: .01 }, { id: 'goblin_seal', ch: .02 }] },
   kobold: { name: 'Kobold', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 12, atk: 3, def: 1, xp: 10, gp: [2, 6],
     drops: [{ id: 'goblin_totem', ch: .06 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 }, { id: 'copper_ore', ch: .18 }] },
@@ -109,7 +109,7 @@ export const MONSTERS = {
      a player reads as fragile without being told it is the tutorial version. */
   weak_skeleton: { name: 'Brittle Skeleton', icon: '💀', tier: 1, cls: 'undead', family: 'Undead',
     hp: 14, atk: 3, def: 2, xp: 12, gp: [2, 7],
-    drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .45 }, { id: 'ancient_fragment', ch: .015 }] },
+    drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .45 }, { id: 'ancient_fragment', ch: .015 }, { id: 'bone_key', ch: .025 }] },
   imp: { name: 'Imp', icon: '👿', tier: 1, cls: 'demon', family: 'Demon',
     hp: 10, atk: 4, def: 0, xp: 10, gp: [2, 6],
     drops: [{ id: 'demon_shard', ch: .1 }, { id: 'coal', ch: .25 }, { id: 'rune_frag', ch: .08 }] },
@@ -148,7 +148,7 @@ export const MONSTERS = {
     drops: [{ id: 'oak_log', ch: .5 }, { id: 'moonbloom', ch: .12 }, { id: 'goldenroot', ch: .25 }] },
   hobgoblin: { name: 'Hobgoblin', icon: '👹', tier: 2, cls: 'humanoid', family: 'Humanoid',
     hp: 34, atk: 9, def: 4, xp: 38, gp: [8, 22],
-    drops: [{ id: 'goblin_ear', ch: .65 }, { id: 'iron_ore', ch: .12 }, { id: 'iron_sword', ch: .012 }, { id: 'goblin_totem', ch: .02 }] },
+    drops: [{ id: 'goblin_ear', ch: .65 }, { id: 'iron_ore', ch: .12 }, { id: 'iron_sword', ch: .012 }, { id: 'goblin_totem', ch: .02 }, { id: 'goblin_seal', ch: .04 }] },
   gnoll: { name: 'Gnoll', icon: '🐺', tier: 2, cls: 'humanoid', family: 'Humanoid',
     hp: 31, atk: 9, def: 3, xp: 36, gp: [7, 17],
     /* the scavenger: it drops another monster's loot, which is how the world
@@ -157,7 +157,7 @@ export const MONSTERS = {
   dark_wizard: { name: 'Dark Wizard', icon: '🧙', tier: 2, cls: 'human', family: 'Human',
     dropBonus: 1.15,
     hp: 28, atk: 12, def: 1, xp: 55, gp: [10, 25],
-    drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .2 }, { id: 'bones', ch: .6 }, { id: 'dark_sigil', ch: .015 }] },
+    drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .2 }, { id: 'bones', ch: .6 }, { id: 'dark_sigil', ch: .015 }, { id: 'arcane_tome', ch: .04 }] },
   /* FOLD-33: `cultist` merged INTO `dark_wizard` above via MONSTER_ALIAS. Two
      Tier-2 robed Human casters, both magic-styled; the Human class carries
      eleven casters across six tiers and this is the one pair where the
@@ -165,7 +165,7 @@ export const MONSTERS = {
      absorbed by dark_wizard so the merged drop table loses nothing. */
   skeleton: { name: 'Skeleton', icon: '💀', tier: 2, cls: 'undead', family: 'Undead',
     hp: 35, atk: 10, def: 2, xp: 45, gp: [8, 20],
-    drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .6 }, { id: 'iron_ore', ch: .15 }, { id: 'ancient_fragment', ch: .025 }] },
+    drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .6 }, { id: 'iron_ore', ch: .15 }, { id: 'ancient_fragment', ch: .025 }, { id: 'bone_key', ch: .04 }] },
   wight: { name: 'Wight', icon: '🪦', tier: 2, cls: 'undead', family: 'Undead',
     hp: 30, atk: 10, def: 3, xp: 42, gp: [7, 18],
     drops: [{ id: 'grave_dust', ch: .45 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .4 }] },
@@ -215,7 +215,7 @@ export const MONSTERS = {
     drops: [{ id: 'willow_log', ch: .55 }, { id: 'silk_thread', ch: .3 }, { id: 'moonbloom', ch: .15 }] },
   goblin_brute: { name: 'Goblin Brute', icon: '👺', tier: 3, cls: 'humanoid', family: 'Humanoid',
     hp: 68, atk: 17, def: 9, xp: 105, gp: [18, 42],
-    drops: [{ id: 'goblin_ear', ch: .8 }, { id: 'brute_plate', ch: .22 }, { id: 'steel_sword', ch: .01 }, { id: 'goblin_totem', ch: .04 }] },
+    drops: [{ id: 'goblin_ear', ch: .8 }, { id: 'brute_plate', ch: .22 }, { id: 'steel_sword', ch: .01 }, { id: 'goblin_totem', ch: .04 }, { id: 'goblin_seal', ch: .06 }] },
   rock_troll: { name: 'Rock Troll', icon: '🧌', tier: 3, cls: 'humanoid', family: 'Humanoid',
     hp: 72, atk: 18, def: 11, xp: 118, gp: [20, 48],
     drops: [{ id: 'troll_hide', ch: .55 }, { id: 'iron_ore', ch: .45 }, { id: 'coal', ch: .4 }, { id: 'big_bones', ch: .3 }] },
@@ -227,7 +227,7 @@ export const MONSTERS = {
   warlock: { name: 'Warlock', icon: '🧙', tier: 3, cls: 'human', family: 'Human',
     dropBonus: 1.15,
     hp: 58, atk: 24, def: 5, xp: 135, gp: [24, 60],
-    drops: [{ id: 'magic_essence', ch: .55 }, { id: 'rune_frag', ch: .35 }, { id: 'cracked_spellstone', ch: .025 }, { id: 'spellstone_diagram', ch: .01 }] },
+    drops: [{ id: 'magic_essence', ch: .55 }, { id: 'rune_frag', ch: .35 }, { id: 'cracked_spellstone', ch: .025 }, { id: 'spellstone_diagram', ch: .01 }, { id: 'arcane_tome', ch: .06 }] },
   deserter: { name: 'Deserter', icon: '🗡️', tier: 3, cls: 'human', family: 'Human',
     /* one override (weapon): he wears real plate — the first monster where
        your weapon choice is about HIS kit, not his species. */
@@ -245,7 +245,7 @@ export const MONSTERS = {
      That is a real choice at the card, and it costs two data fields each. */
   zombie: { name: 'Zombie', icon: '🧟', tier: 3, cls: 'undead', family: 'Undead',
     hp: 78, atk: 14, def: 12, xp: 115, gp: [18, 45],
-    drops: [{ id: 'grave_dust', ch: .65 }, { id: 'big_bones', ch: .5 }, { id: 'ancient_fragment', ch: .04 }] },
+    drops: [{ id: 'grave_dust', ch: .65 }, { id: 'big_bones', ch: .5 }, { id: 'ancient_fragment', ch: .04 }, { id: 'bone_key', ch: .05 }] },
   ghoul: { name: 'Ghoul', icon: '🧟', tier: 3, cls: 'undead', family: 'Undead',
     hp: 52, atk: 24, def: 5, xp: 100, gp: [17, 42],
     drops: [{ id: 'grave_dust', ch: .55 }, { id: 'venom_sac', ch: .3 }, { id: 'big_bones', ch: .4 }, { id: 'bone_chips', ch: .5 }] },
@@ -269,7 +269,7 @@ export const MONSTERS = {
 
   plague_swarm: { name: 'Plague Swarm', icon: '🪰', tier: 4, cls: 'vermin', family: 'Vermin',
     hp: 100, atk: 26, def: 13, xp: 210, gp: [38, 82],
-    drops: [{ id: 'plague_ichor', ch: .6 }, { id: 'venom_sac', ch: .25 }, { id: 'swarm_heart', ch: .018 }, { id: 'field_cookbook', ch: .02 }] },
+    drops: [{ id: 'plague_ichor', ch: .6 }, { id: 'venom_sac', ch: .25 }, { id: 'swarm_heart', ch: .018 }, { id: 'field_cookbook', ch: .02 }, { id: 'void_fragment', ch: .05 }] },
   giant_spider: { name: 'Giant Spider', icon: '🕸️', tier: 4, cls: 'vermin', family: 'Vermin',
     /* the silk faucet the arrow chain is starved of. */
     hp: 118, atk: 32, def: 14, xp: 252, gp: [44, 98],
@@ -288,7 +288,7 @@ export const MONSTERS = {
     drops: [{ id: 'maple_log', ch: .6 }, { id: 'moonbloom', ch: .3 }, { id: 'goldenroot', ch: .35 }, { id: 'emberfruit', ch: .12 }, { id: 'poison_essence', ch: .09 }] },
   goblin_warlord: { name: 'Goblin Warlord', icon: '👺', tier: 4, cls: 'humanoid', family: 'Humanoid',
     hp: 125, atk: 30, def: 18, xp: 250, gp: [45, 100],
-    drops: [{ id: 'brute_plate', ch: .5 }, { id: 'warlord_badge', ch: .16 }, { id: 'steel_helm', ch: .015 }, { id: 'chief_blade_recipe', ch: .05 }] },
+    drops: [{ id: 'brute_plate', ch: .5 }, { id: 'warlord_badge', ch: .16 }, { id: 'steel_helm', ch: .015 }, { id: 'chief_blade_recipe', ch: .05 }, { id: 'goblin_seal', ch: .10 }] },
   /* b214: was defined ONLY in legacy.js's inline MONSTERS const — every ESM
      reader (combat-render imports this module) saw undefined for it.
      b356 wave: moved Beast→Humanoid. It duplicated `bear` where it sat. */
@@ -386,7 +386,7 @@ export const MONSTERS = {
     drops: [{ id: 'yew_log', ch: .7 }, { id: 'moonbloom', ch: .5 }, { id: 'runewood_log', ch: .1 }, { id: 'goldenroot', ch: .55 }] },
   warband_captain: { name: 'Warband Captain', icon: '🛡️', tier: 5, cls: 'humanoid', family: 'Humanoid',
     hp: 230, atk: 54, def: 34, xp: 540, gp: [110, 225],
-    drops: [{ id: 'warlord_badge', ch: .4 }, { id: 'captain_medal', ch: .12 }, { id: 'rune_sword', ch: .006 }, { id: 'captain_recipe', ch: .03 }] },
+    drops: [{ id: 'warlord_badge', ch: .4 }, { id: 'captain_medal', ch: .12 }, { id: 'rune_sword', ch: .006 }, { id: 'captain_recipe', ch: .03 }, { id: 'obsidian_sigil', ch: .07 }] },
   frost_giant: { name: 'Frost Giant', icon: '🧊', tier: 5, cls: 'humanoid', family: 'Humanoid',
     /* one override (element): rime in the braids — Frost does nothing, Ember
        is the answer. The Ember arrow's first genuinely worth-it target. */
@@ -402,7 +402,7 @@ export const MONSTERS = {
   archmage: { name: 'Archmage', icon: '🧙‍♂️', tier: 5, cls: 'human', family: 'Human',
     dropBonus: 1.15,
     hp: 215, atk: 72, def: 22, xp: 680, gp: [145, 310],
-    drops: [{ id: 'magic_essence', ch: .8 }, { id: 'ancient_rune', ch: .22 }, { id: 'hollow_sigil', ch: .018 }] },
+    drops: [{ id: 'magic_essence', ch: .8 }, { id: 'ancient_rune', ch: .22 }, { id: 'hollow_sigil', ch: .018 }, { id: 'arcane_tome', ch: .10 }] },
   astrologer: { name: 'Astrologer', icon: '🔭', tier: 5, cls: 'human', family: 'Human',
     hp: 196, atk: 70, def: 22, xp: 662, gp: [140, 296],
     drops: [{ id: 'magic_essence', ch: .75 }, { id: 'ancient_rune', ch: .2 }, { id: 'rune_frag', ch: .6 }, { id: 'ruby', ch: .04 }] },
@@ -411,7 +411,7 @@ export const MONSTERS = {
     drops: [{ id: 'gold_ore', ch: .5 }, { id: 'gold_bar', ch: .25 }, { id: 'ruby', ch: .05 }, { id: 'captain_medal', ch: .08 }] },
   death_knight: { name: 'Death Knight', icon: '☠️', tier: 5, cls: 'undead', family: 'Undead',
     hp: 260, atk: 58, def: 40, xp: 620, gp: [125, 260],
-    drops: [{ id: 'big_bones', ch: 1 }, { id: 'death_steel', ch: .25 }, { id: 'captains_ribblade', ch: .012 }] },
+    drops: [{ id: 'big_bones', ch: 1 }, { id: 'death_steel', ch: .25 }, { id: 'captains_ribblade', ch: .012 }, { id: 'obsidian_sigil', ch: .05 }] },
   grave_banshee: { name: 'Grave Banshee', icon: '😱', tier: 5, cls: 'undead', family: 'Undead',
     hp: 194, atk: 68, def: 23, xp: 645, gp: [135, 286],
     drops: [{ id: 'wraith_veil', ch: .35 }, { id: 'grave_dust', ch: .8 }, { id: 'vamp_dust', ch: .2 }, { id: 'ancient_rune', ch: .06 }] },
@@ -494,7 +494,7 @@ export const MONSTERS = {
     elementWeak: 'frost', elementImmune: ['ember'],
     dropBonus: 1.15,
     hp: 520, atk: 105, def: 62, xp: 1250, gp: [320, 700],
-    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .5 }, { id: 'dragon_gem', ch: .02 }, { id: 'ancient_claw', ch: .08 }, { id: 'marrow_cookbook', ch: .005 }, { id: 'gemcutter_note', ch: .005 }] },
+    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .5 }, { id: 'dragon_gem', ch: .02 }, { id: 'ancient_claw', ch: .08 }, { id: 'marrow_cookbook', ch: .005 }, { id: 'gemcutter_note', ch: .005 }, { id: 'dragonsbane_key', ch: .30 }] },
   draconia: { name: 'Draconia', icon: '🐉', tier: 6, cls: 'dragon', family: 'Dragon', boss: true,
     /* breathes Frost: Frost-resistant, Ember-weak. Ashwing's mirror. */
     elementWeak: 'ember', elementResist: ['frost'],
@@ -526,7 +526,7 @@ export const MONSTERS = {
   void_parasite: { name: 'Void Parasite', icon: '🪱', tier: 6, cls: 'extradimensional', family: 'Extra Dimensional',
     elementWeak: 'poison', elementResist: ['ember', 'frost'],
     hp: 340, atk: 82, def: 42, xp: 900, gp: [210, 420],
-    drops: [{ id: 'void_chitin', ch: .55 }, { id: 'plague_ichor', ch: .35 }, { id: 'void_core', ch: .015 }] },
+    drops: [{ id: 'void_chitin', ch: .55 }, { id: 'plague_ichor', ch: .35 }, { id: 'void_core', ch: .015 }, { id: 'void_fragment', ch: .10 }] },
   the_silence: { name: 'The Silence', icon: '🌑', tier: 6, cls: 'extradimensional', family: 'Extra Dimensional',
     /* one override (weapon): arrows find nothing to hit. */
     weaponResist: ['ranged'],

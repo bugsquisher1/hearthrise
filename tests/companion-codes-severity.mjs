@@ -96,6 +96,40 @@ const CONTROL = 'not_grantable';
 const mig = (f) => readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8')
   .then((s) => s.replace(/\r\n/g, '\n'));
 
+/** Does this migration REALLY re-author hr_record_rejection's body — i.e. read
+ *  THAT function's own definition via pg_get_functiondef (the literal signature,
+ *  or a constant bound to it like c_sig/c_rr) AND re-execute the derived body?
+ *
+ *  A file that merely REFERENCES hr_record_rejection is NOT a patcher of it:
+ *    · a §0 precondition `to_regprocedure('public.hr_record_rejection(…)')`,
+ *    · a `perform public.hr_record_rejection(…)` emit call,
+ *    · an `execute v_new` that reinstalls some OTHER body (hero-slot-buy.sql's
+ *      hr_rpc_gate splice; intent-mismatch-class.sql's loop over twelve intent
+ *      bodies).
+ *  The old test counted a file as a patcher on (signature-string OR
+ *  pg_get_functiondef(c_sig)) AND (execute v_new anywhere). hero-slot-buy.sql
+ *  satisfies both by coincidence — a §0 signature reference plus an UNRELATED
+ *  hr_rpc_gate splice — and was mis-named the last patcher of hr_record_rejection
+ *  while patching a different function entirely. Requiring the pg_get_functiondef
+ *  read to be OF hr_record_rejection is what tells a real body-patch apart from a
+ *  reference. */
+const RR_SIG = 'public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)';
+const RR_LITERAL_READ = /pg_get_functiondef\s*\(\s*'public\.hr_record_rejection\(/i;
+export function patchesRecordRejection(src) {
+  if (!/\bexecute\s+v_new\b/.test(src)) return false;      // must re-install a body at all
+  if (RR_LITERAL_READ.test(src)) return true;              // reads hr_record_rejection by literal
+  // …or via a local constant bound to hr_record_rejection's signature (c_sig/c_rr).
+  const handles = new Set();
+  for (const m of src.matchAll(
+    /(\w+)\s+constant\s+text\s*:=\s*'public\.hr_record_rejection\(uuid,int,text,text,jsonb,bigint\)'/gi)) {
+    handles.add(m[1]);
+  }
+  for (const h of handles) {
+    if (new RegExp(`pg_get_functiondef\\s*\\(\\s*${h}\\b`).test(src)) return true;
+  }
+  return false;
+}
+
 /* ⚠ ANY ARM THAT APPLIES A MIGRATION BY HAND MUST APPLY THE MUTATED TEXT.
    bootReplay patches only the sources it EXECUTES; two arms below stop or
    restart the chain and then run a file themselves, and reading that file
@@ -531,9 +565,10 @@ async function armLastToucher() {
     let src = '';
     try { src = await mig(f); } catch { continue; }
     if (/create\s+or\s+replace\s+function\s+public\.hr_record_rejection\b/i.test(src)) authors.push(f);
-    // A programmatic patcher: it reads the body back and re-executes it.
-    if (/pg_get_functiondef\(\s*c_sig::regprocedure\s*\)|hr_record_rejection\(uuid,int,text,text,jsonb,bigint\)/i
-      .test(src) && /\bexecute\s+v_new\b/.test(src)) patchers.push(f);
+    // A programmatic patcher: it reads hr_record_rejection's OWN body back and
+    // re-executes it. A §0 signature reference or an unrelated `execute v_new`
+    // (hero-slot-buy.sql's hr_rpc_gate splice) is not a patch of this function.
+    if (patchesRecordRejection(src)) patchers.push(f);
   }
   ok('chain/function-has-an-author', authors.length > 0,
     'no migration in the manifest creates public.hr_record_rejection');

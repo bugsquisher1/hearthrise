@@ -13,17 +13,32 @@
 // could not buy Auto-Eat, keep a combat style, claim quests, or save
 // residue state, and nothing in monitoring said why.
 //
-// THE RULE (stated in 2026-08-29-rpc-gate-bucket-restore.sql): the LAST
-// full definition of hr_rpc_gate in apply order must admit EVERY bucket
-// that ANY migration passes to hr_rpc_gate('…'). A migration adding a gate
-// bucket must re-state the whole list; a migration replacing the gate for
-// any other reason must copy the current definition, never a template.
+// THE RULE (stated in 2026-08-29-rpc-gate-bucket-restore.sql): the LIVE gate
+// must admit EVERY bucket that ANY migration passes to hr_rpc_gate('…'). A
+// bucket may reach the live gate two legitimate ways:
+//   (A) it is named in the LAST full `create or replace function
+//       public.hr_rpc_gate` definition's case list; OR
+//   (B) it is added by a SPLICE that runs AFTER that last full def — the
+//       pg_get_functiondef + guarded `replace` + `execute` idiom (§6 of
+//       2026-09-08-hero-slot-buy.sql, first used in 2026-08-28-client-state),
+//       which patches the live body without restating it.
+// A full def CLOBBERS every splice applied before it (that clobber IS the
+// b484–b487 incident), so a bucket spliced BEFORE the last full def only
+// survives if the full def also lists it.
 //
 // Mechanics: walk tests/schema-apply-order.json (pre_schema + order — the
-// canonical chain, itself guarded in sync with the migrations dir), find the
-// last file containing a full `create or replace function public.hr_rpc_gate`,
-// collect every bucket any file passes to the gate (plain 'x' or dynamic-SQL
-// ''x'' quoting), and assert each appears inside the final definition's body.
+// canonical chain, itself guarded in sync with the migrations dir) and REPLAY
+// it in apply order, modelling the live admitted-bucket set exactly as the DB
+// would end up:
+//   • a full def RESETS the set to its own `case p_bucket … end case` list;
+//   • a splice (a `do $$…$$` block that both reads hr_rpc_gate via
+//     pg_get_functiondef AND `execute`s a body carrying new `when ''<bucket>''`
+//     clauses) ADDS those buckets to the set;
+//   • a pg_get_functiondef used only in a self-check (a `position(… in v_def)`
+//     assertion with no `execute`, as in the restore + kill-daily migrations)
+//     is NOT a splice and adds nothing.
+// Then assert every caller bucket (plain 'x' or dynamic-SQL ''x'') is in the
+// final live set.
 //
 // Exit: 0 green · 1 drift · 2 harness problem.
 // ════════════════════════════════════════════════════════════════════════
@@ -46,30 +61,52 @@ export async function rpcGateBucketGuard() {
   // bucket — the fail-closed property itself.
   const DEAD_CALLERS = new Set(['__not_a_bucket__', 'not_a_bucket', 'f']);
 
-  let lastFullDef = null;        // { file, body } of the final full definition
+  // Events that mutate the gate's admitted-bucket set, tagged with a global
+  // apply-order key [fileIndex, offsetInFile] so a file carrying BOTH a full
+  // def and a splice (or a splice + a later full def anywhere in the chain) is
+  // ordered correctly.
+  const events = [];             // { key:[fi,pos], type:'fulldef'|'splice', buckets:[], file }
   const callers = new Map();     // bucket -> [files that pass it]
 
-  for (const f of order) {
+  for (let fi = 0; fi < order.length; fi++) {
+    const f = order[fi];
     let sql;
     try { sql = (await readFile(join(MIGDIR, f), 'utf8')).replace(/\r\n/g, '\n'); }
     catch { continue; }          // manifest↔disk sync is schema-replay's job
 
-    // The final full definition wins (splices before it are clobbered — that
-    // is precisely the incident — so only the LAST full def counts).
-    const defAt = sql.lastIndexOf('create or replace function public.hr_rpc_gate');
-    if (defAt !== -1) {
-      // Admission is judged against the CASE LIST ONLY (`case p_bucket` …
-      // `end case`), never the whole file — a bucket named in a comment or a
-      // self-check do-block must NOT count as admitted (the first draft of this
-      // guard made that mistake and its own negative proof caught it).
-      const body = sql.slice(defAt);
+    // ── Full definitions ──────────────────────────────────────────────────
+    // Admission is judged against the CASE LIST ONLY (`case p_bucket` …
+    // `end case`), never the whole file — a bucket named in a comment or a
+    // self-check do-block must NOT count as admitted (the first draft of this
+    // guard made that mistake and its own negative proof caught it).
+    for (let at = sql.indexOf('create or replace function public.hr_rpc_gate');
+         at !== -1;
+         at = sql.indexOf('create or replace function public.hr_rpc_gate', at + 1)) {
+      const body = sql.slice(at);
       const caseAt = body.indexOf('case p_bucket');
       const caseEnd = body.indexOf('end case', caseAt);
       if (caseAt === -1 || caseEnd === -1) {
         const e = new Error(`${f}: full hr_rpc_gate definition has no parseable \`case p_bucket … end case\` block`);
         e.harness = true; throw e;
       }
-      lastFullDef = { file: f, body: body.slice(caseAt, caseEnd) };
+      const caseList = body.slice(caseAt, caseEnd);
+      const buckets = [...caseList.matchAll(/'([a-z0-9_]+)'/g)].map((m) => m[1]);
+      events.push({ key: [fi, at], type: 'fulldef', buckets, file: f });
+    }
+
+    // ── Splices (additive patches that EXECUTE a modified gate body) ────────
+    // A real splice is a `do $tag$…$tag$` block that (1) reads the live gate via
+    // pg_get_functiondef, (2) `execute`s a rebuilt body, and (3) injects at
+    // least one `when ''<bucket>'' then` clause. A block that reads the gate for
+    // a `position(… in v_def)` self-check but never `execute`s it (restore's and
+    // kill-daily's precondition probes) is NOT a splice and admits nothing.
+    for (const blk of sql.matchAll(/\bdo\s*(\$[a-z0-9_]*\$)([\s\S]*?)\1/g)) {
+      const region = blk[2];
+      if (!region.includes("pg_get_functiondef('public.hr_rpc_gate")) continue;
+      if (!/\bexecute\b/.test(region)) continue;   // read-only self-check, not a splice
+      const buckets = [...region.matchAll(/when\s+''([a-z0-9_]+)''\s+then/g)].map((m) => m[1]);
+      if (!buckets.length) continue;               // an execute with no new when-clause adds nothing
+      events.push({ key: [fi, blk.index], type: 'splice', buckets, file: f });
     }
 
     // Collect caller buckets: hr_rpc_gate('x') in plain SQL, hr_rpc_gate(''x'')
@@ -81,39 +118,61 @@ export async function rpcGateBucketGuard() {
     }
   }
 
+  // Model the LIVE admitted set: the LAST full def is the baseline (it clobbers
+  // every splice before it — that clobber IS the incident), then splices AFTER
+  // it patch that baseline. splicedIn reports only buckets that reach the gate
+  // NET-NEW via a surviving splice (not ones the last full def already lists).
+  events.sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1]);
+  const cmp = (x, y) => (x[0] - y[0]) || (x[1] - y[1]);
+  const fullDefs = events.filter((e) => e.type === 'fulldef');
+  const lastFullDef = fullDefs[fullDefs.length - 1];
+
   if (!lastFullDef) {
     const e = new Error('no full `create or replace function public.hr_rpc_gate` found in the chain — the guard has nothing to check against');
     e.harness = true; throw e;
   }
 
+  const admitted = new Set(lastFullDef.buckets);
+  const splicedIn = [];
+  for (const ev of events) {
+    if (ev.type !== 'splice') continue;
+    if (cmp(ev.key, lastFullDef.key) <= 0) continue;   // clobbered by the last full def
+    for (const b of ev.buckets) {
+      if (!admitted.has(b)) splicedIn.push(`'${b}' (${ev.file})`);
+      admitted.add(b);
+    }
+  }
+
   const missing = [];
   for (const [bucket, files] of [...callers.entries()].sort()) {
     if (DEAD_CALLERS.has(bucket)) continue;
-    // Admitted = the bucket name appears as a quoted literal in the final def's
-    // case list. (`'x'` — the def never mentions caller buckets otherwise.)
-    if (!lastFullDef.body.includes(`'${bucket}'`)) {
+    if (!admitted.has(bucket)) {
       missing.push(`  '${bucket}' — passed by ${files.join(', ')}`);
     }
   }
 
   if (missing.length) {
     throw new Error(
-      'RPC-GATE BUCKET DRIFT — the last full hr_rpc_gate definition ('
-      + lastFullDef.file + ') does not admit every caller bucket. An unlisted\n'
-      + 'bucket is refused 100% of the time as "rate_limited" with no telemetry\n'
-      + '(the b484–b487 live incident: Auto-Eat unbuyable, styles reverting,\n'
-      + 'quest claims dead, residue saves frozen). Re-state the FULL bucket list\n'
-      + 'in the latest gate definition — never replace from an old template.\n'
-      + 'Missing:\n' + missing.join('\n'));
+      'RPC-GATE BUCKET DRIFT — the live hr_rpc_gate (last full def '
+      + lastFullDef.file + ', plus any splice after it) does not admit every\n'
+      + 'caller bucket. An unlisted bucket is refused 100% of the time as\n'
+      + '"rate_limited" with no telemetry (the b484–b487 live incident: Auto-Eat\n'
+      + 'unbuyable, styles reverting, quest claims dead, residue saves frozen).\n'
+      + 'Either re-state the FULL bucket list in the latest gate definition\n'
+      + '(never replace from an old template) or add the bucket via the splice\n'
+      + 'idiom AFTER the last full def.\nMissing:\n' + missing.join('\n'));
   }
 
-  return { buckets: callers.size, finalDef: lastFullDef.file };
+  return { buckets: callers.size, finalDef: lastFullDef.file, spliced: splicedIn };
 }
 
 // Standalone: node tests/rpc-gate-bucket-guard.mjs
 if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
     || process.argv[1]?.endsWith('rpc-gate-bucket-guard.mjs')) {
   rpcGateBucketGuard().then(
-    (r) => { console.log(`RPC-gate bucket guard — ${r.buckets} caller bucket(s) all admitted by ${r.finalDef}.`); },
+    (r) => {
+      const via = r.spliced.length ? ` (${r.spliced.length} added by splice: ${r.spliced.join(', ')})` : '';
+      console.log(`RPC-gate bucket guard — ${r.buckets} caller bucket(s) all admitted by ${r.finalDef}${via}.`);
+    },
     (e) => { console.error(String(e.message || e)); process.exit(e.harness ? 2 : 1); });
 }

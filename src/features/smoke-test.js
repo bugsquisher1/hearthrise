@@ -25084,47 +25084,105 @@ const TESTS = [
        renderers read it as "you can afford this" — so a new account holding one
        gem got a lit Buy beside "200 gems". Every other shop row in the game
        disables an unaffordable Buy (render/shop.js); the hero rail did not.
-       The gem balance is SERVER-OF-RECORD and reads UNKNOWN while signed out,
-       and unknown deliberately abstains (a player must never be told "not
-       enough" when we simply have not been told the number) — so this stubs a
-       KNOWN balance, which is the state every signed-in player is in. */
+
+       TWO balances now gate the button, and BOTH deliberately abstain when they
+       are UNKNOWN (a player must never be told "not enough" when we simply have
+       not been told the number):
+         · the gem balance — SERVER-OF-RECORD; drives `afford`/`shortBy`, null
+           when the server has not spoken.
+         · which slots the account OWNS — the 2026-09-08 hr_buy_hero_slot rewire;
+           `serverKnown` reads it from G._heroSlots. Until the envelope has told
+           us the owned set, the Buy is disabled as "Checking…/Unavailable", NOT
+           a shortfall (the click otherwise dead-ends: hr_buy_hero_slot is the
+           only path that can complete a purchase and we don't yet know it is
+           reachable). serverKnown is checked FIRST, so a signed-out harness
+           lands on that branch, not the shortfall one under test.
+       So this arranges the KNOWN state every signed-in player is in — a known
+       gem balance AND a server-answered owned set (this account owns only the
+       free slot 0, so every rung above it is a paid slot governed by `afford`).
+       Then it asserts the shortfall path, and separately that the owned-set-
+       unknown branch is ALSO a disabled button, never a live CTA. */
     const B = window.HearthriseBalance;
     const HP = window.HearthriseProfile;
+    const G = window.G;
     if (!B || !HP || typeof HP.slotRows !== 'function') return;   // multi-character optional
     const realBalanceNum = B.balanceNum;
+    const hadHeroSlots = !!(G && Object.prototype.hasOwnProperty.call(G, '_heroSlots'));
+    const realHeroSlots = G ? G._heroSlots : undefined;
+    const lockedBuyable = () =>
+      HP.slotRows().filter((r) => r.kind === 'locked' && !r.free).find((r) => r.canBuy);
+    /* HearthriseHome.render() no-ops unless #panel-profile is the ACTIVE tab
+       (its own guard, home-dashboard.js). Mid-suite the home screen usually is
+       NOT active, so a bare render() leaves a STALE rail and this would assert
+       the wrong DOM. Force the Home screen active for the read — the state a
+       player is in when they see the hero rail — and restore it in finally. */
+    const panel = document.getElementById('panel-profile');
+    const panelWasActive = !!(panel && panel.classList.contains('active'));
+    const paintHome = () => {
+      if (panel) panel.classList.add('active');
+      window.HearthriseHome.render();
+      return document.getElementById('panel-profile');
+    };
     try {
-      B.balanceNum = (G, f) => (f === 'gems' ? 1 : realBalanceNum(G, f));
+      // The server has answered: owns ONLY the free slot 0.
+      if (G) G._heroSlots = { owned: [0], at: Date.now() };
+      B.balanceNum = (g, f) => (f === 'gems' ? 1 : realBalanceNum(g, f));
+
       const rows = HP.slotRows().filter((r) => r.kind === 'locked' && !r.free);
       assert(rows.length, 'no locked hero slots — the test proved nothing');
       const next = rows.find((r) => r.canBuy);
       assert(next, 'no next-buyable slot');
-      assert(next.afford === false, 'a 200-gem slot must not read as affordable on 1 gem');
+      // The new field the rewire added, asserted so the shortfall path below is
+      // reached deliberately rather than by luck.
+      assert(next.serverKnown === true,
+        'with G._heroSlots set the next slot must read serverKnown:true (got ' + next.serverKnown + ')');
+      assert(next.afford === false, 'a ' + next.cost + '-gem slot must not read as affordable on 1 gem');
       assert(next.shortBy === next.cost - 1,
         'shortBy must be the real gap (got ' + next.shortBy + ' of ' + next.cost + ')');
 
-      // And the RENDERED rail must disable it and name the gap.
+      // And the RENDERED rail must disable it and name the gap — no live Buy.
       if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') {
-        window.HearthriseHome.render();
-        const btn = document.querySelector('#panel-profile [data-herobuy], #panel-profile .hd-cta[disabled]');
-        const rail = document.getElementById('panel-profile');
+        const rail = paintHome();
         if (rail && /Hero slot/.test(rail.textContent || '')) {
           const live = [...rail.querySelectorAll('[data-herobuy]')];
           assert(!live.length, 'the Home rail still offers a live Buy for a slot the player cannot afford');
           assert(/Needs \d[\d,]* more gems/.test(rail.textContent || ''),
             'the disabled hero-slot button must name the shortfall');
         }
-        void btn;
+      }
+
+      // THE 2026-09-08 GATE, exercised: with the OWNED set UNKNOWN (server not
+      // heard from) the same 1-gem account must ALSO get a disabled button —
+      // never a live CTA — because hr_buy_hero_slot cannot yet be asked. This is
+      // the honest-button half of the same defect; it must not regress to a lit
+      // Buy while the gem balance happens to be known.
+      if (G && window.HearthriseHome && typeof window.HearthriseHome.render === 'function') {
+        delete G._heroSlots;
+        const unknown = lockedBuyable();
+        assert(unknown && unknown.serverKnown === false,
+          'clearing G._heroSlots must read serverKnown:false (got ' + (unknown && unknown.serverKnown) + ')');
+        const rail2 = paintHome();
+        if (rail2 && /Hero slot/.test(rail2.textContent || '')) {
+          assert(![...rail2.querySelectorAll('[data-herobuy]')].length,
+            'a Buy the server cannot yet be asked about must be disabled, not a live CTA');
+        }
+        G._heroSlots = { owned: [0], at: Date.now() };   // back to the known state
       }
 
       // AFFORDABLE stays buyable — the guard must not just disable everything.
-      B.balanceNum = (G, f) => (f === 'gems' ? 999999 : realBalanceNum(G, f));
-      const rich = HP.slotRows().filter((r) => r.kind === 'locked' && !r.free).find((r) => r.canBuy);
+      B.balanceNum = (g, f) => (f === 'gems' ? 999999 : realBalanceNum(g, f));
+      const rich = lockedBuyable();
       assert(rich && rich.afford === true, 'a slot the player CAN afford must stay buyable');
     } finally {
       B.balanceNum = realBalanceNum;
+      if (G) {
+        if (hadHeroSlots) G._heroSlots = realHeroSlots;
+        else delete G._heroSlots;
+      }
       if (window.HearthriseHome && typeof window.HearthriseHome.render === 'function') {
         try { window.HearthriseHome.render(); } catch (e) {}
       }
+      if (panel && !panelWasActive) panel.classList.remove('active');
     }
   }),
 

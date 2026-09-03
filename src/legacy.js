@@ -4236,15 +4236,40 @@ function buyBankSpaceGold(){
   if(!balCanAfford(cost,'gold')){ if(typeof notify==='function')notify(balShortfall(cost,'gold'),'kill'); return false; }
   var _boffer='bank.'+_k0;
   var _bk=(typeof goldIntentKey==='function')?goldIntentKey():null;
-  goldSettle(-cost,'bank.buy_gold',_bk);
-  G.bank.goldBuys=(G.bank.goldBuys||0)+1;
-  /* FIRE AND RECONCILE — never await. No-op with the switch off. */
-  if(_bk&&window.HearthriseGold&&window.HearthriseGold.buyUnlock){var _bp=window.HearthriseGold.buyUnlock(_boffer,_bk);if(_bp&&_bp.catch)_bp.catch(function(){});}
-  if(typeof notify==='function')notify('Bank expanded +'+BANK_SPACE.gold.slots+' slots','levelup');
-  if(typeof saveLocal==='function')saveLocal();
-  if(typeof updateTopbar==='function')updateTopbar();
-  if(typeof renderInventory==='function')renderInventory();
-  _renderBankModal();
+  var _debitBank=function(){ goldSettle(-cost,'bank.buy_gold',_bk); };
+  var _advanceBank=function(){ G.bank.goldBuys=(G.bank.goldBuys||0)+1; };
+  var _announceBank=function(){
+    if(typeof notify==='function')notify('Bank expanded +'+BANK_SPACE.gold.slots+' slots','levelup');
+    if(typeof saveLocal==='function')saveLocal();
+    if(typeof updateTopbar==='function')updateTopbar();
+    if(typeof renderInventory==='function')renderInventory();
+    _renderBankModal();
+  };
+  /* ── b500 — THE BANK GROWS ONLY WHEN THE SERVER RECORDS IT (same class as the
+     property tier). The old code did goldBuys++ and fired buyUnlock with a
+     `.catch(function(){})` that could not fire — a server-refused rung (a stale
+     gold prediction) showed bank space the realm never recorded, gone on reload.
+     Now the rung advances ONLY on the server's ok. */
+  var _serverOwnsBank=!!(_bk&&window.HearthriseGold&&window.HearthriseGold.buyUnlock);
+  if(!_serverOwnsBank){
+    /* CLIENT-AUTHORITATIVE (switch off): the local grant IS the expansion. */
+    _debitBank(); _advanceBank(); _announceBank(); return true;
+  }
+  /* SERVER-OWNED: the confirm envelope writes gold ABSOLUTELY; a refusal touched
+     nothing local. In-flight latch per offer against a double-tap. */
+  buyBankSpaceGold._inflight=buyBankSpaceGold._inflight||{};
+  if(buyBankSpaceGold._inflight[_boffer]) return false;
+  buyBankSpaceGold._inflight[_boffer]=true;
+  Promise.resolve(window.HearthriseGold.buyUnlock(_boffer,_bk)).then(function(v){
+    delete buyBankSpaceGold._inflight[_boffer];
+    var c=(typeof window.hrClassifyUnlock==='function')?window.hrClassifyUnlock(v)
+      :{ok:!!(v&&(v.outcome==='applied'||v.outcome==='replayed')),owned:false,reason:(v&&v.reason)||'network'};
+    if(c.ok){ _advanceBank(); if(c.owned){ if(typeof notify==='function')notify('That bank space is already yours.','info'); _renderBankModal(); } else _announceBank(); }
+    else { if(typeof notify==='function')notify((typeof window.hrUnlockRefusalMessage==='function')?window.hrUnlockRefusalMessage(c,'that bank expansion'):'The realm couldn’t record that bank expansion — nothing was spent.','kill'); _renderBankModal(); }
+  }).catch(function(){
+    delete buyBankSpaceGold._inflight[_boffer];
+    if(typeof notify==='function')notify('The realm couldn’t record that bank expansion right now — nothing was spent. Try again in a moment.','kill');
+  });
   return true;
 }
 function buyBankSpaceGem(){
@@ -9145,32 +9170,65 @@ function upgradeRoom(id){
   }
   const missing=describeMissingCost(nx.cost);
   if(missing){notify('Missing: '+missing,'kill');return false;}
-  /* ── b3xx — THE GOLD DEBIT IS THE SERVER'S NOW (unlock_buy). ────────────────
-     `room` is a SELLABLE unlock namespace; the offer id is `room.<id>.<rung>` and
-     the SHOP_OFFERS price for it equals this rung's own `cost` (the generated
-     catalogue is drift-guarded). The gold line goes through the record seam so it
-     is a PREDICTION under the accrual switch and flip-safe (not a second write the
-     absolute envelope double-counts). ⚠ THE ITEM COST + BLUEPRINT LINES STAY
-     CLIENT-SIDE FOR NOW — item authority is a separate program; hr_unlock_buy
-     consumes the item cost server-side, so this predicts the gold half only. */
+  /* ── b500 — THE ROOM IS SHOWN BUILT ONLY WHEN THE SERVER RECORDS IT. ────────
+     `room` is a SELLABLE unlock namespace; the offer id is `room.<id>.<rung>`
+     and its SHOP_OFFERS price equals this rung's own `cost` (drift-guarded). NO
+     PRICE crosses — the server reads price + the property-tier prereq off
+     hr_unlock_offers. The old code debited, authored the rung and did
+     roomsBuilt++ BEFORE firing buyUnlock with a `.catch(()=>{})` that could not
+     even fire, because buyUnlock RESOLVES with the verdict, it never rejects. So
+     a server-refused build (a Forge whose property-tier prereq the client tier
+     wrongly cleared, or a material the server settled one short of the client)
+     showed the room built and was gone on reload. Now the rung advances ONLY on
+     the server's ok, and a refusal is spoken plainly. ⚠ THE ITEM COST +
+     BLUEPRINT STAY CLIENT-SIDE — item authority is a separate program;
+     hr_unlock_buy consumes them server-side, so this predicts the gold half. */
   const _roomOffer='room.'+id+'.'+(lv+1);
   const _rk=goldIntentKey();
-  for(const [k,v] of Object.entries(nx.cost)){if(k==='gold')goldSettle(-v,'house.upgrade_room',_rk);else removeItem(k,v);}
-  if(_bpId) removeItem(_bpId,1);
-  /* b431 — THE LOCAL RUNG WRITE IS A PREDICTION, GATED. The purchase is already
-     server-owned (hr_unlock_buy, fired below); under the rooms record arm the
-     server envelope is the only writer of the rung, so this local mutation is
-     skipped (and G.rooms may be stripped/undefined — writing it would throw).
-     Pre-arm it authors the rung locally exactly as before. */
-  if(clientMayWriteRecordField('rooms')){G.rooms=G.rooms||{};G.rooms[id]=lv+1;}
-  G.stats.roomsBuilt=(G.stats.roomsBuilt||0)+1;
-  /* FIRE AND RECONCILE — never await. No-op with the switch off. */
-  if(_rk&&window.HearthriseGold&&window.HearthriseGold.buyUnlock){const _rp=window.HearthriseGold.buyUnlock(_roomOffer,_rk);if(_rp&&_rp.catch)_rp.catch(()=>{});}
-  /* "upgraded" was the word for a first BUILD too, which is the one moment the
-     player most wants told plainly that the room is now theirs. */
-  notify(lv===0?`${r.name} built — it's yours.`:`${r.name} upgraded to ${nx.nm||('Lv '+(lv+1))}`,'levelup');
-  refreshAll();
-  renderHouseSurfaces();
+  const _debitRoom=()=>{
+    for(const [k,v] of Object.entries(nx.cost)){if(k==='gold')goldSettle(-v,'house.upgrade_room',_rk);else removeItem(k,v);}
+    if(_bpId) removeItem(_bpId,1);
+  };
+  /* b431 — the local rung write is a PREDICTION, gated: under the rooms record
+     arm the server envelope is the only writer of the rung (G.rooms may be
+     stripped/undefined — writing it would throw), so it is skipped; pre-arm it
+     authors the rung locally exactly as before. */
+  const _advanceRoom=()=>{
+    if(clientMayWriteRecordField('rooms')){G.rooms=G.rooms||{};G.rooms[id]=lv+1;}
+    G.stats.roomsBuilt=(G.stats.roomsBuilt||0)+1;
+  };
+  const _announceRoom=()=>{
+    /* "upgraded" was the word for a first BUILD too, the moment the player most
+       wants told plainly the room is now theirs. */
+    notify(lv===0?`${r.name} built — it's yours.`:`${r.name} upgraded to ${nx.nm||('Lv '+(lv+1))}`,'levelup');
+    refreshAll();
+    renderHouseSurfaces();
+  };
+  const _serverOwnsRoom=!!(_rk&&window.HearthriseGold&&window.HearthriseGold.buyUnlock);
+  if(!_serverOwnsRoom){
+    /* CLIENT-AUTHORITATIVE (switch off / signed out): the local build IS the
+       build — no server confirmation is coming. Byte-for-byte the old path. */
+    _debitRoom(); _advanceRoom(); _announceRoom();
+    return true;
+  }
+  /* SERVER-OWNED: nothing is shown built until hr_unlock_buy confirms (b494
+     pattern). The confirm envelope writes gold + inventory ABSOLUTELY; a refusal
+     touched nothing local, so "nothing was spent" always holds. In-flight latch
+     per offer so a double-tap cannot fire two purchases. */
+  upgradeRoom._inflight=upgradeRoom._inflight||{};
+  if(upgradeRoom._inflight[_roomOffer]) return false;
+  upgradeRoom._inflight[_roomOffer]=true;
+  Promise.resolve(window.HearthriseGold.buyUnlock(_roomOffer,_rk)).then((v)=>{
+    delete upgradeRoom._inflight[_roomOffer];
+    const c=(typeof window.hrClassifyUnlock==='function')?window.hrClassifyUnlock(v)
+      :{ok:!!(v&&(v.outcome==='applied'||v.outcome==='replayed')),owned:false,reason:(v&&v.reason)||'network'};
+    if(c.ok){ _advanceRoom(); if(c.owned){ notify(`${r.name} is already yours.`,'info'); renderHouseSurfaces(); } else _announceRoom(); }
+    else { notify((typeof window.hrUnlockRefusalMessage==='function')?window.hrUnlockRefusalMessage(c,`the ${r.name}`):(`The realm couldn’t record the ${r.name} — nothing was spent.`),'kill'); renderHouseSurfaces(); }
+  }).catch(()=>{
+    delete upgradeRoom._inflight[_roomOffer];
+    notify(`The realm couldn’t record the ${r.name} right now — nothing was spent. Try again in a moment.`,'kill');
+  });
+  /* Accepted and dispatched; the true verdict is async. */
   return true;
 }
 
@@ -9264,13 +9322,42 @@ function buildPlot(id){
   if(!_isFarm && b.cost && b.cost.gold && typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
     notify('That build is unavailable right now','kill');return;
   }
-  for(const [k,v] of Object.entries(b.cost)){if(k==='gold'){if(_isFarm)goldSettle(-v,'farm.build_plot',_fk);else G.gold-=v;}else removeItem(k,v);}
-  G.plotBuildings.push({id,uid:Date.now()});
-  /* FIRE AND RECONCILE — never await. No-op with the switch off. */
-  if(_isFarm&&_fk&&window.HearthriseGold&&window.HearthriseGold.buyUnlock){const _fp=window.HearthriseGold.buyUnlock(_foffer,_fk);if(_fp&&_fp.catch)_fp.catch(()=>{});}
-  /* b227: same missing repaint as upgradeRoom — the Plot tab's "(1/2)" count
-     and its Max state never moved after a build either. Same class, same fix. */
-  notify(`Built ${b.name}`,'levelup');refreshAll();renderHouseSurfaces();
+  const _debitPlot=()=>{ for(const [k,v] of Object.entries(b.cost)){if(k==='gold'){if(_isFarm)goldSettle(-v,'farm.build_plot',_fk);else G.gold-=v;}else removeItem(k,v);} };
+  const _addPlot=()=>{ G.plotBuildings.push({id,uid:Date.now()}); };
+  /* b227: same missing repaint as upgradeRoom — the Plot tab's "(1/2)" count and
+     its Max state never moved after a build either. Same class, same fix. */
+  const _announcePlot=()=>{ notify(`Built ${b.name}`,'levelup');refreshAll();renderHouseSurfaces(); };
+  /* ── b500 — THE PLOT APPEARS ONLY WHEN THE SERVER RECORDS IT (same class as
+     the property tier and the room rung). `farm_plot` is a server unlock ladder
+     (`farm_land.<N>`); the old code pushed the plot into G.plotBuildings and
+     fired buyUnlock with a `.catch(()=>{})` that could not fire — so a server
+     refusal (a stale gold prediction, a property-tier gate the client tier
+     wrongly cleared) showed a plot the realm never recorded, gone on reload. Now
+     the plot is added ONLY on the server's ok. The OTHER plot buildings
+     (scarecrow) have no server ladder and stay client-authored. */
+  const _serverOwnsPlot=!!(_isFarm&&_fk&&window.HearthriseGold&&window.HearthriseGold.buyUnlock);
+  if(!_serverOwnsPlot){
+    /* CLIENT-AUTHORITATIVE (scarecrow, or farm with the switch off): the local
+       build IS the build — byte-for-byte the old path. */
+    _debitPlot(); _addPlot(); _announcePlot();
+    return;
+  }
+  /* SERVER-OWNED farm plot: nothing shown built until hr_unlock_buy confirms.
+     The confirm envelope writes gold + inventory ABSOLUTELY; a refusal touched
+     nothing local. In-flight latch per offer against a double-tap. */
+  buildPlot._inflight=buildPlot._inflight||{};
+  if(buildPlot._inflight[_foffer]) return;
+  buildPlot._inflight[_foffer]=true;
+  Promise.resolve(window.HearthriseGold.buyUnlock(_foffer,_fk)).then((v)=>{
+    delete buildPlot._inflight[_foffer];
+    const c=(typeof window.hrClassifyUnlock==='function')?window.hrClassifyUnlock(v)
+      :{ok:!!(v&&(v.outcome==='applied'||v.outcome==='replayed')),owned:false,reason:(v&&v.reason)||'network'};
+    if(c.ok){ _addPlot(); if(c.owned){ notify('That plot of land is already yours.','info'); renderHouseSurfaces(); } else _announcePlot(); }
+    else { notify((typeof window.hrUnlockRefusalMessage==='function')?window.hrUnlockRefusalMessage(c,'that plot of land'):'The realm couldn’t record that plot — nothing was spent.','kill'); renderHouseSurfaces(); }
+  }).catch(()=>{
+    delete buildPlot._inflight[_foffer];
+    notify('The realm couldn’t record that plot right now — nothing was spent. Try again in a moment.','kill');
+  });
 }
 function setTheme(id){if(!G.ownedThemes.includes(id))return;G.houseTheme=id;notify('Theme applied','info');renderHouse();}
 function buyTheme(id){
@@ -10927,6 +11014,62 @@ function goldIntentKey(){
 window.goldSettle = goldSettle;
 window.goldSettleCurrency = goldSettleCurrency;
 window.goldIntentKey = goldIntentKey;
+
+/* ── b500 — SERVER-CONFIRMED UNLOCK: the read side of a buyUnlock verdict. ────
+   KILLS the class behind player report #1 (the Forge): "optimistic client-apply
+   of a server-owned unlock, with the server rejection swallowed." Every
+   unlock_buy site used to advance a SERVER-OWNED capability locally (a property
+   tier, a room rung, a farm plot, a bank slot, a companion) and THEN fire
+   buyUnlock with a `.catch(function(){})` that could not even fire on a refusal
+   — buyUnlock RESOLVES with the verdict, it never rejects — so a server "no" (a
+   client/server drop-count divergence, an unmet prereq the client never checks,
+   a stale gold prediction) left the player looking at progress the realm never
+   recorded, gone on the next reload with the materials looking spent.
+
+   These two functions are the ONE place a verdict is read and the ONE place a
+   refusal is spoken, so every wired site advances ONLY on the server's ok and
+   says "no" in one honest voice (the b494 rank-claim pattern). Pure, and put on
+   window so features/homestead.js — an IIFE that cannot import — reads them at
+   call time exactly as it already reads goldIntentKey / HearthriseGold. */
+function hrClassifyUnlock(v){
+  var outcome=(v&&v.outcome)||'network';
+  /* `already_owned` is a RECEIPT, not a refusal: the rung is already paid and the
+     gold seam has reconciled this attempt, so the caller PROCEEDS to advance the
+     local capability rather than treating it as a failure (workers.js b463). */
+  var owned=!!(v&&outcome==='refused'&&v.reason==='already_owned');
+  var ok=owned||outcome==='applied'||outcome==='replayed';
+  return {
+    ok:ok, owned:owned, outcome:outcome,
+    reason:(v&&(v.reason||(v.body&&v.body.error)))||'network',
+    detail:(v&&v.body&&(v.body.detail||v.body))||{}
+  };
+}
+function hrUnlockRefusalMessage(c,thing){
+  thing=thing||'that upgrade';
+  var why=c&&c.reason, d=(c&&c.detail)||{};
+  var nameOf=function(id){ return (window.ITEMS&&window.ITEMS[id]&&window.ITEMS[id].n)||id; };
+  var shortOf=function(){ var n=Number(d.need),h=Number(d.have); return (isFinite(n)&&isFinite(h))?Math.max(1,n-h):null; };
+  if(why==='insufficient_item'){
+    var s=shortOf();
+    return 'The realm couldn’t record '+thing+' — you’re short '+(s!=null?s+' ':'')+(d.item_id?nameOf(d.item_id):'a material')+'. Nothing was spent.';
+  }
+  if(why==='insufficient_gold'){
+    var g=shortOf();
+    return 'The realm couldn’t record '+thing+' — you’re short '+(g!=null?g.toLocaleString()+' ':'')+'gold. Nothing was spent.';
+  }
+  if(why==='prereq_property_tier'){
+    var need=Number(d.need), HH=window.HearthriseHomestead;
+    var tname=(HH&&HH.TIERS&&isFinite(need)&&HH.TIERS[need]&&HH.TIERS[need].name)||'a higher property tier';
+    return 'The realm couldn’t record '+thing+' — build the '+tname+' first. Nothing was spent.';
+  }
+  if(why==='prereq_item') return 'The realm couldn’t record '+thing+' — you’re missing a required blueprint. Nothing was spent.';
+  if(why==='rung_skipped') return 'The realm couldn’t record '+thing+' — build the previous rung first. Nothing was spent.';
+  if(why==='unlock_daily_cap') return 'You’ve reached today’s limit for '+thing+' — try again tomorrow.';
+  if(why==='version_conflict') return 'The realm was busy for a moment — nothing was spent. Try that again.';
+  return 'The realm couldn’t record '+thing+' right now — nothing was spent. Try again in a moment.';
+}
+window.hrClassifyUnlock=hrClassifyUnlock;
+window.hrUnlockRefusalMessage=hrUnlockRefusalMessage;
 
 const VENDOR_RAW_RATE = 0.20;
 function vendorPrice(id){
@@ -18885,6 +19028,17 @@ window._buyCompanion = function(id, price){
   if(G.companions && G.companions.ownedIds.indexOf(id) >= 0){ if(typeof notify==='function') notify('Already owned','info'); return; }
   var _ck=(typeof goldIntentKey==='function')?goldIntentKey():null;
   goldSettle(-price,'companion.buy',_ck);
+  /* ── b500 SCAN — LEFT DELIBERATELY (self-healing prediction, NOT the stranded
+     class). unlockCompanion(id) pushes to G.companions.ownedIds, which
+     accrue.js `reconcileCompanions` REBUILDS ABSOLUTELY from the server's
+     owned-set on every envelope — so a refused purchase's optimistic grant is
+     healed DOWN to server truth, unlike the property tier whose reconcile only
+     heals UP (a permanent false floor). The optimistic shop grant is a
+     deliberate display PREDICTION (b420: "the purchase arms now"), pinned by the
+     `slice 4` and `b420` smoke tests. Converting it to a synchronous await would
+     fork the economy's predict-and-reconcile model and break that contract. The
+     correct fix for any residual "watch it vanish" gap is arming
+     reconcileCompanions, not this site. */
   if(typeof window.unlockCompanion === 'function') window.unlockCompanion(id);
   /* FIRE AND RECONCILE — never await. No-op with the switch off. */
   if(_ck&&window.HearthriseGold&&window.HearthriseGold.buyUnlock){var _cp=window.HearthriseGold.buyUnlock('companion.'+id,_ck);if(_cp&&_cp.catch)_cp.catch(function(){});}

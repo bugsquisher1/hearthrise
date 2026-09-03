@@ -1997,6 +1997,308 @@ const TESTS = [
     }
   }),
 
+  /* ════════════════════════════════════════════════════════════════════════
+     b500 — SERVER-CONFIRMED UNLOCK. Player report #1 (the Forge): the class is
+     "optimistic client-apply of a server-owned unlock, refusal swallowed." The
+     unlock_buy sites advanced a capability locally and fired buyUnlock with a
+     `.catch(function(){})` that COULD NOT fire (buyUnlock resolves, never
+     rejects), so a server "no" left the player looking at progress the realm
+     never recorded, gone on reload. These pin the fix on both the reported
+     surface (the property tier) and the class (the shared verdict reader + the
+     room rung). Each mutation-proof by named expect.
+     ════════════════════════════════════════════════════════════════════════ */
+  () => tryRun('UNLOCK-VERDICT-1 (b500): hrClassifyUnlock reads ok/owned/refused; the refusal is a sentence, not a code', () => {
+    const C = window.hrClassifyUnlock, M = window.hrUnlockRefusalMessage;
+    if (typeof C !== 'function' || typeof M !== 'function') {
+      throw new Error('hrClassifyUnlock / hrUnlockRefusalMessage are not published — the shared verdict reader '
+        + 'every unlock_buy site depends on is gone');
+    }
+    assert(C({ outcome: 'applied' }).ok === true, 'an applied verdict must be ok');
+    assert(C({ outcome: 'replayed' }).ok === true, 'a replayed verdict (idempotent re-land) must be ok');
+    assert(C({ outcome: 'refused', reason: 'insufficient_item' }).ok === false, 'a refusal must NOT be ok');
+    const owned = C({ outcome: 'refused', reason: 'already_owned' });
+    assert(owned.ok === true && owned.owned === true,
+      'already_owned is a RECEIPT (ok+owned), not a refusal — the rung is paid; got ' + JSON.stringify(owned));
+    assert(C({ outcome: 'rate-limited' }).ok === false, 'rate-limited must NOT be ok (nothing was recorded)');
+    assert(C(null).ok === false && C(undefined).ok === false, 'a missing verdict must fail closed, never ok');
+    // The messages: honest sentences, the shortfall stated, no raw code, and the
+    // load-bearing reassurance for a pre-write refusal.
+    const item = M({ reason: 'insufficient_item', detail: { item_id: 'wolf_pelt', have: 3, need: 4 } }, 'the upgrade');
+    assert(/short 1 Wolf Pelt/.test(item), 'insufficient_item must NAME the item and state the shortfall (need-have=1); got "' + item + '"');
+    assert(!/insufficient_item/.test(item), 'a refusal is a sentence to the player, not an error code; got "' + item + '"');
+    assert(/[Nn]othing was spent/.test(item), 'a pre-write refusal must reassure nothing was spent; got "' + item + '"');
+    const gold = M({ reason: 'insufficient_gold', detail: { have: 100, need: 2500 } }, 'the upgrade');
+    assert(/short 2,400 gold/.test(gold), 'insufficient_gold must state the gold shortfall (2,400); got "' + gold + '"');
+  }),
+
+  () => tryRunAsync('PROP-REFUSE-1 (b500): a server-REFUSED property upgrade does NOT advance the tier and speaks the refusal', async () => {
+    const H = window.HearthriseHomestead;
+    if (!H || typeof H.upgradeProperty !== 'function') return;
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origNotify = window.notify;
+    const propRec = window.HearthriseProperty;
+    const prevProp = (propRec && typeof propRec.__resetPropertyRecord === 'function') ? propRec.__resetPropertyRecord() : null;
+    const said = [];
+    let buyCalls = 0, sentOffer = null;
+    try {
+      window.G.homestead = { tier: 1 };                 // homestead → next is property.farmstead
+      window.G.gold = 500000;
+      window.G.inventory = Object.assign({}, window.G.inventory,
+        { oak_log: 500, copper_ore: 500, wolf_pelt: 4, cooked_shrimp: 500 });   // client SHOWS 4 pelts
+      stampBalanceLikeLoad(window.G);
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      /* SERVER-OWNED (switch on), and the server REFUSES insufficient_item — the
+         exact Forge divergence: the client shows 4 Wolf Pelt, the server settled 3. */
+      window.HearthriseGold = Object.assign({}, origGold, {
+        isGoldIntentEnabled: function () { return true; },
+        newIntentKey: function () { return 'k-prop-refuse'; },
+        buyUnlock: function (offer, key) {
+          buyCalls++; sentOffer = offer;
+          return Promise.resolve({ outcome: 'refused', reason: 'insufficient_item', verb: 'unlock_buy', key: key,
+            body: { ok: false, error: 'insufficient_item', detail: { item_id: 'wolf_pelt', have: 3, need: 4 } } });
+        },
+      });
+      const before = H.getTier();
+      H.upgradeProperty();
+      await new Promise(function (r) { setTimeout(r, 30); });
+      assert(sentOffer === 'property.farmstead', 'the upgrade must send offer property.farmstead; got ' + sentOffer);
+      assert(buyCalls === 1, 'the upgrade must attempt the purchase exactly once; got ' + buyCalls);
+      assert(H.getTier() === before, 'THE FORGE BUG: a server-REFUSED property upgrade advanced the tier from '
+        + before + ' to ' + H.getTier() + ' (optimistic ++ with the refusal swallowed)');
+      assert(window.G.homestead.tier === 1, 'the residue tier must stay 1 after a refusal; got ' + window.G.homestead.tier);
+      const refusal = said.filter(function (s) { return s.k === 'kill' && /Wolf Pelt/.test(s.m); });
+      assert(refusal.length >= 1, 'a refused upgrade must SURFACE the refusal naming the material; saw ' + JSON.stringify(said));
+      assert(!said.some(function (s) { return /built!/.test(s.m); }), 'a refused upgrade must NOT toast "built!"');
+    } finally {
+      window.HearthriseGold = origGold; window.notify = origNotify;
+      if (prevProp && propRec) { try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {} }
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('PROP-OK-1 (b500): a server-CONFIRMED property upgrade advances the tier EXACTLY once', async () => {
+    const H = window.HearthriseHomestead;
+    if (!H || typeof H.upgradeProperty !== 'function') return;
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origNotify = window.notify;
+    const propRec = window.HearthriseProperty;
+    const prevProp = (propRec && typeof propRec.__resetPropertyRecord === 'function') ? propRec.__resetPropertyRecord() : null;
+    const said = [];
+    let buyCalls = 0;
+    try {
+      window.G.homestead = { tier: 1 };                 // homestead → next is property.farmstead
+      window.G.gold = 500000;
+      window.G.inventory = Object.assign({}, window.G.inventory,
+        { oak_log: 500, copper_ore: 500, wolf_pelt: 20, cooked_shrimp: 500 });
+      stampBalanceLikeLoad(window.G);
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      window.HearthriseGold = Object.assign({}, origGold, {
+        isGoldIntentEnabled: function () { return true; },
+        newIntentKey: function () { return 'k-prop-ok'; },
+        buyUnlock: function (offer, key) {
+          buyCalls++;
+          return Promise.resolve({ outcome: 'applied', reason: null, verb: 'unlock_buy', key: key,
+            body: { ok: true, verb: 'unlock_buy' } });
+        },
+      });
+      const before = H.getTier();
+      H.upgradeProperty();
+      await new Promise(function (r) { setTimeout(r, 30); });
+      assert(buyCalls === 1, 'a confirmed upgrade must purchase exactly once; got ' + buyCalls);
+      assert(H.getTier() === before + 1, 'a confirmed upgrade must advance the tier by exactly one; from '
+        + before + ' to ' + H.getTier());
+      assert(window.G.homestead.tier === 2, 'the residue tier must be 2 after confirmation; got ' + window.G.homestead.tier);
+      assert(said.some(function (s) { return /built!/.test(s.m) && s.k === 'levelup'; }),
+        'a confirmed upgrade must celebrate the build; saw ' + JSON.stringify(said));
+    } finally {
+      window.HearthriseGold = origGold; window.notify = origNotify;
+      if (prevProp && propRec) { try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {} }
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('ROOM-REFUSE-1 (b500): a server-REFUSED room build shows NO room and speaks the refusal', async () => {
+    if (typeof window.upgradeRoom !== 'function' || !window.ROOMS || !window.ROOMS.forge
+        || !window.ROOMS.forge.levels || !window.ROOMS.forge.levels[0]) return;
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origNotify = window.notify;
+    const propRec = window.HearthriseProperty;
+    const prevProp = (propRec && typeof propRec.__resetPropertyRecord === 'function') ? propRec.__resetPropertyRecord() : null;
+    const said = [];
+    let sentOffer = null;
+    try {
+      window.G.homestead = { tier: 2 };                 // Farmstead — the Forge's own tier (client gate passes)
+      window.G.rooms = {};
+      window.G.stats = window.G.stats || {}; window.G.stats.roomsBuilt = 0;
+      window.G.gold = 500000;
+      const cost = window.ROOMS.forge.levels[0].cost || {};
+      const inv = {}; Object.keys(cost).forEach(function (k) { if (k !== 'gold') inv[k] = (cost[k] || 0) + 10; });
+      window.G.inventory = Object.assign({}, window.G.inventory, inv);
+      stampBalanceLikeLoad(window.G);
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      const costItem = Object.keys(cost).filter(function (k) { return k !== 'gold'; })[0] || 'copper_ore';
+      window.HearthriseGold = Object.assign({}, origGold, {
+        isGoldIntentEnabled: function () { return true; },
+        newIntentKey: function () { return 'k-room-refuse'; },
+        buyUnlock: function (offer, key) {
+          sentOffer = offer;
+          return Promise.resolve({ outcome: 'refused', reason: 'insufficient_item', verb: 'unlock_buy', key: key,
+            body: { ok: false, error: 'insufficient_item', detail: { item_id: costItem, have: 0, need: 1 } } });
+        },
+      });
+      window.upgradeRoom('forge');
+      await new Promise(function (r) { setTimeout(r, 30); });
+      assert(sentOffer === 'room.forge.1', 'the room build must send offer room.forge.1; got ' + sentOffer);
+      assert(!(window.G.rooms && window.G.rooms.forge > 0),
+        'THE CLASS: a server-REFUSED room was shown built (G.rooms.forge=' + (window.G.rooms && window.G.rooms.forge) + ')');
+      assert((window.G.stats.roomsBuilt || 0) === 0, 'a refused room build incremented roomsBuilt; got ' + window.G.stats.roomsBuilt);
+      const refusal = said.filter(function (s) { return s.k === 'kill' && /couldn.t record/i.test(s.m); });
+      assert(refusal.length >= 1, 'a refused room build must SURFACE the refusal; saw ' + JSON.stringify(said));
+      assert(!said.some(function (s) { return /it's yours|upgraded to/.test(s.m); }), 'a refused room build toasted a success');
+    } finally {
+      window.HearthriseGold = origGold; window.notify = origNotify;
+      if (prevProp && propRec) { try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {} }
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('FORGE-E2E-1 (b500): a REFUSED Farmstead leaves the Forge honestly BLOCKED ("build the Farmstead first"), not silently buildable', async () => {
+    // THE EXACT PLAYER-REPORT-#1 SCENARIO, end to end. Client shows 4 Wolf Pelt,
+    // the server settled 3, so the Farmstead upgrade is refused. The tier must
+    // stay 1 (fix #1) so the Forge — which needs the Farmstead (tier 2) — is
+    // gated CLIENT-SIDE with an honest message and never reaches the server.
+    const H = window.HearthriseHomestead;
+    if (!H || typeof H.upgradeProperty !== 'function' || typeof window.upgradeRoom !== 'function'
+        || !window.ROOMS || !window.ROOMS.forge) return;
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origNotify = window.notify;
+    const propRec = window.HearthriseProperty;
+    const prevProp = (propRec && typeof propRec.__resetPropertyRecord === 'function') ? propRec.__resetPropertyRecord() : null;
+    const said = [];
+    let forgeBuyCalls = 0;
+    try {
+      window.G.homestead = { tier: 1 };            // Homestead — one short of the Forge's Farmstead
+      window.G.rooms = {};
+      window.G.stats = window.G.stats || {}; window.G.stats.roomsBuilt = 0;
+      window.G.gold = 5000000;
+      window.G.inventory = Object.assign({}, window.G.inventory,
+        { oak_log: 500, copper_ore: 500, wolf_pelt: 4, cooked_shrimp: 500 });   // client SHOWS 4 pelts
+      stampBalanceLikeLoad(window.G);
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      window.HearthriseGold = Object.assign({}, origGold, {
+        isGoldIntentEnabled: function () { return true; },
+        newIntentKey: function () { return 'k-forge-e2e'; },
+        buyUnlock: function (offer, key) {
+          if (offer === 'room.forge.1') { forgeBuyCalls++; return Promise.resolve({ outcome: 'applied', body: { ok: true } }); }
+          // the Farmstead: refused, the server has only 3 Wolf Pelt
+          return Promise.resolve({ outcome: 'refused', reason: 'insufficient_item', verb: 'unlock_buy', key: key,
+            body: { ok: false, error: 'insufficient_item', detail: { item_id: 'wolf_pelt', have: 3, need: 4 } } });
+        },
+      });
+      H.upgradeProperty();                          // attempt the Farmstead → refused
+      await new Promise(function (r) { setTimeout(r, 30); });
+      assert(H.getTier() === 1, 'a REFUSED Farmstead must leave the player at tier 1 (not the optimistic 2); got ' + H.getTier());
+      const ret = window.upgradeRoom('forge');      // now try the Forge
+      await new Promise(function (r) { setTimeout(r, 20); });
+      assert(ret === false, 'the Forge must be refused at tier 1; got ' + ret);
+      assert(forgeBuyCalls === 0,
+        'THE FIX: the Forge must NOT reach the server at tier 1 — it is gated on the property tier client-side; '
+        + 'buyUnlock(room.forge.1) fired ' + forgeBuyCalls + ' time(s)');
+      assert(!(window.G.rooms && window.G.rooms.forge > 0), 'the Forge must not be shown built');
+      assert(said.some(function (s) { return /Farmstead/.test(s.m); }),
+        'the player must be told to build the Farmstead first — the honest block, not a silent fail; saw ' + JSON.stringify(said));
+    } finally {
+      window.HearthriseGold = origGold; window.notify = origNotify;
+      if (prevProp && propRec) { try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {} }
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('BANK-REFUSE-1 (b500): a server-REFUSED bank expansion does NOT advance goldBuys and says why', async () => {
+    if (typeof window.buyBankSpaceGold !== 'function') return;
+    /* goldBuys is a RESIDUE counter that reconcileBank carries UNTOUCHED (never
+       heals) — so an optimistic ++ on a refusal is STRANDED, exactly the class. */
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origNotify = window.notify;
+    const origSave = window.saveLocal, origTop = window.updateTopbar, origInv = window.renderInventory;
+    const said = [];
+    let sentOffer = null;
+    try {
+      window.G.bank = { goldBuys: 3 };
+      window.G.gold = 5000000;
+      stampBalanceLikeLoad(window.G);
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      window.saveLocal = function () {}; window.updateTopbar = function () {}; window.renderInventory = function () {};
+      window.HearthriseGold = Object.assign({}, origGold, {
+        isGoldIntentEnabled: function () { return true; },
+        newIntentKey: function () { return 'k-bank-refuse'; },
+        buyUnlock: function (offer, key) {
+          sentOffer = offer;
+          return Promise.resolve({ outcome: 'refused', reason: 'insufficient_gold', verb: 'unlock_buy', key: key,
+            body: { ok: false, error: 'insufficient_gold', detail: { have: 1, need: 999999999 } } });
+        },
+      });
+      const before = window.G.bank.goldBuys;
+      window.buyBankSpaceGold();
+      await new Promise(function (r) { setTimeout(r, 30); });
+      assert(sentOffer === 'bank.3', 'the bank buy must send offer bank.<owned> = bank.3; got ' + sentOffer);
+      assert(window.G.bank.goldBuys === before,
+        'THE CLASS: a server-REFUSED bank expansion advanced goldBuys from ' + before + ' to ' + window.G.bank.goldBuys
+        + ' (a stranded residue counter — bank space the realm never granted)');
+      const refusal = said.filter(function (s) { return s.k === 'kill' && /couldn.t record/i.test(s.m); });
+      assert(refusal.length >= 1, 'a refused bank expansion must SURFACE the refusal; saw ' + JSON.stringify(said));
+      assert(!said.some(function (s) { return /Bank expanded/.test(s.m); }), 'a refused bank expansion toasted "Bank expanded"');
+    } finally {
+      window.HearthriseGold = origGold; window.notify = origNotify;
+      window.saveLocal = origSave; window.updateTopbar = origTop; window.renderInventory = origInv;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('PLOT-REFUSE-1 (b500): a server-REFUSED farm plot is NOT added to plotBuildings and says why', async () => {
+    if (typeof window.buildPlot !== 'function' || !window.HearthriseHomestead) return;
+    /* plotBuildings is a RESIDUE array with NO reconcile — an optimistic push on
+       a refusal is STRANDED (a plot the realm never recorded). farm_plot cost is
+       {gold:100, normal_log:5} (PLOT_BUILDINGS), stocked below. */
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origNotify = window.notify;
+    const propRec = window.HearthriseProperty;
+    const prevProp = (propRec && typeof propRec.__resetPropertyRecord === 'function') ? propRec.__resetPropertyRecord() : null;
+    const said = [];
+    let sentOffer = null;
+    try {
+      window.G.homestead = { tier: 3 };          // plenty of plot headroom (client gate passes)
+      window.G.plotBuildings = [];
+      window.G.gold = 5000000;
+      window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 500, copper_ore: 500, oak_log: 500 });
+      stampBalanceLikeLoad(window.G);
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      window.HearthriseGold = Object.assign({}, origGold, {
+        isGoldIntentEnabled: function () { return true; },
+        newIntentKey: function () { return 'k-plot-refuse'; },
+        buyUnlock: function (offer, key) {
+          sentOffer = offer;
+          return Promise.resolve({ outcome: 'refused', reason: 'prereq_property_tier', verb: 'unlock_buy', key: key,
+            body: { ok: false, error: 'prereq_property_tier', detail: { have: 1, need: 3 } } });
+        },
+      });
+      const before = window.G.plotBuildings.length;
+      window.buildPlot('farm_plot');
+      await new Promise(function (r) { setTimeout(r, 30); });
+      assert(sentOffer === 'farm_land.1', 'the plot build must send offer farm_land.<count+1> = farm_land.1; got ' + sentOffer);
+      assert(window.G.plotBuildings.length === before,
+        'THE CLASS: a server-REFUSED farm plot was pushed to plotBuildings (' + before + ' -> '
+        + window.G.plotBuildings.length + ') — a stranded plot the realm never recorded');
+      const refusal = said.filter(function (s) { return s.k === 'kill' && /couldn.t record/i.test(s.m); });
+      assert(refusal.length >= 1, 'a refused plot build must SURFACE the refusal; saw ' + JSON.stringify(said));
+      assert(!said.some(function (s) { return /^Built /.test(s.m); }), 'a refused plot build toasted "Built ..."');
+    } finally {
+      window.HearthriseGold = origGold; window.notify = origNotify;
+      if (prevProp && propRec) { try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {} }
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('unlock_buy slices 2-3: worker/farm/bank offer ids cross, a price never does', () => {
     // THE BYTES. hire()/buildPlot('farm_plot')/buyBankSpaceGold() now debit gold
     // through the live `unlock_buy` verb. The load-bearing property is the same as

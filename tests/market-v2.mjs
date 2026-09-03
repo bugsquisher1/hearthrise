@@ -460,9 +460,17 @@ async function run(mutate) {
     const rows = await exec(sql, params);
     return (rows[0] && rows[0].r) || null;
   };
-  const versionOf = async (uid) => (await db.query(
-    'select version::text v from public.player_state where user_id=$1 and slot=0', [uid]
-  )).rows[0].v;
+  /* A missing player_state row here means a preceding leg's setup did not create
+     the character it thought it did — historically an opaque "reading 'v' of
+     undefined". Name it, so the next time creation semantics shift under this
+     file the failure points at the cause rather than at the reader. */
+  const versionOf = async (uid) => {
+    const row = (await db.query(
+      'select version::text v from public.player_state where user_id=$1 and slot=0', [uid]
+    )).rows[0];
+    if (!row) throw new Error(`versionOf: no player_state row for user_id=${uid} slot=0 — the setup that should have created this character did not`);
+    return row.v;
+  };
 
   const list = async (o) => call(
     'select public.hr_market_list($1::uuid,$2::int,$3::bigint,$4::uuid,$5::text,$6::bigint,$7::bigint) r',
@@ -900,12 +908,30 @@ async function run(mutate) {
   //    journal rows must carry `self_trade`.
   try {
     await stock();
-    /* SELLER needs a second character to buy their own slot-0 listing with. */
-    await db.exec(`do $$ begin
-      perform set_config('request.jwt.claim.sub', '${SELLER}', true);
-      perform public.hr_create_character(1);
-      perform set_config('request.jwt.claim.sub', '', true);
-    end $$;`);
+    /* SELLER needs a second character to buy their own slot-0 listing with.
+       Since 2026-09-08-hero-slot-buy.sql §8, hr_create_character GATES any slot
+       above 0 on account ownership of that hero slot — `if v_slot > 0 and not
+       (hr_hero_slots_of(v_uid) @> to_jsonb(v_slot)) then slot_not_owned`. A bare
+       hr_create_character(1) is therefore CORRECTLY refused now (that gate is
+       what closed the free-fifth-character mint), so this wash-trade setup must
+       first make SELLER OWN hero slot 1, exactly as a player who bought it would.
+       We plant the entitlement flag — the byte-identical player_progress row
+       hr_buy_hero_slot writes in §10 (slot 0, kind='flag', key='character_slot:1',
+       value 1, period_key='') — through the same owner-level DML seam this file
+       already uses to plant ledger/gold/state, then create the hero through the
+       real, now-gated RPC path. hr_hero_slots_of then returns [0,1] and the gate
+       passes. (Directly grandfathering a player_state row would also satisfy the
+       predicate, but going through the flag+RPC exercises the shipped path.) */
+    await db.query(
+      `insert into public.player_progress (user_id, slot, kind, key, value, period_key, state, updated_at)
+       values ($1, 0, 'flag', 'character_slot:1', 1, '', null, now())
+       on conflict (user_id, slot, kind, key, period_key) do nothing`, [SELLER]);
+    await db.exec(`select set_config('request.jwt.claim.sub', '${SELLER}', false)`);
+    const mkSlot1 = (await db.query('select public.hr_create_character(1) r')).rows[0].r;
+    await db.exec(`select set_config('request.jwt.claim.sub', '', false)`);
+    ok(mkSlot1 && mkSlot1.ok === true,
+      `M20: hr_create_character(1) refused after granting the hero-slot entitlement: `
+      + `${JSON.stringify(mkSlot1)} — the wash-trade setup cannot build the second character`);
     await db.query('update public.player_state set gold = 1000000 where user_id=$1 and slot=1', [SELLER]);
     const slot1Version = () => db.query(
       'select version::text v from public.player_state where user_id=$1 and slot=1', [SELLER])

@@ -2462,6 +2462,25 @@ const run = async () => {
       console.log('\nInventory-mint census — OK: every mint site classified; arm-gate fail-closed while un-backed lanes (raid, workers) exist.');
     }
 
+    /* ── The dungeon key-drop fold guard (settlement increment 1) ────────────
+       Proves the BoP dungeon keys are FOLDED into MONSTERS[*].drops at the frozen
+       former-KEY_DROPS rates, that the client-side killMonster key wrapper stays
+       deleted (a re-introduction double-drops live + diverges from away — an
+       AWAY-1 break), that all six keys classify serverOwnedItem (so the accrual
+       engine settles them and the inventory flip preserves them), and — on a
+       seed where the key actually drops — that resolveKill is byte-identical live
+       vs away for the key. Mutation-proven: remove a key / drift a rate / re-add
+       the wrapper / add a stray key each turns it red (tests/dungeon-key-drops.mjs). */
+    const { dungeonKeyDropsGuard } = await import('./dungeon-key-drops.mjs');
+    const keyDropProblems = await dungeonKeyDropsGuard();
+    if (keyDropProblems.length) {
+      console.log('\nDungeon key-drop fold — FAILED:');
+      for (const p of keyDropProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nDungeon key-drop fold — OK: keys settle server-side via monsters.js drops; no client mint; AWAY-1 parity holds.');
+    }
+
     /* ── The farm-record guard (blob-retire capstone, CRITICAL blocker) ──────
        Proves the CLIENT half of the farm reconstruction: under the capstone arm
        the client stops loading the save blob, so accrue.js reconcileFarm rebuilds

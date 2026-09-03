@@ -960,76 +960,29 @@
 })();
 
 // ────────────────────────────────────────────────────────────
-// BoP key drops from regular combat. Certain monster families have
-// a chance to drop the dungeon key matching their theme. Drop rates
-// favor grinding the matching mob → spending the key on the dungeon.
+// BoP dungeon-key drops — FOLDED INTO THE COMBAT DROP MODEL (increment 1,
+// docs/design/dungeon-settlement.md §3).
+//
+// This used to be a `setupKeyDrops` IIFE that wrapped window.killMonster and
+// minted the key CLIENT-SIDE only — never in MONSTERS[*].drops, never in
+// src/core/combat-sim.js, never settled by the accrual engine. Under
+// src/net/capstone.js BLOB_RETIRED that mint was lost on every reload (the
+// reported "keys vanish" P1), and keys never dropped on offline/away kills at
+// all (the P2 finding), because the away replay runs combat-sim.resolveKill —
+// which never saw the wrapper.
+//
+// The fold: each (monster → keyId, chance) below is now an ordinary BoP row in
+// that monster's `drops` array in src/data/monsters.js. combat-sim.resolveKill
+// rolls it through rollDropTable with the SAME seeded RNG on both live and away
+// kills, and the accrual engine settles it into player_inventory via hr_apply,
+// exactly like wolf_pelt and every other combat drop. Keys are in the server
+// item catalogue (hr_items) so hr_apply accepts them, and item-authority.js now
+// classifies them serverOwnedItem (combat-drop, not dungeon LOOT, so not in the
+// excluded set) — so they survive the inventory absolute-replace flip too.
+//
+// The mapping is FROZEN and asserted by tests/dungeon-key-drops.mjs, which fails
+// the build if a key drop is removed from monsters.js, a chance drifts, or a
+// client-side key mint is re-introduced here. Do NOT re-add a killMonster
+// wrapper: it would double the live drop (m.drops + wrapper) and diverge from
+// the away path (accrual never calls the wrapper) — an AWAY-1 parity break.
 // ────────────────────────────────────────────────────────────
-(function setupKeyDrops(){
-  var KEY_DROPS = {
-    // Crypt of Bones — undead family
-    weak_skeleton: { keyId: 'bone_key', chance: 0.025 },
-    skeleton:      { keyId: 'bone_key', chance: 0.04  },
-    zombie:        { keyId: 'bone_key', chance: 0.05  },
-    // Goblin Warcamp — goblinoid family
-    goblin:        { keyId: 'goblin_seal', chance: 0.02 },
-    hobgoblin:     { keyId: 'goblin_seal', chance: 0.04 },
-    goblin_brute:  { keyId: 'goblin_seal', chance: 0.06 },
-    goblin_warlord:{ keyId: 'goblin_seal', chance: 0.10 },
-    // Haunted Archive — magic users
-    dark_wizard:   { keyId: 'arcane_tome', chance: 0.04 },
-    warlock:       { keyId: 'arcane_tome', chance: 0.06 },
-    archmage:      { keyId: 'arcane_tome', chance: 0.10 },
-    // Obsidian Keep — heavy infantry / death-tier
-    death_knight:    { keyId: 'obsidian_sigil', chance: 0.05 },
-    warband_captain: { keyId: 'obsidian_sigil', chance: 0.07 },
-    // Voidbringer — void/plague tier
-    plague_swarm:   { keyId: 'void_fragment', chance: 0.05 },
-    void_parasite:  { keyId: 'void_fragment', chance: 0.10 },
-    // Ancient Wyrm — only the dragon itself
-    dragon:         { keyId: 'dragonsbane_key', chance: 0.30 },
-  };
-
-  function trySpawnKeyDrop(monsterId){
-    var entry = KEY_DROPS[monsterId];
-    if(!entry) return;
-    /* Through the SEEDED session stream (src/core/rng.js), not Math.random().
-       This roll hangs off window.killMonster, so it is part of what a kill
-       pays — and since the away unification an away kill comes through the
-       same wrapper. A bare Math.random() here made the kill path only
-       PARTIALLY replayable: the away-parity guard caught it immediately
-       (identical seeds, identical drop tables, different key counts), which
-       is exactly the kind of hidden nondeterminism that would have made a
-       server-side accrual dispute impossible to adjudicate.
-       Falls back to Math.random only if the core has not booted. */
-    var C = window.HearthriseCore;
-    var hit = (C && C.rng) ? C.rng.chance(entry.chance) : (Math.random() <= entry.chance);
-    if(!hit) return;
-    var keyItem = window.ITEMS && window.ITEMS[entry.keyId];
-    var name = keyItem ? keyItem.n : entry.keyId;
-    if(typeof window.addItem === 'function') window.addItem(entry.keyId, 1);
-    else window.G.inventory[entry.keyId] = (window.G.inventory[entry.keyId]||0) + 1;
-    if(typeof window.notify === 'function') window.notify('Rare drop: ' + name, 'levelup');
-  }
-
-  function hookKillMonster(){
-    if(typeof window.killMonster !== 'function'){ setTimeout(hookKillMonster, 100); return; }
-    if(window.__keyDropsHooked) return;
-    window.__keyDropsHooked = true;
-    var orig = window.killMonster;
-    window.killMonster = function(m){
-      var r = orig.apply(this, arguments);
-      // Identify the monster id (m may be object or id)
-      var mid = null;
-      if(typeof m === 'string') mid = m;
-      else if(m && m.id) mid = m.id;
-      else if(window.G && window.G.activeMonster) mid = window.G.activeMonster;
-      else if(m && window.MONSTERS){
-        for(var k in window.MONSTERS){ if(window.MONSTERS[k] === m){ mid = k; break; } }
-      }
-      if(mid) trySpawnKeyDrop(mid);
-      return r;
-    };
-    console.log('[dungeon-keys] hooked killMonster — ' + Object.keys(KEY_DROPS).length + ' mobs drop dungeon keys');
-  }
-  hookKillMonster();
-})();

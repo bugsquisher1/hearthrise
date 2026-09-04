@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 502 — 2026-09-04 (Your homestead tells the truth)
+
+- 🏠 **If your house showed a tier you had not actually bought, it now corrects itself.** Some accounts were showing the *Fieldworth Farmstead* as already owned when the realm had only recorded the *Hearthside Homestead*. That made the Forge look buildable, hid the upgrade you actually needed, and refused every click with a message telling you to build the property your screen said you owned. Your homestead now always shows what the realm actually recorded, and the upgrade you really need is offered again. **Nothing you paid for was lost.** *(Player report — thank you, Paione.)*
+- 🔨 **Rooms and workers unblock with it.** The Forge, Workshop, Library and your second worker all sit behind the property tier, so anyone stuck on this can progress again once the real upgrade is bought.
+- 🧾 Behind the scenes: the realm's record is now the single source of truth for your property in *both* directions, so a stale local value can neither promote nor demote you. We also fixed a related flaw that could have demoted a genuine property owner down to the starting camp.
+- 🔍 Also this build: our release checks were only running part of the test suite, so a whole set of server-side checks had been failing unseen for a week. That is fixed, and the full set now runs before anything ships.
+
 ## v0.9.2-beta build 501 — 2026-09-03 (The disappearing-rewards build: rooms build, combat keys stay)
 
 - 🏠 **Rooms you build actually get built.** Building a homestead room (the Forge and its siblings) used to take your resources and then leave the room unbuilt after a reload. It now waits for the realm to confirm the build before spending anything — and if the realm can't build it, it says why and keeps your resources instead of pocketing them. *(Player report — thank you.)*

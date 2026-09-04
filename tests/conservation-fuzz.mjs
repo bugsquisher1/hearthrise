@@ -68,9 +68,12 @@
 // ── FALSIFIABILITY (report this first, not the clean run) ───────────────
 // The always-null-probe class — an assertion that passes while asserting
 // nothing — has bitten this program six times. So the harness is required to
-// prove it can fail: `--selftest` applies each of EIGHT known conservation
-// violations as a textual patch to the real migration SQL, re-runs the fuzz,
-// and demands that every one of them is CAUGHT. A patch that does not change
+// prove it can fail: `--selftest` applies each of the SEVENTEEN known conservation
+// violations in INJECTIONS as a textual patch to the real migration SQL, re-runs
+// the fuzz, and demands that every one of them is CAUGHT. (The count is stated
+// here because it used to say EIGHT while the catalogue held sixteen — a number
+// in prose next to a list is a number that goes stale, so if you add one, move
+// this word.) A patch that does not change
 // the SQL text is itself a harness failure (that is how a "planted bug" quietly
 // becomes decoration). An injection that survives the fuzz is reported as
 // SLIPPED and exits non-zero.
@@ -142,6 +145,25 @@ const INJECTION_FILES = Object.freeze({
      full chain taught. Anything that patches hr_apply or hr_day_budget_used
      must name THIS file, which is the last writer of both. */
   'apply-live': '2026-08-15-gem-daily-budget.sql',
+  /* ⚠ AND `apply-live` IS NO LONGER THE LAST WRITER OF hr_apply — THIS KEY IS.
+     The warning above was right about the mechanism and went stale about the
+     file. hr_apply is create-or-replace'd by TEN files in the chain; on
+     2026-08-15 gem-daily-budget was the last of them, and by 2026-08-17
+     fight-carry, equip-release-codes, skill-row-upsert, enchant, streak-state and
+     workers had all landed after it (apply-order indices 69, 70, 71, 72, 82, 91).
+     From that day every plant anchored inside hr_apply and declared on
+     `apply-live` was applied to file 49 and then OVERWRITTEN six times before a
+     single op ran — the exact failure the note above calls "the single most
+     valuable thing the move to the full chain taught", repeated on the same key
+     that documents it. Measured 2026-09-04: budget_ignores_xp, budget_ignores_qty
+     and budget_qty_not_summed all SLIP against a clean chain; they had been
+     reading CAUGHT only because the clean run was red on PHASE 3 leg 6 and every
+     child exited non-zero on THAT.
+     hr_day_budget_used is a different function with a different last writer, and
+     it is still gem-daily-budget — which is why both keys exist. `boot()` now
+     refuses to run any plant whose anchor is re-written later in the apply order,
+     so this cannot go stale silently a third time; it goes HARNESS-red. */
+  'apply-last': '2026-08-25-workers.sql',
   'grant-hygiene': '2026-08-11-grant-hygiene.sql',
   /* ⚠ 2026-08-17, NOT 2026-08-11. The old file is DELETED; the six market
      injections below are re-anchored on the re-derivation, verbatim from
@@ -219,15 +241,20 @@ const INJECTIONS = {
 
   gold_double: {
     what: 'hr_apply credits a positive gold delta twice',
-    file: 'apply-live',
-    /* `gate:` — and it fires in a file three migrations DOWNSTREAM. 2026-08-16-
-       claim-reward.sql stands up a real character, claims a real reward and
-       asserts the gold that arrived; a doubling hr_apply pays 1,000 where it
-       expects 500 and the chain refuses. That is a stronger outcome than a
-       runtime catch and it is worth naming rather than treating as noise: the
-       behavioural self-checks these migrations carry are a commit gate for
-       every LATER change to the function they exercise. */
-    gate: /the first claim paid 1000 gold, expected 500/,
+    file: 'apply-last',
+    /* THE `gate:` IS GONE, AND THE REASON IS THE WHOLE `apply-last` STORY.
+       It used to read /the first claim paid 1000 gold, expected 500/ and fire in
+       2026-08-16-claim-reward.sql, whose self-check claims a real reward and
+       asserts the gold that arrived — a commit gate, which is a stronger outcome
+       than a runtime catch. But that only worked because the plant was going into
+       gem-daily-budget (apply-order 51), UPSTREAM of claim-reward — and the same
+       fact made it a plant in a body that six later files overwrite, so it never
+       tested the hr_apply the fuzz actually runs against. Planted where it
+       belongs (93, the last writer) the gate cannot fire, and the defect is
+       caught by the thing that should catch it: the conservation identity, at
+       2,000,000 gold of drift over 400 ops. A gate that can no longer fire is a
+       gate that quietly downgrades a catch to a harness error — budget_kind_scoped
+       says so below, and this is that note applied to itself. */
     patches: [[
       `      v_new_gold := v_st.gold + v_n;`,
       `      v_new_gold := v_st.gold + v_n + greatest(v_n, 0);  -- INJECTED gold_double`,
@@ -291,7 +318,7 @@ const INJECTIONS = {
 
   replay_applies_twice: {
     what: 'hr_apply loses idempotency — a replayed intent id applies its delta a second time',
-    file: 'apply-live',
+    file: 'apply-last',
     // NOTE the shape. The obvious plant — make the player_intents lookup miss —
     // also breaks the S6 intent-collision branch, and apply-engine's own
     // self-verification block refuses to install a function without it. The
@@ -322,7 +349,7 @@ const INJECTIONS = {
 
   equip_dupe: {
     what: 'unequip credits the bank without clearing the equipment row — the item is worn AND held',
-    file: 'apply-live',
+    file: 'apply-last',
     patches: [[
       `            delete from public.player_equipment
              where user_id = v_uid and slot = v_slot and equip_slot = k;
@@ -336,7 +363,7 @@ const INJECTIONS = {
 
   reject_becomes_ok: {
     what: 'a rejection stops being a rejection — hr_apply answers ok:true to unknown_delta_key',
-    file: 'apply-live',
+    file: 'apply-last',
     // The only injection here that moves NO value. It exists to prove the
     // want/got verdict assertion is real: without it the fuzz would book "the
     // op succeeded and legitimately changed nothing", stay green, and a
@@ -380,8 +407,12 @@ const INJECTIONS = {
 
   budget_not_enforced: {
     what: 'hr_apply computes the daily-budget check and then ignores the answer',
-    file: 'apply-live',
-    gate: /daily budget|daily_budget/i,
+    file: 'apply-last',
+    /* No `gate:` any more, for gold_double's reason: it read /daily budget/i and
+       fired on gem-daily-budget's own §10 mint-and-read-back check, which is
+       upstream of the six files that re-create hr_apply. Planted in the last
+       writer it reaches the fuzz, and PHASE 3 leg 5 answers it directly —
+       "crossing the XP ceiling answered ok:true — it must be daily_budget". */
     patches: [[
       `      perform public.hr_reject('daily_budget', v_bud);`,
       `      perform 1;  -- INJECTED budget_not_enforced: the ceiling is computed and discarded`,
@@ -425,7 +456,7 @@ const INJECTIONS = {
     what: 'hr_apply never stamps xp_in — XP is minted outside the daily ceiling',
     // Invisible to both migration probes: §8 and §6(g) exercise gold only.
     // PHASE 3 leg 5 is the only thing that can see it.
-    file: 'apply-live',
+    file: 'apply-last',
     patches: [[
       `    if jsonb_typeof(p_delta->'xp') = 'object' then
       select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
@@ -437,13 +468,39 @@ const INJECTIONS = {
 
   budget_ignores_qty: {
     what: 'hr_apply never stamps qty_in — item units are minted outside the daily ceiling',
-    file: 'apply-live',
+    file: 'apply-last',
     patches: [[
       `    if jsonb_typeof(p_delta->'items') = 'object' then
       select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
         into v_qty_in from jsonb_each_text(p_delta->'items');
     end if;`,
       `    -- INJECTED budget_ignores_qty: v_qty_in stays 0`,
+    ]],
+  },
+
+  budget_qty_not_summed: {
+    what: 'hr_apply stamps only the LARGEST item delta as qty_in — a mint split across ids is '
+      + 'almost entirely free',
+    /* THE DEFECT PHASE 3 LEG 6 EXISTS FOR, AND IT HAD NO PLANT UNTIL NOW. Leg 6
+       asserted "the qty ceiling sums across item ids" for three weeks with
+       nothing in this catalogue able to make that assertion fail — which is the
+       always-null-probe class the header opens with, arrived at from the other
+       direction: not an assertion that passes while asserting nothing, but an
+       assertion nobody had ever seen fail. sum -> max is the realistic form (one
+       aggregate, one word) and it is invisible to every other leg: a single-id
+       mint stamps identically, so leg 2's 500-unit craft still reads 500.
+       Caught by leg 6(a) at seven units and again by 6(b) at the ceiling. */
+    file: 'apply-last',
+    patches: [[
+      `    if jsonb_typeof(p_delta->'items') = 'object' then
+      select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
+        into v_qty_in from jsonb_each_text(p_delta->'items');
+    end if;`,
+      `    if jsonb_typeof(p_delta->'items') = 'object' then
+      -- INJECTED budget_qty_not_summed: max, not sum
+      select coalesce(max(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
+        into v_qty_in from jsonb_each_text(p_delta->'items');
+    end if;`,
     ]],
   },
 
@@ -516,6 +573,56 @@ async function boot(injectionId) {
         + 'not in INJECTION_FILES. Add it there (and check it is in the apply order) rather than\n'
         + '  letting the plant be applied to nothing.\n');
       process.exit(2);
+    }
+    /* ⚠ IS THIS PLANT STILL STANDING WHEN THE FUZZ RUNS? A migration chain is a
+       sequence of `create or replace`, so patching the file that USED to be the
+       last writer of a function plants a defect that a later file quietly
+       replaces with the clean body — the fuzz then runs against clean SQL and
+       reports whatever it would have reported anyway. That is the "planted bug
+       that was never planted" class the INJECTION_FILES header calls the single
+       most valuable thing the move to the full chain taught, and it came back
+       anyway: on 2026-08-17 fight-carry started re-creating hr_apply after
+       gem-daily-budget, and six of the plants declared on `apply-live` stopped
+       being installed. Nobody could see it, because the clean run was red for an
+       unrelated reason (PHASE 3 leg 6) and every child therefore exited non-zero.
+
+       So the apply order is CHECKED, not trusted: if any file AFTER the declared
+       one carries the same anchor text, the plant is overwritten and this exits 2
+       (HARNESS) naming the file to move it to. It is a text check over the same
+       manifest bootReplay applies, so it costs one read of each later file and it
+       cannot go stale — the next time a migration re-creates a patched function,
+       this says so on the first run instead of in three weeks' time.
+
+       A false positive is possible in principle (the same text in an unrelated
+       later object) and is DELIBERATELY still fatal: identical SQL text appearing
+       later in the chain is worth one human look, and the fix — declare the file
+       that actually wins — is one line. */
+    {
+      const { chainFiles } = await import('./schema-replay.mjs');
+      const { readFile } = await import('node:fs/promises');
+      const chain = await chainFiles();
+      const at = chain.findIndex(([n]) => n === file);
+      if (at < 0) {
+        process.stderr.write(`HARNESS: injection "${injectionId}" names ${file}, which is not in the `
+          + 'apply order (tests/schema-apply-order.json). A plant in a file the chain never applies\n'
+          + '  is not a plant.\n');
+        process.exit(2);
+      }
+      const anchors = inj.patches.map(([a]) => a);
+      const overwritten = [];
+      for (let i = at + 1; i < chain.length; i++) {
+        const text = (await readFile(chain[i][1], 'utf8')).split('\r\n').join('\n');
+        if (anchors.some((a) => text.includes(a))) overwritten.push(chain[i][0]);
+      }
+      if (overwritten.length) {
+        process.stderr.write(`HARNESS: injection "${injectionId}" is planted in ${file}, but `
+          + `${overwritten.length} later file(s) in the apply order carry the same anchor and will\n`
+          + `  overwrite it: ${overwritten.join(', ')}\n`
+          + `  The fuzz would run against a CLEAN body and prove nothing. Declare the LAST writer\n`
+          + `  (${overwritten[overwritten.length - 1]}) instead — add it to INJECTION_FILES if it is\n`
+          + '  not there — and re-check what catches the plant once it actually reaches the run.\n');
+        process.exit(2);
+      }
     }
     patches = new Map([[file, inj.patches]]);
   }
@@ -735,6 +842,22 @@ async function runFuzz({ seed, ops, injection }) {
   const activities = await q("select kind, activity_id from hr_activities where req_lv is null order by kind, activity_id limit 200");
   const cfg = (await q('select house_tax_bp, listing_ttl_h, max_listings, max_qty from hr_market_config'))[0];
   const TAX_BP = Number(cfg.house_tax_bp);
+  /* THE HOUSE TAX ROUNDS UP, AND THE MODEL MUST ROUND THE SAME WAY.
+     2026-08-17-market-v2.sql section 7(5) computes
+       v_tax := ceil(v_gross_n * house_tax_bp::numeric / 10000)::bigint
+     - the Designer's ruling on Security condition 12 (64e8a99c, 2026-08-15): trunc
+     let a whole-number split to ZERO tax (sixty 1-gold buys paid 0), and rounding
+     in the SINK's favour is what an anti-inflation drain is for. This model kept
+     Math.trunc from 0f362815 (2026-08-11) and was never moved with it, so every
+     buy whose gross*bp did not divide 10000 exactly booked one gold less tax than
+     the server took: measured live here as `house tax: db 10, expected 9` on a
+     650-gold buy (650*150/10000 = 9.75). The SERVER is right; the model was wrong.
+     Keep these two expressions in step - a conservation model that rounds
+     differently from the thing it audits reports arithmetic as theft. */
+  /* ONE EXPRESSION, THREE CALL SITES. The drift above happened because the
+     same arithmetic was typed out three times and only the copies somebody
+     was looking at got moved. A function cannot drift from itself. */
+  const houseTax = (gross) => Math.ceil((gross * TAX_BP) / 10000);
   const MAX_LISTINGS = Number(cfg.max_listings);
 
   // A SMALL working set — a fuzz that spreads 400 items over 400 ops never
@@ -766,6 +889,29 @@ async function runFuzz({ seed, ops, injection }) {
       + 'on conflict (id) do update set display_name = excluded.display_name', [uid, `Fuzzer${u}`]);
     await asUser(uid);
     for (let s = 0; s < SLOTS; s++) {
+      /* SLOT 0 IS FREE; EVERY SLOT ABOVE IT MUST BE OWNED. Since
+         2026-09-08-hero-slot-buy.sql section 8, hr_create_character gates any slot > 0
+         on account-level ownership - `if v_slot > 0 and not
+         (hr_hero_slots_of(v_uid) @> to_jsonb(v_slot)) then slot_not_owned` - which is
+         the gate that closed the free-extra-character mint. A bare
+         hr_create_character(1) is therefore CORRECTLY refused, and this harness
+         (default --slots=2) died in setup with slot_not_owned before op #0: a stale
+         fixture wearing the costume of a conservation finding.
+         So OWN the slot first, the way a player does: plant the byte-identical
+         player_progress row hr_buy_hero_slot writes in its section 10 (slot 0,
+         kind='flag', key='character_slot:<n>', period_key='', value 1) through the
+         owner-level DML seam this file already uses for fixtures, then create through
+         the real, now-gated RPC. Same fix and same reasoning as tests/market-v2.mjs
+         (c7ca8261). Planting a flag row mints NO value - player_progress flags are
+         outside the gold/item/market ledger this fuzz conserves - so the OPENING
+         balance read below is unchanged by it. */
+      if (s > 0) {
+        await q(
+          `insert into public.player_progress (user_id, slot, kind, key, value, period_key, state, updated_at)
+           values ($1, 0, 'flag', $2, 1, '', null, now())
+           on conflict (user_id, slot, kind, key, period_key) do nothing`,
+          [uid, `character_slot:${s}`]);
+      }
       const r = await rpc('select hr_create_character($1) r', [s]);
       if (r.ok !== true) { process.stderr.write(`HARNESS: hr_create_character failed: ${JSON.stringify(r)}\n`); process.exit(2); }
       const key = `${uid}:${s}`;
@@ -1156,7 +1302,7 @@ async function runFuzz({ seed, ops, injection }) {
         const [lid, l] = rng.pick(others);
         const n = rng() < 0.4 ? l.qty : rng.range(1, l.qty);
         const gross = n * l.ask;
-        const tax = Math.trunc((gross * TAX_BP) / 10000);
+        const tax = houseTax(gross);
         const net = gross - tax;
         const seller = books.char(l.key);
         const r = await mBuy(c, lid, n);
@@ -1352,7 +1498,7 @@ async function runFuzz({ seed, ops, injection }) {
         want = 'insufficient_gold';
         if (r.ok === true) {
           // Should be unreachable; model it anyway so the run continues honestly.
-          const gross = ask; const tax = Math.trunc((gross * TAX_BP) / 10000);
+          const gross = ask; const tax = houseTax(gross);
           c.gold -= gross; c.version += 1; seller.gold += gross - tax; seller.version += 1;
           books.tax += tax; books.invAdd(c, id, 1); books.listings.delete(lr.listed.listing_id);
         }
@@ -1442,8 +1588,8 @@ async function runFuzz({ seed, ops, injection }) {
   // ── PHASE 3 — the ledger-derived daily budget (C5/X3) ─────────────────
   // Runs LAST because it deliberately saturates a character's gold ceiling,
   // which is a state nothing after it should have to reason about.
-  const budget = await budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS, TAX_BP,
-    { list: mList, buy: mBuy });
+  const budget = await budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
+    stackables, houseTax, { list: mList, buy: mBuy });
 
   const final = await reconcile(db, books, { i: ops, op: 'final' });
   await db.close();
@@ -1475,7 +1621,7 @@ async function runFuzz({ seed, ops, injection }) {
 // makes two simultaneous collects impossible is EXERCISED here and never
 // CONTENDED. See the header's "WHAT THIS DOES NOT TEST".
 // ════════════════════════════════════════════════════════════════════════
-async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS, TAX_BP, market) {
+async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS, POOL, houseTax, market) {
   const fail = (msg, extra) => {
     throw Object.assign(new Error('daily-budget violation'),
       { detail: `DAILY BUDGET: ${msg}${extra ? `\n    ${extra}` : ''}` });
@@ -1485,6 +1631,41 @@ async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
   for (const d of ['gold', 'xp', 'qty']) {
     if (!(Number(LIM[d]) > 0)) fail(`hr_day_budget_limits() has no positive ${d} limit`, JSON.stringify(LIM));
   }
+
+  /* THE PER-CALL CLAMPS, READ OUT OF THE BODY THAT ENFORCES THEM.
+     Legs 5 and 6 have to compose calls that are legal PER CALL and illegal PER
+     DAY, which is only constructible if they know both numbers — and a copy of
+     a number in a test is a drift generator. 2026-08-11-daily-budget.sql §3 says
+     exactly this about its own ceilings ("a second copy of a number is a drift
+     generator, which is the failure this whole program is organised around"),
+     and leg 6 is the proof: it carried a copy of the SHAPE of the b355 numbers
+     and went stale the moment b356 moved one of them.
+     pg_get_functiondef returns the plpgsql source of the hr_apply THIS CHAIN
+     ACTUALLY BUILT — the last of the ten files that create-or-replace it — so a
+     retune of either constant moves these legs with it, in the same run. */
+  const applyDefs = await q(
+    "select p.proname::text nm, pg_get_functiondef(p.oid) def "
+    + "from pg_proc p join pg_namespace n on n.oid = p.pronamespace "
+    + "where n.nspname = 'public' and p.prokind = 'f' and p.proname like 'hr\\_apply%'");
+  const clampOf = (name, re) => {
+    const seen = new Map();
+    for (const d of applyDefs) {
+      const m = re.exec(d.def);
+      if (m) seen.set(m[1], (seen.get(m[1]) || []).concat(d.nm));
+    }
+    if (seen.size === 0) {
+      fail(`no hr_apply* body declares ${name} — the per-call clamp cannot be read, so legs 5 and 6 `
+        + 'cannot know what a legal call is. Do not guess it: find where the constant went.');
+    }
+    if (seen.size > 1) {
+      fail(`hr_apply* bodies disagree about ${name}: `
+        + [...seen].map(([v, ns]) => `${v} in ${ns.join('/')}`).join(', '));
+    }
+    return Number([...seen.keys()][0]);
+  };
+  const MAX_ITEM_DELTA = clampOf('c_max_item_delta', /c_max_item_delta\s+constant\s+bigint\s*:=\s*(\d+)/);
+  const MAX_ITEM_KINDS = clampOf('c_max_item_kinds', /c_max_item_kinds\s+constant\s+int\s*:=\s*(\d+)/);
+  const MAX_XP_DELTA   = clampOf('c_max_xp_delta',   /c_max_xp_delta\s+constant\s+bigint\s*:=\s*(\d+)/);
 
   // A character of its own. The ones the op loop used carry whatever usage the
   // seed happened to produce, and an assertion of the form "used went up by
@@ -1644,7 +1825,7 @@ async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
     const before = await used();
     const br = await market.buy(b, lr.listed.listing_id, 5);
     if (br.ok !== true) fail(`the market leg could not buy (${br.error})`, JSON.stringify(br));
-    const gross = 500; const tax = Math.trunc((gross * TAX_BP) / 10000);
+    const gross = 500; const tax = houseTax(gross);
     b.gold -= gross; b.version += 1; c.gold += gross - tax; c.version += 1;
     books.tax += tax; books.invAdd(b, id, 5); books.listings.delete(lr.listed.listing_id);
 
@@ -1657,11 +1838,15 @@ async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
   });
 
   // ── 5. THE XP CEILING CATCHES WHAT NO PER-CALL CLAMP CAN ────────────────
-  // c_max_xp_delta is 12,000,000 and the day ceiling is 40,000,000, so four
-  // legal calls walk straight past the per-call clamp and only the DAY budget
-  // stops the fifth. That gap is the entire reason this control exists.
+  // A sequence of individually-legal calls walks straight past the per-call
+  // clamp, and only the DAY budget stops the last one. That gap is the entire
+  // reason this control exists — so the call size is derived from the clamp the
+  // deployed body declares rather than typed. (The hard-coded "12,000,000 /
+  // 40,000,000, so four calls" that stood here was the b355 ceiling; b356 moved
+  // the day budget to 120,000,000 and the prose stopped describing the run,
+  // which is one line of drift away from what happened to leg 6 below.)
   await step('the XP ceiling stops a sequence of individually-legal calls', async () => {
-    const perCall = 10000000;
+    const perCall = Math.floor(MAX_XP_DELTA * 5 / 6);   // legal per call, by construction
     const limXp = Number(LIM.xp);
     let n = 0; let last = null;
     for (let k = 0; k < 20; k++) {
@@ -1700,21 +1885,102 @@ async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
   });
 
   // ── 6. THE QTY CEILING IS A SUM ACROSS ITEM IDS ─────────────────────────
-  // c_max_item_delta is per-item, so no per-call clamp can express "a million
-  // units in total". Two ids, each individually legal, together over the day
-  // ceiling.
+  // Two halves, because they fail for different reasons and only one of them
+  // depends on the size of the ceiling:
+  //   (a) a multi-id call moves the day's usage by the SUM of its entries;
+  //   (b) the ceiling is compared against that sum, so a mint split across ids
+  //       is refused exactly where a single-id mint of the same size would be.
+  //
+  // ⚠ (b) HAD BEEN RED SINCE 2026-08-16 AND NOTHING SAID SO. It used to send two
+  //   ids each carrying half the day's remaining room, which was legal when the
+  //   leg was written (835b2a43, 2026-08-11: c_day_qty_budget was 1,000,000, so a
+  //   half was ~500,000 — comfortably inside the 1,000,000 per-item-per-call
+  //   clamp). b356 (2026-08-16-day-budget-artisan.sql §1) raised c_day_qty_budget
+  //   to 70,000,000 and deliberately HELD c_max_item_delta at 1,000,000 (its own
+  //   §0 refuses to install if that constant has moved). From that commit a half
+  //   was ~35,000,000, and hr_apply's per-item clamp refused the call ~640 lines
+  //   before the budget check ran: `item_clamp` where the leg demanded
+  //   `daily_budget`. THE SERVER WAS RIGHT ON EVERY ONE OF THOSE RUNS — the
+  //   construction was stale — but the failure read as a conservation violation
+  //   and it took the whole `--selftest` down with it: with the clean run RED,
+  //   five injections were graded CAUGHT on this leg's message rather than on
+  //   their own defect (see the selftest driver's false-catch check).
+  //
+  // So the two clamps are READ OUT OF THE DEPLOYED hr_apply BODY rather than
+  // copied here, the breach is composed from as many ids as the ceiling now
+  // needs, and if a retune ever puts the ceiling out of reach of one legal call
+  // this leg says so IN WORDS instead of quietly proving something smaller.
   await step('the qty ceiling sums across item ids', async () => {
     const limQty = Number(LIM.qty);
+
+    // (a) USAGE IS THE SUM OF THE CALL, not one of its entries. Seven units, so
+    //     it is true at any ceiling and cannot go stale the way (b) did.
+    {
+      const a = ITEMS[2]; const b = ITEMS[3];
+      if (!a || !b || a === b) fail(`the working set did not yield two distinct ids (${a}, ${b})`);
+      const before = await used();
+      const r = await apply({ items: { [a]: 3, [b]: 4 }, journal: jr('gather', 'budget_qty_sum') });
+      if (r.ok !== true) fail('a two-id, seven-unit mint was refused', JSON.stringify(r));
+      books.invAdd(c, a, 3); books.mint(a, 3);
+      books.invAdd(c, b, 4); books.mint(b, 4);
+      const after = await used();
+      if (after.qty - before.qty !== 7) {
+        fail(`3 units of one id plus 4 of another moved the qty budget by ${after.qty - before.qty}, `
+          + 'not 7 — the day usage does not SUM across item ids, so splitting a mint over ids is '
+          + 'partly free', `${JSON.stringify(before)} → ${JSON.stringify(after)}`);
+      }
+    }
+
+    // (b) …AND THE CEILING IS COMPARED AGAINST THAT SUM.
     const u = await used();
     const room = limQty - u.qty;
     if (room < 4) { if (VERBOSE) process.stderr.write('  budget: no qty room — leg skipped\n'); return; }
-    const a = ITEMS[2]; const b = ITEMS[3];
-    const half = Math.floor((room + 2) / 2);
-    const r = await apply({ items: { [a]: half, [b]: half }, journal: jr('gather', 'budget_qty_over') });
-    if (r.error !== 'daily_budget' || r.dim !== 'qty') {
-      fail(`${half}+${half} units against ${room} of room answered "${r.error ?? `ok:${r.ok}`}" (dim ${r.dim}) `
-        + '— the qty budget must sum across item ids', JSON.stringify(r));
+    const need = room + 1;                       // exactly one unit past the ceiling
+    const kinds = Math.max(2, Math.ceil(need / MAX_ITEM_DELTA));
+    if (kinds > MAX_ITEM_KINDS) {
+      fail(`no single legal call can exceed a qty ceiling of ${limQty}: it would need ${kinds} item `
+        + `ids carrying at most ${MAX_ITEM_DELTA} units each, and hr_apply refuses more than `
+        + `${MAX_ITEM_KINDS} item kinds per call. The day ceiling has been raised past the reach of `
+        + 'the per-call clamps, so this leg can no longer construct the breach in one call — '
+        + 'saturate the day with legal calls first, or re-size the ceiling. This is the SAME shape '
+        + 'of staleness b356 introduced; it is failing loudly on purpose rather than proving less.');
     }
+    if (kinds > POOL.length) {
+      fail(`the breach needs ${kinds} distinct item ids and the generated catalogue yielded `
+        + `${POOL.length} stackable ones`);
+    }
+    const ids = POOL.slice(0, kinds);
+    const per = Math.ceil(need / kinds);
+    const items = {};
+    let placed = 0;
+    ids.forEach((id, n) => {
+      const v = n === kinds - 1 ? need - placed : per;
+      items[id] = v; placed += v;
+    });
+    for (const [id, v] of Object.entries(items)) {
+      if (!(v >= 1 && v <= MAX_ITEM_DELTA)) {
+        fail(`the breach put ${v} units on ${id}, outside 1..${MAX_ITEM_DELTA} — the split is wrong, `
+          + 'not the server');
+      }
+    }
+    if (placed !== need) fail(`the breach sums to ${placed}, not the ${need} it must`);
+
+    const r = await apply({ items, journal: jr('gather', 'budget_qty_over') });
+    if (r.error === 'item_clamp') {
+      fail(`${kinds} ids carrying at most ${per} units each — every one inside the ${MAX_ITEM_DELTA} `
+        + 'per-item clamp read out of the deployed hr_apply body — was refused with item_clamp. '
+        + 'The clamp the body declares is not the clamp it enforces', JSON.stringify(r));
+    }
+    if (r.error !== 'daily_budget' || r.dim !== 'qty') {
+      fail(`${placed} units spread over ${kinds} ids against ${room} of room answered `
+        + `"${r.error ?? `ok:${r.ok}`}" (dim ${r.dim}) — the qty budget must sum across item ids`,
+        JSON.stringify(r));
+    }
+    if (Number(r.used) !== u.qty) {
+      fail(`the breach detail says used=${r.used} but the ledger sum is ${u.qty} — the detail is not `
+        + 'the sum, so it is a counter', JSON.stringify(r));
+    }
+    if (Number(r.limit) !== limQty) fail(`the breach reported limit=${r.limit}, not ${limQty}`, JSON.stringify(r));
     const after = await used();
     if (after.qty !== u.qty) fail(`a rejected item mint still moved the budget: ${u.qty} → ${after.qty}`);
   });
@@ -1946,6 +2212,29 @@ if (SELFTEST) {
   if (!cleanOk) process.stdout.write(indent(cleanChild.out));
   const clean = { ok: cleanOk, detail: cleanChild.out };
 
+  /* ⚠ A RED CLEAN RUN INVALIDATES EVERY INJECTION RESULT, AND THAT MUST BE SAID
+     OUT LOUD. A `--inject` child is graded on its EXIT CODE: non-zero means "the
+     fuzz reported a violation", which is evidence about the PLANT only if the
+     same fuzz reports nothing WITHOUT it. From 2026-08-16 to 2026-09-04 the clean
+     run was red on PHASE 3 leg 6 (a stale construction — see there) and this table
+     printed "16/16 caught" underneath it: five of those sixteen exited non-zero on
+     leg 6's message, byte-for-byte the clean run's, and would have done so with no
+     plant at all. The overall exit was 1, so nothing shipped on a false green — but
+     the line that says THE HARNESS WORKS was wrong, which is the renown-faucet
+     lesson ("eight of eleven mutations demonstrated only that the apply threw")
+     arriving in this file by a different route.
+     So: while the clean run is red every injection is UNGRADED, and the ones whose
+     failure matches the clean failure are named as the reason it is unreadable. */
+  const violationOf = (out) => {
+    const lines = String(out || '').split('\n').map((x) => x.trim()).filter(Boolean);
+    const i = lines.findIndex((l) => l === 'CONSERVATION VIOLATION' || l.startsWith('CAUGHT at op #'));
+    if (i < 0) return '';
+    // Seeds, op indices and balances differ between runs BY DESIGN; what is being
+    // compared is the SHAPE of the failure.
+    return lines.slice(i + 1, i + 3).join(' | ').replace(/\d+/g, 'N');
+  };
+  const cleanViolation = cleanOk ? '' : violationOf(cleanChild.out);
+
   const results = [];
   for (const id of Object.keys(INJECTIONS)) {
     // `--inject` exits 0 when it CAUGHT the planted bug and 1 when it slipped;
@@ -1958,21 +2247,33 @@ if (SELFTEST) {
     }
     const caught = r.status === 0;
     const at = (r.out.match(/CAUGHT at op #(\S+)/) || [])[1] || '?';
-    results.push({ id, caught, at, first: caught ? firstLine(r.out) : null });
+    const same = !cleanOk && caught && violationOf(r.out) === cleanViolation;
+    results.push({ id, caught, at, ungraded: !cleanOk, same, first: caught ? firstLine(r.out) : null });
   }
 
   process.stdout.write('\nINJECTION RESULTS — a harness that cannot catch a planted bug is decoration\n');
   process.stdout.write(''.padEnd(78, '─') + '\n');
   for (const r of results) {
-    const verdict = r.harness ? 'HARNESS' : (r.caught ? 'CAUGHT ' : 'SLIPPED');
+    const verdict = r.harness ? 'HARNESS ' : (r.ungraded ? 'UNGRADED' : (r.caught ? 'CAUGHT  ' : 'SLIPPED '));
     const why = r.harness ? `— harness error: ${r.first}`
-      : (r.caught ? `at op #${r.at}: ${r.first}` : '— the fuzz ran clean with this bug in place');
-    process.stdout.write(`  ${verdict}  ${r.id.padEnd(22)} ${why}\n`);
+      : (r.same ? "— failed with the CLEAN RUN's own failure, so it proves nothing about this plant"
+      : (r.caught ? `at op #${r.at}: ${r.first}` : '— the fuzz ran clean with this bug in place'));
+    process.stdout.write(`  ${verdict} ${r.id.padEnd(22)} ${why}\n`);
   }
   const slipped = results.filter((r) => !r.caught);
+  const sameAsClean = results.filter((r) => r.same);
   process.stdout.write(''.padEnd(78, '─') + '\n');
-  process.stdout.write(`  ${results.length - slipped.length}/${results.length} caught · `
-    + `clean run ${clean.ok ? 'green' : 'RED'} · ${((Date.now() - t0) / 1000).toFixed(1)}s\n`);
+  if (clean.ok) {
+    process.stdout.write(`  ${results.length - slipped.length}/${results.length} caught · `
+      + `clean run green · ${((Date.now() - t0) / 1000).toFixed(1)}s\n`);
+  } else {
+    process.stdout.write('  CLEAN RUN RED — NOTHING ABOVE IS GRADED. The fuzz must report no violation\n'
+      + '  without a plant before "caught" means anything'
+      + (sameAsClean.length
+        ? `; ${sameAsClean.length} of ${results.length} failed with the clean run's own failure`
+        : '')
+      + `. ${((Date.now() - t0) / 1000).toFixed(1)}s\n`);
+  }
   if (clean.ok) process.stdout.write(clean.detail.split('\n').filter((l) => /^\s{2}(operations|verdicts|accrual|day budget|DIVERG)/.test(l) || /^\s{4}\S/.test(l)).join('\n') + '\n');
   process.exit(slipped.length || !clean.ok ? 1 : 0);
 }

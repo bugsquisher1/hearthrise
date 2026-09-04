@@ -44,6 +44,14 @@
 // VERIFIED: if a skipped name is no longer a step in the workflow this exits 2,
 // rather than quietly running one fewer thing than CI does.
 //
+// ONE DELIBERATE DIFFERENCE FROM CI, IN THE SAFE DIRECTION: every step here runs
+// even after an earlier one fails. In the workflow the guards carry
+// `if: ${{ !cancelled() }}` for exactly that reason, but the first two steps do
+// not, so a red cache-buster check ends the GitHub job and hides everything
+// behind it. Locally that trade is wrong — you want the whole board in one run,
+// which is the entire lesson of this file's existence — so nothing short-circuits
+// and the summary table at the end is always complete.
+//
 // ── THE RULE THIS ENFORCES ─────────────────────────────────────────────────
 //   A RELEASE IS GREEN ONLY WHEN BOTH THE LOCAL --ci RUN AND THE GITHUB RUN ON
 //   THE RELEASE COMMIT ARE GREEN. Neither alone is a gate: the local run cannot

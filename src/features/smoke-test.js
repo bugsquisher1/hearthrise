@@ -1424,7 +1424,43 @@ const TESTS = [
       H.ensureState();
       const armedRooms = typeof window.clientMayWriteRecordField === 'function'
         && window.clientMayWriteRecordField('rooms') === false;
-      assert(G.homestead.tier >= 1, 'grandfathered save should be at least tier 1');
+      /* ── RE-RULED (b502). This used to read "grandfathered save should be at
+         least tier 1" full stop, which under the old raise-only heal meant a
+         CLIENT-INFERRED tier could out-rank the server's rung forever. It cannot
+         anymore, and this test now says which position it is describing:
+
+           UNKNOWN (no server statement — a client-authoritative session, or the
+                    boot frame before the first envelope) → the local inference
+                    stands. That is the ONLY position it was ever legitimate in.
+           KNOWN   → the server's rung is the tier, INCLUDING when it is lower.
+                    A fresh post-wipe account with cooking XP and no `property:*`
+                    row is at the camp, not at the Homestead the client guessed.
+
+         The beta is wiped at cutover, so there is no pre-cutover client
+         progression to grandfather past a server rung; and a client rung the
+         server will not honour is not a gift, it is paione's unplayable account
+         (can't build, can't hire, not even OFFERED the rung it needs). */
+      assert(G.homestead.tier >= 1,
+        'the local grandfather inference (the UNKNOWN position) should reach at least tier 1');
+      const _P = window.HearthriseProperty;
+      if (_P && typeof _P.__resetPropertyRecord === 'function') {
+        const _prevGrand = _P.__resetPropertyRecord();
+        try {
+          // A REAL hr_state_of answer: the array PLUS the completeness flag it
+          // always ships with. Without the flag this is only a floor and could
+          // not lower anything — see property-record.js isCompleteStatement.
+          _P.notePropertyUnlocks({ ok: true, progress: [], progress_truncated: false });
+          assert(H.getTier() === 0,
+            'a KNOWN server rung of 0 must out-rank the client\'s grandfather inference; got ' + H.getTier()
+            + ' — a client-inferred tier is out-ranking the realm (the b502 class)');
+          assert(G.homestead.tier === 0,
+            'the conform must be WRITTEN back into the residue, or the inference returns on the next reload');
+        } finally {
+          _P.__resetPropertyRecord(_prevGrand.tier, _prevGrand.workers);
+          delete G.homestead; G.rooms = {}; G.skills = { cooking: 500 };
+          H.ensureState();
+        }
+      }
       if (armedRooms) {
         assert(!((G.rooms || {}).kitchen > 0),
           'the client forged a Kitchen rung while rooms are server-of-record — the server never confirmed it and '
@@ -1440,7 +1476,10 @@ const TESTS = [
           delete G.homestead; G.rooms = {}; G.skills = { cooking: 500 };
           H.ensureState();
           assert((G.rooms.kitchen || 0) >= 1, 'dormant: existing cooking XP should grandfather a kitchen');
-          assert(G.homestead.tier >= 1, 'dormant: grandfathered save should be at least tier 1');
+          // Same b502 re-ruling as above: this is the UNKNOWN position (no server
+          // statement in this block), which is the only one the inference owns.
+          assert(G.homestead.tier >= 1,
+            'dormant: the local grandfather inference (the UNKNOWN position) should reach at least tier 1');
         } finally {
           R.__setRoomsRecordArm(null);
         }
@@ -2072,6 +2111,252 @@ const TESTS = [
     } finally {
       window.HearthriseGold = origGold; window.notify = origNotify;
       if (prevProp && propRec) { try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {} }
+      restoreG(snap);
+    }
+  }),
+
+  /* ════════════════════════════════════════════════════════════════════════
+     b502 — THE SERVER'S RUNG IS THE TIER, IN BOTH DIRECTIONS.
+
+     THE LIVE P1 (paione, 2026-09-04: "the rooms are still not being built"),
+     proven from server data before a line was written:
+       player_progress slot 0 : unlock property:homestead = 1. NO farmstead row.
+       player_state.client_state -> 'homestead' : { "tier": 2 }.
+       hr_rejections 16:23–16:32 UTC : unlock_buy room.forge.1 refused
+         prereq_property_tier {have:1, need:2} — ×10. Same refusal 09-01, 08-31;
+         worker_hire.2 since 08-27; a second player on room.workshop.1 ×11.
+     b500 stopped NEW optimistic advances; it could not repair a residue that was
+     ALREADY ahead, because src/net/property-record.js was a RAISE-ONLY floor —
+     max(server, residue) preserves the lie by construction. The House named the
+     Farmstead, the Forge card looked buildable, "Upgrade Property" offered the
+     rung ABOVE the one he was missing, and every build bounced. An account that
+     cannot build, cannot hire and is not offered the rung it needs.
+     ════════════════════════════════════════════════════════════════════════ */
+  () => tryRun('PROP-TRUTH-1 (b502): PAIONE\'S ROW — residue 2 against a server rung of 1 resolves to 1, the Forge locks, and the Farmstead is what is offered', () => {
+    const P = window.HearthriseProperty;
+    const H = window.HearthriseHomestead;
+    if (!P || !H) return;
+    const prev = P.__resetPropertyRecord();
+    const snap = snapshotG();
+    try {
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 2 };            // the forged residue, verbatim
+      window.G.rooms = {};
+      /* The envelope he actually gets: one permanent property row at rung 1,
+         complete (no progress_truncated), exactly as hr_state_of projects it. */
+      P.notePropertyUnlocks({ ok: true, progress_truncated: false, progress: [
+        { kind: 'unlock', key: 'property:homestead', value: 1, period: '' },
+        { kind: 'unlock', key: 'worker_hire', value: 1, period: '' },
+      ] });
+
+      assert(H.getTier() === 1, 'THE BUG: the effective tier is ' + H.getTier()
+        + ' with a server rung of 1 — the residue is still out-ranking the realm');
+      assert(window.G.homestead.tier === 1, 'the conform was not WRITTEN back into the residue (got '
+        + window.G.homestead.tier + ') — the lie would survive the reload and the next residue upload');
+
+      // The room gate — the surface he reported. Both the feature API and the
+      // legacy authority upgradeRoom actually enforces with.
+      const gate = H.canBuildRoom('forge');
+      assert(gate.ok === false, 'the Forge must be LOCKED at server rung 1 — it needs the Farmstead');
+      /* THE PROVISIONAL FLAG. Every gate is a PRE-FLIGHT for a decision
+         hr_unlock_buy makes on its own copy of the rung, so the verdict states
+         whether the client is answering from a server statement or from the
+         residue cache. It is published, never used to refuse — see
+         features/homestead.js serverRungKnown for that ruling and its evidence.
+         Asserted here (KNOWN) and in PROP-REFUSE-2 (UNKNOWN, then KNOWN on the
+         refusal) so the contract holds before anything adopts it. */
+      assert(gate.pending === false,
+        'the server has stated the rung this session, so the gate must not report itself provisional');
+      assert(H.serverRungKnown() === true, 'serverRungKnown disagrees with the record it reads');
+      assert(/Farmstead/.test(gate.reason || ''), 'the lock must NAME the property he needs; got "' + gate.reason + '"');
+      if (typeof window.roomRungGate === 'function') {
+        assert(window.roomRungGate('forge', 1).ok === false,
+          'roomRungGate — the gate upgradeRoom enforces with — still passes the Forge at server rung 1');
+      }
+      // The card a player looks at.
+      if (typeof H.roomDescriptor === 'function' && window.ROOMS && window.ROOMS.forge) {
+        const d = H.roomDescriptor('forge');
+        assert(d && d.state === 'locked', 'the Forge room card state is "' + (d && d.state) + '", not "locked"');
+        assert(/Farmstead/.test((d && d.lockReason) || ''),
+          'the Forge card must state the property requirement; got "' + (d && d.lockReason) + '"');
+      }
+      // The offer. THE OTHER HALF OF THE TRAP: at a forged tier 2 the card
+      // offered the rung above 2, so the rung he was missing was unbuyable.
+      const nxt = H.nextTier();
+      assert(nxt && nxt.id === 'farmstead',
+        'Upgrade Property must offer the rung he is MISSING (property.farmstead); got property.' + (nxt && nxt.id));
+      // And everything else the one integer gates.
+      assert(H.maxPlots() === H.TIERS[1].plots, 'the plot cap did not conform to the server rung: ' + H.maxPlots());
+      assert(H.workerSlots() === 1, 'the crew cap did not conform to the server rung: ' + H.workerSlots());
+    } finally {
+      P.__resetPropertyRecord(prev.tier, prev.workers);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('PROP-TRUTH-2 (b502): the b492 case still heals UPWARD — residue 0 + server rung 1 is still a Homestead', () => {
+    /* The regression this fix must not trade away. b492 shipped because a lost
+       residue save demoted a paid Homestead to the camp (worker cap 0 beside a
+       hired worker, 2 plots instead of 4). Making the record authoritative in
+       BOTH directions must not weaken the direction that already worked. */
+    const P = window.HearthriseProperty;
+    const H = window.HearthriseHomestead;
+    if (!P || !H) return;
+    const prev = P.__resetPropertyRecord();
+    const snap = snapshotG();
+    try {
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 0 };
+      P.notePropertyUnlocks({ ok: true, progress_truncated: false, progress: [
+        { kind: 'unlock', key: 'property:homestead', value: 1, period: '' },
+      ] });
+      const r = P.healPropertyTier(window.G);
+      assert(r.healed === true && r.tier === 1 && !r.lowered,
+        'the upward heal regressed: ' + JSON.stringify(r));
+      assert(H.getTier() === 1 && window.G.homestead.tier === 1,
+        'residue 0 + server rung 1 must still resolve (and persist) as 1; got ' + H.getTier());
+      assert(H.maxPlots() === H.TIERS[1].plots && H.workerSlots() >= 1,
+        'the plot/crew caps did not follow the upward heal');
+    } finally {
+      P.__resetPropertyRecord(prev.tier, prev.workers);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('PROP-TRUTH-3 (b502): an envelope that never DECLARED its completeness may raise a rung and may never lower one', () => {
+    /* THE REGRESSION THIS TEST EXISTS FOR, found by this very suite hours after
+       the first cut of b502 landed. `isCompleteStatement` was written as
+       "`progress_truncated !== true`" — an ABSENT flag counted as a COMPLETE
+       answer. One envelope fixture elsewhere in this file carries a filler
+       `progress: []` and applies it through the real applyEnvelopeState; under
+       that rule it read as "this player owns no property", conformed the tier to
+       0, and left it there. Two unrelated tests went red on capabilities their
+       own seed had paid for — `b354` (the Build button: "an affordable rung must
+       be buildable from the bar") and `WORKER-LEDGER-1` ("hire should succeed").
+
+       A fixture found it. The CLASS is not fixtures: any body carrying a PARTIAL
+       `progress` array without saying so — a lean or legacy response, a
+       hand-assembled one, a future caller building an envelope by hand — would
+       demote a real manor owner to the Wanderer's Camp. That is b492's P1 rebuilt
+       from the other side, and the precise hazard b492's header refused
+       server-only over.
+
+       REQUIRING THE FLAG IS FREE IN PRODUCTION, and it is measured rather than
+       assumed: every response envelope is hr_state_of verbatim, hr_state_of
+       builds `progress` and `progress_truncated` in the same jsonb_build_object,
+       a migration guard fails the deploy if its body lacks either, and
+       tests/goal-counters.mjs G7 asserts the value arrives as `false` off the
+       real migration chain. So RAISING is untouched, and LOWERING — the one
+       direction that can take a capability away — now requires the server to have
+       said, in the same breath, that it was telling the whole story. */
+    const P = window.HearthriseProperty;
+    const H = window.HearthriseHomestead;
+    if (!P || !H) return;
+    const prev = P.__resetPropertyRecord();
+    const snap = snapshotG();
+    try {
+      // (a) A bare array must NOT lower. This is the exact shape that went red.
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 4 };
+      P.notePropertyUnlocks({ ok: true, progress: [] });      // no completeness claim
+      assert(H.getTier() === 4, 'an envelope that never declared its completeness DEMOTED a property '
+        + 'owner to ' + H.getTier() + ' — a filler `progress: []` was read as "you own nothing"');
+      assert(P.propertyTierExact() === false,
+        'an undeclared statement was recorded as EXACT, so it is licensed to lower a rung it never measured');
+
+      // (b) …but it must still RAISE. The b492 direction is not what this tightens.
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 0 };
+      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'property:homestead', value: 1, period: '' }] });
+      assert(H.getTier() === 1 && window.G.homestead.tier === 1,
+        'an undeclared envelope must still raise a stale residue; got ' + H.getTier());
+
+      // (c) …and it must not BLUNT an exact reading already in hand, or paione
+      //     would stop being healed the moment any lean body landed after boot.
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 2 };
+      P.notePropertyUnlocks({ ok: true, progress_truncated: false,
+        progress: [{ kind: 'unlock', key: 'property:homestead', value: 1, period: '' }] });
+      P.notePropertyUnlocks({ ok: true, progress: [] });      // declares nothing
+      assert(H.getTier() === 1 && P.propertyTierExact() === true,
+        'an undeclared envelope blunted an EXACT reading (tier ' + H.getTier()
+        + ', exact=' + P.propertyTierExact() + ')');
+    } finally {
+      P.__resetPropertyRecord(prev.tier, prev.workers);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('PROP-REFUSE-2 (b502): a prereq_property_tier refusal on the ROOM path names the property AND teaches the client the true rung', async () => {
+    /* THE SELF-HEAL FOR A SESSION WHOSE ENVELOPE NEVER CARRIED THE ROW. `have`
+       in a prereq_property_tier refusal IS hr_unlock_buy's own
+       max(value) over namespace 'property' — the number that just refused the
+       build. Ingesting it means the FIRST refused click corrects the House card,
+       locks the room and re-points the upgrade offer, instead of the player
+       clicking into the same refusal ten times in nine minutes. */
+    const H = window.HearthriseHomestead;
+    const P = window.HearthriseProperty;
+    if (!P || !H || typeof window.upgradeRoom !== 'function' || !window.ROOMS || !window.ROOMS.forge) return;
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origNotify = window.notify;
+    const prev = P.__resetPropertyRecord();
+    const said = [];
+    let sentOffer = null;
+    try {
+      P.__resetPropertyRecord();                   // UNKNOWN: no envelope this session
+      window.G.homestead = { tier: 2 };            // the forged residue — the client gate passes
+      assert(H.serverRungKnown() === false,
+        'SETUP: the record must be UNKNOWN here, or the "learned from the refusal" half below proves nothing');
+      assert(H.canBuildRoom('forge').pending === true,
+        'with no server statement the gate is answering from the residue cache and must SAY so (pending)');
+      window.G.rooms = {};
+      window.G.stats = window.G.stats || {}; window.G.stats.roomsBuilt = 0;
+      window.G.gold = 500000;
+      const cost = window.ROOMS.forge.levels[0].cost || {};
+      const inv = {}; Object.keys(cost).forEach(function (k) { if (k !== 'gold') inv[k] = (cost[k] || 0) + 10; });
+      window.G.inventory = Object.assign({}, window.G.inventory, inv);
+      stampBalanceLikeLoad(window.G);
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      window.HearthriseGold = Object.assign({}, origGold, {
+        isGoldIntentEnabled: function () { return true; },
+        newIntentKey: function () { return 'k-prereq-tier'; },
+        buyUnlock: function (offer, key) {
+          sentOffer = offer;
+          // The live verdict, verbatim from hr_rejections 2026-09-04.
+          return Promise.resolve({ outcome: 'refused', reason: 'prereq_property_tier', verb: 'unlock_buy', key: key,
+            body: { ok: false, error: 'prereq_property_tier',
+                    detail: { have: 1, need: 2, offer: 'room.forge.1' } } });
+        },
+      });
+      window.upgradeRoom('forge');
+      await new Promise(function (r) { setTimeout(r, 30); });
+
+      assert(sentOffer === 'room.forge.1', 'the room build must send offer room.forge.1; got ' + sentOffer);
+      assert(!(window.G.rooms && window.G.rooms.forge > 0), 'a refused room was shown built');
+      assert((window.G.stats.roomsBuilt || 0) === 0, 'a refused room build incremented roomsBuilt');
+      // (1) THE SENTENCE — it must name the property, not print a code.
+      const refusal = said.filter(function (s) { return s.k === 'kill'; });
+      assert(refusal.some(function (s) { return /Farmstead/.test(s.m); }),
+        'the refusal must NAME the property the Forge needs; saw ' + JSON.stringify(said));
+      assert(!said.some(function (s) { return /prereq_property_tier/.test(s.m); }),
+        'a refusal is a sentence to the player, not an error code; saw ' + JSON.stringify(said));
+      // (2) THE LEARNING — the client now knows the rung the server just stated.
+      assert(P.serverPropertyTier() === 1,
+        'the client did not learn the server rung from the refusal (got ' + P.serverPropertyTier()
+        + ') — the player would keep clicking into the same "no"');
+      assert(H.getTier() === 1, 'the tier did not conform to the rung the refusal stated; got ' + H.getTier());
+      assert(window.G.homestead.tier === 1, 'the learned rung was not written back into the residue');
+      // (3) AND THE SCREEN IS HONEST AFTERWARDS.
+      const after = H.canBuildRoom('forge');
+      assert(after.ok === false, 'the Forge is still offered as buildable after the refusal');
+      assert(after.pending === false,
+        'the refusal taught the record the true rung, so the gate is no longer provisional');
+      const nxt = H.nextTier();
+      assert(nxt && nxt.id === 'farmstead',
+        'after the refusal the upgrade must offer the missing rung; got property.' + (nxt && nxt.id));
+    } finally {
+      window.HearthriseGold = origGold; window.notify = origNotify;
+      P.__resetPropertyRecord(prev.tier, prev.workers);
       restoreG(snap);
     }
   }),
@@ -50659,58 +50944,101 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b492-2: NO downgrade and NO invention — an absent/lower rung leaves the residue tier alone', () => {
+  () => tryRun('b492-2 (re-ruled b502): absence is not a claim, a TRUNCATED answer may only raise — but a COMPLETE one is truth in both directions', () => {
     const P = window.HearthriseProperty;
     const H = window.HearthriseHomestead;
     const prev = P.__resetPropertyRecord();
     const snap = snapshotG();
     try {
       /* (a) ABSENCE IS NOT A CLAIM. `progress` missing entirely = UNKNOWN. A
-             server build predating the projection, or a truncated/lean envelope,
-             must never demote a castle owner to a bedroll. */
+             server build predating the projection, or a malformed/lean envelope,
+             must never demote a castle owner to a bedroll. UNCHANGED by b502. */
       P.__resetPropertyRecord();
       window.G.homestead = { tier: 4 };
       assert(P.pickPropertyTier({ ok: true }) === null, 'a body with no progress array did not signal UNKNOWN');
       assert(P.pickPropertyTier({ ok: true, progress: 'nope' }) === null, 'a non-array progress did not signal UNKNOWN');
       P.notePropertyUnlocks({ ok: true });
       assert(H.getTier() === 4, 'an UNKNOWN rung changed the tier to ' + H.getTier() + ' — absence was read as a claim');
+      assert(P.propertyTierKnown() === false, 'an absent statement must leave the record UNKNOWN');
 
-      /* (b) A PRESENT array with no property row is a real "owns no rung yet"
-             (0) — and STILL must not lower a residue tier. */
+      /* ── (b) RE-RULED (b502). This asserted the OPPOSITE: "a rung of 0 must
+             NOT lower a residue tier of 3". That raise-only policy is the live
+             P1 (paione, 2026-09-04): residue 2 against a server rung of 1, so
+             the Forge card looked buildable, "Upgrade Property" offered the rung
+             ABOVE the one he was missing, and `room.forge.1` bounced off
+             `prereq_property_tier {have:1,need:2}` ten times in nine minutes.
+             A residue rung AHEAD of the server is not a player's progress to
+             protect — it is an unplayable account, and the beta is wiped at
+             cutover so there is no pre-cutover client progression to grandfather.
+             hr_state_of reads permanent rows (`period_key=''`) UNFILTERED, so a
+             COMPLETE `progress:[]` is a real, trustworthy "owns no rung". */
       P.__resetPropertyRecord();
       window.G.homestead = { tier: 3 };
       assert(P.pickPropertyTier({ ok: true, progress: [] }) === 0, 'an empty progress array is not a known 0');
-      P.notePropertyUnlocks({ ok: true, progress: [] });
-      assert(H.getTier() === 3, 'a rung of 0 DEMOTED the residue tier to ' + H.getTier());
+      P.notePropertyUnlocks({ ok: true, progress: [], progress_truncated: false });
+      assert(H.getTier() === 0, 'a COMPLETE statement of "no rung" must set the tier to 0; got ' + H.getTier()
+        + ' — the residue is out-ranking the server again (the b502 class)');
+      assert(window.G.homestead.tier === 0,
+        'the conform was derived but not WRITTEN back, so the stored residue keeps the lie across the reload');
 
-      /* (c) A LOWER rung never wins. The residue is a floor. */
+      /* ── (c) RE-RULED (b502): a LOWER complete rung WINS. This is paione's row
+             verbatim — residue 2, server 1 — and the assertion that used to say
+             "3" is the one that made his account unrecoverable from the client. */
       P.__resetPropertyRecord();
-      window.G.homestead = { tier: 3 };
-      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'property:homestead', value: 1, period: '' }] });
-      assert(H.getTier() === 3, 'a lower server rung demoted the residue tier to ' + H.getTier());
+      window.G.homestead = { tier: 2 };
+      P.notePropertyUnlocks({ ok: true, progress_truncated: false,
+        progress: [{ kind: 'unlock', key: 'property:homestead', value: 1, period: '' }] });
+      assert(H.getTier() === 1, 'PAIONE\'S ROW: residue 2 + server rung 1 must resolve to 1; got ' + H.getTier());
+      assert(H.nextTier() && H.nextTier().id === 'farmstead',
+        'the upgrade offered must be the rung he is MISSING (farmstead), not the one above the forged tier; got '
+        + (H.nextTier() && H.nextTier().id));
+
+      /* (c2) THE TRUNCATION CARVE-OUT — the reason server-only was refused in
+             b492, now handled by reading the flag the server already sends.
+             hr_state_of caps `progress` at 1000 rows and sets
+             `progress_truncated`; in THAT answer a present row is real but an
+             absent one proves nothing, so it may only RAISE. */
+      P.__resetPropertyRecord();
+      window.G.homestead = { tier: 4 };
+      P.notePropertyUnlocks({ ok: true, progress: [], progress_truncated: true });
+      assert(H.getTier() === 4, 'a TRUNCATED envelope demoted a manor owner to ' + H.getTier()
+        + ' — an incomplete statement was read as a complete one');
+      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'property:keep', value: 4, period: '' }],
+        progress_truncated: true });
+      assert(P.serverPropertyTier() === 4, 'a truncated envelope must still be able to RAISE; got ' + P.serverPropertyTier());
 
       /* (d) THE MAX IS OVER THE WHOLE NAMESPACE — hr_unlock_buy's own rule. A
              player who bought every rung holds a row for each; the highest wins. */
       P.__resetPropertyRecord();
       window.G.homestead = { tier: 0 };
-      P.notePropertyUnlocks({ ok: true, progress: [
+      P.notePropertyUnlocks({ ok: true, progress_truncated: false, progress: [
         { kind: 'unlock', key: 'property:homestead', value: 1, period: '' },
         { kind: 'unlock', key: 'property:manor', value: 3, period: '' },
         { kind: 'unlock', key: 'property:farmstead', value: 2, period: '' },
       ] });
       assert(H.getTier() === 3, 'the tier is ' + H.getTier() + ', expected the MAX of the property namespace (3)');
 
-      /* (e) THE RATCHET IS MONOTONE. A later, leaner envelope cannot take a rung
-             back — a rung is bought, never sold. */
-      P.notePropertyUnlocks({ ok: true, progress: [] });
-      assert(P.serverPropertyTier() === 3, 'a later empty envelope lowered the observed rung to ' + P.serverPropertyTier());
+      /* ── (e) RE-RULED (b502). This asserted "a later, leaner envelope cannot
+             take a rung back". Under b502 a COMPLETE later statement is truth —
+             but an UNKNOWN one (no array at all) still cannot move it, which is
+             the property that actually protects a player from a lean/pre-
+             projection answer. Both halves are asserted now, in that order. */
+      P.notePropertyUnlocks({ ok: true });                 // UNKNOWN — must not move it
+      assert(P.serverPropertyTier() === 3, 'an envelope with NO progress array lowered the observed rung to '
+        + P.serverPropertyTier() + ' — absence was read as a claim');
+      P.notePropertyUnlocks({ ok: true, progress: [], progress_truncated: true });   // incomplete — must not lower
+      assert(P.serverPropertyTier() === 3, 'a TRUNCATED envelope lowered the observed rung to ' + P.serverPropertyTier());
+      P.notePropertyUnlocks({ ok: true, progress: [], progress_truncated: false });   // COMPLETE — a statement
+      assert(P.serverPropertyTier() === 0, 'a COMPLETE "no rung" statement did not update the record; got '
+        + P.serverPropertyTier());
 
       /* (f) NEVER PAST THE TABLE. A sixth rung from a server ahead of this
              client (or a garbage residue) must not index TIERS out of range —
              `TIERS[6].plots` is a TypeError that takes the House AND the farm down. */
       P.__resetPropertyRecord();
       window.G.homestead = { tier: 0 };
-      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'property:spire', value: 99, period: '' }] });
+      P.notePropertyUnlocks({ ok: true, progress_truncated: false,
+        progress: [{ kind: 'unlock', key: 'property:spire', value: 99, period: '' }] });
       assert(H.getTier() === H.TIERS.length - 1, 'an over-range rung was not clamped to the table: ' + H.getTier());
       assert(typeof H.maxPlots() === 'number' && H.maxPlots() > 0, 'an over-range rung crashed the plot cap');
       P.__resetPropertyRecord();
@@ -50724,7 +51052,8 @@ const TESTS = [
              31 days; reading a tier out of one would be a tier that expires. */
       P.__resetPropertyRecord();
       window.G.homestead = { tier: 0 };
-      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'property:castle', value: 5, period: '2026-08-29' }] });
+      P.notePropertyUnlocks({ ok: true, progress_truncated: false,
+        progress: [{ kind: 'unlock', key: 'property:castle', value: 5, period: '2026-08-29' }] });
       assert(H.getTier() === 0, 'a PERIOD-keyed row was read as a permanent property rung');
     } finally {
       // Put a LIVE signed-in session back exactly as found — never drop a rung a
@@ -50787,14 +51116,23 @@ const TESTS = [
          a worker the server has already sold. */
       P.__resetPropertyRecord();
       window.G.homestead = { tier: 0 };
-      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'worker_hire', value: 2, period: '' }] });
+      P.notePropertyUnlocks({ ok: true, progress_truncated: false,
+        progress: [{ kind: 'unlock', key: 'worker_hire', value: 2, period: '' }] });
       assert(H.getTier() === 0, 'the worker rung must not move the PROPERTY tier — that would invent a purchase');
       assert(H.workerSlots() === 2, 'the crew cap ignored the paid worker_hire rung: ' + H.workerSlots());
       assert(H.maxPlots() === H.TIERS[0].plots, 'the worker rung leaked into the plot cap');
-      // The tier's own figure still wins when it is the larger of the two.
+      /* The tier's own figure still wins when it is the larger of the two.
+         b502: the property rung is stated ALONGSIDE the worker rung here, because
+         a complete `progress` array without a `property:` row is now a real
+         statement of "no rung" and would (correctly) put this castle owner back
+         at the camp. Stating both is what a real castle owner's envelope carries. */
       P.__resetPropertyRecord();
       window.G.homestead = { tier: 5 };            // castle: 6 workers
-      P.notePropertyUnlocks({ ok: true, progress: [{ kind: 'unlock', key: 'worker_hire', value: 1, period: '' }] });
+      P.notePropertyUnlocks({ ok: true, progress_truncated: false, progress: [
+        { kind: 'unlock', key: 'property:castle', value: 5, period: '' },
+        { kind: 'unlock', key: 'worker_hire', value: 1, period: '' },
+      ] });
+      assert(H.getTier() === 5, 'the castle rung did not survive its own envelope; got ' + H.getTier());
       assert(H.workerSlots() === H.TIERS[5].workers,
         'a lower worker rung capped a castle crew at ' + H.workerSlots());
     } finally {
@@ -50861,6 +51199,28 @@ export async function runSmokeTest(opts = {}) {
      the UNKNOWN state inside its own body, on a live-G delete or a private G, so
      this stamp cannot hide the regression they exist to catch. */
   try { stampBalanceLikeLoad(window.G); } catch (e) {}
+  /* ── PARK THE PROPERTY RECORD FOR THE DURATION (b502) ─────────────────────
+     ~34 tests seed a property tier by writing `G.homestead = {tier:N}` — the
+     RESIDUE half — and then assert a tier-gated number (plot cap, crew cap, room
+     gate, castle capstone). As of b502 the SERVER's rung is the tier in BOTH
+     directions, so on a live signed-in page (which is exactly how the play gate
+     runs the suite) a real envelope's rung would override every one of those
+     seeds and ~34 tests would fail on a fixture, not on a defect.
+
+     Parking the record to UNKNOWN for the run makes the residue seed mean what
+     the seed says, deterministically, signed in or out. It also RETIRES the
+     order-dependence the b495 QA note documented at `unlock_buy slice:
+     upgradeProperty…` ("any earlier test that let a server envelope through
+     leaves this one upgrading from tier N") — the ratchet is no longer a
+     cross-test channel. The tests that are ABOUT the record (b492-*, PROP-*)
+     state it explicitly inside their own bodies and restore it, exactly as
+     before. Restored from the captured pair in the finally, so a live session
+     never loses a rung a real envelope had already delivered. */
+  const _Prop = window.HearthriseProperty;
+  let _propParked = null;
+  try {
+    if (_Prop && typeof _Prop.__resetPropertyRecord === 'function') _propParked = _Prop.__resetPropertyRecord();
+  } catch (e) {}
   const results = [];
   try {
     for (const t of TESTS) {
@@ -50875,6 +51235,13 @@ export async function runSmokeTest(opts = {}) {
     try { if (_Auto && typeof _Auto._parkEatSync === 'function') _Auto._parkEatSync(_eatSyncWasParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__parkGrants === 'function') _Comp.__parkGrants(_grantsWereParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__clearGrantBlocks === 'function') _Comp.__clearGrantBlocks(); } catch (e) {}
+    try {
+      /* THE RECEIPT, not the pair: __resetPropertyRecord round-trips the
+         exact/floor provenance too, so a live session whose record was only a
+         FLOOR (a truncated projection) is not put back as an EXACT statement —
+         which would let the restore lower a residue the server never measured. */
+      if (_propParked && _Prop) _Prop.__resetPropertyRecord(_propParked);
+    } catch (e) {}
   }
   try { window.showTab(startTab); } catch {}
   const summary = {

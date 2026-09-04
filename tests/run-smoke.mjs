@@ -2374,6 +2374,32 @@ const run = async () => {
       console.log('\nRooms record guard — dormant no-regression + armed server-read/fail-closed-empty/no-forged-room/never-throws.');
     }
 
+    /* ── The property gate census (b502) ────────────────────────────────────
+       ONE integer — `G.homestead.tier`, a RESIDUE field — gates which rooms may
+       be built, how much land may be bought, how many workers may be hired and
+       which property rung is OFFERED, and it has produced a live P1 from BOTH
+       directions: b492 (residue behind the server: a paid Homestead demoted to
+       the camp) and b502 (residue AHEAD of it, which b492's max() then preserved
+       forever: paione's `room.forge.1` refused prereq_property_tier {have:1,
+       need:2} ten times in nine minutes while the screen offered the rung above
+       the one he was missing). This guard drives the merge rule directly in Node
+       — exact statements set in both directions, an admittedly-truncated one may
+       only raise, absence moves nothing, a grant and a refusal are both
+       statements — and then censuses the SOURCE: no file outside the record and
+       its one accessor may read the residue, every HearthriseHomestead consumer
+       is classified DISPLAY or CAPABILITY with a reason, the `Math.max` ratchet
+       cannot come back, and the three wiring calls the fix depends on exist. It
+       also proves its own scanner is not blind before trusting any of that. */
+    const { propertyGateCensusGuard } = await import('./property-gate-census.mjs');
+    const propertyProblems = await propertyGateCensusGuard();
+    if (propertyProblems.length) {
+      console.log('\nProperty gate census — FAILED:');
+      for (const p of propertyProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nProperty gate census — server rung is truth both ways (floor when truncated, no move when absent); residue readers + API consumers classified; ratchet dead; wiring present.');
+    }
+
     /* ── The Equipment record guard (worn-set read side, b446) ──────────────
        Proves the CLIENT half of the b433 equipment record: src/net/record.js +
        src/net/equipment-record.js read the worn set from the server record under
@@ -3871,6 +3897,7 @@ const run = async () => {
       'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',
       'Icon boot-order guard', 'Avatar asset guard', 'showTab owner guard',
       'Secret guard', 'Slot-switch guard', 'Native-dialog guard',
+      'Property gate census',
     ];
     if (exitCode === 0) {
       const said = TRANSCRIPT.join('\n');

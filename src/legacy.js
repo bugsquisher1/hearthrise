@@ -11038,11 +11038,30 @@ function hrClassifyUnlock(v){
      local capability rather than treating it as a failure (workers.js b463). */
   var owned=!!(v&&outcome==='refused'&&v.reason==='already_owned');
   var ok=owned||outcome==='applied'||outcome==='replayed';
-  return {
+  var c={
     ok:ok, owned:owned, outcome:outcome,
     reason:(v&&(v.reason||(v.body&&v.body.error)))||'network',
     detail:(v&&v.body&&(v.body.detail||v.body))||{}
   };
+  /* ── b502 — A `prereq_property_tier` REFUSAL IS A SERVER STATEMENT OF THE RUNG.
+     `have` is hr_unlock_buy's own `max(value) over namespace 'property'` — the
+     number that refused this build. Feeding it to the property record is what
+     makes the FIRST refused click correct the House card, lock the room, and
+     re-point "Upgrade Property" at the rung the player is actually missing, even
+     for a session whose envelope never carried the row.
+
+     THIS is the one place every unlock verdict is read (rooms, property, farm
+     land, worker hire, bank, companions), so one guarded line covers every site
+     instead of six copies drifting apart. Raise-freely / lower-only-when-UNKNOWN
+     is enforced inside notePropertyRefusalTier — see its header for why a late
+     refusal must not roll back a confirmed grant. */
+  if(!ok && c.reason==='prereq_property_tier'){
+    try{
+      var PR=window.HearthriseProperty;
+      if(PR && typeof PR.notePropertyRefusalTier==='function') PR.notePropertyRefusalTier(c.detail&&c.detail.have);
+    }catch(e){}
+  }
+  return c;
 }
 function hrUnlockRefusalMessage(c,thing){
   thing=thing||'that upgrade';

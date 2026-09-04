@@ -163,21 +163,30 @@
     G.homestead = { tier: tier };
   }
 
-  /* ── b492 — THE TIER IS max(SERVER RUNG, RESIDUE), AND THIS IS THE ONE READ ───
+  /* ── b502 — THE TIER **IS** THE SERVER'S RUNG, AND THIS IS THE ONE READ ───────
      Every property-gated number in the game funnels through getTier(): maxPlots
      (the farm's plantable count), workerSlots, offlineBonusHours, isCastle (the
      +5% XP capstone), roomAllowed/canBuildRoom (every room prerequisite),
-     nextTier (the upgrade price), and legacy.js clientPerkState.propertyTier.
-     That is the whole blast radius of ONE integer — which is why it was the
-     whole blast radius of ONE live bug when that integer came back 0.
+     nextTier (the upgrade price AND which rung is offered), and legacy.js
+     clientPerkState.propertyTier. That is the whole blast radius of ONE integer
+     — which is why it was the whole blast radius of TWO live P1s.
 
      `G.homestead.tier` is RESIDUE (src/net/client-state.js): a self-only cache
      the server stores verbatim and never derives authority from. The rung the
      player actually bought is a permanent `player_progress` row that arrives in
-     every envelope. So the residue is now a FLOOR under the server's rung rather
-     than the sole source, and healPropertyTier raises the stored copy to match —
-     which persists (homestead rides the residue patch) and keeps the ~15 direct
-     `G.homestead.tier` readers agreeing with the UI.
+     every envelope. b492 made the residue a raise-only FLOOR under that rung,
+     which healed a residue that fell BEHIND the server and PRESERVED FOREVER one
+     that ran AHEAD of it — paione, 2026-09-04: residue tier 2, server rung 1,
+     `room.forge.1` refused `prereq_property_tier {have:1,need:2}` ten times in
+     nine minutes, with "Upgrade Property" offering the rung above the one he
+     actually needed. So healPropertyTier now CONFORMS the stored copy to the
+     record in BOTH directions — which persists (homestead rides the residue
+     patch) and keeps every direct `G.homestead.tier` reader agreeing with the UI.
+
+     The residue is consulted ONLY while the server has stated nothing this
+     session (UNKNOWN — absence is not a claim, and a client-authoritative
+     session has no other source). See src/net/property-record.js for the merge
+     rule and the truncation carve-out.
 
      Read through the window global at CALL time, exactly as this file already
      reads HearthriseRooms / HearthriseSkillRecord: this is a classic script and
@@ -196,9 +205,9 @@
     var t = null;
     var P = window.HearthriseProperty;
     if (P && typeof P.healPropertyTier === 'function') {
-      /* One call does both halves: it RAISES G.homestead.tier to the server's
-         rung when the rung is higher (so the value persists and every direct
-         reader agrees) and RETURNS the effective tier. */
+      /* One call does both halves: it CONFORMS G.homestead.tier to the server's
+         rung — up or down (so the value persists and every direct reader agrees)
+         — and RETURNS the effective tier. */
       try { t = P.healPropertyTier(window.G).tier; } catch (e) { t = null; }
     }
     if (typeof t !== 'number') t = Number((G_().homestead || { tier: 0 }).tier);
@@ -230,12 +239,53 @@
   function offlineBonusHours() { return tierDef().offlineHours; }
   function isCastle() { return getTier() === TIERS.length - 1; }
 
+  /* ── IS THE SERVER'S RUNG KNOWN THIS SESSION? AND WHY UNKNOWN DOES NOT
+     FAIL CLOSED — a deliberate ruling, with its evidence, so it can be
+     re-opened with better evidence rather than re-litigated from taste. ─────
+     Every gate below is a PRE-FLIGHT for a decision hr_unlock_buy makes on its
+     own copy of the rung. When this returns false the gate is answering from
+     the residue cache and the answer is PROVISIONAL, so it is published on the
+     verdict (`pending`) — it is not used to refuse. Refusing instead was
+     considered and rejected on three counts:
+
+       1. IT WOULD BE A FALSE NEGATIVE OF THE EXACT KIND b492 EXISTS TO KILL —
+          a paid capability the panel says you cannot have ("Workers 1/0"). A
+          client that authors NOTHING (b500: every unlock advances only on the
+          server's ok) cannot grant anything it is wrong about, so an open gate
+          costs at most one refused click; a closed one costs the capability.
+       2. UNKNOWN IS THE PRE-FIRST-ENVELOPE FRAME, NOT A STATE PLAYERS SIT IN.
+          The rung is observed on the BOOT hr_load (net/client-state.js
+          applyClientState, before its early returns) and on every settle
+          envelope (net/accrue.js) — i.e. long before the House tab can be
+          opened. The population that would meet a closed gate is a session
+          whose hr_load failed, which cannot buy anything anyway.
+       3. IT WOULD BE A FIXTURE FAILURE, NOT A DEFECT, IN THE ONE ENVIRONMENT
+          THAT MATTERS MOST. ~20 in-page tests seed a residue tier and assert a
+          room/plot/crew capability. Signed OUT (CI) they run client-
+          authoritative and would stay green; signed IN (the play gate) they
+          would all go red on a "checking…". Green in CI and red on the play
+          gate is the worst possible shape for a guard.
+
+     What a wrong provisional answer actually costs is one refused click — which
+     now names the required property AND teaches the record the true rung
+     (legacy.js hrClassifyUnlock → notePropertyRefusalTier), so the House card,
+     the room lock and the upgrade offer all correct themselves on that click. */
+  function serverRungKnown() {
+    var P = window.HearthriseProperty;
+    if (!P || typeof P.propertyTierKnown !== 'function') return false;
+    try { return !!P.propertyTierKnown(); } catch (e) { return false; }
+  }
+
   // Which rooms are allowed at the current tier
   function roomAllowed(roomId) { return roomMinTier(roomId) <= getTier(); }
   function canBuildRoom(roomId) {
-    if (roomAllowed(roomId)) return { ok: true };
+    var pending = !serverRungKnown();
+    if (roomAllowed(roomId)) return { ok: true, pending: pending };
     var need = TIERS[roomMinTier(roomId)];
-    return { ok: false, reason: 'Requires ' + (need ? need.name : 'a higher property tier') };
+    return {
+      ok: false, pending: pending, needTier: roomMinTier(roomId),
+      reason: 'Requires ' + (need ? need.name : 'a higher property tier')
+    };
   }
 
   // Workbench gate for artisan skills. Skills without a workbench room pass,
@@ -297,9 +347,23 @@
       else G.inventory[key] = (G.inventory[key] || 0) - cost[key];
     });
   }
+  /* ── b502 — THE RATCHET IS DEAD. ──────────────────────────────────────────
+     This was `G.homestead.tier = Math.max(current, idx)`, and the max() is how a
+     residue that had already run ahead of the server stayed ahead of it: a
+     player at forged tier 2 with a server rung of 1 could never write a 1 here,
+     no matter what the realm said. Combined with the raise-only heal it made the
+     lie permanent and unplayable (paione, 2026-09-04).
+
+     The write is now a plain SET of the rung being recorded, and it is only ever
+     reached from a position that OWNS that number: the confirmed-ok branch below
+     (the server just applied it, and notePropertyGranted has already put it in
+     the record), or the client-authoritative branch (the local grant IS the
+     upgrade — no server confirmation is coming). Nothing optimistic writes here
+     anymore, so a monotone guard is protecting nothing and costing the repair. */
   function advanceTierTo(G, idx) {
     if (!G.homestead || typeof G.homestead !== 'object') G.homestead = { tier: 0 };
-    G.homestead.tier = Math.max(Number(G.homestead.tier) || 0, idx);
+    var n = Math.floor(Number(idx));
+    G.homestead.tier = (isFinite(n) && n > 0) ? n : 0;
   }
   function announceBuilt(nxt) {
     if (window.notify) notify('' + nxt.name + ' built! ' + (nxt.desc || ''), 'levelup');
@@ -339,10 +403,13 @@
        with the materials looking spent. Now the tier moves ONLY on the server's
        ok, and a refusal is spoken plainly.
 
-       The residue tier is a FLOOR the server rung heals UP (property-record.js),
-       never down — that is precisely why an optimistic ++ was STRANDED and the
-       gold/item debit self-healed around it. So the tier advance is what must
-       wait for the server, and it is. */
+       b502 CLOSED THE OTHER HALF. b500 stopped NEW optimistic advances but could
+       not repair the residue that the OLD ones had already left ahead of the
+       server: property-record.js was a raise-only floor, so max() preserved the
+       lie by construction and paione's account (residue 2, server rung 1) could
+       neither build nor buy its way out. The record is now truth in BOTH
+       directions, which is also why the confirmed branch below must TELL the
+       record before it writes the residue. */
     var _offer = 'property.' + nxt.id;
     var _k = (typeof window.goldIntentKey === 'function') ? window.goldIntentKey() : null;
     var GLD = window.HearthriseGold;
@@ -360,9 +427,11 @@
 
     /* SERVER-OWNED: spend and advance NOTHING locally until hr_unlock_buy
        confirms (b494 pattern). On ok the confirm envelope already wrote gold +
-       inventory ABSOLUTELY and notePropertyUnlocks ratcheted the server rung;
-       raising the residue floor here makes the advance immediate and persists it.
-       A refusal touched nothing local, so "nothing was spent" is always true. */
+       inventory ABSOLUTELY; recording the granted rung and then writing the
+       residue makes the advance immediate and persists it. A refusal touched
+       nothing local, so "nothing was spent" is always true — and the refusal
+       itself now teaches the record the true rung (legacy.js hrClassifyUnlock),
+       so the card the player is looking at corrects itself on the same click. */
     if (_upgradeInFlight) return false;
     _upgradeInFlight = true;
     var nxtIndex = getTier() + 1;
@@ -373,6 +442,15 @@
         : { ok: !!(v && (v.outcome === 'applied' || v.outcome === 'replayed')), owned: false,
             reason: (v && v.reason) || 'network' };
       if (c.ok) {
+        /* b502 — TELL THE RECORD FIRST. The server just APPLIED this rung, which
+           is a statement about it; without recording that, the next getTier()
+           would conform the residue back DOWN to the pre-purchase rung (the
+           record is truth in both directions now) and un-do a confirmed
+           purchase until the following envelope landed. Raise-only, guarded. */
+        try {
+          var PR = window.HearthriseProperty;
+          if (PR && typeof PR.notePropertyGranted === 'function') PR.notePropertyGranted(nxtIndex);
+        } catch (e) {}
         advanceTierTo(G, nxtIndex);
         if (c.owned) { if (window.notify) notify('' + nxt.name + ' is already yours.', 'info'); renderCard(); }
         else announceBuilt(nxt);
@@ -1304,6 +1382,7 @@
     isCastle: isCastle,
     roomMinTier: roomMinTier,
     canBuildRoom: canBuildRoom,
+    serverRungKnown: serverRungKnown,
     hasWorkbench: hasWorkbench,
     upgradeProperty: upgradeProperty,
     renderCard: renderCard,

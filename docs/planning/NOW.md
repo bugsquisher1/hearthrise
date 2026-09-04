@@ -4,17 +4,17 @@
      .github/workflows/daily-devlog.yml. Keep it 3-6 bullets, plain language,
      no internal jargon, NO security/exploit details ever. The Coordinator
      updates it alongside the priority board; the date line gates staleness. -->
-<!-- updated: 2026-09-03 -->
+<!-- updated: 2026-09-04 -->
 
-✅ **Just shipped (build 501)**
-- Homestead rooms (the Forge and friends) now actually build — they no longer take your resources and leave the room unbuilt after a reload
-- Bone keys, goblin seals and other combat keys are real realm-granted drops now (and drop while you're away) — the old client-side key handout the realm never recorded is gone
+🔎 **We found the big one**
+- We audited the whole game against the live server this week and found why progression stalls: **almost nobody could reach the second homestead tier**, and that tier is the only door to the Forge, the Workshop and your second worker. Across everyone playing, not one Forge has ever been built.
+- The reason is a chain: combat drops were being credited more conservatively than the game showed you, so the materials you watched drop did not all arrive. Six people stalled one wolf pelt short of the upgrade. Behind that wall, ~170,000 gathered materials are sitting unused.
+- If you have been wondering why smithing and crafting never seemed to go anywhere: they were behind that same door.
 
-🔨 **Right now**
-- **"Items vanish after a fight" — root found, measured live:** during an attended fight the realm currently credits roughly 60% of the drops you see and can hand back food you ate, because the after-fight settle re-simulates your session too conservatively (kills, XP and gold are credited correctly). Fixing the crediting server-side is the top item.
-- **Dungeon scrip** — server-side fix built and under review; lands with the quartermaster rework so scrip stops resetting to zero
-- The big one: an armor & defence overhaul so gear genuinely matters at every tier — we measured the current math and it stops pulling its weight at both ends; that's getting fixed properly
-- A rescue prompt for your first nights: leaving a fight you can't survive will offer the gathering switch, so your away time banks the whole night instead of ending at your first death
-- A new "ward" line of off-hand charms and totems fed by monster drops
+🔨 **Being fixed right now**
+- **Drops you see are the drops you keep.** The server is being changed to credit what actually happened in your fight, and to stop handing back food you ate.
+- **Homestead tiers tell the truth.** If your house ever showed a tier you had not actually bought, it will correct itself on your next load and offer you the real upgrade. Nothing you paid for is lost.
+- **Bounty Hunter levels.** The skill has not been saving. It is getting a proper home on the server, which also unlocks the higher bounty board tiers.
+- **The sign-up door.** Confirming your email will drop you straight into the game, signed in, with a resend button if the mail never arrives.
 
-🗺️ **The road to Beta 3:** finish the quality pass → full fresh-start wipe → new invite keys. No date until it's genuinely ready — Beta 2 taught us that lesson.
+🗺️ **The road to Beta 3:** fix the progression wall → prove it with a fresh character playing all the way through → full wipe → new invite keys. No date until it is genuinely ready. Beta 2 shipped on a test suite that was not checking the things that broke; that is being fixed too.

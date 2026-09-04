@@ -7,13 +7,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "12 controls <44px — worst: 18px \"\" .hd-who>.hd-name>button.hd-rename | 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn",
+        "detail": "11 controls <44px — worst: 18px \"\" .hd-who>.hd-name>button.hd-rename | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
         "el": "#app>.main>#panel-profilesection.panel"
       }
     ],
     "stats": {
-      "els": 475,
-      "chars": 2386
+      "els": 395,
+      "chars": 2539
     },
     "viewport": "desktop"
   },
@@ -25,13 +25,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "7 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
+        "detail": "6 controls <44px — worst: 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn | 35px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
         "el": "#app>.main>#panel-charactersection.panel"
       }
     ],
     "stats": {
-      "els": 353,
-      "chars": 371
+      "els": 376,
+      "chars": 416
     },
     "viewport": "desktop"
   },
@@ -41,15 +41,51 @@
     "vh": 900,
     "issues": [
       {
+        "sev": "P1",
+        "kind": "clipped-text",
+        "detail": "\"The Crownless Wyrm\" (185>134)",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-text",
+        "detail": "\"Today's blessing\" (142>134)",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"Today's blessing\" cut by .panel",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"a rotating bonus, every da\" cut by .panel",
+        "el": ".wt-dest>.wtd-body>.wtd-main>span"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"Events ▸\" cut by .panel",
+        "el": "#wt-dests>.wt-dest>button.btn"
+      },
+      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "17 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Unlocks at Com\" #hr-botd-card>.botd-foot>button.btn | 31px \"Unlocks at Com\" #hr-weekly-card>.botd-foot>button.btn",
+        "detail": "25 controls <44px — worst: 30px \"T1\" #wt-tiers>button.chip | 30px \"T2\" #wt-tiers>button.chip | 30px \"T3\" #wt-tiers>button.chip",
+        "el": "#app>.main>#panel-combatsection.panel"
+      },
+      {
+        "sev": "P2",
+        "kind": "duplicate-word",
+        "detail": "\"Board Board\"",
         "el": "#app>.main>#panel-combatsection.panel"
       }
     ],
     "stats": {
-      "els": 433,
-      "chars": 1345
+      "els": 572,
+      "chars": 3614
     },
     "viewport": "desktop"
   },
@@ -61,13 +97,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "5 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Recipe Book\" #panel-skills>.card>.card-head>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn",
+        "detail": "4 controls <44px — worst: 31px \"Recipe Book\" #panel-skills>.card>.card-head>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
         "el": "#app>.main>#panel-skillssection.panel"
       }
     ],
     "stats": {
-      "els": 321,
-      "chars": 368
+      "els": 346,
+      "chars": 519
     },
     "viewport": "desktop"
   },
@@ -79,13 +115,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "8 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Plant all\" #farm-panel>.farm-status>.row>button.btn | 31px \"Water all\" #farm-panel>.farm-status>.row>button.btn",
+        "detail": "12 controls <44px — worst: 21px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock | 21px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock | 21px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock",
         "el": "#app>.main>#panel-farmingsection.panel"
       }
     ],
     "stats": {
-      "els": 283,
-      "chars": 570
+      "els": 271,
+      "chars": 635
     },
     "viewport": "desktop"
   },
@@ -97,13 +133,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "22 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Equipment\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab | 31px \"Stats\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab",
+        "detail": "22 controls <44px — worst: 31px \"Equipment\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab | 31px \"Stats\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab | 31px \"Companion\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab",
         "el": "#app>.main>#panel-inventorysection.panel"
       }
     ],
     "stats": {
-      "els": 395,
-      "chars": 549
+      "els": 553,
+      "chars": 651
     },
     "viewport": "desktop"
   },
@@ -115,13 +151,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "8 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Upgrade Proper\" #hh-property-card>.card-body>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn",
+        "detail": "7 controls <44px — worst: 31px \"Upgrade Proper\" #hh-property-card>.card-body>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
         "el": "#app>.main>#panel-housesection.panel"
       }
     ],
     "stats": {
-      "els": 365,
-      "chars": 682
+      "els": 382,
+      "chars": 668
     },
     "viewport": "desktop"
   },
@@ -133,13 +169,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "7 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Strike the bos\" #hr-raid-card>.card-body>button.btn | 31px \"Find a clan\" #hr-raid-card>.card-body>button.btn",
+        "detail": "4 controls <44px — worst: 31px \"Quartermaster\" #panel-dungeons>.dgn-scrip-bar>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
         "el": "#app>.main>#panel-eventssection.panel"
       }
     ],
     "stats": {
-      "els": 420,
-      "chars": 2791
+      "els": 456,
+      "chars": 2814
     },
     "viewport": "desktop"
   },
@@ -151,13 +187,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "20 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn",
+        "detail": "21 controls <44px — worst: 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn",
         "el": "#app>.main>#panel-shopsection.panel"
       }
     ],
     "stats": {
-      "els": 431,
-      "chars": 1442
+      "els": 440,
+      "chars": 1620
     },
     "viewport": "desktop"
   },
@@ -169,13 +205,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "5 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Sign in\" #clan-panel>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn",
+        "detail": "3 controls <44px — worst: 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn | 35px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
         "el": "#app>.main>#panel-clansection.panel"
       }
     ],
     "stats": {
-      "els": 172,
-      "chars": 194
+      "els": 164,
+      "chars": 429
     },
     "viewport": "desktop"
   },
@@ -187,13 +223,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "10 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Find a clan\" #social-panel>.soc-signpost>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn",
+        "detail": "10 controls <44px — worst: 31px \"See what’s com\" #social-panel>.soc-signpost>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
         "el": "#app>.main>#panel-socialsection.panel"
       }
     ],
     "stats": {
-      "els": 212,
-      "chars": 393
+      "els": 289,
+      "chars": 700
     },
     "viewport": "desktop"
   },
@@ -205,13 +241,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "13 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn | 31px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn",
+        "detail": "14 controls <44px — worst: 31px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn | 31px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn | 31px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn",
         "el": "#app>.main>#panel-bountysection.panel"
       }
     ],
     "stats": {
-      "els": 345,
-      "chars": 752
+      "els": 366,
+      "chars": 1110
     },
     "viewport": "desktop"
   },
@@ -223,13 +259,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "2 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active",
+        "detail": "1 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
         "el": "#app>.main>#panel-profilesection.panel"
       }
     ],
     "stats": {
-      "els": 378,
-      "chars": 2386
+      "els": 344,
+      "chars": 2539
     },
     "viewport": "landscape"
   },
@@ -241,13 +277,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "2 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active",
+        "detail": "1 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
         "el": "#app>.main>#panel-charactersection.panel"
       }
     ],
     "stats": {
-      "els": 256,
-      "chars": 371
+      "els": 326,
+      "chars": 416
     },
     "viewport": "landscape"
   },
@@ -257,15 +293,87 @@
     "vh": 393,
     "issues": [
       {
+        "sev": "P1",
+        "kind": "clipped-text",
+        "detail": "\"Crypt of Bones\" (121>115)",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"Clan Raid\" cut by .panel",
+        "el": "#wt-dests>.wt-dest>span.wtd-kick"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-text",
+        "detail": "\"The Crownless Wyrm\" (168>115)",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"The Crownless Wyrm\" cut by .panel",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"Opens in Open Beta 1\" cut by .panel",
+        "el": "#wt-dests>.wt-dest>button.btn"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"World Event\" cut by .panel",
+        "el": "#wt-dests>.wt-dest>span.wtd-kick"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-text",
+        "detail": "\"Today's blessing\" (129>115)",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"Today's blessing\" cut by .panel",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"Events ▸\" cut by .panel",
+        "el": "#wt-dests>.wt-dest>button.btn"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"Undead\" cut by .wt-bar",
+        "el": "#wt-classes>button.chip"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"Vermin\" cut by .wt-bar",
+        "el": "#wt-classes>button.chip"
+      },
+      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "14 controls <44px — worst: 36px \"Tier 1\" #tier-chips>button.chip | 36px \"Tier 2\" #tier-chips>button.chip | 36px \"Tier 3\" #tier-chips>button.chip",
+        "detail": "23 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Board ▸\" #wt-dests>.wt-dest>button.btn | 40px \"Fight ▸\" #wt-dests>.wt-dest>button.btn",
+        "el": "#app>.main>#panel-combatsection.panel"
+      },
+      {
+        "sev": "P2",
+        "kind": "duplicate-word",
+        "detail": "\"Board Board\"",
         "el": "#app>.main>#panel-combatsection.panel"
       }
     ],
     "stats": {
-      "els": 196,
-      "chars": 1345
+      "els": 311,
+      "chars": 3614
     },
     "viewport": "landscape"
   },
@@ -277,13 +385,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "12 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active | 40px \"Wood\" #act-mob-strip>button.ams-btn",
+        "detail": "2 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Recipe Book\" #panel-skills>.card>.card-head>button.btn",
         "el": "#app>.main>#panel-skillssection.panel"
       }
     ],
     "stats": {
-      "els": 243,
-      "chars": 368
+      "els": 351,
+      "chars": 519
     },
     "viewport": "landscape"
   },
@@ -295,13 +403,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "6 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active | 40px \"Plant all\" #farm-panel>.farm-status>.row>button.btn",
+        "detail": "10 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Plant all\" #farm-panel>.farm-status>.row>button.btn | 40px \"Water all\" #farm-panel>.farm-status>.row>button.btn",
         "el": "#app>.main>#panel-farmingsection.panel"
       }
     ],
     "stats": {
-      "els": 186,
-      "chars": 570
+      "els": 221,
+      "chars": 635
     },
     "viewport": "landscape"
   },
@@ -311,15 +419,21 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "P3",
+        "sev": "P1",
+        "kind": "clipped-by-parent",
+        "detail": "\"· 2,719 items\" cut by .invc-space",
+        "el": "#panel-inventory>.invc-topbar>.invc-space>span.invc-space-sub"
+      },
+      {
+        "sev": "P1",
         "kind": "small-target",
-        "detail": "16 controls <44px — worst: 36px \"\" .invc-main>.invc-left>.invc-cat-strip>button.invc-cat-btn | 36px \"\" .invc-main>.invc-left>.invc-cat-strip>button.invc-cat-btn | 36px \"\" .invc-main>.invc-left>.invc-cat-strip>button.invc-cat-btn",
+        "detail": "19 controls <44px — worst: 30px \"Bag\" #inv-mob-tabs>button.imt-btn | 30px \"Equip\" #inv-mob-tabs>button.imt-btn | 30px \"Saved\" #inv-mob-tabs>button.imt-btn",
         "el": "#app>.main>#panel-inventorysection.panel"
       }
     ],
     "stats": {
-      "els": 229,
-      "chars": 568
+      "els": 325,
+      "chars": 651
     },
     "viewport": "landscape"
   },
@@ -331,13 +445,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "6 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active | 40px \"Upgrade Proper\" #hh-property-card>.card-body>button.btn",
+        "detail": "5 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Upgrade Proper\" #hh-property-card>.card-body>button.btn | 40px \"Rooms\" #panel-house>.card>.chips>button.chip",
         "el": "#app>.main>#panel-housesection.panel"
       }
     ],
     "stats": {
-      "els": 268,
-      "chars": 682
+      "els": 332,
+      "chars": 668
     },
     "viewport": "landscape"
   },
@@ -349,13 +463,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "5 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active | 40px \"Strike the bos\" #hr-raid-card>.card-body>button.btn",
+        "detail": "2 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Quartermaster\" #panel-dungeons>.dgn-scrip-bar>button.btn",
         "el": "#app>.main>#panel-eventssection.panel"
       }
     ],
     "stats": {
-      "els": 323,
-      "chars": 2791
+      "els": 406,
+      "chars": 2814
     },
     "viewport": "landscape"
   },
@@ -367,13 +481,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "18 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active | 40px \"Local Shop\" #panel-shop>.shops-tabs>button.shops-tab",
+        "detail": "19 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Local Shop\" #panel-shop>.shops-tabs>button.shops-tab | 40px \"Market\" #panel-shop>.shops-tabs>button.shops-tab",
         "el": "#app>.main>#panel-shopsection.panel"
       }
     ],
     "stats": {
-      "els": 334,
-      "chars": 1442
+      "els": 390,
+      "chars": 1620
     },
     "viewport": "landscape"
   },
@@ -385,13 +499,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "3 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active | 40px \"Sign in\" #clan-panel>button.btn",
+        "detail": "1 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
         "el": "#app>.main>#panel-clansection.panel"
       }
     ],
     "stats": {
-      "els": 75,
-      "chars": 194
+      "els": 114,
+      "chars": 429
     },
     "viewport": "landscape"
   },
@@ -403,13 +517,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "8 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active | 40px \"Throne\" #lb-cats>button.chip",
+        "detail": "8 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Overall\" #lb-cats>button.chip | 40px \"Skills\" #lb-cats>button.chip",
         "el": "#app>.main>#panel-socialsection.panel"
       }
     ],
     "stats": {
-      "els": 115,
-      "chars": 391
+      "els": 239,
+      "chars": 700
     },
     "viewport": "landscape"
   },
@@ -421,13 +535,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "11 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active | 40px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn",
+        "detail": "12 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn | 40px \"New notices\" #bounty-board-body>.bb-board>.bb-rail>button.btn",
         "el": "#app>.main>#panel-bountysection.panel"
       }
     ],
     "stats": {
-      "els": 248,
-      "chars": 727
+      "els": 317,
+      "chars": 1117
     },
     "viewport": "landscape"
   }

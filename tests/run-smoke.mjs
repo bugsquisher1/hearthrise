@@ -12,6 +12,32 @@
 //
 // Exit codes: 0 = all green · 1 = failing tests, runtime errors, or console
 // errors · 2 = harness/setup problem (couldn't load the page or find the suite).
+//
+// ⚠ THIS FILE IS NOT THE GATE. IT IS ONE STEP OF THE GATE. ──────────────────
+// .github/workflows/smoke.yml runs this as its "Smoke suite (headless)" step
+// and then runs THIRTEEN MORE steps that this file does not: schema-drift
+// (+ --mutate + --live-selftest), live-hash-drift (+ --selftest + --mutate),
+// renown-kill-faucet --selftest, restore-census (+ --mutate +
+// --baseline-selftest), conservation-fuzz --selftest, activity-intent
+// --selftest, claim-intent --selftest, clan-journal-guard --selftest,
+// anon-rate-gate --selftest, raid-band-denial --selftest, raid-card-copy,
+// rpc-resolution, edge-jwt-gate --strict.
+//
+// On 2026-09-04 the GitHub Actions history for `main` showed 40 completed runs
+// since 2026-08-29 and ZERO green, while THIS step passed in every one of them.
+// Every release from b488 onward was therefore gated on a command that is
+// strictly weaker than CI, and the guards that were red were the ones watching
+// the database — whether the repo can rebuild it, whether production carries
+// the bodies the repo believes it carries, which rows only a backup gives back,
+// whether value is conserved. After cutover the database is the only copy of
+// every player's progression, so those are the guards that matter most.
+//
+//   A RELEASE IS GREEN ONLY WHEN BOTH THE LOCAL CI RUN AND THE GITHUB RUN ON
+//   THE RELEASE COMMIT ARE GREEN.
+//
+//   node tests/run-ci-local.mjs          the CI-only steps, derived from
+//                                        smoke.yml so they cannot drift
+//   node tests/run-ci-local.mjs --all    …plus this file: the whole workflow
 // ============================================================
 
 import { chromium } from 'playwright';

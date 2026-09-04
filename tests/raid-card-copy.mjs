@@ -49,8 +49,23 @@ await page.waitForFunction(() => window.HearthriseRaids && window.G, null, { tim
 /* A Tier I Hunt declared by a clan of two -> pool 11,000, share 5,500.
    The player struck three times for 1,800: a third of her share, which under
    the retired median rule could have been anything from a Full share to
-   nothing depending on what her clanmate did that week. */
-const card = await page.evaluate(async () => {
+   nothing depending on what her clanmate did that week.
+
+   ⚠ THE CARD IS BEHIND THE CLAN-LAUNCH GATE, AND THAT IS WHY THIS FILE WAS RED.
+   b385 (src/features/raids.js:1152-1172) short-circuits render() through
+   HearthriseClans.comingSoonHtml while CLAN_LAUNCHED is false, so what a player
+   sees today is "Coming in Open Beta 1 / The Weekly Clan Boss / …". Every copy
+   assertion below therefore read a placeholder and five of them failed —
+   measured 2026-09-04, and the copy in raids.js is INTACT, not regressed: the
+   guard was asserting against a screen the gate had replaced.
+   Two renders, and the first one is not a formality: it PINS THE GATE. If
+   somebody flips CLAN_LAUNCHED early, or the coming-soon short-circuit is
+   deleted, a functional Strike/Claim/Declare control starts rendering on a
+   surface whose claim + weekly-reset server half is deferred — and that is a
+   value-crossing control, which is worth a red build on its own. Only then is
+   the gate lifted, through the module's OWN exported seam (never by editing the
+   flag), so the second render exercises the real card. */
+const { gated, gatedControls, card } = await page.evaluate(async () => {
   window.HearthriseSupabase = { getConfig: () => ({ url: 'https://stub.invalid', anonKey: 'stub' }) };
   window.HearthriseAuth = { getSession: () => ({ access_token: 't', user: { id: 'me' } }) };
   window.G.clanId = 'clan-1';
@@ -62,11 +77,33 @@ const card = await page.evaluate(async () => {
     ok: true, status: 200,
     json: async () => (String(u).includes('raid_contributions') ? ROWS : RAID)
   });
-  window.HearthriseRaids.invalidate?.();
-  await window.HearthriseRaids.render();
-  await new Promise((r) => setTimeout(r, 250));
-  const el = document.getElementById('hr-raid-card');
-  return el ? el.innerText.replace(/\s+/g, ' ').trim() : null;
+  const read = async () => {
+    window.HearthriseRaids.invalidate?.();
+    await window.HearthriseRaids.render();
+    await new Promise((r) => setTimeout(r, 250));
+    const el = document.getElementById('hr-raid-card');
+    if (!el) return { text: null, controls: -1 };
+    return {
+      text: el.innerText.replace(/\s+/g, ' ').trim(),
+      // Controls, not words: the coming-soon body legitimately says "strike
+      // together across the week" in PROSE. What must not exist is something a
+      // player can press.
+      controls: el.querySelectorAll('button, a[href], input, [role="button"], [onclick]').length,
+    };
+  };
+
+  // 1. The shipped state: the gate as the game really carries it.
+  const g = await read();
+  const gated = g.text; const gatedControls = g.controls;
+
+  // 2. Lift it the way the launch will, at the exported seam.
+  const CL = window.HearthriseClans;
+  if (!CL || typeof CL.clanLaunched !== 'function') {
+    return { gated, gatedControls, card: null };
+  }
+  CL.clanLaunched = () => true;
+  const c = await read();
+  return { gated, gatedControls, card: c.text };
 });
 
 /* NO SCREENSHOT, deliberately. The card is inside a panel that is
@@ -83,7 +120,25 @@ const fail = [];
 const check = (ok, msg) => { console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${msg}`); if (!ok) fail.push(msg); };
 
 console.log('\nraid-card-copy — the rendered Hunt card\n');
+console.log('  GATED (CLAN_LAUNCHED false, what a player sees today):');
+console.log('  ' + (gated || '(no card)') + '\n');
+console.log('  LAUNCHED (CLAN_LAUNCHED lifted at the exported seam):');
 console.log('  ' + (card || '(no card)') + '\n');
+
+/* THE GATE ITSELF, PINNED. b385 defers every clan surface behind one idiom; a
+   Hunt card that renders a Strike/Claim/Declare control while the claim and the
+   weekly reset are still deferred is a value-crossing control on a screen the
+   server half does not back yet. Cheap to assert, and it is the reason the
+   second render below is allowed to lift the gate at all. */
+check(/Coming in Open Beta 1/.test(gated || ''),
+  'with the gate closed the card is the shared coming-soon state, not a functional Hunt');
+check(gatedControls === 0,
+  `the gated card offers nothing pressable (found ${gatedControls} control(s)) — counting `
+  + 'BUTTONS, not words, because the coming-soon body legitimately says "strike together" '
+  + 'in prose');
+check((gated || '') !== (card || ''),
+  'lifting the gate CHANGES the card — otherwise every assertion below is reading the same '
+  + 'placeholder and proving nothing');
 
 check(!!card, 'the clan Hunt card renders');
 check(!/Median/i.test(card || ''), 'the card no longer labels another player\'s damage as your bar');

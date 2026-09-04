@@ -684,8 +684,8 @@
   },
   "hr_client_rpc_baseline": {
    "class": "seeded",
-   "replay": 72,
-   "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 now. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions \u2014 silently permitting an unreviewed grant, or crying about a reviewed one."
+   "replay": 73,
+   "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 on 2026-08-30, 73 since 2026-09-08-hero-slot-buy.sql §9 registered hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid) for `authenticated` with a delete-then-insert, so a re-apply cannot double it; production measured at 73 rows carrying that exact row on 2026-09-04. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions \u2014 silently permitting an unreviewed grant, or crying about a reviewed one."
   },
   "hr_client_write_baseline": {
    "class": "seeded",
@@ -740,6 +740,11 @@
    "class": "seeded",
    "replay": 19,
    "note": "Hand-seeded by 2026-08-23-modal-goal-claims.sql: the SERVER's copy of every daily/weekly goal \u2014 counter kind, counter key, target, and the gold/gems/xp/items it pays. This is the PAYOUT table; the client renders it but does not author it. A rebuild producing a different set pays different rewards than the ones players' progress was earned against. RLS on with no policy \u2014 read by SECURITY DEFINER claim RPCs only. Rebuilt from repo, never restored."
+  },
+  "hr_hero_slots": {
+   "class": "seeded",
+   "replay": 4,
+   "note": "The hero-slot PRICE LADDER \u2014 four authored rows (slot_id 1..4 = the 2nd..5th character; 200/500/900/1500 gems; premium_waived on 1..3 only), refilled wholesale by 2026-09-08-hero-slot-buy.sql \u00a71 with `delete` then `insert`, so this file owns the whole table and a rebuild reproduces it byte-for-byte. NOT player value and deliberately NOT in player_value_tables: it carries no user_id and no per-player row \u2014 ownership of a bought slot lives in player_progress (kind='flag', period_key='', key='character_slot:<n>') and in player_state.slot, both already classified restore_only, and hr_hero_slots_of joins this catalogue to those rows. If it came back empty the loss is bounded and LOUD, not silent: hr_buy_hero_slot answers `unknown_slot` for every slot and hr_hero_slots_of grants nothing, so every account is capped at its free slot 0 until the catalogue is reseeded \u2014 the cap is data, by design (the migration's own header: 'the cap is data, not a constant somebody has to remember to move'). Nobody is overcharged and no entitlement is destroyed. Content additionally cross-guarded against src/multi-character.js SLOT_COSTS_GEMS and src/data/shops.js by tests/hero-slot-buy.mjs. Production measured 2026-09-04: 4 rows, byte-equal to the seed. Rebuilt from repo, never restored."
   },
   "hr_hunt_boss_reward": {
    "class": "seeded",

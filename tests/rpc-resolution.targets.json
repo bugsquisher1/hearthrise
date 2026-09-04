@@ -109,6 +109,15 @@
   }
  ],
  [
+  "raid_claim",
+  {
+   "p_scope": "solo",
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_week": "2026-W33",
+   "p_slot": 0
+  }
+ ],
+ [
   "world_event_contribute",
   {
    "p_event_key": "x",
@@ -125,6 +134,13 @@
   "world_event_claim",
   {
    "p_day_key": "2026-08-11"
+  }
+ ],
+ [
+  "world_event_claim",
+  {
+   "p_day_key": "2026-08-11",
+   "p_slot": 0
   }
  ],
  [
@@ -188,6 +204,14 @@
   {
    "p_clan_id": "00000000-0000-0000-0000-000000000000",
    "p_heals": 1
+  }
+ ],
+ [
+  "clan_feast_deposit",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_item_id": "shrimp",
+   "p_qty": 1
   }
  ],
  [

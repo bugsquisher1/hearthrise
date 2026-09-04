@@ -48,6 +48,48 @@
 //   and commit the baseline change in the SAME commit as the migration, so the
 //   review sees the client surface move.
 //
+// ── RETIRED SIGNATURES: FOUR ENTRIES THAT MUST STAY PGRST202 ─────────────
+// Re-baselining a DROPPED RPC to "PGRST202 is expected" is only half a fix: it
+// silences the diff and leaves the REPLACEMENT — the signature real players
+// actually call — unprobed, which is precisely the coverage this file exists to
+// hold. So each of the four keeps its retired entry AND gains its live one, and
+// the retired entry is now an assertion in its own right: this call must stay
+// invisible. (2026-09-04. All four had been red since the day their migration
+// landed, unseen because CI was red for other reasons.)
+//
+//   buy_listing(p_listing_id,p_qty)
+//     DROPPED by 2026-08-27-clan-economy-sinks.sql:98-99, together with
+//     buy_listing__ungated. It is the client-authored market buy CLAUDE.md's
+//     server-authority section was written about ("buy_listing moves no value
+//     server-side — the client does"); hr_market_buy replaced it and there is no
+//     call site left in src/. It has NO live twin, and the retired probe earns
+//     its place twice over: supabase/schema.sql:220-221 still CREATES it and
+//     grants it to `authenticated`, so any rebuild or restore that replays
+//     schema.sql without reaching the 2026-08-27 drop brings the old buy path
+//     back. This probe is the thing that would notice.
+//   clan_feast_deposit(p_clan_id,p_heals)
+//     DROPPED by 2026-08-27-clan-economy-sinks.sql:261-262; §362 creates
+//     clan_feast_deposit(p_clan_id, p_item_id, p_qty, p_slot default 0). The old
+//     contract let the client mint the feast meter for free (it named the heal
+//     value); the new one takes an ITEM and the server reads the heal from its
+//     own catalogue. src/features/clan-seat-ui.js:729 sends the three-key form.
+//   raid_claim(p_clan_id,p_scope,p_week)
+//     DROPPED by 2026-08-19-muster-raid-rpc-credit.sql:87-88; §423 creates
+//     raid_claim(p_scope, p_clan_id, p_week, p_slot) so the chest is credited to
+//     a NAMED character server-side. src/features/raids.js:960 sends all four.
+//   world_event_claim(p_day_key)
+//     DROPPED by 2026-08-19-muster-raid-rpc-credit.sql:89-90; §413 creates
+//     world_event_claim(p_day_key, p_slot), same reason.
+//     src/features/muster.js:1010 sends both.
+//
+// hr_leaderboard's 200-shape gained `available` in the same period:
+// 2026-08-18-leaderboard-server-source.sql:441/491 (Security condition S2 — the
+// boards stopped ranking the client-authored save blob) answers an unsourced
+// board with ok+empty+`available:false` so the screen can hide the chip. It is
+// an ADDITIVE key on a deliberately public read; both hr_leaderboard entries
+// move together, which is itself the evidence that it is the function and not
+// one call shape.
+//
 // Usage:
 //   node tests/rpc-resolution.mjs                  # check against the baseline
 //   node tests/rpc-resolution.mjs --update-baseline

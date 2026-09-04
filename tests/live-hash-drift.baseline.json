@@ -675,7 +675,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "REVIEW 2026-08-31: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+   "why": "VERIFIED 2026-09-04 with  node tests/live-hash-drift.mjs --codediff hr_record_rejection  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 1,676 code chars, zero differences. The whole 964-char delta is comments, and it runs in BOTH directions. Repo-only: the expanded C2 rationale for why `rate_limited` is not an incident on its own (\"an alert nobody reads\", added by 9753a3dc), the expanded S9 `own_listing` wash-trading paragraph, the \"severity only ever ratchets UP\" note on the upsert, and the \"never turn a clean rejection into a 500\" note on the exception handler — all four grew in supabase/migrations/2026-08-11-player-state.sql after its §6d body had been applied. Production-only: the cross-reference reads \"hr_rate_sample_weight() in §6c-ii\" while the repo file says \"§6c\" at line 651 even though its own section header has been \"6c-ii\" since 4e765858 — so on that one line the REPO comment is the stale side. c_escalating, c_escalate_at, the insert/on-conflict, the severity CASE and the exception branch are byte-identical. Cosmetic; no production apply is implied or needed."
   },
   {
    "sig": "hr_renown_of(p_user uuid, p_slot integer)",
@@ -828,7 +828,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "REVIEW 2026-09-01: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+   "why": "VERIFIED 2026-09-04 with  node tests/live-hash-drift.mjs --codediff hr_state_of  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 4,699 code chars, zero differences. The whole 748-char delta is TWO repo-only comment blocks: the \"rested-record (b437)\" note that 2026-08-22-rested-record.sql:84-88 carries INSIDE its anchor-replace payload next to the rested_xp/rested_at keys, and the \"companion-record (blob-retire capstone)\" note 2026-08-22-companion-record.sql carries next to the companions object. Each projection has exactly ONE source in the whole tree (grep \"'rested_xp', v_st.rested_xp\" and \"'companions', jsonb_build_object\" return one file each) and in both files the comment travels in the same replace() payload as the code — so a replay of the file always produces both, and production has the code without the prose. Production therefore received these two patches from an edited paste rather than from the file verbatim: they had to be re-applied after 2026-08-26-marks-record.sql, whose GENERATED full restatement of hr_state_of carries neither key and is ordered at index 94 in tests/schema-apply-order.json, ahead of rested-record (95) and companion-record (99). Every projected key, its source column, and both coalesce/sub-select guards are identical. Cosmetic; no production apply is implied or needed. Recorded as evidence for the apply-discipline finding: a hand-edited paste leaves no other trace in this repo."
   },
   {
    "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",

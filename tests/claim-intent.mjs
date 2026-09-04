@@ -175,7 +175,18 @@ const MUTATIONS = {
     repl: '  return base;',
   },
   streak_ignores_state: {
-    file: FN('claim-reward.js'),
+    /* ⚠ src/data/rewards.js, NOT claim-reward.js — deriveLoginStreak MOVED in
+       4cc7d6cd ('the sheet advertised a day the server would not pay — TWO
+       STREAKS, one name'), which put the client preview and the server pricer on
+       ONE implementation and left claim-reward.js merely importing and
+       re-exporting it (its lines 183 and 244). This mutation stayed pointed at
+       the old home, so from that commit --selftest exited 2 on
+       "anchor matched 0 times" — a HARNESS verdict, so nothing was ever
+       silently graded as a catch, but the run STOPPED there and the twenty
+       mutations declared after it never executed at all. That is the CI
+       claim-intent red. The anchor TEXT is unchanged because the line is
+       unchanged; only the file it lives in moved. */
+    file: DATA('rewards.js'),
     why: 'INVARIANT 4 — the streak counts yesterday\'s row whatever state it is in, so an '
        + 'unclaimed row inflates today\'s reward',
     find: "  if (!row || row.state !== 'claimed') return 1;",
@@ -282,7 +293,18 @@ const MUTATIONS = {
     file: FN('intents.js'),
     why: 'the list of delta keys that close the accrual window is emptied, so the fail-closed '
        + 'check that keeps `collectsFirst:false` honest can never fire',
-    find: "export const STAMPING_DELTA_KEYS = Object.freeze(['equip', 'activity']);",
+    /* ⚠ THE LIST GREW AND THE ANCHOR DID NOT. b379 (b6e9a2bd, 2026-08-17) added
+       'enchant' — an enchant stamps accrued_to for the same reason an equip
+       does — and this mutation went on naming the two-element form, so from that
+       commit it could not be planted. It was INVISIBLE until today because the
+       selftest exited 2 on the FIRST stale anchor (streak_ignores_state) and
+       never reached this one; the driver now records a HARNESS and keeps going,
+       which is how both surfaced in a single run.
+       The anchor is deliberately re-pinned to the whole literal rather than
+       loosened to a prefix: this mutation's job is to empty the list, and a
+       find-string that still matches after a THIRD key is added would silently
+       plant a list that is empty of two keys and not of the third. */
+    find: "export const STAMPING_DELTA_KEYS = Object.freeze(['equip', 'activity', 'enchant']);",
     repl: 'export const STAMPING_DELTA_KEYS = Object.freeze([]);',
   },
   delta_closes_window: {
@@ -1448,13 +1470,38 @@ async function run(mutate) {
     + 'real PG18 + the deployed intent module)');
 
   if (has('selftest')) {
-    let slipped = 0;
+    let slipped = 0; let unplantable = 0;
     for (const id of Object.keys(MUTATIONS)) {
-      let red = false; let why = '';
+      let red = false; let why = ''; let harness = false;
       try { const f = await run(id); red = f.length > 0; why = f[0] || ''; }
-      catch (e) { if (e.harness) { console.error(e.message); process.exit(2); } red = true; why = e.message; }
+      catch (e) {
+        /* ⚠ A MUTATION THAT CANNOT BE PLANTED IS RECORDED, AND THE RUN GOES ON.
+           This used to process.exit(2) from inside the loop, so ONE stale anchor
+           hid every mutation declared after it. When deriveLoginStreak moved out
+           of claim-reward.js into src/data/rewards.js (4cc7d6cd), this file
+           printed eight CAUGHT lines and stopped: the twenty mutations after
+           streak_ignores_state were never run at all, for days, and the only
+           evidence was one line at the bottom of a CI log nobody was reading.
+           The verdict is NOT weakened — an unplantable mutation is never a catch
+           and is still fatal (exit 2, below) — but the whole catalogue's state
+           now comes out of ONE run, which is the difference between fixing one
+           anchor a day and fixing them all in one commit. Same rule, and the
+           same reason, as tests/conservation-fuzz.mjs' selftest driver. */
+        if (e.harness) { harness = true; why = e.message; }
+        else { red = true; why = e.message; }
+      }
+      if (harness) {
+        console.log(`  HARNESS ${id.padEnd(26)} ${why.slice(0, 110)}`);
+        unplantable++;
+        continue;
+      }
       console.log(`  ${red ? 'CAUGHT ' : 'SLIPPED'} ${id.padEnd(26)} ${red ? why.slice(0, 110) : MUTATIONS[id].why}`);
       if (!red) slipped++;
+    }
+    if (unplantable) {
+      console.log(`\n${unplantable} mutation(s) could not be PLANTED — a stale anchor proves nothing. `
+        + 'Re-point each one at the file its code lives in now.');
+      process.exit(2);
     }
     if (slipped) { console.log(`\n${slipped} mutation(s) SLIPPED — the guard cannot see them.`); process.exit(1); }
     console.log(`\nall ${Object.keys(MUTATIONS).length} mutations CAUGHT.`);

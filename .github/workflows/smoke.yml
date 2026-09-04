@@ -41,7 +41,21 @@ jobs:
     # renown-faucet mutation harness replays it sixteen times (~2m). A timeout
     # that trims mutation proofs is a timeout that deletes the only evidence a
     # guard can fail.
-    timeout-minutes: 20
+    #
+    # 20 -> 30 on 2026-09-04, on a MEASUREMENT rather than a hunch. With every
+    # guard finally green, `node tests/run-ci-local.mjs` — which derives its list
+    # from the steps below — runs the thirteen CI-only steps in 856.6s (14m17s),
+    # of which conservation-fuzz --selftest is 219.5s, renown-kill-faucet
+    # --selftest 151.1s, activity-intent 108.0s and claim-intent 91.0s. Add
+    # checkout + setup-node + `npm install` + `playwright install --with-deps`
+    # and the in-page suite, none of which that number includes, and 20 minutes
+    # was inside the noise of the wall. A job that TIMES OUT presents as a red
+    # build with no failing assertion in it — indistinguishable, in the Actions
+    # list, from the reds this workflow spent 2026-08-29..09-04 accumulating, and
+    # the single most misleading way for a gate to fail. The margin is deliberate
+    # and it is not a licence to slow down: a genuine hang still fails, ten
+    # minutes later.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4

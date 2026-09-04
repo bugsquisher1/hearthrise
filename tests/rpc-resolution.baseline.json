@@ -2,12 +2,12 @@
  "hr_leaderboard(p_board,p_limit,p_span)": {
   "status": 200,
   "code": "OK",
-  "shape": "obj{board,near,ok,rank,refreshed_at,top,total}"
+  "shape": "obj{available,board,near,ok,rank,refreshed_at,top,total}"
  },
  "hr_leaderboard(p_board)": {
   "status": 200,
   "code": "OK",
-  "shape": "obj{board,near,ok,rank,refreshed_at,top,total}"
+  "shape": "obj{available,board,near,ok,rank,refreshed_at,top,total}"
  },
  "hr_server_now()": {
   "status": 401,
@@ -25,8 +25,8 @@
   "shape": ""
  },
  "buy_listing(p_listing_id,p_qty)": {
-  "status": 401,
-  "code": "42501",
+  "status": 404,
+  "code": "PGRST202",
   "shape": ""
  },
  "clan_deposit(p_clan_id,p_items)": {
@@ -75,6 +75,11 @@
   "shape": ""
  },
  "raid_claim(p_clan_id,p_scope,p_week)": {
+  "status": 404,
+  "code": "PGRST202",
+  "shape": ""
+ },
+ "raid_claim(p_clan_id,p_scope,p_slot,p_week)": {
   "status": 401,
   "code": "42501",
   "shape": ""
@@ -90,6 +95,11 @@
   "shape": ""
  },
  "world_event_claim(p_day_key)": {
+  "status": 404,
+  "code": "PGRST202",
+  "shape": ""
+ },
+ "world_event_claim(p_day_key,p_slot)": {
   "status": 401,
   "code": "42501",
   "shape": ""
@@ -140,6 +150,11 @@
   "shape": ""
  },
  "clan_feast_deposit(p_clan_id,p_heals)": {
+  "status": 404,
+  "code": "PGRST202",
+  "shape": ""
+ },
+ "clan_feast_deposit(p_clan_id,p_item_id,p_qty)": {
   "status": 401,
   "code": "42501",
   "shape": ""

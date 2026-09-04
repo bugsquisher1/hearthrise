@@ -54,6 +54,25 @@ Run the suite with `Ctrl+Shift+T` or the floating 🧪 button.
   do the pass, the Art Director does; either way the screenshots exist before the push.
   Tyler's words: "THIS SHOULD HAVE NEVER GONE LIVE WITHOUT SOMEONE FROM THE UX/UI/DESIGN TEAM
   APPROVING IT."
+- **THE CI GATE (locked 2026-09-04, after the P0 process failure below — NON-NEGOTIABLE).**
+  **A release is green only when BOTH the local `node tests/run-ci-local.mjs` run AND the
+  GitHub Actions run on the release commit are green.** Neither alone is a gate: the local
+  run cannot see a CI-environment problem, and the GitHub run cannot be waited on while a
+  release is being assembled — so both, every time, and the GitHub run is CHECKED, not assumed.
+  `node tests/run-smoke.mjs` is ONE step of the workflow; `.github/workflows/smoke.yml` runs
+  thirteen more that it does not (schema-drift, live-hash-drift, renown-kill-faucet,
+  restore-census, conservation-fuzz, activity-intent, claim-intent, clan-journal-guard,
+  anon-rate-gate, raid-band-denial, raid-card-copy, rpc-resolution, edge-jwt-gate — most with
+  their `--mutate` / `--selftest` proofs). `run-ci-local.mjs` DERIVES its list by parsing
+  smoke.yml, so the two cannot drift; `--all` adds the in-page suite and runs the whole workflow.
+  Why: on 2026-09-04 the Actions history for `main` showed **40 completed runs since 2026-08-29
+  and ZERO green**, while the in-page step passed in every one of them. Every release from b488
+  was gated on the weaker local command, and the guards that were red were the ones that watch
+  the DATABASE — can the repo rebuild it, does production carry the bodies the repo believes it
+  carries, which rows only a backup gives back, is value conserved. After cutover the database
+  is the only copy of every player's progression, so those are the guards that matter most.
+  A red CI run is never "flaky" until someone has read it, and a guard is never fixed by
+  loosening, deleting, or skipping it.
 - After bumping, give Tyler the literal git push command. He runs git himself.
 
 ---

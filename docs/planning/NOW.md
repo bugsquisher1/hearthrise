@@ -8,10 +8,11 @@
 
 ✅ **Just shipped (build 501)**
 - Homestead rooms (the Forge and friends) now actually build — they no longer take your resources and leave the room unbuilt after a reload
-- Bone keys, goblin seals and other combat keys stop vanishing from your bag — the realm records them as real drops now, and they even drop while you're away
+- Bone keys, goblin seals and other combat keys are real realm-granted drops now (and drop while you're away) — the old client-side key handout the realm never recorded is gone
 
 🔨 **Right now**
-- **Dungeon scrip** — tracing complete, server-side fix in progress: solo-dungeon scrip will stop resetting to zero (same "earned then forgotten on reload" class as the two fixes above)
+- **"Items vanish after a fight" — root found, measured live:** during an attended fight the realm currently credits roughly 60% of the drops you see and can hand back food you ate, because the after-fight settle re-simulates your session too conservatively (kills, XP and gold are credited correctly). Fixing the crediting server-side is the top item.
+- **Dungeon scrip** — server-side fix built and under review; lands with the quartermaster rework so scrip stops resetting to zero
 - The big one: an armor & defence overhaul so gear genuinely matters at every tier — we measured the current math and it stops pulling its weight at both ends; that's getting fixed properly
 - A rescue prompt for your first nights: leaving a fight you can't survive will offer the gathering switch, so your away time banks the whole night instead of ending at your first death
 - A new "ward" line of off-hand charms and totems fed by monster drops

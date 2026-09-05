@@ -14,12 +14,26 @@
 --   this file's base). §0 fails closed if any of them is absent.
 --
 --   ⚠⚠ APPLY THIS FILE IN ONE TRANSACTION. `begin;` <this file> `commit;`
---      SECURITY CONDITION, 2026-09-04. `create or replace function` grants
---      EXECUTE TO PUBLIC by default and §1b's revoke is the NEXT statement, so
---      applied statement-by-statement in autocommit there is a window — however
---      short — in which `hr_attended_kills` is callable by `anon`. It is
---      SECURITY DEFINER and takes `p_user`, so in that window ANY caller could
---      read ANY player's kill credits. The file carries no `begin;` of its own
+--      SECURITY CONDITION, 2026-09-04, amended by measurement. `create or
+--      replace function` lands with a DEFAULT ACL and §1b's revoke is the NEXT
+--      statement, so applied statement-by-statement in autocommit there is a
+--      window — however short — in which `hr_attended_kills` is callable by
+--      somebody it must never be callable by. WHO, exactly, depends on the
+--      applier, and the honest answer is `service_role`, not `anon`:
+--        MEASURED on nezapsylztqbbwuwembx 2026-09-04, in a rolled-back probe —
+--        the apply path's `current_user` is `postgres`, and `pg_default_acl` for
+--        FUNCTIONS in `public` created by postgres is
+--        `{postgres=X/postgres, service_role=X/postgres}`. A fresh function
+--        therefore reads anon=false, authenticated=false, service_role=TRUE. The
+--        built-in EXECUTE-to-PUBLIC default is REPLACED by that entry, so the
+--        production window exposes the service role and no client role.
+--      THE GATE STAYS, for two reasons that are not hypothetical: functions
+--      created by `supabase_admin` in `public` DO get
+--      `{postgres,anon,authenticated,service_role}=X` (same query, same
+--      database), and PGlite — the replay every guard in this repo runs on — has
+--      no pg_default_acl entry at all and so falls back to the built-in
+--      PUBLIC=X. It is SECURITY DEFINER and takes `p_user`, so in that window a
+--      caller could read ANY player's kill credits. The file carries no `begin;` of its own
 --      because both appliers already wrap it (tests/schema-replay.mjs:248 does
 --      `begin; <file> commit;`, and the Coordinator's execute_sql path sends the
 --      whole file as one simple query, which Postgres runs as one implicit
@@ -152,42 +166,120 @@
 -- is a watermark that can be marked consumed WITHOUT paying; this one cannot.
 --
 -- ── WHAT BOUNDS THE FAUCET (the question to attack in review) ──────────────
--- Four bounds, tightest first. NONE of them is new client-reachable surface.
---   1. THE ENGINE RE-CAPS, from THIS player's server-owned gear.
+-- ⚠ RESTATED 2026-09-04 (Security condition F5). An earlier draft of this block
+--   claimed FOUR bounds and the formula `min(attended, cap) - sim`. Both were
+--   wrong by the time the file shipped: Security's C8 measured two of the four
+--   as INERT, and the formula gained a third ceiling. What is written below is
+--   what the code does. Do not restore the four-bound list.
+--
+-- THE SHIPPED FORMULA, exactly (accrual.js §5a):
+--
+--     attTopUp = max(0, min(attClaimed, attCap, attSim * ATTENDED_MAX_FIDELITY)
+--                       - attSim)
+--
+--   so a window's TOTAL is `max(sim, min(claimed, cap, sim * 3))` — never
+--   `sim + claimed`. A forged count COMPETES with the server's own simulation
+--   instead of adding to it, and `sim = 0` pays ZERO by arithmetic rather than
+--   by a special case.
+--
+-- TWO BOUNDS BIND (C8's framing). Neither is new client-reachable surface.
+--   1. THE ENGINE RE-CAPS, from THIS player's server-owned gear — `attCap`.
 --      hr_bounty_kill_cap (the cap that let the row into the log) assumes a
 --      600 ms swing floor and BEST-IN-SLOT max hit, because item combat stats are
 --      not server-side — ~130 goblin kills/min. Fine for a COUNTER behind a
 --      once-per-period claim guard; far too loose for a TRADEABLE item faucet.
 --      accrual.js `attendedKillCap` re-derives it with `deriveTickMs(equipment,
---      items, style)` and `playerRolls(m).maxHit`. MEASURED, both fixtures:
+--      items, style)` and `playerRolls(m).maxHit`, at 1.3x the physical maximum
+--      (ATTENDED_HEADROOM_NUM/DEN, the SAME 1.3 the SQL cap uses). MEASURED,
+--      both fixtures:
 --         fresh char / 169 s : SQL 365  engine 22  away-sim 7   honest 15
 --         maxed      /  90 s : SQL 195  engine 48  away-sim 27
 --      16.6x / 4.1x tighter than the SQL cap; 1.47x headroom over the honest
 --      attended rate.
---   2. min(attended, cap) - simulated, FLOORED AT 0. Not additive. A window's
---      total is max(sim, min(attended, cap)); a forged count COMPETES with the
---      server's own simulation instead of adding to it.
---   3. hr_apply's existing per-call clamps and the per-UTC-day budget
---      (2026-08-11-daily-budget.sql: 25M gold, 1M item units per character-day).
---      The top-up pays `gold` and `items` — the two dimensions that budget
---      already covers. NO NEW FUSE WAS INVENTED: a second fuse beside an
---      existing one is two numbers to keep in step, and one of them will rot.
---   4. This function's own per-call ceilings, below.
+--   2. THE SIM-RELATIVE CEILING — `attSim * ATTENDED_MAX_FIDELITY`. Bound 1 is
+--      physics-from-gear and says NOTHING about survival: a maxed character in a
+--      bronze sword pointed at `the_silence` simulates 0 kills and caps at
+--      5,200, which without this pays ~2.27M gold/day. See the constant in
+--      accrual.js for why it is 3 (1.7 measured x 1.3 ruled, rounded up) and
+--      tests/attended-loot-credit.mjs A6 for the by-value AND derived pins.
+--
+-- TWO DO NOT BIND, and are listed only so nobody counts them again:
+--   3. hr_apply's per-call clamps and the per-UTC-day budget. ⚠ READ THE RIGHT
+--      FILE: the live budget is 25M gold / 70M item units / 120M XP / 5,000 gems
+--      per character-day, set by 2026-08-16-day-budget-artisan.sql, which
+--      SUPERSEDES the 1M qty and 40M xp in 2026-08-11-daily-budget.sql. An
+--      earlier draft of this header quoted the superseded 1M and understated the
+--      unit headroom by 70x. Verified live 2026-09-04:
+--      `select public.hr_day_budget_limits()` = {gold 25000000, qty 70000000,
+--      xp 120000000, gems 5000}. Measured inert — see THE COMPOSITE BOUND.
+--   4. This function's own per-call ceilings (5000 kills, 8 targets). They fuse
+--      a pathological LOG, not a forger.
+--
+-- ── THE COMPOSITE BOUND — MEASURED, and it is the honest answer ──────────
+-- The two live ceilings compose as a min(), so the real bound on a forger is
+--
+--     min(1.3 x this character's PHYSICAL-MAX kill rate,  3 x the AWAY-SIM rate)
+--
+-- and the GEAR cap is the one that usually binds: measured on the shipping
+-- engine over 1,944 combinations (every monster x {full best-in-slot, bronze
+-- sword, bare-handed} x {maxed, fresh} x {60 s, 1 h, 12 h} settle cadence), the
+-- gear cap bound 802 of the 1,111 paying combinations and the fidelity ceiling
+-- the other 306. WORST CASE REACHED, per character-day:
+--
+--     gold    4,301,068  = 17.20% of the 25,000,000 gold budget  (grim_reaper,
+--                          maxed + full BIS, 12 h cadence)  = 2.32x the away rate
+--                          the same character earns honestly
+--     units     133,920  =  0.19% of the 70,000,000 qty budget  (wolf, maxed +
+--                          bronze sword, 60 s cadence)     = 2.74x honest
+--
+-- ✓ AND THE GEAR MODEL IS THE WORST ONE, NOT MERELY A PLAUSIBLE ONE. The first
+--   sweep scored equipment on atkB+strB only, which ignores defB and spdB — both
+--   of which could in principle raise the bound (defence lifts survival, so it
+--   lifts `sim` and therefore the 3x ceiling; a faster weapon lowers tickMs, so
+--   it lifts the gear cap). RE-MEASURED with four loadout models — offence-only,
+--   armour-by-defB, a mixed score, and a speed-weapon build — across seven
+--   monsters and two cadences. OFFENCE-ONLY IS THE WORST: 4,301,068 gold/day
+--   against 4,236,828 (defence-first), 4,233,374 (mixed) and 2,955,044 (speed
+--   weapon). Defence buys the forger nothing here because every model already
+--   survives (`died = false` in all 56 runs, on a deep food stack), and the
+--   heavier armour's slower tick costs more cap than the survival is worth. The
+--   figure above is therefore a MAXIMUM, not a lower bound.
+--
+-- GOLD IS THE ONE THAT MATTERS. Against the qty budget the top-up is noise; the
+-- gold budget retains 5.8x headroom over the worst forged case and 13.2x over
+-- the best HONEST away day this engine can produce (1,912,200 gold, maxed + full
+-- BIS on grim_reaper). Both are well clear — but note that
+-- 2026-08-11-daily-budget.sql's own header quotes an "honest max/day" of
+-- 1,049,186 gold and a 23.8x headroom, and that calibration predates both this
+-- change and the current gear tier. It is a fuse, not a control; it should not
+-- be the thing that discovers the drift.
+--
+-- ⚠ HOW THIS COMPARES TO THE SECURITY REVIEW OF 2026-09-04, which recorded
+--   1,533,780 gold/day (6.14%) and 120,060 units/day (12.01%). TWO differences,
+--   and they point opposite ways:
+--     · GOLD: 17.20% here against 6.14% there — a factor of 2.80 HIGHER. The gap
+--       is gear: the review's sweep does not appear to have included a full
+--       best-in-slot loadout on an apex boss, which is exactly the character who
+--       would run this. The number above is the one to attack.
+--     · UNITS: both 12.01% and this file's own earlier 13.39% were computed
+--       against a budget of 1,000,000, which 2026-08-16-day-budget-artisan.sql
+--       superseded with 70,000,000 (verified live). The true figure is 0.19%.
+--   Both sweeps are on the shipping engine and both are reproducible.
+--
 -- THE RESIDUAL, STATED SO IT CAN BE ATTACKED — it is NOT zero. An attacker
--- looping hr_credit_kills makes the settle pay loot at the physical rate their
--- own server-known gear allows, which is 3.1x (fresh) / 1.8x (maxed) the rate
--- the away accrual pays that same character for the same seconds. The multiple
--- exists because the away sim UNDER-REALISES DAMAGE relative to the live client
--- by ~1.7x — systematic, not variance, and visible in the production row itself
--- (70 ticks / 9 sim kills = 1.9 dmg/swing against the client's 15 kills =
--- 3.2 dmg/swing on the identical character). Tightening the cap to close it
--- would throttle honest attended play, so the honest close is span-sim fidelity,
--- tracked separately. What ships HERE is detectability: meta.att = {claimed,
--- cap, sim, top} on every accrue row makes claimed/sim the forgery signal
--- (honest play clusters near 1.7; a forger runs the claim to the cap), one
--- aggregate on a row that already exists. Asserted BY VALUE on both fixtures in
--- tests/attended-loot-credit.mjs A6, so loosening the cap re-opens this review
--- by name rather than by judgement.
+-- looping hr_credit_kills makes the settle pay loot at up to the composite bound
+-- above for THEIR OWN character. It is self-only, journalled and reversible. The
+-- multiple exists because the away sim UNDER-REALISES DAMAGE relative to the
+-- live client by ~1.7x — systematic, not variance, and visible in the production
+-- row itself (70 ticks / 9 sim kills = 1.9 dmg/swing against the client's 15
+-- kills = 3.2 dmg/swing on the identical character). Tightening the cap to close
+-- it would throttle honest attended play, so the honest close is span-sim
+-- fidelity, tracked separately. What ships HERE is detectability: meta.att =
+-- {claimed, cap, sim, top} on every accrue row makes claimed/sim the forgery
+-- signal (honest play clusters near the fidelity ratio; a forger runs the claim
+-- to the cap), one aggregate on a row that already exists. Asserted BY VALUE on
+-- both fixtures in tests/attended-loot-credit.mjs A6, so loosening the cap
+-- re-opens this review by name rather than by judgement.
 --
 -- ── LEDGER VOLUME (the game_events lesson) ─────────────────────────────────
 -- ZERO new rows. The top-up folds into the delta the settle already sends and
@@ -414,13 +506,36 @@ comment on function public.hr_attended_kills(uuid, int, timestamptz) is
   'See docs/design/attended-loot-credit.md.';
 
 -- ── 1c. REFUSE AN AUTOCOMMIT APPLY ─────────────────────────────────────────
--- SECURITY CONDITION, 2026-09-04. §1 creates the function (EXECUTE to PUBLIC by
--- default) and §1b revokes it. Those are two statements, so an applier that does
--- not wrap the file leaves a window in which a SECURITY DEFINER function taking
--- `p_user` is callable by `anon` — i.e. any caller can read any player's kill
--- credits. The window is short and the payload is low-value; it is closed here
--- anyway, because "short" is not a property anybody measured and a privileged
--- function born reachable is the class this repo's nightly detector exists for.
+-- SECURITY CONDITION, 2026-09-04 (wording corrected by measurement the same
+-- day). §1 creates the function with a DEFAULT ACL and §1b revokes it. Those are
+-- two statements, so an applier that does not wrap the file leaves a window in
+-- which a SECURITY DEFINER function taking `p_user` is callable by a role that
+-- must never call it — i.e. a caller can read any player's kill credits.
+--
+-- WHICH ROLE, MEASURED rather than assumed (rolled-back probe on
+-- nezapsylztqbbwuwembx, 2026-09-04):
+--   · PRODUCTION apply path. current_user = `postgres`; pg_default_acl for
+--     functions in `public` created by postgres is
+--     `{postgres=X/postgres, service_role=X/postgres}`. A fresh function reads
+--     anon=false, authenticated=false, SERVICE_ROLE=TRUE. So the real production
+--     window is `service_role`, NOT `anon` — narrower than the original wording
+--     claimed, and still a role this function must not be reachable from.
+--   · A `supabase_admin` apply. Its default ACL in `public` IS
+--     `{postgres,anon,authenticated,service_role}=X` — the anon window is real
+--     on that path.
+--   · PGlite (tests/schema-replay.mjs). No pg_default_acl row at all, so the
+--     BUILT-IN default applies and the function is born EXECUTE to PUBLIC.
+-- Two of the three paths hand it to a client role, so the gate is not
+-- decoration on any of them. It is closed here because "short" is not a property
+-- anybody measured and a privileged function born reachable is the class this
+-- repo's nightly detector exists for.
+--
+-- ⚠ AND THIS IS WHY §1b ENUMERATES THE ROLES BY NAME. `revoke ... from public`
+--   alone removes only the built-in PUBLIC grant; a `service_role=X` or
+--   `anon=X` grant that arrived from pg_default_acl is a grant TO A NAMED ROLE
+--   and survives it untouched. The `from public, anon, authenticated,
+--   service_role` list in §1b is load-bearing on every one of the three paths
+--   above — do not shorten it.
 --
 -- HOW IT KNOWS. `pg_current_xact_id_if_assigned()` is non-null once the current
 -- transaction has WRITTEN something. §1's `create or replace function` writes
@@ -438,10 +553,10 @@ do $$
 begin
   if pg_current_xact_id_if_assigned() is null then
     raise exception 'PRECONDITION: this file is being applied in AUTOCOMMIT. §1 creates '
-                    'hr_attended_kills with the default EXECUTE-to-PUBLIC grant and §1b revokes '
-                    'it one statement later, so an unwrapped apply leaves a SECURITY DEFINER '
-                    'function that takes p_user callable by anon. Re-run as: begin; <this file> '
-                    'commit;';
+                    'hr_attended_kills with a DEFAULT ACL and §1b revokes it one statement '
+                    'later, so an unwrapped apply leaves a SECURITY DEFINER function that takes '
+                    'p_user callable by service_role (a postgres apply, measured) or by anon (a '
+                    'supabase_admin apply, and PGlite). Re-run as: begin; <this file> commit;';
   end if;
 end $$;
 

@@ -20,6 +20,82 @@ not name and this document's own measurement found.
 | **Operational** | The file must be applied in one transaction (`create or replace` grants EXECUTE to PUBLIC and §1b's revoke is the next statement). §1c **refuses the apply** if it finds itself in autocommit. |
 | **NEW — found here, not in review** | The gear cap says nothing about **survival**. A maxed-skill character in a bronze sword pointed at `the_silence` simulates **0** kills and caps at **5,200** — the top-up paid the whole ceiling: **2,267,639 gold and 6,900 tradeable units a day**, against an honest production maximum of ~8 k gold/hour. `ATTENDED_MAX_FIDELITY` closes it. §2, guard A9. **This must go back to Security.** |
 
+## 0b. The SECOND Security review of 2026-09-04 — BLOCKED on F1, five conditions
+
+The re-review signed the projection, the Edge plumbing and the sim-relative ceiling (verified
+catalogue-wide: ~100 monster×gear combinations, **0** rows where the honest sim is 0 and the
+attacker is positive, max kill multiple exactly **3.00**) and **BLOCKED on F1 alone**.
+
+| | |
+|---|---|
+| **F1 — THE BLOCKER, now fixed** | The top-up bound Boss-of-the-Day **once**, at `attWindow.toMs`, while `simulateSpan` rebinds it **per UTC-day segment** (`combat-sim.js:117` states the contract; `away.js utcDaySegments` is the segmenter). A settle whose attended window crossed UTC midnight therefore priced **every** top-up kill at the later instant's boss. **Measured on this engine before the fix** — 2 h window 23:00–01:00 UTC, maxed character, five seeds, top-up units/kill against the span's own: **1.23–1.28×** pointed at the later day's boss, **0.80–0.87×** pointed at the earlier one, 0.97–1.00× on a boss featured on neither. ×1.5 daily / ×2.0 weekly **on the drop half**, multiplicative with the 3× fidelity ceiling → up to **4.5× / 6.0×** the honest away unit rate; and the mirror case is the same confiscation this change exists to end. **FIXED:** §5a-BOTD segments the top-up with the existing `utcDaySegments` and rebinds `botd` per segment, allocating kills by cumulative floor so the parts sum exactly. Weekly needs no second pass — `utcWeekKey` is Monday-aligned, so every week boundary **is** a day boundary. **Guard: A10**, daily *and* weekly arms, both roles, proven RED by `--mutate=botd_single_instant` (the shipped defect, one token changed), `--mutate=botd_segment_end` and `--mutate=alloc_per_segment_floor`. |
+| **F2 — pin the constant by value** | A2, A6 and A9 all derived the ceiling *from* `ATTENDED_MAX_FIDELITY`, so **raising it to 10 left every test green**; A9's honest pin only caught lowering. A6 now carries `ok(ATTENDED_MAX_FIDELITY <= 3)` with the 1.7×1.3 derivation in the message. |
+| **F3 — make the pin DERIVED** | 3 is calibrated to the magnitude of a defect the team intends to fix; when span-sim fidelity lands, the honest ratio falls to ~1.0–1.3 and a static 3× becomes a standing faucet with nothing going red. A6 now also asserts `ATTENDED_MAX_FIDELITY <= ceil(measuredHonestGap × 1.3)` — **measured this run: 15/7 = 2.143, ceil(2.143 × 1.3) = 3**, so it is green today and goes red the moment the control sim reaches 10 kills on that fixture. A floor assertion is paired with it so the derivation cannot invert into a confiscation. **The sample is n = 1**, and the doc now says so: both derivations (production 15/9 and the fixture's 15/7) rest on the *same one* measured attended session. The cheap widening ships with this change — `meta.att` journals `{claimed, cap, sim, top}` on every attended settle, so week one re-derives the ratio from thousands of honest windows. |
+| **F4 — one word, and the gate stays** | §1c said the autocommit window makes the function "callable by `anon`". **Measured on production in a rolled-back probe:** the apply path's `current_user` is `postgres`, `pg_default_acl` for functions in `public` created by postgres is `{postgres=X, service_role=X}`, and a fresh function reads `anon=false, authenticated=false, service_role=TRUE`. The word is **`service_role`**. The gate stays: `supabase_admin`-created functions in `public` *do* get `anon`+`authenticated`, and PGlite has no default-ACL row at all and falls back to the built-in `PUBLIC=X`. §1b's four-role enumeration is **load-bearing** — a bare `revoke ... from public` does not remove a default-ACL grant to a *named* role. |
+| **F5 — the two apply-time documents** | The migration header and `tests/schema-apply-order.json` still described the four-bound list and the `min(attended,cap) − sim` formula the review rejected. Both restated to the shipped formula, C8's two-bounds framing, and the composite bound below. |
+
+### The composite bound — measured here, and it disagrees with the review
+
+The two live ceilings compose as a `min()`, so the real bound on a forger is
+
+> `min(1.3 × this character's PHYSICAL-MAX kill rate, 3 × the AWAY-SIM rate)`
+
+Measured on the shipping engine across **1,944 combinations** (every monster × {full
+best-in-slot, bronze sword, bare-handed} × {maxed, fresh} × {60 s, 1 h, 12 h} settle cadence).
+The **gear** cap binds in 802 of the 1,111 paying combinations, the fidelity ceiling in 306.
+
+| worst case reached, per character-day | measured | of the LIVE budget | vs. the same character's honest away rate |
+|---|---|---|---|
+| gold — `grim_reaper`, maxed + full BIS, 12 h cadence | **4,301,068** | **17.20 %** of 25,000,000 | ×2.32 |
+| item units — `wolf`, maxed + bronze sword, 60 s cadence | **133,920** | **0.19 %** of 70,000,000 | ×2.74 |
+
+**Two disagreements with the review's 1,533,780 gold/day (6.14 %) and 120,060 units/day
+(12.01 %), and they point opposite ways.**
+
+* **Gold: this sweep is 2.80× HIGHER** — 17.20 % against 6.14 %. The gap is gear; the review's
+  sweep does not appear to have included a full best-in-slot loadout on an apex boss, which is
+  exactly the character who would run this. **This is the number to attack.**
+* **Units: the review's 12.01 % is computed against a superseded budget.** `c_day_qty_budget` was
+  raised 1,000,000 → **70,000,000** by `2026-08-16-day-budget-artisan.sql` (verified live, above),
+  so the true figure is **0.19 %** and the qty budget is not a bound on this surface at all.
+  This document's §2 had it right; the migration header had the stale 1 M and is corrected.
+
+**And the gear model is the worst one, not merely a plausible one.** The first sweep scored
+equipment on `atkB + strB` only, which ignores `defB` and `spdB` — both of which could in
+principle *raise* the bound (defence lifts survival, so it lifts `sim` and therefore the 3×
+ceiling; a faster weapon lowers `tickMs`, so it lifts the gear cap). Re-measured with four
+loadout models across seven monsters and two cadences:
+
+| loadout | worst gold/day (`grim_reaper`, 12 h) |
+|---|---|
+| **offence-only — the figure above** | **4,301,068** |
+| armour by `defB`, weapon by offence | 4,236,828 |
+| mixed score | 4,233,374 |
+| armour by `defB`, weapon by `spdB` (`emberfang_blade`, tick 2328) | 2,955,044 |
+
+Offence-only wins because every model already survives (`died = false` in all 56 runs, on a deep
+food stack), so defence buys the forger nothing, and the heavier armour's slower tick costs more
+cap than the survival is worth. **The figure above is a maximum, not a lower bound.**
+
+Gold is therefore the dimension that matters. It keeps **5.8×** headroom over the worst forged
+case and **13.2×** over the best honest away day this engine can produce (1,912,200 gold/day,
+maxed + full BIS on `grim_reaper`). Both clear — but `2026-08-11-daily-budget.sql`'s own header
+quotes an "honest max/day" of 1,049,186 gold and 23.8× headroom, and that calibration predates
+both this change and the current gear tier. **A fuse should not be the thing that discovers the
+drift.**
+
+### Accepted residuals — stated, not closed
+
+* A forged claim still buys **up to the composite bound above** for the forger's **own**
+  character. Self-only, journalled in `meta.att`, reversible, and it PAGEs on Watch A at the top
+  of the range.
+* **Sub-threshold forgery at ~2.4× evades both watches.** Not closed here.
+* **The Watch A thresholds are provisional and must be re-derived after week one** — see §9.2,
+  where this document's own measurement now says they are worse than provisional.
+* §1c cannot see an applier that chunks the file between §1 and §1b.
+
+---
+
 **Authority:** `CLAUDE.md` → "Server authority (locked 2026-08-10)" and
 [`server-authority.md`](./server-authority.md). Where anything here conflicts, those win.
 This document is the fourth consumer of the root named in
@@ -183,9 +259,16 @@ Most combat mats **are** tradeable, so the cap is what protects the shared econo
 
 #### The bounds that DO NOT bind — measured, and stated so nobody counts them
 
-4. **`hr_apply`'s per-call clamps and the per-UTC-day budget** (1 M item units and 12 M XP per
-   call; 25 M gold and 70 M item units per character-day). **Inert.** Measured with the real
-   engine at the maximum forged rate:
+4. **`hr_apply`'s per-call clamps and the per-UTC-day budget** (1 M of any ONE item and 12 M XP
+   per skill per call; **25 M gold, 70 M item units, 120 M XP and 5,000 gems per
+   character-day**). ✓ **RE-VERIFIED 2026-09-04 against production** —
+   `select public.hr_day_budget_limits()` returns
+   `{gold 25000000, qty 70000000, xp 120000000, gems 5000}`, set by
+   `2026-08-16-day-budget-artisan.sql`, which **supersedes** the 1 M qty / 40 M xp in
+   `2026-08-11-daily-budget.sql`. This paragraph was right and two other documents were not: the
+   migration header and the Security review both quoted the superseded 1 M and so understated the
+   unit headroom by 70×. Both are corrected. **Inert**, confirmed — measured with the real engine
+   at the maximum forged rate:
 
    | fixture (24 h, saturating claim) | one call: items | one call: gold | per day ×2: items | per day ×2: gold |
    |---|---|---|---|---|
@@ -745,6 +828,32 @@ over 30 days (227 `combat / accrue` rows with a `meta.ms`):
   not, so a tighter gold line would fire on legitimate high-tier play.
 * **PAGE, do not merely alert, above 5,000 units or 60,000 gold per paid hour.** That is above
   what the ceilings in §2 permit at all, so it means a *bound is broken*, not merely abused.
+
+> ⚠ **THESE THRESHOLDS ARE MEASURED BROKEN, AND NOT ONLY "PROVISIONAL". 2026-09-04.**
+> They are derived from the *observed* 30-day population, which is entirely pre-endgame. Against
+> the **theoretical honest ceiling** the same engine produces they do not survive first contact:
+>
+> | maxed skills + full best-in-slot, 1 h paid window | gold / paid-hour | units / paid-hour |
+> |---|---|---|
+> | `lich`, away sim ONLY — no attendance, no top-up, no forgery | **61,586** | 254 |
+> | `grim_reaper`, away sim ONLY | **79,675** | 404 |
+> | `lich`, with an honest attended top-up at the gear ceiling | **172,700** | 733 |
+> | `grim_reaper`, same | **177,954** | 922 |
+> | `wolf`, away sim only / with top-up | 8,296 / 14,834 | **2,271 / 4,036** |
+>
+> So the **60,000 gold PAGE fires on a maxed best-in-slot player simply being away for an hour**,
+> before this change exists, and the 2,500 units ALERT fires on honest maxed wolf-farming with
+> the top-up. A watch that pages on honest endgame play is a watch that gets muted, and a muted
+> watch is worse than none.
+>
+> **What this document recommends, and defers to Security to rule:** Watch A is the wrong SHAPE
+> for gold. Honest gold per paid hour varies ~20× with gear and ~150× with target across the
+> monster table, so no single global line can separate abuse from endgame play. **Watch B
+> (`claimed / sim`) is the load-bearing detector** — it is a ratio, so it is gear-invariant and
+> target-invariant by construction. Either re-derive Watch A **per player against their own
+> trailing baseline**, or keep it only at the PAGE level with the gold line raised above the
+> measured honest ceiling (≥ 200,000/paid-hour on today's roster) and treat the units line as
+> the primary volume signal. **Re-derive from live rows after week one either way.**
 
 ### 9.3 WATCH B — the `meta.att` forgery signal
 

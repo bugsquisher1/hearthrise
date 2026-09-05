@@ -42,10 +42,14 @@
 // ── WHAT THIS FILE DRIVES ───────────────────────────────────────────────
 // TWO HALVES, because the defect has two halves and neither proves the other:
 //
-//   A1-A9  THE ENGINE, in plain Node, against the REAL computeAccrual. Mutation
+//   A1-A10 THE ENGINE, in plain Node, against the REAL computeAccrual. Mutation
 //          arms rewrite accrual.js's own text into a temp module (the
 //          artisan-progress-model idiom), so a JS defect is planted in the
-//          shipping source rather than in a stub.
+//          shipping source rather than in a stub. A10 is the UTC-boundary arm
+//          (Security condition F1, 2026-09-04) — the top-up's Boss-of-the-Day
+//          must be rebound per UTC-day segment exactly as simulateSpan rebinds
+//          it, daily AND weekly, in both the over-pay and the under-pay
+//          direction.
 //   C1-C9  THE MIGRATION, against REAL PostgreSQL: the whole chain from
 //          tests/schema-apply-order.json replayed into PGlite, then a real
 //          player through the REAL rate-gated hr_credit_kills as
@@ -74,10 +78,19 @@ import {
   attendedKillCap as realAttendedKillCap, normaliseAttended as realNormaliseAttended,
   deriveTickMs,
   ATTENDED_MAX_FIDELITY, ATTENDED_MAX_KILLS, ATTENDED_MAX_TARGETS,
+  ATTENDED_HEADROOM_NUM, ATTENDED_HEADROOM_DEN,
 } from '../supabase/functions/hr-accrue/accrual.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { minTimeToKillMs } from '../src/core/kill-time.js';
+/* A10's fixtures are DERIVED from the rotation rather than hardcoded. Appending
+   to DAILY_POOL / WEEKLY_POOL changes `avail.length` and therefore re-rolls
+   EVERY day's pick (botd.js says so in its header), so a hardcoded monster id
+   would quietly stop being a boss on the chosen date and the arm would go
+   vacuous-green on the next content wave. Asking `botdFor` at test time is the
+   only spelling that survives that. */
+import { botdFor, killBonusesFor, utcWeekKey } from '../src/core/botd.js';
+import { utcDaySegments, DAY_MS } from '../src/core/away.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const ENGINE = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js');
@@ -486,8 +499,10 @@ function a6_bound() {
   ok(ratio <= 3.5,
     `A6 THE REVIEWED BOUND: the engine cap is ${ratio.toFixed(2)}x the server's own away-sim rate `
     + `for the same seconds and the same gear (cap ${engineCap}, sim ${ctl.summary.kills}). The `
-    + 'security verdict was taken at 3.1x (fresh) / 1.8x (maxed). If this is a deliberate change, '
-    + 'the verdict has to be re-taken — do not widen the tolerance.');
+    + 'security verdict was taken with this ratio at 3.1x (fresh) / 1.8x (maxed) — those two '
+    + 'figures are THIS fixture pair, not the catalogue; the catalogue-wide composite bound is in '
+    + 'docs/design/attended-loot-credit.md section 0b. If this is a deliberate change, the verdict '
+    + 'has to be re-taken — do not widen the tolerance.');
 
   /* The maxed fixture, because the fresh-character rounding (ceil of swings per
      kill) is the loosest point of the curve and a bound proven only there is a
@@ -508,6 +523,59 @@ function a6_bound() {
       + `${maxedCtl.summary.kills}). Same rule as above.`);
   }
   ok(tickMs > 0, 'A6: deriveTickMs returned a non-positive tick');
+
+  /* ── 4. THE CONSTANT ITSELF, PINNED BY VALUE (Security condition F2) ─────
+     A2, A6 and A9 all derive the ceiling FROM the symbol
+     (`sim * ATTENDED_MAX_FIDELITY`), which is what makes them read the same
+     for any value of it. Measured by Security on this branch: RAISING the
+     constant from 3 to 10 leaves every one of them green, and A9's honest pin
+     only catches LOWERING it. A ceiling nothing pins is a ceiling that drifts
+     up one review at a time, so here is the by-value half. */
+  ok(ATTENDED_MAX_FIDELITY <= 3,
+    `A6 THE CONSTANT: ATTENDED_MAX_FIDELITY is ${ATTENDED_MAX_FIDELITY}. The reviewed value is 3, `
+    + 'and it is 1.7 x 1.3 rounded up: 1.7 is the MEASURED systematic under-realisation of the '
+    + 'away span-sim against the live client (production 2026-09-04, and 15/7 = 2.14 on this '
+    + "file's own fresh fixture), 1.3 is the ruled variance allowance the SQL cap already uses "
+    + '(ATTENDED_HEADROOM_NUM/DEN). Every other assertion in this file derives the ceiling FROM '
+    + 'this symbol and therefore reads the same at any value; this is the one that does not. '
+    + 'Raising it re-opens the security review BY NAME.');
+
+  /* ── 5. AND THE PIN IS DERIVED, SO IT CANNOT OUTLIVE ITS JUSTIFICATION ───
+     (Security condition F3.) 3 is calibrated to the MAGNITUDE OF A DEFECT THE
+     TEAM INTENDS TO FIX. When span-sim fidelity lands, the honest ratio falls
+     toward 1.0-1.3 and a static 3x silently becomes a standing 2.3-3x faucet
+     with nothing going red anywhere. So the ceiling is bounded by the ratio
+     THIS RUN MEASURES: improving the simulation TIGHTENS the bound and forces
+     the constant down, which is the only way a calibration constant stays
+     calibrated.
+
+     ⚠ IF THIS GOES RED, LOWER `ATTENDED_MAX_FIDELITY`. Do not widen the 1.3,
+       do not re-pick the fixture, and do not delete the line. A red here means
+       the away sim got BETTER, which is good news and a smaller constant.
+
+     ⚠ THE SAMPLE IS n = 1, AND SAYING SO IS THE POINT. Both derivations (the
+       production row's 15/9 and this fixture's 15/7) rest on the SAME ONE
+       measured attended session. The cheap widening is already shipping and
+       just needs time: `meta.att = {claimed, cap, sim, top}` is journalled on
+       EVERY attended settle, so after one week of live play the ratio can be
+       re-derived from thousands of honest windows out of player_ledger. Do
+       that before the next re-rule. */
+  const honestRatio = OBSERVED_KILLS / ctl.summary.kills;
+  const derivedCeiling = Math.ceil(honestRatio * (ATTENDED_HEADROOM_NUM / ATTENDED_HEADROOM_DEN));
+  ok(ctl.summary.kills > 0, 'A6: the control realised no kills, so the derived ceiling is vacuous');
+  ok(ATTENDED_MAX_FIDELITY <= derivedCeiling,
+    `A6 THE DERIVED CEILING: ATTENDED_MAX_FIDELITY is ${ATTENDED_MAX_FIDELITY} but the honest gap `
+    + `this run MEASURES is ${OBSERVED_KILLS}/${ctl.summary.kills} = ${honestRatio.toFixed(3)}x, `
+    + `which with the ruled ${ATTENDED_HEADROOM_NUM}/${ATTENDED_HEADROOM_DEN} variance allowance `
+    + `admits at most ${derivedCeiling}x. The constant exists ONLY to absorb the away sim's own `
+    + 'under-realisation; the sim has improved, so the constant must come down with it. LOWER THE '
+    + 'CONSTANT - do not widen this line.');
+  /* AND IT MUST NOT THROTTLE the window it is derived from, or the derivation
+     has inverted into a confiscation. */
+  ok(ATTENDED_MAX_FIDELITY >= honestRatio,
+    `A6 THE DERIVED FLOOR: ATTENDED_MAX_FIDELITY (${ATTENDED_MAX_FIDELITY}) is BELOW the measured `
+    + `honest gap (${honestRatio.toFixed(3)}x), so the ceiling now throttles the very window this `
+    + 'change exists to stop confiscating.');
 }
 
 // ── A7 — THE DEGRADE LADDER STAYS MONOTONE ───────────────────────────────
@@ -665,6 +733,311 @@ function a9_unsurvivable() {
     + `${honest.summary.kills} x ${ATTENDED_MAX_FIDELITY}). Throttling honest play on a money `
     + 'surface is worse than a loose bound on a self-only, journalled claim - re-rule the number, '
     + 'do not silently accept the under-pay.');
+}
+
+// ── A10 — THE UTC BOUNDARY (Security condition F1) ───────────────────
+/* FOUND BY THE SECURITY REVIEW OF 2026-09-04, BY MEASUREMENT, and by no test on
+   the first draft of this branch. The draft bound Boss-of-the-Day ONCE, at
+   `attWindow.toMs`, while `simulateSpan` rebinds it PER UTC-DAY SEGMENT
+   (src/core/combat-sim.js:117 states the contract; src/core/away.js
+   `utcDaySegments` is the segmenter). Settle a window crossing UTC midnight
+   pointed at the LATER day's boss and every top-up kill was priced at the later
+   boss: x1.5 daily / x2.0 weekly ON THE DROP HALF, MULTIPLICATIVE with
+   ATTENDED_MAX_FIDELITY, so up to 4.5x / 6.0x the honest away unit rate. Point
+   it at the EARLIER day's boss and it UNDER-pays — the same confiscation this
+   whole change exists to end, re-created at the boundary.
+
+   MEASURED on the shipping engine before the fix, 2 h window 23:00-01:00 UTC,
+   maxed character, five seeds, top-up units/kill against the span's own:
+     later day's boss    1.23-1.28x     earlier day's boss  0.80-0.87x
+     featured on neither 0.97-1.00x  (the control: correct)
+
+   ⚠ WHY THIS DOES NOT ASSERT "top-up units/kill == SIM units/kill", which is
+     the literal shape the review asked for. MEASURED while building it: the sim
+     is not a valid reference across a boundary, because it can DIE partway and
+     then its own kills are weighted to whichever segment it survived. Fixture
+     `treant` @ 2026-02-02, 12 h symmetric window: `summary.died = true`, 9000
+     ticks in segment 1 against 1585 in segment 2, and the CORRECTLY-segmented
+     engine reports 1.4953 on that comparison. A guard that red-lights correct
+     code is worse than no guard. So the reference is a BLEND OF TWO SINGLE-DAY
+     RUNS of the same fixture, weighted by the segment kill split the engine
+     itself reports — which measures exactly the thing under test (the featured
+     MIX) and inherits none of the sim's death or fidelity artifacts. Same five
+     seeds, same three fixtures: 0.987-1.012 with the fix, 0.80 / 1.17-1.19
+     without it.
+
+   WEEKLY IS THE SAME SEGMENTATION, not a second code path: `utcWeekKey` is
+   Monday-ALIGNED (botd.js), so every week boundary IS a day boundary. That is
+   an argument; the weekly arm is the measurement. */
+
+/* A 12 h window centred on a UTC midnight — long enough that both halves realise
+   hundreds of kills, short enough to stay inside one accrual cap. */
+const BOUNDARY_HALF_MS = 6 * 3600000;
+/* The single-day REFERENCE windows: the same 12 h length, wholly inside one UTC
+   day, so each one pays exactly one featured multiplier end to end. */
+const BOUNDARY_REF_OFFSET_MS = 6 * 3600000;
+/* Below this the per-kill rates are too noisy for the blend band to mean
+   anything, so the picker walks to the next boundary instead of asserting on
+   sand. Measured: at ~300 top-up kills the five-seed spread is under 1.5%. */
+const BOUNDARY_MIN_KILLS = 250;
+/* The two days must PAY differently or the arm cannot see a single-instant bind
+   at all. Measured separations on the picked fixtures: 33%-47%. */
+const BOUNDARY_MIN_SEPARATION = 0.25;
+/* The blend band. Measured spread of the correct engine over five seeds and
+   three fixtures: 0.987-1.012, i.e. +/-1.3%. 6% is ~4x that, and the defect
+   sits at 0.80 / 1.19 — more than three band-widths out either way.
+   ⚠ DO NOT WIDEN THIS TO GO GREEN. A red here is a payment moving. */
+const BOUNDARY_BAND = 0.06;
+/* PART (c)'s DELIBERATELY ASYMMETRIC window — 7h02m17s before the midnight and
+   4h57m43s after, summing to the same 12 h. The symmetric window above splits
+   the kill count EXACTLY in half, which is the one arrangement in which a
+   per-segment floor loses nothing and the allocation identity is vacuous:
+   measured, `--mutate=alloc_per_segment_floor` ESCAPED the symmetric arms
+   (1308 kills, 654 each, no remainder). The odd seconds make the two shares
+   non-integral for essentially every kill count, and part (c) PROVES that for
+   the count it actually got rather than assuming it. */
+const BOUNDARY_ODD_BEFORE_MS = 7 * 3600000 + 137000;
+const BOUNDARY_ODD_AFTER_MS = 12 * 3600000 - BOUNDARY_ODD_BEFORE_MS;
+
+const MAXED_ALL = (() => {
+  const sk = {};
+  for (const k of ['attack', 'strength', 'defense', 'hitpoints', 'ranged', 'magic', 'prayer']) {
+    sk[k] = 13034431;
+  }
+  return sk;
+})();
+
+/** One accrual pair over an arbitrary window. Goes through the REBINDABLE
+ *  `engine`, so every mutation arm reaches it. */
+function boundaryPair(target, fromMs, toMs) {
+  const base = {
+    userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+    nowMs: toMs, accruedToMs: fromMs, activeSinceMs: fromMs,
+    activeKind: 'combat', activeId: target, capMs: 24 * 3600000, seed: SEED,
+    hp: 990, maxHp: 990, gold: 0, skills: MAXED_ALL, equipment: { weapon: 'bronze_sword' },
+    /* Deep enough that auto-eat is never the reason a fixture stops paying —
+       a dry stack would confound the blend with a supply artifact. */
+    inventory: { cooked_shrimp: 400000 },
+    autoEatEnabled: true, autoEatFood: null, autoEatPct: 25,
+    fight: {}, items: ITEMS, monsters: MONSTERS,
+  };
+  const ctl = engine({ ...base });
+  const att = engine({
+    ...base,
+    attended: attendedEnvelope({ [target]: ATTENDED_MAX_KILLS }, fromMs + 1000, toMs - 1000),
+  });
+  if (!ctl.accrued || !att.accrued || !(att.attendedTopUp > 0)) return null;
+  /* THE TOP-UP'S OWN UNITS, isolated by DIFFERENCE against the control. The
+     top-up runs AFTER simulateSpan on a SEPARATE rng stream and restores every
+     field it touches except gold, so the span half of the two runs is
+     byte-identical and the difference is exactly what the top-up paid. */
+  const ids = new Set([...Object.keys(ctl.delta.items || {}), ...Object.keys(att.delta.items || {})]);
+  let units = 0;
+  for (const id of ids) units += (((att.delta.items || {})[id] || 0) - ((ctl.delta.items || {})[id] || 0));
+  return {
+    ctl, att, units, kills: att.attendedTopUp, rate: units / att.attendedTopUp,
+    segs: att.attendedSegments || [],
+  };
+}
+
+/* THE FIXTURE PICKER runs on the REAL engine and is memoised, for two reasons.
+   (1) Which date is a usable boundary is a property of the CONTENT, not of the
+   code under test — letting a mutant choose its own fixture is how a mutation
+   escapes by making the arm vacuous. (2) `--selftest` re-runs the whole file
+   once per mutation in one process, so the search is paid once. */
+const BOUNDARY_CACHE = new Map();
+function pickBoundary(kind, role) {
+  const ck = `${kind}/${role}`;
+  if (BOUNDARY_CACHE.has(ck)) return BOUNDARY_CACHE.get(ck);
+  const real = engine;
+  engine = realComputeAccrual;
+  let hit = null;
+  const why = [];
+  try {
+    const base = Date.UTC(2026, 0, 1);
+    for (let d = 1; d < 200 && !hit; d++) {
+      const mid = base + d * DAY_MS;          // the UTC midnight under test
+      const prev = mid - DAY_MS;
+      if (kind === 'weekly' && utcWeekKey(prev) === utcWeekKey(mid)) continue;
+      const b1 = botdFor(prev, MONSTERS);
+      const b2 = botdFor(mid, MONSTERS);
+      /* THE ROLES. `later` = the boss featured on the day the window ENDS in,
+         which is the instant the buggy single bind used and therefore the
+         OVER-pay case. `earlier` = the boss featured on the day it STARTS in,
+         the UNDER-pay mirror. Both must be arms: the review's whole point is
+         that the same defect confiscates as readily as it mints. */
+      const target = kind === 'weekly'
+        ? (role === 'later' ? b2.weeklyId : b1.weeklyId)
+        : (role === 'later' ? b2.dailyId : b1.dailyId);
+      if (!target || !MONSTERS[target]) continue;
+      /* The multiplier must CHANGE across the boundary, or the arm cannot
+         distinguish a per-segment bind from a single-instant one. */
+      if (killBonusesFor(target, prev, MONSTERS).dropMult
+          === killBonusesFor(target, mid, MONSTERS).dropMult) continue;
+      const cross = boundaryPair(target, mid - BOUNDARY_HALF_MS, mid + BOUNDARY_HALF_MS);
+      const refA = boundaryPair(target, prev + BOUNDARY_REF_OFFSET_MS,
+        prev + BOUNDARY_REF_OFFSET_MS + 2 * BOUNDARY_HALF_MS);
+      const refB = boundaryPair(target, mid + BOUNDARY_REF_OFFSET_MS,
+        mid + BOUNDARY_REF_OFFSET_MS + 2 * BOUNDARY_HALF_MS);
+      if (!cross || !refA || !refB) { why.push(`${target}:nopay`); continue; }
+      if (Math.min(cross.kills, refA.kills, refB.kills) < BOUNDARY_MIN_KILLS) {
+        why.push(`${target}:thin(${Math.min(cross.kills, refA.kills, refB.kills)})`); continue;
+      }
+      if (!(refA.rate > 0) || !(refB.rate > 0)) { why.push(`${target}:zero`); continue; }
+      const sep = Math.abs(refB.rate / refA.rate - 1);
+      if (sep < BOUNDARY_MIN_SEPARATION) { why.push(`${target}:sep(${sep.toFixed(3)})`); continue; }
+      if (cross.segs.length !== 2 || refA.segs.length !== 1 || refB.segs.length !== 1) {
+        why.push(`${target}:segs(${cross.segs.length}/${refA.segs.length}/${refB.segs.length})`); continue;
+      }
+      hit = { mid, prev, target };
+    }
+  } finally { engine = real; }
+  /* The last few rejections, so a red says WHY no fixture was found rather than
+     only that none was. A search that fails silently gets deleted. */
+  if (!hit) hit = { none: true, why: why.slice(-6).join(' ') || '(no candidate reached the probe)' };
+  BOUNDARY_CACHE.set(ck, hit);
+  return hit;
+}
+
+function a10_utcBoundary() {
+  for (const kind of ['daily', 'weekly']) {
+    for (const role of ['later', 'earlier']) {
+      /* PER ROLE, NOT PER BOUNDARY. The weekly pools are apex monsters and the
+         two adjacent weeks' bosses are rarely BOTH killable at volume by one
+         fixture character — measured: requiring both at one midnight finds
+         nothing in 200 days. The property is per-target anyway, so each role
+         gets its own date. */
+      const fx = pickBoundary(kind, role);
+      /* A FIXTURE THAT CANNOT BE FOUND IS A RED, NEVER A SKIP. If a content wave
+         ever leaves no usable boundary, this arm must say so out loud rather
+         than pass silently and let F1 back in. */
+      ok(!fx.none, `A10 (${kind}/${role}): no usable boundary found in 200 days — the rotation or `
+        + 'the roster changed enough that no monster is featured on one side of a midnight and not '
+        + `the other at a survivable kill rate. Last rejections: ${fx.none ? fx.why : ''}. RE-TUNE `
+        + 'THE PICKER; do not delete the arm.');
+      if (fx.none) continue;
+      const target = fx.target;
+      const from = fx.mid - BOUNDARY_HALF_MS;
+      const to = fx.mid + BOUNDARY_HALF_MS;
+      const tag = `A10 ${kind}/${role} (${target} @ ${new Date(fx.mid).toISOString().slice(0, 10)})`;
+
+      const cross = boundaryPair(target, from, to);
+      ok(!!cross, `${tag}: the crossing fixture paid no top-up, so every assertion below is vacuous`);
+      if (!cross) continue;
+
+      // ── (a) THE STRUCTURE, DETERMINISTIC — zero RNG in any line here ──────
+      /* The attended sub-window IS [from, to]: `attWindow` clamps
+         `attended.from - 60 s` up to credit.fromMs and `attended.to + 60 s` down
+         to credit.toMs, and the envelope above sits 1 s inside each edge. */
+      const want = utcDaySegments(from, to);
+      ok(cross.segs.length === want.length,
+        `${tag}: the top-up ran in ${cross.segs.length} segment(s); the window spans `
+        + `${want.length} UTC day(s). The top-up must be segmented exactly as simulateSpan `
+        + 'segments the span, or a midnight-crossing window pays one boss for both halves.');
+      ok(cross.segs.length >= 2, `${tag}: the fixture did not cross a boundary — it is vacuous`);
+
+      let summed = 0;
+      for (let i = 0; i < cross.segs.length; i++) {
+        const seg = cross.segs[i];
+        summed += seg.kills;
+        ok(seg.fromMs === (want[i] ? want[i].fromMs : NaN),
+          `${tag}: segment ${i} starts at ${new Date(seg.fromMs).toISOString()}, the segmenter says `
+          + `${want[i] ? new Date(want[i].fromMs).toISOString() : '<none>'}`);
+        /* INDEPENDENT of the segmenter, so a defect in `utcDaySegments` itself
+           cannot be laundered through the expectation above. */
+        if (i > 0) {
+          ok(seg.fromMs % DAY_MS === 0,
+            `${tag}: segment ${i} starts at ${new Date(seg.fromMs).toISOString()}, which is not a `
+            + 'UTC midnight');
+        }
+        if (seg.kills <= 0) continue;
+        /* THE ASSERTION F1 EXISTS FOR. `dropMult` is recorded by the engine AT
+           resolveKill CALL TIME, so `null` means the featured resolver was never
+           consulted and a wrong number means it was consulted at the wrong
+           instant — which is precisely the defect. */
+        const expect = killBonusesFor(target, seg.fromMs, MONSTERS).dropMult;
+        ok(seg.dropMult === expect,
+          `${tag}: segment ${i} (${new Date(seg.fromMs).toISOString()}) paid its kills at a drop `
+          + `multiplier of ${seg.dropMult}, but the Boss of the Day/Week at that instant is `
+          + `x${expect}. Boss-of-the-Day must be REBOUND PER UTC-DAY SEGMENT, exactly as `
+          + 'simulateSpan does it (combat-sim.js:445). A single bind at the window edge pays x1.5 '
+          + 'daily / x2.0 weekly on EVERY kill of a crossing window — multiplicative with '
+          + 'ATTENDED_MAX_FIDELITY — or confiscates the same lift from an honest player.');
+      }
+      ok(summed === cross.kills,
+        `${tag}: the segments paid ${summed} kills but the settle reported ${cross.kills}. The `
+        + 'allocation must sum to the top-up EXACTLY — a per-segment floor loses a kill per '
+        + 'boundary (a silent under-pay) and per-segment rounding mints one (a silent faucet), '
+        + 'and the journal would say a number the payment did not.');
+      const mults = new Set(cross.segs.filter((sg) => sg.kills > 0).map((sg) => sg.dropMult));
+      ok(mults.size >= 2,
+        `${tag}: every segment paid the same multiplier (${[...mults].join(', ')}), so this arm `
+        + 'cannot distinguish a per-segment bind from a single one — the fixture is vacuous');
+
+      // ── (b) THE MONEY ACTUALLY MOVED — the blended reference ─────────────
+      const refA = boundaryPair(target, fx.prev + BOUNDARY_REF_OFFSET_MS,
+        fx.prev + BOUNDARY_REF_OFFSET_MS + 2 * BOUNDARY_HALF_MS);
+      const refB = boundaryPair(target, fx.mid + BOUNDARY_REF_OFFSET_MS,
+        fx.mid + BOUNDARY_REF_OFFSET_MS + 2 * BOUNDARY_HALF_MS);
+      ok(!!refA && !!refB, `${tag}: a single-day reference window paid nothing — the arm is vacuous`);
+      if (!refA || !refB) continue;
+      ok(Math.abs(refB.rate / refA.rate - 1) >= BOUNDARY_MIN_SEPARATION,
+        `${tag}: the two days pay within `
+        + `${(Math.abs(refB.rate / refA.rate - 1) * 100).toFixed(1)}% of each other per kill, so `
+        + 'the blend band cannot see a single-instant bind. Re-pick the fixture.');
+
+      const fracA = cross.segs[0].kills / cross.kills;
+      const fracB = cross.segs[1].kills / cross.kills;
+      const blend = fracA * refA.rate + fracB * refB.rate;
+      const got = cross.rate / blend;
+      /* WHAT THE DEFECT WOULD READ, quoted in the failure so the number is not a
+         judgement call: a single bind at the window edge pays refB's rate for
+         every kill, i.e. refB.rate / blend. */
+      const ifBroken = refB.rate / blend;
+      ok(Math.abs(got - 1) <= BOUNDARY_BAND,
+        `${tag} THE PAYMENT: the top-up paid ${cross.rate.toFixed(4)} units/kill against a blended `
+        + `reference of ${blend.toFixed(4)} (${(fracA * 100).toFixed(1)}% of kills at `
+        + `${refA.rate.toFixed(4)} on ${new Date(fx.prev).toISOString().slice(0, 10)}, the rest at `
+        + `${refB.rate.toFixed(4)} on ${new Date(fx.mid).toISOString().slice(0, 10)}) — a ratio of `
+        + `${got.toFixed(4)}, outside the +/-${(BOUNDARY_BAND * 100).toFixed(0)}% band. Binding `
+        + `Boss-of-the-Day once at the window edge would read ${ifBroken.toFixed(4)}. DO NOT WIDEN `
+        + 'THE BAND: the correct engine measures 0.987-1.012 over five seeds and three fixtures.');
+
+      // ── (c) THE ALLOCATION IDENTITY, on an ASYMMETRIC window ─────────────
+      /* An INTEGER identity, not a statistic: the per-segment kill counts must
+         sum to the top-up the settle reported and journalled. A per-segment
+         floor drops up to one kill per boundary (the payment silently falls
+         below `meta.att.top`) and per-segment rounding mints one (a faucet,
+         and the journal understates it). Either way the ledger stops being
+         usable to resolve a dispute, which is the whole reason it is written.
+
+         The symmetric window in (a) cannot see this — it splits exactly — so
+         this runs on a window with odd seconds on both sides. */
+      const oddFrom = fx.mid - BOUNDARY_ODD_BEFORE_MS;
+      const oddTo = fx.mid + BOUNDARY_ODD_AFTER_MS;
+      const odd = boundaryPair(target, oddFrom, oddTo);
+      ok(!!odd, `${tag} (c): the asymmetric window paid no top-up — the identity is vacuous`);
+      if (!odd) continue;
+      ok(odd.segs.length === 2,
+        `${tag} (c): the asymmetric window ran in ${odd.segs.length} segment(s), not 2`);
+      const oddSum = odd.segs.reduce((acc, sg) => acc + sg.kills, 0);
+      ok(oddSum === odd.kills,
+        `${tag} (c) THE ALLOCATION IDENTITY: the segments paid ${oddSum} kills but the settle `
+        + `reported and journalled ${odd.kills}. The per-segment allocation must sum to the `
+        + 'top-up EXACTLY — flooring the RUNNING TOTAL is what makes that true by construction, '
+        + 'and flooring each segment instead loses a kill per boundary.');
+      /* NON-VACUITY, PROVEN FOR THIS RUN'S ACTUAL COUNT rather than assumed
+         from the offsets: a per-segment floor MUST have lost a kill here, or
+         the assertion above would pass for a broken allocation too. */
+      const oddSpan = oddTo - oddFrom;
+      const naive = Math.floor((odd.kills * BOUNDARY_ODD_BEFORE_MS) / oddSpan)
+                  + Math.floor((odd.kills * BOUNDARY_ODD_AFTER_MS) / oddSpan);
+      ok(naive < odd.kills,
+        `${tag} (c): with ${odd.kills} kills the asymmetric split happens to divide exactly `
+        + `(${naive}), so a per-segment floor would lose nothing and the identity above is `
+        + 'vacuous. Nudge BOUNDARY_ODD_BEFORE_MS by a few seconds — do not delete the arm.');
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -975,6 +1348,42 @@ const MUTATIONS = {
         + '    if (RESERVED_KEYS.indexOf(id) !== -1) continue;',
     repl: '    /* checks removed */',
   },
+  /* ── SECURITY CONDITION F1 — THE UTC-BOUNDARY ARMS ──────────────────────
+     The first is the SHIPPED DEFECT, planted with one token changed — it is
+     literally the line the first draft of this branch carried. A10 must read it
+     RED or the fix is unguarded. */
+  botd_single_instant: {
+    engine: true,
+    why: "SECURITY CONDITION F1, reverted: Boss-of-the-Day is bound ONCE at the attended window's "
+       + 'end instead of per UTC-day segment, exactly as the first draft of this branch did. A '
+       + "window crossing UTC midnight then pays the LATER day's boss on EVERY top-up kill — "
+       + 'x1.5 daily / x2.0 weekly on the drop half, MULTIPLICATIVE with ATTENDED_MAX_FIDELITY '
+       + '(up to 4.5x / 6.0x the honest away rate) — and the mirror case UNDER-pays an honest '
+       + 'player at 0.80x, which is the confiscation this whole change exists to end.',
+    find: 'const b = killBonusesFor(id, sg.fromMs, monsters);',
+    repl: 'const b = killBonusesFor(id, attWindow.toMs, monsters);',
+  },
+  botd_segment_end: {
+    engine: true,
+    why: "the segment's featured boss is resolved at its END instead of its START. A non-final "
+       + 'UTC-day segment ends AT midnight, which resolves to the NEXT day — so the whole first '
+       + "half of a crossing window is priced at the second half's boss. Same payment defect as "
+       + 'F1, reached by an off-by-one rather than by a missing loop, which is the shape a later '
+       + 'refactor is most likely to reintroduce.',
+    find: 'const b = killBonusesFor(id, sg.fromMs, monsters);',
+    repl: 'const b = killBonusesFor(id, sg.toMs, monsters);',
+  },
+  alloc_per_segment_floor: {
+    engine: true,
+    why: 'the cumulative-floor allocation becomes a PER-SEGMENT floor, so the parts no longer sum '
+       + 'to attTopUp: up to one kill per UTC boundary is silently dropped while meta.att.top '
+       + 'still journals the full number. The journal and the payment disagree, which is the one '
+       + 'failure mode a ledger cannot be used to resolve a dispute with.',
+    find: '        const cum = (si === segs.length - 1 || segSpanMs <= 0)\n'
+        + '          ? attTopUp\n'
+        + '          : Math.floor((attTopUp * segElapsed) / segSpanMs);',
+    repl: '        const cum = segDone + Math.floor((attTopUp * sg.ms) / Math.max(1, segSpanMs));',
+  },
   reserved_keys_only: {
     engine: true,
     why: 'ONLY the reserved-name check is dropped, leaving hasOwnProperty and the id pattern in '
@@ -1152,6 +1561,7 @@ async function run(mutateId) {
   a7_ladder();
   a8_hostile();
   a9_unsurvivable();
+  a10_utcBoundary();
 
   /* The SQL half is skipped for a pure-JS mutation: replaying the whole chain
      costs ~13 s and a JS defect cannot be visible in it. It always runs on the
@@ -1167,17 +1577,33 @@ async function run(mutateId) {
 }
 
 // ── CLI ───────────────────────────────────────────────────────────────────
-const argv = process.argv.slice(2);
+/**
+ * THE SUITE ENTRY POINT. `tests/run-smoke.mjs` imports this; the CLI below runs
+ * only when the file is invoked directly.
+ *
+ * ⚠ THE `import.meta.url === argv[1]` GATE IS LOAD-BEARING. Everything below
+ *   used to execute at MODULE SCOPE, so an `import` of this file would run the
+ *   whole suite and then `process.exit` out of the importer's process. That is
+ *   the shape of a guard that cannot be wired into the suite — and an unwired
+ *   guard is one that rots without anything going red.
+ */
+export async function attendedLootCreditGuard() {
+  return run();
+}
+
+// ── CLI ────────────────────────────────────────────────────────────────
+const DIRECT = import.meta.url === pathToFileURL(process.argv[1] || '').href;
+const argv = DIRECT ? process.argv.slice(2) : [];
 const arg = (k) => (argv.find((a) => a.startsWith(`${k}=`)) || '').split('=')[1];
 
-if (argv.includes('--list')) {
+if (DIRECT && argv.includes('--list')) {
   for (const [id, m] of Object.entries(MUTATIONS)) {
     console.log(`  ${id.padEnd(34)} ${m.engine ? '[js] ' : '[sql]'} ${m.why}`);
   }
   process.exit(0);
 }
 
-if (argv.includes('--selftest')) {
+if (DIRECT && argv.includes('--selftest')) {
   const escapes = [];
   for (const id of Object.keys(MUTATIONS)) {
     let caught;
@@ -1206,10 +1632,12 @@ if (argv.includes('--selftest')) {
   process.exit(0);
 }
 
-const p = await run(arg('--mutate'));
-if (p.length) {
-  console.error(`attended-loot-credit: ${p.length} problem(s)\n`);
-  for (const m of p) console.error(`  FAIL  ${m}\n`);
-  process.exit(1);
+if (DIRECT) {
+  const p = await run(arg('--mutate'));
+  if (p.length) {
+    console.error(`attended-loot-credit: ${p.length} problem(s)\n`);
+    for (const m of p) console.error(`  FAIL  ${m}\n`);
+    process.exit(1);
+  }
+  console.log('attended-loot-credit: all checks pass (A1-A10 engine, C1-C9 chain)');
 }
-console.log('attended-loot-credit: all checks pass (A1-A9 engine, C1-C9 chain)');

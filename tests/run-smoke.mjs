@@ -3197,6 +3197,50 @@ const run = async () => {
       exitCode = e.harness ? 2 : 1;
     }
 
+    /* ── The ATTENDED LOOT TOP-UP guard (attended-settle confiscation) ────
+       The settle is the ONE writer of loot and gold and it prices
+       [accrued_to, now] by RE-SIMULATING it as an UNATTENDED span, so a window
+       the player was actually at the keyboard for pays the loot of a smaller
+       fight that did not happen. Measured on production 2026-09-04: 9 simulated
+       kills against 15 the server had ALREADY accepted and clamped in
+       hr_kill_credit_log — 38% of a session's drops confiscated on reload, with
+       the correct count sitting in the server's own append-only log.
+
+       Two halves, because the defect has two and neither proves the other:
+       A1-A10 drive the REAL computeAccrual in plain Node (mutation arms rewrite
+       accrual.js's own text, so a defect is planted in the shipping source, not
+       a stub); C1-C9 replay the whole migration chain into PGlite and drive a
+       real player through the real rate-gated hr_credit_kills.
+
+       A10 is Security condition F1 and the reason this is wired here rather
+       than left to the apply: the top-up's Boss-of-the-Day must be REBOUND PER
+       UTC-DAY SEGMENT exactly as simulateSpan rebinds it. A single bind at the
+       window edge over-pays a midnight-crossing settle by x1.5 daily / x2.0
+       weekly on the drop half AND under-pays the mirror case at 0.80x, which is
+       the same confiscation this whole change exists to end.
+
+       ⚠ The migration is STAGED, NOT APPLIED. The guard needs no live database
+         — it replays the repo's own chain — so it is honest to run it before the
+         apply, and running it before the apply is the entire point. */
+    try {
+      const { attendedLootCreditGuard } = await import('./attended-loot-credit.mjs');
+      const alcProblems = await attendedLootCreditGuard();
+      if (alcProblems.length) {
+        console.log('\nAttended loot-credit guard — FAILED:');
+        for (const p of alcProblems) console.log(`  ✗ ${p}`);
+        exitCode = 1;
+      } else {
+        console.log('\nAttended loot-credit guard — the settle tops up the loot its own '
+          + 'unattended re-simulation missed, bounded by min(gear cap, 3x sim) and never '
+          + 'additive; loot and gold ONLY (no counter, no XP); Boss-of-the-Day rebound per '
+          + 'UTC-day segment across daily AND weekly boundaries; the projection is '
+          + 'engine-only, slot-scoped and double-pay-guarded.');
+      }
+    } catch (e) {
+      console.log('\nAttended loot-credit guard — FAILED:\n' + String(e.message || e));
+      exitCode = e.harness ? 2 : 1;
+    }
+
     /* ── The renown kill-faucet guard (Security R5) ───────────────────────
        A LIVE, PRE-EXISTING faucet in the deployed 2026-08-30 code:
        hr_credit_kills writes stat/ev:kill_any and stat/ev:kill_monster:<id>,

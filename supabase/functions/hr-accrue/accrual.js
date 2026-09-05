@@ -110,7 +110,7 @@ import { killBonusesFor } from '../../../src/core/botd.js';
    both the server and (through core-bridge) the client — the flip from
    last-window to first-window crediting is a property of the away model, not a
    line of arithmetic each side gets to write for itself. */
-import { creditWindow } from '../../../src/core/away.js';
+import { creditWindow, utcDaySegments } from '../../../src/core/away.js';
 import { createRng } from '../../../src/core/rng.js';
 /* RESTED XP (b437), banked SERVER-SIDE. The SAME watermarked accrual the client
    runs (src/core/rested.js) — no second formula. It draws NO rng, so appending
@@ -1710,6 +1710,9 @@ export function computeAccrual(input) {
   let attTopUp = 0;
   let attCap = 0;
   let attClaimed = 0;
+  /* The per-UTC-day split the top-up actually paid at (§5a-BOTD). Returned for
+     the guard and for dispute replay; NEVER journalled — see the block. */
+  const attSegments = [];
   if (attended) {
     const m = monsters[inp.activeId];
     attClaimed = Math.floor(nat(attended.kills[inp.activeId], 0));
@@ -1781,19 +1784,98 @@ export function computeAccrual(input) {
          one. Six fields is the whole of what `resolveKill` reads
          (src/core/combat-sim.js:103) — rng, bonus, botd, weakness, style, fx —
          and listing them is what makes adding a seventh a deliberate act.
-         `botd` is BOUND here rather than left to simulateSpan's per-segment
-         rebinding: a top-up kill is credited at the instant the attended window
-         ENDED, which is a server value, never a return instant the player picks. */
-      const attAtMs = attWindow.toMs;
+         `botd` is the ONE field REBOUND inside the loop below — see §5a-BOTD. */
       const lootCtx = {
         rng: createRng((nat(inp.seed, 0) ^ ATTENDED_RNG_SALT) >>> 0),
         bonus,
-        botd: { killBonuses(id) { return killBonusesFor(id, attAtMs, monsters); } },
+        botd: null,                 // rebound PER UTC-DAY SEGMENT, never once
         weakness(mm) { return weaknessInfo(mm, eq); },
         style,
         fx: lootFx,
       };
-      for (let i = 0; i < attTopUp; i++) resolveKill(state, m, lootCtx);
+
+      /* ══ §5a-BOTD — THE TOP-UP IS SEGMENTED BY UTC DAY, LIKE THE SPAN ═══════
+         THE DEFECT THIS CLOSES, found by the Security review of 2026-09-04 BY
+         MEASUREMENT and by no test on the first draft of this branch. The draft
+         bound Boss-of-the-Day ONCE, at `attWindow.toMs`, while `simulateSpan`
+         rebinds it PER UTC-DAY SEGMENT (combat-sim.js:117 states the contract;
+         away.js `utcDaySegments` is the segmenter, and both now call it). An
+         attended window crossing UTC midnight therefore priced EVERY top-up kill
+         at the LAST instant's boss:
+
+           MEASURED on this engine — 2 h window 23:00–01:00 UTC, maxed character,
+           5 seeds — top-up units per kill against the span's own units per kill:
+             • pointed at the LATER day's daily boss    1.23–1.28x  (over-pay)
+             • pointed at the EARLIER day's daily boss  0.80–0.87x  (UNDER-pay)
+             • pointed at a boss featured on neither     0.97–1.00x  (correct)
+           The over-pay is x1.5 daily / x2.0 weekly ON THE DROP HALF and it is
+           MULTIPLICATIVE with ATTENDED_MAX_FIDELITY — up to 4.5x / 6.0x the
+           honest away unit rate. The under-pay is the SAME confiscation this
+           whole change exists to end, re-created at the boundary.
+
+         WEEKLY NEEDS NO SECOND PASS: `utcWeekKey` is Monday-ALIGNED (botd.js),
+         so every week boundary IS a day boundary and a UTC-day segment can never
+         straddle one. The guard carries a weekly arm anyway, because that is an
+         argument and an arm is a measurement.
+
+         THE ALLOCATION IS CUMULATIVE-FLOOR, NOT PER-SEGMENT ROUNDING. Kills are
+         spread in proportion to each segment's share of the attended window —
+         the same uniform-rate assumption `attendedKillCap` already prices the
+         window with, and the one the span itself realises. Flooring the RUNNING
+         TOTAL rather than each segment makes the parts sum to `attTopUp` EXACTLY
+         by construction: the last segment's cumulative share is the whole span.
+         Per-segment floors would lose up to one kill per boundary (a silent
+         under-pay); per-segment rounding could mint one (a silent faucet).
+         Neither is acceptable on a paying path, and "it is only one kill" is how
+         this class starts.
+
+         `attendedSegments` records the multiplier THE ENGINE ACTUALLY HANDED
+         resolveKill, observed at CALL TIME rather than recomputed alongside — so
+         a `botd` that is never consulted reads `null` and the guard sees it. It
+         is returned on the result and is DELIBERATELY NOT JOURNALLED: the ledger
+         rule is aggregates, never per-unit rows (game_events: 1.6M rows / 229 MB
+         from six players in four days), and `meta.att` stays at four keys. */
+      const attSegs = utcDaySegments(attWindow.fromMs, attWindow.toMs);
+      /* A ZERO-LENGTH OR INVERTED window yields NO segments. It is unreachable
+         from here — `attendedKillCap(0, …)` is 0, so `attTopUp` is 0 and this
+         block never runs — but a paying loop may not lean on an invariant proven
+         three statements away, so the fallback is written out: ONE segment at the
+         window's own instant, which is what the draft did for every case. */
+      const segs = attSegs.length
+        ? attSegs
+        : [{ fromMs: attWindow.toMs, toMs: attWindow.toMs, ms: 0 }];
+      const segSpanMs = segs.reduce((acc, sg) => acc + sg.ms, 0);
+      let segDone = 0;
+      let segElapsed = 0;
+      for (let si = 0; si < segs.length; si++) {
+        const sg = segs[si];
+        segElapsed += sg.ms;
+        /* The LAST segment is PINNED to the total rather than computed, so a
+           zero-length span cannot divide by zero and the parts always sum. */
+        const cum = (si === segs.length - 1 || segSpanMs <= 0)
+          ? attTopUp
+          : Math.floor((attTopUp * segElapsed) / segSpanMs);
+        const n = Math.max(0, cum - segDone);
+        segDone = cum;
+        /* `dropMult` ONLY, deliberately: `xpMult` moves with it in every case
+           (1 / 1.5 / 2.0 are distinct), and recording an XP multiplier on a
+           path whose restricted sink has NO `addXp` would read as a claim that
+           the top-up pays XP. It does not — property 3. */
+        const rec = { fromMs: sg.fromMs, kills: n, dropMult: null };
+        attSegments.push(rec);
+        if (n <= 0) continue;
+        /* THE SEGMENT'S OWN INSTANT IS ITS START, exactly as simulateSpan uses
+           `ctx.botdFor(seg.fromMs)` (combat-sim.js:445). NEVER the end: a
+           non-final segment ends AT midnight, which resolves to the NEXT day. */
+        lootCtx.botd = {
+          killBonuses(id) {
+            const b = killBonusesFor(id, sg.fromMs, monsters);
+            rec.dropMult = b.dropMult;
+            return b;
+          },
+        };
+        for (let i = 0; i < n; i++) resolveKill(state, m, lootCtx);
+      }
 
       state.stats.kills = keepKills;
       state.stats.rareDrops = keepRare;
@@ -1953,14 +2035,17 @@ export function computeAccrual(input) {
          row per swing (§13.2). Omitted entirely when nothing was spent, so a
          melee night's journal is byte-for-byte what it was. */
       /* `ate` stays the count of MEALS EATEN (the simulation's own tally).
-         `att` is the WHOLE attended split in one key: claimed (what the server
-         had already accepted and clamped), cap (what this player's own gear
-         physically allows over the attended sub-window), sim (what the span
-         realised), top (what was actually paid) and free (how many meals were
-         healed but NOT charged, because the client owns an attended window's
-         debit). `claimed / sim` is the forgery signal the design leans on:
-         honest play clusters near the ~1.7 fidelity ratio, a forger runs the
-         claim to the cap.
+         `att` is the WHOLE attended split in one key, and it is FOUR integers:
+         claimed (what the server had already accepted and clamped), cap (what
+         this player's own gear physically allows over the attended sub-window),
+         sim (what the span realised) and top (what was actually paid). There is
+         no `free`: that was the food half's meals-healed-but-not-charged
+         counter, and the food half was CUT by the Security review of 2026-09-04.
+         `claimed / sim` is the forgery signal the design leans on: honest play
+         clusters near the measured fidelity ratio, a forger runs the claim to
+         the cap — and because it is journalled on EVERY attended settle, one
+         week of live rows re-derives that ratio from thousands of honest
+         sessions instead of the ONE production window it rests on today.
 
          ⚠ ONE KEY, NOT FIVE, and the reason is a guard rather than taste:
            tests/accrual-engine.mjs SHAPE caps this object at EIGHT keys, which
@@ -2047,6 +2132,9 @@ export function computeAccrual(input) {
     attendedTopUp: attTopUp,
     attendedCap: attCap,
     attendedClaimed: attClaimed,
+    /* §5a-BOTD. `[]` when there was no top-up. NOT a delta key and NOT journal
+       meta — index.ts does not forward it and hr_apply never sees it. */
+    attendedSegments: attSegments,
     watermark: delta.accrued_to,
     events,
     levelUps,

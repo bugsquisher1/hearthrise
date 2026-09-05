@@ -118,7 +118,7 @@ built**, so the next toucher inherits the measurement instead of re-finding it.
 |---|---|---|
 | **C1** | **A10's payment reference was self-referential.** Part (b) blends `fracA·refA.rate + fracB·refB.rate` with `fracA`/`fracB` taken from `cross.segs[i].kills` — *the code under test* — so a defect in the ALLOCATION dimension moves the reference in lockstep and reads 1.000. Parts (a) and (c) check segment count, start instants, per-segment `dropMult`, the sum identity and `mults.size >= 2`, every one of which survives a mis-proportioned split while both segments hold a kill. Security proved it by running this harness with the allocation replaced by *"segment 0 gets one kill, the final segment gets the rest"*: **`all checks pass (A1-A10 engine, C1-C9 chain)`** while payment inflated ×1.197 (`zombie` 2,007 → 2,403 units), ×1.170 (`panther`), ×1.060 (`death_knight`) — F1's over-pay restored at ~99 % strength with A10 green. The mirror passed identically. | **LANDED — A10 part (d):** a deterministic integer identity, zero RNG, recomputed from `utcDaySegments` and the reported total alone, asserted on the symmetric *and* the asymmetric window. Plus two mutation arms that are exactly Security's two escape runs, planted: **`alloc_all_to_last`** and **`alloc_all_to_first`**, both RED. |
 | **C2** | The settle envelope handed the client `attendedKills` / `attendedTopUp` / `attendedCap`. **`attendedCap` is the exact threshold Watch B's `rows_at_the_cap` line keys on** and `claimed`/`sim` is the ratio `median_claim_over_sim` keys on, so a forger reading its own receipt could sit one unit under every per-settle line forever. | **LANDED:** the three are stripped from the envelope; `attendedChannel` stays (a deployment fact — 'live'/'absent'/'degraded' — not a calibration, and it names no number). All four remain in `meta.att`, which is where the watches read them and which no client can `select`. Zero consumers in `src/`, grepped before and after. |
-| **S2 — MEDIUM, OPEN** | **Boundary arbitrage.** `hr_attended_kills` has **no per-day split**: the `w` CTE is `group by l.target`, one count per target for the whole window, so the engine has no choice but to assume a **uniform kill rate** — and that rate is one the *player* controls. Farm tomorrow's boss just before 00:00 UTC and hold the settle window open across the midnight, and the uniform-rate allocation prices part of that burst at the wrong day's multiplier (either direction). **Bounded ≤ ×1.20 on a symmetric window** — the same magnitude F1 had, because it is the same lever reached from the data side instead of the code side. | **RECORDED. Real fix:** `group by l.target, public.hr_utc_day_key(l.created_at)` and allocate from **real per-day counts**, which deletes the estimator rather than tightening it. Not built here: it changes the projection's return shape and therefore re-opens the engine contract — a second review, not an amendment. **Security names "Watch C" as the interim control. ⚠ THERE IS NO WATCH C** — §9 of this document defines Watch A and Watch B only, and a repo-wide grep finds no third query. Either it lives in Security's review and must be transcribed into §9 **before** this deploys, or the interim control is Watch A/B alone and S2 is uncovered. **Flagged, not resolved, and deliberately not invented here.** |
+| **S2 — MEDIUM, OPEN** | **Boundary arbitrage.** `hr_attended_kills` has **no per-day split**: the `w` CTE is `group by l.target`, one count per target for the whole window, so the engine has no choice but to assume a **uniform kill rate** — and that rate is one the *player* controls. Farm tomorrow's boss just before 00:00 UTC and hold the settle window open across the midnight, and the uniform-rate allocation prices part of that burst at the wrong day's multiplier (either direction). **Bounded ≤ ×1.20 on a symmetric window** — the same magnitude F1 had, because it is the same lever reached from the data side instead of the code side. | **RECORDED. Real fix:** `group by l.target, public.hr_utc_day_key(l.created_at)` and allocate from **real per-day counts**, which deletes the estimator rather than tightening it. Not built here: it changes the projection's return shape and therefore re-opens the engine contract — a second review, not an amendment. **Security names "Watch C" as the interim control — transcribed at §9.3b before the deploy**, from Security's own sentence, executed read-only on production 2026-09-05 (zero rows; the boss oracle cross-checked SQL↔JS on two consecutive days). Daily boss only, per the ruling; the weekly boundary stays unwatched and is said so in §9.3b. |
 | **S3** | — | **CLOSED — it became C2 above.** |
 | **S4 — NOT THIS LANE** | `hr_day_budget_limits()`'s header claims 25,000,000 gold is **"23.8× the measured honest maximum"**. That derives from `2026-08-11-daily-budget.sql`'s honest max of 1,049,186 gold/day and predates the current gear tier. **Security measured honest away-only BIS at 2,839,512 gold/day and calls the real headroom ×3.47.** ⚠ The arithmetic needs settling **in that lane**: 25,000,000 / 2,839,512 = **×8.80**, while 25,000,000 / 7,205,376 (the worst *attended total* above) = **×3.47** — the two answer different questions and the header should say which it means. Either way "23.8×" is wrong by between 2.7× and 6.9×. | **RECORDED. Owner: whoever next touches the day-budget calibration.** This change does not move that header and must not be blocked on it. |
 | **S5 — ACCEPTED** | The ±60 s edge slack when `attWindow` clamps the attended envelope into `[credit.fromMs, credit.toMs]`. | Accepted as-is. |
@@ -697,10 +697,11 @@ from six players in four days): nothing here is per kill.
    not an oversight.**
 9. **S2 — boundary arbitrage — is OPEN**, MEDIUM, bounded ≤ ×1.20. The projection has no per-day
    split, so the engine must assume a uniform kill rate the player controls. See the follow-ups
-   table in §0b. ⚠ Its stated interim control, "Watch C", **does not exist in this document or
-   this repo** — §9 has Watch A and Watch B only. Transcribe it or say the residual is uncovered;
-   an operational control that is named but not written is the "bounded and unread" failure §9
-   opens by warning about.
+   table in §0b. Its interim control, **Watch C, is now transcribed at §9.3b** from Security's
+   sign-off sentence (crossing settles with the daily boss on exactly one side, ALERT ≥ 4 of 7
+   days), executed read-only against production 2026-09-05 with the boss oracle cross-checked
+   against the shipping JS. The weekly-boundary analogue remains unwatched — that is the
+   ruling's stated scope.
 10. **Not verified on a Supabase branch.** See §7.
 
 ---
@@ -1018,6 +1019,98 @@ having count(*) filter (where claimed >= cap and cap > 0) >= 5         -- ALERT
 > (`percentile_cont` returns double precision and `round(double, int)` does not exist); that was
 > found by executing it, which is the reason to execute a query you intend somebody to rely on.
 
+### 9.3b WATCH C — boundary arbitrage (Security S2's interim control)
+
+**What it is for:** the S2 residual §0b records as OPEN — the projection has no per-day split,
+so a settle window held open across UTC midnight prices a pre-midnight burst at the wrong day's
+Boss-of-the-Day multiplier (either direction, bounded ≤ ×1.20 on a symmetric window). The real
+fix is the per-day `group by` in the projection; until that ships and clears its own review,
+this watch is the control.
+
+**Security's definition, transcribed verbatim from the sign-off review (2026-09-04):**
+
+> Per character over 7 days, count settles whose attended window (min/max `created_at` in
+> `hr_kill_credit_log`) crosses a UTC midnight and whose target is Boss of the Day on exactly
+> one side. ALERT at ≥ 4 of 7 days.
+
+The query below is the operationalisation of that sentence, nothing more. Two implementation
+facts it depends on, both proven by execution before this section was written:
+
+* **The boss oracle.** `pool.p` must stay **byte-identical, in order,** to `DAILY_POOL` in
+  `src/core/botd.js` — the hash indexes into it, so a drifted copy silently watches the wrong
+  boss. Cross-checked on production 2026-09-05: SQL (`hr_fnv1a` + unpadded `hr_utc_day_key`)
+  and the shipping JS both resolve `2026-9-5 → lesser_demon` and `2026-9-6 → goblin_warlord`.
+* **The window join.** "The settles' consumed log rows" is reconstructed as
+  `created_at ∈ (previous settle's at, this settle's at]` per character via `lag()`; a first
+  settle with no predecessor is bounded at 48 h, the accrual span's own ceiling.
+
+```sql
+-- WATCH C — settles that straddle UTC midnight with a target that is Boss of
+-- the Day on exactly one side. Honest play crosses midnights, but doing it
+-- repeatedly WITH the rotating boss as the target is a schedule, not a habit.
+with pool as (
+  select array[
+    'dark_wizard','venom_spider','goblin_brute','zombie','warlock',
+    'plague_swarm','goblin_warlord','bear','wraith','lesser_demon','mountain_troll',
+    'shadow_creeper','warband_captain','panther','death_knight','archmage',
+    'void_parasite','war_king','ancient_bear','lich','dragon',
+    'minotaur','giant_spider','hellhound','wyvern','barrow_knight',
+    'winter_wolf','ice_elemental','watchknight','void_mote','carnivorous_plant',
+    'cyclops','frost_giant','grave_banshee','fury','drake',
+    'magma_elemental','gargoyle','starhusk','bandit_lord','mammoth',
+    'revenant','vampire_bride','storm_elemental','the_silence']::text[] as p
+),
+settles as (
+  select user_id, slot, at,
+         lag(at) over (partition by user_id, slot order by at) as prev_at
+    from public.player_ledger
+   where kind = 'combat' and intent = 'accrue' and meta ? 'att'
+     and at > now() - interval '8 days'
+),
+win as (
+  select s.user_id, s.slot, s.at,
+         min(l.created_at) as w_from, max(l.created_at) as w_to,
+         array_agg(distinct l.target) as targets
+    from settles s
+    join public.hr_kill_credit_log l
+      on l.user_id = s.user_id and l.slot = s.slot
+     and l.created_at <= s.at
+     and l.created_at >  coalesce(s.prev_at, s.at - interval '48 hours')
+   where s.at > now() - interval '7 days'
+   group by 1, 2, 3
+),
+flagged as (
+  select w.user_id, w.slot, w.at
+    from win w
+   cross join pool
+   where (w.w_from at time zone 'utc')::date <> (w.w_to at time zone 'utc')::date
+     and exists (
+       select 1 from unnest(w.targets) t
+        where (t = pool.p[(public.hr_fnv1a('hr-boss-' || public.hr_utc_day_key(w.w_from))
+                           % array_length(pool.p, 1))::int + 1])
+           <> (t = pool.p[(public.hr_fnv1a('hr-boss-' || public.hr_utc_day_key(w.w_to))
+                           % array_length(pool.p, 1))::int + 1])
+     )
+)
+select user_id, slot,
+       count(*)                                      as crossing_settles,
+       count(distinct (at at time zone 'utc')::date) as days_hit
+  from flagged
+ group by 1, 2
+having count(distinct (at at time zone 'utc')::date) >= 4      -- ALERT (Security's line)
+ order by days_hit desc, crossing_settles desc
+ limit 50;
+```
+
+> **EXECUTED against `nezapsylztqbbwuwembx` on 2026-09-05, read-only: HTTP 201, zero rows** —
+> the same honest zero Watch A and Watch B recorded, for the same reason (no `meta.att` exists
+> until the deploy).
+
+**What this transcription does NOT cover, stated so nobody believes otherwise:** Security's
+sentence names the **daily** boss. The Monday-midnight **weekly** boundary is the same lever at
+×2.0 and is not watched by this query. That is the ruling's scope, not an oversight in the
+transcription; widening it is Security's call to make, not this document's.
+
 ### 9.4 The advisor baseline — take this BEFORE the apply, re-take it after
 
 `get_advisors(security)` on `nezapsylztqbbwuwembx`, **2026-09-04, before anything was applied**:
@@ -1039,9 +1132,10 @@ same property GATE(a) and the guard's C1 assert, checked here from outside the m
 
 ### 9.5 Cadence
 
-Both queries are cheap (`player_ledger` is indexed on `(user_id, slot, at)` and the windows are
-48 h / 7 d). Run them **on the day of the deploy, then daily for the first week**, then fold into
-whatever the nightly `hr_cron_health` slot becomes. Record the first week's readings in the
-release note: an alert with no baseline is an alert nobody can act on.
+All three queries are cheap (`player_ledger` is indexed on `(user_id, slot, at)`, the windows
+are 48 h / 7 d, and Watch C's join touches only each settle's own log slice). Run them **on the
+day of the deploy, then daily for the first week**, then fold into whatever the nightly
+`hr_cron_health` slot becomes. Record the first week's readings in the release note: an alert
+with no baseline is an alert nobody can act on.
 
 

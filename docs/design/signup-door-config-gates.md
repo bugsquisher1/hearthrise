@@ -165,3 +165,21 @@ yet and is documented as unreachable — it is not, and must not be presented as
 | **A real confirmation email returns a real player into the real game** | — | **NOT PROVEN. Gate 1.** |
 | **An itch.io player gets in after confirming** | — | **NOT PROVEN. Gate 2.** |
 | **A launch wave's confirmation emails are actually delivered** | — | **NOT PROVEN. Gate 3.** |
+
+---
+
+## MEASURED 2026-09-05 (Coordinator, Management API, read-only)
+
+Two of the three gates were already satisfied. Do not re-raise them as blockers.
+
+| Gate | Live value | Status |
+|---|---|---|
+| 1. Auth redirect allowlist | `uri_allow_list = https://bugsquisher1.github.io/hearthrise/**,https://hearthrise.net/**,https://www.hearthrise.net/**` · `site_url = https://hearthrise.net` | **CLOSED** — a redirect to `hearthrise.net` is allowlisted, so GoTrue will not silently substitute the Site URL. The failure mode that would have made every door test green-while-broken does not apply. |
+| 3. SMTP throughput | `smtp_host = smtp.resend.com`, `smtp_sender_name = Hearthrise` | **CLOSED** — custom SMTP, not the built-in mailer. |
+| 2. itch.io iframe storage partition | — | **STILL OPEN** — needs a manual confirm-link walk inside `fingerguns123.itch.io/hearthrise`. |
+
+### The real constraints, which nobody had named
+
+- **`rate_limit_email_sent = 60`.** Sixty confirmation emails per hour, project-wide. A beta-3 invite wave larger than that will reproduce the exact "−11 at the email wall" signature **with no client bug**. Stagger the keys, or raise the limit before the wave.
+- **`mailer_otp_exp = 3600`.** Confirmation links expire after **one hour**. Anyone who opens their mail the next morning gets `otp_expired`. The door fix now handles that honestly (sign-in mode + a visible resend), but the window is short for an invite wave and is worth raising.
+- `mailer_autoconfirm = false` — confirmation is genuinely required, as assumed.

@@ -15,6 +15,14 @@ name: smoke
 on:
   push:
     branches: [main]
+    # DOCS-ONLY COMMITS DO NOT GATE CODE. The ledger and the audit
+    # reports are updated many times a day; each one was starting a full
+    # ~40-minute run, which queues behind the real ones and delays the
+    # signal that actually matters. A release commit always touches
+    # src/ (the cache-buster bump), so it is never skipped by this.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   pull_request:
   workflow_dispatch:
 

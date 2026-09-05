@@ -183,6 +183,25 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/renown-kill-faucet.mjs --selftest
 
+      # THE BOUNTY-HUNTER XP MUTATION HARNESS — same lesson as the step above,
+      # applied on the way IN rather than after the fact. The guard itself runs
+      # inside run-smoke; this is the half that proves it can fail.
+      #
+      # It matters more here than usual because of WHAT the guard is watching.
+      # Bounty-Hunter XP was never credited by any server code for the whole
+      # life of the beta (production 2026-09-05: 36 characters, max(xp) = 0), so
+      # every board tier above 1 was unreachable for every player — and nothing
+      # in the repo noticed, because no test had ever driven the credit at all.
+      # The regression that would bring it back is a LATER migration restating
+      # hr_claim_bounty__ungated from a stale template, at which point the
+      # migration's own §2 gate never runs and only this guard is left standing.
+      # SEVEN of the fifteen mutations are therefore repeated with that gate
+      # short-circuited, so the ✓ is the guard's and not the migration's.
+      # 15 mutations, ~2.5 minutes of real PostgreSQL.
+      - name: Bounty-Hunter XP — every mutation caught, gate-blind twins included
+        if: ${{ !cancelled() }}
+        run: node tests/bounty-hunter-xp.mjs --selftest
+
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
       # it "says nothing about whether any row survives a restore". This is that

@@ -158,6 +158,19 @@ async function run(mutate) {
   const created = await asUser(uid, 'select public.hr_create_character(0) as r');
   const target = (await q('select monster_id from public.hr_bounty_monsters where tier = 1 order by monster_id limit 1'))[0].monster_id;
 
+  /* SA-048 (2026-09-12-bounty-accept-bh-clamp): 'hard' is now gated behind
+     Bounty-Hunter 15 — the board only posts 'hard' once 'streak' unlocks at
+     BH>=15 — so hr_accept_bounty refuses 'hard' below it (difficulty_locked)
+     and never reaches the kill-range computation. This guard tests the RANGE,
+     not the gate (that is bounty-accept-bh-clamp.mjs), and the range/reward are
+     pure functions of (tier, difficulty) that BH level does not touch — so
+     giving the probe a Bounty-Hunter level well past 15 only lets the 'hard'
+     accept PROCEED to the range, changing no assertion here. 'elite' stays
+     refused by the difficulty allowlist regardless of level, so B6 still holds. */
+  await q(`insert into public.player_skills (user_id, slot, skill_id, xp)
+           values ($1, 0, 'bountyHunter', 13034431)
+           on conflict (user_id, slot, skill_id) do update set xp = 13034431`, [uid]);
+
   const accept = async (d, required) => {
     await gate();
     return asUser(uid, 'select public.hr_accept_bounty(0,$1,$2,$3,$4,$5) as r',

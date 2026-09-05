@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 506 — 2026-09-05 (Hero slots load right away)
+
+- 🦸 **The "Buy a hero slot" button no longer hangs on "Checking…".** If you opened the game and left it in the background, the extra-character slots could sit on "Checking…" forever, because the realm only sent your owned slots on a periodic sync that a backgrounded tab never triggers. Your owned slots are now read the moment you load, so the button shows the real price (or "owned") straight away.
+- 🧪 Behind the scenes: this was the third case of the same "a screen waits for a background sync that never comes" bug (inventory and workers were the first two, already fixed). The test that guards it is now DERIVED from the list of things the realm sends, so the next time someone adds a new synced field, the guard fails until it's wired to load — the whole class is closed, not just this one.
+
 ## v0.9.2-beta build 504 — 2026-09-05 (What you fought for is what you keep)
 
 - ⚔️ **Drops from fights you actually sat through are credited in full now.** Since the server took over your save, the after-fight settle re-simulated your session as if you'd been away, and paid the loot of that smaller imaginary fight — we measured it live at roughly 60% of the drops you watched land, with eaten food sometimes reappearing. The realm now checks its own kill log for the fight you really had and tops up the difference, capped by what your gear can physically do. Kills, XP and gold were always right; now the loot is too. *(This was the top vanishing-items root cause — thank you to everyone who reported it.)*

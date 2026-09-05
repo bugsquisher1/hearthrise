@@ -10,11 +10,11 @@
 //
 // Exports: setupItemIndex().
 
-import { MONSTERS } from '../data/monsters.js?v=502';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=502';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=502';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=502';
-import { SHOP_OFFERS } from '../data/shops.js?v=502';
+import { MONSTERS } from '../data/monsters.js?v=503';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=503';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=503';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=503';
+import { SHOP_OFFERS } from '../data/shops.js?v=503';
 
 const SKILL_LABEL = {
   smithing: 'Smithing', crafting: 'Crafting', cooking: 'Cooking', prayer: 'Prayer',

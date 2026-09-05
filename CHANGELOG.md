@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 503 — 2026-09-05 (The door, and an honest till)
+
+- ✉️ **Confirming your email now drops you straight into the game, signed in.** No more landing on a page that asks you to go and sign in again. There is a **resend button** if the mail never arrives, and it tells you the truth: if a resend fails it says so instead of claiming it sent. If your link has expired (they last an hour) you get a plain sentence and a way to get a new one.
+- 🎟️ **Invite codes can arrive as a link.** Click it and the code is filled in, checked and tidied out of the address bar. If a code is refused you now find out *which* reason — unknown, or already used — instead of one vague sentence.
+- 💎 **Gem purchases stopped quietly lying.** Buying a theme, a cosmetic or gem bank space appeared to work and then handed your gems back, because the realm was never told. Worse, redeeming a Hearth Token burned the token for gems that were then erased. Those four now refuse honestly and cost you nothing rather than pretending. **We would rather tell you a thing is unavailable than take your token for it.**
+- ⚠️ **Being straight about that one:** themes, cosmetics and gem bank space are **not purchasable right now**. They never really were — the purchase was an illusion that gave the item and refunded the gems — and switching it off is the honest state until the realm can actually sell them. That work is scheduled.
+- 🧪 Behind the scenes: our automated checks have been failing unseen for a week because the release gate was only running part of them. The full set now runs on every change and is green for the first time since 29 August.
+
 ## v0.9.2-beta build 502 — 2026-09-04 (Your homestead tells the truth)
 
 - 🏠 **If your house showed a tier you had not actually bought, it now corrects itself.** Some accounts were showing the *Fieldworth Farmstead* as already owned when the realm had only recorded the *Hearthside Homestead*. That made the Forge look buildable, hid the upgrade you actually needed, and refused every click with a message telling you to build the property your screen said you owned. Your homestead now always shows what the realm actually recorded, and the upgrade you really need is offered again. **Nothing you paid for was lost.** *(Player report — thank you, Paione.)*

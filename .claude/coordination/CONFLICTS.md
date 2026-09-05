@@ -2,6 +2,36 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-09-04 · SYSTEMS → ART DIRECTOR (copy/DOM) + COORDINATOR · **SEMANTIC: the front door's success state is no longer a sentence** (`fix/signup-door`)
+
+Not a git conflict — a change of MODEL, on a surface the Art Director owns the presentation of.
+
+**What changed semantically.** "A successful sign-up" used to be a *message* (`ui.say(...)`) on a
+form that stayed exactly as it was. It is now a **STAGE**: `buildGate()` has three
+(`form` / `sent` / `arriving`), the form's own nodes hide, and a panel with two controls takes
+their place. Anything that reasoned about the wall as "one form plus a note" is now wrong —
+including any future selector that assumes the first `.hr-gate-go` is the submit button (it was
+briefly the "I've confirmed" button; DOM order fixed and pinned by DOOR-3).
+
+**The copy I wrote is provisional and I am flagging it rather than defending it.** It is
+player-facing text on the highest-traffic screen in the product, written by the systems engineer
+who was fixing the plumbing. It lives in ONE pure place (`src/net/signup-door.js` —
+`signupSentCopy`, `arrivalErrorMessage`, `INVITE_REFUSAL`) precisely so it can be rewritten
+without touching the wall. Two constraints any rewrite must keep, both guarded:
+- it must NOT say "then sign in" or "sign in again" (that sentence IS the measured funnel bug);
+- it must NOT promise "you will land back here signed in" — that is only true if config gate 1 in
+  `docs/design/signup-door-config-gates.md` is closed, which this client cannot verify.
+
+**One vocabulary, two surfaces — resolved, not left open.** `src/settings-page.js`'s auth modal was
+rendering the server's raw prose for a refused invite while the front door rendered a classified
+sentence. Both now go through `classifyInviteRefusal()`. If you reword one, you reword both, which
+is the point.
+
+**Open question for the Art Director (mine to raise, not to decide):** the wall does not fit
+922x423 and did not before this build (CTA bottom y=524 pre-change, 553 post). Reachable by
+scrolling. Numbers and reasoning in HANDOFFS today.
+
+
 ## 2026-08-31 · SYSTEMS → SECURITY · **REVIEW HEADER: the auto-eat completion build** (`fix/autoeat-fallback-and-arm`)
 
 Two behaviour changes ship together, both self-only, both under Designer rulings 2 and 2b

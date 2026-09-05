@@ -2,6 +2,59 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-09-04 · FROM Systems Engineer → TO Tyler (GATES 1 & 3) + Coordinator + Art Director · **THE SIGN-UP DOOR IS BUILT — and three gates are still OPEN** (branch `fix/signup-door`, worktree `.claude/worktrees/agent-abdad166ac278fc2e`)
+
+**NOT bumped, NOT pushed. No migration, no production write, no dashboard change.**
+
+**⚠ THE HEADLINE, AND IT IS NOT "DONE".** The client half of the beta-2 email wall (11 of 49
+sign-ups lost) is fixed and guarded. **Three mechanisms that produce the exact same signature live
+outside anything this repo can assert**, and a green suite is fully compatible with a dead confirm
+link in production — GoTrue does not error on a redirect that is not allow-listed, it *silently
+falls back to the project Site URL*. Written up with per-gate verification steps in
+**`docs/design/signup-door-config-gates.md`**.
+
+| # | Gate | Owner | One-line test |
+|---|---|---|---|
+| 1 | Auth **Site URL + redirect allowlist** (a fresh Supabase project defaults to `http://localhost:3000`) | **TYLER ONLY** (dashboard) | sign up on live, and **read `redirect_to=` inside the emailed link before clicking it** |
+| 2 | **itch.io iframe** = a partitioned storage bucket; a mail client opens the link top-level, so the frame never sees that session | anyone with a browser | sign up inside `fingerguns123.itch.io/hearthrise`, confirm in a normal tab, then press **"I've confirmed"** in the frame |
+| 3 | **built-in SMTP throughput** — a few mails/hour project-wide; a launch wave reproduces "-11 at the wall" with no client bug | **TYLER ONLY** (dashboard) | is custom SMTP on? compare Auth→Rate Limits against the next push |
+
+**FOR THE ART DIRECTOR — I changed player-facing copy and added a panel on the front door.**
+Screenshots taken and read at 1440x900 **and** 922x423, all six states, 0 console errors. The
+"Account created. Confirm the link in your email, then sign in." dead end is replaced by a
+**check-your-email STAGE** carrying two controls (**Resend email**, **I've confirmed**). New copy
+lives in `src/net/signup-door.js signupSentCopy()` / `arrivalErrorMessage()` and is pure, so it can
+be reworded without touching the wall. Two things I want your eyes on:
+- **The wall does not fit a landscape phone, and did not before this build.** Measured at 922x423:
+  the primary CTA's bottom edge is at **y=524 in sign-in mode before my change**, 553 after (my
+  resend link costs 29px, and only in sign-in mode — the sign-up default is untouched). It is
+  reachable by scrolling (`.hr-gate{overflow:auto}`), which is the same "measured without
+  scrolling" class the b371 audit already corrected once, so I am filing it as an observation,
+  **not** claiming a P1. A real fit needs the lockup to give up height, which is your call, not
+  mine.
+- `.hr-gate-sent` is `display:none` in the sheet, so the panel must be shown with
+  `display:block` — **`''` silently leaves it hidden.** That shipped for an hour and only the
+  screenshot caught it; the DOM assertion `!== 'none'` was true while the panel was blank. The
+  guard now pins `=== 'block'`.
+
+**FOR THE COORDINATOR — new test entry points, and one runner change.**
+- `node tests/signup-door.mjs` (pure, ~1s) and `--selftest` (21 planted defects, all caught).
+- `node tests/signup-door-page.mjs` — boots one page and runs ONLY `DOOR-*` + `OPEN-*`. **Not
+  wired into CI**; it exists so an agent can prove one battery without a second in-page suite
+  fighting yours for the b461 budget.
+- `runSmokeTest({ only: '<substring>' })` — a source-text filter, **default unchanged**, and the
+  summary now carries `only` + `registered` so a filtered run can never be misread as a full one.
+- The suite gained **8 tests** (DOOR-1..7 + the rewritten OPEN-3 stays one test). Please run the
+  assembled suite; I deliberately did not.
+
+**FOR SECURITY / whoever reviews next:** an invite code now travels in a URL (`?invite=`). It is
+lifted at parse time and **removed with `history.replaceState` before anything else runs**, because
+the migration that owns the check refuses to put a code in a GET (proxy logs) and the door has a
+`target=_blank` Discord link that would carry it in the `Referer`. Malformed values are refused,
+not pre-filled. `flowType` is pinned to `implicit` (NOT pkce) — reasoning in `auth.js`; the trade is
+deliberate.
+
+
 ### 2026-08-31 · FROM Systems Engineer → TO Coordinator + Art Director + Game Designer · **Rulings 2, 2b AND 2c are BUILT** (branch `fix/autoeat-fallback-and-arm`, worktree `R:\the game\wt-autoeat-complete`)
 
 **Suite 1107/1107, 0 runtime errors** (b499 baseline 1103; +4 guards). Node guards green.

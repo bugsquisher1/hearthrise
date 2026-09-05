@@ -245,26 +245,44 @@
 --   heavier armour's slower tick costs more cap than the survival is worth. The
 --   figure above is therefore a MAXIMUM, not a lower bound.
 --
--- GOLD IS THE ONE THAT MATTERS. Against the qty budget the top-up is noise; the
--- gold budget retains 5.8x headroom over the worst forged case and 13.2x over
--- the best HONEST away day this engine can produce (1,912,200 gold, maxed + full
--- BIS on grim_reaper). Both are well clear — but note that
--- 2026-08-11-daily-budget.sql's own header quotes an "honest max/day" of
--- 1,049,186 gold and a 23.8x headroom, and that calibration predates both this
--- change and the current gear tier. It is a fuse, not a control; it should not
--- be the thing that discovers the drift.
+-- GOLD IS THE LOAD-BEARING DIMENSION, AND 0.19% IS NOT COMFORT. Do not read the
+-- units line as "the top-up is noise": hr_day_budget_limits()'s OWN BODY says
+-- unit-count bounding "stopped being meaningful once one tick can mint a
+-- thousand units of a 1-gold item". The qty budget bounds COUNT, not VALUE, and
+-- every unit here is a drop-table item. IN CATALOGUE VALUE the same sweep reads
+-- 34,819,200 gp-value per character-day attended, of which 23,932,800 is the
+-- top-up's own MARGINAL contribution — against a 25,000,000 gold/day budget the
+-- qty budget does not touch. Price this surface in GOLD and in CATALOGUE VALUE;
+-- a units percentage is a statement about the fuse, not about the economy.
 --
 -- ⚠ HOW THIS COMPARES TO THE SECURITY REVIEW OF 2026-09-04, which recorded
---   1,533,780 gold/day (6.14%) and 120,060 units/day (12.01%). TWO differences,
---   and they point opposite ways:
+--   1,533,780 gold/day (6.14%) and 120,060 units/day (12.01%). Two differences
+--   were raised and SECURITY RE-SWEPT AND UPHELD BOTH (third pass, 2026-09-04):
 --     · GOLD: 17.20% here against 6.14% there — a factor of 2.80 HIGHER. The gap
---       is gear: the review's sweep does not appear to have included a full
---       best-in-slot loadout on an apex boss, which is exactly the character who
---       would run this. The number above is the one to attack.
+--       is gear: the first review's sweep did not include a full best-in-slot
+--       loadout on an apex boss, which is exactly the character who would run
+--       this. Security's own re-measurement reads HIGHER STILL — 4,591,752
+--       gold/character-day worst MARGINAL and 7,205,376 worst ATTENDED TOTAL —
+--       so 4,301,068 above is a FLOOR on the worst case, not a ceiling.
 --     · UNITS: both 12.01% and this file's own earlier 13.39% were computed
 --       against a budget of 1,000,000, which 2026-08-16-day-budget-artisan.sql
---       superseded with 70,000,000 (verified live). The true figure is 0.19%.
+--       superseded with 70,000,000 (verified live). The true figure is 0.19%,
+--       and Security's re-derivation matched it to the digit.
 --   Both sweeps are on the shipping engine and both are reproducible.
+--
+-- THE REAL HEADROOM, quoted against Security's (higher) re-sweep:
+--     worst MARGINAL       4,591,752 / 25,000,000  =  x5.44
+--     worst ATTENDED TOTAL 7,205,376 / 25,000,000  =  x3.47   <- the operator's number
+--     honest away-only BIS 2,839,512 / 25,000,000  =  x8.80
+--   The budget bounds a character's WHOLE day of gold, not the marginal slice
+--   this change adds, so x3.47 is the clearance. That is a long way from the
+--   "23.8x the measured honest maximum" hr_day_budget_limits()'s own header
+--   still claims — a stale calibration deriving from 2026-08-11-daily-budget's
+--   1,049,186 gold/day, which predates the current gear tier. THAT HEADER IS A
+--   DIFFERENT LANE'S ITEM (finding S4) and this file does not move it; the
+--   arithmetic there needs settling too (25,000,000/2,839,512 = x8.80, not
+--   x3.47 — the two figures answer different questions). It is a fuse, not a
+--   control; it should not be the thing that discovers the drift.
 --
 -- THE RESIDUAL, STATED SO IT CAN BE ATTACKED — it is NOT zero. An attacker
 -- looping hr_credit_kills makes the settle pay loot at up to the composite bound

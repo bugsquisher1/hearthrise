@@ -28,9 +28,9 @@ attacker is positive, max kill multiple exactly **3.00**) and **BLOCKED on F1 al
 
 | | |
 |---|---|
-| **F1 — THE BLOCKER, now fixed** | The top-up bound Boss-of-the-Day **once**, at `attWindow.toMs`, while `simulateSpan` rebinds it **per UTC-day segment** (`combat-sim.js:117` states the contract; `away.js utcDaySegments` is the segmenter). A settle whose attended window crossed UTC midnight therefore priced **every** top-up kill at the later instant's boss. **Measured on this engine before the fix** — 2 h window 23:00–01:00 UTC, maxed character, five seeds, top-up units/kill against the span's own: **1.23–1.28×** pointed at the later day's boss, **0.80–0.87×** pointed at the earlier one, 0.97–1.00× on a boss featured on neither. ×1.5 daily / ×2.0 weekly **on the drop half**, multiplicative with the 3× fidelity ceiling → up to **4.5× / 6.0×** the honest away unit rate; and the mirror case is the same confiscation this change exists to end. **FIXED:** §5a-BOTD segments the top-up with the existing `utcDaySegments` and rebinds `botd` per segment, allocating kills by cumulative floor so the parts sum exactly. Weekly needs no second pass — `utcWeekKey` is Monday-aligned, so every week boundary **is** a day boundary. **Guard: A10**, daily *and* weekly arms, both roles, proven RED by `--mutate=botd_single_instant` (the shipped defect, one token changed), `--mutate=botd_segment_end` and `--mutate=alloc_per_segment_floor`. |
+| **F1 — THE BLOCKER, now fixed** | The top-up bound Boss-of-the-Day **once**, at `attWindow.toMs`, while `simulateSpan` rebinds it **per UTC-day segment** (`combat-sim.js:117` states the contract; `away.js utcDaySegments` is the segmenter). A settle whose attended window crossed UTC midnight therefore priced **every** top-up kill at the later instant's boss. **Measured on this engine before the fix** — 2 h window 23:00–01:00 UTC, maxed character, five seeds, top-up units/kill against the span's own: **1.23–1.28×** pointed at the later day's boss, **0.80–0.87×** pointed at the earlier one, 0.97–1.00× on a boss featured on neither. ×1.5 daily / ×2.0 weekly **on the drop half**, multiplicative with the 3× fidelity ceiling → up to **4.5× / 6.0×** the honest away unit rate; and the mirror case is the same confiscation this change exists to end. **FIXED:** §5a-BOTD segments the top-up with the existing `utcDaySegments` and rebinds `botd` per segment, allocating kills by cumulative floor so the parts sum exactly. Weekly needs no second pass — `utcWeekKey` is Monday-aligned, so every week boundary **is** a day boundary. **Guard: A10**, daily *and* weekly arms, both roles, **four parts**, proven RED by `--mutate=botd_single_instant` (the shipped defect, one token changed), `--mutate=botd_segment_end`, `--mutate=alloc_per_segment_floor` and — after Security escaped parts (a)–(c) — `--mutate=alloc_all_to_last` and `--mutate=alloc_all_to_first`. **Part (d) is what closes the ALLOCATION dimension; the follow-ups table below records why (a)–(c) do not.** |
 | **F2 — pin the constant by value** | A2, A6 and A9 all derived the ceiling *from* `ATTENDED_MAX_FIDELITY`, so **raising it to 10 left every test green**; A9's honest pin only caught lowering. A6 now carries `ok(ATTENDED_MAX_FIDELITY <= 3)` with the 1.7×1.3 derivation in the message. |
-| **F3 — make the pin DERIVED** | 3 is calibrated to the magnitude of a defect the team intends to fix; when span-sim fidelity lands, the honest ratio falls to ~1.0–1.3 and a static 3× becomes a standing faucet with nothing going red. A6 now also asserts `ATTENDED_MAX_FIDELITY <= ceil(measuredHonestGap × 1.3)` — **measured this run: 15/7 = 2.143, ceil(2.143 × 1.3) = 3**, so it is green today and goes red the moment the control sim reaches 10 kills on that fixture. A floor assertion is paired with it so the derivation cannot invert into a confiscation. **The sample is n = 1**, and the doc now says so: both derivations (production 15/9 and the fixture's 15/7) rest on the *same one* measured attended session. The cheap widening ships with this change — `meta.att` journals `{claimed, cap, sim, top}` on every attended settle, so week one re-derives the ratio from thousands of honest windows. |
+| **F3 — make the pin DERIVED** | 3 is calibrated to the magnitude of a defect the team intends to fix; when span-sim fidelity lands, the honest ratio falls to ~1.0–1.3 and a static 3× becomes a standing faucet with nothing going red. A6 now also asserts `ATTENDED_MAX_FIDELITY <= ceil(measuredHonestGap × 1.3)` — **measured this run: 15/7 = 2.143, ceil(2.143 × 1.3) = 3**, so it is green today and goes red the moment the control sim reaches 10 kills on that fixture. A floor assertion is paired with it so the derivation cannot invert into a confiscation. **The sample is n = 1 — AND n = 1 IS THE ENTIRE DATASET.** Not a shortcut and not a sample of convenience: production holds **7** rows in `hr_kill_credit_log` across **2** users, and **exactly one** window carries both a sim result and an attended credit. There is no second observation to average with and there will not be one until this ships and journals its own. Both derivations (production 15/9 and the fixture's 15/7) rest on that one session. **Security's ruling, 2026-09-04: ship it, then RE-DERIVE from live `meta.att` after 7 days.** The cheap widening ships with this change — `meta.att` journals `{claimed, cap, sim, top}` on every attended settle, so week one re-derives the ratio from thousands of honest windows. That re-derivation is a **scheduled obligation**, not an aspiration: §9.5's first-week readings must carry it. |
 | **F4 — one word, and the gate stays** | §1c said the autocommit window makes the function "callable by `anon`". **Measured on production in a rolled-back probe:** the apply path's `current_user` is `postgres`, `pg_default_acl` for functions in `public` created by postgres is `{postgres=X, service_role=X}`, and a fresh function reads `anon=false, authenticated=false, service_role=TRUE`. The word is **`service_role`**. The gate stays: `supabase_admin`-created functions in `public` *do* get `anon`+`authenticated`, and PGlite has no default-ACL row at all and falls back to the built-in `PUBLIC=X`. §1b's four-role enumeration is **load-bearing** — a bare `revoke ... from public` does not remove a default-ACL grant to a *named* role. |
 | **F5 — the two apply-time documents** | The migration header and `tests/schema-apply-order.json` still described the four-bound list and the `min(attended,cap) − sim` formula the review rejected. Both restated to the shipped formula, C8's two-bounds framing, and the composite bound below. |
 
@@ -49,16 +49,31 @@ The **gear** cap binds in 802 of the 1,111 paying combinations, the fidelity cei
 | gold — `grim_reaper`, maxed + full BIS, 12 h cadence | **4,301,068** | **17.20 %** of 25,000,000 | ×2.32 |
 | item units — `wolf`, maxed + bronze sword, 60 s cadence | **133,920** | **0.19 %** of 70,000,000 | ×2.74 |
 
-**Two disagreements with the review's 1,533,780 gold/day (6.14 %) and 120,060 units/day
-(12.01 %), and they point opposite ways.**
+**Two disagreements were raised with the review's 1,533,780 gold/day (6.14 %) and 120,060
+units/day (12.01 %). SECURITY RE-SWEPT AND UPHELD BOTH (2026-09-04, third pass).**
 
-* **Gold: this sweep is 2.80× HIGHER** — 17.20 % against 6.14 %. The gap is gear; the review's
-  sweep does not appear to have included a full best-in-slot loadout on an apex boss, which is
-  exactly the character who would run this. **This is the number to attack.**
-* **Units: the review's 12.01 % is computed against a superseded budget.** `c_day_qty_budget` was
-  raised 1,000,000 → **70,000,000** by `2026-08-16-day-budget-artisan.sql` (verified live, above),
-  so the true figure is **0.19 %** and the qty budget is not a bound on this surface at all.
-  This document's §2 had it right; the migration header had the stale 1 M and is corrected.
+* **Gold: this sweep was 2.80× higher, and Security's re-sweep reads higher still.** 17.20 %
+  against the original 6.14 %. The gap was gear; the first review's sweep did not include a full
+  best-in-slot loadout on an apex boss, which is exactly the character who would run this.
+  Security's own re-measurement lands at **4,591,752 gold/character-day worst MARGINAL** (the
+  top-up's own contribution) and **7,205,376 gold/character-day worst ATTENDED TOTAL** — i.e.
+  slightly **above** the 4,301,068 in the table, so the figure in this document is a floor on the
+  worst case, not a ceiling. **This is still the number to attack.**
+* **Units: the review's 12.01 % was computed against a superseded budget — upheld exactly.**
+  `c_day_qty_budget` was raised 1,000,000 → **70,000,000** by `2026-08-16-day-budget-artisan.sql`
+  (verified live, above), so the true figure is **0.19 %**. Security's re-derivation matched this
+  document's to the digit.
+
+> ### ⚠ 0.19 % IS NOT COMFORT AND MUST NOT BE QUOTED AS IF IT WERE
+>
+> `hr_day_budget_limits()`'s own body says it: unit-count bounding *"stopped being meaningful once
+> one tick can mint a thousand units of a 1-gold item"*. The qty budget bounds **count**, not
+> **value**, and this surface's whole point is that the counts are of *drop-table* items.
+> **In catalogue VALUE the same sweep reads 34,819,200 gp-value per character-day attended, of
+> which 23,932,800 is the top-up's own marginal contribution** — against a 25,000,000 gold/day
+> budget the qty budget does not touch. So: **gold is the load-bearing dimension.** Price any
+> future review of this surface in gold and in catalogue value; a units percentage is a statement
+> about the fuse, not about the economy.
 
 **And the gear model is the worst one, not merely a plausible one.** The first sweep scored
 equipment on `atkB + strB` only, which ignores `defB` and `spdB` — both of which could in
@@ -77,12 +92,37 @@ Offence-only wins because every model already survives (`died = false` in all 56
 food stack), so defence buys the forger nothing, and the heavier armour's slower tick costs more
 cap than the survival is worth. **The figure above is a maximum, not a lower bound.**
 
-Gold is therefore the dimension that matters. It keeps **5.8×** headroom over the worst forged
-case and **13.2×** over the best honest away day this engine can produce (1,912,200 gold/day,
-maxed + full BIS on `grim_reaper`). Both clear — but `2026-08-11-daily-budget.sql`'s own header
-quotes an "honest max/day" of 1,049,186 gold and 23.8× headroom, and that calibration predates
-both this change and the current gear tier. **A fuse should not be the thing that discovers the
-drift.**
+Gold is therefore the dimension that matters, and the headroom below is quoted against
+**Security's** re-sweep rather than this document's, because theirs is the higher one:
+
+| against the 25,000,000 gold/day budget | measured | headroom |
+|---|---|---|
+| worst **MARGINAL** — the top-up's own contribution | 4,591,752 | **×5.44** |
+| worst **ATTENDED TOTAL** for one character-day | 7,205,376 | **×3.47** |
+| best **honest away-only** day, maxed + full BIS | 2,839,512 | ×8.80 |
+
+The middle row is the one an operator should hold in mind: the budget bounds a character's WHOLE
+day of gold, not the marginal slice this change adds. **×3.47 is the real clearance** — and it is
+a long way from the "23.8×" `hr_day_budget_limits()`'s own header still claims. That stale
+calibration is **S4** in the follow-ups below and belongs to a different lane; this change does
+not move it. **A fuse should not be the thing that discovers the drift.**
+
+### The third Security pass — two conditions LANDED, four findings RECORDED
+
+Security signed off: *"Not blocked. The design is right, the containment is right, F2–F5 are
+delivered, and the F1 defect I blocked on is genuinely fixed."* Two blocking conditions came with
+it and both are landed on this branch; four further findings are **written down rather than
+built**, so the next toucher inherits the measurement instead of re-finding it.
+
+| | what it is | state |
+|---|---|---|
+| **C1** | **A10's payment reference was self-referential.** Part (b) blends `fracA·refA.rate + fracB·refB.rate` with `fracA`/`fracB` taken from `cross.segs[i].kills` — *the code under test* — so a defect in the ALLOCATION dimension moves the reference in lockstep and reads 1.000. Parts (a) and (c) check segment count, start instants, per-segment `dropMult`, the sum identity and `mults.size >= 2`, every one of which survives a mis-proportioned split while both segments hold a kill. Security proved it by running this harness with the allocation replaced by *"segment 0 gets one kill, the final segment gets the rest"*: **`all checks pass (A1-A10 engine, C1-C9 chain)`** while payment inflated ×1.197 (`zombie` 2,007 → 2,403 units), ×1.170 (`panther`), ×1.060 (`death_knight`) — F1's over-pay restored at ~99 % strength with A10 green. The mirror passed identically. | **LANDED — A10 part (d):** a deterministic integer identity, zero RNG, recomputed from `utcDaySegments` and the reported total alone, asserted on the symmetric *and* the asymmetric window. Plus two mutation arms that are exactly Security's two escape runs, planted: **`alloc_all_to_last`** and **`alloc_all_to_first`**, both RED. |
+| **C2** | The settle envelope handed the client `attendedKills` / `attendedTopUp` / `attendedCap`. **`attendedCap` is the exact threshold Watch B's `rows_at_the_cap` line keys on** and `claimed`/`sim` is the ratio `median_claim_over_sim` keys on, so a forger reading its own receipt could sit one unit under every per-settle line forever. | **LANDED:** the three are stripped from the envelope; `attendedChannel` stays (a deployment fact — 'live'/'absent'/'degraded' — not a calibration, and it names no number). All four remain in `meta.att`, which is where the watches read them and which no client can `select`. Zero consumers in `src/`, grepped before and after. |
+| **S2 — MEDIUM, OPEN** | **Boundary arbitrage.** `hr_attended_kills` has **no per-day split**: the `w` CTE is `group by l.target`, one count per target for the whole window, so the engine has no choice but to assume a **uniform kill rate** — and that rate is one the *player* controls. Farm tomorrow's boss just before 00:00 UTC and hold the settle window open across the midnight, and the uniform-rate allocation prices part of that burst at the wrong day's multiplier (either direction). **Bounded ≤ ×1.20 on a symmetric window** — the same magnitude F1 had, because it is the same lever reached from the data side instead of the code side. | **RECORDED. Real fix:** `group by l.target, public.hr_utc_day_key(l.created_at)` and allocate from **real per-day counts**, which deletes the estimator rather than tightening it. Not built here: it changes the projection's return shape and therefore re-opens the engine contract — a second review, not an amendment. **Security names "Watch C" as the interim control. ⚠ THERE IS NO WATCH C** — §9 of this document defines Watch A and Watch B only, and a repo-wide grep finds no third query. Either it lives in Security's review and must be transcribed into §9 **before** this deploys, or the interim control is Watch A/B alone and S2 is uncovered. **Flagged, not resolved, and deliberately not invented here.** |
+| **S3** | — | **CLOSED — it became C2 above.** |
+| **S4 — NOT THIS LANE** | `hr_day_budget_limits()`'s header claims 25,000,000 gold is **"23.8× the measured honest maximum"**. That derives from `2026-08-11-daily-budget.sql`'s honest max of 1,049,186 gold/day and predates the current gear tier. **Security measured honest away-only BIS at 2,839,512 gold/day and calls the real headroom ×3.47.** ⚠ The arithmetic needs settling **in that lane**: 25,000,000 / 2,839,512 = **×8.80**, while 25,000,000 / 7,205,376 (the worst *attended total* above) = **×3.47** — the two answer different questions and the header should say which it means. Either way "23.8×" is wrong by between 2.7× and 6.9×. | **RECORDED. Owner: whoever next touches the day-budget calibration.** This change does not move that header and must not be blocked on it. |
+| **S5 — ACCEPTED** | The ±60 s edge slack when `attWindow` clamps the attended envelope into `[credit.fromMs, credit.toMs]`. | Accepted as-is. |
+| **S6 — ACCEPTED** | Only the **pointer's** target is spent, so a non-pointer target's credits age out unpaid — **under-pay**, self-only, bounded by 60 s of attended play. Already stated as known limitation 4b. | Accepted as-is. |
 
 ### Accepted residuals — stated, not closed
 
@@ -537,6 +577,23 @@ its own header as retiring "with the same commit that gives live play an intent 
 does not remove it (that is the Systems Engineer's inventory-absolute flip) and does not lean on
 it either — **A4 asserts the top-up is correct with the ratchet disabled.**
 
+**What the settle envelope tells the client about the top-up, and it is one string.**
+`away.attendedChannel` — `'live'` / `'absent'` / `'degraded'` — and nothing else.
+`attendedKills`, `attendedTopUp` and `attendedCap` were on the envelope in the first draft and
+are **removed** (Security condition C2): `cap` is the exact threshold Watch B's
+`rows_at_the_cap` line keys on and `claimed`/`sim` is the ratio its `median_claim_over_sim`
+line keys on, so a forger reading its own receipt could sit one unit under every per-settle line
+forever. All four still exist — in `meta.att` on `player_ledger`, a table no client can
+`select`, which is where §9's watches read them. `attendedChannel` stays because it is a
+**deployment fact, not a calibration**: it names no number, and without it "the loot is still
+snapping down" and "the migration is not applied yet" are indistinguishable from outside — the
+exact ambiguity that let the bounty hang survive a verification pass.
+
+> **Nothing in `src/` ever read the three** (grepped before and after the strip: zero
+> consumers), so this costs the client nothing today. **Do not re-add them for the welcome-back
+> card**: the card states what was **paid** — gold, items, kills — and the top-up is already
+> inside those totals. That is the whole point of this section.
+
 The end state remains F above: one seeded fight, both sides. Named, costed, not built.
 
 ---
@@ -628,7 +685,23 @@ from six players in four days): nothing here is per kill.
    deliberate (§2 bound 2) and it is the difference between "bounded" and "2.27 M gold a day",
    but it does mean an attended fight against something the server's model of the character
    cannot beat is paid at the sim's number — i.e. today's behaviour, not a regression.
-8. **Not verified on a Supabase branch.** See §7.
+8. **A10 part (d) is an ORACLE, and an oracle can be edited to agree with the defect.** It
+   re-implements the cumulative-floor allocation in the test file, deliberately, because the only
+   reference that is *not* self-referential is one computed independently — but that means a
+   future author who changes the engine's allocation could change (d) to match and lose the
+   property. The enforcement is the pair of mutation arms (`alloc_all_to_last`,
+   `alloc_all_to_first`) plus the assertion text, which says in the failure message not to relax
+   it. Structural alternatives (deriving the expectation from a second implementation, or paying
+   each segment through a separate engine call and differencing) were considered and are more
+   machinery than the property is worth today. **Stated so the next reviewer knows it is a choice,
+   not an oversight.**
+9. **S2 — boundary arbitrage — is OPEN**, MEDIUM, bounded ≤ ×1.20. The projection has no per-day
+   split, so the engine must assume a uniform kill rate the player controls. See the follow-ups
+   table in §0b. ⚠ Its stated interim control, "Watch C", **does not exist in this document or
+   this repo** — §9 has Watch A and Watch B only. Transcribe it or say the residual is uncovered;
+   an operational control that is named but not written is the "bounded and unread" failure §9
+   opens by warning about.
+10. **Not verified on a Supabase branch.** See §7.
 
 ---
 
@@ -637,7 +710,7 @@ from six players in four days): nothing here is per kill.
 | Verified how | What |
 |---|---|
 | **Executed against production, read-only** | Every number in §0. `player_ledger` id 13175, the four `hr_kill_credit_log` rows, `player_state` slot 2's three auto-eat columns, `player_inventory`, and the live `hr_engine` EXECUTE set (17 entries). **Added on this branch:** the live `hr-accrue` bundle identity (§9); the 30-day economic baseline in §9's thresholds (227 `combat / accrue` rows: max 1,435 item units and 8,103 gold per PAID hour, p99 1,343 / p50 238); that `regprocedure::text` renders `timestamp with time zone` and `least(null::timestamptz, now()) = now()` (both load-bearing for C6); and that §1c's autocommit guard **fires** when its block runs alone. |
-| **Executed locally — GREEN** | `node tests/attended-loot-credit.mjs` — **A1–A9 engine + C1–C9** against the whole real chain in PGlite. `--selftest`: **21/21 mutations CAUGHT**. `node tests/accrual-engine.mjs` — **with `attendedSettleAutoEatGuard` reverted to production's version, unmodified**, which is the coherence proof that this branch does not touch food. `node tests/run-sql-tests.mjs`, `node tools/derive-grant-hygiene.mjs --check` (7 links, 8 patches, in sync), `node tests/schema-replay.mjs`, `node tests/schema-drift.mjs` (re-baselined: **exactly one** function added), `node tools/pack-edge.mjs --check`. Plus, unchanged: `activity-intent`, `combat-xp-settle-split`, `live-settlement`, `accrue-envelope-away`, `goal-counters`, `auto-eat-authority`, `core-purity`, `intent-mismatch`, `delta-transport`. |
+| **Executed locally — GREEN** | `node tests/attended-loot-credit.mjs` — **A1–A10 engine + C1–C9** against the whole real chain in PGlite. `--selftest`: **26/26 mutations CAUGHT**, including `alloc_all_to_last` and `alloc_all_to_first` — the two arms Security used to escape A10 before part (d) existed, each now producing 16 failures across all four A10 fixtures × both windows. `node tests/accrual-engine.mjs` — **with `attendedSettleAutoEatGuard` reverted to production's version, unmodified**, which is the coherence proof that this branch does not touch food. `node tests/run-sql-tests.mjs`, `node tools/derive-grant-hygiene.mjs --check` (7 links, 8 patches, in sync), `node tests/schema-replay.mjs`, `node tests/schema-drift.mjs` (re-baselined: **exactly one** function added), `node tools/pack-edge.mjs --check`. Plus, unchanged: `activity-intent`, `combat-xp-settle-split`, `live-settlement`, `accrue-envelope-away`, `goal-counters`, `auto-eat-authority`, `core-purity`, `intent-mismatch`, `delta-transport`. |
 | **Executed locally — RED, and expected** | `node tests/live-hash-drift.mjs` reports `hr_assert_grant_hygiene` moved. That is this change (link 7), and it clears with `--live --write` **after** the migration is applied. Measured on the base commit for comparison: 2 pre-existing REDs (`hr_record_rejection`, `hr_state_of`, both carrying `--write` REVIEW placeholders); this change adds exactly one and removes none. |
 | **NOT executed — must happen before merge** | **The migration has not been applied anywhere, including a Supabase branch.** `create_branch` requires `confirm_cost`, which is not exposed in this environment (the same blocker `server-authority.md` §0b records). The PGlite replay applies the *whole real chain from `tests/schema-apply-order.json` plus this file* and runs its §3 gate — including the new GATE(e6) — which is the strongest proof available here. But it is PGlite, not `nezapsylztqbbwuwembx`, and the two have already been measured to disagree once (`[[:space:]]+` vs `\s+` under `standard_conforming_strings`). **Treat the migration as unproven against production until a branch applies it.** |
 | **NOT executed** | The Edge deploy. `node tests/run-smoke.mjs` (the Coordinator runs the assembled suite on `main`). Any live play-gate pass. |
@@ -679,7 +752,7 @@ a real defect. Owner: whoever next touches that file.
 ## 8. Tests
 
 * **`tests/attended-loot-credit.mjs`** — the guard, in two halves.
-  * **A1–A9, the engine.** A1 is *the test that would have caught this*: it reproduces the
+  * **A1–A10, the engine.** A1 is *the test that would have caught this*: it reproduces the
     production window (169 s, 15 attended kills, a 10-HP fresh character, `auto_eat_food` NULL)
     and asserts the delta credits the drops of **15** kills, not 9. **RED without the fix**
     (`--mutate=no_topup`, which is byte-for-byte today's engine — it reports 11 units credited
@@ -692,6 +765,22 @@ a real defect. Owner: whoever next touches that file.
     negatives, 1e18, arrays); **A9 the unsurvivable target** — a maxed character pointed at
     `the_silence` with a saturating claim must pay **0**, and the guard prints the 2,267,639 gold
     it would otherwise mint.
+  * **A10, the UTC boundary (Security F1), in FOUR parts — and the fourth is the load-bearing
+    one.** (a) the STRUCTURE: segment count against `utcDaySegments`, each segment's start
+    instant, a segmenter-independent `fromMs % DAY_MS === 0`, the per-segment `dropMult` as
+    observed at `resolveKill` call time, the sum identity, `mults.size >= 2`. (b) THE MONEY: the
+    top-up's units/kill against a blend of two single-day reference runs, ±6 %. (c) the
+    ALLOCATION IDENTITY on a deliberately asymmetric window, with its own non-vacuity proof.
+    **(d) the ALLOCATION SHAPE:** a deterministic integer identity, zero RNG, recomputed from
+    `utcDaySegments` and the reported total alone, on both windows.
+    > **(d) exists because (b) is self-referential, and Security proved that by running it.**
+    > (b) blends by `cross.segs[i].kills`, which is the code under test, so an allocation defect
+    > moves the reference in lockstep and (b) reads 1.000; (a) and (c) survive any
+    > mis-proportioned split in which both segments hold a kill. Measured, with the allocation
+    > replaced by *"segment 0 gets one kill, the final segment gets the rest"*: the file reported
+    > **`all checks pass`** while payment inflated **×1.197 / ×1.170 / ×1.060**. (d) is the only
+    > arm that sees it. **Do not relax (d) to a tolerance** — it is integer arithmetic, and there
+    > is no band in which an allocation is approximately right.
   * **C1–C9, PGlite.** The real chain from `tests/schema-apply-order.json`, then a real player
     created the server's own way and driven through the **real, rate-gated `hr_credit_kills` as
     `authenticated`** — the assertion is always "the projection the engine will actually read
@@ -715,11 +804,15 @@ a real defect. Owner: whoever next touches that file.
   intended behaviour; that assertion was re-ruled by the Security review and the guard is back to
   what it was. It is the single strongest statement that this branch does not touch food: the
   test that would have caught a food change is unmodified and green.
-* Mutation-proven: `node tests/attended-loot-credit.mjs --selftest` — **21 planted defects, 21
+* Mutation-proven: `node tests/attended-loot-credit.mjs --selftest` — **26 planted defects, 26
   CAUGHT**, including three `_gate_blind` arms that short-circuit the migration's own §3 block so
   only the C-series is left to see the defect. New arms on this branch: `unsurvivable_topup`
   (the sim-relative ceiling), `no_upper_bound` and `upto_unclamped` (C6), `no_upper_bound_gate_blind`
-  (C9 without the gate), and `food_debit_dropped` (the cut half, planted).
+  (C9 without the gate), `food_debit_dropped` (the cut half, planted), `botd_single_instant` and
+  `botd_segment_end` (F1 — the shipped defect and the off-by-one a later refactor would most
+  likely reintroduce), `alloc_per_segment_floor` (the sum identity), and — from Security's own
+  escape run — **`alloc_all_to_last`** and **`alloc_all_to_first`**, which keep the segments, the
+  instants, the multipliers and the sum intact and move ONLY the proportion.
 
   > Those arms raise **`HR900`, the code the migration's own handler swallows.** A different code
   > propagates, the migration refuses to install, and the arm reports *"migration/harness rejected
@@ -761,11 +854,19 @@ Read from the Supabase Management API on **2026-09-04**, before anything was dep
 | `verify_jwt` | `true` |
 
 **The candidate.** `node tools/pack-edge.mjs --check` on this branch packs
-`hr-accrue: 64 files (41 vendored), 1327.5 KB, payload
-a92de4df8feace1c994b2b3dd566278ba5a4a5edaaa913d5b079b6f47af69fac`. That digest is the repo-side
-identity of what would be deployed; Supabase's `ezbr_sha256` is computed over its own bundle and
-will differ. Record the NEW `ezbr_sha256` after the deploy by re-reading `list_edge_functions`,
-and put both in the release note.
+`hr-accrue: 64 files (41 vendored), 1334.0 KB, payload
+c8d0b1630321c356e72a1c9b9d857afabf672259c57889a326d3c2cd791be6f3` — re-measured **after** the F1
+segmentation fix and the condition-C2 envelope strip, superseding the `a92de4df…`/1327.5 KB
+recorded when this section was first written. That digest is the repo-side identity of what would
+be deployed; Supabase's `ezbr_sha256` is computed over its own bundle and will differ. Record the
+NEW `ezbr_sha256` after the deploy by re-reading `list_edge_functions`, and put both in the
+release note.
+
+> ⚠ **This digest moves with `src/core` and `src/data`, not only with this function**, so it
+> must be re-read immediately before the deploy rather than trusted from this page. The smoke
+> suite's Edge payload guard is RED on this branch for exactly that reason and correctly so:
+> `hr-accrue` is deployed at `ac7481dd…` and this repo packs `c8d0b163…`. It goes green with
+> the deploy, not before.
 
 **Rollback.** The Edge and the SQL are safe in either order, so a rollback is one action at a
 time and neither strands the other:

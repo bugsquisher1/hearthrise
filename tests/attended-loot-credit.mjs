@@ -840,6 +840,33 @@ function boundaryPair(target, fromMs, toMs) {
   };
 }
 
+/** PART (d)'S REFERENCE ALLOCATION — recomputed here, from the SEGMENTER and the
+ *  reported TOTAL alone, and DELIBERATELY not from anything the engine reports
+ *  per segment. `utcDaySegments` lives in src/core/away.js, which no mutation arm
+ *  patches (the harness rewrites accrual.js only), so this expectation cannot be
+ *  moved by the defect it is looking for. Integer arithmetic, zero RNG.
+ *
+ *  The shape it encodes is the CUMULATIVE FLOOR the engine documents at §5a-BOTD:
+ *  floor the RUNNING TOTAL, pin the last segment to the whole, take each
+ *  segment's kills as the difference. Per-segment flooring loses a kill per
+ *  boundary; per-segment rounding mints one. This is the one shape that sums. */
+function cumulativeFloorAllocation(fromMs, toMs, total) {
+  const segs = utcDaySegments(fromMs, toMs);
+  const totalMs = segs.reduce((acc, sg) => acc + sg.ms, 0);
+  const out = [];
+  let cumMs = 0;
+  let done = 0;
+  for (let i = 0; i < segs.length; i++) {
+    cumMs += segs[i].ms;
+    const cum = (i === segs.length - 1 || totalMs <= 0)
+      ? total
+      : Math.floor((total * cumMs) / totalMs);
+    out.push(cum - done);
+    done = cum;
+  }
+  return out;
+}
+
 /* THE FIXTURE PICKER runs on the REAL engine and is memoised, for two reasons.
    (1) Which date is a usable boundary is a property of the CONTENT, not of the
    code under test — letting a mutant choose its own fixture is how a mutation
@@ -1036,6 +1063,69 @@ function a10_utcBoundary() {
         `${tag} (c): with ${odd.kills} kills the asymmetric split happens to divide exactly `
         + `(${naive}), so a per-segment floor would lose nothing and the identity above is `
         + 'vacuous. Nudge BOUNDARY_ODD_BEFORE_MS by a few seconds — do not delete the arm.');
+
+      // ── (d) THE ALLOCATION SHAPE — deterministic, and NOT self-referential ─
+      /* WHY (a)–(c) ARE NOT THE BACKSTOP THEY LOOK LIKE — PROVEN BY SECURITY ON
+         THIS HARNESS, 2026-09-04, by running it rather than by reading it. Part
+         (b)'s reference is `fracA·refA.rate + fracB·refB.rate` and it takes
+         `fracA`/`fracB` from `cross.segs[i].kills` — THE CODE UNDER TEST. A
+         defect in the ALLOCATION dimension therefore moves the reference in
+         lockstep and (b) reads ~1.000. Part (a) checks segment COUNT, start
+         instants, per-segment `dropMult`, the sum identity and `mults.size >= 2`
+         — every one of which survives a mis-proportioned split for as long as
+         both segments hold at least one kill.
+
+         MEASURED BY SECURITY, on this file's own arms, with the allocation
+         replaced by "segment 0 gets one kill, the final segment gets the rest":
+
+           node tests/attended-loot-credit.mjs
+             → all checks pass (A1-A10 engine, C1-C9 chain)
+           zombie        2,007 → 2,403 units   ×1.197
+           panther       4,872 → 5,702 units   ×1.170
+           death_knight  2,412 → 2,557 units   ×1.060
+
+         That is F1's over-pay restored at ~99 % strength with A10 GREEN, and the
+         mirror ("everything to segment 0", the UNDER-pay) passed identically.
+         `alloc_all_to_last` and `alloc_all_to_first` are those two runs, planted.
+         (Their fixture picks are Security's; the picker is content-derived, so
+         this machine draws zombie / goblin_warlord / archmage / treant. Both arms
+         read RED on all four, symmetric AND asymmetric — 16 failures each — which
+         is the measurement that matters here: the property is per-boundary, not
+         per-monster.)
+
+         SO THIS PART TAKES NOTHING FROM THE ENGINE'S REPORTED SPLIT. The
+         expectation comes from the SEGMENTER and from the ONE total the settle
+         reported and journalled as `meta.att.top`. No band, no seeds, no rates —
+         the allocation is either the cumulative-floor shape the design specifies
+         or it is a payment distribution nobody reviewed.
+
+         BOTH WINDOWS, and the ASYMMETRIC one is the load-bearing half: the
+         symmetric window splits exactly, so a PER-SEGMENT floor yields the same
+         integers as a cumulative floor there and only the odd-seconds window can
+         see it — which is what part (c)'s `naive < odd.kills` proves for this
+         run's actual kill count rather than assuming from the offsets. */
+      for (const arm of [{ pair: cross, from, to, label: 'symmetric' },
+        { pair: odd, from: oddFrom, to: oddTo, label: 'asymmetric' }]) {
+        const wantAlloc = cumulativeFloorAllocation(arm.from, arm.to, arm.pair.kills);
+        ok(arm.pair.segs.length === wantAlloc.length,
+          `${tag} (d/${arm.label}): the top-up ran in ${arm.pair.segs.length} segment(s); the `
+          + `segmenter says ${wantAlloc.length}`);
+        for (let i = 0; i < wantAlloc.length; i++) {
+          const got = arm.pair.segs[i] ? arm.pair.segs[i].kills : null;
+          ok(got === wantAlloc[i],
+            `${tag} (d/${arm.label}) THE ALLOCATION SHAPE: segment ${i} was paid ${got} of the `
+            + `${arm.pair.kills} top-up kills; the cumulative-floor allocation over this window's `
+            + `UTC-day segments says ${wantAlloc[i]} (the whole shape: [${wantAlloc.join(', ')}], `
+            + `the engine reported [${arm.pair.segs.map((sg) => sg.kills).join(', ')}]). Kills must `
+            + "be spread in proportion to each segment's SHARE OF THE WINDOW — the same uniform "
+            + 'rate attendedKillCap already prices the window with. A mis-proportioned split pays '
+            + "the wrong day's Boss-of-the-Day on the difference, which is F1 with the segments "
+            + 'present and the arithmetic wrong: measured ×1.197 over-pay with the split pushed '
+            + 'to the later segment, and the same magnitude of confiscation pushed the other way. '
+            + 'THIS ARM IS THE ONLY ONE THAT SEES IT — (b) blends by the very numbers asserted '
+            + 'here, so it reads 1.000 for both directions. DO NOT relax it to a tolerance.');
+        }
+      }
     }
   }
 }
@@ -1383,6 +1473,45 @@ const MUTATIONS = {
         + '          ? attTopUp\n'
         + '          : Math.floor((attTopUp * segElapsed) / segSpanMs);',
     repl: '        const cum = segDone + Math.floor((attTopUp * sg.ms) / Math.max(1, segSpanMs));',
+  },
+  /* THE TWO ARMS SECURITY BUILT TO BREAK A10, sharing alloc_per_segment_floor's
+     anchor — the harness requires an anchor to match the SOURCE exactly once, not
+     that arms be unique, and botd_single_instant / botd_segment_end already pair
+     the same way. Both keep the segment count, the instants, the multipliers and
+     the sum identity intact and move ONLY the proportion, which is the one
+     dimension part (b) cannot see because it blends BY it. Both measured GREEN
+     across A1-A10 and C1-C9 before part (d) existed. */
+  alloc_all_to_last: {
+    engine: true,
+    why: 'the segments are right and the sum is right, but the PROPORTION is not: segment 0 takes '
+       + 'one kill and the final segment takes the rest, so a midnight-crossing settle pays the '
+       + "LATER day's boss on essentially every top-up kill. F1's over-pay restored at ~99% "
+       + 'strength - measured BY SECURITY on the real harness: zombie 2,007 -> 2,403 units (x1.197), '
+       + 'panther '
+       + '4,872 -> 5,702 (x1.170), death_knight 2,412 -> 2,557 (x1.060) - and the whole file '
+       + 'reported "all checks pass" until A10 part (d) existed, because part (b) computes its '
+       + 'blended reference FROM the very split this moves.',
+    find: '        const cum = (si === segs.length - 1 || segSpanMs <= 0)\n'
+        + '          ? attTopUp\n'
+        + '          : Math.floor((attTopUp * segElapsed) / segSpanMs);',
+    repl: '        const cum = (si === segs.length - 1 || segSpanMs <= 0)\n'
+        + '          ? attTopUp\n'
+        + '          : Math.min(attTopUp, 1);',
+  },
+  alloc_all_to_first: {
+    engine: true,
+    why: 'THE MIRROR of alloc_all_to_last, and it needs its own arm because this defect '
+       + 'confiscates as readily as it mints: segment 0 takes all but one kill, so a crossing '
+       + "settle prices essentially everything at the EARLIER day's boss. Same self-referential "
+       + 'escape, measured GREEN across A1-A10 and C1-C9 before part (d). An UNDER-pay is the '
+       + 'exact failure this whole change exists to end, so an arm that only caught the over-pay '
+       + 'direction would be half a guard.',
+    find: '        const cum = (si === segs.length - 1 || segSpanMs <= 0)\n'
+        + '          ? attTopUp\n'
+        + '          : Math.floor((attTopUp * segElapsed) / segSpanMs);',
+    repl: '        const cum = (si === segs.length - 1 || segSpanMs <= 0)\n'
+        + '          ? attTopUp\n'
+        + '          : Math.max(0, attTopUp - 1);',
   },
   reserved_keys_only: {
     engine: true,

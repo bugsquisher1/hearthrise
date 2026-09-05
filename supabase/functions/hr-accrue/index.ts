@@ -1132,9 +1132,24 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
            are indistinguishable from outside, which is exactly how the bounty
            hang survived a verification pass. */
         attendedChannel,
-        attendedKills: out.attendedClaimed ?? 0,
-        attendedTopUp: out.attendedTopUp ?? 0,
-        attendedCap: out.attendedCap ?? 0,
+        /* ⚠ `attendedKills` / `attendedTopUp` / `attendedCap` ARE DELIBERATELY
+           NOT HERE (Security condition C2 on the F1 sign-off, 2026-09-04). All
+           four numbers ARE journalled — `meta.att = {claimed, cap, sim, top}` —
+           and that is where the watches read them, on a table no client can
+           select. Putting them on the RECEIPT hands the forger the detector's
+           own calibration: `cap` is the exact threshold Watch B's
+           `rows_at_the_cap` keys on, `claimed`/`sim` is the ratio its
+           `median_claim_over_sim` line keys on, and a forger who can read its
+           own `cap` each settle can sit one unit under every per-settle line
+           forever. Nothing in src/ ever read them (grepped: zero consumers), so
+           this costs the client nothing.
+           `attendedChannel` STAYS: it is a deployment fact, not a calibration —
+           'live' / 'absent' / 'degraded' says whether the ledger answered, which
+           is the only way to tell "the loot is still snapping down" from "the
+           migration is not applied yet" from outside. It names no number.
+           DO NOT re-add the three "for the welcome-back card": the card states
+           what was PAID (gold, items, kills), and the top-up is already inside
+           those totals — that is the entire point of §3.5. */
         kills: out.summary.kills,
         crits: out.summary.crits,
         died: out.summary.died,

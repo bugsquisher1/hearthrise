@@ -3890,6 +3890,8 @@ const run = async () => {
       return {
         passed: suite.passed, failed: suite.failed,
         runtimeErrors: suite.runtimeErrors, total: suite.total,
+        // SA-013: assertion-coverage diagnostic (verdict-neutral in increment 1).
+        assertionDiagnostic: suite.assertionDiagnostic || null,
         failures: (suite.results || [])
           .filter((r) => r.status !== 'PASS')
           .map((r) => ({ name: r.name, why: r.why })),
@@ -3900,6 +3902,29 @@ const run = async () => {
 
     console.log(`\nHearthrise smoke suite — ${build}`);
     console.log(`  passed ${result.passed}/${result.total}   failed ${result.failed}   runtime errors ${result.runtimeErrors}`);
+
+    /* SA-013 assertion-coverage diagnostic (increment 1: report only, does NOT
+       change exitCode). The in-page suite prints the full block to the PAGE
+       console, which this harness does not forward — so surface the summary
+       here where CI can see it. Increment 2 flips HR_ASSERT_STRICT on and this
+       becomes a gate. */
+    const diag = result.assertionDiagnostic;
+    if (diag) {
+      console.log('\nSA-013 assertion coverage (diagnostic; verdict-neutral):');
+      console.log(`  zero-assert PASSes: ${diag.zeroAssertPasses.length}`
+        + `  (asserts-nothing: ${diag.assertsNothing.length}`
+        + `, throw-only: ${diag.throwOnlyPasses.length}`
+        + `, early-return-before-assert: ${diag.earlyReturn.length})`);
+      console.log(`  assert(true) skip sites: ${diag.assertTrueSites.length} tests / ${diag.totalTrueSkips} literals`);
+      if (diag.zeroAssertPasses.length) {
+        console.log('  Tests that PASSED without executing any assertion:');
+        for (const name of diag.zeroAssertPasses) console.log(`    - ${name}`);
+      }
+      if (diag.earlyReturn.length) {
+        console.log('  Source declares assert() but zero executed (early-return-before-assert):');
+        for (const name of diag.earlyReturn) console.log(`    - ${name}`);
+      }
+    }
 
     if (result.failures.length) {
       console.log('\nFailures:');

@@ -3,6 +3,45 @@
 _Important things agents learn about the codebase, game, or constraints. Append new entries at the top. Every entry: DATE · AGENT · DISCOVERY · AFFECTED SYSTEMS · REQUIRED ACTION. This is how the team avoids rediscovering the same knowledge._
 
 ---
+### 2026-09-05 — QA Engineer — **SA-013 measured: the runner counted NO assertions, so a test that verified nothing passed identically to a real one — now instrumented (increment 1, staged in worktree-agent-a5ca16427c2cdb971).** (P1)
+
+`src/features/smoke-test.js` reported PASS for any body that did not throw and tracked zero
+assertion coverage. I instrumented `assert` to COUNT per test (reset by the runner before each
+body), and `runSmokeTest()` now emits a verdict-NEUTRAL diagnostic (surfaced through
+`tests/run-smoke.mjs` so CI sees it). A `HR_ASSERT_STRICT` flag (OFF this increment) will fail
+zero-assert PASSes in increment 2. **Real numbers vs the audit's estimates** (measured on the
+green 1137/1137 b505 run):
+- **zero-assert PASSes: 28** — of which **asserts-nothing: 0** (was 3 before this increment:
+  `renders: farm + house`, `action: cook a fish…`, `action: smelt a copper bar…` — now fixed),
+  **throw-only: 13** (the `clicks:` / `action:` tests that verify via a bare `throw`, uncounted),
+  **early-return-before-assert: 15** (audit guessed ~200; the ~200 was the STATIC count of tests
+  *capable* of early-returning — only 15 actually skipped past their asserts this run; several are
+  legit env gates: mobile-only tests on a desktop run, https-only, empty-equipment fresh account).
+- **assert(true) skip sites: 62 literals across 50 tests** (audit ~62 ✓) — all `if (seam absent){
+  assert(true,'…'); return; }` capability gates; MANY guard shipped P0/P1 player bugs (b342 P0
+  companion-proc-once, ACT-6 away-death, paione's b256-b264 combat regressions, b329 auto-eat,
+  b305/b303 offline save invariants). These execute ONE vacuous assert so they are NOT caught by a
+  zero-assert gate — increment 2 must give them a real SKIP verdict distinct from PASS.
+
+AFFECTED SYSTEMS: the whole test harness / every guard verdict. REQUIRED ACTION: Coordinator
+integrates increment 1 (staged, suite green, teeth-proven). Increment 2 (separate) works the
+backlog and flips `HR_ASSERT_STRICT` on.
+
+### 2026-09-05 — QA Engineer — **DEAD DUPLICATE `window.__smokeTest` (a 22-test "Smoke Test v1") still lives in `src/legacy.js` (~18237-18535) and can silently shadow the real 1137-test ESM suite.** (P2 → Systems Engineer)
+
+`legacy.js` is a CLASSIC script that unconditionally assigns `window.__smokeTest = function(){…}`
+(22 tests) plus GLOBAL `assert`/`tryRun`/`pass`/`fail`/`warn`. The real suite
+(`src/features/smoke-test.js`, 1137 tests) overrides it because `main.js` is a deferred module that
+runs after classic scripts — so ESM wins in every normal load (CI proves 1137). **But it is a
+latent false-green trap:** in a cold, isolated page where `main.js`'s `tryBootFeatures()` has not
+completed, `window.__smokeTest()` returns the LEGACY 22-test suite reporting "22/22 passed" —
+reproduced here three times in a focused Playwright harness. It is exactly the "coverage vs
+silence" failure SA-013 is about, and the global `assert`/`tryRun` it defines can collide with
+future code. AFFECTED SYSTEMS: `src/legacy.js`, test integrity. REQUIRED ACTION: **Systems
+Engineer delete the dead v1 block** (it is ~300 lines of the monolith; not my lane to cut, and it
+crosses the legacy-refactor track). Not a live-CI failure today — do not gate a release on it.
+
+---
 ### 2026-08-31 — Game Designer — **DEFENCE SATURATES AT TIER 3-4. Every point above it is dead, and it is why the offhand slot could never be filled.** (P1)
 
 Found while pricing a shield ladder. `monsterCombatRolls` clamps monster accuracy at

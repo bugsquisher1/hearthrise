@@ -35,6 +35,76 @@ on('*', () => {});
 
 const pass = (name) => ({ name, status: 'PASS' });
 const fail = (name, why) => ({ name, status: 'FAIL', why: String(why) });
+
+/* ── SA-013 — ASSERTION COVERAGE INSTRUMENTATION (increment 1, diagnostic) ───
+   THE PROBLEM. This runner reports PASS for any test body that does not throw
+   and counts NO assertions. So a test that asserts NOTHING — one that
+   early-returns before its first `assert`, or was written empty, or is a
+   deliberate `assert(true, …)` skip — is indistinguishable in the output from a
+   real one. Every "N/N passed / CI green" verdict is only as strong as a runner
+   that cannot tell coverage from silence.
+
+   THE FIX (SAFE, TWO INCREMENTS). Increment 1 (this): make `assert` COUNT.
+   Every registered test now records how many assertions actually EXECUTED — a
+   test that early-returns records the count it reached. runSmokeTest() prints a
+   DIAGNOSTIC section at the end (zero-assert PASSes, assert(true) skip sites,
+   source-declares-but-runtime-zero). It does NOT change the pass/fail verdict:
+   a big-bang red across the skip sites would block CI and force a rushed
+   mass-edit. The "fail on zero assertions" behaviour is gated behind
+   HR_ASSERT_STRICT, OFF by default. Increment 2 fixes the backlog
+   (docs/reports/sa-013-assertion-inventory.md) and flips the flag on.
+
+   WHY A SINGLE MODULE-LEVEL COUNTER IS SAFE. runSmokeTest() awaits each test to
+   completion, IN ORDER, before starting the next (never Promise.all — the tests
+   mutate the live G). So only one test body is ever executing at a time; the
+   runner resets the counter before each body and reads it after. Cost is one
+   integer increment per assert. */
+let __assertCount = 0;
+const withAsserts = (r) => { r.asserts = __assertCount; return r; };
+
+/* SA-013: analyse assertion coverage after a run. results[i] corresponds to
+   PLAN[i] — the runner pushes results in iteration order — so we can read the
+   EXECUTED count from result.asserts and the SOURCE shape from String(testFn),
+   the same source-text technique runSmokeTest already uses for opts.only.
+
+   Categories (a test can be in more than one list):
+     · zeroAssertPasses — PASSed but executed ZERO assertions. The core signal.
+     · assertTrueSites  — body contains a literal `assert(true …)` skip.
+     · earlyReturn      — source declares assert()s but zero executed at runtime
+                          (early-return-before-assert). A subset of zeroAssertPasses.
+     · throwOnlyPasses  — zero source asserts AND zero executed, but the body
+                          contains `throw` — it may verify via a direct throw, so
+                          it is NOT automatically "asserts nothing"; flagged for
+                          human review, kept OUT of the clean-fix list.
+     · assertsNothing   — zero source asserts, zero executed, no throw. The
+                          clearest "verifies nothing" case; the fix list. */
+const analyzeAssertionCoverage = (plan, results) => {
+  const zeroAssertPasses = [];
+  const assertTrueSites = [];
+  const earlyReturn = [];
+  const throwOnlyPasses = [];
+  const assertsNothing = [];
+  let totalTrueSkips = 0;
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    if (!r) continue;
+    let src = '';
+    try { src = String(plan[i]); } catch (e) { src = ''; }
+    const srcAsserts = (src.match(/\bassert\(/g) || []).length;
+    const trueSkips = (src.match(/\bassert\(\s*true\b/g) || []).length;
+    const executed = r.asserts || 0;
+    const throwsOnFail = /\bthrow\b/.test(src);
+    if (trueSkips > 0) { assertTrueSites.push({ name: r.name, count: trueSkips }); totalTrueSkips += trueSkips; }
+    if (r.status === 'PASS' && executed === 0) {
+      const rec = { index: i, name: r.name, srcAsserts, throwsOnFail };
+      zeroAssertPasses.push(rec);
+      if (srcAsserts > 0) earlyReturn.push(rec);
+      else if (throwsOnFail) throwOnlyPasses.push(rec);
+      else assertsNothing.push(rec);
+    }
+  }
+  return { zeroAssertPasses, assertTrueSites, earlyReturn, throwOnlyPasses, assertsNothing, totalTrueSkips };
+};
 /* b348 — A SYNC RUNNER HANDED AN ASYNC BODY IS AN ALWAYS-GREEN TEST.
    `tryRun` calls fn() inside a try/catch. Give it an `async` function and it
    receives a PROMISE: nothing throws synchronously, so the catch is unreachable
@@ -71,14 +141,15 @@ const clearConsumeHolds = () => {
 
 const tryRun = (name, fn) => {
   clearConsumeHolds();
+  __assertCount = 0; // SA-013: reset the per-test assertion counter
   try {
     const r = fn();
     if (r && typeof r.then === 'function') {
-      return fail(name, 'ASYNC BODY ON A SYNC RUNNER — this test was registered with tryRun(), which cannot '
-        + 'await it, so it would report PASS without running a single assertion. Register it with tryRunAsync().');
+      return withAsserts(fail(name, 'ASYNC BODY ON A SYNC RUNNER — this test was registered with tryRun(), which cannot '
+        + 'await it, so it would report PASS without running a single assertion. Register it with tryRunAsync().'));
     }
-    return pass(name);
-  } catch (e) { return fail(name, e && (e.message || e)); }
+    return withAsserts(pass(name));
+  } catch (e) { return withAsserts(fail(name, e && (e.message || e))); }
   finally { clearConsumeHolds(); }
 };
 /* b337 — THE SUITE CAN NOW AWAIT.
@@ -92,11 +163,15 @@ const tryRun = (name, fn) => {
    runSmokeTest() below now awaits each entry IN ORDER — order is load-bearing,
    because these tests mutate the live G. */
 const tryRunAsync = (name, fn) => Promise.resolve()
-  .then(() => { clearConsumeHolds(); })
-  .then(fn)
-  .then(() => { clearConsumeHolds(); return pass(name); },
-        (e) => { clearConsumeHolds(); return fail(name, e && (e.message || e)); });
-const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
+  // SA-013: reset the counter and call fn() in the SAME microtask, so nothing
+  // can slip an assert between the reset and the body.
+  .then(() => { clearConsumeHolds(); __assertCount = 0; return fn(); })
+  .then(() => { clearConsumeHolds(); return withAsserts(pass(name)); },
+        (e) => { clearConsumeHolds(); return withAsserts(fail(name, e && (e.message || e))); });
+/* SA-013: count every assertion that EXECUTES (increment before the check, so a
+   throwing assert is still counted as "reached"). The counter is reset by the
+   runner before each test body. Cost: one increment per call. */
+const assert = (cond, msg) => { __assertCount++; if (!cond) throw new Error(msg); };
 
 /* R4 COOKING PAUSE — run a cooking-MECHANIC regression under a TEMPORARY arm.
    Cooking is disarmed (paused) in this build, so the live cooking loop (start,
@@ -9076,10 +9151,17 @@ const TESTS = [
     assert(document.getElementById('dash-user'), 'dash-user missing');
   }),
   () => tryRun('renders: farm + house', () => {
+    // SA-013: was a no-op render (verified only "did not throw"). Now assert the
+    // two panels actually PRODUCE content — a render that silently paints an
+    // empty panel is the regression a "renders" test exists to catch.
     window.showTab('farming');
     if (typeof window.renderFarm === 'function') window.renderFarm();
+    const farmPanel = document.getElementById('panel-farming');
+    assert(farmPanel && farmPanel.childElementCount > 0, 'farming panel rendered no content');
     window.showTab('house');
     if (typeof window.renderHouse === 'function') window.renderHouse();
+    const housePanel = document.getElementById('panel-house');
+    assert(housePanel && housePanel.childElementCount > 0, 'house panel rendered no content');
   }),
   () => tryRun('skill: start + stop mining', () => {
     const snap = snapshotG();
@@ -9129,8 +9211,10 @@ const TESTS = [
     }
   }),
   () => tryRun('errors: clean log', () => {
+    // SA-013: was a bare `throw` (real teeth, but invisible to the assertion
+    // counter). Same check as an `assert` so coverage is measurable.
     const n = errorLog.length;
-    if (n > 0) throw new Error(n + ' errors captured: ' + JSON.stringify(errorLog.slice(0, 3)));
+    assert(n === 0, n + ' errors captured: ' + JSON.stringify(errorLog.slice(0, 3)));
   }),
   // Visual regression — walks a few key tabs and runs the overlap detector
   // on each. Catches drift like the Lifetime Stats button covering the
@@ -9145,12 +9229,11 @@ const TESTS = [
       const v = findUiOverlaps();
       v.forEach(x => allViolations.push(Object.assign({ tab: t }, x)));
     }
-    if (allViolations.length) {
-      const summary = allViolations.map(v =>
-        `[${v.tab}] ${v.note || 'overlap'} — A:${v.a} B:${v.b}`
-      ).join('\n  ');
-      throw new Error(allViolations.length + ' visual overlap(s) detected:\n  ' + summary);
-    }
+    // SA-013: was a bare `throw` — same check via assert so it is counted.
+    const overlapSummary = allViolations.map(v =>
+      `[${v.tab}] ${v.note || 'overlap'} — A:${v.a} B:${v.b}`
+    ).join('\n  ');
+    assert(allViolations.length === 0, allViolations.length + ' visual overlap(s) detected:\n  ' + overlapSummary);
   }),
   () => tryRun('dom: critical containers', () => {
     const ids = ['top-gold', 'top-combat', 'top-total', 'panel-profile', 'panel-combat',
@@ -9462,8 +9545,15 @@ const TESTS = [
     if (!sub || !body) return; // can't simulate cleanly; skip silently
     const subParent = sub.parentNode, bodyParent = body.parentNode;
     sub.remove(); body.remove();
-    try { window.renderProfile(); /* should NOT throw */ }
+    // SA-013: the whole point of the test is "renderProfile does NOT throw when
+    // these nodes are missing" — capture that and assert it, instead of letting
+    // a survived call and a thrown one both report PASS (a throw would surface
+    // via the global error log, but the test's own name promised the check).
+    let threw = null;
+    try { window.renderProfile(); }
+    catch (e) { threw = e; }
     finally { subParent.appendChild(sub); bodyParent.appendChild(body); }
+    assert(!threw, 'renderProfile threw with dash-user-sub/body missing: ' + (threw && threw.message));
   }),
 
   // b122: skill icons should fall back to emoji on every renderer.
@@ -9924,10 +10014,15 @@ const TESTS = [
   }),
 
   () => tryRun('clicks: bug-report 🐛 button opens modal', () => {
+    // SA-013: the 🐛 button is guaranteed present (asserted by the "bug-report:
+    // entry point rendered" test), so silently skipping when absent hid a real
+    // regression. Assert it exists and that clicking it actually OPENS the modal
+    // — the behaviour this test's name promises.
     const btn = document.getElementById('hr-bug-btn');
-    if (!btn) return;
+    assert(btn, '🐛 bug-report button not in DOM');
     try { btn.click(); } catch (e) { throw new Error('🐛 button threw: ' + e.message); }
     const modal = document.getElementById('hr-bug-modal');
+    assert(modal, 'clicking the 🐛 button did not open #hr-bug-modal');
     if (modal) {
       // b213: close via the real Cancel control. The old querySelector
       // ('button') grabbed the FIRST button — "Send report" — which
@@ -10074,17 +10169,26 @@ const TESTS = [
   () => tryRun('action: cook a fish creates a buff item', () => {
     const snap = snapshotG();
     try {
-      // Some builds use cookFood, some use startCook, some auto-cook in artisan.
-      // We try the common shapes; pass silently if none of them exist.
+      // SA-013: this was an "informational, don't fail" test — it tried three
+      // cook entry points, swallowed every error, and asserted NOTHING (its own
+      // comment said so), so it passed even if cooking produced no food at all.
+      // Cooking is server-routed (and paused in this build), so the live LOOP
+      // is exercised by the withCookingArmed core-sim battery elsewhere; here we
+      // assert the DATA the test's name promises: the "cook a fish" recipe
+      // exists and its output is a genuine BUFF item. Teeth: rename/remove the
+      // recipe, drop the buff, and this fails. (Loop-level outcome assertion:
+      // increment 2, once cooking re-arms — see the SA-013 backlog.)
+      const cooking = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.cooking) || [];
+      const rec = cooking.find((r) => r && r.input === 'shrimp' && r.output === 'cooked_shrimp');
+      assert(rec, 'the "cook a fish" recipe (shrimp -> cooked_shrimp) is missing from ARTISAN_RECIPES.cooking');
+      const out = (window.ITEMS || {})[rec.output];
+      assert(out && (out.buff || out.heals), 'the cooked fish is not a buff/food item (no buff, no heals): ' + rec.output);
+      // Best-effort exercise of whatever direct cook entry the build exposes — it
+      // must not throw even when it no-ops under server authority.
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.shrimp = (window.G.inventory.shrimp || 0) + 5;
-      const before = window.G.inventory.cooked_shrimp || 0;
-      let cooked = false;
-      if (typeof window.cookFood === 'function') { try { window.cookFood('shrimp'); cooked = true; } catch {} }
-      if (!cooked && typeof window.startCook === 'function') { try { window.startCook('cooked_shrimp'); cooked = true; } catch {} }
-      if (!cooked && typeof window.startArtisan === 'function') { try { window.startArtisan('cooked_shrimp'); cooked = true; } catch {} }
-      // If none worked the build doesn't expose a direct cook function,
-      // and the test is informational. Don't fail.
+      if (typeof window.cookFood === 'function') { try { window.cookFood('shrimp'); } catch {} }
+      else if (typeof window.startCook === 'function') { try { window.startCook('cooked_shrimp'); } catch {} }
     } finally { restoreG(snap); }
   }),
 
@@ -10295,14 +10399,23 @@ const TESTS = [
   () => tryRun('action: smelt a copper bar (artisan loop)', () => {
     const snap = snapshotG();
     try {
-      if (typeof window.startArtisan !== 'function' && typeof window.startSmithing !== 'function') return;
+      // SA-013: this asserted nothing — it started an artisan action, swallowed
+      // any error, and passed regardless of whether a copper bar could ever be
+      // smelted. The loop is server-routed; here we assert the DATA the name
+      // depends on (the smelt recipe copper_ore -> copper_bar and a real output
+      // item), which has teeth against a renamed/removed recipe. (Loop outcome:
+      // increment 2, via the armed artisan-sim battery.)
+      const smithing = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing) || [];
+      const rec = smithing.find((r) => r && r.input === 'copper_ore' && r.output === 'copper_bar');
+      assert(rec, 'the copper-bar smelt recipe (copper_ore -> copper_bar) is missing from ARTISAN_RECIPES.smithing');
+      assert((window.ITEMS || {})[rec.output], 'smelt output copper_bar is not a known item');
+      // Best-effort exercise of the live entry point — must not throw on a no-op.
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.copper_ore = (window.G.inventory.copper_ore || 0) + 5;
       const startFn = window.startArtisan || window.startSmithing;
-      try { startFn('copper_bar'); } catch (e) { /* recipe shape may differ */ }
-      if (window.G.activeArtisanRecipe) {
-        // Stop so the test doesn't leave the player smithing forever.
-        if (typeof window.stopArtisan === 'function') window.stopArtisan();
+      if (typeof startFn === 'function') {
+        try { startFn('copper_bar'); } catch (e) { /* recipe shape may differ under server routing */ }
+        if (window.G.activeArtisanRecipe && typeof window.stopArtisan === 'function') window.stopArtisan();
       }
     } finally { restoreG(snap); }
   }),
@@ -10403,8 +10516,13 @@ const TESTS = [
     // Make sure nothing is open first
     document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
     if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
-    // Now call it — should be a no-op, must not throw
-    window.closeAllModals();
+    // Now call it — should be a no-op, must not throw. SA-013: assert BOTH the
+    // no-throw contract and the post-condition (nothing is left open), instead
+    // of only "did not throw".
+    let threw = null;
+    try { window.closeAllModals(); } catch (e) { threw = e; }
+    assert(!threw, 'closeAllModals threw with nothing open: ' + (threw && threw.message));
+    assert(document.querySelectorAll('.modal.show').length === 0, 'closeAllModals left a modal open');
   }),
 
   // b128: loadLocal must mutate G in place — earlier it did
@@ -10478,17 +10596,20 @@ const TESTS = [
   // requestAnimationFrame so we just assert the function still works.
   () => tryRun('b130: openSkillDetail callable + scrolls on mobile', () => {
     if (typeof window.openSkillDetail !== 'function') return;
+    window.showTab('skills');
+    // SA-013: this test captured a `called` scroll-spy flag and then asserted
+    // NOTHING (the comment even said so). Assert the two things it can prove
+    // deterministically in the harness: the call does not throw on a real skill,
+    // and it leaves a populated #skill-detail behind. (The mobile-scroll half of
+    // the name needs a mobile viewport + rAF — filed to increment 2.)
+    let threw = null;
+    try { window.openSkillDetail('woodcutting'); void document.body.offsetHeight; }
+    catch (e) { threw = e; }
+    finally { window.showTab('profile'); }
+    assert(!threw, 'openSkillDetail threw on woodcutting: ' + (threw && threw.message));
     const detail = document.getElementById('skill-detail');
-    if (!detail) return;
-    let called = false;
-    const orig = detail.scrollIntoView;
-    detail.scrollIntoView = function(){ called = true; if (typeof orig === 'function') return orig.apply(this, arguments); };
-    try {
-      window.openSkillDetail('woodcutting');
-      void document.body.offsetHeight;
-      // Wait one rAF — but smoke test is synchronous; just check no throw.
-      // The scroll is best-effort; assertion is just that the call didn't blow up.
-    } finally { detail.scrollIntoView = orig; window.showTab('profile'); }
+    assert(detail && (detail.childElementCount > 0 || detail.textContent.trim().length > 0),
+      'openSkillDetail did not populate #skill-detail');
   }),
 
   // b132: on mobile, low-priority topbar widgets (Total Level, streak,
@@ -52156,6 +52277,31 @@ export async function runSmokeTest(opts = {}) {
     } catch (e) {}
   }
   try { window.showTab(startTab); } catch {}
+
+  /* ── SA-013 ASSERTION-COVERAGE DIAGNOSTIC (increment 1) ───────────────────
+     Verdict-NEUTRAL by default: it prints, it does not fail. The "fail a PASS
+     that executed zero assertions" behaviour is gated behind HR_ASSERT_STRICT,
+     which increment 2 turns on once the backlog in
+     docs/reports/sa-013-assertion-inventory.md is worked down. Reading it from
+     opts OR window means run-smoke.mjs and a dev console can both opt in later
+     without another edit here. */
+  const HR_ASSERT_STRICT = opts.strictAsserts === true
+    || (typeof window !== 'undefined' && window.HR_ASSERT_STRICT === true);
+  const assertDiag = analyzeAssertionCoverage(PLAN, results);
+  if (HR_ASSERT_STRICT) {
+    for (const z of assertDiag.zeroAssertPasses) {
+      const r = results[z.index];
+      // Only fail the genuinely-empty ones. A body that verifies via a direct
+      // `throw` is not "asserting nothing"; increment 2 converts those to real
+      // asserts rather than failing them blind.
+      if (r && r.status === 'PASS' && !z.throwsOnFail && z.srcAsserts === 0) {
+        r.status = 'FAIL';
+        r.why = 'HR_ASSERT_STRICT: PASSED without executing a single assertion (asserts=0). '
+          + 'Give it a real assertion, or if it is a deliberate skip register it as such.';
+      }
+    }
+  }
+
   const summary = {
     total: results.length,
     passed: results.filter((r) => r.status === 'PASS').length,
@@ -52166,11 +52312,41 @@ export async function runSmokeTest(opts = {}) {
     // a full one — in a log, in CI output, or by a future caller.
     only,
     registered: TESTS.length,
+    // SA-013: machine-readable coverage diagnostic for increment 2 + CI.
+    assertionDiagnostic: {
+      strict: HR_ASSERT_STRICT,
+      zeroAssertPasses: assertDiag.zeroAssertPasses.map((z) => z.name),
+      assertsNothing: assertDiag.assertsNothing.map((z) => z.name),
+      throwOnlyPasses: assertDiag.throwOnlyPasses.map((z) => z.name),
+      earlyReturn: assertDiag.earlyReturn.map((z) => z.name),
+      assertTrueSites: assertDiag.assertTrueSites,
+      totalTrueSkips: assertDiag.totalTrueSkips,
+    },
     timestamp: new Date().toISOString(),
   };
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   if (only) console.log(`⚠ FILTERED RUN — only tests matching "${only}" (${PLAN.length} of ${TESTS.length})`);
   console.log(`SMOKE TEST: ${summary.passed}/${summary.total} passed, ${summary.failed} failed, ${summary.runtimeErrors} runtime errors`);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  /* The diagnostic block. It is intentionally bounded: the full inventory lives
+     in docs/reports/sa-013-assertion-inventory.md, but the zero-assert PASSes
+     (the actionable list) are printed in full because that list must stay small
+     and any growth is a regression to catch in review. */
+  console.log('SA-013 ASSERTION COVERAGE (diagnostic; verdict-neutral unless HR_ASSERT_STRICT):');
+  console.log(`  zero-assert PASSes: ${assertDiag.zeroAssertPasses.length}`
+    + `  (asserts-nothing: ${assertDiag.assertsNothing.length}`
+    + `, throw-only: ${assertDiag.throwOnlyPasses.length}`
+    + `, early-return-before-assert: ${assertDiag.earlyReturn.length})`);
+  console.log(`  assert(true) skip sites: ${assertDiag.assertTrueSites.length} tests / ${assertDiag.totalTrueSkips} literals`);
+  if (assertDiag.zeroAssertPasses.length) {
+    console.log('  Tests that PASSED without executing any assertion:');
+    for (const z of assertDiag.zeroAssertPasses) {
+      const tag = z.srcAsserts > 0 ? `early-return (source declares ${z.srcAsserts} assert)`
+        : (z.throwsOnFail ? 'verifies via throw? (review)' : 'ASSERTS NOTHING');
+      console.log(`    - [${tag}] ${z.name}`);
+    }
+  }
+  console.log(`  HR_ASSERT_STRICT is ${HR_ASSERT_STRICT ? 'ON (zero-assert PASSes were failed)' : 'OFF (increment 1: report only)'}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   return summary;
 }

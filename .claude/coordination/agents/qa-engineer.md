@@ -11,6 +11,51 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-09-05 · SA-013 increment 1 — the runner now COUNTS assertions (diagnostic, verdict-neutral); 9 vacuous tests given teeth. Staged in worktree-agent-a5ca16427c2cdb971, NOT pushed.
+
+**The hole:** `runSmokeTest()` returned PASS for any body that didn't throw and counted zero
+assertions — so a test that asserts nothing was indistinguishable from a real one. Every
+"1137/1137 / CI green" rested on that.
+
+**What I built (SAFE, no big-bang red):** instrumented `assert` to `__assertCount++` (reset by
+`tryRun`/`tryRunAsync` before each body; single module-level counter is safe because the runner
+awaits each test to completion IN ORDER — never Promise.all). `runSmokeTest()` attaches
+`result.asserts`, computes `analyzeAssertionCoverage(PLAN, results)` (uses `String(testFn)` for the
+source shape, the same trick `opts.only` uses), and prints a verdict-NEUTRAL diagnostic. Added
+`HR_ASSERT_STRICT` (OFF this increment) that will fail zero-assert PASSes in increment 2. Surfaced
+the diagnostic through `tests/run-smoke.mjs` (additive; no exit-code change) so CI shows it.
+
+**Measured, correcting the audit's estimates (b505, green 1137/1137):**
+- zero-assert PASSes **28** = asserts-nothing **0** (was 3, now fixed) + throw-only **13** +
+  early-return-before-assert **15** (audit ~200 was the static upper bound; 15 actually skipped).
+- assert(true) skip sites **62 literals / 50 tests** (audit ~62 ✓) — all seam-absent gates.
+
+**9 tests fixed + teeth PROVEN** (broken-batch full run → all 9 failed with their `BROKEN …`
+message; correct full run → 1137/1137 green, all 9 gone from the zero-assert list):
+1. `renders: farm + house` → both panels must render childElementCount>0
+2. `errors: clean log` → `assert(errorLog.length===0)` (was a bare throw)
+3. `ui: no critical overlaps` → `assert(0 violations)` (was a bare throw)
+4. `b119: renderProfile survives missing dash-user-sub` → capture + `assert(!threw)`
+5. `b127: closeAllModals is safe when nothing open` → `assert(!threw)` + no modal left open
+6. `b130: openSkillDetail callable` → `assert(!threw)` + `#skill-detail` populated
+7. `clicks: bug-report 🐛 button opens modal` → assert btn exists + modal actually opened
+8. `action: cook a fish creates a buff item` → assert the cook_shrimp recipe exists + output is a buff item
+9. `action: smelt a copper bar` → assert the smelt_copper recipe exists + output is a real item
+
+**LESSON (logged for the team):** the broken-batch teeth run also reddened TWO unrelated tests
+(`b221` shop, `B345-2` daily sheet) — because the broken `clicks: bug-report` test threw BEFORE its
+cleanup and left the bug modal's `<textarea>` open, covering later tests. Confirms two things: (a)
+a test that mutates global DOM must clean up in a `finally` or on a path that always runs, and (b)
+my CORRECT version's cleanup runs only after the modal assert passes — verified by the clean green
+run. Order-pollution is a live risk in this always-green-looking suite.
+
+**Discovery routed to Systems Engineer:** dead 22-test `window.__smokeTest` v1 in `legacy.js`
+(~18237-18535) can shadow the real suite in a cold boot — see DISCOVERIES.
+
+**Could NOT rule out:** the 13 throw-only + 15 early-return + 62 assert(true) tests are the
+increment-2 backlog (below). A focused cold Playwright harness runs the LEGACY 22-test suite, not
+the ESM 1137 — verify SA-013 numbers only via full `run-smoke` (which reliably loads the ESM suite).
+
 ### 2026-08-29 · b493 release blocker — 19 failures on the assembled tree, ONE cause, and it was in the bump script
 
 **Verdict: 1063/1082 → 1082/1082, 0 runtime errors.** Cause: fourteen `?v=491` import specifiers

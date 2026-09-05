@@ -39726,6 +39726,73 @@ const TESTS = [
     }
   }),
 
+  /* HERO-SLOT-HYDRATE-1 (SA-016) — THE THIRD INSTANCE OF THE IDLE-BOOT CLASS,
+     after INV-HYDRATE-1 (b467 inventory) and the crew (b477). reconcileHeroSlots
+     lands the account's owned set in the `_heroSlots` scratch that
+     multi-character.js reads for `serverKnown`; before this fix it was called ONLY
+     from accrue.js applyEnvelopeState (accrued:true). On an idle or backgrounded
+     tab hr-accrue answers {accrued:false} AND the accrue cadence is
+     visibility-gated, so applyEnvelopeState may NEVER run — leaving `_heroSlots`
+     absent and the Hero-slot Buy stuck on "Checking…" for the whole session (QA
+     slot 4, live 2026-09-04). The boot hr_load body carries the same top-level
+     `hero_slots` projection hr_state_of builds, so the owned set must resolve on
+     the FIRST load with NO accrue envelope. This test drives the REAL load path
+     (requestRecord → settle) and asserts exactly that.
+     FAILS WITHOUT THE FIX: with the load-path reconcile un-wired, `_heroSlots`
+     stays undefined and the first assert throws. */
+  () => tryRunAsync('HERO-SLOT-HYDRATE-1 (SA-016): an IDLE boot hydrates the owned hero slots from the hr_load body, resolving "Checking…" WITHOUT an accrue', async () => {
+    const R = window.HearthriseRecord;
+    const realFetch = window.fetch;
+    const savedG = window.G;
+    /* Owns the free slot 0 plus two paid slots — the flat top-level array
+       hr_state_of projects (2026-09-08 migration GATE(g)/GATE(h)). */
+    const OWNED = [0, 1, 2];
+    try {
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, version: 5, now: '2026-09-04T10:00:00Z',
+          state: { slot: 0, accrued_to: '2026-09-04T09:00:00Z' },
+          skills: {}, hero_slots: OWNED,
+        }), { status: 200 }));
+      };
+      /* A fresh boot: NO `_heroSlots` scratch, so serverKnown is decided purely
+         by what the load path hydrates — the exact idle-boot state. */
+      window.G = { offlineBudget: {} };
+      R.resetRecord();
+      R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      const v = await R.requestRecord();
+      assert(v.outcome === 'loaded', 'the idle boot read did not load: ' + JSON.stringify(v));
+
+      /* THE CORE PROOF (fails without the fix): the load path populated the
+         scratch reconcileHeroSlots owns, with the server's owned set — no accrue
+         envelope was ever applied. */
+      const hs = window.G._heroSlots;
+      assert(hs && Array.isArray(hs.owned),
+        'the hr_load body carried hero_slots but the load path never hydrated G._heroSlots — the Buy '
+        + 'stays on "Checking…" for the whole idle session (SA-016): ' + JSON.stringify(hs));
+      assert(hs.owned.indexOf(0) !== -1 && hs.owned.indexOf(1) !== -1 && hs.owned.indexOf(2) !== -1,
+        'the hydrated owned set is missing a projected slot: ' + JSON.stringify(hs.owned));
+
+      /* THE PLAYER-FACING PROOF: with the owned set now known, the Hero-slot Buy
+         resolves — a locked, buyable rung reads serverKnown:true (not the
+         "Checking…"/Unavailable disabled state). Only run when multi-character is
+         loaded; the core assertion above already guards the fix unconditionally. */
+      const HP = window.HearthriseProfile;
+      if (HP && typeof HP.slotRows === 'function') {
+        const rows = HP.slotRows();
+        assert(rows.some((r) => r.kind === 'locked' && !r.free && r.serverKnown === true),
+          'no locked hero-slot row reads serverKnown:true after the owned set was hydrated — the Buy is '
+          + 'still stuck on "Checking…" (SA-016): ' + JSON.stringify(rows.map((r) => ({ serverKnown: r.serverKnown, kind: r.kind }))));
+      }
+    } finally {
+      window.fetch = realFetch;
+      R.resetRecord();
+      R.configureRecord(null);
+      window.G = savedG;
+    }
+  }),
+
   () => tryRun('B340-7: with the switch OFF nothing moves, snapshot() is untouched, and NO_SYNC gained nothing', () => {
     const A = window.HearthriseAccrual;
     const R = window.HearthriseRecord;

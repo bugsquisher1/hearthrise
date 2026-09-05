@@ -351,27 +351,85 @@ export async function armHomingGuard() {
     fail('the residue/deny-list collision check threw: ' + (e && e.message));
   }
 
-  // ── THE LOAD-PATH CALL WIRING (b477). ──────────────────────────────────────
+  // ── THE LOAD-PATH CALL WIRING (b477; DERIVED b50x — SA-016). ────────────────
   // Listing a field as a SERVER_MECHANISM above only claims a reconcile<X> EXISTS
   // — it does NOT prove settle() (the idle-boot / hr_load handler in record.js)
   // actually CALLS it. That gap shipped the "invisible crew" bug: reconcileWorkers
   // existed and was unit-tested, but settle() never invoked it, so on an IDLE boot
   // (hr-accrue → accrued:false, applyEnvelopeState never runs) the roster was never
   // hydrated and a player with a producing crew saw G.workers.hired=[] (QA
-  // 0a47ba77, live). Every reconcile that hydrates a SERVER_MECHANISM field on the
-  // load path MUST be called in record.js, or an idle boot silently drops it.
+  // 0a47ba77, live). Every reconcile that hydrates a server field on the load path
+  // MUST be called in record.js, or an idle boot silently drops it.
+  //
+  // ⚠ WHY THIS IS NOW DERIVED, NOT HAND-TYPED. The list used to be a literal
+  // MUST_CALL array — an ALLOWLIST, so a reconcile the array forgot passed green.
+  // That is EXACTLY how SA-016 shipped: reconcileHeroSlots existed in accrue.js and
+  // was called only from applyEnvelopeState (the accrue path), the hand-list never
+  // named it, and record.js's load path never called it — so on an idle/backgrounded
+  // tab (accrue is visibility-gated) `G._heroSlots` stayed absent and the Hero-slot
+  // Buy sat on "Checking…" forever (QA slot 4, live 2026-09-04). A hand-maintained
+  // list of what-must-be-wired can only catch the omissions somebody remembered.
+  //
+  // So the required set is DERIVED from accrue.js's EXPORTS: every
+  // `export function reconcile<X>(G, …)` is a G-hydrator for a server-projected
+  // field, and this is the SAME registry the record/reconcile system consumes, so
+  // the two cannot drift. A reconcile is REQUIRED-BY-DEFAULT (the safe direction);
+  // the ONLY escape is the documented residue-homed exemption below. Adding a new
+  // reconcile to accrue.js now REDS the guard until it is wired into record.js's
+  // load path or deliberately exempted — the omission cannot be silent again.
   try {
     const recSrc = await readFile(new URL('src/net/record.js', ROOT), 'utf8');
-    const MUST_CALL = ['reconcileInventory', 'reconcileBank', 'reconcileWorkers',
-      'reconcileCompanions', 'reconcileFarm', 'reconcileTraits'];
+    const accSrc = stripCode(await readFile(new URL('src/net/accrue.js', ROOT), 'utf8'));
+    const recCode = stripCode(recSrc);   // ignore reconcile names mentioned only in comments
+
+    // DERIVE the reconcile registry: every `export function reconcile<X>(G` in accrue.js.
+    const ALL_RECONCILES = [...accSrc.matchAll(/export\s+function\s+(reconcile[A-Za-z0-9_]+)\s*\(\s*G\b/g)]
+      .map((m) => m[1]);
+
+    /* THE ONLY ESCAPE — a DENYLIST, not an allowlist. A reconcile belongs here iff
+       the field it hydrates is RESIDUE-homed (client-state.js RESIDUE_FIELDS), so
+       hydrateInto rebuilds the player's own value on every load and the load-path
+       reconcile would only ADD the server's cross-device copy — an enhancement, not
+       a strand-fix. Exempting one is a deliberate, documented claim that losing the
+       server's copy on an idle boot is invisible because the residue carries it.
+       Contrast hero slots: the `_heroSlots` scratch is deliberately NOT persisted
+       (reconcileHeroSlots' header — a cold boot must read "checking", not a lit
+       Buy), so its load-path reconcile is REQUIRED, and it is NOT exempt here. */
+    const RESIDUE_HOMED_EXEMPT = new Set([
+      // combatStyle is in RESIDUE_FIELDS → hydrateInto restores the player's own
+      // last pick on every load; reconcileCombatStyle only layers the server's
+      // cross-device map on top, which is not required to avoid a strand.
+      'reconcileCombatStyle',
+    ]);
+
+    // META-ASSERTIONS so the derivation cannot rot into a vacuous pass:
+    //  (i) the scan must actually SEE the reconciles — a broken regex would empty
+    //      the set and every call-check below would pass trivially.
+    if (ALL_RECONCILES.length < 6) {
+      fail(`the reconcile-registry scan found only ${ALL_RECONCILES.length} \`export function reconcile*(G\` in `
+         + `accrue.js (expected >= 6) — the derivation regex has drifted and the required set is nearly empty, so `
+         + `the load-path wiring check would pass VACUOUSLY. Fix the scan before trusting a green run.`);
+    }
+    //  (ii) every exemption must name a REAL export — a stale name would silently
+    //       shrink the required set (the SA-016 hole, reopened via the denylist).
+    for (const fn of RESIDUE_HOMED_EXEMPT) {
+      if (!ALL_RECONCILES.includes(fn)) {
+        fail(`'${fn}' is in RESIDUE_HOMED_EXEMPT but accrue.js no longer exports it. A stale exemption silently `
+           + `shrinks the required-reconcile set — remove it or fix the name.`);
+      }
+    }
+
+    const MUST_CALL = ALL_RECONCILES.filter((fn) => !RESIDUE_HOMED_EXEMPT.has(fn));
     for (const fn of MUST_CALL) {
       // a CALL, not merely the import — `fn(` with G as the first arg on the load path.
-      const called = new RegExp(fn + '\\s*\\(\\s*G\\b').test(recSrc);
+      const called = new RegExp(fn + '\\s*\\(\\s*G\\b').test(recCode);
       if (!called) {
-        fail(`'${fn}' is a SERVER_MECHANISM reconcile but record.js's load path never CALLS it (no `
-           + `\`${fn}(G…\`). Listing the field as a mechanism is not enough — an IDLE boot answers `
-           + `accrued:false so applyEnvelopeState never runs; the reconcile MUST be invoked in settle() from `
-           + `the hr_load envelope or the field silently resets on reload (b477 invisible-crew class).`);
+        fail(`'${fn}' is a reconcile mechanism EXPORTED by accrue.js but record.js's load path never CALLS it (no `
+           + `\`${fn}(G…\`). Listing/exporting the reconcile is not enough — an IDLE or backgrounded boot answers `
+           + `accrued:false (and accrue is visibility-gated) so applyEnvelopeState may NEVER run; the reconcile MUST `
+           + `be invoked in settle() from the hr_load envelope or the field silently resets/stalls on reload (b477 `
+           + `invisible-crew / SA-016 hero-slot "Checking…" class). If it is legitimately residue-homed and the `
+           + `load-path call is only a cross-device enhancement, add it to RESIDUE_HOMED_EXEMPT with the reason.`);
       }
     }
   } catch (e) {

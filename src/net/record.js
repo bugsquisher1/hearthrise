@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileWorkers } from './accrue.js?v=505';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileWorkers, reconcileHeroSlots } from './accrue.js?v=505';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1767,6 +1767,25 @@ function settle(verdict) {
          preserved by uid). */
       reconcileWorkers(G, verdict.body);
     });
+    /* ── HYDRATE THE OWNED HERO SLOTS FROM THE SAME ENVELOPE (SA-016). ───────────
+       THE THIRD INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477
+       crew, now hero slots). reconcileHeroSlots existed and was called ONLY from
+       accrue.js applyEnvelopeState (accrued:true). On an IDLE or backgrounded tab
+       hr-accrue answers {accrued:false} — AND the accrue cadence is
+       visibility-gated (decideSettle → 'hidden'), so applyEnvelopeState may NEVER
+       run — leaving `G._heroSlots` absent for the whole session. multi-character.js
+       reads that scratch for `serverKnown`; while it is absent the Hero-slot Buy is
+       stuck on "Checking…" on every boot (QA slot 4, live 2026-09-04). The boot
+       hr_load envelope is the ALWAYS-FULL statement of the account and hr_state_of
+       projects the owned set as a top-level `hero_slots` array (2026-09-08
+       migration GATE(g)/GATE(h)), so hydrate it HERE like inventory/crew/traits.
+       reconcileHeroSlots is FAIL-CLOSED on a missing/garbage `hero_slots` (a server
+       predating the projection leaves the scratch exactly as it was — never read as
+       "you own nothing", which would evict a player from a hero they are in) and is
+       ABSOLUTE, not a union (the server's set already counts every grandfathered
+       character). NOT arm-gated (writes a scratch key nothing else reads). Guarded —
+       a throw here must never break the record load. */
+    hydrationStep('hero-slots', () => reconcileHeroSlots(G, verdict.body));
     /* b465 — the server's daily-login claim row closes the daily-reward sheet's
        question at boot (the residue marker kept losing tab/save races and the
        sheet re-opened on a paid reward). Guarded like its neighbours. */

@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 504 — 2026-09-05 (What you fought for is what you keep)
+
+- ⚔️ **Drops from fights you actually sat through are credited in full now.** Since the server took over your save, the after-fight settle re-simulated your session as if you'd been away, and paid the loot of that smaller imaginary fight — we measured it live at roughly 60% of the drops you watched land, with eaten food sometimes reappearing. The realm now checks its own kill log for the fight you really had and tops up the difference, capped by what your gear can physically do. Kills, XP and gold were always right; now the loot is too. *(This was the top vanishing-items root cause — thank you to everyone who reported it.)*
+- 🏹 **Bounty Hunter experience is real now.** Turning in a bounty credits Bounty Hunter XP on the realm's ledger, not just on your screen. Until today every character in the game sat at level 1 forever — the realm had never once been told about a turn-in, so board tiers 2–6 and every bounty type beyond culls were unreachable for everyone. Your turn-ins now count, your level climbs, and level 20 genuinely opens tier 2.
+- 🧾 Behind the scenes: both changes are journalled per-settle and per-claim on the realm's append-only ledger, ship with adversarial test batteries (26 mutation arms on the loot math; 15 planted defects on the bounty path, all caught), and carry three standing watch queries that run daily for the first week.
+
 ## v0.9.2-beta build 503 — 2026-09-05 (The door, and an honest till)
 
 - ✉️ **Confirming your email now drops you straight into the game, signed in.** No more landing on a page that asks you to go and sign in again. There is a **resend button** if the mail never arrives, and it tells you the truth: if a resend fails it says so instead of claiming it sent. If your link has expired (they last an hour) you get a plain sentence and a way to get a new one.

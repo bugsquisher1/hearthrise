@@ -6,7 +6,7 @@
 // become live, and cloud-sync auto-upgrades from offline to live.
 
 import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots,
-         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=503';
+         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=504';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}

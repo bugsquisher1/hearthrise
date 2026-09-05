@@ -4,17 +4,15 @@
      .github/workflows/daily-devlog.yml. Keep it 3-6 bullets, plain language,
      no internal jargon, NO security/exploit details ever. The Coordinator
      updates it alongside the priority board; the date line gates staleness. -->
-<!-- updated: 2026-09-04 -->
+<!-- updated: 2026-09-05 -->
 
-🔎 **We found the big one**
-- We audited the whole game against the live server this week and found why progression stalls: **almost nobody could reach the second homestead tier**, and that tier is the only door to the Forge, the Workshop and your second worker. Across everyone playing, not one Forge has ever been built.
-- The reason is a chain: combat drops were being credited more conservatively than the game showed you, so the materials you watched drop did not all arrive. Six people stalled one wolf pelt short of the upgrade. Behind that wall, ~170,000 gathered materials are sitting unused.
-- If you have been wondering why smithing and crafting never seemed to go anywhere: they were behind that same door.
+✅ **The big one is fixed (b504, live now)**
+- **Drops you see are the drops you keep.** The server now credits the fight you actually had — it checks its own kill log and pays the difference its cautious estimate missed. This was the root of the vanishing-items reports and the reason almost nobody could reach the second homestead tier.
+- **Bounty Hunter levels are real.** Turn-ins now credit the skill on the server, so your level climbs and the higher board tiers genuinely open. Until now every character in the game was stuck at level 1 without knowing it.
+- Earlier this week: homestead tiers correct themselves on load (nothing you paid for is lost), and confirming your email drops you straight into the game signed in.
 
-🔨 **Being fixed right now**
-- **Drops you see are the drops you keep.** The server is being changed to credit what actually happened in your fight, and to stop handing back food you ate.
-- **Homestead tiers tell the truth.** If your house ever showed a tier you had not actually bought, it will correct itself on your next load and offer you the real upgrade. Nothing you paid for is lost.
-- **Bounty Hunter levels.** The skill has not been saving. It is getting a proper home on the server, which also unlocks the higher bounty board tiers.
-- **The sign-up door.** Confirming your email will drop you straight into the game, signed in, with a resend button if the mail never arrives.
+👀 **This week**
+- We're watching the new crediting live for a full week with standing checks, and re-tuning its safety bounds from real play data.
+- Next fixes in the queue: dungeon scrip resetting, and the remaining "earned it, lost it on reload" reports.
 
-🗺️ **The road to Beta 3:** fix the progression wall → prove it with a fresh character playing all the way through → full wipe → new invite keys. No date until it is genuinely ready. Beta 2 shipped on a test suite that was not checking the things that broke; that is being fixed too.
+🗺️ **The road to Beta 3:** the progression wall is fixed → next we prove it with a fresh character playing all the way through → full wipe → new invite keys. No date until it is genuinely ready.

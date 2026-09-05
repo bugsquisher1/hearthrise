@@ -41,7 +41,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { CHANNEL, channelApplies } from './away.js?v=503';
+import { CHANNEL, channelApplies } from './away.js?v=504';
 
 /* Maps buff.type -> {label, bonusKey, isPercent|isFlat, glyph}.
    `bonusKey` is the getBonus key the effect pays into; a type with no row

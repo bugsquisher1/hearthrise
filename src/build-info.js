@@ -14,7 +14,7 @@
 
 export const BUILD = Object.freeze({
   version:   '0.9.2-beta',         // semver — bump on real releases
-  cache:     503,                   // cache-buster, must match index.html ?v=
+  cache:     504,                   // cache-buster, must match index.html ?v=
   channel:   'beta',                // 'dev' | 'beta' | 'live'
   date:      '2026-09-05',          // build date
   // Set this to your latest commit SHA after each push if you want

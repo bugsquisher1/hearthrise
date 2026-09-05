@@ -18,7 +18,7 @@
 > 5. **Wave-scale load verdict** — re-run `tools/load-probe.mjs` at the beta-3 wave size and commit the output.
 > 6. **Tyler-only:** the wipe ceremony (built + rehearsed) + the 20 new invite keys + the itch.io iframe confirm-walk.
 >
-> **Release confidence for a beta-3 wave TODAY: ~55%** — up from "not close." The progression wall (the beta-2 funnel-killer) is broken open and the funnel door is fixed, which removes the two failures that defined beta-2; the remaining gap is (a) the dungeon arm awaiting one play, (b) a test runner whose greenness is not yet trustworthy at the assertion level, and (c) two un-started retention/balance programs. A wave could ship on the current fixes and be a real improvement over beta-2, but SA-013 + the first-night rescue are what move confidence past ~80%.
+> **Release confidence for a beta-3 wave TODAY: ~65%** *(2026-09-05 13:55: +10 — SA-013 is now DONE both increments, HR_ASSERT_STRICT ON both gate halves green; the test suite is trustworthy at the assertion level, so the shipped fixes' guards can be believed. Remaining leverage: the dungeon arm (Tyler) + first-night rescue.)* Prior estimate ~55% — up from "not close." The progression wall (the beta-2 funnel-killer) is broken open and the funnel door is fixed, which removes the two failures that defined beta-2; the remaining gap is (a) the dungeon arm awaiting one play, (b) a test runner whose greenness is not yet trustworthy at the assertion level, and (c) two un-started retention/balance programs. A wave could ship on the current fixes and be a real improvement over beta-2, but SA-013 + the first-night rescue are what move confidence past ~80%.
 >
 > The full 2026-09-04 verdict and evidence follow unchanged for the audit trail.
 

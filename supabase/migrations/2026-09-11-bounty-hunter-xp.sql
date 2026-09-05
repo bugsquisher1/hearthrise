@@ -190,16 +190,28 @@
 -- ══════════════════════════════════════════════════════════════════════════
 -- LIVE-HASH / DRIFT IMPACT
 -- ══════════════════════════════════════════════════════════════════════════
--- `hr_claim_bounty__ungated` is NOT in tests/live-hash-drift.baseline.json's
--- tracked `functions` list (verified 2026-09-05: the bounty family tracks
--- hr_accept_bounty__ungated, hr_credit_kills__ungated and hr_bounty_spend__ungated,
--- but not this one), so applying this file moves NO tracked hash and no
--- --write/--live re-pin is required. It arguably SHOULD be tracked — it is the
--- money surface of the pair — and adding it is recommended as a separate,
--- one-line baseline change so it does not collide with the lane that is
--- currently editing those baselines.
--- tests/schema-drift.baseline.json is untouched: this file adds no object and
--- changes no signature (it inventories signatures, not bodies).
+-- ⚠ RE-PIN AFTER APPLY:  node tests/live-hash-drift.mjs --live --write
+--
+-- `hr_claim_bounty__ungated` was NOT tracked before this file and IS TRACKED
+-- BECAUSE OF IT. tests/live-hash-drift.mjs DERIVES its tracked set rather than
+-- reading a hand list, and "programmatically patched" is one of its criteria —
+-- so the moment this splice existed the sweep demanded a baseline entry and
+-- went RED with `untracked hr_claim_bounty__ungated`. That is the guard working,
+-- and it is a good outcome: the money surface of the bounty pair had no recorded
+-- belief until today (its sibling hr_accept_bounty__ungated has had one since
+-- 2026-08-23).
+--
+-- The entry is seeded in the same commit, with production MEASURED rather than
+-- guessed (2026-09-05: md5 92535ce5f7374db448bdf2089965885d, norm_len 2,437,
+-- byte-identical to 2026-08-23-bounty.sql §8) and a real `why` rather than the
+-- --write REVIEW placeholder. It records live != replay ON PURPOSE: that
+-- divergence IS the statement "this fix is staged, not shipped". AFTER APPLY,
+-- re-measure — live and replay must then AGREE, and if they do not, the apply
+-- did not land what the repo believes it landed.
+--
+-- No OTHER tracked body moves. tests/schema-drift.baseline.json is untouched:
+-- this file adds no object and changes no signature (it inventories signatures,
+-- not bodies), and the replay fingerprint still matches the committed digest.
 --
 -- ══════════════════════════════════════════════════════════════════════════
 -- REVERSIBILITY — THREE FILES, IN THIS ORDER. NOT ONE. (measured, not reasoned)

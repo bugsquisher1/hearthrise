@@ -14,8 +14,8 @@
 // Imports: MONSTERS, ITEMS
 // Exports: setupCombatRender()
 
-import { MONSTERS } from '../data/monsters.js?v=501';
-import { ITEMS } from '../data/items.js?v=501';
+import { MONSTERS } from '../data/monsters.js?v=502';
+import { ITEMS } from '../data/items.js?v=502';
 
 function getMonsterIconHtml(id) {
   const path = window._monsterIcon?.[id];

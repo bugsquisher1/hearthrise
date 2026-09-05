@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=501';
-import { emit } from '../net/events.js?v=501';
+import { COMPANIONS } from '../data/companions.js?v=502';
+import { emit } from '../net/events.js?v=502';
 /* THE SERVER-OF-RECORD ARM SWITCH for companion XP. While false (DORMANT) the
    client awards companion XP locally exactly as before. When flipped true, the
    accrual engine becomes the sole writer (a `stat companion_xp:<id>` op priced
@@ -22,7 +22,7 @@ import { emit } from '../net/events.js?v=501';
    the server accrues the same role-matched actions this client seam does. The
    passive bonus already reads server companion XP through hr_perks_of, so under
    arm the level shown reconciles to server truth. */
-import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=501';
+import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=502';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may

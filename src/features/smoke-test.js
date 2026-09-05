@@ -22689,7 +22689,12 @@ const TESTS = [
       G.monsterHp = window.MONSTERS.lich.hp; G.monsterMaxHp = window.MONSTERS.lich.hp;
       // Auto-bounty OFF: it would switch the monster mid-night (b344) and the
       // boss-pet roll would stop being about the lich.
-      G.bountyHunter = { marks: 0, xp: 0, completed: 0, autoBounty: 0, boardGeneratedAt: 0,
+      /* b503: no `xp` and no `marks` here. Both are SERVER-owned (xp is the
+         player_skills 'bountyHunter' row credited by hr_claim_bounty; marks is
+         the top-level record field G.marks), and seeding them into the residue
+         object re-creates the shadow shape this build deleted — a fixture that
+         implies a field exists is how the field comes back. */
+      G.bountyHunter = { completed: 0, autoBounty: 0, boardGeneratedAt: 0,
         freeRerolls: 0, rerollsToday: 0, upgrades: {}, warrants: {}, active: null, board: [] };
       // A kill-proc pet equipped, and NO pet owned that the night could roll —
       // an owned pet is skipped without drawing, which would make this vacuous.

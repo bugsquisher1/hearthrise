@@ -51,7 +51,14 @@
 // Exit: 0 clean · 1 a violation or a slipped mutation · 2 harness problem.
 // ════════════════════════════════════════════════════════════════════════
 
-import { bootChain } from './pglite-chain.mjs';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { bootChain, CHAIN } from './pglite-chain.mjs';
+
+/* fileURLToPath, NOT .pathname — this repo lives under a path containing
+   SPACES and .pathname hands back the %20-escaped form, which fs cannot open. */
+const REPO_ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 const argv = process.argv.slice(2);
 const argOf = (n, d) => {
@@ -62,6 +69,90 @@ const argOf = (n, d) => {
 const BUCKET = 'beta_invite_check';      // limit 20
 const LIMIT = 20;
 const UNKEYED_LIMIT = 600;
+
+/* ════════════════════════════════════════════════════════════════════════
+   THE BUCKET WALK — R10/R11's expected set, DERIVED FROM THE CHAIN.
+
+   WHY THIS EXISTS. hr_rpc_gate is a single `case` that ends `else return
+   false`, and TWELVE migrations restate it in full. A file that restates it
+   from a stale template does not error, does not warn, and does not fail any
+   hash check that a human will read as "you deleted buckets" — it just makes
+   every RPC in the missing buckets answer `rate_limited` on every call, for
+   every player, forever. That is not hypothetical: "b487-b491: rpc-gate bucket
+   restore = the week's root cause."
+
+   The md5 pin in tests/live-hash-drift.baseline.json DOES see the body change
+   — but it reports "md5 moved", and the remedy for a moved md5 is `--write`.
+   An md5 cannot distinguish "added one bucket" from "lost thirteen and added
+   one", so a re-pin absorbs the clobber silently. THAT is the gap this closes:
+   the loss is named, per bucket, instead of being a hex digest.
+
+   THE WALK IS RUN TWICE, OVER TWO DIFFERENT FILE LISTS, BECAUSE THEY ANSWER
+   TWO DIFFERENT QUESTIONS — and conflating them is a real trap I fell into:
+
+     · R10 walks `CHAIN` (pglite-chain.mjs), the 27-file PREFIX this harness
+       actually boots, ending at 2026-08-13-anon-rate-gate.sql. That prefix
+       admits 45 buckets, which is why the hand list here was 45. It was NOT a
+       decayed list — it was correct for this database. Deriving it just means
+       it stays correct when someone adds a gate-touching file to CHAIN.
+
+     · R11 walks the FULL apply order (tests/schema-apply-order.json), which is
+       what a real rebuild runs (66 buckets today). It is a STATIC check — no
+       database — asserting FINAL ⊇ HIGH-WATER: every bucket the gate held at
+       ANY point survives to the end. A transient dip inside one apply run is
+       survivable because the chain applies in one go; a dip nothing heals is
+       the outage. This is the assertion that would have caught b487 on the day
+       it landed, and the one whose absence lets 2026-08-23-bounty.sql keep a
+       53-bucket restatement that destroys thirteen live buckets if it is ever
+       re-applied as a revert.
+   ════════════════════════════════════════════════════════════════════════ */
+function gateBucketWalkWith(files, read) {
+  const events = [];
+  let cur = new Set();
+  for (const p of files) {
+    const f = p.split(/[\\/]/).pop();
+    if (!existsSync(p)) continue;
+    const src = read(p);
+    if (!src.includes('hr_rpc_gate')) continue;
+    let lost = []; const gained = []; let kind = null;
+    /* A FULL RESTATEMENT replaces the whole `case`. Slice from `case p_bucket`
+       and NOT from the `create`, so the `set search_path to 'public',
+       'pg_catalog'` clause cannot contribute two phantom buckets. */
+    const ci = src.indexOf('create or replace function public.hr_rpc_gate');
+    if (ci >= 0) {
+      const cs = src.indexOf('case p_bucket', ci);
+      const ce = src.indexOf('end case', cs);
+      if (cs >= 0 && ce > cs) {
+        const set = new Set([...src.slice(cs, ce).matchAll(/'([a-zA-Z0-9_]+)'/g)].map((m) => m[1]));
+        lost = [...cur].filter((b) => !set.has(b));
+        for (const b of set) if (!cur.has(b)) gained.push(b);
+        cur = set; kind = 'restate';
+      }
+    }
+    /* A PROGRAMMATIC SPLICE appends arms inside a SQL string literal, so its
+       bucket names are DOUBLE-quoted. That is why it cannot collide with a
+       restatement's single-quoted `case` arms even in a file that does both. */
+    for (const m of src.matchAll(/when\s+''([a-zA-Z0-9_]+)''\s+then\s+v_limit/g)) {
+      if (!cur.has(m[1])) { gained.push(m[1]); cur.add(m[1]); }
+      kind = kind || 'splice';
+    }
+    if (kind) events.push({ file: f, kind, size: cur.size, lost, gained });
+  }
+  const high = new Set(cur);
+  for (const e of events) { for (const b of e.lost) high.add(b); for (const b of e.gained) high.add(b); }
+  return { events, final: cur, high };
+}
+/* The selftest injects a reader so the MUTATED walk runs the SAME code as the
+   assertion — a mutation proof against a second implementation proves nothing
+   about the first. */
+const gateBucketWalk = (files) => gateBucketWalkWith(files, (p) => readFileSync(p, 'utf8'));
+
+/** The files the PGlite harness actually applies, in the order it applies them. */
+const CHAIN_FILES = CHAIN.map(([, p]) => p);
+/** The files a real rebuild applies — the full apply order. */
+const FULL_ORDER_FILES = JSON.parse(
+  readFileSync(join(REPO_ROOT, 'tests', 'schema-apply-order.json'), 'utf8'),
+).order.map((f) => join(REPO_ROOT, 'supabase', 'migrations', f));
 
 const MUTATIONS = {
   anon_unrated: {
@@ -183,26 +274,21 @@ end $$;
 
 -- No bucket may be lost. The list is the one the file installs; if a future
 -- edit drops one, this goes red rather than the RPCs going quietly dead.
-create or replace function public.__gate_buckets() returns jsonb
+-- ⚠ THE BUCKET LIST IS A PARAMETER, NOT A LITERAL, AND THAT IS THE FIX.
+-- It used to be a hand-maintained 45-element array written on 2026-08-13. The
+-- gate has since grown to 66 buckets and NOBODY GREW THE ARRAY, so R10 was
+-- silently covering 45 of 66 — and not one of the thirteen buckets a stale
+-- restatement destroys (farm_water, worker_hire, hr_credit_kills, hr_set_style,
+-- …) was among the 45. A guard whose expected set is typed by hand decays into
+-- decoration. The caller now DERIVES the list from the migration chain itself,
+-- so it cannot drift from what the chain builds.
+create or replace function public.__gate_buckets(p_buckets text[]) returns jsonb
 language plpgsql as $$
 declare b text; lost text; n int := 0;
-  buckets text[] := array[
-    'clan_seat_read','clan_vote_read','hr_leaderboard','hr_rally_pledge_state',
-    'hr_display_name_available','hr_server_now','clan_invites_list',
-    'buy_listing','clan_board_claim','clan_board_progress','clan_contribute',
-    'clan_deposit','clan_feast_deposit','clan_rested_grant','clan_vote_cast',
-    'clan_work_complete','clan_work_labour','clan_work_supply','raid_claim',
-    'raid_strike','world_event_absence_claim','world_event_claim',
-    'world_event_contribute','world_event_join','world_event_pledge',
-    'world_event_pledge_settle','bug_report_submit','claim_beta_invite',
-    'claim_display_name','clan_board_roll','clan_feast_call','clan_hunt_declare',
-    'clan_tier_up','clan_vice_set','clan_vote_close','clan_vote_open',
-    'clan_work_post','clan_create','clan_join','clan_leave','clan_kick',
-    'clan_invite','clan_invite_revoke','clan_join_policy_set','beta_invite_check'];
 begin
   perform set_config('request.headers', '', true);
   perform set_config('request.jwt.claim.sub', gen_random_uuid()::text, true);
-  foreach b in array buckets loop
+  foreach b in array p_buckets loop
     n := n + 1;
     if not public.hr_rpc_gate(b) then lost := coalesce(lost || ',', '') || b; end if;
   end loop;
@@ -295,12 +381,83 @@ async function run(mutationId) {
   check('R8b the shared fallback is PER BUCKET — exhausting one does not close another',
     un.other_bucket_ok === true, JSON.stringify(un));
 
-  // R10 — no bucket lost, unknown bucket still fails closed.
-  const bk = await one('select public.__gate_buckets() as r');
-  check('R10 every bucket in the allowlist is still admitted',
-    bk.lost === null && bk.tried === 45, `tried=${bk.tried} lost=${bk.lost}`);
+  // ── R10/R11 — BUCKET COMPLETENESS, DERIVED (see gateBucketWalk above) ──
+  const walk = gateBucketWalk(CHAIN_FILES);        // what THIS database has
+  const finalList = [...walk.final].sort();
+
+  /* The names go into a SQL array literal, so prove they are inert first.
+     Every bucket in this codebase is [a-z0-9_]; anything else means the walk
+     scraped something that is not a bucket, and the right answer is to fail
+     rather than to interpolate it. */
+  const shady = finalList.filter((b) => !/^[a-zA-Z0-9_]+$/.test(b));
+  check('R10 CONTROL · every derived bucket name is an inert identifier',
+    shady.length === 0, `not identifiers: ${JSON.stringify(shady)}`);
+
+  /* The 2026-08-13 hand list, kept as a FLOOR. The derived set replaces it as
+     the expected set, but the historical guarantee must never silently shrink:
+     if a future edit made the walk return fewer names, this catches it. */
+  const HISTORICAL_45 = ['clan_seat_read', 'clan_vote_read', 'hr_leaderboard', 'hr_rally_pledge_state',
+    'hr_display_name_available', 'hr_server_now', 'clan_invites_list', 'buy_listing',
+    'clan_board_claim', 'clan_board_progress', 'clan_contribute', 'clan_deposit',
+    'clan_feast_deposit', 'clan_rested_grant', 'clan_vote_cast', 'clan_work_complete',
+    'clan_work_labour', 'clan_work_supply', 'raid_claim', 'raid_strike',
+    'world_event_absence_claim', 'world_event_claim', 'world_event_contribute',
+    'world_event_join', 'world_event_pledge', 'world_event_pledge_settle', 'bug_report_submit',
+    'claim_beta_invite', 'claim_display_name', 'clan_board_roll', 'clan_feast_call',
+    'clan_hunt_declare', 'clan_tier_up', 'clan_vice_set', 'clan_vote_close', 'clan_vote_open',
+    'clan_work_post', 'clan_create', 'clan_join', 'clan_leave', 'clan_kick', 'clan_invite',
+    'clan_invite_revoke', 'clan_join_policy_set', 'beta_invite_check'];
+  const missingFloor = HISTORICAL_45.filter((b) => !walk.final.has(b));
+  check('R10 CONTROL · the derived set still covers the original 2026-08-13 allowlist',
+    missingFloor.length === 0 && finalList.length >= HISTORICAL_45.length,
+    `derived ${finalList.length}; derivation lost: ${missingFloor.join(',') || '(none)'}`);
+
+  const bk = shady.length ? {} : await one(
+    `select public.__gate_buckets(array[${finalList.map((b) => `'${b}'`).join(',')}]::text[]) as r`);
+  check(`R10 every bucket THIS chain builds is admitted (${finalList.length}, derived from CHAIN)`,
+    bk.lost === null && bk.tried === finalList.length,
+    `tried=${bk.tried} of ${finalList.length}; NOT ADMITTED: ${bk.lost}`);
   check('R10b an unknown bucket still fails closed',
     bk.unknown_admitted === false, `admitted=${bk.unknown_admitted}`);
+
+  /* ── R11 — THE HIGH-WATER MARK, over the FULL apply order. STATIC. ──────
+     Every bucket the gate held at any point in a real rebuild must still be
+     there at the end. hr_rpc_gate is one `case` ending `else return false`,
+     restated in full by TWELVE migrations, so a file written from a stale
+     template silently disarms whole feature areas — that is b487. The md5 pin
+     in live-hash-drift sees "the body moved"; it cannot see "you deleted
+     thirteen buckets", and the remedy for a moved md5 is `--write`, which
+     absorbs the loss. This names it instead. */
+  const full = gateBucketWalk(FULL_ORDER_FILES);
+  const neverRestored = [...full.high].filter((b) => !full.final.has(b));
+  check(`R11 no bucket is dropped by a restatement and never restored (full order, ${full.final.size})`,
+    neverRestored.length === 0,
+    `DROPPED AND NEVER RESTORED: ${neverRestored.join(', ')} — every RPC in those buckets would `
+    + 'answer rate_limited on every call. Offending file(s): '
+    + full.events.filter((e) => e.lost.some((b) => neverRestored.includes(b)))
+      .map((e) => e.file).join(', '));
+
+  /* R11 SELFTEST — inline, because a static check that cannot demonstrate
+     failure is prose. Delete a bucket from the LAST full restatement in the
+     real order and re-walk: it must come back named. */
+  {
+    const victim = 'farm_water';
+    const lastIdx = full.events.map((e) => e.kind).lastIndexOf('restate');
+    const lastFile = lastIdx >= 0 ? full.events[lastIdx].file : null;
+    const files = FULL_ORDER_FILES.filter((p) => p.endsWith(lastFile || ' '));
+    const src = files.length ? readFileSync(files[0], 'utf8') : '';
+    /* Tolerate whatever whitespace follows the name — in the restore file
+       'farm_water' ends a line, so an anchor with a trailing space misses. */
+    const broke = src.replace(new RegExp(`'${victim}',\\s*`), '');
+    const patched = new Map([[files[0], broke]]);
+    const reader = (p) => (patched.has(p) ? patched.get(p) : readFileSync(p, 'utf8'));
+    const mutated = gateBucketWalkWith(FULL_ORDER_FILES, reader);
+    const seen = [...mutated.high].filter((b) => !mutated.final.has(b));
+    check(`R11 SELFTEST · deleting '${victim}' from ${lastFile} is reported as lost`,
+      broke !== src && seen.includes(victim),
+      `anchor ${broke === src ? 'DID NOT MATCH' : 'matched'}; reported lost=${JSON.stringify(seen)} `
+      + '— if this is red, R11 is blind and the class is unguarded');
+  }
 
   return out;
 }

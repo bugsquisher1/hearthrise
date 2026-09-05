@@ -214,34 +214,152 @@
 -- not bodies), and the replay fingerprint still matches the committed digest.
 --
 -- ══════════════════════════════════════════════════════════════════════════
--- REVERSIBILITY — THREE FILES, IN THIS ORDER. NOT ONE. (measured, not reasoned)
+-- REVERSIBILITY — ONE TARGETED `create or replace`. DO NOT RE-APPLY A FILE.
 -- ══════════════════════════════════════════════════════════════════════════
---     1. supabase/migrations/2026-08-23-bounty.sql
---     2. supabase/migrations/2026-08-29-bounty-first-contract.sql
---     3. supabase/migrations/2026-09-04-bounty-difficulty-count.sql
+-- ⚠ REVERT THIS BY REPLACING ONE FUNCTION BODY, NEVER BY RE-RUNNING A
+--   MIGRATION. Re-running the file that authored the body is the obvious move,
+--   it is what someone reaches for at 3am, and on THIS chain it causes a
+--   GAME-WIDE OUTAGE. The command comes first, because that is the order you
+--   need it in; the reasoning is below it.
 --
--- ⚠ THE OBVIOUS ONE-FILE REVERT IS WRONG, AND IT IS WRONG QUIETLY. File 1 is the
--- sole author of `hr_claim_bounty__ungated`, so re-applying it does restore the
--- un-credited body — but it ALSO restates `hr_accept_bounty__ungated`, which
--- silently reverts the b487 first-contract floor AND the b497 difficulty-scaled
--- kill range with it. The board would then offer an easy 72-kill contract that
--- the server clamps up to 80, and a day-one player would be handed the 80–120
--- bracket again: the client showing one contract while the server enforces
--- another, which is the failure this program exists to prevent.
+-- ── THE REVERT ────────────────────────────────────────────────────────────
+-- Run EXACTLY §8 of the authoring file — the single `create or replace
+-- function public.hr_claim_bounty__ungated(p_slot int) ... end $$;` statement
+-- and nothing else. It is 56 self-contained lines and it is the body
+-- production ran before this patch:
 --
--- MEASURED on a full PGlite replay of the chain, 2026-09-05 (not reasoned from
--- reading the files):
---     start                       claim credits=Y  accept scaled=Y  first=Y
---     after file 1                claim credits=N  accept scaled=N  first=N   <- the trap
---     after file 2                claim credits=N  accept scaled=N  first=N
---     after file 3                claim credits=N  accept scaled=Y  first=Y   <- correct
+--     sed -n '369,424p' supabase/migrations/2026-08-23-bounty.sql | psql "$DB"
 --
--- XP ALREADY CREDITED STAYS CREDITED (a revert stops the faucet, it does not
--- claw back). The exact per-character amount to subtract, if that is ever
--- wanted, is
+-- `create or replace` preserves proacl, so no grant moves and no revoke/grant
+-- needs restating (restating one is itself a chance to widen). Nothing else in
+-- the database is touched: no table, no column, no policy, no cron, no edge
+-- deploy, no other function body.
+--
+-- ── VERIFY THE REVERT — BOTH HASHES, NOT ONE ──────────────────────────────
+-- The body came back AND NOTHING ELSE MOVED:
+--
+--   select md5(regexp_replace(pg_get_functiondef(
+--            'public.hr_claim_bounty__ungated(int)'::regprocedure),
+--            '[[:space:]]+',' ','g'))   as claim   -- want 92535ce5f7374db448bdf2089965885d
+--        , md5(regexp_replace(pg_get_functiondef(
+--            'public.hr_rpc_gate(text)'::regprocedure),
+--            '[[:space:]]+',' ','g'))   as gate;   -- want 0ec2b179abbe5eacfd670ff6f81c5a69
+--
+-- Both are pins in tests/live-hash-drift.baseline.json (claim norm_len 2,437;
+-- gate norm_len 2,621), MEASURED on production 2026-09-05. The GATE hash is in
+-- this check precisely because the revert must not touch it — see the trap.
+-- Then re-pin:  node tests/live-hash-drift.mjs --live --write
+--
+-- An inverse anchored un-splice (replace c_r1/c_r2/c_r3 back to c_a1/c_a2/c_a3
+-- from §1 above) is equally correct and touches even less, but it is more code
+-- to get right under pressure and it lands on the same md5. Prefer the slice.
+--
+-- ── THE TRAP: WHY NOT `psql < 2026-08-23-bounty.sql` ──────────────────────
+-- That file IS the sole author of hr_claim_bounty__ungated, so re-applying it
+-- does restore the un-credited body. It also restates TWO OTHER FUNCTIONS, and
+-- the second one takes the game down for everybody.
+--
+--   (i)  §7 hr_accept_bounty__ungated — reverts the b487 first-contract floor
+--        AND the b497 difficulty-scaled kill range. The board would then offer
+--        an easy 72-kill contract the server clamps up to 80, and a day-one
+--        player would be handed the 80–120 bracket again: the client showing
+--        one contract while the server enforces another.
+--
+--   (ii) §6 hr_rpc_gate(text) — THE P0. That restatement carries a FIFTY-THREE
+--        bucket `case`; production's gate carries SIXTY-SIX (measured
+--        2026-09-05: md5 0ec2b179abbe5eacfd670ff6f81c5a69, norm_len 2,621).
+--        Re-applying the file DESTROYS THIRTEEN BUCKETS AND ONE WHOLE ARM:
+--
+--          hr_goal_state · farm_water · worker_hire · worker_assign ·
+--          bank_move · hr_credit_kills · hr_credit_combat_xp ·
+--          client_state_put · hr_bounty_spend · hr_trait_buy ·
+--          hr_claim_goal · hr_buy_hero_slot · hr_set_style
+--
+--        hr_set_style is the SOLE occupant of the 30/min arm, so that arm
+--        ceases to exist. The `case` ends `else return false;` — FAIL-CLOSED —
+--        so every one of those RPCs answers `rate_limited` on EVERY call, for
+--        EVERY player, immediately: watering, hiring and assigning workers,
+--        banking, kill credit, combat-XP credit, client_state writes, goal
+--        state and goal claims, trait buys, Mark spends, hero-slot purchases
+--        and combat-style changes all stop at once.
+--
+--        THIS IS NOT HYPOTHETICAL. It is the incident already in the ledger:
+--        "b487–b491: rpc-gate bucket restore = the week's root cause."
+--        2026-08-23-bounty.sql has NO bucket-completeness assertion, so it
+--        applies GREEN and the game simply stops working.
+--
+-- ── IF YOU MUST GO THE FILE ROUTE: IT IS FIVE FILES, NOT THREE ────────────
+-- (An earlier revision of this header said THREE. That was measured — but on a
+-- PGlite replay that tracked only the three BOUNTY flags (claim-credits,
+-- accept-scaled, first-contract), so it was structurally blind to the gate.
+-- Measured, and the wrong thing measured. The gate is the fourth axis.)
+--
+--   1. 2026-08-23-bounty.sql               claim body restored          ✔
+--                                          accept body REVERTED         ✘ -> 2,3
+--                                          hr_rpc_gate GUTTED to 53      ✘ -> 4,5
+--   2. 2026-08-29-bounty-first-contract.sql    accept: first-contract floor
+--   3. 2026-09-04-bounty-difficulty-count.sql  accept: difficulty kill range
+--   4. 2026-08-29-rpc-gate-bucket-restore.sql  gate -> 65 buckets
+--   5. 2026-09-08-hero-slot-buy.sql            gate -> 66 (§6 splice)
+--
+-- 4 THEN 5, and 5 IS NOT OPTIONAL: the restore file predates the hero-slot
+-- bucket, so it rebuilds 65 of the 66 and only hero-slot-buy's §6 programmatic
+-- splice puts hr_buy_hero_slot back. File 5's other two splices (hr_state_of,
+-- hr_create_character) are each guarded "already present -> skip", so
+-- re-running it is a no-op for them.
+--
+-- (This ordering is why tests/schema-apply-order.json deliberately sequences
+-- 2026-08-29-rpc-gate-bucket-restore.sql AFTER 2026-08-30-bounty-kill-credit
+-- .sql despite the earlier date: bounty-kill-credit is itself a 59-bucket
+-- restatement that drops five buckets, and the restore is what heals it.)
+--
+-- RUN THE TWO-HASH CHECK AFTER EVERY STEP, not just at the end. Five files is
+-- five chances to stop somewhere that looks fine and is not.
+--
+-- ── WHAT A REVERT DOES NOT DO ─────────────────────────────────────────────
+-- XP ALREADY CREDITED STAYS CREDITED — a revert stops the faucet, it does not
+-- claw back. The exact per-character amount to subtract, if that is ever
+-- wanted, is reconstructible from the journal alone:
 --     select user_id, slot, sum(xp) from public.player_ledger
 --      where kind = 'bounty' and skill_id = 'bountyHunter' group by 1, 2;
--- No table, no column, no grant, no policy, no cron, no edge deploy.
+--
+-- ══════════════════════════════════════════════════════════════════════════
+-- KNOWN LIMITATIONS / FOLLOW-UPS — RAISED BY SECURITY, NOT BUILT HERE
+-- ══════════════════════════════════════════════════════════════════════════
+-- This file makes the Bounty-Hunter axis WORK. It does not make it SAFE to
+-- treat as a ranked board on its own. Two of these are P1 and the first is a
+-- direct consequence of shipping this one — they belong in the same program.
+--
+-- F2 (P1, within one build of apply) — THE ACCEPT RPC HAS NO BOUNTY-HUNTER
+--     GATE. `hr_accept_bounty__ungated` clamps tier by the server COMBAT level
+--     only (hr_bounty_unlocked_tier over hr_bounty_combat_level) and allowlists
+--     difficulty with NO level gate at all. A combat-70 / BH-1 player calling
+--     the RPC directly gets a tier-6 HARD contract worth 1,430 xp for 60 kills
+--     = 23.8 xp/kill, against the 0.61 xp/kill the BOARD would offer them at
+--     BH 1 — a ~39x per-kill advantage with NO forgery, now landing on a ranked
+--     board because of THIS file. The board's own ladder
+--     (getUnlockedBountyTier / boardTierForBountyLevel) is CLIENT-side; the
+--     server never enforced it because until today the server had no
+--     Bounty-Hunter level to read. THIS FILE IS THE PREREQUISITE FOR THE FIX:
+--       v_maxtier := least(hr_bounty_unlocked_tier(v_cl),
+--                          boardTierForBountyLevel(hr_level_from_xp(bh_xp)))
+--     plus clamping difficulty to the BH-unlocked set. That also closes the
+--     'elite' residual the accept body has carried as "tracked" since
+--     2026-08-23.
+--
+-- F3 (P1, before the board is treated as meaningful) — NO PER-DAY CEILING ON
+--     THE CREDIT. The kill-credit physics cap (2026-08-30-bounty-kill-credit)
+--     was signed off as "a loose bound on a SELF-ONLY, journalled forgery".
+--     Crediting a RANKED skill from it falsifies "self-only". At the cap that
+--     is ~2.23M BH xp/day sustained — BH 99 in ~6 days. The precedent is
+--     c_combat_xp_day_budget = 5,000,000, imposed by Security for exactly this
+--     reason and pinned by a drift test. Needs a per-UTC-day BH xp ceiling read
+--     from player_ledger; `player_ledger_bounty_idx` already exists.
+--
+-- F5 — nothing CONSUMES the throttle journal hr_credit_kills writes.
+-- F6 — `p_bounty_id` is free text and reaches player_ledger.intent unsanitised
+--      ('bounty_turnin:' || v_ab.bounty_id). Self-only today, but it is a
+--      client string in a journal column that humans and queries read.
 --
 -- ══════════════════════════════════════════════════════════════════════════
 -- WHY THERE IS NO begin;/commit; IN THIS FILE, AND HOW IT IS STILL ATOMIC

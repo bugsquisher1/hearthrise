@@ -42,6 +42,13 @@
 //   · AND THE GATE — src/core/bounty.js boardTierForBountyLevel, at the level
 //     the server actually credits its way to. BHX-8 grinds REAL turn-ins until
 //     the SERVER's own hr_level_from_xp reaches 20 and then asserts tier 2.
+//   · AND THE SHADOW FIELD — BHX-11. Deleting `G.bountyHunter.xp` is only half
+//     the fix; the other half is that nothing SEEDS it back. Three sites could
+//     (buildResiduePatch out, hydrateInto in, and ensureBountyState, which runs
+//     on boot AND on every kill), and for one build all three were described in
+//     comments as clean while ensureBountyState was still writing `xp:0` into
+//     its default shape. Comments are not assertions. Each site is executed
+//     from its REAL source text and each is mutation-proved in place.
 //
 // ── WHAT IT CANNOT PROVE ────────────────────────────────────────────────
 //   · TRUE CONCURRENCY. PGlite is one backend, so the `select ... for update`
@@ -536,6 +543,191 @@ async function run(mutate) {
       `BHX-10: player_skills carries ${g.length} client write grant(s) and ${p.length} non-SELECT `
       + 'policy(ies) — the RANKED xp this file now credits would be directly forgeable, which '
       + 'would make every assertion above beside the point');
+  }
+
+  /* ── BHX-11 · THE SHADOW FIELD STAYS DEAD, AT ALL THREE SITES ──────────
+     `bountyHunter.xp` was the client-authored mirror of a server-owned skill —
+     the SA-002 class. Deleting the mirror is only half the fix; the other half
+     is that nothing SEEDS it back. Three places could, and until this assertion
+     existed the branch merely ASSERTED in comments that they did not:
+
+       · src/net/capstone.js   buildResiduePatch — the way OUT (G -> the bag)
+       · src/net/client-state.js hydrateInto     — the way IN  (the bag -> G)
+       · src/legacy.js         ensureBountyState — the SEEDER, which runs on
+         boot AND on every kill, and which was still writing `xp:0` into its
+         default shape while all three comments said the field was gone.
+
+     Each is proved against the code that actually runs, and each is then
+     MUTATION-PROVED: the pin re-runs against a deliberately broken copy and
+     must go red. A stripper assertion that cannot fail is decoration, and this
+     one guards a field whose whole history is coming back. */
+  {
+    const { readFile } = await import('node:fs/promises');
+    const ROOT = new URL('../', import.meta.url);
+
+    /* ⚠ THESE MODULES ARE NOT IMPORTED, AND THAT IS DELIBERATE.
+       `src/net/capstone.js` pulls in `src/net/accrue.js`, whose module graph
+       leaves a pending request under Node: `node -e "await import(...)"` on
+       either file PRINTS ITS RESULT AND THEN NEVER EXITS. Importing them here
+       would hang this guard (and therefore CI) after every assertion had
+       already passed — the worst possible failure, a green test that never
+       returns. Verified by isolation: capstone alone and client-state alone
+       both exit 124 under `timeout`, with 0 active handles and 1 active
+       request.
+
+       So the REAL SOURCE TEXT of each function is sliced out and executed with
+       the REAL RESIDUE_FIELDS injected. It is the shipped bytes of the shipped
+       function, not a re-implementation, and it has the side benefit that the
+       mutation proof below uses the EXACT SAME mechanism as the assertion — so
+       a caught mutation proves the assertion itself is non-vacuous, rather than
+       proving something about a second code path. */
+    const capSrc = await readFile(new URL('src/net/capstone.js', ROOT), 'utf8');
+    const csSrc = await readFile(new URL('src/net/client-state.js', ROOT), 'utf8');
+
+    /* The REAL residue list, evaluated from its own literal. If `bountyHunter`
+       were not in it BOTH strippers would be no-ops on a field they never see
+       and every assertion below would be vacuous — hence the control. */
+    const rfStart = csSrc.indexOf('export const RESIDUE_FIELDS = Object.freeze([');
+    const rfEnd = csSrc.indexOf(']);', rfStart);
+    let RESIDUE_FIELDS = null;
+    if (rfStart >= 0 && rfEnd > rfStart) {
+      const lit = csSrc.slice(csSrc.indexOf('[', rfStart), rfEnd + 1);
+      try { RESIDUE_FIELDS = (0, eval)('(' + lit + ')'); } catch (e) { RESIDUE_FIELDS = null; }
+    }
+    ok(Array.isArray(RESIDUE_FIELDS) && RESIDUE_FIELDS.includes('bountyHunter'),
+      'BHX-11 CONTROL: could not read RESIDUE_FIELDS out of src/net/client-state.js, or it no '
+      + 'longer lists `bountyHunter` — every strip assertion below would be vacuous');
+
+    /* Slice `export function NAME(...) { ... }` out. The repo puts a top-level
+       function's closing brace in column 0, so `\n}` terminates it; if that ever
+       stops being true `new Function` throws and the harness assertion fires
+       rather than the guard silently testing nothing. */
+    const mk = (src, name, label) => {
+      const i = src.indexOf(`export function ${name}(`);
+      if (i < 0) return null;
+      const j = src.indexOf('\n}', i);
+      if (j < 0) return null;
+      const text = src.slice(i + 'export '.length, j + 2);
+      try {
+        // eslint-disable-next-line no-new-func
+        return new Function('RESIDUE_FIELDS', `${text}\nreturn ${name};`)(RESIDUE_FIELDS);
+      } catch (e) { return null; }
+    };
+
+    // ── (a) THE WAY OUT — buildResiduePatch drops it ────────────────────
+    const buildResiduePatch = mk(capSrc, 'buildResiduePatch');
+    ok(typeof buildResiduePatch === 'function',
+      'BHX-11(a) HARNESS: could not slice buildResiduePatch out of src/net/capstone.js — the '
+      + 'way OUT is UNGUARDED');
+    const gOut = { bountyHunter: { xp: 4470, marks: 77, completed: 3, board: [] } };
+    const patch = buildResiduePatch ? buildResiduePatch(gOut) : {};
+    obs.bhx11_out = patch.bountyHunter;
+    ok(patch.bountyHunter && !('xp' in patch.bountyHunter),
+      'BHX-11(a): buildResiduePatch put `xp` into the client_state bag — the client would '
+      + `re-author a server-owned skill (got ${JSON.stringify(patch.bountyHunter)})`);
+    ok(patch.bountyHunter && patch.bountyHunter.completed === 3,
+      'BHX-11(a) CONTROL: buildResiduePatch dropped the REST of bountyHunter too, so the '
+      + 'assertion above is vacuous');
+    ok(gOut.bountyHunter.xp === 4470,
+      'BHX-11(a): buildResiduePatch MUTATED the caller\'s G — the strip must copy, not delete');
+
+    // ── (b) THE WAY IN — hydrateInto drops it ───────────────────────────
+    const hydrateInto = mk(csSrc, 'hydrateInto');
+    ok(typeof hydrateInto === 'function',
+      'BHX-11(b) HARNESS: could not slice hydrateInto out of src/net/client-state.js — the way '
+      + 'IN is UNGUARDED');
+    const gIn = { bountyHunter: { completed: 0 } };
+    if (hydrateInto) hydrateInto(gIn, { bountyHunter: { xp: 999999, marks: 5, completed: 9 } });
+    obs.bhx11_in = gIn.bountyHunter;
+    ok(gIn.bountyHunter && !('xp' in gIn.bountyHunter),
+      'BHX-11(b): hydrateInto let a bag-borne `xp` land in G.bountyHunter — a forged bag, or a '
+      + `legacy blob, would shadow the server's player_skills row (got ${JSON.stringify(gIn.bountyHunter)})`);
+    ok(gIn.bountyHunter && gIn.bountyHunter.completed === 9,
+      'BHX-11(b) CONTROL: hydrateInto dropped the rest of the bag too — the assertion is vacuous');
+
+    // ── (c) THE SEEDER — ensureBountyState's default shape, EXECUTED ────
+    /* legacy.js is a browser monolith and cannot be imported, so the prologue is
+       sliced out and RUN. Reading the source is not enough: c1 evaluates the
+       default-shape literal (catches `xp:0` coming back into `base`) and c2 runs
+       the assign+delete against a G that already carries an xp (catches the
+       defence-in-depth strip being dropped). Both are needed — `base` alone
+       loses to Object.assign, and the delete alone hides a regrown `base`. */
+    const legacySrc = await readFile(new URL('src/legacy.js', ROOT), 'utf8');
+    const seeder = (src) => {
+      const i = src.indexOf('function ensureBountyState(){');
+      if (i < 0) return null;
+      const j = src.indexOf('G.bountyHunter.upgrades=', i);
+      if (j < 0) return null;
+      const body = src.slice(src.indexOf('{', i) + 1, j);
+      const litM = /const base=(\{[^;]*\});/.exec(body);
+      if (!litM) return null;
+      let base, ran;
+      try { base = (0, eval)('(' + litM[1] + ')'); } catch (e) { return null; }
+      try {
+        // eslint-disable-next-line no-new-func
+        ran = new Function('G', body + '\nreturn G;')({ bountyHunter: { xp: 4470, completed: 3 } });
+      } catch (e) { ran = null; }
+      return { base, ran };
+    };
+    const s = seeder(legacySrc);
+    obs.bhx11_seed = s && { baseKeys: Object.keys(s.base), ran: s.ran && s.ran.bountyHunter };
+    ok(s, 'BHX-11(c) HARNESS: could not slice ensureBountyState\'s prologue out of src/legacy.js — '
+      + 'the seeder is UNGUARDED, which is how `xp:0` survived three comments saying it was gone');
+    if (s) {
+      ok(!('xp' in s.base),
+        'BHX-11(c1): ensureBountyState\'s default shape seeds `xp` again. It runs on boot and on '
+        + 'EVERY KILL, so it re-creates the residue mirror of a server-owned skill on every '
+        + `character (base keys: ${Object.keys(s.base).join(',')})`);
+      ok(s.ran && s.ran.bountyHunter && !('xp' in s.ran.bountyHunter),
+        'BHX-11(c2): ensureBountyState left an incoming `xp` on G.bountyHunter. `base` is the '
+        + 'Object.assign TARGET, so dropping the key from the literal is NOT enough — a legacy '
+        + `blob's value wins (got ${JSON.stringify(s.ran && s.ran.bountyHunter)})`);
+      ok(s.ran && s.ran.bountyHunter && s.ran.bountyHunter.completed === 3,
+        'BHX-11(c2) CONTROL: the prologue dropped `completed` too — the assertion is vacuous');
+    }
+
+    // ── MUTATION PROOF: each strip, broken on purpose, must be SEEN ─────
+    {
+      const bad = capSrc.replace("if (k === 'marks' || k === 'xp') continue;",
+        "if (k === 'marks') continue;");
+      ok(bad !== capSrc,
+        'BHX-11 SELFTEST: the buildResiduePatch strip anchor did not match, so (a) cannot be '
+        + 'mutation-proved — which means it is not proven at all');
+      const f = bad === capSrc ? null : mk(bad, 'buildResiduePatch');
+      ok(!f || 'xp' in (f({ bountyHunter: { xp: 1, completed: 0 } }).bountyHunter || {}),
+        'BHX-11 SELFTEST: a buildResiduePatch with the `xp` strip REMOVED still produced no xp — '
+        + 'assertion (a) cannot see the defect it exists for');
+    }
+    {
+      const bad = csSrc.replace('delete merged.xp;', 'void 0;');
+      ok(bad !== csSrc,
+        'BHX-11 SELFTEST: the hydrateInto strip anchor did not match, so (b) cannot be '
+        + 'mutation-proved');
+      const f = bad === csSrc ? null : mk(bad, 'hydrateInto');
+      let leaked = false;
+      if (f) { const g = { bountyHunter: {} }; f(g, { bountyHunter: { xp: 1 } }); leaked = 'xp' in g.bountyHunter; }
+      ok(!f || leaked,
+        'BHX-11 SELFTEST: a hydrateInto with `delete merged.xp` REMOVED still dropped the xp — '
+        + 'assertion (b) cannot see the defect it exists for');
+    }
+    {
+      const regrown = legacySrc.replace('const base={completed:0,', 'const base={xp:0,completed:0,');
+      ok(regrown !== legacySrc,
+        'BHX-11 SELFTEST: the default-shape anchor did not match, so (c1) cannot be mutation-proved');
+      const sr = seeder(regrown);
+      ok(!sr || 'xp' in sr.base,
+        'BHX-11 SELFTEST: a default shape with `xp:0` put back still read as clean — (c1) is blind');
+
+      const undeleted = legacySrc.replace("  if('xp' in G.bountyHunter) delete G.bountyHunter.xp;\n", '');
+      ok(undeleted !== legacySrc,
+        'BHX-11 SELFTEST: the defence-in-depth strip anchor did not match, so (c2) cannot be '
+        + 'mutation-proved');
+      const su = seeder(undeleted);
+      ok(!su || (su.ran && su.ran.bountyHunter && 'xp' in su.ran.bountyHunter),
+        'BHX-11 SELFTEST: ensureBountyState with the strip REMOVED still dropped an incoming xp — '
+        + '(c2) is blind');
+    }
+
   }
 
   await db.close?.();

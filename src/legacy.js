@@ -4466,8 +4466,23 @@ function _retimeIfTool(id){
 
 /* ─── Bounty Hunter ─── */
 function ensureBountyState(){
-  const base={xp:0,completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}};
+  /* b503 — NO `xp` KEY IN THE BASE, AND THAT IS THE FIX, NOT AN OMISSION.
+     Bounty-Hunter XP is a SKILL: it lives in player_skills on the server,
+     credited by hr_claim_bounty, and is read through the record as
+     `G.skills.bountyHunter`. It used to ALSO be seeded here, and a residue
+     field shadowing a server-owned value is the SA-002 class that deadlocked
+     the property tier. Keep this shape in step with the default G at the top of
+     this file and with the two strippers (hydrateInto / buildResiduePatch);
+     BHX-11 in tests/bounty-hunter-xp.mjs fails if any of the three regrows it. */
+  const base={completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}};
   G.bountyHunter=Object.assign(base,G.bountyHunter||{});
+  /* Dropping it from `base` alone is NOT sufficient: base is the Object.assign
+     TARGET, so anything G.bountyHunter already carries wins. hydrateInto strips
+     a bag-borne `xp` on the way in, but a legacy local blob reaches G by other
+     routes — so the ensure that runs on boot AND on every kill is the place the
+     invariant is made unconditional rather than merely likely. The `in` guard
+     keeps the steady state free of any hidden-class transition. */
+  if('xp' in G.bountyHunter) delete G.bountyHunter.xp;
   G.bountyHunter.upgrades=G.bountyHunter.upgrades||{};
   G.bountyHunter.warrants=G.bountyHunter.warrants||{};
   /* The FIRST ensure of a session — i.e. a boot, i.e. the one moment a save's

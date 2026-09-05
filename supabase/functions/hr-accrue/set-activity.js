@@ -179,16 +179,42 @@ export const READ_SQL = `
    forgetting does not fail, it just leaves one client path guessing, which is
    the one thing a client is never allowed to do. */
 
+/* ⚠ THE ATTENDED KILL LEDGER IS READ HERE TOO, AND THAT IS NOT OPTIONAL.
+   The MEASURED production window (docs/design/attended-loot-credit.md §0) was
+   settled by THIS verb, not by the accrue verb: `player_ledger` #13175 (the
+   accrue row) is timestamped 16:10:02.395 and the `set_activity:idle` that
+   produced it 16:10:02.789. A player who taps STOP is the ordinary end of an
+   attended fight, and a collect that skipped the top-up would advance
+   `accrued_to` past the credit rows and confiscate exactly the loot this change
+   exists to pay. Two callers of one engine is a drift generator (see the A14
+   note below); this is the field where drift would be silent AND total. */
+/* ⚠ $5 IS THE UPPER EDGE OF THE ATTENDED WINDOW (Security condition C6) and it
+   is the instant `accrued_to` will advance to — `new Date(nowMs).toISOString()`,
+   the same string the engine writes as the watermark, derived from THIS call's
+   READ_SQL `now()`. This statement runs after that read, so a window bounded
+   only below by `accrued_to` would project credit rows committed in the gap: paid
+   here, and projected again on the next settle. hr_attended_kills clamps it with
+   `least(p_upto, now())`, so a wrong value can only ever pay LESS. */
 const SEED_SQL = `
   select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
          public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt,
-         public.hr_perks_of($1::uuid, $2::int)                              as perks`;
+         public.hr_perks_of($1::uuid, $2::int)                              as perks,
+         public.hr_attended_kills($1::uuid, $2::int, $5::timestamptz)       as attended`;
 
-/* The same read WITHOUT the perk channel, for a database that predates it.
-   A missing COLUMN reads as null; a missing FUNCTION is a hard 42883 that
-   aborts the statement, so the "safe in either order" property the tool_carry
-   column has by construction has to be restored by hand here — by catching
-   42883 AND ONLY 42883 and retrying. Mirrors index.ts. */
+/* The same read WITHOUT the attended ledger, for a database that has not applied
+   2026-09-10-attended-loot-credit.sql, and then WITHOUT the perk channel too for
+   one that predates that. A missing COLUMN reads as null; a missing FUNCTION is
+   a hard 42883 that aborts the statement, so the "safe in either order" property
+   the tool_carry column has by construction has to be restored by hand here — by
+   catching 42883 AND ONLY 42883 and retrying. Mirrors index.ts.
+   THREE RUNGS, NOT TWO, because the two absences are INDEPENDENT: the ordinary
+   database on the day this ships HAS hr_perks_of and has NOT got the attended
+   read, and one combined fallback would silently drop the perk channel on every
+   one of them — under-paying every bonus in the game to fix an unrelated gap. */
+const SEED_SQL_NO_ATTENDED = `
+  select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
+         public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt,
+         public.hr_perks_of($1::uuid, $2::int)                              as perks`;
 const SEED_SQL_NO_PERKS = `
   select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
          public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt`;
@@ -568,21 +594,35 @@ export async function collectCurrentWindow(o) {
   const seedArgs = [
     user, slot, `accrue:${String(st.accrued_to)}`, `intent:accrue:${String(st.accrued_to)}`,
   ];
+  /* $5 for SEED_SQL only — the two fallbacks below take four. See SEED_SQL. */
+  const seedArgsUpto = [...seedArgs, new Date(nowMs).toISOString()];
   let seedRow;
   try {
-    [seedRow] = await exec(SEED_SQL, seedArgs);
+    [seedRow] = await exec(SEED_SQL, seedArgsUpto);
   } catch (e) {
     /* ONLY 42883 (undefined_function) degrades. Anything else propagates —
        a swallowed error is how a guard reports SKIPPED and gets read as a
        pass. See SEED_SQL_NO_PERKS above. */
     if (String((e && e.code) ?? '') !== '42883') throw e;
-    [seedRow] = await exec(SEED_SQL_NO_PERKS, seedArgs);
+    /* Drop the NEWER capability first, so the common case — perks present,
+       attended read not yet applied — keeps its perk channel. */
+    try {
+      [seedRow] = await exec(SEED_SQL_NO_ATTENDED, seedArgs);
+    } catch (e2) {
+      if (String((e2 && e2.code) ?? '') !== '42883') throw e2;
+      [seedRow] = await exec(SEED_SQL_NO_PERKS, seedArgs);
+    }
   }
   const salt = String((seedRow && seedRow.salt) ?? '');
   /* `ok !== true` covers "no character" and any future refusing shape. null →
      EMPTY_PERKS in the engine → 0 for every key → pre-b349 behaviour. */
   const perkEnv = seedRow && seedRow.perks;
   const perks = (perkEnv && perkEnv.ok === true) ? perkEnv : null;
+  /* THE ATTENDED KILL LEDGER. Same shape, same `ok !== true` rule, same null →
+     "propose nothing new". Every count in it was written by hr_credit_kills into
+     a table no client role may write. Nothing here is request-derived. */
+  const attendedEnv = seedRow && seedRow.attended;
+  const attendedIn = (attendedEnv && attendedEnv.ok === true) ? attendedEnv : null;
 
   /* The engine is called with a LITERAL, field by field, from named server
      values — no spread of anything request-derived, ever. `slot` is the only
@@ -616,6 +656,14 @@ export async function collectCurrentWindow(o) {
        the live loop does, or a switch-collect would re-pay XP a live credit already
        applied. Absent column → 0 → the split is inert. */
     combatXpAccruedToMs: st.combat_xp_accrued_to ? new Date(st.combat_xp_accrued_to).getTime() : 0,
+    /* THE ATTENDED KILL LEDGER (docs/design/attended-loot-credit.md). A collect
+       run by a STOP gesture is the single most common end of an attended fight —
+       the measured production window was settled by this very call — so a
+       collect without it would advance `accrued_to` past the credit rows and
+       confiscate the loot the top-up exists to pay. There is no degrade ladder
+       on this verb, so no `attended: null` rung: a switch either tops up or the
+       function is absent. */
+    attended: attendedIn,
     activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : null,
     activeKind: st.active_kind,
     activeId: st.active_id,

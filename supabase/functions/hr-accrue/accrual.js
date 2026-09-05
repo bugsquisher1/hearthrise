@@ -84,10 +84,15 @@
 // ============================================================================
 
 import {
-  DEFAULT_PROFILE, swingIntervalMs,
+  COMBAT_BALANCE, DEFAULT_PROFILE, swingIntervalMs,
   equipmentStats, armorSetBonus, playerCombatRolls, monsterCombatRolls, weaknessInfo,
 } from '../../../src/core/combat.js';
-import { simulateSpan } from '../../../src/core/combat-sim.js';
+/* `resolveKill` is imported ALONGSIDE `simulateSpan`, not instead of it, and it
+   is the SAME function the live 2.4s tick reaches through the client's wrapped
+   `window.killMonster`. The attended top-up below pays a kill by CALLING IT —
+   never by re-implementing a drop roll, a gold roll or a rarity flag. If you
+   find yourself typing `m.drops` in this file, stop. */
+import { simulateSpan, resolveKill } from '../../../src/core/combat-sim.js';
 import { simulateSkillSpan, STOP_REASON, SKILL_ACTION_STAT } from '../../../src/core/skill-sim.js';
 /* The third simulation. `simulateArtisanSpan` runs the SAME `sliceSpan` the
    gather path runs, over the same `resolveArtisanAction` the live bench runs —
@@ -105,7 +110,7 @@ import { killBonusesFor } from '../../../src/core/botd.js';
    both the server and (through core-bridge) the client — the flip from
    last-window to first-window crediting is a property of the away model, not a
    line of arithmetic each side gets to write for itself. */
-import { creditWindow } from '../../../src/core/away.js';
+import { creditWindow, utcDaySegments } from '../../../src/core/away.js';
 import { createRng } from '../../../src/core/rng.js';
 /* RESTED XP (b437), banked SERVER-SIDE. The SAME watermarked accrual the client
    runs (src/core/rested.js) — no second formula. It draws NO rng, so appending
@@ -233,6 +238,181 @@ export function inventoryBaselineComplete({ activeKind, activeId, accruedToMs, a
    single highest-leverage number in the grant after tickMs. */
 export const ACCRUE_MAX_SPAN_MS = 24 * 3600000;
 
+/* ══════════════════════════════════════════════════════════════════════════
+   THE ATTENDED LOOT TOP-UP — constants, and every one of them is a bound.
+   Full contract: docs/design/attended-loot-credit.md.
+
+   MEASURED, PRODUCTION 2026-09-04 (the reason this block exists). A 169-second
+   attended goblin session on the QA account:
+     · hr_kill_credit_log: four rows, sum(credit) = 15, NOT ONE THROTTLED.
+       The server had already accepted, clamped and journalled the attended
+       kill count.
+     · player_ledger #13175: the settle's own re-simulation of the SAME window
+       realised `kills: 9` and paid `qty_in: 16`.
+     · The client had shown 26 units. 26 - 16 = 10 = (15 - 9) x 1.73 units/kill.
+   Per-kill drop rates AGREE between the two sides. The whole loot shortfall is
+   the KILL shortfall, and the server was holding the correct kill count the
+   entire time. This block spends it.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* The variance/latency headroom on the physical cap. The SAME 1.3 the SQL
+   cap uses (2026-08-30-bounty-kill-credit.sql: `cap = floor(130*el/(100*mkm))`),
+   deliberately, so there is ONE ruled policy number rather than two that drift.
+   It is a Designer knob, not a physics number — the physics is minKillMs. */
+export const ATTENDED_HEADROOM_NUM = 130;
+export const ATTENDED_HEADROOM_DEN = 100;
+
+/* Per-call fuses on what the READ may hand this engine. They are NOT the
+   control (the physical re-cap below is), they bound a pathological log:
+   `hr_kill_credit_log` is written only by hr_credit_kills and pruned at 2 days,
+   but a fuse whose size is stated is worth more than an assumption. */
+export const ATTENDED_MAX_KILLS = 5000;
+export const ATTENDED_MAX_TARGETS = 8;
+
+/* ONE client kill-credit cadence (src/legacy.js HR_KILL_CREDIT_MS = 60000), used
+   as slack on BOTH edges of the attended sub-window. The rows stamp when the
+   flush LANDED, so the kills they carry happened in the PRECEDING cadence: a row
+   at T covers [T-60s, T], and without the slack the sub-window the cap is priced
+   against would be short by one cadence at each end — which throttles a short
+   honest session (two flushes 60 s apart would price a 0 s window). It only ever
+   WIDENS the span the cap is computed over; it never adds a kill. */
+export const ATTENDED_EDGE_SLACK_MS = 60000;
+
+/* ── THE SIM-RELATIVE CEILING, AND IT IS THE BOUND THAT HOLDS WHEN THE GEAR
+      CAP DOES NOT ──────────────────────────────────────────────────────────
+   `attendedKillCap` bounds the claim by what this player's gear could PHYSICALLY
+   kill in the attended seconds. It says nothing about whether the character can
+   SURVIVE the target, and that is a hole with no floor:
+
+     MEASURED on this engine, 2026-09-04. A maxed-skill character holding a
+     bronze sword, pointed at `the_silence` (hp 364, atk 99, gp 292-614), over a
+     24 h window: the away simulation realises **0 kills** — it dies on the first
+     exchange — while `attendedKillCap` reads **5,200**, because max hit is high
+     and survival is not in the formula. `min(claimed, cap) - sim` then pays the
+     WHOLE 5,000-claim ceiling: **~2.27 M gold and ~6,900 tradeable units a day**,
+     against an honest production maximum of ~8 k gold/hour. The non-additive
+     `- sim` subtraction protects nothing when `sim` is zero.
+
+   Nothing gates which monster a character may point at (`set-activity.js` checks
+   `catalogueHas(MONSTERS, id)` and nothing else, deliberately), so that fixture
+   is reachable by anyone who can forge an `hr_credit_kills` claim — which this
+   change is precisely what MONETISES, from a counter into gold.
+
+   So the top-up is also bounded RELATIVE TO THE SERVER'S OWN SIMULATION of the
+   same seconds. This is not a new policy: it is the bound the design already
+   claimed and tests/attended-loot-credit.mjs A6 already asserted BY VALUE
+   ("the cap is at most 3.5x the away-sim rate") — made a runtime invariant
+   instead of a test observation, because A6 only ever measured fixtures where
+   the sim survived.
+
+   THE NUMBER. Measured span-sim under-realisation is ~1.7x systematic (the
+   production row: 9 sim kills against 15 attended, and 2.14x on the fresh
+   fixture in the guard). The ruled variance allowance is 1.3. 1.7 x 1.3 = 2.2;
+   3 is that rounded up, so an honest player is not throttled at the measured
+   worst case with ~1.4x to spare. It is deliberately NOT tighter: throttling
+   honest play on a money surface is worse than a loose bound on a self-only,
+   journalled, capped claim.
+   ⚠ `sim = 0` therefore pays ZERO, by arithmetic rather than by a special case.
+     A window the server's own model of this character produced nothing in is a
+     window it has no basis to price. */
+export const ATTENDED_MAX_FIDELITY = 3;
+
+/* A SEPARATE PRNG STREAM for the top-up. It runs AFTER simulateSpan, so it
+   structurally cannot move a span draw — but a separate stream makes that
+   PROVABLE instead of argued, and it is what keeps AWAY-1 byte-identity true by
+   construction rather than only by "the parity fixtures pass null". Derived
+   from the same server secret through the same seed, so a dispute is still
+   replayable from the ledger. */
+export const ATTENDED_RNG_SALT = 0x100d;
+
+/**
+ * The attended input, NORMALISED. One reader, so nothing downstream re-decides.
+ *
+ * `null` in ⇒ `null` out ⇒ the engine proposes NOTHING new and behaves
+ * byte-for-byte as it did before this change. That is the self-configuring
+ * switch `tool_carry` / `fight` / `ammo_carry` already use: the PRESENCE of the
+ * read is the arm, and there is no flag to forget to flip.
+ *
+ * ⚠ OWN-PROPERTY, NEVER TRUTHINESS. `kills` arrives as jsonb from a function
+ *   whose keys are monster ids; `__proto__` and `constructor` are truthy on any
+ *   plain object, and a truthy miss here would multiply a phantom monster's
+ *   drops. Built on a NULL PROTOTYPE and copied key by key with hasOwnProperty,
+ *   which is the same measurement `catalogueHas` records in ./intents.js.
+ *
+ * ⚠ AND NEITHER GUARD IS ENOUGH ON ITS OWN — found by
+ *   tests/attended-loot-credit.mjs A8, not by review. `JSON.parse` creates
+ *   `__proto__` as a REAL OWN PROPERTY (an object literal does not), and
+ *   `__proto__` / `constructor` / `prototype` all MATCH /^[a-z0-9_]{1,64}$/. So
+ *   hasOwnProperty passes them and the pattern passes them. On a null-prototype
+ *   map they are inert today — no setter fires, and the only downstream lookup
+ *   is by a validated `activeId` — but they consume ATTENDED_MAX_TARGETS slots
+ *   and could evict a real target, and "inert" is a property of the CURRENT
+ *   reader, not of the value. Refused by name.
+ */
+const RESERVED_KEYS = ['__proto__', 'constructor', 'prototype'];
+
+export function normaliseAttended(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  if (raw.ok === false) return null;
+  const src = raw.kills;
+  if (!src || typeof src !== 'object' || Array.isArray(src)) return null;
+  const kills = Object.create(null);
+  let targets = 0;
+  let total = 0;
+  for (const id of Object.keys(src)) {
+    if (!Object.prototype.hasOwnProperty.call(src, id)) continue;
+    if (typeof id !== 'string' || !/^[a-z0-9_]{1,64}$/.test(id)) continue;
+    if (RESERVED_KEYS.indexOf(id) !== -1) continue;
+    const n = Math.floor(Number(src[id]));
+    if (!Number.isFinite(n) || n <= 0) continue;
+    if (targets >= ATTENDED_MAX_TARGETS) break;
+    const capped = Math.min(n, ATTENDED_MAX_KILLS);
+    kills[id] = capped;
+    total += capped;
+    targets++;
+  }
+  if (!targets) return null;
+  const fromMs = nat(Date.parse(String(raw.from ?? '')), 0);
+  const toMs = nat(Date.parse(String(raw.to ?? '')), 0);
+  return { kills, total, fromMs, toMs };
+}
+
+/**
+ * THE PHYSICAL CAP ON AN ATTENDED KILL COUNT — the tight one.
+ *
+ * `hr_credit_kills`'s SQL cap (src/core/kill-time.js) deliberately assumes a
+ * 600 ms global swing floor and BEST-IN-SLOT max hit, because item combat stats
+ * are not server-side and it was gating a COUNTER. That is ~130 goblin
+ * kills/minute — fine for a counter behind a once-per-period claim guard, far
+ * too loose to be the bound on a TRADEABLE item faucet.
+ *
+ * The engine has what SQL does not: the player's real server-owned equipment,
+ * style and skills. So it re-caps with them, and the answer is roughly 18x
+ * tighter on the measured character and scales with their actual gear.
+ *
+ *   minKillMs = max(tickMs, ceil(monsterHp / maxHit) x tickMs)
+ *   cap       = floor(HEADROOM x attendedSpanMs / minKillMs)
+ *
+ * Every term is still pushed to its CEILING — maxHit is the max hit, not the
+ * expected hit, and accuracy is ignored — because throttling an honest player on
+ * a money surface is worse than a loose bound on a self-only, journalled claim.
+ *
+ * @param spanMs   the attended sub-window in ms (server-derived, never client)
+ * @param tickMs   deriveTickMs(equipment, items, style) — server-owned gear
+ * @param monsterHp the catalogue's hp for the pointer's monster
+ * @param maxHit   ctx.playerRolls(m).maxHit — server-owned gear + skills
+ */
+export function attendedKillCap(spanMs, tickMs, monsterHp, maxHit) {
+  const span = Math.max(0, Math.floor(nat(spanMs, 0)));
+  const tick = Math.max(1, Math.floor(nat(tickMs, COMBAT_BALANCE.minTickMs)));
+  const hp = Math.max(1, Math.floor(nat(monsterHp, 1)));
+  const hit = Math.max(1, Math.floor(nat(maxHit, 1)));
+  const swings = Math.ceil(hp / hit);
+  const minKillMs = Math.max(tick, swings * tick);
+  return Math.floor((ATTENDED_HEADROOM_NUM * span)
+                    / (ATTENDED_HEADROOM_DEN * minKillMs));
+}
+
 /**
  * ── THE DEGRADE LADDER'S KNOB, AND IT IS A GAME RULE, SO IT LIVES HERE ─────
  *
@@ -282,6 +462,9 @@ export function degradeStep(out, attempt) {
     return {
       capMs: Math.floor(Number(out.grantMs) || 0),
       actionBudget: next,
+      /* See the ATTENDED note below. Stated on this rung too, so a future
+         reader cannot conclude the artisan path merely forgot the key. */
+      attended: null,
       report: { spanMs: Math.floor(Number(out.grantMs) || 0), actions: next, from: ran, attempt },
     };
   }
@@ -290,6 +473,15 @@ export function degradeStep(out, attempt) {
   return {
     capMs: smaller,
     actionBudget: null,
+    /* ⚠ THE ATTENDED TOP-UP IS DROPPED ON EVERY DEGRADED RUNG, AND IT HAS TO BE.
+       The ladder's whole contract is "ask for something SMALLER". The attended
+       top-up is `min(attended, cap) - summary.kills` — so halving the span cuts
+       `summary.kills` and thereby GROWS the top-up. A ladder built to shrink a
+       proposal would have INFLATED it, spent all three rungs earning the same
+       rejection, and forfeited the night. Returning the key explicitly (rather
+       than letting index.ts remember) keeps "what smaller means" in the one
+       function that owns it. Asserted by tests/attended-loot-credit.mjs A7. */
+    attended: null,
     report: { spanMs: smaller, attempt },
   };
 }
@@ -783,6 +975,32 @@ export function accrueRested({ nowMs, restedAtMs, restedXp, libraryCap }) {
  *                but NO delta key is derived from it, so unlike toolCarry/fight
  *                an absent value is simply `{}` with no self-configuring switch.
  *                Written only by the `enchant` intent, never a client value.
+ *   attended     THE ATTENDED KILL LEDGER — `hr_attended_kills(user, slot)`,
+ *                `{ from, to, total, kills: { <monsterId>: <int> } }` or NULL.
+ *                Read from `hr_kill_credit_log`, a table NO client role may
+ *                write, inside the SAME transaction as hr_state_of. **The
+ *                client supplies nothing here** — not an item, not a quantity,
+ *                not a timestamp; the counts were written by hr_credit_kills,
+ *                which already clamped each one to a physical maximum against
+ *                the SERVER clock and journalled every throttle.
+ *                ⚠ NULL means "this database has no such function" (or this is a
+ *                  degraded ladder rung), and the engine then proposes NOTHING
+ *                  new — byte-for-byte the pre-b502 delta. Same self-configuring
+ *                  switch `toolCarry`/`fight`/`ammoCarry` use; the read's
+ *                  PRESENCE is the arm and there is no flag to forget to flip.
+ *                ⚠ THE WINDOW IS `(accrued_to, now]` AND THAT IS THE WHOLE
+ *                  DOUBLE-PAY GUARD. `accrued_to` advances in the SAME
+ *                  transaction that pays, so a credit row falls inside the
+ *                  window exactly once — structurally, for the same reason
+ *                  double-collect is impossible (design §3). There is no second
+ *                  watermark to keep in step and nothing to mark as consumed.
+ *                It pays ITEMS AND GOLD ONLY. Combat XP belongs to
+ *                hr_credit_combat_xp (and its own watermark) and every kill
+ *                COUNTER belongs to hr_credit_kills, whose settle-delta
+ *                subtraction is arithmetic against exactly what the settle
+ *                writes today — moving that number would silently re-open the
+ *                double-count 2026-09-01-kill-daily-credit.sql exists to close,
+ *                on a RANKED surface. See docs/design/attended-loot-credit.md.
  *   companionXpBacked  the DORMANT arm switch for the companion XP writer,
  *                threaded from COMPANION_XP_SERVER_BACKED (src/core/companion-xp.js)
  *                by index.ts AND set-activity.js (A14-mirrored). `true` → each
@@ -1160,6 +1378,37 @@ export function computeAccrual(input) {
   };
   let foodEaten = 0;
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE ATTENDED SUB-WINDOW (docs/design/attended-loot-credit.md §3).
+
+     `attended` is the server's own record of kills it has ALREADY accepted and
+     clamped for this character since `accrued_to`, read out of
+     `hr_kill_credit_log` — a table no client role may write. ONE thing reads it:
+     the LOOT TOP-UP after simulateSpan.
+
+     ⚠ THE FOOD DEBIT IS NOT IN THIS CHANGE, DELIBERATELY. An earlier draft also
+       suppressed the settle's auto-eat debit over an attended window and handed
+       it to the client's `eat` intent. Security's review of 2026-09-04 measured
+       that half as a FREE-FOOD FAUCET and it was cut: its gate read
+       `combat_xp_accrued_to`, which `hr_credit_combat_xp` advances to now() for
+       ANY caller — including one that posts an EMPTY xp map — so a client could
+       arm the suppression for a whole ten-hour window with one cheap RPC before
+       each settle and keep every unit of food it fed on. The settle therefore
+       remains the SOLE food debiter in this file, exactly as it is on
+       production. The successor design (a `hr_attended_eats` projection over the
+       `eat` LEDGER ROWS, so a suppression must be BACKED by a destroyed unit
+       rather than asserted by a beacon) is written up in
+       docs/design/attended-loot-credit.md §3.4 and is NOT built here.
+
+     `attended === null` (no such function on this database, or a degraded ladder
+     rung) ⇒ `attWindow` is null ⇒ every branch below is byte-for-byte what it
+     was before this change. */
+  const attended = normaliseAttended(inp.attended);
+  const attWindow = attended
+    ? { fromMs: Math.max(credit.fromMs, attended.fromMs - ATTENDED_EDGE_SLACK_MS),
+        toMs: Math.min(credit.toMs, attended.toMs + ATTENDED_EDGE_SLACK_MS) }
+    : null;
+
   /* ── THE COMBAT-XP WATERMARK SPLIT (docs/design/combat-authority.md §3) ─────
      Attended combat XP is credited SEPARATELY by hr_credit_combat_xp, which
      advances `player_state.combat_xp_accrued_to`. The settle must NOT re-credit
@@ -1411,6 +1660,232 @@ export function computeAccrual(input) {
   // ── (5) Run the SHARED span. ─────────────────────────────────────────────
   const summary = simulateSpan(state, ctx);
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     (5a) THE ATTENDED LOOT TOP-UP.
+     Contract: docs/design/attended-loot-credit.md. Root: combat-authority.md §0.
+
+     The span above priced this window as an UNATTENDED character — its own
+     seeded RNG, its own auto-eat, truncating on death. When the player was
+     actually at the keyboard that is a DIFFERENT, SMALLER fight, and the loot it
+     pays is the loot of a fight that did not happen. Measured on production
+     2026-09-04: 9 simulated kills against 15 the server had already accepted and
+     clamped in hr_kill_credit_log, i.e. 38% of a session's drops confiscated on
+     reload, with the correct number sitting in the server's own append-only log.
+
+     So the settle stays the ONE loot writer and tops up the shortfall.
+
+     FOUR PROPERTIES, each of which is the answer to a specific way this could be
+     wrong, and each of which has a test:
+
+     1. `min(attended, cap) - summary.kills`, FLOORED AT ZERO. Not additive. The
+        total for a window is `max(sim, min(attended, cap))`, so a forged count
+        COMPETES with the server's own simulation instead of adding to it, and a
+        window the sim already out-produced pays exactly what it pays today. (A3)
+     2. THE CAP IS RE-DERIVED HERE, from THIS player's server-owned gear. The SQL
+        cap that let the row into the log assumes a 600 ms swing floor and
+        best-in-slot damage because item combat stats are not server-side; that
+        is ~130 goblin kills/min, which is fine for a counter behind a
+        once-per-period claim guard and far too loose for a TRADEABLE faucet.
+        `attendedKillCap` uses `tickMs` (the same value the span was priced at)
+        and `playerRolls(m).maxHit` — ~18x tighter on the measured character, and
+        it scales with real gear rather than the global best item. (A2, A6)
+     3. LOOT AND GOLD ONLY. No XP (hr_credit_combat_xp owns attended XP, against
+        its own watermark) and NO COUNTER of any kind — not stat kills, not
+        ev:kill_any, not the daily row, not the bestiary, not the collection.
+        Every one of those is already written by hr_credit_kills, whose
+        settle-delta subtraction is arithmetic against exactly what the settle
+        writes TODAY; moving that number would silently re-open the double-count
+        2026-09-01-kill-daily-credit.sql exists to close, on a surface
+        hr_renown_of RANKS. So the restricted sink below has exactly two
+        handlers, the mutations resolveKill makes DIRECTLY to `state` are
+        snapshotted and restored, and `state.gold` is the one thing allowed to
+        survive. (A1, and the containment assertions in C-series)
+     4. A SEPARATE RNG STREAM. It runs after the span, so it cannot move a span
+        draw; the separate stream makes that provable rather than argued and
+        keeps AWAY-1 byte-identity structural. Deterministic and replayable from
+        the same server secret — never Math.random.
+
+     `attended === null` (no such function on this database, or a degraded ladder
+     rung) skips the whole block, and the delta is byte-for-byte what it was. */
+  let attTopUp = 0;
+  let attCap = 0;
+  let attClaimed = 0;
+  /* The per-UTC-day split the top-up actually paid at (§5a-BOTD). Returned for
+     the guard and for dispute replay; NEVER journalled — see the block. */
+  const attSegments = [];
+  if (attended) {
+    const m = monsters[inp.activeId];
+    attClaimed = Math.floor(nat(attended.kills[inp.activeId], 0));
+    if (m && attClaimed > 0) {
+      /* The attended sub-window, in the credited window's own coordinates. The
+         cap is priced against THE TIME THE SERVER SAW CREDITS FOR, never the
+         whole span — a five-second attended burst inside a twelve-hour absence
+         may not borrow the absence's headroom. One cadence of slack on each
+         edge, the same slack the food gate uses and for the same reason. */
+      const attSpanMs = Math.max(0, (attWindow.toMs - attWindow.fromMs));
+      attCap = attendedKillCap(attSpanMs, tickMs, m.hp, ctx.playerRolls(m).maxHit);
+      /* THREE CEILINGS, AND THE THIRD IS THE ONE THAT HOLDS WHEN THE FIGHT IS
+         UNSURVIVABLE. `attCap` is physics-from-gear and says nothing about
+         survival: a maxed-skill character in a bronze sword pointed at
+         `the_silence` simulates 0 kills and caps at 5,200, which without this
+         line pays ~2.27 M gold a day. `ATTENDED_MAX_FIDELITY x sim` is the
+         runtime form of the bound A6 asserts, and it makes `sim = 0` pay zero by
+         arithmetic rather than by a special case. See the constant. */
+      const attSim = Math.floor(nat(summary.kills, 0));
+      attTopUp = Math.max(0, Math.min(attClaimed, attCap,
+                                      attSim * ATTENDED_MAX_FIDELITY) - attSim);
+    }
+    if (attTopUp > 0) {
+      /* THE RESTORE SET. `resolveKill` mutates these on `state` directly rather
+         than through fx, so a restricted sink cannot contain them and they are
+         snapshotted instead. `gold` is deliberately NOT in the set — it is the
+         payment. Written out one field per line, because a spread here would
+         silently start carrying whatever field resolveKill learns to touch next
+         and the containment property would rot without a test noticing. */
+      const keepKills = state.stats.kills || 0;
+      const keepRare = state.stats.rareDrops || 0;
+      const keepFoe = state.combatKillsThisFoe || 0;
+      const keepMonsterHp = state.monsterHp;
+      const keepMonsterMaxHp = state.monsterMaxHp;
+      /* `resolveKill` reads the target off `state.activeMonster` (combat-sim.js
+         :106) for the Boss-of-the-Day lookup, and `simulateSpan` can null it —
+         line :214 on an unknown monster, and the death fx on the client's sink.
+         A null there would silently drop the featured multiplier from every
+         top-up kill, which is a payment bug with no error anywhere. Pinned for
+         the loop and restored with everything else, so `delta.activity`'s
+         `!state.activeMonster` test sees exactly what the span left. */
+      const keepActive = state.activeMonster;
+      state.activeMonster = inp.activeId;
+
+      /* THE RESTRICTED SINK. Two handlers and nothing else — every other name
+         resolveKill calls (`addXp`, `updateDaily`, `updateQuest`, `recordKill`,
+         `rollKillDeed`, `handleBountyKill`, `onKill`, `onLoot`) is ABSENT, and a
+         missing handler is a no-op by construction in combat-sim.js. That is the
+         containment, expressed as an absence rather than as a set of `if`s.
+         ⚠ `addItem` here is the loot fx MINUS `collection.record` — the
+           collection counter is a progress row and progress rows are property 3.
+           It is written out rather than delegating to `fx.addItem` precisely so
+           that a future addition to the main sink cannot leak into this one. */
+      const lootFx = {
+        addItem(id, qty) {
+          const n = Math.floor(Number(qty) || 0);
+          if (!id || n <= 0) return;
+          itemDelta[id] = (itemDelta[id] || 0) + n;
+          bag[id] = (bag[id] || 0) + n;
+        },
+        onDrop(ev) { if (ev && ev.rare) events.push({ type: 'rare_drop', item: ev.id }); },
+      };
+      /* THE CTX FOR THE TOP-UP, CONSTRUCTED FIELD BY FIELD — no spread, not even
+         of the engine's own `ctx`. The rule at §4 exists because `minTickMs`
+         would ride in through the same door as `tickMs`, and the guard that
+         enforces it (tests/accrual-engine.mjs SOURCE) is a TEXT scan: it cannot
+         tell an engine-owned object from a request body, and it must not be
+         taught to, because the day it can is the day someone spreads the wrong
+         one. Six fields is the whole of what `resolveKill` reads
+         (src/core/combat-sim.js:103) — rng, bonus, botd, weakness, style, fx —
+         and listing them is what makes adding a seventh a deliberate act.
+         `botd` is the ONE field REBOUND inside the loop below — see §5a-BOTD. */
+      const lootCtx = {
+        rng: createRng((nat(inp.seed, 0) ^ ATTENDED_RNG_SALT) >>> 0),
+        bonus,
+        botd: null,                 // rebound PER UTC-DAY SEGMENT, never once
+        weakness(mm) { return weaknessInfo(mm, eq); },
+        style,
+        fx: lootFx,
+      };
+
+      /* ══ §5a-BOTD — THE TOP-UP IS SEGMENTED BY UTC DAY, LIKE THE SPAN ═══════
+         THE DEFECT THIS CLOSES, found by the Security review of 2026-09-04 BY
+         MEASUREMENT and by no test on the first draft of this branch. The draft
+         bound Boss-of-the-Day ONCE, at `attWindow.toMs`, while `simulateSpan`
+         rebinds it PER UTC-DAY SEGMENT (combat-sim.js:117 states the contract;
+         away.js `utcDaySegments` is the segmenter, and both now call it). An
+         attended window crossing UTC midnight therefore priced EVERY top-up kill
+         at the LAST instant's boss:
+
+           MEASURED on this engine — 2 h window 23:00–01:00 UTC, maxed character,
+           5 seeds — top-up units per kill against the span's own units per kill:
+             • pointed at the LATER day's daily boss    1.23–1.28x  (over-pay)
+             • pointed at the EARLIER day's daily boss  0.80–0.87x  (UNDER-pay)
+             • pointed at a boss featured on neither     0.97–1.00x  (correct)
+           The over-pay is x1.5 daily / x2.0 weekly ON THE DROP HALF and it is
+           MULTIPLICATIVE with ATTENDED_MAX_FIDELITY — up to 4.5x / 6.0x the
+           honest away unit rate. The under-pay is the SAME confiscation this
+           whole change exists to end, re-created at the boundary.
+
+         WEEKLY NEEDS NO SECOND PASS: `utcWeekKey` is Monday-ALIGNED (botd.js),
+         so every week boundary IS a day boundary and a UTC-day segment can never
+         straddle one. The guard carries a weekly arm anyway, because that is an
+         argument and an arm is a measurement.
+
+         THE ALLOCATION IS CUMULATIVE-FLOOR, NOT PER-SEGMENT ROUNDING. Kills are
+         spread in proportion to each segment's share of the attended window —
+         the same uniform-rate assumption `attendedKillCap` already prices the
+         window with, and the one the span itself realises. Flooring the RUNNING
+         TOTAL rather than each segment makes the parts sum to `attTopUp` EXACTLY
+         by construction: the last segment's cumulative share is the whole span.
+         Per-segment floors would lose up to one kill per boundary (a silent
+         under-pay); per-segment rounding could mint one (a silent faucet).
+         Neither is acceptable on a paying path, and "it is only one kill" is how
+         this class starts.
+
+         `attendedSegments` records the multiplier THE ENGINE ACTUALLY HANDED
+         resolveKill, observed at CALL TIME rather than recomputed alongside — so
+         a `botd` that is never consulted reads `null` and the guard sees it. It
+         is returned on the result and is DELIBERATELY NOT JOURNALLED: the ledger
+         rule is aggregates, never per-unit rows (game_events: 1.6M rows / 229 MB
+         from six players in four days), and `meta.att` stays at four keys. */
+      const attSegs = utcDaySegments(attWindow.fromMs, attWindow.toMs);
+      /* A ZERO-LENGTH OR INVERTED window yields NO segments. It is unreachable
+         from here — `attendedKillCap(0, …)` is 0, so `attTopUp` is 0 and this
+         block never runs — but a paying loop may not lean on an invariant proven
+         three statements away, so the fallback is written out: ONE segment at the
+         window's own instant, which is what the draft did for every case. */
+      const segs = attSegs.length
+        ? attSegs
+        : [{ fromMs: attWindow.toMs, toMs: attWindow.toMs, ms: 0 }];
+      const segSpanMs = segs.reduce((acc, sg) => acc + sg.ms, 0);
+      let segDone = 0;
+      let segElapsed = 0;
+      for (let si = 0; si < segs.length; si++) {
+        const sg = segs[si];
+        segElapsed += sg.ms;
+        /* The LAST segment is PINNED to the total rather than computed, so a
+           zero-length span cannot divide by zero and the parts always sum. */
+        const cum = (si === segs.length - 1 || segSpanMs <= 0)
+          ? attTopUp
+          : Math.floor((attTopUp * segElapsed) / segSpanMs);
+        const n = Math.max(0, cum - segDone);
+        segDone = cum;
+        /* `dropMult` ONLY, deliberately: `xpMult` moves with it in every case
+           (1 / 1.5 / 2.0 are distinct), and recording an XP multiplier on a
+           path whose restricted sink has NO `addXp` would read as a claim that
+           the top-up pays XP. It does not — property 3. */
+        const rec = { fromMs: sg.fromMs, kills: n, dropMult: null };
+        attSegments.push(rec);
+        if (n <= 0) continue;
+        /* THE SEGMENT'S OWN INSTANT IS ITS START, exactly as simulateSpan uses
+           `ctx.botdFor(seg.fromMs)` (combat-sim.js:445). NEVER the end: a
+           non-final segment ends AT midnight, which resolves to the NEXT day. */
+        lootCtx.botd = {
+          killBonuses(id) {
+            const b = killBonusesFor(id, sg.fromMs, monsters);
+            rec.dropMult = b.dropMult;
+            return b;
+          },
+        };
+        for (let i = 0; i < n; i++) resolveKill(state, m, lootCtx);
+      }
+
+      state.stats.kills = keepKills;
+      state.stats.rareDrops = keepRare;
+      state.combatKillsThisFoe = keepFoe;
+      state.monsterHp = keepMonsterHp;
+      state.monsterMaxHp = keepMonsterMaxHp;
+      state.activeMonster = keepActive;
+    }
+  }
+
   // ── (6) Turn the mutated state into a delta hr_apply will accept. ────────
   // Every value below is an INTEGER. hr_apply casts with `::bigint`, and a
   // fractional string ('12.32' — which a 0.33-ratio style XP split produces
@@ -1559,8 +2034,33 @@ export function computeAccrual(input) {
          vanished stack has to be answerable from. Aggregate like `ate`, never a
          row per swing (§13.2). Omitted entirely when nothing was spent, so a
          melee night's journal is byte-for-byte what it was. */
+      /* `ate` stays the count of MEALS EATEN (the simulation's own tally).
+         `att` is the WHOLE attended split in one key, and it is FOUR integers:
+         claimed (what the server had already accepted and clamped), cap (what
+         this player's own gear physically allows over the attended sub-window),
+         sim (what the span realised) and top (what was actually paid). There is
+         no `free`: that was the food half's meals-healed-but-not-charged
+         counter, and the food half was CUT by the Security review of 2026-09-04.
+         `claimed / sim` is the forgery signal the design leans on: honest play
+         clusters near the measured fidelity ratio, a forger runs the claim to
+         the cap — and because it is journalled on EVERY attended settle, one
+         week of live rows re-derives that ratio from thousands of honest
+         sessions instead of the ONE production window it rests on today.
+
+         ⚠ ONE KEY, NOT FIVE, and the reason is a guard rather than taste:
+           tests/accrual-engine.mjs SHAPE caps this object at EIGHT keys, which
+           is the "aggregate, never a per-kill log" rule made countable (the
+           game_events lesson — 1.6M rows / 229 MB from six players in four
+           days). Flat keys would have taken an attended row to nine and the
+           tempting fix would have been to raise the bound. Nesting keeps the
+           bound where it was reviewed.
+         Omitted entirely when the read was absent, so an away night's journal is
+         byte-for-byte what it was. */
       meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills, capped,
               ate: foodEaten,
+              ...(attended ? { att: { claimed: attClaimed, cap: attCap,
+                                      sim: Math.floor(nat(summary.kills, 0)),
+                                      top: attTopUp } } : {}),
               ...(Object.keys(summary.consumed || {}).length ? { spent: summary.consumed } : {}),
               from: new Date(credit.fromMs).toISOString(),
               to: new Date(credit.toMs).toISOString() },
@@ -1629,6 +2129,12 @@ export function computeAccrual(input) {
     capped,
     tickMs,
     foodEaten,
+    attendedTopUp: attTopUp,
+    attendedCap: attCap,
+    attendedClaimed: attClaimed,
+    /* §5a-BOTD. `[]` when there was no top-up. NOT a delta key and NOT journal
+       meta — index.ts does not forward it and hr_apply never sees it. */
+    attendedSegments: attSegments,
     watermark: delta.accrued_to,
     events,
     levelUps,

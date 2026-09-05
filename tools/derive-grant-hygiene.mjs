@@ -117,6 +117,18 @@ export const LINKS = [
     target: '2026-08-20-live-progress-engine-allow.sql',
     patchIds: ['live_progress_projections'],
   },
+  /* Link 7 — the attended kill ledger. Its base is link 6's NOW-LIVE body, so it
+     cannot silently revert market-v2's three engine grants, link 6's three read
+     projections, or check (4)'s has_table_privilege rewrite. It records ONE
+     grant (an INSERTION at the head of c_engine_allow) — hr_attended_kills,
+     `stable sql`, one character, granted to hr_engine by
+     2026-09-10-attended-loot-credit.sql. Insertion only, so its declared-removals
+     list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. */
+  {
+    base: '2026-08-20-live-progress-engine-allow.sql',
+    target: '2026-09-10-attended-loot-credit.sql',
+    patchIds: ['attended_kill_ledger'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -427,6 +439,40 @@ export const PATCHES = [
     'hr_bestiary_of(uuid,integer)',
     'hr_collection_of(uuid,integer)',
     'hr_renown_of(uuid,integer)',
+`,
+    where: 'after',
+  },
+  {
+    id: 'attended_kill_ledger',
+    name: 'the c_engine_allow array head (link 7)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-09-10 — THE ATTENDED KILL LEDGER PROJECTION ──────────
+    -- At the HEAD again, an INSERTION, for the same reason as links 1, 2, 5 and
+    -- 6: it removes nothing, so PART 1f-ii grades this link with an EMPTY
+    -- declared-removals list. Position carries no meaning — check (7) tests
+    -- membership with \`<> all (...)\`.
+    --
+    -- READ-ONLY: \`language sql\`, \`stable\` — three CTEs over hr_kill_credit_log
+    -- and player_state and a jsonb_build_object. No PL/pgSQL body through which a
+    -- later edit could smuggle a write without the language keyword changing,
+    -- which is the same strongest-available shape the three link-6 projections
+    -- carry. The authoring migration's GATE(b) asserts that shape rather than
+    -- describing it.
+    -- SELF-VALIDATING: fixed output, its own per-target and per-key ceilings, and
+    -- it sums \`credit\` (what hr_bounty_kill_cap allowed) and never \`claimed\`
+    -- (what the client sent). GATE(e2) executes that distinction.
+    -- NO NEW TARGET: (p_user, p_slot) — the exact pair the engine already hands
+    -- hr_apply and hr_state_of. The holder of hr_apply can already WRITE any
+    -- character it names; this lets it READ one integer per monster for one of
+    -- them, out of a table hr_engine holds no privilege on (GATE(c)). The third
+    -- argument, p_upto, is the engine's own hr_state_of now() and is CLAMPED with
+    -- least(p_upto, now()), so it can only ever SHRINK the projected window —
+    -- Security condition C6, executed by that migration's GATE(e6).
+    -- WHY THE ENGINE NEEDS IT: the settle is the ONE writer of loot and gold, and
+    -- it priced attended windows by re-simulating them as unattended — measured
+    -- 9 kills against 15 the server had already accepted, i.e. 38% of a session's
+    -- drops confiscated. See docs/design/attended-loot-credit.md.
+    'hr_attended_kills(uuid,integer,timestamp with time zone)',
 `,
     where: 'after',
   },

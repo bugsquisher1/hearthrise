@@ -202,8 +202,31 @@ export async function setupAuth(config) {
     // Explicit auth options so we don't rely on library defaults: keep the
     // access token auto-refreshing in the background (tokens expire ~1h) and
     // persisted, so long play sessions don't silently stop syncing (b149).
+    /* ── THE TWO OPTIONS THE CONFIRM LINK DEPENDS ON, NOW STATED ────────────
+       Both match supabase-js 2.103's current defaults, so this changes no
+       behaviour today. They are written down because the whole email-confirm
+       funnel rests on them and a library bump is one line:
+
+       · detectSessionInUrl — the confirm link lands here as
+         `#access_token=…`, and THIS is what turns that fragment into a live
+         session. With it off, a correctly-configured redirect still deposits
+         the player on a sign-in form, which is the dead end wearing a
+         different hat.
+       · flowType 'implicit' — deliberately NOT pkce for this product. PKCE
+         requires the code verifier written at signUp to still be in the SAME
+         browser profile's storage when the link is opened, and a confirmation
+         link is opened from a mail client: routinely a different browser, an
+         in-app webview, or a phone when the sign-up happened on a desktop.
+         Implicit works across all of those. The cost — the access token rides
+         in a URL fragment for one navigation — is real and is the right trade
+         for a link whose entire job is to work somewhere else. */
     supabase = sdk.createClient(config.url, config.anonKey, {
-      auth: { autoRefreshToken: true, persistSession: true },
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        flowType: 'implicit',
+      },
     });
   } catch (e) {
     console.warn('[Auth] failed to construct the supabase client:', e.message);
@@ -885,12 +908,107 @@ async function pullAndMaybeRestore() {
 
 // ── Public actions ──
 
-export async function signUp(email, password, metadata) {
-  if (!supabase) throw new Error('Auth not configured');
-  const opts = metadata ? { email, password, options: { data: metadata } } : { email, password };
-  const { data, error } = await supabase.auth.signUp(opts);
+/**
+ * Where a confirmation email should send the player back to: THIS game, at
+ * whatever origin it is currently being served from. The rule itself lives in
+ * src/net/signup-door.js (pure, and graded by tests/signup-door.mjs); this is
+ * only the lookup, guarded so a missing door module degrades to "no redirect"
+ * rather than to a thrown sign-up.
+ *
+ * @returns {string|null} null when there is no http(s) origin to return to.
+ */
+export function signupRedirectTo(loc) {
+  try {
+    const D = (typeof window !== 'undefined') ? window.HearthriseSignupDoor : null;
+    if (!D || typeof D.signupRedirectTarget !== 'function') return null;
+    const where = loc || ((typeof location !== 'undefined') ? location : null);
+    return D.signupRedirectTarget(where);
+  } catch (e) { return null; }
+}
+
+/**
+ * THE GoTrue SIGN-UP BODY, built in one place so it can be graded.
+ *
+ * Two properties, and the second is the one that will bite whoever edits this
+ * next:
+ *
+ *  1. `options.emailRedirectTo` is present whenever we have an origin worth
+ *     returning to. Without it GoTrue redirects the confirm link at the
+ *     project's SITE URL — which is `http://localhost:3000` on a fresh
+ *     Supabase project — and the player confirms their account into a dead
+ *     tab. That is the mechanism behind the beta-2 email wall.
+ *
+ *  2. ⚠ `options.data` IS OMITTED ENTIRELY when there is no metadata. Not
+ *     `{}`, not `{invite_code: ''}`. The beta invite gate reads
+ *     `raw_user_meta_data->>'invite_code'` and treats SQL NULL (no code
+ *     offered) differently from the empty string (a code offered and blank);
+ *     `{}` would send `data: {}` and the gate's meaning changes underneath it.
+ *     Adding the redirect must NOT smuggle a `data` key in — which is exactly
+ *     what the obvious refactor (`options: { data: metadata ?? {} , … }`)
+ *     does. Guarded by DOOR-2.
+ *
+ * @param {string} email
+ * @param {string} password
+ * @param {object|null} metadata
+ * @param {string|null} redirectTo
+ */
+export function buildSignUpArgs(email, password, metadata, redirectTo) {
+  const options = {};
+  if (metadata) options.data = metadata;
+  if (typeof redirectTo === 'string' && redirectTo) options.emailRedirectTo = redirectTo;
+  const args = { email, password };
+  if (Object.keys(options).length) args.options = options;
+  return args;
+}
+
+/**
+ * The sign-up itself, with the Supabase client INJECTED — so a guard can read
+ * exactly what reached `client.auth.signUp` while running the shipped function
+ * rather than a re-implementation of it. `signUp()` below is the one-line
+ * production caller.
+ */
+export async function signUpWith(client, email, password, metadata, redirectTo) {
+  if (!client) throw new Error('Auth not configured');
+  const { data, error } = await client.auth.signUp(
+    buildSignUpArgs(email, password, metadata, redirectTo));
   if (error) throw error;
   return data;
+}
+
+export async function signUp(email, password, metadata) {
+  return signUpWith(supabase, email, password, metadata, signupRedirectTo());
+}
+
+/**
+ * Re-send the sign-up confirmation email. Client injected for the same reason
+ * as signUpWith.
+ *
+ * ⚠ RESOLVES ON FAILURE. supabase-js `auth.resend()` returns `{ data, error }`
+ * and does not throw, so this returns the envelope rather than swallowing it —
+ * `src/net/signup-door.js resendOutcome()` is what turns it into words, and it
+ * is the only thing allowed to say "Sent". A caller that treats "the promise
+ * resolved" as success tells a rate-limited player to wait for a mail that was
+ * never dispatched.
+ *
+ * The SAME `emailRedirectTo` as sign-up: a resent link that returns somewhere
+ * else would be a second, differently-broken door.
+ *
+ * @returns {{data:object|null, error:object|null}}
+ */
+export async function resendSignupEmailWith(client, email, redirectTo) {
+  if (!client) return { data: null, error: { message: 'Auth not configured' } };
+  const opts = { type: 'signup', email };
+  if (typeof redirectTo === 'string' && redirectTo) opts.options = { emailRedirectTo: redirectTo };
+  try {
+    return await client.auth.resend(opts);
+  } catch (e) {
+    // A network-level throw is still a failure envelope, never a success.
+    return { data: null, error: { message: (e && e.message) || 'Network error' } };
+  }
+}
+
+export async function resendSignupEmail(email) {
+  return resendSignupEmailWith(supabase, email, signupRedirectTo());
 }
 
 export async function signIn(email, password) {
@@ -1152,6 +1270,14 @@ function showEvictedGate() {
 // Expose for legacy callers
 window.HearthriseAuth = {
   setupAuth, signUp, signIn, signOut, getSession, isSignedIn, getClient, currentUserId,
+  /* THE SIGN-UP DOOR. `signUp`/`resendSignupEmail` are the production callers;
+     the `…With` pair take the Supabase client as a parameter so a guard can run
+     the SHIPPED function against an injected client and read what left, instead
+     of asserting against a re-implementation. `buildSignUpArgs` is the payload
+     rule itself — it is what keeps `options.data` absent for a codeless signup
+     while the redirect is added. */
+  signupRedirectTo, buildSignUpArgs, signUpWith,
+  resendSignupEmail, resendSignupEmailWith,
   decideLocalOwnership, buildIntentWiring, wireServerIntents, buildSaveWiring,
   // b340 — the cloud half of the record strip, exported so the test drives the
   // CALLER rather than re-deriving what the caller ought to do (B339's lesson).

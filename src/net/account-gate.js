@@ -119,6 +119,37 @@
   }
 
   // ════════════════════════════════════════════════════════════
+  // 1b · THE DOOR'S RULES, AND THE URL WE ARRIVED ON
+  // ════════════════════════════════════════════════════════════
+  // src/net/signup-door.js is a classic script loaded immediately above this
+  // one, so it is present by the time this line runs. Guarded anyway, with a
+  // NULL-OBJECT rather than a crash: this file is the front door, and a missing
+  // helper module must degrade to "the old wall" rather than to a blank screen.
+  function door() { return window.HearthriseSignupDoor || null; }
+
+  /* Read ONCE, at parse time, before anything else on the page can look.
+     ARRIVAL decides what the wall paints on its very first frame (a player
+     coming back from a confirmation email must never be shown a sign-in form),
+     and the INVITE has to be lifted out of the URL and then removed from it —
+     see stripInviteFromHref()'s note on Referer leakage. Captured into module
+     state because the strip destroys the source a moment later. */
+  var ARRIVAL = { kind: 'none' };
+  var LINK_INVITE = { present: false, code: '', malformed: false };
+  (function readUrlOnce() {
+    var D = door();
+    if (!D) return;
+    try { ARRIVAL = D.classifyArrival(location) || ARRIVAL; } catch (e) {}
+    try { LINK_INVITE = D.readInviteFromUrl(location) || LINK_INVITE; } catch (e) {}
+    if (!LINK_INVITE.present) return;
+    try {
+      var clean = D.stripInviteFromHref(location.href);
+      if (clean && clean !== location.href && window.history && window.history.replaceState) {
+        window.history.replaceState(window.history.state, '', clean);
+      }
+    } catch (e) {}
+  })();
+
+  // ════════════════════════════════════════════════════════════
   // 2 · STATE
   // ════════════════════════════════════════════════════════════
   function storage() { return window.HearthriseStorage || null; }
@@ -307,6 +338,31 @@
       '.hr-gate-go:active:not(:disabled){transform:translateY(1px)}',
       '.hr-gate-go:disabled{opacity:.6;cursor:progress}',
 
+      /* ── THE "CHECK YOUR EMAIL" STATE ──────────────────────────────────
+         It replaces the form in place rather than opening a second sheet: the
+         player has not left the door, they are one step further through it.
+         Every colour is a token; the two controls are the two real recoveries
+         (the mail did not arrive / the link signed me in somewhere else). */
+      '.hr-gate-sent{display:none}',
+      '.hr-gate-sent-title{margin:0 0 8px;font-family:var(--f-label,inherit);',
+      '  font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.14em;text-transform:uppercase;',
+      '  color:var(--gold-2,#e3c77e)}',
+      '.hr-gate-sent-body{margin:0 0 10px;font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.55;',
+      '  color:var(--ink-2,#c4b79e);overflow-wrap:anywhere}',
+      '.hr-gate-sent-hint{margin:0 0 14px;font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.5;',
+      '  color:var(--ink-3,#9d8b70)}',
+      /* Wraps rather than shrinks: at 922x423 two buttons on one line push the
+         labels below the type floor, and the door has been caught doing that
+         once already (b225). */
+      '.hr-gate-row{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}',
+      '.hr-gate-row > *{flex:1 1 150px;margin-top:0}',
+      '.hr-gate-second{min-height:42px;padding:0 16px;cursor:pointer;font-weight:600;',
+      '  font-size:calc(14.5px * var(--ui-scale, 1));line-height:1;font-family:var(--f-ui,inherit);',
+      '  letter-spacing:.04em;color:var(--ink,#ece1cc);background:rgba(0,0,0,.30);',
+      '  border:1px solid var(--line,rgba(201,162,74,.20));border-radius:var(--r,3px);',
+      '  transition:border-color 120ms ease,color 120ms ease}',
+      '.hr-gate-second:hover:not(:disabled){border-color:var(--gold,#c9a24a);color:var(--gold-2,#e3c77e)}',
+      '.hr-gate-second:disabled{opacity:.5;cursor:default}',
       '.hr-gate-note{min-height:18px;margin:11px 2px 0;font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.45;text-align:center}',
       '.hr-gate-note[data-tone="bad"]{color:#d98b7a}',
       '.hr-gate-note[data-tone="ok"]{color:var(--gold-2,#e3c77e)}',
@@ -420,6 +476,51 @@
     var lead = el('p', 'hr-gate-lead');
     form.appendChild(lead);
 
+    /* ── THE STATE THAT REPLACED THE DEAD END ───────────────────────────────
+       "Account created. Confirm the link in your email, then sign in." asked
+       the player to leave the product, find it again, and authenticate a
+       second time — and it was the LAST thing the client had to say to them.
+       This is that moment rebuilt as a state with two exits, because there are
+       exactly two ways it fails in the field:
+
+         · the mail never arrives (spam, typo'd address, SMTP throughput on a
+           signup wave)                                        → Resend
+         · the link DID work, but somewhere this session cannot see — the game
+           is played inside the itch.io iframe, whose storage is partitioned
+           away from the top-level tab a mail client opens
+                                                               → I've confirmed
+
+       Both live inside the same panel the player is already looking at. The
+       door never closes on them. */
+    var sent = el('div', 'hr-gate-sent');
+    var sentTitle = el('div', 'hr-gate-sent-title');
+    var sentBody = el('p', 'hr-gate-sent-body');
+    var sentHint = el('p', 'hr-gate-sent-hint');
+    var sentRow = el('div', 'hr-gate-row');
+    var resendBtn = el('button', 'hr-gate-second', 'Resend email');
+    var confirmedBtn = el('button', 'hr-gate-go', 'I’ve confirmed');
+    // ⚠ type=button on BOTH. Inside a <form> the default is submit, and a
+    // "Resend" that silently re-ran the sign-up would create nothing and
+    // report the account already exists.
+    resendBtn.type = 'button';
+    confirmedBtn.type = 'button';
+    sentRow.appendChild(resendBtn);
+    sentRow.appendChild(confirmedBtn);
+    sent.appendChild(sentTitle);
+    sent.appendChild(sentBody);
+    sent.appendChild(sentHint);
+    sent.appendChild(sentRow);
+    /* ⚠ MOUNTED AFTER THE SUBMIT BUTTON, not here where it is built. It looks
+       identical either way — on the sent stage every node above it is hidden,
+       so it is the first thing on the panel regardless — but DOM ORDER decides
+       what `querySelector('.hr-gate-go')` returns, and `confirmedBtn` wears the
+       same primary-button class so it does not need a duplicate of forty lines
+       of gradient CSS. Built here, appended below, so the wall's primary CTA is
+       still the FIRST .hr-gate-go for anything that looks the obvious way:
+       a reachability row, a visual-QA script, the next person. Measured: with
+       it appended here, the CTA probe read a 0x0 rect and reported the button
+       missing at every viewport. */
+
     function field(labelText, type, name, autocomplete) {
       var l = el('label', 'hr-gate-field');
       l.appendChild(el('span', null, labelText));
@@ -481,19 +582,37 @@
 
     /* The field and its disclosure are two views of ONE state, painted in one
        place — and both are subordinate to the mode, because on Sign in neither
-       belongs on the screen at all. */
+       belongs on the screen at all. (…and to the STAGE: once the account has
+       been created there is nothing left for either of them to do.) */
     function setInviteShown(on) {
       inviteShown = !!on;
       if (!invite) return;
-      var creating = mode === 'signup';
+      var creating = mode === 'signup' && stage === 'form';
       invite.__row.style.display = (creating && inviteShown) ? '' : 'none';
       inviteAside.style.display = (creating && !inviteShown) ? '' : 'none';
       inviteReveal.setAttribute('aria-expanded', inviteShown ? 'true' : 'false');
     }
 
+    /* ── THE OTHER DOOR A CONFIRMATION CAN NEED ─────────────────────────────
+       A confirmation link is single-use and time-boxed; `otp_expired` is the
+       most common auth error a real beta produces. The player who meets it
+       lands in SIGN-IN mode holding an account that exists and cannot be
+       used, and before this line there was nothing on the screen that could
+       help them — the only resend in the product was on a panel they could no
+       longer reach. Same cooldown, same implementation, one quiet line. */
+    var resendAside = null, resendLink = null;
+    if (!reauth) {
+      resendAside = el('div', 'hr-gate-aside');
+      resendLink = el('button', 'hr-gate-link', 'Didn’t get the confirmation email?');
+      resendLink.type = 'button';
+      resendAside.appendChild(resendLink);
+      form.appendChild(resendAside);
+    }
+
     var go = el('button', 'hr-gate-go');
     go.type = 'submit';
     form.appendChild(go);
+    form.appendChild(sent);          // see the note where `sent` is built
 
     var note = el('div', 'hr-gate-note');
     note.setAttribute('data-tone', 'muted');
@@ -509,6 +628,43 @@
     var foot = el('div', 'hr-gate-foot');
     col.appendChild(foot);
 
+    /* ── THE THREE THINGS THIS PANEL CAN BE ─────────────────────────────────
+         'form'     — ask for credentials (the only stage that existed before)
+         'sent'     — the account exists; the confirmation is in flight
+         'arriving' — the player came back on a confirmation link and
+                      supabase-js is turning it into a session RIGHT NOW.
+       'arriving' is not cosmetic. Without it a player who clicks the link in
+       their email is shown a SIGN-IN FORM for the second or two before the
+       session lands — i.e. the product's answer to "I just confirmed" is to
+       ask them to log in, which is the dead end this build exists to remove,
+       reproduced by a race instead of by copy. */
+    var stage = 'form';
+
+    function paintStage() {
+      var isForm = stage === 'form';
+      modes.style.display = isForm ? '' : 'none';
+      email.__row.style.display = isForm ? '' : 'none';
+      pass.__row.style.display = isForm ? '' : 'none';
+      go.style.display = isForm ? '' : 'none';
+      /* The lead is the FORM's sentence and the ARRIVING message; on the
+         check-your-email stage the panel has its own title and body, and
+         leaving the open-beta pitch above them reads as two screens at once. */
+      lead.style.display = (stage === 'sent') ? 'none' : '';
+      // The arriving message is the only thing on the panel; left-aligned it
+      // reads as a paragraph with three missing siblings.
+      lead.style.textAlign = (stage === 'arriving') ? 'center' : '';
+      /* ⚠ 'block', NOT ''. `.hr-gate-sent` is `display:none` in the sheet, so
+         `style.display = ''` means "use the stylesheet" — i.e. still hidden.
+         Measured: the panel rendered completely EMPTY (title, body, resend and
+         confirm buttons all invisible) while `sent.style.display !== 'none'`
+         was true, so the guard passed and the screen was blank. The release
+         visual gate is what caught it; a DOM assertion could not. */
+      sent.style.display = (stage === 'sent') ? 'block' : 'none';
+      if (later) later.style.display = isForm ? '' : 'none';
+      setInviteShown(inviteShown);
+      if (resendAside) resendAside.style.display = (isForm && mode === 'signin') ? '' : 'none';
+    }
+
     function paintMode() {
       var creating = mode === 'signup';
       bCreate.setAttribute('aria-selected', creating ? 'true' : 'false');
@@ -516,6 +672,8 @@
       pass.autocomplete = creating ? 'new-password' : 'current-password';
       go.textContent = creating ? 'Create account' : 'Sign in';
       setInviteShown(inviteShown);
+      paintStage();
+      if (stage !== 'form') return;      // the lead belongs to the stage, not the mode
       while (lead.firstChild) lead.removeChild(lead.firstChild);
       if (reauth) {
         lead.textContent = 'Your session ended. Sign in again to keep your progress syncing to the realm — ' +
@@ -559,16 +717,50 @@
       foot.parentNode.appendChild(help);
     }
 
+    /** Move the panel to a stage and repaint everything that depends on it. */
+    function setStage(next, opts) {
+      opts = opts || {};
+      stage = next;
+      if (next === 'sent') {
+        var D = door();
+        var copy = (D && D.signupSentCopy)
+          ? D.signupSentCopy({ email: opts.email, usedCode: opts.usedCode })
+          /* The null-object copy. Deliberately still ACCURATE if the door
+             module is missing — a fallback that reintroduced "then sign in"
+             would put the dead end back on the one path nobody tests. */
+          : { title: 'Check your email', body: 'We sent a confirmation link. Open it to finish creating your account.',
+              hint: 'No email after a minute? Check spam, or resend it below.' };
+        sentTitle.textContent = copy.title;
+        sentBody.textContent = copy.body;
+        sentHint.textContent = copy.hint;
+      } else if (next === 'arriving') {
+        while (lead.firstChild) lead.removeChild(lead.firstChild);
+        lead.textContent = opts.message || 'Signing you in…';
+      }
+      paintMode();
+    }
+
     return {
       root: root, form: form, email: email, pass: pass, go: go, note: note,
-      later: later, foot: foot, invite: invite,
+      later: later, foot: foot, invite: invite, lead: lead,
       inviteReveal: inviteReveal, inviteAside: inviteAside,
+      // the sign-up door's controls, published for the guards and for wire()
+      sent: sent, sentTitle: sentTitle, sentBody: sentBody, sentHint: sentHint,
+      resendBtn: resendBtn, confirmedBtn: confirmedBtn,
+      resendAside: resendAside, resendLink: resendLink,
       inviteShown: function () { return inviteShown; },
       getMode: function () { return mode; },
+      setMode: function (m) { mode = (m === 'signin') ? 'signin' : 'signup'; paintMode(); },
+      getStage: function () { return stage; },
+      setStage: setStage,
       say: function (text, tone) { note.textContent = text || ''; note.setAttribute('data-tone', tone || 'muted'); },
       busy: function (on) {
         go.disabled = !!on; email.disabled = !!on; pass.disabled = !!on;
         if (invite) invite.disabled = !!on;
+        // The stage-2 controls belong to the same busy state: a second press
+        // while the first request is in flight is how a resend becomes two.
+        confirmedBtn.disabled = !!on;
+        if (on) resendBtn.disabled = true;
       }
     };
   }
@@ -668,8 +860,11 @@
   // about the ONE code it was handed. Keep the code in the POST BODY — a GET
   // would put it in proxy and server access logs.
   function validateInvite(code) {
-    var cfg = window.HearthriseSupabase && window.HearthriseSupabase.getConfig && window.HearthriseSupabase.getConfig();
-    if (!cfg) return Promise.resolve({ ok: false, reason: 'Cloud not configured.' });
+    var cfg = cloudConfig();
+    // Not a refusal — we could not ASK. Before this carried the transport
+    // marker it classified as the generic "cannot be used right now", i.e. the
+    // player was told their code was bad because OUR module had not booted yet.
+    if (!cfg) return Promise.resolve(UNREACHABLE('Could not check that code — try again in a moment.'));
     return fetch(cfg.url + '/rest/v1/rpc/beta_invite_check', {
       method: 'POST',
       headers: {
@@ -679,15 +874,59 @@
       },
       body: JSON.stringify({ p_code: code })
     }).then(function (res) {
-      if (!res.ok) return { ok: false, reason: 'Could not check that code — try again in a moment.' };
+      if (!res.ok) return UNREACHABLE('Could not check that code — try again in a moment.');
       return res.json();
     }).then(function (out) {
-      if (!out || typeof out !== 'object') return { ok: false, reason: 'Could not check that code — try again in a moment.' };
+      if (!out || typeof out !== 'object') return UNREACHABLE('Could not check that code — try again in a moment.');
       if (out.ok) return { ok: true };
-      return { ok: false, reason: out.reason || ERR.inviteBad };
+      /* THE SERVER'S OWN ANSWER, PASSED THROUGH INTACT — including
+         `reason_code` if it is ever added (an additive, rules-unchanged server
+         change; see docs/design/signup-door-config-gates.md). The classifier in
+         signup-door.js prefers a machine code and falls back to the prose, so
+         the day the column lands the client is already reading it. Flattening
+         this to one sentence here is exactly what made all thirteen beta-2
+         `refused_unknown` look identical to a used code. */
+      return { ok: false, reason: out.reason || ERR.inviteBad, reason_code: out.reason_code || out.code || '' };
     }).catch(function () {
-      return { ok: false, reason: 'Network error — check your connection.' };
+      return UNREACHABLE('Network error — check your connection.');
     });
+  }
+
+  /* "We could not ASK" is a different answer from "the server said no", and
+     conflating them tells a player with flaky wifi that their code is bad. */
+  function UNREACHABLE(reason) { return { ok: false, transport: 'unreachable', reason: reason }; }
+
+  function cloudConfig() {
+    var S = window.HearthriseSupabase;
+    try { return (S && typeof S.getConfig === 'function' && S.getConfig()) || null; } catch (e) { return null; }
+  }
+
+  /** Resolve once the cloud credentials exist (a deferred module publishes
+      them), or after `ms` — never hang the door on a module that never came. */
+  function whenCloudConfigured(ms) {
+    return new Promise(function (resolve) {
+      if (cloudConfig()) { resolve(true); return; }
+      var waited = 0;
+      var iv = setInterval(function () {
+        waited += 120;
+        if (cloudConfig()) { clearInterval(iv); resolve(true); }
+        else if (waited >= (ms || 12000)) { clearInterval(iv); resolve(false); }
+      }, 120);
+    });
+  }
+
+  /**
+   * The one place a refusal becomes a sentence. Delegates to the door's pure
+   * classifier so the vocabulary (unknown / used / expired / throttled / blank
+   * / unreachable) is testable without a browser, and degrades to the server's
+   * own words if that module is missing — never to a made-up cause.
+   */
+  function inviteRefusalMessage(res) {
+    var D = door();
+    if (D && typeof D.classifyInviteRefusal === 'function') {
+      try { return D.classifyInviteRefusal(res).message; } catch (e) {}
+    }
+    return (res && res.reason) || ERR.inviteBad;
   }
   window.HearthriseInvite = { validate: validateInvite };
 
@@ -728,6 +967,111 @@
     opts = opts || {};
     var working = false;
 
+    // ── THE RESEND, and the two rules that make it honest ────────────────
+    // 1. ONE cooldown for the whole panel. The "check your email" button and
+    //    the sign-in-mode link are two views of the same allowance, because
+    //    the SERVER's allowance is per-address, not per-button. Two independent
+    //    timers would let a player spend the budget twice and read the second
+    //    press as a failure of the product.
+    // 2. `resendOutcome()` decides the words, from the ENVELOPE. supabase-js
+    //    resolves `auth.resend()` with `{data, error}` even when nothing was
+    //    sent, so "the promise resolved" is not evidence of anything.
+    var resendLastAt = null;
+    var resendInFlight = false;
+    var resendTimer = null;
+
+    function resendState(now) {
+      var D = door();
+      var s = { now: (typeof now === 'number' ? now : Date.now()),
+                lastSentAt: resendLastAt, inFlight: resendInFlight };
+      if (D && typeof D.resendDecision === 'function') return D.resendDecision(s);
+      return { allowed: !resendInFlight, reason: resendInFlight ? 'inflight' : 'ready', waitMs: 0 };
+    }
+
+    function paintResend() {
+      var d = resendState();
+      var D = door();
+      ui.resendBtn.disabled = working || !d.allowed;
+      ui.resendBtn.textContent = (D && D.resendLabel) ? D.resendLabel(d) : 'Resend email';
+      if (ui.resendLink) ui.resendLink.disabled = working || resendInFlight;
+      // Tick only while a cooldown is actually running: a permanent 1 Hz timer
+      // on the front door would outlive the wall it belongs to.
+      if (resendTimer) { clearTimeout(resendTimer); resendTimer = null; }
+      if (d.reason === 'cooldown') resendTimer = setTimeout(paintResend, 500);
+    }
+    ui.__paintResend = paintResend;      // so busy(false) callers can re-arm it
+    paintResend();
+
+    function doResend(addr) {
+      addr = String(addr || '').trim();
+      if (!addr) { ui.say(ERR.email, 'bad'); try { ui.email.focus(); } catch (e) {} return; }
+      var d = resendState();
+      if (!d.allowed) {
+        ui.say(d.reason === 'inflight'
+          ? 'Still sending — give it a moment.'
+          : 'Just sent one — you can ask again in ' + Math.max(1, Math.ceil(d.waitMs / 1000)) + 's.', 'muted');
+        return;
+      }
+      resendInFlight = true;
+      paintResend();
+      ui.say('Sending…', 'muted');
+      whenAuthReady().then(function (ok) {
+        if (!ok) throw new Error(ERR.unavailable);
+        var a = auth();
+        if (!a || typeof a.resendSignupEmail !== 'function') throw new Error(ERR.unavailable);
+        return a.resendSignupEmail(addr);
+      }).then(function (res) {
+        var D = door();
+        var out = (D && D.resendOutcome) ? D.resendOutcome(res)
+          : (res && res.error ? { ok: false, kind: 'failed', tone: 'bad', message: 'That did not send. Try again in a moment.' }
+                              : { ok: true, kind: 'sent', tone: 'ok', message: 'Sent. Check your email.' });
+        resendInFlight = false;
+        /* ⚠ THE COOLDOWN STARTS ONLY ON A REAL SEND. Stamping it on every
+           attempt would punish a player for OUR failure: a network error would
+           lock the recovery control for a minute for no reason. */
+        if (out.kind === 'sent') resendLastAt = Date.now();
+        ui.say(out.message, out.tone);
+        paintResend();
+      }).catch(function (err) {
+        resendInFlight = false;
+        paintResend();
+        ui.say((err && err.message) || 'That did not send. Try again in a moment.', 'bad');
+      });
+    }
+
+    ui.resendBtn.addEventListener('click', function () { doResend(ui.email.value); });
+    if (ui.resendLink) ui.resendLink.addEventListener('click', function () { doResend(ui.email.value); });
+
+    /* ── "I'VE CONFIRMED" ────────────────────────────────────────────────
+       The half of the funnel `emailRedirectTo` structurally cannot reach. The
+       game is played inside the itch.io iframe, whose storage is partitioned
+       under the itch top-level site; a mail client opens the confirm link in a
+       normal top-level tab, so the session it establishes is in a DIFFERENT
+       bucket and this document will never see it. For that player the link
+       worked perfectly and the game still shows a wall. This button is their
+       door: the credentials they typed are still in the (hidden) fields, so
+       one press turns a confirmed account into a session HERE. */
+    ui.confirmedBtn.addEventListener('click', function () {
+      if (working) return;
+      var addr = ui.email.value.trim();
+      var pw = ui.pass.value;
+      if (!addr || !pw) { ui.say('Enter the email and password you signed up with.', 'bad'); return; }
+      working = true; ui.busy(true); ui.say('Checking…', 'muted');
+      whenAuthReady().then(function (ok) {
+        if (!ok) throw new Error(ERR.unavailable);
+        return auth().signIn(addr, pw);
+      }).then(function () {
+        ui.say('Entering the realm…', 'ok');
+        if (typeof opts.onSuccess === 'function') opts.onSuccess();
+      }).catch(function (err) {
+        working = false; ui.busy(false); paintResend();
+        var D = door();
+        var out = (D && D.confirmRetryOutcome) ? D.confirmRetryOutcome(err)
+          : { message: (err && err.message) || 'That did not work — try again.', tone: 'bad' };
+        ui.say(out.message, out.tone);
+      });
+    });
+
     ui.form.addEventListener('submit', function (e) {
       e.preventDefault();
       if (working) return;
@@ -758,7 +1102,13 @@
         var checked = code
           ? validateInvite(code).then(function (res) {
               if (!res.ok) {
-                var e = new Error(res.reason || ERR.inviteBad);
+                /* NAMES THE CAUSE. beta-2 logged 13 `refused_unknown` against
+                   5 redeemed — roughly three refusals per success — and every
+                   one of them showed the player the same undifferentiated
+                   sentence, so "you typed it wrong", "this code is spent" and
+                   "we could not reach the server" were indistinguishable
+                   despite having three different next actions. */
+                var e = new Error(inviteRefusalMessage(res));
                 e.__invite = true;                  // already a player-facing sentence
                 throw e;
               }
@@ -781,19 +1131,25 @@
           return a.signUp(addr, pw, code ? { invite_code: code } : null);
         });
       }).then(function (data) {
-        // Sign-up with email confirmation on returns no session. Say so
-        // plainly rather than pretending the player is in.
+        /* Sign-up with email confirmation on returns NO session, and this is
+           the moment the beta-2 funnel died. It used to say "Confirm the link
+           in your email, then sign in." — the product's last words to a new
+           player being an instruction to leave, find us again, and
+           authenticate a second time.
+           It is a STAGE now, not a sentence: the door stays open on the
+           check-your-email panel, which carries the resend and the
+           confirmed-and-still-walled recovery. See buildGate()'s note. */
         if (creating && data && !data.session) {
           working = false; ui.busy(false);
-          ui.say(code
-            ? 'Account created — your invite code is now used. Confirm the link in your email, then sign in.'
-            : 'Account created. Confirm the link in your email, then sign in.', 'ok');
+          ui.setStage('sent', { email: addr, usedCode: !!code });
+          paintResend();
+          ui.say('', 'muted');
           return;
         }
         ui.say('Entering the realm…', 'ok');
         if (typeof opts.onSuccess === 'function') opts.onSuccess();
       }).catch(function (err) {
-        working = false; ui.busy(false);
+        working = false; ui.busy(false); paintResend();
         if (err && err.__invite) {
           ui.say(err.message, 'bad');
           if (ui.invite) { try { ui.invite.focus(); ui.invite.select(); } catch (e) {} }
@@ -833,6 +1189,96 @@
     });
   }
 
+  /* ── ARRIVING FROM THE CONFIRMATION EMAIL ────────────────────────────────
+     The player clicked the link, GoTrue bounced them back here with
+     `#access_token=…`, and supabase-js is about to turn that into a session.
+     The wall is a CLASSIC script and runs at parse time; auth.js is a deferred
+     module and constructs the client afterwards — so for the first second or
+     several of that page life `isSignedIn()` is false for the boring reason
+     that nothing has looked yet. The generic 2 s watcher below would eventually
+     unmount the wall, but "eventually" here means the player is shown a SIGN-IN
+     FORM immediately after confirming, which is the dead end reappearing as a
+     race. So: hold the form, say what is happening, and poll fast.
+
+     THE FALLBACK IS HONEST. If the session never lands (a blocked network, a
+     link that GoTrue accepted but the library could not consume) we do not sit
+     on a spinner forever — we show the form and say so. */
+  var ARRIVAL_SETTLE_MS = 20000;
+  var ARRIVAL_POLL_MS = 250;
+
+  /* `arrival` is an OVERRIDE, defaulting to what the wall read out of the real
+     URL at parse time. A guard cannot navigate the suite's page to a
+     confirmation link (that would sign the harness out of its own document), so
+     the alternative to this parameter is a test that re-implements the branch
+     it is grading. Production passes nothing. */
+  function applyArrival(ui, arrival) {
+    var D = door();
+    if (!D) return;
+    var A = arrival || ARRIVAL;
+    if (A.kind === 'error') {
+      ui.setMode('signin');
+      ui.say(D.arrivalErrorMessage(A), 'bad');
+      return;
+    }
+    if (!D.arrivalIsPending(A)) return;
+    ui.setStage('arriving', { message: 'Confirming your account and signing you in…' });
+    var waited = 0;
+    (function poll() {
+      if (open) return;                                  // already let in
+      if (isSignedIn()) { unmountWall(); markOpen('session'); return; }
+      waited += ARRIVAL_POLL_MS;
+      if (waited >= ARRIVAL_SETTLE_MS) {
+        ui.setStage('form');
+        ui.setMode('signin');
+        ui.say('Your email is confirmed, but we could not open the session automatically. '
+             + 'Sign in below and you are through.', 'bad');
+        try { ui.email.focus(); } catch (e) {}
+        return;
+      }
+      setTimeout(poll, ARRIVAL_POLL_MS);
+    })();
+  }
+
+  /* ── AN INVITE THAT ARRIVED AS A LINK ────────────────────────────────────
+     Hand-typing a code is a transcription task with a measured ~3:1 failure
+     rate in beta-2 (13 `refused_unknown` against 5 redeemed). A link removes
+     the transcription: the field is revealed, filled with the canonical form,
+     and CHECKED before the player has typed an email — so a dud code is known
+     at the door rather than after they have invested a password.
+
+     Hand entry stays exactly as it was. This adds a path; it removes none. */
+  function applyLinkInvite(ui, link) {
+    var L = link || LINK_INVITE;                         // override: see applyArrival
+    if (!L.present || !ui.invite) return;
+    if (ui.getStage() !== 'form') return;                // mid sign-in; not now
+    ui.setMode('signup');
+    ui.inviteReveal.click();                             // one place owns the reveal
+    if (L.malformed) {
+      ui.say('That invite link did not carry a usable code. Type it in below, or ask in the Discord.', 'bad');
+      return;
+    }
+    ui.invite.value = L.code;
+    ui.say('Checking your invite code…', 'muted');
+    /* ⚠ WAIT FOR THE CLOUD FIRST, and this is not defensive padding — it was a
+       real defect, found by loading a real ?invite= link rather than by driving
+       the function. This wall is a CLASSIC script and mounts at parse time;
+       `window.HearthriseSupabase` is published by a DEFERRED module. So the
+       pre-check fired before the config existed, could not build a request, and
+       every linked code — including a perfectly good one — was refused at the
+       door. The hand-typed path never showed it because `wire()` already goes
+       through `whenAuthReady()` before it validates. */
+    return whenCloudConfigured().then(function () {
+      return validateInvite(L.code);
+    }).then(function (res) {
+      if (res && res.ok) {
+        ui.say('Invite code accepted — fill in your email and password to claim it.', 'ok');
+        try { ui.email.focus(); } catch (e) {}
+        return;
+      }
+      ui.say(inviteRefusalMessage(res), 'bad');
+    });
+  }
+
   function mountWall() {
     if (document.getElementById(WALL_ID)) return;
     var ui = buildGate({});
@@ -860,7 +1306,10 @@
       }
     });
     document.body.appendChild(ui.root);
-    setTimeout(function () { try { ui.email.focus(); } catch (e) {} }, 60);
+    applyArrival(ui);
+    applyLinkInvite(ui);
+    // Don't steal focus from a panel that is not asking for anything.
+    if (ui.getStage() === 'form') setTimeout(function () { try { ui.email.focus(); } catch (e) {} }, 60);
   }
 
   function unmountWall() {
@@ -1042,6 +1491,18 @@
        treats '' and NULL differently. Exported so the guard drives the real
        submit handler with a stubbed HearthriseAuth and reads what LEFT. */
     _wire: wire,
+    /* THE SIGN-UP DOOR's seams. Same reason as `_wire`: the interesting
+       assertions are about BEHAVIOUR (which stage the panel is in, what the
+       resend actually rendered, which refusal the player was given), and a
+       test that could only read the initial markup would pass against every
+       one of the bugs these exist to catch. `_arrival`/`_linkInvite` are the
+       parse-time URL reads, exposed so a guard can see what the wall decided
+       before it stripped the evidence out of the address bar. */
+    _applyArrival: applyArrival,
+    _applyLinkInvite: applyLinkInvite,
+    _inviteRefusalMessage: inviteRefusalMessage,
+    _arrival: function () { return ARRIVAL; },
+    _linkInvite: function () { return LINK_INVITE; },
     _humaniseAuthError: humaniseAuthError,
     _readCachedSession: readCachedSession,
     _whenSessionPersisted: whenSessionPersisted,

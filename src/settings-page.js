@@ -307,7 +307,18 @@
             var validated = await validateInvite(invite);
             if(!validated.ok){
               status.style.color = '#e88a8a';
-              status.textContent = validated.reason || 'Invalid invite code.';
+              /* ONE refusal vocabulary for the whole product. This used to show
+                 the server's raw prose while the front door showed a classified
+                 sentence, which is two answers to the same question in two
+                 places — the shape this repo keeps re-finding. The classifier is
+                 pure (src/net/signup-door.js) and names WHICH of unknown / used
+                 / throttled / unreachable it was; the raw reason stays as the
+                 fallback so a missing module degrades to the old behaviour
+                 rather than to silence. */
+              var _D = window.HearthriseSignupDoor;
+              status.textContent = (_D && typeof _D.classifyInviteRefusal === 'function')
+                ? _D.classifyInviteRefusal(validated).message
+                : (validated.reason || 'Invalid invite code.');
               return;
             }
           }

@@ -17325,6 +17325,11 @@ const TESTS = [
            the server gate distinguishes absent from blank, and a blank string
            is the shape that would pass every DOM assertion and still be wrong.
        O3  a code that IS given still travels, and is still pre-checked
+       O3b what the player is told when the account exists. Until b50x this
+           test asserted the DEAD END — "Confirm the link in your email, then
+           sign in" — as production-correct, which made removing the measured
+           beta-2 funnel bug look like a regression. It now asserts the
+           replacement contract and forbids the old sentence.
        O4  the refusal copy is honest during the switch-over window, when the
            client is codeless-optional and the server gate is still armed
 
@@ -17401,7 +17406,7 @@ const TESTS = [
      Both cases through one driver, because the interesting assertion is the
      DIFFERENCE between them: the same form, the same submit, and a third
      argument that is `null` in one case and an object in the other. */
-  () => tryRunAsync('b46x OPEN-3: a codeless signup submits and carries NO invite_code; a code still travels', async () => {
+  () => tryRunAsync('b46x OPEN-3: a codeless signup carries NO invite_code, and success opens the check-your-email stage', async () => {
     const gate = window.HearthriseGate;
     assert(typeof gate._wire === 'function',
       'HearthriseGate._wire is gone — the signup payload is only assertable by driving the real handler');
@@ -17451,7 +17456,12 @@ const TESTS = [
       // is a wall over a running game, and nothing here needs layout.
       fill(ui);
       ui.form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: false }));
-      for (let i = 0; i < 80 && !/account created|did not work|switching over|cannot be used/i.test(ui.note.textContent); i++) {
+      /* Waits on the STAGE, not on a sentence. A successful sign-up no longer
+         writes a note — it moves the panel to the check-your-email stage — so a
+         loop that only watched `note` would time out on the happy path and
+         report the failure text it eventually found. */
+      for (let i = 0; i < 80 && ui.getStage() !== 'sent'
+        && !/did not work|switching over|cannot be used|recognise|already been used/i.test(ui.note.textContent); i++) {
         await new Promise((r) => setTimeout(r, 20));
       }
       return ui;
@@ -17474,9 +17484,47 @@ const TESTS = [
       assert(checked.length === 0,
         'the invite pre-check ran for a signup with no code — that call refuses the empty string and would '
         + 'kill every ordinary open-beta signup');
-      assert(/account created/i.test(a.note.textContent),
-        'the player was not told the account exists: ' + a.note.textContent);
-      assert(!/invite code is now used/i.test(a.note.textContent),
+      /* ── THE CONTRACT THIS TEST USED TO DEFEND, AND NOW FORBIDS ──────────
+         Until b50x this asserted that a successful sign-up rendered
+         "Account created. Confirm the link in your email, then sign in." — i.e.
+         it PINNED the dead end as production-correct. That copy is the measured
+         beta-2 email wall: the product's last words to a brand-new player were
+         an instruction to leave, find us again, and authenticate a second time.
+         A test that defends a funnel bug is worse than no test, because it
+         makes removing the bug look like a regression.
+         The contract now is a STATE with the two real recoveries on it. */
+      assert(a.getStage() === 'sent',
+        'a successful sign-up must open the check-your-email stage, not leave the player on a form: '
+        + a.getStage() + ' / ' + a.note.textContent);
+      /* Read from the SENT panel, not from root.textContent: the form's own
+         nodes (the "Have an invite code?" disclosure, the sign-in help line)
+         are only display:none, and textContent happily reports hidden text —
+         an assertion against the whole root would be graded on copy the player
+         cannot see. */
+      const aText = a.sent.textContent;
+      /* `!== 'none'` is NOT sufficient and this assertion is why. `.hr-gate-sent`
+         is `display:none` in the sheet, so an inline `''` satisfies "not none"
+         while the panel is completely invisible — measured, and caught by the
+         release visual gate rather than by this suite. Pin the value that
+         actually paints, and pin that the form's own lead has stepped aside. */
+      assert(a.sent.style.display === 'block',
+        'the check-your-email panel is not painting (inline display=' + JSON.stringify(a.sent.style.display)
+        + '; an empty string falls back to the sheet’s display:none)');
+      assert(a.lead.style.display === 'none',
+        'the open-beta pitch is still above the panel — two screens at once');
+      assert(/check your email/i.test(aText) && /confirmation link/i.test(aText),
+        'the panel must say what we actually did: ' + aText.slice(0, 200));
+      assert(aText.indexOf('open@example.com') !== -1,
+        'the panel must name the address we sent to — a typo is invisible otherwise');
+      assert(!/then sign in|sign in again/i.test(aText + ' ' + a.note.textContent),
+        'THE DEAD END IS BACK: the door is telling a brand-new player to go and sign in. '
+        + 'This is the exact sentence the beta-2 funnel died on: ' + aText.slice(0, 200));
+      assert(/resend/i.test(a.resendBtn.textContent),
+        'there must be a resend on the screen: ' + a.resendBtn.textContent);
+      assert(/confirm/i.test(a.confirmedBtn.textContent),
+        'there must be a way through for a player whose link signed them in somewhere else: '
+        + a.confirmedBtn.textContent);
+      assert(!/invite code/i.test(aText),
         'the success copy credits an invite code the player never gave');
 
       // ── the minority path: a code IS presented, and must still work ──
@@ -17491,8 +17539,9 @@ const TESTS = [
         'a presented code must travel as metadata, upper-cased: ' + JSON.stringify(calls[1].metadata));
       assert(checked.length === 1 && checked[0] === 'FRIEND-777',
         'a presented code must still be pre-checked before an account is created: ' + JSON.stringify(checked));
-      assert(/invite code is now used/i.test(b.note.textContent),
-        'a player who spent a code should be told it was spent: ' + b.note.textContent);
+      assert(b.getStage() === 'sent', 'the coded signup must reach the same stage: ' + b.getStage());
+      assert(/invite code is now used/i.test(b.sent.textContent),
+        'a player who spent a code should be told it was spent: ' + b.sent.textContent.slice(0, 240));
     } finally {
       window.HearthriseAuth = prevAuth;
       window.fetch = prevFetch;
@@ -17525,6 +17574,425 @@ const TESTS = [
     assert(H(new Error('Invalid login credentials'), false, false) === 'Invalid login credentials',
       'sign-in errors must pass through untranslated');
     assert(H(null, true, false) === 'That did not work — try again.', 'a messageless throw still needs a sentence');
+  }),
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     THE SIGN-UP DOOR — the beta-2 email wall, and the mechanisms that made it.
+
+     Measured: 11 of 49 sign-ups lost at the email wall, and every mechanism was
+     still in the tree byte for byte.
+       · `signUp` was called with NO `emailRedirectTo`, so the confirm link had
+         no return address and GoTrue bounced it at the project's Site URL.
+       · There was no resend anywhere in the client.
+       · The success copy told a brand-new player to go and sign in again.
+       · Every invite refusal read as one undifferentiated sentence — against
+         13 `refused_unknown` for 5 redeemed.
+
+     The RULES are pure and live in src/net/signup-door.js; tests/signup-door.mjs
+     grades them against 21 planted defects, all caught. THESE tests grade the
+     WIRING, in a real page, through the shipped functions: that the redirect
+     actually reaches GoTrue, that the wall actually changes state, that a
+     failed resend actually cannot render as success, and that a refusal
+     actually names which.
+
+     ⚠ NONE OF IT IS EVIDENCE ABOUT PRODUCTION. GoTrue silently falls back to
+     the project Site URL when the redirect is not in the Auth redirect
+     allowlist, so every assertion below can be green while the live confirm
+     link lands nowhere. The three gates no test in this repo can read are in
+     docs/design/signup-door-config-gates.md.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  // DOOR-1 — the confirm link has a return address, and it is THIS game.
+  () => tryRunAsync('DOOR-1: signUp carries an emailRedirectTo that points at this game', async () => {
+    const A = window.HearthriseAuth;
+    assert(A && typeof A.signUpWith === 'function' && typeof A.signupRedirectTo === 'function',
+      'the auth module no longer exposes the sign-up seam — the payload is only assertable by '
+      + 'driving the shipped function');
+    const redirect = A.signupRedirectTo();
+    assert(typeof redirect === 'string' && /^https?:\/\//.test(redirect),
+      'signupRedirectTo() produced no absolute URL, so signUp will send none: ' + redirect);
+    assert(redirect.indexOf(location.origin) === 0,
+      'the confirm link must return to the origin the player is actually on (' + location.origin
+      + ') — a hard-coded host sends a github.io player to a different storage partition: ' + redirect);
+    assert(!/[?#]/.test(redirect.slice(location.origin.length)),
+      'the return address must carry no query and no fragment: ' + redirect);
+
+    /* The SHIPPED sign-up, with the Supabase client injected — so this reads
+       what actually left, rather than what a re-implementation would have sent. */
+    const seen = [];
+    const client = {
+      auth: {
+        signUp: (args) => { seen.push(args); return Promise.resolve({ data: { user: { id: 'u' }, session: null }, error: null }); }
+      }
+    };
+    await A.signUpWith(client, 'door@example.com', 'hunter2!', null, redirect);
+    assert(seen.length === 1, 'the shipped signUp never reached the client');
+    const args = seen[0];
+    assert(args.email === 'door@example.com' && args.password === 'hunter2!',
+      'wrong credentials reached GoTrue: ' + JSON.stringify({ e: args.email }));
+    assert(args.options && args.options.emailRedirectTo === redirect,
+      'THE MEASURED BUG: no emailRedirectTo reached GoTrue, so the confirmation link falls back to '
+      + 'the project Site URL and the player confirms into a dead tab. options='
+      + JSON.stringify(args.options || null));
+
+    /* ── AND NOW THE PRODUCTION CALLER, WHICH THE ABOVE DOES NOT REACH ─────
+       The block above hands `redirect` to `signUpWith` itself, so it proves the
+       PAYLOAD rule and nothing about whether `signUp()` — the function the wall
+       actually calls — still computes and passes one. Measured: reverting
+       `signUp` to `…, metadata, null)` left every assertion above green. That
+       is the "assert against the real seam" trap, caught in this test's own
+       first run.
+       So drive `signUp()` for real, with the LIVE client's `auth.signUp`
+       swapped for a recorder — the shipped caller, the shipped binding, no
+       request on the wire — and restore it in the finally. */
+    const client2 = (typeof A.getClient === 'function') ? A.getClient() : null;
+    if (client2 && client2.auth && typeof client2.auth.signUp === 'function') {
+      const realSignUp = client2.auth.signUp;
+      const live = [];
+      client2.auth.signUp = function (a) {
+        live.push(a);
+        return Promise.resolve({ data: { user: { id: 'u' }, session: null }, error: null });
+      };
+      try {
+        await A.signUp('caller@example.com', 'hunter2!', null);
+      } finally {
+        client2.auth.signUp = realSignUp;
+      }
+      assert(live.length === 1, 'the production signUp() never reached the Supabase client');
+      assert(live[0].options && typeof live[0].options.emailRedirectTo === 'string'
+        && live[0].options.emailRedirectTo.indexOf(location.origin) === 0,
+        'signUp() — the function the wall calls — sent no return address. The payload builder can '
+        + 'be perfect and the confirm link still lands nowhere: options='
+        + JSON.stringify(live[0].options || null));
+      assert(!('data' in live[0].options),
+        'the production codeless signup carries a `data` key: ' + JSON.stringify(live[0].options));
+    } else {
+      /* No live client (auth unconfigured on this page). Fall back to a SOURCE
+         PIN on the one-line delegation, and say plainly that it is a pin. */
+      assert(/signUpWith\(\s*supabase,\s*email,\s*password,\s*metadata,\s*signupRedirectTo\(\)\s*\)/
+        .test(String(A.signUp)),
+        'signUp() no longer hands the computed redirect to the shipped sign-up (source pin — no live '
+        + 'client on this page to drive it behaviourally): ' + String(A.signUp).slice(0, 200));
+    }
+  }),
+
+  // DOOR-2 — adding the redirect must not change what the invite gate reads.
+  () => tryRun('DOOR-2: the redirect does not smuggle a `data` key into a codeless signup', () => {
+    const A = window.HearthriseAuth;
+    assert(typeof A.buildSignUpArgs === 'function', 'the sign-up payload rule is no longer assertable');
+
+    const bare = A.buildSignUpArgs('a@b.c', 'pw', null, 'https://example.test/');
+    assert(bare.options && bare.options.emailRedirectTo === 'https://example.test/',
+      'the redirect is missing from a codeless signup: ' + JSON.stringify(bare));
+    /* THE ASSERTION THIS TEST EXISTS FOR. The obvious way to add a redirect is
+       `options: { data: metadata || {}, emailRedirectTo }` — and that sends
+       `data: {}`, so `raw_user_meta_data->>'invite_code'` stops being SQL NULL.
+       The beta invite gate distinguishes ABSENT from BLANK; this is the one
+       line that keeps them distinguishable. */
+    assert(!('data' in bare.options),
+      'a codeless signup now carries a `data` key — the invite gate distinguishes an absent '
+      + 'invite_code from a blank one and this changes its meaning underneath it: '
+      + JSON.stringify(bare.options));
+
+    const coded = A.buildSignUpArgs('a@b.c', 'pw', { invite_code: 'FRIEND-777' }, 'https://example.test/');
+    assert(coded.options.data && coded.options.data.invite_code === 'FRIEND-777',
+      'a presented code stopped travelling once the redirect was added: ' + JSON.stringify(coded.options));
+    assert(coded.options.emailRedirectTo === 'https://example.test/', 'the coded path lost the redirect');
+
+    // No origin worth returning to → OMIT it. GoTrue rejects the WHOLE signup
+    // on a malformed redirect, so "send something" is the wrong failure mode.
+    const none = A.buildSignUpArgs('a@b.c', 'pw', null, null);
+    assert(!none.options,
+      'with no return address the body must carry no options at all: ' + JSON.stringify(none));
+  }),
+
+  // DOOR-3 — the arrival. A player who has just confirmed is never shown a form.
+  () => tryRun('DOOR-3: a player arriving from the confirmation email is never shown a sign-in form', () => {
+    const gate = window.HearthriseGate;
+    assert(typeof gate._applyArrival === 'function', 'the arrival path is no longer assertable');
+    const ui = gate._buildGate({});
+    const ui2 = gate._buildGate({});
+    try {
+      assert(ui.getStage() === 'form', 'the door should start on the form');
+      /* STRUCTURAL, and it earned its place: "I've confirmed" wears the same
+         primary-button class as the submit button so it does not need a
+         duplicate of the gradient CSS, which makes DOM ORDER the thing that
+         decides what `querySelector('.hr-gate-go')` returns. Built above the
+         form it silently became the FIRST match, and a CTA probe read a 0x0
+         rect (it lives inside a display:none panel) and reported the wall's
+         primary button missing at every viewport. Anything that looks the
+         obvious way — a reachability row, a visual-QA script — hits this. */
+      assert(ui.root.querySelector('.hr-gate-go') === ui.go,
+        'the FIRST .hr-gate-go in the wall is no longer the submit button, so every selector-based '
+        + 'probe of the front door now measures a hidden element');
+      gate._applyArrival(ui, { kind: 'implicit', type: 'signup', expired: false, code: '', description: '' });
+      assert(ui.getStage() === 'arriving',
+        'the wall showed a SIGN-IN FORM to somebody who has just confirmed their email — the dead '
+        + 'end reproduced as a race instead of as copy. stage=' + ui.getStage());
+      assert(ui.go.style.display === 'none' && ui.email.__row.style.display === 'none',
+        'the credential form must be off the screen while the session is being completed');
+      assert(/sign(ing)? you in|confirming/i.test(ui.lead.textContent),
+        'the panel must say what is happening: ' + ui.lead.textContent);
+
+      // …and an expired link is an ANSWER, with its remedy on the same screen.
+      gate._wire(ui2, {});
+      gate._applyArrival(ui2, {
+        kind: 'error', code: 'otp_expired',
+        description: 'Email link is invalid or has expired', expired: true
+      });
+      assert(ui2.getMode() === 'signin', 'an expired link should land the player on Sign in');
+      assert(/expired|already used/i.test(ui2.note.textContent),
+        'an expired confirmation link must be explained, not silently ignored: ' + ui2.note.textContent);
+      assert(!/invalid or has expired/i.test(ui2.note.textContent),
+        'the player must not be shown GoTrue’s developer-facing error_description verbatim');
+      assert(ui2.resendAside && ui2.resendAside.style.display !== 'none',
+        'the resend must be reachable from the very screen an expired link lands on — otherwise the '
+        + 'only recovery lives on a panel the player can no longer reach');
+    } finally {
+      [ui, ui2].forEach((u) => { if (u.root.parentNode) u.root.parentNode.removeChild(u.root); });
+    }
+  }),
+
+  // DOOR-4 — the resend: cooldown respected, and a failure never reads as sent.
+  () => tryRunAsync('DOOR-4: the resend respects its cooldown, and a failure never renders as success', async () => {
+    const gate = window.HearthriseGate;
+    const prevAuth = window.HearthriseAuth;
+    const calls = [];
+    let answer = { data: null, error: { message: 'For security purposes, you can only request this after 44 seconds.', status: 429 } };
+    window.HearthriseAuth = {
+      signIn: () => Promise.reject(new Error('signIn must not be called by a resend')),
+      signUp: () => Promise.reject(new Error('signUp must not be called by a resend')),
+      /* Resolves with an envelope, exactly as supabase-js does. A caller that
+         reads "the promise resolved" as success is the bug this test exists
+         for, and a stub that REJECTED would hide it. */
+      resendSignupEmail: (addr) => { calls.push(addr); return Promise.resolve(answer); },
+      isSignedIn: () => false, getSession: () => null, getClient: () => null
+    };
+    const ui = gate._buildGate({});
+    gate._wire(ui, {});
+    const settle = async (pred) => { for (let i = 0; i < 120 && !pred(); i++) await new Promise((r) => setTimeout(r, 20)); };
+    try {
+      ui.email.value = 'resend@example.com';
+      ui.setStage('sent', { email: 'resend@example.com', usedCode: false });
+
+      // 1 · a rate-limited resend must not read as sent, and must not spend the cooldown
+      ui.resendBtn.click();
+      await settle(() => calls.length === 1 && !/sending/i.test(ui.note.textContent));
+      assert(calls.length === 1 && calls[0] === 'resend@example.com',
+        'the resend did not reach the auth layer: ' + JSON.stringify(calls));
+      assert(ui.note.getAttribute('data-tone') !== 'ok' && !/^sent\b/i.test(ui.note.textContent.trim()),
+        'A FAILED RESEND RENDERED AS SUCCESS. The player is now waiting for a mail that was never '
+        + 'dispatched, which is strictly worse than no resend button: "' + ui.note.textContent + '"');
+      assert(/wait|minute|too many/i.test(ui.note.textContent),
+        'a 429 must be explained as a rate limit so "wait" is the advice: ' + ui.note.textContent);
+      assert(ui.resendBtn.disabled === false,
+        'a resend that never sent must not spend the cooldown — that punishes the player for our failure');
+
+      // 2 · a real send starts the cooldown, and the RULE (not the styling) refuses the next press
+      answer = { data: {}, error: null };
+      ui.resendBtn.click();
+      await settle(() => calls.length === 2 && /^sent/i.test(ui.note.textContent.trim()));
+      assert(/^sent/i.test(ui.note.textContent.trim()), 'a clean send must say so: ' + ui.note.textContent);
+      assert(ui.note.getAttribute('data-tone') === 'ok', 'a clean send is good news');
+      assert(ui.resendBtn.disabled === true, 'the cooldown must disable the button');
+      assert(/\d+s/.test(ui.resendBtn.textContent),
+        'the button must count down rather than just looking broken: ' + ui.resendBtn.textContent);
+
+      /* Defeat the VISUAL guard and press again. A disabled button proves the
+         styling; the rule has to hold on its own, because the same cooldown is
+         shared with the sign-in-mode link, which is a different element. */
+      ui.resendBtn.disabled = false;
+      ui.resendBtn.click();
+      await new Promise((r) => setTimeout(r, 80));
+      assert(calls.length === 2,
+        'THE COOLDOWN WAS NOT RESPECTED — a second request went out ' + (calls.length - 2)
+        + ' time(s) and the server will rate-limit the address');
+      assert(/ask again in \d+s/i.test(ui.note.textContent),
+        'a refused press must say when it can be retried: ' + ui.note.textContent);
+    } finally {
+      window.HearthriseAuth = prevAuth;
+      if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);
+    }
+  }),
+
+  // DOOR-5 — a refusal states WHICH.
+  () => tryRunAsync('DOOR-5: an invite refusal says which — unknown vs already used vs unreachable', async () => {
+    const gate = window.HearthriseGate;
+    const prevAuth = window.HearthriseAuth;
+    const prevFetch = window.fetch;
+    const prevSupa = window.HearthriseSupabase;
+    let reply = null;              // the beta_invite_check payload of the moment
+    let httpOk = true;
+
+    window.HearthriseAuth = {
+      signIn: () => Promise.reject(new Error('signIn must not be called')),
+      signUp: () => { throw new Error('a refused invite code must never reach signUp'); },
+      isSignedIn: () => false, getSession: () => null, getClient: () => null
+    };
+    if (!(prevSupa && typeof prevSupa.getConfig === 'function' && prevSupa.getConfig())) {
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://stub.invalid', anonKey: 'stub-anon' }) };
+    }
+    window.fetch = function (url) {
+      if (String(url || '').indexOf('/rest/v1/rpc/beta_invite_check') !== -1) {
+        return Promise.resolve({ ok: httpOk, status: httpOk ? 200 : 503, json: () => Promise.resolve(reply) });
+      }
+      return prevFetch.apply(window, arguments);
+    };
+
+    const uis = [];
+    async function refuse(payload, ok) {
+      reply = payload; httpOk = ok !== false;
+      const ui = gate._buildGate({});
+      uis.push(ui);
+      gate._wire(ui, {});
+      ui.email.value = 'who@example.com';
+      ui.pass.value = 'hunter2!';
+      ui.inviteReveal.click();
+      ui.invite.value = 'friend-777';
+      ui.form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: false }));
+      for (let i = 0; i < 120 && ui.note.getAttribute('data-tone') !== 'bad'; i++) {
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      return ui.note.textContent;
+    }
+
+    try {
+      // The two sentences beta_invite_check actually ships today.
+      const used = await refuse({ ok: false, reason: 'Code already used.' });
+      const unknown = await refuse({ ok: false, reason: 'Invalid invite code.' });
+      const down = await refuse(null, false);        // HTTP failure: we could not ASK
+
+      assert(/already been used|one account/i.test(used),
+        'a spent code must be named as spent, so the player asks for a new one instead of retyping '
+        + 'a correct code forever: ' + used);
+      assert(/recognise|typo/i.test(unknown),
+        'an unrecognised code must be named as unrecognised, so the player retypes it: ' + unknown);
+      assert(/connection|could not check/i.test(down),
+        'a transport failure must not be reported as a bad code — flaky wifi would tell the player '
+        + 'their invite is worthless: ' + down);
+      const all = [used, unknown, down];
+      assert(new Set(all).size === 3,
+        'two or more refusals are the SAME sentence, so the player still cannot tell which of the '
+        + 'three happened even though they have three different next actions: ' + JSON.stringify(all));
+
+      // The machine channel wins when it is present — forward-compatible with a
+      // `reason_code` on beta_invite_check (additive; rules unchanged).
+      assert(/already been used|one account/i.test(
+        gate._inviteRefusalMessage({ ok: false, reason_code: 'refused_used', reason: 'anything at all' })),
+        'a machine reason code must outrank the prose — it is the durable channel');
+    } finally {
+      window.HearthriseAuth = prevAuth;
+      window.fetch = prevFetch;
+      window.HearthriseSupabase = prevSupa;
+      uis.forEach((u) => { if (u.root.parentNode) u.root.parentNode.removeChild(u.root); });
+    }
+  }),
+
+  // DOOR-6 — the code arrives as a LINK; hand entry survives untouched.
+  () => tryRunAsync('DOOR-6: an invite code can arrive as a link — pre-filled, checked, never left in the URL', async () => {
+    const gate = window.HearthriseGate;
+    const D = window.HearthriseSignupDoor;
+    assert(D && typeof D.readInviteFromUrl === 'function', 'the invite-link reader is gone');
+    const prevFetch = window.fetch;
+    const prevSupa = window.HearthriseSupabase;
+    const checked = [];
+    if (!(prevSupa && typeof prevSupa.getConfig === 'function' && prevSupa.getConfig())) {
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://stub.invalid', anonKey: 'stub-anon' }) };
+    }
+    window.fetch = function (url, opts) {
+      if (String(url || '').indexOf('/rest/v1/rpc/beta_invite_check') !== -1) {
+        let body = {};
+        try { body = JSON.parse((opts && opts.body) || '{}'); } catch (e) {}
+        checked.push(body.p_code);
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
+      }
+      return prevFetch.apply(window, arguments);
+    };
+    const ui = gate._buildGate({});
+    const ui2 = gate._buildGate({});
+    try {
+      await gate._applyLinkInvite(ui, { present: true, code: 'FRIEND-777', malformed: false });
+      assert(ui.invite.value === 'FRIEND-777',
+        'the link did not pre-fill the code — the transcription step is exactly what fails 3:1: '
+        + ui.invite.value);
+      assert(ui.invite.__row.style.display !== 'none', 'the field must be revealed so the player can see what will be used');
+      assert(checked.length === 1 && checked[0] === 'FRIEND-777',
+        'a linked code must be CHECKED at the door, before the player invests an email and a '
+        + 'password: ' + JSON.stringify(checked));
+      assert(/accepted/i.test(ui.note.textContent),
+        'a good code should say so rather than sitting silent: ' + ui.note.textContent);
+      // The link ADDS a path; it removes none.
+      assert(ui.inviteReveal && ui.invite && ui.getMode() === 'signup',
+        'hand entry must still be on the screen — the link is an addition, not a replacement');
+
+      // A garbled link is malformed, which is a different thing to say than
+      // "unknown code" and must not be reported as one.
+      await gate._applyLinkInvite(ui2, { present: true, code: '', malformed: true });
+      assert(/did not carry a usable code/i.test(ui2.note.textContent),
+        'a garbled invite link must say so instead of blaming a code the player never typed: '
+        + ui2.note.textContent);
+      assert(checked.length === 1, 'a malformed link must not spend a check');
+
+      // …and the code never stays where it can leak.
+      assert(!/invite=/.test(D.stripInviteFromHref('https://x.test/?invite=A1&ref=discord')),
+        'the code is not being stripped for history.replaceState');
+      assert(!/[?&#]invite=/i.test(location.href),
+        'the wall left an invite code in the address bar, where it rides out in the Referer of the '
+        + 'door’s own target=_blank Discord link: ' + location.href);
+    } finally {
+      window.fetch = prevFetch;
+      window.HearthriseSupabase = prevSupa;
+      [ui, ui2].forEach((u) => { if (u.root.parentNode) u.root.parentNode.removeChild(u.root); });
+    }
+  }),
+
+  /* DOOR-7 — the half `emailRedirectTo` structurally cannot reach.
+     The game is played inside the itch.io iframe, whose storage is partitioned
+     under the itch top-level site. A mail client opens the confirmation link in
+     an ordinary top-level tab, so the session it establishes is in a DIFFERENT
+     bucket and the iframe will never see it: for that player the link worked
+     perfectly and the game still shows a wall. No redirect fixes that. This
+     button does. */
+  () => tryRunAsync('DOOR-7: "I have confirmed" turns a confirmed account into a session HERE', async () => {
+    const gate = window.HearthriseGate;
+    const prevAuth = window.HearthriseAuth;
+    let signInAnswer = () => Promise.reject(new Error('not wired'));
+    const attempts = [];
+    window.HearthriseAuth = {
+      signIn: (addr, pw) => { attempts.push(addr); return signInAnswer(addr, pw); },
+      signUp: () => Promise.reject(new Error('signUp must not be called by the confirm retry')),
+      isSignedIn: () => false, getSession: () => null, getClient: () => null
+    };
+    const ui = gate._buildGate({});
+    let entered = 0;
+    gate._wire(ui, { onSuccess: () => { entered++; } });
+    const settle = async (pred) => { for (let i = 0; i < 120 && !pred(); i++) await new Promise((r) => setTimeout(r, 20)); };
+    try {
+      ui.email.value = 'iframe@example.com';
+      ui.pass.value = 'hunter2!';
+      ui.setStage('sent', { email: 'iframe@example.com', usedCode: false });
+
+      // Not confirmed yet → an honest "not yet", never a success.
+      signInAnswer = () => Promise.reject(new Error('Email not confirmed'));
+      ui.confirmedBtn.click();
+      await settle(() => attempts.length === 1 && !/checking/i.test(ui.note.textContent));
+      assert(entered === 0, 'an unconfirmed account must not be let in');
+      assert(/not confirmed yet/i.test(ui.note.textContent),
+        'the player must be told the link has not been opened yet, in words they can act on: '
+        + ui.note.textContent);
+
+      // Confirmed → straight in, with no second trip to a sign-in form.
+      signInAnswer = () => Promise.resolve({ session: { access_token: 't' } });
+      ui.confirmedBtn.click();
+      await settle(() => entered === 1);
+      assert(entered === 1,
+        'a confirmed account did not get in from the check-your-email panel: ' + ui.note.textContent);
+      assert(attempts.length === 2 && attempts[1] === 'iframe@example.com',
+        'the retry must reuse the credentials the player already typed: ' + JSON.stringify(attempts));
+    } finally {
+      window.HearthriseAuth = prevAuth;
+      if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);
+    }
   }),
 
   // #7 THE SAVE-DESTROYER GUARD. Behind the wall legacy boot() never ran, so
@@ -51147,6 +51615,23 @@ const TESTS = [
 
 export async function runSmokeTest(opts = {}) {
   const verbose = opts.verbose !== false;
+  /* ── opts.only — RUN ONE SLICE (dev/focused runners only) ────────────────
+     The default is unchanged: no `only`, every test, exactly as CI and the
+     🧪 button have always called it. It exists because the assembled suite is
+     a several-minute in-page run and the project's own rule is that parallel
+     suites blow the budget and read as flakes (b461) — so an agent proving a
+     single new battery had no way to do it without either running the whole
+     thing or not running it at all, and "not running it at all" is how a test
+     ships unproven.
+
+     A SOURCE-TEXT match, deliberately: a registered test is
+     `() => tryRun('NAME', …)` and the name lives inside the closure, so there
+     is nothing to read without either running it or restructuring 1,100
+     registrations. `String(fn).indexOf(name)` reads the literal. It is a dev
+     affordance and it is loud — the summary carries `only` so a filtered run
+     can never be mistaken for a full one in a log. */
+  const only = (typeof opts.only === 'string' && opts.only) ? opts.only : null;
+  const PLAN = only ? TESTS.filter((t) => String(t).indexOf(only) !== -1) : TESTS;
   const startTab = window.activeTab || 'profile';
   const preErrCount = errorLog.length;
   /* b337: sequential, never Promise.all. These tests mutate the live G and
@@ -51223,7 +51708,7 @@ export async function runSmokeTest(opts = {}) {
   } catch (e) {}
   const results = [];
   try {
-    for (const t of TESTS) {
+    for (const t of PLAN) {
       const r = await t();
       if (verbose) console.log((r.status === 'PASS' ? '✓ ' : '✗ ') + r.name + (r.why ? ' — ' + r.why : ''));
       results.push(r);
@@ -51250,9 +51735,14 @@ export async function runSmokeTest(opts = {}) {
     failed: results.filter((r) => r.status === 'FAIL').length,
     runtimeErrors: errorLog.length - preErrCount,
     results,
+    // Present ONLY on a filtered run, so a partial result can never be read as
+    // a full one — in a log, in CI output, or by a future caller.
+    only,
+    registered: TESTS.length,
     timestamp: new Date().toISOString(),
   };
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  if (only) console.log(`⚠ FILTERED RUN — only tests matching "${only}" (${PLAN.length} of ${TESTS.length})`);
   console.log(`SMOKE TEST: ${summary.passed}/${summary.total} passed, ${summary.failed} failed, ${summary.runtimeErrors} runtime errors`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   return summary;

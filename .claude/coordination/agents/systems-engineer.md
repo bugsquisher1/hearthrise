@@ -2,6 +2,69 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-09-04 — THE SIGN-UP DOOR: the lesson is that the assertion I most wanted to write is the one that proves nothing
+
+**Branch:** `fix/signup-door` (worktree `.claude/worktrees/agent-abdad166ac278fc2e`), base main
+`ee7eb675`. Pure guard 21/21 mutations caught; in-page `DOOR-1..7` + `OPEN-3` 8/8 with 0 console
+errors; every one of the 8 proved RED with the fix reverted. Not bumped, not pushed.
+
+### THE TRAP, AND I WALKED INTO IT ONCE BEFORE CLIMBING OUT
+`signUp` was called with no `emailRedirectTo`. The obvious test is "assert `emailRedirectTo` was
+passed". I wrote it — against `signUpWith(client, …, redirect)`, handing the redirect in myself —
+and then, on the first run of my own RED proof, **reverting `signUp()` to `…, metadata, null)`
+left it GREEN.** The test graded the payload BUILDER and never touched the production BINDING.
+The fix was to swap the LIVE client's `auth.signUp` for a recorder and drive the real `signUp()`,
+which puts no request on the wire and reads exactly what left.
+
+**Generalise: when a function's whole job is to BIND two things, a test that supplies one of them
+is testing the other one.** The mutation catalogue is what found it; a green suite never would.
+
+### THE SECOND ONE THE SUITE COULD NOT SEE
+`.hr-gate-sent{display:none}` in the sheet, `sent.style.display = ''` in the code. `''` means "use
+the stylesheet", so the panel stayed hidden — while `assert(sent.style.display !== 'none')` was
+**true**. The check-your-email screen rendered as an EMPTY BOX and every test was green. The
+release visual gate caught it in one screenshot. `!== 'none'` is not a visibility assertion; on a
+detached node there is no computed style to ask, so the honest guard is to pin the value that
+paints (`=== 'block'`) and say why in the test.
+
+### THE THIRD: A CLASSIC SCRIPT ASKING A DEFERRED MODULE A QUESTION
+The wall mounts at parse time. `window.HearthriseSupabase` is published by a deferred ESM module.
+So the new invite-LINK pre-check fired before the cloud config existed, could not build a request,
+and **refused every linked code including good ones** — and it did it wearing the generic "that
+code cannot be used", because `validateInvite`'s no-config early return was the one branch I had
+not marked as a TRANSPORT failure. Two separate mistakes producing one confident lie to the player.
+Found by loading a real `?invite=` URL, not by driving the function. `whenCloudConfigured()` now
+guards it, the way `wire()` has always gone through `whenAuthReady()` first.
+**Rule: any classic-script code path that makes a network call must wait for the module that owns
+the credentials. There is no timing in which it is already there.**
+
+### THE HONESTY RULE THAT IS ARCHITECTURE, NOT COPY
+`supabase-js auth.resend()` RESOLVES with `{data, error}`; it does not throw. A `.then(() => say('Sent'))`
+therefore tells a rate-limited player to go and wait for a mail that was never dispatched — which
+is strictly WORSE than having no resend button, because it stops them trying. That asymmetry is why
+`resendOutcome()` is a pure function returning a machine `kind`, and why `kind === 'sent'` is the
+only value allowed to render as success. Same shape as the b499 lesson about a cost reduction also
+being camouflage: a failure that looks like a success is not a smaller bug than a visible failure.
+
+### WHAT I REFUSED TO DO
+- **I did not invent an `expired` invite state.** `beta_invites` is (code, note, used_by, used_at,
+  created_at) — no expiry column, so no server answer can mean expired. The vocabulary was asked
+  for; the branch exists keyed off a machine code nothing emits, and is documented as unreachable
+  rather than presented as working. A client-side expiry check would have made it "fire" and would
+  have made the client an authority it is not.
+- **I did not mark the door done on a green test.** Three mechanisms reproduce the exact beta-2
+  signature with no client bug (redirect allowlist, itch iframe storage partitioning, built-in
+  SMTP throughput). They are in `docs/design/signup-door-config-gates.md` with per-gate steps and
+  owners. GoTrue does not error on an un-allow-listed redirect — it silently uses the Site URL.
+
+### THE RUNNER CHANGE, AND WHY IT IS NOT A SHORTCUT
+`runSmokeTest({only})` — a source-text filter, default unchanged, summary carries `only` +
+`registered`. The project's own rule (b461) is that two in-page suites at once read as flakes, so
+an agent proving one battery had a choice between destabilising someone else's run and shipping a
+test it had never watched go green. Now there is a third option. `tests/signup-door-page.mjs` uses
+it; CI does not.
+
+
 ## 2026-08-31 — THE AUTO-EAT COMPLETION: a Pareto change you cannot prove by reading it
 
 **Branch:** `fix/autoeat-fallback-and-arm` (worktree `R:/the game/wt-autoeat-complete`), base

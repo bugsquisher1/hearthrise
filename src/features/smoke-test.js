@@ -23265,7 +23265,11 @@ const TESTS = [
       /* A Bounty Hunter well past every type unlock, so the ladder genuinely
          offers proof (lv5) / weapon (10) / streak (15). Without that this test
          would pass against a level-1 board that only ever had culls. */
-      G.skills.bountyHunter = 20000; if (G.bountyHunter) G.bountyHunter.xp = 20000;
+      /* b503: the second write used to be `G.bountyHunter.xp = 20000` — the
+         residue mirror. That mirror is GONE (the xp is a server-owned skill;
+         see the BOUNTY HUNTER header in legacy.js), so setting it here would
+         seed a field nothing reads and quietly imply the mirror still exists. */
+      G.skills.bountyHunter = 20000;
       assert(window.getBountyHunterLevel() >= 15,
         'CONTROL: the test character must be past the streak unlock, got BH ' + window.getBountyHunterLevel());
       assert(C.bounty.unlockedTypes(window.getBountyHunterLevel()).indexOf('proof') >= 0,

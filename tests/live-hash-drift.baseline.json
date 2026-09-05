@@ -16,7 +16,7 @@
   "the change was intended. Never edit a hash by hand to make a build green —",
   "a red hash is the check working."
  ],
- "generated": "2026-09-03",
+ "generated": "2026-09-05",
  "project": "nezapsylztqbbwuwembx",
  "postgres": {
   "production": "17.x",
@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-03",
- "replay_ms": 7967,
+ "replay_ms": 9545,
  "counts": {
-  "tracked_names": 41,
-  "entries": 41
+  "tracked_names": 42,
+  "entries": 42
  },
  "functions": [
   {
@@ -254,6 +254,29 @@
     "source": "computed-from-replay"
    },
    "agree": true
+  },
+  {
+   "sig": "hr_claim_bounty__ungated(p_slot integer)",
+   "name": "hr_claim_bounty__ungated",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-11-bounty-hunter-xp.sql"
+   ],
+   "live": {
+    "md5": "92535ce5f7374db448bdf2089965885d",
+    "norm_len": 2437,
+    "measured": "2026-09-05",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "0a3515fb34ba30de9f331069c030bf86",
+    "norm_len": 3761,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "STAGED, NOT APPLIED — and this entry is NEW because the repo only started tracking this body today. supabase/migrations/2026-09-11-bounty-hunter-xp.sql is REVIEW-ONLY, awaiting a Security GO; it is what pushes hr_claim_bounty__ungated over the sweep's tracking threshold (it becomes a programmatically-patched body) and it is the whole of the divergence. Production still runs the ORIGINAL body from 2026-08-23-bounty.sql §8 verbatim — MEASURED 2026-09-05 with pg_get_functiondef and byte-compared against that file's text: identical, one author, no drift. The replay body is that same body plus exactly three spliced regions: the player_skills upsert that credits Bounty-Hunter XP from active_bounty.xp_reward, skill_id/xp on the ledger row it already wrote, and 'xp_skill' on the receipt. Norm length 2,437 (live) -> 3,761 (replay); the growth is the splice plus its comments. THE DIVERGENCE IS THE POINT: it says the fix has not shipped. AFTER APPLY, re-measure with  node tests/live-hash-drift.mjs --live --write  and let the baseline diff be the deploy record — at that moment live and replay must AGREE, and if they do not, the apply did not land what the repo believes. Guard: tests/bounty-hunter-xp.mjs."
   },
   {
    "sig": "hr_claim_daily__ungated(p_task_id text, p_slot integer)",

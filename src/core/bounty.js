@@ -204,6 +204,41 @@ export function unlockedTypes(bountyLevel) {
   return t;
 }
 
+/* ── THE THIRD LADDER: BOUNTY-HUNTER LEVEL -> BOARD TIER ────────────────────
+   `unlockedTier` above answers "how hard a monster may the board post", from the
+   COMBAT level. This one answers a different question — "how deep may the board
+   itself go" — from the BOUNTY-HUNTER level, and the two are multiplied at
+   generation time (the board posts min(combat tier, board tier)).
+
+   IT LIVED IN legacy.js AS `window.getUnlockedBountyTier` UNTIL b503, and being
+   trapped in the monolith is part of why the P0 below went unnoticed for the
+   whole life of the beta: nothing outside a browser could assert on it.
+
+   THE P0 IT GATES (measured on production 2026-09-05). `player_skills` held a
+   `bountyHunter` row for all 36 characters with `max(xp) = 0` — NO SERVER CODE
+   HAD EVER CREDITED IT. The client computed the XP, `G.skills` is
+   SERVER_OF_RECORD, and applyRecord's wholesale replace put the seeded 0 back
+   after every envelope. So this function was handed `1` forever and EVERY TIER
+   ABOVE 1 WAS UNREACHABLE FOR THE ENTIRE PLAYERBASE. The credit now happens in
+   `hr_claim_bounty` (supabase/migrations/2026-09-11-bounty-hunter-xp.sql), in
+   the same transaction as the gold and the Marks; this function is unchanged in
+   behaviour and merely moved somewhere a test can reach it. */
+export const BOUNTY_BOARD_TIER_BY_LEVEL = Object.freeze([
+  /* [bountyHunterLevel, boardTier] — descending, first match wins. */
+  Object.freeze([60, 6]), Object.freeze([50, 5]), Object.freeze([40, 4]),
+  Object.freeze([30, 3]), Object.freeze([20, 2]),
+]);
+
+/** The deepest board tier a Bounty-Hunter LEVEL opens. 1 for anything below the
+ *  first rung, and for a missing/garbage level (fail-closed toward the shallow
+ *  board — never hand a level-1 player a tier-6 contract because a read failed). */
+export function boardTierForBountyLevel(bountyLevel) {
+  const lv = Number(bountyLevel);
+  if (!Number.isFinite(lv)) return 1;
+  for (const [need, tier] of BOUNTY_BOARD_TIER_BY_LEVEL) if (lv >= need) return tier;
+  return 1;
+}
+
 /* ── WHO SETTLES A TURN-IN — the table the board must not out-run ────────────
    THE BUG THIS ENDS (found by driving the real board, 2026-08-31; Tyler on
    live b486: "there is still a bug with the bounty board").

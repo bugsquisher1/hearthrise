@@ -127,15 +127,19 @@ export function buildResiduePatch(G) {
   for (const f of RESIDUE_FIELDS) {
     if (!Object.prototype.hasOwnProperty.call(G, f) || typeof G[f] === 'undefined') continue;
     if (f === 'bountyHunter') {
-      // ⚠ bountyHunter MINUS marks — marks is AUTHORITY (server-owned via the
-      // record). It must never ride in the self-only client_state bag, or the
-      // client would re-author a server-owned balance (the two-sources bug).
+      // ⚠ bountyHunter MINUS marks AND xp — both are AUTHORITY (server-owned:
+      // marks via the record's top-level G.marks, and xp via player_skills,
+      // credited by hr_claim_bounty and read as the `bountyHunter` skill). Neither
+      // may ride in the self-only client_state bag, or the client would re-author a
+      // server-owned value (the two-sources bug). `xp` added b503, when the server
+      // finally started crediting it — a residue mirror of a server-owned number is
+      // the SA-002 class that deadlocked the property tier.
       const bh = G.bountyHunter;
       if (bh && typeof bh === 'object' && !Array.isArray(bh)) {
         const copy = {};
         for (const k in bh) {
           if (!Object.prototype.hasOwnProperty.call(bh, k)) continue;
-          if (k === 'marks') continue;
+          if (k === 'marks' || k === 'xp') continue;
           copy[k] = bh[k];
         }
         out[f] = copy;

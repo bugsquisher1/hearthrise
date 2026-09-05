@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-05",
- "replay_ms": 8127,
+ "replay_ms": 7923,
  "counts": {
   "tracked_names": 42,
   "entries": 42
@@ -181,8 +181,8 @@
     "2026-09-11-quartermaster-buy.sql"
    ],
    "live": {
-    "md5": "02e82a93877cbd32e06fd23c37d2c4be",
-    "norm_len": 23951,
+    "md5": "638425ee833c49065936d390a44c3484",
+    "norm_len": 26804,
     "measured": "2026-09-05",
     "source": "measured-live"
    },
@@ -191,8 +191,7 @@
     "norm_len": 26804,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "STAGED, NOT APPLIED — SA-015 dungeon-scrip server-of-record (docs/design/dungeon-settlement.md). The live body (link 7, hr_attended_kills) is on production; the repo chain now rebuilds TWO more links onto it: link 8 (2026-09-10-dungeon-settle.sql adds the hr_dungeon_settle engine grant) and link 9 (2026-09-11-quartermaster-buy.sql adds the hr_quartermaster_buy engine grant), both re-derived by tools/derive-grant-hygiene.mjs (insertions only, `--check` in sync at 9 links). Those two migrations are STAGED (schema-apply-order.json), so production does not carry the two extra c_engine_allow entries and live != replay ON PURPOSE. After the Coordinator applies dungeon-settle then quartermaster-buy, re-pin: node tests/live-hash-drift.mjs --live --write. Then they must AGREE."
+   "agree": true
   },
   {
    "sig": "hr_bank_move(p_slot integer, p_item text, p_qty bigint, p_dir text, p_idem uuid)",
@@ -845,8 +844,8 @@
     "2026-09-10-dungeon-scrip.sql"
    ],
    "live": {
-    "md5": "0073548708bfc034bf3e3427d0c527fd",
-    "norm_len": 10618,
+    "md5": "e485ca1bb28973c79b6bcb16574dc88e",
+    "norm_len": 11014,
     "measured": "2026-09-05",
     "source": "measured-live"
    },
@@ -856,7 +855,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED, NOT APPLIED — SA-015 dungeon-scrip server-of-record (docs/design/dungeon-settlement.md §1). 2026-09-10-dungeon-scrip.sql adds player_state.dungeon_scrip and PATCHES hr_state_of (pg_get_functiondef + a guarded exactly-once splice at the marks projection) to project 'dungeon_scrip', v_st.dungeon_scrip beside 'marks'. That migration is STAGED (schema-apply-order.json), so production's hr_state_of does not project dungeon_scrip and the repo replay does — live != replay ON PURPOSE. (The prior cosmetic rested/companion comment delta noted before this change is subsumed: the load-bearing difference now is the staged dungeon_scrip key.) After the Coordinator applies dungeon-scrip, re-pin: node tests/live-hash-drift.mjs --live --write. Then they must AGREE modulo the same cosmetic comment blocks."
+   "why": "VERIFIED 2026-09-05 with  node tests/live-hash-drift.mjs --codediff hr_state_of  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 4,736 code chars, zero differences — the whole 748-char delta is comments/whitespace. Production runs the same executable text the repo rebuilds. Cause: 2026-09-10-dungeon-scrip.sql §2 patches hr_state_of via an exactly-once anchored splice (the marks anchor) to project dungeon_scrip; applied to the live body it preserved the live comment/whitespace formatting, while the repo chain replays the same splice onto the repo's comment formatting — so the projected columns and every branch are identical and only the surrounding comments differ. GATE(b) in that migration proves the pre-existing marks projection survived the splice. Cosmetic; no production apply is implied or needed."
   },
   {
    "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",

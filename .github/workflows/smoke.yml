@@ -210,6 +210,21 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/bounty-hunter-xp.mjs --selftest
 
+      # The attended-loot top-up is the OTHER half of the beta-2 progression
+      # wall (production 2026-09-04: ~62% of an attended fight's drops were
+      # credited, the settle re-simulating the session as if the player had
+      # been away). Its guard drives the REAL computeAccrual (A1-A10) and
+      # replays the whole migration chain into in-process PostgreSQL (C1-C9).
+      # Unlike the renown and Bounty-Hunter guards it had NO step of its own —
+      # it ran only inside run-smoke (step 6), so a CI-specific failure in it
+      # was indistinguishable from any other step-6 failure and left no
+      # readable signal. It gets parity here: 26 mutations, and the clean
+      # control the --selftest re-runs per arm proves the guard passes in CI
+      # in its own right. No credentials; production untouched.
+      - name: Attended loot-credit — top-up bounded, loot-only, botd per UTC-day segment
+        if: ${{ !cancelled() }}
+        run: node tests/attended-loot-credit.mjs --selftest
+
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
       # it "says nothing about whether any row survives a restore". This is that

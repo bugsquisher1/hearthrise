@@ -3889,11 +3889,15 @@ const run = async () => {
       ]);
       return {
         passed: suite.passed, failed: suite.failed,
+        // SA-013 (increment 2): SKIP is a distinct honest verdict, not a failure.
+        skipped: suite.skipped || 0,
         runtimeErrors: suite.runtimeErrors, total: suite.total,
-        // SA-013: assertion-coverage diagnostic (verdict-neutral in increment 1).
+        // SA-013: assertion-coverage diagnostic.
         assertionDiagnostic: suite.assertionDiagnostic || null,
+        // Only a FAIL is a failure. A SKIP (declared, unarmed seam / absent
+        // environment) is reported separately and never reddens the run.
         failures: (suite.results || [])
-          .filter((r) => r.status !== 'PASS')
+          .filter((r) => r.status === 'FAIL')
           .map((r) => ({ name: r.name, why: r.why })),
       };
     }, SUITE_TIMEOUT_MS);
@@ -3901,16 +3905,17 @@ const run = async () => {
     const build = await page.evaluate(() => window.HearthriseBuild?.buildString?.() ?? 'unknown');
 
     console.log(`\nHearthrise smoke suite — ${build}`);
-    console.log(`  passed ${result.passed}/${result.total}   failed ${result.failed}   runtime errors ${result.runtimeErrors}`);
+    console.log(`  passed ${result.passed}/${result.total}   failed ${result.failed}   skipped ${result.skipped}   runtime errors ${result.runtimeErrors}`);
 
-    /* SA-013 assertion-coverage diagnostic (increment 1: report only, does NOT
-       change exitCode). The in-page suite prints the full block to the PAGE
-       console, which this harness does not forward — so surface the summary
-       here where CI can see it. Increment 2 flips HR_ASSERT_STRICT on and this
-       becomes a gate. */
+    /* SA-013 assertion-coverage diagnostic. Increment 2: HR_ASSERT_STRICT now
+       defaults ON in the in-page suite, so a zero-assert non-skip PASS is
+       converted to a FAIL there and arrives in `result.failures` — which sets
+       exitCode below. This block surfaces the coverage SUMMARY here (the in-page
+       block prints to the PAGE console, which this harness does not forward) so a
+       CI reader can see it; the GATE itself is the failure list, not this print. */
     const diag = result.assertionDiagnostic;
     if (diag) {
-      console.log('\nSA-013 assertion coverage (diagnostic; verdict-neutral):');
+      console.log(`\nSA-013 assertion coverage (HR_ASSERT_STRICT ${diag.strict ? 'ON — gate live' : 'OFF'}; ${result.skipped} skipped):`);
       console.log(`  zero-assert PASSes: ${diag.zeroAssertPasses.length}`
         + `  (asserts-nothing: ${diag.assertsNothing.length}`
         + `, throw-only: ${diag.throwOnlyPasses.length}`

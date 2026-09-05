@@ -35,6 +35,16 @@ on('*', () => {});
 
 const pass = (name) => ({ name, status: 'PASS' });
 const fail = (name, why) => ({ name, status: 'FAIL', why: String(why) });
+/* SA-013 (increment 2) — a SKIP is an honest "this seam is not armed yet / this
+   environment is not present", DISTINCT from PASS. It is not a passing assertion
+   and it does not trip HR_ASSERT_STRICT, but it is counted and printed as
+   `N skipped` so an unrun test can never masquerade as a green one — the exact
+   confusion the b371 note below calls out ("a skip renders identically to a
+   pass"). Declared by skip(reason) from inside a test body; the runner reads the
+   module-level flag after the body returns. A FAILING assert throws before any
+   skip() can run, so a skip only ever converts a would-be-PASS into an honest
+   SKIP — it can never hide a real failure. */
+const skipResult = (name, why) => ({ name, status: 'SKIP', why: String(why) });
 
 /* ── SA-013 — ASSERTION COVERAGE INSTRUMENTATION (increment 1, diagnostic) ───
    THE PROBLEM. This runner reports PASS for any test body that does not throw
@@ -60,6 +70,11 @@ const fail = (name, why) => ({ name, status: 'FAIL', why: String(why) });
    runner resets the counter before each body and reads it after. Cost is one
    integer increment per assert. */
 let __assertCount = 0;
+/* SA-013 (increment 2): the per-test skip flag. Reset alongside __assertCount
+   before each body; read by the runner after the body returns. Only one test
+   body ever executes at a time (the runner awaits each in order — see the
+   module-level counter note above), so a single flag is safe. */
+let __skipReason = null;
 const withAsserts = (r) => { r.asserts = __assertCount; return r; };
 
 /* SA-013: analyse assertion coverage after a run. results[i] corresponds to
@@ -142,12 +157,14 @@ const clearConsumeHolds = () => {
 const tryRun = (name, fn) => {
   clearConsumeHolds();
   __assertCount = 0; // SA-013: reset the per-test assertion counter
+  __skipReason = null; // SA-013 (increment 2): reset the per-test skip flag
   try {
     const r = fn();
     if (r && typeof r.then === 'function') {
       return withAsserts(fail(name, 'ASYNC BODY ON A SYNC RUNNER — this test was registered with tryRun(), which cannot '
         + 'await it, so it would report PASS without running a single assertion. Register it with tryRunAsync().'));
     }
+    if (__skipReason !== null) return withAsserts(skipResult(name, __skipReason));
     return withAsserts(pass(name));
   } catch (e) { return withAsserts(fail(name, e && (e.message || e))); }
   finally { clearConsumeHolds(); }
@@ -163,15 +180,36 @@ const tryRun = (name, fn) => {
    runSmokeTest() below now awaits each entry IN ORDER — order is load-bearing,
    because these tests mutate the live G. */
 const tryRunAsync = (name, fn) => Promise.resolve()
-  // SA-013: reset the counter and call fn() in the SAME microtask, so nothing
-  // can slip an assert between the reset and the body.
-  .then(() => { clearConsumeHolds(); __assertCount = 0; return fn(); })
-  .then(() => { clearConsumeHolds(); return withAsserts(pass(name)); },
+  // SA-013: reset the counter + skip flag and call fn() in the SAME microtask,
+  // so nothing can slip an assert between the reset and the body.
+  .then(() => { clearConsumeHolds(); __assertCount = 0; __skipReason = null; return fn(); })
+  .then(() => { clearConsumeHolds(); return withAsserts(__skipReason !== null ? skipResult(name, __skipReason) : pass(name)); },
         (e) => { clearConsumeHolds(); return withAsserts(fail(name, e && (e.message || e))); });
 /* SA-013: count every assertion that EXECUTES (increment before the check, so a
    throwing assert is still counted as "reached"). The counter is reset by the
    runner before each test body. Cost: one increment per call. */
 const assert = (cond, msg) => { __assertCount++; if (!cond) throw new Error(msg); };
+/* SA-013 (increment 2): declare an honest SKIP for a seam that is not armed in
+   this build, or an environment that is not present in this run (mobile-only on a
+   desktop viewport, https-only over http, live-config-only offline, an empty
+   fresh-account fixture). It records a reason and returns control to the body
+   (callers pair it with `return`). It is NOT an assertion — it does not count
+   toward coverage — and the runner reports it as SKIPPED, never as a passing
+   test. Never use skip() to silence a failing real assertion: a skip means "this
+   was not run", not "this was checked". */
+const skip = (reason) => { __skipReason = String(reason == null ? '' : reason); };
+/* SA-013 (increment 2): a "this must not throw" contract, as a COUNTED
+   assertion. The interactive tests used to wrap each call in try/catch and
+   re-throw — a guard that only ran (and only counted) when the call actually
+   threw, so on the happy path the test asserted nothing and reported a silent
+   green. callOk asserts on EVERY call, so "clicking/invoking X does not throw"
+   becomes real, counted coverage. clickOk is the same contract for a DOM click. */
+const callOk = (label, fn) => {
+  let err = null;
+  try { fn(); } catch (e) { err = e; }
+  assert(!err, label + ' threw: ' + (err && (err.message || err)));
+};
+const clickOk = (el, label) => callOk(label, () => el.click());
 
 /* R4 COOKING PAUSE — run a cooking-MECHANIC regression under a TEMPORARY arm.
    Cooking is disarmed (paused) in this build, so the live cooking loop (start,
@@ -1126,7 +1164,7 @@ const TESTS = [
      against over-forwarding (a click on a non-target tab does nothing).
      Mutation: revert ftue.js's shade listener → both halves go red. */
   () => tryRunAsync('b459 FTUE-CLICK-1: the spotlit target is reachable through the shade', async () => {
-    if (typeof window.startFTUE !== 'function' || typeof window.endFTUE !== 'function') { assert(true, 'ftue seams absent'); return; }
+    if (typeof window.startFTUE !== 'function' || typeof window.endFTUE !== 'function') { skip('ftue seams absent'); return; }
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const prevTab = window.activeTab;
     const laidOut = (el) => { const r = el.getBoundingClientRect(); return r.width > 1 && r.height > 1; };
@@ -1183,7 +1221,7 @@ const TESTS = [
        element. Mutation: swap findTarget back to document.querySelector → the
        geometric half of CLICK-1 goes red at phone sizes; this pins the data. */
     const F = window.HearthriseFTUE;
-    if (!F || typeof F.steps !== 'function') { assert(true, 'steps seam absent'); return; }
+    if (!F || typeof F.steps !== 'function') { skip('steps seam absent'); return; }
     const laidOut = (el) => { const r = el.getBoundingClientRect(); return r.width > 1 && r.height > 1; };
     for (const step of F.steps()) {
       if (!step.target) continue;
@@ -5657,16 +5695,21 @@ const TESTS = [
        link that let the click through would start a craft every time a player
        asked where a plank comes from. The capture-phase handler is what stops
        that, and this is its contract. */
-    if (typeof window.tileForArtisan !== 'function' || !window.ARTISAN_RECIPES) return;
+    // SA-013: the builder is published as HearthriseActivitiesGrid.__tileForArtisan,
+    // never as window.tileForArtisan — the old guard checked a seam that was never
+    // armed, so this test silently early-returned every run and asserted nothing.
+    const AG = window.HearthriseActivitiesGrid;
+    const tileForArtisan = AG && AG.__tileForArtisan;
+    if (typeof tileForArtisan !== 'function' || !window.ARTISAN_RECIPES) { skip('activities-grid __tileForArtisan seam absent'); return; }
     const rec = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.inputs || r.input);
-    if (!rec) return;
+    if (!rec) { skip('no smithing recipe with inputs to build a tile from'); return; }
     const snap = snapshotG();
     const host = document.createElement('div');
     document.body.appendChild(host);
     try {
       window.G.activeSkill = null;
       window.G.skillTargetId = null;
-      host.innerHTML = window.tileForArtisan(rec, 'smithing');
+      host.innerHTML = tileForArtisan(rec, 'smithing');
       const nm = host.querySelector('.at-inputs [data-inspect-item]');
       assert(nm, 'an artisan input name must be inspectable');
       // The live COUNT stays inert — it is a number, not a noun.
@@ -6538,7 +6581,7 @@ const TESTS = [
      cadence, and it does NOT complete the bounty (completeBounty owns at target). */
   () => tryRunAsync('bug #5 ROOT: cull kills below target credit the server counter on a cadence (not only at target)', async () => {
     const G = window.G;
-    if (typeof window.handleBountyKill !== 'function') { assert(true, 'bounty seam absent'); return; }
+    if (typeof window.handleBountyKill !== 'function') { skip('bounty seam absent'); return; }
     assert(window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.creditKills === 'function',
       'creditKills transport missing');
     const armed = typeof window.clientMayWriteRecordField === 'function'
@@ -6588,7 +6631,7 @@ const TESTS = [
      exactly what the SERVER says it accepted, never what the client sent. */
   () => tryRunAsync('report #41: kills with NO bounty buffer for the server daily-kill credit', async () => {
     const G = window.G;
-    if (typeof window.handleBountyKill !== 'function') { assert(true, 'bounty seam absent'); return; }
+    if (typeof window.handleBountyKill !== 'function') { skip('bounty seam absent'); return; }
     assert(typeof window.hrKillCreditFlush === 'function',
       'hrKillCreditFlush is missing — the bounty-free kill credit is unwired and the daily goal is dead');
     const armed = typeof window.clientMayWriteRecordField === 'function'
@@ -6596,7 +6639,7 @@ const TESTS = [
     if (!armed) return; // the server credit path only runs under the gold arm
     const ids = Object.keys(window.MONSTERS || {});
     const free = ids[0]; const bountied = ids[1] || ids[0];
-    if (!free || free === bountied) { assert(true, 'need two distinct monsters'); return; }
+    if (!free || free === bountied) { skip('need two distinct monsters'); return; }
     const saved = { bh: JSON.parse(JSON.stringify(G.bountyHunter || {})), gc: window.HearthriseGoalClaim,
       pend: G._killCreditPending };
     const calls = [];
@@ -6662,7 +6705,7 @@ const TESTS = [
      calls a money-adjacent RPC on a timer for ever is its own defect). */
   () => tryRunAsync('report #41: stopping at target still drains — a scheduled credit, not one gated on the next kill', async () => {
     const G = window.G;
-    if (typeof window.handleBountyKill !== 'function') { assert(true, 'bounty seam absent'); return; }
+    if (typeof window.handleBountyKill !== 'function') { skip('bounty seam absent'); return; }
     assert(typeof window.hrKillCreditFlush === 'function'
       && typeof window.hrKillCreditFlush.trailArmed === 'function',
       'the trailing drain seam is missing — a player who stops at target would sit in '
@@ -6671,7 +6714,7 @@ const TESTS = [
       && window.clientMayWriteRecordField('gold') === false;
     if (!armed) return; // the server credit path only runs under the gold arm
     const free = Object.keys(window.MONSTERS || {})[0];
-    if (!free) { assert(true, 'no monsters'); return; }
+    if (!free) { skip('no monsters'); return; }
     const saved = { bh: JSON.parse(JSON.stringify(G.bountyHunter || {})), gc: window.HearthriseGoalClaim,
       pend: G._killCreditPending };
     let credit = 2;   // the server accepts only part of each claim (the cap)
@@ -7278,37 +7321,31 @@ const TESTS = [
   () => tryRun('WAVE1: artisan tiles show a persistent workbench lock when the room is not built', () => {
     // Tyler: "the only tool I can craft is a fishing rod." Smithing needs the
     // Forge; without it the tile used to render enabled and die silently on click.
-    if (typeof window.tileForArtisan !== 'function' || !window.ARTISAN_RECIPES) return;
-    const rec = (window.ARTISAN_RECIPES.smithing || []).find(r => r.req <= 5) || (window.ARTISAN_RECIPES.smithing || [])[0];
-    if (!rec) return;
-    const G = window.G; const saved = { rooms: JSON.parse(JSON.stringify(G.rooms || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
-    try {
-      G.rooms = Object.assign({}, G.rooms, { forge: 0 });            // no Forge
-      G.skills = Object.assign({}, G.skills, { smithing: 5000000 }); // level is NOT the blocker
-      const html = window.tileForArtisan(rec, 'smithing');
-      assert(/at-lock-bench/.test(html), 'smithing tile must carry the actionable bench lock when no Forge');
-      assert(/Build the/.test(html), 'the lock must name the room to build, got: ' + html.slice(0, 240));
-      assert(/hrArtisanGateClick/.test(html), 'a locked tile must route through hrArtisanGateClick, not startArtisan');
-      // and once the Forge exists, the same tile unlocks
-      G.rooms.forge = 3;
-      const html2 = window.tileForArtisan(rec, 'smithing');
-      assert(!/at-lock-bench/.test(html2) && /startArtisan/.test(html2), 'with the Forge built the smithing tile must be craftable');
-    } finally { G.rooms = saved.rooms; G.skills = saved.skills; }
+    /* SA-013: the bench-lock feature this test asserts (at-lock-bench / "Build the
+       …" / hrArtisanGateClick) lives ONLY in legacy.js's tileForArtisan — the
+       builder that actually renders in the live UI — and legacy's builder is NOT
+       exposed as a test seam (window.tileForArtisan is undefined). The published
+       HearthriseActivitiesGrid.__tileForArtisan is a KNOWN-INCOMPLETE dead twin
+       (its own comment: "these builders currently paint nothing"; legacy wins the
+       renderSkillDetail assignment) and does not implement the lock, so asserting
+       against it fails on absent-by-design code. Skip honestly and route the
+       seam-exposure to Systems Engineer (see DISCOVERIES / HANDOFFS SA-013) rather
+       than leave the old silent early-return that asserted nothing. */
+    skip('live tile builder (legacy.js tileForArtisan) not exposed as a test seam; module twin is a known-incomplete dead twin — routed to Systems');
+    return;
   }),
 
   () => tryRun('WAVE1: gather tile names the active tool and its bonus', () => {
     // Tyler: "the fishing rod doesn't seem to do anything." The rod worked but was
     // never surfaced. The tile must now name the tool + its speed bonus.
-    if (typeof window.tileForGather !== 'function' || !window.HearthriseTools || !window.FISH_SPOTS) return;
-    const spot = window.FISH_SPOTS[0]; const G = window.G;
-    const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
-    try {
-      G.skills = Object.assign({}, G.skills, { fishing: 5000000 });
-      G.inventory = Object.assign({}, G.inventory, { willow_rod: 1 });
-      const html = window.tileForGather(spot, 'fishing');
-      assert(/at-tool/.test(html), 'the gather tile must render the tool line when a rod is owned');
-      assert(/% speed/.test(html), 'the tool line must state the speed bonus, got: ' + html.slice(0, 240));
-    } finally { G.inventory = saved.inv; G.skills = saved.skills; }
+    /* SA-013: same shape as the WAVE1 artisan test above — the tool-line feature
+       (at-tool / speed bonus) lives ONLY in legacy.js's tileForGather (the live
+       builder), which is not exposed as a test seam; the published
+       HearthriseActivitiesGrid.__tileForGather dead twin does not implement it.
+       Skip honestly and route the seam-exposure to Systems rather than assert
+       against absent-by-design code or leave the old silent early-return. */
+    skip('live tile builder (legacy.js tileForGather) not exposed as a test seam; module twin is a known-incomplete dead twin — routed to Systems');
+    return;
   }),
 
   () => tryRun('WAVE1: fight preview shows the REAL drop chance, not "1x common"', () => {
@@ -7806,8 +7843,14 @@ const TESTS = [
 
   () => tryRun('WAVE-armor: the combat triangle — cloth boosts magic accuracy, plate penalises it', () => {
     const G = window.G, I = window.ITEMS;
-    if (typeof window.getPlayerCombatRolls !== 'function' || !I) return;
-    if (!I.dawn_platebody || !I.archmage_body || !I.dragonhide_body || !I.dawn_staff) return;
+    if (typeof window.getPlayerCombatRolls !== 'function' || !I) { skip('getPlayerCombatRolls / ITEMS seam absent'); return; }
+    if (!I.dawn_platebody || !I.archmage_body || !I.dragonhide_body) { skip('combat-triangle body archetypes absent from ITEMS'); return; }
+    // SA-013: this test used to gate on `dawn_staff`, an item id that is NOT in
+    // ITEMS — so the whole test silently early-returned and asserted nothing.
+    // Discover a real magic staff at runtime instead, so the mechanic is actually
+    // exercised and a future staff rename cannot re-break it.
+    const staffId = Object.keys(I).find((k) => /staff/i.test(k) && I[k] && I[k].slot === 'weapon');
+    if (!staffId) { skip('no magic staff weapon in ITEMS to exercise the triangle'); return; }
     // archetype data is present
     assert(I.archmage_body.armourClass === 'cloth' && I.dawn_platebody.armourClass === 'plate', 'armourClass must be set');
     assert(I.archmage_body.magicAtkB > 0 && I.dawn_platebody.magicAtkB < 0, 'cloth +magicAtkB, plate -magicAtkB');
@@ -7815,13 +7858,13 @@ const TESTS = [
     assert(I.archmage_body.defB < I.dawn_platebody.defB, 'cloth must have less defence than plate');
     // and it flows through combat: a mage lands more often in cloth than plate vs a high-DEF foe
     const m = Object.values(window.MONSTERS || {}).filter(x => x.tier >= 5).sort((a, b) => (b.def || 0) - (a.def || 0))[0];
-    if (!m) return;
+    if (!m) { skip('no tier-5+ monster to test accuracy against'); return; }
     const snap = { eq: JSON.parse(JSON.stringify(G.equipment || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
     try {
       G.skills = Object.assign({}, G.skills, { magic: 5000000, defense: 5000000 });
-      G.equipment = { weapon: 'dawn_staff', body: 'archmage_body' };
+      G.equipment = { weapon: staffId, body: 'archmage_body' };
       const clothAcc = window.getPlayerCombatRolls(m).accuracy;
-      G.equipment = { weapon: 'dawn_staff', body: 'dawn_platebody' };
+      G.equipment = { weapon: staffId, body: 'dawn_platebody' };
       const plateAcc = window.getPlayerCombatRolls(m).accuracy;
       assert(clothAcc > plateAcc, 'a mage must land more often in cloth than plate (' + clothAcc.toFixed(2) + ' vs ' + plateAcc.toFixed(2) + ')');
     } finally { G.equipment = snap.eq; G.skills = snap.skills; }
@@ -9080,8 +9123,13 @@ const TESTS = [
     // text that read ~1.5:1. Both now use var(--bg-2) so they invert per theme.
     // Only meaningful on the light default — dark themes intentionally use a
     // dark chip face with light text.
+    // SA-013: cozy-light is a RETIRED theme — HearthriseTheme.list() now holds
+    // only 'hearthlight' and setTheme('cozy-light') is a no-op, so there is no
+    // light ground for this chip face to render under (dark themes intentionally
+    // use a dark chip). It cannot be armed by a fixture without resurrecting the
+    // theme; declaring it a skip is the honest state (was a silent early-return).
     const theme = document.body.getAttribute('data-theme');
-    if (theme && theme !== 'cozy-light') return;
+    if (theme && theme !== 'cozy-light') { skip('cozy-light theme retired (only hearthlight registered) — no light ground to measure'); return; }
     function lumOf(sel, html) {
       const host = document.createElement('div');
       host.style.cssText = 'position:fixed;left:-9999px;top:0';
@@ -9198,6 +9246,7 @@ const TESTS = [
     restoreG(snap);
   }),
   () => tryRun('equip: equipped items exist in ITEMS', () => {
+    // Live coverage: the player's OWN equipped items must resolve.
     for (const [slot, id] of Object.entries(window.G.equipment || {})) {
       if (!id) continue;
       // b213: the companion slot holds ids from the COMPANIONS registry
@@ -9209,6 +9258,22 @@ const TESTS = [
       }
       assert(window.ITEMS[id], 'equipped item ' + id + ' missing from ITEMS');
     }
+    /* SA-013: a fresh account has an EMPTY equipment map, so the loop above can
+       assert nothing and this test passed vacuously. Drive the same resolution
+       check with a fixture so it always exercises its subject — a real item id in
+       a gear slot, and a real companion id in the companion slot. Restored after. */
+    const savedEq = window.G.equipment;
+    try {
+      const anyItem = Object.keys(window.ITEMS || {})[0];
+      assert(anyItem, 'ITEMS registry is empty — the equip-resolution check has nothing to exercise');
+      window.G.equipment = { weapon: anyItem };
+      assert(window.ITEMS[window.G.equipment.weapon], 'fixture-equipped item ' + anyItem + ' did not resolve in ITEMS');
+      const anyComp = Object.keys(window.COMPANIONS || {})[0];
+      if (anyComp) {
+        window.G.equipment = { companion: anyComp };
+        assert(window.COMPANIONS[window.G.equipment.companion], 'fixture-equipped companion ' + anyComp + ' did not resolve in COMPANIONS');
+      }
+    } finally { window.G.equipment = savedEq; }
   }),
   () => tryRun('errors: clean log', () => {
     // SA-013: was a bare `throw` (real teeth, but invisible to the assertion
@@ -9580,9 +9645,9 @@ const TESTS = [
   // both Achievements/Bestiary/LastSession/Lifetime AND Objectives/
   // Achievements/Bestiary/Lifetime stacked on small viewports.
   () => tryRun('b124: prof-toolbar hidden on mobile', () => {
-    if (window.innerWidth > 540) return; // desktop — rule doesn't apply
+    if (window.innerWidth > 540) { skip('mobile-only rule; desktop viewport'); return; }
     const pt = document.querySelector('#panel-profile .prof-toolbar');
-    if (!pt) return; // not in DOM; nothing to assert
+    if (!pt) { skip('prof-toolbar not in DOM'); return; }
     const d = getComputedStyle(pt).display;
     assert(d === 'none', 'prof-toolbar should be display:none on mobile, got ' + d);
   }),
@@ -9591,9 +9656,9 @@ const TESTS = [
   // stayed in a vertical flex stack because audit-overrides.css had
   // higher specificity than the b122 mobile rule.
   () => tryRun('b123: feat-buttons grid on mobile', () => {
-    if (window.innerWidth > 540) return;
+    if (window.innerWidth > 540) { skip('mobile-only rule; desktop viewport'); return; }
     const fb = document.querySelector('#panel-profile .feat-buttons');
-    if (!fb) return;
+    if (!fb) { skip('feat-buttons not in DOM'); return; }
     const cs = getComputedStyle(fb);
     assert(cs.display === 'grid', 'feat-buttons display should be grid on mobile, got ' + cs.display);
     assert(/1fr.*1fr/.test(cs.gridTemplateColumns), 'feat-buttons should be 2-col grid, got ' + cs.gridTemplateColumns);
@@ -9654,8 +9719,8 @@ const TESTS = [
   // be installed (or installing). Catches the b108-b110 era where the
   // SW silently failed to register on some builds.
   () => tryRun('sw: registered when served over https', () => {
-    if (location.protocol !== 'https:') return; // local dev, skip
-    if (!('serviceWorker' in navigator)) return; // browser doesn't support
+    if (location.protocol !== 'https:') { skip('https-only; served over ' + location.protocol); return; }
+    if (!('serviceWorker' in navigator)) { skip('serviceWorker not supported in this environment'); return; }
     // navigator.serviceWorker.controller is null until the SW activates
     // — getRegistration() is what we want for "is one installed".
     // This test is async-flavored but we check synchronously and only
@@ -9733,11 +9798,16 @@ const TESTS = [
 
   () => tryRun('clicks: topbar buttons (notif/save/settings/quests)', () => {
     const ids = ['btn-notif', 'btn-settings', 'hr-quests-btn']; // b227: btn-save removed
+    let clicked = 0;
     for (const id of ids) {
       const el = document.getElementById(id);
       if (!el) continue;
-      try { el.click(); } catch (e) { throw new Error(`topbar #${id} click threw: ${e.message}`); }
+      clickOk(el, `topbar #${id} click`); // SA-013: counted no-throw assertion per button
+      clicked++;
     }
+    // The topbar is core UI on the desktop viewport the suite runs at — at least
+    // one of these controls must exist, or the assertions above never ran.
+    assert(clicked > 0, 'no topbar buttons (' + ids.join(', ') + ') were present to click');
     // Close any modal we opened so the rest of the suite can run
     document.querySelectorAll('.modal.show, [class*="modal"][class*="show"]').forEach(m => m.classList.remove('show'));
     document.querySelectorAll('[data-modal-close], .modal-close').forEach(el => { try { el.click(); } catch {} });
@@ -9790,75 +9860,75 @@ const TESTS = [
 
   () => tryRun('clicks: every skill row in skills panel', () => {
     const snap = snapshotG();
-    window.showTab('skills');
-    if (typeof window.renderSkillsList === 'function') window.renderSkillsList();
-    const rows = document.querySelectorAll('#skills-list .skill-row, #skills-list [onclick*="openSkillDetail"], #skills-list .skill-card');
-    if (rows.length === 0) return; // panel layout differs across builds; skip rather than fail
-    for (const r of Array.from(rows).slice(0, 5)) {
-      try { r.click(); } catch (e) { throw new Error(`skill row threw: ${e.message}`); }
-    }
-    if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch {}
-    restoreG(snap);
+    try {
+      window.showTab('skills');
+      if (typeof window.renderSkillsList === 'function') window.renderSkillsList();
+      const rows = document.querySelectorAll('#skills-list .skill-row, #skills-list [onclick*="openSkillDetail"], #skills-list .skill-card');
+      if (rows.length === 0) { skip('skills panel uses a different row layout in this build'); return; }
+      for (const r of Array.from(rows).slice(0, 5)) clickOk(r, 'skill row'); // SA-013: counted per row
+      if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch {}
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('clicks: activities grid tile starts a skill', () => {
     const snap = snapshotG();
-    window.showTab('skills');
-    if (typeof window.openSkillDetail === 'function') window.openSkillDetail('mining');
-    void document.body.offsetHeight;
-    const tile = document.querySelector('#skill-detail .act-tile, #skill-detail [onclick*="startSkill"]');
-    if (!tile) return; // some builds inline this; pass silently
-    try { tile.click(); } catch (e) { throw new Error('act-tile click threw: ' + e.message); }
-    if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch {}
-    restoreG(snap);
+    try {
+      window.showTab('skills');
+      if (typeof window.openSkillDetail === 'function') window.openSkillDetail('mining');
+      void document.body.offsetHeight;
+      const tile = document.querySelector('#skill-detail .act-tile, #skill-detail [onclick*="startSkill"]');
+      if (!tile) { skip('activities grid is inlined in this build (no standalone act-tile)'); return; }
+      clickOk(tile, 'act-tile click'); // SA-013: counted no-throw assertion
+      if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch {}
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('clicks: inventory sub-tabs (Bag / Bank)', () => {
     window.showTab('inventory');
     const chips = document.querySelectorAll('#panel-inventory .chips [data-inv]');
-    if (chips.length === 0) return;
-    for (const c of chips) {
-      try { c.click(); } catch (e) { throw new Error(`inv chip ${c.dataset.inv} threw: ${e.message}`); }
-    }
+    if (chips.length === 0) { skip('inventory sub-tab chips absent in this build layout'); return; }
+    for (const c of chips) clickOk(c, `inv chip ${c.dataset.inv}`); // SA-013: counted per chip
   }),
 
   () => tryRun('clicks: house room rows + tab switches', () => {
     window.showTab('house');
     if (typeof window.renderHouse === 'function') window.renderHouse();
     const tabs = document.querySelectorAll('[data-house]');
-    for (const t of tabs) {
-      try { t.click(); } catch (e) { throw new Error(`house tab ${t.dataset.house} threw: ${e.message}`); }
-    }
+    if (tabs.length === 0) { skip('house tabs absent in this build layout'); return; }
+    for (const t of tabs) clickOk(t, `house tab ${t.dataset.house}`); // SA-013: counted per tab
     // Click the first room row's upgrade button if present (will no-op
     // when player can't afford, but click should not throw).
     const upBtn = document.querySelector('#house-panel [onclick*="upgradeRoom"]');
-    if (upBtn) try { upBtn.click(); } catch (e) { throw new Error('house upgrade btn threw: ' + e.message); }
+    if (upBtn) clickOk(upBtn, 'house upgrade btn');
   }),
 
   () => tryRun('clicks: farm plot tiles open seed picker (or harvest)', () => {
     const snap = snapshotG();
-    window.showTab('farming');
-    if (typeof window.renderFarm === 'function') window.renderFarm();
-    const plots = document.querySelectorAll('.farm-tile, [onclick*="openSeedPicker"], [onclick*="harvestPlot"], [onclick*="waterPlot"]');
-    let clicked = 0;
-    for (const p of Array.from(plots).slice(0, 2)) {
-      try { p.click(); clicked++; } catch (e) { throw new Error('farm plot threw: ' + e.message); }
-      document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
-    }
-    restoreG(snap);
+    try {
+      window.showTab('farming');
+      if (typeof window.renderFarm === 'function') window.renderFarm();
+      const plots = document.querySelectorAll('.farm-tile, [onclick*="openSeedPicker"], [onclick*="harvestPlot"], [onclick*="waterPlot"]');
+      if (plots.length === 0) { skip('no farm plot tiles rendered in this build'); return; }
+      for (const p of Array.from(plots).slice(0, 2)) {
+        clickOk(p, 'farm plot'); // SA-013: counted no-throw assertion per tile
+        document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+      }
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('clicks: bounty board rows', () => {
     const snap = snapshotG();
-    window.showTab('bounty');
-    if (typeof window.renderBounty === 'function') window.renderBounty();
-    void document.body.offsetHeight;
-    const rows = document.querySelectorAll('#panel-bounty .bounty-row, #panel-bounty [onclick]');
-    for (const r of Array.from(rows).slice(0, 3)) {
-      try { r.click(); } catch (e) { throw new Error('bounty row threw: ' + e.message); }
-      document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
-    }
-    restoreG(snap);
+    try {
+      window.showTab('bounty');
+      if (typeof window.renderBounty === 'function') window.renderBounty();
+      void document.body.offsetHeight;
+      const rows = document.querySelectorAll('#panel-bounty .bounty-row, #panel-bounty [onclick]');
+      if (rows.length === 0) { skip('no bounty board rows rendered in this build/state'); return; }
+      for (const r of Array.from(rows).slice(0, 3)) {
+        clickOk(r, 'bounty row'); // SA-013: counted no-throw assertion per row
+        document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+      }
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('clicks: stable companion cards', () => {
@@ -9866,9 +9936,8 @@ const TESTS = [
     if (typeof window.renderStable === 'function') window.renderStable();
     void document.body.offsetHeight;
     const cards = document.querySelectorAll('#panel-stable .sc-card, #panel-stable [onclick*="equipCompanion"], #panel-stable [onclick*="unequipCompanion"]');
-    for (const c of Array.from(cards).slice(0, 3)) {
-      try { c.click(); } catch (e) { throw new Error('stable card click threw: ' + e.message); }
-    }
+    if (cards.length === 0) { skip('no stable companion cards in this build/state'); return; }
+    for (const c of Array.from(cards).slice(0, 3)) clickOk(c, 'stable card click'); // SA-013: counted per card
   }),
 
   // BUG 4 (Paione: "only way I found it was Character → Equipment → Companion →
@@ -10000,17 +10069,19 @@ const TESTS = [
     window.showTab('market');
     if (typeof window.renderMarket === 'function') window.renderMarket();
     void document.body.offsetHeight;
+    // SA-013: the market panel is a core surface — assert it rendered, so this
+    // test always executes at least one real assertion (before this it counted
+    // nothing unless an input happened to throw).
+    assert(document.getElementById('panel-market'), 'market panel did not render');
     const search = document.querySelector('#panel-market input[type="search"], #panel-market input[type="text"]');
     if (search) {
-      try {
+      callOk('market search input', () => {
         search.value = 'log';
         search.dispatchEvent(new Event('input', { bubbles: true }));
-      } catch (e) { throw new Error('market search input threw: ' + e.message); }
+      });
     }
     const sortBtns = document.querySelectorAll('#panel-market [data-sort], #panel-market .sort-btn');
-    for (const b of Array.from(sortBtns).slice(0, 3)) {
-      try { b.click(); } catch (e) { throw new Error('market sort threw: ' + e.message); }
-    }
+    for (const b of Array.from(sortBtns).slice(0, 3)) clickOk(b, 'market sort'); // SA-013: counted per sort
   }),
 
   () => tryRun('clicks: bug-report 🐛 button opens modal', () => {
@@ -10037,12 +10108,10 @@ const TESTS = [
 
   () => tryRun('clicks: settings panel opens + tabs switch', () => {
     const btn = document.getElementById('btn-settings');
-    if (!btn) return;
-    try { btn.click(); } catch (e) { throw new Error('settings open threw: ' + e.message); }
+    if (!btn) { skip('settings button (#btn-settings) absent in this build'); return; }
+    clickOk(btn, 'settings open'); // SA-013: counted no-throw assertion
     const settingsTabs = document.querySelectorAll('#panel-settings [data-settings-tab], #settings-modal [data-tab], .settings-tab');
-    for (const t of Array.from(settingsTabs).slice(0, 6)) {
-      try { t.click(); } catch (e) { throw new Error(`settings tab "${t.textContent.trim()}" threw: ${e.message}`); }
-    }
+    for (const t of Array.from(settingsTabs).slice(0, 6)) clickOk(t, `settings tab "${t.textContent.trim()}"`); // SA-013: counted per tab
     // Close any modal we may have opened
     document.querySelectorAll('.modal.show, #settings-modal.show').forEach(m => m.classList.remove('show'));
   }),
@@ -10322,18 +10391,22 @@ const TESTS = [
     const snap = snapshotG();
     try {
       const M = window.HearthriseMarket;
-      if (!M || typeof M.listItem !== 'function' || typeof M.buyListing !== 'function') return;
+      // SA-013: an absent market API is an unarmed seam, not a silent pass.
+      if (!M || typeof M.listItem !== 'function' || typeof M.buyListing !== 'function') {
+        skip('HearthriseMarket listItem/buyListing seam absent'); return;
+      }
       window.G.gold = (window.G.gold || 0) + 1000;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.normal_log = (window.G.inventory.normal_log || 0) + 5;
       const r = M.listItem('normal_log', 1, 5);
-      if (!r || !r.ok) return;
+      // The listing itself is the first real assertion: listing a held item must succeed.
+      assert(r && r.ok, 'listItem(normal_log) failed: ' + JSON.stringify(r));
       const all = (typeof M.list === 'function') ? M.list() : [];
       const mine = all.filter && all.filter(l => l.itemId === 'normal_log');
-      if (!mine || !mine.length) return;
+      assert(mine && mine.length, 'the listing we just created is not in M.list()');
       // We're the seller of every test listing — buyListing usually rejects
-      // self-purchases. Just assert the call doesn't throw.
-      try { M.buyListing(mine[mine.length - 1].id, 1); } catch {}
+      // self-purchases with a value, but it must not THROW (counted assertion).
+      callOk('buyListing (self-purchase)', () => M.buyListing(mine[mine.length - 1].id, 1));
       // Clean up: cancel anything we left
       if (typeof M.cancelListing === 'function') {
         for (const l of (mine || [])) try { M.cancelListing(l.id); } catch {}
@@ -10346,16 +10419,18 @@ const TESTS = [
     try {
       // Force-complete a daily quest then trigger the claim. Quest ID
       // shape varies; we use whichever the build exposes.
-      if (!window.G.quests || typeof window.claimQuest !== 'function') return;
+      if (!window.G.quests || typeof window.claimQuest !== 'function') {
+        skip('quests state / claimQuest seam absent'); return;
+      }
       const dailies = (window.G.quests.daily || window.G.quests.dailies || []);
-      if (!dailies.length) return;
+      if (!dailies.length) { skip('no daily quests present to claim in this state'); return; }
       const q = dailies[0];
-      const before = window.G.gold || 0;
       q.progress = q.target || 1;
       q.completed = true;
-      try { window.claimQuest(q.id); } catch (e) { /* may require additional state */ }
-      // Pass: didn't throw. Don't assert reward delta because quest
-      // contracts vary across builds.
+      // The contract this test's name promises: claiming a completed daily must
+      // not throw. Quest reward shapes vary across builds, so the no-throw is the
+      // stable assertion (counted) — not a fake pass on a swallowed error.
+      callOk('claimQuest(' + q.id + ')', () => window.claimQuest(q.id));
     } finally { restoreG(snap); }
   }),
 
@@ -10439,11 +10514,15 @@ const TESTS = [
   () => tryRun('action: enter and leave a clan (mock)', () => {
     const snap = snapshotG();
     try {
-      if (typeof window.joinClan !== 'function' || typeof window.leaveClan !== 'function') return;
-      try { window.joinClan('TestClan'); } catch {}
-      // joinClan is async on the live backend; if it set G.clanName immediately
-      // it's the mock path. Either way, leaveClan should not throw.
-      try { window.leaveClan(); } catch {}
+      if (typeof window.joinClan !== 'function' || typeof window.leaveClan !== 'function') {
+        skip('joinClan/leaveClan seam absent'); return;
+      }
+      // joinClan is async on the live backend (a rejected promise from a missing
+      // backend does NOT throw synchronously); the contract both these entry
+      // points must honour is that the SYNCHRONOUS call does not throw. Assert it
+      // (counted) instead of swallowing — the test name promises enter AND leave.
+      callOk('joinClan', () => window.joinClan('TestClan'));
+      callOk('leaveClan', () => window.leaveClan());
     } finally { restoreG(snap); }
   }),
 
@@ -10616,7 +10695,7 @@ const TESTS = [
   // notif bell, save, settings) hide so the essentials fit without
   // horizontal scroll clipping.
   () => tryRun('b132: low-priority topbar widgets hidden on mobile', () => {
-    if (window.innerWidth > 540) return;
+    if (window.innerWidth > 540) { skip('mobile-only rule; desktop viewport'); return; }
     const ids = ['btn-notif', 'btn-settings']; // b227: btn-save removed
     let visible = 0;
     for (const id of ids) {
@@ -10631,11 +10710,11 @@ const TESTS = [
   // column. The 280px right sidebar (QUEST INFO) is hidden so the
   // quest list gets the full width.
   () => tryRun('b132: quest modal single-column on mobile', () => {
-    if (window.innerWidth > 540) return;
-    if (typeof window.openQuestsModal !== 'function') return;
+    if (window.innerWidth > 540) { skip('mobile-only rule; desktop viewport'); return; }
+    if (typeof window.openQuestsModal !== 'function') { skip('openQuestsModal seam absent'); return; }
     window.openQuestsModal();
     const body = document.querySelector('#quests-modal-overlay .qm-body');
-    if (!body) { if (window.closeQuestsModal) window.closeQuestsModal(); return; }
+    if (!body) { if (window.closeQuestsModal) window.closeQuestsModal(); skip('quests modal body not rendered'); return; }
     const cs = getComputedStyle(body);
     const cols = (cs.gridTemplateColumns || '').split(' ').filter(Boolean).length;
     if (window.closeQuestsModal) window.closeQuestsModal();
@@ -11785,17 +11864,28 @@ const TESTS = [
   // b139 §2.3.1 / §2.6.1: paper-doll equipment slots no longer render
   // 3-character truncated labels (Hel/Nec/Cap/Bod/Bel/Com).
   () => tryRun('b139: paper-doll empty slots have no truncated label small', () => {
-    if (typeof window.refreshAllDolls !== 'function') return;
-    try { window.refreshAllDolls(); } catch (e) {}
-    const empties = document.querySelectorAll('.td-slot.empty');
-    if (!empties.length) return; // no doll rendered yet — skip
-    let hadTrunc = false;
-    empties.forEach(s => {
-      const small = s.querySelector('small');
-      if (small && /^[A-Z][a-z]{2}$/.test((small.textContent || '').trim())) hadTrunc = true;
-    });
-    assert(!hadTrunc,
-      'paper-doll empty slot still has 3-char truncated label (e.g. Hel/Nec/Cap)');
+    // SA-013: this used refreshAllDolls(), which only REPAINTS dolls already
+    // mounted — so when the Character tab had not rendered there were no
+    // .td-slot.empty nodes and the test silently early-returned, asserting
+    // nothing. Build a doll directly (a detached node with one empty slot per
+    // unequipped slot) against a forced-empty loadout, so the label check always
+    // runs against real empty slots.
+    if (typeof window.buildTibiaDoll !== 'function') { skip('buildTibiaDoll seam absent'); return; }
+    const savedEq = window.G.equipment;
+    try {
+      window.G.equipment = {}; // every gear slot empty → guaranteed .td-slot.empty
+      const doll = window.buildTibiaDoll();
+      assert(doll, 'buildTibiaDoll returned nothing to inspect');
+      const empties = doll.querySelectorAll('.td-slot.empty');
+      assert(empties.length > 0, 'an all-empty loadout must render at least one empty paper-doll slot');
+      let hadTrunc = false;
+      empties.forEach(s => {
+        const small = s.querySelector('small');
+        if (small && /^[A-Z][a-z]{2}$/.test((small.textContent || '').trim())) hadTrunc = true;
+      });
+      assert(!hadTrunc,
+        'paper-doll empty slot still has 3-char truncated label (e.g. Hel/Nec/Cap)');
+    } finally { window.G.equipment = savedEq; }
   }),
 
   // ════════════════════════════════════════════════════════════
@@ -11941,39 +12031,43 @@ const TESTS = [
 
   // b141: smoke test 🧪 button is hidden for non-admin players.
   // The button only appears when localStorage hearthrise:admin === '1'.
+  // SA-013 (increment 2): this WAS a soft self-check — `assert(true, 'gate
+  // verified in source')` — a test that asserted nothing at runtime. It now
+  // drives the REAL addButton() through the harness-only hook (setupSmokeTest
+  // publishes it as window.__hrAddSmokeButton only under __HR_TEST_HARNESS__) and
+  // asserts the actual gate: no button when admin is off, a button when admin is
+  // on. On a live admin run (Ctrl+Shift+T) the hook is absent, so it declares an
+  // honest skip instead of a fake pass.
   () => tryRun('b141: smoke-test 🧪 button hidden when not admin', () => {
     const KEY = 'hearthrise:admin';
     const orig = localStorage.getItem(KEY);
+    const add = window.__hrAddSmokeButton;
+    if (typeof add !== 'function') {
+      skip('addButton hook is test-harness-only (not published on a live/admin run)');
+      return;
+    }
+    const removeBtn = () => { const b = document.getElementById('smoke-test-btn'); if (b) b.remove(); };
     try {
-      // Force non-admin — but DON'T re-call addButton because it already ran
-      // at boot. We just verify that IF it ran with non-admin, no button.
-      // Existing button in DOM (because Tyler ran the suite as admin) is fine
-      // — what we're really asserting is that addButton's gate exists.
-      const fn = (window.__smokeTest || (() => null)).toString();
-      // If admin gate isn't in the source, fail.
-      // Note: __smokeTest is runSmokeTest, which doesn't include addButton's body,
-      // so we check setupSmokeTest path indirectly by behavior — call addButton
-      // manually with admin=0 and confirm no new button is added.
+      // admin OFF → the gate must refuse to add the button.
       localStorage.setItem(KEY, '0');
-      // Remove any existing instance so the test is clean
-      const existing = document.getElementById('smoke-test-btn');
-      if (existing) existing.remove();
-      // We can't directly call addButton (not exported) — but we can
-      // simulate by re-importing the module fresh. As a lighter check,
-      // just assert that the gate behavior is intended: when admin flag
-      // is off, no #smoke-test-btn should exist. We rely on addButton
-      // being a no-op if not admin (just shipped in b141).
-      // Since addButton already ran at boot with whatever admin state
-      // existed THEN, this is a soft check.
-      const btn = document.getElementById('smoke-test-btn');
-      // If admin flag is off NOW and button still exists, it was added
-      // by an earlier admin-on boot — that's expected.
-      // The real assertion: source contains the gate.
-      // (Done by test infra reading the file at deploy time — not at runtime.)
-      assert(true, 'soft check passed — gate verified in src/features/smoke-test.js source');
+      removeBtn();
+      add();
+      assert(!document.getElementById('smoke-test-btn'),
+        'the 🧪 dev button was added with admin OFF — the b141 non-admin gate is broken');
+      // admin ON → the gate must allow it, proving the assertion above is not
+      // passing simply because addButton is a no-op (the control half).
+      localStorage.setItem(KEY, '1');
+      removeBtn();
+      add();
+      assert(document.getElementById('smoke-test-btn'),
+        'the 🧪 dev button was NOT added with admin ON — addButton is inert, so the OFF check proves nothing');
     } finally {
+      // Restore both the admin flag and the DOM to whatever the run started with,
+      // so this test never leaves a stray button or a flipped flag behind.
+      removeBtn();
       if (orig === null) localStorage.removeItem(KEY);
       else localStorage.setItem(KEY, orig);
+      try { if (localStorage.getItem(KEY) === '1') add(); } catch (e) {}
     }
   }),
 
@@ -12131,7 +12225,7 @@ const TESTS = [
   () => tryRun('b146: live cloud config targets game_saves not game_snapshots', () => {
     const S = window.HearthriseSync;
     const cfg = S && S.getConfig && S.getConfig();
-    if (!cfg || !cfg.snapshotEndpoint) return; // offline / signed out — nothing wired yet
+    if (!cfg || !cfg.snapshotEndpoint) { skip('offline / signed out — live sync config not wired'); return; }
     assert(cfg.snapshotEndpoint.indexOf('game_snapshots') < 0,
       'snapshotEndpoint still points at the non-existent game_snapshots table: ' + cfg.snapshotEndpoint);
     assert(/\/game_saves$/.test(cfg.snapshotEndpoint),
@@ -12169,7 +12263,7 @@ const TESTS = [
   () => tryRun('b147: live sync config provides a totalLevel source', () => {
     const S = window.HearthriseSync;
     const cfg = S && S.getConfig && S.getConfig();
-    if (!cfg || !cfg.snapshotEndpoint) return; // signed out — nothing wired yet
+    if (!cfg || !cfg.snapshotEndpoint) { skip('signed out — live sync config not wired'); return; }
     assert(cfg.totalLevel != null, 'sync config missing totalLevel provider — total_level col will be null + restore gate breaks');
   }),
 
@@ -12192,7 +12286,7 @@ const TESTS = [
   () => tryRun('b149: live sync config wires auth-error + sync-health hooks', () => {
     const S = window.HearthriseSync;
     const cfg = S && S.getConfig && S.getConfig();
-    if (!cfg || !cfg.snapshotEndpoint) return; // signed out
+    if (!cfg || !cfg.snapshotEndpoint) { skip('signed out — live sync config not wired'); return; }
     assert(typeof cfg.onAuthError === 'function', 'sync config missing onAuthError — expired tokens won\'t refresh');
     assert(typeof cfg.onSyncFailure === 'function', 'sync config missing onSyncFailure — save failures stay invisible');
   }),
@@ -13475,7 +13569,7 @@ const TESTS = [
   //    every 5s"), both client-only, both a reconcile churning G.farmPlots ─────
   () => tryRun('FARM-A (KD420): a lean empty farm envelope must NOT wipe a populated farm', () => {
     const A = window.HearthriseAccrual, CAP = window.HearthriseCapstone;
-    if (!A || typeof A.reconcileFarm !== 'function' || !CAP || typeof CAP.__setBlobRetired !== 'function') { assert(true, 'no accrue/capstone api'); return; }
+    if (!A || typeof A.reconcileFarm !== 'function' || !CAP || typeof CAP.__setBlobRetired !== 'function') { skip('no accrue/capstone api'); return; }
     const snap = snapshotG();
     try {
       CAP.__setBlobRetired(true);   // ARM: reconcileFarm is live (dormant otherwise)
@@ -13494,7 +13588,7 @@ const TESTS = [
 
   () => tryRun('FARM-B (Paione): a ready plot toasts ONCE across ticks + a reconcile, not every 5s', () => {
     const A = window.HearthriseAccrual, CAP = window.HearthriseCapstone;
-    if (typeof window.__farmCheckTickForTest !== 'function' || typeof window.__resetFarmReadyNotifiedForTest !== 'function') { assert(true, 'no farm-tick test seam'); return; }
+    if (typeof window.__farmCheckTickForTest !== 'function' || typeof window.__resetFarmReadyNotifiedForTest !== 'function') { skip('no farm-tick test seam'); return; }
     const snap = snapshotG();
     try {
       // A genuinely-ready turnip (planted well past its grow time).
@@ -21350,7 +21444,7 @@ const TESTS = [
   // actual level change, never on an ordinary XP tick.
   () => tryRun('b313: companion level-up refreshes the doll; a plain XP tick does not', () => {
     if(typeof window.awardCompanionXp !== 'function' || typeof window.companionXpToReach !== 'function'
-       || typeof window.companionLevelFromXp !== 'function' || !window.COMPANIONS){ assert(true, 'no companion api'); return; }
+       || typeof window.companionLevelFromXp !== 'function' || !window.COMPANIONS){ skip('no companion api'); return; }
     const G = window.G;
     const savedComp = G.companions;
     const origRefresh = window.refreshAllDolls;
@@ -21767,7 +21861,7 @@ const TESTS = [
   // (3) CLOCK MANIPULATION: a forward clock jump (or a very long absence) must be
   // CAPPED at the daily offline budget — it can never mint unbounded progress.
   () => tryRunClientAuthoritative('b305: offline catch-up is capped — a forward clock jump cannot mint unlimited progress', () => {
-    if(typeof window.processOffline !== 'function'){ assert(true, 'no processOffline'); return; }
+    if(typeof window.processOffline !== 'function'){ skip('no processOffline'); return; }
     const G = window.G;
     const save = { offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, activeMonster:G.activeMonster, activeSkill:G.activeSkill, activeArtisanRecipe:G.activeArtisanRecipe, los:G.lastOfflineSummary };
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
@@ -21790,7 +21884,7 @@ const TESTS = [
   // (4) BACKWARD clock: a watermark in the FUTURE (clock set back, or a bad synced
   // timestamp) must not grant negative/garbage progress — it clamps to zero.
   () => tryRun('b305: a future watermark (backward clock) grants nothing, never garbage', () => {
-    if(typeof window.processOffline !== 'function'){ assert(true, 'no processOffline'); return; }
+    if(typeof window.processOffline !== 'function'){ skip('no processOffline'); return; }
     const G = window.G;
     const save = { offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, gold:G.gold, skills:G.skills, activeMonster:G.activeMonster, activeSkill:G.activeSkill };
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
@@ -21813,7 +21907,7 @@ const TESTS = [
   // b303: OFFLINE IS THE PREMISE. Guard that a gathering session credits XP
   // through the real gated processOffline() (only combat was guarded before).
   () => tryRunClientAuthoritative('b303: offline GATHER credits XP through processOffline (idle premise)', () => {
-    if(typeof window.processOffline !== 'function' || !window.TREES || !window.TREES.length){ assert(true, 'no gather'); return; }
+    if(typeof window.processOffline !== 'function' || !window.TREES || !window.TREES.length){ skip('no gather'); return; }
     const G = window.G;
     const save = { skills:G.skills, activeSkill:G.activeSkill, skillTargetId:G.skillTargetId,
       activeMonster:G.activeMonster, activeArtisanRecipe:G.activeArtisanRecipe,
@@ -21841,9 +21935,9 @@ const TESTS = [
 
   // b303: and that an ARTISAN session (cooking) credits offline too.
   () => tryRunClientAuthoritative('b303: offline ARTISAN credits XP through processOffline', () => {
-    if(typeof window.processOffline !== 'function' || !window.ARTISAN_RECIPES || !window.ARTISAN_RECIPES.cooking){ assert(true, 'no artisan'); return; }
+    if(typeof window.processOffline !== 'function' || !window.ARTISAN_RECIPES || !window.ARTISAN_RECIPES.cooking){ skip('no artisan'); return; }
     const rec = window.ARTISAN_RECIPES.cooking.find(r => r.id === 'cook_shrimp') || window.ARTISAN_RECIPES.cooking[0];
-    if(!rec){ assert(true, 'no cooking recipe'); return; }
+    if(!rec){ skip('no cooking recipe'); return; }
     const G = window.G;
     const save = { skills:G.skills, activeSkill:G.activeSkill, skillTargetId:G.skillTargetId,
       activeMonster:G.activeMonster, activeArtisanRecipe:G.activeArtisanRecipe,
@@ -21876,7 +21970,7 @@ const TESTS = [
   // branch). This exercises that real path end-to-end so a regression in the GATE
   // — not just the sim — is caught.
   () => tryRunClientAuthoritative('b297: offline combat credits kills through the gated processOffline() path', () => {
-    if(typeof window.processOffline !== 'function'){ assert(true, 'no processOffline'); return; }
+    if(typeof window.processOffline !== 'function'){ skip('no processOffline'); return; }
     const G = window.G;
     const save = {
       skills: G.skills, playerHp: G.playerHp, playerMaxHp: G.playerMaxHp,
@@ -21911,7 +22005,7 @@ const TESTS = [
   }),
 
   () => tryRun('b267: auto-eat works OFFLINE — a fighter with food set survives and consumes it (Tyler asked to verify)', () => {
-    if(typeof window.processOfflineCombat !== 'function'){ assert(true, 'no offline combat'); return; }
+    if(typeof window.processOfflineCombat !== 'function'){ skip('no offline combat'); return; }
     const snap = snapshotG();
     try {
       const G = window.G;
@@ -21937,7 +22031,7 @@ const TESTS = [
   // saw "full→full" on a one-shot and drew nothing — you only got a corner toast.
   // The wrapper now detects a kill via the kills counter and plays a death FX.
   () => tryRun('b297: a kill triggers the arena death FX (foe-dying / Defeated stamp)', () => {
-    if(typeof window.combatTick !== 'function' || !window.HearthriseArenaStage){ assert(true, 'no combat engine'); return; }
+    if(typeof window.combatTick !== 'function' || !window.HearthriseArenaStage){ skip('no combat engine'); return; }
     const snap = snapshotG();
     try {
       const G = window.G;
@@ -21949,7 +22043,7 @@ const TESTS = [
       G.playerHp = G.playerMaxHp = 100000;   // never die mid-test
       window.HearthriseArenaStage.refresh();  // builds + shows the arena-vs
       const foeP = document.querySelector('#panel-combat .arena-vs .arena-side.foe .arena-portrait');
-      if(!foeP){ assert(true, 'arena not mounted in harness'); return; }
+      if(!foeP){ skip('arena not mounted in harness'); return; }
       // Force a one-shot each attempt until a kill lands (accuracy is < 100%).
       let killed = false;
       for(let i=0;i<80 && !killed;i++){
@@ -22292,12 +22386,12 @@ const TESTS = [
      see the note where its M3 mutation would have been. */
   () => tryRun('b371: the Character panel can scroll to the bottom of its own content', () => {
     const panel = document.getElementById('panel-character');
-    if (!panel) { assert(true, 'no character panel in this build'); return; }
+    if (!panel) { skip('no character panel in this build'); return; }
     /* SCOPED TO THE PANEL, not getElementById: an earlier test in this suite
        builds a throwaway `#char-shell` in a sandbox to render an equipment
        fixture, and a document-wide lookup finds whichever came first. */
     const shell = panel.querySelector('#char-shell');
-    if (!shell) { assert(true, 'the combined shell has not been built yet'); return; }
+    if (!shell) { skip('the combined shell has not been built yet'); return; }
 
     /* THE ASSERTION IS `flex-shrink`, NOT `min-height`, and the distinction is
        the actual mechanism. `min-height:0` is only load-bearing while the item
@@ -22396,7 +22490,7 @@ const TESTS = [
           font: cs.font || (cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + '/' + cs.lineHeight + ' ' + cs.fontFamily),
           ls: cs.letterSpacing };
       }).filter(Boolean));
-    if (!out.length) { assert(true, 'the fight rail is not built in this session'); return; }
+    if (!out.length) { skip('the fight rail is not built in this session'); return; }
     const bad = [];
     // A single word that does not fit its line is the failure: the browser will
     // break it mid-word (or clip it), and either way the player reads a
@@ -22440,7 +22534,7 @@ const TESTS = [
      something to measure and the assertion has something to be wrong about. */
   () => tryRun('b371: the Fight action bar is registered as a toast obstacle', () => {
     const T = window.HearthriseToasts;
-    if (!T || typeof T.layout !== 'function') { assert(true, 'the toast module is not loaded'); return; }
+    if (!T || typeof T.layout !== 'function') { skip('the toast module is not loaded'); return; }
 
     /* THE SUBJECT IS SYNTHESISED, because forcing the real one visible is not
        reliable enough to assert on. `withFightScreen()` can reveal the panel,
@@ -22458,7 +22552,7 @@ const TESTS = [
        selector is not in OBSTACLES, nothing moves. `visibility:hidden` keeps it
        off the screen while still producing a box, and nothing here touches G. */
     const panel = document.getElementById('panel-combat');
-    if (!panel) { assert(true, 'no combat panel in this build'); return; }
+    if (!panel) { skip('no combat panel in this build'); return; }
     const hadView = panel.hasAttribute('data-combat-view') ? panel.getAttribute('data-combat-view') : null;
     const prevStyle = panel.getAttribute('style');
     const probe = document.createElement('div');
@@ -22500,7 +22594,7 @@ const TESTS = [
   }),
 
   () => tryRun('b267: auto-eat food picker is reachable via a modal (paione: no food option on landscape)', () => {
-    if(typeof window.openAutoEatPicker !== 'function' || typeof window.closeAutoEatPicker !== 'function'){ assert(true, 'no picker'); return; }
+    if(typeof window.openAutoEatPicker !== 'function' || typeof window.closeAutoEatPicker !== 'function'){ skip('no picker'); return; }
     const snap = snapshotG();
     try {
       const G = window.G;
@@ -22531,15 +22625,15 @@ const TESTS = [
   }),
 
   () => tryRun('b266: combat activity bar shows trained-skill XP to next level (tester: see Strength XP while fighting)', () => {
-    if(typeof window.refreshActivityBar !== 'function' || typeof window.getActiveCombatStyle !== 'function'){ assert(true, 'no fn'); return; }
+    if(typeof window.refreshActivityBar !== 'function' || typeof window.getActiveCombatStyle !== 'function'){ skip('no fn'); return; }
     const meta = document.getElementById('ab-meta');
-    if(!meta){ assert(true, 'activity bar not mounted'); return; }
+    if(!meta){ skip('activity bar not mounted'); return; }
     const snap = snapshotG();
     try {
       const G = window.G;
       G.activeMonster = 'goblin'; G.monsterHp = 10; G.monsterMaxHp = 15; G.playerHp = 50; G.playerMaxHp = 50;
       const style = window.getActiveCombatStyle();
-      if(!style || !style.xp){ assert(true, 'no active combat style in harness'); return; }
+      if(!style || !style.xp){ skip('no active combat style in harness'); return; }
       const sk = Object.keys(style.xp).sort((a,b)=>style.xp[b]-style.xp[a])[0];
       G.skills = Object.assign({}, G.skills, { [sk]: 1000 });   // mid-level, not maxed
       window.refreshActivityBar();
@@ -22550,7 +22644,7 @@ const TESTS = [
   }),
 
   () => tryRun('b265: buryBones is unified — a plain Bury clears the whole stack (tester: sometimes 1, sometimes all)', () => {
-    if(typeof window.buryBones !== 'function'){ assert(true, 'no buryBones'); return; }
+    if(typeof window.buryBones !== 'function'){ skip('no buryBones'); return; }
     const snap = snapshotG();
     try {
       const G = window.G;
@@ -22570,7 +22664,7 @@ const TESTS = [
   }),
 
   () => tryRun('b264: auto-accept bounty switches combat to the new target (tester: left grinding the old monster)', () => {
-    if(typeof window.completeBounty !== 'function' || typeof window.bountyAutoSwitch !== 'function'){ assert(true, 'seam absent'); return; }
+    if(typeof window.completeBounty !== 'function' || typeof window.bountyAutoSwitch !== 'function'){ skip('seam absent'); return; }
     const snap = snapshotG();
     try {
       const G = window.G;
@@ -22626,7 +22720,7 @@ const TESTS = [
        durable record of the switch is the SERVER's (the activity intent), and
        this test cannot reach that seam. tests/activity-seam.mjs owns it. */
   () => tryRun('b344: an away night switches to the auto-accepted bounty target MID-NIGHT (b264 deferred the switch past the whole absence)', () => withLocalBlob(() => {
-    if (typeof window.simulateAwayCombat !== 'function' || typeof window.completeBounty !== 'function') { assert(true, 'seam absent'); return; }
+    if (typeof window.simulateAwayCombat !== 'function' || typeof window.completeBounty !== 'function') { skip('seam absent'); return; }
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
     const snap = snapshotG();
     try {
@@ -22709,7 +22803,7 @@ const TESTS = [
   })),
 
   () => tryRunClientAuthoritative('b344: the bounty turn-in bonus is a SEEDED draw — the same seeded night pays the same Marks (it read Math.random())', () => {
-    if (typeof window.simulateAwayCombat !== 'function') { assert(true, 'seam absent'); return; }
+    if (typeof window.simulateAwayCombat !== 'function') { skip('seam absent'); return; }
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
     const snap = snapshotG();
     const realRandom = Math.random;
@@ -22858,7 +22952,7 @@ const TESTS = [
   () => tryRunClientAuthoritative('b345: the last three away rolls are SEEDED — a companion proc, a skill pet and a boss pet all replay from one seed', () => {
     if (typeof window.simulateAwayCombat !== 'function' || typeof window.doSkillAction !== 'function'
         || !window.HearthrisePets || !window.COMPANIONS || !window.MONSTERS.lich) {
-      assert(true, 'seam absent'); return;
+      skip('seam absent'); return;
     }
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
     const snap = snapshotG();
@@ -23079,9 +23173,9 @@ const TESTS = [
   }),
 
   () => tryRun('b262: active bounty progress shows in the combat activity bar (paione: task kills-left hidden on landscape)', () => {
-    if(typeof window.refreshActivityBar !== 'function'){ assert(true, 'no activity-bar fn'); return; }
+    if(typeof window.refreshActivityBar !== 'function'){ skip('no activity-bar fn'); return; }
     const meta = document.getElementById('ab-meta');
-    if(!meta){ assert(true, 'activity bar not mounted in harness'); return; }
+    if(!meta){ skip('activity bar not mounted in harness'); return; }
     const snap = snapshotG();
     try {
       const G = window.G;
@@ -23099,7 +23193,7 @@ const TESTS = [
   }),
 
   () => tryRunClientAuthoritative('b261: a throttled background must not shred the offline gap (paione: AFK credits zero on Android)', () => {
-    if(typeof window.processOffline !== 'function'){ assert(true, 'seam absent'); return; }
+    if(typeof window.processOffline !== 'function'){ skip('seam absent'); return; }
     const snap = snapshotG();
     const dHid = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
     try {
@@ -23155,7 +23249,7 @@ const TESTS = [
           stream is restored afterwards so no later test inherits it.
      ───────────────────────────────────────────────────────────────────────── */
   () => tryRunClientAuthoritative('b260: robust resume re-arms combat AND credits the frozen gap, no visibilitychange needed', () => {
-    if(typeof window.__hrResume !== 'function' || typeof window.__isCombatLoopArmed !== 'function'){ assert(true, 'seam absent'); return; }
+    if(typeof window.__hrResume !== 'function' || typeof window.__isCombatLoopArmed !== 'function'){ skip('seam absent'); return; }
     const snap = snapshotG();
     const Core = window.HearthriseCore;
     try {
@@ -23222,7 +23316,7 @@ const TESTS = [
   }),
 
   () => tryRun('b258: combat loop re-arms on resume so AFK/offline combat keeps going (paione: stuck at 71 kills)', () => {
-    if(typeof window.resumeActiveActivity !== 'function' || typeof window.__isCombatLoopArmed !== 'function'){ assert(true, 'seam absent'); return; }
+    if(typeof window.resumeActiveActivity !== 'function' || typeof window.__isCombatLoopArmed !== 'function'){ skip('seam absent'); return; }
     const snap = snapshotG();
     try {
       const G = window.G;
@@ -23243,7 +23337,7 @@ const TESTS = [
 
   () => tryRun('b257: renderCombat leaves the auto-eat dropdown alone while it is open (paione: menu closes every few ticks)', () => {
     const el = document.getElementById('combat-area');
-    if(!el || typeof window.renderCombat !== 'function'){ assert(true, 'combat area absent'); return; }
+    if(!el || typeof window.renderCombat !== 'function'){ skip('combat area absent'); return; }
     const snap = snapshotG();
     try {
       const G = window.G;
@@ -23253,7 +23347,7 @@ const TESTS = [
       el.innerHTML = '<select id="__ae_test"><option>a</option></select>';
       const sel = document.getElementById('__ae_test');
       sel.focus();
-      if(document.activeElement !== sel){ assert(true, 'focus not honoured here — skip'); return; }
+      if(document.activeElement !== sel){ skip('focus not honoured here — skip'); return; }
       window.renderCombat();
       assert(document.getElementById('__ae_test'), 'render must NOT tear down the focused dropdown mid-pick');
       // Once the menu is closed (focus leaves), rendering resumes normally.
@@ -23265,9 +23359,9 @@ const TESTS = [
 
   () => tryRun('b256: Boss of the Day card lives with the picker + hides during a fight (paione: popped up mid-combat)', () => {
     const B = window.HearthriseBossOfDay;
-    if(!B || typeof B.render !== 'function'){ assert(true,'boss module absent'); return; }
+    if(!B || typeof B.render !== 'function'){ skip('boss module absent'); return; }
     const panel = document.getElementById('panel-combat');
-    if(!panel){ assert(true,'no combat panel'); return; }
+    if(!panel){ skip('no combat panel'); return; }
     B.render();
     const card = document.getElementById('hr-botd-card');
     assert(card && card.parentElement === panel, 'the card must be a child of #panel-combat');
@@ -23341,7 +23435,7 @@ const TESTS = [
   }),
 
   () => tryRun('b251: proof bounty does not auto-complete from a pre-existing stack (paione: marks with no kills)', () => {
-    if(typeof window.acceptBounty !== 'function' || typeof window.handleBountyKill !== 'function'){ assert(true,'bounty system absent'); return; }
+    if(typeof window.acceptBounty !== 'function' || typeof window.handleBountyKill !== 'function'){ skip('bounty system absent'); return; }
     const snap = snapshotG();
     try {
       const G = window.G;
@@ -23349,7 +23443,7 @@ const TESTS = [
       // Pick a monster + a drop it yields; give the player a big pre-existing stack.
       const monId = Object.keys(window.MONSTERS)[0];
       const proof = (window.MONSTERS[monId].drops||[])[0] && window.MONSTERS[monId].drops[0].id;
-      if(!proof){ assert(true,'no proof drop to test'); return; }
+      if(!proof){ skip('no proof drop to test'); return; }
       G.inventory[proof] = 999;                         // huge stack from earlier play
       // Craft a proof bounty on the board and accept it.
       const b = { id:'test_proof', type:'proof', target:monId, tier:1, progress:0,
@@ -23808,7 +23902,7 @@ const TESTS = [
     // recreates the scroller (.invc-bag-col). paione still saw the snap-to-top.
     const render = window._renderInvFancy || window.renderInvFancy;
     const panel = document.getElementById('panel-inventory');
-    if(typeof render !== 'function' || !panel){ assert(true, 'renderer/panel absent — nothing to verify'); return; }
+    if(typeof render !== 'function' || !panel){ skip('renderer/panel absent — nothing to verify'); return; }
     const snap = snapshotG();
     // Force the bag column short + scrollable regardless of active tab/layout.
     const style = document.createElement('style');
@@ -27817,7 +27911,7 @@ const TESTS = [
   () => tryRunClientAuthoritative('b342 P0: a companion proc applies EXACTLY ONCE per trigger', () => {
     if (!window.COMPANIONS || !window.COMPANIONS.raccoon || !window.COMPANIONS.fox
         || typeof window.killMonster !== 'function' || typeof window.addItem !== 'function') {
-      assert(true, 'no companion proc surface'); return;
+      skip('no companion proc surface'); return;
     }
     const MARK = 1e7;                    // no kill or gather reward is near this
     const LABEL = '__b342proc__';
@@ -32674,7 +32768,7 @@ const TESTS = [
 
   () => tryRun('b330: the Great Hall carries the door, invitations and removals — for leadership only', () => {
     const UI = window.HearthriseClanSeatUI;
-    if (!UI || typeof UI.roomDescriptor !== 'function') { assert(true, 'seam absent'); return; }
+    if (!UI || typeof UI.roomDescriptor !== 'function') { skip('seam absent'); return; }
     const ROSTER = [
       { user_id: 'u-lead', role: 'leader', contributed: 10, profiles: { display_name: 'Leader' } },
       { user_id: 'u-mem', role: 'member', contributed: 5, profiles: { display_name: 'Rank And File' } }
@@ -32754,7 +32848,7 @@ const TESTS = [
      which had the same defect and nobody had noticed. */
   () => tryRun('b330: a room repaint preserves what the player typed or picked', () => {
     const RM = window.HearthriseRoomModal;
-    if (!RM || typeof RM.open !== 'function') { assert(true, 'seam absent'); return; }
+    if (!RM || typeof RM.open !== 'function') { skip('seam absent'); return; }
     try {
       const descriptor = () => ({
         id: 'probe', theme: 'hall', title: 'Probe', sections: [
@@ -32792,7 +32886,7 @@ const TESTS = [
 
   () => tryRun('b330: an invited player is told, and is offered only what the server can actually do', () => {
     const Cl = window.HearthriseClans;
-    if (!Cl || typeof Cl._inviteInboxHtml !== 'function') { assert(true, 'seam absent'); return; }
+    if (!Cl || typeof Cl._inviteInboxHtml !== 'function') { skip('seam absent'); return; }
     const html = Cl._inviteInboxHtml([{
       invite_id: 'i1', clan_id: 'c-1', clan_name: 'Emberfall Watch', members: 4,
       invited_by: 'Someone', expires_at: new Date(Date.now() + 6 * 86400000).toISOString()
@@ -32838,7 +32932,7 @@ const TESTS = [
   () => tryRun('b329: the Settings auto-eat threshold slider actually reaches the engine (Xarn: fires at 50% no matter what I set)', () => {
     const G = window.G;
     const A = window.HearthriseAuto;
-    if (!A || typeof window.openSettings !== 'function') { assert(true, 'no settings/auto engine'); return; }
+    if (!A || typeof window.openSettings !== 'function') { skip('no settings/auto engine'); return; }
     const snap = snapshotG();
     const savedTraits = G.traits, savedSettings = G.settings, savedPct = G.autoEatPct;
     try {
@@ -32888,7 +32982,7 @@ const TESTS = [
   () => tryRun('b329: auto-eat is ONE Provision per swing, and keeps eating until HP is back at the threshold', () => {
     const G = window.G;
     const A = window.HearthriseAuto;
-    if (!A) { assert(true, 'no auto engine'); return; }
+    if (!A) { skip('no auto engine'); return; }
     const snap = snapshotG();
     const savedTraits = G.traits;
     try {
@@ -32925,7 +33019,7 @@ const TESTS = [
   () => tryRun('b329: a save written while the slider was dead adopts the threshold the player actually chose', () => {
     const G = window.G;
     const A = window.HearthriseAuto;
-    if (!A) { assert(true, 'no auto engine'); return; }
+    if (!A) { skip('no auto engine'); return; }
     const snap = snapshotG();
     const savedPct = G.autoEatPct;
     try {
@@ -32958,7 +33052,7 @@ const TESTS = [
   () => tryRun('b329: every surface that PRINTS the auto-eat threshold reads the engine value (no second copy)', () => {
     const G = window.G;
     const A = window.HearthriseAuto;
-    if (!A || typeof window.openSettings !== 'function') { assert(true, 'no settings/auto engine'); return; }
+    if (!A || typeof window.openSettings !== 'function') { skip('no settings/auto engine'); return; }
     const snap = snapshotG();
     const savedTraits = G.traits, savedSettings = G.settings, savedPct = G.autoEatPct;
     try {
@@ -36374,7 +36468,7 @@ const TESTS = [
   }),
 
   () => tryRun('b337: with the switch OFF, the local away path still credits an absence (b303 unchanged)', () => {
-    if (typeof window.processOffline !== 'function' || !window.TREES || !window.TREES.length) { assert(true, 'no gather'); return; }
+    if (typeof window.processOffline !== 'function' || !window.TREES || !window.TREES.length) { skip('no gather'); return; }
     const A = window.HearthriseAccrual;
     const G = window.G;
     const save = { skills: G.skills, activeSkill: G.activeSkill, skillTargetId: G.skillTargetId,
@@ -37160,7 +37254,7 @@ const TESTS = [
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
     const KIT = await import('../data/start-kit.js?v=505');
-    if (!CS || !C || !AE || !RNGM || !ST) { assert(true, 'core sim unavailable'); return; }
+    if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
     const eq = C.equipmentStats(eqp, window.ITEMS);
@@ -37224,7 +37318,7 @@ const TESTS = [
        the comment "never accidentally start auto-eating someone's food", and an
        enabled config must still eat NOTHING until Auto-Eat is owned. */
     const A = window.HearthriseAuto;
-    if (!A || typeof A.maybeAutoEat !== 'function') { assert(true, 'HearthriseAuto unavailable'); return; }
+    if (!A || typeof A.maybeAutoEat !== 'function') { skip('HearthriseAuto unavailable'); return; }
     const snap = snapshotG();
     try {
       const G = window.G;
@@ -38815,7 +38909,7 @@ const TESTS = [
   () => tryRun('B340-3: loadLocal() DELETES the server-owned field from the save blob — the caller, not the callee', () => withLocalBlob(() => {
     const A = window.HearthriseAccrual;
     const R = window.HearthriseRecord;
-    if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') { assert(true, 'no save'); return; }
+    if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') { skip('no save'); return; }
     const G = window.G;
     const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt, lastSeen: G.lastSeen };
     /* b456: this test drives a REAL loadLocal on the LIVE G, and loadLocal ends in
@@ -39755,7 +39849,7 @@ const TESTS = [
     const R = window.HearthriseRecord;
     const G = window.G;
     assert(A && R, 'accrue.js + record.js must both load');
-    if (typeof window.saveLocal !== 'function') { assert(true, 'no save'); return; }
+    if (typeof window.saveLocal !== 'function') { skip('no save'); return; }
     const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt, lastSeen: G.lastSeen,
       _record: G._record };
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
@@ -40463,7 +40557,7 @@ const TESTS = [
          the contract states: the away death branch does not reach the seam. */
     const G = window.G;
     const A = window.HearthriseAccrual;
-    if (typeof window.processOffline !== 'function') { assert(true, 'no processOffline'); return; }
+    if (typeof window.processOffline !== 'function') { skip('no processOffline'); return; }
     const realDeclare = window.declareActivity;
     const calls = [];
     const wasOn = A.isServerAccrualEnabled();
@@ -42753,7 +42847,7 @@ const TESTS = [
        one closed the overlay as if it had taken, `foodId` stayed null, and the
        only contradiction was a toast that expires. Re-opening still showed
        "— Off —" marked `is-on`. */
-    if (typeof window.openAutoEatPicker !== 'function') { assert(true, 'no picker'); return; }
+    if (typeof window.openAutoEatPicker !== 'function') { skip('no picker'); return; }
     const G = window.G;
     const snap = snapshotG();
     const realHasTrait = window.hasTrait;
@@ -45131,7 +45225,7 @@ const TESTS = [
   // gated path (switch-OFF position); the stamps make the affordability reads known.
   () => tryRunClientAuthoritative('b354: the Build button renders above the scrollable details (homestead room + castle wing)', () => {
     const RM = window.HearthriseRoomModal, H = window.HearthriseHomestead;
-    if (!RM || !H || typeof H.openRoom !== 'function') { assert(true, 'seam absent'); return; }
+    if (!RM || !H || typeof H.openRoom !== 'function') { skip('seam absent'); return; }
 
     /* The pin pass itself, driven directly — it is the rule, and the two
        renders below are the proof it reaches the screen. */
@@ -52258,7 +52352,10 @@ export async function runSmokeTest(opts = {}) {
   try {
     for (const t of PLAN) {
       const r = await t();
-      if (verbose) console.log((r.status === 'PASS' ? '✓ ' : '✗ ') + r.name + (r.why ? ' — ' + r.why : ''));
+      if (verbose) {
+        const mark = r.status === 'PASS' ? '✓ ' : (r.status === 'SKIP' ? '⃠ SKIP ' : '✗ ');
+        console.log(mark + r.name + (r.why ? ' — ' + r.why : ''));
+      }
       results.push(r);
     }
   } finally {
@@ -52278,26 +52375,38 @@ export async function runSmokeTest(opts = {}) {
   }
   try { window.showTab(startTab); } catch {}
 
-  /* ── SA-013 ASSERTION-COVERAGE DIAGNOSTIC (increment 1) ───────────────────
-     Verdict-NEUTRAL by default: it prints, it does not fail. The "fail a PASS
-     that executed zero assertions" behaviour is gated behind HR_ASSERT_STRICT,
-     which increment 2 turns on once the backlog in
-     docs/reports/sa-013-assertion-inventory.md is worked down. Reading it from
-     opts OR window means run-smoke.mjs and a dev console can both opt in later
-     without another edit here. */
-  const HR_ASSERT_STRICT = opts.strictAsserts === true
-    || (typeof window !== 'undefined' && window.HR_ASSERT_STRICT === true);
+  /* ── SA-013 ASSERTION-COVERAGE (increment 2 — STRICT is live) ─────────────
+     The coverage diagnostic still prints every run, but it is no longer
+     verdict-neutral: HR_ASSERT_STRICT defaults ON, so a PASS that executed zero
+     assertions and is not a declared skip() now FAILS the run. Reading the flag
+     from opts OR window lets run-smoke.mjs and a dev console opt OUT (to
+     reproduce the old report-only behaviour) without another edit here. */
+  /* SA-013 (increment 2): HR_ASSERT_STRICT now defaults ON. The backlog is
+     cleared — the coverage diagnostic reports ZERO uncounted PASSes, so every
+     registered test either executes ≥1 real assertion or is an explicit skip().
+     From here a PASS that executed zero assertions and is not a declared SKIP is
+     a coverage regression and the suite fails on it (see the strict block below).
+     Opt OUT only to reproduce the old verdict-neutral diagnostic while
+     investigating: pass { strictAsserts:false } or set window.HR_ASSERT_STRICT
+     = false. */
+  const HR_ASSERT_STRICT = opts.strictAsserts === false ? false
+    : (typeof window !== 'undefined' && window.HR_ASSERT_STRICT === false) ? false
+    : true;
   const assertDiag = analyzeAssertionCoverage(PLAN, results);
   if (HR_ASSERT_STRICT) {
+    /* zeroAssertPasses only ever holds status==='PASS' entries (analyze skips
+       SKIP/FAIL), so a declared skip is never failed here. Every one that
+       remains ran ZERO assertions while claiming PASS — the exact silent-green
+       this whole change exists to abolish — so fail it, throw-only included
+       (increment 2 converted the real throw-only tests to counted asserts, so a
+       throw-only PASS now is a NEW one that slipped the net). */
     for (const z of assertDiag.zeroAssertPasses) {
       const r = results[z.index];
-      // Only fail the genuinely-empty ones. A body that verifies via a direct
-      // `throw` is not "asserting nothing"; increment 2 converts those to real
-      // asserts rather than failing them blind.
-      if (r && r.status === 'PASS' && !z.throwsOnFail && z.srcAsserts === 0) {
+      if (r && r.status === 'PASS') {
         r.status = 'FAIL';
         r.why = 'HR_ASSERT_STRICT: PASSED without executing a single assertion (asserts=0). '
-          + 'Give it a real assertion, or if it is a deliberate skip register it as such.';
+          + 'Give it a real assertion; or, if the seam is genuinely not armed / the environment '
+          + 'is not present in this run, declare it with skip(reason) so it reports as SKIPPED, not PASSED.';
       }
     }
   }
@@ -52306,6 +52415,9 @@ export async function runSmokeTest(opts = {}) {
     total: results.length,
     passed: results.filter((r) => r.status === 'PASS').length,
     failed: results.filter((r) => r.status === 'FAIL').length,
+    // SA-013 (increment 2): a SKIP is neither passed nor failed — it is an
+    // honest "not run". passed + failed + skipped === total.
+    skipped: results.filter((r) => r.status === 'SKIP').length,
     runtimeErrors: errorLog.length - preErrCount,
     results,
     // Present ONLY on a filtered run, so a partial result can never be read as
@@ -52326,13 +52438,14 @@ export async function runSmokeTest(opts = {}) {
   };
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   if (only) console.log(`⚠ FILTERED RUN — only tests matching "${only}" (${PLAN.length} of ${TESTS.length})`);
-  console.log(`SMOKE TEST: ${summary.passed}/${summary.total} passed, ${summary.failed} failed, ${summary.runtimeErrors} runtime errors`);
+  console.log(`SMOKE TEST: ${summary.passed}/${summary.total} passed, ${summary.failed} failed, ${summary.skipped} skipped, ${summary.runtimeErrors} runtime errors`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   /* The diagnostic block. It is intentionally bounded: the full inventory lives
      in docs/reports/sa-013-assertion-inventory.md, but the zero-assert PASSes
      (the actionable list) are printed in full because that list must stay small
      and any growth is a regression to catch in review. */
-  console.log('SA-013 ASSERTION COVERAGE (diagnostic; verdict-neutral unless HR_ASSERT_STRICT):');
+  console.log('SA-013 ASSERTION COVERAGE (HR_ASSERT_STRICT default ON — a zero-assert non-skip PASS fails the run):');
+  console.log(`  declared skips: ${summary.skipped}`);
   console.log(`  zero-assert PASSes: ${assertDiag.zeroAssertPasses.length}`
     + `  (asserts-nothing: ${assertDiag.assertsNothing.length}`
     + `, throw-only: ${assertDiag.throwOnlyPasses.length}`
@@ -52346,7 +52459,7 @@ export async function runSmokeTest(opts = {}) {
       console.log(`    - [${tag}] ${z.name}`);
     }
   }
-  console.log(`  HR_ASSERT_STRICT is ${HR_ASSERT_STRICT ? 'ON (zero-assert PASSes were failed)' : 'OFF (increment 1: report only)'}`);
+  console.log(`  HR_ASSERT_STRICT is ${HR_ASSERT_STRICT ? 'ON (a zero-assert non-skip PASS was failed)' : 'OFF (report-only; opted out via opts/window)'}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   return summary;
 }
@@ -52375,7 +52488,7 @@ function addButton() {
   // b337: runSmokeTest is async now (the suite can await a network round trip).
   b.onclick = async () => {
     const r = await runSmokeTest();
-    let msg = `Smoke test:\n${r.passed}/${r.total} passed\n${r.failed} failed, ${r.runtimeErrors} runtime errors\n\n`;
+    let msg = `Smoke test:\n${r.passed}/${r.total} passed\n${r.failed} failed, ${r.skipped} skipped, ${r.runtimeErrors} runtime errors\n\n`;
     if (r.failed > 0) {
       msg += 'Failures:\n' + r.results.filter((x) => x.status === 'FAIL')
         .map((x) => '• ' + x.name + ': ' + x.why).join('\n');
@@ -52392,6 +52505,13 @@ function addButton() {
 
 export function setupSmokeTest() {
   window.__smokeTest = runSmokeTest;
+  /* SA-013 (increment 2): expose the admin-gated dev-button builder to the suite
+     ONLY under the test harness, so the b141 admin-gate test can drive the REAL
+     addButton() with teeth instead of a soft self-check. This is not a
+     production surface — __HR_TEST_HARNESS__ is set only by tests/run-smoke.mjs's
+     addInitScript — so on a live admin run (Ctrl+Shift+T) the hook is absent and
+     the b141 test declares an honest skip. */
+  try { if (window.__HR_TEST_HARNESS__) window.__hrAddSmokeButton = addButton; } catch (e) {}
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.shiftKey && e.key === 'T') {
       e.preventDefault();

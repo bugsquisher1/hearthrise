@@ -1,4 +1,27 @@
 # THE BETA-3 READINESS VERDICT
+
+> ## ⏫ 2026-09-05 UPDATE (Live: b505 `?v=505`; CI green on `main`)
+> The 2026-09-04 verdict below said NO, five measurements. **Four of the five are now closed, and the fifth is materially improved.** What shipped this session (all live, play-gated where a player-facing loop, CI green):
+> - **SA-001 attended-loot under-credit → FIXED (b504).** Settle tops up loot/gold from the server's own `hr_kill_credit_log`; play-gated; `attendedChannel:"live"` on prod; food-return gone. *(Blocker #3's root — the mid-game was starved of the drops it needed.)*
+> - **SA-021 progression wall → BROKEN OPEN.** Its two roots are fixed: SA-001 (loot starvation) + SA-002 property rung server-truth (b502). Players can now bank the pelts and the property record can no longer deadlock. *(Residual: the DESIGN question "does a 4-pelt gate belong on the sole mid-game path?" is a game-designer ruling still worth making — the mechanism is now reachable, but the gate's tightness is a balance call.)*
+> - **SA-008 Bounty-Hunter XP / bounty-strip Lv-1 reset → FIXED (b504).** Turn-ins credit `player_skills.bountyHunter` server-side; proven end-to-end live (0→45, survives the reload path). Board tiers unlock. *(Bounty-strip UI honesty — rendering non-`cull` types that only `cull` can turn in — remains a small UI item.)*
+> - **SA-048 bounty difficulty exploit → CLOSED (applied + play-gated).** Forged `hard` on the now-ranked board refused below BH-15; honest play unaffected. *(A NEW exploit b504 opened, caught and closed same session.)*
+> - **SA-003 CI red → HEALTHY.** Root cause (in-page 120s budget + then a run-smoke overload misdiagnosis + a real SA-048 test regression in `bounty-difficulty-count`) all fixed; `main` CI is green. **Gate discipline corrected: the local half is `run-ci-local --all` (plain `run-ci-local` skips run-smoke/step 6), and run-smoke now writes its failure transcript to a downloadable artifact.** *(Blocker #4's "the gate is not a gate" — the gate now runs and is green; the DEEPER SA-013 "false-passing runner counts no assertions" is NOT yet addressed — see remaining.)*
+> - **Signup door + SA-009 gems → FIXED (b503).** Confirm-link lands you in + resend + invite-as-link; gem spends fail closed honestly. *(Blocker #5's funnel mechanisms.)*
+> - **Dungeon scrip (report #3) → DARK-SHIPPED (b505), ARM BLOCKED ON TYLER.** Migrations applied, edge deployed, security-GO, `dungeon-scrip-reload` guard proves reload-survival on the applied chain. Arming needs a live dungeon play-gate the max_hp-10 QA account can't produce (can't earn a key). One action for Tyler.
+>
+> **CURRENT VERDICT: materially closer, not yet YES.** The beta-2 killers are fixed. Remaining before a beta-3 call (none blocking on a bug now — they are program/design/Tyler items):
+> 1. **Arm the dungeon fix** — Tyler plays a dungeon (or provides a keyed/stronger QA account); then a 2-line flip.
+> 2. **SA-013 false-passing test runner** — the in-page runner counts no assertions (9 zero-assert tests, ~200 early-returns, 62 `assert(true)` skips). CI is green, but "green" is only as strong as the runner. A P1 test-infrastructure program; every guard's verdict rests on it.
+> 3. **First-night gathering-rescue + a `computeAccrual` first-night parity guard** — the largest measured week-1 bounce; not-started.
+> 4. **Armor/defence overhaul** — now UNBLOCKED (SA-021 open, so tier-4+ has reachable subjects); P1 balance, engine change + play-gates.
+> 5. **Wave-scale load verdict** — re-run `tools/load-probe.mjs` at the beta-3 wave size and commit the output.
+> 6. **Tyler-only:** the wipe ceremony (built + rehearsed) + the 20 new invite keys + the itch.io iframe confirm-walk.
+>
+> **Release confidence for a beta-3 wave TODAY: ~55%** — up from "not close." The progression wall (the beta-2 funnel-killer) is broken open and the funnel door is fixed, which removes the two failures that defined beta-2; the remaining gap is (a) the dungeon arm awaiting one play, (b) a test runner whose greenness is not yet trustworthy at the assertion level, and (c) two un-started retention/balance programs. A wave could ship on the current fixes and be a real improvement over beta-2, but SA-013 + the first-night rescue are what move confidence past ~80%.
+>
+> The full 2026-09-04 verdict and evidence follow unchanged for the audit trail.
+
 **Date:** 2026-09-04 · **Tree:** `main` @ `00b927b1` · **Live:** b501 (`?v=501`) · **Source:** gates.json (22 items) corrected by phase-2 adversarial verification (28/34 P0-P1 findings survived, 16/16 guard verdicts survived, 15/56 in-page section verdicts survived, 12/12 coverage gaps confirmed)
 
 ---

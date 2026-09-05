@@ -55,7 +55,13 @@ jobs:
     # the single most misleading way for a gate to fail. The margin is deliberate
     # and it is not a licence to slow down: a genuine hang still fails, ten
     # minutes later.
-    timeout-minutes: 30
+    # MEASURED 2026-09-05 on the dev machine: run-smoke ~12.8 min plus the
+    # CI-only guards 793 s = ~26 min for both halves. A shared runner is
+    # slower, and checkout/setup-node/npm/playwright add ~3 min on top, so
+    # 30 could not fit the work even when nothing failed. A timeout is a red
+    # build with no failing assertion in it -- indistinguishable from the
+    # forty reds this workflow just came out of.
+    timeout-minutes: 50
 
     steps:
       - uses: actions/checkout@v4
@@ -79,6 +85,16 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: Smoke suite (headless)
+        # THE IN-PAGE BUDGET IS NOT THE JOB TIMEOUT. run-smoke.mjs caps the
+        # page.evaluate at HR_SUITE_TIMEOUT_MS (default 120_000). CI ran with
+        # the default while every local run used 300_000, so from b488 the
+        # in-page step timed out here and passed on a dev machine -- a red
+        # build with no failing assertion in it. The suite has since grown to
+        # 1134 tests and a shared runner is slower than the machine that
+        # wrote them, so this is set explicitly and generously. Only the wall
+        # clock flexes; every assertion still has to pass.
+        env:
+          HR_SUITE_TIMEOUT_MS: '600000'
         run: node tests/run-smoke.mjs
 
       # CAN THE REPO REBUILD THE DATABASE? After cutover the database is the ONLY

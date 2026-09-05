@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-05",
- "digest": "e238943273dbc3f83fc716c43571b01b47813fd2b8cf5a5afe67e6f2b43be3d3",
+ "digest": "a35da897a249bd7ce56c35d0dea9db996304a972e508552779d078d25f47b3ab",
  "counts": {
   "relations": 103,
-  "functions": 268,
+  "functions": 269,
   "policies": 84,
   "indexes": 143,
   "triggers": 18,
@@ -249,6 +249,7 @@
    "hr_beta_signup_message(p_reason text)",
    "hr_bounty_combat_level(p_user uuid, p_slot integer)",
    "hr_bounty_count_mult(p_difficulty text)",
+   "hr_bounty_difficulty_unlocked(p_difficulty text, p_bh_level integer)",
    "hr_bounty_first_contract(p_user uuid, p_slot integer)",
    "hr_bounty_first_contract_range()",
    "hr_bounty_first_contract_range(p_difficulty text)",

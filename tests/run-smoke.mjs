@@ -3330,6 +3330,44 @@ const run = async () => {
       exitCode = e.harness ? 2 : 1;
     }
 
+    /* ── The bounty-accept BH-clamp guard (SA-048) ────────────────────────
+       b504 armed Bounty-Hunter XP, making the board a RANKED surface. The
+       accept RPC gated the target TIER by SERVER COMBAT level ONLY. The board a
+       player can SEE also has a DIFFICULTY ladder: slot 3 is 'hard' only once
+       'streak' unlocks at BH>=15, and 'elite' is never board-generated. So a
+       BH-1 caller could pass difficulty='hard' directly and buy the 1.3x XP
+       multiplier on the ranked skill without the board ever offering it — the
+       WHOLE forgeable ranked gain (the earlier "~40x" board-tier premise was
+       FALSE: generateBountyBoard posts unlockedTier(combatLevel), combat only,
+       so tier is already honestly gated and a board-tier clamp would only lock
+       honest players out). The guard drives a REAL character through the real
+       rate-gated hr_accept_bounty on a fully replayed chain, proves 'hard' is
+       refused at BH-1 and allowed at BH-15 (bound to unlockedTypes by value),
+       proves an honest tier-6 'normal' at BH-1 is NOT locked out, the lookup is
+       not client-callable, AND replays the chain a SECOND time stopping before
+       the migration to prove an honest accept is byte-identical. `--selftest`
+       plants eight defects (four, each twinned with the migration's own §3
+       short-circuited) and requires each read RED. ⚠ STAGED, NOT APPLIED — the
+       guard needs no live database. */
+    try {
+      const { bountyAcceptBhClampGuard } = await import('./bounty-accept-bh-clamp.mjs');
+      const babProblems = await bountyAcceptBhClampGuard();
+      if (babProblems.length) {
+        console.log('\nBounty-accept BH-clamp guard — FAILED:');
+        for (const p of babProblems) console.log(`  ✗ ${p}`);
+        exitCode = 1;
+      } else {
+        console.log('\nBounty-accept BH-clamp guard — the accept gates difficulty by Bounty-Hunter '
+          + 'level (hard refused at BH-1, allowed at BH-15, bound to src/core/bounty.js by value) and '
+          + 'leaves the tier gate combat-only so an honest tier-6 accept at BH-1 is NOT locked out; the '
+          + 'difficulty lookup is not client-callable, and an honest accept is byte-identical to the '
+          + 'pre-migration body.');
+      }
+    } catch (e) {
+      console.log('\nBounty-accept BH-clamp guard — FAILED:\n' + String(e.message || e));
+      exitCode = e.harness ? 2 : 1;
+    }
+
     /* ── The renown kill-faucet guard (Security R5) ───────────────────────
        A LIVE, PRE-EXISTING faucet in the deployed 2026-08-30 code:
        hr_credit_kills writes stat/ev:kill_any and stat/ev:kill_monster:<id>,
@@ -4042,6 +4080,10 @@ const run = async () => {
          look identical from the outside — the marker is what tells them apart. */
       'Attended loot-credit guard',
       'Bounty-Hunter XP credit guard',
+      /* SA-048: the accept BH-clamp. Staged like the two above; its marker is
+         what distinguishes "did not run" from "the migration is not in the
+         chain", since both look the same from outside a replay. */
+      'Bounty-accept BH-clamp guard',
     ];
     if (exitCode === 0) {
       const said = TRANSCRIPT.join('\n');

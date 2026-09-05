@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-05",
- "replay_ms": 8165,
+ "replay_ms": 7329,
  "counts": {
   "tracked_names": 42,
   "entries": 42
@@ -109,7 +109,8 @@
    ],
    "touched_by": [
     "2026-08-29-bounty-first-contract.sql",
-    "2026-09-04-bounty-difficulty-count.sql"
+    "2026-09-04-bounty-difficulty-count.sql",
+    "2026-09-12-bounty-accept-bh-clamp.sql"
    ],
    "live": {
     "md5": "7170f2a2bace93ffcab7e8e4883f9455",
@@ -118,11 +119,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7170f2a2bace93ffcab7e8e4883f9455",
-    "norm_len": 4654,
+    "md5": "c6b86f79de9a80138a1649ba40b5de97",
+    "norm_len": 5758,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED, NOT SHIPPED. 2026-09-12-bounty-accept-bh-clamp.sql (SA-048, difficulty-clamp-only after the board-tier clamp was removed as a false-premise honest lockout) is in the repo chain but NOT applied to production, so the repo rebuilds the difficulty-gated body (replay c6b86f79) while production still runs the difficulty-count body (live 7170f2a2). This divergence IS the 'staged, not shipped' statement, exactly as 2026-09-11 recorded for hr_claim_bounty__ungated. The only code delta is the v_bh_lvl read + one difficulty_locked branch; the tier gate and the success return are byte-identical. After the Coordinator applies SA-048 they must AGREE; re-pin with: node tests/live-hash-drift.mjs --live --write."
   },
   {
    "sig": "hr_apply(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_delta jsonb)",

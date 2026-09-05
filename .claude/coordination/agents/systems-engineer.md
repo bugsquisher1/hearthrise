@@ -3124,3 +3124,84 @@ drains itself the day it ships), and a live repro of the Forge `hr_unlock_buy` r
 **Verify:** `node tests/inventory-mint-census.mjs` OK; `node tests/arm-homing-guard.mjs` 75/75.
 Browser suite could not run (node_modules degraded to 4 entries — the emptying warned about; Playwright
 absent). Change is test-only, no `src/` touched, so runtime/browser behaviour is unchanged by construction.
+
+---
+
+## The free-premium-purchase class — the census was CURRENCY-SHAPED and only gold had one (branch `fix/gem-spend-server-backed`)
+
+Three gem purchases (`buyTheme`, `buyCosmetic`, `buyBankSpaceGem`) debited `G.gems` client-side with
+no server call and recorded ownership in residue. `gems` is `SERVER_OF_RECORD` and ARMED, so the
+debit was refunded by the next envelope while `ownedThemes`/`ownedCosmetics` (residue) and
+`bank.gemBuys` (carried untouched by `reconcileBank`) kept the goods. Free premium purchases,
+repeatable, from three unmodified buttons.
+
+### The root cause is not "we missed three"
+b500 swept exactly this class and fixed `buyBankSpaceGold` — then walked past `buyBankSpaceGem` TWO
+FUNCTIONS BELOW IT. The reason is mechanical: the sweep was driven by `src/net/gold-sites.js` +
+`tests/gold-site-census.mjs`, whose scanner matches `/\.gold\s*(\+=|-=)/`. **A `G.gems -= price` is
+invisible to it, in every file, forever.** Gold had a census that cannot go stale in silence; gems
+had nothing. That is the whole finding, and it generalises: *marks* has nothing either.
+
+### The dispatch's premise was wrong, and verifying it was the highest-value hour
+The task said "the server already sells all of these — wire the client to the offers that exist,
+most likely no migration". It does not, and it is a missing COLUMN rather than a missing row:
+`SELLABLE_NAMESPACES = ['room','property']` refuses theme/cosmetic BY NAME; the generated catalogue
+carries every such row with `gold = null, refusal='namespace_unsupported:<ns>'`; `hr_unlock_offers`
+has a gold column and no other (the hero-slot migration's header says so verbatim — it is why that
+slot needed its own verb); and `gold-ladders.js` has no gem rung at all. Wiring `buyUnlock` would
+have turned a silent exploit into a permanently dead button and looked like a fix in review.
+
+**The lesson to carry: when a dispatch names the fix, verify the fix EXISTS before verifying the
+bug.** The bug was real and took ten minutes to confirm; the prescribed remedy was impossible and
+took an hour to disprove, and shipping it would have been worse than shipping nothing.
+
+### What shipped, and why a refusal is the right client half
+`gemSpendIsClientAuthored()` + `refuseGemPurchase()`, at four sites. Under the arm the gesture is
+refused by name, nothing debited, nothing granted — which is **precisely what
+`multi-character.js serverBuySlot` already does** while `hr_buy_hero_slot` is unapplied. Not a new
+policy: the shipped, reviewed precedent for this exact class, one surface over. Switch-off is
+byte-for-byte the old path, pinned by GEM-OK-1.
+
+### Four more defects found by the sweep, none of them reported
+1. **`redeemHearthToken`** — the only one pointing AT the player: burns the IAP-only bond with a
+   local `removeItem` and credits 150 gems the envelope erases. The inventory absolute arm is
+   dormant, so the token does not come back. Net: the bond destroyed for nothing.
+2. **`buyTheme` re-charged an owned theme.** The only thing between a player and a second 1,000-gem
+   Volcanic Keep was the House card rendering "Apply" instead of "Buy". A UI guard on a money
+   surface is not a guard. `buyCosmetic` had the identical hole plus an un-deduplicated push.
+3. **`ownedCosmetics` was missing from `snapshotG`** — the b494 class exactly: a residue field the
+   suite mutates and never restores, written straight through to the player's real account.
+4. **`G.bank.goldBuys`/`gemBuys` are homed only by preservation.** `reconcileBank` carries them
+   through untouched and nothing ever SOURCES them from the server, so under `BLOB_RETIRED` both
+   reset to 0 on reload — including the rung b500's server-backed gold path just paid for. Reported,
+   not fixed here (it is the bank's own lane).
+
+### The durable deliverable: `tests/gem-site-census.mjs` + `src/net/gem-sites.js`
+20 sites, all declared. Its **L5** is the rule the gold census has no counterpart for: every unwired
+gem grant or spend must carry an `armGuard` whose token is **source-probed** in the gating
+function's body — a claim turned into a check. That rule, existing on the day `buyTheme` was
+written, would have failed the build.
+
+### Three lessons, each earned by a check that was about itself
+1. **The body probe was column-zero-anchored** and every gem GRANT lives two spaces deep inside an
+   IIFE — so the "enclosing function" was the whole module and the probe answered yes for a token
+   anywhere at all. Indent-aware now.
+2. **L7 (the delegation to the gold census) read Node's MODULE CACHE.** The M6 mutation renamed
+   `assignBulk` there and L7 saw the baseline copy — GREEN, unfalsifiable. `bust` is load-bearing on
+   every import a mutation can touch. This is the b499 lesson repeating for the third time: *the
+   first mutation to run is always "make the thing the guard forbids, and watch it stay green."*
+3. **M3's first version was a FALSE RED** — it cut to the next `'},'`, which landed inside a `why:`
+   string, so the ledger stopped parsing and the census reported "could not load". Red, and
+   worthless: it proved the guard notices a broken file. **A mutation must plant a DEFECT, not a
+   syntax error**, and the way to know the difference is to make the mutation prove the file still
+   parses before handing it over.
+
+Also: `theme.*/cosmetic.*` written inside a `/* */` comment closed the comment early and took the
+ENTIRE 1,123-test suite down to 22. Caught in one run because the probe reports the total.
+
+### Verification
+in-page suite **1123/1123, 0 runtime errors** (`tools/_gem-suite-probe.mjs`, standalone — the
+assembled gate stays the Coordinator's). Nine mutations reinstating each shipped defect, each
+required to turn its NAMED test red (`tools/_gem-mutate.mjs`). Census selftest: six mutations, all
+red. Gold census still 68/68. `arm-homing-guard` 75/75 unchanged (`_gemUnlocks` is `_`-scratch).
+`bump-version.sh --check` green at 501; no version bump, no push, no prod writes.

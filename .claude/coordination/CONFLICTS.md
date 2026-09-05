@@ -981,3 +981,35 @@ stock — threading inventory into `equipmentStats` / `playerCombatRolls`, the o
 engines share and every loadout's numbers run through. A deliberate change with a ruling attached,
 not a drive-by. `AMMO-E5` pins today's behaviour in both directions, so the fix arrives as two
 expected, named failures.
+
+---
+
+## SEMANTIC (Systems ↔ Systems): two lanes are fixing ONE class on two surfaces — `fix/gem-spend-server-backed` (2026-09-04)
+
+**The class:** *residue asserting ownership of a server-sold capability.* A sibling lane is fixing it
+in `src/net/property-record.js` (the residue-ahead property tier that refuses the Forge's
+`prereq_property_tier` and hides Farmstead). This lane fixes the SAME class for gem-bought unlocks —
+`ownedThemes` / `ownedCosmetics` / `G.bank.gemBuys` — and the resolution shape is deliberately the
+same one `multi-character.js ownsSlot()` established: **the server's projected set wins when there is
+one; the residue answers only while the server has not spoken.**
+
+**No code conflict.** This lane touches `src/legacy.js`, `src/render/shop.js`,
+`src/features/smoke-test.js`, `src/net/gem-sites.js` (new), `tests/gem-site-census.mjs` (new),
+`tests/gold-site-census.mjs` (one exclusion row) and `tests/run-smoke.mjs` (one guard registration).
+It does **not** touch `src/net/property-record.js` and, per the dispatch, it does **not** touch
+`tests/property-gate-census.mjs`.
+
+**The semantic question for the Coordinator to rule on:** the property lane and this one now each own
+a *"is this capability really mine?"* seam (`property-record.js` vs `ownsGemUnlock`). They should
+eventually be **one** rule — "a residue entry never confers a server-sold capability" — with one
+census behind it. Merging them now would couple two in-flight lanes; merging them never leaves the
+next surface (companions, traits, recipes) to rediscover it. Recommend: land both, then a follow-up
+that folds `ownsGemUnlock` into whatever `tests/property-gate-census.mjs` becomes. Flagged rather
+than resolved unilaterally.
+
+**HAZARD THE MIGRATION LANE MUST NOT MISS.** `ownsGemUnlock` prefers the server the *moment* a
+projection exists. The day an `hr_state_of` projection of gem unlocks ships, every theme and cosmetic
+not in the server's rows stops being owned — for everybody, instantly. The migration MUST seed the
+unlock rows from existing `client_state.ownedThemes` / `ownedCosmetics` before it starts projecting.
+Written up in full at the head of `src/net/gem-sites.js` (`GEM_GRANDFATHER_PRECONDITION`). The same
+hazard applies to the property lane's projection and is worth checking there too.

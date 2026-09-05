@@ -694,6 +694,13 @@ const snapshotG = () => {
     workers: G.workers,
     ownedThemes: G.ownedThemes,
     houseTheme: G.houseTheme,
+    /* ⚠ `ownedThemes` HAS BEEN HERE SINCE b4xx AND ITS TWIN NEVER WAS. Found
+       while writing the GEM-SPEND battery: `ownedCosmetics` is RESIDUE
+       (src/net/client-state.js), it persists through hr_put_client_state, and
+       buyCosmetic() pushes into it — so any test that drove that function wrote
+       straight through to the player's real account and the suite PERSISTED it.
+       Exactly the b494 `renown`/`collectionLog` class, one field over. */
+    ownedCosmetics: G.ownedCosmetics,
     buyback: G.buyback,
     /* b487: the QUEST MODAL's two slates. `G.daily` (the DAILY_TASK_POOL tasks)
        has been on this list since b138 — its two SIBLINGS never were, and they
@@ -2536,6 +2543,320 @@ const TESTS = [
     } finally {
       window.HearthriseGold = origGold; window.notify = origNotify;
       window.saveLocal = origSave; window.updateTopbar = origTop; window.renderInventory = origInv;
+      restoreG(snap);
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE GEM-SPEND BATTERY — THE THREE TWINS b500 MISSED
+     ══════════════════════════════════════════════════════════════════════════
+     b500 swept "optimistic-apply, swallowed-rejection" and fixed four sites, one
+     of which is BANK-REFUSE-1 directly above. It walked past `buyBankSpaceGem`
+     two functions below `buyBankSpaceGold`, plus `buyTheme` and `buyCosmetic`,
+     because the sweep — and the census that drove it — were GOLD-shaped.
+
+     THE MECHANISM, which is what these tests actually pin. `gems` is on
+     SERVER_OF_RECORD with no dormant gate, so accrue.js writes it ABSOLUTELY on
+     every envelope. A local `G.gems -= price` with no server intent is therefore
+     REFUNDED — while `ownedThemes` / `ownedCosmetics` (residue) and
+     `G.bank.gemBuys` (carried untouched by reconcileBank) KEEP THE GOODS. Free
+     premium purchases, repeatable, from three unmodified buttons.
+
+     ⚠ WHY THESE ASSERT A REFUSAL RATHER THAN A SERVER ROUND-TRIP. The server
+     cannot sell these today and it is not a missing row: unlock-catalogue.js
+     SELLABLE_NAMESPACES is ['room','property'], the generated catalogue carries
+     every `theme.` and `cosmetic.` row with `gold = null` and
+     `refusal = 'namespace_unsupported:<ns>'`, and hr_unlock_offers has a gold
+     column and no other (2026-09-08-hero-slot-buy.sql's header says so in those
+     words — it is why the hero slot needed its own verb). So buyUnlock() would
+     answer 409 offer_unsupported forever. The shipped behaviour for this exact
+     class is multi-character.js serverBuySlot's: refuse by name, debit nothing,
+     grant nothing. These pin that, and they will keep passing unchanged when the
+     gem purchase verb lands — a CONFIRMED purchase is a new test, not an edit to
+     these. */
+  () => tryRun('GEM-REFUSE-1: an ARMED gem purchase debits no gems and grants no theme/cosmetic/bank rung', () => {
+    if (typeof window.buyTheme !== 'function' || typeof window.buyCosmetic !== 'function'
+      || typeof window.buyBankSpaceGem !== 'function') return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField, origNotify = window.notify;
+    const origSave = window.saveLocal, origTop = window.updateTopbar;
+    const origHouse = window.renderHouse, origShop = window.renderShop, origInv = window.renderInventory;
+    const said = [];
+    try {
+      /* ARMED: the server owns the gem balance. This is production today. */
+      window.clientMayWriteRecordField = function (f) { return f !== 'gems'; };
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      window.saveLocal = function () {}; window.updateTopbar = function () {};
+      window.renderHouse = function () {}; window.renderShop = function () {}; window.renderInventory = function () {};
+
+      window.G.gems = 100000;
+      stampBalanceLikeLoad(window.G);   // affordability must read a KNOWN balance, or it refuses for the WRONG reason
+      window.G.ownedThemes = ['default'];
+      window.G.ownedCosmetics = [];
+      window.G.houseTheme = 'default';
+      window.G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
+      const gems0 = window.G.gems;
+
+      // ── 1. THEME ────────────────────────────────────────────────────────
+      window.buyTheme('forest');
+      assert(window.G.gems === gems0,
+        'THE CLASS: an armed buyTheme debited ' + (gems0 - window.G.gems) + ' gems the server never '
+        + 'saw — the next envelope refunds them and the theme stays. That is the free-theme dupe.');
+      assert(window.G.ownedThemes.indexOf('forest') < 0,
+        'THE CLASS: a theme the realm never sold was pushed into the ownedThemes RESIDUE, which persists');
+      assert(window.G.houseTheme === 'default', 'a refused theme must not equip itself');
+
+      // ── 2. COSMETIC ─────────────────────────────────────────────────────
+      window.buyCosmetic('avatar_dragon', 500);
+      assert(window.G.gems === gems0,
+        'THE CLASS: an armed buyCosmetic debited gems with no server call');
+      assert(window.G.ownedCosmetics.indexOf('avatar_dragon') < 0,
+        'THE CLASS: a cosmetic the realm never sold was pushed into the ownedCosmetics RESIDUE');
+
+      // ── 3. BANK GEM RUNG ────────────────────────────────────────────────
+      const rung0 = window.G.bank.gemBuys;
+      const ret = window.buyBankSpaceGem();
+      assert(ret === false, 'a refused gem bank expansion must report false, got ' + ret);
+      assert(window.G.gems === gems0, 'THE CLASS: an armed buyBankSpaceGem debited gems with no server call');
+      assert(window.G.bank.gemBuys === rung0,
+        'THE CLASS: gemBuys advanced from ' + rung0 + ' to ' + window.G.bank.gemBuys
+        + ' — bank space the realm never recorded');
+
+      // ── AND IT SAYS SO. A silent no-op is the b494 dead-button bug. ─────
+      const refusals = said.filter(function (s) { return s.k === 'kill' && /can.t record/i.test(s.m); });
+      assert(refusals.length === 3,
+        'each refused gem purchase must SPEAK its refusal — expected 3, saw ' + refusals.length
+        + ': ' + JSON.stringify(said));
+      assert(!said.some(function (s) { return /unlocked|Bank expanded/i.test(s.m); }),
+        'a refused gem purchase claimed success: ' + JSON.stringify(said));
+    } finally {
+      window.clientMayWriteRecordField = origMay; window.notify = origNotify;
+      window.saveLocal = origSave; window.updateTopbar = origTop;
+      window.renderHouse = origHouse; window.renderShop = origShop; window.renderInventory = origInv;
+      restoreG(snap);
+    }
+  }),
+
+  /* THE OTHER HALF OF THE CONTRACT, and it is the half that makes the test above
+     mean something. If GEM-REFUSE-1 were the only test, deleting the bodies of
+     all three functions would pass it. This one drives the SAME three gestures
+     with the client authoritative (the switch-off path, byte-for-byte what
+     shipped before the gate) and requires each to pay EXACTLY ONCE and grant
+     EXACTLY ONCE — so the gate can only ever be a gate, never an off switch. */
+  () => tryRun('GEM-OK-1: with gems client-authored, each gem purchase pays EXACTLY once and grants once', () => {
+    if (typeof window.buyTheme !== 'function' || typeof window.buyCosmetic !== 'function'
+      || typeof window.buyBankSpaceGem !== 'function') return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField, origNotify = window.notify;
+    const origSave = window.saveLocal, origTop = window.updateTopbar;
+    const origHouse = window.renderHouse, origShop = window.renderShop, origInv = window.renderInventory;
+    try {
+      window.clientMayWriteRecordField = function () { return true; };
+      window.notify = function () {}; window.saveLocal = function () {}; window.updateTopbar = function () {};
+      window.renderHouse = function () {}; window.renderShop = function () {}; window.renderInventory = function () {};
+
+      window.G.gems = 100000;
+      stampBalanceLikeLoad(window.G);
+      window.G.ownedThemes = ['default']; window.G.ownedCosmetics = []; window.G.houseTheme = 'default';
+      window.G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
+
+      /* ⚠ RE-STAMP BEFORE EVERY AFFORDABILITY-GATED CALL, and the reason is a
+         real property rather than harness noise. `gems` is armed, so balanceOf
+         trusts `G._record` and the b347 FINGERPRINT: the moment a local debit
+         moves G.gems away from the recorded value, the balance reads UNKNOWN and
+         the NEXT purchase fail-closes. Production does not hit this because the
+         server envelope re-stamps after a purchase (the b395/b396 gold-verb
+         re-stamp exists for exactly this). A test that stamps once and then makes
+         two gem purchases is measuring the missing re-stamp, not the purchase —
+         which is precisely how this test first went red. */
+      const restamp = function () { stampBalanceLikeLoad(window.G); };
+      /* THE PRICE COMES FROM THE AUTHORED TABLE, never a literal. A hardcoded 500
+         goes green on the day a Designer reprices Forest Lodge and silently stops
+         testing that the debit matches the quote. */
+      const theme = (window.HOUSE_THEMES || []).find(function (t) { return t.currency === 'gem'; });
+      assert(theme, 'the fixture needs a gem-priced theme in HOUSE_THEMES (window.HOUSE_THEMES)');
+      let g = window.G.gems;
+      window.buyTheme(theme.id);
+      assert(window.G.gems === g - theme.price,
+        'a client-authored theme buy must debit EXACTLY the price: expected -' + theme.price
+        + ', got -' + (g - window.G.gems));
+      assert(window.G.ownedThemes.filter(function (x) { return x === theme.id; }).length === 1,
+        'the theme must be granted exactly once');
+      /* AND RE-BUYING AN OWNED THEME CHARGES NOTHING. The shipped code debited
+         unconditionally, so a second call took the price again — the only thing
+         between a player and a second 1,000-gem Volcanic Keep was the House card
+         rendering "Apply" instead of "Buy". A UI guard on a money surface is not
+         a guard; found by writing this test. */
+      g = window.G.gems;
+      restamp();
+      window.buyTheme(theme.id);
+      assert(window.G.gems === g, 're-buying an OWNED theme must charge nothing, got -' + (g - window.G.gems));
+      assert(window.G.ownedThemes.filter(function (x) { return x === theme.id; }).length === 1,
+        're-buying an owned theme duplicated the residue entry');
+      assert(window.G.houseTheme === theme.id, 're-buying an owned theme should EQUIP it (that is what the gesture means)');
+
+      g = window.G.gems;
+      restamp();
+      window.buyCosmetic('avatar_dragon', 500);
+      assert(window.G.gems === g - 500, 'a client-authored cosmetic buy must debit exactly 500');
+      assert(window.G.ownedCosmetics.filter(function (x) { return x === 'avatar_dragon'; }).length === 1,
+        'the cosmetic must be granted exactly once');
+      /* AND A SECOND BUY MUST NOT DOUBLE-CHARGE. The shipped one-liner had an
+         unconditional `G.ownedCosmetics.push(id)` — buying twice appended the id
+         twice and charged twice, on a surface the shop only accidentally guards
+         (it disables the button when owned). Found in the same read. */
+      g = window.G.gems;
+      restamp();
+      window.buyCosmetic('avatar_dragon', 500);
+      assert(window.G.gems === g, 're-buying an owned cosmetic must charge nothing, got -' + (g - window.G.gems));
+      assert(window.G.ownedCosmetics.filter(function (x) { return x === 'avatar_dragon'; }).length === 1,
+        're-buying an owned cosmetic duplicated the residue entry');
+
+      /* ── THE DIVERGENT CASE, and it is why the de-duplicated push is a real
+         line rather than dead defence. The already-owned check above reads
+         ownsGemUnlock, which prefers the SERVER's set — so when the server says
+         "you do not own this" and the residue says you do, the buy PROCEEDS and
+         reaches the push with the id already in the bag. Un-deduplicated, that
+         appends a second copy and the residue grows without bound across every
+         such reconcile. Found by mutation: removing the dedupe left every other
+         assertion green, because nothing else could reach the line. */
+      window.G._gemUnlocks = { owned: [], at: Date.now() };
+      g = window.G.gems;
+      restamp();
+      window.buyCosmetic('avatar_dragon', 500);
+      assert(window.G.gems === g - 500,
+        'with the SERVER set lacking it, a cosmetic buy must go through (the server is the authority '
+        + 'on ownership, and it says you do not own it)');
+      assert(window.G.ownedCosmetics.filter(function (x) { return x === 'avatar_dragon'; }).length === 1,
+        'the residue push must DE-DUPLICATE: a server/residue divergence appended a second copy of '
+        + 'avatar_dragon, which is unbounded growth in a bag the server stores verbatim');
+      delete window.G._gemUnlocks;
+
+      g = window.G.gems;
+      restamp();
+      const rung = window.G.bank.gemBuys;
+      assert(window.buyBankSpaceGem() === true, 'a client-authored gem bank buy must succeed');
+      assert(window.G.gems === g - window.BANK_SPACE.gem.cost, 'the bank buy must debit exactly the gem cost');
+      assert(window.G.bank.gemBuys === rung + 1, 'the bank rung must advance exactly once');
+    } finally {
+      window.clientMayWriteRecordField = origMay; window.notify = origNotify;
+      window.saveLocal = origSave; window.updateTopbar = origTop;
+      window.renderHouse = origHouse; window.renderShop = origShop; window.renderInventory = origInv;
+      delete window.G._gemUnlocks;   // scratch: never persisted, but never left behind either
+      restoreG(snap);
+    }
+  }),
+
+  /* THE FREE DEFAULT. The unlock catalogue's own warning is that a zero-priced
+     offer is an infinite faucet, so `theme.default` must stay a FREE EQUIP and
+     must never become a purchase — which also means the gem gate must not touch
+     it. This runs ARMED, the state in which every other gem gesture refuses. */
+  () => tryRun('GEM-FREE-1: the default theme stays a FREE EQUIP even when gems are server-owned', () => {
+    if (typeof window.buyTheme !== 'function') return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField, origNotify = window.notify;
+    const origSave = window.saveLocal, origTop = window.updateTopbar, origHouse = window.renderHouse;
+    try {
+      window.clientMayWriteRecordField = function (f) { return f !== 'gems'; };
+      window.notify = function () {}; window.saveLocal = function () {}; window.updateTopbar = function () {};
+      window.renderHouse = function () {};
+      window.G.gems = 0; window.G.gold = 12345;
+      stampBalanceLikeLoad(window.G);
+      window.G.ownedThemes = []; window.G.houseTheme = 'forest';
+      const gold0 = window.G.gold, gems0 = window.G.gems;
+      window.buyTheme('default');
+      assert(window.G.houseTheme === 'default',
+        'the free default must equip under the gem arm — gating it would break the only theme every '
+        + 'player owns, on the surface the arm is live');
+      assert(window.G.gold === gold0, 'the free default must spend no gold (slice 6)');
+      assert(window.G.gems === gems0, 'the free default must spend no gems');
+      assert(window.G.ownedThemes.indexOf('default') >= 0, 'the free default must be owned after equipping');
+    } finally {
+      window.clientMayWriteRecordField = origMay; window.notify = origNotify;
+      window.saveLocal = origSave; window.updateTopbar = origTop; window.renderHouse = origHouse;
+      restoreG(snap);
+    }
+  }),
+
+  /* ── OWNERSHIP: THE SERVER WINS ─────────────────────────────────────────────
+     The other half of the class, and the one currently deadlocking a player's
+     Forge on a different surface: RESIDUE ASSERTING OWNERSHIP OF A SERVER-SOLD
+     CAPABILITY. `ownedThemes` / `ownedCosmetics` are a bag the client writes and
+     hr_put_client_state stores verbatim, so a forged entry used to BE ownership.
+     ownsGemUnlock() prefers the server's projected set exactly as
+     multi-character.js ownsSlot() does — and, exactly as there, falls back to
+     the residue while the server has not answered, so nobody who legitimately
+     owns a theme today loses it. Both directions are pinned here; the fallback
+     half is what makes this change safe to ship before the migration. */
+  () => tryRun('GEM-OWN-1: a residue entry the SERVER set lacks confers no ownership (and absence falls back)', () => {
+    if (typeof window.ownsGemUnlock !== 'function' || typeof window.setTheme !== 'function') return;
+    const snap = snapshotG();
+    const origNotify = window.notify, origHouse = window.renderHouse;
+    const hadScratch = Object.prototype.hasOwnProperty.call(window.G, '_gemUnlocks');
+    const prevScratch = window.G._gemUnlocks;
+    try {
+      window.notify = function () {}; window.renderHouse = function () {};
+      window.G.ownedThemes = ['default', 'forest'];
+      window.G.ownedCosmetics = ['avatar_dragon'];
+
+      // 1. NO SERVER ANSWER YET → residue answers, and every current owner keeps what they hold.
+      delete window.G._gemUnlocks;
+      assert(window.ownsGemUnlock('theme', 'forest') === true,
+        'with no server projection the residue must still answer — otherwise shipping this de-owns '
+        + 'every theme every player has already bought');
+      assert(window.ownsGemUnlock('cosmetic', 'avatar_dragon') === true, 'same for cosmetics');
+      assert(window.ownsGemUnlock('theme', 'volcanic') === false, 'a theme in neither store is not owned');
+
+      // 2. THE SERVER HAS SPOKEN AND DOES NOT CARRY IT → the server wins.
+      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
+      assert(window.ownsGemUnlock('theme', 'forest') === false,
+        'THE CLASS: a residue entry the server set does NOT carry still conferred ownership — that is '
+        + 'the client asserting a server-sold capability, the same shape as the residue-ahead property '
+        + 'tier deadlocking the Forge');
+      assert(window.ownsGemUnlock('cosmetic', 'avatar_dragon') === false,
+        'THE CLASS: a residue cosmetic the server does not carry still conferred ownership');
+      assert(window.ownsGemUnlock('theme', 'default') === true, 'a theme the server DOES carry is owned');
+
+      // 3. AND THE GATE IS LOAD-BEARING: equipping reads the same answer.
+      window.G.houseTheme = 'default';
+      window.setTheme('forest');
+      assert(window.G.houseTheme === 'default',
+        'setTheme equipped a theme the server does not record as owned — ownership must be read '
+        + 'through one seam, not re-derived per caller');
+      window.setTheme('default');
+      assert(window.G.houseTheme === 'default', 'a server-owned theme must still equip');
+    } finally {
+      if (hadScratch) window.G._gemUnlocks = prevScratch; else delete window.G._gemUnlocks;
+      window.notify = origNotify; window.renderHouse = origHouse;
+      restoreG(snap);
+    }
+  }),
+
+  /* The fourth site the sweep turned up, and the only one in the class that
+     costs the PLAYER. redeemHearthToken burns the IAP-only bond with a local
+     removeItem and credits 150 gems the next envelope erases — the inventory
+     absolute arm is dormant, so the token does not come back either. */
+  () => tryRun('GEM-TOKEN-1: an ARMED Hearth Token redemption keeps the token rather than burning it for nothing', () => {
+    if (typeof window.redeemHearthToken !== 'function' || !window.ITEMS || !window.ITEMS.hearth_token) return;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField, origNotify = window.notify;
+    const origSave = window.saveLocal, origTop = window.updateTopbar, origShop = window.renderShop;
+    try {
+      window.clientMayWriteRecordField = function (f) { return f !== 'gems'; };
+      window.notify = function () {}; window.saveLocal = function () {}; window.updateTopbar = function () {};
+      window.renderShop = function () {};
+      window.G.inventory = Object.assign({}, window.G.inventory, { hearth_token: 1 });
+      window.G.gems = 0;
+      stampBalanceLikeLoad(window.G);
+      window.redeemHearthToken();
+      assert((window.G.inventory.hearth_token || 0) === 1,
+        'THE CLASS, POINTING AT THE PLAYER: an armed redemption consumed the Hearth Token — the '
+        + 'IAP-only bond — for gems the next envelope erases. The token does not come back; the '
+        + 'inventory absolute arm is dormant.');
+      assert(window.G.gems === 0, 'a refused redemption must not credit gems either');
+    } finally {
+      window.clientMayWriteRecordField = origMay; window.notify = origNotify;
+      window.saveLocal = origSave; window.updateTopbar = origTop; window.renderShop = origShop;
       restoreG(snap);
     }
   }),
@@ -6469,7 +6790,13 @@ const TESTS = [
     assert(/not available in the web beta/.test(src), 'web branch should refuse honestly');
     assert(window.IAP.detectPlatform() === 'web', 'test env detects web platform');
   }),
-  () => tryRun('b206: hearth token — real tradable item + redemption math', () => {
+  /* CLIENT-AUTHORITATIVE, deliberately. This test's subject is the redemption
+     MATH (1 token in, exactly 150 gems out) — the switch-off path, byte-for-byte
+     what has always shipped. Under the live gems arm redeemHearthToken now
+     REFUSES rather than burning the IAP-only bond for gems the next envelope
+     erases; that behaviour has its own test (GEM-TOKEN-1) and this one would
+     otherwise fail for a reason that has nothing to do with the arithmetic. */
+  () => tryRunClientAuthoritative('b206: hearth token — real tradable item + redemption math', () => {
     assert(window.ITEMS.hearth_token && window.ITEMS.hearth_token.premium, 'hearth_token item exists + premium flag');
     const G = window.G;
     const saved = { gems: G.gems, inv: JSON.parse(JSON.stringify(G.inventory || {})) };
@@ -43564,7 +43891,18 @@ const TESTS = [
          outgrew it. */
       G.gems = 10_000;
       stampBalanceLikeLoad(G);   // armed: buyBankSpaceGem reads gems via canAfford
-      assert(window.buyBankSpaceGem() === true, 'the gem purchase must succeed');
+      /* ⚠ PIN THE CLIENT-AUTHORED ARM FOR THE PURCHASE ITSELF. This test's
+         SUBJECT is the bag renderer — it uses a real gem buy only as the cheapest
+         way to raise bankCap(). Under the live gems arm buyBankSpaceGem now
+         REFUSES (GEM-REFUSE-1: gems are server-of-record, so a local debit is
+         refunded while the rung sticks), which would fail this test for a reason
+         that has nothing to do with what it measures. Driving the switch-OFF path
+         keeps the real function in the loop — a stub would stop testing that a
+         purchase moves the cap at all — while leaving the arm behaviour to the
+         battery that owns it. */
+      const _bagArm = pinClientAuthoritative();
+      try { assert(window.buyBankSpaceGem() === true, 'the gem purchase must succeed'); }
+      finally { unpinClientAuthoritative(_bagArm); }
       const after = await paint();
       assert(after.total - before.total === window.BANK_SPACE.gem.slots,
         'THE b348 BUG: buying +' + window.BANK_SPACE.gem.slots + ' stacks changed the bag by '

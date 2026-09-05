@@ -512,6 +512,12 @@ const HOUSE_THEMES=[
   {id:'volcanic',name:'Volcanic Keep',glyph:'uiFire',price:1000,currency:'gem'},
   {id:'fairy',name:'Fairy Glen',glyph:'uiSpark',price:750,currency:'gem'},
 ];
+/* Published for the same reason BANK_SPACE is (legacy.js ~4296): it is a PRICE
+   TABLE, and anything that reasons about what a theme costs — the suite's gem
+   battery, a future render module — must read the authored number rather than
+   restate it. A test that hardcodes 500 goes green on the day a Designer
+   reprices Forest Lodge and stops testing the thing it was written for. */
+try{ window.HOUSE_THEMES = HOUSE_THEMES; }catch(_){}
 /* b243 (progression audit): the three ENDGAME seeds — goldenroot (Farming 62),
    emberfruit (75), moonbloom (88) — had NO source anywhere (not sold, dropped,
    or yielded), so farming hard-stopped at ~62 and the top 37 levels were
@@ -1687,6 +1693,104 @@ function clientMayWriteRecordField(field){
   try{ return A.mayClientWrite(field, window)!==false; }catch(e){ return false; }
 }
 window.clientMayWriteRecordField=clientMayWriteRecordField;
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE GEM SPEND GATE — A PREMIUM PURCHASE IS NOT A CLIENT WRITE
+   ══════════════════════════════════════════════════════════════════════════
+   THE DEFECT THIS CLOSES, and it was live at three sites at once. `gems` is on
+   SERVER_OF_RECORD (src/net/record.js) with NO dormant gate — it is ARMED — so
+   accrue.js applyEnvelopeState writes it ABSOLUTELY on every envelope:
+
+       if (Number.isFinite(Number(st.gems))) G.gems = Number(st.gems);
+
+   A local `G.gems -= price` is therefore not a payment, it is a PREDICTION, and
+   a prediction with no server intent behind it is retired by the next envelope —
+   the gems come back. Meanwhile `ownedThemes` / `ownedCosmetics` are RESIDUE
+   (client-state.js) and `G.bank.gemBuys` is carried untouched by reconcileBank,
+   so the THING BOUGHT stayed. Net effect: a free theme, a free cosmetic, and
+   free bank space, repeatable, from three unmodified buttons. That is the b371
+   gem dupe — "the purchase became free" — which multi-character.js's own header
+   documents and 2026-09-08-hero-slot-buy.sql was written to close for the
+   FOURTH site (character_slot). These three are its twins and were missed.
+
+   ⚠ WHY THIS IS A REFUSAL AND NOT A `buyUnlock` REWIRE. The obvious fix — route
+   these through window.HearthriseGold.buyUnlock the way b500 routed
+   buyBankSpaceGold — DOES NOT WORK, and the reason is structural rather than a
+   missing row:
+     · supabase/functions/hr-accrue/unlock-catalogue.js SELLABLE_NAMESPACES is
+       ['room','property'] and refuses `theme` / `cosmetic` BY NAME;
+     · the GENERATED catalogue agrees — 2026-08-16-unlock-offers.generated.sql
+       carries every theme.* and cosmetic.* row with `gold = null` and
+       `refusal = 'namespace_unsupported:<ns>'`;
+     · public.hr_unlock_offers has a GOLD column and no other, which is exactly
+       why the hero slot needed its own verb (that migration's header says so in
+       those words);
+     · src/data/gold-ladders.js publishes `bank.<n>` for the GOLD rung only —
+       there is no gem rung offer at all.
+   So `buyUnlock('theme.forest')` would answer 409 offer_unsupported forever, and
+   wiring it would turn a silent exploit into a permanently dead button. The
+   server half is a MIGRATION (see the change report; REVIEW-ONLY, a money
+   surface, Security's call) and this file must not invent one.
+
+   WHAT IT DOES INSTEAD is exactly what multi-character.js buySlot() already
+   ships and what the team already accepted for the same class: when the client
+   may not write the balance, the gesture is REFUSED BY NAME, nothing is
+   debited, and nothing is granted. hr_buy_hero_slot is likewise not applied
+   yet, so the hero-slot button says "Hero slots are unavailable right now"
+   today — this is that precedent, not a new policy. An honest "not yet" beats a
+   purchase that quietly does nothing and hands out the goods.
+
+   SWITCH OFF (clientMayWriteRecordField('gems') === true — no accrual, or a
+   pre-arm build) every one of these paths is BYTE-FOR-BYTE what shipped before:
+   the local debit IS the payment because nothing overwrites it. */
+function gemSpendIsClientAuthored(){ return clientMayWriteRecordField('gems'); }
+/** The refusal, in the b494 voice: name what could not be recorded, and say
+ *  plainly that nothing was spent — a player who is not told that assumes the
+ *  worst and files a bug about missing gems. */
+function refuseGemPurchase(what){
+  if(typeof notify==='function')
+    notify('The realm can’t record '+what+' yet — nothing was spent.','kill');
+  try{ console.warn('[gems] refused a client-authored gem purchase (server owns the balance):',what); }catch(_){}
+  return false;
+}
+window.gemSpendIsClientAuthored=gemSpendIsClientAuthored;
+window.refuseGemPurchase=refuseGemPurchase;
+
+/* ── OWNERSHIP OF A GEM-BOUGHT UNLOCK: THE SERVER FIRST, ALWAYS ──────────────
+   `ownedThemes` / `ownedCosmetics` are RESIDUE — a bag the client writes and
+   hr_put_client_state stores verbatim. Residue asserting ownership of a thing
+   the SERVER sells is the class currently deadlocking a player's Forge (a
+   residue property tier gating a server capability), and it is the half of the
+   b371 dupe that made the free theme STICK.
+
+   This is multi-character.js ownsSlot() applied to the same problem, and the
+   fallback direction is the same one for the same reason: the SERVER'S SET WINS
+   WHEN THERE IS ONE, and residue answers only while the server has not spoken.
+   Today no envelope projects theme/cosmetic ownership (hr_state_of projects
+   hero_slots / traits / bank / companions / farm and nothing for these), so
+   `_gemUnlocks` is absent and every existing owner keeps every theme they hold
+   — NOBODY IS DE-OWNED BY THIS CHANGE. The day the migration projects the set,
+   `reconcileGemUnlocks` lands it in `G._gemUnlocks` (scratch, `_`-prefixed,
+   never persisted — the G._heroSlots shape exactly) and a forged residue entry
+   stops conferring anything, with no further edit to any caller.
+
+   ⚠ DO NOT make residue the authority again, and do not promote `_gemUnlocks`
+   out of scratch: the residue is precisely the store a cloud restore can rewind
+   while the entitlement it paid for stays granted. */
+function gemUnlockServerSet(){
+  var s=(typeof G!=='undefined')&&G&&G._gemUnlocks;
+  return (s&&Array.isArray(s.owned))?s.owned:null;
+}
+function ownsGemUnlock(kind,id){
+  if(typeof G==='undefined'||!G)return false;
+  var srv=gemUnlockServerSet();
+  if(srv)return srv.indexOf(kind+':'+id)>=0;
+  var bag=(kind==='theme')?G.ownedThemes:(kind==='cosmetic'?G.ownedCosmetics:null);
+  return !!(bag&&bag.indexOf&&bag.indexOf(id)>=0);
+}
+window.gemUnlockServerSet=gemUnlockServerSet;
+window.ownsGemUnlock=ownsGemUnlock;
+
 /* ── b431 — THE ROOMS READ SEAM (legacy wrapper) ──────────────────────────────
    Every `G.rooms` read in this classic script goes through these so that, once
    ROOMS_RECORD_ARM_ENABLED flips, a room rung is read from the server record
@@ -4281,6 +4385,14 @@ function buyBankSpaceGem(){
     }
     return false;
   }
+  /* ── THE GEM TWIN OF THE b500 BANK FIX. buyBankSpaceGold was moved onto
+     HearthriseGold.buyUnlock and advances only on a server ok; this half kept
+     doing `G.gems -= cost; gemBuys++` with no server call at all, so under the
+     ARMED gems record the rung was granted and the gems came back. See the gem
+     spend gate above for why a buyUnlock rewire is not available here (there is
+     no gem rung in src/data/gold-ladders.js and hr_unlock_offers prices in gold
+     only). Refuse rather than hand out free bank space. */
+  if(!gemSpendIsClientAuthored()) return refuseGemPurchase('that bank expansion');
   G.gems-=cost;
   G.bank=G.bank||{}; G.bank.gemBuys=(G.bank.gemBuys||0)+1;
   if(typeof notify==='function')notify('Bank expanded +'+BANK_SPACE.gem.slots+' slots','levelup');
@@ -9065,7 +9177,9 @@ function renderHouse(){
     }).join('');
   } else {
     el.innerHTML=`<div class="iap-grid">${HOUSE_THEMES.map(t=>{
-      const owned=G.ownedThemes.includes(t.id);
+      /* Server-first (ownsGemUnlock): a residue entry the server's set does not
+         carry must not draw an "Apply" button for a theme the realm never sold. */
+      const owned=ownsGemUnlock('theme',t.id);
       const active=G.houseTheme===t.id;
       return `<div class="iap-card ${active?'gold':''}"><div class="iap-icon">${_hrGly(t.glyph||'uiHome',30,'--gold-2')}</div><h3>${t.name}</h3><div class="desc">${t.price?(t.currency==='gem'?_gem(t.price):_gp(t.price)):'Default'}</div>${owned?(active?'<button class="btn btn-block" disabled>Active</button>':`<button class="btn btn-block btn-primary" onclick="setTheme('${t.id}')">Apply</button>`):`<button class="btn btn-block btn-gem" onclick="buyTheme('${t.id}')">Buy</button>`}</div>`;
     }).join('')}</div>`;
@@ -9359,7 +9473,10 @@ function buildPlot(id){
     notify('The realm couldn’t record that plot right now — nothing was spent. Try again in a moment.','kill');
   });
 }
-function setTheme(id){if(!G.ownedThemes.includes(id))return;G.houseTheme=id;notify('Theme applied','info');renderHouse();}
+/* EQUIPPING is gated on OWNERSHIP, and ownership is the server's answer when it
+   has one (ownsGemUnlock). Absent a projection this is byte-for-byte the old
+   residue read, so no existing owner loses a theme today. */
+function setTheme(id){if(!ownsGemUnlock('theme',id))return;G.houseTheme=id;notify('Theme applied','info');renderHouse();}
 function buyTheme(id){
   const t=HOUSE_THEMES.find(x=>x.id===id);if(!t)return;
   /* ── b4xx — THEMES ARE GEMS-ONLY (designer ruling, slice 6). ─────────────────
@@ -9369,8 +9486,24 @@ function buyTheme(id){
      future non-zero gold theme could silently fall into. Non-gem themes are now
      equipped FREE (the default is a free equip), never bought with gold. No gold
      wiring: a gold-priced theme is not a thing this game authors. */
+  /* ── THE GEM SPEND GATE. The affordability check runs FIRST so "need more
+     gems" still wins when that is the true answer — and it reads the RECORD
+     (balance.js -> the server's gems), not a local number. Only a purchase the
+     player could actually make reaches the gate. The free default never does:
+     it is `currency !== 'gem'`, so it stays the free equip slice 6 made it and
+     never becomes a zero-priced "purchase" (the catalogue's own warning — a
+     zero-priced offer is an infinite faucet). */
+  /* ⚠ AN OWNED THEME IS NEVER BOUGHT TWICE. Found while writing GEM-OK-1, and
+     it is buyCosmetic's bug one function over: the debit ran unconditionally, so
+     calling buyTheme on a theme you already own CHARGED YOU AGAIN. The only
+     thing standing between a player and a second 1,000-gem Volcanic Keep was the
+     House card rendering "Apply" instead of "Buy" — a UI guard on a money
+     surface, which is not a guard. Re-buying now equips what you already own,
+     which is what the gesture means. */
+  if(ownsGemUnlock('theme',id)){ setTheme(id); return; }
   if(t.currency==='gem'){
     if(!balCanAfford(t.price,'gems')){notify(balKnown('gems')?'Need more gems. Open the Store.':balShortfall(t.price,'gems'),'kill');return;}
+    if(!gemSpendIsClientAuthored()){refuseGemPurchase('that theme');return;}
     G.gems-=t.price;
   }
   if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);
@@ -9518,6 +9651,16 @@ function leaveClan(){G.clanName=null;renderSocial();renderClan();updateTopbar();
    a token is the player market (sell for gold) — that's the bond economy. */
 function redeemHearthToken(){
   if((G.inventory?.hearth_token||0)<1){notify('No Hearth Tokens','kill');return;}
+  /* ── FOUND IN THE GEM SWEEP, AND IT POINTS THE OTHER WAY. Every other site in
+     this class was free money for the player; this one BURNS a Hearth Token —
+     the IAP-only bond, the single most valuable object in the game — and pays
+     150 gems the next envelope erases, because nothing server-side has ever
+     heard of this redemption. The token consume is a local removeItem and the
+     inventory absolute arm is dormant, so it does not come back either. Refuse
+     while the client may not write the balance: keeping the token is the only
+     outcome here that is not a loss. The server half is the same migration the
+     three purchase twins need (an `hr_redeem_token`-shaped verb). */
+  if(!gemSpendIsClientAuthored()){refuseGemPurchase('that Hearth Token redemption');return;}
   removeItem('hearth_token',1);
   G.gems=(G.gems||0)+150;
   notify('Redeemed a Hearth Token for 150 gems','levelup');
@@ -9551,7 +9694,24 @@ function buyShopItem(id,qty,cost){
   if(_k&&window.HearthriseGold){const _p=window.HearthriseGold.buyShop(id,qty,cost,_k);if(_p&&_p.catch)_p.catch(()=>{});}
   notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
 }
-function buyCosmetic(id,price){if(!balCanAfford(price,'gems')){notify(balKnown('gems')?'Not enough gems. Tap "Get Gems".':balShortfall(price,'gems'),'kill');return;}G.gems-=price;G.ownedCosmetics.push(id);notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();}
+/* ── COSMETICS: THE THIRD GEM TWIN. This was one line and every part of it was
+   a client-authored premium purchase — `G.gems -= price` on an ARMED record
+   balance (retired by the next envelope) plus an unconditional
+   `G.ownedCosmetics.push(id)` into RESIDUE (which persists). Free cosmetics,
+   repeatable, and the push was not even deduplicated: a second buy appended the
+   same id again, so the residue grew without bound on a surface the shop only
+   accidentally guards (it disables the button when `owned`). Both are fixed
+   here; see the gem spend gate for why this refuses rather than routes. */
+function buyCosmetic(id,price){
+  var cost=Math.max(0,Number(price)||0);
+  if(ownsGemUnlock('cosmetic',id)){notify('That cosmetic is already yours.','info');return;}
+  if(!balCanAfford(cost,'gems')){notify(balKnown('gems')?'Not enough gems. Tap "Get Gems".':balShortfall(cost,'gems'),'kill');return;}
+  if(!gemSpendIsClientAuthored()){refuseGemPurchase('that cosmetic');return;}
+  G.gems-=cost;
+  G.ownedCosmetics=G.ownedCosmetics||[];
+  if(G.ownedCosmetics.indexOf(id)<0)G.ownedCosmetics.push(id);
+  notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();
+}
 /* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
    cost (escalating) and the flat gem deal side-by-side so the better value of
    gems is legible. Reuses the .qm-overlay backdrop + .btn classes — no new CSS. */

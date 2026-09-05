@@ -2682,3 +2682,39 @@ does not is how the next author assumes `equipped => held`.
 
 **A3** (the `ammo_carry` migration trigger) is the Coordinator's board item, not addressed here; the
 step-by-step spec above stands unchanged.
+
+---
+
+## Systems → Security / Backend: the GEM PURCHASE VERB (REVIEW-ONLY, nothing applied) — 2026-09-04
+
+`fix/gem-spend-server-backed` closed the CLIENT half of the free-premium-purchase hole (theme,
+cosmetic, gem bank rung, Hearth Token redemption). All four now refuse honestly under the live gems
+arm instead of paying with a number the next envelope refunds. **The feature is therefore OFF, not
+fixed** — a player cannot buy a theme or a cosmetic at all until a server verb exists. That is
+deliberate and it matches the shipped precedent (`multi-character.js serverBuySlot` answers
+`rpc_missing` while `hr_buy_hero_slot` is unapplied), but it is a real product gap and should be
+scheduled, not forgotten.
+
+**The obvious route is closed and it is not a missing row — it is a missing COLUMN.** Verified four
+ways: `unlock-catalogue.js SELLABLE_NAMESPACES = ['room','property']` refuses `theme`/`cosmetic` by
+name; `2026-08-16-unlock-offers.generated.sql` carries every `theme.*`/`cosmetic.*` row with
+`gold = null, refusal='namespace_unsupported:<ns>'`; `public.hr_unlock_offers` has a gold column and
+no other (2026-09-08-hero-slot-buy.sql's header says so verbatim); `src/data/gold-ladders.js` has a
+gold `bank.<n>` rung and no gem rung. `buyUnlock('theme.forest')` would answer 409
+`offer_unsupported` forever.
+
+**What is owed:** one gem-priced purchase verb in the `hr_buy_hero_slot` shape — offer id in, price
+read server-side under the per-character advisory lock, gems debited from `player_state` and the
+unlock row written in ONE transaction — plus an `hr_state_of` projection of the owned set. Client
+seams are already in place and need no further work: `ownsGemUnlock` reads `G._gemUnlocks` the way
+`ownsSlot` reads `G._heroSlots`, and the refusal vocabulary is `refuseGemPurchase`.
+
+**⚠ HARD PRECONDITION, and it is the one that can hurt real players:** the migration must SEED the
+unlock rows from existing `client_state.ownedThemes` / `ownedCosmetics` BEFORE it begins projecting
+the set. `ownsGemUnlock` prefers the server the moment a projection exists, so an unseeded rollout
+de-owns every theme and cosmetic every player already bought, instantly. Full write-up:
+`GEM_GRANDFATHER_PRECONDITION` in `src/net/gem-sites.js`. Precedent: 2026-09-08-hero-slot-buy.sql §3.
+
+Also owed, same verb family: `redeemHearthToken` needs an atomic consume-token/credit-gems intent
+(today the client can only do one half and both halves lose the player value), and the gem bank rung
+needs a `bank.gem.<n>` offer that does not exist in any catalogue.

@@ -3294,6 +3294,42 @@ const run = async () => {
       exitCode = e.harness ? 2 : 1;
     }
 
+    /* ── The BOUNTY-HUNTER XP credit guard (P0, playerbase-wide) ──────────
+       Measured on production 2026-09-05: player_skills carried a bountyHunter
+       row for all 36 characters with max(xp) = 0. No server code had ever
+       credited it — the CLIENT computed it into G.skills, which is
+       SERVER_OF_RECORD, so applyRecord's wholesale replace put the seeded 0
+       back after every envelope. getUnlockedBountyTier is keyed off that level
+       (Lv20 → tier 2 … Lv60 → tier 6), so every board tier above 1 and every
+       bounty TYPE above 'cull' was unreachable for the entire playerbase.
+       The guard drives a real character through the real rate-gated
+       hr_accept_bounty / hr_claim_bounty on a fully replayed PGlite chain, then
+       runs the REAL hr_state_of envelope that database produces through the
+       REAL src/net/record.js applyRecord — BHX-7 is the round trip that used to
+       reset the level to 1 — and finally grinds real turn-ins until the
+       SERVER's own level curve reaches 20 and asserts src/core/bounty.js
+       boardTierForBountyLevel answers 2. `--selftest` plants fifteen real
+       defects, seven of them with the migration's own §2 short-circuited so the
+       guard alone has to see them; every one must read RED. */
+    try {
+      const { bountyHunterXpGuard } = await import('./bounty-hunter-xp.mjs');
+      const bhxProblems = await bountyHunterXpGuard();
+      if (bhxProblems.length) {
+        console.log('\nBounty-Hunter XP credit guard — FAILED:');
+        for (const p of bhxProblems) console.log(`  ✗ ${p}`);
+        exitCode = 1;
+      } else {
+        console.log('\nBounty-Hunter XP credit guard — a turn-in credits player_skills.bountyHunter '
+          + 'from the server-owned reward, upserts onto a character that has no row, accumulates on '
+          + 'the next turn-in, ignores a forged required at every difficulty, is replay-safe, is '
+          + 'journalled once with skill_id/xp and xp_in 0, survives the envelope round trip, and '
+          + 'opens board tier 2 at Bounty-Hunter 20.');
+      }
+    } catch (e) {
+      console.log('\nBounty-Hunter XP credit guard — FAILED:\n' + String(e.message || e));
+      exitCode = e.harness ? 2 : 1;
+    }
+
     /* ── The renown kill-faucet guard (Security R5) ───────────────────────
        A LIVE, PRE-EXISTING faucet in the deployed 2026-08-30 code:
        hr_credit_kills writes stat/ev:kill_any and stat/ev:kill_monster:<id>,
@@ -4001,6 +4037,11 @@ const run = async () => {
          exactly the state the codebase was already in. */
       'Property gate census',
       'Gold-site census', 'Gem-site census',
+      /* b504: the two staged-migration guards. Each replays the repo's own
+         chain, so "it did not run" and "the migration is not in the chain"
+         look identical from the outside — the marker is what tells them apart. */
+      'Attended loot-credit guard',
+      'Bounty-Hunter XP credit guard',
     ];
     if (exitCode === 0) {
       const said = TRANSCRIPT.join('\n');

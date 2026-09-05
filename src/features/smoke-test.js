@@ -22689,7 +22689,12 @@ const TESTS = [
       G.monsterHp = window.MONSTERS.lich.hp; G.monsterMaxHp = window.MONSTERS.lich.hp;
       // Auto-bounty OFF: it would switch the monster mid-night (b344) and the
       // boss-pet roll would stop being about the lich.
-      G.bountyHunter = { marks: 0, xp: 0, completed: 0, autoBounty: 0, boardGeneratedAt: 0,
+      /* b503: no `xp` and no `marks` here. Both are SERVER-owned (xp is the
+         player_skills 'bountyHunter' row credited by hr_claim_bounty; marks is
+         the top-level record field G.marks), and seeding them into the residue
+         object re-creates the shadow shape this build deleted — a fixture that
+         implies a field exists is how the field comes back. */
+      G.bountyHunter = { completed: 0, autoBounty: 0, boardGeneratedAt: 0,
         freeRerolls: 0, rerollsToday: 0, upgrades: {}, warrants: {}, active: null, board: [] };
       // A kill-proc pet equipped, and NO pet owned that the night could roll —
       // an owned pet is skipped without drawing, which would make this vacuous.
@@ -23265,7 +23270,11 @@ const TESTS = [
       /* A Bounty Hunter well past every type unlock, so the ladder genuinely
          offers proof (lv5) / weapon (10) / streak (15). Without that this test
          would pass against a level-1 board that only ever had culls. */
-      G.skills.bountyHunter = 20000; if (G.bountyHunter) G.bountyHunter.xp = 20000;
+      /* b503: the second write used to be `G.bountyHunter.xp = 20000` — the
+         residue mirror. That mirror is GONE (the xp is a server-owned skill;
+         see the BOUNTY HUNTER header in legacy.js), so setting it here would
+         seed a field nothing reads and quietly imply the mirror still exists. */
+      G.skills.bountyHunter = 20000;
       assert(window.getBountyHunterLevel() >= 15,
         'CONTROL: the test character must be past the streak unlock, got BH ' + window.getBountyHunterLevel());
       assert(C.bounty.unlockedTypes(window.getBountyHunterLevel()).indexOf('proof') >= 0,

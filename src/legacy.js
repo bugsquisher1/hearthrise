@@ -703,7 +703,16 @@ let G={
      They used to live nested at bountyHunter.marks; ensureBountyState() migrates a
      legacy nested value up on load. */
   marks:0,
-  bountyHunter:{xp:0,completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}},
+  /* b503 — NO `xp` KEY HERE, AND THAT IS THE FIX, NOT AN OMISSION.
+     Bounty-Hunter XP is a SKILL. It lives in `player_skills` (server) and is
+     read through the record as `bountyHunter` like every other skill. It used
+     to ALSO live at `bountyHunter.xp` — a residue mirror shadowing a
+     server-owned value, the same class that deadlocked the property tier
+     (SA-002) — and the two disagreed permanently, because the server had never
+     credited a single point. One home only. `hydrateInto` and
+     `buildResiduePatch` DROP a stray `xp` key defensively, exactly as they do
+     for the migrated `marks`. */
+  bountyHunter:{completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}},
   lastOfflineSummary:null,
   lastSeen:Date.now(),
   /* b226: nothing ever stamped a creation date, which is why the Founder's
@@ -4457,8 +4466,23 @@ function _retimeIfTool(id){
 
 /* ─── Bounty Hunter ─── */
 function ensureBountyState(){
-  const base={xp:0,completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}};
+  /* b503 — NO `xp` KEY IN THE BASE, AND THAT IS THE FIX, NOT AN OMISSION.
+     Bounty-Hunter XP is a SKILL: it lives in player_skills on the server,
+     credited by hr_claim_bounty, and is read through the record as
+     `G.skills.bountyHunter`. It used to ALSO be seeded here, and a residue
+     field shadowing a server-owned value is the SA-002 class that deadlocked
+     the property tier. Keep this shape in step with the default G at the top of
+     this file and with the two strippers (hydrateInto / buildResiduePatch);
+     BHX-11 in tests/bounty-hunter-xp.mjs fails if any of the three regrows it. */
+  const base={completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}};
   G.bountyHunter=Object.assign(base,G.bountyHunter||{});
+  /* Dropping it from `base` alone is NOT sufficient: base is the Object.assign
+     TARGET, so anything G.bountyHunter already carries wins. hydrateInto strips
+     a bag-borne `xp` on the way in, but a legacy local blob reaches G by other
+     routes — so the ensure that runs on boot AND on every kill is the place the
+     invariant is made unconditional rather than merely likely. The `in` guard
+     keeps the steady state free of any hidden-class transition. */
+  if('xp' in G.bountyHunter) delete G.bountyHunter.xp;
   G.bountyHunter.upgrades=G.bountyHunter.upgrades||{};
   G.bountyHunter.warrants=G.bountyHunter.warrants||{};
   /* The FIRST ensure of a session — i.e. a boot, i.e. the one moment a save's
@@ -4564,7 +4588,24 @@ function hrBountyDayKey(){
   return d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();
 }
 try{ window.hrBountyDayKey=hrBountyDayKey; }catch(_){}
-function getBountyHunterLevel(){return levelFromXp(G.bountyHunter?.xp||0);}
+/* b503 — THE SERVER OWNS THIS LEVEL. It used to read the residue mirror
+   `G.bountyHunter.xp`; the mirror is gone (see the default shape above) and the
+   xp is a normal skill, so this is `getLevel('bountyHunter')` like every other
+   skill — server truth + the display prediction, via src/net/skill-record.js.
+   Re-defined further down this file with the same body; both are kept in step
+   because the later `window.` assignment wins at runtime and a stale one here
+   would be a silent second answer.
+
+   GUARDED, and the guard is not decoration: getLevel()'s last resort is
+   `window.HearthriseCore.xp.levelOf(...)`, which THROWS if the module layer has
+   not attached — and this function is reachable from ensureBountyState() via
+   getUnlockedBountyTier(). The catch degrades to the same raw read getLevel
+   itself would have made, never to a bare 1 (a silent 1 is the level-bounce
+   class b455 exists to prevent). */
+function getBountyHunterLevel(){
+  try{ return getLevel('bountyHunter'); }
+  catch(e){ return levelFromXp((G.skills&&G.skills.bountyHunter)||0); }
+}
 /* PHASE A — bounty generation delegates to src/core/bounty.js.
    Everything below is an ADAPTER: it resolves the ambient state (levels,
    the monster/item catalogues, the bag, the clock) and hands it to the pure
@@ -5232,7 +5273,16 @@ function completeBounty(){
       b._confirming=false;
       if(!G.bountyHunter || G.bountyHunter.active!==b) return;  // changed under us
       if(res && res.ok){
-        finalizeBounty(b, r, _isCull);
+        /* ── THE SERVER'S OWN XP FIGURE, AND THE KEY THAT GATES TRUSTING IT ────
+           b503. hr_claim_bounty credits player_skills.bountyHunter in the same
+           transaction as the gold+Marks and stamps `xp_skill` on the receipt.
+           That key is the CONTRACT MARKER: a server without the migration
+           applied still returns `xp` (it always did — it just never credited
+           it), so predicting off `xp` alone would show a level that vanishes at
+           the next envelope. Requiring `xp_skill` makes the client half safe to
+           ship before, after, or without the migration. */
+        const _srvXp=(res.xp_skill==='bountyHunter')?(Number(res.xp)||0):0;
+        finalizeBounty(b, r, _isCull, _srvXp);
         /* ── bug_reports #46: "completed 1 task but I got 0 marks" ─────────────
            REPRODUCED headless, and it is not the RPC. hr_claim_bounty DID credit
            the gold and the Marks into player_state — but gold and marks are
@@ -5283,7 +5333,11 @@ function completeBounty(){
    path, and non-cull turn-ins; and by the server-confirmed cull turn-in above.
    NOTE: the cull server intent is fired by completeBounty BEFORE this runs, so
    finalize never fires it again (no double turn-in). */
-function finalizeBounty(b, r, _isCull){
+/* @param serverXp — the Bounty-Hunter XP the SERVER reported crediting on this
+   turn-in (hr_claim_bounty's `xp`, and only when its receipt names `xp_skill`).
+   Absent/0 on every path where nothing was credited server-side. Display-only:
+   it is PREDICTED, never written into G.skills. See the block below. */
+function finalizeBounty(b, r, _isCull, serverXp){
   b._confirmed=true; hrClearBountyRetry(b);   // the turn-in landed — stop the cap-catch-up timer
   /* ── THE LAST b411 BARE RETURN, AND WHY IT IS NOT ONE ANY MORE ─────────────
      This line used to read:
@@ -5318,8 +5372,37 @@ function finalizeBounty(b, r, _isCull){
     return;
   }
   if(b.type==='proof'&&b.proofItem)removeItem(b.proofItem,b.required);
-  if(clientMayWriteRecordField('gold'))G.gold+=r.gold||0;if(clientMayWriteRecordField('marks'))G.marks=(G.marks||0)+(r.marks||0);G.bountyHunter.xp=(G.bountyHunter.xp||0)+(r.xp||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
-  const oldLevel=levelFromXp((G.bountyHunter.xp||0)-(r.xp||0)),newLevel=getBountyHunterLevel();
+  if(clientMayWriteRecordField('gold'))G.gold+=r.gold||0;if(clientMayWriteRecordField('marks'))G.marks=(G.marks||0)+(r.marks||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
+  /* ── BOUNTY-HUNTER XP IS THE SERVER'S (b503) ────────────────────────────────
+     THE P0 THIS ENDS. This line used to read
+         G.bountyHunter.xp = (G.bountyHunter.xp||0) + (r.xp||0);
+     and a wrapper further down mirrored it into G.skills.bountyHunter. G.skills
+     is SERVER_OF_RECORD, so applyRecord's wholesale replace overwrote it from a
+     server map where the row had NEVER been credited — measured on production
+     2026-09-05: 36 characters, max(xp) = 0, for the whole life of the beta. The
+     level therefore snapped back to 1 after every envelope, and
+     getUnlockedBountyTier is keyed off it, so tiers 2-6 of the board were
+     unreachable for EVERYONE, permanently.
+
+     hr_claim_bounty now credits player_skills.bountyHunter in the same
+     transaction as the gold and the Marks
+     (supabase/migrations/2026-09-11-bounty-hunter-xp.sql). The client authors
+     NOTHING: `serverXp` is the amount the SERVER said it credited, and it is
+     PREDICTED for display only — tagged `credited:true` so record.js retires it
+     by how far the record actually advanced rather than by the accrued_to
+     coverage clock, which an RPC credit does not move (the b491 defect).
+
+     serverXp is 0 on every path where no server credit happened (the away
+     replay, the dormant client-owned path, a non-cull turn-in), and 0 predicts
+     nothing — the honest answer, because on those paths no XP exists. It is
+     also 0 against a server that has not had the migration applied yet: the
+     caller only passes a number when the receipt carries
+     `xp_skill === 'bountyHunter'`, so the two halves ship in either order
+     without a phantom level that snaps back. */
+  const oldLevel=getBountyHunterLevel();
+  const _bhXp=Math.max(0,Math.floor(Number(serverXp)||0));
+  if(_bhXp>0)hrPredictXp('bountyHunter',_bhXp,true);
+  const newLevel=getBountyHunterLevel();
   /* b344 — THE SEEDED STREAM, not Math.random(). completeBounty runs inside
      handleBountyKill, which runs inside killMonster, which runs inside the AWAY
      replay — so a bare draw here means the same seeded night pays a different
@@ -11673,15 +11756,31 @@ console.log('Inventory rework + loadout presets: loaded');
 // ===== block 2: script-2 =====
 "use strict";
 /* ════════════════════════════════════════════════════════════
-   BOUNTY HUNTER — canonical skill storage
-   Source of truth: G.skills.bountyHunter (a number, like every other skill).
-   G.bountyHunter.xp is kept as a one-way legacy mirror so existing code that
-   reads it still works, but no code should write to it directly anymore.
-   XP is awarded ONLY on bounty turn-in (completeBounty). Never per kill.
+   BOUNTY HUNTER — THE SERVER OWNS THE XP (b503)
+
+   Source of truth: `player_skills(skill_id='bountyHunter')` on the SERVER, read
+   here through the record like every other skill. There is no client copy and
+   no legacy mirror: `G.bountyHunter.xp` is GONE (ensureBountyState's default
+   shape no longer carries it, and hydrateInto/buildResiduePatch drop a stray
+   one), because a residue field shadowing a server-owned value is the SA-002
+   class — the same shape that deadlocked the property tier.
+
+   XP is credited by `hr_claim_bounty` on turn-in, in the same transaction as
+   the gold and the Marks, from `active_bounty.xp_reward` — a figure the server
+   computed at ACCEPT time from its own catalogue. The client never authors it
+   and never sends an amount. Never per kill.
+
+   WHAT USED TO BE HERE, AND WHY IT COULD NOT WORK. A parse-time IIFE healed
+   `G.skills.bountyHunter = max(G.bountyHunter.xp, G.skills.bountyHunter)` and a
+   completeBounty wrapper wrote the sum back into both. `G.skills` is
+   SERVER_OF_RECORD, so applyRecord's wholesale `G.skills = <server map>` undid
+   it on the very next envelope — and the server map had never been credited
+   (production 2026-09-05: 36 characters, max(xp) = 0). The heal ran at parse
+   time, i.e. against the DEFAULT G, before any save had loaded, so it healed
+   nothing even once. Do not reintroduce either half.
    ════════════════════════════════════════════════════════════ */
 
-(function migrateBountyHunterSkill(){
-  if(!G.skills) G.skills = {};
+(function warmBountyState(){
   /* PHASE 0 (server authority) — LOAD-ORDER NOTE, read before adding work here.
      This IIFE runs at classic-script PARSE time, which is before any <script
      type="module"> has executed — so window.HearthriseCore (and therefore every
@@ -11692,33 +11791,51 @@ console.log('Inventory rework + loadout presets: loaded');
      Nothing is lost by deferring it: this IIFE runs against the DEFAULT G —
      boot() (and therefore loadLocal(), which calls ensureBountyState itself)
      does not run until DOMContentLoaded either, and boot's listener is
-     registered earlier in this file so it still goes first. The skill
-     migration below stays synchronous because it is pure G arithmetic.
+     registered earlier in this file so it still goes first.
+
+     b503: the SKILL MIGRATION that used to run synchronously here is DELETED,
+     not moved. It healed G.skills.bountyHunter from the residue mirror, which
+     (a) could never work — it ran against the default G, before any save loaded
+     — and (b) was the client authoring a SERVER_OF_RECORD field. The XP is the
+     server's now; there is nothing to heal and nothing to mirror. Only the
+     warm-up remains, which is why this IIFE was renamed.
 
      If you add parse-time work to legacy.js that needs the core, the suite will
      tell you: the account-wall guard fails the build on any console error. */
   document.addEventListener('DOMContentLoaded', function(){
     try{ ensureBountyState && ensureBountyState(); }catch(e){}
   });
-  /* Migrate: take whichever value is higher so we never lose progress on existing saves */
-  const fromBH = (G.bountyHunter && typeof G.bountyHunter.xp === 'number') ? G.bountyHunter.xp : 0;
-  const fromSk = typeof G.skills.bountyHunter === 'number' ? G.skills.bountyHunter : 0;
-  G.skills.bountyHunter = Math.max(fromBH, fromSk);
-  /* keep legacy mirror in sync for any old reads */
-  if(G.bountyHunter) G.bountyHunter.xp = G.skills.bountyHunter;
 })();
 
-/* getBountyHunterLevel now reads from G.skills.bountyHunter (canonical) */
+/* b503 — THE SERVER'S xp, read through the record like every other skill.
+   getLevel() is src/net/skill-record.js's DISPLAY read: the server's value plus
+   the in-flight prediction, with the fallback ladder that makes the level-1
+   bounce structurally unreachable. It used to read `G.skills.bountyHunter`
+   directly, which is exactly the un-gated read that reports a forged or a
+   half-applied map as truth. */
 window.getBountyHunterLevel = function getBountyHunterLevel(){
-  return levelFromXp(G.skills.bountyHunter || 0);
+  /* Guarded for the same reason as the earlier definition: getLevel()'s last
+     resort dereferences window.HearthriseCore, which is not up at parse time. */
+  try{ return getLevel('bountyHunter'); }
+  catch(e){ return levelFromXp((G.skills&&G.skills.bountyHunter)||0); }
 };
 
-/* getUnlockedBountyTier now keyed off BH level per the spec:
-     Lv 20 → tier 2 board, Lv 30 → tier 3, Lv 40 → tier 4, Lv 50 → tier 5, Lv 60 → tier 6
-   Player still needs combat power to actually fight tier-N monsters; this just
-   controls what bounties show up on the board. */
+/* getUnlockedBountyTier — the BOUNTY-HUNTER-level ladder (Lv20 → tier 2 board,
+   30 → 3, 40 → 4, 50 → 5, 60 → 6). The player still needs combat power to fight
+   a tier-N monster; this only controls how deep the BOARD may post.
+
+   b503: the ladder itself moved to src/core/bounty.js
+   (`boardTierForBountyLevel`) — pure, dual-runtime, and therefore assertable
+   outside a browser, which is how tests/bounty-hunter-xp.mjs can prove the gate
+   actually opens at the XP the server credits. This is the adapter; the numbers
+   live in exactly one place. The inline fallback is for a pre-module boot only
+   and is a transcription of the same table. */
 window.getUnlockedBountyTier = function getUnlockedBountyTier(){
   const lv = getBountyHunterLevel();
+  const C = window.HearthriseCore;
+  if(C && C.bounty && typeof C.bounty.boardTierForBountyLevel === 'function'){
+    return C.bounty.boardTierForBountyLevel(lv);
+  }
   if(lv >= 60) return 6;
   if(lv >= 50) return 5;
   if(lv >= 40) return 4;
@@ -11750,35 +11867,19 @@ window.getBountyDifficultyUnlocks = function(){
   };
 };
 
-/* completeBounty wrapper — XP lands on G.skills.bountyHunter (canonical),
-   then mirrored to G.bountyHunter.xp for legacy reads. */
-const _origCompleteBounty = window.completeBounty;
-window.completeBounty = function(){
-  const bh = G.bountyHunter;
-  const b = bh && bh.active;
-  if(!b){ return; }
-  const xpReward = (b.rewards && b.rewards.xp) || 0;
-  const beforeLv = getBountyHunterLevel();
+/* ── THE completeBounty WRAPPER IS GONE (b503), AND MUST NOT COME BACK ───────
+   It existed to do one thing: `G.skills.bountyHunter = Math.max(G.skills
+   .bountyHunter || 0, G.bountyHunter.xp)` after every turn-in, plus a duplicate
+   level-up toast. That was the CLIENT AUTHORING A SERVER_OF_RECORD FIELD, and
+   it lost the race with applyRecord every single time — which is why not one
+   player in the beta ever held a point of Bounty-Hunter XP.
 
-  /* Run original (which awards gold/marks/completed and writes to bh.xp). */
-  _origCompleteBounty.apply(this, arguments);
-
-  /* Sync canonical: G.skills.bountyHunter is the source of truth.
-     Original may have left G.bountyHunter.xp as the canonical, so:
-     - take whichever is higher (handles the "first time after migration" case)
-     - that becomes the new authoritative number on G.skills.bountyHunter
-     - mirror back to G.bountyHunter.xp */
-  const newBhXp = (bh && typeof bh.xp === 'number') ? bh.xp : 0;
-  G.skills.bountyHunter = Math.max(G.skills.bountyHunter || 0, newBhXp);
-  if(bh) bh.xp = G.skills.bountyHunter;
-
-  const afterLv = getBountyHunterLevel();
-  if(afterLv > beforeLv){
-    notify(`Bounty Hunter ${afterLv}!`, 'levelup');
-  }
-};
-
-console.log('BountyHunter canonical skill: G.skills.bountyHunter is now the source of truth');
+   The XP is credited by hr_claim_bounty now, and finalizeBounty PREDICTS the
+   returned amount for display (tagged `credited`) and owns the single level-up
+   toast. `window.completeBounty` is once again the function declared above,
+   with no wrapper in front of it. If you find yourself needing one, you are
+   probably about to re-author a server value. */
+console.log('BountyHunter: xp is SERVER-owned (player_skills.bountyHunter) — the client authors none of it');
 
 // ===== block 3: script-3 =====
 "use strict";

@@ -357,6 +357,15 @@ export function hydrateInto(G, cs) {
       if (bagBH === null || typeof bagBH !== 'object' || Array.isArray(bagBH)) { G[f] = bagBH; continue; }
       const merged = { ...bagBH };
       delete merged.marks;                  // never a nested marks — top-level G.marks is authority
+      /* ── AND NEVER A NESTED `xp` (b503) ────────────────────────────────────
+         Bounty-Hunter XP is a SKILL: it lives in player_skills on the server and
+         is read through the record as `G.skills.bountyHunter`. `bountyHunter.xp`
+         was a client-authored mirror of that server value, and a residue field
+         shadowing a server-owned one is the SA-002 class — the shape that
+         deadlocked the property tier. Dropped on the way IN for the same reason
+         `marks` is: a legacy blob, or a forged bag, must never put a second copy
+         of a server number into G where a read site might prefer it. */
+      delete merged.xp;
       G[f] = merged;
       continue;
     }

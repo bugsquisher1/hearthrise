@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-09-01",
- "digest": "a37ac5801d349c313fc214249bdfacb27f1c832bfce8d1dcb6886a38be077408",
+ "generated": "2026-09-05",
+ "digest": "e238943273dbc3f83fc716c43571b01b47813fd2b8cf5a5afe67e6f2b43be3d3",
  "counts": {
   "relations": 103,
-  "functions": 267,
+  "functions": 268,
   "policies": 84,
   "indexes": 143,
   "triggers": 18,
@@ -235,6 +235,7 @@
    "hr_accept_bounty__ungated(p_slot integer, p_bounty_id text, p_target text, p_type text, p_difficulty text, p_required bigint)",
    "hr_apply(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_delta jsonb)",
    "hr_assert_grant_hygiene(p_strict boolean)",
+   "hr_attended_kills(p_user uuid, p_slot integer, p_upto timestamp with time zone)",
    "hr_auto_eat_max_pct(p_tier integer)",
    "hr_auto_eat_tier(p_user uuid, p_slot integer)",
    "hr_bank_move(p_slot integer, p_item text, p_qty bigint, p_dir text, p_idem uuid)",

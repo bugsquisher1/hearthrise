@@ -523,16 +523,66 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     //   restores the "safe in either order" property the tool-carry column has
     //   by construction. Any other error still propagates: a swallowed error
     //   is how a guard reports SKIPPED and gets read as a pass.
-    const seedSql = (withPerks: boolean) => sql.begin(async (tx) => {
+    /* ⚠ `hr_attended_kills` RIDES THIS TRANSACTION, NOT A THIRD ONE, and that is
+       the §2a-ii connection rule rather than a micro-optimisation: `max_connections`
+       is 60, an accrual already costs two pooled transactions, and a third would be
+       a 50% increase in the resource that fails TOTALLY (nobody connects, dashboard
+       included). It is also why it is here and not in the READ transaction above:
+       a missing FUNCTION is a hard 42883 that aborts its whole transaction, and
+       aborting the read would 500 every accrual on a database that has not applied
+       the migration. This transaction already owns that degrade.
+       THE LADDER IS THREE RUNGS, not two, because the two absences are
+       INDEPENDENT — a database can have `hr_perks_of` and not `hr_attended_kills`
+       (the ordinary case the day this ships), and collapsing them into one
+       fallback would silently drop the perk channel on every such database and
+       under-pay every bonus in the game. Each rung drops exactly one capability
+       and the previous rung's absence is remembered. */
+    /* ⚠ THE THREE QUERIES ARE WRITTEN OUT, NOT COMPOSED FROM A SHARED FRAGMENT.
+       `postgres`'s nested-fragment support would let the two seed columns be
+       factored out, but a fragment built by calling the tagged template eagerly
+       is a pending query object, and getting that subtlety wrong here does not
+       fail loudly — it fails as "every accrual 500s". Three literals cost eight
+       duplicated lines and cannot be wrong. */
+    /* SECURITY CONDITION C6 — THE UPPER EDGE OF THE ATTENDED WINDOW, AND IT IS
+       THE WATERMARK, TO THE MILLISECOND.
+       `hr_attended_kills` runs in the SEED transaction, which starts strictly
+       AFTER the state transaction whose `now()` this settle will advance
+       `accrued_to` to. A window bounded only below by `accrued_to` therefore
+       projects any credit row committed in that gap — the settle pays it, and
+       the next settle projects it AGAIN, because it is still newer than the
+       watermark. `(accrued_to, now]` is the ONLY double-pay guard this design
+       has, so the two ends must name the same instant.
+       ⚠ IT IS `new Date(nowMs).toISOString()`, NOT `read.now`, DELIBERATELY.
+         `accrued_to` is written as exactly that string (accrual.js: the delta's
+         `accrued_to: new Date(nowMs).toISOString()`), and `read.now` carries
+         Postgres's MICROSECONDS — so passing the raw value would leave a
+         sub-millisecond band above the watermark and below the bound. Deriving
+         both from `nowMs` makes them equal by construction rather than by
+         rounding luck.
+       ⚠ AND IT IS A SERVER VALUE. `nowMs` is `new Date(read.now).getTime()` —
+         Postgres's own clock, read in this call. Nothing in the request body
+         reaches it. The function clamps it with `least(p_upto, now())` anyway,
+         so the worst a wrong value could ever do is pay LESS. */
+    const attendedUpto = new Date(nowMs).toISOString();
+    const seedSql = (withPerks: boolean, withAttended: boolean) => sql.begin(async (tx) => {
       await tx`set local role hr_engine`;
-      const [r] = withPerks
+      const [r] = (withPerks && withAttended)
         ? await tx`
         select (public.hr_seed(${user}::uuid, ${slot}::int,
                                ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
                public.hr_seed(${user}::uuid, ${slot}::int,
                               ${'intent:accrue:' + String(st.accrued_to)})::text as salt,
+               public.hr_perks_of(${user}::uuid, ${slot}::int) as perks,
+               public.hr_attended_kills(${user}::uuid, ${slot}::int,
+                                        ${attendedUpto}::timestamptz) as attended`
+        : withPerks
+          ? await tx`
+        select (public.hr_seed(${user}::uuid, ${slot}::int,
+                               ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
+               public.hr_seed(${user}::uuid, ${slot}::int,
+                              ${'intent:accrue:' + String(st.accrued_to)})::text as salt,
                public.hr_perks_of(${user}::uuid, ${slot}::int) as perks`
-        : await tx`
+          : await tx`
         select (public.hr_seed(${user}::uuid, ${slot}::int,
                                ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
                public.hr_seed(${user}::uuid, ${slot}::int,
@@ -541,19 +591,39 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     });
     let seedRow: Row;
     let perkChannel = 'live';
+    let attendedChannel = 'live';
     try {
-      seedRow = await seedSql(true) as Row;
+      seedRow = await seedSql(true, true) as Row;
     } catch (e) {
       if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
-      // This database predates the perk channel. Pay what yesterday paid.
-      perkChannel = 'absent';
-      seedRow = await seedSql(false) as Row;
+      /* One of the two is absent. Try WITHOUT the newer one first, so the common
+         case — a database that has perks and not yet the attended read — keeps
+         its perk channel. Only if that ALSO 42883s is the perk channel absent. */
+      attendedChannel = 'absent';
+      try {
+        seedRow = await seedSql(true, false) as Row;
+      } catch (e2) {
+        if (String((e2 as { code?: string } | null)?.code ?? '') !== '42883') throw e2;
+        // This database predates the perk channel. Pay what yesterday paid.
+        perkChannel = 'absent';
+        seedRow = await seedSql(false, false) as Row;
+      }
     }
     const salt = String(seedRow?.salt ?? '');
     /* `ok !== true` covers both "no character" and a future refusing shape.
        null → EMPTY_PERKS in the engine → 0 for every key → today's behaviour. */
     const perkEnv = seedRow?.perks as Record<string, unknown> | null;
     const perks = (perkEnv && perkEnv.ok === true) ? perkEnv : null;
+    /* THE ATTENDED KILL LEDGER (docs/design/attended-loot-credit.md). Every value
+       in it was written by hr_credit_kills into hr_kill_credit_log — a table no
+       client role may write, holding counts that verb already clamped to a
+       physical maximum against the SERVER clock. `null` on `ok !== true` and on
+       an absent function, which the engine reads as "propose nothing new".
+       ⚠ NOTHING HERE COMES FROM THE REQUEST BODY. The request carries no kill
+         count, no monster and no window; `slot` is the only client-chosen value
+         in the whole call and it selects a row the caller already owns. */
+    const attendedEnv = seedRow?.attended as Record<string, unknown> | null;
+    const attendedIn = (attendedEnv && attendedEnv.ok === true) ? attendedEnv : null;
 
     // ── COMPUTE. Pure, in-process, no I/O. Field by field. ─────────────────
     const skills: Record<string, number> = {};
@@ -569,7 +639,9 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        produced by `degradeStep` in accrual.js rather than computed here — what
        "a smaller proposal" means is a game rule and this file holds none (see
        the header). */
-    const runAccrual = (step: { capMs: number; actionBudget: number | null }) => computeAccrual({
+    const runAccrual = (step: {
+      capMs: number; actionBudget: number | null; attended: Record<string, unknown> | null;
+    }) => computeAccrual({
       userId: user,
       slot,
       nowMs,
@@ -598,6 +670,15 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          sometimes by nothing at all. It is derived from the ENGINE'S OWN
          previous answer; nothing here comes from the request body. */
       actionBudget: step.actionBudget,
+      /* THE ATTENDED TOP-UP'S INPUT, AND IT COMES OFF `step`, NOT OFF THE CLOSURE.
+         `degradeStep` returns `attended: null` on every rung, so a degraded
+         attempt proposes strictly less. Reading `attendedIn` directly here would
+         INVERT the ladder: halving the span cuts `summary.kills`, which GROWS
+         `min(attended, cap) - summary.kills`, so the "smaller" proposal would be
+         bigger, earn the same rejection three times and forfeit the night. The
+         value flows through the same knob object every other ladder-varied input
+         does, for exactly that reason. */
+      attended: step.attended,
       seed: Number(seedRow?.seed) || 0,
       hp: Number(st.hp) || 0,
       maxHp: Number(st.max_hp) || 0,
@@ -684,7 +765,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       recipes: ARTISAN_RECIPES_ALL,
     });
 
-    let out = runAccrual({ capMs, actionBudget: null });
+    let out = runAccrual({ capMs, actionBudget: null, attended: attendedIn });
 
     /* ── THE PARALLEL WORKER SETTLE (worker-settlement slice) ───────────────
        Hired-crew production is a CONTINUOUS activity that runs ALONGSIDE the
@@ -944,6 +1025,11 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       degraded = { from: String(res.error), ...step.report };
       const next = runAccrual(step);
       if (!next.accrued) break;
+      /* `degradeStep` drops the attended top-up on every rung (accrual.js states
+         why: keeping it would make each "smaller" proposal BIGGER). Say so on
+         the receipt, or "the loot did not top up" and "the migration is not
+         applied" become the same observation from outside. */
+      attendedChannel = 'degraded';
       /* THE RUNG MUST ACTUALLY BE SMALLER. A step that proposes the same work
          as the attempt that was just rejected would earn the same rejection and
          burn a rung for nothing — three of those and the night is forfeited.
@@ -1037,6 +1123,18 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
            nothing because nothing is unlocked" from "deployed against a
            database with no perk channel" from the outside. */
         perkChannel,
+        /* The same question for the attended kill ledger, reported for the same
+           reason: 'live' when hr_attended_kills answered, 'absent' when this
+           database has not applied 2026-09-10-attended-loot-credit.sql,
+           'degraded' when the clamp ladder ran (which drops the top-up by
+           design — see degradeStep). Without it, "the
+           loot is still snapping down" and "the migration is not applied yet"
+           are indistinguishable from outside, which is exactly how the bounty
+           hang survived a verification pass. */
+        attendedChannel,
+        attendedKills: out.attendedClaimed ?? 0,
+        attendedTopUp: out.attendedTopUp ?? 0,
+        attendedCap: out.attendedCap ?? 0,
         kills: out.summary.kills,
         crits: out.summary.crits,
         died: out.summary.died,

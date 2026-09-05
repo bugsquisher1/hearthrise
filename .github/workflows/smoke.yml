@@ -210,6 +210,26 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/bounty-hunter-xp.mjs --selftest
 
+      # SA-048: crediting Bounty-Hunter XP (b504, the step above) made the board a
+      # RANKED surface, but hr_accept_bounty gated the target TIER by SERVER COMBAT
+      # level ONLY. The board's DIFFICULTY ladder is client-only: slot-3 'hard'
+      # appears only at BH>=15 and 'elite' is never board-generated, so a BH-1
+      # caller could pass difficulty='hard' directly and buy the 1.3x XP
+      # multiplier on the ranked skill. (The first draft also clamped the TIER to
+      # a board-tier ladder; Security proved that premise FALSE — the board posts
+      # unlockedTier(combatLevel), combat only — so the clamp was REMOVED as an
+      # honest lockout and this is difficulty-only.) The guard drives a REAL
+      # character through the rate-gated hr_accept_bounty on a replayed chain,
+      # proves an honest tier-6 accept at BH-1 is NOT locked out, and replays the
+      # chain a SECOND time stopping before the migration to prove an honest
+      # accept is byte-identical. Like the two guards above it is STAGED-migration
+      # and had no step of its own — it gets parity here: 8 mutations (four, each
+      # twinned with the migration's own §3 short-circuited so the ✓ is the
+      # guard's and not the migration's). No credentials.
+      - name: Bounty-accept BH-clamp — difficulty gated by BH level, honest tier not locked out
+        if: ${{ !cancelled() }}
+        run: node tests/bounty-accept-bh-clamp.mjs --selftest
+
       # The attended-loot top-up is the OTHER half of the beta-2 progression
       # wall (production 2026-09-04: ~62% of an attended fight's drops were
       # credited, the settle re-simulating the session as if the player had

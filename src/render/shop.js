@@ -321,7 +321,11 @@
         {id:'pet_phoenix',name:'Phoenix Pet',glyph:'uiFire',price:1200,desc:'Idle phoenix companion (cosmetic).'},
         {id:'emote_pack',name:'Emote Pack',glyph:'uiChat',price:300,desc:'12 chat emotes for clan chat.'},
       ];
-      offers=cosmetics.map(c=>{const owned=G.ownedCosmetics.includes(c.id);const can=balCanAfford(c.price,'gems');const art=(window.HR&&window.HR.icon)?(window.HR.icon(c.glyph,30,'--gem')||''):'';return `<div class="shop-row"><span class="si is-prem">${art}</span><div class="info"><b>${c.name}</b><span>${c.desc}</span></div><span class="price gem">${_gem(c.price)}</span>${owned?'<button class="btn btn-sm" disabled>Owned</button>':`<button class="btn btn-sm ${can?'btn-gem':''}" ${can?'':'disabled'} onclick="buyCosmetic('${c.id}',${c.price})">Buy</button>`}</div>`;}).join('')+`<div class="sc-note">Need gems? <button class="btn btn-sm btn-gem" onclick="IAP.buy('gems_starter')">Get Gems</button></div>`;
+      /* Ownership is SERVER-FIRST (legacy.js ownsGemUnlock): a residue entry the
+         server's set does not carry must not render as "Owned". Falls back to
+         the residue read when no envelope has projected the set — which is
+         today, so this renders exactly as it did. */
+      offers=cosmetics.map(c=>{const owned=(typeof window.ownsGemUnlock==='function')?window.ownsGemUnlock('cosmetic',c.id):G.ownedCosmetics.includes(c.id);const can=balCanAfford(c.price,'gems');const art=(window.HR&&window.HR.icon)?(window.HR.icon(c.glyph,30,'--gem')||''):'';return `<div class="shop-row"><span class="si is-prem">${art}</span><div class="info"><b>${c.name}</b><span>${c.desc}</span></div><span class="price gem">${_gem(c.price)}</span>${owned?'<button class="btn btn-sm" disabled>Owned</button>':`<button class="btn btn-sm ${can?'btn-gem':''}" ${can?'':'disabled'} onclick="buyCosmetic('${c.id}',${c.price})">Buy</button>`}</div>`;}).join('')+`<div class="sc-note">Need gems? <button class="btn btn-sm btn-gem" onclick="IAP.buy('gems_starter')">Get Gems</button></div>`;
     }
     /* b217: gold-purchased trait upgrades — appended below the tab list so
        they're reachable from the in-game shop. Reuses the existing shop-row

@@ -73,6 +73,7 @@ import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
 import { runAll as liveSettlementGuards, engineGuard as settleReport,
   sqlGuard as settleSqlReport } from './live-settlement.mjs';
 import { runAll as goldCensusGuard } from './gold-site-census.mjs';
+import { runAll as gemCensusGuard } from './gem-site-census.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
 import { runAll as corsGuards } from './cors-preflight.mjs';
@@ -3513,6 +3514,34 @@ const run = async () => {
       console.log(`\nGold-site census — ${goldCensus.note}.`);
     }
 
+    /* ── The GEM-site census — the other currency ────────────────────────
+       The gold census above scans `.gold`. It has never been able to see a
+       single gem movement, and nothing else was watching either — which is
+       why b500's sweep of the "optimistic-apply, swallowed-rejection" class
+       fixed buyBankSpaceGold and walked past buyBankSpaceGem two functions
+       below it, plus buyTheme and buyCosmetic. Three premium purchases sat
+       client-authored under a green suite for the whole life of the gems
+       arm: `gems` is on SERVER_OF_RECORD with no dormant gate, so the debit
+       was refunded by the next envelope while ownedThemes / ownedCosmetics
+       (residue) and bank.gemBuys kept the goods. Free, and repeatable.
+
+       The root cause was never "we missed three" — it was that the census
+       was CURRENCY-SHAPED and only one currency had one. This is the other
+       one, and its L5 is the rule the gold census has no counterpart for:
+       every unwired gem grant or spend must carry an arm check that is
+       SOURCE-PROBED in the gating function's body, not merely declared.
+       `node tests/gem-site-census.mjs --selftest` plants six defects — one
+       of them the shipped buyTheme bug, reinstated — and every one must
+       turn it red. */
+    const gemCensus = await gemCensusGuard();
+    if (gemCensus.problems.length) {
+      console.log('\nGem-site census (every client gem write is declared AND every spend is gated) — FAILED:');
+      for (const p of gemCensus.problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log(`\nGem-site census — ${gemCensus.note}.`);
+    }
+
     /* ── The delta-transport guard (the 2026-08-15 P0) ───────────────────
        hr_apply had NEVER applied a delta through the Edge Function: both
        call sites bound a `JSON.stringify`d delta into a `::jsonb` parameter,
@@ -3871,6 +3900,11 @@ const run = async () => {
       'Identity guard', 'CORS preflight guard', 'Account-wall guard', 'Migration guard',
       'Icon boot-order guard', 'Avatar asset guard', 'showTab owner guard',
       'Secret guard', 'Slot-switch guard', 'Native-dialog guard',
+      /* Both censuses, by name. The gem one is listed for the reason the list
+         exists at all: it is brand new, it is the only thing in the tree that
+         can see a premium-currency write, and a silent skip of it is exactly
+         the state the codebase was already in. */
+      'Gold-site census', 'Gem-site census',
     ];
     if (exitCode === 0) {
       const said = TRANSCRIPT.join('\n');

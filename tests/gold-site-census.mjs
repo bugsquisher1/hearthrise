@@ -149,6 +149,18 @@ export const EXCLUDED = Object.freeze({
   'src/features/smoke-test.js': 'the test suite itself. It sets G.gold to fixture values in ~60 '
     + 'places to drive assertions; those are not economy sites and never ship a server intent.',
   'src/net/gold-sites.js': 'the ledger. It names sites; it does not write gold.',
+  /* THE MIRROR IMAGE, and it turned this census red the moment the gem ledger
+     landed. src/net/gem-sites.js explains its rows by QUOTING the code they
+     describe, and one of those quotes is the site id
+     `src/legacy.js#goldSettleCurrency` — which the `seamAlias` pattern reads as
+     a reference to the seam taken without calling it. The comment stripper
+     cannot see inside a string literal, so a ledger that documents money is
+     indistinguishable from one that moves it. gem-sites.js has exactly the
+     standing gold-sites.js has: it names sites, it does not write anything.
+     tests/gem-site-census.mjs excludes THIS file for the same reason, in the
+     same words. */
+  'src/net/gem-sites.js': 'the GEM ledger. Its prose quotes gold site ids and gold statements '
+    + 'verbatim to explain the gem rows beside them. It names sites; it does not write gold.',
 });
 
 /* ── COMMENTS ARE NOT SITES ─────────────────────────────────────────────────

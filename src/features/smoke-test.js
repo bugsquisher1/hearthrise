@@ -7859,6 +7859,86 @@ const TESTS = [
     });
   }),
 
+  /* DUNGEON-SETTLE DRIFT GUARD (dungeon-settlement.md §1/§3). src/data/dungeons.js
+     is the pure-ESM single source the DB catalogue generator (tools/gen-dungeon-
+     catalogue.mjs → hr_dungeons / hr_dungeon_loot, read by hr_dungeon_settle) reads,
+     and src/dungeons.js is the CLASSIC-SCRIPT copy the game renders + gates on
+     (window.DUNGEONS). src/dungeons.js cannot `import` (the b222/b338 trap), so the
+     two are a GUARDED DOUBLE-COPY (the start-kit precedent). This asserts they agree
+     on every SERVER-RELEVANT field — id set, kind, reqLv, cooldownH, cost.key, and
+     the loot table (id/qty/chance, in order). If they drift, the server would gate
+     or roll a run against numbers the client never showed. The generator's own
+     --check pins src/data → SQL; this pins src/data → the client literal. */
+  () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
+    const D = window.DUNGEONS;
+    if (!D) return;
+    const mod = await import('../data/dungeons.js?v=504');
+    const SRC = mod && mod.DUNGEONS;
+    assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
+    const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
+    assert(a.join(',') === b.join(','), 'dungeon id set drift: data=[' + a + '] client=[' + b + ']');
+    for (const id of a) {
+      const s = SRC[id], c = D[id];
+      assert(s.kind === c.kind, id + ': kind drift (' + s.kind + ' vs ' + c.kind + ')');
+      assert(s.reqLv === c.reqLv, id + ': reqLv drift (' + s.reqLv + ' vs ' + c.reqLv + ')');
+      assert(s.cooldownH === c.cooldownH, id + ': cooldownH drift (' + s.cooldownH + ' vs ' + c.cooldownH + ')');
+      assert((s.cost && s.cost.key) === (c.cost && c.cost.key), id + ': cost.key drift');
+      const sl = s.loot || [], cl = c.loot || [];
+      assert(sl.length === cl.length, id + ': loot row count drift (' + sl.length + ' vs ' + cl.length + ')');
+      for (let i = 0; i < sl.length; i++) {
+        assert(sl[i].id === cl[i].id, id + ' loot#' + i + ': id drift (' + sl[i].id + ' vs ' + cl[i].id + ')');
+        assert(sl[i].qty[0] === cl[i].qty[0] && sl[i].qty[1] === cl[i].qty[1], id + ' loot ' + sl[i].id + ': qty drift');
+        assert(sl[i].chance === cl[i].chance, id + ' loot ' + sl[i].id + ': chance drift (' + sl[i].chance + ' vs ' + cl[i].chance + ')');
+      }
+    }
+  }),
+
+  /* DGN-QM-1: the QUARTERMASTER stock is a GUARDED DOUBLE-COPY, like DUNGEONS.
+     src/data/dungeons.js QM_STOCK is the ESM source the catalogue generator reads
+     (→ hr_qm_offers, priced by quartermaster_buy); src/dungeons.js carries the
+     classic-script copy the shop renders + buyFromQuartermaster charges. A classic
+     script cannot import (the b222/b338 trap), so the two are pinned equal here: a
+     price authored on one side that drifts from the other would let the server
+     charge a different scrip than the shop shows. */
+  () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
+    const C = window.QM_STOCK;
+    if (!C) return;
+    const mod = await import('../data/dungeons.js?v=504');
+    const SRC = mod && mod.QM_STOCK;
+    assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
+    assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
+    const key = (o) => o.id + '=' + o.scrip;
+    const a = SRC.map(key).sort(), b = C.map(key).sort();
+    assert(a.join(',') === b.join(','), 'QM_STOCK id/price drift: data=[' + a + '] client=[' + b + ']');
+    // ids unique (each is the PK of hr_qm_offers as qm.<id>)
+    const ids = SRC.map((o) => o.id);
+    assert(new Set(ids).size === ids.length, 'QM_STOCK has a duplicate id — the offer id must be unique');
+  }),
+
+  /* DGN-SETTLE-2: the client mint is GATED behind the server-authority arm. While
+     dormant (DUNGEON_SETTLE_ARM_ENABLED=false, the shipped default) scrip stays the
+     inventory item and scripOf falls back to it — byte-identical to today. Under a
+     FORCED arm, scripOf reads the top-level G.dungeonScrip, and awardDungeonScrip
+     writes NOTHING (the server owns it). This proves the gate exists and is inert. */
+  () => tryRun('DGN-SETTLE-2: scrip read + mint follow the server-authority arm (dormant = today, armed = server)', () => {
+    const R = window.HearthriseDungeonScrip;
+    if (!R || typeof R.__setDungeonSettleArm !== 'function') { assert(false, 'dungeon-scrip-record not loaded'); return; }
+    assert(R.DUNGEON_SETTLE_ARM_ENABLED === false, 'the arm must ship DORMANT (default false)');
+    const G = { inventory: { dungeon_scrip: 42 }, dungeonScrip: 7 };
+    try {
+      R.__setDungeonSettleArm(false);
+      assert(R.scripOf(G) === 42, 'dormant: scripOf reads the inventory item');
+      R.__setDungeonSettleArm(true);
+      assert(R.scripOf(G) === 7, 'armed: scripOf reads the top-level G.dungeonScrip');
+      // reconcileScrip sets the top-level field from an envelope state.
+      R.reconcileScrip(G, { dungeon_scrip: 99 });
+      assert(G.dungeonScrip === 99, 'armed: reconcileScrip mirrors state.dungeon_scrip onto G');
+      // and never writes a garbage value.
+      R.reconcileScrip(G, { dungeon_scrip: 'nope' });
+      assert(G.dungeonScrip === 99, 'armed: a NaN scrip is refused (fail-closed, no data loss)');
+    } finally { R.__setDungeonSettleArm(null); }
+  }),
+
   () => tryRun('WAVE6: a weekly boss exists and pays a bigger bonus than the daily', () => {
     const B = window.HearthriseBossOfDay;
     if (!B || typeof B.weeklyId !== 'function' || !window.MONSTERS) return;

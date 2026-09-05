@@ -129,6 +129,37 @@ export const LINKS = [
     target: '2026-09-10-attended-loot-credit.sql',
     patchIds: ['attended_kill_ledger'],
   },
+  /* Link 8 — the dungeon settle writer (docs/design/dungeon-settlement.md §2).
+     ⚠ REBASED for b504: increment 2 was cut against b501 and made this link 7 on
+     base 2026-08-20-live-progress-engine-allow.sql. b504 landed the attended kill
+     ledger as link 7, so this now chains onto link 7's NOW-LIVE body
+     (2026-09-10-attended-loot-credit.sql) — an older base would silently REVERT
+     link 7's hr_attended_kills grant, the exact drift PART 1f-ii exists to catch.
+     It records ONE engine grant (an INSERTION at the head of c_engine_allow) —
+     hr_dungeon_settle, engine-only like hr_unlock_buy, granted to hr_engine by
+     2026-09-10-dungeon-settle.sql, which the nightly detector's check (7) would
+     otherwise RAISE engine_execute_outside_allowlist on. Insertion only, so its
+     declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. It is
+     the new last toucher of hr_assert_grant_hygiene. */
+  {
+    base: '2026-09-10-attended-loot-credit.sql',
+    target: '2026-09-10-dungeon-settle.sql',
+    patchIds: ['dungeon_settle'],
+  },
+  /* Link 9 — the Quartermaster spend writer (docs/design/dungeon-settlement.md §4).
+     Its base is link 8's NOW-LIVE body (dungeon-settle), so it cannot silently
+     revert link 7's hr_attended_kills grant or link 8's hr_dungeon_settle grant.
+     It records ONE engine grant (an INSERTION at the head of c_engine_allow) —
+     hr_quartermaster_buy, engine-only like hr_dungeon_settle, granted to hr_engine
+     by 2026-09-11-quartermaster-buy.sql, which the nightly detector's check (7)
+     would otherwise RAISE engine_execute_outside_allowlist on. Insertion only, so
+     its declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. It
+     is the new last toucher of hr_assert_grant_hygiene. */
+  {
+    base: '2026-09-10-dungeon-settle.sql',
+    target: '2026-09-11-quartermaster-buy.sql',
+    patchIds: ['quartermaster_buy'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -473,6 +504,63 @@ export const PATCHES = [
     -- 9 kills against 15 the server had already accepted, i.e. 38% of a session's
     -- drops confiscated. See docs/design/attended-loot-credit.md.
     'hr_attended_kills(uuid,integer,timestamp with time zone)',
+`,
+    where: 'after',
+  },
+  {
+    id: 'dungeon_settle',
+    name: 'the c_engine_allow array head (link 8)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-09-10 — THE DUNGEON SETTLE WRITER ───────────────────
+    -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6: it
+    -- removes nothing, so PART 1f-ii grades this link with an EMPTY
+    -- declared-removals list. Position carries no meaning — check (7) tests
+    -- membership with \`<> all (...)\`.
+    --
+    -- ⚠ NOT READ-ONLY, and the claim rests on SELF-VALIDATING, re-derived. Its
+    -- whole caller-supplied surface is: a character slot, a version, an
+    -- idempotency uuid, a DUNGEON ID (a primary key in the generated,
+    -- client-unwritable hr_dungeons), a MODE (auto|manual|scavenger), and a
+    -- p_quality CLAMPED server-side to [0,1] that scales SELF-ONLY scrip and
+    -- touches NO loot. No item, no qty, no chance, no price and no timestamp
+    -- cross. Every number it writes comes from hr_dungeons / hr_dungeon_loot or
+    -- the character's OWN row read under the SAME advisory lock hr_apply takes;
+    -- loot is rolled by the server hr_seed PRNG (never a client value); the entry
+    -- KEY is debited from the caller's own player_inventory (the load-bearing
+    -- gate); the cooldown and the per-day scrip cap read now() and the
+    -- append-only ledger. NO NEW TARGET: p_user is the parameter the engine
+    -- already passes to hr_apply and hr_state_of. WHY THE ENGINE NEEDS IT:
+    -- dungeon scrip + run loot are server-of-record (dungeon-settlement.md
+    -- §1/§2) and NO other RPC writes player_state.dungeon_scrip, so without this
+    -- the only writer of the currency is the client.
+    'hr_dungeon_settle(uuid,integer,bigint,uuid,text,text,numeric)',
+`,
+    where: 'after',
+  },
+  {
+    id: 'quartermaster_buy',
+    name: 'the c_engine_allow array head (link 9)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-09-11 — THE QUARTERMASTER SPEND WRITER ───────────────
+    -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6/8: it
+    -- removes nothing, so PART 1f-ii grades this link with an EMPTY
+    -- declared-removals list. Position carries no meaning — check (7) tests
+    -- membership with \`<> all (...)\`.
+    --
+    -- ⚠ NOT READ-ONLY, and the claim rests on SELF-VALIDATING, re-derived. Its
+    -- whole caller-supplied surface is: a character slot, a version, an
+    -- idempotency uuid, and an OFFER ID (a primary key in the generated,
+    -- client-unwritable hr_qm_offers). No item, no qty, no price and no scrip
+    -- amount cross. The PRICE and the ITEM come from hr_qm_offers; the scrip
+    -- balance is the character's OWN player_state row read under the SAME advisory
+    -- lock hr_apply takes; the debit is bounded by that balance
+    -- (insufficient_scrip). NO NEW TARGET: p_user is the parameter the engine
+    -- already passes to hr_apply and hr_state_of. WHY THE ENGINE NEEDS IT:
+    -- dungeon scrip is server-of-record and its SPEND (the Quartermaster) must be
+    -- one server transaction with the item grant, or the b372 half-undo returns —
+    -- and NO other RPC debits player_state.dungeon_scrip, so without this the only
+    -- writer of the spend is the client.
+    'hr_quartermaster_buy(uuid,integer,bigint,uuid,text)',
 `,
     where: 'after',
   },

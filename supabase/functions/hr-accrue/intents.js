@@ -530,6 +530,40 @@ export const INTENT_REGISTRY = Object.freeze({
      froze — so a registry row naming an unknown bucket is a verb that 429s
      forever, not a wider budget. Reuse, do not widen. */
   eat: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: false }),
+  /* ── THE DUNGEON SETTLE VERB (dungeon-settlement.md §2) ───────────────────
+     `bucket: 'claim'`, and it is a RULING with a cost, argued like the market's:
+     a dungeon run's rewards are a REWARD CLAIM, and hr_rate_gate's bucket list is
+     a `case` in SQL whose last toucher (2026-08-16-claim-reward.sql) is FROZEN —
+     a fifth arm would need a `create or replace` of that gate and a new chain
+     link for a verb a player fires a few times a run. So it rides the `claim`
+     allowance, shared with claim_reward. THE COST, stated: a player spamming
+     claims + dungeon settles shares one budget. That is TIGHTER than the fuse the
+     RPC spends for itself (hr_rate_ok 'apply', 240/min), so the Edge gate is the
+     binding one and this adds no reachable write rate. Reuse, do not widen.
+
+     `collectsFirst: false`, and it is DERIVED, not preferred: hr_apply stamps
+     `accrued_to = now()` on a delta carrying `equip`/`activity`/`enchant`, and
+     this verb PROPOSES NO hr_apply DELTA AT ALL — its commit point is
+     hr_dungeon_settle, which writes scrip/inventory/version and a ledger row and
+     touches accrued_to NOWHERE. So the unpaid accrual window survives a run.
+     `guardStampKeys` cannot grade an invariant about a FUNCTION (the unlock_buy
+     situation exactly); it is asserted where it lives — the settle RPC does not
+     touch accrued_to, and dungeon-settlement.md §2 records the rule. */
+  dungeon_settle: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: false }),
+  /* ── THE QUARTERMASTER BUY VERB (dungeon-settlement.md §4, increment 3) ─────
+     `bucket: 'shop'`, shared with unlock_buy: it IS a shop purchase (scrip out,
+     an item in), and hr_rate_gate already has a `shop` arm — so this reuses an
+     existing allowance rather than growing the frozen gate `case`. THE COST: it
+     shares the shop budget with unlock_buy; that is TIGHTER than the RPC's own
+     hr_rate_ok('apply', 240/min) fuse, so the Edge gate is the binding one and
+     this adds no reachable write rate. Reuse, do not widen.
+
+     `collectsFirst: false`, DERIVED not preferred: hr_apply stamps accrued_to on
+     a delta carrying equip/activity/enchant, and this verb PROPOSES NO hr_apply
+     DELTA — its commit point is hr_quartermaster_buy, which debits scrip, credits
+     the item, bumps version and journals, and touches accrued_to NOWHERE. So a
+     purchase never confiscates the unpaid accrual window (the b372 rule). */
+  quartermaster_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -758,6 +792,20 @@ export const INTENT_ERRORS = Object.freeze({
        reproduced Paione's P0 exactly. The server always debits (the heal is a
        no-op at full server hp); wasting food at full HP is the client's call. */
   ITEM_NOT_FOOD: 'item_not_food',
+
+  /* ── THE DUNGEON SETTLE VERB (dungeon-settlement.md §2) ───────────────────
+     TWO codes minted HERE (shape/catalogue, answered before any database work);
+     everything else is hr_dungeon_settle's own vocabulary returned verbatim:
+       unknown_dungeon   409 — no such dungeon in the server catalogue. Minted
+                         here when the request carried no id; the RPC also raises
+                         it for an id absent from hr_dungeons.
+       bad_mode          400 — the mode is not auto|manual|scavenger.
+       level_locked · on_cooldown · daily_cap · insufficient_item (the key) ·
+       version_conflict · intent_mismatch · no_character · rate_limited —
+                         the RPC's own, returned verbatim (a second taxonomy is a
+                         taxonomy that agrees today). */
+  UNKNOWN_DUNGEON: 'unknown_dungeon',
+  BAD_MODE: 'bad_mode',
 });
 
 /* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────
@@ -848,6 +896,19 @@ export const STATELESS_REFUSALS = Object.freeze([
      `already_full` — the server never gates a full-hp eat (see the eat error
      block above for why that gate reproduced the live-combat P0). */
   INTENT_ERRORS.ITEM_NOT_FOOD,
+  /* THE DUNGEON SETTLE VERB — its two SHAPE/CATALOGUE refusals, answered from the
+     parsed request BEFORE the rate gate and before any database work, exactly like
+     bad_offer / unknown_offer. Nothing was written, so the client's LAST envelope
+     is still current. Everything else a dungeon settle can be refused for is a
+     fact about a ROW read under the lock (the version, the key, the cooldown, the
+     cap) and is hr_dungeon_settle's own code, returned verbatim WITH the envelope.
+     ⚠ `unknown_dungeon` HAS TWO PRODUCERS like `unknown_item`: the RPC raises it
+       too, from its own hr_dungeons lookup, and THAT one reached the database and
+       carries an envelope. refusalCarriesState is consulted only on this layer's
+       own refusals (the shape path returns before any read), so the RPC's copy is
+       never routed through this list. */
+  INTENT_ERRORS.UNKNOWN_DUNGEON,
+  INTENT_ERRORS.BAD_MODE,
 ]);
 
 /** Must a refusal with this code carry the `hr_state_of` envelope? */

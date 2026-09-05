@@ -348,6 +348,16 @@ import './net/enchant.js?v=504';
 // it reuses the shared kill switch (isServerAccrualEnabled) and reconciles HP +
 // inventory absolutely through applyEnvelopeState like every other envelope.
 import './net/eat.js?v=504';
+// THE DUNGEON SETTLE INTENT (docs/design/dungeon-settlement.md §2). Dungeon scrip
+// + run loot become server-owned: the completion paths send hr_dungeon_settle and
+// reconcile the envelope instead of minting into G (the "scrip goes to 0 on
+// reload" P1). Shipped DORMANT behind DUNGEON_SETTLE_ARM_ENABLED (dungeon-scrip-
+// record.js) — while dormant these publish helpers to window that src/dungeons.js
+// reads, and every gate returns false, so nothing changes byte-for-byte. The
+// record entry (dungeon_scrip → G.dungeonScrip, read on reload) is registered in
+// src/net/record.js. dungeon-scrip-record.js FIRST — dungeon-settle.js imports it.
+import './net/dungeon-scrip-record.js?v=504';
+import './net/dungeon-settle.js?v=504';
 // b361 — YOUR OWN TRADE LEDGER. A pure reader over rows the player can already
 // SELECT under market-v2's existing `own sales readable` policy; it authors
 // nothing and no payment path consults it. Imported EAGERLY (not lazily, the

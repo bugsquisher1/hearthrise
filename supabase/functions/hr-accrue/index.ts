@@ -83,6 +83,8 @@ import { runShopBuy } from './shop-buy.js';
 import { runVendorSell } from './vendor-sell.js';
 import { runClaimReward } from './claim-reward.js';
 import { runUnlockBuy } from './unlock-buy.js';
+import { runDungeonSettle } from './dungeon-settle.js';
+import { runQuartermasterBuy } from './quartermaster-buy.js';
 import { runMarketList, runMarketCancel, runMarketBuy } from './market.js';
 import { runEquip } from './equip.js';
 import { runEnchant } from './enchant.js';
@@ -396,6 +398,43 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        commit point is not hr_apply, which structurally cannot write a level. */
     if (intent.verb === 'unlock_buy') {
       const out = await runUnlockBuy({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        intentId: intent.intentId,
+        offer: intent.offer,
+      });
+      return json(out.body, out.status);
+    }
+
+    /* ── THE DUNGEON SETTLE VERB (dungeon-settlement.md §2). Same three lines
+       the others get. It forwards a DUNGEON object {id, mode, quality} and
+       nothing else — no loot, no scrip, no key. hr_dungeon_settle reads the loot
+       table, the scrip base and the entry key from the client-unwritable
+       catalogue and the caller's own inventory; p_quality is clamped to [0,1] and
+       scales SELF-ONLY scrip. Like unlock_buy, its commit point is not hr_apply
+       (a dedicated RPC), because a scrip credit + loot roll + key debit is one
+       transaction with its own re-validation. */
+    if (intent.verb === 'dungeon_settle') {
+      const out = await runDungeonSettle({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        intentId: intent.intentId,
+        dungeon: intent.dungeon,
+      });
+      return json(out.body, out.status);
+    }
+
+    /* ── THE QUARTERMASTER BUY VERB (dungeon-settlement.md §4, increment 3). Same
+       three lines. It forwards ONE offer id (`qm.<item>`) and nothing else — no
+       item, no price, no scrip amount. hr_quartermaster_buy reads the price + the
+       item from the client-unwritable hr_qm_offers, debits scrip and grants the
+       item in one transaction. Like unlock_buy / dungeon_settle its commit point is
+       a dedicated RPC, not hr_apply — a scrip debit + item grant is one atomic
+       trade with its own re-validation (the b372 half-undo, closed). */
+    if (intent.verb === 'quartermaster_buy') {
+      const out = await runQuartermasterBuy({
         exec,
         user,                       // the VERIFIED subject, never a body field
         slot,

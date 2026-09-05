@@ -1664,6 +1664,49 @@ async function raidBossRewardPreflight() {
   return 1;
 }
 
+// The dungeon catalogue (hr_dungeons / hr_dungeon_loot) is generated from
+// src/data/dungeons.js. It is what hr_dungeon_settle reads to credit scrip + run
+// loot. A stale one settles the wrong loot rates or scrip base (real player
+// gain), so --check gates it exactly like the raid catalogues.
+async function dungeonCataloguePreflight() {
+  const gen = join(ROOT, 'tools', 'gen-dungeon-catalogue.mjs');
+  try { await stat(gen); } catch { return 0; }
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
+  const out = ((r.stdout || '') + (r.stderr || '')).trim();
+  if (r.status === 0) { console.log(`Dungeon catalogue preflight: ${out || 'in sync'}`); return 0; }
+  console.error(`\nDungeon catalogue preflight FAILED — src/data/dungeons.js no longer matches the generated SQL.\n${out}\n`);
+  return 1;
+}
+
+// ── THE DUNGEON-SCRIP SERVER-OF-RECORD GUARDS (docs/design/dungeon-settlement.md).
+// The scrip EARN (hr_dungeon_settle), its caps (5,000 gross-earned + 250 settles/
+// UTC-day, Designer ruling 2026-09-05), the SPEND (hr_quartermaster_buy), the
+// marketability shape, and the report-#3 reload survival. Each runs its GREEN pass
+// here (a banner asserted by REQUIRED_GUARD_MARKERS) and its --selftest mutation
+// proof as its own smoke.yml step (run-ci-local derives that from the workflow).
+// Spawned as subprocesses (the dungeon-catalogue-preflight pattern) so a PGlite
+// boot failure surfaces as a real failure, not a silent skip.
+async function dungeonServerGuardsPreflight() {
+  const { spawnSync } = await import('node:child_process');
+  const GUARDS = [
+    ['tests/dungeon-settle.mjs',        'Dungeon settle guard'],
+    ['tests/quartermaster-buy.mjs',     'Quartermaster buy guard'],
+    ['tests/dungeon-marketability.mjs', 'Dungeon marketability guard'],
+    ['tests/dungeon-scrip-reload.mjs',  'Dungeon scrip reload guard'],
+  ];
+  let bad = 0;
+  for (const [rel, banner] of GUARDS) {
+    const p = join(ROOT, rel);
+    try { await stat(p); } catch { console.error(`\n${banner} — MISSING (${rel})`); bad++; continue; }
+    const r = spawnSync(process.execPath, [p], { encoding: 'utf8' });
+    const out = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-1)[0];
+    if (r.status === 0) { console.log(`${banner} — green: ${out}`); }
+    else { console.error(`\n${banner} — FAILED:\n${((r.stdout || '') + (r.stderr || '')).trim()}\n`); bad++; }
+  }
+  return bad ? 1 : 0;
+}
+
 // PREFLIGHT — the invite gate is real and the client presents a code correctly.
 // On 2026-08-23 production held 8 accounts against 3 consumed invites: the gate
 // was three client-side courtesies and account-gate.js — the actual front door
@@ -2017,6 +2060,8 @@ const run = async () => {
   if (await bountyMonsterPreflight()) process.exit(1);
   if (await farmCataloguePreflight()) process.exit(1);
   if (await raidBossRewardPreflight()) process.exit(1);
+  if (await dungeonCataloguePreflight()) process.exit(1);
+  if (await dungeonServerGuardsPreflight()) process.exit(1);
   if (await betaInviteGatePreflight()) process.exit(1);
   if (await itemsCataloguePreflight()) process.exit(1);
   if (await recipeYieldPreflight()) process.exit(1);
@@ -4084,6 +4129,14 @@ const run = async () => {
          what distinguishes "did not run" from "the migration is not in the
          chain", since both look the same from outside a replay. */
       'Bounty-accept BH-clamp guard',
+      /* SA-015 increment 2+3: the dungeon-scrip server-of-record guards, each run
+         GREEN as a subprocess by dungeonServerGuardsPreflight() (--selftest is its
+         own smoke.yml step). A silent skip of any one is exactly the state the
+         reward economy was in — persisting nothing. */
+      'Dungeon settle guard',
+      'Quartermaster buy guard',
+      'Dungeon marketability guard',
+      'Dungeon scrip reload guard',
     ];
     if (exitCode === 0) {
       const said = TRANSCRIPT.join('\n');

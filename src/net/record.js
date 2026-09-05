@@ -108,6 +108,12 @@ import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconci
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
 import { applyClientState } from './client-state.js?v=504';
+/* THE DUNGEON SCRIP ARM (docs/design/dungeon-settlement.md §1). Scrip becomes a
+   top-level record field read from state.dungeon_scrip. Its own arm flag defaults
+   OFF; while off the entry below is invisible to the field list / strip / decode
+   loop (armed()=false), so nothing changes byte-for-byte until the rollout flips
+   DUNGEON_SETTLE_ARM_ENABLED (coupled with increment 3's quartermaster_buy). */
+import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=504';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
@@ -335,6 +341,25 @@ export const SERVER_OF_RECORD = Object.freeze([
            byte-for-byte until MARKS_RECORD_ARM_ENABLED flips. */
   Object.freeze({ field: 'marks', from: 'marks', since: 'b4xx',
     armed: () => isMarksRecordArmed(),
+    decode: decodeBalance, fingerprint: fingerprintBalance }),
+  /* ── DUNGEON SCRIP, SHIPPED DORMANT — THE SCALAR THAT MOVES OUT OF THE BAG ───
+     Scrip is a fungible currency (spent at the Quartermaster), modelled EXACTLY
+     like marks: from:'dungeon_scrip' reads the flat state.dungeon_scrip that
+     hr_state_of now projects (2026-09-10-dungeon-scrip.sql), decoded by the shared
+     balance helpers, onto the top-level G.dungeonScrip. The EARN side is
+     hr_dungeon_settle (2026-09-10-dungeon-settle.sql); this entry closes the READ
+     half — under arm, the scrip balance is the server's and SURVIVES a reload,
+     which is the reported P1 ("dungeon scrip goes to 0"). Read everywhere through
+     src/net/dungeon-scrip-record.js `scripOf(G)` — the server value under arm, the
+     legacy G.inventory.dungeon_scrip while dormant.
+     ⚠ ARM-COUPLED TO INCREMENT 3. The SPEND side (Quartermaster) is still the
+     client `removeItem('dungeon_scrip')` on the inventory item; arming this READ
+     without quartermaster_buy would leave the shop debiting a bag entry that no
+     longer holds the balance. So DUNGEON_SETTLE_ARM_ENABLED stays OFF until the
+     rollout that lands BOTH — armed()=false today, so this entry is inert and
+     nothing changes byte-for-byte. */
+  Object.freeze({ field: 'dungeonScrip', from: 'dungeon_scrip', since: 'b5xx',
+    armed: () => isDungeonSettleArmed(),
     decode: decodeBalance, fingerprint: fingerprintBalance }),
   /* ── RESTED XP, SHIPPED DORMANT — THE COUPLED SCALAR + WATERMARK ─────────────
      Rested XP is a bank of CHARGES (`G.restedXp`, a small integer) governed by a

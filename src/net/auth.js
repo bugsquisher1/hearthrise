@@ -498,7 +498,14 @@ export function buildIntentWiring(cfg) {
     record: { ...base }, activity: { ...base }, gold: { ...base }, equip: { ...base },
     /* MANUAL EAT (2026-08-25). Same base as the other value intents — url,
        apiKey, a re-read authToken and NO pinned slot (resolved per call). */
-    eat: { ...base } };
+    eat: { ...base },
+    /* THE DUNGEON-SCRIP ECONOMY (dungeon-settlement.md). One base feeds both the
+       dungeon_settle and quartermaster_buy transports (they share src/net/
+       dungeon-settle.js and one endpoint). Same shape as the others; NO pinned
+       slot. Configured always so the transport KNOWS its endpoint — it stays
+       SILENT until DUNGEON_SETTLE_ARM_ENABLED flips (isDungeonSettleEnabled()
+       gates every send), so wiring it dark changes nothing on the wire. */
+    dungeon: { ...base } };
 }
 
 /* ── IS THE EQUIP GESTURE ACTUALLY ROUTED ON THIS CLIENT? (b366) ────────────
@@ -549,6 +556,12 @@ export function wireServerIntents(win, cfg) {
   catch (e) { console.warn('[auth] gold wiring skipped:', e && e.message); }
   try { if (win && win.HearthriseEat) win.HearthriseEat.configureEat(w.eat); }
   catch (e) { console.warn('[auth] eat wiring skipped:', e && e.message); }
+  /* THE DUNGEON-SCRIP ECONOMY (dungeon-settlement.md). Teaches the settle +
+     quartermaster transport where to send. It stays DORMANT (isDungeonSettleEnabled
+     gates every send on DUNGEON_SETTLE_ARM_ENABLED, shipped false), so this only
+     records the endpoint for the day the Coordinator arms it. */
+  try { if (win && win.HearthriseDungeonSettle) win.HearthriseDungeonSettle.configureDungeonSettle(w.dungeon); }
+  catch (e) { console.warn('[auth] dungeon-settle wiring skipped:', e && e.message); }
   /* ⚠ b369 — THIS CALL NO LONGER ARMS ANYTHING. It states a NECESSARY
      condition (the gesture routes here) and configures the transport; the flip
      arms in src/net/equip.js on the server's first `ok:true`. The returned

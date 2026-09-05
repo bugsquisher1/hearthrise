@@ -200,10 +200,56 @@
   /* b281 — award Dungeon Scrip on a clear, scaled by the dungeon's level. `fraction`
      lets the scavenger pay partial scrip for a partial boss kill. Shared by all
      three completion paths (auto-run, manual phases, scavenger). */
+  /* ── SERVER-AUTHORITY ARM (docs/design/dungeon-settlement.md §2) ────────────
+     When armed, dungeon scrip + run loot are SERVER-OWNED: the completion paths
+     send hr_dungeon_settle (src/net/dungeon-settle.js) and reconcile the returned
+     envelope instead of minting into G. Under BLOB_RETIRED the client mint was
+     wiped on reload (the "scrip goes to 0" P1); the server column survives it.
+     DORMANT until DUNGEON_SETTLE_ARM_ENABLED flips (post-apply + edge-deploy +
+     increment 3's quartermaster_buy) — while dormant this is byte-identical to
+     today. See src/net/dungeon-scrip-record.js. */
+  function _dsArmed(){
+    return !!(window.HearthriseDungeonScrip
+      && typeof window.HearthriseDungeonScrip.isDungeonSettleArmed === 'function'
+      && window.HearthriseDungeonScrip.isDungeonSettleArmed());
+  }
+  /* ARMED: send hr_dungeon_settle and reconcile the returned envelope (scrip +
+     loot), instead of minting locally. Fire-and-reconcile — the server rolls the
+     loot with its seeded PRNG and credits scrip; the client renders what returns.
+     A no-op if the transport is not wired (dormant / unconfigured). */
+  function settleRunServer(id, mode, quality){
+    var DS = window.HearthriseDungeonSettle;
+    if(!DS || typeof DS.sendDungeonSettle !== 'function') return;
+    DS.sendDungeonSettle({ id: id, mode: mode, quality: quality }).then(function(v){
+      if(v && (v.outcome === 'settled' || v.outcome === 'replayed') && v.body){
+        if(typeof DS.reconcileFromEnvelope === 'function') DS.reconcileFromEnvelope(window.G, v.body);
+        var s = v.body.settled;
+        if(s && v.outcome === 'settled' && typeof window.notify === 'function'){
+          window.notify('+' + s.scrip + ' Dungeon Scrip', 'loot');
+          Object.keys(s.items || {}).forEach(function(iid){
+            var it = window.ITEMS && window.ITEMS[iid];
+            window.notify('+' + s.items[iid] + '× ' + (it ? it.n : iid), 'loot');
+          });
+        }
+      } else if(v && v.outcome === 'refused' && typeof window.notify === 'function'){
+        window.notify(DS.dungeonRefusalMessage(v.reason), 'kill');
+      }
+      if(typeof window.renderDungeons === 'function') window.renderDungeons();
+      if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
+      if(typeof window.updateTopbar === 'function') window.updateTopbar();
+    }).catch(function(e){ console.warn('[dungeons] settle send threw:', e && e.message); });
+  }
+
   function awardDungeonScrip(id, fraction){
     var d = DUNGEONS[id]; if(!d || !window.G) return 0;
     var base = Math.max(5, Math.round((d.reqLv || 10) * 0.6));
     var amt = Math.max(1, Math.round(base * (fraction == null ? 1 : Math.max(0, fraction))));
+    /* ARMED: scrip is server-owned (hr_dungeon_settle credits
+       player_state.dungeon_scrip, reconciled from the envelope). Do NOT mint into
+       G — that is exactly the client-authored mint BLOB_RETIRED wiped on reload.
+       The completion path sends the intent instead; this returns the predicted
+       amount for display only and writes nothing. */
+    if(_dsArmed()) return amt;
     if(typeof window.addItem === 'function') window.addItem('dungeon_scrip', amt);
     else window.G.inventory.dungeon_scrip = (window.G.inventory.dungeon_scrip || 0) + amt;
     if(typeof window.notify === 'function') window.notify('+' + amt + ' Dungeon Scrip', 'loot');
@@ -224,12 +270,49 @@
     { id:'wartusk_cleaver', scrip:150 }, { id:'whispering_codex', scrip:180 }, { id:'ashcrown_greatsword', scrip:340 }, { id:'voidmaw_scepter', scrip:500 }, { id:'dragonfang_pike', scrip:800 },
   ];
   window.QM_STOCK = QM_STOCK;
-  function scripHeld(){ return (window.G && window.G.inventory && window.G.inventory.dungeon_scrip) || 0; }
+  /* Routes through scripOf so the read follows the arm: armed → the server's
+     top-level G.dungeonScrip (reconciled from the envelope, survives reload);
+     dormant → the legacy inventory item, byte-for-byte as today. */
+  function scripHeld(){
+    if(window.HearthriseDungeonScrip && typeof window.HearthriseDungeonScrip.scripOf === 'function'){
+      return window.HearthriseDungeonScrip.scripOf(window.G);
+    }
+    return (window.G && window.G.inventory && window.G.inventory.dungeon_scrip) || 0;
+  }
 
   function buyFromQuartermaster(id){
     var entry = QM_STOCK.find(function(e){ return e.id === id; });
     if(!entry) return false;
     if(scripHeld() < entry.scrip){ if(window.notify) window.notify('Not enough Dungeon Scrip', 'kill'); return false; }
+    /* ── SERVER-AUTHORITY ARM (dungeon-settlement.md §4, increment 3) ──────────
+       Armed: the SPEND is server-owned. Send quartermaster_buy (offer 'qm.<id>')
+       and reconcile the returned envelope — the server prices the offer, debits
+       scrip and grants the item in ONE transaction (the b372 half-undo, closed).
+       Do NOT mint into G here and do NOT touch the item-ledger: that is exactly
+       the client trade the server now owns. Dormant → the legacy path below,
+       byte-for-byte as today. */
+    if(_dsArmed()){
+      var DS = window.HearthriseDungeonSettle;
+      if(DS && typeof DS.sendQuartermasterBuy === 'function'){
+        DS.sendQuartermasterBuy('qm.' + id).then(function(v){
+          if(v && (v.outcome === 'settled' || v.outcome === 'replayed') && v.body){
+            if(typeof DS.reconcileQuartermasterFromEnvelope === 'function') DS.reconcileQuartermasterFromEnvelope(window.G, v.body);
+            if(v.outcome === 'settled' && window.notify){
+              var it2 = window.ITEMS && window.ITEMS[id];
+              window.notify('Bought ' + (it2 ? it2.n : id) + ' for ' + entry.scrip + ' Scrip', 'levelup');
+            }
+          } else if(v && v.outcome === 'refused' && window.notify){
+            window.notify(DS.dungeonRefusalMessage(v.reason), 'kill');
+          }
+          renderQuartermaster();
+          if(typeof window.updateTopbar === 'function') window.updateTopbar();
+          if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
+        }).catch(function(e){ console.warn('[quartermaster] buy send threw:', e && e.message); });
+        return true;   // armed: the server owns the trade; no local mint
+      }
+      /* armed but the transport did not load — fall through to the dormant path,
+         which is safe (a local trade that the next envelope reconciles). */
+    }
     /* b283 (studio-review P0): add the item FIRST and only spend scrip if it lands.
        The old order (spend, then add) lost the scrip AND gave nothing when the bag
        was full. addItem returns false on a full bag; bail without charging. */
@@ -354,6 +437,11 @@
       return false;
     }
     var d = DUNGEONS[id];
+    /* ARMED: the entry key, the loot roll and the scrip are ALL server-owned.
+       Send hr_dungeon_settle (mode 'auto', full clear) and reconcile the returned
+       envelope; the server consumes the key, rolls loot with its seeded PRNG and
+       credits scrip. No local mint → no double-credit. */
+    if(_dsArmed()){ settleRunServer(id, 'auto', 1); return true; }
     // Pay cost
     if(d.cost.key){
       if(typeof window.removeItem === 'function') window.removeItem(d.cost.key, 1);
@@ -450,8 +538,9 @@
        multiplayer. Real multiplayer raiding is the weekly clan raid card
        above (b209). */
     var sectionLabel = { dungeon: 'Dungeons (Solo)', raid: 'Epic Dungeons (Solo)', worldboss: 'Legendary Hunts (Solo)' };
-    /* b281: Scrip banner + Quartermaster entry at the top of the dungeon panel. */
-    var _scrip = (window.G && window.G.inventory && window.G.inventory.dungeon_scrip) || 0;
+    /* b281: Scrip banner + Quartermaster entry at the top of the dungeon panel.
+       Reads through scripHeld() so the banner follows the server-authority arm. */
+    var _scrip = scripHeld();
     var html = '<div class="dgn-scrip-bar">' +
       /* was a raw 🎟️ — a pink cinema ticket, at the head of the dungeon panel,
          in a game whose entire palette is gilt-on-soot. Scrip is a currency, so
@@ -661,11 +750,24 @@
     var pct = won / total;
     var mult = 0.4 + pct * 1.6;
     var bop = pct >= 1 ? 0.20 : pct >= 0.66 ? 0.10 : 0;
-    var awarded = awardLoot(runState.dungeonId, mult, bop);
-    awardDungeonScrip(runState.dungeonId, pct);   // b281: scrip scales with phases cleared
-    // Pay cooldown
-    if(window.G && window.G.dungeons) window.G.dungeons.lastRun[runState.dungeonId] = Date.now();
-    var rewardHtml = awarded.map(function(a){
+    var awarded = [];
+    if(_dsArmed()){
+      /* ARMED: the entry key was consumed at start (below, gated the same way),
+         and the loot + scrip are server-owned. Send hr_dungeon_settle (mode
+         'manual', quality = fraction of phases cleared) and reconcile. p_quality
+         is CLAMPED to [0,1] server-side and scales SELF-ONLY scrip; loot is a pure
+         server roll. No local mint → no double-credit. The bag re-renders from the
+         reconcile; the modal shows the server-settled result. */
+      settleRunServer(runState.dungeonId, 'manual', pct);
+    } else {
+      awarded = awardLoot(runState.dungeonId, mult, bop);
+      awardDungeonScrip(runState.dungeonId, pct);   // b281: scrip scales with phases cleared
+      // Pay cooldown (client-side, dormant path only; the server owns it under arm)
+      if(window.G && window.G.dungeons) window.G.dungeons.lastRun[runState.dungeonId] = Date.now();
+    }
+    var rewardHtml = _dsArmed()
+      ? '<div class="drm-reward-row">Rewards settled — scrip and loot are in your bag.</div>'
+      : awarded.map(function(a){
       var item = window.ITEMS && window.ITEMS[a.id];
       return '<div class="drm-reward-row"><span>' + window.itemFallbackIcon(a.id, 22, item) + '</span> +' + a.qty + ' ' + (item?item.n:a.id) + '</div>';
     }).join('') || '<div class="drm-empty">No drops this time.</div>';
@@ -928,21 +1030,28 @@
       if(typeof window.notify === 'function') window.notify(check.reason, 'kill');
       return;
     }
-    // Pay cost
-    /* b4xx — GATED ON THE RECORD SEAM (see runDungeon). Dungeon entries cost keys,
-       not gold, so this is unreachable; the gate fails closed once gold is armed. */
-    if(d.cost.gold && (typeof window.clientMayWriteRecordField!=='function' || window.clientMayWriteRecordField('gold'))) window.G.gold -= d.cost.gold;
-    /* b214 (exploit fix): consume the entry KEY, exactly as runDungeon() does.
-       This was missing — manual phase-runs charged gold/tokens but never spent
-       the key, so a single farmed key ran the dungeon forever (cooldown aside),
-       which combined with guaranteed token drops to mint premium currency. */
-    if(d.cost.key){
-      if(typeof window.removeItem === 'function') window.removeItem(d.cost.key, 1);
-      else window.G.inventory[d.cost.key] = Math.max(0, (window.G.inventory[d.cost.key]||0) - 1);
-    }
-    if(d.cost.hearth_token){
-      if(typeof window.removeItem === 'function') window.removeItem('hearth_token', d.cost.hearth_token);
-      else window.G.inventory.hearth_token = Math.max(0, (window.G.inventory.hearth_token||0) - d.cost.hearth_token);
+    // Pay cost.
+    /* ARMED: the entry KEY is consumed by the SERVER at settle time
+       (hr_dungeon_settle, in showSummary), not at run start — so do NOT debit it
+       locally here, or the key is spent twice (client prediction + server). Under
+       arm, abandoning the mini-game costs no key, which is a deliberate improvement
+       over the dormant path (key-at-start). Dormant path is unchanged. */
+    if(!_dsArmed()){
+      /* b4xx — GATED ON THE RECORD SEAM (see runDungeon). Dungeon entries cost keys,
+         not gold, so this is unreachable; the gate fails closed once gold is armed. */
+      if(d.cost.gold && (typeof window.clientMayWriteRecordField!=='function' || window.clientMayWriteRecordField('gold'))) window.G.gold -= d.cost.gold;
+      /* b214 (exploit fix): consume the entry KEY, exactly as runDungeon() does.
+         This was missing — manual phase-runs charged gold/tokens but never spent
+         the key, so a single farmed key ran the dungeon forever (cooldown aside),
+         which combined with guaranteed token drops to mint premium currency. */
+      if(d.cost.key){
+        if(typeof window.removeItem === 'function') window.removeItem(d.cost.key, 1);
+        else window.G.inventory[d.cost.key] = Math.max(0, (window.G.inventory[d.cost.key]||0) - 1);
+      }
+      if(d.cost.hearth_token){
+        if(typeof window.removeItem === 'function') window.removeItem('hearth_token', d.cost.hearth_token);
+        else window.G.inventory.hearth_token = Math.max(0, (window.G.inventory.hearth_token||0) - d.cost.hearth_token);
+      }
     }
     ensureRunModal();
     runState = {

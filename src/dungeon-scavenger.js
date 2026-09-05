@@ -516,14 +516,41 @@
 
     function showResult(victory){
       var modal = document.getElementById('scv-modal');
-      // Apply ONLY the boss-fight loot. Run-only kit is discarded.
-      awarded.forEach(function(a){
-        if(typeof window.addItem === 'function') window.addItem(a.id, a.qty);
-        else window.G.inventory[a.id] = (window.G.inventory[a.id]||0) + a.qty;
-      });
-      /* b281: Dungeon Scrip scaled by how much of the boss you took down. */
-      if(typeof window.awardDungeonScrip === 'function'){
-        window.awardDungeonScrip(run.dungeonId, Math.max(0.1, 1 - bossHp / bossMaxHp));
+      var _armed = !!(window.HearthriseDungeonScrip
+        && typeof window.HearthriseDungeonScrip.isDungeonSettleArmed === 'function'
+        && window.HearthriseDungeonScrip.isDungeonSettleArmed());
+      var quality = Math.max(0.1, 1 - bossHp / bossMaxHp);
+      if(_armed){
+        /* ARMED: loot + scrip are SERVER-OWNED (docs/design/dungeon-settlement.md
+           §2). Send hr_dungeon_settle (mode 'scavenger', quality = boss HP taken
+           down) and reconcile the returned envelope; the server consumes the entry
+           key, rolls loot with its seeded PRNG and credits scrip. No local mint →
+           no double-credit. The scavenger run's own boss-fight loot rolls
+           (`awarded`) become DISPLAY-ONLY preview under arm — the server decides
+           the real loot. */
+        var DS = window.HearthriseDungeonSettle;
+        if(DS && typeof DS.sendDungeonSettle === 'function'){
+          DS.sendDungeonSettle({ id: run.dungeonId, mode: 'scavenger', quality: quality }).then(function(v){
+            if(v && (v.outcome === 'settled' || v.outcome === 'replayed') && v.body
+               && typeof DS.reconcileFromEnvelope === 'function'){
+              DS.reconcileFromEnvelope(window.G, v.body);
+            } else if(v && v.outcome === 'refused' && typeof window.notify === 'function'){
+              window.notify(DS.dungeonRefusalMessage(v.reason), 'kill');
+            }
+            if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
+            if(typeof window.updateTopbar === 'function') window.updateTopbar();
+          }).catch(function(e){ console.warn('[scavenger] settle send threw:', e && e.message); });
+        }
+      } else {
+        // Apply ONLY the boss-fight loot. Run-only kit is discarded.
+        awarded.forEach(function(a){
+          if(typeof window.addItem === 'function') window.addItem(a.id, a.qty);
+          else window.G.inventory[a.id] = (window.G.inventory[a.id]||0) + a.qty;
+        });
+        /* b281: Dungeon Scrip scaled by how much of the boss you took down. */
+        if(typeof window.awardDungeonScrip === 'function'){
+          window.awardDungeonScrip(run.dungeonId, quality);
+        }
       }
       // Manual scavenger runs do NOT impose a cooldown — players who put in
       // the time/effort can keep running. Only the auto-run path stamps lastRun.
@@ -585,19 +612,27 @@
       if(typeof window.notify === 'function') window.notify('Need ' + d.cost.hearth_token + ' Hearth Tokens', 'kill');
       return false;
     }
-    // Pay cost
-    if(d.cost.key){
-      if(typeof window.removeItem === 'function') window.removeItem(d.cost.key, 1);
-      else window.G.inventory[d.cost.key] = Math.max(0, (window.G.inventory[d.cost.key]||0) - 1);
-    }
-    /* b4xx — GATED ON THE RECORD SEAM (see dungeons.js runDungeon). Scavenger runs
-       cost a KEY, not gold, so this branch is unreachable; the gate makes sure a
-       future gold-priced data row cannot reintroduce a client gold spend once gold
-       is armed (fails closed, no-op while unarmed). */
-    if(d.cost.gold && (typeof window.clientMayWriteRecordField!=='function' || window.clientMayWriteRecordField('gold'))) window.G.gold -= d.cost.gold;
-    if(d.cost.hearth_token){
-      if(typeof window.removeItem === 'function') window.removeItem('hearth_token', d.cost.hearth_token);
-      else window.G.inventory.hearth_token = Math.max(0, (window.G.inventory.hearth_token||0) - d.cost.hearth_token);
+    // Pay cost.
+    /* ARMED: the entry KEY is consumed by the SERVER at settle time
+       (hr_dungeon_settle, in showResult), not at run start — so do NOT debit it
+       locally, or the key is spent twice. Abandoning a scavenger run then costs no
+       key, a deliberate improvement over the dormant path. Dormant is unchanged. */
+    if(!(window.HearthriseDungeonScrip
+         && typeof window.HearthriseDungeonScrip.isDungeonSettleArmed === 'function'
+         && window.HearthriseDungeonScrip.isDungeonSettleArmed())){
+      if(d.cost.key){
+        if(typeof window.removeItem === 'function') window.removeItem(d.cost.key, 1);
+        else window.G.inventory[d.cost.key] = Math.max(0, (window.G.inventory[d.cost.key]||0) - 1);
+      }
+      /* b4xx — GATED ON THE RECORD SEAM (see dungeons.js runDungeon). Scavenger runs
+         cost a KEY, not gold, so this branch is unreachable; the gate makes sure a
+         future gold-priced data row cannot reintroduce a client gold spend once gold
+         is armed (fails closed, no-op while unarmed). */
+      if(d.cost.gold && (typeof window.clientMayWriteRecordField!=='function' || window.clientMayWriteRecordField('gold'))) window.G.gold -= d.cost.gold;
+      if(d.cost.hearth_token){
+        if(typeof window.removeItem === 'function') window.removeItem('hearth_token', d.cost.hearth_token);
+        else window.G.inventory.hearth_token = Math.max(0, (window.G.inventory.hearth_token||0) - d.cost.hearth_token);
+      }
     }
     ensureModal();
     run = {

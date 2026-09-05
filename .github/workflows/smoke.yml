@@ -245,6 +245,34 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/attended-loot-credit.mjs --selftest
 
+      # THE DUNGEON-SCRIP SERVER-OF-RECORD GUARDS (SA-015, docs/design/
+      # dungeon-settlement.md). Report #3 was "dungeon scrip goes to 0 on reload"
+      # — scrip minted client-side, wiped by the blob-retired rebuild. These prove
+      # the server-of-record fix END TO END on the REAL migration chain (PGlite):
+      # the earn (hr_dungeon_settle) with its 5,000-gross / 250-count daily fuses
+      # and the Condition-3 rule that a Quartermaster SPEND (negative meta.scrip)
+      # can never net down the earn cap; the spend (hr_quartermaster_buy) server-
+      # priced + debit-once + replay-safe; the marketability shape (scrip/keys
+      # BoP, blueprints/deed tradeable — Tyler b268); and the reload survival
+      # itself (hr_state_of projects the balance, record.js reads it back). Each
+      # --selftest plants real defects and demands every one turns the guard RED.
+      # The GREEN pass runs inside run-smoke's dungeonServerGuardsPreflight.
+      - name: Dungeon settle — scrip earn, positive-only cap, 250-count cap, key gate
+        if: ${{ !cancelled() }}
+        run: node tests/dungeon-settle.mjs --selftest
+
+      - name: Quartermaster buy — server-priced, debit-once, replay-safe, negative spend row
+        if: ${{ !cancelled() }}
+        run: node tests/quartermaster-buy.mjs --selftest
+
+      - name: Dungeon marketability — scrip/keys BoP, blueprints/deed stay tradeable
+        if: ${{ !cancelled() }}
+        run: node tests/dungeon-marketability.mjs --selftest
+
+      - name: Dungeon scrip reload — report #3, scrip survives reload not reset to 0
+        if: ${{ !cancelled() }}
+        run: node tests/dungeon-scrip-reload.mjs --selftest
+
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
       # it "says nothing about whether any row survives a restore". This is that

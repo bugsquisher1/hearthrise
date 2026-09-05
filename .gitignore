@@ -98,3 +98,5 @@ assets/_wm-fixed-item-sources/
 smoke-*.log
 smoke-*-done.txt
 worktrees/
+
+tests/smoke-run.log

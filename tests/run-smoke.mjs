@@ -109,7 +109,7 @@ import { recipeYieldGuard, recipeYieldMutationGuard } from './recipe-yield-guard
 import { cacheBusterGuard, cacheBusterMutationGuard } from './cache-buster-guard.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
 import { createServer } from 'node:http';
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { extname, join, normalize, relative } from 'node:path';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -4105,6 +4105,24 @@ const run = async () => {
   } finally {
     await browser.close().catch(() => {});
     server?.close();
+    /* THE UNREADABLE-RED FIX. When this step fails in CI, its stdout is the only
+       record of WHICH check failed — and CI step logs are auth-gated, so a red
+       build with a green local run (a transient in-page/network flake, or a
+       CI-only assertion) has repeatedly been undiagnosable from outside CI
+       (measured: two consecutive step-6 reds on 2026-09-05 that could not be
+       read). The whole TRANSCRIPT is mirrored to a file the `Upload failure
+       artifacts` step already globs for tests-dir .log files, so a failing run leaves
+       a DOWNLOADABLE record of every banner and every `✗`. Written only on
+       failure (a green run needs no forensics and the artifact upload is
+       `if: failure()` anyway). Best-effort: a write error here must never change
+       the run's verdict. */
+    if (exitCode !== 0) {
+      try {
+        await writeFile(join(ROOT, 'tests', 'smoke-run.log'),
+          `# run-smoke.mjs failure transcript — exitCode ${exitCode} — ${new Date().toISOString()}\n\n`
+          + TRANSCRIPT.join('\n') + '\n', 'utf8');
+      } catch { /* forensics are best-effort; never mask the real failure */ }
+    }
   }
   /* ⚠ `process.exit(exitCode)` HERE, NOT `process.exitCode`, WAS A LANDMINE ON
      WINDOWS — and it sat directly in front of the next step in the program.

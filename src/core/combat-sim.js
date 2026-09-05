@@ -60,18 +60,18 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=504';
-import { rollDropTable } from './drops.js?v=504';
-import { hitXpRoute, killXpRoute } from './styles.js?v=504';
-import { applyGoldFind } from './pacing.js?v=504';
-import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, utcDaySegments } from './away.js?v=504';
-import { NO_BONUS } from './botd.js?v=504';
-import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=504';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=505';
+import { rollDropTable } from './drops.js?v=505';
+import { hitXpRoute, killXpRoute } from './styles.js?v=505';
+import { applyGoldFind } from './pacing.js?v=505';
+import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, utcDaySegments } from './away.js?v=505';
+import { NO_BONUS } from './botd.js?v=505';
+import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=505';
 /* THE CONSUMPTION SEAM (design item E1). The arithmetic lives in ./ammo.js and
    is imported rather than restated — one field, one carry, one guard. Nothing
    below branches on `ctx.away`, which is what keeps the AWAY-1 parity property
    true of the quiver as well as of the XP. */
-import { spendForSwings, applyAmmoMult } from './ammo.js?v=504';
+import { spendForSwings, applyAmmoMult } from './ammo.js?v=505';
 
 export { AWAY_RATE_MULT };
 

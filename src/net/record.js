@@ -103,22 +103,22 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileWorkers } from './accrue.js?v=504';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileWorkers } from './accrue.js?v=505';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=504';
+import { applyClientState } from './client-state.js?v=505';
 /* THE DUNGEON SCRIP ARM (docs/design/dungeon-settlement.md §1). Scrip becomes a
    top-level record field read from state.dungeon_scrip. Its own arm flag defaults
    OFF; while off the entry below is invisible to the field list / strip / decode
    loop (armed()=false), so nothing changes byte-for-byte until the rollout flips
    DUNGEON_SETTLE_ARM_ENABLED (coupled with increment 3's quartermaster_buy). */
-import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=504';
+import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=505';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=504';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=505';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse

@@ -12,7 +12,7 @@
 >
 > **CURRENT VERDICT: materially closer, not yet YES.** The beta-2 killers are fixed. Remaining before a beta-3 call (none blocking on a bug now — they are program/design/Tyler items):
 > 1. **Arm the dungeon fix** — Tyler plays a dungeon (or provides a keyed/stronger QA account); then a 2-line flip.
-> 2. **SA-013 false-passing test runner** — the in-page runner counts no assertions (9 zero-assert tests, ~200 early-returns, 62 `assert(true)` skips). CI is green, but "green" is only as strong as the runner. A P1 test-infrastructure program; every guard's verdict rests on it.
+> 2. ~~**SA-013 false-passing test runner**~~ **DONE 2026-09-05 (both increments, HR_ASSERT_STRICT ON, both gate halves green).** The runner now counts assertions and FAILS a zero-assert non-skip test; the cascade (62 assert(true), 13 throw-only, 15 early-returns) is cleared into real assertions + honest skips. "Green" is now trustworthy at the assertion level. (Follow-up test-rot chips queued: artisan/gather live seam + dead tests.)
 > 3. **First-night gathering-rescue + a `computeAccrual` first-night parity guard** — the largest measured week-1 bounce; not-started.
 > 4. **Armor/defence overhaul** — now UNBLOCKED (SA-021 open, so tier-4+ has reachable subjects); P1 balance, engine change + play-gates.
 > 5. **Wave-scale load verdict** — re-run `tools/load-probe.mjs` at the beta-3 wave size and commit the output.

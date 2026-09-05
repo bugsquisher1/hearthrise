@@ -183,3 +183,5 @@ Two of the three gates were already satisfied. Do not re-raise them as blockers.
 - **`rate_limit_email_sent = 60`.** Sixty confirmation emails per hour, project-wide. A beta-3 invite wave larger than that will reproduce the exact "−11 at the email wall" signature **with no client bug**. Stagger the keys, or raise the limit before the wave.
 - **`mailer_otp_exp = 3600`.** Confirmation links expire after **one hour**. Anyone who opens their mail the next morning gets `otp_expired`. The door fix now handles that honestly (sign-in mode + a visible resend), but the window is short for an invite wave and is worth raising.
 - `mailer_autoconfirm = false` — confirmation is genuinely required, as assumed.
+
+> Coordinator attempted the iframe walk 2026-09-05: itch.io answered **429 Too Many Requests**, so it could not be checked then. It also needs a real confirmation email to be conclusive, so it stays a manual gate.

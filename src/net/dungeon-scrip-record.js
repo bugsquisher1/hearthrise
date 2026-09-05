@@ -49,8 +49,16 @@ function serverActive() {
 }
 
 export function isDungeonSettleArmed() {
-  const on = armOverride !== null ? armOverride : DUNGEON_SETTLE_ARM_ENABLED;
-  return !!on && serverActive();
+  /* A forced test override FULLY determines the arm — __setDungeonSettleArm is
+     documented to "force the arm regardless of the master switch (tests have no
+     window)", and the in-page DGN-SETTLE-2 has a window whose accrual switch is
+     off, so gating the override with serverActive() left the forced-armed READ
+     path unreachable in the browser (it only worked in Node via a window stub).
+     PRODUCTION is unchanged: nothing sets armOverride in prod, so the arm still
+     requires BOTH the flag AND live server accrual (never read server-first
+     while nothing populates the server value). */
+  if (armOverride !== null) return armOverride;
+  return !!DUNGEON_SETTLE_ARM_ENABLED && serverActive();
 }
 
 /** Test seam, same spirit as __setMarksRecordArm. Pass null to fall back to the

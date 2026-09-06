@@ -761,6 +761,29 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          (docs/design/live-settlement.md §0).
          Mirrors set-activity.js field for field (A14). */
       fight: st.fight ?? null,
+      /* THE RECOVERY LINE (First-Night Idle Rescue). `player_state.recovering_until`
+         — an ABSOLUTE server timestamp, the only authority on whether this
+         character is Knocked Out. It is a self-configuring switch like
+         tool_carry/fight, but it CANNOT be spelled `?? null`: null is the
+         ORDINARY value (the character is up), so `??` would report every
+         healthy character as a database without the column and the engine would
+         never propose the key at all. The distinction is the KEY'S PRESENCE in
+         hr_state_of's envelope — absent column ⇒ absent key ⇒ null here ⇒ the
+         engine omits `recovering_until` from the delta, which is byte-for-byte
+         the pre-Recovery behaviour. Present-and-null ⇒ 0 ⇒ the engine owns it.
+         Mirrors set-activity.js field for field (A14). */
+      recoveringUntilMs: ('recovering_until' in st) ? (st.recovering_until ? new Date(st.recovering_until).getTime() : 0) : null,
+      /* THE RECOVERY LADDER'S TWO ANCHORS (Recovery rev. 2). player_progress
+         kind='stat' key='deaths' under period=<UTC day> and period='', read by
+         hr_state_of as its OWN scalars and NOT dug out of the `progress` array:
+         that array is `limit 1000` with a `progress_truncated` flag, and a
+         survival mechanic must never be able to answer "you have never died"
+         because a character owns a lot of collection rows. Absent (a database
+         without the Recovery migration) ⇒ 0 ⇒ the day's-first-fall grace, which
+         is the UNDER-charging direction.
+         Mirrors set-activity.js field for field (A14). */
+      deathsTodayBefore:    Number(st.deaths_today) || 0,
+      deathsLifetimeBefore: Number(st.deaths_lifetime) || 0,
       /* THE WEAPON ENCHANT (ELEMENTS v1). `{ <equip_slot>: <element> }` from
          hr_state_of, or `{}` when the column is absent. Unlike tool_carry/fight
          it is a READ-ONLY input to `equipmentStats(equipment, items, enchant)` —

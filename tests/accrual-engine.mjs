@@ -47,7 +47,9 @@ import {
 } from '../src/core/combat.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
 import { killBonusesFor, botdFor } from '../src/core/botd.js';
-import { creditWindow, DAY_MS } from '../src/core/away.js';
+import { creditWindow, DAY_MS, RECOVERY_BASE_MS, RECOVERY_CAP_MS, NOVICE_GRACE_DEATHS,
+  recoveryFor, resumeHpFor }
+  from '../src/core/away.js';
 import { createRng } from '../src/core/rng.js';
 import { grantXp, resolveGatherAction } from '../src/core/progression.js';
 import { resolveStyle, COMBAT_STYLES } from '../src/core/styles.js';
@@ -1341,6 +1343,11 @@ function attendedSettleAutoEatGuard() {
      the tab is visible the whole time. */
   const SPANS = [ACCRUE_MIN_MS, 90000, 5 * 60000];
   let saw = 0;
+  /* The production comparison is accumulated across the SPAN SET rather than
+     asserted per span: at 90 s a fed 10-HP character lands exactly one kill too,
+     so a per-span `off < on` would be a coin flip on fixture noise. The set is
+     the measurement. */
+  let fedKills = 0; let unfedKills = 0; let unfedRecoverMs = 0;
   for (const spanMs of SPANS) {
     const label = `${Math.round(spanMs / 1000)}s`;
     const on = run(spanMs, true);
@@ -1360,19 +1367,606 @@ function attendedSettleAutoEatGuard() {
     saw += on.foodEaten;
 
     /* AND THE PAYMENT DEPENDS ON IT. This is why the debit belongs to the
-       settle: with auto-eat off, the SAME attended minute pays ZERO kills and
-       reports a death, because `simulateSpan` breaks on the first death. The
-       server eating is not a courtesy — it is the mechanism by which an attended
-       window is paid at all for a 10-HP character. */
+       settle: with auto-eat off the SAME attended window dies and under-pays,
+       and the server eating is not a courtesy — it is the mechanism by which an
+       attended window is paid at all for a 10-HP character.
+
+       ── UPDATED 2026-09-05 (First-Night Idle Rescue), AND IT ASSERTS MORE ──
+       This used to read `off.summary.kills === 0 && off.summary.died === true`,
+       and the `kills === 0` half was a statement about the RETIRED mechanism:
+       `simulateSpan` broke out of the loop on the first death, so an unfed
+       window produced literally nothing. Under the Recovery ruling a death
+       interrupts a run instead of ending it, so an unfed character gets back up
+       and does land the occasional kill between knockouts — MEASURED on this
+       fixture: 0 / 1 / 1 unfed against 1 / 1 / 8 fed.
+
+       The guard is not weakened to accommodate that; it is pointed at the
+       property the ruling did NOT change, and at the mechanism that replaced
+       the one it did:
+         · every unfed span still DIES (per span, below), and
+         · the fed runs out-produce the unfed ones by at least 2x in total (2 vs
+           10 measured — a 5x gap, so the 2x line is a floor with real room),
+           which is the payment dependency this guard exists to state, and
+         · the longest unfed span spends real time KNOCKED OUT (`recoverMs > 0`),
+           which is the current reason it under-produces. Asserting that is what
+           stops this fixture silently going back to demonstrating nothing if
+           Recovery is ever removed. */
     const off = run(spanMs, false);
     ok(off.foodEaten === 0,
       `ATTENDED-EAT [${label}]: auto_eat_enabled=false still ate — the entitlement gate does not hold`);
-    ok(off.summary.kills === 0 && off.summary.died === true,
-      `ATTENDED-EAT [${label}]: the auto_eat_enabled=false control paid ${off.summary.kills} kills / `
-      + `died=${off.summary.died}, so this fixture no longer demonstrates the death loop the b497 `
-      + 'ruling exists to close — re-pick it rather than deleting the assertion');
+    ok(off.summary.died === true,
+      `ATTENDED-EAT [${label}]: the auto_eat_enabled=false control did NOT die, so this fixture no `
+      + 'longer demonstrates the death the b497 ruling exists to close — re-pick it rather than '
+      + 'deleting the assertion');
+    fedKills += Number(on.summary.kills) || 0;
+    unfedKills += Number(off.summary.kills) || 0;
+    unfedRecoverMs = Math.max(unfedRecoverMs, Number(off.summary.recoverMs) || 0);
   }
   ok(saw > 0, 'ATTENDED-EAT COVERAGE: no span ate anything — every assertion above was vacuous');
+  ok(fedKills > 0, 'ATTENDED-EAT: the FED runs killed nothing — the production comparison is vacuous');
+  ok(unfedKills * 2 <= fedKills,
+    `ATTENDED-EAT: unfed ${unfedKills} kills vs fed ${fedKills} across ${SPANS.length} attended spans. `
+    + 'The settle eating is supposed to be the reason an attended window pays at all for a 10-HP '
+    + 'character; at this ratio it is not, and the client gate that declines to send an `eat` intent '
+    + 'rests on that measurement. Re-pick the fixture rather than relaxing the ratio.');
+  ok(unfedRecoverMs > 0,
+    'ATTENDED-EAT: no unfed span spent any time KNOCKED OUT. Recovery is why an unfed window '
+    + 'under-produces now (First-Night Idle Rescue); if none is happening, this fixture is '
+    + 'measuring a mechanism that is no longer running.');
+}
+
+// ── 1b-iii. THE RECOVERY RULE (First-Night Idle Rescue) ─────────────────────
+// Design ruling, Principal Game Designer, 2026-09-05, AMENDED 2026-09-06 (rev. 2):
+// A DEATH INTERRUPTS A RUN, IT DOES NOT TERMINATE IT. The character is Knocked
+// Out for `recoveryFor(...)` — free on the day's FIRST fall, then 2m, 4m, 8m …
+// doubling to a 64-minute cap, held to one rung while the character is still a
+// novice by LIFETIME death count — then gets back up at 40% HP (NOT a full
+// heal; a full heal made dying the cheapest heal in the game) and RESUMES THE
+// SAME ACTIVITY.
+//
+// rev. 1 was FLAT (120 s, one free death per character) and was rejected on two
+// measurements: a foodless character still kept 93.75% of a fed one's output at
+// a 30-minute survival span (R4 — "carry food" was advice, not a decision), and
+// the grace was keyed off the WINDOW's death counter, so every 60-second settle
+// carried its own free death (N2). Both are asserted below.
+//
+// WHAT IT REPLACES, measured on the fixture below before the change: a fresh,
+// foodless character pointed at a slime for twelve hours produced NINE kills —
+// `simulateSpan` broke out of its loop on the first death and `accrual.js` then
+// idled the activity pointer, so the rest of the night paid ~0.1% and the
+// pointer was gone the next morning too.
+//
+// The rule is IDENTICAL live and away BY CONSTRUCTION, and that is the whole
+// architecture: Recovery is a property of the CHARACTER
+// (`player_state.recovering_until`, an absolute SERVER instant), not of the away
+// path. `simulateSpan` refuses to swing while it runs; the live combat-start
+// intent refuses with `recovering`. There is no second loop, so AWAY-1 byte
+// parity is preserved without anyone having to remember to preserve it.
+function recoveryGuard() {
+  const SLIME = MONSTERS.slime ? 'slime' : MONSTER;
+  /* THE LADDER, RE-DERIVED FROM THE TABLE ITSELF so this file never restates a
+     rung. `sumLadder(n, L)` is what n falls in a day cost a character whose
+     lifetime count started at L — the same arithmetic simulateSpan performs one
+     death at a time, expressed once here for the equalities below. */
+  const sumLadder = (n, L) => {
+    let t = 0;
+    for (let i = 0; i < n; i++) {
+      t += recoveryFor({ deathsTodayBefore: i, deathsLifetimeBefore: L + i });
+    }
+    return t;
+  };
+  /* A count high enough that the novice clamp is spent — every fixture below
+     that wants the RAW ladder seeds with it. */
+  const VETERAN = NOVICE_GRACE_DEATHS + 50;
+
+  /* A FRESH, FOODLESS CHARACTER — the population the ruling is about, and the
+     population every new player is in on their first night. 10 max HP, no
+     equipment, no skills, no provisions, auto-eat off. */
+  const night = (o) => computeAccrual({
+    userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+    nowMs: FROM_MS + o.spanMs, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+    activeKind: 'combat', activeId: o.monster || SLIME,
+    capMs: 24 * 3600000, seed: SEED,
+    hp: 10, maxHp: 10, gold: 0, skills: {}, equipment: {}, inventory: {},
+    autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
+    recoveringUntilMs: o.recoveringUntilMs,
+    /* THE LADDER'S TWO DURABLE ANCHORS. Defaulted to a VETERAN so the fixtures
+       measure the raw ladder rather than the novice clamp; RECOVER-5 drives the
+       clamp deliberately. */
+    deathsTodayBefore: (typeof o.deathsTodayBefore === 'number') ? o.deathsTodayBefore : 0,
+    deathsLifetimeBefore: (typeof o.deathsLifetimeBefore === 'number') ? o.deathsLifetimeBefore : VETERAN,
+    items: ITEMS, monsters: MONSTERS,
+  });
+
+  // ── RECOVER-1 — THE FIX ITSELF, AS A NUMBER ───────────────────────────────
+  // MUTATION PROVEN: restore `if (r.outcome === OUTCOME.DEATH) { …; break; }`
+  // plus the `if (died) break;` at the foot of the segment loop in
+  // src/core/combat-sim.js and this goes red at `kills` (9, not 542).
+  const twelve = night({ spanMs: 12 * 3600000, recoveringUntilMs: 0 });
+  const S = twelve.summary;
+  ok(twelve.accrued === true, `RECOVER-1: a 12h foodless night accrued nothing (${twelve.reason})`);
+  ok(S.deaths > 1,
+    `RECOVER-1: the night contained ${S.deaths} death(s). A foodless 10-HP character cannot survive `
+    + 'twelve hours against anything; if this is 1 the run still ENDS at the first death and the '
+    + 'whole ruling is unimplemented.');
+  /* THE LADDER, TO THE MILLISECOND. Asserted as an equality rather than a band
+     because it IS an equality: recovery is consumed in whole ticks off an
+     absolute line, so there is nothing to round. The only give would be a window
+     that closed mid-recovery, and the line above rules that out for this span. */
+  /* ⚠ THIS FIXTURE NOW CLOSES MID-RECOVERY, AND THAT IS THE RULE WORKING.
+     Under rev. 1's flat 120 s a twelve-hour foodless night served every knockout
+     and still had hours left; under the ladder it reaches the 64-minute cap and
+     the window ends inside a rung. So the equality is stated across the SERVED
+     and the OWED halves together, which is the same fact without the fixture
+     having to be re-picked every time a balance change moves the death rate. */
+  ok(S.recoverMs + S.recoverRemainingMs === sumLadder(S.deaths, VETERAN),
+    `RECOVER-1: ${S.deaths} deaths spent ${S.recoverMs} ms Knocked Out; the LADDER says `
+    + `${sumLadder(S.deaths, VETERAN)} ms served+owed (free, then 2m, 4m, 8m … to the `
+    + `${RECOVERY_CAP_MS} ms cap). `
+    + 'A mismatch means either the day\'s free fall is being re-armed inside the window or a '
+    + 'knockout is being skipped.');
+  /* THE LADDER, AS CHARGED, ONE ENTRY PER FALL. Stated by the simulation so the
+     receipt can print "free, 2m, 4m" without regenerating it — and regenerating
+     it is exactly what a novice clamp or the cap would make wrong. */
+  ok(Array.isArray(S.recoverLadder) && S.recoverLadder.length === S.deaths,
+    `RECOVER-1: recoverLadder has ${(S.recoverLadder || []).length} entries for ${S.deaths} deaths`);
+  ok(S.recoverLadder.reduce((a, b) => a + b, 0) === S.recoverMs + S.recoverRemainingMs,
+    'RECOVER-1: the stated ladder does not add up to the recovery charged (served + still owed)');
+  ok(S.recoverLadder[0] === 0 && S.recoverLadder[1] === RECOVERY_BASE_MS,
+    `RECOVER-1: the ladder opened ${S.recoverLadder.slice(0, 2)} — the day's FIRST fall is free and `
+    + `the second costs one rung (${RECOVERY_BASE_MS} ms)`);
+  /* THE CAP IS REACHED AND HELD. A twelve-hour foodless night walks the whole
+     ladder; if the top rung is not the cap the doubling is unbounded and one
+     bad night becomes a permanent lockout. */
+  ok(S.recoverLadder[S.recoverLadder.length - 1] === RECOVERY_CAP_MS,
+    `RECOVER-1: the last rung of a twelve-hour night was ${S.recoverLadder[S.recoverLadder.length - 1]} `
+    + `ms, not the ${RECOVERY_CAP_MS} ms cap — the doubling is either not reaching the cap on a `
+    + 'night this long (re-pick the span) or not capped at all');
+  /* THE PER-DEATH LEDGER (N3). One row per fall, no more — and BOUNDED, which is
+     the property that makes it affordable at all. */
+  ok(Array.isArray(twelve.delta.deaths) && twelve.delta.deaths.length === S.deaths,
+    `RECOVER-1 (N3): the delta proposed ${(twelve.delta.deaths || []).length} ledger rows for `
+    + `${S.deaths} deaths — one row per death, never per tick and never none`);
+  ok(twelve.delta.deaths.length <= 24,
+    `RECOVER-1 (N3): ${twelve.delta.deaths.length} death rows in one settle. hr_apply refuses over `
+    + '24, so this delta would cost the player the whole night. The ladder is supposed to bound it.');
+  ok(twelve.delta.deaths.every((d) => d.monster === (MONSTERS.slime ? 'slime' : MONSTER)
+        && typeof d.recovery_ms === 'number' && typeof d.deaths_today === 'number'
+        && d.auto_eat_enabled === false && d.food_in_bag === false),
+    'RECOVER-1 (N3): a death row is missing a server-derived field, or carries the wrong one');
+  ok(twelve.delta.deaths[0].deaths_today === 1
+     && twelve.delta.deaths[1].deaths_today === 2,
+    'RECOVER-1 (N3): the ledger rows do not carry the ladder rung they were charged at, so a '
+    + 'dispute could not be resolved from the ledger');
+  /* THE DAILY DEATHS ROW (N2's durable anchor). The lifetime row and the daily
+     row are ONE integer under two period keys — the rare_drops precedent. */
+  {
+    const rows = (twelve.delta.progress || []).filter((o) => o.kind === 'stat' && o.key === 'deaths');
+    ok(rows.length === 2,
+      `RECOVER-1 (N2): the delta filed ${rows.length} deaths rows; it must file TWO — the lifetime `
+      + "row (period '') and today's row (period <UTC day>). One of them is the ladder's anchor.");
+    const life = rows.find((o) => o.period === '');
+    const day = rows.find((o) => o.period !== '');
+    ok(life && day && life.add === day.add && life.add === S.deaths,
+      'RECOVER-1 (N2): the lifetime and daily deaths rows disagree, or disagree with the '
+      + 'simulation. They are one fact over two windows and must be written from one integer.');
+  }
+  /* CONSERVATION. Every millisecond of the credited window is either EARNING or
+     KNOCKED OUT — there is no third state and none may be lost. This is the
+     assertion that catches a recovery tick counted twice, or a segment boundary
+     that drops one. */
+  ok(S.paidMs + S.recoverMs === S.awayMs,
+    `RECOVER-1: paid ${S.paidMs} + recovered ${S.recoverMs} = ${S.paidMs + S.recoverMs}, but the `
+    + `credited window was ${S.awayMs} ms. Time is being created or destroyed.`);
+  ok(S.paidMs < S.awayMs,
+    'RECOVER-1: paidMs equals the whole window on a night with deaths in it — recovery CONSUMES the '
+    + 'credited window (no time is given back), so this would mean the knockouts were paid for');
+  /* THE POINT OF THE WHOLE CHANGE, AND IT IS NOT A KILL COUNT ANY MORE.
+     Rev. 1 asserted `kills > 100` here, because a flat 120 s knockout let a
+     foodless character grind all night. The ladder deliberately does not: this
+     fixture is a FOODLESS character, which under rev. 2 is a character who
+     spends most of a night on the floor by design (RECOVER-8 measures exactly
+     how much). What must still be true — and what the cliff broke — is that the
+     run does not TERMINATE: a terminated run has exactly ONE death and pays
+     nothing after it, so a night with many falls in it and time paid after the
+     first one is the property, and it is stated as such rather than as a
+     number that moves with every balance change. */
+  ok(S.deaths >= 3,
+    `RECOVER-1: the night contained ${S.deaths} falls. A run that TERMINATES at a death can only `
+    + 'ever contain one; anything under three means the character is not getting back up.');
+  /* AND THE PAID TIME KEEPS ACCUMULATING PAST THE FIRST FALL — measured against
+     a SHORT window rather than against a fraction of the night, because the
+     absolute share a foodless character earns is the ladder's business
+     (RECOVER-8) and this assertion's business is only that the accumulation
+     does not STOP. A terminated run pays the same on both spans. */
+  const short = night({ spanMs: 5 * 60000, recoveringUntilMs: 0 });
+  ok(S.paidMs > short.summary.paidMs,
+    `RECOVER-1: a twelve-hour night paid ${S.paidMs} ms and a five-minute one paid `
+    + `${short.summary.paidMs} ms. If they are equal the run stops earning at the first fall — the `
+    + 'cliff, with extra steps.');
+  /* AND THE POINTER SURVIVES. `delta.activity` is what the settle tells the
+     server the character is doing; idling it on a death is the half of the old
+     defect that outlived the night and cost the NEXT one too. */
+  ok(!('activity' in twelve.delta),
+    'RECOVER-1: the settle proposed an activity change after a night with deaths in it. A death '
+    + 'must not idle the pointer — that is what made the cliff permanent rather than nightly.');
+  /* THE ENGINE STATES THE BAG, at window start. A foodless character must read
+     `hadFood:false`, which is what unlocks the receipt naming the one real fix. */
+  ok(S.autoEat && S.autoEat.hadFood === false,
+    'RECOVER-1: the summary does not state hadFood:false for a character with an empty bag — '
+    + 'the receipt cannot then name the one fix that would have changed the night');
+
+  // ── RECOVER-2 (EXPLOIT R1) — THE LINE IS ABSOLUTE, NOT A COUNTDOWN ────────
+  // The live settle cadence is ~90 s. If the recovery clock were "ms remaining"
+  // it would be re-derived and re-zeroed by every settle, and a player who
+  // reloads would pay nothing for a death. Two consecutive 90-second settles
+  // INSIDE one recovery must simulate nothing and must leave the line untouched.
+  //
+  // MUTATION PROVEN: change accrual.js's proposal to
+  // `new Date(nowMs + summary.recoverRemainingMs)` — a countdown re-anchored to
+  // the settle — and (b) goes red: the line walks forward 90 s per settle.
+  {
+    const until = FROM_MS + 10 * 60000;          // ten minutes of knockout ahead
+    const settle = (fromMs, toMs) => computeAccrual({
+      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+      nowMs: toMs, accruedToMs: fromMs, activeSinceMs: FROM_MS,
+      activeKind: 'combat', activeId: SLIME, capMs: 24 * 3600000, seed: SEED,
+      hp: 10, maxHp: 10, gold: 0, skills: {}, equipment: {}, inventory: {},
+      autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
+      recoveringUntilMs: until, items: ITEMS, monsters: MONSTERS,
+    });
+    const first = settle(FROM_MS, FROM_MS + 90000);
+    const second = settle(FROM_MS + 90000, FROM_MS + 180000);
+    /* (a) NOTHING WAS SIMULATED in either window. Not a tick, not a kill. */
+    for (const [label, r] of [['settle 1', first], ['settle 2', second]]) {
+      ok(r.summary.ticks === 0 && r.summary.kills === 0,
+        `RECOVER-2 (${label}): a settle entirely inside a recovery simulated ${r.summary.ticks} ticks `
+        + `and ${r.summary.kills} kills. A Knocked Out character does not swing.`);
+      /* AND IT STILL APPLIES. A pure-recovery window that answered SKIP.NOTHING
+         would send no delta, so `accrued_to` would not move and the NEXT settle
+         would re-price the same recovery — the counter reset through the back door. */
+      ok(r.accrued === true,
+        `RECOVER-2 (${label}): a pure-recovery window was skipped (${r.reason}). It must apply: it `
+        + 'carries the recovery line forward and stamps accrued_to.');
+    }
+    /* (b) THE LINE DID NOT MOVE. The same instant, to the millisecond, after two
+       settles that each observed a shorter remainder than the last. */
+    const iso = new Date(until).toISOString();
+    ok(first.delta.recovering_until === iso && second.delta.recovering_until === iso,
+      `RECOVER-2: recovering_until walked — ${first.delta.recovering_until} then `
+      + `${second.delta.recovering_until}, expected ${iso} both times. An absolute instant is the `
+      + 'same instant however many times the window is sliced; a counter is not, and a counter is '
+      + 'free recovery at a 90-second cadence.');
+    /* (c) THE SELF-CONFIGURING SWITCH, both directions. A database without the
+       column must NEVER see the key (hr_apply answers unknown_delta_key with a
+       409 that costs the whole night); a database WITH it must ALWAYS see it,
+       including the null that means "back on your feet". */
+    const noCol = night({ spanMs: 90000 });               // recoveringUntilMs undefined
+    ok(!('recovering_until' in noCol.delta),
+      'RECOVER-2 (c): the engine proposed recovering_until against a database that has no such '
+      + 'column — hr_apply would refuse the whole delta with unknown_delta_key and cost the night');
+    /* THE VOID needs a window that ENDS with the character on their feet, and
+       under the ladder a foodless fixture never is — so it is a FED one. (The
+       twelve-hour foodless night above ends inside a 64-minute rung, which is
+       the rule working, not a bug in the fixture.) */
+    const PROV = Object.keys(ITEMS)
+      .filter((id) => ITEMS[id] && ITEMS[id].foodClass === 'healing' && ITEMS[id].heals > 0)
+      .sort((a, b) => ITEMS[b].heals - ITEMS[a].heals)[0];
+    const fed = computeAccrual({
+      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+      nowMs: FROM_MS + 10 * 60000, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+      activeKind: 'combat', activeId: SLIME, capMs: 24 * 3600000, seed: SEED,
+      hp: 200, maxHp: 200, gold: 0, skills: {}, equipment: {},
+      inventory: PROV ? { [PROV]: 5000 } : {},
+      autoEatEnabled: true, autoEatFood: PROV || null, autoEatPct: 90,
+      recoveringUntilMs: 0, deathsTodayBefore: 0, deathsLifetimeBefore: VETERAN,
+      items: ITEMS, monsters: MONSTERS,
+    });
+    ok(fed.accrued === true && fed.summary.deaths === 0,
+      `RECOVER-2 (c): the fed control fell ${fed.summary.deaths} time(s) — it must survive, or the `
+      + 'VOID assertion below is measuring something else');
+    ok('recovering_until' in fed.delta && fed.delta.recovering_until === null,
+      'RECOVER-2 (c): a window that ended with the character UP must send an explicit null VOID, '
+      + 'not omit the key — an omitted key leaves a stale line and a permanent knockout');
+    ok(!('deaths' in fed.delta),
+      'RECOVER-2 (c): a window with no deaths in it proposed death ledger rows');
+  }
+
+  // ── RECOVER-3 (EXPLOIT R2) — A SWITCH DOES NOT CURE A KNOCKOUT ────────────
+  // `fight` is voided unconditionally by an `activity` key, because a banked
+  // nearly-dead boss is VALUE. Recovery is the opposite sign — a COST — so
+  // voiding it on a switch would make "switch to fishing, switch back" a free
+  // cure. The property lives in SQL, so it is asserted against the SQL, in both
+  // directions: the write arm must exist and must NOT be conditioned on
+  // `activity`. The migration re-asserts the same pair on apply (its §4(c)).
+  {
+    const sql = readFileSync(join(ROOT, 'supabase', 'migrations',
+      '2026-09-06-recovering-until.sql'), 'utf8');
+    ok(sql.includes("recovering_until = case when p_delta ? 'recovering_until'"),
+      'RECOVER-3: the migration does not write recovering_until at all');
+    ok(!/recovering_until = case when p_delta \? 'activity'/.test(sql),
+      'RECOVER-3: recovering_until is voided by an activity key. Switching to fishing and back '
+      + 'would cure a knockout — the fight-carry rule applied to a COST instead of to value, '
+      + 'which is exactly backwards.');
+    /* AND THE ENGINE'S HALF: a window that ends mid-recovery carries the line and
+       does NOT propose an activity change, so there is nothing for hr_apply to
+       void even if the arm were wrong. Two mechanisms, neither load-bearing alone. */
+    const mid = night({ spanMs: 90000, recoveringUntilMs: FROM_MS + 10 * 60000 });
+    ok(!('activity' in mid.delta) && typeof mid.delta.recovering_until === 'string',
+      'RECOVER-3: a mid-recovery settle proposed an activity change, or failed to carry the line');
+  }
+
+  // ── RECOVER-4 (R6) — BUFFS DRAIN WHILE YOU ARE DOWN, AND PAY NOTHING ──────
+  // b347/b351: "paying and draining are ONE change". Time passing is the one
+  // thing being Knocked Out does not stop, so a ten-minute Feast eaten before a
+  // knockout must be ten minutes shorter afterwards — otherwise a death becomes
+  // a way to PAUSE a consumable, which is the b326 exploit wearing a hat. It
+  // must equally pay for none of the time spent face-down.
+  //
+  // Driven through `simulateSpan` directly: the server holds no buff model, so
+  // this exercises the CLIENT half of the same one loop, which is the point.
+  {
+    const BUFF_MS = 10 * 60000;
+    const SPAN = 20 * 60000;
+    const style = resolveStyle(null, null);
+    const state = {
+      activeMonster: SLIME, playerHp: 10, playerMaxHp: 10,
+      monsterHp: MONSTERS[SLIME].hp, monsterMaxHp: MONSTERS[SLIME].hp,
+      skills: {}, inventory: {}, equipment: {}, stats: { deaths: 5 },
+      gold: 0,
+      /* Four minutes into a knockout when the window OPENS — the seeded-recovery
+         case, which is also the shape every 90-second settle sees. */
+      recoveringUntilMs: 4 * 60000,
+      buffs: [{ type: 'combat_xp', magnitude: 10, remainingMs: BUFF_MS }],
+    };
+    const sum = simulateSpan(state, {
+      away: true, fromMs: 0, toMs: SPAN, tickMs: COMBAT_BALANCE.tickMs,
+      rng: createRng(SEED), monsters: MONSTERS, items: ITEMS,
+      bonus: () => 0, style,
+      playerRolls: (m) => playerCombatRolls(m, {
+        eq: {}, equipment: {}, items: ITEMS, skills: {},
+        bonus: () => 0, setBonus: {}, profile: DEFAULT_PROFILE, style,
+      }),
+      monsterRolls: (m) => monsterCombatRolls(m, { eq: {}, skills: {}, bonus: () => 0 }),
+      weakness: () => ({ dropMult: 1 }),
+      botdFor: () => ({ killBonuses: () => ({ dropMult: 1, xpMult: 1 }) }),
+      fx: {},
+    });
+    ok(sum.recoverMs >= 4 * 60000 - COMBAT_BALANCE.tickMs,
+      `RECOVER-4: the seeded knockout was not served — recoverMs ${sum.recoverMs}, expected at `
+      + 'least the four minutes the character arrived owing');
+    /* THE DRAIN IS WALL CLOCK. Ten minutes of buff inside a twenty-minute window
+       is spent exactly once, whether the character was up or down for it.
+       `pruneBuffs` then removes it, so an expired buff is simply gone. */
+    ok(state.buffs.length === 0,
+      'RECOVER-4: a 10-minute buff survived a 20-minute window containing 4 minutes of recovery. '
+      + 'Being Knocked Out must not PAUSE a consumable — that is the b326 exploit reached through '
+      + 'a death instead of through a closed tab.');
+    /* THE PAYMENT IS SIMULATED TIME ONLY. `buffPaidMs` counts ticks that actually
+       swung, so on a window whose first four minutes were face-down it must be
+       strictly less than the buff's own life. */
+    ok(sum.buffPaidMs > 0 && sum.buffPaidMs < BUFF_MS,
+      `RECOVER-4: the buff paid ${sum.buffPaidMs} ms of its ${BUFF_MS} ms life across a window that `
+      + 'began with four minutes of recovery. It must pay the SIMULATED part and only that; paying '
+      + 'the whole life would be paying for time nobody fought.');
+    ok(sum.survivedMs + sum.recoverMs === SPAN,
+      `RECOVER-4: survived ${sum.survivedMs} + recovered ${sum.recoverMs} <> ${SPAN} — the window is `
+      + 'not conserved across a seeded recovery');
+  }
+
+  // ── RECOVER-5 — THE LADDER, AND WHERE ITS TWO ANCHORS LIVE ───────────────
+  // rev. 2. The free fall is ONE PER UTC DAY, read off a durable SERVER row
+  // (player_progress kind='stat' key='deaths' period=<UTC day>) — NEVER "deaths
+  // in this settle window". That distinction IS the fix: the client owns the
+  // settle cadence, so a per-window grace is a free death per reload, and that
+  // is what rev. 1 shipped.
+  {
+    const V = VETERAN;
+    ok(recoveryFor({ deathsTodayBefore: 0, deathsLifetimeBefore: V }) === 0,
+      "RECOVER-5: the day's FIRST fall must recover in zero");
+    ok(recoveryFor({ deathsTodayBefore: 1, deathsLifetimeBefore: V }) === RECOVERY_BASE_MS,
+      'RECOVER-5: the second fall of a day must cost exactly one rung');
+    /* THE DOUBLING, rung by rung, against the table rather than a restated list. */
+    for (let n = 2; n <= 6; n++) {
+      const want = Math.min(RECOVERY_BASE_MS * Math.pow(2, n - 2), RECOVERY_CAP_MS);
+      ok(recoveryFor({ deathsTodayBefore: n - 1, deathsLifetimeBefore: V }) === want,
+        `RECOVER-5: fall ${n} of a day cost `
+        + `${recoveryFor({ deathsTodayBefore: n - 1, deathsLifetimeBefore: V })}, expected ${want}`);
+    }
+    ok(recoveryFor({ deathsTodayBefore: 6, deathsLifetimeBefore: V }) === RECOVERY_CAP_MS
+       && recoveryFor({ deathsTodayBefore: 500, deathsLifetimeBefore: V }) === RECOVERY_CAP_MS,
+      `RECOVER-5: the ladder is not capped at ${RECOVERY_CAP_MS} ms — an unbounded doubling turns `
+      + 'one bad afternoon into a lockout measured in days');
+    /* THE NOVICE CLAMP is LIFETIME-anchored, so it runs out once and cannot be
+       farmed by waiting for midnight. */
+    ok(recoveryFor({ deathsTodayBefore: 4, deathsLifetimeBefore: 0 }) === RECOVERY_BASE_MS,
+      `RECOVER-5: a character with fewer than ${NOVICE_GRACE_DEATHS} lifetime deaths was charged `
+      + 'past one rung — somebody\'s first evening must not be spent watching a 16-minute timer');
+    ok(recoveryFor({ deathsTodayBefore: 4, deathsLifetimeBefore: NOVICE_GRACE_DEATHS }) > RECOVERY_BASE_MS,
+      'RECOVER-5: the novice clamp never ends. It is lifetime-anchored precisely so it runs out '
+      + 'once, forever; a clamp that never lifts is the ladder deleted.');
+    /* GARBAGE READS AS THE HARSHEST CASE. The only thing these counters can buy
+       is relief, so an unreadable one must buy none. */
+    ok(recoveryFor({ deathsTodayBefore: NaN, deathsLifetimeBefore: NaN }) === RECOVERY_CAP_MS
+       && recoveryFor({}) === RECOVERY_CAP_MS
+       && recoveryFor(null) === RECOVERY_CAP_MS,
+      'RECOVER-5: an unreadable death count bought relief — the ladder must fail closed');
+    /* STANDING BACK UP AT 40%, NOT FULL. A full heal made dying the cheapest
+       heal in the game. */
+    ok(resumeHpFor(100) === 40 && resumeHpFor(10) === 4 && resumeHpFor(1) === 1
+       && resumeHpFor(0) === 1 && resumeHpFor(NaN) === 1,
+      `RECOVER-5: resumeHpFor is not the 40% floor — got ${resumeHpFor(100)} of 100`);
+  }
+
+  // ── RECOVER-6 (N2) — THE SECOND FALL OF A DAY IS NEVER FREE, HOWEVER THE
+  //    WINDOW IS SLICED.
+  // THE REV-1 DEFECT, EXACTLY. The grace was keyed off `stats.deaths`, which the
+  // engine seeds at ZERO for every settle — so every 60-second settle carried its
+  // own free death and Recovery was free at the live cadence. Two consecutive
+  // minimum-length settles, each containing a fall, must be charged: the first
+  // free (it is the day's first) and the SECOND at a rung.
+  //
+  // MUTATION PROVEN: delete the `state.deathsTodayBefore` seed in accrual.js
+  // (or restore rev. 1's `recoveryFor({ deathsBefore })` read off
+  // `state.stats.deaths`) and the second settle charges 0 and this goes red.
+  {
+    const oneFall = (deathsToday) => {
+      const state = {
+        activeMonster: SLIME, playerHp: 10, playerMaxHp: 10,
+        monsterHp: MONSTERS[SLIME].hp, monsterMaxHp: MONSTERS[SLIME].hp,
+        skills: {}, inventory: {}, equipment: {}, gold: 0,
+        stats: { deaths: 0 }, recoveringUntilMs: 0,
+        deathsTodayBefore: deathsToday, deathsLifetimeBefore: VETERAN,
+      };
+      const style = resolveStyle(null, null);
+      return simulateSpan(state, {
+        away: true, fromMs: 0, toMs: 60000, tickMs: COMBAT_BALANCE.tickMs,
+        rng: createRng(SEED), monsters: MONSTERS, items: ITEMS,
+        bonus: () => 0, style,
+        playerRolls: (m) => playerCombatRolls(m, {
+          eq: {}, equipment: {}, items: ITEMS, skills: {},
+          bonus: () => 0, setBonus: {}, profile: DEFAULT_PROFILE, style,
+        }),
+        monsterRolls: (m) => monsterCombatRolls(m, { eq: {}, skills: {}, bonus: () => 0 }),
+        weakness: () => ({ dropMult: 1 }),
+        botdFor: () => ({ killBonuses: () => ({ dropMult: 1, xpMult: 1 }) }),
+        fx: {},
+      });
+    };
+    const a = oneFall(0);
+    const b = oneFall(1);
+    ok(a.deaths >= 1 && b.deaths >= 1,
+      'RECOVER-6: a 60-second foodless span did not contain a fall — the fixture is vacuous');
+    ok(a.recoverLadder[0] === 0,
+      "RECOVER-6: the day's first fall was charged — it must be free");
+    ok(b.recoverLadder[0] === RECOVERY_BASE_MS,
+      `RECOVER-6 (N2): the SECOND fall of the day, in a fresh settle window, was charged `
+      + `${b.recoverLadder[0]} ms instead of ${RECOVERY_BASE_MS}. The free fall is anchored to a `
+      + 'DAY the server counts, not to a window the client slices — one free death per settle is '
+      + 'one free death per reload, which is Recovery deleted.');
+  }
+
+  // ── RECOVER-7 (R2) — GATHERING AND CRAFTING ARE GATED TOO ─────────────────
+  // rev. 1 gated only combat, which made the whole rule optional: fall over,
+  // switch to fishing, work through the knockout, switch back. Being knocked out
+  // is a property of the CHARACTER, so the recovery overlap is subtracted from
+  // the paid window of EVERY payable kind.
+  //
+  // MUTATION PROVEN: drop the `&& inp.activeKind !== 'combat'` guard's sibling —
+  // i.e. force `recoverFloorMs = 0` in accrual.js — and both halves go red.
+  {
+    const node = GATHER_INDEX ? Object.keys(GATHER_INDEX)[0] : null;
+    if (node) {
+      const gather = (recoveringUntilMs) => computeAccrual({
+        userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+        nowMs: FROM_MS + 30 * 60000, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+        activeKind: 'gather', activeId: node, capMs: 24 * 3600000, seed: SEED,
+        hp: 60, maxHp: 60, gold: 0, skills: { ...GATHER_MAXED }, equipment: EQUIPMENT,
+        inventory: {}, autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
+        toolCarry: {}, recoveringUntilMs,
+        items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+      });
+      const clear = gather(0);
+      const downed = gather(FROM_MS + 20 * 60000);   // 20 of the 30 minutes knocked out
+      ok(clear.accrued === true,
+        `RECOVER-7: the control gather window did not accrue (${clear.reason}) — the fixture is vacuous`);
+      ok(downed.accrued === true,
+        `RECOVER-7: a gather window with 10 payable minutes in it was skipped (${downed.reason})`);
+      ok(downed.grantMs === 10 * 60000,
+        `RECOVER-7 (R2): a 30-minute gather window overlapping 20 minutes of recovery paid `
+        + `${downed.grantMs} ms; only the 600000 ms after the character got up may be paid. `
+        + 'Gathering through a knockout is the whole rule made optional.');
+      ok(downed.summary.ticks > 0 && downed.summary.ticks < clear.summary.ticks,
+        'RECOVER-7 (R2): the shortened gather window ran the same number of actions as the full '
+        + 'one — the deduction reached grantMs but not the simulation');
+      /* AND THE GATHER PATH MUST NOT AUTHOR THE LINE. It cannot create a
+         recovery and must not clear one: an absent key leaves the column alone. */
+      ok(!('recovering_until' in downed.delta),
+        'RECOVER-7 (R2): a gather settle proposed recovering_until. Gathering neither creates nor '
+        + 'clears a knockout; writing the key from here could void one a fight is still serving.');
+    }
+  }
+
+  // ── RECOVER-8 (R4) — THE THREE-BAND EFFICIENCY FLOOR ──────────────────────
+  // WHY REV. 1 WAS REJECTED, as a number. With a FLAT 120 s recovery a character
+  // who survives S seconds between falls keeps S/(S+120) of a fed character's
+  // uptime — 93.75% at a 30-minute survival span. "Carry food" was advice, not a
+  // decision. The ladder makes the foodless share collapse as the day goes on,
+  // and these are the three bands the ruling was made against.
+  //
+  // Asserted as the ARITHMETIC OF THE LADDER, not as a simulation: the sim's
+  // exact kill counts move with every balance change, but the share of a day a
+  // foodless character spends on their feet is a property of the table alone —
+  // which is the thing the ruling actually decided and the thing that must not
+  // silently regress.
+  {
+    const DAY = 12 * 3600000;
+    const share = (survivalMs) => {
+      /* Walk a twelve-hour day: fight `survivalMs`, fall, serve the rung, repeat.
+         The answer is the fraction of the day spent UP, i.e. earning — which is
+         exactly the foodless character's output as a share of a fed one's. */
+      let t = 0, up = 0, n = 0;
+      while (t < DAY && n < 10000) {
+        const fight = Math.min(survivalMs, DAY - t);
+        up += fight; t += fight;
+        if (t >= DAY) break;
+        t += recoveryFor({ deathsTodayBefore: n, deathsLifetimeBefore: VETERAN + n });
+        n += 1;
+      }
+      return up / DAY;
+    };
+    /* MEASURED against the implemented table on 2026-09-06, over a 12h day, with
+       the novice clamp spent:
+           fresh  S=30s    1.18%  (food 84.7x, 17 falls)
+           mid    S=300s  11.11%  (food  9.0x, 16 falls)
+           capped S=1800s 46.94%  (food  2.1x, 11 falls)
+       ⚠ THESE ARE NOT THE FIGURES THE RULING QUOTED (0.49% / 4.6% / 24.2%).
+         The ruling's numbers are a steady state against an effective rung of
+         ~100 minutes; the ladder it actually specifies — min(120000·2^(n-2),
+         3,840,000) — cannot produce one, because it caps at 64. The formula is
+         the normative half of the ruling and is implemented exactly as written,
+         so the ceilings below are set around the ARITHMETIC rather than around
+         the illustration, with headroom for balance drift. The direction the
+         ruling cared about is unchanged and asserted: food dominates at every
+         band, and the capped band is nowhere near rev. 1's 93.75%.
+         This divergence is reported to the Game Designer rather than silently
+         reconciled by bending either the table or the test. */
+    const BANDS = [
+      { label: 'fresh',  survivalMs: 30 * 1000,   max: 0.03, minMult: 20 },
+      { label: 'mid',    survivalMs: 300 * 1000,  max: 0.16, minMult: 5 },
+      { label: 'capped', survivalMs: 1800 * 1000, max: 0.55, minMult: 1.8 },
+    ];
+    for (const b of BANDS) {
+      const f = share(b.survivalMs);
+      ok(f > 0 && f <= b.max,
+        `RECOVER-8 (R4) [${b.label}]: a foodless character surviving ${b.survivalMs / 1000}s between `
+        + `falls keeps ${(f * 100).toFixed(2)}% of a fed character's day. The ruling's ceiling for `
+        + `this band is ${(b.max * 100).toFixed(0)}%. The rev-1 FLAT rule scored 93.75% at the `
+        + 'capped band, which is why it was rejected — food must be a decision, not advice.');
+      /* FOOD DOMINANT AT EVERY BAND, stated as the multiple rather than left to
+         be read off the percentage. The floor is per-band because the whole
+         point of the ladder is that the gap NARROWS as a character gets tougher
+         — a single number would either be vacuous at the fresh band or refuse
+         the capped one. */
+      ok(1 / f >= b.minMult,
+        `RECOVER-8 (R4) [${b.label}]: eating is worth only ${(1 / f).toFixed(1)}x a foodless night, `
+        + `below the ${b.minMult}x floor for this band. Under it the provision economy has nothing `
+        + 'to sell at the tier that matters most.');
+    }
+    /* AND THE CAPPED BAND MUST STILL BE PLAYABLE. A rule that leaves a
+       well-fed-but-outmatched character at 1% of a fed one is a punishment, not
+       a curve; the cap is what stops the doubling running away. */
+    ok(share(1800 * 1000) >= 0.15,
+      `RECOVER-8 (R4): the capped band pays ${(share(1800 * 1000) * 100).toFixed(1)}% — below 15% `
+      + 'the 64-minute cap is no longer doing its job and a bad afternoon is a lost day.');
+    /* THE REGRESSION THE RULING WAS MADE ABOUT, stated directly. rev. 1's flat
+       120 s scored 93.75% at the capped band; whatever else moves, the ladder
+       must keep that band materially below it or R4 is reopened. */
+    ok(share(1800 * 1000) <= 0.60,
+      `RECOVER-8 (R4): the capped band pays ${(share(1800 * 1000) * 100).toFixed(1)}% against rev. 1's `
+      + '93.75%. Above 60% the ladder is no longer a meaningful improvement on the flat rule that '
+      + 'was rejected.');
+  }
 }
 
 // ── 1b-ii. THE RECEIPT'S LEVEL-UPS ARE THE BANKED ONES ──────────────────────
@@ -4016,6 +4610,7 @@ export async function runAll() {
   cheapestSufficientGuard();
   attendedSettleAutoEatGuard();
   receiptLevelUpsGuard();
+  recoveryGuard();
   gatherParityGuard();
   gatherBuffTimelineGuard();
   toolCarryContinuityGuard();

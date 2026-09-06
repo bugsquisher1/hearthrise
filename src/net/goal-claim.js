@@ -407,6 +407,44 @@
        {ok:true, auto_eat:{enabled, food, pct, tier, max_pct}} or {ok:false,
        error: trait_not_owned | bad_pct | unknown_item | not_auto_eatable |
        collect_first | rate_limited | bad_slot | no_character | not_signed_in}. */
+    /* ── REST AT THE HEARTH — supabase/migrations/2026-09-06-recovering-until.sql
+       §5 (Recovery rev. 2, N1). The ONE way off the recovery floor early, and it
+       is bought with FOOD. `hr_rest(slot, intent_id)` takes NO client value: the
+       server reads which provisions are eligible (hr_items.auto_eatable), how
+       much each heals, how many the bag holds and how much health is missing,
+       all under the character's row lock, and either eats enough to cover the
+       gap or refuses ALL-OR-NOTHING. A fresh idempotency key per press makes a
+       double tap on a flaky connection eat one meal.
+
+       ── WHY IT SETTLES FIRST ────────────────────────────────────────────────
+       The same reason setAutoEat and setStyle do, but sharper: clearing
+       `recovering_until` while an unpaid window is open would let the engine
+       re-simulate the knocked-out stretch as fighting time — the player would be
+       PAID for their recovery. The server refuses that with `collect_first`, and
+       this closes the window first rather than relying on the refusal.
+       Envelope: {ok:true, rested:{missing_hp, healed_hp, units, spent}} plus a
+       fresh state envelope, or {ok:false, error: not_recovering | not_hurt |
+       insufficient_food | collect_first | rate_limited | bad_slot |
+       no_character | not_signed_in | missing_intent_id}. */
+    rest: async function () {
+      if (!isSignedIn()) return { ok: false, error: 'not_signed_in', refused: true };
+      var delays = [0, 4000, 15000];
+      var last = { ok: false, error: 'unsent' };
+      /* ONE key for the whole ladder. A retry after `collect_first` is the SAME
+         intent, so it must not be able to eat a second meal if the first attempt
+         actually landed and the answer was lost. */
+      var idem = newIdem();
+      for (var i = 0; i < delays.length; i++) {
+        if (delays[i] > 0) await new Promise(function (r) { setTimeout(r, delays[i]); });
+        try {
+          var A = window.HearthriseAccrual;
+          if (A && typeof A.settleBeforeIntent === 'function') await A.settleBeforeIntent();
+        } catch (e) {}
+        last = await call('hr_rest', { p_slot: activeSlot(), p_intent_id: idem });
+        if (!last || last.error !== 'collect_first') return last;
+      }
+      return last;
+    },
     setAutoEat: async function (patch) {
       var p = patch || {};
       /* Bail before the first timer, exactly as setStyle does: `call()` would

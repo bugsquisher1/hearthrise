@@ -113,6 +113,115 @@ export function rateMult(ctx) {
   return (ctx && ctx.away) ? AWAY_RATE_MULT : 1;
 }
 
+/* ══ THE RECOVERY RULE (First-Night Idle Rescue, Game Designer 2026-09-05) ══
+   A DEATH INTERRUPTS A RUN; IT DOES NOT TERMINATE IT.
+
+   Before this table a foodless character's away fight ended at the FIRST death
+   and the remaining eleven-and-a-half hours of a twelve-hour night paid ~0.1%.
+   That is not a difficulty curve, it is a cliff with no signage, and it was the
+   single largest retention loss measured on the beta.
+
+   So: on death the character is KNOCKED OUT for `recoveryFor(...)`, then gets
+   back up at `resumeHpFor(maxHp)` and RESUMES THE SAME ACTIVITY.
+
+   IT IS A TABLE, NEXT TO THE OTHER TABLE, AND IT IS DELIBERATELY *NOT* AN
+   `AWAY_SCOPE` ENTRY. AWAY_SCOPE answers exactly one question — "does this bonus
+   CHANNEL pay while away" — and Recovery is not a bonus channel: it is a
+   property of the CHARACTER (`player_state.recovering_until`, an absolute SERVER
+   timestamp). Both callers simply refuse to swing while it runs — `simulateSpan`
+   skips the tick, the live combat-start intent refuses with `recovering` — so
+   the rule is identical live and away BY CONSTRUCTION and AWAY-1 byte parity is
+   preserved without a second code path. Putting it in AWAY_SCOPE would have made
+   it an away-only rule, which is precisely the shape docs/design/away-time-ruling
+   .md exists to forbid.
+
+   THE LADDER (rev. 2, Designer ruling 2026-09-06). Recovery is NOT flat. The
+   flat rule was measured and rejected: at a 30-minute survival span a foodless
+   character still kept 93.75% of a fed character's output, so "carry food" was
+   advice rather than a decision (exploit R4). The cost of falling therefore
+   DOUBLES with every fall on the SAME UTC DAY:
+
+     n (deaths today, INCLUDING this one)   1    2    3    4     5     6    >=7
+     knocked out                            0   2m   4m   8m   16m   32m    64m
+
+   TWO DURABLE ANCHORS, BOTH SERVER-OWNED, NEITHER RE-ARMABLE BY A CLIENT:
+     · `deathsTodayBefore`    player_progress kind='stat' key='deaths'
+                              period=<UTC day>. The free fall is ONE PER DAY,
+                              anchored to a row the server writes — never
+                              "deaths in this settle window", because the client
+                              owns the settle cadence and a free death per window
+                              is a free death per reload (this WAS rev. 1's
+                              known limitation, and it is what closes it).
+     · `deathsLifetimeBefore` player_progress kind='stat' key='deaths' period=''.
+                              THE NOVICE GRACE: while a character's LIFETIME
+                              death count is <= NOVICE_GRACE_DEATHS the ladder is
+                              clamped to one rung, so somebody's first evening
+                              cannot be spent staring at a 32-minute timer. It is
+                              lifetime-anchored precisely so it cannot be farmed:
+                              it runs out once, forever.
+
+   A NaN in either counter is treated as the HARSHEST reading (veteran, many
+   deaths today). Garbage must never buy relief. */
+
+/** One rung. The second fall of a day costs this; each one after doubles it. */
+export const RECOVERY_BASE_MS = 120000;
+/** The ceiling. 64 minutes — rung 7 and every rung after it. */
+export const RECOVERY_CAP_MS = 3840000;
+/** Lifetime deaths through which the ladder is held at one rung. */
+export const NOVICE_GRACE_DEATHS = 5;
+/** The rung a novice is held to. */
+export const NOVICE_GRACE_MS = RECOVERY_BASE_MS;
+
+/**
+ * How long is this character knocked out for?
+ *
+ * PURE, and it is the ONLY definition of the ladder — both runtimes import it,
+ * so there is no second copy to drift. Both counts are READ BEFORE this death
+ * is added, which is what makes the caller's arithmetic (`D_at_span_start +
+ * deaths_so_far`) an in-span escalation with no extra bookkeeping.
+ *
+ * @param o { deathsTodayBefore, deathsLifetimeBefore }
+ * @returns ms of Knocked Out: 0 for the day's first fall, then the ladder.
+ */
+export function recoveryFor(o) {
+  const c = o || {};
+  /* `harsh` — a non-finite or negative count reads as a LARGE one. The only
+     values these two counters buy are relief, so garbage must buy none. */
+  const harsh = (v) => {
+    const n = Math.floor(Number(v));
+    return isFinite(n) && n >= 0 ? n : Infinity;
+  };
+  const n = harsh(c.deathsTodayBefore) + 1;      // deaths today AFTER this one
+  const L = harsh(c.deathsLifetimeBefore) + 1;   // deaths ever  AFTER this one
+
+  if (n <= 1) return 0;
+  /* 2^(n-2) with the exponent bounded first: n can be Infinity (garbage), and
+     `Math.pow` would hand back Infinity for the ladder rather than the cap. */
+  const rungs = Math.min(n - 2, 30);
+  let ms = Math.min(RECOVERY_BASE_MS * Math.pow(2, rungs), RECOVERY_CAP_MS);
+  if (L <= NOVICE_GRACE_DEATHS) ms = Math.min(ms, NOVICE_GRACE_MS);
+  return ms;
+}
+
+/* ── STANDING BACK UP (rev. 2) ──────────────────────────────────────────────
+   A death used to end in a FULL heal, which quietly made dying the cheapest
+   way to top up: a character with no food fought to the floor and got their
+   whole health bar back for the price of the timer. The character now gets up
+   at a FRACTION of their maximum, and the fraction sits deliberately just ABOVE
+   Auto-Eat I's 25% trigger — a fed character is topped up by their own
+   provisions on the next swing, a foodless one starts the next fight already
+   most of the way back down. Food is the way off the floor; the timer only
+   stops the bleeding. `max(1, …)` because a 1-HP character is standing and a
+   0-HP one is dead, and rounding UP is the direction that cannot loop. */
+export const RESUME_HP_FRACTION = 0.40;
+
+/** The HP a character stands back up on. PURE; one definition, both runtimes. */
+export function resumeHpFor(maxHp) {
+  const m = Math.floor(Number(maxHp));
+  if (!isFinite(m) || m <= 0) return 1;
+  return Math.max(1, Math.min(m, Math.ceil(RESUME_HP_FRACTION * m)));
+}
+
 export const DAY_MS = 86400000;
 
 /* ── THE CREDITED WINDOW (Ruling 2, 2026-08-15) ─────────────────────────────

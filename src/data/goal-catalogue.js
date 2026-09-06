@@ -35,6 +35,16 @@
    exactly as before. Its `mirror:'stats.kills'` equals `ev:kill_any` anyway. */
 export const QUEST_REWARDS = Object.freeze({
   gatherer:    { checkKey: 'ev:gather',   goal: 15, gold: 150 },
+  /* ⚠ THE GOLD IS THE WHOLE SERVER BINDING, and that is why this row did NOT
+     move when its reward changed. `hr_claim_quest` credits gold and nothing
+     else — no quest row in this catalogue has ever carried an item — so the
+     ITEM half of a quest reward lives in src/legacy.js QUEST_DEFS and is paid
+     by the client against a once-guard the server owns. First-Night Idle
+     Rescue changed that half (carrot_seed x3 -> RAW shrimp x30, 2026-09-05);
+     `gold: 200` is unchanged, so the SQL catalogue in
+     2026-08-20-goal-reward-rpc-credit.sql is unchanged too and the drift guard
+     stays green by construction rather than by exemption. If an item ever
+     becomes SERVER-credited, it is added here AND to that CASE together. */
   first_cook:  { checkKey: 'ev:cooked',   goal: 5,  gold: 200 },
   first_blood: { checkKey: 'ev:kill_any', goal: 5,  gold: 150 },
   /* b497: goal 10 → 6. Onboarding step 4 was a TWO-grow-cycle wall at the

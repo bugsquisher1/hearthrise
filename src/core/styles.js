@@ -88,11 +88,31 @@ export const COMBAT_STYLES = {
   },
 };
 
-/** The style a fresh character (or a corrupt save) gets per weapon type. */
-export const DEFAULT_STYLE_KEYS = { sword: 'accurate', hammer: 'smash', ranged: 'rapid', magic: 'cast' };
+/** The style a fresh character (or a corrupt save) gets per weapon type.
+ *
+ * ── WHY SWORD DEFAULTS TO `controlled` AND NOT `accurate` (2026-09-05) ──────
+ * Live proof on the QA account: Attack 13, Strength 1 (0 xp), Defence 1 (0 xp)
+ * after ~200 kills, because the player never opened the style picker. Most
+ * players never do. `accurate` is `xp:{attack:1}` — the ONLY family default
+ * that trains a skill outside the damage set, so a hands-off sword player gets
+ * a max hit frozen at Strength 1 AND a permanently tiny combat-XP cap (the
+ * anti-forgery clamp keys on dmg_level = max(strength, ranged, magic), which
+ * never leaves 1). The other three family defaults do train their family's
+ * damage skill — `smash`→Strength, `rapid`→Ranged, `cast`→Magic — so this trap
+ * is unique to sword and only sword moves. A hands-off default must build the
+ * whole melee triple: `controlled` is xp {attack .33, strength .33, defence .34}.
+ * A player who has explicitly chosen Accurate keeps it — only the UNCHOSEN
+ * resolution changes, and the server agrees because it resolves `{}` through
+ * this same table (accrual.js → normaliseStyleKeys). Guarded by
+ * `sword default trains all three melee skills` in smoke-test.js and by
+ * section A of tests/combat-style.mjs.
+ */
+export const DEFAULT_STYLE_KEYS = { sword: 'controlled', hammer: 'smash', ranged: 'rapid', magic: 'cast' };
 
-/** The style object used when a weapon type or a stored key is unknown. */
-export const FALLBACK_STYLE = COMBAT_STYLES.sword.accurate;
+/** The style object used when a weapon type or a stored key is unknown.
+ *  DERIVED from the table above, never restated: the fallback and the default
+ *  are one fact, and this file used to hold two copies of it. */
+export const FALLBACK_STYLE = COMBAT_STYLES.sword[DEFAULT_STYLE_KEYS.sword];
 
 /** Damage-XP multiplier: a hit for N pays N x 4 to the trained skill(s). */
 export const HIT_XP_PER_DAMAGE = 4;
@@ -107,7 +127,15 @@ export const HIT_HP_XP_PER_DAMAGE = 1.33;
 export function resolveStyle(weaponType, styleKeys) {
   const t = COMBAT_STYLES[weaponType] ? weaponType : 'sword';
   const family = COMBAT_STYLES[t];
-  const key = (styleKeys && styleKeys[t]) || Object.keys(family)[0];
+  /* THE UNCHOSEN RESOLUTION IS `DEFAULT_STYLE_KEYS`, NOT `Object.keys(family)[0]`.
+     Those two were the same value by coincidence until 2026-09-05, and the
+     coincidence was load-bearing in three places (this line, the catalogue's
+     is_default flag, and legacy.js's picker highlight). Reading the default
+     table makes "what does unchosen mean" a single fact that authored key ORDER
+     — i.e. the order the picker renders buttons in — can no longer silently
+     change. `Object.keys(family)[0]` stays as the last resort for a family that
+     somehow has no default entry at all. */
+  const key = (styleKeys && styleKeys[t]) || DEFAULT_STYLE_KEYS[t] || Object.keys(family)[0];
   return family[key] || FALLBACK_STYLE;
 }
 

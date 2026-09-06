@@ -228,12 +228,23 @@ revoke all on public.hr_combat_styles from public, anon, authenticated, service_
 -- Refilled wholesale: this file OWNS the whole table. Order and defaults are
 -- BYTE-EQUAL to src/core/styles.js — `DEFAULT_STYLE_KEYS` for the flag,
 -- authored key order for `sort_ord`.
+-- 2026-09-05: the SWORD DEFAULT MOVED accurate -> controlled. `sort_ord` is
+-- picker order and is unchanged; only the flag moved. `is_default` is read by
+-- NO runtime code (the engine resolves an unchosen family through
+-- src/core/styles.js DEFAULT_STYLE_KEYS, which is vendored into the Edge
+-- Function) — it is the SERVER'S DECLARATION of the same fact, bound to the
+-- client table by tests/combat-style.mjs section A. Re-running this file's
+-- catalogue block is therefore tidy-up, not a behaviour change.
+-- WHY: `accurate` is xp:{attack:1}. A player who never opens the picker
+-- trained Attack only — live QA account: Attack 13, Strength 1, Defence 1
+-- after ~200 kills — which also pinned the combat-XP anti-forgery cap, since
+-- it keys on dmg_level = max(strength, ranged, magic).
 delete from public.hr_combat_styles;
 insert into public.hr_combat_styles (family, style_key, is_default, sort_ord) values
-  ('sword',  'accurate',   true,  1),
+  ('sword',  'accurate',   false, 1),
   ('sword',  'aggressive', false, 2),
   ('sword',  'defensive',  false, 3),
-  ('sword',  'controlled', false, 4),
+  ('sword',  'controlled', true,  4),
   ('hammer', 'smash',      true,  1),
   ('hammer', 'crush',      false, 2),
   ('hammer', 'guard',      false, 3),
@@ -245,9 +256,9 @@ insert into public.hr_combat_styles (family, style_key, is_default, sort_ord) va
   ('magic',  'warded',     false, 3);
 
 -- Exactly one default per family, enforced by the DATABASE and not by the
--- insert above. resolveStyle falls back to `Object.keys(family)[0]`, so a
--- catalogue with two defaults (or none) would disagree with the engine about
--- what "unchosen" means.
+-- insert above. resolveStyle resolves an unchosen family through
+-- DEFAULT_STYLE_KEYS (src/core/styles.js), so a catalogue with two defaults (or
+-- none) would disagree with the engine about what "unchosen" means.
 create unique index if not exists hr_combat_styles_one_default
   on public.hr_combat_styles (family) where is_default;
 

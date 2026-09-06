@@ -329,7 +329,8 @@ export async function coreAnchorGuard() {
     }
     if (stl.resolveStyle('magic', { magic: 'focus' }).name !== 'Focus') problems.push('resolveStyle ignored the stored key');
     if (stl.resolveStyle('magic', { magic: 'nonsense' }) !== stl.FALLBACK_STYLE) problems.push('an unknown style key must fall back, not crash');
-    if (stl.resolveStyle('slingshot', null).name !== 'Accurate') problems.push('an unknown weapon type must fall back to sword/accurate');
+    if (stl.resolveStyle('slingshot', null).name !== 'Controlled') problems.push('an unknown weapon type must fall back to the SWORD DEFAULT (DEFAULT_STYLE_KEYS.sword, "controlled" since 2026-09-05)');
+    if (stl.resolveStyle('sword', null) !== stl.COMBAT_STYLES.sword[stl.DEFAULT_STYLE_KEYS.sword]) problems.push('an unchosen sword style must resolve to DEFAULT_STYLE_KEYS.sword, not the first authored key');
     const hit = stl.hitXpRoute(stl.COMBAT_STYLES.sword.aggressive, 5);
     if (JSON.stringify(hit) !== JSON.stringify([{ skill: 'strength', amount: 20 }, { skill: 'hitpoints', amount: 6 }])) {
       problems.push('hitXpRoute drifted: ' + JSON.stringify(hit));

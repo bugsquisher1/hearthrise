@@ -1044,10 +1044,24 @@ async function snapshotIfDue(force, keepalive) {
        capstone save gets the same hardening as every other write. It returns
        null on a definitive failure — map that to a rejected fetch so
        putClientState reports {ok:false, error:'transport'} as designed. */
+    /* Q-1 — THE TAB-CLOSE SAVE MUST SURVIVE THE TAB CLOSING.
+       `keepalive` is threaded into the residue write for exactly the reason the
+       blob upsert below sets it (see the `if (keepalive)` line there): this
+       branch RETURNS before that line, so from the capstone onward the
+       pagehide/visibility-hidden save was a plain fetch that the browser
+       cancels on teardown — up to a full 60s cadence of self-only progress
+       (bestiary, achievements, quests, dungeon cooldowns, buffs, the
+       daily-reward shown-marker) lost on EVERY tab close and every mobile
+       backgrounding. putClientState / buildClientStatePutRequest owns the flag
+       and the 64 KiB keepalive body ceiling; the cadence, the allowlist and the
+       patch are untouched.
+       retryWrite mirrors the blob path (`retryWrite: !keepalive`): on the
+       parting shot there is no page left to sleep 500ms in, and a second
+       keepalive body would double-spend the browser's small inflight quota. */
     const put = await putClientState(patch, {
-      url: base, anonKey, jwt, pinnedSlot: config.slot,
+      url: base, anonKey, jwt, pinnedSlot: config.slot, keepalive: !!keepalive,
       fetch: async (u, init) => {
-        const res = await fetchWithAuthRetry(u, () => init, 'client_state', { retryWrite: true });
+        const res = await fetchWithAuthRetry(u, () => init, 'client_state', { retryWrite: !keepalive });
         if (!res) throw new Error('transport_failed');
         return res;
       },

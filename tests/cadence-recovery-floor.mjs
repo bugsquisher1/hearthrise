@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/cadence-recovery-floor.mjs — SECURITY F1: THE ATTENDED CADENCE RPCs
-// MUST FLOOR THEIR CREDIT WINDOW AT `recovering_until`.
+// MUST FLOOR THEIR CREDIT WINDOW AT `recovering_until` AND CAP ITS END AT THE
+// MOMENT THE SERVER SAYS THE CHARACTER LEFT COMBAT.
 //
 //   node tests/cadence-recovery-floor.mjs            the guard (static, no credentials)
 //   node tests/cadence-recovery-floor.mjs --selftest green first, then every mutation must go RED
@@ -26,6 +27,22 @@
 // number since 2026-08-18), and the kill counters are graded by hr_renown_of and
 // PAID by hr_claim_daily. A forged value that crosses into another player's
 // ranking is the one outcome CLAUDE.md's server-authority section forbids.
+//
+// ── THE SECOND FAILURE, MEASURED LIVE (2026-09-06 11:43 UTC, stock client) ──
+// A read-only sweep of `player_ledger` on the QA character found:
+//
+//   11:41:38  kind=combat  intent=xp_credit  credit 40  elapsed_ms 52742
+//             meta.active_kind "idle"   meta.kind_mismatch true
+//
+// Fifty-two seconds of combat XP paid while the SERVER's own activity pointer
+// said `idle`. `kind_mismatch` was already journalled — 2026-08-31 wrote "a
+// single post-fight flush is plausible; a RUN of them is a forgery tell" — and
+// the window was PAID anyway. The fix CAPS THE WINDOW END at the switch instant
+// (`player_state.active_since` while the pointer is not 'combat'), which is the
+// opposite operation to the recovery floor and deliberately so: a knockout says
+// "nothing BEFORE this is payable", a switch says "nothing AFTER it is". A final
+// post-fight flush is entirely pre-switch and still pays in full; a window
+// entirely after the switch credits ZERO with `reason:'not_in_combat'`.
 //
 // ── WHY A GUARD AT ALL, GIVEN THE MIGRATION SELF-CHECKS ITSELF ──────────────
 // 2026-09-06-cadence-recovery-floor.sql's §4 proves every one of these
@@ -73,6 +90,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}
    exactly the vacuous-guard shape this file is written to avoid. Slice first,
    assert second. */
 const MARKS = {
+  pre:   ['-- ── 0. PRECONDITIONS', '-- ── 1. hr_credit_kills__ungated'],
   kills: ['-- ── 1. hr_credit_kills__ungated — THE RECOVERY FLOOR',
           '-- ── 2. hr_credit_combat_xp__ungated — THE RECOVERY FLOOR'],
   xp:    ['-- ── 2. hr_credit_combat_xp__ungated — THE RECOVERY FLOOR',
@@ -106,7 +124,8 @@ const CHECKS = [
     + "migration's TODO specified, and combat XP is the SERVER-SOURCED leaderboard number"],
 
   // ── THE LINE IS THE SERVER'S ────────────────────────────────────────────
-  ['kills', (s) => /select\s+recovering_until\s+into\s+v_recovering/.test(s)
+  ['kills', (s) => s.includes('select recovering_until, active_kind, active_since')
+                && s.includes('into v_recovering, v_active_kind, v_active_since')
                 && s.includes('from public.player_state where user_id = v_uid and slot = v_slot'),
     'the kills floor does not read player_state.recovering_until off the server row'],
   ['xp', (s) => s.includes('select combat_xp_accrued_to, accrued_to, active_kind, recovering_until'),
@@ -122,10 +141,15 @@ const CHECKS = [
     'hr_credit_kills__ungated has no knocked-out short-circuit'],
   ['xp', (s) => s.includes('if v_recovering is not null and now() < v_recovering then'),
     'hr_credit_combat_xp__ungated has no knocked-out short-circuit'],
-  ['kills', (s) => s.includes("'credited', 0,") && s.includes("'credit', 0, 'claimed', v_claimed, 'cap', 0"),
-    'the kills recovering receipt does not zero EVERY credited quantity (credited / credit / cap)'],
-  ['xp', (s) => s.includes("'credited', '{}'::jsonb, 'credit', 0,"),
-    'the combat-XP recovering receipt does not zero credited / credit'],
+  /* COUNTED, not merely present: BOTH refusal arms (recovering and
+     not_in_combat) spell the zeroed receipt identically, so `includes` alone
+     would still pass with one of the two forged to return the CLAIMED figure. */
+  ['kills', (s) => (s.match(/'credited', 0,/g) || []).length >= 2
+                && (s.match(/'credit', 0, 'claimed', v_claimed, 'cap', 0/g) || []).length >= 2,
+    'a kills refusal receipt does not zero EVERY credited quantity (credited / credit / cap) in BOTH arms — a '
+    + 'refusal that reports a payment it did not make is believed by every reader of the receipt'],
+  ['xp', (s) => (s.match(/'credited', '\{\}'::jsonb, 'credit', 0,/g) || []).length >= 2,
+    'a combat-XP refusal receipt does not zero credited / credit in BOTH arms'],
   ['kills', (s) => s.includes("'reason', 'recovering'"),
     "the kills refusal is not NAMED — a silent zero is indistinguishable from a throttle"],
   ['xp', (s) => s.includes("'reason', 'recovering'"),
@@ -140,9 +164,11 @@ const CHECKS = [
                 /* FIVE writes are guarded by position — the XP watermark stamp, the skill
                    credit, the XP idempotency append, the kill credit-log append and the kill
                    progress writes. Counted, not merely "present somewhere": the comparison
-                   is spelled identically in all five, so a `s.includes` would still pass
-                   with four of them deleted. */
-                && (s.match(/v_ret >= v_write/g) || []).length >= 5
+                   is spelled identically in all of them, so a `s.includes` would still pass
+                   with all but one deleted. TEN, not five: the not-in-combat arm gets the
+                   same five position proofs as the recovering arm, because it is the same
+                   hazard (a refusal that retires a window nobody paid for). */
+                && (s.match(/v_ret >= v_write/g) || []).length >= 10   /* five per ARM, two arms */
                 && s.includes('the combat-XP short-circuit does not return BEFORE the watermark stamp'),
     'the migration no longer proves that the combat-XP short-circuit returns BEFORE `combat_xp_accrued_to = now()` — '
     + 'a refused knockout would RETIRE an unpaid window, so the floor would cost the player the very time it declined to pay for'],
@@ -193,6 +219,96 @@ const CHECKS = [
     'the kills patch is not guarded by its own marker — it would double-insert on a re-apply'],
   ['xp', (s) => s.includes("strpos(v_def, 'SECURITY F1 - THE RECOVERY FLOOR') > 0"),
     'the combat-XP patch is not guarded by its own marker — it would double-insert on a re-apply'],
+
+  // ══ ARM 2 — THE NOT-IN-COMBAT END-CAP ═══════════════════════════════════
+  // Live evidence: 2026-09-06 11:41:38 UTC, 40 combat XP over elapsed 52742 ms
+  // with active_kind 'idle' and kind_mismatch true. Journalled, and paid.
+
+  // ── THE END IS THE SERVER'S SWITCH INSTANT, IN BOTH BODIES ──────────────
+  ['kills', (s) => s.includes("v_combat_end := case when v_active_kind is distinct from 'combat'")
+                && s.includes("then least(now(), coalesce(v_active_since, 'epoch'::timestamptz))"),
+    'hr_credit_kills__ungated does not compute the not-in-combat window END from the server activity pointer'],
+  ['xp', (s) => s.includes("v_combat_end := case when v_active_kind is distinct from 'combat'")
+             && s.includes("then least(now(), coalesce(v_active_since, 'epoch'::timestamptz))"),
+    'hr_credit_combat_xp__ungated does not compute the not-in-combat window END — this is the exact 52742 ms '
+    + 'idle credit measured live on 2026-09-06'],
+  ['kills', (s) => s.includes("coalesce(v_active_since, 'epoch'::timestamptz)"),
+    'the kills end-cap does not FAIL CLOSED on a NULL active_since — a row that cannot say when the character '
+    + 'stopped fighting would get to bill for the ambiguity, against accrual.js SKIP.NO_ACTIVE_SINCE'],
+  ['xp', (s) => s.includes("coalesce(v_active_since, 'epoch'::timestamptz)"),
+    'the combat-XP end-cap does not FAIL CLOSED on a NULL active_since'],
+  ['kills', (s) => s.includes('least(now(), coalesce(v_active_since'),
+    'the kills end-cap is not clamped to now() — a FUTURE active_since would LENGTHEN the window and the cap '
+    + 'would be a faucet'],
+  ['xp', (s) => s.includes('least(now(), coalesce(v_active_since'),
+    'the combat-XP end-cap is not clamped to now() — a future active_since would lengthen the window'],
+
+  // ── ALL THREE WINDOWS ACTUALLY END AT IT ────────────────────────────────
+  ['kills', (s) => s.includes('greatest(0, floor(extract(epoch from (v_combat_end - v_anchor)) * 1000)::bigint)'),
+    'the BOUNTY-FREE window still ends at now() — a modified client that keeps reporting kills after it leaves '
+    + 'combat is still paid at the physical cap'],
+  ['kills', (s) => s.includes('v_elapsed := greatest(0, floor(extract(epoch from (v_combat_end -'),
+    'the BOUNTY window still ends at now() — a bounty accepted before the switch keeps billing wall time'],
+  ['xp', (s) => s.includes('v_elapsed := greatest(0, floor(extract(epoch from (v_combat_end - v_wm)) * 1000)::bigint);'),
+    'the combat-XP window still ends at now() — the RANKED leaderboard number keeps being paid for time the '
+    + 'server says the character was not fighting'],
+
+  // ── ZERO, NAMED, AND THE SWITCH IS NOT A CLIENT VALUE ───────────────────
+  ['kills', (s) => s.includes("if v_elapsed <= 0 and v_active_kind is distinct from 'combat' then")
+                && s.includes("'reason', 'not_in_combat'"),
+    'hr_credit_kills__ungated has no not-in-combat short-circuit, or the refusal is not NAMED'],
+  ['xp', (s) => s.includes("if v_elapsed <= 0 and v_active_kind is distinct from 'combat' then")
+             && s.includes("'reason', 'not_in_combat'"),
+    'hr_credit_combat_xp__ungated has no not-in-combat short-circuit, or the refusal is not NAMED'],
+  ['kills', (s) => s.includes('select recovering_until, active_kind, active_since'),
+    'the kills body does not read active_kind AND active_since off the server row — the cap would have nothing '
+    + 'server-known to cap against'],
+  ['xp', (s) => s.includes('select combat_xp_accrued_to, accrued_to, active_kind, recovering_until, active_since'),
+    'the combat-XP body does not read active_since inside the `for update` row lock it already takes'],
+  ['kills', (s) => !/v_active_since\s*:?=\s*\(?\s*p_/.test(s) && !/v_combat_end\s*:?=\s*\(?\s*p_/.test(s),
+    'the kills end-cap takes the switch instant from a PARAMETER — the client would choose when it stopped fighting'],
+  ['xp', (s) => !/v_active_since\s*:?=\s*\(?\s*p_/.test(s) && !/v_combat_end\s*:?=\s*\(?\s*p_/.test(s),
+    'the combat-XP end-cap takes the switch instant from a PARAMETER'],
+
+  // ── THE TELL SURVIVES, AND THE NEW SIGNAL OBEYS JOURNAL RULE 6 ──────────
+  ['kills', (s) => s.includes("'kind_mismatch', true"),
+    'the kills not-in-combat audit row dropped `kind_mismatch` — it was the ONLY signal the live 2026-09-06 '
+    + '11:41:38 row left behind, and every existing query over that field must keep finding these calls'],
+  ['xp', (s) => s.includes("'kind_mismatch', true"),
+    'the combat-XP not-in-combat audit row dropped `kind_mismatch`'],
+  ['kills', (s) => s.includes("intent = 'kill_credit_not_in_combat'") && s.includes('at >= public.hr_utc_day_start(now())'),
+    'the kills not-in-combat audit row is not bounded to one per character per UTC day — an idle client polling '
+    + 'the 60 s cadence would file a ledger row per poll, which is the game_events mistake at ledger scale'],
+  ['xp', (s) => s.includes("intent = 'xp_credit_not_in_combat'") && s.includes('at >= public.hr_utc_day_start(now())'),
+    'the combat-XP not-in-combat audit row is not bounded to one per character per UTC day'],
+  ['kills', (s) => s.includes("'bounty', 'kill_credit_not_in_combat', 0, 0, 0, 0, 0,"),
+    'the kills not-in-combat audit row carries a VALUE stamp — a refusal moves nothing and must not enter the '
+    + 'daily progression budget or any conservation sum'],
+  ['xp', (s) => s.includes("'combat', 'xp_credit_not_in_combat', 0, 0, 0, 0,"),
+    'the combat-XP not-in-combat audit row carries a VALUE stamp'],
+
+  // ── THE SELF-CHECK STILL PROVES ARM 2 ───────────────────────────────────
+  ['check', (s) => s.includes("if strpos(v_k, 'SECURITY F1 - THE NOT-IN-COMBAT CAP') = 0 then")
+                && s.includes("if strpos(v_x, 'SECURITY F1 - THE NOT-IN-COMBAT CAP') = 0 then"),
+    'the self-check does not assert the not-in-combat marker in BOTH bodies — a patch that no-oped on one of the '
+    + 'two would leave that door open and report success'],
+  ['check', (s) => s.includes('F1 self-check (o1)') && s.includes('F1 self-check (o2)')
+                && s.includes('F1 self-check (o3)') && s.includes('F1 self-check (o4)'),
+    'the self-check no longer EVALUATES the end-cap (a window entirely after the switch prices 0 and both caps '
+    + 'pay 0; a straddling window is shortened to exactly its pre-switch part; a NULL active_since fails closed; '
+    + 'an IN-COMBAT window is untouched). Text checks cannot prove arithmetic, and o4 is the one that would catch '
+    + 'this arm becoming a tax on honest attended play'],
+  ['check', (s) => s.includes("v_ret := strpos(v_x, $q$'reason', 'not_in_combat', 'active_kind', v_active_kind);$q$);")
+                && s.includes("v_ret := strpos(v_k, $q$'reason', 'not_in_combat', 'active_kind', v_active_kind);$q$);"),
+    'the self-check no longer proves the not-in-combat arm returns BEFORE the writes in both bodies'],
+
+  // ── THE HALF-STATE GUARD (§0) ───────────────────────────────────────────
+  ['pre', (s) => s.includes("strpos(v_k, 'SECURITY F1 - THE NOT-IN-COMBAT CAP') = 0 then")
+              && s.includes("strpos(v_x, 'SECURITY F1 - THE NOT-IN-COMBAT CAP') = 0 then"),
+    'the preconditions no longer FAIL CLOSED on a body that carries arm 1 but not arm 2 — an earlier revision of '
+    + 'this file rewrote the anchors arm 2 needs, so a blind re-run would half-patch and report success'],
+  ['pre', (s) => s.includes("column_name='active_since'"),
+    'the preconditions no longer require player_state.active_since — without it the end-cap is decoration'],
 ];
 
 /* ── THE MUTATION CATALOGUE ───────────────────────────────────────────────
@@ -245,7 +361,9 @@ const MUTATIONS = {
   floor_reads_parameter: {
     why: 'the kills floor takes its recovery line from a PARAMETER instead of the server column — the client '
        + 'would choose the length of its own punishment, which is the whole failure class server authority exists for',
-    find: '  select recovering_until into v_recovering\n    from public.player_state where user_id = v_uid and slot = v_slot;',
+    find: '  select recovering_until, active_kind, active_since\n'
+        + '    into v_recovering, v_active_kind, v_active_since\n'
+        + '    from public.player_state where user_id = v_uid and slot = v_slot;',
     repl: '  v_recovering := (p_target)::text::timestamptz;',
   },
   position_check_removed: {
@@ -286,6 +404,104 @@ const MUTATIONS = {
     repl: "    if false then\n    raise notice 'hr_credit_combat_xp__ungated already carries the recovery floor",
   },
 };
+/* ── ARM 2 MUTATIONS. The brief's two named shapes, in both bodies: strip the
+   arm from one body, and make it PAY after the switch. ────────────────────── */
+Object.assign(MUTATIONS, {
+  strip_endcap_xp: {
+    why: 'the combat-XP window END goes back to now() — the arm PAYS AFTER THE SWITCH again, which is exactly '
+       + 'the live 2026-09-06 11:41:38 row (40 XP over 52742 ms with active_kind idle) and it is the RANKED '
+       + 'leaderboard number',
+    find: 'v_elapsed := greatest(0, floor(extract(epoch from (v_combat_end - v_wm)) * 1000)::bigint);',
+    repl: 'v_elapsed := greatest(0, floor(extract(epoch from (now() - v_wm)) * 1000)::bigint);',
+  },
+  strip_endcap_kills_free: {
+    why: 'the BOUNTY-FREE window END goes back to now() — a client that keeps reporting kills after it leaves '
+       + 'combat is paid at the physical cap into the daily ev:kill_any row hr_claim_daily PAYS against',
+    find: '    v_elapsed := least(c_free_window_ms,\n'
+        + '                       greatest(0, floor(extract(epoch from (v_combat_end - v_anchor)) * 1000)::bigint));',
+    repl: '    v_elapsed := least(c_free_window_ms,\n'
+        + '                       greatest(0, floor(extract(epoch from (now() - v_anchor)) * 1000)::bigint));',
+  },
+  strip_endcap_kills_bounty: {
+    why: 'the BOUNTY window END goes back to now() — a bounty accepted before the player stopped fighting keeps '
+       + 'billing wall time into a RANKED counter (hr_renown_of grades ev:kill_monster:*)',
+    find: 'v_elapsed := greatest(0, floor(extract(epoch from (v_combat_end -',
+    repl: 'v_elapsed := greatest(0, floor(extract(epoch from (now() -',
+  },
+  strip_arm2_from_xp_body: {
+    why: 'the ENTIRE not-in-combat arm is stripped out of the combat-XP body while the kills body keeps it — the '
+       + 'exact half-patch shape the self-check has to catch per body, and it would leave the ranked surface open',
+    find: "  v_combat_end := case when v_active_kind is distinct from 'combat'\n"
+        + "                       then least(now(), coalesce(v_active_since, 'epoch'::timestamptz))\n"
+        + '                       else now() end;$anc$);',
+    repl: '  v_combat_end := now();$anc$);',
+  },
+  xp_nic_short_circuit_off: {
+    why: 'the combat-XP not-in-combat short-circuit is disarmed — a zero-length post-switch window stops being '
+       + 'NAMED, so the one signal a support answer or an abuse query could key on disappears',
+    find: "  if v_elapsed <= 0 and v_active_kind is distinct from 'combat' then\n    -- ONE VALUE-FREE LEDGER ROW",
+    repl: '  if false then\n    -- ONE VALUE-FREE LEDGER ROW',
+  },
+  kills_nic_short_circuit_off: {
+    why: 'the kills not-in-combat short-circuit is disarmed — the call runs on and APPENDS to hr_kill_credit_log, '
+       + 'advancing the bounty-free anchor across a window nobody paid for',
+    find: "  if v_elapsed <= 0 and v_active_kind is distinct from 'combat' then\n    if v_free then",
+    repl: '  if false then\n    if v_free then',
+  },
+  endcap_fails_open_on_null: {
+    why: 'a NULL active_since stops failing closed — a row that cannot say when the character stopped fighting '
+       + 'gets to bill the whole window, against accrual.js SKIP.NO_ACTIVE_SINCE, which is the house rule',
+    find: "coalesce(v_active_since, 'epoch'::timestamptz)",
+    repl: 'coalesce(v_active_since, now())',
+  },
+  endcap_reads_parameter: {
+    why: 'the combat-XP end-cap overwrites the server-read switch instant with a PARAMETER — the client would '
+       + 'choose when it stopped fighting, which is the whole failure class server authority exists for',
+    find: "  v_combat_end := case when v_active_kind is distinct from 'combat'",
+    repl: "  v_active_since := (p_xp->>'since')::timestamptz;\n"
+        + "  v_combat_end := case when v_active_kind is distinct from 'combat'",
+  },
+  endcap_evaluation_removed: {
+    why: 'the self-check stops EVALUATING the end-cap arithmetic — the straddle case (pay only the pre-switch '
+       + 'part) and the in-combat no-op are properties no amount of text-matching can recover once the '
+       + 'evaluation is gone',
+    find: "    raise exception 'F1 self-check (o1)",
+    repl: "    raise exception 'F1 self-check (disabled o1)",
+  },
+  half_state_guard_removed: {
+    why: 'the §0 half-state guard is removed, so a database patched by the EARLIER revision of this file (arm 1 '
+       + 'only) would be re-run against anchors that no longer exist and end up half-patched, GREEN',
+    find: "  if strpos(v_k, 'SECURITY F1 - THE RECOVERY FLOOR') > 0\n"
+        + "     and strpos(v_k, 'SECURITY F1 - THE NOT-IN-COMBAT CAP') = 0 then",
+    repl: '  if false then',
+  },
+  kills_nic_credits_claim: {
+    why: 'the kills not-in-combat receipt returns the CLAIMED figure as credited — the refusal reports a payment '
+       + 'it did not make, and the client bar, a support answer and any log reader all believe it',
+    find: "    v_out := jsonb_build_object('ok', true, 'target', p_target, 'credited', 0,\n"
+        + "      'credit', 0, 'claimed', v_claimed, 'cap', 0, 'throttled', false,\n"
+        + "      'bounty', not v_free, 'day', v_day, 'slot', v_slot,\n"
+        + "      'reason', 'not_in_combat'",
+    repl: "    v_out := jsonb_build_object('ok', true, 'target', p_target, 'credited', v_claimed,\n"
+        + "      'credit', v_claimed, 'claimed', v_claimed, 'cap', v_claimed, 'throttled', false,\n"
+        + "      'bounty', not v_free, 'day', v_day, 'slot', v_slot,\n"
+        + "      'reason', 'not_in_combat'",
+  },
+  nic_audit_row_moves_value: {
+    why: 'the combat-XP not-in-combat audit row starts stamping xp_in — a refusal that moves NO value would '
+       + "enter hr_day_budget_used and every conservation sum, and would eat the player's real daily budget",
+    find: "        (v_uid, v_slot, 'combat', 'xp_credit_not_in_combat', 0, 0, 0, 0,",
+    repl: "        (v_uid, v_slot, 'combat', 'xp_credit_not_in_combat', 0, 0, v_cap, 0,",
+  },
+  nic_audit_row_unbounded: {
+    why: 'the kills not-in-combat audit row loses its one-per-UTC-day bound — an idle client on the 60 s cadence '
+       + 'files a ledger row per poll, per player, which is journal rule 6 broken at ledger scale',
+    find: "                      and intent = 'kill_credit_not_in_combat'\n"
+        + '                      and at >= public.hr_utc_day_start(now())) then',
+    repl: '                      and false) then',
+  },
+});
+
 /* `marker_guard_removed`'s find must match the file's real indentation. */
 MUTATIONS.marker_guard_removed.find =
   "  if strpos(v_def, 'SECURITY F1 - THE RECOVERY FLOOR') > 0 then\n"
@@ -346,6 +562,22 @@ async function runReplay() {
 
   ok(k.includes('SECURITY F1 - THE RECOVERY FLOOR'), 'replay: the LIVE kills body does not carry the floor');
   ok(x.includes('SECURITY F1 - THE RECOVERY FLOOR'), 'replay: the LIVE combat-XP body does not carry the floor');
+  ok(k.includes('SECURITY F1 - THE NOT-IN-COMBAT CAP'), 'replay: the LIVE kills body does not carry the not-in-combat cap');
+  ok(x.includes('SECURITY F1 - THE NOT-IN-COMBAT CAP'), 'replay: the LIVE combat-XP body does not carry the not-in-combat cap');
+  /* The three windows, read off the bodies the ORDERED CHAIN actually builds —
+     which is the only place a patch that no-oped against a moved anchor shows
+     up, because a no-oped `replace()` leaves the file looking perfect. */
+  ok(k.includes('(v_combat_end - v_anchor)'), 'replay: the LIVE bounty-free window does not end at v_combat_end');
+  ok(k.includes('v_elapsed := greatest(0, floor(extract(epoch from (v_combat_end -'),
+    'replay: the LIVE bounty window does not end at v_combat_end');
+  ok(x.includes('(v_combat_end - v_wm)'), 'replay: the LIVE combat-XP window does not end at v_combat_end');
+  for (const [name, body] of [['kills', k], ['combat-XP', x]]) {
+    ok(body.includes("v_combat_end := case when v_active_kind is distinct from 'combat'")
+       && body.includes("coalesce(v_active_since, 'epoch'::timestamptz)"),
+      `replay: the LIVE ${name} body does not derive the window end from the server activity pointer, fail-closed`);
+    ok(body.includes("if v_elapsed <= 0 and v_active_kind is distinct from 'combat' then"),
+      `replay: the LIVE ${name} body has no not-in-combat short-circuit`);
+  }
   ok(k.includes('kill_credited'), 'replay: the renown credited counters were ERASED from the kills body');
   ok(k.includes('kills_stat') && k.includes('daily_kill_settle_absorbed'),
     'replay: a kill-daily-credit control was erased from the kills body');
@@ -362,6 +594,39 @@ async function runReplay() {
   before(x, RET, 'insert into public.hr_combat_xp_credit_log', 'the combat-XP idempotency append');
   before(k, RET, 'insert into public.hr_kill_credit_log', 'the kill credit-log append');
   before(k, RET, 'insert into public.player_progress as p', 'the kill progress writes');
+
+  /* The SAME five proofs for the not-in-combat arm. It is the same hazard: a
+     refusal that reached a write would retire a window nobody paid for. */
+  const RET2 = "'reason', 'not_in_combat', 'active_kind', v_active_kind);";
+  before(x, RET2, 'set combat_xp_accrued_to = now()', 'the combat-XP watermark stamp (not-in-combat arm)');
+  before(x, RET2, 'update public.player_skills set xp = xp + v_credit', 'the skill credit (not-in-combat arm)');
+  before(x, RET2, 'insert into public.hr_combat_xp_credit_log', 'the combat-XP idempotency append (not-in-combat arm)');
+  before(k, RET2, 'insert into public.hr_kill_credit_log', 'the kill credit-log append (not-in-combat arm)');
+  before(k, RET2, 'insert into public.player_progress as p', 'the kill progress writes (not-in-combat arm)');
+
+  /* EVALUATED on the replay database: the end-cap arithmetic itself, against the
+     REAL caps. o1 is the live 2026-09-06 row (a window wholly after the switch);
+     o2 is the honest post-fight flush (a window straddling it); o4 is the
+     property that keeps this arm from taxing ordinary attended play. */
+  const cap = `least(now(), coalesce($1::timestamptz, 'epoch'::timestamptz))`;
+  const ms = `greatest(0, floor(extract(epoch from (${cap} - $2::timestamptz)) * 1000)::bigint)`;
+  const price = async (sw, t0) =>
+    Number((await db.query(`select ${ms} m, public.hr_combat_xp_cap(99, ${ms}) c`, [sw, t0])).rows[0].m);
+  const capOf = async (sw, t0) =>
+    Number((await db.query(`select public.hr_combat_xp_cap(99, ${ms}) c`, [sw, t0])).rows[0].c);
+  const T = (min) => new Date(Date.now() - min * 60000).toISOString();
+  ok(await price(T(5), T(2)) === 0 && await capOf(T(5), T(2)) === 0,
+    'replay(o1): a window ENTIRELY AFTER the switch out of combat still prices time — the live 2026-09-06 '
+    + '11:41:38 credit (40 XP over 52742 ms with active_kind idle) would still be paid');
+  const straddle = await price(T(5), T(8));
+  ok(straddle >= 179000 && straddle <= 181000,
+    `replay(o2): a window STRADDLING the switch priced ${straddle} ms; only its pre-switch 180000 ms is payable`);
+  ok(await price(null, T(8)) === 0,
+    'replay(o3): a pointer with NO active_since still priced time — it must fail closed (accrual.js SKIP.NO_ACTIVE_SINCE)');
+  const inCombat = Number((await db.query(
+    "select greatest(0, floor(extract(epoch from (now() - $1::timestamptz)) * 1000)::bigint) m", [T(8)])).rows[0].m);
+  ok(inCombat >= 479000 && inCombat <= 481000,
+    `replay(o4): an IN-COMBAT window priced ${inCombat} ms — the cap must be a byte-for-byte no-op while the pointer says combat`);
 
   // The caps must pay nothing for a floored window — evaluated, not asserted.
   const z = await db.query('select public.hr_bounty_kill_cap(500, 99, 0) a, public.hr_combat_xp_cap(99, 0) b');
@@ -432,9 +697,11 @@ try {
   const replay = argv.includes('--replay');
   const n = await run(null, { replay });
   if (n) { console.error(`\ncadence-recovery-floor: ${n} violation(s).`); process.exit(1); }
-  console.log('cadence-recovery-floor: Security F1 is closed — BOTH attended cadence bodies floor their credit '
+  console.log('cadence-recovery-floor: Security F1 is closed — BOTH attended cadence bodies FLOOR their credit '
     + 'window at player_state.recovering_until (the bounty-free anchor, the bounty accepted_at window and the '
-    + 'combat-XP watermark), credit ZERO with a named reason while the line runs, return before every write so no '
+    + 'combat-XP watermark) and CAP its END at the moment player_state says the character left combat (so a '
+    + 'post-fight flush still pays for pre-switch time and nothing pays for time after it), '
+    + 'credit ZERO with a named reason (recovering / not_in_combat), return before every write so no '
     + 'watermark is retired unpaid, patch by anchored insert rather than restatement so no predecessor patch is '
     + 'erased, and file at most one value-free audit row per character per UTC day'
     + (replay ? ' — VERIFIED ON A REBUILT CHAIN, including the return-before-write ordering and the ungated ACL.'

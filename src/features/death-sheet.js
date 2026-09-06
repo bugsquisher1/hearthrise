@@ -279,6 +279,14 @@
        a counter would survive a reload and Recovery is precisely the thing that
        must not. 0 when up, or when the server never stated a line. */
     var recoverLeft = Math.max(0, (Number(d.recoveringUntilMs) || 0) - (Number(d.nowMs) || 0));
+    /* WHICH OF THE FIVE STATES THIS SHEET IS DESCRIBING (attended-death P0).
+       Absent ⇒ derive the pre-b510 pair from the timer alone, so every caller
+       that predates this field — the away receipt, the whole existing suite —
+       renders byte-for-byte what it did. The two NEW states are the ones the
+       old sheet could not tell apart from a free fall: `pending` (the server
+       has not priced the window the fall is in yet) and `unconfirmed` (it did,
+       and there was no death in it). */
+    var phase = String(d.fallPhase || '') || (recoverLeft > 0 ? 'recovering' : 'down-free');
 
     /* THE TIP RULE. Held-and-unused beats everything, because it is the only
        branch where the player already owned the answer — that is the most
@@ -323,14 +331,30 @@
        is the one place a player learns that before they walk into the next
        fight on it. `resumeHp` is STATED by the simulation, not recomputed here,
        so the sheet and the server cannot round differently. */
-    rows.push({ g: 'uiHeart', tone: 'ok', k: 'healed', t: 'You got back up at 40% health',
-      v: (resumeHp > 0 ? resumeHp : maxHp) + ' / ' + maxHp });
+    /* NOT ON AN UNCONFIRMED FALL: nobody stood up, because per the server
+       nobody went down. Claiming a 40% resume there would be the same class of
+       invention this whole change removes. */
+    if (phase !== 'unconfirmed') {
+      rows.push({ g: 'uiHeart', tone: 'ok', k: 'healed', t: 'You got back up at 40% health',
+        v: (resumeHp > 0 ? resumeHp : maxHp) + ' / ' + maxHp });
+    }
     /* WHAT DYING ACTUALLY COSTS — the ladder, stated where the player can see
        it rather than discovered later as a missing number. Two rows, because
        the day's FIRST fall and its fourth are different events and one line
        that covered both would have to be vague about the only number that
        matters. */
-    if (nToday <= 1 || recoveryMs <= 0) {
+    if (phase === 'pending') {
+      /* THE HONEST ROW WHILE THE ANSWER IS IN FLIGHT. The server floor is 60 s
+         (ACCRUE_MIN_MS), so a fall early in a fight cannot be priced yet — and
+         the one thing this sheet must not do is fill that gap with a number.
+         It says it is asking, and the renderer replaces this row in place the
+         moment the envelope lands. */
+      rows.push({ g: 'uiHourglass', tone: 'ok', k: 'run-stopped',
+        t: 'Asking the hearth how long you are down', v: '…' });
+    } else if (phase === 'unconfirmed') {
+      rows.push({ g: 'uiHourglass', tone: 'ok', k: 'run-stopped',
+        t: 'The hearth recorded no fall — your run never stopped', v: 'no delay' });
+    } else if (nToday <= 1 || recoveryMs <= 0) {
       rows.push({ g: 'uiHourglass', tone: 'ok', k: 'run-stopped',
         t: 'First fall of the day — you are back on your feet at once', v: 'no delay' });
     } else {
@@ -374,14 +398,25 @@
          THAT first — "The Slime got you" describes a thing that already
          finished, and the sheet would then be silent about the only fact that
          governs their next tap. */
-      title: recoverLeft > 0
-        ? 'Knocked out'
-        : (monsterName ? 'The ' + monsterName + ' got you' : 'You fell'),
-      lead: recoverLeft > 0
-        ? 'Back on your feet in ' + mmss(recoverLeft) + '.'
-        : (nToday <= 1
-          ? 'Your first fall today. Nothing is lost but a moment — here is what happened.'
-          : 'You have fallen ' + nToday + ' times today. Each one takes longer to shake off.'),
+      title: phase === 'pending'
+        ? 'You fell'
+        : (phase === 'unconfirmed'
+          ? 'Still standing'
+          : (recoverLeft > 0
+            ? 'Knocked out'
+            : (monsterName ? 'The ' + monsterName + ' got you' : 'You fell'))),
+      lead: phase === 'pending'
+        ? 'Asking the hearth how long you are down…'
+        : (phase === 'unconfirmed'
+          ? 'The hearth found no fall in that stretch — your run never stopped.'
+          : (recoverLeft > 0
+            ? 'Back on your feet in ' + mmss(recoverLeft) + '.'
+            : (nToday <= 1
+              ? 'Your first fall today. Nothing is lost but a moment — here is what happened.'
+              : 'You have fallen ' + nToday + ' times today. Each one takes longer to shake off.'))),
+      /* STATED on the model so the renderer can tell a re-render it must do
+         (the phase moved) from one it must not (a second ticked by). */
+      fallPhase: phase,
       /* The renderer re-draws the lead from this every second. Stated rather
          than re-derived there, so one function owns the arithmetic. */
       recoverMsLeft: recoverLeft,
@@ -419,11 +454,21 @@
          button sends a slot and an idempotency key and nothing else. */
       restHp: missingHp,
       restSub: 'Eating your way back up clears the timer. Food is the fastest way off the floor.',
-      actions: (recoverLeft > 0 && missingHp > 0
-        ? [{ k: 'rest', label: 'Rest at the Hearth — eat ' + missingHp + ' health', primary: true },
-           { k: 'table', label: 'Back to the War Table' }]
-        : [{ k: 'again', label: monsterName ? 'Fight ' + monsterName + ' again' : 'Fight again', primary: true },
-           { k: 'table', label: 'Back to the War Table' }])
+      /* NO "Fight again" WHILE THE FALL IS UNRESOLVED, and that is not caution:
+         `startCombat` declares a new activity, hr_apply stamps
+         `accrued_to = now()` on any activity delta, and the window the fall is
+         waiting to be priced in would be erased by the tap. Pending offers the
+         door out and nothing else; unconfirmed offers the way back, because
+         the run the player is being returned to never stopped. */
+      actions: (phase === 'pending'
+        ? [{ k: 'table', label: 'Back to the War Table' }]
+        : (phase === 'unconfirmed'
+          ? [{ k: 'table', label: 'Back to the fight', primary: true }]
+          : (recoverLeft > 0 && missingHp > 0
+            ? [{ k: 'rest', label: 'Rest at the Hearth — eat ' + missingHp + ' health', primary: true },
+               { k: 'table', label: 'Back to the War Table' }]
+            : [{ k: 'again', label: monsterName ? 'Fight ' + monsterName + ' again' : 'Fight again', primary: true },
+               { k: 'table', label: 'Back to the War Table' }])))
     };
   }
 
@@ -538,9 +583,58 @@
          counters seeded onto the state — the sheet re-derives none of it.
          Falling back to `1 / 0` is the under-claiming direction: a sheet with
          nothing stated promises no penalty rather than inventing one. */
-      deathsToday: Math.max(1, Number(info && info.deathsToday) || 1),
-      recoveryMs: Math.max(0, Number(info && info.recoverMs) || 0),
-      nextRecoveryMs: Math.max(0, Number(info && info.nextRecoverMs) || 0),
+      /* THE LADDER, FROM THE SERVER'S OWN COUNTERS (`state.deaths_today` /
+         `deaths_lifetime`, hr_state_of). `info.deathsToday` is the SIMULATION's
+         number, which is right on the away path (the engine seeded it from
+         those same rows) and garbage on the live one (nothing seeds
+         `G.deathsTodayBefore`, so `resolveDeath` falls back to the lifetime
+         tally). Server first, engine second, 1 last — the under-claiming order,
+         since a sheet with nothing stated promises no penalty. */
+      deathsToday: (function () {
+        try {
+          var AC = window.HearthriseAccrual;
+          var n = (AC && typeof AC.deathsToday === 'function') ? Math.floor(AC.deathsToday()) : 0;
+          if (n > 0) return n;
+        } catch (e) {}
+        return Math.max(1, Number(info && info.deathsToday) || 1);
+      })(),
+      /* WHAT THIS FALL COST, from the SERVER's counters through the same pure
+         ladder the engine stamps from: fall number `deaths_today` was charged
+         `recoveryFor(deathsTodayBefore = deaths_today - 1)`. The engine's own
+         `info.recoverMs` is the fallback and is correct on the away path, where
+         the state WAS seeded from those rows. */
+      recoveryMs: (function () {
+        try {
+          var AC = window.HearthriseAccrual;
+          var A = window.HearthriseCore && window.HearthriseCore.away;
+          var today = (AC && typeof AC.deathsToday === 'function') ? Math.floor(AC.deathsToday()) : 0;
+          var life = (AC && typeof AC.deathsLifetime === 'function') ? Math.floor(AC.deathsLifetime()) : 0;
+          if (today > 0 && A && typeof A.recoveryFor === 'function') {
+            return Math.max(0, A.recoveryFor({
+              deathsTodayBefore: Math.max(0, today - 1),
+              deathsLifetimeBefore: Math.max(0, life - 1),
+            }) || 0);
+          }
+        } catch (e) {}
+        return Math.max(0, Number(info && info.recoverMs) || 0);
+      })(),
+      /* WHAT THE NEXT FALL COSTS, derived from the SERVER's counters through
+         the same pure ladder the engine stamps from (src/core/away.js
+         `recoveryFor`) — so the warning cannot promise a rung nobody charges.
+         Falls back to the engine's own answer when the counters are absent (an
+         older server), which is exactly the away path's case. */
+      nextRecoveryMs: (function () {
+        try {
+          var AC = window.HearthriseAccrual;
+          var A = window.HearthriseCore && window.HearthriseCore.away;
+          var today = (AC && typeof AC.deathsToday === 'function') ? Math.floor(AC.deathsToday()) : 0;
+          var life = (AC && typeof AC.deathsLifetime === 'function') ? Math.floor(AC.deathsLifetime()) : 0;
+          if (today > 0 && A && typeof A.recoveryFor === 'function') {
+            return Math.max(0, A.recoveryFor({ deathsTodayBefore: today, deathsLifetimeBefore: life }) || 0);
+          }
+        } catch (e) {}
+        return Math.max(0, Number(info && info.nextRecoverMs) || 0);
+      })(),
       resumeHp: Math.max(0, Number(info && info.resumeHp) || Number(G.playerHp) || 0),
       /* What "Rest at the Hearth" costs, in health. The SERVER recomputes it
          under the row lock and this number never crosses back — it is a label. */
@@ -551,18 +645,35 @@
          reads 0, and every recovery branch on this sheet simply does not fire.
          `info.recoverMs` is the engine's own answer for the death that JUST
          happened, used only until the next envelope confirms it. */
+      /* ⚠ NO CLIENT FALLBACK ANY MORE (attended-death P0, 2026-09-06). This
+         used to fall back to `info.recoverMs` — the engine's own answer for the
+         death that just happened — "until the next envelope confirms it". On
+         the ATTENDED path no envelope ever confirmed it, because the client
+         declared idle and the server never simulated the fall; and the fallback
+         itself was wrong twice over, since `resolveDeath` adds the LIFETIME
+         `stats.deaths` to an unseeded `deathsTodayBefore` and therefore quoted
+         a fifth-fall rung on a first fall. Measured live: the sheet counted
+         down from 1:38 against a server row of NULL. A timer this client cannot
+         source from an envelope is not shown at all — `fallPhase` below says
+         so instead. */
       recoveringUntilMs: (function () {
         try {
           var AC = window.HearthriseAccrual;
-          var t = (AC && typeof AC.recoveringUntilMs === 'function') ? AC.recoveringUntilMs() : 0;
-          if (t > 0) return t;
+          return (AC && typeof AC.recoveringUntilMs === 'function') ? (AC.recoveringUntilMs() || 0) : 0;
+        } catch (e) { return 0; }
+      })(),
+      /* WHERE THE CHARACTER STANDS, as src/net/accrue.js `fallState` reports it
+         from the envelope: pending / recovering / down-free / unconfirmed / up.
+         The sheet BRANCHES on this rather than inferring a state from whether a
+         number happens to be zero — "no timer" is three different facts (a
+         free first fall, an answer still in flight, and a fall the server never
+         saw) and the old sheet told all three the same story. */
+      fallPhase: (function () {
+        try {
+          var AC = window.HearthriseAccrual;
+          if (AC && typeof AC.fallState === 'function') return AC.fallState().phase || '';
         } catch (e) {}
-        /* The engine's own answer for the death that JUST happened, used only
-           until the next envelope confirms it — the sheet opens before the
-           settle round-trips. `recoverMs` is 0 on a first-ever death (the
-           grace), so that sheet correctly never shows a countdown. */
-        var rec = Number(info && info.recoverMs) || 0;
-        return rec > 0 ? (Date.now() + rec) : 0;
+        return '';
       })(),
       nowMs: Date.now(),
       /* Did the bag hold ANYTHING auto-eatable at this moment? The same chooser
@@ -628,13 +739,19 @@
       '.hr-death-tip{margin:14px 0 0;padding:11px 12px;border-radius:10px;',
       '  background:rgba(0,0,0,.28);border:1px solid rgba(201,162,74,.34);',
       '  font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-2,#cbbfae);line-height:1.5}',
-      '.hr-death-tip b{display:block;color:var(--gold-2,#c9a24a);font-size:calc(13px * var(--ui-scale,1));',
+      /* b227's 14.5px reading floor, not 13. This label and the link below sat
+         under it since b373 and no guard had ever SEEN them: the stylesheet is
+         injected by ensureStyle() on the first render, and until RECOVER-10
+         mounted the sheet in the suite nothing in a test run had ever opened it.
+         The two rules are the whole diff; the uppercase label simply reads at
+         the size the rest of the game does. Flagged to the Art Director. */
+      '.hr-death-tip b{display:block;color:var(--gold-2,#c9a24a);font-size:calc(14.5px * var(--ui-scale,1));',
       '  letter-spacing:.09em;text-transform:uppercase;margin-bottom:4px}',
       /* display:block — as an inline button it wrapped onto the tail of the
          tip paragraph ("…think about it again.Open the Bounty Shop"), which
          read as a run-on sentence rather than an action. Verified in browser. */
       '.hr-death-shop{display:block;background:none;border:0;padding:0;margin-top:8px;font:inherit;text-align:left;',
-      '  font-size:calc(14px * var(--ui-scale,1));color:var(--gold-2,#c9a24a);',
+      '  font-size:calc(14.5px * var(--ui-scale,1));color:var(--gold-2,#c9a24a);',
       '  text-decoration:underline;cursor:pointer}',
       /* STICKY, not merely last. On a 922x423 landscape phone the sheet is
          taller than the viewport and the two actions sat below the fold —
@@ -668,7 +785,20 @@
     if (el) el.classList.remove('show');
   }
 
-  function render(model, moment) {
+  /* The two server-owned facts this sheet is a view of, read as cheaply as
+     possible so the 1 Hz watch below can compare them without rebuilding the
+     whole moment (which walks the inventory). */
+  function serverFall() {
+    var out = { phase: '', until: 0 };
+    try {
+      var AC = window.HearthriseAccrual;
+      if (AC && typeof AC.fallState === 'function') out.phase = AC.fallState().phase || '';
+      if (AC && typeof AC.recoveringUntilMs === 'function') out.until = AC.recoveringUntilMs() || 0;
+    } catch (e) {}
+    return out;
+  }
+
+  function render(model, moment, info) {
     ensureStyle();
     var root = document.getElementById(ROOT_ID);
     if (!root) {
@@ -720,19 +850,37 @@
        clears it too), because a timer that outlives its sheet is the class of
        leak this file has no other instance of. */
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
-    if (model.recoverMsLeft > 0) {
-      var until = Date.now() + model.recoverMsLeft;
-      countdownTimer = setInterval(function () {
-        var left = until - Date.now();
-        var lead = root.querySelector('.hr-death-lead');
-        if (!lead) { clearInterval(countdownTimer); countdownTimer = null; return; }
-        if (left > 0) { lead.textContent = 'Back on your feet in ' + mmss(left) + '.'; return; }
-        clearInterval(countdownTimer); countdownTimer = null;
-        lead.textContent = 'You are back on your feet.';
-        var h2 = root.querySelector('.hr-death-top h2');
-        if (h2) h2.textContent = model.title === 'Knocked out' ? 'Back up' : model.title;
-      }, 1000);
-    }
+    /* ── THE WATCH (attended-death P0, 2026-09-06) ─────────────────────
+       ONE 1 Hz timer with two jobs, because they are the same job: draw the
+       countdown from the SERVER's absolute instant, and notice when that
+       instant (or the phase) changes because an envelope landed. The sheet
+       opens on an attended death BEFORE the fall has been priced — the server
+       floor is 60 s — so a sheet that only counted down would be frozen on
+       "Asking the hearth" for the rest of its life, which is the same defect as
+       the invented timer it replaces, wearing honest words.
+
+       It compares only the two cheap server reads and rebuilds the whole moment
+       exactly when one of them moved; `render` clears this handle on entry, so
+       the re-render owns the next tick and there is never a second timer. */
+    var watch = { phase: model.fallPhase || '', until: Number(moment && moment.recoveringUntilMs) || 0 };
+    countdownTimer = setInterval(function () {
+      var el = document.getElementById(ROOT_ID);
+      if (!el || !el.classList.contains('show')) { clearInterval(countdownTimer); countdownTimer = null; return; }
+      var now = serverFall();
+      if ((now.phase && now.phase !== watch.phase) || now.until !== watch.until) {
+        var next = readMoment(info);
+        render(describeDeath(next), next, info);
+        return;
+      }
+      var lead = el.querySelector('.hr-death-lead');
+      if (!lead) { clearInterval(countdownTimer); countdownTimer = null; return; }
+      if (!(watch.until > 0)) return;              // nothing to count down
+      var left = watch.until - Date.now();
+      if (left > 0) { lead.textContent = 'Back on your feet in ' + mmss(left) + '.'; return; }
+      lead.textContent = 'You are back on your feet.';
+      var h2 = el.querySelector('.hr-death-top h2');
+      if (h2) h2.textContent = model.title === 'Knocked out' ? 'Back up' : model.title;
+    }, 1000);
     root.classList.add('show');
     return root;
   }
@@ -824,7 +972,10 @@
     if (!document || !document.body) return null;
     var moment = readMoment(info);
     var model = describeDeath(moment);
-    render(model, moment);
+    /* `info` is carried through so the watch can rebuild the moment when the
+       server answers — the engine's death info does not change, only the
+       server's reading of it does. */
+    render(model, moment, info);
     return model;
   }
 

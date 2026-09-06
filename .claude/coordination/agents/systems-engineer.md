@@ -3268,3 +3268,65 @@ assembled gate stays the Coordinator's). Nine mutations reinstating each shipped
 required to turn its NAMED test red (`tools/_gem-mutate.mjs`). Census selftest: six mutations, all
 red. Gold census still 68/68. `arm-homing-guard` 75/75 unchanged (`_gemUnlocks` is `_`-scratch).
 `bump-version.sh --check` green at 501; no version bump, no push, no prod writes.
+
+---
+
+## 2026-09-06 — ATTENDED DEATH IS THE SERVER'S (P0 from the b509 live play-gate)
+
+**Branch** `worktree agent-a2d6d4904531de04a`, off `b3f283a8`.
+
+### The root cause, in one line
+`src/legacy.js` `COMBAT_FX.onDeath` (live branch) called `stopCombat()`, and `stopCombat()`
+declares `idle`. hr_apply stamps `accrued_to = now()` on any delta carrying `activity`
+(the S5 half, `supabase/migrations/2026-08-15-gem-daily-budget.sql`), and the collect that runs
+before the switch refuses any window under `ACCRUE_MIN_MS` (60 s). So an attended death 19 s into a
+fight CLOSED the window it happened in without anything ever simulating it: no `recovering_until`,
+no `deaths` delta, no ledger row, and the pre-rev.2 free full heal (the envelope's raise-only hp
+floor then wrote the server's stale-full 12/12 straight back over the 40% resume). Meanwhile the
+sheet counted down from 1:38 — a rung `resolveDeath` computed by adding the LIFETIME
+`G.stats.deaths` to an unseeded `deathsTodayBefore`, because nothing seeds those on the live client.
+
+### The fix, and why it is an ABSENCE
+A fall stops the SWING and nothing else. The pointer survives ⇒ the window stays open ⇒ the next
+settle prices it with the ONE engine that already handles away deaths (AWAY-12). No second death
+path, no new verb, no edge change, no SQL. The client records that it asked (`noteFall`), asks at
+the earliest LEGAL instant (`noteSettleEvent('death')` — §3.6's existing degraded event trigger),
+and renders the answer off the envelope. Five phases, stated rather than inferred from whether a
+number happens to be zero: `up / pending / recovering / down-free / unconfirmed`.
+
+### What I deliberately did NOT do
+* **Did not lower `ACCRUE_MIN_MS`.** Security owns it; `ACCRUE_MIN_SPAN_MS`'s comment in
+  src/net/accrue.js says in as many words that this file may not change the floor and that the
+  event trigger therefore ships DEGRADED. The cost is real and is the one honest limitation: a fall
+  early in a fight waits up to ~60 s for its timer, and the sheet says it is asking rather than
+  inventing one.
+* **Did not touch `src/core/**`.** It is packed verbatim into hr-accrue; one byte there forces a
+  coordinated redeploy. The live stand-up (full-HP foe, same fight) is therefore a 4-line restatement
+  of `simulateSpan`'s `if (downed)` branch in legacy.js, documented as such at the site.
+* **Did not add a persisted field.** Nothing here survives a reload, deliberately (exploit R1):
+  after a reload the only truth is `player_state.recovering_until` off the next envelope.
+
+### Learnings worth keeping
+1. **"The server answered" is `accrued_to >= the fall`, not "an envelope arrived" and not "a
+   recovery line exists".** The day's first fall is a real, confirmed death with NO line at all; a
+   stale sync arrives with no line either. Keying on the line would resolve every free fall as a
+   divergence. The watermark is the only fact that distinguishes them.
+2. **Any client number that has no envelope behind it will eventually be shown to a player as
+   truth.** `info.recoverMs` was added as a stopgap "until the next envelope confirms it" — and on
+   the path where no envelope ever came, the stopgap WAS the product. The rule that replaces it: if
+   the sheet cannot source it from `state`, the sheet says it is asking.
+3. **The engine's `resolveDeath` ladder inputs are away-shaped.** `deathsTodayBefore` /
+   `deathsLifetimeBefore` are seeded by the accrual engine from `player_progress`; live they are
+   `undefined`, and `soFar = G.stats.deaths` (lifetime) is added to both. Any live surface reading
+   `info.deathsToday` / `recoverMs` is reading garbage. The counters are on the envelope
+   (`state.deaths_today` / `deaths_lifetime`) — use those.
+
+### Handoffs
+* **Coordinator:** no edge redeploy for this lane (no `supabase/**`, no `src/core/**` change). One
+  new CI step registered in `.github/workflows/smoke.yml`; `run-ci-local.mjs` derives it.
+* **CONFLICTS.md:** semantic overlap with the `agent-a9c422306456b86bd` cadence-floor lane (cause vs
+  effect of the same live rows) and a standing P2 — an activity switch inside 60 s silently forfeits
+  the window with no ledger row.
+* **Art Director:** while a fall is pending/recovering the combat panel now shows a PAUSED fight
+  behind the sheet (pointer intact, monster at 0 HP) instead of an emptied one. The sheet covers it,
+  but the panel itself has no "knocked out" state yet. Small, visible, and not mine.

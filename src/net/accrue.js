@@ -910,6 +910,146 @@ let lastEnvelopeComplete = false;   // was the most recently observed envelope c
    has stated one. SERVER TRUTH, cached for rendering — never authored here and
    never counted down. See applyEnvelopeState. */
 let recoveringUntil = 0;
+/* ══════════════════════════════════════════════════════════════════════════
+   THE FALL, AS A QUESTION FOR THE SERVER (attended-death P0, 2026-09-06)
+   ══════════════════════════════════════════════════════════════════════════
+   THE MEASURED BUG. b509 made a death an INTERRUPTION with a cost — a recovery
+   line, a deaths counter, a ledger row, a resume at 40%. Live on the QA account
+   the whole rule held for the AWAY path and NONE of it for the attended one:
+   the client fell, `stopCombat()` declared `idle`, and the server therefore
+   never simulated the span the death was in. Measured after an attended death:
+   `recovering_until` NULL, hp 12/12 (the old free full heal), no `deaths` row,
+   no ledger row, pointer `idle` — while the sheet on screen counted down from
+   1:38. A number the client invented against a ladder rung the server never
+   charged, on a run the server had been told was over.
+
+   THE RULE THIS IMPLEMENTS. A fall is not a client verdict; it is a QUESTION.
+   The client stops SWINGING (it has no business predicting past a death) and
+   stops NOTHING ELSE: the activity pointer survives, so the window containing
+   the death stays open and the very next settle prices it with the engine that
+   already handles away deaths. `simulateSpan` finds the death, stamps
+   `recovering_until`, writes the `deaths` delta and the ledger row, stands the
+   character up at 40% and CARRIES THE RUN ON — one death path, as AWAY-12
+   requires. This module only records that the question was asked and reads the
+   answer back off the envelope.
+
+   ⚠ THE ANSWER CAN TAKE UP TO A MINUTE, AND THAT IS THE SERVER FLOOR, NOT A
+     DEFECT HERE. `ACCRUE_MIN_MS` is 60 s and Security owns it (see
+     ACCRUE_MIN_SPAN_MS below — "this file may not change the floor"), so a
+     death 19 s into a fight cannot be priced until second 60. `noteSettleEvent`
+     makes the settle happen at the earliest LEGAL instant; until it lands the
+     sheet says it is asking, and states NOTHING it cannot source from an
+     envelope. The alternative — rendering the client's guess — is the bug.
+
+   ⚠ NOTHING HERE IS PERSISTED, DELIBERATELY. Recovery must not survive a
+     reload as a client-held countdown (exploit R1): after a reload the only
+     truth is `player_state.recovering_until`, which arrives on the next
+     envelope, and a pending fall simply resolves to whatever the server says.
+   ══════════════════════════════════════════════════════════════════════════ */
+/* The last instant the server priced, off `state.accrued_to`. A window that
+   ends at or after the fall is a window the engine has SIMULATED, so this — and
+   not the presence of a recovery line — is what "the server has answered"
+   means: the day's free first fall is answered with no timer at all. */
+let accruedToAt = 0;
+/* The server's own death counters, off `state.deaths_today` / `deaths_lifetime`
+   (hr_state_of, 2026-09-06-recovering-until.sql). Rendered, never derived: the
+   client's `G.stats.deaths` is a LIFETIME tally, and `resolveDeath` reading it
+   as the day's count is exactly how the live sheet came to promise a 2-minute
+   rung on what the server would have charged nothing for. */
+let deathsTodayCount = 0;
+let deathsLifetimeCount = 0;
+/* THE PENDING FALL. `at` is when the client saw itself go down (local clock,
+   used only to ask "has a priced window reached it yet"); `answered` flips when
+   one has; `serverDied` is the server's own statement for that window. */
+let fall = { at: 0, answered: false, serverDied: false, answeredAt: 0 };
+
+/** How long a pending fall may go unanswered before the client stops waiting.
+ *  Twice the server floor: one whole legal settle may be missed (a throttled
+ *  tab, a 429, one unreachable round trip) and the question still gets asked
+ *  again before we give up. Giving up does NOT invent a death — it resolves the
+ *  fall as UNCONFIRMED, which the sheet says out loud and the fight resumes on,
+ *  because a client that stays paused forever on a silent server has invented a
+ *  punishment nobody imposed. */
+export const FALL_CONFIRM_TIMEOUT_MS = 2 * 60000;
+
+/** THE SERVER'S OWN SCALARS, read-only and as FUNCTIONS — a caller must not be
+ *  able to capture a stale number, the same rule `recoveringUntilMs` follows.
+ *  Exported (not just published on window) so tests/attended-fall.mjs can drive
+ *  the whole state machine headlessly. */
+export function accruedToMs() { return accruedToAt; }
+export function deathsToday() { return deathsTodayCount; }
+export function deathsLifetime() { return deathsLifetimeCount; }
+
+/** The client saw itself fall. Records the question; sends nothing. */
+export function noteFall(atMs) {
+  const t = Number(atMs);
+  fall = { at: (Number.isFinite(t) && t > 0) ? t : Date.now(), answered: false, serverDied: false, answeredAt: 0 };
+  return fall.at;
+}
+
+/** Forget the pending fall (the player stopped the run, or it resolved). */
+export function clearFall() { fall = { at: 0, answered: false, serverDied: false, answeredAt: 0 }; }
+
+/**
+ * WHERE THE CHARACTER STANDS, from server-stated facts only. PURE given the
+ * module's observations, so the suite can drive every phase without a server.
+ *
+ *   up          nothing is pending and no line is running.
+ *   pending     the client fell and no priced window has reached that instant.
+ *   recovering  the server stated a line and it has not passed.
+ *   down-free   the server priced the window and DID see the fall, with no
+ *               timer — the day's first fall, or a rung that already elapsed.
+ *   unconfirmed the server priced the window and saw NO death in it (a
+ *               divergence between the client's dice and the server's), or it
+ *               never answered in time. The run carries on and the sheet says
+ *               so rather than inventing a knockout.
+ */
+export function fallState(nowArg) {
+  const now = Number.isFinite(Number(nowArg)) ? Number(nowArg) : Date.now();
+  const until = recoveringUntil;
+  if (until > now) {
+    return { phase: 'recovering', until, msLeft: until - now, fellAt: fall.at,
+      answered: true, serverDied: true, deathsToday: deathsTodayCount, deathsLifetime: deathsLifetimeCount };
+  }
+  if (!fall.at) {
+    return { phase: 'up', until: 0, msLeft: 0, fellAt: 0, answered: false, serverDied: false,
+      deathsToday: deathsTodayCount, deathsLifetime: deathsLifetimeCount };
+  }
+  if (fall.answered) {
+    return { phase: fall.serverDied ? 'down-free' : 'unconfirmed', until: 0, msLeft: 0,
+      fellAt: fall.at, answered: true, serverDied: fall.serverDied, deathsToday: deathsTodayCount, deathsLifetime: deathsLifetimeCount };
+  }
+  if (now - fall.at >= FALL_CONFIRM_TIMEOUT_MS) {
+    return { phase: 'unconfirmed', until: 0, msLeft: 0, fellAt: fall.at, answered: false,
+      serverDied: false, timedOut: true, deathsToday: deathsTodayCount, deathsLifetime: deathsLifetimeCount };
+  }
+  return { phase: 'pending', until: 0, msLeft: 0, fellAt: fall.at, answered: false,
+    serverDied: false, deathsToday: deathsTodayCount, deathsLifetime: deathsLifetimeCount };
+}
+
+/** Is the character off their feet right now — the one question the live combat
+ *  tick asks before it swings. `pending` counts: the client has seen itself go
+ *  down and has no business predicting the next swing until the server has
+ *  priced the window it fell in. */
+export function isKnockedOut(nowArg) {
+  const p = fallState(nowArg).phase;
+  return p === 'pending' || p === 'recovering';
+}
+
+/** Observe a priced window off an arriving envelope. Called by
+ *  applyEnvelopeState — every envelope, away or not — so there is ONE reader of
+ *  the server's answer and no second idea of when a fall has been settled. */
+function noteFallAnswer(res) {
+  if (!fall.at || fall.answered) return;
+  if (!(accruedToAt >= fall.at)) return;
+  const away = (res && res.away && typeof res.away === 'object') ? res.away : null;
+  /* THE SERVER'S OWN STATEMENT, in the order of how directly it says it:
+     a running recovery line, then the away receipt's death fields. Never
+     inferred from hp — a 40% hp reading is also what a heal looks like. */
+  const died = recoveringUntil > 0
+    || !!(away && (away.died === true || Number(away.deaths) > 0));
+  fall = { at: fall.at, answered: true, serverDied: died, answeredAt: Date.now() };
+}
 let baselineCompleteCount = 0;      // how many complete envelopes observed this session
 
 /** Does THIS envelope carry the server's baseline-complete assertion? Fail-closed:
@@ -1952,6 +2092,31 @@ export function applyEnvelopeState(G, res, ownKey) {
     recoveringUntil = (Number.isFinite(t) && t > 0) ? t : 0;
     written.recoveringUntil = recoveringUntil;
   }
+
+  /* ── THE PRICED WINDOW AND THE DEATH COUNTERS, OBSERVED ───────────────
+     Same KEY-PRESENCE rule the recovery line above follows, for the same
+     reason: an ABSENT key is an older server and must leave the reading alone,
+     while a present one is the truth. `accrued_to` is what answers a pending
+     fall (see `noteFallAnswer`); `deaths_today` / `deaths_lifetime` are what
+     the death sheet renders instead of re-deriving a ladder rung from
+     `G.stats.deaths`, which is a lifetime tally and produced a two-minute
+     promise on a fall the server charged nothing for. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'accrued_to')) {
+    const a = st.accrued_to ? Date.parse(st.accrued_to) : 0;
+    if (Number.isFinite(a) && a > 0) { accruedToAt = a; written.accruedTo = a; }
+  }
+  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_today')) {
+    const n = Math.floor(Number(st.deaths_today));
+    deathsTodayCount = (Number.isFinite(n) && n >= 0) ? n : 0;
+    written.deathsToday = deathsTodayCount;
+  }
+  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_lifetime')) {
+    const n = Math.floor(Number(st.deaths_lifetime));
+    deathsLifetimeCount = (Number.isFinite(n) && n >= 0) ? n : 0;
+    written.deathsLifetime = deathsLifetimeCount;
+  }
+  /* AFTER all three, because the answer is a function of every one of them. */
+  noteFallAnswer(res);
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
 
@@ -3820,6 +3985,14 @@ if (typeof window !== 'undefined') {
        the client renders `recoveringUntilMs() - Date.now()` and nothing else. */
     recoveringUntilMs: () => recoveringUntil,
     isRecovering: () => recoveringUntil > Date.now(),
+    /* THE ATTENDED FALL (2026-09-06 P0). `noteFall` records the question the
+       combat tick just asked; `fallState` / `isKnockedOut` read the SERVER's
+       answer back. The death sheet renders `fallState()` and nothing it
+       computed itself. `accruedToMs` / `deathsToday` / `deathsLifetime` are the
+       envelope's own scalars, functions for the same reason the recovery line
+       is one — a caller must not be able to capture a stale number. */
+    noteFall, clearFall, fallState, isKnockedOut, FALL_CONFIRM_TIMEOUT_MS,
+    accruedToMs, deathsToday, deathsLifetime,
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     resetEnvelopeDrift, inventoryFlipReadiness,

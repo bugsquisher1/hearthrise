@@ -11,12 +11,33 @@
 //   (2) the authored client rows in src/legacy.js (QUEST_DEFS / DAILY_TASK_POOL),
 //   (3) the server catalogue inside the migration SQL.
 //
-// ── WHY ONLY GOLD, AND WHY ONLY SOME ROWS ───────────────────────────────
+// ── WHY GOLD — AND, SINCE THE QUEST-ITEM SLICE, THE ITEM HALF TOO ───────
 // The gold-arming program moves ONE domain at a time (gold first). Under arm,
 // the client's `updateDaily`/`completeQuest` gold credit no-ops
 // (clientMayWriteRecordField('gold') → false), so the reward has to be paid by
-// a server RPC. That RPC owns the GOLD only; item + combat-XP rewards on a
-// quest stay CLIENT-applied for now (XP/inventory are later arming slices).
+// a server RPC.
+//
+// The QUEST rows now also carry `items` — the SERVER-CREDITED item grant.
+// supabase/migrations/2026-09-06-quest-item-rewards.sql seeds it into
+// public.hr_quest_rewards and hr_claim_quest credits it into player_inventory in
+// the SAME transaction as the gold, once-guarded on the same (user, slot,
+// quest_id) claim row and journalled to player_ledger. `completeQuest` no longer
+// calls `addItem` for a catalogued quest — it mirrors what the RPC says it
+// granted, so the bag and the server agree without a reload.
+//
+// WHY IT HAD TO MOVE (the P1 this closes). A client-only `addItem` is erased
+// post-cutover, and not only in theory: `shrimp` is a FISH_SPOTS product, so
+// `serverOwnedItem('shrimp')` is TRUE, and the moment the away engine EATS one
+// the id joins `consumedKeysOf` and the envelope's figure for it becomes
+// ABSOLUTE (src/net/accrue.js) — the server says 0 and the whole client-minted
+// stack goes. That is TODAY, pre-arm; the inventory arm generalises it to every
+// id. Combat-XP quest rewards (hundred_kills) are still client-applied — the XP
+// arming slice owns that one, and it is tracked, not forgotten.
+//
+// A row's `items` map is the ONLY authoring surface for a quest item reward.
+// tests/quest-reward-parity.mjs binds it to legacy.js QUEST_DEFS and to the SQL
+// seed, and REFUSES an authored QUEST_DEFS item that is not in this catalogue —
+// so a phantom quest item can never be authored again.
 //
 // A row lives here iff the server can BOTH (a) verify its completion from its
 // own `ev:<type>` counter (src/core/goals.js), and (b) own a FIXED gold amount.
@@ -34,22 +55,28 @@
    defers under the gold arm and needs no server credit — the client pays its XP
    exactly as before. Its `mirror:'stats.kills'` equals `ev:kill_any` anyway. */
 export const QUEST_REWARDS = Object.freeze({
-  gatherer:    { checkKey: 'ev:gather',   goal: 15, gold: 150 },
-  /* ⚠ THE GOLD IS THE WHOLE SERVER BINDING, and that is why this row did NOT
-     move when its reward changed. `hr_claim_quest` credits gold and nothing
-     else — no quest row in this catalogue has ever carried an item — so the
-     ITEM half of a quest reward lives in src/legacy.js QUEST_DEFS and is paid
-     by the client against a once-guard the server owns — which is exactly why
-     First-Night Idle Rescue's shrimp grant was REVERTED (Security F2,
-     2026-09-06): a client-only item is deleted by the next server envelope, so
-     first_cook pays GOLD ONLY and no design note may claim it feeds a player's
-     first night. ⚠ CLASS: quest ITEM rewards do not persist post-cutover —
-     server-credit path needed (P1, tracked). `gold: 200` is unchanged, so the SQL catalogue in
-     2026-08-20-goal-reward-rpc-credit.sql is unchanged too and the drift guard
-     stays green by construction rather than by exemption. If an item ever
-     becomes SERVER-credited, it is added here AND to that CASE together. */
-  first_cook:  { checkKey: 'ev:cooked',   goal: 5,  gold: 200 },
-  first_blood: { checkKey: 'ev:kill_any', goal: 5,  gold: 150 },
+  gatherer:    { checkKey: 'ev:gather',   goal: 15, gold: 150, items: Object.freeze({}) },
+  /* ── FIRST-NIGHT IDLE RESCUE, RESTORED ON THE SERVER SIDE ────────────────
+     This row's 30 raw shrimp were WITHDRAWN under Security F2 (2026-09-06)
+     because `completeQuest` paid them through `addItem`, which writes
+     G.inventory only — and `shrimp` is a server-owned id, so the next envelope
+     deleted them. The withdrawal was correct: promising a first-night food
+     stock a reload eats is worse than promising nothing.
+
+     The reward is back because the PATH is fixed, not because the ruling was
+     overturned: hr_claim_quest now credits `items` into player_inventory in the
+     same transaction as the gold. The client never mints it, so there is
+     nothing for an envelope to disagree with. `gold: 200` is unchanged (the
+     Designer's number, untouched), so the CASE catalogue in
+     2026-08-20-goal-reward-rpc-credit.sql needs no edit and
+     tests/goal-catalogue-drift.mjs stays green by construction. */
+  first_cook:  { checkKey: 'ev:cooked',   goal: 5,  gold: 200, items: Object.freeze({ shrimp: 30 }) },
+  /* The two seed grants were ALSO client-minted. They happen to survive today
+     — seeds are in item-authority.js's EXCLUDED set, so the absolute branch may
+     not delete them — but "safe by an accident of which set an id falls in" is
+     not a property, and the inventory arm removes the accident. They move with
+     first_cook so the whole class is closed in one build. */
+  first_blood: { checkKey: 'ev:kill_any', goal: 5,  gold: 150, items: Object.freeze({ turnip_seed: 5 }) },
   /* b497: goal 10 → 6. Onboarding step 4 was a TWO-grow-cycle wall at the
      starting Wanderer's Camp (2 plots × 2-4 turnips ≈ 6 produce a round), the
      same defect b495 fixed on the harvest DAILY. 6 = one harvest round.
@@ -57,8 +84,46 @@ export const QUEST_REWARDS = Object.freeze({
      QUEST_DEFS at render/grade time, `progress` is the save field, and a save
      already carrying progress ≥ 6 completes on its next harvest tick rather
      than re-granting (ensureRetentionState merges BY ID and keeps `done`). */
-  farmhand:    { checkKey: 'ev:harvest',  goal: 6,  gold: 500 },
+  farmhand:    { checkKey: 'ev:harvest',  goal: 6,  gold: 500, items: Object.freeze({ wheat_seed: 5 }) },
 });
+
+/* ── THE ONE NORMALISER FOR A QUEST'S ITEM REWARD ────────────────────────
+   legacy.js authors a quest reward as `{gold, item, qty, combatXp}` — ONE item,
+   because that is all any quest has ever paid. The server catalogue is a MAP,
+   because a table row that can only ever hold one item is a cap you discover at
+   the worst moment. This reads either shape and always answers a map, so the
+   authored form can grow to `items:{a:1,b:2}` without a second reader appearing
+   anywhere. Pure; used by the client, by the parity guard, and by nothing that
+   needs a DOM.
+
+   Zero/negative/unreadable quantities are DROPPED rather than clamped: a `qty:0`
+   is an authoring mistake, and paying "0 turnip seeds" is a lie the receipt
+   would then have to tell. */
+export function questRewardItems(reward) {
+  const out = {};
+  if (!reward || typeof reward !== 'object') return out;
+  if (reward.items && typeof reward.items === 'object') {
+    for (const [id, qty] of Object.entries(reward.items)) {
+      const n = Math.floor(Number(qty) || 0);
+      if (id && n > 0) out[id] = n;
+    }
+  }
+  if (reward.item) {
+    const n = Math.floor(Number(reward.qty) || 1);
+    if (n > 0) out[String(reward.item)] = (out[String(reward.item)] || 0) + n;
+  }
+  return out;
+}
+
+/* True iff the SERVER credits this quest's item reward — i.e. the id is in
+   QUEST_REWARDS and that row authors at least one item. The client uses it to
+   decide whether `completeQuest` may write the bag itself; the parity guard
+   asserts it is true for every QUEST_DEFS row that authors an item, so the
+   client's "not catalogued" fallback is unreachable by construction. */
+export function questItemsAreServerCredited(questId) {
+  const row = QUEST_REWARDS[questId];
+  return !!(row && row.items && Object.keys(row.items).length > 0);
+}
 
 /* DAILY TASKS — the FIXED-reward rows of legacy.js DAILY_TASK_POOL. `type` is
    the goal event; the server reads `ev:<type>` in the kind='daily' population

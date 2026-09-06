@@ -665,14 +665,18 @@ export const GOLD_SITE_LEDGER = Object.freeze({
        lifetime counter (a mirrored quest reads ev:kill_any = stats.kills),
        credits the server-owned gold once-guarded per quest id and journals it
        (kind='quest'). completeQuest fires HearthriseGoalClaim.claimQuest(q.id);
-       the local gold write is a GATED prediction. Item + combat-XP stay client-
-       applied (later arming slices); hundred_kills has no gold and never claims. */
+       the local gold write is a GATED prediction. The ITEM half is server-
+       credited too since 2026-09-06-quest-item-rewards.sql — hr_quest_rewards
+       is looked up in the same transaction, credited into player_inventory on
+       the same once-guard and reported back as `items`, which the client
+       MIRRORS rather than mints. Only combat-XP stays client-applied (the XP
+       arming slice); hundred_kills is XP-only and never claims. */
     flipGuard: { serverCredits: 'hr_claim_quest (2026-08-20-goal-reward-rpc-credit.sql) verifies the '
       + 'kind=stat ev:<type> lifetime counter, owns the fixed gold amount, once-guards a '
       + 'player_progress kind=quest claim row per quest id, journals player_ledger kind=quest.' },
-    blockedBy: 'nothing for the VALUE (gold) — hr_claim_quest credits it. The quest\'s item + combat-XP '
-      + 'rewards stay client-applied until the inventory/XP arming slices; that is a display grant, not '
-      + 'a value that crosses to another player.',
+    blockedBy: 'nothing for the VALUE (gold) or for the ITEM half — hr_claim_quest credits both, in one '
+      + 'transaction, on one once-guard. Only the combat-XP reward (hundred_kills) stays client-applied '
+      + 'until the XP arming slice; that is a display grant, not a value that crosses to another player.',
     site: 'the quest payout',
   },
   'src/legacy.js#claimQuestReward': {

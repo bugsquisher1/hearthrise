@@ -33,6 +33,9 @@ import {
   DAILY_TASK_REQUIREMENTS, dailySeed, dailyTaskIndexes, dailyTaskSet, dailyTaskEligible,
 } from '../src/data/goal-catalogue.js';
 import { utcDayKey } from '../src/core/goals.js';
+/* The depth-aware QUEST_DEFS row splitter. One implementation, imported rather
+   than copied — see the note at the QUEST_DEFS loop for what the copy cost. */
+import { splitTopLevelObjects, stripComments } from './quest-reward-parity.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -66,8 +69,16 @@ export async function goalCatalogueDriftGuard() {
   const questBody = block('QUEST_DEFS');
   ok(!!questBody, 'CONTROL: QUEST_DEFS could not be located in legacy.js — the authored side is unreadable.');
   if (questBody) {
-    // Split into per-row objects on top-level `{...}` — quests are flat one-liners.
-    const rows = [...questBody.matchAll(/\{[^{}]*\}/g)].map((m) => m[0]);
+    /* ⚠ THIS LOOP WAS INERT UNTIL 2026-09-06. It split rows on `\{[^{}]*\}`,
+       which cannot match a quest row because every row CONTAINS a nested
+       `reward:{…}` — so it returned the six REWARD objects instead, none of
+       which carries an `id:`, and `continue`d on all six. Not one quest was
+       ever checked; the `rows.length >= 5` control passed on the reward objects
+       and hid it. Found by tests/quest-reward-parity.mjs, which had to parse the
+       same block and could not reproduce the row count. The depth-aware splitter
+       lives there (one implementation, imported) and strips comments first,
+       because QUEST_DEFS' prose contains braces of its own. */
+    const rows = splitTopLevelObjects(stripComments(questBody));
     ok(rows.length >= 5, `CONTROL: QUEST_DEFS yielded ${rows.length} rows, expected >= 5`);
     for (const row of rows) {
       const id = (row.match(/id:\s*'([a-z_]+)'/) || [])[1];

@@ -105,6 +105,25 @@ jobs:
           HR_SUITE_TIMEOUT_MS: '600000'
         run: node tests/run-smoke.mjs
 
+      # QUEST ITEM REWARDS: THE SAME NUMBER IN ALL THREE PLACES.
+      # Every quest item reward used to be PHANTOM — QUEST_DEFS authored it,
+      # completeQuest paid it with addItem() (G.inventory only) and
+      # hr_claim_quest credited gold only, so the next envelope that spoke about
+      # the id erased it. 2026-09-06-quest-item-rewards.sql moves the credit
+      # server-side, which puts the same authored number in three files:
+      # src/data/goal-catalogue.js, src/legacy.js QUEST_DEFS and the SQL seed. A
+      # one-sided edit means a player is promised 30 shrimp and paid 5 — or
+      # promised an item and paid nothing. It also refuses an authored item that
+      # is not server-credited (the phantom class being re-authored) and an id
+      # that exists in no catalogue (authored, shipped, silently skipped).
+      # Credential-free, database-free, seconds. --selftest plants all eight
+      # defect classes and requires each to be caught by a named assertion.
+      - name: Quest reward parity — data, client and server agree, every id real
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/quest-reward-parity.mjs
+          node tests/quest-reward-parity.mjs --selftest
+
       # CAN THE REPO REBUILD THE DATABASE? After cutover the database is the ONLY
       # copy of every player's progression, and disaster recovery rests entirely
       # on "we can rebuild the schema from the repo". On 2026-08-14 that was

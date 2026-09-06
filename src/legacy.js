@@ -7560,10 +7560,13 @@ function farmPlotCap(){
   return (window.HearthriseHomestead && typeof window.HearthriseHomestead.maxPlots==='function')
     ? window.HearthriseHomestead.maxPlots() : 8;
 }
-/* ── SERVER-AUTHORITY FARM ROUTING (b435 RPCs, DORMANT) ──────────────────────
-   While isFarmServerArmed() is false (the shipped default) farmSyncArmed()
-   returns false and every gesture below falls through to the byte-for-byte
-   client path. Under arm the gesture sends an INTENT to the hr_farm_* RPC and
+/* ── SERVER-AUTHORITY FARM ROUTING (b435 RPCs) — ARMED SINCE b454 ────────────
+   isFarmServerArmed() is TRUE in the shipped build (src/data/item-authority.js
+   FARM_SERVER_ARM_ENABLED, armed 2026-08-22 in the post-wipe cutover), so
+   farmSyncArmed() is true whenever src/net/farm-sync.js is loaded and every
+   gesture below takes the SERVER path; the client fall-through remains only as
+   the fail-safe for a missing farm-sync module. Under arm the gesture sends an
+   INTENT to the hr_farm_* RPC and
    reconciles G.farmPlots / G.plotLevels from the RESPONSE (src/net/farm-sync.js),
    rather than authoring the outcome locally. Crop PRODUCE, XP, the seed debit
    and the deed spend are SERVER-owned — reconcileFarmResult applies the server's

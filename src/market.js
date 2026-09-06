@@ -755,6 +755,18 @@
        gold moves, so the site is provably inert under the flag; the row in the
        gold census stays `deferred`, blocked on a server buy-offer model. */
     if(serverMarketActive()) return { ok:false, reason:'Buy offers are not available yet' };
+    /* b511 — THE SECOND LOCK, on the predicate that actually owns gold. The
+       refusal above keys on serverMarketActive(): the right gate for "is there a
+       server market", the WRONG one for "may the client author gold". They are
+       two different switches and only one of them is the record arm; if the
+       market seam is ever unlatched for a reason of its own, this debit must
+       still be impossible while gold is server-of-record. Same guard the legacy
+       bounty/daily/quest payouts use (legacy.js). Refuse the whole gesture, never
+       just the debit — creating the offer without the escrow is a free order. */
+    if(typeof window.clientMayWriteRecordField === 'function'
+       && !window.clientMayWriteRecordField('gold')){
+      return { ok:false, reason:'Buy offers are not available yet' };
+    }
     if(qty <= 0 || maxEach <= 0) return { ok:false, reason:'Invalid amount' };
     var item = window.ITEMS && window.ITEMS[itemId];
     if(!item) return { ok:false, reason:'Unknown item' };
@@ -798,6 +810,15 @@
        offers left over from before the flip stay untouched and are wiped at
        cutover with the rest of the beta. */
     if(serverMarketActive()) return { ok:false, reason:'Buy offers are not available yet' };
+    /* b511 — THE SECOND LOCK (see placeBuyOffer). A refund is a CREDIT, so it is
+       the more dangerous half: gold the server never saw leave, added back into a
+       field the server owns absolutely, is a mint at the next envelope. Nothing is
+       stranded by refusing — placeBuyOffer is locked by the same predicate, so no
+       offer can exist that this would need to unwind. */
+    if(typeof window.clientMayWriteRecordField === 'function'
+       && !window.clientMayWriteRecordField('gold')){
+      return { ok:false, reason:'Buy offers are not available yet' };
+    }
     var offers = loadOffers();
     var idx = offers.findIndex(function(o){ return o.id === offerId; });
     if(idx < 0) return { ok:false, reason:'Offer not found' };

@@ -87,6 +87,26 @@ jobs:
       - name: Cache-buster invariant
         run: bash bump-version.sh --check
 
+      # ARM-FLAG HONESTY: the comment above an arm flag is the ONLY documentation
+      # of where authority lives for that field, and every reader trusts it before
+      # the value. The b454 cutover armed everything in one commit and left eight
+      # comments saying "DORMANT" over a literal `true`; on 2026-08-31 the same
+      # staleness on MARKS_RECORD_ARM_ENABLED produced a real misdiagnosis. Pure
+      # source scan, no browser — run it with the other cheap gates.
+      - name: Arm-flag honesty — no comment may contradict its flag's value
+        run: |
+          node tests/arm-flag-honesty.mjs --selftest
+          node tests/arm-flag-honesty.mjs
+
+      # DUPLICATE TOP-LEVEL FUNCTIONS: two declarations of one name in one scope
+      # means the later hoists over the earlier and the earlier body is dead code
+      # that can be edited, reviewed and shipped while changing nothing. Also
+      # pins the eight legitimate cross-IIFE name collisions so a NEW one is loud.
+      - name: Duplicate top-level fns — no dead twin in src/legacy.js
+        run: |
+          node tests/no-duplicate-toplevel-fns.mjs --selftest
+          node tests/no-duplicate-toplevel-fns.mjs
+
       - name: Install Playwright + Chromium
         run: |
           npm install --no-audit --no-fund

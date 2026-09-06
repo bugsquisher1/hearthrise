@@ -732,9 +732,14 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   // ══ TRANSFERS — value crossing to another player ══════════════════════════
   'src/features/clans.js#contribute': {
     kind: 'transfer', status: 'deferred', blockedBy: B.CLAN_DEPOSIT_GOLD,
-    /* Finding #1's site. The whole contribute() path is behind CLAN_LAUNCHED, so
-       the value-crossing debit cannot execute — the b378 clan-block. */
-    flipGuard: { gated: 'CLAN_LAUNCHED' },
+    /* Finding #1's site. TWO gates, and the declared one is now the RECORD seam:
+       CLAN_LAUNCHED (b378) is a PRODUCT switch — "is this feature shipped" — and
+       a product switch can be flipped by a designer for a reason that has nothing
+       to do with gold authority, at which point the census's promise evaporates.
+       b511 added `clientMayWriteRecordField('gold')` ahead of the fetch, so the
+       debit AND the treasury-minting RPC are both refused while gold is
+       server-of-record, whatever CLAN_LAUNCHED says. */
+    flipGuard: { gated: 'clientMayWriteRecordField' },
   },
   'src/features/muster.js#payChest': {
     kind: 'transfer', status: 'deferred',
@@ -810,13 +815,22 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V1_BACKEND,
     flipGuard: { gated: 'serverMarketActive' },
   },
+  /* b511: these two escrow/refund raw gold, and until b511 the ONLY thing
+     stopping them was serverMarketActive() — the market v1/v2 switch, which
+     answers "is there a server market", not "may the client author gold". They
+     are different questions with different owners. Both now also carry
+     `clientMayWriteRecordField('gold')`, refusing the whole gesture (never just
+     the debit — an offer created without its escrow is a free order), and the
+     declared guard is the record seam because that is the one that tracks gold
+     authority. autoMatchAgainstOffers below is unreachable while placeBuyOffer
+     is refused, so it keeps the market gate. */
   'src/market.js#placeBuyOffer': {
     kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,
-    flipGuard: { gated: 'serverMarketActive' },
+    flipGuard: { gated: 'clientMayWriteRecordField' },
   },
   'src/market.js#cancelBuyOffer': {
     kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,
-    flipGuard: { gated: 'serverMarketActive' },
+    flipGuard: { gated: 'clientMayWriteRecordField' },
   },
   'src/market.js#autoMatchAgainstOffers': {
     kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,

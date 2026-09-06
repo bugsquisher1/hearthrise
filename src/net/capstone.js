@@ -81,8 +81,8 @@
 // DOM-free. Node-importable. `fetch`/`window` resolve at call time.
 // ============================================================================
 
-import { isServerAccrualEnabled } from './accrue.js?v=510';
-import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=510';
+import { isServerAccrualEnabled } from './accrue.js?v=511';
+import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=511';
 
 /* ── THE CAPSTONE ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al): one

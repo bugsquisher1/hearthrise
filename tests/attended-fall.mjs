@@ -287,7 +287,18 @@ export async function runAll({ mutate } = {}) {
     ok(/if\(hrCombatDown\(\)\)return;/.test(legacy),
       'F8: the combat tick no longer consults the knockout gate, so a knocked-out character keeps '
       + 'swinging locally through their own recovery');
-    ok(/function stopCombat\(\)\{[\s\S]{0,900}?hrClearFall\(\);/.test(legacy),
+    /* SCOPED TO THE BODY, not to a character budget. The first revision of this
+       check allowed 900 characters between `function stopCombat(){` and the
+       clear; b511's server-owned-HP work (34c87179) added the `_hpLocalAt`
+       comment at the top of the same function and pushed the call to 1,194 —
+       the guard went red while the behaviour it protects was intact, which is
+       a guard that cries wolf. legacy.js closes every top-level function with a
+       column-0 `}`, so the body is exactly what is matched here; the
+       `stop_keeps_the_fall` mutation still turns it red. */
+    const stopBody = /\nfunction stopCombat\(\)\{([\s\S]*?)\n\}/.exec(legacy);
+    ok(!!stopBody, 'F8: stopCombat() is no longer a top-level function in legacy.js — this check '
+      + 'cannot see its body, so it is reported as a failure rather than passing blind');
+    ok(!!stopBody && stopBody[1].includes('hrClearFall();'),
       'F8: stopCombat() no longer clears the pending fall, so the question asked by the run the '
       + 'player just ended gates the first tick of the next one');
 

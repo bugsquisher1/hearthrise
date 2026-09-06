@@ -77,7 +77,7 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, summaryFromAway, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
-  isReconcilePending,
+  isReconcilePending, isAccrualFailure,
 } from './accrue.js?v=506';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
@@ -574,7 +574,7 @@ function tokenOf() {
   catch (e) { return null; }
 }
 
-let hooks = { onEnvelope: null, onReconcile: null, onOutcome: null };
+let hooks = { onEnvelope: null, onReconcile: null, onOutcome: null, onNotify: null };
 export function setActivityHooks(h) { hooks = { ...hooks, ...(h || {}) }; }
 /* RETURNS WHAT THE HOOK RETURNED, and the first version did not — which made
    `applied.envelope` mean "a hook was called" while reading as "the envelope was
@@ -590,10 +590,79 @@ function fire(name, a, b, c) {
   catch (e) { console.warn('[activity] hook ' + name + ' threw:', e && e.message); return null; }
 }
 
+/* ── THE COLLECT-REFUSAL RECOVERY, AND WHY IT NEEDS TWO PIECES OF STATE ─────
+   A `stage:'collect'` refusal carries the full envelope (`refusalCarriesState`),
+   so `settle` below reconciles the pointer to the server's — which is the OLD
+   activity, because the switch never happened. That reconcile is correct when
+   it is the last word, and it is exactly wrong while the contract's own
+   recovery is still running: it restarts the activity the player just tapped
+   away from, over a tap that is still pending, and the player is told nothing.
+   Live, that costs an idle player the whole session.
+
+   So the reconcile is HELD (not skipped) for the one refusal the client is
+   about to act on, and `flushDeferredReconcile` fires it if the recovery does
+   not end in a switch. The server's truth still lands; it just does not land
+   before the client has finished asking. */
+let deferredReconcile = null;
+/* ONE RETRY PER GESTURE. Armed at the tap, spent before the retry is issued, so
+   a SECOND collect refusal cannot arm a third call — the loop `shouldRetryActivity`
+   deliberately refuses to run must not reappear here wearing a different name. */
+let collectRetryArmed = false;
+
+/** A refusal whose COLLECT could not be priced: nothing was written and the
+ *  elapsed window is intact (intents.js §"WHICH REFUSALS CARRY STATE"). */
+export function isCollectRefusal(v) {
+  return !!v && v.outcome === 'refused' && v.stage === 'collect';
+}
+
+function flushDeferredReconcile() {
+  const d = deferredReconcile;
+  deferredReconcile = null;
+  if (!d) return false;
+  fire('onReconcile', { ...d.activity }, d.verdict, d.fight);
+  return true;
+}
+
+/** What the player is doing, in words, from the two allowlisted strings that
+ *  are all this module has. Ids are prettified rather than looked up: the name
+ *  table is the DOM layer's, and a wrong-but-honest label beats a silent
+ *  failure. `null` when there is nothing truthful to say. */
+export function describeActivity(a) {
+  if (!a || !a.kind || a.kind === 'idle' || !a.id) return null;
+  const name = String(a.id).replace(/_/g, ' ').replace(/(^|\s)([a-z])/g, (m, s, c) => s + c.toUpperCase());
+  if (a.kind === 'combat') return 'fighting ' + name;
+  if (a.kind === 'gather') return 'gathering ' + name;
+  if (a.kind === 'artisan') return 'crafting ' + name;
+  return name;
+}
+
+/* THE PLAYER IS TOLD. A switch that silently does not happen is the worst
+   outcome available in an idle game — the session is spent on the wrong
+   activity and nothing on screen disagrees. The hook is the seam the suite
+   drives; `window.notify` is the live surface every other net module uses. */
+function notifyPlayer(text) {
+  if (hooks && typeof hooks.onNotify === 'function') { fire('onNotify', text, 'kill'); return true; }
+  try {
+    if (typeof window !== 'undefined' && typeof window.notify === 'function') {
+      window.notify(text, 'kill');
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+function notifySwitchRefused() {
+  const still = describeActivity(lastServerActivity);
+  notifyPlayer(still
+    ? 'Couldn’t switch — still ' + still + '. Tap again to retry.'
+    : 'Couldn’t switch activities — the change didn’t go through. Tap again to retry.');
+}
+
 export function getActivityState() {
   return {
     enabled: isActivityIntentEnabled(), configured: !!config,
     pending: !!inFlight, queued: queued ? { ...queued } : null,
+    deferredReconcile: deferredReconcile ? { ...deferredReconcile.activity } : null,
     lastServerActivity: lastServerActivity ? { ...lastServerActivity } : null,
     confirmed: confirmed ? { ...confirmed } : null,
     last,
@@ -602,7 +671,7 @@ export function getActivityState() {
 
 export function resetActivity() {
   inFlight = null; queued = null; last = null; lastServerActivity = null; confirmed = null;
-  lastServerFight = null;
+  lastServerFight = null; deferredReconcile = null; collectRetryArmed = false;
 }
 
 /**
@@ -743,6 +812,15 @@ async function attemptOnce(kind, id, key) {
   return settle({ ...classifyActivityResponse(res.status, body), status: res.status, key }, kind, id);
 }
 
+/* HOLD, DO NOT SKIP. True only for the ONE collect refusal this gesture is
+   about to act on: the client is going to run the accrue verb and re-declare,
+   and reconciling to the server's old pointer in between would restart the
+   activity the player tapped away from. Every other refusal reconciles
+   immediately, exactly as before. */
+function holdReconcile(verdict) {
+  return collectRetryArmed && isCollectRefusal(verdict);
+}
+
 function settle(verdict, kind, id) {
   const applied = { envelope: false, reconciled: null };
   const body = verdict.body || null;
@@ -781,8 +859,14 @@ function settle(verdict, kind, id) {
          the truth, and reconciling the pointer without the fight would restart
          a foe the server is still holding at half health. */
       lastServerFight = fightOf(body);
-      fire('onReconcile', { ...lastServerActivity }, verdict, lastServerFight);
-      applied.reconciled = { ...lastServerActivity };
+      if (holdReconcile(verdict)) {
+        deferredReconcile = { activity: { ...lastServerActivity }, verdict, fight: lastServerFight };
+        applied.deferred = true;
+      } else {
+        deferredReconcile = null;
+        fire('onReconcile', { ...lastServerActivity }, verdict, lastServerFight);
+        applied.reconciled = { ...lastServerActivity };
+      }
     }
   } else if (isAnswered(verdict.outcome) && verdict.outcome !== 'switched') {
     /* ANSWERED, REFUSED, NO ENVELOPE. Nothing was written — these codes are
@@ -790,7 +874,11 @@ function settle(verdict, kind, id) {
        envelope is still current, and that is what it reconciles to. NEVER to
        its own optimistic guess: keeping the guess is the one thing a client is
        never allowed to do. */
-    if (lastServerActivity) {
+    if (lastServerActivity && holdReconcile(verdict)) {
+      deferredReconcile = { activity: { ...lastServerActivity }, verdict, fight: lastServerFight };
+      applied.deferred = true;
+    } else if (lastServerActivity) {
+      deferredReconcile = null;
       fire('onReconcile', { ...lastServerActivity }, verdict, lastServerFight);
       applied.reconciled = { ...lastServerActivity };
     } else {
@@ -813,6 +901,67 @@ function settle(verdict, kind, id) {
   };
   fire('onOutcome', last);
   return { ...verdict, applied };
+}
+
+/* ── ONE DECLARATION, KEY POLICY AND ALL ────────────────────────────────────
+   Lifted out of `declareActivity` unchanged so the collect recovery can issue
+   the SECOND declaration through the identical path — a recovery that builds
+   its own request is a second idea of what a declaration is. */
+async function runDeclaration(kind, id) {
+  /* ONE KEY PER GESTURE, generated at the tap. */
+  let key = newIntentKey();
+  if (!isIntentKey(key)) return inert('undeclarable', kind, id, 'no_uuid_source');
+  let verdict = null;
+  for (let attempt = 1; attempt <= ACTIVITY_MAX_TRIES; attempt++) {
+    verdict = await attemptOnce(kind, id, key);
+    /* A SUCCESS STOPS THE LOOP HERE, not inside shouldRetryActivity. Found by
+       the mutation run: forcing `shouldRetryActivity` to true re-sent a
+       SUCCESSFUL switch, because the only thing ending the loop was a function
+       named "should retry". A retry policy is allowed to be wrong about a
+       failure; it must not be able to be wrong about a success. */
+    if (verdict.outcome === 'switched' || verdict.outcome === 'replayed') break;
+    if (!shouldRetryActivity(verdict, attempt, ACTIVITY_MAX_TRIES)) break;
+    key = nextIntentKey(key, verdict);
+    if (!isIntentKey(key)) break;
+  }
+  return verdict;
+}
+
+/* ── CONVERGE TO THE INTENT, ONCE ───────────────────────────────────────────
+   The collect could not be priced, so nothing was written and the window is
+   intact. The accrue verb owns the degrade ladder that escapes a clamp — it is
+   asked ONCE, AWAITED (the old code fired and forgot, which is why the re-ask
+   could never have worked), and the declaration is then re-issued exactly once
+   with a FRESH key, because a refusal is an answer and hr_apply hands a rejected
+   key back for 25 hours.
+
+   BOUNDED AT ONE. `collectRetryArmed` is spent before the retry is sent, so a
+   second collect refusal ends the gesture — the player is told, the pointer
+   goes back to the server's truth, and the next tap starts a new gesture. That
+   is the same ruling `shouldRetryActivity` makes and it is deliberately NOT
+   made there: a policy that can loop a collect refusal is the bug that
+   exclusion exists to prevent.
+
+   COST: at most one extra `activity`-bucket call per gesture (plus the accrue
+   call, a different bucket). The 30/min gate is not in reach — the coalescer
+   holds one gesture in flight at a time. */
+async function recoverCollectRefusal(kind, id, refusal) {
+  collectRetryArmed = false;
+  let accrued = null;
+  try { accrued = await beginServerAccrual(); } catch (e) { accrued = null; }
+  const priced = !!accrued && !isAccrualFailure(accrued.outcome);
+  if (!priced) {
+    /* The window still cannot be priced, so the switch still cannot land.
+       Re-declaring would spend a key to earn the same 409. */
+    notifySwitchRefused();
+    return { ...refusal, recovery: { accrued: false, retried: false } };
+  }
+  const verdict = await runDeclaration(kind, id);
+  if (verdict && (verdict.outcome === 'switched' || verdict.outcome === 'replayed')) {
+    return { ...verdict, recovery: { accrued: true, retried: true } };
+  }
+  notifySwitchRefused();
+  return { ...verdict, recovery: { accrued: true, retried: true } };
 }
 
 /**
@@ -844,29 +993,26 @@ export async function declareActivity(rawKind, rawId, opts) {
   }
 
   inFlight = (async () => {
-    /* ONE KEY PER GESTURE, generated at the tap. */
-    let key = newIntentKey();
-    if (!isIntentKey(key)) return inert('undeclarable', kind, id, 'no_uuid_source');
-    let verdict = null;
-    for (let attempt = 1; attempt <= ACTIVITY_MAX_TRIES; attempt++) {
-      verdict = await attemptOnce(kind, id, key);
-      /* A SUCCESS STOPS THE LOOP HERE, not inside shouldRetryActivity. Found by
-         the mutation run: forcing `shouldRetryActivity` to true re-sent a
-         SUCCESSFUL switch, because the only thing ending the loop was a function
-         named "should retry". A retry policy is allowed to be wrong about a
-         failure; it must not be able to be wrong about a success. */
-      if (verdict.outcome === 'switched' || verdict.outcome === 'replayed') break;
-      if (!shouldRetryActivity(verdict, attempt, ACTIVITY_MAX_TRIES)) break;
-      key = nextIntentKey(key, verdict);
-      if (!isIntentKey(key)) break;
-    }
-    /* THE CONTRACT'S OWN RECOVERY for a refused COLLECT: the elapsed window
-       could not be priced, so nothing was written and the window is intact. The
-       accrue verb owns the degrade ladder that escapes a clamp; it is asked
-       ONCE and the switch is not retried, so a clamped player becomes unstuck
-       on their next tap instead of never. */
-    if (verdict && verdict.outcome === 'refused' && verdict.stage === 'collect') {
-      try { beginServerAccrual(); } catch (e) {}
+    collectRetryArmed = true;
+    deferredReconcile = null;
+    let verdict = await runDeclaration(kind, id);
+    /* THE CONTRACT'S OWN RECOVERY for a refused COLLECT, run to its end
+       (intents.js §"WHICH REFUSALS CARRY STATE": «run the `accrue` verb … then
+       retry the switch WITH A NEW KEY. Never retry the switch alone in a
+       loop.»). It used to stop after kicking the accrual, which left the
+       gesture converged on the SERVER's old pointer instead of the PLAYER's
+       intent, silently — the whole session on the wrong activity. */
+    try {
+      if (isCollectRefusal(verdict)) verdict = await recoverCollectRefusal(kind, id, verdict);
+    } finally {
+      /* BOTH IN A `finally`, and that is not decoration: a throw anywhere above
+         would otherwise leave the gesture ARMED (so the NEXT gesture's collect
+         refusal is held and never fired) and a HELD reconcile unflushed — the
+         optimistic pointer standing in for server truth indefinitely, which is
+         the one thing a client may never do. */
+      collectRetryArmed = false;
+      /* Whatever the recovery ended as, the server's last word still lands. */
+      flushDeferredReconcile();
     }
     return verdict;
   })();
@@ -901,7 +1047,7 @@ if (typeof window !== 'undefined') {
     UNANSWERED_OUTCOMES, isAnswered, newIntentKey, isIntentKey, nextIntentKey,
     isActivityIntentEnabled, isDeclarableActivity, declarationFor, isPayableRecipe,
     buildActivityRequest,
-    classifyActivityResponse, shouldRetryActivity,
+    classifyActivityResponse, shouldRetryActivity, isCollectRefusal, describeActivity,
     envelopeOf, activityOf, fightOf, collectedOf, awayFromCollected, applyIntentEnvelope,
     configureActivity, getActivityConfig, setActivityHooks,
     declare, declareActivity, getActivityState, resetActivity, setLastServerActivity,

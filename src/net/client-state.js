@@ -54,13 +54,19 @@ import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=510';
    so it cannot form a cycle with either this file or accrue.js. */
 import { notePropertyUnlocks } from './property-record.js?v=510';
 
-/* ── THE DORMANT ARM ─────────────────────────────────────────────────────────
-   Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):
-   a greppable const defaulting OFF, a test override seam, and a runtime
-   predicate that ALSO requires the master accrual switch — so the store can
-   never be "server-backed" while the record system as a whole is off (which
-   would read residue server-first while the blob still authored it). */
-export const CLIENT_STATE_SERVER_BACKED = false;   // DORMANT — post-wipe capstone only
+/* ── THE ARM (SUPERSEDED BY THE CAPSTONE — THIS CONST IS INERT) ─────────────
+   THE VALUE IS false AND STAYS false, BUT THE STORE IS SERVER-BACKED IN PROD.
+   armed() below reads `CLIENT_STATE_SERVER_BACKED || capstoneArmed()`, and
+   capstoneArmed() delegates to src/net/capstone.js isBlobRetired(), whose
+   BLOB_RETIRED has been true since the b454 cutover (2026-08-22). So this const
+   contributes NOTHING to the runtime answer — the capstone is the single switch
+   for the whole finish line and residue reads follow it without a second flag to
+   flip. It is kept (rather than deleted) as the greppable per-field seam and
+   because tests/client-state.mjs pins it false: flipping it true would make this
+   store server-backed INDEPENDENTLY of the capstone, which is exactly the second
+   switch the coupling exists to prevent. Tests drive the armed path via
+   __setClientStateArm. */
+export const CLIENT_STATE_SERVER_BACKED = false;   // INERT — superseded by capstone.js BLOB_RETIRED (true since b454); armed() ORs the two
 let armOverride = null;
 /* THE CAPSTONE COUPLING. The blob-retire capstone (src/net/capstone.js) is the
    SINGLE switch for the whole finish line, and residue reads must follow it — so

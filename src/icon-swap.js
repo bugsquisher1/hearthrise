@@ -9,9 +9,36 @@
 // assets/icons/ and add an entry below.
 // ============================================================
 
+// ⚠ RETIRED since b210 — index.html no longer loads this file (icon-set.js is the
+//   single chrome-icon system; the two fought over the same nav/topbar slots with
+//   different icon vocabularies). Kept as the reference mapping. It is still held
+//   to the repo's cache-buster rule below, because a retired file that gets
+//   un-retired with a five-year-old version pinned in it is a bug waiting.
+
 (function(){
   'use strict';
   const BASE = 'assets/icons/';
+
+  // ── THE CACHE-BUSTER IS DERIVED, NEVER PINNED ─────────────────────────────
+  // These sprite URLs carried a hardcoded ?v=88 from the build they were added
+  // in. That is not a cache-buster, it is a cache LOCK: every deploy after b88
+  // served the b88 icons out of the browser cache for as long as the entry
+  // survived, and no bump could ever move it (bump-version.sh's rewrite is
+  // anchored to a file extension, so a bare '?v=NN' string was invisible to it).
+  // Read the running build instead: window.HearthriseBuild (set by
+  // src/build-info.js) first, and if this file is somehow loaded before that,
+  // fall back to the ?v= on this script's OWN tag — which index.html always
+  // bumps. If neither is available, ship no query at all: an un-busted URL is a
+  // stale icon for one deploy, a WRONGLY-busted one is stale forever.
+  const OWN_SRC = (document.currentScript && document.currentScript.src) || '';
+  function vq() {
+    try {
+      const c = window.HearthriseBuild && window.HearthriseBuild.cache;
+      if (c) return '?v=' + c;
+    } catch (e) { /* no build info — fall through */ }
+    const m = /[?&]v=(\d+)/.exec(OWN_SRC);
+    return m ? '?v=' + m[1] : '';
+  }
 
   // Sidebar / bottom-nav nav buttons keyed by data-tab attribute
   const TAB_ICONS = {
@@ -38,7 +65,7 @@
 
   function makeImg(filename) {
     const img = document.createElement('img');
-    img.src = BASE + filename + '?v=88';
+    img.src = BASE + filename + vq();
     img.className = 'hr-svg-ic';
     img.alt = '';
     img.draggable = false;
@@ -70,7 +97,7 @@
       const html = btn.innerHTML;
       const m = html.match(/^([\p{Emoji_Presentation}\p{Extended_Pictographic}]+)\s*/u);
       if (m) {
-        btn.innerHTML = '<img class="hr-svg-ic" src="' + BASE + file + '?v=88" alt="" draggable="false" /> ' + html.slice(m[0].length);
+        btn.innerHTML = '<img class="hr-svg-ic" src="' + BASE + file + vq() + '" alt="" draggable="false" /> ' + html.slice(m[0].length);
       }
     });
   }

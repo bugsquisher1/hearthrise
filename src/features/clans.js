@@ -420,6 +420,18 @@
     var G = window.G || {};
     if (amount <= 0) return false;
     if (!window.balCanAfford(amount, 'gold')) { notify(window.balShortfall(amount, 'gold'), 'kill'); return false; }
+    /* b511 — THE SECOND LOCK, on the predicate that actually owns gold. The
+       CLAN_LAUNCHED gate above is a PRODUCT switch ("is this feature shipped");
+       this is the AUTHORITY one ("may the client author gold"), and only the
+       second is the record arm. clan_contribute mints treasury with no debit, so
+       under arm the pair would be a mint: the RPC credits the hold and the local
+       `G.gold -= amount` below is overwritten by the next absolute envelope.
+       Refuse BEFORE the fetch — no gold moves, and no treasury moves either. */
+    if (typeof window.clientMayWriteRecordField === 'function'
+        && !window.clientMayWriteRecordField('gold')) {
+      notify('Contributions are paused until the treasury moves server-side.', 'info');
+      return false;
+    }
     if (!requireOnline() || !_myClan) return false;
     var res = await fetch(cfg().url + '/rest/v1/rpc/clan_contribute', {
       method: 'POST', headers: headers(true),

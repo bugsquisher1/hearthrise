@@ -592,20 +592,19 @@ export function fingerprintSkills(v) {
   return s;
 }
 
-/* ── THE SKILLS DORMANT ARM (b429) ───────────────────────────────────────────
-   Skills does not ride the master accrual switch the way gold/gems do; it has
-   its OWN enable that defaults OFF, so the entry ships on `main` fully inert.
-   Mirrors src/data/item-authority.js INVENTORY_ARM_ENABLED: one greppable const,
-   a test override seam, and a runtime predicate that ALSO requires the master
-   switch — so `armed` cannot be true while the record system as a whole is off
-   (which would leave `G.skills` un-stripped yet read record-first = a mismatch).
+/* ── THE SKILLS RECORD ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ─────────
+   Skills does not ride the master accrual switch the way gold/gems do; it has its
+   OWN enable, and that enable is TRUE. isSkillsRecordArmed() ALSO requires the
+   master switch, so `armed` can never be true while the record system as a whole
+   is off (which would leave `G.skills` un-stripped yet read record-first = a
+   mismatch). Client skill xp/level reads route through src/net/skill-record.js
+   (skillXpOf) and fail-close on UNKNOWN.
 
-   ⚠ FLIPPING THIS TO true IS THE ARM. Do not do it until: the client read sites
-   route skill xp/level through src/net/skill-record.js (skillXpOf), Security has
-   reviewed, and it is POST-WIPE (a sparse server skills baseline vs a rich client
-   one would strand xp — the same class of loss the inventory flip hit pre-wipe).
-   See the writeup / docs for the exact arm procedure. */
-export const SKILLS_RECORD_ARM_ENABLED = true;   // DORMANT — post-wipe rollout only
+   INVARIANT: `G.skills` is a CACHE of the record, never the authority. Anything
+   that writes a skill level/xp locally without a server credit is a bug, not a
+   fallback. (The arm was only ever safe post-wipe: a sparse server skills baseline
+   against a rich client one would strand xp — the inventory-flip lesson.) */
+export const SKILLS_RECORD_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 post-wipe cutover) — skills read record-first
 let skillsArmOverride = null;
 export function isSkillsRecordArmed() {
   const on = skillsArmOverride !== null ? skillsArmOverride : SKILLS_RECORD_ARM_ENABLED;
@@ -618,29 +617,26 @@ export function __setSkillsRecordArm(v) {
   return isSkillsRecordArmed();
 }
 
-/* ── THE MARKS DORMANT ARM ───────────────────────────────────────────────────
-   Same shape as SKILLS_RECORD_ARM_ENABLED: a greppable const defaulting OFF, a
-   test override seam, and a runtime predicate that ALSO requires the master
-   switch (so `armed` cannot be true while the record system is off, which would
-   leave marks un-stripped yet read record-first = a mismatch).
+/* ── THE MARKS RECORD ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────
+   Same shape as SKILLS_RECORD_ARM_ENABLED above, and equally TRUE:
+   isMarksRecordArmed() ALSO requires the master switch, so `armed` can never be
+   true while the record system is off (which would leave marks un-stripped yet
+   read record-first = a mismatch). All three storage/read/spend blockers are
+   closed: reads route through marksOf, storage is top-level G.marks, and
+   reroll/abandon spends are server-side.
 
-   ⚠ FLIPPING THIS TO true IS THE ARM. The three storage/read/spend arm-blockers on
-   the `marks` registry entry are now CLOSED (reads routed through marksOf; storage
-   migrated to top-level G.marks; reroll/abandon spends moved server-side and the two
-   remaining shop spends fail-closed under arm). Do not flip until Security has
-   reviewed, the two fail-closed shop spends have a server verb (or their temporary
-   unavailability under arm is accepted), and it is POST-WIPE (player_state.marks is
-   SPARSE pre-wipe
-   — players earned marks into the blob, not all mirrored server-side — so a pre-wipe
-   arm would strand marks, the inventory-flip lesson). */
-/* ⚠ ARMED. This said "DORMANT — post-wipe rollout only" for 32 builds AFTER b454
-   ("server-authority cutover: arm all flags post-wipe") flipped the value, and on
-   2026-08-31 that stale comment produced a real misdiagnosis: a bounty-board bug
-   was triaged on the premise that "marks are client-authored today". They are
-   not. Measured on a b486 boot: clientMayWriteRecordField('marks') === false and
-   the bounty sub-header renders the pending em dash. The comment now matches the
-   value; if you flip the value, flip the comment in the same edit. */
-export const MARKS_RECORD_ARM_ENABLED = true;   // ARMED since b454 (2026-08-2x cutover)
+   INVARIANT: player_state.marks is the authority; clientMayWriteRecordField(
+   'marks') === false. KNOWN LIMITATION: the two remaining bounty-shop spends
+   fail-closed under arm (they have no server verb yet), so they are unavailable
+   rather than client-authored — that is the correct failure mode, not a bug.
+
+   — WHY THIS COMMENT IS WORDED AROUND THE VALUE: for 32 builds after b454 this
+   block still described the flag as awaiting its rollout, and on 2026-08-31 that
+   produced a real misdiagnosis (a bounty-board bug triaged on the premise that
+   "marks are client-authored today"; measured on a b486 boot they were not).
+   tests/arm-flag-honesty.mjs now fails the build on that class. If you flip the
+   value, flip the comment in the same edit. */
+export const MARKS_RECORD_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 post-wipe cutover) — marks read record-first
 let marksArmOverride = null;
 export function isMarksRecordArmed() {
   const on = marksArmOverride !== null ? marksArmOverride : MARKS_RECORD_ARM_ENABLED;
@@ -652,22 +648,19 @@ export function __setMarksRecordArm(v) {
   return isMarksRecordArmed();
 }
 
-/* ── THE RESTED DORMANT ARM (b437) ───────────────────────────────────────────
-   Same shape as SKILLS_RECORD_ARM_ENABLED: a greppable const defaulting OFF, a
-   test override seam, and a runtime predicate that ALSO requires the master
-   switch (so `armed` cannot be true while the record system is off, which would
-   leave restedXp/restedAt un-stripped yet read record-first = a mismatch). ONE
-   flag governs BOTH the restedXp and restedAt entries, so their arm state can
-   never split.
+/* ── THE RESTED RECORD ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ─────────
+   Same shape as SKILLS_RECORD_ARM_ENABLED above, and equally TRUE: one flag
+   governs BOTH the restedXp and restedAt entries so their arm state can never
+   split, and isRestedRecordArmed() ALSO requires the master switch (armed can
+   never be true while the record system is off, which would leave restedXp /
+   restedAt un-stripped yet read record-first = a mismatch).
 
-   ⚠ FLIPPING THIS TO true IS THE ARM. Do not, until: (1) every rested READ is
-   routed through src/net/rested-record.js `restedOf`; (2) the SPEND path
-   (spendRestedCharge → grantXp's restedQuantum) is moved server-side — only the
-   ACCRUAL (banking) side moved with this record; (3) Security has reviewed; and
-   (4) it is POST-WIPE (player_state.rested_at is fresh-defaulted `now()` per row,
-   so a pre-wipe arm on a live character would reset a rich local bank to the
-   server's freshly-initialised one — the inventory-flip lesson). */
-export const RESTED_RECORD_ARM_ENABLED = true;   // DORMANT — post-wipe rollout only
+   INVARIANT: every rested READ goes through src/net/rested-record.js `restedOf`;
+   player_state.rested_at / rested_xp are the authority. KNOWN LIMITATION: the
+   ACCRUAL (banking) side is server-owned, but the SPEND path
+   (spendRestedCharge → grantXp's restedQuantum) still runs client-side — moving
+   it server-side is the remaining work on this record, not a blocker on the arm. */
+export const RESTED_RECORD_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 post-wipe cutover) — rested reads record-first
 let restedArmOverride = null;
 export function isRestedRecordArmed() {
   const on = restedArmOverride !== null ? restedArmOverride : RESTED_RECORD_ARM_ENABLED;
@@ -793,20 +786,17 @@ export function fingerprintRooms(v) {
   return s;
 }
 
-/* ── THE EQUIPMENT DORMANT ARM (b433) ────────────────────────────────────────
-   Same shape as the skills arm above (which mirrors item-authority's
-   INVENTORY_ARM_ENABLED): one greppable const defaulting OFF, a test seam, and a
-   runtime predicate that ALSO requires the master switch — so `armed` can never be
-   true while the record system is off (which would leave `G.equipment` un-stripped
-   yet read record-first = a mismatch).
+/* ── THE EQUIPMENT RECORD ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────
+   Same shape as the skills arm above, and equally TRUE: isEquipmentRecordArmed()
+   ALSO requires the master switch, so `armed` can never be true while the record
+   system is off (which would leave `G.equipment` un-stripped yet read
+   record-first = a mismatch). The equip WRITE moved server-side in equip.js; the
+   read surface (paperdoll, combat stat rollup, tooltips) reads the record.
 
-   ⚠ FLIPPING THIS TO true IS THE ARM. Do not, until: the client equipment READ
-   sites (paperdoll, combat stat rollup, tooltips) route through an accessor that
-   fail-closes on UNKNOWN — the skill-record.js analogue — Security has reviewed,
-   and it is POST-WIPE. The equip WRITE already moved (equip.js), so unlike skills
-   the writer side is done; the remaining arm work is purely the client read
-   surface. */
-export const EQUIPMENT_RECORD_ARM_ENABLED = true;   // DORMANT — post-wipe rollout only
+   INVARIANT: the worn set is all-or-nothing — a single bad cell condemns the
+   whole set (save-invariant #2, act only on CERTAINTY) rather than half-trusting
+   it, and `G.equipment` is a cache of the wire shape, never the authority. */
+export const EQUIPMENT_RECORD_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 post-wipe cutover) — equipment reads record-first
 let equipmentArmOverride = null;
 export function isEquipmentRecordArmed() {
   const on = equipmentArmOverride !== null ? equipmentArmOverride : EQUIPMENT_RECORD_ARM_ENABLED;
@@ -819,23 +809,20 @@ export function __setEquipmentRecordArm(v) {
   return isEquipmentRecordArmed();
 }
 
-/* ── THE ROOMS DORMANT ARM (b431) ────────────────────────────────────────────
-   Same shape as SKILLS_RECORD_ARM_ENABLED: a greppable const defaulting OFF, a
-   test override seam, and a runtime predicate that ALSO requires the master
-   switch (so `armed` cannot be true while the record system is off, which would
-   leave `G.rooms` un-stripped yet read record-first = a mismatch).
+/* ── THE ROOMS RECORD ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────
+   Same shape as SKILLS_RECORD_ARM_ENABLED above, and equally TRUE:
+   isRoomsRecordArmed() ALSO requires the master switch, so `armed` can never be
+   true while the record system is off (which would leave `G.rooms` un-stripped yet
+   read record-first = a mismatch). Room READ sites go through the record accessor
+   rather than reading `G.rooms` raw — raw reads like `Object.values(G.rooms)`
+   (legacy.js totalLevel / room count) and `(G.rooms||{}).kitchen` throw or mis-read
+   when rooms is UNKNOWN, the same class of crash gold hit before src/net/balance.js.
 
-   ⚠ FLIPPING THIS TO true IS THE ARM, AND IT IS COUPLED TO COOKING. Do not do it
-   until: (1) the client room-READ sites route through the record accessor rather
-   than reading `G.rooms` raw — `Object.values(G.rooms)` (legacy.js totalLevel /
-   room count) and `(G.rooms||{}).kitchen` throw / mis-read when `rooms` is
-   UNKNOWN, the same class of crash gold hit before src/net/balance.js; (2)
-   Security has reviewed; (3) it is POST-WIPE (a sparse server room baseline vs a
-   rich client one would strand rungs, the inventory-flip lesson). Arming rooms is
-   what makes `noBurn` server-owned end to end, so it is flipped IN THE SAME
-   ROLLOUT as artisan-sim.js COOKING_SETTLEMENT_ARM_ENABLED and item-authority.js's
-   twin — see those files. */
-export const ROOMS_RECORD_ARM_ENABLED = true;   // DORMANT — post-wipe, coupled with cooking
+   INVARIANT — COUPLED TO COOKING: this arm is what makes `noBurn` server-owned end
+   to end, so it moves together with artisan-sim.js / item-authority.js
+   COOKING_SETTLEMENT_ARM_ENABLED (both also TRUE). Disarming one without the other
+   splits ownership of the burn roll. */
+export const ROOMS_RECORD_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 post-wipe cutover) — rooms read record-first; coupled with cooking settlement
 let roomsArmOverride = null;
 export function isRoomsRecordArmed() {
   const on = roomsArmOverride !== null ? roomsArmOverride : ROOMS_RECORD_ARM_ENABLED;

@@ -84,11 +84,18 @@
 import { isServerAccrualEnabled } from './accrue.js?v=510';
 import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=510';
 
-/* ── THE ARM ─────────────────────────────────────────────────────────────────
-   Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al):
-   a greppable const defaulting OFF, a test override seam, and a runtime
-   predicate that ALSO requires the master accrual switch. */
-export const BLOB_RETIRED = true;   // DORMANT — post-wipe capstone arm only
+/* ── THE CAPSTONE ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────────
+   Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al): one
+   greppable const, a test override seam, and a runtime predicate that ALSO
+   requires the master accrual switch. The const is TRUE — the client-authored
+   save blob is RETIRED; server tables are the only copy of progression and the
+   residue is a client-preference allowlist.
+
+   INVARIANT (fail-closed, above): an UNCERTAIN / ABSENT / GARBAGE server envelope
+   must never destroy the character and must never fall back to a client-authored
+   save. canProceedArmed(G) is that gate. Do not add a local authoritative save
+   "for safety" — the game is online-only and refusing to proceed is correct. */
+export const BLOB_RETIRED = true;   // LIVE since b454 (2026-08-22 post-wipe cutover) — the save blob is retired
 let armOverride = null;
 export function isBlobRetired() {
   const on = armOverride !== null ? armOverride : BLOB_RETIRED;

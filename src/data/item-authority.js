@@ -67,28 +67,25 @@ import { BOSSES } from './bosses.js?v=510';
    rule payable-or-unmodeled before the flip can trust it. */
 export const COOKING_SKILL = 'cooking';
 
-/* ── THE COOKING SETTLEMENT ARM (b431), SHIPPED DORMANT ──────────────────────
-   Cooking is the last un-modeled artisan lane. It is settle-able the moment its
-   only destructive bonus key — `noBurn`, off the Kitchen room rung — is
-   server-owned, which is the day src/net/record.js ROOMS_RECORD_ARM_ENABLED
-   flips. This const is the data-layer half of that flip: it moves cooking's
-   classification 'unmodeled'→'payable', which enrols cooking into
-   payableArtisanSkills() (skill-authority.js — the SETTLEMENT: the server cooks
-   the recipe). It is COUPLED to record.js ROOMS_RECORD_ARM_ENABLED and to
-   artisan-sim.js COOKING_SETTLEMENT_ARM_ENABLED (which owns the benchPayable
-   half); the three flip together in one post-wipe rollout commit, and a drift
-   guard (smoke ROOMS-COOKING-ARM) asserts this equals artisan-sim's twin.
+/* ── THE COOKING SETTLEMENT ARM — ARMED (b431 machinery, live) ──────────────
+   Cooking was the last un-modeled artisan lane. It became settle-able when its
+   only destructive bonus key — `noBurn`, off the Kitchen room rung — became
+   server-owned, i.e. when src/net/record.js ROOMS_RECORD_ARM_ENABLED went true.
+   This const is the data-layer half and it is TRUE: cooking's classification is
+   'payable', which enrols it into payableArtisanSkills() (skill-authority.js) so
+   the SERVER cooks the recipe. COUPLED to record.js ROOMS_RECORD_ARM_ENABLED and
+   to artisan-sim.js COOKING_SETTLEMENT_ARM_ENABLED (the benchPayable half); a
+   drift guard (smoke ROOMS-COOKING-ARM) asserts this equals artisan-sim's twin.
 
-   ⚠ OUTPUT-OWNERSHIP IS DELIBERATELY LEFT EXCLUDED, EVEN WHEN THIS IS TRUE.
-   Cooking OUTPUTS are ITEMS, so absolute inventory ownership of them couples to
-   the SEPARATE inventory flip (INVENTORY_ARM_ENABLED). buildItemAuthority()
-   ALWAYS adds cookingOutputIds() to `excluded`, and EXCLUDED WINS on overlap —
-   so flipping cooking to 'payable' makes payableArtisanOutputIds() include the
-   dishes (harmless) but they STAY excluded from the ownable set, i.e. the
-   inventory absolute-replace can never DELETE a live-cooked dish. Owning cooking
-   outputs is a post-inventory-arm follow-up (remove the unconditional exclusion);
-   the SETTLEMENT here is independent of it and safe to arm first. */
-export const COOKING_SETTLEMENT_ARM_ENABLED = true;   // ARMED (cooking real-fix, supersedes the R4 pause) — twin of artisan-sim.js COOKING_SETTLEMENT_ARM_ENABLED; both TRUE so ARTISAN_SETTLEMENT.cooking='payable' → payableArtisanSkills() includes cooking → serverAccruedSkill('cooking')=true and the server actually settles the cook (consumes raw, produces cooked + server-computed burn, grants cooking XP). The precondition is met: the noBurn Kitchen rung is server-owned end to end (upgradeRoom→hr_unlock_buy write + rooms record arm + hr_perks_of read). ⚠ OUTPUT-OWNERSHIP STAYS EXCLUDED: buildItemAuthority() still adds cookingOutputIds() to `excluded`, and EXCLUDED WINS on overlap — so the dishes are settled/credited by the accrual delta (hr_apply → player_inventory) but stay OUT of the ownable set, i.e. the inventory absolute-replace (INVENTORY_ARM_ENABLED, still post-wipe-only) can never DELETE a live-cooked dish. Owning cooking outputs is a post-inventory-arm follow-up; the SETTLEMENT here is independent and safe. Coupled twin: artisan-sim.js.
+   ⚠ OUTPUT-OWNERSHIP IS DELIBERATELY LEFT EXCLUDED, EVEN THOUGH THIS IS TRUE.
+   Cooking OUTPUTS are ITEMS, so absolute ownership of them belongs to the SEPARATE
+   inventory flip (INVENTORY_ARM_ENABLED, also true). buildItemAuthority() ALWAYS
+   adds cookingOutputIds() to `excluded`, and EXCLUDED WINS on overlap — so
+   payableArtisanOutputIds() includes the dishes (harmless) while they STAY out of
+   the ownable set, i.e. the inventory absolute-replace can never DELETE a
+   live-cooked dish. Owning cooking outputs (removing that unconditional exclusion)
+   is a follow-up; the SETTLEMENT is independent of it. */
+export const COOKING_SETTLEMENT_ARM_ENABLED = true;   // ARMED (cooking real-fix, supersedes the R4 pause) — twin of artisan-sim.js COOKING_SETTLEMENT_ARM_ENABLED; both TRUE so ARTISAN_SETTLEMENT.cooking='payable' → payableArtisanSkills() includes cooking → serverAccruedSkill('cooking')=true and the server actually settles the cook (consumes raw, produces cooked + server-computed burn, grants cooking XP). The precondition is met: the noBurn Kitchen rung is server-owned end to end (upgradeRoom→hr_unlock_buy write + rooms record arm + hr_perks_of read). ⚠ OUTPUT-OWNERSHIP STAYS EXCLUDED: buildItemAuthority() still adds cookingOutputIds() to `excluded`, and EXCLUDED WINS on overlap — so the dishes are settled/credited by the accrual delta (hr_apply → player_inventory) but stay OUT of the ownable set, i.e. the inventory absolute-replace (INVENTORY_ARM_ENABLED, also LIVE) can never DELETE a live-cooked dish. Owning cooking outputs is a post-inventory-arm follow-up; the SETTLEMENT here is independent and safe. Coupled twin: artisan-sim.js.
 export const ARTISAN_SETTLEMENT = Object.freeze({
   smithing:     'payable',
   crafting:     'payable',
@@ -123,24 +120,20 @@ export function gatherProductIds() {
    the accrual pass into player_inventory — after which the client stops calling
    addItem for it and this lane leaves the unbacked set.
 
-   ── SHIPPED (worker-settlement slice, 2026-08-25) ──────────────────────────
-   Worker production is now server-settled: supabase/functions/hr-accrue
+   ── SERVER-OWNED SINCE b454 (armed 2026-08-22, 953bd626 — LIVE) ─────────
+   Worker production IS server-settled: supabase/functions/hr-accrue
    `accrueWorkers` prices [workers_accrued_to, now()] with NO rng and emits a
    signed item delta + per-worker xp that hr_apply applies into player_inventory /
    player_workers (2026-08-25-workers.sql). The client's accrueWorker no longer
-   mints (src/features/workers.js gates on this flag). So this flag flips TRUE in
-   the SAME commit that removes the client mint — `unbackedOwnableMintLanes`
-   empties, `flipArmBlockers` clears this blocker, and SERVER-OWNED-5 crosses to
-   its backed branch. Flipping it without removing the mint would re-open the
-   landmine; the SERVER-OWNED-5 backstop fails exactly then.
+   mints (src/features/workers.js gates on this flag), so this lane is OUT of
+   `unbackedOwnableMintLanes` and `flipArmBlockers` is clear for it.
 
-   ⚠ HISTORY: shipped DORMANT (false) b423, then ARMED true b424 (2026-08-20) —
-   PRE-WIPE by Tyler's explicit call, item loss accepted (players warned; Saturday
-   wipe is the backstop). Activating makes the client reconcile the crew from the
-   server; existing players' client-side crews reconcile to the (empty) server crew
-   on next load = expected/accepted. Post-wipe every crew is empty, so no further
-   transition. Coupled with INVENTORY_ARM_ENABLED below (both set true together). */
-export const WORKER_PRODUCTION_SERVER_BACKED = true;   // REVERTED to dormant b425 — see note below
+   INVARIANT: this flag is TRUE, and true means "no client mint". Setting it true
+   while src/features/workers.js still minted would re-open the landmine above —
+   the SERVER-OWNED-5 backstop fails exactly then. (History, for context only:
+   shipped inert b423, armed pre-wipe b424, rolled back b425, armed for good in
+   the b454 post-wipe cutover.) */
+export const WORKER_PRODUCTION_SERVER_BACKED = true;   // LIVE since b454 (2026-08-22 cutover) — worker production is server-settled; the client mints none of it
 
 /* ── RAID CHEST MATERIALS — UNBACKED OWNABLE MINT (2026-08-22) ───────────────
    src/features/raids.js `grantReward` mints the raid chest MATERIALS
@@ -197,64 +190,41 @@ export const RAID_ITEMS_SERVER_BACKED = true;   // LIVE — 2026-08-22-raid-ches
    and the absence path is NOT an arm-blocker. */
 export const MUSTER_ABSENCE_ITEMS_SERVER_BACKED = true;   // LIVE — 2026-08-22-absence-chest-items.sql applied + verified
 
-/* THE INVENTORY-FLIP LIVE-ARM ENABLE (rollout gate, 2026-08-20).
-   ⚠⚠ b424 ARMED PRE-WIPE, then b425 REVERTED (2026-08-20) after a LIVE TEST found it
-   CATASTROPHIC. THE HARD LESSON: `inventory_complete=true` means "the server's settle
-   loop is caught up", NOT "the server bag equals the client bag". Every player built
-   their inventory CLIENT-SIDE before the flip, so the server baseline is SPARSE — a
-   live check on Tyler's own character: client 36 stacks / 91,168 items vs server 19
-   stacks / 37,157 items, with 12 OWNABLE stacks (coal 3974, iron_ore 4000, oak_log
-   3960, all three essences 4000 each, water_rune 1247, …) OMITTED by the "complete"
-   envelope. An absolute replace would DELETE ~40k+ items of real progress per player.
-   The drift readout (inventoryFlipReadiness().destructiveOwnedOmissions / lastLoss)
-   flagged exactly this — the "soak" I'd called unmeasurable IS measurable client-side,
-   and it screamed. The flip is ONLY safe POST-WIPE (empty server baseline == empty
-   client bag, every subsequent item server-settled from scratch). Both flags stay
-   FALSE until AFTER the wipe. Do NOT arm pre-wipe again.
-   THE ONE FLAG THAT TURNS THE INVENTORY FLIP ON FOR EVERY PLAYER. All the arm
-   machinery is built and dormant: markInventoryAuthorityLive throws unless every
-   guard is met, and isInventoryAbsolute stays false because nothing in prod calls
-   the arm. maybeAutoArm() in src/net/accrue.js is the deliberate, guarded auto-
-   arm at boot, but it refuses unless THIS flag is true. Default FALSE: the auto-
-   arm is a silent no-op until a rollout commit flips it, so the flip cannot arm
-   by accident.
+/* THE INVENTORY-FLIP ARM — LIVE SINCE b454 (armed 2026-08-22, 953bd626).
+   THE ONE FLAG THAT TURNS THE INVENTORY ABSOLUTE-REPLACE ON FOR EVERY PLAYER, and
+   it is ON. maybeAutoArm() in src/net/accrue.js performs the guarded auto-arm at
+   boot (it refuses unless this flag is true); markInventoryAuthorityLive still
+   throws unless every guard is met; player_inventory is the only copy of a bag.
 
-   THIS IS A COUPLED TWO-FLAG ROLLOUT, FLIP BOTH IN THE SAME COMMIT.
-   Arming requires workers server-backed (an un-backed OWNABLE mint would be
-   DELETED on the flip, see flipArmBlockers/unbackedOwnableMintLanes). So the
-   rollout that turns the inventory flip live sets BOTH, together, post-wipe:
+   INVARIANT — WHY THIS IS ONLY EVER SAFE POST-WIPE: an absolute replace assumes
+   the server baseline IS the bag. `inventory_complete=true` means "the server's
+   settle loop is caught up", NOT "the server bag equals the client bag". Armed
+   pre-wipe (b424) it cost a live character ~40k items — 12 OWNABLE stacks omitted
+   by a "complete" envelope — and b425 rolled it back. Post-wipe the baseline
+   starts empty and every item is server-settled from scratch, so the assumption
+   holds. Never re-introduce a client-authored bag alongside it.
 
-       WORKER_PRODUCTION_SERVER_BACKED = true   (this file, above)
-       INVENTORY_ARM_ENABLED           = true   (this file, here)
+   COUPLED BY CONSTRUCTION with WORKER_PRODUCTION_SERVER_BACKED above (both TRUE):
+   flipArmBlockers() is non-empty while ANY ownable mint lane is un-backed, so the
+   flip physically cannot arm while a client still mints an ownable id. Adding a
+   new client-side mint of an ownable id re-opens the landmine — make it
+   server-settled, or classify it excluded. */
+export const INVENTORY_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 post-wipe cutover) — inventory absolute-replace is on
 
-   They are coupled by construction: even if INVENTORY_ARM_ENABLED were flipped
-   alone, flipArmBlockers() is non-empty while workers are un-backed, so
-   maybeAutoArm refuses and the arm gate throws, the flip physically cannot arm
-   until workers are backed too. Flipping WORKER_PRODUCTION_SERVER_BACKED without
-   removing the client mint (src/features/workers.js) re-opens the landmine; both
-   moves belong in the ONE post-wipe rollout commit, gated on a security pass and
-   a coordinator-run drift-soak. Do NOT set either true before the wipe. */
-export const INVENTORY_ARM_ENABLED = true;   // REVERTED to dormant b425 — pre-wipe arm was catastrophic (see note above); post-wipe only
+/* ── THE FARM SERVER-AUTHORITY ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──
+   TRUE: the client does NOT author farm outcomes. plantCrop / waterPlot /
+   harvestPlot / plot-tier upgrade send INTENTS to hr_farm_plant / hr_farm_water /
+   hr_farm_harvest / hr_farm_upgrade_plot (2026-08-22-server-farming-complete.sql)
+   via src/net/farm-sync.js and render the plot state the server returns.
+   reconcileFarmResult applies the server's own produce / xp / seed debit ONCE, and
+   the local yield roll / addXp / seed removal are SKIPPED — no double credit.
 
-/* ── THE FARM SERVER-AUTHORITY ARM (2026-08-22, DORMANT) ─────────────────────
-   When true, the client stops AUTHORING farm outcomes (plantCrop / waterPlot /
-   harvestPlot / plot-tier upgrade) and instead sends INTENTS to the server RPCs
-   (hr_farm_plant / hr_farm_water / hr_farm_harvest / hr_farm_upgrade_plot,
-   installed by 2026-08-22-server-farming-complete.sql) and renders the plot
-   state the server returns. While FALSE the legacy.js farm writers behave
-   byte-for-byte as today — this ships fully inert.
-
-   ⚠ FLIPPING THIS TO true IS THE ARM. Do NOT until: (1) the legacy.js farm
-   gestures route through src/net/farm-sync.js and reconcile from the RPC
-   response rather than mutating G.farmPlots locally; (2) Security has reviewed;
-   (3) it is POST-WIPE — the server player_farm baseline is SPARSE vs the rich
-   client blob, so arming pre-wipe would strand growing crops (the inventory-flip
-   lesson). Because farming is a standalone RPC pair (not an accrual kind), this
-   arm is INDEPENDENT of the master accrual switch and of INVENTORY_ARM_ENABLED:
-   crop produce is EXCLUDED from the ownable-inventory set (cropProductIds is a
-   documented exclusion), so the harvest RPC — not the inventory flip — is what
+   INVARIANT: this arm is INDEPENDENT of the master accrual switch and of
+   INVENTORY_ARM_ENABLED. Farming is a standalone RPC pair, not an accrual kind,
+   and crop produce is EXCLUDED from the ownable-inventory set (cropProductIds is a
+   documented exclusion) — so the harvest RPC, not the inventory flip, is what
    makes farm produce server-owned. */
-export const FARM_SERVER_ARM_ENABLED = true;   // DORMANT — post-wipe rollout only
+export const FARM_SERVER_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 cutover) — farm gestures are server intents
 let farmArmOverride = null;
 export function isFarmServerArmed() {
   return farmArmOverride !== null ? !!farmArmOverride : FARM_SERVER_ARM_ENABLED;

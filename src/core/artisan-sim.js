@@ -534,22 +534,23 @@ export function simulateArtisanSpan(state, ctx) {
    `hr_unlock_buy` (no longer a comment-only reference). */
 export const SERVER_OWNED_BONUS_KEYS = Object.freeze([]);
 
-/* ── THE COOKING SETTLEMENT ARM (b431), SHIPPED DORMANT ──────────────────────
-   The one line the header above promised: `noBurn` becomes a server-owned bonus
-   key exactly when the Kitchen ROOM rung it comes off is server-owned — which is
-   the day src/net/record.js ROOMS_RECORD_ARM_ENABLED flips. This flag is that
-   day's switch on the artisan side, and it is COUPLED to the rooms record arm and
-   to item-authority.js COOKING_SETTLEMENT_ARM_ENABLED (which flips
-   ARTISAN_SETTLEMENT.cooking 'unmodeled'→'payable'); the three move together in
-   one post-wipe rollout commit. A drift guard (smoke ROOMS-COOKING-ARM) asserts
-   this const equals item-authority's twin.
+/* ── THE COOKING SETTLEMENT ARM — ARMED (b431 machinery, live) ──────────────
+   `noBurn` is a server-owned bonus key exactly when the Kitchen ROOM rung it comes
+   off is server-owned — which is true: src/net/record.js
+   ROOMS_RECORD_ARM_ENABLED is on. This flag is the artisan-side half and it is
+   TRUE, COUPLED to the rooms record arm and to item-authority.js
+   COOKING_SETTLEMENT_ARM_ENABLED (which holds ARTISAN_SETTLEMENT.cooking =
+   'payable'). The three move together; a drift guard (smoke ROOMS-COOKING-ARM)
+   asserts this const equals item-authority's twin.
 
-   Default OFF, with a runtime override seam for tests. While off,
-   `serverOwnedBonusKeys()` is empty and `benchPayable('cooking')` stays false —
-   the accrual engine keeps refusing cooking, exactly as today, and nothing
-   changes byte-for-byte. `SERVER_OWNED_BONUS_KEYS` stays the frozen empty const
-   it always was (external readers — tests/artisan-accrual.mjs — see the dormant
-   baseline); benchPayable/benchBlockedBy read the runtime set instead. */
+   INVARIANT: with it on, serverOwnedBonusKeys() may include 'noBurn' and
+   benchPayable('cooking') is true, so the accrual engine settles the bench at the
+   SERVER burn rate. A forged client Kitchen cannot skip burn — the server reads
+   the rung from player_progress, never from the request. `SERVER_OWNED_BONUS_KEYS`
+   remains the frozen empty const it always was (external readers see the static
+   baseline); benchPayable/benchBlockedBy read the runtime set instead. There is a
+   runtime override seam for tests. — artisan-sim.js is VENDORED into hr-accrue by
+   tools/pack-edge.mjs, so changing this const requires an Edge redeploy. */
 export const COOKING_SETTLEMENT_ARM_ENABLED = true;   // ARMED (cooking real-fix, supersedes the R4 pause) — the noBurn Kitchen-rung WRITE is now server-owned END TO END: src/legacy.js upgradeRoom() routes the purchase through hr_unlock_buy (window.HearthriseGold.buyUnlock('room.<id>.<rung>')), rooms is on src/net/record.js SERVER_OF_RECORD with ROOMS_RECORD_ARM_ENABLED=true so the client no longer authors G.rooms (clientMayWriteRecordField('rooms')===false), and the READ is hr_perks_of → makeBonus → noBurn off the server-owned room:kitchen rung. So serverOwnedBonusKeys() may honestly include 'noBurn' → benchPayable('cooking')=true → set-activity accepts cooking (in ARTISAN_RECIPES_PAYABLE), accrual settles the bench at the CORRECT server burn rate, and the client un-pauses (cookingPaused() reads this predicate). Coupled twin: item-authority.js COOKING_SETTLEMENT_ARM_ENABLED. A forged client Kitchen cannot skip burn: the server reads the rung from player_progress, never from the request. ⚠ artisan-sim.js is VENDORED into hr-accrue by tools/pack-edge.mjs — this flip requires an Edge redeploy to take effect server-side.
 let cookingArmOverride = null;
 export function isCookingSettlementArmed() {

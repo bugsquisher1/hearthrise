@@ -88,11 +88,21 @@ check_invariant() {
   # of a real module at a stale version. Any quoted `.js?v=` is now in scope,
   # which is exactly the population step 3's sed rewrites, so the two can no
   # longer disagree about what a versioned specifier is.
-  local bad_html bad_js missing ok
+  # b511: …and the gap that carve-out left. `?v=88` lived in src/icon-swap.js for
+  # 400+ builds precisely BECAUSE the js pattern above requires a `.ext` in front
+  # of the query: `BASE + filename + '?v=88'` is a quoted bare query, invisible to
+  # both the rewrite (step 3b) and the check. A pinned version is worse than a
+  # missing one — it is a cache LOCK that no bump can ever move. So: ANY quoted
+  # string under src/**.js that contains `?v=<digits>` must carry the current
+  # build, extension-anchored or not. Unquoted prose in comments still doesn't
+  # count (that's how index.html:12 and legacy.js's kill-switch example survive).
+  local bad_html bad_js bad_lit missing ok
   bad_html="$({ grep -oE '(src|href)="[^"]*\.[a-z]+\?v=[0-9]+' index.html || true; } \
     | grep -oE '\?v=[0-9]+$' | { grep -vE "\?v=${cur}\$" || true; } | sort -u | tr '\n' ' ')"
   bad_js="$({ grep -rhoE "['\"][^'\"]*\.js\?v=[0-9]+" src --include='*.js' || true; } \
     | grep -oE '\?v=[0-9]+$' | { grep -vE "\?v=${cur}\$" || true; } | sort -u | tr '\n' ' ')"
+  bad_lit="$({ grep -rnoE "['\"\`][^'\"\`]*\?v=[0-9]+" src --include='*.js' || true; } \
+    | { grep -vE "\?v=${cur}\$" || true; })"
   # A relative .js import with no ?v= at all is the gap that lets a stale
   # module run for ~10 min after deploy.
   missing="$({ grep -rnE "(import|export|from|import\()[^'\"]*['\"]\.\.?/[^'\"]*\.js['\"]" src --include='*.js' || true; } | { grep -vE '\?v=' || true; })"
@@ -106,6 +116,13 @@ check_invariant() {
       | { grep -vE "\?v=${cur}[\"']" || true; } | sed 's/^/      /' >&2
     echo "      ^ a module reachable at TWO versions is loaded TWICE, with two copies" >&2
     echo "        of its module state. See tests/cache-buster-guard.mjs (b493)." >&2
+    ok=1
+  fi
+  if [[ -n "$bad_lit"  ]]; then
+    echo "  FAIL src/**/*.js has a QUOTED ?v= literal that is not the current build:" >&2
+    echo "$bad_lit" | sed 's/^/      /' >&2
+    echo "      ^ a hardcoded version is a cache LOCK, not a cache buster: no bump can" >&2
+    echo "        move it. Derive it (window.HearthriseBuild.cache) or drop it." >&2
     ok=1
   fi
   if [[ -n "$missing"  ]]; then
@@ -163,11 +180,14 @@ find src -name '*.js' -print0 | xargs -0 sed -i "s/?v=${old}/?v=${new}/g"
 # module, two copies of its state. So every QUOTED versioned specifier is
 # normalised to ${new}, whatever number it currently holds.
 #
-# The quote + extension anchors are what make this safe to run blind. They leave
-# exactly the two references that must stay frozen:
-#   • icon-swap.js's sprite pin  `BASE + filename + '?v=88'`  — the quoted string
-#     is the bare query, with no `.ext` in front of it, so it does not match.
-#   • legacy.js's kill-switch prose `e.g. legacy.js?v=111` — a comment, unquoted.
+# The quote + extension anchors are what make this safe to run blind. What they
+# leave behind is legacy.js's kill-switch prose `e.g. legacy.js?v=111` — a
+# comment, unquoted, correctly ignored.
+#   ⚠ b511: they USED to leave icon-swap.js's sprite pin `BASE + filename +
+#   '?v=88'` too — a quoted BARE query with no `.ext` in front of it, invisible
+#   here and invisible to the old --check. It sat at build 88 for 400+ builds.
+#   The pin is gone (icon-swap.js derives the version now) and check_invariant
+#   grew a `bad_lit` rule so a bare quoted `?v=<n>` can never come back silently.
 find src -name '*.js' -print0 | xargs -0 sed -i -E "s/([\"'\`][^\"'\`]*\.[a-z0-9]+)\?v=[0-9]+/\1?v=${new}/g"
 
 # --- Verify: the SAME rule --check uses, so the two can never disagree ---

@@ -380,6 +380,29 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/recovery-rest.mjs --selftest
 
+      # SECURITY F1 -- THE ATTENDED HALF OF THE SAME RULE.
+      # The Recovery Rule shipped with a hole its own header named: the AWAY path
+      # pays nothing inside the window, but the ATTENDED cadence RPCs
+      # (hr_credit_kills__ungated / hr_credit_combat_xp__ungated) did NOT floor
+      # their credit window at recovering_until, so a MODIFIED client could keep
+      # reporting kills and combat XP straight through a knockout and be paid at
+      # the physical cap -- and those are the RANKED surfaces (combat XP is the
+      # server-sourced leaderboard number; the kill counters are graded by
+      # hr_renown_of and PAID by hr_claim_daily). This asserts the floor exists in
+      # BOTH bodies and in all THREE windows (the bounty-free anchor, the bounty
+      # accepted_at window, the combat-XP watermark), that a knockout credits ZERO
+      # with a named reason, that the migration is an ANCHORED PATCH rather than a
+      # restatement (a restated hr_credit_kills__ungated would silently delete the
+      # renown credited counters), that the refusal writes nothing and therefore
+      # retires no unpaid watermark, and that its audit row is bounded to one
+      # value-free row per character per UTC day.
+      # 14 mutations, static, no credentials, production untouched.
+      # (`--replay` additionally reads the same properties off a rebuilt pglite
+      # chain; not run here because schema-drift already replays the chain.)
+      - name: Recovery floor - the attended cadence RPCs obey recovering_until
+        if: ${{ !cancelled() }}
+        run: node tests/cadence-recovery-floor.mjs --selftest
+
       # R10, THE STANDING RULE: RECOVERY IS NOT FOR SALE.
       # No trait, unlock, gold-ladder rung, Quartermaster offer, clan bond, perk,
       # renown rank, glyph or companion may key a mechanical effect on recovery

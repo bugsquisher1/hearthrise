@@ -258,6 +258,23 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/bounty-accept-bh-clamp.mjs --selftest
 
+      # MAX HP IS THE HITPOINTS LEVEL — and on the server it never was. max_hp was
+      # stamped once at character creation (hr_start_kit, 10) and no credit site
+      # ever moved it again, so every server-resolved fight ran at a 10 HP ceiling
+      # and Auto-Eat's percentage threshold was scaled to 10 with it. The fix is a
+      # derivation attached to the DATA (an AFTER trigger on player_skills) rather
+      # than a copy of the rule inside each of the six RPCs that credit hitpoints
+      # XP, so it cannot drift; the migration also backfills every existing
+      # character from its own persisted XP. It gets a step of its own for the
+      # reason the loot-credit one above did: the guard drives the real rate-gated
+      # hr_credit_combat_xp AND hr_apply on a replayed migration chain, and it is
+      # the ONLY thing that can see a broken BACKFILL — on a fresh replay no
+      # character exists yet, so the migration's own VERIFY block passes on a
+      # backfill that corrects nothing. 9 mutations, one gate-blind. No credentials.
+      - name: Max HP tracks hitpoints — attended, settle, backfill, raise-only
+        if: ${{ !cancelled() }}
+        run: node tests/max-hp-tracks-hitpoints.mjs --selftest
+
       # The attended-loot top-up is the OTHER half of the beta-2 progression
       # wall (production 2026-09-04: ~62% of an attended fight's drops were
       # credited, the settle re-simulating the session as if the player had

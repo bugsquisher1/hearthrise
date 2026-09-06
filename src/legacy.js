@@ -2336,8 +2336,16 @@ function applyServerEnvelope(res,opts){
        that could not name what killed you would be the one sentence on this
        receipt worth reading and the least informative. Same resolution the away
        card and the welcome modal already do on `diedTo`. */
+    /* `visibleSince` is injected for the same reason the two label helpers are:
+       the RULE ("an attended live settle narrates nothing") lives in accrue.js
+       and the OBSERVATION lives in the document. The module owns both readings
+       — this passes its own tracker straight back in rather than reading
+       `document.hidden` here, so there is exactly one idea of attendance and no
+       call site can grow a second. 0 (unwired, unknown, hidden) means "cannot
+       prove it", and the toast speaks. */
     var _txt=(_A&&typeof _A.receiptSentence==='function')
       ? _A.receiptSentence(s,{saleLine:_sale,spanLabel:fmtSince,
+          visibleSince:(typeof _A.visibleSince==='function')?_A.visibleSince():0,
           foeLabel:function(id){ return (id&&MONSTERS[id]&&MONSTERS[id].name)||null; }})
       /* The fallback is the PRE-b361 sentence exactly. A missing accrual module
          is a wiring break, not a licence to invent a third sentence here. */

@@ -51326,6 +51326,80 @@ const TESTS = [
     } finally { G.lastOfflineSummary = snap; }
   }),
 
+  () => tryRun('SYNC-5: an ATTENDED live settle says nothing; an absence and a death still speak', () => {
+    /* THE REPORT (Paione, 2026-09-06): "the constant syncing in the game while
+       playing actively." At a 90 s settle cadence the sync toast fired every
+       minute and a half at a player who was watching those exact drops land in
+       the combat log. Ruling: an attended live settle narrates nothing.
+       ATTENDANCE MUST BE PROVEN — every unprovable case still speaks, which is
+       what the second half of this test pins. */
+    const A = window.HearthriseAccrual;
+    assert(typeof A.receiptAttended === 'function' && typeof A.visibleSince === 'function',
+      'the attendance seam must be published');
+    const now = 1700000000000;
+    const span = A.SETTLE_INTERVAL_MS;                    // the real 90 s cadence
+    const settle = { at: now, awayMs: span, hrs: 0, gainedItems: 3, gainedXp: 40, gainedGold: 0, gainedKills: 2 };
+    const watching = now - span - 60000;                  // visible a minute before the window opened
+
+    // 1. THE BUG: watched the whole span → no toast.
+    assert(A.receiptAttended(settle, watching) === true, 'a fully-watched span must count as attended');
+    const n = A.receiptNotice(settle, { visibleSince: watching });
+    assert(n.kind === 'sync' && n.attended === true && n.announce === false,
+      'an attended live settle must not announce');
+    assert(A.receiptSentence(settle, { visibleSince: watching }) === null,
+      'an attended 90s sync produced a toast: ' + A.receiptSentence(settle, { visibleSince: watching }));
+
+    // 2. UNPROVABLE ATTENDANCE ALWAYS SPEAKS — this is the safe direction.
+    [['hidden now', 0], ['never observed', undefined], ['garbage', NaN], ['negative', -5],
+     ['arrived mid-window', now - (span / 2)], ['arrived at the boot after a tab-close', now]
+    ].forEach(([why, vs]) => {
+      assert(A.receiptAttended(settle, vs) === false, why + ' must not count as attended');
+      assert(A.receiptSentence(settle, { visibleSince: vs }) === 'Synced — +3 items, +40 XP',
+        why + ' must still get its receipt');
+    });
+    // The old one-argument callers are untouched.
+    assert(A.receiptSentence(settle) === 'Synced — +3 items, +40 XP',
+      'a caller that states no attendance must keep the speaking behaviour');
+
+    // 3. A REAL ABSENCE KEEPS ITS RECEIPT even if this document never hid —
+    //    the classifier, not the visibility flag, decides what a receipt IS.
+    const night = { at: now, awayMs: 8 * 3600000, hrs: 8, gainedItems: 13, gainedXp: 104, gainedGold: 0 };
+    assert(A.receiptSentence(night, { visibleSince: now - 9 * 3600000 })
+      === '⏰ Away 8h — the server credited +13 items, +104 XP, +0 gold',
+      'a 10-min+ absence must still get its full receipt whatever visibility says');
+    const tenMin = { at: now, awayMs: A.SYNC_MAX_MS, hrs: 0.2, gainedItems: 1, gainedXp: 1, gainedGold: 0 };
+    assert(A.receiptNotice(tenMin, { visibleSince: now - 3 * A.SYNC_MAX_MS }).announce === true,
+      'the 10-minute threshold, not attendance, is what makes a span an absence');
+
+    // 4. A DEATH IS NEVER A QUIET TOAST (b343), attended or not.
+    const dead = { at: now, awayMs: span, hrs: 0, gainedItems: 0, gainedXp: 0, gainedGold: 0,
+      died: true, diedTo: 'dragon' };
+    assert(A.receiptNotice(dead, { visibleSince: watching }).announce === true,
+      'a death must announce even when the player watched it happen');
+    const dline = A.receiptSentence(dead, { visibleSince: watching, foeLabel: () => 'Dragon' });
+    assert(dline && dline.indexOf('You died to Dragon') === 0, 'the death sentence changed: ' + dline);
+
+    // 5. A SWITCH keeps its own sentence — "Collected" is untouched.
+    const sw = { at: now, source: 'switch', awayMs: span, gainedItems: 1, gainedXp: 2, gainedGold: 3 };
+    assert(A.receiptSentence(sw, { visibleSince: watching, spanLabel: () => '1m' })
+      === 'Collected 1m — +3 gold, +2 XP, +1 items', 'a switch must still speak while attended');
+
+    // 6. THE SALE LINE SURVIVES THE SILENCE, alone. A listing selling is the
+    //    one thing on a sync receipt the player was not looking at.
+    assert(A.receiptSentence(settle, { visibleSince: watching, saleLine: '2 listings sold · +340 gold' })
+      === '2 listings sold · +340 gold',
+      'a sale during an attended settle must still be reported, without the "Synced" noise');
+
+    // 7. The live tracker exists and moves in both directions.
+    const was = A.visibleSince();
+    try {
+      assert(A.noteVisibility(true, now) === now, 'noteVisibility must record the visible instant');
+      assert(A.visibleSince() === now, 'visibleSince must read the recorded instant');
+      A.noteVisibility(false);
+      assert(A.visibleSince() === 0, 'going hidden must clear the attendance proof');
+    } finally { A.noteVisibility(was > 0, was); }
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════
      b361 regression suite — THE TRADE LEDGER
      Since market-v2 a listing sells server-side and the gold just arrives.

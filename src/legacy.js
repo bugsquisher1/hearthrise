@@ -2453,7 +2453,12 @@ function _awayActivityPays(){
 
    Returns null when the module is not up — "we cannot tell" is honest, and
    `receiptDeathCause` then claims nothing. */
-function awayAutoEatState(){
+/* `hadFood` is a PARAMETER, not something read here, and that is the whole
+   point (First-Night Idle Rescue): by the time this runs the night has already
+   eaten out of the bag, so a lookup at this instant would answer a different
+   question than the receipt asks. The caller samples it at WINDOW START through
+   `awayHadFood()` below — the same `chooseFood` the simulation gates on. */
+function awayAutoEatState(hadFood){
   try{
     var A=window.HearthriseAuto;
     if(!A||typeof A.getEat!=='function') return null;
@@ -2465,8 +2470,28 @@ function awayAutoEatState(){
     var t=(typeof A.eatThreshold==='function')?A.eatThreshold():eat.threshold;
     var n=Number(t);
     return { enabled: !!(eat.enabled&&owned),
-             pct: isFinite(n)?Math.round(Math.max(0,Math.min(1,n))*100):null };
+             pct: isFinite(n)?Math.round(Math.max(0,Math.min(1,n))*100):null,
+             /* `undefined` when the caller did not sample it — the receipt then
+                claims nothing about the bag, which is the honest degradation
+                and the same shape an older server envelope produces. */
+             hadFood: (typeof hadFood==='boolean')?hadFood:undefined };
   }catch(e){ return null; }
+}
+
+/* DID THE BAG HOLD ANY AUTO-EATABLE FOOD? Sampled by processOffline BEFORE the
+   replay runs, through the SAME `chooseFood` the simulation's auto-eat gate
+   uses, so the receipt's "you had no cooked food" sentence and the night that
+   did not heal cannot disagree. `Infinity` is the widest question the chooser
+   answers — "is there ANYTHING here I could eat" — which is the question the
+   sentence is about. Mirrors accrual.js's `hadFood`, field for field. */
+function awayHadFood(){
+  try{
+    var AE=window.HearthriseCore&&window.HearthriseCore.autoEat;
+    if(!AE||typeof AE.chooseFood!=='function') return undefined;
+    var A=window.HearthriseAuto;
+    var nom=(A&&typeof A.getEat==='function')?((A.getEat()||{}).foodId||null):null;
+    return !!AE.chooseFood(nom, G.inventory||{}, ITEMS, Infinity);
+  }catch(e){ return undefined; }
 }
 function maybeIdleAwayReceipt(now,watermark){
   if(typeof document!=='undefined' && document.hidden) return null;
@@ -2711,6 +2736,8 @@ function processOffline(){
   const _unpaidHeadMs=Math.max(0,_win.fromMs-_watermark);
   const _unpaidTailMs=Math.max(0,_now-_win.toMs);
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=balNum('gold'),beforeKills=G.stats?.kills||0;
+  /* SAMPLED HERE, BEFORE THE REPLAY (First-Night Idle Rescue). See awayHadFood. */
+  const _hadFoodAtStart = awayHadFood();
   let combatSummary = null;
   /* ── b345: HOW MUCH OF THE ABSENCE ACTUALLY PAID ────────────────────────
      `hrs` is how long the player was GONE. It has never been how long their
@@ -2963,6 +2990,19 @@ function processOffline(){
     died: combatSummary ? !!combatSummary.died : false,
     diedAfterMs: (combatSummary && combatSummary.died) ? (combatSummary.survivedMs||0) : 0,
     diedTo: (combatSummary && combatSummary.died) ? (combatSummary.diedTo||null) : null,
+    /* ── THE RECOVERY PAYLOAD (First-Night Idle Rescue) ────────────────────
+       `died` alone can no longer describe a night: a death is an interruption
+       now, so a twelve-hour absence can contain four of them and still pay. The
+       SAME three fields the server states (accrual.js -> src/net/accrue.js
+       summaryFromAway), stated by whichever engine ran the night, so every
+       welcome-back renderer reads ONE shape and infers nothing. */
+    deaths: combatSummary ? (combatSummary.deaths||0) : 0,
+    recoverMs: combatSummary ? (combatSummary.recoverMs||0) : 0,
+    recoverRemainingMs: combatSummary ? (combatSummary.recoverRemainingMs||0) : 0,
+    /* The rungs as charged, one per fall. Same field the server states, so both
+       receipt paths render from ONE shape. */
+    recoverLadder: (combatSummary && Array.isArray(combatSummary.recoverLadder))
+      ? combatSummary.recoverLadder.slice() : [],
     /* ── AND WHY NOTHING HEALED (Designer ruling 2b, 2026-08-31) ───────────
        The SAME field the server states on its own receipt (hr-accrue
        accrual.js → index.ts `away.autoEat` → src/net/accrue.js
@@ -2970,7 +3010,7 @@ function processOffline(){
        engine ran the night and the two paths cannot describe one death
        differently. Only on a combat receipt: a gather night has no auto-eat
        to report and a stated `enabled:false` there would read as a cause. */
-    autoEat: combatSummary ? awayAutoEatState() : null,
+    autoEat: combatSummary ? awayAutoEatState(_hadFoodAtStart) : null,
 
     featuredMs: combatSummary ? (combatSummary.featuredMs||0) : 0,
     /* The MULTIPLIER that featured time actually paid, so the welcome-back
@@ -3045,8 +3085,21 @@ function processOffline(){
        Crits are gear, they apply away, and stating the count is the cheapest
        proof that they did — the omission was the original sin here. */
     const critNote = combatSummary.crits ? ` · ${combatSummary.crits} crits` : '';
-    const note = combatSummary.died
-      ? `Offline ${hrs.toFixed(1)}h ${rateNote} — fought to the death after ${combatSummary.kills} kills${critNote}, +${gainedXp} XP, +${gainedGold} gold`
+    /* ── A NIGHT WITH FALLS IN IT (Recovery rev. 2) ───────────────────────
+       "fought to the death" is false about EVERY night now, including a
+       one-death one: the character got back up, served their recovery and kept
+       going, and the rev-1 single-death branch still told that player their
+       night ended in the first ten minutes. So the two death branches collapse
+       into one that reads off the SAME stated fields the receipt does, and it
+       leads with the recovery cost because that is the number the player can do
+       something about. `_recMs === 0` (the day's free fall) says so plainly
+       rather than quoting "0s spent recovering". */
+    const _deaths = combatSummary.deaths || 0;
+    const _recMs = combatSummary.recoverMs || 0;
+    const _fellNote = _deaths === 1 ? 'fell once and got back up' : `fell ${_deaths}× and got back up`;
+    const _costNote = _recMs > 0 ? `, ${fmtSince(_recMs)} spent recovering` : ' at no cost';
+    const note = _deaths > 0
+      ? `Offline ${hrs.toFixed(1)}h ${rateNote} — ${combatSummary.kills} kills${critNote}, ${_fellNote}${_costNote}. +${gainedXp} XP, +${gainedGold} gold`
       : `Offline ${hrs.toFixed(1)}h ${rateNote} — ${combatSummary.kills} kills${critNote}, +${gainedItems} items, +${gainedGold} gold`;
     notify(note + budgetNote, combatSummary.died ? 'kill' : 'info');
   } else {
@@ -5720,7 +5773,18 @@ function renderBountyPanel(){
    ═══════════════════════════════════════════════════════════════════════ */
 const QUEST_DEFS=[
   {id:'gatherer',type:'gather',label:'Gather 15 resources',goal:15,progress:0,reward:{gold:150},done:false},
-  {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200,item:'carrot_seed',qty:3},done:false},
+  /* ── FIRST-NIGHT IDLE RESCUE: THE ITEM HALF IS REVERTED (Security F2) ─────
+     This row briefly paid `{gold:200, item:'shrimp', qty:30}` so a new player
+     would have food for their first overnight. It was WITHDRAWN because the
+     item half is a LIE POST-CUTOVER: `completeQuest` pays it through `addItem`,
+     which writes G.inventory only; `hr_claim_quest` credits GOLD and nothing
+     else, so with INVENTORY_ARM_ENABLED the server envelope replaces the bag on
+     the next reload and the 30 shrimp are gone. Promising a first-night food
+     stock that a reload deletes is worse than promising nothing.
+     ⚠ CLASS: quest ITEM rewards do not persist post-cutover — server-credit
+       path needed (P1, tracked). Until it exists this reward is gold-only and
+       honest, and nothing in the design may claim it feeds the first night. */
+  {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200},done:false},
   {id:'first_blood',type:'kill_any',label:'Defeat 5 monsters',goal:5,progress:0,reward:{gold:150,item:'turnip_seed',qty:5},done:false},
   /* b497 (balance audit): 10 → 6. The SAME two-plot-camp wall b495 fixed on the
      harvest DAILY, one system over and still open. This is onboarding step 4:
@@ -7516,6 +7580,47 @@ function notify(text,type='info'){
   setTimeout(()=>{try{d.remove();}catch(e){}},4000);
   while(el.children.length>5)el.children[0].remove();
 }
+
+/* ── A TOAST WITH ONE WAY BACK (Recovery rev. 2 §10) ────────────────────────
+   `notify` can only tell. This can also OFFER, and it exists because the
+   one-time Auto-Eat switch-on changes how a player's night is fought: a change
+   like that must arrive with its own undo in the same breath, not as a line of
+   text pointing at Settings. Deliberately minimal — the ordinary notif element,
+   plus one button, plus a longer dwell because a toast with an action the
+   player never sees is a change made silently. No new CSS surface: the button
+   borrows `.notif-act`, and with no stylesheet rule it is still a plain,
+   clickable, legible span. */
+function notifyAction(text, actionLabel, onAction, type){
+  var el = document.getElementById('notifs');
+  if(!el || typeof onAction !== 'function'){
+    if(typeof notify === 'function') notify(text, type || 'info');
+    return null;
+  }
+  var d = document.createElement('div');
+  d.className = 'notif ' + (type || 'info');
+  var span = document.createElement('span');
+  span.textContent = String(text);
+  d.appendChild(span);
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'notif-act';
+  b.textContent = String(actionLabel || 'Undo');
+  var done = false;
+  b.onclick = function(ev){
+    ev.stopPropagation();
+    if(done) return; done = true;
+    try{ onAction(); }catch(e){}
+    try{ d.remove(); }catch(e){}
+  };
+  d.appendChild(b);
+  d.onclick = function(){ try{ d.remove(); }catch(e){} };
+  el.appendChild(d);
+  /* 12s, not 4: this one asks a question. */
+  setTimeout(function(){ try{ d.remove(); }catch(e){} }, 12000);
+  while(el.children.length > 5) el.children[0].remove();
+  return d;
+}
+window.notifyAction = notifyAction;
 
 /* b287 (functional QA): ONE way to open the sign-in prompt, so a "Sign in" button
    anywhere in the game actually signs you in. Several surfaces called
@@ -13201,14 +13306,49 @@ console.log('Activity bar: loaded');
      limits.) */
   function awayLineHtml(est){
     var foodId = G && G.foodSlot;
+    /* THE FIRST TWO RUNGS, read from the ONE table that states the ladder
+       (src/core/away.js `recoveryFor`) rather than typed here — a second copy of
+       "2 minutes" is a number that drifts away from the rule it describes the
+       first time the designer retunes it. The preview quotes the SECOND rung
+       because the first fall of a day is free and quoting "0 minutes" would
+       describe a night nobody has. Falls back to the shipped value only if core
+       is not up, which is a boot-order case and not a second source. */
+    var recMin = (function(){
+      try{ var A=window.HearthriseCore&&window.HearthriseCore.away;
+           var ms = (A&&typeof A.recoveryFor==='function')
+             ? A.recoveryFor({deathsTodayBefore:1, deathsLifetimeBefore:99}) : 120000;
+           return Math.max(1, Math.round((ms||120000)/60000)); }
+      catch(e){ return 2; }
+    })();
     if(!awayFightSustains()){
-      return '<b>Away:</b> about <b>'+fmtNum(est.survivalKills)+' kills</b>, then you fall and the '+
-             'fight ends. Auto-Eat keeps it running.';
+      /* ⚠ THIS USED TO SAY "the fight ends", AND IT IS NO LONGER TRUE.
+         Under the Recovery rule a death interrupts the run instead of ending
+         it, so a preview that promised the night was over would understate an
+         unfed night by roughly the whole night — the same lie the welcome-back
+         card used to tell, arriving before the player leaves instead of after. */
+      return '<b>Away:</b> about <b>'+fmtNum(est.survivalKills)+' kills</b>, then you fall — '+
+             'the first fall of the day is free, and every one after it costs longer ('+
+             recMin+' minutes, then double each time). Nothing is earned while you are down. '+
+             'Auto-Eat keeps the fight running instead.';
     }
     var capMs = (typeof offlineCapHours === 'function') ? offlineCapHours()*3600000 : 12*3600000;
     var foodMs = est.survivalSeconds * 1000;
     var bound = Math.min(capMs, foodMs);
     var name = (window.ITEMS && window.ITEMS[foodId] && window.ITEMS[foodId].n) || foodId;
+    /* ── UNDER AN HOUR OF FOOD: SAY IT, AND NAME THE FIX ──────────────────
+       The single most valuable sentence on this screen, because it is read
+       BEFORE the night rather than after it. A player with thirteen minutes of
+       shrimp is about to bank eleven hours of two-minute knockouts, and the
+       old line ("about 13m, on 20 Cooked Shrimp.") stated the number without
+       ever saying what happens next — which reads as "and then it stops",
+       i.e. exactly the wrong picture in both directions. One hour is the
+       threshold because it is the point at which the food genuinely is the
+       binding constraint on the night rather than a rounding error against it. */
+    if(foodMs <= capMs && foodMs < 3600000){
+      return '<b>Away:</b> about <b>'+fmtRunTime(foodMs/1000)+'</b> on '+
+        fmtNum(G.inventory[foodId])+' '+name+", then you'll be knocked out — and each fall "+
+        'costs longer than the last ('+recMin+' minutes, then double). Cook more before you go.';
+    }
     return '<b>Away:</b> about <b>'+fmtRunTime(bound/1000)+'</b>, '+
       (foodMs <= capMs
         ? 'on '+fmtNum(G.inventory[foodId])+' '+name+'.'
@@ -14507,10 +14647,163 @@ function maybeShowWelcome(){
         var _AC = window.HearthriseAccrual;
         if(_AC && typeof _AC.receiptDeathCause === 'function') _why = _AC.receiptDeathCause(_off);
       }catch(e){}
-      rows.push({g:'uiSkull', bad:true,
-        t: 'You died' + (_nm ? ' to ' + _nm : '')
-           + (_why ? ' — ' + _why.clause : ' — nothing was earned after'),
-        v: _when});
+      /* ── THE RECOVERY ROWS (First-Night Idle Rescue) ────────────────────
+         A death is an INTERRUPTION now, so one row can no longer describe the
+         night. Every number below is STATED by the simulation (`deaths`,
+         `recoverMs`, `recoverRemainingMs`) — a renderer that divided the lost
+         time by two minutes to guess a death count would be wrong on every
+         night that closed mid-recovery, which is the most common shape of all.
+         0 on a receipt written before Recovery shipped, so every one of these
+         rows simply does not appear and the surface reads exactly as it did. */
+      var _deaths = Math.max(0, Number(_off.deaths) || 0);
+      var _recMs = Math.max(0, Number(_off.recoverMs) || 0);
+      var _recLeft = Math.max(0, Number(_off.recoverRemainingMs) || 0);
+      var _winMs = Math.max(0, Number(_off.awayMs) || 0);
+      /* THE LADDER, AS IT WAS ACTUALLY CHARGED. One entry per fall, stated by
+         the simulation (`recoverLadder`, built from combat-sim's deathLog), NOT
+         re-derived: a renderer that regenerated the ladder from a death count
+         would be wrong on every night that hit the novice clamp or the cap, and
+         wrong in the direction that OVERSTATES the penalty. */
+      var _ladder = Array.isArray(_off.recoverLadder) ? _off.recoverLadder : [];
+      var _rung = function(ms){
+        var m = Math.max(0, Number(ms) || 0);
+        return m <= 0 ? 'free' : Math.round(m / 60000) + 'm';
+      };
+      /* ══ THE ORDER OF THIS CARD IS THE RULING (Designer, 2026-09-06) ═══════
+         A 17-fall night is a night the player WON — the ladder charged them for
+         it and the run kept going — and rev. 2's first draft read as a failure
+         report: skull, hourglass, ladder, lecture, and the one actionable line
+         last. The card now leads with what was EARNED (the gain rows above),
+         then says THE RUN SURVIVED, then prices the fix, and only then states
+         the cost — on ONE line. Nothing is hidden; the order is the message. */
+      var _pct = _winMs > 0 ? Math.round(_recMs / _winMs * 100) : 0;
+      /* THE POINTER SURVIVED. The single most important fact about a night with
+         deaths in it, and the one rev. 1 could not say because a death ENDED the
+         run. Same sentence as the death sheet (features/death-sheet.js), because
+         two surfaces describing one rule in two voices is how a player learns to
+         distrust both. Suppressed when the run really did stop on the death. */
+      if(_deaths >= 1 && _off.stoppedBy !== 'death'){
+        rows.push({g:'uiSword',
+          t: _nm ? 'Your run picked up against the ' + _nm + ' after every fall'
+                 : 'Your run picked up again after every fall',
+          v: ''});
+      }
+      if(_recMs > 0){
+        /* THE FIX, PRICED — AND IT NAMES WHICH FIX. Rev. 1 had one sentence for
+           three completely different players, and only one of them was being
+           told anything they could act on:
+             · an EMPTY BAG needs "go and cook";
+             · a FULL BAG with the switch OFF needs "throw the switch" — telling
+               that player to cook is insulting and useless;
+             · a bag that was EATEN TO THE LAST CRUMB needs "cook a tier up or
+               take a softer target", because more of the same food is a longer
+               version of the same night.
+           The uplift is measured from the simulated night, never assumed: it is
+           what the night would have been worth with none of that time spent
+           face-down. Floored denominator so an all-recovery window cannot divide
+           by zero; suppressed under 1.2x because a "1.1x" nudge trains players
+           to ignore the card. */
+        var _uplift = Math.round(_winMs / Math.max(1, _winMs - _recMs) * 10) / 10;
+        /* ⚠ THE DISPLAYED FIGURE IS CLAMPED AT 25× (Designer, 2026-09-06). The
+           ratio is unbounded by construction: a night that was 99% recovery
+           divides by the 1% that was fought and prints "100×", "340×", and at the
+           limit whatever the floored denominator allows. Those figures are
+           ARITHMETICALLY TRUE and read as marketing — the moment a receipt quotes
+           a number a player does not believe, they stop believing the receipt,
+           and being believed is this card's entire job. Above 25× it says "more
+           than 25×" and stops counting; at or below, the real figure prints to
+           one decimal, unchanged. The 1.2× suppression floor is the same rule at
+           the other end and is likewise unchanged. */
+        var _upTxt = _uplift > 25 ? 'more than 25×' : (_uplift + '×');
+        if(_uplift >= 1.2){
+          var _ae = (_off.autoEat && typeof _off.autoEat === 'object') ? _off.autoEat : null;
+          var _hadFood = _ae ? _ae.hadFood : undefined;
+          var _aeOn = _ae ? !!_ae.enabled : true;
+          var _ateAll = (Number(_off.foodEaten) || 0) > 0 && _hadFood !== false;
+          var _fix;
+          if(_hadFood === false){
+            _fix = 'You had nothing to eat. A stocked bag would have turned that recovery into '
+                 + 'fighting — about ' + _upTxt + ' tonight\'s loot.';
+          } else if(_hadFood === true && !_aeOn){
+            /* NAME THE BAG. The player who is carrying the answer and has the
+               switch off is the one this sentence exists for. */
+            var _fq = 0, _fn = '';
+            try{
+              var _best = null;
+              for(var _id in (G.inventory||{})){
+                if(!Object.prototype.hasOwnProperty.call(G.inventory, _id)) continue;
+                var _it = ITEMS[_id];
+                if(!_it || !(G.inventory[_id] > 0)) continue;
+                if(!(_it.heals > 0) || _it.foodClass === 'buff') continue;
+                if(!_best || (_it.heals||0) > (_best.h||0)) _best = {q:G.inventory[_id], n:_it.n||_id, h:_it.heals||0};
+              }
+              if(_best){ _fq = _best.q; _fn = _best.n; }
+            }catch(e){}
+            _fix = _fq > 0
+              ? 'You were carrying ' + _fq + ' ' + _fn + ' and Auto-Eat was switched off. '
+                + 'Switched on, that bag was worth about ' + _upTxt + ' tonight\'s loot.'
+              : 'Auto-Eat was switched off. Switched on, your provisions were worth about '
+                + _upTxt + ' tonight\'s loot.';
+          } else if(_ateAll){
+            _fix = 'You ate every provision you had and still fell. Cook a tier up, or take a '
+                 + 'softer target — a night that never breaks pays about ' + _upTxt + ' this one.';
+          } else {
+            _fix = 'Food would have turned that recovery time into fighting — about '
+                 + _upTxt + ' the loot.';
+          }
+          rows.push({g:'uiFood', t: _fix, v: ''});
+        }
+      }
+      /* ── THE COST, ON ONE LINE ────────────────────────────────────────────
+         Rev. 2's first draft spent TWO rows on it — a skull row counting the
+         falls and an hourglass row pricing them — so a seventeen-fall night
+         opened with two consecutive red rows before it said anything the player
+         could act on. Merged: the count, what it cost in time, and the share of
+         the night, in one sentence. The single-fall night keeps its own shape
+         (it has a "when", and on the day's free fall there is no time to
+         price), because collapsing it would lose the only detail it has. */
+      if(_deaths === 1){
+        rows.push({g:'uiSkull', bad:true,
+          t: 'You fell once while you were away' + (_nm ? ' — to the ' + _nm : '')
+             + (_recMs > 0 ? ', knocked out for ' + fmtSince(_recMs) : ''),
+          v: _recMs > 0 ? _pct + '% of the night' : _when});
+      } else if(_deaths > 1){
+        rows.push({g:'uiSkull', bad:true,
+          t: 'You fell ' + _deaths + ' times' + (_nm ? ' to the ' + _nm : '')
+             + (_recMs > 0 ? ' — knocked out for ' + fmtSince(_recMs) + ' in total' : ''),
+          v: _recMs > 0 ? _pct + '% of the night' : _deaths + ' falls'});
+      }
+      /* THE CAUSE, and only when the fall line did not carry it inline. Saying
+         it twice on one card is how a surface starts sounding like a machine. */
+      if(_deaths > 1 && _why){
+        rows.push({g:'uiFood', bad:true, t: _why.sentence, v: ''});
+      }
+      /* THE LADDER LINE, past rung 2 only. On a one- or two-fall night the
+         doubling has not happened yet and stating the rule would be a lecture;
+         from the third fall it is the explanation for a number the player has
+         just been shown and cannot otherwise account for. */
+      if(_ladder.length >= 3){
+        rows.push({g:'uiHourglass', bad:true,
+          t: 'Recovery grows with every fall on the same day — tonight it went '
+             + _ladder.map(_rung).join(', ') + '.',
+          v: ''});
+      }
+      if(_deaths >= 1){
+        /* 40%, NOT A FULL HEAL, and said on the surface where it changes what
+           the player does next: they are about to resume a fight on less than
+           half a health bar, and food is the only thing that fixes that. */
+        rows.push({g:'uiHeart',
+          t: 'You got back up at 40% health each time — food is what carries you from there.',
+          v: ''});
+      }
+      if(_recLeft > 0){
+        /* STILL DOWN. Without this the card describes a character who is up and
+           fighting while the server will refuse their next swing — the exact
+           class of "a flag the reload forgot" this project keeps paying for. */
+        rows.push({g:'uiClock', bad:true,
+          t: 'Still recovering when you got back — ' + fmtSince(_recLeft) + ' to go.',
+          v: ''});
+      }
     }
   }catch(e){}
   /* ── b499 (Designer ruling, THE STREAK LABEL COLLISION) ────────────────────

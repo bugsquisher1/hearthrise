@@ -104,7 +104,7 @@ import {
   simulateArtisanSpan, STOP_REASON as ARTISAN_STOP, benchPayable, benchBlockedBy,
 } from '../../../src/core/artisan-sim.js';
 import { BENCH_COUNTERS } from '../../../src/core/artisan.js';
-import { resolveAutoEat, thresholdFromPct } from '../../../src/core/auto-eat.js';
+import { chooseFood, resolveAutoEat, thresholdFromPct } from '../../../src/core/auto-eat.js';
 import { killBonusesFor } from '../../../src/core/botd.js';
 /* WHICH hours of an over-cap absence are credited. One definition, imported by
    both the server and (through core-bridge) the client — the flip from
@@ -142,6 +142,10 @@ import {
      goal model reads. See their headers in src/core/goals.js. */
   makeBestiaryCounter, bestiaryProgressOps,
   makeCollectionCounter, collectionProgressOps,
+  /* THE UTC DAY KEY. One definition — the Recovery ladder's `deaths` daily row
+     must land under exactly the period key every other daily row lands under,
+     or the free fall is anchored to a day nothing else agrees about. */
+  utcDayKey,
 } from '../../../src/core/goals.js';
 /* THE QUEST-MODAL DAILY COUNTERS (b461) — chopped / mined / fished / rare_drop
    / levelup. A SECOND PROJECTION of integers this engine already computed (the
@@ -626,6 +630,13 @@ export const SKIP = {
      nothing", which is where this whole item started. */
 export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan']);
 
+/* THE DEATH-ROW CEILING (Recovery rev. 2, N3). hr_apply enforces its own copy —
+   this one exists so a pathological span proposes a delta hr_apply will accept
+   rather than one it refuses outright, which would cost the player the window
+   instead of the tail of a list. 24 is comfortably above the ~20 the ladder's
+   own 64-minute cap allows in a twelve-hour night. */
+export const MAX_DEATH_ROWS = 24;
+
 /* ── KIND → THE FUNCTION THAT PRICES IT ────────────────────────────────────
    The mechanism the block above could not previously claim, made real: this is
    what `computeAccrual`'s branch DISPATCHES ON, and tests/artisan-accrual.mjs
@@ -950,6 +961,29 @@ export function accrueRested({ nowMs, restedAtMs, restedXp, libraryCap }) {
  *                  without the column. Only a FRACTIONAL rung is affected, and
  *                  only by under-charging (< 1 item per settled window), which
  *                  is the safe direction. See src/core/ammo.js.
+ *   recoveringUntilMs
+ *                player_state.recovering_until in ms — the RECOVERY LINE
+ *                (First-Night Idle Rescue). An ABSOLUTE server instant before
+ *                which the character is Knocked Out: no swing, no gather, no
+ *                XP, no loot, no food. Written only by hr_apply, never by any
+ *                client, and never a per-window counter — the ~90 s live settle
+ *                cadence would re-zero a counter and make Recovery free (R1).
+ *                **NULL means the column does not exist**; 0 means the column
+ *                exists and the character is up. The switch is the KEY'S
+ *                PRESENCE in hr_state_of's envelope rather than `?? null`,
+ *                because null is the ordinary value — see index.ts's field.
+ *                Null ⇒ the engine omits `recovering_until` from the delta,
+ *                which is byte-for-byte the pre-Recovery behaviour.
+ *   deathsTodayBefore, deathsLifetimeBefore
+ *                THE RECOVERY LADDER'S TWO ANCHORS. player_progress
+ *                kind='stat' key='deaths' under period=<UTC day> and period=''
+ *                respectively, as they stood when this window OPENED. Projected
+ *                by hr_state_of as their own scalars (`deaths_today` /
+ *                `deaths_lifetime`) rather than dug out of the `progress`
+ *                array, which is LIMIT 1000 and truncatable — a survival
+ *                mechanic must never depend on a read that can silently answer
+ *                "you have never died". Absent ⇒ 0 ⇒ the day's-first-fall
+ *                grace, the UNDER-charging direction.
  *   fight        player_state.fight — the IN-FLIGHT FIGHT at `accrued_to`,
  *                `{ monster, hp, kills }` or `{}` for none. **NULL means the
  *                column does not exist yet**, the same self-configuring switch
@@ -1093,7 +1127,34 @@ export function computeAccrual(input) {
   // so clamping to it closes the hole from this side as well: you can never be
   // paid for more time than the activity has actually existed.
   const sinceMs = nat(inp.activeSinceMs, accruedToMs);
-  const elapsedMs = Math.max(0, nowMs - accruedToMs);
+
+  /* ── (1-r) KNOCKED OUT TIME IS NOT PAYABLE TIME (Recovery rev. 2, R2) ─────
+     `player_state.recovering_until` is an ABSOLUTE server instant before which
+     this character earns NOTHING — and rev. 1 only enforced that for combat,
+     which made the whole rule optional: fall over, switch to fishing, fish
+     through the knockout, switch back. Recovery is a property of the CHARACTER,
+     so it costs every PAYABLE kind.
+       · COMBAT is excluded HERE and gated inside the simulation instead
+         (`simulateSpan` spends recovery ticks without swinging), because the
+         combat path is the one that can CREATE a recovery mid-window and so
+         needs a timeline rather than a subtraction.
+       · GATHER and ARTISAN have no timeline and cannot create one: for them the
+         overlap is a prefix of the window, and moving the paid window's floor
+         forward past `recovering_until` IS the subtraction — it shortens
+         `grantMs` and repositions the credited span in one statement, so the
+         two can never disagree.
+     Clamped to `nowMs` so a line in the future cannot push the floor past the
+     present and mint a negative span. Self-configuring on the column exactly
+     like the combat seed below: absent ⇒ 0 ⇒ byte-for-byte the old behaviour. */
+  const recoverColIn = inp.recoveringUntilMs !== null && typeof inp.recoveringUntilMs !== 'undefined';
+  const recoverFloorMs = (recoverColIn && inp.activeKind !== 'combat')
+    ? Math.min(nat(inp.recoveringUntilMs, 0), nowMs) : 0;
+  /* The floor the paid window starts at. `accrued_to` still advances to now()
+     in the delta — the forfeited knockout is a FORFEIT, not a deferral, exactly
+     like the over-cap tail. */
+  const payFromMs = Math.max(accruedToMs, recoverFloorMs);
+
+  const elapsedMs = Math.max(0, nowMs - payFromMs);
   const sinceActivityMs = Math.max(0, nowMs - sinceMs);
   const grantMs = Math.min(elapsedMs, sinceActivityMs, capMs);
 
@@ -1111,7 +1172,9 @@ export function computeAccrual(input) {
      `grantMs` is UNCHANGED by this — only its POSITION on the timeline moves.
      An uncapped absence is byte-identical, because W + grantMs === nowMs there. */
   const credit = creditWindow({
-    watermarkMs: accruedToMs, activeSinceMs: sinceMs, nowMs, grantMs,
+    /* `payFromMs`, NOT `accruedToMs` — see (1-r). For combat the two are the
+       same value and this line is byte-identical to the shipped one. */
+    watermarkMs: payFromMs, activeSinceMs: sinceMs, nowMs, grantMs,
   });
   const unpaidMs = credit.unpaidMs;
 
@@ -1377,6 +1440,55 @@ export function computeAccrual(input) {
     foodId: (typeof inp.autoEatFood === 'string' && inp.autoEatFood) ? inp.autoEatFood : null,
   };
   let foodEaten = 0;
+
+  /* ── THE RECOVERY CLOCK, SEEDED FROM THE ROW (First-Night Idle Rescue) ────
+     `player_state.recovering_until` is an ABSOLUTE server timestamp and the
+     ONLY authority on whether this character is Knocked Out. It is seeded onto
+     `state` here and read by `simulateSpan`; nothing in the request body can
+     reach it, and no client ever authors it.
+
+     ⚠ SELF-CONFIGURING, exactly like tool_carry / fight / ammo_carry:
+       `inp.recoveringUntilMs === null` (or undefined) means the COLUMN DOES NOT
+       EXIST on this database. The engine then never proposes
+       `delta.recovering_until` — an unknown delta key is a 409 that costs the
+       player their entire night — and the span behaves byte-for-byte as it did
+       before Recovery shipped. The column's presence IS the switch; there is no
+       flag to forget to flip.
+       ⚠ THE COLUMN IS PRESENT-BUT-NULL WHEN THE CHARACTER IS UP, which is the
+       ordinary case, so the switch cannot be `st.recovering_until ?? null` the
+       way `tool_carry`'s is — index.ts sends 0 for "column present, not
+       recovering" and null for "no such column". See its comment. */
+  const recoverCol = inp.recoveringUntilMs !== null && typeof inp.recoveringUntilMs !== 'undefined';
+  state.recoveringUntilMs = recoverCol ? nat(inp.recoveringUntilMs, 0) : 0;
+
+  /* ── THE TWO DURABLE DEATH COUNTERS (Recovery rev. 2) ────────────────────
+     The ladder is anchored to rows the SERVER owns and the client cannot
+     re-arm — `player_progress` kind='stat' key='deaths', once under period=''
+     (lifetime) and once under period=<UTC day> (today):
+       · TODAY  decides which rung this fall lands on. The day's FIRST fall is
+         free. It is a DAY, never "this settle window": the client owns the
+         settle cadence, so a per-window grace is a free death per reload, which
+         is exactly what rev. 1 shipped and this closes.
+       · LIFETIME decides the novice clamp. Un-farmable by construction — it
+         only ever goes up, so the grace runs out once, forever.
+     Read off hr_state_of's envelope by index.ts / set-activity.js as their OWN
+     projected scalars, NOT out of the `progress` array: that array is LIMIT
+     1000 and carries `progress_truncated`, and a survival mechanic must not
+     depend on a read that can silently answer "you have never died". */
+  state.deathsTodayBefore    = nat(inp.deathsTodayBefore, 0);
+  state.deathsLifetimeBefore = nat(inp.deathsLifetimeBefore, 0);
+
+  /* DID THE BAG HOLD ANY AUTO-EATABLE FOOD WHEN THE WINDOW OPENED?
+     Derived HERE, at window start, from the SAME `chooseFood` inputs the
+     `autoEat` handler feeds `resolveAutoEat` — one chooser, so the receipt's
+     "you had no cooked food" sentence cannot disagree with the simulation that
+     did not heal them. `deficit: Infinity` asks the widest question the chooser
+     answers ("is there ANYTHING here I could eat"), which is the question the
+     sentence is about; the per-swing choice is a narrower one the handler still
+     makes for itself. Computed before the span because after it the bag has
+     been eaten out of, and "you started with nothing" is the fact the player
+     needs. REPORTED, NEVER APPLIED. */
+  const hadFood = !!chooseFood(eatCfg.foodId, bag, items, Infinity);
 
   /* ══════════════════════════════════════════════════════════════════════════
      THE ATTENDED SUB-WINDOW (docs/design/attended-loot-credit.md §3).
@@ -1992,7 +2104,18 @@ export function computeAccrual(input) {
 
   const nothingHappened =
     goldDelta === 0 && itemKinds === 0 && Object.keys(xpDelta).length === 0
-    && !summary.died && summary.ticks === 0;
+    && !summary.died && summary.ticks === 0
+    /* ── A PURE-RECOVERY WINDOW IS NOT NOTHING (First-Night Idle Rescue) ──
+       A settle that lands entirely inside a Knocked Out stretch simulates zero
+       ticks, kills nothing and moves no value — and it MUST still apply, for
+       two reasons that are both load-bearing:
+         · `delta.recovering_until` is the only thing that carries the recovery
+           line forward, and SKIP.NOTHING sends no delta at all;
+         · SKIP.NOTHING does not stamp `accrued_to`, so the window stays open
+           and the next settle re-simulates the same recovery — the counter
+           re-zeroing exploit (R1) arriving through the back door.
+       `summary.recoverMs > 0` is the whole of the extra condition. */
+    && !(summary.recoverMs > 0);
   if (nothingHappened) return { accrued: false, reason: SKIP.NOTHING, summary };
 
   const stats = state.stats || {};
@@ -2002,6 +2125,23 @@ export function computeAccrual(input) {
   stat('kills', stats.kills);
   stat('crits', stats.crits);
   stat('deaths', stats.deaths);
+  /* THE SECOND DEATHS ROW — the SAME integer, under today's UTC period key.
+     One fact over two windows, one spelling, the `rare_drops` precedent below.
+     The lifetime row (period='') anchors the novice clamp; this one anchors the
+     day's free fall, and the ladder reads BOTH. They cannot collide: the
+     primary key carries period_key, so 'deaths'/'' and 'deaths'/'2026-09-06'
+     are different rows.
+     ⚠ IT IS WRITTEN FROM THE SAME `stats.deaths` AS THE LINE ABOVE. Deriving
+       it separately is how two half-counters get born (the tool_doubles
+       lesson); the receipt, the ladder and the Hero screen all have to be
+       reading one number. */
+  (() => {
+    const n = Math.floor(Number(stats.deaths) || 0);
+    if (n <= 0) return;
+    const day = utcDayKey(nowMs);
+    if (!day) return;   // non-finite server clock: under-credit, never a row under ''
+    progress.push({ kind: 'stat', key: 'deaths', period: day, add: n, state: 'active' });
+  })();
   stat('rare_drops', stats.rareDrops);
   /* THE GOAL COUNTERS. `nowMs` — the day the player RETURNS — is the daily
      period, not the credited window; src/core/goals.js states why the other
@@ -2102,10 +2242,19 @@ export function computeAccrual(input) {
   if (itemKinds > 0) delta.items = items_;
   if (Object.keys(xpDelta).length) delta.xp = xpDelta;
   if (progress.length) delta.progress = progress;
-  // A death ends the fight. Sent only when it happened, because an `activity`
-  // key is a complete, re-validated activity statement (hr_apply R11) and
-  // restating an unchanged pointer buys nothing but a catalogue lookup.
-  if (summary.died || !state.activeMonster) delta.activity = { kind: 'idle', id: null };
+  /* ⚠ A DEATH NO LONGER IDLES THE POINTER (First-Night Idle Rescue). This line
+     used to read `if (summary.died || !state.activeMonster)`, and that `died`
+     term WAS the cliff: the settle told the server the character had stopped
+     fighting, so the rest of the night — and every night after it, until the
+     player noticed — accrued nothing at all. Recovery makes a death an
+     interruption, so the pointer survives it and only a genuinely ENDED
+     activity (`simulateSpan` cleared the target: an unknown monster, a STOP)
+     idles the character.
+     Sent only when it happened, because an `activity` key is a complete,
+     re-validated activity statement (hr_apply R11) and restating an unchanged
+     pointer buys nothing but a catalogue lookup — AND, since 2026-08-17, VOIDS
+     the in-flight fight unconditionally. */
+  if (!state.activeMonster) delta.activity = { kind: 'idle', id: null };
 
   /* ── THE END-OF-WINDOW CHECKPOINT (Phase 0) ──────────────────────────────
      ABSOLUTE, not a delta — the second key in this contract that is, and for
@@ -2154,6 +2303,59 @@ export function computeAccrual(input) {
        not an SQL file plus an Edge redeploy of a second engine change. */
   if (ammoCarry0) delta.ammo_carry = roundCarry(state.ammoCarry);
 
+  /* ── THE RECOVERY LINE (First-Night Idle Rescue) ─────────────────────────
+     ABSOLUTE, not a delta — the fourth key in this contract that is, for the
+     reason `tool_carry` / `fight` / `ammo_carry` already state: the engine
+     computes the RESULTING state from a starting one it was handed, and adding
+     two recovery windows is arithmetic nobody defined.
+
+     ALWAYS SENT when the column exists, including the `null` that means "this
+     character is up". An absent key would leave a stale line in place and a
+     character could stay Knocked Out forever; a VOID is the honest statement
+     and not merely the absence of one, exactly as `delta.fight = {}` is.
+
+     `if (recoverCol)` is the self-configuring switch. hr_apply refuses an
+     unknown delta key with a 409 that costs the player the whole window, so a
+     database without the column must never see this key. */
+  if (recoverCol) {
+    delta.recovering_until = state.recoveringUntilMs > 0
+      ? new Date(state.recoveringUntilMs).toISOString()
+      : null;
+  }
+
+  /* ── THE DEATH LEDGER (Recovery rev. 2, N3) ──────────────────────────────
+     ONE `player_ledger` row per DEATH — no more, and never per tick. A death
+     is now a mechanic with a COST attached (minutes of a night), so "why did I
+     only get four hours out of twelve" has to be answerable from the ledger
+     rather than from a re-simulation, and the ladder rung a fall landed on is
+     not recoverable from anything else after the fact.
+       WHY THIS IS AFFORDABLE, stated with the number: the ladder BOUNDS ITSELF.
+     Recovery doubles to a 64-minute cap, so a twelve-hour night cannot hold
+     more than ~20 deaths however hard a character tries, and a typical night
+     holds nought to three. That is the opposite of game_events (1.6M rows /
+     229 MB from six players in four days by logging every kill) — this is a
+     rare, aggregate-free, audit-relevant event, the same class as
+     hr_set_auto_eat's one row per call.
+       PROPOSED, NEVER WRITTEN, by the architecture's first law: the engine says
+     what happened; hr_apply re-validates the shape, clamps the count and writes
+     the rows. Every field is SERVER-DERIVED — the monster is the pointer the
+     server holds, the counts are the rows the server owns, the recovery is the
+     ladder both runtimes import.
+       `if (recoverCol)` is the same self-configuring switch: a database without
+     the Recovery migration does not know the `deaths` delta key, and an unknown
+     key is a 409 that costs the player their night. */
+  if (recoverCol && Array.isArray(summary.deathLog) && summary.deathLog.length) {
+    delta.deaths = summary.deathLog.slice(0, MAX_DEATH_ROWS).map((d) => ({
+      monster: String(d.monster || ''),
+      recovery_ms: Math.max(0, Math.floor(Number(d.recoverMs) || 0)),
+      deaths_today: Math.max(0, Math.floor(Number(d.deathsToday) || 0)),
+      deaths_lifetime: Math.max(0, Math.floor(Number(d.deathsLifetime) || 0)),
+      resume_hp: Math.max(0, Math.floor(Number(d.resumeHp) || 0)),
+      auto_eat_enabled: !!eatCfg.enabled,
+      food_in_bag: hadFood,
+    }));
+  }
+
   return {
     accrued: true,
     delta,
@@ -2194,7 +2396,12 @@ export function computeAccrual(input) {
          ruling covers both controls with one answer.
 
          REPORTED, NEVER APPLIED: nothing reads this back into a grant. */
-      autoEat: { enabled: eatCfg.enabled, pct: Math.round(eatCfg.threshold * 100) },
+      /* `hadFood` is the THIRD fact this object has to carry, and it is the one
+         that names the FIX rather than the cause: auto-eat on, threshold sane,
+         and an empty bag is a night that dies exactly like auto-eat-off and
+         needs a completely different sentence. Derived at WINDOW START from the
+         same chooser the handler used — see its block above. */
+      autoEat: { enabled: eatCfg.enabled, pct: Math.round(eatCfg.threshold * 100), hadFood },
       ...windowEnvelope(credit, summary.died ? summary.survivedMs : null),
       gold: goldDelta,
       xp: xpDelta,

@@ -906,6 +906,10 @@ let inventoryAuthorityLive = false;
    arm gate below refuses. */
 let baselineCompleteSeen = false;   // has ANY complete envelope ever been observed?
 let lastEnvelopeComplete = false;   // was the most recently observed envelope complete?
+/* THE RECOVERY LINE off the most recent envelope, in ms. 0 = up, or no server
+   has stated one. SERVER TRUTH, cached for rendering — never authored here and
+   never counted down. See applyEnvelopeState. */
+let recoveringUntil = 0;
 let baselineCompleteCount = 0;      // how many complete envelopes observed this session
 
 /** Does THIS envelope carry the server's baseline-complete assertion? Fail-closed:
@@ -1934,6 +1938,21 @@ export function applyEnvelopeState(G, res, ownKey) {
   } catch (e) {}
   written.absolute = absolute;
 
+  /* ── THE RECOVERY LINE, OBSERVED (First-Night Idle Rescue) ────────────────
+     `player_state.recovering_until` — an ABSOLUTE server instant. Recorded off
+     every envelope and NEVER decremented here: a client-side countdown is a
+     number that survives a reload, and Recovery is precisely the thing that
+     must not (exploit R1). Renderers subtract it from the clock to draw and
+     compute nothing else from it.
+     ⚠ KEY PRESENCE, not truthiness. `null` means "this character is up" and
+       must CLEAR the stored line; an ABSENT key means an older server and must
+       leave it alone, or a mixed-deploy window would show a stale knockout. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'recovering_until')) {
+    const t = st.recovering_until ? Date.parse(st.recovering_until) : 0;
+    recoveringUntil = (Number.isFinite(t) && t > 0) ? t : 0;
+    written.recoveringUntil = recoveringUntil;
+  }
+
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
 
   /* ELEMENTS v1 — THE WEAPON ENCHANT IS SERVER-AUTHORED. When the envelope
@@ -2465,7 +2484,7 @@ let serverAutoEatObserved = null;
    previous observation alone, and an unobserved field reads `undefined` — which
    the sync treats as "unknown, so send it" rather than as a value. Absence must
    never be read as "the server has NULL". */
-const serverAutoEatSeen = { enabled: undefined, food: undefined, pct: undefined };
+const serverAutoEatSeen = { enabled: undefined, food: undefined, pct: undefined, touched: undefined };
 export function noteServerAutoEat(res) {
   const st = res && res.state;
   if (st && typeof st === 'object'
@@ -2485,6 +2504,18 @@ export function noteServerAutoEat(res) {
     const p = Number(st.auto_eat_pct);
     if (Number.isFinite(p)) serverAutoEatSeen.pct = Math.max(0, Math.min(100, Math.round(p)));
   }
+  /* HAS A HUMAN EVER TOUCHED THE SWITCH? (`player_state.auto_eat_set_at is not
+     null`, projected as a boolean.) This is a DIFFERENT question from "is it
+     on", and the difference is the whole of the one-time switch-on: 34 of 36
+     characters own Auto-Eat and have it off, not because anybody chose that but
+     because the purchase never flipped it. `undefined` — an older server, or no
+     envelope yet — must read as "unknown" and make NO offer, because an offer
+     made on missing data is an offer made repeatedly. */
+  if (st && typeof st === 'object'
+      && Object.prototype.hasOwnProperty.call(st, 'auto_eat_touched')) {
+    const t = st.auto_eat_touched;
+    if (t === true || t === false) serverAutoEatSeen.touched = t;
+  }
   return serverAutoEatObserved;
 }
 /** true | false | null (never observed). Never infers — only reports. */
@@ -2496,7 +2527,8 @@ export function clientOwnsAutoEatDebit() { return serverAutoEatObserved === fals
  *  when no envelope has carried it — never confuse that with a stored NULL.
  *  Returns a copy; the observation is not the caller's to edit. */
 export function serverAutoEatSettings() {
-  return { enabled: serverAutoEatSeen.enabled, food: serverAutoEatSeen.food, pct: serverAutoEatSeen.pct };
+  return { enabled: serverAutoEatSeen.enabled, food: serverAutoEatSeen.food,
+           pct: serverAutoEatSeen.pct, touched: serverAutoEatSeen.touched };
 }
 /** TEST-ONLY. Record an observation without an envelope. */
 export function __noteAutoEatSettings(patch) {
@@ -2504,12 +2536,14 @@ export function __noteAutoEatSettings(patch) {
   if (Object.prototype.hasOwnProperty.call(p, 'enabled')) serverAutoEatSeen.enabled = p.enabled;
   if (Object.prototype.hasOwnProperty.call(p, 'food')) serverAutoEatSeen.food = p.food;
   if (Object.prototype.hasOwnProperty.call(p, 'pct')) serverAutoEatSeen.pct = p.pct;
+  if (Object.prototype.hasOwnProperty.call(p, 'touched')) serverAutoEatSeen.touched = p.touched;
   return serverAutoEatSettings();
 }
 /** TEST-ONLY. Restore the never-observed state. */
 export function __resetServerAutoEat() {
   serverAutoEatObserved = null;
-  serverAutoEatSeen.enabled = undefined; serverAutoEatSeen.food = undefined; serverAutoEatSeen.pct = undefined;
+  serverAutoEatSeen.enabled = undefined; serverAutoEatSeen.food = undefined;
+  serverAutoEatSeen.pct = undefined; serverAutoEatSeen.touched = undefined;
   return serverAutoEatObserved;
 }
 
@@ -2561,6 +2595,18 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
      ALSO calls (record.js), so the answer is known from the first envelope of a
      session either way. See noteServerAutoEat. */
   noteServerAutoEat(res);
+
+  /* THE ONE-TIME AUTO-EAT SWITCH-ON (Recovery rev. 2 §10). Fired from the same
+     place, for the same reason: this is the function the BOOT hr_load settle
+     also calls, so the offer is evaluated against the first envelope of a
+     session and never against a guess. It is idempotent, self-limiting to once
+     per page load, and declines silently on anything it cannot prove — an
+     unknown `auto_eat_touched` (an older server) makes NO offer. Kept behind a
+     try/catch because a settle must never fail on a toast. */
+  try {
+    const A = (typeof window !== 'undefined') && window.HearthriseAuto;
+    if (A && typeof A.maybeSwitchOnAutoEat === 'function') A.maybeSwitchOnAutoEat();
+  } catch (e) {}
 
   /* ══════════════════════════════════════════════════════════════════════
      THE LIVE P0 (reported 4×, b467→b479): "food eaten in combat gets
@@ -2877,8 +2923,33 @@ export function summaryFromAway(away, res) {
        be reconstructed from the live toggle; that is a different instant, and
        b341's rule for this row is STATED, NOT INFERRED. */
     autoEat: (a.autoEat && typeof a.autoEat === 'object')
-      ? { enabled: !!a.autoEat.enabled, pct: Number(a.autoEat.pct) }
+      ? { enabled: !!a.autoEat.enabled,
+          pct: Number(a.autoEat.pct),
+          /* `hadFood` (First-Night Idle Rescue). The THIRD cause of a no-heal
+             night, and the only one whose fix is "cook something": auto-eat on,
+             threshold sane, empty bag. Derived by the engine at WINDOW START
+             from the same chooser the handler used — never from the bag as it
+             stands now, which is the bag AFTER the night ate out of it.
+             `undefined` (not false) when the server did not state it, so an
+             older deployment claims nothing rather than claiming starvation. */
+          hadFood: (typeof a.autoEat.hadFood === 'boolean') ? a.autoEat.hadFood : undefined }
       : null,
+    /* ── THE RECOVERY PAYLOAD (First-Night Idle Rescue) ────────────────────
+       A death is no longer the end of a night, so `died` alone can no longer
+       describe one. These three are STATED BY THE SIMULATION (b341's rule) and
+       are what let the receipt say "fell 4 times, 8m spent recovering, still
+       1:47 to go" instead of a renderer dividing lost time by two minutes and
+       guessing. 0 on a server that predates Recovery, which reads as "no
+       recovery happened" — the honest degradation. */
+    deaths: Math.max(0, Number(a.deaths) || 0),
+    recoverMs: Math.max(0, Number(a.recoverMs) || 0),
+    recoverRemainingMs: Math.max(0, Number(a.recoverRemainingMs) || 0),
+    /* THE LADDER AS CHARGED, one entry per fall. Stated by the simulation, and
+       the receipt renders it verbatim — a card that regenerated the doubling
+       from a count would be wrong (and harsher than the truth) on every night
+       that met the novice clamp or the 64-minute cap. */
+    recoverLadder: Array.isArray(a.recoverLadder)
+      ? a.recoverLadder.map((v) => Math.max(0, Number(v) || 0)) : [],
     capped: !!a.capped,
     blessed: !!a.blessed,
     buffsPaused: !!a.buffsPaused,
@@ -3024,6 +3095,21 @@ export function receiptDeathCause(summary) {
   if (Number.isFinite(pct) && pct <= 0) {
     return said('threshold-zero', 'your auto-eat trigger was at 0%, so nothing healed you',
       'Your auto-eat trigger was at 0%, so nothing healed you.');
+  }
+  /* THE THIRD CAUSE, AND THE FIRST-NIGHT ONE (First-Night Idle Rescue).
+     Auto-eat on, trigger sane, and the bag empty — which is the state EVERY new
+     character is in, and the state the whole Recovery ruling exists because of.
+     It is LAST in the priority order deliberately: the switch and the dial are
+     things the player DID, and a player who turned auto-eat off does not need
+     to be told to go cooking, they need to be told about the switch. Stated by
+     the engine at window start (`autoEat.hadFood`), so a bag refilled between
+     the death and the modal cannot rewrite history.
+     ⚠ `=== false`, NOT `!ae.hadFood`. `undefined` means an older deployment did
+       not state it, and a truthiness test would tell every one of those players
+       their bag was empty. */
+  if (ae.hadFood === false) {
+    return said('no-food', 'you had no cooked food, so nothing healed you',
+      'You had no cooked food, so nothing healed you.');
   }
   return null;
 }
@@ -3729,6 +3815,11 @@ if (typeof window !== 'undefined') {
     ACCRUE_REPLACE_ACK_KEY, ACCRUE_REPLACE_SHEET_ID, MAX_SLOT,
     isServerAccrualEnabled, setServerAccrualEnabled, __clearAccrualOverride,
     stampAwayWatermarks, clampSlot, resolveActiveSlot, mayClientWrite,
+    /* THE RECOVERY LINE, read-only. A function rather than a value so a caller
+       cannot capture a stale number, and read-only so no surface can author it:
+       the client renders `recoveringUntilMs() - Date.now()` and nothing else. */
+    recoveringUntilMs: () => recoveringUntil,
+    isRecovering: () => recoveringUntil > Date.now(),
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     resetEnvelopeDrift, inventoryFlipReadiness,

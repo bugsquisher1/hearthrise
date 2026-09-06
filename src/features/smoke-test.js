@@ -11453,6 +11453,347 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     RECOVER — THE RECOVERY RULE ON THE CLIENT (First-Night Idle Rescue).
+
+     Design ruling, Principal Game Designer, 2026-09-05: a death INTERRUPTS a
+     run, it does not TERMINATE it. The character is Knocked Out for a flat
+     RECOVERY_MS (0 for the first death they ever suffer), then gets up at full
+     HP and resumes the same activity.
+
+     The ENGINE half is guarded standalone in tests/accrual-engine.mjs
+     (RECOVER-1..5, both mutation-proven). These are the surfaces: what the
+     receipt carries, which sentence names the cause, and what the death sheet
+     says to a player who is still face-down when they open it.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRun('RECOVER-6: receiptDeathCause resolves all four states in priority order', () => {
+    const A = window.HearthriseAccrual;
+    if (!A || typeof A.receiptDeathCause !== 'function') return;
+
+    /* FOUR STATES, ONE FUNCTION, AND THE ORDER IS THE RULE:
+         auto-eat-off  -> threshold-zero  -> no-food  -> null
+       `no-food` is LAST deliberately. The switch and the dial are things the
+       player DID; a player who turned auto-eat off does not need to be sent
+       cooking, they need to be told about the switch. An empty bag is only the
+       most useful answer once neither of those is true — which is exactly the
+       state every brand-new character is in, and the reason the branch exists.
+
+       Asserted on the KEY, never the copy: the sentences are Art's to reword.
+
+       MUTATION PROVEN (each independently, each after a green control):
+         (i)   move the `no-food` branch ABOVE the `auto-eat-off` branch in
+               src/net/accrue.js  -> (a) goes red
+         (ii)  change `ae.hadFood === false` to `!ae.hadFood`
+               -> (d) goes red (an older server's `undefined` starts claiming
+                  starvation at every player it never measured)
+         (iii) drop `hadFood` from summaryFromAway's autoEat translation
+               -> (c) goes red */
+    const rec = (autoEat) => ({ died: true, diedTo: 'slime', autoEat: autoEat });
+
+    /* (a) THE SWITCH WINS over everything, including an empty bag. */
+    assert(A.receiptDeathCause(rec({ enabled: false, pct: 25, hadFood: false })).key === 'auto-eat-off',
+      'a death with auto-eat OFF and an empty bag blamed the bag. The switch is the thing the player '
+      + 'did and the thing one tap fixes; sending them cooking instead is advice for a different '
+      + 'problem: ' + JSON.stringify(A.receiptDeathCause(rec({ enabled: false, pct: 25, hadFood: false }))));
+
+    /* (b) THE DIAL WINS over an empty bag, for the same reason. */
+    assert(A.receiptDeathCause(rec({ enabled: true, pct: 0, hadFood: false })).key === 'threshold-zero',
+      'a death at a 0% trigger point with an empty bag blamed the bag — the dial reproduces the '
+      + 'no-heal night exactly and is the nearer cause');
+
+    /* (c) AND WITH BOTH CONTROLS SANE, THE BAG IS THE ANSWER. */
+    const hungry = A.receiptDeathCause(rec({ enabled: true, pct: 25, hadFood: false }));
+    assert(hungry && hungry.key === 'no-food',
+      'a death with auto-eat ON, a sane trigger and an EMPTY BAG named no cause at all. That is the '
+      + 'state every new character is in and the whole population the Recovery ruling exists for: '
+      + JSON.stringify(hungry));
+    assert(/no cooked food/i.test(hungry.clause) && /no cooked food/i.test(hungry.sentence),
+      'the no-food copy does not say what was missing: ' + JSON.stringify(hungry));
+
+    /* (d) AND IT CLAIMS NOTHING IT WAS NOT TOLD. `undefined` is what a server
+           deployment older than this build sends, and it must read as "not
+           measured", never as "the bag was empty". */
+    assert(A.receiptDeathCause(rec({ enabled: true, pct: 25 })) === null,
+      'a receipt that never stated hadFood was told its bag was empty — the field is '
+      + 'self-configuring and its ABSENCE must claim nothing');
+    assert(A.receiptDeathCause(rec({ enabled: true, pct: 25, hadFood: true })) === null,
+      'a death with auto-eat running and food in the bag was blamed on food. That is a gear problem '
+      + 'and the death sheet already has copy for it.');
+    assert(A.receiptDeathCause({ died: false, autoEat: { enabled: true, pct: 25, hadFood: false } }) === null,
+      'a night nobody died in was given a death cause');
+  }),
+
+  () => tryRun('RECOVER-7: the away receipt carries the recovery payload, stated by the engine', () => {
+    const A = window.HearthriseAccrual;
+    if (!A || typeof A.summaryFromAway !== 'function') return;
+
+    /* THE PRODUCER'S SHAPE — supabase/functions/hr-accrue/index.ts's `away`
+       literal, fed from accrual.js's summary. A fixture that drifts from the
+       producer proves nothing about the producer (TESTING.md, the fixture rule).
+       rev. 2: the ladder is ESCALATING, so the payload carries the rungs as they
+       were actually charged. Six falls on one day = free, 2m, 4m, 8m, 16m, 32m
+       = 3,720,000 ms knocked out. */
+    const LADDER = [0, 120000, 240000, 480000, 960000, 1920000];
+    const REC = LADDER.reduce((a, b) => a + b, 0);   // 3,720,000
+    const away = (over) => Object.assign({
+      grantMs: 43200000, awayMs: 43200000, paidMs: 43200000 - REC, unpaidMs: 0,
+      capped: false, kills: 542, crits: 0, died: true, diedTo: 'slime',
+      deaths: LADDER.length, recoverMs: REC, recoverRemainingMs: 0, recoverLadder: LADDER,
+      autoEat: { enabled: false, pct: 0, hadFood: false },
+      gold: 0, xp: {}, items: {}, levelUps: [], events: [],
+    }, over || {});
+
+    const r = A.summaryFromAway(away(), { version: 3 });
+    /* THE LADDER SURVIVES THE RECEIPT SHAPE. A card that regenerated the
+       doubling from a death count would be wrong — and HARSHER than the truth —
+       on every night that met the novice clamp or the 64-minute cap. */
+    assert(Array.isArray(r.recoverLadder) && r.recoverLadder.join(',') === LADDER.join(','),
+      'the receipt dropped or mangled the ladder, so "tonight it went free, 2m, 4m" would have to '
+      + 'be regenerated by a renderer: ' + JSON.stringify(r.recoverLadder));
+    assert(r.deaths === LADDER.length && r.recoverMs === REC && r.recoverRemainingMs === 0,
+      'the receipt dropped the recovery payload. A renderer cannot infer it — dividing the lost time '
+      + 'by two minutes is wrong on every night that closed mid-recovery, which is most of them: '
+      + JSON.stringify({ deaths: r.deaths, recoverMs: r.recoverMs, left: r.recoverRemainingMs }));
+    assert(r.autoEat && r.autoEat.hadFood === false,
+      'the receipt dropped hadFood, so the one sentence that names the fix cannot be written: '
+      + JSON.stringify(r.autoEat));
+    /* CONSERVATION, on the surface the player actually reads: the night paid
+       LESS time than it was credited, and the difference is the knockouts.
+       Recovery consumes the credited window — no time is given back. */
+    assert(r.awayMs - r.diedAfterMs === r.recoverMs,
+      'the receipt does not account for the whole window: credited ' + r.awayMs + ', earned '
+      + r.diedAfterMs + ', recovered ' + r.recoverMs + '. Every millisecond is either earning or '
+      + 'knocked out and none may go missing.');
+
+    /* A SERVER THAT PREDATES RECOVERY STATES NOTHING, and the receipt must then
+       read as "no recovery happened" rather than as garbage. */
+    const older = A.summaryFromAway(away({ deaths: undefined, recoverMs: undefined,
+      recoverRemainingMs: undefined, recoverLadder: undefined }), {});
+    assert(older.deaths === 0 && older.recoverMs === 0 && older.recoverRemainingMs === 0
+      && Array.isArray(older.recoverLadder) && older.recoverLadder.length === 0,
+      'an older server envelope produced a non-zero recovery payload: ' + JSON.stringify(older));
+
+    /* AND THE READ-ONLY SEAM. The client may render the recovery line; it may
+       never author one. `recoveringUntilMs` is a FUNCTION so a caller cannot
+       capture a stale value, and there is deliberately no setter — the only
+       writer is `applyEnvelopeState`, off the server's own state row. */
+    assert(typeof A.recoveringUntilMs === 'function' && typeof A.isRecovering === 'function',
+      'the recovery line has no read seam — every surface would go and invent its own countdown');
+    assert(typeof A.setRecoveringUntil === 'undefined',
+      'a client-side setter for recovering_until exists. The recovery line is server-owned: a client '
+      + 'that can write it can cure its own knockout, which is the whole cost side of the rule.');
+  }),
+
+  () => tryRun('RECOVER-8: the death sheet says KNOCKED OUT with a countdown, and names the empty bag', () => {
+    const D = window.HearthriseDeathSheet;
+    if (!D || typeof D.describeDeath !== 'function') return;
+
+    const base = {
+      monsterName: 'Slime', killsThisFoe: 3, foodQty: 0, foodName: 'provision',
+      ateThisFight: 0, autoEatOwned: true, autoEatOn: true, maxHp: 10,
+      streakBroken: false, deaths: 4, nowMs: 1000000,
+      /* rev. 2: the ladder's own numbers, stated by the simulation. This is the
+         THIRD fall of the day, so it cost 4m and the next would cost 8m. */
+      deathsToday: 3, recoveryMs: 240000, nextRecoveryMs: 480000,
+      resumeHp: 4, missingHp: 6,
+    };
+
+    /* ── STILL DOWN: the headline is the CHARACTER'S STATE, not the event ──
+       "The Slime got you" describes something that already finished. A player
+       who is face-down for another 1:47 needs to be told THAT first, because it
+       is the only fact that governs their next tap — the combat-start intent
+       will refuse it (`recovering`). */
+    const down = D.describeDeath(Object.assign({}, base, { recoveringUntilMs: 1000000 + 107000 }));
+    assert(down.title === 'Knocked out',
+      'the sheet headlined a knocked-out character with the kill instead of their state: ' + down.title);
+    assert(down.lead === 'Back on your feet in 1:47.',
+      'the sub-line does not count down to the second. "2m" would read as frozen for two minutes and '
+      + 'then jump to nothing: ' + down.lead);
+    assert(down.recoverMsLeft === 107000,
+      'the model does not state the remaining time, so the renderer would have to re-derive it and '
+      + 'the two would round differently: ' + down.recoverMsLeft);
+
+    /* ── UP AGAIN: byte-for-byte the sheet that shipped ──────────────────── */
+    const up = D.describeDeath(Object.assign({}, base, { recoveringUntilMs: 0 }));
+    assert(up.title === 'The Slime got you' && up.recoverMsLeft === 0,
+      'a character who is UP was told they were knocked out: ' + up.title);
+    /* THE FIRST-DEATH GRACE reaches this surface as an ABSENCE: recovery is 0,
+       so there is no countdown on the sheet a new player sees first. */
+    const first = D.describeDeath(Object.assign({}, base, {
+      deaths: 1, deathsToday: 1, recoveryMs: 0, nextRecoveryMs: 120000, recoveringUntilMs: 0 }));
+    assert(first.recoverMsLeft === 0 && /first fall today/i.test(first.lead),
+      "the day's first death showed a recovery countdown, or did not say it was free. It recovers in "
+      + 'zero — that is the grace, and it is the first thing a new player must not be punished by: '
+      + first.lead);
+
+    /* ── THE LADDER, ON THE SHEET (rev. 2) ────────────────────────────────
+       Three rows the flat rule did not need, and each of them answers a
+       question the player would otherwise have to guess at: what did THIS fall
+       cost, does the run continue, and what does the NEXT one cost. */
+    const rowsOf = (m) => m.rows.reduce((o, r) => { o[r.k] = r; return o; }, {});
+    const freeRows = rowsOf(first);
+    assert(freeRows['run-stopped']
+      && freeRows['run-stopped'].t === 'First fall of the day — you are back on your feet at once',
+      "the day's free fall does not say so — a player who is charged nothing must be told, or the "
+      + 'ladder reads as arbitrary when it starts charging: '
+      + JSON.stringify(freeRows['run-stopped'] && freeRows['run-stopped'].t));
+    assert(!freeRows.escalating,
+      'the escalation warning fired on a FREE fall. It is shown from the second, where the doubling '
+      + 'actually starts costing — announcing it on a free one is a lecture.');
+
+    const third = rowsOf(D.describeDeath(Object.assign({}, base, { recoveringUntilMs: 0 })));
+    assert(third['run-stopped']
+      && third['run-stopped'].t === 'Knocked out for 4m — nothing earns while you recover',
+      'the third fall of the day does not state what it cost: '
+      + JSON.stringify(third['run-stopped'] && third['run-stopped'].t));
+    assert(third.escalating
+      && third.escalating.t === 'Recovery doubles each time you fall today — 8m if you fall again',
+      'the sheet does not warn what the NEXT fall costs, so the doubling is discovered by being '
+      + 'charged for it: ' + JSON.stringify(third.escalating && third.escalating.t));
+    assert(third.resume && /picks up against the Slime/.test(third.resume.t),
+      'the sheet does not say the run resumes. That is the single most important thing it can tell '
+      + 'somebody who used to lose their whole night at the first death: '
+      + JSON.stringify(third.resume && third.resume.t));
+    /* ⚠ NOT "fully restored" ANY MORE. A full heal made dying the cheapest heal
+       in the game; the character stands up on 40%, and this row is where they
+       learn it before walking into the next fight on it. */
+    assert(third.healed && third.healed.t === 'You got back up at 40% health'
+      && third.healed.v === '4 / 10',
+      'the sheet still promises a full heal on death: ' + JSON.stringify(third.healed));
+
+    /* ── REST AT THE HEARTH — offered ONLY when the server would accept it ─
+       `hr_rest` refuses a character who is up (`not_recovering`) and one at full
+       health (`not_hurt`); an action that always fails is worse than none. */
+    const downActs = (m) => m.actions.map((a) => a.k);
+    assert(downActs(down).indexOf('rest') === 0,
+      'a knocked-out character was not offered Rest at the Hearth as the PRIMARY action: '
+      + JSON.stringify(downActs(down)));
+    assert(down.actions[0].label === 'Rest at the Hearth — eat 6 health',
+      'the Rest action does not price itself in health, so the player cannot tell whether their bag '
+      + 'covers it: ' + down.actions[0].label);
+    assert(downActs(up).indexOf('rest') < 0,
+      'a character who is UP was offered Rest at the Hearth — the server refuses it not_recovering');
+    const full = D.describeDeath(Object.assign({}, base, {
+      recoveringUntilMs: 1000000 + 107000, missingHp: 0 }));
+    assert(downActs(full).indexOf('rest') < 0,
+      'a character at FULL health was offered Rest at the Hearth — the server refuses it not_hurt, '
+      + 'and a rest that heals nothing would be a free cure');
+
+    /* ── THE EMPTY BAG, SAID PLAINLY ─────────────────────────────────────── */
+    const rows = (m) => m.rows.map((r) => r.k);
+    const empty = D.describeDeath(Object.assign({}, base, { recoveringUntilMs: 0, hadFood: false }));
+    const nf = empty.rows.filter((r) => r.k === 'no-food')[0];
+    assert(nf && nf.t === 'Cook some food — your bag is empty.',
+      'the sheet does not name the empty bag. It is the state every new character is in and the one '
+      + 'thing that would have changed the night: ' + JSON.stringify(rows(empty)));
+    /* ⚠ `=== false`, not truthiness: `undefined` means nobody measured it, and a
+       truthiness test would tell every such player their bag was empty. */
+    const unknown = D.describeDeath(Object.assign({}, base, { recoveringUntilMs: 0 }));
+    assert(rows(unknown).indexOf('no-food') < 0,
+      'a sheet that was never told about the bag claimed it was empty anyway');
+    const fed = D.describeDeath(Object.assign({}, base, { recoveringUntilMs: 0, hadFood: true }));
+    assert(rows(fed).indexOf('no-food') < 0, 'a character WITH food was told their bag was empty');
+
+    /* ── AND AN OWNER IS NEVER SOLD AUTO-EAT (ruling 2b condition 3, kept) ── */
+    const owner = D.describeDeath(Object.assign({}, base, {
+      recoveringUntilMs: 0, foodQty: 8, foodName: 'Cooked Shrimp', autoEatOwned: true,
+      autoEatOn: false, autoEatCost: 100,
+    }));
+    assert(owner.shopLink === false,
+      'the sheet offered to sell Auto-Eat to a player who already owns it');
+    assert(!/Bounty Shop/.test(owner.tip),
+      'the tip pitched the Bounty Shop at an owner — condition 3 of the 2b ruling forbids quoting a '
+      + 'price to someone holding the thing: ' + owner.tip);
+    assert(owner.enableAutoEat === true,
+      'an owner with the switch OFF was not given the one tap that fixes the thing that killed them');
+
+    /* ── THE REPEAT FALLER WITH THE SWITCH OFF (rev. 2) ───────────────────
+       By the third fall of a day the cost of leaving Auto-Eat off is no longer
+       theoretical — it is the ladder — and this is the one population for whom
+       one tap fixes it. */
+    const repeat = D.describeDeath(Object.assign({}, base, {
+      recoveringUntilMs: 0, deathsToday: 3, foodQty: 0, ateThisFight: 0,
+      autoEatOwned: true, autoEatOn: false,
+    }));
+    assert(repeat.tipKey === 'auto-eat-off-repeat',
+      'a player on their third fall of the day with Auto-Eat OWNED and OFF got the generic tip '
+      + 'instead of the one that names what it is costing them: ' + repeat.tipKey);
+    assert(/paying for it in recovery/.test(repeat.tip) && repeat.enableAutoEat === true,
+      'the repeat-faller tip does not name the cost, or does not carry the one tap: ' + repeat.tip);
+  }),
+
+  () => tryRun('RECOVER-9: the one-time Auto-Eat switch-on is offered ONCE and never after a decision', () => {
+    const A = window.HearthriseAccrual;
+    const AU = window.HearthriseAuto;
+    if (!A || !AU || typeof AU.maybeSwitchOnAutoEat !== 'function'
+        || typeof A.__noteAutoEatSettings !== 'function') return;
+
+    /* MEASURED on production 2026-09-06: 34 of 36 characters OWN Auto-Eat and
+       have it OFF, because the grant never flipped the switch. They are exactly
+       the population the Recovery ladder is about to start charging. The fix is
+       NOT a bulk server UPDATE — hr_set_auto_eat is the sole writer of that
+       column — it is the client walking the ordinary path once, past the same
+       gate, with a dismissible way back. */
+    const save = A.serverAutoEatSettings();
+    const restore = () => { try { A.__noteAutoEatSettings(save); } catch (e) {} AU._resetSwitchOnOffer(); };
+    try {
+      /* UNKNOWN is not FALSE. An older server projects no `auto_eat_touched`;
+         an offer made on missing data is an offer made on every boot. */
+      AU._resetSwitchOnOffer();
+      A.__noteAutoEatSettings({ enabled: false, touched: undefined });
+      assert(AU.maybeSwitchOnAutoEat().offered === false,
+        'the switch-on offer fired against an UNKNOWN touch state — every older-server boot would '
+        + 'flip the switch again');
+
+      /* A DECISION, EITHER WAY, IS FINAL. `auto_eat_set_at` is stamped by
+         hr_set_auto_eat on every call, including the "Keep it off" one. */
+      AU._resetSwitchOnOffer();
+      A.__noteAutoEatSettings({ enabled: false, touched: true });
+      assert(AU.maybeSwitchOnAutoEat().offered === false,
+        'a player who has already decided (touched=true, switch OFF — i.e. someone who tapped '
+        + '"Keep it off") was re-prompted. That is the one thing this flow must never do.');
+
+      /* ALREADY ON: nothing to offer, forever. */
+      AU._resetSwitchOnOffer();
+      A.__noteAutoEatSettings({ enabled: true, touched: false });
+      assert(AU.maybeSwitchOnAutoEat().offered === false,
+        'the offer fired at a character who already has Auto-Eat ON');
+
+      /* ── NO HOST, NO FLIP (Security F4) ────────────────────────────────
+         The offer changes how the player's night is FOUGHT. On a surface with
+         no notification host — an early boot, a headless embed, a page whose
+         toast layer failed to load — flipping the switch and then failing to
+         say so is not an offer, it is a silent mutation of combat behaviour.
+         BOTH hosts are stubbed out here because the code falls back from
+         `notifyAction` to `notify`; removing only one proves nothing. */
+      const savedAction = window.notifyAction, savedNotify = window.notify;
+      const savedTraits = window.G && window.G.traits;
+      const savedEat = AU.getEat();
+      try {
+        window.notifyAction = undefined; window.notify = undefined;
+        if (window.G) window.G.traits = Object.assign({}, savedTraits || {}, { auto_eat: 1 });
+        AU._resetSwitchOnOffer();
+        AU.setEat({ enabled: false });
+        A.__noteAutoEatSettings({ enabled: false, touched: false });
+        const r = AU.maybeSwitchOnAutoEat();
+        assert(r.offered === false && r.why === 'no-host',
+          'with no notification host the switch-on still claimed to offer (' + JSON.stringify(r)
+          + '). It must decline, not proceed silently.');
+        assert(AU.getEat().enabled === false,
+          'THE BUG F4 NAMES: with no host reachable the offer flipped Auto-Eat ON anyway. The '
+          + 'player\'s combat behaviour changed and nothing told them.');
+        /* AND THE OFFER IS NOT CONSUMED — a boot that could not speak must not
+           spend the one chance a boot that can speak would have used. */
+        assert(AU.maybeSwitchOnAutoEat().why === 'no-host',
+          'the host-less boot consumed the one-shot offer; the next bootable page would never ask');
+      } finally {
+        window.notifyAction = savedAction; window.notify = savedNotify;
+        if (window.G) window.G.traits = savedTraits;
+        try { AU.setEat(savedEat); } catch (e) {}
+      }
+    } finally { restore(); }
+  }),
+
   /* SETTINGS-AUTOEAT-1 — condition 1 of the 2b arm: the warning is AT the
      control, on BOTH ends, before the night rather than after it. Asserted on
      the pure hint function through the panel's own published seam, because the
@@ -37778,10 +38119,16 @@ const TESTS = [
 
   () => tryRunAsync('B495-3: a fresh character survives a first away night instead of dying in seconds', async () => {
     /* THE PROPERTY THE KIT EXISTS FOR, measured through the REAL engine rather
-       than argued from the item table. simulateSpan BREAKS on the first death
-       (`if (r.outcome === OUTCOME.DEATH) break`), so the whole value of an
-       overnight is `survivedMs`. As shipped, a fresh character on a Goblin
-       survived ~30 seconds of a twelve-hour night. */
+       than argued from the item table. As shipped before b495, a fresh
+       character on a Goblin survived ~30 seconds of a twelve-hour night.
+       ⚠ `survivedMs` STILL MEANS "ms that earned", and that meaning is what
+         this test rests on — but since the Recovery ruling (2026-09-05) it is
+         no longer "ms before the first death". A death now interrupts the run
+         (src/core/away.js RECOVERY_MS), so the span continues and `survivedMs`
+         is the simulated part of it, with the knockouts in `recoverMs`. The
+         floors below are unchanged and remain cliff detectors: this test asks
+         whether the KIT keeps a new character fighting, and Recovery raising
+         the number is not a reason to stop asking. */
     const CS = window.HearthriseCore && window.HearthriseCore.combatSim;
     const C = window.HearthriseCore && window.HearthriseCore.combat;
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;

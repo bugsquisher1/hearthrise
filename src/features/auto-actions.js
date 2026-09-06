@@ -661,8 +661,96 @@
   }
 
   // ── Public API ──────────────────────────────────────────────
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE ONE-TIME SWITCH-ON (Recovery rev. 2 §10, Designer 2026-09-06).
+
+     MEASURED on production 2026-09-06: 34 of 36 characters OWN Auto-Eat and
+     have it switched OFF. Not one of them chose that — every character has been
+     granted the trait since b497 and the grant never flipped the switch. Those
+     are exactly the characters the Recovery ladder is about to start charging
+     for fighting to the floor, so the ladder must not ship without this.
+
+     ⚠ IT IS NOT A BULK SERVER UPDATE, AND THAT IS THE WHOLE DESIGN.
+       `hr_set_auto_eat` is the SOLE WRITER of `auto_eat_enabled` (the
+       entitlement gate and the tier ceiling both live behind that one door), so
+       a migration that wrote the column would be a second writer AND would
+       silently overrule every player who switched it off on purpose. Instead the
+       SERVER records only whether the switch has ever been TOUCHED
+       (`player_state.auto_eat_set_at`, stamped by hr_set_auto_eat on every
+       call, projected as `auto_eat_touched`), and the CLIENT walks the ordinary
+       player path exactly once, through the same door, past the same gate,
+       journalled like any other call — with a dismissible way back.
+
+     THE PREDICATE, and every clause of it is load-bearing:
+       owned   — nothing to switch on otherwise.
+       !enabled— already on: nothing to do, forever.
+       !touched— A HUMAN HAS NEVER DECIDED. `undefined` (an older server, or no
+                 envelope yet) is NOT `false`: unknown makes NO offer, because an
+                 offer made on missing data is an offer made every boot.
+     Once per page load on top of that, so a re-render cannot re-fire it. */
+  var _switchOnOffered = false;
+  function maybeSwitchOnAutoEat() {
+    if (_switchOnOffered) return { offered: false, why: 'already-run' };
+    var st = null;
+    try {
+      var AC = window.HearthriseAccrual;
+      st = (AC && typeof AC.serverAutoEatSettings === 'function') ? AC.serverAutoEatSettings() : null;
+    } catch (e) { return { offered: false, why: 'no-projection' }; }
+    if (!st) return { offered: false, why: 'no-projection' };
+    if (st.touched !== false) return { offered: false, why: 'touched-or-unknown' };
+    if (st.enabled !== false) return { offered: false, why: 'on-or-unknown' };
+    var owned = false;
+    try {
+      var AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+      var G = window.G || {};
+      if (AE && typeof AE.autoEatTier === 'function') owned = AE.autoEatTier(G.traits || {}) > 0;
+      else owned = !!(G.traits && G.traits.auto_eat);
+    } catch (e) { owned = false; }
+    if (!owned) return { offered: false, why: 'not-owned' };
+
+    /* ⚠ THE HOST IS RESOLVED BEFORE THE SWITCH IS FLIPPED (Security F4).
+       Previously the flip happened first and the telling was best-effort inside
+       a try/catch: on a surface with no notification host at all — an early
+       boot, a headless embed, a page whose toast layer failed to load — the
+       game silently changed how the player's night is fought and never said so.
+       A change to combat behaviour the player is not told about is not an offer,
+       it is a mutation. So: NO HOST, NO FLIP. The predicate is unchanged and the
+       offer simply waits for a boot that can speak, which is safe because
+       nothing here is consumed — `_switchOnOffered` is not set on this path. */
+    var host = window.notifyAction || window.notify;
+    if (!host) return { offered: false, why: 'no-host' };
+
+    _switchOnOffered = true;
+    /* THROUGH `setEat`, this file's declared ONE WRITER of the eat config — the
+       same call the Settings toggle makes. It persists locally AND pushes to
+       hr_set_auto_eat, which is what stamps `auto_eat_set_at` and closes this
+       offer for good, whichever way the player answers. */
+    try { setEat({ enabled: true }); } catch (e) {}
+    try {
+      if (typeof window.notifyAction === 'function') {
+        window.notifyAction(
+          'Auto-Eat is on. You already own it — it was never switched on. It now feeds you '
+          + 'below a quarter health, in fights and while you are away.',
+          'Keep it off',
+          function () { try { setEat({ enabled: false }); } catch (e) {} });
+      } else if (typeof window.notify === 'function') {
+        /* No inline-action host: say it anyway. The switch is reversible in
+           Settings and a silent change to how a night is fought is worse than a
+           toast without a button. */
+        window.notify('Auto-Eat is on. You already own it — it was never switched on. '
+          + 'It now feeds you below a quarter health, in fights and while you are away.', 'good');
+      }
+    } catch (e) {}
+    return { offered: true };
+  }
+
   window.HearthriseAuto = {
     getEat: getEat,
+    /* Recovery rev. 2 §10. Idempotent, safe to call on every boot and after
+       every envelope; returns why it declined so a test can assert the reason
+       rather than the absence. */
+    maybeSwitchOnAutoEat: maybeSwitchOnAutoEat,
+    _resetSwitchOnOffer: function () { _switchOnOffered = false; },
     setEat: setEat,
     eatThreshold: eatThreshold,
     getTrainGoal: getTrainGoal,

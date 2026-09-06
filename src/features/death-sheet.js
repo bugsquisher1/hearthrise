@@ -108,6 +108,13 @@
      `tip` is copy. `tipKey` is the STATED branch, so the suite asserts the
      rule rather than a sentence somebody may reword. */
   var TIPS = {
+    /* rev. 2. The only tip on this sheet whose subject is the LADDER: it names
+       the switch, the cost the player is already paying for it being off, and
+       where to throw it. `enableAutoEat` gives it the one-tap button. */
+    'auto-eat-off-repeat': function () {
+      return 'Auto-Eat is switched off, so you are fighting to the floor every time and '
+           + 'paying for it in recovery. Switch it on here and your provisions keep the run going instead.';
+    },
     'food-unused': function (d) {
       /* "8 x Raw Shrimp", never "8 Raw Shrimps". Item names in ITEMS are
          already singular nouns of every shape ("Raw Shrimp", "Bread", "Trout"),
@@ -208,8 +215,47 @@
    *   maxHp          {number}  respawn health (see RESPAWN below)
    *   streakBroken   {boolean} did the death reset a bounty streak
    *   deaths         {number}  lifetime deaths, AFTER this one
-   * @returns {{title,lead,rows:Array,tipKey:string,tip:string,actions:Array}}
+   *   recoveringUntilMs {number} First-Night Idle Rescue: the ABSOLUTE server
+   *                            instant this character gets back up, 0 when they
+   *                            already are. NEVER a countdown the client owns —
+   *                            it is `player_state.recovering_until`, and the
+   *                            client only subtracts it from the clock to draw.
+   *   nowMs          {number}  the instant to measure that against
+   *   hadFood        {boolean|undefined} did the bag hold anything auto-eatable.
+   *                            `undefined` = not stated, so claim nothing.
+   *   deathsToday    {number}  rev. 2: `n` in the ladder — falls TODAY including
+   *                            this one. 1 is the free fall. SERVER-COUNTED
+   *                            (player_progress stat:deaths under today's UTC
+   *                            period key); the client only renders it.
+   *   recoveryMs     {number}  what THIS fall cost. 0 on the day's first.
+   *   nextRecoveryMs {number}  what the NEXT fall today would cost. Read off
+   *                            the same table the server stamps from, so the
+   *                            warning cannot promise a rung nobody charges.
+   *   resumeHp       {number}  the health the character stood back up on — 40%
+   *                            of max since rev. 2, NOT a full heal.
+   *   missingHp      {number}  maxHp - hp, the price of `Rest at the Hearth`.
+   * @returns {{title,lead,rows:Array,tipKey:string,tip:string,actions:Array,
+   *            recoverMsLeft:number}}
    */
+  /* "1:47". The countdown's only formatter — local and tiny on purpose: the
+     death sheet is the one surface that renders a sub-minute span to the second
+     and borrowing a span formatter that rounds to minutes would print "2m" for
+     the whole two minutes and then jump to nothing. */
+  function mmss(ms) {
+    var t = Math.max(0, Math.ceil((Number(ms) || 0) / 1000));
+    var m = Math.floor(t / 60);
+    var sec = t % 60;
+    return m + ':' + (sec < 10 ? '0' : '') + sec;
+  }
+
+  /* "2m" / "64m". The LADDER's formatter, which is a different question from
+     the countdown's: a rung is always a whole number of minutes and writing it
+     as "2:00" invites a player to read a clock that is not running yet. */
+  function fmtDur(ms) {
+    var m = Math.max(0, Math.round((Number(ms) || 0) / 60000));
+    return m + 'm';
+  }
+
   function describeDeath(d) {
     d = d || {};
     var monsterName = String(d.monsterName || '').trim();
@@ -219,6 +265,20 @@
     var kills = Math.max(0, Number(d.killsThisFoe) || 0);
     var maxHp = Math.max(1, Number(d.maxHp) || 1);
     var deaths = Math.max(1, Number(d.deaths) || 1);
+    /* THE LADDER, AS THE SERVER COUNTED IT (rev. 2). `n` is falls TODAY
+       including this one; 1 is the day's free fall. Defaults are the
+       UNDER-claiming ones — an older server that states nothing produces a
+       sheet that promises no penalty rather than inventing one. */
+    var nToday = Math.max(1, Number(d.deathsToday) || 1);
+    var recoveryMs = Math.max(0, Number(d.recoveryMs) || 0);
+    var nextRecoveryMs = Math.max(0, Number(d.nextRecoveryMs) || 0);
+    var resumeHp = Math.max(0, Number(d.resumeHp) || 0);
+    var missingHp = Math.max(0, Number(d.missingHp) || 0);
+    /* KNOCKED OUT (First-Night Idle Rescue). Derived from the SERVER's absolute
+       instant minus the clock — never a counter this sheet decrements, because
+       a counter would survive a reload and Recovery is precisely the thing that
+       must not. 0 when up, or when the server never stated a line. */
+    var recoverLeft = Math.max(0, (Number(d.recoveringUntilMs) || 0) - (Number(d.nowMs) || 0));
 
     /* THE TIP RULE. Held-and-unused beats everything, because it is the only
        branch where the player already owned the answer — that is the most
@@ -235,6 +295,13 @@
        creation now, so `autoEatOwned` here would tell a player who has never
        turned it on that it is "watching your health". An owner with it OFF and
        an empty bag is a `no-food` death — the gap really is upstream. */
+    /* rev. 2 — THE REPEAT FALLER WITH THE SWITCH OFF. Above `no-food` because
+       it is a strictly better answer for the same player: they own the fix,
+       they are paying the ladder for not using it, and by the third fall of a
+       day the cost is no longer theoretical. Ranked below `outmatched` for the
+       reason that clause already states — somebody who ate five Trout has a
+       fight problem, not a switch problem. */
+    else if (nToday >= 3 && d.autoEatOwned && !d.autoEatOn) tipKey = 'auto-eat-off-repeat';
     else if (d.autoEatOn) tipKey = 'auto-eat-idle';
     else tipKey = 'no-food';
 
@@ -251,19 +318,73 @@
        again. If a death penalty is ever added, THIS row is the contract that
        has to change with it. */
     rows.push({ g: 'uiChest', tone: 'ok', k: 'kept', t: 'You kept everything you were carrying', v: 'no loss' });
-    rows.push({ g: 'uiHeart', tone: 'ok', k: 'healed', t: 'Health fully restored', v: maxHp + ' / ' + maxHp });
-    /* What dying ACTUALLY costs, stated where the player can see it rather
-       than discovered later as a missing number. */
-    rows.push({ g: 'uiHourglass', tone: 'bad', k: 'run-stopped', t: 'Your run stopped — nothing earns while you are idle', v: 'idle' });
+    /* ⚠ NOT "fully restored" ANY MORE (rev. 2). A death used to be the cheapest
+       full heal in the game; the character now stands up on 40%, and this row
+       is the one place a player learns that before they walk into the next
+       fight on it. `resumeHp` is STATED by the simulation, not recomputed here,
+       so the sheet and the server cannot round differently. */
+    rows.push({ g: 'uiHeart', tone: 'ok', k: 'healed', t: 'You got back up at 40% health',
+      v: (resumeHp > 0 ? resumeHp : maxHp) + ' / ' + maxHp });
+    /* WHAT DYING ACTUALLY COSTS — the ladder, stated where the player can see
+       it rather than discovered later as a missing number. Two rows, because
+       the day's FIRST fall and its fourth are different events and one line
+       that covered both would have to be vague about the only number that
+       matters. */
+    if (nToday <= 1 || recoveryMs <= 0) {
+      rows.push({ g: 'uiHourglass', tone: 'ok', k: 'run-stopped',
+        t: 'First fall of the day — you are back on your feet at once', v: 'no delay' });
+    } else {
+      rows.push({ g: 'uiHourglass', tone: 'bad', k: 'run-stopped',
+        t: 'Knocked out for ' + fmtDur(recoveryMs) + ' — nothing earns while you recover',
+        v: fmtDur(recoveryMs) });
+    }
+    /* THE POINTER SURVIVES. The single most important thing this sheet can say
+       to somebody who just watched a twelve-hour night end at minute four
+       before rev. 1: the run is not over, and they do not have to do anything. */
+    rows.push({ g: 'uiTarget', tone: 'ok', k: 'resume',
+      t: monsterName
+        ? 'Your run picks up against the ' + monsterName + ' the moment you are up'
+        : 'Your run picks up the moment you are up',
+      v: 'automatic' });
+    /* THE WARNING, only once there is something to warn about. Shown from the
+       second fall so the doubling is learned at the rung where it starts
+       costing, not announced on a free one. */
+    if (nToday >= 2 && nextRecoveryMs > 0) {
+      rows.push({ g: 'uiHourglass', tone: 'bad', k: 'escalating',
+        t: 'Recovery doubles each time you fall today — ' + fmtDur(nextRecoveryMs) + ' if you fall again',
+        v: 'doubling' });
+    }
     if (d.streakBroken) {
       rows.push({ g: 'uiTarget', tone: 'bad', k: 'streak', t: 'Bounty streak reset to 0', v: 'streak' });
     }
+    /* THE EMPTY BAG, SAID PLAINLY (First-Night Idle Rescue). The tip further
+       down explains WHY; this row is the one-line fact a player reads in the
+       second and a half they give this sheet, and it is the state every brand
+       new character is in.
+       ⚠ `=== false`, NOT `!d.hadFood`. `undefined` means nobody stated it, and
+         a truthiness test would tell every such player their bag was empty. */
+    if (d.hadFood === false) {
+      rows.push({ g: 'uiFood', tone: 'bad', k: 'no-food',
+        t: 'Cook some food — your bag is empty.', v: 'no food' });
+    }
 
     return {
-      title: monsterName ? 'The ' + monsterName + ' got you' : 'You fell',
-      lead: deaths === 1
-        ? 'Your first fall. Nothing is lost but the run — here is what happened.'
-        : 'Here is what happened.',
+      /* THE HEADLINE IS THE CHARACTER'S STATE, not the event, whenever the two
+         differ. A player who is face-down for another 1:47 needs to be told
+         THAT first — "The Slime got you" describes a thing that already
+         finished, and the sheet would then be silent about the only fact that
+         governs their next tap. */
+      title: recoverLeft > 0
+        ? 'Knocked out'
+        : (monsterName ? 'The ' + monsterName + ' got you' : 'You fell'),
+      lead: recoverLeft > 0
+        ? 'Back on your feet in ' + mmss(recoverLeft) + '.'
+        : (nToday <= 1
+          ? 'Your first fall today. Nothing is lost but a moment — here is what happened.'
+          : 'You have fallen ' + nToday + ' times today. Each one takes longer to shake off.'),
+      /* The renderer re-draws the lead from this every second. Stated rather
+         than re-derived there, so one function owns the arithmetic. */
+      recoverMsLeft: recoverLeft,
       deaths: deaths,
       rows: rows,
       tipKey: tipKey,
@@ -285,11 +406,24 @@
          for whom one tap fixes the thing that just killed them, so it is the
          only one who gets a button — an owner with it ON would be offered a
          switch already thrown, and a non-owner a switch they do not have. */
-      enableAutoEat: tipKey === 'food-unused' && !!d.autoEatOwned && !d.autoEatOn,
-      actions: [
-        { k: 'again', label: monsterName ? 'Fight ' + monsterName + ' again' : 'Fight again', primary: true },
-        { k: 'table', label: 'Back to the War Table' }
-      ]
+      enableAutoEat: (tipKey === 'food-unused' || tipKey === 'auto-eat-off-repeat')
+        && !!d.autoEatOwned && !d.autoEatOn,
+      /* ── THE RELIEF VALVE (rev. 2, N1) ────────────────────────────────
+         "Rest at the Hearth" is the ONLY way off the floor early, and it is
+         bought with FOOD — never with gold, marks, gems or a trait (the R10
+         standing rule; tests/recovery-relief-guard.mjs asserts the absence).
+         It is offered ONLY while the timer is actually running and only when
+         there is health to buy back, because `hr_rest` refuses both of those
+         cases server-side and an action that always fails is worse than none.
+         The SERVER decides which provisions are eaten and how many — this
+         button sends a slot and an idempotency key and nothing else. */
+      restHp: missingHp,
+      restSub: 'Eating your way back up clears the timer. Food is the fastest way off the floor.',
+      actions: (recoverLeft > 0 && missingHp > 0
+        ? [{ k: 'rest', label: 'Rest at the Hearth — eat ' + missingHp + ' health', primary: true },
+           { k: 'table', label: 'Back to the War Table' }]
+        : [{ k: 'again', label: monsterName ? 'Fight ' + monsterName + ' again' : 'Fight again', primary: true },
+           { k: 'table', label: 'Back to the War Table' }])
     };
   }
 
@@ -398,7 +532,51 @@
       })(),
       maxHp: G.playerMaxHp || 10,
       streakBroken: !!(info && info.streakBroken),
-      deaths: (G.stats && G.stats.deaths) || 1
+      deaths: (G.stats && G.stats.deaths) || 1,
+      /* THE LADDER'S NUMBERS, STATED BY THE SIMULATION (rev. 2). `info` is
+         combat-sim's own death info, which read them off the two SERVER
+         counters seeded onto the state — the sheet re-derives none of it.
+         Falling back to `1 / 0` is the under-claiming direction: a sheet with
+         nothing stated promises no penalty rather than inventing one. */
+      deathsToday: Math.max(1, Number(info && info.deathsToday) || 1),
+      recoveryMs: Math.max(0, Number(info && info.recoverMs) || 0),
+      nextRecoveryMs: Math.max(0, Number(info && info.nextRecoverMs) || 0),
+      resumeHp: Math.max(0, Number(info && info.resumeHp) || Number(G.playerHp) || 0),
+      /* What "Rest at the Hearth" costs, in health. The SERVER recomputes it
+         under the row lock and this number never crosses back — it is a label. */
+      missingHp: Math.max(0, (Number(G.playerMaxHp) || 0) - (Number(G.playerHp) || 0)),
+      /* THE RECOVERY LINE (First-Night Idle Rescue). SERVER-OWNED — the client
+         reads `player_state.recovering_until` off the last state envelope and
+         never authors it. Absent (an older server, or a character who is up)
+         reads 0, and every recovery branch on this sheet simply does not fire.
+         `info.recoverMs` is the engine's own answer for the death that JUST
+         happened, used only until the next envelope confirms it. */
+      recoveringUntilMs: (function () {
+        try {
+          var AC = window.HearthriseAccrual;
+          var t = (AC && typeof AC.recoveringUntilMs === 'function') ? AC.recoveringUntilMs() : 0;
+          if (t > 0) return t;
+        } catch (e) {}
+        /* The engine's own answer for the death that JUST happened, used only
+           until the next envelope confirms it — the sheet opens before the
+           settle round-trips. `recoverMs` is 0 on a first-ever death (the
+           grace), so that sheet correctly never shows a countdown. */
+        var rec = Number(info && info.recoverMs) || 0;
+        return rec > 0 ? (Date.now() + rec) : 0;
+      })(),
+      nowMs: Date.now(),
+      /* Did the bag hold ANYTHING auto-eatable at this moment? The same chooser
+         the simulation gates on, so the sheet and the night agree. `undefined`
+         when core is not up — the row then claims nothing. */
+      hadFood: (function () {
+        try {
+          var AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+          if (!AE || typeof AE.chooseFood !== 'function') return undefined;
+          var A = window.HearthriseAuto;
+          var nom = (A && typeof A.getEat === 'function') ? ((A.getEat() || {}).foodId || null) : null;
+          return !!AE.chooseFood(nom, G.inventory || {}, window.ITEMS || {}, Infinity);
+        } catch (e) { return undefined; }
+      })()
     };
   }
 
@@ -482,6 +660,10 @@
   }
 
   function close() {
+    /* Clear the recovery countdown with the sheet. A timer that outlives its
+       DOM keeps waking the tab once a second forever, which on a phone is a
+       battery bug nobody attributes to a death modal. */
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
     var el = document.getElementById(ROOT_ID);
     if (el) el.classList.remove('show');
   }
@@ -530,9 +712,35 @@
     root.querySelectorAll('[data-act]').forEach(function (b) {
       b.onclick = function () { act(b.getAttribute('data-act'), moment); };
     });
+    /* ── THE LIVE COUNTDOWN (First-Night Idle Rescue) ────────────────────
+       Redrawn from the SERVER's absolute instant every second — it subtracts,
+       it never decrements a stored number, so a reload, a tab switch or a
+       suspended machine all produce the right answer with no reconciliation.
+       The interval clears itself the moment the line passes (and `close()`
+       clears it too), because a timer that outlives its sheet is the class of
+       leak this file has no other instance of. */
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    if (model.recoverMsLeft > 0) {
+      var until = Date.now() + model.recoverMsLeft;
+      countdownTimer = setInterval(function () {
+        var left = until - Date.now();
+        var lead = root.querySelector('.hr-death-lead');
+        if (!lead) { clearInterval(countdownTimer); countdownTimer = null; return; }
+        if (left > 0) { lead.textContent = 'Back on your feet in ' + mmss(left) + '.'; return; }
+        clearInterval(countdownTimer); countdownTimer = null;
+        lead.textContent = 'You are back on your feet.';
+        var h2 = root.querySelector('.hr-death-top h2');
+        if (h2) h2.textContent = model.title === 'Knocked out' ? 'Back up' : model.title;
+      }, 1000);
+    }
     root.classList.add('show');
     return root;
   }
+
+  /* The countdown's handle. Module-scope so `close()` can clear a timer the
+     renderer started, which is the only way to guarantee one sheet's timer
+     cannot outlive it into the next. */
+  var countdownTimer = null;
 
   function nav(tab) {
     if (typeof window.showTab === 'function') window.showTab(tab);
@@ -548,6 +756,35 @@
       /* The Bounty Shop is a card on the `bounty` panel, not the gem store —
          Auto-Eat is bought with Marks (legacy.js injectBountyPanel). */
       if (kind === 'shop') { nav('bounty'); return; }
+      /* ── REST AT THE HEARTH (rev. 2, N1) ────────────────────────────────
+         One call to the SERVER, which owns every number in it: which
+         provisions are eligible (hr_items.auto_eatable), how much each heals,
+         how many the bag holds, how much health is missing, and the clock. The
+         client sends a slot and a fresh idempotency key and NOTHING else —
+         there is no quantity and no item id in the signature, so there is no
+         client value to distrust and a double tap eats one meal.
+         Delegated to the RPC transport (src/net/goal-claim.js), which owns the
+         endpoint, the slot resolution and the settle-first ladder; this file
+         must not grow a second one. */
+      if (kind === 'rest') {
+        try {
+          var GC = window.HearthriseGoalClaim;
+          if (GC && typeof GC.rest === 'function') {
+            GC.rest().then(function (r) {
+              if (typeof window.notify !== 'function') return;
+              if (r && r.ok) {
+                window.notify('You ate your way back to full — the timer is cleared.', 'good');
+              } else if (r && r.error === 'insufficient_food') {
+                window.notify('Not enough food to eat your way back up.', 'bad');
+              } else if (r && r.error === 'collect_first') {
+                window.notify('Your run is still settling — try Rest again in a moment.', 'bad');
+              }
+            }).catch(function () {});
+          }
+        } catch (e) { /* a dead sheet must never trap the player behind it */ }
+        nav('combat');
+        return;
+      }
       /* ── THE ONE TAP (ruling 2b condition 3) ────────────────────────────
          Through `HearthriseAuto.setEat` and nothing else: it is the declared
          ONE WRITER of the eat config (b326/b329), it persists itself, and

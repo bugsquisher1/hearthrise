@@ -359,6 +359,38 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/bank-cap-rungs.mjs
 
+      # THE RECOVERY RULE'S SQL HALF (First-Night Idle Rescue, rev. 2).
+      # A death INTERRUPTS a run; it does not terminate it. The JS half -- the
+      # escalating ladder, the 40% resume, the gating of every payable kind --
+      # is asserted by tests/accrual-engine.mjs RECOVER-1..8 inside run-smoke.
+      # THIS is the half that lives in Postgres, driven against the real ordered
+      # migration chain: hr_rest (the food-only relief valve) eats from the
+      # SERVER's bag and clears the timer, is all-or-nothing, is replay-safe, and
+      # refuses a free cure / a character who is up / an unpaid window; hr_apply
+      # writes recovering_until absolute, ADMITS an honest 64-minute ladder stamp
+      # (the assertion that would have caught rev. 1's 15-minute ceiling silently
+      # deleting the top four rungs in production), refuses a forgery, and is NOT
+      # voided by an activity switch; the death ledger is one value-free row per
+      # death and BOUNDED; hr_set_auto_eat stamps the touch on every call so the
+      # one-time switch-on offer cannot be made twice; and the ladder's two
+      # counters survive a truncated `progress` array, which is the whole reason
+      # they are projected as their own scalars.
+      # 13 mutations, no credentials, production untouched.
+      - name: Recovery rule - hr_rest, the ladder ceiling, the death ledger, the auto-eat stamp
+        if: ${{ !cancelled() }}
+        run: node tests/recovery-rest.mjs --selftest
+
+      # R10, THE STANDING RULE: RECOVERY IS NOT FOR SALE.
+      # No trait, unlock, gold-ladder rung, Quartermaster offer, clan bond, perk,
+      # renown rank, glyph or companion may key a mechanical effect on recovery
+      # duration, a recovery skip, or a death counter. Relief is bought with FOOD
+      # (hr_rest) or it is not bought. The catalogues are DATA and grow by rows,
+      # so this fails on the day such a row is WRITTEN rather than the day it is
+      # noticed. Static, credential-free, milliseconds.
+      - name: Recovery relief - nothing in any catalogue sells a way off the floor
+        if: ${{ !cancelled() }}
+        run: node tests/recovery-relief-guard.mjs --selftest
+
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
       # it "says nothing about whether any row survives a restore". This is that

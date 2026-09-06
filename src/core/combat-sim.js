@@ -64,7 +64,7 @@ import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=5
 import { rollDropTable } from './drops.js?v=508';
 import { hitXpRoute, killXpRoute } from './styles.js?v=508';
 import { applyGoldFind } from './pacing.js?v=508';
-import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, utcDaySegments } from './away.js?v=508';
+import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, recoveryFor, resumeHpFor, utcDaySegments } from './away.js?v=508';
 import { NO_BONUS } from './botd.js?v=508';
 import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=508';
 /* THE CONSUMPTION SEAM (design item E1). The arithmetic lives in ./ammo.js and
@@ -164,12 +164,44 @@ export function resolveKill(state, m, ctx) {
  * `stats.deaths` is incremented here, which means it now increments at all:
  * the ruling's sixth omission is that NEITHER loop ever touched it, so the
  * Hero screen has been reporting 0 deaths to every player since launch.
+ *
+ * RECOVERY (First-Night Idle Rescue, rev. 2). A death no longer ENDS the run —
+ * it interrupts it, for `recoveryFor` in src/core/away.js: free on the day's
+ * FIRST fall, then 2m, 4m, 8m … to a 64m cap, held to one rung while the
+ * character is still a novice by LIFETIME death count.
+ *
+ * THE TWO COUNTS THE LADDER READS ARE DURABLE SERVER COUNTERS, NOT THIS
+ * WINDOW'S. `state.deathsTodayBefore` / `state.deathsLifetimeBefore` are seeded
+ * from `player_progress` (kind='stat' key='deaths', period=<UTC day> and '')
+ * by whoever built this state — the accrual engine reads them off hr_state_of's
+ * envelope. `state.stats.deaths` is the WINDOW-LOCAL tally, which is why it is
+ * ADDED to both: that sum is `D_at_span_start + deaths_so_far`, i.e. the
+ * in-span escalation, with no second counter to keep in step.
+ *   ⚠ A caller that seeds neither (the live client before its state hydrates)
+ *     gets the day's-first-fall grace, which is the UNDER-charging direction —
+ *     and it is only ever a PREDICTION there, because the authoritative stamp
+ *     is written by hr_apply from the engine's own read of the two rows.
+ *
+ * This function only REPORTS the number; the caller that owns a timeline
+ * (`simulateSpan`) turns it into an absolute `recovering_until`, because it is
+ * the only caller that knows which instant this death happened at.
+ *
+ * THE CHARACTER GETS UP AT `resumeHpFor(maxHp)` — 40%, not full. A full heal
+ * made dying the cheapest heal in the game; see away.js's note.
+ *
+ * The activity pointer is deliberately NOT touched (it never was here — see the
+ * note below), so resuming after recovery is the absence of a change.
  */
 export function resolveDeath(state, ctx) {
   const fx = fxOf(ctx);
   state.stats = state.stats || {};
-  state.stats.deaths = (state.stats.deaths || 0) + 1;
-  state.playerHp = state.playerMaxHp;
+  const soFar = Math.floor(Number(state.stats.deaths) || 0);
+  const base = (v) => { const n = Math.floor(Number(v)); return isFinite(n) && n >= 0 ? n : 0; };
+  const todayBefore = base(state.deathsTodayBefore) + soFar;
+  const lifeBefore  = base(state.deathsLifetimeBefore) + soFar;
+  const recoverMs = recoveryFor({ deathsTodayBefore: todayBefore, deathsLifetimeBefore: lifeBefore });
+  state.stats.deaths = soFar + 1;
+  state.playerHp = resumeHpFor(state.playerMaxHp);
   state.monsterHp = 0;
   /* A death breaks a bounty STREAK — the one bounty type that measures
      uninterrupted kills. Away used to do this and live used to do this; it
@@ -180,7 +212,19 @@ export function resolveDeath(state, ctx) {
     state.bountyHunter.active.progress = 0;
     state.bountyHunter.active.streak = 0;
   }
-  const info = { died: true, streakBroken };
+  /* THE WHOLE FALL, AS DATA — stated once, here, and read by the death sheet
+     without re-deriving a single number of it. `deathsToday` is `n` in the
+     ladder (the count AFTER this fall), `nextRecoverMs` is what the NEXT fall
+     today would cost, and both come from the same table the server stamps
+     from, so the sheet's warning cannot promise a rung the server will not
+     charge. `resumeHp` is what the character is actually standing on. */
+  const info = {
+    died: true, streakBroken, recoverMs,
+    deathsToday: todayBefore + 1,
+    deathsLifetime: lifeBefore + 1,
+    nextRecoverMs: recoveryFor({ deathsTodayBefore: todayBefore + 1, deathsLifetimeBefore: lifeBefore + 1 }),
+    resumeHp: state.playerHp,
+  };
   /* The caller stops the fight: on the client that is `stopCombat()`, which
      also tells the launchpad the activity ended and clears the interval.
      Core must not null `activeMonster` first — stopCombat reads it to decide
@@ -276,8 +320,13 @@ export function simulateTick(state, ctx) {
   const ate = !!call(fx, 'autoEat', ctx);
 
   if (state.playerHp <= 0) {
-    resolveDeath(state, ctx);
-    return { outcome: OUTCOME.DEATH, crit: didCrit, pDmg, mDmg, ate, supply };
+    /* `recoverMs` rides the outcome for the same reason `supply` does: the span
+       needs it to know how many ticks this character is Knocked Out for, and a
+       caller that re-derived it would be a second copy of the first-death
+       grace. */
+    const d = resolveDeath(state, ctx);
+    return { outcome: OUTCOME.DEATH, crit: didCrit, pDmg, mDmg, ate, supply,
+             recoverMs: d.recoverMs };
   }
   /* `supply` rides on EVERY outcome, kill included, because the span's
      `consumed` tally is built from it and an arrow spent on a killing blow is
@@ -373,6 +422,43 @@ export function simulateSpan(state, ctx) {
   let diedTo = null;    // the monster id that landed the killing blow
   const segLog = [];
 
+  /* ── THE RECOVERY CLOCK (First-Night Idle Rescue) ───────────────────────
+     ONE ABSOLUTE INSTANT, never a per-window counter. `recoverUntilMs` is
+     seeded from `state.recoveringUntilMs` (the server's `recovering_until`
+     column) and is only ever MOVED FORWARD by a death, to
+     `thisTickInstant + recoverMs`. Nothing recomputes it from a remaining-ms counter, and
+     that is the whole of exploit R1: the live settle cadence is ~90 s, so a
+     counter would be re-zeroed by every settle and two minutes of Knocked Out
+     would cost a player who reloads nothing at all. An absolute instant is the
+     same instant however many times the window is sliced.
+
+     A tick is a RECOVERY tick when its own instant is before that line. It
+     simulates nothing — no swing, no XP, no loot, no food — but it DOES spend
+     the tick's budget and DOES drive the buff clock, because time passing is
+     the one thing being Knocked Out does not stop (b347/b351: paying and
+     draining are one change, and here only the paying half is switched off). */
+  let recoverUntilMs = Number(state.recoveringUntilMs);
+  if (!isFinite(recoverUntilMs) || recoverUntilMs <= 0) recoverUntilMs = 0;
+  /* DOWN, as a fact separate from the CLOCK. They are not the same thing and
+     collapsing them cost a free kill: a FIRST-EVER death recovers in zero, so
+     there is no clock at all, and the character must still be stood back up
+     with a full-HP foe in front of them. Without this flag the next tick swung
+     at a monster `resolveDeath` had left on 0 HP and scored an instant kill —
+     a death would have PAID. Seeded true when the window opens mid-recovery,
+     because a character the server says is down is a character who was. */
+  let downed = recoverUntilMs > 0;
+  let deaths = 0;       // deaths INSIDE this credited window
+  let recoverMs = 0;    // ms of this window spent Knocked Out
+  /* ONE ENTRY PER DEATH, and this is the ONLY per-death record the system
+     keeps. It is what the N3 ledger row is built from (the accrual engine turns
+     each entry into one `player_ledger` row through hr_apply) and what the
+     receipt's ladder line reads. It is BOUNDED BY THE LADDER ITSELF: recovery
+     doubles to a 64-minute cap, so a twelve-hour night cannot hold more than
+     about twenty deaths however hard a character tries — which is why a
+     per-death row is affordable here and a per-TICK row never would be. */
+  const deathLog = [];
+  const baseCount = (v) => { const n = Math.floor(Number(v)); return isFinite(n) && n >= 0 ? n : 0; };
+
   /* ── THE BUFF CLOCK, DRIVEN BY THIS TIMELINE ────────────────────────────
      Timed buffs are PERSONAL, so they pay away (src/core/away.js `AWAY_SCOPE`
      — Tyler, 2026-08-14: "they should still get their personal / clan buffs").
@@ -446,10 +532,44 @@ export function simulateSpan(state, ctx) {
     });
     const targetAtSegStart = state.activeMonster;
 
+    /* `ran` counts SIMULATED ticks only. Recovery ticks spend the segment's
+       budget without incrementing it, so `survivedMs` (the earning span) and
+       `ticks` (swings) both stay honest with no second subtraction. */
     let ran = 0;
     const run = () => {
       for (let i = 0; i < n; i++) {
         if (!state.activeMonster) break;
+        /* THE TICK'S OWN INSTANT. The same expression `fx.mark` already uses —
+           one statement of "which moment is this tick", so the recovery line
+           and the combat-XP watermark cannot disagree about it. */
+        const atMs = seg.fromMs + i * tickMs;
+        if (recoverUntilMs > atMs) {
+          /* KNOCKED OUT. Spend the tick, drain the buff queue, earn nothing.
+             `ran` is NOT incremented — `survivedMs` means "ms that earned", and
+             a renderer that read recovery time as earning time would tell the
+             player their night paid when it did not. */
+          const rq = liveQueue();
+          if (rq) {
+            const rbt = tickBuffs(rq, tickMs, buffCtx);
+            for (const t of rbt.expired) buffsExpired.push(t);
+          }
+          recoverMs += tickMs;
+          continue;
+        }
+        /* UP AGAIN, FULL HP, SAME FOE — the resume half of the rule. Runs on
+           the FIRST non-recovery tick after a recovery, so the fight the player
+           left is the fight that carries on. */
+        if (downed) {
+          downed = false;
+          recoverUntilMs = 0;
+          const mr0 = (ctx.monsters || {})[state.activeMonster];
+          if (mr0) { state.monsterMaxHp = mr0.hp; state.monsterHp = mr0.hp; }
+          /* 40%, NOT full (away.js `resumeHpFor`). Restated here rather than
+             left to `resolveDeath` because a window can OPEN mid-recovery, in
+             which case no death happened inside it and nobody stood the
+             character up. Same function, so the two cannot disagree. */
+          state.playerHp = resumeHpFor(state.playerMaxHp);
+        }
         /* THE TICK CLOCK, for a caller that needs to attribute this tick's XP to
            an instant (the away combat-XP settle clamps its credited window to
            combat_xp_accrued_to — src/core/combat-xp-cap.js / accrual.js). A pure
@@ -495,7 +615,36 @@ export function simulateSpan(state, ctx) {
         if (r.crit) crits++;
         if (r.ate) foodEaten++;
         if (r.outcome === OUTCOME.KILL) kills++;
-        if (r.outcome === OUTCOME.DEATH) { died = true; diedTo = facing; break; }
+        if (r.outcome === OUTCOME.DEATH) {
+          died = true; diedTo = facing; deaths++;
+          /* THE POINTER SURVIVES THE DEATH. `fx.onDeath` nulls `activeMonster`
+             on the client (legacy COMBAT_FX.onDeath -> stopCombat), which used
+             to be how the run ended; it is restored here so the loop keeps the
+             same target and the accrual engine's `!state.activeMonster` test
+             sees a character who is still fighting slimes, just face-down. */
+          state.activeMonster = facing;
+          downed = true;
+          /* From the END of the swing that killed them — the dying tick was
+             simulated and earned, the next one is the first that does not.
+             ⚠ ONLY when there is a recovery to serve. A first-ever death
+               recovers in ZERO (the grace), and stamping `atMs + tickMs` for it
+               would leave a line in the future at the end of a window and
+               report a character who is up as still recovering. */
+          const rec = Number(r.recoverMs) || 0;
+          if (rec > 0) recoverUntilMs = atMs + tickMs + rec;
+          /* `state.stats.deaths` has ALREADY been incremented by resolveDeath,
+             so it is the count AFTER this fall — which is exactly `n` in the
+             ladder and exactly what the receipt and the ledger row want. */
+          deathLog.push({
+            atMs: atMs + tickMs,
+            monster: facing,
+            recoverMs: rec,
+            deathsToday:    baseCount(state.deathsTodayBefore)    + deaths,
+            deathsLifetime: baseCount(state.deathsLifetimeBefore) + deaths,
+            resumeHp: state.playerHp,
+          });
+          continue;
+        }
         if (r.outcome === OUTCOME.STOP) break;
       }
     };
@@ -520,7 +669,11 @@ export function simulateSpan(state, ctx) {
       featuredDropMult = Math.max(featuredDropMult, featBonus.dropMult || 1);
     }
     segLog.push({ fromMs: seg.fromMs, toMs: seg.toMs, ticks: ran, featured: wasFeatured });
-    if (died) break;
+    /* NO `if (died) break;`. That line WAS the cliff: one death two minutes into
+       a twelve-hour night ended the simulation and the remaining eleven hours
+       fifty-eight minutes paid nothing. A death is now a pause, and the pause is
+       expressed as ticks that do not swing — which is why there is nothing here
+       to replace it with. */
   }
 
   /* Drop what ran out. An expired entry already pays nothing (`activeBuffs`
@@ -531,6 +684,15 @@ export function simulateSpan(state, ctx) {
   if (buffsExpired.length && Array.isArray(state.buffs)) state.buffs = pruneBuffs(state.buffs);
 
   const spanMs = Math.max(0, (Number(ctx.toMs) || 0) - (Number(ctx.fromMs) || 0));
+
+  /* THE RESULTING RECOVERY LINE, written back onto `state` as an ABSOLUTE so
+     the accrual engine can propose it verbatim (`delta.recovering_until`) and
+     the next window can seed from it. Cleared to 0 once it is in the past —
+     "still recovering" is a claim about the future and nothing else. */
+  const toMs = Number(ctx.toMs) || 0;
+  const recoverRemainingMs = Math.max(0, recoverUntilMs - toMs);
+  state.recoveringUntilMs = recoverRemainingMs > 0 ? recoverUntilMs : 0;
+
   return {
     kills,
     foodEaten,
@@ -542,6 +704,37 @@ export function simulateSpan(state, ctx) {
        `diedTo` is the monster id, so the card can name the foe. */
     survivedMs,
     diedTo,
+    /* ── THE RECOVERY PAYLOAD (First-Night Idle Rescue) ────────────────────
+       STATED BY THE SIMULATION, never inferred by a renderer — the same b341
+       rule that governs `died`, `blessed` and `crits`, and it matters more here
+       than anywhere: the receipt has to say "you fell four times and spent
+       eight minutes on the floor", and a card that divided `awayMs - paidMs` by
+       two minutes to guess the count would be wrong on every night that ended
+       mid-recovery.
+
+       `deaths`            deaths inside the CREDITED window (not the lifetime
+                           counter — that is `stats.deaths`).
+       `recoverMs`         ms of this window spent Knocked Out. Never earning.
+       `recoverRemainingMs` >0 when the window closed while still down, so the
+                           card can say "1:47 to go" instead of implying the
+                           character is up and fighting.
+       `died` / `diedTo` / `survivedMs` KEEP THEIR EXACT SHIPPED MEANINGS —
+       three surfaces read them and this change may not move any of the three. */
+    deaths,
+    recoverMs,
+    recoverRemainingMs,
+    /* THE PER-DEATH RECORD. Stated by the simulation (b341), never inferred:
+       the ledger row and the receipt's `free, 2m, 4m…` line both need to know
+       WHICH rung each fall landed on, and a renderer that divided total
+       recovery by a rung would be wrong on every night with a novice clamp or
+       a cap in it. */
+    deathLog,
+    /* The rungs, in order, as the ladder ACTUALLY charged them — the receipt's
+       "tonight it went free, 2m, 4m" line. Projected off deathLog rather than
+       regenerated from a count, because a night that hit the novice clamp or
+       the 64-minute cap does not match the bare doubling and a regenerated
+       ladder would OVERSTATE the penalty. */
+    recoverLadder: deathLog.map((d) => d.recoverMs),
     crits,
     ticks,
     hrs: +(spanMs / 3600000).toFixed(2),

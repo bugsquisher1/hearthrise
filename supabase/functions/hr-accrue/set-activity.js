@@ -351,6 +351,65 @@ export async function runSetActivity(o) {
   }
   const st = env.state;
 
+  /* ── (1b) KNOCKED OUT? (First-Night Idle Rescue) ─────────────────────────
+     A character inside their recovery window may not START A FIGHT. The rule is
+     identical live and away because it is one fact about the CHARACTER, read
+     from the same absolute column `simulateSpan` reads — there is no second
+     code path to drift, which is what preserves AWAY-1 by construction.
+
+     ⚠ REFUSED HERE, BEFORE THE COLLECT, AND THAT PLACEMENT IS THE POINT. The
+       collect stamps `accrued_to`; refusing after it would close a window the
+       player was mid-way through for a switch that never happened. Nothing has
+       been written at this line, the watermark is intact, the idempotency key
+       is unspent, and the elapsed window is still there to be paid by the
+       `accrue` verb. This refusal costs a tap, never a night.
+
+     ⚠ EVERY PAYABLE KIND, NOT JUST COMBAT (rev. 2, R2). Rev. 1 refused only a
+       fight, which made the whole rule optional: fall over, switch to fishing,
+       work through the knockout, switch back. Being knocked out is a property
+       of the CHARACTER, so it costs combat, gathering AND the artisan bench —
+       exactly the set `PAYABLE_KINDS` names, read from that array rather than
+       restated, so a fourth payable kind is gated the day it is added.
+       `idle` is ALWAYS allowed, and nothing non-payable is touched: building,
+       shopping, travelling, the market, the clan and the whole UI stay open. A
+       knockout stops the character EARNING; it does not lock the player out.
+       `st.recovering_until` absent (the column does not exist) is
+       `Date.parse(undefined) = NaN`, and `NaN > nowMs` is false — the check
+       self-configures off exactly like every other reader of that column.
+
+     THE SERVER CLOCK, NEVER THE CLIENT'S. `read.now` is Postgres's `now()` from
+     the transaction that produced this envelope. */
+  if (PAYABLE_KINDS.includes(decl.kind)) {
+    const untilMs = Date.parse(st.recovering_until);
+    const nowMs_ = new Date(read.now).getTime();
+    if (untilMs > nowMs_) {
+      /* IT CARRIES STATE, because it is a REFUSAL AFTER A READ and the
+         published taxonomy (intents.js `refusalCarriesState`) says so: the
+         caller has already paid for an envelope, and one it cannot reconcile
+         from leaves the client guessing. `until` rides alongside so the
+         countdown does not have to be dug out of the state object. */
+      return {
+        status: 409,
+        body: await refusalBody({
+          exec, verb: VERB, user, slot, decorate: decorateActivity,
+          refusal: {
+            error: INTENT_ERRORS.RECOVERING,
+            kind: decl.kind,
+            id: decl.id,
+            /* THE ABSOLUTE INSTANT, so the client counts DOWN instead of
+               polling. Echoed from the row, the only place it can come from. */
+            until: st.recovering_until,
+            /* And the same fact as a duration, computed against the SERVER's
+               `now` in the same breath, so a client with a skewed clock renders
+               the right number rather than a negative one. */
+            remaining_ms: Math.max(0, untilMs - nowMs_),
+          },
+          fallback: env,
+        }),
+      };
+    }
+  }
+
   /* (2) ⚠ COLLECT BEFORE SWITCH. The rule. See intents.js §3. Whether it
          applies is the registry's `collectsFirst`, read here and nowhere else;
          an intent that does not collect states so as a verdict rather than by
@@ -714,6 +773,24 @@ export async function collectCurrentWindow(o) {
          nearly-dead boss?", and it is enforced in SQL rather than here.
        Mirrors index.ts field for field (A14). */
     fight: st.fight ?? null,
+    /* THE RECOVERY LINE (First-Night Idle Rescue) — and this call site matters
+       as much as the accrue one: a collect that forgot the recovery clock would
+       re-simulate a Knocked Out character as a fighting one, which is the R1
+       counter-reset exploit reached through the switch verb instead of through
+       the settle cadence. Presence-of-key, not `?? null` — see the field's note
+       in index.ts. Mirrors index.ts field for field (A14). */
+    recoveringUntilMs: ('recovering_until' in st) ? (st.recovering_until ? new Date(st.recovering_until).getTime() : 0) : null,
+    /* THE RECOVERY LADDER'S TWO ANCHORS (Recovery rev. 2). player_progress
+       kind='stat' key='deaths' under period=<UTC day> and period='', read by
+       hr_state_of as its OWN scalars and NOT dug out of the `progress` array:
+       that array is `limit 1000` with a `progress_truncated` flag, and a
+       survival mechanic must never be able to answer "you have never died"
+       because a character owns a lot of collection rows. Absent (a database
+       without the Recovery migration) ⇒ 0 ⇒ the day's-first-fall grace, which
+       is the UNDER-charging direction.
+       Mirrors set-activity.js field for field (A14). */
+    deathsTodayBefore:    Number(st.deaths_today) || 0,
+    deathsLifetimeBefore: Number(st.deaths_lifetime) || 0,
     /* THE WEAPON ENCHANT (ELEMENTS v1). Read-only input to
        `equipmentStats(equipment, items, enchant)`, so a collect and an accrue
        over the same window price the element identically. `|| {}` is safe (no

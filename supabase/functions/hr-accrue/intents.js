@@ -633,6 +633,19 @@ export const INTENT_ERRORS = Object.freeze({
   /* 409, stage:'collect'. The elapsed window could not be priced, so switching
      would confiscate it. Nothing was written; the window is intact. */
   UNCOLLECTABLE_WINDOW: 'uncollectable_window',
+  /* 409 — KNOCKED OUT (First-Night Idle Rescue, rev. 2). The character died
+     recently and `player_state.recovering_until` has not passed, so starting
+     any PAYABLE activity — combat, gathering or the artisan bench — is refused.
+     It is a SOFT refusal and deliberately not a degradable one: nothing was
+     read that could be paid, nothing was written, the accrual window is
+     untouched, and the body carries `until` (the absolute server instant) plus
+     `remaining_ms` (the same fact against the server's own clock) so the client
+     renders a countdown rather than a retry loop.
+     `idle` is always allowed and NOTHING NON-PAYABLE IS GATED — building,
+     shopping, travelling, the market and the clan all stay open. A knockout
+     stops the character EARNING; it does not lock the player out. That is why
+     this is a per-KIND check against PAYABLE_KINDS and not a lock. */
+  RECOVERING: 'recovering',
 
   /* ── THE GOLD VERBS (b351) ───────────────────────────────────────────────
      Read the pairs. Each one exists because collapsing it into its neighbour

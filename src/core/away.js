@@ -191,7 +191,7 @@ export function creditWindow(o) {
  * The Boss of the Day is a different boss on either side of UTC midnight,
  * and the ruling pays each segment its own day's boss. At the 12h base cap
  * an absence crosses at most one boundary (two segments); at the 22h
- * ceiling (16h Offline+ · +4h renown/property · +2h clan) still at most
+ * ceiling (12h base · +4h renown/property · +2h clan) still at most
  * one. This is written as a loop anyway, because a cap is a number someone
  * will raise and a hardcoded "max two" is a bug waiting for that commit.
  *

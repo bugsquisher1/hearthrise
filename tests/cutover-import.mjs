@@ -203,7 +203,7 @@ function snapshots(cat) {
       rooms: { kitchen: 4 }, homestead: { tier: 3 }, plotLevels: 3,
       plotBuildings: [{ id: 'toolshed', uid: 1 }], workers: { hired: [{}] },
       traits: {}, autoActions: {}, foodSlot: null, autoEatPct: 0.5, toolCarry: {},
-      ownedThemes: ['default', 'forest'], ownedCosmetics: [], entitlements: { noAds: true },
+      ownedThemes: ['default', 'forest'], ownedCosmetics: [], entitlements: { hearthHall: true },
       unlockedRecipes: { captain_recipe: true, field_cookbook: true },
       stats: {},
       // THE ID-SPACE ALIAS, exercised end to end: the client keys upgrades by
@@ -537,7 +537,7 @@ export async function cutoverImportGuard({ patches, toolPath } = {}) {
     if (prog.get('unlock room:kitchen') !== 4) fail(`G1: room:kitchen ${prog.get('unlock room:kitchen')} <> 4`);
     if (prog.get('flag recipe:captain_recipe') !== 1) fail('G2: a recipe unlock did not import as a flag');
     if (prog.get('flag theme:forest') !== 1) fail('G3: a theme flag did not import');
-    if (prog.get('flag entitlement:noAds') !== 1) fail('G4: an entitlement flag did not import');
+    if (prog.get('flag entitlement:hearthHall') !== 1) fail('G4: an entitlement flag did not import');
     // ── THE ID-SPACE ALIAS, END TO END (ruling task 1) ────────────────
     // The client's four upgrade FLAGS must reach hr_state_of as their
     // catalogue `bounty:<id>` flag rows — never the client flag name.

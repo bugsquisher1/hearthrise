@@ -760,7 +760,7 @@
          claim a skill banks that the engine will not pay (cooking/farming are
          false there, which is the truth home-dashboard must tell — see b388);
        • idle banks nothing.
-     The cap is offlineCapHours() (12h F2P, more with Offline+/perks/property/clan),
+     The cap is offlineCapHours() (12h base for everyone, more with perks/property/clan),
      so the number shown is the player's actual personal ceiling, not a constant. */
   function awayCapHours() {
     try { if (typeof window.offlineCapHours === 'function') return window.offlineCapHours() | 0; } catch (e) {}

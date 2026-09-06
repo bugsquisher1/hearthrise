@@ -617,11 +617,26 @@ const IAP_CATALOG=[
   {sku:'gems_traveler',type:'currency',glyph:'gems',title:'Traveler Pack',desc:'650 gems + 50 bonus.',price:'$9.99',gems:700,style:'gem',ribbon:'Popular'},
   {sku:'gems_hero',type:'currency',glyph:'uiChest',title:'Hero Pack',desc:'1,800 gems + 250 bonus.',price:'$24.99',gems:2050,style:'gold'},
   {sku:'gems_legend',type:'currency',glyph:'uiCrown',title:'Legend Pack',desc:'5,000 gems + 800 bonus.',price:'$49.99',gems:5800,style:'gold',ribbon:'Best value'},
-  {sku:'remove_ads',type:'entitlement',glyph:'uiNoAds',title:'Remove Ads',desc:'Permanent. Removes interstitials and rewarded prompts.',price:'$2.99',ent:'noAds',style:'gem'},
-  {sku:'offline_boost',type:'entitlement',glyph:'uiHourglass',title:'Lifetime Offline+',desc:'Raises offline cap from 12h to 16h, forever.',price:'$6.99',ent:'offlinePlus',style:'gem'},
-  {sku:'starter_bundle',type:'bundle',glyph:'uiGift',title:'Starter Bundle',desc:'500 gems + Forest Lodge theme + 200k gold pouch.',price:'$7.99',gems:500,gold:200000,unlocks:['forest'],style:'gold'},
-  {sku:'hearth_hall_premium',type:'subscription',glyph:'uiCastle',title:'Hearth Hall Premium',desc:'3 character slots, +25% offline progress, exclusive cosmetics, monthly chests.',price:'$4.99/mo',ent:'hearthHall',ribbon:'Premium',style:'gold'},
+  {sku:'hearth_hall_premium',type:'subscription',glyph:'uiCastle',title:'Hearth Hall Premium',desc:'3 character slots, exclusive cosmetics, monthly chests.',price:'$4.99/mo',ent:'hearthHall',ribbon:'Premium',style:'gold'},
 ];
+/* ── THE STORE RULES (Tyler, 2026-09-05 — "kill the starter bundle, remove ads,
+   and both offline boosts"). Four products were removed and MAY NOT COME BACK,
+   because each one was a class rather than a mistake:
+     · remove_ads      sold the removal of something that does not exist. There
+                       are no ads anywhere in this codebase.
+     · offline_boost   sold a bigger away-accrual cap (12h → 16h) on a shared,
+                       ranked economy. The server floors offline at 12h and
+                       never honoured it, so it also sold nothing.
+     · starter_bundle  sold 200,000 GOLD for cash. Gold is the tradeable,
+                       rankable currency; money → gold at the store makes the
+                       Hearth Token bond (the ONE sanctioned cash→value path,
+                       priced by players on the market) pointless.
+     · the "+25% offline progress" line on Hearth Hall Premium — the same
+                       accrual class as offline_boost. The SUBSCRIPTION stays;
+                       the boost does not.
+   The two standing rules, enforced at runtime by the b505 guard in
+   src/features/smoke-test.js: NO IAP GRANTS GOLD, and NOTHING PURCHASABLE
+   MOVES AN ACCRUAL RATE OR TOTAL. Premium is convenience and cosmetics. */
 /* b221 — see the note on SEED_SHOP. Until now the b215 "no purchasable XP
    multiplier" guard read `window.IAP_CATALOG || []` and checked nothing. */
 window.IAP_CATALOG=IAP_CATALOG;
@@ -651,7 +666,7 @@ let G={
   gold:500,
   gems:0,                                   /* premium currency */
   bank:{goldBuys:0,gemBuys:0,grandfather:0},/* b269: purchased bank-space state */
-  entitlements:{},                          /* {noAds:true, offlinePlus:true, ...} */
+  entitlements:{},                          /* {hearthHall:true, ...} — cosmetic/convenience only */
   ownedThemes:['default'],
   ownedCosmetics:[],
   /* b215: seasonPass field retired (pay-to-win XP). Old saves may still
@@ -1459,8 +1474,13 @@ function loadLocal(){
    legacy `usedMs`/`dayKey` fields are now ignored (tolerated on old saves).
    ════════════════════════════════════════════════════════════════ */
 function offlineCapHours(){
-  // 12h F2P, 16h with the Offline+ entitlement, plus perk hours.
-  let cap=G.entitlements?.offlinePlus?16:12;
+  /* 12h for EVERY account. No entitlement raises the base — the Offline+
+     product that used to (and the +25% on Hearth Hall) were removed in b505:
+     an away-accrual boost sold for cash is pay-to-win on a ranked economy, and
+     the server floors offline at 12h regardless of what the client believes.
+     Earned perks (renown / property / clan) still extend it; those are played
+     for, not bought. */
+  let cap=12;
   if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
     try{ cap += (window.HearthriseRenown.getPerks(G).offlineHours||0); }catch(e){}
   }
@@ -3270,7 +3290,10 @@ const IAP=(()=>{
        cannot erase them; no-op until gold is armed. Tokens/entitlements/themes
        are not on the record and stay as-is. */
     if(p.gems&&clientMayWriteRecordField('gems'))G.gems=(G.gems||0)+p.gems;
-    if(p.gold&&clientMayWriteRecordField('gold'))G.gold=(G.gold||0)+p.gold;
+    /* b505: NO IAP GRANTS GOLD. The gold branch is gone rather than gated —
+       gold is the tradeable, rankable currency, so money→gold at the store is
+       pay-to-win however carefully it is written. The guard in smoke-test.js
+       fails the build if a `gold:` field ever reappears on a product. */
     if(p.tokens){addItem('hearth_token',p.tokens);} /* b206: tradable premium bonds */
     if(p.ent)G.entitlements[p.ent]=true;
     if(p.unlocks)p.unlocks.forEach(id=>{if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);});

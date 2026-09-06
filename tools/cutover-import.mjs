@@ -324,7 +324,7 @@ export const FIELD_MAP = {
   ownedThemes: F('SERVER', "player_progress kind='flag' key='theme:<id>'", 'Owned or not.'),
   ownedCosmetics: F('SERVER', "player_progress kind='flag' key='cosmetic:<id>'", 'Owned or not.'),
   entitlements: F('SERVER', "player_progress kind='flag' key='entitlement:<id>'",
-    'IAP entitlements (noAds / offlinePlus / hearthHall). Owned or not.'),
+    'IAP entitlements (hearthHall). Owned or not. b505 removed noAds / offlinePlus.'),
   traits: F('SERVER', "player_progress kind='flag' key='trait:<id>'",
     'trait:auto_eat is the purchase receipt hr_set_auto_eat requires. The RPC refuses to switch '
     + 'auto-eat on without it, so the receipt and the setting can never disagree.'),

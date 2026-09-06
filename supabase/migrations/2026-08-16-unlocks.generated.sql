@@ -5,8 +5,8 @@
 --   perks}.js. Any hand edit here is reverted by the next generation and FAILS
 --   `node tools/gen-unlocks.mjs --check`, a preflight in tests/run-smoke.mjs.
 --
---   unlock digest: 82af81354e4d270a2830160ae387d149fd6229a5fdc2e34baae5dda19dba8341
---   62 unlock ids · bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=3 · farm_plot_tier=1 · plot=4 · property=5 · recipe=9 · room=8 · theme=6 · trait=2 · worker=1
+--   unlock digest: 95226a62dea14db3aa6b910768c18c721bbe704ce1b048dab28911a331ee8e90
+--   60 unlock ids · bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=1 · farm_plot_tier=1 · plot=4 · property=5 · recipe=9 · room=8 · theme=6 · trait=2 · worker=1
 --
 -- ⚠⚠⚠ DO NOT RE-APPLY THIS FILE STANDALONE — IT DESTROYS OTHER SEEDERS' ROWS.
 --   Its seed block opens with an UNSCOPED `delete from public.hr_unlocks` and
@@ -133,8 +133,6 @@ values
   ('dungeon_run:obsidian_keep', 'dungeon_run', 'none', null, null, null),
   ('dungeon_run:voidbringer', 'dungeon_run', 'none', null, null, null),
   ('entitlement:hearthHall', 'entitlement', 'flag', 'flag', null, null),
-  ('entitlement:noAds', 'entitlement', 'flag', 'flag', null, null),
-  ('entitlement:offlinePlus', 'entitlement', 'flag', 'flag', null, null),
   ('farm_plot_tier', 'farm_plot_tier', 'max', 'unlock', 5, array[2,3,4,5]::int[]),
   ('plot:farm_plot', 'plot', 'count', 'stat', 12, null),
   ('plot:scarecrow', 'plot', 'count', 'stat', 2, null),
@@ -177,8 +175,8 @@ do $$
 declare v_n int; v_bad text;
 begin
   select count(*) into v_n from public.hr_unlocks;
-  if v_n <> 62 then
-    raise exception 'hr_unlocks holds % rows, expected 62 — the insert was partial', v_n;
+  if v_n <> 60 then
+    raise exception 'hr_unlocks holds % rows, expected 60 — the insert was partial', v_n;
   end if;
 
   -- Every level has a ladder, every ladder is inside its ceiling, and no ladder
@@ -208,5 +206,5 @@ begin
     raise exception 'the recipe namespace lost its flag storage — % of 9 rows', v_n;
   end if;
 
-  raise notice 'hr_unlocks OK — % ids, bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=3 · farm_plot_tier=1 · plot=4 · property=5 · recipe=9 · room=8 · theme=6 · trait=2 · worker=1', 62;
+  raise notice 'hr_unlocks OK — % ids, bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=1 · farm_plot_tier=1 · plot=4 · property=5 · recipe=9 · room=8 · theme=6 · trait=2 · worker=1', 60;
 end $$;

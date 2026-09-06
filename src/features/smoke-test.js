@@ -7251,6 +7251,66 @@ const TESTS = [
     }
   }),
 
+  () => tryRunAsync('b505: the store sells no gold and no accrual boost — permanently', async () => {
+    /* Tyler, 2026-09-05: "Kill the starter bundle, remove ads, and both offline
+       boosts." Three products left the catalogue and one perk left a product,
+       and each was a CLASS rather than a mistake — so this guard asserts the
+       class, not the deletion:
+
+         · remove_ads     sold the removal of something that does not exist.
+         · offline_boost  sold away-accrual (12h → 16h) on a ranked economy.
+         · starter_bundle sold 200,000 GOLD for cash. Gold is the tradeable,
+                          rankable currency, so money→gold makes the Hearth
+                          Token bond — the ONE sanctioned cash→value path,
+                          priced by players on the market — pointless.
+         · "+25% offline progress" on Hearth Hall Premium. The SUBSCRIPTION is
+                          deliberately still here; only the accrual line went.
+
+       Two standing rules: NO IAP GRANTS GOLD, and NOTHING PURCHASABLE MOVES AN
+       ACCRUAL RATE OR TOTAL. Both are checked on the authored catalogue AND on
+       the generated one the SERVER charges out of (src/data/shops.js), because
+       a product removed in legacy.js but left in the generated copy is still a
+       sellable offer id. The runtime cap half is b226/b505 above; the retired
+       XP pass is b215 above — this is their sibling, not a copy. */
+    const cat = window.IAP_CATALOG || [];
+    assert(cat.length > 0,
+      'IAP_CATALOG is empty at runtime, so every assertion below would be vacuous');
+
+    for (const sku of ['remove_ads', 'offline_boost', 'starter_bundle']) {
+      assert(!cat.some((prod) => prod.sku === sku),
+        'the removed product "' + sku + '" is back in IAP_CATALOG');
+    }
+
+    const BOOST = /offline\s*\+|offline\s*(progress|cap|boost|time)|\+\s*\d+\s*%\s*(offline|xp|progress|speed|yield)|\bxp\s*(boost|multiplier)\b/i;
+    for (const prod of cat) {
+      assert(!('gold' in prod),
+        'IAP product "' + prod.sku + '" grants gold — no purchase may mint the tradeable, '
+        + 'rankable currency, ever');
+      assert(prod.ent !== 'offlinePlus' && prod.ent !== 'noAds',
+        'IAP product "' + prod.sku + '" grants the retired entitlement "' + prod.ent + '"');
+      const copy = String(prod.title || '') + ' — ' + String(prod.desc || '');
+      assert(!BOOST.test(copy),
+        'IAP product "' + prod.sku + '" advertises an accrual boost: "' + copy.trim() + '"');
+    }
+
+    /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
+    const S = await import('../data/shops.js?v=506');
+    assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
+      'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
+      + 'would make the checks below vacuous');
+    for (const id of ['iap.remove_ads', 'iap.offline_boost', 'iap.starter_bundle']) {
+      assert(!S.SHOP_OFFERS.some((o) => o.id === id),
+        'the generated catalogue still carries "' + id + '" — run: node tools/gen-shops.mjs');
+    }
+    for (const o of S.SHOP_OFFERS) {
+      if (!o.cost.some((l) => l.kind === 'money')) continue;
+      assert(!o.grant.some((l) => l.kind === 'currency' && l.id === 'gold'),
+        'offer "' + o.id + '" grants gold for real money');
+      assert(!o.grant.some((l) => l.kind === 'unlock' && /offlinePlus|noAds/.test(String(l.id))),
+        'offer "' + o.id + '" grants a retired entitlement');
+    }
+  }),
+
   () => tryRunClientAuthoritative('b214: offline rewards are granted exactly ONCE (no catch-up double-pay)', () => {
     // Regression: three systems read G.lastSeen and all granted —
     // processOffline() (100% rate) plus _applyCatchup() and applyRichCatchup()
@@ -25995,16 +26055,25 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b226: the four offlineHours perks extend the daily budget', () => {
+  () => tryRun('b226/b505: the offline cap is EARNED — no entitlement may raise it', () => {
+    /* This test used to assert the opposite: that the Offline+ entitlement added
+       4h to the cap. b505 removed that product (Tyler: "kill ... both offline
+       boosts") — an away-accrual boost sold for cash is pay-to-win on a shared,
+       ranked economy, and the server floors offline at 12h regardless, so it was
+       also selling nothing. The runtime property is now that a leftover or forged
+       entitlement flag does NOTHING; the catalogue half lives in the b505 guard. */
     const G = window.G;
     const snap = snapshotG();
     try {
       G.entitlements = {};
       const base = window.offlineCapHours();
-      assert(base >= 12, 'the F2P floor is 12h, got ' + base);
-      G.entitlements = { offlinePlus: true };
-      assert(window.offlineCapHours() >= base + 4,
-        'Offline+ must add 4h to the DAILY budget (was ' + base + ', now ' + window.offlineCapHours() + ')');
+      assert(base >= 12, 'the base offline cap is 12h, got ' + base);
+      const flags = { offlinePlus: true, noAds: true, hearthHall: true };
+      (window.IAP_CATALOG || []).forEach((prod) => { if (prod.ent) flags[prod.ent] = true; });
+      G.entitlements = flags;
+      assert(window.offlineCapHours() === base,
+        'an entitlement moved the offline cap from ' + base + 'h to ' + window.offlineCapHours()
+        + 'h — away-time is not for sale; only renown/property/clan perks extend it');
     } finally { restoreG(snap); }
   }),
 

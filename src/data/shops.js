@@ -16,8 +16,8 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: dd848a3f6c10969d4218a5fbffc8d22e418bd9c681bba266b295193f118bacba
-//   130 offers · 226 cost lines · 6 prices that are formulas, not data
+//   catalogue digest: dfee670ed22a38d4cc17cf5d0e98536319aab0777891f02966b026c3c504ff6c
+//   127 offers · 223 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
@@ -29,7 +29,7 @@
 //   trait              2  src/legacy.js
 //   cosmetic           4  src/render/shop.js
 //   bank               1  src/legacy.js
-//   iap                9  src/legacy.js
+//   iap                6  src/legacy.js
 //   property           5  src/features/homestead.js
 //   worker             6  src/features/workers.js
 //   character_slot     4  src/multi-character.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "dd848a3f6c10969d4218a5fbffc8d22e418bd9c681bba266b295193f118bacba";
+export const SHOPS_DIGEST = "dfee670ed22a38d4cc17cf5d0e98536319aab0777891f02966b026c3c504ff6c";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -434,27 +434,6 @@ export const SHOP_OFFERS = [
     name: "Hearth Tokens ×3",
     cost: [{ kind: "money", id: "usd", amount: 699 }],
     grant: [{ kind: "currency", id: "hearth_tokens", amount: 3 }],
-    authority: "platform",
-  },
-  {
-    id: "iap.offline_boost", table: "iap",
-    name: "Lifetime Offline+",
-    cost: [{ kind: "money", id: "usd", amount: 699 }],
-    grant: [{ kind: "unlock", id: "entitlement:offlinePlus", amount: 1 }],
-    authority: "platform",
-  },
-  {
-    id: "iap.remove_ads", table: "iap",
-    name: "Remove Ads",
-    cost: [{ kind: "money", id: "usd", amount: 299 }],
-    grant: [{ kind: "unlock", id: "entitlement:noAds", amount: 1 }],
-    authority: "platform",
-  },
-  {
-    id: "iap.starter_bundle", table: "iap",
-    name: "Starter Bundle",
-    cost: [{ kind: "money", id: "usd", amount: 799 }],
-    grant: [{ kind: "currency", id: "gold", amount: 200000 }, { kind: "currency", id: "gems", amount: 500 }, { kind: "unlock", id: "theme:forest", amount: 1 }],
     authority: "platform",
   },
   {
@@ -1010,7 +989,7 @@ export const SHOP_TABLES = [
     "anchor": "const IAP_CATALOG=[",
     "spends_at": "IAP.buy() → platform billing",
     "note": "money in CENTS; the store, not hr_apply, authorises the charge",
-    "count": 9
+    "count": 6
   },
   {
     "table": "property",

@@ -53,7 +53,10 @@ const SHOP = '2026-08-16-unlock-offers.generated.sql';
 const GOLD = '2026-08-19-gold-spend-slices-2-3.sql';
 const GOLD_FAMILIES = ['worker_hire.', 'farm_land.', 'bank.'];
 const EXPECT_GOLD = 48;
-const EXPECT_SHOP = 94;
+/* 91 since b505 removed the three dishonest IAP products (remove_ads,
+   offline_boost, starter_bundle). This is the generated file's own self-check
+   count, mirrored — gen-unlock-offers.mjs raises if the table does not hold it. */
+const EXPECT_SHOP = 91;
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };

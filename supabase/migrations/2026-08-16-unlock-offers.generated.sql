@@ -8,8 +8,8 @@
 --   here is reverted by the next generation and FAILS
 --   `node tools/gen-unlock-offers.mjs --check`, a preflight in tests/run-smoke.mjs.
 --
---   offer digest: 57de34f20c84468ad759dcfac6553a82081ae98d304bdaec67154d0fa918426f
---   94 authored unlock offers · 45 sellable (property=5 · room=40) · refused: multi_line_grant=1 · namespace_unsupported=48
+--   offer digest: 74bf1fa6e5582552f57f75948d13710bc3ab531932008eb2e5f83b07a4c19838
+--   91 authored unlock offers · 45 sellable (property=5 · room=40) · refused: namespace_unsupported=46
 --
 -- ── WHAT THIS TABLE IS ──────────────────────────────────────────────────
 -- THE PRICE AND THE PREREQUISITE OF A PERMANENT UNLOCK, so that
@@ -130,7 +130,7 @@ begin
   alter table public.hr_unlock_offers
     add column source text not null default 'gen-unlock-offers';
   update public.hr_unlock_offers set source = 'foreign:pre-source'
-   where offer_id <> all (array['bounty.auto_bounty_1', 'bounty.cosmetic_cape', 'bounty.free_reroll_2', 'bounty.mark_pouch', 'bounty.reroll_token', 'character_slot.1', 'character_slot.2', 'character_slot.3', 'character_slot.4', 'companion.honeybee', 'companion.owl', 'companion.raccoon', 'companion.sparrow', 'cosmetic.avatar_dragon', 'cosmetic.emote_pack', 'cosmetic.name_gold', 'cosmetic.pet_phoenix', 'dungeon.ancient_wyrm', 'dungeon.crypt_of_bones', 'dungeon.goblin_warcamp', 'dungeon.haunted_archive', 'dungeon.obsidian_keep', 'dungeon.voidbringer', 'farm_plot.2', 'farm_plot.3', 'farm_plot.4', 'farm_plot.5', 'iap.hearth_hall_premium', 'iap.offline_boost', 'iap.remove_ads', 'iap.starter_bundle', 'plot.farm_plot', 'plot.scarecrow', 'plot.toolshed', 'plot.watchtower', 'property.castle', 'property.farmstead', 'property.homestead', 'property.keep', 'property.manor', 'room.cellar.1', 'room.cellar.2', 'room.cellar.3', 'room.cellar.4', 'room.cellar.5', 'room.forge.1', 'room.forge.2', 'room.forge.3', 'room.forge.4', 'room.forge.5', 'room.garden.1', 'room.garden.2', 'room.garden.3', 'room.garden.4', 'room.garden.5', 'room.kitchen.1', 'room.kitchen.2', 'room.kitchen.3', 'room.kitchen.4', 'room.kitchen.5', 'room.library.1', 'room.library.2', 'room.library.3', 'room.library.4', 'room.library.5', 'room.shrine.1', 'room.shrine.2', 'room.shrine.3', 'room.shrine.4', 'room.shrine.5', 'room.trophy.1', 'room.trophy.2', 'room.trophy.3', 'room.trophy.4', 'room.trophy.5', 'room.workshop.1', 'room.workshop.2', 'room.workshop.3', 'room.workshop.4', 'room.workshop.5', 'theme.default', 'theme.desert', 'theme.fairy', 'theme.forest', 'theme.volcanic', 'theme.winter', 'trait.auto_eat', 'trait.auto_eat_2', 'worker.1', 'worker.2', 'worker.3', 'worker.4', 'worker.5', 'worker.6']);
+   where offer_id <> all (array['bounty.auto_bounty_1', 'bounty.cosmetic_cape', 'bounty.free_reroll_2', 'bounty.mark_pouch', 'bounty.reroll_token', 'character_slot.1', 'character_slot.2', 'character_slot.3', 'character_slot.4', 'companion.honeybee', 'companion.owl', 'companion.raccoon', 'companion.sparrow', 'cosmetic.avatar_dragon', 'cosmetic.emote_pack', 'cosmetic.name_gold', 'cosmetic.pet_phoenix', 'dungeon.ancient_wyrm', 'dungeon.crypt_of_bones', 'dungeon.goblin_warcamp', 'dungeon.haunted_archive', 'dungeon.obsidian_keep', 'dungeon.voidbringer', 'farm_plot.2', 'farm_plot.3', 'farm_plot.4', 'farm_plot.5', 'iap.hearth_hall_premium', 'plot.farm_plot', 'plot.scarecrow', 'plot.toolshed', 'plot.watchtower', 'property.castle', 'property.farmstead', 'property.homestead', 'property.keep', 'property.manor', 'room.cellar.1', 'room.cellar.2', 'room.cellar.3', 'room.cellar.4', 'room.cellar.5', 'room.forge.1', 'room.forge.2', 'room.forge.3', 'room.forge.4', 'room.forge.5', 'room.garden.1', 'room.garden.2', 'room.garden.3', 'room.garden.4', 'room.garden.5', 'room.kitchen.1', 'room.kitchen.2', 'room.kitchen.3', 'room.kitchen.4', 'room.kitchen.5', 'room.library.1', 'room.library.2', 'room.library.3', 'room.library.4', 'room.library.5', 'room.shrine.1', 'room.shrine.2', 'room.shrine.3', 'room.shrine.4', 'room.shrine.5', 'room.trophy.1', 'room.trophy.2', 'room.trophy.3', 'room.trophy.4', 'room.trophy.5', 'room.workshop.1', 'room.workshop.2', 'room.workshop.3', 'room.workshop.4', 'room.workshop.5', 'theme.default', 'theme.desert', 'theme.fairy', 'theme.forest', 'theme.volcanic', 'theme.winter', 'trait.auto_eat', 'trait.auto_eat_2', 'worker.1', 'worker.2', 'worker.3', 'worker.4', 'worker.5', 'worker.6']);
   raise notice 'hr_unlock_offers.source added; % pre-existing foreign row(s) preserved',
     (select count(*) from public.hr_unlock_offers where source = 'foreign:pre-source');
 end $$;
@@ -169,9 +169,6 @@ values
   ('farm_plot.4', 'farm_plot', 'Farm plot tier 4', 'farm_plot_tier', 4, null, null, null, null, 'namespace_unsupported:farm_plot_tier', 'gen-unlock-offers'),
   ('farm_plot.5', 'farm_plot', 'Farm plot tier 5', 'farm_plot_tier', 5, null, null, null, null, 'namespace_unsupported:farm_plot_tier', 'gen-unlock-offers'),
   ('iap.hearth_hall_premium', 'iap', 'Hearth Hall Premium', 'entitlement:hearthHall', 1, null, null, null, null, 'namespace_unsupported:entitlement', 'gen-unlock-offers'),
-  ('iap.offline_boost', 'iap', 'Lifetime Offline+', 'entitlement:offlinePlus', 1, null, null, null, null, 'namespace_unsupported:entitlement', 'gen-unlock-offers'),
-  ('iap.remove_ads', 'iap', 'Remove Ads', 'entitlement:noAds', 1, null, null, null, null, 'namespace_unsupported:entitlement', 'gen-unlock-offers'),
-  ('iap.starter_bundle', 'iap', 'Starter Bundle', 'theme:forest', 1, null, null, null, null, 'multi_line_grant', 'gen-unlock-offers'),
   ('plot.farm_plot', 'plot', 'Farm Plot', 'plot:farm_plot', 1, null, null, null, null, 'namespace_unsupported:plot', 'gen-unlock-offers'),
   ('plot.scarecrow', 'plot', 'Scarecrow', 'plot:scarecrow', 1, null, null, null, null, 'namespace_unsupported:plot', 'gen-unlock-offers'),
   ('plot.toolshed', 'plot', 'Tool Shed', 'plot:toolshed', 1, null, null, null, null, 'namespace_unsupported:plot', 'gen-unlock-offers'),
@@ -243,8 +240,8 @@ begin
   -- Scoped to THIS generator's rows: another migration's families live in the
   -- same table and are none of this count's business.
   select count(*) into v_n from public.hr_unlock_offers where source = 'gen-unlock-offers';
-  if v_n <> 94 then
-    raise exception 'hr_unlock_offers holds % gen-unlock-offers rows, expected 94 — the insert was partial', v_n;
+  if v_n <> 91 then
+    raise exception 'hr_unlock_offers holds % gen-unlock-offers rows, expected 91 — the insert was partial', v_n;
   end if;
   select count(*) into v_n from public.hr_unlock_offers
    where source = 'gen-unlock-offers' and refusal is null;
@@ -309,5 +306,5 @@ begin
                     '''artisan'' cannot become payable';
   end if;
 
-  raise notice 'hr_unlock_offers OK — % rows, % sellable (property=5 · room=40)', 94, 45;
+  raise notice 'hr_unlock_offers OK — % rows, % sellable (property=5 · room=40)', 91, 45;
 end $$;

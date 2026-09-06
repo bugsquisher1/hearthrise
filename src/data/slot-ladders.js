@@ -151,8 +151,8 @@ export const SLOT_ITEMS = {
    (bow swing interval 2112 ms, 1 arrow per swing):
 
      • BURN RATE is flat across tiers: **~1,705 arrows per hour**, **13,636 per
-       8-hour absence**, **20,455 per 12-hour absence** (12 h is the F2P
-       `offlineCapHours`; 16 h with Offline+, more with perks).
+       8-hour absence**, **20,455 per 12-hour absence** (12 h is the base
+       `offlineCapHours` for every account; more with earned perks).
      • PROVISIONING BUDGET: making a full night's arrows must cost the player
        under five minutes of Fletching, or ranged becomes the punished style.
        At ~3.5 s an action that means a batch of **at least 500** (41 actions

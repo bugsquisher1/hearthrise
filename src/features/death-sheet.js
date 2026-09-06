@@ -979,9 +979,49 @@
     return model;
   }
 
+  /* ════════════════════════════════════════════════════════════
+     4 · THE BOOT RAISE (2026-09-06, measured live on b510)
+     ────────────────────────────────────────────────────────────
+     A knockout OUTLIVES the tab. `show()` is called from the fall moment in the
+     live tick, so a player who reloads while `recovering_until` is 27 minutes
+     ahead used to land on a normal "Fighting Goblin" bar with nothing on screen
+     saying that nothing earns until it passes. The data was always right — the
+     TRIGGER was missing.
+
+     ONCE PER RECOVERY WINDOW, keyed on the server's absolute instant. Every
+     envelope announces the fall state, and settles are frequent, so a raise per
+     announcement would re-open a sheet the player has just dismissed. The
+     instant IS the identity of the window: a new knockout stamps a new
+     `recovering_until`, so a later fall raises again with no extra state, and a
+     dismissal (or a Rest that clears the line) is remembered for exactly as
+     long as the window it belongs to. Deliberately NOT persisted — it is a
+     within-session courtesy, and a reload should re-state a knockout the player
+     is still in.
+     ⚠ The mark is set BEFORE the sheet opens and also when one is already
+       showing, so an exception in `show()` cannot turn this into a loop. */
+  var raisedForUntil = 0;
+
+  function maybeRaiseRecovery() {
+    var f = serverFall();
+    if (f.phase !== 'recovering' || !(f.until > Date.now())) return false;
+    if (raisedForUntil === f.until) return false;
+    raisedForUntil = f.until;
+    var el = document.getElementById(ROOT_ID);
+    if (el && el.classList.contains('show')) return false;   // the watch is already on it
+    return !!show(null, null);
+  }
+
+  try {
+    window.addEventListener('hearthrise:fall', function () {
+      try { maybeRaiseRecovery(); } catch (e) {}
+    });
+  } catch (e) {}
+
   window.HearthriseDeathSheet = {
     describeDeath: describeDeath,
     show: show,
+    maybeRaiseRecovery: maybeRaiseRecovery,
+    _resetRaise: function () { raisedForUntil = 0; },
     close: close,
     _readMoment: readMoment,
     _bestProvision: bestProvision,

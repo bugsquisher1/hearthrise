@@ -12075,6 +12075,97 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('RECOVER-11: a knockout survives a reload — the sheet raises once and the bar says so', () => {
+    /* MEASURED LIVE, b510, 13:52 UTC. A character with `recovering_until` 27
+       minutes ahead RELOADED the page and got a normal "Fighting Goblin"
+       activity bar at 13/13 HP: no sheet, no countdown, no Rest button, nothing
+       on screen saying that nothing would earn for the next 27 minutes. Calling
+       HearthriseDeathSheet.show() by hand rendered the right sheet, so the data
+       and the sheet were both fine — the only trigger was the fall MOMENT in
+       the live tick, and a reload has no such moment.
+
+       This drives the boot path the way a reload does: an envelope with a
+       future `recovering_until` arrives at a client that never saw a fall. */
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    const D = window.HearthriseDeathSheet;
+    if (!A || typeof A.applyEnvelopeState !== 'function' || !D
+        || typeof D.maybeRaiseRecovery !== 'function'
+        || typeof window.refreshActivityBar !== 'function') { skip('the recovery seam is not wired'); return; }
+
+    const snap = snapshotG();
+    const wasOn = A.isServerAccrualEnabled();
+    try {
+      A.setServerAccrualEnabled(true);
+      A.clearFall();
+      D.close(); D._resetRaise();
+
+      const mid = window.MONSTERS.slime ? 'slime' : Object.keys(window.MONSTERS)[0];
+      const mon = window.MONSTERS[mid];
+      G.activeMonster = mid; G.monsterHp = mon.hp; G.monsterMaxHp = mon.hp;
+      G.playerMaxHp = 13; G.playerHp = 13;
+
+      /* ① THE FIRST ENVELOPE AFTER BOOT RAISES THE SHEET. No fall was noted —
+         that is exactly the reloaded client's state. */
+      const until = Date.now() + 27 * 60000;
+      A.applyEnvelopeState(G, {
+        state: {
+          accrued_to: new Date().toISOString(),
+          recovering_until: new Date(until).toISOString(),
+          deaths_today: 7, deaths_lifetime: 9,
+        },
+      });
+      assert(A.fallState().phase === 'recovering',
+        'the envelope did not put the client in recovery: ' + A.fallState().phase);
+      const scrim = document.getElementById('hr-death-scrim');
+      assert(scrim && scrim.classList.contains('show'),
+        'a reload into a live knockout showed the player NOTHING. That is the b510 bug: 27 minutes '
+        + 'in which nothing earns, with no sheet, no countdown and no Rest button.');
+      assert(/Back on your feet in/.test(scrim.textContent || ''),
+        'the raised sheet is not the recovery sheet: ' + (scrim.textContent || '').slice(0, 120));
+
+      /* ② THE BAR TELLS THE TRUTH, and Stop still works. */
+      window.refreshActivityBar();
+      const nameEl = document.getElementById('ab-name');
+      const stopBtn = document.getElementById('ab-stop');
+      if (nameEl) {
+        assert(/Knocked out/.test(nameEl.textContent) && /27m|26m/.test(nameEl.textContent),
+          'the activity bar still claims the player is fighting while the server has them on the '
+          + 'floor: ' + nameEl.textContent);
+        assert(!stopBtn || stopBtn.style.display !== 'none',
+          'Stop was hidden while knocked out — leaving is the one choice a downed player still has');
+      }
+
+      /* ③ A SECOND ENVELOPE FOR THE SAME WINDOW DOES NOT RE-RAISE. Settles are
+         frequent; a raise per envelope would re-open a sheet the player just
+         dismissed, every few seconds, for the whole knockout. */
+      D.close();
+      A.applyEnvelopeState(G, {
+        state: { accrued_to: new Date().toISOString(), recovering_until: new Date(until).toISOString() },
+      });
+      const again = document.getElementById('hr-death-scrim');
+      assert(!again || !again.classList.contains('show'),
+        'the sheet re-raised itself for a recovery window the player had already dismissed');
+
+      /* ④ UP AGAIN: the line clears and the bar goes back to the fight. */
+      A.applyEnvelopeState(G, {
+        state: { accrued_to: new Date().toISOString(), recovering_until: null },
+      });
+      assert(A.fallState().phase !== 'recovering', 'a null recovery line did not stand the player up');
+      window.refreshActivityBar();
+      if (nameEl) {
+        assert(/Fighting/.test(nameEl.textContent),
+          'the bar stayed knocked out after the server stood the player up: ' + nameEl.textContent);
+      }
+    } finally {
+      try { D.close(); D._resetRaise(); } catch (e) {}
+      try { A.clearFall(); } catch (e) {}
+      A.setServerAccrualEnabled(!!wasOn);
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('RECOVER-9: the one-time Auto-Eat switch-on is offered ONCE and never after a decision', () => {
     const A = window.HearthriseAccrual;
     const AU = window.HearthriseAuto;

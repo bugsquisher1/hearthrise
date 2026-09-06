@@ -25,7 +25,9 @@
 // only thing that changes server-side is whose clock `now` is.
 //
 // API (window.HearthriseFarm):
-//   getPlotLevel()                 → number 1..5
+//   getPlotLevel()                 → number 1..5 (SERVER mirror wins)
+//   getServerPlotLevel()           → number|null — the server's tier, or null if unknown
+//   requiredPlotLevel(cropId)      → number — lowest tier that unlocks the crop
 //   getPlotUnlockedCrops()         → ['turnip', ...]
 //   canPlantCrop(cropId)           → boolean
 //   getDeedsRequiredForNextLevel() → number (0 if maxed)
@@ -54,8 +56,37 @@
 
   var MAX_LEVEL = 5;   // mirrors core.MAX_PLOT_LEVEL; asserted by the drift guard
 
+  /* ── THE PLOT TIER IS THE SERVER'S NUMBER (P1, 2026-09-06) ────────────
+     `player_state.plot_level` is written ONLY by hr_farm_upgrade_plot, and
+     hr_farm_plant refuses any crop whose tier exceeds it (`plot_tier_locked`).
+     So the CLIENT must never offer a crop off a tier the server has not
+     recorded — that is the residue-ahead class (the property-rung deadlock in
+     a second costume), and it is what made the farm look broken fleet-wide:
+     "you plant something and it doesn't stay" (Paione).
+
+     G._serverPlotLevel is the MIRROR: `_`-prefixed scratch (never snapshotted,
+     never in the residue allowlist), written ONLY by the two server-truth paths
+       • src/net/accrue.js reconcileFarm      ← hr_state_of state.plot_level
+       • src/net/farm-sync.js reconcileFarmResult('upgrade') ← the RPC response
+     Whenever it is known it WINS over G.plotLevels, so no client-authored or
+     stale value can raise the gate. Unknown (no envelope yet / projection not
+     applied) falls back to G.plotLevels, whose own default is the fail-safe 1. */
+  function getServerPlotLevel(){
+    if(!window.G) return null;
+    var sv = window.G._serverPlotLevel;
+    if(typeof sv !== 'number' || !isFinite(sv) || sv < 1) return null;
+    var C = core();
+    return C ? C.clampPlotLevel(sv) : Math.max(1, Math.min(MAX_LEVEL, Math.floor(sv) || 1));
+  }
+
   function getPlotLevel(){
     if(!window.G) return 1;
+    var sv = getServerPlotLevel();
+    if(sv !== null){
+      /* Converge the legacy field so nothing downstream reads two answers. */
+      if(window.G.plotLevels !== sv) window.G.plotLevels = sv;
+      return sv;
+    }
     var lv = window.G.plotLevels;
     if(typeof lv !== 'number') {
       // Migration safety: if the v3→v4 migration didn't run for any
@@ -66,6 +97,10 @@
     var C = core();
     return C ? C.clampPlotLevel(lv) : Math.max(1, Math.min(MAX_LEVEL, Math.floor(lv) || 1));
   }
+
+  /** The lowest Farm Plot level that unlocks `cropId` (0 = no tier does).
+      One answer for the plant gate, the refusal line and the seed picker. */
+  function requiredPlotLevel(cropId){ return core().requiredPlotLevel(cropId); }
 
   function getPlotUnlockedCrops(){ return core().unlockedCrops(getPlotLevel()); }
   function canPlantCrop(cropId){ return core().canPlantCrop(getPlotLevel(), cropId); }
@@ -209,6 +244,8 @@
   // ── Public API ─────────────────────────────────────────────
   window.HearthriseFarm = {
     getPlotLevel: getPlotLevel,
+    getServerPlotLevel: getServerPlotLevel,
+    requiredPlotLevel: requiredPlotLevel,
     getPlotUnlockedCrops: getPlotUnlockedCrops,
     canPlantCrop: canPlantCrop,
     getDeedsRequiredForNextLevel: getDeedsRequiredForNextLevel,

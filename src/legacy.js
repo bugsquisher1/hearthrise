@@ -7589,13 +7589,43 @@ function farmSyncReconcile(kind,res){
    never predicted — they arrive with the server's number in the response, so a
    refused gesture cannot leave a phantom crop in the bag. A refusal reverts the
    optimistic plot to what it was. */
+/* Every hr_farm_plant refusal is SAID, by its reason, with the action that
+   clears it — the sentence itself lives in src/net/farm-sync.js
+   (farmPlantRefusalText, pure + tested); this only supplies the display names
+   the net layer must not invent. Before 2026-09-06 every code collapsed into
+   "Could not plant — try again" and a 'transport' failure said NOTHING at all,
+   which is how a fleet-wide tier deadlock read to players as "you plant
+   something and it doesn't stay". */
+function farmPlantRefusal(res,cropId){
+  const crop=CROPS[cropId];
+  const seedId=crop&&crop.seed;
+  const FS=window.HearthriseFarmSync;
+  const ctx={
+    cropName:(crop&&crop.name)||cropId,
+    seedName:(typeof ITEMS!=='undefined'&&seedId&&ITEMS[seedId]&&ITEMS[seedId].n)||((crop&&crop.name)||cropId)+' Seed',
+    haveLevel:(typeof getLevel==='function')?getLevel('farming'):null,
+  };
+  if(FS&&typeof FS.farmPlantRefusalText==='function') return FS.farmPlantRefusalText(res||{},ctx);
+  return 'Could not plant — please report this';
+}
 function farmSyncPlant(plotIdx,cropId){
   const prev=G.farmPlots[plotIdx];
   G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],state:'growing'};
   renderFarm();
   window.HearthriseFarmSync.farmPlant(plotIdx,cropId).then(function(res){
     if(res&&res.ok){ farmSyncReconcile('plant',res); }
-    else { G.farmPlots[plotIdx]=prev||null; if(res&&res.error&&res.error!=='transport') notify('Could not plant — try again','kill'); }
+    else {
+      G.farmPlots[plotIdx]=prev||null;
+      /* A plot_tier_locked refusal CARRIES the server's own plot_level. Learn
+         from it: the client gate is wrong by definition if it let this call
+         through, and this is the one place the true tier is available without
+         waiting for the next envelope. */
+      if(res&&res.error==='plot_tier_locked'){
+        const have=Number(res.have_plot_level);
+        if(Number.isFinite(have)&&have>=1){ G._serverPlotLevel=Math.floor(have); G.plotLevels=Math.floor(have); }
+      }
+      notify(farmPlantRefusal(res,cropId),'kill');
+    }
     renderFarm();updateTopbar();
   });
 }
@@ -7638,8 +7668,17 @@ function plantCrop(plotIdx,cropId){
   // safe. Anything else falls through to the plot-level error.
   if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function'){
     if(!window.HearthriseFarm.canPlantCrop(cropId)){
+      /* b136 said "Lv ${lv+1}+" — the player's NEXT level, which is only ever
+         right for a crop exactly one tier away and lied about every other one.
+         Say the crop's OWN requirement (requiredPlotLevel) and the tier the
+         SERVER has recorded, so the sentence matches what hr_farm_plant would
+         have answered. */
       const lv = window.HearthriseFarm.getPlotLevel();
-      notify(`${crop.name} needs Farm Plot Lv ${lv+1}+ (House → Plot)`,'kill');
+      const need = (typeof window.HearthriseFarm.requiredPlotLevel==='function')
+        ? window.HearthriseFarm.requiredPlotLevel(cropId) : 0;
+      notify(need
+        ? `${crop.name} needs Farm Plot Lv ${need} — upgrade in House → Plot (you have Lv ${lv})`
+        : `${crop.name} can't be planted yet — no plot tier unlocks it`,'kill');
       return;
     }
   } else if(cropId !== 'turnip'){
@@ -9570,7 +9609,12 @@ function openSeedPicker(i){
   if(!plantable.length && !lockedByPlot.length){notify('No usable seeds. Visit the shop.','kill');return;}
   const m=document.getElementById('settings-modal');
   const plantBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield${c.regrows?` · perennial (regrows ×${c.regrowLimit||'∞'})`:''}</span></div><span class="price">x${G.inventory[c.seed]||0}</span></button>`;
-  const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>Upgrade Farm Plot in House → Plot</span></div><span class="muted tiny">x${G.inventory[c.seed]||0}</span></button>`;
+  /* A locked row NAMES the tier it needs (and the one you have) — "upgrade the
+     Farm Plot" alone never told the player how far away the crop was. */
+  const needLv = (id)=> (window.HearthriseFarm && typeof window.HearthriseFarm.requiredPlotLevel==='function')
+    ? window.HearthriseFarm.requiredPlotLevel(id) : 0;
+  const havePlotLv = (window.HearthriseFarm && window.HearthriseFarm.getPlotLevel) ? window.HearthriseFarm.getPlotLevel() : 1;
+  const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${needLv(id)?`Needs Farm Plot Lv ${needLv(id)} (you have Lv ${havePlotLv}) — House → Plot`:'No plot tier unlocks this crop'}</span></div><span class="muted tiny">x${G.inventory[c.seed]||0}</span></button>`;
   let html = `<h3 style="margin-bottom:10px">Pick a seed</h3>`;
   if(plantable.length) html += plantable.map(plantBtn).join('');
   if(lockedByPlot.length) html += `<div class="tiny muted" style="margin:10px 0 6px">${lockGlyph()} Locked by Farm Plot tier</div>` + lockedByPlot.map(lockedBtn).join('');

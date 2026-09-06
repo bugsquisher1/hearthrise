@@ -79,6 +79,21 @@ export function canPlantCrop(plotLevel, cropId) {
   return unlockedCrops(plotLevel).indexOf(cropId) !== -1;
 }
 
+/** The LOWEST plot level whose tier unlocks `cropId`, or 0 if no tier does.
+    THE ONE crop→tier answer on the client: the plant gate, the refusal line and
+    the seed picker's locked rows all read this rather than each re-deriving a
+    number (b136 shipped `lv+1`, which is the player's NEXT level, not the
+    crop's requirement — it lied for every crop more than one tier away).
+    Mirrors the server's hr_crop_plot_tier catalogue, which the generator
+    tools/gen-farm-catalogues.mjs emits from this same PLOT_TIERS table. */
+export function requiredPlotLevel(cropId) {
+  if (!cropId) return 0;
+  for (let lv = 1; lv <= MAX_PLOT_LEVEL; lv++) {
+    if (PLOT_TIERS[lv].unlocks.indexOf(cropId) !== -1) return lv;
+  }
+  return 0;
+}
+
 export function deedsForNextLevel(plotLevel) {
   const lv = clampPlotLevel(plotLevel);
   if (lv >= MAX_PLOT_LEVEL) return 0;

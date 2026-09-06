@@ -712,6 +712,12 @@ const snapshotG = () => {
     // b136: include the new fields so Batch C tests don't pollute
     // the player's save when they mutate G.plotLevels / autoActions / dropLog.
     plotLevels: G.plotLevels,
+    /* 2026-09-06 — the SERVER-mirrored plot tier (farm-progression.js
+       getServerPlotLevel). It outranks plotLevels in the plant gate, so a test
+       that leaves it set would unlock tier-2 crops for every later test — the
+       hardest kind of order-dependent flake. Undefined restores as undefined,
+       which is exactly "the server has not told us yet". */
+    _serverPlotLevel: G._serverPlotLevel,
     autoActions: G.autoActions,
     dropLog: G.dropLog,
     // b138: launchpad — Batch D's tests touch lastActivity + daily.snapshot.
@@ -14697,6 +14703,153 @@ const TESTS = [
       assert(window.G.farmPlots[0].waterings.length === 1,
         'a server predating the projection must degrade to the single watered_at, not to an empty history');
     } finally { try { CAP.__setBlobRetired(null); } catch (e) {} restoreG(snap); }
+  }),
+
+  /* ══ FARM-TIER-1..3 — THE FLEET-WIDE PLANT CLIFF (P1, Paione 2026-09-06:
+     "you plant something and it doesn't stay") ═══════════════════════════════
+     MEASURED: farm-ledger plants per day went 46 → 26 → 6 → ZERO for nine days
+     (2026-08-27 → 09-05). hr_farm_plant refuses a crop above the character's
+     server plot_level with `plot_tier_locked`, a refusal writes NO ledger row
+     and caches nothing, and legacy.js answered EVERY refusal with "Could not
+     plant — try again" (and a 'transport' failure with silence). So a whole
+     dead feature was invisible on both sides of the wire.
+     Two invariants, forever: a refusal SAYS why, and the client gate reads the
+     SERVER's tier — never a client-authored one. */
+  () => tryRun('FARM-TIER-1: every hr_farm_plant refusal is said by its reason', () => {
+    const FS = window.HearthriseFarmSync;
+    /* NOT a skip: farmPlantRefusalText ships unconditionally (it is pure and
+       arm-independent), so its absence is the regression itself. */
+    assert(FS && typeof FS.farmPlantRefusalText === 'function',
+      'HearthriseFarmSync.farmPlantRefusalText is gone — every plant refusal falls back to a generic sentence');
+    const ctx = { cropName: 'Carrot', seedName: 'Carrot Seed', haveLevel: 12 };
+    const t = (res) => FS.farmPlantRefusalText(res, ctx);
+
+    const locked = t({ ok: false, error: 'plot_tier_locked', need_plot_level: 2, have_plot_level: 1 });
+    assert(/Carrot/.test(locked) && /Farm Plot Lv 2/.test(locked) && /House/.test(locked) && /Lv 1/.test(locked),
+      'plot_tier_locked must name the crop, the tier it needs, where to get it and the tier you have, got: ' + locked);
+
+    const lvl = t({ ok: false, error: 'level_too_low', req_lv: 30 });
+    assert(/Farming Lv 30/.test(lvl) && /12/.test(lvl), 'level_too_low must name the required + current level, got: ' + lvl);
+
+    const cap = t({ ok: false, error: 'plot_cap', cap: 2 });
+    assert(/2 plots/.test(cap) && /Property/.test(cap), 'plot_cap must name the cap and the homestead path, got: ' + cap);
+
+    const seed = t({ ok: false, error: 'insufficient_seed', seed: 'carrot_seed' });
+    assert(/Carrot Seed/.test(seed) && /Shop/.test(seed), 'insufficient_seed must name the seed and where to buy it, got: ' + seed);
+
+    const untiered = t({ ok: false, error: 'crop_untiered' });
+    assert(/Carrot/.test(untiered) && /report/i.test(untiered), 'crop_untiered must be reportable, got: ' + untiered);
+
+    const rate = t({ ok: false, error: 'rate_limited' });
+    assert(/wait/i.test(rate), 'rate_limited must ask the player to wait, got: ' + rate);
+
+    const occupied = t({ ok: false, error: 'plot_occupied' });
+    assert(/harvest/i.test(occupied), 'plot_occupied must point at harvesting, got: ' + occupied);
+
+    const budget = t({ ok: false, error: 'day_budget' });
+    assert(/daily reset|ceiling/i.test(budget), 'day_budget must explain the ceiling, got: ' + budget);
+
+    /* A TRANSPORT failure used to revert the tile in total silence — the exact
+       "it doesn't stay" report. It must say so. */
+    const transport = t({ error: 'transport' });
+    assert(/connection|reach the server/i.test(transport) && /nothing was planted/i.test(transport),
+      "a transport failure must say the plant did not happen, got: " + transport);
+
+    // No KNOWN code may fall back to the old generic sentence.
+    for (const code of ['plot_tier_locked', 'level_too_low', 'plot_cap', 'insufficient_seed',
+      'crop_untiered', 'plot_occupied', 'day_budget', 'rate_limited', 'transport',
+      'bad_plot', 'no_character', 'not_signed_in', 'unknown_crop']) {
+      const msg = t({ ok: false, error: code });
+      /* The invariant is that no code hr_farm_plant can actually return falls
+         through to the UNHANDLED fallback (which quotes the raw code) or to the
+         old blanket sentence. Several truthful lines legitimately end in "try
+         again" — being told to retry is the right advice for a rate limit. */
+      assert(!/^Could not plant \(/.test(msg) && msg !== 'Could not plant — try again',
+        'refusal "' + code + '" still answers with the generic line: ' + msg);
+      assert(msg.length > 15, 'refusal "' + code + '" says too little: ' + msg);
+    }
+    // An UNKNOWN code still names itself so a bug report can carry it.
+    assert(/wat_is_this/.test(t({ ok: false, error: 'wat_is_this' })),
+      'an unrecognised refusal code must appear in the message');
+  }),
+
+  /* FARM-TIER-2: the residue-ahead kill. A client-authored / stale plot level
+     must NEVER outrank the tier the server has recorded — that is the property-
+     rung deadlock class, and here it made the client offer carrot to a
+     plot_level-1 character so the server refused every single plant. */
+  () => tryRun('FARM-TIER-2: a residue-ahead plotLevels cannot offer a crop the server will refuse', () => {
+    const F = window.HearthriseFarm;
+    assert(F && typeof F.getServerPlotLevel === 'function',
+      'HearthriseFarm.getServerPlotLevel is gone — the plant gate is back on a client-authored tier');
+    const snap = snapshotG();
+    try {
+      // The server has said Lv 1. The client believes 4 (a stale/forged value).
+      window.G._serverPlotLevel = 1;
+      window.G.plotLevels = 4;
+      assert(F.getPlotLevel() === 1,
+        'the SERVER tier must win over the client field, got ' + F.getPlotLevel());
+      assert(window.G.plotLevels === 1,
+        'getPlotLevel must converge the legacy field to the server tier, got ' + window.G.plotLevels);
+      assert(F.canPlantCrop('carrot') === false,
+        'carrot (tier 2) must be refused at server tier 1 — hr_farm_plant would answer plot_tier_locked');
+      assert(F.canPlantCrop('turnip') === true, 'turnip (tier 1) must stay plantable at tier 1');
+      assert(F.getPlotUnlockedCrops().length === 1,
+        'only turnip is unlocked at server tier 1, got ' + F.getPlotUnlockedCrops().join(','));
+
+      // And it must not clamp DOWNWARD either: a paid Lv 3 unlocks its crops.
+      window.G._serverPlotLevel = 3;
+      window.G.plotLevels = 1;
+      assert(F.getPlotLevel() === 3 && F.canPlantCrop('tomato') === true,
+        'a server tier 3 must unlock tier-3 crops even when the client field says 1');
+
+      // Unknown server tier = the fail-safe, never an invented number.
+      delete window.G._serverPlotLevel;
+      window.G.plotLevels = 1;
+      assert(F.getServerPlotLevel() === null && F.getPlotLevel() === 1,
+        'with no server tier the gate must fail safe at Lv 1');
+
+      // The crop→tier answer is one function, and it is the server catalogue's.
+      assert(F.requiredPlotLevel('turnip') === 1 && F.requiredPlotLevel('carrot') === 2
+        && F.requiredPlotLevel('tomato') === 3 && F.requiredPlotLevel('nonsense_crop') === 0,
+        'requiredPlotLevel must mirror hr_crop_plot_tier');
+    } finally { restoreG(snap); }
+  }),
+
+  /* FARM-TIER-3: auto-replant and Plant-all answer to the SAME server tier —
+     an unattended loop that plants a locked crop every harvest would spend the
+     player's whole session firing refusals at a server that logs none of them. */
+  () => tryRun('FARM-TIER-3: auto-replant + plant-all respect the server plot tier', () => {
+    const F = window.HearthriseFarm, A = window.HearthriseAuto;
+    if (!F || !A || typeof A.maybeReplant !== 'function') { skip('no auto api'); return; }
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 5 };
+      window.G._serverPlotLevel = 1;      // server: tier 1
+      window.G.plotLevels = 5;            // client: stale/ahead
+      window.G.inventory = window.G.inventory || {};
+      window.G.inventory.carrot_seed = 5;
+      window.G.inventory.turnip_seed = 0;
+      window.G.skills.farming = 1000000;   // xp, the shape getLevel reads
+      window.G.farmPlots = [];
+      A.setFarmReplant({ enabled: true, cropId: 'carrot' });
+      assert(A.maybeReplant(0) === false,
+        'auto-replant planted a tier-2 crop at server tier 1 — every one of those is a silent server refusal');
+      assert(!window.G.farmPlots[0], 'the plot must stay empty');
+
+      // Plant-all must find nothing plantable rather than fire refusals.
+      A.setFarmReplant({ enabled: false });
+      if (typeof window.plantAllEmpty === 'function') {
+        window.plantAllEmpty();
+        assert(!window.G.farmPlots.some((p) => p && p.cropId),
+          'Plant all planted a crop the server would refuse');
+      }
+      /* Raise the SERVER tier and the same crop is offered again. Asserted
+         through the gate rather than by planting: under the farm arm a plant
+         is a live RPC, and a test must not mint a real crop to prove a gate. */
+      window.G._serverPlotLevel = 2;
+      assert(F.canPlantCrop('carrot') === true,
+        'carrot must be offered once the SERVER tier is 2');
+    } finally { try { window.HearthriseAuto.setFarmReplant({ enabled: false }); } catch (e) {} restoreG(snap); }
   }),
 
   // The invisibility half of the bug: a dry plot rendered no % and no bar, so

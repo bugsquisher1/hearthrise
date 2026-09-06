@@ -178,6 +178,71 @@ export function farmUpgradePlot(opts) {
   }, o);
 }
 
+/* ── REFUSAL TEXT — SAY WHY, AND WHAT CLEARS IT ───────────────────────────────
+   hr_farm_plant refuses with a CODE and the numbers behind it, and until
+   2026-09-06 legacy.js turned every one of them into "Could not plant — try
+   again" (and a 'transport' failure into silence). A refusal that names no
+   reason is indistinguishable from a broken feature: farm plants across the
+   whole fleet went to ZERO for nine days and not one player could say why —
+   Paione could only report "you plant something and it doesn't stay", because
+   the optimistic tile reverted with no explanation.
+
+   Refusals are also invisible SERVER-side (no ledger row, no intent cache), so
+   this text is the only diagnostic that exists. Every code hr_farm_plant can
+   return (2026-08-22-server-farming-complete.sql §1) is answered here with the
+   action that clears it; an UNKNOWN code still falls back to the generic line
+   but carries the code so a bug report names it.
+
+   Pure over its inputs (no DOM, no window) so the smoke suite can assert the
+   exact sentence. `ctx` supplies display names the net layer must not invent:
+   { cropName, seedName, haveLevel }. */
+export function farmPlantRefusalText(res, ctx) {
+  const c = ctx || {};
+  const crop = c.cropName || 'That crop';
+  const code = (res && res.error) || 'unknown';
+  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+  switch (code) {
+    case 'transport':
+      return "Couldn't reach the server — nothing was planted. Check your connection and try again.";
+    case 'plot_tier_locked': {
+      const need = n(res.need_plot_level);
+      const have = n(res.have_plot_level);
+      return crop + ' needs Farm Plot Lv ' + (need === null ? '?' : need)
+        + ' — upgrade in House → Plot' + (have === null ? '' : ' (you have Lv ' + have + ')');
+    }
+    case 'level_too_low': {
+      const req = n(res.req_lv);
+      return crop + ' needs Farming Lv ' + (req === null ? '?' : req)
+        + (n(c.haveLevel) === null ? '' : ' (you have Lv ' + n(c.haveLevel) + ')');
+    }
+    case 'plot_cap': {
+      const cap = n(res.cap);
+      return 'That plot is not yours yet — your property farms '
+        + (cap === null ? 'fewer' : cap) + ' plot' + (cap === 1 ? '' : 's')
+        + '. Upgrade your homestead in House → Property.';
+    }
+    case 'crop_untiered':
+    case 'unknown_crop':
+      return crop + " can't be planted yet — the realm has no plot tier for it. Please report this.";
+    case 'insufficient_seed':
+      return 'You have no ' + (c.seedName || (crop + ' Seed')) + ' — the Local Shop sells them';
+    case 'plot_occupied':
+      return 'Something is already growing there — harvest it first';
+    case 'day_budget':
+      return "You've hit today's farming XP ceiling — planting resumes after the daily reset";
+    case 'rate_limited':
+      return 'Planting too fast — wait a moment and try again';
+    case 'bad_plot':
+      return 'That plot does not exist';
+    case 'no_character':
+      return 'No character loaded on this slot — reload and try again';
+    case 'not_signed_in':
+      return 'You are signed out — sign in to farm';
+    default:
+      return 'Could not plant (' + code + ') — please report this';
+  }
+}
+
 /* ── RECONCILE — RENDER THE SERVER'S RESPONSE INTO G ──────────────────────────
    The read model. Given an RPC result, write the authoritative new plot state
    into G.farmPlots (or the new plot level into G.plotLevels), and apply the
@@ -207,7 +272,9 @@ export function reconcileFarmResult(G, kind, res, deps) {
   const addXp = dep(deps, 'addXp');
 
   if (kind === 'upgrade') {
-    if (typeof res.plot_level === 'number') G.plotLevels = res.plot_level;
+    /* The RPC's own number, from its own row — so it is server truth and lands
+       in the mirror as well (see farm-progression.js getServerPlotLevel). */
+    if (typeof res.plot_level === 'number') { G.plotLevels = res.plot_level; G._serverPlotLevel = res.plot_level; }
     if (res.deeds_spent > 0) removeItem('farm_deed', res.deeds_spent | 0);
     return true;
   }
@@ -268,6 +335,7 @@ export function reconcileFarmResult(G, kind, res, deps) {
 if (typeof window !== 'undefined') {
   window.HearthriseFarmSync = {
     isFarmServerArmed,
+    farmPlantRefusalText,
     activeSlot, newFarmIdem,
     farmPlant, farmWater, farmHarvest, farmUpgradePlot,
     reconcileFarmResult,

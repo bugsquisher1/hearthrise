@@ -58,11 +58,22 @@
 --                          else now() end
 --     window        = [ <the existing floors> .. v_combat_end ]
 --
---   · `active_since` IS the switch instant. hr-accrue/set-activity.js sends
---     `restart: true` on EVERY transition (documented there as "NOT optional and
---     NOT cosmetic"), and hr_apply stamps `active_since = now()` exactly on that
---     flag — so for a non-combat pointer it is the moment the character stopped
---     fighting.
+--   · `active_since` IS the switch instant — AND §3b IS WHAT MAKES THAT TRUE.
+--     hr-accrue/set-activity.js sends `restart: true` on every CLIENT-declared
+--     transition (documented there as "NOT optional and NOT cosmetic"), and
+--     hr_apply stamped `active_since = now()` on that flag ALONE. But the
+--     SERVER switches the pointer by itself too: hr-accrue/accrual.js emits
+--     `delta.activity = {kind:'idle', id:null}` at three auto-stop sites
+--     (~L2257 / ~L2763 / ~L3186 — an exhausted node, a knockout, a refused
+--     fight) with NO `restart`, so the pointer went idle and `active_since`
+--     stayed at the moment the FIGHT began. Measured live 2026-09-06: 12 of 36
+--     characters carry `active_since < accrued_to`. Against an end-cap that is
+--     not a stale nuisance, it is a REGRESSION ENGINE — v_combat_end would
+--     collapse to the start of the run and ZERO every attended credit until the
+--     next client declare. §3b therefore stamps `active_since = now()` whenever
+--     the APPLIED pointer differs from the STORED one in either field, from any
+--     caller, restart flag or not; `restart:true` keeps its existing meaning on
+--     top (re-stamp a SAME-activity restart, which no difference test can see).
 --   · `coalesce(.., 'epoch')` is FAIL-CLOSED, and it is the house rule: an
 --     activity pointer with no `active_since` is already refused by accrual.js
 --     (SKIP.NO_ACTIVE_SINCE — "fail-closed rather than pay an unbounded span").
@@ -78,7 +89,7 @@
 --   · `kind_mismatch` STAYS in the journal. It is now a tell about a call that
 --     was CAPPED rather than one that was paid, which is strictly more useful.
 --
--- ── WHAT IS ADDED (two functions, ten inserted blocks, no new object) ───────
+-- ── WHAT IS ADDED (three functions, eleven inserted blocks, no new object) ──
 --   §1  hr_credit_kills__ungated
 --         1a  declare  v_recovering / v_ko_used_today / v_active_since /
 --                      v_combat_end / v_nic_used_today
@@ -100,6 +111,12 @@
 --         2d  CAP the watermark window end at v_combat_end
 --   §3  grants restated (revoke before grant). SIGNATURES ARE UNCHANGED, so no
 --       client call form moves and hr_client_rpc_baseline needs no new row.
+--   §3b hr_apply — THE ACTIVITY SWITCH STAMP (Security review #2, P1). One
+--       anchored insert rewriting the `active_since` arm of the single UPDATE
+--       hr_apply issues against player_state, so the column the end-cap reads
+--       actually means "when this character started what it is doing now".
+--       Without it the end-cap above is not merely weaker, it is WRONG in the
+--       player's disfavour on 12 of 36 live characters.
 --   §4  self-check — every load-bearing property, proven on apply
 --
 -- ⚠ PROGRAMMATIC, NOT A create-or-replace, AND THIS IS THE LOAD-BEARING CHOICE.
@@ -114,6 +131,11 @@
 --   2026-08-24-combat-style.sql / 2026-09-02-renown-kill-faucet.sql idiom), is a
 --   member of NO derivation chain, takes over NO last-toucher role, and NO-OPs
 --   on re-apply (both patches test for their own marker first).
+--   §3b patches hr_apply the same way and for a sharper version of the same
+--   reason: hr_apply's live body is 2026-08-25-workers.sql's, the TENTH file to
+--   restate it, and a restatement here would take over that derivation chain's
+--   last-toucher role for a body eleven files build. An anchored insert takes
+--   over nothing.
 --   §0 asserts EVERY anchor of an UNPATCHED body exists exactly once BEFORE a
 --   byte is written: a `replace()` whose anchor is absent is a silent no-op that
 --   leaves a function half-patched and a migration reporting success. (It skips
@@ -180,14 +202,31 @@
 --      pre-switch part and then stamps `now()` exactly as before, retiring the
 --      non-combat tail — correct, because no combat XP is owed for that tail and
 --      NOT retiring it is precisely what would let the next session claim it.
---   2. RE-ENTERING COMBAT SETTLES FIRST, INDEPENDENTLY. `set_activity` is
---      declared `collectsFirst: true` in hr-accrue/intents.js, so starting a
---      fight runs hr_apply, which drives `accrued_to = now()`; Condition 2's
---      pre-existing `v_wm := greatest(v_wm, v_accrued)` (and the kills anchor's
---      `greatest(coalesce(v_anchor, v_accrued), v_accrued)`) then floors the
---      next window at the moment combat started. The existing floor DOES already
---      handle it — this note exists because "already handled" is worth nothing
---      until the mechanism is named.
+--   2. ⚠ THE SECOND REASON THIS HEADER USED TO GIVE WAS FALSE, AND IT IS
+--      WITHDRAWN HERE (Security review, 2026-09-06). It claimed that re-entering
+--      combat "settles first" — `set_activity` IS declared `collectsFirst: true`
+--      in hr-accrue/intents.js — so `accrued_to = now()` and Condition 2's
+--      `greatest(v_wm, v_accrued)` would floor the next window at the moment the
+--      fight started, making a refused span unreachable. THE LIVE LEDGER
+--      CONTRADICTS IT: an 11:48:02 xp_credit priced elapsed 115591 ms across a
+--      combat RE-ENTRY, and `accrued_to` is SYSTEMATICALLY behind
+--      `combat_xp_accrued_to` — the collect does not reliably land ahead of the
+--      cadence, so `greatest(v_wm, v_accrued)` is `v_wm` and the floor never
+--      moves.
+--      THE HONEST RESIDUAL, STATED PLAINLY: a span REFUSED by the not-in-combat
+--      arm is not destroyed. It stays inside the next window and remains PAYABLE
+--      on the next IN-COMBAT call, bounded by hr_combat_xp_cap (the physical
+--      maximum for that elapsed span, which is the same bound honest play is
+--      priced against) and by the 5,000,000/day combat-XP budget. That is
+--      strictly smaller than the hole this file closes — the span can no longer
+--      be billed while the server says `idle`, and it can never exceed the
+--      physical cap — but it is not zero. TRACKED AS A FOLLOW-UP; not papered
+--      over here.
+--      ⚠ AND THE OBVIOUS FIX IS THE WRONG ONE. Do NOT floor the IN-COMBAT path
+--      at `active_since`: startCombat re-declares per monster, so active_since
+--      moves on every target change and the floor would UNDER-PAY every honest
+--      player who switches targets — the exact failure mode §4(o4) exists to
+--      catch on the other arm.
 --
 -- ── IDEMPOTENCY AND CONCURRENCY (unchanged, and that is the point) ──────────
 -- Both functions already take a per-character advisory lock and consult their
@@ -221,8 +260,8 @@
 -- null is a byte-for-byte no-op by construction (see the coalesce above), so the
 -- forward and backward directions are both safe in either order with the edge.
 --
--- ⚠ IT MOVES TWO TRACKED BODIES. hr_credit_kills__ungated and
---   hr_credit_combat_xp__ungated are both pinned in
+-- ⚠ IT MOVES THREE TRACKED BODIES. hr_credit_kills__ungated,
+--   hr_credit_combat_xp__ungated and (as of §3b) hr_apply are all pinned in
 --   tests/live-hash-drift.baseline.json, and this file becomes the LAST TOUCHER
 --   of each. The baseline must be re-measured by the Coordinator after apply;
 --   this file deliberately does not edit it (that record is a MEASUREMENT of
@@ -233,13 +272,18 @@
 -- ── 0. PRECONDITIONS — FAIL CLOSED ───────────────────────────────────────────
 -- Every anchor asserted EXACTLY ONCE before a single byte is written.
 do $mig$
-declare v_k text; v_x text; v_n int;
+declare v_k text; v_x text; v_a text; v_n int;
 begin
   if to_regprocedure('public.hr_credit_kills__ungated(int,text,bigint,text)') is null then
     raise exception 'hr_credit_kills__ungated missing — apply 2026-08-30-bounty-kill-credit.sql / 2026-09-01-kill-daily-credit.sql first';
   end if;
   if to_regprocedure('public.hr_credit_combat_xp__ungated(int,jsonb,text)') is null then
     raise exception 'hr_credit_combat_xp__ungated missing — apply 2026-08-31-combat-xp-credit.sql first';
+  end if;
+  -- §3b's target. Without it the column the end-cap reads is stamped only on the
+  -- client's `restart` flag and a SERVER auto-stop leaves it behind.
+  if to_regprocedure('public.hr_apply(uuid,int,bigint,uuid,jsonb)') is null then
+    raise exception 'hr_apply missing — apply the apply-engine chain (2026-08-11-apply-engine.sql … 2026-08-25-workers.sql) first';
   end if;
   if to_regclass('public.player_state') is null then
     raise exception 'player_state missing — run schema.sql + the player-state chain first';
@@ -264,6 +308,7 @@ begin
 
   v_k := pg_get_functiondef('public.hr_credit_kills__ungated(int,text,bigint,text)'::regprocedure);
   v_x := pg_get_functiondef('public.hr_credit_combat_xp__ungated(int,jsonb,text)'::regprocedure);
+  v_a := pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure);
 
   -- ⚠ HALF-STATE, FAIL CLOSED AND LOUD. This file gained a SECOND arm (the
   --   not-in-combat cap) after its first arm (the recovery floor) was written.
@@ -349,6 +394,27 @@ begin
     v_n := (length(v_x) - length(replace(v_x, $anc$  v_remaining := least(v_cap, greatest(0, c_combat_xp_day_budget - v_used_today));$anc$, '')))
            / length($anc$  v_remaining := least(v_cap, greatest(0, c_combat_xp_day_budget - v_used_today));$anc$);
     if v_n <> 1 then raise exception 'combat-xp: the pool anchor is missing or ambiguous (%)', v_n; end if;
+  end if;
+
+  -- §3b. The SAME discipline for hr_apply: the anchor is the `active_since` arm
+  -- of the one UPDATE it issues against player_state, and it must exist EXACTLY
+  -- once. Skipped for an already-patched body because the insert REWRITES its
+  -- own anchor line, so asserting it on a re-apply would raise on a database
+  -- that is already correct.
+  if strpos(v_a, 'SECURITY F1 - THE ACTIVITY SWITCH STAMP') > 0 then
+    raise notice 'hr_apply is already patched — its anchor is not re-asserted';
+  else
+    v_n := (length(v_a) - length(replace(v_a, $anc$           active_since = case when coalesce((v_act->>'restart')::boolean, false)
+                               then now() else active_since end,$anc$, '')))
+           / length($anc$           active_since = case when coalesce((v_act->>'restart')::boolean, false)
+                               then now() else active_since end,$anc$);
+    if v_n <> 1 then raise exception 'hr_apply: the active_since arm is missing or ambiguous (%) — apply 2026-08-25-workers.sql first', v_n; end if;
+    -- The predecessor controls this insert must not disturb, named so a body
+    -- that has drifted out from under the anchor is refused rather than patched.
+    if strpos(v_a, 'workers_accrued_to = case when p_delta ? ''workers_accrued_to''') = 0
+       or strpos(v_a, 'streak_day_key = case when p_delta ? ''accrued_to''') = 0 then
+      raise exception 'hr_apply: the live body is missing a worker/streak control — it is not the 2026-08-25-workers.sql body this file expects to patch';
+    end if;
   end if;
 end $mig$;
 
@@ -745,11 +811,106 @@ revoke execute on function public.hr_credit_kills__ungated(int,text,bigint,text)
 revoke execute on function public.hr_credit_combat_xp__ungated(int,jsonb,text)
   from public, anon, authenticated, service_role;
 
+-- ── 3b. hr_apply — THE ACTIVITY SWITCH MUST STAMP `active_since` ────────────
+-- THE DEFECT (Security review #2, 2026-09-06, P1 REQUIRED). §1/§2 above cap the
+-- attended credit window at `player_state.active_since` whenever the server's
+-- pointer is not 'combat'. That is only honest if `active_since` really is the
+-- instant the character started what it is doing NOW. It was not:
+--
+--   hr_apply stamped it on `(v_act->>'restart')::boolean` ALONE. The CLIENT
+--   path sends that flag on every transition (hr-accrue/set-activity.js: "NOT
+--   optional and NOT cosmetic"), but the SERVER's own auto-stops do not.
+--   hr-accrue/accrual.js emits `delta.activity = {kind:'idle', id:null}` at
+--   three sites (~L2257 exhausted node, ~L2763 knockout, ~L3186 refused fight)
+--   with no `restart`, so the pointer moved to idle and `active_since` stayed
+--   at the moment the FIGHT began.
+--
+-- MEASURED, NOT INFERRED: 12 of 36 live characters carry
+-- `active_since < accrued_to` today. Against the end-cap that is not a stale
+-- nuisance, it is a REGRESSION ENGINE pointing the WRONG WAY — v_combat_end
+-- would collapse to the start of the run and ZERO every attended kill and XP
+-- credit until the next client declare. The fix therefore ships in the SAME
+-- file as the cap that depends on it; shipping the cap without it would be
+-- shipping a known under-payment.
+--
+-- THE PREDICATE, AND WHY IT IS SPELLED FROM THE UPDATE'S OWN EXPRESSIONS:
+--
+--   stamp  ⟺  restart
+--             OR  applied active_kind IS DISTINCT FROM stored active_kind
+--             OR  applied active_id   IS DISTINCT FROM stored active_id
+--
+--   The two "applied" expressions are COPIED from the same UPDATE's own
+--   `active_kind = …` / `active_id = …` assignments, so the test cannot drift
+--   from what is actually written. (In an UPDATE's SET list every bare column
+--   reference reads the OLD row, so `… is distinct from active_kind` compares
+--   the incoming value to the STORED one, which is exactly the question.)
+--   `is distinct from` rather than `<>` because active_id is nullable and
+--   combat→idle is precisely a transition to NULL — `<>` would answer NULL and
+--   the case would fall through to "do not stamp", reproducing the bug.
+--   `restart` KEEPS ITS EXISTING MEANING and is deliberately left as the first
+--   disjunct: it re-stamps a SAME-activity restart (chop the same tree again),
+--   which no difference test can see.
+--   SERVER CLOCK ONLY: the stamped value is `now()`, never a client field.
+--
+-- REVERSIBILITY. One anchored insert that rewrites one CASE expression;
+-- reverting is `pg_get_functiondef` with the two extra disjuncts removed. No
+-- column, no signature, no ACL, no client call form moves, and hr_apply's
+-- create-or-replace preserves its existing grants.
+--
+-- ⚠ THE THREE accrual.js SITES MAY LATER SEND `restart: true` TOO (another
+--   lane is editing those exact lines). That would be belt-and-braces, not a
+--   replacement: this predicate closes the class for EVERY caller, including
+--   any future server-side switch that forgets the flag, which is the only
+--   version of the fix that cannot regress the same way twice.
+do $mig$
+declare v_def text;
+begin
+  v_def := pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure);
+  if strpos(v_def, 'SECURITY F1 - THE ACTIVITY SWITCH STAMP') > 0 then
+    raise notice 'hr_apply already stamps active_since on a pointer change — skipping';
+  else
+    v_def := replace(v_def,
+      $anc$           active_since = case when coalesce((v_act->>'restart')::boolean, false)
+                               then now() else active_since end,$anc$,
+      $anc$           -- SECURITY F1 - THE ACTIVITY SWITCH STAMP. `active_since` is the
+           -- instant this character started what it is doing NOW, and the
+           -- not-in-combat end-cap in hr_credit_kills__ungated /
+           -- hr_credit_combat_xp__ungated reads it as the moment a character
+           -- STOPPED fighting. It used to move only on the client's `restart`
+           -- flag, which the SERVER's own auto-stops do not send: accrual.js
+           -- emits delta.activity = {kind:'idle', id:null} for an exhausted
+           -- node, a knockout and a refused fight, so the pointer went idle
+           -- while active_since stayed at the start of the fight. 12 of 36 live
+           -- characters carried active_since < accrued_to on 2026-09-06, and
+           -- against the end-cap that under-pays every attended credit until
+           -- the next client declare.
+           --   Stamp whenever the APPLIED pointer differs from the STORED one
+           --   in EITHER field, from ANY caller. Both applied expressions are
+           --   copied from this same UPDATE's active_kind / active_id
+           --   assignments so the test cannot drift from what is written; a
+           --   bare column reference in a SET list reads the OLD row, which is
+           --   exactly the comparison wanted. `is distinct from` (not <>)
+           --   because active_id is nullable and combat->idle is a transition
+           --   TO null. `restart` stays as the first disjunct and keeps its
+           --   meaning: re-stamp a SAME-activity restart, which no difference
+           --   test can see. Server clock only.
+           active_since = case when coalesce((v_act->>'restart')::boolean, false)
+                                 or coalesce(v_act->>'kind', active_kind) is distinct from active_kind
+                                 or (case when v_act ? 'kind'
+                                          then nullif(v_act->>'id','') else active_id end)
+                                    is distinct from active_id
+                               then now() else active_since end,$anc$);
+
+    execute v_def;
+    raise notice 'hr_apply: active_since is now stamped on any pointer CHANGE, not only on restart';
+  end if;
+end $mig$;
+
 -- ── 4. SELF-CHECK — the load-bearing properties, proven on apply ─────────────
 -- A migration that cannot prove its own claims is a claim.
 do $mig$
 declare
-  v_k text; v_x text; v_role text;
+  v_k text; v_x text; v_a text; v_role text;
   v_ret int; v_write int; v_t0 timestamptz; v_res timestamptz;
   v_sw timestamptz; v_end timestamptz; v_ms bigint;
 begin
@@ -1069,5 +1230,72 @@ begin
     raise exception 'F1 self-check (k): the kind_mismatch journal field was lost';
   end if;
 
-  raise notice 'F1 self-check PASSED — both attended cadence bodies (i) FLOOR their credit window at player_state.recovering_until (bounty-free anchor, bounty accepted_at, combat-XP watermark) and (ii) CAP its END at the moment player_state says the character left combat, credit ZERO with a named reason (recovering / not_in_combat) when that leaves no window, return BEFORE every write so no watermark is advanced across an unpaid window, keep the kind_mismatch tell, keep every predecessor control and advisory lock, remain SECURITY DEFINER / search-path pinned / callable by no client role, and file at most one value-free audit row per character per UTC day per arm. EVALUATED: a window entirely after the switch prices 0 ms and both caps pay 0; a straddling window is shortened to exactly its pre-switch part; a NULL active_since fails closed; an in-combat window is untouched; a future active_since cannot lengthen it.';
+  -- (p) THE COLUMN ARM 2 RESTS ON ACTUALLY MOVES. Every property above about
+  --     `active_since` is worth nothing if hr_apply leaves it behind on a
+  --     SERVER-side pointer change — the end-cap would then read the start of
+  --     the FIGHT as the moment the character stopped fighting and zero every
+  --     attended credit. 12 of 36 live characters were in that state.
+  v_a := pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure);
+  if strpos(v_a, 'SECURITY F1 - THE ACTIVITY SWITCH STAMP') = 0 then
+    raise exception 'F1 self-check (p): hr_apply does not carry the activity switch stamp — the not-in-combat cap would under-pay every honest attended credit after a server auto-stop';
+  end if;
+  if strpos(v_a, $q$or coalesce(v_act->>'kind', active_kind) is distinct from active_kind$q$) = 0 then
+    raise exception 'F1 self-check (p): hr_apply does not stamp active_since when the activity KIND changes';
+  end if;
+  if strpos(v_a, $q$is distinct from active_id$q$) = 0 then
+    raise exception 'F1 self-check (p): hr_apply does not stamp active_since when the activity ID changes (same kind, new target)';
+  end if;
+  -- The stamped value is the SERVER CLOCK, never a client field.
+  if strpos(v_a, 'then now() else active_since end,') = 0 then
+    raise exception 'F1 self-check (p): hr_apply no longer stamps active_since from now() — a client-supplied instant would let the caller choose when it stopped fighting';
+  end if;
+  if v_a ~ 'active_since = case[^;]*p_delta' then
+    raise exception 'F1 self-check (p): hr_apply''s active_since arm reads p_delta directly — the stamp must be derived from the applied pointer and the server clock';
+  end if;
+  -- `restart` KEEPS ITS MEANING. Dropping it would stop re-stamping a
+  -- SAME-activity restart, which no difference test can ever see.
+  if strpos(v_a, $q$active_since = case when coalesce((v_act->>'restart')::boolean, false)$q$) = 0 then
+    raise exception 'F1 self-check (p): hr_apply dropped the restart disjunct — a same-activity restart would stop re-stamping active_since';
+  end if;
+  -- NOTHING ELSE IN hr_apply MOVED. It is an anchored insert into a body ten
+  -- files build; erasing one of their controls is the most destructive thing
+  -- available here.
+  if strpos(v_a, 'workers_accrued_to = case when p_delta ? ''workers_accrued_to''') = 0
+     or strpos(v_a, 'streak_day_key = case when p_delta ? ''accrued_to''') = 0
+     or strpos(v_a, 'tool_carry') = 0 then
+    raise exception 'F1 self-check (p): hr_apply lost a predecessor control — the patch was not additive';
+  end if;
+  if not (select prosecdef from pg_proc where oid = 'public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure) then
+    raise exception 'F1 self-check (p): hr_apply is no longer SECURITY DEFINER';
+  end if;
+  foreach v_role in array array['anon','authenticated'] loop
+    if has_function_privilege(v_role, 'public.hr_apply(uuid,int,bigint,uuid,jsonb)', 'execute') then
+      raise exception 'F1 self-check (p): hr_apply became executable by % — the whole engine would be client-callable', v_role;
+    end if;
+  end loop;
+
+  -- (p2) EVALUATED, NOT ASSERTED — the predicate's five cases, as the same
+  --      boolean arithmetic the UPDATE runs. Text cannot prove that
+  --      `is distinct from` is what makes combat->idle (a transition to NULL)
+  --      stamp at all; `<>` would answer NULL there and fall through to "do not
+  --      stamp", which IS the bug.
+  select count(*) into v_ret from (
+    values
+      -- (restart, the delta's activity object, stored kind, stored id, expected)
+      (false, '{"kind":"idle"}'::jsonb,                    'combat', 'goblin', true),   -- server auto-stop: THE BUG
+      (false, '{"kind":"combat","id":"rat"}'::jsonb,       'combat', 'goblin', true),   -- new target, same kind
+      (false, '{"kind":"combat","id":"goblin"}'::jsonb,    'combat', 'goblin', false),  -- unchanged: do not stamp
+      (true,  '{"kind":"combat","id":"goblin"}'::jsonb,    'combat', 'goblin', true),   -- same-activity RESTART
+      (false, '{}'::jsonb,                                 'combat', 'goblin', false)   -- a non-activity delta
+  ) as t(restart, act, k, i, expect)
+  where (t.restart
+         or coalesce(t.act->>'kind', t.k) is distinct from t.k
+         or (case when t.act ? 'kind' then nullif(t.act->>'id','') else t.i end) is distinct from t.i)
+        is distinct from t.expect;
+  if v_ret <> 0 then
+    raise exception 'F1 self-check (p2): the active_since predicate mis-evaluates % of its five cases', v_ret;
+  end if;
+
+
+  raise notice 'F1 self-check PASSED — both attended cadence bodies (i) FLOOR their credit window at player_state.recovering_until (bounty-free anchor, bounty accepted_at, combat-XP watermark) and (ii) CAP its END at the moment player_state says the character left combat, credit ZERO with a named reason (recovering / not_in_combat) when that leaves no window, return BEFORE every write so no watermark is advanced across an unpaid window, keep the kind_mismatch tell, keep every predecessor control and advisory lock, remain SECURITY DEFINER / search-path pinned / callable by no client role, and file at most one value-free audit row per character per UTC day per arm. hr_apply now stamps active_since on ANY pointer change (not only on the client restart flag), so the column the end-cap reads means what it says. EVALUATED: a window entirely after the switch prices 0 ms and both caps pay 0; a straddling window is shortened to exactly its pre-switch part; a NULL active_since fails closed; an in-combat window is untouched; a future active_since cannot lengthen it; and the active_since stamp predicate is correct on all five of its cases, including combat->idle, which only `is distinct from` can see.';
 end $mig$;

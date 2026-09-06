@@ -103,9 +103,69 @@
     }
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     THE `not_in_combat` RE-DECLARE — ONE, NEVER A LOOP.
+     ══════════════════════════════════════════════════════════════════════
+     supabase/migrations/2026-09-06-cadence-recovery-floor.sql caps the attended
+     credit window at `player_state.active_since` whenever the SERVER's pointer
+     is not 'combat', and answers `{reason:'not_in_combat', credited:0}` when
+     that leaves no window. That is correct — the server must never bill wall
+     time it does not believe was spent fighting — but it means a client whose
+     DECLARATION was lost (a dropped set_activity, a server auto-stop, a
+     rate-limited switch) keeps polling the cadence and being paid nothing,
+     silently, for as long as it fights. The refusal is NAMED precisely so the
+     client can do something honest about it: say again what it is doing, and
+     ask once more.
+
+     THE SHAPE, AND THE THREE THINGS IT DELIBERATELY IS NOT:
+       · NOT A LOOP. Exactly one re-declare and exactly one retry per call. The
+         retry's own answer is returned verbatim — a second `not_in_combat` is
+         the SERVER's considered verdict (the character really is not fighting)
+         and is accepted, not argued with. A retry-on-retry would be a client
+         spending a player's rate budget to keep asking a question it has been
+         answered.
+       · NOT A CLAIM. Nothing about the payload changes. The client re-states
+         WHICH ACTIVITY it is on (kind + id, both already server-validated
+         against the activity catalogue) and re-sends the same intent with a
+         fresh idempotency key. It never sends a timestamp, a window, or an
+         `active_since` — the switch instant stays the server's, which is the
+         whole point of the migration this pairs with.
+       · NOT A SELF-DIAGNOSIS. The re-declare only fires when the CLIENT's own
+         pointer says combat with a real target. If the player genuinely is not
+         fighting, the refusal is right and nothing is re-declared.
+     `{force:true}` because a declaration may already be in flight and the
+     coalescer would otherwise queue this one behind it and return `queued` —
+     the retry would then race the very declaration it is waiting for. */
+  function creditWithCombatRedeclare(fire) {
+    return Promise.resolve(fire()).then(function (res) {
+      if (!res || res.reason !== 'not_in_combat') return res;
+      var w = (typeof window !== 'undefined') ? window : null;
+      var p = null;
+      try { if (w && typeof w.localActivityPointer === 'function') p = w.localActivityPointer(); } catch (e) {}
+      if (!p || p.kind !== 'combat' || p.id == null || p.id === '') return res;
+      var M = w && w.HearthriseActivity;
+      if (!M || typeof M.declareActivity !== 'function') return res;
+      var d;
+      try { d = M.declareActivity('combat', p.id, { force: true }); }
+      catch (e) { return res; }
+      /* The declaration's own verdict is not inspected: a refused switch is
+         reported by the seam and a retry costs one call. What matters is that
+         the retry happens AFTER it has settled, so the server has heard the
+         pointer before it prices the window again. */
+      return Promise.resolve(d).catch(function () { return null; }).then(function () {
+        return fire();
+      });
+    });
+  }
+
   window.HearthriseGoalClaim = {
     activeSlot: activeSlot,
     isSignedIn: isSignedIn,
+    /* Exposed for the regression test (smoke-test.js CADENCE-NIC-1), which
+       drives the helper with a fake `fire` rather than a live RPC: the property
+       under test is "exactly one re-declare and one retry, and never two", and
+       that is a property of this function, not of the network. */
+    _creditWithCombatRedeclare: creditWithCombatRedeclare,
     /** @returns Promise<jsonb> the RPC envelope: {ok, gold, ...} or {ok:false,error} */
     claimDaily: function (taskId) { return call('hr_claim_daily', { p_task_id: String(taskId || ''), p_slot: activeSlot() }); },
     claimQuest: function (questId) { return call('hr_claim_quest', { p_quest_id: String(questId || ''), p_slot: activeSlot() }); },
@@ -194,11 +254,12 @@
        just retries on the next kill. @returns {ok, progress, required, cap,
        credited, throttled, ...}. */
     creditKills: function (target, claimed) {
-      return call('hr_credit_kills', {
-        p_slot: activeSlot(),
-        p_target: String(target || ''),
-        p_claimed: Math.max(0, Math.floor(Number(claimed) || 0)),
-        p_idem: newIdem()
+      var t = String(target || ''), n = Math.max(0, Math.floor(Number(claimed) || 0));
+      /* A fresh p_idem per ATTEMPT, deliberately: the server records no
+         idempotency row for a refusal (it returns before every write), so the
+         retry is a new gesture rather than a replay of a burnt key. */
+      return creditWithCombatRedeclare(function () {
+        return call('hr_credit_kills', { p_slot: activeSlot(), p_target: t, p_claimed: n, p_idem: newIdem() });
       });
     },
     /* ATTENDED COMBAT-XP credit — supabase/migrations/2026-08-31-combat-xp-credit.sql
@@ -225,10 +286,8 @@
           if (n > 0) clean[k] = n;
         }
       }
-      return call('hr_credit_combat_xp', {
-        p_slot: activeSlot(),
-        p_xp: clean,
-        p_idem: newIdem()
+      return creditWithCombatRedeclare(function () {
+        return call('hr_credit_combat_xp', { p_slot: activeSlot(), p_xp: clean, p_idem: newIdem() });
       });
     },
     /* Bounty MARKS spend — supabase/migrations/2026-08-26-marks-record.sql. ONE

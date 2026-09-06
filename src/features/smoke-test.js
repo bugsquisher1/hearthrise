@@ -4756,6 +4756,79 @@ const TESTS = [
     }
   }),
 
+  () => tryRunAsync("CADENCE-NIC-1 (Security F1): a `not_in_combat` credit re-declares the fight ONCE and retries ONCE — never a loop", async () => {
+    // supabase/migrations/2026-09-06-cadence-recovery-floor.sql caps the attended
+    // credit window at player_state.active_since once the SERVER's pointer leaves
+    // combat, and answers {reason:'not_in_combat', credited:0}. A client whose
+    // DECLARATION was lost (a dropped set_activity, a server auto-stop, a
+    // rate-limited switch) would otherwise keep polling the 60 s cadence and be
+    // paid NOTHING for as long as it fights — silently, because a zero credit
+    // looks like a throttle. The refusal is NAMED so the client can say again
+    // what it is doing and ask once more.
+    //
+    // THE TWO HALVES OF THE CONTRACT, and the second is the one that matters:
+    // exactly ONE re-declare + ONE retry, and a SECOND not_in_combat is accepted
+    // as the server's verdict. A retry-on-retry would be an unbounded loop
+    // spending a real player's rate budget against a server that has already
+    // answered — the shape CLAUDE.md's intent contract forbids ("never retry the
+    // switch alone in a loop").
+    const GC = window.HearthriseGoalClaim;
+    assert(GC && typeof GC._creditWithCombatRedeclare === 'function',
+      'HearthriseGoalClaim._creditWithCombatRedeclare is missing — nothing recovers a lost combat declaration, so '
+      + 'every attended kill/XP credit after one silently pays zero');
+    const origPointer = window.localActivityPointer;
+    const origActivity = window.HearthriseActivity;
+    try {
+      let declares = [];
+      window.HearthriseActivity = {
+        declareActivity: (kind, id, opts) => { declares.push({ kind, id, opts }); return Promise.resolve({ outcome: 'switched' }); },
+      };
+      window.localActivityPointer = () => ({ kind: 'combat', id: 'goblin' });
+
+      // ── (1) refused once, then paid: ONE re-declare, ONE retry, the retry wins ──
+      let fired = 0;
+      let res = await GC._creditWithCombatRedeclare(() => {
+        fired++;
+        return Promise.resolve(fired === 1
+          ? { ok: true, credited: 0, reason: 'not_in_combat' }
+          : { ok: true, credited: 3 });
+      });
+      assert(fired === 2, 'a not_in_combat refusal must be retried exactly once; the RPC fired ' + fired + ' time(s)');
+      assert(declares.length === 1, 're-declare must happen exactly once; it happened ' + declares.length + ' time(s)');
+      assert(declares[0].kind === 'combat' && declares[0].id === 'goblin' && !!(declares[0].opts && declares[0].opts.force),
+        're-declare must restate the CURRENT combat activity with {force:true} (a queued declaration would race the retry)');
+      assert(res && res.credited === 3, 'the retry\'s verdict is what the caller gets back');
+
+      // ── (2) THE ANTI-LOOP: refused TWICE → still exactly one re-declare and
+      //       one retry, and the second refusal is returned as the answer. ──
+      declares = []; fired = 0;
+      res = await GC._creditWithCombatRedeclare(() => {
+        fired++;
+        return Promise.resolve({ ok: true, credited: 0, reason: 'not_in_combat' });
+      });
+      assert(fired === 2, 'THE BUG: a second not_in_combat must NOT be retried again; the RPC fired ' + fired + ' times');
+      assert(declares.length === 1, 'THE BUG: a second not_in_combat must NOT re-declare again; declared ' + declares.length + ' times');
+      assert(res && res.reason === 'not_in_combat', "the server's second verdict is returned verbatim, not swallowed");
+
+      // ── (3) the client is NOT fighting → the refusal is RIGHT; touch nothing ──
+      declares = []; fired = 0;
+      window.localActivityPointer = () => ({ kind: 'idle', id: null });
+      await GC._creditWithCombatRedeclare(() => { fired++; return Promise.resolve({ ok: true, credited: 0, reason: 'not_in_combat' }); });
+      assert(fired === 1 && declares.length === 0,
+        'when the CLIENT itself is idle the refusal is correct — re-declaring would assert a fight that is not happening');
+
+      // ── (4) an ordinary answer is passed straight through, untouched ──
+      declares = []; fired = 0;
+      window.localActivityPointer = () => ({ kind: 'combat', id: 'goblin' });
+      res = await GC._creditWithCombatRedeclare(() => { fired++; return Promise.resolve({ ok: true, credited: 7 }); });
+      assert(fired === 1 && declares.length === 0 && res.credited === 7,
+        'a successful credit must not re-declare or re-fire — the helper is inert on every path but the named refusal');
+    } finally {
+      window.localActivityPointer = origPointer;
+      window.HearthriseActivity = origActivity;
+    }
+  }),
+
   () => tryRunAsync('CLIENT-STATE-CAP (b486): putClientState surfaces state_too_large distinctly, not swallowed into a silent infinite retry', async () => {
     // The whole residue bag shares ONE 256 KiB server cap; on overflow the RPC
     // answers {ok:false,error:'state_too_large'} and EVERY residue field stops

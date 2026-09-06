@@ -95,6 +95,13 @@ const MARKS = {
           '-- ── 2. hr_credit_combat_xp__ungated — THE RECOVERY FLOOR'],
   xp:    ['-- ── 2. hr_credit_combat_xp__ungated — THE RECOVERY FLOOR',
           '-- ── 3. GRANTS'],
+  /* §3b is the DEPENDENCY of arm 2, not a decoration: the end-cap reads
+     player_state.active_since, and until this section shipped hr_apply stamped
+     that column on the client's `restart` flag ALONE — so a SERVER auto-stop
+     (accrual.js emits {kind:'idle', id:null} with no flag at three sites) left
+     it at the start of the fight, and the cap would have zeroed every attended
+     credit on the 12-of-36 live characters already in that state. */
+  apply: ['-- ── 3b. hr_apply', '-- ── 4. SELF-CHECK'],
   check: ['-- ── 4. SELF-CHECK', null],
 };
 
@@ -302,6 +309,49 @@ const CHECKS = [
                 && s.includes("v_ret := strpos(v_k, $q$'reason', 'not_in_combat', 'active_kind', v_active_kind);$q$);"),
     'the self-check no longer proves the not-in-combat arm returns BEFORE the writes in both bodies'],
 
+  // ══ ARM 2's DEPENDENCY — hr_apply MUST STAMP active_since ON A SWITCH ═══
+  // Live 2026-09-06: 12 of 36 characters carry active_since < accrued_to,
+  // because hr_apply stamped it on `restart` alone and the SERVER's own
+  // auto-stops (accrual.js ~L2257 / ~L2763 / ~L3186) do not send that flag.
+  // Against the end-cap that is a REGRESSION ENGINE pointing the wrong way.
+  ['apply', (s) => s.includes("or coalesce(v_act->>'kind', active_kind) is distinct from active_kind"),
+    'hr_apply does not stamp active_since when the activity KIND changes — a server auto-stop leaves the column '
+    + 'at the start of the FIGHT, so the not-in-combat end-cap reads that as the moment the character stopped '
+    + 'fighting and ZEROES every attended kill and XP credit until the next client declare'],
+  ['apply', (s) => s.includes('is distinct from active_id'),
+    'hr_apply does not stamp active_since when the activity ID changes (same kind, new target) — the window end '
+    + 'would be the previous target\'s start instant'],
+  ['apply', (s) => !/\bis not distinct from active_(kind|id)\b/.test(s)
+                && !/(active_kind|active_id)\s*<>\s*/.test(s),
+    'the switch test uses <> (or a negated distinct) instead of `is distinct from` — active_id is NULLABLE and '
+    + 'combat->idle is precisely a transition TO null, where <> answers NULL and the CASE falls through to '
+    + '"do not stamp". That is the bug, restored'],
+  /* THE WHOLE PREDICATE HEAD, not just the restart term: the UNPATCHED anchor
+     this section feeds to `replace()` also contains the restart term, so an
+     `includes` of that alone would still pass with the disjunct deleted from the
+     REPLACEMENT — the guard would be reading the bug it is meant to remove. */
+  ['apply', (s) => s.includes("active_since = case when coalesce((v_act->>'restart')::boolean, false)\n"
+                            + "                                 or coalesce(v_act->>'kind', active_kind)"),
+    'the restart disjunct was dropped from hr_apply — a SAME-activity restart (chop the same tree again) is a '
+    + 'switch no difference test can see, and it would stop re-stamping'],
+  ['apply', (s) => s.includes('then now() else active_since end,') && !/active_since = case[^;]*p_delta/.test(s),
+    'hr_apply no longer stamps active_since from the SERVER CLOCK, or it reads p_delta directly in that arm — '
+    + 'the caller would choose when it stopped fighting'],
+  ['apply', (s) => s.includes('pg_get_functiondef') && !/\bcreate\s+or\s+replace\s+function\s+public\.hr_apply/i.test(s),
+    'the hr_apply patch has become a `create or replace` restatement — hr_apply is built by TEN files and this '
+    + "one would silently take over the derivation chain's last-toucher role and erase whatever it did not copy"],
+  ['apply', (s) => s.includes("strpos(v_def, 'SECURITY F1 - THE ACTIVITY SWITCH STAMP') > 0"),
+    'the hr_apply patch is not guarded by its own marker — it would double-insert on a re-apply and the migration '
+    + 'would stop being idempotent'],
+  ['pre', (s) => s.includes("to_regprocedure('public.hr_apply(uuid,int,bigint,uuid,jsonb)') is null")
+              && s.includes('hr_apply: the active_since arm is missing or ambiguous'),
+    'the preconditions do not assert hr_apply and its exactly-once anchor before writing — a replace() whose '
+    + 'anchor is absent is a SILENT no-op that leaves the migration reporting success with the stamp unshipped'],
+  ['check', (s) => s.includes("if strpos(v_a, 'SECURITY F1 - THE ACTIVITY SWITCH STAMP') = 0 then")
+                && s.includes('F1 self-check (p2)'),
+    'the self-check no longer proves on APPLY that hr_apply carries the stamp, or no longer EVALUATES the '
+    + 'predicate\'s five cases — the combat->idle case in particular is a property text-matching cannot prove'],
+
   // ── THE HALF-STATE GUARD (§0) ───────────────────────────────────────────
   ['pre', (s) => s.includes("strpos(v_k, 'SECURITY F1 - THE NOT-IN-COMBAT CAP') = 0 then")
               && s.includes("strpos(v_x, 'SECURITY F1 - THE NOT-IN-COMBAT CAP') = 0 then"),
@@ -502,6 +552,60 @@ Object.assign(MUTATIONS, {
   },
 });
 
+/* ── ARM 2's DEPENDENCY: the active_since stamp. THE BRIEF'S NAMED MUTATION —
+   "an activity write that CHANGES KIND leaves active_since behind" → RED. ─── */
+Object.assign(MUTATIONS, {
+  stale_active_since_on_kind_change: {
+    why: 'an activity write that CHANGES KIND leaves active_since behind — hr_apply goes back to stamping on the '
+       + "client's `restart` flag alone, so a SERVER auto-stop (accrual.js emits {kind:'idle', id:null} with no "
+       + 'flag) leaves the column at the start of the FIGHT. The end-cap then reads that as the moment the '
+       + 'character stopped fighting and ZEROES every attended credit until the next client declare — measured '
+       + 'live on 12 of 36 characters',
+    find: "                                 or coalesce(v_act->>'kind', active_kind) is distinct from active_kind\n",
+    repl: '',
+  },
+  stale_active_since_on_id_change: {
+    why: 'a same-kind TARGET change (goblin -> rat) stops stamping active_since, so the window end is the '
+       + "previous target's start instant and a long first fight silently caps every credit on the second",
+    find: '                                 or (case when v_act ? \'kind\'\n'
+        + '                                          then nullif(v_act->>\'id\',\'\') else active_id end)\n'
+        + '                                    is distinct from active_id\n',
+    repl: '',
+  },
+  switch_test_uses_not_equal: {
+    why: 'the switch test becomes `<>` instead of `is distinct from` — active_id is NULLABLE and combat->idle is '
+       + 'a transition TO null, where <> answers NULL and the CASE falls through to "do not stamp". The most '
+       + 'plausible way this fix dies while still looking present',
+    find: "or coalesce(v_act->>'kind', active_kind) is distinct from active_kind",
+    repl: "or coalesce(v_act->>'kind', active_kind) <> active_kind",
+  },
+  apply_restart_disjunct_dropped: {
+    why: 'the `restart` disjunct is dropped from hr_apply — a SAME-activity restart is a switch no difference '
+       + 'test can see, so chopping the same tree again would keep the old active_since forever',
+    find: "           active_since = case when coalesce((v_act->>'restart')::boolean, false)\n"
+        + "                                 or coalesce(v_act->>'kind', active_kind)",
+    repl: "           active_since = case when coalesce(v_act->>'kind', active_kind)",
+  },
+  apply_marker_guard_removed: {
+    why: 'the hr_apply patch loses its own-marker guard, so a re-apply double-inserts the disjuncts and the '
+       + 'migration stops being idempotent',
+    find: "  if strpos(v_def, 'SECURITY F1 - THE ACTIVITY SWITCH STAMP') > 0 then",
+    repl: '  if false then',
+  },
+  apply_predicate_evaluation_removed: {
+    why: 'the self-check stops EVALUATING the stamp predicate, so the combat->idle case (the only one that '
+       + 'distinguishes `is distinct from` from `<>`) is no longer proven by arithmetic on apply',
+    find: "    raise exception 'F1 self-check (p2)",
+    repl: "    raise exception 'F1 self-check (disabled p2)",
+  },
+  apply_precondition_anchor_removed: {
+    why: 'the §0 exactly-once anchor assertion for hr_apply is removed — a replace() whose anchor has moved is a '
+       + 'SILENT no-op, and the migration would report success with the stamp unshipped and the end-cap live',
+    find: "    if v_n <> 1 then raise exception 'hr_apply: the active_since arm is missing or ambiguous (%) — apply 2026-08-25-workers.sql first', v_n; end if;",
+    repl: '',
+  },
+});
+
 /* `marker_guard_removed`'s find must match the file's real indentation. */
 MUTATIONS.marker_guard_removed.find =
   "  if strpos(v_def, 'SECURITY F1 - THE RECOVERY FLOOR') > 0 then\n"
@@ -578,6 +682,38 @@ async function runReplay() {
     ok(body.includes("if v_elapsed <= 0 and v_active_kind is distinct from 'combat' then"),
       `replay: the LIVE ${name} body has no not-in-combat short-circuit`);
   }
+  /* ARM 2's DEPENDENCY, read off the body the ORDERED CHAIN builds. A patch
+     that no-oped against a moved anchor leaves this FILE looking perfect. */
+  const a = await def('public.hr_apply(uuid,int,bigint,uuid,jsonb)');
+  ok(a.includes('SECURITY F1 - THE ACTIVITY SWITCH STAMP'),
+    'replay: the LIVE hr_apply does not stamp active_since on a pointer change — the end-cap would read the '
+    + 'start of the FIGHT as the moment the character stopped fighting');
+  ok(a.includes("or coalesce(v_act->>'kind', active_kind) is distinct from active_kind")
+     && a.includes('is distinct from active_id'),
+    'replay: the LIVE hr_apply stamp does not test BOTH pointer fields');
+  ok(a.includes('workers_accrued_to') && a.includes('streak_day_key') && a.includes('tool_carry'),
+    'replay: a predecessor control was ERASED from hr_apply — the patch was not additive');
+  /* EVALUATED on the replay database: the predicate itself, including the one
+     case only `is distinct from` can see (combat -> idle, an id going NULL). */
+  const stamps = async (act, kind, id) => (await db.query(
+    `select (coalesce(($1::jsonb->>'restart')::boolean, false)
+             or coalesce($1::jsonb->>'kind', $2::text) is distinct from $2::text
+             or (case when $1::jsonb ? 'kind' then nullif($1::jsonb->>'id','') else $3::text end)
+                is distinct from $3::text) s`,
+    [JSON.stringify(act), kind, id])).rows[0].s;
+  ok(await stamps({ kind: 'idle', id: null }, 'combat', 'goblin') === true,
+    'replay: a server auto-stop (combat -> idle) does NOT stamp active_since — this is the measured live bug '
+    + '(12 of 36 characters carry active_since < accrued_to)');
+  ok(await stamps({ kind: 'combat', id: 'rat' }, 'combat', 'goblin') === true,
+    'replay: a same-kind target change does not stamp active_since');
+  ok(await stamps({ kind: 'combat', id: 'goblin' }, 'combat', 'goblin') === false,
+    'replay: an UNCHANGED pointer stamps active_since — the column would restart on every settle and the '
+    + 'end-cap would shorten every honest window');
+  ok(await stamps({ kind: 'combat', id: 'goblin', restart: true }, 'combat', 'goblin') === true,
+    'replay: `restart` lost its meaning — a SAME-activity restart is a switch no difference test can see');
+  ok(await stamps({}, 'combat', 'goblin') === false,
+    'replay: a delta with no activity object stamps active_since');
+
   ok(k.includes('kill_credited'), 'replay: the renown credited counters were ERASED from the kills body');
   ok(k.includes('kills_stat') && k.includes('daily_kill_settle_absorbed'),
     'replay: a kill-daily-credit control was erased from the kills body');
@@ -703,7 +839,9 @@ try {
     + 'post-fight flush still pays for pre-switch time and nothing pays for time after it), '
     + 'credit ZERO with a named reason (recovering / not_in_combat), return before every write so no '
     + 'watermark is retired unpaid, patch by anchored insert rather than restatement so no predecessor patch is '
-    + 'erased, and file at most one value-free audit row per character per UTC day'
+    + 'erased, and file at most one value-free audit row per character per UTC day — and hr_apply STAMPS '
+    + 'player_state.active_since on ANY pointer change (not only on the client restart flag), so the column '
+    + 'the end-cap reads means what it says even when the SERVER auto-stops the activity'
     + (replay ? ' — VERIFIED ON A REBUILT CHAIN, including the return-before-write ordering and the ungated ACL.'
               : '. (Run with --replay to read the same properties off a rebuilt chain.)'));
   process.exit(0);

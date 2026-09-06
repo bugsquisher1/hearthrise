@@ -273,6 +273,23 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/dungeon-scrip-reload.mjs --selftest
 
+      # SA-010 / Q-4: PURCHASED BANK SPACE WAS ENFORCED AT THE BASE CAP.
+      # hr_unlock_buy sells bank space as a 30-rung ladder and files it as a
+      # player_progress unlock row; NOTHING ever wrote player_state.bank_cap,
+      # which is the only number hr_apply's bank_full check reads. Ten paid rungs
+      # = client cap 300, server cap 100, and every item-touching apply past 100
+      # stacks refused. The guard drives the REAL hr_unlock_buy and the REAL
+      # hr_apply on a replayed chain (PGlite, no credentials): the ladder is
+      # measured back against src/data (the `20` per rung is the one magnitude no
+      # server catalogue carries), the boundary is driven at the cap and one past
+      # it, and the chain is replayed a SECOND time stopping BEFORE the migration
+      # to REPRODUCE the bug and then prove the backfill heals it. 14 mutations
+      # (seven, each twinned with the migration's own §5/§6 short-circuited so the
+      # ✓ is the guard's and not the migration's).
+      - name: Bank cap tracks rungs — purchased bank space is the enforced bank space
+        if: ${{ !cancelled() }}
+        run: node tests/bank-cap-rungs.mjs --selftest
+
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
       # it "says nothing about whether any row survives a restore". This is that

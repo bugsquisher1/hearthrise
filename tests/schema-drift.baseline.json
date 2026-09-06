@@ -6,14 +6,14 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-09-05",
- "digest": "8a7e6893ed4ce1d63784e4158bd3cbe845cd61785e2808d4d3a3d5558c9d05be",
+ "generated": "2026-09-06",
+ "digest": "68a2ab9e4a000548c24de2bc097e3c3bd256ae78a2cbdf953fdf24d8ed355109",
  "counts": {
   "relations": 106,
-  "functions": 271,
+  "functions": 273,
   "policies": 84,
   "indexes": 146,
-  "triggers": 18,
+  "triggers": 19,
   "constraints": 277,
   "columns": 634,
   "rls": 94,
@@ -241,6 +241,8 @@
    "hr_attended_kills(p_user uuid, p_slot integer, p_upto timestamp with time zone)",
    "hr_auto_eat_max_pct(p_tier integer)",
    "hr_auto_eat_tier(p_user uuid, p_slot integer)",
+   "hr_bank_cap_for_rungs(p_rungs integer)",
+   "hr_bank_cap_sync()",
    "hr_bank_move(p_slot integer, p_item text, p_qty bigint, p_dir text, p_idem uuid)",
    "hr_bestiary_of(p_user uuid, p_slot integer)",
    "hr_beta_code_norm(p_code text)",
@@ -693,6 +695,7 @@
    "market_listings :: trg_market_listing_immutable",
    "player_ledger :: hr_ledger_immutable",
    "player_ledger :: hr_ledger_no_truncate",
+   "player_progress :: player_progress_bank_cap_sync",
    "player_progress :: player_progress_unlock_guard"
   ],
   "constraints": [

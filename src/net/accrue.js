@@ -1744,20 +1744,28 @@ export function reconcileCombatStyle(G, res) {
      { cropId:res.crop, plantedAt:<ms>, waterings:[<ms>|…], state:'growing',
        regrowCount:0 }
 
-   The growth model (HearthriseFarm.growthHours) reads `waterings[]`, so the
-   single server `watered_at` column becomes a one-element `waterings` array (the
-   most recent watering — the projection does not restate the full array); the
-   live tick then promotes a finished plot to state:'ready'.
+   Q-5 (2026-09-06-state-of-farm-projection.sql): the row ALSO carries
+   `waterings:[<timestamptz>,…]` — the FULL server history, the exact array
+   hr_farm_growth_hours() computes from, capped at 8 by hr_farm_water. The growth
+   model (HearthriseFarm.growthHours) is a byte-for-byte port of that SQL and
+   reads `waterings[]`, so mirroring the whole array is what makes the client's
+   isReady AGREE with the server's. Before that key existed this rebuilt a
+   ONE-element array from the scalar `watered_at`, and a plot watered 4–8× came
+   back carrying one watering's bonus: a long timer and a Water button on a crop
+   the server already considered ready, with the client-side isReady gate then
+   refusing Harvest. `watered_at` is still projected and is still the FALLBACK
+   here, so a server predating the key degrades to the old behaviour rather than
+   to an empty history. The live tick then promotes a finished plot to
+   state:'ready'.
 
-   ⚠ TWO FIELDS THE LIVE PROJECTION DOES NOT CARRY, stated honestly:
-     • G.plotLevels (player_state.plot_level) is NOT in the state envelope today
-       (verified live: hr_state_of has no plot_level key). So this reads it only
-       IF a future projection adds `state.plot_level`, and otherwise leaves
-       G.plotLevels UNTOUCHED — getPlotLevel() already fail-safes an undefined to
-       Lv 1. Restoring the true plot tier under arm needs a one-line server
-       projection add (`'plot_level', v_st.plot_level`); until then an armed farm
-       reads as Lv 1. Flagged, not silently defaulted-as-if-correct.
-     • regrow_count is not projected either, so regrowCount rebuilds to 0. This is
+   Q-2 (same migration): `state.plot_level` — player_state.plot_level, written
+   ONLY by hr_farm_upgrade_plot — is now in the envelope, so the tier read below
+   is live rather than aspirational. It is still written ONLY from the server
+   value and never invented; an envelope without the key leaves G.plotLevels
+   UNTOUCHED and getPlotLevel() keeps its Lv 1 fail-safe.
+
+   ⚠ ONE FIELD THE PROJECTION STILL DOES NOT CARRY, stated honestly:
+     • regrow_count is not projected, so regrowCount rebuilds to 0. This is
        display-only: the finite-perennial wither LIMIT is enforced server-side in
        hr_farm_harvest, so a client that under-counts regrows cannot exceed it.
 
@@ -1785,6 +1793,35 @@ export function reconcileCombatStyle(G, res) {
 function farmParseTs(v) {
   const n = Date.parse(v);
   return Number.isFinite(n) ? n : Date.now();
+}
+
+/* THE WATERING HISTORY, MIRRORED (Q-5). `row.waterings` is the server's own
+   timestamptz[] — the array hr_farm_growth_hours() reads — so the client's
+   growthHours() computes the SAME effective hours the server does. Each entry is
+   parsed strictly: an unparseable one is DROPPED rather than defaulted to
+   Date.now() (farmParseTs's fallback is right for plantedAt, where a missing
+   value must not make a plot instantly ready, and wrong here, where it would
+   mint a watering bonus the server never granted). Falls back to the scalar
+   `watered_at` when the array is absent — a server predating the projection then
+   behaves exactly as it did before. Never invented, never client-authored: an
+   early harvest is refused by hr_farm_harvest from its own row regardless. */
+function farmWaterings(row) {
+  const arr = row && row.waterings;
+  if (Array.isArray(arr)) {
+    const out = [];
+    for (const w of arr) {
+      const t = Date.parse(w);
+      if (Number.isFinite(t)) out.push(t);
+    }
+    /* Mirror the server cap (hr_farm_water keeps the last 8) so a widened
+       projection can never grow the client's bonus loop unbounded. */
+    return (out.length > 8) ? out.slice(-8) : out;
+  }
+  if (row && row.watered_at != null) {
+    const t = Date.parse(row.watered_at);
+    if (Number.isFinite(t)) return [t];
+  }
+  return [];
 }
 
 /* Is a rebuilt plot already past its ready time? Reads HearthriseFarm.isReady
@@ -1819,7 +1856,7 @@ export function reconcileFarm(G, res, opts) {
     if (!Number.isFinite(idx) || idx < 0 || idx > 255) continue;   // sane bound
     const cropId = (typeof row.crop === 'string' && row.crop) ? row.crop : null;
     if (!cropId) continue;
-    const waterings = (row.watered_at != null) ? [farmParseTs(row.watered_at)] : [];
+    const waterings = farmWaterings(row);
     const plot = {
       cropId,
       plantedAt: farmParseTs(row.planted_at),
@@ -1847,8 +1884,11 @@ export function reconcileFarm(G, res, opts) {
 
   G.farmPlots = plots;
 
-  /* PLOT TIER — only if a future projection carries it; else leave untouched so
-     getPlotLevel() keeps its Lv 1 fail-safe. Never invented from the client. */
+  /* PLOT TIER (Q-2) — hr_state_of projects state.plot_level since
+     2026-09-06-state-of-farm-projection.sql. Mirrored, never invented: an
+     envelope without the key leaves G.plotLevels untouched so getPlotLevel()
+     keeps its Lv 1 fail-safe, and hr_farm_upgrade_plot prices the next tier
+     from its OWN row regardless of what the client believes. */
   const st = res && res.state;
   const tier = st && Number(st.plot_level);
   let plotLevel = null;

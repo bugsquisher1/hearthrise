@@ -13939,6 +13939,78 @@ const TESTS = [
     } finally { try { window.__resetFarmReadyNotifiedForTest(); } catch (e) {} restoreG(snap); }
   }),
 
+  /* ── FARM-PROJ-1 (Q-2 + Q-5): the two SERVER-OWNED farm facts that were LOST
+     ON RELOAD, driven through the REAL reconcile with a real envelope shape.
+       Q-2  hr_state_of never projected player_state.plot_level, so an armed
+            reload left G.plotLevels undefined and getPlotLevel() forced Lv 1:
+            a paid Plot Lv 3 lost its unlocked seeds and the Upgrade button
+            quoted the Lv-2 price while the server charged the Lv-4 one.
+       Q-5  it projected only the scalar watered_at, so the client rebuilt a
+            ONE-element `waterings` history. Each watering is worth up to 2h of
+            1x extra growth, so a plot watered four times came back with one
+            watering's bonus — a long timer and a Water button on a crop the
+            server already considered ready, and the client-side isReady gate
+            then refused Harvest.
+     Server fix: supabase/migrations/2026-09-06-state-of-farm-projection.sql.
+     The full round trip (real RPCs -> real chain -> growthHours agreeing with
+     hr_farm_growth_hours) is tests/state-of-farm-projection.mjs; this is the
+     in-page half — the client must CONSUME both keys. */
+  () => tryRun('FARM-PROJ-1 (Q-2/Q-5): plot tier and the full watering history survive a reload', () => {
+    const A = window.HearthriseAccrual, CAP = window.HearthriseCapstone;
+    if (!A || typeof A.reconcileFarm !== 'function' || !CAP || typeof CAP.__setBlobRetired !== 'function') { skip('no accrue/capstone api'); return; }
+    const snap = snapshotG();
+    try {
+      CAP.__setBlobRetired(true);   // ARM: reconcileFarm is live (dormant otherwise)
+      const now = Date.now();
+      const iso = (msAgo) => new Date(now - msAgo).toISOString();
+      // The envelope hr_state_of returns AFTER the projection migration.
+      const env = {
+        ok: true, version: 12,
+        state: { plot_level: 3 },
+        farm: [{
+          i: 0, crop: 'turnip',
+          planted_at: iso(4 * 3600000),
+          watered_at: iso(0.5 * 3600000),
+          waterings: [iso(3 * 3600000), iso(2 * 3600000), iso(1 * 3600000), iso(0.5 * 3600000)],
+        }],
+      };
+      // A reloaded, blob-retired G: neither field is in it.
+      delete window.G.plotLevels; delete window.G.farmPlots;
+      A.reconcileFarm(window.G, env, { authoritative: true });
+
+      // Q-2 — the tier came back from the server, not from the Lv 1 fail-safe.
+      assert(window.G.plotLevels === 3,
+        'G.plotLevels must be the SERVER tier 3 after a reload, got ' + window.G.plotLevels + ' — Q-2: a paid '
+        + 'Plot Lv 3 reads back as Lv 1, unlocked seeds vanish and Upgrade quotes the wrong price');
+      assert(window.HearthriseFarm.getPlotLevel() === 3,
+        'getPlotLevel() must read the mirrored tier rather than its Lv 1 fail-safe, got '
+        + window.HearthriseFarm.getPlotLevel());
+
+      // Q-5 — the WHOLE history, not a one-element rebuild.
+      const plot = window.G.farmPlots && window.G.farmPlots[0];
+      assert(plot && Array.isArray(plot.waterings) && plot.waterings.length === 4,
+        'the rebuilt plot must carry all FOUR waterings, got ' + JSON.stringify(plot && plot.waterings)
+        + ' — Q-5: the history collapsed to one and the client under-counts growth');
+      // …and it must CHANGE the answer: four waterings are worth strictly more
+      // effective hours than the single watered_at the old projection carried.
+      const four = window.HearthriseFarm.growthHours(plot, now);
+      const one = window.HearthriseFarm.growthHours(
+        { cropId: 'turnip', plantedAt: plot.plantedAt, waterings: [Date.parse(env.farm[0].watered_at)], state: 'growing' }, now);
+      assert(four > one,
+        'four waterings must yield MORE growth than one (' + four.toFixed(3) + 'h vs ' + one.toFixed(3)
+        + 'h) — the array is being mirrored in shape but not in value');
+
+      // FAIL-CLOSED, both directions: nothing is invented, nothing is reset.
+      const legacy = { ok: true, state: {}, farm: [{ i: 0, crop: 'turnip', planted_at: iso(3600000), watered_at: iso(600000) }] };
+      window.G.plotLevels = 4;
+      A.reconcileFarm(window.G, legacy, { authoritative: true });
+      assert(window.G.plotLevels === 4,
+        'an envelope without state.plot_level must leave the known tier UNTOUCHED, got ' + window.G.plotLevels);
+      assert(window.G.farmPlots[0].waterings.length === 1,
+        'a server predating the projection must degrade to the single watered_at, not to an empty history');
+    } finally { try { CAP.__setBlobRetired(null); } catch (e) {} restoreG(snap); }
+  }),
+
   // The invisibility half of the bug: a dry plot rendered no % and no bar, so
   // a permanently stalled plot looked exactly like a fresh one.
   () => tryRun('b220: a growing dry plot renders a percentage and a moving bar', () => {

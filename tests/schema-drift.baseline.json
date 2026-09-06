@@ -7,13 +7,13 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-06",
- "digest": "71cd3c31f660ec689ce3ab7524d762da239533d74758ce8763337e03ca913d47",
+ "digest": "9bfa0e265956bd071a6c1caf32392744b6845bd40d1c27b79db7c034a8999aef",
  "counts": {
   "relations": 106,
-  "functions": 274,
+  "functions": 276,
   "policies": 84,
   "indexes": 146,
-  "triggers": 19,
+  "triggers": 20,
   "constraints": 277,
   "columns": 634,
   "rls": 94,
@@ -241,6 +241,8 @@
    "hr_attended_kills(p_user uuid, p_slot integer, p_upto timestamp with time zone)",
    "hr_auto_eat_max_pct(p_tier integer)",
    "hr_auto_eat_tier(p_user uuid, p_slot integer)",
+   "hr_bank_cap_for_rungs(p_rungs integer)",
+   "hr_bank_cap_sync()",
    "hr_bank_move(p_slot integer, p_item text, p_qty bigint, p_dir text, p_idem uuid)",
    "hr_bestiary_of(p_user uuid, p_slot integer)",
    "hr_beta_code_norm(p_code text)",
@@ -696,6 +698,7 @@
    "market_listings :: trg_market_listing_immutable",
    "player_ledger :: hr_ledger_immutable",
    "player_ledger :: hr_ledger_no_truncate",
+   "player_progress :: player_progress_bank_cap_sync",
    "player_progress :: player_progress_unlock_guard",
    "player_skills :: hr_player_skills_max_hp"
   ],

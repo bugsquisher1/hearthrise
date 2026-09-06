@@ -12075,6 +12075,133 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('RECOVER-11: a server-stated knockout stops the SWING BAR and says so — the fight '
+    + 'never freezes silently, and it resumes on its own', () => {
+    /* ══ THE P0 TYLER PLAYED ON b510 (2026-09-06) ════════════════════════
+       "after I kill one dark wizard the swing timer just keeps going but
+       nothing happens."
+
+       b510 gave the live tick its first early return: `combatTick` asks
+       `hrCombatDown()` and refuses to swing while the character is off their
+       feet (src/legacy.js). Correct. What was missing is that NOTHING ELSE
+       KNEW. Three facts conspired:
+         · the activity pointer survives a fall on purpose, so `activeMonster`
+           stays set and every renderer still reads the fight as LIVE;
+         · the 2.4 s interval keeps running on purpose (the resume is the
+           absence of a change), and the swing bar is stamped by a WRAPPER
+           around `combatTick` — not by a swing — so it swept on;
+         · `recovering_until` arrives off an ENVELOPE, with no client-side fall
+           and therefore no death sheet, whenever the server priced a window
+           and found a death in it. That is the ordinary shape after an
+           attended run settles.
+       Result: a fight that animated forever and did nothing, with no damage,
+       no respawn, and not one word to the player. This test is that state. */
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    const C = window.HearthriseCore;
+    const CS = window.HearthriseCombatScreens;
+    if (!A || typeof A.applyEnvelopeState !== 'function' || !C || !C.combatSim
+        || typeof window.hrCombatDown !== 'function'
+        || typeof window.hrCombatDownPeek !== 'function') { skip('the fall seam is not wired'); return; }
+
+    const snap = snapshotG();
+    const wasOn = A.isServerAccrualEnabled();
+    const realDeclare = window.declareActivity;
+    const realNote = A.noteSettleEvent;
+    try {
+      A.setServerAccrualEnabled(true);
+      window.declareActivity = function () { return null; };
+      A.noteSettleEvent = function () { return null; };
+      A.clearFall();
+      A.applyEnvelopeState(G, { state: { recovering_until: null } });
+
+      const mid = window.MONSTERS.slime ? 'slime' : Object.keys(window.MONSTERS)[0];
+      const mon = window.MONSTERS[mid];
+      const arm = () => {
+        G.playerMaxHp = 9999; G.playerHp = 9999;
+        G.activeMonster = mid; G.monsterMaxHp = mon.hp; G.monsterHp = mon.hp;
+        G.combatLog = [];
+      };
+
+      /* ① THE ORDINARY KILL STILL CARRIES THE RUN ON. The control: with
+         nobody down, a foe that dies is replaced and the next tick swings. */
+      arm();
+      G.monsterHp = 1;
+      window.combatTick();
+      assert(G.activeMonster === mid && G.monsterHp === mon.hp,
+        'an ordinary kill did not put a fresh foe up: monster=' + G.activeMonster
+        + ' hp=' + G.monsterHp + '/' + mon.hp);
+      const afterKill = G.monsterHp;
+      for (let i = 0; i < 12 && G.monsterHp === afterKill; i++) window.combatTick();
+      assert(G.monsterHp !== afterKill,
+        'the fight stopped dealing damage after a kill — twelve swings moved nothing');
+
+      /* ② THE ENVELOPE STATES A KNOCKOUT, WITH NO CLIENT FALL. */
+      arm();
+      const until = Date.now() + 90000;
+      A.applyEnvelopeState(G, {
+        state: { recovering_until: new Date(until).toISOString(), deaths_today: 1, deaths_lifetime: 1 },
+      });
+      assert(A.fallState().phase === 'recovering' && A.isKnockedOut() === true,
+        'the recovery line on the envelope did not put the character off their feet: '
+        + A.fallState().phase);
+      assert(window.hrCombatDownPeek() === true,
+        'the PURE read disagrees with the one the tick asks. A renderer cannot call `hrCombatDown` — it owns '
+        + 'the stand-up transition — so the two must answer the same question.');
+
+      /* ③ THE PLAYER IS TOLD, ONCE. */
+      const hpBefore = G.monsterHp;
+      window.combatTick();
+      assert(G.monsterHp === hpBefore,
+        'the tick swung through a server-stated knockout');
+      const said = (G.combatLog || []).filter((l) => /knocked out|waiting on the hearth/i.test(l));
+      assert(said.length === 1,
+        'a knockout the SERVER stated froze the fight without a word to the player (' + said.length
+        + ' lines). A gate nobody can see is indistinguishable from a frozen game — that is exactly '
+        + 'what "the swing timer just keeps going but nothing happens" is.');
+      window.combatTick(); window.combatTick();
+      assert((G.combatLog || []).filter((l) => /knocked out|waiting on the hearth/i.test(l)).length === 1,
+        'the knockout line is repeated every tick — 25 lines a minute of the same sentence');
+
+      /* ④ AND THE BAR IS PARKED. `Swing.phase()` is 0 only while nothing has
+         stamped a swing; the wrapper used to stamp on every CALL, gated or
+         not, which is the animation Tyler was watching. */
+      if (CS && CS._swing && typeof CS._swing.phase === 'function') {
+        CS._swing.reset();
+        window.combatTick(); window.combatTick();
+        assert(CS._swing.phase() === 0,
+          'the swing bar was stamped by a tick that never swung, so it animates through a paused '
+          + 'fight: phase=' + CS._swing.phase());
+      }
+
+      /* ⑤ THE RESUME IS STILL THE ABSENCE OF A CHANGE. */
+      A.applyEnvelopeState(G, { state: { recovering_until: null } });
+      G.monsterHp = 0;
+      assert(window.hrCombatDown() === false && window.hrCombatDownPeek() === false,
+        'the gate stayed shut after the recovery line passed');
+      assert(G.monsterHp === mon.hp,
+        'the fight resumed against a foe on 0 HP, a free kill for having been down: ' + G.monsterHp);
+      if (CS && CS._swing && typeof CS._swing.phase === 'function') {
+        CS._swing.reset();
+        window.combatTick();
+        assert(CS._swing.phase() >= 0 && window.hrCombatDownPeek() === false,
+          'the bar never restarted once the character was back up');
+      }
+      const dmgFrom = G.monsterHp;
+      for (let i = 0; i < 12 && G.monsterHp === dmgFrom; i++) window.combatTick();
+      assert(G.monsterHp !== dmgFrom,
+        'damage never resumed after the knockout passed — twelve swings moved nothing');
+    } finally {
+      window.declareActivity = realDeclare;
+      A.noteSettleEvent = realNote;
+      try { A.clearFall(); } catch (e) {}
+      try { A.applyEnvelopeState(window.G, { state: { recovering_until: null } }); } catch (e) {}
+      A.setServerAccrualEnabled(!!wasOn);
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('RECOVER-9: the one-time Auto-Eat switch-on is offered ONCE and never after a decision', () => {
     const A = window.HearthriseAccrual;
     const AU = window.HearthriseAuto;

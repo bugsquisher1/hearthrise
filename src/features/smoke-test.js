@@ -12557,10 +12557,25 @@ const TESTS = [
          nobody down, a foe that dies is replaced and the next tick swings. */
       arm();
       G.monsterHp = 1;
-      window.combatTick();
-      assert(G.activeMonster === mid && G.monsterHp === mon.hp,
-        'an ordinary kill did not put a fresh foe up: monster=' + G.activeMonster
-        + ' hp=' + G.monsterHp + '/' + mon.hp);
+      /* SWING UNTIL THE BLOW LANDS, not once. `simulateTick` rolls accuracy
+         (`rollAttack` returns 0 on a miss, src/core/combat-sim.js), so one tick
+         against a 1-hp foe is a COIN FLIP — this step read a missed swing as
+         "the kill did not respawn" and made RECOVER-12 fail about one run in
+         three, in isolation, with a message pointing at the knockout gate it
+         had not reached yet (measured on the assembled b511 tree: 1169-test
+         runs green, red, green). The property being asserted is unchanged and
+         the gate is still what it bites: while `hrCombatDown()` is true NO tick
+         swings, so a shut gate never lands the blow and this loop still ends on
+         a 1-hp slime and fails. Only the "the first swing always hits"
+         assumption — which the engine never made — is gone. */
+      let landed = false;
+      for (let i = 0; i < 40 && !landed; i++) {
+        window.combatTick();
+        landed = (G.monsterHp === mon.hp);
+      }
+      assert(G.activeMonster === mid && landed,
+        'an ordinary kill did not put a fresh foe up in forty swings: monster=' + G.activeMonster
+        + ' hp=' + G.monsterHp + '/' + mon.hp + ' down=' + window.hrCombatDownPeek());
       const afterKill = G.monsterHp;
       for (let i = 0; i < 12 && G.monsterHp === afterKill; i++) window.combatTick();
       assert(G.monsterHp !== afterKill,
@@ -12627,6 +12642,22 @@ const TESTS = [
       try { A.clearFall(); } catch (e) {}
       try { A.applyEnvelopeState(window.G, { state: { recovering_until: null } }); } catch (e) {}
       A.setServerAccrualEnabled(!!wasOn);
+      /* AND PUT THE SHEET AWAY. Step (2) states a recovery 90 s out, which is a
+         RAISE — the death sheet is a full-screen overlay and it does not close
+         itself until the line passes, so leaving it up hands every later test a
+         page with a modal over it (measured on the assembled tree: "b221: the
+         shop renders the counter scene" failed on `something is covering the buy
+         control COVER=<span>.hr-death-t`, once RECOVER-12 started reaching this
+         far). `_resetRaise` clears the raise-once-per-`until` latch with it, so
+         the NEXT test to state a recovery still gets its sheet. This is the same
+         teardown RECOVER-13 already carries. */
+      try {
+        const D = window.HearthriseDeathSheet;
+        if (D) {
+          if (typeof D.close === 'function') D.close();
+          if (typeof D._resetRaise === 'function') D._resetRaise();
+        }
+      } catch (e) {}
       try { window.stopCombat(); } catch (e) {}
       restoreG(snap);
     }
@@ -53372,6 +53403,13 @@ const TESTS = [
     assert(typeof window.reconcileActivityPointer === 'function', 'the reconcile seam is gone');
     const snap = snapshotG();
     const killsBefore = window.G.combatKillsThisFoe;
+    /* `_hpLocalAt` is NOT on the snapshotG allowlist (and could not be: the
+       snapshot round-trips through JSON, which drops an `undefined`), so the
+       stamp below would otherwise outlive this test on the live G and tell
+       every later `startCombat` that the client owns the bar. Captured by hand
+       and put back — including back to ABSENT, which is the ordinary state. */
+    const hadLocalAt = Object.prototype.hasOwnProperty.call(window.G, '_hpLocalAt');
+    const localAtBefore = window.G._hpLocalAt;
     try {
       window.stopCombat();
       /* A 520-hp boss and an unkillable champion, so the one live swing
@@ -53421,6 +53459,7 @@ const TESTS = [
       assert(window.G.monsterHp <= max, 'an over-ceiling carry was not clamped: ' + window.G.monsterHp);
     } finally {
       try { window.stopCombat(); } catch (e) {}
+      if (hadLocalAt) window.G._hpLocalAt = localAtBefore; else delete window.G._hpLocalAt;
       window.G.combatKillsThisFoe = killsBefore;
       restoreG(snap);
     }

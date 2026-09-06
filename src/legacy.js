@@ -5781,18 +5781,24 @@ function renderBountyPanel(){
    ═══════════════════════════════════════════════════════════════════════ */
 const QUEST_DEFS=[
   {id:'gatherer',type:'gather',label:'Gather 15 resources',goal:15,progress:0,reward:{gold:150},done:false},
-  /* ── FIRST-NIGHT IDLE RESCUE: THE ITEM HALF IS REVERTED (Security F2) ─────
-     This row briefly paid `{gold:200, item:'shrimp', qty:30}` so a new player
-     would have food for their first overnight. It was WITHDRAWN because the
-     item half is a LIE POST-CUTOVER: `completeQuest` pays it through `addItem`,
-     which writes G.inventory only; `hr_claim_quest` credits GOLD and nothing
-     else, so with INVENTORY_ARM_ENABLED the server envelope replaces the bag on
-     the next reload and the 30 shrimp are gone. Promising a first-night food
-     stock that a reload deletes is worse than promising nothing.
-     ⚠ CLASS: quest ITEM rewards do not persist post-cutover — server-credit
-       path needed (P1, tracked). Until it exists this reward is gold-only and
-       honest, and nothing in the design may claim it feeds the first night. */
-  {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200},done:false},
+  /* ── FIRST-NIGHT IDLE RESCUE: THE ITEM HALF IS BACK, SERVER-CREDITED ──────
+     This row's 30 raw shrimp were WITHDRAWN under Security F2 (2026-09-06)
+     because the payout ran through `addItem`, which writes G.inventory only —
+     and `shrimp` is a FISH_SPOTS product, so `serverOwnedItem('shrimp')` is
+     true. One away-eaten shrimp puts the id in `consumedKeysOf` and the
+     envelope's figure for it becomes ABSOLUTE: the server says 0 and the whole
+     client-minted stack is deleted. That was a lie told to a new player on
+     their first night, so it was correctly withdrawn.
+
+     It is back because the PATH changed, not the ruling: `hr_claim_quest`
+     credits `items` into player_inventory in the SAME transaction as the gold
+     (2026-09-06-quest-item-rewards.sql), and completeQuest below mirrors what
+     the RPC says it granted instead of minting it. The client authors nothing,
+     so there is nothing for an envelope to disagree with.
+     ⚠ THE REWARD IS SERVER-OWNED. Editing `item`/`qty` here alone is a lie the
+       build refuses: tests/quest-reward-parity.mjs binds this row to
+       src/data/goal-catalogue.js QUEST_REWARDS.items and to the SQL seed. */
+  {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200,item:'shrimp',qty:30},done:false},
   {id:'first_blood',type:'kill_any',label:'Defeat 5 monsters',goal:5,progress:0,reward:{gold:150,item:'turnip_seed',qty:5},done:false},
   /* b497 (balance audit): 10 → 6. The SAME two-plot-camp wall b495 fixed on the
      harvest DAILY, one system over and still open. This is onboarding step 4:
@@ -6329,7 +6335,120 @@ function updateQuest(type,amt=1,meta={}){
     }
     if(q.progress>=q.goal) completeQuest(q);
   });
+  /* A done-but-unpaid quest is recovered here rather than at boot: the sweep is
+     self-draining and throttled, and updateQuest is the one place a player is
+     guaranteed to reach without a new lifecycle hook. See hrSweepUnclaimedQuests. */
+  hrSweepUnclaimedQuests();
 }
+/* ══ THE QUEST CLAIM, CLIENT SIDE ═══════════════════════════════════════════
+   ONE fire path and ONE apply path for hr_claim_quest, shared by the completion
+   moment and the recovery sweep, because a reward that only two thirds of the
+   paths pay is the shape every "forgotten on reload" bug has had.
+
+   `hrQuestItemsAreServerCredited(id)` answers off src/data/goal-catalogue.js —
+   the SAME table the SQL seed and the parity guard read — rather than a second
+   hand-list here. legacy.js is a classic script, so it reaches it through the
+   core bridge; if the bridge has not settled yet the answer is FALSE, which
+   keeps the pre-module-graph behaviour (client-applied) rather than silently
+   paying nothing. */
+function hrQuestItemsAreServerCredited(id){
+  try{
+    const C=window.HearthriseCore;
+    const gc=C&&C.goalCatalogue;
+    if(gc&&typeof gc.questItemsAreServerCredited==='function') return !!gc.questItemsAreServerCredited(id);
+  }catch(e){}
+  return false;
+}
+/* APPLY WHAT THE SERVER SAYS IT GRANTED — never what the client hoped for.
+   `res.items` is the RPC's own receipt ({id:qty}), written in the same
+   transaction as the player_inventory rows it describes, so mirroring it cannot
+   invent an item the server does not hold. Gated on `credited === true`: a
+   replay answers already_claimed and must add nothing.
+
+   `addItem` is preferred over a raw bag write so the Collection Log and the
+   tool-retime seam still see the grant. If it REFUSES (bank full) the item is
+   still written directly — the server has already credited it and showing the
+   player less than they own is the one direction that reads as a bug; the bank
+   overflow is cosmetic and the next envelope restates the same number. */
+function hrApplyQuestClaimGrant(res){
+  if(!res||res.ok!==true||res.credited!==true) return null;
+  const items=res.items;
+  if(!items||typeof items!=='object'||Array.isArray(items)) return null;
+  if(!G.inventory||typeof G.inventory!=='object')G.inventory={};
+  const applied={};
+  Object.keys(items).forEach(function(id){
+    const n=Math.floor(Number(items[id])||0);
+    if(!(n>0))return;
+    if(typeof ITEMS==='undefined'||!ITEMS[id])return;   // an id this build cannot render is not silently banked
+    let ok=false;
+    try{ ok=addItem(id,n,true); }catch(e){ ok=false; }
+    if(!ok)G.inventory[id]=(Number(G.inventory[id])||0)+n;
+    applied[id]=n;
+  });
+  const ids=Object.keys(applied);
+  if(!ids.length) return null;
+  try{ if(typeof renderInventory==='function')renderInventory(); }catch(e){}
+  try{ if(typeof updateTopbar==='function')updateTopbar(); }catch(e){}
+  return applied;
+}
+window.hrApplyQuestClaimGrant=hrApplyQuestClaimGrant;
+/* FIRE ONE CLAIM AND REMEMBER THE ANSWER.
+   `q.claimed` is the memory: G.quests is a RESIDUE field, so the flag survives a
+   reload and the sweep below can tell "the server paid this" from "we set
+   done:true and the call never landed". Both ok and already_claimed set it —
+   already_claimed IS the server confirming it paid. Any other outcome leaves it
+   unset so the sweep retries; the server once-guard makes that free. */
+function hrFireQuestClaim(q){
+  const GC=window.HearthriseGoalClaim;
+  if(!(GC&&typeof GC.claimQuest==='function'))return null;
+  let p=null;
+  try{ p=GC.claimQuest(q.id); }catch(e){ return null; }
+  if(!p||typeof p.then!=='function')return null;
+  return p.then(function(res){
+    if(res&&res.ok===true){
+      q.claimed=true;
+      const applied=hrApplyQuestClaimGrant(res);
+      if(applied&&typeof notify==='function'){
+        Object.keys(applied).forEach(function(id){
+          notify('Quest reward: '+applied[id]+'x '+((ITEMS[id]&&ITEMS[id].n)||id),'loot');
+        });
+      }
+    } else if(res&&res.error==='already_claimed'){
+      q.claimed=true;   // the server's once-guard is the memory; stop asking
+    }
+    return res;
+  }).catch(function(){ return null; });
+}
+/* ── THE RECOVERY SWEEP (the reason a dropped claim is no longer a loss) ────
+   completeQuest is the ONLY caller of the claim, it is fire-and-forget, and
+   `done` is residue — so before this, one lost packet on the completion tick
+   meant the quest was marked finished forever with nothing paid. That was
+   already true of the gold; adding an item made it worse, and "worse" is not an
+   acceptable direction for a fix.
+
+   The sweep re-fires any quest that is done, unconfirmed and server-payable.
+   It is idempotent by the server's once-guard, self-draining (a confirmed quest
+   sets `claimed` and is never scanned again), throttled to once a minute so a
+   persistently offline session cannot spin, and it needs no boot hook: it rides
+   updateQuest, which is where a player already is. `onHydrationChange` is
+   deliberately NOT used — it is single-slot and boot-hydration.js owns it. */
+function hrSweepUnclaimedQuests(){
+  if(!Array.isArray(G.quests))return 0;
+  const GC=window.HearthriseGoalClaim;
+  if(!(GC&&typeof GC.claimQuest==='function'&&typeof GC.isSignedIn==='function'&&GC.isSignedIn()))return 0;
+  const pending=G.quests.filter(function(q){
+    if(!q||!q.done||q.claimed)return false;
+    const r=q.reward||{};
+    return (r.gold||0)>0||hrQuestItemsAreServerCredited(q.id);
+  });
+  if(!pending.length)return 0;
+  const now=Date.now();
+  if(hrSweepUnclaimedQuests._at && (now-hrSweepUnclaimedQuests._at)<60000)return 0;
+  hrSweepUnclaimedQuests._at=now;
+  pending.forEach(hrFireQuestClaim);
+  return pending.length;
+}
+window.hrSweepUnclaimedQuests=hrSweepUnclaimedQuests;
 /* The payout, lifted out of the loop so a reward TYPE is a line here rather
    than a branch inside a forEach. Every one of these is an AUTHORED payout
    (pacing-overhaul.md §4.5): fixed numbers the designer wrote, not rates the
@@ -6351,11 +6470,21 @@ function completeQuest(q){
      server catalogue — tests/goal-catalogue-drift.mjs fails the build otherwise,
      so a gold quest can never silently lose its payout under arm. */
   q.done=true;
-  if(goldReward>0 && window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.claimQuest==='function'){
-    const _p=window.HearthriseGoalClaim.claimQuest(q.id); if(_p&&_p.catch)_p.catch(()=>{});
+  /* ── THE ITEM HALF IS THE SERVER'S NOW (quest-item-rewards, P1) ───────────
+     The unconditional `if(r.item)` bag write used to run here, and every item it
+     paid was PHANTOM: the bag write never reached player_inventory, so the next
+     envelope that spoke about the id erased it. hr_claim_quest credits the items
+     itself; hrFireQuestClaim below mirrors the grant the RPC REPORTS, so the bag
+     shows the truth immediately and agrees with it after a reload. The
+     client-minted fallback survives only for a quest the server catalogue does
+     not know — a state tests/quest-reward-parity.mjs makes unreachable. */
+  const serverItems=hrQuestItemsAreServerCredited(q.id);
+  if((goldReward>0||serverItems) && window.HearthriseGoalClaim
+     && typeof window.HearthriseGoalClaim.claimQuest==='function'){
+    hrFireQuestClaim(q);
   }
   if(goldReward>0 && clientMayWriteRecordField('gold'))G.gold+=goldReward;   // prediction; no-op under arm
-  if(r.item)addItem(r.item,r.qty||1,false);
+  if(r.item && !serverItems)addItem(r.item,r.qty||1,false);
   /* Combat XP is routed the way a KILL routes it — through the player's
      active style (src/core/styles.js killXpRoute) — so a bow user is paid
      Ranged and a Controlled sword user gets the same three-way split their

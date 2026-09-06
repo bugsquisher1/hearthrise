@@ -4669,6 +4669,154 @@ const TESTS = [
     }
   }),
 
+  () => tryRunAsync('QUEST-ITEM-1: a quest ITEM reward comes from the hr_claim_quest RESPONSE — completeQuest never mints it, and a failed claim grants nothing', async () => {
+    /* ── THE BUG (P1, live) ─────────────────────────────────────────────────
+       Every quest item reward was PHANTOM. completeQuest paid `reward.item`
+       with `addItem()`, which writes G.inventory and nothing else, while
+       hr_claim_quest credited GOLD only — so the item never existed on the
+       server and the first envelope that spoke about the id took it back.
+       `shrimp` is a FISH_SPOTS product, so serverOwnedItem('shrimp') is true and
+       one away-eaten shrimp makes the envelope's figure for it ABSOLUTE: the
+       server says 0 and the stack is deleted. That is why first_cook's
+       first-night grant was withdrawn rather than shipped.
+
+       THE PROPERTY, stated so it cannot be satisfied by the old code: the
+       reward appears ONLY when the server says it credited it. Two halves —
+         (1) a claim that RESOLVES ok+credited puts the items in the bag;
+         (2) a claim that FAILS puts NOTHING in the bag.
+       (2) is the whole test. The old `addItem(r.item, r.qty)` line passes (1)
+       trivially and fails (2) every time.
+
+       MUTATION: restore `if(r.item)addItem(r.item,r.qty||1,false);` in
+       completeQuest → (2) goes red with 30 phantom shrimp. */
+    const snap = snapshotG();
+    const origClaim = window.HearthriseGoalClaim;
+    const origMay = window.clientMayWriteRecordField;
+    try {
+      const C = window.HearthriseCore;
+      assert(C && C.goalCatalogue && typeof C.goalCatalogue.questItemsAreServerCredited === 'function',
+        'CONTROL: HearthriseCore.goalCatalogue.questItemsAreServerCredited must be published — without it '
+        + 'completeQuest falls back to the client mint and this test is vacuous');
+      assert(C.goalCatalogue.questItemsAreServerCredited('first_cook') === true,
+        'CONTROL: first_cook must be a server-item-credited quest in the catalogue');
+
+      const questRow = () => window.QUEST_DEFS.find((q) => q.id === 'first_cook');
+      assert(questRow() && questRow().reward && questRow().reward.item === 'shrimp',
+        'CONTROL: the authored first_cook reward must still carry an item (the parity guard binds the qty)');
+      const authored = Object.assign({}, questRow(), { progress: questRow().goal, done: false });
+
+      window.clientMayWriteRecordField = function () { return false; };   // armed, the live shape
+
+      // ── (2) THE CLAIM FAILS → NOTHING IS GRANTED. ────────────────────────
+      window.G.inventory = {};
+      let fired = 0;
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        claimQuest: (id) => { fired++; return Promise.resolve({ ok: false, error: 'network', quest: id }); },
+      };
+      const qFail = Object.assign({}, authored);
+      window.completeQuest(qFail);
+      assert(fired === 1, 'completeQuest must fire exactly one claimQuest, fired ' + fired);
+      assert(!window.G.inventory.shrimp,
+        'SYNCHRONOUSLY after completeQuest the bag must still be empty — a client mint here is the phantom '
+        + 'bug; got ' + window.G.inventory.shrimp);
+      await Promise.resolve(); await Promise.resolve();
+      assert(!window.G.inventory.shrimp,
+        'THE BUG: a REFUSED claim granted ' + window.G.inventory.shrimp + ' shrimp locally. The item must come '
+        + 'from the server receipt or not at all.');
+      assert(qFail.claimed !== true, 'a refused claim must NOT mark the quest claimed — the sweep has to retry it');
+
+      // ── (1) THE CLAIM SUCCEEDS → THE RECEIPT IS WHAT LANDS. ──────────────
+      window.G.inventory = {};
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        claimQuest: (id) => Promise.resolve({ ok: true, credited: true, quest: id, gold: 200, items: { shrimp: 30 } }),
+      };
+      const qOk = Object.assign({}, authored);
+      window.completeQuest(qOk);
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+      assert(window.G.inventory.shrimp === 30,
+        'the granted items must be mirrored from the RPC response; got ' + window.G.inventory.shrimp);
+      assert(qOk.claimed === true, 'a credited claim must mark the quest claimed so the sweep stops asking');
+
+      // THE RECEIPT IS THE AUTHORITY, not the authored row: a server that says 7
+      // must land 7. This is what makes it a mirror rather than a second copy of
+      // the catalogue.
+      window.G.inventory = {};
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        claimQuest: () => Promise.resolve({ ok: true, credited: true, gold: 200, items: { shrimp: 7 } }),
+      };
+      const qSeven = Object.assign({}, authored);
+      window.completeQuest(qSeven);
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+      assert(window.G.inventory.shrimp === 7,
+        'the client must render what the SERVER granted (7), not what the row authors (30); got '
+        + window.G.inventory.shrimp);
+
+      // A REPLAY (already_claimed) credits nothing but still stops the retry.
+      window.G.inventory = {};
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        claimQuest: () => Promise.resolve({ ok: false, error: 'already_claimed' }),
+      };
+      const qReplay = Object.assign({}, authored);
+      window.completeQuest(qReplay);
+      await Promise.resolve(); await Promise.resolve();
+      assert(!window.G.inventory.shrimp, 'already_claimed must grant nothing a second time');
+      assert(qReplay.claimed === true, 'already_claimed IS the server confirming it paid — stop retrying');
+    } finally {
+      window.HearthriseGoalClaim = origClaim;
+      window.clientMayWriteRecordField = origMay;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('QUEST-ITEM-2: a done-but-unconfirmed quest is re-claimed by the sweep, and a confirmed one is never asked again', async () => {
+    /* completeQuest is fire-and-forget and `G.quests` is a RESIDUE field, so
+       `done:true` survives a reload while a dropped claim does not — one lost
+       packet used to mean the quest was finished forever with nothing paid.
+       That was already true of the gold; the item credit makes it cost more.
+       hrSweepUnclaimedQuests re-fires any done-and-unconfirmed quest (the server
+       once-guard makes that free) and drains itself via `q.claimed`.
+       MUTATION: delete the `!q.claimed` term → the confirmed-quest assertion
+       goes red (it would ask for ever). */
+    const snap = snapshotG();
+    const origClaim = window.HearthriseGoalClaim;
+    try {
+      const asked = [];
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        claimQuest: (id) => { asked.push(id); return Promise.resolve({ ok: false, error: 'network' }); },
+      };
+      window.G.quests = [
+        { id: 'gatherer', type: 'gather', goal: 15, progress: 15, reward: { gold: 150 }, done: true },
+        { id: 'first_cook', type: 'cooked', goal: 5, progress: 5, reward: { gold: 200, item: 'shrimp', qty: 30 }, done: true, claimed: true },
+        { id: 'first_blood', type: 'kill_any', goal: 5, progress: 2, reward: { gold: 150 }, done: false },
+      ];
+      window.hrSweepUnclaimedQuests._at = 0;
+      const n = window.hrSweepUnclaimedQuests();
+      await Promise.resolve(); await Promise.resolve();
+      assert(n === 1 && asked.length === 1 && asked[0] === 'gatherer',
+        'the sweep must re-claim exactly the done-and-unconfirmed quest; asked ' + JSON.stringify(asked));
+
+      // THROTTLED: a second pass inside the window must not re-fire.
+      const again = window.hrSweepUnclaimedQuests();
+      assert(again === 0 && asked.length === 1,
+        'the sweep must be throttled — a busy session must not spin the RPC; asked ' + JSON.stringify(asked));
+
+      // DRAINED: once every quest is confirmed there is nothing to ask, ever.
+      window.G.quests.forEach((q) => { q.claimed = true; });
+      window.hrSweepUnclaimedQuests._at = 0;
+      assert(window.hrSweepUnclaimedQuests() === 0 && asked.length === 1,
+        'a fully-confirmed quest list must cost zero RPCs; asked ' + JSON.stringify(asked));
+    } finally {
+      window.HearthriseGoalClaim = origClaim;
+      if (window.hrSweepUnclaimedQuests) window.hrSweepUnclaimedQuests._at = 0;
+      restoreG(snap);
+    }
+  }),
+
   () => tryRunAsync('COMBAT-XP-CREDIT-1 (#5 root pt2): armed combat XP accumulates + flushes to hr_credit_combat_xp, subtracts only what was sent, keeps failures pending', async () => {
     // Bug #5 root pt2 — "attack level reverts 5→4". Live combat XP is
     // client-predicted; the server's only combat-XP writer is the away/span-sim,

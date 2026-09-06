@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-06",
- "replay_ms": 10757,
+ "replay_ms": 9877,
  "counts": {
-  "tracked_names": 42,
-  "entries": 42
+  "tracked_names": 43,
+  "entries": 43
  },
  "functions": [
   {
@@ -145,21 +145,22 @@
     "2026-08-21-streak-state.sql",
     "2026-08-22-rested-record.sql",
     "2026-08-25-workers.sql",
+    "2026-09-06-cadence-recovery-floor.sql",
     "2026-09-06-recovering-until.sql"
    ],
    "live": {
-    "md5": "0e69cf6b774c19f3558d4fee796f1f5d",
-    "norm_len": 78887,
+    "md5": "3ee8c797502b9a3a7d22ee9485f0e0b5",
+    "norm_len": 82128,
     "measured": "2026-09-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5c1fa288b357406fac1ee310cb229716",
-    "norm_len": 79017,
+    "md5": "980b5119df0617729bb67deec8b0bd8f",
+    "norm_len": 82258,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "2026-09-06 b509 (2026-09-06-recovering-until.sql applied 11:01 UTC): live and replay differ by comments/whitespace only — `--codediff hr_apply` reports 31289 code chars and a 130-char delta that is entirely comments/whitespace. Origin: the migration patches the live body programmatically (regexp over pg_get_functiondef inserting the recovering_until allowlist/validation/SET arms + c_max_death_rows), so the whitespace around the inserted arms follows the live text, not the repo file. Post-apply verification (read-only) confirmed each inserted arm lands exactly once and nothing was erased. Executable text is the same; re-run --codediff hr_apply to reconfirm."
+   "why": "2026-09-06 (2026-09-06-cadence-recovery-floor.sql applied 14:35 UTC, after 2026-09-06-recovering-until.sql at 11:01): live and replay differ by comments/whitespace only — `--codediff hr_apply` reports 31790 code chars and a 130-char delta that is entirely comments/whitespace. Origin unchanged: every arm since the 2026-08-25 restatement is an anchored programmatic patch over the live text, so comment placement follows the live body, not the repo chain. Post-apply verification confirmed §3b activity-switch stamp and §4b recovering_until floor each exactly once, earlier arms intact. Executable text identical; re-run --codediff hr_apply to reconfirm."
   },
   {
    "sig": "hr_assert_grant_hygiene(p_strict boolean)",
@@ -404,18 +405,21 @@
    "sig": "hr_credit_combat_xp__ungated(p_slot integer, p_xp jsonb, p_idem text)",
    "name": "hr_credit_combat_xp__ungated",
    "tracked_by": [
-    "floor"
+    "floor",
+    "pin"
    ],
-   "touched_by": [],
+   "touched_by": [
+    "2026-09-06-cadence-recovery-floor.sql"
+   ],
    "live": {
-    "md5": "7420455785668adcedd55c6c3002a8fe",
-    "norm_len": 9839,
+    "md5": "ba877ea314565bdd7e39ab99c65878fb",
+    "norm_len": 15583,
     "measured": "2026-09-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7420455785668adcedd55c6c3002a8fe",
-    "norm_len": 9839,
+    "md5": "ba877ea314565bdd7e39ab99c65878fb",
+    "norm_len": 15583,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -429,17 +433,18 @@
    ],
    "touched_by": [
     "2026-09-01-kill-daily-credit.sql",
-    "2026-09-02-renown-kill-faucet.sql"
+    "2026-09-02-renown-kill-faucet.sql",
+    "2026-09-06-cadence-recovery-floor.sql"
    ],
    "live": {
-    "md5": "31807e6470bb0c870097490becf15338",
-    "norm_len": 20235,
+    "md5": "ab39935430da4abf223626bb72a82363",
+    "norm_len": 29458,
     "measured": "2026-09-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "31807e6470bb0c870097490becf15338",
-    "norm_len": 20235,
+    "md5": "ab39935430da4abf223626bb72a82363",
+    "norm_len": 29458,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -722,6 +727,28 @@
    "replay": {
     "md5": "c583b4545f4ae41e378340e8c1b101e2",
     "norm_len": 3922,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_rest(p_slot integer, p_intent_id uuid)",
+   "name": "hr_rest",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-06-cadence-recovery-floor.sql"
+   ],
+   "live": {
+    "md5": "4fe27ae0417cfd242df90a7a37af9d8b",
+    "norm_len": 7771,
+    "measured": "2026-09-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4fe27ae0417cfd242df90a7a37af9d8b",
+    "norm_len": 7771,
     "source": "computed-from-replay"
    },
    "agree": true

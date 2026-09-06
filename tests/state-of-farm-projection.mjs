@@ -141,7 +141,13 @@ async function boot(mutate, gateBlind) {
   return db;
 }
 
-async function seed(db, uid, deeds) {
+/* The fixture character must be able to BUY the two tiers for the RIGHT
+   reason. Since 2026-09-06-plot-tier-reachable.sql the tier is priced in gold
+   OR deeds AND gated on farming level (hr_plot_tier.req_farm_level), so the
+   fixture seeds all three. Every number is READ from the server's own tables
+   (hr_plot_tier, hr_xp_table) — a Designer moving the ladder must never be
+   able to make this projection guard vacuous or falsely red. */
+async function seed(db, uid, deeds, farmXp) {
   await db.exec(`insert into auth.users (id) values ('${uid}') on conflict (id) do nothing;`);
   await db.exec(`insert into public.player_state (user_id, slot, gold, gems, version)
                  values ('${uid}', 0, 1000000, 0, 1)
@@ -149,6 +155,9 @@ async function seed(db, uid, deeds) {
   await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty)
                  values ('${uid}', 0, 'farm_deed', ${deeds})
                  on conflict (user_id, slot, item_id) do update set qty=${deeds};`);
+  await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
+                 values ('${uid}', 0, 'farming', ${farmXp})
+                 on conflict (user_id, slot, skill_id) do update set xp=${farmXp};`);
 }
 
 async function asUser(db, uid, sql, params) {
@@ -166,13 +175,24 @@ async function runAll(db) {
   // Enough deeds for two upgrades (the ladder lives in hr_plot_tier — read it,
   // never hardcode a balance value the Designer owns).
   const ladder = (await db.query(
-    `select plot_level, deed_cost from public.hr_plot_tier where plot_level in (2,3) order by plot_level`)).rows;
+    `select plot_level, deed_cost, coalesce(req_farm_level, 1) as req_farm_level
+       from public.hr_plot_tier where plot_level in (2,3) order by plot_level`)).rows;
   ok(ladder.length === 2, `hr_plot_tier has tiers 2 and 3 (got ${ladder.length})`);
+  /* THE PACING GATE, read not assumed: the highest farming level the two rungs
+     ask for, converted to XP by the server's own curve (hr_xp_table, the table
+     hr_level_from_xp reads). If the Designer raises req_farm_level the fixture
+     follows; if hr_xp_table has no row for that level the fixture says so
+     instead of quietly upgrading nothing. */
+  const reqLv = Math.max(...ladder.map(r => Number(r.req_farm_level) || 1));
+  const xpRow = (await db.query(
+    `select xp from public.hr_xp_table where level = $1`, [reqLv])).rows[0];
+  ok(!!xpRow, `hr_xp_table prices farming level ${reqLv} (the tier-3 gate)`);
+  const farmXp = Number(xpRow ? xpRow.xp : 0);
   /* +1: hr_farm_upgrade_plot debits with `qty > v_cost` and otherwise DELETES the
      stack, so an exact balance still pays — but seeding one spare keeps the
      fixture about the projection rather than about that edge. */
   const need = ladder.reduce((n, r) => n + Number(r.deed_cost), 0) + 1;
-  await seed(db, A, need);
+  await seed(db, A, need, farmXp);
 
   // ── Q-2: TWO REAL UPGRADES → plot_level 3, written only by the server ─────
   for (let i = 0; i < 2; i++) {

@@ -53068,6 +53068,16 @@ const TESTS = [
          a foe whose time-to-kill exceeds one settle window is precisely what
          the fight-carry column exists for. */
       window.G.playerMaxHp = 1e6; window.G.playerHp = 1e6;
+      /* AND KEEP IT. b511's startCombat seeds the bar from the server's last
+         stated hp whenever that statement is NEWER than the last moment the
+         client owned the bar (`_hpLocalAt`), and it takes the MIN — so an
+         earlier test that left a serverHp observation behind silently clamps
+         this fixture's 1e6 back to a killable number, the "unkillable" premise
+         breaks and the fight can end from a knockout mid-test (CI b511: F18-2
+         red on the full run, green in isolation). Stamping `_hpLocalAt` is the
+         engine's own way of saying "the client owns this number now" — it
+         changes no engine behaviour, only the fixture's. */
+      window.G._hpLocalAt = Date.now();
       const max = window.MONSTERS.dragon.hp;
       /* The server says: you are on the dragon, and it is nearly dead. Before
          b372 this landed on startCombat() alone and the player got a brand-new
@@ -54707,7 +54717,12 @@ const TESTS = [
      on a live backend object, which is how it would actually return. */
   () => tryRun('2026-09-06: the market backend opens no Realtime channel', () => {
     const M = window.HearthriseSupabaseMarket;
-    assert(M && typeof M.buyAggregated === 'function',
+    /* THE VACUITY PROBE. It must name a method the BACKEND actually has:
+       `buyAggregated` is a HearthriseMarket facade verb, not a backend one, and
+       naming it turned this guard permanently red (CI b511) on a backend that
+       was loaded and correct. `buyListing` is the backend's own buy path and is
+       the method the trim would have to be revisited for. */
+    assert(M && typeof M.buyListing === 'function',
       'the Supabase market backend is not published — this test would pass vacuously');
     assert(typeof M.subscribe !== 'function',
       'the market backend grew a subscribe() again: a postgres_changes handler on an '

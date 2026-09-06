@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileWorkers, reconcileHeroSlots } from './accrue.js?v=507';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots } from './accrue.js?v=507';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1754,6 +1754,16 @@ function settle(verdict) {
        is not re-offset. Guarded — a throw must never break the record load. */
     hydrationStep('inventory+bank+workers', () => {
       reconcileBank(G, verdict.body);       // dormant in prod (invAbsolute false)
+      /* SA-010 — THE PURCHASED BANK RUNGS, and unlike the line above this one is
+         LIVE IN PROD. `G.bank.goldBuys` is homed by no record and no residue, so
+         without this the boot path leaves it at the literal's 0 and every bought
+         rung is gone on reload (cap back to 100, "Bank full" on paid space, one
+         "that bank space is already yours" per owned rung). The IDLE boot is
+         exactly the case that needs it: hr-accrue answers accrued:false and
+         applyEnvelopeState never runs, so the hr_load body is the only statement
+         of the ladder this session will see. Fail-closed on a missing `progress`
+         array (leaves G.bank alone) and idempotent on a non-idle boot. */
+      reconcileBankRungs(G, verdict.body);
       reconcileInventory(G, verdict.body);  // merge-ratchets the full server bag in
       /* b477 — SAME IDLE-BOOT CLASS FOR THE CREW. The worker roster hydrated ONLY
          via applyEnvelopeState (accrue.js), which runs ONLY on accrued:true. On an

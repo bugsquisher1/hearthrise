@@ -138,6 +138,18 @@
 // session-scoped, also never reset in prod — a slot switch reloads the page).
 // __resetPropertyRecord() is the test/sign-out seam.
 //
+// ── WHAT ELSE LIVES HERE, AND WHY (SA-010) ─────────────────────────────────
+// Three ladders are read out of the SAME `progress` array by the same two
+// helpers: the `property:` namespace max (the tier), the flat `worker_hire`
+// rung (the paid crew cap) and the flat `bank` rung (the paid bag capacity —
+// `pickBankRung`, consumed by accrue.js reconcileBankRungs). Only the property
+// tier needs the session record + read-time heal, because only it is mirrored
+// by a residue field that can race the hydrate; the other two are written
+// straight into G by their reconciles. They are read here rather than in
+// modules of their own so `isPermanentUnlock` / `highestRung` / the
+// exact-vs-floor rule have exactly ONE implementation — a second copy of that
+// rule is a second answer to "what does this player own".
+//
 // PURE + DOM-free + Node-importable. No imports: the pick functions are total
 // functions of an envelope and the cache is three integers.
 // ============================================================================
@@ -151,6 +163,11 @@ const PROPERTY_PREFIX = 'property:';
    'worker_hire'). This is the cap hr_worker_hire itself reads, so it is the one
    number that can make the client's pre-flight agree with the server's answer. */
 const WORKER_UNLOCK = 'worker_hire';
+
+/* The bank-space ladder (src/data/gold-ladders.js, unlock_id 'bank' — 30 rungs).
+   Its rung count IS `G.bank.goldBuys`, which is what bankCap() multiplies by
+   BANK_SPACE.gold.slots. See pickBankRung below. */
+const BANK_UNLOCK = 'bank';
 
 /** Is this a PERMANENT unlock row (period_key = '')? Period rows are dailies /
  *  weeklies and are pruned at 31 days — a rung must never be read out of one.
@@ -206,6 +223,21 @@ export function pickPropertyTier(res) {
 /** The paid crew cap the SERVER states, or null when the envelope does not say. */
 export function pickWorkerRung(res) {
   return highestRung(res, (k) => k === WORKER_UNLOCK);
+}
+
+/** The paid BANK rung the SERVER states, or null when the envelope does not say
+ *  (SA-010). Third ladder read out of the same `progress` array, and read HERE
+ *  rather than in a module of its own because `highestRung` + `isPermanentUnlock`
+ *  are the fiddly half and a second copy of them is a second answer.
+ *
+ *  `hr_unlock_buy` files a bank purchase as `kind='unlock' key='bank'` with the
+ *  RUNGS OWNED as the value (1..30, merged GREATEST — 2026-08-19-gold-spend-
+ *  slices-2-3.sql), so the value IS `G.bank.goldBuys`. There is no `bank:` prefix
+ *  and no namespace max to take: one flat ladder, exactly like `worker_hire`.
+ *  Fail-closed on absence (no `progress` array → null → UNKNOWN), 0 on a present
+ *  array with no bank row — a real "has bought none yet". */
+export function pickBankRung(res) {
+  return highestRung(res, (k) => k === BANK_UNLOCK);
 }
 
 /* ── THE SESSION RECORD: A VALUE **AND** WHAT KIND OF CLAIM IT IS ─────────────
@@ -279,7 +311,7 @@ let observedExact = false;
  *  carry `period_key = ''` — the smallest value — so the permanent rows a rung
  *  lives in are the FIRST rows in the window and are the last thing truncation
  *  would reach. (2026-08-26-marks-record.sql §hr_state_of.) */
-function isCompleteStatement(res) {
+export function isCompleteProgressStatement(res) {
   return !!(res && typeof res === 'object' && res.progress_truncated === false);
 }
 
@@ -307,7 +339,7 @@ function mergeRung(prev, prevExact, next, complete) {
 export function notePropertyUnlocks(res) {
   const tier = pickPropertyTier(res);
   const workers = pickWorkerRung(res);
-  const complete = isCompleteStatement(res);
+  const complete = isCompleteProgressStatement(res);
   const before = observedTier;
   const t = mergeRung(observedTier, observedExact, tier, complete);
   const w = mergeRung(observedWorkers, true, workers, complete);
@@ -503,7 +535,8 @@ export function __resetPropertyRecord(tier, workers) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseProperty = {
-    pickPropertyTier, pickWorkerRung, notePropertyUnlocks,
+    pickPropertyTier, pickWorkerRung, pickBankRung, isCompleteProgressStatement,
+    notePropertyUnlocks,
     notePropertyGranted, notePropertyRefusalTier,
     serverPropertyTier, serverWorkerRung, propertyTierKnown, propertyTierExact,
     propertyStatementTruncated,

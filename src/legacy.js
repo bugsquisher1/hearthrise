@@ -665,7 +665,11 @@ let G={
   playerName:'Adventurer',
   gold:500,
   gems:0,                                   /* premium currency */
-  bank:{goldBuys:0,gemBuys:0,grandfather:0},/* b269: purchased bank-space state */
+  /* b269: purchased bank-space state. ⚠ SA-010 — THE ONLY `bank:` KEY IN THIS
+     LITERAL. A second `bank:{}` sat 12 lines below and silently SHADOWED this
+     one (last key wins), so the documented defaults never existed and the
+     purchased ladder read as un-owned. Guarded by smoke SA010-1. */
+  bank:{goldBuys:0,gemBuys:0,grandfather:0},
   entitlements:{},                          /* {hearthHall:true, ...} — cosmetic/convenience only */
   ownedThemes:['default'],
   ownedCosmetics:[],
@@ -677,7 +681,6 @@ let G={
      changing a number here. This literal cannot import it (classic script,
      evaluated at parse time), which is why the guard exists. */
   inventory:{turnip_seed:5,carrot_seed:3,shrimp:10,cooked_shrimp:20},
-  bank:{},
   equipment:{...Object.fromEntries(EQUIP_SLOTS.map(s=>[s,null])),weapon:'bronze_sword'},
   /* ELEMENTS v1 — the weapon-slot enchant, SERVER-AUTHORED. Element name only,
      never a magnitude ({weapon:'ember'|'frost'|'poison'} or {}). Persists by
@@ -791,6 +794,13 @@ window.__FRESH_START = Object.freeze({
      client-state pref rather than a server catalogue row, so B338-1 cannot reach
      it through START_KIT — B495-1 grades it here. */
   foodSlot: G.foodSlot,
+  /* SA-010 — the fresh BANK-SPACE state, snapshotted here for the same reason
+     the kit is: it is the only place the LITERAL can be observed before
+     ensureSave() repairs it. A duplicate `bank:` key in the literal (there was
+     one, and it shadowed the documented b269 defaults for four builds) is
+     invisible at runtime everywhere else, because ensureSave Object.assigns the
+     defaults back on every load. Smoke SA010-1 grades this. */
+  bank: Object.freeze({ ...G.bank }),
 });
 
 /* ════════════════════════════════════════════════
@@ -4373,7 +4383,15 @@ function buyBankSpaceGold(){
   var _boffer='bank.'+_k0;
   var _bk=(typeof goldIntentKey==='function')?goldIntentKey():null;
   var _debitBank=function(){ goldSettle(-cost,'bank.buy_gold',_bk); };
-  var _advanceBank=function(){ G.bank.goldBuys=(G.bank.goldBuys||0)+1; };
+  /* ⚠ SA-010 — A RECEIPT IS "AT LEAST", NOT "ONE MORE". The buy's own confirm
+     envelope has ALREADY been applied by the time this callback runs (gold.js
+     applyGoldEnvelope → applyEnvelopeState → reconcileBankRungs writes the
+     server's rung), so a blind ++ would land the client ONE RUNG ABOVE the
+     server and price/ask for the wrong offer next time. Raising to the rung
+     this gesture bought (`_k0 + 1`) is idempotent, matches the server's
+     GREATEST merge, and makes the `already_owned` branch catch up in ONE
+     press instead of one press per owned rung. */
+  var _advanceBank=function(){ G.bank.goldBuys=Math.max((G.bank.goldBuys||0), _k0+1); };
   var _announceBank=function(){
     if(typeof notify==='function')notify('Bank expanded +'+BANK_SPACE.gold.slots+' slots','levelup');
     if(typeof saveLocal==='function')saveLocal();

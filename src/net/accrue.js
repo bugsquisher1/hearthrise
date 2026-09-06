@@ -1288,7 +1288,7 @@ import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=507';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks } from './property-record.js?v=507';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=507';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -1391,6 +1391,65 @@ export function reconcileBank(G, res, invAbsolute, baselineComplete) {
   }
   G.bank = next;
   return { mode: 'absolute', keys: Object.keys(next).length };
+}
+
+/* ── THE PURCHASED BANK RUNGS, RESTORED FROM SERVER TRUTH (SA-010) ───────────
+   THE LIVE P1 THIS CLOSES ("bank space purchases are forgotten on reload"). The
+   bank CAP is `BASE_CAP + goldBuys*20 + gemBuys*60 + grandfather` (legacy.js
+   bankCap), and `G.bank.goldBuys` was homed by NOTHING: `bank` is not a record
+   field and not a RESIDUE_FIELD, so under the allowlist persistence every
+   purchased rung vanished on reload — the cap snapped back to 100, "Bank full"
+   started nagging with paid space unused, and each press of Buy answered "That
+   bank space is already yours" (hr_unlock_buy `already_owned`, because the
+   client was asking for a rung the server had already sold it) once per owned
+   rung before it caught up. reconcileBank above deliberately CARRIES the three
+   counters through untouched — carrying through is not restoring, and nothing
+   restored them.
+
+   THE SERVER ALREADY SENDS THE ANSWER; THIS IS THE MISSING READER. hr_unlock_buy
+   files a bank purchase as a permanent `player_progress` row
+   `kind='unlock' key='bank' value=<rungs owned>` (GREATEST-merged, ladder-ordered,
+   30-rung ceiling enforced in SQL), and hr_state_of projects every permanent
+   progress row in the top-level `progress` array that rides EVERY envelope — the
+   boot hr_load body and every settle. So no migration and no new projection: the
+   same wire the property tier and the crew rung already come home on.
+
+   ⚠ SERVER TRUTH IN **BOTH** DIRECTIONS, under the b502 rule, and it is the same
+   class the property deadlock was: a client-held number gating a SERVER-OWNED
+   capability may cache a server value, never out-rank one. A client sitting
+   ABOVE the server (the pre-b500 optimistic `goldBuys++` whose refusal was
+   swallowed) asks for a rung the server refuses `rung_order` — a bank that can
+   never be expanded again — so a raise-only heal would preserve that lie
+   forever. Hence:
+     · COMPLETE statement (`progress_truncated === false`) → the server's rung IS
+       the count, up or down;
+     · TRUNCATED / undeclared → a FLOOR: it may raise, never lower (an absent row
+       proves nothing when the server admits the window clipped);
+     · UNKNOWN (no `progress` array at all — a lean/legacy/malformed body) →
+       G.bank is left exactly alone. Absence is not a claim of zero.
+
+   ONLY `goldBuys` IS SERVER-STATED. `gemBuys` has no server verb (the gem path
+   refuses under the armed gems record — legacy.js buyBankSpaceGem) and
+   `grandfather` is a pre-cutover blob migration; both are left untouched here,
+   and neither can be restored by a reader because there is no row to read. When
+   a gem rung gets a server ladder it becomes one more `pickBankRung`-shaped read,
+   not a second mechanism.
+
+   Pure: takes G + res, returns a small receipt, so the suite and the arm-homing
+   guard drive it without a live window. */
+export function reconcileBankRungs(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const rung = pickBankRung(res);
+  if (rung === null) return { mode: 'absent' };          // UNKNOWN — leave G.bank alone
+  const cur0 = Number(G.bank && G.bank.goldBuys);
+  const cur = (Number.isFinite(cur0) && cur0 > 0) ? Math.floor(cur0) : 0;
+  const complete = isCompleteProgressStatement(res);
+  const next = complete ? rung : Math.max(cur, rung);
+  if (next !== cur) {
+    if (!G.bank || typeof G.bank !== 'object') G.bank = {};
+    G.bank.goldBuys = next;
+  }
+  return { mode: 'server', rungs: next, from: cur, exact: complete, lowered: next < cur };
 }
 
 /* ── THE COMPANION ROSTER, RECONSTRUCTED FROM THE ENVELOPE (blob-retire) ──────
@@ -2263,6 +2322,11 @@ export function applyEnvelopeState(G, res, ownKey) {
      absolute/carve-out machinery as the bag. Fully inert while dormant (invAbsolute
      is false in prod): reconcileBank leaves G.bank untouched. */
   written.bank = reconcileBank(G, res, invAbsolute, baselineComplete);
+  /* THE PURCHASED BANK RUNGS (SA-010). Beside the item store because the two
+     share one object, but on its own authority: the rungs are `progress`
+     unlock rows and are NOT gated on the inventory arm — a paid rung must come
+     home on every envelope in prod, today. See reconcileBankRungs' header. */
+  written.bankRungs = reconcileBankRungs(G, res);
   /* THE BAG (b46x inventory-hydrate). Extracted to reconcileInventory so the
      boot hr_load settle (record.js) can hydrate the bag on an IDLE boot — where
      hr-accrue returns {accrued:false} and applyEnvelopeState never runs, the
@@ -3661,7 +3725,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileInventory, reconcileBank, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileCombatStyle, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileCombatStyle, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,

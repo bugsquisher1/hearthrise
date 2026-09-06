@@ -436,9 +436,82 @@ export async function armHomingGuard() {
     fail('the load-path call-wiring check threw: ' + (e && e.message));
   }
 
-  // Bank purchase counters (goldBuys/gemBuys/grandfather) ride inside G.bank —
-  // covered by the bank mechanism; no separate assertion. bountyHunter.marks was
-  // the historic nested-authority trap — now top-level G.marks (b443), asserted above.
+  // ── THE BANK MECHANISM IS **DRIVEN**, NOT TAKEN ON TRUST (SA-010). ─────────
+  // `bank` sat in SERVER_MECHANISM_FIELDS above naming `reconcileBank` — a
+  // hand-typed claim the code CONTRADICTED. reconcileBank reconciles the item
+  // STORE, is inert in prod (invAbsolute false), and explicitly only CARRIES the
+  // purchase counters through; nothing restored them, so `G.bank.goldBuys` reset
+  // to 0 on every reload and every purchased rung was forgotten (the cap snapped
+  // back to the 100 base and Buy answered "that bank space is already yours" once
+  // per owned rung). A membership test can never catch that: listing a field only
+  // asserts SOME function names it. So this check RUNS the mechanism against an
+  // envelope fixture carrying purchased rungs and asserts G.bank actually gains
+  // them — the same standard the load-path wiring check applies to the call.
+  try {
+    const acc = await import(mod('src/net/accrue.js'));
+    if (typeof acc.reconcileBankRungs !== 'function') {
+      fail("'bank' is listed as a SERVER_MECHANISM field but accrue.js exports no reconcileBankRungs — the "
+         + 'purchased rungs (G.bank.goldBuys, which IS the bank cap) would be homed by nothing and reset on '
+         + 'every reload (SA-010).');
+    } else {
+      /* The wire shape hr_state_of projects: a permanent unlock row per ladder,
+         plus the completeness flag that licenses an exact (lowerable) reading. */
+      const envelope = (rungs, extra) => Object.assign({
+        progress: [
+          { kind: 'unlock', key: 'bank', value: rungs, period: '' },
+          { kind: 'unlock', key: 'worker_hire', value: 1, period: '' },
+        ],
+        progress_truncated: false,
+      }, extra || {});
+
+      // 1 — A FRESH G (the reload) must GAIN the two purchased rungs.
+      const fresh = { bank: { goldBuys: 0, gemBuys: 0, grandfather: 0 } };
+      acc.reconcileBankRungs(fresh, envelope(2));
+      if (fresh.bank.goldBuys !== 2) {
+        fail('reconcileBankRungs did not restore the purchased rungs from the envelope — expected '
+           + `G.bank.goldBuys === 2, got ${JSON.stringify(fresh.bank.goldBuys)}. This is SA-010: the bank cap `
+           + 'is derived from that counter and nothing else homes it.');
+      }
+      // 2 — IDEMPOTENT: re-applying the same envelope must not compound.
+      acc.reconcileBankRungs(fresh, envelope(2));
+      if (fresh.bank.goldBuys !== 2) {
+        fail(`reconcileBankRungs is not idempotent — a second identical envelope moved goldBuys to ${fresh.bank.goldBuys}.`);
+      }
+      // 3 — The NON-server counters are never touched by the rung reader.
+      if (fresh.bank.gemBuys !== 0 || fresh.bank.grandfather !== 0) {
+        fail('reconcileBankRungs touched a counter the server does not state (gemBuys/grandfather) — those have '
+           + 'no server row and must be left exactly alone.');
+      }
+      // 4 — UNKNOWN (no `progress` array) must leave a populated bank ALONE.
+      const held = { bank: { goldBuys: 5 } };
+      acc.reconcileBankRungs(held, { ok: true });
+      if (held.bank.goldBuys !== 5) {
+        fail('reconcileBankRungs read an envelope with NO `progress` array as a statement of zero — absence is not '
+           + `a claim, and it just deleted five paid rungs (got ${held.bank.goldBuys}).`);
+      }
+      // 5 — A TRUNCATED statement is a FLOOR: it may raise, never lower.
+      const ahead = { bank: { goldBuys: 4 } };
+      acc.reconcileBankRungs(ahead, envelope(1, { progress_truncated: true }));
+      if (ahead.bank.goldBuys !== 4) {
+        fail('a `progress_truncated` envelope LOWERED the bank rungs — a clipped projection may raise but never '
+           + `lower (the b502 exact-vs-floor rule); got ${ahead.bank.goldBuys}.`);
+      }
+      // 6 — A COMPLETE statement is truth in BOTH directions (the residue-ahead
+      //     deadlock: a client above the server asks for a rung SQL refuses).
+      acc.reconcileBankRungs(ahead, envelope(1));
+      if (ahead.bank.goldBuys !== 1) {
+        fail('a COMPLETE `progress` projection did not LOWER a client-ahead rung count — that is the property-tier '
+           + `deadlock class (the server refuses the next buy as rung_order, forever); got ${ahead.bank.goldBuys}.`);
+      }
+    }
+  } catch (e) {
+    fail('the bank-mechanism drive check threw: ' + (e && e.message));
+  }
+
+  // The other two bank counters (gemBuys/grandfather) have NO server row to read
+  // back — they are client-authored and are deliberately untouched above.
+  // bountyHunter.marks was the historic nested-authority trap — now top-level
+  // G.marks (b443), asserted above.
 
   if (!problems.length) {
     // A positive line so a green run proves the guard actually walked the census.

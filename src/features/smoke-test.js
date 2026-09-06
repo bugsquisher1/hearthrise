@@ -2719,8 +2719,11 @@ const TESTS = [
 
   () => tryRunAsync('BANK-REFUSE-1 (b500): a server-REFUSED bank expansion does NOT advance goldBuys and says why', async () => {
     if (typeof window.buyBankSpaceGold !== 'function') return;
-    /* goldBuys is a RESIDUE counter that reconcileBank carries UNTOUCHED (never
-       heals) — so an optimistic ++ on a refusal is STRANDED, exactly the class. */
+    /* goldBuys is carried UNTOUCHED by reconcileBank (the item store) — so an
+       optimistic ++ on a refusal is a rung the realm never sold. Since SA-010 the
+       counter IS restored, but only from the server's own `unlock` row
+       (reconcileBankRungs), which a refusal never writes: the advance must not
+       happen here either way. */
     const snap = snapshotG();
     const origGold = window.HearthriseGold, origNotify = window.notify;
     const origSave = window.saveLocal, origTop = window.updateTopbar, origInv = window.renderInventory;
@@ -2759,10 +2762,172 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
+     SA-010 — PURCHASED BANK SPACE IS FORGOTTEN ON RELOAD (Q-4, live P1)
+     ══════════════════════════════════════════════════════════════════════════
+     THE PLAYER'S REPORT: the bank cap snaps back to the 100 base after a reload,
+     "Bank full" nags start with paid space unused, and Buy must be pressed once
+     per already-owned rung, each answering "That bank space is already yours."
+
+     TWO INDEPENDENT FAULTS, one per test below.
+       (a) The fresh-G literal declared `bank:` TWICE — the documented b269
+           defaults at the top and a bare `bank:{}` twelve lines down. Last key
+           wins, so the defaults never existed. Invisible at runtime everywhere
+           except the frozen literal snapshot, because ensureSave() Object.assigns
+           them back on every load — which is why this is graded against
+           `window.__FRESH_START`, taken before boot and before any load.
+       (b) NOTHING RESTORED THE COUNTERS. `bank` is on no record and in no
+           RESIDUE_FIELDS, so under the allowlist persistence `G.bank.goldBuys`
+           read 0 on every reload; the purchased ladder lives in the server's
+           `unlock` rows and no client reader shaped them back. The cap is a pure
+           function of that counter (bankCap()), so losing it loses the space.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('SA010-1 (Q-4a): the fresh-G literal declares `bank` ONCE, with the b269 defaults', () => {
+    const F = window.__FRESH_START;
+    assert(F && typeof F === 'object', 'window.__FRESH_START is missing');
+    assert(F.bank && typeof F.bank === 'object',
+      'the fresh-character literal no longer snapshots `bank` — SA010-1 cannot see the duplicate-key class it '
+      + 'was written for');
+    assert(F.bank.goldBuys === 0 && F.bank.gemBuys === 0 && F.bank.grandfather === 0,
+      'THE BUG (SA-010a): the fresh G literal\'s `bank` is ' + JSON.stringify(F.bank) + ' — the documented b269 '
+      + 'defaults {goldBuys,gemBuys,grandfather} are NOT there, which means a SECOND `bank:` key in the literal is '
+      + 'shadowing the first one (last key wins) and the bank-space state has no declared shape at all');
+    assert('grandfather' in F.bank,
+      'the b269 grandfather allowance is gone from the fresh literal — the v10→v11 "nobody worse off" migration '
+      + 'has nowhere to land');
+  }),
+
+  () => tryRunAsync('SA010-2 (Q-4b): purchased bank rungs come back from the SERVER after a reload', async () => {
+    const A = window.HearthriseAccrual;
+    if (!A || typeof A.reconcileBankRungs !== 'function') {
+      assert(false, 'HearthriseAccrual.reconcileBankRungs is missing — nothing restores the purchased bank ladder '
+        + 'from the server envelope, so every rung is forgotten on reload (SA-010)');
+      return;
+    }
+    if (typeof window.bankCap !== 'function' || typeof window.buyBankSpaceGold !== 'function') return;
+    const SLOTS = (window.BANK_SPACE && window.BANK_SPACE.gold.slots) || 20;
+    const BASE = (window.BANK_SPACE && window.BANK_SPACE.BASE_CAP) || 100;
+    /* The wire shape hr_state_of projects for two purchased gold rungs: ONE
+       permanent unlock row whose value is the rungs owned (hr_unlock_buy merges
+       GREATEST over key='bank'), plus the completeness flag. */
+    const envelope = () => ({
+      ok: true,
+      progress: [{ kind: 'unlock', key: 'bank', value: 2, period: '' }],
+      progress_truncated: false,
+    });
+
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origNotify = window.notify;
+    const origSave = window.saveLocal, origTop = window.updateTopbar, origInv = window.renderInventory;
+    try {
+      // ── THE RELOAD. A fresh G is exactly what ensureSave() leaves after a load:
+      //    the b269 defaults, zero rungs, cap at the base.
+      window.G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
+      assert(window.bankCap() === BASE,
+        'the pre-condition is wrong: a zero-rung bank should cap at the base ' + BASE + ', got ' + window.bankCap());
+
+      A.reconcileBankRungs(window.G, envelope());
+      assert(window.G.bank.goldBuys === 2,
+        'THE BUG (SA-010b): the server states two purchased bank rungs and the client still holds '
+        + window.G.bank.goldBuys + ' — the paid space is gone on every reload');
+      const capAfterReload = window.bankCap();
+      assert(capAfterReload === BASE + 2 * SLOTS,
+        'the restored cap is ' + capAfterReload + ', expected ' + (BASE + 2 * SLOTS)
+        + ' — the cap is a pure function of goldBuys, so the rungs did not reach it');
+
+      // ── RELOAD AGAIN (the SA-010 repro): a second fresh G, the SAME envelope,
+      //    must land on the SAME cap. A restore that only works once is a race.
+      window.G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
+      A.reconcileBankRungs(window.G, envelope());
+      assert(window.bankCap() === capAfterReload,
+        'a second reload settled on a DIFFERENT cap (' + window.bankCap() + ' vs ' + capAfterReload
+        + ') — the restore is not deterministic');
+      // …and re-applying the same envelope must not compound the ladder.
+      A.reconcileBankRungs(window.G, envelope());
+      assert(window.G.bank.goldBuys === 2,
+        're-applying one envelope compounded the rungs to ' + window.G.bank.goldBuys + ' — not idempotent');
+
+      // ── ABSENCE IS NOT A CLAIM: a lean envelope with no `progress` array must
+      //    never read as "you bought nothing" and delete the ladder.
+      A.reconcileBankRungs(window.G, { ok: true, state: {} });
+      assert(window.G.bank.goldBuys === 2,
+        'an envelope with no `progress` array wiped the purchased rungs — absence is not a statement of zero');
+
+      // ── AND THE PLAYER-VISIBLE HALF: the next Buy must ask for the rung ABOVE
+      //    the ones owned. Asking for bank.0 is what makes the server answer
+      //    "already_owned" → "That bank space is already yours." once per rung.
+      let sentOffer = null;
+      window.notify = function () {};
+      window.saveLocal = function () {}; window.updateTopbar = function () {}; window.renderInventory = function () {};
+      window.G.gold = 5000000;
+      stampBalanceLikeLoad(window.G);
+      window.HearthriseGold = Object.assign({}, origGold, {
+        isGoldIntentEnabled: function () { return true; },
+        newIntentKey: function () { return 'k-sa010'; },
+        buyUnlock: function (offer, key) {
+          sentOffer = offer;
+          return Promise.resolve({ outcome: 'applied', verb: 'unlock_buy', key: key, body: { ok: true } });
+        },
+      });
+      window.buyBankSpaceGold();
+      await new Promise(function (r) { setTimeout(r, 30); });
+      assert(sentOffer === 'bank.2',
+        'THE NAG: after a reload the Buy button asked the server for ' + sentOffer + ' instead of bank.2 — every '
+        + 'offer at or below an owned rung is refused `already_owned` ("That bank space is already yours"), one '
+        + 'press wasted per rung the player already paid for');
+      /* A RECEIPT IS "AT LEAST", NOT "ONE MORE": the buy's own confirm envelope
+         has already written the server's rung by the time the callback runs, so
+         the local advance must be idempotent rather than a blind ++. */
+      assert(window.G.bank.goldBuys === 3,
+        'a confirmed purchase of bank.2 must leave exactly 3 rungs; got ' + window.G.bank.goldBuys);
+      A.reconcileBankRungs(window.G, {
+        ok: true, progress: [{ kind: 'unlock', key: 'bank', value: 3, period: '' }], progress_truncated: false,
+      });
+      assert(window.G.bank.goldBuys === 3,
+        'the confirm envelope and the local advance double-counted the rung (' + window.G.bank.goldBuys + ')');
+    } finally {
+      window.HearthriseGold = origGold; window.notify = origNotify;
+      window.saveLocal = origSave; window.updateTopbar = origTop; window.renderInventory = origInv;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('SA010-3: the server rung out-ranks the client in BOTH directions (the deadlock class)', () => {
+    /* The property-tier deadlock, one ladder over. A client sitting ABOVE the
+       server (the pre-b500 optimistic `goldBuys++` whose refusal was swallowed)
+       asks for a rung hr_unlock_buy refuses on rung ORDER — a bank that can
+       never be expanded again — so a raise-only heal would preserve the lie
+       forever. A COMPLETE projection therefore SETS; a truncated one is a floor. */
+    const A = window.HearthriseAccrual;
+    if (!A || typeof A.reconcileBankRungs !== 'function') return;
+    const row = (v) => [{ kind: 'unlock', key: 'bank', value: v, period: '' }];
+
+    const ahead = { bank: { goldBuys: 4, gemBuys: 1, grandfather: 7 } };
+    A.reconcileBankRungs(ahead, { ok: true, progress: row(1), progress_truncated: true });
+    assert(ahead.bank.goldBuys === 4,
+      'a TRUNCATED `progress` projection lowered the rungs to ' + ahead.bank.goldBuys
+      + ' — a clipped window may raise but never lower');
+
+    A.reconcileBankRungs(ahead, { ok: true, progress: row(1), progress_truncated: false });
+    assert(ahead.bank.goldBuys === 1,
+      'a COMPLETE projection did not lower a client-ahead ladder (' + ahead.bank.goldBuys + ') — that is the '
+      + 'residue-ahead deadlock: every subsequent buy bounces off the server\'s rung order, forever');
+    assert(ahead.bank.gemBuys === 1 && ahead.bank.grandfather === 7,
+      'the rung reader touched a counter the server does not state — gemBuys/grandfather have no server row and '
+      + 'must be left exactly alone');
+
+    // A PRESENT array with no bank row is a real "bought none yet", not UNKNOWN.
+    const none = { bank: { goldBuys: 2 } };
+    A.reconcileBankRungs(none, { ok: true, progress: [{ kind: 'unlock', key: 'worker_hire', value: 1, period: '' }], progress_truncated: false });
+    assert(none.bank.goldBuys === 0,
+      'a complete projection with no `bank` row means the player owns no rung; got ' + none.bank.goldBuys);
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
      THE GEM-SPEND BATTERY — THE THREE TWINS b500 MISSED
      ══════════════════════════════════════════════════════════════════════════
      b500 swept "optimistic-apply, swallowed-rejection" and fixed four sites, one
-     of which is BANK-REFUSE-1 directly above. It walked past `buyBankSpaceGem`
+     of which is BANK-REFUSE-1 above (the SA-010 battery now sits between them). It walked past `buyBankSpaceGem`
      two functions below `buyBankSpaceGold`, plus `buyTheme` and `buyCosmetic`,
      because the sweep — and the census that drove it — were GOLD-shaped.
 

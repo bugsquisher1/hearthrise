@@ -1,10 +1,20 @@
 -- ============================================================================
 -- 2026-09-06-recovering-until.sql — THE RECOVERY RULE (First-Night Idle Rescue).
 --
--- Design ruling (Principal Game Designer, 2026-09-05): A DEATH INTERRUPTS A RUN,
--- IT DOES NOT TERMINATE IT. On death the character is Knocked Out for a flat
--- RECOVERY_MS (120,000 ms; 0 for the first death a character ever suffers), then
--- gets up at full HP and RESUMES THE SAME ACTIVITY.
+-- Design ruling (Principal Game Designer, 2026-09-05; rev. 2 2026-09-06): A DEATH
+-- INTERRUPTS A RUN, IT DOES NOT TERMINATE IT. On death the character is Knocked
+-- Out for `recoveryFor(...)` — a LADDER, not a flat cost: the day's first fall is
+-- free, the second costs 120,000 ms and every fall after that DOUBLES, capped at
+-- 3,840,000 ms (64 minutes), clamped to one rung while lifetime deaths <= 5 — and
+-- then gets up at 40% of max HP and RESUMES THE SAME ACTIVITY.
+--
+-- THE NORMATIVE BANDS (Designer adjudication 2026-09-06). Over a fed 12h night a
+-- FOODLESS character surviving S seconds between falls keeps this share of a fed
+-- character's output:  S=30s 1.18% (food 84.7x) | S=300s 11.11% (food 9.0x) |
+-- S=1800s 46.94% (food 2.1x). These are the arithmetic of the ladder above and
+-- are the figures of record; the earlier illustration (0.49 / 4.6 / 24.2%) was
+-- WITHDRAWN — the adjudication went to the FORMULA. tests/accrual-engine.mjs
+-- RECOVER-8 asserts the bands.
 --
 -- WHAT IT FIXES, measured: a fresh, foodless character's away fight ended at the
 -- FIRST death — `simulateSpan` broke out of the loop and `accrual.js` idled the
@@ -79,6 +89,27 @@
 -- covered, because the engine's switch is THE KEY'S PRESENCE in hr_state_of's
 -- envelope, not a deploy flag. The two halves are therefore safe in either
 -- order, which is the property every column in this schema is built to have.
+--
+-- ⚠ KNOWN LIMITATION, TRACKED, NOT FIXED HERE (Security F1). The cadence RPCs
+--   `hr_credit_kills__ungated` and `hr_credit_combat_xp__ungated`
+--   (2026-08-30-bounty-kill-credit.sql) do NOT floor their credit window at
+--   `recovering_until`, so a MODIFIED client can keep reporting attended kills
+--   and XP straight through a knockout and be paid at the physical cap. It is
+--   bounded by those RPCs' own clamps and day budgets, and it is not reachable
+--   from the stock client, which is why it does not block this file. TODO next
+--   build: `v_wm := greatest(v_wm, least(coalesce(recovering_until, v_wm),
+--   now()))` in BOTH functions, plus a mutation in tests/recovery-rest.mjs that
+--   proves an un-floored window turns the guard red.
+--
+-- ⚠ ROLLBACK RUNBOOK — THE ONE ASYMMETRY. If the EDGE is rolled back AFTER this
+--   migration while a character still carries a non-null recovering_until, the
+--   line stops being enforced (the old engine neither reads nor proposes it), so
+--   the character simply fights on — harmless, and the correct failure direction.
+--   But `hr_rest` is in the DATABASE, not the edge: it survives the rollback and
+--   will still SPEND FOOD to clear a line nothing is enforcing. Either revert §5
+--   (drop hr_rest) in the same breath, or accept that a handful of players may
+--   pay for a cure they did not need; do not leave the pair half-reverted
+--   silently.
 -- ============================================================================
 
 -- ── 0. PRECONDITIONS — FAIL CLOSED ───────────────────────────────────────────
@@ -495,7 +526,10 @@ end $mig$;
 create or replace function public.hr_rest(
   p_slot      int  default 0,
   p_intent_id uuid default null)
-returns jsonb language plpgsql volatile security definer set search_path = public as $fn$
+returns jsonb language plpgsql volatile security definer
+  -- pg_temp last, never first (A4 convention): a SECURITY DEFINER body must not
+  -- be resolvable against a caller-created temp object.
+  set search_path = public, pg_temp as $fn$
 declare
   v_uid    uuid := auth.uid();
   v_slot   int  := coalesce(p_slot, 0);
@@ -755,16 +789,11 @@ begin
     raise exception 'recovery self-check (g): hr_apply / hr_state_of are executable by a client role';
   end if;
 
-  -- (h) THE CEILING ARITHMETIC, evaluated rather than described. 15 minutes.
-  v_t := now() + make_interval(secs => 900000 / 1000.0);
-  if v_t <= now() + interval '14 minutes' or v_t >= now() + interval '16 minutes' then
-    raise exception 'recovery self-check (h): the c_max_recover_ms interval is not 15 minutes';
-  end if;
-  -- An honest stamp (RECOVERY_MS = 120s ahead) must pass that ceiling, or the
-  -- guard would refuse every real recovery and the feature would be dead.
-  if (now() + interval '120 seconds') > v_t then
-    raise exception 'recovery self-check (h): the ceiling refuses an honest RECOVERY_MS stamp';
-  end if;
+  -- (h) WITHDRAWN (Security F5). It evaluated a hardcoded 900,000 ms / "15
+  --     minutes" — rev. 1's ceiling, which rev. 2 raised to 4,200,000 ms. A
+  --     self-check that asserts a number the file no longer ships is worse than
+  --     no check: it passes for the wrong reason and reads as coverage. (i)
+  --     below evaluates the SHIPPED ceiling against the SHIPPED cap.
 
 
   -- ══ REV. 2 PROPERTIES ══════════════════════════════════════════════════════

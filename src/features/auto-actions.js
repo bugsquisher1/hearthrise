@@ -708,6 +708,18 @@
     } catch (e) { owned = false; }
     if (!owned) return { offered: false, why: 'not-owned' };
 
+    /* ⚠ THE HOST IS RESOLVED BEFORE THE SWITCH IS FLIPPED (Security F4).
+       Previously the flip happened first and the telling was best-effort inside
+       a try/catch: on a surface with no notification host at all — an early
+       boot, a headless embed, a page whose toast layer failed to load — the
+       game silently changed how the player's night is fought and never said so.
+       A change to combat behaviour the player is not told about is not an offer,
+       it is a mutation. So: NO HOST, NO FLIP. The predicate is unchanged and the
+       offer simply waits for a boot that can speak, which is safe because
+       nothing here is consumed — `_switchOnOffered` is not set on this path. */
+    var host = window.notifyAction || window.notify;
+    if (!host) return { offered: false, why: 'no-host' };
+
     _switchOnOffered = true;
     /* THROUGH `setEat`, this file's declared ONE WRITER of the eat config — the
        same call the Settings toggle makes. It persists locally AND pushes to

@@ -1915,34 +1915,53 @@ function recoveryGuard() {
       }
       return up / DAY;
     };
-    /* MEASURED against the implemented table on 2026-09-06, over a 12h day, with
-       the novice clamp spent:
+    /* ⚠ ADJUDICATED 2026-09-06 (Game Designer). The ruling originally ILLUSTRATED
+         this rule with 0.49% / 4.6% / 24.2%. Those figures are a steady state
+         against an effective rung of ~100 minutes, which the ladder the ruling
+         SPECIFIES — min(120000·2^(n-2), 3,840,000) — cannot produce, because it
+         caps at 64 minutes. The divergence was raised rather than silently
+         reconciled, and the Designer adjudicated IN FAVOUR OF THE FORMULA: the
+         formula, the 3,840,000 ms cap, the 40% resume and the novice grace are
+         unchanged, and THE ILLUSTRATION IS WITHDRAWN. The figures below are now
+         the NORMATIVE bands and neither the table nor this test was bent to
+         reach them.
+
+       NORMATIVE, over a 12h day with the novice clamp spent (measured against
+       the implemented table):
            fresh  S=30s    1.18%  (food 84.7x, 17 falls)
            mid    S=300s  11.11%  (food  9.0x, 16 falls)
            capped S=1800s 46.94%  (food  2.1x, 11 falls)
-       ⚠ THESE ARE NOT THE FIGURES THE RULING QUOTED (0.49% / 4.6% / 24.2%).
-         The ruling's numbers are a steady state against an effective rung of
-         ~100 minutes; the ladder it actually specifies — min(120000·2^(n-2),
-         3,840,000) — cannot produce one, because it caps at 64. The formula is
-         the normative half of the ruling and is implemented exactly as written,
-         so the ceilings below are set around the ARITHMETIC rather than around
-         the illustration, with headroom for balance drift. The direction the
-         ruling cared about is unchanged and asserted: food dominates at every
-         band, and the capped band is nowhere near rev. 1's 93.75%.
-         This divergence is reported to the Game Designer rather than silently
-         reconciled by bending either the table or the test. */
+
+       Asserted as a [floor, ceiling] on each band's share plus a per-band food
+       multiple. The FLOOR matters as much as the ceiling: a band that silently
+       collapses is a punishment curve, and only a two-sided bracket catches a
+       balance change that moves the rule in either direction.
+
+       ⚠ FINDING — THE CAPPED BAND'S 0.30 FLOOR IS NOT A PREFERENCE, IT IS THE
+         ARITHMETIC, AND IT BOUNDS WHAT A FUTURE CEILING CAN ASK FOR. Over a 12h
+         day at S=1800s only ~11 fights fit at all, and the early rungs (the free
+         fall, then 2m/4m/8m/16m) are small against thirty-minute fights, so the
+         cap has very little left to bite on. MEASURED by sweeping
+         RECOVERY_CAP_MS with the rest of the table held: 3,840,000 → 46.94%,
+         10,000,000 → 41.57%, unbounded → 37.50%, which is the ASYMPTOTE. NO
+         value of RECOVERY_CAP_MS can push this band below ~0.375; a future
+         ceiling under that is UNSATISFIABLE and must be met by changing the
+         ladder's SHAPE (base, growth rate, or the free fall), never its cap.
+         The 0.30 floor asserted here therefore sits deliberately BELOW the
+         reachable minimum — it is drift headroom, not a target. */
     const BANDS = [
-      { label: 'fresh',  survivalMs: 30 * 1000,   max: 0.03, minMult: 20 },
-      { label: 'mid',    survivalMs: 300 * 1000,  max: 0.16, minMult: 5 },
-      { label: 'capped', survivalMs: 1800 * 1000, max: 0.55, minMult: 1.8 },
+      { label: 'fresh',  survivalMs: 30 * 1000,   min: 0.005, max: 0.025, minMult: 40 },
+      { label: 'mid',    survivalMs: 300 * 1000,  min: 0.07,  max: 0.16,  minMult: 6 },
+      { label: 'capped', survivalMs: 1800 * 1000, min: 0.30,  max: 0.52,  minMult: 1.9 },
     ];
     for (const b of BANDS) {
       const f = share(b.survivalMs);
-      ok(f > 0 && f <= b.max,
+      ok(f >= b.min && f <= b.max,
         `RECOVER-8 (R4) [${b.label}]: a foodless character surviving ${b.survivalMs / 1000}s between `
-        + `falls keeps ${(f * 100).toFixed(2)}% of a fed character's day. The ruling's ceiling for `
-        + `this band is ${(b.max * 100).toFixed(0)}%. The rev-1 FLAT rule scored 93.75% at the `
-        + 'capped band, which is why it was rejected — food must be a decision, not advice.');
+        + `falls keeps ${(f * 100).toFixed(2)}% of a fed character's day, outside the adjudicated `
+        + `bracket [${(b.min * 100).toFixed(1)}%, ${(b.max * 100).toFixed(1)}%]. The rev-1 FLAT rule `
+        + 'scored 93.75% at the capped band, which is why it was rejected — food must be a '
+        + 'decision, not advice; and a band under its floor is a punishment, not a curve.');
       /* FOOD DOMINANT AT EVERY BAND, stated as the multiple rather than left to
          be read off the percentage. The floor is per-band because the whole
          point of the ladder is that the gap NARROWS as a character gets tougher

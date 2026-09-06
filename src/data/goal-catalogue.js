@@ -39,9 +39,12 @@ export const QUEST_REWARDS = Object.freeze({
      move when its reward changed. `hr_claim_quest` credits gold and nothing
      else — no quest row in this catalogue has ever carried an item — so the
      ITEM half of a quest reward lives in src/legacy.js QUEST_DEFS and is paid
-     by the client against a once-guard the server owns. First-Night Idle
-     Rescue changed that half (carrot_seed x3 -> RAW shrimp x30, 2026-09-05);
-     `gold: 200` is unchanged, so the SQL catalogue in
+     by the client against a once-guard the server owns — which is exactly why
+     First-Night Idle Rescue's shrimp grant was REVERTED (Security F2,
+     2026-09-06): a client-only item is deleted by the next server envelope, so
+     first_cook pays GOLD ONLY and no design note may claim it feeds a player's
+     first night. ⚠ CLASS: quest ITEM rewards do not persist post-cutover —
+     server-credit path needed (P1, tracked). `gold: 200` is unchanged, so the SQL catalogue in
      2026-08-20-goal-reward-rpc-credit.sql is unchanged too and the drift guard
      stays green by construction rather than by exemption. If an item ever
      becomes SERVER-credited, it is added here AND to that CASE together. */

@@ -11758,6 +11758,39 @@ const TESTS = [
       A.__noteAutoEatSettings({ enabled: true, touched: false });
       assert(AU.maybeSwitchOnAutoEat().offered === false,
         'the offer fired at a character who already has Auto-Eat ON');
+
+      /* ── NO HOST, NO FLIP (Security F4) ────────────────────────────────
+         The offer changes how the player's night is FOUGHT. On a surface with
+         no notification host — an early boot, a headless embed, a page whose
+         toast layer failed to load — flipping the switch and then failing to
+         say so is not an offer, it is a silent mutation of combat behaviour.
+         BOTH hosts are stubbed out here because the code falls back from
+         `notifyAction` to `notify`; removing only one proves nothing. */
+      const savedAction = window.notifyAction, savedNotify = window.notify;
+      const savedTraits = window.G && window.G.traits;
+      const savedEat = AU.getEat();
+      try {
+        window.notifyAction = undefined; window.notify = undefined;
+        if (window.G) window.G.traits = Object.assign({}, savedTraits || {}, { auto_eat: 1 });
+        AU._resetSwitchOnOffer();
+        AU.setEat({ enabled: false });
+        A.__noteAutoEatSettings({ enabled: false, touched: false });
+        const r = AU.maybeSwitchOnAutoEat();
+        assert(r.offered === false && r.why === 'no-host',
+          'with no notification host the switch-on still claimed to offer (' + JSON.stringify(r)
+          + '). It must decline, not proceed silently.');
+        assert(AU.getEat().enabled === false,
+          'THE BUG F4 NAMES: with no host reachable the offer flipped Auto-Eat ON anyway. The '
+          + 'player\'s combat behaviour changed and nothing told them.');
+        /* AND THE OFFER IS NOT CONSUMED — a boot that could not speak must not
+           spend the one chance a boot that can speak would have used. */
+        assert(AU.maybeSwitchOnAutoEat().why === 'no-host',
+          'the host-less boot consumed the one-shot offer; the next bootable page would never ask');
+      } finally {
+        window.notifyAction = savedAction; window.notify = savedNotify;
+        if (window.G) window.G.traits = savedTraits;
+        try { AU.setEat(savedEat); } catch (e) {}
+      }
     } finally { restore(); }
   }),
 

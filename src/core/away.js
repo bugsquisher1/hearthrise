@@ -144,6 +144,18 @@ export function rateMult(ctx) {
      n (deaths today, INCLUDING this one)   1    2    3    4     5     6    >=7
      knocked out                            0   2m   4m   8m   16m   32m    64m
 
+   WHAT THAT BUYS, NORMATIVE (Designer adjudication 2026-09-06). Over a 12h
+   night a FOODLESS character surviving S seconds between falls keeps this
+   share of a fed character's output:
+       S=30s    1.18%  (food 84.7x)
+       S=300s  11.11%  (food  9.0x)
+       S=1800s 46.94%  (food  2.1x)
+   These are the arithmetic of the table above and are the figures of record;
+   the ruling's earlier illustration (0.49 / 4.6 / 24.2%) was WITHDRAWN when it
+   was shown to describe a ~100-minute effective rung this ladder cannot reach,
+   and the adjudication went to THE FORMULA. tests/accrual-engine.mjs RECOVER-8
+   brackets all three bands, so changing any constant here moves a test.
+
    TWO DURABLE ANCHORS, BOTH SERVER-OWNED, NEITHER RE-ARMABLE BY A CLIENT:
      · `deathsTodayBefore`    player_progress kind='stat' key='deaths'
                               period=<UTC day>. The free fall is ONE PER DAY,

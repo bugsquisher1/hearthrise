@@ -5773,17 +5773,18 @@ function renderBountyPanel(){
    ═══════════════════════════════════════════════════════════════════════ */
 const QUEST_DEFS=[
   {id:'gatherer',type:'gather',label:'Gather 15 resources',goal:15,progress:0,reward:{gold:150},done:false},
-  /* ── FIRST-NIGHT IDLE RESCUE (Designer ruling, 2026-09-05) ────────────────
-     carrot_seed x3 -> shrimp x30, RAW. The player who has just finished their
-     first cooking quest is the player about to bank their first overnight, and
-     the thing that decides whether that night pays is FOOD — three seeds are a
-     farm loop they will not run before they close the tab. 30 RAW shrimp is a
-     cooking session AND the auto-eat stock that comes out of it, which is the
-     one reward that teaches the loop and pays for the night at the same time.
-     ⚠ RAW, and that is a STANDING RULE: nothing in the game hands a player
-       COOKED food and no shop sells it, ever. Cooked food is the output of a
-       skill; granting it directly deletes the reason the skill exists. */
-  {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200,item:'shrimp',qty:30},done:false},
+  /* ── FIRST-NIGHT IDLE RESCUE: THE ITEM HALF IS REVERTED (Security F2) ─────
+     This row briefly paid `{gold:200, item:'shrimp', qty:30}` so a new player
+     would have food for their first overnight. It was WITHDRAWN because the
+     item half is a LIE POST-CUTOVER: `completeQuest` pays it through `addItem`,
+     which writes G.inventory only; `hr_claim_quest` credits GOLD and nothing
+     else, so with INVENTORY_ARM_ENABLED the server envelope replaces the bag on
+     the next reload and the 30 shrimp are gone. Promising a first-night food
+     stock that a reload deletes is worse than promising nothing.
+     ⚠ CLASS: quest ITEM rewards do not persist post-cutover — server-credit
+       path needed (P1, tracked). Until it exists this reward is gold-only and
+       honest, and nothing in the design may claim it feeds the first night. */
+  {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200},done:false},
   {id:'first_blood',type:'kill_any',label:'Defeat 5 monsters',goal:5,progress:0,reward:{gold:150,item:'turnip_seed',qty:5},done:false},
   /* b497 (balance audit): 10 → 6. The SAME two-plot-camp wall b495 fixed on the
      harvest DAILY, one system over and still open. This is onboarding step 4:
@@ -14668,27 +14669,114 @@ function maybeShowWelcome(){
         var m = Math.max(0, Number(ms) || 0);
         return m <= 0 ? 'free' : Math.round(m / 60000) + 'm';
       };
-      if(_deaths >= 1){
-        /* ONE ROW FOR THE FALLS, whatever the count. Rev. 1 had two, and the
-           single-death branch was the one that still said "You died" — false
-           about a character who got straight back up, and the sentence a player
-           reads first. "You fell" is what happened; the rows below say what it
-           cost. */
-        rows.push({g:'uiSkull', bad:true,
-          t: _deaths === 1
-            ? 'You fell once while you were away' + (_nm ? ' — to the ' + _nm : '')
-            : 'You fell ' + _deaths + ' times while you were away' + (_nm ? ' — to the ' + _nm : ''),
-          v: _deaths === 1 ? _when : _deaths + ' falls'});
+      /* ══ THE ORDER OF THIS CARD IS THE RULING (Designer, 2026-09-06) ═══════
+         A 17-fall night is a night the player WON — the ladder charged them for
+         it and the run kept going — and rev. 2's first draft read as a failure
+         report: skull, hourglass, ladder, lecture, and the one actionable line
+         last. The card now leads with what was EARNED (the gain rows above),
+         then says THE RUN SURVIVED, then prices the fix, and only then states
+         the cost — on ONE line. Nothing is hidden; the order is the message. */
+      var _pct = _winMs > 0 ? Math.round(_recMs / _winMs * 100) : 0;
+      /* THE POINTER SURVIVED. The single most important fact about a night with
+         deaths in it, and the one rev. 1 could not say because a death ENDED the
+         run. Same sentence as the death sheet (features/death-sheet.js), because
+         two surfaces describing one rule in two voices is how a player learns to
+         distrust both. Suppressed when the run really did stop on the death. */
+      if(_deaths >= 1 && _off.stoppedBy !== 'death'){
+        rows.push({g:'uiSword',
+          t: _nm ? 'Your run picked up against the ' + _nm + ' after every fall'
+                 : 'Your run picked up again after every fall',
+          v: ''});
       }
       if(_recMs > 0){
-        /* WHAT THE KNOCKOUTS COST, as time and as a share of the window. The
-           share is the number that makes the fix worth buying: "8m" means
-           nothing on a twelve-hour night and "1% of the night" means it is not
-           the problem, while "58% of the night" is the whole story. */
-        var _pct = _winMs > 0 ? Math.round(_recMs / _winMs * 100) : 0;
-        rows.push({g:'uiHourglass', bad:true,
-          t: 'Knocked out for ' + fmtSince(_recMs),
-          v: _pct + '% of the night'});
+        /* THE FIX, PRICED — AND IT NAMES WHICH FIX. Rev. 1 had one sentence for
+           three completely different players, and only one of them was being
+           told anything they could act on:
+             · an EMPTY BAG needs "go and cook";
+             · a FULL BAG with the switch OFF needs "throw the switch" — telling
+               that player to cook is insulting and useless;
+             · a bag that was EATEN TO THE LAST CRUMB needs "cook a tier up or
+               take a softer target", because more of the same food is a longer
+               version of the same night.
+           The uplift is measured from the simulated night, never assumed: it is
+           what the night would have been worth with none of that time spent
+           face-down. Floored denominator so an all-recovery window cannot divide
+           by zero; suppressed under 1.2x because a "1.1x" nudge trains players
+           to ignore the card. */
+        var _uplift = Math.round(_winMs / Math.max(1, _winMs - _recMs) * 10) / 10;
+        /* ⚠ THE DISPLAYED FIGURE IS CLAMPED AT 25× (Designer, 2026-09-06). The
+           ratio is unbounded by construction: a night that was 99% recovery
+           divides by the 1% that was fought and prints "100×", "340×", and at the
+           limit whatever the floored denominator allows. Those figures are
+           ARITHMETICALLY TRUE and read as marketing — the moment a receipt quotes
+           a number a player does not believe, they stop believing the receipt,
+           and being believed is this card's entire job. Above 25× it says "more
+           than 25×" and stops counting; at or below, the real figure prints to
+           one decimal, unchanged. The 1.2× suppression floor is the same rule at
+           the other end and is likewise unchanged. */
+        var _upTxt = _uplift > 25 ? 'more than 25×' : (_uplift + '×');
+        if(_uplift >= 1.2){
+          var _ae = (_off.autoEat && typeof _off.autoEat === 'object') ? _off.autoEat : null;
+          var _hadFood = _ae ? _ae.hadFood : undefined;
+          var _aeOn = _ae ? !!_ae.enabled : true;
+          var _ateAll = (Number(_off.foodEaten) || 0) > 0 && _hadFood !== false;
+          var _fix;
+          if(_hadFood === false){
+            _fix = 'You had nothing to eat. A stocked bag would have turned that recovery into '
+                 + 'fighting — about ' + _upTxt + ' tonight\'s loot.';
+          } else if(_hadFood === true && !_aeOn){
+            /* NAME THE BAG. The player who is carrying the answer and has the
+               switch off is the one this sentence exists for. */
+            var _fq = 0, _fn = '';
+            try{
+              var _best = null;
+              for(var _id in (G.inventory||{})){
+                if(!Object.prototype.hasOwnProperty.call(G.inventory, _id)) continue;
+                var _it = ITEMS[_id];
+                if(!_it || !(G.inventory[_id] > 0)) continue;
+                if(!(_it.heals > 0) || _it.foodClass === 'buff') continue;
+                if(!_best || (_it.heals||0) > (_best.h||0)) _best = {q:G.inventory[_id], n:_it.n||_id, h:_it.heals||0};
+              }
+              if(_best){ _fq = _best.q; _fn = _best.n; }
+            }catch(e){}
+            _fix = _fq > 0
+              ? 'You were carrying ' + _fq + ' ' + _fn + ' and Auto-Eat was switched off. '
+                + 'Switched on, that bag was worth about ' + _upTxt + ' tonight\'s loot.'
+              : 'Auto-Eat was switched off. Switched on, your provisions were worth about '
+                + _upTxt + ' tonight\'s loot.';
+          } else if(_ateAll){
+            _fix = 'You ate every provision you had and still fell. Cook a tier up, or take a '
+                 + 'softer target — a night that never breaks pays about ' + _upTxt + ' this one.';
+          } else {
+            _fix = 'Food would have turned that recovery time into fighting — about '
+                 + _upTxt + ' the loot.';
+          }
+          rows.push({g:'uiFood', t: _fix, v: ''});
+        }
+      }
+      /* ── THE COST, ON ONE LINE ────────────────────────────────────────────
+         Rev. 2's first draft spent TWO rows on it — a skull row counting the
+         falls and an hourglass row pricing them — so a seventeen-fall night
+         opened with two consecutive red rows before it said anything the player
+         could act on. Merged: the count, what it cost in time, and the share of
+         the night, in one sentence. The single-fall night keeps its own shape
+         (it has a "when", and on the day's free fall there is no time to
+         price), because collapsing it would lose the only detail it has. */
+      if(_deaths === 1){
+        rows.push({g:'uiSkull', bad:true,
+          t: 'You fell once while you were away' + (_nm ? ' — to the ' + _nm : '')
+             + (_recMs > 0 ? ', knocked out for ' + fmtSince(_recMs) : ''),
+          v: _recMs > 0 ? _pct + '% of the night' : _when});
+      } else if(_deaths > 1){
+        rows.push({g:'uiSkull', bad:true,
+          t: 'You fell ' + _deaths + ' times' + (_nm ? ' to the ' + _nm : '')
+             + (_recMs > 0 ? ' — knocked out for ' + fmtSince(_recMs) + ' in total' : ''),
+          v: _recMs > 0 ? _pct + '% of the night' : _deaths + ' falls'});
+      }
+      /* THE CAUSE, and only when the fall line did not carry it inline. Saying
+         it twice on one card is how a surface starts sounding like a machine. */
+      if(_deaths > 1 && _why){
+        rows.push({g:'uiFood', bad:true, t: _why.sentence, v: ''});
       }
       /* THE LADDER LINE, past rung 2 only. On a one- or two-fall night the
          doubling has not happened yet and stating the rule would be a lecture;
@@ -14707,67 +14795,6 @@ function maybeShowWelcome(){
         rows.push({g:'uiHeart',
           t: 'You got back up at 40% health each time — food is what carries you from there.',
           v: ''});
-      }
-      /* THE CAUSE, AS ITS OWN ROW, and only when the fall row did not carry it
-         inline. Saying it twice on one card is how a surface starts sounding
-         like a machine. */
-      if(_deaths > 1 && _why){
-        rows.push({g:'uiFood', bad:true, t: _why.sentence, v: ''});
-      }
-      if(_recMs > 0){
-        /* THE FIX, PRICED — AND IT NAMES WHICH FIX. Rev. 1 had one sentence for
-           three completely different players, and only one of them was being
-           told anything they could act on:
-             · an EMPTY BAG needs "go and cook";
-             · a FULL BAG with the switch OFF needs "throw the switch" — telling
-               that player to cook is insulting and useless;
-             · a bag that was EATEN TO THE LAST CRUMB needs "cook a tier up or
-               take a softer target", because more of the same food is a longer
-               version of the same night.
-           The uplift is measured from the simulated night, never assumed: it is
-           what the night would have been worth with none of that time spent
-           face-down. Floored denominator so an all-recovery window cannot divide
-           by zero; suppressed under 1.2x because a "1.1x" nudge trains players
-           to ignore the card. */
-        var _uplift = Math.round(_winMs / Math.max(1, _winMs - _recMs) * 10) / 10;
-        if(_uplift >= 1.2){
-          var _ae = (_off.autoEat && typeof _off.autoEat === 'object') ? _off.autoEat : null;
-          var _hadFood = _ae ? _ae.hadFood : undefined;
-          var _aeOn = _ae ? !!_ae.enabled : true;
-          var _ateAll = (Number(_off.foodEaten) || 0) > 0 && _hadFood !== false;
-          var _fix;
-          if(_hadFood === false){
-            _fix = 'You had nothing to eat. A stocked bag would have turned that recovery into '
-                 + 'fighting — about ' + _uplift + '× tonight\'s loot.';
-          } else if(_hadFood === true && !_aeOn){
-            /* NAME THE BAG. The player who is carrying the answer and has the
-               switch off is the one this sentence exists for. */
-            var _fq = 0, _fn = '';
-            try{
-              var _best = null;
-              for(var _id in (G.inventory||{})){
-                if(!Object.prototype.hasOwnProperty.call(G.inventory, _id)) continue;
-                var _it = ITEMS[_id];
-                if(!_it || !(G.inventory[_id] > 0)) continue;
-                if(!(_it.heals > 0) || _it.foodClass === 'buff') continue;
-                if(!_best || (_it.heals||0) > (_best.h||0)) _best = {q:G.inventory[_id], n:_it.n||_id, h:_it.heals||0};
-              }
-              if(_best){ _fq = _best.q; _fn = _best.n; }
-            }catch(e){}
-            _fix = _fq > 0
-              ? 'You were carrying ' + _fq + ' ' + _fn + ' and Auto-Eat was switched off. '
-                + 'Switched on, that bag was worth about ' + _uplift + '× tonight\'s loot.'
-              : 'Auto-Eat was switched off. Switched on, your provisions were worth about '
-                + _uplift + '× tonight\'s loot.';
-          } else if(_ateAll){
-            _fix = 'You ate every provision you had and still fell. Cook a tier up, or take a '
-                 + 'softer target — a night that never breaks pays about ' + _uplift + '× this one.';
-          } else {
-            _fix = 'Food would have turned that recovery time into fighting — about '
-                 + _uplift + '× the loot.';
-          }
-          rows.push({g:'uiFood', t: _fix, v: ''});
-        }
       }
       if(_recLeft > 0){
         /* STILL DOWN. Without this the card describes a character who is up and

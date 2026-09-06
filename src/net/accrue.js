@@ -2141,96 +2141,10 @@ export function applyEnvelopeState(G, res, ownKey) {
     G.enchant = ok ? { weapon: el } : {};
     written.enchant = G.enchant.weapon || null;
   }
-  if (Number.isFinite(Number(st.max_hp))) { G.playerMaxHp = Number(st.max_hp); written.maxHp = G.playerMaxHp; }
-  /* ══════════════════════════════════════════════════════════════════════
-     b373 — HP IS FIGHT-LOCAL, AND AN IDLE PLAYER CANNOT BE WOUNDED BY AN
-     ENVELOPE. (Designer ruling, LIVE-AUDIT-2026-08-17 FTUE run 2 finding 2.)
+  /* HP + MAX HP ARE THE SERVER'S. One implementation, shared with the BOOT
+     hr_load path (record.js) — see reconcileHp below for the full narrative. */
+  Object.assign(written, reconcileHp(G, res) || {});
 
-     THE MEASURED BUG. A fresh player died to the first slime and respawned at
-     **2/10 HP**, which reads as a punishment nobody designed. Nothing in the
-     combat rules produces it: `resolveDeath` in src/core/combat-sim.js sets
-     `state.playerHp = state.playerMaxHp` — a full heal — and always has. The 2
-     arrives HERE. The client resolved the death and healed; an envelope for a
-     window that ended BEFORE that death then landed and wrote the server's
-     mid-fight hp straight over the respawn. The next fight starts at 2 HP and
-     the new player dies again, having done nothing wrong.
-
-     WHY THIS IS THE RIGHT SEAM, and not a special case. src/net/events.js
-     already states the rule this file was breaking: `playerHp` and
-     `playerMaxHp` are in `NO_SYNC` — "in-flight combat — belongs to the device
-     you are fighting on". The snapshot has honoured that since it was written;
-     the envelope never did. So this is not a new exception, it is this module
-     finally obeying a rule the codebase already declares.
-
-     THE RULE: an envelope may RAISE hp freely, and may lower it only while a
-     fight is actually in flight. With no `activeMonster` there is nothing
-     hitting the player, and the server itself agrees — the accrual engine sets
-     the activity pointer to idle in the same delta as a death
-     (supabase/functions/hr-accrue/accrual.js: `if (summary.died ||
-     !state.activeMonster) delta.activity = {kind:'idle'}`), so a low hp
-     alongside an idle pointer is by construction a reading from a window that
-     has already been superseded.
-
-     NOT AN ECONOMY HOLE: hp is not tradeable, rankable or contributable, it is
-     already client-local by the project's own denylist, and away combat — the
-     only place hp materially gates earnings — runs with `activeMonster` set,
-     where the server keeps full authority. `written.hp` records the refusal so
-     the drift counter can still see it.
-
-     ⚠ THIS IS A CLIENT-SIDE FLOOR, NOT THE FIX. The correct end state is the
-     envelope carrying the death as a STATEMENT (it already computes
-     `summary.died`) and reporting post-respawn hp, so the two sides never
-     disagree in the first place. Raised for the Systems Engineer in
-     CONFLICTS.md — do not let this guard become the reason that never happens.
-     ══════════════════════════════════════════════════════════════════════ */
-  /* ══════════════════════════════════════════════════════════════════════
-     PAIONE P0 (2026-08-25) — DURING A LIVE FIGHT, HP IS CLIENT-OWNED UNLESS
-     THE SERVER GENUINELY COMPUTED IT (an AWAY grant).
-
-     THE MEASURED BUG. On a live client-predicted fight the periodic sync/settle
-     returns an envelope whose `state.hp` is STALE-FULL — the server pointer is
-     `idle` and never saw the fight (confirmed live: active_kind='idle', hp=10/10
-     while the client is mid-goblin-fight at 4 HP). The b373 floor below RAISED hp
-     freely (`next >= cur`), so every few seconds the live fight's hp snapped back
-     to full and the player never took real damage / never fell. b373 was written
-     for AWAY combat, where the server DID compute hp and must win.
-
-     THE DISTINGUISHER, stated rather than guessed: an AWAY-return envelope
-     carries an `away` receipt block (isEnvelopeApplicable requires `res.away` for
-     accrued:true, and applyEnvelope — the only away-grant path — passes the full
-     response through). A live sync / lean settle / intent collect (eat, equip,
-     enchant, activity switch) carries NO `away` block; those come through
-     applyIntentEnvelope / gold.js with the bare state envelope. So:
-       • away envelope (server owns hp) → apply b373 exactly as before;
-       • non-away envelope during a live fight → PRESERVE the client's combat hp
-         (never raise to stale-full, never lower to a stale reading).
-     This is the GENERAL form of the wireServerEat onEnvelope keepHp guard in
-     legacy.js (Paione P0 phase 2) — that hook snapshots/restores G.playerHp
-     around the eat reconcile; this makes the applier itself refuse the write, so
-     every non-away path (sync, equip, enchant, activity) is covered at the source
-     and the eat hook's restore becomes a harmless no-op consistent with it.
-
-     Out of combat (no activeMonster) the b373 raise-only floor is unchanged: an
-     idle player cannot be wounded by a stale envelope, and a heal still applies.
-     ══════════════════════════════════════════════════════════════════════ */
-  if (Number.isFinite(Number(st.hp))) {
-    const next = Number(st.hp);
-    const cur = Number(G.playerHp);
-    const inFight = !!G.activeMonster;
-    const awayOwnsHp = !!(res && res.away && typeof res.away === 'object');
-    if (inFight && !awayOwnsHp) {
-      /* LIVE fight, non-away envelope: combat hp is client-owned. Preserve it.
-         (Adopt the server value only if the client has no finite hp at all — a
-         cold state where there is nothing to preserve.) */
-      if (Number.isFinite(cur)) { written.hp = cur; written.hpRefused = next; }
-      else { G.playerHp = next; written.hp = G.playerHp; }
-    } else if (inFight || !Number.isFinite(cur) || next >= cur) {
-      /* Away combat (server owns hp) OR idle-and-raising — b373 unchanged. */
-      G.playerHp = next; written.hp = G.playerHp;
-    } else {
-      written.hp = cur; written.hpRefused = next;
-    }
-  }
 
   /* skills: {<id>:{xp,level}} on the wire, {<id>: xp} in G. The LEVEL is
      derived from xp everywhere in this client, so taking the server's xp and
@@ -2755,6 +2669,89 @@ export function __resetServerAutoEat() {
    Pure: takes G + res + the two arm flags, returns a receipt. invAbsolute /
    baselineComplete are OPTIONAL — computed from isInventoryAbsolute() /
    envelopeBaselineComplete(res) when a caller (settle) does not pass them. */
+/* ══════════════════════════════════════════════════════════════════════════
+   HP IS SERVER-OWNED — ONE IMPLEMENTATION, BOTH DIRECTIONS (b511).
+
+   THE MEASURED BUG (QA slot, live b510, 14:40 UTC 2026-09-06). The server held
+   `player_state.hp = 6 / max_hp 13` — a 40% resume after a recovery window
+   expired at 14:17. The client booted and displayed 13/13, the player opened a
+   Dark Wizard fight from a full bar, and 40 s in the screen still read 11/13
+   "Fighting Dark Wizard" while the server's settle — simulating from hp 6 —
+   recorded death #8 and started a new recovery clock. `fallState()` flipped to
+   {phase:'recovering', serverDied:true, deathsToday:8} with `fellAt: 0`: the
+   client never fell, because the client never had the server's hp.
+
+   TWO CAUSES, BOTH CLOSED HERE.
+   (1) THE RAISE-ONLY FLOOR. b373 ("an idle player cannot be wounded by an
+       envelope") let an envelope RAISE hp freely and lower it only mid-fight.
+       Its evidence was real for its time: `resolveDeath` full-healed on the
+       CLIENT, and a late envelope for a window that ended before that death
+       wrote the server's mid-fight hp over the respawn, so a new player fought
+       on at 2/10. That world is gone. Death, the recovery window and the
+       resume-at-fraction are now SERVER state (2026-09-06-recovering-until.sql,
+       the Recovery rev.2 program): out of combat the server's hp is not a stale
+       reading of a superseded window, it is the answer. Raise-only inverted
+       that into "the client keeps whatever is higher" — i.e. the client
+       overwrote a 40% resume with a stale full bar, exactly the b373 bug with
+       the sign flipped. CLAUDE.md §1: the server owns it, down as well as up.
+   (2) THE BOOT PATH NEVER ASKED. hp lived ONLY in applyEnvelopeState, which
+       runs ONLY on `accrued:true`; an idle boot answers {accrued:false} and
+       nothing ever read `state.hp`. `playerHp` is in NO_SYNC, so there was no
+       other source and the bar defaulted to full. Same idle-boot hydration
+       class as inventory (b467), crew (b477) and hero slots (SA-016), and the
+       fix is the same shape: extract the apply and call it from record.js's
+       boot settle too.
+
+   WHAT IS PRESERVED. The Paione P0 rule is unchanged and is the ONLY exception:
+   during an ATTENDED fight (`G.activeMonster` set) a NON-away envelope carries
+   a stale-full hp the server computed nothing for, so the client's in-fight
+   prediction wins. An AWAY envelope (`res.away`) is a settle that covers the
+   fight span — the server did compute it — and is adopted absolutely.
+
+   AND THE PREDICTION IS SEEDED HONESTLY. Preserving an in-fight prediction is
+   only sound if the fight STARTED from server truth; `startCombat` (legacy.js)
+   now seeds `G.playerHp` from `serverHp()` rather than leaving it at max, so
+   the exception can no longer launder a stale full bar through a whole fight.
+
+   Returns a receipt fragment; never throws. */
+let lastServerHp = null;   /* {hp, maxHp, at} — the last hp the SERVER stated. */
+
+/** The last server-stated hp, or null if this session has never seen one.
+ *  A copy; the observation is not the caller's to edit. */
+export function serverHp() {
+  return lastServerHp ? { hp: lastServerHp.hp, maxHp: lastServerHp.maxHp, at: lastServerHp.at } : null;
+}
+/** TEST-ONLY. Forget the observation. */
+export function __resetServerHp() { lastServerHp = null; return lastServerHp; }
+
+export function reconcileHp(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const st = (res && res.state) || {};
+  const written = {};
+  if (Number.isFinite(Number(st.max_hp))) { G.playerMaxHp = Number(st.max_hp); written.maxHp = G.playerMaxHp; }
+  if (!Number.isFinite(Number(st.hp))) return written;
+
+  const next = Number(st.hp);
+  const cur = Number(G.playerHp);
+  const maxHp = Number.isFinite(Number(st.max_hp)) ? Number(st.max_hp)
+              : (Number.isFinite(Number(G.playerMaxHp)) ? Number(G.playerMaxHp) : next);
+  /* Observed on EVERY envelope that names hp — including the ones the fight
+     exception refuses to apply, because "what does the server believe" is a
+     different question from "what does the bar show", and startCombat needs
+     the first one. */
+  lastServerHp = { hp: next, maxHp, at: Date.now() };
+  written.serverHp = next;
+
+  const inFight = !!G.activeMonster;
+  const awayOwnsHp = !!(res && res.away && typeof res.away === 'object');
+  if (inFight && !awayOwnsHp && Number.isFinite(cur)) {
+    written.hp = cur; written.hpRefused = next;
+    return written;
+  }
+  G.playerHp = next; written.hp = G.playerHp;
+  return written;
+}
+
 export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
   if (!G || typeof G !== 'object') return null;
   if (typeof invAbsolute !== 'boolean') invAbsolute = isInventoryAbsolute();
@@ -4122,7 +4119,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileCombatStyle, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileCombatStyle, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     noteVisibility, visibleSince, receiptAttended,
     getAccrualState, resetAccrualGate, setAccrualHooks,

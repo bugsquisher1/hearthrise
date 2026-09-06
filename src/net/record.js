@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots } from './accrue.js?v=510';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileHp } from './accrue.js?v=510';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1694,6 +1694,21 @@ function settle(verdict) {
        bag stays null, which canProceedArmed treats as "not loaded yet"
        (fail-closed). */
     hydrationStep('client-state', () => applyClientState(verdict.body, G));
+    /* ── ADOPT THE SERVER'S HP AT BOOT (b511) ───────────────────────────────────
+       FOURTH INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477
+       crew, SA-016 hero slots, now hp). hp lived ONLY in accrue.js's
+       applyEnvelopeState, which runs ONLY on `accrued:true`; an idle boot answers
+       {accrued:false} and NOTHING read `state.hp`. `playerHp` is in NO_SYNC, so
+       there was no other source and the bar simply defaulted to full — measured
+       live 2026-09-06: server hp 6/13 (a 40% resume after a recovery window),
+       client showed 13/13, and the next fight settled from 6 into death #8 the
+       player never saw. The hr_load body is the ALWAYS-FULL statement of the
+       character and carries `state.hp` / `state.max_hp` (hr_state_of), so it is
+       applied HERE through the SAME shared function the accrue path uses.
+       A boot is by construction not mid-fight, so reconcileHp's attended-fight
+       exception cannot fire on this path. Guarded — a throw must never break the
+       record load. */
+    hydrationStep('hp', () => reconcileHp(G, verdict.body));
     /* ── REBUILD THE COMPANION ROSTER FROM THE SAME ENVELOPE (blob-retire) ───────
        The boot hr_load envelope is the ALWAYS-FULL statement of the character
        (accrue's hr-accrue returns nothing on an idle settle, so applyEnvelopeState

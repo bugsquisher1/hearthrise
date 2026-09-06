@@ -6569,6 +6569,31 @@ function startCombat(mId){
      re-derived here so a fight never opens on a stale cap — the "character screen
      shows 11, combat shows 10" drift. Raise-only, playerHp clamped. */
   hrSyncMaxHp();
+  /* SEED THE FIGHT FROM SERVER HP, NEVER FROM MAX (b511). The envelope applier
+     preserves the client's hp during an attended fight (Paione P0: a non-away
+     envelope's stale-full hp must not heal a live fight) — which is only sound
+     if the fight STARTED from the server's number. Live 2026-09-06: the server
+     held 6/13 after a 40% recovery resume, the client opened the fight at 13/13,
+     and that stale bar rode the whole fight while the server settled from 6 and
+     recorded a death the player never saw. MIN, never max: this can only ever
+     LOWER the bar toward the server's figure, so it can never mint HP off a
+     stale observation (a server-side heal arrives through reconcileHp, which
+     adopts it absolutely out of combat). */
+  try{
+    var _A=window.HearthriseAccrual;
+    var _sh=(_A&&typeof _A.serverHp==='function')?_A.serverHp():null;
+    /* FRESHNESS, NOT AUTHORITY-BY-DEFAULT. A server hp observed BEFORE the
+       client's last fight ended is not newer information — between then and now
+       the client legitimately owned the bar (in-fight damage, a client-side
+       auto-eat), and clamping to the older figure would undo it. `_hpLocalAt`
+       is stamped by stopCombat when a fight was actually running, so the test
+       is "has the server spoken since the client last owned this number". */
+    var _localAt=Number(G._hpLocalAt)||0;
+    if(_sh&&Number.isFinite(Number(_sh.hp))&&Number(_sh.hp)>0&&Number(_sh.at)>=_localAt){
+      var _cur=Number(G.playerHp);
+      G.playerHp=Number.isFinite(_cur)?Math.min(_cur,Number(_sh.hp)):Number(_sh.hp);
+    }
+  }catch(e){}
   const m=MONSTERS[mId];
   G.activeMonster=mId;G.monsterHp=m.hp;G.monsterMaxHp=m.hp;G.combatKillsThisFoe=0;
   G.combatLog=[`You attack the ${m.name}!`];
@@ -6585,6 +6610,12 @@ function startCombat(mId){
   if(G.activeMonster===mId) declareActivity('combat',mId);
 }
 function stopCombat(){
+  /* THE MOMENT THE CLIENT LAST OWNED THE HP BAR (b511). Stamped only when a
+     fight was actually running, because that is the only window in which the
+     client writes hp on its own authority. startCombat's server-hp seed reads
+     it to decide whether the server's last statement is NEWER than the client's
+     own — see the seed block above. Scratch (`_`), so it never syncs. */
+  try{ if(G.activeMonster) G._hpLocalAt = Date.now(); }catch(e){}
   // b138: launchpad Resume hook — see stopSkill() above.
   if(G.activeMonster && window.HearthriseLaunchpad && typeof window.HearthriseLaunchpad.recordStop === 'function'){
     window.HearthriseLaunchpad.recordStop('monster', G.activeMonster);

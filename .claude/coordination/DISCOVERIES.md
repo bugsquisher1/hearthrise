@@ -3,6 +3,39 @@
 _Important things agents learn about the codebase, game, or constraints. Append new entries at the top. Every entry: DATE · AGENT · DISCOVERY · AFFECTED SYSTEMS · REQUIRED ACTION. This is how the team avoids rediscovering the same knowledge._
 
 ---
+### 2026-09-06 — Art Director — **A geometry guard can go red with an empty diff: the b512 "layout regression" was a WRAP COINCIDENCE, not a code change.** (P1)
+
+`b227: the Eat button is on the stage and reachable without scrolling` failed deterministically on
+the assembled b512 tree. `git diff 180ed086..HEAD -- src/styles` is EMPTY — no stylesheet moved in
+the whole merge. The 6px came from `.fs-style`, the grid row directly above the action bar:
+the four combat-style buttons laid the button NAME and its `<small>` side by side in a 148px box,
+which leaves the sub-label a ~66px slot for TWO facts ("Atk/Str/Def" + the swing time) at the
+14.5px `--t-micro` FLOOR. Whether that run took two lines or three was decided by a couple of
+pixels of text measurement, so the SAME markup measured **110px on one boot and 127px on the
+next** — and the arena card has ~11px of headroom at 900px, less than one line of type.
+
+**AFFECTED SYSTEMS:** `src/styles/combat-screens.css` (`.fs-style` / `.csb-btn`), the arena stage
+grid, any future guard that asserts geometry on the combat screen.
+
+**REQUIRED ACTION / what to reuse:**
+1. **`--t-micro` IS 14.5px** (`art-direction.css:100`, "THE FLOOR"). `font-size: var(--t-micro, 11px)`
+   does NOT give you 11px, and the b227 type guards forbid going under it. Anyone reading that
+   fallback as the value will size a component wrong.
+2. **Measure the combat stage with `body.in-combat` SET.** `audit-overrides.css` restyles
+   `.csb-btn` only under `body.in-combat #panel-combat.active`, and that is the rule that lays the
+   name and sub-label side by side. A guard measured without the class grades a layout no player
+   ever sees — mine passed a mutation that visibly prints "Atk/Str/Def" out through the button's
+   gold border until I added the class.
+3. **The arena stage OVERFLOWS its card by design at 900px** (stage bottom 927 vs card bottom 890):
+   `.fs-metrics` and `.fs-metrics.fs-session` live outside the card and below the fold. Filed on
+   2026-08-29 as needing the foe-plate ratio `min(42vh, 340px, calc(100vh - 540px))` re-tuned. Until
+   that happens, every row added above the action bar is spending headroom that is not there.
+4. **922x423 landscape is NOT covered by the mobile media query** (`max-height:540px` requires
+   `max-width:900px`, and 922 > 900), so that device gets desktop rules squeezed into 423px and the
+   action bar sits ~65px below the arena card. Pre-existing, unchanged by this fix, and it means a
+   "mobile-landscape" check at 922 wide is checking the DESKTOP sheet.
+
+---
 ### 2026-09-05 — QA Engineer — **SA-013 measured: the runner counted NO assertions, so a test that verified nothing passed identically to a real one — now instrumented (increment 1, staged in worktree-agent-a5ca16427c2cdb971).** (P1)
 
 `src/features/smoke-test.js` reported PASS for any body that did not throw and tracked zero

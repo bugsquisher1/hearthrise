@@ -2,6 +2,40 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-09-06 · FROM Art Director → TO Coordinator + QA Engineer · **b512 b227 layout regression FIXED — and there is a SECOND red on the assembled tree that is not RECOVER-12** (branch `worktree-agent-aa642288c138ecf59`, commit `6dd1259b`)
+
+**The fix.** `src/styles/combat-screens.css` only (48 lines, tokens only, no colour literals) plus
+one new guard in `src/features/smoke-test.js`. The 6px was NOT in any of the three merged branches
+— `git diff 180ed086..HEAD -- src/styles` is empty. It was the combat-style row above the action
+bar sizing itself to whichever label happened to wrap. Full reasoning in the commit message and in
+today's DISCOVERIES entry.
+
+**⚠ FOR THE COORDINATOR, BEFORE THE RELEASE GATE.** The assembled tree carries a red I did not
+cause and did not fix:
+
+> `b221: the shop renders the counter scene with every offer reachable` —
+> `seeds row 0: something is covering the buy control COVER=<span>.hr-death-t`
+
+`.hr-death-t` is a DEATH SHEET row (`src/features/death-sheet.js:854`). A death sheet is mounted
+and hit-testable **over the Shop screen**. Two things about it:
+- It is **order-dependent, not deterministic**: red on three of five in-page runs, green on two,
+  including the final full `run-smoke.mjs` neighbours. So a single green run does not clear it.
+- It is **NOT from the b512 merge**: I re-ran the suite with the b511 (`180ed086`) copies of
+  `death-sheet.js` and `net/accrue.js` restored and it still failed identically.
+
+Either an earlier test opens the sheet and never closes it (a test-hygiene bug), or the sheet
+genuinely outlives the screen that raised it (a P1 player-visible bug — a full-bleed recovery sheet
+sitting over the shop is exactly the "frozen game" signature b512 was fixing). **Those two have
+very different severities and I could not tell them apart from the failure text.** QA owns the
+first, the death-sheet author owns the second. Please route it rather than filing it as a flake.
+
+**Untouched on purpose, for whoever picks up the combat screen next.** At 900px the arena stage
+already overflows its card by ~37px — `.fs-metrics` and `.fs-metrics.fs-session` render below the
+fold, outside the card. That is the 2026-08-29 finding (the b371 shell budgets 148px and measures
+203px); recovering it means re-tuning the foe portrait's `min(42vh, 340px, calc(100vh - 540px))`,
+which is an art-direction ratio and not something to change inside a 6px bug fix. My change buys
+12px of headroom back but does not close that gap.
+
 ### 2026-09-04 · FROM Systems Engineer → TO Tyler (GATES 1 & 3) + Coordinator + Art Director · **THE SIGN-UP DOOR IS BUILT — and three gates are still OPEN** (branch `fix/signup-door`, worktree `.claude/worktrees/agent-abdad166ac278fc2e`)
 
 **NOT bumped, NOT pushed. No migration, no production write, no dashboard change.**

@@ -1,5 +1,80 @@
 # Art Director — running log
 
+## 2026-09-06 · THE 6px THAT CAME FROM AN EMPTY DIFF — b512's b227 red, and why the fix is a COLUMN
+
+**The finding I would put first, because it is what the whole pass turns on.** I was handed a
+layout regression across three merged branches and told to bisect them. `git diff 180ed086..HEAD
+-- src/styles` is **EMPTY** — not one stylesheet moved in the whole merge, and none of the three
+branches touches geometry. The 6px was already in the tree on b511 and had simply never landed on
+the wrong side of the line before. `.fs-style` is the grid row directly above `.fs-actionbar`, the
+row that carries Eat, and the arena card has **~11px of headroom at 900px — less than one line of
+type.** The four style buttons laid the button NAME and its `<small>` SIDE BY SIDE in a 148px box,
+which leaves the sub-label about 66px for two facts ("Atk/Str/Def" + the swing time) at 14.5px.
+Whether that run took two lines or three was decided by a couple of pixels of text measurement, so
+the **same markup measured 110px on one boot and 127px on the next**, and the 17px it gained is
+exactly the 6px by which Eat left the card. *A guard can go red on an empty diff, and when it does,
+the thing that moved is a coincidence that had been holding.*
+
+**The trap I walked straight into, and it cost me two suite runs.** My first fix was
+`font-size: var(--t-micro, 11px)` on the sub-label — shrink the thing that is too big. It changed
+the height, which is why I believed it. **`--t-micro` IS 14.5px** (`art-direction.css:100`, tagged
+"THE FLOOR" — the b227 type guards enforce it). The fallback in the `var()` is not the value, and
+I had read the number I wanted out of a default that never applies. The only reason the row got
+shorter was the `line-height: 1.15` I had bundled with it — i.e. my fix worked by accident, for a
+reason I had not stated. I only caught it by walking the CSSOM for every rule matching the element
+and printing the computed value beside the declarations.
+
+**The second cut was deterministic and WRONG, and only the render said so.** `white-space: nowrap`
++ ellipsis pins the height perfectly. Measured at 700–880px it cuts *"Atk/Str/Def · 2.4…"* off the
+one button whose entire job is to say which XP route you are choosing — **b348 (Xarn's report)
+reopened from the other side.** A label that is too big for its box is fixed by sizing the box, not
+by hiding the label.
+
+**What shipped, and why it is two rules that only work together.** The stage button becomes a
+COLUMN (name over sub-label, sub-label at the button's full width) and the per-style swing time
+goes. Either half alone is not enough: without the column the sub-label gets a ~66px slot and
+prints *"Atk/Str/Def"* **straight out through the button's own gold border** — I photographed it at
+1440x900 while proving the mutation — and without dropping the swing time the full-width slot still
+wraps to two lines on half the buttons. Dropping the speed is b366's call, which b368 reversed;
+b368 was right *at the time* because the mobile sheet had hidden the swing bar's label at the same
+moment and the number was then printed NOWHERE. It is printed 60px above these buttons on
+`#fs-player-swing`, and on every button's own tooltip, and the new guard asserts that.
+
+**The measurement, because that is the message.** Style row: **110/127px (state-dependent) → 99px
+at 1920, 1440, 1024, 922 AND 700 alike.** Eat vs the arena card at 1440x900: **-11px inside on a
+good boot and +6px OUTSIDE in the suite's state → -23px inside in both.** 922x423 landscape:
+**byte-identical before and after** (button 414–458 both).
+
+**The guard was green under its own mutation until I set one class.** `audit-overrides.css`
+restyles `.csb-btn` only under `body.in-combat #panel-combat.active` — and that is the sheet that
+lays the name and the sub-label side by side. My guard rendered the stage without the class, so it
+was grading a layout no player ever sees: I could delete the entire column fix and it stayed green
+while the screenshot showed the label hanging out of the button. `document.body.classList.add(
+'in-combat')` in the guard (restored in the `finally`) is the difference between a guard and a
+decoration. **MUTATION-PROVEN twice after that** — restore the swing time and the four heights
+split 45/45/62/62 (the original bug's exact shape); drop the column and the guard names
+*"Atk/Str/Def · 2.40s"* printing at 749–834 inside a 674–822 button.
+
+**Suite 1154/1170, 0 runtime errors, every out-of-browser guard green.** The one red is
+`b221` — a death sheet (`span.hr-death-t`) mounted and hit-testable over the SHOP screen. **It is
+not mine and it is not RECOVER-12:** it reproduces with the b511 copies of `death-sheet.js` and
+`net/accrue.js` restored, and it is order-dependent (red on three of five in-page runs). Handed to
+the Coordinator + QA with the distinction that matters — test hygiene versus a recovery sheet that
+genuinely outlives its screen — because those two have very different severities and the failure
+text cannot tell them apart.
+
+**A limitation I am not hiding, and it is the one that made this bug possible.** At 900px the
+arena stage **overflows its card by ~37px**: `.fs-metrics` and `.fs-metrics.fs-session` render
+below the fold, outside the card. That is the 2026-08-29 finding in this log (the b371 shell
+budgets 148px and measures 203px) and closing it means re-tuning the foe plate's
+`min(42vh, 340px, calc(100vh - 540px))` — an art-direction ratio, not something to move inside a
+6px bug fix. Every row above the action bar is spending headroom that is not there; I bought 12px
+back and the structural gap stands. Related and also untouched: **922x423 is not covered by the
+mobile media query at all** (`max-height:540px` requires `max-width:900px`, and 922 > 900), so a
+"mobile-landscape" check at that size is checking the DESKTOP sheet.
+
+No version bump, no push — worktree `.claude/worktrees/agent-aa642288c138ecf59`, commit `6dd1259b`.
+
 ## 2026-08-29 · THE SESSION TALLY STRIP — the "missing CSS" was not missing, and the garble was a SHARED CLASS landing on an UNNAMED ROW
 
 **The finding I would put first, because it is the whole bug and it is two correct rules meeting.**

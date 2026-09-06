@@ -14896,6 +14896,104 @@ const TESTS = [
     }
   }),
 
+  /* ── b512 · THE STYLE ROW IS A FIXED-HEIGHT ROW ─────────────────────────
+     The regression this exists for: the b227 guard above went red on the
+     assembled b512 tree with NO CSS, markup or layout change anywhere in the
+     build. The cause was one row above it. `.fs-style` is the last row of the
+     player column and `.fs-actionbar` (which carries Eat) is the next row
+     down, and the arena card has less than one line of headroom at 900px. The
+     style buttons laid the button's NAME and its `<small>` side by side in a
+     148px box, so the two facts inside the small — the XP route and the swing
+     time, both at the 14.5px type floor — were left to wrap wherever they
+     landed. "Atk/Str/Def · 2.40s" measured within a couple of pixels of that
+     box, so the SAME markup rendered the row 110px tall on one boot and 127px
+     on the next; the extra 17px pushed Eat 6px out of the card.
+     So the property is not "the row is short", it is THE ROW'S HEIGHT DOES NOT
+     DEPEND ON WHICH LABEL IS LONGEST. Four buttons, four different route
+     strings, four identical boxes — and if a future weapon family adds a
+     longer style name or route, this fails before a player finds it.
+     MUTATION: drop the `flex-direction: column` half of the fix and the four
+     heights split 45/45/64/64 (measured); drop the `.csb-swing` half and they
+     split again at 1440px. */
+  () => tryRunAsync('b512: the combat-style row is the same height whatever the labels say — it cannot push Eat off the card', async () => {
+    const G = window.G;
+    const snap = { monster: G.activeMonster, mhp: G.monsterHp, mmax: G.monsterMaxHp,
+      tab: window.activeTab, inCombat: document.body.classList.contains('in-combat') };
+    try {
+      window.showTab('combat');
+      G.activeMonster = 'slime'; G.monsterHp = 8; G.monsterMaxHp = 8;
+      /* GRADE THE RULES A FIGHT ACTUALLY GETS. `audit-overrides.css` restyles
+         these buttons only under `body.in-combat #panel-combat.active`, and
+         that is the sheet that lays the name and the sub-label side by side —
+         so a guard measured without the class is measuring a layout no player
+         ever sees, and passes the exact arrangement that prints the route out
+         through the button's border. */
+      document.body.classList.add('in-combat');
+      window.renderCombat();
+      // Same settle discipline as b227 — the stage keeps resizing while the
+      // portraits load, and a transient measurement is not a verdict.
+      let last = null;
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 32)));
+        const row = document.querySelector('#panel-combat .fs-style');
+        if (!row) continue;
+        const key = Math.round(row.getBoundingClientRect().height);
+        if (key === last) break;
+        last = key;
+      }
+
+      const btns = [...document.querySelectorAll('#panel-combat .fs-style .csb-btn')];
+      assert(btns.length >= 3, 'the stage style picker did not render — got ' + btns.length + ' buttons');
+      const hs = btns.map((b) => Math.round(b.getBoundingClientRect().height));
+      const routes = btns.map((b) => (b.querySelector('.csb-trains') || {}).textContent || '?');
+      assert(Math.max(...hs) === Math.min(...hs),
+        'the style buttons are different heights (' + hs.join('/') + ') for routes ' + routes.join('/')
+        + ' — the row is sized by whichever label happens to wrap, which is what moved the Eat button '
+        + '6px out of the arena card on b512');
+
+      /* AND THE LABEL IS INSIDE ITS BUTTON. Equal heights alone is a weaker
+         property than it looks: laying the name and the route side by side in
+         a 148px box ALSO produces four equal boxes — with "Controlled
+         ATK/STR/DEF" printed straight through the button's own gold outline
+         and out the other side (photographed at 1440x900 while proving this
+         guard). A style picker whose labels do not live inside their targets
+         reads as broken markup, so the box is asserted, not just the row. */
+      btns.forEach((b, i) => {
+        const box = b.getBoundingClientRect();
+        [...b.querySelectorAll('small, .csb-trains')].forEach((c) => {
+          if (getComputedStyle(c).display === 'none') return;
+          const cb = c.getBoundingClientRect();
+          if (!cb.width) return;
+          assert(cb.left >= box.left - 1 && cb.right <= box.right + 1,
+            'style button ' + i + ' ("' + b.textContent.trim() + '") prints "' + c.textContent.trim()
+            + '" outside its own box: label ' + Math.round(cb.left) + '–' + Math.round(cb.right)
+            + ' vs button ' + Math.round(box.left) + '–' + Math.round(box.right)
+            + ' — the label runs out through the button\'s own border');
+        });
+      });
+
+      /* And the route is still SAID — hiding the label to win the height is the
+         b348 bug, and this fix deliberately drops the swing time instead. */
+      btns.forEach((b, i) => {
+        const tr = b.querySelector('.csb-trains');
+        assert(tr && tr.textContent.trim() && getComputedStyle(tr).display !== 'none',
+          'style button ' + i + ' no longer states its XP route');
+      });
+      /* …and the swing time it gave up is printed by the swing bar two rows up,
+         so the b368 hole (each rule deferring to the other, the number printed
+         NOWHERE) cannot reopen through this fix. */
+      const swing = document.querySelector('#panel-combat #fs-player-swing');
+      assert(swing && /\d+(\.\d+)?s/.test(swing.textContent) && getComputedStyle(swing).display !== 'none',
+        'the stage hides the per-style swing time, so the swing bar MUST print it — got "'
+        + (swing ? swing.textContent : 'no swing bar') + '"');
+    } finally {
+      G.activeMonster = snap.monster; G.monsterHp = snap.mhp; G.monsterMaxHp = snap.mmax;
+      if (!snap.inCombat) document.body.classList.remove('in-combat');
+      try { window.renderCombat(); } catch (e) { /* restoring state only */ }
+      if (snap.tab) window.showTab(snap.tab);
+    }
+  }),
+
   /* Tyler: "the possible loot / DPS statistics should be modals that you click
      on near the enemy avatar, not a scrollable thing across the bottom." Two
      halves: the strip is gone, and everything it carried is still reachable. */

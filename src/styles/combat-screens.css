@@ -830,6 +830,59 @@ body[data-theme] #panel-combat[data-foe-class="extradimensional"] .combat-arena 
 #panel-combat .fs-style .combat-style-block .csb-btn {
   flex: 1 1 44%; max-width: 100%; min-width: 0;
 }
+/* THE SUB-LABEL THAT MOVED THE PRIMARY BUTTON (b512). The four style buttons
+ * are the LAST row of the player column and the action bar carrying Eat is the
+ * row directly under them, so anything that makes one of these buttons a line
+ * taller pushes Eat down by that line — and the arena card has ~11px of
+ * headroom at 900px, i.e. less than one line.
+ * The `<small>` is a free-wrapping run of TWO facts ("Atk/Str/Def" + the swing
+ * time) at the 14.5px `--t-micro` FLOOR, inside a 130px content box. Whether
+ * that run takes two lines or three is decided by a few pixels of text
+ * measurement, so the SAME markup rendered the style row 110px tall on one
+ * boot and 127px on the next; the 17px it gained on the second is exactly the
+ * 6px by which the Eat button left the card. A layout whose primary control
+ * moves when a secondary label happens to break differently is not a layout,
+ * it is a coincidence that has been holding.
+ * THE FIX IS TO MAKE THE LINE COUNT STRUCTURAL, and it is two changes that
+ * only work together. (1) The button becomes a COLUMN — name on its own line,
+ * sub-label beneath at the full width of the button — because the sheet that
+ * governs a live fight (audit-overrides.css, `body.in-combat`) lays the two
+ * side by side, which leaves the sub-label a ~66px slot and prints
+ * "Atk/Str/Def" straight out through the button's own gold border
+ * (photographed at 1440x900). (2) The swing time goes, so what remains in
+ * that full-width slot is one short string that cannot wrap.
+ * The button is then EXACTLY two text lines tall in every state, at every
+ * width, for every weapon: the style row measures 99px at 1920, 1440, 1024,
+ * 922 and 700 alike, and no string a data row adds later can move the Eat
+ * button again.
+ * TWO ROUTES I REJECTED. (1) Shrinking the sub-label: `--t-micro` IS 14.5px,
+ * the legibility floor the b227 type guards enforce — there is nothing below
+ * it to reach for. (2) `white-space: nowrap` + ellipsis: deterministic, but
+ * measured at 700–880px it cut "Atk/Str/Def · 2.4…" off the one button whose
+ * entire job is to say which XP route you are choosing — the b348 hole
+ * (Xarn's report) reopened from the other side.
+ * Specificity note: `body.in-combat #panel-combat.active .combat-style-block
+ * .csb-btn small` in audit-overrides.css is (1,4,2), so the plain stage
+ * selector alone would lose to it during a live fight. The paired selector is
+ * there to outrank exactly that rule, not for effect. */
+#panel-combat .fs-style .combat-style-block .csb-btn,
+body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0; text-align: center;
+}
+#panel-combat .fs-style .combat-style-block .csb-btn small,
+body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
+  display: block; width: 100%; margin-top: 0; line-height: 1.15;
+}
+/* The speed is the one fact that goes, and only here, because it is printed
+ * TWICE within 60px of these buttons already: on `#fs-player-swing` two rows
+ * up ("Unarmed · 2.40s" — a label b368 guards against ever being hidden) and
+ * on each button's own tooltip. b366 made this cut and b368 reversed it, but
+ * only because the mobile sheet had hidden the swing bar's label at the same
+ * time and the number was then printed NOWHERE. It is printed here. */
+#panel-combat .fs-style .combat-style-block .csb-btn .csb-swing {
+  display: none;
+}
 #panel-combat .fss-lbl {
   font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
   font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);

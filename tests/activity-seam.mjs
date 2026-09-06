@@ -322,9 +322,239 @@ export async function runAll() {
     fail('ACTIVITY SEAM: retry has been disabled wholesale — S5 would then pass for the wrong reason.');
   }
 
+  /* ── S7: A TAP CONVERGES TO THE PLAYER'S INTENT, NOT THE SERVER'S OLD
+         POINTER (Q-3) ─────────────────────────────────────────────────────
+     Driven, not scanned: the real `declareActivity` over a fake transport, in
+     Node, which is what the module's header promises ("no fetch seam — `fetch`
+     resolves at call time, so a test's override IS the transport"). */
+  await convergeGuards(client);
+
   return problems;
+}
+
+/* ── THE FAKE TRANSPORT ─────────────────────────────────────────────────────
+   ONE `fetch` answers BOTH verbs, because the recovery's correctness is an
+   ORDERING between them — set_activity, then accrue, then set_activity — and a
+   per-module stub could not see it. The accrue module is imported through the
+   SAME specifier activity.js uses (version query read out of the source, so a
+   `bump-version.sh` run cannot silently give this file a second module
+   instance whose config the seam under test never sees). */
+async function convergeGuards(client) {
+  let accrual;
+  let ver;
+  try {
+    const src = await readFile(at('src/net/activity.js'), 'utf8');
+    const m = src.match(/from\s+'\.\/accrue\.js\?v=(\d+)'/);
+    if (!m) {
+      fail('ACTIVITY SEAM S7: src/net/activity.js no longer imports ./accrue.js?v=NNN, so this guard '
+        + 'cannot load the SAME accrual module instance the seam holds and did not run.');
+      return;
+    }
+    ver = m[1];
+    accrual = await import(mod('src/net/accrue.js?v=' + ver));
+  } catch (e) {
+    fail('ACTIVITY SEAM S7: the accrual module could not be loaded: ' + (e && e.message));
+    return;
+  }
+
+  const URL_BASE = 'https://s7.invalid';
+  const ENV = (kind, id, version) => ({
+    version, now: new Date().toISOString(),
+    state: { active_kind: kind, active_id: id },
+    skills: {}, inventory: {},
+    activity: { kind, id },
+  });
+  /* The live shape: 409 + stage:'collect'. It CARRIES the envelope
+     (intents.js §"WHICH REFUSALS CARRY STATE"), which is exactly why the old
+     code reconciled the pointer back to the server's old activity. */
+  const COLLECT_REFUSAL = { status: 409,
+    body: { ok: false, error: 'uncollectable_window', stage: 'collect', ...ENV('gather', 'fishing_shrimp', 1) } };
+  const SWITCHED = { status: 200, body: { ok: true, ...ENV('combat', 'goblin', 2) } };
+  const ACCRUED_NOTHING = { status: 200, body: { ok: true, accrued: false, reason: 'none' } };
+
+  /** Runs one tap against a scripted server. Returns everything observable. */
+  async function tap(answer) {
+    const calls = [];
+    const reconciles = [];
+    const notices = [];
+    const realFetch = globalThis.fetch;
+    /* THE CIRCUIT BREAKER. An unbounded recovery is a real mutation of this
+       code (make it recursive) and without this the guard OOMs instead of
+       reporting — a test that hangs is a test nobody trusts. Eight is far
+       above the three calls the contract allows for one gesture. */
+    const CEILING = 8;
+    globalThis.fetch = async (url, init) => {
+      const body = JSON.parse(init.body);
+      const verb = body.verb || 'accrue';
+      calls.push({ verb, intentId: body.intentId || null, activity: body.activity || null });
+      if (calls.length > CEILING) return { status: 200, ok: true, json: async () => SWITCHED.body };
+      const a = answer(verb, calls.length);
+      return {
+        status: a.status, ok: a.status === 200,
+        json: async () => a.body,
+      };
+    };
+    client.resetActivity();
+    accrual.resetAccrualGate();
+    client.setActivityHooks({
+      onEnvelope: () => null,
+      onReconcile: (act) => { reconciles.push({ ...act }); return act; },
+      onNotify: (text) => { notices.push(text); return true; },
+      onOutcome: () => null,
+    });
+    client.configureActivity({ url: URL_BASE, apiKey: 'k', authToken: 't', slot: 0 });
+    accrual.configureAccrual({ url: URL_BASE, apiKey: 'k', authToken: 't', slot: 0 });
+    let verdict = null;
+    let state = null;
+    try {
+      verdict = await client.declareActivity('combat', 'goblin');
+      /* READ BEFORE THE TEARDOWN. `resetActivity()` clears exactly the fields
+         these assertions are about. */
+      state = client.getActivityState();
+    } finally {
+      globalThis.fetch = realFetch;
+      client.setActivityHooks({ onEnvelope: null, onReconcile: null, onNotify: null, onOutcome: null });
+      client.configureActivity(null);
+      accrual.configureAccrual(null);
+      client.resetActivity();
+    }
+    if (calls.length > CEILING) {
+      fail(`ACTIVITY SEAM S7: ONE tap sent ${calls.length}+ requests — the recovery is unbounded. It is `
+        + 'allowed exactly one extra declaration per gesture (plus the accrue kick); anything more spends '
+        + 'the 30/min activity budget in a loop against a verdict the switch cannot change.');
+    }
+    return { verdict, calls, reconciles, notices, state: state || {} };
+  }
+
+  const CANON = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  /* ── S7-A: THE REFUSED COLLECT IS RECOVERED AND THE SWITCH LANDS ─────── */
+  {
+    const r = await tap((verb, n) => {
+      if (verb === 'accrue') return ACCRUED_NOTHING;
+      return n === 1 ? COLLECT_REFUSAL : SWITCHED;
+    });
+    const verbs = r.calls.map((c) => c.verb).join(' → ');
+    if (verbs !== 'set_activity → accrue → set_activity') {
+      fail(`ACTIVITY SEAM S7-A: one tap produced [${verbs}]. The contract's recovery for a refused `
+        + 'COLLECT is "run the `accrue` verb, then retry the switch WITH A NEW KEY" — the client must '
+        + 'AWAIT the accrual and re-declare exactly once. Firing the accrual and stopping there is the '
+        + 'Q-3 live bug: the gesture converges on the SERVER\'s old pointer and the player, who tapped '
+        + 'Cooking off an active fish, spends the session fishing.');
+    }
+    const ids = r.calls.filter((c) => c.verb === 'set_activity').map((c) => c.intentId);
+    if (ids.length === 2 && ids[0] === ids[1]) {
+      fail('ACTIVITY SEAM S7-A: the re-declaration reused the refused intent key. A refusal is an ANSWER '
+        + '— hr_apply records the DECISION under the key outside the protected block and hands it back '
+        + 'for 25 hours, so the retry would be answered with the same refusal forever.');
+    }
+    for (const k of ids) {
+      if (!CANON.test(String(k))) {
+        fail(`ACTIVITY SEAM S7-A: intent key '${k}' is not a canonical v4 uuid — the server refuses it `
+          + '400 missing_intent_id before any database work.');
+      }
+    }
+    if (!r.verdict || r.verdict.outcome !== 'switched') {
+      fail('ACTIVITY SEAM S7-A: the gesture ended as ' + JSON.stringify(r.verdict && r.verdict.outcome)
+        + ', expected `switched`. It must converge to what the PLAYER tapped.');
+    }
+    if (!r.state.confirmed || r.state.confirmed.kind !== 'combat' || r.state.confirmed.id !== 'goblin') {
+      fail('ACTIVITY SEAM S7-A: the confirmed pointer is ' + JSON.stringify(r.state.confirmed)
+        + ', expected combat:goblin.');
+    }
+    const undone = r.reconciles.filter((a) => a.kind === 'gather');
+    if (undone.length) {
+      fail('ACTIVITY SEAM S7-A: the pointer was reconciled back to the server\'s OLD activity '
+        + `(${JSON.stringify(undone[0])}) while the player's tap was still pending. legacy.js's `
+        + '`reconcileActivityPointer` calls `startSkill` on that, which ACTIVELY UNDOES the tap. The '
+        + 'reconcile for a collect refusal the client is about to retry must be HELD until the recovery '
+        + 'has finished (and then fired if it failed) — never dropped, never fired early.');
+    }
+    if (r.notices.length) {
+      fail('ACTIVITY SEAM S7-A: the player was told the switch failed (' + JSON.stringify(r.notices)
+        + ') on a switch that SUCCEEDED.');
+    }
+  }
+
+  /* ── S7-B: ONE RETRY, NOT A LOOP — AND THE PLAYER IS TOLD ────────────── */
+  {
+    const r = await tap((verb) => (verb === 'accrue' ? ACCRUED_NOTHING : COLLECT_REFUSAL));
+    const verbs = r.calls.map((c) => c.verb).join(' → ');
+    if (verbs !== 'set_activity → accrue → set_activity') {
+      fail(`ACTIVITY SEAM S7-B: a server that refuses every collect produced [${verbs}]. The bound is `
+        + 'ONE retry per gesture: a second collect refusal must END the gesture. Looping it is precisely '
+        + 'what `shouldRetryActivity` excludes collect refusals to prevent, and re-creating the loop in '
+        + 'the recovery is the same bug in a new place — it spends the 30/min activity budget against a '
+        + 'verdict only the accrue verb can change.');
+    }
+    if (r.notices.length !== 1) {
+      fail(`ACTIVITY SEAM S7-B: the player was notified ${r.notices.length} times, expected exactly 1. `
+        + 'A switch that silently does not happen costs an idle player the whole session; two toasts for '
+        + 'one tap is its own bug.');
+    }
+    if (r.notices.length && !/switch/i.test(r.notices[0])) {
+      fail('ACTIVITY SEAM S7-B: the notice does not say the switch failed: ' + JSON.stringify(r.notices[0]));
+    }
+    const truth = r.reconciles.filter((a) => a.kind === 'gather' && a.id === 'fishing_shrimp');
+    if (!truth.length) {
+      fail('ACTIVITY SEAM S7-B: the gesture failed and the pointer was NEVER reconciled to the server\'s '
+        + 'truth. Holding the reconcile is only allowed while the retry is in flight — once the retry is '
+        + 'spent, the client shows what the server says. Keeping the optimistic guess is the one thing a '
+        + 'client is never allowed to do.');
+    }
+    if (r.state.deferredReconcile) {
+      fail('ACTIVITY SEAM S7-B: a held reconcile outlived the gesture ('
+        + JSON.stringify(r.state.deferredReconcile) + ') — it would fire against a later tap.');
+    }
+  }
+
+  /* ── S7-C: THE ACCRUAL ITSELF FAILED — DO NOT SPEND A KEY ON A DOOMED
+         RETRY, AND STILL TELL THE PLAYER ──────────────────────────────── */
+  {
+    const r = await tap((verb) => (verb === 'accrue'
+      ? { status: 500, body: { ok: false, error: 'server_error' } }
+      : COLLECT_REFUSAL));
+    const verbs = r.calls.map((c) => c.verb).join(' → ');
+    if (verbs !== 'set_activity → accrue') {
+      fail(`ACTIVITY SEAM S7-C: the accrual FAILED and the client still produced [${verbs}]. The window `
+        + 'is still unpriced, so the switch is still refusable — re-declaring buys a second 409.');
+    }
+    if (r.notices.length !== 1) {
+      fail(`ACTIVITY SEAM S7-C: the player was notified ${r.notices.length} times, expected exactly 1 — `
+        + 'an unrecoverable switch is the case they most need to be told about.');
+    }
+    if (!r.reconciles.some((a) => a.kind === 'gather')) {
+      fail('ACTIVITY SEAM S7-C: the held reconcile was never flushed, so the screen kept the optimistic '
+        + 'guess after the client had given up on it.');
+    }
+  }
+
+  /* ── S7-D: THE COLLECT EXCLUSION IN `shouldRetryActivity` IS UNTOUCHED ─
+     The recovery is deliberately NOT a retry policy. If the exclusion is ever
+     loosened, the transport loops the refusal AND the recovery re-declares on
+     top of it. */
+  if (client.shouldRetryActivity({ outcome: 'refused', reason: 'uncollectable_window', stage: 'collect' }, 1, 2)
+      !== false) {
+    fail('ACTIVITY SEAM S7-D: `shouldRetryActivity` now retries a collect refusal. That exclusion is '
+      + 'load-bearing — the recovery above already re-declares ONCE after the accrue verb, so a transport '
+      + 'loop on top of it multiplies the gesture.');
+  }
 }
 
 export function summary(settable, declarable) {
   return `${settable.length} settable kinds, ${declarable.length} declarable`;
+}
+
+/* ── STANDALONE ─────────────────────────────────────────────────────────────
+   `node tests/activity-seam.mjs`. run-smoke.mjs imports `runAll` and reports it
+   as one of its own checks; this block only runs when the file is the entry
+   point, so the two cannot diverge. */
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  const found = await runAll();
+  if (found.length) {
+    for (const p of found) console.error('FAIL: ' + p + '\n');
+    console.error(`activity-seam: ${found.length} problem(s)`);
+    process.exit(1);
+  }
+  console.log('activity-seam: OK (S1-S7)');
 }

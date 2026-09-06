@@ -27938,39 +27938,73 @@ const TESTS = [
     const GCat = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
     assert(GCat && typeof GCat.dailyTaskEligible === 'function', 'goalCatalogue bridge must be up');
     const savedCaps = window.dailyTaskCaps;
+    const savedDayKey = window.hrGoalDayKey;
     try {
       // A fresh account: no rooms, no artisan XP — craft/smith are ineligible.
       window.dailyTaskCaps = () => ({ rooms: {}, skillXp: {} });
       const caps = window.dailyTaskCaps();
-      const today = window.hrGoalDayKey();
-      /* The stale slate is DERIVED from today's real raw roll, not hardcoded —
-         a hand-picked slate is only "today's pre-fix roll" on days whose seed
-         happens to deal those ids, which is exactly the date-flake this test
-         shipped with (it went red at UTC midnight). The heal's guarantee is for
-         genuine pre-fix slates: raw first-N of today's order. */
-      const rawIds = GCat.dailyTaskIndexes(today).slice(0, 3).map((i) => GCat.DAILY_TASK_POOL_ORDER[i]);
-      const eligibleOld = rawIds.filter((id) => GCat.dailyTaskEligible(id, caps));
-      const hadBad = eligibleOld.length < rawIds.length;
-      window.G.daily = { lastReset: today, tasks: rawIds.map((id, n) => ({
-        id, type: id, label: id, goal: 50,
-        progress: (id === eligibleOld[0]) ? 37 : 0, reward: 400, done: false,
-      })) };
-      window.generateDailyTasks(false);
-      const ids = window.G.daily.tasks.map((t) => t.id);
-      assert(window.G.daily.tasks.length === 3, 'the healed slate keeps its size, got ' + ids.length);
-      assert(ids.every((id) => GCat.dailyTaskEligible(id, caps)),
-        'THE BUG: the healed slate still offers an impossible task: ' + ids.join(','));
-      if (hadBad && eligibleOld.length) {
-        const kept = window.G.daily.tasks.find((t) => t.id === eligibleOld[0]);
-        assert(kept && kept.progress === 37,
-          'progress on a kept task must survive the heal (kept ' + eligibleOld[0] + ')');
-      }
+      /* THE AUTHORED GOAL OF EVERY POOL ROW. A genuine pre-fix slate carries the
+         POOL's own numbers, so the stale slate must be seeded with them — and the
+         seeded progress must be a value that slate could really hold.
+         (2026-09-06: this test seeded every stale task `goal: 50, progress: 37`
+         and went red the first day the roll's first eligible id was "Kill 25
+         monsters". Nothing was wrong with the heal: the b497 repair below it
+         clamps `progress = min(goal, progress)`, and 37 kills against a goal of
+         25 is a state the game cannot produce. 13 of the next 60 day keys were
+         red the same way — a fabricated fixture, not a heal bug.) */
+      const authoredGoal = {};
+      window.DAILY_TASK_POOL.forEach((f) => { const t = f(); authoredGoal[t.id] = t.goal; });
+
+      /* One day's heal, DERIVED from that day's real raw roll — a hand-picked
+         slate is only "the pre-fix roll" on days whose seed deals those ids,
+         which is the date-flake this test originally shipped with. */
+      const healDay = (dayKey) => {
+        window.hrGoalDayKey = () => dayKey;
+        const rawIds = GCat.dailyTaskIndexes(dayKey).slice(0, 3).map((i) => GCat.DAILY_TASK_POOL_ORDER[i]);
+        const eligibleOld = rawIds.filter((id) => GCat.dailyTaskEligible(id, caps));
+        const keptId = eligibleOld[0];
+        const seeded = keptId ? Math.max(1, Math.floor(authoredGoal[keptId] / 2)) : 0;
+        window.G.daily = { lastReset: dayKey, tasks: rawIds.map((id) => ({
+          id, type: id, label: id, goal: authoredGoal[id],
+          progress: (id === keptId) ? seeded : 0, reward: 400, done: false,
+        })) };
+        window.generateDailyTasks(false);
+        const tasks = window.G.daily.tasks;
+        const ids = tasks.map((t) => t.id);
+        assert(tasks.length === 3, dayKey + ': the healed slate keeps its size, got ' + ids.length);
+        assert(ids.every((id) => GCat.dailyTaskEligible(id, caps)),
+          'THE BUG: ' + dayKey + ' healed slate still offers an impossible task: ' + ids.join(','));
+        const swapped = eligibleOld.length < rawIds.length;
+        if (swapped && keptId) {
+          const kept = tasks.find((t) => t.id === keptId);
+          assert(kept && kept.progress === seeded,
+            dayKey + ': progress on a kept task must survive the heal (kept ' + keptId
+            + ', ' + seeded + ' -> ' + (kept ? kept.progress : 'GONE') + ')');
+        }
+        return { ids: ids.join(','), swapped };
+      };
+
+      const today = savedDayKey();
+      const first = healDay(today);
       // Idempotent: a second call with a clean slate changes nothing.
-      const before = JSON.stringify(window.G.daily.tasks.map((t) => t.id));
       window.generateDailyTasks(false);
-      assert(JSON.stringify(window.G.daily.tasks.map((t) => t.id)) === before,
+      assert(window.G.daily.tasks.map((t) => t.id).join(',') === first.ids,
         'a clean slate must not be re-rolled');
-    } finally { window.dailyTaskCaps = savedCaps; restoreG(snap); }
+
+      /* THE SWEEP. The heal's guarantee is for EVERY roll shape, not today's —
+         and today's shape is exactly what hid the fixture defect above. 60
+         consecutive UTC day keys; ~34 of them deal a gated task and therefore
+         run the kept-progress assertion for real. */
+      let swaps = 0;
+      const t0 = Date.now();
+      for (let n = 0; n < 60; n++) {
+        const d = new Date(t0 + n * 86400000);
+        if (healDay(`${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`).swapped) swaps++;
+      }
+      assert(swaps >= 10, 'the sweep must actually exercise the swap path, hit it ' + swaps + ' of 60 days');
+    } finally {
+      window.hrGoalDayKey = savedDayKey; window.dailyTaskCaps = savedCaps; restoreG(snap);
+    }
   }),
 
   () => tryRun('b228 P1: combatXP pays RANGED and MAGIC, not four styles out of six', () => {

@@ -1,191 +1,127 @@
 # Hearthrise — rules for Claude
 
-This file is auto-loaded into every Claude session in this workspace. The rules below are non-negotiable — follow them without asking.
+Auto-loaded into every session and every subagent in this workspace. Non-negotiable; follow without asking. Rewritten 2026-09-06 as one document with one precedence order (the old file had three sections each claiming to supersede the others, a save-system section that described the pre-cutover blob, and the day's operational rules living only in the Coordinator's memory where agents never saw them).
+
+## 0. Precedence
+
+When two rules conflict, the earlier section wins: **§1 Mission constraints → §2 Safety & authority lines → §3 Lanes & gates → §4 Testing → everything after.** A dated ruling quoted from Tyler is never overridden by an undated one.
 
 ---
 
-## Session operating mode (locked 2026-08-09)
+## 1. Mission constraints (Tyler, 2026-08-10; unchanged)
 
-**Every session on this project runs as the full autonomous dev team, with THIS session acting as the Coordinator.** Tyler should never have to open separate sessions to get parallel work done — the Coordinator dispatches the specialists here.
-
-- The team is the 5-specialist system under `.claude/` (art-director, asset-director, game-designer, qa-engineer, systems-engineer), dispatched as subagents via the Agent tool / Workflow, coordinated through `.claude/coordination/`. Read `.claude/coordination/PROFESSIONAL_STANDARD.md` first.
-- **Default to dispatching the team** for substantive work (features, audits, content, multi-file changes) and to running multiple asks as **parallel workstreams in THIS session** rather than spawning separate sessions or background task-chips. Use `isolation:"worktree"` when agents write in parallel; integrate one logical change at a time, verifying (`node tests/run-smoke.mjs`) after each.
-- Apply judgment only for trivial conversational turns (a quick question, a one-line fix) — those don't need a full fan-out.
-- The Coordinator still owns integration, testing discipline, and the ship flow below.
-
----
-
-## Session criteria (locked 2026-08-23 — after the beta-morning failures; Tyler: "how do we get back organized and doing this correctly?")
-
-These supersede anything above or below where they conflict.
-
-1. **THE PLAY GATE.** No release touching a player-facing loop ships until it has been PLAYED on the live server as a real signed-in account, the way a player plays: reload → claim → fight → gather → buy → hire → water → reload again. Tests + screenshots are necessary, not sufficient. Every beta-morning bug (dead quest claims, daily-reward re-popup, water-all, swing timer, unbuyable Auto-Eat) was "a flag/payout that used to live in the save blob, forgotten on reload" — only reload-and-redo finds that class. The Coordinator needs a logged-in tab it can drive (Tyler's QA account in the connected Chrome); without it the gate cannot be run and the release waits.
-2. **ONE TRACK, ONE TREE.** Agents work ONLY in worktrees (`isolation:"worktree"`). The Coordinator is the only writer on `main`. One integration at a time; the suite runs on a quiet machine (parallel suites blow the in-page budget and look like flakes). No new design/feature tracks while a player-visible bug is open — bugs first, in the order a player meets them.
-3. **KILL THE CLASS, NOT THE BUG.** The cutover inverted persistence: the blob was a DENYLIST (everything persisted unless excluded); the residue + records are an ALLOWLIST (only listed fields survive a reload). When a "forgotten on reload" bug appears, run the sweep (every `G.<field>` the game writes vs. record ∪ residue ∪ NO_SYNC) and fix the whole list in one build — never one field per player report.
-4. **STATUS IS A TABLE.** Every report to Tyler leads with a table: bug → status (fixed-live / fixed-staged / open) → what's needed. No walls of text; no "I'll…" without a tool call behind it.
-
-## Testing discipline
-
-**Every bug fix and every new feature ships with a test in the same commit.** Full reasoning + mechanics are in [`TESTING.md`](./TESTING.md). The short version:
-
-- **Bug fix** → add a regression test under "regression suite" in `src/features/smoke-test.js` that fails without the fix.
-- **New feature** → add at least one happy-path E2E test under "player actions" or "interactive coverage" that exercises the feature the way a player would.
-- Budget ~10–20% of feature build time for tests. Skipping it always costs more later.
-- Don't disable a failing test to "unblock" a push — fix the test or fix the underlying behaviour. The test is the contract.
-
-Run the suite with `Ctrl+Shift+T` or the floating 🧪 button.
+- **Multiplayer-only, online-only, server-authoritative. Nothing is authored by the client — ever.** The client sends INTENTS and renders the state the server returns. It never computes an authoritative number: XP, levels, combat outcomes, yields, drops, gold, farm growth, deaths, recovery clocks are all computed and owned by the server (Postgres `SECURITY DEFINER` RPCs + the `hr-accrue` Edge engine). Client prediction is display-only and always reconciled to the envelope.
+- **There is NO solo progression. None.** Do not re-propose a client-side solo tier; rejected three times.
+- **"Offline progression" is server-side accrual** (activity + server timestamp → grant on return, Idle Clans style). The client clock and local files are never authority.
+- **The server owns anything tradeable, rankable or contributable**, written only by RPCs with server-side catalogues, server clock, per-call/per-day clamps and an append-only ledger (pattern: `2026-08-08-clan-seat.sql`). Never trust a client value that crosses to another player — not gold, quantity, price, name, or timestamp.
+- **Target property:** a forged client value cannot cross into another player's economy or ranking. Every shared-surface write is journalled.
+- **The cutover is COMPLETE and the beta was wiped.** No back-compat, no save migration, no client-authored fallbacks. Design correctly, not compatibly.
+- **Ship to Steam + mobile from one web core** by incremental refactor (strangler-fig; data → logic → render → platform seams). Never a rewrite. Grow content by adding data rows (`src/data/*.js`, `docs/SYSTEMS_MAP.md`), not code.
+- **North star:** a large-scale multiplayer semi-idle game. Weigh every decision against scale and a shared live world. Clean code is a must; zero new tech debt.
 
 ---
 
-## Build + ship workflow
+## 2. Safety & authority lines (never crossed, by anyone, for any reason)
 
-- Cache buster lives in **three** places that must agree: `src/build-info.js` (`BUILD.cache`), every `?v=NNN` in `index.html`, and every `?v=NNN` on ESM import specifiers in `src/**/*.js` (added in b148 — static imports like `import './net/sync.js?v=NNN'` are fetched WITHOUT inheriting index.html's version, so a stale one runs old code for ~10 min after deploy). **Just run `./bump-version.sh <NNN>`** — it bumps all three in lockstep and verifies. Then bump the date in build-info.js + add a CHANGELOG entry by hand.
-- Don't add a bare relative ESM import (`from './x.js'` with no `?v=`) — the bump script + smoke test expect every module import to carry a version. `bump-version.sh` fails loudly if it finds an unversioned one.
-- **That rule is scoped to what the BROWSER loads: `index.html` + `src/**`. Outside it — `supabase/functions/**`, `tests/**` — a relative import must carry NO `?v=` at all** (b332). `bump-version.sh` walks `src/` only, so a version there can never be bumped: the Edge Function's imports sat frozen at `?v=326` for five builds while their targets moved to `?v=331`, and Supabase's hosted bundler then rejected the deploy outright because it resolves a specifier as a literal file path, query included. `versionQueryGuard()` in `tools/pack-edge.mjs` (run by `tests/run-smoke.mjs`) fails the build on one. Do NOT "fix" the drift by widening the bump script's `find`.
-- Service worker derives its cache name from the `?v=` it sees on script tags (`hearthrise-<NNN>`). The b124 universal kill-switch in `<head>` purges any cache whose name doesn't match the current build — don't reintroduce a fixed cache name.
-- **THE RELEASE VISUAL GATE (Tyler, 2026-08-17, after the b361 combat-screen break — NON-NEGOTIABLE).**
-  No release that touches UI, CSS, icons, or any rendered surface ships until the ASSEMBLED
-  release (merged main, not the feature branch) has been LOOKED AT: boot the real game, open
-  every screen the diff touches plus the combat screen and inventory (the two densest), at
-  desktop AND mobile-landscape (922×423), and READ the screenshots — measurements alone do not
-  count, and per-branch verification by the authoring agent does not count, because the b361
-  break was an emergent interaction between two individually-verified branches (256px portraits
-  meeting an unsized icon slot). The smoke suite cannot see layout. If the Coordinator cannot
-  do the pass, the Art Director does; either way the screenshots exist before the push.
-  Tyler's words: "THIS SHOULD HAVE NEVER GONE LIVE WITHOUT SOMEONE FROM THE UX/UI/DESIGN TEAM
-  APPROVING IT."
-- **THE CI GATE (locked 2026-09-04, after the P0 process failure below — NON-NEGOTIABLE).**
-  **A release is green only when BOTH the local `node tests/run-ci-local.mjs` run AND the
-  GitHub Actions run on the release commit are green.** Neither alone is a gate: the local
-  run cannot see a CI-environment problem, and the GitHub run cannot be waited on while a
-  release is being assembled — so both, every time, and the GitHub run is CHECKED, not assumed.
-  `node tests/run-smoke.mjs` is ONE step of the workflow; `.github/workflows/smoke.yml` runs
-  thirteen more that it does not (schema-drift, live-hash-drift, renown-kill-faucet,
-  restore-census, conservation-fuzz, activity-intent, claim-intent, clan-journal-guard,
-  anon-rate-gate, raid-band-denial, raid-card-copy, rpc-resolution, edge-jwt-gate — most with
-  their `--mutate` / `--selftest` proofs). `run-ci-local.mjs` DERIVES its list by parsing
-  smoke.yml, so the two cannot drift; `--all` adds the in-page suite and runs the whole workflow.
-  Why: on 2026-09-04 the Actions history for `main` showed **40 completed runs since 2026-08-29
-  and ZERO green**, while the in-page step passed in every one of them. Every release from b488
-  was gated on the weaker local command, and the guards that were red were the ones that watch
-  the DATABASE — can the repo rebuild it, does production carry the bodies the repo believes it
-  carries, which rows only a backup gives back, is value conserved. After cutover the database
-  is the only copy of every player's progression, so those are the guards that matter most.
-  A red CI run is never "flaky" until someone has read it, and a guard is never fixed by
-  loosening, deleting, or skipping it.
-- After bumping, give Tyler the literal git push command. He runs git himself.
+- **Secrets:** anon key only in the repo; the service-role key is never pasted anywhere. Supabase access token lives at `~/.supabase-token` (read as file bytes; never printed, never in argv). Discord webhook at `~/.hearthrise/changelog-webhook`, never in the repo. The smoke suite's secret guard is the contract.
+- **Player state is never fabricated.** No admin SQL that seeds, heals, grants or resets a real character to "test" something. Test accounts become real by being PLAYED.
+- **Money and ranked surfaces move only on a Security GO.** Any migration or RPC touching gold, gems, inventory, XP/level credit, leaderboards, clan/raid contributions, drop tables, prices or purchases gets an adversarial review by the security-engineer role BEFORE apply. GO-WITH-CHANGES means the listed changes land first. The security role holds veto.
+- **Budget freeze (2026-08-17):** no purchases, no paid API spend, without fresh explicit approval per spend.
+- **Production DB writes happen only through `node tools/apply-migration.mjs <file>` (one file per call), never inside `begin/commit`, never during 00:00–00:10 UTC, never by an agent.** The Coordinator applies; agents stage and self-check.
+- **Guards are never loosened, skipped or deleted to get green.** A red guard is read first. If the guard is wrong, fix the guard with a mutation proof that shows it still bites.
+- **`tests/live-hash-drift.baseline.json` is Coordinator-only** (re-measured with `--live --write` after an apply, whys written from `--codediff`). Agents never edit it; they report what it wanted.
+- **Worktrees are never recursively deleted.** Killed lanes keep uncommitted work; re-dispatch into the existing `.claude/worktrees/agent-<id>` without isolation to recover it.
 
 ---
 
-## Server authority (locked 2026-08-10 — Tyler, supersedes where it conflicts)
+## 3. How work moves: roles, lanes, gates
 
-**Hearthrise is a MULTIPLAYER-ONLY, ONLINE-ONLY game. Nothing is authored by the client — ever.** (Tyler, explicit, 2026-08-10.)
+### 3.1 Roles
+This session is the **Coordinator**: the only writer on `main`, owner of integration, gates, releases, DB applies, edge deploys, Discord notes and reports. Substantive work is dispatched to the specialist agents under `.claude/agents/` — game-designer (final design authority; do not queue design decisions on Tyler), systems-engineer, backend-architect, security-engineer (veto), reliability-engineer, qa-engineer, art-director, asset-director — as parallel workstreams in THIS session. Agents work ONLY in worktrees (`isolation:"worktree"`), commit on their branch, never touch `main`, never write to production. Trivial turns (a question, a one-line change) don't need a fan-out. Read `.claude/coordination/PROFESSIONAL_STANDARD.md` once per session.
 
-A live connection is required to play. There is no offline-capable client and no local simulation to reconcile. Progress still accrues while the player is away — the SERVER computes it (activity + server timestamp → grant on return), exactly like Idle Clans. "Offline progression" means server-side accrual, NOT playing without a connection. This constraint SIMPLIFIES the architecture: no dual client/server simulation, no offline reconciliation, no trust in any local value.
+**Agent briefs are scoped by lane.** A bug brief = root cause + fix + ONE regression test that fails without it, nothing else, target ≤30 min of agent time. Hardening (standing guards, mutation proofs, §4 self-checks, census re-pins) is a second, parallel branch that never blocks the fix.
 
-Trigger: a live audit found the economy fully exploitable from browser devtools (`G.gold = 1e12` → autosave → buy out the real market). Gold, inventory, all skill levels and every leaderboard score live in the client-authored `game_saves.snapshot` blob, and `buy_listing` moves no value server-side — the client does. Clan seat / raids / world events were already properly server-authoritative; **the market and the save blob are the two surfaces that never got that treatment.**
+### 3.2 Priority
+Player-visible bugs first, in the order a player meets them. No new feature track while a P0/P1 player-visible bug is open. Kill the CLASS, not the bug: when a "forgotten on reload" or "residue-ahead" bug appears, sweep every field/surface of that class and fix the whole list in one build.
 
-The rule going forward:
+### 3.3 The three lanes
 
-- **The server owns anything tradeable, rankable, or contributable** — gold, tradeable item quantities, market transactions, leaderboard scores, clan/raid contributions. These live in real tables written ONLY by `SECURITY DEFINER` RPCs, never by a client PATCH/POST. Copy the established pattern in `2026-08-08-clan-seat.sql` (`clan_deposit`: server-side item catalogue, server clock, per-call + per-day clamps read from an append-only ledger, no client UPDATE policy).
-- **Never trust a client-supplied value that crosses to another player** — not gold, not quantity, not price, not a display name (derive names server-side), not a timestamp (use `now()`).
-- **There is NO solo progression. None.** (Tyler, explicit, 2026-08-10 — do not re-propose a client-side "solo tier"; it has been rejected three times.) Every progression value — XP, skill levels, combat outcomes, gathering/crafting yields, farm growth, drops, gold — is computed and owned by the SERVER. The client sends INTENTS ("start mining coal", "craft X", "equip Y") and renders the state the server returns. It never computes an authoritative number.
-- **Offline progression is server-computed**, the Idle Clans way: the server stores the active activity plus a SERVER timestamp; on return the SERVER computes elapsed time against server-known level/gear/caps and grants the result. The client clock and local files are never read for authority. Client-side prediction is allowed for responsiveness but is display-only and always reconciled to server truth.
-- **Every shared-surface write is journalled** so abuse is detectable and reversible.
+| Lane | What | Gates (in this order) | Clock |
+|---|---|---|---|
+| **A. Bug fast lane** | a player-visible bug fix, client and/or edge, no DB body change | merge ALONE → in-page suite once (`node tests/run-smoke.mjs`) → visual pass ONLY if a rendered surface changed and ONLY on the touched screens (+combat & inventory if CSS moved) → edge deploy if `supabase/functions/**` moved → bump → push → `run-ci-local` and the GitHub run IN PARALLEL after the push → play-gate on live → report | ≤60 min from branch landing |
+| **B. Feature / multi-file lane** | new features, refactors, content batches, anything touching several surfaces | merge the ready set → ONE suite → full visual gate (every touched screen + combat + inventory, desktop AND 922×423, screenshots READ, on the ASSEMBLED main) → `run-ci-local` BEFORE push → bump → push → GitHub run checked → play-gate → report | as long as it takes; never overlapping a lane-A push |
+| **C. DB / economy lane** | any migration or RPC body change | author + §4 self-check + `schema-drift` replay + `apply-order-honesty` → **Security GO** → Coordinator applies (`tools/apply-migration.mjs`, one file) → read-only post-apply verification agent → `live-hash-drift --live --write` + whys + apply-order note flipped to APPLIED + `restore-census` (classify any new table) → edge deploy if the engine half moved → THEN the client half ships via lane A or B | apply happens BEFORE the client push that depends on it |
 
-The target property is not "unhackable" (unachievable in a browser) — it is: **a forged client value cannot cross into another player's economy or ranking.**
+Rules that apply to every lane:
+- **One suite at a time on a quiet machine** (parallel suites blow the in-page budget and look like flakes). When several branches are ready, merge the set and run ONE suite; bisect only if red. Never run the suite after every merge of a set.
+- **Never bundle a lane-A fix behind lane-B/C work.** The slowest branch must never gate the fastest.
+- **A release is green only when the in-page suite, `run-ci-local` AND the GitHub Actions run on the release SHA are green, AND it has been played.** In lane A the two CI halves run after the push; a red one is fixed forward within the hour, never "flaky" until read. In lanes B/C the local half runs before the push.
+- **The play gate:** play it on the live server as a real signed-in account, the way a player plays (reload → claim → fight → gather → buy → hire → water → reload again), on the QA account in the connected Chrome. If the gate could only run after the push, the report says **"pushed, unplayed"** — never "shipped". (Structural gap, Tyler's to close: a staging origin with the QA account signed in would move this gate before `main`.)
+- **The visual gate exists because b361 broke on an emergent interaction between two individually-verified branches**; the per-branch look by the authoring agent never counts. Headless: `node tests/visual-qa.mjs` (bypass the invite gate with `window.__HR_TEST_HARNESS__=true`); the Art Director reads the screenshots if the Coordinator cannot.
+- **Edge deploy before push** whenever `supabase/functions/**` changed: `node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue` + copy `supabase/config.toml`, then `npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> --project-ref nezapsylztqbbwuwembx`, then verify the live `payload_sha256` equals `pack-edge --hash`. The in-page payload guard is red until they match.
+- **Push = live** (Pages deploys `main`). The Coordinator runs `git push` itself. After Pages serves the new `BUILD.cache`, play-gate, then post the release note with `node tools/post-changelog.mjs <file>` (dry-run first; 2000-char cap).
 
-**The beta WILL BE WIPED at cutover** (Tyler, 2026-08-10: "I do not care if anything has been exploited because this beta version is gonna be wiped anyway. I care about doing it correctly from this point forward."). So: no back-compat, no save migration, no amnesty, no forensic audit of existing abuse, and no need to harden an economy that is going away. Design the server-authoritative model **correctly rather than compatibly** — this is effectively greenfield on the server side, which removes the hardest constraint in the whole program.
-
-## Architecture direction (locked 2026-08-07; amended 2026-08-10)
-
-Goal: scale in content **and ship to Steam + mobile from one web core.** Approach: **incremental refactor-in-place — never a rewrite.**
-
-> **Amendment (2026-08-10, authorized by Tyler):** the no-rewrite rule does NOT block the server-authority program above. That work is still strangler-fig — one domain at a time (market/gold/inventory first), live beta green throughout — but it DOES move authority off the client, which is a deliberate architectural change rather than a refactor. Where the two conflict, **server authority wins.** A full server-side *simulation* rewrite remains rejected (4–8 months, and it would make progression require a live connection). Keep the live beta green. Proof-of-model: Melvor Idle (a web idle-RPG) shipped to Steam (desktop wrapper) and iOS/Android (mobile wrapper) from one web codebase. Steam = Electron/Tauri wrapper; mobile = Capacitor wrapper. The web stack is not the blocker — the monolith + CSS debt are.
-
-Migrate toward four layers, strangler-fig, one domain at a time (combat, skills, farm, world/map, dungeon — this is roadmap task #129):
-1. **Data** — content as data (`src/data/*.js`). Grow by adding data, not code.
-2. **Logic** — idle ticks, combat, economy as pure, DOM-free, testable functions. Reusable across platforms.
-3. **Render/UI** — a component layer that reads design **tokens only**.
-4. **Platform seams** — storage / cloud save / notifications / purchases / achievements behind interfaces, so Steam & mobile swap implementations without touching game logic.
-
-**HARD RULE — no hardcoded colors.** Every color comes from a CSS token (defined per theme in `theme-cozy.css`). The old cozy theme baked ~58 cream gradients straight into components; that debt is exactly why the Hearthlight theme (b150) only partially applied. Converting hardcoded → token IS the visual revamp, done screen-by-screen — cozy-light must look unchanged, Hearthlight must go dark. When you touch any component, convert its colors to tokens as you go.
+### 3.4 Dead-feature vitals
+Refusals are journalled server-side (one row per user/verb/reason/minute; farming first). At the start of every session run the read-only vitals query (plants, claims, upgrades, kills, trades per day for the last 7 days). A feature at zero for two days is a P1 by definition. Farming sat at zero from 2026-08-27 to 2026-09-06 and nobody could see it.
 
 ---
 
-## Adding content? Read the systems map first
+## 4. Testing discipline
 
-Before building any item / recipe / drop / gathering node / progression change, read
-[`docs/SYSTEMS_MAP.md`](./docs/SYSTEMS_MAP.md). Most content is a **data row** in
-`src/data/*.js` that an existing engine consumes — not new code. The map shows each
-system, its data shape, where to add, and which guard verifies it. Golden rule: grow
-by adding data, not code.
-
-## What lives where
-
-- `src/legacy.js` — the monolith, now **~18.8k lines** (the old "~9k" was 2× stale; corrected 2026-08-18 by the code-health audit). It is now mostly UI wiring + presentation glue (146 `innerHTML`, 199 `getElementById`) — the data/logic have already strangler-figged out into `src/core/*` (pure, dual-runtime) and `src/data/*`. Phase 3.5 (the render-layer extraction) is the remaining split — task #129. **Extract order (audit ruling): UI-render helpers → `src/render/*` FIRST, then the tab/screen controllers, leaving data/logic (already out) last.**
-- `src/styles/legacy.css` + `audit-overrides.css` + `theme-cozy.css` — three sheets that fight each other on specificity. When adding mobile rules, expect to need theme-prefixed selectors (`html:not([data-theme]) ...`) to outrank existing desktop rules.
-- `src/features/smoke-test.js` — the test suite. Add tests here.
-- `src/net/auth.js`, `src/net/sync.js`, `src/net/supabase-bootstrap.js` — Supabase wiring. Default cloud config is hard-coded in supabase-bootstrap.js (anon key only — never paste service role).
-- `src/bug-report.js` — Discord webhook + screenshot capture. Has both direct-Discord and Cloudflare Worker bridge paths.
-- `.legacy/snapshots/` — old monolith HTMLs, kept out of deploy root since b125. Don't restore them to root — they ship old service workers.
-- `assets/icons-bundle/` — the only icon folder shipped on the deploy. `icons3/`, `assets/raw-bundle/`, etc. are NOT shipped (gitignored or never committed). The smoke test asserts `_itemPath` and `_monsterIcon` never reference unshipped folders.
+- **Every fix and feature ships with a test in the same commit.** Bug → regression under "regression suite" in `src/features/smoke-test.js` that fails without the fix. Feature → a happy-path test under "player actions"/"interactive coverage" that plays it. Full mechanics in `TESTING.md`.
+- **Both-path tests.** Anything touching combat, death, activity, accrual or receipts ships an ATTENDED test and an AWAY test. b509 tested the away death nine ways while the attended death handed out a free full heal.
+- **Mutate the caller; one sample is not a verdict.** A guard that has never been red is not a guard: every standing guard carries `--selftest`/`--mutate` proof.
+- **Second breakage = missing test.** Add the test before fixing again.
+- **Never disable a failing test to unblock a push.** The test is the contract.
+- **Server-side changes carry a §4 self-check block** in the migration (properties asserted by executing SQL, not by markers), and the repo chain must replay on `node tests/schema-drift.mjs` with a byte-identical second apply.
+- The in-page suite also runs from the game (`Ctrl+Shift+T` / 🧪), but the record of truth is the headless run.
 
 ---
 
-## Save system — invariants (DO NOT BREAK)
+## 5. Build & ship mechanics
 
-The cloud save is the backbone. These rules are enforced by the **b305 stress battery** in `smoke-test.js` — any change to `src/net/{sync,auth,events}.js` or the save/offline path in `legacy.js` (`saveLocal`, `loadLocal`, `processOffline`, `simulateAwayCombat`, `claimOfflineMs`) MUST keep that battery green and ship its own test.
-
-> **b325:** `processOfflineCombat` is GONE. There is now ONE combat loop — `src/core/combat-sim.js`, called with `ctx = {away, atMs}` for both the live tick and away accrual (see [`docs/design/away-time-ruling.md`](./docs/design/away-time-ruling.md)). Do not reintroduce a second away path; the `AWAY-1` parity test asserts that a seeded fight is byte-identical either way, and `AWAY-12` asserts the old loop cannot come back. Which bonus channels pay away is a **table** (`src/core/away.js` `AWAY_SCOPE`), not a code path, and an unknown channel defaults to PAYING — every historical away bug was a base reward silently vanishing.
-
-1. **Cloud is authoritative; local is a cache + offline journal.** Local must NEVER overwrite a newer cloud. `decideRestore` resolves by **freshness (newest wins by timestamp)**, not level. A strictly-newer LOCAL is never rolled back (anti-rollback invariant). Ties keep local (no needless reload).
-2. **Restore/evict only on CERTAINTY.** Never restore on a garbage/NaN/negative/timeless cloud timestamp. Never evict a device on a network error, missing table, or offline — only on a *definitive* different-owner-with-fresh-heartbeat row. A flaky connection must never lock a player out or discard their save.
-3. **The snapshot is a DENYLIST, not an allowlist.** `snapshot()` uploads every G field EXCEPT `NO_SYNC` (in-flight combat/activity, `combatLog`, `lastOfflineSummary`, derived `totalLevel`/`combatLevel`) and `_`-prefixed scratch. **Adding a persistent-progress field to `NO_SYNC` = silent cloud data loss — forbidden.** New features persist by default; that is the safe direction.
-4. **Single active session keys on the TAB (`sessionStorage` instance id), not the device** (`localStorage` is shared across a browser's tabs). Heartbeat + stale-takeover so closing a tab never false-locks the other.
-5. **Offline is capped at the daily budget** (`offlineCapHours`) via the `offlineBudget.at` watermark — a forward clock jump or long absence can never mint unbounded progress; a future/garbage watermark grants nothing. The watermark only advances while `document.hidden` is false.
-6. **RLS is per-user** (`auth.uid() = user_id`) on every table holding player data — no cross-player read/write. Public-readable tables (profiles/clans/market/display_names) are read-only to others by design. NOTE: the client snapshot is self-authoritative, so leaderboard values are self-forgeable — true prevention needs server-side simulation (out of scope; documented limitation, not a quick fix).
-
-Before touching saves, read [`memory: cloud-save-program`] and confirm the b305 battery still passes.
-
-## Asset rules
-
-- New icons go in `assets/icons-bundle/` (subfolders: `buildings/`, `monsters/`, `resources/`, `medieval/`).
-- Wire them in via the `LOCAL_*_ICON` maps inside `applyLocalIcons()` at the bottom of `src/legacy.js`. That IIFE is the single source of truth for icon paths.
-- Don't add `BUNDLE_*_ICON` entries pointing at `assets/raw-bundle/...` — that folder is unshipped.
+- Cache buster lives in three places that must agree: `src/build-info.js` (`BUILD.cache`), every `?v=NNN` in `index.html`, every `?v=NNN` on ESM imports under `src/**`. **Run `./bump-version.sh <NNN>`** (bumps and verifies all three), then bump the date in `build-info.js` and add the CHANGELOG entry (`## v0.9.2-beta build NNN — YYYY-MM-DD (Title)`, inserted above the previous build).
+- Never add a bare relative import under `src/**` (no `?v=`); **never add a `?v=` outside `src/**`** (`supabase/functions/**`, `tests/**`) — Supabase's bundler resolves the query as a literal path and the deploy fails (b332). `versionQueryGuard()` in `tools/pack-edge.mjs` enforces both.
+- The service worker derives its cache name from the `?v=` it sees; the b124 kill-switch in `<head>` purges mismatched caches. Don't reintroduce a fixed cache name.
+- `run-ci-local.mjs` derives its step list by parsing `.github/workflows/smoke.yml`, so new guards are registered THERE. `--all` adds the in-page suite.
+- Migration conflicts on merge: `?v=` bump conflicts resolve as branch content at the new version; JSON baselines are regenerated by their own tools, never hand-merged.
 
 ---
 
-## Mobile rules
+## 6. Persistence (post-cutover) — invariants
 
-- Mobile media query is `@media (max-width: 540px), (max-height: 540px) and (max-width: 900px)` — covers portrait phones AND landscape phones. **b310: phones are LANDSCAPE-ONLY (portrait gated), and a landscape phone should get the SCALED-DESKTOP layout (left rail + two columns), NOT the phone bottom-nav.** A wide landscape phone (e.g. 922×423, paione's Ulefone — wider than 900) therefore correctly falls into the desktop/rail layout; b309 briefly forced those into the bottom-nav and was reverted. The rail is made scrollable so it fits short screens. Don't push wide landscape phones into the bottom-nav layout.
-- Bottom-nav: 6 tabs (Home/Character/Combat/Skills/Farm/More). Sidebar hidden on mobile.
-- The desktop-only `.prof-toolbar` must stay `display:none` on mobile. The mobile-equivalent is `.feat-buttons`.
-
----
-
-## File creation
-
-- Don't create new docs (.md, .docx, .pdf, etc.) unless Tyler explicitly asks.
-- When Tyler asks for "the command," give him the single bash block to run, no more no less.
+- **Server tables are the only copy of progression.** `hr_state_of` projects them; the envelope the client applies is truth. `player_ledger` journals every value movement.
+- **The residue is an ALLOWLIST** (`RESIDUE_FIELDS` in `src/net/client-state.js`) for client-only preferences and display state. Anything a player would miss after a reload must live in a server column/row and be projected — not added to the residue as a shortcut. A field that exists only in `G` is lost on reload by design; `_`-prefixed fields are scratch and never persisted.
+- **Residue-ahead is a bug class:** the client must never gate a server capability on a client-held tier/level/flag. Gates read the server-mirrored value with a fail-safe of "not unlocked".
+- **Server writes are versioned and raise-only where they must be** (hp floors, bank cap, plot tier); the client never rolls a server version back. Never restore or evict on uncertainty (network error, missing table, garbage timestamp).
+- **Single active session keys on the TAB** (`sessionStorage` instance id) with heartbeat + stale takeover; a second tab pauses with "Your session moved".
+- **One combat engine** — `src/core/combat-sim.js`, same code for the live tick and away accrual (`AWAY-1` parity, `AWAY-12` forbids a second path). Which channels pay away is the `AWAY_SCOPE` table; unknown channels PAY. Deaths knock out and resume (Recovery Rule rev.2, `src/core/away.js`); a death is never a free heal, attended or away.
+- **RLS is per-user** on every player table; public-readable tables are read-only to others. Client RPC surface is the approved `hr_client_rpc_baseline`; `hr_assert_grant_hygiene` is the detector.
 
 ---
 
-## Behavior
+## 7. Code & content rules
 
-- Trust but verify: when a fix lands, run the smoke test against the live deploy and report green/red.
-- When something breaks for the second time, that's a sign there's no test guarding it. Add the test before fixing again.
-- If the bash mount looks stale (file size disagrees with what `Read` sees), trust `Read`/`Edit`/`Write` — that's the live filesystem. Bash mount is sometimes cached.
+- `src/legacy.js` is the ~19k-line monolith, now mostly UI glue; data lives in `src/data/*`, pure logic in `src/core/*` (dual-runtime, imported by the edge). Extract render helpers to `src/render/*` first, then screen controllers (task #129).
+- **No hardcoded colours.** Every colour is a CSS token from `theme-cozy.css`; converting hardcoded → token is the visual revamp, done as you touch each component.
+- Three stylesheets fight on specificity (`legacy.css`, `audit-overrides.css`, `theme-cozy.css`); mobile rules often need theme-prefixed selectors.
+- **Mobile:** media query `@media (max-width: 540px), (max-height: 540px) and (max-width: 900px)`. Phones are landscape-only; a landscape phone gets the scaled-desktop rail layout, never the bottom-nav (b310). `.prof-toolbar` stays hidden on mobile; `.feat-buttons` is its equivalent.
+- **Assets:** new icons in `assets/icons-bundle/` (`buildings/ monsters/ resources/ medieval/`), wired via the `LOCAL_*_ICON` maps in `applyLocalIcons()`. `icons3/`, `assets/raw-bundle/`, `.legacy/snapshots/` are unshipped; never reference them.
+- **Supabase wiring:** `src/net/supabase-bootstrap.js` (anon key only), `auth.js`, `sync.js`, `accrue.js`, `activity.js`, `record.js`, `client-state.js`. Bug reports: `src/bug-report.js`.
+- **Docs:** don't create new `.md`/`.docx`/`.pdf` unless Tyler asks. CHANGELOG entries and the priority board (`docs/planning/PRIORITY_BOARD.md`) are maintained, not new docs.
 
 ---
 
-## Fix velocity rules (locked 2026-09-06 — Tyler: "change whatever you're doing for it to take this long to push out a bug fix")
+## 8. Reporting to Tyler
 
-Measured on 2026-09-06: four player-visible fixes were each READY 55–70 min after dispatch and then sat 1–2.5 h behind a release chain built for big risky drops. These rules cut that chain for bug fixes; the security/CI/visual gates keep their substance, not their serialization.
+- **Status is a table:** item → status (live / applied / staged / in flight / open) → what's needed. Lead with it. No walls of text; no "I'll…" without a tool call behind it.
+- Report outcomes faithfully: red is red, unplayed is unplayed, a skipped step is named.
+- Name Tyler as a blocker only after exhausting every path yourself, in one line at the end. Push-notify only for blockers only he can clear and major milestones.
+- When he asks for "the command", give the single bash block, nothing else.
+- Never end a turn idle while work is queued; blockers get one line, then the next item starts.
 
-1. **THE FAST LANE.** A player-visible bug fix ships ALONE, within 60 minutes of its branch landing: merge → in-page suite ONCE → bump → push. `run-ci-local` runs IN PARALLEL with the GitHub run after the push, never as a 27-minute prelude to it; if either is red, fix forward immediately. The visual gate runs only when the diff touches a rendered surface, and only on the screens the diff touches (+ combat/inventory when CSS moved). Never bundle a fix with other work; the slowest branch must never gate the fastest.
-2. **ONE SUITE PER INTEGRATION SET.** When several branches are ready together, merge them all, run the suite once, bisect only if red. Four suites for four merges is 45 minutes of nothing.
-3. **FIX / HARDEN SPLIT.** An agent brief for a bug says: root cause + the fix + ONE regression test that fails without it — nothing else, back in ≤30 minutes of agent time. Standing guards, mutation proofs, §4 self-checks and census re-pins are a SECOND, parallel branch that never blocks the fix from shipping.
-4. **BOTH-PATH TESTS.** Anything touching combat, death, activity or accrual ships with an ATTENDED test and an AWAY test. b509 proved the class: the away path was tested nine ways and the attended path had a free full heal.
-5. **DEAD-FEATURE VITALS.** Refusals are journalled server-side (one row per user/verb/reason/minute), and a read-only vitals query (plants, claims, upgrades, kills, market trades per day) is run at the start of every session; a feature at zero for two days is a P1 by definition. Farming sat at zero from 2026-08-27 to 2026-09-06 with nobody able to see it.
-6. **PLAYED BEFORE GREEN, SAID PLAINLY.** A release is not called green until it has been played on the live server. If the play-gate could only run after the push, the report says "pushed, unplayed" — never "shipped".
+## 9. Behaviour notes
+
+- Trust but verify: after a fix lands, check it on the live deploy and report green/red.
+- If the bash mount disagrees with `Read`, trust `Read`/`Edit`/`Write`.
+- Chrome QA tabs freeze after idle; open a fresh tab rather than fighting a dead one, and close the old one so it cannot reclaim the single session.

@@ -607,11 +607,9 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'reconciles by key — the same follow-up as muster/raid.',
     site: 'the renown rank-up payout',
   },
-  'src/legacy.js#grant': {
-    kind: 'grant', status: 'deferred', blockedBy: B.IAP_RECEIPT,
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-    site: 'the IAP entitlement grant',
-  },
+  /* 'src/legacy.js#grant' — the IAP gold-grant branch — was DELETED in b507
+     (the store sells no gold; `IAP.grant()` no longer has a `p.gold` arm).
+     The census must not describe a site nobody runs, so the row is gone with it. */
   'src/legacy.js#finalizeBounty': {
     kind: 'grant', status: 'deferred',
     /* SERVER-CREDITED for CULL bounties (2026-08-23-bounty.sql). hr_accept_bounty

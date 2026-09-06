@@ -6004,7 +6004,11 @@ function dailyTaskSpecs(){
 }
 function generateDailyTasks(notice=true){
   ensureRetentionState();
-  const today=hrGoalDayKey();
+  /* window seam, not the local binding — same reason the caps read below goes
+     through window: DAILY-HEAL-1 sweeps the heal across 60 consecutive day keys,
+     and a roll-shape-dependent defect must not be able to hide behind "green
+     today". Identical in production (window.hrGoalDayKey IS hrGoalDayKey). */
+  const today=(typeof window.hrGoalDayKey==='function')?window.hrGoalDayKey():hrGoalDayKey();
   if(G.daily.lastReset===today&&G.daily.tasks.length){
     /* ── b461 — HEAL a pre-eligibility slate. The b459 eligibility filter
        applies at GENERATION, so a slate rolled BEFORE the fix keeps its

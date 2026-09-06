@@ -1921,9 +1921,11 @@ export function computeAccrual(input) {
      the write banked, so a skill whose proposed delta is 0 reports NOTHING.
 
      One entry per CROSSING, `from`/`to` consecutive — the same shape grantXp's
-     levelup events had, which is what `modalGoalOps({levelups: length})` counts
-     and what the welcome-back card lists. Grouped by skill rather than
-     interleaved by tick; nothing reads the ordering. */
+     levelup events had, which is what the goal-period `levelups` counter (the
+     third builder call below) counts and what the welcome-back card lists.
+     Grouped by skill rather than interleaved by tick; nothing reads the ordering.
+     (Named without call syntax on purpose: the quest-modal BIND guard counts
+     literal `modalGoalOps` call sites in this file and expects exactly three.) */
   for (const k in xpDelta) {
     const before = nat(skills0[k], 0);
     const from = levelFromXp(before);

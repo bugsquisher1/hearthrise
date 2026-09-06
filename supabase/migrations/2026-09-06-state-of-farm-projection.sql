@@ -89,11 +89,20 @@
 --
 --   do $$ declare v text; begin
 --     v := replace(pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure), chr(13), '');
---     v := regexp_replace(v, '\n\s*--[^\n]*farm-projection[^\n]*', '', 'g');
---     v := replace(v, ', ''plot_level'', v_st.plot_level', '');
---     v := replace(v, ',\n                                          ''waterings'', coalesce(to_jsonb(waterings), ''[]''::jsonb))', ')');
+--     v := regexp_replace(v, E'\n[ \t]*--[^\n]*farm-projection[^\n]*', '', 'g');
+--     v := regexp_replace(v, E'\n[ \t]*''plot_level'', v_st\.plot_level,', '', 'g');
+--     v := regexp_replace(v, ',[[:space:]]*''waterings'', coalesce\(to_jsonb\(waterings\), ''\[\]''::jsonb\)\)', ')', 'g');
+--     if position('plot_level' in v) > 0 or position('waterings' in v) > 0 then
+--       raise exception 'revert incomplete — refusing to install a body I cannot account for'; end if;
+--     if position('''marks'', v_st.marks' in v) = 0 or position('''streak_days''' in v) = 0
+--        or position('''watered_at'', watered_at' in v) = 0 then
+--       raise exception 'revert ate a sibling projection'; end if;
 --     execute v; end $$;
 --
+-- (Security review 2026-09-06, C1: the first draft used plain replace() with a
+-- literal "\n" — which can never match — so the waterings splice would have been
+-- silently left in place. Regex context + the two fail-closed checks above are
+-- the accepted revert; nothing in §0–§2 changes.)
 -- No data is touched, so a revert loses nothing but the two keys.
 -- ════════════════════════════════════════════════════════════════════════
 

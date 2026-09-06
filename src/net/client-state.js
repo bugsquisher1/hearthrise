@@ -443,6 +443,76 @@ function surfaceClientStateCap(body) {
 }
 /** Test seam: reset the one-time cap warning latch. */
 export function __resetClientStateCapWarned() { _capWarned = false; }
+
+/* ── THE REQUEST BUILDER (accrue.js's buildAccrueRequest convention) ──────────
+   Split out of putClientState so the ONE periodic write the armed game makes is
+   a pure, inspectable value — same reason buildAccrueRequest /
+   buildKeepaliveRequest are split out in accrue.js, and the same reason the
+   suite can assert on the literal init rather than on a mock's side effects.
+
+   ── KEEPALIVE (the tab-close save) ──────────────────────────────────────────
+   `snapshotIfDue(true, true)` fires from `visibilitychange`→hidden and
+   `pagehide`. Without `keepalive`, the browser cancels the in-flight request the
+   moment the document is torn down, so up to a full cadence (60s) of self-only
+   progress — bestiary kills, achievements, quest state, dungeon cooldowns,
+   buffs, the daily-reward shown-marker — is silently lost on EVERY tab close and
+   every mobile backgrounding. The blob upsert below the capstone branch in
+   sync.js always set it; the residue branch that replaced it never did.
+
+   OPT-IN, never global: the periodic cadence save must NOT be keepalive. A
+   keepalive request draws on the browser's small shared inflight quota and is
+   un-abortable; spending it on a save that has a whole page-lifetime to complete
+   is exactly how the quota is exhausted for the send that actually needs it.
+
+   BODY-SIZE LIMIT (Fetch spec): the inflight keepalive body quota is 64 KiB per
+   origin, and a `fetch` whose body exceeds it REJECTS outright — it does not
+   degrade. The residue patch is the WHOLE residue bag every save (see
+   capstone.js buildResiduePatch — it is not a diff), and the server cap on that
+   bag is 256 KiB, four times the keepalive ceiling, so an over-64-KiB body is
+   reachable for a mature account (bestiary + collection + dropLog + achievements
+   + quests). Over the ceiling we therefore send the SAME request WITHOUT
+   keepalive rather than let it reject: a normal unload fetch is best-effort (the
+   browser may still kill it) but it is strictly better than a guaranteed
+   rejection, and it is exactly today's behaviour, so this can only improve on
+   the status quo. It is warned about, never silent. */
+export const KEEPALIVE_MAX_BODY_BYTES = 64 * 1024;
+
+function utf8ByteLength(s) {
+  try {
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(s).length;
+  } catch (e) {}
+  // No TextEncoder (old runtime): assume the worst case for the BMP rather than
+  // undercount and hand the browser a body it will reject.
+  return String(s).length * 3;
+}
+
+export function buildClientStatePutRequest(patch, opts) {
+  const o = opts || {};
+  const slot = (o.slot !== undefined && o.slot !== null) ? o.slot : resolveActiveSlot(o.pinnedSlot);
+  const idem = o.idem || (typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID() : String(Date.now()) + '-' + Math.floor(Math.random() * 1e9));
+  const body = JSON.stringify({ p_slot: slot, p_patch: patch, p_idem: idem });
+  const init = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': o.anonKey,
+      'Authorization': 'Bearer ' + o.jwt,
+    },
+    body,
+  };
+  if (o.keepalive) {
+    if (utf8ByteLength(body) <= KEEPALIVE_MAX_BODY_BYTES) {
+      init.keepalive = true;
+    } else if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[client-state] residue body is ' + utf8ByteLength(body) + ' B — over the '
+        + KEEPALIVE_MAX_BODY_BYTES + ' B keepalive quota, so the tab-close save is sent as a normal '
+        + 'best-effort request and may not survive teardown.');
+    }
+  }
+  return { url: String(o.url || '').replace(/\/$/, '') + '/rest/v1/rpc/hr_put_client_state', init };
+}
+
 export async function putClientState(patch, opts) {
   const o = opts || {};
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
@@ -452,9 +522,6 @@ export async function putClientState(patch, opts) {
   const anonKey = o.anonKey;
   const jwt = o.jwt;
   if (!url || !anonKey || !jwt) return { ok: false, error: 'not_configured' };
-  const slot = (o.slot !== undefined && o.slot !== null) ? o.slot : resolveActiveSlot(o.pinnedSlot);
-  const idem = o.idem || (typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID() : String(Date.now()) + '-' + Math.floor(Math.random() * 1e9));
   /* b459: honor an injected transport FIRST — sync.js passes fetchWithAuthRetry
      here so the capstone save write gets the gateway-retry + auth-accounting
      hardening (the bare global fetch had silently bypassed both), and a test's
@@ -463,15 +530,8 @@ export async function putClientState(patch, opts) {
     : (typeof fetch !== 'undefined') ? fetch : null;
   if (!f) return { ok: false, error: 'no_fetch' };
   try {
-    const resp = await f(url.replace(/\/$/, '') + '/rest/v1/rpc/hr_put_client_state', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': anonKey,
-        'Authorization': 'Bearer ' + jwt,
-      },
-      body: JSON.stringify({ p_slot: slot, p_patch: patch, p_idem: idem }),
-    });
+    const req = buildClientStatePutRequest(patch, o);
+    const resp = await f(req.url, req.init);
     if (!resp || !resp.ok) return { ok: false, error: 'http_' + (resp && resp.status) };
     const body = await resp.json();
     /* The RPC answers HTTP 200 with {ok:false,error:'state_too_large'} on overflow
@@ -492,5 +552,6 @@ if (typeof window !== 'undefined') {
     clientField, isClientStateServerBacked, isClientStateFromServer,
     applyClientState, putClientState, isClientStateHydrated,
     hydrateInto, RESIDUE_FIELDS, __resetClientStateCapWarned,
+    buildClientStatePutRequest, KEEPALIVE_MAX_BODY_BYTES,
   };
 }

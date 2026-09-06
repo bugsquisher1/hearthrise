@@ -33646,6 +33646,102 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     Q-1 — THE TAB-CLOSE SAVE MUST SURVIVE THE TAB CLOSING.
+     ══════════════════════════════════════════════════════════════════════════
+     `snapshotIfDue(true, true)` is the parting save, fired from
+     `visibilitychange`→hidden and `pagehide` (src/net/sync.js). The blob upsert
+     always set `keepalive` on it — but the capstone's residue branch RETURNS
+     before that line, so from blob-retire onward the parting save was an
+     ordinary fetch that the browser cancels the instant the document is torn
+     down. Up to a full 60s cadence of SELF-ONLY progress was lost on every tab
+     close and every mobile backgrounding: bestiary kills, achievements, quests,
+     collection, the daily-reward shown-marker, dungeon cooldowns, buffs,
+     buyback, lockedItems, combatStyle, loadouts, streak — the whole residue
+     allowlist, because the patch is the whole bag.
+     The sibling did it right (SETTLE-4, accrue.js `buildKeepaliveRequest`); this
+     asserts the residue write learned the same lesson, that it is OPT-IN (the
+     periodic save must not spend the browser's small shared keepalive quota),
+     and that an over-quota body degrades to a normal request instead of being
+     rejected outright by the Fetch spec's 64 KiB inflight ceiling. */
+  () => tryRunAsync('Q-1: the pagehide residue save is keepalive; the 60s cadence save is not', async () => {
+    const CS = window.HearthriseClientState;
+    assert(CS && typeof CS.buildClientStatePutRequest === 'function',
+      'client-state.js must expose buildClientStatePutRequest — the residue init has to be a value the '
+      + 'suite can read, or "does the tab-close save survive teardown" is unassertable');
+    const B = CS.buildClientStatePutRequest;
+    const base = { url: 'https://example.invalid', anonKey: 'anon', jwt: 'jwt', slot: 1, idem: 'fixed-idem' };
+    const cadence = B({ stats: { kills: 1 } }, base);
+    assert(/\/rest\/v1\/rpc\/hr_put_client_state$/.test(cadence.url), 'the builder must target the residue RPC');
+    assert(cadence.init.keepalive !== true,
+      'the 60s cadence save must NOT be keepalive — the quota is small, shared and un-abortable, and this '
+      + 'save has a whole page lifetime to finish; spending it here starves the send that actually needs it');
+    const parting = B({ stats: { kills: 1 } }, Object.assign({ keepalive: true }, base));
+    assert(parting.init.keepalive === true,
+      'THE BUG (Q-1): the residue save built for pagehide carries no keepalive, so the browser cancels it on '
+      + 'teardown and up to 60s of self-only progress is lost on every tab close');
+    assert(parting.init.body === cadence.init.body,
+      'keepalive must change the FLAG and nothing else — the patch, slot and idem are identical');
+    // Over the spec's 64 KiB inflight quota a keepalive fetch REJECTS; it does
+    // not degrade. The residue bag's own cap is 256 KiB, four times that, so
+    // this is reachable — it must fall back, not throw the save away.
+    const huge = B({ chronicle: 'x'.repeat(CS.KEEPALIVE_MAX_BODY_BYTES + 4096) },
+      Object.assign({ keepalive: true }, base));
+    assert(typeof huge.init.body === 'string' && huge.init.body.length > CS.KEEPALIVE_MAX_BODY_BYTES,
+      'the oversize fixture must actually exceed the keepalive quota or it proves nothing');
+    assert(huge.init.keepalive !== true,
+      'a body over the ' + CS.KEEPALIVE_MAX_BODY_BYTES + ' B keepalive quota must fall back to a normal '
+      + 'request — flagged keepalive it is rejected outright and the save is guaranteed lost, not merely at risk');
+
+    // ── AND THE REAL SAVE PATH, END TO END ────────────────────────────────
+    const S = window.HearthriseSync;
+    const C = window.HearthriseCapstone;
+    if (!(S && C && typeof C.isBlobRetired === 'function' && C.isBlobRetired())) {
+      skip('capstone not armed in this run — the residue save branch is not the live path here');
+      return;
+    }
+    const residue = C.buildResiduePatch(window.G);
+    if (!residue || !Object.keys(residue).length) {
+      skip('no residue on G in this run — snapshotIfDue would decline before building a request');
+      return;
+    }
+    const realFetch = window.fetch;
+    const wasHeld = S.isSnapshotHeld();
+    const G = window.G;
+    const savedSyncedAt = G ? G.cloudSyncedAt : undefined;
+    const seen = [];
+    try {
+      if (wasHeld) S.releaseSnapshots();
+      window.fetch = function (u, init) {
+        if (!/example\.invalid/.test(String(u))) return realFetch.apply(this, arguments);
+        seen.push({ url: String(u), keepalive: init && init.keepalive });
+        return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+      };
+      S.setClockTrusted(true); S.resetAuthGate(); S.__resetSyncHealth();
+      const cfg = {
+        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+        claimEndpoint: null, apiKey: 'anon', userId: () => 'u1', authToken: () => 'opaque-token',
+        onAuthError: async () => true, onAuthExpired: () => {},
+        onSyncFailure: () => {}, onSyncRecovered: () => {},
+      };
+      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, true); });
+      assert(seen.length === 1, 'the pagehide save must send exactly one request, got ' + seen.length);
+      assert(/hr_put_client_state/.test(seen[0].url), 'the armed save must be the residue PUT, got ' + seen[0].url);
+      assert(seen[0].keepalive === true,
+        'THE BUG (Q-1), end to end: snapshotIfDue(force, keepalive=true) — the visibilitychange/pagehide save — '
+        + 'reached the wire WITHOUT keepalive, so the browser kills it on teardown');
+      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      assert(seen.length === 2, 'the cadence save must send exactly one request, got ' + (seen.length - 1));
+      assert(seen[1].keepalive !== true,
+        'keepalive leaked onto the ordinary cadence save — it is opt-in for the parting shot, not global');
+    } finally {
+      window.fetch = realFetch;
+      if (wasHeld) S.holdSnapshots();
+      if (G) { if (savedSyncedAt === undefined) delete G.cloudSyncedAt; else G.cloudSyncedAt = savedSyncedAt; }
+      S.resetAuthGate(); S.__resetSyncHealth();
+    }
+  }),
+
   () => tryRun('b371: the save-health verdict is pure and honest at every age (no surface may hardcode it)', () => {
     const S = window.HearthriseSync;
     const D = S.describeSaveHealth;

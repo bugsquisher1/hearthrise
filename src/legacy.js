@@ -14655,7 +14655,18 @@ function maybeShowWelcome(){
          night that closed mid-recovery, which is the most common shape of all.
          0 on a receipt written before Recovery shipped, so every one of these
          rows simply does not appear and the surface reads exactly as it did. */
-      var _deaths = Math.max(0, Number(_off.deaths) || 0);
+      var _statedDeaths = Math.max(0, Number(_off.deaths) || 0);
+      /* ⚠ AND THE RECEIPT THAT SAYS `died` AND COUNTS NOTHING STILL GETS ITS
+         LINE. MEASURED: gating the fall line on `deaths` alone deleted b341's
+         death row outright for every receipt that predates Recovery — and,
+         worse, for every receipt the CURRENTLY DEPLOYED hr-accrue writes, which
+         states `died` and no `deaths` at all. "The rows simply do not appear"
+         was true of the recovery rows and false of the one row that has been
+         the whole point since b341: a night that killed you saying so. A
+         `died` with no count is exactly ONE known fall, which is what the
+         surface said before Recovery; everything BELOW keys off
+         `_statedDeaths`, so nothing about recovery is inferred from it. */
+      var _deaths = _statedDeaths || (_dead ? 1 : 0);
       var _recMs = Math.max(0, Number(_off.recoverMs) || 0);
       var _recLeft = Math.max(0, Number(_off.recoverRemainingMs) || 0);
       var _winMs = Math.max(0, Number(_off.awayMs) || 0);
@@ -14682,7 +14693,7 @@ function maybeShowWelcome(){
          run. Same sentence as the death sheet (features/death-sheet.js), because
          two surfaces describing one rule in two voices is how a player learns to
          distrust both. Suppressed when the run really did stop on the death. */
-      if(_deaths >= 1 && _off.stoppedBy !== 'death'){
+      if(_statedDeaths >= 1 && _off.stoppedBy !== 'death'){
         rows.push({g:'uiSword',
           t: _nm ? 'Your run picked up against the ' + _nm + ' after every fall'
                  : 'Your run picked up again after every fall',
@@ -14788,7 +14799,10 @@ function maybeShowWelcome(){
              + _ladder.map(_rung).join(', ') + '.',
           v: ''});
       }
-      if(_deaths >= 1){
+      /* ⚠ `_statedDeaths`, NOT `_deaths`: a pre-Recovery receipt carries a
+         death and no recovery payload, and "you got back up at 40%" is a claim
+         about a rule that receipt's engine never ran. */
+      if(_statedDeaths >= 1){
         /* 40%, NOT A FULL HEAL, and said on the surface where it changes what
            the player does next: they are about to resume a fight on less than
            half a health bar, and food is the only thing that fixes that. */

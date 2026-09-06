@@ -828,6 +828,24 @@ const snapshotG = () => {
        here — a suite run must never edit progression it did not earn. */
     dailyGoals: G.dailyGoals,
     weeklyGoals: G.weeklyGoals,
+    /* RECOVERY (rev. 2) — the ABSOLUTE instant this character gets back up.
+       `simulateSpan` WRITES it on the live G (src/core/combat-sim.js), and it
+       is the most contagious field this list has ever been missing: a test that
+       simulates a deadly night leaves a future-dated `recoveringUntilMs`
+       behind, and every away fixture after it opens its window ALREADY DOWN —
+       zero ticks, zero kills, `died:false`. MEASURED: the b341 simulation test
+       leaking it took b342-1, COMBAT-UI-24 and the whole away family with it,
+       each failing on "the fixture produced no kills" for a reason that had
+       nothing to do with what they test. It is also real progression state on
+       the live page, which is the other half of why it belongs here.
+       ⚠ `|| 0`, NOT the bare read. This list goes through JSON, and JSON DROPS
+         an `undefined` value — so a character who had never fallen snapshotted
+         NOTHING for this field, `restoreG` then had no key to put back, and the
+         poison survived the restore that exists to remove it. MEASURED exactly
+         that way: COMBAT-UI-24 still opened an all-recovery night after b342-1
+         had "restored" the state it inherited. A field that is only sometimes
+         present is a field this list only sometimes protects. */
+    recoveringUntilMs: G.recoveringUntilMs || 0,
   }));
 };
 
@@ -845,6 +863,22 @@ const snapshotG = () => {
    real parity break rather than as the harness moving underneath it. Pass one
    captured instant to both runs and the comparison is against a fixed clock.
    Defaulted, so every existing caller is unchanged. */
+/* ══ REV. 2 — PUT THE CHARACTER BACK ON THEIR FEET ══════════════════
+   Under the Recovery Rule a fall no longer ends an away night: the character is
+   Knocked Out until an ABSOLUTE instant (`recoveringUntilMs`, written on G by
+   src/core/combat-sim.js `simulateSpan`) and then resumes. That instant can sit
+   up to the 64-minute cap in the FUTURE when a span ends — which is correct for
+   a player, who lives one absence at a time, and poison for a FIXTURE, which
+   routinely runs two overlapping absences from "identical state" and compares
+   them. The second one then opens already face-down, simulates nothing, and the
+   assertion below it reports "the caller paid nothing" for a caller that is
+   working perfectly.
+   MEASURED on four fixtures at once (b255, AWAY-HONEST-2, AWAY-BUDGET-1 and the
+   b341 caller half), each failing on an empty night. Called wherever a fixture
+   re-stands its fighter, beside the `playerHp = playerMaxHp` that has always
+   been there and now covers only half of "on their feet". */
+const onFeet = () => { if (window.G) window.G.recoveringUntilMs = 0; };
+
 const setAway = (hours, nowMs) => {
   const G = window.G;
   const now = (typeof nowMs === 'number' && isFinite(nowMs)) ? nowMs : Date.now();
@@ -855,6 +889,10 @@ const setAway = (hours, nowMs) => {
     usedMs: 0,
     at,
   };
+  /* …AND THE CHARACTER IS ON THEIR FEET WHEN THE ABSENCE BEGINS (rev. 2) —
+     see `onFeet` above. Stated here for the same reason the watermark is: this
+     helper's whole job is "a fresh absence starts now". */
+  onFeet();
 };
 const restoreG = (snap) => {
   if (!snap || !window.G) return;
@@ -22108,6 +22146,7 @@ const TESTS = [
       // End-to-end through processOffline: set the offline watermark back an hour
       // and confirm the catch-up runs combat and reports a summary.
       G.activeMonster = 'goblin'; G.monsterHp = m.hp; G.playerHp = G.playerMaxHp;
+      onFeet();   // rev. 2: the half-hour above ended face-down (see `onFeet`)
       if (typeof window.ensureOfflineBudget === 'function') {
         const b = window.ensureOfflineBudget(Date.now());
         b.at = Date.now() - 3600000; b.usedMs = 0;   // an hour away, budget fresh
@@ -41515,7 +41554,16 @@ const TESTS = [
       skills: JSON.parse(JSON.stringify(G.skills)), stats: JSON.parse(JSON.stringify(G.stats || {})),
       los: G.lastOfflineSummary, gold: G.gold, inventory: G.inventory, combatLog: G.combatLog,
       activeSkill: G.activeSkill, activeArtisanRecipe: G.activeArtisanRecipe,
-      offlineBudget: G.offlineBudget, lastSeen: G.lastSeen, restedAt: G.restedAt, restedXp: G.restedXp };
+      offlineBudget: G.offlineBudget, lastSeen: G.lastSeen, restedAt: G.restedAt, restedXp: G.restedXp,
+      /* ⚠ AND THE RECOVERY CLOCK. This fixture kills a level-1 character
+         thirteen times, and `recoveringUntilMs` is an ABSOLUTE instant left up
+         to 64 minutes in the FUTURE — so without it here every away fixture
+         that runs after this test opens its window already Knocked Out and
+         grades an empty night. MEASURED: this test was the single leaker in the
+         whole suite, and it took AWAY-HONEST-2, AWAY-BUDGET-1 and COMBAT-UI-24
+         down with it. Zero, not `save.x`, is what the field means for a
+         character who is on their feet. */
+      recoveringUntilMs: G.recoveringUntilMs || 0 };
     try {
       A.setServerAccrualEnabled(false);
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
@@ -41540,6 +41588,7 @@ const TESTS = [
       G.activeMonster = dragon; G.monsterMaxHp = dm.hp; G.monsterHp = dm.hp;
       G.activeSkill = null; G.activeArtisanRecipe = null;
       G.lastOfflineSummary = null;
+      onFeet();   // rev. 2 — this absence starts with the character standing
       if (typeof window.ensureOfflineBudget === 'function') {
         const b = window.ensureOfflineBudget(Date.now());
         b.at = Date.now() - 4 * 3600000; b.usedMs = 0;      // four hours away
@@ -41548,7 +41597,19 @@ const TESTS = [
       const rec = G.lastOfflineSummary;
       assert(rec && rec.died === true,
         'the fixture did not produce an AWAY death, so the branch under test never ran: ' + JSON.stringify(rec));
-      assert(G.activeMonster === null, 'the away death branch did not clear the pointer at all');
+      /* ╔═ THE POINTER SURVIVES (Recovery Rule rev. 2, 2026-09-06) ════════
+         This asserted `activeMonster === null` — the pre-rev.2 contract, where
+         a death ENDED the night and the away branch reconciled to an idle
+         pointer the server had already set. A death is an INTERRUPTION now: the
+         character is Knocked Out and RESUMES THE SAME ACTIVITY, so clearing the
+         pointer here would be the client silently cancelling a run the server
+         still owns — and the player would come back to a fight they never
+         stopped, stopped.
+         WHAT THIS TEST IS ABOUT IS UNCHANGED and is the line below: whatever
+         the branch does to the pointer, it must not DECLARE it. */
+      assert(G.activeMonster === dragon,
+        'the away death branch cleared the activity pointer — under rev. 2 a fall does not end the '
+        + 'run, it interrupts it, and the same activity resumes: ' + G.activeMonster);
       assert(calls.length === 0,
         'the away death branch declared ' + JSON.stringify(calls) + ' — the server set the pointer to idle '
         + 'in the accrual delta already, so this is the client telling the server what the server told it, '
@@ -43173,6 +43234,11 @@ const TESTS = [
         G.activeSkill = null; G.activeArtisanRecipe = null;
         G.gold = 0; G.inventory = {}; G.quests = [];
         G.stats = Object.assign({}, G.stats, { kills, crits: 0, deaths: 0, rareDrops: 0 });
+        /* IDENTICAL STATE IS THE WHOLE PREMISE of this test, and rev. 2 added a
+           field to it: without this the direct span ends the character face-down
+           and the caller's span — the same 30 minutes, replayed — opens still
+           down and pays nothing. See `onFeet`. */
+        onFeet();
       };
       const read = (baseKills) => ({
         kills: (G.stats.kills || 0) - baseKills, gold: G.gold,
@@ -43254,7 +43320,7 @@ const TESTS = [
 
       /* (b) AND IT IS NOT RE-PAID. Coming straight back pays nothing more. */
       const k1 = G.stats.kills || 0;
-      G.playerHp = G.playerMaxHp;
+      G.playerHp = G.playerMaxHp; onFeet();   // rev. 2 — see `onFeet`
       G.activeMonster = 'slime'; G.monsterHp = m.hp;
       window.processOffline();
       assert((G.stats.kills || 0) === k1,
@@ -43266,7 +43332,7 @@ const TESTS = [
       assert(window.offlineBudgetRemainingMs() === cap * 3600000,
         'the next absence lost part of its allowance: '
         + (window.offlineBudgetRemainingMs() / 3600000) + 'h of ' + cap + 'h');
-      G.playerHp = G.playerMaxHp;
+      G.playerHp = G.playerMaxHp; onFeet();   // rev. 2 — see `onFeet`
       G.activeMonster = 'slime'; G.monsterHp = m.hp;
       G.offlineBudget = { at: Date.now() - (cap * 3600000) };
       window.processOffline();
@@ -43490,16 +43556,33 @@ const TESTS = [
       const rowsEl = document.getElementById('welcome-rows');
       assert(rowsEl, 'the welcome-back modal did not build');
       const t2 = (rowsEl.textContent || '').replace(/\s+/g, ' ');
-      assert(/You died to Slime/.test(t2),
+      /* ── REV. 2 WORDING, SAME PROPERTY (Recovery Rule, 2026-09-06) ────────
+         A death is an INTERRUPTION now, not the end of the night, so the modal
+         says "you fell" rather than "you died" — but the three facts b341 was
+         filed for are unchanged and are what this asserts: that it is MENTIONED
+         at all, that it NAMES the foe, and that it says HOW FAR IN.
+         ⚠ THIS RECEIPT STATES `died` AND NO `deaths` — the pre-Recovery shape,
+           and the shape the currently deployed hr-accrue still writes. It is
+           here deliberately: gating the fall line on the recovery count deleted
+           it outright for every one of those receipts, which is the b341 bug
+           returning through the back door. */
+      assert(/You fell once/.test(t2),
         'THE b341 BUG: the first screen a returning player sees reports the hours and the kills and '
         + 'never mentions the death that ended the night — ' + t2);
+      assert(/Slime/.test(t2), 'the modal does not name what killed you — ' + t2);
       assert(/50s in/.test(t2), 'the modal does not say how far in you died — ' + t2);
+      /* …AND IT CLAIMS NOTHING RECOVERY NEVER TOLD IT. A receipt with no
+         `deaths`/`recoverMs` payload has no basis for the 40% line, the ladder
+         or "your run picked up" — every one of those would be the renderer
+         inferring, which is the rule b341 exists to enforce. */
+      assert(!/40% health|picked up|Recovery grows|Still recovering/.test(t2),
+        'the modal invented a recovery story from a receipt that states only a death — ' + t2);
       assert(!/💀|☠/.test(rowsEl.innerHTML),
         'the death row shipped an emoji as art — the project uses the glyph atlas');
       // …and it must stay silent when nobody died.
       G.lastOfflineSummary = null; G.lastWelcome = 0;
       window.__maybeShowWelcome();
-      assert(!/You died/.test(document.getElementById('welcome-rows').textContent || ''),
+      assert(!/You fell|You died/.test(document.getElementById('welcome-rows').textContent || ''),
         'the modal claims a death with no receipt saying so');
     } finally {
       const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
@@ -43517,9 +43600,11 @@ const TESTS = [
     const save = { activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
       playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, los: G.lastOfflineSummary,
       equipment: G.equipment, skills: JSON.parse(JSON.stringify(G.skills)),
+      recoveringUntilMs: G.recoveringUntilMs || 0,
       stats: JSON.parse(JSON.stringify(G.stats || {})) };
     try {
       // A level-1 character bare-handed against a Tier-7 foe dies almost at once.
+      onFeet();
       G.equipment = {};
       G.playerMaxHp = 10; G.playerHp = 10;
       G.activeMonster = 'dragon';
@@ -43543,6 +43628,19 @@ const TESTS = [
       G.playerHp = 10; G.playerMaxHp = 10;
       G.activeMonster = 'dragon'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
       G.lastOfflineSummary = null;
+      /* ⚠ AND BACK ON THEIR FEET (rev. 2). The span above ended with the
+         character face-down, and `recoveringUntilMs` is an ABSOLUTE instant —
+         up to the 64-minute cap in the future of the window this second half is
+         about to open. Left standing, the caller's four hours are spent Knocked
+         Out end to end: no ticks, no death, and this test would report "the
+         receipt does not carry `died`" for a caller that mirrors it correctly.
+         The two halves are two separate absences; a player only ever lives one
+         (see `onFeet`). `stats.deaths` is put back to zero with it, for the same
+         reason and to the same end: the ladder is counted off that field, and
+         inheriting the first half's tally would open this absence somewhere up
+         the doubling instead of on the day's free fall. */
+      onFeet();
+      G.stats = Object.assign({}, G.stats, { deaths: 0 });
       if (typeof window.ensureOfflineBudget === 'function') {
         const b = window.ensureOfflineBudget(Date.now());
         b.at = Date.now() - 4 * 3600000; b.usedMs = 0;   // four hours away
@@ -43559,10 +43657,38 @@ const TESTS = [
         'the receipt does not carry WHAT killed you (diedTo=' + rec.diedTo + ')');
       assert(rec.diedAfterMs < (rec.awayMs || Infinity),
         'the receipt claims the whole absence was survived by a character who died in it');
+
+      /* ── AND THE RECOVERY PAYLOAD, THROUGH THE SAME CALLER (rev. 2) ───────
+         `died` is no longer the whole story: the run got back up and kept
+         going, so the count of falls, the time spent face-down and the ladder
+         as it was CHARGED are the four facts the welcome-back card renders. The
+         mirror for them lives in exactly the same place as the `died` mirror,
+         which is the place b339's escaped mutation lived — a caller that copies
+         `died` and forgets these leaves a card that says "you fell once" about
+         a night with thirteen falls in it. */
+      assert(rec.deaths >= 1,
+        'the receipt states a death and counts no falls — the card cannot say how many: ' + rec.deaths);
+      assert(Array.isArray(rec.recoverLadder) && rec.recoverLadder.length === rec.deaths,
+        'the ladder does not carry one rung per fall (' + (rec.recoverLadder || []).length
+        + ' rungs for ' + rec.deaths + ' falls) — a renderer would have to regenerate it and be wrong');
+      assert(rec.recoverLadder[0] === 0,
+        'the first fall of the day was charged ' + rec.recoverLadder[0] + 'ms — it is free');
+      assert(rec.deaths === 1 || rec.recoverMs > 0,
+        'a night with ' + rec.deaths + ' falls spent no time Knocked Out: ' + rec.recoverMs);
+      assert(rec.recoverMs <= rec.awayMs,
+        'more of the night was spent recovering than the night was long: '
+        + rec.recoverMs + ' of ' + rec.awayMs);
+      assert(rec.diedAfterMs + rec.recoverMs <= rec.awayMs,
+        'the earning span and the recovery span together overrun the absence — '
+        + 'survivedMs must mean "ms that earned": '
+        + rec.diedAfterMs + ' + ' + rec.recoverMs + ' > ' + rec.awayMs);
+      assert(typeof rec.recoverRemainingMs === 'number' && rec.recoverRemainingMs >= 0,
+        'the receipt cannot say whether the character is still down: ' + rec.recoverRemainingMs);
     } finally {
       Object.assign(G, { activeMonster: save.activeMonster, monsterHp: save.monsterHp,
         monsterMaxHp: save.monsterMaxHp, playerHp: save.playerHp, playerMaxHp: save.playerMaxHp,
-        lastOfflineSummary: save.los, equipment: save.equipment, skills: save.skills, stats: save.stats });
+        lastOfflineSummary: save.los, equipment: save.equipment, skills: save.skills, stats: save.stats,
+        recoveringUntilMs: save.recoveringUntilMs });
     }
   }),
 
@@ -44513,8 +44639,18 @@ const TESTS = [
 
       /* ONE row about the span. Counting rows, not matching a string: the bug
          was two rows saying the same thing in different words, so a text match
-         on either one would have passed while the screen was still wrong. */
-      const spanRows = rows.filter((r) => /away/i.test(r.textContent));
+         on either one would have passed while the screen was still wrong.
+         ⚠ COUNTED ON THE DURATION, NOT ON THE WORD "away" (rev. 2). The bug was
+           "While away 8.0h" beside "Time away 8h 0m" — one QUANTITY, twice, in
+           two units — and the word was only ever a proxy for it. Rev. 2's fall
+           line says "while you were away" mid-sentence and reports no length at
+           all, so the word now over-counts; the eight hours themselves do not,
+           in either unit either estimator ever printed. */
+      assert(/Time away/.test(text), 'the modal owes the player the span: ' + text);
+      /* No `\b` in front: `textContent` runs the label straight into the value
+         ("Time away8h 0m"), and a word boundary between "y" and "8" does not
+         exist — the same trap the gain assertions below are label-anchored for. */
+      const spanRows = rows.filter((r) => /8h 0m|8\.0\s*h/.test(r.textContent));
       assert(spanRows.length === 1,
         'THE b342 BUG: ' + spanRows.length + ' rows report the length of the absence — '
         + spanRows.map((r) => r.textContent.replace(/\s+/g, ' ')).join(' | '));
@@ -44530,8 +44666,11 @@ const TESTS = [
       assert(/Items found\s*\+4/.test(text), 'the modal reports no items for the night: ' + text);
       assert(/Gold earned\s*\+7/.test(text), 'the modal reports no gold for the night: ' + text);
       assert(/Kills\s*\+3/.test(text), 'the modal reports no kills for the night: ' + text);
-      /* b341's death line still has to survive all of this. */
-      assert(/You died to Slime/.test(text) && /50s in/.test(text),
+      /* b341's death line still has to survive all of this — in rev. 2's
+         wording ("you fell", because the run no longer ends there) and on a
+         receipt that states `died` and no recovery payload, which is the shape
+         the deployed server still writes. */
+      assert(/You fell once/.test(text) && /Slime/.test(text) && /50s in/.test(text),
         'the death line was lost in the rebuild: ' + text);
 
       /* THE FINAL DIRECTIVE. Every row in this list used to draw a full-colour
@@ -44543,8 +44682,69 @@ const TESTS = [
 
       /* Exactly one row is toned as an alarm, and it is the death. */
       const bad = rows.filter((r) => r.classList.contains('wb-row-bad'));
-      assert(bad.length === 1 && /You died/.test(bad[0].textContent),
+      assert(bad.length === 1 && /You fell/.test(bad[0].textContent),
         'the alarm tone is on ' + bad.length + ' row(s); it belongs to the death and nothing else');
+
+      /* ══ THE REV. 2 NIGHT, IN THE ORDER THE RULING SET (2026-09-06) ═══════
+         A death does not end the run any more, so the shape this modal has to
+         describe changed underneath it: a twelve-hour night can hold four falls
+         and still be a night the player WON. The ruling's order IS the message
+         — gains first (asserted above), then that the run survived, then the
+         priced fix, then the cost on ONE line, then the cause, the ladder, the
+         40% rule and what is still owed. Asserted as an ORDER, not as a bag of
+         strings: rev. 2's first draft had every one of these sentences and read
+         as a failure report because two red rows came first.
+         MUTATION PROVEN: move the skull row above the `uiSword` row and the
+         index comparison fails; drop the `deaths > 1` merge and two rows report
+         the falls; drop the `stoppedBy !== 'death'` guard and a run that really
+         did stop still claims it picked back up. */
+      G.lastOfflineSummary = Object.assign({}, PAID, {
+        at: Date.now(), foodEaten: 0,
+        deaths: 4, recoverMs: 2 * 3600000, recoverRemainingMs: 47 * 1000,
+        recoverLadder: [0, 120000, 240000, 120000],
+        autoEat: { enabled: false, pct: 25, hadFood: true },
+        stoppedBy: null, stoppedById: null,
+      });
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const rows2 = Array.from(document.getElementById('welcome-rows').querySelectorAll('.wb-row'));
+      const t2 = rows2.map((r) => r.textContent.replace(/\s+/g, ' '));
+      const at = (re) => t2.findIndex((s) => re.test(s));
+      // …and it STILL states the night once and says what it paid.
+      assert(t2.filter((s) => /away/i.test(s)).length === 1,
+        'the rev. 2 card reports the length of the absence more than once: ' + t2.join(' | '));
+      assert(at(/XP earned/) >= 0 && at(/Kills/) >= 0,
+        'the rev. 2 card lost the gains it was built to lead with: ' + t2.join(' | '));
+      const iPickedUp = at(/picked up against the Slime after every fall/);
+      const iFix = at(/Auto-Eat was switched off|worth about/);
+      const iFell = at(/You fell 4 times to the Slime/);
+      const iLadder = at(/Recovery grows with every fall/);
+      const i40 = at(/got back up at 40% health each time/);
+      const iLeft = at(/Still recovering when you got back/);
+      assert(iPickedUp >= 0, 'the card never says the run picked back up — the single most '
+        + 'important fact about a night with falls in it: ' + t2.join(' | '));
+      assert(iFix > iPickedUp, 'the priced fix does not follow the survival line: ' + t2.join(' | '));
+      assert(iFell > iFix, 'the cost is stated before the fix that answers it — rev. 2 leads with '
+        + 'what was earned and what can be done, not with the skull: ' + t2.join(' | '));
+      assert(t2.filter((s) => /You fell/.test(s)).length === 1,
+        'the falls are reported on more than one row — rev. 2 merges the count and its price: '
+        + t2.join(' | '));
+      assert(/25% of the night/.test(t2[iFell]),
+        'the fall row does not price the night it cost: ' + t2[iFell]);
+      assert(iLadder > iFell && /free, 2m, 4m, 2m/.test(t2[iLadder]),
+        'the ladder is not stated AS CHARGED (a re-derived one would overstate the novice clamp): '
+        + t2.join(' | '));
+      assert(i40 > iLadder, 'the 40% rule is missing or out of order: ' + t2.join(' | '));
+      assert(iLeft > i40 && /47s to go/.test(t2[iLeft]),
+        'the card does not say the character is still down, so it describes one who is fighting: '
+        + t2.join(' | '));
+      /* AND THE RUN THAT REALLY DID STOP DOES NOT CLAIM OTHERWISE. */
+      G.lastOfflineSummary = Object.assign({}, G.lastOfflineSummary,
+        { at: Date.now(), stoppedBy: 'death', stoppedById: 'slime' });
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      assert(!/picked up/.test(document.getElementById('welcome-rows').textContent || ''),
+        'a run that stopped on the death still tells the player it picked back up');
 
       /* A zero channel gets NO row — "+0 gold" is noise, and it is the shape
          the estimator used to print. */
@@ -45147,17 +45347,33 @@ const TESTS = [
          from the actual paint order rather than from a hardcoded list of
          overlay class names — a list would rot, and a hit-test that quietly
          graded the wrong element is a guard asserting nothing. */
+      /* ⚠ PARK THE WHOLE COMPETING LAYER, NOT ONE NODE OF IT. This hid `hit`
+         itself, which only uncovers `hit`'s PARENT — so a competing overlay
+         with any depth to it (the character-select drawer another test leaves
+         `.open`, whose rows nest four deep) ate the twelve-step budget walking
+         up its own ancestry and never reached the sheet. The assertion then
+         failed as "the probe point is not on the sheet's dead area", which
+         reads as a defect in the sheet and is a defect in the fixture.
+         One step per LAYER: climb to the body-level ancestor and park that.
+         Nothing below is weakened — the hit still has to land inside the scrim
+         and outside both buttons, and the walk is still bounded. */
+      const stack = [];
       let hit = document.elementFromPoint(cx, cy);
-      for (let i = 0; i < 12 && hit && !scrim.contains(hit); i++) {
-        parked.push({ el: hit, prev: hit.style.display });
-        hit.style.display = 'none';
+      for (let i = 0; i < 24 && hit && !scrim.contains(hit); i++) {
+        let layer = hit;
+        while (layer.parentElement && layer.parentElement !== document.body) layer = layer.parentElement;
+        if (layer === scrim || !layer.style) break;
+        stack.push(layer.id ? '#' + layer.id : '.' + String(layer.className).split(' ')[0]);
+        parked.push({ el: layer, prev: layer.style.display });
+        layer.style.display = 'none';
         hit = document.elementFromPoint(cx, cy);
       }
       assert(hit && scrim.contains(hit) && !hit.closest('[data-dl-claim]')
         && !hit.closest('[data-dl-close]'),
         'the probe point is not on the sheet\'s dead area (it is "'
           + (hit ? (hit.id ? '#' + hit.id : '.' + String(hit.className).split(' ')[0]) : 'null')
-          + '") — the fixture proves nothing');
+          + '") — the fixture proves nothing. Layers parked getting there: '
+          + (stack.join(' > ') || 'none'));
       hit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
       assert(!document.getElementById('hr-dl-modal'),
         'THE b345 BUG: a click on the sheet\'s own panel did nothing — it is swallowed in silence '
@@ -52184,25 +52400,79 @@ const TESTS = [
       + 'alternatives, and both appearing (or the wrong one) is the sale the ruling forbids');
   }),
 
-  () => tryRun('b373: death sheet — the receipt states no-loss, full heal and the stopped run', () => {
+  () => tryRun('b373/rev.2: death sheet — no loss, back up at 40%, and the run picks up again', () => {
+    /* ══ SUPERSEDES "no-loss, FULL HEAL and the STOPPED run" ═══════════════
+       Two of that sentence's three clauses were replaced by the Recovery Rule
+       (rev. 2, Game Designer 2026-09-06), and the replacements are the whole
+       point of the ruling, so they are asserted here rather than left to the
+       ladder's own battery:
+         · a death used to end in a FULL heal, which made dying the cheapest
+           top-up in the game. The character now stands up on 40% (away.js
+           `resumeHpFor`), STATED by the sim and rendered, never recomputed
+           here — the sheet and the server must not round differently;
+         · a death used to STOP the run. It does not: the pointer survives and
+           the same activity resumes, and this sheet saying so is the only
+           reason a player who just watched a twelve-hour night break at minute
+           four does not go and re-point it by hand.
+       The no-loss clause is UNCHANGED and stays exactly as strict — if a death
+       penalty is ever added, that row is the contract that has to change. */
     const D = window.HearthriseDeathSheet;
     const m = D.describeDeath({
       monsterName: 'Brittle Skeleton', killsThisFoe: 3, foodQty: 0, ateThisFight: 2,
       autoEatOwned: true, maxHp: 47, streakBroken: true, deaths: 2,
+      /* THE LADDER, AS THE SERVER COUNTED IT. `deaths` is the LIFETIME tally and
+         is not what the sheet's copy keys off — `deathsToday` is `n`, and the
+         two diverge every day of a character's life after the first. */
+      deathsToday: 2, recoveryMs: 120000, nextRecoveryMs: 240000,
+      resumeHp: 19, missingHp: 28, recoveringUntilMs: 0,
     });
     const keys = m.rows.map((r) => r.k);
-    for (const k of ['killed-by', 'kept', 'healed', 'run-stopped', 'streak']) {
+    for (const k of ['killed-by', 'kept', 'healed', 'run-stopped', 'resume', 'escalating', 'streak']) {
       assert(keys.indexOf(k) >= 0, 'the death receipt is missing the "' + k + '" row: ' + keys.join(','));
     }
+    const kept = m.rows.find((r) => r.k === 'kept');
+    assert(/kept everything/i.test(kept.t) && kept.v === 'no loss',
+      'the no-loss row changed without a death penalty to justify it: ' + JSON.stringify(kept));
     const healed = m.rows.find((r) => r.k === 'healed');
-    assert(healed.v === '47 / 47', 'the receipt did not state a FULL respawn: ' + healed.v);
+    assert(/40% health/.test(healed.t),
+      'the receipt does not say the character is up on a fraction of their health: ' + healed.t);
+    assert(healed.v === '19 / 47',
+      'the receipt did not state the health the sim STOOD THE CHARACTER UP ON — a re-derived '
+      + 'figure is a second estimator of one number: ' + healed.v);
+    /* THE RUN CONTINUES. Asserted on the sentence AND on the target, because
+       "you can start again" and "it already started" are different promises. */
+    const resume = m.rows.find((r) => r.k === 'resume');
+    assert(/picks up against the Brittle Skeleton/.test(resume.t) && resume.v === 'automatic',
+      'the sheet does not say the run picks itself back up: ' + JSON.stringify(resume));
+    const stopped = m.rows.find((r) => r.k === 'run-stopped');
+    assert(/Knocked out for 2m/.test(stopped.t),
+      'the second fall of the day was not priced at the rung the server charged: ' + stopped.t);
+    const esc = m.rows.find((r) => r.k === 'escalating');
+    assert(/4m if you fall again/.test(esc.t),
+      'the doubling warning does not quote the NEXT rung, so it promises a number nobody charges: ' + esc.t);
     assert(/Brittle Skeleton/.test(m.title), 'the title does not name what killed you: ' + m.title);
     /* Streak reset is real and must only appear when it happened. */
     const noStreak = D.describeDeath({ monsterName: 'Slime', maxHp: 10, foodQty: 1, ateThisFight: 0 });
     assert(noStreak.rows.every((r) => r.k !== 'streak'), 'a streak row appeared on a death that broke no streak');
-    /* First fall gets the reassuring lead; later ones do not repeat it. */
-    assert(/first fall/i.test(D.describeDeath({ maxHp: 10, deaths: 1 }).lead), 'the first death lost its lead');
+    /* THE DAY'S FREE FALL keeps the reassuring lead AND says the delay is
+       nothing — the rung is 0 and a sheet that stayed silent about it would
+       leave the player waiting for a timer that is not running. */
+    const first = D.describeDeath({ maxHp: 10, deaths: 1, deathsToday: 1, recoveryMs: 0 });
+    assert(/first fall/i.test(first.lead), 'the first death lost its lead');
+    const firstStop = first.rows.find((r) => r.k === 'run-stopped');
+    assert(/back on your feet at once/i.test(firstStop.t) && firstStop.v === 'no delay',
+      'the day\'s free fall is not stated as free: ' + JSON.stringify(firstStop));
+    assert(first.rows.every((r) => r.k !== 'escalating'),
+      'the doubling was announced on a fall that cost nothing — a lecture, not a warning');
     assert(!/first fall/i.test(m.lead), 'the second death still claims to be the first');
+    /* KNOCKED OUT: while the timer runs, the headline is the character's STATE
+       and the lead is the countdown — "The Skeleton got you" describes a thing
+       that finished and says nothing about the only fact governing the next tap. */
+    const down = D.describeDeath({ monsterName: 'Brittle Skeleton', maxHp: 47, resumeHp: 19,
+      deathsToday: 2, recoveryMs: 120000, recoveringUntilMs: 1000000 + 107000, nowMs: 1000000 });
+    assert(down.title === 'Knocked out' && /Back on your feet in 1:47\./.test(down.lead),
+      'the sheet does not lead with the countdown while the character is down: '
+      + down.title + ' / ' + down.lead);
   }),
 
   () => tryRun('b373: an AWAY death never opens the sheet (the welcome-back receipt owns it)', () => {
@@ -52219,16 +52489,28 @@ const TESTS = [
     assert(!/undefined|NaN|null/.test(JSON.stringify(m)), 'the sheet leaked a placeholder value: ' + JSON.stringify(m));
   }),
 
-  () => tryRun('b373: RESPAWN IS A FULL HEAL — the sim heals and names its killer', () => {
+  () => tryRun('b373/rev.2: RESPAWN COSTS NO PROGRESS — the sim stands you up at 40% and names its killer', () => {
     const C = window.HearthriseCore;
     assert(C && C.combatSim && typeof C.combatSim.resolveDeath === 'function', 'combat-sim is not published');
-    /* The audited symptom was a fresh player respawning at 2/10 and dying
-       again immediately. The RULE: a death costs the RUN, never the health —
-       an HP penalty in an idle game only ever bites the player who cannot pay
-       it. Asserted on the sim, which is the one death path (b325). */
-    const state = { playerHp: 0, playerMaxHp: 10, monsterHp: 4, activeMonster: 'slime', stats: {} };
+    /* ══ SUPERSEDES "RESPAWN IS A FULL HEAL" ══════════════════════════════
+       b373's audited symptom was a fresh player respawning at 2/10 and dying
+       again immediately, and the fix was a full heal. The Recovery Rule (rev. 2)
+       replaces the mechanism and KEEPS THE PROPERTY: a death still costs no
+       progress — no gold, no items, no XP, no levels — but it no longer hands
+       back a free full health bar, because that made dying the cheapest top-up
+       in the game. The character stands up on 40% (`resumeHpFor`), which sits
+       deliberately just above Auto-Eat I's 25% trigger: a fed character is
+       topped up by their own provisions on the next swing, a foodless one is
+       not. Food is the way off the floor; the timer only stops the bleeding.
+       ⚠ 40% IS NOT RESTATED AS A LITERAL HERE. It is read from `resumeHpFor`,
+         the one definition both runtimes import — a hardcoded 4 would pass on
+         the day somebody retunes the fraction and the server disagrees. */
+    const A = C.away;
+    assert(A && typeof A.resumeHpFor === 'function', 'away.js does not publish resumeHpFor');
+    const state = { playerHp: 0, playerMaxHp: 10, monsterHp: 4, activeMonster: 'slime',
+      inventory: { cooked_shrimp: 3 }, gold: 500, skills: { attack: 1234 }, stats: {} };
     let sawMonster = null;
-    C.combatSim.resolveDeath(state, {
+    const info = C.combatSim.resolveDeath(state, {
       away: true,
       /* THE CONTRACT THE DEATH SHEET DEPENDS ON: onDeath fires while the fight
          is still standing, so a handler can still read what killed the player.
@@ -52236,8 +52518,27 @@ const TESTS = [
          silently loses its first line — this is what notices. */
       fx: { onDeath: () => { sawMonster = state.activeMonster; } },
     });
-    assert(state.playerHp === 10, 'respawn did not fully heal: ' + state.playerHp + '/10');
+    const want = A.resumeHpFor(10);
+    assert(want > 0 && want < 10, 'resumeHpFor no longer returns a FRACTION of max: ' + want);
+    assert(state.playerHp === want,
+      'the sim did not stand the character up on the ruled fraction: '
+      + state.playerHp + '/10, expected ' + want);
+    /* AND NOTHING ELSE WAS TAKEN. The half of b373 that rev. 2 did not touch,
+       asserted explicitly now that the health half has moved — otherwise the
+       next author reads "40%" and concludes a death is allowed to cost things. */
+    assert(state.gold === 500 && state.inventory.cooked_shrimp === 3 && state.skills.attack === 1234,
+      'a death took progression with it: ' + JSON.stringify({ gold: state.gold,
+        inv: state.inventory, skills: state.skills }));
     assert(state.stats.deaths === 1, 'the deaths stat did not increment');
+    /* THE FALL, AS DATA. The death sheet renders every one of these without
+       re-deriving a number, so the sim stating them IS the contract. The day's
+       first fall is free and the next one is the ladder's first rung. */
+    assert(info.recoverMs === 0, 'the first fall of the day was charged: ' + info.recoverMs);
+    assert(info.nextRecoverMs > 0, 'the sim cannot say what the next fall costs: ' + info.nextRecoverMs);
+    assert(info.deathsToday === 1 && info.deathsLifetime === 1,
+      'the fall was not counted on either ladder: ' + JSON.stringify(info));
+    assert(info.resumeHp === want,
+      'the payload disagrees with the state the sim just wrote: ' + info.resumeHp + ' vs ' + state.playerHp);
     assert(sawMonster === 'slime',
       'onDeath fired after the target was cleared, so nothing can say what killed you: ' + sawMonster);
   }),

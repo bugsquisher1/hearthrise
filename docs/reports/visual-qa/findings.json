@@ -253,7 +253,7 @@
     ],
     "stats": {
       "els": 367,
-      "chars": 1092
+      "chars": 1101
     },
     "viewport": "desktop"
   },
@@ -991,7 +991,7 @@
     ],
     "stats": {
       "els": 239,
-      "chars": 700
+      "chars": 698
     },
     "viewport": "landscape"
   },
@@ -1051,7 +1051,7 @@
     ],
     "stats": {
       "els": 317,
-      "chars": 1080
+      "chars": 1094
     },
     "viewport": "landscape"
   }

@@ -12939,18 +12939,52 @@ function awayFightSustains(){
 }
 window.awayFightSustains = awayFightSustains;
 
+/* ── HOW MANY MINUTES OFF YOUR FEET, or null when you are on them ─────────
+   Read from the SERVER's absolute `recovering_until` through fallState() every
+   time the bar repaints — never a stored countdown, the rule the whole recovery
+   surface follows. Whole minutes, floored at 1: this bar is a glance, and "0m"
+   on a line that says you cannot act is the kind of half-truth the sheet's
+   second-by-second countdown exists to answer properly. */
+function hrRecoveryMinutesLeft(){
+  const A=window.HearthriseAccrual;
+  if(!A||typeof A.fallState!=='function')return null;
+  let st=null; try{ st=A.fallState(); }catch(e){ return null; }
+  if(!st||st.phase!=='recovering'||!(st.msLeft>0))return null;
+  return Math.max(1,Math.round(st.msLeft/60000));
+}
+window.hrRecoveryMinutesLeft=hrRecoveryMinutesLeft;
+
 function refreshActivityBar(){
   const bar = document.getElementById('activity-bar'); if(!bar) return;
   const iconEl = document.getElementById('ab-icon');
   const nameEl = document.getElementById('ab-name');
   const metaEl = document.getElementById('ab-meta');
   const stopBtn = document.getElementById('ab-stop');
+  /* Cleared here so every branch below starts from "on your feet"; the combat
+     branch is the only one that re-adds it. */
+  bar.classList.remove('knocked-out');
 
   /* Combat */
   if(G.activeMonster){
     const m = MONSTERS[G.activeMonster];
     bar.classList.remove('idle'); bar.classList.add('combat');
     setActivityIcon(iconEl, 'navCombat', 'var(--red)');
+    /* ── KNOCKED OUT: THE BAR SAYS SO (2026-09-06) ────────────────────────
+       The always-on readout must not claim the player is fighting while the
+       server has them on the floor. Measured live on b510: after a reload the
+       bar read "Fighting Goblin" for 27 minutes in which nothing could earn.
+       The pointer is still the truth — the run resumes by itself — so the line
+       states both facts and Stop keeps working, because leaving is the one
+       thing a knocked-out player may still choose. */
+    const _koMin = hrRecoveryMinutesLeft();
+    if(_koMin !== null){
+      bar.classList.add('knocked-out');
+      if(nameEl) nameEl.textContent = `Knocked out — back on your feet in ${_koMin}m`;
+      if(metaEl) metaEl.textContent = `${m?.name||'Your run'} resumes automatically · nothing earns while you recover`;
+      if(stopBtn) stopBtn.style.display = '';
+      refreshPanelProgress();
+      return;
+    }
     if(nameEl) nameEl.textContent = `Fighting ${m?.name||'?'}`;
     if(metaEl){
       // Show kill count for the current foe (resets when the player picks a

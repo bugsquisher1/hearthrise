@@ -2125,6 +2125,22 @@ export function applyEnvelopeState(G, res, ownKey) {
   /* AFTER all three, because the answer is a function of every one of them. */
   noteFallAnswer(res);
 
+  /* ── THE FALL IS ANNOUNCED, ONCE PER ENVELOPE (2026-09-06, boot-raise P1) ──
+     Measured live on b510: a character with `recovering_until` 27 minutes ahead
+     RELOADED and got a normal "Fighting Goblin" bar — no sheet, no countdown,
+     no Rest button, nothing saying that 27 minutes would earn nothing. The
+     sheet was never broken; its only trigger was the fall MOMENT in the live
+     tick, and a reload has no such moment.
+     A one-way NOTIFICATION, not a call: this module must not know the death
+     sheet exists, and a listener that throws must not be able to poison an
+     envelope apply. The listener owns the once-per-window rule. */
+  try {
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
+        && typeof CustomEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('hearthrise:fall', { detail: fallState() }));
+    }
+  } catch (e) {}
+
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
 
   /* ELEMENTS v1 — THE WEAPON ENCHANT IS SERVER-AUTHORED. When the envelope

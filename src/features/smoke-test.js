@@ -8548,15 +8548,15 @@ const TESTS = [
     assert(new Set(ids).size === ids.length, 'QM_STOCK has a duplicate id — the offer id must be unique');
   }),
 
-  /* DGN-SETTLE-2: the client mint is GATED behind the server-authority arm. While
-     dormant (DUNGEON_SETTLE_ARM_ENABLED=false, the shipped default) scrip stays the
-     inventory item and scripOf falls back to it — byte-identical to today. Under a
-     FORCED arm, scripOf reads the top-level G.dungeonScrip, and awardDungeonScrip
-     writes NOTHING (the server owns it). This proves the gate exists and is inert. */
+  /* DGN-SETTLE-2: the client mint is GATED behind the server-authority arm. The
+     arm is now ON (DUNGEON_SETTLE_ARM_ENABLED=true, 2026-09-06): scripOf reads the
+     top-level G.dungeonScrip and awardDungeonScrip writes NOTHING (the server owns
+     it). The dormant branch is still exercised through the override because it is
+     the fallback any client without live server accrual takes. */
   () => tryRun('DGN-SETTLE-2: scrip read + mint follow the server-authority arm (dormant = today, armed = server)', () => {
     const R = window.HearthriseDungeonScrip;
     if (!R || typeof R.__setDungeonSettleArm !== 'function') { assert(false, 'dungeon-scrip-record not loaded'); return; }
-    assert(R.DUNGEON_SETTLE_ARM_ENABLED === false, 'the arm must ship DORMANT (default false)');
+    assert(R.DUNGEON_SETTLE_ARM_ENABLED === true, 'the arm must be ON (default true) - scrip is server-owned');
     const G = { inventory: { dungeon_scrip: 42 }, dungeonScrip: 7 };
     try {
       R.__setDungeonSettleArm(false);
@@ -8570,6 +8570,74 @@ const TESTS = [
       R.reconcileScrip(G, { dungeon_scrip: 'nope' });
       assert(G.dungeonScrip === 99, 'armed: a NaN scrip is refused (fail-closed, no data loss)');
     } finally { R.__setDungeonSettleArm(null); }
+  }),
+
+  /* DGN-SETTLE-3 (regression, 2026-09-06 - "dungeon scrip vanishes on reload").
+     ROOT CAUSE: the whole server settlement was built and shipped DARK - the arm
+     flag stayed false while BLOB_RETIRED was true, so every completion path fell
+     through to `addItem('dungeon_scrip')`, a client-minted reward the next
+     inventory envelope erased. Live proof at the time of the fix: zero
+     kind='dungeon' ledger rows and zero characters holding server scrip.
+     THE CONTRACT THIS PINS: with the arm ON, a dungeon completion sends the
+     hr_dungeon_settle INTENT and mints NOTHING locally - not the scrip, not the
+     loot, not even the entry key (the server consumes it) - and the balance the
+     player sees comes from the returned envelope. If the arm is ever flipped off
+     while the bag is server-rebuilt, this test goes red. */
+  () => tryRunAsync('DGN-SETTLE-3: armed, a dungeon clear MINTS NOTHING locally - scrip comes from the server envelope', async () => {
+    const R = window.HearthriseDungeonScrip, DS = window.HearthriseDungeonSettle;
+    if (!R || !DS || typeof window.runDungeon !== 'function' || !window.DUNGEONS) {
+      assert(false, 'dungeon modules must be loaded'); return;
+    }
+    const dId = Object.keys(window.DUNGEONS).find((k) => window.DUNGEONS[k].cost && window.DUNGEONS[k].cost.key);
+    if (!dId) { assert(false, 'no key-gated dungeon in the catalogue'); return; }
+    const d = window.DUNGEONS[dId], G = window.G;
+    const snap = {
+      inv: JSON.parse(JSON.stringify(G.inventory || {})),
+      scrip: G.dungeonScrip, dgn: JSON.parse(JSON.stringify(G.dungeons || { lastRun: {} })),
+      addItem: window.addItem, getCombatLevel: window.getCombatLevel,
+      send: DS.sendDungeonSettle, notify: window.notify,
+    };
+    const minted = [];
+    let sent = null;
+    try {
+      R.__setDungeonSettleArm(true);
+      G.inventory = Object.assign({}, G.inventory);
+      G.inventory[d.cost.key] = 1;                       // a real key, so canRun passes
+      delete G.inventory.dungeon_scrip;
+      G.dungeonScrip = 0;
+      G.dungeons = { lastRun: {} };                      // off cooldown
+      window.getCombatLevel = () => 99;
+      window.notify = () => {};
+      window.addItem = (id, qty) => { minted.push(id + 'x' + qty); return true; };
+      /* The transport is stubbed at the SEND (no network in the suite); the
+         reconcile is the REAL module function, so the envelope -> G path under
+         test is the one production runs. */
+      DS.sendDungeonSettle = (o) => { sent = o; return Promise.resolve({
+        outcome: 'settled',
+        body: { ok: true, version: 2, state: { dungeon_scrip: 15 }, skills: {},
+          inventory: { bone_scrap: 3 },
+          settled: { dungeon: dId, mode: 'auto', scrip: 15, items: { bone_scrap: 3 }, key_spent: d.cost.key } },
+      }); };
+
+      assert(window.runDungeon(dId) === true, 'armed: the run must be accepted');
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+
+      assert(sent && sent.id === dId && sent.mode === 'auto' && sent.quality === 1,
+        'armed: the clear must SEND the settle intent (got ' + JSON.stringify(sent) + ')');
+      assert(minted.filter((m) => m.indexOf('dungeon_scrip') === 0).length === 0,
+        'armed: the clear must NOT addItem("dungeon_scrip") - that mint is what the reload erased');
+      assert(minted.length === 0, 'armed: no loot may be minted client-side either (minted: ' + minted + ')');
+      assert((G.inventory[d.cost.key] || 0) === 1,
+        'armed: the entry key is consumed by the SERVER, never debited locally (no double spend)');
+      assert(G.dungeonScrip === 15 && R.scripOf(G) === 15,
+        'armed: the balance shown is the ENVELOPE state.dungeon_scrip (got ' + R.scripOf(G) + ')');
+      assert(!(G.inventory.dungeon_scrip > 0), 'armed: nothing lands in the legacy bag slot');
+    } finally {
+      R.__setDungeonSettleArm(null);
+      DS.sendDungeonSettle = snap.send; window.addItem = snap.addItem;
+      window.getCombatLevel = snap.getCombatLevel; window.notify = snap.notify;
+      G.inventory = snap.inv; G.dungeonScrip = snap.scrip; G.dungeons = snap.dgn;
+    }
   }),
 
   () => tryRun('WAVE6: a weekly boss exists and pays a bigger bonus than the daily', () => {

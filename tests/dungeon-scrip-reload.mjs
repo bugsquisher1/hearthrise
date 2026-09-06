@@ -138,9 +138,11 @@ async function runAll(db) {
     } finally { __setDungeonSettleArm(null); }
   });
 
-  // THE DARK SHIP: the arm ships OFF, so nothing changes byte-for-byte until the
-  // Coordinator flips it. scripOf then reads the legacy inventory item.
-  ok(DUNGEON_SETTLE_ARM_ENABLED === false, 'the arm MUST ship dormant (DUNGEON_SETTLE_ARM_ENABLED=false)');
+  // THE ARM (flipped 2026-09-06, once the settle + quartermaster RPCs, the
+  // catalogue and the edge verbs were all verified live). The dormant path below
+  // is still exercised through the override, because it is the fallback any
+  // client without live server accrual takes.
+  ok(DUNGEON_SETTLE_ARM_ENABLED === true, 'the arm MUST be ON (DUNGEON_SETTLE_ARM_ENABLED=true) - scrip is server-owned');
   __setDungeonSettleArm(false);
   try {
     ok(isDungeonSettleArmed() === false, 'dormant: isDungeonSettleArmed() is false');
@@ -171,6 +173,6 @@ if (argv.includes('--selftest')) {
   await runAll(db);
   if (failed) { console.error(`\ndungeon-scrip-reload: ${failed} assertion(s) FAILED.`); process.exit(1); }
   console.log('dungeon-scrip-reload: scrip credited server-side, projected by hr_state_of, and READ back '
-    + 'into G.dungeonScrip on a fresh reloaded G — report #3 (scrip -> 0 on reload) fixed. Arm ships dormant.');
+    + 'into G.dungeonScrip on a fresh reloaded G — report #3 (scrip -> 0 on reload) fixed. Arm is ON.');
   process.exit(0);
 }

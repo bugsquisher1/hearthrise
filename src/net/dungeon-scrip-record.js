@@ -8,18 +8,31 @@
 // flag, one read helper every display site routes through, and a top-level home
 // (`G.dungeonScrip`) so the server value can be reconciled onto it.
 //
-// ── SHIPPED DORMANT, AND WHY IT MUST STAY COUPLED TO INCREMENT 3 ─────────────
-// Scrip is EARNED by hr_dungeon_settle (increment 2, this) and SPENT at the
-// Quartermaster by quartermaster_buy (increment 3, NOT built yet). Arming the READ
-// here while the SPEND still does `removeItem('dungeon_scrip')` on the INVENTORY
-// item would leave the shop debiting a bag entry that no longer holds the balance.
-// So DUNGEON_SETTLE_ARM_ENABLED stays FALSE until the rollout that lands BOTH the
-// applied+deployed settle server AND quartermaster_buy — flipped by the
-// Coordinator, not here. While false this module changes nothing byte-for-byte:
-// scripHeld() falls back to the inventory item exactly as today.
+// -- ARMED 2026-09-06 -- WHY IT IS NOW SAFE TO FLIP -------------------------
+// Scrip is EARNED by hr_dungeon_settle (increment 2) and SPENT at the
+// Quartermaster by hr_quartermaster_buy (increment 3). Arming the READ while the
+// SPEND still did `removeItem('dungeon_scrip')` on the INVENTORY item would have
+// left the shop debiting a bag entry that no longer holds the balance -- so this
+// stayed FALSE until BOTH halves existed server-side AND client-side. All of that
+// is now true and VERIFIED read-only against production (2026-09-06):
+//   * hr_dungeon_settle + hr_quartermaster_buy both exist live (pg_proc).
+//   * hr_dungeons 6 / hr_dungeon_loot 38 / hr_qm_offers 19 rows seeded, and
+//     `node tools/gen-dungeon-catalogue.mjs --check` says the catalogue matches
+//     src/data/dungeons.js.
+//   * player_state.dungeon_scrip exists and hr_state_of projects it.
+//   * the deployed hr-accrue reports payload 276af1c6... == this repo's
+//     `node tools/pack-edge.mjs hr-accrue --hash`, so the dungeon_settle and
+//     quartermaster_buy verbs are ROUTED live.
+//   * and the proof this flip IS the bug: player_ledger holds ZERO kind='dungeon'
+//     rows and ZERO characters hold server scrip -- every clear since BLOB_RETIRED
+//     minted into the bag and was erased by the next envelope.
+// The remaining gate is operational, not technical: the arm is a player-facing
+// economy loop, so it does not PUSH without the live play gate (settle -> scrip +
+// loot + key; QM buy -> debit + grant; reload -> scrip survives; same-key retry ->
+// no double-spend). See docs/STABILIZATION_AUDIT.md SA-015.
 //
 //   dormant (false): scrip lives at G.inventory.dungeon_scrip, minted client-side
-//                    (today's behaviour, and today's "goes to 0 on reload" bug).
+//                    (the pre-arm behaviour, and the "goes to 0 on reload" bug).
 //   armed   (true):  scrip is the server's — read from the envelope into the
 //                    top-level G.dungeonScrip, credited only by hr_dungeon_settle,
 //                    and it SURVIVES a reload because hr_state_of projects it.
@@ -27,10 +40,11 @@
 // PURE ESM. No DOM. Node-importable (the guards drive these exact bytes).
 // ============================================================================
 
-/* ⚠ DORMANT. Flip to true ONLY in the post-apply rollout that also ships
-   quartermaster_buy (increment 3) and moves every scrip READ/SPEND site
-   server-side. If you flip the value, flip this comment in the same edit. */
-export const DUNGEON_SETTLE_ARM_ENABLED = false;
+/* ⚠ ARMED (2026-09-06). Both increments are applied, deployed and wired — see
+   "ARMED" in the header for the production evidence. If you flip the value, flip
+   that comment in the same edit, and never arm the READ without the
+   quartermaster_buy SPEND: the earn and the spend are ONE switch. */
+export const DUNGEON_SETTLE_ARM_ENABLED = true;
 
 let armOverride = null;
 

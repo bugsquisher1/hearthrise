@@ -172,6 +172,34 @@ jobs:
           node tests/live-hash-drift.mjs --selftest
           node tests/live-hash-drift.mjs --mutate
 
+      # ...AND DOES THE DEPLOYMENT RECORD AGREE WITH THAT MEASUREMENT?
+      # The step above measures what production runs. tests/schema-apply-order.json
+      # is what an OPERATOR reads to decide what still has to be run — and on
+      # 2026-09-06 its `_order_notes` said "STAGED, NOT APPLIED" for FOURTEEN
+      # migrations that were measurably live, including three whose own notes
+      # predicted the post-apply hash the baseline had already measured as the
+      # LIVE one. Both records existed; nothing compared them. An operator acting
+      # on the file would have re-applied all fourteen believing they were new;
+      # every one happened to be anchor-guarded and idempotent, so they would have
+      # failed closed — the next one might not.
+      #
+      # Credential-free by construction: it reads those two JSON files and
+      # nothing else, no replay and no database, so it costs milliseconds and can
+      # sit next to the guard whose measurements it consumes. A file is called
+      # APPLIED only when it is the LAST file in the apply order touching a
+      # tracked body that production carries — "last" because a later restatement
+      # already contains an earlier file's change, so anything short of that
+      # proves nothing and the guard stays silent rather than accusing.
+      # --selftest plants both directions (a STAGED note on a live migration, an
+      # APPLIED note on a body the baseline measured as absent), a structural
+      # drift between the two files, and two NEGATIVE CONTROLS that must stay
+      # silent.
+      - name: Apply-order honesty — the deployment record vs the measurement
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/apply-order-honesty.mjs
+          node tests/apply-order-honesty.mjs --selftest
+
       # THE RENOWN FAUCET'S MUTATION HARNESS — the half that proves the guard
       # itself can fail. The guard already runs inside run-smoke; its --selftest
       # was wired into NOTHING, which is the restore-census mistake below,

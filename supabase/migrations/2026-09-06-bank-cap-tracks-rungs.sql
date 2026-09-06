@@ -198,7 +198,7 @@ $body$;
 -- row lock before it writes the rung), so this adds no new lock and no new
 -- ordering.
 create or replace function public.hr_bank_cap_sync()
-returns trigger language plpgsql set search_path = public as $$
+returns trigger language plpgsql set search_path = public, pg_temp as $$
 declare v_cap int;
 begin
   v_cap := public.hr_bank_cap_for_rungs(greatest(0, least(new.value, 2147483647))::int);

@@ -11933,9 +11933,21 @@ const TESTS = [
     assert(downActs(down).indexOf('rest') === 0,
       'a knocked-out character was not offered Rest at the Hearth as the PRIMARY action: '
       + JSON.stringify(downActs(down)));
-    assert(down.actions[0].label === 'Rest at the Hearth — eat 6 health',
+    /* AMENDED b511 (phantom-food / silent-refusal P0). `base` carries
+       foodQty:0, and a foodless character CANNOT rest — `hr_rest` refuses
+       `insufficient_food`. Offering "eat 6 health" to an empty bag was measured
+       live as the primary tap on a sheet the player was stuck behind, and the
+       refusal was silent. So the PRICE is asserted where it is honest (a bag
+       with food) and the DISABLED wording where it is not. */
+    const downFed = D.describeDeath(Object.assign({}, base, {
+      recoveringUntilMs: 1000000 + 107000, foodQty: 4, foodName: 'Cooked Shrimp' }));
+    assert(downFed.actions[0].label === 'Rest at the Hearth — eat 6 health' && !downFed.actions[0].disabled,
       'the Rest action does not price itself in health, so the player cannot tell whether their bag '
-      + 'covers it: ' + down.actions[0].label);
+      + 'covers it: ' + downFed.actions[0].label);
+    assert(down.actions[0].k === 'rest' && down.actions[0].disabled === true
+      && down.actions[0].label === 'No food to rest with',
+      'an EMPTY bag was still offered a priced Rest the server refuses insufficient_food: '
+      + JSON.stringify(down.actions[0]));
     assert(downActs(up).indexOf('rest') < 0,
       'a character who is UP was offered Rest at the Hearth — the server refuses it not_recovering');
     const full = D.describeDeath(Object.assign({}, base, {
@@ -41272,6 +41284,152 @@ const TESTS = [
     }
   }),
 
+  /* ════════════════════════════════════════════════════════════════════════
+     PHANTOM-FOOD-1 (b511) — A PROVISION THE SERVER ATE MUST READ ZERO ON THE
+     CLIENT AFTER THE BOOT RECONCILE.
+
+     THE LIVE P0, measured on the QA slot 2026-09-06 (b510): `player_inventory`
+     held NO food at all — the 12:15 away settle receipt said `ate 23
+     cooked_shrimp` and the 13:49 settle ate 0 because none was left. After a
+     FRESH RELOAD the client still showed `cooked_shrimp: 20`. The knocked-out
+     sheet then told the player they "were carrying 20 x Cooked Shrimp and never
+     ate one" (false) and offered a Rest that `hr_rest` refused with
+     `insufficient_food`.
+
+     ROOT CAUSE: a cooked dish is EXCLUDED from server ownership (so an
+     incomplete baseline can never delete a live-cooked meal), and exclusion is
+     a NEVER-LOWER rule — so once the server row hit zero the key vanished from
+     the envelope and the stale client 20 was never contradicted again, by any
+     envelope, forever. The fix reads a SERVER-CONSUMED id (`heals > 0`)
+     absolutely whenever the server certifies the baseline COMPLETE.
+
+     Drives the REAL boot path (requestRecord -> settle -> reconcileInventory)
+     with a stubbed fetch, exactly as INV-HYDRATE-1 does.
+
+     MUTATION: drop the `consumableAbsolute` clauses in reconcileInventory
+     (src/net/accrue.js) -> cooked_shrimp stays 20 -> RED. ───────────────── */
+  () => tryRunAsync('PHANTOM-FOOD-1 (b511): a provision the server has eaten to zero reads 0 after the boot reconcile (phantom-food P0)', async () => {
+    const R = window.HearthriseRecord;
+    const IA = window.HearthriseItemAuthority;
+    const realFetch = window.fetch;
+    const savedG = window.G;
+    assert(IA && typeof IA.serverConsumedItem === 'function', 'item-authority does not publish serverConsumedItem');
+    assert(IA.serverConsumedItem('cooked_shrimp') === true,
+      'cooked_shrimp is not classified as a SERVER-CONSUMED provision — the rule cannot fire');
+    assert(IA.serverConsumedItem('copper_ore') === false,
+      'a non-food id is classified as server-consumed — the rule is too wide');
+    try {
+      /* The server bag AFTER the night: every provision eaten, so neither food
+         key appears at all. `inventory_complete: true` is the server's own
+         assertion that no settle window is open. */
+      const SERVER_BAG = { coal: 12, copper_ore: 4 };
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, version: 9, now: '2026-09-06T14:00:00Z',
+          state: { slot: 0, accrued_to: '2026-09-06T13:59:00Z' },
+          skills: {}, inventory: SERVER_BAG, inventory_complete: true,
+        }), { status: 200 }));
+      };
+      window.G = { inventory: { cooked_shrimp: 20, shrimp: 10, coal: 1 }, offlineBudget: {} };
+      R.resetRecord();
+      R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      const v = await R.requestRecord();
+      assert(v.outcome === 'loaded', 'the boot read did not load: ' + JSON.stringify(v));
+      const inv = window.G.inventory || {};
+      assert(!inv.cooked_shrimp,
+        'the phantom food survived the boot reconcile: cooked_shrimp = ' + inv.cooked_shrimp
+        + ' — the client still believes in food the server ate (the reported P0)');
+      /* AND THE NEVER-DELETE RULE IS INTACT FOR EVERYTHING ELSE. The ordinary
+         merge ratchet must still hydrate a non-provision id. */
+      assert(inv.coal === 12, 'the ordinary merge ratchet stopped working: coal = ' + inv.coal);
+      /* AN INCOMPLETE BASELINE MUST CHANGE NOTHING — fail-closed. */
+      const G2 = { inventory: { cooked_shrimp: 20 } };
+      window.HearthriseAccrual.reconcileInventory(G2, { inventory: { coal: 1 } });
+      assert(G2.inventory.cooked_shrimp === 20,
+        'an envelope with NO inventory_complete flag deleted a provision — the rule is not fail-closed');
+    } finally {
+      window.fetch = realFetch;
+      R.resetRecord();
+      R.configureRecord(null);
+      window.G = savedG;
+    }
+  }),
+
+  /* ════════════════════════════════════════════════════════════════════════
+     REST-REFUSAL-1 (b511) — hr_rest REFUSALS ARE SURFACED, AND THE SHEET STAYS
+     OPEN.
+
+     THE LIVE P0 (same session): pressing "Rest at the Hearth" returned 200 with
+     `{ok:false, error:'insufficient_food'}`; the handler had ALREADY called
+     close() and navigated away, so the player saw NOTHING and stayed knocked
+     out with no idea why. A refusal the player cannot see is indistinguishable
+     from a dead button.
+
+     MUTATION: restore the unconditional `close()` at the top of act(), or drop
+     the `note(...)` in the refusal branch -> RED. ───────────────────────── */
+  () => tryRunAsync('REST-REFUSAL-1 (b511): an insufficient_food refusal keeps the death sheet OPEN and says why; ok:true closes it', async () => {
+    const D = window.HearthriseDeathSheet;
+    const savedGC = window.HearthriseGoalClaim;
+    assert(D && typeof D._render === 'function' && typeof D._act === 'function',
+      'the death sheet does not publish its render/act seams');
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+    const sheet = () => document.getElementById('hr-death-scrim');
+    const openNow = () => { const el = sheet(); return !!(el && el.classList.contains('show')); };
+    const noteText = () => { const el = sheet(); const n = el && el.querySelector('[data-note]'); return n ? n.textContent : ''; };
+    const restBtn = () => { const el = sheet(); return el && el.querySelector('[data-act="rest"]'); };
+    /* Knocked out, hurt, and CARRYING food — so the button is offered. */
+    const moment = { monsterName: 'Grey Wolf', maxHp: 30, resumeHp: 12, deathsToday: 2,
+      recoveryMs: 120000, recoveringUntilMs: Date.now() + 180000, nowMs: Date.now(),
+      missingHp: 7, foodQty: 4, foodName: 'Cooked Shrimp', ateThisFight: 0 };
+    try {
+      const model = D.describeDeath(moment);
+      const rest = model.actions.filter((a) => a.k === 'rest')[0];
+      assert(rest && !rest.disabled, 'the Rest action was not offered to a hurt, foodful, knocked-out player');
+
+      // (1) REFUSED
+      window.HearthriseGoalClaim = { rest: () => Promise.resolve({ ok: false, error: 'insufficient_food', need_hp: 7, covered_hp: 0 }) };
+      D._render(model, moment);
+      assert(openNow(), 'the sheet did not open');
+      D._act('rest', moment, restBtn());
+      await flush(); await flush();
+      assert(openNow(), 'the sheet CLOSED on a refusal — the player is knocked out and was told nothing (the reported P0)');
+      assert(/no cooked food left/i.test(noteText()),
+        'the insufficient_food refusal was not surfaced; the note read: "' + noteText() + '"');
+      assert(/nothing was eaten/i.test(noteText()),
+        'the refusal never states that no food was spent: "' + noteText() + '"');
+      const b = restBtn();
+      assert(b && !b.disabled, 'the Rest button was left disabled after a refusal the player can retry');
+
+      // (2) ACCEPTED
+      let cleared = false;
+      const AC = window.HearthriseAccrual;
+      const savedClear = AC.clearFall;
+      AC.clearFall = function () { cleared = true; return savedClear.apply(this, arguments); };
+      window.HearthriseGoalClaim = { rest: () => Promise.resolve({ ok: true, rested: { healed_hp: 7, units: 1 } }) };
+      try {
+        D._render(model, moment);
+        D._act('rest', moment, restBtn());
+        await flush(); await flush();
+        assert(!openNow(), 'a successful Rest did not close the sheet');
+        assert(cleared, 'a successful Rest did not retire the unanswered fall (clearFall) — the watch can re-open the sheet');
+      } finally { AC.clearFall = savedClear; }
+
+      // (3) NO FOOD AT ALL: the button cannot lie
+      const dryMoment = Object.assign({}, moment, { foodQty: 0 });
+      const dry = D.describeDeath(dryMoment);
+      const dryRest = dry.actions.filter((a) => a.k === 'rest')[0];
+      assert(dryRest && dryRest.disabled && /no food/i.test(dryRest.label),
+        'an empty bag still offered a Rest the server will refuse: ' + JSON.stringify(dryRest));
+      D._render(dry, dryMoment);
+      assert(/no cooked food left/i.test(noteText()),
+        'a foodless sheet does not explain why Rest is closed: "' + noteText() + '"');
+    } finally {
+      window.HearthriseGoalClaim = savedGC;
+      D.close();
+    }
+  }),
+
   /* HERO-SLOT-HYDRATE-1 (SA-016) — THE THIRD INSTANCE OF THE IDLE-BOOT CLASS,
      after INV-HYDRATE-1 (b467 inventory) and the crew (b477). reconcileHeroSlots
      lands the account's owned set in the `_heroSlots` scratch that
@@ -50085,7 +50243,20 @@ const TESTS = [
         inventory: { ember_bar: 5 },   // every un-modeled id OMITTED
       });
 
-      assert(G.inventory.cooked_shrimp === 9, 'a cooked food the envelope omits must SURVIVE — got ' + G.inventory.cooked_shrimp);
+      /* AMENDED b511 (phantom-food P0). A COOKED DISH IS NO LONGER AN
+         "un-modeled id the server never heard of" — the server EATS it
+         (auto-eat, hr_rest) and, with COOKING_SETTLEMENT_ARM_ENABLED, cooks it.
+         Leaving it on the never-lower rule meant a provision the server ate to
+         zero could never be contradicted: measured live 2026-09-06 with the
+         server bag empty and the client showing 20 Cooked Shrimp. Under a
+         SERVER-CERTIFIED COMPLETE baseline (`inventory_complete` — the SQL's
+         "no settle window is open", so no cook is in flight) an omitted
+         provision is now a real zero. The guard KEEPS ITS TEETH on the three
+         categories that are still genuinely un-modeled below, and the
+         completeness gate is proved fail-closed by PHANTOM-FOOD-1. */
+      assert(!G.inventory.cooked_shrimp,
+        'a provision the server has eaten to zero must not survive a COMPLETE envelope — got '
+        + G.inventory.cooked_shrimp + ' (the phantom-food P0)');
       assert(G.inventory.potato === 40, 'a crop the envelope omits must SURVIVE — got ' + G.inventory.potato);
       assert(G.inventory.warboss_standard === 1, 'a dungeon reward the envelope omits must SURVIVE — got ' + G.inventory.warboss_standard);
       assert(G.inventory.carrot === 12, 'a companion-proc crop the envelope omits must SURVIVE — got ' + G.inventory.carrot);

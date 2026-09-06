@@ -1395,7 +1395,7 @@ import * as itemLedger from './item-ledger.js?v=510';
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=510';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=510';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -2837,6 +2837,49 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
   const invNamed = pendingConsume.foldPendingConsume(G, invNamedRaw, {
     omissionIsZero: (invAbsolute && baselineComplete) ? true : consumedIds,
   });
+  /* ══════════════════════════════════════════════════════════════════════
+     THE PHANTOM FOOD (LIVE P0, b510 QA slot 2, 2026-09-06).
+
+     MEASURED: `player_inventory` held NO food; the 12:15 away settle receipt
+     said `ate 23 cooked_shrimp`; the client, after a FRESH RELOAD, still
+     showed 20 Cooked Shrimp and 10 Shrimp. The knocked-out sheet therefore
+     told the player they "were carrying 20 x Cooked Shrimp and never ate one"
+     and offered a Rest that `hr_rest` refused with `insufficient_food`.
+
+     THE ROOT CAUSE, EXACTLY. Both branches below only ever RAISE a figure for
+     an id the server does not OWN, and a cooked dish is deliberately NOT owned
+     (buildItemAuthority puts cookingOutputIds in `excluded` so an incomplete
+     baseline can never delete a live-cooked meal). An OMITTED key is read as
+     "unknown", so once the server's row hits zero the key disappears from the
+     envelope and the client's stale 20 is never contradicted again — by any
+     envelope, ever, including the boot `hr_load` reconcile (record.js). The
+     never-delete rule, which is right for a dish the CLIENT made, is wrong for
+     the one thing the SERVER unmakes: auto-eat and hr_rest eat the player's
+     food behind their back.
+
+     THE RULE. For a SERVER-CONSUMED id (`heals > 0` — the same marker
+     supabase/functions/hr-accrue/eat.js and src/core/auto-eat.js both read),
+     on an envelope the SERVER has certified COMPLETE, the bag figure is
+     believed in BOTH directions: a named figure sets the quantity and an
+     OMITTED key is a real zero.
+
+     WHY `baselineComplete` ALONE IS THE RIGHT GATE, and why this is not
+     smuggling the inventory arm in early:
+       · `inventory_complete` is a SERVER assertion (2026-08-24-inventory-
+         complete.sql) that NO settle window is open — not mid-fight, not
+         mid-gather, not mid-cook. That is exactly the condition under which a
+         freshly-cooked dish cannot be "in flight and therefore invisible",
+         which is the single hazard the ownership exclusion exists to avoid.
+       · The arm (`isInventoryAbsolute()`) is NOT usable here: it starts false
+         every session and can only be thrown by `maybeAutoArm` from
+         applyEnvelopeState — i.e. AFTER the boot reconcile has already run. A
+         rule gated on it could never fix the reported case, which is a fresh
+         reload showing food the server ate an hour ago.
+       · It stays fail-closed: no completeness flag (an older server, an open
+         window) ⇒ nothing changes, byte for byte.
+     Scope is deliberately the CONSUMED class only — this adds no new authority
+     over any id the server does not eat. */
+  const consumableAbsolute = baselineComplete === true && !!invNamedRaw;
   if (invAbsolute && baselineComplete && invNamed && typeof invNamed === 'object' && !Array.isArray(invNamed)) {
     /* ══════════════════════════════════════════════════════════════════════
        THE SERVER-OWNED CARVE-OUT (server-authority inventory-flip, Step 2).
@@ -2864,7 +2907,9 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
     for (const k of keys) {
       const q = Number(invNamed[k]);
       const named = Number.isFinite(q) && q > 0;
-      if (serverOwnedItem(k)) {
+      /* OWNED, or SERVER-CONSUMED under a complete baseline (the phantom-food
+         rule above — a provision the server eats must be allowed to reach 0). */
+      if (serverOwnedItem(k) || (consumableAbsolute && serverConsumedItem(k))) {
         /* OWNED: absolute. A readable positive figure is assigned; an omitted,
            zero or unreadable figure removes the stack (act only on certainty —
            save-invariant #2 — and the next settle restates a real one). */
@@ -2895,8 +2940,16 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
   const consumed = consumedIds;
   const namedFigures = (invNamed && typeof invNamed === 'object') ? invNamed : {};
   const namedKeys = Object.keys(namedFigures);
-  const invKeys = consumed.size
-    ? Array.from(new Set(namedKeys.concat(Array.from(consumed))))
+  /* THE PHANTOM-FOOD KEYS (see the block above). A provision the server has
+     eaten to zero is ABSENT from the envelope, so it is in neither `namedKeys`
+     nor `consumed` and the loop would never visit it. Under a server-certified
+     COMPLETE baseline its absence is a statement, so the client's own food keys
+     are walked too — and only those: this adds no other id to the loop. */
+  const phantomKeys = consumableAbsolute
+    ? Object.keys(inv).filter((k) => serverConsumedItem(k))
+    : [];
+  const invKeys = (consumed.size || phantomKeys.length)
+    ? Array.from(new Set(namedKeys.concat(Array.from(consumed), phantomKeys)))
     : namedKeys;
   for (const k of invKeys) {
     /* ══════════════════════════════════════════════════════════════════════
@@ -2932,7 +2985,10 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
        the worst case is under-crediting a bag copy, which the next settle
        heals. A dupe never heals. Counted by ITEM ID, never by slot name, so
        client and server slot vocabularies cannot drift into a wrong deduction. */
-    const isDebit = consumed.has(k);
+    /* ABSOLUTE for this key: the away receipt explicitly DEBITED it, or it is a
+       provision the server eats and the baseline is certified complete. Either
+       way the envelope's silence is a positive statement of zero. */
+    const isDebit = consumed.has(k) || (consumableAbsolute && serverConsumedItem(k));
     const raw = Number(namedFigures[k]);
     /* A debited key the envelope omits is a REAL zero (the row was deleted).
        For every other key, an unreadable figure is still "unknown" and skipped. */
@@ -4109,7 +4165,7 @@ if (typeof window !== 'undefined') {
     isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
     maybeAutoArm, isInventoryArmEnabled, __setInventoryArmEnabledForTest, __resetAutoArm,
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
-    serverOwnedItem, serverAccruedSkill, markEquipAuthorityLive,
+    serverOwnedItem, serverConsumedItem, serverAccruedSkill, markEquipAuthorityLive,
     equippedCount, unaccountedEquipped, consumedKeysOf,
     /* THE PENDING-CONSUMPTION LEDGER (live P0 — "eaten food gets restocked").
        Re-published here as well as on window.HearthrisePendingConsume so a

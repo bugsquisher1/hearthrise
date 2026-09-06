@@ -6715,7 +6715,27 @@ function hrCombatDown(){
   let st=null;
   try{ st=A.fallState(); }catch(e){ return false; }
   if(!st)return false;
-  if(st.phase==='pending'||st.phase==='recovering'){ _hrWasDown=true; return true; }
+  if(st.phase==='pending'||st.phase==='recovering'){
+    /* SAY IT ONCE, WHOEVER STATED IT (b512 P0). `hrKnockOut` announces the
+       fall this client SAW. A recovery line can also arrive with no client
+       fall at all — the server priced a window, found a death in it and
+       stamped `recovering_until`, which is the ordinary shape after an
+       attended run is settled. Before this, that case shut the gate below in
+       total silence: the interval kept running, the swing bar kept animating
+       (it is stamped by a wrapper around `combatTick`, not by a swing), and
+       the fight neither damaged nor respawned. Tyler, live on b510: "after I
+       kill one dark wizard the swing timer just keeps going but nothing
+       happens." A gate the player cannot see is indistinguishable from a
+       frozen game. */
+    if(!_hrWasDown){
+      _hrWasDown=true;
+      if(Array.isArray(G.combatLog))G.combatLog.push(st.phase==='recovering'
+        ? 'Knocked out — the hearth is bringing you round.'
+        : 'You fell! Waiting on the hearth…');
+      try{ renderCombat(); }catch(e){}
+    }
+    return true;
+  }
   if(_hrWasDown){
     _hrWasDown=false;
     hrStandUp();
@@ -6724,6 +6744,17 @@ function hrCombatDown(){
   return false;
 }
 window.hrCombatDown=hrCombatDown;
+/* THE SAME QUESTION, PURE. `hrCombatDown` is the TICK's reader and owns the
+   stand-up transition, so a renderer must never call it — a 200 ms paint poll
+   asking it would fire the resume off-beat and repaint from inside a repaint.
+   This is the side-effect-free read the presentation layer uses (the swing bar
+   in src/features/combat-screens.js). */
+function hrCombatDownPeek(){
+  const A=window.HearthriseAccrual;
+  if(!A||typeof A.isKnockedOut!=='function')return false;
+  try{ return !!A.isKnockedOut(); }catch(e){ return false; }
+}
+window.hrCombatDownPeek=hrCombatDownPeek;
 window.hrServerOwnsFall=hrServerOwnsFall;
 /* ══════════════════════════════════════════════════════════════════════
    THE UNIFICATION (docs/design/away-time-ruling.md, locked 2026-08-11)

@@ -342,7 +342,20 @@ const Swing = (() => {
   function install() {
     const orig = window.combatTick;
     if (typeof orig !== 'function' || orig.__hrSwingStamped) return;
-    const wrapped = function () { lastTickAt = Date.now(); return orig.apply(this, arguments); };
+    /* STAMPED BY A SWING, NOT BY A CALL (b512). The interval keeps running
+       while the character is knocked out — deliberately, so the resume is the
+       absence of a change — and `combatTick` returns at the gate without
+       swinging. Stamping unconditionally made the bar animate through a fight
+       in which nothing happened, which is the exact thing Tyler watched on
+       b510. `hrCombatDownPeek` is the PURE read; `hrCombatDown` owns the
+       stand-up transition and must only ever be called by the tick. */
+    const wrapped = function () {
+      const at = Date.now();
+      const gated = typeof window.hrCombatDownPeek === 'function' && window.hrCombatDownPeek();
+      const r = orig.apply(this, arguments);
+      if (!gated) lastTickAt = at;
+      return r;
+    };
     wrapped.__hrSwingStamped = true;
     window.combatTick = wrapped;
   }
@@ -1544,7 +1557,12 @@ function renderFight() {
     const lbl = `${esc(weaponLabel(m.weaponWeak) !== '—' ? m.family || 'Foe' : 'Foe')} · ${swingS}`;
     const sp = fsw.querySelector('span'); if (sp.textContent !== lbl) sp.textContent = lbl;
   }
-  Swing.sync([ps, fsw], live);
+  /* A KNOCKED-OUT fight is not a LIVE one for the bar's purposes: the pointer
+     survives the fall on purpose, so `live` stays true and the bar would keep
+     sweeping over a fight that is paused. Parked at zero is the honest render
+     (b512). */
+  Swing.sync([ps, fsw], live
+    && !(typeof window.hrCombatDownPeek === 'function' && window.hrCombatDownPeek()));
 
   // COMBAT-UI-11 — six tiles, three a side, from the ONE forecast.
   const f = forecastFor(m);

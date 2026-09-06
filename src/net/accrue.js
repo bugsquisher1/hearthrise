@@ -1898,6 +1898,13 @@ export function reconcileFarm(G, res, opts) {
   let plotLevel = null;
   if (Number.isFinite(tier) && tier >= 1) {
     G.plotLevels = Math.floor(tier);
+    /* THE MIRROR (P1 2026-09-06). `_`-prefixed scratch — never snapshotted,
+       never in the residue allowlist — read by farm-progression.js
+       getServerPlotLevel(). Its PRESENCE is what tells the client gate the
+       tier is the server's answer and not a leftover client number, so a
+       residue-ahead G.plotLevels can no longer offer a crop hr_farm_plant
+       will refuse with plot_tier_locked. */
+    G._serverPlotLevel = G.plotLevels;
     plotLevel = G.plotLevels;
   }
 

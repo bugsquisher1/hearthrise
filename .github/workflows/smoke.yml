@@ -391,6 +391,20 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/recovery-relief-guard.mjs --selftest
 
+      # A DEATH THE PLAYER WATCHED IS STILL THE SERVER'S.
+      # b509's Recovery Rule held away and not live: the attended death called
+      # stopCombat(), which declares `idle`, and hr_apply stamps
+      # `accrued_to = now()` on any activity delta - so the window the death was
+      # in was closed before anything simulated it. Measured on the QA account:
+      # recovering_until NULL, hp 12/12, no deaths row, no ledger row, while the
+      # sheet counted down from a rung the client had invented out of a LIFETIME
+      # death tally. This guard drives the client fall-state machine headlessly
+      # (up -> pending -> recovering/unconfirmed) and source-scans the three
+      # places the bug can come back. 9 mutations, no credentials, milliseconds.
+      - name: Attended fall - the client asks, the server answers, nobody invents a timer
+        if: ${{ !cancelled() }}
+        run: node tests/attended-fall.mjs --selftest
+
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
       # it "says nothing about whether any row survives a restore". This is that

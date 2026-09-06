@@ -1043,3 +1043,42 @@ not in the server's rows stops being owned — for everybody, instantly. The mig
 unlock rows from existing `client_state.ownedThemes` / `ownedCosmetics` before it starts projecting.
 Written up in full at the head of `src/net/gem-sites.js` (`GEM_GRANDFATHER_PRECONDITION`). The same
 hazard applies to the property lane's projection and is worth checking there too.
+
+---
+
+## 2026-09-06 — Systems Engineer · attended-death P0 (`worktree agent-a2d6d4904531de04a`)
+
+**What this lane changed.** An attended death no longer calls `stopCombat()` (which declares
+`idle`, and hr_apply stamps `accrued_to = now()` on any `activity` delta — so the window the death
+happened in was closed before anything simulated it). The client now PAUSES the swing, keeps the
+pointer, notes a settle event, and renders the server's answer. Files: `src/legacy.js` (death
+branch + tick gate + `hrKnockOut`/`hrCombatDown`/`hrStandUp`), `src/net/accrue.js` (fall-state
+machine + `accrued_to`/`deaths_today`/`deaths_lifetime` observers), `src/features/death-sheet.js`
+(renders the envelope, never a client guess), `src/features/smoke-test.js` (RECOVER-10),
+`tests/attended-fall.mjs` (new), `.github/workflows/smoke.yml` (one step).
+**No `supabase/**` change. No `src/core/**` change. The edge does NOT need redeploying for this lane.**
+
+**SEMANTIC OVERLAP with the `agent-a9c422306456b86bd` lane (cadence recovery floor /
+not-in-combat cap).** That lane's live evidence — `11:41:38 xp_credit, credit 40, elapsed_ms 52742,
+meta.active_kind "idle", kind_mismatch true` — is the DOWNSTREAM SYMPTOM of the bug this lane fixes:
+the death declared `idle` at 11:40:45, and the attended cadence RPC then billed 52 s of wall time
+against a pointer that said idle. The two changes are complementary and must both land:
+
+  * this lane removes the CAUSE (the pointer no longer moves on a death);
+  * that lane caps the EFFECT (a cadence RPC may not bill past the switch instant), which is still
+    needed for every other way a pointer can go idle, and for a forged client.
+
+**Check when integrating:** with this lane in, a knocked-out character's pointer stays `combat`, so
+the not-in-combat cap will NOT fire during a recovery — the RECOVERY FLOOR is what must refuse that
+window, and it does. If that lane ever makes `recovering_until` also idle the pointer, the two
+disagree and the run would stop again; it must not.
+
+**Standing P2 raised, not fixed here (needs Security, not me).** `collectCurrentWindow`
+(set-activity.js) refuses a window under `ACCRUE_MIN_MS` (60 s) with `below_min_span` and writes
+nothing — but the switch that follows stamps `accrued_to = now()` regardless (hr_apply S5). So ANY
+activity switch inside 60 s of the last watermark silently FORFEITS up to a minute of earnings, with
+no ledger row and no `forfeited` receipt (that receipt exists only on the C3 force-close path).
+Measured on the live gate: 19 s window, hp untouched, `accrued_to` advanced to the death instant.
+Off the death path now, but still true of every fast stop/start. Cheapest honest fix: journal it, by
+extending `forceCloseWindow`'s ledger row to the `below_min_span` case. Lowering the floor is
+Security's call and has been refused before (see `ACCRUE_MIN_SPAN_MS`'s comment in src/net/accrue.js).

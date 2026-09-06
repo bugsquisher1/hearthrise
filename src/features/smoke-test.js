@@ -11760,6 +11760,167 @@ const TESTS = [
       'the repeat-faller tip does not name the cost, or does not carry the one tap: ' + repeat.tip);
   }),
 
+  () => tryRun('RECOVER-10: an ATTENDED death asks the server — no idle declaration, no free heal, '
+    + 'and the timer is the envelope\'s', () => {
+    /* ══ THE P0 THE LIVE PLAY-GATE FOUND (b509, 2026-09-06) ══════════════
+       QA account, slot 2, Auto-Eat switched OFF through the real seam, Dark
+       Wizard, 12 max HP. The client showed "Knocked out. Back on your feet in
+       1:38 … you got back up at 40% health 5/12" and was at 12/12 a second
+       later. The SERVER, read straight out of the database at the same instant:
+       `recovering_until` NULL, hp 12/12, no `deaths` row, no ledger row, and
+       `active_kind = idle` from the moment of the death.
+
+       ONE line did all of it. The attended death called `stopCombat()`, which
+       DECLARES `idle`; hr_apply stamps `accrued_to = now()` on any activity
+       delta, so the 19-second window the death happened in was closed without
+       ever being simulated. Nothing asked the server, so the client answered —
+       out of `G.stats.deaths`, a LIFETIME tally that nothing seeds
+       `deathsTodayBefore` from, which is how a first fall came to quote a
+       fifth-fall rung.
+
+       This test drives the real death through the real engine and the real
+       COMBAT_FX, and asserts the five properties that were all false live. */
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    const C = window.HearthriseCore;
+    const D = window.HearthriseDeathSheet;
+    const AU = window.HearthriseAuto;
+    if (!A || typeof A.noteFall !== 'function' || !C || !C.combatSim || !D
+        || typeof window.hrCombatDown !== 'function') { skip('the fall seam is not wired'); return; }
+
+    const snap = snapshotG();
+    const wasOn = A.isServerAccrualEnabled();
+    const realDeclare = window.declareActivity;
+    const realNote = A.noteSettleEvent;
+    const eatWas = (AU && typeof AU.getEat === 'function') ? AU.getEat() : null;
+    const declares = [];
+    const events = [];
+    try {
+      A.setServerAccrualEnabled(true);
+      window.declareActivity = function (kind, id) { declares.push({ kind, id }); return null; };
+      A.noteSettleEvent = function (kind) { events.push(kind); return null; };
+      A.clearFall();
+
+      const mid = window.MONSTERS.slime ? 'slime' : Object.keys(window.MONSTERS)[0];
+      const mon = window.MONSTERS[mid];
+
+      /* THE CONTROL. A zero below proves nothing unless this same spy has seen
+         a real declaration go out — the b341/ACT-6 rule. */
+      G.activeMonster = mid;
+      window.stopCombat();
+      assert(declares.length === 1 && declares[0].kind === 'idle',
+        'the declaration spy never saw a live stop declare `idle`, so the zero asserted below would '
+        + 'prove nothing: ' + JSON.stringify(declares));
+
+      /* AUTO-EAT OFF, THROUGH THE REAL SEAM — the state the live gate ran in
+         and the state 34 of 36 production characters are in. */
+      if (AU && typeof AU.setEat === 'function') AU.setEat({ enabled: false });
+
+      declares.length = 0; events.length = 0;
+      A.clearFall();
+      G.playerMaxHp = 12; G.playerHp = 1;
+      G.activeMonster = mid; G.monsterHp = mon.hp; G.monsterMaxHp = mon.hp;
+      G.combatLog = [];
+      G.stats = Object.assign({}, G.stats, { deaths: 4 });   // the lifetime tally that used to leak into the ladder
+
+      /* THE DEATH, through the engine and the REAL effect sink. */
+      const info = C.combatSim.resolveDeath(G, window.HearthriseCombatSim.ctx());
+      assert(info && info.died === true, 'the fixture did not produce a death');
+
+      /* ① NO IDLE DECLARATION. The whole bug in one assertion. */
+      assert(declares.length === 0,
+        'an attended death declared ' + JSON.stringify(declares) + '. Any activity delta stamps '
+        + '`accrued_to = now()` server-side, so this CLOSES the window the death is in before the '
+        + 'engine can price it — no recovery line, no deaths row, no ledger row, and the old free '
+        + 'full heal. That is exactly what the live play-gate measured.');
+
+      /* ② THE POINTER SURVIVES and the fall is a QUESTION. */
+      assert(G.activeMonster === mid,
+        'the death cleared the activity pointer, so the run the server is about to carry on with no '
+        + 'longer exists on this client: ' + G.activeMonster);
+      assert(events.length === 1 && events[0] === 'death',
+        'the death did not schedule exactly one settle. The server floor is 60 s, so the event '
+        + 'trigger is the only thing standing between the player and a 90-second wait for their own '
+        + 'recovery time: ' + JSON.stringify(events));
+      assert(A.fallState().phase === 'pending' && A.isKnockedOut() === true,
+        'the fall is not PENDING an answer: ' + A.fallState().phase);
+
+      /* ③ NO LOCAL FULL HEAL. 40% of 12 is 4, and it must not drift up. */
+      const resume = C.away.resumeHpFor(12);
+      assert(G.playerHp === resume,
+        'the client healed itself off a death to ' + G.playerHp + '/12 instead of the ' + resume
+        + ' the resume rule stands them on. A full heal makes dying the cheapest heal in the game.');
+
+      /* ④ THE TICK DOES NOT SWING WHILE THE ANSWER IS IN FLIGHT. */
+      const logBefore = G.combatLog.length;
+      window.combatTick();
+      assert(G.playerHp === resume && G.monsterHp === 0 && G.combatLog.length === logBefore,
+        'the combat loop kept swinging through a fall the server has not priced yet — the client '
+        + 'predicting past its own death, which is what makes the settle and the screen disagree.');
+
+      /* ⑤ THE ANSWER LANDS, AND THE SHEET IS THE ENVELOPE. Nothing below is
+         computed by the client: the instant, the counters and the death itself
+         are all read off `state`. */
+      const until = Date.now() + 118000;
+      A.applyEnvelopeState(G, {
+        state: {
+          accrued_to: new Date(Date.now() + 500).toISOString(),
+          recovering_until: new Date(until).toISOString(),
+          deaths_today: 2, deaths_lifetime: 7,
+        },
+        away: { died: true, deaths: 1 },
+      });
+      const st = A.fallState();
+      assert(st.phase === 'recovering' && st.until === until,
+        'the envelope\'s recovery line did not become the client\'s: ' + JSON.stringify(st));
+      const moment = D._readMoment(info);
+      assert(moment.recoveringUntilMs === until,
+        'the death sheet\'s timer is not the envelope\'s `recovering_until`. A timer this client '
+        + 'cannot source from the server is the 1:38 the play-gate photographed: '
+        + moment.recoveringUntilMs + ' vs ' + until);
+      assert(moment.deathsToday === 2,
+        'the sheet read the ladder off the client\'s LIFETIME death tally again instead of the '
+        + 'server\'s `deaths_today`: ' + moment.deathsToday);
+      const model = D.describeDeath(moment);
+      assert(model.fallPhase === 'recovering' && model.title === 'Knocked out'
+        && model.recoverMsLeft > 110000 && model.recoverMsLeft <= 118000,
+        'the sheet does not render the server\'s knockout: ' + JSON.stringify(
+          { phase: model.fallPhase, title: model.title, left: model.recoverMsLeft }));
+
+      /* ⑥ AND THE HONEST OTHER ANSWER. A window the server priced with NO
+         death in it (a client/server dice divergence) must be SAID, never
+         dressed up as a knockout with an invented timer. */
+      A.clearFall();
+      A.noteFall(Date.now());
+      A.applyEnvelopeState(G, {
+        state: { accrued_to: new Date(Date.now() + 500).toISOString(), recovering_until: null },
+        away: { died: false, deaths: 0 },
+      });
+      const div = D.describeDeath(D._readMoment(info));
+      assert(div.fallPhase === 'unconfirmed' && /no fall/i.test(div.lead),
+        'a fall the server did not see was still rendered as a knockout: '
+        + JSON.stringify({ phase: div.fallPhase, lead: div.lead }));
+
+      /* ⑦ THE RESUME IS THE ABSENCE OF A CHANGE. Once nobody is down, the
+         gate opens and the foe is standing again — the same transition
+         `simulateSpan` makes away. */
+      G.monsterHp = 0;
+      assert(window.hrCombatDown() === false, 'the gate stayed shut after the fall resolved');
+      assert(G.monsterHp === mon.hp,
+        'the fight resumed against a foe still on 0 HP, which is a free kill for having died: '
+        + G.monsterHp);
+    } finally {
+      try { D.close(); } catch (e) {}
+      window.declareActivity = realDeclare;
+      A.noteSettleEvent = realNote;
+      try { A.clearFall(); } catch (e) {}
+      if (AU && typeof AU.setEat === 'function' && eatWas) AU.setEat({ enabled: !!eatWas.enabled });
+      A.setServerAccrualEnabled(!!wasOn);
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('RECOVER-9: the one-time Auto-Eat switch-on is offered ONCE and never after a decision', () => {
     const A = window.HearthriseAccrual;
     const AU = window.HearthriseAuto;

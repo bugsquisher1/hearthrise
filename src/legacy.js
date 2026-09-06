@@ -6462,6 +6462,11 @@ function stopCombat(){
   }
   if(combatInterval){clearInterval(combatInterval);combatInterval=null;}
   endActivityRun();      /* b348 — the run ended; the backstop budget is returned */
+  /* A REAL STOP ENDS A PENDING FALL WITH IT. The question "how long am I down"
+     belongs to the run that asked it; the player has just ended that run, and a
+     pending fall left behind would gate the FIRST tick of the next one. Also
+     covers startCombat(), which stops quietly before it starts. */
+  hrClearFall();
   G.activeMonster=null;
   renderCombat();renderMonsterList();
   /* b347 SEAM 2. A stop is a declaration too — without it the server goes on
@@ -6469,6 +6474,97 @@ function stopCombat(){
      reverse. `{idle, null}`: a stop never names what it stopped. */
   declareActivity('idle',null);
 }
+/* ═══════════════════════════════════════════════════════════════
+   THE ATTENDED FALL — A DEATH THE PLAYER WATCHED IS STILL THE SERVER'S
+   (P0, live play-gate on b509, 2026-09-06)
+   ═══════════════════════════════════════════════════════════════
+   THE BUG THIS CLOSES, measured on the QA account: an attended death ran
+   `stopCombat()`, which DECLARES `idle`. hr_apply stamps `accrued_to = now()`
+   on any activity delta, so the 19-second window the death happened in was
+   forfeited without ever being simulated — `recovering_until` NULL, hp back to
+   12/12 (the pre-rev.2 free full heal), no `deaths` row, no ledger row — while
+   the sheet counted down from a rung the client had invented. Every promise
+   b509 makes held away and none of it held live.
+
+   THE FIX IS AN ABSENCE. A fall stops the SWING and nothing else: the pointer
+   survives, so the window stays open and the next settle prices it with the one
+   engine that already handles deaths (AWAY-12 forbids a second). The server
+   finds the death, stamps the line, writes the counters and the ledger row,
+   stands the character up at 40% and carries the run on — and the client reads
+   all of that back off the envelope instead of guessing at it.
+
+   ⚠ WHY THE POINTER MUST NOT MOVE, stated once so nobody "tidies" it: any
+     `activity` delta stamps `accrued_to = now()`
+     (supabase/migrations/*-apply-engine.sql, the S5 half), and the collect that
+     runs before the switch REFUSES a window under the 60 s server floor. Stop
+     on a death and the death is arithmetically erased. */
+/* True when the SERVER owns this fall. With server accrual off (a harness, a
+   signed-out boot, the b346 dark path) nothing will ever answer the question,
+   so the pre-b510 behaviour — stop the run — is the honest one. */
+function hrServerOwnsFall(){
+  const A=window.HearthriseAccrual;
+  return !!(serverAccrualActive() && A && typeof A.noteFall==='function');
+}
+function hrClearFall(){
+  const A=window.HearthriseAccrual;
+  _hrWasDown=false;
+  if(!A||typeof A.clearFall!=='function')return;
+  try{ A.clearFall(); }catch(e){}
+}
+/* Did the CLIENT see itself go down since the last stand-up? Module-local and
+   never persisted — it exists only to make the stand-up fire exactly once. */
+let _hrWasDown=false;
+/* The fall itself: record the question, ask it at the earliest legal instant,
+   repaint. No pointer write, no local heal, no timer of our own. */
+function hrKnockOut(){
+  const A=window.HearthriseAccrual;
+  try{ A.noteFall(Date.now()); }catch(e){}
+  _hrWasDown=true;
+  /* §3.6's event trigger, and a fall is the strongest case it has: the player
+     is STOPPED until the answer arrives, so "settle at the next legal instant"
+     is the difference between a two-second wait and a ninety-second one. */
+  noteLiveSettleEvent('death');
+  renderCombat();renderMonsterList();
+}
+/* UP AGAIN, FULL-HP FOE, SAME FIGHT — the live mirror of the resume half in
+   src/core/combat-sim.js `simulateSpan` (the `if (downed)` branch). Restated
+   here rather than shared because src/core is packed verbatim into the
+   hr-accrue Edge Function and a byte changed there forces a coordinated
+   redeploy for a purely client-side repaint. It writes NO hp the server has
+   already stated: `resolveDeath` stood the character on `resumeHpFor` and any
+   away envelope since then overwrote it with the server's own number, so the
+   only case left is a client showing 0 or nothing at all. */
+function hrStandUp(){
+  const m=MONSTERS[G.activeMonster];
+  if(m){G.monsterMaxHp=m.hp;G.monsterHp=m.hp;}
+  if(!(Number(G.playerHp)>0)){
+    const C=window.HearthriseCore;
+    G.playerHp=(C&&C.away&&typeof C.away.resumeHpFor==='function')
+      ? C.away.resumeHpFor(G.playerMaxHp)
+      : Math.max(1,Math.floor((Number(G.playerMaxHp)||1)*0.4));
+  }
+  if(Array.isArray(G.combatLog))G.combatLog.push('Back on your feet — the fight goes on.');
+  renderCombat();updateTopbar();
+}
+/* THE ONE QUESTION THE LIVE TICK ASKS. True ⇒ do not swing. The transition back
+   to false is where the stand-up happens, so a resume is the absence of a
+   decision rather than a second timer. */
+function hrCombatDown(){
+  const A=window.HearthriseAccrual;
+  if(!A||typeof A.fallState!=='function')return false;
+  let st=null;
+  try{ st=A.fallState(); }catch(e){ return false; }
+  if(!st)return false;
+  if(st.phase==='pending'||st.phase==='recovering'){ _hrWasDown=true; return true; }
+  if(_hrWasDown){
+    _hrWasDown=false;
+    hrStandUp();
+    try{ if(typeof A.clearFall==='function')A.clearFall(); }catch(e){}
+  }
+  return false;
+}
+window.hrCombatDown=hrCombatDown;
+window.hrServerOwnsFall=hrServerOwnsFall;
 /* ══════════════════════════════════════════════════════════════════════
    THE UNIFICATION (docs/design/away-time-ruling.md, locked 2026-08-11)
 
@@ -6725,9 +6821,12 @@ const COMBAT_FX={
       return;
     }
     const log=G.combatLog;
+    const _served=hrServerOwnsFall();
     if(Array.isArray(log)){
       if(info&&info.streakBroken)log.push('Bounty streak broken. Progress reset.');
-      log.push('You died! Respawning…');
+      /* NOT "Respawning…" when the server owns the fall: nothing respawns,
+         the run is paused while the hearth prices the window. */
+      log.push(_served?'You fell! Waiting on the hearth…':'You died! Respawning…');
     }
     /* b373 — THE DEATH SHEET, READ BEFORE THE STATE IS TORN DOWN.
        Order is load-bearing: HearthriseDeathSheet.show() reads `G.combatLog`
@@ -6741,10 +6840,12 @@ const COMBAT_FX={
     try{
       if(window.HearthriseDeathSheet) _sheet=window.HearthriseDeathSheet.show(ctx,info);
     }catch(e){}
-    stopCombat();
+    /* THE ONE BRANCH. Server-owned fall ⇒ pause and ask; otherwise the b373
+       behaviour, byte-for-byte, because with no server there is nobody to ask. */
+    if(_served) hrKnockOut(); else stopCombat();
     /* The toast stays for the case the sheet declined (away, or no body yet) —
        two statements of the same fact stacked on screen is noise. */
-    if(!_sheet) notify('You died!','kill');
+    if(!_sheet) notify(_served?'You fell!':'You died!','kill');
   },
 };
 
@@ -6798,6 +6899,13 @@ function combatTick(){
      being taken from the rat before my swing timer completes" — Tyler, beta
      morning). Same self-heal the skill loop has had since b227 (retimeActivity
      in doSkillAction): compare and re-arm at most once per swing. */
+  /* KNOCKED OUT ⇒ NO SWING (see hrCombatDown). The interval keeps running on
+     purpose: the resume is then the absence of a change — the same property
+     `resolveDeath` states about the pointer — with no second timer, no
+     watchdog and nothing to re-arm. The gate sits BELOW the b260 heartbeat so
+     the resume watchdog still sees a live loop while the character is down;
+     above it, being knocked out would read as a stalled fight. */
+  if(hrCombatDown())return;
   if(typeof retimeCombat==='function') retimeCombat();
   const r=window.HearthriseCore.combatSim.simulateTick(G,combatSimCtx());
   /* A kill repaints through killMonster; a death repaints through stopCombat;

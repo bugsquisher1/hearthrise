@@ -60,7 +60,7 @@ import {
 import { bestTool, toolSpeed, toolXpB, toolDouble } from '../src/core/tools.js';
 import { pacedActionMs, speedClamp } from '../src/core/pacing.js';
 import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, buffBonusFor } from '../src/core/buffs.js';
-import { levelOf } from '../src/core/xp.js';
+import { levelOf, levelFromXp } from '../src/core/xp.js';
 /* THE CONSUMPTION SEAM (E1). Imported as a namespace so the guard below can
    assert against the module's own frozen tables — `AMMO_EMPTY_SLOT_IS_DRY` is a
    design position, and a test that restated it instead of reading it would
@@ -1373,6 +1373,130 @@ function attendedSettleAutoEatGuard() {
       + 'ruling exists to close — re-pick it rather than deleting the assertion');
   }
   ok(saw > 0, 'ATTENDED-EAT COVERAGE: no span ate anything — every assertion above was vacuous');
+}
+
+// ── 1b-ii. THE RECEIPT'S LEVEL-UPS ARE THE BANKED ONES ──────────────────────
+// THE BUG, MEASURED LIVE 2026-09-04 (QA account, ~9.7 min attended vs slime):
+// the welcome-back receipt listed EIGHT level-ups — "strength 1→2, 2→3, 3→4",
+// "defense 1→2, 2→3, 3→4" — on a settle whose PERSISTED strength delta was
+// +13 xp. xpForLevel(4) is 276, so strength at 24 xp is still level 1: the card
+// promised three levels the write never banked, and a reload took them away.
+//
+// THE SEAM. `fx.addXp` runs grantXp on EVERY tick, because a level reached at
+// hour two has to change the rolls at hour three or the server and the client
+// diverge. But the delta the settle PROPOSES is only the ELIGIBLE portion —
+// the xp earned at or after `combat_xp_accrued_to`, the watermark
+// hr_credit_combat_xp advances while the player is attended. The level-ups were
+// read off the SIMULATION; the xp was read off the ELIGIBLE split. Two windows,
+// one receipt.
+//
+// THE PROPERTY, and it is the honesty rule stated mechanically:
+//   summary.levelUps ⊆ the level crossings implied by (skills0 + delta.xp),
+// with equality, and NO level-up for a skill whose proposed delta is zero.
+// Derived from the engine's own inputs and output — nothing here restates the
+// curve, so the assertion cannot agree with itself.
+function receiptLevelUpsGuard() {
+  /* A FRESH character, because a maxed one cannot cross a level in twelve hours
+     and the fixture would be inert. Slime is the live report's monster and is
+     survivable at level 1; MONSTER is the fallback if the catalogue moves. */
+  const FOE = MONSTERS.slime ? 'slime' : MONSTER;
+  const START = Object.freeze({ attack: 0, strength: 0, defense: 0, hitpoints: 1154 });
+  const HP = levelOf(START, 'hitpoints');            // max HP IS the hitpoints level
+  const PROVISION = Object.keys(ITEMS)
+    .filter((id) => ITEMS[id] && ITEMS[id].foodClass === 'healing' && ITEMS[id].heals > 0)
+    .sort((a, b) => ITEMS[b].heals - ITEMS[a].heals)[0];
+  if (!PROVISION) return;                 // already reported by autoEatParityGuard
+
+  /* AUTO-EAT ON, WELL FED, deliberately. A level-1 character with no food dies
+     to a slime inside the first minute, and a window that ends in minute one is
+     trimmed to nothing by every watermark — the fixture would only ever exercise
+     the all-or-nothing case and would miss the PARTIAL trim, which is the one
+     the live bug lived in. Fed, the span runs the full twelve hours and the
+     watermark cuts it somewhere in the middle. */
+  const run = (combatXpAccruedToMs) => computeAccrual({
+    userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+    nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+    activeKind: 'combat', activeId: FOE,
+    capMs: SPAN_MS, seed: SEED,
+    hp: HP, maxHp: HP, gold: 0,
+    skills: { ...START }, equipment: {},
+    inventory: { [PROVISION]: 100000 },
+    autoEatEnabled: true, autoEatFood: PROVISION, autoEatPct: maxPctForTier(1),
+    items: ITEMS, monsters: MONSTERS,
+    combatXpAccruedToMs,
+  });
+
+  /* 0 = no live credit (the pure away night: the split is a no-op and this must
+     stay byte-identical to pre-split behaviour). The rest trim a growing front
+     of the window, which is exactly what an attended session leaves behind. */
+  const CUTS = [0, 0.25, 0.5, 0.9, 1.01];
+  let sawTrimmedToNothing = false;
+  let sawPartialTrim = false;
+  let untrimmedLevelUps = 0;
+
+  for (const cut of CUTS) {
+    const wm = cut === 0 ? 0 : FROM_MS + Math.round(SPAN_MS * cut);
+    const label = `watermark ${cut === 0 ? 'none' : Math.round(cut * 100) + '%'}`;
+    const out = run(wm);
+    if (!out.accrued) { ok(false, `receipt level-ups: ${label} did not accrue (${out.reason})`); continue; }
+
+    const xp = (out.delta && out.delta.xp) || {};
+    const list = out.levelUps || [];
+    ok(Array.isArray(list), `receipt level-ups: ${label} levelUps is not an array`);
+    eq(out.summary.levelUps, list, `receipt level-ups: ${label} summary and envelope disagree`);
+
+    /* THE TRUTH: the crossings the PERSISTED write actually makes. */
+    const truth = [];
+    for (const k of Object.keys(xp)) {
+      const before = Number(START[k]) || 0;
+      const from = levelFromXp(before);
+      const to = levelFromXp(before + (Number(xp[k]) || 0));
+      for (let lv = from; lv < to; lv++) truth.push(k + ':' + lv + '->' + (lv + 1));
+    }
+    const reported = list.map((l) => l.skill + ':' + l.from + '->' + l.to);
+    eq(reported.slice().sort(), truth.slice().sort(),
+      `receipt level-ups: ${label} promised ${JSON.stringify(reported)} but the persisted `
+      + `delta ${JSON.stringify(xp)} over ${JSON.stringify(START)} banks ${JSON.stringify(truth)}`);
+
+    /* The same property said the other way, so a derivation that happened to
+       produce the right multiset from the wrong skill still fails. */
+    for (const l of list) {
+      ok((Number(xp[l.skill]) || 0) > 0,
+        `receipt level-ups: ${label} reported "${l.skill} ${l.from}->${l.to}" but the `
+        + `proposed delta for ${l.skill} is ${xp[l.skill] === undefined ? 'absent' : xp[l.skill]}`);
+    }
+
+    if (cut === 0) untrimmedLevelUps = list.length;
+    /* THE PARTIAL TRIM — the regime the live bug lived in, and the one that
+       fails LOUDEST against the pre-fix engine: the simulation still crosses
+       every level of the untrimmed run, so a receipt read off `state.skills`
+       reports all of them while the write banks only the tail. */
+    if (cut > 0 && cut < 1 && Object.keys(xp).length > 0) {
+      sawPartialTrim = true;
+      ok(list.length < untrimmedLevelUps,
+        `receipt level-ups: ${label} banks less xp than the untrimmed run but still reports `
+        + `${list.length} of its ${untrimmedLevelUps} crossings`);
+    }
+    if (cut === 1.01) {
+      eq(Object.keys(xp).length, 0, 'receipt level-ups: a fully-trimmed window still proposed xp');
+      eq(list.length, 0, 'receipt level-ups: a fully-trimmed window still reported a level-up');
+      sawTrimmedToNothing = true;
+    }
+  }
+
+  /* COVERAGE. Without these two the whole section passes on a fixture that
+     never levels anything — the failure mode that let the live bug ship. The
+     untrimmed run must really cross levels (so the equality above has teeth),
+     and the fully-trimmed run must really have banked nothing (so the
+     zero-report assertion is discriminating rather than vacuous). */
+  ok(untrimmedLevelUps > 0,
+    'receipt level-ups: the untrimmed fixture crossed no level — the guard is inert, fix the fixture');
+  ok(sawTrimmedToNothing, 'receipt level-ups: the fully-trimmed case never ran');
+  ok(sawPartialTrim,
+    'receipt level-ups: no fixture landed in the PARTIAL-trim regime — the guard cannot see '
+    + 'the live bug, fix the fixture (the span is dying before the watermark can cut it)');
+  receiptLevelUpsGuard.report = `untrimmed run banks ${untrimmedLevelUps} level crossings; `
+    + `a partly-credited window reports strictly fewer; a fully-credited one reports 0`;
 }
 
 // ── 1c. GATHER PARITY ───────────────────────────────────────────────────────
@@ -3891,6 +4015,7 @@ export async function runAll() {
   autoEatParityGuard();
   cheapestSufficientGuard();
   attendedSettleAutoEatGuard();
+  receiptLevelUpsGuard();
   gatherParityGuard();
   gatherBuffTimelineGuard();
   toolCarryContinuityGuard();
@@ -3939,6 +4064,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   /* The food bill, printed for the reason the clamp headroom is: a number
      nobody sees is a number nobody notices moving. */
   for (const line of cheapestSufficientGuard.report || []) console.log(`  auto-eat: ${line}`);
+  if (receiptLevelUpsGuard.report) console.log(`  receipt level-ups: ${receiptLevelUpsGuard.report}`);
   /* The gather fixtures, printed. A parity number nobody sees is a number
      nobody notices moving — the same reason the clamp headroom is printed. */
   for (const f of GATHER_FIXTURES) {

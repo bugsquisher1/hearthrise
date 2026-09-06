@@ -1461,7 +1461,15 @@ export function computeAccrual(input) {
            server must do the same or a long absence ends with a character whose
            max HP silently disagrees with their level. */
         if (ev.skill === 'hitpoints') state.playerMaxHp = ev.to;
-        levelUps.push({ skill: ev.skill, from: ev.from, to: ev.to });
+        /* ⚠ THE SIMULATION'S LEVEL-UPS ARE NOT THE RECEIPT'S. They are raised
+           off `state.skills`, which grantXp advances on EVERY grant — including
+           the grants before `xpEligibleFromMs` that the live credit already paid
+           and this settle therefore does NOT propose. Reporting them here made
+           the welcome-back card promise levels the write never banked (measured
+           live 2026-09-04: "strength 1→2→3→4" on a window whose PERSISTED
+           strength delta was +13 xp, i.e. still level 1). The reported list is
+           DERIVED from the proposed delta after the split, below — search
+           "THE RECEIPT'S LEVEL-UPS". Do not push here. */
       }
     },
     addItem(id, qty) {
@@ -1901,6 +1909,28 @@ export function computeAccrual(input) {
     const gained = Math.floor(eligibleXp[k] || 0);
     if (gained > 0) xpDelta[k] = gained;
   }
+
+  /* ── THE RECEIPT'S LEVEL-UPS (the honesty rule) ───────────────────────────
+     Derived from WHAT IS BANKED — `skills0` (the persisted xp this settle was
+     handed) plus the xp it PROPOSES — and never from the simulation's own
+     `state.skills`. The two are the same array whenever the watermark does not
+     trim (eligibleXp === state.skills - skills0, so the crossings are
+     identical and AWAY-1 parity is untouched); they diverge exactly when a live
+     hr_credit_combat_xp already paid part of the window, and there the sim's
+     list describes levels this write is not making. A receipt states only what
+     the write banked, so a skill whose proposed delta is 0 reports NOTHING.
+
+     One entry per CROSSING, `from`/`to` consecutive — the same shape grantXp's
+     levelup events had, which is what `modalGoalOps({levelups: length})` counts
+     and what the welcome-back card lists. Grouped by skill rather than
+     interleaved by tick; nothing reads the ordering. */
+  for (const k in xpDelta) {
+    const before = nat(skills0[k], 0);
+    const from = levelFromXp(before);
+    const to = levelFromXp(before + xpDelta[k]);
+    for (let lv = from; lv < to; lv++) levelUps.push({ skill: k, from: lv, to: lv + 1 });
+  }
+
   const goldDelta = Math.floor(state.gold || 0);
 
   /* THE ITEM DELTA IS SIGNED. Gains come from drops; the one negative is food

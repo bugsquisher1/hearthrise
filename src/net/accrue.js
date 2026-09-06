@@ -55,8 +55,15 @@
 //
 //   away:     {grantMs, capped, tickMs, kills, crits, died, blessed,
 //              buffsPaused, featuredMs, featuredDropMult, gold, xp, items,
-//              levelUps, events}   — the receipt, STATED by the simulation so
+//              levelUps, events}   — the receipt, STATED by the server so
 //              no renderer can invent a bonus that was not applied.
+//              ⚠ `levelUps` states what the WRITE BANKED, not what the
+//              simulation crossed: over an attended window the live combat-xp
+//              credit has already paid the front of the span, so the settle
+//              proposes only the tail. Reading it off the simulation promised
+//              levels a reload then took back (fixed 2026-09-05; guarded by
+//              `receiptLevelUpsGuard` in tests/accrual-engine.mjs). Render it
+//              verbatim — never re-derive it from a client preview.
 //
 // ── WHAT ACTUALLY GATES THIS (b339 — the previous paragraph was FALSE) ──────
 // This block used to say: "the DEPLOYED function has no CORS headers, so a

@@ -3114,6 +3114,72 @@ export function receiptDeathCause(summary) {
   return null;
 }
 
+/* ── ATTENDANCE: DID THE PLAYER WATCH THIS SPAN LAND? (2026-09-06) ─────────
+   THE REPORT (Paione): "the constant syncing in the game while playing
+   actively." It is not a network storm — 14 Supabase calls in 65 s, ten of
+   them the session heartbeat. It is the SENTENCE, again. The settle cadence is
+   90 s (`SETTLE_INTERVAL_MS`, and sooner on a rare-drop event), so a player who
+   sits and fights is told "Synced — +3 items, +40 XP" every minute and a half,
+   for drops and XP they just watched land in the combat log. A receipt is
+   news; a receipt for something you were looking at is noise, and noise that
+   arrives on a timer reads as a malfunction.
+
+   THE RULE (Designer, final authority): AN ATTENDED LIVE SETTLE NARRATES
+   NOTHING. Speech is reserved for what the player could NOT have seen — a real
+   absence (>= SYNC_MAX_MS, unchanged), a switch ("Collected", unchanged), a
+   death (always, b343, unchanged), and a market listing that sold while they
+   were on the combat screen (the sale line — the one thing on a sync receipt
+   that nobody watched happen).
+
+   ── WHY THIS IS NOT THE `document.hidden` THE BLOCK ABOVE REJECTED ─────────
+   b361 rejected visibility as a CLASSIFIER, and that ruling stands: the label
+   on a receipt is still derived from the server-stated span and nothing else,
+   because a tab that was closed all night cannot observe its own absence.
+   Visibility here gates SPEECH ONLY — never the label, never a payment — and
+   it is used in the one direction where being unobservable is harmless:
+
+     ATTENDANCE MUST BE PROVEN, NEVER ASSUMED. Silence requires positive
+     evidence that this document was continuously visible from before the
+     credited window began. A fresh boot (the tab-close absence, the exact case
+     b361 named), an unknown state, a module that never wired, a span that
+     started while hidden: none of those can prove it, so all of them SPEAK.
+     If we cannot show that you saw it, we tell you.
+
+   Both timestamps are on the CLIENT clock — `at` is `nowMs()` at receipt-write
+   time and `visibleSince` is a locally observed instant — and what sits between
+   them is a DURATION, which is clock-agnostic. The server's `windowFrom` is
+   deliberately NOT read here: it is on the SERVER clock, and comparing it to a
+   local observation would let skew decide whether the game speaks. */
+
+let visibleSinceAt = 0;
+
+/** Note that the document became visible (or hidden, with `false`). Impure by
+    design; the predicate that reads it is pure and takes the value. */
+export function noteVisibility(visible, atMs) {
+  visibleSinceAt = visible ? (Number(atMs) || nowMs()) : 0;
+  return visibleSinceAt;
+}
+
+/** The instant this document last became visible, or 0 for "cannot prove it". */
+export function visibleSince() { return visibleSinceAt; }
+
+/**
+ * Was the whole credited window spent with this document in front of the
+ * player? Pure: receipt + the observed visible-since instant in, boolean out.
+ * FALSE is the safe answer and is what every unprovable case returns.
+ */
+export function receiptAttended(summary, visibleSinceMs) {
+  const s = summary || {};
+  const vs = Number(visibleSinceMs);
+  if (!Number.isFinite(vs) || vs <= 0) return false;    // hidden now, or never observed
+  const at = Number(s.at);
+  /* Same span-reading order as `classifyReceipt`, deliberately, so the two
+     cannot form different ideas of how wide one window was. */
+  const span = Number(s.awayMs) || (Math.max(0, Number(s.hrs) || 0) * 3600000);
+  if (!Number.isFinite(at) || at <= 0 || span <= 0) return false;
+  return vs <= (at - span);
+}
+
 /**
  * 'switch' | 'sync' | 'away' — the three genuinely different events that share
  * one receipt shape. Callers pick a sentence from this and nothing else.
@@ -3139,12 +3205,20 @@ export function classifyReceipt(summary) {
  * be silent or the game toasts at the player every minute and a half forever.
  * A death always announces, even on a zero-value receipt: "you fell" is the
  * one piece of news that is not measured in items.
+ *
+ * `opts.visibleSince` (the instant this document last became visible, 0 for
+ * unknown) silences an ATTENDED sync — the player watched those numbers land,
+ * so repeating them on a 90 s timer is noise. Omitted / 0 keeps every prior
+ * caller on the old behaviour, which is the speaking one. See the attendance
+ * block above; a death is already routed to 'away' and cannot be silenced here.
  */
-export function receiptNotice(summary) {
+export function receiptNotice(summary, opts) {
+  const o = opts || {};
   const kind = classifyReceipt(summary);
   const credit = receiptCredit(summary);
-  const announce = credit.any || receiptDied(summary) || kind !== 'sync';
-  return { kind, credit, announce };
+  const attended = (kind === 'sync') && receiptAttended(summary, o.visibleSince);
+  const announce = !attended && (credit.any || receiptDied(summary) || kind !== 'sync');
+  return { kind, credit, attended, announce };
 }
 
 /**
@@ -3165,8 +3239,13 @@ export function receiptNotice(summary) {
 export function receiptSentence(summary, opts) {
   const o = opts || {};
   const s = summary || {};
-  const n = receiptNotice(s);
-  if (!n.announce) return null;
+  const n = receiptNotice(s, o);
+  /* THE ONE THING ON A SILENT SYNC THAT IS STILL NEWS. A listing selling is
+     the only line on a live-settle receipt the player cannot have watched
+     happen — they were on the combat screen, not the market — so it survives
+     both the attendance rule and the zero-credit rule, alone and unprefixed.
+     "Synced — 2 listings sold" would put the noise back to carry the news. */
+  if (!n.announce) return (n.kind === 'sync' && o.saleLine) ? o.saleLine : null;
   const tail = o.saleLine ? (' · ' + o.saleLine) : '';
   const c = n.credit;
   if (n.kind === 'switch') {
@@ -3584,10 +3663,17 @@ export function wireSettleTriggers() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
   if (settleState.wired) return false;
   settleState.wired = true;
-  const hide = () => { try { settleOnUnload(); } catch (e) {} };
+  /* The attendance clock starts HERE and nowhere else — one wiring point, so a
+     second listener cannot acquire its own idea of when the player arrived.
+     Wiring runs on the authority path after sign-in, which is later than boot;
+     that only ever makes attendance harder to prove, which is the safe way for
+     it to be wrong. */
+  noteVisibility(!document.hidden, nowMs());
+  const hide = () => { try { noteVisibility(false); } catch (e) {} try { settleOnUnload(); } catch (e) {} };
   window.addEventListener('pagehide', hide);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { hide(); return; }
+    noteVisibility(true, nowMs());
     /* Back in front: look again NOW rather than at the end of whatever wait was
        armed while hidden, or a player who tabs away for ten minutes waits a
        further ninety seconds for a settle that was already due. */
@@ -3858,6 +3944,7 @@ if (typeof window !== 'undefined') {
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileCombatStyle, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
+    noteVisibility, visibleSince, receiptAttended,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,
   };

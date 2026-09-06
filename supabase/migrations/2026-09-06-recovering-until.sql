@@ -713,6 +713,121 @@ revoke execute on function public.hr_rest(int, uuid) from public;
 revoke execute on function public.hr_rest(int, uuid) from anon, service_role, hr_engine;
 grant  execute on function public.hr_rest(int, uuid) to authenticated;
 
+-- ── 5b. THE CLIENT-RPC BASELINE ROW ─────────────────────────────────────────
+-- A grant to `authenticated` is only half of a client-callable RPC in this
+-- repo. `hr_assert_grant_hygiene` check (2) is DIFFERENTIAL against
+-- public.hr_client_rpc_baseline: every client-granted function absent from that
+-- table is reported as `unapproved_client_rpcs`, the nightly pg_cron job
+-- (`hr-grant-hygiene`, 50 4 * * *) fails on it, and any later migration calling
+-- the detector in its strict form is refused. Shipping §5's grant without this
+-- row is the defect 2026-08-15-auto-eat-baseline.sql was written to repair
+-- after 2026-08-15-auto-eat.sql, whose own header generalises it: "a migration
+-- that grants a new client-callable RPC is not finished until it has decided
+-- which of those two it is" — REVOKE (the client never calls it) or BASELINE
+-- (the client genuinely owns it) — "and adding the grant and the baseline row
+-- in the same file would have made this impossible to forget." This IS that
+-- file, so the row lives here rather than in a follow-up; 2026-09-08-hero-slot-
+-- buy.sql §9 does the same for hr_buy_hero_slot, and the separate-file shape of
+-- the auto-eat repair was forced only because its RPC was already live.
+--
+-- ⚠ THIS IS NOT A DERIVATION LINK. The tools/derive-grant-hygiene.mjs chain
+--   patches the DETECTOR'S BODY — specifically the c_engine_allow array read by
+--   check (7), which governs what hr_engine may EXECUTE. hr_rest is granted to
+--   `authenticated` and is deliberately revoked FROM hr_engine (§5), so it has
+--   no business in that array, and this section writes a TABLE ROW rather than
+--   a function body. The chain stays at 9 links; 2026-09-11-quartermaster-buy.sql
+--   remains the detector's last toucher, and this file remains a member of no
+--   derivation chain exactly as its apply-order note states.
+--
+-- WHICH OF THE TWO THIS IS: BASELINE. hr_rest is player-initiated by
+-- construction — auth.uid() is the only identity it reads, it takes no p_user,
+-- and the accrual engine must never be able to stand a character up and spend
+-- their provisions. The client is the only party that may call it.
+--
+-- The signature is DERIVED from pg_proc rather than retyped: a baseline row
+-- whose identity_args do not match the live function silences nothing (check
+-- (2) joins on them), and mis-typing it is exactly how a baseline row can look
+-- like a fix while the detector stays red. to_regprocedure pins this overload.
+do $mig$
+declare v_n int := 0; v_p oid;
+begin
+  if to_regclass('public.hr_client_rpc_baseline') is null then
+    raise notice 'hr_client_rpc_baseline absent — grant-hygiene not applied; nothing to record';
+    return;
+  end if;
+  v_p := to_regprocedure('public.hr_rest(int,uuid)');
+  if v_p is null then
+    raise exception '§5b: hr_rest(int,uuid) is absent — §5 did not install';
+  end if;
+
+  -- Idempotent, and self-cleaning in the one direction that matters: a stale
+  -- row left by an EARLIER signature must not survive as a standing approval
+  -- for a function shape that no longer exists.
+  delete from public.hr_client_rpc_baseline
+   where proname = 'hr_rest' and grantee = 'authenticated'
+     and identity_args <> pg_get_function_identity_arguments(v_p);
+
+  insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note)
+  select 'hr_rest', pg_get_function_identity_arguments(v_p), 'authenticated',
+         'added 2026-09-06: THE RECOVERY RULE relief valve. The player eats their own '
+         'provisions to clear their own knockout on their own character. auth.uid() is the '
+         'only identity it reads — no p_user, so no impersonation seam — and the caller '
+         'supplies a slot and an idempotency key and NOTHING ELSE: which provisions are '
+         'eligible (hr_items.auto_eatable), how much each heals (hr_items.heals), how many '
+         'the player has (player_inventory, under the row lock) and how much is missing '
+         '(max_hp - hp) are all read server-side under hr_apply''s advisory key. Deliberately '
+         'NOT granted to hr_engine — the accrual engine must never stand a character up and '
+         'spend their food for them. Refuses at full health (not_hurt) and mid-window '
+         '(collect_first), so a rest can be neither a free cure nor a paid one.'
+   where not exists (
+     select 1 from public.hr_client_rpc_baseline b
+      where b.proname = 'hr_rest'
+        and b.identity_args = pg_get_function_identity_arguments(v_p)
+        and b.grantee = 'authenticated');
+  get diagnostics v_n = row_count;
+  raise notice 'hr_client_rpc_baseline: % row(s) recorded for hr_rest (%)',
+    v_n, pg_get_function_identity_arguments(v_p);
+end $mig$;
+
+-- ── 5c. THE BASELINE GATE ───────────────────────────────────────────────────
+-- Not "did the insert run" — that is satisfied by an insert recording the wrong
+-- signature. The gate is THE DETECTOR ITSELF no longer naming hr_rest, read out
+-- of the same report the nightly cron raises on.
+--
+-- It reads that report in its NON-STRICT form on purpose. The strict form raises
+-- on the WHOLE report, so a gate built on it would make this file refuse to
+-- install on account of unrelated pre-existing drift elsewhere on the database
+-- being migrated — importing a failure this file neither caused nor can fix.
+-- The claim under test is narrow, so the assertion is too.
+do $mig$
+declare v_report jsonb; v_hit text;
+begin
+  if to_regclass('public.hr_client_rpc_baseline') is null then
+    raise notice '§5c: baseline table absent — nothing to gate';
+    return;
+  end if;
+  v_report := public.hr_assert_grant_hygiene(false);
+
+  select e into v_hit
+    from jsonb_array_elements_text(coalesce(v_report->'unapproved_client_rpcs','[]'::jsonb)) e
+   where e like 'hr\_rest(%';
+  if v_hit is not null then
+    raise exception '§5c: grant hygiene still reports hr_rest as unapproved (%) — the baseline '
+                    'row does not match the live signature', v_hit;
+  end if;
+
+  -- A baseline row records an approval. It must not widen the grant it records.
+  if has_function_privilege('hr_engine', 'public.hr_rest(int,uuid)', 'execute') then
+    raise exception '§5c: hr_engine can execute hr_rest — the engine must never stand a '
+                    'character up and spend their provisions';
+  end if;
+  if not has_function_privilege('authenticated', 'public.hr_rest(int,uuid)', 'execute') then
+    raise exception '§5c: authenticated cannot execute hr_rest — the relief valve is inert';
+  end if;
+
+  raise notice 'RECOVERY BASELINE OK — hr_rest is an approved client RPC, engine still refused.';
+end $mig$;
+
 -- ── 4. SELF-CHECK — the load-bearing properties, proven on apply ─────────────
 -- A migration that cannot prove its own claims is a claim.
 do $mig$

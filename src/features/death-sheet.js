@@ -454,6 +454,17 @@
          button sends a slot and an idempotency key and nothing else. */
       restHp: missingHp,
       restSub: 'Eating your way back up clears the timer. Food is the fastest way off the floor.',
+      /* ── THE BUTTON MUST NOT PROMISE WHAT THE SERVER WILL REFUSE (b510 P0) ──
+         MEASURED LIVE: the bag was empty server-side, the sheet offered "Rest
+         at the Hearth — eat 7 health", and `hr_rest` answered
+         `insufficient_food` — an action that could never succeed, offered as
+         the PRIMARY tap on a screen the player is stuck behind.
+         `foodQty` is read from `G.inventory` through `bestProvision`, i.e. from
+         the bag AFTER the boot/settle reconcile — which is the server's food
+         count now that reconcileInventory lets a server-eaten provision reach
+         zero (src/net/accrue.js, the phantom-food rule). One source, no second
+         idea of how much food exists. */
+      restFood: foodQty,
       /* NO "Fight again" WHILE THE FALL IS UNRESOLVED, and that is not caution:
          `startCombat` declares a new activity, hr_apply stamps
          `accrued_to = now()` on any activity delta, and the window the fall is
@@ -465,7 +476,11 @@
         : (phase === 'unconfirmed'
           ? [{ k: 'table', label: 'Back to the fight', primary: true }]
           : (recoverLeft > 0 && missingHp > 0
-            ? [{ k: 'rest', label: 'Rest at the Hearth — eat ' + missingHp + ' health', primary: true },
+            ? [(foodQty > 0
+                 ? { k: 'rest', label: 'Rest at the Hearth — eat ' + missingHp + ' health', primary: true }
+                 /* No provisions: the tap is shown so the player learns WHY the
+                    relief valve is closed, and disabled so it cannot lie. */
+                 : { k: 'rest', label: 'No food to rest with', primary: true, disabled: true }),
                { k: 'table', label: 'Back to the War Table' }]
             : [{ k: 'again', label: monsterName ? 'Fight ' + monsterName + ' again' : 'Fight again', primary: true },
                { k: 'table', label: 'Back to the War Table' }])))
@@ -764,6 +779,14 @@
       '.hr-death-acts{position:sticky;bottom:-20px;z-index:1;display:flex;gap:8px;flex-wrap:wrap;',
       '  margin:16px -20px -20px;padding:12px 20px 20px;background:var(--surface-2,#221b14)}',
       '.hr-death-acts .btn{flex:1 1 auto;min-height:40px}',
+      '.hr-death-acts .btn[disabled]{opacity:.5;cursor:not-allowed}',
+      /* THE REFUSAL LINE. Lives INSIDE the sticky action bar so it can never be
+         scrolled away from the button that produced it. Full-width so it reads
+         as a sentence about the sheet, not a caption on one button. */
+      '.hr-death-note{flex:1 0 100%;margin:0 0 2px;font-size:calc(14.5px * var(--ui-scale,1));',
+      '  line-height:1.45;color:var(--ink-2,#cbbfae)}',
+      '.hr-death-note[data-tone="bad"]{color:var(--red,#a04830)}',
+      '.hr-death-note:empty{display:none}',
       /* Landscape phone (922x423 and friends): tighten every band so the
          receipt itself usually fits too, not just the actions. */
       '@media (max-height:540px){',
@@ -832,16 +855,31 @@
           (model.enableAutoEat ? '<button class="hr-death-shop" data-act="autoeat">Turn Auto-Eat back on</button>' : '') +
         '</div>' +
         '<div class="hr-death-acts">' +
+          '<p class="hr-death-note" data-note role="status" aria-live="polite"></p>' +
           model.actions.map(function (a) {
-            return '<button class="btn' + (a.primary ? ' btn-primary' : '') + '" data-act="' + a.k + '">' +
-              esc(a.label) + '</button>';
+            /* data-label carries the ORIGINAL wording so an in-flight button can
+               be restored verbatim after a refusal — reconstructing it from the
+               model would be a second copy of the label rule. */
+            return '<button class="btn' + (a.primary ? ' btn-primary' : '') + '" data-act="' + a.k + '"' +
+              ' data-label="' + esc(a.label) + '"' +
+              (a.disabled ? ' disabled' : '') + '>' + esc(a.label) + '</button>';
           }).join('') +
         '</div>' +
       '</div>';
 
     root.querySelectorAll('[data-act]').forEach(function (b) {
-      b.onclick = function () { act(b.getAttribute('data-act'), moment); };
+      b.onclick = function () {
+        if (b.disabled) return;
+        act(b.getAttribute('data-act'), moment, b);
+      };
     });
+    /* THE STANDING EXPLANATION. A disabled Rest button with no reason beside it
+       is the same silent refusal in a different costume, so the sheet says the
+       thing up front rather than only after a tap. */
+    if (model.restFood === 0 && model.actions.some(function (a) { return a.k === 'rest' && a.disabled; })) {
+      note(root, 'You have no cooked food left — the Hearth cannot heal you. Cook or buy some, or wait '
+        + restWaitText(moment) + '.', 'bad');
+    }
     /* ── THE LIVE COUNTDOWN (First-Night Idle Rescue) ────────────────────
        Redrawn from the SERVER's absolute instant every second — it subtracts,
        it never decrements a stored number, so a reload, a tab switch or a
@@ -894,8 +932,59 @@
     if (typeof window.showTab === 'function') window.showTab(tab);
   }
 
-  function act(kind, moment) {
-    close();
+  /* Write the refusal line inside the sticky action bar. `root` may be the sheet
+     or absent (a closed sheet) — writing to a sheet that is gone is a no-op, not
+     a throw, because every caller is inside a promise the player cannot see. */
+  function note(root, text, tone) {
+    try {
+      var el = (root || document.getElementById(ROOT_ID));
+      el = el && el.querySelector('[data-note]');
+      if (!el) return;
+      el.textContent = String(text == null ? '' : text);
+      el.setAttribute('data-tone', tone || '');
+    } catch (e) {}
+  }
+
+  /* "3 min" — how long the floor still has to run, for the sentence that tells a
+     foodless player what their OTHER option is. Read from the SERVER's absolute
+     instant (the same one the countdown uses); never invented. */
+  function restWaitText(moment) {
+    var left = Math.max(0, (Number(moment && moment.recoveringUntilMs) || 0) - Date.now());
+    if (!(left > 0)) return 'a moment';
+    return Math.max(1, Math.ceil(left / 60000)) + ' min';
+  }
+
+  /* ── EVERY hr_rest REFUSAL, BY REASON (b510 P0) ───────────────────────────
+     MEASURED LIVE: `hr_rest` answered 200 `{ok:false, error:'insufficient_food',
+     need_hp:7, covered_hp:0}`; the sheet had ALREADY closed itself and navigated
+     away, so the player saw nothing at all and stayed knocked out with no idea
+     why. A refusal the player cannot see is indistinguishable from a broken
+     button. Every branch names what happened AND states that nothing was eaten,
+     because "did that cost me a meal?" is the first question a refusal raises. */
+  function restRefusalText(r, moment) {
+    var err = (r && r.error) || 'unknown';
+    if (err === 'insufficient_food') {
+      return 'You have no cooked food left — the Hearth cannot heal you. Cook or buy some, or wait '
+        + restWaitText(moment) + '. Nothing was eaten.';
+    }
+    if (err === 'not_recovering') return 'You are already back on your feet — there is nothing to rest off.';
+    if (err === 'not_hurt') return 'You are at full health — there is nothing to heal.';
+    if (err === 'collect_first') return 'Your run is still settling — try Rest again in a moment. Nothing was eaten.';
+    if (err === 'rate_limited') return 'You have rested too many times in a row — wait a minute and try again. Nothing was eaten.';
+    if (err === 'not_signed_in') return 'You are signed out — sign back in to rest. Nothing was eaten.';
+    if (err === 'network' || err === 'no_config' || err === 'unsent' || err === 'bad_response') {
+      return 'The Hearth could not be reached. Nothing was eaten — try again in a moment.';
+    }
+    if (err === 'rpc_missing') return 'Resting is not available on this server yet. Nothing was eaten.';
+    return 'The Hearth turned you away (' + err + '). Nothing was eaten.';
+  }
+
+  function act(kind, moment, btn) {
+    /* REST IS THE ONE ACTION THAT DOES NOT CLOSE FIRST. It is a server call that
+       can be REFUSED, and the sheet is the only surface that can say so — closing
+       before the answer is what made the live refusal silent. Every other action
+       is a navigation and closes immediately, exactly as before. */
+    if (kind !== 'rest') close();
     try {
       if (kind === 'again' && moment && moment.monsterId && typeof window.startCombat === 'function') {
         window.startCombat(moment.monsterId);
@@ -915,22 +1004,46 @@
          endpoint, the slot resolution and the settle-first ladder; this file
          must not grow a second one. */
       if (kind === 'rest') {
-        try {
-          var GC = window.HearthriseGoalClaim;
-          if (GC && typeof GC.rest === 'function') {
-            GC.rest().then(function (r) {
-              if (typeof window.notify !== 'function') return;
-              if (r && r.ok) {
-                window.notify('You ate your way back to full — the timer is cleared.', 'good');
-              } else if (r && r.error === 'insufficient_food') {
-                window.notify('Not enough food to eat your way back up.', 'bad');
-              } else if (r && r.error === 'collect_first') {
-                window.notify('Your run is still settling — try Rest again in a moment.', 'bad');
-              }
-            }).catch(function () {});
+        var root = document.getElementById(ROOT_ID);
+        var GC = window.HearthriseGoalClaim;
+        if (!GC || typeof GC.rest !== 'function') {
+          note(root, 'Resting is not available right now. Nothing was eaten.', 'bad');
+          return;
+        }
+        /* In flight: the button cannot be tapped twice (the retry ladder inside
+           rest() runs for up to 19 s) and the player is told the call is live. */
+        if (btn) { btn.disabled = true; btn.textContent = 'Resting…'; }
+        note(root, 'Asking the Hearth…', '');
+        var label = btn ? btn.getAttribute('data-label') : null;
+        GC.rest().then(function (r) {
+          if (r && r.ok === true) {
+            /* SUCCESS CLOSES IT, and clears the client's reading of the recovery
+               line from the SERVER's own fresh envelope rather than by zeroing a
+               local flag — `recovering_until` is server-owned and this client
+               never authors it (accrue.js). `clearFall` retires the unanswered
+               fall so the 1 Hz watch cannot re-open the sheet behind us. */
+            try {
+              var AC = window.HearthriseAccrual;
+              var G = window.G;
+              if (AC && G && r.state && typeof r.state === 'object'
+                  && typeof AC.applyEnvelopeState === 'function') AC.applyEnvelopeState(G, r);
+              if (AC && typeof AC.clearFall === 'function') AC.clearFall();
+            } catch (e) {}
+            close();
+            if (typeof window.notify === 'function') {
+              window.notify('You ate your way back to full — the timer is cleared.', 'good');
+            }
+            nav('combat');
+            return;
           }
-        } catch (e) { /* a dead sheet must never trap the player behind it */ }
-        nav('combat');
+          /* REFUSED — the sheet STAYS OPEN and says why. */
+          if (btn) { btn.disabled = false; btn.textContent = label || 'Rest at the Hearth'; }
+          note(document.getElementById(ROOT_ID), restRefusalText(r, moment), 'bad');
+        }).catch(function () {
+          if (btn) { btn.disabled = false; btn.textContent = label || 'Rest at the Hearth'; }
+          note(document.getElementById(ROOT_ID),
+            'The Hearth could not be reached. Nothing was eaten — try again in a moment.', 'bad');
+        });
         return;
       }
       /* ── THE ONE TAP (ruling 2b condition 3) ────────────────────────────
@@ -986,6 +1099,13 @@
     _readMoment: readMoment,
     _bestProvision: bestProvision,
     _ateThisFight: ateThisFight,
+    _restRefusalText: restRefusalText,
+    _act: act,
+    /* TEST SEAM. `show()` reads the LIVE G/accrual to build its moment, which a
+       suite cannot put into a knocked-out-with-food state without stubbing half
+       the engine. Rendering a hand-built model is the same code path from the
+       DOM down — the part the rest-refusal contract lives in. */
+    _render: function (model, moment) { return render(model, moment, null); },
     _TIP_KEYS: ['food-unused', 'auto-eat-idle', 'no-food', 'outmatched']
   };
 })();

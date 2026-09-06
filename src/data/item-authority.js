@@ -57,6 +57,7 @@ import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=510';
 import { ARTISAN_RECIPES } from './recipes.js?v=510';
 import { MONSTERS } from './monsters.js?v=510';
 import { BOSSES } from './bosses.js?v=510';
+import { ITEMS } from './items.js?v=510';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -282,6 +283,41 @@ export function cropProductIds() {
   return s;
 }
 
+/* ── SERVER-CONSUMED IDS — THE FOOD THE SERVER EATS ON ITS OWN ──────────────
+   THE LIVE BUG THIS CLOSES (b510, QA slot 2, 2026-09-06). `player_inventory`
+   held NO food; the away settle receipt said `ate 23 cooked_shrimp`; and the
+   client, after a fresh reload, still showed 20 Cooked Shrimp. The knocked-out
+   sheet then told the player they "were carrying 20 and never ate one" and
+   offered a Rest the server refused with `insufficient_food`.
+
+   WHY THE EXISTING PARTITION CANNOT SEE IT. A cooked dish is deliberately
+   EXCLUDED (buildItemAuthority adds cookingOutputIds to `excluded`) so that the
+   absolute replace can never DELETE a live-cooked meal. Exclusion is a
+   never-lower rule — so the ONE id class the server routinely DEBITS behind the
+   player's back (auto-eat, hr_rest) is exactly the class the client can never
+   learn has gone. The stale count then survives every envelope forever, because
+   both branches take a Math.max.
+
+   THE CLASS, NOT THE ITEM: any item the server may eat, not just shrimp. The
+   marker is the SAME one both sides already read — `heals > 0` in the shared
+   catalogue (supabase/functions/hr-accrue/eat.js reads `item.heals`;
+   src/core/auto-eat.js reads `it.heals`). No second list to drift.
+
+   THE READ IS ONE-WAY AND COMPLETENESS-GATED. accrue.js only believes the
+   server's figure for these ids on an envelope the server has certified
+   `inventory_complete === true` — which the SQL defines as "no settle window is
+   open" — so a mid-cook or mid-fight envelope can never delete a meal that is
+   still in flight. See reconcileInventory. */
+export function serverConsumedIds() {
+  const s = new Set();
+  const catalogue = ITEMS || {};
+  for (const id of Object.keys(catalogue)) {
+    const it = catalogue[id];
+    if (it && Number(it.heals) > 0) s.add(id);
+  }
+  return s;
+}
+
 /** Every id that any monster can drop (the server-settled combat path). */
 export function combatDropIds() {
   const s = new Set();
@@ -359,7 +395,23 @@ export function buildItemAuthority(opts) {
   const ownable = new Set();
   for (const id of modeled) if (!excluded.has(id)) ownable.add(id);
 
-  return { ownable, excluded, modeled };
+  /* ── THE CONSUMED SET IS NARROWED BY THE FARM ─────────────────────────────
+     A raw crop heals, so `serverConsumedIds()` names all nine of them. But a
+     crop's MINT path is the farm harvest, which is a SEPARATE server-authority
+     program with its own arm (`isFarmServerArmed`) — and letting a complete
+     envelope zero a crop would put an entire harvest at the mercy of that
+     program being finished, which is not a bet the phantom-food fix needs to
+     take. Crops are therefore left on the never-lower rule exactly as today.
+     KNOWN LIMITATION, stated rather than hidden: a player whose auto-eat nominee
+     is a RAW CROP can still see a stale count until the farm arm lands, at which
+     point the crop becomes ownable and the absolute branch covers it anyway.
+     Cooked dishes — the reported class, and 28 of the 45 provisions — are
+     covered here; raw fish are gather products and were already OWNABLE. */
+  const consumed = new Set();
+  const crops = cropProductIds();
+  for (const id of serverConsumedIds()) if (!crops.has(id)) consumed.add(id);
+
+  return { ownable, excluded, modeled, consumed };
 }
 
 let _cache = null;
@@ -405,6 +457,18 @@ export function rebuildItemAuthority(opts) {
 export function serverOwnedItem(id) {
   if (!id || typeof id !== 'string') return false;
   return itemAuthority().ownable.has(id);
+}
+
+/**
+ * Is `id` an item the SERVER consumes on its own behalf (a healing provision)?
+ * Distinct from `serverOwnedItem`: ownership decides who may CREATE the stack,
+ * this decides whether a shrinking figure is believable. A dish is EXCLUDED from
+ * ownership (never deleted by an incomplete baseline) and still consumed, which
+ * is precisely why the two predicates cannot be the same set.
+ */
+export function serverConsumedItem(id) {
+  if (!id || typeof id !== 'string') return false;
+  return itemAuthority().consumed.has(id);
 }
 
 /** 'ownable' | 'excluded' | 'unclassified'. */
@@ -543,6 +607,7 @@ if (typeof window !== 'undefined') {
     COOKING_SKILL, ARTISAN_SETTLEMENT, COOKING_SETTLEMENT_ARM_ENABLED,
     gatherProductIds, cropProductIds, combatDropIds, artisanOutputIds,
     cookingOutputIds, payableArtisanOutputIds, bossRewardIds, dungeonRewardIds,
+    serverConsumedIds, serverConsumedItem,
     buildItemAuthority, itemAuthority, rebuildItemAuthority,
     serverOwnedItem, classifyItem, unclassifiedGrantIds, unclassifiedArtisanLanes,
   };

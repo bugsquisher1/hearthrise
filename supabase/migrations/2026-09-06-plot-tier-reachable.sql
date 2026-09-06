@@ -203,6 +203,14 @@ begin
   if v_cost is null then
     return jsonb_build_object('ok', false, 'error', 'max_plot_level', 'plot_level', v_state.plot_level);
   end if;
+  -- FAIL CLOSED ON AN UNPRICED RUNG. Both price columns were added with
+  -- `default 0` and req_farm_level `default 1`, so a future tier row inserted
+  -- by a generator that does not know about §1 would be FREE at farming 1 --
+  -- the catalogue's defaults would sell a tier. A rung above the starting
+  -- level that costs nothing in either currency is a mistake, never an offer.
+  if v_next > 1 and coalesce(v_gold, 0) = 0 and coalesce(v_cost, 0) = 0 then
+    return jsonb_build_object('ok', false, 'error', 'tier_unpriced', 'plot_level', v_next);
+  end if;
 
   -- THE PACING GATE. Farming level re-derived from the server's own XP, the
   -- same reader hr_farm_plant uses for the crop's req_lv.
@@ -232,11 +240,22 @@ begin
   end if;
 
   if v_pay = 'deeds' and v_cost > 0 then
+    -- THE DEBIT VERIFIES THE QUANTITY IN EVERY BRANCH. player_inventory carries
+    -- qty > 0 as a CHECK, so spending the last deed must DELETE the row rather
+    -- than write a zero — but the delete is predicated on `qty = v_cost`, so a
+    -- row holding some other amount is never removed on the strength of a
+    -- balance read taken before the write. If neither statement matches, the
+    -- read lost a race and the call REFUSES instead of granting the tier.
     update public.player_inventory set qty = qty - v_cost
       where user_id = v_uid and slot = p_slot and item_id = c_deed and qty > v_cost;
     if not found then
       delete from public.player_inventory
-        where user_id = v_uid and slot = p_slot and item_id = c_deed;
+        where user_id = v_uid and slot = p_slot and item_id = c_deed and qty = v_cost;
+      if not found then
+        return jsonb_build_object('ok', false, 'error', 'cannot_afford',
+          'need_gold', coalesce(v_gold, 0), 'have_gold', v_state.gold,
+          'need_deeds', v_cost, 'have_deeds', v_have, 'plot_level', v_next);
+      end if;
     end if;
   end if;
 
@@ -253,7 +272,8 @@ begin
   -- deed item. gold_in/xp_in/qty_in are ZERO and written explicitly — this call
   -- consumed no inflow budget because it minted nothing.
   insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, gold, meta)
-    values (v_uid, p_slot, 'farm', 'farm_upgrade_plot', c_deed,
+    values (v_uid, p_slot, 'farm', 'farm_upgrade_plot',
+            case when v_pay = 'deeds' then c_deed else null end,
             case when v_pay = 'deeds' then -v_cost else 0 end,
             case when v_pay = 'gold'  then -(select gold_cost from public.hr_plot_tier where plot_level = v_next) else 0 end,
             jsonb_build_object('plot_level', v_next, 'paid_with', v_pay,
@@ -463,6 +483,33 @@ begin
     v_r := public.hr_farm_upgrade_plot(v_slot, gen_random_uuid());   -- 5 -> refused
     if v_r ->> 'error' <> 'max_plot_level' then
       raise exception 'GATE(e7): a 6th tier was sold: %', v_r; end if;
+
+    -- (e8) AN UNPRICED RUNG IS REFUSED, NOT GIVEN AWAY. hr_plot_tier's two new
+    --      columns default to gold_cost 0 / req_farm_level 1, so a rung added
+    --      later by a generator that never learned about §1 would be FREE at
+    --      farming 1 — the catalogue's DEFAULTS would sell a tier. The body
+    --      must fail closed on a rung that costs nothing in either currency.
+    --      (plot_level is constrained to 1..5, so the unpriced rung is staged
+    --      by blanking rung 5 and walking the character back to 4; the whole
+    --      block is discarded.)
+    update public.hr_plot_tier set gold_cost = 0, deed_cost = 0, req_farm_level = 1
+      where plot_level = 5;
+    update public.player_state set plot_level = 4, gold = 1000000
+      where user_id = v_uid and slot = v_slot;
+    delete from public.player_inventory where user_id = v_uid and slot = v_slot;
+    v_r := public.hr_farm_upgrade_plot(v_slot, gen_random_uuid());
+    if v_r ->> 'error' <> 'tier_unpriced' then
+      raise exception 'GATE(e8): an unpriced rung was not refused: %', v_r; end if;
+    if (select plot_level from public.player_state where user_id=v_uid and slot=v_slot) <> 4 then
+      raise exception 'GATE(e8): the unpriced rung was SOLD — plot_level moved'; end if;
+
+    --      The guard keys on BOTH currencies being zero: a rung priced in only
+    --      one of them is still a real offer and must still sell.
+    update public.hr_plot_tier set gold_cost = 100, deed_cost = 0 where plot_level = 5;
+    v_r := public.hr_farm_upgrade_plot(v_slot, gen_random_uuid());
+    if coalesce(v_r->>'ok','') <> 'true' or (v_r->>'plot_level')::int <> 5
+       or (v_r->>'gold_spent')::bigint <> 100 then
+      raise exception 'GATE(e8): a gold-only rung was wrongly called unpriced: %', v_r; end if;
 
     raise exception using errcode = 'HR821', message = 'plot-tier-reachable §4 complete — rolling back';
   exception when sqlstate 'HR821' then null;

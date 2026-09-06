@@ -35,7 +35,7 @@
 // these numbers; this proves the four AUTHORED copies agree before either runs.
 //
 //   node tests/plot-tier-parity.mjs             the guard
-//   node tests/plot-tier-parity.mjs --selftest  9 planted defects, each caught
+//   node tests/plot-tier-parity.mjs --selftest  10 planted defects, each caught
 //                                               by its NAMED assertion, plus 2
 //                                               negative controls that must
 //                                               stay silent
@@ -166,6 +166,19 @@ export function check(src) {
     if (mig[lv].gold !== self[lv].gold || mig[lv].farming !== self[lv].farming) {
       throw fail('MIG-SELF', `plot level ${lv}: §1 sets gold=${mig[lv].gold}/lv=${mig[lv].farming} but `
         + `§4 asserts gold=${self[lv].gold}/lv=${self[lv].farming} — the migration contradicts itself`);
+    }
+  }
+
+  // PRICED: EVERY RUNG ABOVE THE STARTING TIER CARRIES A PRICE. hr_plot_tier's
+  // gold_cost/req_farm_level columns were ADDED with `default 0` / `default 1`,
+  // so a rung that nobody priced is not "free by decision" — it is the DDL
+  // default leaking into the shop. The RPC fails closed on it ('tier_unpriced',
+  // proven executed by the migration's §4(e8)); this is the authored half of
+  // the same rule, so the two can never be relaxed independently.
+  for (const lv of [2, 3, 4, 5]) {
+    if (mig[lv].gold === 0 && deedsGen[lv] === 0) {
+      throw fail('PRICED', `plot tier ${lv} costs nothing in either currency — an unpriced rung is the `
+        + `column DEFAULT showing through, and the server refuses it with tier_unpriced`);
     }
   }
 
@@ -319,6 +332,11 @@ const MUTATIONS = [
         + 'again, which is the whole 2026-09-06 outage',
     edit: chain(rep('migration', '(2, 500::bigint, 5)', '(2, 500::bigint, 15)'),
                 rep('client', 'gold: 500,    deeds: 1, farming: 5 ', 'gold: 500,    deeds: 1, farming: 15')) },
+  { id: 'M10', by: 'PRICED',
+    what: 'tier 2 lost both its prices (a re-price that zeroed gold while the deed row was regenerated '
+        + 'to 0) — the column defaults would hand the tier out free',
+    edit: chain(rep('migration', '(2, 500::bigint, 5)', '(2, 0::bigint, 5)'),
+                rep('generated', '  (2, 1),', '  (2, 0),')) },
 ];
 
 const CONTROLS = [

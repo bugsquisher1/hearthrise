@@ -1026,6 +1026,11 @@
    "class": "restore_only",
    "wiped_at_cutover": true,
    "note": "The aggregate progress of each world event. Derived from pledges in principle, but not re-derivable once pledges age out. World-event surface, same open wipe decision as clans."
+  },
+  "hr_quest_rewards": {
+   "class": "seeded",
+   "replay": 3,
+   "note": "Hand-seeded by 2026-09-06-quest-item-rewards.sql (APPLIED 2026-09-06 13:28 UTC): the SERVER copy of each quest's reward — quest_id, gold, items jsonb (digit-only quantities enforced by hr_quest_rewards_items_ok). Read by hr_claim_quest__ungated only; RLS on with no policy, no client grant. The client keeps its own copy in src/data/goal-catalogue.js QUEST_REWARDS and tests/quest-reward-parity.mjs fails the build on any divergence. Three rows today. Rebuilt from repo, never restored."
   }
  }
 }

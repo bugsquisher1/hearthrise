@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-06",
- "replay_ms": 8693,
+ "replay_ms": 10757,
  "counts": {
   "tracked_names": 42,
   "entries": 42
@@ -340,18 +340,17 @@
     "2026-09-04-goal-gold-retune.sql"
    ],
    "live": {
-    "md5": "4de38bb26d60420603176075e1919daa",
-    "norm_len": 2676,
+    "md5": "10372c9994729fabbff1ba492933f81e",
+    "norm_len": 4749,
     "measured": "2026-09-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6c8e384f6e170d6a15b013a05198788c",
-    "norm_len": 2896,
+    "md5": "10372c9994729fabbff1ba492933f81e",
+    "norm_len": 4749,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 2,267 code chars. Same shape as hr_claim_daily__ungated: production carries the goal-gold-retune patch (farmhand goal 6), the repo file carries the same value plus the b497 comment and re-alignment."
+   "agree": true
   },
   {
    "sig": "hr_companion_grant(p_slot integer, p_companion text, p_source text, p_idem uuid)",

@@ -479,18 +479,26 @@ const SupabaseMarketBackend = {
     return { rows, userId: session.user.id };
   },
 
-  // b208: realtime — nudge the market panel whenever listings change anywhere.
-  subscribe(onChange) {
-    const client = (window.HearthriseAuth && window.HearthriseAuth.getClient && window.HearthriseAuth.getClient());
-    if (!client || this._sub) return;
-    try {
-      this._sub = client
-        .channel('market-listings')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'market_listings' },
-          () => { try { onChange(); } catch (e) {} })
-        .subscribe();
-    } catch (e) {}
-  },
+  /* b208's realtime market subscription is REMOVED (2026-09-06, reliability).
+     It subscribed to postgres_changes on `market_listings`, and three separate
+     measurements say that was cost with no delivery:
+       1. `market_listings` was NEVER in publication supabase_realtime in
+          production — measured pg_publication_tables returns exactly
+          {chat_messages, market_buy_offers} — so this handler could never have
+          fired once, in any build, for any player.
+       2. `subscribe(onChange)` had NO CALLER anywhere in the tree.
+       3. Every published table is decoded out of WAL and RLS-evaluated per
+          connected subscriber on every Realtime poll; the poller is already the
+          #1 statement in the database (2,706,517 calls / 15,669 s / max 9.8 s
+          over 20.25 days, ~61% of all exec time).
+     Ships with supabase/migrations/2026-09-06-realtime-publication-trim.sql,
+     which trims the publication to {chat_messages} — the one table with a real
+     subscriber (src/net/supabase-chat-backend.js:150) and no polling fallback.
+     The market panel refreshes on the existing fetch cadence, which is what it
+     has always actually done. tests/realtime-cost.mjs asserts the two sets — the
+     published tables and the postgres_changes subscriptions in src/** — stay
+     EXACTLY equal, so neither half can drift back on its own.
+     Reinstating this needs the table published in the SAME change. */
 
   /* ⚠ DELIBERATELY STILL A DIRECT TABLE WRITE, and this is the one case where
      that is the RIGHT answer rather than debt.

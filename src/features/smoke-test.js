@@ -12750,6 +12750,12 @@ const TESTS = [
     try {
       window.G.plotLevels = 1;
       window.G.inventory.farm_deed = 5;
+      /* b510: deeds are the FALLBACK payment now — gold is charged first — and
+         the tier sits behind a farming level. Broke + eligible is the state
+         that exercises the deed path. */
+      window.G.gold = 0;
+      window.G.skills = window.G.skills || {};
+      window.G.skills.farming = 20000;
       const need = window.HearthriseFarm.getDeedsRequiredForNextLevel();
       assert(need === 1, 'Lv 1 → 2 should cost 1 deed, got ' + need);
       const ok = window.HearthriseFarm.upgradePlot();
@@ -12771,6 +12777,9 @@ const TESTS = [
     try {
       window.G.plotLevels = 1;
       window.G.inventory.farm_deed = 0;
+      window.G.gold = 0;                 // b510: gold is the first payment
+      window.G.skills = window.G.skills || {};
+      window.G.skills.farming = 20000;   // ...so isolate the MONEY refusal
       const ok = window.HearthriseFarm.upgradePlot();
       assert(ok === false, 'upgradePlot should refuse without deeds');
       assert(window.G.plotLevels === 1, 'plotLevels should remain 1');
@@ -12778,6 +12787,91 @@ const TESTS = [
       restoreG(snap);
     }
   }),
+
+  // ════════════════════════════════════════════════════════════════════════
+  // b510 — THE PLOT TIER IS A PRICE AGAIN (farm plants/day hit ZERO for nine
+  // days because the only way off tier 1 was a 0.1%-drop Farmer's Deed).
+  // Player action: farm turnips to Farming 5, walk into House -> Plot with
+  // 500 gold, buy tier 2, plant a carrot's worth of unlock.
+  // ════════════════════════════════════════════════════════════════════════
+  () => tryRun('FARM-TIER-1: a farmer buys plot tier 2 with GOLD', () => withLocalFarm(() => {
+    if (!window.HearthriseFarm) return;
+    const snap = snapshotG();
+    const _mayWrite = window.clientMayWriteRecordField;
+    window.clientMayWriteRecordField = function(){ return true; };
+    try {
+      window.G.plotLevels = 1;
+      window.G.inventory.farm_deed = 0;          // no deed anywhere in sight
+      window.G.gold = 500;
+      window.G.skills = window.G.skills || {};
+      window.G.skills.farming = 512;             // exactly Farming 5
+      const price = window.HearthriseFarm.getUpgradePrice();
+      assert(price && price.level === 2, 'there must be a next-tier price at Lv 1');
+      assert(price.gold === 500, 'tier 2 must cost 500 gold, got ' + price.gold);
+      assert(price.farming === 5, 'tier 2 must need Farming 5, got ' + price.farming);
+      assert(window.HearthriseFarm.getFarmingLevel() >= 5,
+        'the harness must reach Farming 5, got ' + window.HearthriseFarm.getFarmingLevel());
+      const chk = window.HearthriseFarm.getUpgradeCheck();
+      assert(chk.ok === true && chk.pay === 'gold',
+        'a farmer with the gold and no deeds pays GOLD, got ' + JSON.stringify(chk));
+      const ok = window.HearthriseFarm.upgradePlot();
+      assert(ok === true, 'the upgrade should succeed');
+      assert(window.G.plotLevels === 2, 'plot level should be 2, got ' + window.G.plotLevels);
+      assert((window.G.gold | 0) === 0, 'the 500 gold should be spent, got ' + window.G.gold);
+      assert(window.HearthriseFarm.canPlantCrop('carrot') === true, 'carrot must now be unlocked');
+      assert(window.HearthriseFarm.canPlantCrop('potato') === false, 'potato is tier 3 — still locked');
+    } finally {
+      window.clientMayWriteRecordField = _mayWrite;
+      restoreG(snap);
+    }
+  })),
+
+  // b510: the FARMING LEVEL is the pace, and it bites before the money — a
+  // rich level-1 farmer cannot buy the ladder out from under the crops.
+  () => tryRun('FARM-TIER-2: gold cannot skip the farming level', () => withLocalFarm(() => {
+    if (!window.HearthriseFarm) return;
+    const snap = snapshotG();
+    try {
+      window.G.plotLevels = 1;
+      window.G.gold = 1e9;
+      window.G.inventory.farm_deed = 0;
+      window.G.skills = window.G.skills || {};
+      window.G.skills.farming = 0;
+      const chk = window.HearthriseFarm.getUpgradeCheck();
+      assert(chk.ok === false && chk.error === 'farm_level_too_low',
+        'a Farming-1 millionaire must be refused on LEVEL, got ' + JSON.stringify(chk));
+      assert(window.HearthriseFarm.upgradePlot() === false, 'the upgrade must refuse');
+      assert(window.G.plotLevels === 1, 'plot level must not move');
+      assert(window.G.gold === 1e9, 'a refused upgrade must charge nothing');
+    } finally {
+      restoreG(snap);
+    }
+  })),
+
+  // b510: GOLD FIRST. A deed is worth 500g at tier 2 and 12,500g at tier 5 and
+  // it is tradeable, so the game must never quietly spend the rarer currency
+  // while the player is holding the cheaper one.
+  () => tryRun('FARM-TIER-3: holding both, the player pays gold and keeps the deed', () => withLocalFarm(() => {
+    if (!window.HearthriseFarm) return;
+    const snap = snapshotG();
+    const _mayWrite = window.clientMayWriteRecordField;
+    window.clientMayWriteRecordField = function(){ return true; };
+    try {
+      window.G.plotLevels = 1;
+      window.G.gold = 5000;
+      window.G.inventory.farm_deed = 4;
+      window.G.skills = window.G.skills || {};
+      window.G.skills.farming = 20000;
+      assert(window.HearthriseFarm.upgradePlot() === true, 'the upgrade should succeed');
+      assert(window.G.plotLevels === 2, 'plot level should be 2');
+      assert((window.G.gold | 0) === 4500, 'gold should be 5000-500, got ' + window.G.gold);
+      assert((window.G.inventory.farm_deed | 0) === 4,
+        'the deeds must be untouched, got ' + window.G.inventory.farm_deed);
+    } finally {
+      window.clientMayWriteRecordField = _mayWrite;
+      restoreG(snap);
+    }
+  })),
 
   // b136: plantCrop respects the plot-level gate.
   () => tryRun('b136: plantCrop is gated by plot level', () => {

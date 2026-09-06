@@ -40,6 +40,74 @@ export const PLOT_TIERS = [
 ];
 export const MAX_PLOT_LEVEL = PLOT_TIERS.length - 1; // 5
 
+/* ── b510 — THE PLOT-TIER PRICE. THE ONE AUTHORED COPY, CLIENT SIDE. ─────────
+   MEASURED 2026-09-06: farm plants across the whole player base went 46/day
+   (Aug 24) -> 26 -> 6 -> ZERO every day Aug 27..Sep 5. Every character's
+   server plot_level was 1, turnip is the only tier-1 crop, and the ONLY way
+   to raise the tier was `cost` above — Farmer's Deeds, which drop at 0.1%
+   per Tier-2+ kill / 0.5% per bounty. A level-12 farmer holding carrot seeds
+   could not plant them and had no realistic path to tier 2, so everything
+   above turnip was dead content for everyone.
+
+   THE RULING: the plot tier is NEVER the gate. You buy it slightly BEFORE the
+   crop it unlocks becomes plantable, and the CROP's own farming level does the
+   pacing (carrot 10, potato 30, pumpkin 50, emberfruit 75). Price is GOLD —
+   a sink a farmer actually meets — with the deed count kept as an ALTERNATIVE
+   payment for a player who is short of gold. Deeds are therefore an
+   accelerator and a market good (8 deeds skip 100,000g at tier 5), never the
+   gate. Drop rates are UNCHANGED: nothing about this widens a faucet.
+
+   `farming` is the farming level required; `gold` the price; `deeds` the
+   alternative payment and is IDENTICAL to PLOT_TIERS[n].cost (the generated
+   hr_plot_tier.deed_cost) — tests/plot-tier-parity.mjs asserts all three
+   against the server catalogue in
+   supabase/migrations/2026-09-06-plot-tier-reachable.sql, so the client can
+   never quote a price the server does not charge.
+
+   TARGET CURVE for a player who farms nightly:
+     tier 2  farming  5 +    500g — first evening (≈4 turnip harvests)
+     tier 3  farming 25 +  5,000g — days 3–5
+     tier 4  farming 45 + 25,000g — week 2–3
+     tier 5  farming 70 + 100,000g — the long tail toward 99
+   THE SERVER PRICES IT. These numbers are a MIRROR for the UI and the
+   pre-flight refusal; hr_farm_upgrade_plot re-reads its own catalogue under a
+   row lock and is the only thing that may move plot_level or spend anything. */
+export const PLOT_TIER_PRICES = Object.freeze({
+  2: Object.freeze({ gold: 500,    deeds: 1, farming: 5  }),
+  3: Object.freeze({ gold: 5000,   deeds: 3, farming: 25 }),
+  4: Object.freeze({ gold: 25000,  deeds: 5, farming: 45 }),
+  5: Object.freeze({ gold: 100000, deeds: 8, farming: 70 }),
+});
+
+/** The price of the NEXT tier, or null at max. Shape mirrors hr_plot_tier. */
+export function plotUpgradePrice(plotLevel) {
+  const lv = clampPlotLevel(plotLevel);
+  if (lv >= MAX_PLOT_LEVEL) return null;
+  const p = PLOT_TIER_PRICES[lv + 1];
+  if (!p) return null;
+  return { level: lv + 1, gold: p.gold, deeds: p.deeds, farming: p.farming };
+}
+
+/* PAYMENT ORDER: GOLD FIRST, deeds only when gold is short. A deed is worth
+   far more than the gold it replaces at every tier (500g at t2 rising to
+   12,500g at t5), so spending gold while you have it is always the player's
+   better trade — the server must never quietly spend the rarer currency. */
+export function plotUpgradeCheck(st) {
+  const s = st || {};
+  const lv = clampPlotLevel(s.plotLevel);
+  const price = plotUpgradePrice(lv);
+  if (!price) return { ok: false, error: 'max_plot_level', level: lv, price: null };
+  const farming = Math.max(1, Math.floor(Number(s.farmingLevel) || 1));
+  const gold = Math.max(0, Math.floor(Number(s.gold) || 0));
+  const deeds = Math.max(0, Math.floor(Number(s.deeds) || 0));
+  if (farming < price.farming) {
+    return { ok: false, error: 'farm_level_too_low', need: price.farming, have: farming, price };
+  }
+  if (gold >= price.gold) return { ok: true, pay: 'gold', price };
+  if (deeds >= price.deeds) return { ok: true, pay: 'deeds', price };
+  return { ok: false, error: 'cannot_afford', price, gold, deeds };
+}
+
 export const BOUNTY_DEED_CHANCE = 0.005; // 0.5% per bounty turn-in
 export const KILL_DEED_CHANCE = 0.001;   // 0.1% per Tier 2+ kill
 export const MIN_DEED_TIER = 2;          // Tier-1 mobs stay deed-free

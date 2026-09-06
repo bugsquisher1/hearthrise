@@ -276,6 +276,16 @@ export function reconcileFarmResult(G, kind, res, deps) {
        in the mirror as well (see farm-progression.js getServerPlotLevel). */
     if (typeof res.plot_level === 'number') { G.plotLevels = res.plot_level; G._serverPlotLevel = res.plot_level; }
     if (res.deeds_spent > 0) removeItem('farm_deed', res.deeds_spent | 0);
+    /* b510 — THE TIER IS PAID IN GOLD NOW (deeds are the fallback), so the
+       response carries the server's POST-DEBIT balance. It is written
+       ABSOLUTELY, never as a local subtraction: the server is the only thing
+       that knows what it charged, and a client-computed `gold - price` would
+       drift the instant the catalogue is re-priced. `gold_spent` is display
+       only. A response without the key (an older server) leaves gold alone
+       and the next envelope settles it. */
+    if (typeof res.gold === 'number' && isFinite(res.gold) && res.gold >= 0) {
+      dep(deps, 'setGold')(Math.floor(res.gold));
+    }
     return true;
   }
 

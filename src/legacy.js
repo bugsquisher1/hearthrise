@@ -9470,7 +9470,7 @@ function renderFarm(){
         <button class="btn btn-sm" onclick="window.plantAllEmpty()" title="Plant configured/best seed in every empty plot">Plant all</button>
         <button class="btn btn-sm" onclick="window.waterAllPlots()" ${waterable?'':'disabled'} title="${waterable?'Watering doubles growth speed for 2 hours':farmNextWaterText()}">${waterable?`Water all (${waterable})`:'Water all'}</button>
         <button class="btn btn-sm" onclick="window.toggleAutoReplant()" title="Auto-replant after harvest">${replant.enabled?'Auto-replant: on':'Auto-replant: off'}</button>
-        <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Spend Farmer's Deeds in House → Plot">Upgrade Plot</button>
+        <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Buy the next plot tier with gold (or a Farmer's Deed) in House → Plot">Upgrade Plot</button>
       </div>
     </div>`;
   el.innerHTML = header + `<div class="farm-mini" style="grid-template-columns:repeat(4,1fr)">
@@ -9668,29 +9668,57 @@ function renderHouse(){
       }).join('');
     }
   } else if(houseTab==='plot'){
-    // b136: Farm Plot tier card sits above the legacy plot-building list.
-    // Spends Farmer's Deeds (which drop from Tier-2+ kills + bounties)
-    // to unlock crops by tier. Single integer level applied to all plots.
+    /* ── THE FARM PLOT TIER CARD (b136; RE-PRICED b510) ─────────────────────
+       It used to say "Spend 1 Deed" and nothing else — no price the player
+       could work toward, because the deed dropped at 0.1%. The tier is now
+       bought with GOLD behind a FARMING LEVEL (deeds are the fallback), and
+       this card states the REAL price AND what the player actually has, on
+       both lines, whether or not the button is enabled. Every number comes
+       from the server-mirrored price in src/core/farm.js. */
     let plotCard = '';
     if(window.HearthriseFarm){
       const lv = window.HearthriseFarm.getPlotLevel();
       const max = window.HearthriseFarm.MAX_LEVEL;
-      const need = window.HearthriseFarm.getDeedsRequiredForNextLevel();
-      const have = window.HearthriseFarm.getDeedCount();
       const tiers = window.HearthriseFarm.getTierMap();
+      const price = window.HearthriseFarm.getUpgradePrice();
+      const chk = window.HearthriseFarm.getUpgradeCheck();
+      const have = window.HearthriseFarm.getDeedCount();
+      const farmLv = window.HearthriseFarm.getFarmingLevel();
+      const goldNow = (window.G && Number(G.gold)) || 0;
       const nextTier = lv < max ? tiers[lv+1] : null;
       const newCrops = nextTier ? nextTier.unlocks.filter(c => !tiers[lv].unlocks.includes(c)) : [];
-      const newCropsLabel = newCrops.length ? newCrops.map(id=>`${CROPS[id]?.icon||''} ${CROPS[id]?.name||id}`).join(', ') : (lv >= max ? 'All crops unlocked' : 'No new crops at this tier');
-      const canUpgrade = lv < max && have >= need;
+      const newCropsLabel = newCrops.length
+        ? newCrops.map(id=>`${CROPS[id]?.icon||''} ${CROPS[id]?.name||id} <span class="muted">(Farming ${CROPS[id]?.req||1})</span>`).join(', ')
+        : (lv >= max ? 'All crops unlocked' : 'No new crops at this tier');
+      const canUpgrade = !!(chk && chk.ok);
+      const priceLine = price
+        ? `Costs ${_gp(price.gold)} <span class="muted">or</span> ${price.deeds} Farmer's Deed${price.deeds===1?'':'s'} · needs Farming ${price.farming}`
+        : '';
+      /* WHAT YOU HAVE, against WHAT IT COSTS — the short line that turns a
+         disabled button into a goal. The blocking fact is named first. */
+      const haveLine = price
+        ? `You have ${_gp(goldNow)} · ${have} deed${have===1?'':'s'} · Farming ${farmLv}`
+          + (chk && chk.error === 'farm_level_too_low'
+              ? ` — <b>${price.farming - farmLv} more farming level${price.farming-farmLv===1?'':'s'}</b>`
+              : (chk && chk.error === 'cannot_afford'
+                  ? ` — <b>${_gp(price.gold - goldNow)} short</b>`
+                  : ''))
+        : '';
+      const btnLabel = price
+        ? (chk && chk.ok && chk.pay === 'deeds'
+            ? `Spend ${price.deeds} Deed${price.deeds===1?'':'s'}`
+            : `Upgrade · ${_gp(price.gold)}`)
+        : '';
       plotCard = `<div class="shop-row" style="border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.05)">
         <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_hrGly('navFarm',30)}</span>
         <div class="info">
           <b>Farm Plot · Lv ${lv}/${max}</b>
           <span>${lv >= max ? 'Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
-          <span class="tiny muted">Have ${have} Deed${have===1?'':'s'}${lv<max?` · need ${need}`:''}</span>
+          ${priceLine?`<span class="tiny">${priceLine}</span>`:''}
+          ${haveLine?`<span class="tiny muted">${haveLine}</span>`:''}
         </div>
         ${lv < max
-          ? `<button class="btn btn-sm ${canUpgrade?'btn-primary':''}" ${canUpgrade?'':'disabled'} onclick="window.HearthriseFarm.upgradePlot()">Spend ${need} Deed${need===1?'':'s'}</button>`
+          ? `<button class="btn btn-sm ${canUpgrade?'btn-primary':''}" ${canUpgrade?'':'disabled'} onclick="window.HearthriseFarm.upgradePlot()">${btnLabel}</button>`
           : '<span class="tag">MAX</span>'}
       </div>`;
     }

@@ -239,6 +239,29 @@ jobs:
           node tests/apply-order-honesty.mjs
           node tests/apply-order-honesty.mjs --selftest
 
+      # THE PLOT-TIER PRICE — the client and the server may never disagree.
+      # b510 re-priced the farm plot tier in GOLD behind a farming level after
+      # production measured farm plants per day falling to ZERO for nine days
+      # (the only way off tier 1 was a 0.1%-drop Farmer's Deed, and turnip is
+      # the only tier-1 crop). That price now exists in FOUR authored places —
+      # the migration's UPDATE, the migration's own self-check, the client
+      # mirror src/core/farm.js PLOT_TIER_PRICES, and the GENERATED deed_cost
+      # catalogue — and a re-price that moves three of them quotes the player a
+      # number the RPC will not charge. It also guards the RULING: every tier's
+      # required farming level must stay STRICTLY BELOW the earliest crop it
+      # unlocks, so the tier can never become the wall again.
+      # Credential-free and text-only (it parses the four files, no replay), so
+      # it costs milliseconds. --selftest plants 9 defects, each of which must
+      # be caught by its NAMED assertion, plus 2 negative controls (a comment
+      # edit and a whitespace edit) that must stay silent; --mutate plants 3 in
+      # the real file text.
+      - name: Plot-tier price parity — client mirror vs server catalogue
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/plot-tier-parity.mjs
+          node tests/plot-tier-parity.mjs --selftest
+          node tests/plot-tier-parity.mjs --mutate
+
       # THE RENOWN FAUCET'S MUTATION HARNESS — the half that proves the guard
       # itself can fail. The guard already runs inside run-smoke; its --selftest
       # was wired into NOTHING, which is the restore-census mistake below,

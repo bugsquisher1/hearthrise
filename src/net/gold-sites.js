@@ -699,6 +699,32 @@ export const GOLD_SITE_LEDGER = Object.freeze({
      the DERIVED_PRICE blocker is retired for it (the price is a server-owned
      ladder rung now, not a client-derived escalator). */
   /* upgradeRoom is now `seam:house.upgrade_room` (wired, unlock_buy). */
+  /* b510 — THE FARM PLOT TIER IS PRICED IN GOLD NOW. Both sites live in
+     upgradePlot(); the scanner names them for the nearest enclosing function
+     (the injected `setGold` dep) and disambiguates with @2. */
+  'src/features/farm-progression.js#setGold': {
+    kind: 'seam', status: 'none',
+    why: 'NOT A CLIENT-AUTHORED SPEND — it is the SERVER\'s post-debit balance, written ABSOLUTELY. '
+      + 'hr_farm_upgrade_plot (supabase/migrations/2026-09-06-plot-tier-reachable.sql) reads the '
+      + 'price off public.hr_plot_tier under the character\'s row lock, charges gold (or a Farmer\'s '
+      + 'Deed when gold is short) and RETURNS the resulting balance; reconcileFarmResult writes that '
+      + 'number and nothing else. No price and no delta crosses from the client, and a response '
+      + 'without the key leaves gold alone for the next envelope to settle. This is the same shape '
+      + 'as an envelope write, not a payment.',
+  },
+  'src/features/farm-progression.js#setGold@2': {
+    kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,
+    flipGuard: { gated: 'clientMayWriteRecordField' },
+    site: 'src/features/farm-progression.js upgradePlot() — the PRE-ARM fallback debit',
+    note: 'UNREACHABLE in the shipped client: the farm arm (isFarmServerArmed, src/data/'
+      + 'item-authority.js) is ON, so every upgrade goes through hr_farm_upgrade_plot and the row '
+      + 'above. This branch is the switch-OFF path (and the in-page suite\'s withLocalFarm harness), '
+      + 'and it is gated on clientMayWriteRecordField(\'gold\') so an armed record can never see a '
+      + 'client-authored debit. It is filed against UNLOCK_BUY rather than given a verb because the '
+      + 'plot tier is deliberately NOT a sellable unlock namespace (hr_unlock_offers records '
+      + 'farm_plot.2..5 as namespace_unsupported:farm_plot_tier) — a second way to buy the tier '
+      + 'would be a second writer of player_state.plot_level.',
+  },
   'src/legacy.js#buildPlot': {
     kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,
     site: 'the NON-farm plot buildings (scarecrow) — farm_plot itself is now seam:farm.build_plot',

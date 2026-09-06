@@ -860,7 +860,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED AHEAD OF LIVE 2026-09-06: replay includes 2026-09-06-recovering-until.sql, which splices state.recovering_until / deaths_today / deaths_lifetime / auto_eat_touched into the projection (anchored on `'fight', v_st.fight,`, verified exactly-once on the live body by Security). Live = the farm-projection body (10cf56a9, measured 2026-09-06, itself CODE-IDENTICAL to the prior replay 3ea0f016). Converges on apply; re-measure with --live --write."
+   "why": "STAGED AHEAD OF LIVE 2026-09-06: replay includes 2026-09-06-recovering-until.sql, which splices state.recovering_until / deaths_today / deaths_lifetime / auto_eat_touched into the projection (anchored on `'fight', v_st.fight,`, verified exactly-once on the live body by Security). Live = the farm-projection body (10cf56a9, measured 2026-09-06, which differed from the prior replay 3ea0f016 by comments/whitespace only (codediff measured 2026-09-06)). Converges on apply; re-measure with --live --write."
   },
   {
    "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",

@@ -398,6 +398,23 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/bank-cap-rungs.mjs
 
+      # REALTIME COST. Measured on production 2026-09-06 over 20.25 days: the
+      # Realtime WAL poller is 2,706,517 calls / 15,669 s / max 9.8 s — ~61% of
+      # all exec time and ~36x the #2 statement — for two published tables, one
+      # of which no client subscribed to. The guard asserts an EQUALITY, both
+      # directions: the publication set == the postgres_changes subscriptions in
+      # src/**. Published-but-unsubscribed is pure poller cost; subscribed-but-
+      # unpublished is a feature that silently never fires (which is what the
+      # market panel shipped for months). Per C4, base AND selftest: a
+      # selftest-only registration cannot tell a broken migration from a working
+      # guard.
+      - name: Realtime cost — publication == client subscriptions, both directions
+        if: ${{ !cancelled() }}
+        run: node tests/realtime-cost.mjs --selftest
+      - name: Realtime cost — base run (the trim migration itself is green)
+        if: ${{ !cancelled() }}
+        run: node tests/realtime-cost.mjs
+
       # THE RECOVERY RULE'S SQL HALF (First-Night Idle Rescue, rev. 2).
       # A death INTERRUPTS a run; it does not terminate it. The JS half -- the
       # escalating ladder, the 40% resume, the gating of every payable kind --

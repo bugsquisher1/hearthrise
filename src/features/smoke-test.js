@@ -54289,6 +54289,52 @@ const TESTS = [
     }
   }),
 
+  /* ── 2026-09-06 regression — THE REALTIME SUBSCRIPTION THAT COULD NEVER FIRE ─
+     Reliability audit, measured on production over a 20.25-day window: the
+     Realtime WAL poller is the #1 statement in the database (2,706,517 calls /
+     15,669 s / max 9.8 s, ~36x the #2), and `pg_publication_tables` returned
+     exactly {chat_messages, market_buy_offers}. The market backend nevertheless
+     opened a websocket channel subscribing to postgres_changes on
+     `market_listings` — a table that has NEVER been in the publication (its
+     `drop table ... cascade` + recreate in 2026-08-17-market-v2.sql silently
+     removed it), through a subscribe(onChange) with no caller anywhere.
+     It was removed with supabase/migrations/2026-09-06-realtime-publication-trim.sql.
+
+     The repo-side equality (publication == subscriptions) is asserted by
+     tests/realtime-cost.mjs. What THIS test adds is the half that guard cannot
+     see: the LOADED, RUNNING client. It fails if the subscription is put back
+     on a live backend object, which is how it would actually return. */
+  () => tryRun('2026-09-06: the market backend opens no Realtime channel', () => {
+    const M = window.HearthriseSupabaseMarket;
+    assert(M && typeof M.buyAggregated === 'function',
+      'the Supabase market backend is not published — this test would pass vacuously');
+    assert(typeof M.subscribe !== 'function',
+      'the market backend grew a subscribe() again: a postgres_changes handler on an '
+      + 'UNPUBLISHED table can never fire, and it still costs a websocket channel per '
+      + 'player plus WAL decode if anyone publishes the table to "fix" it. '
+      + 'Reinstating it requires publishing the table in the SAME change.');
+    assert(!M._sub, 'the market backend is holding a live Realtime channel: ' + String(M._sub));
+
+    /* CONTROL 1. Every assertion above is satisfied by DELETING the market
+       backend's read path too — which would also stop the panel refreshing.
+       Removing realtime is only correct because the fetch cadence already does
+       the work; assert the cadence still exists. */
+    assert(typeof M.fetchListings === 'function' || typeof M.listings === 'function'
+        || typeof M.load === 'function' || typeof M.collectSales === 'function',
+      'the market backend has no remaining read path — realtime was removed on the basis '
+      + 'that polling already refreshes the panel, and that basis is now false');
+
+    /* CONTROL 2. The subscription that must SURVIVE. window.Chat is the only
+       peer-message delivery surface in the game and its Supabase backend's
+       postgres_changes handler is the only thing that fills it — chat.js
+       subscribes at :993 and nothing polls chat_messages as a fallback. If the
+       chat dock ever disappears, the publication trim must be revisited in the
+       same change rather than left paying for an unread table. */
+    assert(window.Chat && typeof window.Chat.setBackend === 'function',
+      'window.Chat is gone — chat_messages is the ONE table this trim keeps published, '
+      + 'and it is now published for nobody');
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

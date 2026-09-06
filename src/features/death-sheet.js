@@ -350,7 +350,7 @@
          It says it is asking, and the renderer replaces this row in place the
          moment the envelope lands. */
       rows.push({ g: 'uiHourglass', tone: 'ok', k: 'run-stopped',
-        t: 'Asking the hearth how long you are down', v: '…' });
+        t: 'Asking the hearth how long you are down', v: 'under a minute' });
     } else if (phase === 'unconfirmed') {
       rows.push({ g: 'uiHourglass', tone: 'ok', k: 'run-stopped',
         t: 'The hearth recorded no fall — your run never stopped', v: 'no delay' });
@@ -406,9 +406,24 @@
             ? 'Knocked out'
             : (monsterName ? 'The ' + monsterName + ' got you' : 'You fell'))),
       lead: phase === 'pending'
-        ? 'Asking the hearth how long you are down…'
+        /* ⚠ THE WAIT IS NAMED, NEVER AN OPEN-ENDED SPINNER (P1, b511 live).
+           The server floor is 60 s, so this sentence is on screen for up to a
+           minute by design — and a player looking at "…" with no stated bound
+           cannot tell that from a hung game. It was, live: the sheet sat on
+           this line for 94 s with nothing re-asking. The re-ask is fixed in
+           accrue.js; the honest bound belongs here. */
+        ? 'Asking the hearth how long you are down — an answer takes up to a minute.'
         : (phase === 'unconfirmed'
-          ? 'The hearth found no fall in that stretch — your run never stopped.'
+          /* THE PLAYER IS STOOD BACK UP, IN WORDS AND IN HP (P1, b511 live).
+             The server priced the window the client fell in and saw no death
+             in it, so the client's dice were wrong and the run resumes. The
+             health quoted is the SERVER's (`resumeHp` reads the adopted
+             `G.playerHp`) — the sheet states the number the tick will swing
+             on, never a client guess, and never a bare "no fall" that leaves
+             the player wondering what shape they are in. */
+          ? (resumeHp > 0
+            ? 'The hearth says you are still standing — resuming at ' + resumeHp + ' HP.'
+            : 'The hearth found no fall in that stretch — your run never stopped.')
           : (recoverLeft > 0
             ? 'Back on your feet in ' + mmss(recoverLeft) + '.'
             : (nToday <= 1

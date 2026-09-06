@@ -12204,7 +12204,12 @@ const TESTS = [
         away: { died: false, deaths: 0 },
       });
       const div = D.describeDeath(D._readMoment(info));
-      assert(div.fallPhase === 'unconfirmed' && /no fall/i.test(div.lead),
+      /* The wording moved in b512: an unconfirmed fall now quotes the SERVER's
+         resume health when it has one ("still standing — resuming at N HP")
+         and keeps the older "no fall" sentence when it does not. Both are the
+         same property this line has always asserted — the sheet SAYS the run
+         continued — so the assertion names the property, not one phrasing. */
+      assert(div.fallPhase === 'unconfirmed' && /no fall|still standing/i.test(div.lead),
         'a fall the server did not see was still rendered as a knockout: '
         + JSON.stringify({ phase: div.fallPhase, lead: div.lead }));
 
@@ -12224,6 +12229,190 @@ const TESTS = [
       if (AU && typeof AU.setEat === 'function' && eatWas) AU.setEat({ enabled: !!eatWas.enabled });
       A.setServerAccrualEnabled(!!wasOn);
       try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('RECOVER-13: a below-floor answer is NOT an answer — the fall re-asks itself and can never freeze', () => {
+    /* MEASURED LIVE, b511 (commit 180ed086), QA slot, 16:25 UTC 2026-09-06.
+       The client fell 12 s into a `combat/dark_wizard` run. The forced settle
+       that fired AT the fall was inside the 60 s server floor and answered
+       `{ok:true, accrued:false, reason:'below_min_span'}` — no envelope, so
+       `accruedToAt` never reached `fall.at`. NINETY-FOUR SECONDS LATER the
+       state was byte-identical: phase `pending`, `answered:false`, the sheet
+       reading "Asking the hearth how long you are down…", the swing gate shut
+       and the bar still "Fighting Dark Wizard". Nothing re-asked.
+
+       The class: the fall recorded a QUESTION and then delegated the ASKING to
+       the generic settle cadence, which legitimately declines for reasons that
+       have nothing to do with a fall (hidden tab, loop not started, a refusal
+       re-stamping `lastSettleAt`). This drives the whole machine on a fake
+       clock and asserts the three exits — death, no-death, and silence — plus
+       the one that was live: an `accrued:false` reply must not end the wait. */
+    const A = window.HearthriseAccrual, G = window.G;
+    if (!A || typeof A.nextFallReaskAt !== 'function' || typeof A.setSettleEnv !== 'function') {
+      skip('the fall re-ask seam is not wired'); return;
+    }
+    const snap = snapshotG();
+    const wasOn = A.isServerAccrualEnabled();
+    /* ANCHORED TO THE REAL CLOCK, not a fixed epoch. `fallState()` and the
+       death sheet default to `Date.now()` when no instant is passed, so a
+       fake clock parked in another month makes every pending fall read as
+       TIMED OUT the moment the sheet looks at it — the fixture would then
+       assert the ceiling while claiming to assert the wait. Starting a
+       breath ahead of now keeps the two clocks in the same minute; the
+       fixture only ever moves FORWARD, so the pending fall stays pending
+       on the real clock too. */
+    let t = Date.now() + 5000;
+    const timers = new Map();
+    let nextId = 1;
+    const asks = [];
+    const advance = function (ms) {
+      const end = t + ms;
+      for (;;) {
+        let bestId = 0, bestAt = Infinity;
+        timers.forEach(function (v, k) { if (v.at <= end && v.at < bestAt) { bestAt = v.at; bestId = k; } });
+        if (!bestId) break;
+        const due = timers.get(bestId);
+        timers.delete(bestId);
+        t = due.at;
+        try { due.fn(); } catch (e) {}
+      }
+      t = end;
+    };
+    try {
+      A.setServerAccrualEnabled(true);
+      A.setSettleEnv({
+        now: function () { return t; },
+        setTimer: function (fn, ms) { const id = nextId++; timers.set(id, { fn: fn, at: t + Math.max(1, ms) }); return id; },
+        clearTimer: function (h) { timers.delete(h); },
+        /* HIDDEN ON PURPOSE — the backgrounded tab the cadence declines to
+           serve is exactly the shape that froze live. */
+        visible: function () { return false; },
+        enabled: function () { return true; },
+        configured: function () { return true; },
+        pointer: function () { return { kind: 'combat', id: 'slime' }; },
+        request: function (o) { asks.push({ at: t, reason: o && o.reason }); return null; },
+      });
+
+      /* ① THE FALL SCHEDULES ITS OWN RE-ASK, at the earliest LEGAL instant. */
+      A.clearFall();
+      const fellAt = t;
+      A.noteFall(fellAt);
+      assert(A.fallState(t).phase === 'pending' && A.isKnockedOut(t) === true,
+        'the fall did not open PENDING: ' + A.fallState(t).phase);
+      const due = A.fallReaskAt();
+      assert(due >= fellAt + A.ACCRUE_MIN_SPAN_MS && due < fellAt + A.FALL_CONFIRM_TIMEOUT_MS,
+        'the fall scheduled no legal re-ask. Without one, a `below_min_span` refusal is the last '
+        + 'thing that ever happens and the player waits behind the sheet forever: due=' + due
+        + ' fell=' + fellAt);
+      assert(A.nextFallReaskAt(fellAt, 0, fellAt) === fellAt + A.ACCRUE_MIN_SPAN_MS + A.FALL_REASK_MARGIN_MS,
+        'the re-ask arithmetic does not clear the SERVER floor, so the retry would only earn a '
+        + 'second below_min_span: ' + A.nextFallReaskAt(fellAt, 0, fellAt));
+
+      /* ② A PENDING FALL OUTRANKS `hidden`. The control proves the same state
+            WITHOUT a pending fall still declines, so the true below proves
+            something. */
+      const hid = A.decideSettle({ enabled: true, configured: true, visible: false, kind: 'combat',
+        lastSettleAt: fellAt - 200000, eventAt: 0 }, fellAt);
+      assert(hid.settle === false && hid.reason === 'hidden',
+        'the control failed: a hidden tab with no pending fall must still decline: ' + JSON.stringify(hid));
+      const shown = A.decideSettle({ enabled: true, configured: true, visible: false, kind: 'combat',
+        lastSettleAt: fellAt - 200000, eventAt: 0, fallPending: true }, fellAt);
+      assert(shown.settle === true,
+        'a backgrounded tab with a player face-down still refused to ask, which is a run that never '
+        + 'resumes: ' + JSON.stringify(shown));
+
+      /* ③ THE BELOW-FLOOR ANSWER IS NOT AN ANSWER. Nothing is applied (that is
+            what `accrued:false` means — no envelope), and the wait must still
+            end: one re-ask goes out once the floor has passed. */
+      advance(A.ACCRUE_MIN_SPAN_MS + A.FALL_REASK_MARGIN_MS + 1000);
+      assert(asks.length === 1 && asks[0].reason === 'fall-reask',
+        'nothing re-asked after the server floor passed. This is the live freeze exactly: '
+        + JSON.stringify(asks));
+      assert(asks[0].at >= fellAt + A.ACCRUE_MIN_SPAN_MS,
+        're-asked INSIDE the 60 s floor, which can only earn a second below_min_span and burn a '
+        + 'rate spend: ' + (asks[0].at - fellAt) + 'ms after the fall');
+      assert(A.fallState(t).phase === 'pending',
+        'an unanswered re-ask resolved the fall on its own — the client answering its own question');
+
+      /* ④ (i) A DEATH IN THE COVERING WINDOW ⇒ the SERVER clock, and the
+             asking stops. */
+      const until = t + 118000;
+      A.applyEnvelopeState(G, {
+        state: {
+          accrued_to: new Date(t + 500).toISOString(),
+          recovering_until: new Date(until).toISOString(),
+          deaths_today: 2, deaths_lifetime: 7,
+        },
+        away: { died: true, deaths: 1 },
+      });
+      const rec = A.fallState(t);
+      assert(rec.phase === 'recovering' && rec.until === until,
+        'the covering answer did not become the recovery line: ' + JSON.stringify(rec));
+      const asksAfter = asks.length;
+      advance(400000);
+      assert(asks.length === asksAfter && A.fallReaskAt() === 0,
+        'the fall kept re-asking after it had been answered — an answered question asked again is a '
+        + 'wasted invocation on every settle budget: ' + JSON.stringify(asks));
+
+      /* ⑤ (ii) NO DEATH IN THE COVERING WINDOW ⇒ still standing. The sheet
+             replaces its own line and the swing gate OPENS — the client must
+             not stay face-down on a fall the server did not see. */
+      A.clearFall();
+      asks.length = 0;
+      const fell2 = t;
+      A.noteFall(fell2);
+      advance(A.ACCRUE_MIN_SPAN_MS + A.FALL_REASK_MARGIN_MS + 1000);
+      assert(asks.length === 1, 'the second fall did not re-ask: ' + JSON.stringify(asks));
+      A.applyEnvelopeState(G, {
+        state: { accrued_to: new Date(t + 500).toISOString(), recovering_until: null, hp: 9, max_hp: 13 },
+        away: { died: false, deaths: 0 },
+      });
+      const up = A.fallState(t);
+      assert(up.phase === 'unconfirmed' && up.answered === true && A.isKnockedOut(t) === false,
+        'a priced window with no death in it left the player knocked out anyway: ' + JSON.stringify(up));
+      const D = window.HearthriseDeathSheet;
+      if (D && typeof D.describeDeath === 'function' && typeof D._readMoment === 'function') {
+        const m = D.describeDeath(D._readMoment(null));
+        assert(m.fallPhase === 'unconfirmed' && !/Asking the hearth/i.test(m.lead),
+          'the sheet still says it is asking after the hearth answered: ' + m.lead);
+        assert(/still standing|never stopped/i.test(m.lead),
+          'the replacement line does not tell the player they are up: ' + m.lead);
+      }
+
+      /* ⑥ (iii) SILENCE ⇒ unconfirmed at the ceiling, never stuck pending, and
+             a BOUNDED number of asks (a retry loop against the 30/min budget
+             would be a different bug wearing this fix). */
+      A.clearFall();
+      asks.length = 0;
+      const fell3 = t;
+      A.noteFall(fell3);
+      advance(A.FALL_CONFIRM_TIMEOUT_MS + 30000);
+      const dead = A.fallState(t);
+      assert(dead.phase === 'unconfirmed' && dead.timedOut === true && A.isKnockedOut(t) === false,
+        'a silent server left the run frozen past the ceiling: ' + JSON.stringify(dead));
+      assert(asks.length >= 1 && asks.length <= 3,
+        'the unanswered fall asked ' + asks.length + ' times before giving up — the re-ask must be '
+        + 'spaced by the server floor, not a loop');
+      assert(A.fallReaskAt() === 0 && timers.size === 0,
+        'a timer outlived the fall it belonged to: reaskAt=' + A.fallReaskAt() + ' timers=' + timers.size);
+
+      /* ⑦ THE SHEET NAMES THE WAIT. An open-ended spinner is indistinguishable
+            from a hung game, which is what the player actually saw. */
+      A.clearFall();
+      A.noteFall(t);
+      if (D && typeof D.describeDeath === 'function' && typeof D._readMoment === 'function') {
+        const pend = D.describeDeath(D._readMoment(null));
+        assert(pend.fallPhase === 'pending' && /up to a minute/i.test(pend.lead),
+          'the pending sheet does not state how long the wait can be: ' + pend.lead);
+      }
+    } finally {
+      try { A.setSettleEnv(null); } catch (e) {}
+      try { A.clearFall(); } catch (e) {}
+      try { if (window.HearthriseDeathSheet) window.HearthriseDeathSheet.close(); } catch (e) {}
+      timers.clear();
+      A.setServerAccrualEnabled(!!wasOn);
       restoreG(snap);
     }
   }),

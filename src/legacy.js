@@ -617,7 +617,7 @@ const IAP_CATALOG=[
   {sku:'gems_traveler',type:'currency',glyph:'gems',title:'Traveler Pack',desc:'650 gems + 50 bonus.',price:'$9.99',gems:700,style:'gem',ribbon:'Popular'},
   {sku:'gems_hero',type:'currency',glyph:'uiChest',title:'Hero Pack',desc:'1,800 gems + 250 bonus.',price:'$24.99',gems:2050,style:'gold'},
   {sku:'gems_legend',type:'currency',glyph:'uiCrown',title:'Legend Pack',desc:'5,000 gems + 800 bonus.',price:'$49.99',gems:5800,style:'gold',ribbon:'Best value'},
-  {sku:'hearth_hall_premium',type:'subscription',glyph:'uiCastle',title:'Hearth Hall Premium',desc:'3 character slots, exclusive cosmetics, monthly chests.',price:'$4.99/mo',ent:'hearthHall',ribbon:'Premium',style:'gold'},
+  {sku:'hearth_hall_premium',type:'subscription',glyph:'uiCastle',title:'Hearth Hall Premium',desc:'3 character slots. More Premium perks arrive only once they exist — nothing is sold before it is built.',price:'$4.99/mo',ent:'hearthHall',ribbon:'Premium',style:'gold'},
 ];
 /* ── THE STORE RULES (Tyler, 2026-09-05 — "kill the starter bundle, remove ads,
    and both offline boosts"). Four products were removed and MAY NOT COME BACK,

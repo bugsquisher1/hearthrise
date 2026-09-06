@@ -43692,6 +43692,93 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('rev.2: the DURABLE away card describes a recovery night as one that kept paying', () => {
+    /* THE MEASURED LIE. The welcome-back modal was reconciled with the Recovery
+       Rule; the Home dashboard's away card — the surface that is still there
+       after the modal is dismissed, and the only one a player can go back and
+       read — was not. It rendered b341's terminal-death sentence off
+       `diedAfterMs || survivedMs`: "You died to Slime 50s in — the remaining
+       11h 59m paid nothing." on a night that fell thirteen times, got back up
+       thirteen times and banked the lot. Two surfaces, one receipt, opposite
+       stories, and the durable one was the wrong one.
+
+       Everything below reads a field the receipt STATES (`deaths`, `recoverMs`,
+       `recoverRemainingMs`, `stoppedBy`) — nothing is re-derived, which is the
+       whole rule the b341 death line was written under.
+       MUTATION PROVEN: restore the old `t +=` fall-through (drop the
+       `statedDeaths >= 1` branch) and case (a) fails on both the falls count
+       and the "nothing earned after" prohibition. */
+    const H = window.HearthriseHome;
+    assert(H && typeof H.__awayCardHtml === 'function', 'the away card seam must exist');
+    const flat = (rec) => String(H.__awayCardHtml(rec))
+      .replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ');
+    const NIGHT = {
+      hrs: 12, awayMs: 12 * 3600000, gainedXp: 4100, gainedItems: 88, gainedGold: 260,
+      gainedKills: 210, crits: 12, featuredMs: 0, featuredDropMult: 1,
+      capped: false, blessed: false, buffsPaused: false, rateMult: 1, at: Date.now(),
+    };
+
+    /* (a) A REV. 2 NIGHT. Thirteen falls, two hours of it Knocked Out, and the
+       run picked up every time — `survivedMs` is the span that EARNED, not the
+       span before the first fall. */
+    const rev2 = Object.assign({}, NIGHT, {
+      died: true, deaths: 13, diedTo: 'slime', diedAfterMs: 50400,
+      recoverMs: 2 * 3600000, recoverRemainingMs: 0,
+      recoverLadder: [0, 120000, 240000], stoppedBy: null,
+      combat: { kills: 210, died: true, survivedMs: 10 * 3600000, diedTo: 'slime', crits: 12 },
+    });
+    const aTxt = flat(rev2);
+    assert(/You fell 13 times to the Slime/.test(aTxt),
+      'the card does not state how many falls the night held — ' + aTxt);
+    assert(/knocked out for 2h in total/.test(aTxt),
+      'the card does not price the time spent Knocked Out, which is the only cost a '
+      + 'recovery night actually has — ' + aTxt);
+    assert(/your run picked up each time/i.test(aTxt),
+      'the card never says the run carried on — the single most important fact about '
+      + 'a night with falls in it — ' + aTxt);
+    assert(!/nothing (was )?earned after|paid nothing/i.test(aTxt),
+      'THE REV. 2 LIE: the durable card still tells a player who banked a full night '
+      + 'that their absence stopped paying — ' + aTxt);
+
+    /* Still down when they got back: the durable surface owes this too, or it
+       describes a character who is fighting while the server refuses swings. */
+    const stillDown = flat(Object.assign({}, rev2, { recoverRemainingMs: 47000 }));
+    assert(/Still recovering — 47s to go/.test(stillDown),
+      'the card does not say the character is still Knocked Out — ' + stillDown);
+    assert(!/Still recovering/.test(aTxt),
+      'a night that finished its recovery still claims time owed — ' + aTxt);
+
+    /* A SINGLE stated fall keeps its "when" — it is the only detail it has. */
+    const oneFall = flat(Object.assign({}, rev2, { deaths: 1, recoverMs: 120000,
+      recoverLadder: [120000] }));
+    assert(/You fell to the Slime 50s in — knocked out for 2m, then your run picked up\./.test(oneFall),
+      'the one-fall recovery night lost its shape — ' + oneFall);
+
+    /* (b) A LEGACY RECEIPT — `died` with NO `deaths`, which is what the
+       currently-deployed hr-accrue writes. Exactly ONE fall is stated, and NO
+       recovery story is invented: that engine never ran the rule. */
+    const legacy = Object.assign({}, NIGHT, {
+      died: true, diedTo: 'slime', diedAfterMs: 50400,
+      combat: { kills: 3, died: true, survivedMs: 50400, diedTo: 'slime', crits: 0 },
+    });
+    const bTxt = flat(legacy);
+    assert(/You died to Slime 50s in/.test(bTxt),
+      'the pre-Recovery death line was deleted — the receipt shape the live edge still writes '
+      + 'must keep the sentence it has had since b341: ' + bTxt);
+    assert(!/\d+ times|knocked out|picked up|Still recovering/i.test(bTxt),
+      'a receipt with no recovery payload was handed a recovery story it has no basis for — ' + bTxt);
+    assert(/paid nothing|earned after/i.test(bTxt),
+      'the pre-Recovery night no longer says the remainder paid nothing, which for THAT '
+      + 'engine was true — ' + bTxt);
+
+    /* (c) AND THE RUN THAT REALLY DID STOP KEEPS THE STOPPED SENTENCE. */
+    const stopped = flat(Object.assign({}, rev2, { stoppedBy: 'death' }));
+    assert(/paid nothing|earned after/i.test(stopped),
+      'a run that genuinely stopped on the death no longer says so — ' + stopped);
+    assert(!/picked up/.test(stopped),
+      'a run that stopped on the death still tells the player it picked back up — ' + stopped);
+  }),
+
   () => tryRun('b341: NO monster row can start a fight on one tap — however the list was painted', () => {
     /* THE MEASURED BUG. Two wrappers re-pointed monster rows at the preview
        after every render, both hooked on `renderMonsterList` / `showTab`.

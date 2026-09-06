@@ -601,16 +601,67 @@
         var AC = window.HearthriseAccrual;
         if (AC && typeof AC.receiptDeathCause === 'function') why = AC.receiptDeathCause(off);
       } catch (e) {}
-      /* One minute of slack: a death 30s from the end is "the whole absence",
-         not "and then 42 seconds paid nothing". */
-      t += (restMs >= 60000)
-        ? ' — the remaining ' + fmtSpanShort(restMs) + ' paid nothing.'
-        : ' — nothing was earned after that.';
+      /* ══ REV. 2 — A DEATH NO LONGER ENDS THE NIGHT (Recovery Rule, 2026-09-06)
+         Under the Recovery Rule the character is KNOCKED OUT for `recoverMs`,
+         gets back up at 40% and the run carries on: `survivedMs` is the TOTAL
+         span that earned across a night that may contain many falls. The
+         sentence below it — "nothing was earned after that" — was written when
+         a death was terminal, and on a recovery night it describes a night that
+         kept paying as if it had stopped. That is the same species of defect
+         b341 filed: the durable surface stating one thing while the engine did
+         another, pointed the other way.
+
+         The switch is `deaths` being STATED, exactly as the welcome-back modal
+         reads it (`_statedDeaths || (_dead ? 1 : 0)`), and for the same reason:
+         the currently-deployed hr-accrue writes `died` with NO `deaths`, and a
+         receipt like that is exactly ONE known fall with no recovery story to
+         tell — it must keep the pre-Recovery wording rather than be handed an
+         invented one. A receipt that genuinely stopped (`stoppedBy === 'death'`)
+         keeps it too, because for that night the old sentence is true.
+
+         Copy is the modal's, deliberately: two surfaces describing one rule in
+         two voices is how a player learns to distrust both. */
+      var statedDeaths = Math.max(0, Number(off.deaths) || 0);
+      var recovered = statedDeaths >= 1 && off.stoppedBy !== 'death';
+      if (recovered) {
+        var recMs = Math.max(0, Number(off.recoverMs) || 0);
+        var foe = death.name ? ' to the ' + death.name : '';
+        if (statedDeaths === 1) {
+          /* The single fall keeps its "when" — it is the only detail it has,
+             and it is the number b341 exists for. */
+          t = 'You fell' + foe + (death.afterMs > 0 ? ' ' + fmtSince(death.afterMs) + ' in' : '')
+            + (recMs > 0
+                ? ' — knocked out for ' + fmtSince(recMs) + ', then your run picked up.'
+                : ' — your run picked up.');
+        } else {
+          /* No "when" on a many-fall night: the first fall's span is not the
+             night's shape, and quoting it would read as the only one. */
+          t = 'You fell ' + statedDeaths + ' times' + foe
+            + (recMs > 0
+                ? ' — knocked out for ' + fmtSince(recMs) + ' in total; your run picked up each time.'
+                : ' — your run picked up each time.');
+        }
+      } else {
+        /* One minute of slack: a death 30s from the end is "the whole absence",
+           not "and then 42 seconds paid nothing". */
+        t += (restMs >= 60000)
+          ? ' — the remaining ' + fmtSpanShort(restMs) + ' paid nothing.'
+          : ' — nothing was earned after that.';
+      }
       /* The cause is APPENDED, never substituted: how much of the night was
          forfeited and why nothing healed are two different facts and the card
          is the durable surface that owes both. */
       if (why) t += ' ' + why.sentence;
       notes.push({ tone: 'bad', icon: 'uiSkull', text: t });
+      /* STILL DOWN. Without this the card describes a character who is up and
+         fighting while the server will refuse their next swing — and this is
+         the DURABLE surface, still readable after the modal has been dismissed.
+         STATED only: no `recoverRemainingMs`, no claim. */
+      var recLeft = Math.max(0, Number(off.recoverRemainingMs) || 0);
+      if (recovered && recLeft > 0) {
+        notes.push({ tone: 'bad', icon: 'uiClock',
+          text: 'Still recovering — ' + fmtSince(recLeft) + ' to go.' });
+      }
     }
     /* ── b345: THE RUN THAT STOPPED, on the same durable surface and for the
        same reason the death line is here — it changes the meaning of every

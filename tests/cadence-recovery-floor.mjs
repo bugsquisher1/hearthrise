@@ -101,8 +101,20 @@ const MARKS = {
      (accrual.js emits {kind:'idle', id:null} with no flag at three sites) left
      it at the start of the fight, and the cap would have zeroed every attended
      credit on the 12-of-36 live characters already in that state. */
-  apply: ['-- ── 3b. hr_apply', '-- ── 4. SELF-CHECK'],
-  check: ['-- ── 4. SELF-CHECK', null],
+  apply: ['-- ── 3b. hr_apply', '-- ── 3c. hr_apply'],
+  /* §3c is the THIRD arm and it is the one that makes the other two mean
+     anything. Arms 1 and 2 are built on player_state.recovering_until; until
+     this section shipped, hr_apply validated an incoming line against a CEILING
+     only, so a settle carrying `recovering_until: null` while 60 minutes
+     remained ZEROED the column both arms read. The no-shortening invariant
+     lived only in the edge (src/core/combat-sim.js:632/694 preserve-or-clear),
+     which is to say it lived where a forged caller does. */
+  floor: ['-- ── 3c. hr_apply', '-- ── 4. SELF-CHECK'],
+  check: ['-- ── 4. SELF-CHECK', '-- ── 4b. THE NO-SHORTENING FLOOR, EXECUTED'],
+  /* The EXECUTED half. Text can prove the floor is spelled; only a call can
+     prove it fires, that a refusal rolls back, and — the property that would
+     otherwise make this fix worse than the hole — that hr_rest still cures. */
+  exec:  ['-- ── 4b. THE NO-SHORTENING FLOOR, EXECUTED', null],
 };
 
 function sections(text) {
@@ -129,6 +141,76 @@ const CHECKS = [
   ['xp', (s) => s.includes('v_wm := greatest(v_wm, least(coalesce(v_recovering, v_wm), now()));'),
     'the combat-XP watermark is not floored at recovering_until — this is the exact formula the predecessor '
     + "migration's TODO specified, and combat XP is the SERVER-SOURCED leaderboard number"],
+
+  // ── ARM 3: A RUNNING KNOCKOUT MAY NOT BE SHORTENED (§3c) ────────────────
+  ['floor', (s) => s.includes('SECURITY F1 - THE NO-SHORTENING FLOOR'),
+    'the §3c patch does not carry its own marker — without it the migration cannot tell a patched body from an '
+    + 'unpatched one and a re-apply double-inserts the refusal'],
+  ['floor', (s) => s.includes('if v_st.recovering_until is not null')
+                && s.includes('and v_st.recovering_until > now()'),
+    'hr_apply does not refuse a delta against the STORED, STILL-RUNNING line — a settle carrying an earlier '
+    + 'recovering_until shortens the knockout, and the Recovery Rule (the answer to "death is a free full heal, '
+    + 'so farm with zero food") is client-cancellable again'],
+  ['floor', (s) => s.includes('and (v_recover is null or v_recover < v_st.recovering_until) then'),
+    'the floor does not refuse a NULL proposal while the line runs — this is the single most valuable forgery '
+    + '(the outright CANCEL), and a predicate that tests only `v_recover < stored` answers NULL for it and falls '
+    + 'straight through to "accept"'],
+  ['floor', (s) => s.includes("'why', 'would shorten an active knockout'"),
+    'the refusal is not NAMED — hr-accrue/index.ts\'s degrade ladder reads the `why` off a bad_recovering 409, '
+    + 'and an unnamed refusal is indistinguishable from a garbage timestamp'],
+  ['floor', (s) => !/v_recover := (greatest|least)\(/.test(s),
+    'the floor CLAMPS the proposal instead of REFUSING it — every other control on this line refuses '
+    + '(the ceiling included), and a clamp answers a forged delta with 200 while quietly writing a value the '
+    + 'caller chose the shape of'],
+  ['floor', (s) => s.includes("if strpos(v_def, 'SECURITY F1 - THE NO-SHORTENING FLOOR') > 0 then"),
+    'the §3c patch lost its own-marker guard, so a re-apply double-inserts the refusal and the migration stops '
+    + 'being idempotent'],
+  ['floor', (s) => s.includes('v_st is the row this function already holds under "for update"'),
+    'the §3c comment no longer states that the comparison is against the LOCKED row — the next editor has no '
+    + 'way to know that re-reading player_state here would be a read-modify-write across the lock'],
+  ['pre', (s) => s.includes("to_regprocedure('public.hr_rest(int,uuid)') is null"),
+    '§0 does not require hr_rest — §4b(d) could then "pass" by never proving the sanctioned cure survives, and a '
+    + 'floor that also blocks the cure makes every knockout PERMANENT, which is worse than the hole it closes'],
+  ['pre', (s) => s.includes("if strpos(v_a, 'SECURITY F1 - THE NO-SHORTENING FLOOR') > 0 then")
+              && s.includes("raise exception 'hr_apply: the (4a-v) ceiling tail is missing or ambiguous"),
+    'the §3c anchor is not asserted EXACTLY ONCE in §0 — a replace() whose anchor has moved is a SILENT no-op, '
+    + 'so the migration would report success with the floor unshipped'],
+
+  // ── ARM 3, EXECUTED (§4b) ───────────────────────────────────────────────
+  ['exec', (s) => s.includes('insert into auth.users (id) values (v_uid);')
+                && s.includes("errcode = 'HR34C'"),
+    '§4b no longer runs a real probe inside a rolled-back subtransaction — the floor would be proven by TEXT '
+    + 'only, and an anchored insert can land in a branch that never runs'],
+  ['exec', (s) => s.includes("raise exception 'F1 §4b(a): hr_apply ACCEPTED an EARLIER recovering_until"),
+    '§4b stopped RAISING when hr_apply accepts an earlier line — the probe would run, observe the exploit and '
+    + 'let the migration report success'],
+  ['exec', (s) => s.includes("raise exception 'F1 §4b(a2): hr_apply ACCEPTED a NULL recovering_until"),
+    '§4b stopped proving the NULL CANCEL is refused — the null case is the one a naive predicate lets through, '
+    + 'so it must be executed separately from the earlier-instant case'],
+  ['exec', (s) => s.includes("raise exception 'F1 §4b(b1): hr_apply REFUSED an unchanged recovering_until")
+                && s.includes("raise exception 'F1 §4b(b2): hr_apply REFUSED a LATER recovering_until"),
+    '§4b does not prove that an EQUAL (the ordinary settle re-stating the line) and a LATER (a new death) '
+    + 'proposal are still ACCEPTED — a floor that refuses those 409s every knocked-out accrual in the game'],
+  ['exec', (s) => s.includes("raise exception 'F1 §4b(c): hr_apply refused to CLEAR an EXPIRED line"),
+    '§4b does not prove an EXPIRED line is still freely clearable — this is why the predicate is `stored > '
+    + 'now()` and not `stored is not null`; without it a served knockout never ends'],
+  ['exec', (s) => s.includes("raise exception 'F1 §4b(d): hr_rest FAILED after the floor shipped"),
+    '§4b does not EXECUTE hr_rest after the floor — "the cure writes player_state directly so it never meets '
+    + 'the floor" is true until someone reroutes it, and the failure mode is a permanent knockout'],
+  ['exec', (s) => s.includes("raise exception 'F1 §4b LEAKED a player_state row'")
+                && s.includes("raise exception 'F1 §4b LEAKED a ledger row'"),
+    '§4b lost its LEAK assertions — a self-check that commits its probe character writes a body into production '
+    + 'as a side effect of verifying itself, and the ledger is append-only'],
+
+  ['check', (s) => s.includes("F1 self-check (q): hr_apply does not refuse to shorten a running knockout"),
+    'the self-check does not assert the no-shortening floor ON APPLY — the property would be true only for as '
+    + 'long as nobody restated hr_apply'],
+  ['check', (s) => s.includes("F1 self-check (q): the floor runs AFTER the SET clause"),
+    'the self-check does not assert the floor is sited BEFORE the write — a refusal that runs after the SET '
+    + 'clause is a comment on a write that already happened'],
+  ['check', (s) => s.includes("F1 self-check (q): hr_rest no longer clears recovering_until"),
+    'the self-check does not assert that hr_rest still clears the line — the floor would be free to make a '
+    + 'knockout permanent and still report PASSED'],
 
   // ── THE LINE IS THE SERVER'S ────────────────────────────────────────────
   ['kills', (s) => s.includes('select recovering_until, active_kind, active_since')
@@ -606,6 +688,96 @@ Object.assign(MUTATIONS, {
   },
 });
 
+/* ── ARM 3's MUTATIONS. The brief's two named shapes first: STRIP THE FLOOR,
+   and ALLOW NULL WHILE THE LINE IS ACTIVE. Both must go RED. ─────────────── */
+Object.assign(MUTATIONS, {
+  shortening_floor_stripped: {
+    why: 'the no-shortening floor is stripped out of hr_apply — a settle carrying an EARLIER recovering_until '
+       + 'rewrites a 60-minute knockout to nothing, the column arms 1 and 2 are built on goes stale, and the '
+       + 'Recovery Rule becomes advisory. This is the gap exactly as the read-only review found it',
+    find: '      if v_st.recovering_until is not null\n'
+        + '         and v_st.recovering_until > now()\n'
+        + '         and (v_recover is null or v_recover < v_st.recovering_until) then\n',
+    repl: '      if false then\n',
+  },
+  null_cancel_allowed_while_active: {
+    why: 'the floor stops refusing a NULL proposal while the line is still running — the outright CANCEL, which '
+       + 'is the most valuable forgery of the three and the one a predicate written as `v_recover < stored` '
+       + 'lets through by answering NULL',
+    find: '         and (v_recover is null or v_recover < v_st.recovering_until) then',
+    repl: '         and (v_recover < v_st.recovering_until) then',
+  },
+  floor_blocks_expired_clear: {
+    why: 'the floor drops its `stored > now()` arm and judges ANY non-null stored line — an EXPIRED knockout '
+       + 'could then never be cleared by a settle, so a character who served their time stays face-down '
+       + 'forever. The most plausible way this fix becomes worse than the hole',
+    find: '         and v_st.recovering_until > now()\n',
+    repl: '',
+  },
+  floor_blocks_raise_forward: {
+    why: 'the floor refuses any DIFFERENT instant instead of an EARLIER one — a second death inside the window '
+       + 'could not extend the knockout, so dying again would be strictly better than not, and every honest '
+       + 'settle that re-states a raised line would 409',
+    find: 'or v_recover < v_st.recovering_until) then',
+    repl: 'or v_recover is distinct from v_st.recovering_until) then',
+  },
+  floor_clamps_instead_of_refusing: {
+    why: 'the floor silently CLAMPS the proposal up to the stored line instead of refusing it — a compromised '
+       + 'engine gets a 200 for a forged delta, nothing reaches the rejection journal, and the abuse signal '
+       + 'that makes this detectable disappears',
+    find: '        perform public.hr_reject(\'bad_recovering\',\n'
+        + '          jsonb_build_object(\'why\', \'would shorten an active knockout\',',
+    repl: '        v_recover := greatest(v_recover, v_st.recovering_until);\n'
+        + '        perform public.hr_noop(\'bad_recovering\',\n'
+        + '          jsonb_build_object(\'why\', \'clamped an active knockout\',',
+  },
+  floor_marker_guard_removed: {
+    why: 'the §3c patch loses its own-marker guard, so a re-apply double-inserts the refusal into hr_apply and '
+       + 'the migration stops being idempotent — the property an operator relies on when a run half-fails',
+    find: "  if strpos(v_def, 'SECURITY F1 - THE NO-SHORTENING FLOOR') > 0 then",
+    repl: '  if false then',
+  },
+  floor_precondition_anchor_removed: {
+    why: 'the §0 exactly-once anchor assertion for the §3c insert is removed — a replace() whose anchor has '
+       + 'moved is a SILENT no-op, and the migration would report success with the floor unshipped while arms 1 '
+       + 'and 2 go live on a column anyone can zero',
+    find: "    if v_n <> 1 then raise exception 'hr_apply: the (4a-v) ceiling tail is missing or ambiguous (%) — apply 2026-09-06-recovering-until.sql first', v_n; end if;",
+    repl: '',
+  },
+  hr_rest_precondition_removed: {
+    why: '§0 stops requiring hr_rest, so on a chain where the cure is absent §4b(d) cannot distinguish "the '
+       + 'floor blocks the cure" from "there was no cure to run" — and the migration would pass',
+    find: "  if to_regprocedure('public.hr_rest(int,uuid)') is null then",
+    repl: '  if false then',
+  },
+  executed_probe_downgraded_to_notice: {
+    why: 'the §4b probe observes hr_apply accepting an EARLIER line and merely NOTICES it — the harness runs, '
+       + 'the exploit is measured, and the migration reports success anyway. A self-check that cannot fail is '
+       + 'the most expensive kind of green',
+    find: "      raise exception 'F1 §4b(a): hr_apply ACCEPTED an EARLIER recovering_until",
+    repl: "      raise notice 'F1 §4b(a): hr_apply ACCEPTED an EARLIER recovering_until",
+  },
+  executed_probe_rest_arm_removed: {
+    why: '§4b stops EXECUTING hr_rest after the floor ships — the claim "the sanctioned cure writes '
+       + 'player_state directly and never meets the floor" goes back to being an argument, and the failure it '
+       + 'guards against is a knockout nobody can end',
+    find: "      raise exception 'F1 §4b(d): hr_rest FAILED after the floor shipped",
+    repl: "      raise notice 'F1 §4b(d): hr_rest FAILED after the floor shipped",
+  },
+  executed_probe_leak_check_removed: {
+    why: '§4b loses the rollback proof, so a probe that COMMITTED would write a throwaway character and its '
+       + 'ledger rows into production as a side effect of verifying the migration',
+    find: "    raise exception 'F1 §4b LEAKED a player_state row';",
+    repl: '    null;',
+  },
+  selfcheck_q_removed: {
+    why: 'the apply-time self-check stops asserting the floor, so a later restatement of hr_apply that drops it '
+       + 'would apply clean and green — this is exactly how the 2026-09-06 ceiling-only gap survived',
+    find: "    raise exception 'F1 self-check (q): hr_apply does not refuse to shorten a running knockout",
+    repl: "    raise exception 'F1 self-check (disabled q): hr_apply does not refuse to shorten a running knockout",
+  },
+});
+
 /* `marker_guard_removed`'s find must match the file's real indentation. */
 MUTATIONS.marker_guard_removed.find =
   "  if strpos(v_def, 'SECURITY F1 - THE RECOVERY FLOOR') > 0 then\n"
@@ -713,6 +885,55 @@ async function runReplay() {
     'replay: `restart` lost its meaning — a SAME-activity restart is a switch no difference test can see');
   ok(await stamps({}, 'combat', 'goblin') === false,
     'replay: a delta with no activity object stamps active_since');
+
+  /* ARM 3, read off the LIVE body the ordered chain builds. A §3c insert that
+     no-oped against a moved anchor leaves the FILE looking perfect — this is
+     the only place that shows up. */
+  ok(a.includes('SECURITY F1 - THE NO-SHORTENING FLOOR'),
+    'replay: the LIVE hr_apply does not refuse to shorten a running knockout — the §3c insert no-oped against a '
+    + 'moved anchor and the migration still reported success');
+  ok(a.includes('if v_st.recovering_until is not null')
+     && a.includes('and v_st.recovering_until > now()')
+     && a.includes('and (v_recover is null or v_recover < v_st.recovering_until) then'),
+    'replay: the LIVE floor predicate is not the three-clause one — it must refuse NULL as well as an earlier '
+    + 'instant, and only while the STORED line is still in the future');
+  /* The floor is a GATE, so its position relative to the write is the property.
+     Read off the live body, not the file. */
+  {
+    const g = a.indexOf('SECURITY F1 - THE NO-SHORTENING FLOOR');
+    const w = a.indexOf("recovering_until = case when p_delta ? 'recovering_until'");
+    ok(g > 0 && w > 0 && g < w,
+      `replay: the LIVE floor is sited AFTER the SET clause (floor ${g}, write ${w}) — it would be a comment on a write that already happened`);
+    const c = a.indexOf("'why', 'too far ahead'");
+    ok(c > 0 && g > c,
+      'replay: the LIVE floor is sited BEFORE the ceiling — a garbage instant must be refused as garbage first');
+  }
+  /* EVALUATED on the replay database: the predicate's five cases as the same
+     boolean arithmetic hr_apply runs. (stored, proposed) -> refuse? */
+  const refuses = async (stored, proposed) => (await db.query(
+    `select ($1::timestamptz is not null and $1::timestamptz > now()
+             and ($2::timestamptz is null or $2::timestamptz < $1::timestamptz)) r`,
+    [stored, proposed])).rows[0].r;
+  const A = (min) => new Date(Date.now() + min * 60000).toISOString();
+  ok(await refuses(A(30), A(5)) === true,
+    'replay: an EARLIER proposal against a running line is not refused — the knockout is forgeable down to nothing');
+  ok(await refuses(A(30), null) === true,
+    'replay: a NULL proposal against a running line is not refused — the outright CANCEL is the whole exploit');
+  ok(await refuses(A(30), A(30)) === false,
+    'replay: an EQUAL proposal is refused — every honest settle during a knockout would 409');
+  ok(await refuses(A(30), A(40)) === false,
+    'replay: a LATER proposal is refused — a second death could not extend the window');
+  ok(await refuses(A(-1), null) === false,
+    'replay: clearing an EXPIRED line is refused — a served knockout would never end');
+  ok(await refuses(null, A(30)) === false,
+    'replay: a healthy character (stored NULL) cannot be knocked out at all — the floor must not judge a first death');
+  /* THE SANCTIONED CURE SURVIVES, read off the chain's own hr_rest. */
+  const rest = await def('public.hr_rest(int,uuid)');
+  ok(rest.includes('recovering_until = null'),
+    'replay: hr_rest no longer clears recovering_until — with the floor in place a knockout would be permanent');
+  ok(!/hr_apply\s*\(/.test(rest),
+    'replay: hr_rest now routes its cure THROUGH hr_apply — it would meet the no-shortening floor and be refused, '
+    + 'and the paid cure would stop working');
 
   ok(k.includes('kill_credited'), 'replay: the renown credited counters were ERASED from the kills body');
   ok(k.includes('kills_stat') && k.includes('daily_kill_settle_absorbed'),
@@ -841,7 +1062,10 @@ try {
     + 'watermark is retired unpaid, patch by anchored insert rather than restatement so no predecessor patch is '
     + 'erased, and file at most one value-free audit row per character per UTC day — and hr_apply STAMPS '
     + 'player_state.active_since on ANY pointer change (not only on the client restart flag), so the column '
-    + 'the end-cap reads means what it says even when the SERVER auto-stops the activity'
+    + 'the end-cap reads means what it says even when the SERVER auto-stops the activity, and it REFUSES a '
+    + 'delta that would shorten or cancel a RUNNING knockout (null or earlier while the stored line is still '
+    + 'in the future) while leaving raise-forward, equality and the clearing of an EXPIRED line legal — with '
+    + 'hr_rest, which writes player_state directly and never through hr_apply, still the sanctioned paid cure'
     + (replay ? ' — VERIFIED ON A REBUILT CHAIN, including the return-before-write ordering and the ungated ACL.'
               : '. (Run with --replay to read the same properties off a rebuilt chain.)'));
   process.exit(0);

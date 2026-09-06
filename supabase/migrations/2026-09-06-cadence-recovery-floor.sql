@@ -251,6 +251,66 @@
 -- precisely the game_events mistake (1.6M rows / 229 MB from six players in four
 -- days) reproduced at ledger scale. Journal rule 6 is why it is one row.
 --
+-- ── THE THIRD ARM: hr_apply MUST NOT LET A KNOCKOUT BE SHORTENED (§3c) ──────
+-- THE GAP (read-only review, 2026-09-06). hr_apply validates the incoming
+-- `recovering_until` against a CEILING ONLY (2026-09-06-recovering-until.sql
+-- (4a-v): refuse anything beyond now() + c_max_recover_ms). It accepts an
+-- EARLIER instant, and it accepts `null`, unconditionally. The only thing that
+-- has ever stopped a settle from cancelling a live knockout is the ENGINE:
+-- src/core/combat-sim.js:632/694 preserves the stored line, or clears it once it
+-- has expired. That is a client-side invariant in everything but name — the
+-- Edge Function is where a forged or compromised caller lives — and the house
+-- law is explicit: the Edge decides WHAT should happen, Postgres decides
+-- WHETHER IT MAY, and Postgres re-validates EVERY invariant.
+--
+-- Reachable today with the engine's own call shape: settle with
+-- `delta.recovering_until = null` (or now()+1s) while the stored line still has
+-- 60 minutes to run. The column goes void, the floor arm above reads NULL,
+-- hr_credit_kills / hr_credit_combat_xp stop short-circuiting, and the whole
+-- Recovery Rule — the answer to "death is a free full heal, so farm with zero
+-- food" — evaporates. Arms 1 and 2 of this file are built ON that column; a
+-- column anyone can zero is not an invariant, it is a suggestion.
+--
+-- THE PREDICATE, and it is deliberately the smallest one that closes the class:
+--
+--   REJECT  ⟺  stored recovering_until IS NOT NULL
+--              AND stored recovering_until > now()          -- still RUNNING
+--              AND (proposed IS NULL  OR  proposed < stored)
+--
+--   • RAISE-FORWARD STAYS LEGAL. A later instant is a NEW death during the
+--     window, which is exactly what the ladder produces, and it is already
+--     bounded by the ceiling directly above. Equality is legal too and is the
+--     ORDINARY case: the engine re-states the stored line on every settle of a
+--     span that ended still face-down.
+--   • A LINE THAT HAS ALREADY EXPIRED IS FREELY CLEARABLE. `stored > now()` is
+--     the whole exception: once the instant has passed the character is up, and
+--     `null` is the honest statement of that. This is the engine's clear path
+--     and it needs no privilege.
+--   • THE SERVER'S CLOCK AND THE SERVER'S ROW. `now()`, and `v_st`, which
+--     hr_apply already holds under `select … for update` taken BEFORE this
+--     validation block runs — so the comparison is against the LOCKED stored
+--     value, never a value re-read across a network hop. No new query, no new
+--     lock, no new round trip.
+--
+-- hr_rest NEEDS NO EXCEPTION, AND THAT IS A FINDING, NOT AN ASSUMPTION. The
+-- sanctioned cure does NOT travel through hr_apply: hr_rest
+-- (2026-09-06-recovering-until.sql) takes the SAME per-character advisory key,
+-- re-reads the row `for update`, proves the line is live (`not_recovering`
+-- otherwise), proves there is no unsettled window (`collect_first`), DEBITS
+-- real provisions all-or-nothing, and then issues its OWN
+-- `update public.player_state set hp = max_hp, recovering_until = null,
+-- version = version + 1` at its step (f). It is a second writer of the column
+-- by design — a paid, journalled, rate-limited one. So the floor inside
+-- hr_apply can be absolute: there is no legitimate hr_apply delta that shortens
+-- a running line, and §4b PROVES hr_rest still clears one after the floor ships.
+--
+-- WHY A REJECTION AND NOT A CLAMP. Everything about this line is refused rather
+-- than clamped (the ceiling above included): a clamp would let a compromised
+-- engine drive the column to any legal value it liked and get a 200 back, and
+-- the degrade ladder in hr-accrue/index.ts already knows how to recover from a
+-- `bad_recovering` 409 without losing the window. Same error code, same
+-- release path, one more `why`.
+--
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Additive anchored inserts, reversible WITHOUT restating either body: revert is
 -- `pg_get_functiondef` minus the inserted blocks. No signature moves, no ACL
@@ -294,6 +354,13 @@ begin
                   where table_schema='public' and table_name='player_state'
                     and column_name='recovering_until') then
     raise exception 'player_state.recovering_until is absent — apply 2026-09-06-recovering-until.sql first; without it this floor is decoration';
+  end if;
+  -- §3c/§4b's dependency. hr_rest is the SANCTIONED cure and the reason the
+  -- no-shortening floor can be absolute inside hr_apply; without it §4b cannot
+  -- prove that a knockout is still curable, and the floor would ship on the
+  -- strength of an argument rather than an execution.
+  if to_regprocedure('public.hr_rest(int,uuid)') is null then
+    raise exception 'hr_rest missing — apply 2026-09-06-recovering-until.sql first; without it the no-shortening floor cannot be proven curable';
   end if;
   if to_regprocedure('public.hr_utc_day_start(timestamptz)') is null then
     raise exception 'hr_utc_day_start missing — the audit signal cannot be rate-bounded to one row per day';
@@ -415,6 +482,27 @@ begin
        or strpos(v_a, 'streak_day_key = case when p_delta ? ''accrued_to''') = 0 then
       raise exception 'hr_apply: the live body is missing a worker/streak control — it is not the 2026-08-25-workers.sql body this file expects to patch';
     end if;
+  end if;
+
+  -- §3c. The SAME discipline for the no-shortening floor. Its anchor is the TAIL
+  -- of the (4a-v) recovery validation block — the ceiling refusal and the three
+  -- `end if;`s that close it — and it must exist EXACTLY once. Skipped for an
+  -- already-patched body because the insert REWRITES its own anchor.
+  if strpos(v_a, 'SECURITY F1 - THE NO-SHORTENING FLOOR') > 0 then
+    raise notice 'hr_apply already carries the no-shortening floor — its anchor is not re-asserted';
+  else
+    if strpos(v_a, $anc$    if p_delta ? 'recovering_until' then$anc$) = 0 then
+      raise exception 'hr_apply: the (4a-v) recovery validation block is absent — apply 2026-09-06-recovering-until.sql first';
+    end if;
+    v_n := (length(v_a) - length(replace(v_a, $anc$            jsonb_build_object('why', 'too far ahead', 'until', p_delta->'recovering_until'));
+        end if;
+      end if;
+    end if;$anc$, '')))
+           / length($anc$            jsonb_build_object('why', 'too far ahead', 'until', p_delta->'recovering_until'));
+        end if;
+      end if;
+    end if;$anc$);
+    if v_n <> 1 then raise exception 'hr_apply: the (4a-v) ceiling tail is missing or ambiguous (%) — apply 2026-09-06-recovering-until.sql first', v_n; end if;
   end if;
 end $mig$;
 
@@ -906,6 +994,63 @@ begin
   end if;
 end $mig$;
 
+-- ── 3c. hr_apply — A RUNNING KNOCKOUT MAY NOT BE SHORTENED ─────────────────
+-- See "THE THIRD ARM" in the header. One anchored insert at the tail of the
+-- (4a-v) validation block, marker-guarded, exactly-once anchor asserted in §0.
+-- It adds NO query and NO lock: `v_st` is the row hr_apply already holds under
+-- `for update`, read before this block runs.
+do $mig$
+declare v_def text;
+begin
+  v_def := pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure);
+  if strpos(v_def, 'SECURITY F1 - THE NO-SHORTENING FLOOR') > 0 then
+    raise notice 'hr_apply already refuses to shorten a running knockout — skipping';
+  else
+    v_def := replace(v_def,
+      $anc$            jsonb_build_object('why', 'too far ahead', 'until', p_delta->'recovering_until'));
+        end if;
+      end if;
+    end if;$anc$,
+      $anc$            jsonb_build_object('why', 'too far ahead', 'until', p_delta->'recovering_until'));
+        end if;
+      end if;
+
+      -- SECURITY F1 - THE NO-SHORTENING FLOOR. The ceiling above answers "is
+      -- this line too far ahead"; nothing answered "may this call SHORTEN or
+      -- CANCEL a knockout that is still running", and the answer used to live
+      -- only in the engine (src/core/combat-sim.js:632/694 preserve-or-clear).
+      -- An invariant enforced solely in the Edge Function is an invariant a
+      -- forged or compromised caller does not have: one settle carrying
+      -- recovering_until = null while 60 minutes remained would void the column
+      -- that arms 1 and 2 of this very file are built on, and the Recovery Rule
+      -- with it.
+      --   REJECT when the STORED line is still in the future and the proposal
+      --   is NULL or EARLIER. Raise-forward stays legal (a later instant is a
+      --   NEW death, already bounded by the ceiling above) and so does equality
+      --   (the ordinary settle re-states the stored line). A line that has
+      --   ALREADY EXPIRED is freely clearable, which is the engine's honest
+      --   "this character is up" and needs no privilege.
+      --   THE SANCTIONED CURE DOES NOT COME THROUGH HERE: hr_rest takes the
+      --   same advisory key, charges real provisions and issues its OWN update
+      --   (recovering_until = null) at its step (f), so this floor needs no
+      --   exception and can be absolute.
+      --   v_st is the row this function already holds under "for update", and
+      --   now() is the server clock — no extra query, no client instant.
+      if v_st.recovering_until is not null
+         and v_st.recovering_until > now()
+         and (v_recover is null or v_recover < v_st.recovering_until) then
+        perform public.hr_reject('bad_recovering',
+          jsonb_build_object('why', 'would shorten an active knockout',
+                             'stored', v_st.recovering_until,
+                             'proposed', p_delta->'recovering_until'));
+      end if;
+    end if;$anc$);
+
+    execute v_def;
+    raise notice 'hr_apply: a RUNNING knockout can no longer be shortened or cancelled by a delta';
+  end if;
+end $mig$;
+
 -- ── 4. SELF-CHECK — the load-bearing properties, proven on apply ─────────────
 -- A migration that cannot prove its own claims is a claim.
 do $mig$
@@ -1297,5 +1442,227 @@ begin
   end if;
 
 
-  raise notice 'F1 self-check PASSED — both attended cadence bodies (i) FLOOR their credit window at player_state.recovering_until (bounty-free anchor, bounty accepted_at, combat-XP watermark) and (ii) CAP its END at the moment player_state says the character left combat, credit ZERO with a named reason (recovering / not_in_combat) when that leaves no window, return BEFORE every write so no watermark is advanced across an unpaid window, keep the kind_mismatch tell, keep every predecessor control and advisory lock, remain SECURITY DEFINER / search-path pinned / callable by no client role, and file at most one value-free audit row per character per UTC day per arm. hr_apply now stamps active_since on ANY pointer change (not only on the client restart flag), so the column the end-cap reads means what it says. EVALUATED: a window entirely after the switch prices 0 ms and both caps pay 0; a straddling window is shortened to exactly its pre-switch part; a NULL active_since fails closed; an in-combat window is untouched; a future active_since cannot lengthen it; and the active_since stamp predicate is correct on all five of its cases, including combat->idle, which only `is distinct from` can see.';
+  -- (q) THE NO-SHORTENING FLOOR IS IN hr_apply, AND IT IS SPELLED THE ONLY WAY
+  --     THAT IS SAFE. Text here; §4b EXECUTES it.
+  if strpos(v_a, 'SECURITY F1 - THE NO-SHORTENING FLOOR') = 0 then
+    raise exception 'F1 self-check (q): hr_apply does not refuse to shorten a running knockout — one settle with recovering_until=null would void the column arms 1 and 2 are built on';
+  end if;
+  if strpos(v_a, 'if v_st.recovering_until is not null') = 0
+     or strpos(v_a, 'and v_st.recovering_until > now()') = 0 then
+    raise exception 'F1 self-check (q): the floor does not read the STORED, LOCKED line against the SERVER clock';
+  end if;
+  -- NULL must be one of the refused proposals. A floor that compared only
+  -- "v_recover < stored" would answer NULL for the null case, fall through, and
+  -- let the single most valuable forgery — the outright CANCEL — straight past.
+  if strpos(v_a, 'and (v_recover is null or v_recover < v_st.recovering_until) then') = 0 then
+    raise exception 'F1 self-check (q): the floor does not refuse a NULL proposal while the line runs — an outright CANCEL would pass, which is the whole exploit';
+  end if;
+  if strpos(v_a, $q$'why', 'would shorten an active knockout'$q$) = 0 then
+    raise exception 'F1 self-check (q): the refusal is not NAMED — a bad_recovering with no why is unactionable in the degrade ladder';
+  end if;
+  -- REFUSED, never clamped: a clamp would let a compromised engine drive the
+  -- column to any legal value it liked and receive a 200.
+  if v_a ~ 'v_recover := greatest\(v_recover, v_st\.recovering_until\)' then
+    raise exception 'F1 self-check (q): the floor CLAMPS instead of refusing — every other control on this line refuses, and a clamp answers a forgery with 200';
+  end if;
+  -- The floor must sit INSIDE the recovery delta test and AFTER the ceiling, or
+  -- a delta that never mentions the line would be judged by it.
+  if strpos(v_a, 'SECURITY F1 - THE NO-SHORTENING FLOOR') < strpos(v_a, $q$if p_delta ? 'recovering_until' then$q$) then
+    raise exception 'F1 self-check (q): the floor is sited before the recovery delta test';
+  end if;
+  if strpos(v_a, 'SECURITY F1 - THE NO-SHORTENING FLOOR') < strpos(v_a, $q$'why', 'too far ahead'$q$) then
+    raise exception 'F1 self-check (q): the floor is sited before the ceiling — the two refusals must be ordered ceiling-then-floor so a garbage instant is refused as garbage';
+  end if;
+  -- …and BEFORE the write, which is the property that makes it a gate.
+  if strpos(v_a, 'SECURITY F1 - THE NO-SHORTENING FLOOR')
+     >= strpos(v_a, $q$recovering_until = case when p_delta ? 'recovering_until'$q$) then
+    raise exception 'F1 self-check (q): the floor runs AFTER the SET clause — it would be a comment on a write that already happened';
+  end if;
+  -- hr_rest, THE SANCTIONED CURE, is untouched and still clears the column. If
+  -- this ever fails, the floor has turned a knockout into a permanent one.
+  if strpos(pg_get_functiondef('public.hr_rest(int,uuid)'::regprocedure), 'recovering_until = null') = 0 then
+    raise exception 'F1 self-check (q): hr_rest no longer clears recovering_until — the ONLY sanctioned cure is gone and the floor makes a knockout permanent';
+  end if;
+
+  raise notice 'F1 self-check PASSED — both attended cadence bodies (i) FLOOR their credit window at player_state.recovering_until (bounty-free anchor, bounty accepted_at, combat-XP watermark) and (ii) CAP its END at the moment player_state says the character left combat, credit ZERO with a named reason (recovering / not_in_combat) when that leaves no window, return BEFORE every write so no watermark is advanced across an unpaid window, keep the kind_mismatch tell, keep every predecessor control and advisory lock, remain SECURITY DEFINER / search-path pinned / callable by no client role, and file at most one value-free audit row per character per UTC day per arm. hr_apply now stamps active_since on ANY pointer change (not only on the client restart flag), so the column the end-cap reads means what it says. EVALUATED: a window entirely after the switch prices 0 ms and both caps pay 0; a straddling window is shortened to exactly its pre-switch part; a NULL active_since fails closed; an in-combat window is untouched; a future active_since cannot lengthen it; and the active_since stamp predicate is correct on all five of its cases, including combat->idle, which only `is distinct from` can see. AND hr_apply now REFUSES a delta that would shorten or cancel a RUNNING knockout (null or earlier while the stored line is still in the future), while raise-forward and equality stay legal, an EXPIRED line stays freely clearable, and hr_rest - which writes player_state directly and never through hr_apply - remains the sanctioned, paid, journalled cure.';
+end $mig$;
+
+-- ── 4b. THE NO-SHORTENING FLOOR, EXECUTED ───────────────────────────────────
+-- §4(q) proves the floor is SPELLED correctly. Spelling is not behaviour: an
+-- anchored insert can land in a branch that never runs, `v_st` could have been
+-- shadowed, `hr_reject` could have been swallowed by the surrounding handler.
+-- So this block CALLS hr_apply on a real (throwaway) character and reads the
+-- answers, then CALLS hr_rest and proves the sanctioned cure still works after
+-- the floor ships — because a floor that also blocks the cure would turn every
+-- knockout into a permanent one, which is a worse bug than the hole it closes.
+--
+-- The harness is the 2026-08-15-activity-intent.sql §4 idiom: a probe identity
+-- in auth.users, a SUBTRANSACTION, and a deliberate raise that rolls the whole
+-- thing back, followed by LEAK ASSERTIONS. A migration that verified itself by
+-- writing a character into production would be its own worst finding.
+do $mig$
+declare
+  v_uid   uuid := gen_random_uuid();
+  v_slot  int  := 0;
+  v_r     jsonb;
+  v_ver   bigint;
+  v_until timestamptz;
+  v_got   timestamptz;
+  v_food  text;
+  v_kits  int;
+begin
+  -- MEASURED, not assumed: without a start kit hr_create_character refuses and
+  -- every probe below would "pass" by never running.
+  select count(*) into v_kits from public.hr_start_kit;
+  if v_kits <> 1 then
+    raise exception 'F1 §4b CANNOT RUN: hr_start_kit holds % rows — re-apply the catalogue', v_kits;
+  end if;
+  select it.item_id into v_food from public.hr_items it
+   where it.auto_eatable and coalesce(it.heals, 0) > 0
+   order by it.heals asc, it.item_id asc limit 1;
+  if v_food is null then
+    raise exception 'F1 §4b CANNOT RUN: no auto-eatable provision in hr_items — probe (d) could not tell "the floor blocks hr_rest" from "there was no food"';
+  end if;
+
+  begin  -- ── SUBTRANSACTION ──────────────────────────────────────────────
+    insert into auth.users (id) values (v_uid);
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);
+    if auth.uid() is distinct from v_uid then
+      raise exception 'F1 §4b HARNESS: auth.uid() did not pick up the probe identity';
+    end if;
+
+    v_r := public.hr_create_character(v_slot);
+    if v_r->>'created' <> 'true' then
+      raise exception 'F1 §4b HARNESS: could not create the probe character: %', v_r;
+    end if;
+
+    -- KNOCK IT OUT. Direct DML as the migration owner; the client holds no
+    -- UPDATE policy on this table (asserted by the recovery migration's (f)).
+    -- `idle` + a fresh accrued_to so hr_rest's collect_first arm cannot fire and
+    -- be mistaken for the floor refusing the cure.
+    v_until := now() + interval '30 minutes';
+    update public.player_state
+       set recovering_until = v_until, active_kind = 'idle', active_id = null,
+           accrued_to = now(), active_since = now()
+     where user_id = v_uid and slot = v_slot;
+    select version into v_ver from public.player_state where user_id = v_uid and slot = v_slot;
+
+    -- (a) AN EARLIER INSTANT IS REFUSED. This is the forgery: 30 minutes of
+    --     knockout rewritten to 5.
+    v_r := public.hr_apply(v_uid, v_slot, v_ver, gen_random_uuid(),
+             jsonb_build_object('recovering_until', now() + interval '5 minutes',
+                                'journal', jsonb_build_object('kind','admin','intent','f1_probe_shorten')));
+    if coalesce(v_r->>'ok','false') <> 'false' or v_r->>'error' <> 'bad_recovering'
+       or v_r->>'why' <> 'would shorten an active knockout' then
+      raise exception 'F1 §4b(a): hr_apply ACCEPTED an EARLIER recovering_until while the stored line was still running — the knockout is forgeable down to nothing. Answer: %', v_r;
+    end if;
+    select recovering_until into v_got from public.player_state where user_id = v_uid and slot = v_slot;
+    if v_got is distinct from v_until then
+      raise exception 'F1 §4b(a): the refusal did not ROLL BACK the write (% -> %)', v_until, v_got;
+    end if;
+
+    -- (a2) NULL — the outright CANCEL — is refused too, and by the same code.
+    --      This is the case a naive `proposed < stored` test answers NULL to and
+    --      lets straight through, so it is asserted separately.
+    v_r := public.hr_apply(v_uid, v_slot, v_ver, gen_random_uuid(),
+             jsonb_build_object('recovering_until', null::timestamptz,
+                                'journal', jsonb_build_object('kind','admin','intent','f1_probe_cancel')));
+    if coalesce(v_r->>'ok','false') <> 'false' or v_r->>'error' <> 'bad_recovering' then
+      raise exception 'F1 §4b(a2): hr_apply ACCEPTED a NULL recovering_until while the line was still running — one settle cancels the Recovery Rule outright. Answer: %', v_r;
+    end if;
+    select recovering_until into v_got from public.player_state where user_id = v_uid and slot = v_slot;
+    if v_got is distinct from v_until then
+      raise exception 'F1 §4b(a2): the CANCEL was refused but the column moved anyway (% -> %)', v_until, v_got;
+    end if;
+
+    -- (b1) EQUAL IS ACCEPTED. This is the ORDINARY settle: the engine re-states
+    --      the stored line every time a span ends still face-down, and a floor
+    --      that refused it would 409 every knocked-out accrual in the game.
+    v_r := public.hr_apply(v_uid, v_slot, v_ver, gen_random_uuid(),
+             jsonb_build_object('recovering_until', v_until,
+                                'journal', jsonb_build_object('kind','admin','intent','f1_probe_equal')));
+    if coalesce(v_r->>'ok','false') <> 'true' then
+      raise exception 'F1 §4b(b1): hr_apply REFUSED an unchanged recovering_until — every honest settle during a knockout would 409. Answer: %', v_r;
+    end if;
+    select version, recovering_until into v_ver, v_got from public.player_state where user_id = v_uid and slot = v_slot;
+    if v_got is distinct from v_until then
+      raise exception 'F1 §4b(b1): an accepted equal line changed the column (% -> %)', v_until, v_got;
+    end if;
+
+    -- (b2) LATER IS ACCEPTED — a NEW death inside the window RAISES the line.
+    --      Still bounded by the ceiling directly above it (70 minutes).
+    v_until := now() + interval '40 minutes';
+    v_r := public.hr_apply(v_uid, v_slot, v_ver, gen_random_uuid(),
+             jsonb_build_object('recovering_until', v_until,
+                                'journal', jsonb_build_object('kind','admin','intent','f1_probe_raise')));
+    if coalesce(v_r->>'ok','false') <> 'true' then
+      raise exception 'F1 §4b(b2): hr_apply REFUSED a LATER recovering_until — a second death during a knockout could not extend it and the floor would be a cure. Answer: %', v_r;
+    end if;
+    select version, recovering_until into v_ver, v_got from public.player_state where user_id = v_uid and slot = v_slot;
+    if v_got is null or v_got < now() + interval '39 minutes' then
+      raise exception 'F1 §4b(b2): the raise was accepted but the column did not move (%)', v_got;
+    end if;
+
+    -- (c) NULL WHILE EXPIRED IS ACCEPTED. The engine's honest "this character is
+    --     up", and the reason the floor is `stored > now()` and not `stored is
+    --     not null`. Without this arm a character who served their time could
+    --     never be marked recovered by a settle.
+    update public.player_state set recovering_until = now() - interval '1 minute'
+     where user_id = v_uid and slot = v_slot;
+    select version into v_ver from public.player_state where user_id = v_uid and slot = v_slot;
+    v_r := public.hr_apply(v_uid, v_slot, v_ver, gen_random_uuid(),
+             jsonb_build_object('recovering_until', null::timestamptz,
+                                'journal', jsonb_build_object('kind','admin','intent','f1_probe_clear_expired')));
+    if coalesce(v_r->>'ok','false') <> 'true' then
+      raise exception 'F1 §4b(c): hr_apply refused to CLEAR an EXPIRED line — a served knockout would never end and the floor would be a permanent punishment. Answer: %', v_r;
+    end if;
+    select version, recovering_until into v_ver, v_got from public.player_state where user_id = v_uid and slot = v_slot;
+    if v_got is not null then
+      raise exception 'F1 §4b(c): the clear was accepted but the column still reads %', v_got;
+    end if;
+
+    -- (d) hr_rest STILL CURES A RUNNING KNOCKOUT. The sanctioned path writes
+    --     player_state DIRECTLY (its own step (f) update), so it never meets the
+    --     floor — but "never meets it" is exactly the kind of claim that is true
+    --     until someone reroutes the cure through hr_apply, so it is EXECUTED.
+    v_until := now() + interval '30 minutes';
+    update public.player_state
+       set recovering_until = v_until, hp = greatest(1, max_hp - 1),
+           active_kind = 'idle', active_id = null, accrued_to = now()
+     where user_id = v_uid and slot = v_slot;
+    insert into public.player_inventory (user_id, slot, item_id, qty)
+      values (v_uid, v_slot, v_food, 500)
+      on conflict (user_id, slot, item_id) do update set qty = public.player_inventory.qty + 500;
+
+    v_r := public.hr_rest(v_slot, gen_random_uuid());
+    if coalesce(v_r->>'ok','false') <> 'true' then
+      raise exception 'F1 §4b(d): hr_rest FAILED after the floor shipped (%) — the only sanctioned cure is gone and every knockout is now permanent', v_r;
+    end if;
+    select recovering_until into v_got from public.player_state where user_id = v_uid and slot = v_slot;
+    if v_got is not null then
+      raise exception 'F1 §4b(d): hr_rest reported success but recovering_until still reads % — the cure no longer clears the line', v_got;
+    end if;
+
+    raise exception using errcode = 'HR34C', message = 'F1 §4b complete — rolling back';
+  exception when sqlstate 'HR34C' then
+    null;
+  end;
+
+  -- ROLLBACK PROOF. If the subtransaction had committed, this migration would
+  -- have written a character into production as a side effect of verifying
+  -- itself — and into the LEDGER, which is an append-only record of value.
+  if exists (select 1 from public.player_state where user_id = v_uid) then
+    raise exception 'F1 §4b LEAKED a player_state row';
+  end if;
+  if exists (select 1 from public.player_inventory where user_id = v_uid) then
+    raise exception 'F1 §4b LEAKED an inventory row';
+  end if;
+  if exists (select 1 from public.player_ledger where user_id = v_uid) then
+    raise exception 'F1 §4b LEAKED a ledger row';
+  end if;
+  if exists (select 1 from auth.users where id = v_uid) then
+    raise exception 'F1 §4b LEAKED the probe auth.users row';
+  end if;
+
+  raise notice 'F1 §4b PASSED (EXECUTED, not asserted): while player_state.recovering_until is in the FUTURE, hr_apply refuses an EARLIER instant and refuses NULL with bad_recovering / "would shorten an active knockout" and rolls the whole delta back; it ACCEPTS an equal line (the ordinary settle) and a LATER one (a new death); once the line has EXPIRED it accepts NULL and the character is up; and hr_rest — which writes player_state directly, never through hr_apply — still charges provisions and clears a RUNNING knockout, so the floor closes the forgery without making a knockout permanent.';
 end $mig$;

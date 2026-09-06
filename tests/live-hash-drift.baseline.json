@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-06",
- "replay_ms": 9549,
+ "replay_ms": 8508,
  "counts": {
   "tracked_names": 42,
   "entries": 42
@@ -144,7 +144,8 @@
     "2026-08-18-skill-row-upsert.sql",
     "2026-08-21-streak-state.sql",
     "2026-08-22-rested-record.sql",
-    "2026-08-25-workers.sql"
+    "2026-08-25-workers.sql",
+    "2026-09-06-recovering-until.sql"
    ],
    "live": {
     "md5": "e6c80087ed93882b2bf560eea3f4c619",
@@ -153,12 +154,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "04192fc407172ff097ed4cb051873f7e",
-    "norm_len": 73091,
+    "md5": "5c1fa288b357406fac1ee310cb229716",
+    "norm_len": 79017,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 28,489 code chars, zero differences. The whole 130-char delta is ONE two-line comment (\"rested-record (b437): the ABSOLUTE bank + its watermark…\") that 2026-08-22-rested-record.sql grew AFTER its patch was applied. Same finding the schema-drift.mjs header records for this function."
+   "why": "STAGED AHEAD OF LIVE 2026-09-06 (~08:5x UTC): replay includes 2026-09-06-recovering-until.sql (Security GO 2026-09-06 with conditions F2/F4/F5/F6 applied; F1 tracked), whose anchored inserts add the recovering_until + deaths delta keys, their validation/fan-out and the SET arm to hr_apply. Live still carries the pre-Recovery body (measured e6c80087, 2026-09-06). Expected to converge after `node tools/apply-migration.mjs 2026-09-06-recovering-until.sql`; re-measure with --live --write and rewrite this sentence with the codediff result."
   },
   {
    "sig": "hr_assert_grant_hygiene(p_strict boolean)",
@@ -777,7 +778,8 @@
    ],
    "touched_by": [
     "2026-08-23-trait-buy.sql",
-    "2026-08-29-auto-eat-tiers.sql"
+    "2026-08-29-auto-eat-tiers.sql",
+    "2026-09-06-recovering-until.sql"
    ],
    "live": {
     "md5": "f95e1dd00a7970424c54daf40504da06",
@@ -786,11 +788,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "f95e1dd00a7970424c54daf40504da06",
-    "norm_len": 6060,
+    "md5": "114a18f05ea2e423d85470a7442de49e",
+    "norm_len": 6350,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED AHEAD OF LIVE 2026-09-06: replay includes 2026-09-06-recovering-until.sql, which programmatically stamps `auto_eat_set_at = now(),` inside hr_set_auto_eat's own UPDATE (sole-writer invariant preserved). Live still carries the unstamped body. Converges on apply; re-measure with --live --write."
   },
   {
    "sig": "hr_set_style__ungated(p_family text, p_key text, p_slot integer, p_idem uuid)",
@@ -840,6 +843,7 @@
     "2026-08-27-bank-store.sql",
     "2026-08-28-client-state.sql",
     "2026-08-31-combat-xp-credit.sql",
+    "2026-09-06-recovering-until.sql",
     "2026-09-06-state-of-farm-projection.sql",
     "2026-09-08-hero-slot-buy.sql",
     "2026-09-10-dungeon-scrip.sql"
@@ -851,12 +855,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3ea0f016eb41a103560d32a92a8697c9",
-    "norm_len": 12789,
+    "md5": "3182af4ff1703d28314f3ee88eec669a",
+    "norm_len": 14662,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "MEASURED 2026-09-06 (~07:2x UTC) after applying 2026-09-06-state-of-farm-projection.sql to production via tools/apply-migration.mjs: live 10cf56a9 vs replay 3ea0f016 — `node tests/live-hash-drift.mjs --codediff hr_state_of` reports CODE-IDENTICAL (4824 code chars; the whole 748-char delta is comments/whitespace). The farm-projection file patches hr_state_of PROGRAMMATICALLY (regex splice on pg_get_functiondef), so the installed body carries the live function's comment layout while the repo replay carries the migration's; executable text is the same. Both new keys (plot_level, waterings) verified present live by the post-apply read."
+   "why": "STAGED AHEAD OF LIVE 2026-09-06: replay includes 2026-09-06-recovering-until.sql, which splices state.recovering_until / deaths_today / deaths_lifetime / auto_eat_touched into the projection (anchored on `'fight', v_st.fight,`, verified exactly-once on the live body by Security). Live = the farm-projection body (10cf56a9, measured 2026-09-06, itself CODE-IDENTICAL to the prior replay 3ea0f016). Converges on apply; re-measure with --live --write."
   },
   {
    "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",

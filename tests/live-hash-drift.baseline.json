@@ -16,7 +16,7 @@
   "the change was intended. Never edit a hash by hand to make a build green —",
   "a red hash is the check working."
  ],
- "generated": "2026-09-05",
+ "generated": "2026-09-06",
  "project": "nezapsylztqbbwuwembx",
  "postgres": {
   "production": "17.x",
@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-05",
- "replay_ms": 7923,
+ "replay_ms": 9231,
  "counts": {
   "tracked_names": 42,
   "entries": 42
@@ -840,6 +840,7 @@
     "2026-08-27-bank-store.sql",
     "2026-08-28-client-state.sql",
     "2026-08-31-combat-xp-credit.sql",
+    "2026-09-06-state-of-farm-projection.sql",
     "2026-09-08-hero-slot-buy.sql",
     "2026-09-10-dungeon-scrip.sql"
    ],
@@ -850,12 +851,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a6b5e60b6149c04e9f201b698a417b10",
-    "norm_len": 11762,
+    "md5": "3ea0f016eb41a103560d32a92a8697c9",
+    "norm_len": 12789,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "VERIFIED 2026-09-05 with  node tests/live-hash-drift.mjs --codediff hr_state_of  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 4,736 code chars, zero differences — the whole 748-char delta is comments/whitespace. Production runs the same executable text the repo rebuilds. Cause: 2026-09-10-dungeon-scrip.sql §2 patches hr_state_of via an exactly-once anchored splice (the marks anchor) to project dungeon_scrip; applied to the live body it preserved the live comment/whitespace formatting, while the repo chain replays the same splice onto the repo's comment formatting — so the projected columns and every branch are identical and only the surrounding comments differ. GATE(b) in that migration proves the pre-existing marks projection survived the splice. Cosmetic; no production apply is implied or needed."
+   "why": "STAGED, NOT APPLIED — the divergence is EXPECTED and is the whole point of this entry. supabase/migrations/2026-09-06-state-of-farm-projection.sql (Q-2 + Q-5) is in the repo chain and has NOT been applied to production, so the replay hash moved (a6b5e60b6149c04e9f201b698a417b10 -> 3ea0f016eb41a103560d32a92a8697c9, +1,027 normalised chars) while the live hash is the 2026-09-05 measurement, unchanged. The whole repo-side delta is TWO ADDED PROJECTION KEYS plus their comments: 'plot_level', v_st.plot_level (spliced after the streak_days anchor) and 'waterings', coalesce(to_jsonb(waterings), '[]'::jsonb) (spliced after the per-plot watered_at). Nothing is removed and no branch changes — the migration's own §2 GATE(b) proves streak_days, planted_at, watered_at and marks all survive both splices. The PRE-EXISTING part of the divergence is unchanged and still holds: verified 2026-09-05 with  node tests/live-hash-drift.mjs --codediff hr_state_of  that live and the then-replay were CODE-IDENTICAL (4,736 code chars, zero differences), the 748-char delta being comments/whitespace left by 2026-09-10-dungeon-scrip.sql §2 splicing onto production's comment formatting. ACTION AT APPLY TIME: after `node tools/apply-migration.mjs supabase/migrations/2026-09-06-state-of-farm-projection.sql` succeeds, re-seed with `node tests/live-hash-drift.mjs --live --write` and rewrite this sentence with the measured result."
   },
   {
    "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",

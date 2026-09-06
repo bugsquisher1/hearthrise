@@ -269,8 +269,15 @@ export async function armHomingGuard() {
     'workers',     // accrue.js reconcileWorkers
     'enchant',     // accrue.js (state.enchant)
     'companions',  // accrue.js reconcileCompanions (b447)
-    'farmPlots',   // accrue.js reconcileFarm (b448)
-    'plotLevels',  // farm tier (reconcileFarm / getPlotLevel fail-safe)
+    /* ⚠ THE TWO ENTRIES THAT PROVED THIS ALLOWLIST NEEDED TEETH. Both are
+       accrue.js reconcileFarm (b448) — and `plotLevels` sat here green for
+       weeks while hr_state_of projected NO plot_level at all, so the field was
+       homed by NOTHING and every armed reload reset a paid Plot Lv 3 to Lv 1.
+       A hand-typed name is a claim; these two are now EXECUTED at the bottom of
+       this file against a projected envelope, and the projection they depend on
+       is read out of the migration. Do the same for the next one you add. */
+    'farmPlots',   // VERIFIED below: reconcileFarm rebuilds the plots + waterings
+    'plotLevels',  // VERIFIED below: reconcileFarm mirrors state.plot_level (Q-2)
     /* b466: traits — accrue.js reconcileTraits UNIONS the envelope's `traits`
        array (hr_state_of projects the player_progress `trait:<id>` rows
        hr_trait_buy writes) into G.traits on every load. A paid entitlement with
@@ -434,6 +441,103 @@ export async function armHomingGuard() {
     }
   } catch (e) {
     fail('the load-path call-wiring check threw: ' + (e && e.message));
+  }
+
+  /* ── THE MECHANISM CLAIMS ARE NOW *EXECUTED*, NOT HAND-TYPED (Q-2/Q-5) ─────
+     SERVER_MECHANISM_FIELDS is an allowlist of NAMES, and a name on it is a
+     CLAIM that a reconcile writes the field on the load path. Until now nothing
+     checked the claim, and the farm entries proved why: `plotLevels` had sat on
+     the list since b448 while accrue.js's own header said, in prose, that
+     hr_state_of "has no plot_level key … an armed farm reads as Lv 1". The
+     guard was green for weeks over a field that was homed by NOTHING — the
+     exact strand this file exists to catch, hidden behind its own allowlist.
+
+     So the two farm fields are DRIVEN: build an envelope shaped like the one
+     hr_state_of returns, run the REAL reconcileFarm through it with the arm
+     stubbed on, and require the field to actually appear in a fresh G. And to
+     stop the FIXTURE from becoming the next unverified claim, every key it uses
+     is first proven present in the migration that projects it — a projection
+     renamed server-side fails here even though the client code never changed.
+
+     Deliberately narrow: two fields, in-process, no database, no browser (this
+     runs as a suite preflight). The full round trip — real RPCs writing the
+     rows, the real chain projecting them, growthHours agreeing with
+     hr_farm_growth_hours — is tests/state-of-farm-projection.mjs. */
+  try {
+    const PROJ = '2026-09-06-state-of-farm-projection.sql';
+    const sql = await readFile(new URL('supabase/migrations/' + PROJ, ROOT), 'utf8');
+    /* The needles are the SEC-1 SPLICE lines specifically — not the Sec 2 gate's
+       own position() checks, whose SQL-escaped text is a superstring of the
+       splice's and would keep matching after the splice had been renamed away. */
+    for (const [key, needle] of [['plot_level', "      ''plot_level'', v_st.plot_level,');"],
+      ['waterings', "                                          'waterings', coalesce(to_jsonb(waterings), '[]'::jsonb))$new$);"]]) {
+      if (!sql.includes(needle)) {
+        fail(`${PROJ} no longer splices the '${key}' projection into hr_state_of, so the fixture below is `
+           + `asserting against a key the server does not send. Q-2 (farm tier resets to Lv 1) / Q-5 `
+           + `(multi-watering collapses to one) are back. Do not "fix" this by editing the fixture.`);
+      }
+    }
+
+    const A = await import(mod('src/net/accrue.js'));
+    if (typeof A.reconcileFarm !== 'function') {
+      fail('accrue.js no longer exports reconcileFarm, so the farmPlots/plotLevels mechanism claims in '
+         + 'SERVER_MECHANISM_FIELDS are unverifiable — and unverified is how plotLevels stayed on that list '
+         + 'for weeks while nothing wrote it.');
+    } else {
+      const now = Date.now();
+      const env = {
+        ok: true,
+        state: { plot_level: 3 },
+        farm: [{
+          i: 0,
+          crop: 'turnip',
+          planted_at: new Date(now - 3600e3).toISOString(),
+          watered_at: new Date(now - 600e3).toISOString(),
+          waterings: [new Date(now - 1800e3).toISOString(), new Date(now - 600e3).toISOString()],
+        }],
+      };
+      // reconcileFarm is arm-gated on window.HearthriseCapstone.isBlobRetired()
+      // and reads window.HearthriseFarm.isReady — both at CALL time.
+      const had = Object.prototype.hasOwnProperty.call(globalThis, 'window');
+      const prev = globalThis.window;
+      globalThis.window = { HearthriseCapstone: { isBlobRetired: () => true } };
+      let G = {};
+      try { A.reconcileFarm(G, env, { authoritative: true }); }
+      finally { if (had) globalThis.window = prev; else delete globalThis.window; }
+
+      if (!Array.isArray(G.farmPlots) || !G.farmPlots[0] || G.farmPlots[0].cropId !== 'turnip') {
+        fail("SERVER_MECHANISM_FIELDS claims 'farmPlots' is homed by reconcileFarm, but driving the real "
+           + 'reconcile with a projected envelope did not rebuild the plot. Under BLOB_RETIRED every standing '
+           + 'crop vanishes on reload.');
+      }
+      if (!Array.isArray(G.farmPlots?.[0]?.waterings) || G.farmPlots[0].waterings.length !== 2) {
+        fail("reconcileFarm did not mirror the projected `waterings` ARRAY (got "
+           + `${JSON.stringify(G.farmPlots?.[0]?.waterings)}). That is Q-5: the client rebuilds a one-element `
+           + "history, its growthHours under-counts, and a crop the server calls ready is stranded behind a "
+           + 'Water button.');
+      }
+      if (G.plotLevels !== 3) {
+        fail("SERVER_MECHANISM_FIELDS claims 'plotLevels' is homed by reconcileFarm, but driving the real "
+           + `reconcile with an envelope carrying state.plot_level=3 left G.plotLevels = ${G.plotLevels}. `
+           + 'That is Q-2: a paid Plot Lv 3 reads back as Lv 1 on every reload, unlocked seeds vanish, and the '
+           + 'Upgrade button quotes a tier the server is not charging.');
+      }
+      // …and the fail-safe direction: an envelope WITHOUT the key must not
+      // invent or reset the tier (save invariant 2 — act only on certainty).
+      const G2 = { plotLevels: 4 };
+      const had2 = Object.prototype.hasOwnProperty.call(globalThis, 'window');
+      const prev2 = globalThis.window;
+      globalThis.window = { HearthriseCapstone: { isBlobRetired: () => true } };
+      try { A.reconcileFarm(G2, { ok: true, state: {}, farm: env.farm }, { authoritative: true }); }
+      finally { if (had2) globalThis.window = prev2; else delete globalThis.window; }
+      if (G2.plotLevels !== 4) {
+        fail('an envelope without state.plot_level must leave G.plotLevels UNTOUCHED (a server predating the '
+           + `projection must not reset a known tier); got ${G2.plotLevels}.`);
+      }
+    }
+  } catch (e) {
+    fail('the EXECUTED farm-mechanism check threw, so the farmPlots/plotLevels claims went unverified: '
+       + (e && e.message));
   }
 
   // Bank purchase counters (goldBuys/gemBuys/grandfather) ride inside G.bank —

@@ -273,6 +273,26 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/dungeon-scrip-reload.mjs --selftest
 
+      # THE TWO SERVER-OWNED FARM FACTS THAT WERE LOST ON RELOAD (Q-2 + Q-5,
+      # supabase/migrations/2026-09-06-state-of-farm-projection.sql). hr_state_of
+      # projected NEITHER player_state.plot_level nor player_farm.waterings, so a
+      # paid Plot Lv 3 read back as Lv 1 (unlocked seeds gone, the Upgrade button
+      # quoting the wrong tier's price) and a crop watered 4-8x came back with a
+      # ONE-element history, its client isReady disagreeing with the server's and
+      # stranding a ready crop behind a Water button. The guard drives the WHOLE
+      # path on a replayed chain: the real hr_farm_upgrade_plot / hr_farm_water
+      # write the rows, hr_state_of projects them, the real accrue.js
+      # reconcileFarm rebuilds a FRESH G, and src/core/farm.js growthHours() on
+      # the rebuilt plot must EQUAL hr_farm_growth_hours() on the server row --
+      # the agreement check, which a projection that is array-SHAPED but not
+      # array-VALUED fails while passing every key-existence assertion.
+      # 5 defects x 2 arms; the gate-blind arm short-circuits the migration's own
+      # SEC-2 commit gate so the tick is the guard's and not the migration's.
+      # No credentials; production untouched.
+      - name: State-of farm projection - plot tier and watering history survive a reload
+        if: ${{ !cancelled() }}
+        run: node tests/state-of-farm-projection.mjs --selftest
+
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
       # it "says nothing about whether any row survives a restore". This is that

@@ -961,7 +961,10 @@ let deathsLifetimeCount = 0;
 /* THE PENDING FALL. `at` is when the client saw itself go down (local clock,
    used only to ask "has a priced window reached it yet"); `answered` flips when
    one has; `serverDied` is the server's own statement for that window. */
-let fall = { at: 0, answered: false, serverDied: false, answeredAt: 0 };
+let fall = { at: 0, answered: false, serverDied: false, answeredAt: 0, asks: 0, reaskAt: 0, lastAskAt: 0 };
+/* The re-ask timer handle. Module-scope so `clearFall` can cancel a timer the
+   fall started — the same rule the death sheet countdown follows. */
+let fallTimer = null;
 
 /** How long a pending fall may go unanswered before the client stops waiting.
  *  Twice the server floor: one whole legal settle may be missed (a throttled
@@ -983,12 +986,130 @@ export function deathsLifetime() { return deathsLifetimeCount; }
 /** The client saw itself fall. Records the question; sends nothing. */
 export function noteFall(atMs) {
   const t = Number(atMs);
-  fall = { at: (Number.isFinite(t) && t > 0) ? t : Date.now(), answered: false, serverDied: false, answeredAt: 0 };
+  cancelFallReask();
+  fall = { at: (Number.isFinite(t) && t > 0) ? t : Date.now(), answered: false, serverDied: false,
+    answeredAt: 0, asks: 0, reaskAt: 0, lastAskAt: 0 };
+  /* THE QUESTION IS RE-ASKED BY THE FALL, NEVER LEFT TO THE CADENCE. See
+     scheduleFallReask for the measurement that forced this. */
+  scheduleFallReask(nowFall());
   return fall.at;
 }
 
 /** Forget the pending fall (the player stopped the run, or it resolved). */
-export function clearFall() { fall = { at: 0, answered: false, serverDied: false, answeredAt: 0 }; }
+export function clearFall() {
+  cancelFallReask();
+  fall = { at: 0, answered: false, serverDied: false, answeredAt: 0, asks: 0, reaskAt: 0, lastAskAt: 0 };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE RE-ASK, AND WHY THE FALL MUST OWN IT (P1, measured live on b511)
+   ══════════════════════════════════════════════════════════════════════════
+   MEASURED: QA account, 16:25 UTC 2026-09-06. The client fell 12 s into a
+   `combat/dark_wizard` run. The forced settle that fired AT the fall was inside
+   the 60 s server floor and came back `{ok:true, accrued:false,
+   reason:'below_min_span'}` — no envelope, so `accruedToAt` never reached
+   `fall.at` and `noteFallAnswer` had nothing to read. Ninety-four seconds later
+   the state was byte-identical: phase `pending`, `answered:false`, the sheet
+   still reading "Asking the hearth how long you are down…", the swing gate
+   still shut, the bar still "Fighting Dark Wizard". The run was frozen behind a
+   sheet waiting on an answer nothing had asked for a second time.
+
+   THE ROOT CAUSE IS AN ABSENCE OF OWNERSHIP. `noteFall` recorded the question
+   and then handed the ASKING to the generic settle cadence — a loop that
+   legitimately declines to run for reasons that have nothing to do with a fall:
+   the tab is hidden, the loop was never started on this boot, the pointer read
+   idle for a tick, or a `below_min_span` refusal re-stamped `lastSettleAt` and
+   pushed the next interval out past the ceiling. Every one of those is correct
+   for a settle and fatal for a fall, because a fall is the one state a player
+   cannot leave without an answer. An `accrued:false` reply is NOT an answer,
+   and treating the absence of a re-request as "we already asked" is the freeze.
+
+   SO THE FALL SCHEDULES ITS OWN RE-ASK, at the earliest LEGAL instant
+   (`fall.at + ACCRUE_MIN_SPAN_MS + FALL_REASK_MARGIN_MS` — the floor is
+   Security's and this file may not lower it), and again one floor later if that
+   answer still does not cover the fall. It stops on the first covering answer
+   and at `FALL_CONFIRM_TIMEOUT_MS`, so a silent server costs at most two extra
+   invocations against a 30/min budget — never a loop.
+
+   IT INVENTS NOTHING. The re-ask puts the SAME request on the wire the cadence
+   would have put there; every number still arrives on an envelope. */
+export const FALL_REASK_MARGIN_MS = 2000;
+
+function nowFall() { try { return env().now(); } catch (e) { return Date.now(); } }
+
+function cancelFallReask() {
+  if (fallTimer == null) return;
+  try { env().clearTimer(fallTimer); } catch (e) {}
+  fallTimer = null;
+}
+
+/** When may the next re-ask legally go out? PURE, and exported, so the suite
+ *  asserts the arithmetic rather than the behaviour of a timer. */
+export function nextFallReaskAt(fallAt, lastAskAt, now) {
+  const f = Number(fallAt) || 0;
+  const legalAfterFall = f + ACCRUE_MIN_SPAN_MS + FALL_REASK_MARGIN_MS;
+  const legalAfterAsk = (Number(lastAskAt) || 0) + ACCRUE_MIN_SPAN_MS + FALL_REASK_MARGIN_MS;
+  return Math.max(legalAfterFall, legalAfterAsk, (Number(now) || 0) + 1);
+}
+
+function scheduleFallReask(now) {
+  cancelFallReask();
+  if (!fall.at || fall.answered) return 0;
+  const at = nextFallReaskAt(fall.at, fall.lastAskAt, now);
+  /* THE CEILING. Past it `fallState` already answers `unconfirmed` — the run
+     resumes and the sheet says the hearth never confirmed the fall — so asking
+     again would be asking on nobody's behalf. */
+  if (at - fall.at >= FALL_CONFIRM_TIMEOUT_MS) {
+    /* One last wake-up AT the ceiling, so leaving `pending` is an EVENT rather
+       than something a poller happens to notice: the sheet re-renders and the
+       swing gate opens even on a surface that is not polling. */
+    fall.reaskAt = 0;
+    const wait = Math.max(1, (fall.at + FALL_CONFIRM_TIMEOUT_MS) - now);
+    try { fallTimer = env().setTimer(fallCeilingTick, wait); } catch (err) { fallTimer = null; }
+    return 0;
+  }
+  fall.reaskAt = at;
+  try { fallTimer = env().setTimer(fallReaskTick, Math.max(1, at - now)); } catch (e) { fallTimer = null; }
+  return at;
+}
+
+/** DIAGNOSTIC / TEST SEAM: when the next re-ask is due (0 = none pending). */
+export function fallReaskAt() { return fall.reaskAt || 0; }
+export function fallAsks() { return fall.asks || 0; }
+
+function fallReaskTick() {
+  fallTimer = null;
+  if (!fall.at || fall.answered) return null;
+  const e = env();
+  const now = e.now();
+  fall.asks++;
+  fall.lastAskAt = now;
+  fall.reaskAt = 0;
+  /* Through the SAME event trigger the fall used the first time, so the cadence
+     loop and the re-ask cannot hold two ideas of when a settle is due. */
+  try { noteSettleEvent('fall-reask'); } catch (err) {}
+  try {
+    const r = e.request({ reason: 'fall-reask' });
+    if (r && typeof r.then === 'function') {
+      r.then(() => scheduleFallReask(e.now()), () => scheduleFallReask(e.now()));
+    } else scheduleFallReask(e.now());
+  } catch (err) { scheduleFallReask(e.now()); }
+  return fall.lastAskAt;
+}
+
+function fallCeilingTick() {
+  fallTimer = null;
+  if (!fall.at || fall.answered) return null;
+  /* NOTHING IS DECIDED HERE. `fallState` reads the ceiling off the clock and
+     answers `unconfirmed` by itself; this only makes the surfaces look. */
+  try {
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
+        && typeof CustomEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('hearthrise:fall', { detail: fallState() }));
+    }
+  } catch (e) {}
+  return null;
+}
 
 /**
  * WHERE THE CHARACTER STANDS, from server-stated facts only. PURE given the
@@ -1048,7 +1169,13 @@ function noteFallAnswer(res) {
      inferred from hp — a 40% hp reading is also what a heal looks like. */
   const died = recoveringUntil > 0
     || !!(away && (away.died === true || Number(away.deaths) > 0));
-  fall = { at: fall.at, answered: true, serverDied: died, answeredAt: Date.now() };
+  fall = { at: fall.at, answered: true, serverDied: died, answeredAt: Date.now(),
+    asks: fall.asks, reaskAt: 0, lastAskAt: fall.lastAskAt };
+  /* ANSWERED ⇒ STOP ASKING. Both outcomes end the wait: a death puts the
+     server's recovery line on screen, and NO death in a priced window that
+     COVERS the fall resolves to `unconfirmed`, which stands the player up on
+     the server's own hp and un-gates the tick. */
+  cancelFallReask();
 }
 let baselineCompleteCount = 0;      // how many complete envelopes observed this session
 
@@ -3667,7 +3794,13 @@ export function decideSettle(st, now) {
   /* Not signed in / not wired yet. Keep ticking: sign-in happens mid-session
      and a loop that gave up here would never notice. */
   if (!st.configured) return { settle: false, reason: 'unconfigured', waitMs: wait };
-  if (!st.visible) return { settle: false, reason: 'hidden', waitMs: wait };
+  /* ⚠ A PENDING FALL OUTRANKS THE VISIBILITY RULE. `hidden` exists to stop a
+     background tab burning invocations on a run nobody is watching; a player
+     face-down behind a sheet is not that case — they are BLOCKED until the
+     server prices the window, and a backgrounded tab that declines to ask is a
+     run that never resumes. Every other reason to decline still applies, and
+     the server floor still refuses a short span. */
+  if (!st.visible && !st.fallPending) return { settle: false, reason: 'hidden', waitMs: wait };
   const kind = st.kind || SETTLE_KINDS_IDLE;
   if (kind === SETTLE_KINDS_IDLE) return { settle: false, reason: 'idle', waitMs: wait };
 
@@ -3717,6 +3850,7 @@ export function settleTick() {
     kind: (p && p.kind) || SETTLE_KINDS_IDLE,
     lastSettleAt: settleState.lastSettleAt,
     eventAt: settleState.eventAt,
+    fallPending: !!(fall.at && !fall.answered),
   }, now);
   settleState.lastDecision = { ...d, at: now };
   if (d.settle) {
@@ -4154,6 +4288,7 @@ if (typeof window !== 'undefined') {
        envelope's own scalars, functions for the same reason the recovery line
        is one — a caller must not be able to capture a stale number. */
     noteFall, clearFall, fallState, isKnockedOut, FALL_CONFIRM_TIMEOUT_MS,
+    FALL_REASK_MARGIN_MS, nextFallReaskAt, fallReaskAt, fallAsks,
     accruedToMs, deathsToday, deathsLifetime,
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,

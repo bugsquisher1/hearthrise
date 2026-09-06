@@ -176,3 +176,16 @@ Before touching saves, read [`memory: cloud-save-program`] and confirm the b305 
 - Trust but verify: when a fix lands, run the smoke test against the live deploy and report green/red.
 - When something breaks for the second time, that's a sign there's no test guarding it. Add the test before fixing again.
 - If the bash mount looks stale (file size disagrees with what `Read` sees), trust `Read`/`Edit`/`Write` — that's the live filesystem. Bash mount is sometimes cached.
+
+---
+
+## Fix velocity rules (locked 2026-09-06 — Tyler: "change whatever you're doing for it to take this long to push out a bug fix")
+
+Measured on 2026-09-06: four player-visible fixes were each READY 55–70 min after dispatch and then sat 1–2.5 h behind a release chain built for big risky drops. These rules cut that chain for bug fixes; the security/CI/visual gates keep their substance, not their serialization.
+
+1. **THE FAST LANE.** A player-visible bug fix ships ALONE, within 60 minutes of its branch landing: merge → in-page suite ONCE → bump → push. `run-ci-local` runs IN PARALLEL with the GitHub run after the push, never as a 27-minute prelude to it; if either is red, fix forward immediately. The visual gate runs only when the diff touches a rendered surface, and only on the screens the diff touches (+ combat/inventory when CSS moved). Never bundle a fix with other work; the slowest branch must never gate the fastest.
+2. **ONE SUITE PER INTEGRATION SET.** When several branches are ready together, merge them all, run the suite once, bisect only if red. Four suites for four merges is 45 minutes of nothing.
+3. **FIX / HARDEN SPLIT.** An agent brief for a bug says: root cause + the fix + ONE regression test that fails without it — nothing else, back in ≤30 minutes of agent time. Standing guards, mutation proofs, §4 self-checks and census re-pins are a SECOND, parallel branch that never blocks the fix from shipping.
+4. **BOTH-PATH TESTS.** Anything touching combat, death, activity or accrual ships with an ATTENDED test and an AWAY test. b509 proved the class: the away path was tested nine ways and the attended path had a free full heal.
+5. **DEAD-FEATURE VITALS.** Refusals are journalled server-side (one row per user/verb/reason/minute), and a read-only vitals query (plants, claims, upgrades, kills, market trades per day) is run at the start of every session; a feature at zero for two days is a P1 by definition. Farming sat at zero from 2026-08-27 to 2026-09-06 with nobody able to see it.
+6. **PLAYED BEFORE GREEN, SAID PLAINLY.** A release is not called green until it has been played on the live server. If the play-gate could only run after the push, the report says "pushed, unplayed" — never "shipped".

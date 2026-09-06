@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-06",
- "replay_ms": 9877,
+ "replay_ms": 11614,
  "counts": {
   "tracked_names": 43,
   "entries": 43
@@ -525,17 +525,18 @@
     "pin"
    ],
    "touched_by": [
-    "2026-09-03-intent-mismatch-class.sql"
+    "2026-09-03-intent-mismatch-class.sql",
+    "2026-09-06-plot-tier-reachable.sql"
    ],
    "live": {
-    "md5": "d172d0c18a9f4f60bcb37e875fe9ac8c",
-    "norm_len": 2886,
+    "md5": "bfb53ac1dd77bc27d6885274e3c21f7e",
+    "norm_len": 6057,
     "measured": "2026-09-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "d172d0c18a9f4f60bcb37e875fe9ac8c",
-    "norm_len": 2886,
+    "md5": "bfb53ac1dd77bc27d6885274e3c21f7e",
+    "norm_len": 6057,
     "source": "computed-from-replay"
    },
    "agree": true

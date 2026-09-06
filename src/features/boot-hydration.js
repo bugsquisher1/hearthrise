@@ -66,8 +66,8 @@
 // ============================================================================
 
 import { bootHydrationState, isCharacterHydrated, onHydrationChange,
-         beginRecordLoad } from '../net/record.js?v=508';
-import { isBlobRetired } from '../net/capstone.js?v=508';
+         beginRecordLoad } from '../net/record.js?v=509';
+import { isBlobRetired } from '../net/capstone.js?v=509';
 
 export const VEIL_ID = 'hr-boot-hydration-veil';
 

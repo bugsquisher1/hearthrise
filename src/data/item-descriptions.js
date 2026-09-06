@@ -3,9 +3,9 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=508';
-import { SLOT_DESC } from './slot-ladders.js?v=508';
-import { LIB2_DESC } from './library2-items.js?v=508';
+import { WAVE3_DESC } from './wave3-uniques.js?v=509';
+import { SLOT_DESC } from './slot-ladders.js?v=509';
+import { LIB2_DESC } from './library2-items.js?v=509';
 
 export const ITEM_DESC = {
   ...WAVE3_DESC, // b247: the 14 Wave-3 unique item flavour lines

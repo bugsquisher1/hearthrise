@@ -91,7 +91,7 @@
     ],
     "stats": {
       "els": 572,
-      "chars": 3718
+      "chars": 3715
     },
     "viewport": "desktop"
   },
@@ -199,7 +199,7 @@
     ],
     "stats": {
       "els": 440,
-      "chars": 1364
+      "chars": 1412
     },
     "viewport": "desktop"
   },
@@ -253,7 +253,7 @@
     ],
     "stats": {
       "els": 367,
-      "chars": 1101
+      "chars": 1102
     },
     "viewport": "desktop"
   },
@@ -505,7 +505,7 @@
     ],
     "stats": {
       "els": 311,
-      "chars": 3718
+      "chars": 3715
     },
     "viewport": "landscape"
   },
@@ -871,7 +871,7 @@
     ],
     "stats": {
       "els": 390,
-      "chars": 1364
+      "chars": 1412
     },
     "viewport": "landscape"
   },
@@ -1051,7 +1051,7 @@
     ],
     "stats": {
       "els": 317,
-      "chars": 1094
+      "chars": 1087
     },
     "viewport": "landscape"
   }

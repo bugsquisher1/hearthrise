@@ -54,11 +54,11 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=508';
-import { MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=508';
-import { TOTAL_CAP } from './perks.js?v=508';
-import { COMBAT_STYLES } from './styles.js?v=508';
-import { ITEMS } from '../data/items.js?v=508';
+import { COMBAT_BALANCE } from './combat.js?v=509';
+import { MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=509';
+import { TOTAL_CAP } from './perks.js?v=509';
+import { COMBAT_STYLES } from './styles.js?v=509';
+import { ITEMS } from '../data/items.js?v=509';
 
 /* The single largest strength bonus any item grants, across the three damage
    families (melee strB, magicStrB, rangeStrB). Derived from the catalogue at

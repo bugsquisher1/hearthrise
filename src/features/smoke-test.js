@@ -1941,7 +1941,7 @@ const TESTS = [
     assert(adopted.indexOf('ranged/longrange') >= 0,
       'a locally-chosen family the server has never been told about must be back-filled; got '
       + JSON.stringify(adopted));
-    const fresh = { combatStyle: { sword: 'accurate', hammer: 'smash', ranged: 'rapid', magic: 'cast' } };
+    const fresh = { combatStyle: { sword: 'controlled', hammer: 'smash', ranged: 'rapid', magic: 'cast' } };
     const r2 = A.reconcileCombatStyle(fresh, { state: { combat_style: {} } });
     assert(r2 && r2.adopt.length === 0,
       'a fresh account whose four families are all DEFAULTS tried to back-fill '
@@ -1961,7 +1961,7 @@ const TESTS = [
     //    retries on a ladder, so an envelope that lands in that window carries the
     //    server's OLD map. Server-wins would roll the fresh pick straight back to
     //    the family default. The pending marker must HOLD it.
-    const gm = { combatStyle: { sword: 'accurate', hammer: 'smash', ranged: 'rapid', magic: 'cast' } };
+    const gm = { combatStyle: { sword: 'controlled', hammer: 'smash', ranged: 'rapid', magic: 'cast' } };
     gm.combatStyle.magic = 'focus';           // player taps Focus on a magic weapon
     gm._pendingStyle = { magic: 'focus' };     // applyCombatStyle records this
     const rStale = A.reconcileCombatStyle(gm, { state: { combat_style: { magic: 'cast' } } });
@@ -1973,7 +1973,7 @@ const TESTS = [
     assert(rStale.adopt.some((p) => p[0] === 'magic' && p[1] === 'focus'),
       'a held pick must be re-queued in adopt so the intent keeps being resent until the server agrees');
     // The pick NEVER lands under the wrong family — a magic write must not touch sword.
-    assert(gm.combatStyle.sword === 'accurate',
+    assert(gm.combatStyle.sword === 'controlled',
       'selecting a magic style disturbed the sword family — the picker wrote the wrong weapon key');
 
     // Server catches up: the marker clears and the pick stays.
@@ -1989,18 +1989,18 @@ const TESTS = [
 
     // 5. EACH FAMILY stays in-family through a held stale echo. A pick under one
     //    weapon family must never bleed into another (part (a)/(c) of the report).
-    [['sword', 'defensive', 'accurate'], ['hammer', 'crush', 'smash'],
+    [['sword', 'defensive', 'controlled'], ['hammer', 'crush', 'smash'],
      ['ranged', 'longrange', 'rapid'], ['magic', 'focus', 'cast']].forEach(([fam, pick, def]) => {
-      const gf = { combatStyle: { sword: 'accurate', hammer: 'smash', ranged: 'rapid', magic: 'cast' } };
+      const gf = { combatStyle: { sword: 'controlled', hammer: 'smash', ranged: 'rapid', magic: 'cast' } };
       gf.combatStyle[fam] = pick;
       gf._pendingStyle = { [fam]: pick };
       // stale echo for THIS family, plus untouched values for the others
-      const stale = { sword: 'accurate', hammer: 'smash', ranged: 'rapid', magic: 'cast' };
+      const stale = { sword: 'controlled', hammer: 'smash', ranged: 'rapid', magic: 'cast' };
       A.reconcileCombatStyle(gf, { state: { combat_style: stale } });
       assert(gf.combatStyle[fam] === pick,
         fam + ': a stale echo reverted the pick to ' + gf.combatStyle[fam] + ' (default ' + def + ')');
       ['sword', 'hammer', 'ranged', 'magic'].filter((o) => o !== fam).forEach((other) => {
-        assert(gf.combatStyle[other] === { sword: 'accurate', hammer: 'smash', ranged: 'rapid', magic: 'cast' }[other],
+        assert(gf.combatStyle[other] === { sword: 'controlled', hammer: 'smash', ranged: 'rapid', magic: 'cast' }[other],
           fam + ' pick leaked into the ' + other + ' family (now ' + gf.combatStyle[other] + ')');
       });
     });
@@ -2013,6 +2013,104 @@ const TESTS = [
        HearthriseGoalClaim.setStyle is proven STATICALLY by tests/combat-style.mjs
        section E, and the routing it decides is proven BEHAVIOURALLY against the
        real engine in that file's section B. */
+  }),
+
+  () => tryRun('the UNCHOSEN sword style trains all three melee skills (the onboarding trap: Attack 13 / Strength 1 / Defence 1 after ~200 kills)', () => {
+    /* THE BUG, FOUND BY PLAYING (live QA account, 2026-09-05). The sword family
+       default was `accurate` — `xp:{attack:1}`. Most players never open the style
+       picker, so most players trained Attack and ONLY Attack: Attack 13 while
+       Strength and Defence sat at level 1 with 0 xp after ~200 kills.
+
+       Two compounding harms, which is why this is a P1 and not a preference:
+         · Strength 1 ⇒ a tiny max hit, so every fight is slow — the game reads as
+           stalled, with nothing on screen explaining why.
+         · The combat-XP anti-forgery clamp keys on
+           dmg_level = max(strength, ranged, magic). Strength stuck at 1 therefore
+           pins the CAP as well, so the trap tightens itself.
+
+       The ruling (game-designer): a hands-off default must build the whole melee
+       triple ⇒ `controlled`. This asserts the ROUTING TABLE, not just the key,
+       because `trains` is an authored label and `xp` is what the engine actually
+       pays (hitXpRoute / killXpRoute) — asserting the key alone would go green
+       against a `controlled` whose xp map had been edited down to one skill.
+
+       Fails if the default returns to `accurate` (verified by reverting it). */
+    const CK = window.HearthriseCore;
+    if (!CK || !CK.styles) {
+      assert(false, 'HearthriseCore.styles is missing — the default style, the picker and the '
+        + 'server accrual all read that one table');
+      return;
+    }
+    const S = CK.styles;
+    const MELEE = ['attack', 'strength', 'defense'];
+
+    // 1. THE DEFAULT TABLE. One fact, one place — the engine, the picker and
+    //    supabase/functions/hr-accrue (which VENDORS this module) all read it.
+    assert(S.DEFAULT_STYLE_KEYS && S.DEFAULT_STYLE_KEYS.sword === 'controlled',
+      'the unchosen sword style is "' + (S.DEFAULT_STYLE_KEYS && S.DEFAULT_STYLE_KEYS.sword)
+      + '" — a new player who never opens the picker must not be put on a single-skill route');
+
+    // 2. A FRESH CHARACTER — no explicit style anywhere — RESOLVES to it. All
+    //    three "chose nothing" doors: normaliseStyleKeys (what legacy.js
+    //    migrate() runs on boot), and resolveStyle off an empty / absent map
+    //    (what the server does with combat_style '{}', i.e. every account that
+    //    never picked). They must agree, or the picker shows one route while the
+    //    settle pays another.
+    const freshMap = S.normaliseStyleKeys({});
+    assert(freshMap.sword === 'controlled',
+      'normaliseStyleKeys filled a fresh character sword family with "' + freshMap.sword + '"');
+    const resolvedFresh = S.resolveStyle('sword', freshMap);
+    const resolvedEmpty = S.resolveStyle('sword', {});
+    const resolvedNull = S.resolveStyle('sword', null);
+    assert(resolvedFresh === S.COMBAT_STYLES.sword.controlled
+        && resolvedEmpty === resolvedFresh && resolvedNull === resolvedFresh,
+      'the three "chose nothing" doors disagree — fresh=' + (resolvedFresh && resolvedFresh.name)
+      + ' empty=' + (resolvedEmpty && resolvedEmpty.name)
+      + ' null=' + (resolvedNull && resolvedNull.name));
+
+    // 3. THE ROUTE ITSELF: Attack AND Strength AND Defence, on the hit route and
+    //    the kill route — the two functions combat-sim.js actually calls.
+    MELEE.forEach((sk) => {
+      assert(resolvedFresh.xp && resolvedFresh.xp[sk] > 0,
+        'the default sword style pays no ' + sk + ' XP (xp=' + JSON.stringify(resolvedFresh.xp)
+        + ') — that skill would stay at level 1 forever');
+    });
+    const hit = S.hitXpRoute(resolvedFresh, 25);
+    const kill = S.killXpRoute(resolvedFresh, 100, 1);
+    MELEE.forEach((sk) => {
+      assert(hit.some((g) => g.skill === sk && g.amount > 0),
+        'hitXpRoute paid no ' + sk + ' on the default style — the per-damage grant is the bulk of '
+        + 'combat XP, so a missing skill here IS the trap');
+      assert(kill.some((g) => g.skill === sk && g.amount > 0),
+        'killXpRoute paid no ' + sk + ' on the default style');
+    });
+
+    // 4. STILL A ROUTE, NOT A BONUS. The default must not also be the best XP
+    //    rate, or it stops being a neutral default and becomes the only choice.
+    const styledHit = hit.filter((g) => g.skill !== 'hitpoints').reduce((a, g) => a + g.amount, 0);
+    assert(Math.abs(styledHit - 25 * S.HIT_XP_PER_DAMAGE) < 1e-6,
+      'the default style pays ' + styledHit + ' styled XP for 25 damage, not '
+      + (25 * S.HIT_XP_PER_DAMAGE) + ' — a default that multiplies XP is a balance change in disguise');
+
+    // 5. THE OTHER FAMILIES ARE UNCHANGED, AND WERE NEVER TRAPPED: each trains
+    //    its own damage skill, so dmg_level (and the XP cap) grows on its own.
+    assert(S.DEFAULT_STYLE_KEYS.hammer === 'smash' && S.DEFAULT_STYLE_KEYS.ranged === 'rapid'
+        && S.DEFAULT_STYLE_KEYS.magic === 'cast',
+      'a non-sword family default moved — only sword had the Attack-only trap and only sword was ruled on');
+    [['hammer', 'strength'], ['ranged', 'ranged'], ['magic', 'magic']].forEach((pair) => {
+      const st = S.resolveStyle(pair[0], S.normaliseStyleKeys({}));
+      assert(st.xp && st.xp[pair[1]] > 0,
+        pair[0] + ' default trains no ' + pair[1] + ' — the sword/accurate trap shape, where '
+        + 'dmg_level = max(strength, ranged, magic) never leaves 1');
+    });
+
+    // 6. AND THE FALLBACK AGREES. A corrupt stored key or an unknown weapon type
+    //    must not quietly drop the player back onto the old Attack-only route.
+    assert(S.FALLBACK_STYLE === S.COMBAT_STYLES.sword.controlled,
+      'FALLBACK_STYLE is "' + (S.FALLBACK_STYLE && S.FALLBACK_STYLE.name) + '" — a corrupt style '
+      + 'key would silently restore the single-skill default');
+    assert(S.resolveStyle('slingshot', null) === S.COMBAT_STYLES.sword.controlled,
+      'an unknown weapon type falls back to a style other than the sword default');
   }),
 
   () => tryRun('combat style FAMILY follows the actual weapon, not a fail-closed equipment read (Paione: "styles keep swapping from attack to magic when you swap them / on level up")', () => {

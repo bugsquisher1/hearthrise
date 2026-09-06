@@ -186,21 +186,31 @@ function sectionA(sql) {
       + 'server would store a key resolveStyle falls back from, i.e. a silent routing default');
   }
 
-  /* THE DEFAULTS. resolveStyle treats an absent family key as `Object.keys(family)[0]`,
-     so the catalogue's `is_default` must agree with BOTH the authored first key
-     AND DEFAULT_STYLE_KEYS — three copies of one fact that this binds together. */
+  /* THE DEFAULTS. `resolveStyle` resolves an absent family key through
+     DEFAULT_STYLE_KEYS (src/core/styles.js), so the catalogue's `is_default`
+     must agree with THAT — the one table the engine actually reads.
+
+     ⚠ 2026-09-05: this used to additionally require the default to be the FIRST
+       AUTHORED KEY of the family, because resolveStyle fell back to
+       `Object.keys(family)[0]` and the two happened to coincide. They no longer
+       do: the sword default moved to `controlled` (4th in picker order) and
+       resolveStyle was changed to read DEFAULT_STYLE_KEYS, which is the value
+       that decides routing. Binding to key ORDER would now be binding to how
+       the picker renders buttons, which is not a fact about XP. The binding
+       that matters — client default ↔ server catalogue default — is unchanged
+       and still fails BY NAME. */
   for (const family of Object.keys(COMBAT_STYLES)) {
-    const firstKey = Object.keys(COMBAT_STYLES[family])[0];
-    ok(DEFAULT_STYLE_KEYS[family] === firstKey,
-      `A: DEFAULT_STYLE_KEYS.${family} is "${DEFAULT_STYLE_KEYS[family]}" but resolveStyle falls `
-      + `back to "${firstKey}" (the first authored key) — the two disagree about "unchosen"`);
+    const def = DEFAULT_STYLE_KEYS[family];
+    ok(def && COMBAT_STYLES[family][def],
+      `A: DEFAULT_STYLE_KEYS.${family} is "${def}", which is not a style of that family — `
+      + 'resolveStyle would fall through to FALLBACK_STYLE for every unchosen player');
     const flagged = rows.filter((r) => r.family === family && r.isDefault);
     ok(flagged.length === 1,
       `A: hr_combat_styles has ${flagged.length} defaults for ${family}, expected exactly 1`);
     if (flagged.length === 1) {
-      ok(flagged[0].key === firstKey,
-        `A: hr_combat_styles marks ${family}/${flagged[0].key} default; the engine resolves `
-        + `${family} to "${firstKey}"`);
+      ok(flagged[0].key === def,
+        `A: hr_combat_styles marks ${family}/${flagged[0].key} default; the engine resolves an `
+        + `unchosen ${family} to "${def}" — client and server disagree about "chose nothing"`);
     }
   }
 
@@ -280,21 +290,44 @@ function accrueSaturated(combatStyle) {
 }
 
 function sectionB() {
-  /* The CONTROL. `null` is what a database without the migration hands the
-     engine, and it must still behave exactly as it did before: Accurate, i.e.
-     Attack only. Without this the two assertions below are satisfied by an
-     engine that pays every skill on every style. */
-  const base = accrue(null);
+  /* The CONTROL — a SINGLE-SKILL route, so the assertions below cannot be
+     satisfied by an engine that pays every skill under every style.
+
+     ⚠ 2026-09-05: this used to be `accrue(null)`, on the premise that an absent
+       style resolves to Accurate (Attack only). The SWORD DEFAULT MOVED to
+       `controlled`, which pays Attack AND Strength AND Defence by design, so a
+       null control is no longer discriminating — it would go green against
+       exactly the "pays everything" engine it exists to catch. The control is
+       now the Attack-only style NAMED, and the default's own behaviour is
+       asserted separately (and deliberately in the opposite direction) below. */
+  const base = accrue({ sword: 'accurate' });
   ok(base.accrued === true, `B: the control span accrued nothing (${base.reason})`);
   if (!base.accrued) return;
   const bx = base.delta.xp || {};
   ok((bx.attack || 0) > 0,
-    'B: CONTROL — a null style paid no Attack XP; the fixture is not fighting and every '
+    'B: CONTROL — sword/accurate paid no Attack XP; the fixture is not fighting and every '
     + 'assertion below would be vacuous');
   ok(!(bx.strength > 0) && !(bx.defense > 0),
-    `B: CONTROL — a null style paid strength=${bx.strength || 0} defense=${bx.defense || 0}; `
-    + 'the pre-migration default is Accurate (Attack only) and this fixture cannot tell the '
-    + 'styles apart if it pays everything');
+    `B: CONTROL — sword/accurate paid strength=${bx.strength || 0} defense=${bx.defense || 0}; `
+    + 'Accurate is xp:{attack:1} and this fixture cannot tell the styles apart if it pays '
+    + 'everything');
+
+  /* THE UNCHOSEN DEFAULT, THROUGH THE REAL ENGINE. `null` / `{}` is what the
+     column holds for every account that never opened the picker — the majority.
+     It must resolve to DEFAULT_STYLE_KEYS.sword and that style must build the
+     whole melee triple. The trap this closes (live QA account: Attack 13,
+     Strength 1, Defence 1 after ~200 kills): an Attack-only default leaves
+     max hit at Strength 1 and pins the combat-XP cap, which keys on
+     dmg_level = max(strength, ranged, magic). */
+  const unchosenAccrue = accrue(null);
+  const ux = (unchosenAccrue.delta && unchosenAccrue.delta.xp) || {};
+  for (const sk of ['attack', 'strength', 'defense']) {
+    ok((ux[sk] || 0) > 0,
+      `B: THE ONBOARDING TRAP — a character with NO chosen style was paid ${sk}=${ux[sk] || 0} `
+      + `over a real span. The unchosen sword default is "${DEFAULT_STYLE_KEYS.sword}" and it must `
+      + 'train Attack, Strength AND Defence; a single-skill default leaves the other two at '
+      + 'level 1 forever for every player who never opens the picker');
+  }
 
   /* DEFENSIVE — the P0, stated as a test. `sword.defensive` is `xp:{defense:1}`. */
   const def = accrue({ sword: 'defensive' });
@@ -387,11 +420,16 @@ function sectionB() {
      reads the routing seam directly; this drives computeAccrual end-to-end so it
      also catches a multiplier applied AFTER routing (in grantXp / simulateSpan /
      accrual). It uses accrueSaturated (see its header): with accuracy saturated
-     and the player invulnerable, null (⇒ Attack) and Defensive (⇒ Defence) fight
-     a BYTE-IDENTICAL seeded fight — so their styled totals must be EXACTLY equal,
-     differing only in the skill that banks them. No tolerance, because the fight
-     is genuinely identical (proven by the tick/kill equality guard). */
-  const nSat = accrueSaturated(null);
+     and the player invulnerable, Accurate (⇒ Attack) and Defensive (⇒ Defence)
+     fight a BYTE-IDENTICAL seeded fight — so their styled totals must be EXACTLY
+     equal, differing only in the skill that banks them. No tolerance, because the
+     fight is genuinely identical (proven by the tick/kill equality guard).
+
+     ⚠ 2026-09-05: `null` no longer works as the Accurate side. The sword default
+       moved to `controlled`, whose damageMod is 1.02 — a REAL maxHit change that
+       the 0.95 accuracy clamp cannot wash out, so it fights a different fight and
+       breaks the invariance premise rather than the engine. Name the style. */
+  const nSat = accrueSaturated({ sword: 'accurate' });
   const dSat = accrueSaturated({ sword: 'defensive' });
   ok(nSat.accrued === true && dSat.accrued === true,
     `B: the saturated invariant fixture did not accrue (null ${nSat.reason}, def ${dSat.reason})`);
@@ -404,7 +442,7 @@ function sectionB() {
       + `died=${nSat.summary.died} vs def ${dSat.summary.ticks}t/${dSat.summary.kills}k/died=${dSat.summary.died}) — `
       + 'the invariance PREMISE is broken (a balance change moved the clamp), not the engine; re-tune the fixture');
     ok((nxs.attack || 0) > 0 && styled(nxs) === styled(dxs),
-      `B: over an IDENTICAL fight, null banked ${styled(nxs)} styled XP (to Attack) but Defensive banked `
+      `B: over an IDENTICAL fight, Accurate banked ${styled(nxs)} styled XP but Defensive banked `
       + `${styled(dxs)} (to Defence) — equal fights must pay equal styled totals, so a style is applying a `
       + 'multiplier rather than only re-routing');
     ok((nxs.hitpoints || 0) === (dxs.hitpoints || 0),
@@ -413,10 +451,13 @@ function sectionB() {
   }
 
   /* A PARTIAL MAP IS NORMAL, AND A FOREIGN FAMILY MUST NOT LEAK. Choosing a bow
-     style must not change how a sword fight is routed. */
+     style must not change how a sword fight is routed — so a map that names ONLY
+     ranged must pay byte-identically to a map that names nothing at all (`ux`,
+     the unchosen default above). Compared against the DEFAULT, not against the
+     Accurate control: "sword was left unchosen" is the state both fixtures are in. */
   const foreign = accrue({ ranged: 'longrange' });
   const fx = (foreign.delta && foreign.delta.xp) || {};
-  ok(JSON.stringify(fx) === JSON.stringify(bx),
+  ok(JSON.stringify(fx) === JSON.stringify(ux),
     'B: a ranged-only style map changed a SWORD fight — resolveStyle is reading the wrong '
     + 'family, so one weapon\'s choice would re-route another weapon\'s XP');
 
@@ -439,10 +480,21 @@ function sectionB() {
     `B: deriveTickMs gives Longrange ${long}ms and Rapid ${rapid}ms — speedMod (1.10) is not `
     + 'reaching the swing interval, so the server would pay a Longrange night at Rapid pace');
 
-  /* AND resolveStyle ITSELF, directly: the fallback the engine relies on. */
-  ok(resolveStyle('sword', normaliseStyleKeys({})).xp.attack === 1,
-    'B: an empty style map no longer resolves sword to Accurate — the "absent column ⇒ '
-    + 'pre-migration behaviour" degrade is broken');
+  /* AND resolveStyle ITSELF, directly: the fallback the engine relies on. An
+     empty column (`{}` = "chose nothing", which is every account that never
+     opened the picker) must resolve to the SWORD DEFAULT, and since 2026-09-05
+     that default has to train the whole melee triple — `accurate` trained
+     Attack alone, which froze a hands-off player's Strength at 1 and, through
+     dmg_level = max(strength, ranged, magic), their combat-XP cap with it. */
+  const unchosen = resolveStyle('sword', normaliseStyleKeys({}));
+  ok(unchosen === COMBAT_STYLES.sword[DEFAULT_STYLE_KEYS.sword],
+    'B: an empty style map no longer resolves sword to DEFAULT_STYLE_KEYS.sword — the '
+    + '"absent column ⇒ family default" degrade is broken');
+  for (const sk of ['attack', 'strength', 'defense']) {
+    ok(unchosen.xp[sk] > 0,
+      `B: the sword default ("${DEFAULT_STYLE_KEYS.sword}") pays no ${sk} XP — a player who never `
+      + 'opens the picker would leave that skill at level 1 forever');
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════

@@ -13505,7 +13505,12 @@ function migrate(){
   if(CK) CK.styles.normaliseStyleKeys(G.combatStyle);
   else {
     /* Pre-core fallback (a timer can fire before the module graph settles). */
-    if(!G.combatStyle.sword)  G.combatStyle.sword  = 'accurate';
+    /* Keep IN LOCKSTEP with DEFAULT_STYLE_KEYS in src/core/styles.js — sword
+       is `controlled` (2026-09-05: `accurate` trained Attack only and froze a
+       hands-off player's Strength/Defence at 1). This branch only runs before
+       the module graph settles, so a drift here is a few hundred ms of the
+       wrong route, not a permanent one — but it is still the wrong route. */
+    if(!G.combatStyle.sword)  G.combatStyle.sword  = 'controlled';
     if(!G.combatStyle.hammer) G.combatStyle.hammer = 'smash';
     if(!G.combatStyle.ranged) G.combatStyle.ranged = 'rapid';
     if(!G.combatStyle.magic)  G.combatStyle.magic  = 'cast';
@@ -13691,7 +13696,14 @@ function renderStyleSelector(){
   }
 
   var t = window.getWeaponType();
-  var styleKey = (G && G.combatStyle && G.combatStyle[t]) || Object.keys(window.COMBAT_STYLES[t] || {})[0];
+  /* The unchosen highlight reads the DEFAULT TABLE, not the first authored key
+     — same single-fact rule as resolveStyle (src/core/styles.js). Before b?/
+     2026-09-05 those agreed by coincidence; now sword's default is the fourth
+     button, so a first-key read would highlight Accurate while the engine pays
+     Controlled. `window.HearthriseCore` is guaranteed present here (the guard
+     at the top of this function returns until it is). */
+  var DEF = (window.HearthriseCore.styles && window.HearthriseCore.styles.DEFAULT_STYLE_KEYS) || {};
+  var styleKey = (G && G.combatStyle && G.combatStyle[t]) || DEF[t] || Object.keys(window.COMBAT_STYLES[t] || {})[0];
   var styleObj = window.getActiveCombatStyle();
   var profile = window.getCombatStatProfile();
   var styles = window.COMBAT_STYLES[t] || {};

@@ -14214,6 +14214,67 @@ const TESTS = [
     assert(M.isAnswered('timeout') === false && M.isAnswered('refused') === true, 'eat answered-set is wrong (key reuse safety)');
   }),
 
+  // (2b-hp) HP-SERVER-OWNED (b511) — THE STALE FULL BAR THAT FOUGHT A GHOST.
+  //   Live, QA slot, 2026-09-06 14:40 UTC: server player_state.hp = 6 / max_hp 13
+  //   (a 40% resume after a recovery window expired). The client booted showing
+  //   13/13, opened a Dark Wizard fight from that full bar, and 40 s in still read
+  //   11/13 "Fighting Dark Wizard" while the server's settle — simulating from 6 —
+  //   recorded death #8 and a fresh recovery clock (fallState: recovering,
+  //   serverDied:true, fellAt:0 — the client never fell). Two causes, both asserted
+  //   here: the b373 raise-only floor let the client keep the HIGHER number, and
+  //   startCombat opened the fight from playerMaxHp instead of the server's hp.
+  () => tryRun('hp: the server owns the bar — a lower server hp is adopted, seeds the fight, and a fed settle raises it', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.reconcileHp === 'function',
+      'reconcileHp is not exported — the hp apply is not shared with the boot path');
+    const G = window.G;
+    const snap = snapshotG();
+    const wasFighting = G.activeMonster;
+    try {
+      if (typeof A.__resetServerHp === 'function') A.__resetServerHp();
+      try { window.stopCombat && window.stopCombat(); } catch (e) {}
+
+      // (1) BOOT: the hr_load body says 6/13 while the client sits at a full 13/13.
+      G.activeMonster = null; G.playerMaxHp = 13; G.playerHp = 13;
+      A.reconcileHp(G, { ok: true, state: { hp: 6, max_hp: 13 } });
+      assert(G.playerHp === 6,
+        'HP-SERVER-OWNED: the client kept ' + G.playerHp + '/13 over the server\'s 6 — the b373 '
+        + 'raise-only floor is back, and a 40% recovery resume is being overwritten by a stale full bar');
+      const seen = A.serverHp();
+      assert(seen && seen.hp === 6, 'HP-SERVER-OWNED: serverHp() did not observe the server\'s 6');
+
+      // (2) startCombat SEEDS FROM THE SERVER HP, NOT THE MAX. Even with the bar
+      //     re-inflated to full before the tap, the fight must open at 6 or below
+      //     (the opening tick may already have taken a swing's damage).
+      G.playerHp = 13;
+      if (typeof window.startCombat === 'function' && window.MONSTERS && window.MONSTERS.slime) {
+        window.startCombat('slime');
+        assert(Number(G.playerHp) <= 6,
+          'HP-SERVER-OWNED: the fight opened at ' + G.playerHp + '/13 — startCombat is still seeding '
+          + 'from playerMaxHp, so the client predicts a fight the server settles from 6');
+        // (2b) AND THE IN-FIGHT EXCEPTION STILL HOLDS: a non-away envelope's
+        //      stale-full hp must not heal a live fight (Paione P0).
+        const inFightHp = Number(G.playerHp);
+        A.reconcileHp(G, { ok: true, state: { hp: 13, max_hp: 13 } });
+        assert(Number(G.playerHp) === inFightHp,
+          'HP-SERVER-OWNED: a non-away envelope healed a LIVE fight to ' + G.playerHp + ' — Paione\'s P0 is back');
+        try { window.stopCombat(); } catch (e) {}
+      }
+
+      // (3) A FED SETTLE STILL RAISES IT. Out of combat, the server's higher hp
+      //     is adopted exactly as absolutely as the lower one was.
+      G.activeMonster = null; G.playerHp = 6;
+      A.reconcileHp(G, { ok: true, state: { hp: 13, max_hp: 13 } });
+      assert(G.playerHp === 13,
+        'HP-SERVER-OWNED: an out-of-combat heal to 13 did not apply (bar is ' + G.playerHp + ')');
+    } finally {
+      try { window.stopCombat && window.stopCombat(); } catch (e) {}
+      if (typeof A.__resetServerHp === 'function') A.__resetServerHp();
+      restoreG(snap);
+      if (wasFighting) { try { window.startCombat(wasFighting); } catch (e) {} }
+    }
+  }),
+
   // (2c) EAT-COMBAT-HP — THE LIVE-COMBAT HALF OF THE P0 (2026-08-25 play-gate).
   //      During a live client-predicted fight the server pointer is idle and
   //      server hp is STALE-FULL. accrue.js's HP floor writes an envelope's hp
@@ -53663,15 +53724,22 @@ const TESTS = [
       'onDeath fired after the target was cleared, so nothing can say what killed you: ' + sawMonster);
   }),
 
-  () => tryRunAsync('b373: an idle player cannot be wounded by a server envelope', async () => {
-    /* THE ROOT CAUSE OF 2/10. src/net/events.js already declares playerHp
-       NO_SYNC — "belongs to the device you are fighting on" — but the accrual
-       envelope wrote it unconditionally, so an envelope for a window that
-       ended BEFORE the death landed on top of the respawn heal. */
+  () => tryRunAsync('b373/b511: an IDLE player takes the server\'s hp, and only a live fight is client-owned', async () => {
+    /* b373 ASSERTED THE OPPOSITE HERE, AND b511 SUPERSEDED IT. b373's rule was
+       "an idle player cannot be wounded by an envelope": the client full-healed
+       on death and a late envelope for the pre-death window wrote 2/10 over the
+       respawn. Death, the recovery window and the resume-at-fraction are now
+       SERVER state (Recovery rev.2), so out of combat the server's hp is the
+       answer, not a stale reading — and raise-only had inverted into the live
+       b510 bug (server 6/13 after a 40% resume, client kept a full 13/13 and
+       fought a Dark Wizard the server settled from 6 straight into death #8).
+       The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
+       heal still applies. */
     const A = await import('../net/accrue.js?v=510');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
-    assert(G1.playerHp === 10, 'an envelope wounded an IDLE player: ' + G1.playerHp);
+    assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
+      + '/10) — the b373 raise-only floor is back and a recovery resume is being overwritten');
 
     // AWAY combat: the envelope carries an `away` receipt, so the server genuinely
     // computed hp and keeps full authority — away accrual depends on it.

@@ -89,6 +89,31 @@ const FILES = [
 //    Regenerate deliberately with `node tests/inventory-mint-census.mjs --update`
 //    and re-classify every added token before committing the new baseline. ──────
 const BASELINE = {
+  // ── LANE NOTE, 'id' + 'inv:id' (2026-09-06, quest-item-rewards) ──────────
+  //    These two tokens are SHARED by several legacy.js sites, and one of them
+  //    is now the QUEST CLAIM MIRROR — hrApplyQuestClaimGrant, which walks the
+  //    RPC receipt and does `addItem(id, n, true)` with a direct
+  //    `G.inventory[id] = (…||0) + n` fallback when the bag refuses (bank full).
+  //    Registered here as a SERVER-BACKED lane, NOT baselined as non-ownable:
+  //    the reward ids are ordinary tradeable goods (first_cook pays `shrimp`,
+  //    which src/data/item-authority.js classifies OWNABLE / serverOwnedItem),
+  //    so the non-ownable escape hatch would be a lie.
+  //
+  //    Why it is safe under BOTH criteria this guard models:
+  //      · THE FLIP (absolute-replace): the id is one the server settles, so
+  //        the envelope restates it rather than deleting it.
+  //      · BLOB_RETIRED (reload): the player_inventory ROW ALREADY EXISTS
+  //        BEFORE THE MIRROR RUNS. hr_claim_quest credits the items into
+  //        player_inventory in the same transaction as the gold and behind the
+  //        same once-guard, and only THEN returns them as `res.items`; the
+  //        client applies nothing it was not told the server had already
+  //        written (`credited === true` only — a replay answers already_claimed
+  //        and mirrors nothing). So this is a DISPLAY mirror of server truth,
+  //        not a mint: the next reload rebuilds the same number from the
+  //        server. Bound in three places by tests/quest-reward-parity.mjs.
+  //    This lane therefore needs no unbackedOwnableMintLanes() entry and no
+  //    BLOB_RETIRE_UNSAFE_LANES entry — those registries are for mints the
+  //    server does NOT write, which is the opposite of this one.
   'src/legacy.js': [
     "'hearth_token'", 'b.id', 'crop.prod', 'cur', 'id', 'kv[0]',
     'r.item', 'r.output', 'res.produced.id', 'rewards.itemId',
@@ -141,16 +166,18 @@ const BASELINE = {
 // ⚠ SCOPE, STATED HONESTLY. The (4) ENFORCEMENT below ("every mint token must be
 //   declared here or proven server-settled") runs only over DUNGEON_FILES — the
 //   reported class, fully audited. It is NOT yet run over src/legacy.js, whose
-//   ~12 mint tokens are mostly the accrual-settled CORE LOOP (combat/gather/craft)
-//   but include at least ONE confirmed sibling of this class: the quest reward
-//   ITEM at src/legacy.js `addItem(r.item, …)` (~line 6021), which the code's own
-//   comment calls a "later arming slice" — client-applied, no server settlement,
-//   so lost on reload under BLOB_RETIRED exactly like scrip/keys. Widening (4) to
-//   legacy.js requires classifying every one of its tokens (a real audit, its own
-//   commit); until then that lane is an OWED follow-up, named here so it is not
-//   re-discovered from a player report. Its fix is the quest-reward arming slice
-//   (hr_goal_claim granting the item server-side, mirroring the gold half already
-//   done by HearthriseGoalClaim.claimQuest).
+//   ~12 mint tokens are mostly the accrual-settled CORE LOOP (combat/gather/craft).
+//   Its one confirmed sibling of this class — the quest reward ITEM, formerly an
+//   unconditional client `addItem(r.item, …)` in completeQuest with no server
+//   settlement, lost on reload under BLOB_RETIRED exactly like scrip/keys — is
+//   CLOSED as of 2026-09-06: hr_claim_quest now credits the items into
+//   player_inventory itself (supabase/migrations/2026-09-06-quest-item-rewards.sql)
+//   and hrApplyQuestClaimGrant MIRRORS the receipt the RPC returns. See the lane
+//   note on 'id'/'inv:id' in BASELINE below. The `r.item` token survives only as
+//   the fallback for a quest the server catalogue does not know, a state
+//   tests/quest-reward-parity.mjs makes unreachable. Widening (4) to cover all of
+//   legacy.js still requires classifying every one of its tokens (a real audit,
+//   its own commit) and remains OWED.
 const BLOB_RETIRE_UNSAFE_LANES = {
   'src/dungeons.js': [
     { tokens: ["'dungeon_scrip'"], mints: 'Dungeon Scrip (awardDungeonScrip)',
@@ -177,6 +204,11 @@ const BLOB_RETIRE_UNSAFE_LANES = {
 
 // Every mint call: addItem( or window.addItem( or fx.addItem(, capturing the
 // first argument token up to the comma/paren.
+// ⚠ It is a TEXT scan, so it reads COMMENTS too: prose that quotes a call as
+// `addItem(...)` registers `...` as a brand-new mint token and fails the build.
+// That is deliberate (a guard that tries to parse JS to decide what is "real"
+// code is a guard that can be fooled into skipping a real mint) — write such
+// prose without the literal call form, as completeQuest's header now does.
 const MINT_RE = /(?:window\.|fx\.)?addItem\(\s*([^,)]+?)\s*[,)]/g;
 // The DIRECT mint idiom: G.inventory[TOKEN] = (G.inventory[TOKEN]||0) + …. This
 // is the += form the audit named; it deliberately does NOT match consumption

@@ -6463,7 +6463,7 @@ function completeQuest(q){
      so a gold quest can never silently lose its payout under arm. */
   q.done=true;
   /* ── THE ITEM HALF IS THE SERVER'S NOW (quest-item-rewards, P1) ───────────
-     `if(r.item)addItem(...)` used to run here unconditionally, and every item it
+     The unconditional `if(r.item)` bag write used to run here, and every item it
      paid was PHANTOM: the bag write never reached player_inventory, so the next
      envelope that spoke about the id erased it. hr_claim_quest credits the items
      itself; hrFireQuestClaim below mirrors the grant the RPC REPORTS, so the bag

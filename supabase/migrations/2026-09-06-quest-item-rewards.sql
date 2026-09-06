@@ -89,11 +89,30 @@
 --     tradeable id and no new market path.
 --
 -- ── WHAT IT DELIBERATELY DOES NOT DO ───────────────────────────────────────
---   · NO BANK-CAP GATE. hr_claim_goal (the sibling item-crediting claim) does
---     not gate on bank_cap either, and adding one here would let a full bag
---     REFUSE a once-ever quest reward — the dead-claim class. The overflow is
---     cosmetic (the client's bank cap is a UI limit) and bounded by the ceiling
---     above.
+--   · NO BANK-CAP GATE, and NO PRECEDENT CLAIMED FOR IT. An earlier draft of
+--     this header said hr_claim_goal (the sibling claim) "does not gate on
+--     bank_cap either"; that is FALSE and is deleted here — the live
+--     hr_claim_goal__ungated never touches player_inventory at all, so it is
+--     not a precedent for anything about item crediting. The reason stands on
+--     its own: a bank-cap gate here would let a full bag REFUSE a once-ever
+--     quest reward, which is the dead-claim class (the claim is consumed by the
+--     server once-guard, so a refusal is permanent).
+--
+--     THE RESIDUAL, STATED HONESTLY. hr_apply's bank check is an ABSOLUTE
+--     POST-HOC COUNT: after it has written its items/equip it counts
+--     `count(*) > bank_cap` over the player's own stacks and rejects the whole
+--     apply with `bank_full`. So a player already at their cap who takes this
+--     grant can end up 1–3 NEW stacks over it (first_cook shrimp, first_blood
+--     turnip_seed, farmhand wheat_seed), and until they free a stack EVERY
+--     item-touching hr_apply of theirs answers bank_full — not just the quest
+--     path. That is a real cost, not a cosmetic one, and it is accepted because
+--     it is: SELF-ONLY (no other player's economy or ranking is touched),
+--     DEGRADABLE (the player clears it by selling/banking one stack; nothing is
+--     lost meanwhile, accrual simply refuses), and BOUNDED (≤40 items across
+--     ≤3 stacks, once per character for ever — the ceiling above). The clean
+--     fix is a make-room-or-defer path in hr_apply, which is that file's job,
+--     not this one's; 2026-09-06-bank-cap-tracks-rungs.sql already removed the
+--     largest population that hits it (paid rungs never raised bank_cap).
 --   · NO combat-XP. hundred_kills pays XP only and is not in this table; the XP
 --     arming slice owns it. Stated so the gap is visible, not forgotten.
 --
@@ -156,10 +175,53 @@ end $$;
 -- One row per quest that pays items. `items` is {item_id: qty}; a quest with no
 -- item reward simply has no row (absence is the normal case, not an empty row),
 -- so adding a quest that pays nothing costs nothing here.
+-- THE SHAPE PREDICATE. `items` is walked by hr_claim_quest__ungated inside the
+-- ONCE-EVER claim, so a malformed seed is not merely a 500 — the once-guard is
+-- consumed in the same transaction, so `{"shrimp":"30x"}` would 500 the only
+-- claim that quest will ever get, for every player who reaches it. Shape it at
+-- the table instead: an OBJECT whose every value is a bare digit string. jsonb
+-- numbers stringify to digits, so `{"shrimp":30}` passes while `"30x"`, `-1`,
+-- `1.5`, `null`, `[]` and `{}` all fail. (Quantity SANITY — >0 and a sane
+-- magnitude — stays in §4 VERIFY(a) and tests/quest-reward-parity.mjs. This is
+-- the crash floor, not the balance gate.)
+--
+-- It lives in an IMMUTABLE helper because PostgreSQL REFUSES a subquery in a
+-- CHECK constraint ("cannot use subquery in check constraint", 0A000) and the
+-- predicate is inherently a walk over jsonb_each_text. The function is pinned
+-- IMMUTABLE + STRICT and depends on nothing but its argument, so it is a pure
+-- expression by construction; the usual "a function-based CHECK is not
+-- re-validated if the function changes" caveat is answered by §4 VERIFY(a2),
+-- which EXECUTES the rejection on apply.
+create or replace function public.hr_quest_rewards_items_ok(p_items jsonb)
+returns boolean language sql immutable strict parallel safe as $fn$
+  select jsonb_typeof(p_items) = 'object'
+     and not exists (select 1 from jsonb_each_text(p_items) e
+                      where coalesce(e.value, '') !~ '^[0-9]+$')
+$fn$;
+revoke execute on function public.hr_quest_rewards_items_ok(jsonb) from public, anon, authenticated, service_role;
+
 create table if not exists public.hr_quest_rewards (
   quest_id text primary key,
-  items    jsonb not null default '{}'::jsonb check (jsonb_typeof(items) = 'object')
+  items    jsonb not null default '{}'::jsonb
 );
+-- The CHECK is attached HERE, by name, rather than inline above, for one reason:
+-- `create table IF NOT EXISTS` is a no-op over a table an EARLIER run of this
+-- file already created with the old shape-only check, so an inline constraint
+-- would never reach that database. Adding it as a named constraint reaches both
+-- — fresh build and re-apply — and a second re-apply is a no-op rather than a
+-- duplicate. ADD CONSTRAINT validates the rows already present, so a malformed
+-- row that predates the tightening fails the apply loudly instead of surviving
+-- under a rule it does not satisfy.
+do $$
+begin
+  if not exists (select 1 from pg_constraint
+                  where conrelid = 'public.hr_quest_rewards'::regclass
+                    and conname  = 'hr_quest_rewards_items_qty_digits') then
+    alter table public.hr_quest_rewards
+      add constraint hr_quest_rewards_items_qty_digits
+      check (public.hr_quest_rewards_items_ok(items));
+  end if;
+end $$;
 
 -- RLS on, NO policy, and every client grant revoked: this catalogue is read by
 -- SECURITY DEFINER functions only. "revoke all", NOT "revoke insert, update,
@@ -304,6 +366,7 @@ declare
   v_n    int;
   v_qty  bigint;
   v_gold bigint;
+  v_grants text;
 begin
   -- (a) THE SEED IS COMPLETE AND EVERY ID IS REAL. An unknown id would be
   --     silently skipped at claim time — i.e. a reward that quietly pays
@@ -324,15 +387,49 @@ begin
     raise exception 'VERIFY(a): the first_cook first-night grant is not 30 shrimp';
   end if;
 
+  -- (a2) THE SHAPE CHECK ACTUALLY REJECTS. A CHECK routed through a function is
+  --      only worth what it refuses, and the failure mode it exists to stop — a
+  --      non-numeric qty 500ing a once-ever claim — is invisible until something
+  --      tries. Assert the predicate directly (no write, no subtransaction): it
+  --      must accept the numeric form and refuse every malformed one.
+  if not public.hr_quest_rewards_items_ok('{"shrimp": 30}'::jsonb) then
+    raise exception 'VERIFY(a2): the items shape check refuses a valid {id: qty} map';
+  end if;
+  if not public.hr_quest_rewards_items_ok('{}'::jsonb) then
+    raise exception 'VERIFY(a2): the items shape check refuses the empty map';
+  end if;
+  select count(*) into v_n
+    from unnest(array['{"shrimp": "30x"}', '{"shrimp": -1}', '{"shrimp": 1.5}',
+                      '{"shrimp": null}', '{"shrimp": {}}', '{"shrimp": []}',
+                      '[]', '"30"', '30']) bad
+   where public.hr_quest_rewards_items_ok(bad::jsonb);
+  if v_n > 0 then
+    raise exception 'VERIFY(a2): the items shape check ACCEPTS % malformed value(s) — a bad seed '
+                    'would 500 the once-ever claim', v_n;
+  end if;
+
   -- (b) THE CATALOGUE IS NOT CLIENT-READABLE OR CLIENT-WRITABLE. Reading it is
   --     harmless; WRITING it is the whole economy, and a SELECT grant is how a
   --     write grant gets added later without anyone noticing the table is on the
   --     client surface at all.
-  select count(*) into v_n from information_schema.role_table_grants
-   where table_schema = 'public' and table_name = 'hr_quest_rewards'
-     and grantee in ('anon','authenticated','service_role','PUBLIC','hr_engine');
-  if v_n > 0 then
-    raise exception 'VERIFY(b): % client grant(s) survive on hr_quest_rewards', v_n;
+  --     ⚠ ASKED WITH has_table_privilege, NOT information_schema.role_table_grants
+  --     — the same takeover hr_assert_grant_hygiene made in b350. role_table_grants
+  --     reports SQL-STANDARD privileges only: it cannot see PG17's MAINTAIN, and it
+  --     reports the ACL as WRITTEN rather than as EFFECTIVE, so a privilege reaching
+  --     a grantee through role membership is invisible to it. has_table_privilege
+  --     asks the ACL directly and follows membership — which is also why PUBLIC
+  --     needs no row of its own here: a grant to PUBLIC makes every named grantee
+  --     answer true. Roles are filtered through pg_roles first because
+  --     has_table_privilege RAISES on a role that does not exist (hr_engine is
+  --     absent on a bare local rebuild), and a precondition must not itself crash.
+  select coalesce(string_agg(gg || ':' || pv, ', ' order by gg, pv), '') into v_grants
+    from unnest(array['anon','authenticated','service_role','hr_engine']) gg
+    cross join unnest(array['SELECT','INSERT','UPDATE','DELETE',
+                            'TRUNCATE','REFERENCES','TRIGGER','MAINTAIN']) pv
+   where exists (select 1 from pg_roles r where r.rolname = gg)
+     and has_table_privilege(gg, 'public.hr_quest_rewards'::regclass, pv);
+  if v_grants <> '' then
+    raise exception 'VERIFY(b): client privilege(s) survive on hr_quest_rewards: %', v_grants;
   end if;
   if not exists (select 1 from pg_class where oid = 'public.hr_quest_rewards'::regclass and relrowsecurity) then
     raise exception 'VERIFY(b): RLS is not enabled on hr_quest_rewards';

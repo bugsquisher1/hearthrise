@@ -1892,6 +1892,101 @@ export function reconcileHeroSlots(G, res) {
   return { mode: 'server', owned: owned.length };
 }
 
+/* ── THE LIFETIME EVENT COUNTERS ARE THE SERVER'S (dead-counter class) ────────
+   THE DEFECT THIS CLOSES. `G.stats.harvested` / `G.stats.planted` are read by
+   the goal engine (legacy.js DAILY_GOAL_POOL `source:`, ACHIEVEMENTS `src:`,
+   MIRRORED_QUEST_SOURCES) and, since the b454 farm cutover, were written by
+   NOBODY. The only writers were the client-side increments inside plantCrop /
+   harvestPlot, and both sit AFTER `if(farmSyncArmed()){ …; return; }` — dead in
+   the shipped build. So "Harvest 100 crops" (Green Thumb), the farmhand quest
+   and "Plant 3 crops" sat at 0 for every player, forever: §3.4's dead-feature
+   class, invisible because nothing errored.
+
+   THE FIX IS THE SERVER'S OWN ROWS, not a re-armed client increment.
+   hr_farm_harvest already writes `player_progress(kind='stat', key='ev:harvest',
+   period_key='')` — a lifetime count — in the same transaction as the produce,
+   and hr_state_of projects the permanent rows onto EVERY envelope. This reads
+   them. The client never increments, so there is no second copy to drift, and
+   the counter is correct on a device that never saw the harvest that earned it.
+
+   ⚠ THE TABLE IS THE AUTHORING SURFACE. A new counter is a ROW here plus the
+   server-side `ev:<type>` write — never a branch. Keys are the src/core/goals.js
+   `ev:` namespace; targets are leaves of the G.stats residue bag.
+
+   ⚠ `ev:planted` HAS NO LIFETIME TWIN YET — a lane-C follow-up, and the ONE
+   asymmetry between the two rows below. hr_farm_plant stamps `ev:planted` as a
+   DAILY row only (kind='daily', period=<UTC day>), added by the b461 patch in
+   2026-08-23-modal-goal-claims.sql §5, whose own comment says it deliberately:
+   "there is no lifetime twin because no quest reads one". hr_farm_harvest, by
+   contrast, stamps BOTH (daily + kind='stat', period='') — 2026-08-22-server-
+   farming-complete.sql §HARVEST GOAL COUNTERS. That was true when it was
+   written and is not true now: legacy.js's DAILY_GOAL_POOL 'plant' row grades
+   `readSource('stats.planted') - startValue`, i.e. a LIFETIME counter with a
+   client-held day baseline, so a daily row cannot answer it.
+   The `ev:planted` row below is therefore correct and INERT until hr_farm_plant
+   grows the same two-line lifetime insert hr_farm_harvest already carries.
+   Until then "Plant 3 crops" cannot complete, and that MUST NOT be papered over
+   with a client increment — that is the forged-counter direction, and a
+   client-minted goal counter is a client-authored reward.
+   (The QUEST-MODAL plant goal is unaffected: hr_claim_goal verifies it against
+   the daily row directly and never reads G.)
+
+   DIRECTION, and why it is not a plain assignment. These are LIFETIME, monotone
+   server counters, so:
+     · a COMPLETE progress statement (`progress_truncated === false`, the shared
+       predicate property-record.js already uses) SETS the counter, downward
+       included — that is what kills a residue-ahead value carried in the
+       client_state bag from the pre-cutover client-authored era, the exact
+       deadlock class the property rung hit;
+     · a TRUNCATED statement may only RAISE. Truncation means "some rows were not
+       in this window", and reading a missing row as 0 would rewind a real
+       player's lifetime harvest count to nothing.
+   FAIL-CLOSED on absence: no readable `res.progress` ARRAY leaves every counter
+   exactly as it was. A lean envelope is not a statement that you have done
+   nothing.
+
+   NOT arm-gated: these are display/goal counters with no dormant path, and the
+   farm's client half has been armed since b454.
+
+   Pure — takes G + res, returns a small receipt, so the suite drives it without
+   a window. */
+export const EVENT_COUNTER_PROJECTION = Object.freeze([
+  Object.freeze({ key: 'ev:harvest', stat: 'harvested' }),
+  /* Inert until hr_farm_plant mints it — see the header. Kept so the client half
+     is already right the hour that migration lands. */
+  Object.freeze({ key: 'ev:planted', stat: 'planted' }),
+]);
+
+export function reconcileEventCounters(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const rows = res && res.progress;
+  if (!Array.isArray(rows)) return { mode: 'absent' };
+  const complete = isCompleteProgressStatement(res);
+  /* The LIFETIME rows only: kind='stat', period_key=''. A kind='daily' row for
+     the same key is TODAY's slice, and reading it as the lifetime total would
+     under-report a lifetime goal by every day but this one. */
+  const seen = new Map();
+  for (const r of rows) {
+    if (!r || r.kind !== 'stat' || r.period !== '') continue;
+    const v = Number(r.value);
+    if (!Number.isFinite(v) || v < 0) continue;
+    seen.set(r.key, Math.floor(v));
+  }
+  if (!G.stats || typeof G.stats !== 'object') G.stats = {};
+  const written = {};
+  for (const row of EVENT_COUNTER_PROJECTION) {
+    const next = seen.has(row.key) ? seen.get(row.key) : 0;
+    const prevRaw = Number(G.stats[row.stat]);
+    const prev = (Number.isFinite(prevRaw) && prevRaw > 0) ? Math.floor(prevRaw) : 0;
+    /* A truncated window may raise but never lower — see the header. */
+    if (!complete && next <= prev) continue;
+    if (next === prev && Number.isFinite(prevRaw)) continue;
+    G.stats[row.stat] = next;
+    written[row.stat] = next;
+  }
+  return { mode: complete ? 'server' : 'floor', written };
+}
+
 /* ── THE COMBAT STYLE IS THE SERVER'S (2026-08-24-combat-style.sql) ───────────
    THE DEFECT THIS HALF CLOSES. `G.combatStyle` was a purely local choice: the
    save blob carried it, then the blob retired and `client-state.js`
@@ -2476,6 +2571,14 @@ export function applyEnvelopeState(G, res, ownKey) {
      Lands in `G._heroSlots` scratch, NEVER in the G.heroSlotsUnlocked residue;
      see reconcileHeroSlots' header for why keeping the two apart is the fix. */
   written.heroSlots = reconcileHeroSlots(G, res);
+
+  /* THE LIFETIME GOAL COUNTERS ARE THE SERVER'S (`ev:*` permanent progress
+     rows). Reconciled here, beside traits and the property rung, because they
+     ride the SAME rows and must land on EVERY envelope — away, activity-switch
+     and gold alike — or the Green Thumb bar moves only on the boot load. See
+     reconcileEventCounters' header for the direction rule and for why
+     `stats.planted` is inert until hr_farm_plant mints `ev:plant`. */
+  written.eventCounters = reconcileEventCounters(G, res);
 
   /* b492 — THE PROPERTY RUNG IS THE SERVER'S TOO, and it rides the SAME permanent
      `progress` rows as traits (`property:<tier>`, `worker_hire`). OBSERVED here
@@ -4326,7 +4429,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileCombatStyle, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     noteVisibility, visibleSince, receiptAttended,
     getAccrualState, resetAccrualGate, setAccrualHooks,

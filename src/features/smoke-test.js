@@ -15460,7 +15460,17 @@ const TESTS = [
       assert(def && def.goal === 6,
         'CONTROL: farmhand is not at the ruled goal of 6 — re-derive this fixture');
 
-      /* A PRE-RETUNE SAVE, exactly as production holds it. */
+      /* A PRE-RETUNE SAVE, exactly as production holds it.
+         ⚠ 2026-09-07: farmhand is now a MIRRORED row (mirror:'stats.harvested')
+           because its counting path was dead under the b454 farm arm — see the
+           EV-COUNTER-1 regression below. So the RETUNE properties this test
+           exists for are asserted on farmhand where they still apply (goal and
+           label re-read from the def) and on the NON-mirrored rows where the
+           save half is the thing under test (`gatherer`, `first_blood`); a
+           mirrored row's `progress` is a READ, not save state, so asserting it
+           survives a merge would be asserting the opposite of its design. */
+      window.G.stats = window.G.stats || {};
+      window.G.stats.harvested = 4;                     // the server-projected counter
       window.G.quests = [
         { id: 'farmhand', type: 'harvest', label: 'Harvest 10 crops', goal: 10, progress: 4, reward: { gold: 500, item: 'wheat_seed', qty: 5 }, done: false },
         { id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true },
@@ -15478,22 +15488,141 @@ const TESTS = [
       assert(g.done === true, 'the definition refresh re-opened a COMPLETED quest — it would pay twice');
       assert(g.progress === 15, 'the refresh moved a completed quest\'s progress, got ' + g.progress);
 
-      /* PROGRESS IS CLAMPED to the new goal, exactly as updateQuest clamps it —
-         a bar reading 9/6 is the same drift wearing a different number. */
-      window.G.quests = [{ id: 'farmhand', type: 'harvest', label: 'Harvest 10 crops', goal: 10, progress: 9, reward: { gold: 500 }, done: false }];
+      /* EARNED PROGRESS SURVIVES A RE-AUTHOR on a COUNTING row, where progress
+         IS the save state. (This half moved off farmhand when farmhand became
+         mirrored; the property is unchanged and still guarded.) */
+      window.G.quests = [{ id: 'gatherer', type: 'gather', label: 'old', goal: 30, progress: 7, reward: { gold: 150 }, done: false }];
       window.ensureRetentionState();
-      assert(window.G.quests.find((x) => x.id === 'farmhand').progress === 6,
+      const g2 = window.G.quests.find((x) => x.id === 'gatherer');
+      assert(g2.goal === 15, 'the authored goal never reached the save, got ' + g2.goal);
+      assert(g2.progress === 7, 'the refresh threw away earned progress, got ' + g2.progress);
+
+      /* PROGRESS IS CLAMPED to the new goal, exactly as updateQuest clamps it —
+         a bar reading 20/15 is the same drift wearing a different number. */
+      window.G.quests = [{ id: 'gatherer', type: 'gather', label: 'old', goal: 30, progress: 20, reward: { gold: 150 }, done: false }];
+      window.ensureRetentionState();
+      assert(window.G.quests.find((x) => x.id === 'gatherer').progress === 15,
         'progress above the new goal was not clamped, got '
-        + window.G.quests.find((x) => x.id === 'farmhand').progress);
+        + window.G.quests.find((x) => x.id === 'gatherer').progress);
 
       /* A STALE `mirror` MUST BE DROPPED, not carried. It changes how
          updateQuest BEHAVES (read instead of count), so a row keeping one the
          def has dropped is a quest that silently stops counting. */
-      window.G.quests = [{ id: 'farmhand', type: 'harvest', mirror: 'stats.kills', label: 'x', goal: 10, progress: 0, reward: { gold: 500 }, done: false }];
+      window.G.quests = [{ id: 'gatherer', type: 'gather', mirror: 'stats.kills', label: 'x', goal: 30, progress: 0, reward: { gold: 150 }, done: false }];
       window.ensureRetentionState();
-      assert(!('mirror' in window.G.quests.find((x) => x.id === 'farmhand')),
+      assert(!('mirror' in window.G.quests.find((x) => x.id === 'gatherer')),
         'a stale `mirror` survived the refresh — the quest would READ stats.kills forever');
+
+      /* AND THE MISSING `mirror` MUST BE ADDED. The same field, the other
+         direction: a live save holds farmhand as a COUNTING row, and if the
+         merge did not install the def's new `mirror` the quest would stay
+         frozen at whatever the dead counting path left it at — the very bug
+         the mirror was added to fix. */
+      window.G.stats.harvested = 3;
+      window.G.quests = [{ id: 'farmhand', type: 'harvest', label: 'Harvest 10 crops', goal: 10, progress: 0, reward: { gold: 500 }, done: false }];
+      window.ensureRetentionState();
+      const fh = window.G.quests.find((x) => x.id === 'farmhand');
+      assert(fh.mirror === 'stats.harvested',
+        'the merge did not install the def\'s `mirror` on a live counting row, got ' + fh.mirror);
+      assert(fh.progress === 3,
+        'a freshly-mirrored farmhand did not read the server counter, got ' + fh.progress);
     } finally { restoreG(snap); }
+  }),
+
+  /* ── EV-COUNTER-1 — THE DEAD FARM GOAL COUNTERS (cleanup slice 4, §3.4) ────
+     THE BUG. Since the b454 farm cutover, `G.stats.planted` / `.harvested` were
+     written by NO path. The only writers were the increments inside
+     plantCrop/harvestPlot, and both sit BELOW
+     `if(farmSyncArmed()){ farmSync*(…); return; }` — unreachable in the shipped
+     build. So every goal that counts crops ("Harvest 100 crops"/Green Thumb, the
+     farmhand quest, "Plant 3 crops") read 0 forever, for everyone, while
+     hr_farm_harvest journalled every single crop server-side. Nothing errored,
+     which is why it survived: the §3.4 dead-feature class exactly.
+
+     THE CONTRACT THIS PINS. The counters are PROJECTED from the server's own
+     permanent `player_progress(kind='stat', key='ev:*', period_key='')` rows on
+     the envelope, and the client NEVER increments them. A fix that re-armed a
+     client increment would pass a "the number moves" test and re-open the
+     forged-counter hole, so this test drives the ENVELOPE for the credit and a
+     REFUSED client plant for the no-op. */
+  () => tryRunAsync('EV-COUNTER-1: the farm goal counters are projected from the server, never counted locally', async () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.reconcileEventCounters === 'function',
+      'HearthriseAccrual.reconcileEventCounters is missing — nothing projects the server\'s '
+      + 'ev:* rows, so every crop-counting goal is frozen at 0 for every player');
+
+    /* PURE HALF: G + an envelope in, counters out. `ev:plant` is the row
+       hr_farm_plant mints DAILY-only today; the LIFETIME twin (kind='stat',
+       period='') is the lane-C follow-up, and the client half is proven here so
+       that two-line insert is the only remaining step. */
+    const g = { stats: { harvested: 0, planted: 0 } };
+    const env = {
+      progress_truncated: false,
+      progress: [
+        { kind: 'stat', key: 'ev:harvest', period: '', value: 2, state: 'active' },
+        { kind: 'stat', key: 'ev:planted', period: '', value: 3, state: 'active' },
+        /* TODAY's slice for the same key. Reading this as the lifetime total
+           would under-report every goal by every day but this one. */
+        { kind: 'daily', key: 'ev:harvest', period: '2026-09-07', value: 999, state: 'active' },
+      ],
+    };
+    A.reconcileEventCounters(g, env);
+    assert(g.stats.harvested === 2, 'the lifetime harvest counter did not reach G, got ' + g.stats.harvested);
+    assert(g.stats.planted === 3, 'the lifetime plant counter did not reach G, got ' + g.stats.planted);
+
+    // FAIL-CLOSED: a lean envelope is not a statement that you have done nothing.
+    const g2 = { stats: { harvested: 40 } };
+    const r2 = A.reconcileEventCounters(g2, { state: {} });
+    assert(r2 && r2.mode === 'absent' && g2.stats.harvested === 40,
+      'an envelope with no `progress` array wiped a real lifetime counter');
+
+    // TRUNCATED may RAISE but never LOWER — a missing row is not a zero.
+    const g3 = { stats: { harvested: 40 } };
+    A.reconcileEventCounters(g3, { progress_truncated: true, progress: [] });
+    assert(g3.stats.harvested === 40, 'a truncated window rewound the counter, got ' + g3.stats.harvested);
+
+    // A COMPLETE statement DOES lower — that is what kills a residue-ahead value.
+    const g4 = { stats: { harvested: 40 } };
+    A.reconcileEventCounters(g4, { progress_truncated: false, progress: [] });
+    assert(g4.stats.harvested === 0,
+      'a complete server statement did not overrule a residue-ahead counter, got ' + g4.stats.harvested);
+
+    const snap = snapshotG();
+    const prevSync = window.HearthriseFarmSync;
+    try {
+      /* THE GOAL ACTUALLY MOVES. farmhand mirrors stats.harvested, so the
+         projected counter has to show up on the quest a player reads. */
+      window.G.stats = window.G.stats || {};
+      window.G.stats.harvested = 0;
+      window.G.stats.planted = 0;
+      window.G.quests = [];
+      A.reconcileEventCounters(window.G, env);
+      window.ensureRetentionState();
+      const fh = window.G.quests.find((q) => q.id === 'farmhand');
+      assert(fh && fh.progress === 2,
+        'the farmhand quest did not read the projected harvest counter, got ' + (fh && fh.progress));
+
+      /* AND A REFUSED CLIENT PLANT MOVES NOTHING. This is the half that must
+         stay broken: under the farm arm the gesture is an INTENT, and a server
+         refusal has to leave the goal exactly where it was. If someone ever
+         re-arms the local increment to "fix" the plant goal, this goes red. */
+      window.HearthriseFarmSync = {
+        isFarmServerArmed: () => true,
+        farmPlantRefusalText: () => 'no seeds',
+        farmPlant: () => Promise.resolve({ ok: false, error: 'insufficient_seed' }),
+      };
+      window.G.farmPlots = [null, null];
+      window.G.inventory = Object.assign({}, window.G.inventory, { turnip_seed: 5 });
+      window.plantCrop(0, 'turnip');
+      await new Promise((r) => setTimeout(r, 0));
+      assert(window.G.stats.planted === 3,
+        'a REFUSED plant moved the plant counter — the client is minting a goal counter again, got '
+        + window.G.stats.planted);
+      assert(!window.G.farmPlots[0], 'a refused plant left a phantom crop in the plot');
+    } finally {
+      window.HearthriseFarmSync = prevSync;
+      restoreG(snap);
+    }
   }),
 
   // ── FARM RELOAD REGRESSIONS (KD420 "disappearing plots" + Paione "turnip ready

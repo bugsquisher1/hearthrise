@@ -5809,7 +5809,19 @@ const QUEST_DEFS=[
      starting property, the identical derivation DAILY_TASK_POOL's floor uses.
      The goal is BOUND SERVER-SIDE (hr_claim_quest reads ev:harvest >= 6), so it
      moves in three places at once — see src/data/goal-catalogue.js. */
-  {id:'farmhand',type:'harvest',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
+  /* ⚠ MIRRORED, not counted — and that is the FIX, not a preference. As a
+     counting row it advanced only on `updateQuest('harvest',qty)`, which is
+     called from exactly ONE place: the client fall-through in harvestPlot,
+     below `if(farmSyncArmed()){ farmSyncHarvest(i); return; }`. Under the b454
+     farm arm that line is unreachable, so this quest had been frozen at 0 for
+     every player since the cutover while the server journalled every crop.
+     Mirroring `stats.harvested` — now projected from the server's own lifetime
+     `ev:harvest` row (src/net/accrue.js reconcileEventCounters) — gives it the
+     same property hundred_kills has: it is re-READ on every quest tick, so it
+     cannot drift from the counter it displays and it is correct on an account
+     that did all its harvesting on another device. The claim is unchanged and
+     still server-verified (hr_claim_quest reads ev:harvest >= 6). */
+  {id:'farmhand',type:'harvest',mirror:'stats.harvested',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
   /* ── THE HUNDRED-KILL MILESTONE ──────────────────────────────────────────
      b341 shipped this as the "Field Licence": a GATE that withheld away
      combat until it was earned. b343 removes the gate (see processOffline's
@@ -5891,6 +5903,10 @@ function migrateQuestIds(){
    which is the safe direction for a counter that pays on completion. */
 const MIRRORED_QUEST_SOURCES={
   'stats.kills':function(g){ var n=Number((g&&g.stats&&g.stats.kills)||0); return (isFinite(n)&&n>0)?Math.floor(n):0; },
+  /* Projected from the server's lifetime `ev:harvest` row by
+     src/net/accrue.js reconcileEventCounters — the client never increments it,
+     so this reads a number hr_claim_quest can and does verify. */
+  'stats.harvested':function(g){ var n=Number((g&&g.stats&&g.stats.harvested)||0); return (isFinite(n)&&n>0)?Math.floor(n):0; },
 };
 function mirroredQuestValue(key){
   const f=MIRRORED_QUEST_SOURCES[key];

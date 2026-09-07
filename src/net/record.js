@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileHp } from './accrue.js?v=513';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileEventCounters, reconcileHp } from './accrue.js?v=513';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1798,6 +1798,24 @@ function settle(verdict) {
        character). NOT arm-gated (writes a scratch key nothing else reads). Guarded —
        a throw here must never break the record load. */
     hydrationStep('hero-slots', () => reconcileHeroSlots(G, verdict.body));
+    /* ── THE LIFETIME GOAL COUNTERS, HYDRATED FROM THE SAME ENVELOPE ──────────
+       THE FOURTH INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477
+       crew, SA-016 hero slots, now the `ev:*` counters) — and the one that had
+       NO writer at all. `G.stats.harvested` / `.planted` are residue fields the
+       goal engine reads (Green Thumb, the farmhand quest, "Plant 3 crops"), and
+       since the b454 farm cutover nothing wrote them: the client increments in
+       plantCrop/harvestPlot sit behind `farmSyncArmed()`'s early return, so the
+       counters sat at 0 for every player while hr_farm_harvest journalled every
+       crop server-side. This is the read.
+
+       ⚠ ORDER MATTERS: it runs AFTER hydrationStep('client-state'), which splats
+         the residue bag into G. The server's answer must land on top of the
+         residue copy, not under it — otherwise a stale bag value survives the
+         boot and we have rebuilt residue-ahead from the other side.
+
+       Fail-closed on a missing `progress` array, and lowering requires
+       `progress_truncated === false` — see reconcileEventCounters' header. */
+    hydrationStep('event-counters', () => reconcileEventCounters(G, verdict.body));
     /* b465 — the server's daily-login claim row closes the daily-reward sheet's
        question at boot (the residue marker kept losing tab/save races and the
        sheet re-opened on a paid reward). Guarded like its neighbours. */

@@ -710,6 +710,100 @@ jobs:
         run: |
           node tests/visual-qa-gate.mjs --selftest
           node tests/visual-qa-gate.mjs
+      # ════════════════════════════════════════════════════════════════════
+      # slice 2 — MUTATION PROOFS FOR THE GATES THAT HAD NONE, plus the two
+      # orphan guards that were asserting live properties nothing ran.
+      #
+      # Kept as one contiguous block, immediately before the artifact upload,
+      # so this lands cleanly alongside the slice-1 steps and so a failure here
+      # still attaches its logs. CLAUDE.md §4: "a guard that has never been red
+      # is not a guard". Before this block, four CI-gating guards could not
+      # demonstrate they see failure — including the cache-buster invariant,
+      # which is entirely made of greps whose scoping has been narrowed three
+      # times (b332, b493, b511) and which was measurably blind for 400+ builds.
+      #
+      # Each --selftest plants real, previously-shipped defects and requires the
+      # NAMED assertion that owns the property to go red, then restores. None
+      # touches the working tree, production, or the network beyond the
+      # read-only probes the plain runs already make.
+      # ════════════════════════════════════════════════════════════════════
+
+      # The cache-buster rule, mutation-proven: 6 defects caught (stale tag,
+      # stale ESM specifier = the b493 double-load, the b511 bare quoted pin, a
+      # stripped ?v=, build-info moved alone, build-info unreadable) AND 2
+      # shapes it must keep ignoring, so the fix for a false negative cannot be
+      # a grep that flags everything.
+      - name: Cache-buster invariant — mutation proof
+        if: ${{ !cancelled() }}
+        run: bash bump-version.sh --selftest
+
+      # The RPC resolution comparator, mutation-proven against a REAL probe of
+      # production: an RPC that vanished (PGRST202 — the shipped failure), one
+      # opened to anon, a retired signature that resolved again, a changed
+      # return shape, an unbaselined RPC, one that stopped being probed, and the
+      # control blinded. Probes once and mutates the measurement, so this adds
+      # no extra network round trips.
+      - name: RPC resolution — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/rpc-resolution.mjs --selftest
+
+      # The verify_jwt verdict, mutation-proven offline: the 2026-08-23 finding
+      # itself (our own body answered a garbage bearer), verify_jwt = false, an
+      # undeclared function directory, declared-but-not-deployed, our own 401
+      # mistaken for the gateway's, and the lookahead parser bug that would
+      # check n-1 of n sections and report green.
+      - name: Edge JWT gate — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/edge-jwt-gate.mjs --selftest
+
+      # The Hunt card copy, mutation-proven in the REAL browser: each defect is
+      # planted into the real src/features/raids.js on the way to Chromium.
+      # Includes C6, the value-crossing one — the clan gate ceasing to fire, so
+      # a functional Strike/Claim/Declare card renders while the claim and
+      # weekly-reset server half is still deferred.
+      - name: Hunt card copy — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/raid-card-copy.mjs --selftest
+
+      # ORPHAN ADOPTED. The sign-up door rules (emailRedirectTo, the resend, the
+      # refusal vocabulary, the invite link) live as pure functions in
+      # src/net/signup-door.js and are graded against 21 mutations. beta-2 lost
+      # 11 of 49 sign-ups at the email wall to three defects, none of which is
+      # visible from the DOM. Nothing ran this file.
+      - name: Sign-up door — every mutation caught
+        if: ${{ !cancelled() }}
+        run: node tests/signup-door.mjs --selftest
+      - name: Sign-up door — base run
+        if: ${{ !cancelled() }}
+        run: node tests/signup-door.mjs
+
+      # ORPHAN ADOPTED. W1-W13 on the shipped hired-crew accrual engine. Its
+      # header claimed run-smoke.mjs invoked it; nothing did, so thirteen
+      # assertions about an economy faucet went uncollected. --selftest plants
+      # six real rebalances/refactors against a scratch copy of the engine —
+      # including WA6, which proved the file's own "no second copy" assertion
+      # was vacuous (=== on a number cannot tell a re-export from an equal
+      # mirror, the exact state b389 shipped at 1.60x from). Now structural.
+      - name: Hired-crew accrual — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/worker-accrual.mjs --selftest
+      - name: Hired-crew accrual — base run
+        if: ${{ !cancelled() }}
+        run: node tests/worker-accrual.mjs
+
+      # THE META-GUARD. Every tests/*.mjs must be registered here, invoked by
+      # run-smoke.mjs, chained from another guard, or listed in
+      # tests/guards-unregistered.json with a written reason — and every step
+      # that passes --selftest must have a file that IMPLEMENTS it. Both halves
+      # exist because both failed silently: 12 guard files were reachable by
+      # nothing, and a --selftest flag a file ignores is a vacuous proof that
+      # reads exactly like a real one in a green log.
+      - name: Guard hygiene — no orphans, no vacuous selftests
+        if: ${{ !cancelled() }}
+        run: node tests/guard-hygiene.mjs --selftest
+      - name: Guard hygiene — base run
+        if: ${{ !cancelled() }}
+        run: node tests/guard-hygiene.mjs
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts

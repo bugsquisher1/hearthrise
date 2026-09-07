@@ -103,9 +103,20 @@ function readClientConfig() {
 // would simply not be on the list, and the guard would stay green while saying
 // nothing about it. Parse the file that already declares the intent, and fail
 // if a function directory exists with no [functions.<name>] section at all.
-function functionsUnderTest() {
-  const toml = fs.readFileSync(path.join(ROOT, 'supabase', 'config.toml'), 'utf8');
+/* `over` exists ONLY for --selftest: it lets a mutation hand this function a
+   different config.toml text, a different functions/ listing, or a different
+   SECTION PARSER, so the mutation is applied to the real caller rather than to
+   a re-implementation of it. Production callers pass nothing. */
+function functionsUnderTest(over = {}) {
+  const toml = over.toml ?? fs.readFileSync(path.join(ROOT, 'supabase', 'config.toml'), 'utf8');
   const declared = new Map();
+  if (over.parseSections) {
+    for (const [n, v] of over.parseSections(toml)) declared.set(n, v);
+    const d0 = path.join(ROOT, 'supabase', 'functions');
+    return { declared, onDisk: over.onDisk ?? (fs.existsSync(d0)
+      ? fs.readdirSync(d0, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+      : []) };
+  }
   // Split on section headers rather than a lookahead: JavaScript has no \Z, and
   // a `(?=^\[|\Z)` lookahead silently treats the Z as a literal, which drops the
   // LAST section in the file. That is precisely the "the guard checked n-1 of n
@@ -118,9 +129,9 @@ function functionsUnderTest() {
     declared.set(m[1], /verify_jwt\s*=\s*true/.test(sec));
   }
   const dir = path.join(ROOT, 'supabase', 'functions');
-  const onDisk = fs.existsSync(dir)
+  const onDisk = over.onDisk ?? (fs.existsSync(dir)
     ? fs.readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
-    : [];
+    : []);
   return { declared, onDisk };
 }
 
@@ -145,31 +156,13 @@ function gatewayRefused(r) {
   return /invalid jwt|missing authorization|jwt/i.test(r.text);
 }
 
-async function main() {
-  const cfg = readClientConfig();
-  const { declared, onDisk } = functionsUnderTest();
+/* THE VERDICT, as a pure function of what was measured.
+   Extracted from main() so --selftest can hand it a MEASUREMENT that models a
+   real regression (a body that answered, a 404, an undeclared directory) and
+   require this exact code — the code CI runs — to go red. Nothing about the
+   rules below is duplicated for the selftest. */
+function verdict({ declared, onDisk, probes }) {
   const problems = [];
-  const results = {};
-
-  // ── THE CONTROL, FIRST. If this does not pass, nothing below means anything.
-  const control = await post(
-    cfg.url + '/rest/v1/rpc/hr_leaderboard',
-    { apikey: cfg.anonKey, Authorization: 'Bearer ' + cfg.anonKey, 'Content-Type': 'application/json' },
-    JSON.stringify({ p_board: 'total_level', p_limit: 1, p_span: 0 }),
-  );
-  const controlOk = control.status === 200;
-  if (!controlOk) {
-    const msg = `CONTROL FAILED (hr_leaderboard → ${control.status}: ${control.text}). The project is `
-      + 'unreachable or paused, so "the gateway refused everything" below would be meaningless.';
-    if (STRICT) {
-      console.error('Edge JWT gate — ' + msg);
-      process.exit(1);
-    }
-    console.log('Edge JWT gate — SKIPPED (no reachable project).');
-    console.log('  ' + msg);
-    console.log('  Run with --strict to make this a failure.');
-    process.exit(0);
-  }
 
   // ── EVERY function directory must be DECLARED in config.toml ──────────────
   for (const name of onDisk) {
@@ -180,19 +173,13 @@ async function main() {
     }
   }
 
-  // ── THE PROBE ─────────────────────────────────────────────────────────────
   for (const [name, wantsVerify] of declared) {
-    const r = await post(
-      cfg.url + '/functions/v1/' + name,
-      {
-        apikey: cfg.anonKey,
-        Authorization: 'Bearer ' + GARBAGE_BEARER,
-        'Content-Type': 'application/json',
-      },
-      '{}',
-    );
-    results[name] = { status: r.status, body: r.text, declared_verify_jwt: wantsVerify };
-
+    const r = probes[name];
+    if (!r) {
+      problems.push(`${name}: declared in config.toml but never probed — a guard that skips a function is not `
+        + 'a statement about that function');
+      continue;
+    }
     if (r.status === -1) {
       problems.push(`${name}: the probe could not complete (${r.text}) — and the control DID reach the project, `
         + 'so this is about this function, not the network');
@@ -221,6 +208,51 @@ async function main() {
         + `\`supabase functions deploy ${name}\` — or flip it in the dashboard, then re-run this test.`);
     }
   }
+  return problems;
+}
+
+async function main() {
+  const cfg = readClientConfig();
+  const { declared, onDisk } = functionsUnderTest();
+  const results = {};
+
+  // ── THE CONTROL, FIRST. If this does not pass, nothing below means anything.
+  const control = await post(
+    cfg.url + '/rest/v1/rpc/hr_leaderboard',
+    { apikey: cfg.anonKey, Authorization: 'Bearer ' + cfg.anonKey, 'Content-Type': 'application/json' },
+    JSON.stringify({ p_board: 'total_level', p_limit: 1, p_span: 0 }),
+  );
+  const controlOk = control.status === 200;
+  if (!controlOk) {
+    const msg = `CONTROL FAILED (hr_leaderboard → ${control.status}: ${control.text}). The project is `
+      + 'unreachable or paused, so "the gateway refused everything" below would be meaningless.';
+    if (STRICT) {
+      console.error('Edge JWT gate — ' + msg);
+      process.exit(1);
+    }
+    console.log('Edge JWT gate — SKIPPED (no reachable project).');
+    console.log('  ' + msg);
+    console.log('  Run with --strict to make this a failure.');
+    process.exit(0);
+  }
+
+  // ── THE PROBE ─────────────────────────────────────────────────────────────
+  const probes = {};
+  for (const [name, wantsVerify] of declared) {
+    const r = await post(
+      cfg.url + '/functions/v1/' + name,
+      {
+        apikey: cfg.anonKey,
+        Authorization: 'Bearer ' + GARBAGE_BEARER,
+        'Content-Type': 'application/json',
+      },
+      '{}',
+    );
+    probes[name] = r;
+    results[name] = { status: r.status, body: r.text, declared_verify_jwt: wantsVerify };
+  }
+
+  const problems = verdict({ declared, onDisk, probes });
 
   if (AS_JSON) {
     console.log(JSON.stringify({ ok: problems.length === 0, control: control.status, results, problems }, null, 2));
@@ -238,5 +270,150 @@ async function main() {
   }
   process.exit(problems.length ? 1 : 0);
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// --selftest — THE MUTATION PROOF
+//
+// This guard's whole value is the DISTINCTION it draws: "the gateway refused
+// it" vs "our body answered". A green run proves nothing unless the code that
+// draws that distinction can be shown to go red when the distinction is
+// violated. So each mutation below feeds verdict() — the SAME function main()
+// calls, not a copy — a measurement that models a real, previously-shipped
+// regression, and requires a NAMED problem back.
+//
+// No mutation is a syntax break, and none touches the network: every one is a
+// posture production could actually be in, including the exact one measured on
+// 2026-08-23 (M1).
+// ════════════════════════════════════════════════════════════════════════════
+const MUTATIONS = [
+  {
+    id: 'M1-body-answered',
+    why: 'the 2026-08-23 finding itself: verify_jwt OFF, so bug-report-bridge\'s own body '
+       + 'answered a garbage bearer with its first validation error',
+    input: () => ({
+      declared: new Map([['hr-accrue', true], ['bug-report-bridge', true]]),
+      onDisk: ['hr-accrue', 'bug-report-bridge'],
+      probes: {
+        'hr-accrue': { status: 401, text: '{"code":"UNAUTHORIZED_INVALID_JWT_FORMAT","message":"Invalid JWT"}' },
+        'bug-report-bridge': { status: 400, text: '{"ok":false,"status":"bad_request","detail":"summary_required"}' },
+      },
+    }),
+    expect: /bug-report-bridge: A GARBAGE BEARER TOKEN/,
+  },
+  {
+    id: 'M2-declared-false',
+    why: 'somebody sets verify_jwt = false in config.toml and the gateway honours it — the '
+       + 'function is then correctly "refusing nothing", and a status-only guard would pass',
+    input: () => ({
+      declared: new Map([['hr-accrue', true], ['bug-report-bridge', false]]),
+      onDisk: ['hr-accrue', 'bug-report-bridge'],
+      probes: {
+        'hr-accrue': { status: 401, text: 'Invalid JWT' },
+        'bug-report-bridge': { status: 401, text: 'Invalid JWT' },
+      },
+    }),
+    expect: /bug-report-bridge: config\.toml declares verify_jwt = false/,
+  },
+  {
+    id: 'M3-undeclared-directory',
+    why: 'a NEW function ships with no [functions.x] section, so it deploys with whatever flag '
+       + 'the deployer typed and no list in this file would have mentioned it',
+    input: () => ({
+      declared: new Map([['hr-accrue', true]]),
+      onDisk: ['hr-accrue', 'hr-brand-new'],
+      probes: { 'hr-accrue': { status: 401, text: 'Invalid JWT' } },
+    }),
+    expect: /supabase\/functions\/hr-brand-new\/ has no \[functions\.hr-brand-new\] section/,
+  },
+  {
+    id: 'M4-declared-not-deployed',
+    why: 'config.toml describes a function production does not have — a posture nobody is running',
+    input: () => ({
+      declared: new Map([['hr-accrue', true]]),
+      onDisk: ['hr-accrue'],
+      probes: { 'hr-accrue': { status: 404, text: 'Function not found' } },
+    }),
+    expect: /hr-accrue: 404 — declared in config\.toml but not deployed/,
+  },
+  {
+    id: 'M5-our-own-401-is-not-the-gateway',
+    why: 'THE CORE DISTINCTION. Our own body can answer 401 too. A 401 whose text is our '
+       + 'wording (no "jwt"/"missing authorization") means the request REACHED our code, and '
+       + 'must not be read as a gateway refusal',
+    input: () => ({
+      declared: new Map([['bug-report-bridge', true]]),
+      onDisk: ['bug-report-bridge'],
+      probes: { 'bug-report-bridge': { status: 401, text: '{"ok":false,"status":"unauthorized","detail":"bad bearer shape"}' } },
+    }),
+    expect: /bug-report-bridge: A GARBAGE BEARER TOKEN/,
+  },
+  {
+    id: 'M6-parser-drops-last-section',
+    why: 'the \\Z-lookahead bug the parser comment warns about: a section parser that silently '
+       + 'drops the LAST [functions.*] section checks n-1 of n and reports green. Applied to '
+       + 'the REAL config.toml, through the real functionsUnderTest()',
+    // Mutates the CALLER's parser, not a fixture: the buggy regex is handed in.
+    input: () => {
+      const { declared, onDisk } = functionsUnderTest({
+        parseSections: (toml) => {
+          const out = [];
+          const re = /^\[functions\.([A-Za-z0-9_-]+)\]([\s\S]*?)(?=^\[|\Z)/gm;
+          let m; while ((m = re.exec(toml))) out.push([m[1], /verify_jwt\s*=\s*true/.test(m[2])]);
+          return out;
+        },
+      });
+      const probes = {};
+      for (const n of declared.keys()) probes[n] = { status: 401, text: 'Invalid JWT' };
+      return { declared, onDisk, probes };
+    },
+    expect: /has no \[functions\..*\] section in supabase\/config\.toml/,
+  },
+];
+
+function selftest() {
+  console.log('edge-jwt-gate --selftest: each mutation must turn the verdict RED\n');
+
+  // The CLEAN control first: the real config.toml, every function refused by
+  // the gateway. If this is not GREEN the mutations below prove nothing,
+  // because a guard that is red at rest is red for everything.
+  const real = functionsUnderTest();
+  const cleanProbes = {};
+  for (const n of real.declared.keys()) cleanProbes[n] = { status: 401, text: '{"message":"Invalid JWT"}' };
+  const clean = verdict({ declared: real.declared, onDisk: real.onDisk, probes: cleanProbes });
+  let bad = 0;
+  if (clean.length) {
+    bad++;
+    console.log('  FAIL  CLEAN control is RED with the real config.toml — the mutations below prove nothing');
+    for (const p of clean) console.log('          ' + p.slice(0, 160));
+  } else {
+    console.log(`  ok    CLEAN control is GREEN (${real.declared.size} declared, ${real.onDisk.length} on disk)`);
+  }
+
+  for (const m of MUTATIONS) {
+    let problems;
+    try { problems = verdict(m.input()); }
+    catch (e) { problems = ['THREW: ' + e.message]; }
+    const caught = problems.some((p) => m.expect.test(p));
+    if (!caught) {
+      bad++;
+      console.log(`  FAIL  ${m.id} — NOT CAUGHT (${problems.length} problem(s), none matching ${m.expect})`);
+      for (const p of problems) console.log('          ' + p.slice(0, 160));
+    } else {
+      console.log(`  ok    ${m.id} — caught`);
+    }
+    console.log(`        ${m.why}`);
+  }
+
+  console.log('');
+  if (bad) { console.log(`edge-jwt-gate --selftest FAILED — ${bad} unproven`); process.exit(1); }
+  console.log(`edge-jwt-gate --selftest PASSED — clean control green, ${MUTATIONS.length}/${MUTATIONS.length} mutations caught.`);
+  process.exit(0);
+}
+
+if (argv.includes('--list')) {
+  for (const m of MUTATIONS) console.log(m.id + '  —  ' + m.why);
+  process.exit(0);
+}
+if (argv.includes('--selftest')) selftest();
 
 main().catch((e) => { console.error('edge-jwt-gate: ' + (e && e.stack || e)); process.exit(1); });

@@ -4,6 +4,7 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+<<<<<<< HEAD
 ### 2026-09-07 — Systems Engineer — **A hero row that repeats a row directly below it is a CLASS on Home, not a First Light collision.** (P2, fixed)
 
 `HearthriseLaunchpad.getNextMilestone()` picks the closest OPEN GOAL out of skills + `G.quests` +
@@ -55,6 +56,45 @@ save-migration surface** — `q.claimed`, `q.done` and `q.progress` already ride
 
 ---
 
+=======
+### 2026-09-07 — Systems Engineer — **There are TWO `window.__smokeTest` definitions and which one a headless driver gets is a load-order RACE. The loser runs 20 stale tests, 5 of them red, and reports them as the suite.** (P2, pre-existing on main and on the merge-base — NOT fixed here)
+
+`src/legacy.js:18826` defines a "Smoke Test v1" runner over its own 20-entry `TESTS` array;
+`src/features/smoke-test.js setupSmokeTest()` later overwrites `window.__smokeTest` with the real
+1,174-test suite. **Measured, not theorised:** a driver that waits on
+`typeof window.__smokeTest === 'function'` and calls it immediately got the LEGACY one — which
+ignores `opts.only` entirely — and reported `F icons: skill icons mapped`, `F renders: skills +
+activities`, `F companions: data + state` and two more as failures of a filtered run that should
+have matched nothing. A second call in the same page hit the real runner. Same page, same build,
+different answer.
+
+`tests/run-smoke.mjs:3868` waits on the same ambiguous predicate. It has presumably always won the
+race (the ESM module is evaluated before `load` fires), but "presumably" is the exact shape §4
+calls a flake: the failure mode is a GREEN-looking 15/20 that is not the suite at all.
+
+**The unambiguous sentinel that exists today:** `window.__hrAddSmokeButton`, set only by
+`setupSmokeTest` under `__HR_TEST_HARNESS__`. Waiting on it cannot resolve early.
+
+**AFFECTED SYSTEMS:** `src/legacy.js` (the dead v1 suite), `src/features/smoke-test.js`,
+`tests/run-smoke.mjs`, any headless driver. **REQUIRED ACTION:** delete the v1 suite from
+legacy.js (it is ~200 lines of dead, stale-red duplicate — a cleanup-slice candidate) and, until
+then, harden the wait in `run-smoke.mjs` to the sentinel. Both are their own branch with their own
+gate; neither belongs in a merge commit.
+
+### 2026-09-07 — Systems Engineer — **Two different in-page tests are both numbered `SYNC-5`.** (P3, main's own collision, introduced by b519 `7284e6f0` — deliberately NOT renamed by me)
+
+`SYNC-5: an away receipt says WHY it stopped and that you got back up` (new in b519) and
+`SYNC-5: an ATTENDED live settle says nothing; an absence and a death still speak` (pre-existing).
+Both pass today, so nothing is red — but a CI line reading "SYNC-5 failed" names two tests, and
+`opts.only 'SYNC-5'` runs both. Confirmed present on `main` before this merge and absent from the
+merge-base, so it is not a merge artefact. Not renamed here: silently renumbering another lane's
+test inside a merge commit changes an ID the Coordinator and CI logs refer to.
+
+**AFFECTED SYSTEMS:** `src/features/smoke-test.js`. **REQUIRED ACTION:** whoever owns b519 renames
+the newer one (`SYNC-6`). Note the file already carries 9 other duplicate IDs
+(`B349-1 B431-1 COMBAT-UI-23 FARM-TIER-1/2/3 WAVE1/2/3`) — the class is worth one sweep and a
+uniqueness guard, not nine one-off fixes.
+>>>>>>> worktree-agent-aa4a6316109da010b
 
 ### 2026-09-07 — Art Director — **`background: var(--panel, var(--panel-2))` in legacy.css names two tokens that do not exist, so that surface paints nothing.** (P3, found by the new token guard, deliberately NOT fixed here)
 
@@ -87,6 +127,32 @@ The working method, now shipped as `tools/css-ab-pixel-diff.mjs`: one page load,
 
 **AFFECTED SYSTEMS:** every visual verification claim. **REQUIRED ACTION:** if you assert a CSS
 change is invisible, run the tool with `--control` in the same session and quote both numbers.
+
+### 2026-09-07 — Systems Engineer — **Two of the three defects named in the last-away-receipt security follow-up do not exist; the coverage hole is the OTHER map bound.** (measured, not read)
+
+**F3 (`awayMs` classifies the b345 night as 31 s).** FALSE. `accrual.js` `windowEnvelope` publishes
+two spans on adjacent lines and they are not the same number:
+`awayMs: credit.paidMs` is the **credited window**, `paidMs: earned` is the **span that earned**.
+Driven through the shipped engine (8 raw shrimp, cooking bench, 12 h window, seed 0x5eed1234):
+`awayMs = 43,200,000` · `paidMs = 30,720` · `classifiesAway = true` · **receipt stored**. The
+headline case works. Changing the classifier to the elapsed window would have bought nothing and
+cost a `player_state` write per tab-away, which is the journal-rule-6 failure the classifier exists
+to prevent. Pinned instead: `AWAY-RECEIPT-40..42` drive the real engine, and the mutation
+`classifier_reads_the_earning_span` (`s.awayMs` → `s.paidMs`) is now RED.
+
+**F5 (the §4(e) oversized probe trips the 64-entry cap first).** INVERTED. `hr_apply` checks V2
+(size, 2 KB) **before** V7 (entries, 64), and the fixture is 10,490 bytes across 400 entries — so
+it trips SIZE and the 2 KB rule already had its proof. The rule with **no executing proof anywhere**
+was the entry cap: 65 short-named entries serialise to ~915 bytes, under the size door, and that
+shape existed in no probe. Added on both sides (migration §4(e) `too_many_entries` + `(e-ii)` 64-entry
+control; guard `AWAY-RECEIPT-35b/c/d`), plus `sql_drops_the_entry_cap` as a mutation. Before this,
+deleting V7 outright stayed green.
+
+**AFFECTED:** `supabase/functions/hr-accrue/{accrual.js,away-receipt.js}`,
+`supabase/migrations/2026-09-07-last-away-receipt.sql`, `tests/away-receipt-journal.mjs`.
+**REQUIRED ACTION:** none outstanding — but the lesson generalises: when a brief names a line
+number and a symptom, execute the line before changing it. Both of these read correctly and
+measured wrong.
 
 ### 2026-09-06 — Art Director — **The arena stage has NEVER fitted its card at 900px, and every b227 red was a symptom of that.** (P1, fixed in b513)
 

@@ -612,6 +612,41 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/state-of-farm-projection.mjs --selftest
 
+      # THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07,
+      # supabase/migrations/2026-09-07-last-away-receipt.sql). A receipt the
+      # server PAID is progression, not preference: G.lastOfflineSummary is a
+      # NO_SYNC field (src/net/events.js:93), so ONE reload deleted the Home
+      # "While you were away" card, the welcome-back modal and the combat recap
+      # for a night the server had already paid, journalled and banked.
+      # The feature can fail in two OPPOSITE directions and the guard asserts
+      # both: it can write TOO LITTLE (the card is still empty), or TOO OFTEN --
+      # a receipt on every 90 s settle is ~40 column writes/hour/character on the
+      # hottest row in the database, which is the game_events mistake with a new
+      # name (1.6M rows / 229 MB from SIX players in FOUR days).
+      # It grades the SHIPPED code, not a transcription: awayReceiptFor lives in
+      # supabase/functions/hr-accrue/away-receipt.js (plain ESM, imports in Node
+      # AND Deno) exactly so this file can import what deploys, and hr_apply is
+      # CALLED FOR REAL on a replayed chain -- the builder's own output lands, is
+      # projected, round-trips through summaryFromAway and survives a settle that
+      # omits the key, while sync-sized / over-window / oversized / unknown-key /
+      # negative / gold-over-delta / window-less / non-object receipts are all
+      # refused with bad_receipt. It also holds the two allowlists and the three
+      # copies of SYNC_MAX_MS to each other, and proves index.ts recomputes the
+      # receipt on EVERY degrade attempt (the ladder halves the span; a receipt
+      # computed once would be refused as sync-sized and 409 the whole absence).
+      # 8 mutations; the four SQL arms are run GATE-BLIND (the migration's own
+      # SEC4 short-circuited) so the tick is the guard's and not the migration's.
+      # No credentials; production untouched.
+      - name: Away receipt journal - the night the server keeps, and the 90s one it must not
+        if: ${{ !cancelled() }}
+        run: node tests/away-receipt-journal.mjs --selftest
+
+      # Security C4 (2026-09-06): a --selftest-only registration cannot tell a broken
+      # migration from a working guard (every arm throws either way). Run the base too.
+      - name: Away receipt journal - base run (the migration itself is green)
+        if: ${{ !cancelled() }}
+        run: node tests/away-receipt-journal.mjs
+
       # SA-010 / Q-4: PURCHASED BANK SPACE WAS ENFORCED AT THE BASE CAP.
       # hr_unlock_buy sells bank space as a 30-rung ladder and files it as a
       # player_progress unlock row; NOTHING ever wrote player_state.bank_cap,

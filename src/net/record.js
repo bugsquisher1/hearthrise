@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileHp, reconcileRecovery, reconcileEventCounters } from './accrue.js?v=520';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileHp, reconcileRecovery, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=520';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1828,6 +1828,28 @@ function settle(verdict) {
        character). NOT arm-gated (writes a scratch key nothing else reads). Guarded —
        a throw here must never break the record load. */
     hydrationStep('hero-slots', () => reconcileHeroSlots(G, verdict.body));
+    /* ── THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07) ────────────────────
+       THE SAME IDLE-BOOT HYDRATION CLASS AS ITS NEIGHBOURS, and without this line
+       the feature is inert on the exact case it was built for. `reconcileAwayReceipt`
+       was wired ONLY into accrue.js's applyEnvelopeState, which runs ONLY on
+       `accrued:true` — and on the boot AFTER an absence has been paid, hr-accrue
+       answers `{accrued:false, reason:'idle'}` (nothing has elapsed since the last
+       settle beyond ACCRUE_MIN_MS), so applyEnvelopeState never ran and the seed
+       never happened. `G.lastOfflineSummary` is a NO_SYNC field, so the Home
+       "While you were away" card, the welcome-back modal and the combat recap all
+       rendered nothing for a night the server had paid, journalled and banked:
+       precisely the bug the ruling exists to delete. The hr_load body is the
+       ALWAYS-FULL statement of the character and hr_state_of projects
+       `state.last_away_receipt` raw, so the seed belongs HERE as well.
+
+       IDEMPOTENT AND HOLE-FILLING ONLY: reconcileAwayReceipt yields to any
+       in-session receipt, tests PRESENCE (a database predating the column says
+       nothing rather than rendering a fabricated empty night), and CREDITS
+       NOTHING — the seeded summary is marked `restored` and legacy.js's
+       `creditServerAwayKills` refuses a restored receipt at source, so a boot
+       seed can never feed the kill counters or the Muster's shared meter.
+       Guarded like its neighbours — a throw must never break the record load. */
+    hydrationStep('away-receipt', () => reconcileAwayReceipt(G, verdict.body));
     /* ── THE LIFETIME GOAL COUNTERS, HYDRATED FROM THE SAME ENVELOPE ──────────
        THE FOURTH INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477
        crew, SA-016 hero slots, now the `ev:*` counters) — and the one that had

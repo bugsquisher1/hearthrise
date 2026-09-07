@@ -2,6 +2,7 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+<<<<<<< HEAD
 ## 2026-09-07 · SYSTEMS → GAME DESIGNER + ART DIRECTOR + COORDINATOR · **SEMANTIC: "Next up" is no longer the only place Home says what to do next** (`worktree-agent-a5ec5d462bc708b2b`)
 
 Not a git conflict — a change of MODEL on a surface two other roles reason about.
@@ -28,6 +29,37 @@ rhythm. See HANDOFFS.
 **Not blocking.** The lane is green and self-consistent either way; this is a ruling to record, not a
 gate to pass.
 
+=======
+## 2026-09-07 · SYSTEMS → COORDINATOR · **RESOLVED IN THE MERGE: b519's away-card holder and the restored receipt disagreed, and together they reopened b519's own bug** (`worktree-agent-aa4a6316109da010b` ← `main bdf4429f`)
+
+Not a git conflict — git merged both files clean. A **semantic** one, of exactly the b361 shape the
+visual gate exists for: two individually-correct branches, broken by their interaction.
+
+**The two models.** b519 (main) moved the Home "While you were away" card off
+`G.lastOfflineSummary` — every 90-second settle overwrites it — onto a module-scope holder in
+`accrue.js`, written in `applyEnvelope` when the receipt classifies away. Its header reasons the
+holder need not survive a reload because *"on reload the very next envelope re-states the absence
+anyway"*. **That premise is precisely what this branch measured false**: once a night has been
+paid, the next boot's hr-accrue answers `{accrued:false, reason:'idle'}`, `applyEnvelope` never
+runs, and nothing re-states anything. It is why `player_state.last_away_receipt` exists at all.
+
+**What the clean merge produced (measured on the assembled tree, not reasoned):** the restore
+seeded `G.lastOfflineSummary` only, the card drew at boot, and the FIRST 90-second sync evicted it
+— `card=DRAWS` at boot, `card=NONE` one sync later. b519's bug wearing this feature's clothes, for
+the one case the feature exists to serve.
+
+**Resolved here, in my own function, in one line** (`reconcileAwayReceipt`, `src/net/accrue.js`):
+the restore also seeds b519's holder, routed through `classifyReceipt` (one classifier — b361's
+property, never a local re-decision) and **hole-filling only** (a holder already populated belongs
+to an absence THIS session applied, which is the fresher statement). Nothing is credited by either
+write. Pinned by `F1b` in the in-page suite, driven through the real path and graded on the
+RENDERED band; mutation-proved (delete the line → red on the holder assert, then on "the restored
+night was evicted").
+
+**Nothing is left open.** Recorded because a one-line change that reconciles two agents' models
+should never land silently, and because the b519 comment's premise is still written in the file
+next to my correction — a future reader must find the correction, not just the premise.
+>>>>>>> worktree-agent-aa4a6316109da010b
 
 ## 2026-09-04 · SYSTEMS → ART DIRECTOR (copy/DOM) + COORDINATOR · **SEMANTIC: the front door's success state is no longer a sentence** (`fix/signup-door`)
 

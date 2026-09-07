@@ -2104,10 +2104,37 @@ function wireServerActivity(){
    live loop did not run in — with server accrual on, `processOffline` returns
    before simulating anything, so nothing else credited these kills locally.
    `classifyReceipt` is the one place that away/sync/switch rule lives. */
+/* ── A RESTORED RECEIPT IS A SENTENCE, NEVER A PAYMENT (2026-09-07, security) ─
+   The realm now KEEPS the last away-classified receipt in
+   `player_state.last_away_receipt`, and `reconcileAwayReceipt` seeds
+   `G.lastOfflineSummary` from it so the Home card survives a reload. That seed
+   is a RESTATEMENT of a night that was paid, journalled and banked — possibly
+   many hours ago — and it classifies as 'away' by construction, which is
+   exactly what this function credits on.
+
+   Left alone, that is a real exploit and not a display bug: every restored
+   receipt that reached here would add its kills to lifetime `stats.kills` and
+   the this-fight streak, and would call `updateDaily('kill_any', k)` — the
+   wrapper chain the Muster hangs off (src/features/muster.js:~1878), which
+   turns the count into `world_event_contribute(p_event_key, p_points)` with
+   CLIENT-SUPPLIED points against a SHARED world-event meter. Reload, switch
+   activity, repeat: last night's forty-two kills re-credited into another
+   player's leaderboard every time, bounded only by the 6000/player/event cap.
+
+   TWO INDEPENDENT DEFENCES, because either one alone is a single line away
+   from being reopened by a caller that did not know:
+     1. STRUCTURAL — the one shipped call site passes `written.paidReceipt`, the
+        receipt for the delta THIS envelope just applied. The ambient
+        `G.lastOfflineSummary` fallback is deliberately GONE: a receipt nobody
+        handed us is a receipt nobody can vouch for, and "credit whatever is
+        lying in the holder" is the shape of the bug itself.
+     2. AT SOURCE — a summary marked `restored` is refused here whoever passed
+        it, including through the `window.creditServerAwayKills` global. */
 function creditServerAwayKills(summary){
   const A=window.HearthriseAccrual;
-  const s=summary||G.lastOfflineSummary;
-  if(!s)return 0;
+  const s=summary;
+  if(!s||typeof s!=='object')return 0;
+  if(s.restored===true)return 0;
   const kind=(A&&typeof A.classifyReceipt==='function')?A.classifyReceipt(s):null;
   if(kind!=='away')return 0;
   const k=(s.combat&&Number(s.combat.kills))||Number(s.gainedKills)||0;
@@ -2136,8 +2163,13 @@ function applyServerEnvelope(res,opts){
   if(!written)return null;
   /* BEFORE saveLocal + refreshAll below, so the credited counters persist and
      repaint in the same pass. A gather-only night has combat:null and credits
-     nothing; a live settle/switch is gated out inside the helper. */
-  try{ creditServerAwayKills(G.lastOfflineSummary); }catch(e){}
+     nothing; a live settle/switch is gated out inside the helper.
+     ⚠ `written.paidReceipt` — the receipt for the delta THIS envelope applied —
+       and NEVER `G.lastOfflineSummary`, which after a reload may hold the
+       server-RESTORED receipt for a night that was paid hours ago. An envelope
+       that paid nothing hands back nothing and credits nothing. See the block
+       above creditServerAwayKills. */
+  try{ creditServerAwayKills(written&&written.paidReceipt); }catch(e){}
   /* b340: the RECORD fields ride the same envelope, but they are written by
      record.js's applyRecord and by nothing else — one writer, FOUR callers
      (this away/settle path, the hr_load boot read, the switch, and — b395 —
